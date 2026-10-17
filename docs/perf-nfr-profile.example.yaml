@@ -1,0 +1,50 @@
+# Example NFR profile for run_perf_assessment.
+#
+# EVERY NUMBER BELOW IS AN EXAMPLE PLACEHOLDER, NOT A SALESFORCE RECOMMENDATION.
+# Replace them with values from the customer's signed NFR/SLA document. Any
+# metric left out is still measured and reported as "no threshold".
+#
+# The only built-in default is metadataDownloadP95Sec (warn 5s / fail 10s), the
+# published lsc-metadata-svc SLO. A profile can override it.
+#
+# Metrics (all lower-is-better; value > fail => FAIL, value > warn => WARN):
+#   predictedRecordsTotal     records an initial sync would download (worst territory)
+#   predictedRecordsPerTable  records in the single largest synced table
+#   deviceSoqlRequests        estimated SOQL requests the device issues for id-list filters
+#   initialSyncP95Sec         field telemetry: initial sync duration p95
+#   deltaSyncP95Sec           field telemetry: delta sync duration p95
+#   metadataDownloadP95Sec    field telemetry: metadata cache download p95
+#   syncFailureRatePct        field telemetry: % of syncs failed
+#   dbSizeP95Gb               field telemetry: on-device data DB size p95
+
+name: Example Pharma — US Field Force (EXAMPLE VALUES)
+
+telemetry:
+  days: 30
+
+# Applies to every persona unless the persona overrides it.
+thresholds:
+  syncFailureRatePct: { warn: 2, fail: 5 }
+  deltaSyncP95Sec: { warn: 60, fail: 120 }
+  initialSyncP95Sec: { warn: 900, fail: 1800 }
+
+personas:
+  # Pick the heaviest real users for each role: biggest territory, most
+  # accounts, most permission sets. 2–3 users per persona is usually enough.
+  - name: Primary Care Rep
+    users:
+      - rep.heaviest@example.com
+      - rep.typical@example.com
+    thresholds:
+      predictedRecordsTotal: { warn: 150000, fail: 300000 }
+      predictedRecordsPerTable: { fail: 100000 }
+
+  - name: Key Account Manager
+    users:
+      - kam.heaviest@example.com
+    # Optional: profile only this territory (name or Id) instead of all of
+    # the user's territories in the active model.
+    # territory: US-NE-KAM-01
+    thresholds:
+      predictedRecordsTotal: { warn: 250000, fail: 500000 }
+      dbSizeP95Gb: { warn: 2, fail: 4 }

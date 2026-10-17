@@ -88,6 +88,7 @@ This is a **Claude Code Plugin** providing an all-in-one LSC solution:
 | `lsc-briefings` | Guides Briefings (Daily Podcasts) configuration and troubleshooting |
 | `lsc-data-model` | Expert knowledge of the LSC data model |
 | `lsc-health-check` | Guides org health assessment and configuration verification |
+| `lsc-performance-validation` | Validates a customer configuration against performance NFRs/SLAs (predicted mobile sync volume, field sync telemetry, pass/warn/fail assessment) |
 | `lsc-data-migration` | Guides data loading and migration (account hierarchies, territory assignments, Veeva CRM migration) |
 | `lsc-config-migration` | Guides configuration migration between orgs (export → diff → selective import of admin settings, DB Schema, trigger handlers, actions; create + update-only safe apply) |
 | `lsc-demo-data-loading` | Guides loading demo data into LSC orgs (territories, accounts, HCPs, NPIs, contact points, PATI/PATS, business licenses, therapy-area scenarios, localization) |
@@ -117,6 +118,7 @@ This is a **Claude Code Plugin** providing an all-in-one LSC solution:
 | `/lsc:open-org` | Open the Salesforce org in the browser |
 | `/lsc:diff-orgs` | Compare configuration between two Salesforce orgs |
 | `/lsc:health-check` | Run a comprehensive LSC org health check |
+| `/lsc:perf-assessment` | Assess mobile sync performance against an NFR profile (pass/warn/fail report) |
 | `/lsc:release-notes` | View LSC release notes by Salesforce release |
 | `/lsc:export-config` | Export LSC org configuration as JSON |
 | `/lsc:import-config` | Import LSC configuration from JSON export |
@@ -326,6 +328,16 @@ The plugin includes an MCP server that provides these tools:
 | `export_config` | Export LSC configuration (Admin Console settings, DB Schema, trigger handlers, actions) as JSON |
 | `import_config` | Import LSC configuration from a snapshot into a target org. Diff-driven, create + update-only (safe). Modes: `report` (diff summary, default), `ui` (local browser review/apply UI on 127.0.0.1 with checkboxes + live progress), `apply` (headless apply of a selection). Auto-backs-up the target first; never deletes/deactivates target-only records |
 | `get_release_notes` | Get LSC release notes for a specific Salesforce release (Spring '26, Winter '26, etc.) |
+
+#### Performance & Scalability Tools
+
+All read-only against the org; safe in production. NFR profile format: `docs/perf-nfr-profile.example.yaml`.
+
+| Tool | Description |
+|------|-------------|
+| `profile_sync_volume` | Predict per-user mobile sync volume: resolves the user's DB Schema records, substitutes WhereSoql tags per territory as the iOS app does, runs COUNT() queries; reports records per table, estimated device SOQL requests, and failing filters |
+| `analyze_sync_telemetry` | Summarize real-device sync performance from `DeviceSyncSummary` (initial/delta sync p50/p90/p95, metadata download, DB size, failure rate, by network and app version, slowest syncs) |
+| `run_perf_assessment` | Evaluate personas in an NFR profile (YAML) against warn/fail thresholds using both tools above; markdown pass/warn/fail report, optional JSON output |
 
 #### Developer & Integrator Tools
 

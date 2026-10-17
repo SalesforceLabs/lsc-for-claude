@@ -6,7 +6,7 @@
 import { runToolingQuery, cachedToolingQuery } from "../salesforce/cli.js";
 
 // All 12 value columns on LifeSciConfigFieldValue (per the Life Sciences Developer Guide)
-const FV_VALUE_COLUMNS = [
+export const FV_VALUE_COLUMNS = [
   "TextValue",
   "IntegerValue",
   "PicklistValue",

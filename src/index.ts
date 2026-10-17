@@ -32,6 +32,7 @@ import { register as registerBulkOperations } from "./tools/bulk-operations.js";
 import { register as registerMetadata } from "./tools/metadata.js";
 import { register as registerBriefings } from "./tools/briefings.js";
 import { register as registerStudio } from "./tools/studio.js";
+import { register as registerPerf } from "./tools/perf.js";
 
 // Create the MCP server
 const server = new McpServer({
@@ -61,6 +62,7 @@ registerBulkOperations(server);
 registerMetadata(server);
 registerBriefings(server);
 registerStudio(server);
+registerPerf(server);
 
 // ============================================================================
 // MAIN

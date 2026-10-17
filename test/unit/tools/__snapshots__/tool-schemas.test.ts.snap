@@ -1,11 +1,12 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `76`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `79`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
   "add_navigation_tab",
   "add_visit_engagement_sidebar_item",
+  "analyze_sync_telemetry",
   "assign_permission_set",
   "assign_presentation_content",
   "audit_mobile_config",
@@ -60,8 +61,10 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "list_users",
   "list_validation_groups",
   "open_org",
+  "profile_sync_volume",
   "retrieve_metadata",
   "run_apex",
+  "run_perf_assessment",
   "run_soql",
   "search_lsc_knowledge",
   "set_target_org",
@@ -1247,6 +1250,77 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
   {
     "name": "studio_access_options",
     "params": {},
+  },
+  {
+    "name": "profile_sync_volume",
+    "params": {
+      "countAsOrg": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "idsPerQuery": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "targetOrg": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "territory": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "users": {
+        "optional": false,
+        "type": "ZodArray",
+      },
+    },
+  },
+  {
+    "name": "analyze_sync_telemetry",
+    "params": {
+      "days": {
+        "optional": true,
+        "type": "ZodOptional",
+      },
+      "profileName": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "targetOrg": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "users": {
+        "optional": true,
+        "type": "ZodArray",
+      },
+    },
+  },
+  {
+    "name": "run_perf_assessment",
+    "params": {
+      "countAsOrg": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "outputPath": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "profilePath": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "profileYaml": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "targetOrg": {
+        "optional": true,
+        "type": "ZodString",
+      },
+    },
   },
 ]
 `;
