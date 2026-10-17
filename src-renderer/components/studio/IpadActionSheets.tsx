@@ -226,6 +226,9 @@ function layoutsFor(snapshot: PublishedIpad, object: string, recordType: string)
 
 const VISIT_SIDEBAR = ["Content", "Product Messages", "Samples", "Drop Ship Samples", "Leave-Behinds", "Attendees"];
 
+// An organisation account has no samples or leave-behinds: the device greys these three sections out (measured on the device).
+const HCO_OFF = new Set(["Samples", "Drop Ship Samples", "Leave-Behinds"]);
+
 const Lock = () => (
   <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
     <rect x="4" y="9.5" width="14" height="10" rx="2" fill="currentColor" />
@@ -408,7 +411,7 @@ function VisitEditor({ ctx, edit, onClose }: { ctx: SheetContext; edit?: string;
       <div className="studio-ipad-act-visit">
         <div className="studio-ipad-act-side">
           {sidebar.map((l) => (
-            <div key={l} className="studio-ipad-act-card">
+            <div key={l} className={`studio-ipad-act-card${account && !account.person && HCO_OFF.has(l) ? " off" : ""}`}>
               <span className="studio-ipad-act-chev">›</span>
               <span className="studio-ipad-act-cardl">{l}</span>
             </div>
