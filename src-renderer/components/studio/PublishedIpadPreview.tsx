@@ -18,6 +18,9 @@ import { hasNativeScreen, NativeScreen } from "./screens";
 import { IpadSearchField, IpadStatusBar, IpadTopBar, type ChromeTab } from "./IpadChrome";
 import { initials } from "./ipad-chrome";
 import { ChromeSheets, SearchTab, type ChromeSheet } from "./IpadChromeSheets";
+import { CardList, cardModeFor, saveCardMode, SortButton, sortRows, ViewModeButton, type SortState } from "./IpadListControls";
+import IpadActionSheet from "./IpadActionSheets";
+import type { Presentation } from "./ipad-fab-actions";
 import { CustomIcon } from "./assets/icons";
 import {
   ActivityPlanProgress,
@@ -87,6 +90,7 @@ function Device({
   // The id of the open record ("" when the list row has no prefetched data); null shows the list.
   const [record, setRecord] = useState<string | null>(null);
   const [sheet, setSheet] = useState<ChromeSheet | null>(null);
+  const [newSheet, setNewSheet] = useState<Presentation | null>(null);
   const tab = snapshot.tabs.find((t) => t.fullName === current) ?? snapshot.tabs[0];
   const open = (t: PublishedTab) => {
     setCurrent(t.fullName);
@@ -157,13 +161,15 @@ function Device({
           onBack={record !== null ? () => setRecord(null) : undefined}
           name={initials(snapshot.viewer?.name ?? snapshot.profile)}
           onBriefings={() => setSheet({ kind: "briefings" })}
+          briefingsOpen={sheet?.kind === "briefings"}
           onBell={() => setSheet({ kind: "alerts" })}
           onAvatar={() => setSheet({ kind: "profile" })}
         />
         <div className={`studio-ipad-page${tab?.kind === "empty" ? " blank" : ""}${onHome ? " home" : ""}${tab?.kind === "reports" && snapshot.reports ? " flush" : ""}${record === null && hasNativeScreen(tab, snapshot) ? " native" : ""}${record === null && isLwcOnly(tab, snapshot) ? " lwc-full" : ""}${record && snapshot.records?.byId[record] ? " record" : ""}`}>
-          {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={setRecord} onNew={(label) => setSheet({ kind: "new", label })} />}
+          {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={setRecord} onNew={(label, objectName) => setNewSheet(newPresentation(label, objectName))} />}
         </div>
         <ChromeSheets sheet={sheet} snapshot={snapshot} onClose={() => setSheet(null)} />
+        {newSheet && <IpadActionSheet presentation={newSheet} ctx={{ snapshot, record: null }} onClose={() => setNewSheet(null)} />}
         <IpadFabs snapshot={snapshot} tab={tab} record={record} agentforce={homeHasAgentforce} />
       </IpadScreen>
 
@@ -191,7 +197,7 @@ function Screen({
   snapshot: PublishedIpad;
   record: string | null;
   onOpenRecord: (id: string) => void;
-  onNew: (label: string) => void;
+  onNew: (label: string, objectName: string) => void;
 }) {
   // An open record takes precedence over the tab's native screen (the Accounts cards open their record).
   if (record !== null && snapshot.records?.byId[record]) return <RecordScreen snapshot={snapshot} recordId={record} />;
@@ -549,27 +555,26 @@ function ListView({
   lists?: Record<string, PublishedListData>;
   accounts: boolean;
   onOpenRecord: (id: string) => void;
-  onNew: (label: string) => void;
+  onNew: (label: string, objectName: string) => void;
 }) {
   const [viewName, setViewName] = useState(object.defaultListView);
   const [query, setQuery] = useState("");
-  const [cards, setCards] = useState(false);
+  const [cards, setCards] = useState(() => cardModeFor(object.name));
+  const [sort, setSort] = useState<SortState | null>(null);
   const view = object.listViews.find((l) => l.name === viewName) ?? object.listViews[0];
   // A list named "All" is titled "All <plural>".
   const title = !view ? object.labelPlural : view.label === "All" ? `All ${object.labelPlural}` : view.label;
   return (
     <div className="studio-ipad-lv">
       <Head eyebrow={tab.label} title={title} theme={object.theme}>
-        <button type="button" className="studio-ipad-outline-btn" onClick={() => onNew(`New ${accounts ? "Account" : object.label}`)}>New{accounts ? " Account" : ""}</button>
+        <button type="button" className="studio-ipad-outline-btn" onClick={() => onNew(`New ${accounts ? "Account" : object.label}`, object.name)}>New{accounts ? " Account" : ""}</button>
       </Head>
       <div className="studio-ipad-lv-search">
         <IpadSearchField value={query} onChange={setQuery} />
-        <button type="button" className="studio-ipad-lv-toggle" title={cards ? "Switch to list view" : "Switch to card view"} onClick={() => setCards(!cards)}>
-          <svg width="22" height="22" viewBox="0 0 22 22">
-            <rect x="2.5" y="4" width="17" height="14" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
-            <path d="M6 8h1.5M6 11h1.5M6 14h1.5M9.5 8H16M9.5 11H16M9.5 14H16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          </svg>
-        </button>
+        <span className="studio-ipad-lv-right">
+          <ViewModeButton cards={cards} onToggle={() => { saveCardMode(object.name, !cards); setCards(!cards); }} />
+          {cards && view && <SortButton columns={view.columns.map(columnLabel)} sort={sort ?? { column: 0, ascending: true }} onSort={setSort} />}
+        </span>
       </div>
       {/* The chip row is hidden when there's only one list view. */}
       {object.listViews.length > 1 && (
@@ -595,7 +600,8 @@ function ListView({
           const data = lists?.[`${object.name}.${view.name}`];
           // The search field filters the loaded rows on any cell (didEnterSearchText); placeholder rows have nothing to match.
           const q = query.trim().toLowerCase();
-          const shown = data && q ? { ...data, rows: data.rows.filter((r) => r.cells.some((c) => c?.toLowerCase().includes(q))) } : data;
+          const filtered = data && q ? { ...data, rows: data.rows.filter((r) => r.cells.some((c) => c?.toLowerCase().includes(q))) } : data;
+          const shown = filtered && sort ? { ...filtered, rows: sortRows(filtered.rows, sort) } : filtered;
           if (shown?.rows.length === 0) {
             // AllSObjectsViewController.updateEmptyStateVisibilityIfRequired: an empty list hides the table for APEmptyPlaceholder.
             return (
@@ -606,17 +612,7 @@ function ListView({
             );
           }
           if (cards && shown) {
-            return (
-              <div className="studio-ipad-chrome-cards">
-                {shown.rows.map((r) => (
-                  <button key={r.id} type="button" className="studio-ipad-chrome-card" onClick={() => onOpenRecord(r.id)}>
-                    {view.columns.slice(0, 3).map((c, i) => (
-                      <span key={i} className={i === 0 ? "first" : ""}>{i === 0 ? r.cells[i] : `${columnLabel(c)}: ${r.cells[i] ?? ""}`}</span>
-                    ))}
-                  </button>
-                ))}
-              </div>
-            );
+            return <CardList rows={shown.rows} onOpen={onOpenRecord} links={((view as { query?: { fields: ({ type: string } | null)[] } }).query?.fields ?? []).map((f) => f?.type === "lookup" || f?.type === "formula")} />;
           }
           return <DataTable columns={view.columns.map(columnLabel)} data={shown} onOpenRecord={onOpenRecord} />;
         })()}
@@ -744,4 +740,10 @@ function RecordView({ object, snapshot }: { object: PublishedObject; snapshot: P
       </div>
     </>
   );
+}
+
+/** SObjectsCoordinator.showAddNewScreen: Inquiry opens its record type picker; other objects open the create form, which Studio can't run. */
+function newPresentation(label: string, objectName: string): Presentation {
+  if (/inquir/i.test(objectName)) return { kind: "inquiry" };
+  return { kind: "placeholder", title: label, type: "Create form", target: objectName, detail: "The app opens the object's create form here; Studio never saves records." };
 }

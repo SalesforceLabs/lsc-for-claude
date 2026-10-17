@@ -2,6 +2,7 @@
 
 import { collectAccounts, type PublishedAccounts } from "./accounts.js";
 import { collectCalendar, type PublishedCalendar } from "./calendar.js";
+import { collectChrome, type PublishedChrome } from "./chrome.js";
 import { collectContent, type PublishedContent } from "./content.js";
 import type { ScreenContext } from "./context.js";
 import { collectFabs, type PublishedFabs } from "./fabs.js";
@@ -9,7 +10,7 @@ import { collectHome, type PublishedHome } from "./home.js";
 import { collectTableau, type PublishedTableau } from "./tableau.js";
 
 export type { ScreenContext } from "./context.js";
-export type { PublishedAccounts, PublishedCalendar, PublishedContent, PublishedFabs, PublishedHome, PublishedTableau };
+export type { PublishedAccounts, PublishedCalendar, PublishedChrome, PublishedContent, PublishedFabs, PublishedHome, PublishedTableau };
 
 export interface PublishedScreens {
   content?: PublishedContent;
@@ -18,6 +19,7 @@ export interface PublishedScreens {
   tableau?: PublishedTableau;
   fabs?: PublishedFabs;
   home?: PublishedHome;
+  chrome?: PublishedChrome;
 }
 
 const COLLECTORS: { [K in keyof PublishedScreens]-?: { kind: string | null; collect: (ctx: ScreenContext) => Promise<PublishedScreens[K]> } } = {
@@ -29,6 +31,8 @@ const COLLECTORS: { [K in keyof PublishedScreens]-?: { kind: string | null; coll
   fabs: { kind: null, collect: collectFabs },
   // Home's components (NBC cards, Visits To Submit, Activity Plan Progress) read data too; Home has no collector of its own.
   home: { kind: null, collect: collectHome },
+  // Alerts and the profile sheet belong to the top bar, not to a tab.
+  chrome: { kind: null, collect: collectChrome },
 };
 
 /** Runs the collector of each screen the viewer has a tab for; one that fails is left out. */

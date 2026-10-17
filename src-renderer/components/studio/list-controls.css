@@ -1,0 +1,20 @@
+/* List view controls (AllSObjectsViewController, CardDataTableViewLayout, DataTableCardCell). */
+.studio-ipad-lv-right { display: inline-flex; align-items: center; gap: 12px; }
+.studio-ipad-lv-sortwrap { position: relative; display: inline-flex; }
+.studio-ipad-lv-sort { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; height: 42px; padding: 0 16px; border: 1px solid #5c5c5c; border-radius: 999px; background: #fff; color: #0250d9; font-size: 17px; font-weight: 600; cursor: pointer; }
+.studio-ipad-lv-sort-scrim { position: fixed; inset: 0; z-index: 40; }
+.studio-ipad-lv-sort-menu { position: absolute; top: 48px; right: 0; z-index: 41; box-sizing: border-box; width: 280px; margin: 0; padding: 8px 0; list-style: none; border-radius: 14px; background: #fff; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25); }
+.studio-ipad-lv-sort-item { display: flex; align-items: center; gap: 8px; width: 100%; height: 44px; padding: 0 16px; border: none; background: none; font-size: 16px; text-align: left; color: #2e2e2e; cursor: pointer; }
+.studio-ipad-lv-sort-item .check { width: 18px; color: #0250d9; }
+.studio-ipad-lv-sort-item .label { flex: 1; }
+
+/* Card mode: one column, 8pt apart, at least 110pt tall, 20pt radius, 16pt padding; the fields take 63% of (width - 64). */
+.studio-ipad-lv-cards { display: flex; flex-direction: column; gap: 9px; margin-top: 11px; }
+.studio-ipad-lv-card { display: flex; align-items: stretch; box-sizing: border-box; width: 100%; min-height: 109px; padding: 16px; border: none; border-radius: 20px; background: #fff; text-align: left; color: #2e2e2e; cursor: pointer; }
+.studio-ipad-lv-card .fields { display: flex; flex-direction: column; justify-content: center; gap: 4px; min-width: 0; max-width: 722px; }
+.studio-ipad-lv-card .fields > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.studio-ipad-lv-card .f1 { font-size: 20px; font-weight: 600; }
+.studio-ipad-lv-card .f2 { font-size: 16px; }
+.studio-ipad-lv-card .f3 { display: flex; gap: 8px; font-size: 16px; }
+.studio-ipad-lv-card .f3 .bold { font-weight: 600; }
+.studio-ipad-lv-card .link { color: #0062fe; }

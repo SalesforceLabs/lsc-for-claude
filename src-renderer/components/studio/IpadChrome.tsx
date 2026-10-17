@@ -43,6 +43,7 @@ export function IpadTopBar({
   onBack,
   name,
   onBriefings,
+  briefingsOpen,
   onBell,
   onAvatar,
 }: {
@@ -54,6 +55,7 @@ export function IpadTopBar({
   onBack?: () => void;
   name: string;
   onBriefings?: () => void;
+  briefingsOpen?: boolean;
   onBell?: () => void;
   onAvatar?: () => void;
 }) {
@@ -116,13 +118,22 @@ export function IpadTopBar({
         )}
       </nav>
       <div className="studio-ipad-nav-buttons">
-        <button type="button" className="studio-ipad-round briefings" title="Briefings" onClick={onBriefings}>
-          <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="11" cy="13" r="8.5" fill="none" stroke="currentColor" strokeWidth="2.2" />
-            <path d="M9 9.5v7l6-3.5-6-3.5Z" fill="currentColor" />
-            <path d="m19 2 .8 1.7 1.7.8-1.7.8L19 7l-.8-1.7-1.7-.8 1.7-.8L19 2Z" fill="currentColor" />
-          </svg>
-          <span className="studio-ipad-round-dot" />
+        <button type="button" className={`studio-ipad-round briefings${briefingsOpen ? " open" : ""}`} title="Briefings" onClick={onBriefings}>
+          {briefingsOpen ? (
+            // The player is up: the button shows the waveform and drops the new-briefing dot.
+            <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 10v4M7 7v10M11 3v18M15 7v10M19 10v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <>
+              <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="13" r="8.5" fill="none" stroke="currentColor" strokeWidth="2.2" />
+                <path d="M9 9.5v7l6-3.5-6-3.5Z" fill="currentColor" />
+                <path d="m19 2 .8 1.7 1.7.8-1.7.8L19 7l-.8-1.7-1.7-.8 1.7-.8L19 2Z" fill="currentColor" />
+              </svg>
+              <span className="studio-ipad-round-dot" />
+            </>
+          )}
         </button>
         <button type="button" className="studio-ipad-round bell" title="Notifications" aria-label="Notifications" onClick={onBell}>
           <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">

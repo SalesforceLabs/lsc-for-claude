@@ -45,3 +45,73 @@
 .studio-ipad-chrome-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .studio-ipad-chrome-card { display: flex; flex-direction: column; gap: 4px; padding: 14px; border: none; border-radius: 12px; background: #fff; text-align: left; font-size: 14px; color: #444; cursor: pointer; }
 .studio-ipad-chrome-card .first { font-size: 17px; font-weight: 600; color: #2e2e2e; }
+
+/* Measured on the device (bell*.png, profile.png), points: sheet 590x642, alert card 1005x113, empty card full width. */
+.studio-ipad-chrome-sheet.profile { overflow-y: auto; }
+.studio-ipad-chrome-username { text-align: center; font-size: 15px; color: #444; }
+.studio-ipad-chrome-synced { margin-top: 12px; text-align: center; font-size: 15px; color: #444; }
+.studio-ipad-chrome-row.territory { display: flex; align-items: center; justify-content: space-between; text-align: left; font-weight: 400; }
+.studio-ipad-chrome-modal-head { padding-left: 0; }
+.studio-ipad-chrome-bellbadge { width: 48px; height: 48px; margin-left: 0; }
+.studio-ipad-chrome-pills { margin-left: 62px; }
+.studio-ipad-chrome-empty-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; box-sizing: border-box; margin-top: 16px; height: 638px; border-radius: 20px; background: #fff; }
+.studio-ipad-chrome-alerts { display: flex; flex-direction: column; gap: 12px; margin: 16px 86px 0; }
+.studio-ipad-chrome-alert-card { display: flex; gap: 12px; box-sizing: border-box; min-height: 113px; padding: 18px; border-radius: 20px; background: #fff; }
+.studio-ipad-chrome-alert-icon { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: #747474; }
+.studio-ipad-chrome-alert-when { font-size: 15px; color: #5c5c5c; }
+.studio-ipad-chrome-alert-title { margin-top: 12px; font-size: 18px; font-weight: 700; }
+.studio-ipad-chrome-alert-body { margin-top: 4px; font-size: 18px; color: #2e2e2e; }
+.studio-ipad-chrome-alert-body a { color: #0250d9; }
+
+/* Device-measured text (bell.png): date 14, title 16 semibold, body 16; pills 14 semibold. */
+.studio-ipad-chrome-modal-head { height: 68px; }
+.studio-ipad-chrome-pills { margin-top: 22px; }
+.studio-ipad-chrome-pill { font-size: 14px; }
+.studio-ipad-chrome-alert-card { gap: 14px; min-height: 0; padding: 18px 18px 16px; }
+.studio-ipad-chrome-alert-icon { background: #a8a8a8; }
+.studio-ipad-chrome-alert-when { height: 32px; line-height: 32px; font-size: 14px; color: #3c3c3c; }
+.studio-ipad-chrome-alert-title { margin-top: 3px; font-size: 16px; line-height: 22px; font-weight: 600; color: #000; }
+.studio-ipad-chrome-alert-body { margin-top: 0; font-size: 16px; line-height: 22px; color: #252525; }
+.studio-ipad-chrome-alert-body a { color: #0062fe; text-decoration: none; }
+.studio-ipad-chrome-empty-card { gap: 16px; }
+
+/* Briefings (device-briefings.png): card x446..764 y328..698; mini player x278..932 y722..792, navy #03234d. */
+.studio-ipad-chrome-brief { position: absolute; inset: 0; z-index: 50; pointer-events: none; }
+.studio-ipad-chrome-brief > * { pointer-events: auto; }
+.studio-ipad-chrome-brief-card { position: absolute; left: 446px; top: 328px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; width: 318px; height: 370px; padding: 12px 24px; border-radius: 20px; background: #fff; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25); text-align: center; }
+.studio-ipad-chrome-brief-title { margin-top: 24px; font-size: 20px; line-height: 28px; font-weight: 600; color: #2e2e2e; }
+.studio-ipad-chrome-brief-body { margin-top: 8px; font-size: 16px; line-height: 25px; color: #444; }
+.studio-ipad-chrome-brief-ok { position: absolute; left: 24px; right: 24px; bottom: 24px; height: 47px; border: none; border-radius: 24px; background: #004dd8; color: #fff; font-size: 17px; font-weight: 600; cursor: pointer; }
+.studio-ipad-chrome-brief-bar { position: absolute; left: 278px; top: 722px; box-sizing: border-box; display: flex; align-items: center; gap: 14px; width: 654px; height: 70px; padding: 0 16px; border-radius: 35px; background: #03234d; color: #fff; }
+.studio-ipad-chrome-brief-bar .grip { position: absolute; left: 50%; top: 4px; width: 32px; height: 4px; margin-left: -16px; border-radius: 2px; background: #516783; }
+.studio-ipad-chrome-brief-bar .track { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
+.studio-ipad-chrome-brief-bar .name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 17px; font-weight: 600; }
+.studio-ipad-chrome-brief-bar .progress { height: 3px; background: #98a0ae; }
+.studio-ipad-chrome-brief-bar .play { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%; background: #0250d9; }
+.studio-ipad-chrome-brief-bar .act { display: inline-flex; align-items: center; gap: 6px; border: none; background: none; color: #fff; font-size: 16px; font-weight: 600; cursor: pointer; }
+
+.studio-ipad-chrome-brief-title { margin-top: 20px; text-wrap: balance; }
+.studio-ipad-chrome-brief-body { margin-top: 4px; }
+.studio-ipad-chrome-brief-bar { gap: 17px; padding: 0 13px 0 30px; }
+.studio-ipad-chrome-brief-bar > svg:first-of-type { margin-right: -4px; }
+.studio-ipad-chrome-brief-bar .track { flex: none; width: 304px; }
+.studio-ipad-round.briefings.open { background: #e4e4e4; color: #444; }
+
+/* Profile sheet, device-measured (profile.png): points. */
+.studio-ipad-chrome-sheet.profile { scrollbar-width: none; }
+.studio-ipad-chrome-sheet.profile::-webkit-scrollbar { display: none; }
+.studio-ipad-chrome-sheet.profile > * { flex: none; }
+.studio-ipad-chrome-sheet.profile .studio-ipad-chrome-done { padding: 0; font-size: 17px; line-height: 24px; }
+.studio-ipad-chrome-sheet.profile .studio-ipad-chrome-avatar { margin-top: 32px; font-size: 22px; }
+.studio-ipad-chrome-sheet.profile .studio-ipad-chrome-name { margin-top: 18px; font-size: 24px; line-height: 30px; font-weight: 400; }
+.studio-ipad-chrome-sheet.profile .studio-ipad-chrome-profile { font-size: 14px; line-height: 20px; }
+.studio-ipad-chrome-sheet.profile .studio-ipad-chrome-username { font-size: 14px; line-height: 20px; color: #2e2e2e; }
+.studio-ipad-chrome-sheet.profile .studio-ipad-chrome-sync { justify-content: center; box-sizing: border-box; min-width: 212px; height: 44px; margin-top: 23px; padding: 0 24px; border-color: #5c5c5c; font-size: 18px; }
+.studio-ipad-chrome-sheet.profile .studio-ipad-chrome-synced { margin-top: 8px; font-size: 14px; line-height: 20px; color: #2e2e2e; }
+.studio-ipad-chrome-sheet.profile .studio-ipad-chrome-hint { display: flex; align-items: center; justify-content: center; gap: 9px; margin: 11px 0 21px; font-size: 14px; line-height: 20px; }
+.studio-ipad-chrome-sheet.profile .studio-ipad-chrome-row { display: flex; align-items: center; justify-content: center; height: 55px; margin-top: 0; padding: 0 16px; font-size: 17px; }
+.studio-ipad-chrome-sheet.profile .studio-ipad-chrome-section { margin: 32px 0 13px; font-size: 18px; line-height: 22px; }
+.studio-ipad-chrome-sheet.profile .studio-ipad-chrome-row.territory { height: 66px; justify-content: space-between; font-weight: 600; }
+.studio-ipad-chrome-sheet.profile .studio-ipad-chrome-row.view-online { position: relative; margin-top: 42px; }
+.studio-ipad-chrome-sheet.profile .studio-ipad-chrome-row.view-online::before { content: ""; position: absolute; left: 0; right: 0; top: -25px; height: 1px; background: #d0d0d0; }
+.studio-ipad-chrome-sheet.profile .studio-ipad-chrome-row + .studio-ipad-chrome-row:not(.view-online) { margin-top: 8px; }

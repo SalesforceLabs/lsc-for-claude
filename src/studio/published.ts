@@ -1247,7 +1247,7 @@ export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing |
 
 const FILES = ["nav", "ui", "permissions", "db", "sobjects", "reporting"] as const;
 const CACHE_ROOT = path.join(os.tmpdir(), "lsc-studio-published");
-const SNAPSHOT_VERSION = 22;
+const SNAPSHOT_VERSION = 23;
 /** UserService.defaultLanguage — the translation file used when the user's is missing. */
 const DEFAULT_LANGUAGE = "en_US";
 /** Distinct permission-set combinations pre-built per download. */
