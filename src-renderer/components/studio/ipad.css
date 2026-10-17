@@ -2063,35 +2063,6 @@ button.studio-ipad-chip {
   background: #e5e5e5;
 }
 
-/* Floating buttons: fixed over the page, 30pt from the bottom-right corner. */
-.studio-ipad-h-fabs {
-  position: absolute;
-  right: 30px;
-  bottom: 30px;
-  display: flex;
-  gap: 16px;
-  pointer-events: none;
-}
-
-.studio-ipad-h-fab {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-}
-
-.studio-ipad-h-fab.more {
-  background: #0250d9;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
-}
-
-.studio-ipad-h-fab.astro {
-  background: #fff;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
-}
-
 /* Reports tab: MultiReportsViewController's 64pt header over the report tree, on white. */
 .studio-ipad-page.flush {
   padding: 0;

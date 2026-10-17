@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { actionLabel, formatValue, isEditable, isFieldReadable, menuActions, parseInlineCard, relatedKey } from "../../../../src/studio/screens/record.js";
-import { gridWidths, highlightWidths, menuActions as rendererMenuActions } from "../../../../src-renderer/components/studio/IpadRecord";
+import { gridWidths, highlightWidths } from "../../../../src-renderer/components/studio/IpadRecord";
 
 const fmt = { timeZone: "UTC", locale: "en-US" };
 
@@ -28,7 +28,6 @@ describe("isEditable", () => {
 describe("menu actions", () => {
   it("drops Edit, Unlock and ChangeOwner", () => {
     expect(menuActions(["Visit.Edit", "Visit.lsc4ce__Email", "Visit.Unlock", "ChangeOwnerOne"])).toEqual(["Visit.lsc4ce__Email"]);
-    expect(rendererMenuActions(["Edit", "Visit.lsc4ce__Email"]).map((a) => a.label)).toEqual(["Email"]);
   });
   it("labels actions", () => expect(actionLabel("Visit.lsc4ce__LogCall")).toBe("Log Call"));
 });

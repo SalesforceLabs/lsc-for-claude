@@ -9,7 +9,7 @@ import type {
   PublishedRelated,
   RecordFieldSpec,
 } from "./published-types";
-import { AstroIcon, EmptyArt } from "./IpadHome";
+import { EmptyArt } from "./IpadHome";
 import "./record.css";
 import { CustomIcon, FileIcon, PersonAccountIcon } from "./assets/icons";
 
@@ -46,13 +46,6 @@ export function gridWidths(columns: { title: string; cells: string[] }[], max: n
   const widths = columns.map((c) => Math.max(measure(c.title, true), ...c.cells.map((x) => measure(x, false))) + 50);
   const total = widths.reduce((a, b) => a + b, 0);
   return total < max && widths.length ? widths.map((w) => w + (max - total) / widths.length) : widths;
-}
-
-/** The ••• menu: the page's dynamic actions minus Edit (the section pencil), Unlock, and ChangeOwner*. */
-export function menuActions(names: string[]): { name: string; label: string }[] {
-  return names
-    .filter((a) => !/^(?:\w+\.)?edit$/i.test(a) && !/unlock$/i.test(a) && !/^ChangeOwner/i.test(a))
-    .map((a) => ({ name: a, label: (a.split(".").pop() ?? a).replace(/^\w+__/, "").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ") }));
 }
 
 /** Only plain lookups are tappable links; master-detail and record type references print as text. */
@@ -92,17 +85,6 @@ function mainComponents(page: ReturnType<typeof pageOf>["page"]): PublishedCompo
 }
 
 const bare = (name: string) => name.replace(/^.*:/, "");
-
-function highlightsActions(page: ReturnType<typeof pageOf>["page"]): string[] {
-  const walk = (cs: PublishedComponent[]): string[] => cs.flatMap((c) => (bare(c.name) === "highlightsPanel" ? (c.actions ?? []) : walk((c.tabs ?? []).flatMap((t) => t.components))));
-  return walk(mainComponents(page));
-}
-
-/** The ••• menu for a record, as LSC Mobile decides it. */
-export function recordMenu(snapshot: PublishedIpad, recordId: string): { name: string; label: string }[] {
-  const rec = snapshot.records?.byId[recordId];
-  return rec ? menuActions(highlightsActions(pageOf(snapshot, rec).page)) : [];
-}
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -427,44 +409,5 @@ function InlineCard({ snapshot, rec, name }: { snapshot: PublishedIpad; rec: Pub
         ))}
       </div>
     </div>
-  );
-}
-
-// ── Floating buttons ──────────────────────────────────────────────────────────
-
-/** The Agentforce button and the ••• button; ••• opens the action menu over a dimmed screen. */
-export function RecordFabs({ actions }: { actions: { name: string; label: string }[] }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      {open && <div className="studio-ipad-rec-dim" onClick={() => setOpen(false)} />}
-      <div className={`studio-ipad-h-fabs studio-ipad-rec-fabs${open ? " open" : ""}`}>
-        {open && actions.length > 0 && (
-          <div className="studio-ipad-rec-menu">
-            {actions.map((a) => (
-              <span key={a.name} className="studio-ipad-rec-menu-item" title={a.name}>
-                {a.label}
-              </span>
-            ))}
-          </div>
-        )}
-        <span className="studio-ipad-h-fab astro">
-          <AstroIcon size={30} />
-        </span>
-        <button type="button" className={`studio-ipad-h-fab more studio-ipad-rec-more${open ? " open" : ""}`} onClick={() => setOpen(!open)} aria-label={open ? "Close actions" : "More actions"}>
-          {open ? (
-            <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
-              <path d="M4 4l18 18M22 4L4 22" stroke="#0250d9" strokeWidth="3" strokeLinecap="round" />
-            </svg>
-          ) : (
-            <svg width="30" height="8" viewBox="0 0 30 8" aria-hidden="true">
-              <circle cx="4" cy="4" r="3.6" fill="#fff" />
-              <circle cx="15" cy="4" r="3.6" fill="#fff" />
-              <circle cx="26" cy="4" r="3.6" fill="#fff" />
-            </svg>
-          )}
-        </button>
-      </div>
-    </>
   );
 }

@@ -552,61 +552,6 @@
   color: #181818;
 }
 
-/* ••• menu: dims the screen, the button turns into a white circle with a blue X. */
-.studio-ipad-rec-dim {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  background: rgba(0, 0, 0, 0.5);
-}
-
-.studio-ipad-rec-fabs {
-  z-index: 6;
-  align-items: flex-end;
-}
-
-.studio-ipad-rec-more {
-  padding: 0;
-  border: none;
-  cursor: pointer;
-  pointer-events: auto;
-}
-
-.studio-ipad-rec-more.open {
-  background: #fff;
-}
-
-.studio-ipad-rec-fabs.open .astro {
-  background: #e5e5e5;
-  box-shadow: none;
-}
-
-.studio-ipad-rec-menu {
-  position: absolute;
-  right: 0;
-  bottom: 76px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 12px;
-  pointer-events: auto;
-}
-
-.studio-ipad-rec-menu-item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 81px;
-  height: 51px;
-  box-sizing: border-box;
-  padding: 0 22px;
-  border-radius: 26px;
-  background: #fff;
-  color: #0250d9;
-  font-size: 18px;
-  font-weight: 600;
-}
-
 /* Text boxes hug their text so the harness can measure glyph widths. */
 .studio-ipad-rec-label,
 .studio-ipad-rec-value,
