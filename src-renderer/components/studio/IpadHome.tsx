@@ -1,6 +1,7 @@
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useRef, useState } from "react";
 import { MicIcon } from "./IpadChrome";
 import noResultsUnknown from "./assets/noresults-unknown.png";
+import { pageDots } from "./screens/home-types";
 import type { HomeNbcCard, HomeVisit, PublishedHome } from "./screens/home-types";
 
 /** Opens a record from a Home component (NBC card, visit row); undefined when the snapshot holds no such record. */
@@ -161,9 +162,9 @@ export function RichText({ html }: { html: string }) {
 
 // ── NBCTopCards ───────────────────────────────────────────────────────────────
 
-function Pill({ children, bold = false, size = 16 }: { children: React.ReactNode; bold?: boolean; size?: number }) {
+function Pill({ children, bold = false, size = 16, tall = false }: { children: React.ReactNode; bold?: boolean; size?: number; tall?: boolean }) {
   return (
-    <span className="studio-ipad-h-pill" style={{ fontSize: size, fontWeight: bold ? 600 : 400 }}>
+    <span className={`studio-ipad-h-pill${tall ? " tall" : ""}`} style={{ fontSize: size, fontWeight: bold ? 600 : 400 }}>
       {children}
     </span>
   );
@@ -180,9 +181,9 @@ function NbcCard({ score, card, onOpen }: { score: number; card?: HomeNbcCard; o
           {text(card?.name, 110)}
         </Pill>
         <Pill>{text(card?.specialty, 140)}</Pill>
-        <Pill>
+        <Pill tall={!!card}>
           {card ? (
-            card.address
+            <span className="studio-ipad-h-lines text">{card.address}</span>
           ) : (
             <span className="studio-ipad-h-lines">
               <Bar w={240} />
@@ -209,9 +210,9 @@ function NbcCard({ score, card, onOpen }: { score: number; card?: HomeNbcCard; o
       <div className="studio-ipad-h-nbc-section">Insight</div>
       <div className="studio-ipad-h-nbc-items">
         {(!card || card.insight) && (
-          <Pill>
+          <Pill tall={!!card}>
             {card ? (
-              card.insight
+              <span className="studio-ipad-h-lines text">{card.insight}</span>
             ) : (
               <span className="studio-ipad-h-lines">
                 <Bar w={240} />
@@ -359,8 +360,8 @@ export function ActivityPlanProgress({ enhanced, plan }: { enhanced: boolean; pl
             <span className="current">On Pace</span>
             <span>Exceeding Pace</span>
           </div>
-          <div className="studio-ipad-h-empty">
-            <EmptyArt />
+          <div className="studio-ipad-h-empty plan">
+            <EmptyArt height={190} />
             <div className="studio-ipad-h-empty-title big">No results</div>
           </div>
         </div>
@@ -385,27 +386,53 @@ export function ActivityPlanProgress({ enhanced, plan }: { enhanced: boolean; pl
 
 // ── UnsubmittedVisits ─────────────────────────────────────────────────────────
 
-/** UnsubmittedCallsDashboardViewController — three visits per page, paged sideways; the first page is drawn. */
+/** UnsubmittedCallsDashboardViewController — three visits per page, paged sideways (swipe or tap a dot) under a page control. */
 export function VisitsToSubmit({ data }: { data?: PublishedHome["visits"] }) {
   const open = useContext(HomeOpenContext);
-  const page: (HomeVisit | null)[] = data ? data.items.slice(0, 3) : [null, null, null];
+  const [page, setPage] = useState(0);
+  const pages = data ? Math.max(1, Math.ceil(data.items.length / 3)) : 1;
+  const at = Math.min(page, pages - 1);
+  const rows: (HomeVisit | null)[] = data ? data.items.slice(at * 3, at * 3 + 3) : [null, null, null];
+  const down = useRef<number | null>(null);
   return (
-    <div className="studio-ipad-h-tile">
+    <div
+      className="studio-ipad-h-tile"
+      onPointerDown={(e) => (down.current = e.clientX)}
+      onPointerUp={(e) => {
+        const dx = down.current == null ? 0 : e.clientX - down.current;
+        down.current = null;
+        if (Math.abs(dx) > 40) setPage(Math.max(0, Math.min(pages - 1, at + (dx < 0 ? 1 : -1))));
+      }}
+    >
       <div className="studio-ipad-h-tile-head plain">
         <span>{data ? `Visits To Submit (${data.total})` : "Visits To Submit"}</span>
         <MoreDots />
       </div>
-      {page.map((v, i) => (
-        <div key={v?.id ?? i} className={`studio-ipad-h-visit${v && open ? " open" : ""}`} onClick={v && open ? () => open(v.id) : undefined}>
-          {v ? v.dateLabel && <span className="studio-ipad-h-visit-date">{v.dateLabel}</span> : <Bar w={110} />}
-          <div className="studio-ipad-h-visit-body">
-            {v ? <span className="studio-ipad-h-visit-time">{v.time}</span> : <Bar w={150} />}
-            {v ? <span>{v.account}</span> : <Bar w={90} />}
-            {v ? <span className="studio-ipad-h-visit-addr">{v.address}</span> : <Bar w={380} />}
-            {(!v || v.channel) && <span className="studio-ipad-h-tag">{v ? v.channel : <Bar w={50} />}</span>}
+      <div className="studio-ipad-h-visit-page">
+        {rows.map((v, i) => (
+          <div key={v?.id ?? i} className={`studio-ipad-h-visit${v && open ? " open" : ""}`} onClick={v && open ? () => open(v.id) : undefined}>
+            {v ? v.dateLabel && <span className="studio-ipad-h-visit-date">{v.dateLabel}</span> : <Bar w={110} />}
+            <div className="studio-ipad-h-visit-body">
+              {v ? <span className="studio-ipad-h-visit-time">{v.time}</span> : <Bar w={150} />}
+              {v ? <span>{v.account}</span> : <Bar w={90} />}
+              {v ? <span className="studio-ipad-h-visit-addr">{v.address}</span> : <Bar w={380} />}
+              {(!v || v.channel) && <span className="studio-ipad-h-tag">{v ? v.channel : <Bar w={50} />}</span>}
+              {v && (
+                <span className="studio-ipad-h-visit-more">
+                  <MoreDots />
+                </span>
+              )}
+            </div>
           </div>
+        ))}
+      </div>
+      {pages > 1 && (
+        <div className="studio-ipad-h-pages">
+          {pageDots(pages, at).map((d) => (
+            <i key={d.index} className={`${d.on ? "on" : ""}${d.small ? " small" : ""}`} onClick={() => setPage(d.index)} />
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }

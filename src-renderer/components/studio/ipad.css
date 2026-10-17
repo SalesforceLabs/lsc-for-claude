@@ -1424,11 +1424,11 @@ button.studio-ipad-chip {
 /* lscHomeAnnouncements: 330pt including 9pt above and below; the title sits outside the card. */
 .studio-ipad-h-announcements {
   box-sizing: border-box;
-  height: 330px;
+  height: 333px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 9px 0;
+  padding: 11px 0 7px;
 }
 
 .studio-ipad-h-section-title {
@@ -1452,7 +1452,7 @@ button.studio-ipad-chip {
 
 /* flexipage:richText: the HTML in a web view, radius 18, 20pt in from the card. */
 .studio-ipad-h-rich {
-  padding: 20px;
+  padding: 20px 20px 17px;
   border-radius: 18px;
   background: #fff;
   color: #000;
@@ -1476,8 +1476,8 @@ button.studio-ipad-chip {
 
 /* NBCTopCards: 12pt spacers, white, radius 20, padding 16; 340pt cards 16 apart. */
 .studio-ipad-h-nbc {
-  margin: 12px;
-  padding: 22px 16px 16px;
+  margin: 22px 12px 12px;
+  padding: 16px 16px 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1526,7 +1526,7 @@ button.studio-ipad-chip {
   flex-direction: column;
   gap: 16px;
   padding: 24px 24px 28px;
-  border: 1px solid #5c5c5c;
+  border: 1px solid #aeaeae;
   border-radius: 12px;
 }
 
@@ -1555,7 +1555,7 @@ button.studio-ipad-chip {
 }
 
 .studio-ipad-h-nbc-items.gap {
-  padding-top: 24px;
+  padding-top: 0;
 }
 
 .studio-ipad-h-nbc-plain {
@@ -1656,12 +1656,12 @@ button.studio-ipad-chip {
 .studio-ipad-h-dashboard {
   position: relative;
   box-sizing: content-box;
-  padding-top: 11px;
+  padding-top: 3px;
 }
 
 .studio-ipad-h-tile-cell {
   position: absolute;
-  margin-top: 11px;
+  margin-top: 3px;
   box-sizing: border-box;
   padding: 10px;
 }
@@ -1933,7 +1933,7 @@ button.studio-ipad-chip {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
+  gap: 0;
   padding-right: 5px;
   font-size: 16px;
 }
@@ -1969,7 +1969,7 @@ button.studio-ipad-chip {
   display: flex;
   flex-direction: column;
   gap: 9px;
-  padding-top: 9px;
+  padding-top: 15px;
   border-right: 1px solid #c9c9c9;
 }
 
@@ -1977,6 +1977,7 @@ button.studio-ipad-chip {
   flex: 1;
   display: flex;
   flex-direction: column;
+  margin-top: -16px;
   padding: 18px 20px 0 40px;
 }
 
@@ -1987,7 +1988,7 @@ button.studio-ipad-chip {
 }
 
 .studio-ipad-h-app-right .studio-ipad-h-legend {
-  margin: 14px 0 16px;
+  margin: 11px 0 7px;
 }
 
 .studio-ipad-h-pace {
@@ -2000,7 +2001,7 @@ button.studio-ipad-chip {
 .studio-ipad-h-picker {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   font-size: 16px;
 }
 
@@ -2019,7 +2020,7 @@ button.studio-ipad-chip {
 
 .studio-ipad-h-segments {
   display: flex;
-  margin: 9px 22px 0 8px;
+  margin: 8px 22px 0 8px;
   padding: 2px;
   border-radius: 8px;
   background: #e5e5e5;
@@ -2044,25 +2045,23 @@ button.studio-ipad-chip {
 .studio-ipad-h-visit {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px 0 16px;
+  gap: 13px;
+  padding: 5px 0 24px;
   border-bottom: 1px solid #c9c9c9;
-}
-
-.studio-ipad-h-visit:last-child {
-  border-bottom: none;
 }
 
 .studio-ipad-h-visit-body {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 9px;
+  gap: 5px;
   padding-left: 12px;
 }
 
 .studio-ipad-h-tag {
-  padding: 8px;
+  padding: 6px 9px;
+  font-size: 13px;
+  line-height: 15px;
   border-radius: 4px;
   background: #e5e5e5;
 }
@@ -2201,4 +2200,80 @@ button.studio-ipad-chip {
   padding: 0;
   gap: 0;
   background: #f3f3f3;
+}
+
+/* Card text: 24pt line pitch, wrapping at 264pt like the device labels. */
+.studio-ipad-h-lines.text {
+  max-width: 264px;
+  line-height: 24px;
+  margin: -2px 0;
+}
+
+/* Address and insight labels reserve three lines, so every card lines up (NBC card ARC layout). */
+.studio-ipad-h-pill.tall {
+  box-sizing: border-box;
+  min-height: 78px;
+  align-items: flex-start;
+}
+
+.studio-ipad-h-app-cycle .studio-ipad-h-caption {
+  margin-top: -3px;
+}
+
+/* Visit row: the time line sits one point tighter above the name; the ellipsis button floats at the row's right. */
+.studio-ipad-h-visit {
+  position: relative;
+}
+
+.studio-ipad-h-visit-time {
+  margin-bottom: 1px;
+}
+
+.studio-ipad-h-visit-more {
+  position: absolute;
+  top: 15px;
+  right: -6px;
+}
+
+.studio-ipad-h-visit-body {
+  position: relative;
+}
+
+/* HorizontalPagingTableView page control: a UIPageControl capsule, 9 dots at a 17pt pitch. */
+.studio-ipad-h-visit-page {
+  flex: 1;
+}
+
+.studio-ipad-h-pages {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: max-content;
+  margin: 8px auto 6px;
+  padding: 5px 13px;
+  border-radius: 12px;
+  background: #efefef;
+}
+
+.studio-ipad-h-pages > i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8a8a8a;
+  cursor: pointer;
+}
+
+.studio-ipad-h-pages > i.small {
+  transform: scale(0.6);
+}
+
+.studio-ipad-h-pages > i.on {
+  background: #000;
+}
+
+/* Activity Plan Progress empty state: a larger illustration, centred on the pane's content width. */
+.studio-ipad-h-empty.plan {
+  padding: 16px 38px 22px 16px;
+  gap: 26px;
 }

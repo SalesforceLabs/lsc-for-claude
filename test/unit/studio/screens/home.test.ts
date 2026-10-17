@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { cycleText, firstActivityType, lastRefreshedText, lastVisitText, sortNbc, visibleDates, visitTimeText } from "../../../../src/studio/screens/home.js";
+import { pageDots } from "../../../../src-renderer/components/studio/screens/home-types.js";
 
 const F = { timeZone: "America/Los_Angeles", locale: "en-US" };
 const N = " ";
@@ -46,5 +47,20 @@ describe("home screen logic", () => {
     expect(firstActivityType([{ label: "B", order: 1 }, { label: "A", order: 1 }, { label: "Z", order: 0 }])).toBe("Z");
     expect(firstActivityType([{ label: "B", order: 1 }, { label: "A", order: 1 }])).toBe("A");
     expect(firstActivityType([])).toBeUndefined();
+  });
+});
+
+describe("pageDots", () => {
+  it("draws every dot when the pages fit, and shrinks the clipped edge when they do not", () => {
+    expect(pageDots(1, 0)).toEqual([]);
+    expect(pageDots(3, 1).map((d) => d.on)).toEqual([false, true, false]);
+    const first = pageDots(61, 0);
+    expect(first).toHaveLength(9);
+    expect(first[0].on).toBe(true);
+    expect(first.map((d) => d.small)).toEqual([false, false, false, false, false, false, false, false, true]);
+    const mid = pageDots(61, 30);
+    expect(mid.find((d) => d.on)?.index).toBe(30);
+    expect(mid[0].small && mid[8].small).toBe(true);
+    expect(pageDots(61, 60)[8].on).toBe(true);
   });
 });
