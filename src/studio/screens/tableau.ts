@@ -193,16 +193,18 @@ export function seriesGranularity(series: [string, number][]): "day" | "month" {
 }
 
 /**
- * Y axis like the device's chart: starts at 0 (or the minimum when negative), reaches 1.25× the highest value, with about
- * three steps of 1/2/5/7 × 10ⁿ; the bottom is padded 4% so the axis line sits under the 0 tick.
+ * Y axis fitted to the device's charts. The device lets Tableau's native engine pick the ticks (the viz spec only says
+ * range Auto + includeZero, ticks Auto, so the algorithm is not in the iOS repo or its JS bundle); this reproduces what was
+ * measured on five metrics: start at 0 (or the minimum when negative), reach 1.25x the highest value, three steps of
+ * 1/2/5 x 10^n, plus 7 for small whole-number counts (0/7/14); the bottom is padded 4.2% so the axis sits under the 0 tick.
  */
-export function chartTicks(min: number, max: number, percent: boolean): { ticks: PublishedTableauTick[]; domain: [number, number] } {
+export function chartTicks(min: number, max: number, percent: boolean, countLike = false): { ticks: PublishedTableauTick[]; domain: [number, number] } {
   const lo = Math.min(0, min);
   let hi = max * 1.25;
   if (!(hi > lo)) hi = lo + 1;
   const raw = (hi - lo) / 3;
   const pow = 10 ** Math.floor(Math.log10(raw));
-  const candidates = [1, 2, 5, 7, 10].map((m) => m * pow);
+  const candidates = (countLike && pow === 1 ? [1, 2, 5, 7, 10] : [1, 2, 5, 10]).map((m) => m * pow);
   const step = candidates.reduce((best, c) => (Math.abs(Math.log(c / raw)) < Math.abs(Math.log(best / raw)) ? c : best));
   const ticks: PublishedTableauTick[] = [];
   for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) {
@@ -216,7 +218,7 @@ export function chartTicks(min: number, max: number, percent: boolean): { ticks:
 export function buildDetail(series: [string, number][], percent: boolean, granularity: "day" | "month" = seriesGranularity(series)): PublishedTableauDetail | undefined {
   if (series.length < 2) return undefined;
   const values = series.map((p) => p[1]);
-  const { ticks, domain } = chartTicks(Math.min(...values), Math.max(...values), percent);
+  const { ticks, domain } = chartTicks(Math.min(...values), Math.max(...values), percent, !percent && values.every(Number.isInteger) && Math.max(...values) < 100);
   return {
     granularity,
     series,

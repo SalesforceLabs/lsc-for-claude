@@ -42,10 +42,13 @@ describe("tableau detail chart", () => {
   });
   it("picks ticks like the measured charts", () => {
     expect(chartTicks(0, 617, false).ticks.map((t) => t.value)).toEqual([0, 200, 400, 600]);
-    expect(chartTicks(60, 82, false).ticks.map((t) => t.value)).toEqual([0, 50, 100]);
+    expect(chartTicks(60, 80, false, true).ticks.map((t) => t.value)).toEqual([0, 50, 100]);
+    expect(chartTicks(0, 15, false, true).ticks.map((t) => t.value)).toEqual([0, 7, 14]);
+    expect(chartTicks(1999.6, 2000.6, true).ticks.map((t) => t.label)).toEqual(["0%", "1K%", "2K%"]);
     const d = chartTicks(0, 617, false).domain;
     expect(d[0]).toBeLessThan(0);
     expect(d[1]).toBeCloseTo(771.25);
+    expect(chartTicks(0, 617, false).ticks.length).toBe(4);
   });
   it("builds the chart summary, or nothing for a single point", () => {
     const detail = buildDetail([["2024-11-01", 70], ["2024-12-01", 79]], false);

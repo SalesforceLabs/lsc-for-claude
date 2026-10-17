@@ -31,14 +31,22 @@ export function ReportViewer({ item, host, onClose }: { item: PublishedReportIte
           Close
         </button>
         <div className="studio-ipad-reportview-title">View Report</div>
-        <span className="studio-ipad-reportview-btn right">View in Salesforce</span>
+        {state.kind === "web" ? (
+          <span className="studio-ipad-reportview-webtools" aria-hidden>
+            <span>‹</span>
+            <span>›</span>
+            <span>↻</span>
+            <span>◎</span>
+          </span>
+        ) : (
+          <span className="studio-ipad-reportview-btn right">View in Salesforce</span>
+        )}
       </div>
       {state.kind === "table" && <ReportGrid data={state.data} />}
       {state.kind === "empty" && <div className="studio-ipad-reportview-message">No data available</div>}
       {state.kind === "web" && (
-        <div className="studio-ipad-reportview-message">
-          <div>{item.title}</div>
-          <div className="studio-ipad-reportview-note">{item.format || "This report"} opens in Salesforce&apos;s web report viewer in the app; the preview does not draw it.</div>
+        <div className="studio-ipad-reportview-message web">
+          <div className="studio-ipad-reportview-note">{item.format || "This report"} opens in Salesforce&apos;s web report viewer in the app; the preview does not load org pages. Labelled note: the device shows a blank page while it loads.</div>
         </div>
       )}
       {state.kind === "unavailable" && (
@@ -67,7 +75,7 @@ function ReportGrid({ data }: { data: PublishedReportData }) {
           <span className="studio-ipad-reportview-gutter" />
           {data.columns.map((c, i) => (
             <span key={i} className="studio-ipad-reportview-cell head">
-              {c}
+              <span className="studio-ipad-reportview-text">{c}</span>
             </span>
           ))}
         </div>
@@ -77,7 +85,7 @@ function ReportGrid({ data }: { data: PublishedReportData }) {
               <span className="studio-ipad-reportview-gutter" />
               {data.columns.map((_, j) => (
                 <span key={j} className="studio-ipad-reportview-cell">
-                  {e.cells[j] ?? ""}
+                  <span className="studio-ipad-reportview-text">{e.cells[j] ?? ""}</span>
                 </span>
               ))}
             </div>
@@ -88,7 +96,7 @@ function ReportGrid({ data }: { data: PublishedReportData }) {
                 const c = e.cells[j];
                 return (
                   <span key={j} className={`studio-ipad-reportview-cell${c?.link ? " link" : ""}`}>
-                    {c?.bool !== undefined ? (c.bool ? "✓" : "✕") : c?.label}
+                    <span className="studio-ipad-reportview-text">{c?.bool !== undefined ? (c.bool ? "✓" : "✕") : c?.label}</span>
                   </span>
                 );
               })}
@@ -100,7 +108,7 @@ function ReportGrid({ data }: { data: PublishedReportData }) {
             <span className="studio-ipad-reportview-gutter" />
             {data.columns.map((_, j) => (
               <span key={j} className="studio-ipad-reportview-cell">
-                {data.grandTotal?.cells[j] ?? ""}
+                <span className="studio-ipad-reportview-text">{data.grandTotal?.cells[j] ?? ""}</span>
               </span>
             ))}
           </div>

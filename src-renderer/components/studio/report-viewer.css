@@ -100,20 +100,36 @@
 .studio-ipad-reportview-cell {
   flex: 0 0 200px;
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  padding: 0 16px;
+  font-size: 17px;
+  line-height: 19px;
+  border-right: 1px solid #c9c9c9;
+}
+
+.studio-ipad-reportview-text {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
-  align-self: center;
   overflow: hidden;
-  padding: 0 12px;
-  font-size: 17px;
-  line-height: 19px;
-  max-height: 57px;
-  border-right: 1px solid #c9c9c9;
-  height: auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
-.studio-ipad-reportview-line > .studio-ipad-reportview-cell { border-right: none; box-shadow: 1px 0 0 #c9c9c9; }
+.studio-ipad-reportview-webtools {
+  position: absolute;
+  right: 20px;
+  top: 33px;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 32px;
+  font-size: 22px;
+  color: #666;
+}
+
+.studio-ipad-reportview-message.web { top: 120px; }
 .studio-ipad-reportview-cell.head { color: #666; font-weight: 500; }
 .studio-ipad-reportview-cell.link { color: #0250d9; }
 .studio-ipad-reportview-line.total .studio-ipad-reportview-cell { text-align: left; }

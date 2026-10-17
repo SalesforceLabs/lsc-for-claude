@@ -80,8 +80,7 @@ function MetricChart({ detail }: { detail: NonNullable<PublishedTableauMetric["d
         </g>
       ))}
       {month ? (
-        /* The device draws no dot on the y axis itself: its first month sits under the axis line (measured on NRx and TRx). */
-        series.map(([d, v], i) => (i === 0 ? null : <circle key={d} cx={x(i)} cy={y(v)} r={2.6} fill="#3d8bff" />))
+        series.map(([d, v], i) => <circle key={d} cx={x(i)} cy={y(v)} r={2.6} fill="#3d8bff" />)
       ) : (
         <polyline points={series.map(([, v], i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ")} fill="none" stroke="#3d8bff" strokeWidth="2.2" strokeLinejoin="round" />
       )}
