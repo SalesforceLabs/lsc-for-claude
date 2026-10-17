@@ -64,7 +64,8 @@ export function IpadTopBar({
   const [page, setPage] = useState(startPage);
   const shown = pages[Math.min(page, pages.length - 1)] ?? [];
   // Opening a tab from outside the bar (a deep link) turns to its page.
-  const showing = shown.some((i) => tabs[i]?.key === current);
+  // The pinned search tab isn't in a page: opening it keeps the page the bar is on, as on the device.
+  const showing = shown.some((i) => tabs[i]?.key === current) || !tabs.some((t) => t.key === current);
   useEffect(() => {
     if (!showing) setPage(startPage);
   }, [current]);

@@ -8,6 +8,8 @@ export interface PublishedAccountCard {
   name: string;
   /** HCO (non-person record type) draws the building icon, HCP the person icon. */
   hco: boolean;
+  /** RecordType.DeveloperName, which the card ••• menu filters quick actions by. */
+  recordType?: string;
   /** "--" when the account has no address. */
   address: string;
   /** State license pill; absent when the setting is off or there is no address. */
@@ -199,8 +201,8 @@ export async function collectAccounts(ctx: ScreenContext): Promise<PublishedAcco
     count(`SELECT COUNT() ${from("RecordType.IsPersonType = false")}`, org),
     count(`SELECT COUNT() ${from("RecordType.IsPersonType = true")}`, org),
     // BaseAccountsFetchQueryCreator: ORDER BY name is null, name ASC. First/Last Name exist only with person accounts.
-    query(`SELECT Id, ${nameField}, FirstName, LastName, RecordType.IsPersonType ${from()} ORDER BY ${nameField} ASC NULLS LAST LIMIT ${CARD_CAP}`, org).catch(() =>
-      query(`SELECT Id, ${nameField}, RecordType.IsPersonType ${from()} ORDER BY ${nameField} ASC NULLS LAST LIMIT ${CARD_CAP}`, org)
+    query(`SELECT Id, ${nameField}, FirstName, LastName, RecordType.IsPersonType, RecordType.DeveloperName ${from()} ORDER BY ${nameField} ASC NULLS LAST LIMIT ${CARD_CAP}`, org).catch(() =>
+      query(`SELECT Id, ${nameField}, RecordType.IsPersonType, RecordType.DeveloperName ${from()} ORDER BY ${nameField} ASC NULLS LAST LIMIT ${CARD_CAP}`, org)
     ),
   ]);
 
@@ -251,6 +253,7 @@ export async function collectAccounts(ctx: ScreenContext): Promise<PublishedAcco
       id,
       name: str(a[nameField]),
       hco: (a.RecordType as Row | null)?.IsPersonType === false,
+      recordType: str((a.RecordType as Row | null)?.DeveloperName) || undefined,
       address,
       license,
       sort: {

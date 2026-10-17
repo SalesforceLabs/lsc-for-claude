@@ -210,7 +210,7 @@ export function recordMenus(core: Pick<SnapshotCore, "objects" | "pages" | "layo
 
 const FIELD_COLUMNS = "FieldName, PicklistValue, TextValue, IntegerValue, HasBooleanValue, LongTextValue, UrlValue";
 
-async function configRecords(category: string, org: string): Promise<{ label: string; fields: Row }[]> {
+export async function configRecords(category: string, org: string): Promise<{ label: string; fields: Row }[]> {
   const records = await query(
     `SELECT MasterLabel, (SELECT ${FIELD_COLUMNS} FROM LifeSciConfigFieldValues) FROM LifeSciConfigRecord WHERE IsActive = true AND LifeSciConfigCategory.Category IN (${inList([category])})`,
     org,

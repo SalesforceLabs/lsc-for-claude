@@ -97,6 +97,9 @@ export function toggleId(set: ReadonlySet<string>, id: string): Set<string> {
 }
 
 /** Card ••• menu on the device (fixed; observed, "Inquiry" appears twice). */
-export const CARD_MENU = ["New Visit", "Inquiry", "Intelligent Content", "Inquiry"];
+/** CustomerCollectionViewCellViewModel: the Search quick actions, kept when they name no record type or the account's. */
+export function cardMenu(actions: { label: string; recordTypes: string[] }[], recordType: string | undefined): string[] {
+  return actions.filter((a) => !recordType || !a.recordTypes.length || a.recordTypes.includes(recordType)).map((a) => a.label);
+}
 /** "Add To…" menu in select mode. */
 export const ADD_TO_MENU = ["New Visit", "Email"];

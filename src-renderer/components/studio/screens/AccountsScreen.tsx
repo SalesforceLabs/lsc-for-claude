@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import { MicIcon } from "../IpadChrome";
 import type { ScreenProps } from "./types";
 import type { PublishedAccountCard, PublishedAccountList } from "./accounts-types";
-import { SORT_OPTIONS, DEFAULT_SORT, addressMaxLines, addressTop, filterByChip, filterByList, nextSort, sortCards, sortPillLabel, ADDRESS_LINE, ADD_TO_MENU, BUILT_IN_FILTERS, CARD_MENU, LIST_KINDS, selectAllLabel, toggleId, type ListKind } from "./accounts-logic";
+import { SORT_OPTIONS, DEFAULT_SORT, addressMaxLines, addressTop, filterByChip, filterByList, nextSort, sortCards, sortPillLabel, ADDRESS_LINE, ADD_TO_MENU, BUILT_IN_FILTERS, cardMenu, LIST_KINDS, selectAllLabel, toggleId, type ListKind } from "./accounts-logic";
 import { MapPanel, NewAccountModal, SearchOnlineModal, SelectBar } from "./AccountsOverlays";
 import { Check, Popover, Sheet, TextMenu, pageBox } from "./interact-ui";
 import HcoIcon from "./assets/accounts-hco-icon";
@@ -183,7 +183,7 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
   const [mapView, setMapView] = useState(false);
   const [kind, setKind] = useState<ListKind>("Lists");
   const [kindOpen, setKindOpen] = useState(false);
-  const [menu, setMenu] = useState<{ type: "list" | "card" | "addto"; x: number; y: number; w: number; h: number } | null>(null);
+  const [menu, setMenu] = useState<{ type: "list" | "card" | "addto"; x: number; y: number; w: number; h: number; recordType?: string } | null>(null);
   const [note, setNote] = useState<{ title: string; text: string } | null>(null);
   const root = useRef<HTMLDivElement>(null);
   void tab;
@@ -193,9 +193,11 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
     [data, list, chip, sort]
   );
   if (!data) return null;
-  const openMenu = (type: "list" | "card" | "addto", e: React.MouseEvent) => {
+  // The ••• menu is the viewer's Search quick actions (chrome collector), filtered by the account's record type.
+  const cardItems = cardMenu(snapshot.screens?.chrome?.cardActions ?? [], menu?.recordType);
+  const openMenu = (type: "list" | "card" | "addto", e: React.MouseEvent, recordType?: string) => {
     if (!root.current) return;
-    setMenu({ type, ...pageBox(e.currentTarget, root.current) });
+    setMenu({ type, ...pageBox(e.currentTarget, root.current), recordType });
   };
   const exitSelect = () => {
     setSelecting(false);
@@ -336,7 +338,7 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
           resetKey={`${chip}|${listId}|${sort.label}|${sort.ascending}|${selecting}`}
           selecting={selecting}
           selected={selected}
-          onMore={(e) => openMenu("card", e)}
+          onMore={(e, card) => openMenu("card", e, card.recordType)}
         />
       )}
       {selecting && (
@@ -380,10 +382,10 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
           />
         </Popover>
       )}
-      {menu && menu.type === "card" && (
-        <Popover left={menu.x + menu.w / 2 - 334} top={menu.y + menu.h / 2 - 108} width={304} height={229} arrowDir="right" arrowY={menu.y + menu.h / 2} onClose={() => setMenu(null)}>
+      {menu && menu.type === "card" && cardItems.length > 0 && (
+        <Popover left={menu.x + menu.w / 2 - 334} top={menu.y + menu.h / 2 - (cardItems.length * 57.25) / 2 + 7} width={304} height={cardItems.length * 57.25} arrowDir="right" arrowY={menu.y + menu.h / 2} onClose={() => setMenu(null)}>
           <TextMenu
-            items={CARD_MENU.map((label) => ({ label }))}
+            items={cardItems.map((label) => ({ label }))}
             onPick={(label) => {
               setMenu(null);
               setNote({ title: label, text: `On the iPad this opens the ${label} form for the account. Studio doesn't create records.` });

@@ -4,6 +4,7 @@ export interface PublishedAccountCard {
   id: string;
   name: string;
   hco: boolean;
+  recordType?: string;
   address: string;
   license?: "valid" | "invalid";
   /** Values the Sort popover orders by (empty or missing sorts last). */

@@ -48,6 +48,8 @@ export interface PublishedHome {
     cycle?: string;
     /** First active ProviderActivityMeasureType the Activity Type picker lands on. */
     activityType?: string;
+    /** The "Progress Over Time" x axis, from the cycle's days (ActivityPlanViewModel.buildProgressSeries); absent without an active cycle. */
+    axis?: PaceAxis;
   };
 }
 
@@ -111,6 +113,46 @@ export function cycleText(start: Date, end: Date, now: Date, f: Format): string 
   const day = (d: Date) => new Intl.DateTimeFormat(f.locale, { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" }).format(d);
   const left = Math.max(0, Math.floor((end.getTime() - now.getTime()) / 86400000));
   return `${left} days left (${day(start)} - ${day(end)})`;
+}
+
+export interface PaceAxis {
+  /** Days in the cycle (allDates.count); the x axis runs 0...days-1. */
+  days: number;
+  /** Index of today, clamped into the cycle. */
+  today: number;
+  /** Month ticks; the last tick (the final day) carries no label, as SwiftUI Charts clips it. */
+  ticks: { index: number; label: string }[];
+}
+
+/**
+ * ActivityPlanViewModel.buildProgressSeries: one x step per local calendar day from the cycle start to its end, today
+ * clamped into that range, and month ticks at the first day, at every `step`th month start (step = ceil(months / min(4, months))),
+ * and at the last day.
+ */
+export function paceAxis(start: Date, end: Date, now: Date, f: Format): PaceAxis {
+  const ymd = (d: Date) => {
+    const [y, m, day] = new Intl.DateTimeFormat("en-CA", { timeZone: f.timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(d).split("-").map(Number);
+    return Date.UTC(y, m - 1, day);
+  };
+  const s = ymd(start);
+  const e = Math.max(ymd(end), s);
+  const days = Math.round((e - s) / 86400000) + 1;
+  const at = (i: number) => new Date(s + i * 86400000);
+  const today = Math.max(0, Math.min(days - 1, Math.round((ymd(now) - s) / 86400000)));
+  const first = at(0);
+  const last = at(days - 1);
+  const totalMonths = (last.getUTCFullYear() - first.getUTCFullYear()) * 12 + last.getUTCMonth() - first.getUTCMonth() + 1;
+  const step = Math.max(1, Math.ceil(totalMonths / Math.max(2, Math.min(4, totalMonths))));
+  const label = (d: Date) => new Intl.DateTimeFormat(f.locale, { timeZone: "UTC", month: "short" }).format(d);
+  const ticks = new Map<number, string>([[0, label(first)]]);
+  for (let i = 0; i < days; i++) {
+    const d = at(i);
+    if (d.getUTCDate() !== 1) continue;
+    const m = (d.getUTCFullYear() - first.getUTCFullYear()) * 12 + d.getUTCMonth() - first.getUTCMonth();
+    if (m % step === 0) ticks.set(i, label(d));
+  }
+  ticks.set(days - 1, "");
+  return { days, today, ticks: [...ticks].sort((a, b) => a[0] - b[0]).map(([index, l]) => ({ index, label: l })) };
 }
 
 /** The earliest-created sibling first: ties on DisplayOrder fall back to the label. */
@@ -289,6 +331,7 @@ async function collectPlan(ctx: ScreenContext, now: Date): Promise<PublishedHome
     const end = dateOf(tp?.EndDate);
     if (start && end && end.getTime() > now.getTime()) {
       out.cycle = cycleText(start, end, now, ctx.format);
+      out.axis = paceAxis(start, end, now, ctx.format);
       break;
     }
   }

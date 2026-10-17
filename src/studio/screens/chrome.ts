@@ -2,6 +2,7 @@
 
 import { inList, query, type Row } from "../helpers.js";
 import type { ScreenContext } from "./context.js";
+import { actionTitle, configRecords, supportedAction } from "./fabs.js";
 
 /** OCEDBNotificationType; the pill a type belongs to (NotificationViewController). */
 export type AlertPill = "alerts" | "recommendations" | "guidedActions";
@@ -17,7 +18,20 @@ export interface PublishedAlert {
   pill: AlertPill;
 }
 
+/** One entry of a list card's ••• menu (a Search-location quick action). */
+export interface PublishedCardAction {
+  name: string;
+  label: string;
+  /** Record type developer names it is limited to; empty = every record type. */
+  recordTypes: string[];
+}
+
 export interface PublishedChrome {
+  /**
+   * The ••• menu of an Accounts list card, before the per-account record type filter
+   * (AccountListDataFetcher.updateConfigs: OCEDBQuickActionModel.fetch(forLocation: .search), by SortOrder).
+   */
+  cardActions: PublishedCardAction[];
   /** The alerts the viewer's device lists, newest first. */
   alerts: PublishedAlert[];
   profile: {
@@ -172,14 +186,53 @@ async function lastSync(ctx: ScreenContext): Promise<string | null> {
   return typeof start === "string" ? start : null;
 }
 
+interface SearchQuickAction {
+  label: string;
+  actionName: string;
+  location: string;
+  profiles: string;
+  recordTypes: string;
+  sortOrder: number;
+}
+
+/**
+ * OCEDBQuickActionModel.fetch(forLocation: .search): the Search-location quick actions whose Profiles name the viewer's
+ * profile (the permission-set branch needs a setting the CLI can't read, so it is left out), by SortOrder; the card
+ * keeps those SFActionFactory builds an action for, titled by OCEDBQuickActionModel.localizedLabel(for: actionName).
+ */
+export function searchCardActions(all: SearchQuickAction[], profile: string): PublishedCardAction[] {
+  return all
+    .filter((a) => a.location.toLowerCase() === "search" && a.profiles.split(";").includes(profile) && supportedAction(a.actionName))
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((a) => ({ name: a.actionName, label: actionTitle(a.actionName) ?? a.label, recordTypes: a.recordTypes.split(";").filter(Boolean) }));
+}
+
+async function collectCardActions(ctx: ScreenContext): Promise<PublishedCardAction[]> {
+  const rows = await configRecords("QuickAction", ctx.org);
+  return searchCardActions(
+    rows.map((r) => ({
+      label: r.label,
+      actionName: str(r.fields.ActionName),
+      location: str(r.fields.Location),
+      profiles: str(r.fields.Profiles),
+      // An unset multi-picklist comes back as boolean false from the field-value coalescing.
+      recordTypes: typeof r.fields.RecordTypes === "string" ? r.fields.RecordTypes : "",
+      sortOrder: Number(r.fields.SortOrder ?? 0),
+    })),
+    ctx.core.profile
+  );
+}
+
 export async function collectChrome(ctx: ScreenContext): Promise<PublishedChrome> {
   const now = new Date();
-  const [alerts, user, sync] = await Promise.all([
+  const [alerts, user, sync, cardActions] = await Promise.all([
     collectAlerts(ctx, now).catch(() => []),
     query(`SELECT Username FROM User WHERE Id = '${ctx.userId}'`, ctx.org).catch(() => []),
     lastSync(ctx).catch(() => null),
+    collectCardActions(ctx).catch(() => []),
   ]);
   return {
+    cardActions,
     alerts,
     profile: {
       username: str(user[0]?.Username),
