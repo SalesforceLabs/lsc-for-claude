@@ -17,6 +17,8 @@ import { ReportsTree } from "./IpadReports";
 import { hasNativeScreen, NativeScreen } from "./screens";
 import { IpadSearchField, IpadStatusBar, IpadTopBar, type ChromeTab } from "./IpadChrome";
 import { initials } from "./ipad-chrome";
+import { ChromeSheets, SearchTab, type ChromeSheet } from "./IpadChromeSheets";
+import { CustomIcon } from "./assets/icons";
 import {
   ActivityPlanProgress,
   AgentforceWelcome,
@@ -83,6 +85,7 @@ function Device({
   const [current, setCurrent] = useState(snapshot.tabs[0]?.fullName ?? "");
   // The id of the open record ("" when the list row has no prefetched data); null shows the list.
   const [record, setRecord] = useState<string | null>(null);
+  const [sheet, setSheet] = useState<ChromeSheet | null>(null);
   const tab = snapshot.tabs.find((t) => t.fullName === current) ?? snapshot.tabs[0];
   const open = (t: PublishedTab) => {
     setCurrent(t.fullName);
@@ -152,10 +155,14 @@ function Device({
           searchKey={snapshot.tabs.find((t) => t.kind === "recent")?.fullName}
           onBack={record !== null ? () => setRecord(null) : undefined}
           name={initials(snapshot.viewer?.name ?? snapshot.profile)}
+          onBriefings={() => setSheet({ kind: "briefings" })}
+          onBell={() => setSheet({ kind: "alerts" })}
+          onAvatar={() => setSheet({ kind: "profile" })}
         />
-        <div className={`studio-ipad-page${tab?.kind === "empty" ? " blank" : ""}${onHome ? " home" : ""}${tab?.kind === "reports" && snapshot.reports ? " flush" : ""}${record === null && hasNativeScreen(tab, snapshot) ? " native" : ""}${record && snapshot.records?.byId[record] ? " record" : ""}`}>
-          {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={setRecord} />}
+        <div className={`studio-ipad-page${tab?.kind === "empty" ? " blank" : ""}${onHome ? " home" : ""}${tab?.kind === "reports" && snapshot.reports ? " flush" : ""}${record === null && hasNativeScreen(tab, snapshot) ? " native" : ""}${record === null && isLwcOnly(tab, snapshot) ? " lwc-full" : ""}${record && snapshot.records?.byId[record] ? " record" : ""}`}>
+          {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={setRecord} onNew={(label) => setSheet({ kind: "new", label })} />}
         </div>
+        <ChromeSheets sheet={sheet} snapshot={snapshot} onClose={() => setSheet(null)} />
         <IpadFabs snapshot={snapshot} tab={tab} record={record} agentforce={homeHasAgentforce} />
       </IpadScreen>
 
@@ -177,11 +184,13 @@ function Screen({
   snapshot,
   record,
   onOpenRecord,
+  onNew,
 }: {
   tab: PublishedTab;
   snapshot: PublishedIpad;
   record: string | null;
   onOpenRecord: (id: string) => void;
+  onNew: (label: string) => void;
 }) {
   // An open record takes precedence over the tab's native screen (the Accounts cards open their record).
   if (record !== null && snapshot.records?.byId[record]) return <RecordScreen snapshot={snapshot} recordId={record} />;
@@ -191,6 +200,7 @@ function Screen({
       return snapshot.home ? <PageView page={snapshot.home} snapshot={snapshot} home /> : <Native title="Home" text="Home page" />;
     case "flexiPage": {
       const page = tab.flexiPage ? snapshot.pages[tab.flexiPage] : undefined;
+      if (record === null && isLwcOnly(tab, snapshot)) return <LwcFull name={tab.label} />;
       return page ? <PageView page={page} snapshot={snapshot} title={tab.label} /> : <Native title={tab.label} text="Lightning page" />;
     }
     case "object":
@@ -201,13 +211,13 @@ function Screen({
       return record !== null ? (
         <RecordView object={object} snapshot={snapshot} />
       ) : (
-        <ListView tab={tab} object={object} lists={snapshot.lists} accounts={tab.kind === "accounts"} onOpenRecord={onOpenRecord} />
+        <ListView tab={tab} object={object} lists={snapshot.lists} accounts={tab.kind === "accounts"} onOpenRecord={onOpenRecord} onNew={onNew} />
       );
     }
     case "empty":
       return <ComingSoon reason={tab.emptyReason} />;
     case "recent":
-      return <Native title="Search" text="Global search and recently viewed records" />;
+      return <SearchTab />;
     case "reports":
       // ReportsTabCoordinator: the report tree with ShowSalesforceReports, else the Sales Chart report.
       if (snapshot.reports) return <ReportsTree items={snapshot.reports} />;
@@ -240,6 +250,25 @@ function ComingSoon({ reason }: { reason?: string }) {
   );
 }
 
+/** A flexipage tab whose regions hold only inline LWC (no native components): the app shows the web view full bleed. */
+function isLwcOnly(tab: PublishedTab, snapshot: PublishedIpad): boolean {
+  if (tab.kind !== "flexiPage" || !tab.flexiPage) return false;
+  const page = snapshot.pages[tab.flexiPage];
+  if (!page) return false;
+  const all = page.regions.flatMap((r) => r.components);
+  return all.length > 0 && all.every((c) => /^lscmobileinline_/i.test(c.name));
+}
+
+/** Pat Sim and similar: the LWC runs in the app's web view, which Studio cannot execute. */
+function LwcFull({ name }: { name: string }) {
+  return (
+    <div className="studio-ipad-lwc-full">
+      <div className="studio-ipad-lwc-full-name">{name}</div>
+      <div className="studio-ipad-lwc-full-note">This page is a Lightning web component that runs inside the app. Studio cannot run it, so its content is not shown.</div>
+    </div>
+  );
+}
+
 function Native({ title, text }: { title: string; text: string }) {
   return (
     <>
@@ -256,7 +285,7 @@ function Head({ eyebrow, title, theme, children }: { eyebrow?: string; title: st
       <div className="studio-ipad-head">
         {/* MetadataThemeInfo.icon(style: .circular): the SLDS glyph on a circle of the object's color. */}
         <span className="studio-ipad-obj-icon" style={theme ? { background: theme.color } : undefined} aria-hidden="true">
-          {theme && !broken ? <img src={theme.iconUrl} alt="" onError={() => setBroken(true)} /> : title.slice(0, 1)}
+          {theme && /work_plan_selection_rule/.test(theme.iconUrl) ? <CustomIcon /> : theme && !broken ? <img src={theme.iconUrl} alt="" onError={() => setBroken(true)} /> : title.slice(0, 1)}
         </span>
         <div>
           {eyebrow && <div className="studio-ipad-eyebrow">{eyebrow}</div>}
@@ -506,30 +535,34 @@ function ListView({
   lists,
   accounts,
   onOpenRecord,
+  onNew,
 }: {
   tab: PublishedTab;
   object: PublishedObject;
   lists?: Record<string, PublishedListData>;
   accounts: boolean;
   onOpenRecord: (id: string) => void;
+  onNew: (label: string) => void;
 }) {
   const [viewName, setViewName] = useState(object.defaultListView);
+  const [query, setQuery] = useState("");
+  const [cards, setCards] = useState(false);
   const view = object.listViews.find((l) => l.name === viewName) ?? object.listViews[0];
   // A list named "All" is titled "All <plural>".
   const title = !view ? object.labelPlural : view.label === "All" ? `All ${object.labelPlural}` : view.label;
   return (
     <div className="studio-ipad-lv">
       <Head eyebrow={tab.label} title={title} theme={object.theme}>
-        <span className="studio-ipad-outline-btn">New{accounts ? " Account" : ""}</span>
+        <button type="button" className="studio-ipad-outline-btn" onClick={() => onNew(`New ${accounts ? "Account" : object.label}`)}>New{accounts ? " Account" : ""}</button>
       </Head>
       <div className="studio-ipad-lv-search">
-        <IpadSearchField />
-        <span className="studio-ipad-lv-toggle" title="Switch to card view" aria-hidden="true">
+        <IpadSearchField value={query} onChange={setQuery} />
+        <button type="button" className="studio-ipad-lv-toggle" title={cards ? "Switch to list view" : "Switch to card view"} onClick={() => setCards(!cards)}>
           <svg width="22" height="22" viewBox="0 0 22 22">
             <rect x="2.5" y="4" width="17" height="14" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
             <path d="M6 8h1.5M6 11h1.5M6 14h1.5M9.5 8H16M9.5 11H16M9.5 14H16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
           </svg>
-        </span>
+        </button>
       </div>
       {/* The chip row is hidden when there's only one list view. */}
       {object.listViews.length > 1 && (
@@ -551,15 +584,35 @@ function ListView({
         </div>
       )}
       {view &&
-        (lists?.[`${object.name}.${view.name}`]?.rows.length === 0 ? (
-          // AllSObjectsViewController.updateEmptyStateVisibilityIfRequired: an empty list hides the table for APEmptyPlaceholder.
-          <div className="studio-ipad-h-empty studio-ipad-lv-empty">
-            <EmptyArt height={192} />
-            <div className="studio-ipad-h-empty-title">No records to display</div>
-          </div>
-        ) : (
-          <DataTable columns={view.columns.map(columnLabel)} data={lists?.[`${object.name}.${view.name}`]} onOpenRecord={onOpenRecord} />
-        ))}
+        (() => {
+          const data = lists?.[`${object.name}.${view.name}`];
+          // The search field filters the loaded rows on any cell (didEnterSearchText); placeholder rows have nothing to match.
+          const q = query.trim().toLowerCase();
+          const shown = data && q ? { ...data, rows: data.rows.filter((r) => r.cells.some((c) => c?.toLowerCase().includes(q))) } : data;
+          if (shown?.rows.length === 0) {
+            // AllSObjectsViewController.updateEmptyStateVisibilityIfRequired: an empty list hides the table for APEmptyPlaceholder.
+            return (
+              <div className="studio-ipad-h-empty studio-ipad-lv-empty">
+                <EmptyArt height={192} />
+                <div className="studio-ipad-h-empty-title">No records to display</div>
+              </div>
+            );
+          }
+          if (cards && shown) {
+            return (
+              <div className="studio-ipad-chrome-cards">
+                {shown.rows.map((r) => (
+                  <button key={r.id} type="button" className="studio-ipad-chrome-card" onClick={() => onOpenRecord(r.id)}>
+                    {view.columns.slice(0, 3).map((c, i) => (
+                      <span key={i} className={i === 0 ? "first" : ""}>{i === 0 ? r.cells[i] : `${columnLabel(c)}: ${r.cells[i] ?? ""}`}</span>
+                    ))}
+                  </button>
+                ))}
+              </div>
+            );
+          }
+          return <DataTable columns={view.columns.map(columnLabel)} data={shown} onOpenRecord={onOpenRecord} />;
+        })()}
     </div>
   );
 }

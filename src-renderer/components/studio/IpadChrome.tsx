@@ -42,6 +42,9 @@ export function IpadTopBar({
   searchKey,
   onBack,
   name,
+  onBriefings,
+  onBell,
+  onAvatar,
 }: {
   tabs: ChromeTab[];
   current: string;
@@ -50,6 +53,9 @@ export function IpadTopBar({
   searchKey?: string;
   onBack?: () => void;
   name: string;
+  onBriefings?: () => void;
+  onBell?: () => void;
+  onAvatar?: () => void;
 }) {
   const pages = useMemo(() => tabPages(tabs.map((t) => tabWidth(t.label))), [tabs]);
   const startPage = Math.max(0, pages.findIndex((p) => p.some((i) => tabs[i].key === current)));
@@ -110,22 +116,22 @@ export function IpadTopBar({
         )}
       </nav>
       <div className="studio-ipad-nav-buttons">
-        <span className="studio-ipad-round briefings" title="Briefings">
+        <button type="button" className="studio-ipad-round briefings" title="Briefings" onClick={onBriefings}>
           <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="11" cy="13" r="8.5" fill="none" stroke="currentColor" strokeWidth="2.2" />
             <path d="M9 9.5v7l6-3.5-6-3.5Z" fill="currentColor" />
             <path d="m19 2 .8 1.7 1.7.8-1.7.8L19 7l-.8-1.7-1.7-.8 1.7-.8L19 2Z" fill="currentColor" />
           </svg>
           <span className="studio-ipad-round-dot" />
-        </span>
-        <span className="studio-ipad-round bell" title="Notifications">
-          <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-            <path d="M10 2a5.5 5.5 0 0 0-5.5 5.5v3.2L3 13.5v1h14v-1l-1.5-2.8V7.5A5.5 5.5 0 0 0 10 2Zm-2 14a2 2 0 0 0 4 0H8Z" fill="currentColor" />
+        </button>
+        <button type="button" className="studio-ipad-round bell" title="Notifications" aria-label="Notifications" onClick={onBell}>
+          <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 2.5a6.5 6.5 0 0 0-6.5 6.5v4l-2 3.5v1h17v-1l-2-3.5V9A6.5 6.5 0 0 0 12 2.5Zm-2.6 16.5a2.6 2.6 0 0 0 5.2 0H9.4Z" fill="currentColor" />
           </svg>
-        </span>
-        <span className="studio-ipad-round avatar" title="Profile">
+        </button>
+        <button type="button" className="studio-ipad-round avatar" title="Profile" onClick={onAvatar}>
           {name}
-        </span>
+        </button>
       </div>
     </div>
   );
@@ -147,14 +153,18 @@ function Chevron({ left = false }: { left?: boolean }) {
 }
 
 /** DictationTextFieldControl — the pill search field with a magnifier and a microphone. */
-export function IpadSearchField({ className = "", mic = true }: { className?: string; mic?: boolean }) {
+export function IpadSearchField({ className = "", mic = true, value, onChange }: { className?: string; mic?: boolean; value?: string; onChange?: (v: string) => void }) {
   return (
     <div className={`studio-ipad-searchfield ${className}`}>
       <svg width="19" height="19" viewBox="0 0 20 20" aria-hidden="true">
         <circle cx="8.5" cy="8.5" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
         <path d="m13.5 13.5 5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
-      <span className="studio-ipad-searchfield-text">Search...</span>
+      {onChange ? (
+        <input className="studio-ipad-searchfield-text" placeholder="Search..." value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
+      ) : (
+        <span className="studio-ipad-searchfield-text">Search...</span>
+      )}
       {mic && <MicIcon />}
     </div>
   );

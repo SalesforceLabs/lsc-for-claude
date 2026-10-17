@@ -221,6 +221,10 @@ button.studio-ipad-cache {
 
 .studio-ipad-round {
   position: relative;
+  padding: 0;
+  border: none;
+  font: inherit;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
