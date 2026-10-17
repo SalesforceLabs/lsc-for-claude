@@ -19,6 +19,7 @@ import { apiRequest } from "../salesforce/cli.js";
 import { count, ID_PATTERN, inList, query, type Row } from "./helpers.js";
 import { collectScreens, type PublishedScreens, type ScreenContext } from "./screens/index.js";
 import { collectRecords, type PublishedRecords } from "./screens/record.js";
+import { attachReportData, type PublishedReportData } from "./screens/report-data.js";
 import { recordFieldSpec, type RecordFieldSpec } from "./screens/record-fields.js";
 
 const execFileAsync = promisify(execFile);
@@ -191,6 +192,11 @@ export interface PublishedReportItem {
   description?: string;
   /** MultiReportViewFormat: summary and tabular reports open natively, the rest on the web. */
   native?: boolean;
+  /** Report Id, format, and its result when run read-only for the "View Report" sheet (screens/report-data.ts). */
+  id?: string;
+  format?: string;
+  data?: PublishedReportData;
+  ran?: boolean;
   children: PublishedReportItem[];
 }
 
@@ -1054,7 +1060,7 @@ export function buildReportTree(folders: Row[], reports: Row[], salesChart: bool
   const byTitle = (a: PublishedReportItem, b: PublishedReportItem) => (a.title < b.title ? -1 : a.title > b.title ? 1 : 0);
   const report = (r: Row): PublishedReportItem => {
     const format = str(r.Format).toLowerCase();
-    return { kind: "report", title: str(r.Name), description: str(r.Description) || undefined, native: format.includes("summary") || format.includes("tabular"), children: [] };
+    return { kind: "report", title: str(r.Name), description: str(r.Description) || undefined, native: format.includes("summary") || format.includes("tabular"), ...(str(r.Id) ? { id: str(r.Id), format: str(r.Format) } : {}), children: [] };
   };
   const build = (f: Row, kind: "section" | "folder"): PublishedReportItem => ({
     kind,
@@ -1514,7 +1520,9 @@ async function viewerReports(userId: string, salesChart: boolean, org: string): 
       const owner = str(r.OwnerId);
       return readable.has(owner) || owner === userId || owner.startsWith("00D");
     });
-    return buildReportTree(visibleFolders, visibleReports, salesChart);
+    const tree = buildReportTree(visibleFolders, visibleReports, salesChart);
+    await attachReportData(tree, org);
+    return tree;
   } catch {
     return undefined;
   }

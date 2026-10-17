@@ -1,3 +1,4 @@
+import type { PublishedReportData } from "./report-types";
 import type { PublishedScreens } from "./screens/types";
 
 // Structural copy of the snapshot types in src/studio/published.ts — the renderer bundle cannot import from src/. Keep in sync.
@@ -215,6 +216,11 @@ export interface PublishedReportItem {
   description?: string;
   /** Summary and tabular reports open natively, the rest on the web. */
   native?: boolean;
+  /** Report Id, format, and its result when run read-only for the "View Report" sheet. */
+  id?: string;
+  format?: string;
+  data?: PublishedReportData;
+  ran?: boolean;
   children: PublishedReportItem[];
 }
 

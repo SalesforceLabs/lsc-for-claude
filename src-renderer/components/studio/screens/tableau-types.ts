@@ -13,6 +13,17 @@ export interface PublishedTableauMetric {
   popc: PublishedTableauPopc;
   description: string;
   unavailable?: boolean;
+  detail?: PublishedTableauDetail;
+}
+
+export interface PublishedTableauDetail {
+  granularity: "day" | "month";
+  series: [string, number][];
+  startLabel: string;
+  endLabel: string;
+  lastLabel: string;
+  ticks: { value: number; label: string }[];
+  domain: [number, number];
 }
 
 export interface PublishedTableau {

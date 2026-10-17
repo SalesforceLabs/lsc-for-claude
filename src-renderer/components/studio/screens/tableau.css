@@ -26,6 +26,7 @@
 .studio-ipad-tableau-list { display: flex; flex-direction: column; gap: 12px; }
 
 .studio-ipad-tableau-card {
+  cursor: pointer;
   height: 88px;
   box-sizing: border-box;
   padding: 12px;
