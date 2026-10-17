@@ -59,6 +59,11 @@ contextBridge.exposeInMainWorld("lscApi", {
   // Salesforce Org
   listSfOrgs: () => ipcRenderer.invoke("sfOrg:list"),
   setSfOrg: (org) => ipcRenderer.invoke("sfOrg:set", org),
+  onSfOrgChanged: (callback) => {
+    const handler = (_event, data) => callback(data.org);
+    ipcRenderer.on("sfOrg:changed", handler);
+    return () => ipcRenderer.removeListener("sfOrg:changed", handler);
+  },
   loginSfOrg: (alias, instanceUrl) => ipcRenderer.invoke("sfOrg:login", alias, instanceUrl),
 
   // Studio — read-only feature maps served by the studio_* MCP tools
@@ -81,11 +86,16 @@ contextBridge.exposeInMainWorld("lscApi", {
     ipcRenderer.invoke("studio:call", "studio_publish_mobile", { profiles, expectedOrg }),
   studioPublishStatus: (parentId) => ipcRenderer.invoke("studio:call", "studio_publish_status", { parentId }),
   // Studio performance testing — runs are read-only background jobs polled for progress
-  studioPerfUsers: (search, profile) => ipcRenderer.invoke("studio:call", "studio_perf_users", { search, profile }),
+  studioPerfUsers: (search, profile, days) => ipcRenderer.invoke("studio:call", "studio_perf_users", { search, profile, days }),
   studioPerfParsePlan: (yaml) => ipcRenderer.invoke("studio:call", "studio_perf_parse_plan", { yaml }),
   studioPerfStart: (plan) => ipcRenderer.invoke("studio:call", "studio_perf_start", { plan }),
   studioPerfStatus: (jobId) => ipcRenderer.invoke("studio:call", "studio_perf_status", { jobId }),
   studioPerfCancel: (jobId) => ipcRenderer.invoke("studio:call", "studio_perf_cancel", { jobId }),
+  studioPerfActive: () => ipcRenderer.invoke("studio:call", "studio_perf_active", {}),
+  studioPerfCheck: (plan) => ipcRenderer.invoke("studio:call", "studio_perf_check", { plan }),
+  studioPerfReport: (result, days) =>
+    ipcRenderer.invoke("studio:call", "studio_perf_report", days === undefined ? { result } : { result, days }),
+  studioPerfTerritories: (input) => ipcRenderer.invoke("studio:call", "studio_perf_territories", input),
   perfListPlans: () => ipcRenderer.invoke("perf:listPlans"),
   perfSavePlan: (input) => ipcRenderer.invoke("perf:savePlan", input),
   perfDeletePlan: (id) => ipcRenderer.invoke("perf:deletePlan", id),

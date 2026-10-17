@@ -1,0 +1,56 @@
+/* Plan editor: persona "who to test" choice and the territory picker. */
+.studio-perf-mode {
+  align-self: flex-start;
+  margin-bottom: 6px;
+}
+.studio-perf-select-row {
+  align-items: flex-end;
+}
+.studio-perf-select-row select.studio-filter {
+  flex: 1;
+  max-width: none;
+}
+.studio-perf-count {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.studio-perf-check-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 6px;
+  font-size: 12px;
+}
+.studio-perf-warn-text {
+  color: var(--warning);
+}
+
+/* Plan sections: Personas / Targets / YAML tabs. */
+.studio-perf-plan-tabs {
+  align-self: flex-start;
+  margin: 4px 0 12px;
+}
+.studio-perf-tab-issues {
+  display: inline-block;
+  min-width: 16px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--error);
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+}
+.studio-perf-yaml-text {
+  margin: 8px 0 0;
+  padding: 12px;
+  max-width: 980px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  font-size: 12px;
+  color: var(--text-primary);
+}

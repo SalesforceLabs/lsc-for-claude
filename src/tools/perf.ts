@@ -13,7 +13,7 @@ import {
   renderVolumes,
   runAssessment,
 } from "../perf/assessment.js";
-import { loadNfrProfile, parseNfrProfile } from "../perf/nfr.js";
+import { DEFAULT_TELEMETRY_DAYS, loadNfrProfile, parseNfrProfile } from "../perf/nfr.js";
 
 function querier(targetOrg: string): OrgQuerier {
   return {
@@ -157,7 +157,7 @@ export function register(server: McpServer) {
           querier(countAsOrg || effectiveOrg),
           telemetryFields(effectiveOrg)
         );
-        let report = renderAssessment(result, profile.telemetry?.days ?? 30);
+        let report = renderAssessment(result, profile.telemetry?.days ?? DEFAULT_TELEMETRY_DAYS);
         if (outputPath) {
           const resolved = path.resolve(outputPath);
           fs.mkdirSync(path.dirname(resolved), { recursive: true });

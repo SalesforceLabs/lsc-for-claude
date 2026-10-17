@@ -28,7 +28,7 @@ Explain *why* a table is heavy with sourced documentation instead of general kno
 ## Workflow
 
 1. **Get the NFRs.** Ask for the customer's NFR/SLA targets. Never invent thresholds. If there aren't any, run the tools anyway and present the measurements as a baseline, labelled "no threshold". The only built-in default is metadata download p95 (warn 5s / fail 10s, from the lsc-metadata-svc SLO).
-2. **Pick personas.** For each role (rep, KAM, MSL, manager), choose the 2–3 *heaviest* real users: largest territory, most accounts, most permission sets. Averages hide the users who will actually hit the limits. `list_users` helps find them.
+2. **Pick personas.** For each role (rep, KAM, MSL, manager), choose the 2–3 *heaviest* real users: largest territory, most accounts, most permission sets. Averages hide the users who will actually hit the limits. `list_users` helps find them. Or give the persona `select: { profile, count }` instead of `users`, and each run tests that profile's `count` (1–10, default 3) heaviest active users — most territories in the active model first; listed `users` are tested first and the selection fills in. Add `preferSynced: true` to pick users who synced in the telemetry window first — field-telemetry metrics come only from the tested users' own `DeviceSyncSummary` rows, so users who haven't synced report **No data**.
 3. **Write the profile.** Copy `docs/perf-nfr-profile.example.yaml` and replace every example value.
 4. **Run** `run_perf_assessment`. Pass `outputPath` to keep JSON for re-runs and CI comparisons.
 5. **Explain the drivers.** For each WARN or FAIL, name the user, territory, and table, and say what to change:

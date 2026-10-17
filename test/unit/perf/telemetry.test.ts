@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildTelemetryQuery, percentile, summarize, toSyncSample } from "../../../src/perf/telemetry.js";
+import { buildTelemetryQuery, percentile, summarize, toSyncSample, type SyncOutcome } from "../../../src/perf/telemetry.js";
 
 const base = {
   Id: "0X1",
@@ -39,11 +39,23 @@ describe("toSyncSample", () => {
     });
   });
 
-  it("skips CLM rows and flags failures by status or error code", () => {
+  it("skips CLM rows and takes the outcome from CompletionStatus when the org has it", () => {
     expect(toSyncSample({ ...base, Type: "clm" })).toBeNull();
-    expect(toSyncSample({ ...base, CompletionStatus: "Failed" })?.failed).toBe(true);
-    expect(toSyncSample({ ...base, ErrorCode: "E42" })?.failed).toBe(true);
+    expect(toSyncSample({ ...base, CompletionStatus: "Failed" })).toMatchObject({ outcome: "failed", failed: true });
+    expect(toSyncSample({ ...base, CompletionStatus: "Cancelled" })).toMatchObject({ outcome: "cancelled", failed: false });
     expect(toSyncSample({ ...base, SyncTrigger: "Manual" })?.kind).toBe("delta");
+  });
+
+  it("doesn't treat the clock-skew ErrorCode as a failure", () => {
+    expect(toSyncSample({ ...base, ErrorCode: "420" })).toMatchObject({ outcome: "completed", failed: false });
+  });
+
+  it("falls back to IsDownloadCompleted and DownloadStart without CompletionStatus", () => {
+    const { CompletionStatus: _omit, ...noStatus } = base;
+    const started = { ...noStatus, DownloadStart: "2026-10-01T10:00:20.000Z" };
+    expect(toSyncSample({ ...started, IsDownloadCompleted: true })?.outcome).toBe("completed");
+    expect(toSyncSample({ ...started, IsDownloadCompleted: false })).toMatchObject({ outcome: "failed", failed: true });
+    expect(toSyncSample({ ...noStatus, IsDownloadCompleted: false })).toMatchObject({ outcome: "stopped-early", failed: false });
   });
 
   it("tolerates missing and malformed fields", () => {
@@ -63,13 +75,14 @@ describe("percentile", () => {
 });
 
 describe("summarize", () => {
-  it("excludes failed syncs from duration stats but counts them in the failure rate", () => {
-    const mk = (id: string, totalSec: number, failed = false) => ({
+  it("times completed syncs only, and rates failures against completed and failed syncs", () => {
+    const mk = (id: string, totalSec: number, outcome: SyncOutcome = "completed") => ({
       id,
       createdDate: "",
       user: "u",
       kind: "delta" as const,
-      failed,
+      outcome,
+      failed: outcome === "failed",
       totalSec,
       downloadSec: undefined,
       uploadSec: undefined,
@@ -79,11 +92,19 @@ describe("summarize", () => {
       network: "WiFi",
       appVersion: "1",
     });
-    const summary = summarize([mk("a", 10), mk("b", 20), mk("c", 30), mk("d", 999, true)]);
+    const summary = summarize([
+      mk("a", 10),
+      mk("b", 20),
+      mk("c", 30),
+      mk("d", 999, "failed"),
+      mk("e", 500, "cancelled"),
+      mk("f", 700, "stopped-early"),
+    ]);
+    expect(summary.outcomes).toEqual({ completed: 3, failed: 1, cancelled: 1, "stopped-early": 1 });
     expect(summary.failureRatePct).toBe(25);
     expect(summary.delta.total).toMatchObject({ n: 3, max: 30 });
     expect(summary.slowest.map((s) => s.id)).toEqual(["c", "b", "a"]);
-    expect(summary.byAppVersion[0]).toMatchObject({ key: "1", n: 4, failureRatePct: 25 });
+    expect(summary.byAppVersion[0]).toMatchObject({ key: "1", n: 6, failureRatePct: 25 });
   });
 });
 

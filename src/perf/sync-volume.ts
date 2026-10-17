@@ -229,9 +229,10 @@ const REST_REQUEST_CHARACTERS = 200;
 const ID_LENGTH_WITH_QUOTES = 21;
 
 /**
- * Number of SOQL requests the app issues for one table's visibility pass when
- * the filter carries an id-list tag (formQuery in the app). Returns null when
- * the filter is too long for the app to fit any ids.
+ * Number of queries the app splits one table's filter into when it carries an
+ * id-list tag (formQuery in the app): the id list is chunked to keep the WHERE
+ * clause and the query under the app's length limits. Returns null when the
+ * filter is too long for the app to fit any ids.
  */
 export function estimateDeviceRequests(
   table: string,
@@ -247,6 +248,25 @@ export function estimateDeviceRequests(
   if (tagCount > 0) chunkSize = Math.floor(chunkSize / tagCount);
   if (chunkSize <= 0) return null;
   return Math.ceil(idCount / chunkSize);
+}
+
+/** Records per REST query page (the app sends no Sforce-Query-Options batch size). */
+const QUERY_PAGE_SIZE = 2000;
+/** Follow-on pages the app fetches per /composite/batch request. */
+const PAGES_PER_BATCH = 15;
+
+/**
+ * Requests the app's legacy (REST query) download makes for one table on an
+ * initial sync: one query per id-list chunk for its first page, then the
+ * remaining 2,000-record pages in /composite/batch requests of up to 15. An
+ * initial sync has no visibility pass. The enhanced (Connect) flow pages
+ * differently, so treat this as an estimate of request load, not a count.
+ */
+export function initialSyncRequests(queries: number | null, records: number): number | null {
+  if (queries === null) return null;
+  if (queries <= 0) return 0;
+  const pages = Math.max(queries, Math.ceil(records / QUERY_PAGE_SIZE));
+  return queries + Math.ceil((pages - queries) / PAGES_PER_BATCH);
 }
 
 // ---------------------------------------------------------------------------
@@ -408,8 +428,11 @@ export async function profileTerritory(
   user: UserContext,
   territory: { id: string; name: string } | null,
   tables: ApplicableTable[],
-  options: ProfileOptions = DEFAULT_PROFILE_OPTIONS
+  options: ProfileOptions = DEFAULT_PROFILE_OPTIONS,
+  onTable?: (done: number, total: number) => void
 ): Promise<TerritoryVolume> {
+  let done = 0;
+  const tick = () => onTable?.(++done, tables.length);
   const scalar: ScalarTagValues = {
     userId: user.id,
     territoryName: territory?.name ?? "",
@@ -446,11 +469,12 @@ export async function profileTerritory(
     try {
       ot2aIds = await fetchIds(org, ot2aTable.entry.sobject, "ObjectId", resolved(ot2aTable));
       const total = await countQuery(org, ot2aTable.entry.sobject, resolved(ot2aTable));
-      volumes.push({ ...base(ot2aTable), status: "counted", records: total, deviceRequests: 1, scope: ownScope(ot2aTable) });
+      volumes.push({ ...base(ot2aTable), status: "counted", records: total, deviceRequests: initialSyncRequests(1, total), scope: ownScope(ot2aTable) });
     } catch (e) {
       ot2aFailed = true;
       volumes.push({ ...base(ot2aTable), status: "error", records: 0, deviceRequests: null, note: errorMessage(e) });
     }
+    tick();
   }
 
   let accountIds: string[] = [];
@@ -470,18 +494,25 @@ export async function profileTerritory(
           ...base(accountTable),
           status: "counted",
           records: accountIds.length,
-          deviceRequests: estimateDeviceRequests("Account", cond, TAG_OT2A_IDS, ot2aIds.length),
+          deviceRequests: initialSyncRequests(estimateDeviceRequests("Account", cond, TAG_OT2A_IDS, ot2aIds.length), accountIds.length),
           idTag: TAG_OT2A_IDS,
           scope: accountScope,
         });
       } else {
         accountIds = await fetchIds(org, "Account", "Id", cond);
-        volumes.push({ ...base(accountTable), status: "counted", records: accountIds.length, deviceRequests: 1, scope: accountScope });
+        volumes.push({
+          ...base(accountTable),
+          status: "counted",
+          records: accountIds.length,
+          deviceRequests: initialSyncRequests(1, accountIds.length),
+          scope: accountScope,
+        });
       }
     } catch (e) {
       accountFailed = true;
       volumes.push({ ...base(accountTable), status: "error", records: 0, deviceRequests: null, note: errorMessage(e) });
     }
+    tick();
   }
 
   const handled = new Set(volumes.map((v) => v.sobject.toLowerCase()));
@@ -491,7 +522,8 @@ export async function profileTerritory(
     const cond = resolved(t);
     try {
       if (!cond) {
-        return { ...base(t), status: "counted", records: await countQuery(org, t.entry.sobject, null), deviceRequests: 1, scope: "org-wide" };
+        const records = await countQuery(org, t.entry.sobject, null);
+        return { ...base(t), status: "counted", records, deviceRequests: initialSyncRequests(1, records), scope: "org-wide" };
       }
       if (CONTENT_TAGS.some((tag) => containsTag(cond, tag))) {
         return { ...base(t), status: "not-estimated", records: 0, deviceRequests: null, note: "Content/attachment filter is resolved from other tables at sync time" };
@@ -514,18 +546,22 @@ export async function profileTerritory(
         if (!source) {
           return { ...base(t), status: "counted", records: 0, deviceRequests: 0, idTag: tag, scope: "user", note: `${tag} is used but its source table is not in this user's DB Schema, so the app has no ids to substitute` };
         }
+        const records = await countWithIdTag(org, t.entry.sobject, cond, tag, ids, options);
         return {
           ...base(t),
           status: "counted",
-          records: await countWithIdTag(org, t.entry.sobject, cond, tag, ids, options),
-          deviceRequests: estimateDeviceRequests(t.entry.sobject, cond, tag, ids.length),
+          records,
+          deviceRequests: initialSyncRequests(estimateDeviceRequests(t.entry.sobject, cond, tag, ids.length), records),
           idTag: tag,
           scope: viaIds(t, hasAccount ? accountScope : ot2aScope),
         };
       }
-      return { ...base(t), status: "counted", records: await countQuery(org, t.entry.sobject, cond), deviceRequests: 1, scope: ownScope(t) };
+      const records = await countQuery(org, t.entry.sobject, cond);
+      return { ...base(t), status: "counted", records, deviceRequests: initialSyncRequests(1, records), scope: ownScope(t) };
     } catch (e) {
       return { ...base(t), status: "error", records: 0, deviceRequests: null, note: errorMessage(e) };
+    } finally {
+      tick();
     }
   });
 

@@ -8,10 +8,12 @@
  */
 
 import { cachedDescribeSObject, runSoqlQuery, runToolingQuery } from "../salesforce/cli.js";
-import { runAssessment, type AssessmentResult } from "../perf/assessment.js";
-import type { NfrProfile } from "../perf/nfr.js";
+import { runAssessment, type AssessmentResult, type StepProgress } from "../perf/assessment.js";
+import { DEFAULT_TELEMETRY_DAYS, type NfrProfile, type Persona } from "../perf/nfr.js";
 import type { OrgQuerier } from "../perf/sync-volume.js";
-import { query } from "./helpers.js";
+import { checkPlan, findHeaviestUsers, personaTerritories, type PerfUser, type PlanCheck } from "../perf/users.js";
+
+export type { PerfUser, PlanCheck } from "../perf/users.js";
 
 export type PerfJobState = "running" | "done" | "failed" | "cancelled";
 
@@ -25,6 +27,8 @@ export interface PerfJobStatus {
   step: string;
   /** Org queries issued so far — a heartbeat for long table counts. */
   queries: number;
+  /** Persona and user positions (1-based) and tables counted in the current territory pass. */
+  progress?: StepProgress;
   result?: AssessmentResult;
   error?: string;
 }
@@ -60,8 +64,8 @@ class CancelledError extends Error {
 }
 
 function snapshot(job: PerfJob): PerfJobStatus {
-  const { cancelled: _cancelled, ...status } = job;
-  return { ...status };
+  const { cancelled: _cancelled, progress, ...status } = job;
+  return progress ? { ...status, progress: { ...progress } } : { ...status };
 }
 
 function pruneFinished() {
@@ -111,8 +115,9 @@ export function startPerfRun(
   const querier = tracked(deps.querier(org), job);
 
   runAssessment(profile, org, querier, querier, deps.telemetryFields(org), {
-    onStep: (step) => {
+    onStep: (step, progress) => {
       job.step = step;
+      if (progress) job.progress = progress;
     },
   })
     .then((result) => {
@@ -142,6 +147,12 @@ export function perfRunStatus(jobId: string): PerfJobStatus {
   return snapshot(job);
 }
 
+/** The run in progress for an org, so a GUI that lost track of it can reattach. */
+export function activePerfRun(org: string): PerfJobStatus | null {
+  const job = [...jobs.values()].find((j) => j.state === "running" && j.org === org);
+  return job ? snapshot(job) : null;
+}
+
 export function cancelPerfRun(jobId: string): PerfJobStatus {
   const job = jobs.get(jobId);
   if (!job) throw new Error("This performance run is no longer available.");
@@ -153,59 +164,32 @@ export function cancelPerfRun(jobId: string): PerfJobStatus {
 }
 
 // ---------------------------------------------------------------------------
-// User search
+// Users
 // ---------------------------------------------------------------------------
-
-export interface PerfUser {
-  id: string;
-  username: string;
-  name: string;
-  profile: string;
-  /** Territories in the active territory model. */
-  territories: number;
-}
-
-function likeValue(text: string): string {
-  return text.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/%/g, "\\%").replace(/_/g, "\\_");
-}
 
 /**
  * Active standard users matching a name/username search and/or a profile,
- * most-territories first — the heaviest users are the ones worth testing.
+ * most-territories first — the heaviest users are the ones worth testing —
+ * with their sync counts over the last `days` days.
  */
 export async function searchPerfUsers(
-  filters: { search?: string; profile?: string },
-  org: string
+  filters: { search?: string; profile?: string; days?: number },
+  org: string,
+  deps: PerfDeps = defaultDeps
 ): Promise<PerfUser[]> {
-  const where = ["IsActive = true", "UserType = 'Standard'"];
-  const search = filters.search?.trim();
-  if (search) {
-    const v = likeValue(search);
-    where.push(`(Name LIKE '%${v}%' OR Username LIKE '%${v}%')`);
-  }
-  if (filters.profile) where.push(`Profile.Name = '${filters.profile.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`);
+  return findHeaviestUsers(deps.querier(org), { ...filters, days: filters.days ?? DEFAULT_TELEMETRY_DAYS, limit: 50 });
+}
 
-  const users = await query(
-    `SELECT Id, Username, Name, Profile.Name FROM User WHERE ${where.join(" AND ")} ORDER BY Name LIMIT 200`,
-    org
-  );
-  if (users.length === 0) return [];
+/** Pre-flight check of a plan's users, selections, and territories. */
+export async function checkPerfPlan(profile: NfrProfile, org: string, deps: PerfDeps = defaultDeps): Promise<PlanCheck> {
+  return checkPlan(deps.querier(org), org, profile);
+}
 
-  const ids = users.map((u) => `'${String(u.Id)}'`).join(",");
-  const counts = await query(
-    `SELECT UserId, COUNT(Id) cnt FROM UserTerritory2Association WHERE UserId IN (${ids}) AND Territory2.Territory2Model.State = 'Active' GROUP BY UserId`,
-    org
-  );
-  const byUser = new Map(counts.map((r) => [String(r.UserId), Number(r.cnt ?? r.expr0 ?? 0)]));
-
-  return users
-    .map((u) => ({
-      id: String(u.Id),
-      username: String(u.Username),
-      name: String(u.Name),
-      profile: String((u.Profile as { Name?: string } | null)?.Name ?? ""),
-      territories: byUser.get(String(u.Id)) ?? 0,
-    }))
-    .sort((a, b) => b.territories - a.territories || a.name.localeCompare(b.name))
-    .slice(0, 50);
+/** Territories a persona's users are in, for picking the persona's territory. */
+export async function perfTerritories(
+  persona: Pick<Persona, "users" | "select">,
+  org: string,
+  deps: PerfDeps = defaultDeps
+): Promise<Array<{ id: string; name: string; users: number }>> {
+  return personaTerritories(deps.querier(org), persona);
 }

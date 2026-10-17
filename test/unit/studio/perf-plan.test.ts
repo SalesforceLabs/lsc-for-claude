@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parse } from "yaml";
 import {
+  applyBaseline,
   deltaKey,
   emptyPlan,
   formatValue,
@@ -8,9 +9,11 @@ import {
   metricDeltas,
   normalizePlan,
   planFileName,
+  planChanges,
   planToYaml,
   remediationPrompt,
   validatePlan,
+  planIssues,
 } from "../../../src-renderer/components/studio/perf-plan.js";
 import type { AssessmentResult, PerfPlan, PersonaResult } from "../../../src-renderer/components/studio/perf-types.js";
 import { METRICS as SERVER_METRICS, DEFAULT_THRESHOLDS as SERVER_DEFAULTS, parseNfrProfile } from "../../../src/perf/nfr.js";
@@ -43,6 +46,14 @@ describe("renderer metric copy", () => {
 });
 
 describe("normalizePlan", () => {
+  it("keeps preferSynced only when it's on, and the server parses it back", () => {
+    const on = plan({ personas: [{ name: "Reps", users: [], select: { profile: "Field Sales", preferSynced: true } }] });
+    const off = plan({ personas: [{ name: "Reps", users: [], select: { profile: "Field Sales", preferSynced: false } }] });
+    expect(normalizePlan(on).personas[0].select).toEqual({ profile: "Field Sales", preferSynced: true });
+    expect(normalizePlan(off).personas[0].select).toEqual({ profile: "Field Sales" });
+    expect(parseNfrProfile(planToYaml(on)).personas[0].select).toEqual({ profile: "Field Sales", preferSynced: true });
+  });
+
   it("trims, de-duplicates users, and drops empty thresholds and territory", () => {
     const out = normalizePlan(
       plan({
@@ -66,6 +77,33 @@ describe("normalizePlan", () => {
     expect(parseNfrProfile(yaml)).toEqual(normalizePlan(p));
     expect(parse(yaml)).toEqual(normalizePlan(p));
   });
+
+  it("keeps a profile selection only when a profile is chosen", () => {
+    const out = normalizePlan(
+      plan({
+        personas: [
+          { name: "A", users: [], select: { profile: "  Field Rep ", count: 4.6 } },
+          { name: "B", users: ["b@x"], select: { profile: " " } },
+          { name: "C", users: [], select: { profile: "KAM" } },
+        ],
+      })
+    );
+    expect(out.personas).toEqual([
+      { name: "A", users: [], select: { profile: "Field Rep", count: 4 } },
+      { name: "B", users: ["b@x"] },
+      { name: "C", users: [], select: { profile: "KAM" } },
+    ]);
+  });
+
+  it("round-trips profile personas through the server's YAML parser", () => {
+    const p = plan({
+      personas: [
+        { name: "Reps", users: [], select: { profile: "Field Rep", count: 5 } },
+        { name: "Both", users: ["kam@x"], select: { profile: "KAM" }, territory: "T-01" },
+      ],
+    });
+    expect(parseNfrProfile(planToYaml(p))).toEqual(normalizePlan(p));
+  });
 });
 
 describe("validatePlan", () => {
@@ -78,7 +116,7 @@ describe("validatePlan", () => {
     const issues = validatePlan(
       plan({ personas: [{ name: "Rep", users: [] }, { name: "rep", users: ["x"] }] })
     );
-    expect(issues).toContain("Rep: add at least one user.");
+    expect(issues).toContain("Rep: choose a profile or add at least one user.");
     expect(issues.some((i) => i.includes("Two personas are named"))).toBe(true);
   });
 
@@ -97,8 +135,17 @@ describe("validatePlan", () => {
     ]);
   });
 
-  it("the empty plan needs a user before it can run", () => {
-    expect(validatePlan(emptyPlan())).toEqual(["Persona 1: add at least one user."]);
+  it("the empty plan needs a profile or a user before it can run", () => {
+    expect(validatePlan(emptyPlan())).toEqual(["Persona 1: choose a profile or add at least one user."]);
+  });
+
+  it("accepts a profile persona with no users and checks its user count", () => {
+    expect(validatePlan(plan({ personas: [{ name: "Rep", users: [], select: { profile: "Field Rep" } }] }))).toEqual([]);
+    for (const count of [0, 11, 2.5]) {
+      expect(validatePlan(plan({ personas: [{ name: "Rep", users: [], select: { profile: "Field Rep", count } }] }))).toEqual([
+        "Rep: the number of users to test must be a whole number from 1 to 10.",
+      ]);
+    }
   });
 });
 
@@ -120,6 +167,7 @@ describe("planFileName", () => {
 function persona(name: string, values: Record<string, number | undefined>, status: PersonaResult["status"] = "pass"): PersonaResult {
   return {
     persona: { name, users: ["x"] },
+    users: ["x"],
     volumes: [],
     status,
     evaluations: Object.entries(values).map(([metric, value]) => ({
@@ -188,5 +236,92 @@ describe("remediationPrompt", () => {
     expect(prompt).not.toContain("Initial sync p95");
     expect(prompt).toContain("largest tables Account 5,000");
     expect(prompt).toContain("DB Schema filters that fail to execute: Bad__c");
+  });
+});
+
+describe("applyBaseline", () => {
+  it("sets persona targets from measured values plus the margins, rounded by unit", () => {
+    const run = result([
+      persona("rep", { predictedRecordsTotal: 123456, deltaSyncP95Sec: 41.23, syncFailureRatePct: 1.234, dbSizeP95Gb: undefined }),
+    ]);
+    const base = plan({
+      personas: [
+        { name: "Rep", users: ["x"], thresholds: { dbSizeP95Gb: { fail: 2 }, deltaSyncP95Sec: { warn: 1 } } },
+        { name: "Other", users: ["y"] },
+      ],
+    });
+    const out = applyBaseline(base, run, { warnPct: 10, failPct: 25 });
+    expect(out.personas[0].thresholds).toEqual({
+      predictedRecordsTotal: { warn: 135802, fail: 154320 },
+      deltaSyncP95Sec: { warn: 45.4, fail: 51.5 },
+      syncFailureRatePct: { warn: 1.36, fail: 1.54 },
+      dbSizeP95Gb: { fail: 2 },
+    });
+    expect(out.personas[1]).toBe(base.personas[1]);
+    expect(base.personas[0].thresholds?.deltaSyncP95Sec).toEqual({ warn: 1 });
+  });
+
+  it("never sets fail below warn", () => {
+    const out = applyBaseline(plan(), result([persona("Rep", { deltaSyncP95Sec: 10 })]), { warnPct: 50, failPct: 0 });
+    expect(out.personas[0].thresholds?.deltaSyncP95Sec).toEqual({ warn: 15, fail: 15 });
+  });
+
+  it("produces a plan the validator accepts", () => {
+    const out = applyBaseline(plan(), result([persona("Rep", { predictedRecordsTotal: 0, deltaSyncP95Sec: 3 })]), { warnPct: 10, failPct: 30 });
+    expect(validatePlan(out)).toEqual([]);
+  });
+});
+
+describe("planChanges", () => {
+  const withPersona = (p: PersonaResult, over: Partial<PersonaResult["persona"]>, users?: string[]): PersonaResult => ({
+    ...p,
+    persona: { ...p.persona, ...over },
+    users: users ?? p.users,
+  });
+
+  it("reports nothing when the test is the same", () => {
+    const p = persona("Rep", { deltaSyncP95Sec: 10 });
+    expect(planChanges(result([p]), result([withPersona(p, { name: "rep", users: [" X "] })])).size).toBe(0);
+  });
+
+  it("names what changed per persona and skips personas new in this run", () => {
+    const before = persona("Rep", { deltaSyncP95Sec: 10 });
+    const now = withPersona(persona("Rep", { deltaSyncP95Sec: 10 }), { users: ["y"], territory: "T-02" });
+    now.evaluations[0].threshold = { warn: 5, fail: 200 };
+    const changes = planChanges(result([now, persona("New", {})]), result([before]));
+    expect(changes.get("rep")).toEqual(["users changed", "territory changed", "targets changed"]);
+    expect(changes.has("new")).toBe(false);
+  });
+
+  it("separates a changed profile selection from different users resolved by the same one", () => {
+    const sel = (count?: number) => ({ users: [], select: { profile: "Field Rep", count } });
+    const base = persona("Rep", {});
+    const before = withPersona(base, sel(), ["a", "b", "c"]);
+    expect(planChanges(result([withPersona(base, sel(5), ["a"])]), result([before])).get("rep")).toEqual(["profile selection changed"]);
+    expect(planChanges(result([withPersona(base, sel(3), ["a", "b", "c"])]), result([before])).size).toBe(0);
+    expect(planChanges(result([withPersona(base, sel(), ["a", "b", "d"])]), result([before])).get("rep")).toEqual(["tested users changed"]);
+  });
+
+  it("doesn't flag tested users for runs saved before they were recorded", () => {
+    const base = persona("Rep", {});
+    const old = { ...base, users: undefined } as unknown as PersonaResult;
+    expect(planChanges(result([base]), result([old])).size).toBe(0);
+  });
+});
+
+describe("planIssues", () => {
+  it("tags each problem with the editor tab that fixes it", () => {
+    const plan: PerfPlan = {
+      name: "P",
+      telemetry: { days: 0 },
+      thresholds: { predictedRecordsTotal: { warn: 10, fail: 5 } },
+      personas: [{ name: "Rep", users: [], thresholds: { deltaSyncP95Sec: { warn: -1 } } }],
+    };
+    const areas = planIssues(plan).map((i) => i.area);
+    expect(areas.filter((a) => a === "plan")).toHaveLength(1);
+    expect(areas.filter((a) => a === "targets")).toHaveLength(1);
+    // The missing users and the persona's own bad override both live on the Personas tab.
+    expect(areas.filter((a) => a === "personas")).toHaveLength(2);
+    expect(validatePlan(plan)).toEqual(planIssues(plan).map((i) => i.message));
   });
 });

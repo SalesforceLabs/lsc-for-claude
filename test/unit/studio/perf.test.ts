@@ -13,7 +13,7 @@ vi.mock("../../../src/perf/assessment.js", () => ({
 
 const { runSoqlQuery } = await import("../../../src/salesforce/cli.js");
 const { runAssessment } = await import("../../../src/perf/assessment.js");
-const { startPerfRun, perfRunStatus, cancelPerfRun, searchPerfUsers } = await import("../../../src/studio/perf.js");
+const { startPerfRun, perfRunStatus, cancelPerfRun, activePerfRun, searchPerfUsers } = await import("../../../src/studio/perf.js");
 
 const profile: NfrProfile = { name: "Plan", personas: [{ name: "Rep", users: ["rep@example.com"] }] };
 
@@ -122,6 +122,47 @@ describe("startPerfRun", () => {
     const started = startPerfRun(profile, nextOrg(), deps().deps);
     await settle();
     expect(perfRunStatus(started.jobId)).toMatchObject({ state: "failed", error: "No DB Schema category" });
+  });
+
+  it("keeps the latest structured progress, as a copy", async () => {
+    const done = deferred<unknown>();
+    vi.mocked(runAssessment).mockImplementation((async (_p, _o, _c, _count, _fields, opts) => {
+      opts?.onStep?.("Rep (1/2): Loading a@x", { persona: 1, personas: 2, user: 1, users: 3 });
+      opts?.onStep?.("Rep (1/2): Counting 4 tables for a@x", {
+        persona: 1,
+        personas: 2,
+        user: 1,
+        users: 3,
+        tables: { done: 2, total: 4 },
+      });
+      opts?.onStep?.("Rep (1/2): Checking object sharing");
+      return done.promise;
+    }) as never);
+    const started = startPerfRun(profile, nextOrg(), deps().deps);
+    await settle();
+
+    const status = perfRunStatus(started.jobId);
+    expect(status).toMatchObject({
+      step: "Rep (1/2): Checking object sharing",
+      progress: { persona: 1, personas: 2, user: 1, users: 3, tables: { done: 2, total: 4 } },
+    });
+    if (status.progress) status.progress.persona = 99;
+    expect(perfRunStatus(started.jobId).progress?.persona).toBe(1);
+    done.resolve({ status: "pass" });
+    await settle();
+  });
+
+  it("returns the org's running job as the active run, and null once it finishes", async () => {
+    const done = deferred<unknown>();
+    vi.mocked(runAssessment).mockImplementation((() => done.promise) as never);
+    const o = nextOrg();
+    expect(activePerfRun(o)).toBeNull();
+    const started = startPerfRun(profile, o, deps().deps);
+    expect(activePerfRun(o)).toMatchObject({ jobId: started.jobId, state: "running" });
+    expect(activePerfRun(nextOrg())).toBeNull();
+    done.resolve({ status: "pass" });
+    await settle();
+    expect(activePerfRun(o)).toBeNull();
   });
 
   it("throws for an unknown job", () => {

@@ -4,6 +4,11 @@
  * - SyncTrigger "Initial" marks a first sync; every other trigger is a delta.
  * - Type "clm" rows describe content downloads, not data sync, and are skipped.
  * - DownloadFreezeTime / UploadFreezeTime / MetadataDownloadDuration are ms.
+ * - CompletionStatus (Finished / Cancelled / Failed) is the outcome where the
+ *   org has it. Otherwise IsDownloadCompleted tells whether a sync that reached
+ *   the download step finished it, and a missing DownloadStart means the sync
+ *   stopped before downloading (cancelled or failed in an earlier step).
+ * - ErrorCode is only ever the app's clock-skew warning (420), not a failure.
  * - SyncSummaryData is JSON; DBSize inside it is the data DB size in GB.
  *
  * Several fields were added in later app versions, so callers select only the
@@ -17,7 +22,7 @@ export const TELEMETRY_FIELDS = [
   "SyncTrigger",
   "Type",
   "CompletionStatus",
-  "ErrorCode",
+  "IsDownloadCompleted",
   "DownloadStart",
   "DownloadEnd",
   "DownloadFreezeTime",
@@ -35,11 +40,15 @@ export const TELEMETRY_FIELDS = [
   "SyncSummaryData",
 ] as const;
 
+/** How a sync ended. "stopped-early": it never reached the download step. */
+export type SyncOutcome = "completed" | "failed" | "cancelled" | "stopped-early";
+
 export interface SyncSample {
   id: string;
   createdDate: string;
   user: string;
   kind: "initial" | "delta";
+  outcome: SyncOutcome;
   failed: boolean;
   totalSec: number | undefined;
   downloadSec: number | undefined;
@@ -80,13 +89,25 @@ function parseSummaryData(value: unknown): Record<string, unknown> {
   }
 }
 
+export function syncOutcome(r: Record<string, unknown>): SyncOutcome {
+  switch (r.CompletionStatus) {
+    case "Finished":
+      return "completed";
+    case "Failed":
+      return "failed";
+    case "Cancelled":
+      return "cancelled";
+  }
+  if (ms(r.DownloadStart) === undefined) return "stopped-early";
+  return r.IsDownloadCompleted === false ? "failed" : "completed";
+}
+
 /** Convert one DeviceSyncSummary row; returns null for non-data rows. */
 export function toSyncSample(r: Record<string, unknown>): SyncSample | null {
   if (typeof r.Type === "string" && r.Type.toLowerCase() === "clm") return null;
 
   const createdBy = r.CreatedBy as Record<string, unknown> | null | undefined;
-  const status = typeof r.CompletionStatus === "string" ? r.CompletionStatus : "";
-  const failed = status === "Failed" || (r.ErrorCode !== null && r.ErrorCode !== undefined && r.ErrorCode !== "");
+  const outcome = syncOutcome(r);
 
   const starts = [r.UploadStart, r.MetadataDownloadStart, r.DownloadStart]
     .map(ms)
@@ -106,7 +127,8 @@ export function toSyncSample(r: Record<string, unknown>): SyncSample | null {
     createdDate: r.CreatedDate as string,
     user: (createdBy?.Username as string) || (r.CreatedById as string) || "",
     kind: r.SyncTrigger === "Initial" ? "initial" : "delta",
-    failed,
+    outcome,
+    failed: outcome === "failed",
     totalSec,
     downloadSec: spanSec(r.DownloadStart, r.DownloadEnd, r.DownloadFreezeTime),
     uploadSec: spanSec(r.UploadStart, r.UploadEnd, r.UploadFreezeTime),
@@ -147,6 +169,8 @@ export function distribution(values: Array<number | undefined>): Distribution {
 
 export interface TelemetrySummary {
   samples: number;
+  outcomes: Record<SyncOutcome, number>;
+  /** Failed downloads as a share of syncs that finished or failed; cancelled and stopped-early syncs are left out. */
   failureRatePct: number | undefined;
   initial: { total: Distribution; download: Distribution; records: Distribution };
   delta: { total: Distribution; download: Distribution; upload: Distribution };
@@ -167,15 +191,21 @@ function groupBy(samples: SyncSample[], key: (s: SyncSample) => string): Map<str
 }
 
 export function summarize(samples: SyncSample[]): TelemetrySummary {
-  const ok = samples.filter((s) => !s.failed);
+  const ok = samples.filter((s) => s.outcome === "completed");
   const initial = ok.filter((s) => s.kind === "initial");
   const delta = ok.filter((s) => s.kind === "delta");
-  const failureRate = (list: SyncSample[]) =>
-    list.length ? (list.filter((s) => s.failed).length / list.length) * 100 : 0;
+  const decided = (list: SyncSample[]) => list.filter((s) => s.outcome === "completed" || s.outcome === "failed");
+  const failureRate = (list: SyncSample[]) => {
+    const d = decided(list);
+    return d.length ? (d.filter((s) => s.failed).length / d.length) * 100 : 0;
+  };
+  const outcomes: Record<SyncOutcome, number> = { completed: 0, failed: 0, cancelled: 0, "stopped-early": 0 };
+  for (const s of samples) outcomes[s.outcome]++;
 
   return {
     samples: samples.length,
-    failureRatePct: samples.length ? failureRate(samples) : undefined,
+    outcomes,
+    failureRatePct: decided(samples).length ? failureRate(samples) : undefined,
     initial: {
       total: distribution(initial.map((s) => s.totalSec)),
       download: distribution(initial.map((s) => s.downloadSec)),
@@ -201,7 +231,7 @@ export function summarize(samples: SyncSample[]): TelemetrySummary {
       n: list.length,
       deltaP95: percentile(
         list
-          .filter((s) => !s.failed && s.kind === "delta" && s.totalSec !== undefined)
+          .filter((s) => s.outcome === "completed" && s.kind === "delta" && s.totalSec !== undefined)
           .map((s) => s.totalSec as number),
         95
       ),

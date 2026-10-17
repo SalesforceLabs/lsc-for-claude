@@ -7,7 +7,7 @@ import {
   overallStatus,
   parseNfrProfile,
 } from "../../../src/perf/nfr.js";
-import { evaluatePersona, renderAssessment } from "../../../src/perf/assessment.js";
+import { evaluatePersona, renderAssessment, runAssessment } from "../../../src/perf/assessment.js";
 import { summarize } from "../../../src/perf/telemetry.js";
 
 const EXAMPLE = join(__dirname, "..", "..", "..", "docs", "perf-nfr-profile.example.yaml");
@@ -83,5 +83,86 @@ describe("evaluatePersona", () => {
     );
     expect(md).toContain("Persona: Rep");
     expect(md).toContain("b / T3");
+  });
+});
+
+describe("persona users and select", () => {
+  const plan = (persona: string) => `name: x\npersonas:\n  - name: p\n${persona}`;
+
+  it("accepts a profile selection instead of users, defaulting users to []", () => {
+    const p = parseNfrProfile(plan(`    select: { profile: Field Sales, count: 5 }\n`)).personas[0];
+    expect(p.users).toEqual([]);
+    expect(p.select).toEqual({ profile: "Field Sales", count: 5 });
+  });
+
+  it("rejects a persona with neither users nor a selection", () => {
+    expect(() => parseNfrProfile(plan(`    territory: North\n`))).toThrow(/needs users or a select/);
+    expect(() => parseNfrProfile(plan(`    users: ["  "]\n`))).toThrow(/needs users or a select/);
+  });
+
+  it("bounds the selection count to 1–10 and requires a profile", () => {
+    expect(() => parseNfrProfile(plan(`    select: { profile: Field Sales, count: 0 }\n`))).toThrow();
+    expect(() => parseNfrProfile(plan(`    select: { profile: Field Sales, count: 11 }\n`))).toThrow();
+    expect(() => parseNfrProfile(plan(`    select: { profile: "" }\n`))).toThrow();
+    expect(parseNfrProfile(plan(`    select: { profile: Field Sales, count: 10 }\n`)).personas[0].select?.count).toBe(10);
+  });
+
+  it("ships an example with a select persona", () => {
+    const profile = parseNfrProfile(readFileSync(EXAMPLE, "utf-8"));
+    expect(profile.personas.some((p) => p.select)).toBe(true);
+  });
+});
+
+describe("runAssessment with a profile selection", () => {
+  const failing = {
+    soql: async () => {
+      throw new Error("INVALID_TYPE");
+    },
+    tooling: async () => {
+      throw new Error("unexpected tooling query");
+    },
+  };
+
+  it("reports a failed selection as a user error, skips telemetry, and tags steps with persona progress", async () => {
+    const profile = parseNfrProfile(`name: x\npersonas:\n  - name: Reps\n    select: { profile: Field Sales }\n`);
+    const steps: Array<[string, unknown]> = [];
+    const result = await runAssessment(profile, "my-org", failing, failing, async () => new Set(), {
+      onStep: (step, progress) => steps.push([step, progress]),
+    });
+
+    const p = result.personas[0];
+    expect(p.users).toEqual([]);
+    expect(p.volumes).toHaveLength(1);
+    expect(p.volumes[0]).toMatchObject({ user: { username: "", profileName: "Field Sales" } });
+    expect(p.volumes[0].error).toContain("Couldn't select Field Sales users: INVALID_TYPE");
+    expect(p.telemetryError).toBe("No users to read telemetry for.");
+    expect(steps).toEqual([["Reps (1/1): Selecting the heaviest Field Sales users", { persona: 1, personas: 1 }]]);
+
+    const md = renderAssessment(result, 30);
+    expect(md).toContain("**Users:** the 3 heaviest active users with the profile Field Sales — none found");
+  });
+});
+
+describe("renderAssessment users line", () => {
+  it("names the selected users and counts the listed ones", () => {
+    const md = renderAssessment(
+      {
+        profile: "x",
+        org: "o",
+        generatedAt: "2026-10-17T00:00:00Z",
+        status: "pass",
+        personas: [
+          {
+            persona: { name: "Reps", users: ["Own@x"], select: { profile: "Field Sales", count: 2 } },
+            users: ["Own@x", "a@x", "b@x"],
+            volumes: [],
+            evaluations: [],
+            status: "pass",
+          },
+        ],
+      },
+      30
+    );
+    expect(md).toContain("**Users:** the 2 heaviest active users with the profile Field Sales — a@x, b@x, plus 1 listed in the plan");
   });
 });

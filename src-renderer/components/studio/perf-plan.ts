@@ -5,7 +5,7 @@ import type { AssessmentResult, EvalStatus, MetricEvaluation, MetricKey, PerfPla
 export const METRICS: Array<{ key: MetricKey; label: string; unit: string; source: "config" | "telemetry" }> = [
   { key: "predictedRecordsTotal", label: "Predicted records synced (total)", unit: "records", source: "config" },
   { key: "predictedRecordsPerTable", label: "Predicted records synced (largest table)", unit: "records", source: "config" },
-  { key: "deviceSoqlRequests", label: "Estimated device SOQL requests (visibility pass)", unit: "requests", source: "config" },
+  { key: "deviceSoqlRequests", label: "Estimated device requests (initial sync download)", unit: "requests", source: "config" },
   { key: "initialSyncP95Sec", label: "Initial sync p95", unit: "s", source: "telemetry" },
   { key: "deltaSyncP95Sec", label: "Delta sync p95", unit: "s", source: "telemetry" },
   { key: "metadataDownloadP95Sec", label: "Metadata cache download p95", unit: "s", source: "telemetry" },
@@ -20,6 +20,10 @@ export const DEFAULT_THRESHOLDS: Thresholds = { metadataDownloadP95Sec: { warn: 
 export const DEFAULT_SOURCE = "lsc-metadata-svc SLO";
 
 export const DEFAULT_TELEMETRY_DAYS = 30;
+
+/** How many of a profile's heaviest users a profile persona tests, unless the plan says otherwise. */
+export const DEFAULT_SELECT_COUNT = 3;
+export const MAX_SELECT_COUNT = 10;
 
 export function emptyPersona(index: number): Persona {
   return { name: `Persona ${index + 1}`, users: [] };
@@ -55,8 +59,14 @@ export function normalizePlan(plan: PerfPlan): PerfPlan {
     personas: plan.personas.map((p) => {
       const persona: Persona = {
         name: p.name.trim() || "Persona",
-        users: [...new Set(p.users.map((u) => u.trim()).filter(Boolean))],
+        users: [...new Set((p.users ?? []).map((u) => u.trim()).filter(Boolean))],
       };
+      const profile = p.select?.profile.trim();
+      if (profile) {
+        const count = p.select?.count;
+        persona.select = typeof count === "number" && Number.isFinite(count) ? { profile, count: Math.floor(count) } : { profile };
+        if (p.select?.preferSynced) persona.select.preferSynced = true;
+      }
       if (p.territory?.trim()) persona.territory = p.territory.trim();
       const thresholds = cleanThresholds(p.thresholds);
       if (thresholds) persona.thresholds = thresholds;
@@ -70,35 +80,50 @@ export function normalizePlan(plan: PerfPlan): PerfPlan {
   return out;
 }
 
-/** Problems that would make the run fail or mislead; empty when the plan can run. */
-export function validatePlan(plan: PerfPlan): string[] {
-  const issues: string[] = [];
+export type PlanArea = "plan" | "targets" | "personas";
+
+/** validatePlan's problems, tagged with the part of the editor that fixes them. */
+export function planIssues(plan: PerfPlan): Array<{ area: PlanArea; message: string }> {
+  const out: Array<{ area: PlanArea; message: string }> = [];
+  const issues = { push: (message: string) => out.push({ area: "personas", message }) };
+  const targetIssues = { push: (message: string) => out.push({ area: "targets", message }) };
   if (plan.personas.length === 0) issues.push("Add at least one persona.");
   const names = new Set<string>();
   plan.personas.forEach((p, i) => {
     const label = p.name.trim() || `Persona ${i + 1}`;
-    if (p.users.filter((u) => u.trim()).length === 0) issues.push(`${label}: add at least one user.`);
+    const hasUsers = (p.users ?? []).some((u) => u.trim());
+    const hasProfile = !!p.select?.profile.trim();
+    if (!hasUsers && !hasProfile) issues.push(`${label}: choose a profile or add at least one user.`);
+    const count = p.select?.count;
+    if (hasProfile && count !== undefined && (!Number.isInteger(count) || count < 1 || count > MAX_SELECT_COUNT)) {
+      issues.push(`${label}: the number of users to test must be a whole number from 1 to ${MAX_SELECT_COUNT}.`);
+    }
     const key = label.toLowerCase();
     if (names.has(key)) issues.push(`Two personas are named “${label}” — runs are compared by persona name.`);
     names.add(key);
   });
-  const checkThresholds = (t: Thresholds | undefined, where: string) => {
+  const checkThresholds = (t: Thresholds | undefined, where: string, sink: { push: (message: string) => void }) => {
     for (const m of METRICS) {
       const v = t?.[m.key];
       if (!v) continue;
-      if ((v.warn ?? 0) < 0 || (v.fail ?? 0) < 0) issues.push(`${where}${m.label}: thresholds can't be negative.`);
+      if ((v.warn ?? 0) < 0 || (v.fail ?? 0) < 0) sink.push(`${where}${m.label}: thresholds can't be negative.`);
       if (v.warn !== undefined && v.fail !== undefined && v.warn > v.fail) {
-        issues.push(`${where}${m.label}: warn (${v.warn}) is above fail (${v.fail}).`);
+        sink.push(`${where}${m.label}: warn (${v.warn}) is above fail (${v.fail}).`);
       }
     }
   };
-  checkThresholds(plan.thresholds, "");
-  plan.personas.forEach((p, i) => checkThresholds(p.thresholds, `${p.name.trim() || `Persona ${i + 1}`} — `));
+  checkThresholds(plan.thresholds, "", targetIssues);
+  plan.personas.forEach((p, i) => checkThresholds(p.thresholds, `${p.name.trim() || `Persona ${i + 1}`} — `, issues));
   const days = plan.telemetry?.days;
   if (days !== undefined && (!Number.isFinite(days) || days < 1 || days > 365)) {
-    issues.push("Telemetry window must be between 1 and 365 days.");
+    out.push({ area: "plan", message: "Telemetry window must be between 1 and 365 days." });
   }
-  return issues;
+  return out;
+}
+
+/** Problems that would make the run fail or mislead; empty when the plan can run. */
+export function validatePlan(plan: PerfPlan): string[] {
+  return planIssues(plan).map((i) => i.message);
 }
 
 export function planToYaml(plan: PerfPlan): string {
@@ -129,6 +154,81 @@ export function mayOvercount(t: TableVolume): boolean {
 
 export function upperBoundRecords(terr: TerritoryVolume): number {
   return terr.tables.filter(mayOvercount).reduce((n, t) => n + t.records, 0);
+}
+
+/** Decimal places a baseline target keeps, by metric unit. */
+const BASELINE_DIGITS: Record<string, number> = { records: 0, requests: 0, s: 1, "%": 2, GB: 2 };
+
+function roundTo(n: number, digits: number): number {
+  const f = 10 ** digits;
+  return Math.round(n * f) / f;
+}
+
+/**
+ * Persona targets taken from a run: each measured metric warns above the
+ * measured value plus `warnPct` and fails above it plus `failPct`. Personas
+ * are matched by name; metrics the run didn't measure keep their override.
+ */
+export function applyBaseline(plan: PerfPlan, result: AssessmentResult, margin: { warnPct: number; failPct: number }): PerfPlan {
+  return {
+    ...plan,
+    personas: plan.personas.map((persona) => {
+      const measured = result.personas.find((r) => r.persona.name.trim().toLowerCase() === persona.name.trim().toLowerCase());
+      if (!measured) return persona;
+      const thresholds: Thresholds = { ...(persona.thresholds ?? {}) };
+      for (const e of measured.evaluations) {
+        if (e.value === undefined || !Number.isFinite(e.value)) continue;
+        const digits = BASELINE_DIGITS[metricInfo(e.metric).unit] ?? 2;
+        const warn = roundTo(e.value * (1 + margin.warnPct / 100), digits);
+        const fail = Math.max(warn, roundTo(e.value * (1 + margin.failPct / 100), digits));
+        thresholds[e.metric] = { warn, fail };
+      }
+      return { ...persona, thresholds: Object.keys(thresholds).length ? thresholds : undefined };
+    }),
+  };
+}
+
+const sortedLower = (xs: string[] | undefined) => [...new Set((xs ?? []).map((x) => x.trim().toLowerCase()).filter(Boolean))].sort();
+const sameList = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+const selectKey = (p: Persona) =>
+  p.select?.profile.trim()
+    ? `${p.select.profile.trim().toLowerCase()}#${p.select.count ?? DEFAULT_SELECT_COUNT}${p.select.preferSynced ? "#synced" : ""}`
+    : "";
+const targetsKey = (r: AssessmentResult["personas"][number]) =>
+  JSON.stringify(
+    METRICS.map((m) => {
+      const t = r.evaluations.find((e) => e.metric === m.key)?.threshold;
+      return [t?.warn ?? null, t?.fail ?? null];
+    })
+  );
+
+/**
+ * What changed in each persona between two runs, so a "vs previous" delta
+ * isn't read as a configuration change when the test itself changed. Keyed
+ * by lowercased persona name; personas new in this run or unchanged are omitted.
+ */
+export function planChanges(current: AssessmentResult, previous: AssessmentResult): Map<string, string[]> {
+  const changes = new Map<string, string[]>();
+  for (const now of current.personas) {
+    const key = now.persona.name.trim().toLowerCase();
+    const before = previous.personas.find((p) => p.persona.name.trim().toLowerCase() === key);
+    if (!before) continue;
+    const list: string[] = [];
+    const usersChanged = !sameList(sortedLower(now.persona.users), sortedLower(before.persona.users));
+    const selectChanged = selectKey(now.persona) !== selectKey(before.persona);
+    if (usersChanged) list.push("users changed");
+    if (selectChanged) list.push("profile selection changed");
+    // Same definition, different people: a profile's heaviest users shifted between runs.
+    if (!usersChanged && !selectChanged && now.users && before.users && !sameList(sortedLower(now.users), sortedLower(before.users))) {
+      list.push("tested users changed");
+    }
+    if ((now.persona.territory ?? "").trim().toLowerCase() !== (before.persona.territory ?? "").trim().toLowerCase()) {
+      list.push("territory changed");
+    }
+    if (targetsKey(now) !== targetsKey(before)) list.push("targets changed");
+    if (list.length) changes.set(key, list);
+  }
+  return changes;
 }
 
 /** Measured value minus the previous run's, per persona name and metric. */

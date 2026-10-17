@@ -33,6 +33,7 @@ import { register as registerMetadata } from "./tools/metadata.js";
 import { register as registerBriefings } from "./tools/briefings.js";
 import { register as registerStudio } from "./tools/studio.js";
 import { register as registerPerf } from "./tools/perf.js";
+import { register as registerPerfSimulate } from "./tools/perf-simulate.js";
 
 // Create the MCP server
 const server = new McpServer({
@@ -63,6 +64,7 @@ registerMetadata(server);
 registerBriefings(server);
 registerStudio(server);
 registerPerf(server);
+registerPerfSimulate(server);
 
 // ============================================================================
 // MAIN

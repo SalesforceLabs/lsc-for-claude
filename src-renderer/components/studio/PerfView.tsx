@@ -1,8 +1,19 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import type { AssessmentResult, PerfJobStatus, PerfPlan } from "./perf-types";
+import type { AssessmentResult, PerfCheckResult, PerfJobStatus, PerfPlan } from "./perf-types";
 import type { ProfileOption } from "./types";
 import type { PerfPlanRecord, PerfRunRecord } from "../../types";
-import { emptyPlan, normalizePlan, planFileName, planToYaml, remediationPrompt, validatePlan } from "./perf-plan";
+import {
+  applyBaseline,
+  emptyPlan,
+  formatValue,
+  metricInfo,
+  normalizePlan,
+  planFileName,
+  planToYaml,
+  remediationPrompt,
+  validatePlan,
+} from "./perf-plan";
+import { asRunSummary, runSummary, trendRows } from "./perf-history";
 import PlanEditor from "./PlanEditor";
 import RunReport from "./RunReport";
 
@@ -13,17 +24,25 @@ interface PerfViewProps {
 /** The run in flight, kept so polling resumes if the view is left and reopened. */
 const ACTIVE_JOB_KEY = "lsc.studio.perfJob";
 const POLL_MS = 3000;
+/** Consecutive failed status checks before the view stops polling and offers to reconnect. */
+const MAX_POLL_FAILURES = 5;
+const FLASH_MS = 4000;
 
 interface ActiveJob {
   jobId: string;
+  /** Empty when the run was started elsewhere (chat, another window) and attached to here. */
   planId: string;
   planName: string;
 }
 
 type Selection = { kind: "plan"; id: string } | { kind: "draft" };
 type RunView = { id: string; result: AssessmentResult; previous: AssessmentResult | null };
+type CheckIssue = PerfCheckResult["issues"][number];
+type Response = { data?: unknown & { error?: string }; error?: string };
 
-const responseError = (res: { error?: string; data?: { error?: string } }) => res.error || res.data?.error;
+const responseError = (res: Response) => res.error || res.data?.error;
+const isGone = (error: string) => /no longer available/i.test(error);
+const sameOrg = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
 function readActiveJob(): ActiveJob | null {
   try {
@@ -39,6 +58,36 @@ function elapsed(from: string): string {
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
 }
 
+/** "Persona 1 of 2 · user 2 of 3" from a job's progress. */
+function progressLabel(job: PerfJobStatus | null): string {
+  const p = job?.progress;
+  if (!p) return "";
+  const parts = [`Persona ${p.persona} of ${p.personas}`];
+  if (p.user && p.users) parts.push(`user ${p.user} of ${p.users}`);
+  return parts.join(" · ");
+}
+
+function ProgressBar({ job }: { job: PerfJobStatus | null }) {
+  const t = job?.progress?.tables;
+  if (!t || t.total <= 0) return null;
+  const pct = Math.min(100, Math.round((t.done / t.total) * 100));
+  return (
+    <div
+      className="studio-perf-bar"
+      role="progressbar"
+      aria-valuenow={t.done}
+      aria-valuemin={0}
+      aria-valuemax={t.total}
+      aria-label="Tables counted"
+      title={`${t.done} of ${t.total} tables counted`}
+    >
+      <div className="studio-perf-bar-fill" style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
+const issueText = (i: CheckIssue) => (i.persona ? `${i.persona}: ${i.message}` : i.message);
+
 export default function PerfView({ onAskClaude }: PerfViewProps) {
   const [plans, setPlans] = useState<PerfPlanRecord[]>([]);
   const [selection, setSelection] = useState<Selection | null>(null);
@@ -51,6 +100,11 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
   const [activeJob, setActiveJob] = useState<ActiveJob | null>(readActiveJob);
   // Set from the click until the engine hands back a job id; the org connection check takes seconds.
   const [starting, setStarting] = useState<Omit<ActiveJob, "jobId"> | null>(null);
+  // Polling gave up after repeated failures; the run may still be going on the engine.
+  const [lost, setLost] = useState(false);
+  const [checking, setChecking] = useState(false);
+  // What the org said about the plan's users and territories; cleared on edit.
+  const [checkIssues, setCheckIssues] = useState<CheckIssue[]>([]);
   const [notice, setNotice] = useState<{ kind: "error" | "info"; text: string } | null>(null);
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
   // Bumped to remount the editor when a different plan is loaded.
@@ -60,6 +114,11 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
   const selectedPlan = selection?.kind === "plan" ? plans.find((p) => p.id === selection.id) : undefined;
   const inFlight = activeJob ?? starting;
   const running = !!inFlight;
+
+  const flash = useCallback((text: string) => {
+    setNotice({ kind: "info", text });
+    setTimeout(() => setNotice((n) => (n?.text === text ? null : n)), FLASH_MS);
+  }, []);
 
   const loadPlans = useCallback(async () => {
     const list = await window.lscApi.perfListPlans();
@@ -92,50 +151,97 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
       setRunView(null);
       setTab("plan");
       setNotice(null);
+      setCheckIssues([]);
       setEditorKey((k) => k + 1);
       await loadRuns(record.id);
     },
     [loadRuns]
   );
 
-  const openDraft = (plan: PerfPlan) => {
+  const openDraft = useCallback((plan: PerfPlan) => {
     setSelection({ kind: "draft" });
     setDraft(plan);
     setDirty(true);
     setRuns([]);
     setRunView(null);
     setTab("plan");
+    setCheckIssues([]);
     setEditorKey((k) => k + 1);
-  };
+  }, []);
+
+  /** Load the connected org's plans and open the one with a run in flight, else the first. */
+  const reload = useCallback(async () => {
+    const list = await loadPlans();
+    const active = readActiveJob();
+    const first = (active && list.find((p) => p.id === active.planId)) || list[0];
+    if (first) await openPlan(first);
+    else openDraft(emptyPlan());
+    window.lscApi.studioListProfiles().then((res) => {
+      setProfiles(Array.isArray(res.data) ? (res.data as ProfileOption[]) : []);
+    });
+  }, [loadPlans, openPlan, openDraft]);
+
+  /** Watch a run the engine already has (started in chat, or one this view lost track of). */
+  const attachActive = useCallback(async (): Promise<boolean> => {
+    const res = await window.lscApi.studioPerfActive();
+    const current = responseError(res) ? null : (res.data as { job?: PerfJobStatus | null } | undefined)?.job;
+    if (!current || current.state !== "running") return false;
+    const active: ActiveJob = { jobId: current.jobId, planId: "", planName: "a run started elsewhere" };
+    localStorage.setItem(ACTIVE_JOB_KEY, JSON.stringify(active));
+    setJob(current);
+    setLost(false);
+    setActiveJob(active);
+    return true;
+  }, []);
 
   useEffect(() => {
-    loadPlans().then((list) => {
-      const active = readActiveJob();
-      const first = (active && list.find((p) => p.id === active.planId)) || list[0];
-      if (first) openPlan(first);
-      else openDraft(emptyPlan());
+    reload().then(() => {
+      if (!readActiveJob()) attachActive();
     });
-    window.lscApi.studioListProfiles().then((res) => {
-      if (Array.isArray(res.data)) setProfiles(res.data as ProfileOption[]);
-    });
-  }, [loadPlans, openPlan]);
+  }, [reload, attachActive]);
+
+  // Plans and runs belong to an org, so switching orgs in Settings swaps the list. A run in flight
+  // keeps going against its own org and is filed there when it finishes.
+  useEffect(
+    () =>
+      window.lscApi.onSfOrgChanged((org) => {
+        reload().then(() => flash(`Showing test plans for ${org}.`));
+      }),
+    [reload, flash]
+  );
+
+  const plansRef = useRef(plans);
+  plansRef.current = plans;
 
   const finishJob = useCallback(
     async (status: PerfJobStatus, active: ActiveJob) => {
       localStorage.removeItem(ACTIVE_JOB_KEY);
       setActiveJob(null);
+      setLost(false);
       if (status.state === "done" && status.result) {
+        const result = status.result;
+        // A run attached from elsewhere is filed with the saved plan of the same name, if there is one.
+        const name = result.profile.trim().toLowerCase();
+        const plan = active.planId
+          ? { id: active.planId, name: active.planName }
+          : plansRef.current.find((p) => p.name.trim().toLowerCase() === name && sameOrg(p.org, status.org));
+        if (!plan) {
+          setNotice({ kind: "info", text: `A run of “${result.profile}” finished, but no saved plan here has that name, so it wasn't kept.` });
+          return;
+        }
         const saved = await window.lscApi.perfSaveRun({
-          planId: active.planId,
-          planName: active.planName,
-          status: status.result.status,
+          org: status.org,
+          planId: plan.id,
+          planName: plan.name,
+          status: result.status,
           startedAt: status.startedAt,
           finishedAt: status.finishedAt ?? new Date().toISOString(),
-          result: status.result,
+          summary: runSummary(result),
+          result,
         });
         setNotice(null);
-        if (selection?.kind === "plan" && selection.id === active.planId) {
-          const list = await loadRuns(active.planId);
+        if (selection?.kind === "plan" && selection.id === plan.id) {
+          const list = await loadRuns(plan.id);
           await openRun(list, saved.id);
         }
       } else if (status.state === "failed") {
@@ -151,20 +257,37 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
   const finishRef = useRef(finishJob);
   finishRef.current = finishJob;
   useEffect(() => {
-    if (!activeJob) return;
+    if (!activeJob || lost) return;
     let stopped = false;
+    let failures = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const poll = async () => {
-      const res = await window.lscApi.studioPerfStatus(activeJob.jobId);
+      let res: Response;
+      try {
+        res = await window.lscApi.studioPerfStatus(activeJob.jobId);
+      } catch (err) {
+        res = { error: err instanceof Error ? err.message : String(err) };
+      }
       if (stopped) return;
       const error = responseError(res);
       if (error) {
-        localStorage.removeItem(ACTIVE_JOB_KEY);
-        setActiveJob(null);
-        setJob(null);
-        setNotice({ kind: "error", text: error });
+        if (isGone(error)) {
+          localStorage.removeItem(ACTIVE_JOB_KEY);
+          setActiveJob(null);
+          setJob(null);
+          setNotice({ kind: "error", text: error });
+          return;
+        }
+        // Anything else may be a hiccup (engine busy or restarting): back off, and keep the job to reconnect to.
+        failures++;
+        if (failures >= MAX_POLL_FAILURES) {
+          setLost(true);
+          return;
+        }
+        timer = setTimeout(poll, Math.min(POLL_MS * 2 ** failures, 30_000));
         return;
       }
+      failures = 0;
       const status = res.data as PerfJobStatus;
       setJob(status);
       if (status.state === "running") timer = setTimeout(poll, POLL_MS);
@@ -178,11 +301,12 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
       if (timer) clearTimeout(timer);
       clearInterval(clock);
     };
-  }, [activeJob]);
+  }, [activeJob, lost]);
 
   const editDraft = (plan: PerfPlan) => {
     setDraft(plan);
     setDirty(true);
+    setCheckIssues([]);
   };
 
   const save = async (): Promise<PerfPlanRecord | null> => {
@@ -200,6 +324,40 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
   };
 
   const issues = validatePlan(draft);
+  const checkErrors = checkIssues.filter((i) => i.level === "error");
+  const checkWarnings = checkIssues.filter((i) => i.level === "warning");
+
+  /** Look the plan's users and territories up in the org; null when the check itself couldn't run. */
+  const checkPlan = async (plan: PerfPlan, planOrg: string | undefined): Promise<CheckIssue[] | null> => {
+    setChecking(true);
+    try {
+      const res = await window.lscApi.studioPerfCheck(normalizePlan(plan));
+      const error = responseError(res);
+      if (error) {
+        setNotice({ kind: "error", text: `Couldn't check the plan: ${error}` });
+        return null;
+      }
+      const check = res.data as PerfCheckResult;
+      const found: CheckIssue[] = [...check.issues];
+      if (planOrg && check.org && !sameOrg(planOrg, check.org)) {
+        found.unshift({
+          persona: "",
+          level: "error",
+          message: `This plan belongs to ${planOrg}, but Studio is connected to ${check.org}. Switch orgs in Settings, or export the plan and import it here.`,
+        });
+      }
+      setCheckIssues(found);
+      return found;
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const checkOnly = async () => {
+    setNotice(null);
+    const found = await checkPlan(draft, selectedPlan?.org);
+    if (found && found.length === 0) flash("Every user and territory in the plan was found.");
+  };
 
   const run = async () => {
     if (issues.length) {
@@ -208,16 +366,27 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
     }
     setNotice(null);
     setJob(null);
+    setLost(false);
     setStarting({ planId: selectedPlan?.id ?? "", planName: normalizePlan(draft).name });
     try {
       const record = await save();
       if (!record) return;
       setStarting({ planId: record.id, planName: record.name });
       await loadRuns(record.id);
+      const found = await checkPlan(record.plan as PerfPlan, record.org);
+      if (!found) return;
+      if (found.some((i) => i.level === "error")) {
+        setTab("plan");
+        return;
+      }
       const res = await window.lscApi.studioPerfStart(record.plan);
       const error = responseError(res);
       if (error) {
-        setNotice({ kind: "error", text: error });
+        if (/already in progress/i.test(error) && (await attachActive())) {
+          setNotice({ kind: "info", text: "A run was already going on this org, so Studio is showing that one instead." });
+        } else {
+          setNotice({ kind: "error", text: error });
+        }
         return;
       }
       const status = res.data as PerfJobStatus;
@@ -225,6 +394,7 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
       localStorage.setItem(ACTIVE_JOB_KEY, JSON.stringify(active));
       setJob(status);
       setActiveJob(active);
+      flash("Saved and started.");
     } catch (err) {
       setNotice({ kind: "error", text: err instanceof Error ? err.message : String(err) });
     } finally {
@@ -256,11 +426,37 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
     if (!res.canceled && res.path) setNotice({ kind: "info", text: `Saved ${res.path}` });
   };
 
+  const runFileName = (result: AssessmentResult, ext: string) =>
+    planFileName({ ...draft, name: `${result.profile} ${result.generatedAt.slice(0, 10)}` }, ext);
+
   const exportRun = async () => {
     if (!runView) return;
-    const name = planFileName({ ...draft, name: `${runView.result.profile} ${runView.result.generatedAt.slice(0, 10)}` }, "json");
-    const res = await window.lscApi.perfSaveFile(name, JSON.stringify(runView.result, null, 2), "json");
+    const res = await window.lscApi.perfSaveFile(runFileName(runView.result, "json"), JSON.stringify(runView.result, null, 2), "json");
     if (!res.canceled && res.path) setNotice({ kind: "info", text: `Saved ${res.path}` });
+  };
+
+  const exportReport = async () => {
+    if (!runView) return;
+    const report = await window.lscApi.studioPerfReport(runView.result, draft.telemetry?.days);
+    const error = responseError(report);
+    const markdown = (report.data as { markdown?: string } | undefined)?.markdown;
+    if (error || !markdown) {
+      setNotice({ kind: "error", text: `Couldn't build the report: ${error ?? "no report came back"}` });
+      return;
+    }
+    const res = await window.lscApi.perfSaveFile(runFileName(runView.result, "md"), markdown, "md");
+    if (!res.canceled && res.path) setNotice({ kind: "info", text: `Saved ${res.path}` });
+  };
+
+  const useAsBaseline = (margin: { warnPct: number; failPct: number }) => {
+    if (!runView) return;
+    editDraft(applyBaseline(draft, runView.result, margin));
+    setEditorKey((k) => k + 1);
+    setTab("plan");
+    setNotice({
+      kind: "info",
+      text: `Targets set from the run of ${new Date(runView.result.generatedAt).toLocaleString()} (warn at +${margin.warnPct}%, fail at +${margin.failPct}%). Review them, then save.`,
+    });
   };
 
   const removePlan = async () => {
@@ -283,6 +479,11 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
   };
 
   const confirmLeave = () => !dirty || window.confirm("Discard unsaved changes to this plan?");
+
+  const inFlightHere = !!selectedPlan && inFlight?.planId === selectedPlan.id;
+  // Trends end at the report being viewed, so an older report shows the history it had.
+  const viewedIndex = runView ? runs.findIndex((r) => r.id === runView.id) : -1;
+  const trend = viewedIndex >= 0 ? trendRows(runs.slice(viewedIndex)) : [];
 
   return (
     <div className="studio-perf">
@@ -314,26 +515,43 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
         {selectedPlan && (
           <>
             <div className="studio-rail-title studio-perf-runs-title">Runs</div>
-            {inFlight?.planId === selectedPlan.id && (
-              <div className="studio-perf-run-item active" title={job?.step ?? "Connecting to the org"}>
-                <span className="studio-perf-run-open">
-                  <span className="studio-spinner studio-perf-run-spinner" />
-                  <span>Running · {job ? elapsed(job.startedAt) : "starting"}</span>
+            {inFlightHere && (
+              <div className="studio-perf-run-item active" title={job?.step ?? "Checking the plan"}>
+                <span className="studio-perf-run-open studio-perf-run-live">
+                  <span className="studio-perf-run-line">
+                    {!lost && <span className="studio-spinner studio-perf-run-spinner" />}
+                    <span>
+                      {lost ? "Lost contact" : "Running"} · {job ? elapsed(job.startedAt) : "starting"}
+                    </span>
+                  </span>
+                  {job?.progress && <span className="studio-perf-run-meta">{progressLabel(job)}</span>}
+                  <ProgressBar job={job} />
                 </span>
               </div>
             )}
-            {runs.length === 0 && inFlight?.planId !== selectedPlan.id && <div className="studio-perf-hint">No runs yet.</div>}
-            {runs.map((r) => (
-              <div key={r.id} className={`studio-perf-run-item${runView?.id === r.id ? " active" : ""}`}>
-                <button className="studio-perf-run-open" onClick={() => openRun(runs, r.id)}>
-                  <span className={`studio-sev-dot studio-perf-dot ${r.status}`} />
-                  <span>{new Date(r.startedAt).toLocaleString()}</span>
-                </button>
-                <button className="studio-chip-x" title="Delete run" aria-label="Delete run" onClick={() => removeRun(r.id)}>
-                  ×
-                </button>
-              </div>
-            ))}
+            {runs.length === 0 && !inFlightHere && <div className="studio-perf-hint">No runs yet.</div>}
+            {runs.map((r) => {
+              const worst = asRunSummary(r.summary)?.worst;
+              return (
+                <div key={r.id} className={`studio-perf-run-item${runView?.id === r.id ? " active" : ""}`}>
+                  <button className="studio-perf-run-open" onClick={() => openRun(runs, r.id)}>
+                    <span className={`studio-sev-dot studio-perf-dot ${r.status}`} />
+                    <span className="studio-perf-run-text">
+                      <span>{new Date(r.startedAt).toLocaleString()}</span>
+                      {worst && (
+                        <span className="studio-perf-run-meta" title={`${worst.persona}: ${metricInfo(worst.metric).label}`}>
+                          {worst.status === "pass" ? "Closest" : "Worst"}: {metricInfo(worst.metric).label}{" "}
+                          {formatValue({ metric: worst.metric, value: worst.value })}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                  <button className="studio-chip-x" title="Delete run" aria-label="Delete run" onClick={() => removeRun(r.id)}>
+                    ×
+                  </button>
+                </div>
+              );
+            })}
           </>
         )}
       </aside>
@@ -375,10 +593,18 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
               Save
             </button>
             <button
+              className="studio-btn"
+              onClick={checkOnly}
+              disabled={running || checking || issues.length > 0}
+              title="Look up the plan's users and territories in the connected org without running it"
+            >
+              {checking && !running ? "Checking…" : "Check plan"}
+            </button>
+            <button
               className="studio-btn primary"
               onClick={run}
-              disabled={running || issues.length > 0}
-              title={issues.length ? issues.join("\n") : "Save the plan and run it against the connected org"}
+              disabled={running || checking || issues.length > 0}
+              title={issues.length ? issues.join("\n") : "Save the plan, check it, and run it against the connected org"}
             >
               Run test
             </button>
@@ -386,14 +612,29 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
         </div>
 
         {inFlight && (
-          <div className="studio-finding info studio-perf-progress">
-            <div className="studio-spinner" />
+          <div className={`studio-finding ${lost ? "warning" : "info"} studio-perf-progress`}>
+            {!lost && <div className="studio-spinner" />}
             <div className="studio-perf-progress-text">
-              <div className="studio-finding-title">Running “{inFlight.planName}”</div>
-              <div className="studio-finding-detail">
-                {job ? `${job.step} · ${job.queries} queries · ${elapsed(job.startedAt)}` : "Connecting to the org…"}
+              <div className="studio-finding-title">
+                {lost ? `Lost contact with “${inFlight.planName}”` : `Running “${inFlight.planName}”`}
               </div>
+              <div className="studio-finding-detail">
+                {lost
+                  ? "Studio couldn't reach the run for a while. It may still be going."
+                  : job
+                    ? `${job.step} · ${job.queries} queries · ${elapsed(job.startedAt)}`
+                    : checking
+                      ? "Checking the plan's users…"
+                      : "Connecting to the org…"}
+              </div>
+              {!lost && job?.progress && <div className="studio-finding-detail">{progressLabel(job)}</div>}
+              {!lost && <ProgressBar job={job} />}
             </div>
+            {lost && (
+              <button className="studio-btn" onClick={() => setLost(false)}>
+                Reconnect
+              </button>
+            )}
             <button className="studio-btn" onClick={cancel} disabled={!activeJob || job?.step === "Cancelling…"}>
               Cancel
             </button>
@@ -406,17 +647,33 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
             <RunReport
               result={runView.result}
               previous={runView.previous}
+              trend={trend}
               onAskClaude={() => onAskClaude(remediationPrompt(runView.result))}
               onExport={exportRun}
+              onExportReport={exportReport}
+              onBaseline={running ? undefined : useAsBaseline}
             />
           ) : (
             <>
-              {issues.length > 0 && (
+              {(issues.length > 0 || checkErrors.length > 0) && (
                 <div className="studio-finding warning studio-perf-notice">
                   <div className="studio-finding-title">Before this plan can run</div>
                   <ul className="studio-perf-issues">
                     {issues.map((i) => (
                       <li key={i}>{i}</li>
+                    ))}
+                    {checkErrors.map((i) => (
+                      <li key={issueText(i)}>{issueText(i)}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {checkWarnings.length > 0 && (
+                <div className="studio-finding info studio-perf-notice">
+                  <div className="studio-finding-title">Worth a look before running</div>
+                  <ul className="studio-perf-issues">
+                    {checkWarnings.map((i) => (
+                      <li key={issueText(i)}>{issueText(i)}</li>
                     ))}
                   </ul>
                 </div>
@@ -428,23 +685,10 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
                 profiles={profiles}
                 disabled={running}
               />
-              <details className="studio-perf-yaml">
-                <summary>YAML</summary>
-                <pre>{safeYaml(draft)}</pre>
-              </details>
             </>
           )}
         </div>
       </div>
     </div>
   );
-}
-
-/** The plan as run_perf_assessment reads it. */
-function safeYaml(plan: PerfPlan): string {
-  try {
-    return planToYaml(plan);
-  } catch (err) {
-    return `# ${err instanceof Error ? err.message : String(err)}`;
-  }
 }

@@ -26,6 +26,8 @@ export interface PerfRunRecord {
   status: string;
   startedAt: string;
   finishedAt: string;
+  /** A RunSummary (see components/studio/perf-history.ts); null for runs saved before summaries. */
+  summary?: unknown;
   result?: unknown;
 }
 
@@ -73,11 +75,15 @@ interface LscApi {
   studioApplyFix(fix: unknown, expectedOrg: string): Promise<StudioResponse>;
   studioPublishMobile(profiles: string[], expectedOrg: string): Promise<StudioResponse>;
   studioPublishStatus(parentId: string): Promise<StudioResponse>;
-  studioPerfUsers(search?: string, profile?: string): Promise<StudioResponse>;
+  studioPerfUsers(search?: string, profile?: string, days?: number): Promise<StudioResponse>;
   studioPerfParsePlan(yaml: string): Promise<StudioResponse>;
   studioPerfStart(plan: unknown): Promise<StudioResponse>;
   studioPerfStatus(jobId: string): Promise<StudioResponse>;
   studioPerfCancel(jobId: string): Promise<StudioResponse>;
+  studioPerfActive(): Promise<StudioResponse>;
+  studioPerfCheck(plan: unknown): Promise<StudioResponse>;
+  studioPerfReport(result: unknown, days?: number): Promise<StudioResponse>;
+  studioPerfTerritories(input: { users: string[]; select?: { profile: string; count?: number } }): Promise<StudioResponse>;
 
   // Studio performance testing — plans and run history, stored per org by the main process
   perfListPlans(): Promise<PerfPlanRecord[]>;
@@ -85,10 +91,10 @@ interface LscApi {
   perfDeletePlan(id: string): Promise<{ ok: boolean }>;
   perfListRuns(planId: string): Promise<PerfRunRecord[]>;
   perfGetRun(id: string): Promise<PerfRunRecord | null>;
-  perfSaveRun(input: Omit<PerfRunRecord, "id" | "org"> & { result: unknown }): Promise<PerfRunRecord>;
+  perfSaveRun(input: Omit<PerfRunRecord, "id" | "org"> & { org?: string; result: unknown }): Promise<PerfRunRecord>;
   perfDeleteRun(id: string): Promise<{ ok: boolean }>;
   perfOpenFile(): Promise<{ canceled: boolean; text?: string }>;
-  perfSaveFile(defaultName: string, text: string, kind: "yaml" | "json"): Promise<{ canceled: boolean; path?: string }>;
+  perfSaveFile(defaultName: string, text: string, kind: "yaml" | "json" | "md"): Promise<{ canceled: boolean; path?: string }>;
 
   // Library
   listLibraryItems(): Promise<LibraryItem[]>;
@@ -109,6 +115,8 @@ interface LscApi {
     error?: string;
   }>;
   setSfOrg(org: string): Promise<{ ok: boolean }>;
+  /** Called with the new org whenever Settings switches it; returns an unsubscribe function. */
+  onSfOrgChanged(callback: (org: string) => void): () => void;
   loginSfOrg(alias?: string, instanceUrl?: string): Promise<{ ok: boolean; error?: string }>;
 
   // Engine

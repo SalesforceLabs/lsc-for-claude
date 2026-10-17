@@ -1,9 +1,10 @@
 /**
  * NFR (non-functional requirement) profiles for LSC performance assessments.
  *
- * A profile names the personas to test (representative users) and the
- * thresholds each measured metric is evaluated against. Every metric is
- * "lower is better": a value above `fail` fails, above `warn` warns.
+ * A profile names the personas to test (representative users, listed or
+ * selected by profile) and the thresholds each measured metric is evaluated
+ * against. Every metric is "lower is better": a value above `fail` fails,
+ * above `warn` warns.
  *
  * Only thresholds with a published source ship as defaults. Everything else
  * must come from the customer's NFR/SLA document — the harness reports the
@@ -17,7 +18,7 @@ import { z } from "zod";
 export const METRICS = {
   predictedRecordsTotal: { label: "Predicted records synced (total)", unit: "records" },
   predictedRecordsPerTable: { label: "Predicted records synced (largest table)", unit: "records" },
-  deviceSoqlRequests: { label: "Estimated device SOQL requests (visibility pass)", unit: "requests" },
+  deviceSoqlRequests: { label: "Estimated device requests (initial sync download)", unit: "requests" },
   initialSyncP95Sec: { label: "Initial sync p95", unit: "s" },
   deltaSyncP95Sec: { label: "Delta sync p95", unit: "s" },
   metadataDownloadP95Sec: { label: "Metadata cache download p95", unit: "s" },
@@ -41,12 +42,30 @@ export type Threshold = z.infer<typeof thresholdSchema>;
 const metricKeys = Object.keys(METRICS) as [MetricKey, ...MetricKey[]];
 const thresholdsSchema = z.record(z.enum(metricKeys), thresholdSchema);
 
-const personaSchema = z.object({
-  name: z.string(),
-  users: z.array(z.string()).min(1),
-  territory: z.string().optional(),
-  thresholds: thresholdsSchema.optional(),
+/** "The N heaviest active standard users with this profile" — most territories in the active model first. */
+const selectSchema = z.object({
+  profile: z.string().min(1),
+  count: z.number().int().min(1).max(10).optional(),
+  /** Put the profile's users who synced in the telemetry window first, so field telemetry has data. */
+  preferSynced: z.boolean().optional(),
 });
+
+const personaSchema = z
+  .object({
+    name: z.string(),
+    /** Usernames or User Ids. Tested before any users `select` picks. */
+    users: z.array(z.string()).default([]),
+    select: selectSchema.optional(),
+    territory: z.string().optional(),
+    thresholds: thresholdsSchema.optional(),
+  })
+  .refine((p) => p.users.some((u) => u.trim()) || p.select !== undefined, {
+    message: "persona needs users or a select (profile) to pick them",
+    path: ["users"],
+  });
+
+/** Days of field telemetry a plan reads when it doesn't say. */
+export const DEFAULT_TELEMETRY_DAYS = 30;
 
 export const nfrProfileSchema = z.object({
   name: z.string(),

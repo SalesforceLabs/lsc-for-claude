@@ -21,6 +21,8 @@ export type Thresholds = Partial<Record<MetricKey, Threshold>>;
 export interface Persona {
   name: string;
   users: string[];
+  /** The N heaviest active users of a profile, resolved at run time; `preferSynced` puts users with recent syncs first. */
+  select?: { profile: string; count?: number; preferSynced?: boolean };
   territory?: string;
   thresholds?: Thresholds;
 }
@@ -90,6 +92,7 @@ export interface Distribution {
 
 export interface TelemetrySummary {
   samples: number;
+  outcomes?: { completed: number; failed: number; cancelled: number; "stopped-early": number };
   failureRatePct?: number;
   initial: { total: Distribution; download: Distribution; records: Distribution };
   delta: { total: Distribution; download: Distribution; upload: Distribution };
@@ -102,6 +105,8 @@ export interface TelemetrySummary {
 
 export interface PersonaResult {
   persona: Persona;
+  /** Usernames tested: the persona's own users plus any resolved from its profile selection. */
+  users: string[];
   volumes: UserVolume[];
   telemetry?: TelemetrySummary;
   telemetryError?: string;
@@ -125,6 +130,7 @@ export interface PerfJobStatus {
   finishedAt?: string;
   step: string;
   queries: number;
+  progress?: { persona: number; personas: number; user?: number; users?: number; tables?: { done: number; total: number } };
   result?: AssessmentResult;
   error?: string;
 }
@@ -135,4 +141,31 @@ export interface PerfUser {
   name: string;
   profile: string;
   territories: number;
+  /** Syncs in the telemetry window; absent when the org's sync telemetry can't be read. */
+  syncs?: number;
+}
+
+export interface PerfCheckResult {
+  org: string;
+  issues: Array<{ persona: string; level: "error" | "warning"; message: string }>;
+  personas: Array<{
+    name: string;
+    users: Array<{
+      ref: string;
+      found: boolean;
+      active: boolean;
+      username?: string;
+      name?: string;
+      profile?: string;
+      territories: Array<{ id: string; name: string }>;
+      syncs?: number;
+    }>;
+    territoryMatched?: boolean;
+  }>;
+}
+
+export interface PerfTerritory {
+  id: string;
+  name: string;
+  users: number;
 }

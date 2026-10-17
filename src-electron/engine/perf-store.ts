@@ -23,6 +23,8 @@ export interface PerfRunRecord {
   status: string;
   startedAt: string;
   finishedAt: string;
+  /** Per-metric values and the worst metric, for the runs list and trends; null for runs saved before it existed. */
+  summary?: unknown;
   /** AssessmentResult JSON; omitted from list results. */
   result?: unknown;
 }
@@ -52,6 +54,8 @@ function db() {
       );
       CREATE INDEX IF NOT EXISTS idx_perf_runs_plan ON perf_runs(org, plan_id, started_at);
     `);
+    const columns = d.prepare("PRAGMA table_info(perf_runs)").all() as Array<{ name: string }>;
+    if (!columns.some((c) => c.name === "summary")) d.exec("ALTER TABLE perf_runs ADD COLUMN summary TEXT");
     initialized = true;
   }
   return d;
@@ -73,6 +77,7 @@ interface RunRow {
   status: string;
   started_at: string;
   finished_at: string;
+  summary?: string | null;
   result?: string;
 }
 
@@ -92,8 +97,20 @@ const toRun = (r: RunRow): PerfRunRecord => ({
   status: r.status,
   startedAt: r.started_at,
   finishedAt: r.finished_at,
+  summary: r.summary ? JSON.parse(r.summary) : null,
   ...(r.result !== undefined ? { result: JSON.parse(r.result) } : {}),
 });
+
+/**
+ * Plans and runs saved before the org was known (no org picked in Settings) are filed
+ * under "". They were made against the tools' connected org, so they move to it.
+ */
+export function adoptUnassigned(org: string): void {
+  if (!org) return;
+  const d = db();
+  d.prepare("UPDATE perf_plans SET org = ? WHERE org = ''").run(org);
+  d.prepare("UPDATE perf_runs SET org = ? WHERE org = ''").run(org);
+}
 
 export function listPerfPlans(org: string): PerfPlanRecord[] {
   const rows = db().prepare("SELECT * FROM perf_plans WHERE org = ? ORDER BY name COLLATE NOCASE").all(org) as PlanRow[];
@@ -118,11 +135,11 @@ export function deletePerfPlan(id: string): void {
   d.prepare("DELETE FROM perf_plans WHERE id = ?").run(id);
 }
 
-/** Runs for a plan, newest first, without their (large) results. */
+/** Runs for a plan, newest first, with their summaries but not their (large) results. */
 export function listPerfRuns(org: string, planId: string): PerfRunRecord[] {
   const rows = db()
     .prepare(
-      "SELECT id, org, plan_id, plan_name, status, started_at, finished_at FROM perf_runs WHERE org = ? AND plan_id = ? ORDER BY started_at DESC"
+      "SELECT id, org, plan_id, plan_name, status, started_at, finished_at, summary FROM perf_runs WHERE org = ? AND plan_id = ? ORDER BY started_at DESC"
     )
     .all(org, planId) as RunRow[];
   return rows.map(toRun);
@@ -137,10 +154,20 @@ export function savePerfRun(input: Omit<PerfRunRecord, "id"> & { result: unknown
   const id = randomUUID();
   db()
     .prepare(
-      "INSERT INTO perf_runs (id, org, plan_id, plan_name, status, started_at, finished_at, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO perf_runs (id, org, plan_id, plan_name, status, started_at, finished_at, summary, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
-    .run(id, input.org, input.planId, input.planName, input.status, input.startedAt, input.finishedAt, JSON.stringify(input.result));
-  return { ...input, id };
+    .run(
+      id,
+      input.org,
+      input.planId,
+      input.planName,
+      input.status,
+      input.startedAt,
+      input.finishedAt,
+      input.summary == null ? null : JSON.stringify(input.summary),
+      JSON.stringify(input.result)
+    );
+  return { ...input, summary: input.summary ?? null, id };
 }
 
 export function deletePerfRun(id: string): void {

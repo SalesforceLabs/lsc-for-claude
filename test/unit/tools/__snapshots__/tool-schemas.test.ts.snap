@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `84`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `90`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -68,16 +68,22 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "run_soql",
   "search_lsc_knowledge",
   "set_target_org",
+  "simulate_initial_sync",
   "studio_access_options",
+  "studio_connected_org",
   "studio_feature_map",
   "studio_ipad_published",
   "studio_item_detail",
   "studio_list_features",
   "studio_list_profiles",
+  "studio_perf_active",
   "studio_perf_cancel",
+  "studio_perf_check",
   "studio_perf_parse_plan",
+  "studio_perf_report",
   "studio_perf_start",
   "studio_perf_status",
+  "studio_perf_territories",
   "studio_perf_users",
   "studio_user_access",
   "toggle_db_schema",
@@ -1259,6 +1265,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
   {
     "name": "studio_perf_users",
     "params": {
+      "days": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
       "profile": {
         "optional": true,
         "type": "ZodString",
@@ -1293,6 +1303,49 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
       "jobId": {
         "optional": false,
         "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_connected_org",
+    "params": {},
+  },
+  {
+    "name": "studio_perf_active",
+    "params": {},
+  },
+  {
+    "name": "studio_perf_check",
+    "params": {
+      "plan": {
+        "optional": false,
+        "type": "ZodObject",
+      },
+    },
+  },
+  {
+    "name": "studio_perf_territories",
+    "params": {
+      "select": {
+        "optional": true,
+        "type": "ZodObject",
+      },
+      "users": {
+        "optional": false,
+        "type": "ZodArray",
+      },
+    },
+  },
+  {
+    "name": "studio_perf_report",
+    "params": {
+      "days": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "result": {
+        "optional": false,
+        "type": "ZodObject",
       },
     },
   },
@@ -1372,6 +1425,59 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
       },
       "targetOrg": {
         "optional": true,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "simulate_initial_sync",
+    "params": {
+      "apiVersion": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "exclude": {
+        "optional": true,
+        "type": "ZodArray",
+      },
+      "forceFlow": {
+        "optional": true,
+        "type": "ZodEnum",
+      },
+      "include": {
+        "optional": true,
+        "type": "ZodArray",
+      },
+      "legacyPaging": {
+        "optional": true,
+        "type": "ZodOptional",
+      },
+      "maxRecordsPerTable": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "maxSeconds": {
+        "optional": true,
+        "type": "ZodOptional",
+      },
+      "maxTotalRecords": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "outputPath": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "tableTimeoutSeconds": {
+        "optional": true,
+        "type": "ZodOptional",
+      },
+      "territory": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "username": {
+        "optional": false,
         "type": "ZodString",
       },
     },

@@ -10,11 +10,11 @@
 # Metrics (all lower-is-better; value > fail => FAIL, value > warn => WARN):
 #   predictedRecordsTotal     records an initial sync would download (worst territory)
 #   predictedRecordsPerTable  records in the single largest synced table
-#   deviceSoqlRequests        estimated SOQL requests the device issues for id-list filters
+#   deviceSoqlRequests        estimated requests the device's initial-sync download makes (queries per id-list chunk + 2,000-record pages batched 15 at a time)
 #   initialSyncP95Sec         field telemetry: initial sync duration p95
 #   deltaSyncP95Sec           field telemetry: delta sync duration p95
 #   metadataDownloadP95Sec    field telemetry: metadata cache download p95
-#   syncFailureRatePct        field telemetry: % of syncs failed
+#   syncFailureRatePct        field telemetry: % of syncs whose download failed (cancelled syncs and syncs that stopped before downloading are reported separately)
 #   dbSizeP95Gb               field telemetry: on-device data DB size p95
 
 name: Example Pharma — US Field Force (EXAMPLE VALUES)
@@ -48,3 +48,16 @@ personas:
     thresholds:
       predictedRecordsTotal: { warn: 250000, fail: 500000 }
       dbSizeP95Gb: { warn: 2, fail: 4 }
+
+  # Instead of naming users, let the run pick the profile's heaviest active
+  # users (most territories in the active model) each time it runs. `count`
+  # is 1–10 (default 3). `users` and `select` can be combined; listed users
+  # are tested first. `preferSynced: true` picks users who synced in the
+  # telemetry window first, so the field-telemetry metrics have data.
+  - name: Medical Science Liaison
+    select:
+      profile: LSC MSL
+      count: 3
+      preferSynced: true
+    thresholds:
+      predictedRecordsTotal: { warn: 100000, fail: 200000 }

@@ -10,7 +10,7 @@ Check the connected org's configuration against the customer's performance NFRs.
 
 1. **Find the NFR profile.**
    - If the user gave a path to a profile YAML, use it.
-   - Otherwise ask for the customer's NFR targets and the representative users for each persona. Draft a profile from `docs/perf-nfr-profile.example.yaml`, replace every example value, and show it to the user before running.
+   - Otherwise ask for the customer's NFR targets and the representative users for each persona. Draft a profile from `docs/perf-nfr-profile.example.yaml`, replace every example value, and show it to the user before running. A persona can name `users`, or `select: { profile, count }` to test that profile's heaviest active users. In Studio, `studio_perf_check` runs a pre-flight check of the plan (missing or inactive users, empty selections, territories none of the users is in).
    - Never invent thresholds. If a target is unknown, leave the metric out and it will be reported as "no threshold".
 
 2. **Don't ask for persona logins.** Counts are already scoped to each persona user's DB Schema filters. Only unscoped tables on objects with restricted sharing are upper bounds, and the report flags them. Pass `countAsOrg` only if the user already has an sf CLI alias logged in as a persona user and asks for exact counts.

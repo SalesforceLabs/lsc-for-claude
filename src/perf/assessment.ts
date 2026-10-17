@@ -28,11 +28,13 @@ import {
   type MetricEvaluation,
   type NfrProfile,
   type Persona,
+  DEFAULT_TELEMETRY_DAYS,
   METRICS,
   effectiveThresholds,
   evaluateMetric,
   overallStatus,
 } from "./nfr.js";
+import { DEFAULT_SELECT_COUNT, resolvePersonaUsers } from "./users.js";
 
 export interface UserVolume {
   user: Omit<UserContext, "permissionSets"> & { permissionSetCount: number };
@@ -46,8 +48,20 @@ export function worstTerritory(volume: UserVolume): TerritoryVolume | undefined 
   return [...volume.territories].sort((a, b) => b.totalRecords - a.totalRecords)[0];
 }
 
-/** Progress callback; `step` is a short human-readable description of the work starting now. */
-export type StepHook = (step: string) => void;
+/** Where a run is: 1-based persona and user positions, and tables counted in the current territory pass. */
+export interface StepProgress {
+  persona?: number;
+  personas?: number;
+  user?: number;
+  users?: number;
+  tables?: { done: number; total: number };
+}
+
+/**
+ * Progress callback; `step` is a short human-readable description of the work
+ * starting now. Called again with the same step as tables are counted.
+ */
+export type StepHook = (step: string, progress?: StepProgress) => void;
 
 export async function profileUsers(
   configOrg: OrgQuerier,
@@ -60,9 +74,10 @@ export async function profileUsers(
   const entries = await loadDbSchemaEntries(configOrg);
   const results: UserVolume[] = [];
 
-  for (const ref of userRefs) {
+  for (const [index, ref] of userRefs.entries()) {
+    const at = { user: index + 1, users: userRefs.length };
     let user: UserContext;
-    opts.onStep?.(`Loading ${ref}`);
+    opts.onStep?.(`Loading ${ref}`, at);
     try {
       user = await loadUserContext(configOrg, ref);
     } catch (e) {
@@ -88,8 +103,13 @@ export async function profileUsers(
 
     const volumes: TerritoryVolume[] = [];
     for (const territory of territories) {
-      opts.onStep?.(`Counting ${tables.length} tables for ${user.username}${territory ? ` in ${territory.name}` : ""}`);
-      volumes.push(await profileTerritory(countOrg, user, territory, tables, options));
+      const step = `Counting ${tables.length} tables for ${user.username}${territory ? ` in ${territory.name}` : ""}`;
+      opts.onStep?.(step, { ...at, tables: { done: 0, total: tables.length } });
+      volumes.push(
+        await profileTerritory(countOrg, user, territory, tables, options, (done, total) =>
+          opts.onStep?.(step, { ...at, tables: { done, total } })
+        )
+      );
     }
 
     const { permissionSets, ...rest } = user;
@@ -127,6 +147,8 @@ export async function loadTelemetry(
 
 export interface PersonaResult {
   persona: Persona;
+  /** Usernames (or ids) actually tested, in order: the persona's own users, then those `select` picked. */
+  users: string[];
   volumes: UserVolume[];
   telemetry?: TelemetrySummary;
   telemetryError?: string;
@@ -195,28 +217,61 @@ export async function runAssessment(
   const personas: PersonaResult[] = [];
   for (const [index, persona] of profile.personas.entries()) {
     const prefix = `${persona.name} (${index + 1}/${profile.personas.length})`;
-    const onStep: StepHook | undefined = options.onStep && ((step) => options.onStep?.(`${prefix}: ${step}`));
-    const volumes = await profileUsers(configOrg, countOrg, persona.users, {
-      territory: persona.territory,
-      ...options,
-      onStep,
-    });
-    onStep?.("Reading field telemetry");
+    const at = { persona: index + 1, personas: profile.personas.length };
+    const onStep: StepHook | undefined =
+      options.onStep && ((step, progress) => options.onStep?.(`${prefix}: ${step}`, { ...at, ...progress }));
+
+    let users = persona.users ?? [];
+    let selectError: string | undefined;
+    if (persona.select) {
+      onStep?.(`Selecting the heaviest ${persona.select.profile} users`);
+      try {
+        users = (await resolvePersonaUsers(configOrg, persona, profile.telemetry?.days ?? DEFAULT_TELEMETRY_DAYS)).users;
+      } catch (e) {
+        selectError = `Couldn't select ${persona.select.profile} users: ${e instanceof Error ? e.message : String(e)}`;
+      }
+    }
+
+    const volumes = users.length
+      ? await profileUsers(configOrg, countOrg, users, {
+          territory: persona.territory,
+          ...options,
+          onStep,
+        })
+      : [];
+    if (selectError || (persona.select && users.length === 0)) {
+      const profileName = persona.select?.profile ?? "";
+      volumes.unshift({
+        user: { id: "", username: "", name: `${profileName} users`, profileId: "", profileName, territories: [], permissionSetCount: 0 },
+        tableCount: 0,
+        territories: [],
+        error: selectError ?? `No active users have the profile “${profileName}”.`,
+      });
+    }
+
     let telemetry: TelemetrySummary | undefined;
     let telemetryError: string | undefined;
-    try {
-      telemetry = (
-        await loadTelemetry(configOrg, describeTelemetryFields, {
-          days: profile.telemetry?.days ?? 30,
-          usernames: volumes.map((v) => v.user.username).filter(Boolean),
-        })
-      ).summary;
-    } catch (e) {
-      telemetryError = e instanceof Error ? e.message : String(e);
+    const usernames = volumes.map((v) => v.user.username).filter(Boolean);
+    if (usernames.length === 0) {
+      // An empty username filter would read every user's syncs.
+      telemetryError = "No users to read telemetry for.";
+    } else {
+      onStep?.("Reading field telemetry");
+      try {
+        telemetry = (
+          await loadTelemetry(configOrg, describeTelemetryFields, {
+            days: profile.telemetry?.days ?? DEFAULT_TELEMETRY_DAYS,
+            usernames,
+          })
+        ).summary;
+      } catch (e) {
+        telemetryError = e instanceof Error ? e.message : String(e);
+      }
     }
     const evaluations = evaluatePersona(profile, persona, volumes, telemetry);
     personas.push({
       persona,
+      users,
       volumes,
       telemetry,
       telemetryError,
@@ -294,11 +349,13 @@ export function renderTelemetry(summary: TelemetrySummary, days: number): string
   const row = (label: string, d: { n: number; p50?: number; p90?: number; p95?: number; max?: number }, unit: string) =>
     `| ${label} | ${d.n} | ${fmt(d.p50)} | ${fmt(d.p90)} | ${fmt(d.p95)} | ${fmt(d.max)} | ${unit} |\n`;
 
+  const o = summary.outcomes;
   let out = `**Window:** last ${days} day(s) · **Syncs:** ${summary.samples} · **Failure rate:** ${fmt(summary.failureRatePct)}%\n\n`;
+  out += `Outcomes: ${o.completed} completed · ${o.failed} failed downloads · ${o.cancelled} cancelled · ${o["stopped-early"]} stopped before downloading. The failure rate counts failed downloads against completed and failed syncs only; timings use completed syncs.\n\n`;
   out += `| Metric | n | p50 | p90 | p95 | max | unit |\n|---|---:|---:|---:|---:|---:|---|\n`;
   out += row("Initial sync (total)", summary.initial.total, "s");
   out += row("Initial sync (data download)", summary.initial.download, "s");
-  out += row("Initial sync records", summary.initial.records, "records");
+  out += row("Initial sync records (excl. files and attachments)", summary.initial.records, "records");
   out += row("Delta sync (total)", summary.delta.total, "s");
   out += row("Delta sync (download)", summary.delta.download, "s");
   out += row("Delta sync (upload)", summary.delta.upload, "s");
@@ -336,6 +393,15 @@ export function renderAssessment(result: AssessmentResult, days: number): string
   let out = `# LSC Performance Assessment: ${result.profile}\n\n**Org:** ${result.org}\n**Generated:** ${result.generatedAt}\n**Overall:** ${STATUS_ICON[result.status]} ${result.status.toUpperCase()}\n\n`;
   for (const p of result.personas) {
     out += `---\n\n# Persona: ${p.persona.name} ${STATUS_ICON[p.status]} ${p.status.toUpperCase()}\n\n`;
+    const select = p.persona.select;
+    if (select) {
+      const listed = new Set((p.persona.users ?? []).map((u) => u.trim().toLowerCase()));
+      const picked = (p.users ?? []).filter((u) => !listed.has(u.toLowerCase()));
+      out += `**Users:** the ${select.count ?? DEFAULT_SELECT_COUNT} heaviest active users with the profile ${select.profile}`;
+      out += picked.length ? ` — ${picked.join(", ")}` : " — none found";
+      out += listed.size ? `, plus ${listed.size} listed in the plan` : "";
+      out += `\n\n`;
+    }
     out += renderEvaluations(p.evaluations) + "\n";
     out += `## Predicted sync volume\n\n` + renderVolumes(p.volumes, 10);
     out += `## Field telemetry (DeviceSyncSummary)\n\n`;

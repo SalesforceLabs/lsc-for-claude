@@ -8,8 +8,17 @@ import { applyFix, previewFix } from "../studio/fixes.js";
 import { publishStatus, startPublish } from "../studio/publish.js";
 import { loadPublishedIpad } from "../studio/published.js";
 import type { StudioFix } from "../studio/types.js";
-import { cancelPerfRun, perfRunStatus, searchPerfUsers, startPerfRun } from "../studio/perf.js";
+import {
+  activePerfRun,
+  cancelPerfRun,
+  checkPerfPlan,
+  perfRunStatus,
+  perfTerritories,
+  searchPerfUsers,
+  startPerfRun,
+} from "../studio/perf.js";
 import { nfrProfileSchema, parseNfrProfile } from "../perf/nfr.js";
+import { renderAssessment, type AssessmentResult } from "../perf/assessment.js";
 
 /**
  * LSC Studio data tools. These return raw JSON for the Electron app's visual
@@ -248,20 +257,22 @@ export function register(server: McpServer) {
   if (process.env.LSC_STUDIO_FIXES === "1") registerFixTools(server);
 }
 
-/** sf CLI alias or username — never a leading "-" so it can't be read as a flag. */
-
 function registerPerfTools(server: McpServer) {
   server.tool(
     "studio_perf_users",
-    "LSC Studio (GUI data): active users to test in a performance plan, filtered by name/username search and/or profile, most territories first. Read-only. Returns JSON.",
-    { search: z.string().max(100).optional(), profile: z.string().max(255).optional() },
-    async ({ search, profile }) => {
+    "LSC Studio (GUI data): active users to test in a performance plan, filtered by name/username search and/or profile, most territories first, with each user's DeviceSyncSummary count over the last `days` days (default 30). Read-only. Returns JSON.",
+    {
+      search: z.string().max(100).optional(),
+      profile: z.string().max(255).optional(),
+      days: z.number().int().min(1).max(365).optional(),
+    },
+    async ({ search, profile, days }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await searchPerfUsers({ search, profile }, connection.targetOrg));
+        return json(await searchPerfUsers({ search, profile, days }, connection.targetOrg));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -305,6 +316,85 @@ function registerPerfTools(server: McpServer) {
     async ({ jobId }) => {
       try {
         return json(perfRunStatus(jobId));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_connected_org",
+    "LSC Studio (GUI data): the org alias or username the tools are connected to. Returns JSON { org }.",
+    {},
+    async () => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      return json({ org: connection.targetOrg });
+    }
+  );
+
+  server.tool(
+    "studio_perf_active",
+    "LSC Studio (GUI data): the performance run in progress for the connected org, if any, so the GUI can reattach to it. Returns JSON { job } (null when nothing is running).",
+    {},
+    async () => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      return json({ job: activePerfRun(connection.targetOrg) });
+    }
+  );
+
+  server.tool(
+    "studio_perf_check",
+    "LSC Studio (GUI data): pre-flight check of a test plan against the connected org — users that don't exist or are inactive, profile selections with no users, and territories none of a persona's users are in. Read-only. Returns JSON { org, issues, personas }.",
+    { plan: nfrProfileSchema },
+    async ({ plan }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await checkPerfPlan(plan, connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_perf_territories",
+    "LSC Studio (GUI data): territories in the active model that a persona's users are in (listed users plus those a profile selection picks), with how many of them are in each. Read-only. Returns JSON { territories }.",
+    {
+      users: z.array(z.string().max(255)).max(50),
+      select: z.object({ profile: z.string().min(1).max(255), count: z.number().int().min(1).max(10).optional() }).optional(),
+    },
+    async ({ users, select }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json({ territories: await perfTerritories({ users, select }, connection.targetOrg) });
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_perf_report",
+    "LSC Studio (GUI data): render a finished performance run (the result from studio_perf_status) as a shareable markdown report. Doesn't touch the org. Returns JSON { markdown }.",
+    { result: z.object({}).passthrough(), days: z.number().int().positive().max(365).optional() },
+    async ({ result, days }) => {
+      if (!Array.isArray((result as { personas?: unknown }).personas)) {
+        return jsonError("Not a performance run result (no personas).");
+      }
+      try {
+        return json({ markdown: renderAssessment(result as unknown as AssessmentResult, days ?? 30) });
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

@@ -7,6 +7,7 @@ import {
   type UserContext,
   annotateSharing,
   estimateDeviceRequests,
+  initialSyncRequests,
   mayOvercount,
   loadDbSchemaEntries,
   profileTerritory,
@@ -88,6 +89,19 @@ describe("substituteIdTag", () => {
     expect(substituteIdTag("AccountId IN ('{ACCOUNT.IDS}')", "{ACCOUNT.IDS}", ["a", "b"])).toBe(
       "AccountId IN ('a','b')"
     );
+  });
+});
+
+describe("initialSyncRequests", () => {
+  it("adds follow-on 2,000-record pages in batches of 15 to each chunk's first query", () => {
+    expect(initialSyncRequests(1, 0)).toBe(1);
+    expect(initialSyncRequests(1, 2000)).toBe(1);
+    expect(initialSyncRequests(1, 2001)).toBe(2);
+    expect(initialSyncRequests(1, 32000)).toBe(2); // 16 pages: 1 query + 1 batch of 15
+    expect(initialSyncRequests(1, 32001)).toBe(3);
+    expect(initialSyncRequests(3, 100)).toBe(3);
+    expect(initialSyncRequests(0, 0)).toBe(0);
+    expect(initialSyncRequests(null, 10)).toBeNull();
   });
 });
 
@@ -260,6 +274,24 @@ describe("profileTerritory", () => {
     ]);
     const bySobject = Object.fromEntries(result.tables.map((t) => [t.sobject, t.status]));
     expect(bySobject).toEqual({ Account: "error", Contact: "not-estimated" });
+  });
+
+  it("reports each table as it finishes, including failed and skipped ones", async () => {
+    const org = mockOrg([
+      [/FROM Account/, () => ({ success: false, error: "boom" })],
+      [/FROM Product2/, () => ok([], 2)],
+    ]);
+    const ticks: Array<[number, number]> = [];
+    await profileTerritory(
+      org,
+      user,
+      territory,
+      [table("Account", "IsActive = true"), table("Contact", "AccountId IN ({ACCOUNT.IDS})"), table("Product2", null)],
+      undefined,
+      (done, total) => ticks.push([done, total])
+    );
+    expect(ticks.at(-1)).toEqual([3, 3]);
+    expect(ticks.map(([d]) => d)).toEqual([...ticks.map(([d]) => d)].sort((a, b) => a - b));
   });
 });
 

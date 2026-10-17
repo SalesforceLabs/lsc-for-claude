@@ -32,6 +32,7 @@ import {
 } from "../engine/library.js";
 import { getStudioCache, setStudioCache, clearStudioCache } from "../engine/studio-cache.js";
 import {
+  adoptUnassigned,
   listPerfPlans,
   savePerfPlan,
   deletePerfPlan,
@@ -54,6 +55,17 @@ let engineStarting: Promise<unknown> | null = null;
 let mcpStarted = false;
 let resolveMcpReady: () => void = () => {};
 let mcpReady = new Promise<void>((resolve) => (resolveMcpReady = resolve));
+
+/** Point the MCP server at the org chosen in Settings, so tools and per-org stores agree. */
+async function applyTargetOrg(client: McpClient): Promise<void> {
+  const org = loadSettings().sfTargetOrg;
+  if (!org) return;
+  try {
+    await client.callTool("set_target_org", { org });
+  } catch {
+    // The org may have been logged out; tools report the connection problem themselves.
+  }
+}
 
 /** The started MCP client, waiting briefly if the engine hasn't started yet. */
 async function readyMcpClient(timeoutMs = 60_000): Promise<McpClient | null> {
@@ -241,6 +253,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         llm = createProvider(providerType, credentials);
         mcpClient = new McpClient();
         await mcpClient.start();
+        await applyTargetOrg(mcpClient);
         promptBuilder = new PromptBuilder();
         mcpStarted = true;
         resolveMcpReady();
@@ -510,14 +523,32 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   // --- Studio performance testing: plans and run history (per org) ---
 
-  const currentOrg = () => loadSettings().sfTargetOrg ?? "";
+  // With no org picked in Settings the tools use the sf CLI default, so ask the engine which org
+  // that is; plans and runs must be filed under the same org the runs go against.
+  const currentOrg = async (): Promise<string> => {
+    const chosen = loadSettings().sfTargetOrg;
+    if (chosen) return chosen;
+    const client = await readyMcpClient();
+    if (!client) return "";
+    try {
+      const result = await client.callTool("studio_connected_org", {});
+      const text = result.content.find((c) => c.type === "text")?.text ?? "{}";
+      return (JSON.parse(text) as { org?: string }).org ?? "";
+    } catch {
+      return "";
+    }
+  };
 
-  ipcMain.handle("perf:listPlans", async () => listPerfPlans(currentOrg()));
+  ipcMain.handle("perf:listPlans", async () => {
+    const org = await currentOrg();
+    adoptUnassigned(org);
+    return listPerfPlans(org);
+  });
 
   ipcMain.handle(
     "perf:savePlan",
     async (_event, input: { id?: string; name: string; plan: unknown }) =>
-      savePerfPlan({ ...input, org: currentOrg() })
+      savePerfPlan({ ...input, org: await currentOrg() })
   );
 
   ipcMain.handle("perf:deletePlan", async (_event, id: string) => {
@@ -525,14 +556,15 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     return { ok: true };
   });
 
-  ipcMain.handle("perf:listRuns", async (_event, planId: string) => listPerfRuns(currentOrg(), planId));
+  ipcMain.handle("perf:listRuns", async (_event, planId: string) => listPerfRuns(await currentOrg(), planId));
 
   ipcMain.handle("perf:getRun", async (_event, id: string) => getPerfRun(id));
 
+  // Filed under the org the run went against, which may not be the one selected now.
   ipcMain.handle(
     "perf:saveRun",
-    async (_event, input: Omit<PerfRunRecord, "id" | "org"> & { result: unknown }) =>
-      savePerfRun({ ...input, org: currentOrg() })
+    async (_event, input: Omit<PerfRunRecord, "id" | "org"> & { org?: string; result: unknown }) =>
+      savePerfRun({ ...input, org: input.org || (await currentOrg()) })
   );
 
   ipcMain.handle("perf:deleteRun", async (_event, id: string) => {
@@ -540,7 +572,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     return { ok: true };
   });
 
-  // Import / export test plans (YAML) and reports (JSON) through native file dialogs.
+  // Import / export test plans (YAML) and reports (Markdown, JSON) through native file dialogs.
   ipcMain.handle("perf:openFile", async () => {
     const res = await dialog.showOpenDialog(mainWindow, {
       title: "Import test plan",
@@ -553,11 +585,16 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   ipcMain.handle(
     "perf:saveFile",
-    async (_event, defaultName: string, text: string, kind: "yaml" | "json") => {
+    async (_event, defaultName: string, text: string, kind: "yaml" | "json" | "md") => {
+      const filters = {
+        yaml: [{ name: "NFR profile", extensions: ["yaml"] }],
+        json: [{ name: "JSON", extensions: ["json"] }],
+        md: [{ name: "Markdown", extensions: ["md"] }],
+      };
       const res = await dialog.showSaveDialog(mainWindow, {
         title: kind === "yaml" ? "Export test plan" : "Export report",
         defaultPath: defaultName,
-        filters: kind === "yaml" ? [{ name: "NFR profile", extensions: ["yaml"] }] : [{ name: "JSON", extensions: ["json"] }],
+        filters: filters[kind] ?? filters.json,
       });
       if (res.canceled || !res.filePath) return { canceled: true };
       await writeFile(res.filePath, text, "utf-8");
@@ -605,6 +642,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle("sfOrg:set", async (_event, org: string) => {
     const settings = loadSettings();
     saveSettings({ ...settings, sfTargetOrg: org });
+    if (mcpStarted && mcpClient) await applyTargetOrg(mcpClient);
+    mainWindow.webContents.send("sfOrg:changed", { org });
     return { ok: true };
   });
 
