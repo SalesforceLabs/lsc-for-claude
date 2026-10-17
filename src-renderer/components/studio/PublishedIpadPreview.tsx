@@ -745,5 +745,6 @@ function RecordView({ object, snapshot }: { object: PublishedObject; snapshot: P
 /** SObjectsCoordinator.showAddNewScreen: Inquiry opens its record type picker; other objects open the create form, which Studio can't run. */
 function newPresentation(label: string, objectName: string): Presentation {
   if (/inquir/i.test(objectName)) return { kind: "inquiry" };
+  if (objectName === "Visit") return { kind: "visit" };
   return { kind: "placeholder", title: label, type: "Create form", target: objectName, detail: "The app opens the object's create form here; Studio never saves records." };
 }
