@@ -1625,8 +1625,12 @@ async function viewerScreens(core: SnapshotCore, userId: string | undefined, org
   const home = (screens as PublishedScreens).home;
   // Records other screens open: the Accounts cards, the Home NBC cards (account) and Visits To Submit rows (visit editor).
   const cards = [...new Set([...((screens as PublishedScreens).accounts?.cards.map((c) => c.id) ?? []), ...(home?.nbc?.cards.map((c) => c.accountId) ?? [])])];
-  // ...and the Calendar's visit tiles, which open the Visit record (SkipVisitPreviewScreenOnPlanner).
-  const visits = [...new Set([...(home?.visits?.items.map((v) => v.id) ?? []), ...((screens as PublishedScreens).calendar?.segments.filter((s) => s.kind === "visit").map((s) => s.id) ?? [])])];
+  // ...and the Calendar's visit tiles, which open the Visit record.
+  // collectRecords keeps the first 30 per object, so the 15 tiles nearest today go first, then the rows.
+  const cal = (screens as PublishedScreens).calendar;
+  const today = cal ? Math.max(0, cal.days.findIndex((d) => d.today)) : 0;
+  const calVisits = (cal?.segments.filter((s) => s.kind === "visit") ?? []).sort((a, b) => Math.abs(a.day - today) - Math.abs(b.day - today)).slice(0, 15).map((s) => s.id);
+  const visits = [...new Set([...calVisits, ...(home?.visits?.items.map((v) => v.id) ?? [])])];
   const records = lists || cards.length || visits.length ? await viewerContext(core, userId, org).then((ctx) => collectRecords(ctx, lists ?? {}, { Account: cards, Visit: visits })).catch(() => undefined) : undefined;
   return { ...reports, ...(lists ? { lists } : {}), ...(Object.keys(screens).length ? { screens } : {}), ...(records && Object.keys(records.byId).length ? { records } : {}) };
 }

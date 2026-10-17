@@ -36,7 +36,7 @@ export interface CalendarAccount {
 }
 
 export interface PublishedCalendar {
-  settings: { startTime: string; dayDuration: number; timeFormat: string; firstDay: string; showLastVisit: boolean; skipVisitPreview?: boolean };
+  settings: { startTime: string; dayDuration: number; timeFormat: string; firstDay: string; showLastVisit: boolean };
   timeZone: string;
   locale: string;
   now: string;

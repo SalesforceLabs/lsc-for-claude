@@ -61,8 +61,6 @@ export interface PublishedCalendar {
     timeFormat: string;
     firstDay: string;
     showLastVisit: boolean;
-    /** ProviderVisitSettings.SkipVisitPreviewScreenOnPlanner: tapping a visit opens its record instead of the preview card (CalendarCoordinator.didSelectStandardVisit). */
-    skipVisitPreview: boolean;
   };
   timeZone: string;
   locale: string;
@@ -223,8 +221,6 @@ export async function collectCalendar(ctx: ScreenContext): Promise<PublishedCale
     holiday: hex(planner.ColorHolidayEvent) ?? EVENT_COLORS.holiday,
     todo: hex(planner.ColorToDo) ?? EVENT_COLORS.toDo,
   };
-  const visitSettings = (await ctx.config(["ProviderVisitSettings"]).catch(() => ({}) as Record<string, Row>)).ProviderVisitSettings;
-
   const [accounts, segments] = await Promise.all([
     collectAccounts(ctx, planner.PlannerShowLastCallDate !== false),
     collectSegments(ctx, { days, bounds, weekFrom, weekTo, territories, colors, callConfirmation: planner.CallConfirmation === true }),
@@ -235,9 +231,7 @@ export async function collectCalendar(ctx: ScreenContext): Promise<PublishedCale
       dayDuration: Number(planner.DayDuration) > 0 ? Number(planner.DayDuration) : 9,
       timeFormat: text(planner.TimeFormat) || "h:mm a",
       firstDay,
-      showLastVisit: planner.PlannerShowLastCallDate !== false,
-      skipVisitPreview: visitSettings?.SkipVisitPreviewScreenOnPlanner === true,
-    },
+      showLastVisit: planner.PlannerShowLastCallDate !== false,    },
     timeZone: format.timeZone,
     locale: format.locale,
     now: new Date(nowMs).toISOString(),

@@ -248,11 +248,14 @@ async function addThumbnails(cards: PublishedContentCard[], linked: Map<string, 
   );
 }
 
-/** Later pages (2..PAGE_THUMBNAILS+1) of PDF presentations: each linked page names its own file and page number. ZIP pages have no prebuilt image, so they keep the stand-in. */
+/**
+ * Later pages (2..PAGE_THUMBNAILS+1): each linked page names its own file. PDF = that file's page number;
+ * ZIP = the page's own file carries its 01_thumbnail.jpg (CLMDataService.thumbnailUrlFor: "<slide prefix>_thumbnail.jpg"
+ * in the sequence folder, the same image the app's page strip shows). Page HTML is never opened.
+ */
 async function addPageThumbnails(cards: PublishedContentCard[], linked: Map<string, Row[]>, org: string): Promise<void> {
   const want = new Map<string, { doc: string; page: number }[]>();
   for (const c of cards) {
-    if (c.type !== "PDF") continue;
     const pages = (linked.get(c.id) ?? []).slice(1, 1 + PAGE_THUMBNAILS).map((l) => l.PresentationPage as Row | null | undefined);
     want.set(
       c.id,

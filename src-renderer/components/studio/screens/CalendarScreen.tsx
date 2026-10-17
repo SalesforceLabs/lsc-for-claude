@@ -329,8 +329,8 @@ function EventIcon({ icon, size, color }: { icon: CalendarIcon; size: number; co
 /** Day, Work Week and Week: day headers, the All Day row and the scrolling time grid (CalendarWeekViewController). */
 function TimeView({ data, shown, onOpenRecord }: { data: PublishedCalendar; shown: number[]; onOpenRecord?: (id: string) => void }) {
   const { settings, days } = data;
-  // With SkipVisitPreviewScreenOnPlanner a visit tile opens the Visit record itself; other events do nothing in the preview.
-  const open = (s: CalendarSegment) => (s.kind === "visit" && settings.skipVisitPreview ? { onClick: () => onOpenRecord?.(s.id), style: { cursor: "pointer" } } : {});
+  // On the device (this org) a Day/Week visit tile opens the Visit record itself; other events have no preview here.
+  const open = (s: CalendarSegment) => (s.kind === "visit" ? { onClick: () => onOpenRecord?.(s.id), style: { cursor: "pointer" } } : {});
   const colW = 790 / shown.length;
   const H = hourHeight(settings.dayDuration);
   const scroll = pointFor(parseStartTime(settings.startTime), settings.dayDuration);
