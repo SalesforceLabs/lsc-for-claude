@@ -10,6 +10,7 @@ import type {
   RecordFieldSpec,
 } from "./published-types";
 import { EmptyArt } from "./IpadHome";
+import { MapCard, NextBestActionsCard, OverviewCard, SummaryCard } from "./DashboardCards";
 import "./record.css";
 import { CustomIcon, FileIcon, PersonAccountIcon } from "./assets/icons";
 
@@ -176,6 +177,12 @@ function TabContent({ components, snapshot, rec }: { components: PublishedCompon
           if (name === "relatedListSingleContainer") {
             const r = findRelated(rec, c.properties.relatedListApiName);
             return r ? <RelatedCard key={k} snapshot={snapshot} related={r} editable={rec.editable} /> : null;
+          }
+          if (rec.dashboard) {
+            if (name === "accountSummary") return <SummaryCard key={k} data={rec.dashboard} />;
+            if (name === "accountManagementDashboard") return <OverviewCard key={k} data={rec.dashboard} />;
+            if (name === "nextBestActions") return <NextBestActionsCard key={k} data={rec.dashboard} />;
+            if (name === "accountMapDisplay") return <MapCard key={k} data={rec.dashboard} />;
           }
           return <PlaceholderCard key={k} title={PLACEHOLDER_TITLES[name] ?? c.properties.label ?? c.label ?? name} />;
         })}

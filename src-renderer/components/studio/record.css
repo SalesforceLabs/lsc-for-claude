@@ -565,3 +565,206 @@
   cursor: pointer;
 }
 
+
+/* Dashboard cards (device: card x 21, inner boxes x 31, 1px #747474 border, radius 16) */
+.studio-ipad-rec-card.dash {
+  padding: 0;
+}
+.studio-ipad-rec-card.dash.summary {
+  padding: 24px 32px 20px;
+  min-height: 477px;
+}
+.studio-ipad-rec-dash-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 24px;
+  color: #181818;
+  margin-bottom: 16px;
+}
+.studio-ipad-rec-dash-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 20px;
+  font-weight: 600;
+  color: #2e2e2e;
+  padding: 16px 0 28px;
+}
+.studio-ipad-rec-dash-empty.tall {
+  padding-top: 8px;
+}
+.studio-ipad-rec-dash-empty img {
+  max-width: 100%;
+  object-fit: contain;
+}
+.studio-ipad-rec-sum-date {
+  font-size: 14px;
+  color: #5c5c5c;
+  margin-bottom: 12px;
+}
+.studio-ipad-rec-sum-title {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 12px 0 4px;
+}
+.studio-ipad-rec-sum ul {
+  margin: 0;
+  padding-left: 22px;
+  font-size: 17px;
+  line-height: 24px;
+}
+.studio-ipad-rec-dash-box {
+  margin: 0 15px;
+  border: 1px solid #747474;
+  border-radius: 16px;
+  box-sizing: border-box;
+}
+.studio-ipad-rec-dash-box.overview {
+  margin: 0 15px;
+  padding: 16px 16px 14px;
+  min-height: 210px;
+}
+.studio-ipad-rec-ov-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #032d60;
+}
+.studio-ipad-rec-ov-label {
+  margin-top: 30px;
+  font-size: 17px;
+  color: #2e2e2e;
+}
+.studio-ipad-rec-ov-none {
+  margin-top: 6px;
+  font-size: 19px;
+  color: #5c5c5c;
+}
+.studio-ipad-rec-ov-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.studio-ipad-rec-ov-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 16px;
+  background: #f3f3f3;
+  font-size: 17px;
+}
+.studio-ipad-rec-ov-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 40px;
+  font-size: 13px;
+  color: #181818;
+}
+.studio-ipad-rec-ov-target {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0250d9;
+}
+.studio-ipad-rec-nba-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 16px;
+  font-size: 19px;
+  border-bottom: 1px solid #c9c9c9;
+}
+.studio-ipad-rec-nba-head .link {
+  color: #0250d9;
+}
+.studio-ipad-rec-nba-list {
+  padding: 8px 16px;
+}
+.studio-ipad-rec-nba-item {
+  padding: 10px 0;
+  border-bottom: 1px solid #e5e5e5;
+}
+.studio-ipad-rec-nba-item .t {
+  font-size: 17px;
+  font-weight: 600;
+}
+.studio-ipad-rec-nba-item .s {
+  font-size: 14px;
+  color: #5c5c5c;
+}
+.studio-ipad-rec-nba-all {
+  border-top: 1px solid #747474;
+  padding: 18px 0;
+  text-align: center;
+  font-size: 19px;
+  font-weight: 600;
+  color: #0250d9;
+}
+.studio-ipad-rec-card.dash.mapcard {
+  padding: 10px 14px 10px;
+}
+.studio-ipad-rec-map {
+  position: relative;
+  height: 305px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #e8eef0 0 60%, #bfe3f7 60% 100%);
+}
+.studio-ipad-rec-map-panel {
+  position: absolute;
+  left: 15px;
+  top: 15px;
+  width: 430px;
+  box-sizing: border-box;
+  padding: 16px 20px 24px;
+  background: #fff;
+  border-radius: 8px;
+}
+.studio-ipad-rec-map-panel .h {
+  font-size: 21px;
+  font-weight: 700;
+  color: #032d60;
+}
+.studio-ipad-rec-map-panel .a {
+  margin-top: 10px;
+  font-size: 15px;
+  line-height: 17px;
+  color: #0250d9;
+}
+.studio-ipad-rec-map-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #bdeee6;
+  color: #0b3d38;
+  font-size: 14px;
+}
+.studio-ipad-rec-map-pill.bad {
+  background: #fddde3;
+  color: #8e030f;
+}
+.studio-ipad-rec-map-dir {
+  display: block;
+  width: fit-content;
+  margin-top: 14px;
+  padding: 9px 28px;
+  border: 1px solid #0250d9;
+  border-radius: 20px;
+  font-size: 19px;
+  color: #0250d9;
+}
+.studio-ipad-rec-map-note {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  font-size: 12px;
+  color: #5c5c5c;
+}

@@ -174,6 +174,14 @@ export interface PublishedRecordData {
   editable: boolean;
   related: Record<string, PublishedRelated>;
   expenses?: { count: number; total: string };
+  dashboard?: PublishedDashboard;
+}
+
+export interface PublishedDashboard {
+  summary: { generated: string; sections: { title: string; items: string[] }[] } | null;
+  overview: { target: boolean; specialties: { label: string; primary: boolean }[] };
+  nba: { week: string; items: { id: string; title: string; type: string; due: string; status: string }[] };
+  map: { address: string; license: "validated" | "notValidated" | "disabled" };
 }
 
 export interface PublishedRecords {

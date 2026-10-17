@@ -8,6 +8,7 @@ import { apiRequest } from "../../salesforce/cli.js";
 import { ID_PATTERN, inList, query, type Row } from "../helpers.js";
 import { listCell, MULTI_ENTITY, trimNamespace, type PublishedComponent, type PublishedListData } from "../published.js";
 import type { ScreenContext } from "./context.js";
+import { collectDashboards, type PublishedDashboard } from "./record-dashboard.js";
 import type { RecordFieldSpec } from "./record-fields.js";
 
 const str = (v: unknown): string => (typeof v === "string" ? v : v == null ? "" : String(v));
@@ -57,6 +58,8 @@ export interface PublishedRecordData {
   related: Record<string, PublishedRelated>;
   /** Expenses tab: row count and the total, formatted with the currency. */
   expenses?: { count: number; total: string };
+  /** Account Dashboard tab cards (Provider Summary, Overview, Next Best Actions, Map). */
+  dashboard?: PublishedDashboard;
 }
 
 export interface PublishedRecords {
@@ -553,6 +556,8 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
       const components = pageComponents(ctx, object);
       const expensesOn = components.some((c) => trimNamespace(c.name) === "ExpensesListView");
       const expenses = expensesOn ? await readExpenses(ctx, ids) : undefined;
+      const dashboardOn = components.some((c) => /^(accountSummary|accountManagementDashboard|nextBestActions|accountMapDisplay)$/.test(trimNamespace(c.name)));
+      const dashboards = dashboardOn ? await collectDashboards(ctx, ids).catch(() => new Map<string, PublishedDashboard>()) : new Map<string, PublishedDashboard>();
 
       for (const row of main.rows) {
         const id = str(row.Id);
@@ -570,6 +575,7 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
           ...(partnerRow && partner ? { linked: { object: partner, id: str(partnerRow.Id) } } : {}),
           editable: isEditable({ object, status, ownerId: str(row.OwnerId), viewerId: ctx.userId, hasEditAccess: edit.get(id) === true, updateable: main.describe.updateable }),
           related: Object.fromEntries((rel.get(id) ?? []).map((r) => [r.key, r])),
+          ...(dashboards.has(id) ? { dashboard: dashboards.get(id) } : {}),
           ...(expenses ? { expenses: expenses.get(id) ?? { count: 0, total: `${expenses.currency} 0.00` } } : {}),
         };
       }
