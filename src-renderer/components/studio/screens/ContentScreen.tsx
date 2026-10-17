@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import type { ScreenProps } from "./types";
 import type { PublishedContentCard } from "./content-types";
 import { categoryRows, collapseLabel, sectionTitle, visibleSections } from "./content-logic";
+import ContentNew from "./ContentNew";
 import ContentViewer from "./ContentViewer";
-import { Check, EmptyArt, Popover, Sheet } from "./interact-ui";
+import { Check, EmptyArt, Popover } from "./interact-ui";
 import errorRecoverable from "./assets/content-error-recoverable.png";
 import "./content.css";
 
@@ -127,13 +128,7 @@ export default function ContentScreen({ snapshot }: ScreenProps): React.ReactEle
           </div>
         </Popover>
       )}
-      {newOpen && (
-        <Sheet
-          title="New Presentation"
-          note="On the iPad this opens the New Presentation builder: your presentations on the left, the pages you add on the right, with Save, Save as, Remove, Reorder and Edit Details. Studio doesn't build presentations."
-          onClose={() => setNewOpen(false)}
-        />
-      )}
+      {newOpen && <ContentNew data={data} onClose={() => setNewOpen(false)} />}
       {viewed && <ContentViewer card={viewed} onClose={() => setViewing(null)} />}
     </div>
   );
