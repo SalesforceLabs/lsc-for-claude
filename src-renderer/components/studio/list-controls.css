@@ -29,3 +29,6 @@
 .studio-ipad-lv-right .studio-ipad-lv-toggle { margin: 0; }
 .studio-ipad-lv-card .fields { gap: 0; }
 .studio-ipad-lv-card .f1, .studio-ipad-lv-card .f2, .studio-ipad-lv-card .f3 { line-height: 24px; }
+
+/* UISearchTextField with text: a clear button after the microphone (device-search-lisa.png), and the chip row hides. */
+.studio-ipad-searchfield-clear { display: inline-flex; flex: none; margin-left: 5px; padding: 0; border: none; background: none; color: #5c5c5c; cursor: pointer; }

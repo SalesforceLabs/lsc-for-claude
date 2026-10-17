@@ -579,7 +579,7 @@ function ListView({
         </span>
       </div>
       {/* The chip row is hidden when there's only one list view. */}
-      {object.listViews.length > 1 && (
+      {object.listViews.length > 1 && !query && (
         <div
           className="studio-ipad-lv-chips"
           title={object.hiddenListViews?.length ? `Not shown to this user:\n${object.hiddenListViews.map((h) => `${h.label} — ${h.reason}`).join("\n")}` : undefined}

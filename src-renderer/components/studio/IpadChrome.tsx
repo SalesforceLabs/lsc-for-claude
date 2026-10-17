@@ -177,6 +177,11 @@ export function IpadSearchField({ className = "", mic = true, value, onChange }:
         <span className="studio-ipad-searchfield-text">Search...</span>
       )}
       {mic && <MicIcon />}
+      {onChange && value && (
+        <button type="button" className="studio-ipad-searchfield-clear" aria-label="Clear text" onClick={() => onChange("")}>
+          <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="10" fill="currentColor" /><path d="m6.5 6.5 7 7m0-7-7 7" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" /></svg>
+        </button>
+      )}
     </div>
   );
 }
