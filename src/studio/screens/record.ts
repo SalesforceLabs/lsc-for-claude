@@ -8,6 +8,7 @@ import { apiRequest } from "../../salesforce/cli.js";
 import { ID_PATTERN, inList, query, type Row } from "../helpers.js";
 import { listCell, MULTI_ENTITY, trimNamespace, type PublishedComponent, type PublishedListData } from "../published.js";
 import type { ScreenContext } from "./context.js";
+import { evalProfileFormula, usesProfileName } from "./record-formula.js";
 import { readRatingLayout } from "./record-ratings.js";
 import { collectDashboards, type PublishedDashboard } from "./record-dashboard.js";
 import type { RecordFieldSpec } from "./record-fields.js";
@@ -349,7 +350,7 @@ function fieldMeta(fetched: Fetched, perms?: Map<string, boolean> | null): Recor
 /** The field a lookup shows: a Case has no Name, its CaseNumber stands in. */
 const refNameField = (f: Row) => (arr(f.referenceTo).map(str).includes("Case") ? "CaseNumber" : "Name");
 
-function toValues(ctx: ScreenContext, fetched: Fetched, row: Row, unsynced: Set<string>): Record<string, string> {
+function toValues(ctx: ScreenContext, fetched: Fetched, row: Row, unsynced: Set<string>, profile: string | null = null): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [name, spec] of fetched.specs) {
     const f = fetched.describe.fields.get(name.toLowerCase());
@@ -361,6 +362,8 @@ function toValues(ctx: ScreenContext, fetched: Fetched, row: Row, unsynced: Set<
       continue;
     }
     let text = formatValue(raw, spec, f, ctx.format, !/^(Provider)?Visit$/.test(fetched.describe.name));
+    // A formula on $Profile.Name was computed for the connected admin; the device holds the rep's value.
+    if (profile && f?.calculated === true && usesProfileName(str(f.calculatedFormula))) text = evalProfileFormula(str(f.calculatedFormula), profile) ?? text;
     // A person account's Name prints with its salutation (the device joins the compound name).
     if (text && str(f?.name) === fetched.describe.nameField && fetched.describe.fields.has("salutation") && str(row.Salutation)) text = `${salutationLabel(fetched.describe, str(row.Salutation))} ${text}`;
     out[name.toLowerCase()] = text;
@@ -627,6 +630,9 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
   const objects = [...wanted.keys()].filter((o) => ctx.core.objects[o] && wanted.get(o)?.length);
   if (!objects.length) return undefined;
   const inline = await inlineCards(ctx, objects);
+  const viewerProfile = await query(`SELECT Profile.Name FROM User WHERE Id = '${ctx.userId}'`, ctx.org)
+    .then((r) => str(obj(r[0]?.Profile).Name) || null)
+    .catch(() => null);
   const inlineFor = (o: string) => [...new Set(Object.values(inline).filter((c) => c.object === o).flatMap((c) => c.cells.map((x) => x.field)))];
 
   await Promise.all(
@@ -690,9 +696,9 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
 
       for (const row of main.rows) {
         const id = str(row.Id);
-        const values: Record<string, Record<string, string>> = { [object]: toValues(ctx, main, row, unsynced) };
+        const values: Record<string, Record<string, string>> = { [object]: toValues(ctx, main, row, unsynced, viewerProfile) };
         const partnerRow = linkedFetch?.rows.find((r) => str(r[linkField]).slice(0, 15) === id.slice(0, 15));
-        if (linkedFetch && partnerRow) values[partner] = toValues(ctx, linkedFetch, partnerRow, unsynced);
+        if (linkedFetch && partnerRow) values[partner] = toValues(ctx, linkedFetch, partnerRow, unsynced, viewerProfile);
         const rtName = main.describe.recordTypes.get(str(row.RecordTypeId)) ?? null;
         const status = str(partnerRow?.Status ?? row.Status);
         byId[id] = {

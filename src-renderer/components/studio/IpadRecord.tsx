@@ -32,7 +32,7 @@ export function textWidth(text: string, size: number, weight = 400): number {
  * SFComponentHighlightPanelView.calculateCellWidths: each cell fits the wider of its label and value
  * plus the cell padding; spare room across the 15pt-inset view is shared evenly.
  */
-export function highlightWidths(cells: { label: string; value: string }[], measure: (t: string, bold: boolean) => number = (t, b) => textWidth(t, b ? 16 : 14, 400)): number[] {
+export function highlightWidths(cells: { label: string; value: string }[], measure: (t: string, bold: boolean) => number = (t) => textWidth(t, 16, 400)): number[] {
   const widths = cells.map((c) => Math.max(measure(c.value, true), measure(c.label, false)) + CELL_PADDING);
   const total = widths.reduce((a, b) => a + b, 0);
   const room = SCREEN_W - 2 * 15;
@@ -235,6 +235,8 @@ function Header({ snapshot, rec, object, compact }: { snapshot: PublishedIpad; r
         <span className="studio-ipad-rec-icon" style={theme ? { background: theme.color } : undefined} aria-hidden="true">
           {person ? (
             <PersonAccountIcon />
+          ) : /work_plan_selection_rule/.test(theme?.iconUrl ?? "") ? (
+            <CustomIcon />
           ) : theme && !broken ? (
             <img src={theme.iconUrl} alt="" onError={() => setBroken(true)} />
           ) : (
@@ -248,7 +250,7 @@ function Header({ snapshot, rec, object, compact }: { snapshot: PublishedIpad; r
         {cells.map((c, k) => (
           <div key={k} className="studio-ipad-rec-hl-cell" style={{ width: widths[k] }}>
             <div className="studio-ipad-rec-hl-label">{c.label}</div>
-            <div className={`studio-ipad-rec-hl-value${c.value && LOOKUP.has(c.spec.type) ? " link" : ""}`}>{c.value}</div>
+            <div className={`studio-ipad-rec-hl-value${c.value && (LOOKUP.has(c.spec.type) || c.spec.type === "masterdetail") ? " link" : ""}`}>{c.value}</div>
           </div>
         ))}
       </div>
