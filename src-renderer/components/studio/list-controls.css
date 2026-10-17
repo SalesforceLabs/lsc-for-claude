@@ -35,3 +35,8 @@
 .studio-ipad-lv-search .studio-ipad-mic { flex: none; }
 .studio-ipad-searchfield:has(.studio-ipad-searchfield-clear) { gap: 5px; padding-right: 9px; }
 .studio-ipad-lv-search:has(.studio-ipad-searchfield-clear) { margin-bottom: 4px; }
+
+/* Menu { ForEach overflow actions }: a popover under the ••• button. */
+.studio-ipad-lv-card .morewrap { position: relative; display: inline-flex; }
+.studio-ipad-lv-card .menu { position: absolute; top: 44px; right: 0; z-index: 30; display: flex; flex-direction: column; min-width: 200px; padding: 6px 0; border-radius: 14px; background: #fff; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25); }
+.studio-ipad-lv-card .menu .item { padding: 11px 16px; font-size: 17px; color: #2e2e2e; cursor: pointer; }

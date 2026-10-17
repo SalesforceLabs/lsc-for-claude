@@ -20,7 +20,8 @@ import { initials } from "./ipad-chrome";
 import { ChromeSheets, SearchTab, type ChromeSheet } from "./IpadChromeSheets";
 import { CardList, cardModeFor, rowActions, saveCardMode, SortButton, sortRows, ViewModeButton, type SortState } from "./IpadListControls";
 import IpadActionSheet from "./IpadActionSheets";
-import type { Presentation } from "./ipad-fab-actions";
+import type { PublishedFabItem } from "./screens/fabs-types";
+import { presentationFor, type Presentation } from "./ipad-fab-actions";
 import { CustomIcon } from "./assets/icons";
 import {
   ActivityPlanProgress,
@@ -166,7 +167,7 @@ function Device({
           onAvatar={() => setSheet({ kind: "profile" })}
         />
         <div className={`studio-ipad-page${tab?.kind === "empty" ? " blank" : ""}${onHome ? " home" : ""}${tab?.kind === "reports" && snapshot.reports ? " flush" : ""}${record === null && hasNativeScreen(tab, snapshot) ? " native" : ""}${record === null && isLwcOnly(tab, snapshot) ? " lwc-full" : ""}${record && snapshot.records?.byId[record] ? " record" : ""}`}>
-          {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={setRecord} onNew={(label, objectName) => setNewSheet(newPresentation(label, objectName))} onNote={(label, text) => setSheet({ kind: "note", label, text })} />}
+          {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={setRecord} onNew={(label, objectName) => setNewSheet(newPresentation(label, objectName))} onNote={(label, text) => setSheet({ kind: "note", label, text })} onAction={(item) => setNewSheet(presentationFor(item, { onRecord: true }))} />}
         </div>
         <ChromeSheets sheet={sheet} snapshot={snapshot} onClose={() => setSheet(null)} />
         {newSheet && <IpadActionSheet presentation={newSheet} ctx={{ snapshot, record: null }} onClose={() => setNewSheet(null)} />}
@@ -193,6 +194,7 @@ function Screen({
   onOpenRecord,
   onNew,
   onNote,
+  onAction,
 }: {
   tab: PublishedTab;
   snapshot: PublishedIpad;
@@ -200,6 +202,7 @@ function Screen({
   onOpenRecord: (id: string) => void;
   onNew: (label: string, objectName: string) => void;
   onNote: (label: string, text: string) => void;
+  onAction: (item: PublishedFabItem) => void;
 }) {
   // An open record takes precedence over the tab's native screen (the Accounts cards open their record).
   if (record !== null && snapshot.records?.byId[record]) return <RecordScreen snapshot={snapshot} recordId={record} />;
@@ -232,7 +235,7 @@ function Screen({
       return record !== null ? (
         <RecordView object={object} snapshot={snapshot} />
       ) : (
-        <ListView tab={tab} object={object} lists={snapshot.lists} accounts={tab.kind === "accounts"} onOpenRecord={onOpenRecord} onNew={onNew} cardActions={rowActions(snapshot, object.name)} />
+        <ListView tab={tab} object={object} lists={snapshot.lists} accounts={tab.kind === "accounts"} onOpenRecord={onOpenRecord} onNew={onNew} cardActions={rowActions(snapshot, object.name)} onAction={onAction} />
       );
     }
     case "empty":
@@ -558,8 +561,10 @@ function ListView({
   onOpenRecord,
   onNew,
   cardActions,
+  onAction,
 }: {
-  cardActions?: string[];
+  cardActions?: PublishedFabItem[];
+  onAction?: (item: PublishedFabItem) => void;
   tab: PublishedTab;
   object: PublishedObject;
   lists?: Record<string, PublishedListData>;
@@ -622,7 +627,7 @@ function ListView({
             );
           }
           if (cards && shown) {
-            return <CardList rows={shown.rows} onOpen={onOpenRecord} actions={cardActions} links={(view.query?.fields ?? []).map((f) => f?.type === "lookup" || f?.type === "formula")} />;
+            return <CardList rows={shown.rows} onOpen={onOpenRecord} actions={cardActions} onAction={onAction} links={(view.query?.fields ?? []).map((f) => f?.type === "lookup" || f?.type === "formula")} />;
           }
           return <DataTable columns={view.columns.map(columnLabel)} data={shown} onOpenRecord={onOpenRecord} />;
         })()}
