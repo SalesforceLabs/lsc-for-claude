@@ -26,6 +26,7 @@ export interface PublishedAccounts {
   newAccount: boolean;
   chips: { label: string; count: string }[];
   lists: { own: PublishedAccountList[]; shared: PublishedAccountList[] };
+  advancedFilters?: { id: string; name: string }[];
   sortLabel: string;
   columns: string[];
   cards: PublishedAccountCard[];

@@ -1,0 +1,67 @@
+// Calendar interactions that are pure: the live clock in the user's zone, the Filter Events kinds, and the accounts pane's Type / Lists filters.
+import type { CalendarAccount, CalendarDay, CalendarSegment, PublishedCalendar } from "./calendar-types";
+
+/** Wall-clock date ("YYYY-MM-DD") and minute of day in an IANA zone; undefined when the zone is not valid. */
+export function zonedNow(timeZone: string, at: Date = new Date()): { date: string; minutes: number } | undefined {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(at);
+    const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+    return { date: `${get("year")}-${get("month")}-${get("day")}`, minutes: (Number(get("hour")) % 24) * 60 + Number(get("minute")) };
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The calendar as of right now in the user's zone: the now-line minute and today's column follow the clock rather than the moment of the snapshot.
+ * Days stay as collected (the window is fixed); when today falls outside the window the snapshot's own flags are kept.
+ */
+export function withLiveClock(data: PublishedCalendar, at: Date = new Date()): PublishedCalendar {
+  const now = zonedNow(data.timeZone, at);
+  if (!now || !data.days.some((d) => d.date === now.date)) return data;
+  const days: CalendarDay[] = data.days.map((d) => (d.today === (d.date === now.date) ? d : { ...d, today: d.date === now.date }));
+  return { ...data, now: now.date, nowMin: now.minutes, days };
+}
+
+/** The Filter Events switches: segment kinds the user can turn off. Assessment Tasks and Visits have their own drill-ins, so they are not switches. */
+export const EVENT_SWITCHES: { label: string; kind: CalendarSegment["kind"] }[] = [
+  { label: "Event", kind: "event" },
+  { label: "Holiday", kind: "holiday" },
+  { label: "Time Off Territory", kind: "tot" },
+];
+
+export function filterSegments(segments: CalendarSegment[], hidden: ReadonlySet<CalendarSegment["kind"]>): CalendarSegment[] {
+  return hidden.size === 0 ? segments : segments.filter((s) => !hidden.has(s.kind));
+}
+
+/** Type popover rows: All / HCO / HCP with "N Accounts". */
+export function typeRows(accounts: CalendarAccount[]): { value: "All" | "HCO" | "HCP"; count: number }[] {
+  const hco = accounts.filter((a) => !a.person).length;
+  return [
+    { value: "All", count: accounts.length },
+    { value: "HCO", count: hco },
+    { value: "HCP", count: accounts.length - hco },
+  ];
+}
+
+export const accountsLabel = (n: number) => `${n} Account${n === 1 ? "" : "s"}`;
+
+/** The accounts pane after the Type and Lists choices (a list narrows to its members; a list without member data keeps everyone). */
+export function paneAccounts(accounts: CalendarAccount[], type: "All" | "HCO" | "HCP", memberIds: string[] | undefined): CalendarAccount[] {
+  const ids = memberIds ? new Set(memberIds) : undefined;
+  return accounts.filter((a) => (type === "All" || (type === "HCO") === !a.person) && (!ids || ids.has(a.id)));
+}
+
+/** The "+" menu on the device (CalendarCreateEventViewController); no org data feeds it, so it is fixed. */
+export const CREATE_EVENT_TYPES = ["Assessment Task", "Event", "Planned Visit", "Time Off Territory"];
+
+/** Event Indicator legend: swatches observed on the device. */
+export const EVENT_INDICATOR: { label: string; color: string }[] = [
+  { label: "Assessment Task", color: "#e5a000" },
+  { label: "Completed Visit", color: "#a0a0a0" },
+  { label: "Confirmed Visit", color: "#0a5cb0" },
+  { label: "Event", color: "#00c4b0" },
+  { label: "Holiday", color: "#ffb88c" },
+  { label: "Planned Visit", color: "#a8c8ff" },
+  { label: "Time Off Territory", color: "#ff5a2d" },
+];

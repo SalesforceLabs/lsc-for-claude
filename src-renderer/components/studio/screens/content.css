@@ -296,3 +296,37 @@
   margin: 0;
   height: auto;
 }
+
+/* Filters popover body: search pill, then white grouped rows. */
+.studio-ipad-content-filters {
+  padding: 16px;
+  box-sizing: border-box;
+  height: 100%;
+}
+.studio-ipad-content-filters-search {
+  height: 40px;
+  box-sizing: border-box;
+  border: 1px solid #5c5c5c;
+  border-radius: 20px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  color: #5c5c5c;
+}
+.studio-ipad-content-filters-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 17px;
+}
+.studio-ipad-content-filters-list {
+  margin-top: 10px;
+  height: 428px;
+  overflow: auto;
+  border-radius: 10px;
+}

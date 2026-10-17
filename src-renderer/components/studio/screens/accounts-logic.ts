@@ -69,3 +69,34 @@ export function addressMaxLines(addressTop: number): number {
 export function addressTop(nameWrapped: boolean): number {
   return nameWrapped ? 16 + 38 + 8.5 : 16 + 24 + 2.5;
 }
+
+// ---- Select mode, list switcher, menus ----
+
+/** The sidebar's three kinds of list (the "Lists ▾" popover). */
+export type ListKind = "Lists" | "Filters" | "Advanced Filters";
+export const LIST_KINDS: ListKind[] = ["Lists", "Filters", "Advanced Filters"];
+
+/** The built-in Filters rows. The app computes their members (NBC scores, activity plans), so the preview has no counts for them. */
+export const BUILT_IN_FILTERS = ["Next Best Customers", "Activity Plans", "Activity Plans with Weightages"];
+
+/** The multi-select bar's count; empty while nothing is selected. */
+export function selectionLabel(selected: number): string {
+  return selected > 0 ? `${selected} Selected` : "";
+}
+
+/** "Select All" until everything shown is selected, then "Unselect All". */
+export function selectAllLabel(selected: number, shown: number): "Select All" | "Unselect All" {
+  return shown > 0 && selected >= shown ? "Unselect All" : "Select All";
+}
+
+export function toggleId(set: ReadonlySet<string>, id: string): Set<string> {
+  const next = new Set(set);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  return next;
+}
+
+/** Card ••• menu on the device (fixed; observed, "Inquiry" appears twice). */
+export const CARD_MENU = ["New Visit", "Inquiry", "Intelligent Content", "Inquiry"];
+/** "Add To…" menu in select mode. */
+export const ADD_TO_MENU = ["New Visit", "Email"];

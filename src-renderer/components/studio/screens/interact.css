@@ -1,0 +1,143 @@
+/* Shared popover / sheet / empty-state pieces for the interactive Accounts, Calendar and Intelligent Content screens. */
+.studio-ipad-interact-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+}
+.studio-ipad-interact-popover {
+  position: absolute;
+  z-index: 41;
+  box-sizing: border-box;
+  background: #f2f2f7;
+  border-radius: 14px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.22), 0 0 0 0.5px rgba(0, 0, 0, 0.08);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  color: #1c1c1e;
+  font-size: 17px;
+}
+.studio-ipad-interact-arrow {
+  position: absolute;
+  top: -9px;
+  width: 20px;
+  height: 10px;
+  background: inherit;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.studio-ipad-interact-sheet-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.studio-ipad-interact-sheet {
+  width: 640px;
+  max-width: 94%;
+  background: #fff;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+}
+.studio-ipad-interact-sheet-bar {
+  position: relative;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid #e3e3e3;
+}
+.studio-ipad-interact-sheet-close {
+  position: absolute;
+  left: 16px;
+  border: 0;
+  background: transparent;
+  color: #0a5cff;
+  font-size: 17px;
+  cursor: pointer;
+}
+.studio-ipad-interact-sheet-title {
+  font-weight: 600;
+  font-size: 17px;
+}
+.studio-ipad-interact-sheet-body {
+  padding: 20px 24px 24px;
+  font-size: 15px;
+  color: #2e2e2e;
+}
+.studio-ipad-interact-sheet-note {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #eef3ff;
+  color: #34456b;
+  font-size: 13px;
+}
+.studio-ipad-interact-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.studio-ipad-interact-empty-text {
+  margin-top: 14px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #2e2e2e;
+}
+.studio-ipad-interact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  padding: 0 14px;
+  background: #fff;
+  border: 0;
+  border-bottom: 1px solid #e6e6e6;
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.studio-ipad-interact-row:last-child {
+  border-bottom: 0;
+}
+.studio-ipad-interact-row.head {
+  font-weight: 700;
+  cursor: default;
+}
+.studio-ipad-interact-row.off {
+  color: #9a9a9a;
+  cursor: default;
+}
+
+.studio-ipad-interact-textmenu {
+  background: #f2f2f7;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.studio-ipad-interact-textmenu button {
+  display: block;
+  width: 100%;
+  height: 57px;
+  border: 0;
+  border-bottom: 1px solid #d4d4d8;
+  background: transparent;
+  font: inherit;
+  font-size: 22px;
+  color: #0250d9;
+  cursor: pointer;
+}
+.studio-ipad-interact-textmenu button:last-child {
+  border-bottom: 0;
+}
+.studio-ipad-interact-textmenu button.danger {
+  color: #c4134a;
+}

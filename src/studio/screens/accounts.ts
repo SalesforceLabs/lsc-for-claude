@@ -36,6 +36,8 @@ export interface PublishedAccounts {
   chips: { label: string; count: string }[];
   /** The viewer's own lists, then "Shared with you". */
   lists: { own: PublishedAccountList[]; shared: PublishedAccountList[] };
+  /** The viewer's Advanced Filters (LifeScienceAccountList Type 'AdvancedFilter'): names only, their criteria are evaluated by the app. */
+  advancedFilters?: { id: string; name: string }[];
   sortLabel: string;
   columns: string[];
   /** The "All" list in name order, up to CARD_CAP accounts (the device pages 10 at a time as you scroll). */
@@ -226,6 +228,7 @@ export async function collectAccounts(ctx: ScreenContext): Promise<PublishedAcco
         return { id: str(l.Id), name: str(l.Name), ownerId: str(l.OwnerId), detail: `${n} Account${n === 1 ? "" : "s"}`, memberIds };
       })
   );
+  const advanced = await query("SELECT Id, Name FROM LifeScienceAccountList WHERE Type = 'AdvancedFilter' ORDER BY Name", org).catch(() => []);
   const grouped = groupLists(counted, ctx.userId);
   const strip = ({ id, name, detail, memberIds }: (typeof counted)[number]): PublishedAccountList => ({ id, name, detail, memberIds });
 
@@ -240,6 +243,7 @@ export async function collectAccounts(ctx: ScreenContext): Promise<PublishedAcco
       { label: "HCP", count: chipCount(hcp) },
     ],
     lists: { own: grouped.own.map(strip), shared: grouped.shared.map(strip) },
+    advancedFilters: advanced.map((a) => ({ id: str(a.Id), name: str(a.Name) })),
     sortLabel: sortLabel(["Name"]),
     columns: DEFAULT_COLUMNS,
     cards,

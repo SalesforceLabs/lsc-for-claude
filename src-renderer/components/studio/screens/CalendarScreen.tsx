@@ -1,6 +1,10 @@
 import React from "react";
 import type { ScreenProps } from "./types";
 import { formatTime, hourHeight, parseStartTime, placeStacked, pointFor, tileBox, type CalendarAccount, type CalendarIcon, type CalendarSegment, type PublishedCalendar } from "./calendar-types";
+import { Popover, popoverLeft, Check } from "./interact-ui";
+import { AdvancedSearch, MoreMenu, PlusMenu } from "./CalendarMenus";
+import { accountsLabel, filterSegments, paneAccounts, typeRows, withLiveClock } from "./calendar-logic";
+import type { PublishedAccounts } from "./accounts-types";
 import "./calendar.css";
 
 const COL_W = 790 / 7;
@@ -15,12 +19,23 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export default function CalendarScreen({ tab, snapshot }: ScreenProps): React.ReactElement | null {
   const data = snapshot.screens?.calendar;
   void tab;
-  if (!data) return null;
-  return <Planner data={data} />;
+  // The now-line and today follow the clock in the user's zone; re-read every 30 s.
+  const [tick, setTick] = React.useState(0);
+  React.useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  const live = React.useMemo(() => (data ? withLiveClock(data) : undefined), [data, tick]);
+  if (!live) return null;
+  return <Planner data={live} accounts={snapshot.screens?.accounts} />;
 }
 
 /** The Planner's mode and the day it is centred on (an index into `data.days`). */
-function Planner({ data }: { data: PublishedCalendar }) {
+function Planner({ data: live, accounts }: { data: PublishedCalendar; accounts: PublishedAccounts | undefined }) {
+  const [hidden, setHidden] = React.useState<Set<CalendarSegment["kind"]>>(new Set());
+  const [menu, setMenu] = React.useState<"plus" | "more" | "advanced" | null>(null);
+  // Filter Events hides whole kinds from every view.
+  const data = React.useMemo(() => ({ ...live, segments: filterSegments(live.segments, hidden) }), [live, hidden]);
   const todayIdx = Math.max(0, data.days.findIndex((d) => d.today));
   const [mode, setMode] = React.useState<Mode>("Week");
   const [anchor, setAnchor] = React.useState(todayIdx);
@@ -39,11 +54,14 @@ function Planner({ data }: { data: PublishedCalendar }) {
   const viewsToday = mode === "Month" ? monthOf(anchor) === monthOf(todayIdx) : mode === "Day" ? anchor === todayIdx : weekStart(anchor) === weekStart(todayIdx);
   return (
     <div className="studio-ipad-calendar">
-      <AccountsPane accounts={data.accounts} showLastVisit={data.settings.showLastVisit} />
+      <AccountsPane accounts={data.accounts} showLastVisit={data.settings.showLastVisit} lists={accounts ? [...accounts.lists.own, ...accounts.lists.shared] : []} onAdvanced={() => setMenu("advanced")} />
       <div className="studio-ipad-calendar-main">
-        <Toolbar data={data} mode={mode} setMode={setMode} anchor={anchor} shown={shown} onStep={step} onToday={() => setAnchor(todayIdx)} viewsToday={viewsToday} />
+        <Toolbar data={data} mode={mode} setMode={setMode} anchor={anchor} shown={shown} onStep={step} onToday={() => setAnchor(todayIdx)} viewsToday={viewsToday} onPlus={() => setMenu("plus")} onMore={() => setMenu("more")} />
         {mode === "Month" ? <MonthView data={data} first={monthStart(anchor)} month={monthOf(anchor)} /> : <TimeView data={data} shown={shown} />}
       </div>
+      {menu === "plus" && <PlusMenu onClose={() => setMenu(null)} />}
+      {menu === "more" && <MoreMenu hidden={hidden} onApply={setHidden} onClose={() => setMenu(null)} />}
+      {menu === "advanced" && <AdvancedSearch accounts={accounts} calendarIds={data.accounts.map((a) => a.id)} onClose={() => setMenu(null)} />}
     </div>
   );
 }
@@ -84,39 +102,131 @@ function AccountIcon({ person }: { person: boolean }) {
   );
 }
 
-function AccountsPane({ accounts, showLastVisit }: { accounts: CalendarAccount[]; showLastVisit: boolean }) {
+type TypeChoice = "All" | "HCO" | "HCP";
+
+function AccountsPane({ accounts, showLastVisit, lists, onAdvanced }: { accounts: CalendarAccount[]; showLastVisit: boolean; lists: PublishedAccounts["lists"]["own"]; onAdvanced: () => void }) {
+  const [type, setType] = React.useState<TypeChoice>("All");
+  const [listId, setListId] = React.useState<string | null>(null);
+  const [drop, setDrop] = React.useState<"type" | "lists" | "filters" | null>(null);
+  const [open, setOpen] = React.useState<Set<string>>(new Set());
+  const [text, setText] = React.useState("");
+  const list = lists.find((l) => l.id === listId);
+  const shown = paneAccounts(accounts, type, list?.memberIds).filter((a) => !text.trim() || a.name.toLowerCase().includes(text.trim().toLowerCase()));
+  const chips: { key: "type" | "lists" | "filters"; label: string; on: boolean }[] = [
+    { key: "type", label: "Type", on: true },
+    { key: "lists", label: "Lists", on: drop === "lists" || !!list },
+    { key: "filters", label: "Filters", on: drop === "filters" },
+  ];
+  const close = () => setDrop(null);
+  // Page x of each chip's centre (chips are 94pt wide at 32, 134 and 236).
+  const chipCenter = { type: 79, lists: 181, filters: 283 };
   return (
+    <>
     <div className="studio-ipad-calendar-left">
-      <div className="studio-ipad-calendar-search">
+      <label className="studio-ipad-calendar-search">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
           <circle cx="7.5" cy="7.5" r="5.2" />
           <path d="M11.4 11.4 L15.5 15.5" />
         </svg>
-        <span>Search...</span>
-      </div>
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search..." spellCheck={false} />
+      </label>
       <div className="studio-ipad-calendar-chips">
-        {["Type", "Lists", "Filters"].map((label, i) => (
-          <span key={label} className={`studio-ipad-calendar-chip${i === 0 ? " on" : ""}`}>
-            {label}
+        {chips.map((c) => (
+          <span key={c.key} role="button" className={`studio-ipad-calendar-chip${c.on ? " on" : ""}`} onClick={() => setDrop(drop === c.key ? null : c.key)}>
+            {c.label}
             <Chevron dir="down" size={14} />
           </span>
         ))}
       </div>
-      <div className="studio-ipad-calendar-advanced">Advanced Search</div>
-      <div className="studio-ipad-calendar-count">All ({accounts.length})</div>
+      <div className="studio-ipad-calendar-advanced" role="button" onClick={onAdvanced}>
+        Advanced Search
+      </div>
+      <div className="studio-ipad-calendar-count">
+        {list ? list.name : type} ({shown.length})
+      </div>
       <div className="studio-ipad-calendar-list">
-        {accounts.map((a) => (
-          <div key={a.id} className="studio-ipad-calendar-acct">
-            <AccountIcon person={a.person} />
-            <span className="studio-ipad-calendar-acct-name">{a.name}</span>
-            <span className="studio-ipad-calendar-acct-chev">
-              <Chevron dir="down" size={12} />
-            </span>
-            {showLastVisit && <span className="studio-ipad-calendar-acct-sub">Last Visit: {a.lastVisit || "None"}</span>}
-          </div>
-        ))}
+        {shown.map((a) => {
+          const isOpen = open.has(a.id);
+          return (
+            <div key={a.id} className={`studio-ipad-calendar-acct${isOpen ? " open" : ""}`}>
+              <AccountIcon person={a.person} />
+              <span className="studio-ipad-calendar-acct-name">{a.name}</span>
+              <span
+                className={`studio-ipad-calendar-acct-chev${isOpen ? " up" : ""}`}
+                role="button"
+                aria-label={isOpen ? "Collapse" : "Expand"}
+                onClick={() =>
+                  setOpen((o) => {
+                    const n = new Set(o);
+                    if (n.has(a.id)) n.delete(a.id);
+                    else n.add(a.id);
+                    return n;
+                  })
+                }
+              >
+                <Chevron dir="down" size={12} />
+              </span>
+              {showLastVisit && <span className="studio-ipad-calendar-acct-sub">Last Visit: {a.lastVisit || "None"}</span>}
+              {isOpen && <span className="studio-ipad-calendar-acct-nodata">No data available</span>}
+            </div>
+          );
+        })}
       </div>
     </div>
+      {drop && (
+        <Popover left={popoverLeft(chipCenter[drop], 246, 1210)} top={125} width={246} height={204} arrowX={chipCenter[drop]} onClose={close}>
+          <div className="studio-ipad-calendar-drop">
+            <div className="studio-ipad-calendar-drop-card">
+              {drop === "type" &&
+                typeRows(accounts).map((r) => (
+                  <button
+                    key={r.value}
+                    type="button"
+                    className="studio-ipad-calendar-drop-row"
+                    onClick={() => {
+                      setType(r.value);
+                      close();
+                    }}
+                  >
+                    {r.value}
+                    <small>{accountsLabel(r.count)}</small>
+                    {type === r.value && (
+                      <span className="tick">
+                        <Check />
+                      </span>
+                    )}
+                  </button>
+                ))}
+              {drop === "lists" &&
+                (lists.length === 0 ? (
+                  <div className="studio-ipad-calendar-drop-row">No lists</div>
+                ) : (
+                  lists.map((l) => (
+                    <button
+                      key={l.id}
+                      type="button"
+                      className="studio-ipad-calendar-drop-row"
+                      onClick={() => {
+                        setListId(l.id === listId ? null : l.id);
+                        close();
+                      }}
+                    >
+                      {l.name}
+                      <small>{l.detail}</small>
+                    </button>
+                  ))
+                ))}
+              {drop === "filters" &&
+                ["Next Best Customers", "Activity Plans", "Activity Plans with Weightages"].map((f) => (
+                  <button key={f} type="button" className="studio-ipad-calendar-drop-row" onClick={close}>
+                    {f}
+                  </button>
+                ))}
+            </div>
+          </div>
+        </Popover>
+      )}
+    </>
   );
 }
 
@@ -137,9 +247,11 @@ interface ToolbarProps {
   onStep: (dir: -1 | 1) => void;
   onToday: () => void;
   viewsToday: boolean;
+  onPlus: () => void;
+  onMore: () => void;
 }
 
-function Toolbar({ data, mode, setMode, anchor, shown, onStep, onToday, viewsToday }: ToolbarProps) {
+function Toolbar({ data, mode, setMode, anchor, shown, onStep, onToday, viewsToday, onPlus, onMore }: ToolbarProps) {
   const label = rangeLabel(data, mode, anchor, shown);
   return (
     <div className="studio-ipad-calendar-toolbar">
@@ -167,10 +279,10 @@ function Toolbar({ data, mode, setMode, anchor, shown, onStep, onToday, viewsTod
       <span className="studio-ipad-calendar-today" role="button" style={viewsToday ? undefined : { color: "#0250d9" }} onClick={onToday}>
         Today
       </span>
-      <svg className="studio-ipad-calendar-tb-plus" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+      <svg className="studio-ipad-calendar-tb-plus" role="button" onClick={onPlus} width="20" height="20" viewBox="0 0 20 20" aria-label="Create event">
         <path d="M10 3 V17 M3 10 H17" stroke="#0250d9" strokeWidth="1.7" strokeLinecap="round" />
       </svg>
-      <svg className="studio-ipad-calendar-tb-more" width="17" height="6" viewBox="0 0 17 6" aria-hidden="true">
+      <svg className="studio-ipad-calendar-tb-more" role="button" onClick={onMore} width="17" height="6" viewBox="0 0 17 6" aria-label="More">
         <circle cx="2" cy="3" r="1.9" />
         <circle cx="8.5" cy="3" r="1.9" />
         <circle cx="15" cy="3" r="1.9" />

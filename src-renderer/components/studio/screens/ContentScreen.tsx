@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import type { ScreenProps } from "./types";
 import type { PublishedContentCard } from "./content-types";
-import { collapseLabel, sectionTitle, visibleSections } from "./content-logic";
+import { categoryRows, collapseLabel, sectionTitle, visibleSections } from "./content-logic";
+import ContentViewer from "./ContentViewer";
+import { Check, EmptyArt, Popover, Sheet } from "./interact-ui";
 import errorRecoverable from "./assets/content-error-recoverable.png";
 import "./content.css";
 
@@ -12,9 +14,16 @@ export default function ContentScreen({ snapshot }: ScreenProps): React.ReactEle
   const [search, setSearch] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filterSearch, setFilterSearch] = useState("");
+  const [approvedOnly, setApprovedOnly] = useState(false);
+  const [category, setCategory] = useState<string | null>(null);
+  const [newOpen, setNewOpen] = useState(false);
+  const [viewing, setViewing] = useState<string | null>(null);
   if (!data) return null;
 
-  const sections = visibleSections(data, { segment, search, favorites });
+  const sections = visibleSections(data, { segment, search, favorites, approvedOnly, category });
+  const viewed = viewing ? data.cards.find((c) => c.id === viewing) : undefined;
   const titles = sections.map((s) => s.title);
   const flip = (set: Set<string>, key: string) => {
     const next = new Set(set);
@@ -32,7 +41,7 @@ export default function ContentScreen({ snapshot }: ScreenProps): React.ReactEle
             <SearchIcon />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." spellCheck={false} />
           </label>
-          <button type="button" className="studio-ipad-content-btn filters">
+          <button type="button" className="studio-ipad-content-btn filters" onClick={() => setFiltersOpen(true)}>
             Filters
             <ChevronDown />
           </button>
@@ -42,7 +51,7 @@ export default function ContentScreen({ snapshot }: ScreenProps): React.ReactEle
             </button>
           )}
           {data.canCreate && (
-            <button type="button" className="studio-ipad-content-btn new">
+            <button type="button" className="studio-ipad-content-btn new" onClick={() => setNewOpen(true)}>
               <Plus />
               New
             </button>
@@ -78,16 +87,54 @@ export default function ContentScreen({ snapshot }: ScreenProps): React.ReactEle
                 {open && (
                   <div className="studio-ipad-content-grid" style={{ gridTemplateColumns: `repeat(${data.columns}, 1fr)` }}>
                     {section.cards.map((card) => (
-                      <Card key={card.id} card={card} isNew favorite={favorites.has(card.id)} onFavorite={() => setFavorites(flip(favorites, card.id))} />
+                      <Card key={card.id} card={card} isNew favorite={favorites.has(card.id)} onFavorite={() => setFavorites(flip(favorites, card.id))} onPreview={() => setViewing(card.id)} />
                     ))}
                   </div>
                 )}
               </section>
             );
           })}
-          {sections.length === 0 && <div className="studio-ipad-content-empty">No presentations</div>}
+          {sections.length === 0 && <EmptyArt text="No data available" />}
         </div>
       </div>
+      {filtersOpen && (
+        <Popover left={739} top={85} width={289} height={530} arrowX={884} onClose={() => setFiltersOpen(false)}>
+          <div className="studio-ipad-content-filters">
+            <label className="studio-ipad-content-filters-search">
+              <SearchIcon />
+              <input value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} placeholder="Search..." spellCheck={false} />
+            </label>
+            <div className="studio-ipad-content-filters-list">
+              {matches("Sharing Settings", "Approved for Sharing", filterSearch) && (
+                <>
+                  <div className="studio-ipad-interact-row head">Sharing Settings</div>
+                  <button type="button" className="studio-ipad-interact-row" onClick={() => setApprovedOnly(!approvedOnly)}>
+                    <span>Approved for Sharing</span>
+                    {approvedOnly && <Check />}
+                  </button>
+                </>
+              )}
+              <div className="studio-ipad-interact-row head">Categories</div>
+              {categoryRows(data)
+                .filter((r) => !filterSearch.trim() || `${r.label} (${r.count})`.toLowerCase().includes(filterSearch.trim().toLowerCase()))
+                .map((r) => (
+                  <button key={r.label} type="button" className="studio-ipad-interact-row" onClick={() => setCategory(r.title)}>
+                    <span>{`${r.label} (${r.count})`}</span>
+                    {category === r.title && <Check />}
+                  </button>
+                ))}
+            </div>
+          </div>
+        </Popover>
+      )}
+      {newOpen && (
+        <Sheet
+          title="New Presentation"
+          note="On the iPad this opens the New Presentation builder: your presentations on the left, the pages you add on the right, with Save, Save as, Remove, Reorder and Edit Details. Studio doesn't build presentations."
+          onClose={() => setNewOpen(false)}
+        />
+      )}
+      {viewed && <ContentViewer card={viewed} onClose={() => setViewing(null)} />}
     </div>
   );
 }
@@ -98,12 +145,14 @@ export function Card({
   isNew,
   favorite,
   onFavorite,
+  onPreview,
   failed = false,
 }: {
   card: PublishedContentCard;
   isNew: boolean;
   favorite: boolean;
   onFavorite: () => void;
+  onPreview?: () => void;
   failed?: boolean;
 }) {
   if (failed)
@@ -116,10 +165,14 @@ export function Card({
       </div>
     );
   return (
-    <div className="studio-ipad-content-card">
+    <div className="studio-ipad-content-card" onClick={onPreview}>
       <div className="studio-ipad-content-thumb">
         {card.thumbnail && <img src={card.thumbnail} alt="" />}
-        <button type="button" className={`studio-ipad-content-fav${favorite ? " on" : ""}`} aria-label="Favorite" onClick={onFavorite}>
+        <button type="button" className={`studio-ipad-content-fav${favorite ? " on" : ""}`} aria-label="Favorite" onClick={(e) => {
+            e.stopPropagation();
+            onFavorite();
+          }}
+        >
           <Heart filled={favorite} />
         </button>
         {isNew && <span className="studio-ipad-content-badge">New</span>}
@@ -138,6 +191,9 @@ export function Card({
     </div>
   );
 }
+
+/** Filters popover: a heading shows only when its heading or one of its rows matches the search text. */
+const matches = (heading: string, row: string, needle: string) => !needle.trim() || `${heading} ${row}`.toLowerCase().includes(needle.trim().toLowerCase());
 
 // SF Symbols redrawn as inline SVG.
 function SearchIcon() {
