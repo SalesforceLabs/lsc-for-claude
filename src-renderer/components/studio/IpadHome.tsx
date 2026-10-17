@@ -1,6 +1,10 @@
-import React from "react";
+import React, { createContext, useContext } from "react";
 import { MicIcon } from "./IpadChrome";
 import noResultsUnknown from "./assets/noresults-unknown.png";
+import type { HomeNbcCard, HomeVisit, PublishedHome } from "./screens/home-types";
+
+/** Opens a record from a Home component (NBC card, visit row); undefined when the snapshot holds no such record. */
+export const HomeOpenContext = createContext<((id: string) => void) | undefined>(undefined);
 
 /**
  * Home page components as LSC Mobile draws them (standard-home at 1210×834pt).
@@ -165,36 +169,37 @@ function Pill({ children, bold = false, size = 16 }: { children: React.ReactNode
   );
 }
 
-/** One Next Best Customer card (the ARC "Next Best Customer" card), with placeholder values. */
-function NbcCard({ score }: { score: number }) {
+/** One Next Best Customer card (the ARC "Next Best Customer" card): the viewer's real values, or placeholder bars without data. */
+function NbcCard({ score, card, onOpen }: { score: number; card?: HomeNbcCard; onOpen?: () => void }) {
+  const text = (v: string | undefined, w: number) => (v === undefined ? <Bar w={w} /> : v);
   return (
-    <div className="studio-ipad-h-nbc-card">
+    <div className={`studio-ipad-h-nbc-card${onOpen ? " open" : ""}`} onClick={onOpen} role={onOpen ? "button" : undefined}>
       <div className="studio-ipad-h-nbc-section">Next Best Customer</div>
       <div className="studio-ipad-h-nbc-items">
         <Pill bold size={18}>
-          <Bar w={110} />
+          {text(card?.name, 110)}
         </Pill>
+        <Pill>{text(card?.specialty, 140)}</Pill>
         <Pill>
-          <Bar w={140} />
-        </Pill>
-        <Pill>
-          <span className="studio-ipad-h-lines">
-            <Bar w={240} />
-            <Bar w={200} />
-          </span>
+          {card ? (
+            card.address
+          ) : (
+            <span className="studio-ipad-h-lines">
+              <Bar w={240} />
+              <Bar w={200} />
+            </span>
+          )}
         </Pill>
       </div>
       <div className="studio-ipad-h-nbc-items gap">
-        <Pill size={14}>Target</Pill>
+        {(!card || card.target) && <Pill size={14}>Target</Pill>}
         <Pill>Last Visit</Pill>
-        <Pill size={14}>
-          <Bar w={96} />
-        </Pill>
+        <Pill size={14}>{card ? card.lastVisit || "No data available" : <Bar w={96} />}</Pill>
         <span className="studio-ipad-h-row studio-ipad-h-score">
           <Pill bold size={18}>
             Score
           </Pill>
-          <Pill size={18}>{score}</Pill>
+          <Pill size={18}>{card ? (card.score ?? "") : score}</Pill>
         </span>
       </div>
       <div className="studio-ipad-h-nbc-plain">
@@ -203,30 +208,40 @@ function NbcCard({ score }: { score: number }) {
       </div>
       <div className="studio-ipad-h-nbc-section">Insight</div>
       <div className="studio-ipad-h-nbc-items">
-        <Pill>
-          <span className="studio-ipad-h-lines">
-            <Bar w={240} />
-            <Bar w={230} />
-            <Bar w={90} />
+        {(!card || card.insight) && (
+          <Pill>
+            {card ? (
+              card.insight
+            ) : (
+              <span className="studio-ipad-h-lines">
+                <Bar w={240} />
+                <Bar w={230} />
+                <Bar w={90} />
+              </span>
+            )}
+          </Pill>
+        )}
+        {(!card || card.planProgress !== null) && (
+          <span className="studio-ipad-h-row studio-ipad-h-progress">
+            <Pill bold>Activity Plan Progress</Pill>
+            <Pill>{card ? card.planProgress : 0}</Pill>
           </span>
-        </Pill>
-        <span className="studio-ipad-h-row studio-ipad-h-progress">
-          <Pill bold>Activity Plan Progress</Pill>
-          <Pill>0</Pill>
-        </span>
+        )}
       </div>
     </div>
   );
 }
 
 /** NextBestCustomersView — header, Sort by, and a horizontal row of 340pt cards. */
-export function NextBestCustomers({ totalCards }: { totalCards: number }) {
+export function NextBestCustomers({ totalCards, data }: { totalCards: number; data?: PublishedHome["nbc"] }) {
+  const open = useContext(HomeOpenContext);
+  const cards = data?.cards;
   return (
     <div className="studio-ipad-h-nbc">
       <div className="studio-ipad-h-nbc-head">
         <div>
           <div className="studio-ipad-h-nbc-title">Top {totalCards} Next Best Customers By Score</div>
-          <div className="studio-ipad-h-caption">Last Refreshed: Today, 6:30 AM</div>
+          <div className="studio-ipad-h-caption">{data ? data.lastRefreshed : "Last Refreshed: Today, 6:30 AM"}</div>
         </div>
         <span className="studio-ipad-h-capsule">
           Sort by: Score
@@ -236,9 +251,9 @@ export function NextBestCustomers({ totalCards }: { totalCards: number }) {
         </span>
       </div>
       <div className="studio-ipad-h-nbc-cards">
-        {Array.from({ length: totalCards }, (_, i) => (
-          <NbcCard key={i} score={100 - i * 5} />
-        ))}
+        {cards
+          ? cards.map((c) => <NbcCard key={c.accountId} score={0} card={c} onOpen={open ? () => open(c.accountId) : undefined} />)
+          : Array.from({ length: totalCards }, (_, i) => <NbcCard key={i} score={100 - i * 5} />)}
       </div>
     </div>
   );
@@ -307,7 +322,7 @@ function Picker({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 /** ActivityPlanProductsCoordinator — progress by activity type (left) and pace over time (right). */
-export function ActivityPlanProgress({ enhanced }: { enhanced: boolean }) {
+export function ActivityPlanProgress({ enhanced, plan }: { enhanced: boolean; plan?: PublishedHome["plan"] }) {
   if (!enhanced)
     return (
       <div className="studio-ipad-h-tile">
@@ -328,7 +343,7 @@ export function ActivityPlanProgress({ enhanced }: { enhanced: boolean }) {
         </div>
         <div className="studio-ipad-h-app-cycle">
           <div>
-            <strong>Cycle Progress:</strong> <Bar w={180} />
+            <strong>Cycle Progress:</strong> {plan ? (plan.cycle ?? "--") : <Bar w={180} />}
           </div>
           <div className="studio-ipad-h-caption">Last Updated: N/A</div>
         </div>
@@ -336,7 +351,7 @@ export function ActivityPlanProgress({ enhanced }: { enhanced: boolean }) {
       <div className="studio-ipad-h-app-panes">
         <div className="studio-ipad-h-app-left">
           <div className="studio-ipad-h-row wide">
-            <Picker label="Activity Type" value={<Bar w={90} />} />
+            <Picker label="Activity Type" value={plan?.activityType ?? <Bar w={90} />} />
             <Picker label="Product" value="None" />
           </div>
           <div className="studio-ipad-h-segments">
@@ -370,24 +385,24 @@ export function ActivityPlanProgress({ enhanced }: { enhanced: boolean }) {
 
 // ── UnsubmittedVisits ─────────────────────────────────────────────────────────
 
-/** UnsubmittedCallsDashboardViewController — three visits per page, paged sideways. */
-export function VisitsToSubmit() {
+/** UnsubmittedCallsDashboardViewController — three visits per page, paged sideways; the first page is drawn. */
+export function VisitsToSubmit({ data }: { data?: PublishedHome["visits"] }) {
+  const open = useContext(HomeOpenContext);
+  const page: (HomeVisit | null)[] = data ? data.items.slice(0, 3) : [null, null, null];
   return (
     <div className="studio-ipad-h-tile">
       <div className="studio-ipad-h-tile-head plain">
-        <span>Visits To Submit</span>
+        <span>{data ? `Visits To Submit (${data.total})` : "Visits To Submit"}</span>
         <MoreDots />
       </div>
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="studio-ipad-h-visit">
-          <Bar w={110} />
+      {page.map((v, i) => (
+        <div key={v?.id ?? i} className={`studio-ipad-h-visit${v && open ? " open" : ""}`} onClick={v && open ? () => open(v.id) : undefined}>
+          {v ? v.dateLabel && <span className="studio-ipad-h-visit-date">{v.dateLabel}</span> : <Bar w={110} />}
           <div className="studio-ipad-h-visit-body">
-            <Bar w={150} />
-            <Bar w={90} />
-            <Bar w={380} />
-            <span className="studio-ipad-h-tag">
-              <Bar w={50} />
-            </span>
+            {v ? <span className="studio-ipad-h-visit-time">{v.time}</span> : <Bar w={150} />}
+            {v ? <span>{v.account}</span> : <Bar w={90} />}
+            {v ? <span className="studio-ipad-h-visit-addr">{v.address}</span> : <Bar w={380} />}
+            {(!v || v.channel) && <span className="studio-ipad-h-tag">{v ? v.channel : <Bar w={50} />}</span>}
           </div>
         </div>
       ))}

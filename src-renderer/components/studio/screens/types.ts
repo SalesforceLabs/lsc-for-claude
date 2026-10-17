@@ -3,9 +3,10 @@ import type { PublishedAccounts } from "./accounts-types";
 import type { PublishedCalendar } from "./calendar-types";
 import type { PublishedContent } from "./content-types";
 import type { PublishedFabs } from "./fabs-types";
+import type { PublishedHome } from "./home-types";
 import type { PublishedTableau } from "./tableau-types";
 
-export type { PublishedAccounts, PublishedCalendar, PublishedContent, PublishedFabs, PublishedTableau };
+export type { PublishedAccounts, PublishedCalendar, PublishedContent, PublishedFabs, PublishedHome, PublishedTableau };
 
 /** Structural copy of PublishedScreens in src/studio/screens/index.ts. */
 export interface PublishedScreens {
@@ -14,6 +15,7 @@ export interface PublishedScreens {
   calendar?: PublishedCalendar;
   tableau?: PublishedTableau;
   fabs?: PublishedFabs;
+  home?: PublishedHome;
 }
 
 export interface ScreenProps {

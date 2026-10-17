@@ -21,6 +21,7 @@ import { ChromeSheets, SearchTab, type ChromeSheet } from "./IpadChromeSheets";
 import { CustomIcon } from "./assets/icons";
 import {
   ActivityPlanProgress,
+  HomeOpenContext,
   AgentforceWelcome,
   Announcements,
   EmptyArt,
@@ -197,7 +198,13 @@ function Screen({
   if (record === null && hasNativeScreen(tab, snapshot)) return <NativeScreen tab={tab} snapshot={snapshot} onOpenRecord={onOpenRecord} />;
   switch (tab.kind) {
     case "home":
-      return snapshot.home ? <PageView page={snapshot.home} snapshot={snapshot} home /> : <Native title="Home" text="Home page" />;
+      return snapshot.home ? (
+        <HomeOpenContext.Provider value={snapshot.records ? (id) => snapshot.records?.byId[id] && onOpenRecord(id) : undefined}>
+          <PageView page={snapshot.home} snapshot={snapshot} home />
+        </HomeOpenContext.Provider>
+      ) : (
+        <Native title="Home" text="Home page" />
+      );
     case "flexiPage": {
       const page = tab.flexiPage ? snapshot.pages[tab.flexiPage] : undefined;
       if (record === null && isLwcOnly(tab, snapshot)) return <LwcFull name={tab.label} />;
@@ -445,15 +452,15 @@ function ComponentCard({
       </div>
     );
   }
-  if (/nbctopcards$/i.test(name)) return <NextBestCustomers totalCards={Number(p.totalCards) || 10} />;
+  if (/nbctopcards$/i.test(name)) return <NextBestCustomers totalCards={Number(p.totalCards) || 10} data={snapshot.screens?.home?.nbc} />;
   // AgentforceWelcomeViewModel: every non-empty property becomes a prompt chip.
   if (name === "lsAgentforceWelcome") return <AgentforceWelcome prompts={Object.values(p).filter(Boolean)} viewerName={snapshot.viewer?.name} />;
   if (name === "lscHomeAnnouncements") return <Announcements />;
   if (name === "richText") return <RichText html={p.richTextValue ?? ""} />;
   if (name === "UpNextMapDisplay") return <UpNextMap />;
   if (name === "embeddedDashboard") return <Dashboard dashboard={snapshot.dashboards[p.dashboardName ?? ""]} />;
-  if (name === "ActivityPlanByProduct") return <ActivityPlanProgress enhanced={p.showEnhActivityPlanOnMobileHomepage === "true"} />;
-  if (name === "UnsubmittedVisits") return <VisitsToSubmit />;
+  if (name === "ActivityPlanByProduct") return <ActivityPlanProgress enhanced={p.showEnhActivityPlanOnMobileHomepage === "true"} plan={snapshot.screens?.home?.plan} />;
+  if (name === "UnsubmittedVisits") return <VisitsToSubmit data={snapshot.screens?.home?.visits} />;
   return (
     <div className={cls}>
       <strong>{p.label || p.title || c.label}</strong>

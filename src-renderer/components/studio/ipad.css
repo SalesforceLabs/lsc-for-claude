@@ -2067,6 +2067,29 @@ button.studio-ipad-chip {
   background: #e5e5e5;
 }
 
+.studio-ipad-h-visit-date {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 17px;
+  color: #5c5c5c;
+}
+
+.studio-ipad-h-visit-time {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 19px;
+}
+
+.studio-ipad-h-visit-body {
+  font-size: 15px;
+  line-height: 17px;
+}
+
+.studio-ipad-h-visit.open,
+.studio-ipad-h-nbc-card.open {
+  cursor: pointer;
+}
+
 /* Reports tab: MultiReportsViewController's 64pt header over the report tree, on white. */
 .studio-ipad-page.flush {
   padding: 0;

@@ -5,10 +5,11 @@ import { collectCalendar, type PublishedCalendar } from "./calendar.js";
 import { collectContent, type PublishedContent } from "./content.js";
 import type { ScreenContext } from "./context.js";
 import { collectFabs, type PublishedFabs } from "./fabs.js";
+import { collectHome, type PublishedHome } from "./home.js";
 import { collectTableau, type PublishedTableau } from "./tableau.js";
 
 export type { ScreenContext } from "./context.js";
-export type { PublishedAccounts, PublishedCalendar, PublishedContent, PublishedFabs, PublishedTableau };
+export type { PublishedAccounts, PublishedCalendar, PublishedContent, PublishedFabs, PublishedHome, PublishedTableau };
 
 export interface PublishedScreens {
   content?: PublishedContent;
@@ -16,6 +17,7 @@ export interface PublishedScreens {
   calendar?: PublishedCalendar;
   tableau?: PublishedTableau;
   fabs?: PublishedFabs;
+  home?: PublishedHome;
 }
 
 const COLLECTORS: { [K in keyof PublishedScreens]-?: { kind: string | null; collect: (ctx: ScreenContext) => Promise<PublishedScreens[K]> } } = {
@@ -25,6 +27,8 @@ const COLLECTORS: { [K in keyof PublishedScreens]-?: { kind: string | null; coll
   tableau: { kind: "tableau", collect: collectTableau },
   // The floating buttons belong to Home and record pages, not to a tab, so they are always collected.
   fabs: { kind: null, collect: collectFabs },
+  // Home's components (NBC cards, Visits To Submit, Activity Plan Progress) read data too; Home has no collector of its own.
+  home: { kind: null, collect: collectHome },
 };
 
 /** Runs the collector of each screen the viewer has a tab for; one that fails is left out. */
