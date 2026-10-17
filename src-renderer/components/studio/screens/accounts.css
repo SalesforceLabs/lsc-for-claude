@@ -1,1 +1,470 @@
-/* Accounts tab (SearchFilterCustomersViewController). Prefix every class with studio-ipad-accounts. */
+/* Accounts tab (SearchFilterCustomersViewController), laid out at 1210×738pt like the device. Prefix every class with studio-ipad-accounts. */
+
+.studio-ipad-accounts {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #f3f3f3;
+  color: #2e2e2e;
+  font-size: 16px;
+  line-height: 20px;
+}
+
+.studio-ipad-accounts > * {
+  position: absolute;
+}
+
+.studio-ipad-accounts-head,
+.studio-ipad-accounts-search,
+.studio-ipad-accounts-chips,
+.studio-ipad-accounts-actions {
+  display: flex;
+  align-items: center;
+}
+
+/* Header: 48pt icon, "Accounts" 18 regular, list name 24 semibold, New Account at the right. */
+.studio-ipad-accounts-head {
+  left: 20px;
+  top: 20px;
+  width: 1174px;
+  height: 48px;
+  gap: 16px;
+}
+
+.studio-ipad-accounts-obj {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #5867e8;
+  color: #fff;
+  overflow: hidden;
+  font-weight: 600;
+}
+
+.studio-ipad-accounts-obj img {
+  width: 100%;
+  height: 100%;
+}
+
+.studio-ipad-accounts-head-text {
+  flex: 1;
+  padding-top: 1px;
+}
+
+.studio-ipad-accounts-eyebrow {
+  font-size: 18px;
+  line-height: 20px;
+  margin-top: -2px;
+}
+
+.studio-ipad-accounts-selected {
+  font-size: 24px;
+  line-height: 33px;
+  font-weight: 600;
+}
+
+.studio-ipad-accounts-new {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 118px;
+  height: 40px;
+  box-sizing: border-box;
+  border: 1px solid #5c5c5c;
+  border-radius: 20px;
+  background: #fff;
+  color: #0250d9;
+  font-size: 14px;
+}
+
+/* Search row. */
+.studio-ipad-accounts-search {
+  left: 16px;
+  top: 96px;
+  width: 1178px;
+  height: 40px;
+}
+
+.studio-ipad-accounts-field,
+.studio-ipad-accounts-filter {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  border: 1px solid #5c5c5c;
+  background: #fff;
+  color: #5c5c5c;
+  font-size: 15px;
+}
+
+.studio-ipad-accounts-field {
+  width: 343px;
+  height: 40px;
+  padding: 0 10px 0 8px;
+  gap: 6px;
+  border-radius: 20px;
+  font-size: 16px;
+}
+
+.studio-ipad-accounts-field span {
+  flex: 1;
+}
+
+.studio-ipad-accounts-online {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 20px;
+  padding: 0 13px;
+  color: #0250d9;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.studio-ipad-accounts-actions {
+  margin-left: auto;
+  gap: 12px;
+}
+
+.studio-ipad-accounts-pill {
+  display: inline-block;
+  box-sizing: border-box;
+  height: 40px;
+  line-height: 38px;
+  padding: 0 12px;
+  border: 1px solid #5c5c5c;
+  border-radius: 20px;
+  background: #fff;
+  color: #0250d9;
+  font-size: 17px;
+  font-weight: 600;
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.studio-ipad-accounts-pill.select {
+  width: 82px;
+  text-align: center;
+}
+
+.studio-ipad-accounts-pill.sort {
+  width: 77px;
+  padding: 0 8px;
+  font-size: 14px;
+}
+
+.studio-ipad-accounts-map {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  box-sizing: border-box;
+  border: 1px solid #5c5c5c;
+  border-radius: 20px;
+  background: #fff;
+  color: #0250d9;
+}
+
+/* Sidebar: 0.2 × the container, white, radius 12. */
+.studio-ipad-accounts-sidebar {
+  left: 16px;
+  top: 164px;
+  width: 239px;
+  bottom: 6px;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.studio-ipad-accounts-lists {
+  position: absolute;
+  left: 16px;
+  top: 24px;
+  height: 32px;
+  line-height: 32px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.studio-ipad-accounts-lists span {
+  display: inline-block;
+  margin-left: 6px;
+  border: 5px solid transparent;
+  border-top: 8px solid #5c5c5c;
+  border-bottom: 0;
+  vertical-align: 2px;
+}
+
+.studio-ipad-accounts-filter {
+  position: absolute;
+  left: 16px;
+  top: 76px;
+  width: 207px;
+  height: 40px;
+  padding: 0 12px 0 6px;
+  gap: 6px;
+  border-radius: 16px;
+}
+
+.studio-ipad-accounts-divider {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 136px;
+  height: 1px;
+  background: #c9c9c9;
+}
+
+.studio-ipad-accounts-sidebar {
+  display: flex;
+  flex-direction: column;
+  padding-top: 157px;
+}
+
+.studio-ipad-accounts-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: none;
+  height: 55px;
+  padding-left: 16px;
+}
+
+.studio-ipad-accounts-row.all {
+  height: 40px;
+}
+
+.studio-ipad-accounts-row.selected {
+  background: #e8f1fe;
+}
+
+.studio-ipad-accounts-row-bar {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  background: #0250d9;
+}
+
+.studio-ipad-accounts-row.selected .studio-ipad-accounts-row-bar {
+  display: block;
+}
+
+.studio-ipad-accounts-row-text {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 2px;
+}
+
+.studio-ipad-accounts-row-title {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.studio-ipad-accounts-row-detail {
+  margin-top: 2px;
+  font-size: 14px;
+  line-height: 17px;
+  color: #5c5c5c;
+}
+
+.studio-ipad-accounts-row-more {
+  display: inline-flex;
+  justify-content: center;
+  width: 25px;
+  margin-right: 15px;
+  color: #2e2e2e;
+}
+
+.studio-ipad-accounts-section {
+  flex: none;
+  height: 40px;
+  line-height: 40px;
+  padding-left: 16px;
+  background: #f2f2f7;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Chips. */
+.studio-ipad-accounts-chips {
+  left: 281px;
+  top: 164px;
+  gap: 16px;
+}
+
+.studio-ipad-accounts-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  background: #fff;
+  color: #03234d;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.studio-ipad-accounts-chip.selected {
+  background: #0250d9;
+  color: #fff;
+}
+
+.studio-ipad-accounts-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 20px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 11px;
+  background: #e5e5e5;
+  color: #2e2e2e;
+  font-weight: 700;
+}
+
+.studio-ipad-accounts-chip.selected .studio-ipad-accounts-chip-count {
+  background: #fff;
+  color: #0250d9;
+}
+
+/* Cards: 120pt tall, radius 20, 8pt apart; the list stops 20pt above the bottom. */
+.studio-ipad-accounts-cards {
+  left: 271px;
+  top: 220px;
+  width: 923px;
+  bottom: 26px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.studio-ipad-accounts-card {
+  position: relative;
+  flex: none;
+  height: 120px;
+  box-sizing: border-box;
+  border-radius: 20px;
+  background: #fff;
+}
+
+.studio-ipad-accounts-card > * {
+  position: absolute;
+}
+
+.studio-ipad-accounts-card-icon {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+
+/* Icon beside the name, license pill beside the address; each centered on its text. */
+.studio-ipad-accounts-card-text {
+  left: 16px;
+  top: 16px;
+  width: 260px;
+}
+
+.studio-ipad-accounts-card-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.studio-ipad-accounts-card-name {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 212px;
+  min-height: 22px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 19px;
+}
+
+.studio-ipad-accounts-card-address {
+  width: 224px;
+  font-size: 14px;
+  line-height: 17px;
+  color: #2e2e2e;
+}
+
+.studio-ipad-accounts-license {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+}
+
+.studio-ipad-accounts-license.valid {
+  background: #acf3e4;
+  color: #056764;
+}
+
+.studio-ipad-accounts-license.invalid {
+  background: #fddde3;
+  color: #b60554;
+}
+
+.studio-ipad-accounts-col {
+  top: 16px;
+  width: 140px;
+}
+
+.studio-ipad-accounts-col.c1 {
+  left: 306px;
+}
+
+.studio-ipad-accounts-col.c2 {
+  left: 451px;
+}
+
+.studio-ipad-accounts-col.c3 {
+  left: 597px;
+}
+
+.studio-ipad-accounts-col-title {
+  font-size: 14px;
+  line-height: 17px;
+}
+
+.studio-ipad-accounts-col-value {
+  padding-top: 6px;
+  font-size: 16px;
+  line-height: 19px;
+}
+
+.studio-ipad-accounts-card-more {
+  left: 861px;
+  top: 53px;
+  width: 73px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Address row: 2.5pt under a one-line name, 8.5pt under a wrapped one (the name box grows to 38pt). */
+.studio-ipad-accounts-card-row.second {
+  margin-top: 2.500px;
+}
+
+.studio-ipad-accounts-card-text.wrapped .studio-ipad-accounts-card-row.second {
+  margin-top: 8.500px;
+}
