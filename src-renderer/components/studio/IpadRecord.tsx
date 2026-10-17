@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { createContext, useContext, useMemo, useState } from "react";
 import type {
   PublishedComponent,
   PublishedFieldMeta,
@@ -108,10 +108,17 @@ const bare = (name: string) => name.replace(/^.*:/, "");
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
-export default function RecordScreen({ snapshot, recordId }: { snapshot: PublishedIpad; recordId: string }) {
+/** Opens another collected record (a related-list row) in the same preview. */
+const OpenRecord = createContext<((id: string) => void) | undefined>(undefined);
+
+export default function RecordScreen({ snapshot, recordId, onOpenRecord }: { snapshot: PublishedIpad; recordId: string; onOpenRecord?: (id: string) => void }) {
   const rec = snapshot.records?.byId[recordId];
   if (!rec) return null;
-  return <RecordBody snapshot={snapshot} rec={rec} />;
+  return (
+    <OpenRecord.Provider value={onOpenRecord}>
+      <RecordBody key={recordId} snapshot={snapshot} rec={rec} />
+    </OpenRecord.Provider>
+  );
 }
 
 function RecordBody({ snapshot, rec }: { snapshot: PublishedIpad; rec: PublishedRecordData }) {
@@ -434,6 +441,7 @@ function RelatedCard({ snapshot, related, editable = false }: { snapshot: Publis
     [related]
   );
   const shown = related.rows.slice(0, 5);
+  const open = useContext(OpenRecord);
   const file = !theme && /ContentDocument/.test(related.object);
   return (
     <div className="studio-ipad-rec-card related">
@@ -469,7 +477,7 @@ function RelatedCard({ snapshot, related, editable = false }: { snapshot: Publis
             ))}
           </div>
           {shown.map((r) => (
-            <div key={r.id} className="studio-ipad-rec-tr">
+            <div key={r.id} className="studio-ipad-rec-tr" style={open && snapshot.records?.byId[r.id] ? { cursor: "pointer" } : undefined} onClick={open && snapshot.records?.byId[r.id] ? () => open(r.id) : undefined}>
               {related.columns.map((c, k) => (
                 <span key={k} className={`studio-ipad-rec-td${r.cells[k] && LINK_COLUMNS.has(c.type) ? " link" : ""}`} style={{ width: widths[k] }}>
                   {r.cells[k]}

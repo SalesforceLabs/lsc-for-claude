@@ -208,7 +208,7 @@ function Screen({
   onEditVisit: (id: string) => void;
 }) {
   // An open record takes precedence over the tab's native screen (the Accounts cards open their record).
-  if (record !== null && snapshot.records?.byId[record]) return <RecordScreen snapshot={snapshot} recordId={record} />;
+  if (record !== null && snapshot.records?.byId[record]) return <RecordScreen snapshot={snapshot} recordId={record} onOpenRecord={onOpenRecord} />;
   if (record === null && hasNativeScreen(tab, snapshot)) return <NativeScreen tab={tab} snapshot={snapshot} onOpenRecord={onOpenRecord} />;
   switch (tab.kind) {
     case "home":
@@ -236,7 +236,7 @@ function Screen({
     case "accounts": {
       const object = snapshot.objects[tab.kind === "accounts" ? "Account" : (tab.sobject ?? "")];
       if (!object) return <Native title={tab.label} text={`${tab.sobject ?? "Object"} list`} />;
-      if (record !== null && snapshot.records?.byId[record]) return <RecordScreen snapshot={snapshot} recordId={record} />;
+      if (record !== null && snapshot.records?.byId[record]) return <RecordScreen snapshot={snapshot} recordId={record} onOpenRecord={onOpenRecord} />;
       return record !== null ? (
         <RecordView object={object} snapshot={snapshot} />
       ) : (
