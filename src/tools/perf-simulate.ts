@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as fs from "fs";
 import * as path from "path";
 import { z } from "zod";
+import type { DeltaResult } from "../perf/device/delta.js";
 import { simulateInitialSync, type SimulationResult } from "../perf/simulate.js";
 
 function text(body: string) {
@@ -18,6 +19,30 @@ function mb(bytes: number): string {
 
 function cell(s: string): string {
   return s.replace(/\|/g, "\\|").replace(/\s+/g, " ");
+}
+
+function renderDelta(d: DeltaResult, topTables: number): string {
+  const t = d.totals;
+  let out = `\n## Delta sync (last synced ${d.sinceHours} h ago)\n\n`;
+  out += `| Phase | Seconds | Requests |\n|---|---|---|\n`;
+  out += `| Record visibility | ${t.visibilitySeconds.toFixed(1)} | ${t.visibilityRequests} |\n`;
+  out += `| Changed-record download | ${t.fetchSeconds.toFixed(1)} | ${t.fetchRequests} |\n`;
+  out += `| Total | ${t.seconds.toFixed(1)} | ${t.requests} |\n\n`;
+  out += `**To download:** ${t.toDownload.toLocaleString("en-US")}, **fetched:** ${t.recordsFetched.toLocaleString("en-US")}, **to delete (informational):** ${t.toDelete.toLocaleString("en-US")}, **response size:** ${mb(t.bytes)}, across ${t.tablesChecked} tables (${t.tablesSkipped} skipped, ${t.tablesFailed} failed)\n\n`;
+  const rows = d.tables.filter((x) => !x.skipped).sort((a, b) => b.seconds - a.seconds || b.toDownload - a.toDownload);
+  out += `| Table | Local ids | Visibility requests | To download | To delete | Fetched | Fetch requests | MB | Seconds | Note |\n|---|---|---|---|---|---|---|---|---|---|\n`;
+  for (const x of rows.slice(0, topTables)) {
+    const note = x.error ? `error: ${x.error}` : (x.truncated ?? "");
+    out += `| ${x.sobject} | ${x.localIds.toLocaleString("en-US")} | ${x.visibilityRequests} | ${x.toDownload.toLocaleString("en-US")} | ${x.toDelete.toLocaleString("en-US")} | ${x.recordsFetched.toLocaleString("en-US")} | ${x.fetchRequests} | ${(x.bytes / (1024 * 1024)).toFixed(2)} | ${x.seconds.toFixed(1)} | ${cell(note)} |\n`;
+  }
+  if (rows.length > topTables) out += `\n${rows.length - topTables} more table(s) in the JSON output.\n`;
+  const skipped = d.tables.filter((x) => x.skipped);
+  if (skipped.length > 0) {
+    out += `\n**Delta skipped:**\n\n`;
+    for (const x of skipped) out += `- ${x.sobject}: ${x.skipped}\n`;
+  }
+  out += `\n${d.notes.map((n) => `- ${n}`).join("\n")}\n`;
+  return out;
 }
 
 export function renderSimulation(r: SimulationResult, topTables = 25): string {
@@ -43,6 +68,7 @@ export function renderSimulation(r: SimulationResult, topTables = 25): string {
     out += `\n## Skipped or failed\n\n`;
     for (const x of problems) out += `- **${x.sobject}**: ${x.error ? `error: ${x.error}` : x.skipped}\n`;
   }
+  if (r.delta) out += renderDelta(r.delta, topTables);
   out += `\n## Notes\n\n${r.notes.map((n) => `- ${n}`).join("\n")}\n`;
   return out;
 }

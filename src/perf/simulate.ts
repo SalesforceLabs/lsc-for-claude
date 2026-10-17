@@ -10,7 +10,8 @@
  */
 
 import { downloadMetadata, DEFAULT_CHUNK_BYTES } from "./device/metadata.js";
-import { replayInitialSync, schedulingNote, type Flow, type TableResult } from "./device/replay.js";
+import { DEFAULT_MAX_LOCAL_IDS, simulateDelta, type DeltaResult } from "./device/delta.js";
+import { LocalIdStore, replayInitialSync, schedulingNote, type Flow, type TableResult } from "./device/replay.js";
 import { buildSchema } from "./device/schema.js";
 import { createDeviceSession, type DeviceSession } from "./device/session.js";
 import {
@@ -43,6 +44,10 @@ export interface SimulateOptions {
   chunkBytes?: number;
   legacyPaging?: "batch" | "sequential";
   fixedBatchSize?: boolean;
+  /** After the initial sync, simulate a delta sync as if the device last synced `sinceHours` ago (enhanced flow only). */
+  delta?: { sinceHours: number };
+  /** Local ids kept for the delta simulation across all tables (default 2,000,000). */
+  maxDeltaLocalIds?: number;
   signal?: AbortSignal;
   now?: () => number;
   /** Progress: the phase in progress and, while downloading data, tables finished out of the total. */
@@ -67,6 +72,8 @@ export interface SimulationResult {
   metadata: { bytes: number; seconds: number; version: string; requests: number };
   tables: TableResult[];
   totals: SimulationTotals;
+  /** Present when a delta simulation was requested and ran. */
+  delta?: DeltaResult;
   startedAt: string;
   finishedAt: string;
   notes: string[];
@@ -130,6 +137,10 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
   const tables = filterTables(schema.tables, opts.include, opts.exclude);
   if (tables.length < schema.tables.length) notes.push(`${schema.tables.length - tables.length} table(s) excluded by include/exclude.`);
 
+  const deltaHours = opts.delta?.sinceHours;
+  const wantDelta = typeof deltaHours === "number" && Number.isFinite(deltaHours) && deltaHours > 0;
+  const idStore = wantDelta && flow === "enhanced" ? new LocalIdStore(opts.maxDeltaLocalIds ?? DEFAULT_MAX_LOCAL_IDS) : undefined;
+
   const t0 = now();
   const progress = { done: 0, total: tables.length, records: 0 };
   opts.onStep?.(`Downloading data (${flow} flow)`, { ...progress });
@@ -151,6 +162,7 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
     maxTotalRecords: opts.maxTotalRecords,
     legacyPaging: opts.legacyPaging,
     fixedBatchSize: opts.fixedBatchSize,
+    idStore,
     signal: opts.signal,
     now,
     onTable: (r) => {
@@ -164,6 +176,32 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
   if (results.some((t) => t.truncated)) notes.push("Some tables were cut short by a limit; their numbers are lower bounds.");
   if (opts.signal?.aborted) notes.push("The run was cancelled.");
 
+  let delta: DeltaResult | undefined;
+  if (wantDelta && flow !== "enhanced") {
+    notes.push("Delta sync is simulated for the enhanced (Connect) flow only; the legacy flow's delta was not simulated.");
+  } else if (idStore && !opts.signal?.aborted) {
+    opts.onStep?.("Simulating delta sync");
+    delta = await simulateDelta({
+      session,
+      tables,
+      initial: results,
+      store: idStore,
+      context: {
+        userId: info.user.id,
+        territoryName: territory?.name ?? "",
+        territoryId: territory?.id ?? "",
+        serverHandlesContentInList: info.accessChecks[ACCESS_CHECK_SERVER_HANDLES_CONTENT_IN_LIST] === true,
+      },
+      sinceHours: deltaHours as number,
+      requestTimeoutSeconds: opts.tableTimeoutSeconds,
+      signal: opts.signal,
+      now,
+      onStep: (step) => opts.onStep?.(step),
+    });
+  } else if (idStore) {
+    notes.push("Delta sync was not simulated because the run was cancelled.");
+  }
+
   return {
     user: { username: session.username, id: info.user.id, profile: info.user.profileName, territory: territory?.name },
     org: { instanceUrl: session.instanceUrl, orgId: session.orgId, apiVersion: session.apiVersion },
@@ -171,6 +209,7 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
     metadata: { bytes: md.bytes, seconds: md.seconds, version: entity.name, requests: md.requests },
     tables: results,
     totals: totalsOf(results, seconds),
+    ...(delta ? { delta } : {}),
     startedAt: startedAt.toISOString(),
     finishedAt: new Date().toISOString(),
     notes,

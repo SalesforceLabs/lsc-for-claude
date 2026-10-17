@@ -31,6 +31,47 @@ export interface ReplayContext {
   serverHandlesContentInList: boolean;
 }
 
+/**
+ * Record ids kept per table for a delta-sync simulation (the device's local ids). Bounded by a
+ * total-id cap: once adding a table's ids would pass it, that table and every table still
+ * downloading afterwards stop keeping ids and are marked overflowed.
+ */
+export class LocalIdStore {
+  /** Ids per table, keyed by lower-case sobject name. */
+  readonly ids = new Map<string, string[]>();
+  /** Tables whose ids were not kept because of the cap (lower-case sobject name). */
+  readonly overflowed = new Set<string>();
+  /** ObjectTerritory2Association Id -> ObjectId, to rebuild {OT2A.OBJ.IDS} from the ids that survive a visibility check. */
+  readonly ot2aObjectIds = new Map<string, string>();
+  /** The id lists a device collects for the content tags (set when the replay ends). */
+  collected: CollectedIds = emptyIds();
+  total = 0;
+  private exhausted = false;
+
+  constructor(readonly cap: number) {}
+
+  add(sobject: string, records: Record<string, unknown>[]): void {
+    const key = sobject.toLowerCase();
+    if (key === LAST || this.overflowed.has(key)) return;
+    if (this.exhausted || this.total + records.length > this.cap) {
+      this.exhausted = true;
+      this.overflowed.add(key);
+      this.total -= this.ids.get(key)?.length ?? 0;
+      this.ids.delete(key);
+      return;
+    }
+    let list = this.ids.get(key);
+    if (!list) this.ids.set(key, (list = []));
+    for (const r of records) {
+      const id = r.Id ?? r.id;
+      if (typeof id !== "string" || !id) continue;
+      list.push(id);
+      if (key === OT2A && typeof r.ObjectId === "string") this.ot2aObjectIds.set(id, r.ObjectId);
+    }
+    this.total += records.length;
+  }
+}
+
 export interface ReplayOptions {
   session: DeviceSession;
   flow: Flow;
@@ -48,6 +89,8 @@ export interface ReplayOptions {
   fixedBatchSize?: boolean;
   signal?: AbortSignal;
   now?: () => number;
+  /** When given, the ids of every downloaded record are kept here (enhanced and legacy flows) for a delta simulation. */
+  idStore?: LocalIdStore;
   /** Called as each table finishes (downloaded, skipped or failed). */
   onTable?: (result: TableResult) => void;
 }
@@ -463,7 +506,7 @@ interface Run {
 
 class StopTable extends Error {}
 
-function timeoutScope(parent: AbortSignal | undefined, ms: number | undefined) {
+export function timeoutScope(parent: AbortSignal | undefined, ms: number | undefined): { signal: AbortSignal; dispose(): void } {
   const controller = new AbortController();
   const onAbort = () => controller.abort();
   if (parent?.aborted) controller.abort();
@@ -531,6 +574,7 @@ class TableRunner {
   /** Account a page of records; returns false when a record cap or the time budget stops the table. */
   private accept(records: Record<string, unknown>[]): boolean {
     collectIds(this.table, records, this.run.ids);
+    this.o.idStore?.add(this.table.sobject, records);
     this.result.records += records.length;
     this.run.totalRecords += records.length;
     const perTable = this.o.maxRecordsPerTable;
@@ -757,5 +801,6 @@ export async function replayInitialSync(opts: ReplayOptions): Promise<TableResul
       }))
     );
   }
+  if (opts.idStore) opts.idStore.collected = run.ids;
   return opts.tables.map((t) => results.get(t) ?? skipped(t, "not scheduled"));
 }

@@ -89,6 +89,31 @@ export function aggregateRuns(results: SimulationResult[], requested = results.l
     const counts = results.map((r) => `${r.totals.records.toLocaleString("en-US")} records / ${r.totals.requests} requests`).join("; ");
     notes.push(`Records, requests or bytes differed between runs (${counts}); the org's data changed or a limit applied unevenly. Table counts shown are from the run closest to the median.`);
   }
+  let delta = rep.delta;
+  if (delta) {
+    // Counts come from the representative run; only the seconds are medians over the runs that simulated delta.
+    const withDelta = results.map((r) => r.delta).filter((d): d is NonNullable<typeof d> => d !== undefined);
+    const med = (pick: (d: NonNullable<typeof delta>) => number | undefined) => median(withDelta.map(pick).filter((v): v is number => v !== undefined));
+    delta = {
+      ...delta,
+      tables: delta.tables.map((t) => {
+        const same = withDelta.flatMap((d) => d.tables.filter((x) => x.sobject === t.sobject && x.developerName === t.developerName));
+        return {
+          ...t,
+          visibilitySeconds: median(same.map((x) => x.visibilitySeconds)),
+          fetchSeconds: median(same.map((x) => x.fetchSeconds)),
+          seconds: median(same.map((x) => x.seconds)),
+        };
+      }),
+      totals: {
+        ...delta.totals,
+        visibilitySeconds: med((d) => d.totals.visibilitySeconds),
+        fetchSeconds: med((d) => d.totals.fetchSeconds),
+        seconds: med((d) => d.totals.seconds),
+      },
+    };
+    if (withDelta.length > 1) notes.push(`Delta seconds are medians of ${withDelta.length} runs; delta counts are from the run closest to the median initial-sync total.`);
+  }
   notes.push(
     results.length < requested
       ? `Medians of ${results.length} completed run(s) out of ${requested} requested.`
@@ -100,6 +125,7 @@ export function aggregateRuns(results: SimulationResult[], requested = results.l
     metadata: { ...rep.metadata, seconds: metadata.median },
     tables,
     totals: { ...rep.totals, seconds: data.median },
+    ...(delta ? { delta } : {}),
     startedAt: results[0].startedAt,
     finishedAt: results[results.length - 1].finishedAt,
     notes,

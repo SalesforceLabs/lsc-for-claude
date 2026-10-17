@@ -15,6 +15,55 @@ export interface SimTable {
   truncated?: string;
 }
 
+export interface SimDeltaTable {
+  sobject: string;
+  developerName: string;
+  localIds: number;
+  visibilityRequests: number;
+  toDownload: number;
+  toDelete: number;
+  recordsFetched: number;
+  fetchRequests: number;
+  bytes: number;
+  visibilitySeconds: number;
+  fetchSeconds: number;
+  seconds: number;
+  skipped?: string;
+  error?: string;
+  truncated?: string;
+}
+
+export interface SimDelta {
+  sinceHours: number;
+  rangeStart: string;
+  rangeEnd: string;
+  tables: SimDeltaTable[];
+  totals: {
+    tablesChecked: number;
+    tablesSkipped: number;
+    tablesFailed: number;
+    localIds: number;
+    toDownload: number;
+    toDelete: number;
+    recordsFetched: number;
+    visibilityRequests: number;
+    fetchRequests: number;
+    requests: number;
+    bytes: number;
+    uploadBytes: number;
+    visibilitySeconds: number;
+    fetchSeconds: number;
+    seconds: number;
+  };
+  notes: string[];
+}
+
+/** The delta section when it is well formed; stored rows from before delta existed have none. */
+export function deltaOf(r: Pick<SimulationResult, "delta">): SimDelta | null {
+  const d = r.delta;
+  return d && Array.isArray(d.tables) && d.totals && Array.isArray(d.notes) ? d : null;
+}
+
 export interface SimulationResult {
   user: { username: string; id: string; profile?: string; territory?: string };
   org: { instanceUrl: string; orgId?: string; apiVersion: string };
@@ -30,6 +79,8 @@ export interface SimulationResult {
     tablesSkipped: number;
     tablesFailed: number;
   };
+  /** Present when a delta simulation was requested and ran. Absent on older history rows. */
+  delta?: SimDelta;
   startedAt: string;
   finishedAt: string;
   notes: string[];
@@ -69,6 +120,7 @@ export interface SimRunOptions {
   maxRecordsPerTable?: number;
   maxTotalRecords?: number;
   runs?: number;
+  delta?: { sinceHours: number };
 }
 
 export interface SimJobStatus {

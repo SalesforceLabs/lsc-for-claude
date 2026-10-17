@@ -24,7 +24,7 @@ export type SimJobState = "running" | "done" | "failed" | "cancelled";
 /** The options the GUI can set; the rest keep simulateInitialSync's defaults. */
 export type SimRunOptions = Pick<
   SimulateOptions,
-  "territory" | "forceFlow" | "include" | "exclude" | "maxSeconds" | "maxRecordsPerTable" | "maxTotalRecords"
+  "territory" | "forceFlow" | "include" | "exclude" | "maxSeconds" | "maxRecordsPerTable" | "maxTotalRecords" | "delta"
 > & {
   /** Back-to-back runs as the same login (1–5, default 1); the result reports their median and spread. */
   runs?: number;

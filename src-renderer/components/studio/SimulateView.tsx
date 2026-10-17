@@ -4,6 +4,7 @@ import {
   asSimSummary,
   connectionLabel,
   connectionRef,
+  deltaOf,
   mobileLoginId,
   mobileRef,
   formatBytes,
@@ -76,6 +77,12 @@ function SimResult({ result, status, onExport, onExportReport }: {
   const t = result.totals;
   const partial = status === "cancelled" || result.tables.some((x) => x.truncated);
   const runs = multiRuns(result);
+  const delta = deltaOf(result);
+  const [allDelta, setAllDelta] = useState(false);
+  const deltaTables = delta?.tables ?? [];
+  const deltaSkipped = deltaTables.filter((x) => x.skipped);
+  const deltaRanked = deltaTables.filter((x) => !x.skipped).sort((a, b) => b.seconds - a.seconds || b.toDownload - a.toDownload);
+  const deltaRows = allDelta ? deltaRanked : deltaRanked.slice(0, TOP_TABLES);
   const range = (s: { min: number; max: number }) => `${formatSeconds(s.min)} – ${formatSeconds(s.max)}`;
   return (
     <div className="studio-perf-report">
@@ -202,6 +209,89 @@ function SimResult({ result, status, onExport, onExportReport }: {
         )}
       </section>
 
+      {delta && (
+        <section className="studio-perf-section">
+          <div className="studio-perf-section-header">
+            <h2 className="studio-perf-section-title">Delta sync (last synced {delta.sinceHours} h ago)</h2>
+            <span className="studio-picker-meta">{runs ? "slowest first · median seconds across runs" : "slowest first"}</span>
+          </div>
+          <div className="studio-sim-stats">
+            <Stat
+              label="Delta network time"
+              value={formatSeconds(delta.totals.seconds)}
+              detail={`${formatNumber(delta.totals.requests)} requests · ${formatBytes(delta.totals.bytes)}`}
+            />
+            <Stat
+              label="Record visibility"
+              value={formatSeconds(delta.totals.visibilitySeconds)}
+              detail={`${formatNumber(delta.totals.visibilityRequests)} requests`}
+            />
+            <Stat
+              label="Changed-record download"
+              value={formatSeconds(delta.totals.fetchSeconds)}
+              detail={`${formatNumber(delta.totals.fetchRequests)} requests · ${formatNumber(delta.totals.recordsFetched)} records`}
+            />
+            <Stat
+              label="To download"
+              value={formatNumber(delta.totals.toDownload)}
+              detail={`${formatNumber(delta.totals.toDelete)} to delete (informational)`}
+            />
+          </div>
+          <table className="studio-change-table studio-perf-table">
+            <thead>
+              <tr>
+                <th>Object</th>
+                <th className="num">Local ids</th>
+                <th className="num">Visibility requests</th>
+                <th className="num">To download</th>
+                <th className="num">To delete</th>
+                <th className="num">Fetched</th>
+                <th className="num">Fetch requests</th>
+                <th className="num">Size</th>
+                <th className="num">Seconds</th>
+              </tr>
+            </thead>
+            <tbody>
+              {deltaRows.map((x) => (
+                <tr key={x.developerName || x.sobject}>
+                  <td>
+                    <div>{x.sobject}</div>
+                    {x.error && <div className="studio-perf-metric-meta">Failed: {x.error}</div>}
+                    {x.truncated && <div className="studio-perf-metric-meta">Cut short: {x.truncated}</div>}
+                  </td>
+                  <td className="num">{formatNumber(x.localIds)}</td>
+                  <td className="num">{formatNumber(x.visibilityRequests)}</td>
+                  <td className="num">{formatNumber(x.toDownload)}</td>
+                  <td className="num">{formatNumber(x.toDelete)}</td>
+                  <td className="num">{formatNumber(x.recordsFetched)}</td>
+                  <td className="num">{formatNumber(x.fetchRequests)}</td>
+                  <td className="num">{formatBytes(x.bytes)}</td>
+                  <td className="num">{x.seconds.toFixed(1)}</td>
+                </tr>
+              ))}
+              {deltaSkipped.map((x) => (
+                <tr key={x.developerName || x.sobject} className="studio-perf-flagged not-estimated">
+                  <td>{x.sobject}</td>
+                  <td colSpan={8}>
+                    <span className="studio-chip muted">Skipped</span> {x.skipped}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {deltaTables.length - deltaSkipped.length > TOP_TABLES && (
+            <button className="studio-perf-disclosure" onClick={() => setAllDelta(!allDelta)}>
+              {allDelta ? "Show fewer" : `Show all ${deltaTables.length - deltaSkipped.length} tables`}
+            </button>
+          )}
+          <ul className="studio-perf-issues">
+            {delta.notes.map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {result.notes.length > 0 && (
         <section className="studio-perf-section">
           <h2 className="studio-perf-section-title">Notes</h2>
@@ -307,6 +397,7 @@ export default function SimulateView() {
   const [maxPerTable, setMaxPerTable] = useState("");
   const [maxTotal, setMaxTotal] = useState("");
   const [runs, setRuns] = useState("1");
+  const [deltaHours, setDeltaHours] = useState("");
   const [include, setInclude] = useState("");
   const [exclude, setExclude] = useState("");
   const [advanced, setAdvanced] = useState(false);
@@ -516,6 +607,8 @@ export default function SimulateView() {
     if (m) opts.maxSeconds = Math.min(7200, Math.max(10, m * 60));
     const r = wholeNumber(runs);
     if (r && r > 1) opts.runs = Math.min(MAX_SIM_RUNS, r);
+    const hours = Number(deltaHours);
+    if (deltaHours.trim() && Number.isFinite(hours) && hours > 0) opts.delta = { sinceHours: Math.min(8760, hours) };
     const perTable = wholeNumber(maxPerTable);
     if (perTable) opts.maxRecordsPerTable = perTable;
     const total = wholeNumber(maxTotal);
@@ -889,6 +982,20 @@ export default function SimulateView() {
                         />
                       </label>
                     </div>
+                    <label className="studio-perf-field">
+                      <span className="studio-perf-field-label">Then simulate a delta sync as if last synced __ hours ago</span>
+                      <input
+                        className="studio-filter studio-perf-number"
+                        type="number"
+                        min={0.01}
+                        max={8760}
+                        placeholder="Off"
+                        value={deltaHours}
+                        disabled={running}
+                        onChange={(e) => setDeltaHours(e.target.value)}
+                        title="After the initial sync, run the record-visibility rounds and download the changed records, as the app does on its next sync (enhanced flow only)"
+                      />
+                    </label>
                     <div className="studio-perf-hint">Limits make a quicker check; tables cut short by them are marked, and their numbers are lower bounds.</div>
                   </>
                 )}

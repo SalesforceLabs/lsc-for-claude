@@ -466,6 +466,10 @@ function registerPerfTools(server: McpServer) {
             .max(MAX_SIM_RUNS)
             .optional()
             .describe("Runs back to back as the same login (default 1); the result reports median and min–max times"),
+          delta: z
+            .object({ sinceHours: z.number().min(0.01).max(8760) })
+            .optional()
+            .describe("After the initial sync, simulate a delta sync as if the device last synced this many hours ago (record-visibility rounds plus IdSubquery downloads of changed records; enhanced flow only)"),
         })
         .optional(),
     },
