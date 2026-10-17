@@ -158,3 +158,6 @@
     transform: none;
   }
 }
+
+/* The visit editor is full screen, but LSC Mobile keeps ••• above it (Agentforce hides). */
+.studio-ipad-fab-row.over { z-index: 30; }

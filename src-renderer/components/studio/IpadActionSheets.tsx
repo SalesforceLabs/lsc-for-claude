@@ -4,6 +4,9 @@ import type { Presentation } from "./ipad-fab-actions";
 import { agentName } from "./ipad-fab-actions";
 import { IpadStatusBar } from "./IpadChrome";
 import { EmptyArt } from "./IpadHome";
+import { HcoIcon, NewPersonAccountIcon } from "./assets/icons";
+import { fmtDateTime, picklistStart, visitFields, visitTimes } from "./ipad-visit-form";
+import type { VisitCreateAccount } from "./screens/fabs-types";
 import "./action-sheets.css";
 
 /**
@@ -150,31 +153,118 @@ function layoutsFor(snapshot: PublishedIpad, object: string, recordType: string)
 
 const VISIT_SIDEBAR = ["Content", "Product Messages", "Samples", "Drop Ship Samples", "Leave-Behinds", "Attendees"];
 
-const fmtDateTime = (d: Date): string =>
-  `${d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} at ${d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+const Lock = () => (
+  <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+    <rect x="4" y="9.5" width="14" height="10" rx="2" fill="currentColor" />
+    <path d="M7 9.5V7a4 4 0 0 1 8 0v2.5" fill="none" stroke="currentColor" strokeWidth="2" />
+  </svg>
+);
+
+const Mic = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+    <rect x="7" y="2" width="6" height="10" rx="3" fill="#555" />
+    <path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v3" fill="none" stroke="#555" strokeWidth="1.5" />
+  </svg>
+);
+
+const Shield = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+    <path d="M8 1 2 3v4.5c0 3.4 2.5 6 6 7.5 3.5-1.5 6-4.1 6-7.5V3z" fill="currentColor" />
+    <path d="m5.2 8 2 2 3.6-3.8" fill="none" stroke="#fff" strokeWidth="1.6" />
+  </svg>
+);
+
+const BADGES: [keyof NonNullable<VisitCreateAccount["licenses"]>, string][] = [
+  ["state", "State"],
+  ["dea", "DEA"],
+  ["sdl", "SDL"],
+];
 
 function VisitEditor({ ctx, onClose }: { ctx: SheetContext; onClose: () => void }) {
   const { snapshot, record } = ctx;
+  const create = snapshot.screens?.fabs?.visitCreate;
   const rts = snapshot.objects.Visit?.recordTypes ?? [];
   const rt = rts[rts.length - 1];
   const layouts = rt ? layoutsFor(snapshot, "Visit", rt.name) : [];
-  const layout = layouts[0];
-  const related = new Set(layout?.relatedLists.map((r) => r.label) ?? []);
+  const related = new Set(layouts.flatMap((l) => l.relatedLists.map((r) => r.label)));
   const sidebar = VISIT_SIDEBAR.filter((l) => (l === "Attendees" ? related.has("Visitors") || related.has("Attendees") : related.has(l)));
-  const start = useMemo(() => {
-    const d = new Date();
-    d.setSeconds(0, 0);
-    d.setMinutes(Math.ceil(d.getMinutes() / 5) * 5);
-    return d;
-  }, []);
-  const end = new Date(start.getTime() + 30 * 60000);
-  const account = record?.object === "Account" ? record.title : "";
-  const values = (s: RecordFieldSpec): string | undefined => {
-    if (s.name === "PlannedVisitStartTime") return fmtDateTime(start);
-    if (s.name === "PlannedVisitEndTime") return fmtDateTime(end);
-    if (/^Owner/.test(s.name)) return snapshot.viewer?.name;
-    return undefined;
+  const times = useMemo(() => visitTimes(new Date(), create?.durationMinutes ?? 30, create?.blankStart ?? false), [create?.durationMinutes, create?.blankStart]);
+  const fields = useMemo(() => visitFields(layouts), [layouts]);
+  const accountId = record?.object === "Account" ? record.id : "";
+  const account = accountId ? create?.accounts[accountId] : undefined;
+  const hasLicense = !!account?.licenses && BADGES.some(([k]) => account.licenses?.[k]);
+
+  const control = (s: RecordFieldSpec): React.ReactNode => {
+    switch (s.name) {
+      case "AccountId":
+        return (
+          <div className="studio-ipad-act-box tall acct">
+            <span className="studio-ipad-act-acctico" style={{ background: account?.person === false ? "#4a8fdb" : "#5867e8" }}>
+              {account?.person === false ? <HcoIcon /> : <NewPersonAccountIcon />}
+            </span>
+            <span className="studio-ipad-act-acctname">{record?.title ?? ""}</span>
+            <span className="studio-ipad-act-acctsub">{account?.subLabel ?? ""}</span>
+            <span className="studio-ipad-act-switch">Switch Account</span>
+          </div>
+        );
+      case "PlaceId":
+        return (
+          <div className="studio-ipad-act-box tall place">
+            <div className="studio-ipad-act-placetext">{account?.place?.text ?? "None"}</div>
+            {hasLicense && (
+              <div className="studio-ipad-act-badges">
+                {BADGES.map(([k, label]) =>
+                  account?.licenses?.[k] ? (
+                    <span key={k} className={`studio-ipad-act-badge ${account.licenses[k]}`}>
+                      <Shield />
+                      {label}
+                    </span>
+                  ) : null
+                )}
+              </div>
+            )}
+            <Caret />
+          </div>
+        );
+      case "PlannedVisitStartTime":
+      case "PlannedVisitEndTime": {
+        const d = s.name === "PlannedVisitStartTime" ? times.start : times.end;
+        return <Control spec={{ ...s, readOnly: false }} value={d ? fmtDateTime(d) : ""} />;
+      }
+      case "TerritoryId":
+        return <div className="studio-ipad-act-static">{create?.territory ?? ""}</div>;
+      case "Status":
+        return <div className="studio-ipad-act-static">{s.picklist?.Planned ?? "Planned"}</div>;
+      case "OwnerId":
+        return <div className="studio-ipad-act-static">{snapshot.viewer?.name ?? ""}</div>;
+      case "RecordTypeId":
+        return (
+          <div className="studio-ipad-act-box">
+            <span>{rt?.label ?? ""}</span>
+            <Caret />
+          </div>
+        );
+      case "External_ID__c":
+        return (
+          <div className="studio-ipad-act-box">
+            <span className="studio-ipad-act-grow" />
+            <Mic />
+          </div>
+        );
+    }
+    // Counts and other numbers have no control on the device's create form.
+    if (/^(double|int|currency|percent)$/.test(s.type)) return <div className="studio-ipad-act-static" />;
+    if (s.type === "picklist") {
+      return (
+        <div className="studio-ipad-act-box">
+          <span>{picklistStart(s, rt?.picklistDefaults) ?? ""}</span>
+          <Caret />
+        </div>
+      );
+    }
+    return <Control spec={s} />;
   };
+
   return (
     <Full>
       <NavBar
@@ -182,10 +272,16 @@ function VisitEditor({ ctx, onClose }: { ctx: SheetContext; onClose: () => void 
         title="Visit Engagement"
         right={
           <>
-            <span className="studio-ipad-act-pill disabled">Get Signature</span>
+            <span className="studio-ipad-act-pill disabled">
+              <Lock />
+              Get Signature
+            </span>
             <span className="studio-ipad-act-pill">Save</span>
             <span className="studio-ipad-act-pill split">
-              Submit<span className="studio-ipad-act-split">▾</span>
+              Submit
+              <span className="studio-ipad-act-split">
+                <Caret />
+              </span>
             </span>
           </>
         }
@@ -195,7 +291,7 @@ function VisitEditor({ ctx, onClose }: { ctx: SheetContext; onClose: () => void 
           {sidebar.map((l) => (
             <div key={l} className="studio-ipad-act-card">
               <span className="studio-ipad-act-chev">›</span>
-              {l}
+              <span className="studio-ipad-act-cardl">{l}</span>
             </div>
           ))}
         </div>
@@ -203,61 +299,24 @@ function VisitEditor({ ctx, onClose }: { ctx: SheetContext; onClose: () => void 
           <div className="studio-ipad-act-mainhead">
             <span>
               <span className="studio-ipad-act-chev down">›</span>
-              {layout?.sections[0]?.label ?? "Visit Information"}
+              {layouts[0]?.sections[0]?.label ?? "Visit Information"}
             </span>
             <span className="studio-ipad-act-reqnote">
               <span className="studio-ipad-act-req">*</span> Required
             </span>
           </div>
-          {layout ? (
-            <>
-              <div className="studio-ipad-act-grid two">
-                {layout.sections.flatMap((s, si) => {
-                  const cols = s.fields ?? [];
-                  const rows = Math.max(0, ...cols.map((c) => c.length));
-                  return Array.from({ length: rows }).flatMap((_, r) =>
-                    cols.map((c, ci) => {
-                      const spec = c[r];
-                      if (!spec) return <div key={`${si}:${r}:${ci}`} />;
-                      if (spec.name === "AccountId") {
-                        return (
-                          <div key={spec.name} className="studio-ipad-act-field">
-                            <div className="studio-ipad-act-label">
-                              <span className="studio-ipad-act-req">*</span>
-                              {spec.label}
-                            </div>
-                            <div className="studio-ipad-act-box tall col">
-                              <span className="studio-ipad-act-acct">{account || "None"}</span>
-                              <span className="studio-ipad-act-switch">Switch Account</span>
-                            </div>
-                          </div>
-                        );
-                      }
-                      if (/^Place|Address/.test(spec.name)) {
-                        return (
-                          <div key={spec.name} className="studio-ipad-act-field">
-                            <div className="studio-ipad-act-label">
-                              <span className="studio-ipad-act-req">*</span>
-                              {spec.label}
-                            </div>
-                            <div className="studio-ipad-act-box tall">
-                              <span className="studio-ipad-act-grow">None</span>
-                              <Caret />
-                            </div>
-                          </div>
-                        );
-                      }
-                      // The app fills Territory and Status itself; they show as text.
-                      const shown = /^Territory|^Status$/.test(spec.name) ? { ...spec, readOnly: true } : spec;
-                      return <Field key={`${si}:${r}:${ci}`} spec={shown} value={values(spec)} />;
-                    })
-                  );
-                })}
-              </div>
-              <Note>
-                Visit layout “{layout.name}” for record type {rt?.label}. The app also lists fields the layout's other entities add (record type, name, external ID); the preview shows the layout only.
-              </Note>
-            </>
+          {layouts.length ? (
+            <div className="studio-ipad-act-grid two">
+              {fields.map((s) => (
+                <div key={s.name} className={`studio-ipad-act-field vfield${s.name === "AccountId" || s.name === "PlaceId" ? " tall" : ""}`}>
+                  <div className="studio-ipad-act-label">
+                    {s.required && <span className="studio-ipad-act-req">*</span>}
+                    {s.label}
+                  </div>
+                  {control(s)}
+                </div>
+              ))}
+            </div>
           ) : (
             <Note>The Visit layout isn't in the cache.</Note>
           )}

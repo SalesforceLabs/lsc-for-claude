@@ -104,6 +104,8 @@ export interface PublishedRecordType {
   compactLayout: string | null;
   /** What `multiEntityRecordView` stacks for this record type: layouts in order, or the error it shows instead. */
   multiEntity?: { layouts: string[]; note?: string; error?: string };
+  /** The picklist value each field starts with on a new record of this type (MDService.defaultValue: the record type's `isDefault` value). */
+  picklistDefaults?: Record<string, string>;
 }
 
 export interface PublishedObject {
@@ -855,6 +857,16 @@ export function listViewWhere(filters: Row[], booleanFilter: string | null, fiel
   return clauses.join(" AND ");
 }
 
+/** A record type's `picklistValues` (`{ picklist, values: [{ fullName, isDefault }] }`) → the default value per field. */
+function picklistDefaults(rt: Row): { picklistDefaults?: Record<string, string> } {
+  const out: Record<string, string> = {};
+  for (const p of arr(rt.picklistValues)) {
+    const d = arr(p.values).find((v) => v.isDefault === true || str(v.isDefault) === "true");
+    if (d && str(p.picklist) && str(d.fullName)) out[str(p.picklist)] = str(d.fullName);
+  }
+  return Object.keys(out).length ? { picklistDefaults: out } : {};
+}
+
 function buildObject(name: string, sobject: Row, ui: Row, profile: Row): PublishedObject {
   const visibleRts = new Map(
     arr(profile.recordTypeVisibilities).map((v) => [str(v.recordType), v.visible === true || v.visible === "true"])
@@ -869,6 +881,7 @@ function buildObject(name: string, sobject: Row, ui: Row, profile: Row): Publish
       layout: rt.layout ? str(rt.layout) : null,
       flexiPage: rt.flexiPage ? str(rt.flexiPage) : null,
       compactLayout: rt.compactLayoutAssignment ? str(rt.compactLayoutAssignment) : sobject.compactLayoutAssignment ? str(sobject.compactLayoutAssignment) : null,
+      ...picklistDefaults(rt),
     }));
   const fields = new Map(arr(sobject.fields).map((f) => [str(f.fullName).toLowerCase(), f]));
   const theme = obj(sobject.themeInfo);

@@ -92,8 +92,8 @@ export default function IpadFabs({ snapshot, tab, record, agentforce }: { snapsh
   if (!state.astro && !state.more) return null;
   return (
     <div key={`${tab?.fullName}:${record ?? ""}`} className="studio-ipad-fabs-layer">
-      <div className="studio-ipad-fab-row">
-        {state.astro && <Astro onOpen={() => setShown(AGENT_BUTTON)} />}
+      <div className={`studio-ipad-fab-row${shown?.kind === "visit" ? " over" : ""}`}>
+        {state.astro && shown?.kind !== "visit" && <Astro onOpen={() => setShown(AGENT_BUTTON)} />}
         {state.more && (
           <button type="button" className="studio-ipad-fab-more" onClick={() => setOpen(!open)} aria-label="More actions">
             <Dots />

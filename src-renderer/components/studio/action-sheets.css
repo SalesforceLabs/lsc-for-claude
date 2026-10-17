@@ -163,3 +163,36 @@ button.studio-ipad-act-circle { cursor: pointer; }
 .studio-ipad-act-agentpill { display: inline-flex; align-items: center; gap: 10px; box-sizing: border-box; height: 40px; padding: 0 16px; border: 1px solid #555; border-radius: 20px; color: #0250d9; font-size: 18px; font-weight: 600; }
 .studio-ipad-act-mic { width: 40px; height: 40px; border-radius: 50%; background: #0250d9; }
 .studio-ipad-act-disclaimer { flex: none; padding: 8px 0 28px; text-align: center; color: #888; font-size: 14px; }
+
+/* New Visit editor: the device's metrics (row pitch 75pt, Account and Place boxes 120pt; 1210x834 points). */
+.studio-ipad-act-card { min-height: 0; padding: 17.75px 20px; font-weight: 500; line-height: 22px; }
+.studio-ipad-act-card .studio-ipad-act-chev { width: 15px; flex: none; }
+.studio-ipad-act-cardl { max-width: 170px; }
+.studio-ipad-act-main:has(.studio-ipad-act-grid.two) { padding-top: 0; }
+.studio-ipad-act-main .studio-ipad-act-mainhead { height: 59px; margin-bottom: 0; }
+.studio-ipad-act-grid.two { gap: 0 40px; }
+.studio-ipad-act-field.vfield { box-sizing: border-box; height: 75px; }
+.studio-ipad-act-field.vfield.tall { height: 160px; }
+.vfield .studio-ipad-act-label { height: 18px; margin-bottom: 2px; font-size: 15px; line-height: 18px; }
+.vfield .studio-ipad-act-box { height: 35px; padding: 0 10px; border-color: #7a7a7a; border-radius: 8px; }
+.vfield .studio-ipad-act-box.tall { height: 120px; }
+.vfield .studio-ipad-act-static { min-height: 19px; line-height: 19px; }
+.vfield .studio-ipad-act-toggle { margin-top: 0; }
+
+.studio-ipad-act-box.acct, .studio-ipad-act-box.place { position: relative; display: block; padding: 0; border-radius: 12px; }
+.studio-ipad-act-acctico { position: absolute; left: 20px; top: 20px; width: 40px; height: 40px; box-sizing: border-box; padding: 9px; border-radius: 50%; }
+.studio-ipad-act-acctname { position: absolute; left: 72px; top: 20px; color: #0250d9; font-size: 19px; line-height: 19px; text-decoration: underline; }
+.studio-ipad-act-acctsub { position: absolute; left: 72px; top: 44px; font-size: 19px; line-height: 19px; }
+.studio-ipad-act-box.acct .studio-ipad-act-switch { position: absolute; left: 72px; top: 71px; font-size: 17px; line-height: 29px; }
+.studio-ipad-act-placetext { position: absolute; left: 16px; right: 44px; top: 27px; font-size: 17px; line-height: 19px; }
+.studio-ipad-act-badges { position: absolute; left: 17px; top: 71px; display: flex; gap: 10px; }
+.studio-ipad-act-badge { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 4px; font-size: 14px; }
+.studio-ipad-act-badge.valid { background: #acf3e4; color: #0b6b5d; }
+.studio-ipad-act-badge.invalid { background: #fddde3; color: #ba0517; }
+.studio-ipad-act-box.place .studio-ipad-act-caret { position: absolute; right: 12px; top: 56px; }
+.studio-ipad-act-pill.disabled { gap: 8px; }
+.studio-ipad-act-split .studio-ipad-act-caret path { fill: #0250d9; }
+.studio-ipad-act-split { display: inline-flex; align-items: center; height: 36px; padding: 0 12px; line-height: normal; }
+.studio-ipad-act-main:has(.studio-ipad-act-grid.two) { padding-right: 34px; }
+.studio-ipad-act-main .studio-ipad-act-mainhead { margin-left: -18px; margin-right: -23px; }
+.studio-ipad-act-mainhead .studio-ipad-act-chev.down { width: 14px; margin-right: 3px; }

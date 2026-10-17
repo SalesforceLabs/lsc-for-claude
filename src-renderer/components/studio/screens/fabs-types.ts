@@ -14,6 +14,23 @@ export interface PublishedFabItem {
 }
 
 export interface PublishedFabs {
+  visitCreate?: PublishedVisitCreate;
   home: PublishedFabItem[];
   records: Record<string, Record<string, PublishedFabItem[]>>;
+}
+
+export type LicenseState = "valid" | "invalid";
+
+export interface VisitCreateAccount {
+  person: boolean;
+  subLabel?: string;
+  place?: { id: string; text: string };
+  licenses?: { state?: LicenseState; dea?: LicenseState; sdl?: LicenseState };
+}
+
+export interface PublishedVisitCreate {
+  territory?: string;
+  durationMinutes: number;
+  blankStart: boolean;
+  accounts: Record<string, VisitCreateAccount>;
 }
