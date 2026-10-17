@@ -1,3 +1,5 @@
+import type { PublishedScreens } from "./screens/types";
+
 // Structural copy of the snapshot types in src/studio/published.ts — the renderer bundle cannot import from src/. Keep in sync.
 
 /** What a nav tab opens on the iPad (CoordinatorFactory.createCoordinatorFor). */
@@ -116,6 +118,8 @@ export interface PublishedIpad {
   lists?: Record<string, PublishedListData>;
   /** `db.json`: the tables the app downloads, as object → DB Schema WhereSoql ("" = every record the user can read). */
   sync?: Record<string, string>;
+  /** Native screens (Intelligent Content, Accounts, Planner, Tableau) as the viewer's iPad draws them, read live. */
+  screens?: PublishedScreens;
 }
 
 /** A list view's records as the viewer's iPad lists them: its count chip and first page. */

@@ -2197,3 +2197,10 @@ button.studio-ipad-chip {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
+
+/* Native screens (screens/*): each draws its own insets and background, edge to edge under the top bar. */
+.studio-ipad-page.native {
+  padding: 0;
+  gap: 0;
+  background: #f3f3f3;
+}

@@ -12,6 +12,7 @@ import type {
 import IpadScreen from "./IpadScreen";
 import { Dashboard } from "./IpadDashboard";
 import { ReportsTree } from "./IpadReports";
+import { hasNativeScreen, NativeScreen } from "./screens";
 import { IpadSearchField, IpadStatusBar, IpadTopBar, type ChromeTab } from "./IpadChrome";
 import { initials } from "./ipad-chrome";
 import {
@@ -149,7 +150,7 @@ function Device({
           onBack={record ? () => setRecord(false) : undefined}
           name={initials(snapshot.viewer?.name ?? snapshot.profile)}
         />
-        <div className={`studio-ipad-page${tab?.kind === "empty" ? " blank" : ""}${onHome ? " home" : ""}${tab?.kind === "reports" && snapshot.reports ? " flush" : ""}`}>
+        <div className={`studio-ipad-page${tab?.kind === "empty" ? " blank" : ""}${onHome ? " home" : ""}${tab?.kind === "reports" && snapshot.reports ? " flush" : ""}${!record && hasNativeScreen(tab, snapshot) ? " native" : ""}`}>
           {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={() => setRecord(true)} />}
         </div>
         {onHome && <HomeFabs agentforce={homeHasAgentforce} />}
@@ -179,6 +180,7 @@ function Screen({
   record: boolean;
   onOpenRecord: () => void;
 }) {
+  if (!record && hasNativeScreen(tab, snapshot)) return <NativeScreen tab={tab} snapshot={snapshot} />;
   switch (tab.kind) {
     case "home":
       return snapshot.home ? <PageView page={snapshot.home} snapshot={snapshot} home /> : <Native title="Home" text="Home page" />;

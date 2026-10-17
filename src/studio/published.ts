@@ -17,6 +17,7 @@ import { promisify } from "util";
 import { resolveScalarTags } from "../perf/sync-volume.js";
 import { apiRequest } from "../salesforce/cli.js";
 import { count, ID_PATTERN, inList, query, type Row } from "./helpers.js";
+import { collectScreens, type PublishedScreens, type ScreenContext } from "./screens/index.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -161,6 +162,8 @@ export interface PublishedIpad {
   lists?: Record<string, PublishedListData>;
   /** `db.json`: the tables the app downloads, as object → DB Schema WhereSoql ("" = every record the user can read). */
   sync?: Record<string, string>;
+  /** Native screens (Intelligent Content, Accounts, Planner, Tableau) as the viewer's iPad draws them, read live. */
+  screens?: PublishedScreens;
 }
 
 export interface PublishedSettings {
@@ -1570,10 +1573,41 @@ export async function viewerConfig(categories: string[], userId: string, org: st
 const FV_COLUMNS = ["TextValue", "IntegerValue", "PicklistValue", "HasBooleanValue", "LongTextValue", "NumberValue", "UrlValue"];
 
 /** What the viewer's native screens and lists show, read live (never saved with the snapshot). */
-async function viewerScreens(core: SnapshotCore, userId: string | undefined, org: string): Promise<Pick<PublishedIpad, "settings" | "reports" | "lists">> {
+async function viewerScreens(core: SnapshotCore, userId: string | undefined, org: string): Promise<Pick<PublishedIpad, "settings" | "reports" | "lists" | "screens">> {
   if (!userId) return {};
-  const [reports, lists] = await Promise.all([viewerReportsTab(core, userId, org), viewerLists(core, userId, org)]);
-  return { ...reports, ...(lists ? { lists } : {}) };
+  const [reports, lists, screens] = await Promise.all([
+    viewerReportsTab(core, userId, org),
+    viewerLists(core, userId, org),
+    viewerContext(core, userId, org).then(collectScreens).catch(() => ({}) as PublishedScreens),
+  ]);
+  return { ...reports, ...(lists ? { lists } : {}), ...(Object.keys(screens).length ? { screens } : {}) };
+}
+
+/** The viewer's territories, locale, and sync scope, for the native screens' collectors. */
+async function viewerContext(core: SnapshotCore, userId: string, org: string): Promise<ScreenContext> {
+  const [users, assignments] = await Promise.all([
+    query(`SELECT TimeZoneSidKey, LocaleSidKey FROM User WHERE Id = '${userId}'`, org).catch(() => [] as Row[]),
+    query(`SELECT Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId = '${userId}' AND Territory2.Territory2Model.State = 'Active'`, org).catch(() => [] as Row[]),
+  ]);
+  const territories = assignments.map((a) => ({ id: str(a.Territory2Id), name: str(obj(a.Territory2).Name) }));
+  return {
+    core,
+    userId,
+    org,
+    territories,
+    format: { timeZone: str(users[0]?.TimeZoneSidKey) || "UTC", locale: (str(users[0]?.LocaleSidKey) || "en_US").replace(/_/g, "-") },
+    scope: syncScope(core, userId, territories),
+    config: (categories) => viewerConfig(categories, userId, org),
+  };
+}
+
+/** The app lists what it downloaded: undefined = a table it doesn't sync, null = a filter we can't reproduce. */
+function syncScope(core: SnapshotCore, userId: string, territories: { id: string; name: string }[]): (table: string) => string | null | undefined {
+  return (table) => {
+    if (!core.sync) return null;
+    const key = Object.keys(core.sync).find((k) => ieq(k, table));
+    return key === undefined ? undefined : syncCondition(core.sync[key], userId, territories);
+  };
 }
 
 /** ReportsTabCoordinator reads ReportsAndDashboardsSync; the report tree only shows with ShowSalesforceReports. */
@@ -1609,12 +1643,7 @@ async function viewerLists(core: SnapshotCore, userId: string, org: string): Pro
   ]);
   const format = { timeZone: str(users[0]?.TimeZoneSidKey) || "UTC", locale: (str(users[0]?.LocaleSidKey) || "en_US").replace(/_/g, "-") };
   const territories = assignments.map((a) => ({ id: str(a.Territory2Id), name: str(obj(a.Territory2).Name) }));
-  // The app lists what it downloaded: undefined = a table it doesn't sync, null = a filter we can't reproduce.
-  const scope = (table: string): string | null | undefined => {
-    if (!core.sync) return null;
-    const key = Object.keys(core.sync).find((k) => ieq(k, table));
-    return key === undefined ? undefined : syncCondition(core.sync[key], userId, territories);
-  };
+  const scope = syncScope(core, userId, territories);
   const out: Record<string, PublishedListData> = {};
   await Promise.all(
     objects.map(async (name) => {
