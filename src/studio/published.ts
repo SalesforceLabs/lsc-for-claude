@@ -150,7 +150,8 @@ export interface MetadataFiles {
   sobjects: Record<string, Row>;
   /**
    * The user's `translations/<language>.json` (falling back to en_US): `tabs`,
-   * and `layouts` as layout name → section and related list labels.
+   * `layouts` as layout name → section and related list labels, and `fields`
+   * as object → field labels and name field label.
    */
   translations?: Row;
 }
@@ -607,12 +608,31 @@ function sectionLabel(s: Row, translated: string | undefined): string {
   return label === raw && str(s.customLabel) !== "true" && s.customLabel !== true && !raw.includes(" ") ? separatedWithSpaces(raw) : label;
 }
 
-function buildLayout(name: string, layout: Row, translation: Row = {}): PublishedLayout {
+/**
+ * MetadataSobjectField.init + TitleLabel: RecordTypeId is always "Record Type",
+ * Name takes the translated name field label, Type (outside Account) is "Type";
+ * otherwise the translated label, else the object's field label (which wins
+ * over the layout item's), else the item's own.
+ */
+export function fieldLabel(files: MetadataFiles, sobject: string, item: Row): string {
+  const name = str(item.fullName) || str(item.field);
+  if (name.toLowerCase() === "recordtypeid") return "Record Type";
+  const t = obj(obj(files.translations?.fields)[sobject]);
+  if (name === "Name" && str(t.nameFieldLabel)) return str(t.nameFieldLabel);
+  if (name === "Type" && sobject.toLowerCase() !== "account") return "Type";
+  const described = arr(files.sobjects[sobject]?.fields).find((f) => str(f.fullName).toLowerCase() === name.toLowerCase());
+  return str(obj(t.labels)[name]) || str(described?.label) || str(item.label) || name;
+}
+
+/** Layout full names are `<Object>-<Layout Name>`. */
+const layoutObject = (layoutName: string) => layoutName.slice(0, Math.max(0, layoutName.indexOf("-")));
+
+function buildLayout(name: string, layout: Row, translation: Row = {}, itemLabel: (item: Row) => string = (f) => str(f.label) || str(f.fullName)): PublishedLayout {
   const sectionLabels = obj(translation.sections);
   const relatedListLabels = obj(translation.relatedLists);
   const sections = arr(layout.layoutSections).flatMap((s) => {
     const columns = arr(s.layoutColumns)
-      .map((col) => arr(col.layoutItems).map((f) => str(f.label) || str(f.fullName)).filter(Boolean))
+      .map((col) => arr(col.layoutItems).filter((f) => str(f.fullName) || str(f.field)).map((f) => itemLabel(f)).filter(Boolean))
       .filter((c) => c.length);
     if (!columns.length) return [];
     // SFDynamicLayoutContainer: the title is only laid out (not covered by the columns) when detailHeading is on.
@@ -767,7 +787,10 @@ export function buildSnapshot(
     const compactNames = new Set([o.defaultCompactLayout, ...o.recordTypes.map((r) => r.compactLayout)].filter((x): x is string => !!x));
     for (const c of compactNames) {
       const cl = obj(compact[`${name}.${c}`] ?? compact[c]);
-      compactLayouts[`${name}.${c}`] = arr(cl.fields).map((f) => str(f.label) || str(f.fullName));
+      // SFComponentHighlightPanelView.filterCompactLayoutFields: the record name is the title, so its field isn't repeated.
+      compactLayouts[`${name}.${c}`] = arr(cl.fields)
+        .filter((f) => str(f.fullName).toLowerCase() !== "name")
+        .map((f) => fieldLabel(files, name, f));
     }
     for (const rt of o.recordTypes) {
       const page = rt.flexiPage ? obj(flexiPages[rt.flexiPage]) : {};
@@ -776,7 +799,7 @@ export function buildSnapshot(
         if (multiEntity) rt.multiEntity = multiEntity;
       }
       for (const l of [rt.layout, ...(rt.multiEntity?.layouts ?? [])]) {
-        if (l && !layouts[l] && pageLayouts[l]) layouts[l] = buildLayout(l, obj(pageLayouts[l]), obj(obj(files.translations?.layouts)[l]));
+        if (l && !layouts[l] && pageLayouts[l]) layouts[l] = buildLayout(l, obj(pageLayouts[l]), obj(obj(files.translations?.layouts)[l]), (f) => fieldLabel(files, layoutObject(l), f));
       }
       if (rt.flexiPage && !pages[rt.flexiPage] && flexiPages[rt.flexiPage]) pages[rt.flexiPage] = buildPage(rt.flexiPage, obj(flexiPages[rt.flexiPage]));
     }
@@ -849,7 +872,7 @@ export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing |
 
 const FILES = ["nav", "ui", "permissions", "db", "sobjects"] as const;
 const CACHE_ROOT = path.join(os.tmpdir(), "lsc-studio-published");
-const SNAPSHOT_VERSION = 8;
+const SNAPSHOT_VERSION = 10;
 /** UserService.defaultLanguage — the translation file used when the user's is missing. */
 const DEFAULT_LANGUAGE = "en_US";
 /** Distinct permission-set combinations pre-built per download. */
@@ -924,7 +947,7 @@ async function extract(zip: string, dir: string, languages: string[]): Promise<{
   for (const l of languages) {
     if (fs.existsSync(path.join(dir, `${l}.json`))) {
       const t = read(l);
-      tabTranslations.set(l, { tabs: obj(t.tabs), layouts: layoutTranslations(obj(t.objects)) });
+      tabTranslations.set(l, { tabs: obj(t.tabs), layouts: layoutTranslations(obj(t.objects)), fields: fieldTranslations(obj(t.objects)) });
     }
   }
   return {
@@ -949,6 +972,16 @@ function layoutTranslations(objects: Row): Record<string, { sections: Record<str
       const relatedLists = Object.fromEntries(arr(l.relatedLists).filter((x) => str(x.relatedList) && str(x.relatedListLabel)).map((x) => [str(x.relatedList), str(x.relatedListLabel)]));
       out[str(l.layoutName)] = { sections, relatedLists };
     }
+  }
+  return out;
+}
+
+/** TranslatedObject.fields (keyed by exact name) and nameFieldLabel, per object: non-empty labels only. */
+function fieldTranslations(objects: Row): Record<string, { labels: Record<string, string>; nameFieldLabel?: string }> {
+  const out: Record<string, { labels: Record<string, string>; nameFieldLabel?: string }> = {};
+  for (const [name, o] of Object.entries(objects)) {
+    const labels = Object.fromEntries(arr(obj(o).fields).filter((f) => str(f.name) && str(f.label)).map((f) => [str(f.name), str(f.label)]));
+    out[str(obj(o).object) || name] = { labels, ...(str(obj(o).nameFieldLabel) ? { nameFieldLabel: str(obj(o).nameFieldLabel) } : {}) };
   }
   return out;
 }

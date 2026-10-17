@@ -6,6 +6,7 @@ import {
   buildTabs,
   componentInfo,
   effectiveProfile,
+  fieldLabel,
   separatedWithSpaces,
   tabKind,
   trimNamespace,
@@ -293,7 +294,7 @@ describe("buildSnapshot", () => {
       relatedLists: [{ name: "ProviderVisits", label: "Provider Visits" }],
       actions: [],
     });
-    expect(s.compactLayouts["Visit.VisitCompact"]).toEqual(["Name", "Status"]);
+    expect(s.compactLayouts["Visit.VisitCompact"]).toEqual(["Status"]); // the name is the title
   });
 });
 
@@ -411,5 +412,23 @@ describe("multiEntityRecordView", () => {
     const pv = { recordTypes: [{ fullName: "Field", layout: "ProviderVisit-PV Layout" }] };
     const hidden = buildSnapshot(withMulti(pv), { ...meta, availableTables: new Set(["Visit"]) });
     expect(hidden.objects.Visit.recordTypes[0].multiEntity?.error).toBe(error);
+  });
+});
+
+describe("fieldLabel", () => {
+  const f = files({
+    sobjects: {
+      ...files().sobjects,
+      ProviderVisit: { fields: [{ fullName: "OwnerId", label: "Owner ID" }, { fullName: "Type", label: "Visit Type" }] },
+    },
+    translations: { fields: { ProviderVisit: { labels: { Num__c: "Num" }, nameFieldLabel: "Visit Name" } } },
+  });
+  it("follows MetadataSobjectField: Record Type, name field, Type, translation, describe, item", () => {
+    expect(fieldLabel(f, "ProviderVisit", { fullName: "RecordTypeId", label: "Record Type ID" })).toBe("Record Type");
+    expect(fieldLabel(f, "ProviderVisit", { fullName: "Name" })).toBe("Visit Name");
+    expect(fieldLabel(f, "ProviderVisit", { fullName: "Type" })).toBe("Type");
+    expect(fieldLabel(f, "ProviderVisit", { fullName: "Num__c", label: "Num__c" })).toBe("Num");
+    expect(fieldLabel(f, "ProviderVisit", { fullName: "OwnerId", label: "Owner" })).toBe("Owner ID");
+    expect(fieldLabel(f, "ProviderVisit", { fullName: "Other__c", label: "Other" })).toBe("Other");
   });
 });

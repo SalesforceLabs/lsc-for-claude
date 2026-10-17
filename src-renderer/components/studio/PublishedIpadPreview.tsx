@@ -611,7 +611,7 @@ function RecordView({ object, snapshot }: { object: PublishedObject; snapshot: P
   );
   const compactName = rt?.compactLayout ?? object.defaultCompactLayout;
   const highlights = useMemo(
-    () => (compactName ? (snapshot.compactLayouts[`${object.name}.${compactName}`] ?? []) : []).slice(1, 7),
+    () => (compactName ? (snapshot.compactLayouts[`${object.name}.${compactName}`] ?? []) : []),
     [snapshot, object.name, compactName]
   );
   return (
