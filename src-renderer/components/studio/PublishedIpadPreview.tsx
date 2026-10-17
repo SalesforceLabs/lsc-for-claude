@@ -10,7 +10,8 @@ import type {
   PublishedTab,
 } from "./published-types";
 import IpadScreen from "./IpadScreen";
-import RecordScreen, { RecordFabs, recordMenu } from "./IpadRecord";
+import RecordScreen from "./IpadRecord";
+import IpadFabs from "./IpadFabs";
 import { Dashboard } from "./IpadDashboard";
 import { ReportsTree } from "./IpadReports";
 import { hasNativeScreen, NativeScreen } from "./screens";
@@ -21,7 +22,6 @@ import {
   AgentforceWelcome,
   Announcements,
   EmptyArt,
-  HomeFabs,
   NextBestCustomers,
   RichText,
   UpNextMap,
@@ -156,9 +156,7 @@ function Device({
         <div className={`studio-ipad-page${tab?.kind === "empty" ? " blank" : ""}${onHome ? " home" : ""}${tab?.kind === "reports" && snapshot.reports ? " flush" : ""}${record === null && hasNativeScreen(tab, snapshot) ? " native" : ""}${record && snapshot.records?.byId[record] ? " record" : ""}`}>
           {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={setRecord} />}
         </div>
-        {onHome && <HomeFabs agentforce={homeHasAgentforce} />}
-        {tab?.kind === "tableau" && record === null && homeHasAgentforce && <HomeFabs agentforce more={false} />}
-        {record && snapshot.records?.byId[record] && <RecordFabs key={record} actions={recordMenu(snapshot, record)} />}
+        <IpadFabs snapshot={snapshot} tab={tab} record={record} agentforce={homeHasAgentforce} />
       </IpadScreen>
 
       <ul className="studio-ipad-legend">

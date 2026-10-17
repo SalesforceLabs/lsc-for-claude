@@ -92,6 +92,8 @@ export interface PublishedLayout {
   sections: { label: string | null; columns: string[][]; fields?: RecordFieldSpec[][] }[];
   relatedLists: { name: string; label: string; columns?: RecordFieldSpec[] }[];
   actions: string[];
+  /** Each platform action as the cache lists it, for the ••• menu (MetadataActionItem). */
+  actionItems?: { name: string; label: string; type: string; sortOrder: string }[];
 }
 
 export interface PublishedRecordType {
@@ -771,10 +773,11 @@ function buildLayout(name: string, layout: Row, translation: Row = {}, itemLabel
       .map((f) => recordFieldSpec(f, str(f.label)));
     return { name: rl, label: label || rl.replace(/^RelatedList$/, "").replace(/__r$|__c$/g, "") || rl, columns };
   });
-  const actions = arr(layout.platformActionList).flatMap((pal) =>
-    arr(obj(pal).platformActionListItems ?? []).map((a) => str(a.label) || str(a.actionName) || str(a.fullName))
-  );
-  return { name, sections, relatedLists, actions: actions.filter(Boolean) };
+  const items = arr(layout.platformActionList).flatMap((pal) => arr(obj(pal).platformActionListItems ?? []));
+  const actions = items.map((a) => str(a.label) || str(a.actionName) || str(a.fullName));
+  // MetadataActionItem: actionName, type (its actionType), sortOrder, label — the ••• menu's input.
+  const actionItems = items.map((a) => ({ name: str(a.actionName) || str(a.fullName), label: str(a.label), type: str(a.type), sortOrder: str(a.sortOrder) }));
+  return { name, sections, relatedLists, actions: actions.filter(Boolean), actionItems };
 }
 
 const REFERENCE_TYPES = new Set(["lookup", "masterdetail", "reference", "hierarchy"]);
@@ -1231,7 +1234,7 @@ export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing |
 
 const FILES = ["nav", "ui", "permissions", "db", "sobjects", "reporting"] as const;
 const CACHE_ROOT = path.join(os.tmpdir(), "lsc-studio-published");
-const SNAPSHOT_VERSION = 17;
+const SNAPSHOT_VERSION = 19;
 /** UserService.defaultLanguage — the translation file used when the user's is missing. */
 const DEFAULT_LANGUAGE = "en_US";
 /** Distinct permission-set combinations pre-built per download. */

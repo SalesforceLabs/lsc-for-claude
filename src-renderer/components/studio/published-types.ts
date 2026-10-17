@@ -77,6 +77,7 @@ export interface PublishedLayout {
   sections: { label: string | null; columns: string[][]; fields?: RecordFieldSpec[][] }[];
   relatedLists: { name: string; label: string; columns?: RecordFieldSpec[] }[];
   actions: string[];
+  actionItems?: { name: string; label: string; type: string; sortOrder: string }[];
 }
 
 export interface PublishedRecordType {

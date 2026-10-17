@@ -2,9 +2,10 @@ import type { PublishedIpad, PublishedTab } from "../published-types";
 import type { PublishedAccounts } from "./accounts-types";
 import type { PublishedCalendar } from "./calendar-types";
 import type { PublishedContent } from "./content-types";
+import type { PublishedFabs } from "./fabs-types";
 import type { PublishedTableau } from "./tableau-types";
 
-export type { PublishedAccounts, PublishedCalendar, PublishedContent, PublishedTableau };
+export type { PublishedAccounts, PublishedCalendar, PublishedContent, PublishedFabs, PublishedTableau };
 
 /** Structural copy of PublishedScreens in src/studio/screens/index.ts. */
 export interface PublishedScreens {
@@ -12,6 +13,7 @@ export interface PublishedScreens {
   accounts?: PublishedAccounts;
   calendar?: PublishedCalendar;
   tableau?: PublishedTableau;
+  fabs?: PublishedFabs;
 }
 
 export interface ScreenProps {
