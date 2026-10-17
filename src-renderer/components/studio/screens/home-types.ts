@@ -23,7 +23,7 @@ export interface HomeVisit {
 }
 
 export interface PublishedHome {
-  nbc?: { cards: HomeNbcCard[]; lastRefreshed: string };
+  nbc?: { cards: HomeNbcCard[]; lastRefreshed: string; lastRefreshedSource?: string };
   visits?: { total: number; items: HomeVisit[] };
   plan?: { cycle?: string; activityType?: string };
 }

@@ -242,7 +242,7 @@ export function NextBestCustomers({ totalCards, data }: { totalCards: number; da
       <div className="studio-ipad-h-nbc-head">
         <div>
           <div className="studio-ipad-h-nbc-title">Top {totalCards} Next Best Customers By Score</div>
-          <div className="studio-ipad-h-caption">{data ? data.lastRefreshed : "Last Refreshed: Today, 6:30 AM"}</div>
+          <div className="studio-ipad-h-caption" title={data?.lastRefreshedSource}>{data ? data.lastRefreshed : "Last Refreshed: Today, 6:30 AM"}</div>
         </div>
         <span className="studio-ipad-h-capsule">
           Sort by: Score

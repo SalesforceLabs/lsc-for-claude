@@ -39,6 +39,8 @@ export interface PublishedHome {
     cards: HomeNbcCard[];
     /** NextBestCustomersViewModel.lastSyncText; "Last Refreshed: --" when unknown. */
     lastRefreshed: string;
+    /** Provenance of lastRefreshed: the iPad reads its own device-local lastSyncDate, so this is an org-side approximation. */
+    lastRefreshedSource: string;
   };
   visits?: { total: number; items: HomeVisit[] };
   plan?: {
@@ -87,6 +89,9 @@ export function visibleDates(days: string[], perPage = 3): boolean[] {
     return false;
   });
 }
+
+const LAST_REFRESHED_SOURCE =
+  "Approximation: NextBestCustomersViewModel.lastSyncText shows the device's own syncService.lastSyncDate, falling back to SharedUserSettings.lastSync(). The snapshot uses the newest completed data sync's DownloadStart from DeviceSyncSummary, so it can differ from a real iPad by the time between the sync and the data being saved.";
 
 /** NextBestCustomersViewModel.lastSyncText. The device reads its own lastSyncDate; the org's copy is the newest completed data sync's DownloadStart (= the row's LastSyncTime). */
 export function lastRefreshedText(sync: Date | null, now: Date, f: Format): string {
@@ -169,7 +174,7 @@ async function collectNbc(ctx: ScreenContext, now: Date): Promise<PublishedHome[
   }
   let candidates = [...picked.values()];
   const ids = candidates.map((r) => str(r.AccountId));
-  if (!ids.length) return { cards: [], lastRefreshed: "Last Refreshed: --" };
+  if (!ids.length) return { cards: [], lastRefreshed: "Last Refreshed: --", lastRefreshedSource: LAST_REFRESHED_SOURCE };
   // The device's last_call join: an account visited (Submitted) after its score was last modified is left out.
   const visits = await inBatches(ids, (part) =>
     query(`SELECT AccountId, MAX(PlannedStartTime) m FROM ProviderVisit WHERE Status = 'Submitted' AND AccountId IN (${inList(part)}) GROUP BY AccountId`, ctx.org).catch(() => [] as Row[])
@@ -219,7 +224,7 @@ async function collectNbc(ctx: ScreenContext, now: Date): Promise<PublishedHome[
       planProgress: g && g.ProratedOverallGoal != null ? Number(g.ProratedOverallGoal) : null,
     };
   });
-  return { cards, lastRefreshed: lastRefreshedText(dateOf(sync[0]?.DownloadStart), now, ctx.format) };
+  return { cards, lastRefreshed: lastRefreshedText(dateOf(sync[0]?.DownloadStart), now, ctx.format), lastRefreshedSource: LAST_REFRESHED_SOURCE };
 }
 
 /** UnsubmittedCallsDashboardViewModel + AgendaCallModel.Query.unsubmitted: the viewer's past, not-yet-submitted parent visits in the selected territory. */
