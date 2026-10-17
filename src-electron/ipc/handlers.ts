@@ -40,7 +40,12 @@ import {
   getPerfRun,
   savePerfRun,
   deletePerfRun,
+  listPerfSims,
+  getPerfSim,
+  savePerfSim,
+  deletePerfSim,
   type PerfRunRecord,
+  type PerfSimRecord,
 } from "../engine/perf-store.js";
 
 const STUDIO_CACHED_TOOLS = new Set(["studio_feature_map", "studio_item_detail", "studio_list_profiles", "studio_access_options", "studio_ipad_published"]);
@@ -569,6 +574,17 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   ipcMain.handle("perf:deleteRun", async (_event, id: string) => {
     deletePerfRun(id);
+    return { ok: true };
+  });
+
+  ipcMain.handle("perf:listSims", async () => listPerfSims());
+
+  ipcMain.handle("perf:getSim", async (_event, id: string) => getPerfSim(id));
+
+  ipcMain.handle("perf:saveSim", async (_event, input: Omit<PerfSimRecord, "id"> & { result: unknown }) => savePerfSim(input));
+
+  ipcMain.handle("perf:deleteSim", async (_event, id: string) => {
+    deletePerfSim(id);
     return { ok: true };
   });
 

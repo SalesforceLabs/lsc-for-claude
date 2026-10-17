@@ -29,6 +29,22 @@ export interface PerfRunRecord {
   result?: unknown;
 }
 
+export interface PerfSimRecord {
+  id: string;
+  /** Instance URL of the org the simulation ran against (the connection's, not necessarily Studio's). */
+  org: string;
+  /** sf CLI alias or username the simulation ran as. */
+  connection: string;
+  /** cancelled when stopped early; the result then covers what was downloaded. */
+  status: "done" | "cancelled";
+  startedAt: string;
+  finishedAt: string;
+  /** Headline numbers for the history list. */
+  summary: unknown;
+  /** SimulationResult JSON; omitted from list results. */
+  result?: unknown;
+}
+
 let initialized = false;
 
 function db() {
@@ -53,6 +69,17 @@ function db() {
         result TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_perf_runs_plan ON perf_runs(org, plan_id, started_at);
+      CREATE TABLE IF NOT EXISTS perf_sims (
+        id TEXT PRIMARY KEY,
+        org TEXT NOT NULL,
+        connection TEXT NOT NULL,
+        status TEXT NOT NULL,
+        started_at TEXT NOT NULL,
+        finished_at TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        result TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_perf_sims_started ON perf_sims(started_at);
     `);
     const columns = d.prepare("PRAGMA table_info(perf_runs)").all() as Array<{ name: string }>;
     if (!columns.some((c) => c.name === "summary")) d.exec("ALTER TABLE perf_runs ADD COLUMN summary TEXT");
@@ -172,4 +199,65 @@ export function savePerfRun(input: Omit<PerfRunRecord, "id"> & { result: unknown
 
 export function deletePerfRun(id: string): void {
   db().prepare("DELETE FROM perf_runs WHERE id = ?").run(id);
+}
+
+interface SimRow {
+  id: string;
+  org: string;
+  connection: string;
+  status: PerfSimRecord["status"];
+  started_at: string;
+  finished_at: string;
+  summary: string;
+  result?: string;
+}
+
+const toSim = (r: SimRow): PerfSimRecord => ({
+  id: r.id,
+  org: r.org,
+  connection: r.connection,
+  status: r.status,
+  startedAt: r.started_at,
+  finishedAt: r.finished_at,
+  summary: JSON.parse(r.summary),
+  ...(r.result !== undefined ? { result: JSON.parse(r.result) } : {}),
+});
+
+/**
+ * Every first-sync simulation, newest first, without their (large) results. Not
+ * filtered by Studio's org: a simulation runs as any sf CLI connection, in any org.
+ */
+export function listPerfSims(): PerfSimRecord[] {
+  const rows = db()
+    .prepare("SELECT id, org, connection, status, started_at, finished_at, summary FROM perf_sims ORDER BY started_at DESC")
+    .all() as SimRow[];
+  return rows.map(toSim);
+}
+
+export function getPerfSim(id: string): PerfSimRecord | null {
+  const row = db().prepare("SELECT * FROM perf_sims WHERE id = ?").get(id) as SimRow | undefined;
+  return row ? toSim(row) : null;
+}
+
+export function savePerfSim(input: Omit<PerfSimRecord, "id"> & { result: unknown }): PerfSimRecord {
+  const id = randomUUID();
+  db()
+    .prepare(
+      "INSERT INTO perf_sims (id, org, connection, status, started_at, finished_at, summary, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    )
+    .run(
+      id,
+      input.org,
+      input.connection,
+      input.status,
+      input.startedAt,
+      input.finishedAt,
+      JSON.stringify(input.summary ?? null),
+      JSON.stringify(input.result)
+    );
+  return { ...input, id };
+}
+
+export function deletePerfSim(id: string): void {
+  db().prepare("DELETE FROM perf_sims WHERE id = ?").run(id);
 }

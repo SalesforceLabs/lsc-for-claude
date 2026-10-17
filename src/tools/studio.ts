@@ -19,6 +19,9 @@ import {
 } from "../studio/perf.js";
 import { nfrProfileSchema, parseNfrProfile } from "../perf/nfr.js";
 import { renderAssessment, type AssessmentResult } from "../perf/assessment.js";
+import { activeSimulation, cancelSimulation, simulationStatus, startSimulation } from "../studio/simulate.js";
+import { renderSimulation } from "./perf-simulate.js";
+import type { SimulationResult } from "../perf/simulate.js";
 
 /**
  * LSC Studio data tools. These return raw JSON for the Electron app's visual
@@ -408,6 +411,83 @@ function registerPerfTools(server: McpServer) {
     async ({ jobId }) => {
       try {
         return json(cancelPerfRun(jobId));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  const sobjects = z.array(z.string().min(1).max(80)).max(500).optional();
+
+  server.tool(
+    "studio_sim_start",
+    "LSC Studio (GUI data): start a first-sync simulation (the network part of an iOS initial sync: user-info, metadata archive, every table's data) as a background job, running as the given sf CLI connection — admin or end user. Read-only against the org. Returns JSON status; poll with studio_sim_status.",
+    {
+      connection: z.string().min(1).max(255).describe("sf CLI alias or username to run as"),
+      options: z
+        .object({
+          territory: z.string().max(255).optional(),
+          forceFlow: z.enum(["enhanced", "legacy"]).optional(),
+          include: sobjects,
+          exclude: sobjects,
+          maxSeconds: z.number().int().min(10).max(7200).optional(),
+          maxRecordsPerTable: z.number().int().min(1).optional(),
+          maxTotalRecords: z.number().int().min(1).optional(),
+        })
+        .optional(),
+    },
+    async ({ connection, options }) => {
+      try {
+        return json(startSimulation(connection, options ?? {}));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_sim_status",
+    "LSC Studio (GUI data): progress of a first-sync simulation started by studio_sim_start, with the result once finished (also when cancelled, covering what was downloaded). Returns JSON.",
+    { jobId: z.string().max(64) },
+    async ({ jobId }) => {
+      try {
+        return json(simulationStatus(jobId));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_sim_active",
+    "LSC Studio (GUI data): the first-sync simulation in progress, if any, so the GUI can reattach to it. Returns JSON { job } (null when nothing is running).",
+    {},
+    async () => json({ job: activeSimulation() })
+  );
+
+  server.tool(
+    "studio_sim_cancel",
+    "LSC Studio (GUI data): stop a running first-sync simulation; requests in flight are aborted and no new tables start. Returns JSON status.",
+    { jobId: z.string().max(64) },
+    async ({ jobId }) => {
+      try {
+        return json(cancelSimulation(jobId));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_sim_report",
+    "LSC Studio (GUI data): render a finished first-sync simulation (the result from studio_sim_status) as a shareable markdown report. Doesn't touch the org. Returns JSON { markdown }.",
+    { result: z.object({}).passthrough() },
+    async ({ result }) => {
+      if (!Array.isArray((result as { tables?: unknown }).tables)) {
+        return jsonError("Not a first-sync simulation result (no tables).");
+      }
+      try {
+        return json({ markdown: renderSimulation(result as unknown as SimulationResult) });
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

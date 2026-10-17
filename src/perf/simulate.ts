@@ -45,6 +45,8 @@ export interface SimulateOptions {
   fixedBatchSize?: boolean;
   signal?: AbortSignal;
   now?: () => number;
+  /** Progress: the phase in progress and, while downloading data, tables finished out of the total. */
+  onStep?: (step: string, tables?: { done: number; total: number; records: number }) => void;
 }
 
 export interface SimulationTotals {
@@ -101,6 +103,7 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
   const notes: string[] = [...STANDING_NOTES];
   const session = opts.session ?? (await createDeviceSession(opts.username, { apiVersion: opts.apiVersion }));
 
+  opts.onStep?.("Fetching user info");
   const info: UserInfo = await fetchUserInfo(session, { userDeviceId: opts.userDeviceId, signal: opts.signal });
   if (info.isOrgInMaintenance) notes.push("user-info reports the org is in maintenance; a device would not sync.");
   const entity = info.metadataEntities[0];
@@ -114,6 +117,7 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
   const flow = opts.forceFlow ?? resolved;
   if (opts.forceFlow && opts.forceFlow !== resolved) notes.push(`Flow forced to ${flow}; the org's settings select ${resolved}.`);
 
+  opts.onStep?.(`Downloading metadata (${entity.name})`);
   const md = await downloadMetadata(session, entity.id, { chunkBytes: opts.chunkBytes ?? DEFAULT_CHUNK_BYTES, signal: opts.signal, now });
   const schema = buildSchema({ files: md.files, usp: md.info.userSpecificPermissions, assignedPermissionSets: info.permissionSets });
   notes.push(...schema.notes);
@@ -127,6 +131,8 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
   if (tables.length < schema.tables.length) notes.push(`${schema.tables.length - tables.length} table(s) excluded by include/exclude.`);
 
   const t0 = now();
+  const progress = { done: 0, total: tables.length, records: 0 };
+  opts.onStep?.(`Downloading data (${flow} flow)`, { ...progress });
   const results = await replayInitialSync({
     session,
     flow,
@@ -147,6 +153,11 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
     fixedBatchSize: opts.fixedBatchSize,
     signal: opts.signal,
     now,
+    onTable: (r) => {
+      progress.done++;
+      progress.records += r.records;
+      opts.onStep?.(`Downloading data (${flow} flow): ${r.sobject} done`, { ...progress });
+    },
   });
   const seconds = (now() - t0) / 1000;
   if (results.some((t) => t.truncated)) notes.push("Some tables were cut short by a limit; their numbers are lower bounds.");

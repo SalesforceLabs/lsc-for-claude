@@ -520,3 +520,24 @@ describe("telemetry comparison", () => {
     expect(c.records.ratio).toBe(2);
   });
 });
+
+describe("progress", () => {
+  it("reports each table as it finishes, including skipped ones", async () => {
+    const { s } = session(() => json({ records: [{ Id: "1" }, { Id: "2" }] }));
+    const seen: Array<{ sobject: string; records: number; skipped?: string }> = [];
+    await replayInitialSync({
+      session: s,
+      flow: "enhanced",
+      context: ctx,
+      syncStart: new Date(),
+      tables: [table({ sobject: "A" }), table({ sobject: "B" })],
+      maxTotalRecords: 2,
+      concurrency: 1,
+      onTable: (r) => seen.push({ sobject: r.sobject, records: r.records, skipped: r.skipped }),
+    });
+    expect(seen).toEqual([
+      { sobject: "A", records: 2, skipped: undefined },
+      { sobject: "B", records: 0, skipped: "maxTotalRecords reached" },
+    ]);
+  });
+});

@@ -103,6 +103,16 @@ contextBridge.exposeInMainWorld("lscApi", {
   perfGetRun: (id) => ipcRenderer.invoke("perf:getRun", id),
   perfSaveRun: (input) => ipcRenderer.invoke("perf:saveRun", input),
   perfDeleteRun: (id) => ipcRenderer.invoke("perf:deleteRun", id),
+  // First-sync simulation — runs as a chosen sf CLI connection; finished results are kept locally
+  studioSimStart: (connection, options) => ipcRenderer.invoke("studio:call", "studio_sim_start", { connection, options }),
+  studioSimStatus: (jobId) => ipcRenderer.invoke("studio:call", "studio_sim_status", { jobId }),
+  studioSimCancel: (jobId) => ipcRenderer.invoke("studio:call", "studio_sim_cancel", { jobId }),
+  studioSimActive: () => ipcRenderer.invoke("studio:call", "studio_sim_active", {}),
+  studioSimReport: (result) => ipcRenderer.invoke("studio:call", "studio_sim_report", { result }),
+  perfListSims: () => ipcRenderer.invoke("perf:listSims"),
+  perfGetSim: (id) => ipcRenderer.invoke("perf:getSim", id),
+  perfSaveSim: (input) => ipcRenderer.invoke("perf:saveSim", input),
+  perfDeleteSim: (id) => ipcRenderer.invoke("perf:deleteSim", id),
   perfOpenFile: () => ipcRenderer.invoke("perf:openFile"),
   perfSaveFile: (defaultName, text, kind) => ipcRenderer.invoke("perf:saveFile", defaultName, text, kind),
 

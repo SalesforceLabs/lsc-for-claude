@@ -31,6 +31,19 @@ export interface PerfRunRecord {
   result?: unknown;
 }
 
+export interface PerfSimRecord {
+  id: string;
+  /** Instance URL of the org the simulation ran against. */
+  org: string;
+  connection: string;
+  status: "done" | "cancelled";
+  startedAt: string;
+  finishedAt: string;
+  /** A SimSummary (see components/studio/sim-types.ts). */
+  summary: unknown;
+  result?: unknown;
+}
+
 interface StudioResponse {
   data?: unknown & { error?: string };
   error?: string;
@@ -93,6 +106,16 @@ interface LscApi {
   perfGetRun(id: string): Promise<PerfRunRecord | null>;
   perfSaveRun(input: Omit<PerfRunRecord, "id" | "org"> & { org?: string; result: unknown }): Promise<PerfRunRecord>;
   perfDeleteRun(id: string): Promise<{ ok: boolean }>;
+  studioSimStart(connection: string, options?: unknown): Promise<StudioResponse>;
+  studioSimStatus(jobId: string): Promise<StudioResponse>;
+  studioSimCancel(jobId: string): Promise<StudioResponse>;
+  studioSimActive(): Promise<StudioResponse>;
+  studioSimReport(result: unknown): Promise<StudioResponse>;
+  // First-sync simulation history, across every org and connection
+  perfListSims(): Promise<PerfSimRecord[]>;
+  perfGetSim(id: string): Promise<PerfSimRecord | null>;
+  perfSaveSim(input: Omit<PerfSimRecord, "id"> & { result: unknown }): Promise<PerfSimRecord>;
+  perfDeleteSim(id: string): Promise<{ ok: boolean }>;
   perfOpenFile(): Promise<{ canceled: boolean; text?: string }>;
   perfSaveFile(defaultName: string, text: string, kind: "yaml" | "json" | "md"): Promise<{ canceled: boolean; path?: string }>;
 

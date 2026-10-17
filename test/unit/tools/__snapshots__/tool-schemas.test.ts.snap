@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `90`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `95`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -85,6 +85,11 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_perf_status",
   "studio_perf_territories",
   "studio_perf_users",
+  "studio_sim_active",
+  "studio_sim_cancel",
+  "studio_sim_report",
+  "studio_sim_start",
+  "studio_sim_status",
   "studio_user_access",
   "toggle_db_schema",
   "toggle_trigger_handler",
@@ -1355,6 +1360,50 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
       "jobId": {
         "optional": false,
         "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_sim_start",
+    "params": {
+      "connection": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "options": {
+        "optional": true,
+        "type": "ZodObject",
+      },
+    },
+  },
+  {
+    "name": "studio_sim_status",
+    "params": {
+      "jobId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_sim_active",
+    "params": {},
+  },
+  {
+    "name": "studio_sim_cancel",
+    "params": {
+      "jobId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_sim_report",
+    "params": {
+      "result": {
+        "optional": false,
+        "type": "ZodObject",
       },
     },
   },

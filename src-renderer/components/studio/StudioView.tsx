@@ -14,6 +14,7 @@ import ReviewDialog from "./ReviewDialog";
 import PublishDialog from "./PublishDialog";
 import type { PendingChange } from "./changes";
 import PerfView from "./PerfView";
+import SimulateView from "./SimulateView";
 import "./studio.css";
 
 interface StudioViewProps {
@@ -27,15 +28,16 @@ const PREVIEW_HOSTS = [...PREVIEW_FEATURES, "visit"];
 
 type MapState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; map: FeatureMap };
 
-/** What the main pane shows: a Setup feature, or Testing → Performance. */
-type Section = "setup" | "performance";
+/** What the main pane shows: a Setup feature, or a Testing page. */
+type Section = "setup" | "performance" | "simulate";
 
 export default function StudioView({ onAskClaude }: StudioViewProps) {
   const [features, setFeatures] = useState<FeatureSummary[]>([]);
   const [featureId, setFeatureId] = useState("visit");
   const [section, setSection] = useState<Section>("setup");
-  // Performance stays mounted once opened so a run keeps polling while Setup is shown.
+  // Testing pages stay mounted once opened so a run keeps polling while another page is shown.
   const [perfOpened, setPerfOpened] = useState(false);
+  const [simOpened, setSimOpened] = useState(false);
   // Maps are kept per feature so switching back doesn't re-query the org.
   const [maps, setMaps] = useState<Record<string, MapState>>({});
   const [selectedSurface, setSelectedSurface] = useState<SurfaceId | null>(null);
@@ -178,6 +180,16 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         >
           <span>Performance</span>
         </button>
+        <button
+          className={`studio-rail-item${section === "simulate" ? " active" : ""}`}
+          title="Replay an iOS first sync as an sf CLI connection and time the download"
+          onClick={() => {
+            setSection("simulate");
+            setSimOpened(true);
+          }}
+        >
+          <span>First sync</span>
+        </button>
       </nav>
 
       {perfOpened && (
@@ -192,6 +204,21 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             </div>
           </header>
           <PerfView onAskClaude={onAskClaude} />
+        </section>
+      )}
+
+      {simOpened && (
+        <section className="studio-main" hidden={section !== "simulate"}>
+          <header className="studio-header">
+            <div>
+              <h1 className="studio-title">First sync</h1>
+              <div className="studio-subtitle">
+                Replay what the iOS app downloads on a first sync — user info, the metadata archive, and every table's data — as
+                the sf CLI connection you choose, and time each part. Every request is read-only.
+              </div>
+            </div>
+          </header>
+          <SimulateView />
         </section>
       )}
 

@@ -48,6 +48,8 @@ export interface ReplayOptions {
   fixedBatchSize?: boolean;
   signal?: AbortSignal;
   now?: () => number;
+  /** Called as each table finishes (downloaded, skipped or failed). */
+  onTable?: (result: TableResult) => void;
 }
 
 export const CONTENT_CHUNK = 1500;
@@ -572,6 +574,7 @@ export async function replayInitialSync(opts: ReplayOptions): Promise<TableResul
       else if (opts.maxTotalRecords !== undefined && run.totalRecords >= opts.maxTotalRecords) r = skipped(table, "maxTotalRecords reached");
       else r = await new TableRunner(run, table).execute();
       results.set(table, r);
+      opts.onTable?.(r);
       return r;
     });
   }
