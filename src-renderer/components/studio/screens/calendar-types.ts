@@ -18,7 +18,11 @@ export interface CalendarSegment {
   background: string;
   text: string;
   faded?: boolean;
+  done?: boolean;
+  icon?: CalendarIcon;
 }
+
+export type CalendarIcon = "handshake" | "phone" | "screen" | "mailbox" | "fax" | "clipboard";
 
 export interface CalendarAccount {
   id: string;
@@ -88,36 +92,68 @@ export function formatTime(minute: number, pattern: string): string {
 
 export interface PlacedSegment<T> {
   seg: T;
-  /** Column within its overlap cluster and the cluster's column count. */
-  col: number;
-  cols: number;
+  /** Stack depth: each step indents the tile by STACK_OFFSET. */
+  column: number;
+  /** Position among tiles that start together and share one row (side by side). */
+  counter: number;
+  /** How many share that row. */
+  count: number;
 }
 
+/** CalendarEventsCollectionViewLayout.stackOffsetWidth and eventCellsEdgeOffset.horizontal. */
+export const STACK_OFFSET = 10;
+export const EDGE_OFFSET = 2;
+
 /**
- * Side-by-side columns for overlapping events (CalendarEventsCollectionViewLayout): events that
- * overlap share a cluster; each takes the first free column and the cluster divides the day width.
+ * Tile placement of CalendarEventsCollectionViewLayout.attributeForCells: events are walked in order;
+ * those starting within 15 minutes of an event already in a column's row sit beside it, an event that
+ * clears the column's span stacks below in the same column, and anything else opens a new column
+ * that is indented by 10pt. A cluster ends when an event starts after the cluster's first event ended.
  */
-export function placeSegments<T extends { startMin: number; endMin: number }>(segs: T[]): PlacedSegment<T>[] {
+export function placeStacked<T extends { startMin: number; endMin: number }>(segs: T[]): PlacedSegment<T>[] {
   const sorted = [...segs].sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin);
   const out: PlacedSegment<T>[] = [];
-  let cluster: PlacedSegment<T>[] = [];
-  let colEnds: number[] = [];
-  let clusterEnd = -1;
+  let columns: T[][][] = [];
+  let lastEnd: number | undefined;
   const flush = () => {
-    for (const p of cluster) p.cols = colEnds.length;
-    cluster = [];
-    colEnds = [];
+    columns.forEach((rows, column) =>
+      rows.forEach((row) =>
+        row.forEach((seg, counter) => out.push({ seg, column, counter, count: row.length }))
+      )
+    );
+    columns = [];
+    lastEnd = undefined;
   };
-  for (const seg of sorted) {
-    if (cluster.length && seg.startMin >= clusterEnd) flush();
-    let col = colEnds.findIndex((end) => end <= seg.startMin);
-    if (col < 0) col = colEnds.length;
-    colEnds[col] = seg.endMin;
-    clusterEnd = cluster.length ? Math.max(clusterEnd, seg.endMin) : seg.endMin;
-    const placed = { seg, col, cols: 1 };
-    cluster.push(placed);
-    out.push(placed);
+  for (const ev of sorted) {
+    if (lastEnd !== undefined && ev.startMin >= lastEnd) flush();
+    let placed = false;
+    outer: for (const column of columns) {
+      for (const row of column) {
+        const first = column[0][0];
+        const last = column[column.length - 1][0];
+        const spanEnd = last.endMin - last.startMin >= 1 / 60 ? last.endMin - 1 / 60 : last.endMin;
+        if (first.startMin > spanEnd) continue;
+        if (row.some((o) => Math.abs(ev.startMin - o.startMin) < 15)) {
+          row.push(ev);
+          placed = true;
+          break outer;
+        }
+        if (!(first.startMin <= ev.endMin && ev.startMin <= spanEnd)) {
+          column.push([ev]);
+          placed = true;
+          break outer;
+        }
+      }
+    }
+    if (!placed) columns.push([[ev]]);
+    if (lastEnd === undefined) lastEnd = ev.endMin;
   }
   flush();
   return out;
+}
+
+/** Left and width of a placed tile inside a day column of width `colW` (calculateWidth / calculateXPosition). */
+export function tileBox(p: { column: number; counter: number; count: number }, colW: number): { left: number; width: number } {
+  const width = (colW - EDGE_OFFSET * (p.count + 1) - STACK_OFFSET * p.column) / p.count;
+  return { width, left: p.counter * width + STACK_OFFSET * p.column + EDGE_OFFSET * (p.counter + 1) };
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { clipToDays, textColorFor, weekDays, zonedInstant, zonedParts } from "../../../../src/studio/screens/calendar.js";
-import { formatTime, hourHeight, parseStartTime, placeSegments, pointFor } from "../../../../src-renderer/components/studio/screens/calendar-types.js";
+import { clipToDays, textColorFor, weekDays, windowDays, zonedInstant, zonedParts } from "../../../../src/studio/screens/calendar.js";
+import { formatTime, hourHeight, parseStartTime, placeStacked, pointFor, tileBox } from "../../../../src-renderer/components/studio/screens/calendar-types.js";
 
 const PT = "America/Los_Angeles";
 // Sat Oct 17 2026, 10:50 in Los Angeles.
@@ -97,19 +97,43 @@ describe("event layout math", () => {
     expect(hourHeight(0)).toBeCloseTo(60.33, 2);
   });
 
-  it("puts overlapping events side by side and frees columns when the cluster ends", () => {
-    const placed = placeSegments([
+  it("indents overlapping events and starts a new cluster once the first has ended", () => {
+    const placed = placeStacked([
       { startMin: 540, endMin: 600, id: "a" },
       { startMin: 570, endMin: 630, id: "b" },
       { startMin: 600, endMin: 660, id: "c" },
       { startMin: 720, endMin: 780, id: "d" },
     ]);
-    const by = Object.fromEntries(placed.map((p) => [p.seg.id, [p.col, p.cols]]));
-    expect(by).toEqual({ a: [0, 2], b: [1, 2], c: [0, 2], d: [0, 1] });
+    const by = Object.fromEntries(placed.map((p) => [p.seg.id, [p.column, p.counter, p.count]]));
+    expect(by).toEqual({ a: [0, 0, 1], b: [1, 0, 1], c: [0, 0, 1], d: [0, 0, 1] });
   });
 
-  it("gives a lone event the full day", () => {
-    expect(placeSegments([{ startMin: 0, endMin: 30 }])).toEqual([{ seg: { startMin: 0, endMin: 30 }, col: 0, cols: 1 }]);
+  it("puts events that start together side by side and indents later overlaps", () => {
+    const placed = placeStacked([
+      { startMin: 540, endMin: 600, id: "a" },
+      { startMin: 545, endMin: 600, id: "b" },
+      { startMin: 570, endMin: 660, id: "c" },
+    ]);
+    const by = Object.fromEntries(placed.map((p) => [p.seg.id, [p.column, p.counter, p.count]]));
+    expect(by.a).toEqual([0, 0, 2]);
+    expect(by.b).toEqual([0, 1, 2]);
+    expect(by.c).toEqual([1, 0, 1]);
+  });
+
+  it("gives a lone event the full day and indents stacked tiles by 10pt", () => {
+    expect(placeStacked([{ startMin: 0, endMin: 30 }])).toEqual([{ seg: { startMin: 0, endMin: 30 }, column: 0, counter: 0, count: 1 }]);
+    expect(tileBox({ column: 0, counter: 0, count: 1 }, 112.86)).toEqual({ left: 2, width: 112.86 - 4 });
+    const second = tileBox({ column: 1, counter: 0, count: 1 }, 112.86);
+    expect(second.left).toBeCloseTo(12);
+    expect(second.left + second.width).toBeCloseTo(112.86 - 2);
+  });
+
+  it("pages whole weeks from last month to next month", () => {
+    const days = windowDays(NOW, PT, "Monday");
+    expect(days[0].date).toBe("2026-08-31");
+    expect(days[days.length - 1].date).toBe("2026-12-06");
+    expect(days.length % 7).toBe(0);
+    expect(days.filter((d) => d.today).map((d) => d.date)).toEqual(["2026-10-17"]);
   });
 
   it("derives tile text from the background as CalendarEventsColorSchema does", () => {
