@@ -256,6 +256,8 @@ export default function SimulateView() {
   const [job, setJob] = useState<SimJobStatus | null>(null);
   const [starting, setStarting] = useState(false);
   const [lost, setLost] = useState(false);
+  /** The last failed status poll, shown when contact is lost. */
+  const [pollError, setPollError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: "error" | "info"; text: string } | null>(null);
   const [, tick] = useState(0);
 
@@ -396,6 +398,7 @@ export default function SimulateView() {
           return;
         }
         failures++;
+        setPollError(error);
         if (failures >= MAX_POLL_FAILURES) {
           setLost(true);
           return;
@@ -581,7 +584,7 @@ export default function SimulateView() {
               </div>
               <div className="studio-finding-detail">
                 {lost
-                  ? "Studio couldn't reach the simulation for a while. It may still be going."
+                  ? `Studio couldn't reach the simulation for a while. It may still be going.${pollError ? ` Last error: ${pollError}` : ""}`
                   : job
                     ? `${job.step} · ${elapsed(job.startedAt)}`
                     : "Connecting…"}

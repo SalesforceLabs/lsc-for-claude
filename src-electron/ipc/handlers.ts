@@ -126,31 +126,61 @@ function getOrCreateEngine(convId: string): ConversationEngine {
   return engine;
 }
 
+/** Studio jobs that live in the server's memory and would be lost by a respawn. */
+const LONG_JOB_TOOLS = ["studio_sim_active", "studio_perf_active"];
+const RELOAD_RETRY_MS = 15_000;
+
+async function longJobRunning(client: McpClient): Promise<boolean> {
+  for (const tool of LONG_JOB_TOOLS) {
+    try {
+      const result = await client.callTool(tool, {});
+      const data = JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}");
+      if (data?.job) return true;
+    } catch {
+      // No org connected, or the server is down — nothing to protect.
+    }
+  }
+  return false;
+}
+
 /**
  * Dev only (`electron:dev`): respawn the MCP server whenever `tsc --watch`
  * rewrites dist/, so server and Studio collector changes apply without
  * restarting the app. Studio's cache is kept so a reload doesn't re-query
- * the org — hit Refresh in Studio to see a collector change.
+ * the org — hit Refresh in Studio to see a collector change. A reload waits
+ * while a first-sync simulation or performance run is in progress.
  */
 function watchMcpServer(): void {
   const distDir = path.resolve(__dirname, "..", "..", "dist");
   let timer: NodeJS.Timeout | null = null;
   let reloading: Promise<void> = Promise.resolve();
+  let deferred = false;
+  const schedule = (delayMs: number) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      reloading = reloading.then(async () => {
+        if (!mcpClient) return;
+        if (await longJobRunning(mcpClient)) {
+          if (!deferred) console.log("[dev] MCP server reload deferred until the running Studio job finishes");
+          deferred = true;
+          schedule(RELOAD_RETRY_MS);
+          return;
+        }
+        deferred = false;
+        try {
+          await mcpClient.restart();
+          console.log("[dev] MCP server reloaded");
+        } catch (error) {
+          console.error("[dev] MCP server reload failed:", error);
+        }
+      });
+    }, delayMs);
+  };
   try {
     watch(distDir, { recursive: true }, (_event, file) => {
       if (!file || !file.endsWith(".js")) return;
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
-        reloading = reloading.then(async () => {
-          if (!mcpClient) return;
-          try {
-            await mcpClient.restart();
-            console.log("[dev] MCP server reloaded");
-          } catch (error) {
-            console.error("[dev] MCP server reload failed:", error);
-          }
-        });
-      }, 400);
+      // A deferred reload keeps polling on its own schedule.
+      if (!deferred) schedule(400);
     });
   } catch (error) {
     console.error(`[dev] Can't watch ${distDir}:`, error);
@@ -256,9 +286,9 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
       const doStart = async () => {
         llm = createProvider(providerType, credentials);
-        mcpClient = new McpClient();
+        // The target org lives in the server's memory, so every (re)spawn re-applies it.
+        mcpClient = new McpClient(undefined, applyTargetOrg);
         await mcpClient.start();
-        await applyTargetOrg(mcpClient);
         promptBuilder = new PromptBuilder();
         mcpStarted = true;
         resolveMcpReady();
