@@ -14,6 +14,8 @@ export interface PublishedContentCard {
   shareable: boolean;
   /** Downscaled first-page image as a data URL; undefined = the #E5E5E5 placeholder. */
   thumbnail?: string;
+  /** Images of later pages (index 0 = page 2), rendered read-only from the page files; a missing entry shows a stand-in. */
+  pageThumbnails?: (string | null)[];
 }
 
 export interface PublishedContentSection {

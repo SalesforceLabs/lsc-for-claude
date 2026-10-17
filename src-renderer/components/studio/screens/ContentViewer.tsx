@@ -3,6 +3,11 @@ import type { PublishedContentCard } from "./content-types";
 import { slideLabel } from "./content-logic";
 import "./content-viewer.css";
 
+/** The stored image of page `i` (0-based): the first-page image, or a later page's when it was rendered. */
+function pageImage(card: PublishedContentCard, i: number): string | undefined {
+  return i === 0 ? card.thumbnail : card.pageThumbnails?.[i - 1] ?? undefined;
+}
+
 /**
  * The CLM player (PresentationViewController) with its bottom bar shown, as on the device after a tap on the bottom edge.
  * The snapshot keeps only each presentation's first-page image, so page 1 is real and the other pages are labelled stand-ins.
@@ -19,13 +24,13 @@ export default function ContentViewer({ card, onClose }: { card: PublishedConten
   return (
     <div className="studio-ipad-content-viewer">
       <div className="studio-ipad-content-viewer-stage">
-        {page === 0 && card.thumbnail ? (
-          <img src={card.thumbnail} alt="" />
+        {pageImage(card, page) ? (
+          <img src={pageImage(card, page)!} alt="" />
         ) : (
           <div className="studio-ipad-content-viewer-standin">
             <strong>{card.name}</strong>
             <span>Page {page + 1}</span>
-            <small>{page === 0 ? "No preview image is stored for this presentation." : "Studio keeps only the first page's image; the iPad renders every page."}</small>
+            <small>{page === 0 ? "No preview image is stored for this presentation." : "Studio has no stored image for this page; the iPad renders every page."}</small>
           </div>
         )}
         {paused && <div className="studio-ipad-content-viewer-paused">Session Time Paused</div>}
@@ -79,7 +84,7 @@ export default function ContentViewer({ card, onClose }: { card: PublishedConten
         <div className="studio-ipad-content-viewer-strip">
           {Array.from({ length: pages }, (_, i) => (
             <button key={i} type="button" className="studio-ipad-content-viewer-page" onClick={() => setPage(i)}>
-              <span className={`thumb${i === page ? " on" : ""}`}>{i === 0 && card.thumbnail ? <img src={card.thumbnail} alt="" /> : <em>Page {i + 1}</em>}</span>
+              <span className={`thumb${i === page ? " on" : ""}`}>{pageImage(card, i) ? <img src={pageImage(card, i)!} alt="" /> : <em>Page {i + 1}</em>}</span>
               <span className="num">{i + 1}</span>
             </button>
           ))}

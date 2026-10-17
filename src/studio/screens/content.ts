@@ -25,6 +25,8 @@ export interface PublishedContentCard {
   shareable: boolean;
   /** Downscaled first-page image as a data URL; undefined = the #E5E5E5 placeholder. */
   thumbnail?: string;
+  /** Images of later pages (index 0 = page 2), rendered read-only from the page files; a missing entry shows a stand-in. */
+  pageThumbnails?: (string | null)[];
 }
 
 export interface PublishedContentSection {
@@ -48,6 +50,8 @@ export interface PublishedContent {
 
 const DEFAULT_SCOPE = "Status = 'Active' AND (DeactivationDate = NULL OR DeactivationDate >= TODAY)";
 const THUMBNAIL_CARDS = 12;
+/** Later pages rendered per PDF presentation (the viewer shows stand-ins past this). */
+const PAGE_THUMBNAILS = 5;
 /** Larger files keep the placeholder: the whole file is downloaded to draw one page. */
 const THUMBNAIL_MAX_BYTES = 25 << 20;
 
@@ -157,6 +161,7 @@ export async function collectContent(ctx: ScreenContext): Promise<PublishedConte
   const [topics, canCreate] = await Promise.all([topicsByPresentation(cards.map((c) => c.id), org), manage ? canCreatePresentation(userId, org) : false]);
 
   await addThumbnails(cards.slice(0, THUMBNAIL_CARDS), linked, org);
+  await addPageThumbnails(cards.slice(0, THUMBNAIL_CARDS), linked, org);
 
   return {
     columns: 4,
@@ -239,6 +244,59 @@ async function addThumbnails(cards: PublishedContentCard[], linked: Map<string, 
       } catch {
         /* placeholder */
       }
+    })
+  );
+}
+
+/** Later pages (2..PAGE_THUMBNAILS+1) of PDF presentations: each linked page names its own file and page number. ZIP pages have no prebuilt image, so they keep the stand-in. */
+async function addPageThumbnails(cards: PublishedContentCard[], linked: Map<string, Row[]>, org: string): Promise<void> {
+  const want = new Map<string, { doc: string; page: number }[]>();
+  for (const c of cards) {
+    if (c.type !== "PDF") continue;
+    const pages = (linked.get(c.id) ?? []).slice(1, 1 + PAGE_THUMBNAILS).map((l) => l.PresentationPage as Row | null | undefined);
+    want.set(
+      c.id,
+      pages.map((p) => ({ doc: p && ID_PATTERN.test(s(p.ContentDocumentId)) ? s(p.ContentDocumentId) : "", page: Number(p?.PageNumber) || 1 }))
+    );
+  }
+  const docs = [...new Set([...want.values()].flat().map((w) => w.doc).filter(Boolean))];
+  if (!docs.length) return;
+  let versions: Row[];
+  try {
+    versions = await query(`SELECT Id, ContentDocumentId, ContentSize FROM ContentVersion WHERE IsLatest = true AND ContentDocumentId IN (${inList(docs)})`, org);
+  } catch {
+    return;
+  }
+  const versionOf = new Map(versions.filter((v) => Number(v.ContentSize) <= THUMBNAIL_MAX_BYTES).map((v) => [s(v.ContentDocumentId), s(v.Id)]));
+  const cache = join(tmpdir(), "lsc-studio-content-thumbs");
+  mkdirSync(cache, { recursive: true });
+  await Promise.all(
+    cards.map(async (c) => {
+      const pages = want.get(c.id);
+      if (!pages?.length) return;
+      const out: (string | null)[] = [];
+      for (const w of pages) {
+        const version = versionOf.get(w.doc);
+        if (!version || !/^068[a-zA-Z0-9]{12,15}$/.test(version)) {
+          out.push(null);
+          continue;
+        }
+        const file = join(cache, `${createHash("sha1").update(`${version}:${c.type}:${w.page}`).digest("hex")}.jpg`);
+        try {
+          if (!existsSync(file)) {
+            const bytes = await renderThumbnail(version, c.type, w.page, org);
+            if (!bytes) {
+              out.push(null);
+              continue;
+            }
+            writeFileSync(file, bytes);
+          }
+          out.push(`data:image/jpeg;base64,${readFileSync(file).toString("base64")}`);
+        } catch {
+          out.push(null);
+        }
+      }
+      if (out.some(Boolean)) c.pageThumbnails = out;
     })
   );
 }
