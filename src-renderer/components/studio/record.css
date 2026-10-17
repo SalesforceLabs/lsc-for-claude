@@ -789,7 +789,7 @@
   align-items: center;
   gap: 16px;
   height: 38px;
-  margin-bottom: 15px;
+  margin-bottom: 0;
 }
 .studio-ipad-rec-act-bar .today {
   flex: 1;
@@ -811,7 +811,7 @@
   color: #0250d9;
 }
 .studio-ipad-rec-act-group {
-  margin-top: 32px;
+  margin-top: 30px;
 }
 .studio-ipad-rec-act-month {
   display: flex;
@@ -830,7 +830,7 @@
   position: relative;
   display: flex;
   align-items: flex-start;
-  min-height: 74px;
+  min-height: 72px;
   margin-top: 9px;
 }
 .studio-ipad-rec-act-item .chev {
@@ -863,11 +863,12 @@
   color: #181818;
 }
 .studio-ipad-rec-act-item .l {
-  margin-top: -2px;
+  margin-top: 2px;
   font-size: 12px;
   color: #0250d9;
 }
 .studio-ipad-rec-act-item .when {
+  margin-top: 3px;
   font-size: 12px;
   color: #5c5c5c;
 }
@@ -965,4 +966,8 @@
   font-size: 16px;
   line-height: 40px;
   color: #2e2e2e;
+}
+
+.studio-ipad-rec-act-bar + .studio-ipad-rec-act-group {
+  margin-top: 42px;
 }
