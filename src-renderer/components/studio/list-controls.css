@@ -32,3 +32,6 @@
 
 /* UISearchTextField with text: a clear button after the microphone (device-search-lisa.png), and the chip row hides. */
 .studio-ipad-searchfield-clear { display: inline-flex; flex: none; margin-left: 5px; padding: 0; border: none; background: none; color: #5c5c5c; cursor: pointer; }
+.studio-ipad-lv-search .studio-ipad-mic { flex: none; }
+.studio-ipad-searchfield:has(.studio-ipad-searchfield-clear) { gap: 5px; padding-right: 9px; }
+.studio-ipad-lv-search:has(.studio-ipad-searchfield-clear) { margin-bottom: 4px; }
