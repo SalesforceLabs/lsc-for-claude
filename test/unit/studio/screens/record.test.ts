@@ -57,7 +57,7 @@ describe("layout math", () => {
     expect(w).toEqual([590, 590]);
   });
   it("grid widths add 50 then share the rest up to max", () => {
-    expect(gridWidths([{ title: "T", cells: ["x"] }, { title: "U", cells: [] }], 300, () => 10)).toEqual([150, 150]);
+    expect(gridWidths([{ title: "T", cells: ["x"] }, { title: "U", cells: [] }], 300, () => 10)).toEqual([160, 140]);
   });
 });
 
@@ -82,6 +82,6 @@ describe("detail-panel dates", () => {
 
 describe("gridWidths (iOS GridLayout)", () => {
   it("sizes a column by its longest string by character count", () => {
-    expect(gridWidths([{ title: "ab", cells: ["abcdef", "xy"] }], 0, (t) => t.length * 10)).toEqual([110]);
+    expect(gridWidths([{ title: "ab", cells: ["abcdef", "xy"] }], 0, (t) => t.length * 10)).toEqual([134]);
   });
 });

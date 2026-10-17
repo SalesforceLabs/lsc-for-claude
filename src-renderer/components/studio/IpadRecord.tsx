@@ -42,15 +42,24 @@ export function highlightWidths(cells: { label: string; value: string }[], measu
  * GenericRelatedListViewController.GridLayout.calculateWidths: each column fits its longest string
  * plus padding; spare room up to `max` is shared evenly.
  */
-export function gridWidths(columns: { title: string; cells: string[] }[], max: number, measure: (t: string) => number = (t) => textWidth(t, 14, 400)): number[] {
-  // The longest string by character count (first line of each value), measured at 14pt, plus 16*2 + 15 + 3 of padding.
-  const widths = columns.map((c) => {
+export function gridWidths(
+  columns: { title: string; cells: string[] }[],
+  max: number,
+  measure: (t: string, header: boolean) => number = (t, h) => textWidth(t, 17, h ? 500 : 400)
+): number[] {
+  // The longest string by character count (first line of each value) sets a column, plus 16*2 + 15 + 3 of padding (+4: UILabel measures that much wider than canvas, measured).
+  // The device renders suggestedAPFont(14) at 17pt here. The first column also reserves its sort icon (+20, measured).
+  const widths = columns.map((c, k) => {
     let longest = c.title;
+    let header = true;
     for (const x of c.cells) {
       const line = x.split(/\r?\n/)[0] ?? "";
-      if (line.length > longest.length) longest = line;
+      if (line.length > longest.length) {
+        longest = line;
+        header = false;
+      }
     }
-    return (longest ? measure(longest) : 100 - 50) + 50;
+    return (longest ? measure(longest, header) : 50) + 54 + (k === 0 ? 20 : 0);
   });
   const total = widths.reduce((a, b) => a + b, 0);
   return total <= max && widths.length ? widths.map((w) => w + (max - total) / widths.length) : widths;
