@@ -38,9 +38,9 @@ export const TODO_STATUSES = ["Completed", "In Progress", "Not Started", "Skippe
 /** Key of a drill-in toggle in the hidden set. */
 export const subKey = (group: "visit" | "todo", name: string) => `${group}:${name}`;
 
-/** A visit's variant: submitted ones are Completed; the preview does not collect Confirmed. */
-export function visitVariant(s: Pick<CalendarSegment, "done">): string {
-  return s.done ? "Completed Visit" : "Planned Visit";
+/** A visit's variant (CalendarEventsFiltersQueryComposer): submitted is Completed, otherwise IsConfirmed is Confirmed, the rest Planned. */
+export function visitVariant(s: Pick<CalendarSegment, "done" | "confirmed">): string {
+  return s.done ? "Completed Visit" : s.confirmed ? "Confirmed Visit" : "Planned Visit";
 }
 
 /** CalendarEventFilterItem.getSelectedItemsName: "All", "None", or the names that are on. */
@@ -51,7 +51,12 @@ export function subDetail(group: "visit" | "todo", names: string[], hiddenSub: R
 
 export function filterSegments(segments: CalendarSegment[], hidden: ReadonlySet<CalendarSegment["kind"]>, hiddenSub: ReadonlySet<string> = new Set()): CalendarSegment[] {
   if (hidden.size === 0 && hiddenSub.size === 0) return segments;
-  return segments.filter((s) => !hidden.has(s.kind) && !(s.kind === "visit" && hiddenSub.has(subKey("visit", visitVariant(s)))));
+  return segments.filter(
+    (s) =>
+      !hidden.has(s.kind) &&
+      !(s.kind === "visit" && hiddenSub.has(subKey("visit", visitVariant(s)))) &&
+      !(s.kind === "todo" && s.status !== undefined && hiddenSub.has(subKey("todo", s.status)))
+  );
 }
 
 /** Type popover rows: All / HCO / HCP with "N Accounts". */

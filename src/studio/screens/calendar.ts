@@ -13,7 +13,7 @@ export interface CalendarDay {
   today: boolean;
 }
 
-export type CalendarEventKind = "visit" | "event" | "tot" | "holiday";
+export type CalendarEventKind = "visit" | "event" | "tot" | "holiday" | "todo";
 
 /** One event clipped to one day (a multi-day event gets one segment per day). */
 export interface CalendarSegment {
@@ -33,6 +33,10 @@ export interface CalendarSegment {
   faded?: boolean;
   /** Call submitted or completed (the tile is the completed colour). */
   done?: boolean;
+  /** ProviderVisit.IsConfirmed on a call that isn't submitted: the Filter Events "Confirmed Visit" toggle (PlannerFilterItemsFetcher / CalendarEventsFiltersQueryComposer). */
+  confirmed?: boolean;
+  /** An Assessment Task's Status as its picklist label ("Not Started"); the Filter Events drill-in toggles on it. */
+  status?: string;
   /** CalendarCallIconSymbol: the call's channel icon, or the event's. */
   icon?: CalendarIcon;
 }
@@ -57,6 +61,8 @@ export interface PublishedCalendar {
     timeFormat: string;
     firstDay: string;
     showLastVisit: boolean;
+    /** ProviderVisitSettings.SkipVisitPreviewScreenOnPlanner: tapping a visit opens its record instead of the preview card (CalendarCoordinator.didSelectStandardVisit). */
+    skipVisitPreview: boolean;
   };
   timeZone: string;
   locale: string;
@@ -81,6 +87,8 @@ export const EVENT_COLORS = {
   generalEvent: "#04e1cb",
   timeOffTerritory: "#feb9a5",
   holiday: "#fedfd0",
+  // CalendarEventMetadataImplementation.DefaultColorHex.toDoBackground = colorPaletteYellow70.
+  toDo: "#e4a201",
 };
 
 /** Local y/m/d/h/m/s and weekday of an instant in `timeZone`. */
@@ -173,6 +181,9 @@ export function textColorFor(background: string): string {
   return `#${[16, 8, 0].map((s) => ch(s).toString(16).padStart(2, "0")).join("")}`;
 }
 
+/** AssessmentTask.Status picklist API value to its label ("NotStarted" becomes "Not Started"), as Filter Events lists them. */
+export const statusLabel = (v: string): string => v.replace(/([a-z])([A-Z])/g, "$1 $2");
+
 const hex = (v: unknown): string | undefined => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v.trim()) ? v.trim().toLowerCase() : undefined);
 const text = (v: unknown): string => (typeof v === "string" ? v : v == null ? "" : String(v));
 const chunks = <T,>(xs: T[], n: number): T[][] => Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => xs.slice(i * n, i * n + n));
@@ -210,11 +221,13 @@ export async function collectCalendar(ctx: ScreenContext): Promise<PublishedCale
     general: hex(planner.ColorGeneralEvent) ?? EVENT_COLORS.generalEvent,
     tot: hex(planner.ColorTimeOffTerritory) ?? EVENT_COLORS.timeOffTerritory,
     holiday: hex(planner.ColorHolidayEvent) ?? EVENT_COLORS.holiday,
+    todo: hex(planner.ColorToDo) ?? EVENT_COLORS.toDo,
   };
+  const visitSettings = (await ctx.config(["ProviderVisitSettings"]).catch(() => ({}) as Record<string, Row>)).ProviderVisitSettings;
 
   const [accounts, segments] = await Promise.all([
     collectAccounts(ctx, planner.PlannerShowLastCallDate !== false),
-    collectSegments(ctx, { days, bounds, weekFrom, weekTo, territories, colors }),
+    collectSegments(ctx, { days, bounds, weekFrom, weekTo, territories, colors, callConfirmation: planner.CallConfirmation === true }),
   ]);
   return {
     settings: {
@@ -223,6 +236,7 @@ export async function collectCalendar(ctx: ScreenContext): Promise<PublishedCale
       timeFormat: text(planner.TimeFormat) || "h:mm a",
       firstDay,
       showLastVisit: planner.PlannerShowLastCallDate !== false,
+      skipVisitPreview: visitSettings?.SkipVisitPreviewScreenOnPlanner === true,
     },
     timeZone: format.timeZone,
     locale: format.locale,
@@ -266,7 +280,9 @@ interface WeekArgs {
   weekFrom: number;
   weekTo: number;
   territories: string[];
-  colors: { planned: string; confirmed: string; completed: string; general: string; tot: string; holiday: string };
+  /** The admin's "call confirmation" switch: only then does a confirmed call draw in the confirmed colour (CalendarEventsColorSchema.getPlannedCallBackgroundColor). */
+  callConfirmation: boolean;
+  colors: { planned: string; confirmed: string; completed: string; general: string; tot: string; holiday: string; todo: string };
 }
 
 /** The window's events within each table's sync scope (CalendarEventsDefaultQueryComposer), clipped per day. */
@@ -275,7 +291,7 @@ async function collectSegments(ctx: ScreenContext, a: WeekArgs): Promise<Calenda
   const from = soqlTime(a.weekFrom);
   const to = soqlTime(a.weekTo);
   const out: CalendarSegment[] = [];
-  const add = (id: string, kind: CalendarEventKind, title: string, startMs: number, endMs: number, allDay: boolean, background: string, extra: { done?: boolean; icon?: CalendarIcon } = {}) => {
+  const add = (id: string, kind: CalendarEventKind, title: string, startMs: number, endMs: number, allDay: boolean, background: string, extra: { done?: boolean; confirmed?: boolean; status?: string; icon?: CalendarIcon } = {}) => {
     for (const c of clipToDays(startMs, endMs, a.days, format.timeZone, a.bounds)) {
       out.push({ id, kind, title, allDay, background, text: textColorFor(background), ...extra, ...c });
     }
@@ -298,7 +314,7 @@ async function collectSegments(ctx: ScreenContext, a: WeekArgs): Promise<Calenda
   };
   // CalendarEventsColorSchema inputs: the call's own record says whether it was submitted, and by which channel.
   const providerVisits = async (ids: string[]): Promise<Map<string, Row>> => {
-    const rows = await inBatches(ids, (part) => query(`SELECT VisitId, Status, VisitSubmitDateTime, Channel FROM ProviderVisit WHERE VisitId IN (${inList(part)})`, org).catch(() => [] as Row[]));
+    const rows = await inBatches(ids, (part) => query(`SELECT VisitId, Status, VisitSubmitDateTime, Channel, IsConfirmed FROM ProviderVisit WHERE VisitId IN (${inList(part)})`, org).catch(() => [] as Row[]));
     return new Map(rows.map((r) => [text(r.VisitId), r]));
   };
 
@@ -318,7 +334,8 @@ async function collectSegments(ctx: ScreenContext, a: WeekArgs): Promise<Calenda
         const pv = pvs.get(text(r.Id));
         const done = Boolean(pv?.VisitSubmitDateTime) || text(pv?.Status).toLowerCase() === "completed" || text(r.Status).toLowerCase() === "completed";
         const title = text((r.Account as Row | null)?.Name) || text(r.Name);
-        add(text(r.Id), "visit", title, Date.parse(text(r.PlannedVisitStartTime)), Date.parse(text(r.PlannedVisitEndTime)), false, done ? a.colors.completed : a.colors.planned, { done, icon: channelIcon(text(pv?.Channel)) });
+        const confirmed = !done && pv?.IsConfirmed === true;
+        add(text(r.Id), "visit", title, Date.parse(text(r.PlannedVisitStartTime)), Date.parse(text(r.PlannedVisitEndTime)), false, done ? a.colors.completed : confirmed && a.callConfirmation ? a.colors.confirmed : a.colors.planned, { done, ...(confirmed ? { confirmed } : {}), icon: channelIcon(text(pv?.Channel)) });
       }
     })(),
     (async () => {
@@ -343,6 +360,23 @@ async function collectSegments(ctx: ScreenContext, a: WeekArgs): Promise<Calenda
         org
       ).catch(() => [] as Row[]);
       for (const r of rows) add(text(r.Id), "tot", text(r.Name), Date.parse(text(r.StartDate)), Date.parse(text(r.EndDate)), false, a.colors.tot, { icon: "clipboard" });
+    })(),
+    (async () => {
+      // selectStatementForToDoEvent: AssessmentTask with DueDate in range and IsVisibleInPlanner, drawn all-day on the due date.
+      const w = scoped("AssessmentTask");
+      if (w === null) return;
+      const rows = await query(
+        `SELECT Id, Name, Status, DueDate FROM AssessmentTask
+         WHERE IsVisibleInPlanner = true AND DueDate >= ${a.days[0].date} AND DueDate <= ${a.days[a.days.length - 1].date}${w} LIMIT 2000`,
+        org
+      ).catch(() => [] as Row[]);
+      const ok = await readable(rows.map((r) => text(r.Id)));
+      for (const r of rows.filter((r) => ok.has(text(r.Id)))) {
+        const [y, m, d] = text(r.DueDate).slice(0, 10).split("-").map(Number);
+        if (!y) continue;
+        const start = zonedInstant(y, m, d, format.timeZone);
+        add(text(r.Id), "todo", text(r.Name), start, start + 1000, true, a.colors.todo, { status: statusLabel(text(r.Status)), icon: "clipboard" });
+      }
     })(),
     (async () => {
       const w = scoped("Holiday");
