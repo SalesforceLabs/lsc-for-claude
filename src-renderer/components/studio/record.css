@@ -320,7 +320,7 @@
 }
 
 .studio-ipad-rec-rl-title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   line-height: 30px;
   color: #2e2e2e;
@@ -455,7 +455,7 @@
   position: absolute;
   left: 19px;
   top: 38px;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   line-height: 24px;
   color: #2e2e2e;
@@ -465,14 +465,14 @@
   position: absolute;
   left: 0;
   right: 0;
-  top: 101px;
+  top: 103px;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 .studio-ipad-rec-exp-none {
-  margin-top: 52px;
+  margin-top: 16px;
   font-size: 20px;
   font-weight: 600;
   color: #2e2e2e;
@@ -494,21 +494,22 @@
 }
 
 .studio-ipad-rec-exp-total-value {
-  font-size: 24px;
+  font-size: 21.5px;
   font-weight: 600;
   color: #2e2e2e;
 }
 
 /* Inline LWC (lightning-card): label 0.75rem #706e6b, value 0.875rem #181818. */
 .studio-ipad-rec-card.inline {
-  padding: 10px 16px 16px;
+  margin-top: 1px;
+  padding: 10px 7px 29px 16px;
   border-radius: 4px;
   box-shadow: 0 2px 2px rgba(0, 0, 0, 0.1);
   font-family: -apple-system, BlinkMacSystemFont, "Salesforce Sans", system-ui, sans-serif;
 }
 
 .studio-ipad-rec-inline-title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   line-height: 28px;
   color: #181818;
@@ -529,7 +530,7 @@
 }
 
 .studio-ipad-rec-inline-cell.half {
-  flex-basis: 50%;
+  flex: 0 0 580px;
 }
 
 .studio-ipad-rec-inline-cell p {
@@ -615,4 +616,15 @@
 /* The Accounts screen's cards open their record. */
 .studio-ipad-accounts-card {
   cursor: pointer;
+}
+
+/* Person account: a person badge over the building glyph's lower right. */
+.studio-ipad-rec-icon {
+  position: relative;
+}
+
+.studio-ipad-rec-person {
+  position: absolute;
+  right: 4px;
+  bottom: 5px;
 }

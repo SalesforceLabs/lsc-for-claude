@@ -194,11 +194,19 @@ function Header({ snapshot, rec, object, compact }: { snapshot: PublishedIpad; r
     .map((c) => ({ spec: c.spec, label: c.spec.label, value: valueOf(rec, rec.object, c.spec) }));
   const widths = useMemo(() => highlightWidths(cells.map((c) => ({ label: c.label, value: c.value }))), [cells]);
   const theme = object?.theme;
+  // A person account (a PersonAccount layout) wears the building with a person badge.
+  const person = rec.object === "Account" && detailLayouts(snapshot, rec).some((l) => l.name.startsWith("PersonAccount-"));
   return (
     <>
       <div className="studio-ipad-rec-head">
         <span className="studio-ipad-rec-icon" style={theme ? { background: theme.color } : undefined} aria-hidden="true">
           {theme && !broken ? <img src={theme.iconUrl} alt="" onError={() => setBroken(true)} /> : (object?.label ?? rec.object).slice(0, 1)}
+          {person && theme && !broken && (
+            <svg className="studio-ipad-rec-person" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+              <circle cx="12" cy="8" r="4" fill="#fff" />
+              <path d="M4.5 20c0-4.2 3.4-6.5 7.5-6.5s7.5 2.3 7.5 6.5z" fill="#fff" />
+            </svg>
+          )}
         </span>
         <div className="studio-ipad-rec-eyebrow">{object?.label ?? rec.object}</div>
         <div className="studio-ipad-rec-title">{rec.title || rec.id}</div>
@@ -298,9 +306,18 @@ const LINK_COLUMNS = new Set(["email", "url", "phone"]);
 /** Files (ContentDocument) carry no theme; the device draws a grey circle with a document. */
 function FileGlyph() {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-      <path d="M5 2h7l4 4v12H5z" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M12 2v4h4" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round" />
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+      <path d="M8 3h6l4 4v9H8z" fill="none" stroke="#fff" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="M5 6v13h9" fill="none" stroke="#fff" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** The app draws the work-plan-selection-rule theme icon (Inquiry) as a wrench. */
+function WrenchGlyph() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+      <path d="M14.5 3a4.5 4.5 0 0 0-4.2 6.1L3.6 15.8a1.7 1.7 0 0 0 2.4 2.4l6.7-6.7A4.5 4.5 0 0 0 19 7.5l-2.8 2.8-2.5-.5-.5-2.5L16 4.5A4.5 4.5 0 0 0 14.5 3z" fill="#fff" />
     </svg>
   );
 }
@@ -318,7 +335,7 @@ function RelatedCard({ snapshot, related, editable = false }: { snapshot: Publis
     <div className="studio-ipad-rec-card related">
       <div className="studio-ipad-rec-rl-head">
         <span className="studio-ipad-rec-rl-icon" style={{ background: theme?.color ?? "#939393" }} aria-hidden="true">
-          {file ? <FileGlyph /> : theme?.iconUrl && !broken ? <img src={theme.iconUrl} alt="" onError={() => setBroken(true)} /> : related.label.slice(0, 1)}
+          {file ? <FileGlyph /> : /work_plan_selection_rule/.test(theme?.iconUrl ?? "") ? <WrenchGlyph /> : theme?.iconUrl && !broken ? <img src={theme.iconUrl} alt="" onError={() => setBroken(true)} /> : related.label.slice(0, 1)}
         </span>
         <span className="studio-ipad-rec-rl-title">
           {related.label} ({related.count})
@@ -389,7 +406,7 @@ function ExpensesCard({ rec }: { rec: PublishedRecordData }) {
       <div className="studio-ipad-rec-exp-title">Expenses ({e.count})</div>
       {e.count === 0 && (
         <div className="studio-ipad-rec-exp-empty">
-          <EmptyArt height={156} />
+          <EmptyArt height={190} />
           <div className="studio-ipad-rec-exp-none">No data available</div>
         </div>
       )}
