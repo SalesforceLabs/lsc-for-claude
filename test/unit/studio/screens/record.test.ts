@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actionLabel, formatValue, isEditable, menuActions, parseInlineCard, relatedKey } from "../../../../src/studio/screens/record.js";
+import { actionLabel, formatValue, isEditable, isFieldReadable, menuActions, parseInlineCard, relatedKey } from "../../../../src/studio/screens/record.js";
 import { gridWidths, highlightWidths, menuActions as rendererMenuActions } from "../../../../src-renderer/components/studio/IpadRecord";
 
 const fmt = { timeZone: "UTC", locale: "en-US" };
@@ -60,4 +60,15 @@ describe("layout math", () => {
   it("grid widths add 50 then share the rest up to max", () => {
     expect(gridWidths([{ title: "T", cells: ["x"] }, { title: "U", cells: [] }], 300, () => 10)).toEqual([150, 150]);
   });
+});
+
+describe("isFieldReadable", () => {
+  const perms = new Map([["secret__c", false], ["open__c", true]]);
+  it("follows the merged permission row", () => {
+    expect(isFieldReadable({ name: "Open__c", permissionable: true }, perms)).toBe(true);
+    expect(isFieldReadable({ name: "Secret__c", permissionable: true }, perms)).toBe(false);
+  });
+  it("treats a permissionable field with no row as unreadable", () => expect(isFieldReadable({ name: "RecordType_Name__c", permissionable: true }, perms)).toBe(false));
+  it("keeps non-permissionable fields (Name, Id, required) with no row", () => expect(isFieldReadable({ name: "Name", permissionable: false }, perms)).toBe(true));
+  it("filters nothing without permissions data", () => expect(isFieldReadable({ name: "X__c", permissionable: true }, null)).toBe(true));
 });

@@ -34,7 +34,8 @@
   overflow: hidden;
 }
 
-.studio-ipad-rec-icon img {
+.studio-ipad-rec-icon img,
+.studio-ipad-rec-icon svg {
   width: 100%;
   height: 100%;
 }
@@ -314,7 +315,8 @@
   overflow: hidden;
 }
 
-.studio-ipad-rec-rl-icon img {
+.studio-ipad-rec-rl-icon img,
+.studio-ipad-rec-rl-icon svg {
   width: 100%;
   height: 100%;
 }
@@ -618,13 +620,3 @@
   cursor: pointer;
 }
 
-/* Person account: a person badge over the building glyph's lower right. */
-.studio-ipad-rec-icon {
-  position: relative;
-}
-
-.studio-ipad-rec-person {
-  position: absolute;
-  right: 4px;
-  bottom: 5px;
-}

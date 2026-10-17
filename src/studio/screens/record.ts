@@ -260,13 +260,53 @@ async function fetchRows(ctx: ScreenContext, object: string, where: string, extr
 
 const salutationLabel = (d: Describe, salutation: string) => str(arr(d.fields.get("salutation")?.picklistValues).find((p) => str(p.value) === salutation)?.label) || salutation;
 
-function fieldMeta(fetched: Fetched): Record<string, PublishedFieldMeta> {
+/**
+ * Whether the viewer can read a field — the app's `readable` layout-item flag, which it
+ * uses to drop layout items (LSCRecordPageMetadataResolver.detailSections). `perms` maps a
+ * lowercased field API name to the viewer's merged PermissionsRead; a field with no row is
+ * readable only when it is not permissionable (Name, Id, system and required fields).
+ * Without permissions data nothing is filtered.
+ */
+export function isFieldReadable(field: Row, perms: Map<string, boolean> | null | undefined): boolean {
+  if (!perms) return true;
+  const row = perms.get(str(field.name).toLowerCase());
+  if (row !== undefined) return row;
+  return field.permissionable === false;
+}
+
+/** The viewer's merged field read permissions for an object (profile, permission sets and groups); null when the org won't say. */
+async function fieldReadPermissions(ctx: ScreenContext, object: string): Promise<Map<string, boolean> | null> {
+  try {
+    const rows = await query(
+      `SELECT Field, PermissionsRead FROM FieldPermissions WHERE SobjectType IN (${object === "Account" ? "'Account', 'Contact'" : `'${object}'`})
+       AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE AssigneeId = '${ctx.userId}')`,
+      ctx.org
+    );
+    const out = new Map<string, boolean>();
+    const set = (name: string, read: boolean) => out.set(name, out.get(name) === true || read);
+    for (const r of rows) {
+      const [sobject, field = ""] = str(r.Field).split(".");
+      const read = r.PermissionsRead === true;
+      if (!field) continue;
+      if (sobject === "Contact") {
+        // A person account's fields are the Contact's, named Person<Field> (custom: __pc).
+        set(field.endsWith("__c") ? `${field.slice(0, -3)}__pc`.toLowerCase() : `person${field}`.toLowerCase(), read);
+      } else set(field.toLowerCase(), read);
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
+
+function fieldMeta(fetched: Fetched, perms?: Map<string, boolean> | null): Record<string, PublishedFieldMeta> {
   const out: Record<string, PublishedFieldMeta> = {};
   for (const [name, spec] of fetched.specs) {
     const f = fetched.describe.fields.get(name.toLowerCase());
     if (!f) continue;
     const meta: PublishedFieldMeta = { label: str(f.label) || spec.label };
     if ((f.compoundFieldName && str(f.name) !== str(f.compoundFieldName) && str(f.name) !== fetched.describe.nameField) || str(f.type) === "address" || str(f.type) === "location") meta.hidden = true;
+    if (!isFieldReadable(f, perms)) meta.hidden = true;
     if (str(f.inlineHelpText)) meta.help = true;
     out[name.toLowerCase()] = meta;
   }
@@ -484,8 +524,9 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
         linkField = str(arr([...(pd?.fields.values() ?? [])]).find((f) => arr(f.referenceTo).map(str).includes(object) && f.nameField !== true)?.name);
         if (pd && linkField) linkedFetch = await fetchRows(ctx, partner, `${linkField} IN (${inList(ids)})`, [linkField, "Status"].filter((p) => p !== "Status" || pd.fields.has("status")), inlineFor(partner));
       }
-      fields[object] = { ...fields[object], ...fieldMeta(main) };
-      if (linkedFetch) fields[partner] = { ...fields[partner], ...fieldMeta(linkedFetch) };
+      const [mainPerms, partnerPerms] = await Promise.all([fieldReadPermissions(ctx, object), linkedFetch ? fieldReadPermissions(ctx, partner) : null]);
+      fields[object] = { ...fields[object], ...fieldMeta(main, mainPerms) };
+      if (linkedFetch) fields[partner] = { ...fields[partner], ...fieldMeta(linkedFetch, partnerPerms) };
       const unsynced = await unsyncedIds(ctx, linkedFetch ? [main, linkedFetch] : [main]);
       const rel = await relatedLists(ctx, object, ids, main.describe);
       const edit = new Map(access.map((a) => [str(a.RecordId), a.HasEditAccess === true]));
