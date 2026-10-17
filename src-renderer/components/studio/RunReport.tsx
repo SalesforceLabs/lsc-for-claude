@@ -130,11 +130,18 @@ function UserVolumes({ v }: { v: UserVolume }) {
         ) : (
           <span className="studio-picker-meta">
             {" "}
-            · {v.user.profileName} · {v.tableCount} tables · {v.territories.length}{" "}
-            {v.territories.length === 1 ? "territory" : "territories"} · {formatNumber(total)} records
+            · {v.user.profileName} · {v.tableCount} tables
+            {v.schemaSource ? ` (${v.schemaSource === "compiled" ? "compiled metadata schema" : "DB Schema records"})` : ""} ·{" "}
+            {v.territories.length} {v.territories.length === 1 ? "territory" : "territories"} · {formatNumber(total)} records
           </span>
         )}
       </button>
+      {open &&
+        v.schemaNotes?.map((n) => (
+          <div key={n} className="studio-perf-hint">
+            {n}
+          </div>
+        ))}
       {open && v.territories.map((t) => <TerritoryTables key={t.territory?.id ?? "none"} terr={t} />)}
     </div>
   );

@@ -13,6 +13,8 @@ import {
   renderVolumes,
   runAssessment,
 } from "../perf/assessment.js";
+import { createCompiledSchemaSource } from "../perf/compiled-schema.js";
+import { createDeviceSession } from "../perf/device/session.js";
 import { DEFAULT_TELEMETRY_DAYS, loadNfrProfile, parseNfrProfile } from "../perf/nfr.js";
 
 function querier(targetOrg: string): OrgQuerier {
@@ -20,6 +22,11 @@ function querier(targetOrg: string): OrgQuerier {
     soql: (q) => runSoqlQuery(q, targetOrg),
     tooling: (q) => runToolingQuery(q, targetOrg),
   };
+}
+
+/** Prefer each profile's compiled metadata archive for the table list; falls back to DB Schema records per user. */
+function compiledSchema(targetOrg: string) {
+  return createCompiledSchemaSource({ org: querier(targetOrg), getSession: () => createDeviceSession(targetOrg) });
 }
 
 function telemetryFields(targetOrg: string): () => Promise<Set<string>> {
@@ -77,6 +84,7 @@ export function register(server: McpServer) {
       try {
         const volumes = await profileUsers(querier(effectiveOrg), querier(countAsOrg || effectiveOrg), users, {
           territory,
+          compiledSchema: compiledSchema(effectiveOrg),
           ...(idsPerQuery ? { idsPerQuery } : {}),
         });
         let report = `# Predicted Mobile Sync Volume\n\n**Org:** ${effectiveOrg}${countAsOrg ? ` (counts as ${countAsOrg})` : ""}\n\n`;
@@ -155,7 +163,8 @@ export function register(server: McpServer) {
           effectiveOrg,
           querier(effectiveOrg),
           querier(countAsOrg || effectiveOrg),
-          telemetryFields(effectiveOrg)
+          telemetryFields(effectiveOrg),
+          { compiledSchema: compiledSchema(effectiveOrg) }
         );
         let report = renderAssessment(result, profile.telemetry?.days ?? DEFAULT_TELEMETRY_DAYS);
         if (outputPath) {

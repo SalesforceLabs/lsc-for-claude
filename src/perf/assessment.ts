@@ -35,11 +35,16 @@ import {
   overallStatus,
 } from "./nfr.js";
 import { DEFAULT_SELECT_COUNT, resolvePersonaUsers } from "./users.js";
+import { type CompiledSchemaSource, type SchemaSource, diffTables } from "./compiled-schema.js";
 
 export interface UserVolume {
   user: Omit<UserContext, "permissionSets"> & { permissionSetCount: number };
   tableCount: number;
   territories: TerritoryVolume[];
+  /** Where the table list came from: the compiled metadata archive, or the raw DB Schema records. */
+  schemaSource?: SchemaSource;
+  /** How the table list was derived, and why the compiled schema wasn't used when it wasn't. */
+  schemaNotes?: string[];
   error?: string;
 }
 
@@ -67,7 +72,13 @@ export async function profileUsers(
   configOrg: OrgQuerier,
   countOrg: OrgQuerier,
   userRefs: string[],
-  opts: { territory?: string; maxTerritories?: number; onStep?: StepHook } & Partial<ProfileOptions> = {}
+  opts: {
+    territory?: string;
+    maxTerritories?: number;
+    onStep?: StepHook;
+    /** Prefer the compiled metadata archive over DB Schema records; falls back per user. */
+    compiledSchema?: CompiledSchemaSource;
+  } & Partial<ProfileOptions> = {}
 ): Promise<UserVolume[]> {
   const options: ProfileOptions = { ...DEFAULT_PROFILE_OPTIONS, ...opts };
   opts.onStep?.("Reading DB Schema records");
@@ -90,7 +101,33 @@ export async function profileUsers(
       continue;
     }
 
-    const tables = selectApplicableTables(entries, user);
+    const dbSchemaTables = selectApplicableTables(entries, user);
+    let tables = dbSchemaTables;
+    let schemaSource: SchemaSource = "db-schema";
+    const schemaNotes: string[] = [];
+    if (opts.compiledSchema) {
+      opts.onStep?.(`Reading compiled metadata schema for ${user.username}`, at);
+      const compiled = await opts.compiledSchema.tablesFor(user);
+      if ("result" in compiled) {
+        tables = compiled.result.tables;
+        schemaSource = "compiled";
+        schemaNotes.push(...compiled.result.notes);
+        const diff = diffTables(tables, dbSchemaTables);
+        if (diff.differing.length + diff.onlyCompiled.length + diff.onlyDbSchema.length > 0) {
+          const list = (names: string[]) => names.slice(0, 8).join(", ") + (names.length > 8 ? ", …" : "");
+          const parts = [
+            diff.differing.length ? `${diff.differing.length} table(s) have a different WhereSoql (${list(diff.differing)})` : "",
+            diff.onlyCompiled.length ? `${diff.onlyCompiled.length} only in the compiled schema (${list(diff.onlyCompiled)})` : "",
+            diff.onlyDbSchema.length ? `${diff.onlyDbSchema.length} only in DB Schema records (${list(diff.onlyDbSchema)})` : "",
+          ].filter(Boolean);
+          schemaNotes.push(`Compiled schema vs DB Schema records: ${parts.join("; ")}.`);
+        } else {
+          schemaNotes.push("Compiled schema and DB Schema records agree on tables and WhereSoql.");
+        }
+      } else {
+        schemaNotes.push(`Used DB Schema records: compiled schema unavailable (${compiled.fallbackReason}).`);
+      }
+    }
     let territories: Array<{ id: string; name: string } | null> = user.territories;
     if (opts.territory) {
       const wanted = opts.territory.toLowerCase();
@@ -117,6 +154,7 @@ export async function profileUsers(
       user: { ...rest, permissionSetCount: permissionSets.size },
       tableCount: tables.length,
       territories: volumes,
+      ...(opts.compiledSchema ? { schemaSource, schemaNotes } : {}),
     });
   }
   opts.onStep?.("Checking object sharing");
@@ -212,7 +250,7 @@ export async function runAssessment(
   configOrg: OrgQuerier,
   countOrg: OrgQuerier,
   describeTelemetryFields: () => Promise<Set<string>>,
-  options: Partial<ProfileOptions> & { onStep?: StepHook } = {}
+  options: Partial<ProfileOptions> & { onStep?: StepHook; compiledSchema?: CompiledSchemaSource } = {}
 ): Promise<AssessmentResult> {
   const personas: PersonaResult[] = [];
   for (const [index, persona] of profile.personas.entries()) {
@@ -317,7 +355,10 @@ export function renderVolumes(volumes: UserVolume[], topTables = 15): string {
       out += `❌ ${v.error}\n\n`;
       continue;
     }
-    out += `- **Profile:** ${v.user.profileName}\n- **Permission sets:** ${v.user.permissionSetCount}\n- **DB Schema tables synced:** ${v.tableCount}\n- **Territories (active model):** ${v.user.territories.length || "none"}\n\n`;
+    const source = v.schemaSource === "compiled" ? "compiled metadata schema" : "DB Schema records";
+    out += `- **Profile:** ${v.user.profileName}\n- **Permission sets:** ${v.user.permissionSetCount}\n- **Tables synced:** ${v.tableCount} (from ${source})\n- **Territories (active model):** ${v.user.territories.length || "none"}\n\n`;
+    for (const note of v.schemaNotes ?? []) out += `- *Schema:* ${note}\n`;
+    if (v.schemaNotes?.length) out += "\n";
     for (const terr of v.territories) {
       out += `### ${terr.territory ? `Territory: ${terr.territory.name}` : "No territory"}\n\n`;
       out += `**Predicted records:** ${fmt(terr.totalRecords)} · **Estimated device SOQL requests:** ${fmt(terr.totalDeviceRequests)}\n\n`;
@@ -410,6 +451,6 @@ export function renderAssessment(result: AssessmentResult, days: number): string
     else out += `➖ No syncs recorded for these users in the last ${days} day(s).\n\n`;
   }
   out += `---\n\n**Legend:** ✅ pass · ⚠️ warn · ❌ fail · ℹ️ measured, no threshold in profile · ➖ no data\n\n`;
-  out += `**Method notes:** Predicted volumes replay each persona user's own DB Schema filters (their profile, permission sets, territories, and {USER.*} tags) with COUNT() queries as the connected user. Tables whose filter isn't scoped to the user are counted org-wide, which is exact for objects every user can read and an upper bound (flagged) where sharing is restricted. Device request counts follow the app's legacy visibility-pass chunking and are an estimate. Telemetry comes from real devices and reflects their hardware and networks.\n`;
+  out += `**Method notes:** Predicted volumes replay each persona user's own table filters — taken from the compiled mobile metadata schema in their profile's archive when available, otherwise from the DB Schema records (each user's source is listed above), and resolved against their profile, permission sets, territories, and {USER.*} tags — with COUNT() queries as the connected user. Tables whose filter isn't scoped to the user are counted org-wide, which is exact for objects every user can read and an upper bound (flagged) where sharing is restricted. Device request counts follow the app's legacy visibility-pass chunking and are an estimate. Telemetry comes from real devices and reflects their hardware and networks.\n`;
   return out;
 }

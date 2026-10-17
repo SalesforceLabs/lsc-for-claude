@@ -11,6 +11,8 @@ import { cachedDescribeSObject, runSoqlQuery, runToolingQuery } from "../salesfo
 import { runAssessment, type AssessmentResult, type StepProgress } from "../perf/assessment.js";
 import { DEFAULT_TELEMETRY_DAYS, type NfrProfile, type Persona } from "../perf/nfr.js";
 import type { OrgQuerier } from "../perf/sync-volume.js";
+import { createCompiledSchemaSource, type CompiledSchemaSource } from "../perf/compiled-schema.js";
+import { createDeviceSession } from "../perf/device/session.js";
 import { checkPlan, findHeaviestUsers, personaTerritories, type PerfUser, type PlanCheck } from "../perf/users.js";
 
 export type { PerfUser, PlanCheck } from "../perf/users.js";
@@ -36,6 +38,8 @@ export interface PerfJobStatus {
 export interface PerfDeps {
   querier: (org: string) => OrgQuerier;
   telemetryFields: (org: string) => () => Promise<Set<string>>;
+  /** Table lists from the compiled metadata archive; without it every user falls back to DB Schema records. */
+  compiledSchema?: (org: string, querier: OrgQuerier) => CompiledSchemaSource;
 }
 
 const defaultDeps: PerfDeps = {
@@ -47,6 +51,7 @@ const defaultDeps: PerfDeps = {
     const result = await cachedDescribeSObject("DeviceSyncSummary", org);
     return new Set(result.success ? (result.data?.fields ?? []).map((f) => f.name) : []);
   },
+  compiledSchema: (org, querier) => createCompiledSchemaSource({ org: querier, getSession: () => createDeviceSession(org) }),
 };
 
 interface PerfJob extends PerfJobStatus {
@@ -119,6 +124,7 @@ export function startPerfRun(
       job.step = step;
       if (progress) job.progress = progress;
     },
+    compiledSchema: deps.compiledSchema?.(org, querier),
   })
     .then((result) => {
       if (job.cancelled) {
