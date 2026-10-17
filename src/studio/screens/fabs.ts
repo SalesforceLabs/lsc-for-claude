@@ -4,10 +4,24 @@ import { inList, query, type Row } from "../helpers.js";
 import type { PublishedLayout, PublishedPage, PublishedComponent, SnapshotCore } from "../published.js";
 import type { ScreenContext } from "./context.js";
 
+/** What a custom action (or a layout's URL / App / LWC action) targets — enough to say what the app would open. */
+export interface PublishedFabAction {
+  /** Lower-cased ActionType: url, app, utterance, flow, lightningcomponent, … */
+  type: string;
+  /** ActionTarget: the URL, utterance, or component. */
+  target?: string;
+  /** TargetType: internal / inline / external. */
+  targetType?: string;
+  /** HideViewInBrowserAction: the in-app browser has no Safari button. */
+  hideBrowser?: boolean;
+}
+
 export interface PublishedFabItem {
   /** The action's API name, for the tooltip. */
   name: string;
   label: string;
+  /** Present on custom actions and layout URL / App / component actions. */
+  action?: PublishedFabAction;
 }
 
 export interface PublishedFabs {
@@ -83,6 +97,9 @@ export interface HomeCustomAction {
   masterLabel: string;
   entityType: string;
   actionType: string;
+  actionTarget?: string;
+  targetType?: string;
+  hideBrowser?: boolean;
 }
 
 /**
@@ -100,7 +117,11 @@ export function homeMenu(quick: HomeQuickAction[], custom: HomeCustomAction[], p
   const c = custom
     .filter((a) => a.entityType === "HomePage" && /^(url|utterance|app)$/i.test(a.actionType))
     .sort((a, b) => a.masterLabel.toLowerCase().localeCompare(b.masterLabel.toLowerCase()))
-    .map((a) => ({ name: a.masterLabel, label: a.masterLabel }));
+    .map((a) => ({
+      name: a.masterLabel,
+      label: a.masterLabel,
+      action: { type: a.actionType.toLowerCase(), target: a.actionTarget || undefined, targetType: a.targetType || undefined, hideBrowser: a.hideBrowser || undefined },
+    }));
   const seen = new Set<string>();
   return [...q, ...c].filter((i) => !seen.has(i.name) && !!seen.add(i.name));
 }
@@ -130,7 +151,7 @@ export function recordMenu(dynamic: string[] | undefined, items: LayoutActionIte
     .filter((i) => !/Account\.(AttendeeCall|ViewProfile)$/.test(i.name) && !/unlock$/i.test(i.name))
     .filter((i) => supportedAction(i.name) && KEEPS_TYPE.has(i.type.toLowerCase()))
     .filter((i) => !seen.has(actionKey(i.name)) && !!seen.add(actionKey(i.name)))
-    .map((i) => ({ name: i.name, label: i.label || actionTitle(i.name) || i.name }));
+    .map((i) => ({ name: i.name, label: i.label || actionTitle(i.name) || i.name, ...(i.type ? { action: { type: i.type.toLowerCase() } } : {}) }));
 }
 
 const walk = (cs: PublishedComponent[]): string[] | undefined => {
@@ -159,7 +180,7 @@ export function recordMenus(core: Pick<SnapshotCore, "objects" | "pages" | "layo
   return out;
 }
 
-const FIELD_COLUMNS = "FieldName, PicklistValue, TextValue, IntegerValue";
+const FIELD_COLUMNS = "FieldName, PicklistValue, TextValue, IntegerValue, HasBooleanValue, LongTextValue, UrlValue";
 
 async function configRecords(category: string, org: string): Promise<{ label: string; fields: Row }[]> {
   const records = await query(
@@ -170,7 +191,7 @@ async function configRecords(category: string, org: string): Promise<{ label: st
   const sub = (r: Row, rel: string): Row[] => ((r[rel] as { records?: Row[] } | null)?.records ?? []) as Row[];
   return records.map((r) => ({
     label: str(r.MasterLabel),
-    fields: Object.fromEntries(sub(r, "LifeSciConfigFieldValues").map((v) => [str(v.FieldName), v.PicklistValue ?? v.TextValue ?? v.IntegerValue ?? null])),
+    fields: Object.fromEntries(sub(r, "LifeSciConfigFieldValues").map((v) => [str(v.FieldName), v.PicklistValue ?? v.TextValue ?? v.LongTextValue ?? v.UrlValue ?? v.IntegerValue ?? v.HasBooleanValue ?? null])),
   }));
 }
 
@@ -189,7 +210,14 @@ export async function collectFabs(ctx: ScreenContext): Promise<PublishedFabs> {
         sortOrder: Number(r.fields.SortOrder ?? 0),
         profiles: str(r.fields.Profiles),
       })),
-      custom.map((r) => ({ masterLabel: r.label, entityType: str(r.fields.EntityType), actionType: str(r.fields.ActionType) })),
+      custom.map((r) => ({
+        masterLabel: r.label,
+        entityType: str(r.fields.EntityType),
+        actionType: str(r.fields.ActionType),
+        actionTarget: str(r.fields.ActionTarget),
+        targetType: str(r.fields.TargetType),
+        hideBrowser: str(r.fields.HideViewInBrowserAction).toLowerCase() === "true",
+      })),
       ctx.core.profile
     ),
     records: recordMenus(ctx.core),

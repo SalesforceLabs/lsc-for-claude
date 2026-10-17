@@ -70,6 +70,9 @@ export interface RecordFieldSpec {
   type: string;
   ref?: string[];
   picklist?: Record<string, string>;
+  /** The layout marks it Required / Readonly (create forms). */
+  required?: boolean;
+  readOnly?: boolean;
 }
 
 export interface PublishedLayout {

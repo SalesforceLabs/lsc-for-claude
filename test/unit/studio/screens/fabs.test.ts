@@ -90,6 +90,10 @@ describe("fabState", () => {
   it("shows Agentforce alone on Tableau", () => {
     expect(fabState({ ...base, kind: "tableau" })).toEqual({ astro: true, more: false });
   });
+  it("shows Agentforce alone on a flexipage tab (Pat Sim), whose ••• has no actions", () => {
+    expect(fabState({ ...base, kind: "flexiPage", menuCount: 0 })).toEqual({ astro: true, more: false });
+    expect(fabState({ ...base, kind: "flexiPage", menuCount: 0, agentforce: false })).toEqual({ astro: false, more: false });
+  });
   it("shows nothing on the other lists, Calendar, Intelligent Content, Reports, Search", () => {
     for (const kind of ["accounts", "calendar", "content", "reports", "recent", "visits", undefined]) expect(fabState({ ...base, kind })).toEqual({ astro: false, more: false });
   });

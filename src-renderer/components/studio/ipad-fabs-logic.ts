@@ -11,11 +11,13 @@ export interface FabState {
 /**
  * ••• is added only by SFFlexiPageViewController.setupQuickActions (Home and record pages) and hidden
  * when its action list is empty; the Agentforce AnimatedButton joins it there when LSCAgentforceCapability
- * is on, and stands alone on the Tableau screen (LSCTableauViewController.addAgentforceButton).
- * Calendar hides ••• (CalendarCoordinator.setQuickActionButtonHidden(true)); the other tabs add neither.
+ * is on (in viewDidLoad, so on every SFFlexiPageViewController: Home, record pages and flexipage tabs such
+ * as an LWC tab, whose ••• has no actions), and stands alone on the Tableau screen
+ * (LSCTableauViewController.addAgentforceButton). Calendar hides ••• (CalendarCoordinator.setQuickActionButtonHidden(true));
+ * the other tabs add neither.
  */
 export function fabState(screen: { kind: string | undefined; onRecord: boolean; menuCount: number; agentforce: boolean }): FabState {
-  const flexi = screen.onRecord || screen.kind === "home";
+  const flexi = screen.onRecord || screen.kind === "home" || screen.kind === "flexiPage";
   if (flexi) return { astro: screen.agentforce, more: screen.menuCount > 0 };
   if (screen.kind === "tableau") return { astro: screen.agentforce, more: false };
   return { astro: false, more: false };

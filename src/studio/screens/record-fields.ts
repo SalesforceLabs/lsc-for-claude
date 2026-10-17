@@ -12,12 +12,19 @@ export interface RecordFieldSpec {
   ref?: string[];
   /** Picklist value → label, when any label differs from its value. */
   picklist?: Record<string, string>;
+  /** The layout marks it Required (the create form's red asterisk). */
+  required?: boolean;
+  /** The layout marks it Readonly. */
+  readOnly?: boolean;
 }
 
 const str = (v: unknown): string => (typeof v === "string" ? v : v == null ? "" : String(v));
 
 export function recordFieldSpec(item: Row, label: string): RecordFieldSpec {
   const spec: RecordFieldSpec = { name: str(item.fullName) || str(item.field), label, type: str(item.type).toLowerCase() };
+  const behavior = str(item.behavior).toLowerCase();
+  if (behavior === "required") spec.required = true;
+  if (behavior === "readonly") spec.readOnly = true;
   if (Array.isArray(item.referenceTo) && item.referenceTo.length) spec.ref = item.referenceTo.map(str);
   const labels = (Array.isArray(item.picklistValues) ? item.picklistValues : []).filter((p): p is Row => !!p && typeof p === "object");
   const differing = labels.filter((p) => str(p.label) && str(p.label) !== str(p.value));

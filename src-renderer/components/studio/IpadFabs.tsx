@@ -3,6 +3,8 @@ import type { PublishedIpad, PublishedTab } from "./published-types";
 import { textWidth } from "./IpadRecord";
 import { fabState, menuLayout, MENU, recordFabItems } from "./ipad-fabs-logic";
 import type { PublishedFabItem } from "./screens/fabs-types";
+import IpadActionSheet from "./IpadActionSheets";
+import { AGENT_BUTTON, presentationFor, type Presentation } from "./ipad-fab-actions";
 import "./fabs.css";
 
 /** agent_astro.svg (OCEDemo/Assets.xcassets), template-tinted with the accent color. */
@@ -24,13 +26,13 @@ function AstroGlyph() {
 const ASTRO_LABEL = "Ask Agentforce";
 
 /** The Agentforce AnimatedButton: a 60pt circle that expands to show its label ~1s after it appears, then collapses (animateOnAppear / resetValues). */
-function Astro() {
+function Astro({ onOpen }: { onOpen: () => void }) {
   const labelWidth = Math.ceil(textWidth(ASTRO_LABEL, 17, 400));
   return (
-    <span className="studio-ipad-fab-astro" style={{ "--label-w": `${labelWidth}px` } as React.CSSProperties}>
+    <button type="button" className="studio-ipad-fab-astro" style={{ "--label-w": `${labelWidth}px` } as React.CSSProperties} onClick={onOpen} aria-label={ASTRO_LABEL}>
       <AstroGlyph />
       <span className="studio-ipad-fab-astro-label">{ASTRO_LABEL}</span>
-    </span>
+    </button>
   );
 }
 
@@ -44,15 +46,24 @@ function Dots() {
   );
 }
 
-/** VerticallyStackedQuickActionsViewController: a dim over the screen, the stacked action capsules, and the ••• turned into a white close button. The preview never runs an action — an item just closes the menu. */
-function Menu({ items, onClose }: { items: PublishedFabItem[]; onClose: () => void }) {
+/** VerticallyStackedQuickActionsViewController: a dim over the screen, the stacked action capsules, and the ••• turned into a white close button. An item closes the menu and opens what the app presents for it (IpadActionSheets); the preview never runs the action. */
+function Menu({ items, onClose, onPick }: { items: PublishedFabItem[]; onClose: () => void; onPick: (item: PublishedFabItem) => void }) {
   const { width, tops } = useMemo(() => menuLayout(items.map((i) => textWidth(i.label, 18, 600))), [items]);
   return (
     <>
       <div className="studio-ipad-fab-dim" onClick={onClose} />
       <div className="studio-ipad-fab-menu" onClick={onClose}>
         {items.map((a, i) => (
-          <span key={a.name} className="studio-ipad-fab-item" title={a.name} style={{ top: tops[i], width, height: MENU.height, animationDelay: `${(items.length - 1 - i) * 0.02}s` }}>
+          <span
+            key={a.name}
+            className="studio-ipad-fab-item"
+            title={a.name}
+            role="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPick(a);
+            }}
+            style={{ top: tops[i], width, height: MENU.height, animationDelay: `${(items.length - 1 - i) * 0.02}s` }}>
             {a.label}
           </span>
         ))}
@@ -68,10 +79,12 @@ function Menu({ items, onClose }: { items: PublishedFabItem[]; onClose: () => vo
 
 /**
  * The floating buttons over a screen: Agentforce and the ••• quick-action menu, where the app adds them
- * (see fabState). ••• toggles its menu; the preview never runs an action.
+ * (see fabState). ••• toggles its menu; a menu item or the Agentforce button opens a drawn copy of what
+ * the app presents (IpadActionSheets). The preview never saves or calls the org.
  */
 export default function IpadFabs({ snapshot, tab, record, agentforce }: { snapshot: PublishedIpad; tab: PublishedTab | undefined; record: string | null; agentforce: boolean }) {
   const [open, setOpen] = useState(false);
+  const [shown, setShown] = useState<Presentation | null>(null);
   const rec = record ? snapshot.records?.byId[record] : undefined;
   const fabs = snapshot.screens?.fabs;
   const items = rec ? recordFabItems(fabs, rec.object, rec.recordType ?? undefined) : tab?.kind === "home" && record === null ? (fabs?.home ?? []) : [];
@@ -80,14 +93,30 @@ export default function IpadFabs({ snapshot, tab, record, agentforce }: { snapsh
   return (
     <div key={`${tab?.fullName}:${record ?? ""}`} className="studio-ipad-fabs-layer">
       <div className="studio-ipad-fab-row">
-        {state.astro && <Astro />}
+        {state.astro && <Astro onOpen={() => setShown(AGENT_BUTTON)} />}
         {state.more && (
           <button type="button" className="studio-ipad-fab-more" onClick={() => setOpen(!open)} aria-label="More actions">
             <Dots />
           </button>
         )}
       </div>
-      {open && state.more && <Menu items={items} onClose={() => setOpen(false)} />}
+      {open && state.more && (
+        <Menu
+          items={items}
+          onClose={() => setOpen(false)}
+          onPick={(item) => {
+            setOpen(false);
+            setShown(presentationFor(item, { onRecord: !!rec }));
+          }}
+        />
+      )}
+      {shown && (
+        <IpadActionSheet
+          presentation={shown}
+          ctx={{ snapshot, record: rec && record ? { id: record, object: rec.object, title: rec.title } : null }}
+          onClose={() => setShown(null)}
+        />
+      )}
     </div>
   );
 }
