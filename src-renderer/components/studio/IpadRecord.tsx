@@ -266,12 +266,75 @@ const layoutObject = (name: string) => {
   return o === "PersonAccount" ? "Account" : o;
 };
 
-function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: PublishedRecordData }) {
+const READ_ONLY = new Set(["id", "formula", "autonumber", "rollup"]);
+const PICKLIST = new Set(["picklist", "multipicklist"]);
+const DATE = new Set(["date", "datetime"]);
+
+/** Edit mode: the sheet LSC Mobile opens from Edit. Inert here: Save writes nothing to the org. */
+function EditSheet({ snapshot, rec, onClose }: { snapshot: PublishedIpad; rec: PublishedRecordData; onClose: () => void }) {
   const layouts = detailLayouts(snapshot, rec);
   return (
+    <div className="studio-ipad-rec-sheet-scrim">
+      <div className="studio-ipad-rec-sheet" role="dialog" aria-label="Edit record">
+        <div className="studio-ipad-rec-sheet-bar">
+          <button type="button" className="cancel" onClick={onClose}>Cancel</button>
+          <div className="title">Edit {rec.title}</div>
+          <button type="button" className="save" disabled title="This preview never writes to the org">Save</button>
+        </div>
+        <div className="studio-ipad-rec-sheet-note">Preview only: on the iPad Save writes the record. Nothing is saved from here.</div>
+        <div className="studio-ipad-rec-sheet-body">
+          {layouts.map((layout, li) => {
+            const object = layoutObject(layout.name);
+            return layout.sections.map((s, si) => {
+              const cols = (s.fields ?? s.columns.map((col) => col.map((label) => ({ name: label, label, type: "" })))).map((col) => col.filter((f) => !metaOf(snapshot, object, f).hidden));
+              if (!cols.some((c) => c.length)) return null;
+              return (
+                <div key={`${li}.${si}`} className="studio-ipad-rec-sheet-sec">
+                  {s.label && <div className="studio-ipad-rec-sheet-sec-title">{s.label}</div>}
+                  <div className="studio-ipad-rec-sheet-cols">
+                    {cols.map((col, ci) => (
+                      <div key={ci} className="col">
+                        {col.map((f, fi) => {
+                          const meta = metaOf(snapshot, object, f);
+                          const v = valueOf(rec, object, f);
+                          const ro = READ_ONLY.has(f.type) || ("readOnly" in f && f.readOnly === true);
+                          return (
+                            <div key={fi} className="studio-ipad-rec-sheet-field">
+                              <div className="lbl">{meta.label}</div>
+                              {ro ? (
+                                <div className="ro">{v}</div>
+                              ) : (
+                                <div className={`inp${PICKLIST.has(f.type) ? " pick" : ""}`}>
+                                  <span className="v">{v}</span>
+                                  {PICKLIST.has(f.type) && <span className="ic">⌄</span>}
+                                  {DATE.has(f.type) && <span className="ic">▦</span>}
+                                  {LOOKUP.has(f.type) && <span className="ic">⌕</span>}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            });
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: PublishedRecordData }) {
+  const layouts = detailLayouts(snapshot, rec);
+  const [editing, setEditing] = useState(false);
+  return (
     <div className="studio-ipad-rec-card details">
+      {editing && <EditSheet snapshot={snapshot} rec={rec} onClose={() => setEditing(false)} />}
       {rec.editable && isVisit(rec) && (
-        <span className="studio-ipad-rec-pencil" title="Edit" aria-label="Edit">
+        <span className="studio-ipad-rec-pencil" title="Edit" aria-label="Edit" onClick={() => setEditing(true)}>
           <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
             <path d="M3 19l1-4L15 4l3 3L7 18z M13 6l3 3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
           </svg>
@@ -291,7 +354,7 @@ function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: Publishe
               {s.label && (
                 <div className="studio-ipad-rec-section-head">
                   <div className="studio-ipad-rec-section-title">{s.label}</div>
-                  {rec.editable && !isVisit(rec) && si === 0 && <span className="studio-ipad-rec-edit">Edit</span>}
+                  {rec.editable && !isVisit(rec) && si === 0 && <span className="studio-ipad-rec-edit" onClick={() => setEditing(true)}>Edit</span>}
                 </div>
               )}
               <div className="studio-ipad-rec-cols">
