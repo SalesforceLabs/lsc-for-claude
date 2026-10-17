@@ -135,6 +135,25 @@ export interface PublishedIpad {
   users: { id: string; name: string }[];
   /** Dashboards the pages' `embeddedDashboard` components show, by developer name. */
   dashboards: Record<string, PublishedDashboard>;
+  /** The viewer's custom settings that change what a native screen shows; absent without a viewer. */
+  settings?: PublishedSettings;
+  /** The Reports tab's tree as the viewer sees it (MultiReportsViewModel); absent without a Reports tab. */
+  reports?: PublishedReportItem[];
+}
+
+export interface PublishedSettings {
+  /** ReportsAndDashboardsSync: ShowSalesChart adds "LSC Reports"; ShowSalesforceReports switches the tab to the report tree. */
+  reports: { salesChart: boolean; salesforceReports: boolean };
+}
+
+/** MultiReportItem: a top-level section, a subfolder, or a report. */
+export interface PublishedReportItem {
+  kind: "section" | "folder" | "report";
+  title: string;
+  description?: string;
+  /** MultiReportViewFormat: summary and tabular reports open natively, the rest on the web. */
+  native?: boolean;
+  children: PublishedReportItem[];
 }
 
 /** A Lightning dashboard as `embeddedDashboard` lays it out: its describe's grid and component titles. */
@@ -873,6 +892,39 @@ export function buildSnapshot(
   return { profile: meta.profile, cache: meta.cache, tabs, hiddenTabs: hidden, home, objects, layouts, pages, compactLayouts, dashboards, notes };
 }
 
+/**
+ * MultiReportsViewModel.fetchData: "LSC Reports" (Sales Chart) first, then
+ * unfiled reports, root folders with their reports and subfolders, and the
+ * "Private Reports" / "Public Reports" pseudo-folders — each level sorted by
+ * title. Reports join folders by folder name, as the app does.
+ */
+export function buildReportTree(folders: Row[], reports: Row[], salesChart: boolean): PublishedReportItem[] {
+  const byTitle = (a: PublishedReportItem, b: PublishedReportItem) => (a.title < b.title ? -1 : a.title > b.title ? 1 : 0);
+  const report = (r: Row): PublishedReportItem => {
+    const format = str(r.Format).toLowerCase();
+    return { kind: "report", title: str(r.Name), description: str(r.Description) || undefined, native: format.includes("summary") || format.includes("tabular"), children: [] };
+  };
+  const build = (f: Row, kind: "section" | "folder"): PublishedReportItem => ({
+    kind,
+    title: str(f.Name),
+    children: [
+      ...reports.filter((r) => str(r.FolderName) === str(f.Name)).map(report),
+      ...folders.filter((c) => str(c.ParentId) && str(c.ParentId) === str(f.Id)).map((c) => build(c, "folder")),
+    ].sort(byTitle),
+  });
+  const sections: PublishedReportItem[] = [
+    ...reports.filter((r) => !str(r.FolderName)).map(report),
+    ...folders.filter((f) => !str(f.ParentId) && str(f.Name)).map((f) => build(f, "section")),
+  ];
+  for (const name of ["Private Reports", "Public Reports"]) {
+    const children = reports.filter((r) => str(r.FolderName) === name).map(report);
+    if (children.length) sections.push({ kind: "section", title: name, children });
+  }
+  const out = sections.sort(byTitle);
+  if (salesChart) out.unshift({ kind: "section", title: "LSC Reports", children: [{ kind: "report", title: "Sales Chart", native: true, children: [] }] });
+  return out;
+}
+
 /** Developer names of the dashboards `embeddedDashboard` components show on the snapshot's pages. */
 export function dashboardNames(core: Pick<SnapshotCore, "home" | "pages">): string[] {
   const names = new Set<string>();
@@ -1284,6 +1336,38 @@ async function ancestors(sobject: string, parentField: string, fields: string, i
   return [...seen.values()];
 }
 
+/**
+ * The Folder and Report rows the viewer's device syncs (DB Schema without a
+ * filter, so the user's sharing decides): report folders they can read, the
+ * reports in them, the org's unfiled public reports, and their own private ones.
+ */
+async function viewerReports(userId: string, salesChart: boolean, org: string): Promise<PublishedReportItem[] | undefined> {
+  if (!ID_PATTERN.test(userId)) return undefined;
+  try {
+    const [folders, reports] = await Promise.all([
+      query(`SELECT Id, Name, ParentId FROM Folder WHERE Type = 'Report'`, org),
+      query(`SELECT Id, Name, Description, Format, FolderName, OwnerId FROM Report`, org),
+    ]);
+    const readable = new Set<string>();
+    const ids = folders.map((f) => str(f.Id)).filter((id) => ID_PATTERN.test(id));
+    const chunks: string[][] = [];
+    for (let i = 0; i < ids.length; i += 200) chunks.push(ids.slice(i, i + 200)); // UserRecordAccess takes 200 ids at a time
+    for (const rows of await Promise.all(
+      chunks.map((c) => query(`SELECT RecordId, HasReadAccess FROM UserRecordAccess WHERE UserId = '${userId}' AND RecordId IN (${inList(c)})`, org))
+    )) {
+      for (const r of rows) if (r.HasReadAccess === true) readable.add(str(r.RecordId));
+    }
+    const visibleFolders = folders.filter((f) => readable.has(str(f.Id)));
+    const visibleReports = reports.filter((r) => {
+      const owner = str(r.OwnerId);
+      return readable.has(owner) || owner === userId || owner.startsWith("00D");
+    });
+    return buildReportTree(visibleFolders, visibleReports, salesChart);
+  } catch {
+    return undefined;
+  }
+}
+
 /** The user's role, public groups (nested included), and territories, for list view sharing; null if the org won't say. */
 async function viewerSharing(userId: string, org: string): Promise<ViewerSharing | null> {
   if (!ID_PATTERN.test(userId)) return null;
@@ -1336,6 +1420,63 @@ async function viewerSharing(userId: string, org: string): Promise<ViewerSharing
 }
 
 /**
+ * The custom settings the app merges into config.json from
+ * `/connect/life-sciences/commercial/configurations`, which answers for the
+ * signed-in user: per category, the active record assigned to the user, else
+ * to their profile, else the org default. Field name → value.
+ */
+export async function viewerConfig(categories: string[], userId: string, org: string): Promise<Record<string, Row>> {
+  const out: Record<string, Row> = {};
+  if (!ID_PATTERN.test(userId) || !categories.length) return out;
+  const [records, users] = await Promise.all([
+    query(
+      `SELECT Id, IsOrgLevel, LifeSciConfigCategory.Category FROM LifeSciConfigRecord
+       WHERE IsActive = true AND LifeSciConfigCategory.Category IN (${inList(categories)})`,
+      org,
+      true
+    ),
+    query(`SELECT ProfileId FROM User WHERE Id = '${userId}'`, org),
+  ]);
+  if (!records.length) return out;
+  const ids = inList(records.map((r) => str(r.Id)));
+  const [values, assignments] = await Promise.all([
+    query(`SELECT LifeSciConfigRecordId, FieldName, DataType, ${FV_COLUMNS.join(", ")} FROM LifeSciConfigFieldValue WHERE LifeSciConfigRecordId IN (${ids})`, org, true),
+    query(`SELECT LifeSciConfigRecordId, AssignedToId FROM LifeSciConfigAssignment WHERE LifeSciConfigRecordId IN (${ids})`, org, true),
+  ]);
+  const owners = [userId, str(users[0]?.ProfileId)].filter(Boolean);
+  const assignedTo = (id: string) => assignments.filter((a) => str(a.LifeSciConfigRecordId) === id).map((a) => str(a.AssignedToId));
+  for (const category of categories) {
+    const mine = records.filter((r) => str(obj(r.LifeSciConfigCategory).Category) === category);
+    const pick =
+      owners.map((o) => mine.find((r) => assignedTo(str(r.Id)).some((a) => a.startsWith(o.slice(0, 15))))).find(Boolean) ??
+      mine.find((r) => r.IsOrgLevel === true);
+    if (!pick) continue;
+    const fields: Row = {};
+    for (const v of values.filter((x) => str(x.LifeSciConfigRecordId) === str(pick.Id))) {
+      fields[str(v.FieldName)] = str(v.DataType).toUpperCase() === "BOOLEAN" ? v.HasBooleanValue === true : (FV_COLUMNS.filter((c) => c !== "HasBooleanValue").map((c) => v[c]).find((x) => x != null) ?? null);
+    }
+    out[category] = fields;
+  }
+  return out;
+}
+
+const FV_COLUMNS = ["TextValue", "IntegerValue", "PicklistValue", "HasBooleanValue", "LongTextValue", "NumberValue", "UrlValue"];
+
+/** ReportsTabCoordinator reads ReportsAndDashboardsSync; the report tree only shows with ShowSalesforceReports. */
+async function viewerScreens(core: SnapshotCore, userId: string | undefined, org: string): Promise<Pick<PublishedIpad, "settings" | "reports">> {
+  if (!userId || !core.tabs.some((t) => t.kind === "reports")) return {};
+  try {
+    const config = await viewerConfig(["ReportsAndDashboardsSync"], userId, org);
+    const r = config.ReportsAndDashboardsSync ?? {};
+    const settings: PublishedSettings = { reports: { salesChart: r.ShowSalesChart === true, salesforceReports: r.ShowSalesforceReports === true } };
+    const reports = settings.reports.salesforceReports ? await viewerReports(userId, settings.reports.salesChart, org) : undefined;
+    return { settings, reports };
+  } catch {
+    return {};
+  }
+}
+
+/**
  * Load the iPad as one user of a profile sees it (the profile's most typical
  * user unless `userId` is given). Cache files never change once published, so
  * snapshots are kept on disk by ContentVersion Id and permission-set combination.
@@ -1361,8 +1502,8 @@ export async function loadPublishedIpad(
   const snapshotPath = (sets: string[], lang: string) => path.join(dir, `snapshot-v${SNAPSHOT_VERSION}-${lang}-${comboKey(sets)}.json`);
   if (fs.existsSync(snapshotPath(permissionSets, language))) {
     const saved = JSON.parse(fs.readFileSync(snapshotPath(permissionSets, language), "utf8")) as SnapshotCore;
-    const dashboards = await withDashboardData(saved.dashboards ?? {}, org);
-    return { ...applyListViewSharing(saved, await sharing), dashboards, profile, cache, viewer, users: userList };
+    const [dashboards, screens] = await Promise.all([withDashboardData(saved.dashboards ?? {}, org), viewerScreens(saved, user?.id, org)]);
+    return { ...applyListViewSharing(saved, await sharing), ...screens, dashboards, profile, cache, viewer, users: userList };
   }
 
   fs.mkdirSync(dir, { recursive: true });
@@ -1389,8 +1530,9 @@ export async function loadPublishedIpad(
       fs.writeFileSync(snapshotPath(c.sets, c.language), JSON.stringify(snapshot));
       if (c.sets === permissionSets && c.language === language) result = snapshot;
     }
-    const dashboards = await withDashboardData((result as SnapshotCore).dashboards, org);
-    return { ...applyListViewSharing(result as SnapshotCore, await sharing), dashboards, viewer, users: userList };
+    const core = result as SnapshotCore;
+    const [dashboards, screens] = await Promise.all([withDashboardData(core.dashboards, org), viewerScreens(core, user?.id, org)]);
+    return { ...applyListViewSharing(core, await sharing), ...screens, dashboards, viewer, users: userList };
   } finally {
     // Keep only the snapshots — the raw files hold the org's full metadata.
     for (const f of ["cache.zip", ...FILES.map((x) => `${x}.json`), ...languages.map((l) => `${l}.json`)]) fs.rmSync(path.join(dir, f), { force: true });

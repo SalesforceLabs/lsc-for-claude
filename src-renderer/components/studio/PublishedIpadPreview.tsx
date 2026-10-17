@@ -10,6 +10,7 @@ import type {
 } from "./published-types";
 import IpadScreen from "./IpadScreen";
 import { Dashboard } from "./IpadDashboard";
+import { ReportsTree } from "./IpadReports";
 import { IpadSearchField, IpadStatusBar, IpadTopBar, type ChromeTab } from "./IpadChrome";
 import { initials } from "./ipad-chrome";
 import {
@@ -146,7 +147,7 @@ function Device({
           onBack={record ? () => setRecord(false) : undefined}
           name={initials(snapshot.viewer?.name ?? snapshot.profile)}
         />
-        <div className={`studio-ipad-page${tab?.kind === "empty" ? " blank" : ""}${onHome ? " home" : ""}`}>
+        <div className={`studio-ipad-page${tab?.kind === "empty" ? " blank" : ""}${onHome ? " home" : ""}${tab?.kind === "reports" && snapshot.reports ? " flush" : ""}`}>
           {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={() => setRecord(true)} />}
         </div>
         {onHome && <HomeFabs agentforce={homeHasAgentforce} />}
@@ -197,6 +198,10 @@ function Screen({
       return <ComingSoon reason={tab.emptyReason} />;
     case "recent":
       return <Native title="Search" text="Global search and recently viewed records" />;
+    case "reports":
+      // ReportsTabCoordinator: the report tree with ShowSalesforceReports, else the Sales Chart report.
+      if (snapshot.reports) return <ReportsTree items={snapshot.reports} />;
+      return <Native title={tab.label} text={snapshot.settings?.reports.salesforceReports === false ? "Sales Chart (native screen)" : "Reports (native screen)"} />;
     default:
       return <Native title={tab.label} text={NATIVE_SCREENS[tab.kind] ?? tab.label} />;
   }

@@ -147,7 +147,7 @@ function Chevron({ left = false }: { left?: boolean }) {
 }
 
 /** DictationTextFieldControl — the pill search field with a magnifier and a microphone. */
-export function IpadSearchField({ className = "" }: { className?: string }) {
+export function IpadSearchField({ className = "", mic = true }: { className?: string; mic?: boolean }) {
   return (
     <div className={`studio-ipad-searchfield ${className}`}>
       <svg width="19" height="19" viewBox="0 0 20 20" aria-hidden="true">
@@ -155,7 +155,7 @@ export function IpadSearchField({ className = "" }: { className?: string }) {
         <path d="m13.5 13.5 5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
       <span className="studio-ipad-searchfield-text">Search...</span>
-      <MicIcon />
+      {mic && <MicIcon />}
     </div>
   );
 }

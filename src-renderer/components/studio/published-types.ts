@@ -106,6 +106,20 @@ export interface PublishedIpad {
   users: { id: string; name: string }[];
   /** Dashboards the pages' `embeddedDashboard` components show, by developer name. */
   dashboards: Record<string, PublishedDashboard>;
+  /** Custom settings from the cache's `config.json` (absent in snapshots saved before they were read). */
+  settings?: { reports: { salesChart: boolean; salesforceReports: boolean } };
+  /** The Reports tab's tree as the viewer sees it; absent without a Reports tab. */
+  reports?: PublishedReportItem[];
+}
+
+/** MultiReportItem: a top-level section, a subfolder, or a report. */
+export interface PublishedReportItem {
+  kind: "section" | "folder" | "report";
+  title: string;
+  description?: string;
+  /** Summary and tabular reports open natively, the rest on the web. */
+  native?: boolean;
+  children: PublishedReportItem[];
 }
 
 /** A Lightning dashboard as `embeddedDashboard` lays it out: its describe's grid and component titles. */

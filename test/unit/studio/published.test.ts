@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   applyListViewSharing,
   buildPage,
+  buildReportTree,
   buildSnapshot,
   buildTabs,
   componentInfo,
@@ -523,5 +524,36 @@ describe("fieldLabel", () => {
     expect(fieldLabel(f, "ProviderVisit", { fullName: "Num__c", label: "Num__c" })).toBe("Num");
     expect(fieldLabel(f, "ProviderVisit", { fullName: "OwnerId", label: "Owner" })).toBe("Owner ID");
     expect(fieldLabel(f, "ProviderVisit", { fullName: "Other__c", label: "Other" })).toBe("Other");
+  });
+});
+
+describe("buildReportTree", () => {
+  const folders = [
+    { Id: "00l1", Name: "Sales", ParentId: null },
+    { Id: "00l2", Name: "Archive", ParentId: "00l1" },
+    { Id: "00l3", Name: "Empty", ParentId: null },
+  ];
+  const reports = [
+    { Name: "Pipeline", Format: "Summary", FolderName: "Sales" },
+    { Name: "Old", Format: "Matrix", FolderName: "Archive", Description: "Last year" },
+    { Name: "Mine", Format: "Tabular", FolderName: "Private Reports" },
+  ];
+
+  it("puts LSC Reports first, then sections sorted by title with subfolders and pseudo-folders", () => {
+    const tree = buildReportTree(folders, reports, true);
+    expect(tree.map((t) => t.title)).toEqual(["LSC Reports", "Empty", "Private Reports", "Sales"]);
+    expect(tree[0].children.map((c) => c.title)).toEqual(["Sales Chart"]);
+    const sales = tree[3];
+    expect(sales.children.map((c) => [c.kind, c.title])).toEqual([
+      ["folder", "Archive"],
+      ["report", "Pipeline"],
+    ]);
+    expect(sales.children[0].children[0]).toMatchObject({ title: "Old", native: false, description: "Last year" });
+    expect(sales.children[1].native).toBe(true);
+  });
+
+  it("leaves out the Sales Chart and empty pseudo-folders when not configured", () => {
+    const tree = buildReportTree(folders, reports.slice(0, 2), false);
+    expect(tree.map((t) => t.title)).toEqual(["Empty", "Sales"]);
   });
 });
