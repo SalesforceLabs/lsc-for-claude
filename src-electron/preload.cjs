@@ -105,6 +105,10 @@ contextBridge.exposeInMainWorld("lscApi", {
   perfDeleteRun: (id) => ipcRenderer.invoke("perf:deleteRun", id),
   // First-sync simulation — runs as a chosen sf CLI connection; finished results are kept locally
   studioSimStart: (connection, options) => ipcRenderer.invoke("studio:call", "studio_sim_start", { connection, options }),
+  studioSimStartMobile: (loginId, options) => ipcRenderer.invoke("studio:simStartMobile", loginId, options),
+  mobileLoginStart: (loginUrl) => ipcRenderer.invoke("mobileLogin:start", loginUrl),
+  mobileLoginList: () => ipcRenderer.invoke("mobileLogin:list"),
+  mobileLoginRemove: (id) => ipcRenderer.invoke("mobileLogin:remove", id),
   studioSimStatus: (jobId) => ipcRenderer.invoke("studio:call", "studio_sim_status", { jobId }),
   studioSimCancel: (jobId) => ipcRenderer.invoke("studio:call", "studio_sim_cancel", { jobId }),
   studioSimActive: () => ipcRenderer.invoke("studio:call", "studio_sim_active", {}),

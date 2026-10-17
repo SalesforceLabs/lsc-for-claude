@@ -100,6 +100,14 @@ export function connectionLabel(c: Pick<SfConnection, "alias" | "username">): st
   return c.alias ? `${c.alias} · ${c.username}` : c.username;
 }
 
+/** Picker value for a login made through the LSC mobile app; sf CLI connections use connectionRef. */
+export const mobileRef = (l: { id: string }) => `mobile:${l.id}`;
+
+/** The mobile login id a picker value refers to, or null for an sf CLI connection. */
+export function mobileLoginId(ref: string): string | null {
+  return ref.startsWith("mobile:") ? ref.slice("mobile:".length) || null : null;
+}
+
 /** The value studio_sim_start takes for a connection: its alias when it has one. */
 export const connectionRef = (c: Pick<SfConnection, "alias" | "username">) => c.alias || c.username;
 

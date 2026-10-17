@@ -31,6 +31,15 @@ export interface PerfRunRecord {
   result?: unknown;
 }
 
+/** A login made through the LSC mobile app's connected app; the token never reaches the renderer. */
+export interface MobileLoginInfo {
+  id: string;
+  username: string;
+  displayName?: string;
+  orgId?: string;
+  instanceUrl: string;
+}
+
 export interface PerfSimRecord {
   id: string;
   /** Instance URL of the org the simulation ran against. */
@@ -107,6 +116,12 @@ interface LscApi {
   perfSaveRun(input: Omit<PerfRunRecord, "id" | "org"> & { org?: string; result: unknown }): Promise<PerfRunRecord>;
   perfDeleteRun(id: string): Promise<{ ok: boolean }>;
   studioSimStart(connection: string, options?: unknown): Promise<StudioResponse>;
+  /** Start a simulation as a mobile login; the token stays in the main process. */
+  studioSimStartMobile(loginId: string, options?: unknown): Promise<StudioResponse>;
+  /** Log in through the LSC mobile app's connected app in a Salesforce login window. */
+  mobileLoginStart(loginUrl: string): Promise<{ login?: MobileLoginInfo; error?: string }>;
+  mobileLoginList(): Promise<{ logins: MobileLoginInfo[] }>;
+  mobileLoginRemove(id: string): Promise<{ ok: boolean }>;
   studioSimStatus(jobId: string): Promise<StudioResponse>;
   studioSimCancel(jobId: string): Promise<StudioResponse>;
   studioSimActive(): Promise<StudioResponse>;

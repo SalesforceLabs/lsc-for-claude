@@ -1370,6 +1370,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
         "optional": false,
         "type": "ZodString",
       },
+      "mobileLogin": {
+        "optional": true,
+        "type": "ZodObject",
+      },
       "options": {
         "optional": true,
         "type": "ZodObject",

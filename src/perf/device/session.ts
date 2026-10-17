@@ -65,6 +65,42 @@ export class DeviceHttpError extends Error {
   }
 }
 
+/** Salesforce-hosted HTTPS origins; a token is only ever sent to one of these. */
+const SALESFORCE_HOST = /(^|\.)(salesforce\.com|force\.com|salesforce\.mil|crmforce\.mil|sfcrmproducts\.cn)$/i;
+
+export function isSalesforceUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" && SALESFORCE_HOST.test(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/** An OAuth login Studio made itself, through the LSC mobile app's connected app. */
+export interface TokenLogin {
+  instanceUrl: string;
+  accessToken: string;
+  username: string;
+  orgId?: string;
+}
+
+/**
+ * A session from a token Studio obtained through the LSC mobile app's own
+ * login. The org serves the mobile sync endpoints (user-info, metadata) only to
+ * that connected app, so sf CLI logins get 404 from them.
+ */
+export function createTokenSession(login: TokenLogin, opts: SessionOptions = {}): DeviceSession {
+  if (!isSalesforceUrl(login.instanceUrl)) throw new Error(`"${login.instanceUrl}" is not a Salesforce HTTPS URL.`);
+  return {
+    username: login.username,
+    orgId: login.orgId,
+    instanceUrl: login.instanceUrl,
+    apiVersion: normalizeApiVersion(opts.apiVersion),
+    http: createHttp(login.instanceUrl, login.accessToken, opts.fetchImpl),
+  };
+}
+
 export function createHttp(
   instanceUrl: string,
   accessToken: string,

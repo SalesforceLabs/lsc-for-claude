@@ -421,9 +421,18 @@ function registerPerfTools(server: McpServer) {
 
   server.tool(
     "studio_sim_start",
-    "LSC Studio (GUI data): start a first-sync simulation (the network part of an iOS initial sync: user-info, metadata archive, every table's data) as a background job, running as the given sf CLI connection — admin or end user. Read-only against the org. Returns JSON status; poll with studio_sim_status.",
+    "LSC Studio (GUI data): start a first-sync simulation (the network part of an iOS initial sync: user-info, metadata archive, every table's data) as a background job, running as the given sf CLI connection — admin or end user — or as a mobileLogin the Studio app made through the LSC mobile app's connected app (the token is used for this job only and never returned). Read-only against the org. Returns JSON status; poll with studio_sim_status.",
     {
-      connection: z.string().min(1).max(255).describe("sf CLI alias or username to run as"),
+      connection: z.string().min(1).max(255).describe("sf CLI alias or username to run as; the label when mobileLogin is given"),
+      mobileLogin: z
+        .object({
+          instanceUrl: z.string().url().max(255),
+          accessToken: z.string().min(1).max(4096),
+          username: z.string().min(1).max(255),
+          orgId: z.string().max(18).optional(),
+        })
+        .optional()
+        .describe("A login Studio made through the LSC mobile app's connected app; used instead of the sf CLI connection"),
       options: z
         .object({
           territory: z.string().max(255).optional(),
@@ -436,9 +445,9 @@ function registerPerfTools(server: McpServer) {
         })
         .optional(),
     },
-    async ({ connection, options }) => {
+    async ({ connection, mobileLogin, options }) => {
       try {
-        return json(startSimulation(connection, options ?? {}));
+        return json(startSimulation(mobileLogin ?? connection, options ?? {}));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

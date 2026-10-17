@@ -6,8 +6,13 @@
  * Jobs live in the MCP server process's memory; the Electron app keeps finished
  * results in its own history. One simulation runs at a time: each one downloads
  * a user's whole initial sync, and two at once would skew each other's timings.
+ *
+ * Instead of an sf CLI connection the GUI can pass a login it made through the
+ * LSC mobile app's connected app — the only kind the org's mobile sync
+ * endpoints answer. The token is used for that job only and never returned.
  */
 
+import { createTokenSession, type TokenLogin } from "../perf/device/session.js";
 import { simulateInitialSync, type SimulateOptions, type SimulationResult } from "../perf/simulate.js";
 
 export type SimJobState = "running" | "done" | "failed" | "cancelled";
@@ -55,9 +60,16 @@ function pruneFinished() {
   for (const job of finished.slice(0, Math.max(0, finished.length - MAX_FINISHED_JOBS))) jobs.delete(job.jobId);
 }
 
-export function startSimulation(connection: string, options: SimRunOptions = {}, deps: SimDeps = defaultDeps): SimJobStatus {
-  const name = connection.trim();
+export function startSimulation(
+  connection: string | TokenLogin,
+  options: SimRunOptions = {},
+  deps: SimDeps = defaultDeps
+): SimJobStatus {
+  const login = typeof connection === "string" ? undefined : connection;
+  const name = (login ? login.username : (connection as string)).trim();
   if (!name) throw new Error("Choose the sf CLI connection to run the simulation as.");
+  // Built before the job exists so a bad login fails the start rather than the job.
+  const session = login ? createTokenSession(login) : undefined;
   if ([...jobs.values()].some((j) => j.state === "running")) {
     throw new Error("A first-sync simulation is already in progress.");
   }
@@ -76,6 +88,7 @@ export function startSimulation(connection: string, options: SimRunOptions = {},
     .simulate({
       ...options,
       username: name,
+      ...(session ? { session } : {}),
       signal: job.controller.signal,
       onStep: (step, tables) => {
         if (job.controller.signal.aborted) return;

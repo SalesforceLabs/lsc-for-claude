@@ -7,11 +7,14 @@ import {
   type SimDeps,
 } from "../../../src/studio/simulate.js";
 import type { SimulateOptions, SimulationResult } from "../../../src/perf/simulate.js";
+import { createTokenSession, isSalesforceUrl } from "../../../src/perf/device/session.js";
 import {
   asSimSummary,
   connectionLabel,
   connectionRef,
   formatBytes,
+  mobileLoginId,
+  mobileRef,
   newConnections,
   parseSObjectList,
   rankTables,
@@ -67,6 +70,24 @@ describe("first-sync simulation jobs", () => {
     if (running) cancelSimulation(running.jobId);
     pending.splice(0).forEach((finish) => finish());
     await settle();
+  });
+
+  it("runs as a mobile login with its own session and never exposes the token", async () => {
+    const c = controllable();
+    const login = { instanceUrl: "https://acme.my.salesforce.com", accessToken: "00Dsecret!token", username: "rep@acme.com" };
+    const started = startSimulation(login, {}, c.deps);
+    expect(started.connection).toBe("rep@acme.com");
+    expect(c.calls[0].session).toMatchObject({ username: "rep@acme.com", instanceUrl: "https://acme.my.salesforce.com" });
+    expect(JSON.stringify(simulationStatus(started.jobId))).not.toContain("00Dsecret");
+    c.resolve(result());
+    await settle();
+    expect(JSON.stringify(simulationStatus(started.jobId))).not.toContain("00Dsecret");
+  });
+
+  it("refuses a mobile login whose instance isn't Salesforce", () => {
+    const login = { instanceUrl: "https://evil.example.com", accessToken: "t", username: "rep@acme.com" };
+    expect(() => startSimulation(login, {}, controllable().deps)).toThrow(/not a Salesforce HTTPS URL/);
+    expect(activeSimulation()).toBeNull();
   });
 
   it("runs as the chosen connection and reports progress, then the result", async () => {
@@ -130,6 +151,23 @@ describe("first-sync simulation jobs", () => {
 });
 
 describe("renderer simulation helpers", () => {
+  it("encodes mobile logins in the picker value", () => {
+    expect(mobileRef({ id: "mobile-abc" })).toBe("mobile:mobile-abc");
+    expect(mobileLoginId("mobile:mobile-abc")).toBe("mobile-abc");
+    expect(mobileLoginId("rep1")).toBeNull();
+    expect(mobileLoginId("mobile:")).toBeNull();
+  });
+
+  it("only sends tokens to Salesforce HTTPS hosts", () => {
+    expect(isSalesforceUrl("https://acme.my.salesforce.com")).toBe(true);
+    expect(isSalesforceUrl("https://acme--uat.sandbox.my.salesforce.com")).toBe(true);
+    expect(isSalesforceUrl("https://login.salesforce.com")).toBe(true);
+    expect(isSalesforceUrl("http://acme.my.salesforce.com")).toBe(false);
+    expect(isSalesforceUrl("https://salesforce.com.evil.io")).toBe(false);
+    expect(isSalesforceUrl("https://evilsalesforce.com")).toBe(false);
+    expect(createTokenSession({ instanceUrl: "https://a.my.salesforce.com", accessToken: "t", username: "u" }).apiVersion).toMatch(/^v\d+\.0$/);
+  });
+
   it("summarizes a server result for the history list", () => {
     const s = simSummary(result());
     expect(s).toEqual({ username: "rep@x.org", profile: "Rep", flow: "enhanced", records: 15, seconds: 10, failed: 1, truncated: true });
