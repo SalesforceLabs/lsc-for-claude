@@ -55,10 +55,58 @@ export function clearTargetOrg(): void {
   currentTargetOrg = undefined;
 }
 
+interface CliProbe {
+  cliInstalled: boolean;
+  cliVersion?: string;
+  orgs?: SfOrg[];
+}
+
 /**
- * Check the full setup status
+ * `sf org list` takes several seconds and every tool call validates the
+ * connection, so a probe that found authenticated orgs is reused for a few
+ * minutes. Probes that found no CLI or no orgs aren't kept, so installing the
+ * CLI or logging in takes effect on the next call.
  */
-export async function checkSetupStatus(): Promise<SetupStatus> {
+const PROBE_TTL_MS = 5 * 60 * 1000;
+let cachedProbe: { at: number; promise: Promise<CliProbe> } | undefined;
+
+async function probeCli(): Promise<CliProbe> {
+  if (!(await isSfCliInstalled())) return { cliInstalled: false };
+  const versionResult = await getSfCliVersion();
+  const orgsResult = await listOrgs();
+  return {
+    cliInstalled: true,
+    cliVersion: versionResult.success ? versionResult.data : undefined,
+    orgs:
+      orgsResult.success && orgsResult.data
+        ? [...(orgsResult.data.nonScratchOrgs || []), ...(orgsResult.data.scratchOrgs || [])]
+        : undefined,
+  };
+}
+
+function probe(fresh: boolean): Promise<CliProbe> {
+  if (!fresh && cachedProbe && Date.now() - cachedProbe.at < PROBE_TTL_MS) return cachedProbe.promise;
+  const promise = probeCli();
+  const entry = { at: Date.now(), promise };
+  cachedProbe = entry;
+  const drop = () => {
+    if (cachedProbe === entry) cachedProbe = undefined;
+  };
+  promise.then((p) => {
+    if (!p.orgs?.length) drop();
+  }, drop);
+  return promise;
+}
+
+/** Forget the cached CLI/org probe so the next check runs `sf org list` again. */
+export function invalidateSetupStatus(): void {
+  cachedProbe = undefined;
+}
+
+/**
+ * Check the full setup status. Reuses a recent probe unless `fresh` is set.
+ */
+export async function checkSetupStatus(options: { fresh?: boolean } = {}): Promise<SetupStatus> {
   const status: SetupStatus = {
     cliInstalled: false,
     hasAuthenticatedOrgs: false,
@@ -66,28 +114,18 @@ export async function checkSetupStatus(): Promise<SetupStatus> {
     setupComplete: false,
   };
 
-  // Check if CLI is installed
-  status.cliInstalled = await isSfCliInstalled();
+  const cli = await probe(options.fresh ?? false);
+  status.cliInstalled = cli.cliInstalled;
 
   if (!status.cliInstalled) {
     status.nextStep = "install_cli";
     return status;
   }
 
-  // Get CLI version
-  const versionResult = await getSfCliVersion();
-  if (versionResult.success) {
-    status.cliVersion = versionResult.data;
-  }
+  status.cliVersion = cli.cliVersion;
 
-  // Check for authenticated orgs
-  const orgsResult = await listOrgs();
-
-  if (orgsResult.success && orgsResult.data) {
-    const allOrgs = [
-      ...(orgsResult.data.nonScratchOrgs || []),
-      ...(orgsResult.data.scratchOrgs || []),
-    ];
+  if (cli.orgs) {
+    const allOrgs = cli.orgs;
 
     status.orgs = allOrgs;
     status.hasAuthenticatedOrgs = allOrgs.length > 0;

@@ -2677,6 +2677,12 @@ button.studio-ipad-chip {
 .studio-perf-run-item.active .studio-perf-run-open {
   color: var(--text-primary);
 }
+.studio-perf-run-spinner {
+  width: 10px;
+  height: 10px;
+  border-width: 1.5px;
+  flex-shrink: 0;
+}
 .studio-perf-dot.pass { background: var(--success); }
 .studio-perf-dot.warn { background: var(--warning); }
 .studio-perf-dot.fail { background: var(--error); }
@@ -2785,6 +2791,11 @@ button.studio-ipad-chip {
 }
 .studio-perf-row .studio-filter:first-child {
   flex: 1;
+}
+.studio-perf-row select.studio-filter {
+  flex: 0 1 auto;
+  width: auto;
+  max-width: 40%;
 }
 .studio-perf-hint {
   font-size: 12px;

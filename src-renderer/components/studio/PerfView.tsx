@@ -49,6 +49,8 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
   const [tab, setTab] = useState<"plan" | "report">("plan");
   const [job, setJob] = useState<PerfJobStatus | null>(null);
   const [activeJob, setActiveJob] = useState<ActiveJob | null>(readActiveJob);
+  // Set from the click until the engine hands back a job id; the org connection check takes seconds.
+  const [starting, setStarting] = useState<Omit<ActiveJob, "jobId"> | null>(null);
   const [notice, setNotice] = useState<{ kind: "error" | "info"; text: string } | null>(null);
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
   // Bumped to remount the editor when a different plan is loaded.
@@ -56,7 +58,8 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
   const [, tick] = useState(0);
 
   const selectedPlan = selection?.kind === "plan" ? plans.find((p) => p.id === selection.id) : undefined;
-  const running = !!activeJob;
+  const inFlight = activeJob ?? starting;
+  const running = !!inFlight;
 
   const loadPlans = useCallback(async () => {
     const list = await window.lscApi.perfListPlans();
@@ -204,19 +207,29 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
       return;
     }
     setNotice(null);
-    const record = await save();
-    if (!record) return;
-    const res = await window.lscApi.studioPerfStart(record.plan);
-    const error = responseError(res);
-    if (error) {
-      setNotice({ kind: "error", text: error });
-      return;
+    setJob(null);
+    setStarting({ planId: selectedPlan?.id ?? "", planName: normalizePlan(draft).name });
+    try {
+      const record = await save();
+      if (!record) return;
+      setStarting({ planId: record.id, planName: record.name });
+      await loadRuns(record.id);
+      const res = await window.lscApi.studioPerfStart(record.plan);
+      const error = responseError(res);
+      if (error) {
+        setNotice({ kind: "error", text: error });
+        return;
+      }
+      const status = res.data as PerfJobStatus;
+      const active = { jobId: status.jobId, planId: record.id, planName: record.name };
+      localStorage.setItem(ACTIVE_JOB_KEY, JSON.stringify(active));
+      setJob(status);
+      setActiveJob(active);
+    } catch (err) {
+      setNotice({ kind: "error", text: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setStarting(null);
     }
-    const status = res.data as PerfJobStatus;
-    const active = { jobId: status.jobId, planId: record.id, planName: record.name };
-    localStorage.setItem(ACTIVE_JOB_KEY, JSON.stringify(active));
-    setJob(status);
-    setActiveJob(active);
   };
 
   const cancel = async () => {
@@ -301,7 +314,15 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
         {selectedPlan && (
           <>
             <div className="studio-rail-title studio-perf-runs-title">Runs</div>
-            {runs.length === 0 && <div className="studio-perf-hint">No runs yet.</div>}
+            {inFlight?.planId === selectedPlan.id && (
+              <div className="studio-perf-run-item active" title={job?.step ?? "Connecting to the org"}>
+                <span className="studio-perf-run-open">
+                  <span className="studio-spinner studio-perf-run-spinner" />
+                  <span>Running · {job ? elapsed(job.startedAt) : "starting"}</span>
+                </span>
+              </div>
+            )}
+            {runs.length === 0 && inFlight?.planId !== selectedPlan.id && <div className="studio-perf-hint">No runs yet.</div>}
             {runs.map((r) => (
               <div key={r.id} className={`studio-perf-run-item${runView?.id === r.id ? " active" : ""}`}>
                 <button className="studio-perf-run-open" onClick={() => openRun(runs, r.id)}>
@@ -364,17 +385,16 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
           </div>
         </div>
 
-        {activeJob && (
+        {inFlight && (
           <div className="studio-finding info studio-perf-progress">
             <div className="studio-spinner" />
             <div className="studio-perf-progress-text">
-              <div className="studio-finding-title">Running “{activeJob.planName}”</div>
+              <div className="studio-finding-title">Running “{inFlight.planName}”</div>
               <div className="studio-finding-detail">
-                {job?.step ?? "Starting"} · {job?.queries ?? 0} queries
-                {job ? ` · ${elapsed(job.startedAt)}` : ""}
+                {job ? `${job.step} · ${job.queries} queries · ${elapsed(job.startedAt)}` : "Connecting to the org…"}
               </div>
             </div>
-            <button className="studio-btn" onClick={cancel} disabled={job?.step === "Cancelling…"}>
+            <button className="studio-btn" onClick={cancel} disabled={!activeJob || job?.step === "Cancelling…"}>
               Cancel
             </button>
           </div>
