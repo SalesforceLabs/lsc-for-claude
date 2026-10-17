@@ -10,7 +10,11 @@ import {
   dashboardFromDescribe,
   effectiveProfile,
   fieldLabel,
+  listCell,
+  listViewField,
+  listViewWhere,
   separatedWithSpaces,
+  syncCondition,
   tabKind,
   trimNamespace,
   visibilityOf,
@@ -434,6 +438,67 @@ describe("list views", () => {
       { label: "Other territory", reason: "Shared only with territory Model.Region" },
     ]);
     expect(applyListViewSharing(core, null)).toBe(core);
+  });
+});
+
+describe("list view rows", () => {
+  const fields = new Map<string, Row>([
+    ["name", { fullName: "Name", type: "text" }],
+    ["status", { fullName: "Status", type: "picklist" }],
+    ["accountid", { fullName: "AccountId", type: "lookup", relationshipName: "Account", referenceTo: ["Account"] }],
+    ["ownerid", { fullName: "OwnerId", type: "lookup", relationshipName: "Owner", referenceTo: ["Group", "User"] }],
+    ["isprivate", { fullName: "IsPrivate", type: "checkbox" }],
+    ["amount", { fullName: "Amount", type: "currency" }],
+    ["planneddate", { fullName: "PlannedDate", type: "date" }],
+  ]);
+
+  it("reads references by name (checkable only with one target), picklists by label", () => {
+    expect(listViewField({ fullName: "AccountId" }, fields)).toEqual({ path: "Account.Name", type: "lookup", ref: { object: "Account", idPath: "AccountId" } });
+    expect(listViewField({ fullName: "OwnerId" }, fields)).toEqual({ path: "Owner.Name", type: "lookup" });
+    expect(listViewField({ fullName: "Status" }, fields)).toEqual({ path: "toLabel(Status)", type: "picklist" });
+    expect(listViewField({ fullName: "Custom__c", type: "text" }, fields)).toEqual({ path: "Custom__c", type: "text" });
+    expect(listViewField({ fullName: "Unknown__c" }, fields)).toBeNull();
+  });
+
+  it("turns the cache's filters into SOQL with typed literals and the boolean filter", () => {
+    const where = listViewWhere(
+      [
+        { field: "Status", operation: "equals", value: "Planned, In Progress" },
+        { field: "IsPrivate", operation: "equals", value: "0" },
+        { field: "Amount", operation: "greaterThan", value: "100" },
+        { field: "PlannedDate", operation: "lessThan", value: "NEXT_N_DAYS:7" },
+        { field: "Name", operation: "contains", value: "O'Neil" },
+        { field: "RECORDTYPE", operation: "notEqual", value: "Visit.Remote" },
+      ],
+      "1 AND (2 OR 3) AND 4 AND 5 AND 6",
+      fields
+    );
+    expect(where).toBe(
+      "Status IN ('Planned', 'In Progress') AND (IsPrivate = false OR Amount > 100) AND PlannedDate < NEXT_N_DAYS:7 AND (Name LIKE '%O\\'Neil%') AND RecordType.DeveloperName != 'Remote'"
+    );
+    expect(listViewWhere([], null, fields)).toBe("");
+    expect(listViewWhere([{ field: "Name", operation: "within", value: "x" }], null, fields)).toBeNull();
+  });
+
+  it("formats cells like OCEDBObject.formatData", () => {
+    const format = { timeZone: "America/Los_Angeles", locale: "en-US" };
+    expect(listCell("2026-04-28T00:57:00.000+0000", "datetime", format)).toBe("Apr 27, 2026 at 5:57 PM");
+    expect(listCell("2026-01-05", "date", format)).toBe("Jan 5, 2026");
+    expect(listCell(true, "checkbox", format)).toBe("Yes");
+    expect(listCell(false, "boolean", format)).toBe("No");
+    expect(listCell(12.5, "percent", format)).toBe("12.5%");
+    expect(listCell(null, "text", format)).toBe("");
+  });
+
+  it("fills DB Schema tags per territory, and gives up on id-list tags", () => {
+    const territories = [
+      { id: "0MI1", name: "SF" },
+      { id: "0MI2", name: "O'Hare" },
+    ];
+    expect(syncCondition("", "005U", territories)).toBe("");
+    expect(syncCondition("OwnerId = '{USER.ID}'", "005U", territories)).toBe("OwnerId = '005U'");
+    expect(syncCondition("Territory2.Name = '{USER.TERRITORY}'", "005U", territories)).toBe("(Territory2.Name = 'SF') OR (Territory2.Name = 'O\\'Hare')");
+    expect(syncCondition("ParentId IN ({ACCOUNT.IDS})", "005U", territories)).toBeNull();
   });
 });
 

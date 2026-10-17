@@ -14,8 +14,9 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { promisify } from "util";
+import { resolveScalarTags } from "../perf/sync-volume.js";
 import { apiRequest } from "../salesforce/cli.js";
-import { ID_PATTERN, inList, query, type Row } from "./helpers.js";
+import { count, ID_PATTERN, inList, query, type Row } from "./helpers.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -108,6 +109,8 @@ export interface PublishedObject {
   defaultListView: string | null;
   /** List views shared only with roles, groups, or territories the viewer isn't in. */
   hiddenListViews?: { label: string; reason: string }[];
+  /** MetadataThemeInfo: the circle color and the SLDS glyph drawn on it. */
+  theme?: { color: string; iconUrl: string };
 }
 
 export interface PublishedListView {
@@ -116,6 +119,21 @@ export interface PublishedListView {
   columns: string[];
   /** The list view's `sharedTo` (non-empty entries); absent = visible to all users. */
   sharedTo?: Record<string, string[]>;
+  /** How to read its rows: a SOQL path and field type per column (null when the app drops it), and the cache's filter. */
+  query?: { fields: (ListViewField | null)[]; where: string | null; mine: boolean };
+}
+
+/** A list view column's SOQL path; a reference also names the record it points at, which shows only if it synced. */
+export interface ListViewField {
+  path: string;
+  type: string;
+  ref?: { object: string; idPath: string };
+}
+
+/** A list view's records as the viewer's iPad lists them: its count chip and first page. */
+export interface PublishedListData {
+  count: number;
+  rows: { id: string; cells: string[] }[];
 }
 
 export interface PublishedIpad {
@@ -139,6 +157,10 @@ export interface PublishedIpad {
   settings?: PublishedSettings;
   /** The Reports tab's tree as the viewer sees it (MultiReportsViewModel); absent without a Reports tab. */
   reports?: PublishedReportItem[];
+  /** Object tabs' list view records as `Object.ListName` → data; absent when they couldn't be read. */
+  lists?: Record<string, PublishedListData>;
+  /** `db.json`: the tables the app downloads, as object → DB Schema WhereSoql ("" = every record the user can read). */
+  sync?: Record<string, string>;
 }
 
 export interface PublishedSettings {
@@ -727,6 +749,81 @@ function buildLayout(name: string, layout: Row, translation: Row = {}, itemLabel
   return { name, sections, relatedLists, actions: actions.filter(Boolean) };
 }
 
+const REFERENCE_TYPES = new Set(["lookup", "masterdetail", "reference", "hierarchy"]);
+
+/**
+ * MetadataListView.columns: the object's field for each column (a reference
+ * shows the related record's name); columns the object doesn't describe —
+ * old-style `ACCOUNT.NAME` ones — are dropped by the app, so they read null.
+ */
+export function listViewField(column: Row, fields: Map<string, Row>): ListViewField | null {
+  const name = str(column.fullName);
+  // A column carries its own describe when the object's field list leaves it out.
+  const field = fields.get(name.toLowerCase()) ?? (column.type ? column : undefined);
+  if (!field) return null;
+  const type = str(field.type).toLowerCase();
+  if (REFERENCE_TYPES.has(type) && field.relationshipName) {
+    const to = str(arr(field.referenceTo)[0] ?? "");
+    const display = str(obj(field.referenceDisplayFields)[to]) || "Name";
+    // Polymorphic lookups (Owner → User or Group) can't be checked against one table.
+    const ref = arr(field.referenceTo).length === 1 ? { ref: { object: to, idPath: str(field.fullName) } } : {};
+    return { path: `${str(field.relationshipName)}.${display}`, type, ...ref };
+  }
+  if (type === "picklist" || type === "multiselectpicklist") return { path: `toLabel(${str(field.fullName)})`, type };
+  return { path: str(field.fullName), type };
+}
+
+const NUMERIC_TYPES = new Set(["number", "currency", "percent", "double", "int"]);
+const LIST_OPERATORS: Record<string, string> = {
+  equals: "=", notEqual: "!=", lessThan: "<", greaterThan: ">", lessOrEqual: "<=", greaterOrEqual: ">=",
+};
+
+/**
+ * The cache's list view `filters` (+ `booleanFilter`) as a SOQL condition —
+ * what the app falls back to when the REST list view describe is missing.
+ * Comma-separated values match any of them, as in Salesforce list views.
+ */
+export function listViewWhere(filters: Row[], booleanFilter: string | null, fields: Map<string, Row>): string | null {
+  const clauses = filters.map((f) => {
+    let name = str(f.field);
+    const op = str(f.operation);
+    let values = str(f.value).split(",").map((v) => v.trim());
+    if (name === "RECORDTYPE") {
+      name = "RecordType.DeveloperName";
+      values = values.map((v) => v.split(".").pop() ?? v);
+    }
+    const type = str(fields.get(name.toLowerCase())?.type).toLowerCase();
+    const literal = (v: string) => {
+      if (type === "checkbox" || type === "boolean") return v === "1" || v.toLowerCase() === "true" ? "true" : "false";
+      if (NUMERIC_TYPES.has(type) && v !== "" && !Number.isNaN(Number(v))) return v;
+      if ((type === "date" || type === "datetime") && /^[A-Z_]+(:\d+)?$|^\d{4}-\d\d-\d\d/.test(v)) return v;
+      return v === "" ? "null" : `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+    };
+    const any = (cond: (v: string) => string, join: string) => `(${values.map(cond).join(join)})`;
+    switch (op) {
+      case "equals":
+        return values.length > 1 ? `${name} IN (${values.map(literal).join(", ")})` : `${name} = ${literal(values[0])}`;
+      case "notEqual":
+        return values.length > 1 ? `${name} NOT IN (${values.map(literal).join(", ")})` : `${name} != ${literal(values[0])}`;
+      case "contains":
+        return any((v) => `${name} LIKE ${literal(`%${v}%`)}`, " OR ");
+      case "notContain":
+        return any((v) => `(NOT ${name} LIKE ${literal(`%${v}%`)})`, " AND ");
+      case "startsWith":
+        return any((v) => `${name} LIKE ${literal(`${v}%`)}`, " OR ");
+      case "includes":
+      case "excludes":
+        return `${name} ${op.toUpperCase()} (${values.map(literal).join(", ")})`;
+      default:
+        return LIST_OPERATORS[op] ? `${name} ${LIST_OPERATORS[op]} ${literal(values[0])}` : null;
+    }
+  });
+  if (clauses.some((c) => c === null)) return null;
+  if (clauses.length === 0) return "";
+  if (booleanFilter) return booleanFilter.replace(/\d+/g, (n) => clauses[Number(n) - 1] ?? n);
+  return clauses.join(" AND ");
+}
+
 function buildObject(name: string, sobject: Row, ui: Row, profile: Row): PublishedObject {
   const visibleRts = new Map(
     arr(profile.recordTypeVisibilities).map((v) => [str(v.recordType), v.visible === true || v.visible === "true"])
@@ -742,6 +839,8 @@ function buildObject(name: string, sobject: Row, ui: Row, profile: Row): Publish
       flexiPage: rt.flexiPage ? str(rt.flexiPage) : null,
       compactLayout: rt.compactLayoutAssignment ? str(rt.compactLayoutAssignment) : sobject.compactLayoutAssignment ? str(sobject.compactLayoutAssignment) : null,
     }));
+  const fields = new Map(arr(sobject.fields).map((f) => [str(f.fullName).toLowerCase(), f]));
+  const theme = obj(sobject.themeInfo);
   const listViews: PublishedListView[] = Object.entries(obj(ui.listViews))
     .filter(([k]) => k.startsWith(`${name}.`))
     // AllSObjectsViewController.listViews drops recently viewed lists.
@@ -758,6 +857,11 @@ function buildObject(name: string, sobject: Row, ui: Row, profile: Row): Publish
         label: str(lv.label) || str(lv.fullName),
         columns: arr(lv.columns).map((c) => str(c.label) || str(c.fullName)),
         ...(Object.keys(sharedTo).length ? { sharedTo } : {}),
+        query: {
+          fields: arr(lv.columns).map((c) => listViewField(c, fields)),
+          where: listViewWhere(arr(lv.filters), lv.booleanFilter ? str(lv.booleanFilter) : null, fields),
+          mine: str(lv.filterScope).toLowerCase() === "mine",
+        },
       };
     })
     // SObjectsCoordinator.updateListViews: `$0.label < $1.label` (code-unit order).
@@ -770,6 +874,7 @@ function buildObject(name: string, sobject: Row, ui: Row, profile: Row): Publish
     defaultCompactLayout: sobject.compactLayoutAssignment ? str(sobject.compactLayoutAssignment) : null,
     listViews,
     defaultListView: defaultListView(listViews),
+    ...(theme.color && /^https:\/\//.test(str(theme.iconUrl)) ? { theme: { color: `#${str(theme.color).replace(/^#/, "")}`, iconUrl: str(theme.iconUrl) } } : {}),
   };
 }
 
@@ -889,7 +994,9 @@ export function buildSnapshot(
   const dashboards: Record<string, PublishedDashboard> = {};
   for (const n of dashboardNames({ home, pages })) if (describes[n]) dashboards[n] = dashboardFromDescribe(obj(describes[n]));
 
-  return { profile: meta.profile, cache: meta.cache, tabs, hiddenTabs: hidden, home, objects, layouts, pages, compactLayouts, dashboards, notes };
+  const sync = Object.fromEntries(Object.entries(files.db).map(([table, entry]) => [table, str(obj(entry).WhereSoql).trim()]));
+
+  return { profile: meta.profile, cache: meta.cache, tabs, hiddenTabs: hidden, home, objects, layouts, pages, compactLayouts, dashboards, notes, sync };
 }
 
 /**
@@ -1095,7 +1202,7 @@ export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing |
 
 const FILES = ["nav", "ui", "permissions", "db", "sobjects", "reporting"] as const;
 const CACHE_ROOT = path.join(os.tmpdir(), "lsc-studio-published");
-const SNAPSHOT_VERSION = 12;
+const SNAPSHOT_VERSION = 15;
 /** UserService.defaultLanguage — the translation file used when the user's is missing. */
 const DEFAULT_LANGUAGE = "en_US";
 /** Distinct permission-set combinations pre-built per download. */
@@ -1462,9 +1569,16 @@ export async function viewerConfig(categories: string[], userId: string, org: st
 
 const FV_COLUMNS = ["TextValue", "IntegerValue", "PicklistValue", "HasBooleanValue", "LongTextValue", "NumberValue", "UrlValue"];
 
+/** What the viewer's native screens and lists show, read live (never saved with the snapshot). */
+async function viewerScreens(core: SnapshotCore, userId: string | undefined, org: string): Promise<Pick<PublishedIpad, "settings" | "reports" | "lists">> {
+  if (!userId) return {};
+  const [reports, lists] = await Promise.all([viewerReportsTab(core, userId, org), viewerLists(core, userId, org)]);
+  return { ...reports, ...(lists ? { lists } : {}) };
+}
+
 /** ReportsTabCoordinator reads ReportsAndDashboardsSync; the report tree only shows with ShowSalesforceReports. */
-async function viewerScreens(core: SnapshotCore, userId: string | undefined, org: string): Promise<Pick<PublishedIpad, "settings" | "reports">> {
-  if (!userId || !core.tabs.some((t) => t.kind === "reports")) return {};
+async function viewerReportsTab(core: SnapshotCore, userId: string, org: string): Promise<Pick<PublishedIpad, "settings" | "reports">> {
+  if (!core.tabs.some((t) => t.kind === "reports")) return {};
   try {
     const config = await viewerConfig(["ReportsAndDashboardsSync"], userId, org);
     const r = config.ReportsAndDashboardsSync ?? {};
@@ -1473,6 +1587,171 @@ async function viewerScreens(core: SnapshotCore, userId: string | undefined, org
     return { settings, reports };
   } catch {
     return {};
+  }
+}
+
+/** DataTableView pages: AllSObjectsDataService.rowsPerPage. */
+const LIST_PAGE = 20;
+
+/**
+ * SFSObjectsListSQLPredicate over the device's synced records: the list view
+ * describe's filter (the cache's filters when REST has no list view for the
+ * object), plus `OwnerId = <viewer>` for "Mine" — the app ignores other
+ * scopes. Read as the admin, so counts match when the viewer's sync holds
+ * every record the filter selects. Sorted like the describe's `orderBy`.
+ */
+async function viewerLists(core: SnapshotCore, userId: string, org: string): Promise<Record<string, PublishedListData> | undefined> {
+  const objects = [...new Set(core.tabs.filter((t) => t.kind === "object" && t.sobject).map((t) => t.sobject as string))].filter((o) => core.objects[o]);
+  if (objects.length === 0) return undefined;
+  const [users, assignments] = await Promise.all([
+    query(`SELECT TimeZoneSidKey, LocaleSidKey FROM User WHERE Id = '${userId}'`, org).catch(() => [] as Row[]),
+    query(`SELECT Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId = '${userId}' AND Territory2.Territory2Model.State = 'Active'`, org).catch(() => [] as Row[]),
+  ]);
+  const format = { timeZone: str(users[0]?.TimeZoneSidKey) || "UTC", locale: (str(users[0]?.LocaleSidKey) || "en_US").replace(/_/g, "-") };
+  const territories = assignments.map((a) => ({ id: str(a.Territory2Id), name: str(obj(a.Territory2).Name) }));
+  // The app lists what it downloaded: undefined = a table it doesn't sync, null = a filter we can't reproduce.
+  const scope = (table: string): string | null | undefined => {
+    if (!core.sync) return null;
+    const key = Object.keys(core.sync).find((k) => ieq(k, table));
+    return key === undefined ? undefined : syncCondition(core.sync[key], userId, territories);
+  };
+  const out: Record<string, PublishedListData> = {};
+  await Promise.all(
+    objects.map(async (name) => {
+      const listviews = await apiRequest<Row>(`/services/data/v62.0/sobjects/${name}/listviews`, "GET", undefined, org);
+      const describeUrls = new Map(arr(listviews.success ? listviews.data?.listviews : []).map((l) => [str(l.developerName), str(l.describeUrl)]));
+      await Promise.all(
+        core.objects[name].listViews.map(async (lv) => {
+          const q = lv.query;
+          if (!q) return;
+          let where = q.where;
+          let mine = q.mine;
+          let orderBy = "";
+          const url = describeUrls.get(lv.name);
+          if (url?.startsWith("/services/data/")) {
+            const d = await apiRequest<Row>(url, "GET", undefined, org);
+            const soql = d.success ? str(d.data?.query) : "";
+            if (soql) {
+              const m = /\sWHERE\s([\s\S]*?)(?:\sORDER BY\s([\s\S]*))?$/i.exec(soql.replace(/\sUSING SCOPE \w+/i, ""));
+              const o = /\sORDER BY\s([\s\S]*)$/i.exec(soql);
+              where = m?.[1]?.trim() ?? "";
+              orderBy = o?.[1]?.trim() ?? "";
+              mine = str(d.data?.scope).toLowerCase() === "mine";
+            }
+          }
+          if (where === null) return;
+          const synced = scope(name);
+          const conditions = [mine ? `OwnerId = '${userId}'` : "", where ? `(${where})` : "", synced ? `(${synced})` : ""].filter(Boolean);
+          const filter = conditions.length ? ` WHERE ${conditions.join(" AND ")}` : "";
+          const first = q.fields.find((f) => f && !f.path.startsWith("toLabel("))?.path ?? "Id";
+          const fields = q.fields.filter((f): f is ListViewField => !!f);
+          const paths = [...new Set(fields.flatMap((f) => (f.ref ? [f.path, f.ref.idPath] : [f.path])))];
+          try {
+            const [total, records] = await Promise.all([
+              count(`SELECT COUNT() FROM ${name}${filter}`, org),
+              query(`SELECT Id${paths.length ? `, ${paths.join(", ")}` : ""} FROM ${name}${filter} ORDER BY ${orderBy || `${first} ASC NULLS FIRST, Id ASC NULLS FIRST`} LIMIT ${LIST_PAGE}`, org),
+            ]);
+            const unsynced = await unsyncedReferences(records, fields, scope, org);
+            const cell = (r: Row, f: ListViewField | null) => {
+              if (!f) return "";
+              // The app joins the related record from its local database, so one it didn't download shows blank.
+              if (f.ref && unsynced.has(str(pathValue(r, f.ref.idPath)))) return "";
+              return listCell(pathValue(r, f.path), f.type, format);
+            };
+            out[`${name}.${lv.name}`] = { count: total, rows: records.map((r) => ({ id: str(r.Id), cells: q.fields.map((f) => cell(r, f)) })) };
+          } catch {
+            // A filter SOQL can't express (or a field the admin can't read) — the list keeps its placeholder rows.
+          }
+        })
+      );
+    })
+  );
+  return out;
+}
+
+/**
+ * A DB Schema WhereSoql with the user's tags filled in as the app's
+ * parseConditional does, once per territory (the app downloads the union).
+ * Null when it uses an id-list tag the app fills from other tables.
+ */
+export function syncCondition(whereSoql: string, userId: string, territories: { id: string; name: string }[]): string | null {
+  if (!whereSoql) return "";
+  const perTerritory = /\{USER\.TERRITORY(ID)?\}/i.test(whereSoql);
+  const values = perTerritory && territories.length ? territories : [{ id: "", name: "" }];
+  const resolved = values.map((t) => resolveScalarTags(whereSoql, { userId, territoryName: t.name.replace(/'/g, "\\'"), territoryId: t.id }));
+  if (resolved.some((w) => /\{[A-Z0-9_.]+\}/i.test(w))) return null;
+  return resolved.length === 1 ? resolved[0] : resolved.map((w) => `(${w})`).join(" OR ");
+}
+
+/** Ids in reference columns whose record the app wouldn't have downloaded. */
+async function unsyncedReferences(records: Row[], fields: ListViewField[], scope: (table: string) => string | null | undefined, org: string): Promise<Set<string>> {
+  const byObject = new Map<string, Set<string>>();
+  for (const f of fields) {
+    if (!f.ref) continue;
+    const ids = byObject.get(f.ref.object) ?? new Set<string>();
+    for (const r of records) {
+      const id = str(pathValue(r, f.ref.idPath));
+      if (ID_PATTERN.test(id)) ids.add(id);
+    }
+    byObject.set(f.ref.object, ids);
+  }
+  const unsynced = new Set<string>();
+  await Promise.all(
+    [...byObject].map(async ([object, ids]) => {
+      if (ids.size === 0) return;
+      const condition = scope(object);
+      if (condition === undefined) return ids.forEach((id) => unsynced.add(id));
+      if (!condition) return;
+      const found = await query(`SELECT Id FROM ${object} WHERE Id IN (${inList([...ids])}) AND (${condition})`, org).catch(() => null);
+      if (!found) return;
+      const kept = new Set(found.map((r) => str(r.Id)));
+      for (const id of ids) if (!kept.has(id)) unsynced.add(id);
+    })
+  );
+  return unsynced;
+}
+
+function pathValue(record: Row, path: string): unknown {
+  const field = /^toLabel\((.+)\)$/.exec(path)?.[1] ?? path;
+  return field.split(".").reduce<unknown>((v, k) => (v && typeof v === "object" ? (v as Row)[k] : undefined), record);
+}
+
+/** OCEDBObject.formatData: medium date + short time in the user's zone, dates in GMT, Yes/No for checkboxes. */
+export function listCell(value: unknown, type: string, format: { timeZone: string; locale: string }): string {
+  if (value === null || value === undefined || value === "") return "";
+  const locale = (() => {
+    try {
+      return Intl.getCanonicalLocales(format.locale)[0] ?? "en-US";
+    } catch {
+      return "en-US";
+    }
+  })();
+  switch (type) {
+    case "checkbox":
+    case "boolean":
+      return value === true || value === "true" ? "Yes" : "No";
+    case "datetime": {
+      const d = new Date(str(value));
+      if (Number.isNaN(d.getTime())) return str(value);
+      const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: format.timeZone }).format(d);
+      const time = new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone: format.timeZone }).format(d);
+      // DateFormatter's medium + short joins with " at " in English.
+      return locale.startsWith("en") ? `${date} at ${time}` : `${date}, ${time}`;
+    }
+    case "date": {
+      const d = new Date(`${str(value).slice(0, 10)}T00:00:00Z`);
+      return Number.isNaN(d.getTime()) ? str(value) : new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(d);
+    }
+    case "time": {
+      const d = new Date(`1970-01-01T${str(value).replace(/Z$/, "")}Z`);
+      return Number.isNaN(d.getTime()) ? str(value) : new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone: "UTC" }).format(d);
+    }
+    case "percent":
+      return typeof value === "number" ? `${value.toLocaleString(locale)}%` : str(value);
+    case "currency":
+      return typeof value === "number" ? value.toLocaleString(locale, { style: "currency", currency: "USD" }) : str(value);
+    default:
+      return typeof value === "number" ? value.toLocaleString(locale) : str(value);
   }
 }
 
@@ -1502,8 +1781,9 @@ export async function loadPublishedIpad(
   const snapshotPath = (sets: string[], lang: string) => path.join(dir, `snapshot-v${SNAPSHOT_VERSION}-${lang}-${comboKey(sets)}.json`);
   if (fs.existsSync(snapshotPath(permissionSets, language))) {
     const saved = JSON.parse(fs.readFileSync(snapshotPath(permissionSets, language), "utf8")) as SnapshotCore;
-    const [dashboards, screens] = await Promise.all([withDashboardData(saved.dashboards ?? {}, org), viewerScreens(saved, user?.id, org)]);
-    return { ...applyListViewSharing(saved, await sharing), ...screens, dashboards, profile, cache, viewer, users: userList };
+    const shared = applyListViewSharing(saved, await sharing);
+    const [dashboards, screens] = await Promise.all([withDashboardData(saved.dashboards ?? {}, org), viewerScreens(shared, user?.id, org)]);
+    return { ...shared, ...screens, dashboards, profile, cache, viewer, users: userList };
   }
 
   fs.mkdirSync(dir, { recursive: true });
@@ -1531,8 +1811,9 @@ export async function loadPublishedIpad(
       if (c.sets === permissionSets && c.language === language) result = snapshot;
     }
     const core = result as SnapshotCore;
-    const [dashboards, screens] = await Promise.all([withDashboardData(core.dashboards, org), viewerScreens(core, user?.id, org)]);
-    return { ...applyListViewSharing(core, await sharing), ...screens, dashboards, viewer, users: userList };
+    const shared = applyListViewSharing(core, await sharing);
+    const [dashboards, screens] = await Promise.all([withDashboardData(core.dashboards, org), viewerScreens(shared, user?.id, org)]);
+    return { ...shared, ...screens, dashboards, viewer, users: userList };
   } finally {
     // Keep only the snapshots — the raw files hold the org's full metadata.
     for (const f of ["cache.zip", ...FILES.map((x) => `${x}.json`), ...languages.map((l) => `${l}.json`)]) fs.rmSync(path.join(dir, f), { force: true });

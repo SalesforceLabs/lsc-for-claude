@@ -1,5 +1,6 @@
 import React from "react";
 import { MicIcon } from "./IpadChrome";
+import noResultsUnknown from "./assets/noresults-unknown.png";
 
 /**
  * Home page components as LSC Mobile draws them (standard-home at 1210×834pt).
@@ -9,26 +10,9 @@ import { MicIcon } from "./IpadChrome";
 
 // ── Shared pieces ─────────────────────────────────────────────────────────────
 
-/** APEmptyPlaceholder's "noResultsUnknown" art: clouds, a mountain, sparkles. */
+/** APEmptyPlaceholder's "noResultsUnknown" illustration (AppPalette PlaceholderIllustrations), aspect-fit to `height`. */
 export function EmptyArt({ height = 150 }: { height?: number }) {
-  return (
-    <svg className="studio-ipad-h-art" height={height} viewBox="0 0 220 150" aria-hidden="true">
-      <defs>
-        <linearGradient id="studio-ipad-peak" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#a9c1fb" />
-          <stop offset="1" stopColor="#4b7bf5" />
-        </linearGradient>
-      </defs>
-      <path d="m78 30 38 70H40Z" fill="#b6cafb" />
-      <ellipse cx="62" cy="96" rx="40" ry="20" fill="#dfe8fd" />
-      <ellipse cx="96" cy="82" rx="26" ry="18" fill="#cad9fc" />
-      <path d="m132 22 52 98H80Z" fill="url(#studio-ipad-peak)" />
-      <path d="m132 22 52 98-8 4-48-90Z" fill="#000" opacity=".08" />
-      <path d="m36 50 2.5 6 6 2.5-6 2.5-2.5 6-2.5-6-6-2.5 6-2.5Z" fill="#1b3d8f" />
-      <path d="m164 48 2 4.5 4.5 2-4.5 2-2 4.5-2-4.5-4.5-2 4.5-2Z" fill="#1b3d8f" />
-      <path d="m112 4 2 4.5 4.5 2-4.5 2-2 4.5-2-4.5-4.5-2 4.5-2Z" fill="none" stroke="#8aa6ef" />
-    </svg>
-  );
+  return <img className="studio-ipad-h-art" src={noResultsUnknown} height={height} alt="" />;
 }
 
 function Sparkles({ size = 14 }: { size?: number }) {
@@ -113,7 +97,7 @@ export function Announcements() {
     <div className="studio-ipad-h-announcements">
       <div className="studio-ipad-h-section-title">Announcements</div>
       <div className="studio-ipad-h-empty-card">
-        <EmptyArt height={150} />
+        <EmptyArt height={192} />
         <div className="studio-ipad-h-empty-title">No recent announcements</div>
       </div>
     </div>
@@ -274,7 +258,7 @@ export function UpNextMap() {
             </svg>
           </div>
           <div className="studio-ipad-h-empty">
-            <EmptyArt height={150} />
+            <EmptyArt />
             <div className="studio-ipad-h-empty-title">You have no upcoming visits!</div>
             <div className="studio-ipad-h-empty-text">Let's schedule a visit</div>
             <span className="studio-ipad-h-capsule">Schedule a visit</span>
@@ -331,7 +315,7 @@ export function ActivityPlanProgress({ enhanced }: { enhanced: boolean }) {
           <span>Activity Plans</span>
         </div>
         <div className="studio-ipad-h-empty">
-          <EmptyArt height={150} />
+          <EmptyArt />
         </div>
       </div>
     );
@@ -361,7 +345,7 @@ export function ActivityPlanProgress({ enhanced }: { enhanced: boolean }) {
             <span>Exceeding Pace</span>
           </div>
           <div className="studio-ipad-h-empty">
-            <EmptyArt height={150} />
+            <EmptyArt />
             <div className="studio-ipad-h-empty-title big">No results</div>
           </div>
         </div>

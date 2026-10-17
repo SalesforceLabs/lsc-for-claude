@@ -87,6 +87,8 @@ export interface PublishedObject {
   defaultListView: string | null;
   /** List views shared only with roles, groups, or territories the viewer isn't in. */
   hiddenListViews?: { label: string; reason: string }[];
+  /** MetadataThemeInfo: the circle color and the SLDS glyph drawn on it. */
+  theme?: { color: string; iconUrl: string };
 }
 
 export interface PublishedIpad {
@@ -110,6 +112,16 @@ export interface PublishedIpad {
   settings?: { reports: { salesChart: boolean; salesforceReports: boolean } };
   /** The Reports tab's tree as the viewer sees it; absent without a Reports tab. */
   reports?: PublishedReportItem[];
+  /** Object tabs' list view records as `Object.ListName` → data; absent when they couldn't be read. */
+  lists?: Record<string, PublishedListData>;
+  /** `db.json`: the tables the app downloads, as object → DB Schema WhereSoql ("" = every record the user can read). */
+  sync?: Record<string, string>;
+}
+
+/** A list view's records as the viewer's iPad lists them: its count chip and first page. */
+export interface PublishedListData {
+  count: number;
+  rows: { id: string; cells: string[] }[];
 }
 
 /** MultiReportItem: a top-level section, a subfolder, or a report. */

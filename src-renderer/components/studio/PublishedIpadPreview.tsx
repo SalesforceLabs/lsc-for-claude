@@ -3,6 +3,7 @@ import type {
   PublishedComponent,
   PublishedIpad,
   PublishedLayout,
+  PublishedListData,
   PublishedObject,
   PublishedPage,
   PublishedResult,
@@ -17,6 +18,7 @@ import {
   ActivityPlanProgress,
   AgentforceWelcome,
   Announcements,
+  EmptyArt,
   HomeFabs,
   NextBestCustomers,
   RichText,
@@ -191,7 +193,7 @@ function Screen({
       return record ? (
         <RecordView object={object} snapshot={snapshot} />
       ) : (
-        <ListView tab={tab} object={object} accounts={tab.kind === "accounts"} onOpenRecord={onOpenRecord} />
+        <ListView tab={tab} object={object} lists={snapshot.lists} accounts={tab.kind === "accounts"} onOpenRecord={onOpenRecord} />
       );
     }
     case "empty":
@@ -239,12 +241,14 @@ function Native({ title, text }: { title: string; text: string }) {
   );
 }
 
-function Head({ eyebrow, title, children }: { eyebrow?: string; title: string; children?: React.ReactNode }) {
+function Head({ eyebrow, title, theme, children }: { eyebrow?: string; title: string; theme?: PublishedObject["theme"]; children?: React.ReactNode }) {
+  const [broken, setBroken] = useState(false);
   return (
     <div className="studio-ipad-row-between">
       <div className="studio-ipad-head">
-        <span className="studio-ipad-obj-icon" aria-hidden="true">
-          {title.slice(0, 1)}
+        {/* MetadataThemeInfo.icon(style: .circular): the SLDS glyph on a circle of the object's color. */}
+        <span className="studio-ipad-obj-icon" style={theme ? { background: theme.color } : undefined} aria-hidden="true">
+          {theme && !broken ? <img src={theme.iconUrl} alt="" onError={() => setBroken(true)} /> : title.slice(0, 1)}
         </span>
         <div>
           {eyebrow && <div className="studio-ipad-eyebrow">{eyebrow}</div>}
@@ -491,11 +495,13 @@ function LayoutSections({ layout }: { layout: PublishedLayout }) {
 function ListView({
   tab,
   object,
+  lists,
   accounts,
   onOpenRecord,
 }: {
   tab: PublishedTab;
   object: PublishedObject;
+  lists?: Record<string, PublishedListData>;
   accounts: boolean;
   onOpenRecord: () => void;
 }) {
@@ -505,7 +511,7 @@ function ListView({
   const title = !view ? object.labelPlural : view.label === "All" ? `All ${object.labelPlural}` : view.label;
   return (
     <div className="studio-ipad-lv">
-      <Head eyebrow={tab.label} title={title}>
+      <Head eyebrow={tab.label} title={title} theme={object.theme}>
         <span className="studio-ipad-outline-btn">New{accounts ? " Account" : ""}</span>
       </Head>
       <div className="studio-ipad-lv-search">
@@ -531,11 +537,21 @@ function ListView({
               onClick={() => setViewName(l.name)}
             >
               {l.label}
+              {lists?.[`${object.name}.${l.name}`] && <ListCount count={lists[`${object.name}.${l.name}`].count} />}
             </button>
           ))}
         </div>
       )}
-      {view && <DataTable columns={view.columns.map(columnLabel)} onOpenRecord={onOpenRecord} />}
+      {view &&
+        (lists?.[`${object.name}.${view.name}`]?.rows.length === 0 ? (
+          // AllSObjectsViewController.updateEmptyStateVisibilityIfRequired: an empty list hides the table for APEmptyPlaceholder.
+          <div className="studio-ipad-h-empty studio-ipad-lv-empty">
+            <EmptyArt height={192} />
+            <div className="studio-ipad-h-empty-title">No records to display</div>
+          </div>
+        ) : (
+          <DataTable columns={view.columns.map(columnLabel)} data={lists?.[`${object.name}.${view.name}`]} onOpenRecord={onOpenRecord} />
+        ))}
     </div>
   );
 }
@@ -548,7 +564,12 @@ const CELL_WIDTHS = [62, 48, 74, 40, 56, 68, 44, 52];
  * width split evenly but never under 250pt (wider tables scroll sideways).
  * Sorted by the first column, ascending, like a list view with no configured sort.
  */
-function DataTable({ columns, onOpenRecord }: { columns: string[]; onOpenRecord: () => void }) {
+/** TabCellContent's count: a Capsule, or a Circle under 10. */
+function ListCount({ count }: { count: number }) {
+  return <span className={`studio-ipad-lv-count${count < 10 ? " single" : ""}`}>{count}</span>;
+}
+
+function DataTable({ columns, data, onOpenRecord }: { columns: string[]; data?: PublishedListData; onOpenRecord: () => void }) {
   const width = `max(250px, calc(100% / ${Math.max(columns.length, 1)}))`;
   return (
     <div className="studio-ipad-table">
@@ -560,7 +581,16 @@ function DataTable({ columns, onOpenRecord }: { columns: string[]; onOpenRecord:
           </span>
         ))}
       </div>
-      {Array.from({ length: 14 }, (_, r) => (
+      {data?.rows.map((row) => (
+        <button key={row.id} type="button" className="studio-ipad-table-row" onClick={onOpenRecord}>
+          {columns.map((_, i) => (
+            <span key={i} className="studio-ipad-table-cell value" style={{ width, flex: "none" }}>
+              {row.cells[i]}
+            </span>
+          ))}
+        </button>
+      ))}
+      {!data && Array.from({ length: 14 }, (_, r) => (
         <button key={r} type="button" className="studio-ipad-table-row" onClick={onOpenRecord}>
           {columns.map((_, i) => (
             <span key={i} className="studio-ipad-table-cell" style={{ width, flex: "none" }}>
@@ -604,7 +634,7 @@ function RecordView({ object, snapshot }: { object: PublishedObject; snapshot: P
   );
   return (
     <>
-      <Head eyebrow={object.label} title={`Sample ${object.label.toLowerCase()}`}>
+      <Head eyebrow={object.label} title={`Sample ${object.label.toLowerCase()}`} theme={object.theme}>
         {object.recordTypes.length > 1 && (
           <label className="studio-ipad-hint">
             Record type{" "}

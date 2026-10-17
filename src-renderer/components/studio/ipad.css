@@ -345,13 +345,18 @@ button.studio-ipad-cache {
   color: #fff;
   font-size: 22px;
   font-weight: 600;
+  overflow: hidden;
+}
+
+.studio-ipad-obj-icon img {
+  width: 100%;
+  height: 100%;
 }
 
 .studio-ipad-eyebrow {
-  margin-top: 2px;
   font-size: 14px;
   font-weight: 600;
-  line-height: 18px;
+  line-height: 17px;
   color: #5c5c5c;
 }
 
@@ -1032,7 +1037,7 @@ button.studio-ipad-chip {
   justify-content: space-between;
   flex: none;
   height: 64px;
-  margin-top: 16px;
+  margin-top: 13px;
 }
 
 .studio-ipad-searchfield {
@@ -1078,6 +1083,7 @@ button.studio-ipad-chip {
   gap: 10px;
   flex: none;
   height: 50px;
+  margin-top: 3px;
   overflow: hidden;
 }
 
@@ -1103,10 +1109,47 @@ button.studio-ipad-chip {
   color: #fff;
 }
 
+/* TabCellContent: the count's frame is minWidth 24 + 8pt padding a side; under 10 it fills only a Circle centered in it. */
+.studio-ipad-lv-count {
+  --count-fill: #e5e5e5;
+  position: relative;
+  isolation: isolate;
+  box-sizing: content-box;
+  min-width: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--count-fill);
+  color: #2e2e2e;
+  font-size: 14px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.studio-ipad-lv-count.single {
+  background: none;
+}
+
+.studio-ipad-lv-count.single::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: var(--count-fill);
+}
+
+.studio-ipad-lv-chip.current .studio-ipad-lv-count {
+  --count-fill: #fff;
+}
+
 .studio-ipad-table {
   flex: 1;
   min-height: 0;
-  margin-top: 10px;
+  margin-top: 9px;
   overflow: hidden;
   border: 1px solid #c9c9c9;
   border-radius: 8px;
@@ -1121,7 +1164,7 @@ button.studio-ipad-chip {
   border: none;
   border-bottom: 1px solid #c9c9c9;
   background: #fff;
-  color: #2e2e2e;
+  color: #212121;
   font: inherit;
   font-size: 17px;
   text-align: left;
@@ -1131,13 +1174,14 @@ button.studio-ipad-chip {
 .studio-ipad-table-row.head {
   height: 37px;
   background: #f3f3f3;
-  color: #5c5c5c;
+  color: #4a4a4a;
   font-weight: 600;
   cursor: default;
 }
 
 .studio-ipad-table-cell {
   display: flex;
+  align-self: stretch;
   align-items: center;
   gap: 3px;
   box-sizing: border-box;
@@ -1149,10 +1193,6 @@ button.studio-ipad-chip {
 
 .studio-ipad-table-row.head .studio-ipad-table-cell + .studio-ipad-table-cell {
   border-left: 1px solid #c9c9c9;
-}
-
-.studio-ipad-table-cell.sorted {
-  color: #2e2e2e;
 }
 
 .studio-ipad-sort {
@@ -1276,6 +1316,12 @@ button.studio-ipad-chip {
 
 .studio-ipad-h-art {
   display: block;
+}
+
+/* AllSObjectsViewController's empty state: the medium placeholder centered in the area under the chips, 20pt above the label. */
+.studio-ipad-h-empty.studio-ipad-lv-empty {
+  gap: 20px;
+  margin-bottom: -16px;
 }
 
 .studio-ipad-h-empty-title {
