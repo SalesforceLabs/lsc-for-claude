@@ -17,6 +17,11 @@ export interface DeviceRequest {
   url: string;
   headers?: Record<string, string>;
   body?: string;
+  /**
+   * Gzip the body like the app's Connect calls (`Content-Encoding: gzip`). Applied only to a
+   * `/connect/` URL with a body of 4 KB or more that gets smaller; otherwise it is sent plain.
+   */
+  gzip?: boolean;
   signal?: AbortSignal;
   /** Set by `shapeHttp`; a transport that streams applies the link's bandwidth limits while it reads and writes. */
   shaper?: NetworkShaper;
@@ -124,16 +129,15 @@ const MAX_REDIRECTS = 5;
 
 /**
  * The request body as sent. Mirrors SalesforceApi.resolveRequestBody: a Connect API request that
- * opts in with `Content-Encoding: gzip` is compressed when the body is at least 4096 bytes and
+ * sets `gzip` is compressed when the body is at least 4096 bytes and
  * the compressed form is smaller; otherwise it goes out plain and the header is dropped.
  */
 export function prepareRequestBody(
-  req: Pick<DeviceRequest, "url" | "body" | "headers">
+  req: Pick<DeviceRequest, "url" | "body" | "gzip">
 ): { body: Buffer | undefined; gzipped: boolean } {
   if (req.body === undefined) return { body: undefined, gzipped: false };
   const raw = Buffer.from(req.body, "utf8");
-  const wantsGzip = Object.entries(req.headers ?? {}).some(([k, v]) => k.toLowerCase() === "content-encoding" && v.toLowerCase() === "gzip");
-  if (wantsGzip && req.url.includes("/connect/") && raw.length >= GZIP_REQUEST_THRESHOLD) {
+  if (req.gzip && req.url.includes("/connect/") && raw.length >= GZIP_REQUEST_THRESHOLD) {
     const compressed = zlib.gzipSync(raw);
     if (compressed.length < raw.length) return { body: compressed, gzipped: true };
   }
@@ -249,6 +253,10 @@ function nodeRequest(
 export function createHttp(instanceUrl: string, accessToken: string, fetchImpl?: typeof fetch): DeviceHttp {
   const base = instanceUrl.replace(/\/+$/, "");
   const send: DeviceHttp = async (req) => {
+    // The bearer token goes only to the instance (relative paths) or an HTTPS Salesforce host.
+    if (req.url.startsWith("//") || (!req.url.startsWith("/") && !isSalesforceUrl(req.url))) {
+      throw new DeviceHttpError("Refusing to send credentials to a URL that is not a relative path or an HTTPS Salesforce host.");
+    }
     const url = req.url.startsWith("/") ? base + req.url : req.url;
     const { body, gzipped } = prepareRequestBody(req);
     const headers = requestHeaders(accessToken, req, gzipped, body);

@@ -596,13 +596,14 @@ class TableRunner {
   }
 
   /** One HTTP request, counted. */
-  private async call(method: "GET" | "POST", url: string, body?: unknown, headers?: Record<string, string>): Promise<unknown> {
+  private async call(method: "GET" | "POST", url: string, body?: unknown, headers?: Record<string, string>, gzip?: boolean): Promise<unknown> {
     if (this.signal.aborted) throw new StopTable(this.run.aborted ? "cancelled" : "table timeout");
     this.result.requests++;
     const res = await this.o.session.http({
       method,
       url,
       headers,
+      gzip,
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: this.signal,
     });
@@ -699,8 +700,9 @@ class TableRunner {
           "POST",
           url,
           buildEnhancedBody({ table: this.table, fields, tags: tagSet, batchSize: batch.size, syncStart: this.o.syncStart, queryLocator: locator }),
-          // The app gzips Connect request bodies (SyncConnectDownloadManager.performDeltaAPICall); session.ts applies it past 4 KB.
-          { "X-Chatter-Entity-Encoding": "false", "Content-Encoding": "gzip" }
+          { "X-Chatter-Entity-Encoding": "false" },
+          // The app gzips Connect request bodies (SyncConnectDownloadManager.performDeltaAPICall).
+          true
         );
         const { records, o } = recordsOf(json);
         batch.update((this.run.now() - t0) / 1000, this.lastDecodedBytes, records.length);

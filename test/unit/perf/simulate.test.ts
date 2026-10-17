@@ -263,7 +263,8 @@ describe("enhanced flow", () => {
     expect(r.records).toBe(6);
     expect(r.requests).toBe(3);
     expect(calls[0].url).toBe("/services/data/v67.0/connect/life-sciences/commercial/sobject/query");
-    expect(calls[0].headers).toEqual({ "X-Chatter-Entity-Encoding": "false", "Content-Encoding": "gzip" });
+    expect(calls[0].headers).toEqual({ "X-Chatter-Entity-Encoding": "false" });
+    expect(calls[0].gzip).toBe(true);
     const b0 = JSON.parse(calls[0].body ?? "{}");
     expect(b0).toMatchObject({
       objectName: "Visit__c",

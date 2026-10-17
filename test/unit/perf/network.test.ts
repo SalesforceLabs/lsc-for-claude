@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as http from "http";
 import * as zlib from "zlib";
 import type { AddressInfo } from "net";
@@ -119,17 +119,16 @@ describe("realLinkNote", () => {
 
 describe("request gzip", () => {
   const big = JSON.stringify({ fields: Array.from({ length: 400 }, (_, i) => `Field${i}__c`) });
-  const hdr = { "Content-Encoding": "gzip" };
-
+  
   it("compresses an opted-in Connect body of 4 KB or more", () => {
-    const r = prepareRequestBody({ url: "/services/data/v67.0/connect/x", body: big, headers: hdr });
+    const r = prepareRequestBody({ url: "/services/data/v67.0/connect/x", body: big, gzip: true });
     expect(r.gzipped).toBe(true);
     expect(zlib.gunzipSync(r.body!).toString()).toBe(big);
   });
 
   it("sends small, non-Connect and non-opted-in bodies as they are", () => {
-    expect(prepareRequestBody({ url: "/services/data/v67.0/connect/x", body: "{}", headers: hdr }).gzipped).toBe(false);
-    expect(prepareRequestBody({ url: "/services/data/v67.0/composite/batch", body: big, headers: hdr }).gzipped).toBe(false);
+    expect(prepareRequestBody({ url: "/services/data/v67.0/connect/x", body: "{}", gzip: true }).gzipped).toBe(false);
+    expect(prepareRequestBody({ url: "/services/data/v67.0/composite/batch", body: big, gzip: true }).gzipped).toBe(false);
     expect(prepareRequestBody({ url: "/services/data/v67.0/connect/x", body: big }).gzipped).toBe(false);
   });
 });
@@ -169,9 +168,30 @@ describe("node transport", () => {
 
   it("gzips an opted-in Connect request body", async () => {
     const big = JSON.stringify({ fields: Array.from({ length: 400 }, (_, i) => `Field${i}__c`) });
-    await createHttp(base, "tok")({ method: "POST", url: "/services/data/v67.0/connect/x", body: big, headers: { "Content-Encoding": "gzip" } });
+    await createHttp(base, "tok")({ method: "POST", url: "/services/data/v67.0/connect/x", body: big, gzip: true });
     expect(seen["content-encoding"]).toBe("gzip");
     expect(zlib.gunzipSync(seenBody).toString()).toBe(big);
+  });
+
+  it("refuses absolute URLs that are not HTTPS Salesforce hosts and sends no Authorization", async () => {
+    const fetchImpl = vi.fn();
+    const send = createHttp("https://x.my.salesforce.com", "secret-token", fetchImpl as unknown as typeof fetch);
+    for (const url of ["https://evil.example.com/a", "http://x.my.salesforce.com/a", "//evil.example.com/a", "ftp://x.salesforce.com/a"]) {
+      await expect(send({ method: "GET", url })).rejects.toThrow(/Refusing/);
+    }
+    expect(fetchImpl).not.toHaveBeenCalled();
+    // The real transport refuses too: nothing reaches the local server.
+    seen = {};
+    await expect(createHttp(base, "secret-token")({ method: "GET", url: base + "/q" })).rejects.toThrow(/Refusing/);
+    expect(seen.authorization).toBeUndefined();
+  });
+
+  it("still allows relative paths and Salesforce HTTPS URLs", async () => {
+    const fetchImpl = vi.fn(async () => new Response("{}"));
+    const send = createHttp("https://x.my.salesforce.com", "t", fetchImpl as unknown as typeof fetch);
+    await send({ method: "GET", url: "/services/data/v67.0/x" });
+    await send({ method: "GET", url: "https://y.file.force.com/sfc/z" });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
   it("throttles the download of a shaped request", async () => {
