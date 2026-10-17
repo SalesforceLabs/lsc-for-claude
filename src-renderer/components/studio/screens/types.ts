@@ -17,4 +17,6 @@ export interface PublishedScreens {
 export interface ScreenProps {
   tab: PublishedTab;
   snapshot: PublishedIpad;
+  /** Opens a record (by id) in the record screen; the preview shows it over the screen. */
+  onOpenRecord?: (id: string) => void;
 }

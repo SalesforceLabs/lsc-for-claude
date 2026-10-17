@@ -185,7 +185,9 @@ function Screen({
   record: string | null;
   onOpenRecord: (id: string) => void;
 }) {
-  if (record === null && hasNativeScreen(tab, snapshot)) return <NativeScreen tab={tab} snapshot={snapshot} />;
+  // An open record takes precedence over the tab's native screen (the Accounts cards open their record).
+  if (record !== null && snapshot.records?.byId[record]) return <RecordScreen snapshot={snapshot} recordId={record} />;
+  if (record === null && hasNativeScreen(tab, snapshot)) return <NativeScreen tab={tab} snapshot={snapshot} onOpenRecord={onOpenRecord} />;
   switch (tab.kind) {
     case "home":
       return snapshot.home ? <PageView page={snapshot.home} snapshot={snapshot} home /> : <Native title="Home" text="Home page" />;

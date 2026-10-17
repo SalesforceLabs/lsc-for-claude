@@ -1231,7 +1231,7 @@ export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing |
 
 const FILES = ["nav", "ui", "permissions", "db", "sobjects", "reporting"] as const;
 const CACHE_ROOT = path.join(os.tmpdir(), "lsc-studio-published");
-const SNAPSHOT_VERSION = 16;
+const SNAPSHOT_VERSION = 17;
 /** UserService.defaultLanguage — the translation file used when the user's is missing. */
 const DEFAULT_LANGUAGE = "en_US";
 /** Distinct permission-set combinations pre-built per download. */
@@ -1606,7 +1606,8 @@ async function viewerScreens(core: SnapshotCore, userId: string | undefined, org
     viewerLists(core, userId, org),
     viewerContext(core, userId, org).then(collectScreens).catch(() => ({}) as PublishedScreens),
   ]);
-  const records = lists ? await viewerContext(core, userId, org).then((ctx) => collectRecords(ctx, lists)).catch(() => undefined) : undefined;
+  const cards = (screens as PublishedScreens).accounts?.cards.map((c) => c.id) ?? [];
+  const records = lists || cards.length ? await viewerContext(core, userId, org).then((ctx) => collectRecords(ctx, lists ?? {}, { Account: cards })).catch(() => undefined) : undefined;
   return { ...reports, ...(lists ? { lists } : {}), ...(Object.keys(screens).length ? { screens } : {}), ...(records && Object.keys(records.byId).length ? { records } : {}) };
 }
 

@@ -32,6 +32,8 @@ export interface PublishedRelated {
   count: number;
   columns: { label: string; type: string }[];
   rows: { id: string; cells: string[] }[];
+  /** The child object is createable, so the card offers "New" (when the record is editable). */
+  canCreate?: boolean;
 }
 
 export interface PublishedInlineCard {
@@ -63,6 +65,16 @@ export interface PublishedRecords {
   themes: Record<string, { color: string; iconUrl: string }>;
   /** Org-defined inline components (`lscMobileInline_*`) by component name. */
   inline: Record<string, PublishedInlineCard>;
+  /** Per object and lower-cased field: the label the device reads from the field's own describe, and whether it is drawn. */
+  fields: Record<string, Record<string, PublishedFieldMeta>>;
+}
+
+export interface PublishedFieldMeta {
+  label: string;
+  /** Compound-field components (First Name, Billing Street) and addresses are not drawn. */
+  hidden?: boolean;
+  /** The field has help text: an info glyph follows the label. */
+  help?: boolean;
 }
 
 interface Describe {
@@ -72,6 +84,7 @@ interface Describe {
   recordTypes: Map<string, string>;
   nameField: string;
   updateable: boolean;
+  createable: boolean;
 }
 
 // ---------- pure helpers (unit-tested) ----------
@@ -170,13 +183,18 @@ function describeOf(ctx: ScreenContext, object: string): Promise<Describe | null
       recordTypes: new Map(arr(d.recordTypeInfos).map((t) => [str(t.recordTypeId), str(t.developerName)])),
       nameField: str(arr(d.fields).find((f) => f.nameField === true)?.name) || "Name",
       updateable: d.updateable !== false,
+      createable: d.createable !== false,
     } satisfies Describe;
   })();
   cache.set(object, p);
   return p;
 }
 
-const layoutObject = (layoutName: string) => layoutName.slice(0, Math.max(0, layoutName.indexOf("-")));
+/** A layout's object; person account layouts (`PersonAccount-...`) are Account's. */
+const layoutObject = (layoutName: string) => {
+  const o = layoutName.slice(0, Math.max(0, layoutName.indexOf("-")));
+  return o === "PersonAccount" ? "Account" : o;
+};
 
 /** Every layout item the record screen can show for an object: its layouts' sections and its compact layouts. */
 function specsFor(ctx: ScreenContext, object: string): RecordFieldSpec[] {
@@ -204,7 +222,7 @@ interface Fetched {
 }
 
 /** Reads `ids` of `object` (or `where`) with every layout field the describe knows; lookups come as `Rel.Name`. */
-async function fetchRows(ctx: ScreenContext, object: string, where: string, extra: string[]): Promise<Fetched | null> {
+async function fetchRows(ctx: ScreenContext, object: string, where: string, extra: string[], inlineFields: string[] = []): Promise<Fetched | null> {
   const describe = await describeOf(ctx, object);
   if (!describe) return null;
   const specs = new Map<string, RecordFieldSpec>();
@@ -212,6 +230,11 @@ async function fetchRows(ctx: ScreenContext, object: string, where: string, extr
     if (s.name.includes(".")) continue;
     const f = describe.fields.get(s.name.toLowerCase());
     if (f) specs.set(str(f.name), { ...s, name: str(f.name) });
+  }
+  // Fields an inline component (lscMobileInline_*) prints that no layout shows.
+  for (const name of inlineFields) {
+    const f = describe.fields.get(name.toLowerCase());
+    if (f && !specs.has(str(f.name))) specs.set(str(f.name), { name: str(f.name), label: str(f.label), type: str(f.type).toLowerCase() });
   }
   const paths = new Set<string>(["Id", describe.nameField, ...extra]);
   if (describe.fields.has("recordtypeid")) paths.add("RecordTypeId");
@@ -235,6 +258,21 @@ async function fetchRows(ctx: ScreenContext, object: string, where: string, extr
   }
 }
 
+const salutationLabel = (d: Describe, salutation: string) => str(arr(d.fields.get("salutation")?.picklistValues).find((p) => str(p.value) === salutation)?.label) || salutation;
+
+function fieldMeta(fetched: Fetched): Record<string, PublishedFieldMeta> {
+  const out: Record<string, PublishedFieldMeta> = {};
+  for (const [name, spec] of fetched.specs) {
+    const f = fetched.describe.fields.get(name.toLowerCase());
+    if (!f) continue;
+    const meta: PublishedFieldMeta = { label: str(f.label) || spec.label };
+    if ((f.compoundFieldName && str(f.name) !== str(f.compoundFieldName) && str(f.name) !== fetched.describe.nameField) || str(f.type) === "address" || str(f.type) === "location") meta.hidden = true;
+    if (str(f.inlineHelpText)) meta.help = true;
+    out[name.toLowerCase()] = meta;
+  }
+  return out;
+}
+
 function toValues(ctx: ScreenContext, fetched: Fetched, row: Row, unsynced: Set<string>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [name, spec] of fetched.specs) {
@@ -246,7 +284,10 @@ function toValues(ctx: ScreenContext, fetched: Fetched, row: Row, unsynced: Set<
       out[name.toLowerCase()] = shown;
       continue;
     }
-    out[name.toLowerCase()] = formatValue(raw, spec, f, ctx.format);
+    let text = formatValue(raw, spec, f, ctx.format);
+    // A person account's Name prints with its salutation (the device joins the compound name).
+    if (text && str(f?.name) === fetched.describe.nameField && fetched.describe.fields.has("salutation") && str(row.Salutation)) text = `${salutationLabel(fetched.describe, str(row.Salutation))} ${text}`;
+    out[name.toLowerCase()] = text;
   }
   return out;
 }
@@ -293,12 +334,18 @@ async function unsyncedIds(ctx: ScreenContext, fetched: Fetched[]): Promise<Set<
 }
 
 /** First rows per list view, grouped by object. */
-function idsByObject(lists: Record<string, PublishedListData>): Map<string, string[]> {
+function idsByObject(lists: Record<string, PublishedListData>, extra: Record<string, string[]>): Map<string, string[]> {
   const out = new Map<string, string[]>();
   for (const [key, data] of Object.entries(lists)) {
     const object = key.slice(0, key.indexOf("."));
     const ids = out.get(object) ?? [];
     for (const r of data.rows.slice(0, PER_LIST)) if (ID_PATTERN.test(r.id) && !ids.includes(r.id) && ids.length < PER_OBJECT) ids.push(r.id);
+    out.set(object, ids);
+  }
+  // Records other screens open (the Accounts screen's cards).
+  for (const [object, list] of Object.entries(extra)) {
+    const ids = out.get(object) ?? [];
+    for (const id of list.slice(0, PER_OBJECT)) if (ID_PATTERN.test(id) && !ids.includes(id)) ids.push(id);
     out.set(object, ids);
   }
   return out;
@@ -338,28 +385,38 @@ async function relatedLists(ctx: ScreenContext, object: string, ids: string[], d
           return { label: s.label || str(f?.label) || s.name, type: str(f?.type).toLowerCase() || s.type };
         })
       );
-      const base: Omit<PublishedRelated, "count" | "rows"> = { key, api: keys.get(key) ?? "", label, object: child, columns };
+      const base: Omit<PublishedRelated, "count" | "rows"> = { canCreate: cd.createable, key, api: keys.get(key) ?? "", label, object: child, columns };
       const add = (id: string, count: number, rows: PublishedRelated["rows"]) => out.get(id)?.push({ ...base, count, rows });
       if (condition === undefined) return ids.forEach((id) => add(id, 0, []));
       const scoped = condition ? ` AND (${condition})` : "";
+      // A person account's contact-parented lists (business licenses) hang off its PersonContactId.
+      const viaContact = object === "Account" && arr(cd.fields.get(field.toLowerCase())?.referenceTo).map(str).join() === "Contact" && d.fields.has("personcontactid");
+      const owner = new Map<string, string>(ids.map((id) => [id, id]));
+      if (viaContact) {
+        owner.clear();
+        const contacts = await query(`SELECT Id, PersonContactId FROM Account WHERE Id IN (${inList(ids)})`, ctx.org).catch(() => [] as Row[]);
+        for (const c of contacts) if (str(c.PersonContactId)) owner.set(str(c.PersonContactId), str(c.Id));
+      }
+      const parents = [...owner.keys()];
+      if (!parents.length) return ids.forEach((id) => add(id, 0, []));
       const counts = new Map<string, number>();
       try {
-        const grouped = await query(`SELECT ${field} p, COUNT(Id) c FROM ${child} WHERE ${field} IN (${inList(ids)})${scoped} GROUP BY ${field}`, ctx.org);
-        for (const g of grouped) counts.set(str(g.p), Number(g.c) || 0);
+        const grouped = await query(`SELECT ${field} p, COUNT(Id) c FROM ${child} WHERE ${field} IN (${inList(parents)})${scoped} GROUP BY ${field}`, ctx.org);
+        for (const g of grouped) counts.set(owner.get(str(g.p)) ?? str(g.p), Number(g.c) || 0);
       } catch {
         return;
       }
       const rowsBy = new Map<string, PublishedRelated["rows"]>();
       if ([...counts.values()].some((n) => n > 0)) {
         const paths = (specs.length ? specs : [{ name: cd.nameField, label: "", type: "string" }]).map((s) => s.name);
-        const select = (p: string[]) => `SELECT Id, ${field}, ${[...new Set(p)].join(", ")} FROM ${child} WHERE ${field} IN (${inList(ids)})${scoped} ORDER BY ${cd.nameField} DESC LIMIT 200`;
+        const select = (p: string[]) => `SELECT Id, ${field}, ${[...new Set(p)].join(", ")} FROM ${child} WHERE ${field} IN (${inList(parents)})${scoped} ORDER BY ${cd.nameField} DESC LIMIT 1000`;
         const rel = (name: string) => {
           const f = cd.fields.get(name.toLowerCase());
           return f && str(f.type) === "reference" && f.relationshipName ? `${str(f.relationshipName)}.Name` : name;
         };
         const records = await query(select(paths.map(rel)), ctx.org).catch(() => query(select(paths.filter((p) => !p.includes("."))), ctx.org).catch(() => [] as Row[]));
         for (const r of records) {
-          const parent = str(r[field]);
+          const parent = owner.get(str(r[field])) ?? str(r[field]);
           const list = rowsBy.get(parent) ?? [];
           if (list.length >= RELATED_ROWS) continue;
           const cells = (specs.length ? specs : [{ name: cd.nameField, label: "", type: "string" } as RecordFieldSpec]).map((s) => {
@@ -400,19 +457,22 @@ async function inlineCards(ctx: ScreenContext, objects: string[]): Promise<Recor
   return out;
 }
 
-export async function collectRecords(ctx: ScreenContext, lists: Record<string, PublishedListData>): Promise<PublishedRecords | undefined> {
-  const wanted = idsByObject(lists);
+export async function collectRecords(ctx: ScreenContext, lists: Record<string, PublishedListData>, extra: Record<string, string[]> = {}): Promise<PublishedRecords | undefined> {
+  const wanted = idsByObject(lists, extra);
+  const fields: Record<string, Record<string, PublishedFieldMeta>> = {};
   const byId: Record<string, PublishedRecordData> = {};
   const themes: Record<string, { color: string; iconUrl: string }> = {};
   const objects = [...wanted.keys()].filter((o) => ctx.core.objects[o] && wanted.get(o)?.length);
   if (!objects.length) return undefined;
+  const inline = await inlineCards(ctx, objects);
+  const inlineFor = (o: string) => [...new Set(Object.values(inline).filter((c) => c.object === o).flatMap((c) => c.cells.map((x) => x.field)))];
 
   await Promise.all(
     objects.map(async (object) => {
       const ids = wanted.get(object) ?? [];
       const partner = MULTI_ENTITY[object]?.with;
       const [main, access] = await Promise.all([
-        fetchRows(ctx, object, `Id IN (${inList(ids)})`, ["Status"].filter(() => object === "Visit")),
+        fetchRows(ctx, object, `Id IN (${inList(ids)})`, ["Status"].filter(() => object === "Visit"), inlineFor(object)),
         query(`SELECT RecordId, HasEditAccess FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND RecordId IN (${inList(ids)})`, ctx.org).catch(() => [] as Row[]),
       ]);
       if (!main) return;
@@ -422,8 +482,10 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
       if (partner && ctx.core.objects[object]?.recordTypes.some((r) => r.multiEntity)) {
         const pd = await describeOf(ctx, partner);
         linkField = str(arr([...(pd?.fields.values() ?? [])]).find((f) => arr(f.referenceTo).map(str).includes(object) && f.nameField !== true)?.name);
-        if (pd && linkField) linkedFetch = await fetchRows(ctx, partner, `${linkField} IN (${inList(ids)})`, [linkField, "Status"].filter((p) => p !== "Status" || pd.fields.has("status")));
+        if (pd && linkField) linkedFetch = await fetchRows(ctx, partner, `${linkField} IN (${inList(ids)})`, [linkField, "Status"].filter((p) => p !== "Status" || pd.fields.has("status")), inlineFor(partner));
       }
+      fields[object] = { ...fields[object], ...fieldMeta(main) };
+      if (linkedFetch) fields[partner] = { ...fields[partner], ...fieldMeta(linkedFetch) };
       const unsynced = await unsyncedIds(ctx, linkedFetch ? [main, linkedFetch] : [main]);
       const rel = await relatedLists(ctx, object, ids, main.describe);
       const edit = new Map(access.map((a) => [str(a.RecordId), a.HasEditAccess === true]));
@@ -461,7 +523,7 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
       if (t) themes[c] = t;
     })
   );
-  return { byId, themes, inline: await inlineCards(ctx, objects) };
+  return { byId, themes, inline, fields };
 }
 
 /** Expenses tab: ExpenseOriginId → Visit; the total sums Amount in the org's currency. */

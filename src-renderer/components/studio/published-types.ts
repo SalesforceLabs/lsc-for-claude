@@ -145,6 +145,13 @@ export interface PublishedRelated {
   count: number;
   columns: { label: string; type: string }[];
   rows: { id: string; cells: string[] }[];
+  canCreate?: boolean;
+}
+
+export interface PublishedFieldMeta {
+  label: string;
+  hidden?: boolean;
+  help?: boolean;
 }
 
 export interface PublishedInlineCard {
@@ -169,6 +176,7 @@ export interface PublishedRecords {
   byId: Record<string, PublishedRecordData>;
   themes: Record<string, { color: string; iconUrl: string }>;
   inline: Record<string, PublishedInlineCard>;
+  fields: Record<string, Record<string, PublishedFieldMeta>>;
 }
 
 /** A list view's records as the viewer's iPad lists them: its count chip and first page. */

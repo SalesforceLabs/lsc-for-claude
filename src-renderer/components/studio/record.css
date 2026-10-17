@@ -98,12 +98,27 @@
   color: #0250d9;
 }
 
-/* Segments: y 160, 40pt tall, centered group starting at x 378. */
+/* Segments: y 160, 40pt tall, centered group starting at x 378; a strip that overflows scrolls from x 20. */
 .studio-ipad-rec-tabs {
   display: flex;
   gap: 8px;
   height: 40px;
   padding-left: 378px;
+}
+
+.studio-ipad-rec-tabs.scroll {
+  overflow-x: auto;
+  padding: 0 20px;
+  scrollbar-width: none;
+}
+
+.studio-ipad-rec-tabs.scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.studio-ipad-rec-tabs.scroll .studio-ipad-rec-tab {
+  flex: none;
+  white-space: nowrap;
 }
 
 .studio-ipad-rec-tab {
@@ -156,6 +171,62 @@
 
 .studio-ipad-rec-section.section-gap {
   margin-top: 15px;
+}
+
+/* A labeled first section starts 14pt below the card top (the pill sits 4pt above the heading). */
+.studio-ipad-rec-section.labeled {
+  margin-top: -6px;
+}
+
+.studio-ipad-rec-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.studio-ipad-rec-section-head {
+  height: 21px;
+}
+
+.studio-ipad-rec-section-head .studio-ipad-rec-section-title {
+  margin-bottom: 0;
+}
+
+.studio-ipad-rec-section-head + .studio-ipad-rec-cols {
+  margin-top: 35px;
+}
+
+.studio-ipad-rec-edit,
+.studio-ipad-rec-new {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 38px;
+  margin-top: -4px;
+  padding: 0 17px;
+  border: 1px solid #5c5c5c;
+  border-radius: 999px;
+  color: #0250d9;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.studio-ipad-rec-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: #747474;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  vertical-align: 1px;
 }
 
 .studio-ipad-rec-section-title {
@@ -213,7 +284,7 @@
 
 /* Related-list cards: 72pt with the heading alone; icon at x 36, title at x 76. */
 .studio-ipad-rec-card.related {
-  padding: 21px 15px 21px;
+  padding: 16px 16px 16px 15px;
   overflow: hidden;
 }
 
@@ -221,7 +292,13 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 30px;
+  height: 40px;
+}
+
+.studio-ipad-rec-rl-head .studio-ipad-rec-new {
+  height: 40px;
+  min-width: 67px;
+  margin: 0 0 0 auto;
 }
 
 .studio-ipad-rec-rl-icon {
@@ -252,7 +329,42 @@
 
 /* Table: 44pt header row (37pt button at +7), 44pt rows, text inset 16. */
 .studio-ipad-rec-table {
-  margin-top: 13px;
+  position: relative;
+  margin-top: 15px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.studio-ipad-rec-table-border {
+  position: absolute;
+  inset: 0;
+  border: 1px solid #c9c9c9;
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.studio-ipad-rec-rl-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 73px;
+  border-left: 1px solid #c9c9c9;
+  background: #fff;
+}
+
+.studio-ipad-rec-rl-actions-head {
+  height: 37px;
+  background: #f3f3f3;
+  border-bottom: 1px solid #c9c9c9;
+  box-sizing: border-box;
+}
+
+.studio-ipad-rec-rl-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
 }
 
 .studio-ipad-rec-tr {
@@ -261,22 +373,35 @@
   align-items: center;
 }
 
+.studio-ipad-rec-tr:not(.head) + .studio-ipad-rec-tr {
+  box-shadow: inset 0 1px #dedede;
+}
+
 .studio-ipad-rec-tr.head {
-  align-items: flex-start;
+  height: 37px;
+  background: #f3f3f3;
+  border-bottom: 1px solid #c9c9c9;
+  box-sizing: border-box;
 }
 
 .studio-ipad-rec-th {
   flex: none;
   box-sizing: border-box;
-  height: 37px;
-  margin-top: 7px;
+  position: relative;
+  height: 36px;
   padding: 0 16px;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
-  line-height: 37px;
-  color: #2e2e2e;
+  line-height: 36px;
+  color: #444;
   white-space: nowrap;
   overflow: hidden;
+}
+
+.studio-ipad-rec-sort {
+  position: absolute;
+  top: 11px;
+  right: 15px;
 }
 
 .studio-ipad-rec-td {
@@ -289,6 +414,27 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.studio-ipad-rec-td.link {
+  color: #0250d9;
+}
+
+.studio-ipad-rec-card.placeholder {
+  padding: 24px 20px 28px;
+}
+
+.studio-ipad-rec-ph-title {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 24px;
+  color: #2e2e2e;
+}
+
+.studio-ipad-rec-ph-note {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #5c5c5c;
 }
 
 .studio-ipad-rec-viewall {
@@ -308,7 +454,7 @@
 .studio-ipad-rec-exp-title {
   position: absolute;
   left: 19px;
-  top: 20px;
+  top: 38px;
   font-size: 20px;
   font-weight: 600;
   line-height: 24px;
@@ -326,7 +472,7 @@
 }
 
 .studio-ipad-rec-exp-none {
-  margin-top: 8px;
+  margin-top: 52px;
   font-size: 20px;
   font-weight: 600;
   color: #2e2e2e;
@@ -464,4 +610,9 @@
 .studio-ipad-rec-section-title {
   width: fit-content;
   max-width: 100%;
+}
+
+/* The Accounts screen's cards open their record. */
+.studio-ipad-accounts-card {
+  cursor: pointer;
 }

@@ -19,7 +19,7 @@ export function hasNativeScreen(tab: PublishedTab | undefined, snapshot: Publish
   return !!tab && !!SCREENS[tab.kind]?.has(snapshot);
 }
 
-export function NativeScreen({ tab, snapshot }: ScreenProps) {
+export function NativeScreen({ tab, snapshot, onOpenRecord }: ScreenProps) {
   const s = SCREENS[tab.kind];
-  return s ? <s.View tab={tab} snapshot={snapshot} /> : null;
+  return s ? <s.View tab={tab} snapshot={snapshot} onOpenRecord={onOpenRecord} /> : null;
 }

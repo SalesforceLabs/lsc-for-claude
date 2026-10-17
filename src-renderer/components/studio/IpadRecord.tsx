@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import type {
   PublishedComponent,
+  PublishedFieldMeta,
   PublishedIpad,
   PublishedLayout,
   PublishedObject,
@@ -40,7 +41,7 @@ export function highlightWidths(cells: { label: string; value: string }[], measu
  * GenericRelatedListViewController.GridLayout.calculateWidths: each column fits its longest string
  * plus padding; spare room up to `max` is shared evenly.
  */
-export function gridWidths(columns: { title: string; cells: string[] }[], max: number, measure: (t: string, header: boolean) => number = (t, h) => textWidth(t, 17, h ? 600 : 400)): number[] {
+export function gridWidths(columns: { title: string; cells: string[] }[], max: number, measure: (t: string, header: boolean) => number = (t, h) => textWidth(t, 17, h ? 500 : 400)): number[] {
   const widths = columns.map((c) => Math.max(measure(c.title, true), ...c.cells.map((x) => measure(x, false))) + 50);
   const total = widths.reduce((a, b) => a + b, 0);
   return total < max && widths.length ? widths.map((w) => w + (max - total) / widths.length) : widths;
@@ -54,7 +55,29 @@ export function menuActions(names: string[]): { name: string; label: string }[] 
 }
 
 /** Only plain lookups are tappable links; master-detail and record type references print as text. */
-const LOOKUP = new Set(["lookup", "hierarchy"]);
+const LOOKUP = new Set(["lookup", "hierarchy", "phone", "email", "url"]);
+
+/** The label the device reads from the field's own describe, and whether it is drawn at all. */
+function metaOf(snapshot: PublishedIpad, object: string, spec: RecordFieldSpec): PublishedFieldMeta {
+  return snapshot.records?.fields[object]?.[spec.name.toLowerCase()] ?? { label: spec.label };
+}
+
+/** Objects whose flexipage components are all drawn, unsupported ones as placeholder cards. */
+const isVisit = (rec: PublishedRecordData) => rec.object === "Visit" || rec.object === "ProviderVisit";
+
+const PLACEHOLDER_TITLES: Record<string, string> = {
+  accountSummary: "Provider Summary",
+  accountManagementDashboard: "Overview",
+  nextBestActions: "Next Best Actions",
+  accountMapDisplay: "Map",
+  CarouselLwc: "Insights",
+  ActivityHistory: "Activity History",
+  Ratings: "Ratings",
+  AccountAffiliations: "Affiliations",
+  optsWebView: "Consent",
+  surveyListView: "Surveys",
+  AccountTerritoryFields: "Territory",
+};
 
 function pageOf(snapshot: PublishedIpad, rec: PublishedRecordData) {
   const object = snapshot.objects[rec.object];
@@ -102,7 +125,7 @@ function RecordBody({ snapshot, rec }: { snapshot: PublishedIpad; rec: Published
     <div className="studio-ipad-rec">
       <Header snapshot={snapshot} rec={rec} object={object} compact={rt?.compactLayout ?? object?.defaultCompactLayout ?? null} />
       {tabs.length > 1 && (
-        <div className="studio-ipad-rec-tabs">
+        <div className={`studio-ipad-rec-tabs${tabs.length > 5 ? " scroll" : ""}`}>
           {tabs.map((t, j) => (
             <button key={j} type="button" className={`studio-ipad-rec-tab${t === tab ? " current" : ""}`} onClick={() => setI(j)}>
               {t.title}
@@ -118,6 +141,8 @@ function RecordBody({ snapshot, rec }: { snapshot: PublishedIpad; rec: Published
 function renderable(c: PublishedComponent, snapshot: PublishedIpad, rec: PublishedRecordData): boolean {
   if (c.visibility === "hidden") return false;
   const name = bare(c.name);
+  if (!isVisit(rec) && !/^(multiEntityRecordView|detailPanel|relatedListSingleContainer|relatedListContainer)$/.test(name) && !/^lscMobileInline_/.test(name)) return true;
+  if (!isVisit(rec) && /^lscMobileInline_/.test(name)) return true;
   if (name === "multiEntityRecordView" || name === "detailPanel" || name === "ExpensesListView" || name === "relatedListContainer") return true;
   if (/^lscMobileInline_/.test(name)) return !!snapshot.records?.inline[name];
   if (name === "relatedListSingleContainer") return !!findRelated(rec, c.properties.relatedListApiName);
@@ -137,18 +162,22 @@ function TabContent({ components, snapshot, rec }: { components: PublishedCompon
         .map((c, k) => {
           const name = bare(c.name);
           if (details.includes(c)) return <DetailsCard key={k} snapshot={snapshot} rec={rec} />;
+          if (name === "AccountTerritoryFields") return null;
           if (name === "ExpensesListView") return <ExpensesCard key={k} rec={rec} />;
-          if (/^lscMobileInline_/.test(name)) return <InlineCard key={k} snapshot={snapshot} rec={rec} name={name} />;
+          if (/^lscMobileInline_/.test(name)) return snapshot.records?.inline[name] ? <InlineCard key={k} snapshot={snapshot} rec={rec} name={name} /> : <PlaceholderCard key={k} title={PLACEHOLDER_TITLES[name] ?? name.replace(/^lscMobileInline_/, "")} />;
           if (name === "relatedListContainer")
             return (
               <React.Fragment key={k}>
                 {Object.values(rec.related).map((r) => (
-                  <RelatedCard key={r.key} snapshot={snapshot} related={r} />
+                  <RelatedCard key={r.key} snapshot={snapshot} related={r} editable={rec.editable} />
                 ))}
               </React.Fragment>
             );
-          const r = findRelated(rec, c.properties.relatedListApiName);
-          return r ? <RelatedCard key={k} snapshot={snapshot} related={r} /> : null;
+          if (name === "relatedListSingleContainer") {
+            const r = findRelated(rec, c.properties.relatedListApiName);
+            return r ? <RelatedCard key={k} snapshot={snapshot} related={r} editable={rec.editable} /> : null;
+          }
+          return <PlaceholderCard key={k} title={PLACEHOLDER_TITLES[name] ?? c.properties.label ?? c.label ?? name} />;
         })}
     </>
   );
@@ -159,7 +188,10 @@ function TabContent({ components, snapshot, rec }: { components: PublishedCompon
 function Header({ snapshot, rec, object, compact }: { snapshot: PublishedIpad; rec: PublishedRecordData; object?: PublishedObject; compact: string | null }) {
   const [broken, setBroken] = useState(false);
   const specs = (compact ? snapshot.compactFields?.[`${rec.object}.${compact}`] : undefined) ?? [];
-  const cells = specs.map((s) => ({ spec: s, label: s.label, value: valueOf(rec, rec.object, s) }));
+  const cells = specs
+    .map((s) => ({ spec: s, meta: metaOf(snapshot, rec.object, s) }))
+    .filter((c) => !c.meta.hidden)
+    .map((c) => ({ spec: c.spec, label: c.spec.label, value: valueOf(rec, rec.object, c.spec) }));
   const widths = useMemo(() => highlightWidths(cells.map((c) => ({ label: c.label, value: c.value }))), [cells]);
   const theme = object?.theme;
   return (
@@ -196,35 +228,51 @@ function detailLayouts(snapshot: PublishedIpad, rec: PublishedRecordData): Publi
   return names.map((n) => snapshot.layouts[n]).filter((l): l is PublishedLayout => !!l);
 }
 
-const layoutObject = (name: string) => name.slice(0, Math.max(0, name.indexOf("-")));
+const layoutObject = (name: string) => {
+  const o = name.slice(0, Math.max(0, name.indexOf("-")));
+  return o === "PersonAccount" ? "Account" : o;
+};
 
 function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: PublishedRecordData }) {
   const layouts = detailLayouts(snapshot, rec);
   return (
     <div className="studio-ipad-rec-card details">
-      {rec.editable && (
+      {rec.editable && isVisit(rec) && (
         <span className="studio-ipad-rec-pencil" title="Edit" aria-label="Edit">
           <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
             <path d="M3 19l1-4L15 4l3 3L7 18z M13 6l3 3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
           </svg>
         </span>
       )}
-      {layouts.map((layout, li) =>
-        layout.sections.map((s, si) => {
-          const object = layoutObject(layout.name);
+      {layouts.map((layout, li) => {
+        const object = layoutObject(layout.name);
+        // Compound-field components and addresses are not drawn; a section left with no field disappears.
+        const sections = layout.sections
+          .map((s) => ({ s, cols: (s.fields ?? s.columns.map((col) => col.map((label) => ({ name: label, label, type: "" })))).map((col) => col.filter((f) => !metaOf(snapshot, object, f).hidden)) }))
+          .filter((x) => x.cols.some((c) => c.length));
+        return sections.map(({ s, cols }, si) => {
           const first = li === 0 && si === 0;
           const cls = s.label ? (si === 0 ? " layout-gap" : " section-gap") : "";
           return (
-            <div key={`${li}.${si}`} className={`studio-ipad-rec-section${first ? " first" : ""}${cls}`}>
-              {s.label && <div className="studio-ipad-rec-section-title">{s.label}</div>}
+            <div key={`${li}.${si}`} className={`studio-ipad-rec-section${first ? " first" : ""}${cls}${first && s.label ? " labeled" : ""}`}>
+              {s.label && (
+                <div className="studio-ipad-rec-section-head">
+                  <div className="studio-ipad-rec-section-title">{s.label}</div>
+                  {rec.editable && !isVisit(rec) && si === 0 && <span className="studio-ipad-rec-edit">Edit</span>}
+                </div>
+              )}
               <div className="studio-ipad-rec-cols">
-                {(s.fields ?? s.columns.map((col) => col.map((label) => ({ name: label, label, type: "" })))).map((col, ci) => (
+                {cols.map((col, ci) => (
                   <div key={ci} className="studio-ipad-rec-col">
                     {col.map((f, fi) => {
                       const v = valueOf(rec, object, f);
+                      const meta = metaOf(snapshot, object, f);
                       return (
                         <div key={fi} className={`studio-ipad-rec-field${f.type === "textarea" ? " tall" : ""}`}>
-                          <div className="studio-ipad-rec-label">{f.label}</div>
+                          <div className="studio-ipad-rec-label">
+                            {meta.label}
+                            {meta.help && <span className="studio-ipad-rec-help" aria-hidden="true">i</span>}
+                          </div>
                           <div className={`studio-ipad-rec-value${v && LOOKUP.has(f.type) ? " link" : ""}`}>{v}</div>
                         </div>
                       );
@@ -234,8 +282,8 @@ function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: Publishe
               </div>
             </div>
           );
-        })
-      )}
+        });
+      })}
     </div>
   );
 }
@@ -243,8 +291,21 @@ function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: Publishe
 // ── Related lists ─────────────────────────────────────────────────────────────
 
 const TABLE_MAX = 1080;
+/** The related table is the card's width less its 15/16pt insets. */
+const TABLE_W = 1137;
+const LINK_COLUMNS = new Set(["email", "url", "phone"]);
 
-function RelatedCard({ snapshot, related }: { snapshot: PublishedIpad; related: PublishedRelated }) {
+/** Files (ContentDocument) carry no theme; the device draws a grey circle with a document. */
+function FileGlyph() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M5 2h7l4 4v12H5z" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M12 2v4h4" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function RelatedCard({ snapshot, related, editable = false }: { snapshot: PublishedIpad; related: PublishedRelated; editable?: boolean }) {
   const theme = snapshot.records?.themes[related.object];
   const [broken, setBroken] = useState(false);
   const widths = useMemo(
@@ -252,37 +313,69 @@ function RelatedCard({ snapshot, related }: { snapshot: PublishedIpad; related: 
     [related]
   );
   const shown = related.rows.slice(0, 5);
+  const file = !theme && /ContentDocument/.test(related.object);
   return (
     <div className="studio-ipad-rec-card related">
       <div className="studio-ipad-rec-rl-head">
         <span className="studio-ipad-rec-rl-icon" style={{ background: theme?.color ?? "#939393" }} aria-hidden="true">
-          {theme?.iconUrl && !broken ? <img src={theme.iconUrl} alt="" onError={() => setBroken(true)} /> : related.label.slice(0, 1)}
+          {file ? <FileGlyph /> : theme?.iconUrl && !broken ? <img src={theme.iconUrl} alt="" onError={() => setBroken(true)} /> : related.label.slice(0, 1)}
         </span>
         <span className="studio-ipad-rec-rl-title">
           {related.label} ({related.count})
         </span>
+        {editable && related.canCreate && <span className="studio-ipad-rec-new">New</span>}
       </div>
       {shown.length > 0 && (
-        <div className="studio-ipad-rec-table" style={{ width: TABLE_MAX }}>
+        <div className="studio-ipad-rec-table" style={{ width: TABLE_W }}>
           <div className="studio-ipad-rec-tr head">
             {related.columns.map((c, k) => (
               <span key={k} className="studio-ipad-rec-th" style={{ width: widths[k] }}>
                 {c.label}
+                {k === 0 && (
+                  <svg className="studio-ipad-rec-sort" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+                    <path d="M7 2v10M3 8l4 4 4-4" fill="none" stroke="#5c5c5c" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
               </span>
             ))}
           </div>
           {shown.map((r) => (
             <div key={r.id} className="studio-ipad-rec-tr">
-              {related.columns.map((_, k) => (
-                <span key={k} className="studio-ipad-rec-td" style={{ width: widths[k] }}>
+              {related.columns.map((c, k) => (
+                <span key={k} className={`studio-ipad-rec-td${r.cells[k] && LINK_COLUMNS.has(c.type) ? " link" : ""}`} style={{ width: widths[k] }}>
                   {r.cells[k]}
                 </span>
               ))}
             </div>
           ))}
+          {editable && (
+            <div className="studio-ipad-rec-rl-actions">
+              <div className="studio-ipad-rec-rl-actions-head" />
+              {shown.map((r) => (
+                <div key={r.id} className="studio-ipad-rec-rl-actions-row">
+                  <svg width="24" height="24" viewBox="0 0 24 24" aria-label="More Options">
+                    <circle cx="5" cy="12" r="1.6" fill="#5c5c5c" />
+                    <circle cx="12" cy="12" r="1.6" fill="#5c5c5c" />
+                    <circle cx="19" cy="12" r="1.6" fill="#5c5c5c" />
+                  </svg>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="studio-ipad-rec-table-border" />
         </div>
       )}
       {related.count > 5 && <div className="studio-ipad-rec-viewall">View All</div>}
+    </div>
+  );
+}
+
+/** A flexipage component the preview cannot draw from data: its title on an empty card. */
+function PlaceholderCard({ title }: { title: string }) {
+  return (
+    <div className="studio-ipad-rec-card placeholder">
+      <div className="studio-ipad-rec-ph-title">{title}</div>
+      <div className="studio-ipad-rec-ph-note">Drawn live on the iPad; not shown in this preview.</div>
     </div>
   );
 }

@@ -75,12 +75,12 @@ function ListRow({ list, selected, onClick }: { list?: PublishedAccountList; sel
   );
 }
 
-function Card({ card, columns }: { card: PublishedAccountCard; columns: string[] }) {
+function Card({ card, columns, onOpen }: { card: PublishedAccountCard; columns: string[]; onOpen?: (id: string) => void }) {
   const name = useRef<HTMLDivElement>(null);
   const [wrapped, setWrapped] = useState(false);
   useLayoutEffect(() => setWrapped((name.current?.offsetHeight ?? 0) > 22), [card.name]);
   return (
-    <div className="studio-ipad-accounts-card">
+    <div className="studio-ipad-accounts-card" onClick={() => onOpen?.(card.id)}>
       <div className={`studio-ipad-accounts-card-text ${wrapped ? "wrapped" : ""}`}>
         <div className="studio-ipad-accounts-card-row">
           <span className="studio-ipad-accounts-card-icon">{card.hco ? <HcoIcon size={24} /> : <PersonIcon />}</span>
@@ -113,7 +113,7 @@ function Card({ card, columns }: { card: PublishedAccountCard; columns: string[]
 }
 
 /** Cards in their own scroll pane; iOS draws a thin indicator while scrolling that fades out afterwards. */
-function CardsPane({ cards, columns, resetKey }: { cards: PublishedAccountCard[]; columns: string[]; resetKey: string }) {
+function CardsPane({ cards, columns, resetKey, onOpen }: { cards: PublishedAccountCard[]; columns: string[]; resetKey: string; onOpen?: (id: string) => void }) {
   const scroller = useRef<HTMLDivElement>(null);
   const [thumb, setThumb] = useState<{ top: number; height: number } | null>(null);
   const [active, setActive] = useState(false);
@@ -143,7 +143,7 @@ function CardsPane({ cards, columns, resetKey }: { cards: PublishedAccountCard[]
         }}
       >
         {cards.map((c) => (
-          <Card key={c.id} card={c} columns={columns} />
+          <Card key={c.id} card={c} columns={columns} onOpen={onOpen} />
         ))}
       </div>
       {thumb && <span className={`studio-ipad-accounts-thumb ${active ? "active" : ""}`} style={{ top: thumb.top, height: thumb.height }} />}
@@ -152,7 +152,7 @@ function CardsPane({ cards, columns, resetKey }: { cards: PublishedAccountCard[]
 }
 
 /** Accounts tab (SearchFilterCustomersViewController), drawn like LSC Mobile at 1210×834pt. Null until there is data, so the preview keeps its placeholder. */
-export default function AccountsScreen({ tab, snapshot }: ScreenProps): React.ReactElement | null {
+export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenProps): React.ReactElement | null {
   const data = snapshot.screens?.accounts;
   const [broken, setBroken] = useState(false);
   const [chip, setChip] = useState("All");
@@ -236,7 +236,7 @@ export default function AccountsScreen({ tab, snapshot }: ScreenProps): React.Re
         ))}
       </div>
 
-      <CardsPane cards={cards} columns={data.columns} resetKey={`${chip}|${listId}|${sort.label}|${sort.ascending}`} />
+      <CardsPane onOpen={onOpenRecord} cards={cards} columns={data.columns} resetKey={`${chip}|${listId}|${sort.label}|${sort.ascending}`} />
 
       {popover && (
         <>
