@@ -269,6 +269,7 @@ const layoutObject = (name: string) => {
 const READ_ONLY = new Set(["id", "formula", "autonumber", "rollup"]);
 const PICKLIST = new Set(["picklist", "multipicklist"]);
 const DATE = new Set(["date", "datetime"]);
+const TEXTY = new Set(["string", "text", "textarea", "email", "phone", "url"]);
 
 /** Edit mode: the sheet LSC Mobile opens from Edit. Inert here: Save writes nothing to the org. */
 function EditSheet({ snapshot, rec, onClose }: { snapshot: PublishedIpad; rec: PublishedRecordData; onClose: () => void }) {
@@ -281,12 +282,16 @@ function EditSheet({ snapshot, rec, onClose }: { snapshot: PublishedIpad; rec: P
           <div className="title">Edit {rec.title}</div>
           <button type="button" className="save" disabled title="This preview never writes to the org">Save</button>
         </div>
-        <div className="studio-ipad-rec-sheet-note">Preview only: on the iPad Save writes the record. Nothing is saved from here.</div>
         <div className="studio-ipad-rec-sheet-body">
           {layouts.map((layout, li) => {
             const object = layoutObject(layout.name);
             return layout.sections.map((s, si) => {
-              const cols = (s.fields ?? s.columns.map((col) => col.map((label) => ({ name: label, label, type: "" })))).map((col) => col.filter((f) => !metaOf(snapshot, object, f).hidden));
+              // Person accounts edit Salutation / First Name / Last Name; the compound Name is not drawn.
+              const person = layout.name.startsWith("PersonAccount-");
+              const NAME_PARTS = ["salutation", "firstname", "lastname"];
+              const cols = (s.fields ?? s.columns.map((col) => col.map((label) => ({ name: label, label, type: "" })))).map((col) =>
+                col.filter((f) => (person && NAME_PARTS.includes(f.name.toLowerCase())) || (!metaOf(snapshot, object, f).hidden && !(person && f.name === "Name")))
+              );
               if (!cols.some((c) => c.length)) return null;
               return (
                 <div key={`${li}.${si}`} className="studio-ipad-rec-sheet-sec">
@@ -300,15 +305,21 @@ function EditSheet({ snapshot, rec, onClose }: { snapshot: PublishedIpad; rec: P
                           const ro = READ_ONLY.has(f.type) || ("readOnly" in f && f.readOnly === true);
                           return (
                             <div key={fi} className="studio-ipad-rec-sheet-field">
-                              <div className="lbl">{meta.label}</div>
+                              <div className="lbl">
+                                {"required" in f && f.required === true ? <span className="req">* </span> : null}
+                                {meta.label}
+                                {meta.help && <span className="studio-ipad-rec-help" aria-hidden="true">i</span>}
+                              </div>
                               {ro ? (
                                 <div className="ro">{v}</div>
                               ) : (
                                 <div className={`inp${PICKLIST.has(f.type) ? " pick" : ""}`}>
+                                  {LOOKUP.has(f.type) && <span className="ic plus">⊕</span>}
                                   <span className="v">{v}</span>
-                                  {PICKLIST.has(f.type) && <span className="ic">⌄</span>}
+                                  {LOOKUP.has(f.type) && v && <span className="ic">⊗</span>}
+                                  {(PICKLIST.has(f.type) || LOOKUP.has(f.type)) && <span className="ic">▾</span>}
                                   {DATE.has(f.type) && <span className="ic">▦</span>}
-                                  {LOOKUP.has(f.type) && <span className="ic">⌕</span>}
+                                  {TEXTY.has(f.type) && <span className="ic">🎤︎</span>}
                                 </div>
                               )}
                             </div>
@@ -322,6 +333,7 @@ function EditSheet({ snapshot, rec, onClose }: { snapshot: PublishedIpad; rec: P
             });
           })}
         </div>
+        <div className="studio-ipad-rec-sheet-note">Preview only: on the iPad Save writes the record. Nothing is saved from here.</div>
       </div>
     </div>
   );

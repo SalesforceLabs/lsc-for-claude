@@ -927,10 +927,10 @@
 }
 .studio-ipad-rec-sheet-body {
   overflow-y: auto;
-  padding: 14px 20px 24px;
+  padding: 25px 20px 24px;
 }
 .studio-ipad-rec-sheet-sec-title {
-  margin: 0 0 34px;
+  margin: 0 0 32px;
   line-height: 22px;
   font-size: 18px;
   font-weight: 600;
@@ -976,5 +976,16 @@
 }
 
 .studio-ipad-rec-sheet-sec + .studio-ipad-rec-sheet-sec {
-  margin-top: 36px;
+  margin-top: 46px;
+}
+
+.studio-ipad-rec-sheet-field .req {
+  color: #ba0517;
+}
+.studio-ipad-rec-sheet-field .inp .v {
+  flex: 1;
+}
+.studio-ipad-rec-sheet-field .inp .ic.plus {
+  margin-right: 8px;
+  color: #0250d9;
 }
