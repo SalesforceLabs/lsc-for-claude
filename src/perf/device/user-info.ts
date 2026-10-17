@@ -190,7 +190,7 @@ export async function fetchUserInfo(
   } catch (e) {
     if (e instanceof DeviceHttpError && e.status === 404) {
       throw new DeviceHttpError(
-        `${e.message} The Life Sciences mobile user-info endpoint isn't available to ${session.username} — usually because the user isn't set up for the LSC mobile app (an admin, for example). Run it as a field user's connection.`,
+        `${e.message} The Life Sciences mobile user-info endpoint didn't answer ${session.username} through this sf CLI login. Either the user isn't set up for the LSC mobile app, or the org serves the endpoint only to the LSC mobile app's own login (sf CLI logins use a different connected app).`,
         e.status
       );
     }
