@@ -1,0 +1,192 @@
+import { describe, it, expect } from "vitest";
+import { parse } from "yaml";
+import {
+  deltaKey,
+  emptyPlan,
+  formatValue,
+  inheritedThreshold,
+  metricDeltas,
+  normalizePlan,
+  planFileName,
+  planToYaml,
+  remediationPrompt,
+  validatePlan,
+} from "../../../src-renderer/components/studio/perf-plan.js";
+import type { AssessmentResult, PerfPlan, PersonaResult } from "../../../src-renderer/components/studio/perf-types.js";
+import { METRICS as SERVER_METRICS, DEFAULT_THRESHOLDS as SERVER_DEFAULTS, parseNfrProfile } from "../../../src/perf/nfr.js";
+import { METRICS, DEFAULT_THRESHOLDS, mayOvercount } from "../../../src-renderer/components/studio/perf-plan.js";
+import { mayOvercount as serverMayOvercount, type TableVolume } from "../../../src/perf/sync-volume.js";
+
+const plan = (over: Partial<PerfPlan> = {}): PerfPlan => ({
+  name: "Plan",
+  personas: [{ name: "Rep", users: ["rep@example.com"] }],
+  ...over,
+});
+
+describe("renderer metric copy", () => {
+  it("matches the server's metrics and defaults", () => {
+    expect(Object.fromEntries(METRICS.map((m) => [m.key, { label: m.label, unit: m.unit }]))).toEqual(
+      Object.fromEntries(Object.entries(SERVER_METRICS).map(([k, v]) => [k, { label: v.label, unit: v.unit }]))
+    );
+    expect(DEFAULT_THRESHOLDS).toEqual(SERVER_DEFAULTS);
+  });
+
+  it("flags the same tables as the server's mayOvercount", () => {
+    const base: TableVolume = { sobject: "X", developerName: "X", matchedBy: "profile", status: "counted", records: 5, deviceRequests: 1 };
+    const cases: TableVolume[] = [];
+    for (const scope of ["user", "org-wide", undefined] as const)
+      for (const sharingModel of ["Private", "Read", "ReadWrite", "ReadWriteTransfer", "FullAccess", "ControlledByParent", undefined])
+        for (const records of [0, 5])
+          for (const status of ["counted", "error"] as const) cases.push({ ...base, scope, sharingModel, records, status });
+    for (const c of cases) expect(mayOvercount(c), JSON.stringify(c)).toBe(serverMayOvercount(c));
+  });
+});
+
+describe("normalizePlan", () => {
+  it("trims, de-duplicates users, and drops empty thresholds and territory", () => {
+    const out = normalizePlan(
+      plan({
+        name: "  Q3 load  ",
+        thresholds: { deltaSyncP95Sec: {}, initialSyncP95Sec: { warn: 300, fail: Number.NaN } },
+        telemetry: { days: 14.7 },
+        personas: [{ name: " Rep ", users: ["a@x", " a@x ", "", "b@x"], territory: "  ", thresholds: { dbSizeP95Gb: {} } }],
+      })
+    );
+    expect(out).toEqual({
+      name: "Q3 load",
+      thresholds: { initialSyncP95Sec: { warn: 300 } },
+      telemetry: { days: 14 },
+      personas: [{ name: "Rep", users: ["a@x", "b@x"] }],
+    });
+  });
+
+  it("produces YAML the server parses back to the same profile", () => {
+    const p = plan({ thresholds: { predictedRecordsTotal: { warn: 500000, fail: 1000000 } }, telemetry: { days: 30 } });
+    const yaml = planToYaml(p);
+    expect(parseNfrProfile(yaml)).toEqual(normalizePlan(p));
+    expect(parse(yaml)).toEqual(normalizePlan(p));
+  });
+});
+
+describe("validatePlan", () => {
+  it("accepts a runnable plan", () => {
+    expect(validatePlan(plan())).toEqual([]);
+  });
+
+  it("flags missing personas, empty personas, and duplicate names", () => {
+    expect(validatePlan(plan({ personas: [] }))).toEqual(["Add at least one persona."]);
+    const issues = validatePlan(
+      plan({ personas: [{ name: "Rep", users: [] }, { name: "rep", users: ["x"] }] })
+    );
+    expect(issues).toContain("Rep: add at least one user.");
+    expect(issues.some((i) => i.includes("Two personas are named"))).toBe(true);
+  });
+
+  it("flags inverted and negative thresholds and a bad telemetry window", () => {
+    const issues = validatePlan(
+      plan({
+        thresholds: { deltaSyncP95Sec: { warn: 90, fail: 60 } },
+        telemetry: { days: 0 },
+        personas: [{ name: "Rep", users: ["x"], thresholds: { dbSizeP95Gb: { warn: -1 } } }],
+      })
+    );
+    expect(issues).toEqual([
+      "Delta sync p95: warn (90) is above fail (60).",
+      "Rep — Device DB size p95: thresholds can't be negative.",
+      "Telemetry window must be between 1 and 365 days.",
+    ]);
+  });
+
+  it("the empty plan needs a user before it can run", () => {
+    expect(validatePlan(emptyPlan())).toEqual(["Persona 1: add at least one user."]);
+  });
+});
+
+describe("inheritedThreshold", () => {
+  it("prefers the plan target over the built-in default", () => {
+    expect(inheritedThreshold(plan(), "metadataDownloadP95Sec")).toEqual({ warn: 5, fail: 10 });
+    expect(inheritedThreshold(plan({ thresholds: { metadataDownloadP95Sec: { fail: 20 } } }), "metadataDownloadP95Sec")).toEqual({ fail: 20 });
+    expect(inheritedThreshold(plan(), "deltaSyncP95Sec")).toBeUndefined();
+  });
+});
+
+describe("planFileName", () => {
+  it("slugs the plan name", () => {
+    expect(planFileName(plan({ name: "Q3 Load — Reps!" }), "yaml")).toBe("q3-load-reps.yaml");
+    expect(planFileName(plan({ name: "  " }), "json")).toBe("test-plan.json");
+  });
+});
+
+function persona(name: string, values: Record<string, number | undefined>, status: PersonaResult["status"] = "pass"): PersonaResult {
+  return {
+    persona: { name, users: ["x"] },
+    volumes: [],
+    status,
+    evaluations: Object.entries(values).map(([metric, value]) => ({
+      metric: metric as never,
+      value,
+      threshold: { warn: 100, fail: 200 },
+      status: value === undefined ? "no-data" : value > 200 ? "fail" : value > 100 ? "warn" : "pass",
+    })),
+  };
+}
+
+const result = (personas: PersonaResult[], status: AssessmentResult["status"] = "pass"): AssessmentResult => ({
+  profile: "Plan",
+  org: "qa",
+  generatedAt: "2026-10-17T00:00:00.000Z",
+  status,
+  personas,
+});
+
+describe("metricDeltas", () => {
+  it("diffs metrics by persona name, skipping values missing on either side", () => {
+    const now = result([persona("Rep", { deltaSyncP95Sec: 80, initialSyncP95Sec: 300, dbSizeP95Gb: undefined }), persona("New", { deltaSyncP95Sec: 1 })]);
+    const before = result([persona("rep", { deltaSyncP95Sec: 100, dbSizeP95Gb: 2 })]);
+    const deltas = metricDeltas(now, before);
+    expect(deltas.get(deltaKey("Rep", "deltaSyncP95Sec"))).toBe(-20);
+    expect(deltas.has(deltaKey("Rep", "initialSyncP95Sec"))).toBe(false);
+    expect(deltas.has(deltaKey("Rep", "dbSizeP95Gb"))).toBe(false);
+    expect(deltas.has(deltaKey("New", "deltaSyncP95Sec"))).toBe(false);
+    expect(metricDeltas(now, null).size).toBe(0);
+  });
+});
+
+describe("formatValue", () => {
+  it("adds units except for counts", () => {
+    expect(formatValue({ metric: "predictedRecordsTotal", value: 1234567 })).toBe("1,234,567");
+    expect(formatValue({ metric: "deltaSyncP95Sec", value: 12.345 })).toBe("12.3 s");
+    expect(formatValue({ metric: "dbSizeP95Gb", value: undefined })).toBe("—");
+  });
+});
+
+describe("remediationPrompt", () => {
+  it("lists failing and warning metrics, the largest tables, and failing filters", () => {
+    const p = persona("Rep", { deltaSyncP95Sec: 250, initialSyncP95Sec: 50 }, "fail");
+    p.evaluations[0].detail = "rep@x / T-01";
+    p.volumes = [
+      {
+        user: { id: "1", username: "rep@x", name: "Rep", profileId: "", profileName: "", territories: [], permissionSetCount: 0 },
+        tableCount: 2,
+        territories: [
+          {
+            territory: null,
+            totalRecords: 5000,
+            largestTable: null,
+            totalDeviceRequests: 3,
+            tables: [
+              { sobject: "Account", developerName: "Account", matchedBy: "profile", status: "counted", records: 5000, deviceRequests: 1 },
+              { sobject: "Bad__c", developerName: "Bad", matchedBy: "profile", status: "error", records: 0, deviceRequests: null, note: "No such column" },
+            ],
+          },
+        ],
+      },
+    ];
+    const prompt = remediationPrompt(result([p], "fail"));
+    expect(prompt).toContain('run of "Plan" on qa came back FAIL');
+    expect(prompt).toContain("Rep: Delta sync p95 FAIL — 250 s (warn 100, fail 200), driven by rep@x / T-01");
+    expect(prompt).not.toContain("Initial sync p95");
+    expect(prompt).toContain("largest tables Account 5,000");
+    expect(prompt).toContain("DB Schema filters that fail to execute: Bad__c");
+  });
+});

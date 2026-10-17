@@ -13,6 +13,7 @@ import Inspector from "./Inspector";
 import ReviewDialog from "./ReviewDialog";
 import PublishDialog from "./PublishDialog";
 import type { PendingChange } from "./changes";
+import PerfView from "./PerfView";
 import "./studio.css";
 
 interface StudioViewProps {
@@ -26,9 +27,15 @@ const PREVIEW_HOSTS = [...PREVIEW_FEATURES, "visit"];
 
 type MapState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; map: FeatureMap };
 
+/** What the main pane shows: a Setup feature, or Testing → Performance. */
+type Section = "setup" | "performance";
+
 export default function StudioView({ onAskClaude }: StudioViewProps) {
   const [features, setFeatures] = useState<FeatureSummary[]>([]);
   const [featureId, setFeatureId] = useState("visit");
+  const [section, setSection] = useState<Section>("setup");
+  // Performance stays mounted once opened so a run keeps polling while Setup is shown.
+  const [perfOpened, setPerfOpened] = useState(false);
   // Maps are kept per feature so switching back doesn't re-query the org.
   const [maps, setMaps] = useState<Record<string, MapState>>({});
   const [selectedSurface, setSelectedSurface] = useState<SurfaceId | null>(null);
@@ -143,14 +150,15 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   return (
     <div className="studio">
       <nav className="studio-rail">
-        <div className="studio-rail-title">Features</div>
+        <div className="studio-rail-title">Setup</div>
         {features.map((f) => (
           <button
             key={f.id}
-            className={`studio-rail-item${f.id === featureId ? " active" : ""}`}
+            className={`studio-rail-item${section === "setup" && f.id === featureId ? " active" : ""}`}
             disabled={!f.available}
             title={f.description}
             onClick={() => {
+              setSection("setup");
               setFeatureId(f.id);
               selectSurface(null);
             }}
@@ -159,9 +167,35 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             {!f.available && <span className="studio-soon">Soon</span>}
           </button>
         ))}
+        <div className="studio-rail-title studio-rail-section">Testing</div>
+        <button
+          className={`studio-rail-item${section === "performance" ? " active" : ""}`}
+          title="Validate sync volume and field sync performance against NFR targets"
+          onClick={() => {
+            setSection("performance");
+            setPerfOpened(true);
+          }}
+        >
+          <span>Performance</span>
+        </button>
       </nav>
 
-      <section className="studio-main">
+      {perfOpened && (
+        <section className="studio-main" hidden={section !== "performance"}>
+          <header className="studio-header">
+            <div>
+              <h1 className="studio-title">Performance</h1>
+              <div className="studio-subtitle">
+                Predict each persona's sync volume from configuration, measure field sync telemetry, and check both against
+                NFR targets. Every query is read-only.
+              </div>
+            </div>
+          </header>
+          <PerfView onAskClaude={onAskClaude} />
+        </section>
+      )}
+
+      <section className="studio-main" hidden={section !== "setup"}>
         <header className="studio-header">
           <div>
             <h1 className="studio-title">{feature?.title ?? "Studio"}</h1>

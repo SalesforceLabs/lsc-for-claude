@@ -80,6 +80,21 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioPublishMobile: (profiles, expectedOrg) =>
     ipcRenderer.invoke("studio:call", "studio_publish_mobile", { profiles, expectedOrg }),
   studioPublishStatus: (parentId) => ipcRenderer.invoke("studio:call", "studio_publish_status", { parentId }),
+  // Studio performance testing — runs are read-only background jobs polled for progress
+  studioPerfUsers: (search, profile) => ipcRenderer.invoke("studio:call", "studio_perf_users", { search, profile }),
+  studioPerfParsePlan: (yaml) => ipcRenderer.invoke("studio:call", "studio_perf_parse_plan", { yaml }),
+  studioPerfStart: (plan) => ipcRenderer.invoke("studio:call", "studio_perf_start", { plan }),
+  studioPerfStatus: (jobId) => ipcRenderer.invoke("studio:call", "studio_perf_status", { jobId }),
+  studioPerfCancel: (jobId) => ipcRenderer.invoke("studio:call", "studio_perf_cancel", { jobId }),
+  perfListPlans: () => ipcRenderer.invoke("perf:listPlans"),
+  perfSavePlan: (input) => ipcRenderer.invoke("perf:savePlan", input),
+  perfDeletePlan: (id) => ipcRenderer.invoke("perf:deletePlan", id),
+  perfListRuns: (planId) => ipcRenderer.invoke("perf:listRuns", planId),
+  perfGetRun: (id) => ipcRenderer.invoke("perf:getRun", id),
+  perfSaveRun: (input) => ipcRenderer.invoke("perf:saveRun", input),
+  perfDeleteRun: (id) => ipcRenderer.invoke("perf:deleteRun", id),
+  perfOpenFile: () => ipcRenderer.invoke("perf:openFile"),
+  perfSaveFile: (defaultName, text, kind) => ipcRenderer.invoke("perf:saveFile", defaultName, text, kind),
 
   // Library
   listLibraryItems: () => ipcRenderer.invoke("library:list"),

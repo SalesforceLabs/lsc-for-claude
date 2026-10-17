@@ -39,7 +39,7 @@ Explain *why* a table is heavy with sourced documentation instead of general kno
 
 ## Accuracy caveats (always tell the user)
 
-- COUNT queries run as the **connected user**. For an admin this over-counts wherever sharing restricts the rep. Use `countAsOrg` with an alias logged in *as the persona user* to get sharing-exact counts.
+- The person running a test is usually an admin, but the counts are for the **persona user**. Each user's own DB Schema tables, territories, and `{USER.*}` tags scope the filters, so user- or territory-scoped tables are counted as that user would download them. Tables whose filter isn't scoped to the user are counted org-wide: exact when the object's org-wide default lets everyone read it, and flagged as an **upper bound** when sharing is restricted (`Private`, `ControlledByParent`, …) or unknown. Point out flagged tables when they drive a warn/fail. `countAsOrg` (an alias logged in as the persona user) makes even those exact, but it is rarely worth the setup.
 - Predicted volume is for an **initial** sync. Deltas depend on change rate, so use telemetry for those.
 - Tables filtered by content tags (`{related.entities}`, `{cont.docs}`, `{attachments}`), `{STI.OBJ.IDS}`, or both `{ACCOUNT.IDS}` and `{OT2A.OBJ.IDS}` are reported as `not-estimated`.
 - Telemetry measures real devices, so slow hardware or networks show up in the numbers. Read the by-network breakdown before attributing slowness to configuration.

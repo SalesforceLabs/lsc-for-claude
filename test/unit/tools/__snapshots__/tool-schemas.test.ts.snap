@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `79`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `84`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -74,6 +74,11 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_item_detail",
   "studio_list_features",
   "studio_list_profiles",
+  "studio_perf_cancel",
+  "studio_perf_parse_plan",
+  "studio_perf_start",
+  "studio_perf_status",
+  "studio_perf_users",
   "studio_user_access",
   "toggle_db_schema",
   "toggle_trigger_handler",
@@ -1250,6 +1255,55 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
   {
     "name": "studio_access_options",
     "params": {},
+  },
+  {
+    "name": "studio_perf_users",
+    "params": {
+      "profile": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "search": {
+        "optional": true,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_perf_parse_plan",
+    "params": {
+      "yaml": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_perf_start",
+    "params": {
+      "plan": {
+        "optional": false,
+        "type": "ZodObject",
+      },
+    },
+  },
+  {
+    "name": "studio_perf_status",
+    "params": {
+      "jobId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_perf_cancel",
+    "params": {
+      "jobId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
   },
   {
     "name": "profile_sync_volume",

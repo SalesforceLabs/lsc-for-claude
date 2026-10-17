@@ -167,6 +167,8 @@ export const TAG_ACCOUNT_IDS = "{ACCOUNT.IDS}";
 export const TAG_OT2A_IDS = "{OT2A.OBJ.IDS}";
 export const TAG_STI_IDS = "{STI.OBJ.IDS}";
 const CONTENT_TAGS = ["{related.entities}", "{cont.docs}", "{attachments}"];
+/** Tags that narrow a filter to one user — the count is then what that user downloads. */
+const USER_SCOPE_TAGS = ["{USER.ID}", "{USER.TERRITORY}", "{USER.TERRITORYID}"];
 
 export interface ScalarTagValues {
   userId: string;
@@ -253,6 +255,14 @@ export function estimateDeviceRequests(
 
 export type TableStatus = "counted" | "not-estimated" | "error";
 
+/**
+ * How a counted table was narrowed to the user. "user": the filter (or the id
+ * list it uses) depends on the user or their territory. "org-wide": the COUNT()
+ * saw every record the connected user can, so for an admin it is only exact
+ * when the object's sharing lets every user read every record.
+ */
+export type CountScope = "user" | "org-wide";
+
 export interface TableVolume {
   sobject: string;
   developerName: string;
@@ -262,6 +272,31 @@ export interface TableVolume {
   deviceRequests: number | null;
   idTag?: string;
   note?: string;
+  /** Set on counted tables. */
+  scope?: CountScope;
+  /** The object's internal org-wide default (EntityDefinition.InternalSharingModel), set on org-wide counts. */
+  sharingModel?: string;
+}
+
+/** Org-wide defaults under which every internal user reads every record. */
+const OPEN_SHARING = new Set(["read", "readwrite", "readwritetransfer", "fullaccess"]);
+
+/**
+ * True when an org-wide count may exceed what the user downloads: the filter
+ * isn't scoped to the user and the object's sharing is restricted or unknown.
+ */
+export function mayOvercount(t: TableVolume): boolean {
+  return (
+    t.status === "counted" &&
+    t.scope === "org-wide" &&
+    t.records > 0 &&
+    !OPEN_SHARING.has((t.sharingModel ?? "").toLowerCase())
+  );
+}
+
+/** Records in a territory that come from counts that may exceed the user's own visibility. */
+export function upperBoundRecords(terr: TerritoryVolume): number {
+  return terr.tables.filter(mayOvercount).reduce((n, t) => n + t.records, 0);
 }
 
 export interface TerritoryVolume {
@@ -382,6 +417,13 @@ export async function profileTerritory(
   };
   const resolved = (t: ApplicableTable) =>
     t.entry.whereSoql ? resolveScalarTags(t.entry.whereSoql, scalar) : null;
+  const ownScope = (t: ApplicableTable | undefined): CountScope => {
+    const where = t?.entry.whereSoql;
+    return where && USER_SCOPE_TAGS.some((tag) => containsTag(where, tag)) ? "user" : "org-wide";
+  };
+  // A table filtered by an id list is as narrow as the table the ids came from.
+  const viaIds = (t: ApplicableTable, source: CountScope): CountScope =>
+    ownScope(t) === "user" || source === "user" ? "user" : "org-wide";
 
   const findTable = (name: string) =>
     tables.find((t) => t.entry.sobject.toLowerCase() === name.toLowerCase());
@@ -404,7 +446,7 @@ export async function profileTerritory(
     try {
       ot2aIds = await fetchIds(org, ot2aTable.entry.sobject, "ObjectId", resolved(ot2aTable));
       const total = await countQuery(org, ot2aTable.entry.sobject, resolved(ot2aTable));
-      volumes.push({ ...base(ot2aTable), status: "counted", records: total, deviceRequests: 1 });
+      volumes.push({ ...base(ot2aTable), status: "counted", records: total, deviceRequests: 1, scope: ownScope(ot2aTable) });
     } catch (e) {
       ot2aFailed = true;
       volumes.push({ ...base(ot2aTable), status: "error", records: 0, deviceRequests: null, note: errorMessage(e) });
@@ -414,6 +456,11 @@ export async function profileTerritory(
   let accountIds: string[] = [];
   let accountFailed = false;
   const accountTable = findTable("Account");
+  const ot2aScope = ownScope(ot2aTable);
+  const accountScope =
+    accountTable?.entry.whereSoql && containsTag(accountTable.entry.whereSoql, TAG_OT2A_IDS)
+      ? viaIds(accountTable, ot2aScope)
+      : ownScope(accountTable);
   if (accountTable && anyUses(TAG_ACCOUNT_IDS)) {
     const cond = resolved(accountTable);
     try {
@@ -425,10 +472,11 @@ export async function profileTerritory(
           records: accountIds.length,
           deviceRequests: estimateDeviceRequests("Account", cond, TAG_OT2A_IDS, ot2aIds.length),
           idTag: TAG_OT2A_IDS,
+          scope: accountScope,
         });
       } else {
         accountIds = await fetchIds(org, "Account", "Id", cond);
-        volumes.push({ ...base(accountTable), status: "counted", records: accountIds.length, deviceRequests: 1 });
+        volumes.push({ ...base(accountTable), status: "counted", records: accountIds.length, deviceRequests: 1, scope: accountScope });
       }
     } catch (e) {
       accountFailed = true;
@@ -443,7 +491,7 @@ export async function profileTerritory(
     const cond = resolved(t);
     try {
       if (!cond) {
-        return { ...base(t), status: "counted", records: await countQuery(org, t.entry.sobject, null), deviceRequests: 1 };
+        return { ...base(t), status: "counted", records: await countQuery(org, t.entry.sobject, null), deviceRequests: 1, scope: "org-wide" };
       }
       if (CONTENT_TAGS.some((tag) => containsTag(cond, tag))) {
         return { ...base(t), status: "not-estimated", records: 0, deviceRequests: null, note: "Content/attachment filter is resolved from other tables at sync time" };
@@ -464,7 +512,7 @@ export async function profileTerritory(
           return { ...base(t), status: "not-estimated", records: 0, deviceRequests: null, idTag: tag, note: `${tag} could not be resolved because its source table query failed` };
         }
         if (!source) {
-          return { ...base(t), status: "counted", records: 0, deviceRequests: 0, idTag: tag, note: `${tag} is used but its source table is not in this user's DB Schema, so the app has no ids to substitute` };
+          return { ...base(t), status: "counted", records: 0, deviceRequests: 0, idTag: tag, scope: "user", note: `${tag} is used but its source table is not in this user's DB Schema, so the app has no ids to substitute` };
         }
         return {
           ...base(t),
@@ -472,9 +520,10 @@ export async function profileTerritory(
           records: await countWithIdTag(org, t.entry.sobject, cond, tag, ids, options),
           deviceRequests: estimateDeviceRequests(t.entry.sobject, cond, tag, ids.length),
           idTag: tag,
+          scope: viaIds(t, hasAccount ? accountScope : ot2aScope),
         };
       }
-      return { ...base(t), status: "counted", records: await countQuery(org, t.entry.sobject, cond), deviceRequests: 1 };
+      return { ...base(t), status: "counted", records: await countQuery(org, t.entry.sobject, cond), deviceRequests: 1, scope: ownScope(t) };
     } catch (e) {
       return { ...base(t), status: "error", records: 0, deviceRequests: null, note: errorMessage(e) };
     }
@@ -489,6 +538,31 @@ export async function profileTerritory(
     largestTable: counted[0] ?? null,
     totalDeviceRequests: counted.reduce((sum, v) => sum + (v.deviceRequests ?? 0), 0),
   };
+}
+
+/**
+ * Record each org-wide count's object sharing model, so callers can tell exact
+ * counts from upper bounds. A failed lookup leaves the model unknown, which
+ * mayOvercount() treats as restricted.
+ */
+export async function annotateSharing(org: OrgQuerier, territories: TerritoryVolume[]): Promise<void> {
+  const tables = territories.flatMap((t) => t.tables).filter((t) => t.status === "counted" && t.scope === "org-wide");
+  const names = [...new Set(tables.map((t) => t.sobject))];
+  if (names.length === 0) return;
+  const result = await org.soql(
+    `SELECT QualifiedApiName, InternalSharingModel FROM EntityDefinition WHERE QualifiedApiName IN (${names.map((n) => `'${soqlString(n)}'`).join(",")})`
+  );
+  if (!result.success) return;
+  const models = new Map<string, string>();
+  for (const r of result.data?.records ?? []) {
+    if (typeof r.QualifiedApiName === "string" && typeof r.InternalSharingModel === "string") {
+      models.set(r.QualifiedApiName.toLowerCase(), r.InternalSharingModel);
+    }
+  }
+  for (const t of tables) {
+    const model = models.get(t.sobject.toLowerCase());
+    if (model) t.sharingModel = model;
+  }
 }
 
 function soqlString(value: string): string {

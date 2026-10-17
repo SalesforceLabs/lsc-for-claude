@@ -89,7 +89,7 @@ function Device({
               onChange={(e) => onPickUser(e.target.value)}
               title={`Permission sets merged in: ${snapshot.viewer.permissionSets.join(", ") || "none"}`}
             >
-              {snapshot.users.map((u) => (
+              {[...snapshot.users].sort((a, b) => a.name.localeCompare(b.name)).map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.name}
                 </option>
@@ -589,7 +589,7 @@ function RecordView({ object, snapshot }: { object: PublishedObject; snapshot: P
           <label className="studio-ipad-hint">
             Record type{" "}
             <select value={rtName} onChange={(e) => setRtName(e.target.value)}>
-              {object.recordTypes.map((r) => (
+              {[...object.recordTypes].sort((a, b) => a.label.localeCompare(b.label)).map((r) => (
                 <option key={r.name} value={r.name}>
                   {r.label}
                 </option>

@@ -859,7 +859,7 @@ function VisitSidebar({
             onChange={(e) => setLayoutId(e.target.value)}
             title="Which layout a profile gets isn't mapped yet — pick one"
           >
-            {layouts.map((l) => (
+            {[...layouts].sort((a, b) => a.label.localeCompare(b.label)).map((l) => (
               <option key={l.id} value={l.id}>
                 {l.label}
               </option>

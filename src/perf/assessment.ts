@@ -9,7 +9,10 @@ import {
   type UserContext,
   type ProfileOptions,
   DEFAULT_PROFILE_OPTIONS,
+  annotateSharing,
   loadDbSchemaEntries,
+  mayOvercount,
+  upperBoundRecords,
   loadUserContext,
   profileTerritory,
   selectApplicableTables,
@@ -43,18 +46,23 @@ export function worstTerritory(volume: UserVolume): TerritoryVolume | undefined 
   return [...volume.territories].sort((a, b) => b.totalRecords - a.totalRecords)[0];
 }
 
+/** Progress callback; `step` is a short human-readable description of the work starting now. */
+export type StepHook = (step: string) => void;
+
 export async function profileUsers(
   configOrg: OrgQuerier,
   countOrg: OrgQuerier,
   userRefs: string[],
-  opts: { territory?: string; maxTerritories?: number } & Partial<ProfileOptions> = {}
+  opts: { territory?: string; maxTerritories?: number; onStep?: StepHook } & Partial<ProfileOptions> = {}
 ): Promise<UserVolume[]> {
   const options: ProfileOptions = { ...DEFAULT_PROFILE_OPTIONS, ...opts };
+  opts.onStep?.("Reading DB Schema records");
   const entries = await loadDbSchemaEntries(configOrg);
   const results: UserVolume[] = [];
 
   for (const ref of userRefs) {
     let user: UserContext;
+    opts.onStep?.(`Loading ${ref}`);
     try {
       user = await loadUserContext(configOrg, ref);
     } catch (e) {
@@ -80,6 +88,7 @@ export async function profileUsers(
 
     const volumes: TerritoryVolume[] = [];
     for (const territory of territories) {
+      opts.onStep?.(`Counting ${tables.length} tables for ${user.username}${territory ? ` in ${territory.name}` : ""}`);
       volumes.push(await profileTerritory(countOrg, user, territory, tables, options));
     }
 
@@ -90,6 +99,8 @@ export async function profileUsers(
       territories: volumes,
     });
   }
+  opts.onStep?.("Checking object sharing");
+  await annotateSharing(configOrg, results.flatMap((r) => r.territories));
   return results;
 }
 
@@ -179,14 +190,18 @@ export async function runAssessment(
   configOrg: OrgQuerier,
   countOrg: OrgQuerier,
   describeTelemetryFields: () => Promise<Set<string>>,
-  options: Partial<ProfileOptions> = {}
+  options: Partial<ProfileOptions> & { onStep?: StepHook } = {}
 ): Promise<AssessmentResult> {
   const personas: PersonaResult[] = [];
-  for (const persona of profile.personas) {
+  for (const [index, persona] of profile.personas.entries()) {
+    const prefix = `${persona.name} (${index + 1}/${profile.personas.length})`;
+    const onStep: StepHook | undefined = options.onStep && ((step) => options.onStep?.(`${prefix}: ${step}`));
     const volumes = await profileUsers(configOrg, countOrg, persona.users, {
       territory: persona.territory,
       ...options,
+      onStep,
     });
+    onStep?.("Reading field telemetry");
     let telemetry: TelemetrySummary | undefined;
     let telemetryError: string | undefined;
     try {
@@ -253,11 +268,17 @@ export function renderVolumes(volumes: UserVolume[], topTables = 15): string {
       out += `**Predicted records:** ${fmt(terr.totalRecords)} · **Estimated device SOQL requests:** ${fmt(terr.totalDeviceRequests)}\n\n`;
       out += `| SObject | Records | Device requests | Matched by | Note |\n|---|---:|---:|---|---|\n`;
       for (const t of terr.tables.slice(0, topTables)) {
-        const note = t.status === "counted" ? (t.note ?? (t.idTag ? `via ${t.idTag}` : "")) : `**${t.status}**: ${t.note ?? ""}`;
+        const via = t.note ?? (t.idTag ? `via ${t.idTag}` : "");
+        const scope = mayOvercount(t) ? `org-wide count, ${t.sharingModel ?? "unknown"} sharing — upper bound` : "";
+        const note = t.status === "counted" ? [via, scope].filter(Boolean).join("; ") : `**${t.status}**: ${t.note ?? ""}`;
         out += `| ${t.sobject} | ${t.status === "counted" ? fmt(t.records) : "—"} | ${fmt(t.deviceRequests ?? undefined)} | ${t.matchedBy} | ${note.replace(/\|/g, "\\|")} |\n`;
       }
       if (terr.tables.length > topTables) {
         out += `\n*${terr.tables.length - topTables} smaller table(s) omitted.*\n`;
+      }
+      const upper = upperBoundRecords(terr);
+      if (upper > 0) {
+        out += `\n${fmt(upper)} of these records come from tables whose filter isn't scoped to the user, on objects with restricted sharing — counted org-wide, so the user may download fewer.\n`;
       }
       const problems = terr.tables.filter((t) => t.status !== "counted");
       if (problems.length) {
@@ -323,6 +344,6 @@ export function renderAssessment(result: AssessmentResult, days: number): string
     else out += `➖ No syncs recorded for these users in the last ${days} day(s).\n\n`;
   }
   out += `---\n\n**Legend:** ✅ pass · ⚠️ warn · ❌ fail · ℹ️ measured, no threshold in profile · ➖ no data\n\n`;
-  out += `**Method notes:** Predicted volumes replay each user's DB Schema filters with COUNT() queries as the connected org user — run with \`countAsOrg\` set to the persona's own login for sharing-exact counts. Device request counts follow the app's legacy visibility-pass chunking and are an estimate. Telemetry comes from real devices and reflects their hardware and networks.\n`;
+  out += `**Method notes:** Predicted volumes replay each persona user's own DB Schema filters (their profile, permission sets, territories, and {USER.*} tags) with COUNT() queries as the connected user. Tables whose filter isn't scoped to the user are counted org-wide, which is exact for objects every user can read and an upper bound (flagged) where sharing is restricted. Device request counts follow the app's legacy visibility-pass chunking and are an estimate. Telemetry comes from real devices and reflects their hardware and networks.\n`;
   return out;
 }

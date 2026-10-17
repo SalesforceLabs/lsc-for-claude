@@ -1,7 +1,7 @@
-import { ipcMain, BrowserWindow, shell } from "electron";
+import { ipcMain, BrowserWindow, dialog, shell } from "electron";
 import { execFile, spawn } from "child_process";
 import { watch } from "fs";
-import { readFile } from "fs/promises";
+import { readFile, writeFile } from "fs/promises";
 import { fileURLToPath } from "url";
 import path from "path";
 
@@ -31,6 +31,16 @@ import {
   searchLibraryItems,
 } from "../engine/library.js";
 import { getStudioCache, setStudioCache, clearStudioCache } from "../engine/studio-cache.js";
+import {
+  listPerfPlans,
+  savePerfPlan,
+  deletePerfPlan,
+  listPerfRuns,
+  getPerfRun,
+  savePerfRun,
+  deletePerfRun,
+  type PerfRunRecord,
+} from "../engine/perf-store.js";
 
 const STUDIO_CACHED_TOOLS = new Set(["studio_feature_map", "studio_item_detail", "studio_list_profiles", "studio_access_options", "studio_ipad_published"]);
 
@@ -495,6 +505,63 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       } catch (error) {
         return { error: error instanceof Error ? error.message : String(error) };
       }
+    }
+  );
+
+  // --- Studio performance testing: plans and run history (per org) ---
+
+  const currentOrg = () => loadSettings().sfTargetOrg ?? "";
+
+  ipcMain.handle("perf:listPlans", async () => listPerfPlans(currentOrg()));
+
+  ipcMain.handle(
+    "perf:savePlan",
+    async (_event, input: { id?: string; name: string; plan: unknown }) =>
+      savePerfPlan({ ...input, org: currentOrg() })
+  );
+
+  ipcMain.handle("perf:deletePlan", async (_event, id: string) => {
+    deletePerfPlan(id);
+    return { ok: true };
+  });
+
+  ipcMain.handle("perf:listRuns", async (_event, planId: string) => listPerfRuns(currentOrg(), planId));
+
+  ipcMain.handle("perf:getRun", async (_event, id: string) => getPerfRun(id));
+
+  ipcMain.handle(
+    "perf:saveRun",
+    async (_event, input: Omit<PerfRunRecord, "id" | "org"> & { result: unknown }) =>
+      savePerfRun({ ...input, org: currentOrg() })
+  );
+
+  ipcMain.handle("perf:deleteRun", async (_event, id: string) => {
+    deletePerfRun(id);
+    return { ok: true };
+  });
+
+  // Import / export test plans (YAML) and reports (JSON) through native file dialogs.
+  ipcMain.handle("perf:openFile", async () => {
+    const res = await dialog.showOpenDialog(mainWindow, {
+      title: "Import test plan",
+      properties: ["openFile"],
+      filters: [{ name: "NFR profile", extensions: ["yaml", "yml"] }],
+    });
+    if (res.canceled || res.filePaths.length === 0) return { canceled: true };
+    return { canceled: false, text: await readFile(res.filePaths[0], "utf-8") };
+  });
+
+  ipcMain.handle(
+    "perf:saveFile",
+    async (_event, defaultName: string, text: string, kind: "yaml" | "json") => {
+      const res = await dialog.showSaveDialog(mainWindow, {
+        title: kind === "yaml" ? "Export test plan" : "Export report",
+        defaultPath: defaultName,
+        filters: kind === "yaml" ? [{ name: "NFR profile", extensions: ["yaml"] }] : [{ name: "JSON", extensions: ["json"] }],
+      });
+      if (res.canceled || !res.filePath) return { canceled: true };
+      await writeFile(res.filePath, text, "utf-8");
+      return { canceled: false, path: res.filePath };
     }
   );
 

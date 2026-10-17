@@ -13,7 +13,7 @@ Check the connected org's configuration against the customer's performance NFRs.
    - Otherwise ask for the customer's NFR targets and the representative users for each persona. Draft a profile from `docs/perf-nfr-profile.example.yaml`, replace every example value, and show it to the user before running.
    - Never invent thresholds. If a target is unknown, leave the metric out and it will be reported as "no threshold".
 
-2. **Ask about sharing-exact counts.** If the user has an sf CLI alias logged in *as* a persona user, pass it as `countAsOrg`. Otherwise, warn that counts reflect the connected user's visibility.
+2. **Don't ask for persona logins.** Counts are already scoped to each persona user's DB Schema filters. Only unscoped tables on objects with restricted sharing are upper bounds, and the report flags them. Pass `countAsOrg` only if the user already has an sf CLI alias logged in as a persona user and asks for exact counts.
 
 3. **Run** `run_perf_assessment({ profilePath, outputPath? })`. Suggest an `outputPath` such as `perf-reports/<org>-<date>.json` so later runs can be compared.
 

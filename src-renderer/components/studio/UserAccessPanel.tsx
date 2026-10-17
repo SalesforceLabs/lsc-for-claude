@@ -196,7 +196,7 @@ export default function UserAccessPanel({ user, others, pending, onQueue, refres
               <option value="" disabled>
                 Give {user.name} the same access as…
               </option>
-              {others.map((o) => (
+              {[...others].sort((a, b) => a.name.localeCompare(b.name)).map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.name}
                 </option>

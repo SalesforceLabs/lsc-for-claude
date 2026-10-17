@@ -10,6 +10,25 @@ interface LibraryItem {
   updatedAt: string;
 }
 
+export interface PerfPlanRecord {
+  id: string;
+  org: string;
+  name: string;
+  plan: unknown;
+  updatedAt: string;
+}
+
+export interface PerfRunRecord {
+  id: string;
+  org: string;
+  planId: string;
+  planName: string;
+  status: string;
+  startedAt: string;
+  finishedAt: string;
+  result?: unknown;
+}
+
 interface StudioResponse {
   data?: unknown & { error?: string };
   error?: string;
@@ -54,6 +73,22 @@ interface LscApi {
   studioApplyFix(fix: unknown, expectedOrg: string): Promise<StudioResponse>;
   studioPublishMobile(profiles: string[], expectedOrg: string): Promise<StudioResponse>;
   studioPublishStatus(parentId: string): Promise<StudioResponse>;
+  studioPerfUsers(search?: string, profile?: string): Promise<StudioResponse>;
+  studioPerfParsePlan(yaml: string): Promise<StudioResponse>;
+  studioPerfStart(plan: unknown): Promise<StudioResponse>;
+  studioPerfStatus(jobId: string): Promise<StudioResponse>;
+  studioPerfCancel(jobId: string): Promise<StudioResponse>;
+
+  // Studio performance testing — plans and run history, stored per org by the main process
+  perfListPlans(): Promise<PerfPlanRecord[]>;
+  perfSavePlan(input: { id?: string; name: string; plan: unknown }): Promise<PerfPlanRecord>;
+  perfDeletePlan(id: string): Promise<{ ok: boolean }>;
+  perfListRuns(planId: string): Promise<PerfRunRecord[]>;
+  perfGetRun(id: string): Promise<PerfRunRecord | null>;
+  perfSaveRun(input: Omit<PerfRunRecord, "id" | "org"> & { result: unknown }): Promise<PerfRunRecord>;
+  perfDeleteRun(id: string): Promise<{ ok: boolean }>;
+  perfOpenFile(): Promise<{ canceled: boolean; text?: string }>;
+  perfSaveFile(defaultName: string, text: string, kind: "yaml" | "json"): Promise<{ canceled: boolean; path?: string }>;
 
   // Library
   listLibraryItems(): Promise<LibraryItem[]>;

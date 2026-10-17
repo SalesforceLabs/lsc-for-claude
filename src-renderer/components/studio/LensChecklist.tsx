@@ -94,7 +94,7 @@ export default function LensChecklist({
             <label>
               <span>{failing ? "Fastest fix: copy setup from" : "Copy more setup from"}</span>
               <select value={from} onChange={(e) => setPicked(e.target.value)}>
-                {sources.map((s) => (
+                {[...sources].sort((a, b) => a.profile.localeCompare(b.profile)).map((s) => (
                   <option key={s.profile} value={s.profile}>
                     {s.profile} ({s.count})
                   </option>

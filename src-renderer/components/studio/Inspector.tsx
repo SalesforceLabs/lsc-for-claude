@@ -700,6 +700,7 @@ function SidebarPanel({ layoutLabel, sidebar, queue }: { layoutLabel: string; si
           <option value="">{full ? "Sidebar is full" : "Add related list to sidebar…"}</option>
           {sidebar.candidates
             .filter((c) => !queuedAdds.some((f) => f.relationshipName === c.relationshipName))
+            .sort((a, b) => a.objectName.localeCompare(b.objectName) || a.relationshipName.localeCompare(b.relationshipName))
             .map((c) => (
               <option key={c.relationshipName} value={c.relationshipName}>
                 {c.objectName} ({c.relationshipName})

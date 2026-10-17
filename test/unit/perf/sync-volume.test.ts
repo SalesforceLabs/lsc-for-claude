@@ -3,8 +3,11 @@ import type { CliResult, SoqlQueryResult } from "../../../src/salesforce/cli.js"
 import {
   type DbSchemaEntry,
   type OrgQuerier,
+  type TableVolume,
   type UserContext,
+  annotateSharing,
   estimateDeviceRequests,
+  mayOvercount,
   loadDbSchemaEntries,
   profileTerritory,
   resolveScalarTags,
@@ -257,5 +260,99 @@ describe("profileTerritory", () => {
     ]);
     const bySobject = Object.fromEntries(result.tables.map((t) => [t.sobject, t.status]));
     expect(bySobject).toEqual({ Account: "error", Contact: "not-estimated" });
+  });
+});
+
+describe("count scope", () => {
+  const territory = user.territories[0];
+  const table = (sobject: string, whereSoql: string | null) => ({ entry: entry({ sobject, whereSoql }), matchedBy: "profile" as const });
+
+  it("marks user/territory-scoped filters and propagates scope through id lists", async () => {
+    const org = mockOrg([
+      [/^SELECT ObjectId FROM ObjectTerritory2Association/, () => ok([{ ObjectId: "A1" }])],
+      [/^SELECT COUNT\(\) FROM ObjectTerritory2Association/, () => ok([], 1)],
+      [/^SELECT Id FROM Account/, () => ok([{ Id: "A1" }])],
+      [/^SELECT COUNT\(\) FROM Contact/, () => ok([], 4)],
+      [/^SELECT COUNT\(\) FROM Visit/, () => ok([], 2)],
+      [/^SELECT COUNT\(\) FROM Product2/, () => ok([], 9)],
+      [/^SELECT COUNT\(\) FROM Call__c/, () => ok([], 3)],
+    ]);
+    const result = await profileTerritory(org, user, territory, [
+      table("ObjectTerritory2Association", "Territory2Id = '{USER.TERRITORYID}'"),
+      table("Account", "Id IN ({OT2A.OBJ.IDS})"),
+      table("Contact", "AccountId IN ({ACCOUNT.IDS})"),
+      table("Visit", "OwnerId = '{user.id}'"),
+      table("Product2", null),
+      table("Call__c", "Status__c = 'Open'"),
+    ]);
+    const scope = Object.fromEntries(result.tables.map((t) => [t.sobject, t.scope]));
+    expect(scope).toEqual({
+      ObjectTerritory2Association: "user",
+      Account: "user",
+      Contact: "user",
+      Visit: "user",
+      Product2: "org-wide",
+      Call__c: "org-wide",
+    });
+  });
+
+  it("treats an id list from an unscoped source as org-wide", async () => {
+    const org = mockOrg([
+      [/^SELECT Id FROM Account/, () => ok([{ Id: "A1" }])],
+      [/^SELECT COUNT\(\) FROM Contact/, () => ok([], 4)],
+    ]);
+    const result = await profileTerritory(org, user, territory, [
+      table("Account", "IsActive__c = true"),
+      table("Contact", "AccountId IN ({ACCOUNT.IDS})"),
+    ]);
+    expect(result.tables.map((t) => [t.sobject, t.scope])).toEqual([
+      ["Contact", "org-wide"],
+      ["Account", "org-wide"],
+    ]);
+  });
+});
+
+describe("annotateSharing / mayOvercount", () => {
+  const counted = (sobject: string, scope: "user" | "org-wide", records = 10): TableVolume => ({
+    sobject,
+    developerName: sobject,
+    matchedBy: "profile",
+    status: "counted",
+    records,
+    deviceRequests: 1,
+    scope,
+  });
+
+  it("looks up org-wide tables only and flags restricted or unknown sharing", async () => {
+    const org = mockOrg([
+      [
+        /FROM EntityDefinition WHERE QualifiedApiName IN \('Product2','Call__c','Gone__c'\)$/,
+        () => ok([{ QualifiedApiName: "Product2", InternalSharingModel: "ReadWrite" }, { QualifiedApiName: "Call__c", InternalSharingModel: "Private" }]),
+      ],
+    ]);
+    const tables = [counted("Product2", "org-wide"), counted("Call__c", "org-wide"), counted("Gone__c", "org-wide"), counted("Account", "user")];
+    await annotateSharing(org, [{ territory: null, tables, totalRecords: 40, largestTable: null, totalDeviceRequests: 4 }]);
+    expect(tables.map((t) => [t.sobject, t.sharingModel, mayOvercount(t)])).toEqual([
+      ["Product2", "ReadWrite", false],
+      ["Call__c", "Private", true],
+      ["Gone__c", undefined, true],
+      ["Account", undefined, false],
+    ]);
+    expect(org.soqlLog).toHaveLength(1);
+  });
+
+  it("does not flag empty tables and skips the lookup when nothing is org-wide", async () => {
+    expect(mayOvercount({ ...counted("Call__c", "org-wide", 0), sharingModel: "Private" })).toBe(false);
+    const org = mockOrg([]);
+    await annotateSharing(org, [{ territory: null, tables: [counted("Account", "user")], totalRecords: 10, largestTable: null, totalDeviceRequests: 1 }]);
+    expect(org.soqlLog).toEqual([]);
+  });
+
+  it("leaves sharing unknown when the lookup fails", async () => {
+    const org = mockOrg([[/FROM EntityDefinition/, () => ({ success: false, error: "no access" })]]);
+    const tables = [counted("Call__c", "org-wide")];
+    await annotateSharing(org, [{ territory: null, tables, totalRecords: 10, largestTable: null, totalDeviceRequests: 1 }]);
+    expect(tables[0].sharingModel).toBeUndefined();
+    expect(mayOvercount(tables[0])).toBe(true);
   });
 });

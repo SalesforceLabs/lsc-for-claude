@@ -8,6 +8,8 @@ import { applyFix, previewFix } from "../studio/fixes.js";
 import { publishStatus, startPublish } from "../studio/publish.js";
 import { loadPublishedIpad } from "../studio/published.js";
 import type { StudioFix } from "../studio/types.js";
+import { cancelPerfRun, perfRunStatus, searchPerfUsers, startPerfRun } from "../studio/perf.js";
+import { nfrProfileSchema, parseNfrProfile } from "../perf/nfr.js";
 
 /**
  * LSC Studio data tools. These return raw JSON for the Electron app's visual
@@ -242,7 +244,85 @@ export function register(server: McpServer) {
     }
   );
 
+  registerPerfTools(server);
   if (process.env.LSC_STUDIO_FIXES === "1") registerFixTools(server);
+}
+
+/** sf CLI alias or username — never a leading "-" so it can't be read as a flag. */
+
+function registerPerfTools(server: McpServer) {
+  server.tool(
+    "studio_perf_users",
+    "LSC Studio (GUI data): active users to test in a performance plan, filtered by name/username search and/or profile, most territories first. Read-only. Returns JSON.",
+    { search: z.string().max(100).optional(), profile: z.string().max(255).optional() },
+    async ({ search, profile }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await searchPerfUsers({ search, profile }, connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_perf_parse_plan",
+    "LSC Studio (GUI data): validate an NFR profile YAML (the run_perf_assessment format) and return it as a JSON test plan. Doesn't touch the org. Returns JSON.",
+    { yaml: z.string().max(200_000) },
+    async ({ yaml }) => {
+      try {
+        return json(parseNfrProfile(yaml));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_perf_start",
+    "LSC Studio (GUI data): start a performance assessment of a test plan (predicted sync volume + field telemetry per persona, evaluated against NFR thresholds) as a background job. Read-only against the org. Returns JSON status; poll with studio_perf_status.",
+    { plan: nfrProfileSchema },
+    async ({ plan }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(startPerfRun(plan, connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_perf_status",
+    "LSC Studio (GUI data): progress of a performance run started by studio_perf_start, with the full result once done. Returns JSON.",
+    { jobId: z.string().max(64) },
+    async ({ jobId }) => {
+      try {
+        return json(perfRunStatus(jobId));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_perf_cancel",
+    "LSC Studio (GUI data): stop a running performance run; queries already in flight finish, no new ones start. Returns JSON status.",
+    { jobId: z.string().max(64) },
+    async ({ jobId }) => {
+      try {
+        return json(cancelPerfRun(jobId));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
 }
 
 function registerFixTools(server: McpServer) {
