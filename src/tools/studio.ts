@@ -434,6 +434,17 @@ function registerPerfTools(server: McpServer) {
     }
   );
 
+  const networkSchema = z
+    .object({
+      profile: z.enum(["none", "3g", "4g", "5g", "wifi", "custom"]),
+      rttMs: z.number().min(0).max(5000).optional(),
+      downMbps: z.number().min(0.05).max(10000).optional(),
+      upMbps: z.number().min(0.05).max(10000).optional(),
+    })
+    .describe(
+      "Network conditions added on top of this machine's connection: 3g, 4g (LTE), 5g, wifi (approximate presets), custom (needs rttMs, downMbps, upMbps) or none (default). Can only slow the real connection down."
+    );
+
   const sobjects = z.array(z.string().min(1).max(80)).max(500).optional();
 
   server.tool(
@@ -459,6 +470,9 @@ function registerPerfTools(server: McpServer) {
           maxSeconds: z.number().int().min(10).max(7200).optional(),
           maxRecordsPerTable: z.number().int().min(1).optional(),
           maxTotalRecords: z.number().int().min(1).optional(),
+          network: networkSchema.optional(),
+          deviceRamGB: z.number().int().min(1).max(32).optional().describe("RAM of the simulated iPad in GB (default 8); sizes metadata chunks and legacy dynamic batches"),
+          dynamicBatchSize: z.boolean().optional().describe("Legacy flow: the app's dynamicBatchRequestSize setting (default true)"),
           runs: z
             .number()
             .int()

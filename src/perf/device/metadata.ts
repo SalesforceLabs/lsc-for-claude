@@ -13,7 +13,21 @@ import * as path from "path";
 import { connectPath, DeviceHttpError, jsonOrThrow, type DeviceSession } from "./session.js";
 import { ZipReader } from "./zip.js";
 
-export const DEFAULT_CHUNK_BYTES = 10 * 1024 * 1024;
+/**
+ * Range chunk size by device RAM, as FileDownloadContext.chunkSizeForDevice: 10 MB from 4 GB up,
+ * 2 MB below (`SysUtils.deviceRAM()` is the whole-GB rounded physical memory).
+ */
+export function chunkBytesForRam(ramGB: number): number {
+  return ramGB >= 4 ? 10 * 1024 * 1024 : 2 * 1024 * 1024;
+}
+
+/**
+ * RAM of the simulated iPad. 8 GB is the common current iPad (iPad Air, iPad mini, iPad Pro 256/512 GB
+ * models); the iOS app only branches on 2, 3, 4 and 6 GB, so every larger size behaves the same.
+ */
+export const DEFAULT_DEVICE_RAM_GB = 8;
+
+export const DEFAULT_CHUNK_BYTES = chunkBytesForRam(DEFAULT_DEVICE_RAM_GB);
 
 export interface FieldPermissionEntry {
   field: string;

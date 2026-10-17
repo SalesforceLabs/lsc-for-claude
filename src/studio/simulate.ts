@@ -12,9 +12,11 @@
  * endpoints answer. The token is used for that job only and never returned.
  *
  * A job can run the simulation several times back to back (`runs`, see
- * sim-runs.ts); the result is then the median across them.
+ * sim-runs.ts); the result is then the median across them. Every run uses the
+ * same `network` profile.
  */
 
+import { resolveNetwork } from "../perf/device/network.js";
 import { createTokenSession, type TokenLogin } from "../perf/device/session.js";
 import { simulateInitialSync, type SimulateOptions, type SimulationResult } from "../perf/simulate.js";
 import { aggregateRuns, clampRuns, type MultiRunResult } from "./sim-runs.js";
@@ -24,7 +26,18 @@ export type SimJobState = "running" | "done" | "failed" | "cancelled";
 /** The options the GUI can set; the rest keep simulateInitialSync's defaults. */
 export type SimRunOptions = Pick<
   SimulateOptions,
-  "territory" | "forceFlow" | "include" | "exclude" | "maxSeconds" | "maxRecordsPerTable" | "maxTotalRecords" | "delta" | "content"
+  | "territory"
+  | "forceFlow"
+  | "include"
+  | "exclude"
+  | "maxSeconds"
+  | "maxRecordsPerTable"
+  | "maxTotalRecords"
+  | "delta"
+  | "content"
+  | "network"
+  | "deviceRamGB"
+  | "dynamicBatchSize"
 > & {
   /** Back-to-back runs as the same login (1–5, default 1); the result reports their median and spread. */
   runs?: number;
@@ -75,6 +88,7 @@ export function startSimulation(
   const login = typeof connection === "string" ? undefined : connection;
   const name = (login ? login.username : (connection as string)).trim();
   if (!name) throw new Error("Choose the sf CLI connection to run the simulation as.");
+  resolveNetwork(options.network); // a bad custom profile fails the start, not the job
   // Built before the job exists so a bad login fails the start rather than the job.
   const session = login ? createTokenSession(login) : undefined;
   if ([...jobs.values()].some((j) => j.state === "running")) {

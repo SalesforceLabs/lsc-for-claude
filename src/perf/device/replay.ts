@@ -6,6 +6,7 @@
  * retained in memory.
  */
 
+import { DEFAULT_DEVICE_RAM_GB } from "./metadata.js";
 import { connectPath, dataPath, jsonOrThrow, type DeviceSession } from "./session.js";
 import type { SchemaTable } from "./schema.js";
 
@@ -85,6 +86,10 @@ export interface ReplayOptions {
   maxRecordsPerTable?: number;
   maxTotalRecords?: number;
   legacyPaging?: "batch" | "sequential";
+  /** Legacy composite/batch sizing: the app's dynamicBatchRequestSize setting (default on). */
+  dynamicBatchSize?: boolean;
+  /** RAM of the simulated device, which sizes dynamic composite batches (default 8). */
+  deviceRamGB?: number;
   /** Disable the adaptive batch-size controller and keep the initial batch size. */
   fixedBatchSize?: boolean;
   signal?: AbortSignal;
@@ -98,7 +103,11 @@ export interface ReplayOptions {
 }
 
 export const CONTENT_CHUNK = 1500;
+/** DownloadManager.maxBatchRequestSize / minBatchRequestSize: sub-requests per composite/batch. */
 export const LEGACY_PAGE_BATCH = 15;
+export const LEGACY_MIN_PAGE_BATCH = 1;
+/** DownloadManager: maxOpenQueryLocators / maxNetworkRequests = 7 / 3 queries per table are paged together. */
+export const LEGACY_LOCATORS_PER_TABLE = Math.floor(7 / 3);
 export const EPOCH_ISO_MS = "1970-01-01T00:00:00.000Z";
 export const EPOCH_ISO = "1970-01-01T00:00:00Z";
 
@@ -223,6 +232,32 @@ export function legacyChunkSize(templateLength: number, whereLength: number, tag
   if (whereLength > 0) limit = Math.min(limit, MAX_WHERE_LEN - whereLength - REST_CHARS);
   const perTag = Math.floor(Math.max(0, limit) / ID_LEN) / Math.max(1, tagOccurrences);
   return Math.max(1, Math.floor(perTag));
+}
+
+// ---------- legacy composite batch sizing ----------
+
+/** Memory the app is assumed to hold already (DownloadManager.culcMaxResponseSizePerBatchMB's default). */
+const APP_USED_MB = 300;
+
+/**
+ * DownloadManager.culcMaxResponseSizePerBatchMB: the JSON one composite batch may return, from the
+ * memory-warning limit (a share of RAM by tier), minus what the app already uses, split across the 4
+ * batches that can run at once and a 3x JSON-to-RAM factor.
+ */
+export function maxResponseSizePerBatchMB(ramGB: number): number {
+  const share = ramGB === 4 ? 0.55 : ramGB === 6 ? 0.6 : 0.5;
+  return (ramGB * share * 1024 - APP_USED_MB) / 4 / 3;
+}
+
+/**
+ * Sub-requests per composite/batch (DownloadManager.performRequests). With the dynamic setting on,
+ * 1 to 15 depending on how large a page of the table's responses is (`estimatedResponseMB`, the
+ * average decoded size of the first pages in the group); otherwise 15.
+ */
+export function legacyBatchSize(opts: { dynamic?: boolean; deviceRamGB?: number; estimatedResponseMB: number }): number {
+  if (!(opts.dynamic ?? true) || !(opts.estimatedResponseMB > 0)) return LEGACY_PAGE_BATCH;
+  const fit = Math.trunc(maxResponseSizePerBatchMB(opts.deviceRamGB ?? DEFAULT_DEVICE_RAM_GB) / opts.estimatedResponseMB);
+  return clamp(Number.isFinite(fit) ? fit : LEGACY_PAGE_BATCH, LEGACY_MIN_PAGE_BATCH, LEGACY_PAGE_BATCH);
 }
 
 // ---------- ordering ----------
@@ -546,6 +581,8 @@ function recordsOf(json: unknown): { records: Record<string, unknown>[]; o: Reco
 class TableRunner {
   readonly result: TableResult;
   private signal!: AbortSignal;
+  /** Decoded size of the latest response; the app sizes pages and batches by decoded JSON, bytes counts the wire. */
+  private lastDecodedBytes = 0;
 
   constructor(
     private readonly run: Run,
@@ -569,7 +606,8 @@ class TableRunner {
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: this.signal,
     });
-    this.result.bytes += res.body.length;
+    this.result.bytes += res.wireBytes ?? res.body.length;
+    this.lastDecodedBytes = res.body.length;
     return jsonOrThrow(res, `${method} ${this.table.sobject}`);
   }
 
@@ -656,16 +694,16 @@ class TableRunner {
       const batch = new AdaptiveBatch(this.table.weight, !this.o.fixedBatchSize);
       let locator: string | undefined;
       for (;;) {
-        const before = { bytes: this.result.bytes };
         const t0 = this.run.now();
         const json = await this.call(
           "POST",
           url,
           buildEnhancedBody({ table: this.table, fields, tags: tagSet, batchSize: batch.size, syncStart: this.o.syncStart, queryLocator: locator }),
-          { "X-Chatter-Entity-Encoding": "false" }
+          // The app gzips Connect request bodies (SyncConnectDownloadManager.performDeltaAPICall); session.ts applies it past 4 KB.
+          { "X-Chatter-Entity-Encoding": "false", "Content-Encoding": "gzip" }
         );
         const { records, o } = recordsOf(json);
-        batch.update((this.run.now() - t0) / 1000, this.result.bytes - before.bytes, records.length);
+        batch.update((this.run.now() - t0) / 1000, this.lastDecodedBytes, records.length);
         const keepGoing = this.accept(records);
         locator = typeof o.queryLocator === "string" && o.queryLocator ? o.queryLocator : undefined;
         if (!keepGoing) return;
@@ -685,37 +723,53 @@ class TableRunner {
     const [primary, ...others] = [...listTags].sort((a, b) => b[1].length - a[1].length);
     for (const [tag, ids] of others) if (where) where = substituteTag(where, tag, quoteIds(ids));
 
+    let queries: string[];
     if (!primary || !where) {
-      await this.legacyQuery(buildLegacyQuery(this.table, fields, where, this.o.syncStart));
-      return;
+      queries = [buildLegacyQuery(this.table, fields, where, this.o.syncStart)];
+    } else {
+      const [tag, ids] = primary;
+      const template = buildLegacyQuery(this.table, fields, where, this.o.syncStart);
+      const occurrences = Math.max(1, template.toLowerCase().split(tag.toLowerCase()).length - 1);
+      const size = legacyChunkSize(template.length, where.length, occurrences);
+      queries = chunk(ids, size).map((piece) => buildLegacyQuery(this.table, fields, substituteTag(where, tag, quoteIds(piece)), this.o.syncStart));
     }
-    const [tag, ids] = primary;
-    const template = buildLegacyQuery(this.table, fields, where, this.o.syncStart);
-    const occurrences = Math.max(1, template.toLowerCase().split(tag.toLowerCase()).length - 1);
-    const size = legacyChunkSize(template.length, where.length, occurrences);
-    for (const piece of chunk(ids, size)) {
-      await this.legacyQuery(buildLegacyQuery(this.table, fields, substituteTag(where, tag, quoteIds(piece)), this.o.syncStart));
+    // DownloadManager.getAllNextRequests: the queries go in groups of 7 / 3 = 2; a group's first pages
+    // are fetched one after another, then all their later pages go out together in composite batches.
+    for (const group of chunk(queries, LEGACY_LOCATORS_PER_TABLE)) {
+      if (!(await this.legacyGroup(group))) return;
     }
   }
 
-  private async legacyQuery(soql: string): Promise<void> {
+  /** Returns false when a limit stopped the table. */
+  private async legacyGroup(soqls: string[]): Promise<boolean> {
     const session = this.o.session;
-    const first = await this.call("GET", dataPath(session, `query?q=${encodeURIComponent(soql)}`));
-    const { records, o } = recordsOf(first);
-    if (!this.accept(records)) return;
-    const next = typeof o.nextRecordsUrl === "string" ? o.nextRecordsUrl : undefined;
-    if (o.done === true || !next) return;
+    const pageUrls: string[] = [];
+    let firstPagesMB = 0;
+    for (const soql of soqls) {
+      const first = await this.call("GET", dataPath(session, `query?q=${encodeURIComponent(soql)}`));
+      firstPagesMB += this.lastDecodedBytes / (1024 * 1024);
+      const { records, o } = recordsOf(first);
+      if (!this.accept(records)) return false;
+      const next = typeof o.nextRecordsUrl === "string" ? o.nextRecordsUrl : undefined;
+      if (o.done === true || !next) continue;
 
-    const totalSize = typeof o.totalSize === "number" ? o.totalSize : undefined;
-    const locator = /\/query\/([^/]+?)(?:-\d+)?$/.exec(next)?.[1];
-    if (this.o.legacyPaging === "sequential" || !locator || !totalSize || records.length === 0) {
-      await this.followNext(next);
-      return;
+      const totalSize = typeof o.totalSize === "number" ? o.totalSize : undefined;
+      const locator = /\/query\/([^/]+?)(?:-\d+)?$/.exec(next)?.[1];
+      if (this.o.legacyPaging === "sequential" || !locator || !totalSize || records.length === 0) {
+        if (!(await this.followNext(next))) return false;
+        continue;
+      }
+      const step = records.length;
+      for (let off = step; off < totalSize; off += step) pageUrls.push(`${session.apiVersion}/query/${locator}-${off}`);
     }
-    const step = records.length;
-    const urls: string[] = [];
-    for (let off = step; off < totalSize; off += step) urls.push(`${session.apiVersion}/query/${locator}-${off}`);
-    for (const group of chunk(urls, LEGACY_PAGE_BATCH)) {
+    if (pageUrls.length === 0) return true;
+
+    const size = legacyBatchSize({
+      dynamic: this.o.dynamicBatchSize,
+      deviceRamGB: this.o.deviceRamGB,
+      estimatedResponseMB: firstPagesMB / soqls.length,
+    });
+    for (const group of chunk(pageUrls, size)) {
       const json = await this.call("POST", dataPath(session, "composite/batch"), {
         haltOnError: true,
         batchRequests: group.map((url) => ({ method: "GET", url })),
@@ -725,19 +779,21 @@ class TableRunner {
         if (typeof r.statusCode === "number" && r.statusCode >= 300) {
           throw new Error(`composite/batch sub-request failed (HTTP ${r.statusCode})`);
         }
-        if (!this.accept(recordsOf(r.result).records)) return;
+        if (!this.accept(recordsOf(r.result).records)) return false;
       }
     }
+    return true;
   }
 
-  private async followNext(first: string): Promise<void> {
+  private async followNext(first: string): Promise<boolean> {
     let next: string | undefined = first;
     while (next) {
       const json = await this.call("GET", next);
       const { records, o } = recordsOf(json);
-      if (!this.accept(records)) return;
+      if (!this.accept(records)) return false;
       next = o.done === true || typeof o.nextRecordsUrl !== "string" ? undefined : o.nextRecordsUrl;
     }
+    return true;
   }
 }
 

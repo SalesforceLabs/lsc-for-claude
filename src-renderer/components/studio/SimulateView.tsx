@@ -5,6 +5,7 @@ import {
   connectionLabel,
   connectionRef,
   deltaOf,
+  describeNetwork,
   mobileLoginId,
   mobileRef,
   formatBytes,
@@ -14,12 +15,15 @@ import {
   newConnections,
   parseSObjectList,
   rankTables,
+  SIM_NETWORK_LIMITATION,
+  SIM_NETWORK_PROFILES,
   simSummary,
   type SfConnection,
   type SimContent,
   type SimContentKind,
   type SimFlow,
   type SimJobStatus,
+  type SimNetworkProfile,
   type SimRunOptions,
   type SimulationResult,
 } from "./sim-types";
@@ -156,7 +160,8 @@ function SimResult({ result, status, onExport, onExportReport }: {
             {result.user.territory ? ` · ${result.user.territory}` : ""}
           </div>
           <div className="studio-finding-detail">
-            {host(result.org.instanceUrl)} · {result.flow} flow · API {result.org.apiVersion} ·{" "}
+            {host(result.org.instanceUrl)} · {result.flow} flow · API {result.org.apiVersion}
+            {result.network ? ` · network ${describeNetwork(result.network)}` : ""} ·{" "}
             {new Date(result.startedAt).toLocaleString()}
             {status === "cancelled" ? " · cancelled, so this covers what was downloaded before it stopped" : ""}
           </div>
@@ -461,6 +466,10 @@ export default function SimulateView() {
   const [maxTotal, setMaxTotal] = useState("");
   const [runs, setRuns] = useState("1");
   const [deltaHours, setDeltaHours] = useState("");
+  const [network, setNetwork] = useState<SimNetworkProfile>("none");
+  const [customRtt, setCustomRtt] = useState("100");
+  const [customDown, setCustomDown] = useState("20");
+  const [customUp, setCustomUp] = useState("5");
   const [include, setInclude] = useState("");
   const [exclude, setExclude] = useState("");
   const [advanced, setAdvanced] = useState(false);
@@ -676,6 +685,11 @@ export default function SimulateView() {
     if (r && r > 1) opts.runs = Math.min(MAX_SIM_RUNS, r);
     const hours = Number(deltaHours);
     if (deltaHours.trim() && Number.isFinite(hours) && hours > 0) opts.delta = { sinceHours: Math.min(8760, hours) };
+    if (network === "custom") {
+      opts.network = { profile: "custom", rttMs: Number(customRtt) || 0, downMbps: Number(customDown) || 1, upMbps: Number(customUp) || 1 };
+    } else if (network !== "none") {
+      opts.network = { profile: network };
+    }
     const perTable = wholeNumber(maxPerTable);
     if (perTable) opts.maxRecordsPerTable = perTable;
     const total = wholeNumber(maxTotal);
@@ -796,7 +810,7 @@ export default function SimulateView() {
                   <span>{summary?.username ?? s.connection}</span>
                   <span className="studio-perf-run-meta" title={s.org}>
                     {new Date(s.startedAt).toLocaleString()}
-                    {summary ? ` · ${formatNumber(summary.records)} records · ${formatSeconds(summary.seconds)}${summary.runs ? ` median of ${summary.runs}` : ""}` : ""}
+                    {summary ? ` · ${formatNumber(summary.records)} records · ${formatSeconds(summary.seconds)}${summary.runs ? ` median of ${summary.runs}` : ""}${summary.network ? ` · ${summary.network}` : ""}` : ""}
                   </span>
                 </span>
               </button>
@@ -994,7 +1008,41 @@ export default function SimulateView() {
                       title="Run back to back as the same login and report the median and spread"
                     />
                   </label>
+                  <label className="studio-perf-field">
+                    <span className="studio-perf-field-label">Network (presets approximate)</span>
+                    <select
+                      className="studio-filter"
+                      value={network}
+                      disabled={running}
+                      onChange={(e) => setNetwork(e.target.value as SimNetworkProfile)}
+                      title={SIM_NETWORK_LIMITATION}
+                    >
+                      {SIM_NETWORK_PROFILES.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.id === "none" ? p.label : `${p.label} · ${p.rttMs} ms, ${p.downMbps}/${p.upMbps} Mbps`}
+                        </option>
+                      ))}
+                      <option value="custom">Custom</option>
+                    </select>
+                  </label>
                 </div>
+                {network === "custom" && (
+                  <div className="studio-perf-grid">
+                    <label className="studio-perf-field">
+                      <span className="studio-perf-field-label">Round trip (ms)</span>
+                      <input className="studio-filter studio-perf-number" type="number" min={0} max={5000} value={customRtt} disabled={running} onChange={(e) => setCustomRtt(e.target.value)} />
+                    </label>
+                    <label className="studio-perf-field">
+                      <span className="studio-perf-field-label">Down (Mbps)</span>
+                      <input className="studio-filter studio-perf-number" type="number" min={0.05} step="any" value={customDown} disabled={running} onChange={(e) => setCustomDown(e.target.value)} />
+                    </label>
+                    <label className="studio-perf-field">
+                      <span className="studio-perf-field-label">Up (Mbps)</span>
+                      <input className="studio-filter studio-perf-number" type="number" min={0.05} step="any" value={customUp} disabled={running} onChange={(e) => setCustomUp(e.target.value)} />
+                    </label>
+                  </div>
+                )}
+                {network !== "none" && <div className="studio-perf-hint">{SIM_NETWORK_LIMITATION}</div>}
                 <button className="studio-perf-disclosure" onClick={() => setAdvanced(!advanced)}>
                   {advanced ? "▾" : "▸"} Advanced
                 </button>

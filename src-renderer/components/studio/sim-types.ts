@@ -64,10 +64,49 @@ export function deltaOf(r: Pick<SimulationResult, "delta">): SimDelta | null {
   return d && Array.isArray(d.tables) && d.totals && Array.isArray(d.notes) ? d : null;
 }
 
+export type SimNetworkProfile = "none" | "3g" | "4g" | "5g" | "wifi" | "custom";
+
+/** Network conditions a run was shaped to; absent for none and on older rows. */
+export interface SimNetwork {
+  profile: SimNetworkProfile;
+  label: string;
+  rttMs: number;
+  downMbps: number;
+  upMbps: number;
+  approximate: boolean;
+}
+
+export interface SimNetworkOptions {
+  profile: SimNetworkProfile;
+  rttMs?: number;
+  downMbps?: number;
+  upMbps?: number;
+}
+
+/** Copy of NETWORK_PROFILES in src/perf/device/network.ts (approximate presets); a unit test keeps them equal. */
+export const SIM_NETWORK_PROFILES: ReadonlyArray<{ id: Exclude<SimNetworkProfile, "custom">; label: string; rttMs: number; downMbps: number; upMbps: number }> = [
+  { id: "none", label: "None (this machine's connection)", rttMs: 0, downMbps: 0, upMbps: 0 },
+  { id: "3g", label: "3G", rttMs: 200, downMbps: 0.78, upMbps: 0.33 },
+  { id: "4g", label: "4G/LTE", rttMs: 100, downMbps: 50, upMbps: 10 },
+  { id: "5g", label: "5G", rttMs: 30, downMbps: 200, upMbps: 30 },
+  { id: "wifi", label: "Wi-Fi", rttMs: 2, downMbps: 40, upMbps: 33 },
+];
+
+export const SIM_NETWORK_LIMITATION =
+  "Network shaping can only slow this machine's connection down. If the real link is already slower than the profile, the result reflects the real link.";
+
+/** "4G/LTE (approximate): 100 ms RTT, 50/10 Mbps down/up", or the no-shaping label. Tolerates rows without a network. */
+export function describeNetwork(n: SimNetwork | undefined): string {
+  if (!n) return SIM_NETWORK_PROFILES[0].label;
+  const mbps = (v: number) => (v < 10 ? v.toFixed(2).replace(/\.?0+$/, "") : String(Math.round(v)));
+  return `${n.label}${n.approximate ? " (approximate)" : ""}: ${n.rttMs} ms RTT, ${mbps(n.downMbps)}/${mbps(n.upMbps)} Mbps down/up`;
+}
+
 export interface SimulationResult {
   user: { username: string; id: string; profile?: string; territory?: string };
   org: { instanceUrl: string; orgId?: string; apiVersion: string };
   flow: SimFlow;
+  network?: SimNetwork;
   metadata: { bytes: number; seconds: number; version: string; requests: number };
   tables: SimTable[];
   totals: {
@@ -145,6 +184,7 @@ export interface SimRunOptions {
   runs?: number;
   delta?: { sinceHours: number };
   content?: { attachments?: boolean; clm?: boolean; maxFiles?: number; maxBytes?: number };
+  network?: SimNetworkOptions;
 }
 
 export interface SimJobStatus {
@@ -180,6 +220,8 @@ export interface SimSummary {
   truncated: boolean;
   /** Runs the times are medians of; absent for a single run and on older rows. */
   runs?: number;
+  /** Short network label ("4G/LTE"); absent for none and on older rows. */
+  network?: string;
 }
 
 export function simSummary(r: SimulationResult): SimSummary {
@@ -193,6 +235,7 @@ export function simSummary(r: SimulationResult): SimSummary {
     failed: r.totals.tablesFailed,
     truncated: r.tables.some((t) => t.truncated),
     ...(runs ? { runs: runs.count } : {}),
+    ...(r.network ? { network: r.network.label } : {}),
   };
 }
 

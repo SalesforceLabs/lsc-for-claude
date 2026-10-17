@@ -1493,6 +1493,14 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
         "optional": true,
         "type": "ZodString",
       },
+      "deviceRamGB": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "dynamicBatchSize": {
+        "optional": true,
+        "type": "ZodBoolean",
+      },
       "exclude": {
         "optional": true,
         "type": "ZodArray",
@@ -1520,6 +1528,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
       "maxTotalRecords": {
         "optional": true,
         "type": "ZodNumber",
+      },
+      "network": {
+        "optional": true,
+        "type": "ZodObject",
       },
       "outputPath": {
         "optional": true,

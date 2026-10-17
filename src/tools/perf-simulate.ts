@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { z } from "zod";
 import type { DeltaResult } from "../perf/device/delta.js";
+import { describeNetwork } from "../perf/device/network.js";
 import { simulateInitialSync, type SimulationResult } from "../perf/simulate.js";
 
 function text(body: string) {
@@ -49,7 +50,7 @@ export function renderSimulation(r: SimulationResult, topTables = 25): string {
   const t = r.totals;
   let out = `# Simulated First Sync\n\n`;
   out += `**User:** ${r.user.username}${r.user.profile ? ` (${r.user.profile})` : ""}${r.user.territory ? `, territory ${r.user.territory}` : ""}\n`;
-  out += `**Org:** ${r.org.instanceUrl} (API ${r.org.apiVersion})  \n**Flow:** ${r.flow}\n\n`;
+  out += `**Org:** ${r.org.instanceUrl} (API ${r.org.apiVersion})  \n**Flow:** ${r.flow}  \n**Network:** ${describeNetwork(r.network)}\n\n`;
   out += `| Phase | Seconds | Size | Requests |\n|---|---|---|---|\n`;
   out += `| Metadata download (${r.metadata.version}) | ${r.metadata.seconds.toFixed(1)} | ${mb(r.metadata.bytes)} | ${r.metadata.requests} |\n`;
   out += `| Data download (network only) | ${t.seconds.toFixed(1)} | ${mb(t.bytes)} | ${t.requests} |\n\n`;
@@ -98,10 +99,21 @@ export function register(server: McpServer) {
         .optional()
         .default("batch")
         .describe("Legacy flow only: fetch later pages through composite/batch like the app (batch), or follow nextRecordsUrl (sequential)"),
+      network: z
+        .object({
+          profile: z.enum(["none", "3g", "4g", "5g", "wifi", "custom"]),
+          rttMs: z.number().min(0).max(5000).optional(),
+          downMbps: z.number().min(0.05).max(10000).optional(),
+          upMbps: z.number().min(0.05).max(10000).optional(),
+        })
+        .optional()
+        .describe("Optional: add network conditions (3g, 4g, 5g, wifi presets are approximate; custom needs rttMs, downMbps, upMbps). Can only slow this machine's connection down."),
+      deviceRamGB: z.number().int().min(1).max(32).optional().describe("Optional: RAM of the simulated iPad in GB (default 8)"),
+      dynamicBatchSize: z.boolean().optional().describe("Optional: legacy flow's dynamicBatchRequestSize setting (default true)"),
       outputPath: z.string().optional().describe("Optional: write the full result as JSON to this path"),
     },
     { title: "Simulate initial sync", readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: true },
-    async ({ username, apiVersion, territory, forceFlow, include, exclude, maxSeconds, tableTimeoutSeconds, maxRecordsPerTable, maxTotalRecords, legacyPaging, outputPath }) => {
+    async ({ username, apiVersion, territory, forceFlow, include, exclude, maxSeconds, tableTimeoutSeconds, maxRecordsPerTable, maxTotalRecords, legacyPaging, network, deviceRamGB, dynamicBatchSize, outputPath }) => {
       try {
         const result = await simulateInitialSync({
           username,
@@ -115,6 +127,9 @@ export function register(server: McpServer) {
           maxRecordsPerTable,
           maxTotalRecords,
           legacyPaging,
+          network,
+          deviceRamGB,
+          dynamicBatchSize,
         });
         let report = renderSimulation(result);
         if (outputPath) {

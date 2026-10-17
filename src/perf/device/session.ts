@@ -5,7 +5,11 @@
  * inside the closure returned by `createHttp`; it is never logged or returned.
  */
 
+import * as http from "http";
+import * as https from "https";
+import * as zlib from "zlib";
 import { execSfCommand } from "../../salesforce/cli.js";
+import type { NetworkShaper } from "./network.js";
 
 export interface DeviceRequest {
   method: "GET" | "POST";
@@ -14,17 +18,27 @@ export interface DeviceRequest {
   headers?: Record<string, string>;
   body?: string;
   signal?: AbortSignal;
+  /** Set by `shapeHttp`; a transport that streams applies the link's bandwidth limits while it reads and writes. */
+  shaper?: NetworkShaper;
 }
 
 export interface DeviceResponse {
   status: number;
   headers: Record<string, string>;
-  /** Decoded body. */
+  /** Decoded body (gzip, deflate and br are decoded, as URLSession does). */
   body: Buffer;
+  /** Body bytes as they crossed the wire, before content decoding; what a device downloads. Absent means `body.length`. */
+  wireBytes?: number;
+  /** True when the transport already applied `req.shaper`'s bandwidth limits. */
+  shaped?: boolean;
 }
 
 /** The only network seam the simulator uses; unit tests replace it with a mock. */
-export type DeviceHttp = (req: DeviceRequest) => Promise<DeviceResponse>;
+export interface DeviceHttp {
+  (req: DeviceRequest): Promise<DeviceResponse>;
+  /** True when the transport throttles uplink and downlink itself, given `req.shaper`. */
+  streamsShaping?: boolean;
+}
 
 export interface DeviceSession {
   username: string;
@@ -101,31 +115,183 @@ export function createTokenSession(login: TokenLogin, opts: SessionOptions = {})
   };
 }
 
-export function createHttp(
-  instanceUrl: string,
-  accessToken: string,
-  fetchImpl: typeof fetch = fetch
-): DeviceHttp {
-  const base = instanceUrl.replace(/\/+$/, "");
-  return async (req) => {
-    const url = req.url.startsWith("/") ? base + req.url : req.url;
-    const res = await fetchImpl(url, {
-      method: req.method,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-        ...(req.body !== undefined ? { "Content-Type": "application/json" } : {}),
-        ...req.headers,
-      },
-      body: req.body,
-      signal: req.signal,
-    });
-    const headers: Record<string, string> = {};
-    res.headers.forEach((value, key) => {
-      headers[key.toLowerCase()] = value;
-    });
-    return { status: res.status, headers, body: Buffer.from(await res.arrayBuffer()) };
+/** Request bodies under this size are sent as they are (SalesforceApi.gzipCompressionThreshold). */
+export const GZIP_REQUEST_THRESHOLD = 4096;
+
+/** What a device's URL loading system advertises; responses in any of these are decoded. */
+const ACCEPT_ENCODING = "gzip, deflate, br";
+const MAX_REDIRECTS = 5;
+
+/**
+ * The request body as sent. Mirrors SalesforceApi.resolveRequestBody: a Connect API request that
+ * opts in with `Content-Encoding: gzip` is compressed when the body is at least 4096 bytes and
+ * the compressed form is smaller; otherwise it goes out plain and the header is dropped.
+ */
+export function prepareRequestBody(
+  req: Pick<DeviceRequest, "url" | "body" | "headers">
+): { body: Buffer | undefined; gzipped: boolean } {
+  if (req.body === undefined) return { body: undefined, gzipped: false };
+  const raw = Buffer.from(req.body, "utf8");
+  const wantsGzip = Object.entries(req.headers ?? {}).some(([k, v]) => k.toLowerCase() === "content-encoding" && v.toLowerCase() === "gzip");
+  if (wantsGzip && req.url.includes("/connect/") && raw.length >= GZIP_REQUEST_THRESHOLD) {
+    const compressed = zlib.gzipSync(raw);
+    if (compressed.length < raw.length) return { body: compressed, gzipped: true };
+  }
+  return { body: raw, gzipped: false };
+}
+
+function decodeBody(body: Buffer, encoding: string | undefined): Buffer {
+  switch ((encoding ?? "").trim().toLowerCase()) {
+    case "gzip":
+    case "x-gzip":
+      return body.length ? zlib.gunzipSync(body) : body;
+    case "deflate":
+      if (!body.length) return body;
+      try {
+        return zlib.inflateSync(body);
+      } catch {
+        return zlib.inflateRawSync(body);
+      }
+    case "br":
+      return body.length ? zlib.brotliDecompressSync(body) : body;
+    default:
+      return body;
+  }
+}
+
+function requestHeaders(token: string, req: DeviceRequest, gzipped: boolean, body: Buffer | undefined): Record<string, string> {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/json",
+    "Accept-Encoding": ACCEPT_ENCODING,
+    ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
   };
+  for (const [k, v] of Object.entries(req.headers ?? {})) {
+    if (k.toLowerCase() === "content-encoding") continue; // set below, only when the body really was compressed
+    headers[k] = v;
+  }
+  if (gzipped) headers["Content-Encoding"] = "gzip";
+  return headers;
+}
+
+/** Send `body` in slices through the uplink bucket (or all at once without a shaper). */
+async function writeBody(out: http.ClientRequest, body: Buffer | undefined, shaper: NetworkShaper | undefined): Promise<void> {
+  if (body === undefined) return;
+  const step = shaper ? shaper.up.sliceBytes : body.length || 1;
+  for (let off = 0; off < body.length; off += step) {
+    const slice = body.subarray(off, off + step);
+    if (shaper) await shaper.up.take(slice.length);
+    if (!out.write(slice)) await new Promise<void>((resolve) => out.once("drain", resolve));
+  }
+}
+
+function nodeRequest(
+  url: URL,
+  method: string,
+  headers: Record<string, string>,
+  body: Buffer | undefined,
+  req: DeviceRequest,
+  redirectsLeft: number
+): Promise<DeviceResponse> {
+  return new Promise<DeviceResponse>((resolve, reject) => {
+    const lib = url.protocol === "http:" ? http : https;
+    const out = lib.request(
+      url,
+      { method, headers: { ...headers, ...(body !== undefined ? { "Content-Length": String(body.length) } : {}) }, signal: req.signal },
+      (res) => {
+        const status = res.statusCode ?? 0;
+        const location = res.headers.location;
+        if ([301, 302, 303, 307, 308].includes(status) && location && redirectsLeft > 0) {
+          res.resume();
+          const next = new URL(location, url);
+          const keepBody = status === 307 || status === 308;
+          const nextHeaders = { ...headers };
+          if (next.origin !== url.origin || !isSalesforceUrl(next.toString())) delete nextHeaders.Authorization;
+          if (!keepBody) {
+            delete nextHeaders["Content-Type"];
+            delete nextHeaders["Content-Encoding"];
+          }
+          nodeRequest(next, keepBody ? method : "GET", nextHeaders, keepBody ? body : undefined, req, redirectsLeft - 1).then(resolve, reject);
+          return;
+        }
+        const shaper = req.shaper;
+        const chunks: Buffer[] = [];
+        let wire = 0;
+        (async () => {
+          // Taking from the bucket between reads leaves the socket unread, so TCP backs the real download off.
+          for await (const chunk of res as AsyncIterable<Buffer>) {
+            chunks.push(chunk);
+            wire += chunk.length;
+            if (shaper) await shaper.down.takeSliced(chunk.length);
+          }
+          const responseHeaders: Record<string, string> = {};
+          for (const [k, v] of Object.entries(res.headers)) {
+            if (v !== undefined) responseHeaders[k.toLowerCase()] = Array.isArray(v) ? v.join(", ") : v;
+          }
+          const decoded = decodeBody(Buffer.concat(chunks), responseHeaders["content-encoding"]);
+          resolve({ status, headers: responseHeaders, body: decoded, wireBytes: wire, ...(shaper ? { shaped: true } : {}) });
+        })().catch(reject);
+      }
+    );
+    out.on("error", reject);
+    writeBody(out, body, req.shaper).then(() => out.end(), (e) => {
+      out.destroy();
+      reject(e);
+    });
+  });
+}
+
+/**
+ * The HTTP layer for a session. By default it talks to Salesforce over node's https so it can see
+ * wire bytes and shape the link as it reads; `fetchImpl` swaps in another transport (tests), whose
+ * wire size is taken from Content-Length when the response was compressed.
+ */
+export function createHttp(instanceUrl: string, accessToken: string, fetchImpl?: typeof fetch): DeviceHttp {
+  const base = instanceUrl.replace(/\/+$/, "");
+  const send: DeviceHttp = async (req) => {
+    const url = req.url.startsWith("/") ? base + req.url : req.url;
+    const { body, gzipped } = prepareRequestBody(req);
+    const headers = requestHeaders(accessToken, req, gzipped, body);
+    if (!fetchImpl) return nodeRequest(new URL(url), req.method, headers, body, req, MAX_REDIRECTS);
+
+    const res = await fetchImpl(url, { method: req.method, headers, body, signal: req.signal });
+    const responseHeaders: Record<string, string> = {};
+    res.headers.forEach((value, key) => {
+      responseHeaders[key.toLowerCase()] = value;
+    });
+    const decoded = Buffer.from(await res.arrayBuffer());
+    const declared = Number(responseHeaders["content-length"]);
+    const wireBytes = responseHeaders["content-encoding"] && Number.isFinite(declared) && declared > 0 ? declared : decoded.length;
+    return { status: res.status, headers: responseHeaders, body: decoded, wireBytes };
+  };
+  if (!fetchImpl) send.streamsShaping = true;
+  return send;
+}
+
+/**
+ * Apply a network shaper to every request through `inner`: half the RTT before the request and
+ * half after the response arrives, plus bandwidth limits. A transport that streams (the default)
+ * throttles as it goes; for any other the uplink is charged before the call and the downlink after
+ * it. No shaper returns `inner` itself, so "None" adds nothing.
+ */
+export function shapeHttp(inner: DeviceHttp, shaper: NetworkShaper | undefined): DeviceHttp {
+  if (!shaper) return inner;
+  const aborted = (signal: AbortSignal | undefined) => {
+    if (signal?.aborted) throw new DeviceHttpError("Cancelled");
+  };
+  const shaped: DeviceHttp = async (req) => {
+    await shaper.halfRtt();
+    aborted(req.signal);
+    if (!inner.streamsShaping && req.body !== undefined) await shaper.up.takeSliced(Buffer.byteLength(req.body));
+    aborted(req.signal);
+    const res = await inner({ ...req, shaper });
+    aborted(req.signal);
+    await shaper.halfRtt();
+    if (!res.shaped) await shaper.down.takeSliced(res.wireBytes ?? res.body.length);
+    return res;
+  };
+  shaped.streamsShaping = inner.streamsShaping;
+  return shaped;
 }
 
 function errorMessage(body: Buffer): string {

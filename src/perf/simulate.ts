@@ -10,11 +10,20 @@
  */
 
 import { ContentCollector, CONTENT_NOTES, downloadContent, type ContentOptions, type ContentResult } from "./content.js";
-import { downloadMetadata, DEFAULT_CHUNK_BYTES } from "./device/metadata.js";
 import { DEFAULT_MAX_LOCAL_IDS, simulateDelta, type DeltaResult } from "./device/delta.js";
+import { chunkBytesForRam, DEFAULT_DEVICE_RAM_GB, downloadMetadata } from "./device/metadata.js";
+import {
+  describeNetwork,
+  NETWORK_LIMITATION,
+  NetworkShaper,
+  realLinkNote,
+  resolveNetwork,
+  type NetworkOptions,
+  type NetworkSettings,
+} from "./device/network.js";
 import { LocalIdStore, replayInitialSync, schedulingNote, type Flow, type TableResult } from "./device/replay.js";
 import { buildSchema } from "./device/schema.js";
-import { createDeviceSession, type DeviceSession } from "./device/session.js";
+import { createDeviceSession, shapeHttp, type DeviceSession } from "./device/session.js";
 import {
   ACCESS_CHECK_SERVER_HANDLES_CONTENT_IN_LIST,
   fetchUserInfo,
@@ -42,7 +51,14 @@ export interface SimulateOptions {
   maxRecordsPerTable?: number;
   maxTotalRecords?: number;
   concurrency?: number;
+  /** Metadata Range chunk size; default follows `deviceRamGB` (FileDownloadContext.chunkSizeForDevice). */
   chunkBytes?: number;
+  /** RAM of the simulated iPad in GB (default 8). Sizes the metadata chunks and the legacy dynamic batches. */
+  deviceRamGB?: number;
+  /** The app's dynamicBatchRequestSize setting for legacy composite batches (default on, as the app's default). */
+  dynamicBatchSize?: boolean;
+  /** Network conditions to simulate on top of this machine's connection; default none. */
+  network?: NetworkOptions;
   legacyPaging?: "batch" | "sequential";
   fixedBatchSize?: boolean;
   /** After the initial sync, simulate a delta sync as if the device last synced `sinceHours` ago (enhanced flow only). */
@@ -72,6 +88,8 @@ export interface SimulationResult {
   user: { username: string; id: string; profile?: string; territory?: string };
   org: { instanceUrl: string; orgId?: string; apiVersion: string };
   flow: Flow;
+  /** Network conditions the run was shaped to; absent for none, and on older results. */
+  network?: NetworkSettings;
   metadata: { bytes: number; seconds: number; version: string; requests: number };
   tables: TableResult[];
   totals: SimulationTotals;
@@ -104,7 +122,7 @@ export function filterTables<T extends { sobject: string }>(tables: T[], include
 
 export const STANDING_NOTES = [
   "Network time only: SQLCipher writes, index/FTS/trigger creation, file binaries and freeze time are not simulated, so a real device is slower.",
-  "Byte counts are decoded response bytes (no gzip), not wire bytes.",
+  "Byte counts are on-the-wire bytes: what the server sent after gzip/deflate/br compression (the app advertises compression and decodes transparently). Connect request bodies of 4 KB or more are gzipped, as the app does.",
   "Attachment is always postponed and queried plainly; related-name fields (isRelatedRecordRetrieve) are not requested.",
   "{USER.TEAMS} and {STI.OBJ.IDS} are empty, as on a fresh device.",
 ];
@@ -113,7 +131,12 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
   const startedAt = new Date();
   const now = opts.now ?? (() => performance.now());
   const notes: string[] = [...STANDING_NOTES];
-  const session = opts.session ?? (await createDeviceSession(opts.username, { apiVersion: opts.apiVersion }));
+  const baseSession = opts.session ?? (await createDeviceSession(opts.username, { apiVersion: opts.apiVersion }));
+  const network = resolveNetwork(opts.network);
+  const shaper = network ? new NetworkShaper(network) : undefined;
+  const session: DeviceSession = shaper ? { ...baseSession, http: shapeHttp(baseSession.http, shaper) } : baseSession;
+  if (network) notes.push(`Network: ${describeNetwork(network)}.`, NETWORK_LIMITATION);
+  const ramGB = opts.deviceRamGB ?? DEFAULT_DEVICE_RAM_GB;
 
   opts.onStep?.("Fetching user info");
   const info: UserInfo = await fetchUserInfo(session, { userDeviceId: opts.userDeviceId, signal: opts.signal });
@@ -130,7 +153,11 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
   if (opts.forceFlow && opts.forceFlow !== resolved) notes.push(`Flow forced to ${flow}; the org's settings select ${resolved}.`);
 
   opts.onStep?.(`Downloading metadata (${entity.name})`);
-  const md = await downloadMetadata(session, entity.id, { chunkBytes: opts.chunkBytes ?? DEFAULT_CHUNK_BYTES, signal: opts.signal, now });
+  const md = await downloadMetadata(session, entity.id, { chunkBytes: opts.chunkBytes ?? chunkBytesForRam(ramGB), signal: opts.signal, now });
+  if (network) {
+    const slow = realLinkNote(network, md.bytes, md.seconds);
+    if (slow) notes.push(slow);
+  }
   const schema = buildSchema({ files: md.files, usp: md.info.userSpecificPermissions, assignedPermissionSets: info.permissionSets });
   notes.push(...schema.notes);
 
@@ -170,6 +197,8 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
     maxRecordsPerTable: opts.maxRecordsPerTable,
     maxTotalRecords: opts.maxTotalRecords,
     legacyPaging: opts.legacyPaging,
+    dynamicBatchSize: opts.dynamicBatchSize,
+    deviceRamGB: ramGB,
     fixedBatchSize: opts.fixedBatchSize,
     idStore,
     signal: opts.signal,
@@ -232,6 +261,7 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
     user: { username: session.username, id: info.user.id, profile: info.user.profileName, territory: territory?.name },
     org: { instanceUrl: session.instanceUrl, orgId: session.orgId, apiVersion: session.apiVersion },
     flow,
+    ...(network ? { network } : {}),
     metadata: { bytes: md.bytes, seconds: md.seconds, version: entity.name, requests: md.requests },
     tables: results,
     totals: totalsOf(results, seconds),
