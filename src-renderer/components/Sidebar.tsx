@@ -25,6 +25,8 @@ interface SidebarProps {
   onRenameConversation: (id: string, title: string) => void;
   onTogglePin: (id: string) => void;
   onOpenLibrary: () => void;
+  studioActive: boolean;
+  onOpenStudio: () => void;
 }
 
 export default function Sidebar({
@@ -44,6 +46,8 @@ export default function Sidebar({
   onRenameConversation,
   onTogglePin,
   onOpenLibrary,
+  studioActive,
+  onOpenStudio,
 }: SidebarProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [showCommands, setShowCommands] = useState(false);
@@ -133,6 +137,9 @@ export default function Sidebar({
         </button>
         <button className="sidebar-collapsed-btn" onClick={onNewChat} title="New Session">
           <IconPlus />
+        </button>
+        <button className="sidebar-collapsed-btn" onClick={onOpenStudio} title="Studio">
+          <IconStudio />
         </button>
         <button className="sidebar-collapsed-btn" onClick={onOpenLibrary} title="Library">
           <IconLibrary />
@@ -238,6 +245,10 @@ export default function Sidebar({
           <IconPlus />
           <span>New session</span>
         </button>
+        <button className={`sidebar-nav-item${studioActive ? " active" : ""}`} onClick={onOpenStudio}>
+          <IconStudio />
+          <span>Studio</span>
+        </button>
         <button className="sidebar-nav-item" onClick={onOpenLibrary}>
           <IconLibrary />
           <span>Library</span>
@@ -324,6 +335,15 @@ function IconLibrary() {
     <svg {...iconProps}>
       <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
       <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  );
+}
+
+function IconStudio() {
+  return (
+    <svg {...iconProps}>
+      <rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" /><path d="M10 6.5h4M17.5 10v4" />
     </svg>
   );
 }

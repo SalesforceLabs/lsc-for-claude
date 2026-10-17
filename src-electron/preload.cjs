@@ -61,6 +61,26 @@ contextBridge.exposeInMainWorld("lscApi", {
   setSfOrg: (org) => ipcRenderer.invoke("sfOrg:set", org),
   loginSfOrg: (alias, instanceUrl) => ipcRenderer.invoke("sfOrg:login", alias, instanceUrl),
 
+  // Studio — read-only feature maps served by the studio_* MCP tools
+  studioListFeatures: () => ipcRenderer.invoke("studio:call", "studio_list_features"),
+  // Results are cached per org in the main process; `refresh` bypasses the cache.
+  studioFeatureMap: (featureId, refresh = false) =>
+    ipcRenderer.invoke("studio:call", "studio_feature_map", { featureId }, refresh),
+  studioItemDetail: (kind, id) =>
+    ipcRenderer.invoke("studio:call", "studio_item_detail", { kind, id }),
+  studioListProfiles: () => ipcRenderer.invoke("studio:call", "studio_list_profiles"),
+  studioUserAccess: (userId) => ipcRenderer.invoke("studio:call", "studio_user_access", { userId }),
+  studioAccessOptions: () => ipcRenderer.invoke("studio:call", "studio_access_options"),
+  studioIpadPublished: (profile, refresh = false, userId) =>
+    ipcRenderer.invoke("studio:call", "studio_ipad_published", userId ? { profile, userId } : { profile }, refresh),
+  // Studio fixes — previewed, then applied only after the user confirms in the UI
+  studioPreviewFix: (fix) => ipcRenderer.invoke("studio:call", "studio_preview_fix", { fix }),
+  studioApplyFix: (fix, expectedOrg) =>
+    ipcRenderer.invoke("studio:call", "studio_apply_fix", { fix, expectedOrg }),
+  studioPublishMobile: (profiles, expectedOrg) =>
+    ipcRenderer.invoke("studio:call", "studio_publish_mobile", { profiles, expectedOrg }),
+  studioPublishStatus: (parentId) => ipcRenderer.invoke("studio:call", "studio_publish_status", { parentId }),
+
   // Library
   listLibraryItems: () => ipcRenderer.invoke("library:list"),
   saveLibraryItem: (input) => ipcRenderer.invoke("library:save", input),

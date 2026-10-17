@@ -210,6 +210,11 @@ body {
   color: var(--text-primary);
 }
 
+.sidebar-nav-item.active {
+  background: var(--accent-subtle);
+  color: var(--text-primary);
+}
+
 .sidebar-nav-item svg {
   flex-shrink: 0;
   opacity: 0.7;

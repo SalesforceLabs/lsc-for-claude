@@ -1,0 +1,266 @@
+import type { CreateConfigFix, ItemEdit, StudioFix, StudioItem } from "./types";
+
+/**
+ * Pending changes — edits queued in Studio's tray until the admin reviews and
+ * applies them together. Nothing here touches the org.
+ */
+export interface PendingChange {
+  fix: StudioFix;
+  /** Profiles whose iPads the change affects, for "Publish to iPad"; undefined = everyone / unknown. */
+  affects?: string[];
+}
+
+const MOBILE_CATEGORIES = new Set(["QuickAction", "CustomAction", "UISchema", "DbSchema"]);
+
+/** Changes that write the same setting share a key, so a newer edit replaces an older one. */
+export function changeKey(fix: StudioFix): string {
+  switch (fix.kind) {
+    case "assignPsl":
+    case "removePsl":
+      return `psl:${fix.userId}:${fix.pslId}`;
+    case "setConfigField":
+      return `field:${fix.category}:${fix.developerName}:${fix.field}`;
+    case "setActive":
+      return fix.record.type === "validationRule"
+        ? `active:validationRule::${fix.record.id}`
+        : `active:${fix.record.type}:${fix.record.type === "config" ? fix.record.category : ""}:${fix.record.developerName}`;
+    case "setProfileAssignments":
+      return `assign:${fix.category}:${fix.developerName}`;
+    case "createConfigRecord":
+      return `create:${fix.category}:${fix.developerName}`;
+    case "deleteConfigRecord":
+      return `delete:${fix.category}:${fix.developerName}`;
+    case "assignAccess":
+    case "removeAccess":
+      return `access:${fix.userId}:${fix.access.type}:${fix.access.id}`;
+    case "setCustomScriptCode":
+      return `script:${fix.scriptId}`;
+    case "setLayoutRelatedList":
+      return `layout:${fix.layoutName}:${fix.relationshipName}`;
+  }
+}
+
+const listKey = (l: string[]) => l.map((n) => n.toLowerCase()).sort().join("|");
+
+/** True when a change would leave the setting as it was. */
+function isNoop(fix: StudioFix): boolean {
+  switch (fix.kind) {
+    case "setConfigField":
+      return String(fix.from ?? "") === String(fix.to ?? "");
+    case "setActive":
+      return fix.from === fix.to;
+    case "setProfileAssignments":
+      return listKey(fix.from) === listKey(fix.to);
+    case "setCustomScriptCode":
+      return fix.from === fix.to;
+    default:
+      return false;
+  }
+}
+
+/** Queue a change. A change to an already-queued setting keeps the original `from`, and is dropped if it undoes the edit. */
+export function queueChange(pending: PendingChange[], change: PendingChange): PendingChange[] {
+  const key = changeKey(change.fix);
+  const idx = pending.findIndex((p) => changeKey(p.fix) === key);
+  if (idx < 0) return isNoop(change.fix) ? pending : [...pending, change];
+  const prev = pending[idx].fix;
+  // Giving and then taking away the same access (or the reverse) is no change at all.
+  if (prev.kind !== change.fix.kind && (prev.kind === "assignAccess" || prev.kind === "removeAccess")) {
+    return pending.filter((_, i) => i !== idx);
+  }
+  // Adding a related list and then taking it out again (or the reverse) is no change at all.
+  if (prev.kind === "setLayoutRelatedList" && change.fix.kind === "setLayoutRelatedList" && prev.add !== change.fix.add) {
+    return pending.filter((_, i) => i !== idx);
+  }
+  const merged = (
+    "from" in prev && "from" in change.fix ? { ...change.fix, from: prev.from } : change.fix
+  ) as StudioFix;
+  const next = [...pending];
+  if (isNoop(merged)) next.splice(idx, 1);
+  else next[idx] = { ...change, fix: merged };
+  return next;
+}
+
+export function pendingFor(pending: PendingChange[], fix: StudioFix): PendingChange | undefined {
+  const key = changeKey(fix);
+  return pending.find((p) => changeKey(p.fix) === key);
+}
+
+/** Whether this exact change (same setting, same new value) is in the tray. */
+export function isQueued(pending: PendingChange[], fix: StudioFix): boolean {
+  const queued = pendingFor(pending, fix)?.fix;
+  if (!queued) return false;
+  return !("to" in fix) || JSON.stringify((queued as { to?: unknown }).to) === JSON.stringify(fix.to);
+}
+
+export function isMobileChange(fix: StudioFix): boolean {
+  switch (fix.kind) {
+    case "setConfigField":
+    case "setProfileAssignments":
+      return MOBILE_CATEGORIES.has(fix.category);
+    case "setActive":
+      return fix.record.type === "config" && MOBILE_CATEGORIES.has(fix.record.category);
+    case "createConfigRecord":
+    case "deleteConfigRecord":
+      return MOBILE_CATEGORIES.has(fix.category);
+    case "setLayoutRelatedList":
+      // The layout feeds the iPad's visit engagement sidebar; it applies to every profile using it.
+      return true;
+    default:
+      return false;
+  }
+}
+
+/** Profiles a new record reaches — its assignments plus any listed in its Profiles field. */
+export function createAffects(fix: CreateConfigFix): string[] {
+  const listed = splitList(String(fix.fields.find((f) => f.name === "Profiles")?.value ?? ""));
+  return [...new Map([...fix.profiles, ...listed].map((n) => [n.toLowerCase(), n])).values()];
+}
+
+/** Profiles to preselect when publishing a set of applied changes; null when one of them affects everyone. */
+export function publishProfiles(changes: PendingChange[]): string[] | null {
+  const names = new Map<string, string>();
+  for (const c of changes.filter((c) => isMobileChange(c.fix))) {
+    if (!c.affects) return null;
+    for (const n of c.affects) names.set(n.toLowerCase(), n);
+  }
+  return [...names.values()];
+}
+
+// --- Stacking suggested profile changes -----------------------------------------
+
+type ProfileListFix = Extract<StudioFix, { kind: "setProfileAssignments" }> | Extract<StudioFix, { kind: "setConfigField" }>;
+
+function isProfileListFix(fix: StudioFix): fix is ProfileListFix {
+  return fix.kind === "setProfileAssignments" || (fix.kind === "setConfigField" && fix.field === "Profiles");
+}
+
+function listOf(fix: ProfileListFix, side: "from" | "to"): string[] {
+  return fix.kind === "setProfileAssignments" ? fix[side] : splitList(String(fix[side] ?? ""));
+}
+
+/** The same fix with its new profile list set to `names` (keeping the field's separator). */
+function withList(fix: ProfileListFix, names: string[]): ProfileListFix {
+  if (fix.kind === "setProfileAssignments") return { ...fix, to: names };
+  const raw = String(fix.from ?? "");
+  return { ...fix, to: names.join(raw.includes(",") && !raw.includes(";") ? "," : ";") };
+}
+
+/** What a profile-list change adds and removes. */
+function delta(fix: ProfileListFix): { add: string[]; remove: Set<string> } {
+  const [from, to] = [listOf(fix, "from"), listOf(fix, "to")];
+  const lower = (l: string[]) => new Set(l.map((n) => n.toLowerCase()));
+  const [f, t] = [lower(from), lower(to)];
+  return { add: to.filter((n) => !f.has(n.toLowerCase())), remove: new Set(from.filter((n) => !t.has(n.toLowerCase())).map((n) => n.toLowerCase())) };
+}
+
+function applyDelta(base: string[], d: { add: string[]; remove: Set<string> }): string[] {
+  const kept = base.filter((n) => !d.remove.has(n.toLowerCase()));
+  const has = new Set(kept.map((n) => n.toLowerCase()));
+  return [...kept, ...d.add.filter((n) => !has.has(n.toLowerCase()))];
+}
+
+/**
+ * A suggested profile-list change, applied on top of whatever is already
+ * pending for the same record — so "Show A to X" then "Show A to Y" keeps both.
+ */
+export function stackChange(pending: PendingChange[], change: PendingChange): PendingChange {
+  const queued = pendingFor(pending, change.fix)?.fix;
+  if (!queued || !isProfileListFix(change.fix) || !isProfileListFix(queued)) return change;
+  return { ...change, fix: withList(change.fix, applyDelta(listOf(queued, "to"), delta(change.fix))) };
+}
+
+/** Whether a suggestion is in the tray — for profile lists, whether everything it adds and removes is pending. */
+export function isSuggestionQueued(pending: PendingChange[], fix: StudioFix): boolean {
+  const queued = pendingFor(pending, fix)?.fix;
+  if (!queued || !isProfileListFix(fix) || !isProfileListFix(queued)) return isQueued(pending, fix);
+  const now = new Set(listOf(queued, "to").map((n) => n.toLowerCase()));
+  const d = delta(fix);
+  return d.add.every((n) => now.has(n.toLowerCase())) && [...d.remove].every((n) => !now.has(n));
+}
+
+/** The tray with a suggestion taken back out, leaving other edits to the same record in place. */
+export function withoutSuggestion(pending: PendingChange[], fix: StudioFix): PendingChange[] {
+  const entry = pendingFor(pending, fix);
+  if (!entry) return pending;
+  if (!isProfileListFix(fix) || !isProfileListFix(entry.fix)) return pending.filter((p) => p !== entry);
+  const d = delta(fix);
+  const reversed = { add: [...d.remove].map((n) => listOf(fix, "from").find((f) => f.toLowerCase() === n)!), remove: new Set(d.add.map((n) => n.toLowerCase())) };
+  return queueChange(pending, { ...entry, fix: withList(entry.fix, applyDelta(listOf(entry.fix, "to"), reversed)) });
+}
+
+// --- Building changes from inspector edits ------------------------------------
+
+export function splitList(v: string): string[] {
+  return v
+    .split(/[;,]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/** The item's profile list as currently edited — the queued value if there is one. */
+export function effectiveProfiles(edit: ItemEdit, pending: PendingChange[]): string[] {
+  if (!edit.profiles) return [];
+  const probe = profileChange(edit, edit.profiles.source === "field" ? splitList(edit.profiles.raw) : edit.profiles.names);
+  const queued = probe && pendingFor(pending, probe)?.fix;
+  if (queued?.kind === "setConfigField") return splitList(String(queued.to ?? ""));
+  if (queued?.kind === "setProfileAssignments") return queued.to;
+  return edit.profiles.source === "field" ? splitList(edit.profiles.raw) : edit.profiles.names;
+}
+
+/** A change setting the item's profiles to `to` (kept entries stay in order, new ones are appended). */
+export function profileChange(edit: ItemEdit, to: string[]): StudioFix | null {
+  if (!edit.profiles || edit.record.type !== "config") return null;
+  const { category, developerName, label } = edit.record;
+  const changeLabel = `Change who sees ${label}`;
+  if (edit.profiles.source === "assignments") {
+    return { kind: "setProfileAssignments", label: changeLabel, category, developerName, recordLabel: label, from: edit.profiles.names, to };
+  }
+  const raw = edit.profiles.raw;
+  const sep = raw.includes(",") && !raw.includes(";") ? "," : ";";
+  const lower = new Set(to.map((n) => n.toLowerCase()));
+  const kept = splitList(raw).filter((n) => lower.has(n.toLowerCase()));
+  const keptLower = new Set(kept.map((n) => n.toLowerCase()));
+  const value = [...kept, ...to.filter((n) => !keptLower.has(n.toLowerCase()))].join(sep);
+  return { kind: "setConfigField", label: changeLabel, category, developerName, recordLabel: label, field: "Profiles", from: raw, to: value };
+}
+
+export function activeChange(edit: ItemEdit, to: boolean): StudioFix | null {
+  if (edit.active === undefined) return null;
+  return { kind: "setActive", label: `${to ? "Activate" : "Deactivate"} ${edit.record.label}`, record: edit.record, from: edit.active, to };
+}
+
+export function effectiveActive(edit: ItemEdit, pending: PendingChange[]): boolean | undefined {
+  const probe = activeChange(edit, !edit.active);
+  const queued = probe && pendingFor(pending, probe)?.fix;
+  return queued?.kind === "setActive" ? queued.to : edit.active;
+}
+
+/** Profiles an item's change affects: what it's assigned to now plus what it will be. */
+export function itemAffects(item: StudioItem, extra: string[] = []): string[] | undefined {
+  if (!item.audience) return undefined;
+  return [...new Set([...item.audience.profiles, ...extra])];
+}
+
+/** A change setting a custom script's CodeText from `from` (what the map saw) to `to`. */
+export function scriptChange(item: StudioItem, from: string, to: string): StudioFix {
+  return { kind: "setCustomScriptCode", label: `Edit code of ${item.label}`, scriptId: item.id, scriptName: item.label, from, to };
+}
+
+/** A change adding (or removing) a related list on a Visit layout's engagement sidebar. */
+export function layoutChange(
+  layoutName: string,
+  layoutLabel: string,
+  candidate: { objectName: string; relationshipName: string },
+  add: boolean
+): StudioFix {
+  return {
+    kind: "setLayoutRelatedList",
+    label: `${add ? "Add" : "Remove"} ${candidate.objectName} ${add ? "to" : "from"} the sidebar of ${layoutLabel}`,
+    layoutName,
+    layoutLabel,
+    objectName: candidate.objectName,
+    relationshipName: candidate.relationshipName,
+    add,
+  };
+}

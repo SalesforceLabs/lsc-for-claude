@@ -31,6 +31,7 @@ import { register as registerApex } from "./tools/apex.js";
 import { register as registerBulkOperations } from "./tools/bulk-operations.js";
 import { register as registerMetadata } from "./tools/metadata.js";
 import { register as registerBriefings } from "./tools/briefings.js";
+import { register as registerStudio } from "./tools/studio.js";
 
 // Create the MCP server
 const server = new McpServer({
@@ -59,6 +60,7 @@ registerApex(server);
 registerBulkOperations(server);
 registerMetadata(server);
 registerBriefings(server);
+registerStudio(server);
 
 // ============================================================================
 // MAIN

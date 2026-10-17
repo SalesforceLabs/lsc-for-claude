@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `69`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `76`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -65,6 +65,13 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "run_soql",
   "search_lsc_knowledge",
   "set_target_org",
+  "studio_access_options",
+  "studio_feature_map",
+  "studio_ipad_published",
+  "studio_item_detail",
+  "studio_list_features",
+  "studio_list_profiles",
+  "studio_user_access",
   "toggle_db_schema",
   "toggle_trigger_handler",
   "unassign_permission_set",
@@ -1184,6 +1191,62 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
         "type": "ZodString",
       },
     },
+  },
+  {
+    "name": "studio_list_features",
+    "params": {},
+  },
+  {
+    "name": "studio_feature_map",
+    "params": {
+      "featureId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_item_detail",
+    "params": {
+      "id": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "kind": {
+        "optional": false,
+        "type": "ZodEnum",
+      },
+    },
+  },
+  {
+    "name": "studio_list_profiles",
+    "params": {},
+  },
+  {
+    "name": "studio_user_access",
+    "params": {
+      "userId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_ipad_published",
+    "params": {
+      "profile": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "userId": {
+        "optional": true,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_access_options",
+    "params": {},
   },
 ]
 `;

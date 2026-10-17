@@ -1,5 +1,5 @@
 import { LLMProvider, Message, ContentBlock, StreamChunk } from "../llm/provider.js";
-import { McpClient } from "../mcp/client.js";
+import { McpClient, STUDIO_TOOL_PREFIX } from "../mcp/client.js";
 import { PromptBuilder } from "./prompt-builder.js";
 import type { StoredMessage } from "./history.js";
 
@@ -199,6 +199,10 @@ export class ConversationEngine {
         if (abort.aborted) throw new Error("aborted");
 
         try {
+          // Studio tools (including fixes that write to the org) are UI-only — never run one the model names.
+          if (toolCall.name!.startsWith(STUDIO_TOOL_PREFIX)) {
+            throw new Error(`${toolCall.name} is only available from the Studio UI.`);
+          }
           const result = await this.mcp.callTool(
             toolCall.name!,
             toolCall.input as Record<string, unknown>

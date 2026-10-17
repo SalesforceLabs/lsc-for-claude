@@ -7,6 +7,9 @@ import { ToolDefinition } from "../llm/provider.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/** Tools that serve the Studio GUI directly; never offered to the chat model. */
+export const STUDIO_TOOL_PREFIX = "studio_";
+
 interface McpToolResult {
   content: Array<{ type: string; text: string }>;
   isError?: boolean;
@@ -33,7 +36,8 @@ export class McpClient {
       command: "node",
       args: [serverScript],
       cwd: this.serverDir,
-      env: { ...process.env } as Record<string, string>,
+      // LSC_STUDIO_FIXES registers the Studio fix tools — applied only from the Studio UI.
+      env: { ...process.env, LSC_STUDIO_FIXES: "1" } as Record<string, string>,
     });
 
     this.client = new Client(
@@ -55,20 +59,28 @@ export class McpClient {
     }
   }
 
+  /** Respawn the server in place (dev reload) — engines keep their reference to this client. */
+  async restart(): Promise<void> {
+    await this.stop();
+    await this.start();
+  }
+
   getTools(): ToolDefinition[] {
-    return this.tools;
+    return this.tools.filter((t) => !t.name.startsWith(STUDIO_TOOL_PREFIX));
   }
 
   async callTool(
     name: string,
-    args: Record<string, unknown>
+    args: Record<string, unknown>,
+    options?: { timeoutMs?: number }
   ): Promise<McpToolResult> {
     if (!this.client) throw new Error("MCP client not connected");
 
-    const result = await this.client.callTool({
-      name,
-      arguments: args,
-    });
+    const result = await this.client.callTool(
+      { name, arguments: args },
+      undefined,
+      options?.timeoutMs ? { timeout: options.timeoutMs } : undefined
+    );
 
     return {
       content: (result.content as Array<{ type: string; text: string }>) || [],

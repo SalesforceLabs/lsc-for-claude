@@ -96,7 +96,7 @@ export async function collectConfig(
  * Collect every LifeSciConfigRecord under the categories returned by `catQuery`,
  * tagging each with its category name and capturing fields, fieldTypes, and assignments.
  */
-async function collectCategoryRecords(org: string, catQuery: string): Promise<ConfigRecord[]> {
+export async function collectCategoryRecords(org: string, catQuery: string): Promise<ConfigRecord[]> {
   const out: ConfigRecord[] = [];
   const catResult = await runToolingQuery(catQuery, org);
   if (!catResult.success || !catResult.data?.records?.length) return out;

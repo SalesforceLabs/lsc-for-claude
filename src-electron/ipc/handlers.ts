@@ -1,5 +1,6 @@
 import { ipcMain, BrowserWindow, shell } from "electron";
 import { execFile, spawn } from "child_process";
+import { watch } from "fs";
 import { readFile } from "fs/promises";
 import { fileURLToPath } from "url";
 import path from "path";
@@ -7,7 +8,7 @@ import path from "path";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { ConversationEngine } from "../engine/conversation.js";
-import { McpClient } from "../mcp/client.js";
+import { McpClient, STUDIO_TOOL_PREFIX } from "../mcp/client.js";
 import { PromptBuilder } from "../engine/prompt-builder.js";
 import { LLMProvider } from "../llm/provider.js";
 import { ApiKeyProvider } from "../llm/api-key.js";
@@ -29,12 +30,30 @@ import {
   deleteLibraryItem,
   searchLibraryItems,
 } from "../engine/library.js";
+import { getStudioCache, setStudioCache, clearStudioCache } from "../engine/studio-cache.js";
+
+const STUDIO_CACHED_TOOLS = new Set(["studio_feature_map", "studio_item_detail", "studio_list_profiles", "studio_access_options", "studio_ipad_published"]);
 
 // Shared resources (created once at engine:start)
 let llm: LLMProvider | null = null;
 let mcpClient: McpClient | null = null;
 let promptBuilder: PromptBuilder | null = null;
 let engineStarting: Promise<unknown> | null = null;
+
+// Studio opens before the engine starts and asks for data right away; it waits on this.
+let mcpStarted = false;
+let resolveMcpReady: () => void = () => {};
+let mcpReady = new Promise<void>((resolve) => (resolveMcpReady = resolve));
+
+/** The started MCP client, waiting briefly if the engine hasn't started yet. */
+async function readyMcpClient(timeoutMs = 60_000): Promise<McpClient | null> {
+  if (!mcpStarted) {
+    let timer: NodeJS.Timeout | undefined;
+    await Promise.race([mcpReady, new Promise((resolve) => (timer = setTimeout(resolve, timeoutMs)))]);
+    clearTimeout(timer);
+  }
+  return mcpStarted ? mcpClient : null;
+}
 
 // Per-session engines
 const engines = new Map<string, ConversationEngine>();
@@ -80,7 +99,40 @@ function getOrCreateEngine(convId: string): ConversationEngine {
   return engine;
 }
 
+/**
+ * Dev only (`electron:dev`): respawn the MCP server whenever `tsc --watch`
+ * rewrites dist/, so server and Studio collector changes apply without
+ * restarting the app. Studio's cache is kept so a reload doesn't re-query
+ * the org — hit Refresh in Studio to see a collector change.
+ */
+function watchMcpServer(): void {
+  const distDir = path.resolve(__dirname, "..", "..", "dist");
+  let timer: NodeJS.Timeout | null = null;
+  let reloading: Promise<void> = Promise.resolve();
+  try {
+    watch(distDir, { recursive: true }, (_event, file) => {
+      if (!file || !file.endsWith(".js")) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        reloading = reloading.then(async () => {
+          if (!mcpClient) return;
+          try {
+            await mcpClient.restart();
+            console.log("[dev] MCP server reloaded");
+          } catch (error) {
+            console.error("[dev] MCP server reload failed:", error);
+          }
+        });
+      }, 400);
+    });
+  } catch (error) {
+    console.error(`[dev] Can't watch ${distDir}:`, error);
+  }
+}
+
 export function registerIpcHandlers(mainWindow: BrowserWindow): void {
+  if (process.env.LSC_RENDERER_URL) watchMcpServer();
+
   // --- Settings ---
 
   ipcMain.handle("settings:get", async () => {
@@ -180,6 +232,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         mcpClient = new McpClient();
         await mcpClient.start();
         promptBuilder = new PromptBuilder();
+        mcpStarted = true;
+        resolveMcpReady();
       };
 
       try {
@@ -216,6 +270,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     llm = null;
     mcpClient = null;
     promptBuilder = null;
+    mcpStarted = false;
+    mcpReady = new Promise<void>((resolve) => (resolveMcpReady = resolve));
     return { ok: true };
   });
 
@@ -393,6 +449,54 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle("library:search", async (_event, query: string) => {
     return searchLibraryItems(query);
   });
+
+  // --- Studio (direct MCP calls, no LLM) ---
+
+  ipcMain.handle(
+    "studio:call",
+    async (_event, toolName: string, args: Record<string, unknown> = {}, refresh = false) => {
+      if (!toolName.startsWith(STUDIO_TOOL_PREFIX)) {
+        return { error: `Not a Studio tool: ${toolName}` };
+      }
+      // Org-backed results are persisted per org; the feature list is static and cheap.
+      const cacheable = STUDIO_CACHED_TOOLS.has(toolName);
+      const org = loadSettings().sfTargetOrg ?? "";
+      const argsKey = JSON.stringify(args);
+      if (cacheable && !refresh) {
+        const cached = getStudioCache(org, toolName, argsKey);
+        if (cached !== undefined) return { data: cached };
+      }
+      const client = await readyMcpClient();
+      if (!client) return { error: "Engine not started" };
+      try {
+        // A feature map fans out to many sf CLI queries; allow well over the SDK's 60s default.
+        const result = await client.callTool(toolName, args, { timeoutMs: 5 * 60_000 });
+        const text = result.content.find((c) => c.type === "text")?.text ?? "{}";
+        const data = JSON.parse(text);
+        // A layout whose XML couldn't be retrieved shouldn't stick — the next open retries.
+        if (cacheable && !data?.error && data?.sidebar?.relatedLists !== null) {
+          // Refreshing a map means the org changed — item details may be stale too.
+          if (refresh && toolName === "studio_feature_map") {
+            clearStudioCache(org, "studio_item_detail");
+            clearStudioCache(org, "studio_list_profiles");
+            clearStudioCache(org, "studio_access_options");
+            clearStudioCache(org, "studio_ipad_published");
+          }
+          setStudioCache(org, toolName, argsKey, data);
+        }
+        // An applied change alters the org, so every cached map for it may be stale.
+        if (toolName === "studio_apply_fix" && data?.ok) clearStudioCache(org);
+        // A finished publish changes the metadata cache surfaces.
+        if (toolName === "studio_publish_status" && data?.state === "done") {
+          clearStudioCache(org, "studio_feature_map");
+          clearStudioCache(org, "studio_ipad_published");
+        }
+        return { data };
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : String(error) };
+      }
+    }
+  );
 
   // --- Salesforce Org Management ---
 

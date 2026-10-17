@@ -1,0 +1,284 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+import type { StudioFix } from "../../../src/studio/types.js";
+
+vi.mock("../../../src/salesforce/cli.js", () => ({
+  runSoqlQuery: vi.fn(),
+  runToolingQuery: vi.fn(),
+  cachedDescribeSObject: vi.fn(),
+  describeSObject: vi.fn(),
+  apiRequest: vi.fn(),
+  updateToolingRecord: vi.fn(),
+  retrieveMetadata: vi.fn(),
+  deployMetadata: vi.fn(),
+}));
+
+const cli = await import("../../../src/salesforce/cli.js");
+const { previewFix, applyFix } = await import("../../../src/studio/fixes.js");
+const { collectItemDetail } = await import("../../../src/studio/collect.js");
+
+type Row = Record<string, unknown>;
+let org: Record<string, Row[]>;
+
+function respond(query: string) {
+  const from = /FROM\s+(\w+)/i.exec(query)?.[1] ?? "";
+  const rows = org[from] ?? [];
+  return Promise.resolve({ success: true, data: { totalSize: rows.length, done: true, records: rows } });
+}
+
+const SCRIPT = "a1B000000000001";
+const CODE_OLD = "(() => {\n  return JSON.parse(JSON.stringify({ ok: true }));\n})();";
+const CODE_NEW = "(() => {\n  return { ok: true };\n})();";
+
+const scriptFix: StudioFix = {
+  kind: "setCustomScriptCode",
+  label: "Edit code of Sign Check",
+  scriptId: SCRIPT,
+  scriptName: "Sign Check",
+  from: CODE_OLD,
+  to: CODE_NEW,
+};
+
+const describeCodeText = (updateable: boolean) =>
+  vi.mocked(cli.describeSObject).mockResolvedValue({
+    success: true,
+    data: { name: "LifeScienceCustomScript", label: "Script", fields: [{ name: "CodeText", label: "Code", type: "textarea", required: false, updateable, createable: updateable }] },
+  });
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  org = {};
+  vi.mocked(cli.runSoqlQuery).mockImplementation(respond as never);
+  vi.mocked(cli.runToolingQuery).mockImplementation(respond as never);
+  vi.mocked(cli.apiRequest).mockResolvedValue({ success: true });
+  vi.mocked(cli.updateToolingRecord).mockResolvedValue({ success: true });
+  vi.mocked(cli.deployMetadata).mockResolvedValue({ success: true });
+});
+
+describe("setCustomScriptCode", () => {
+  beforeEach(() => {
+    org.LifeScienceCustomScript = [{ Id: SCRIPT, CodeText: CODE_OLD }];
+    describeCodeText(true);
+  });
+
+  it("previews a diff with the static checks as warnings, and applies with an undo", async () => {
+    const preview = await previewFix(scriptFix, "org");
+    expect(preview.blocked).toBeUndefined();
+    expect(preview.changes[0].diff).toEqual(["  (() => {", "-   return JSON.parse(JSON.stringify({ ok: true }));", "+   return { ok: true };", "  })();"]);
+    expect(preview.warnings.some((w) => w.startsWith("Results aren't unwrapped"))).toBe(true);
+    expect(preview.warnings.some((w) => w.includes("overwrites CodeText"))).toBe(true);
+
+    const result = await applyFix(scriptFix, "org");
+    expect(cli.apiRequest).toHaveBeenCalledWith(
+      `/services/data/v66.0/sobjects/LifeScienceCustomScript/${SCRIPT}`,
+      "PATCH",
+      { CodeText: CODE_NEW },
+      "org"
+    );
+    expect(result.undo).toMatchObject({ kind: "setCustomScriptCode", from: CODE_NEW, to: CODE_OLD, label: "Restore code of Sign Check" });
+  });
+
+  it("flags empty code and code that isn't an IIFE", async () => {
+    const empty = await previewFix({ ...scriptFix, to: "" } as StudioFix, "org");
+    expect(empty.warnings[0]).toContain("CodeText is empty");
+    const bare = await previewFix({ ...scriptFix, to: "JSON.parse(JSON.stringify(1))" } as StudioFix, "org");
+    expect(bare.warnings[0]).toContain("Not wrapped in an IIFE");
+  });
+
+  it("refuses when the code changed since the map was loaded", async () => {
+    org.LifeScienceCustomScript = [{ Id: SCRIPT, CodeText: "// edited by someone else" }];
+    expect((await previewFix(scriptFix, "org")).blocked).toContain("changed since the map was loaded");
+    expect((await applyFix(scriptFix, "org")).ok).toBe(false);
+    expect(cli.apiRequest).not.toHaveBeenCalled();
+  });
+
+  it("refuses when already applied or gone", async () => {
+    org.LifeScienceCustomScript = [{ Id: SCRIPT, CodeText: CODE_NEW }];
+    expect((await previewFix(scriptFix, "org")).blocked).toContain("Already applied");
+    org.LifeScienceCustomScript = [];
+    expect((await previewFix(scriptFix, "org")).blocked).toContain("no longer exists");
+  });
+
+  it("is blocked, with the Refresh workaround, when the org doesn't let the API write CodeText", async () => {
+    describeCodeText(false);
+    const preview = await previewFix(scriptFix, "org");
+    expect(preview.blocked).toContain("Refresh");
+    expect((await applyFix(scriptFix, "org")).ok).toBe(false);
+    expect(cli.apiRequest).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed Ids", async () => {
+    await expect(previewFix({ ...scriptFix, scriptId: "x'; DROP" } as StudioFix, "org")).rejects.toThrow("Invalid record Id");
+  });
+});
+
+describe("validation rule active switch", () => {
+  const RULE = "03d000000000001";
+  const fix: StudioFix = {
+    kind: "setActive",
+    label: "Deactivate Hours_Cant_be_negative",
+    record: { type: "validationRule", id: RULE, label: "Hours_Cant_be_negative" },
+    from: true,
+    to: false,
+  };
+  const metadata = { active: true, description: null, errorConditionFormula: "Hours__c < 0", errorMessage: "No negatives", urls: null };
+
+  beforeEach(() => {
+    org.ValidationRule = [{ Id: RULE, Active: true, ManageableState: "unmanaged", Metadata: metadata }];
+  });
+
+  it("previews and writes the whole Metadata with active flipped, nulls dropped, and an undo", async () => {
+    const preview = await previewFix(fix, "org");
+    expect(preview.blocked).toBeUndefined();
+    expect(preview.changes[0]).toMatchObject({ field: "Status", before: "Active", after: "Inactive" });
+    expect(preview.warnings[0]).toContain("Turns this rule off");
+
+    const result = await applyFix(fix, "org");
+    expect(cli.updateToolingRecord).toHaveBeenCalledWith(
+      "ValidationRule",
+      RULE,
+      { Metadata: { active: false, errorConditionFormula: "Hours__c < 0", errorMessage: "No negatives" } },
+      "org"
+    );
+    expect(result.undo).toMatchObject({ kind: "setActive", from: false, to: true, label: "Activate Hours_Cant_be_negative" });
+  });
+
+  it("refuses when already in that state or gone, and warns for installed packages", async () => {
+    org.ValidationRule = [{ Id: RULE, Active: false, Metadata: metadata }];
+    expect((await previewFix(fix, "org")).blocked).toContain("Already inactive");
+    org.ValidationRule = [];
+    expect((await previewFix(fix, "org")).blocked).toContain("no longer exists");
+    org.ValidationRule = [{ Id: RULE, Active: true, ManageableState: "installed", NamespacePrefix: "FSSK", Metadata: metadata }];
+    expect((await previewFix(fix, "org")).warnings.join(" ")).toContain("installed package (FSSK)");
+  });
+
+  it("surfaces a failed update", async () => {
+    vi.mocked(cli.updateToolingRecord).mockResolvedValue({ success: false, error: "FIELD_INTEGRITY_EXCEPTION" });
+    expect(await applyFix(fix, "org")).toMatchObject({ ok: false, message: "FIELD_INTEGRITY_EXCEPTION" });
+  });
+});
+
+describe("Visit engagement sidebar", () => {
+  let dir: string;
+  const LAYOUT_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<Layout xmlns="http://soap.sforce.com/2006/04/metadata">
+    <relatedLists>
+        <relatedList>Notes</relatedList>
+        <fields>NAME</fields>
+    </relatedLists>
+    <relatedLists>
+        <relatedList>Things__r</relatedList>
+        <fields>NAME</fields>
+        <excludeButtons>New</excludeButtons>
+    </relatedLists>
+</Layout>
+`;
+  const add: StudioFix = {
+    kind: "setLayoutRelatedList",
+    label: "Add Gadget__c to the sidebar of Visit Layout",
+    layoutName: "Visit-Visit Layout",
+    layoutLabel: "Visit Layout",
+    objectName: "Gadget__c",
+    relationshipName: "Gadgets__r",
+    add: true,
+  };
+
+  /** Each retrieve gets a fresh copy of the layout in a temp SFDX-style folder. */
+  function stubRetrieve(xml: string) {
+    vi.mocked(cli.retrieveMetadata).mockImplementation(async () => {
+      const out = fs.mkdtempSync(path.join(dir, "out-"));
+      const layouts = path.join(out, "force-app", "main", "default", "layouts");
+      fs.mkdirSync(layouts, { recursive: true });
+      fs.writeFileSync(path.join(layouts, "Visit-Visit Layout.layout-meta.xml"), xml);
+      return { success: true, data: { outputDir: out } };
+    });
+  }
+  const deployedXml = () => {
+    const [source] = vi.mocked(cli.deployMetadata).mock.calls[0];
+    return fs.readFileSync(path.join(source as string, "Visit-Visit Layout.layout-meta.xml"), "utf-8");
+  };
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "studio-layout-"));
+    stubRetrieve(LAYOUT_XML);
+    org.LifeSciConfigRecord = [{ Id: "1LR000000000001", IsActive: true }];
+  });
+  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  it("previews the block that will be inserted, then deploys it and returns a removing undo", async () => {
+    const preview = await previewFix(add, "org");
+    expect(preview.blocked).toBeUndefined();
+    expect(preview.changes[0]).toMatchObject({ target: "Visit Layout", before: "2 of 10", after: "3 of 10" });
+    expect(preview.changes[0].diff).toContain("+     <relatedList>Gadgets__r</relatedList>");
+    expect(preview.warnings.join(" ")).toContain("every profile assigned this layout");
+
+    const result = await applyFix(add, "org");
+    expect(result.ok).toBe(true);
+    expect(deployedXml()).toContain("<relatedList>Gadgets__r</relatedList>");
+    expect(result.undo).toMatchObject({ kind: "setLayoutRelatedList", add: false, relationshipName: "Gadgets__r" });
+  });
+
+  it("removes only the named related list on undo", async () => {
+    const remove = { ...add, add: false, relationshipName: "Things__r", objectName: "Thing__c" } as StudioFix;
+    const result = await applyFix(remove, "org");
+    expect(result.ok).toBe(true);
+    const xml = deployedXml();
+    expect(xml).not.toContain("Things__r");
+    expect(xml).toContain("<relatedList>Notes</relatedList>");
+    expect(xml.match(/<relatedLists>/g)).toHaveLength(1);
+  });
+
+  it("refuses when the list is already there, missing for a removal, or the sidebar is full", async () => {
+    expect((await previewFix({ ...add, relationshipName: "Things__r" } as StudioFix, "org")).blocked).toContain("already a related list");
+    expect((await previewFix({ ...add, add: false } as StudioFix, "org")).blocked).toContain("no longer a related list");
+    stubRetrieve(`<Layout>${"<relatedLists><relatedList>R</relatedList></relatedLists>".repeat(10)}</Layout>`);
+    expect((await previewFix(add, "org")).blocked).toContain("holds 10");
+    expect(cli.deployMetadata).not.toHaveBeenCalled();
+  });
+
+  it("warns when the object has no active DB Schema record", async () => {
+    org.LifeSciConfigRecord = [];
+    expect((await previewFix(add, "org")).warnings.join(" ")).toContain("No DB Schema record for Gadget__c");
+    org.LifeSciConfigRecord = [{ Id: "1LR000000000001", IsActive: false }];
+    expect((await previewFix(add, "org")).warnings.join(" ")).toContain("switched off");
+  });
+
+  it("reports a failed deploy without claiming success", async () => {
+    vi.mocked(cli.deployMetadata).mockResolvedValue({ success: false, error: "bad layout" });
+    expect(await applyFix(add, "org")).toMatchObject({ ok: false });
+  });
+
+  it("rejects relationship names that aren't plain API names", async () => {
+    await expect(previewFix({ ...add, relationshipName: "A</relatedList>" } as StudioFix, "org")).rejects.toThrow();
+  });
+
+  it("lists add candidates in the layout item's detail, leaving out lists already on the layout", async () => {
+    org.Layout = [{ Id: "00h000000000001", Name: "Visit Layout", TableEnumOrId: "Visit" }];
+    vi.mocked(cli.cachedDescribeSObject).mockResolvedValue({
+      success: true,
+      data: {
+        name: "Visit",
+        label: "Visit",
+        fields: [],
+        childRelationships: [
+          { childSObject: "Note", relationshipName: "Notes", field: "ParentId" },
+          { childSObject: "Zed", relationshipName: "Zeds", field: "VisitId" },
+          { childSObject: "Gadget__c", relationshipName: "Gadgets__r", field: "Visit__c" },
+          { childSObject: "Hidden", relationshipName: null, field: "VisitId" },
+        ],
+      },
+    });
+    const detail = await collectItemDetail("layout", "00h000000000001", "org");
+    expect(detail.sidebar).toMatchObject({
+      layoutName: "Visit-Visit Layout",
+      relatedLists: ["Notes", "Things__r"],
+      max: 10,
+      candidates: [
+        { objectName: "Gadget__c", relationshipName: "Gadgets__r" },
+        { objectName: "Zed", relationshipName: "Zeds" },
+      ],
+    });
+  });
+});

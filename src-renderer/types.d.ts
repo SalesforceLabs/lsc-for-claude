@@ -10,6 +10,11 @@ interface LibraryItem {
   updatedAt: string;
 }
 
+interface StudioResponse {
+  data?: unknown & { error?: string };
+  error?: string;
+}
+
 interface LscApi {
   // Settings
   getSettings(): Promise<{
@@ -36,6 +41,19 @@ interface LscApi {
     type: string,
     credentials: Record<string, unknown>
   ): Promise<{ valid: boolean; error?: string }>;
+
+  // Studio — `data` is the parsed JSON from the studio_* MCP tool (may itself carry `error`)
+  studioListFeatures(): Promise<StudioResponse>;
+  studioFeatureMap(featureId: string, refresh?: boolean): Promise<StudioResponse>;
+  studioItemDetail(kind: string, id: string): Promise<StudioResponse>;
+  studioListProfiles(): Promise<StudioResponse>;
+  studioUserAccess(userId: string): Promise<StudioResponse>;
+  studioAccessOptions(): Promise<StudioResponse>;
+  studioIpadPublished(profile: string, refresh?: boolean, userId?: string): Promise<StudioResponse>;
+  studioPreviewFix(fix: unknown): Promise<StudioResponse>;
+  studioApplyFix(fix: unknown, expectedOrg: string): Promise<StudioResponse>;
+  studioPublishMobile(profiles: string[], expectedOrg: string): Promise<StudioResponse>;
+  studioPublishStatus(parentId: string): Promise<StudioResponse>;
 
   // Library
   listLibraryItems(): Promise<LibraryItem[]>;

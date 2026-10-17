@@ -114,6 +114,8 @@ bash scripts/launch-electron-app.sh
 npm run electron:dev
 ```
 
+`electron:dev` reloads each layer on save: the renderer via Vite HMR, the MCP server (`src/` → `dist/`) by respawning it in place, and the Electron main process / preload by restarting the app.
+
 ### Prebuilt downloads (macOS)
 
 CI also packages the app as a `.dmg`/`.zip` — download the installers from a

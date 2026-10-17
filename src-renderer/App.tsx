@@ -7,6 +7,7 @@ import Sidebar from "./components/Sidebar";
 import LibraryPanel from "./components/LibraryPanel";
 import SettingsPanel from "./components/SettingsPanel";
 import SetupScreen from "./components/SetupScreen";
+import StudioView from "./components/studio/StudioView";
 
 export default function App() {
   const chat = useChat();
@@ -14,6 +15,7 @@ export default function App() {
   const library = useLibrary();
   const [showSettings, setShowSettings] = useState(false);
   const [libraryPanelOpen, setLibraryPanelOpen] = useState(false);
+  const [studioOpen, setStudioOpen] = useState(false);
   const [libraryFocusItemId, setLibraryFocusItemId] = useState<string | null>(null);
   const [autoDetecting, setAutoDetecting] = useState(true);
   const [prefillInput, setPrefillInput] = useState<string | undefined>();
@@ -76,7 +78,16 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Studio → chat handoff: open a fresh session with the context prefilled for the user to edit.
+  const handleAskClaude = useCallback((prompt: string) => {
+    setStudioOpen(false);
+    setLibraryPanelOpen(false);
+    chat.clear();
+    setPrefillInput(prompt);
+  }, [chat]);
+
   const handleOpenLibrary = useCallback((itemId?: string) => {
+    setStudioOpen(false);
     setLibraryPanelOpen(true);
     setLibraryFocusItemId(itemId ?? null);
   }, []);
@@ -146,10 +157,10 @@ export default function App() {
         libraryCount={library.items.length}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
-        onCommandClick={(name) => { chat.clear(); setLibraryPanelOpen(false); setPrefillInput(`/lsc:${name} `); }}
+        onCommandClick={(name) => { chat.clear(); setStudioOpen(false); setLibraryPanelOpen(false); setPrefillInput(`/lsc:${name} `); }}
         onSettingsClick={() => setShowSettings(true)}
-        onNewChat={() => chat.clear()}
-        onLoadConversation={(id) => { setLibraryPanelOpen(false); chat.loadConversation(id); }}
+        onNewChat={() => { setStudioOpen(false); chat.clear(); }}
+        onLoadConversation={(id) => { setStudioOpen(false); setLibraryPanelOpen(false); chat.loadConversation(id); }}
         onDeleteConversation={async (id) => {
           await window.lscApi.deleteConversation(id);
           if (chat.conversationId === id) {
@@ -162,9 +173,13 @@ export default function App() {
         onTogglePin={async (id) => {
           await window.lscApi.togglePinConversation(id);
         }}
-        onOpenLibrary={() => setLibraryPanelOpen(true)}
+        onOpenLibrary={() => handleOpenLibrary()}
+        studioActive={studioOpen}
+        onOpenStudio={() => { setLibraryPanelOpen(false); setStudioOpen(true); }}
       />
-      {libraryPanelOpen ? (
+      {studioOpen ? (
+        <StudioView onAskClaude={handleAskClaude} />
+      ) : libraryPanelOpen ? (
         <LibraryPanel
           items={library.items}
           onClose={() => { setLibraryPanelOpen(false); setLibraryFocusItemId(null); }}
