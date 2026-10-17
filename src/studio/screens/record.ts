@@ -432,7 +432,8 @@ async function relatedLists(ctx: ScreenContext, object: string, ids: string[], d
       const layoutRl = layoutList(key);
       const condition = ctx.scope(child);
       const label = layoutRl?.label || child;
-      const specs = (layoutRl?.columns ?? []).filter((s) => s.name);
+      // The app reads one relationship hop at most; deeper paths (Territory2.Territory2Model.Name) are not columns.
+      const specs = (layoutRl?.columns ?? []).filter((s) => s.name && s.name.split(".").length <= 2);
       const columns = await Promise.all(
         (specs.length ? specs : [{ name: cd.nameField, label: "", type: "string" }]).map(async (s) => {
           const own = cd.fields.get(s.name.toLowerCase());
@@ -472,11 +473,13 @@ async function relatedLists(ctx: ScreenContext, object: string, ids: string[], d
       const rowsBy = new Map<string, PublishedRelated["rows"]>();
       if ([...counts.values()].some((n) => n > 0)) {
         const paths = (specs.length ? specs : [{ name: cd.nameField, label: "", type: "string" }]).map((s) => s.name);
-        const select = (p: string[]) => `SELECT Id, ${field}, ${[...new Set(p)].join(", ")} FROM ${child} WHERE ${field} IN (${inList(parents)})${scoped} ORDER BY ${cd.nameField} DESC LIMIT 1000`;
         const rel = (name: string) => {
           const f = cd.fields.get(name.toLowerCase());
           return f && str(f.type) === "reference" && f.relationshipName ? `${str(f.relationshipName)}.Name` : name;
         };
+        // Objects without a Name field (ObjectTerritory2Association) sort by their first column.
+        const orderBy = cd.fields.has(cd.nameField.toLowerCase()) ? cd.nameField : rel(paths[0] ?? "Id");
+        const select = (p: string[]) => `SELECT Id, ${field}, ${[...new Set(p)].join(", ")} FROM ${child} WHERE ${field} IN (${inList(parents)})${scoped} ORDER BY ${orderBy} DESC LIMIT 1000`;
         const records = await query(select(paths.map(rel)), ctx.org).catch(() => query(select(paths.filter((p) => !p.includes("."))), ctx.org).catch(() => [] as Row[]));
         for (const r of records) {
           const parent = owner.get(str(r[field])) ?? str(r[field]);
