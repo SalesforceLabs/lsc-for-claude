@@ -49,8 +49,8 @@ export function OverviewCard({ data }: { data: PublishedDashboard }) {
   return (
     <div className="studio-ipad-rec-card dash">
       <div className="studio-ipad-rec-dash-box overview">
-        <div className="studio-ipad-rec-ov-title">Overview</div>
-        <div className="studio-ipad-rec-ov-label">Specialties</div>
+        <div className="studio-ipad-rec-ov-title">Account Overview</div>
+        <div className="studio-ipad-rec-ov-label">Account Specialties</div>
         {o.specialties.length === 0 ? (
           <div className="studio-ipad-rec-ov-none">No specialties to display</div>
         ) : (
