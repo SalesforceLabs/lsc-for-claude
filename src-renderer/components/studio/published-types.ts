@@ -47,6 +47,8 @@ export interface PublishedComponent {
   visibility: "shown" | "hidden" | "conditional";
   visibilityNote?: string;
   properties: Record<string, string>;
+  /** force:highlightsPanel's dynamic actions (`actionNames`), in order. */
+  actions?: string[];
   /** flexipage:tabset children. */
   tabs?: { title: string; active: boolean; components: PublishedComponent[] }[];
 }
@@ -61,10 +63,19 @@ export interface PublishedPage {
   droppedRegions: { name: string; components: string[] }[];
 }
 
+/** A layout item as the cache describes it (src/studio/screens/record-fields.ts). */
+export interface RecordFieldSpec {
+  name: string;
+  label: string;
+  type: string;
+  ref?: string[];
+  picklist?: Record<string, string>;
+}
+
 export interface PublishedLayout {
   name: string;
-  sections: { label: string | null; columns: string[][] }[];
-  relatedLists: { name: string; label: string }[];
+  sections: { label: string | null; columns: string[][]; fields?: RecordFieldSpec[][] }[];
+  relatedLists: { name: string; label: string; columns?: RecordFieldSpec[] }[];
   actions: string[];
 }
 
@@ -103,6 +114,7 @@ export interface PublishedIpad {
   layouts: Record<string, PublishedLayout>;
   pages: Record<string, PublishedPage>;
   compactLayouts: Record<string, string[]>;
+  compactFields?: Record<string, RecordFieldSpec[]>;
   notes: string[];
   /** The user whose permission sets were merged in; null when the profile has no active users. */
   viewer: { userId: string; name: string; permissionSets: string[] } | null;
@@ -120,6 +132,43 @@ export interface PublishedIpad {
   sync?: Record<string, string>;
   /** Native screens (Intelligent Content, Accounts, Planner, Tableau) as the viewer's iPad draws them, read live. */
   screens?: PublishedScreens;
+  /** Records the list views open, read live (src/studio/screens/record.ts). */
+  records?: PublishedRecords;
+}
+
+export interface PublishedRelated {
+  key: string;
+  /** The flexipage `relatedListApiName` (child relationship name) that shows it. */
+  api: string;
+  label: string;
+  object: string;
+  count: number;
+  columns: { label: string; type: string }[];
+  rows: { id: string; cells: string[] }[];
+}
+
+export interface PublishedInlineCard {
+  title: string;
+  object: string;
+  cells: { label: string; field: string; half: boolean }[];
+}
+
+export interface PublishedRecordData {
+  id: string;
+  object: string;
+  recordType: string | null;
+  title: string;
+  values: Record<string, Record<string, string>>;
+  linked?: { object: string; id: string };
+  editable: boolean;
+  related: Record<string, PublishedRelated>;
+  expenses?: { count: number; total: string };
+}
+
+export interface PublishedRecords {
+  byId: Record<string, PublishedRecordData>;
+  themes: Record<string, { color: string; iconUrl: string }>;
+  inline: Record<string, PublishedInlineCard>;
 }
 
 /** A list view's records as the viewer's iPad lists them: its count chip and first page. */

@@ -386,7 +386,7 @@ describe("buildSnapshot", () => {
     expect(visit.recordTypes.map((r) => r.name)).toEqual(["Field"]);
     expect(visit.defaultListView).toBe("All");
     expect(visit.listViews.map((l) => l.label)).toEqual(["All Visits", "My Visits"]);
-    expect(s.layouts["Visit-Visit Layout"]).toEqual({
+    expect(s.layouts["Visit-Visit Layout"]).toMatchObject({
       name: "Visit-Visit Layout",
       sections: [{ label: "Information", columns: [["Name", "Status"]] }],
       relatedLists: [{ name: "ProviderVisits", label: "Provider Visits" }],

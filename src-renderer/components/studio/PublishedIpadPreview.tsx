@@ -10,6 +10,7 @@ import type {
   PublishedTab,
 } from "./published-types";
 import IpadScreen from "./IpadScreen";
+import RecordScreen, { RecordFabs, recordMenu } from "./IpadRecord";
 import { Dashboard } from "./IpadDashboard";
 import { ReportsTree } from "./IpadReports";
 import { hasNativeScreen, NativeScreen } from "./screens";
@@ -80,18 +81,19 @@ function Device({
   onPickUser: (userId: string) => void;
 }) {
   const [current, setCurrent] = useState(snapshot.tabs[0]?.fullName ?? "");
-  const [record, setRecord] = useState(false);
+  // The id of the open record ("" when the list row has no prefetched data); null shows the list.
+  const [record, setRecord] = useState<string | null>(null);
   const tab = snapshot.tabs.find((t) => t.fullName === current) ?? snapshot.tabs[0];
   const open = (t: PublishedTab) => {
     setCurrent(t.fullName);
-    setRecord(false);
+    setRecord(null);
   };
   // UITabBarController in .tabBar mode: the tabs in a paged floating bar, search pinned last.
   const chromeTabs = useMemo<ChromeTab[]>(
     () => snapshot.tabs.filter((t) => t.kind !== "recent").map((t) => ({ key: t.fullName, label: t.label, title: t.fullName })),
     [snapshot.tabs]
   );
-  const onHome = tab?.kind === "home" && !!snapshot.home && !record;
+  const onHome = tab?.kind === "home" && !!snapshot.home && record === null;
   // The app gates Agentforce on the user-info "Agentforce" feature flag, which the CLI can't read; a Home welcome component stands in for it.
   const homeHasAgentforce = !!snapshot.home?.regions.some((r) => r.components.some((c) => c.supported && /lsAgentforceWelcome$/.test(c.name)));
   const generated = snapshot.cache.generatedAt ? new Date(snapshot.cache.generatedAt).toLocaleString() : "unknown";
@@ -148,14 +150,15 @@ function Device({
             if (t) open(t);
           }}
           searchKey={snapshot.tabs.find((t) => t.kind === "recent")?.fullName}
-          onBack={record ? () => setRecord(false) : undefined}
+          onBack={record !== null ? () => setRecord(null) : undefined}
           name={initials(snapshot.viewer?.name ?? snapshot.profile)}
         />
-        <div className={`studio-ipad-page${tab?.kind === "empty" ? " blank" : ""}${onHome ? " home" : ""}${tab?.kind === "reports" && snapshot.reports ? " flush" : ""}${!record && hasNativeScreen(tab, snapshot) ? " native" : ""}`}>
-          {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={() => setRecord(true)} />}
+        <div className={`studio-ipad-page${tab?.kind === "empty" ? " blank" : ""}${onHome ? " home" : ""}${tab?.kind === "reports" && snapshot.reports ? " flush" : ""}${record === null && hasNativeScreen(tab, snapshot) ? " native" : ""}${record && snapshot.records?.byId[record] ? " record" : ""}`}>
+          {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={setRecord} />}
         </div>
         {onHome && <HomeFabs agentforce={homeHasAgentforce} />}
-        {tab?.kind === "tableau" && !record && homeHasAgentforce && <HomeFabs agentforce more={false} />}
+        {tab?.kind === "tableau" && record === null && homeHasAgentforce && <HomeFabs agentforce more={false} />}
+        {record && snapshot.records?.byId[record] && <RecordFabs key={record} actions={recordMenu(snapshot, record)} />}
       </IpadScreen>
 
       <ul className="studio-ipad-legend">
@@ -179,10 +182,10 @@ function Screen({
 }: {
   tab: PublishedTab;
   snapshot: PublishedIpad;
-  record: boolean;
-  onOpenRecord: () => void;
+  record: string | null;
+  onOpenRecord: (id: string) => void;
 }) {
-  if (!record && hasNativeScreen(tab, snapshot)) return <NativeScreen tab={tab} snapshot={snapshot} />;
+  if (record === null && hasNativeScreen(tab, snapshot)) return <NativeScreen tab={tab} snapshot={snapshot} />;
   switch (tab.kind) {
     case "home":
       return snapshot.home ? <PageView page={snapshot.home} snapshot={snapshot} home /> : <Native title="Home" text="Home page" />;
@@ -194,7 +197,8 @@ function Screen({
     case "accounts": {
       const object = snapshot.objects[tab.kind === "accounts" ? "Account" : (tab.sobject ?? "")];
       if (!object) return <Native title={tab.label} text={`${tab.sobject ?? "Object"} list`} />;
-      return record ? (
+      if (record !== null && snapshot.records?.byId[record]) return <RecordScreen snapshot={snapshot} recordId={record} />;
+      return record !== null ? (
         <RecordView object={object} snapshot={snapshot} />
       ) : (
         <ListView tab={tab} object={object} lists={snapshot.lists} accounts={tab.kind === "accounts"} onOpenRecord={onOpenRecord} />
@@ -507,7 +511,7 @@ function ListView({
   object: PublishedObject;
   lists?: Record<string, PublishedListData>;
   accounts: boolean;
-  onOpenRecord: () => void;
+  onOpenRecord: (id: string) => void;
 }) {
   const [viewName, setViewName] = useState(object.defaultListView);
   const view = object.listViews.find((l) => l.name === viewName) ?? object.listViews[0];
@@ -573,7 +577,7 @@ function ListCount({ count }: { count: number }) {
   return <span className={`studio-ipad-lv-count${count < 10 ? " single" : ""}`}>{count}</span>;
 }
 
-function DataTable({ columns, data, onOpenRecord }: { columns: string[]; data?: PublishedListData; onOpenRecord: () => void }) {
+function DataTable({ columns, data, onOpenRecord }: { columns: string[]; data?: PublishedListData; onOpenRecord: (id: string) => void }) {
   const width = `max(250px, calc(100% / ${Math.max(columns.length, 1)}))`;
   return (
     <div className="studio-ipad-table">
@@ -586,7 +590,7 @@ function DataTable({ columns, data, onOpenRecord }: { columns: string[]; data?: 
         ))}
       </div>
       {data?.rows.map((row) => (
-        <button key={row.id} type="button" className="studio-ipad-table-row" onClick={onOpenRecord}>
+        <button key={row.id} type="button" className="studio-ipad-table-row" onClick={() => onOpenRecord(row.id)}>
           {columns.map((_, i) => (
             <span key={i} className="studio-ipad-table-cell value" style={{ width, flex: "none" }}>
               {row.cells[i]}
@@ -595,7 +599,7 @@ function DataTable({ columns, data, onOpenRecord }: { columns: string[]; data?: 
         </button>
       ))}
       {!data && Array.from({ length: 14 }, (_, r) => (
-        <button key={r} type="button" className="studio-ipad-table-row" onClick={onOpenRecord}>
+        <button key={r} type="button" className="studio-ipad-table-row" onClick={() => onOpenRecord("")}>
           {columns.map((_, i) => (
             <span key={i} className="studio-ipad-table-cell" style={{ width, flex: "none" }}>
               <span className="studio-ipad-ph line" style={{ width: `${CELL_WIDTHS[(r * 3 + i * 5) % CELL_WIDTHS.length]}%` }} />

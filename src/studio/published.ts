@@ -18,6 +18,8 @@ import { resolveScalarTags } from "../perf/sync-volume.js";
 import { apiRequest } from "../salesforce/cli.js";
 import { count, ID_PATTERN, inList, query, type Row } from "./helpers.js";
 import { collectScreens, type PublishedScreens, type ScreenContext } from "./screens/index.js";
+import { collectRecords, type PublishedRecords } from "./screens/record.js";
+import { recordFieldSpec, type RecordFieldSpec } from "./screens/record-fields.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -68,6 +70,8 @@ export interface PublishedComponent {
   visibility: "shown" | "hidden" | "conditional";
   visibilityNote?: string;
   properties: Record<string, string>;
+  /** force:highlightsPanel's `actionNames` (the record's dynamic actions), in order. */
+  actions?: string[];
   /** flexipage:tabset children. */
   tabs?: { title: string; active: boolean; components: PublishedComponent[] }[];
 }
@@ -84,8 +88,9 @@ export interface PublishedPage {
 
 export interface PublishedLayout {
   name: string;
-  sections: { label: string | null; columns: string[][] }[];
-  relatedLists: { name: string; label: string }[];
+  /** `fields` are the columns' items as the cache describes them (API name, type, lookup targets, picklist labels), parallel to `columns`. */
+  sections: { label: string | null; columns: string[][]; fields?: RecordFieldSpec[][] }[];
+  relatedLists: { name: string; label: string; columns?: RecordFieldSpec[] }[];
   actions: string[];
 }
 
@@ -147,6 +152,8 @@ export interface PublishedIpad {
   layouts: Record<string, PublishedLayout>;
   pages: Record<string, PublishedPage>;
   compactLayouts: Record<string, string[]>;
+  /** The compact layouts' fields as the cache describes them, parallel to `compactLayouts`. */
+  compactFields?: Record<string, RecordFieldSpec[]>;
   notes: string[];
   /** The user whose permission sets were merged in; null when the profile has no active users. */
   viewer: PublishedViewer | null;
@@ -164,6 +171,8 @@ export interface PublishedIpad {
   sync?: Record<string, string>;
   /** Native screens (Intelligent Content, Accounts, Planner, Tableau) as the viewer's iPad draws them, read live. */
   screens?: PublishedScreens;
+  /** Records the list views open (layout values, related lists), read live; absent when none could be read. */
+  records?: PublishedRecords;
 }
 
 export interface PublishedSettings {
@@ -633,6 +642,12 @@ function toComponent(item: Row): PublishedComponent | null {
     ...visibilityOf(ci.visibilityRule),
     properties,
   };
+  if (trimNamespace(name) === "force:highlightsPanel") {
+    const prop = arr(ci.componentInstanceProperties).find((p) => p.name === "actionNames");
+    const items = arr(obj(prop?.valueList).valueListItems);
+    const names = items.map((i) => (typeof i.value === "string" ? i.value : str(obj(i.value).actionName || obj(i.value).fullName))).filter(Boolean);
+    if (names.length) c.actions = names;
+  }
   if (trimNamespace(name) === "flexipage:tabset") {
     c.tabs = arr(item.itemInstances).flatMap((child) => {
       const tab = obj(child.componentInstance);
@@ -732,19 +747,29 @@ function buildLayout(name: string, layout: Row, translation: Row = {}, itemLabel
   const sectionLabels = obj(translation.sections);
   const relatedListLabels = obj(translation.relatedLists);
   const sections = arr(layout.layoutSections).flatMap((s) => {
-    const columns = arr(s.layoutColumns)
-      .map((col) => arr(col.layoutItems).filter((f) => str(f.fullName) || str(f.field)).map((f) => itemLabel(f)).filter(Boolean))
+    const specs = arr(s.layoutColumns)
+      .map((col) =>
+        arr(col.layoutItems)
+          .filter((f) => str(f.fullName) || str(f.field))
+          .map((f) => ({ label: itemLabel(f), item: f }))
+          .filter((x) => x.label)
+      )
       .filter((c) => c.length);
+    const columns = specs.map((c) => c.map((x) => x.label));
+    const fields = specs.map((c) => c.map((x) => recordFieldSpec(x.item, x.label)));
     if (!columns.length) return [];
     // SFDynamicLayoutContainer: the title is only laid out (not covered by the columns) when detailHeading is on.
     const label = sectionLabel(s, str(sectionLabels[str(s.label)]) || undefined);
     const heading = (s.detailHeading === true || str(s.detailHeading) === "true") && label.trim() ? label : null;
-    return [{ label: heading, columns }];
+    return [{ label: heading, columns, fields }];
   });
   const relatedLists = arr(layout.relatedLists).map((r) => {
     const rl = str(r.relatedList);
     const label = str(relatedListLabels[rl]) || str(r.relatedListLabel) || str(r.label);
-    return { name: rl, label: label || rl.replace(/^RelatedList$/, "").replace(/__r$|__c$/g, "") || rl };
+    const columns = arr(r.fields)
+      .filter((f) => typeof f === "object" && f && str(f.fullName))
+      .map((f) => recordFieldSpec(f, str(f.label)));
+    return { name: rl, label: label || rl.replace(/^RelatedList$/, "").replace(/__r$|__c$/g, "") || rl, columns };
   });
   const actions = arr(layout.platformActionList).flatMap((pal) =>
     arr(obj(pal).platformActionListItems ?? []).map((a) => str(a.label) || str(a.actionName) || str(a.fullName))
@@ -939,7 +964,7 @@ function previewObjects(tabs: PublishedTab[], files: MetadataFiles): string[] {
   return [...names].filter((n) => files.sobjects[n]);
 }
 
-export type SnapshotCore = Omit<PublishedIpad, "viewer" | "users">;
+export type SnapshotCore = Omit<PublishedIpad, "viewer" | "users" | "records">;
 
 export function buildSnapshot(
   raw: MetadataFiles,
@@ -965,6 +990,7 @@ export function buildSnapshot(
   const layouts: Record<string, PublishedLayout> = {};
   const pages: Record<string, PublishedPage> = {};
   const compactLayouts: Record<string, string[]> = {};
+  const compactFields: Record<string, RecordFieldSpec[]> = {};
   for (const name of previewObjects(tabs, files)) {
     const o = buildObject(name, obj(files.sobjects[name]), files.ui, profile);
     objects[name] = o;
@@ -972,9 +998,9 @@ export function buildSnapshot(
     for (const c of compactNames) {
       const cl = obj(compact[`${name}.${c}`] ?? compact[c]);
       // SFComponentHighlightPanelView.filterCompactLayoutFields: the record name is the title, so its field isn't repeated.
-      compactLayouts[`${name}.${c}`] = arr(cl.fields)
-        .filter((f) => str(f.fullName).toLowerCase() !== "name")
-        .map((f) => fieldLabel(files, name, f));
+      const shown = arr(cl.fields).filter((f) => str(f.fullName).toLowerCase() !== "name");
+      compactLayouts[`${name}.${c}`] = shown.map((f) => fieldLabel(files, name, f));
+      compactFields[`${name}.${c}`] = shown.map((f) => recordFieldSpec(f, fieldLabel(files, name, f)));
     }
     for (const rt of o.recordTypes) {
       const page = rt.flexiPage ? obj(flexiPages[rt.flexiPage]) : {};
@@ -999,7 +1025,7 @@ export function buildSnapshot(
 
   const sync = Object.fromEntries(Object.entries(files.db).map(([table, entry]) => [table, str(obj(entry).WhereSoql).trim()]));
 
-  return { profile: meta.profile, cache: meta.cache, tabs, hiddenTabs: hidden, home, objects, layouts, pages, compactLayouts, dashboards, notes, sync };
+  return { profile: meta.profile, cache: meta.cache, tabs, hiddenTabs: hidden, home, objects, layouts, pages, compactLayouts, compactFields, dashboards, notes, sync };
 }
 
 /**
@@ -1205,7 +1231,7 @@ export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing |
 
 const FILES = ["nav", "ui", "permissions", "db", "sobjects", "reporting"] as const;
 const CACHE_ROOT = path.join(os.tmpdir(), "lsc-studio-published");
-const SNAPSHOT_VERSION = 15;
+const SNAPSHOT_VERSION = 16;
 /** UserService.defaultLanguage — the translation file used when the user's is missing. */
 const DEFAULT_LANGUAGE = "en_US";
 /** Distinct permission-set combinations pre-built per download. */
@@ -1573,14 +1599,15 @@ export async function viewerConfig(categories: string[], userId: string, org: st
 const FV_COLUMNS = ["TextValue", "IntegerValue", "PicklistValue", "HasBooleanValue", "LongTextValue", "NumberValue", "UrlValue"];
 
 /** What the viewer's native screens and lists show, read live (never saved with the snapshot). */
-async function viewerScreens(core: SnapshotCore, userId: string | undefined, org: string): Promise<Pick<PublishedIpad, "settings" | "reports" | "lists" | "screens">> {
+async function viewerScreens(core: SnapshotCore, userId: string | undefined, org: string): Promise<Pick<PublishedIpad, "settings" | "reports" | "lists" | "screens" | "records">> {
   if (!userId) return {};
   const [reports, lists, screens] = await Promise.all([
     viewerReportsTab(core, userId, org),
     viewerLists(core, userId, org),
     viewerContext(core, userId, org).then(collectScreens).catch(() => ({}) as PublishedScreens),
   ]);
-  return { ...reports, ...(lists ? { lists } : {}), ...(Object.keys(screens).length ? { screens } : {}) };
+  const records = lists ? await viewerContext(core, userId, org).then((ctx) => collectRecords(ctx, lists)).catch(() => undefined) : undefined;
+  return { ...reports, ...(lists ? { lists } : {}), ...(Object.keys(screens).length ? { screens } : {}), ...(records && Object.keys(records.byId).length ? { records } : {}) };
 }
 
 /** The viewer's territories, locale, and sync scope, for the native screens' collectors. */
