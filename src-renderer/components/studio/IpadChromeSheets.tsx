@@ -6,8 +6,8 @@ import { initials } from "./ipad-chrome";
 import type { PublishedIpad } from "./published-types";
 import type { AlertPill, PublishedChrome } from "./screens/chrome-types";
 
-/** What a top-bar button opens. */
-export type ChromeSheet = { kind: "alerts" | "profile" | "briefings" };
+/** What a top-bar button opens, or a note explaining what a tap would open. */
+export type ChromeSheet = { kind: "alerts" | "profile" | "briefings" } | { kind: "note"; label: string; text: string };
 
 const NOTE = "Preview only: Studio does not run this action.";
 
@@ -33,6 +33,14 @@ export function ChromeSheets({ sheet, snapshot, onClose }: { sheet: ChromeSheet 
       return <ProfileSheet snapshot={snapshot} chrome={chrome} onClose={onClose} />;
     case "briefings":
       return <BriefingsPlayer onClose={onClose} />;
+    case "note":
+      return (
+        <Sheet className="small">
+          <button type="button" className="studio-ipad-chrome-done" onClick={onClose}>Done</button>
+          <div className="studio-ipad-chrome-h">{sheet.label}</div>
+          <p className="studio-ipad-chrome-p">{sheet.text}</p>
+        </Sheet>
+      );
   }
 }
 

@@ -166,7 +166,7 @@ function Device({
           onAvatar={() => setSheet({ kind: "profile" })}
         />
         <div className={`studio-ipad-page${tab?.kind === "empty" ? " blank" : ""}${onHome ? " home" : ""}${tab?.kind === "reports" && snapshot.reports ? " flush" : ""}${record === null && hasNativeScreen(tab, snapshot) ? " native" : ""}${record === null && isLwcOnly(tab, snapshot) ? " lwc-full" : ""}${record && snapshot.records?.byId[record] ? " record" : ""}`}>
-          {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={setRecord} onNew={(label, objectName) => setNewSheet(newPresentation(label, objectName))} />}
+          {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={setRecord} onNew={(label, objectName) => setNewSheet(newPresentation(label, objectName))} onNote={(label, text) => setSheet({ kind: "note", label, text })} />}
         </div>
         <ChromeSheets sheet={sheet} snapshot={snapshot} onClose={() => setSheet(null)} />
         {newSheet && <IpadActionSheet presentation={newSheet} ctx={{ snapshot, record: null }} onClose={() => setNewSheet(null)} />}
@@ -192,12 +192,14 @@ function Screen({
   record,
   onOpenRecord,
   onNew,
+  onNote,
 }: {
   tab: PublishedTab;
   snapshot: PublishedIpad;
   record: string | null;
   onOpenRecord: (id: string) => void;
   onNew: (label: string, objectName: string) => void;
+  onNote: (label: string, text: string) => void;
 }) {
   // An open record takes precedence over the tab's native screen (the Accounts cards open their record).
   if (record !== null && snapshot.records?.byId[record]) return <RecordScreen snapshot={snapshot} recordId={record} />;
@@ -205,7 +207,13 @@ function Screen({
   switch (tab.kind) {
     case "home":
       return snapshot.home ? (
-        <HomeOpenContext.Provider value={snapshot.records ? (id) => snapshot.records?.byId[id] && onOpenRecord(id) : undefined}>
+        <HomeOpenContext.Provider
+          value={(id) => {
+            if (snapshot.records?.byId[id]) return onOpenRecord(id);
+            const visit = !id.startsWith("001");
+            onNote(visit ? "Visit" : "Account", `On the iPad this opens the ${visit ? "visit" : "account"} record. Studio did not capture it for this snapshot (the preview holds the first records of each list), so it cannot be drawn here.`);
+          }}
+        >
           <PageView page={snapshot.home} snapshot={snapshot} home />
         </HomeOpenContext.Provider>
       ) : (

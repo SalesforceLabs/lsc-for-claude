@@ -1622,8 +1622,11 @@ async function viewerScreens(core: SnapshotCore, userId: string | undefined, org
     viewerLists(core, userId, org),
     viewerContext(core, userId, org).then(collectScreens).catch(() => ({}) as PublishedScreens),
   ]);
-  const cards = (screens as PublishedScreens).accounts?.cards.map((c) => c.id) ?? [];
-  const records = lists || cards.length ? await viewerContext(core, userId, org).then((ctx) => collectRecords(ctx, lists ?? {}, { Account: cards })).catch(() => undefined) : undefined;
+  const home = (screens as PublishedScreens).home;
+  // Records other screens open: the Accounts cards, the Home NBC cards (account) and Visits To Submit rows (visit editor).
+  const cards = [...new Set([...((screens as PublishedScreens).accounts?.cards.map((c) => c.id) ?? []), ...(home?.nbc?.cards.map((c) => c.accountId) ?? [])])];
+  const visits = home?.visits?.items.map((v) => v.id) ?? [];
+  const records = lists || cards.length || visits.length ? await viewerContext(core, userId, org).then((ctx) => collectRecords(ctx, lists ?? {}, { Account: cards, Visit: visits })).catch(() => undefined) : undefined;
   return { ...reports, ...(lists ? { lists } : {}), ...(Object.keys(screens).length ? { screens } : {}), ...(records && Object.keys(records.byId).length ? { records } : {}) };
 }
 
