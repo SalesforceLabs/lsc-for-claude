@@ -297,6 +297,7 @@ function PageView({
   title,
   object,
   layout,
+  multi,
 }: {
   page: PublishedPage;
   snapshot: PublishedIpad;
@@ -304,6 +305,7 @@ function PageView({
   title?: string;
   object?: PublishedObject;
   layout?: PublishedLayout;
+  multi?: MultiEntity;
 }) {
   const notShown = skipped(page);
   const dropped = page.droppedRegions.flatMap((r) => r.components.map((c) => `${c} (${r.name} region)`));
@@ -315,7 +317,7 @@ function PageView({
         <div className="studio-ipad-ph fill">There are no supported lightning components configured for this page.</div>
       ) : (
         page.regions.map((r) => (
-          <Region key={r.name} components={r.components} home={home} snapshot={snapshot} object={object} layout={layout} />
+          <Region key={r.name} components={r.components} home={home} snapshot={snapshot} object={object} layout={layout} multi={multi} />
         ))
       )}
       {(notShown.length > 0 || dropped.length > 0) && (
@@ -334,12 +336,14 @@ function Region({
   snapshot,
   object,
   layout,
+  multi,
 }: {
   components: PublishedComponent[];
   home: boolean;
   snapshot: PublishedIpad;
   object?: PublishedObject;
   layout?: PublishedLayout;
+  multi?: MultiEntity;
 }) {
   const shown = components.filter((c) => c.supported && c.visibility !== "hidden");
   const rows: PublishedComponent[][] = [];
@@ -354,11 +358,11 @@ function Region({
         row.length === 2 || (home && row[0].halfWidth) ? (
           <div key={i} className="studio-ipad-pair">
             {row.map((c, j) => (
-              <ComponentCard key={j} c={c} snapshot={snapshot} object={object} layout={layout} />
+              <ComponentCard key={j} c={c} snapshot={snapshot} object={object} layout={layout} multi={multi} />
             ))}
           </div>
         ) : (
-          <ComponentCard key={i} c={row[0]} snapshot={snapshot} object={object} layout={layout} />
+          <ComponentCard key={i} c={row[0]} snapshot={snapshot} object={object} layout={layout} multi={multi} />
         )
       )}
     </>
@@ -374,18 +378,30 @@ function ComponentCard({
   snapshot,
   object,
   layout,
+  multi,
 }: {
   c: PublishedComponent;
   snapshot: PublishedIpad;
   object?: PublishedObject;
   layout?: PublishedLayout;
+  multi?: MultiEntity;
 }) {
   const cls = `studio-ipad-card studio-ipad-comp${c.visibility === "conditional" ? " conditional" : ""}`;
   const name = c.name.replace(/^.*:/, "");
   const p = c.properties;
 
-  if (c.tabs) return <TabSet tabs={c.tabs} snapshot={snapshot} object={object} layout={layout} />;
+  if (c.tabs) return <TabSet tabs={c.tabs} snapshot={snapshot} object={object} layout={layout} multi={multi} />;
   if (name === "highlightsPanel") return null; // drawn by the record header
+  if (name === "multiEntityRecordView" && multi) {
+    if (multi.error) return <div className={cls}>{multi.error}</div>;
+    return (
+      <>
+        {multi.layouts.map((l) => (
+          <LayoutSections key={l.name} layout={l} />
+        ))}
+      </>
+    );
+  }
   if (/(detailPanel|multiEntityRecordView)$/.test(name))
     return layout ? <LayoutSections layout={layout} /> : <div className={cls}>Record details</div>;
   if (name === "relatedListContainer")
@@ -457,11 +473,13 @@ function TabSet({
   snapshot,
   object,
   layout,
+  multi,
 }: {
   tabs: NonNullable<PublishedComponent["tabs"]>;
   snapshot: PublishedIpad;
   object?: PublishedObject;
   layout?: PublishedLayout;
+  multi?: MultiEntity;
 }) {
   const first = Math.max(0, tabs.findIndex((t) => t.active));
   const [i, setI] = useState(first);
@@ -476,7 +494,7 @@ function TabSet({
           </button>
         ))}
       </div>
-      <Region components={tab.components} home={false} snapshot={snapshot} object={object} layout={layout} />
+      <Region components={tab.components} home={false} snapshot={snapshot} object={object} layout={layout} multi={multi} />
       {tab.components.some((c) => !c.supported) && (
         <div className="studio-ipad-hint">
           Not shown on iPad: {tab.components.filter((c) => !c.supported).map((c) => c.label).join(", ")}
@@ -485,6 +503,9 @@ function TabSet({
     </>
   );
 }
+
+/** The layouts a multiEntityRecordView stacks, in order, or the error it shows instead. */
+type MultiEntity = { layouts: PublishedLayout[]; error?: string };
 
 function LayoutSections({ layout }: { layout: PublishedLayout }) {
   return (
@@ -580,6 +601,14 @@ function RecordView({ object, snapshot }: { object: PublishedObject; snapshot: P
   const rt = object.recordTypes.find((r) => r.name === rtName);
   const layout = rt?.layout ? snapshot.layouts[rt.layout] : undefined;
   const page = rt?.flexiPage ? snapshot.pages[rt.flexiPage] : undefined;
+  const multi = useMemo<MultiEntity | undefined>(
+    () =>
+      rt?.multiEntity && {
+        error: rt.multiEntity.error,
+        layouts: rt.multiEntity.layouts.map((l) => snapshot.layouts[l]).filter((l): l is PublishedLayout => !!l),
+      },
+    [rt, snapshot]
+  );
   const compactName = rt?.compactLayout ?? object.defaultCompactLayout;
   const highlights = useMemo(
     () => (compactName ? (snapshot.compactLayouts[`${object.name}.${compactName}`] ?? []) : []).slice(1, 7),
@@ -615,7 +644,7 @@ function RecordView({ object, snapshot }: { object: PublishedObject; snapshot: P
         <div className="studio-ipad-hint">Layout actions: {layout.actions.join(" · ")}</div>
       )}
       {page ? (
-        <PageView page={page} snapshot={snapshot} object={object} layout={layout} />
+        <PageView page={page} snapshot={snapshot} object={object} layout={layout} multi={multi} />
       ) : layout ? (
         <LayoutSections layout={layout} />
       ) : (
@@ -624,7 +653,8 @@ function RecordView({ object, snapshot }: { object: PublishedObject; snapshot: P
       <div className="studio-ipad-hint">
         {page ? `Lightning page ${page.label}` : "No Lightning page — the layout's details panel"}
         {layout ? ` · layout ${layout.name}` : ""}
-        {object.name === "Visit" ? " · reps open Visits in Visit Engagement" : ""}
+        {rt?.multiEntity?.note ? ` · ${rt.multiEntity.note}` : ""}
+        {object.name === "Visit" ? " · new Visits open in Visit Engagement" : ""}
       </div>
     </>
   );

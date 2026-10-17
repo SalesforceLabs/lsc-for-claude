@@ -72,6 +72,8 @@ export interface PublishedRecordType {
   layout: string | null;
   flexiPage: string | null;
   compactLayout: string | null;
+  /** What `multiEntityRecordView` stacks for this record type: layouts in order, or the error it shows instead. */
+  multiEntity?: { layouts: string[]; note?: string; error?: string };
 }
 
 export interface PublishedObject {

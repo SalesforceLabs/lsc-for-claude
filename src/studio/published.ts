@@ -92,6 +92,8 @@ export interface PublishedRecordType {
   layout: string | null;
   flexiPage: string | null;
   compactLayout: string | null;
+  /** What `multiEntityRecordView` stacks for this record type: layouts in order, or the error it shows instead. */
+  multiEntity?: { layouts: string[]; note?: string; error?: string };
 }
 
 export interface PublishedObject {
@@ -146,7 +148,10 @@ export interface MetadataFiles {
   permissions: Row;
   db: Record<string, unknown>;
   sobjects: Record<string, Row>;
-  /** The user's `translations/<language>.json` (falling back to en_US); only `tabs` is read. */
+  /**
+   * The user's `translations/<language>.json` (falling back to en_US): `tabs`,
+   * and `layouts` as layout name → section and related list labels.
+   */
   translations?: Row;
 }
 
@@ -590,19 +595,35 @@ export function buildPage(name: string, page: Row): PublishedPage {
 
 // ── Objects, layouts ──────────────────────────────────────────────────────────
 
-function buildLayout(name: string, layout: Row): PublishedLayout {
+/** String.separatedWithSpaces: a space before every uppercase letter but the first character. */
+export function separatedWithSpaces(s: string): string {
+  return [...s].map((c, i) => (i > 0 && c.toLowerCase() !== c ? ` ${c}` : c)).join("");
+}
+
+/** MetadataLayoutSection.label: the translation, else an API-name-shaped label spaced out. */
+function sectionLabel(s: Row, translated: string | undefined): string {
+  const raw = str(s.label);
+  const label = translated || raw;
+  return label === raw && str(s.customLabel) !== "true" && s.customLabel !== true && !raw.includes(" ") ? separatedWithSpaces(raw) : label;
+}
+
+function buildLayout(name: string, layout: Row, translation: Row = {}): PublishedLayout {
+  const sectionLabels = obj(translation.sections);
+  const relatedListLabels = obj(translation.relatedLists);
   const sections = arr(layout.layoutSections).flatMap((s) => {
     const columns = arr(s.layoutColumns)
       .map((col) => arr(col.layoutItems).map((f) => str(f.label) || str(f.fullName)).filter(Boolean))
       .filter((c) => c.length);
     if (!columns.length) return [];
-    // SFLayoutSection shows the heading only when detailHeading is on.
-    const heading = str(s.detailHeading) === "true" && str(s.label) ? str(s.label) : null;
+    // SFDynamicLayoutContainer: the title is only laid out (not covered by the columns) when detailHeading is on.
+    const label = sectionLabel(s, str(sectionLabels[str(s.label)]) || undefined);
+    const heading = (s.detailHeading === true || str(s.detailHeading) === "true") && label.trim() ? label : null;
     return [{ label: heading, columns }];
   });
   const relatedLists = arr(layout.relatedLists).map((r) => {
     const rl = str(r.relatedList);
-    return { name: rl, label: str(r.relatedListLabel) || str(r.label) || rl.replace(/^RelatedList$/, "").replace(/__r$|__c$/g, "") || rl };
+    const label = str(relatedListLabels[rl]) || str(r.relatedListLabel) || str(r.label);
+    return { name: rl, label: label || rl.replace(/^RelatedList$/, "").replace(/__r$|__c$/g, "") || rl };
   });
   const actions = arr(layout.platformActionList).flatMap((pal) =>
     arr(obj(pal).platformActionListItems ?? []).map((a) => str(a.label) || str(a.actionName) || str(a.fullName))
@@ -662,6 +683,51 @@ function defaultListView(views: { name: string }[]): string | null {
   return (views.find((l) => all(l.name)) ?? views.find((l) => l.name.endsWith("All")) ?? views[0])?.name ?? null;
 }
 
+/**
+ * MultiEntityHolderViewController.createExtensionConfig: the object each page
+ * object is shown with, and whether that object's sections go first.
+ */
+export const MULTI_ENTITY: Record<string, { with: string; withFirst: boolean }> = {
+  Account: { with: "HealthcareProvider", withFirst: false },
+  HealthcareProvider: { with: "Account", withFirst: true },
+  Visit: { with: "ProviderVisit", withFirst: false },
+  ProviderVisit: { with: "Visit", withFirst: true },
+  Case: { with: "Inquiry", withFirst: false },
+  Inquiry: { with: "Case", withFirst: false },
+};
+
+/**
+ * The linked object's layout: MultiEntityViewModel.fetchLayout picks the
+ * linked record's own record type, then the default, then Master. With no
+ * record to read, use the page's record type name when the object has it.
+ */
+function multiEntityFor(
+  name: string,
+  rt: PublishedRecordType,
+  files: MetadataFiles,
+  profile: Row,
+  available?: Set<string>
+): PublishedRecordType["multiEntity"] {
+  const cfg = MULTI_ENTITY[name];
+  if (!cfg) return undefined;
+  const other = files.sobjects[cfg.with];
+  const otherRts = arr(other?.recordTypes);
+  const isDefault = (r: Row) =>
+    arr(profile.recordTypeVisibilities).some((v) => str(v.recordType) === `${cfg.with}.${str(r.fullName)}` && (v.default === true || v.isDefault === true || str(v.default) === "true"));
+  const match = otherRts.find((r) => str(r.fullName) === rt.name);
+  const pick = match ?? otherRts.find(isDefault) ?? otherRts.find((r) => str(r.fullName) === "Master");
+  const layout = pick?.layout ? str(pick.layout) : "";
+  // A linked object the user can't read, or without a layout, makes the whole component an error.
+  if (!other || (available && !available.has(cfg.with)) || !layout || !rt.layout) {
+    return { layouts: [], error: `MultiEntityRecordView configuration error. No access to the following entities: ${!rt.layout ? name : cfg.with}` };
+  }
+  const label = str(pick?.label) || str(pick?.fullName);
+  return {
+    layouts: cfg.withFirst ? [layout, rt.layout] : [rt.layout, layout],
+    note: match ? undefined : `${str(other.label) || cfg.with} sections use its ${label} record type; the app uses the linked record's own record type.`,
+  };
+}
+
 /** Objects the preview can open: tab objects plus Account and Visit. */
 function previewObjects(tabs: PublishedTab[], files: MetadataFiles): string[] {
   const names = new Set<string>(["Account", "Visit"]);
@@ -704,7 +770,14 @@ export function buildSnapshot(
       compactLayouts[`${name}.${c}`] = arr(cl.fields).map((f) => str(f.label) || str(f.fullName));
     }
     for (const rt of o.recordTypes) {
-      if (rt.layout && !layouts[rt.layout] && pageLayouts[rt.layout]) layouts[rt.layout] = buildLayout(rt.layout, obj(pageLayouts[rt.layout]));
+      const page = rt.flexiPage ? obj(flexiPages[rt.flexiPage]) : {};
+      if (JSON.stringify(page.flexiPageRegions ?? []).includes("multiEntityRecordView")) {
+        const multiEntity = multiEntityFor(name, rt, files, profile, meta.availableTables);
+        if (multiEntity) rt.multiEntity = multiEntity;
+      }
+      for (const l of [rt.layout, ...(rt.multiEntity?.layouts ?? [])]) {
+        if (l && !layouts[l] && pageLayouts[l]) layouts[l] = buildLayout(l, obj(pageLayouts[l]), obj(obj(files.translations?.layouts)[l]));
+      }
       if (rt.flexiPage && !pages[rt.flexiPage] && flexiPages[rt.flexiPage]) pages[rt.flexiPage] = buildPage(rt.flexiPage, obj(flexiPages[rt.flexiPage]));
     }
   }
@@ -776,7 +849,7 @@ export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing |
 
 const FILES = ["nav", "ui", "permissions", "db", "sobjects"] as const;
 const CACHE_ROOT = path.join(os.tmpdir(), "lsc-studio-published");
-const SNAPSHOT_VERSION = 7;
+const SNAPSHOT_VERSION = 8;
 /** UserService.defaultLanguage — the translation file used when the user's is missing. */
 const DEFAULT_LANGUAGE = "en_US";
 /** Distinct permission-set combinations pre-built per download. */
@@ -832,7 +905,7 @@ function download(contentVersionId: string, dest: string, org: string): Promise<
 /**
  * Extract the metadata JSON files plus the given languages' translation files
  * (all translations together are most of the ZIP). Returns the files and each
- * found language's `tabs` translations.
+ * found language's tab and layout translations.
  */
 async function extract(zip: string, dir: string, languages: string[]): Promise<{ files: MetadataFiles; tabTranslations: Map<string, Row> }> {
   const patterns = [...FILES.map((f) => `*/metadata/${f}.json`), ...languages.map((l) => `*/translations/${l}.json`)];
@@ -849,7 +922,10 @@ async function extract(zip: string, dir: string, languages: string[]): Promise<{
   };
   const tabTranslations = new Map<string, Row>();
   for (const l of languages) {
-    if (fs.existsSync(path.join(dir, `${l}.json`))) tabTranslations.set(l, { tabs: obj(read(l).tabs) });
+    if (fs.existsSync(path.join(dir, `${l}.json`))) {
+      const t = read(l);
+      tabTranslations.set(l, { tabs: obj(t.tabs), layouts: layoutTranslations(obj(t.objects)) });
+    }
   }
   return {
     files: {
@@ -861,6 +937,20 @@ async function extract(zip: string, dir: string, languages: string[]): Promise<{
     },
     tabTranslations,
   };
+}
+
+/** TranslatedObject.layouts, keyed by layoutName: non-empty section and related list labels. */
+function layoutTranslations(objects: Row): Record<string, { sections: Record<string, string>; relatedLists: Record<string, string> }> {
+  const out: Record<string, { sections: Record<string, string>; relatedLists: Record<string, string> }> = {};
+  for (const o of Object.values(objects)) {
+    for (const l of arr(obj(o).layouts)) {
+      if (!str(l.layoutName)) continue;
+      const sections = Object.fromEntries(arr(l.sections).filter((x) => str(x.section) && str(x.label)).map((x) => [str(x.section), str(x.label)]));
+      const relatedLists = Object.fromEntries(arr(l.relatedLists).filter((x) => str(x.relatedList) && str(x.relatedListLabel)).map((x) => [str(x.relatedList), str(x.relatedListLabel)]));
+      out[str(l.layoutName)] = { sections, relatedLists };
+    }
+  }
+  return out;
 }
 
 const soqlString = (v: string) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
@@ -1081,7 +1171,9 @@ export async function loadPublishedIpad(
     }
     languages = [...new Set([...[...combos.values()].map((c) => c.language), DEFAULT_LANGUAGE])];
     const { files, tabTranslations } = await extract(zip, dir, languages);
-    const tabObjects = [...new Set(Object.values(files.nav).map((t) => str(t.sobjectName)).filter(Boolean))];
+    const tabObjects = [
+      ...new Set([...Object.values(files.nav).map((t) => str(t.sobjectName)).filter(Boolean), ...Object.values(MULTI_ENTITY).map((m) => m.with)]),
+    ];
     const available = await availableTablesFor(profile, tabObjects, org);
     let result: SnapshotCore | null = null;
     for (const c of combos.values()) {

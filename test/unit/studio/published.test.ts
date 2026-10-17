@@ -6,6 +6,7 @@ import {
   buildTabs,
   componentInfo,
   effectiveProfile,
+  separatedWithSpaces,
   tabKind,
   trimNamespace,
   visibilityOf,
@@ -338,5 +339,77 @@ describe("list views", () => {
       { label: "Other territory", reason: "Shared only with territory Model.Region" },
     ]);
     expect(applyListViewSharing(core, null)).toBe(core);
+  });
+});
+
+describe("layout labels", () => {
+  it("spaces out untranslated one-word section labels like the app", () => {
+    expect(separatedWithSpaces("PV")).toBe("P V");
+    expect(separatedWithSpaces("SystemInformation")).toBe("System Information");
+    expect(separatedWithSpaces("Information")).toBe("Information");
+  });
+
+  it("uses translated section and related list labels, and keeps custom labels as typed", () => {
+    const f = files();
+    const layout = (f.ui.pageLayouts as Record<string, Row>)["Visit-Visit Layout"];
+    layout.layoutSections = [
+      { label: "SystemInformation", detailHeading: true, layoutColumns: [{ layoutItems: [{ fullName: "OwnerId" }] }] },
+      { label: "MyCustom", customLabel: true, detailHeading: true, layoutColumns: [{ layoutItems: [{ fullName: "Name" }] }] },
+      { label: "Information", detailHeading: true, layoutColumns: [{ layoutItems: [{ fullName: "Status" }] }] },
+      { label: "Hidden heading", detailHeading: false, layoutColumns: [{ layoutItems: [{ fullName: "Channel" }] }] },
+    ];
+    f.translations = {
+      layouts: { "Visit-Visit Layout": { sections: { Information: "Infos" }, relatedLists: { ProviderVisits: "PVs" } } },
+    };
+    const l = buildSnapshot(f, meta).layouts["Visit-Visit Layout"];
+    expect(l.sections.map((s) => s.label)).toEqual(["System Information", "MyCustom", "Infos", null]);
+    expect(l.relatedLists[0].label).toBe("PVs");
+  });
+});
+
+describe("multiEntityRecordView", () => {
+  const withMulti = (pv: Row | undefined, rtVis: Row[] = []): MetadataFiles => {
+    const f = files();
+    const ui = f.ui as Record<string, Record<string, Row>>;
+    ui.flexiPages.Visit_Page = {
+      type: "RecordPage",
+      template: { name: "flexipage:recordHomeTemplateDesktop" },
+      flexiPageRegions: [{ name: "main", type: "Region", itemInstances: [comp("industries_ls_commercial:multiEntityRecordView")] }],
+    };
+    ui.pageLayouts["ProviderVisit-PV Layout"] = { layoutSections: [{ label: "PV", detailHeading: true, layoutColumns: [{ layoutItems: [{ fullName: "IsConfirmed" }] }] }] };
+    const visit = f.sobjects.Visit as { recordTypes: Row[] };
+    visit.recordTypes[1].flexiPage = "Visit_Page";
+    if (pv) f.sobjects.ProviderVisit = pv;
+    (f.permissions.profile as Row).recordTypeVisibilities = [{ recordType: "Visit.Hidden", visible: false }, ...rtVis];
+    return f;
+  };
+
+  it("stacks the Visit layout, then the ProviderVisit layout of the same record type name", () => {
+    const pv = { label: "Provider Visit", recordTypes: [{ fullName: "Master", label: "Master" }, { fullName: "Field", label: "Field", layout: "ProviderVisit-PV Layout" }] };
+    const s = buildSnapshot(withMulti(pv), meta);
+    expect(s.objects.Visit.recordTypes[0].multiEntity).toEqual({ layouts: ["Visit-Visit Layout", "ProviderVisit-PV Layout"] });
+    expect(s.layouts["ProviderVisit-PV Layout"].sections[0].label).toBe("P V"); // String.separatedWithSpaces splits every capital
+  });
+
+  it("falls back to the profile's default record type, then Master, and says so", () => {
+    const pv = {
+      label: "Provider Visit",
+      recordTypes: [
+        { fullName: "Master", label: "Master", layout: "ProviderVisit-Master" },
+        { fullName: "Phone", label: "Phone", layout: "ProviderVisit-PV Layout" },
+      ],
+    };
+    const def = buildSnapshot(withMulti(pv, [{ recordType: "ProviderVisit.Phone", default: true }]), meta).objects.Visit.recordTypes[0].multiEntity;
+    expect(def?.layouts).toEqual(["Visit-Visit Layout", "ProviderVisit-PV Layout"]);
+    expect(def?.note).toMatch(/Phone record type/);
+    expect(buildSnapshot(withMulti(pv), meta).objects.Visit.recordTypes[0].multiEntity?.layouts[1]).toBe("ProviderVisit-Master");
+  });
+
+  it("shows the app's error when the linked object isn't published or readable", () => {
+    const error = "MultiEntityRecordView configuration error. No access to the following entities: ProviderVisit";
+    expect(buildSnapshot(withMulti(undefined), meta).objects.Visit.recordTypes[0].multiEntity).toEqual({ layouts: [], error });
+    const pv = { recordTypes: [{ fullName: "Field", layout: "ProviderVisit-PV Layout" }] };
+    const hidden = buildSnapshot(withMulti(pv), { ...meta, availableTables: new Set(["Visit"]) });
+    expect(hidden.objects.Visit.recordTypes[0].multiEntity?.error).toBe(error);
   });
 });
