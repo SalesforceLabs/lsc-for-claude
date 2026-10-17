@@ -397,8 +397,8 @@ export function VisitsToSubmit() {
 
 // ── Floating buttons ──────────────────────────────────────────────────────────
 
-/** FloatingQuickActionButton (60pt, 30 from the corner) and the Agentforce button 16pt to its left. */
-export function HomeFabs({ agentforce }: { agentforce: boolean }) {
+/** FloatingQuickActionButton (60pt, 30 from the corner) and the Agentforce button 16pt to its left; Tableau has the Agentforce one alone (addAgentforceButton). */
+export function HomeFabs({ agentforce, more = true }: { agentforce: boolean; more?: boolean }) {
   return (
     <div className="studio-ipad-h-fabs" aria-hidden="true">
       {agentforce && (
@@ -406,13 +406,15 @@ export function HomeFabs({ agentforce }: { agentforce: boolean }) {
           <AstroIcon size={30} />
         </span>
       )}
-      <span className="studio-ipad-h-fab more">
-        <svg width="30" height="8" viewBox="0 0 30 8" aria-hidden="true">
-          <circle cx="4" cy="4" r="3.6" fill="#fff" />
-          <circle cx="15" cy="4" r="3.6" fill="#fff" />
-          <circle cx="26" cy="4" r="3.6" fill="#fff" />
-        </svg>
-      </span>
+      {more && (
+        <span className="studio-ipad-h-fab more">
+          <svg width="30" height="8" viewBox="0 0 30 8" aria-hidden="true">
+            <circle cx="4" cy="4" r="3.6" fill="#fff" />
+            <circle cx="15" cy="4" r="3.6" fill="#fff" />
+            <circle cx="26" cy="4" r="3.6" fill="#fff" />
+          </svg>
+        </span>
+      )}
     </div>
   );
 }

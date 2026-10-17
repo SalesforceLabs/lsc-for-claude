@@ -92,6 +92,7 @@ function Device({
     [snapshot.tabs]
   );
   const onHome = tab?.kind === "home" && !!snapshot.home && !record;
+  // The app gates Agentforce on the user-info "Agentforce" feature flag, which the CLI can't read; a Home welcome component stands in for it.
   const homeHasAgentforce = !!snapshot.home?.regions.some((r) => r.components.some((c) => c.supported && /lsAgentforceWelcome$/.test(c.name)));
   const generated = snapshot.cache.generatedAt ? new Date(snapshot.cache.generatedAt).toLocaleString() : "unknown";
 
@@ -154,6 +155,7 @@ function Device({
           {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={() => setRecord(true)} />}
         </div>
         {onHome && <HomeFabs agentforce={homeHasAgentforce} />}
+        {tab?.kind === "tableau" && !record && homeHasAgentforce && <HomeFabs agentforce more={false} />}
       </IpadScreen>
 
       <ul className="studio-ipad-legend">
