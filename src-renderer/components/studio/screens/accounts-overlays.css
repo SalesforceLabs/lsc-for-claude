@@ -262,13 +262,13 @@
 }
 .studio-ipad-accounts-box {
   position: absolute;
-  left: 14px;
-  top: 17px;
-  width: 20px;
-  height: 20px;
+  left: 8px;
+  top: 15px;
+  width: 25px;
+  height: 23px;
   box-sizing: border-box;
   border: 1.5px solid #747474;
-  border-radius: 4px;
+  border-radius: 5px;
   background: #fff;
 }
 .studio-ipad-accounts-box.on {
@@ -290,13 +290,13 @@
   left: 49px;
 }
 .studio-ipad-accounts.selecting .studio-ipad-accounts-col.c1 {
-  left: 341px;
+  left: 339px;
 }
 .studio-ipad-accounts.selecting .studio-ipad-accounts-col.c2 {
-  left: 523px;
+  left: 521px;
 }
 .studio-ipad-accounts.selecting .studio-ipad-accounts-col.c3 {
-  left: 705px;
+  left: 703px;
 }
 .studio-ipad-accounts-new,
 .studio-ipad-accounts-online,
@@ -370,6 +370,10 @@
 }
 
 /* Select mode: list rows become white dashed drop targets (no kebab), cards shift up 4pt and the address runs 260pt wide. */
+.studio-ipad-accounts.selecting .studio-ipad-accounts-card-more {
+  left: 859px;
+  top: 51px;
+}
 .studio-ipad-accounts.selecting .studio-ipad-accounts-row {
   height: 70px;
   box-sizing: border-box;
