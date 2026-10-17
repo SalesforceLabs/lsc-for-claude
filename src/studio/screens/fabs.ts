@@ -252,6 +252,8 @@ async function collectVisitCreate(ctx: ScreenContext): Promise<PublishedVisitCre
   const cfg = await ctx.config(["ProviderVisitSettings", "StateLicenseNumberSettings", "DEASettings", "StateDistributorLicenseSettings"]).catch(() => ({}) as Record<string, Row>);
   const duration = Number(configKey(cfg.ProviderVisitSettings, "DefaultVisitDuration"));
   const result: PublishedVisitCreate = {
+    // The editor shows TerritoryService.selectedTerritory (the territory picked on the device, defaulting to the user's first);
+    // a user with several territories can have a different one selected, which the org cannot tell.
     territory: ctx.territories[0]?.name,
     durationMinutes: Number.isFinite(duration) && duration > 0 ? duration : 30,
     blankStart: configKey(cfg.ProviderVisitSettings, "SetBlankDateTimeInPlannedStartTime") === true,

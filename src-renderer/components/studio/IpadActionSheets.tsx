@@ -3,9 +3,9 @@ import type { PublishedIpad, PublishedLayout, RecordFieldSpec } from "./publishe
 import type { Presentation } from "./ipad-fab-actions";
 import { agentName } from "./ipad-fab-actions";
 import { IpadStatusBar } from "./IpadChrome";
-import { EmptyArt } from "./IpadHome";
+import { AstroIcon, EmptyArt } from "./IpadHome";
 import { HcoIcon, NewPersonAccountIcon } from "./assets/icons";
-import { fmtDateTime, picklistStart, visitFields, visitTimes } from "./ipad-visit-form";
+import { autoNumber, fmtDateTime, picklistStart, visitFields, visitTimes } from "./ipad-visit-form";
 import type { VisitCreateAccount } from "./screens/fabs-types";
 import "./action-sheets.css";
 
@@ -71,9 +71,16 @@ const Caret = () => (
   </svg>
 );
 
+const Magnifier = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+    <circle cx="8.5" cy="8.5" r="6" fill="none" stroke="#555" strokeWidth="1.6" />
+    <path d="m13 13 5 5" stroke="#555" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
+
 function Control({ spec, value, tall }: { spec: RecordFieldSpec; value?: string; tall?: boolean }) {
   const t = spec.type;
-  if (spec.readOnly || /^Owner/.test(spec.name) || t === "masterdetail" || /^(autonumber|calculated)$/.test(t)) {
+  if (spec.readOnly || /^Owner/.test(spec.name) || t === "masterdetail" || /^(autonumber|calculated|summary)$/.test(t)) {
     return <div className="studio-ipad-act-static">{value ?? (t === "masterdetail" ? "Assigned on save" : "")}</div>;
   }
   if (t === "boolean") return <span className="studio-ipad-act-toggle" aria-label={spec.label} />;
@@ -121,19 +128,85 @@ function Field({ spec, value, tall }: { spec: RecordFieldSpec; value?: string; t
   );
 }
 
-/** Layout sections as a two-column form: the cell at (row, column) is column[column][row], as the record view lays them out. */
-function Sections({ layout, values }: { layout: PublishedLayout; values: (spec: RecordFieldSpec) => string | undefined }) {
+/** What the create form needs beyond the layout: the new record's temporary number, picklist starting values and cell values. */
+interface FormContext {
+  seed: string;
+  defaults?: Record<string, string>;
+  /** Cell values by field; undefined draws an empty cell. */
+  values: (spec: RecordFieldSpec) => string | undefined;
+  /** Headings for sections that have no label (the linked Case layout's first and last). */
+  nullLabels: string[];
+  /** Fields the create form draws as an empty static cell whatever the layout says (observed: the Inquiry's Status). */
+  staticNames?: string[];
+}
+
+/** A read-only custom text field is not drawn on the create form (observed: Inq_IsCreatorOrResponder), but its row keeps 30pt more height. */
+const hiddenCell = (spec: RecordFieldSpec): boolean => !!spec.readOnly && /__c$/.test(spec.name) && /^(text|string)$/.test(spec.type);
+
+function FormControl({ spec, form }: { spec: RecordFieldSpec; form: FormContext }) {
+  const t = spec.type;
+  const value = form.values(spec);
+  if (t === "masterdetail" || /^(CaseNumber|CaseId)$/.test(spec.name)) return <div className="studio-ipad-act-static">{autoNumber(form.seed)}</div>;
+  if (form.staticNames?.includes(spec.name) || /^Owner/.test(spec.name) || spec.readOnly || /^(autonumber|calculated|summary)$/.test(t)) {
+    return <div className="studio-ipad-act-static">{value ?? ""}</div>;
+  }
+  if (t === "boolean") return <span className="studio-ipad-act-toggle" aria-label={spec.label} />;
+  if (t === "picklist" || t === "multipicklist" || t === "combobox") {
+    return (
+      <div className="studio-ipad-act-box">
+        <span>{value ?? picklistStart(spec, form.defaults) ?? ""}</span>
+        <Caret />
+      </div>
+    );
+  }
+  if (t === "datetime" || t === "date" || t === "time") return <Control spec={spec} value={value} />;
+  if (t === "lookup" || t === "reference" || t === "hierarchy") {
+    return (
+      <div className="studio-ipad-act-box">
+        <span className="studio-ipad-act-plus">⊕</span>
+        <span className="studio-ipad-act-grow">{value ?? ""}</span>
+        <Caret />
+      </div>
+    );
+  }
+  return (
+    <div className={`studio-ipad-act-box${t === "textarea" ? " tall" : ""}`}>
+      <span className="studio-ipad-act-grow" />
+      <Mic />
+    </div>
+  );
+}
+
+/** Layout sections as a create form: the cell at (row, column) is column[column][row]; a section with one column spans the width; rows are 75pt apart like the Visit editor. */
+function Sections({ layout, form, firstNull }: { layout: PublishedLayout; form: FormContext; firstNull: number }) {
+  let nulls = firstNull;
   return (
     <>
       {layout.sections.map((s, i) => {
-        const cols = s.fields ?? s.columns.map((c) => c.map((label) => ({ name: label, label, type: "string" })));
+        const cols: RecordFieldSpec[][] = s.fields ?? s.columns.map((c) => c.map((label) => ({ name: label, label, type: "string" })));
         const rows = Math.max(0, ...cols.map((c) => c.length));
+        const title = s.label ?? form.nullLabels[nulls++];
+        const wide = cols.length === 1;
         return (
           <div key={i} className="studio-ipad-act-section">
-            {s.label && <h3>{s.label}</h3>}
-            <div className="studio-ipad-act-grid" style={{ gridTemplateColumns: `repeat(${Math.max(1, cols.length)}, 1fr)` }}>
+            {title && <h3>{title}</h3>}
+            <div className="studio-ipad-act-grid two">
               {Array.from({ length: rows }).flatMap((_, r) =>
-                cols.map((c, ci) => (c[r] ? <Field key={`${r}:${ci}`} spec={c[r]} value={values(c[r])} /> : <div key={`${r}:${ci}`} />))
+                cols.map((c, ci) => {
+                  const spec = c[r];
+                  if (!spec || hiddenCell(spec)) return <div key={`${r}:${ci}`} />;
+                  const padded = cols.some((x) => x[r] && hiddenCell(x[r]));
+                  const area = spec.type === "textarea";
+                  return (
+                    <div key={`${r}:${ci}`} className={`studio-ipad-act-field vfield${area ? " area" : ""}${wide ? " wide" : ""}${padded ? " padded" : ""}`}>
+                      <div className="studio-ipad-act-label">
+                        {spec.required && <span className="studio-ipad-act-req">*</span>}
+                        {spec.label}
+                      </div>
+                      <FormControl spec={spec} form={form} />
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
@@ -193,18 +266,28 @@ function VisitEditor({ ctx, edit, onClose }: { ctx: SheetContext; edit?: string;
   // Edit Visit: the existing values come from the snapshot's Visit record (and its Provider Visit partner), plus the Home row for the account and place.
   const existing = edit ? snapshot.records?.byId[edit] : undefined;
   const row = edit ? snapshot.screens?.home?.visits?.items.find((v) => v.id === edit) : undefined;
-  const val = (name: string): string | undefined => existing?.values.Visit?.[name.toLowerCase()] || existing?.values.ProviderVisit?.[name.toLowerCase()] || undefined;
+  const val = (name: string): string | undefined =>
+    existing?.values.Visit?.[name.toLowerCase()] || existing?.values.ProviderVisit?.[name.toLowerCase()] || undefined;
   const create = snapshot.screens?.fabs?.visitCreate;
   const rts = snapshot.objects.Visit?.recordTypes ?? [];
   const rt = rts[rts.length - 1];
   const layouts = rt ? layoutsFor(snapshot, "Visit", rt.name) : [];
   const related = new Set(layouts.flatMap((l) => l.relatedLists.map((r) => r.label)));
   const sidebar = VISIT_SIDEBAR.filter((l) => (l === "Attendees" ? related.has("Visitors") || related.has("Attendees") : related.has(l)));
-  const times = useMemo(() => visitTimes(new Date(), create?.durationMinutes ?? 30, create?.blankStart ?? false), [create?.durationMinutes, create?.blankStart]);
-  const fields = useMemo(() => visitFields(layouts), [layouts]);
+  const times = useMemo(
+    () => visitTimes(new Date(), create?.durationMinutes ?? 30, create?.blankStart ?? false),
+    [create?.durationMinutes, create?.blankStart]
+  );
+  const fields = useMemo(() => visitFields(layouts, { edit: !!existing }), [layouts, existing]);
+  // The new record's local id (a UUID made on the device) seeds its temporary Name.
+  const seed = useMemo(() => crypto.randomUUID().toUpperCase(), []);
   const accountId = record?.object === "Account" ? record.id : "";
   const account = accountId ? create?.accounts[accountId] : undefined;
-  const hasLicense = !!account?.licenses && BADGES.some(([k]) => account.licenses?.[k]);
+  // An existing visit only carries the account's name; the licence badges come from the synced Account of that name.
+  const editName = existing ? (row?.account ?? existing.values.Visit?.accountid) : undefined;
+  const editAccountId = editName ? Object.entries(snapshot.records?.byId ?? {}).find(([, r]) => r.object === "Account" && r.title === editName)?.[0] : undefined;
+  const badgeAccount = existing ? (editAccountId ? create?.accounts[editAccountId] : undefined) : account;
+  const hasLicense = !!badgeAccount?.licenses && BADGES.some(([k]) => badgeAccount.licenses?.[k]);
 
   const control = (s: RecordFieldSpec): React.ReactNode => {
     switch (s.name) {
@@ -242,8 +325,8 @@ function VisitEditor({ ctx, edit, onClose }: { ctx: SheetContext; edit?: string;
             {hasLicense && (
               <div className="studio-ipad-act-badges">
                 {BADGES.map(([k, label]) =>
-                  account?.licenses?.[k] ? (
-                    <span key={k} className={`studio-ipad-act-badge ${account.licenses[k]}`}>
+                  badgeAccount?.licenses?.[k] ? (
+                    <span key={k} className={`studio-ipad-act-badge ${badgeAccount.licenses[k]}`}>
                       <Shield />
                       {label}
                     </span>
@@ -276,6 +359,9 @@ function VisitEditor({ ctx, edit, onClose }: { ctx: SheetContext; edit?: string;
             <Caret />
           </div>
         );
+      case "Name": // The org's Visit Name has no display format in the cache, so the app's default `{000000000}` applies.
+        if (!existing) return <div className="studio-ipad-act-static">{autoNumber(seed)}</div>;
+        break;
       case "External_ID__c":
         return (
           <div className="studio-ipad-act-box">
@@ -290,7 +376,7 @@ function VisitEditor({ ctx, edit, onClose }: { ctx: SheetContext; edit?: string;
     if (s.type === "picklist") {
       return (
         <div className="studio-ipad-act-box">
-          <span>{existing ? ((s.name === "Channel" ? row?.channel : undefined) || val(s.name) || "") : (picklistStart(s, rt?.picklistDefaults) ?? "")}</span>
+          <span>{existing ? (s.name === "Channel" ? row?.channel : undefined) || val(s.name) || "" : (picklistStart(s, rt?.picklistDefaults) ?? "")}</span>
           <Caret />
         </div>
       );
@@ -340,15 +426,19 @@ function VisitEditor({ ctx, edit, onClose }: { ctx: SheetContext; edit?: string;
           </div>
           {layouts.length ? (
             <div className="studio-ipad-act-grid two">
-              {fields.map((s) => (
-                <div key={s.name} className={`studio-ipad-act-field vfield${s.name === "AccountId" || s.name === "PlaceId" ? " tall" : ""}`}>
-                  <div className="studio-ipad-act-label">
-                    {s.required && <span className="studio-ipad-act-req">*</span>}
-                    {s.label}
+              {fields.map((s, i) =>
+                s.type === "blank" ? (
+                  <div key={i} />
+                ) : (
+                  <div key={s.name} className={`studio-ipad-act-field vfield${s.name === "AccountId" || s.name === "PlaceId" ? " tall" : ""}`}>
+                    <div className="studio-ipad-act-label">
+                      {s.required && <span className="studio-ipad-act-req">*</span>}
+                      {s.label}
+                    </div>
+                    {control(s)}
                   </div>
-                  {control(s)}
-                </div>
-              ))}
+                )
+              )}
             </div>
           ) : (
             <Note>The Visit layout isn't in the cache.</Note>
@@ -369,13 +459,28 @@ function InquirySheet({ ctx, onClose }: { ctx: SheetContext; onClose: () => void
   const rt = rts[picked];
   const layouts = rt ? layoutsFor(snapshot, "Inquiry", rt.name) : [];
   const account = record?.object === "Account" ? record.title : "";
+  // The linked Case layout has no Case record type in the cache; its Priority and Status start like the Inquiry's.
+  const seed = useMemo(() => crypto.randomUUID().toUpperCase(), []);
+  const form: FormContext = {
+    seed,
+    defaults: rt?.picklistDefaults,
+    values: (spec) => (/^Account/.test(spec.name) && account ? account : undefined),
+    nullLabels: ["Case Information", "Web Information"],
+    staticNames: ["Status"],
+  };
   if (step === "pick") {
     return (
       <Backdrop onClose={onClose} className="inquiry">
         <NavBar plain left={linkBtn("Cancel", onClose)} title="New Inquiry" right={linkBtn("Next", () => setStep("form"), !rts.length)} />
         <div className="studio-ipad-act-body">
           {rts.map((r, i) => (
-            <div key={r.name} className={`studio-ipad-act-radio${i === picked ? " on" : ""}`} onClick={() => setPicked(i)} role="radio" aria-checked={i === picked}>
+            <div
+              key={r.name}
+              className={`studio-ipad-act-radio${i === picked ? " on" : ""}`}
+              onClick={() => setPicked(i)}
+              role="radio"
+              aria-checked={i === picked}
+            >
               {r.label}
               {i === picked && <span className="studio-ipad-act-tick" />}
             </div>
@@ -391,7 +496,10 @@ function InquirySheet({ ctx, onClose }: { ctx: SheetContext; onClose: () => void
         plain
         left={
           <button type="button" className="studio-ipad-act-link back" onClick={() => setStep("pick")}>
-            ‹ New Inquiry
+            <svg width="12" height="20" viewBox="0 0 12 20" aria-hidden="true">
+              <path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            New Inquiry
           </button>
         }
         title="New Inquiry"
@@ -399,7 +507,7 @@ function InquirySheet({ ctx, onClose }: { ctx: SheetContext; onClose: () => void
       />
       <div className="studio-ipad-act-body form">
         {layouts.map((l) => (
-          <Sections key={l.name} layout={l} values={(s) => (/^Account/.test(s.name) && account ? account : /Owner/.test(s.name) ? snapshot.viewer?.name : undefined)} />
+          <Sections key={l.name} layout={l} firstNull={0} form={l.name.startsWith("Inquiry-") ? form : { ...form, staticNames: [] }} />
         ))}
         {!layouts.length && <Note>The layout for this record type isn't in the cache.</Note>}
         <Note>The form is not saved. Case ID and Case Number are assigned when the app saves.</Note>
@@ -418,13 +526,15 @@ function ProviderPicker({ ctx, onClose, onPick }: { ctx: SheetContext; onClose: 
     <Backdrop onClose={onClose} className="providers">
       <NavBar plain left={linkBtn("Cancel", onClose)} title="Choose provider" />
       <div className="studio-ipad-act-search">
-        <span aria-hidden="true">⌕</span>
+        <Magnifier />
         <input placeholder="Search..." value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       <div className="studio-ipad-act-list">
         {shown.map((c) => (
           <div key={c.id} className="studio-ipad-act-prov" onClick={() => onPick(c.name)}>
-            <span className={`studio-ipad-act-avatar${c.hco ? " hco" : ""}`} aria-hidden="true" />
+            <span className={`studio-ipad-act-avatar${c.hco ? " hco" : ""}`} aria-hidden="true">
+              {c.hco ? <HcoIcon /> : <NewPersonAccountIcon />}
+            </span>
             {c.name}
           </div>
         ))}
@@ -439,7 +549,7 @@ function EmailTemplates({ onClose }: { onClose: () => void }) {
       <NavBar left={linkBtn("Cancel", onClose)} title="Send Email" right={linkBtn("Next", undefined, true)} />
       <div className="studio-ipad-act-tplbar">
         <div className="studio-ipad-act-search wide">
-          <span aria-hidden="true">⌕</span>
+          <Magnifier />
           <input placeholder="Search templates…" />
         </div>
         <span className="studio-ipad-act-filter">
@@ -451,7 +561,10 @@ function EmailTemplates({ onClose }: { onClose: () => void }) {
       </div>
       <h3 className="studio-ipad-act-tplhead">Email Templates</h3>
       <div className="studio-ipad-act-body">
-        <Note>The app lists the approved email templates for this provider and product; Studio doesn't read them. Selecting one opens the email composer, which the preview doesn't draw. Nothing is sent.</Note>
+        <Note>
+          The app lists the approved email templates for this provider and product; Studio doesn't read them. Selecting one opens the email composer, which the
+          preview doesn't draw. Nothing is sent.
+        </Note>
       </div>
     </Full>
   );
@@ -483,7 +596,9 @@ function NbcSheet({ ctx, onClose }: { ctx: SheetContext; onClose: () => void }) 
         <div className="studio-ipad-act-white empty">
           <EmptyArt height={150} />
           <div className="studio-ipad-act-emptyt">Nothing to see here... yet</div>
-          <div className="studio-ipad-act-emptyd">After your admin adds rationales, you'll see them here. Make sure you're connected to the internet to sync the latest changes.</div>
+          <div className="studio-ipad-act-emptyd">
+            After your admin adds rationales, you'll see them here. Make sure you're connected to the internet to sync the latest changes.
+          </div>
         </div>
         <Note>The rationales are read from the org by the app; the preview shows the empty state.</Note>
       </div>
@@ -504,7 +619,7 @@ function SurveySheet({ onClose }: { onClose: () => void }) {
         ))}
       </div>
       <div className="studio-ipad-act-search">
-        <span aria-hidden="true">⌕</span>
+        <Magnifier />
         <input placeholder="Search..." />
       </div>
       <div className="studio-ipad-act-empty">
@@ -526,16 +641,38 @@ function Browser({ url, hideSafari, onClose }: { url: string; hideSafari: boolea
         title="External URL"
         right={
           <>
-            <span className="studio-ipad-act-ico disabled">‹</span>
-            <span className="studio-ipad-act-ico disabled">›</span>
-            <span className="studio-ipad-act-ico">↻</span>
-            {!hideSafari && <span className="studio-ipad-act-ico">◎</span>}
+            <span className="studio-ipad-act-ico disabled">
+              <svg width="8" height="14" viewBox="0 0 8 14" aria-hidden="true">
+                <path d="M7 1 1 7l6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <span className="studio-ipad-act-ico disabled">
+              <svg width="8" height="14" viewBox="0 0 8 14" aria-hidden="true">
+                <path d="m1 1 6 6-6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <span className="studio-ipad-act-ico">
+              <svg width="14" height="18" viewBox="0 0 14 18" aria-hidden="true">
+                <path d="M11.5 6.5A5.5 5.5 0 1 0 12.5 10M8.5 1.5l3.2 4.2-5 1" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            {!hideSafari && (
+              <span className="studio-ipad-act-ico">
+                <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+                  <rect x="1" y="2" width="18" height="16" rx="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                  <circle cx="10" cy="10" r="5" fill="none" stroke="currentColor" strokeWidth="1.3" />
+                  <path d="M5 10h10M10 5v10" stroke="currentColor" strokeWidth="1.2" />
+                </svg>
+              </span>
+            )}
           </>
         }
       />
       <div className="studio-ipad-act-webplaceholder">
         <div className="studio-ipad-act-weburl">{url}</div>
-        <div className="studio-ipad-act-webnote">The app loads this page in a full-screen browser. Studio doesn't load external URLs; it shows the address instead.</div>
+        <div className="studio-ipad-act-webnote">
+          The app loads this page in a full-screen browser. Studio doesn't load external URLs; it shows the address instead.
+        </div>
       </div>
     </Full>
   );
@@ -573,7 +710,7 @@ function AgentPanel({ ctx, utterance, onClose }: { ctx: SheetContext; utterance:
         </button>
         <div className="studio-ipad-act-agentt">{name}</div>
         <span className="studio-ipad-act-circle" aria-label="Clear chat">
-          ✕
+          <AstroIcon size={24} />
         </span>
       </div>
       <div className="studio-ipad-act-chat">
@@ -590,9 +727,15 @@ function AgentPanel({ ctx, utterance, onClose }: { ctx: SheetContext; utterance:
         <div className="studio-ipad-act-ask">Ask me anything</div>
         <div className="studio-ipad-act-composer-row">
           <span className="studio-ipad-act-agentpill">
+            <AstroIcon size={24} />
             {name} <Caret />
           </span>
-          <span className="studio-ipad-act-mic" aria-hidden="true" />
+          <span className="studio-ipad-act-mic" aria-hidden="true">
+            <svg width="18" height="24" viewBox="0 0 18 24">
+              <rect x="5.5" y="1" width="7" height="13" rx="3.5" fill="#fff" />
+              <path d="M2 11a7 7 0 0 0 14 0M9 18v4" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          </span>
         </div>
       </div>
       <div className="studio-ipad-act-disclaimer">Agentforce is AI and can make mistakes</div>
