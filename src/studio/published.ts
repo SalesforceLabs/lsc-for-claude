@@ -14,6 +14,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { promisify } from "util";
+import { apiRequest } from "../salesforce/cli.js";
 import { ID_PATTERN, inList, query, type Row } from "./helpers.js";
 
 const execFileAsync = promisify(execFile);
@@ -132,6 +133,58 @@ export interface PublishedIpad {
   viewer: PublishedViewer | null;
   /** Active users on the profile, for picking whose iPad to preview. */
   users: { id: string; name: string }[];
+  /** Dashboards the pages' `embeddedDashboard` components show, by developer name. */
+  dashboards: Record<string, PublishedDashboard>;
+}
+
+/** A Lightning dashboard as `embeddedDashboard` lays it out: its describe's grid and component titles. */
+export interface PublishedDashboard {
+  id: string;
+  title: string;
+  /** Runs as one specified user, so its results are the same for every viewer. */
+  sharedResults: boolean;
+  numColumns: number;
+  rowHeight: number;
+  components: PublishedDashboardComponent[];
+  /** When the results were last refreshed (only with `data`). */
+  refreshedAt?: string;
+}
+
+export interface PublishedDashboardComponent {
+  id: string;
+  /** The header (DashboardComponentViewModel.title). */
+  title: string;
+  /** The component's own title, drawn under the header. */
+  subtitle: string;
+  chart: string;
+  /** groupByType for bars: grouped, stacked, or stacked100. */
+  groupBy: string;
+  column: number;
+  row: number;
+  colspan: number;
+  rowspan: number;
+  /** visualizationProperties.legendPosition: Right, Bottom, or None. */
+  legend: string;
+  showValues: boolean;
+  showTotal: boolean;
+  /** Fold items under 3% of the total into "Other". */
+  combineSmall: boolean;
+  /** The component's results, read live — only for dashboards with shared results. */
+  data?: DashboardData;
+}
+
+/** One component's report results, as chart series. */
+export interface DashboardData {
+  /** Aggregate labels, e.g. "Sum of No of Engagements". */
+  measures: string[];
+  /** The first grouping's labels: slices, or x-axis categories. */
+  categories: string[];
+  /** Series come from a second grouping (else one per measure). */
+  grouped: boolean;
+  /** One series per second-grouping value, else one per measure. */
+  series: { label: string; values: (number | null)[]; labels: string[] }[];
+  /** The grand total of the first measure, formatted. */
+  total?: string;
 }
 
 export interface PublishedViewer {
@@ -148,6 +201,8 @@ export interface MetadataFiles {
   permissions: Row;
   db: Record<string, unknown>;
   sobjects: Record<string, Row>;
+  /** `reporting.json`: `dashboards` as developer name → dashboard describe. */
+  reporting?: Row;
   /**
    * The user's `translations/<language>.json` (falling back to en_US): `tabs`,
    * `layouts` as layout name → section and related list labels, and `fields`
@@ -514,7 +569,7 @@ function propsOf(ci: Row): Record<string, string> {
   return out;
 }
 
-const PROP_KEEP = new Set(["totalCards", "graphName", "label", "title", "richTextValue", "maxRecords", "entityNames", "relatedListApiName", "dashboardName", "showEnhActivityPlanOnMobileHomepage", "utterance1", "utterance2", "utterance3"]);
+const PROP_KEEP = new Set(["totalCards", "graphName", "label", "title", "richTextValue", "maxRecords", "entityNames", "relatedListApiName", "dashboardName", "showEnhActivityPlanOnMobileHomepage"]);
 
 function toComponent(item: Row): PublishedComponent | null {
   const ci = obj(item.componentInstance);
@@ -522,7 +577,9 @@ function toComponent(item: Row): PublishedComponent | null {
   if (!name) return null;
   const all = propsOf(ci);
   const properties: Record<string, string> = {};
-  for (const [k, v] of Object.entries(all)) if (PROP_KEEP.has(k)) properties[k] = k === "richTextValue" ? v.slice(0, 600) : v;
+  // AgentforceWelcomeViewModel: every non-empty property is a prompt chip, whatever its name.
+  const keepAll = trimNamespace(name) === "lsAgentforceWelcome";
+  for (const [k, v] of Object.entries(all)) if (keepAll || PROP_KEEP.has(k)) properties[k] = k === "richTextValue" ? v.slice(0, 4000) : v;
   const { label, supported } = componentInfo(name);
   const c: PublishedComponent = {
     name,
@@ -808,7 +865,121 @@ export function buildSnapshot(
     if (t.kind === "flexiPage" && t.flexiPage && flexiPages[t.flexiPage] && !pages[t.flexiPage]) pages[t.flexiPage] = buildPage(t.flexiPage, obj(flexiPages[t.flexiPage]));
   }
 
-  return { profile: meta.profile, cache: meta.cache, tabs, hiddenTabs: hidden, home, objects, layouts, pages, compactLayouts, notes };
+  // SFComponentDashboardVC: looked up by dashboardName in the cache's dashboards; a missing one renders nothing.
+  const describes = obj(files.reporting?.dashboards);
+  const dashboards: Record<string, PublishedDashboard> = {};
+  for (const n of dashboardNames({ home, pages })) if (describes[n]) dashboards[n] = dashboardFromDescribe(obj(describes[n]));
+
+  return { profile: meta.profile, cache: meta.cache, tabs, hiddenTabs: hidden, home, objects, layouts, pages, compactLayouts, dashboards, notes };
+}
+
+/** Developer names of the dashboards `embeddedDashboard` components show on the snapshot's pages. */
+export function dashboardNames(core: Pick<SnapshotCore, "home" | "pages">): string[] {
+  const names = new Set<string>();
+  const walk = (cs: PublishedComponent[]) => {
+    for (const c of cs) {
+      if (c.name.endsWith(":embeddedDashboard") && c.properties.dashboardName) names.add(c.properties.dashboardName);
+      c.tabs?.forEach((t) => walk(t.components));
+    }
+  };
+  for (const page of [core.home, ...Object.values(core.pages)]) page?.regions.forEach((r) => walk(r.components));
+  return [...names];
+}
+
+/** Pairs a dashboard describe's components with its grid layout, which lists them in the same order. */
+export function dashboardFromDescribe(describe: Row): PublishedDashboard {
+  const layout = obj(describe.layout);
+  const cells = arr(layout.components);
+  return {
+    id: str(describe.id),
+    title: str(describe.name),
+    sharedResults: str(describe.dashboardType) === "SpecifiedUser",
+    numColumns: Number(layout.numColumns) || 12,
+    rowHeight: Number(layout.rowHeight) || 36,
+    components: arr(describe.components).map((c, i) => {
+      const cell = obj(cells[i]);
+      const props = obj(c.properties);
+      const vis = obj(props.visualizationProperties);
+      return {
+        id: str(c.id),
+        title: str(c.header),
+        subtitle: str(c.title),
+        chart: str(props.visualizationType),
+        groupBy: str(vis.groupByType),
+        column: Number(cell.column) || 0,
+        row: Number(cell.row) || 0,
+        colspan: Number(cell.colspan) || 1,
+        rowspan: Number(cell.rowspan) || 1,
+        legend: str(vis.legendPosition),
+        showValues: vis.showValues === true,
+        showTotal: vis.showTotal === true,
+        combineSmall: vis.combineSmallGroups === true,
+      };
+    }),
+  };
+}
+
+/** A report result's groupings and fact map as chart series (one or two groupings down). */
+export function dashboardData(result: Row): DashboardData {
+  const meta = obj(result.reportMetadata);
+  const info = obj(obj(result.reportExtendedMetadata).aggregateColumnInfo);
+  const measures = arr(meta.aggregates).map((a) => str(obj(info[str(a)]).label) || str(a));
+  const facts = obj(result.factMap);
+  const fact = (key: string, i: number) => obj(arr(obj(facts[`${key}!T`]).aggregates)[i]);
+  const outer = arr(obj(result.groupingsDown).groupings);
+  const categories = outer.map((g) => str(g.label));
+  const total = str(fact("T", 0).label) || undefined;
+  const nested = outer.some((g) => arr(g.groupings).length > 0);
+  if (!nested) {
+    const series = measures.map((label, i) => ({
+      label,
+      values: outer.map((g) => (typeof fact(str(g.key), i).value === "number" ? (fact(str(g.key), i).value as number) : null)),
+      labels: outer.map((g) => str(fact(str(g.key), i).label)),
+    }));
+    return { measures, categories, grouped: false, series, total };
+  }
+  // Two groupings: a series per inner value, in first-seen order.
+  const byLabel = new Map<string, { label: string; values: (number | null)[]; labels: string[] }>();
+  outer.forEach((g, i) => {
+    for (const inner of arr(g.groupings)) {
+      const label = str(inner.label);
+      if (!byLabel.has(label)) byLabel.set(label, { label, values: categories.map(() => null), labels: categories.map(() => "") });
+      const f = fact(str(inner.key), 0);
+      const s = byLabel.get(label)!;
+      s.values[i] = typeof f.value === "number" ? f.value : null;
+      s.labels[i] = str(f.label);
+    }
+  });
+  return { measures, categories, grouped: true, series: [...byLabel.values()], total };
+}
+
+/**
+ * DashboardsService.loadData — GET /analytics/dashboards/{id}, the cached
+ * results (no refresh). Only for dashboards that run as a specified user:
+ * those show every viewer the same results, so reading them as the admin is
+ * what the iPad shows. Kept out of the saved snapshot so they stay current.
+ */
+async function withDashboardData(dashboards: Record<string, PublishedDashboard>, org: string): Promise<Record<string, PublishedDashboard>> {
+  const out: Record<string, PublishedDashboard> = {};
+  await Promise.all(
+    Object.entries(dashboards).map(async ([name, d]) => {
+      out[name] = d;
+      if (!d.sharedResults || !ID_PATTERN.test(d.id)) return;
+      const res = await apiRequest<Row>(`/services/data/v62.0/analytics/dashboards/${d.id}`, "GET", undefined, org);
+      if (!res.success || !res.data) return;
+      const data = new Map(arr(res.data.componentData).map((c) => [str(c.componentId), c]));
+      let refreshedAt: string | undefined;
+      const components = d.components.map((c) => {
+        const cd = data.get(c.id);
+        const result = obj(cd?.reportResult);
+        if (!cd || str(obj(cd.status).componentDataStatus) !== "DATA" || !result.factMap) return c;
+        refreshedAt ??= str(obj(cd.status).refreshDate) || undefined;
+        return { ...c, data: dashboardData(result) };
+      });
+      out[name] = { ...d, components, refreshedAt };
+    })
+  );
+  return out;
 }
 
 /**
@@ -870,9 +1041,9 @@ export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing |
 
 // ── Org access ────────────────────────────────────────────────────────────────
 
-const FILES = ["nav", "ui", "permissions", "db", "sobjects"] as const;
+const FILES = ["nav", "ui", "permissions", "db", "sobjects", "reporting"] as const;
 const CACHE_ROOT = path.join(os.tmpdir(), "lsc-studio-published");
-const SNAPSHOT_VERSION = 10;
+const SNAPSHOT_VERSION = 12;
 /** UserService.defaultLanguage — the translation file used when the user's is missing. */
 const DEFAULT_LANGUAGE = "en_US";
 /** Distinct permission-set combinations pre-built per download. */
@@ -957,6 +1128,7 @@ async function extract(zip: string, dir: string, languages: string[]): Promise<{
       permissions: read("permissions"),
       db: read("db"),
       sobjects: read("sobjects") as Record<string, Row>,
+      reporting: read("reporting"),
     },
     tabTranslations,
   };
@@ -1189,7 +1361,8 @@ export async function loadPublishedIpad(
   const snapshotPath = (sets: string[], lang: string) => path.join(dir, `snapshot-v${SNAPSHOT_VERSION}-${lang}-${comboKey(sets)}.json`);
   if (fs.existsSync(snapshotPath(permissionSets, language))) {
     const saved = JSON.parse(fs.readFileSync(snapshotPath(permissionSets, language), "utf8")) as SnapshotCore;
-    return { ...applyListViewSharing(saved, await sharing), profile, cache, viewer, users: userList };
+    const dashboards = await withDashboardData(saved.dashboards ?? {}, org);
+    return { ...applyListViewSharing(saved, await sharing), dashboards, profile, cache, viewer, users: userList };
   }
 
   fs.mkdirSync(dir, { recursive: true });
@@ -1216,7 +1389,8 @@ export async function loadPublishedIpad(
       fs.writeFileSync(snapshotPath(c.sets, c.language), JSON.stringify(snapshot));
       if (c.sets === permissionSets && c.language === language) result = snapshot;
     }
-    return { ...applyListViewSharing(result as SnapshotCore, await sharing), viewer, users: userList };
+    const dashboards = await withDashboardData((result as SnapshotCore).dashboards, org);
+    return { ...applyListViewSharing(result as SnapshotCore, await sharing), dashboards, viewer, users: userList };
   } finally {
     // Keep only the snapshots — the raw files hold the org's full metadata.
     for (const f of ["cache.zip", ...FILES.map((x) => `${x}.json`), ...languages.map((l) => `${l}.json`)]) fs.rmSync(path.join(dir, f), { force: true });

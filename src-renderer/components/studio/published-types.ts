@@ -104,6 +104,58 @@ export interface PublishedIpad {
   viewer: { userId: string; name: string; permissionSets: string[] } | null;
   /** Active users on the profile, for picking whose iPad to preview. */
   users: { id: string; name: string }[];
+  /** Dashboards the pages' `embeddedDashboard` components show, by developer name. */
+  dashboards: Record<string, PublishedDashboard>;
+}
+
+/** A Lightning dashboard as `embeddedDashboard` lays it out: its describe's grid and component titles. */
+export interface PublishedDashboard {
+  id: string;
+  title: string;
+  /** Runs as one specified user, so its results are the same for every viewer. */
+  sharedResults: boolean;
+  numColumns: number;
+  rowHeight: number;
+  components: PublishedDashboardComponent[];
+  /** When the results were last refreshed (only with `data`). */
+  refreshedAt?: string;
+}
+
+export interface PublishedDashboardComponent {
+  id: string;
+  /** The header (DashboardComponentViewModel.title). */
+  title: string;
+  /** The component's own title, drawn under the header. */
+  subtitle: string;
+  chart: string;
+  /** groupByType for bars: grouped, stacked, or stacked100. */
+  groupBy: string;
+  column: number;
+  row: number;
+  colspan: number;
+  rowspan: number;
+  /** visualizationProperties.legendPosition: Right, Bottom, or None. */
+  legend: string;
+  showValues: boolean;
+  showTotal: boolean;
+  /** Fold items under 3% of the total into "Other". */
+  combineSmall: boolean;
+  /** The component's results, read live — only for dashboards with shared results. */
+  data?: DashboardData;
+}
+
+/** One component's report results, as chart series. */
+export interface DashboardData {
+  /** Aggregate labels, e.g. "Sum of No of Engagements". */
+  measures: string[];
+  /** The first grouping's labels: slices, or x-axis categories. */
+  categories: string[];
+  /** Series come from a second grouping (else one per measure). */
+  grouped: boolean;
+  /** One series per second-grouping value, else one per measure. */
+  series: { label: string; values: (number | null)[]; labels: string[] }[];
+  /** The grand total of the first measure, formatted. */
+  total?: string;
 }
 
 export type PublishedResult = PublishedIpad | { profile: string; missing: true };

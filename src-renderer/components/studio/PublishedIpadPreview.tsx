@@ -8,6 +8,20 @@ import type {
   PublishedResult,
   PublishedTab,
 } from "./published-types";
+import IpadScreen from "./IpadScreen";
+import { Dashboard } from "./IpadDashboard";
+import { IpadSearchField, IpadStatusBar, IpadTopBar, type ChromeTab } from "./IpadChrome";
+import { initials } from "./ipad-chrome";
+import {
+  ActivityPlanProgress,
+  AgentforceWelcome,
+  Announcements,
+  HomeFabs,
+  NextBestCustomers,
+  RichText,
+  UpNextMap,
+  VisitsToSubmit,
+} from "./IpadHome";
 
 export type PublishedState =
   | { status: "loading" }
@@ -68,12 +82,13 @@ function Device({
     setCurrent(t.fullName);
     setRecord(false);
   };
-  const initials = (snapshot.viewer?.name ?? snapshot.profile)
-    .split(/\s+/)
-    .filter((w) => /^[A-Za-z]/.test(w))
-    .slice(-2)
-    .map((w) => w[0].toUpperCase())
-    .join("");
+  // UITabBarController in .tabBar mode: the tabs in a paged floating bar, search pinned last.
+  const chromeTabs = useMemo<ChromeTab[]>(
+    () => snapshot.tabs.filter((t) => t.kind !== "recent").map((t) => ({ key: t.fullName, label: t.label, title: t.fullName })),
+    [snapshot.tabs]
+  );
+  const onHome = tab?.kind === "home" && !!snapshot.home && !record;
+  const homeHasAgentforce = !!snapshot.home?.regions.some((r) => r.components.some((c) => c.supported && /lsAgentforceWelcome$/.test(c.name)));
   const generated = snapshot.cache.generatedAt ? new Date(snapshot.cache.generatedAt).toLocaleString() : "unknown";
 
   return (
@@ -118,59 +133,24 @@ function Device({
         </button>
       </div>
 
-      <div className="studio-ipad" role="region" aria-label="iPad preview (published)">
-        <div className="studio-ipad-screen">
-          <div className="studio-ipad-statusbar">
-            <span>
-              9:41 AM <span className="studio-ipad-muted">Fri</span>
-            </span>
-            <span>100%</span>
-          </div>
-          <div className="studio-ipad-topbar">
-            <div className="studio-ipad-topbar-side">
-              {record && (
-                <button type="button" className="studio-ipad-icon-btn" onClick={() => setRecord(false)} aria-label="Back">
-                  ‹
-                </button>
-              )}
-            </div>
-            {/* UITabBarController in .tabBar mode: every tab in one floating bar, search pinned last. */}
-            <nav className="studio-ipad-tabbar scroll" aria-label="Navigation tabs">
-              {snapshot.tabs.map((t) =>
-                t.kind === "recent" ? (
-                  <button
-                    key={t.fullName}
-                    type="button"
-                    className={`studio-ipad-pager${t.fullName === tab?.fullName ? " current" : ""}`}
-                    title="Search and recent items (always pinned)"
-                    onClick={() => open(t)}
-                  >
-                    <SearchIcon />
-                  </button>
-                ) : (
-                  <button
-                    key={t.fullName}
-                    type="button"
-                    className={`studio-ipad-pill${t.fullName === tab?.fullName ? " current" : ""}`}
-                    title={t.fullName}
-                    onClick={() => open(t)}
-                  >
-                    {t.label}
-                  </button>
-                )
-              )}
-            </nav>
-            <div className="studio-ipad-topbar-side right">
-              <span className="studio-ipad-round" title="Briefings" />
-              <span className="studio-ipad-round" title="Notifications" />
-              <span className="studio-ipad-round avatar">{initials}</span>
-            </div>
-          </div>
-          <div className="studio-ipad-page">
-            {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={() => setRecord(true)} />}
-          </div>
+      <IpadScreen label="iPad preview (published)">
+        <IpadStatusBar />
+        <IpadTopBar
+          tabs={chromeTabs}
+          current={tab?.fullName ?? ""}
+          onOpen={(key) => {
+            const t = snapshot.tabs.find((x) => x.fullName === key);
+            if (t) open(t);
+          }}
+          searchKey={snapshot.tabs.find((t) => t.kind === "recent")?.fullName}
+          onBack={record ? () => setRecord(false) : undefined}
+          name={initials(snapshot.viewer?.name ?? snapshot.profile)}
+        />
+        <div className={`studio-ipad-page${tab?.kind === "empty" ? " blank" : ""}${onHome ? " home" : ""}`}>
+          {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={() => setRecord(true)} />}
         </div>
-      </div>
+        {onHome && <HomeFabs agentforce={homeHasAgentforce} />}
+      </IpadScreen>
 
       <ul className="studio-ipad-legend">
         <li>
@@ -239,11 +219,8 @@ const NATIVE_SCREENS: Partial<Record<PublishedTab["kind"], string>> = {
 function ComingSoon({ reason }: { reason?: string }) {
   return (
     <>
-      <div className="studio-ipad-coming-soon">
-        <span className="studio-ipad-coming-soon-logo" aria-hidden="true" />
-        <span>Coming soon</span>
-      </div>
-      {reason && <div className="studio-ipad-warn">{reason}</div>}
+      <div className="studio-ipad-coming-soon">Coming soon</div>
+      {reason && <div className="studio-ipad-warn studio-ipad-coming-soon-reason">{reason}</div>}
     </>
   );
 }
@@ -369,10 +346,6 @@ function Region({
   );
 }
 
-function richText(html: string): string {
-  return new DOMParser().parseFromString(html, "text/html").body.textContent?.trim() ?? "";
-}
-
 function ComponentCard({
   c,
   snapshot,
@@ -426,39 +399,15 @@ function ComponentCard({
       </div>
     );
   }
-  if (/nbctopcards$/i.test(name))
-    return (
-      <div className={cls}>
-        <strong>Top {p.totalCards || 10} Next Best Customers By Score</strong>
-        <div className="studio-ipad-nbc-cards">
-          {Array.from({ length: Math.min(Number(p.totalCards) || 10, 4) }, (_, i) => (
-            <span key={i} className="studio-ipad-nbc-card">
-              <span className="studio-ipad-ph line short" />
-              <span className="studio-ipad-ph line" />
-            </span>
-          ))}
-        </div>
-        {p.graphName && <div className="studio-ipad-hint">Model: {p.graphName}</div>}
-      </div>
-    );
-  if (name === "lsAgentforceWelcome")
-    return (
-      <div className="studio-ipad-banner-hero">
-        <div>Agentforce</div>
-        <div className="studio-ipad-hero-input" />
-        <div className="studio-ipad-chips">
-          {["utterance1", "utterance2", "utterance3"]
-            .map((k) => p[k])
-            .filter(Boolean)
-            .map((u) => (
-              <span key={u} className="studio-ipad-chip">
-                {u}
-              </span>
-            ))}
-        </div>
-      </div>
-    );
-  if (name === "richText") return <div className={cls}>{richText(p.richTextValue ?? "") || "Rich text"}</div>;
+  if (/nbctopcards$/i.test(name)) return <NextBestCustomers totalCards={Number(p.totalCards) || 10} />;
+  // AgentforceWelcomeViewModel: every non-empty property becomes a prompt chip.
+  if (name === "lsAgentforceWelcome") return <AgentforceWelcome prompts={Object.values(p).filter(Boolean)} viewerName={snapshot.viewer?.name} />;
+  if (name === "lscHomeAnnouncements") return <Announcements />;
+  if (name === "richText") return <RichText html={p.richTextValue ?? ""} />;
+  if (name === "UpNextMapDisplay") return <UpNextMap />;
+  if (name === "embeddedDashboard") return <Dashboard dashboard={snapshot.dashboards[p.dashboardName ?? ""]} />;
+  if (name === "ActivityPlanByProduct") return <ActivityPlanProgress enhanced={p.showEnhActivityPlanOnMobileHomepage === "true"} />;
+  if (name === "UnsubmittedVisits") return <VisitsToSubmit />;
   return (
     <div className={cls}>
       <strong>{p.label || p.title || c.label}</strong>
@@ -533,6 +482,7 @@ function LayoutSections({ layout }: { layout: PublishedLayout }) {
 
 // ── Lists and records ─────────────────────────────────────────────────────────
 
+/** AllSObjectsViewController: header, search row, list view chips, then the data table. */
 function ListView({
   tab,
   object,
@@ -546,22 +496,33 @@ function ListView({
 }) {
   const [viewName, setViewName] = useState(object.defaultListView);
   const view = object.listViews.find((l) => l.name === viewName) ?? object.listViews[0];
+  // A list named "All" is titled "All <plural>".
+  const title = !view ? object.labelPlural : view.label === "All" ? `All ${object.labelPlural}` : view.label;
   return (
-    <>
-      <Head eyebrow={tab.label} title={view?.label ?? object.labelPlural}>
+    <div className="studio-ipad-lv">
+      <Head eyebrow={tab.label} title={title}>
         <span className="studio-ipad-outline-btn">New{accounts ? " Account" : ""}</span>
       </Head>
-      <div className="studio-ipad-search" />
-      {object.listViews.length > 0 && (
+      <div className="studio-ipad-lv-search">
+        <IpadSearchField />
+        <span className="studio-ipad-lv-toggle" title="Switch to card view" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 22 22">
+            <rect x="2.5" y="4" width="17" height="14" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
+            <path d="M6 8h1.5M6 11h1.5M6 14h1.5M9.5 8H16M9.5 11H16M9.5 14H16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+        </span>
+      </div>
+      {/* The chip row is hidden when there's only one list view. */}
+      {object.listViews.length > 1 && (
         <div
-          className="studio-ipad-chips studio-ipad-scroll-x"
+          className="studio-ipad-lv-chips"
           title={object.hiddenListViews?.length ? `Not shown to this user:\n${object.hiddenListViews.map((h) => `${h.label} — ${h.reason}`).join("\n")}` : undefined}
         >
           {object.listViews.map((l) => (
             <button
               key={l.name}
               type="button"
-              className={`studio-ipad-chip${l.name === view?.name ? " current" : ""}`}
+              className={`studio-ipad-lv-chip${l.name === view?.name ? " current" : ""}`}
               onClick={() => setViewName(l.name)}
             >
               {l.label}
@@ -569,25 +530,47 @@ function ListView({
           ))}
         </div>
       )}
-      {view && view.columns.length > 0 && (
-        <div className="studio-ipad-lv-head">
-          {view.columns.slice(0, 5).map((c) => (
-            <span key={c}>{columnLabel(c)}</span>
-          ))}
-        </div>
-      )}
-      {[0, 1, 2, 3].map((i) => (
-        <button key={i} type="button" className="studio-ipad-card studio-ipad-record-row" onClick={onOpenRecord}>
-          <span className="studio-ipad-ph line short" />
-          <span className="studio-ipad-ph line" />
-        </button>
-      ))}
-    </>
+      {view && <DataTable columns={view.columns.map(columnLabel)} onOpenRecord={onOpenRecord} />}
+    </div>
   );
 }
 
-/** List view columns come as `ACCOUNT.NAME` / `CORE.USERS.ALIAS` / `Field__c`. */
+/** Placeholder widths for a cell, so rows read as data without inventing any. */
+const CELL_WIDTHS = [62, 48, 74, 40, 56, 68, 44, 52];
+
+/**
+ * DataTableView in table mode: 37pt header, 44pt rows, each column the table's
+ * width split evenly but never under 250pt (wider tables scroll sideways).
+ * Sorted by the first column, ascending, like a list view with no configured sort.
+ */
+function DataTable({ columns, onOpenRecord }: { columns: string[]; onOpenRecord: () => void }) {
+  const width = `max(250px, calc(100% / ${Math.max(columns.length, 1)}))`;
+  return (
+    <div className="studio-ipad-table">
+      <div className="studio-ipad-table-row head">
+        {columns.map((c, i) => (
+          <span key={i} className={`studio-ipad-table-cell${i === 0 ? " sorted" : ""}`} style={{ width, flex: "none" }}>
+            {c}
+            {i === 0 && <span className="studio-ipad-sort" aria-label="Sorted ascending">↑</span>}
+          </span>
+        ))}
+      </div>
+      {Array.from({ length: 14 }, (_, r) => (
+        <button key={r} type="button" className="studio-ipad-table-row" onClick={onOpenRecord}>
+          {columns.map((_, i) => (
+            <span key={i} className="studio-ipad-table-cell" style={{ width, flex: "none" }}>
+              <span className="studio-ipad-ph line" style={{ width: `${CELL_WIDTHS[(r * 3 + i * 5) % CELL_WIDTHS.length]}%` }} />
+            </span>
+          ))}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** List view columns are field labels; older caches give API names (`ACCOUNT.NAME`, `Field__c`). */
 function columnLabel(c: string): string {
+  if (!/^[A-Z0-9_.]+$|__[cr]$|\./.test(c)) return c;
   const last = c.split(".").pop() ?? c;
   return last
     .replace(/__c$|__pc$/, "")
@@ -657,14 +640,5 @@ function RecordView({ object, snapshot }: { object: PublishedObject; snapshot: P
         {object.name === "Visit" ? " · new Visits open in Visit Engagement" : ""}
       </div>
     </>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true">
-      <circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
   );
 }

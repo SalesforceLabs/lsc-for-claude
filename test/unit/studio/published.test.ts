@@ -5,6 +5,8 @@ import {
   buildSnapshot,
   buildTabs,
   componentInfo,
+  dashboardData,
+  dashboardFromDescribe,
   effectiveProfile,
   fieldLabel,
   separatedWithSpaces,
@@ -241,6 +243,97 @@ describe("buildPage", () => {
     expect(page.template).toBe("defaultFlexiPage");
     expect(page.regions[0].components[0].tabs).toEqual([
       { title: "Details", active: true, components: [expect.objectContaining({ label: "Record details" })] },
+    ]);
+  });
+});
+
+describe("home components", () => {
+  const props = (pairs: [string, string][]) => ({ componentInstanceProperties: pairs.map(([name, value]) => ({ name, value })) });
+  it("keeps every Agentforce welcome property as a prompt, but only known properties elsewhere", () => {
+    const page = buildPage("H", {
+      type: "HomePage",
+      template: { name: "home:desktopTemplate" },
+      flexiPageRegions: [
+        {
+          name: "top",
+          type: "Region",
+          itemInstances: [
+            comp("lsc4ce:lsAgentforceWelcome", props([["utterance1", "A"], ["utterance5", "B"], ["extra", "C"]])),
+            comp("flexipage:richText", props([["richTextValue", "<p>Hi</p>"], ["decorate", "true"]])),
+          ],
+        },
+      ],
+    });
+    const [welcome, rich] = page.regions[0].components;
+    expect(Object.values(welcome.properties)).toEqual(["A", "B", "C"]);
+    expect(rich.properties).toEqual({ richTextValue: "<p>Hi</p>" });
+  });
+  it("lays out embedded dashboards from the cache's reporting.json", () => {
+    const describe = {
+      id: "01ZHn000001Z3diMAC",
+      name: "Field Rep Dashboard",
+      dashboardType: "SpecifiedUser",
+      components: [
+        { id: "c1", header: "Donut", properties: { visualizationType: "Donut" } },
+        { id: "c2", header: "Line", properties: { visualizationType: "Line", visualizationProperties: { legendPosition: "Right", showValues: true } } },
+      ],
+      layout: { numColumns: 12, rowHeight: 36, components: [{ column: 0, row: 0, colspan: 5, rowspan: 8 }, { column: 5, row: 0, colspan: 7, rowspan: 8 }] },
+    };
+    const d = dashboardFromDescribe(describe);
+    expect(d.sharedResults).toBe(true);
+    expect(d.components[1]).toEqual({
+      id: "c2",
+      title: "Line",
+      subtitle: "",
+      chart: "Line",
+      groupBy: "",
+      column: 5,
+      row: 0,
+      colspan: 7,
+      rowspan: 8,
+      legend: "Right",
+      showValues: true,
+      showTotal: false,
+      combineSmall: false,
+    });
+    const f = files();
+    const home = (f.ui.flexiPages as Record<string, Row>).Rep_Home as { flexiPageRegions: { itemInstances: Row[] }[] };
+    home.flexiPageRegions[0].itemInstances.push(comp("desktopDashboards:embeddedDashboard", props([["dashboardName", "Rep_Dash"]])));
+    const s = buildSnapshot({ ...f, reporting: { dashboards: { Rep_Dash: describe, Other: describe } } }, meta);
+    expect(Object.keys(s.dashboards)).toEqual(["Rep_Dash"]);
+    expect(s.dashboards.Rep_Dash.title).toBe("Field Rep Dashboard");
+  });
+  it("reads a report result's groupings as chart series", () => {
+    const agg = (label: string, value: number) => ({ label, value });
+    const meta = { reportMetadata: { aggregates: ["s!A", "s!B"] }, reportExtendedMetadata: { aggregateColumnInfo: { "s!A": { label: "Sum of A" } } } };
+    const one = dashboardData({
+      ...meta,
+      groupingsDown: { groupings: [{ key: "0", label: "F2F" }, { key: "1", label: "Email" }] },
+      factMap: { "0!T": { aggregates: [agg("22", 22), agg("1", 1)] }, "1!T": { aggregates: [agg("17", 17), agg("2", 2)] }, "T!T": { aggregates: [agg("39", 39)] } },
+    });
+    expect(one).toEqual({
+      measures: ["Sum of A", "s!B"],
+      categories: ["F2F", "Email"],
+      grouped: false,
+      series: [
+        { label: "Sum of A", values: [22, 17], labels: ["22", "17"] },
+        { label: "s!B", values: [1, 2], labels: ["1", "2"] },
+      ],
+      total: "39",
+    });
+    const two = dashboardData({
+      ...meta,
+      groupingsDown: {
+        groupings: [
+          { key: "0", label: "Jan", groupings: [{ key: "0_0", label: "X" }] },
+          { key: "1", label: "Feb", groupings: [{ key: "1_0", label: "Y" }, { key: "1_1", label: "X" }] },
+        ],
+      },
+      factMap: { "0_0!T": { aggregates: [agg("5", 5)] }, "1_0!T": { aggregates: [agg("6", 6)] }, "1_1!T": { aggregates: [agg("7", 7)] } },
+    });
+    expect(two.series).toEqual([
+      { label: "X", values: [5, 7], labels: ["5", "7"] },
+      { label: "Y", values: [null, 6], labels: ["", "6"] },
     ]);
   });
 });

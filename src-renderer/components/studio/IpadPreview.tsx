@@ -1,4 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
+import IpadScreen from "./IpadScreen";
+import { IpadStatusBar, IpadTopBar, type ChromeTab } from "./IpadChrome";
+import { initials } from "./ipad-chrome";
 import type { FeatureMap, ItemDetail, LayoutSidebar } from "./types";
 import type { Lens } from "./lens";
 import type { PendingChange } from "./changes";
@@ -26,9 +29,6 @@ interface IpadPreviewProps {
   /** Object whose record the preview opens on, e.g. "Visit" when opened from Visit Management. */
   startOn?: string;
 }
-
-/** Tabs per page of the top tab bar, Home included — LSC Mobile pages the rest behind ‹ ›. */
-const TABS_PER_PAGE = 4;
 
 /** A pill in the top tab bar. Home is built into the app; a configured home tab only relabels it. */
 interface Pill {
@@ -68,7 +68,6 @@ export default function IpadPreview({
 
   const [screenKey, setScreenKey] = useState("home");
   const [onRecord, setOnRecord] = useState(false);
-  const [page, setPage] = useState(0);
   const pill = pills.find((p) => p.key === screenKey) ?? pills[0];
   const tab = pill.key === "home" ? undefined : pill.tab;
   const open = (key: string) => {
@@ -82,19 +81,17 @@ export default function IpadPreview({
     if (started || startIndex < 0) return;
     setStarted(true);
     setScreenKey(pills[startIndex].key);
-    setPage(Math.floor(startIndex / TABS_PER_PAGE));
     setOnRecord(true);
   }, [started, startIndex]);
   const startMissing = !!startOn && startIndex < 0 && !!actionsMap;
 
-  const pages = Math.ceil(pills.length / TABS_PER_PAGE);
-  const shown = pills.slice(page * TABS_PER_PAGE, (page + 1) * TABS_PER_PAGE);
-  const initials = (lens?.profile ?? "All")
-    .split(/\s+/)
-    .filter((w) => /^[A-Za-z]/.test(w))
-    .slice(-2)
-    .map((w) => w[0].toUpperCase())
-    .join("");
+  const chromeTabs: ChromeTab[] = pills.map((p) => ({
+    key: p.key,
+    label: p.label,
+    title: p.tab ? (p.tab.reason ?? p.tab.tabName) : "Built into the app",
+    className: pillClasses(p.tab),
+    badge: p.tab?.sync === "notSynced" ? <span className="studio-ipad-dot" aria-label="Not synced" /> : undefined,
+  }));
 
   const kind = !tab
     ? "home"
@@ -133,118 +130,60 @@ export default function IpadPreview({
         <CacheBadge preview={preview} onSelect={onSelect} />
       </div>
 
-      <div className="studio-ipad" role="region" aria-label="iPad preview">
-        <div className="studio-ipad-screen">
-          <div className="studio-ipad-statusbar">
-            <span>
-              9:41 AM <span className="studio-ipad-muted">Fri</span>
-            </span>
-            <span>100%</span>
-          </div>
+      <IpadScreen label="iPad preview">
+        <IpadStatusBar />
 
-          {isVisitRecord ? (
-            <VisitEngagement onClose={() => setOnRecord(false)} tab={tab!} onSelect={onSelect}>
-              <VisitSidebar
-                visitMap={visitMap}
-                error={visitError}
-                onLoad={onLoadVisit}
-                pending={pending}
-                onSelect={onSelect}
-              />
-            </VisitEngagement>
-          ) : (
-            <>
-              <div className="studio-ipad-topbar">
-                <div className="studio-ipad-topbar-side">
-                  {onRecord && (
-                    <button
-                      type="button"
-                      className="studio-ipad-icon-btn"
-                      onClick={() => setOnRecord(false)}
-                      aria-label="Back"
-                    >
-                      ‹
-                    </button>
-                  )}
-                </div>
-                <nav className="studio-ipad-tabbar" aria-label="Navigation tabs">
-                  {page > 0 && (
-                    <button
-                      type="button"
-                      className="studio-ipad-pager"
-                      onClick={() => setPage(page - 1)}
-                      aria-label="Previous tabs"
-                    >
-                      ‹
-                    </button>
-                  )}
-                  {shown.map((p) => (
-                    <button
-                      key={p.key}
-                      type="button"
-                      className={`studio-ipad-pill${p.key === pill.key ? " current" : ""}${pillClasses(p.tab)}`}
-                      title={p.tab ? (p.tab.reason ?? p.tab.tabName) : "Built into the app"}
-                      onClick={() => open(p.key)}
-                    >
-                      {p.label}
-                      {p.tab?.sync === "notSynced" && (
-                        <span className="studio-ipad-dot" aria-label="Not synced" />
-                      )}
-                    </button>
-                  ))}
-                  <span className="studio-ipad-pager" aria-hidden="true">
-                    <SearchIcon />
-                  </span>
-                  {page < pages - 1 && (
-                    <button
-                      type="button"
-                      className="studio-ipad-pager"
-                      onClick={() => setPage(page + 1)}
-                      aria-label="More tabs"
-                    >
-                      ›
-                    </button>
-                  )}
-                </nav>
-                <div className="studio-ipad-topbar-side right">
-                  <span className="studio-ipad-round" title="Briefings" />
-                  <span className="studio-ipad-round" title="Notifications" />
-                  <span className="studio-ipad-round avatar">{initials}</span>
-                </div>
-              </div>
-
-              <div className="studio-ipad-page">
-                {kind === "home" ? (
-                  <HomeScreen tab={homeTab} nbcActions={preview.nbcActions} selectedItem={selectedItem} onSelect={onSelect} />
-                ) : kind === "calendar" ? (
-                  <CalendarScreen tab={tab!} onSelect={onSelect} />
-                ) : kind === "object" && onRecord ? (
-                  <RecordScreen tab={tab!} onSelect={onSelect} />
-                ) : kind === "object" ? (
-                  <ListScreen
-                    tab={tab!}
-                    onSelect={onSelect}
-                    onOpenRecord={() => setOnRecord(true)}
-                  />
-                ) : (
-                  <OtherScreen tab={tab!} onSelect={onSelect} />
-                )}
-              </div>
-            </>
-          )}
-
-          {actions && (
-            <ActionMenu
-              key={`${pill.key}:${onRecord}`}
-              actions={actions}
-              empty={kind === "home" ? "No home page actions" : "No record actions"}
-              defaultOpen={!isVisitRecord}
-              selectedItem={selectedItem}
+        {isVisitRecord ? (
+          <VisitEngagement onClose={() => setOnRecord(false)} tab={tab!} onSelect={onSelect}>
+            <VisitSidebar
+              visitMap={visitMap}
+              error={visitError}
+              onLoad={onLoadVisit}
+              pending={pending}
               onSelect={onSelect}
             />
-          )}
-        </div>
-      </div>
+          </VisitEngagement>
+        ) : (
+          <>
+            <IpadTopBar
+              tabs={chromeTabs}
+              current={pill.key}
+              onOpen={open}
+              onBack={onRecord ? () => setOnRecord(false) : undefined}
+              name={initials(lens?.profile ?? "All")}
+            />
+
+            <div className="studio-ipad-page">
+              {kind === "home" ? (
+                <HomeScreen tab={homeTab} nbcActions={preview.nbcActions} selectedItem={selectedItem} onSelect={onSelect} />
+              ) : kind === "calendar" ? (
+                <CalendarScreen tab={tab!} onSelect={onSelect} />
+              ) : kind === "object" && onRecord ? (
+                <RecordScreen tab={tab!} onSelect={onSelect} />
+              ) : kind === "object" ? (
+                <ListScreen
+                  tab={tab!}
+                  onSelect={onSelect}
+                  onOpenRecord={() => setOnRecord(true)}
+                />
+              ) : (
+                <OtherScreen tab={tab!} onSelect={onSelect} />
+              )}
+            </div>
+          </>
+        )}
+
+        {actions && (
+          <ActionMenu
+            key={`${pill.key}:${onRecord}`}
+            actions={actions}
+            empty={kind === "home" ? "No home page actions" : "No record actions"}
+            defaultOpen={!isVisitRecord}
+            selectedItem={selectedItem}
+            onSelect={onSelect}
+          />
+        )}
+      </IpadScreen>
 
       <ul className="studio-ipad-legend">
         <li>
@@ -690,15 +629,6 @@ function CacheBadge({
     </button>
   ) : (
     <span className={cls}>{cache.label}</span>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">
-      <circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M11 11l3.5 3.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
   );
 }
 
