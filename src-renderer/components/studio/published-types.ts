@@ -83,6 +83,8 @@ export interface PublishedObject {
   defaultCompactLayout: string | null;
   listViews: { name: string; label: string; columns: string[] }[];
   defaultListView: string | null;
+  /** List views shared only with roles, groups, or territories the viewer isn't in. */
+  hiddenListViews?: { label: string; reason: string }[];
 }
 
 export interface PublishedIpad {

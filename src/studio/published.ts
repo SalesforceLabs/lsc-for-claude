@@ -101,8 +101,18 @@ export interface PublishedObject {
   recordTypes: PublishedRecordType[];
   /** Used when a record has no record type. */
   defaultCompactLayout: string | null;
-  listViews: { name: string; label: string; columns: string[] }[];
+  listViews: PublishedListView[];
   defaultListView: string | null;
+  /** List views shared only with roles, groups, or territories the viewer isn't in. */
+  hiddenListViews?: { label: string; reason: string }[];
+}
+
+export interface PublishedListView {
+  name: string;
+  label: string;
+  columns: string[];
+  /** The list view's `sharedTo` (non-empty entries); absent = visible to all users. */
+  sharedTo?: Record<string, string[]>;
 }
 
 export interface PublishedIpad {
@@ -196,7 +206,11 @@ export function effectiveProfile(permissions: Row, permissionSets: string[]): Ro
  * overrides (Planner, CLM, MyTeam). `null` = no coordinator, so the tab is
  * dropped (TabsItemFactory compactMaps it away).
  */
-export function tabKind(tab: Row, hasTable: (sobject: string) => boolean): TabKind | null {
+export function tabKind(
+  tab: Row,
+  hasTable: (sobject: string) => boolean,
+  hasSobject: (sobject: string) => boolean = () => true
+): TabKind | null {
   const fullName = str(tab.fullName);
   if (fullName === ns("Planner")) return "calendar";
   if (["Accounts", "Customers"].map(ns).includes(fullName) || fullName === "AccountFilter" || fullName === ns("AccountFilter"))
@@ -214,7 +228,8 @@ export function tabKind(tab: Row, hasTable: (sobject: string) => boolean): TabKi
   switch (str(tab.type).toLowerCase()) {
     case "sobject":
     case "customobject":
-      return tab.sobjectName ? "object" : "empty";
+      // MetadataNavigation.init looks the object up in sobjects.json; no entry → FancyEmptyCoordinator.
+      return tab.sobjectName && hasSobject(str(tab.sobjectName)) ? "object" : "empty";
     case "flexipage":
       return ieq(fullName, "standard-home") ? "home" : "flexiPage";
     default:
@@ -242,7 +257,10 @@ const NATIVE_TAB_NAMES: Record<string, string> = {
 function emptyReason(tab: Row, nav: Record<string, Row>, visible: Set<string>): string {
   const fullName = str(tab.fullName);
   const type = str(tab.type).toLowerCase();
-  if (type === "sobject" || type === "customobject") return "This object tab has no object the app can open.";
+  if (type === "sobject" || type === "customobject") {
+    if (!tab.sobjectName) return "This object tab has no object the app can open.";
+    return `${str(tab.sobjectName)} isn't in this profile's published objects, so the tab shows "Coming soon". Add it to the profile's DB Schema and publish again.`;
+  }
   if (type === "mobile") {
     const key = fullName.replace(/^lsc4ce__/i, "").replace(/[\s_]/g, "").toLowerCase();
     const native = NATIVE_TAB_NAMES[key];
@@ -311,7 +329,7 @@ export function buildTabs(files: MetadataFiles, availableTables?: Set<string>): 
     if (fullName.toLowerCase().includes("order") && fullName.toLowerCase().includes("dashboard")) {
       t = { ...t, sobjectName: "Order__c", type: "sobject" };
     }
-    const kind = tabKind(t, hasTable);
+    const kind = tabKind(t, hasTable, (s) => Object.prototype.hasOwnProperty.call(files.sobjects, s));
     if (!kind) {
       hide(TAB_FILTER_REASONS.noCoordinator);
       continue;
@@ -607,19 +625,26 @@ function buildObject(name: string, sobject: Row, ui: Row, profile: Row): Publish
       flexiPage: rt.flexiPage ? str(rt.flexiPage) : null,
       compactLayout: rt.compactLayoutAssignment ? str(rt.compactLayoutAssignment) : sobject.compactLayoutAssignment ? str(sobject.compactLayoutAssignment) : null,
     }));
-  const listViews = Object.entries(obj(ui.listViews))
+  const listViews: PublishedListView[] = Object.entries(obj(ui.listViews))
     .filter(([k]) => k.startsWith(`${name}.`))
+    // AllSObjectsViewController.listViews drops recently viewed lists.
+    .filter(([, v]) => str(obj(v).filterScope).toLowerCase() !== "mru")
     .map(([, v]) => {
       const lv = obj(v);
+      const sharedTo = Object.fromEntries(
+        Object.entries(obj(lv.sharedTo))
+          .map(([k, names]) => [k, (Array.isArray(names) ? names : [names]).filter((n): n is string => typeof n === "string" && !!n)] as const)
+          .filter(([, names]) => names.length > 0)
+      );
       return {
         name: str(lv.fullName),
         label: str(lv.label) || str(lv.fullName),
         columns: arr(lv.columns).map((c) => str(c.label) || str(c.fullName)),
+        ...(Object.keys(sharedTo).length ? { sharedTo } : {}),
       };
     })
-    .sort((a, b) => a.label.localeCompare(b.label));
-  // ListViewsService default: ".All", then a name ending "All", then the first.
-  const def = listViews.find((l) => l.name === "All") ?? listViews.find((l) => l.name.endsWith("All")) ?? listViews[0];
+    // SObjectsCoordinator.updateListViews: `$0.label < $1.label` (code-unit order).
+    .sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0));
   return {
     name,
     label: str(sobject.label) || name,
@@ -627,8 +652,14 @@ function buildObject(name: string, sobject: Row, ui: Row, profile: Row): Publish
     recordTypes,
     defaultCompactLayout: sobject.compactLayoutAssignment ? str(sobject.compactLayoutAssignment) : null,
     listViews,
-    defaultListView: def?.name ?? null,
+    defaultListView: defaultListView(listViews),
   };
+}
+
+/** SObjectsCoordinator.didSelect(nil): a name containing ".All", then one ending "All", then the first. */
+function defaultListView(views: { name: string }[]): string | null {
+  const all = (n: string) => n.startsWith("All") || n.startsWith("lsc4ce__All");
+  return (views.find((l) => all(l.name)) ?? views.find((l) => l.name.endsWith("All")) ?? views[0])?.name ?? null;
 }
 
 /** Objects the preview can open: tab objects plus Account and Visit. */
@@ -684,11 +715,68 @@ export function buildSnapshot(
   return { profile: meta.profile, cache: meta.cache, tabs, hiddenTabs: hidden, home, objects, layouts, pages, compactLayouts, notes };
 }
 
+/**
+ * Who a user is for list view sharing: role and public group developer
+ * names, and territories as `Model.Territory` — each "AndAbove" set holds the
+ * user's own plus every ancestor (matching an "…AndSubordinates" share).
+ */
+export interface ViewerSharing {
+  role: string | null;
+  roleAndAbove: Set<string>;
+  groups: Set<string>;
+  territories: Set<string>;
+  territoryAndAbove: Set<string>;
+}
+
+const SHARE_MATCH: Record<string, (v: ViewerSharing, n: string) => boolean> = {
+  role: (v, n) => v.role === n,
+  roles: (v, n) => v.role === n,
+  roleAndSubordinates: (v, n) => v.roleAndAbove.has(n),
+  roleAndSubordinatesInternal: (v, n) => v.roleAndAbove.has(n),
+  rolesAndSubordinates: (v, n) => v.roleAndAbove.has(n),
+  group: (v, n) => v.groups.has(n),
+  groups: (v, n) => v.groups.has(n),
+  territory: (v, n) => v.territories.has(n),
+  territories: (v, n) => v.territories.has(n),
+  territoryAndSubordinates: (v, n) => v.territoryAndAbove.has(n),
+  territoriesAndSubordinates: (v, n) => v.territoryAndAbove.has(n),
+};
+
+const SHARE_NOUN: Record<string, string> = {
+  role: "role", roles: "role", roleAndSubordinates: "role and subordinates", roleAndSubordinatesInternal: "role and subordinates",
+  rolesAndSubordinates: "role and subordinates", group: "group", groups: "group", territory: "territory", territories: "territory",
+  territoryAndSubordinates: "territory and subordinates", territoriesAndSubordinates: "territory and subordinates",
+};
+
+/**
+ * Keep the list views the viewer can see. The app lists them live from
+ * `/sobjects/<object>/listviews` as the user (the cache's own list views are
+ * ignored — MetadataCore decodes them as []), so a view shared only with
+ * roles, groups, or territories the user isn't in never shows.
+ */
+export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing | null): SnapshotCore {
+  if (!viewer) return core;
+  const objects: Record<string, PublishedObject> = {};
+  for (const [name, o] of Object.entries(core.objects)) {
+    const hiddenListViews: { label: string; reason: string }[] = [];
+    const listViews = o.listViews.filter((l) => {
+      if (!l.sharedTo) return true;
+      const entries = Object.entries(l.sharedTo);
+      if (entries.some(([k, names]) => names.some((n) => SHARE_MATCH[k]?.(viewer, n)))) return true;
+      const to = entries.map(([k, names]) => `${SHARE_NOUN[k] ?? k} ${names.join(", ")}`).join("; ");
+      hiddenListViews.push({ label: l.label, reason: `Shared only with ${to}` });
+      return false;
+    });
+    objects[name] = { ...o, listViews, defaultListView: defaultListView(listViews), ...(hiddenListViews.length ? { hiddenListViews } : {}) };
+  }
+  return { ...core, objects };
+}
+
 // ── Org access ────────────────────────────────────────────────────────────────
 
 const FILES = ["nav", "ui", "permissions", "db", "sobjects"] as const;
 const CACHE_ROOT = path.join(os.tmpdir(), "lsc-studio-published");
-const SNAPSHOT_VERSION = 5;
+const SNAPSHOT_VERSION = 7;
 /** UserService.defaultLanguage — the translation file used when the user's is missing. */
 const DEFAULT_LANGUAGE = "en_US";
 /** Distinct permission-set combinations pre-built per download. */
@@ -889,6 +977,69 @@ async function availableTablesFor(
   }
 }
 
+/** Walk a parent field up from `ids`, returning every row reached (the starting rows included). */
+async function ancestors(sobject: string, parentField: string, fields: string, ids: string[], org: string): Promise<Row[]> {
+  const seen = new Map<string, Row>();
+  let frontier = ids.filter((id) => ID_PATTERN.test(id));
+  for (let depth = 0; frontier.length && depth < 20; depth++) {
+    const rows = await query(`SELECT Id, ${parentField}, ${fields} FROM ${sobject} WHERE Id IN (${inList(frontier)})`, org);
+    for (const r of rows) seen.set(str(r.Id), r);
+    frontier = [...new Set(rows.map((r) => str(r[parentField])).filter((id) => id && !seen.has(id)))];
+  }
+  return [...seen.values()];
+}
+
+/** The user's role, public groups (nested included), and territories, for list view sharing; null if the org won't say. */
+async function viewerSharing(userId: string, org: string): Promise<ViewerSharing | null> {
+  if (!ID_PATTERN.test(userId)) return null;
+  try {
+    const [users, assignments] = await Promise.all([
+      query(`SELECT UserRoleId, UserRole.DeveloperName FROM User WHERE Id = '${userId}'`, org),
+      query(`SELECT Territory2Id FROM UserTerritory2Association WHERE UserId = '${userId}' AND IsActive = true`, org),
+    ]);
+    const roleId = str(users[0]?.UserRoleId);
+    const roles = roleId ? await ancestors("UserRole", "ParentRoleId", "DeveloperName", [roleId], org) : [];
+    const ownTerritories = assignments.map((a) => str(a.Territory2Id));
+    const territories = await ancestors("Territory2", "ParentTerritory2Id", "DeveloperName, Territory2Model.DeveloperName", ownTerritories, org);
+    const territoryName = (t: Row) => `${str(obj(t.Territory2Model).DeveloperName)}.${str(t.DeveloperName)}`;
+
+    // Start from the user and the role/territory groups they belong to, then follow group nesting.
+    const roleIds = roles.map((r) => str(r.Id));
+    const territoryIds = territories.map((t) => str(t.Id));
+    const clauses = [
+      roleId && `(Type = 'Role' AND RelatedId = '${roleId}')`,
+      roleIds.length && `(Type IN ('RoleAndSubordinates','RoleAndSubordinatesInternal') AND RelatedId IN (${inList(roleIds)}))`,
+      ownTerritories.length && `(Type = 'Territory' AND RelatedId IN (${inList(ownTerritories)}))`,
+      territoryIds.length && `(Type = 'TerritoryAndSubordinates' AND RelatedId IN (${inList(territoryIds)}))`,
+    ].filter(Boolean);
+    const implicit = clauses.length ? await query(`SELECT Id FROM Group WHERE ${clauses.join(" OR ")}`, org) : [];
+    const groups = new Set<string>();
+    const seen = new Set<string>([userId, ...implicit.map((g) => str(g.Id))]);
+    let frontier = [...seen];
+    for (let depth = 0; frontier.length && depth < 10; depth++) {
+      const rows = await query(`SELECT GroupId, Group.DeveloperName, Group.Type FROM GroupMember WHERE UserOrGroupId IN (${inList(frontier)})`, org);
+      frontier = [];
+      for (const m of rows) {
+        const g = obj(m.Group);
+        if (g.Type === "Regular" && str(g.DeveloperName)) groups.add(str(g.DeveloperName));
+        if (!seen.has(str(m.GroupId))) {
+          seen.add(str(m.GroupId));
+          frontier.push(str(m.GroupId));
+        }
+      }
+    }
+    return {
+      role: str(obj(users[0]?.UserRole).DeveloperName) || null,
+      roleAndAbove: new Set(roles.map((r) => str(r.DeveloperName))),
+      groups,
+      territories: new Set(territories.filter((t) => ownTerritories.includes(str(t.Id))).map(territoryName)),
+      territoryAndAbove: new Set(territories.map(territoryName)),
+    };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Load the iPad as one user of a profile sees it (the profile's most typical
  * user unless `userId` is given). Cache files never change once published, so
@@ -910,11 +1061,12 @@ export async function loadPublishedIpad(
 
   const language = user?.language ?? DEFAULT_LANGUAGE;
 
+  const sharing = user ? viewerSharing(user.id, org) : Promise.resolve(null);
   const dir = path.join(CACHE_ROOT, cache.contentVersionId);
   const snapshotPath = (sets: string[], lang: string) => path.join(dir, `snapshot-v${SNAPSHOT_VERSION}-${lang}-${comboKey(sets)}.json`);
   if (fs.existsSync(snapshotPath(permissionSets, language))) {
     const saved = JSON.parse(fs.readFileSync(snapshotPath(permissionSets, language), "utf8")) as SnapshotCore;
-    return { ...saved, profile, cache, viewer, users: userList };
+    return { ...applyListViewSharing(saved, await sharing), profile, cache, viewer, users: userList };
   }
 
   fs.mkdirSync(dir, { recursive: true });
@@ -939,7 +1091,7 @@ export async function loadPublishedIpad(
       fs.writeFileSync(snapshotPath(c.sets, c.language), JSON.stringify(snapshot));
       if (c.sets === permissionSets && c.language === language) result = snapshot;
     }
-    return { ...(result as SnapshotCore), viewer, users: userList };
+    return { ...applyListViewSharing(result as SnapshotCore, await sharing), viewer, users: userList };
   } finally {
     // Keep only the snapshots — the raw files hold the org's full metadata.
     for (const f of ["cache.zip", ...FILES.map((x) => `${x}.json`), ...languages.map((l) => `${l}.json`)]) fs.rmSync(path.join(dir, f), { force: true });

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  applyListViewSharing,
   buildPage,
   buildSnapshot,
   buildTabs,
@@ -9,6 +10,7 @@ import {
   trimNamespace,
   visibilityOf,
   type MetadataFiles,
+  type ViewerSharing,
 } from "../../../src/studio/published.js";
 
 type Row = Record<string, unknown>;
@@ -132,6 +134,11 @@ describe("buildTabs", () => {
     expect(hidden.find((h) => h.label === "Visits")?.reason).toMatch(/active DB Schema record the user can read/);
     expect(buildTabs(files(), new Set(["visit"])).tabs.map((t) => t.label)).not.toContain("Visits");
   });
+  it("shows an available object tab without published object metadata as Coming soon", () => {
+    const orders = buildTabs(files(), new Set(["Order", "Visit"])).tabs.find((t) => t.fullName === "standard-Order");
+    expect(orders).toMatchObject({ kind: "empty" });
+    expect(orders?.emptyReason).toMatch(/Order isn't in this profile's published objects/);
+  });
   it("uses the translated tab label when it's non-empty", () => {
     const translations = { tabs: { "standard-Visit": { label: "Visit" }, "lsc4ce__Planner": { label: "" } } };
     const labels = buildTabs(files({ translations })).tabs.map((t) => t.label);
@@ -155,6 +162,7 @@ describe("buildTabs", () => {
     const f = files();
     f.nav.od = { fullName: "OrdersDashboard", label: "Orders", type: "flexipage" };
     (f.permissions.profile as { tabVisibilities: Row[] }).tabVisibilities.push({ tab: "OrdersDashboard", visibility: "DefaultOn" });
+    f.sobjects.Order__c = { label: "Order" };
     expect(buildTabs(f).tabs.find((t) => t.fullName === "OrdersDashboard")).toMatchObject({ kind: "object", sobject: "Order__c" });
   });
   it("never shows Samples Management tabs", () => {
@@ -285,5 +293,50 @@ describe("buildSnapshot", () => {
       actions: [],
     });
     expect(s.compactLayouts["Visit.VisitCompact"]).toEqual(["Name", "Status"]);
+  });
+});
+
+describe("list views", () => {
+  const views = (listViews: Record<string, Row>) => files({ ui: { ...files().ui, listViews } });
+  const viewer = (over: Partial<ViewerSharing> = {}): ViewerSharing => ({
+    role: "Rep",
+    roleAndAbove: new Set(["Rep", "Manager"]),
+    groups: new Set(["Pharma"]),
+    territories: new Set(["Model.T1"]),
+    territoryAndAbove: new Set(["Model.T1", "Model.Region"]),
+    ...over,
+  });
+
+  it("sorts by label in code-unit order, drops recently viewed, and defaults to an All… name", () => {
+    const f = views({
+      "Visit.b": { fullName: "b", label: "planned" },
+      "Visit.Upcoming": { fullName: "Upcoming", label: "Upcoming" },
+      "Visit.All_Visit": { fullName: "All_Visit", label: "Everything" },
+      "Visit.Recent": { fullName: "Recent", label: "Recent", filterScope: "MRU" },
+    });
+    const visit = buildSnapshot(f, meta).objects.Visit;
+    expect(visit.listViews.map((l) => l.label)).toEqual(["Everything", "Upcoming", "planned"]);
+    expect(visit.defaultListView).toBe("All_Visit");
+  });
+
+  it("hides views shared only with roles, groups, or territories the viewer isn't in", () => {
+    const f = views({
+      "Visit.Everyone": { fullName: "Everyone", label: "Everyone" },
+      "Visit.All_Ceo": { fullName: "All_Ceo", label: "CEO only", sharedTo: { role: ["CEO"], group: [] } },
+      "Visit.Mgr": { fullName: "Mgr", label: "Manager tree", sharedTo: { roleAndSubordinates: ["Manager"] } },
+      "Visit.Grp": { fullName: "Grp", label: "Pharma group", sharedTo: { group: ["Pharma"] } },
+      "Visit.Reg": { fullName: "Reg", label: "Region tree", sharedTo: { territoryAndSubordinates: ["Model.Region"] } },
+      "Visit.Terr": { fullName: "Terr", label: "Other territory", sharedTo: { territory: ["Model.Region"] } },
+    });
+    const core = buildSnapshot(f, meta);
+    expect(core.objects.Visit.defaultListView).toBe("All_Ceo");
+    const visit = applyListViewSharing(core, viewer()).objects.Visit;
+    expect(visit.listViews.map((l) => l.name)).toEqual(["Everyone", "Mgr", "Grp", "Reg"]);
+    expect(visit.defaultListView).toBe("Everyone");
+    expect(visit.hiddenListViews).toEqual([
+      { label: "CEO only", reason: "Shared only with role CEO" },
+      { label: "Other territory", reason: "Shared only with territory Model.Region" },
+    ]);
+    expect(applyListViewSharing(core, null)).toBe(core);
   });
 });

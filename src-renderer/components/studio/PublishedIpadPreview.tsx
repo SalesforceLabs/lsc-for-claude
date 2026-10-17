@@ -532,7 +532,10 @@ function ListView({
       </Head>
       <div className="studio-ipad-search" />
       {object.listViews.length > 0 && (
-        <div className="studio-ipad-chips studio-ipad-scroll-x">
+        <div
+          className="studio-ipad-chips studio-ipad-scroll-x"
+          title={object.hiddenListViews?.length ? `Not shown to this user:\n${object.hiddenListViews.map((h) => `${h.label} — ${h.reason}`).join("\n")}` : undefined}
+        >
           {object.listViews.map((l) => (
             <button
               key={l.name}
