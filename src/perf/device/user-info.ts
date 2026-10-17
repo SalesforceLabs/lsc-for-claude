@@ -6,7 +6,7 @@
  * client omits unless the caller supplies one.
  */
 
-import { connectPath, jsonOrThrow, type DeviceSession } from "./session.js";
+import { connectPath, DeviceHttpError, jsonOrThrow, type DeviceSession } from "./session.js";
 
 const NS = "IndustriesLsCommercialOCE.";
 
@@ -185,7 +185,17 @@ export async function fetchUserInfo(
   opts: { userDeviceId?: string; signal?: AbortSignal } = {}
 ): Promise<UserInfo> {
   const res = await session.http({ method: "GET", url: userInfoPath(session, opts), signal: opts.signal });
-  return parseUserInfo(jsonOrThrow(res, "user-info"));
+  try {
+    return parseUserInfo(jsonOrThrow(res, "user-info"));
+  } catch (e) {
+    if (e instanceof DeviceHttpError && e.status === 404) {
+      throw new DeviceHttpError(
+        `${e.message} The Life Sciences mobile user-info endpoint isn't available to ${session.username} — usually because the user isn't set up for the LSC mobile app (an admin, for example). Run it as a field user's connection.`,
+        e.status
+      );
+    }
+    throw e;
+  }
 }
 
 export type SyncFlow = "enhanced" | "legacy";

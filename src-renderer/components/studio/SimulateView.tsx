@@ -388,7 +388,8 @@ export default function SimulateView() {
         res = { error: err instanceof Error ? err.message : String(err) };
       }
       if (stopped) return;
-      const error = responseError(res);
+      // A failed job's status carries its own `error`; only a reply without a state is a failed call.
+      const error = (res.data as SimJobStatus | undefined)?.state ? undefined : responseError(res);
       if (error) {
         if (/no longer available/i.test(error)) {
           localStorage.removeItem(ACTIVE_JOB_KEY);
@@ -465,7 +466,7 @@ export default function SimulateView() {
   const cancel = async () => {
     if (!jobId) return;
     const res = await window.lscApi.studioSimCancel(jobId);
-    if (!responseError(res)) setJob(res.data as SimJobStatus);
+    if ((res.data as SimJobStatus | undefined)?.state) setJob(res.data as SimJobStatus);
   };
 
   const removeSim = async (id: string) => {

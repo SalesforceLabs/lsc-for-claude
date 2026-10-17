@@ -269,7 +269,8 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
         res = { error: err instanceof Error ? err.message : String(err) };
       }
       if (stopped) return;
-      const error = responseError(res);
+      // A failed job's status carries its own `error`; only a reply without a state is a failed call.
+      const error = (res.data as PerfJobStatus | undefined)?.state ? undefined : responseError(res);
       if (error) {
         if (isGone(error)) {
           localStorage.removeItem(ACTIVE_JOB_KEY);
@@ -405,7 +406,7 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
   const cancel = async () => {
     if (!activeJob) return;
     const res = await window.lscApi.studioPerfCancel(activeJob.jobId);
-    if (!responseError(res)) setJob(res.data as PerfJobStatus);
+    if ((res.data as PerfJobStatus | undefined)?.state) setJob(res.data as PerfJobStatus);
   };
 
   const importYaml = async () => {
