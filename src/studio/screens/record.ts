@@ -360,7 +360,7 @@ function toValues(ctx: ScreenContext, fetched: Fetched, row: Row, unsynced: Set<
       out[name.toLowerCase()] = shown;
       continue;
     }
-    let text = formatValue(raw, spec, f, ctx.format, true);
+    let text = formatValue(raw, spec, f, ctx.format, !/^(Provider)?Visit$/.test(fetched.describe.name));
     // A person account's Name prints with its salutation (the device joins the compound name).
     if (text && str(f?.name) === fetched.describe.nameField && fetched.describe.fields.has("salutation") && str(row.Salutation)) text = `${salutationLabel(fetched.describe, str(row.Salutation))} ${text}`;
     out[name.toLowerCase()] = text;
