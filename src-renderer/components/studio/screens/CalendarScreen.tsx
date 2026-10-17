@@ -175,7 +175,7 @@ function AccountsPane({ accounts, showLastVisit, lists, onAdvanced }: { accounts
       </div>
     </div>
       {drop && (
-        <Popover left={popoverLeft(chipCenter[drop], 246, 1210)} top={125} width={246} height={204} arrowX={chipCenter[drop]} onClose={close}>
+        <Popover left={Math.max(18, popoverLeft(chipCenter[drop], 246, 1210) === 20 ? 18 : popoverLeft(chipCenter[drop], 246, 1210))} top={125} width={246} height={204} arrowX={chipCenter[drop]} onClose={close}>
           <div className="studio-ipad-calendar-drop">
             <div className="studio-ipad-calendar-drop-card">
               {drop === "type" &&

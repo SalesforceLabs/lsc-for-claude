@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import type { CalendarSegment } from "./calendar-types";
 import type { PublishedAccounts } from "./accounts-types";
 import { CREATE_EVENT_TYPES, EVENT_INDICATOR, EVENT_SWITCHES, TODO_STATUSES, VISIT_VARIANTS, subDetail, subKey } from "./calendar-logic";
-import { Popover, Sheet } from "./interact-ui";
+import { Popover, ScreenLayer, Sheet } from "./interact-ui";
 import "./calendar-menus.css";
 
 type Kind = CalendarSegment["kind"];
@@ -216,57 +216,80 @@ export function AdvancedSearch({ accounts, calendarIds, onClose }: { accounts: P
       return n;
     });
   return (
-    <div className="studio-ipad-calendar-adv">
-      <div className="studio-ipad-calendar-adv-bar">
-        <button type="button" onClick={onClose}>
-          Cancel
-        </button>
-        <b>Advanced Search</b>
-        <button type="button" onClick={onClose}>
-          Done
-        </button>
-      </div>
-      <div className="studio-ipad-calendar-adv-search">
-        <label>
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search..." spellCheck={false} />
-        </label>
-        <span className="online" title="Search Online opens the online search on the iPad">
-          Search Online
-        </span>
-      </div>
-      <div className="studio-ipad-calendar-adv-tools">
-        <button type="button" className="all" onClick={() => setSelected(new Set(cards.map((c) => c.id)))}>
-          Select All
-        </button>
-        <div className="seg">
-          <span className={tab === "all" ? "on" : ""} onClick={() => setTab("all")}>
-            All
-          </span>
-          <span className={tab === "selected" ? "on" : ""} onClick={() => setTab("selected")}>
-            Selected ({selected.size})
+    <ScreenLayer>
+      <div className="studio-ipad-calendar-adv">
+        <div className="studio-ipad-calendar-adv-bar">
+          <button type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <b>Advanced Search</b>
+          <button type="button" onClick={onClose}>
+            Done
+          </button>
+        </div>
+        <div className="studio-ipad-calendar-adv-search">
+          <label>
+            <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search..." spellCheck={false} />
+          </label>
+          <span className="online" title="Search Online opens the online search on the iPad">
+            Search Online
           </span>
         </div>
-      </div>
-      <div className="studio-ipad-calendar-adv-list">
-        {cards.map((c) => (
-          <div key={c.id} className="studio-ipad-calendar-adv-card" onClick={() => flip(c.id)}>
-            <span className={`circle${selected.has(c.id) ? " on" : ""}`} />
-            <div className="who">
-              <b>{c.name}</b>
-              <span>{c.address}</span>
-            </div>
-            {(accounts?.columns ?? []).map((title, i) => (
-              <div key={title} className="col">
-                <small>{title}</small>
-                {(c.cells[i] ?? ["--"]).map((line, j) => (
-                  <div key={j}>{line}</div>
-                ))}
-              </div>
+        <div className="studio-ipad-calendar-adv-tools">
+          <button type="button" className="all" onClick={() => setSelected(new Set(cards.map((c) => c.id)))}>
+            Select All
+          </button>
+          <div className="seg">
+            <span className={tab === "all" ? "on" : ""} onClick={() => setTab("all")}>
+              All
+            </span>
+            <span className={tab === "selected" ? "on" : ""} onClick={() => setTab("selected")}>
+              Selected ({selected.size})
+            </span>
+          </div>
+          <div className="chips">
+            {["Type", "Lists", "Filters"].map((c) => (
+              <span key={c} className={`chip${c === "Type" ? " on" : ""}`}>
+                {c}
+                <svg width="14" height="9" viewBox="0 0 14 9" aria-hidden="true">
+                  <path d="m1.500 1.500 5.500 5.500 5.500-5.500" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
             ))}
           </div>
-        ))}
-        {cards.length === 0 && <div className="studio-ipad-calendar-adv-none">No data available</div>}
+        </div>
+        <div className="studio-ipad-calendar-adv-list">
+          {cards.map((c) => (
+            <div key={c.id} className="studio-ipad-calendar-adv-card" onClick={() => flip(c.id)}>
+              <span className={`circle${selected.has(c.id) ? " on" : ""}`} />
+              <svg className="icon" width="25" height="25" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="12" fill="#5867e8" />
+                <rect x="5.500" y="6" width="6.500" height="10.500" rx="0.800" fill="#e4e7ff" />
+                <circle cx="16" cy="9.300" r="2.400" fill="#fff" />
+                <path d="M11 17.500c0-2.600 2.200-4.100 5-4.100s5 1.500 5 4.100v.5H11Z" fill="#fff" />
+              </svg>
+              {c.license === "valid" && (
+                <svg className="shield" width="25" height="25" viewBox="0 0 25 25" aria-hidden="true">
+                  <circle cx="12.500" cy="12.500" r="12.500" fill="#acf3e4" />
+                  <path d="M12.500 5 7 7v5c0 3.200 2.300 5.800 5.500 7 3.200-1.200 5.500-3.800 5.500-7V7Z" fill="#04644e" />
+                  <path d="m9.800 12.300 2 2 3.600-3.800" fill="none" stroke="#acf3e4" strokeWidth="1.600" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+              <div className="who">
+                <b className="name">{c.name}</b>
+                <span className="addr">{c.address}</span>
+              </div>
+              {(accounts?.columns ?? []).slice(0, 3).map((title, i) => (
+                <div key={title} className={`col c${i + 1}`}>
+                  <small>{title}</small>
+                  <div>{(c.cells[i] ?? ["--"]).join(" ")}</div>
+                </div>
+              ))}
+            </div>
+          ))}
+          {cards.length === 0 && <div className="studio-ipad-calendar-adv-none">No data available</div>}
+        </div>
       </div>
-    </div>
+    </ScreenLayer>
   );
 }

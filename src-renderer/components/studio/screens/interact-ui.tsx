@@ -137,3 +137,18 @@ export function Check() {
     </svg>
   );
 }
+
+/** Draws its children in the screen root (screen coordinates, above the page and its clip), as a full-screen modal on the device does. */
+export function ScreenLayer({ children }: { children: React.ReactNode }) {
+  const anchor = useRef<HTMLSpanElement>(null);
+  const [host, setHost] = useState<Element | null>(null);
+  useLayoutEffect(() => {
+    setHost(anchor.current?.closest(".studio-ipad-screen") ?? null);
+  }, []);
+  return (
+    <>
+      <span ref={anchor} hidden />
+      {host && createPortal(children, host)}
+    </>
+  );
+}

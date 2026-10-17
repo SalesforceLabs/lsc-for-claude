@@ -153,7 +153,7 @@
 
 /* Accounts-pane dropdown (Type / Lists / Filters): a card of two-line rows. */
 .studio-ipad-calendar-drop {
-  padding: 18px 18px 18px;
+  padding: 18px 16px 18px 18px;
   height: 100%;
   box-sizing: border-box;
 }
@@ -168,46 +168,52 @@
   width: 100%;
   min-height: 56px;
   box-sizing: border-box;
-  padding: 8px 14px;
+  padding: 6px 6px 5px 24px;
   border: 0;
   border-bottom: 1px solid #dcdcdc;
   background: #fff;
   font: inherit;
   font-size: 16px;
+  line-height: 22px;
   text-align: left;
   color: #1c1c1e;
   cursor: pointer;
 }
 .studio-ipad-calendar-drop-row:last-child {
   border-bottom: 0;
+  padding-bottom: 6px;
 }
 .studio-ipad-calendar-drop-row small {
   display: block;
-  margin-top: 5px;
+  margin-top: 0;
+  line-height: 22px;
   font-size: 15px;
   color: #3c3c43;
 }
 .studio-ipad-calendar-drop-row .tick {
   position: absolute;
-  right: 12px;
-  top: 14px;
+  right: 22px;
+  top: 50%;
+  margin-top: -8px;
 }
 
-/* Advanced Search: full-page modal. */
+/* Advanced Search: a full-screen modal under the status bar (screen coordinates, as the device presents it). */
 .studio-ipad-calendar-adv {
   position: absolute;
-  inset: 0;
-  z-index: 60;
+  inset: 26px 0 0 0;
+  z-index: 80;
   background: #f3f3f3;
   font-size: 17px;
+  color: #1c1c1e;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
   display: flex;
   flex-direction: column;
 }
 .studio-ipad-calendar-adv-bar {
-  height: 56px;
+  height: 57px;
   flex: none;
   box-sizing: border-box;
-  padding: 0 20px;
+  padding: 5px 20px 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -224,15 +230,17 @@
   color: #0250d9;
   font: inherit;
   font-size: 19px;
+  padding: 0;
   cursor: pointer;
 }
 .studio-ipad-calendar-adv-search {
   flex: none;
-  height: 72px;
+  height: 71px;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 0 20px;
+  gap: 29px;
+  padding: 0 26px 0 20px;
   background: #fff;
   border-bottom: 1px solid #d6d6d6;
 }
@@ -243,26 +251,31 @@
   width: 100%;
   box-sizing: border-box;
   height: 40px;
-  border: 1px solid #5c5c5c;
+  border: 1.5px solid #5c5c5c;
   border-radius: 20px;
-  padding: 0 16px;
+  padding: 0 16px 0 36px;
   font: inherit;
+  background: #fff url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18'><circle cx='7.500' cy='7.500' r='5.500' fill='none' stroke='%23444' stroke-width='1.700'/><path d='m12 12 4.500 4.500' stroke='%23444' stroke-width='1.700' stroke-linecap='round'/></svg>") no-repeat 12px center;
 }
 .studio-ipad-calendar-adv-search .online {
+  flex: none;
   color: #0250d9;
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 500;
 }
 .studio-ipad-calendar-adv-tools {
   flex: none;
   position: relative;
-  height: 86px;
+  height: 102px;
+  box-sizing: border-box;
+  padding: 23px 20px 0 32px;
   display: flex;
-  align-items: center;
-  padding: 0 32px;
+  align-items: flex-start;
 }
 .studio-ipad-calendar-adv-tools .all {
+  height: 40px;
   border: 0;
+  padding: 0;
   background: transparent;
   color: #0250d9;
   font: inherit;
@@ -273,8 +286,9 @@
 .studio-ipad-calendar-adv-tools .seg {
   position: absolute;
   left: 371px;
+  top: 28px;
   display: flex;
-  width: 404px;
+  width: 403px;
   height: 32px;
   border-radius: 8px;
   background: #e0e0e0;
@@ -292,30 +306,54 @@
   border-radius: 7px;
   margin: 2px;
 }
+.studio-ipad-calendar-adv-tools .chips {
+  position: absolute;
+  left: 874px;
+  top: 23px;
+  display: flex;
+  gap: 8px;
+}
+.studio-ipad-calendar-adv-tools .chip {
+  box-sizing: border-box;
+  width: 100px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #747474;
+  border-radius: 20px;
+  background: #fff;
+  color: #0250d9;
+  font-size: 19px;
+  font-weight: 500;
+}
+.studio-ipad-calendar-adv-tools .chip.on {
+  background: #0250d9;
+  border-color: #0250d9;
+  color: #fff;
+}
 .studio-ipad-calendar-adv-list {
   flex: 1;
   overflow: auto;
+  scrollbar-width: none;
   padding: 0 20px 20px;
 }
 .studio-ipad-calendar-adv-card {
   position: relative;
-  min-height: 120px;
+  height: 120px;
   box-sizing: border-box;
   margin-bottom: 8px;
-  padding: 20px 20px 20px 52px;
   background: #fff;
   border-radius: 16px;
-  display: flex;
-  gap: 24px;
   cursor: pointer;
 }
 .studio-ipad-calendar-adv-card .circle {
   position: absolute;
-  left: 14px;
-  top: 50%;
-  margin-top: -11px;
-  width: 22px;
-  height: 22px;
+  left: 10px;
+  top: 48px;
+  width: 25px;
+  height: 25px;
   border-radius: 50%;
   border: 1.5px solid #747474;
   box-sizing: border-box;
@@ -325,24 +363,60 @@
   border-color: #0250d9;
   box-shadow: inset 0 0 0 4px #fff;
 }
-.studio-ipad-calendar-adv-card .who {
-  width: 250px;
-  font-size: 16px;
+.studio-ipad-calendar-adv-card .icon {
+  position: absolute;
+  left: 51px;
+  top: 16px;
 }
-.studio-ipad-calendar-adv-card .who b {
+.studio-ipad-calendar-adv-card .shield {
+  position: absolute;
+  left: 51px;
+  top: 49px;
+}
+.studio-ipad-calendar-adv-card .who {
+  position: absolute;
+  left: 87px;
+  top: 19px;
+  width: 224px;
+}
+.studio-ipad-calendar-adv-card .name {
   display: block;
   font-size: 17px;
-  margin-bottom: 4px;
+  line-height: 19px;
+  font-weight: 600;
+}
+.studio-ipad-calendar-adv-card .addr {
+  display: block;
+  margin-top: 6px;
+  max-height: 50px;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 16.500px;
 }
 .studio-ipad-calendar-adv-card .col {
-  width: 240px;
-  font-size: 17px;
+  position: absolute;
+  top: 16px;
+  width: 271px;
+}
+.studio-ipad-calendar-adv-card .col.c1 {
+  left: 341px;
+}
+.studio-ipad-calendar-adv-card .col.c2 {
+  left: 617px;
+}
+.studio-ipad-calendar-adv-card .col.c3 {
+  left: 893px;
 }
 .studio-ipad-calendar-adv-card .col small {
   display: block;
   font-size: 15px;
+  line-height: 17px;
   color: #3c3c43;
-  margin-bottom: 4px;
+}
+.studio-ipad-calendar-adv-card .col div {
+  margin-top: 4px;
+  font-size: 17px;
+  line-height: 22px;
 }
 .studio-ipad-calendar-adv-none {
   text-align: center;
