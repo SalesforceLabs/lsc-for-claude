@@ -12,12 +12,12 @@
  *  2. Fetch (SyncConnectDownloadManager.downloadWithIdSubquery): one IdSubquery request per table carrying every
  *     id to download, paged by queryLocator with the whole id list repeated on each page.
  *
- * Every call goes through `session.http`. Request bodies are not gzipped (the app gzips bodies over a size
- * threshold), so upload bytes are an upper bound. Nothing here sends a device id; the endpoints are read-only
+ * Every call goes through `session.http`, with bodies gzipped by the app's rule (`gzip: true`; Connect bodies of
+ * 4 KB or more). Nothing here sends a device id; the endpoints are read-only
  * queries as far as the client code shows.
  */
 
-import { connectPath, jsonOrThrow, type DeviceSession } from "./session.js";
+import { connectPath, jsonOrThrow, prepareRequestBody, type DeviceSession } from "./session.js";
 import {
   AdaptiveBatch,
   CONTENT_CHUNK,
@@ -97,7 +97,7 @@ export interface DeltaTotals {
   fetchRequests: number;
   requests: number;
   bytes: number;
-  /** Request body bytes sent (ungzipped). */
+  /** Request body bytes sent, after gzip. */
   uploadBytes: number;
   /** Wall-clock seconds per phase and in all. */
   visibilitySeconds: number;
@@ -264,22 +264,25 @@ class DeltaRun {
   private async post(kind: "visibility" | "fetch", path: string, body: unknown, rows: DeltaTableResult[]): Promise<unknown> {
     const scope = timeoutScope(this.o.signal, (this.o.requestTimeoutSeconds ?? 300) * 1000);
     const payload = JSON.stringify(body);
+    const url = connectPath(this.o.session, path);
     const t0 = this.now();
     try {
       const res = await this.o.session.http({
         method: "POST",
-        url: connectPath(this.o.session, path),
+        url,
         headers: { "X-Chatter-Entity-Encoding": "false" },
         body: payload,
+        gzip: true,
         signal: scope.signal,
       });
       const seconds = (this.now() - t0) / 1000;
       if (kind === "visibility") this.visibilityHttp++;
       else this.fetchHttp++;
-      this.bytes += res.body.length;
-      this.uploadBytes += Buffer.byteLength(payload);
+      const received = res.wireBytes ?? res.body.length;
+      this.bytes += received;
+      this.uploadBytes += prepareRequestBody({ url, body: payload, gzip: true }).body?.length ?? 0;
       for (const row of rows) {
-        row.bytes += res.body.length / rows.length;
+        row.bytes += received / rows.length;
         if (kind === "visibility") {
           row.visibilityRequests++;
           row.visibilitySeconds += seconds;
@@ -585,7 +588,7 @@ class DeltaRun {
     const notes = [
       `Delta simulated as if the device last synced ${this.o.sinceHours} hour(s) ago: timeStamp range ${this.rangeStart} to ${this.rangeEnd}, on the field each table's DeltaDateField names (SystemModstamp otherwise).`,
       "The local ids are the records just downloaded, so ids to download are what the server returns for the range; if the server only returns ids the device lacks, expect few or none. Ids to delete are informational.",
-      "Network time only. Request bodies are sent ungzipped (the app gzips large ones), so upload bytes are an upper bound; attachment postponement is assumed on.",
+      "Network time only. Large request bodies are gzipped as the app does; attachment postponement is assumed on.",
       "DeviceSyncTransactionRecord is re-downloaded in full on delta and is not simulated here.",
       `Visibility: OT2A and Account first when a WHERE uses their id tags; tables over ${HEAVY_TABLE_IDS.toLocaleString("en-US")} ids alone (up to ${VISIBILITY_MAX_IN_FLIGHT} at once); the rest in rounds of at most ${VISIBILITY_BATCH_SIZE} objects, one round at a time; then Attachment, ContentDocumentLink, ContentVersion and ContentDocument. Fetch: one IdSubquery request per table, tables scheduled like the initial sync.`,
       ...this.notes,
