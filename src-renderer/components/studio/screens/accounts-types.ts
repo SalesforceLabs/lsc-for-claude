@@ -27,6 +27,8 @@ export interface PublishedAccounts {
   chips: { label: string; count: string }[];
   lists: { own: PublishedAccountList[]; shared: PublishedAccountList[] };
   advancedFilters?: { id: string; name: string }[];
+  /** Next Best Customers, Activity Plans, Activity Plans with Weightages, each with the accounts it lists. */
+  builtInFilters?: PublishedAccountList[];
   sortLabel: string;
   columns: string[];
   cards: PublishedAccountCard[];

@@ -76,7 +76,7 @@ export function addressTop(nameWrapped: boolean): number {
 export type ListKind = "Lists" | "Filters" | "Advanced Filters";
 export const LIST_KINDS: ListKind[] = ["Lists", "Filters", "Advanced Filters"];
 
-/** The built-in Filters rows. The app computes their members (NBC scores, activity plans), so the preview has no counts for them. */
+/** The built-in Filters rows. Fallback names when the snapshot has no computed members (builtInFilters). */
 export const BUILT_IN_FILTERS = ["Next Best Customers", "Activity Plans", "Activity Plans with Weightages"];
 
 /** The multi-select bar's count; empty while nothing is selected. */

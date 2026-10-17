@@ -38,6 +38,8 @@ export interface PublishedAccounts {
   lists: { own: PublishedAccountList[]; shared: PublishedAccountList[] };
   /** The viewer's Advanced Filters (LifeScienceAccountList Type 'AdvancedFilter'): names only, their criteria are evaluated by the app. */
   advancedFilters?: { id: string; name: string }[];
+  /** The built-in Filters rows (Next Best Customers, Activity Plans, Activity Plans with Weightages) with the accounts the device would list. */
+  builtInFilters?: PublishedAccountList[];
   sortLabel: string;
   columns: string[];
   /** The "All" list in name order, up to CARD_CAP accounts (the device pages 10 at a time as you scroll). */
@@ -124,6 +126,61 @@ async function listMembers(listId: string, from: (extra?: string) => string, org
 }
 
 /** Query rows for many ids, 150 at a time (keeps the request URL short). */
+/** The ids that are account rows the device holds (its Account sync filter). */
+async function heldAccounts(ids: string[], from: (extra?: string) => string, org: string): Promise<string[]> {
+  const parts = await Promise.all(chunks([...new Set(ids)], 200).map((part) => query(`SELECT Id ${from(`Id IN (${inList(part)})`)}`, org).catch(() => [] as Row[])));
+  return parts.flat().map((r) => str(r.Id));
+}
+
+/** The active plan cycle of a type for the viewer's territories (OCEDBCallPlanCycleModel / OCEPlanCycle.fetchActive): IsActive and today inside its time period. */
+async function activePlanId(type: "AccountGoal" | "WeightedTerritoryGoals", ctx: ScreenContext): Promise<string | undefined> {
+  const terr = ctx.territories.map((t) => t.id);
+  if (!terr.length) return undefined;
+  const plans = await query(
+    `SELECT ActivityPlanId, ActivityPlan.TimePeriod.StartDate, ActivityPlan.TimePeriod.EndDate FROM ActivityPlanTerritory WHERE TerritoryId IN (${inList(terr)}) AND ActivityPlan.IsActive = true AND ActivityPlan.Type = '${type}'`,
+    ctx.org
+  ).catch(() => [] as Row[]);
+  const now = Date.now();
+  for (const p of plans) {
+    const tp = (p.ActivityPlan as Row | undefined)?.TimePeriod as Row | undefined;
+    const start = Date.parse(str(tp?.StartDate));
+    const end = Date.parse(str(tp?.EndDate));
+    if (start <= now && end >= now) return str(p.ActivityPlanId);
+  }
+  return undefined;
+}
+
+/**
+ * BaseAccountsFetchQueryCreator.createCustomListTypeWhere, for the built-in Filters: NBC lists accounts with a TerritoryAccountScore rank; Activity Plans lists
+ * accounts with a goal in the active AccountGoal plan cycle that has a measure without products; Weighted lists accounts with a goal in the active
+ * WeightedTerritoryGoals cycle. Members are limited to the accounts the device holds.
+ */
+export async function collectBuiltInFilters(ctx: ScreenContext, from: (extra?: string) => string): Promise<PublishedAccountList[]> {
+  const terr = ctx.territories.map((t) => t.id);
+  const scoped = (table: string): string | null => {
+    const s = ctx.scope(table);
+    return s === undefined || s === null ? null : s ? ` AND (${s})` : "";
+  };
+  const members = async (ids: string[]): Promise<string[]> => heldAccounts(ids, from, ctx.org);
+  const nbc = async (): Promise<string[]> => {
+    const w = scoped("TerritoryAccountScore");
+    if (w === null || !terr.length) return [];
+    const rows = await query(`SELECT AccountId FROM TerritoryAccountScore WHERE TerritoryId IN (${inList(terr)}) AND Rank != null AND AccountId != null${w}`, ctx.org).catch(() => [] as Row[]);
+    return members(rows.map((r) => str(r.AccountId)));
+  };
+  const goals = async (type: "AccountGoal" | "WeightedTerritoryGoals"): Promise<string[]> => {
+    const w = scoped("ProviderActivityGoal");
+    const plan = await activePlanId(type, ctx);
+    if (w === null || !plan) return [];
+    const measure = type === "AccountGoal" ? " AND Id IN (SELECT ProviderActivityGoalId FROM ProviderActivityGoalMeasure WHERE ProductList = null)" : "";
+    const rows = await query(`SELECT AccountId FROM ProviderActivityGoal WHERE ActivityPlanId = '${plan}' AND AccountId != null${measure}${w}`, ctx.org).catch(() => [] as Row[]);
+    return members(rows.map((r) => str(r.AccountId)));
+  };
+  const [n, a, wt] = await Promise.all([nbc(), goals("AccountGoal"), goals("WeightedTerritoryGoals")]);
+  const row = (id: string, name: string, ids: string[]): PublishedAccountList => ({ id, name, detail: `${ids.length} Account${ids.length === 1 ? "" : "s"}`, memberIds: ids });
+  return [row("filter:nbc", "Next Best Customers", n), row("filter:activityplan", "Activity Plans", a), row("filter:weighted", "Activity Plans with Weightages", wt)];
+}
+
 async function byIds(ids: string[], run: (inIds: string) => Promise<Row[]>): Promise<Row[]> {
   return (await Promise.all(chunks(ids, 150).map((part) => run(inList(part))))).flat();
 }
@@ -244,6 +301,7 @@ export async function collectAccounts(ctx: ScreenContext): Promise<PublishedAcco
     ],
     lists: { own: grouped.own.map(strip), shared: grouped.shared.map(strip) },
     advancedFilters: advanced.map((a) => ({ id: str(a.Id), name: str(a.Name) })),
+    builtInFilters: await collectBuiltInFilters(ctx, from).catch(() => undefined),
     sortLabel: sortLabel(["Name"]),
     columns: DEFAULT_COLUMNS,
     cards,

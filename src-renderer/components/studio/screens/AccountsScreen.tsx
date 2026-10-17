@@ -61,7 +61,7 @@ function LicensePill({ state }: { state: "valid" | "invalid" }) {
   );
 }
 
-function ListRow({ list, selected, onClick, onMore }: { list?: PublishedAccountList; selected?: boolean; onClick: () => void; onMore?: (e: React.MouseEvent) => void }) {
+function ListRow({ list, selected, hideMore, onClick, onMore }: { list?: PublishedAccountList; selected?: boolean; hideMore?: boolean; onClick: () => void; onMore?: (e: React.MouseEvent) => void }) {
   return (
     <div className={`studio-ipad-accounts-row ${list ? "" : "all"} ${selected ? "selected" : ""}`} onClick={onClick}>
       <span className="studio-ipad-accounts-row-bar" />
@@ -69,7 +69,7 @@ function ListRow({ list, selected, onClick, onMore }: { list?: PublishedAccountL
         <div className="studio-ipad-accounts-row-title">{list ? list.name : "All"}</div>
         {list && <div className="studio-ipad-accounts-row-detail">{list.detail}</div>}
       </div>
-      {list && (
+      {list && !hideMore && (
         <span
           className="studio-ipad-accounts-row-more"
           role="button"
@@ -187,7 +187,7 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
   const [note, setNote] = useState<{ title: string; text: string } | null>(null);
   const root = useRef<HTMLDivElement>(null);
   void tab;
-  const list = useMemo(() => (data ? [...data.lists.own, ...data.lists.shared].find((l) => l.id === listId) : undefined), [data, listId]);
+  const list = useMemo(() => (data ? [...data.lists.own, ...data.lists.shared, ...(data.builtInFilters ?? [])].find((l) => l.id === listId) : undefined), [data, listId]);
   const cards = useMemo(
     () => (data ? sortCards(filterByChip(filterByList(data.cards, list?.memberIds), chip), sort.label, sort.ascending) : []),
     [data, list, chip, sort]
@@ -297,19 +297,8 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
           </>
         )}
         {kind === "Filters" &&
-          BUILT_IN_FILTERS.map((name, i) => (
-            <div key={name} className="studio-ipad-accounts-row">
-              <span className="studio-ipad-accounts-row-bar" />
-              <div className="studio-ipad-accounts-row-text">
-                <div className="studio-ipad-accounts-row-title">{name}</div>
-                <div className="studio-ipad-accounts-row-detail">-- Accounts</div>
-              </div>
-              {i === 0 && (
-                <span className="studio-ipad-accounts-row-more" role="button" onClick={(e) => openMenu("list", e)}>
-                  <Dots />
-                </span>
-              )}
-            </div>
+          (data.builtInFilters ?? BUILT_IN_FILTERS.map((name): PublishedAccountList => ({ id: `filter:${name}`, name, detail: "-- Accounts" }))).map((f, i) => (
+            <ListRow key={f.id} list={f} selected={f.id === listId} hideMore={i > 0} onClick={() => setListId(f.memberIds ? f.id : null)} onMore={(e) => openMenu("list", e)} />
           ))}
         {kind === "Advanced Filters" &&
           (data.advancedFilters ?? []).map((f) => (
