@@ -42,10 +42,18 @@ export function highlightWidths(cells: { label: string; value: string }[], measu
  * GenericRelatedListViewController.GridLayout.calculateWidths: each column fits its longest string
  * plus padding; spare room up to `max` is shared evenly.
  */
-export function gridWidths(columns: { title: string; cells: string[] }[], max: number, measure: (t: string, header: boolean) => number = (t, h) => textWidth(t, 17, h ? 500 : 400)): number[] {
-  const widths = columns.map((c) => Math.max(measure(c.title, true), ...c.cells.map((x) => measure(x, false))) + 50);
+export function gridWidths(columns: { title: string; cells: string[] }[], max: number, measure: (t: string) => number = (t) => textWidth(t, 14, 400)): number[] {
+  // The longest string by character count (first line of each value), measured at 14pt, plus 16*2 + 15 + 3 of padding.
+  const widths = columns.map((c) => {
+    let longest = c.title;
+    for (const x of c.cells) {
+      const line = x.split(/\r?\n/)[0] ?? "";
+      if (line.length > longest.length) longest = line;
+    }
+    return (longest ? measure(longest) : 100 - 50) + 50;
+  });
   const total = widths.reduce((a, b) => a + b, 0);
-  return total < max && widths.length ? widths.map((w) => w + (max - total) / widths.length) : widths;
+  return total <= max && widths.length ? widths.map((w) => w + (max - total) / widths.length) : widths;
 }
 
 /** Only plain lookups are tappable links; master-detail and record type references print as text. */
@@ -356,7 +364,7 @@ function PlaceholderCard({ title }: { title: string }) {
   return (
     <div className="studio-ipad-rec-card placeholder">
       <div className="studio-ipad-rec-ph-title">{title}</div>
-      <div className="studio-ipad-rec-ph-note">Drawn live on the iPad; not shown in this preview.</div>
+      <div className="studio-ipad-rec-ph-note">On the iPad this card is drawn live from the org; this preview does not draw it.</div>
     </div>
   );
 }

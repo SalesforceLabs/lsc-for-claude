@@ -71,3 +71,17 @@ describe("isFieldReadable", () => {
   it("keeps non-permissionable fields (Name, Id, required) with no row", () => expect(isFieldReadable({ name: "Name", permissionable: false }, perms)).toBe(true));
   it("filters nothing without permissions data", () => expect(isFieldReadable({ name: "X__c", permissionable: true }, null)).toBe(true));
 });
+
+describe("detail-panel dates", () => {
+  it("prints the short style on the record and keeps lists medium", () => {
+    expect(formatValue("1974-03-05", { type: "date" }, undefined, fmt, true)).toBe("3/5/74");
+    expect(formatValue("2026-09-01T10:13:00.000+0000", { type: "datetime" }, undefined, fmt, true)).toBe("9/1/26, 10:13 AM");
+    expect(formatValue("1974-03-05", { type: "date" }, undefined, fmt)).toBe("Mar 5, 1974");
+  });
+});
+
+describe("gridWidths (iOS GridLayout)", () => {
+  it("sizes a column by its longest string by character count", () => {
+    expect(gridWidths([{ title: "ab", cells: ["abcdef", "xy"] }], 0, (t) => t.length * 10)).toEqual([110]);
+  });
+});

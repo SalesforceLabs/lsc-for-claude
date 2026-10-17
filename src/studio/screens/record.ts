@@ -152,13 +152,31 @@ function addressText(a: Row): string {
 
 type Format = { timeZone: string; locale: string };
 
+/** Detail-panel dates print in the short style ("3/5/74", "9/1/26, 10:13 AM"); lists keep the medium style. */
+export function shortDate(value: unknown, type: string, format: Format): string {
+  const locale = (() => {
+    try {
+      return Intl.getCanonicalLocales(format.locale)[0] ?? "en-US";
+    } catch {
+      return "en-US";
+    }
+  })();
+  if (type === "date") {
+    const d = new Date(`${str(value).slice(0, 10)}T00:00:00Z`);
+    return Number.isNaN(d.getTime()) ? str(value) : new Intl.DateTimeFormat(locale, { dateStyle: "short", timeZone: "UTC" }).format(d);
+  }
+  const d = new Date(str(value));
+  return Number.isNaN(d.getTime()) ? str(value) : new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short", timeZone: format.timeZone }).format(d);
+}
+
 /** One field's value as the record screen prints it. */
-export function formatValue(value: unknown, spec: Pick<RecordFieldSpec, "type" | "picklist">, describeField: Row | undefined, format: Format): string {
+export function formatValue(value: unknown, spec: Pick<RecordFieldSpec, "type" | "picklist">, describeField: Row | undefined, format: Format, short = false): string {
   if (value === null || value === undefined || value === "") return "";
   const type = str(describeField?.type).toLowerCase() || spec.type;
   if (type === "address" || (typeof value === "object" && !Array.isArray(value))) return addressText(obj(value));
   if (type === "picklist" || type === "multipicklist") return picklistText(str(value), spec.picklist, describeField);
   if (type === "boolean") return listCell(value, "boolean", format);
+  if (short && (type === "date" || type === "datetime")) return shortDate(value, type, format);
   return listCell(value, type, format);
 }
 
@@ -304,7 +322,9 @@ function fieldMeta(fetched: Fetched, perms?: Map<string, boolean> | null): Recor
   for (const [name, spec] of fetched.specs) {
     const f = fetched.describe.fields.get(name.toLowerCase());
     if (!f) continue;
-    const meta: PublishedFieldMeta = { label: str(f.label) || spec.label };
+    // The cache labels a lookup by the layout's name ("Owner Name"); the REST describe says "Owner ID".
+    const idLabel = str(f.type) === "reference" && /\sID$/.test(str(f.label)) && !!spec.label;
+    const meta: PublishedFieldMeta = { label: (idLabel ? spec.label : str(f.label)) || spec.label };
     if ((f.compoundFieldName && str(f.name) !== str(f.compoundFieldName) && str(f.name) !== fetched.describe.nameField) || str(f.type) === "address" || str(f.type) === "location") meta.hidden = true;
     if (!isFieldReadable(f, perms)) meta.hidden = true;
     if (str(f.inlineHelpText)) meta.help = true;
@@ -324,7 +344,7 @@ function toValues(ctx: ScreenContext, fetched: Fetched, row: Row, unsynced: Set<
       out[name.toLowerCase()] = shown;
       continue;
     }
-    let text = formatValue(raw, spec, f, ctx.format);
+    let text = formatValue(raw, spec, f, ctx.format, true);
     // A person account's Name prints with its salutation (the device joins the compound name).
     if (text && str(f?.name) === fetched.describe.nameField && fetched.describe.fields.has("salutation") && str(row.Salutation)) text = `${salutationLabel(fetched.describe, str(row.Salutation))} ${text}`;
     out[name.toLowerCase()] = text;
