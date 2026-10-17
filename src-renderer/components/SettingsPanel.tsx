@@ -32,6 +32,7 @@ export default function SettingsPanel({
 }: SettingsPanelProps) {
   const [model, setModel] = useState("");
   const [providerType, setProviderType] = useState("");
+  const [mobileClientId, setMobileClientId] = useState("");
 
   // Org state
   const [orgs, setOrgs] = useState<SfOrg[]>([]);
@@ -62,6 +63,7 @@ export default function SettingsPanel({
       if (s.providerType) setProviderType(s.providerType);
       setModel(s.model || "claude-sonnet-5");
       if (s.sfTargetOrg) setSelectedOrg(s.sfTargetOrg);
+      setMobileClientId(s.mobileClientId || "");
     });
     fetchOrgs();
   }, [fetchOrgs]);
@@ -80,7 +82,13 @@ export default function SettingsPanel({
   };
 
   const handleSave = async () => {
-    await window.lscApi.saveSettings({ model });
+    // settings:save replaces the whole file, so merge into the current settings.
+    const current = await window.lscApi.getSettings();
+    await window.lscApi.saveSettings({
+      ...current,
+      model,
+      mobileClientId: mobileClientId.trim() || undefined,
+    });
     onClose();
   };
 
@@ -210,6 +218,22 @@ export default function SettingsPanel({
               <option value="claude-fable-5-1">Claude Fable 5.1</option>
             </>
           </select>
+        </div>
+
+        <div className="form-group">
+          <label>LSC mobile app consumer key</label>
+          <input
+            type="text"
+            value={mobileClientId}
+            onChange={(e) => setMobileClientId(e.target.value)}
+            placeholder="Optional"
+            spellCheck={false}
+            autoComplete="off"
+          />
+          <div className="org-login-hint">
+            The remoteAccessConsumerKey from the LSC iOS app's bootconfig.plist.
+            Needed for First sync's "Log in as mobile user".
+          </div>
         </div>
 
         <div className="form-actions">

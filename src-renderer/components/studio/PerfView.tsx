@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { AssessmentResult, PerfCheckResult, PerfJobStatus, PerfPlan } from "./perf-types";
 import type { ProfileOption } from "./types";
-import type { PerfPlanRecord, PerfRunRecord } from "../../types";
+import type { MobileLoginInfo, PerfPlanRecord, PerfRunRecord } from "../../types";
 import {
   applyBaseline,
   emptyPlan,
   formatValue,
+  hasCustomerTargets,
   metricInfo,
   normalizePlan,
   planFileName,
@@ -16,6 +17,7 @@ import {
 import { asRunSummary, runSummary, trendRows } from "./perf-history";
 import PlanEditor from "./PlanEditor";
 import RunReport from "./RunReport";
+import { useRunSims } from "./useRunSims";
 
 interface PerfViewProps {
   onAskClaude: (prompt: string) => void;
@@ -107,10 +109,14 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
   const [checkIssues, setCheckIssues] = useState<CheckIssue[]>([]);
   const [notice, setNotice] = useState<{ kind: "error" | "info"; text: string } | null>(null);
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
+  // Logins made through the LSC mobile app; a persona user with one gets an exact table list.
+  const [mobileLogins, setMobileLogins] = useState<MobileLoginInfo[]>([]);
+  const [mobileLoggingIn, setMobileLoggingIn] = useState(false);
   // Bumped to remount the editor when a different plan is loaded.
   const [editorKey, setEditorKey] = useState(0);
   const [, tick] = useState(0);
 
+  const runSims = useRunSims(runView);
   const selectedPlan = selection?.kind === "plan" ? plans.find((p) => p.id === selection.id) : undefined;
   const inFlight = activeJob ?? starting;
   const running = !!inFlight;
@@ -176,6 +182,7 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
     const first = (active && list.find((p) => p.id === active.planId)) || list[0];
     if (first) await openPlan(first);
     else openDraft(emptyPlan());
+    window.lscApi.mobileLoginList().then((res) => setMobileLogins(res.logins));
     window.lscApi.studioListProfiles().then((res) => {
       setProfiles(Array.isArray(res.data) ? (res.data as ProfileOption[]) : []);
     });
@@ -327,6 +334,11 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
   const issues = validatePlan(draft);
   const checkErrors = checkIssues.filter((i) => i.level === "error");
   const checkWarnings = checkIssues.filter((i) => i.level === "warning");
+  const loginNames = new Set(mobileLogins.map((l) => l.username.toLowerCase()));
+  const loginPersonas = draft.personas.flatMap((p) => {
+    const users = p.users.filter((u) => loginNames.has(u.trim().toLowerCase()));
+    return users.length ? [`${p.name.trim() || "Persona"} (${users.join(", ")})`] : [];
+  });
 
   /** Look the plan's users and territories up in the org; null when the check itself couldn't run. */
   const checkPlan = async (plan: PerfPlan, planOrg: string | undefined): Promise<CheckIssue[] | null> => {
@@ -380,7 +392,10 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
         setTab("plan");
         return;
       }
-      const res = await window.lscApi.studioPerfStart(record.plan);
+      // Mobile logins ride along (main process only) so their users' table lists come from their own metadata download.
+      const res = mobileLogins.length
+        ? await window.lscApi.studioPerfStartMobile(record.plan)
+        : await window.lscApi.studioPerfStart(record.plan);
       const error = responseError(res);
       if (error) {
         if (/already in progress/i.test(error) && (await attachActive())) {
@@ -400,6 +415,30 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
       setNotice({ kind: "error", text: err instanceof Error ? err.message : String(err) });
     } finally {
       setStarting(null);
+    }
+  };
+
+  /** Open the Salesforce login for the plan's org so a persona user can be signed in through the mobile app. */
+  const mobileLogin = async () => {
+    setNotice(null);
+    const orgName = (selectedPlan?.org || (await window.lscApi.getSettings()).sfTargetOrg || "").toLowerCase();
+    const orgs = (await window.lscApi.listSfOrgs()).orgs ?? [];
+    const org = orgs.find((o) => o.alias?.toLowerCase() === orgName || o.username.toLowerCase() === orgName) ?? (orgName ? undefined : orgs.find((o) => o.isDefault));
+    if (!org) {
+      setNotice({ kind: "error", text: "Studio couldn't find this org's login URL. Log in from First sync instead." });
+      return;
+    }
+    setMobileLoggingIn(true);
+    try {
+      const res = await window.lscApi.mobileLoginStart(org.instanceUrl);
+      if (!res.login) {
+        if (res.error !== "Login window closed.") setNotice({ kind: "error", text: res.error ?? "Login failed." });
+        return;
+      }
+      setMobileLogins((await window.lscApi.mobileLoginList()).logins);
+      flash(`Logged in as ${res.login.username}. Its next run uses that user's own metadata download.`);
+    } finally {
+      setMobileLoggingIn(false);
     }
   };
 
@@ -653,6 +692,7 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
               onExport={exportRun}
               onExportReport={exportReport}
               onBaseline={running ? undefined : useAsBaseline}
+              sims={runSims}
             />
           ) : (
             <>
@@ -679,6 +719,24 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
                   </ul>
                 </div>
               )}
+              {!hasCustomerTargets(draft) && (
+                <div className="studio-finding info studio-perf-notice">
+                  <div className="studio-finding-title">No customer targets yet</div>
+                  <div className="studio-finding-detail">
+                    This plan only has the default metadata download target. Enter the customer's NFR targets (Targets tab) before running, or the
+                    report can't pass or fail anything else.
+                  </div>
+                </div>
+              )}
+              <div className="studio-perf-hint">
+                {loginPersonas.length
+                  ? `Exact table lists, from each user's own metadata download: ${loginPersonas.join("; ")}.`
+                  : "Table lists are approximated from the profile's metadata and object permissions."}{" "}
+                {mobileLogins.length > 0 && "Users picked by profile use a login too when the username matches. "}
+                <button className="studio-btn" onClick={mobileLogin} disabled={running || mobileLoggingIn} title="Sign in as a persona user through the LSC mobile app, so the run reads that user's real table list">
+                  {mobileLoggingIn ? "Logging in…" : "Log in as mobile user…"}
+                </button>
+              </div>
               <PlanEditor
                 key={editorKey}
                 plan={draft}

@@ -12,7 +12,8 @@ import { runAssessment, type AssessmentResult, type StepProgress } from "../perf
 import { DEFAULT_TELEMETRY_DAYS, type NfrProfile, type Persona } from "../perf/nfr.js";
 import type { OrgQuerier } from "../perf/sync-volume.js";
 import { createCompiledSchemaSource, type CompiledSchemaSource } from "../perf/compiled-schema.js";
-import { createDeviceSession } from "../perf/device/session.js";
+import { createDeviceSession, type TokenLogin } from "../perf/device/session.js";
+import { createUserSchemaSource } from "../perf/user-schema.js";
 import { checkPlan, findHeaviestUsers, personaTerritories, type PerfUser, type PlanCheck } from "../perf/users.js";
 
 export type { PerfUser, PlanCheck } from "../perf/users.js";
@@ -98,7 +99,8 @@ function tracked(inner: OrgQuerier, job: PerfJob): OrgQuerier {
 export function startPerfRun(
   profile: NfrProfile,
   org: string,
-  deps: PerfDeps = defaultDeps
+  deps: PerfDeps = defaultDeps,
+  mobileLogins: TokenLogin[] = []
 ): PerfJobStatus {
   if (!profile.personas.length) throw new Error("Add at least one persona to the test plan.");
   if ([...jobs.values()].some((j) => j.state === "running" && j.org === org)) {
@@ -124,7 +126,7 @@ export function startPerfRun(
       job.step = step;
       if (progress) job.progress = progress;
     },
-    compiledSchema: deps.compiledSchema?.(org, querier),
+    compiledSchema: withMobileLogins(deps.compiledSchema?.(org, querier), mobileLogins),
   })
     .then((result) => {
       if (job.cancelled) {
@@ -145,6 +147,15 @@ export function startPerfRun(
     });
 
   return snapshot(job);
+}
+
+/**
+ * Persona users with a mobile login get their exact table list from their own
+ * metadata download; everyone else (and any failure) uses `base`. The tokens
+ * stay inside the returned source and never reach the job status or result.
+ */
+function withMobileLogins(base: CompiledSchemaSource | undefined, logins: TokenLogin[]): CompiledSchemaSource | undefined {
+  return logins.length ? createUserSchemaSource({ logins, base }) : base;
 }
 
 export function perfRunStatus(jobId: string): PerfJobStatus {

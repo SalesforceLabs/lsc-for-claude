@@ -70,6 +70,7 @@ interface LscApi {
     model?: string;
     theme?: string;
     sfTargetOrg?: string;
+    mobileClientId?: string;
   }>;
   saveSettings(settings: Record<string, unknown>): Promise<{ ok: boolean }>;
 
@@ -117,6 +118,8 @@ interface LscApi {
   perfDeleteRun(id: string): Promise<{ ok: boolean }>;
   studioSimStart(connection: string, options?: unknown): Promise<StudioResponse>;
   /** Start a simulation as a mobile login; the token stays in the main process. */
+  /** Like studioPerfStart, also handing the engine the held mobile logins so their users get exact table lists. */
+  studioPerfStartMobile(plan: unknown): Promise<StudioResponse>;
   studioSimStartMobile(loginId: string, options?: unknown): Promise<StudioResponse>;
   /** Log in through the LSC mobile app's connected app in a Salesforce login window. */
   mobileLoginStart(loginUrl: string): Promise<{ login?: MobileLoginInfo; error?: string }>;

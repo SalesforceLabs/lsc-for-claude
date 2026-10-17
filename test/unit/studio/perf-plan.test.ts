@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { parse } from "yaml";
 import {
   applyBaseline,
+  hasCustomerTargets,
   deltaKey,
   emptyPlan,
   formatValue,
@@ -323,5 +324,16 @@ describe("planIssues", () => {
     // The missing users and the persona's own bad override both live on the Personas tab.
     expect(areas.filter((a) => a === "personas")).toHaveLength(2);
     expect(validatePlan(plan)).toEqual(planIssues(plan).map((i) => i.message));
+  });
+});
+
+describe("hasCustomerTargets", () => {
+  it("is false until the plan or a persona sets a target of its own", () => {
+    expect(hasCustomerTargets(emptyPlan())).toBe(false);
+    expect(hasCustomerTargets({ ...emptyPlan(), thresholds: {} })).toBe(false);
+    expect(hasCustomerTargets({ ...emptyPlan(), thresholds: { predictedRecordsTotal: { warn: 1000 } } })).toBe(true);
+    const plan = emptyPlan();
+    plan.personas[0].thresholds = { initialSyncP95Sec: { fail: 600 } };
+    expect(hasCustomerTargets(plan)).toBe(true);
   });
 });

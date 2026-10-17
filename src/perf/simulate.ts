@@ -10,7 +10,7 @@
  */
 
 import { downloadMetadata, DEFAULT_CHUNK_BYTES } from "./device/metadata.js";
-import { replayInitialSync, type Flow, type TableResult } from "./device/replay.js";
+import { replayInitialSync, schedulingNote, type Flow, type TableResult } from "./device/replay.js";
 import { buildSchema } from "./device/schema.js";
 import { createDeviceSession, type DeviceSession } from "./device/session.js";
 import {
@@ -160,6 +160,7 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
     },
   });
   const seconds = (now() - t0) / 1000;
+  notes.push(schedulingNote(flow, opts.concurrency));
   if (results.some((t) => t.truncated)) notes.push("Some tables were cut short by a limit; their numbers are lower bounds.");
   if (opts.signal?.aborted) notes.push("The run was cancelled.");
 

@@ -80,6 +80,11 @@ export function normalizePlan(plan: PerfPlan): PerfPlan {
   return out;
 }
 
+/** Whether the plan carries any target of its own, beyond the default metadata-download one. */
+export function hasCustomerTargets(plan: PerfPlan): boolean {
+  return [plan.thresholds, ...plan.personas.map((p) => p.thresholds)].some((t) => !!cleanThresholds(t));
+}
+
 export type PlanArea = "plan" | "targets" | "personas";
 
 /** validatePlan's problems, tagged with the part of the editor that fixes them. */

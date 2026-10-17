@@ -13,6 +13,9 @@ import {
   upperBoundRecords,
 } from "./perf-plan";
 import { sparkPoints, type TrendRow } from "./perf-history";
+import { DIFF_PCT, compareVolume, simulatedSeconds, type TableFlag, type VolumeComparison } from "./perf-compare";
+import { formatSeconds } from "./sim-types";
+import type { RunSim, RunSims } from "./useRunSims";
 
 interface RunReportProps {
   result: AssessmentResult;
@@ -22,6 +25,8 @@ interface RunReportProps {
   onAskClaude?: () => void;
   onExport?: () => void;
   onExportReport?: () => void;
+  /** Newest finished First sync per tested user (lower-cased username), to check the prediction against. */
+  sims?: RunSims;
   /** Set the plan's targets from this run's values plus a margin. */
   onBaseline?: (margin: { warnPct: number; failPct: number }) => void;
 }
@@ -118,9 +123,86 @@ function TerritoryTables({ terr }: { terr: TerritoryVolume }) {
   );
 }
 
-function UserVolumes({ v }: { v: UserVolume }) {
+const SOURCE_LABEL: Record<NonNullable<UserVolume["schemaSource"]>, string> = {
+  "user-download": "the user's own metadata download",
+  compiled: "compiled metadata schema",
+  "db-schema": "DB Schema records",
+};
+
+const FLAG_LABEL: Record<Exclude<TableFlag, "match">, string> = {
+  differs: `Differs by more than ${DIFF_PCT}%`,
+  "only-predicted": "Predicted only",
+  "only-simulated": "Simulated only",
+  unreliable: "Not comparable",
+};
+
+function pct(n: number | undefined): string {
+  return n === undefined ? "" : `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n).toFixed(0)}%`;
+}
+
+function PredictedVsSimulated({ cmp, sim }: { cmp: VolumeComparison; sim: RunSim }) {
+  const [all, setAll] = useState(false);
+  const flagged = cmp.tables.filter((t) => t.flag !== "match");
+  const shown = all ? cmp.tables : flagged;
+  return (
+    <div className="studio-perf-territory">
+      <div className="studio-perf-territory-title">
+        Predicted vs simulated · {cmp.territory ?? "No territory"} · {formatNumber(cmp.predictedTotal)} predicted,{" "}
+        {formatNumber(cmp.simulatedTotal)} simulated
+        {cmp.totalDiffPct !== undefined ? ` (${pct(cmp.totalDiffPct)})` : ""}
+        {cmp.totalDiffers && <span className="studio-chip warning studio-perf-scope">total differs by more than {DIFF_PCT}%</span>}
+      </div>
+      <div className="studio-perf-hint">
+        First sync of {new Date(sim.startedAt).toLocaleString()} as {sim.result.user.username}
+        {sim.result.user.territory ? ` in ${sim.result.user.territory}` : ""}.
+        {!cmp.territoryMatched && " The simulation's territory has no prediction in this run, so another territory's was used."}
+        {cmp.partial && " Some tables were not counted, skipped, failed or cut short, so the totals are partial."}
+      </div>
+      {shown.length > 0 && (
+        <table className="studio-change-table studio-perf-table">
+          <thead>
+            <tr>
+              <th>Object</th>
+              <th className="num">Predicted</th>
+              <th className="num">Simulated</th>
+              <th className="num">Gap</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((t) => (
+              <tr key={t.sobject}>
+                <td>{t.sobject}</td>
+                <td className="num">{t.predicted === undefined ? "—" : formatNumber(t.predicted)}</td>
+                <td className="num">{t.simulated === undefined ? "—" : formatNumber(t.simulated)}</td>
+                <td className="num">{pct(t.diffPct)}</td>
+                <td>
+                  {t.flag !== "match" && (
+                    <span className={`studio-chip ${t.flag === "unreliable" ? "muted" : "warning"}`} title={t.reason}>
+                      {FLAG_LABEL[t.flag]}
+                    </span>
+                  )}
+                  {t.reason && <span className="studio-picker-meta"> {t.reason}</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {flagged.length === 0 && <div className="studio-perf-hint">Every table is within {DIFF_PCT}% of its simulated count.</div>}
+      {cmp.tables.length > flagged.length && (
+        <button className="studio-perf-disclosure" onClick={() => setAll(!all)}>
+          {all ? "Show only differences" : `Show all ${cmp.tables.length} tables`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function UserVolumes({ v, sim }: { v: UserVolume; sim?: RunSim }) {
   const [open, setOpen] = useState(false);
   const total = v.territories.reduce((n, t) => n + t.totalRecords, 0);
+  const cmp = sim ? compareVolume(v, sim.result) : null;
   return (
     <div className="studio-perf-user">
       <button className="studio-perf-disclosure" onClick={() => setOpen(!open)}>
@@ -131,8 +213,16 @@ function UserVolumes({ v }: { v: UserVolume }) {
           <span className="studio-picker-meta">
             {" "}
             · {v.user.profileName} · {v.tableCount} tables
-            {v.schemaSource ? ` (${v.schemaSource === "compiled" ? "compiled metadata schema" : "DB Schema records"})` : ""} ·{" "}
+            {v.schemaSource ? ` (${SOURCE_LABEL[v.schemaSource]})` : ""} ·{" "}
             {v.territories.length} {v.territories.length === 1 ? "territory" : "territories"} · {formatNumber(total)} records
+          </span>
+        )}
+        {cmp && (
+          <span
+            className={`studio-chip ${cmp.flagged === 0 && !cmp.totalDiffers ? "ok" : "warning"} studio-perf-scope`}
+            title="Predicted records against the user's most recent First sync simulation"
+          >
+            {cmp.flagged === 0 && !cmp.totalDiffers ? "matches simulation" : `${cmp.flagged} table${cmp.flagged === 1 ? "" : "s"} differ from simulation`}
           </span>
         )}
       </button>
@@ -142,6 +232,7 @@ function UserVolumes({ v }: { v: UserVolume }) {
             {n}
           </div>
         ))}
+      {open && cmp && sim && <PredictedVsSimulated cmp={cmp} sim={sim} />}
       {open && v.territories.map((t) => <TerritoryTables key={t.territory?.id ?? "none"} terr={t} />)}
     </div>
   );
@@ -161,10 +252,40 @@ function DistributionRow({ label, d, unit }: { label: string; d: Distribution; u
   );
 }
 
-function Telemetry({ p }: { p: PersonaResult }) {
-  if (p.telemetryError) return <div className="studio-perf-hint">Field telemetry unavailable: {p.telemetryError}</div>;
+function SimulatedTiming({ sims }: { sims: RunSim[] }) {
+  if (sims.length === 0) return null;
+  return (
+    <>
+      {sims.map((s) => (
+        <div key={s.id} className="studio-perf-hint">
+          Simulated first sync, network only — {s.result.user.username}, {new Date(s.startedAt).toLocaleString()}:{" "}
+          {formatSeconds(simulatedSeconds(s.result))} (metadata {formatSeconds(s.result.metadata.seconds)}, data{" "}
+          {formatSeconds(s.result.totals.seconds)}). A device also spends time writing its database, so real initial syncs run longer.
+        </div>
+      ))}
+    </>
+  );
+}
+
+function Telemetry({ p, sims = [] }: { p: PersonaResult; sims?: RunSim[] }) {
+  const timing = <SimulatedTiming sims={sims} />;
+  if (p.telemetryError) {
+    return (
+      <>
+        <div className="studio-perf-hint">Field telemetry unavailable: {p.telemetryError}</div>
+        {timing}
+      </>
+    );
+  }
   const t = p.telemetry;
-  if (!t || t.samples === 0) return <div className="studio-perf-hint">No syncs recorded for these users in the telemetry window.</div>;
+  if (!t || t.samples === 0) {
+    return (
+      <>
+        <div className="studio-perf-hint">No syncs recorded for these users in the telemetry window.</div>
+        {timing}
+      </>
+    );
+  }
   return (
     <>
       <table className="studio-change-table studio-perf-table">
@@ -187,6 +308,7 @@ function Telemetry({ p }: { p: PersonaResult }) {
           <DistributionRow label="Device DB size" d={t.dbSizeGb} unit="GB" />
         </tbody>
       </table>
+      {timing}
       {t.outcomes && (
         <div className="studio-perf-hint">
           {t.outcomes.completed} completed · {t.outcomes.failed} failed downloads · {t.outcomes.cancelled} cancelled ·{" "}
@@ -283,7 +405,7 @@ function Trend({ rows }: { rows: TrendRow[] }) {
   );
 }
 
-export default function RunReport({ result, previous, trend, onAskClaude, onExport, onExportReport, onBaseline }: RunReportProps) {
+export default function RunReport({ result, previous, trend, onAskClaude, onExport, onExportReport, onBaseline, sims }: RunReportProps) {
   const [baselineOpen, setBaselineOpen] = useState(false);
   const deltas = metricDeltas(result, previous);
   // Differences between the two runs' plans, so a jump in a metric isn't read as the org changing.
@@ -401,11 +523,11 @@ export default function RunReport({ result, previous, trend, onAskClaude, onExpo
 
           <h3 className="studio-perf-subtitle">Predicted sync volume</h3>
           {p.volumes.map((v) => (
-            <UserVolumes key={v.user.username} v={v} />
+            <UserVolumes key={v.user.username} v={v} sim={sims?.get(v.user.username.toLowerCase())} />
           ))}
 
           <h3 className="studio-perf-subtitle">Field telemetry</h3>
-          <Telemetry p={p} />
+          <Telemetry p={p} sims={p.volumes.flatMap((v) => sims?.get(v.user.username.toLowerCase()) ?? [])} />
         </section>
       ))}
     </div>

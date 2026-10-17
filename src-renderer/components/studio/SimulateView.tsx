@@ -8,6 +8,8 @@ import {
   mobileRef,
   formatBytes,
   formatSeconds,
+  MAX_SIM_RUNS,
+  multiRuns,
   newConnections,
   parseSObjectList,
   rankTables,
@@ -73,6 +75,8 @@ function SimResult({ result, status, onExport, onExportReport }: {
   const shown = all ? downloaded : downloaded.slice(0, TOP_TABLES);
   const t = result.totals;
   const partial = status === "cancelled" || result.tables.some((x) => x.truncated);
+  const runs = multiRuns(result);
+  const range = (s: { min: number; max: number }) => `${formatSeconds(s.min)} – ${formatSeconds(s.max)}`;
   return (
     <div className="studio-perf-report">
       <div className={`studio-finding ${partial ? "warning" : "info"} studio-perf-banner`}>
@@ -99,13 +103,21 @@ function SimResult({ result, status, onExport, onExportReport }: {
       </div>
 
       <div className="studio-sim-stats">
-        <Stat label="Total network time" value={formatSeconds(result.metadata.seconds + t.seconds)} detail="Metadata plus data download" />
         <Stat
-          label="Metadata download"
-          value={formatSeconds(result.metadata.seconds)}
-          detail={`${formatBytes(result.metadata.bytes)} · ${result.metadata.requests} requests · ${result.metadata.version}`}
+          label={runs ? "Total network time (median)" : "Total network time"}
+          value={formatSeconds(runs ? runs.total.median : result.metadata.seconds + t.seconds)}
+          detail={runs ? `${runs.count} runs · ${range(runs.total)}` : "Metadata plus data download"}
         />
-        <Stat label="Data download" value={formatSeconds(t.seconds)} detail={`${formatBytes(t.bytes)} · ${formatNumber(t.requests)} requests`} />
+        <Stat
+          label={runs ? "Metadata download (median)" : "Metadata download"}
+          value={formatSeconds(result.metadata.seconds)}
+          detail={`${runs ? `${range(runs.metadata)} · ` : ""}${formatBytes(result.metadata.bytes)} · ${result.metadata.requests} requests · ${result.metadata.version}`}
+        />
+        <Stat
+          label={runs ? "Data download (median)" : "Data download"}
+          value={formatSeconds(t.seconds)}
+          detail={`${runs ? `${range(runs.data)} · ` : ""}${formatBytes(t.bytes)} · ${formatNumber(t.requests)} requests`}
+        />
         <Stat
           label="Records"
           value={formatNumber(t.records)}
@@ -113,10 +125,42 @@ function SimResult({ result, status, onExport, onExportReport }: {
         />
       </div>
 
+      {runs && (
+        <section className="studio-perf-section">
+          <div className="studio-perf-section-header">
+            <h2 className="studio-perf-section-title">Runs</h2>
+            <span className="studio-picker-meta">
+              {runs.count}
+              {runs.requested > runs.count ? ` of ${runs.requested}` : ""} back to back
+            </span>
+          </div>
+          <table className="studio-change-table studio-perf-table">
+            <thead>
+              <tr>
+                <th>Run</th>
+                <th className="num">Total</th>
+                <th className="num">Metadata</th>
+                <th className="num">Data</th>
+              </tr>
+            </thead>
+            <tbody>
+              {runs.perRun.map((r, i) => (
+                <tr key={i}>
+                  <td>{i + 1}</td>
+                  <td className="num">{formatSeconds(r.totalSeconds)}</td>
+                  <td className="num">{formatSeconds(r.metadataSeconds)}</td>
+                  <td className="num">{formatSeconds(r.dataSeconds)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
       <section className="studio-perf-section">
         <div className="studio-perf-section-header">
           <h2 className="studio-perf-section-title">Tables</h2>
-          <span className="studio-picker-meta">slowest first</span>
+          <span className="studio-picker-meta">{runs ? "slowest first · median seconds across runs" : "slowest first"}</span>
         </div>
         <table className="studio-change-table studio-perf-table">
           <thead>
@@ -262,6 +306,7 @@ export default function SimulateView() {
   const [minutes, setMinutes] = useState(String(DEFAULT_MINUTES));
   const [maxPerTable, setMaxPerTable] = useState("");
   const [maxTotal, setMaxTotal] = useState("");
+  const [runs, setRuns] = useState("1");
   const [include, setInclude] = useState("");
   const [exclude, setExclude] = useState("");
   const [advanced, setAdvanced] = useState(false);
@@ -469,6 +514,8 @@ export default function SimulateView() {
     if (flow) opts.forceFlow = flow;
     const m = wholeNumber(minutes);
     if (m) opts.maxSeconds = Math.min(7200, Math.max(10, m * 60));
+    const r = wholeNumber(runs);
+    if (r && r > 1) opts.runs = Math.min(MAX_SIM_RUNS, r);
     const perTable = wholeNumber(maxPerTable);
     if (perTable) opts.maxRecordsPerTable = perTable;
     const total = wholeNumber(maxTotal);
@@ -581,7 +628,7 @@ export default function SimulateView() {
                   <span>{summary?.username ?? s.connection}</span>
                   <span className="studio-perf-run-meta" title={s.org}>
                     {new Date(s.startedAt).toLocaleString()}
-                    {summary ? ` · ${formatNumber(summary.records)} records · ${formatSeconds(summary.seconds)}` : ""}
+                    {summary ? ` · ${formatNumber(summary.records)} records · ${formatSeconds(summary.seconds)}${summary.runs ? ` median of ${summary.runs}` : ""}` : ""}
                   </span>
                 </span>
               </button>
@@ -715,6 +762,7 @@ export default function SimulateView() {
                     Add sf CLI connection…
                   </button>
                 </div>
+                <div className="studio-perf-hint">Mobile logins last only while Studio is open; sf CLI connections stay until removed.</div>
                 {connectionsError && <div className="studio-perf-hint studio-perf-warn-text">Couldn't list sf CLI connections: {connectionsError}</div>}
                 {selected && <div className="studio-perf-hint">{selected.instanceUrl}</div>}
                 {loginOpen && (
@@ -763,6 +811,19 @@ export default function SimulateView() {
                       value={minutes}
                       disabled={running}
                       onChange={(e) => setMinutes(e.target.value)}
+                    />
+                  </label>
+                  <label className="studio-perf-field">
+                    <span className="studio-perf-field-label">Runs (1–{MAX_SIM_RUNS})</span>
+                    <input
+                      className="studio-filter studio-perf-number"
+                      type="number"
+                      min={1}
+                      max={MAX_SIM_RUNS}
+                      value={runs}
+                      disabled={running}
+                      onChange={(e) => setRuns(e.target.value)}
+                      title="Run back to back as the same login and report the median and spread"
                     />
                   </label>
                 </div>

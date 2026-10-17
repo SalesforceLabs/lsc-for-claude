@@ -1296,6 +1296,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
   {
     "name": "studio_perf_start",
     "params": {
+      "mobileLogins": {
+        "optional": true,
+        "type": "ZodArray",
+      },
       "plan": {
         "optional": false,
         "type": "ZodObject",

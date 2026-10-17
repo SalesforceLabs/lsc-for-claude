@@ -735,6 +735,20 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     }
   });
 
+  // Starts a performance run; personas whose users have a mobile login get their exact table list.
+  // Tokens go to the engine for this job only and never come back in a status or result.
+  ipcMain.handle("studio:perfStartMobile", async (_event, plan: unknown) => {
+    const client = await readyMcpClient();
+    if (!client) return { error: "Engine not started" };
+    try {
+      const mobileLogins = await Promise.all(listMobileLogins().map((l) => mobileLoginCredentials(l.id)));
+      const result = await client.callTool("studio_perf_start", { plan, ...(mobileLogins.length ? { mobileLogins } : {}) });
+      return { data: JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}") };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
   // --- File Reading ---
 
   ipcMain.handle("file:read", async (_event, filePath: string) => {

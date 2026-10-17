@@ -182,7 +182,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         </button>
         <button
           className={`studio-rail-item${section === "simulate" ? " active" : ""}`}
-          title="Replay an iOS first sync as an sf CLI connection and time the download"
+          title="Replay an iOS first sync as a mobile user and time the download"
           onClick={() => {
             setSection("simulate");
             setSimOpened(true);

@@ -19,6 +19,7 @@ import {
   replayInitialSync,
   resolveTags,
   substituteTag,
+  tableComplexity,
   type ReplayContext,
 } from "../../../src/perf/device/replay.js";
 import type { SchemaTable } from "../../../src/perf/device/schema.js";
@@ -150,17 +151,62 @@ describe("schema", () => {
 });
 
 describe("ordering", () => {
-  it("runs OT2A, Account, the rest (Opt__c last), then postponed content tables, DeviceSyncTransactionRecord last", () => {
-    const names = ["DeviceSyncTransactionRecord", "ContentVersion", "Opt__c", "Contact", "Account", "ContentDocumentLink", "ObjectTerritory2Association", "Attachment", "ContentDocument", "Visit__c"];
-    const phases = orderPhases(names.map((sobject) => table({ sobject }))).map((p) => p.map((t) => t.sobject));
-    expect(phases).toEqual([
+  const names = ["DeviceSyncTransactionRecord", "ContentVersion", "Opt__c", "Contact", "Account", "ContentDocumentLink", "ObjectTerritory2Association", "Attachment", "ContentDocument", "Visit__c"];
+  const phasesOf = (flow: "enhanced" | "legacy", where: Record<string, string> = {}) =>
+    orderPhases(names.map((sobject) => table({ sobject, whereSoql: where[sobject] })), flow).map((p) => p.map((t) => t.sobject));
+
+  it("enhanced: OT2A, Account, the rest with Opt__c and DSTR last, then the finalize steps (DSTR repeats)", () => {
+    expect(phasesOf("enhanced")).toEqual([
       ["ObjectTerritory2Association"],
       ["Account"],
-      ["Contact", "Visit__c", "Opt__c"],
-      ["ContentDocumentLink", "Attachment"].sort((a, b) => names.indexOf(a) - names.indexOf(b)),
-      ["ContentVersion", "ContentDocument"],
+      ["Contact", "Visit__c", "Opt__c", "DeviceSyncTransactionRecord"],
+      ["Attachment", "ContentDocumentLink"],
       ["DeviceSyncTransactionRecord"],
+      ["ContentVersion", "ContentDocument", "DeviceSyncTransactionRecord"],
     ]);
+  });
+
+  it("legacy: OT2A and Account are plain tables without id tags, and DSTR runs after the main tables", () => {
+    const phases = phasesOf("legacy");
+    expect(phases.slice(0, 2)).toEqual([["Contact", "Visit__c", "ObjectTerritory2Association", "Account", "Opt__c"], ["DeviceSyncTransactionRecord"]]);
+    expect(phases.slice(2)).toEqual(phasesOf("enhanced").slice(3));
+  });
+
+  it("legacy: OT2A and Account go first when a WHERE uses their id tags", () => {
+    const phases = phasesOf("legacy", { Contact: "AccountId IN ({ACCOUNT.IDS})", Visit__c: "Id IN ({OT2A.OBJ.IDS})" });
+    expect(phases.slice(0, 3)).toEqual([["ObjectTerritory2Association"], ["Account"], ["Contact", "Visit__c", "Opt__c"]]);
+  });
+
+  it("downloads ContentVersion and ContentDocument only after a ContentDocumentLink", () => {
+    const phases = orderPhases(["Attachment", "ContentVersion", "DeviceSyncTransactionRecord"].map((sobject) => table({ sobject })), "enhanced").map((p) => p.map((t) => t.sobject));
+    expect(phases).toEqual([["DeviceSyncTransactionRecord"], ["Attachment", "DeviceSyncTransactionRecord"]]);
+  });
+
+  it("scores complexity as 1 plus the selects in the WHERE", () => {
+    expect(tableComplexity(undefined)).toBe(1);
+    expect(tableComplexity("OwnerId = '{USER.ID}'")).toBe(1);
+    expect(tableComplexity("Id IN (SELECT A FROM B WHERE C IN (Select D FROM E))")).toBe(3);
+  });
+});
+
+describe("replayInitialSync scheduling", () => {
+  it("runs DSTR in each of its phases and keeps one summed row", async () => {
+    const { s, calls } = session(() => json({ records: [{ Id: "x" }], hasMore: false }));
+    const seen: string[] = [];
+    const res = await replayInitialSync({
+      session: s,
+      flow: "enhanced",
+      context: ctx,
+      syncStart: new Date("2026-10-17T00:00:00Z"),
+      onTable: (r) => seen.push(r.sobject),
+      tables: ["DeviceSyncTransactionRecord", "ContentDocumentLink", "Contact"].map((sobject) => table({ sobject })),
+    });
+    const sti = calls.filter((c) => JSON.parse(c.body ?? "{}").objectName === "DeviceSyncTransactionRecord");
+    expect(sti).toHaveLength(3);
+    expect(res.map((r) => r.sobject)).toEqual(["DeviceSyncTransactionRecord", "ContentDocumentLink", "Contact"]);
+    expect(res[0]).toMatchObject({ requests: 3, records: 3 });
+    expect(seen.filter((n) => n === "DeviceSyncTransactionRecord")).toHaveLength(1);
+    expect(seen).toHaveLength(3);
   });
 });
 
@@ -251,6 +297,7 @@ describe("enhanced flow", () => {
         syncStart: new Date(),
         tables: [
           table({ sobject: "Account", attachmentsSupport: "cache" }),
+          table({ sobject: "ContentDocumentLink" }),
           table({ sobject: "ContentVersion", whereSoql: "FirstPublishLocationId IN ({RELATED.ENTITIES})" }),
         ],
       });
@@ -267,9 +314,10 @@ describe("enhanced flow", () => {
       flow: "enhanced",
       context: ctx,
       syncStart: new Date(),
-      tables: [table({ sobject: "ContentVersion", fields: ["Id", "VersionData", "Title"] })],
+      tables: [table({ sobject: "ContentDocumentLink" }), table({ sobject: "ContentVersion", fields: ["Id", "VersionData", "Title"] })],
     });
-    expect(JSON.parse(calls[0].body ?? "{}").fields).toEqual(["Id", "Title"]);
+    const cv = calls.map((c) => JSON.parse(c.body ?? "{}")).find((b) => b.objectName === "ContentVersion");
+    expect(cv.fields).toEqual(["Id", "Title"]);
   });
 
   it("records a table error without failing the run", async () => {

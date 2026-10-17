@@ -37,7 +37,7 @@ export interface ReplayOptions {
   tables: SchemaTable[];
   context: ReplayContext;
   syncStart: Date;
-  /** Tables downloaded at once; the device uses 4 (enhanced) and 3 (legacy). */
+  /** Most tables downloaded at once; the device uses 4 (enhanced) and 3 (legacy), ramping up from 1. */
   concurrency?: number;
   maxSeconds?: number;
   tableTimeoutSeconds?: number;
@@ -60,9 +60,18 @@ export const EPOCH_ISO = "1970-01-01T00:00:00Z";
 const OT2A = "objectterritory2association";
 const ACCOUNT = "account";
 const OPT = "opt__c";
-const POSTPONED_A = new Set(["attachment", "contentdocumentlink"]);
-const POSTPONED_B = new Set(["contentversion", "contentdocument"]);
+const OPT_LEGACY = "Opt__c";
+const ATTACHMENT = "attachment";
+const CDL = "contentdocumentlink";
+const CONTENT_VERSION = "contentversion";
+const CONTENT_DOCUMENT = "contentdocument";
+const POSTPONED = new Set([ATTACHMENT, CDL, CONTENT_VERSION, CONTENT_DOCUMENT]);
 const LAST = "devicesynctransactionrecord";
+
+/** Open query locators the device allows across the tables downloading at once. */
+export const MAX_OPEN_QUERY_LOCATORS = 7;
+/** Most tables the device downloads at once. */
+export const MAX_CONCURRENT_TABLES: Record<Flow, number> = { enhanced: 4, legacy: 3 };
 
 // ---------- tags ----------
 
@@ -173,21 +182,171 @@ export function legacyChunkSize(templateLength: number, whereLength: number, tag
 
 // ---------- ordering ----------
 
-/** Phases run one after another; tables inside a phase run concurrently. */
-export function orderPhases(tables: SchemaTable[]): SchemaTable[][] {
-  const by = (pred: (n: string) => boolean) => tables.filter((t) => pred(t.sobject.toLowerCase()));
-  const phases: SchemaTable[][] = [
-    by((n) => n === OT2A),
-    by((n) => n === ACCOUNT),
-    [
-      ...by((n) => ![OT2A, ACCOUNT, OPT, LAST].includes(n) && !POSTPONED_A.has(n) && !POSTPONED_B.has(n)),
-      ...by((n) => n === OPT),
-    ],
-    by((n) => POSTPONED_A.has(n)),
-    by((n) => POSTPONED_B.has(n)),
-    by((n) => n === LAST),
-  ];
+/** Query complexity of a table: 1 plus the number of "select" occurrences in its WHERE (MetadataDatabaseTable). */
+export function tableComplexity(whereSoql: string | undefined): number {
+  return 1 + (whereSoql ?? "").toLowerCase().split("select").length - 1;
+}
+
+/**
+ * Phases run one after another; tables inside a phase go through the smart queue.
+ * Follows SyncConnectDownloadManager / DownloadManager: OT2A, Account, every other table
+ * (Opt__c last), then the finalize steps for the postponed content tables. A table can
+ * appear in more than one phase (DeviceSyncTransactionRecord runs again in finalize).
+ * The legacy flow downloads OT2A and Account up front only when some WHERE uses their id
+ * tags, and runs DeviceSyncTransactionRecord after the main tables instead of inside them.
+ */
+export function orderPhases(tables: SchemaTable[], flow: Flow = "enhanced"): SchemaTable[][] {
+  const named = (n: string) => tables.find((t) => t.sobject.toLowerCase() === n);
+  const ot2a = named(OT2A);
+  const account = named(ACCOUNT);
+  const dstr = named(LAST);
+  const usesTag = (tag: string) => tables.some((t) => tagsInWhere(t.whereSoql).includes(tag));
+  const ot2aFirst = ot2a !== undefined && (flow === "enhanced" || usesTag("{OT2A.OBJ.IDS}"));
+  const accountFirst = account !== undefined && (flow === "enhanced" || usesTag("{ACCOUNT.IDS}"));
+
+  const others = tables.filter((t) => {
+    const n = t.sobject.toLowerCase();
+    return n !== LAST && !POSTPONED.has(n) && !(n === OT2A && ot2aFirst) && !(n === ACCOUNT && accountFirst);
+  });
+  if (flow === "legacy") {
+    // Without id tags these two are plain tables, moved behind the others.
+    for (const t of [ot2a, account]) {
+      const i = t ? others.indexOf(t) : -1;
+      if (i >= 0) others.push(others.splice(i, 1)[0]);
+    }
+  }
+  const optIndex = others.findIndex((t) => (flow === "legacy" ? t.sobject === OPT_LEGACY : t.sobject.toLowerCase().includes(OPT)));
+  if (optIndex >= 0) others.push(others.splice(optIndex, 1)[0]);
+
+  const phases: SchemaTable[][] = [ot2aFirst ? [ot2a] : [], accountFirst ? [account] : []] as SchemaTable[][];
+  phases.push(flow === "enhanced" ? [...others, ...(dstr ? [dstr] : [])] : others);
+  if (flow === "legacy" && dstr) phases.push([dstr]);
+
+  // finalizeInitialSync: Attachment and ContentDocumentLink, DSTR, then ContentVersion,
+  // ContentDocument and DSTR again (ContentVersion/ContentDocument only follow a ContentDocumentLink).
+  const attachment = named(ATTACHMENT);
+  const cdl = named(CDL);
+  const present = (...ts: (SchemaTable | undefined)[]) => ts.filter((t): t is SchemaTable => t !== undefined);
+  if (cdl) {
+    phases.push(present(attachment, cdl));
+    if (dstr) phases.push([dstr]);
+    phases.push(present(named(CONTENT_VERSION), named(CONTENT_DOCUMENT), dstr));
+  } else {
+    phases.push(present(attachment, dstr));
+  }
   return phases.filter((p) => p.length > 0);
+}
+
+// ---------- smart queue ----------
+
+export interface QueueTask<T> {
+  complexity: number;
+  run: () => Promise<T>;
+}
+
+export interface SmartQueueOptions {
+  maxConcurrent: number;
+  maxComplexity?: number;
+  /**
+   * Which operation the throttle treats as "next ready" when it recomputes. The device reads
+   * `operations.first { $0.isReady }`, and an executing operation stays ready, so that is the
+   * oldest unfinished one ("oldestUnfinished", the default). "firstPending" is the next operation
+   * not yet started.
+   */
+  nextReady?: "firstPending" | "oldestUnfinished";
+}
+
+interface QueueOp {
+  complexity: number;
+  started: boolean;
+  start: () => void;
+}
+
+/**
+ * The device's SmartOperationQueue: operations start in FIFO order, up to a concurrency limit
+ * that starts at 1, grows by 1 each time the throttle recomputes while the running complexity plus
+ * the next operation's complexity fits maxComplexity, and shrinks by 1 (not below 1) when it does not.
+ * The throttle recomputes when operations are added and each time one finishes. The limit persists
+ * across run() calls, as the device reuses one queue for the whole sync.
+ */
+export class SmartQueue {
+  readonly maxConcurrent: number;
+  readonly maxComplexity: number;
+  private readonly nextReady: "firstPending" | "oldestUnfinished";
+  private desired = 1;
+  private ops: QueueOp[] = [];
+  private running = 0;
+  private peak = 0;
+
+  constructor(opts: SmartQueueOptions) {
+    this.maxConcurrent = Math.max(1, Math.floor(opts.maxConcurrent));
+    this.maxComplexity = opts.maxComplexity ?? MAX_OPEN_QUERY_LOCATORS;
+    this.nextReady = opts.nextReady ?? "oldestUnfinished";
+  }
+
+  /** Current concurrency limit. */
+  get concurrency(): number {
+    return this.desired;
+  }
+
+  /** Most operations that ever ran at once. */
+  get peakRunning(): number {
+    return this.peak;
+  }
+
+  /** Enqueue the tasks, resolve when all have finished. Results keep the order of `tasks`. */
+  async run<T>(tasks: QueueTask<T>[]): Promise<T[]> {
+    const results: T[] = new Array(tasks.length);
+    let failure: { error: unknown } | undefined;
+    const finished = tasks.map(
+      (task, i) =>
+        new Promise<void>((resolve) => {
+          const op: QueueOp = {
+            complexity: task.complexity,
+            started: false,
+            start: () => {
+              op.started = true;
+              this.running++;
+              this.peak = Math.max(this.peak, this.running);
+              task.run().then(
+                (r) => void (results[i] = r),
+                (e) => void (failure ??= { error: e })
+              ).finally(() => {
+                this.ops.splice(this.ops.indexOf(op), 1);
+                this.running--;
+                this.recompute();
+                this.pump();
+                resolve();
+              });
+            },
+          };
+          this.ops.push(op);
+        })
+    );
+    this.pump();
+    this.recompute();
+    this.pump();
+    await Promise.all(finished);
+    if (failure) throw failure.error;
+    return results;
+  }
+
+  private pump(): void {
+    while (this.running < this.desired) {
+      const op = this.ops.find((o) => !o.started);
+      if (!op) return;
+      op.start();
+    }
+  }
+
+  private recompute(): void {
+    if (this.ops.length === 0) return;
+    const running = this.ops.filter((o) => o.started).reduce((sum, o) => sum + o.complexity, 0);
+    const next = this.nextReady === "oldestUnfinished" ? this.ops[0] : this.ops.find((o) => !o.started);
+    if (!next) return;
+    this.desired =
+      running + next.complexity <= this.maxComplexity ? Math.min(this.desired + 1, this.maxConcurrent) : Math.max(this.desired - 1, 1);
+  }
 }
 
 // ---------- batch sizing ----------
@@ -535,18 +694,25 @@ class TableRunner {
   }
 }
 
-/** Run `fn` over `items` with at most `limit` in flight, starting in order. */
-export async function runPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let next = 0;
-  const worker = async () => {
-    while (next < items.length) {
-      const i = next++;
-      results[i] = await fn(items[i]);
-    }
-  };
-  await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, worker));
-  return results;
+/** Fold another run of the same table into its row; counts add up, it is skipped only if every run was. */
+function mergeRuns(into: TableResult, next: TableResult): void {
+  into.records += next.records;
+  into.requests += next.requests;
+  into.bytes += next.bytes;
+  into.seconds += next.seconds;
+  if (next.skipped === undefined) delete into.skipped;
+  into.error ??= next.error;
+  into.truncated ??= next.truncated;
+}
+
+/** One-line description of the scheduling for the result notes. */
+export function schedulingNote(flow: Flow, maxConcurrent: number = MAX_CONCURRENT_TABLES[flow]): string {
+  return (
+    `Tables scheduled like the iOS app: concurrency ramps from 1 to at most ${maxConcurrent} while the running tables' query complexity ` +
+    `(1 + subselects in WHERE) stays within ${MAX_OPEN_QUERY_LOCATORS} open query locators, tables taken first-in-first-out; OT2A, then Account, ` +
+    `then the rest, then Attachment/ContentDocumentLink, ContentVersion/ContentDocument, with DeviceSyncTransactionRecord repeating ` +
+    `(its requests, bytes and records are summed in one row).`
+  );
 }
 
 export async function replayInitialSync(opts: ReplayOptions): Promise<TableResult[]> {
@@ -559,24 +725,37 @@ export async function replayInitialSync(opts: ReplayOptions): Promise<TableResul
     totalRecords: 0,
     aborted: false,
   };
-  const limit = opts.concurrency ?? (opts.flow === "enhanced" ? 4 : 3);
+  const queue = new SmartQueue({ maxConcurrent: opts.concurrency ?? MAX_CONCURRENT_TABLES[opts.flow] });
   const results = new Map<SchemaTable, TableResult>();
 
   const skipped = (table: SchemaTable, why: string): TableResult => ({
     sobject: table.sobject, developerName: table.developerName, records: 0, requests: 0, bytes: 0, seconds: 0, skipped: why,
   });
 
-  for (const phase of orderPhases(opts.tables)) {
-    await runPool(phase, limit, async (table) => {
-      let r: TableResult;
-      if (opts.signal?.aborted || run.aborted) r = skipped(table, "cancelled");
-      else if (run.deadline !== undefined && now() >= run.deadline) r = skipped(table, "maxSeconds budget exhausted");
-      else if (opts.maxTotalRecords !== undefined && run.totalRecords >= opts.maxTotalRecords) r = skipped(table, "maxTotalRecords reached");
-      else r = await new TableRunner(run, table).execute();
-      results.set(table, r);
-      opts.onTable?.(r);
-      return r;
-    });
+  const phases = orderPhases(opts.tables, opts.flow);
+  const runsLeft = new Map<SchemaTable, number>();
+  for (const table of phases.flat()) runsLeft.set(table, (runsLeft.get(table) ?? 0) + 1);
+
+  for (const phase of phases) {
+    await queue.run(
+      phase.map((table) => ({
+        complexity: tableComplexity(table.whereSoql),
+        run: async () => {
+          let r: TableResult;
+          if (opts.signal?.aborted || run.aborted) r = skipped(table, "cancelled");
+          else if (run.deadline !== undefined && now() >= run.deadline) r = skipped(table, "maxSeconds budget exhausted");
+          else if (opts.maxTotalRecords !== undefined && run.totalRecords >= opts.maxTotalRecords) r = skipped(table, "maxTotalRecords reached");
+          else r = await new TableRunner(run, table).execute();
+          const earlier = results.get(table);
+          if (earlier) mergeRuns(earlier, r);
+          else results.set(table, r);
+          const left = (runsLeft.get(table) ?? 1) - 1;
+          runsLeft.set(table, left);
+          if (left === 0) opts.onTable?.(results.get(table) ?? r);
+          return r;
+        },
+      }))
+    );
   }
   return opts.tables.map((t) => results.get(t) ?? skipped(t, "not scheduled"));
 }

@@ -10,10 +10,14 @@
  * Instead of an sf CLI connection the GUI can pass a login it made through the
  * LSC mobile app's connected app — the only kind the org's mobile sync
  * endpoints answer. The token is used for that job only and never returned.
+ *
+ * A job can run the simulation several times back to back (`runs`, see
+ * sim-runs.ts); the result is then the median across them.
  */
 
 import { createTokenSession, type TokenLogin } from "../perf/device/session.js";
 import { simulateInitialSync, type SimulateOptions, type SimulationResult } from "../perf/simulate.js";
+import { aggregateRuns, clampRuns, type MultiRunResult } from "./sim-runs.js";
 
 export type SimJobState = "running" | "done" | "failed" | "cancelled";
 
@@ -21,7 +25,10 @@ export type SimJobState = "running" | "done" | "failed" | "cancelled";
 export type SimRunOptions = Pick<
   SimulateOptions,
   "territory" | "forceFlow" | "include" | "exclude" | "maxSeconds" | "maxRecordsPerTable" | "maxTotalRecords"
->;
+> & {
+  /** Back-to-back runs as the same login (1–5, default 1); the result reports their median and spread. */
+  runs?: number;
+};
 
 export interface SimJobStatus {
   jobId: string;
@@ -33,7 +40,7 @@ export interface SimJobStatus {
   step: string;
   /** Tables finished out of the total, and records downloaded so far, once the data download starts. */
   tables?: { done: number; total: number; records: number };
-  result?: SimulationResult;
+  result?: MultiRunResult;
   error?: string;
 }
 
@@ -84,20 +91,51 @@ export function startSimulation(
   };
   jobs.set(job.jobId, job);
 
-  deps
-    .simulate({
-      ...options,
-      username: name,
-      ...(session ? { session } : {}),
-      signal: job.controller.signal,
-      onStep: (step, tables) => {
-        if (job.controller.signal.aborted) return;
-        job.step = step;
-        if (tables) job.tables = tables;
-      },
-    })
+  const { runs: runsOption, ...simOptions } = options;
+  const requested = clampRuns(runsOption);
+  const completed: SimulationResult[] = [];
+
+  const runAll = async () => {
+    let partial: SimulationResult | undefined;
+    const extraNotes: string[] = [];
+    for (let i = 1; i <= requested && !job.controller.signal.aborted; i++) {
+      const prefix = requested > 1 ? `Run ${i} of ${requested} · ` : "";
+      if (requested > 1) job.step = `${prefix}Connecting`;
+      job.tables = undefined;
+      try {
+        const result = await deps.simulate({
+          ...simOptions,
+          username: name,
+          // The same session for every run, so a mobile login's token is read once.
+          ...(session ? { session } : {}),
+          signal: job.controller.signal,
+          onStep: (step, tables) => {
+            if (job.controller.signal.aborted) return;
+            job.step = `${prefix}${step}`;
+            if (tables) job.tables = tables;
+          },
+        });
+        // A cancelled run still returns what it downloaded; it only stands alone when no run finished.
+        if (job.controller.signal.aborted) partial = result;
+        else completed.push(result);
+      } catch (err) {
+        // A later run failing keeps the earlier ones.
+        if (completed.length === 0 || job.controller.signal.aborted) throw err;
+        const message = err instanceof Error ? err.message : String(err);
+        extraNotes.push(`Run ${i} of ${requested} failed (${message}); the result covers the runs before it.`);
+        break;
+      }
+    }
+    const results = completed.length > 0 ? completed : partial ? [partial] : [];
+    if (results.length === 0) return undefined;
+    const aggregate = aggregateRuns(results, completed.length > 0 ? requested : 1);
+    if (aggregate.runs && partial) extraNotes.push("The run in progress when cancelled is left out of the medians.");
+    aggregate.notes.push(...extraNotes);
+    return aggregate;
+  };
+
+  runAll()
     .then((result) => {
-      // A cancelled run still returns what it downloaded; keep it so the GUI can show the partial result.
       job.state = job.controller.signal.aborted ? "cancelled" : "done";
       job.result = result;
     })

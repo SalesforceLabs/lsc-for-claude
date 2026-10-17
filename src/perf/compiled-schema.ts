@@ -19,17 +19,20 @@ import type { DbSchemaEntry, ApplicableTable, OrgQuerier, UserContext } from "./
 import { downloadArchive, readMetadataFiles, type MetadataDownloadInfo, type MetadataFiles } from "./device/metadata.js";
 import type { DeviceSession } from "./device/session.js";
 
-export type SchemaSource = "compiled" | "db-schema";
+/** "user-download": the user's own metadata download through a mobile login (exact, including field-level filtering). */
+export type SchemaSource = "compiled" | "db-schema" | "user-download";
 
 export interface CompiledSchemaTables {
   tables: ApplicableTable[];
   notes: string[];
+  /** Defaults to "compiled" when absent. */
+  source?: Exclude<SchemaSource, "db-schema">;
 }
 
 export interface CompiledSchemaSource {
   /** Tables the user's device would sync per the profile's archive, or null (with a reason) to fall back. */
   tablesFor(
-    user: Pick<UserContext, "id" | "profileId" | "profileName" | "permissionSets">
+    user: Pick<UserContext, "id" | "profileId" | "profileName" | "permissionSets"> & { username?: string }
   ): Promise<{ result: CompiledSchemaTables } | { fallbackReason: string }>;
 }
 

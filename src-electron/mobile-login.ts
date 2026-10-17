@@ -12,17 +12,19 @@
 
 import { BrowserWindow } from "electron";
 import crypto from "crypto";
+import { loadSettings } from "./settings.js";
 
 /**
- * The LSC mobile app's connected-app consumer key, from LSC_MOBILE_CLIENT_ID.
- * It isn't shipped in this repo; read it from the iOS app's bootconfig.plist
- * (remoteAccessConsumerKey).
+ * The LSC mobile app's connected-app consumer key: the Settings value first,
+ * then LSC_MOBILE_CLIENT_ID. It isn't shipped in this repo; it is the iOS
+ * app's bootconfig.plist remoteAccessConsumerKey. Read per call so a change
+ * in Settings applies without a restart.
  */
-function mobileClientId(): string {
-  const id = process.env.LSC_MOBILE_CLIENT_ID?.trim();
+export function mobileClientId(): string {
+  const id = loadSettings().mobileClientId?.trim() || process.env.LSC_MOBILE_CLIENT_ID?.trim();
   if (!id) {
     throw new Error(
-      "Set LSC_MOBILE_CLIENT_ID to the LSC mobile app's consumer key (remoteAccessConsumerKey in its bootconfig.plist) and restart Studio."
+      "Set the LSC mobile app consumer key in Settings (remoteAccessConsumerKey in the iOS app's bootconfig.plist), or set LSC_MOBILE_CLIENT_ID and restart Studio."
     );
   }
   return id;

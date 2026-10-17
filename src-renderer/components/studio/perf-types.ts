@@ -79,8 +79,8 @@ export interface UserVolume {
   };
   tableCount: number;
   territories: TerritoryVolume[];
-  /** Where the table list came from: the compiled metadata archive, or the raw DB Schema records. */
-  schemaSource?: "compiled" | "db-schema";
+  /** Where the table list came from: the user's own metadata download (mobile login), the profile's compiled archive, or the raw DB Schema records. */
+  schemaSource?: "compiled" | "db-schema" | "user-download";
   schemaNotes?: string[];
   error?: string;
 }

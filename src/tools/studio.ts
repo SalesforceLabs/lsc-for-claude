@@ -21,6 +21,7 @@ import { nfrProfileSchema, parseNfrProfile } from "../perf/nfr.js";
 import { renderAssessment, type AssessmentResult } from "../perf/assessment.js";
 import { activeSimulation, cancelSimulation, simulationStatus, startSimulation } from "../studio/simulate.js";
 import { renderSimulation } from "./perf-simulate.js";
+import { MAX_SIM_RUNS, renderRunsSection, type SimRunsSummary } from "../studio/sim-runs.js";
 import type { SimulationResult } from "../perf/simulate.js";
 
 /**
@@ -298,14 +299,30 @@ function registerPerfTools(server: McpServer) {
   server.tool(
     "studio_perf_start",
     "LSC Studio (GUI data): start a performance assessment of a test plan (predicted sync volume + field telemetry per persona, evaluated against NFR thresholds) as a background job. Read-only against the org. Returns JSON status; poll with studio_perf_status.",
-    { plan: nfrProfileSchema },
-    async ({ plan }) => {
+    {
+      plan: nfrProfileSchema,
+      mobileLogins: z
+        .array(
+          z.object({
+            instanceUrl: z.string().url().max(255),
+            accessToken: z.string().min(1).max(4096),
+            username: z.string().min(1).max(255),
+            orgId: z.string().max(18).optional(),
+          })
+        )
+        .max(25)
+        .optional()
+        .describe(
+          "Logins Studio made through the LSC mobile app's connected app. A persona user whose username matches one gets their exact table list from their own metadata download instead of the ObjectPermissions approximation; tokens are used for this job only and never returned."
+        ),
+    },
+    async ({ plan, mobileLogins }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(startPerfRun(plan, connection.targetOrg));
+        return json(startPerfRun(plan, connection.targetOrg, undefined, mobileLogins ?? []));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -442,6 +459,13 @@ function registerPerfTools(server: McpServer) {
           maxSeconds: z.number().int().min(10).max(7200).optional(),
           maxRecordsPerTable: z.number().int().min(1).optional(),
           maxTotalRecords: z.number().int().min(1).optional(),
+          runs: z
+            .number()
+            .int()
+            .min(1)
+            .max(MAX_SIM_RUNS)
+            .optional()
+            .describe("Runs back to back as the same login (default 1); the result reports median and min–max times"),
         })
         .optional(),
     },
@@ -496,7 +520,9 @@ function registerPerfTools(server: McpServer) {
         return jsonError("Not a first-sync simulation result (no tables).");
       }
       try {
-        return json({ markdown: renderSimulation(result as unknown as SimulationResult) });
+        const markdown = renderSimulation(result as unknown as SimulationResult);
+        const runs = renderRunsSection(result as { runs?: SimRunsSummary });
+        return json({ markdown: runs ? markdown.replace("## Slowest tables", () => `${runs}## Slowest tables`) : markdown });
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

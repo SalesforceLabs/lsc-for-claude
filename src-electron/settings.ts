@@ -14,6 +14,8 @@ export interface Settings {
   model?: string;
   theme?: "light" | "dark" | "system";
   sfTargetOrg?: string;
+  // LSC mobile app connected-app consumer key, for First sync mobile login
+  mobileClientId?: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {

@@ -41,7 +41,7 @@ export interface UserVolume {
   user: Omit<UserContext, "permissionSets"> & { permissionSetCount: number };
   tableCount: number;
   territories: TerritoryVolume[];
-  /** Where the table list came from: the compiled metadata archive, or the raw DB Schema records. */
+  /** Where the table list came from: the user's own metadata download, the profile's compiled archive, or the raw DB Schema records. */
   schemaSource?: SchemaSource;
   /** How the table list was derived, and why the compiled schema wasn't used when it wasn't. */
   schemaNotes?: string[];
@@ -110,7 +110,7 @@ export async function profileUsers(
       const compiled = await opts.compiledSchema.tablesFor(user);
       if ("result" in compiled) {
         tables = compiled.result.tables;
-        schemaSource = "compiled";
+        schemaSource = compiled.result.source ?? "compiled";
         schemaNotes.push(...compiled.result.notes);
         const diff = diffTables(tables, dbSchemaTables);
         if (diff.differing.length + diff.onlyCompiled.length + diff.onlyDbSchema.length > 0) {
@@ -355,7 +355,12 @@ export function renderVolumes(volumes: UserVolume[], topTables = 15): string {
       out += `❌ ${v.error}\n\n`;
       continue;
     }
-    const source = v.schemaSource === "compiled" ? "compiled metadata schema" : "DB Schema records";
+    const source =
+      v.schemaSource === "user-download"
+        ? "the user's own metadata download"
+        : v.schemaSource === "compiled"
+          ? "compiled metadata schema"
+          : "DB Schema records";
     out += `- **Profile:** ${v.user.profileName}\n- **Permission sets:** ${v.user.permissionSetCount}\n- **Tables synced:** ${v.tableCount} (from ${source})\n- **Territories (active model):** ${v.user.territories.length || "none"}\n\n`;
     for (const note of v.schemaNotes ?? []) out += `- *Schema:* ${note}\n`;
     if (v.schemaNotes?.length) out += "\n";

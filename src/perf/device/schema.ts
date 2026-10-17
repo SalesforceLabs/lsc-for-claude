@@ -90,8 +90,8 @@ export function fieldWeight(type: string | undefined, length: number | undefined
 }
 
 export function whereComplexity(whereSoql: string | undefined): number {
-  const selects = (whereSoql ?? "").toLowerCase().split("select").length - 1;
-  return 1 + Math.max(0, selects - 1);
+  // MetadataDatabaseTable: 1 plus each "select" substring in the lowercased WHERE.
+  return 1 + (whereSoql ?? "").toLowerCase().split("select").length - 1;
 }
 
 export function recordWeight(fieldWeights: number[], whereSoql: string | undefined): number {

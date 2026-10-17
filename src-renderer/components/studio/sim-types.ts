@@ -1,5 +1,5 @@
-// Structural copy of src/perf/simulate.ts, src/perf/device/replay.ts and src/studio/simulate.ts
-// result types — the renderer bundle cannot import from src/. Keep in sync.
+// Structural copy of src/perf/simulate.ts, src/perf/device/replay.ts, src/studio/simulate.ts and
+// src/studio/sim-runs.ts result types — the renderer bundle cannot import from src/. Keep in sync.
 
 export type SimFlow = "enhanced" | "legacy";
 
@@ -33,6 +33,31 @@ export interface SimulationResult {
   startedAt: string;
   finishedAt: string;
   notes: string[];
+  /** Present when the job ran more than once; the times above are then medians. Absent on older history rows. */
+  runs?: SimRunsSummary;
+}
+
+export interface SimSpread {
+  median: number;
+  min: number;
+  max: number;
+}
+
+export interface SimRunsSummary {
+  count: number;
+  requested: number;
+  perRun: Array<{ totalSeconds: number; metadataSeconds: number; dataSeconds: number }>;
+  total: SimSpread;
+  metadata: SimSpread;
+  data: SimSpread;
+}
+
+export const MAX_SIM_RUNS = 5;
+
+/** Runs worth showing as a median and spread. Tolerates stored rows without (or with malformed) run data. */
+export function multiRuns(r: Pick<SimulationResult, "runs">): SimRunsSummary | null {
+  const runs = r.runs;
+  return runs && runs.count >= 2 && Array.isArray(runs.perRun) && runs.total && runs.metadata && runs.data ? runs : null;
 }
 
 export interface SimRunOptions {
@@ -43,6 +68,7 @@ export interface SimRunOptions {
   maxSeconds?: number;
   maxRecordsPerTable?: number;
   maxTotalRecords?: number;
+  runs?: number;
 }
 
 export interface SimJobStatus {
@@ -76,23 +102,28 @@ export interface SimSummary {
   seconds: number;
   failed: number;
   truncated: boolean;
+  /** Runs the times are medians of; absent for a single run and on older rows. */
+  runs?: number;
 }
 
 export function simSummary(r: SimulationResult): SimSummary {
+  const runs = multiRuns(r);
   return {
     username: r.user.username,
     profile: r.user.profile,
     flow: r.flow,
     records: r.totals.records,
-    seconds: r.metadata.seconds + r.totals.seconds,
+    seconds: runs ? runs.total.median : r.metadata.seconds + r.totals.seconds,
     failed: r.totals.tablesFailed,
     truncated: r.tables.some((t) => t.truncated),
+    ...(runs ? { runs: runs.count } : {}),
   };
 }
 
 export function asSimSummary(x: unknown): SimSummary | null {
   const s = x as Partial<SimSummary> | null;
-  return s && typeof s.username === "string" && typeof s.records === "number" && typeof s.seconds === "number" ? (s as SimSummary) : null;
+  if (!s || typeof s.username !== "string" || typeof s.records !== "number" || typeof s.seconds !== "number") return null;
+  return typeof s.runs === "number" ? (s as SimSummary) : ({ ...s, runs: undefined } as SimSummary);
 }
 
 /** "rep1 · rep@x.com" when the connection has an alias, else the username. */
