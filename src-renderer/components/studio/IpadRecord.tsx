@@ -10,7 +10,7 @@ import type {
   RecordFieldSpec,
 } from "./published-types";
 import { EmptyArt } from "./IpadHome";
-import { MapCard, NextBestActionsCard, OverviewCard, SummaryCard } from "./DashboardCards";
+import { ActivityHistoryCard, MapCard, NextBestActionsCard, OverviewCard, SummaryCard } from "./DashboardCards";
 import "./record.css";
 import { CustomIcon, FileIcon, PersonAccountIcon } from "./assets/icons";
 
@@ -87,6 +87,8 @@ const PLACEHOLDER_TITLES: Record<string, string> = {
   Ratings: "Ratings",
   AccountAffiliations: "Affiliations",
   optsWebView: "Consent",
+  lscMobileInline_hcpEngagement: "HCP Engagement",
+  lscMobileInline_inquiries: "Inquiries",
   surveyListView: "Surveys",
   AccountTerritoryFields: "Territory",
 };
@@ -181,6 +183,14 @@ function TabContent({ components, snapshot, rec }: { components: PublishedCompon
           if (name === "LSCGenericRelatedList") {
             const r = Object.values(rec.related).find((x) => x.api === "LSCGenericRelatedList" && x.label === c.properties.label);
             return r ? <RelatedCard key={k} snapshot={snapshot} related={r} editable={rec.editable} /> : null;
+          }
+          if (name === "ActivityHistory") {
+            const r = findRelated(rec, "ActivityHistory");
+            return r ? <ActivityHistoryCard key={k} rows={r.rows} /> : null;
+          }
+          if (name === "ActivityHistory") {
+            const r = findRelated(rec, "ActivityHistory");
+            return r ? <ActivityHistoryCard key={k} rows={r.rows} /> : null;
           }
           if (name === "AccountAffiliations") {
             const r = findRelated(rec, "AccountAffiliations");

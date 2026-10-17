@@ -772,3 +772,96 @@
 .studio-ipad-rec-rl-head .studio-ipad-rec-new + .studio-ipad-rec-new {
   margin-left: 8px;
 }
+
+/* Activity History timeline (device: card x 40, month rule at 60, items 139pt apart) */
+.studio-ipad-rec-card.dash.activity {
+  margin: 0 19px;
+  padding: 22px 20px 20px;
+}
+.studio-ipad-rec-act-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 38px;
+  margin-bottom: 15px;
+}
+.studio-ipad-rec-act-bar .today {
+  flex: 1;
+  font-size: 20px;
+  font-weight: 500;
+  color: #0250d9;
+}
+.studio-ipad-rec-act-bar .cap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  border: 1px solid #5c5c5c;
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 500;
+  color: #0250d9;
+}
+.studio-ipad-rec-act-group {
+  margin-top: 32px;
+}
+.studio-ipad-rec-act-month {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #032d60;
+}
+.studio-ipad-rec-act-month::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid #c9c9c9;
+}
+.studio-ipad-rec-act-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  min-height: 74px;
+  margin-top: 9px;
+}
+.studio-ipad-rec-act-item .chev {
+  margin: 4px 14px 0 0;
+}
+.studio-ipad-rec-act-item .dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #f87d6f;
+}
+.studio-ipad-rec-act-item .bar {
+  position: absolute;
+  left: 47px;
+  top: 32px;
+  width: 3px;
+  height: 36px;
+  background: #f87d6f;
+}
+.studio-ipad-rec-act-item .body {
+  flex: 1;
+  margin-left: 24px;
+}
+.studio-ipad-rec-act-item .t {
+  font-size: 17px;
+  font-weight: 700;
+  color: #181818;
+}
+.studio-ipad-rec-act-item .l {
+  margin-top: -2px;
+  font-size: 12px;
+  color: #0250d9;
+}
+.studio-ipad-rec-act-item .when {
+  font-size: 12px;
+  color: #5c5c5c;
+}

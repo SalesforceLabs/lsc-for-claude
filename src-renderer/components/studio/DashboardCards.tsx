@@ -112,6 +112,57 @@ export function NextBestActionsCard({ data }: { data: PublishedDashboard }) {
   );
 }
 
+/** ActivityHistory: a timeline of the account's visits grouped by month (Today divider first). */
+export function ActivityHistoryCard({ rows }: { rows: { id: string; cells: string[] }[] }) {
+  const groups: { month: string; rows: { id: string; cells: string[] }[] }[] = [];
+  for (const r of rows) {
+    const g = groups.find((x) => x.month === r.cells[1]);
+    if (g) g.rows.push(r);
+    else groups.push({ month: r.cells[1] ?? "", rows: [r] });
+  }
+  return (
+    <div className="studio-ipad-rec-card dash activity">
+      <div className="studio-ipad-rec-act-bar">
+        <span className="today">Today</span>
+        <span className="cap">Calendar View</span>
+        <span className="cap">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M1 2h14l-5.5 6.5V14l-3-1.5V8.5Z" fill="currentColor" />
+          </svg>
+          Filters
+        </span>
+      </div>
+      <div className="studio-ipad-rec-act-group">
+        <div className="studio-ipad-rec-act-month">Today</div>
+      </div>
+      {groups.map((g) => (
+        <div key={g.month} className="studio-ipad-rec-act-group">
+          <div className="studio-ipad-rec-act-month">{g.month}</div>
+          {g.rows.map((r) => (
+            <div key={r.id} className="studio-ipad-rec-act-item">
+              <svg className="chev" width="14" height="18" viewBox="0 0 14 18" aria-hidden="true">
+                <path d="m3 2 7 7-7 7" fill="none" stroke="#0250d9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span className="dot">
+                <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                  <circle cx="9" cy="6" r="3" fill="none" stroke="#fff" strokeWidth="1.5" />
+                  <path d="M3 15c.5-3 3-4 6-4s5.5 1 6 4" fill="none" stroke="#fff" strokeWidth="1.5" />
+                </svg>
+              </span>
+              <span className="bar" />
+              <div className="body">
+                <div className="t">{r.cells[2] || "Visit"}</div>
+                <div className="l">Visit Details</div>
+              </div>
+              <span className="when">{r.cells[0]}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function MapCard({ data }: { data: PublishedDashboard }) {
   const m = data.map;
   return (

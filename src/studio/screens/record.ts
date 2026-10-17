@@ -519,6 +519,38 @@ async function relatedLists(ctx: ScreenContext, object: string, ids: string[], d
     const lists = await affiliations(ctx, ids).catch(() => new Map<string, PublishedRelated>());
     for (const [id, rel] of lists) out.get(id)?.push(rel);
   }
+  if (object === "Account" && pageComponents(ctx, object).some((c) => trimNamespace(c.name) === "ActivityHistory")) {
+    const lists = await activityHistory(ctx, ids).catch(() => new Map<string, PublishedRelated>());
+    for (const [id, rel] of lists) out.get(id)?.push(rel);
+  }
+  return out;
+}
+
+/**
+ * The Activity History tab (ActivityHistory): the account's visits, newest first. Each row is
+ * [when, month heading, kind]; the month heading groups the timeline.
+ */
+async function activityHistory(ctx: ScreenContext, ids: string[]): Promise<Map<string, PublishedRelated>> {
+  const out = new Map<string, PublishedRelated>();
+  const cond = ctx.scope("Visit");
+  if (cond === undefined) return out;
+  const rows = await query(
+    `SELECT Id, AccountId, PlannedVisitStartTime FROM Visit WHERE AccountId IN (${inList(ids)}) AND PlannedVisitStartTime != null${cond ? ` AND (${cond})` : ""} ORDER BY PlannedVisitStartTime DESC LIMIT 200`,
+    ctx.org
+  );
+  const month = new Intl.DateTimeFormat(ctx.format.locale, { month: "long", year: "numeric", timeZone: ctx.format.timeZone });
+  for (const id of ids) {
+    const mine = rows.filter((r) => str(r.AccountId) === id);
+    out.set(id, {
+      key: "Visit.AccountId.history",
+      api: "ActivityHistory",
+      label: "Activity History",
+      object: "Visit",
+      count: mine.length,
+      columns: [{ label: "When", type: "datetime" }, { label: "Month", type: "string" }, { label: "Kind", type: "string" }],
+      rows: mine.map((r) => ({ id: str(r.Id), cells: [formatValue(r.PlannedVisitStartTime, { type: "datetime" }, undefined, ctx.format), month.format(new Date(str(r.PlannedVisitStartTime))), "Visit"] })),
+    });
+  }
   return out;
 }
 
