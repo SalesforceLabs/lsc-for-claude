@@ -126,6 +126,17 @@ describe("buildTabs", () => {
     expect(hidden.map((h) => h.label).sort()).toEqual(["Admin Console", "Orders"]);
     expect(hidden.find((h) => h.label === "Orders")?.reason).toMatch(/synced/);
   });
+  it("filters object tabs by the user's available tables (exact name) when known", () => {
+    const { tabs, hidden } = buildTabs(files(), new Set(["Order", "Account"]));
+    expect(tabs.map((t) => t.label)).toEqual(["Home", "Accounts", "Orders", "Calendar", "Recent Items"]);
+    expect(hidden.find((h) => h.label === "Visits")?.reason).toMatch(/active DB Schema record the user can read/);
+    expect(buildTabs(files(), new Set(["visit"])).tabs.map((t) => t.label)).not.toContain("Visits");
+  });
+  it("uses the translated tab label when it's non-empty", () => {
+    const translations = { tabs: { "standard-Visit": { label: "Visit" }, "lsc4ce__Planner": { label: "" } } };
+    const labels = buildTabs(files({ translations })).tabs.map((t) => t.label);
+    expect(labels).toEqual(["Home", "Accounts", "Visit", "Calendar", "Recent Items"]);
+  });
   it("explains UI Settings tabs the app can't route", () => {
     const f = files();
     f.nav.mAccounts = { fullName: "Accounts", label: "Accounts", type: "mobile", tabOrder: 6 };

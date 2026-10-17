@@ -14,7 +14,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { promisify } from "util";
-import { ID_PATTERN, query, type Row } from "./helpers.js";
+import { ID_PATTERN, inList, query, type Row } from "./helpers.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -136,6 +136,8 @@ export interface MetadataFiles {
   permissions: Row;
   db: Record<string, unknown>;
   sobjects: Record<string, Row>;
+  /** The user's `translations/<language>.json` (falling back to en_US); only `tabs` is read. */
+  translations?: Row;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -261,6 +263,7 @@ function emptyReason(tab: Row, nav: Record<string, Row>, visible: Set<string>): 
 const TAB_FILTER_REASONS = {
   notVisible: "Tab is hidden or default-off on the profile and the user's permission sets",
   noTable: "Its object isn't synced to the iPad",
+  notAvailable: "Its object isn't in an active DB Schema record the user can read",
   samples: "Samples Management tabs never show on the iPad",
   noCoordinator: "The iPad can't open this tab",
 } as const;
@@ -268,8 +271,13 @@ const TAB_FILTER_REASONS = {
 /**
  * Visible tabs in iPad order — ProcessMetadataOperation.parseNavigation
  * (visibility + table filter), sorted by tabOrder, then routed.
+ *
+ * `availableTables` is the user's `profile.availableFields` keys, which the
+ * server sends per user at download (not in the ZIP): every active DB Schema
+ * object in the org the user can read. Without it, fall back to the profile's
+ * own synced tables.
  */
-export function buildTabs(files: MetadataFiles): { tabs: PublishedTab[]; hidden: HiddenTab[] } {
+export function buildTabs(files: MetadataFiles, availableTables?: Set<string>): { tabs: PublishedTab[]; hidden: HiddenTab[] } {
   const profile = obj(files.permissions.profile);
   const visible = new Set(
     arr(profile.tabVisibilities)
@@ -277,15 +285,18 @@ export function buildTabs(files: MetadataFiles): { tabs: PublishedTab[]; hidden:
       .map((t) => str(t.tab))
   );
   const hasTable = (s: string) => Object.keys(files.db).some((k) => ieq(k, s)) && Object.keys(files.sobjects).some((k) => ieq(k, s));
+  const isAvailable = (s: string) => (availableTables ? availableTables.has(s) : hasTable(s));
+  const translated = obj(files.translations?.tabs);
 
   const tabs: (PublishedTab & { order: number })[] = [];
   const hidden: HiddenTab[] = [];
   for (let t of Object.values(files.nav)) {
     const fullName = str(t.fullName);
-    const label = str(t.label) || fullName;
+    // MetadataNavigation.init: localize — a non-empty translated label wins.
+    const label = str(obj(translated[fullName]).label) || str(t.label) || fullName;
     const hide = (reason: string) => hidden.push({ fullName, label, reason });
-    if (t.sobjectName != null && !hasTable(str(t.sobjectName))) {
-      hide(TAB_FILTER_REASONS.noTable);
+    if (t.sobjectName != null && !isAvailable(str(t.sobjectName))) {
+      hide(availableTables ? TAB_FILTER_REASONS.notAvailable : TAB_FILTER_REASONS.noTable);
       continue;
     }
     if (!visible.has(fullName)) {
@@ -631,10 +642,10 @@ export type SnapshotCore = Omit<PublishedIpad, "viewer" | "users">;
 
 export function buildSnapshot(
   raw: MetadataFiles,
-  meta: { profile: string; cache: PublishedIpad["cache"]; permissionSets?: string[] }
+  meta: { profile: string; cache: PublishedIpad["cache"]; permissionSets?: string[]; availableTables?: Set<string> }
 ): SnapshotCore {
   const files: MetadataFiles = { ...raw, permissions: { ...raw.permissions, profile: effectiveProfile(raw.permissions, meta.permissionSets ?? []) } };
-  const { tabs, hidden } = buildTabs(files);
+  const { tabs, hidden } = buildTabs(files, meta.availableTables);
   const flexiPages = obj(files.ui.flexiPages);
   const pageLayouts = obj(files.ui.pageLayouts);
   const compact = obj(files.ui.compactLayouts);
@@ -677,7 +688,9 @@ export function buildSnapshot(
 
 const FILES = ["nav", "ui", "permissions", "db", "sobjects"] as const;
 const CACHE_ROOT = path.join(os.tmpdir(), "lsc-studio-published");
-const SNAPSHOT_VERSION = 4;
+const SNAPSHOT_VERSION = 5;
+/** UserService.defaultLanguage — the translation file used when the user's is missing. */
+const DEFAULT_LANGUAGE = "en_US";
 /** Distinct permission-set combinations pre-built per download. */
 const MAX_COMBOS = 25;
 
@@ -728,10 +741,15 @@ function download(contentVersionId: string, dest: string, org: string): Promise<
   });
 }
 
-/** Extract just the metadata JSON files (translations are most of the ZIP). */
-async function extract(zip: string, dir: string): Promise<MetadataFiles> {
+/**
+ * Extract the metadata JSON files plus the given languages' translation files
+ * (all translations together are most of the ZIP). Returns the files and each
+ * found language's `tabs` translations.
+ */
+async function extract(zip: string, dir: string, languages: string[]): Promise<{ files: MetadataFiles; tabTranslations: Map<string, Row> }> {
+  const patterns = [...FILES.map((f) => `*/metadata/${f}.json`), ...languages.map((l) => `*/translations/${l}.json`)];
   try {
-    await execFileAsync("unzip", ["-o", "-q", "-j", zip, ...FILES.map((f) => `*/metadata/${f}.json`), "-d", dir], { maxBuffer: 1 << 20 });
+    await execFileAsync("unzip", ["-o", "-q", "-j", zip, ...patterns, "-d", dir], { maxBuffer: 1 << 20 });
   } catch (err) {
     // Exit 11 = some patterns had no match; anything else is a real failure.
     const code = (err as { code?: number }).code;
@@ -741,12 +759,19 @@ async function extract(zip: string, dir: string): Promise<MetadataFiles> {
     const p = path.join(dir, `${f}.json`);
     return fs.existsSync(p) ? (JSON.parse(fs.readFileSync(p, "utf8")) as Row) : {};
   };
+  const tabTranslations = new Map<string, Row>();
+  for (const l of languages) {
+    if (fs.existsSync(path.join(dir, `${l}.json`))) tabTranslations.set(l, { tabs: obj(read(l).tabs) });
+  }
   return {
-    nav: read("nav") as Record<string, Row>,
-    ui: read("ui"),
-    permissions: read("permissions"),
-    db: read("db"),
-    sobjects: read("sobjects") as Record<string, Row>,
+    files: {
+      nav: read("nav") as Record<string, Row>,
+      ui: read("ui"),
+      permissions: read("permissions"),
+      db: read("db"),
+      sobjects: read("sobjects") as Record<string, Row>,
+    },
+    tabTranslations,
   };
 }
 
@@ -756,6 +781,8 @@ interface ProfileUser {
   id: string;
   name: string;
   lastLogin: string;
+  /** Salesforce language (`LanguageLocaleKey`) — picks the translation file. */
+  language: string;
   permissionSets: string[];
 }
 
@@ -767,7 +794,7 @@ interface ProfileUser {
 async function profileUsers(profile: string, org: string): Promise<ProfileUser[]> {
   const name = soqlString(profile);
   const [users, assignments] = await Promise.all([
-    query(`SELECT Id, Name, LastLoginDate FROM User WHERE IsActive = true AND Profile.Name = ${name} ORDER BY Name LIMIT 500`, org),
+    query(`SELECT Id, Name, LastLoginDate, LanguageLocaleKey FROM User WHERE IsActive = true AND Profile.Name = ${name} ORDER BY Name LIMIT 500`, org),
     query(
       `SELECT AssigneeId, PermissionSet.Name, PermissionSet.NamespacePrefix FROM PermissionSetAssignment
        WHERE PermissionSet.IsOwnedByProfile = false AND Assignee.IsActive = true AND Assignee.Profile.Name = ${name} LIMIT 20000`,
@@ -786,6 +813,8 @@ async function profileUsers(profile: string, org: string): Promise<ProfileUser[]
     id: str(u.Id),
     name: str(u.Name),
     lastLogin: str(u.LastLoginDate),
+    // Only used to build a file name inside the ZIP.
+    language: /^[A-Za-z]{2,3}(_[A-Za-z0-9]{2,4})*$/.test(str(u.LanguageLocaleKey)) ? str(u.LanguageLocaleKey) : DEFAULT_LANGUAGE,
     permissionSets: (sets.get(str(u.Id)) ?? []).sort(),
   }));
 }
@@ -801,6 +830,63 @@ function defaultUser(users: ProfileUser[]): ProfileUser | undefined {
       (counts.get(comboKey(b.permissionSets)) ?? 0) - (counts.get(comboKey(a.permissionSets)) ?? 0) ||
       b.lastLogin.localeCompare(a.lastLogin)
   )[0];
+}
+
+/**
+ * The tab objects in each user's `availableFields` — the server sends these
+ * per user at download: every active DB Schema object in the org (whichever
+ * profile it's assigned to) the user can read. Objects with no object
+ * permissions (Event, ContentDocument, …) count as readable. Returns a lookup
+ * by permission-set combination, or null if the org won't say.
+ */
+async function availableTablesFor(
+  profile: string,
+  sobjects: string[],
+  org: string
+): Promise<((permissionSets: string[]) => Set<string>) | null> {
+  try {
+    const synced = await query(
+      `SELECT ObjectValue, TextValue FROM LifeSciConfigFieldValue
+       WHERE FieldName = 'SObject' AND LifeSciConfigRecord.IsActive = true AND LifeSciConfigRecord.LifeSciConfigCategory.Category = 'DbSchema'`,
+      org,
+      true
+    );
+    const active = new Set(synced.map((r) => str(r.ObjectValue) || str(r.TextValue)));
+    const candidates = sobjects.filter((s) => active.has(s));
+    if (!candidates.length) return () => new Set();
+    const list = inList(candidates);
+    const [reads, permissionable] = await Promise.all([
+      query(
+        `SELECT SobjectType, Parent.Name, Parent.NamespacePrefix, Parent.IsOwnedByProfile FROM ObjectPermissions
+         WHERE PermissionsRead = true AND SobjectType IN (${list})
+         AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE Assignee.IsActive = true AND Assignee.Profile.Name = ${soqlString(profile)})`,
+        org
+      ),
+      // An admin profile has a row for every object that has object permissions at all.
+      query(
+        `SELECT SobjectType FROM ObjectPermissions
+         WHERE SobjectType IN (${list}) AND Parent.IsOwnedByProfile = true AND Parent.PermissionsModifyAllData = true`,
+        org
+      ),
+    ]);
+    const hasPermissions = new Set(permissionable.map((r) => str(r.SobjectType)));
+    const fromProfile = new Set<string>();
+    const fromSet = new Map<string, Set<string>>();
+    for (const r of reads) {
+      const ps = obj(r.Parent);
+      if (ps.IsOwnedByProfile === true) fromProfile.add(str(r.SobjectType));
+      else {
+        const name = str(ps.NamespacePrefix) ? `${str(ps.NamespacePrefix)}__${str(ps.Name)}` : str(ps.Name);
+        fromSet.set(name, (fromSet.get(name) ?? new Set()).add(str(r.SobjectType)));
+      }
+    }
+    return (permissionSets) => {
+      const readable = new Set([...fromProfile, ...permissionSets.flatMap((ps) => [...(fromSet.get(ps) ?? [])])]);
+      return new Set(candidates.filter((s) => readable.has(s) || !hasPermissions.has(s)));
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -822,30 +908,40 @@ export async function loadPublishedIpad(
   const viewer: PublishedViewer | null = user ? { userId: user.id, name: user.name, permissionSets } : null;
   const userList = users.map((u) => ({ id: u.id, name: u.name }));
 
+  const language = user?.language ?? DEFAULT_LANGUAGE;
+
   const dir = path.join(CACHE_ROOT, cache.contentVersionId);
-  const snapshotPath = (sets: string[]) => path.join(dir, `snapshot-v${SNAPSHOT_VERSION}-${comboKey(sets)}.json`);
-  if (fs.existsSync(snapshotPath(permissionSets))) {
-    const saved = JSON.parse(fs.readFileSync(snapshotPath(permissionSets), "utf8")) as SnapshotCore;
+  const snapshotPath = (sets: string[], lang: string) => path.join(dir, `snapshot-v${SNAPSHOT_VERSION}-${lang}-${comboKey(sets)}.json`);
+  if (fs.existsSync(snapshotPath(permissionSets, language))) {
+    const saved = JSON.parse(fs.readFileSync(snapshotPath(permissionSets, language), "utf8")) as SnapshotCore;
     return { ...saved, profile, cache, viewer, users: userList };
   }
 
   fs.mkdirSync(dir, { recursive: true });
   const zip = path.join(dir, "cache.zip");
+  let languages: string[] = [];
   try {
     await download(cache.contentVersionId, zip, org);
-    const files = await extract(zip, dir);
     // Build every combination on the profile now, so switching users doesn't re-download.
-    const combos = new Map<string, string[]>([[comboKey(permissionSets), permissionSets]]);
-    for (const u of users) if (combos.size < MAX_COMBOS) combos.set(comboKey(u.permissionSets), u.permissionSets);
+    const combos = new Map<string, { sets: string[]; language: string }>([[`${language} ${comboKey(permissionSets)}`, { sets: permissionSets, language }]]);
+    for (const u of users) {
+      if (combos.size < MAX_COMBOS) combos.set(`${u.language} ${comboKey(u.permissionSets)}`, { sets: u.permissionSets, language: u.language });
+    }
+    languages = [...new Set([...[...combos.values()].map((c) => c.language), DEFAULT_LANGUAGE])];
+    const { files, tabTranslations } = await extract(zip, dir, languages);
+    const tabObjects = [...new Set(Object.values(files.nav).map((t) => str(t.sobjectName)).filter(Boolean))];
+    const available = await availableTablesFor(profile, tabObjects, org);
     let result: SnapshotCore | null = null;
-    for (const sets of combos.values()) {
-      const snapshot = buildSnapshot(files, { profile, cache, permissionSets: sets });
-      fs.writeFileSync(snapshotPath(sets), JSON.stringify(snapshot));
-      if (sets === permissionSets) result = snapshot;
+    for (const c of combos.values()) {
+      // OfflineUserService.getCurrentLocalizationFile: the user's language, else en_US.
+      const translations = tabTranslations.get(c.language) ?? tabTranslations.get(DEFAULT_LANGUAGE);
+      const snapshot = buildSnapshot({ ...files, translations }, { profile, cache, permissionSets: c.sets, availableTables: available?.(c.sets) });
+      fs.writeFileSync(snapshotPath(c.sets, c.language), JSON.stringify(snapshot));
+      if (c.sets === permissionSets && c.language === language) result = snapshot;
     }
     return { ...(result as SnapshotCore), viewer, users: userList };
   } finally {
     // Keep only the snapshots — the raw files hold the org's full metadata.
-    for (const f of ["cache.zip", ...FILES.map((x) => `${x}.json`)]) fs.rmSync(path.join(dir, f), { force: true });
+    for (const f of ["cache.zip", ...FILES.map((x) => `${x}.json`), ...languages.map((l) => `${l}.json`)]) fs.rmSync(path.join(dir, f), { force: true });
   }
 }
