@@ -722,13 +722,18 @@
   overflow: hidden;
   background: linear-gradient(135deg, #e8eef0 0 60%, #bfe3f7 60% 100%);
 }
+.studio-ipad-rec-map .studio-ipad-rec-map-base {
+  position: absolute;
+  inset: 0;
+}
 .studio-ipad-rec-map-panel {
+  z-index: 1;
   position: absolute;
   left: 15px;
-  top: 22px;
-  width: 430px;
+  top: 15px;
+  width: 449px;
   box-sizing: border-box;
-  padding: 16px 20px 24px;
+  padding: 12px 20px 24px;
   background: #fff;
   border-radius: 8px;
 }
@@ -738,7 +743,8 @@
   color: #032d60;
 }
 .studio-ipad-rec-map-panel .a {
-  margin-top: 10px;
+  max-width: 260px;
+  margin-top: 5px;
   font-size: 15px;
   line-height: 17px;
   color: #0250d9;
@@ -747,7 +753,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-top: 6px;
+  margin-top: 12px;
   padding: 4px 8px;
   border-radius: 4px;
   background: #bdeee6;
@@ -769,6 +775,7 @@
   color: #0250d9;
 }
 .studio-ipad-rec-map-note {
+  z-index: 1;
   position: absolute;
   right: 12px;
   bottom: 8px;

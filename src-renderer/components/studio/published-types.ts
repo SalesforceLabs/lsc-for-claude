@@ -192,7 +192,7 @@ export interface PublishedDashboard {
   summary: { generated: string; sections: { title: string; items: string[] }[] } | null;
   overview: { target: boolean; specialties: { label: string; primary: boolean }[] };
   nba: { week: string; items: { id: string; title: string; type: string; due: string; status: string }[] };
-  map: { address: string; license: "validated" | "notValidated" | "disabled" };
+  map: { address: string; license: "validated" | "notValidated" | "disabled"; geo?: [number, number] };
 }
 
 export interface PublishedRecords {
