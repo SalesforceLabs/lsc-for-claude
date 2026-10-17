@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import type { PublishedComponent, PublishedIpad } from "./published-types";
 import "./list-controls.css";
 
 /** Card mode is remembered per sObject (SharedUserSettings.cardModePreference); the preview keeps it for the session. */
@@ -86,7 +87,7 @@ export function sortRows<T extends { cells: (string | null)[] }>(rows: T[], sort
 }
 
 /** DataTableCardCell: the first field in title bold, the second in body, then fields three to five on one line with bullets; "--" for a blank. Row actions are not read by Studio. */
-export function CardList({ rows, onOpen, links = [] }: { rows: { id: string; cells: (string | null)[] }[]; onOpen: (id: string) => void; /** Per column: a lookup or formula value, drawn in the link color (DataTableCardCell). */ links?: boolean[] }) {
+export function CardList({ rows, onOpen, links = [], actions = [] }: { rows: { id: string; cells: (string | null)[] }[]; onOpen: (id: string) => void; /** Per column: a lookup or formula value, drawn in the link color (DataTableCardCell). */ links?: boolean[]; /** The row's action titles (QuickActionsAvailabilityPolicy-filtered): up to three pills, then a ••• menu. */ actions?: string[] }) {
   return (
     <div className="studio-ipad-lv-cards">
       {rows.map((r) => {
@@ -108,9 +109,48 @@ export function CardList({ rows, onOpen, links = [] }: { rows: { id: string; cel
                 </span>
               )}
             </div>
+            {actions.length > 0 && (
+              <span className="actions">
+                {actions.slice(0, 3).map((a) => (
+                  <span key={a} className="pill">{a}</span>
+                ))}
+                {actions.length > 3 && (
+                  <span className="more" aria-label="More actions">
+                    <svg width="14" height="4" viewBox="0 0 14 4" aria-hidden="true"><circle cx="2" cy="2" r="1.6" fill="currentColor" /><circle cx="7" cy="2" r="1.6" fill="currentColor" /><circle cx="12" cy="2" r="1.6" fill="currentColor" /></svg>
+                  </span>
+                )}
+              </span>
+            )}
           </button>
         );
       })}
     </div>
   );
+}
+
+const BLOCKLIST = new Set(["AttendeeCall", "Order2", "CreateOrder", "CreateOrder2", "ViewProfile", "Edit"]);
+const SUPPORTED = new Set(["Email", "MIRF", "LogACall", "LastCall", "NBC", "SignInNavigator", "SignInSheet", "Survey", "CLM", "ShareContent", "Delete", "CreateAccountWithSBC", "GenerateDocument", "SearchClinicalTrial", "SearchPubMed", "CaptureInsight", "ViewSignature", "EditActiveOpt", "ViewOnline"]);
+
+/** The action pills a list card shows: the record page's actions (SFFlexiPageViewModel.makeActions) kept by QuickActionsAvailabilityPolicy (supported names or Flow/VF items, minus the blocklist), titled by the layout item's label or the readable action name. */
+export function rowActions(snapshot: PublishedIpad, objectName: string): string[] {
+  const object = snapshot.objects[objectName];
+  const rt = object?.recordTypes[0];
+  const page = rt?.flexiPage ? snapshot.pages[rt.flexiPage] : undefined;
+  const layout = rt?.layout ? snapshot.layouts[rt.layout] : undefined;
+  const names: string[] = [];
+  const walk = (c: PublishedComponent) => {
+    if (c.actions && !names.length) names.push(...c.actions);
+    c.tabs?.forEach((t) => t.components.forEach(walk));
+  };
+  page?.regions.forEach((r) => r.components.forEach(walk));
+  if (!names.length && layout) names.push(...layout.actions);
+  const out: string[] = [];
+  for (const full of names) {
+    const base = full.split(".").pop()!.replace(/^[a-z0-9]+__/i, "");
+    if (BLOCKLIST.has(base)) continue;
+    const item = layout?.actionItems?.find((i) => i.name === full);
+    if (!(SUPPORTED.has(base) || item?.type === "Flow" || item?.type === "VisualforcePage")) continue;
+    out.push(item?.label || base.replace(/([a-z])([A-Z])/g, "$1 $2"));
+  }
+  return out;
 }

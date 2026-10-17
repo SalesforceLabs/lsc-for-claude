@@ -18,3 +18,14 @@
 .studio-ipad-lv-card .f3 { display: flex; gap: 8px; font-size: 16px; }
 .studio-ipad-lv-card .f3 .bold { font-weight: 600; }
 .studio-ipad-lv-card .link { color: #0062fe; }
+
+/* DataTableActionsView: pills min 88 wide, 40 tall, 8 apart, then a 40pt ••• button; bodyBold 16. */
+.studio-ipad-lv-card .actions { display: inline-flex; flex: 1; align-items: center; justify-content: flex-end; gap: 8px; margin-left: 16px; }
+.studio-ipad-lv-card .pill { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-width: 88px; height: 38px; padding: 0 16px; border: 1px solid #5c5c5c; border-radius: 999px; background: #fff; color: #0250d9; font-size: 16px; font-weight: 600; }
+.studio-ipad-lv-card .more { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 40px; height: 40px; border: 1px solid #5c5c5c; border-radius: 50%; color: #0250d9; }
+
+/* Device alignment (device-visit-cards.png): the controls sit 3pt below the search field; card lines are 24pt apart. */
+.studio-ipad-lv-right { position: relative; top: 3px; gap: 12px; }
+.studio-ipad-lv-right .studio-ipad-lv-toggle { margin: 0; }
+.studio-ipad-lv-card .fields { gap: 0; }
+.studio-ipad-lv-card .f1, .studio-ipad-lv-card .f2, .studio-ipad-lv-card .f3 { line-height: 24px; }

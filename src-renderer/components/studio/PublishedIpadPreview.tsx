@@ -18,7 +18,7 @@ import { hasNativeScreen, NativeScreen } from "./screens";
 import { IpadSearchField, IpadStatusBar, IpadTopBar, type ChromeTab } from "./IpadChrome";
 import { initials } from "./ipad-chrome";
 import { ChromeSheets, SearchTab, type ChromeSheet } from "./IpadChromeSheets";
-import { CardList, cardModeFor, saveCardMode, SortButton, sortRows, ViewModeButton, type SortState } from "./IpadListControls";
+import { CardList, cardModeFor, rowActions, saveCardMode, SortButton, sortRows, ViewModeButton, type SortState } from "./IpadListControls";
 import IpadActionSheet from "./IpadActionSheets";
 import type { Presentation } from "./ipad-fab-actions";
 import { CustomIcon } from "./assets/icons";
@@ -224,7 +224,7 @@ function Screen({
       return record !== null ? (
         <RecordView object={object} snapshot={snapshot} />
       ) : (
-        <ListView tab={tab} object={object} lists={snapshot.lists} accounts={tab.kind === "accounts"} onOpenRecord={onOpenRecord} onNew={onNew} />
+        <ListView tab={tab} object={object} lists={snapshot.lists} accounts={tab.kind === "accounts"} onOpenRecord={onOpenRecord} onNew={onNew} cardActions={rowActions(snapshot, object.name)} />
       );
     }
     case "empty":
@@ -549,7 +549,9 @@ function ListView({
   accounts,
   onOpenRecord,
   onNew,
+  cardActions,
 }: {
+  cardActions?: string[];
   tab: PublishedTab;
   object: PublishedObject;
   lists?: Record<string, PublishedListData>;
@@ -612,7 +614,7 @@ function ListView({
             );
           }
           if (cards && shown) {
-            return <CardList rows={shown.rows} onOpen={onOpenRecord} links={(view.query?.fields ?? []).map((f) => f?.type === "lookup" || f?.type === "formula")} />;
+            return <CardList rows={shown.rows} onOpen={onOpenRecord} actions={cardActions} links={(view.query?.fields ?? []).map((f) => f?.type === "lookup" || f?.type === "formula")} />;
           }
           return <DataTable columns={view.columns.map(columnLabel)} data={shown} onOpenRecord={onOpenRecord} />;
         })()}
