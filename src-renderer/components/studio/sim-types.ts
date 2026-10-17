@@ -86,6 +86,29 @@ export interface SimulationResult {
   notes: string[];
   /** Present when the job ran more than once; the times above are then medians. Absent on older history rows. */
   runs?: SimRunsSummary;
+  /** Present when content downloads ran; outside the sync window and not in `totals`. Absent on older history rows. */
+  content?: SimContent;
+}
+
+export interface SimContentKind {
+  candidates: number;
+  files: number;
+  bytes: number;
+  seconds: number;
+  failures: number;
+  skipped: number;
+  largest: Array<{ name: string; bytes: number; seconds: number }>;
+  truncated?: string;
+  errors?: string[];
+}
+
+export interface SimContent {
+  outsideSyncWindow: true;
+  limits: { maxFiles: number; maxBytes: number };
+  seconds: number;
+  attachments?: SimContentKind;
+  clm?: SimContentKind;
+  notes: string[];
 }
 
 export interface SimSpread {
@@ -121,6 +144,7 @@ export interface SimRunOptions {
   maxTotalRecords?: number;
   runs?: number;
   delta?: { sinceHours: number };
+  content?: { attachments?: boolean; clm?: boolean; maxFiles?: number; maxBytes?: number };
 }
 
 export interface SimJobStatus {

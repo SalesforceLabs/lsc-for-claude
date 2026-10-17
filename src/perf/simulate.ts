@@ -9,6 +9,7 @@
  * (a read), Range GETs for the archive, and sobject/query or REST queries.
  */
 
+import { ContentCollector, CONTENT_NOTES, downloadContent, type ContentOptions, type ContentResult } from "./content.js";
 import { downloadMetadata, DEFAULT_CHUNK_BYTES } from "./device/metadata.js";
 import { DEFAULT_MAX_LOCAL_IDS, simulateDelta, type DeltaResult } from "./device/delta.js";
 import { LocalIdStore, replayInitialSync, schedulingNote, type Flow, type TableResult } from "./device/replay.js";
@@ -48,6 +49,8 @@ export interface SimulateOptions {
   delta?: { sinceHours: number };
   /** Local ids kept for the delta simulation across all tables (default 2,000,000). */
   maxDeltaLocalIds?: number;
+  /** Opt-in file downloads after the sync (attachments, CLM presentations); never part of the sync totals. */
+  content?: ContentOptions;
   signal?: AbortSignal;
   now?: () => number;
   /** Progress: the phase in progress and, while downloading data, tables finished out of the total. */
@@ -77,6 +80,8 @@ export interface SimulationResult {
   startedAt: string;
   finishedAt: string;
   notes: string[];
+  /** Present when content downloads ran. Outside the sync window: not in `totals`. */
+  content?: ContentResult;
 }
 
 export function totalsOf(tables: TableResult[], seconds: number): SimulationTotals {
@@ -140,6 +145,10 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
   const deltaHours = opts.delta?.sinceHours;
   const wantDelta = typeof deltaHours === "number" && Number.isFinite(deltaHours) && deltaHours > 0;
   const idStore = wantDelta && flow === "enhanced" ? new LocalIdStore(opts.maxDeltaLocalIds ?? DEFAULT_MAX_LOCAL_IDS) : undefined;
+  const wantContent = !!(opts.content?.attachments || opts.content?.clm);
+  const collector = wantContent
+    ? new ContentCollector({ attachments: !!opts.content?.attachments, clm: !!opts.content?.clm }, tables)
+    : undefined;
 
   const t0 = now();
   const progress = { done: 0, total: tables.length, records: 0 };
@@ -165,6 +174,7 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
     idStore,
     signal: opts.signal,
     now,
+    onRecords: collector ? (table, records) => collector.observe(table, records) : undefined,
     onTable: (r) => {
       progress.done++;
       progress.records += r.records;
@@ -202,6 +212,22 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
     notes.push("Delta sync was not simulated because the run was cancelled.");
   }
 
+  let content: ContentResult | undefined;
+  if (collector && opts.content && !opts.signal?.aborted) {
+    opts.onStep?.("Downloading content (outside the sync window)");
+    if (results.some((t) => t.truncated || t.skipped || t.error)) {
+      notes.push("Content downloads use the records the sync fetched; tables that were cut short, skipped or failed may hide files.");
+    }
+    content = await downloadContent(session, collector.plan(session.apiVersion), {
+      ...opts.content,
+      maxSeconds: opts.content.maxSeconds ?? opts.maxSeconds,
+      signal: opts.signal,
+      now,
+      onStep: (step) => opts.onStep?.(step),
+    });
+    content.notes.unshift(...CONTENT_NOTES);
+  }
+
   return {
     user: { username: session.username, id: info.user.id, profile: info.user.profileName, territory: territory?.name },
     org: { instanceUrl: session.instanceUrl, orgId: session.orgId, apiVersion: session.apiVersion },
@@ -213,6 +239,7 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
     startedAt: startedAt.toISOString(),
     finishedAt: new Date().toISOString(),
     notes,
+    ...(content ? { content } : {}),
   };
 }
 

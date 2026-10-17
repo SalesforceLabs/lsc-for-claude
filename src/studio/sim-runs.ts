@@ -120,8 +120,12 @@ export function aggregateRuns(results: SimulationResult[], requested = results.l
       : `Times are medians of ${results.length} runs back to back as the same login.`
   );
 
+  const content = [...results].reverse().find((r) => r.content)?.content;
+  if (content) notes.push("Content downloads ran once, in the last run only; they are not part of the medians.");
+
   return {
     ...rep,
+    ...(content ? { content } : {}),
     metadata: { ...rep.metadata, seconds: metadata.median },
     tables,
     totals: { ...rep.totals, seconds: data.median },

@@ -93,6 +93,8 @@ export interface ReplayOptions {
   idStore?: LocalIdStore;
   /** Called as each table finishes (downloaded, skipped or failed). */
   onTable?: (result: TableResult) => void;
+  /** Called with each page of downloaded records, so a caller can keep the few fields it needs (the content-download phase). */
+  onRecords?: (table: SchemaTable, records: Record<string, unknown>[]) => void;
 }
 
 export const CONTENT_CHUNK = 1500;
@@ -575,6 +577,7 @@ class TableRunner {
   private accept(records: Record<string, unknown>[]): boolean {
     collectIds(this.table, records, this.run.ids);
     this.o.idStore?.add(this.table.sobject, records);
+    this.o.onRecords?.(this.table, records);
     this.result.records += records.length;
     this.run.totalRecords += records.length;
     const perTable = this.o.maxRecordsPerTable;

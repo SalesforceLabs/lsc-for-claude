@@ -165,3 +165,23 @@ describe("multi-run jobs", () => {
     expect(simulationStatus(second.jobId)).toMatchObject({ state: "failed", error: "404" });
   });
 });
+
+describe("content downloads across runs", () => {
+  const content = { outsideSyncWindow: true as const, limits: { maxFiles: 200, maxBytes: 1 }, seconds: 1, notes: [], attachments: { candidates: 1, files: 1, bytes: 1, seconds: 1, failures: 0, skipped: 0, largest: [] } };
+
+  it("keeps the last run's content and says it ran once", () => {
+    const agg = aggregateRuns([run(1, 10), { ...run(1, 20), content }]);
+    expect(agg.content).toBe(content);
+    expect(agg.notes.some((n) => /once, in the last run only/.test(n))).toBe(true);
+  });
+
+  it("adds nothing when no run had content", () => {
+    const agg = aggregateRuns([run(1, 10), run(1, 20)]);
+    expect(agg.content).toBeUndefined();
+    expect(agg.notes.some((n) => /last run only/.test(n))).toBe(false);
+  });
+
+  it("old rows without content still summarize", () => {
+    expect(simSummary(run(1, 2)).records).toBe(10);
+  });
+});

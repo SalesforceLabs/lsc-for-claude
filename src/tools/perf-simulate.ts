@@ -69,6 +69,7 @@ export function renderSimulation(r: SimulationResult, topTables = 25): string {
     for (const x of problems) out += `- **${x.sobject}**: ${x.error ? `error: ${x.error}` : x.skipped}\n`;
   }
   if (r.delta) out += renderDelta(r.delta, topTables);
+  out += renderContentSection(r.content);
   out += `\n## Notes\n\n${r.notes.map((n) => `- ${n}`).join("\n")}\n`;
   return out;
 }
@@ -128,4 +129,25 @@ export function register(server: McpServer) {
       }
     }
   );
+}
+
+/** Markdown for the content-download phase; empty when it did not run. */
+export function renderContentSection(c: SimulationResult["content"]): string {
+  if (!c) return "";
+  const kinds = [["Attachments", c.attachments], ["CLM content", c.clm]] as const;
+  let out = `\n## Content downloads (outside the sync window; not in the totals above)\n\n`;
+  out += `| Kind | Files | Size | Seconds | Failures | Skipped | Note |\n|---|---|---|---|---|---|---|\n`;
+  for (const [label, k] of kinds) {
+    if (!k) continue;
+    const bound = k.truncated ? "at least " : "";
+    out += `| ${label} | ${bound}${k.files.toLocaleString("en-US")} of ${k.candidates.toLocaleString("en-US")} | ${bound}${mb(k.bytes)} | ${k.seconds.toFixed(1)} | ${k.failures} | ${k.skipped} | ${cell(k.truncated ?? "")} |\n`;
+  }
+  for (const [label, k] of kinds) {
+    if (!k || k.largest.length === 0) continue;
+    out += `\nLargest ${label.toLowerCase()}:\n\n`;
+    for (const f of k.largest) out += `- ${cell(f.name)}: ${mb(f.bytes)} in ${f.seconds.toFixed(1)} s\n`;
+  }
+  for (const [label, k] of kinds) if (k?.errors?.length) out += `\n${label} failures, for example: ${k.errors.map(cell).join("; ")}\n`;
+  out += `\nCaps per kind: ${c.limits.maxFiles.toLocaleString("en-US")} files, ${mb(c.limits.maxBytes)}. Total ${c.seconds.toFixed(1)} s.\n`;
+  return out;
 }

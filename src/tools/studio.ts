@@ -470,6 +470,15 @@ function registerPerfTools(server: McpServer) {
             .object({ sinceHours: z.number().min(0.01).max(8760) })
             .optional()
             .describe("After the initial sync, simulate a delta sync as if the device last synced this many hours ago (record-visibility rounds plus IdSubquery downloads of changed records; enhanced flow only)"),
+          content: z
+            .object({
+              attachments: z.boolean().optional(),
+              clm: z.boolean().optional(),
+              maxFiles: z.number().int().min(1).optional(),
+              maxBytes: z.number().int().min(1).optional(),
+            })
+            .optional()
+            .describe("Opt-in file downloads after the sync (GET, bodies counted and discarded): background attachments one at a time, CLM presentations in Range chunks. Outside the sync window; not in the totals. maxFiles and maxBytes are per kind (defaults 200 and 2 GiB); with several runs this happens in the last run only"),
         })
         .optional(),
     },

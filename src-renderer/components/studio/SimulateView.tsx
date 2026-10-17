@@ -16,6 +16,8 @@ import {
   rankTables,
   simSummary,
   type SfConnection,
+  type SimContent,
+  type SimContentKind,
   type SimFlow,
   type SimJobStatus,
   type SimRunOptions,
@@ -62,6 +64,66 @@ function Stat({ label, value, detail }: { label: string; value: string; detail?:
       <span className="studio-sim-stat-value">{value}</span>
       {detail && <span className="studio-perf-hint">{detail}</span>}
     </div>
+  );
+}
+
+function ContentSection({ content }: { content: SimContent }) {
+  const kinds: Array<[string, SimContentKind | undefined]> = [
+    ["Attachments", content.attachments],
+    ["CLM content", content.clm],
+  ];
+  return (
+    <section className="studio-perf-section">
+      <div className="studio-perf-section-header">
+        <h2 className="studio-perf-section-title">Content downloads</h2>
+        <span className="studio-picker-meta">outside the sync window · not in the totals above</span>
+      </div>
+      <table className="studio-change-table studio-perf-table">
+        <thead>
+          <tr>
+            <th>Kind</th>
+            <th className="num">Files</th>
+            <th className="num">Size</th>
+            <th className="num">Seconds</th>
+            <th className="num">Failures</th>
+          </tr>
+        </thead>
+        <tbody>
+          {kinds.map(([label, k]) =>
+            k ? (
+              <tr key={label}>
+                <td>
+                  <div>{label}</div>
+                  {k.truncated && <div className="studio-perf-metric-meta">Cut short: {k.truncated}; lower bounds</div>}
+                  {k.largest?.slice(0, 3).map((f) => (
+                    <div key={f.name} className="studio-perf-metric-meta">
+                      {f.name}: {formatBytes(f.bytes)} in {f.seconds.toFixed(1)} s
+                    </div>
+                  ))}
+                </td>
+                <td className="num">
+                  {k.truncated ? "≥ " : ""}
+                  {formatNumber(k.files)} of {formatNumber(k.candidates)}
+                </td>
+                <td className="num">
+                  {k.truncated ? "≥ " : ""}
+                  {formatBytes(k.bytes)}
+                </td>
+                <td className="num">{k.seconds.toFixed(1)}</td>
+                <td className="num">{k.failures}</td>
+              </tr>
+            ) : null
+          )}
+        </tbody>
+      </table>
+      {content.notes?.length > 0 && (
+        <ul className="studio-perf-issues">
+          {content.notes.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -291,6 +353,7 @@ function SimResult({ result, status, onExport, onExportReport }: {
           </ul>
         </section>
       )}
+      {result.content && <ContentSection content={result.content} />}
 
       {result.notes.length > 0 && (
         <section className="studio-perf-section">
@@ -401,6 +464,10 @@ export default function SimulateView() {
   const [include, setInclude] = useState("");
   const [exclude, setExclude] = useState("");
   const [advanced, setAdvanced] = useState(false);
+  const [contentAttachments, setContentAttachments] = useState(false);
+  const [contentClm, setContentClm] = useState(false);
+  const [contentMaxFiles, setContentMaxFiles] = useState("");
+  const [contentMaxMb, setContentMaxMb] = useState("");
   const [loginOpen, setLoginOpen] = useState<"mobile" | "cli" | null>(null);
   const [mobileLogins, setMobileLogins] = useState<MobileLoginInfo[]>([]);
   const [mobileLoggingIn, setMobileLoggingIn] = useState(false);
@@ -617,6 +684,14 @@ export default function SimulateView() {
     if (inc) opts.include = inc;
     const exc = parseSObjectList(exclude);
     if (exc) opts.exclude = exc;
+    if (contentAttachments || contentClm) {
+      const content: NonNullable<SimRunOptions["content"]> = { attachments: contentAttachments, clm: contentClm };
+      const files = wholeNumber(contentMaxFiles);
+      if (files) content.maxFiles = files;
+      const mbCap = wholeNumber(contentMaxMb);
+      if (mbCap) content.maxBytes = mbCap * 1024 * 1024;
+      opts.content = content;
+    }
     return opts;
   };
 
@@ -996,6 +1071,43 @@ export default function SimulateView() {
                         title="After the initial sync, run the record-visibility rounds and download the changed records, as the app does on its next sync (enhanced flow only)"
                       />
                     </label>
+                    <div className="studio-perf-grid">
+                      <label className="studio-perf-field">
+                        <span className="studio-perf-field-label">Content downloads (after the sync)</span>
+                        <span>
+                          <input type="checkbox" checked={contentAttachments} disabled={running} onChange={(e) => setContentAttachments(e.target.checked)} /> Attachments
+                        </span>
+                        <span>
+                          <input type="checkbox" checked={contentClm} disabled={running} onChange={(e) => setContentClm(e.target.checked)} /> CLM presentations
+                        </span>
+                      </label>
+                      <span />
+                      <label className="studio-perf-field">
+                        <span className="studio-perf-field-label">Content: most files per kind</span>
+                        <input
+                          className="studio-filter studio-perf-number"
+                          type="number"
+                          min={1}
+                          placeholder="200"
+                          value={contentMaxFiles}
+                          disabled={running || !(contentAttachments || contentClm)}
+                          onChange={(e) => setContentMaxFiles(e.target.value)}
+                        />
+                      </label>
+                      <label className="studio-perf-field">
+                        <span className="studio-perf-field-label">Content: most MB per kind</span>
+                        <input
+                          className="studio-filter studio-perf-number"
+                          type="number"
+                          min={1}
+                          placeholder="2048"
+                          value={contentMaxMb}
+                          disabled={running || !(contentAttachments || contentClm)}
+                          onChange={(e) => setContentMaxMb(e.target.value)}
+                        />
+                      </label>
+                    </div>
+                    <div className="studio-perf-hint">Content downloads read the files (nothing is saved), run after the sync window and are reported apart from it; they use the synced records, so a limit above can hide files. With several runs they happen once, in the last run.</div>
                     <div className="studio-perf-hint">Limits make a quicker check; tables cut short by them are marked, and their numbers are lower bounds.</div>
                   </>
                 )}

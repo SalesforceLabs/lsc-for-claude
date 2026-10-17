@@ -24,7 +24,7 @@ export type SimJobState = "running" | "done" | "failed" | "cancelled";
 /** The options the GUI can set; the rest keep simulateInitialSync's defaults. */
 export type SimRunOptions = Pick<
   SimulateOptions,
-  "territory" | "forceFlow" | "include" | "exclude" | "maxSeconds" | "maxRecordsPerTable" | "maxTotalRecords" | "delta"
+  "territory" | "forceFlow" | "include" | "exclude" | "maxSeconds" | "maxRecordsPerTable" | "maxTotalRecords" | "delta" | "content"
 > & {
   /** Back-to-back runs as the same login (1–5, default 1); the result reports their median and spread. */
   runs?: number;
@@ -91,7 +91,7 @@ export function startSimulation(
   };
   jobs.set(job.jobId, job);
 
-  const { runs: runsOption, ...simOptions } = options;
+  const { runs: runsOption, content: contentOption, ...simOptions } = options;
   const requested = clampRuns(runsOption);
   const completed: SimulationResult[] = [];
 
@@ -105,6 +105,8 @@ export function startSimulation(
       try {
         const result = await deps.simulate({
           ...simOptions,
+          // Content downloads run once, in the last run only.
+          ...(contentOption && i === requested ? { content: contentOption } : {}),
           username: name,
           // The same session for every run, so a mobile login's token is read once.
           ...(session ? { session } : {}),

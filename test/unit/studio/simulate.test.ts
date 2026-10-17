@@ -111,6 +111,16 @@ describe("first-sync simulation jobs", () => {
     expect(activeSimulation()).toBeNull();
   });
 
+  it("passes content options to the last run only", async () => {
+    const calls: SimulateOptions[] = [];
+    const deps: SimDeps = { simulate: async (opts) => (calls.push(opts), result()) };
+    const status = startSimulation("rep", { runs: 3, content: { attachments: true, maxFiles: 5 } }, deps);
+    await settle();
+    await settle();
+    expect(simulationStatus(status.jobId)?.state).toBe("done");
+    expect(calls.map((c) => c.content)).toEqual([undefined, undefined, { attachments: true, maxFiles: 5 }]);
+  });
+
   it("runs one simulation at a time", () => {
     const c = controllable();
     startSimulation("rep1", {}, c.deps);
