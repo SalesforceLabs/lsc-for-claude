@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeTimeRange, formatPercent, formatShort, parseBan, parsePopc } from "../../../../src/studio/screens/tableau.js";
+import { describeTimeRange, expressionToSql, formatBanValue, formatPercent, formatShort, parseBan, parsePopc } from "../../../../src/studio/screens/tableau.js";
 
 const bundle = (target: Row, extra: Row = {}): Row => ({
   insightGroups: [{ type: "ban", insights: [{ insightType: "popc", result: { facts: { target_period_value: target, ...extra } } }] }],
@@ -57,5 +57,35 @@ describe("tableau time range", () => {
     expect(describeTimeRange({ timeRangeType: "ThisMonth" })).toBe("Current Month");
     expect(describeTimeRange({ timeRangeType: "PreviousQuarter" })).toBe("Previous Quarter");
     expect(describeTimeRange({ timeRangeType: "LastDays", value: 7 })).toBe("Last 7 Days");
+  });
+});
+
+describe("tableau computed BAN (Data Cloud fallback)", () => {
+  it("formats raw aggregates like the device", () => {
+    expect(formatBanValue(11.697532842037809, "Number", 2)).toBe("11.70");
+    expect(formatBanValue(20.00075, "Percentage", 2)).toBe("2,000.08%");
+    expect(formatBanValue(2164, undefined)).toBe("2.16K");
+    expect(formatBanValue(1682, "Number")).toBe("1.68K");
+    expect(formatBanValue(13391, "Number")).toBe("13.39K");
+  });
+  const objects = [
+    {
+      apiName: "Onc_Patient",
+      dataObjectName: "Onc_Pati__dll",
+      semanticDimensions: [{ apiName: "on_pathway_flag", dataObjectFieldName: "on_pathway_flag__c" }],
+    },
+    { apiName: "Rx", dataObjectName: "Rx__dll", semanticMeasurements: [{ apiName: "trx", dataObjectFieldName: "trx__c" }] },
+  ];
+  it("translates field references and IIF", () => {
+    expect(expressionToSql("[Rx].[trx]", objects)).toEqual({ sql: '"trx__c"', table: "Rx__dll" });
+    expect(expressionToSql("IIF([Onc_Patient].[on_pathway_flag] = &quot;No&quot;, 1, 0)", objects)).toEqual({
+      sql: `CASE WHEN "on_pathway_flag__c" = 'No' THEN 1 ELSE 0 END`,
+      table: "Onc_Pati__dll",
+    });
+  });
+  it("refuses what it can't translate", () => {
+    expect(expressionToSql("[Rx].[missing]", objects)).toBeUndefined();
+    expect(expressionToSql("[Rx].[trx] + [Onc_Patient].[on_pathway_flag]", objects)).toBeUndefined();
+    expect(expressionToSql("DROP(1); --", objects)).toBeUndefined();
   });
 });

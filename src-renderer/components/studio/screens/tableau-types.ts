@@ -18,4 +18,5 @@ export interface PublishedTableauMetric {
 export interface PublishedTableau {
   metrics: PublishedTableauMetric[];
   valuesLoaded: boolean;
+  valuesSource?: "insights" | "data-cloud" | "none";
 }

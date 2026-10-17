@@ -30,6 +30,8 @@ export interface PublishedTableau {
   metrics: PublishedTableauMetric[];
   /** False when the insights bundle couldn't be fetched, so every BAN is "-". */
   valuesLoaded: boolean;
+  /** Where the BANs came from: the SFAP insights bundle (as the app), or the same all-time aggregate run as the connected user in Data Cloud. */
+  valuesSource?: "insights" | "data-cloud" | "none";
 }
 
 // Localizable.strings (TableauEinsteinSDK).
@@ -93,6 +95,20 @@ export function parseBan(bundle: Row | undefined): string {
   if (!t || t.is_nan === true) return "-";
   if (typeof t.formatted === "string" && t.formatted) return t.formatted;
   return typeof t.raw === "number" ? formatShort(t.raw) : "-";
+}
+
+/** A Percentage measure is shown ×100 with grouping: 20.00075 → "2,000.08%" (half-up, after trimming float noise). */
+export function formatPercentMeasure(v: number, decimals = 2): string {
+  const scaled = Number((v * 100).toPrecision(12));
+  const f = 10 ** decimals;
+  const r = (Math.sign(scaled) * Math.round(Math.abs(scaled) * f)) / f;
+  return `${r.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}%`;
+}
+
+/** BAN text for a raw aggregate: percentages in full, other numbers compact (11.6975 → "11.70", 13391 → "13.39K"). */
+export function formatBanValue(v: number, dataType: string | undefined, decimals?: number): string {
+  if (dataType === "Percentage") return formatPercentMeasure(v, decimals ?? 2);
+  return formatShort(Number(v.toPrecision(12)));
 }
 
 function popcFacts(bundle: Row | undefined): Row | undefined {
@@ -177,6 +193,98 @@ async function fetchBundle(jwt: { jwt: string; baseUri: string }, body: Row): Pr
   }
 }
 
+interface SemanticObject {
+  apiName: string;
+  dataObjectName: string;
+  filters?: unknown[];
+  semanticDimensions?: Row[];
+  semanticMeasurements?: Row[];
+}
+
+const AGG: Record<string, string> = { Sum: "SUM", Average: "AVG", Min: "MIN", Max: "MAX", Count: "COUNT" };
+
+/** Split `a, b, c` on top-level commas (outside parens and string literals). */
+function splitArgs(s: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let quote = "";
+  let cur = "";
+  for (const ch of s) {
+    if (quote) {
+      if (ch === quote) quote = "";
+    } else if (ch === '"' || ch === "'") quote = ch;
+    else if (ch === "(") depth++;
+    else if (ch === ")") depth--;
+    else if (ch === "," && depth === 0) {
+      out.push(cur);
+      cur = "";
+      continue;
+    }
+    cur += ch;
+  }
+  out.push(cur);
+  return out.map((x) => x.trim());
+}
+
+/**
+ * A semantic calculated measure's row expression as Data Cloud SQL: `[Obj].[Field]` becomes the data object's column,
+ * "text" a SQL literal, `IIF(c, a, b)` a CASE. Only single-object expressions of plain comparisons; anything else is undefined.
+ */
+export function expressionToSql(expr: string, objects: SemanticObject[]): { sql: string; table: string } | undefined {
+  const text = expr.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&").trim();
+  const tables = new Set<string>();
+  let ok = true;
+  const walk = (e: string): string => {
+    const iif = /^IIF\s*\(([\s\S]*)\)$/i.exec(e.trim());
+    if (iif) {
+      const a = splitArgs(iif[1]);
+      if (a.length !== 3) {
+        ok = false;
+        return "";
+      }
+      return `CASE WHEN ${walk(a[0])} THEN ${walk(a[1])} ELSE ${walk(a[2])} END`;
+    }
+    return e
+      .replace(/"([^"]*)"/g, (_m, lit: string) => `'${lit.replace(/'/g, "''")}'`)
+      .replace(/\[([^\]]+)\]\.\[([^\]]+)\]/g, (_m, o: string, f: string) => {
+        const obj = objects.find((x) => x.apiName === o);
+        const field = [...(obj?.semanticDimensions ?? []), ...(obj?.semanticMeasurements ?? [])].find((x) => x.apiName === f);
+        if (!obj || typeof field?.dataObjectFieldName !== "string") {
+          ok = false;
+          return "";
+        }
+        tables.add(obj.dataObjectName);
+        return `"${field.dataObjectFieldName}"`;
+      });
+  };
+  const sql = walk(text);
+  if (!ok || tables.size !== 1 || !/^[\w\s"'.,()=<>!+\-*/%]*$/.test(sql)) return undefined;
+  return { sql, table: [...tables][0] };
+}
+
+/**
+ * All-time BAN for an unfiltered followed sub-metric, computed in Data Cloud (`ssot/query-sql`): the aggregate the insights
+ * service evaluates for the "All" range, run with the connected user's access rather than the viewer's. Undefined when the metric isn't that simple.
+ */
+async function computeAllTimeBan(org: string, sub: Row, model: Row | undefined): Promise<string | undefined> {
+  const metric = sub.semanticMetric as Row | undefined;
+  const ref = (metric?.measurementReference as Row | undefined)?.calculatedFieldApiName;
+  const agg = AGG[String(metric?.aggregationType)];
+  if (!model || !agg || typeof ref !== "string") return undefined;
+  const some = (arr: unknown) => Array.isArray(arr) && arr.length > 0;
+  if (some(sub.filters) || some(metric?.filters) || some(model.semanticModelFilters)) return undefined;
+  const calc = ((model.semanticCalculatedMeasurements ?? []) as Row[]).find((c) => c.apiName === ref);
+  const objects = (model.semanticDataObjects ?? []) as SemanticObject[];
+  if (!calc || typeof calc.expression !== "string" || some(calc.filters) || objects.some((o) => some(o.filters))) return undefined;
+  const e = expressionToSql(calc.expression, objects);
+  if (!e) return undefined;
+  const res = await apiRequest<Row>("/services/data/v66.0/ssot/query-sql", "POST", { sql: `SELECT ${agg}(${e.sql}) AS v FROM "${e.table}"` }, org);
+  const v = (res.data?.data as unknown[][] | undefined)?.[0]?.[0];
+  const n = typeof v === "number" ? v : typeof v === "string" && v !== "" ? Number(v) : NaN;
+  if (!res.success || !Number.isFinite(n)) return undefined;
+  return formatBanValue(n, typeof calc.dataType === "string" ? calc.dataType : undefined, typeof calc.decimalPlace === "number" ? calc.decimalPlace : undefined);
+}
+
 export async function collectTableau(ctx: ScreenContext): Promise<PublishedTableau | undefined> {
   const follows = await loadFollows(ctx);
   if (!follows.length) return { metrics: [], valuesLoaded: true };
@@ -184,17 +292,18 @@ export async function collectTableau(ctx: ScreenContext): Promise<PublishedTable
   const subs = ((await get(ctx.org, `/services/data/v66.0/ssot/semantic/sub-metrics/${follows.map((f) => f.id).join(",")}`))?.items ?? []) as Row[];
   const subById = new Map(subs.map((s) => [String(s.id), s]));
 
-  const modelNames = new Map<string, string>();
+  const models = new Map<string, Row>();
   for (const id of new Set(follows.map((f) => f.modelId).filter(Boolean))) {
     const m = await get(ctx.org, `/services/data/v66.0/ssot/semantic/models/${id}`);
-    if (typeof m?.apiName === "string") modelNames.set(id, m.apiName);
+    if (m) models.set(id, m);
   }
 
   const jwt = await get(ctx.org, "/services/data/v62.0/sfap/lightning-jwt-service");
   const token = typeof jwt?.jwt === "string" && typeof jwt.baseUri === "string" ? { jwt: jwt.jwt, baseUri: jwt.baseUri } : undefined;
 
   const metrics: PublishedTableauMetric[] = [];
-  let loaded = !!token;
+  let loaded = true;
+  const sources = new Set<string>();
   for (const f of follows) {
     const sub = subById.get(f.id);
     const metric = sub?.semanticMetric as Row | undefined;
@@ -205,30 +314,42 @@ export async function collectTableau(ctx: ScreenContext): Promise<PublishedTable
     const allTime = describeTimeRange(f.followedTimeRange) === ALL_TIME;
     const filters = (sub.filters ?? []) as Row[];
     let bundle: Row | undefined;
-    const model = modelNames.get(f.modelId);
-    if (token && model) {
+    const model = models.get(f.modelId);
+    const modelName = typeof model?.apiName === "string" ? model.apiName : undefined;
+    if (token && modelName) {
       // createBundleRequestV2 (mobile.export.js): the followed time range, not the sub-metric's own.
       bundle = await fetchBundle(token, {
         input: {
           type: "BASIC",
           submetric: { definition: { metric: metric.apiName, filters } },
           timeRange: allTime ? undefined : f.followedTimeRange,
-          semantic_model: model,
+          semantic_model: modelName,
         },
         config: {},
         options: { outputFormat: "HTML", timeZone: ctx.format.timeZone },
       });
     }
-    if (!bundle) loaded = false;
+    let ban = parseBan(bundle);
+    if (bundle) sources.add("insights");
+    else if (allTime) {
+      // The JWT/insights path needs the mobile app's session (the org 404s it for CLI logins), so compute the all-time aggregate directly.
+      const computed = await computeAllTimeBan(ctx.org, sub, model);
+      if (computed) {
+        ban = computed;
+        sources.add("data-cloud");
+      }
+    }
+    if (ban === "-") loaded = false;
     metrics.push({
       id: f.id,
       name: String(metric.label ?? f.label),
-      ban: parseBan(bundle),
+      ban,
       popc: bundle ? parsePopc(bundle, allTime) : { comparison: allTime ? EMPTY_ALL_TIME_COMPARISON : NO_VALUE },
       description: describeTimeRange(f.followedTimeRange),
     });
   }
   // Device order is alphabetical by metric name (observed; the SDK view models don't sort).
   metrics.sort((a, b) => a.name.localeCompare(b.name));
-  return { metrics, valuesLoaded: loaded };
+  const valuesSource = sources.has("insights") ? "insights" : sources.has("data-cloud") ? "data-cloud" : "none";
+  return { metrics, valuesLoaded: loaded, valuesSource };
 }
