@@ -2277,3 +2277,32 @@ button.studio-ipad-chip {
   padding: 16px 38px 22px 16px;
   gap: 26px;
 }
+
+/* Visits To Submit: the ellipsis opens a popover with "Edit Visit" (a UIMenu-style card centred over the button). */
+.studio-ipad-h-tile.visits {
+  overflow: visible;
+  position: relative;
+}
+
+.studio-ipad-h-visit-more {
+  cursor: pointer;
+}
+
+.studio-ipad-h-visit-menu {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  transform: translateX(-50%);
+  width: 302px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: #f2f2f2;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.22);
+  color: #0250d9;
+  font-size: 18px;
+  cursor: pointer;
+}

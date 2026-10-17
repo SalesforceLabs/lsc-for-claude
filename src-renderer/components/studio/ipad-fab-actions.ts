@@ -3,7 +3,7 @@ import type { PublishedFabItem } from "./screens/fabs-types";
 /** What tapping a ••• menu item presents (SFActionFactory → the quick-action handlers / ExterAppOrURLCoordinator / AgentForceActionHandler). */
 export type Presentation =
   /** New Visit: the Visit Engagement editor (the Account comes from the record you tapped it on). */
-  | { kind: "visit" }
+  | { kind: "visit"; /** Edit Visit from Home's Visits To Submit: the Visit record id whose values fill the editor. */ edit?: string }
   /** Inquiry: the record type picker, then the create form. */
   | { kind: "inquiry" }
   /** Email: ChooseAccountCoordinator (Home only), then the field-email template picker. */

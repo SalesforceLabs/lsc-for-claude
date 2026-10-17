@@ -7,6 +7,9 @@ import type { HomeNbcCard, HomeVisit, PublishedHome } from "./screens/home-types
 /** Opens a record from a Home component (NBC card, visit row); undefined when the snapshot holds no such record. */
 export const HomeOpenContext = createContext<((id: string) => void) | undefined>(undefined);
 
+/** Edit Visit from a Visits To Submit row's ellipsis menu: opens the Visit Engagement editor. */
+export const HomeEditVisitContext = createContext<((id: string) => void) | undefined>(undefined);
+
 /**
  * Home page components as LSC Mobile draws them (standard-home at 1210×834pt).
  * Each one carries its own inset like the iOS view controllers do — the
@@ -388,7 +391,8 @@ export function ActivityPlanProgress({ enhanced, plan }: { enhanced: boolean; pl
 
 /** UnsubmittedCallsDashboardViewController — three visits per page, paged sideways (swipe or tap a dot) under a page control. */
 export function VisitsToSubmit({ data }: { data?: PublishedHome["visits"] }) {
-  const open = useContext(HomeOpenContext);
+  const edit = useContext(HomeEditVisitContext);
+  const [menu, setMenu] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const pages = data ? Math.max(1, Math.ceil(data.items.length / 3)) : 1;
   const at = Math.min(page, pages - 1);
@@ -396,7 +400,7 @@ export function VisitsToSubmit({ data }: { data?: PublishedHome["visits"] }) {
   const down = useRef<number | null>(null);
   return (
     <div
-      className="studio-ipad-h-tile"
+      className="studio-ipad-h-tile visits"
       onPointerDown={(e) => (down.current = e.clientX)}
       onPointerUp={(e) => {
         const dx = down.current == null ? 0 : e.clientX - down.current;
@@ -410,7 +414,7 @@ export function VisitsToSubmit({ data }: { data?: PublishedHome["visits"] }) {
       </div>
       <div className="studio-ipad-h-visit-page">
         {rows.map((v, i) => (
-          <div key={v?.id ?? i} className={`studio-ipad-h-visit${v && open ? " open" : ""}`} onClick={v && open ? () => open(v.id) : undefined}>
+          <div key={v?.id ?? i} className="studio-ipad-h-visit">
             {v ? v.dateLabel && <span className="studio-ipad-h-visit-date">{v.dateLabel}</span> : <Bar w={110} />}
             <div className="studio-ipad-h-visit-body">
               {v ? <span className="studio-ipad-h-visit-time">{v.time}</span> : <Bar w={150} />}
@@ -418,8 +422,21 @@ export function VisitsToSubmit({ data }: { data?: PublishedHome["visits"] }) {
               {v ? <span className="studio-ipad-h-visit-addr">{v.address}</span> : <Bar w={380} />}
               {(!v || v.channel) && <span className="studio-ipad-h-tag">{v ? v.channel : <Bar w={50} />}</span>}
               {v && (
-                <span className="studio-ipad-h-visit-more">
+                <span className="studio-ipad-h-visit-more" role="button" onClick={() => setMenu(menu === v.id ? null : v.id)}>
                   <MoreDots />
+                  {menu === v.id && (
+                    <span
+                      className="studio-ipad-h-visit-menu"
+                      role="menu"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenu(null);
+                        edit?.(v.id);
+                      }}
+                    >
+                      Edit Visit
+                    </span>
+                  )}
                 </span>
               )}
             </div>

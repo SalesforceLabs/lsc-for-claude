@@ -180,8 +180,20 @@ const BADGES: [keyof NonNullable<VisitCreateAccount["licenses"]>, string][] = [
   ["sdl", "SDL"],
 ];
 
-function VisitEditor({ ctx, onClose }: { ctx: SheetContext; onClose: () => void }) {
+/** "5/15/26, 11:37 AM" (the record collector's format) to a Date; undefined when it does not parse. */
+function parseRecordDate(text: string | undefined): Date | undefined {
+  const m = /^(\d+)\/(\d+)\/(\d+),\s+(\d+):(\d+)\s*([AP]M)/i.exec((text ?? "").replace(/\u202f/g, " "));
+  if (!m) return undefined;
+  const hour = (Number(m[4]) % 12) + (/p/i.test(m[6]) ? 12 : 0);
+  return new Date(2000 + Number(m[3]), Number(m[1]) - 1, Number(m[2]), hour, Number(m[5]));
+}
+
+function VisitEditor({ ctx, edit, onClose }: { ctx: SheetContext; edit?: string; onClose: () => void }) {
   const { snapshot, record } = ctx;
+  // Edit Visit: the existing values come from the snapshot's Visit record (and its Provider Visit partner), plus the Home row for the account and place.
+  const existing = edit ? snapshot.records?.byId[edit] : undefined;
+  const row = edit ? snapshot.screens?.home?.visits?.items.find((v) => v.id === edit) : undefined;
+  const val = (name: string): string | undefined => existing?.values.Visit?.[name.toLowerCase()] || existing?.values.ProviderVisit?.[name.toLowerCase()] || undefined;
   const create = snapshot.screens?.fabs?.visitCreate;
   const rts = snapshot.objects.Visit?.recordTypes ?? [];
   const rt = rts[rts.length - 1];
@@ -197,6 +209,17 @@ function VisitEditor({ ctx, onClose }: { ctx: SheetContext; onClose: () => void 
   const control = (s: RecordFieldSpec): React.ReactNode => {
     switch (s.name) {
       case "AccountId":
+        if (existing) {
+          return (
+            <div className="studio-ipad-act-box tall acct">
+              <span className="studio-ipad-act-acctico" style={{ background: "#5867e8" }}>
+                <NewPersonAccountIcon />
+              </span>
+              <span className="studio-ipad-act-acctname">{row?.account ?? val("AccountId") ?? ""}</span>
+              <span className="studio-ipad-act-switch">Switch Account</span>
+            </div>
+          );
+        }
         return (
           <div className="studio-ipad-act-box tall acct">
             <span className="studio-ipad-act-acctico" style={{ background: account?.person === false ? "#4a8fdb" : "#5867e8" }}>
@@ -210,7 +233,7 @@ function VisitEditor({ ctx, onClose }: { ctx: SheetContext; onClose: () => void 
       case "PlaceId":
         return (
           <div className="studio-ipad-act-box tall place">
-            <div className="studio-ipad-act-placetext">{account?.place?.text ?? "None"}</div>
+            <div className="studio-ipad-act-placetext">{existing ? (row?.address ?? val("PlaceId") ?? "None") : (account?.place?.text ?? "None")}</div>
             {hasLicense && (
               <div className="studio-ipad-act-badges">
                 {BADGES.map(([k, label]) =>
@@ -228,13 +251,17 @@ function VisitEditor({ ctx, onClose }: { ctx: SheetContext; onClose: () => void 
         );
       case "PlannedVisitStartTime":
       case "PlannedVisitEndTime": {
+        if (existing) {
+          const at = parseRecordDate(val(s.name));
+          return <Control spec={{ ...s, readOnly: false }} value={at ? fmtDateTime(at) : (val(s.name) ?? "")} />;
+        }
         const d = s.name === "PlannedVisitStartTime" ? times.start : times.end;
         return <Control spec={{ ...s, readOnly: false }} value={d ? fmtDateTime(d) : ""} />;
       }
       case "TerritoryId":
-        return <div className="studio-ipad-act-static">{create?.territory ?? ""}</div>;
+        return <div className="studio-ipad-act-static">{existing ? (val("TerritoryId") ?? "") : (create?.territory ?? "")}</div>;
       case "Status":
-        return <div className="studio-ipad-act-static">{s.picklist?.Planned ?? "Planned"}</div>;
+        return <div className="studio-ipad-act-static">{existing ? (val("Status") ?? "") : (s.picklist?.Planned ?? "Planned")}</div>;
       case "OwnerId":
         return <div className="studio-ipad-act-static">{snapshot.viewer?.name ?? ""}</div>;
       case "RecordTypeId":
@@ -253,11 +280,12 @@ function VisitEditor({ ctx, onClose }: { ctx: SheetContext; onClose: () => void 
         );
     }
     // Counts and other numbers have no control on the device's create form.
-    if (/^(double|int|currency|percent)$/.test(s.type)) return <div className="studio-ipad-act-static" />;
+    if (/^(double|int|currency|percent)$/.test(s.type)) return <div className="studio-ipad-act-static">{existing ? (val(s.name) ?? "") : ""}</div>;
+    if (existing && s.type !== "picklist") return <Control spec={s} value={(s.name === "Name" ? existing.title : val(s.name)) ?? ""} />;
     if (s.type === "picklist") {
       return (
         <div className="studio-ipad-act-box">
-          <span>{picklistStart(s, rt?.picklistDefaults) ?? ""}</span>
+          <span>{existing ? ((s.name === "Channel" ? row?.channel : undefined) || val(s.name) || "") : (picklistStart(s, rt?.picklistDefaults) ?? "")}</span>
           <Caret />
         </div>
       );
@@ -268,7 +296,7 @@ function VisitEditor({ ctx, onClose }: { ctx: SheetContext; onClose: () => void 
   return (
     <Full>
       <NavBar
-        left={linkBtn("Cancel", onClose)}
+        left={linkBtn(existing ? "Close" : "Cancel", onClose)}
         title="Visit Engagement"
         right={
           <>
@@ -572,7 +600,7 @@ function AgentPanel({ ctx, utterance, onClose }: { ctx: SheetContext; utterance:
 export default function IpadActionSheet({ presentation, ctx, onClose }: { presentation: Presentation; ctx: SheetContext; onClose: () => void }) {
   switch (presentation.kind) {
     case "visit":
-      return <VisitEditor ctx={ctx} onClose={onClose} />;
+      return <VisitEditor ctx={ctx} edit={presentation.edit} onClose={onClose} />;
     case "inquiry":
       return <InquirySheet ctx={ctx} onClose={onClose} />;
     case "email":
