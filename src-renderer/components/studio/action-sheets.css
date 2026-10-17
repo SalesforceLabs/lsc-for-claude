@@ -196,3 +196,11 @@ button.studio-ipad-act-circle { cursor: pointer; }
 .studio-ipad-act-main:has(.studio-ipad-act-grid.two) { padding-right: 34px; }
 .studio-ipad-act-main .studio-ipad-act-mainhead { margin-left: -18px; margin-right: -23px; }
 .studio-ipad-act-mainhead .studio-ipad-act-chev.down { width: 14px; margin-right: 3px; }
+/* New Visit with no account: "None" and Switch Account, no icon; an empty Place is centred. */
+.studio-ipad-act-acctnone { position: absolute; left: 19px; top: 31px; font-size: 17px; line-height: 19px; }
+.studio-ipad-act-box.acct.none .studio-ipad-act-switch { left: 19px; top: 59px; font-size: 14px; }
+.studio-ipad-act-box.place.none .studio-ipad-act-placetext { top: 50px; }
+/* Visit Engagement header, measured against the device: 1px taller, slightly tighter pills. */
+.studio-ipad-act-nav:has(+ .studio-ipad-act-visit) { padding-left: 18px; padding-top: 10px; }
+.studio-ipad-act-nav:has(+ .studio-ipad-act-visit) .studio-ipad-act-pill { padding: 0 13px; }
+.studio-ipad-act-nav:has(+ .studio-ipad-act-visit) .studio-ipad-act-pill.split { padding-right: 0; }

@@ -221,18 +221,23 @@ function VisitEditor({ ctx, edit, onClose }: { ctx: SheetContext; edit?: string;
           );
         }
         return (
-          <div className="studio-ipad-act-box tall acct">
-            <span className="studio-ipad-act-acctico" style={{ background: account?.person === false ? "#4a8fdb" : "#5867e8" }}>
-              {account?.person === false ? <HcoIcon /> : <NewPersonAccountIcon />}
-            </span>
-            <span className="studio-ipad-act-acctname">{record?.title ?? ""}</span>
-            <span className="studio-ipad-act-acctsub">{account?.subLabel ?? ""}</span>
+          <div className={`studio-ipad-act-box tall acct${accountId ? "" : " none"}`}>
+            {accountId && (
+              <>
+                <span className="studio-ipad-act-acctico" style={{ background: account?.person === false ? "#4a8fdb" : "#5867e8" }}>
+                  {account?.person === false ? <HcoIcon /> : <NewPersonAccountIcon />}
+                </span>
+                <span className="studio-ipad-act-acctname">{record?.title ?? ""}</span>
+                <span className="studio-ipad-act-acctsub">{account?.subLabel ?? ""}</span>
+              </>
+            )}
+            {!accountId && <span className="studio-ipad-act-acctnone">None</span>}
             <span className="studio-ipad-act-switch">Switch Account</span>
           </div>
         );
       case "PlaceId":
         return (
-          <div className="studio-ipad-act-box tall place">
+          <div className={`studio-ipad-act-box tall place${existing || account?.place ? "" : " none"}`}>
             <div className="studio-ipad-act-placetext">{existing ? (row?.address ?? val("PlaceId") ?? "None") : (account?.place?.text ?? "None")}</div>
             {hasLicense && (
               <div className="studio-ipad-act-badges">
