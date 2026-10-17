@@ -612,7 +612,7 @@ function ListView({
             );
           }
           if (cards && shown) {
-            return <CardList rows={shown.rows} onOpen={onOpenRecord} links={((view as { query?: { fields: ({ type: string } | null)[] } }).query?.fields ?? []).map((f) => f?.type === "lookup" || f?.type === "formula")} />;
+            return <CardList rows={shown.rows} onOpen={onOpenRecord} links={(view.query?.fields ?? []).map((f) => f?.type === "lookup" || f?.type === "formula")} />;
           }
           return <DataTable columns={view.columns.map(columnLabel)} data={shown} onOpenRecord={onOpenRecord} />;
         })()}

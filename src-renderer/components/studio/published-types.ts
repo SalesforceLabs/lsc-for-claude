@@ -102,7 +102,7 @@ export interface PublishedObject {
   recordTypes: PublishedRecordType[];
   /** Used when a record has no record type. */
   defaultCompactLayout: string | null;
-  listViews: { name: string; label: string; columns: string[] }[];
+  listViews: { name: string; label: string; columns: string[]; /** How to read its rows: a field type per column (null when the app drops it). */ query?: { fields: ({ path: string; type: string } | null)[] } }[];
   defaultListView: string | null;
   /** List views shared only with roles, groups, or territories the viewer isn't in. */
   hiddenListViews?: { label: string; reason: string }[];
