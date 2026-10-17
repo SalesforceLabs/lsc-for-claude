@@ -50,7 +50,18 @@ export interface PublishedVisitCreate {
   accounts: Record<string, VisitCreateAccount>;
 }
 
+/** One row of the Send Email template list. */
+export interface PublishedEmailTemplate {
+  id: string;
+  name: string;
+  /** Product name; empty when the template has none. */
+  product?: string;
+  description?: string;
+}
+
 export interface PublishedFabs {
+  /** Send Email's template list (EmailsService.updateTemplatesModels), in the app's order. */
+  emailTemplates?: PublishedEmailTemplate[];
   /** New Visit from an account. */
   visitCreate?: PublishedVisitCreate;
   /** Home's menu, top to bottom: quick actions by sort order, then custom actions by label. */
@@ -326,6 +337,35 @@ async function collectVisitCreate(ctx: ScreenContext): Promise<PublishedVisitCre
 }
 
 /**
+ * EmailsService.updateTemplatesModels: the active templates by name, narrowed to the ones assigned to the viewer's
+ * selected territory when that territory has any assignment (otherwise every template shows).
+ */
+export function emailTemplateList(rows: Row[], assignedToTerritory: string[]): PublishedEmailTemplate[] {
+  const assigned = new Set(assignedToTerritory);
+  return rows
+    .filter((r) => str(r.Name) !== "" && (assigned.size === 0 || assigned.has(str(r.Id))))
+    .sort((a, b) => str(a.Name).toLowerCase().localeCompare(str(b.Name).toLowerCase()))
+    .map((r) => ({
+      id: str(r.Id),
+      name: str(r.Name),
+      product: str((r.Product as Row | null | undefined)?.Name) || undefined,
+      description: str(r.Description) || undefined,
+    }));
+}
+
+async function collectEmailTemplates(ctx: ScreenContext): Promise<PublishedEmailTemplate[]> {
+  const templates = await query("SELECT Id, Name, Description, Product.Name FROM LifeSciEmailTemplate WHERE IsActive = true AND Name != null", ctx.org);
+  const territoryId = ctx.territories[0]?.id;
+  const assigned = territoryId
+    ? await query(`SELECT TemplateReferenceRecordId FROM TerritoryContentTmplAsgnt WHERE TerritoryId IN (${inList([territoryId])})`, ctx.org).catch(() => [] as Row[])
+    : [];
+  return emailTemplateList(
+    templates,
+    assigned.map((a) => str(a.TemplateReferenceRecordId))
+  );
+}
+
+/**
  * Quick actions carry their audience in a `Profiles` field; custom actions have no audience at all —
  * the org hands every active one to every device (OCEDBCustomActionModel filters by location only).
  */
@@ -352,5 +392,6 @@ export async function collectFabs(ctx: ScreenContext): Promise<PublishedFabs> {
     ),
     records: recordMenus(ctx.core),
     visitCreate: await collectVisitCreate(ctx).catch(() => undefined),
+    emailTemplates: await collectEmailTemplates(ctx).catch(() => undefined),
   };
 }

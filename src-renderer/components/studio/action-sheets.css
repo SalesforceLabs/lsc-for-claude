@@ -245,3 +245,50 @@ button.studio-ipad-act-circle { cursor: pointer; }
 .studio-ipad-act-sheet.providers .studio-ipad-act-avatar { box-sizing: border-box; padding: 9px; }
 .studio-ipad-act-sheet.providers .studio-ipad-act-nav.plain { height: 57px; padding-top: 3px; }
 .studio-ipad-act-sheet.providers .studio-ipad-act-nav.plain .studio-ipad-act-nav-t { top: 3px; }
+
+/* Send Email: the template list (SelectTemplateViewController) */
+.studio-ipad-act-tplbar { padding: 24px 18px 8px; gap: 12px; font-size: 18px; padding-right: 15px; }
+.studio-ipad-act-tplbar .studio-ipad-act-search { height: 36px; }
+.studio-ipad-act-tplbar .studio-ipad-act-search.wide { width: 941px; flex: none; }
+.studio-ipad-act-tplhead { padding: 8px 20px 1px; font-size: 19px; }
+.studio-ipad-act-body.tpls { padding: 25px 17px; display: flex; flex-direction: column; gap: 12px; align-items: stretch; background: #fff; }
+.studio-ipad-act-tpl { border: 1px solid #c8c8c8; border-radius: 8px; overflow: hidden; flex: none; }
+.studio-ipad-act-tplrow { position: relative; height: 125px; }
+.studio-ipad-act-tplthumb { position: absolute; left: 23px; top: 21px; width: 68px; }
+.studio-ipad-act-tplimg { display: block; width: 68px; height: 72px; background: linear-gradient(90deg, #f3f3f3 55%, #2b3340 55%); border: 1px solid #e3e3e3; box-sizing: border-box; }
+.studio-ipad-act-tplprev { display: flex; align-items: center; gap: 5px; margin-top: 2px; color: #0b4fd6; font-size: 15.5px; white-space: nowrap; }
+.studio-ipad-act-tplprev svg { width: 15px; height: 15px; }
+.studio-ipad-act-tplprev svg * { stroke: #0b4fd6; }
+.studio-ipad-act-tplcol { position: absolute; top: 21px; font-size: 16px; color: #333; }
+.studio-ipad-act-tplcol label { display: block; margin-bottom: 2px; line-height: 20px; color: #666; font-size: 15.5px; }
+.studio-ipad-act-tplcol.name { left: 109px; }
+.studio-ipad-act-tplcol.product { left: 419px; }
+.studio-ipad-act-tplcol.desc { left: 612px; }
+.studio-ipad-act-tplcol.attach { left: 953px; }
+.studio-ipad-act-tplsel { height: 44px; display: flex; align-items: center; justify-content: center; background: #f2f2f6; color: #0b4fd6; font-size: 18px; }
+
+/* Next Best Customer "Why" sheet and Survey list, measured on the device */
+.studio-ipad-act-sheet.nbc .studio-ipad-act-grabber { position: absolute; top: 7px; left: 50%; margin: 0 0 0 -18px; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-nav.plain { height: 56px; padding: 0 29px 0 16px; box-sizing: border-box; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-nav-t { top: 0; font-size: 18px; }
+.studio-ipad-act-body.nbc { gap: 21px; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-white { padding: 32px 16px 32px; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-prov.plain { align-items: flex-start; margin-bottom: 12px; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-prov.plain .studio-ipad-act-blue { line-height: 19px; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-addr { margin: 0 0 20px; line-height: 17px; font-size: 14.5px; white-space: pre-wrap; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-outline { box-sizing: border-box; height: 38px; padding: 0 15px; line-height: 36px; font-size: 18px; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-white.empty { padding: 36px 30px; }
+.studio-ipad-act-emptyt { margin-top: 22px; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-emptyd { font-size: 16px; line-height: 19px; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-nav { height: 57px; padding-top: 0; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-nav-t { top: 0; font-size: 18px; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-nav-l { padding-left: 0; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-seg { margin: 20px 0 31px; padding: 2px; height: 33px; box-sizing: border-box; font-size: 14px; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-seg span { display: flex; align-items: center; padding: 0 22px; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-search { height: 30px; margin: 0 15px 14px; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-search + .studio-ipad-act-empty { border-top: 1px solid #ccc; margin: 0 20px; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-avatar { box-sizing: border-box; padding: 9px; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-seg { margin-top: 21px; margin-bottom: 30px; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-seg span { padding: 0 15px; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-search { margin-left: 20px; margin-right: 15px; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-search + .studio-ipad-act-empty { padding-top: 54px; }

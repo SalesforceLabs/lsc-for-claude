@@ -13,7 +13,15 @@ export interface PublishedFabItem {
   action?: PublishedFabAction;
 }
 
+export interface PublishedEmailTemplate {
+  id: string;
+  name: string;
+  product?: string;
+  description?: string;
+}
+
 export interface PublishedFabs {
+  emailTemplates?: PublishedEmailTemplate[];
   visitCreate?: PublishedVisitCreate;
   home: PublishedFabItem[];
   records: Record<string, Record<string, PublishedFabItem[]>>;

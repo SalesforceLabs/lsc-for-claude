@@ -543,14 +543,17 @@ function ProviderPicker({ ctx, onClose, onPick }: { ctx: SheetContext; onClose: 
   );
 }
 
-function EmailTemplates({ onClose }: { onClose: () => void }) {
+function EmailTemplates({ ctx, onClose }: { ctx: SheetContext; onClose: () => void }) {
+  const [q, setQ] = useState("");
+  const all = ctx.snapshot.screens?.fabs?.emailTemplates;
+  const shown = (all ?? []).filter((t) => `${t.name}${t.product ?? ""}${t.description ?? ""}`.toLowerCase().includes(q.toLowerCase()));
   return (
     <Full>
       <NavBar left={linkBtn("Cancel", onClose)} title="Send Email" right={linkBtn("Next", undefined, true)} />
       <div className="studio-ipad-act-tplbar">
         <div className="studio-ipad-act-search wide">
           <Magnifier />
-          <input placeholder="Search templates…" />
+          <input placeholder="Search templates..." value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         <span className="studio-ipad-act-filter">
           Product: <b>All</b>
@@ -559,12 +562,37 @@ function EmailTemplates({ onClose }: { onClose: () => void }) {
           Topics: <b>All</b>
         </span>
       </div>
-      <h3 className="studio-ipad-act-tplhead">Email Templates</h3>
-      <div className="studio-ipad-act-body">
-        <Note>
-          The app lists the approved email templates for this provider and product; Studio doesn't read them. Selecting one opens the email composer, which the
-          preview doesn't draw. Nothing is sent.
-        </Note>
+      <h3 className="studio-ipad-act-tplhead">Email Templates ({shown.length})</h3>
+      <div className="studio-ipad-act-body tpls">
+        {all === undefined && <Note>This snapshot predates the email template list; publish again to read it.</Note>}
+        {shown.map((t) => (
+          <div key={t.id} className="studio-ipad-act-tpl">
+            <div className="studio-ipad-act-tplrow">
+              <div className="studio-ipad-act-tplthumb">
+                <span className="studio-ipad-act-tplimg" />
+                <span className="studio-ipad-act-tplprev">
+                  <Magnifier /> Preview
+                </span>
+              </div>
+              <div className="studio-ipad-act-tplcol name">
+                <label>Email Template Name</label>
+                <div>{t.name}</div>
+              </div>
+              <div className="studio-ipad-act-tplcol product">
+                <label>Product</label>
+                <div>{t.product}</div>
+              </div>
+              <div className="studio-ipad-act-tplcol desc">
+                <label>Description</label>
+                <div>{t.description ?? "-"}</div>
+              </div>
+              <div className="studio-ipad-act-tplcol attach">
+                <label>Attachments</label>
+              </div>
+            </div>
+            <div className="studio-ipad-act-tplsel">Select</div>
+          </div>
+        ))}
       </div>
     </Full>
   );
@@ -572,10 +600,17 @@ function EmailTemplates({ onClose }: { onClose: () => void }) {
 
 function EmailFlow({ ctx, pickProvider, onClose }: { ctx: SheetContext; pickProvider: boolean; onClose: () => void }) {
   const [provider, setProvider] = useState<string | null>(pickProvider ? null : (ctx.record?.title ?? ""));
-  return provider === null ? <ProviderPicker ctx={ctx} onClose={onClose} onPick={setProvider} /> : <EmailTemplates onClose={onClose} />;
+  return provider === null ? <ProviderPicker ctx={ctx} onClose={onClose} onPick={setProvider} /> : <EmailTemplates ctx={ctx} onClose={onClose} />;
 }
 
 // ── Next Best Customer and Survey ─────────────────────────────────────────────
+
+/** The "Why" sheet writes the address street, city, state, country, postal code with two spaces after each comma; the card text has the postal code second. */
+function nbcAddress(address: string): string {
+  const parts = address.split(", ");
+  if (parts.length === 5 && /\d/.test(parts[1])) parts.push(parts.splice(1, 1)[0]);
+  return parts.join(",  ");
+}
 
 function NbcSheet({ ctx, onClose }: { ctx: SheetContext; onClose: () => void }) {
   const card = ctx.snapshot.screens?.accounts?.cards.find((c) => c.id === ctx.record?.id);
@@ -587,14 +622,16 @@ function NbcSheet({ ctx, onClose }: { ctx: SheetContext; onClose: () => void }) 
       <div className="studio-ipad-act-body nbc">
         <div className="studio-ipad-act-white">
           <div className="studio-ipad-act-prov plain">
-            <span className="studio-ipad-act-avatar" aria-hidden="true" />
+            <span className="studio-ipad-act-avatar" aria-hidden="true">
+              {card?.hco ? <HcoIcon /> : <NewPersonAccountIcon />}
+            </span>
             <span className="studio-ipad-act-blue">{title}</span>
           </div>
-          {card?.address && <div className="studio-ipad-act-addr">{card.address}</div>}
+          {card?.address && <div className="studio-ipad-act-addr">{nbcAddress(card.address)}</div>}
           <span className="studio-ipad-act-outline">Visit</span>
         </div>
         <div className="studio-ipad-act-white empty">
-          <EmptyArt height={150} />
+          <EmptyArt height={188} />
           <div className="studio-ipad-act-emptyt">Nothing to see here... yet</div>
           <div className="studio-ipad-act-emptyd">
             After your admin adds rationales, you'll see them here. Make sure you're connected to the internet to sync the latest changes.
@@ -623,7 +660,7 @@ function SurveySheet({ onClose }: { onClose: () => void }) {
         <input placeholder="Search..." />
       </div>
       <div className="studio-ipad-act-empty">
-        <EmptyArt height={150} />
+        <EmptyArt height={188} />
         <div className="studio-ipad-act-emptyt">No data available</div>
       </div>
       <Note>Surveys are read from the org by the app; the preview doesn't list them.</Note>
