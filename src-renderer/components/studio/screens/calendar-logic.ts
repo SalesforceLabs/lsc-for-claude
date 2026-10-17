@@ -30,8 +30,28 @@ export const EVENT_SWITCHES: { label: string; kind: CalendarSegment["kind"] }[] 
   { label: "Time Off Territory", kind: "tot" },
 ];
 
-export function filterSegments(segments: CalendarSegment[], hidden: ReadonlySet<CalendarSegment["kind"]>): CalendarSegment[] {
-  return hidden.size === 0 ? segments : segments.filter((s) => !hidden.has(s.kind));
+/** The Visit drill-in's toggles (PlannerFilterItemsFetcher's call variations, as named on the device). */
+export const VISIT_VARIANTS = ["Completed Visit", "Confirmed Visit", "Planned Visit"];
+/** The Assessment Task drill-in's toggles: the ToDo Status picklist, as the device lists it. */
+export const TODO_STATUSES = ["Completed", "In Progress", "Not Started", "Skipped"];
+
+/** Key of a drill-in toggle in the hidden set. */
+export const subKey = (group: "visit" | "todo", name: string) => `${group}:${name}`;
+
+/** A visit's variant: submitted ones are Completed; the preview does not collect Confirmed. */
+export function visitVariant(s: Pick<CalendarSegment, "done">): string {
+  return s.done ? "Completed Visit" : "Planned Visit";
+}
+
+/** CalendarEventFilterItem.getSelectedItemsName: "All", "None", or the names that are on. */
+export function subDetail(group: "visit" | "todo", names: string[], hiddenSub: ReadonlySet<string>): string {
+  const on = names.filter((n) => !hiddenSub.has(subKey(group, n)));
+  return on.length === names.length ? "All" : on.length === 0 ? "None" : on.join(", ");
+}
+
+export function filterSegments(segments: CalendarSegment[], hidden: ReadonlySet<CalendarSegment["kind"]>, hiddenSub: ReadonlySet<string> = new Set()): CalendarSegment[] {
+  if (hidden.size === 0 && hiddenSub.size === 0) return segments;
+  return segments.filter((s) => !hidden.has(s.kind) && !(s.kind === "visit" && hiddenSub.has(subKey("visit", visitVariant(s)))));
 }
 
 /** Type popover rows: All / HCO / HCP with "N Accounts". */

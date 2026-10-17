@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import type { CalendarSegment } from "./calendar-types";
 import type { PublishedAccounts } from "./accounts-types";
-import { CREATE_EVENT_TYPES, EVENT_INDICATOR, EVENT_SWITCHES } from "./calendar-logic";
+import { CREATE_EVENT_TYPES, EVENT_INDICATOR, EVENT_SWITCHES, TODO_STATUSES, VISIT_VARIANTS, subDetail, subKey } from "./calendar-logic";
 import { Popover, Sheet } from "./interact-ui";
 import "./calendar-menus.css";
 
@@ -34,14 +34,20 @@ export function PlusMenu({ onClose }: { onClose: () => void }) {
   );
 }
 
-type Page = "root" | "filter" | "indicator" | "delete";
+type Page = "root" | "filter" | "indicator" | "delete" | "todo" | "visit";
+
+const GROUPS = {
+  todo: { title: "Assessment Task", names: TODO_STATUSES },
+  visit: { title: "Visit", names: VISIT_VARIANTS },
+} as const;
 
 /** "•••": Filter Events, Event Indicator and Delete Events, each pushing a page inside the popover. */
-export function MoreMenu({ hidden, range, onApply, onClose }: { hidden: ReadonlySet<Kind>; range?: { from: string; to: string }; onApply: (hidden: Set<Kind>) => void; onClose: () => void }) {
+export function MoreMenu({ hidden, hiddenSub, range, onApply, onClose }: { hidden: ReadonlySet<Kind>; hiddenSub: ReadonlySet<string>; range?: { from: string; to: string }; onApply: (hidden: Set<Kind>, hiddenSub: Set<string>) => void; onClose: () => void }) {
   const [page, setPage] = useState<Page>("root");
   const [draft, setDraft] = useState<Set<Kind>>(new Set(hidden));
   const [note, setNote] = useState(false);
-  const changed = draft.size !== hidden.size || [...draft].some((k) => !hidden.has(k));
+  const [sub, setSub] = useState<Set<string>>(new Set(hiddenSub));
+  const changed = draft.size !== hidden.size || [...draft].some((k) => !hidden.has(k)) || sub.size !== hiddenSub.size || [...sub].some((k) => !hiddenSub.has(k));
   const back = (
     <button type="button" className="studio-ipad-calendar-menu-back" aria-label="Back" onClick={() => setPage("root")}>
       <svg width="12" height="20" viewBox="0 0 12 20">
@@ -56,8 +62,30 @@ export function MoreMenu({ hidden, range, onApply, onClose }: { hidden: Readonly
       else n.add(k);
       return n;
     });
+  const toggleSub = (key: string) =>
+    setSub((d) => {
+      const n = new Set(d);
+      if (n.has(key)) n.delete(key);
+      else n.add(key);
+      return n;
+    });
+  // The drill-in pages edit the same draft and share the filter popover's size and Apply button.
+  const editing = page === "filter" || page === "todo" || page === "visit";
+  const apply = (
+    <button
+      type="button"
+      className="studio-ipad-calendar-menu-apply pin"
+      disabled={!changed}
+      onClick={() => {
+        onApply(draft, sub);
+        onClose();
+      }}
+    >
+      Apply
+    </button>
+  );
   return (
-    <Popover {...POP} left={page === "filter" ? 791 : POP.left} width={page === "filter" ? 400 : POP.width} height={page === "root" ? 167 : page === "filter" ? 393 : page === "indicator" ? 451 : 344} arrowX={1175} onClose={onClose}>
+    <Popover {...POP} left={editing ? 791 : POP.left} width={editing ? 400 : POP.width} height={page === "root" ? 167 : editing ? 393 : page === "indicator" ? 451 : 344} arrowX={1175} onClose={onClose}>
       <div className="studio-ipad-calendar-menu">
         {page === "root" && (
           <>
@@ -81,35 +109,50 @@ export function MoreMenu({ hidden, range, onApply, onClose }: { hidden: Readonly
             <div className="studio-ipad-calendar-menu-nav">
               {back}
               <b>Filter Events</b>
-              <button type="button" className="clear" onClick={() => setDraft(new Set(EVENT_SWITCHES.map((s) => s.kind)))}>
+              <button type="button" className="clear" onClick={() => {
+                  setDraft(new Set(EVENT_SWITCHES.map((s) => s.kind)));
+                  setSub(new Set([...GROUPS.todo.names.map((n) => subKey("todo", n)), ...GROUPS.visit.names.map((n) => subKey("visit", n))]));
+                }}>
                 Clear All
               </button>
             </div>
-            <div className="studio-ipad-calendar-menu-row plain">
+            <button type="button" className="studio-ipad-calendar-menu-row plain drill" onClick={() => setPage("todo")}>
               <span className="label">Assessment Task</span>
-              <span className="all">All</span>
-            </div>
+              <span className="all">{subDetail("todo", TODO_STATUSES, sub)}</span>
+            </button>
             {EVENT_SWITCHES.map((s) => (
               <div key={s.kind} className="studio-ipad-calendar-menu-row plain">
                 <span className="label">{s.label}</span>
                 <button type="button" role="switch" aria-checked={!draft.has(s.kind)} className={`studio-ipad-calendar-switch${draft.has(s.kind) ? "" : " on"}`} onClick={() => toggle(s.kind)} />
               </div>
             ))}
-            <div className="studio-ipad-calendar-menu-row plain">
+            <button type="button" className="studio-ipad-calendar-menu-row plain drill" onClick={() => setPage("visit")}>
               <span className="label">Visit</span>
-              <span className="all">All</span>
-            </div>
-            <button
-              type="button"
-              className="studio-ipad-calendar-menu-apply"
-              disabled={!changed}
-              onClick={() => {
-                onApply(draft);
-                onClose();
-              }}
-            >
-              Apply
+              <span className="all">{subDetail("visit", VISIT_VARIANTS, sub)}</span>
             </button>
+            {apply}
+          </>
+        )}
+        {(page === "todo" || page === "visit") && (
+          <>
+            <div className="studio-ipad-calendar-menu-nav">
+              <button type="button" className="studio-ipad-calendar-menu-back" aria-label="Back" onClick={() => setPage("filter")}>
+                <svg width="12" height="20" viewBox="0 0 12 20">
+                  <path d="M10 2 2 10l8 8" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <b>{GROUPS[page].title}</b>
+              <button type="button" className="clear" onClick={() => setSub((d) => new Set([...d, ...GROUPS[page].names.map((n) => subKey(page, n))]))}>
+                Clear All
+              </button>
+            </div>
+            {GROUPS[page].names.map((n) => (
+              <div key={n} className="studio-ipad-calendar-menu-row plain">
+                <span className="label">{n}</span>
+                <button type="button" role="switch" aria-checked={!sub.has(subKey(page, n))} className={`studio-ipad-calendar-switch${sub.has(subKey(page, n)) ? "" : " on"}`} onClick={() => toggleSub(subKey(page, n))} />
+              </div>
+            ))}
+            {apply}
           </>
         )}
         {page === "indicator" && (

@@ -35,7 +35,8 @@ function Planner({ data: live, accounts }: { data: PublishedCalendar; accounts: 
   const [hidden, setHidden] = React.useState<Set<CalendarSegment["kind"]>>(new Set());
   const [menu, setMenu] = React.useState<"plus" | "more" | "advanced" | null>(null);
   // Filter Events hides whole kinds from every view.
-  const data = React.useMemo(() => ({ ...live, segments: filterSegments(live.segments, hidden) }), [live, hidden]);
+  const [hiddenSub, setHiddenSub] = React.useState<Set<string>>(new Set());
+  const data = React.useMemo(() => ({ ...live, segments: filterSegments(live.segments, hidden, hiddenSub) }), [live, hidden, hiddenSub]);
   const todayIdx = Math.max(0, data.days.findIndex((d) => d.today));
   const [mode, setMode] = React.useState<Mode>("Week");
   const [anchor, setAnchor] = React.useState(todayIdx);
@@ -60,7 +61,7 @@ function Planner({ data: live, accounts }: { data: PublishedCalendar; accounts: 
         {mode === "Month" ? <MonthView data={data} first={monthStart(anchor)} month={monthOf(anchor)} /> : <TimeView data={data} shown={shown} />}
       </div>
       {menu === "plus" && <PlusMenu onClose={() => setMenu(null)} />}
-      {menu === "more" && <MoreMenu hidden={hidden} range={weekRange(data.now)} onApply={setHidden} onClose={() => setMenu(null)} />}
+      {menu === "more" && <MoreMenu hidden={hidden} hiddenSub={hiddenSub} range={weekRange(data.now)} onApply={(h, sub) => { setHidden(h); setHiddenSub(sub); }} onClose={() => setMenu(null)} />}
       {menu === "advanced" && <AdvancedSearch accounts={accounts} calendarIds={data.accounts.map((a) => a.id)} onClose={() => setMenu(null)} />}
     </div>
   );

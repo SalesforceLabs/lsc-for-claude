@@ -432,3 +432,25 @@
   font-size: 18px;
   cursor: pointer;
 }
+
+/* Filter Events rows that open a drill-in page (Assessment Task, Visit). */
+.studio-ipad-calendar-menu-row.plain.drill {
+  cursor: pointer;
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+}
+
+/* Apply stays at the foot of the popover on the drill-in pages, which have fewer rows than Filter Events. */
+.studio-ipad-calendar-menu {
+  position: relative;
+}
+.studio-ipad-calendar-menu-apply.pin {
+  position: absolute;
+  left: 16px;
+  bottom: 15px;
+  margin: 0;
+  width: calc(100% - 32px);
+}
