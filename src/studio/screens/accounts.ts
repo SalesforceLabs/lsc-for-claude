@@ -13,6 +13,8 @@ export interface PublishedAccountCard {
   /** State license pill; absent when the setting is off or there is no address. */
   license?: "valid" | "invalid";
   /** One entry per column; each is the lines of that cell. */
+  /** Values the Sort popover orders by (empty or missing sorts last). */
+  sort?: Record<string, string>;
   cells: string[][];
 }
 
@@ -21,6 +23,8 @@ export interface PublishedAccountList {
   name: string;
   /** "N Account(s)". */
   detail: string;
+  /** Ids of the members the device holds; clicking the list narrows the cards to them. */
+  memberIds?: string[];
 }
 
 export interface PublishedAccounts {
@@ -34,12 +38,15 @@ export interface PublishedAccounts {
   lists: { own: PublishedAccountList[]; shared: PublishedAccountList[] };
   sortLabel: string;
   columns: string[];
-  /** The first page (10) of the "All" list. */
+  /** The "All" list in name order, up to CARD_CAP accounts (the device pages 10 at a time as you scroll). */
   cards: PublishedAccountCard[];
 }
 
 /** AccountsListFetcher.pageSize. */
 export const PAGE_SIZE = 10;
+
+/** The preview holds this many accounts (name order) so chips, sort and lists work client-side; the device pages 10 at a time. */
+export const CARD_CAP = 300;
 
 /** Int.toString(withMaxCharactersCount: 4): Int-Double-Float-Extension.swift. */
 export function chipCount(n: number): string {
@@ -107,11 +114,16 @@ async function readable(ids: string[], ctx: ScreenContext): Promise<Set<string>>
 }
 
 /** Members the device holds: a semi-join can't nest the sync filter, so intersect 200 ids at a time. */
-async function listCount(listId: string, from: (extra?: string) => string, org: string): Promise<number> {
+async function listMembers(listId: string, from: (extra?: string) => string, org: string): Promise<string[]> {
   const members = await query(`SELECT AccountId FROM LifeSciAccountListMember WHERE LifeScienceAccountListId = '${listId}' AND AccountId != null`, org);
   const ids = [...new Set(members.map((m) => str(m.AccountId)))];
-  const parts = await Promise.all(chunks(ids, 200).map((part) => count(`SELECT COUNT() ${from(`Id IN (${inList(part)})`)}`, org)));
-  return parts.reduce((a, b) => a + b, 0);
+  const parts = await Promise.all(chunks(ids, 200).map((part) => query(`SELECT Id ${from(`Id IN (${inList(part)})`)}`, org)));
+  return parts.flat().map((r) => str(r.Id));
+}
+
+/** Query rows for many ids, 150 at a time (keeps the request URL short). */
+async function byIds(ids: string[], run: (inIds: string) => Promise<Row[]>): Promise<Row[]> {
+  return (await Promise.all(chunks(ids, 150).map((part) => run(inList(part))))).flat();
 }
 
 export async function collectAccounts(ctx: ScreenContext): Promise<PublishedAccounts | undefined> {
@@ -127,27 +139,36 @@ export async function collectAccounts(ctx: ScreenContext): Promise<PublishedAcco
     count(`SELECT COUNT() ${from()}`, org),
     count(`SELECT COUNT() ${from("RecordType.IsPersonType = false")}`, org),
     count(`SELECT COUNT() ${from("RecordType.IsPersonType = true")}`, org),
-    // BaseAccountsFetchQueryCreator: ORDER BY name is null, name ASC.
-    query(`SELECT Id, ${nameField}, RecordType.IsPersonType ${from()} ORDER BY ${nameField} ASC NULLS LAST LIMIT ${PAGE_SIZE}`, org),
+    // BaseAccountsFetchQueryCreator: ORDER BY name is null, name ASC. First/Last Name exist only with person accounts.
+    query(`SELECT Id, ${nameField}, FirstName, LastName, RecordType.IsPersonType ${from()} ORDER BY ${nameField} ASC NULLS LAST LIMIT ${CARD_CAP}`, org).catch(() =>
+      query(`SELECT Id, ${nameField}, RecordType.IsPersonType ${from()} ORDER BY ${nameField} ASC NULLS LAST LIMIT ${CARD_CAP}`, org)
+    ),
   ]);
 
   const ids = accounts.map((a) => str(a.Id));
-  const inIds = inList(ids);
   const territoryIds = ctx.territories.map((t) => t.id);
   const slnField = /^\w+$/.test(str(cfg.StateLicenseNumberSettings?.SlnValFormulaField)) ? str(cfg.StateLicenseNumberSettings?.SlnValFormulaField) : "";
   const licensesOn = cfg.StateLicenseNumberSettings?.IsEnabledOnSearchList === true;
   const none = Promise.resolve([] as Row[]);
   const [atis, providers, addresses, licenses] = await Promise.all([
     ids.length && territoryIds.length
-      ? query(`SELECT AccountId, IsTargetedAccount, LastProviderVisitDate, PreferredAddressId FROM ProviderAcctTerritoryInfo WHERE AccountId IN (${inIds}) AND Territory2Id IN (${inList(territoryIds)})`, org)
+      ? byIds(ids, (inIds) => {
+          const where = `FROM ProviderAcctTerritoryInfo WHERE AccountId IN (${inIds}) AND Territory2Id IN (${inList(territoryIds)})`;
+          // NextProviderVisitDate feeds the Next Visit Date sort; fall back if the org has no such column.
+          return query(`SELECT AccountId, IsTargetedAccount, LastProviderVisitDate, NextProviderVisitDate, PreferredAddressId ${where}`, org).catch(() =>
+            query(`SELECT AccountId, IsTargetedAccount, LastProviderVisitDate, PreferredAddressId ${where}`, org)
+          );
+        })
       : none,
-    ids.length ? query(`SELECT AccountId, Specialties FROM HealthcareProvider WHERE AccountId IN (${inIds})`, org).catch(() => []) : none,
-    ids.length ? query(`SELECT Id, ParentId, Street, PostalCode, City, State, StateCode, Country, IsPrimary FROM ContactPointAddress WHERE ParentId IN (${inIds}) AND IsActive = true`, org).catch(() => []) : none,
+    ids.length ? byIds(ids, (inIds) => query(`SELECT AccountId, Specialties FROM HealthcareProvider WHERE AccountId IN (${inIds})`, org).catch(() => [])) : none,
+    ids.length ? byIds(ids, (inIds) => query(`SELECT Id, ParentId, Street, PostalCode, City, State, StateCode, Country, IsPrimary FROM ContactPointAddress WHERE ParentId IN (${inIds}) AND IsActive = true`, org).catch(() => [])) : none,
     ids.length && licensesOn
-      ? query(
-          `SELECT AccountId, JurisdictionState, IsLicenseValidated${slnField ? `, ${slnField}` : ""} FROM BusinessLicense WHERE AccountId IN (${inIds}) AND ComplianceScope = 'JurisdictionState' AND IsActive = true AND LicenseNumber != null AND PeriodStart <= TODAY AND PeriodEnd >= TODAY`,
-          org
-        ).catch(() => [])
+      ? byIds(ids, (inIds) =>
+          query(
+            `SELECT AccountId, JurisdictionState, IsLicenseValidated${slnField ? `, ${slnField}` : ""} FROM BusinessLicense WHERE AccountId IN (${inIds}) AND ComplianceScope = 'JurisdictionState' AND IsActive = true AND LicenseNumber != null AND PeriodStart <= TODAY AND PeriodEnd >= TODAY`,
+            org
+          ).catch(() => [])
+        )
       : none,
   ]);
 
@@ -165,12 +186,26 @@ export async function collectAccounts(ctx: ScreenContext): Promise<PublishedAcco
       const l = mine(licenses).find((x) => str(x.JurisdictionState) === str(addr?.StateCode));
       license = l && (slnField ? l[slnField] === true : l.IsLicenseValidated === true) ? "valid" : "invalid";
     }
+    const next = ati.map((r) => str(r.NextProviderVisitDate)).filter(Boolean).sort()[0];
+    const specialty = str(mine(providers)[0]?.Specialties);
     return {
       id,
       name: str(a[nameField]),
       hco: (a.RecordType as Row | null)?.IsPersonType === false,
       address,
       license,
+      sort: {
+        name: str(a[nameField]),
+        firstName: str(a.FirstName),
+        lastName: str(a.LastName),
+        addressLine1: str(addr?.Street),
+        city: str(addr?.City),
+        state: str(addr?.State),
+        zip: str(addr?.PostalCode),
+        lastVisit: last ?? "",
+        nextVisit: next ?? "",
+        specialty,
+      },
       cells: [
         [ati.some((r) => r.IsTargetedAccount === true) ? "Yes" : "No"],
         [last ? formatVisitDate(last, ctx.format) : "--"],
@@ -186,12 +221,13 @@ export async function collectAccounts(ctx: ScreenContext): Promise<PublishedAcco
     listRows
       .filter((l) => visible.has(str(l.Id)))
       .map(async (l) => {
-        const n = await listCount(str(l.Id), from, org).catch(() => 0);
-        return { id: str(l.Id), name: str(l.Name), ownerId: str(l.OwnerId), detail: `${n} Account${n === 1 ? "" : "s"}` };
+        const memberIds = await listMembers(str(l.Id), from, org).catch(() => [] as string[]);
+        const n = memberIds.length;
+        return { id: str(l.Id), name: str(l.Name), ownerId: str(l.OwnerId), detail: `${n} Account${n === 1 ? "" : "s"}`, memberIds };
       })
   );
   const grouped = groupLists(counted, ctx.userId);
-  const strip = ({ id, name, detail }: (typeof counted)[number]): PublishedAccountList => ({ id, name, detail });
+  const strip = ({ id, name, detail, memberIds }: (typeof counted)[number]): PublishedAccountList => ({ id, name, detail, memberIds });
 
   return {
     searchOnline: flag("AccountSearchPreferences", "EnableSearchOutsideTerritory"),

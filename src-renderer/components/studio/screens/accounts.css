@@ -347,9 +347,35 @@
   width: 923px;
   bottom: 26px;
   overflow: hidden;
+}
+
+/* The pane scrolls; iOS shows only a thin indicator (3pt, 36% black) while moving. */
+.studio-ipad-accounts-scroll {
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: none;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.studio-ipad-accounts-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.studio-ipad-accounts-thumb {
+  position: absolute;
+  right: 3.500px;
+  width: 3px;
+  border-radius: 1.500px;
+  background: rgba(0, 0, 0, 0.36);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.studio-ipad-accounts-thumb.active {
+  opacity: 1;
 }
 
 .studio-ipad-accounts-card {
@@ -397,6 +423,7 @@
 
 .studio-ipad-accounts-card-address {
   width: 224px;
+  overflow: hidden;
   font-size: 14px;
   line-height: 17px;
   color: #2e2e2e;
@@ -424,7 +451,7 @@
 
 .studio-ipad-accounts-col {
   top: 16px;
-  width: 140px;
+  width: 189px;
 }
 
 .studio-ipad-accounts-col.c1 {
@@ -432,11 +459,11 @@
 }
 
 .studio-ipad-accounts-col.c2 {
-  left: 451px;
+  left: 500px;
 }
 
 .studio-ipad-accounts-col.c3 {
-  left: 597px;
+  left: 694px;
 }
 
 .studio-ipad-accounts-col-title {
@@ -467,4 +494,70 @@
 
 .studio-ipad-accounts-card-text.wrapped .studio-ipad-accounts-card-row.second {
   margin-top: 8.500px;
+}
+
+.studio-ipad-accounts-chip,
+.studio-ipad-accounts-row,
+.studio-ipad-accounts-pill.clickable {
+  cursor: pointer;
+}
+
+/* Sort popover: 348pt wide from x702, its top 34pt above this view (the nav bar), list inset 15pt, 60pt rows. */
+.studio-ipad-accounts-backdrop {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.studio-ipad-accounts-popover {
+  left: 702px;
+  top: -34px;
+  width: 348px;
+  height: 736px;
+  box-sizing: border-box;
+  padding: 35px 15px 0;
+  border-radius: 14px;
+  background: #f2f2f2;
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.studio-ipad-accounts-popover-list {
+  height: 100%;
+  overflow: hidden;
+  border-radius: 10px 10px 0 0;
+  background: #fff;
+}
+
+.studio-ipad-accounts-popover-row {
+  position: relative;
+  height: 60px;
+  box-sizing: border-box;
+  padding-left: 43px;
+  line-height: 60px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.studio-ipad-accounts-popover-row::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: #c8c8c8;
+}
+
+.studio-ipad-accounts-popover-check {
+  position: absolute;
+  left: 16px;
+  font-size: 20px;
+}
+
+.studio-ipad-accounts-popover-dir {
+  position: absolute;
+  right: 14px;
+  font-size: 20px;
 }

@@ -73,3 +73,65 @@ describe("accountWhere", () => {
     expect(accountWhere("a = 1", "b = 2")).toBe(" WHERE a = 1 AND b = 2");
   });
 });
+
+import {
+  SORT_OPTIONS,
+  addressMaxLines,
+  addressTop,
+  filterByChip,
+  filterByList,
+  nextSort,
+  sortCards,
+  sortPillLabel,
+} from "../../../../src-renderer/components/studio/screens/accounts-logic";
+import type { PublishedAccountCard } from "../../../../src-renderer/components/studio/screens/accounts-types";
+
+const card = (id: string, hco: boolean, sort: Record<string, string>): PublishedAccountCard => ({ id, name: sort.name ?? id, hco, address: "--", sort, cells: [] });
+const cards = [
+  card("a", true, { name: "Alpha", city: "Oakland", firstName: "" }),
+  card("b", false, { name: "bravo", city: "Albany", firstName: "Zed" }),
+  card("c", false, { name: "Charlie", city: "", firstName: "Amy" }),
+];
+
+describe("Sort popover", () => {
+  it("lists the device's thirteen items in order", () => {
+    expect(SORT_OPTIONS.map((o) => o.label)).toEqual([
+      "Address Line 1", "City", "First Name", "Last Name", "Last Visit Date", "Name", "NBC Distance", "NBC Rank", "NBC Reachability", "Next Visit Date", "Specialty", "State", "Zip",
+    ]);
+  });
+  it("re-picking toggles the direction, another item starts ascending", () => {
+    expect(nextSort({ label: "Name", ascending: true }, "Name")).toEqual({ label: "Name", ascending: false });
+    expect(nextSort({ label: "Name", ascending: false }, "City")).toEqual({ label: "City", ascending: true });
+    expect(sortPillLabel("City", false)).toBe("Sort by: City  ↓");
+  });
+  it("sorts case-insensitively and keeps empty values last in both directions", () => {
+    expect(sortCards(cards, "Name", true).map((c) => c.id)).toEqual(["a", "b", "c"]);
+    expect(sortCards(cards, "Name", false).map((c) => c.id)).toEqual(["c", "b", "a"]);
+    expect(sortCards(cards, "City", true).map((c) => c.id)).toEqual(["b", "a", "c"]);
+    expect(sortCards(cards, "City", false).map((c) => c.id)).toEqual(["a", "b", "c"]);
+    expect(sortCards(cards, "First Name", true).map((c) => c.id)).toEqual(["c", "b", "a"]);
+  });
+  it("leaves the order alone for items with no data (NBC)", () => {
+    expect(sortCards(cards, "NBC Rank", true)).toBe(cards);
+  });
+});
+
+describe("chip and list filters", () => {
+  it("All keeps everything, HCO and HCP split by record type", () => {
+    expect(filterByChip(cards, "All")).toHaveLength(3);
+    expect(filterByChip(cards, "HCO").map((c) => c.id)).toEqual(["a"]);
+    expect(filterByChip(cards, "HCP").map((c) => c.id)).toEqual(["b", "c"]);
+  });
+  it("a list narrows to its members", () => {
+    expect(filterByList(cards, undefined)).toBe(cards);
+    expect(filterByList(cards, ["c", "a"]).map((c) => c.id)).toEqual(["a", "c"]);
+  });
+});
+
+describe("address clipping", () => {
+  it("shows only the lines that fit fully under the name", () => {
+    expect(addressTop(false)).toBe(42.5);
+    expect(addressMaxLines(addressTop(false))).toBe(3);
+    expect(addressMaxLines(addressTop(true))).toBe(2);
+  });
+});

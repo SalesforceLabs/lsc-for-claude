@@ -6,6 +6,8 @@ export interface PublishedAccountCard {
   hco: boolean;
   address: string;
   license?: "valid" | "invalid";
+  /** Values the Sort popover orders by (empty or missing sorts last). */
+  sort?: Record<string, string>;
   cells: string[][];
 }
 
@@ -13,6 +15,8 @@ export interface PublishedAccountList {
   id: string;
   name: string;
   detail: string;
+  /** Ids of the members the device holds; clicking the list narrows the cards to them. */
+  memberIds?: string[];
 }
 
 export interface PublishedAccounts {
