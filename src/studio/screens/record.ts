@@ -60,6 +60,8 @@ export interface PublishedRecordData {
   expenses?: { count: number; total: string };
   /** Account Dashboard tab cards (Provider Summary, Overview, Next Best Actions, Map). */
   dashboard?: PublishedDashboard;
+  /** Inquiry stage path: the Status picklist's active labels in order, and the current one. */
+  stagePath?: { steps: string[]; current: string };
 }
 
 export interface PublishedRecords {
@@ -263,7 +265,7 @@ async function fetchRows(ctx: ScreenContext, object: string, where: string, extr
   for (const name of specs.keys()) {
     const f = describe.fields.get(name.toLowerCase());
     paths.add(name);
-    if (f && str(f.type) === "reference" && f.relationshipName) paths.add(`${str(f.relationshipName)}.Name`);
+    if (f && str(f.type) === "reference" && f.relationshipName) paths.add(`${str(f.relationshipName)}.${refNameField(f)}`);
   }
   const select = (list: string[]) => `SELECT ${list.join(", ")} FROM ${object} WHERE ${where}`;
   try {
@@ -336,6 +338,9 @@ function fieldMeta(fetched: Fetched, perms?: Map<string, boolean> | null): Recor
   return out;
 }
 
+/** The field a lookup shows: a Case has no Name, its CaseNumber stands in. */
+const refNameField = (f: Row) => (arr(f.referenceTo).map(str).includes("Case") ? "CaseNumber" : "Name");
+
 function toValues(ctx: ScreenContext, fetched: Fetched, row: Row, unsynced: Set<string>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [name, spec] of fetched.specs) {
@@ -343,7 +348,7 @@ function toValues(ctx: ScreenContext, fetched: Fetched, row: Row, unsynced: Set<
     const raw = row[name];
     if (f && str(f.type) === "reference") {
       const rel = f.relationshipName ? obj(row[str(f.relationshipName)]) : {};
-      const shown = unsynced.has(str(raw)) ? "" : str(rel.Name);
+      const shown = unsynced.has(str(raw)) ? "" : str(rel[refNameField(f)]);
       out[name.toLowerCase()] = shown;
       continue;
     }
@@ -645,6 +650,10 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
       const dashboardOn = components.some((c) => /^(accountSummary|accountManagementDashboard|nextBestActions|accountMapDisplay)$/.test(trimNamespace(c.name)));
       const dashboards = dashboardOn ? await collectDashboards(ctx, ids).catch(() => new Map<string, PublishedDashboard>()) : new Map<string, PublishedDashboard>();
 
+      const stagePathOn = object === "Inquiry" && components.some((c) => trimNamespace(c.name) === "LifeSciStagePathContainer");
+      const statusField = main.describe.fields.get("status");
+      const statusSteps = stagePathOn ? arr(statusField?.picklistValues).filter((p) => p.active !== false).map((p) => str(p.label) || str(p.value)) : [];
+
       for (const row of main.rows) {
         const id = str(row.Id);
         const values: Record<string, Record<string, string>> = { [object]: toValues(ctx, main, row, unsynced) };
@@ -662,6 +671,7 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
           editable: isEditable({ object, status, ownerId: str(row.OwnerId), viewerId: ctx.userId, hasEditAccess: edit.get(id) === true, updateable: main.describe.updateable }),
           related: Object.fromEntries((rel.get(id) ?? []).map((r) => [r.key, r])),
           ...(dashboards.has(id) ? { dashboard: dashboards.get(id) } : {}),
+          ...(statusSteps.length ? { stagePath: { steps: statusSteps, current: picklistText(str(row.Status), undefined, statusField) } } : {}),
           ...(expenses ? { expenses: expenses.get(id) ?? { count: 0, total: `${expenses.currency} 0.00` } } : {}),
         };
       }

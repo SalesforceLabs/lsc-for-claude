@@ -244,7 +244,30 @@ function Header({ snapshot, rec, object, compact }: { snapshot: PublishedIpad; r
           </div>
         ))}
       </div>
+      {rec.stagePath && <StagePath path={rec.stagePath} />}
     </>
+  );
+}
+
+/** The Inquiry status path (InquiryProgressComponent): done steps checked, the current one ringed, the rest dots. Inert here. */
+function StagePath({ path }: { path: { steps: string[]; current: string } }) {
+  const at = path.steps.indexOf(path.current);
+  return (
+    <div className="studio-ipad-rec-stage">
+      <div className="studio-ipad-rec-stage-row">
+        {path.steps.map((s, k) => (
+          <div key={s} className={`studio-ipad-rec-stage-step${k < at ? " done" : k === at ? " current" : ""}`}>
+            <div className="line l" />
+            <div className="line r" />
+            <span className="node">{k < at ? "✓" : ""}</span>
+            <div className="label">{s}</div>
+          </div>
+        ))}
+      </div>
+      <button type="button" className="studio-ipad-rec-stage-actions" disabled title="Actions are not run from this preview">
+        Actions
+      </button>
+    </div>
   );
 }
 

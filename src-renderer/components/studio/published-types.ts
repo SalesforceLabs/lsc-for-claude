@@ -177,6 +177,8 @@ export interface PublishedRecordData {
   related: Record<string, PublishedRelated>;
   expenses?: { count: number; total: string };
   dashboard?: PublishedDashboard;
+  /** Inquiry stage path: the Status picklist's active labels in order, and the current one. */
+  stagePath?: { steps: string[]; current: string };
 }
 
 export interface PublishedDashboard {

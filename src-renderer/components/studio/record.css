@@ -989,3 +989,119 @@
   margin-right: 8px;
   color: #0250d9;
 }
+
+/* Inquiry status path (InquiryProgressComponent): 91pt block, five 220pt columns from x 1, node centre 26pt down, labels centred 71pt down. */
+.studio-ipad-rec-stage {
+  position: relative;
+  height: 91px;
+}
+
+.studio-ipad-rec-stage-row {
+  position: absolute;
+  top: 0;
+  left: 1px;
+  display: flex;
+  width: 1100px;
+}
+
+.studio-ipad-rec-stage-step {
+  position: relative;
+  flex: none;
+  width: 220px;
+  height: 91px;
+  --r: 6px;
+}
+
+.studio-ipad-rec-stage-step.done {
+  --r: 13px;
+}
+
+.studio-ipad-rec-stage-step.current {
+  --r: 15px;
+}
+
+.studio-ipad-rec-stage-step .node {
+  position: absolute;
+  top: calc(26px - var(--r));
+  left: calc(110px - var(--r));
+  box-sizing: border-box;
+  width: calc(var(--r) * 2);
+  height: calc(var(--r) * 2);
+  border-radius: 50%;
+  background: #a6a6a6;
+  color: #fff;
+  font-size: 15px;
+  line-height: calc(var(--r) * 2);
+  text-align: center;
+}
+
+.studio-ipad-rec-stage-step.done .node {
+  background: #0b6b5e;
+}
+
+.studio-ipad-rec-stage-step.current .node {
+  border: 6px solid #0250d9;
+  background: #fff;
+}
+
+.studio-ipad-rec-stage-step .line {
+  position: absolute;
+  top: 24px;
+  height: 4px;
+  background: #a6a6a6;
+}
+
+.studio-ipad-rec-stage-step .line.l {
+  left: 0;
+  width: calc(110px - var(--r) - 9px);
+}
+
+.studio-ipad-rec-stage-step .line.r {
+  left: calc(110px + var(--r) + 9px);
+  width: calc(110px - var(--r) - 9px);
+}
+
+.studio-ipad-rec-stage-step:first-child .line.l,
+.studio-ipad-rec-stage-step:last-child .line.r {
+  display: none;
+}
+
+.studio-ipad-rec-stage-step.done .line.r,
+.studio-ipad-rec-stage-step.done .line.l,
+.studio-ipad-rec-stage-step.current .line.l {
+  background: #0250d9;
+}
+
+.studio-ipad-rec-stage-step .label {
+  position: absolute;
+  top: 61px;
+  width: 100%;
+  font-size: 16px;
+  line-height: 20px;
+  color: #032d60;
+  text-align: center;
+}
+
+.studio-ipad-rec-stage-step.current .label {
+  font-weight: 600;
+}
+
+.studio-ipad-rec-stage-actions {
+  position: absolute;
+  top: 7px;
+  left: 1032px;
+  box-sizing: border-box;
+  width: 100px;
+  height: 33px;
+  border: 1px solid #0250d9;
+  border-radius: 17px;
+  background: #fff;
+  color: #0250d9;
+  font: inherit;
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.studio-ipad-rec-stage-actions::after {
+  content: " \2304";
+}
