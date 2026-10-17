@@ -626,7 +626,7 @@ function propsOf(ci: Row): Record<string, string> {
   return out;
 }
 
-const PROP_KEEP = new Set(["totalCards", "graphName", "label", "title", "richTextValue", "maxRecords", "entityNames", "relatedListApiName", "dashboardName", "showEnhActivityPlanOnMobileHomepage"]);
+const PROP_KEEP = new Set(["totalCards", "graphName", "label", "title", "richTextValue", "maxRecords", "entityNames", "relatedListApiName", "layoutName", "dashboardName", "showEnhActivityPlanOnMobileHomepage"]);
 
 function toComponent(item: Row): PublishedComponent | null {
   const ci = obj(item.componentInstance);
@@ -635,7 +635,7 @@ function toComponent(item: Row): PublishedComponent | null {
   const all = propsOf(ci);
   const properties: Record<string, string> = {};
   // AgentforceWelcomeViewModel: every non-empty property is a prompt chip, whatever its name.
-  const keepAll = trimNamespace(name) === "lsAgentforceWelcome";
+  const keepAll = trimNamespace(name) === "lsAgentforceWelcome" || trimNamespace(name) === "Ratings";
   for (const [k, v] of Object.entries(all)) if (keepAll || PROP_KEEP.has(k)) properties[k] = k === "richTextValue" ? v.slice(0, 4000) : v;
   const { label, supported } = componentInfo(name);
   const c: PublishedComponent = {

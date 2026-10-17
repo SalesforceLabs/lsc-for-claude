@@ -179,6 +179,13 @@ export interface PublishedRecordData {
   dashboard?: PublishedDashboard;
   /** Inquiry stage path: the Status picklist's active labels in order, and the current one. */
   stagePath?: { steps: string[]; current: string };
+  /** Account Ratings tab cards; `cards` is null when the org doesn't expose the rating layout entities. */
+  ratings?: PublishedRatings;
+}
+
+export interface PublishedRatings {
+  layout: string;
+  cards: { tab: "General" | "Product" | "Territory"; title: string; value: string; editable: boolean; updated: string; live: boolean }[] | null;
 }
 
 export interface PublishedDashboard {

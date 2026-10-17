@@ -203,6 +203,7 @@ function TabContent({ components, snapshot, rec }: { components: PublishedCompon
             const r = findRelated(rec, "AccountAffiliations");
             return r ? <RelatedCard key={k} snapshot={snapshot} related={r} editable={rec.editable} /> : null;
           }
+          if (name === "Ratings" && rec.ratings) return <RatingsCard key={k} ratings={rec.ratings} />;
           if (rec.dashboard) {
             if (name === "accountSummary") return <SummaryCard key={k} data={rec.dashboard} />;
             if (name === "accountManagementDashboard") return <OverviewCard key={k} data={rec.dashboard} />;
@@ -508,6 +509,52 @@ function RelatedCard({ snapshot, related, editable = false }: { snapshot: Publis
 }
 
 /** A flexipage component the preview cannot draw from data: its title on an empty card. */
+/** Customer Ratings (module/CustomerRatings): General / Product / Territory segments over a grid of rating cards. Edit and Clear are inert. */
+function RatingsCard({ ratings }: { ratings: NonNullable<PublishedRecordData["ratings"]> }) {
+  const tabs = (["General", "Product", "Territory"] as const).filter((t) => ratings.cards?.some((c) => c.tab === t));
+  const [tab, setTab] = useState<(typeof tabs)[number]>(tabs[0] ?? "General");
+  if (!ratings.cards) {
+    return (
+      <div className="studio-ipad-rec-card placeholder">
+        <div className="studio-ipad-rec-ph-title">Ratings</div>
+        <div className="studio-ipad-rec-ph-note">
+          The rating layout &ldquo;{ratings.layout}&rdquo; is synced to the iPad but this org does not expose its entities to the API, so Studio cannot draw its cards.
+        </div>
+      </div>
+    );
+  }
+  const shown = ratings.cards.filter((c) => c.tab === tab);
+  return (
+    <div className="studio-ipad-rec-card ratings">
+      <div className="studio-ipad-rec-rt-seg" role="tablist">
+        {tabs.map((t) => (
+          <button key={t} type="button" role="tab" className={t === tab ? "current" : undefined} onClick={() => setTab(t)}>
+            {t}
+          </button>
+        ))}
+      </div>
+      {shown.some((c) => !c.live) && <div className="studio-ipad-rec-ph-note">Values for this segment are not read by the preview; the iPad draws them from its local tables.</div>}
+      <div className="studio-ipad-rec-rt-grid">
+        {shown.map((c, k) => (
+          <div key={k} className="studio-ipad-rec-rt-card">
+            <div className="studio-ipad-rec-rt-head">
+              <span className="title">{c.title}</span>
+              <span className="info" aria-hidden="true">i</span>
+              {c.editable && <span className="studio-ipad-rec-rt-pill edit">Edit</span>}
+            </div>
+            <div className={`studio-ipad-rec-rt-value${c.value ? " set" : ""}`}>{c.value || "--"}</div>
+            {!c.value && <div className="studio-ipad-rec-rt-cleared">Value was cleared.</div>}
+            <div className="studio-ipad-rec-rt-foot">
+              <span>{c.updated ? `Last updated on ${c.updated}` : ""}</span>
+              {c.editable && <span className="clear">Clear</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PlaceholderCard({ title }: { title: string }) {
   return (
     <div className="studio-ipad-rec-card placeholder">

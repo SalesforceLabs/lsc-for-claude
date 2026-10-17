@@ -8,6 +8,7 @@ import { apiRequest } from "../../salesforce/cli.js";
 import { ID_PATTERN, inList, query, type Row } from "../helpers.js";
 import { listCell, MULTI_ENTITY, trimNamespace, type PublishedComponent, type PublishedListData } from "../published.js";
 import type { ScreenContext } from "./context.js";
+import { readRatingLayout } from "./record-ratings.js";
 import { collectDashboards, type PublishedDashboard } from "./record-dashboard.js";
 import type { RecordFieldSpec } from "./record-fields.js";
 
@@ -62,6 +63,13 @@ export interface PublishedRecordData {
   dashboard?: PublishedDashboard;
   /** Inquiry stage path: the Status picklist's active labels in order, and the current one. */
   stagePath?: { steps: string[]; current: string };
+  /** Account Ratings tab (CustomerRatings): the layout's cards by segment; `cards` is null when the org doesn't expose the layout entities. */
+  ratings?: PublishedRatings;
+}
+
+export interface PublishedRatings {
+  layout: string;
+  cards: { tab: "General" | "Product" | "Territory"; title: string; value: string; editable: boolean; updated: string; live: boolean }[] | null;
 }
 
 export interface PublishedRecords {
@@ -650,6 +658,32 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
       const dashboardOn = components.some((c) => /^(accountSummary|accountManagementDashboard|nextBestActions|accountMapDisplay)$/.test(trimNamespace(c.name)));
       const dashboards = dashboardOn ? await collectDashboards(ctx, ids).catch(() => new Map<string, PublishedDashboard>()) : new Map<string, PublishedDashboard>();
 
+      const ratingsComponent = object === "Account" ? components.find((c) => trimNamespace(c.name) === "Ratings") : undefined;
+      const ratingsLayout = ratingsComponent?.properties.layoutName ?? "";
+      const ratingItems = ratingsLayout ? await readRatingLayout(ctx, ratingsLayout) : null;
+      const ratingRows = new Map<string, Row>();
+      if (ratingItems?.length) {
+        const wanted = [...new Set(ratingItems.filter((i) => i.sobject === "Account").map((i) => i.field).filter((f) => main.describe.fields.has(f.toLowerCase())))];
+        const got = await query(`SELECT Id, LastModifiedDate${wanted.map((f) => `, ${f}`).join("")} FROM Account WHERE Id IN (${inList(ids)})`, ctx.org).catch(() => [] as Row[]);
+        for (const g of got) ratingRows.set(str(g.Id), g);
+      }
+      const ratingsOf = (id: string): PublishedRatings | undefined => {
+        if (!ratingsLayout) return undefined;
+        if (!ratingItems) return { layout: ratingsLayout, cards: null };
+        const row = ratingRows.get(id);
+        return {
+          layout: ratingsLayout,
+          cards: ratingItems.map((i) => {
+            const tab = i.sobject === "Account" ? "General" : /ProviderAcctTerritoryInfo/i.test(i.sobject) ? "Territory" : "Product";
+            const f = main.describe.fields.get(i.field.toLowerCase());
+            const live = tab === "General" && !!f && !!row;
+            const value = live ? formatValue(row?.[str(f?.name)], { type: "", picklist: undefined }, f, ctx.format, true) : "";
+            const updated = live && row?.LastModifiedDate ? new Intl.DateTimeFormat(ctx.format.locale, { dateStyle: "medium", timeZone: ctx.format.timeZone }).format(new Date(str(row.LastModifiedDate))) : "";
+            return { tab, title: i.label, value, editable: live && f?.updateable === true, updated, live } as const;
+          }),
+        };
+      };
+
       const stagePathOn = object === "Inquiry" && components.some((c) => trimNamespace(c.name) === "LifeSciStagePathContainer");
       const statusField = main.describe.fields.get("status");
       const statusSteps = stagePathOn ? arr(statusField?.picklistValues).filter((p) => p.active !== false).map((p) => str(p.label) || str(p.value)) : [];
@@ -671,6 +705,7 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
           editable: isEditable({ object, status, ownerId: str(row.OwnerId), viewerId: ctx.userId, hasEditAccess: edit.get(id) === true, updateable: main.describe.updateable }),
           related: Object.fromEntries((rel.get(id) ?? []).map((r) => [r.key, r])),
           ...(dashboards.has(id) ? { dashboard: dashboards.get(id) } : {}),
+          ...(ratingsOf(id) ? { ratings: ratingsOf(id) } : {}),
           ...(statusSteps.length ? { stagePath: { steps: statusSteps, current: picklistText(str(row.Status), undefined, statusField) } } : {}),
           ...(expenses ? { expenses: expenses.get(id) ?? { count: 0, total: `${expenses.currency} 0.00` } } : {}),
         };

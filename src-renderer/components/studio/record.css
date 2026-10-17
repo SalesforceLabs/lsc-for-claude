@@ -1105,3 +1105,147 @@
 .studio-ipad-rec-stage-actions::after {
   content: " \2304";
 }
+
+/* Customer Ratings: 1170pt card, segments 33pt at +33, cards 340x243 on a 356/261pt pitch from x 80, first row at +97. */
+.studio-ipad-rec-card.ratings {
+  position: relative;
+  min-height: 510px;
+  padding: 33px 58px 24px;
+}
+
+.studio-ipad-rec-rt-seg {
+  display: flex;
+  justify-content: center;
+  height: 33px;
+  margin-bottom: 31px;
+}
+
+.studio-ipad-rec-rt-seg button {
+  box-sizing: border-box;
+  height: 33px;
+  padding: 0 11px;
+  border: 1px solid #c9c9c9;
+  background: #e8e8e8;
+  font: inherit;
+  font-size: 16px;
+  color: #2e2e2e;
+  cursor: pointer;
+}
+
+.studio-ipad-rec-rt-seg button:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.studio-ipad-rec-rt-seg button:last-child {
+  border-radius: 0 8px 8px 0;
+}
+
+.studio-ipad-rec-rt-seg button.current {
+  background: #fff;
+  border-radius: 8px;
+}
+
+.studio-ipad-rec-rt-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 340px);
+  gap: 16px 16px;
+}
+
+.studio-ipad-rec-rt-card {
+  position: relative;
+  box-sizing: border-box;
+  height: 245px;
+  padding: 0 15px;
+  border: 1px solid #c9c9c9;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.studio-ipad-rec-rt-head {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  margin-top: 13px;
+}
+
+.studio-ipad-rec-rt-head .title {
+  max-width: 221px;
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 21px;
+  color: #2e2e2e;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-ipad-rec-rt-head .info {
+  flex: none;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: #747474;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.studio-ipad-rec-rt-pill {
+  margin-left: auto;
+  box-sizing: border-box;
+  width: 52px;
+  height: 40px;
+  border: 1px solid #5c5c5c;
+  border-radius: 20px;
+  color: #0250d9;
+  font-size: 16px;
+  line-height: 38px;
+  text-align: center;
+}
+
+.studio-ipad-rec-rt-value {
+  box-sizing: border-box;
+  height: 54px;
+  margin: 41px -4px 0;
+  border-radius: 4px;
+  background: #c4c4c4;
+  font-size: 24px;
+  line-height: 54px;
+  color: #2e2e2e;
+  text-align: center;
+}
+
+.studio-ipad-rec-rt-value.set {
+  background: #00e0c6;
+}
+
+.studio-ipad-rec-rt-cleared {
+  margin-top: 5px;
+  font-size: 13px;
+  line-height: 22px;
+  color: #5c5c5c;
+  text-align: center;
+}
+
+.studio-ipad-rec-rt-foot {
+  position: absolute;
+  right: 15px;
+  bottom: 12px;
+  left: 15px;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2e2e2e;
+}
+
+.studio-ipad-rec-rt-foot .clear {
+  margin-left: auto;
+  font-size: 18px;
+  color: #0250d9;
+}
