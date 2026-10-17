@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import "./interact.css";
 
 /** Transparent backdrop + floating popover (UIPopoverPresentationController look). Placed inside a positioned screen root; coordinates are page pixels. */
@@ -8,6 +9,10 @@ export function Popover({
   width,
   height,
   arrowX,
+  arrowDir = "up",
+  arrowY,
+  portalTo,
+  layer,
   onClose,
   children,
   className = "",
@@ -18,19 +23,41 @@ export function Popover({
   height?: number;
   /** Arrow tip x in page pixels (omit for none). */
   arrowX?: number;
+  /** Which edge carries the arrow: "up" sits on the top edge, "down" on the bottom. */
+  arrowDir?: "up" | "down" | "left" | "right";
+  /** Arrow tip y in page pixels, for left/right arrows. */
+  arrowY?: number;
+  /** Render into this element (the screen) so the popover can reach outside the page, as the device draws it. */
+  portalTo?: Element | null;
+  /** "screen": draw in screen coordinates (page y + 96) at the screen layer, found from where this popover is mounted. */
+  layer?: "screen";
   onClose: () => void;
   children: React.ReactNode;
   className?: string;
 }) {
-  return (
+  const node = (
     <>
       <div className="studio-ipad-interact-backdrop" onClick={onClose} />
       <div className={`studio-ipad-interact-popover ${className}`} style={{ left, top, width, height }}>
-        {arrowX !== undefined && <span className="studio-ipad-interact-arrow" style={{ left: arrowX - left - 10 }} />}
+        {(arrowDir === "left" || arrowDir === "right") && arrowY !== undefined && <span className={`studio-ipad-interact-arrow ${arrowDir}`} style={{ top: arrowY - top - 10 }} />}
+        {(arrowDir === "up" || arrowDir === "down") && arrowX !== undefined && <span className={`studio-ipad-interact-arrow ${arrowDir}`} style={{ left: arrowX - left - 10 }} />}
         {children}
       </div>
     </>
   );
+  const anchor = useRef<HTMLSpanElement>(null);
+  const [host, setHost] = useState<Element | null>(null);
+  useLayoutEffect(() => {
+    if (layer === "screen") setHost(anchor.current?.closest(".studio-ipad-screen") ?? null);
+  }, [layer]);
+  if (layer === "screen")
+    return (
+      <>
+        <span ref={anchor} hidden />
+        {host && createPortal(node, host)}
+      </>
+    );
+  return portalTo ? createPortal(node, portalTo) : node;
 }
 
 /** Popover left edge for a button: centred on it, clamped to a 20pt margin of the 1210pt page. */
@@ -47,11 +74,11 @@ export function pageBox(el: Element, root: Element): { x: number; y: number; w: 
 }
 
 /** A plain text menu (UIMenu-style popover rows). */
-export function TextMenu({ items, tone = "blue", onPick }: { items: { label: string; danger?: boolean }[]; tone?: "blue"; onPick: (label: string, index: number) => void }) {
+export function TextMenu({ items, tone = "blue", rowHeight, fontSize, onPick }: { items: { label: string; danger?: boolean }[]; tone?: "blue"; rowHeight?: number; fontSize?: number; onPick: (label: string, index: number) => void }) {
   return (
     <div className={`studio-ipad-interact-textmenu ${tone}`}>
       {items.map((it, i) => (
-        <button key={`${it.label}${i}`} type="button" className={it.danger ? "danger" : ""} onClick={() => onPick(it.label, i)}>
+        <button key={`${it.label}${i}`} type="button" className={it.danger ? "danger" : ""} style={rowHeight || fontSize ? { height: rowHeight, fontSize } : undefined} onClick={() => onPick(it.label, i)}>
           {it.label}
         </button>
       ))}

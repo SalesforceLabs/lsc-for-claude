@@ -266,7 +266,7 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
 
       <div className="studio-ipad-accounts-sidebar">
         <div className="studio-ipad-accounts-lists" role="button" onClick={() => setKindOpen(true)}>
-          <span className="studio-ipad-accounts-lists-truncate" style={{ display: kind === "Lists" ? "inline" : undefined, maxWidth: kind === "Lists" ? undefined : 100 }}>{kind}</span> <span />
+          <b className="studio-ipad-accounts-lists-truncate">{kind}</b> <span />
         </div>
         {kind !== "Lists" && (
           <span className="studio-ipad-accounts-new-small" role="button" onClick={() => setNote({ title: kind === "Filters" ? "New Filter" : "New Advanced Filter", text: "On the iPad this opens the filter builder. Studio doesn't create filters." })}>
@@ -362,7 +362,7 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
       )}
 
       {kindOpen && (
-        <Popover left={19} top={4} width={310} height={202} arrowX={62} onClose={() => setKindOpen(false)}>
+        <Popover left={19} top={68} width={310} height={203} arrowX={90} arrowDir="down" portalTo={root.current?.closest(".studio-ipad-screen")} onClose={() => setKindOpen(false)}>
           <div className="studio-ipad-accounts-kinds">
             {LIST_KINDS.map((k) => (
               <button
@@ -381,7 +381,7 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
         </Popover>
       )}
       {menu && menu.type === "list" && (
-        <Popover left={menu.x + menu.w + 4} top={Math.max(4, menu.y - 56)} width={303} height={114} onClose={() => setMenu(null)}>
+        <Popover left={menu.x + menu.w + 13} top={menu.y + menu.h / 2 - 58} width={304} height={114} arrowDir="left" arrowY={menu.y + menu.h / 2} onClose={() => setMenu(null)}>
           <TextMenu
             items={[{ label: "Edit" }, { label: "Delete", danger: true }]}
             onPick={(label) => {
@@ -392,7 +392,7 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
         </Popover>
       )}
       {menu && menu.type === "card" && (
-        <Popover left={menu.x - 334} top={Math.max(4, menu.y - 107)} width={303} height={229} onClose={() => setMenu(null)}>
+        <Popover left={menu.x + menu.w / 2 - 334} top={menu.y + menu.h / 2 - 108} width={304} height={229} arrowDir="right" arrowY={menu.y + menu.h / 2} onClose={() => setMenu(null)}>
           <TextMenu
             items={CARD_MENU.map((label) => ({ label }))}
             onPick={(label) => {
@@ -403,8 +403,10 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
         </Popover>
       )}
       {menu && menu.type === "addto" && (
-        <Popover left={menu.x + menu.w / 2 - 175} top={menu.y - 106} width={349} height={114} arrowX={menu.x + menu.w / 2} onClose={() => setMenu(null)}>
+        <Popover left={menu.x + menu.w / 2 - 176} top={menu.y - 104} width={350} height={100} arrowX={menu.x + menu.w / 2} arrowDir="down" onClose={() => setMenu(null)}>
           <TextMenu
+            rowHeight={50}
+            fontSize={17}
             items={ADD_TO_MENU.map((label) => ({ label }))}
             onPick={(label) => {
               setMenu(null);
@@ -413,8 +415,8 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
           />
         </Popover>
       )}
-      {modal === "new" && <NewAccountModal onClose={() => setModal(null)} />}
-      {modal === "online" && <SearchOnlineModal onClose={() => setModal(null)} />}
+      {modal === "new" && <NewAccountModal portalTo={root.current?.closest(".studio-ipad-screen")} onClose={() => setModal(null)} />}
+      {modal === "online" && <SearchOnlineModal portalTo={root.current?.closest(".studio-ipad-screen")} onClose={() => setModal(null)} />}
       {note && <Sheet title={note.title} note={note.text} closeLabel="Close" onClose={() => setNote(null)} />}
 
       {popover && (

@@ -3,7 +3,7 @@ import type { ScreenProps } from "./types";
 import { formatTime, hourHeight, parseStartTime, placeStacked, pointFor, tileBox, type CalendarAccount, type CalendarIcon, type CalendarSegment, type PublishedCalendar } from "./calendar-types";
 import { Popover, popoverLeft, Check } from "./interact-ui";
 import { AdvancedSearch, MoreMenu, PlusMenu } from "./CalendarMenus";
-import { accountsLabel, filterSegments, paneAccounts, typeRows, withLiveClock } from "./calendar-logic";
+import { accountsLabel, filterSegments, paneAccounts, typeRows, weekRange, withLiveClock } from "./calendar-logic";
 import type { PublishedAccounts } from "./accounts-types";
 import "./calendar.css";
 
@@ -60,7 +60,7 @@ function Planner({ data: live, accounts }: { data: PublishedCalendar; accounts: 
         {mode === "Month" ? <MonthView data={data} first={monthStart(anchor)} month={monthOf(anchor)} /> : <TimeView data={data} shown={shown} />}
       </div>
       {menu === "plus" && <PlusMenu onClose={() => setMenu(null)} />}
-      {menu === "more" && <MoreMenu hidden={hidden} onApply={setHidden} onClose={() => setMenu(null)} />}
+      {menu === "more" && <MoreMenu hidden={hidden} range={weekRange(data.now)} onApply={setHidden} onClose={() => setMenu(null)} />}
       {menu === "advanced" && <AdvancedSearch accounts={accounts} calendarIds={data.accounts.map((a) => a.id)} onClose={() => setMenu(null)} />}
     </div>
   );

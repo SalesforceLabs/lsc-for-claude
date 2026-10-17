@@ -65,3 +65,14 @@ export const EVENT_INDICATOR: { label: string; color: string }[] = [
   { label: "Planned Visit", color: "#a8c8ff" },
   { label: "Time Off Territory", color: "#ff5a2d" },
 ];
+
+/** The Delete Events form's default dates ("M/D/YY"): Monday to Sunday of the week containing `nowIso`. */
+export function weekRange(nowIso: string): { from: string; to: string } | undefined {
+  const [y, m, d] = nowIso.slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return undefined;
+  const at = new Date(Date.UTC(y, m - 1, d));
+  const monday = new Date(at.getTime() - ((at.getUTCDay() + 6) % 7) * 86400000);
+  const sunday = new Date(monday.getTime() + 6 * 86400000);
+  const f = (t: Date) => `${t.getUTCMonth() + 1}/${t.getUTCDate()}/${String(t.getUTCFullYear()).slice(2)}`;
+  return { from: f(monday), to: f(sunday) };
+}

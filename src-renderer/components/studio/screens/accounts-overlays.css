@@ -1,7 +1,7 @@
 /* New Account / Search Online modals, the multi-select bar, the map stand-in and select-mode card layout. */
 .studio-ipad-accounts-modal {
   position: absolute;
-  inset: 0;
+  inset: 26px 0 0 0;
   z-index: 70;
   background: #f3f3f3;
   display: flex;
@@ -34,7 +34,7 @@
   left: 20px;
 }
 .studio-ipad-accounts-modal-bar button.right {
-  right: 24px;
+  right: 36px;
   color: #a9a9ad;
   cursor: default;
 }
@@ -47,27 +47,28 @@
   margin: 0 20px 26px;
   background: #fff;
   border-radius: 20px;
-  padding: 24px 20px;
+  padding: 30px 20px 24px;
   overflow: auto;
 }
 .studio-ipad-accounts-modal-section + .studio-ipad-accounts-modal-section {
-  margin-top: 28px;
-  padding-top: 12px;
+  margin-top: 58px;
+  padding-top: 15px;
   border-top: 1px solid #dcdcdc;
 }
 .studio-ipad-accounts-modal-heading {
   font-size: 19px;
-  margin-bottom: 20px;
+  line-height: 19px;
+  margin-bottom: 24px;
 }
 .studio-ipad-accounts-modal-option {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 22px;
   width: 100%;
-  height: 106px;
-  margin-bottom: 20px;
+  height: 105px;
+  margin-bottom: 22px;
   box-sizing: border-box;
-  padding: 0 28px;
+  padding: 0 30px;
   border: 1px solid #8d8d8d;
   border-radius: 10px;
   background: #fff;
@@ -88,26 +89,27 @@
 }
 .studio-ipad-accounts-modal-option b {
   display: block;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
-  line-height: 28px;
+  line-height: 24px;
 }
 .studio-ipad-accounts-modal-option small {
-  font-size: 16px;
+  font-size: 15px;
 }
 .studio-ipad-accounts-modal-search {
-  margin: 0 20px;
-  padding: 18px;
+  margin: 0 18px;
+  padding: 20px 25px 20px 17px;
   background: #fff;
   border-radius: 20px;
 }
 .studio-ipad-accounts-modal-search input {
   width: 100%;
   box-sizing: border-box;
-  height: 40px;
+  height: 38px;
   border: 1px solid #5c5c5c;
-  border-radius: 20px;
-  padding: 0 18px;
+  border-radius: 19px;
+  padding: 0 44px;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Ccircle cx='8' cy='8' r='5.500' fill='none' stroke='%23666' stroke-width='1.600'/%3E%3Cpath d='m12 12 5 5' stroke='%23666' stroke-width='1.600' stroke-linecap='round'/%3E%3C/svg%3E") 11px center no-repeat;
   font: inherit;
   font-size: 17px;
 }
@@ -129,8 +131,14 @@
   background: #0250d9;
   color: #fff;
   font: inherit;
-  font-size: 18px;
+  font-size: 17px;
   cursor: pointer;
+}
+.studio-ipad-accounts-modal-option .dot.id {
+  width: 32px;
+  height: 26px;
+  border-radius: 4px;
+  background: #666;
 }
 
 /* Multi-select bar: x 271..1194 of the page, 50pt tall, 25 above the bottom. */
@@ -153,7 +161,7 @@
   background: transparent;
   color: #fff;
   font: inherit;
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 500;
   cursor: pointer;
 }
@@ -202,7 +210,7 @@
   height: 493px;
   border-radius: 12px;
   overflow: hidden;
-  background: linear-gradient(180deg, #2f8df0 0%, #2a7fe0 60%, #5cb06a 100%);
+  background: linear-gradient(180deg, #1a86ee 0%, #0f7ae5 75%, #3fa0a8 100%);
   color: #fff;
 }
 .studio-ipad-accounts-map-panel .note {
@@ -234,12 +242,15 @@
 }
 .studio-ipad-accounts-map-panel .fit {
   left: 16px;
-  width: 40px;
+  top: 14px;
+  width: 36px;
+  height: 36px;
 }
 .studio-ipad-accounts-map-panel .optimize {
-  right: 32px;
+  right: 33px;
   padding: 0 8px;
   height: 32px;
+  font-size: 14.500px;
 }
 
 /* Select mode lifts the sidebar and cards to y 84 and shows a checkbox in place of the icons. */
@@ -329,4 +340,55 @@
   white-space: nowrap;
   display: inline-block;
   vertical-align: top;
+}
+
+/* Lists / Filters / Advanced Filters switcher: white rows inset 16pt in the popover, drawn at the screen layer. */
+.studio-ipad-accounts-kinds {
+  margin: 16px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+.studio-ipad-accounts-kinds button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 58px;
+  padding: 0 17px;
+  border: 0;
+  border-bottom: 1px solid #d8d8dc;
+  background: #fff;
+  font: inherit;
+  font-size: 19px;
+  color: #1c1c1e;
+  cursor: pointer;
+}
+.studio-ipad-accounts-kinds button:last-child {
+  height: 54px;
+  border-bottom: 0;
+}
+
+/* Select mode: list rows become white dashed drop targets (no kebab), cards shift up 4pt and the address runs 260pt wide. */
+.studio-ipad-accounts.selecting .studio-ipad-accounts-row {
+  height: 70px;
+  box-sizing: border-box;
+  background: #fff;
+  border: 1px dashed #c4c4c4;
+  padding-left: 16px;
+}
+.studio-ipad-accounts.selecting .studio-ipad-accounts-row-more {
+  display: none;
+}
+.studio-ipad-accounts.selecting .studio-ipad-accounts-newlist {
+  height: 40px;
+  background: #fff;
+  font-size: 16px;
+}
+.studio-ipad-accounts.selecting .studio-ipad-accounts-card-text {
+  top: 12px;
+  width: 280px;
+}
+.studio-ipad-accounts.selecting .studio-ipad-accounts-card-address {
+  width: 260px;
 }

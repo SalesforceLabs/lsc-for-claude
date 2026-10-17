@@ -105,6 +105,8 @@
   border-radius: 16px;
   border: 0;
   background: #e3e3e8;
+  margin-right: 4px;
+  top: -2px;
   position: relative;
   padding: 0;
   cursor: pointer;
@@ -376,5 +378,57 @@
 .studio-ipad-calendar-acct-chev,
 .studio-ipad-calendar-tb-plus,
 .studio-ipad-calendar-tb-more {
+  cursor: pointer;
+}
+
+/* Delete Events form (inert): label above a bordered field; the button is outlined pink. */
+.studio-ipad-calendar-delete {
+  padding: 1px 16px 24px;
+}
+.studio-ipad-calendar-delete label {
+  display: block;
+  margin-top: 19px;
+  font-size: 15px;
+  line-height: 17px;
+  color: #3e3e3c;
+}
+.studio-ipad-calendar-delete label:first-child {
+  margin-top: 14px;
+}
+.studio-ipad-calendar-delete label i {
+  color: #c4134a;
+  font-style: normal;
+}
+.studio-ipad-calendar-delete .field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  height: 32px;
+  margin-top: 6px;
+  padding: 0 8px;
+  border: 1px solid #747474;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 14px;
+  color: #1c1c1e;
+}
+.studio-ipad-calendar-delete .field.select::after {
+  content: "";
+  border: 6px solid transparent;
+  border-top: 8px solid #747474;
+  border-bottom: 0;
+}
+.studio-ipad-calendar-delete .go {
+  display: block;
+  width: 100%;
+  height: 32px;
+  margin-top: 20px;
+  border: 1px solid #c4134a;
+  border-radius: 16px;
+  background: #ffd6e2;
+  color: #c4134a;
+  font: inherit;
+  font-size: 18px;
   cursor: pointer;
 }

@@ -141,3 +141,23 @@
 .studio-ipad-interact-textmenu button.danger {
   color: #c4134a;
 }
+.studio-ipad-interact-arrow.down {
+  top: auto;
+  bottom: -9px;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+.studio-ipad-interact-arrow.left {
+  left: -9px;
+  top: auto;
+  width: 10px;
+  height: 20px;
+  clip-path: polygon(0 50%, 100% 0, 100% 100%);
+}
+.studio-ipad-interact-arrow.right {
+  left: auto;
+  right: -9px;
+  top: auto;
+  width: 10px;
+  height: 20px;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}

@@ -7,8 +7,8 @@ import "./calendar-menus.css";
 
 type Kind = CalendarSegment["kind"];
 
-/** The two toolbar popovers sit under their buttons: x 891..1190, from the top of the grid header (page y 60). */
-const POP = { left: 891, top: 60, width: 299 };
+/** The two toolbar popovers sit under their buttons: x 891..1190, from the top of the grid header (screen y 156; drawn at the screen layer so the arrow clears the page). */
+const POP = { left: 891, top: 156, width: 300, layer: "screen" as const };
 
 /** "+": CalendarCreateEventViewController's type list. Picking one opens a form on the iPad; here a labelled sheet. */
 export function PlusMenu({ onClose }: { onClose: () => void }) {
@@ -37,9 +37,10 @@ export function PlusMenu({ onClose }: { onClose: () => void }) {
 type Page = "root" | "filter" | "indicator" | "delete";
 
 /** "•••": Filter Events, Event Indicator and Delete Events, each pushing a page inside the popover. */
-export function MoreMenu({ hidden, onApply, onClose }: { hidden: ReadonlySet<Kind>; onApply: (hidden: Set<Kind>) => void; onClose: () => void }) {
+export function MoreMenu({ hidden, range, onApply, onClose }: { hidden: ReadonlySet<Kind>; range?: { from: string; to: string }; onApply: (hidden: Set<Kind>) => void; onClose: () => void }) {
   const [page, setPage] = useState<Page>("root");
   const [draft, setDraft] = useState<Set<Kind>>(new Set(hidden));
+  const [note, setNote] = useState(false);
   const changed = draft.size !== hidden.size || [...draft].some((k) => !hidden.has(k));
   const back = (
     <button type="button" className="studio-ipad-calendar-menu-back" aria-label="Back" onClick={() => setPage("root")}>
@@ -56,7 +57,7 @@ export function MoreMenu({ hidden, onApply, onClose }: { hidden: ReadonlySet<Kin
       return n;
     });
   return (
-    <Popover {...POP} height={page === "root" ? 167 : page === "filter" ? 393 : page === "indicator" ? 451 : 281} arrowX={1175} onClose={onClose}>
+    <Popover {...POP} left={page === "filter" ? 791 : POP.left} width={page === "filter" ? 400 : POP.width} height={page === "root" ? 167 : page === "filter" ? 393 : page === "indicator" ? 451 : 344} arrowX={1175} onClose={onClose}>
       <div className="studio-ipad-calendar-menu">
         {page === "root" && (
           <>
@@ -131,7 +132,24 @@ export function MoreMenu({ hidden, onApply, onClose }: { hidden: ReadonlySet<Kin
               {back}
               <b>Delete Events</b>
             </div>
-            <div className="studio-ipad-calendar-menu-note">On the iPad this lets you pick a date range and event types to delete. Studio never deletes records, so this form is not shown.</div>
+            <div className="studio-ipad-calendar-delete">
+              <label>
+                <i>*</i> Event Type
+                <span className="field select">All</span>
+              </label>
+              <label>
+                <i>*</i> From
+                <span className="field">{range?.from ?? ""}</span>
+              </label>
+              <label>
+                <i>*</i> To
+                <span className="field">{range?.to ?? ""}</span>
+              </label>
+              <button type="button" className="go" onClick={() => setNote(true)}>
+                Delete Events
+              </button>
+            </div>
+            {note && <Sheet title="Delete Events" closeLabel="Close" note="On the iPad this deletes the events in the range after a confirmation. Studio is read-only and never deletes records." onClose={() => setNote(false)} />}
           </>
         )}
       </div>
