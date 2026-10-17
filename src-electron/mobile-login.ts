@@ -13,8 +13,20 @@
 import { BrowserWindow } from "electron";
 import crypto from "crypto";
 
-/** The LSC iOS app's connected app (OCE/bootconfig.plist); LSC_MOBILE_CLIENT_ID overrides it. */
-const MOBILE_CLIENT_ID = process.env.LSC_MOBILE_CLIENT_ID || "3MVG9fphf4bStCMm3y6cqtc75utQZroK4ESpim6XJQQIVbIQngnkw48n2LpgWV8JCnNCy7wwyefL5kHDVtla3";
+/**
+ * The LSC mobile app's connected-app consumer key, from LSC_MOBILE_CLIENT_ID.
+ * It isn't shipped in this repo; read it from the iOS app's bootconfig.plist
+ * (remoteAccessConsumerKey).
+ */
+function mobileClientId(): string {
+  const id = process.env.LSC_MOBILE_CLIENT_ID?.trim();
+  if (!id) {
+    throw new Error(
+      "Set LSC_MOBILE_CLIENT_ID to the LSC mobile app's consumer key (remoteAccessConsumerKey in its bootconfig.plist) and restart Studio."
+    );
+  }
+  return id;
+}
 const REDIRECT_URI = "mobilesfdc:///mobilesdk/detect/oauth/done";
 const SCOPES = "api web refresh_token";
 /** Tokens older than this are refreshed before a run starts. */
@@ -63,7 +75,7 @@ async function tokenRequest(loginUrl: string, params: Record<string, string>): P
   const res = await fetch(`${loginUrl}/services/oauth2/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
-    body: new URLSearchParams({ client_id: MOBILE_CLIENT_ID, ...params }).toString(),
+    body: new URLSearchParams({ client_id: mobileClientId(), ...params }).toString(),
   });
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
@@ -78,7 +90,7 @@ function authorize(loginUrl: string, parent: BrowserWindow | undefined, challeng
   const url = new URL(`${loginUrl}/services/oauth2/authorize`);
   url.search = new URLSearchParams({
     response_type: "code",
-    client_id: MOBILE_CLIENT_ID,
+    client_id: mobileClientId(),
     redirect_uri: REDIRECT_URI,
     code_challenge: challenge,
     code_challenge_method: "S256",
@@ -137,6 +149,7 @@ function authorize(loginUrl: string, parent: BrowserWindow | undefined, challeng
 export async function startMobileLogin(loginUrl: string, parent?: BrowserWindow): Promise<MobileLoginInfo> {
   const base = loginUrl.trim().replace(/\/+$/, "");
   if (!isSalesforceUrl(base)) throw new Error(`"${loginUrl}" is not a Salesforce HTTPS login URL.`);
+  mobileClientId();
 
   const verifier = base64url(crypto.randomBytes(32));
   const challenge = base64url(crypto.createHash("sha256").update(verifier).digest());
