@@ -1627,9 +1627,6 @@ button.studio-ipad-chip {
 .studio-ipad-h-map {
   position: relative;
   flex: 1;
-  background:
-    radial-gradient(ellipse 60% 70% at 55% 50%, #b9dca3 0 60%, transparent 61%),
-    linear-gradient(#cfe7bd, #bfe0a8);
 }
 
 .studio-ipad-h-locate {
@@ -1645,15 +1642,6 @@ button.studio-ipad-chip {
   background: #fff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
   color: #5c5c5c;
-}
-
-.studio-ipad-h-maps-mark {
-  position: absolute;
-  left: 10px;
-  bottom: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #2e2e2e;
 }
 
 /* embeddedDashboard: the dashboard's grid, no spacing; tiles inset 10, white, radius 18. */

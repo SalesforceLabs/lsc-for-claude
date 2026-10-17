@@ -329,7 +329,7 @@ export default function AccountsScreen({ tab, snapshot, onOpenRecord }: ScreenPr
       )}
 
       {mapView && !selecting ? (
-        <MapPanel plotted={cards.length} onOptimize={() => setNote({ title: "Optimize View", text: "On the iPad this reorders the visible accounts into a route. Studio doesn't plan routes." })} />
+        <MapPanel pins={cards.flatMap((c) => (c.geo ? [{ id: c.id, lat: c.geo[0], lon: c.geo[1] }] : []))} onOptimize={() => setNote({ title: "Optimize View", text: "On the iPad this reorders the visible accounts into a route. Studio doesn't plan routes." })} />
       ) : (
         <CardsPane
           onOpen={selecting ? (id) => setSelected((s) => toggleId(s, id)) : onOpenRecord}

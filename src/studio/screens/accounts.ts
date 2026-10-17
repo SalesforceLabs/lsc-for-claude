@@ -14,6 +14,8 @@ export interface PublishedAccountCard {
   address: string;
   /** State license pill; absent when the setting is off or there is no address. */
   license?: "valid" | "invalid";
+  /** [latitude, longitude] the map view plots (AccountsMapFetchQueryCreator: the preferred address, else the primary one; none when missing or 0). */
+  geo?: [number, number];
   /** One entry per column; each is the lines of that cell. */
   /** Values the Sort popover orders by (empty or missing sorts last). */
   sort?: Record<string, string>;
@@ -104,6 +106,11 @@ export function groupLists<T extends { name: string; ownerId?: string | null }>(
 export function accountWhere(scope: string, extra?: string): string {
   const parts = [scope, extra].filter(Boolean);
   return parts.length ? ` WHERE ${parts.join(" AND ")}` : "";
+}
+
+/** The device's map query drops null and 0 coordinates. */
+export function plottable(lat: unknown, lon: unknown): boolean {
+  return typeof lat === "number" && typeof lon === "number" && lat !== 0 && lon !== 0 && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
 }
 
 const str = (v: unknown) => (typeof v === "string" ? v : "");
@@ -222,7 +229,7 @@ export async function collectAccounts(ctx: ScreenContext): Promise<PublishedAcco
         })
       : none,
     ids.length ? byIds(ids, (inIds) => query(`SELECT AccountId, Specialties FROM HealthcareProvider WHERE AccountId IN (${inIds})`, org).catch(() => [])) : none,
-    ids.length ? byIds(ids, (inIds) => query(`SELECT Id, ParentId, Street, PostalCode, City, State, StateCode, Country, IsPrimary FROM ContactPointAddress WHERE ParentId IN (${inIds}) AND IsActive = true`, org).catch(() => [])) : none,
+    ids.length ? byIds(ids, (inIds) => query(`SELECT Id, ParentId, Street, PostalCode, City, State, StateCode, Country, IsPrimary, Latitude, Longitude FROM ContactPointAddress WHERE ParentId IN (${inIds}) AND IsActive = true`, org).catch(() => [])) : none,
     ids.length && licensesOn
       ? byIds(ids, (inIds) =>
           query(
@@ -242,6 +249,8 @@ export async function collectAccounts(ctx: ScreenContext): Promise<PublishedAcco
     const preferred = ati.map((r) => str(r.PreferredAddressId)).filter(Boolean);
     const addr = addrs.find((x) => preferred.includes(str(x.Id))) ?? addrs.find((x) => x.IsPrimary === true) ?? addrs[0];
     const address = addr ? formatAddress(addr) : "--";
+    const mapAddr = preferred.length ? addrs.find((x) => str(x.Id) === preferred[0]) : addrs.find((x) => x.IsPrimary === true);
+    const geo = mapAddr && plottable(mapAddr.Latitude, mapAddr.Longitude) ? ([mapAddr.Latitude, mapAddr.Longitude] as [number, number]) : undefined;
     let license: PublishedAccountCard["license"];
     if (licensesOn && address !== "--") {
       const l = mine(licenses).find((x) => str(x.JurisdictionState) === str(addr?.StateCode));
@@ -256,6 +265,7 @@ export async function collectAccounts(ctx: ScreenContext): Promise<PublishedAcco
       recordType: str((a.RecordType as Row | null)?.DeveloperName) || undefined,
       address,
       license,
+      geo,
       sort: {
         name: str(a[nameField]),
         firstName: str(a.FirstName),

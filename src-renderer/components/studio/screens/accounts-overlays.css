@@ -201,7 +201,7 @@
   color: #c4cce0;
 }
 
-/* Map stand-in: same rectangle as the cards. */
+/* Map view: same rectangle as the cards. */
 .studio-ipad-accounts-map-panel {
   position: absolute;
   left: 271px;
@@ -209,24 +209,6 @@
   width: 923px;
   height: 493px;
   border-radius: 12px;
-  overflow: hidden;
-  background: linear-gradient(180deg, #1a86ee 0%, #0f7ae5 75%, #3fa0a8 100%);
-  color: #fff;
-}
-.studio-ipad-accounts-map-panel .note {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  max-width: 460px;
-  padding: 16px 20px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.92);
-  color: #2e2e2e;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 .studio-ipad-accounts-map-panel .fit,
 .studio-ipad-accounts-map-panel .optimize {

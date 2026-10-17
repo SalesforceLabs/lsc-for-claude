@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useRef, useState } from "react";
 import { MicIcon } from "./IpadChrome";
+import { IpadMap } from "./IpadMap";
 import noResultsUnknown from "./assets/noresults-unknown.png";
 import { pageDots } from "./screens/home-types";
 import type { HomeNbcCard, HomeVisit, PublishedHome } from "./screens/home-types";
@@ -284,14 +285,13 @@ export function UpNextMap() {
             <span className="studio-ipad-h-capsule">Schedule a visit</span>
           </div>
         </div>
-        <div className="studio-ipad-h-map" aria-label="Map">
+        <IpadMap className="studio-ipad-h-map" home width={764} height={510}>
           <span className="studio-ipad-h-locate">
             <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
               <path d="M19 3 3 10l7 2 2 7Z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
             </svg>
           </span>
-          <span className="studio-ipad-h-maps-mark"> Maps</span>
-        </div>
+        </IpadMap>
       </div>
     </div>
   );
