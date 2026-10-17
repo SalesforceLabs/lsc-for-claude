@@ -414,13 +414,28 @@ function idsByObject(lists: Record<string, PublishedListData>, extra: Record<str
   return out;
 }
 
+const GENERIC_INQUIRY_COLUMNS: RecordFieldSpec[] = [
+  { name: "ReferenceRecordId", label: "Reference Record", type: "reference" },
+  { name: "Type", label: "Type", type: "picklist" },
+  { name: "InquiryChannelType", label: "Inquiry Channel Type", type: "picklist" },
+  { name: "ResponseContactPointRecId", label: "Response Contact Point Record", type: "reference" },
+  { name: "Status", label: "Status", type: "picklist" },
+  { name: "SubmittedDateTime", label: "Submitted Date Time", type: "datetime" },
+];
+
 async function relatedLists(ctx: ScreenContext, object: string, ids: string[], d: Describe): Promise<Map<string, PublishedRelated[]>> {
   const out = new Map<string, PublishedRelated[]>(ids.map((id) => [id, []]));
   const keys = new Map<string, string>();
+  const fixed = new Map<string, { label: string; order: string; specs: RecordFieldSpec[] }>();
   for (const c of pageComponents(ctx, object)) {
     const api = c.properties.relatedListApiName;
     const key = api ? relatedKey(d.children, api) : null;
     if (key) keys.set(key, api);
+    // LSCGenericRelatedList "Inquiries": an Account's Inquiry records, the columns the app's component shows.
+    if (object === "Account" && trimNamespace(c.name) === "LSCGenericRelatedList" && c.properties.label === "Inquiries" && d.children.some((x) => str(x.childSObject) === "Inquiry" && str(x.field) === "AccountId")) {
+      keys.set("Inquiry.AccountId", "LSCGenericRelatedList");
+      fixed.set("Inquiry.AccountId", { label: "Inquiries", order: "Id ASC", specs: GENERIC_INQUIRY_COLUMNS });
+    }
   }
   const layouts = Object.entries(ctx.core.layouts).filter(([n]) => layoutObject(n) === object);
   const layoutList = (key: string) => layouts.flatMap(([, l]) => l.relatedLists).find((r) => r.name === key);
@@ -431,9 +446,10 @@ async function relatedLists(ctx: ScreenContext, object: string, ids: string[], d
       if (!cd || !cd.fields.has(field.toLowerCase())) return;
       const layoutRl = layoutList(key);
       const condition = ctx.scope(child);
-      const label = layoutRl?.label || child;
+      const fx = fixed.get(key);
+      const label = fx?.label ?? (layoutRl?.label || child);
       // The app reads one relationship hop at most; deeper paths (Territory2.Territory2Model.Name) are not columns.
-      const specs = (layoutRl?.columns ?? []).filter((s) => s.name && s.name.split(".").length <= 2);
+      const specs = fx?.specs ?? (layoutRl?.columns ?? []).filter((s) => s.name && s.name.split(".").length <= 2);
       const columns = await Promise.all(
         (specs.length ? specs : [{ name: cd.nameField, label: "", type: "string" }]).map(async (s) => {
           const own = cd.fields.get(s.name.toLowerCase());
@@ -478,8 +494,9 @@ async function relatedLists(ctx: ScreenContext, object: string, ids: string[], d
           return f && str(f.type) === "reference" && f.relationshipName ? `${str(f.relationshipName)}.Name` : name;
         };
         // Objects without a Name field (ObjectTerritory2Association) sort by their first column.
-        const orderBy = cd.fields.has(cd.nameField.toLowerCase()) ? cd.nameField : rel(paths[0] ?? "Id");
-        const select = (p: string[]) => `SELECT Id, ${field}, ${[...new Set(p)].join(", ")} FROM ${child} WHERE ${field} IN (${inList(parents)})${scoped} ORDER BY ${orderBy} DESC LIMIT 1000`;
+        const orderBy = fx ? fx.order.split(" ")[0] : cd.fields.has(cd.nameField.toLowerCase()) ? cd.nameField : rel(paths[0] ?? "Id");
+        const dir = fx ? fx.order.split(" ")[1] : "DESC";
+        const select = (p: string[]) => `SELECT Id, ${field}, ${[...new Set(p)].join(", ")} FROM ${child} WHERE ${field} IN (${inList(parents)})${scoped} ORDER BY ${orderBy} ${dir} LIMIT 1000`;
         const records = await query(select(paths.map(rel)), ctx.org).catch(() => query(select(paths.filter((p) => !p.includes("."))), ctx.org).catch(() => [] as Row[]));
         for (const r of records) {
           const parent = owner.get(str(r[field])) ?? str(r[field]);
@@ -498,6 +515,40 @@ async function relatedLists(ctx: ScreenContext, object: string, ids: string[], d
       for (const id of ids) add(id, counts.get(id) ?? 0, rowsBy.get(id) ?? []);
     })
   );
+  if (object === "Account" && pageComponents(ctx, object).some((c) => trimNamespace(c.name) === "AccountAffiliations")) {
+    const lists = await affiliations(ctx, ids).catch(() => new Map<string, PublishedRelated>());
+    for (const [id, rel] of lists) out.get(id)?.push(rel);
+  }
+  return out;
+}
+
+/** The Affiliations tab (AccountAffiliations): the other party of each ProviderAffiliation, limited to accounts the device holds. */
+async function affiliations(ctx: ScreenContext, ids: string[]): Promise<Map<string, PublishedRelated>> {
+  const out = new Map<string, PublishedRelated>();
+  const cond = ctx.scope("ProviderAffiliation");
+  const accountCond = ctx.scope("Account");
+  if (cond === undefined || accountCond === undefined) return out;
+  const inIds = inList(ids);
+  const rows = await query(
+    `SELECT Id, AccountId, RelatedAccountId, AccountName, AffiliationStrengthType, Role, InfluenceType, Account.Name, RelatedAccount.Name FROM ProviderAffiliation WHERE (AccountId IN (${inIds}) OR RelatedAccountId IN (${inIds}))${cond ? ` AND (${cond})` : ""} ORDER BY Id ASC LIMIT 500`,
+    ctx.org
+  );
+  const other = (r: Row, id: string) => (str(r.AccountId) === id ? str(r.RelatedAccountId) : str(r.AccountId));
+  const wanted = [...new Set(rows.flatMap((r) => ids.map((id) => other(r, id))))].filter((x) => ID_PATTERN.test(x));
+  if (!wanted.length) return out;
+  const held = new Set((await query(`SELECT Id FROM Account WHERE Id IN (${inList(wanted)})${accountCond ? ` AND (${accountCond})` : ""}`, ctx.org).catch(() => [] as Row[])).map((a) => str(a.Id)));
+  const columns = [
+    { label: "Account", type: "reference" },
+    { label: "Account", type: "reference" },
+    { label: "Affiliation Strength Type", type: "picklist" },
+    { label: "Role", type: "picklist" },
+    { label: "Influence Type", type: "picklist" },
+  ];
+  for (const id of ids) {
+    const mine = rows.filter((r) => (str(r.AccountId) === id || str(r.RelatedAccountId) === id) && held.has(other(r, id)));
+    const cells = (r: Row) => [str(obj(str(r.AccountId) === id ? r.RelatedAccount : r.Account).Name), str(r.AccountName), str(r.AffiliationStrengthType), str(r.Role), str(r.InfluenceType)];
+    out.set(id, { key: "ProviderAffiliation.AccountId", api: "AccountAffiliations", label: "Affiliations", object: "ProviderAffiliation", count: mine.length, columns, rows: mine.slice(0, 25).map((r) => ({ id: str(r.Id), cells: cells(r) })), canCreate: true });
+  }
   return out;
 }
 

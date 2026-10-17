@@ -768,3 +768,7 @@
   font-size: 12px;
   color: #5c5c5c;
 }
+
+.studio-ipad-rec-rl-head .studio-ipad-rec-new + .studio-ipad-rec-new {
+  margin-left: 8px;
+}

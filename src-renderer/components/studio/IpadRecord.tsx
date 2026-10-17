@@ -178,6 +178,14 @@ function TabContent({ components, snapshot, rec }: { components: PublishedCompon
             const r = findRelated(rec, c.properties.relatedListApiName);
             return r ? <RelatedCard key={k} snapshot={snapshot} related={r} editable={rec.editable} /> : null;
           }
+          if (name === "LSCGenericRelatedList") {
+            const r = Object.values(rec.related).find((x) => x.api === "LSCGenericRelatedList" && x.label === c.properties.label);
+            return r ? <RelatedCard key={k} snapshot={snapshot} related={r} editable={rec.editable} /> : null;
+          }
+          if (name === "AccountAffiliations") {
+            const r = findRelated(rec, "AccountAffiliations");
+            return r ? <RelatedCard key={k} snapshot={snapshot} related={r} editable={rec.editable} /> : null;
+          }
           if (rec.dashboard) {
             if (name === "accountSummary") return <SummaryCard key={k} data={rec.dashboard} />;
             if (name === "accountManagementDashboard") return <OverviewCard key={k} data={rec.dashboard} />;
@@ -328,7 +336,15 @@ function RelatedCard({ snapshot, related, editable = false }: { snapshot: Publis
         <span className="studio-ipad-rec-rl-title">
           {related.label} ({related.count})
         </span>
-        {editable && related.canCreate && <span className="studio-ipad-rec-new">New</span>}
+        {related.api === "AccountAffiliations" ? (
+          <>
+            <span className="studio-ipad-rec-new">New</span>
+            <span className="studio-ipad-rec-new">Filters</span>
+            <span className="studio-ipad-rec-new">Switch View</span>
+          </>
+        ) : (
+          editable && related.canCreate && <span className="studio-ipad-rec-new">New</span>
+        )}
       </div>
       {shown.length > 0 && (
         <div className="studio-ipad-rec-table" style={{ width: TABLE_W }}>
