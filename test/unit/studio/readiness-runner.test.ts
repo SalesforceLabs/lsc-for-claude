@@ -71,6 +71,26 @@ describe("executeCheck unavailable", () => {
     expect(failed.passed).toBe(false);
     expect(failed.unavailable).toBeUndefined();
   });
+
+  it("composite with a not-implemented sub-check is unknown, not passed", async () => {
+    answers = { OK: 1 };
+    const out = await executeCheck(
+      { type: "composite", checks: [{ type: "soql_count", query: "OK", expect: "count > 0" }, { type: "cli", expect: "true" }], expect: "" },
+      "org"
+    );
+    expect(out.unavailable).toBe(true);
+  });
+
+  it("marks a missing query or sub-checks unavailable", async () => {
+    expect((await executeCheck({ type: "soql", expect: "count > 0" }, "org")).unavailable).toBe(true);
+    expect((await executeCheck({ type: "composite", checks: [], expect: "" }, "org")).unavailable).toBe(true);
+  });
+
+  it("doesn't half-match an expect with extra terms", async () => {
+    answers = { A: 3 };
+    const out = await executeCheck({ type: "soql_count", query: "A", expect: "count > 0 && count < 2" }, "org");
+    expect(out.unavailable).toBe(true);
+  });
 });
 
 describe("runRules", () => {

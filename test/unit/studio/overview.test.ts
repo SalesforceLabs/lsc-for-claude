@@ -68,6 +68,13 @@ describe("collectSetupOverview", () => {
     expect(o.checks.find((c) => c.id === "overview.data.territory-model")?.status).toBe("unknown");
   });
 
+  it("counts a setting value edited after the publish", async () => {
+    tooling.LifeSciConfigRecord = [{ Id: "r1", DeveloperName: "appSettings_Rep", IsOrgLevel: false, LastModifiedDate: iso(30), LifeSciConfigCategory: { Category: "DbSchema" } }];
+    tooling.LifeSciConfigFieldValue = [{ LifeSciConfigRecordId: "r1", LastModifiedDate: iso(2) }];
+    const o = await collectSetupOverview("org");
+    expect(o.unpublishedProfiles).toEqual(["Rep"]);
+  });
+
   it("is quiet when the cache is newer than every change", async () => {
     soql.LifeSciMobileMetadataRecord = [
       { Status: "Active", ProfileId: "p1", LastModifiedDate: iso(0) },

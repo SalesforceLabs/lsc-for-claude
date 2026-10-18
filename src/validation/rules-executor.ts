@@ -55,6 +55,7 @@ export async function executeCheck(check: RuleCheck, targetOrg: string): Promise
         return {
           passed: false,
           message: `Unknown check type: ${check.type}`,
+          unavailable: true,
         };
     }
   } catch (error) {
@@ -75,7 +76,7 @@ async function executeSoqlCheck(
   useToolingApi: boolean = false
 ): Promise<CheckOutcome> {
   if (!check.query) {
-    return { passed: false, message: "No query specified for SOQL check" };
+    return { passed: false, message: "No query specified for SOQL check", unavailable: true };
   }
 
   const result = useToolingApi
@@ -117,7 +118,7 @@ async function executeSoqlCheck(
     message: passed
       ? `Check passed (${records.length} records)`
       : `Check failed: found ${records.length} records that don't meet criteria`,
-    details: passed ? undefined : { records: records.slice(0, 10) }, // Limit detail records
+    details: passed ? undefined : { count: records.length, records: records.slice(0, 10) }, // Limit detail records
   };
 }
 
@@ -182,7 +183,7 @@ async function executeCompositeCheck(
   targetOrg: string
 ): Promise<CheckOutcome> {
   if (!check.checks || check.checks.length === 0) {
-    return { passed: false, message: "No sub-checks specified for composite check" };
+    return { passed: false, message: "No sub-checks specified for composite check", unavailable: true };
   }
 
   const subResults: CheckOutcome[] = [];
@@ -194,11 +195,13 @@ async function executeCompositeCheck(
 
   // All sub-checks must pass for composite to pass
   const allPassed = subResults.every((r) => r.passed);
+  // A sub-check that couldn't run (including the not-implemented types, which report passed) leaves the whole
+  // unknown — unless another sub-check definitely failed.
+  const definitelyFailed = subResults.some((r) => !r.passed && !r.unavailable);
 
   return {
     passed: allPassed,
-    // Unknown only when nothing definitely failed.
-    unavailable: !allPassed && subResults.every((r) => r.passed || r.unavailable) ? true : undefined,
+    unavailable: !definitelyFailed && subResults.some((r) => r.unavailable) ? true : undefined,
     message: allPassed
       ? `All ${subResults.length} sub-checks passed`
       : `${subResults.filter((r) => !r.passed).length} of ${subResults.length} sub-checks failed`,
@@ -242,31 +245,31 @@ function evaluateExpectCondition(
       if (expect === "count < 5") return actualCount < 5;
 
       // Parse "count <= N" pattern
-      const countLteMatch = expect.match(/count\s*<=\s*(\d+)/);
+      const countLteMatch = expect.match(/^count\s*<=\s*(\d+)$/);
       if (countLteMatch) {
         return actualCount <= parseInt(countLteMatch[1], 10);
       }
 
       // Parse "count >= N" pattern
-      const countGteMatch = expect.match(/count\s*>=\s*(\d+)/);
+      const countGteMatch = expect.match(/^count\s*>=\s*(\d+)$/);
       if (countGteMatch) {
         return actualCount >= parseInt(countGteMatch[1], 10);
       }
 
       // Parse "count < N" pattern
-      const countLtMatch = expect.match(/count\s*<\s*(\d+)/);
+      const countLtMatch = expect.match(/^count\s*<\s*(\d+)$/);
       if (countLtMatch) {
         return actualCount < parseInt(countLtMatch[1], 10);
       }
 
       // Parse "count > N" pattern
-      const countGtMatch = expect.match(/count\s*>\s*(\d+)/);
+      const countGtMatch = expect.match(/^count\s*>\s*(\d+)$/);
       if (countGtMatch) {
         return actualCount > parseInt(countGtMatch[1], 10);
       }
 
       // Parse "count == N" pattern
-      const countEqMatch = expect.match(/count\s*==\s*(\d+)/);
+      const countEqMatch = expect.match(/^count\s*==\s*(\d+)$/);
       if (countEqMatch) {
         return actualCount === parseInt(countEqMatch[1], 10);
       }
@@ -280,21 +283,17 @@ function evaluateExpectCondition(
       if (expect === "records.length == 0") return len === 0;
       if (expect === "records.length >= 0") return len >= 0;
 
-      const lenEqMatch = expect.match(/records\.length\s*==\s*(\d+)/);
+      const lenEqMatch = expect.match(/^records\.length\s*==\s*(\d+)$/);
       if (lenEqMatch) {
         return len === parseInt(lenEqMatch[1], 10);
       }
     }
 
     // Complex expressions with records.some() or records.every()
-    if (expect.includes("records.some(") || expect.includes("records.every(")) {
-      // For safety, we'll handle specific known patterns
-      if (expect.includes("ActiveVersionId != null")) {
-        // Check if any record has a non-null ActiveVersionId
-        return (
-          records?.some((r) => (r as Record<string, unknown>).ActiveVersionId != null) ?? false
-        );
-      }
+    if (/^records\.(some|every)\(\s*(\w+)\s*=>\s*\2\.ActiveVersionId\s*!=\s*null\s*\)$/.test(expect)) {
+      // For safety, only this known pattern: any / every record has a non-null ActiveVersionId
+      const hasVersion = (r: unknown) => (r as Record<string, unknown>).ActiveVersionId != null;
+      return expect.startsWith("records.some(") ? (records?.some(hasVersion) ?? false) : (records?.every(hasVersion) ?? true);
     }
 
     // If we can't parse the condition, log it and return false for safety

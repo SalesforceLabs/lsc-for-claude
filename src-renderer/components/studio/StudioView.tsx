@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FeatureMap, FeatureReadiness, FeatureSummary, ProfileOption, SurfaceId } from "./types";
 import { countBySeverity, mapFindings } from "./findings";
 import { audienceProfiles, isScoped, type Lens } from "./lens";
@@ -111,15 +111,38 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     if (refresh) loadProfiles();
   }, [loadProfiles]);
 
+  // Latest request per feature, so an older load that resolves late doesn't overwrite a newer one.
+  const readinessRequests = useRef<Record<string, number>>({});
+  /** Bumped when the org's configuration changes under the pages (apply, org switch), remounting the Overview. */
+  const [configVersion, setConfigVersion] = useState(0);
   const loadReadiness = useCallback(async (id: string, refresh = false) => {
+    const ticket = (readinessRequests.current[id] ?? 0) + 1;
+    readinessRequests.current[id] = ticket;
     setReadiness((r) => ({ ...r, [id]: { status: "loading" } }));
     const res = await window.lscApi.studioReadiness(id, refresh);
+    if (readinessRequests.current[id] !== ticket) return;
     const error = res.error || (res.data as { error?: string } | undefined)?.error;
     setReadiness((r) => ({
       ...r,
       [id]: error ? { status: "error", error } : { status: "ready", readiness: res.data as FeatureReadiness },
     }));
   }, []);
+
+  /** Forget every feature's readiness (and any load still in flight), so pages re-read the org. */
+  const resetReadiness = useCallback(() => {
+    for (const id of Object.keys(readinessRequests.current)) readinessRequests.current[id] += 1;
+    setReadiness({});
+    setConfigVersion((v) => v + 1);
+  }, []);
+  // Another org means other configuration: drop what was read from the old one.
+  useEffect(
+    () =>
+      window.lscApi.onSfOrgChanged(() => {
+        setMaps({});
+        resetReadiness();
+      }),
+    [resetReadiness]
+  );
 
   useEffect(() => {
     if (section !== "setup") return;
@@ -462,38 +485,43 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
 
       {section === "overview" && (
         <section className="studio-main">
-          <SetupOverview
-            features={features}
-            readiness={readiness}
-            loadReadiness={loadReadiness}
-            onOpenFeature={(id) => openSetup(id)}
-            onCheckUser={() => {
-              setTraceFeature(undefined);
-              setSection("user-check");
-            }}
-            onPublish={(preselect) => setPublishing(preselect)}
-            profiles={profiles}
-            pending={pending}
-            onPendingChange={setPending}
-            onAskClaude={onAskClaude}
-          />
+          <div className="studio-scroll">
+            <SetupOverview
+              key={configVersion}
+              features={features}
+              readiness={readiness}
+              loadReadiness={loadReadiness}
+              onOpenFeature={(id) => openSetup(id)}
+              onCheckUser={() => {
+                setTraceFeature(undefined);
+                setSection("user-check");
+              }}
+              onPublish={(preselect) => setPublishing(preselect)}
+              profiles={profiles}
+              pending={pending}
+              onPendingChange={setPending}
+              onAskClaude={onAskClaude}
+            />
+          </div>
           {tray}
         </section>
       )}
 
       {section === "user-check" && (
         <section className="studio-main">
-          <UserTraceView
-            features={features}
-            initialFeatureId={traceFeature}
-            profiles={profiles}
-            pending={pending}
-            onPendingChange={setPending}
-            onAskClaude={onAskClaude}
-            onOpenFeature={(id) => openSetup(id)}
-            onPublish={(preselect) => setPublishing(preselect)}
-            onOrgSeen={setSeenOrg}
-          />
+          <div className="studio-scroll">
+            <UserTraceView
+              features={features}
+              initialFeatureId={traceFeature}
+              profiles={profiles}
+              pending={pending}
+              onPendingChange={setPending}
+              onAskClaude={onAskClaude}
+              onOpenFeature={(id) => openSetup(id)}
+              onPublish={(preselect) => setPublishing(preselect)}
+              onOrgSeen={setSeenOrg}
+            />
+          </div>
           {tray}
         </section>
       )}
@@ -596,7 +624,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
 
         <div className="studio-stage">
           {!activeLens && featureView === "readiness" && (
-            <div className="studio-canvas">
+            <div className="studio-canvas studio-scroll">
               <ReadinessView
                 title={feature?.title ?? featureId}
                 state={readiness[featureId]}
@@ -678,6 +706,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             // Other features' maps may be stale too; the main process dropped them from its cache.
             if (applied.length > 0) {
               setMaps({});
+              resetReadiness();
               load(featureId, true);
               if (previewOpened) for (const id of PREVIEW_FEATURES) if (id !== featureId) load(id, true);
             }

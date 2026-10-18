@@ -65,6 +65,11 @@ describe("accounts readiness", () => {
     expect((await run())["accounts.config.address-formula-field"].status).toBe("fail");
   });
 
+  it("skips the formula check when there are no address settings", async () => {
+    schema = [];
+    expect((await run())["accounts.config.address-formula-field"].status).toBe("skipped");
+  });
+
   it("fails when the formula field doesn't exist on Contact Point Address", async () => {
     schema = [{ category: "AddressSettings", developerName: "a", isActive: true, fields: { ContactPointAddressFormulaField: "Gone__c" }, fieldTypes: {}, assignments: [] } as unknown as ConfigRecord];
     expect((await run())["accounts.config.address-formula-field"].status).toBe("fail");

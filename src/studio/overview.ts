@@ -275,11 +275,18 @@ function fetchCacheRows(org: string): Promise<Row[]> {
 async function fetchChanges(org: string, since: number, none: boolean): Promise<ConfigChange[]> {
   if (none || !Number.isFinite(since)) return [];
   const iso = new Date(since).toISOString();
-  const [edited, reassigned] = await Promise.all([
+  // Editing a setting's value touches only its field value row, not the record.
+  const [edited, valued, reassigned] = await Promise.all([
     query(`SELECT Id FROM LifeSciConfigRecord WHERE LastModifiedDate > ${iso}`, org, true),
+    query(`SELECT LifeSciConfigRecordId, LastModifiedDate FROM LifeSciConfigFieldValue WHERE LastModifiedDate > ${iso}`, org, true),
     query(`SELECT LifeSciConfigRecordId FROM LifeSciConfigAssignment WHERE LastModifiedDate > ${iso}`, org, true),
   ]);
-  const ids = [...new Set([...edited.map((r) => String(r.Id)), ...reassigned.map((r) => String(r.LifeSciConfigRecordId))])];
+  const valueAt = new Map<string, number>();
+  for (const v of valued) {
+    const id = String(v.LifeSciConfigRecordId);
+    valueAt.set(id, Math.max(valueAt.get(id) ?? 0, Date.parse(String(v.LastModifiedDate))));
+  }
+  const ids = [...new Set([...edited.map((r) => String(r.Id)), ...valueAt.keys(), ...reassigned.map((r) => String(r.LifeSciConfigRecordId))])];
   const chunks: string[][] = [];
   for (let i = 0; i < ids.length; i += 150) chunks.push(ids.slice(i, i + 150));
   const out: ConfigChange[] = [];
@@ -300,7 +307,7 @@ async function fetchChanges(org: string, since: number, none: boolean): Promise<
       const category = (r.LifeSciConfigCategory as Row | null)?.Category;
       if (!MOBILE_CATEGORIES.includes(String(category))) continue;
       const mine = assignments.filter((a) => a.LifeSciConfigRecordId === r.Id);
-      const at = Math.max(Date.parse(String(r.LastModifiedDate)), ...mine.map((a) => Date.parse(String(a.LastModifiedDate))));
+      const at = Math.max(Date.parse(String(r.LastModifiedDate)), valueAt.get(String(r.Id)) ?? 0, ...mine.map((a) => Date.parse(String(a.LastModifiedDate))));
       out.push({
         label: `${category}: ${r.DeveloperName}`,
         at,

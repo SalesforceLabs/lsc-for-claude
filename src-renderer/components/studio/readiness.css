@@ -1,5 +1,12 @@
 /* Readiness view — a feature's checks by stage. Reuses the verdict and check-row styles in studio.css. */
 
+/* Scroll container for the page-style views (readiness, overview, user check); the board scrolls itself. */
+.studio-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .studio-readiness {
   max-width: 880px;
   margin: 0 auto;

@@ -267,7 +267,9 @@ const readiness: ReadinessModule = {
             org,
             `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'AddressSettings'`
           );
-          const field = String(records.find((r) => r.isActive)?.fields.ContactPointAddressFormulaField ?? "").trim();
+          const active = records.find((r) => r.isActive);
+          if (!active) return { pass: true, skip: true, detail: "Address settings aren't configured in this org." };
+          const field = String(active.fields.ContactPointAddressFormulaField ?? "").trim();
           if (!field) return { pass: false, detail: "No address formula field is set in Address settings." };
           const found = await query(
             `SELECT QualifiedApiName FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = 'ContactPointAddress' AND QualifiedApiName IN (${inList([field])})`,
