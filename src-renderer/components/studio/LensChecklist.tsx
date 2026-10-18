@@ -5,8 +5,12 @@ import { allFindings, countBySeverity } from "./findings";
 import { checklist, copyChanges, copySources, type CheckStatus, type ChecklistRow } from "./checklist";
 import { queueChange, stackChange, type PendingChange } from "./changes";
 import { SeverityChips } from "./SeverityChips";
+import { VerdictCard } from "./ReadinessView";
+import StatusIcon, { type StatusTone } from "../ui/StatusIcon";
+import { ArrowLeft, CloudUpload } from "lucide-react";
+import "./readiness.css";
 
-const ICONS: Record<CheckStatus, string> = { ok: "✓", missing: "✗", attention: "!", everyone: "–", error: "!" };
+const TONES: Record<CheckStatus, StatusTone> = { ok: "pass", missing: "error", attention: "warning", everyone: "skipped", error: "error" };
 const STATUS_TEXT: Record<CheckStatus, string> = {
   ok: "Passing",
   missing: "Failing",
@@ -52,78 +56,65 @@ export default function LensChecklist({
     onPendingChange(changes.reduce((acc, c) => queueChange(acc, stackChange(acc, c)), pending));
   const rowProps = { lens, from, pending, selectedSurface, onSelectSurface, onQueue: queue, onPublish };
 
+  const verdictTone: StatusTone = checks.length === 0 ? "info" : failing ? "error" : "pass";
   return (
     <div className="studio-checklist">
-      <button type="button" className="studio-link-btn studio-checklist-back" onClick={onExit}>
-        ← Back to all configuration
-      </button>
-      <h2 className="studio-checklist-title">
-        <span className="studio-checklist-eyebrow">{map.checkTitle ?? `${map.title} setup check`}</span>
-        {lens.profile}
-      </h2>
+      <div className="studio-page ui-enter">
+        <button type="button" className="studio-link-btn studio-checklist-back" onClick={onExit}>
+          <ArrowLeft size={12} aria-hidden="true" /> Back to all configuration
+        </button>
+        <h2 className="studio-checklist-title">
+          <span className="studio-checklist-eyebrow">{map.checkTitle ?? `${map.title} setup check`}</span>
+          {lens.profile}
+        </h2>
 
-      <div className={`studio-verdict ${checks.length === 0 ? "none" : failing ? "failing" : "ready"}`} role="status">
-        {checks.length === 0 ? (
-          <div className="studio-verdict-title">
-            Nothing in {map.title} is set per profile — everything below applies to everyone.
-          </div>
-        ) : (
-          <>
-            <div className="studio-verdict-title">
-              <span className="studio-verdict-icon" aria-hidden="true">
-                {failing ? "✗" : "✓"}
-              </span>
-              {failing
+        <VerdictCard
+          tone={verdictTone}
+          title={
+            checks.length === 0
+              ? `Nothing in ${map.title} is set per profile — everything below applies to everyone.`
+              : failing
                 ? `Not ready: ${failing} of ${checks.length} checks failing`
-                : `Ready: all ${checks.length} checks pass`}
+                : `Ready: all ${checks.length} checks pass`
+          }
+          progress={checks.length > 0 ? { value: checks.length - failing, max: checks.length, label: "Checks passing" } : undefined}
+        >
+          {from && all && all.matched > 0 && (
+            <div className="studio-verdict-fix">
+              <label>
+                <span>{failing ? "Fastest fix: copy setup from" : "Copy more setup from"}</span>
+                <select className="studio-select" value={from} onChange={(e) => setPicked(e.target.value)}>
+                  {[...sources].sort((a, b) => a.profile.localeCompare(b.profile)).map((s) => (
+                    <option key={s.profile} value={s.profile}>
+                      {s.profile} ({s.count})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <CopyButton result={all} label={(n) => `Copy ${n}`} onQueue={queue} />
             </div>
-            <div
-              className="studio-verdict-bar"
-              role="progressbar"
-              aria-label="Checks passing"
-              aria-valuemin={0}
-              aria-valuemax={checks.length}
-              aria-valuenow={checks.length - failing}
-            >
-              <span style={{ width: `${((checks.length - failing) / checks.length) * 100}%` }} />
-            </div>
-          </>
+          )}
+        </VerdictCard>
+
+        {checks.length > 0 && (
+          <ol className="studio-checklist-rows">
+            {checks.map((row, idx) => (
+              <Row key={row.step.surface} row={row} number={idx + 1} {...rowProps} />
+            ))}
+          </ol>
         )}
-        {from && all && all.matched > 0 && (
-          <div className="studio-verdict-fix">
-            <label>
-              <span>{failing ? "Fastest fix: copy setup from" : "Copy more setup from"}</span>
-              <select value={from} onChange={(e) => setPicked(e.target.value)}>
-                {[...sources].sort((a, b) => a.profile.localeCompare(b.profile)).map((s) => (
-                  <option key={s.profile} value={s.profile}>
-                    {s.profile} ({s.count})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <CopyButton result={all} label={(n) => `Copy ${n}`} onQueue={queue} />
-          </div>
+
+        {shared.length > 0 && (
+          <section className="studio-checklist-shared">
+            <h3 className="ui-section-title">Applies to everyone</h3>
+            <ul className="studio-checklist-rows">
+              {shared.map((row) => (
+                <Row key={row.step.surface} row={row} {...rowProps} />
+              ))}
+            </ul>
+          </section>
         )}
       </div>
-
-      {checks.length > 0 && (
-        <ol className="studio-checklist-rows">
-          {checks.map((row, idx) => (
-            <Row key={row.step.surface} row={row} number={idx + 1} {...rowProps} />
-          ))}
-        </ol>
-      )}
-
-      {shared.length > 0 && (
-        <section className="studio-checklist-shared">
-          <h3 className="studio-lane-title">Applies to everyone</h3>
-          <ul className="studio-checklist-rows">
-            {shared.map((row) => (
-              <Row key={row.step.surface} row={row} {...rowProps} />
-            ))}
-          </ul>
-        </section>
-      )}
     </div>
   );
 }
@@ -149,9 +140,7 @@ function Row({ row, number, lens, from, pending, selectedSurface, onSelectSurfac
     <li className={`studio-check ${status}${selected ? " selected" : ""}${number ? "" : " shared"}`}>
       <button type="button" className="studio-check-main" aria-pressed={selected} onClick={() => onSelectSurface(surface.id)}>
         {number && <span className="studio-check-num">{number}</span>}
-        <span className="studio-check-icon" aria-hidden="true">
-          {ICONS[status]}
-        </span>
+        <StatusIcon tone={TONES[status]} size={20} />
         <span className="studio-check-text">
           <span className="studio-check-label">
             {step.label}
@@ -174,7 +163,7 @@ function Row({ row, number, lens, from, pending, selectedSurface, onSelectSurfac
         )}
         {status === "missing" && step.publish && (
           <button type="button" className="studio-fix-btn" onClick={() => onPublish([lens.profile])}>
-            Publish to iPad
+            <CloudUpload size={12} aria-hidden="true" /> Publish to iPad
           </button>
         )}
       </div>
@@ -192,7 +181,7 @@ function CopyButton({
   onQueue: (changes: PendingChange[]) => void;
 }) {
   if (result.matched === 0) return null;
-  if (result.changes.length === 0) return <span className="studio-pending-tag">Queued</span>;
+  if (result.changes.length === 0) return <span className="ui-pill warning">Queued</span>;
   return (
     <button type="button" className="studio-fix-btn" title="Add to pending changes" onClick={() => onQueue(result.changes)}>
       {label(result.changes.length)}

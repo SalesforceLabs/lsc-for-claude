@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { CloudUpload, ExternalLink, Play, RefreshCw, Sparkles, UserRound } from "lucide-react";
+import Spinner from "../ui/Spinner";
+import StateView from "../ui/StateView";
 import type { FeatureSummary, ProfileOption } from "./types";
 import type { PerfUser } from "./perf-types";
 import type { PendingChange } from "./changes";
-import { CheckRow } from "./ReadinessView";
+import { CheckRow, VerdictCard } from "./ReadinessView";
 import { STAGES } from "./readiness";
 import { firstProblem, needsPublish, traceAskPrompt, traceHeadline, type TraceState } from "./user-trace-state";
 import "./readiness.css";
@@ -85,12 +88,20 @@ export default function UserTraceView({
   const stageTitle = (id: string) => STAGES.find((s) => s.id === id)?.title ?? id;
 
   return (
-    <div className="studio-utrace">
+    <div className="studio-page studio-utrace ui-enter">
+      <header className="studio-page-head">
+        <div>
+          <h2>Check a user</h2>
+          <p>Why can't this rep see a feature or sync? Walks the chain from licenses and permissions to their last sync.</p>
+        </div>
+      </header>
+
       <div className="studio-utrace-form">
-        <label className="studio-utrace-field">
+        <label className="ui-label studio-utrace-field">
           User
           <input
             type="search"
+            className="ui-field"
             value={search}
             placeholder="Name or username"
             onChange={(e) => {
@@ -101,9 +112,9 @@ export default function UserTraceView({
             }}
           />
         </label>
-        <label className="studio-utrace-field">
+        <label className="ui-label studio-utrace-field">
           Feature (optional)
-          <select value={featureId} onChange={(e) => setFeatureId(e.target.value)}>
+          <select className="ui-field" value={featureId} onChange={(e) => setFeatureId(e.target.value)}>
             <option value="">Any — general iPad access</option>
             {features
               .filter((f) => f.available)
@@ -115,14 +126,22 @@ export default function UserTraceView({
           </select>
         </label>
         <button className="studio-btn primary" disabled={!user || state.status === "loading"} onClick={run}>
-          Run check
+          <Play aria-hidden="true" /> Run check
         </button>
       </div>
 
       {!user && (
         <div>
-          {users.error && <div className="studio-placeholder-error">{users.error}</div>}
-          {users.loading && users.list.length === 0 && <div className="studio-placeholder-sub">Searching users…</div>}
+          {users.error && (
+            <div className="studio-utrace-note error" role="alert">
+              {users.error}
+            </div>
+          )}
+          {users.loading && users.list.length === 0 && (
+            <div className="studio-utrace-note">
+              <Spinner size={12} /> Searching users…
+            </div>
+          )}
           {users.list.length > 0 && (
             <ul className="studio-utrace-users" aria-label="Matching users">
               {users.list.map((u) => (
@@ -130,7 +149,6 @@ export default function UserTraceView({
                   <button
                     type="button"
                     className="studio-utrace-user"
-                    aria-pressed={false}
                     onClick={() => {
                       setUser(u);
                       setSearch(u.name);
@@ -138,81 +156,84 @@ export default function UserTraceView({
                       setState({ status: "idle" });
                     }}
                   >
-                    <span>
-                      {u.name} <span className="studio-utrace-user-sub">{u.username}</span>
-                    </span>
-                    <span className="studio-utrace-user-sub">{u.profile}</span>
+                    <UserRound size={14} aria-hidden="true" />
+                    <span className="studio-utrace-user-name">{u.name}</span>
+                    <span className="studio-utrace-user-sub">{u.username}</span>
+                    <span className="studio-utrace-user-profile">{u.profile}</span>
                   </button>
                 </li>
               ))}
             </ul>
           )}
-          {!users.loading && !users.error && users.list.length === 0 && <div className="studio-placeholder-sub">No active users match.</div>}
+          {!users.loading && !users.error && users.list.length === 0 && <div className="studio-utrace-note">No active users match.</div>}
         </div>
       )}
       {user && state.status === "idle" && (
-        <div className="studio-placeholder-sub">
-          {user.name} · {user.profile}
-          {profileUsers ? ` (${profileUsers} users on this profile)` : ""}. Pick a feature if the problem is specific to one, then run the check.
+        <div className="studio-utrace-note">
+          <UserRound size={14} aria-hidden="true" />
+          <span>
+            <strong>{user.name}</strong> · {user.profile}
+            {profileUsers ? ` (${profileUsers} users on this profile)` : ""}. Pick a feature if the problem is specific to one, then run the check.
+          </span>
         </div>
       )}
 
       {state.status === "loading" && (
-        <div className="studio-placeholder">
-          <div className="studio-spinner" />
-          <div>Checking {user?.name}…</div>
-          <div className="studio-placeholder-sub">Walking the chain from licenses to their last sync. Every query is read-only.</div>
-        </div>
+        <StateView
+          kind="loading"
+          layout="inline"
+          title={`Checking ${user?.name}…`}
+          detail="Walking the chain from licenses to their last sync. Every query is read-only."
+        />
       )}
       {state.status === "error" && (
-        <div className="studio-placeholder">
-          <div className="studio-placeholder-error">Couldn't check this user</div>
-          <div className="studio-placeholder-sub">{state.error}</div>
-          <button className="studio-btn" onClick={run}>
-            Try again
-          </button>
-        </div>
+        <StateView
+          kind="error"
+          layout="inline"
+          title="Couldn't check this user"
+          detail={state.error}
+          actions={
+            <button className="studio-btn" onClick={run}>
+              <RefreshCw aria-hidden="true" /> Try again
+            </button>
+          }
+        />
       )}
 
       {trace && headline && (
         <>
-          <div className={`studio-verdict ${headline.ok ? "ready" : "failing"}`} role="status">
-            <div className="studio-verdict-title">
-              <span className="studio-verdict-icon" aria-hidden="true">
-                {headline.ok ? "✓" : "✗"}
-              </span>
-              {trace.userName}: {headline.text}
-            </div>
-            <div className="studio-readiness-counts">
-              {trace.profile ?? "No profile"} · checked {new Date(trace.collectedAt).toLocaleTimeString()}
-            </div>
-            <div className="studio-utrace-actions">
+          <VerdictCard
+            tone={headline.ok ? "pass" : "error"}
+            title={`${trace.userName}: ${headline.text}`}
+            meta={`${trace.profile ?? "No profile"} · checked ${new Date(trace.collectedAt).toLocaleTimeString()}`}
+          >
+            <div className="studio-verdict-actions">
               {trace.featureId && (
                 <button type="button" className="studio-link-btn" onClick={() => onOpenFeature(trace.featureId!)}>
-                  Open {feature?.title ?? "feature"}
+                  <ExternalLink size={12} aria-hidden="true" /> Open {feature?.title ?? "feature"}
                 </button>
               )}
               {!headline.ok && (
                 <button type="button" className="studio-link-btn" onClick={() => onAskClaude(traceAskPrompt(trace, feature?.title))}>
-                  Ask <AssistantName /> about this user
+                  <Sparkles size={12} aria-hidden="true" /> Ask <AssistantName /> about this user
                 </button>
               )}
               {trace.profile && (trace.checks.some(needsPublish) || pending.length > 0) && (
                 <button type="button" className="studio-link-btn" onClick={() => onPublish([trace.profile!])}>
-                  Publish to iPad
+                  <CloudUpload size={12} aria-hidden="true" /> Publish to iPad
                 </button>
               )}
               <button type="button" className="studio-link-btn" onClick={run}>
-                Re-run
+                <RefreshCw size={12} aria-hidden="true" /> Re-run
               </button>
             </div>
-          </div>
+          </VerdictCard>
 
           <ol className="studio-utrace-chain studio-checklist-rows">
             {trace.checks.map((check, i) => (
               <React.Fragment key={check.id}>
                 {(i === 0 || trace.checks[i - 1].stage !== check.stage) && (
-                  <li className="studio-utrace-stagehint" aria-hidden="true">
+                  <li className="ui-section-title studio-utrace-stagehint" aria-hidden="true">
                     {stageTitle(check.stage)}
                   </li>
                 )}

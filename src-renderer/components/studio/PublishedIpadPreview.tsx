@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from "react";
+import { CloudOff, RotateCw } from "lucide-react";
+import StateView from "../ui/StateView";
 import type {
   PublishedComponent,
   PublishedIpad,
@@ -61,21 +63,27 @@ export default function PublishedIpadPreview({ profile, state, onRefresh, onPick
   }
   if (state.status === "error") {
     return (
-      <div className="studio-ipad-wrap">
-        <div className="studio-ipad-meta">Couldn't read the published configuration: {state.error}</div>
-        <button type="button" className="studio-btn" onClick={() => onRefresh()}>
-          Try again
-        </button>
-      </div>
+      <StateView
+        kind="error"
+        title="Couldn't read the published configuration"
+        detail={state.error}
+        actions={
+          <button type="button" className="studio-btn" onClick={() => onRefresh()}>
+            Try again
+          </button>
+        }
+      />
     );
   }
   const result = state.result;
   if ("missing" in result) {
     return (
-      <div className="studio-ipad-wrap studio-ipad-meta">
-        {profile} has no published metadata cache, so its users can't sign in to LSC Mobile yet. Publish to iPad to
-        create one.
-      </div>
+      <StateView
+        kind="empty"
+        icon={CloudOff}
+        title={`${profile} hasn't been published yet`}
+        detail="It has no metadata cache, so its users can't sign in to LSC Mobile. Publish to iPad to create one."
+      />
     );
   }
   return <Device key={result.viewer?.userId ?? ""} snapshot={result} onRefresh={() => onRefresh(result.viewer?.userId)} onPickUser={onPickUser} />;
@@ -149,6 +157,7 @@ function Device({
             {" "}
             as{" "}
             <select
+              className="studio-select studio-ipad-viewer"
               value={snapshot.viewer.userId}
               onChange={(e) => onPickUser(e.target.value)}
               title={`Permission sets merged in: ${snapshot.viewer.permissionSets.join(", ") || "none"}`}
@@ -177,7 +186,8 @@ function Device({
             · {snapshot.hiddenTabs.length} tabs not shown
           </span>
         )}
-        <button type="button" className="studio-link-btn" onClick={onRefresh}>
+        <button type="button" className="studio-btn ghost sm studio-ipad-reload" onClick={onRefresh}>
+          <RotateCw aria-hidden="true" />
           Reload
         </button>
       </div>

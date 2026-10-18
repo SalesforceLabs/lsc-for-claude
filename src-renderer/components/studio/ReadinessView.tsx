@@ -1,12 +1,14 @@
 import React, { useMemo, useState } from "react";
+import { ChevronRight, ExternalLink, Sparkles, RefreshCw } from "lucide-react";
+import StatusIcon, { type StatusTone } from "../ui/StatusIcon";
+import StateView from "../ui/StateView";
 import type { ProfileOption, ReadinessCheck, SurfaceId } from "./types";
 import type { PendingChange } from "./changes";
 import FixButtons from "./FixButtons";
-import { askPrompt, byStage, sortForAttention, summarize, verdictText, type ReadinessState } from "./readiness";
+import { askPrompt, byStage, sortForAttention, summarize, verdictText, verdictTone, type ReadinessState } from "./readiness";
 import "./readiness.css";
 import { AssistantName } from "../../hooks/useAssistantName";
 
-const ICONS: Record<ReadinessCheck["status"], string> = { pass: "✓", fail: "✗", unknown: "?", skipped: "–" };
 const STATUS_TEXT: Record<ReadinessCheck["status"], string> = {
   pass: "Passing",
   fail: "Failing",
@@ -48,73 +50,63 @@ export default function ReadinessView({
 
   if (!state || state.status === "loading") {
     return (
-      <div className="studio-placeholder">
-        <div className="studio-spinner" />
-        <div>Checking {title}…</div>
-        <div className="studio-placeholder-sub">Running its readiness checks against your org. Every query is read-only.</div>
-      </div>
+      <StateView
+        kind="loading"
+        title={`Checking ${title}…`}
+        detail="Running its readiness checks against your org. Every query is read-only."
+      />
     );
   }
   if (state.status === "error") {
     return (
-      <div className="studio-placeholder">
-        <div className="studio-placeholder-error">Couldn't check this feature</div>
-        <div className="studio-placeholder-sub">{state.error}</div>
-        <button className="studio-btn" onClick={onRetry}>
-          Try again
-        </button>
-      </div>
+      <StateView
+        kind="error"
+        title="Couldn't check this feature"
+        detail={state.error}
+        actions={
+          <button className="studio-btn" onClick={onRetry}>
+            <RefreshCw aria-hidden="true" /> Try again
+          </button>
+        }
+      />
     );
   }
 
-  const ranPct = summary.ran ? (summary.passed / summary.ran) * 100 : 0;
+  const details = [
+    `${summary.passed} of ${summary.ran} passing`,
+    summary.suggestions.length > 0 && `${summary.suggestions.length} best-practice ${summary.suggestions.length === 1 ? "suggestion" : "suggestions"}`,
+    summary.unknown > 0 && `${summary.unknown} couldn't be checked`,
+    summary.skipped > 0 && `${summary.skipped} skipped`,
+  ].filter(Boolean);
   return (
-    <div className="studio-readiness">
-      <div className={`studio-verdict ${summary.verdict === "ready" ? "ready" : summary.verdict === "unknown" ? "none" : "failing"}`} role="status">
-        <div className="studio-verdict-title">
-          <span className="studio-verdict-icon" aria-hidden="true">
-            {summary.verdict === "ready" ? "✓" : summary.verdict === "unknown" ? "?" : summary.verdict === "issues" ? "!" : "✗"}
-          </span>
-          {verdictText(summary)}
-        </div>
-        {summary.ran > 0 && (
-          <div
-            className="studio-verdict-bar"
-            role="progressbar"
-            aria-label="Checks passing"
-            aria-valuemin={0}
-            aria-valuemax={summary.ran}
-            aria-valuenow={summary.passed}
-          >
-            <span style={{ width: `${ranPct}%` }} />
-          </div>
-        )}
-        <div className="studio-readiness-counts">
-          {summary.passed} of {summary.ran} passing
-          {summary.suggestions.length > 0 && ` · ${summary.suggestions.length} best-practice suggestions`}
-          {summary.unknown > 0 && ` · ${summary.unknown} couldn't be checked`}
-          {summary.skipped > 0 && ` · ${summary.skipped} skipped`}
-          <label className="studio-readiness-toggle">
+    <div className="studio-page ui-enter">
+      <VerdictCard
+        tone={verdictTone(summary.verdict)}
+        title={verdictText(summary)}
+        meta={details.join(" · ")}
+        progress={summary.ran > 0 ? { value: summary.passed, max: summary.ran, label: "Checks passing" } : undefined}
+        aside={
+          <label className="ui-check">
             <input type="checkbox" checked={showPassing} onChange={(e) => setShowPassing(e.target.checked)} />
             Show passing checks
           </label>
-        </div>
-      </div>
+        }
+      />
 
       {groups.map(({ stage, checks: stageChecks }) => {
         const shown = sortForAttention(stageChecks).filter((c) => showPassing || c.status !== "pass");
         const passed = stageChecks.filter((c) => c.status === "pass").length;
         const ran = stageChecks.filter((c) => c.status === "pass" || c.status === "fail").length;
         return (
-          <section key={stage.id} className="studio-readiness-stage">
-            <h3 className="studio-lane-title">
+          <section key={stage.id}>
+            <h3 className="ui-section-title">
               {stage.title}
-              <span className="studio-readiness-stage-count">
-                {ran ? `${passed} of ${ran} passing` : "Not checked"}
-              </span>
+              <span className="count">{ran ? `${passed} of ${ran} passing` : "Not checked"}</span>
             </h3>
             {shown.length === 0 ? (
-              <div className="studio-readiness-allgood">✓ All {passed} passing</div>
+              <div className="studio-readiness-allgood">
+                <StatusIcon tone="pass" size={16} /> All {passed} passing
+              </div>
             ) : (
               <ul className="studio-checklist-rows">
                 {shown.map((check) => (
@@ -137,6 +129,50 @@ export default function ReadinessView({
   );
 }
 
+interface VerdictCardProps {
+  tone: StatusTone;
+  title: React.ReactNode;
+  /** One line under the title. */
+  meta?: React.ReactNode;
+  /** A bar under the text, coloured by the verdict's tone. */
+  progress?: { value: number; max: number; label: string; /** Accent-coloured, for progress that isn't a pass rate. */ neutral?: boolean };
+  /** Right-aligned control beside the meta line. */
+  aside?: React.ReactNode;
+  /** Buttons or links under the bar. */
+  children?: React.ReactNode;
+}
+
+/** The verdict at the top of a readiness-style page: a neutral card, a status icon and bar in the verdict's tone. */
+export function VerdictCard({ tone, title, meta, progress, aside, children }: VerdictCardProps) {
+  return (
+    <div className={`studio-verdict ${tone}`} role="status">
+      <StatusIcon tone={tone} size={32} />
+      <div className="studio-verdict-body">
+        <div className="studio-verdict-title">{title}</div>
+        {progress && (
+          <div
+            className={`studio-verdict-bar${progress.neutral ? " neutral" : ""}`}
+            role="progressbar"
+            aria-label={progress.label}
+            aria-valuemin={0}
+            aria-valuemax={progress.max}
+            aria-valuenow={progress.value}
+          >
+            <span style={{ width: `${progress.max ? (progress.value / progress.max) * 100 : 0}%` }} />
+          </div>
+        )}
+        {(meta || aside) && (
+          <div className="studio-verdict-meta">
+            {meta && <span>{meta}</span>}
+            {aside}
+          </div>
+        )}
+        {children}
+      </div>
+    </div>
+  );
+}
+
 interface CheckRowProps {
   check: ReadinessCheck;
   expanded: boolean;
@@ -147,13 +183,11 @@ interface CheckRowProps {
 }
 
 export function CheckRow({ check, expanded, onToggle, onShowSurface, onAsk, fixProps }: CheckRowProps) {
-  const tone = check.status === "fail" ? check.severity : check.status;
+  const tone: StatusTone = check.status === "fail" ? check.severity : check.status;
   return (
     <li className={`studio-rcheck ${tone}`}>
       <button type="button" className="studio-check-main" aria-expanded={expanded} onClick={onToggle}>
-        <span className="studio-check-icon" aria-hidden="true">
-          {ICONS[check.status]}
-        </span>
+        <StatusIcon tone={tone} size={20} />
         <span className="studio-check-text">
           <span className="studio-check-label">
             {check.title}
@@ -162,10 +196,11 @@ export function CheckRow({ check, expanded, onToggle, onShowSurface, onAsk, fixP
           {check.detail && <span className="studio-check-detail">{check.detail}</span>}
         </span>
         {check.status === "fail" && (
-          <span className={`studio-rcheck-sev ${check.severity}`}>
+          <span className={`ui-pill ${check.severity}`}>
             {check.severity === "error" ? "Blocking" : check.severity === "warning" ? "Fix" : "Suggestion"}
           </span>
         )}
+        <ChevronRight className="studio-check-chevron" size={14} aria-hidden="true" />
       </button>
       {check.status === "fail" && check.fixes && check.fixes.length > 0 && <FixButtons fixes={check.fixes} {...fixProps} />}
       {expanded && (
@@ -191,12 +226,12 @@ export function CheckRow({ check, expanded, onToggle, onShowSurface, onAsk, fixP
           <div className="studio-rcheck-actions">
             {check.surface && (
               <button type="button" className="studio-link-btn" onClick={() => onShowSurface(check.surface!)}>
-                Show on board
+                <ExternalLink size={12} aria-hidden="true" /> Show on board
               </button>
             )}
             {check.status !== "pass" && check.status !== "skipped" && (
               <button type="button" className="studio-link-btn" onClick={onAsk}>
-                Ask <AssistantName /> how to fix
+                <Sparkles size={12} aria-hidden="true" /> Ask <AssistantName /> how to fix
               </button>
             )}
             <span className="studio-rcheck-id">

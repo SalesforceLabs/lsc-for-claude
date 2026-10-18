@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import PerfView from "./PerfView";
 import SimulateView from "./SimulateView";
+import Segmented from "../ui/Segmented";
 
 export interface SignoffViewProps {
   onAskClaude: (prompt: string) => void;
@@ -17,22 +18,19 @@ export default function SignoffView({ onAskClaude, seed }: SignoffViewProps) {
   }, [seed?.key]);
   return (
     <>
-      <div className="studio-ipad-mode" role="tablist" aria-label="Sign-off">
-        <button type="button" role="tab" className={`studio-btn${mode === "plan" ? " active" : ""}`} aria-selected={mode === "plan"} onClick={() => setMode("plan")}>
-          Test plans
-        </button>
-        <button
-          type="button"
-          role="tab"
-          className={`studio-btn${mode === "firstSync" ? " active" : ""}`}
-          aria-selected={mode === "firstSync"}
-          onClick={() => {
-            setMode("firstSync");
-            setSimOpened(true);
+      <div className="studio-signoff-bar">
+        <Segmented
+          aria-label="Sign-off"
+          value={mode}
+          onChange={(next) => {
+            setMode(next);
+            if (next === "firstSync") setSimOpened(true);
           }}
-        >
-          First sync
-        </button>
+          options={[
+            { value: "plan", label: "Test plans" },
+            { value: "firstSync", label: "First sync" },
+          ]}
+        />
       </div>
       <div className="studio-perf-hint studio-signoff-intro">
         {mode === "plan"

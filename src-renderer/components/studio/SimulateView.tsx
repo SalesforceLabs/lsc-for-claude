@@ -28,6 +28,11 @@ import {
   type SimulationResult,
 } from "./sim-types";
 import { formatNumber, planFileName } from "./perf-plan";
+import { Download, FileText, LogIn, Play, RefreshCw, Terminal, X } from "lucide-react";
+import StatusIcon from "../ui/StatusIcon";
+import Segmented from "../ui/Segmented";
+import Spinner from "../ui/Spinner";
+import { Bar, Callout, Disclosure, Metric } from "./PerfParts";
 import "./perf-editor.css";
 
 /** The simulation in flight, kept so polling resumes if the view is left and reopened. */
@@ -62,13 +67,7 @@ function wholeNumber(text: string): number | undefined {
 }
 
 function Stat({ label, value, detail }: { label: string; value: string; detail?: string }) {
-  return (
-    <div className="studio-perf-card studio-sim-stat">
-      <span className="studio-perf-field-label">{label}</span>
-      <span className="studio-sim-stat-value">{value}</span>
-      {detail && <span className="studio-perf-hint">{detail}</span>}
-    </div>
-  );
+  return <Metric label={label} value={value} hint={detail} />;
 }
 
 function ContentSection({ content }: { content: SimContent }) {
@@ -80,9 +79,9 @@ function ContentSection({ content }: { content: SimContent }) {
     <section className="studio-perf-section">
       <div className="studio-perf-section-header">
         <h2 className="studio-perf-section-title">Content downloads</h2>
-        <span className="studio-picker-meta">outside the sync window · not in the totals above</span>
+        <span className="studio-perf-meta">outside the sync window · not in the totals above</span>
       </div>
-      <table className="studio-change-table studio-perf-table">
+      <table className="studio-perf-table">
         <thead>
           <tr>
             <th>Kind</th>
@@ -163,25 +162,30 @@ function SimResult({ result, status, onExport, onExportReport }: {
   const range = (s: { min: number; max: number }) => `${formatSeconds(s.min)} – ${formatSeconds(s.max)}`;
   return (
     <div className="studio-perf-report">
-      <div className={`studio-finding ${partial ? "warning" : "info"} studio-perf-banner`}>
-        <div>
-          <div className="studio-finding-title">
-            {result.user.username}
-            {result.user.profile ? ` · ${result.user.profile}` : ""}
-            {result.user.territory ? ` · ${result.user.territory}` : ""}
-          </div>
-          <div className="studio-finding-detail">
-            {host(result.org.instanceUrl)} · {result.flow} flow · API {result.org.apiVersion}
-            {result.network ? ` · network ${describeNetwork(result.network)}` : ""} ·{" "}
-            {new Date(result.startedAt).toLocaleString()}
-            {status === "cancelled" ? " · cancelled, so this covers what was downloaded before it stopped" : ""}
+      <div className="studio-perf-summary">
+        <div className="studio-perf-summary-main">
+          <StatusIcon tone={partial ? "warning" : "info"} size={32} />
+          <div>
+            <div className="studio-perf-summary-title">
+              {result.user.username}
+              {result.user.profile ? ` · ${result.user.profile}` : ""}
+              {result.user.territory ? ` · ${result.user.territory}` : ""}
+            </div>
+            <div className="studio-perf-summary-detail">
+              {host(result.org.instanceUrl)} · {result.flow} flow · API {result.org.apiVersion}
+              {result.network ? ` · network ${describeNetwork(result.network)}` : ""} ·{" "}
+              {new Date(result.startedAt).toLocaleString()}
+              {status === "cancelled" ? " · cancelled, so this covers what was downloaded before it stopped" : ""}
+            </div>
           </div>
         </div>
-        <div className="studio-header-actions">
-          <button className="studio-btn" onClick={onExportReport} title="Save a Markdown report to share">
+        <div className="studio-perf-summary-actions">
+          <button type="button" className="studio-btn" onClick={onExportReport} title="Save a Markdown report to share">
+            <FileText size={14} aria-hidden="true" />
             Export report
           </button>
-          <button className="studio-btn" onClick={onExport}>
+          <button type="button" className="studio-btn" onClick={onExport}>
+            <Download size={14} aria-hidden="true" />
             Export JSON
           </button>
         </div>
@@ -214,12 +218,12 @@ function SimResult({ result, status, onExport, onExportReport }: {
         <section className="studio-perf-section">
           <div className="studio-perf-section-header">
             <h2 className="studio-perf-section-title">Runs</h2>
-            <span className="studio-picker-meta">
+            <span className="studio-perf-meta">
               {runs.count}
               {runs.requested > runs.count ? ` of ${runs.requested}` : ""} back to back
             </span>
           </div>
-          <table className="studio-change-table studio-perf-table">
+          <table className="studio-perf-table">
             <thead>
               <tr>
                 <th>Run</th>
@@ -245,9 +249,9 @@ function SimResult({ result, status, onExport, onExportReport }: {
       <section className="studio-perf-section">
         <div className="studio-perf-section-header">
           <h2 className="studio-perf-section-title">Tables</h2>
-          <span className="studio-picker-meta">{runs ? "slowest first · median seconds across runs" : "slowest first"}</span>
+          <span className="studio-perf-meta">{runs ? "slowest first · median seconds across runs" : "slowest first"}</span>
         </div>
-        <table className="studio-change-table studio-perf-table">
+        <table className="studio-perf-table">
           <thead>
             <tr>
               <th>Object</th>
@@ -274,16 +278,16 @@ function SimResult({ result, status, onExport, onExportReport }: {
               <tr key={x.developerName || x.sobject} className={`studio-perf-flagged ${x.error ? "error" : "not-estimated"}`}>
                 <td>{x.sobject}</td>
                 <td colSpan={4}>
-                  <span className={`studio-chip ${x.error ? "error" : "muted"}`}>{x.error ? "Failed" : "Skipped"}</span> {x.error ?? x.skipped}
+                  <span className={`ui-pill${x.error ? " error" : ""}`}>{x.error ? "Failed" : "Skipped"}</span> {x.error ?? x.skipped}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
         {downloaded.length > TOP_TABLES && (
-          <button className="studio-perf-disclosure" onClick={() => setAll(!all)}>
+          <Disclosure open={all} onToggle={() => setAll(!all)}>
             {all ? "Show fewer" : `Show all ${downloaded.length} tables`}
-          </button>
+          </Disclosure>
         )}
       </section>
 
@@ -291,7 +295,7 @@ function SimResult({ result, status, onExport, onExportReport }: {
         <section className="studio-perf-section">
           <div className="studio-perf-section-header">
             <h2 className="studio-perf-section-title">Delta sync (last synced {delta.sinceHours} h ago)</h2>
-            <span className="studio-picker-meta">{runs ? "slowest first · median seconds across runs" : "slowest first"}</span>
+            <span className="studio-perf-meta">{runs ? "slowest first · median seconds across runs" : "slowest first"}</span>
           </div>
           <div className="studio-sim-stats">
             <Stat
@@ -315,7 +319,7 @@ function SimResult({ result, status, onExport, onExportReport }: {
               detail={`${formatNumber(delta.totals.toDelete)} to delete (informational)`}
             />
           </div>
-          <table className="studio-change-table studio-perf-table">
+          <table className="studio-perf-table">
             <thead>
               <tr>
                 <th>Object</th>
@@ -351,25 +355,25 @@ function SimResult({ result, status, onExport, onExportReport }: {
                 <tr key={x.developerName || x.sobject} className="studio-perf-flagged not-estimated">
                   <td>{x.sobject}</td>
                   <td colSpan={8}>
-                    <span className="studio-chip muted">Skipped</span> {x.skipped}
+                    <span className="ui-pill">Skipped</span> {x.skipped}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
           {deltaTables.length - deltaSkipped.length > TOP_TABLES && (
-            <button className="studio-perf-disclosure" onClick={() => setAllDelta(!allDelta)}>
+            <Disclosure open={allDelta} onToggle={() => setAllDelta(!allDelta)}>
               {allDelta ? "Show fewer" : `Show all ${deltaTables.length - deltaSkipped.length} tables`}
-            </button>
+            </Disclosure>
           )}
         </section>
       )}
       {result.content && <ContentSection content={result.content} />}
 
       <section className="studio-perf-section">
-        <button className="studio-perf-disclosure" onClick={() => setDetails(!details)} aria-expanded={details}>
-          {details ? "▾" : "▸"} Details
-        </button>
+        <Disclosure open={details} onToggle={() => setDetails(!details)}>
+          Details
+        </Disclosure>
         {details && (
           <>
             <div className="studio-perf-hint">Engineering notes and terms behind these numbers.</div>
@@ -411,7 +415,7 @@ function LoginPanel({
   const validAlias = alias.trim() === "" || /^[A-Za-z0-9._-]+$/.test(alias.trim());
   return (
     <div className="studio-perf-card">
-      <div className="studio-finding-title">{mobile ? "Log in as a mobile user" : "Add an sf CLI connection"}</div>
+      <h3 className="studio-perf-section-title">{mobile ? "Log in as a mobile user" : "Add an sf CLI connection"}</h3>
       {mobile ? (
         <div className="studio-perf-hint">
           A Salesforce login window opens. Sign in with the user's username and password — the login goes through the LSC
@@ -453,12 +457,13 @@ function LoginPanel({
           </label>
         )}
       </div>
-      {!validAlias && <div className="studio-perf-hint studio-perf-warn-text">An alias can use letters, numbers, dots, dashes and underscores.</div>}
-      <div className="studio-header-actions">
-        <button className="studio-btn primary" disabled={!validUrl || !validAlias} onClick={() => onStart(alias.trim(), url)}>
+      {!validAlias && <div className="studio-perf-hint studio-perf-warn-text" role="alert">An alias can use letters, numbers, dots, dashes and underscores.</div>}
+      <div className="studio-perf-summary-actions">
+        <button type="button" className="studio-btn primary" disabled={!validUrl || !validAlias} onClick={() => onStart(alias.trim(), url)}>
+          <LogIn size={14} aria-hidden="true" />
           {mobile ? "Open login window" : "Open browser to sign in"}
         </button>
-        <button className="studio-btn" onClick={onClose}>
+        <button type="button" className="studio-btn" onClick={onClose}>
           Cancel
         </button>
       </div>
@@ -814,7 +819,7 @@ export default function SimulateView() {
           <div className="studio-perf-run-item active" title={job?.step ?? "Starting"}>
             <span className="studio-perf-run-open studio-perf-run-live">
               <span className="studio-perf-run-line">
-                {!lost && <span className="studio-spinner studio-perf-run-spinner" />}
+                {!lost && <Spinner size={12} />}
                 <span>
                   {lost ? "Lost contact" : "Running"} · {job ? elapsed(job.startedAt) : "starting"}
                 </span>
@@ -829,7 +834,7 @@ export default function SimulateView() {
           return (
             <div key={s.id} className={`studio-perf-run-item${view?.id === s.id ? " active" : ""}`}>
               <button className="studio-perf-run-open" onClick={() => openSim(s.id)}>
-                <span className={`studio-sev-dot studio-perf-dot ${s.status === "cancelled" || summary?.failed ? "warn" : "pass"}`} />
+                <span className={`studio-perf-dot ${s.status === "cancelled" || summary?.failed ? "warn" : "pass"}`} />
                 <span className="studio-perf-run-text">
                   <span>{summary?.username ?? s.connection}</span>
                   <span className="studio-perf-run-meta" title={s.org}>
@@ -838,8 +843,8 @@ export default function SimulateView() {
                   </span>
                 </span>
               </button>
-              <button className="studio-chip-x" title="Delete simulation" aria-label="Delete simulation" onClick={() => removeSim(s.id)}>
-                ×
+              <button type="button" className="ui-icon-btn sm" title="Delete simulation" aria-label="Delete simulation" onClick={() => removeSim(s.id)}>
+                <X size={14} aria-hidden="true" />
               </button>
             </div>
           );
@@ -848,40 +853,51 @@ export default function SimulateView() {
 
       <div className="studio-perf-main">
         <div className="studio-perf-toolbar">
-          <div className="studio-ipad-mode" role="tablist">
-            <button role="tab" className={`studio-btn${tab === "setup" ? " active" : ""}`} aria-selected={tab === "setup"} onClick={() => setTab("setup")}>
-              Setup
-            </button>
+          <Segmented
+            aria-label="Simulation"
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: "setup", label: "Setup" },
+              { value: "result", label: "Result", disabled: !view },
+            ]}
+          />
+          <div className="studio-perf-toolbar-actions">
             <button
-              role="tab"
-              className={`studio-btn${tab === "result" ? " active" : ""}`}
-              aria-selected={tab === "result"}
-              disabled={!view}
-              onClick={() => setTab("result")}
-            >
-              Result
-            </button>
-          </div>
-          <div className="studio-header-actions">
-            <button
+              type="button"
               className="studio-btn primary"
               onClick={run}
               disabled={running || !connection}
               title={connection ? `Simulate a first sync as ${connection}` : "Choose a connection first"}
             >
+              <Play size={14} aria-hidden="true" />
               Run simulation
             </button>
           </div>
         </div>
 
         {running && (
-          <div className={`studio-finding ${lost ? "warning" : "info"} studio-perf-progress`}>
-            {!lost && <div className="studio-spinner" />}
-            <div className="studio-perf-progress-text">
-              <div className="studio-finding-title">
-                {lost ? "Lost contact with the simulation" : `Simulating a first sync as ${job?.connection ?? connection}`}
-              </div>
-              <div className="studio-finding-detail">
+          <div className="studio-perf-body-pad">
+            <Callout
+              tone={lost ? "warning" : "info"}
+              busy={!lost}
+              className="studio-perf-progress"
+              role="status"
+              title={lost ? "Lost contact with the simulation" : `Simulating a first sync as ${job?.connection ?? connection}`}
+              actions={
+                <>
+                  {lost && (
+                    <button type="button" className="studio-btn" onClick={() => setLost(false)}>
+                      Reconnect
+                    </button>
+                  )}
+                  <button type="button" className="studio-btn" onClick={cancel} disabled={!jobId || job?.step === "Cancelling…"}>
+                    Cancel
+                  </button>
+                </>
+              }
+            >
+              <div className="studio-perf-hint studio-perf-callout-detail">
                 {lost
                   ? `Studio couldn't reach the simulation for a while. It may still be going.${pollError ? ` Last error: ${pollError}` : ""}`
                   : job
@@ -889,27 +905,21 @@ export default function SimulateView() {
                     : "Connecting…"}
               </div>
               {!lost && progress && (
-                <div className="studio-finding-detail">
+                <div className="studio-perf-hint ui-num">
                   {progress.done} of {progress.total} tables · {formatNumber(progress.records)} records
                 </div>
               )}
-              {!lost && pct !== null && (
-                <div className="studio-perf-bar" role="progressbar" aria-valuenow={progress?.done} aria-valuemin={0} aria-valuemax={progress?.total} aria-label="Tables downloaded">
-                  <div className="studio-perf-bar-fill" style={{ width: `${pct}%` }} />
-                </div>
-              )}
-            </div>
-            {lost && (
-              <button className="studio-btn" onClick={() => setLost(false)}>
-                Reconnect
-              </button>
-            )}
-            <button className="studio-btn" onClick={cancel} disabled={!jobId || job?.step === "Cancelling…"}>
-              Cancel
-            </button>
+              {!lost && pct !== null && progress && <Bar value={progress.done} max={progress.total} label="Tables downloaded" />}
+            </Callout>
           </div>
         )}
-        {notice && <div className={`studio-finding ${notice.kind === "error" ? "error" : "info"} studio-perf-notice`}>{notice.text}</div>}
+        {notice && (
+          <div className="studio-perf-body-pad">
+            <Callout tone={notice.kind === "error" ? "error" : "info"} className="studio-perf-notice" role={notice.kind === "error" ? "alert" : "status"}>
+              {notice.text}
+            </Callout>
+          </div>
+        )}
 
         <div className="studio-perf-body">
           {tab === "result" && view?.result ? (
@@ -925,20 +935,19 @@ export default function SimulateView() {
                   It only reads from the org, and it measures network time only: a device also spends time saving the data.
                 </div>
                 {keyMissing && (
-                  <div className="studio-finding info studio-perf-notice">
-                    <div className="studio-finding-title">Mobile login needs the LSC mobile app consumer key</div>
-                    <div className="studio-finding-detail">
+                  <Callout tone="info" title="Mobile login needs the LSC mobile app consumer key">
+                    <div className="studio-perf-hint">
                       Salesforce answers the mobile sync requests only for logins made through the LSC mobile app, and sf CLI logins
                       get a 404 from them. Add the app's consumer key in Settings (LSC mobile app consumer key, the
                       remoteAccessConsumerKey in the iOS app's bootconfig.plist), then log in as the rep here. If you set
                       LSC_MOBILE_CLIENT_ID instead, you can ignore this and try the login.
                     </div>
-                    <div className="studio-finding-detail">
+                    <div className="studio-perf-hint">
                       Without a key you can still use an sf CLI connection. It works only if the org lets that login reach the mobile
                       sync endpoints, which it usually doesn't. If the run fails with a 404, that is the reason, not a problem with
                       the rep's setup.
                     </div>
-                  </div>
+                  </Callout>
                 )}
                 <div className="studio-perf-row">
                   <select
@@ -968,17 +977,21 @@ export default function SimulateView() {
                       </optgroup>
                     )}
                   </select>
-                  <button className="studio-btn" onClick={loadConnections} disabled={running} title="Re-read the sf CLI's connections">
+                  <button type="button" className="studio-btn" onClick={loadConnections} disabled={running} title="Re-read the sf CLI's connections">
+                    <RefreshCw size={14} aria-hidden="true" />
                     Refresh
                   </button>
                   <button
+                    type="button"
                     className="studio-btn primary"
                     onClick={() => setLoginOpen("mobile")}
                     disabled={running || mobileLoggingIn || !!loginOpen}
                   >
+                    {mobileLoggingIn ? <Spinner size={14} /> : <LogIn size={14} aria-hidden="true" />}
                     {mobileLoggingIn ? "Logging in…" : "Log in as mobile user…"}
                   </button>
-                  <button className="studio-btn" onClick={() => setLoginOpen("cli")} disabled={running || !!waitingLogin || !!loginOpen}>
+                  <button type="button" className="studio-btn" onClick={() => setLoginOpen("cli")} disabled={running || !!waitingLogin || !!loginOpen}>
+                    <Terminal size={14} aria-hidden="true" />
                     Add sf CLI connection…
                   </button>
                 </div>
@@ -993,16 +1006,19 @@ export default function SimulateView() {
                   />
                 )}
                 {waitingLogin && (
-                  <div className="studio-finding info studio-perf-progress">
-                    <div className="studio-spinner" />
-                    <div className="studio-perf-progress-text">
-                      <div className="studio-finding-title">Waiting for you to sign in</div>
-                      <div className="studio-finding-detail">Finish signing in in your browser. The new connection is picked here when it appears.</div>
-                    </div>
-                    <button className="studio-btn" onClick={() => setWaitingLogin(null)}>
-                      Stop waiting
-                    </button>
-                  </div>
+                  <Callout
+                    tone="info"
+                    busy
+                    role="status"
+                    title="Waiting for you to sign in"
+                    actions={
+                      <button type="button" className="studio-btn" onClick={() => setWaitingLogin(null)}>
+                        Stop waiting
+                      </button>
+                    }
+                  >
+                    <div className="studio-perf-hint">Finish signing in in your browser. The new connection is picked here when it appears.</div>
+                  </Callout>
                 )}
               </section>
 
@@ -1034,9 +1050,9 @@ export default function SimulateView() {
                     />
                   </label>
                 </div>
-                <button className="studio-perf-disclosure" onClick={() => setAdvanced(!advanced)}>
-                  {advanced ? "▾" : "▸"} Advanced
-                </button>
+                <Disclosure open={advanced} onToggle={() => setAdvanced(!advanced)}>
+                  Advanced
+                </Disclosure>
                 {advanced && (
                   <>
                     <div className="studio-perf-hint">Engineering options. The defaults suit most sign-off checks.</div>
@@ -1099,7 +1115,6 @@ export default function SimulateView() {
                           <option value="legacy">Legacy (REST query)</option>
                         </select>
                       </label>
-                      <span />
                       <label className="studio-perf-field">
                         <span className="studio-perf-field-label">Stop each table after (records)</span>
                         <input
@@ -1162,16 +1177,17 @@ export default function SimulateView() {
                       />
                     </label>
                     <div className="studio-perf-grid">
-                      <label className="studio-perf-field">
+                      <div className="studio-perf-field" role="group" aria-label="Content downloads (after the sync)">
                         <span className="studio-perf-field-label">Content downloads (after the sync)</span>
-                        <span>
-                          <input type="checkbox" checked={contentAttachments} disabled={running} onChange={(e) => setContentAttachments(e.target.checked)} /> Attachments
-                        </span>
-                        <span>
-                          <input type="checkbox" checked={contentClm} disabled={running} onChange={(e) => setContentClm(e.target.checked)} /> CLM presentations
-                        </span>
-                      </label>
-                      <span />
+                        <label className="ui-check">
+                          <input type="checkbox" checked={contentAttachments} disabled={running} onChange={(e) => setContentAttachments(e.target.checked)} />
+                          Attachments
+                        </label>
+                        <label className="ui-check">
+                          <input type="checkbox" checked={contentClm} disabled={running} onChange={(e) => setContentClm(e.target.checked)} />
+                          CLM presentations
+                        </label>
+                      </div>
                       <label className="studio-perf-field">
                         <span className="studio-perf-field-label">Content: most files per kind</span>
                         <input

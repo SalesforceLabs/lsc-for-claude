@@ -357,6 +357,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
     // Accumulate assistant content for server-side persistence.
     let accumulatedText = "";
+    // Text that resumes after a tool call is a new paragraph; without a break the saved message runs rounds together.
+    let toolSinceText = false;
     const accumulatedTools: Array<{ id: string; name: string; result?: string; isError?: boolean; status: string }> = [];
 
     // ALL events are always sent — tagged with convId so the renderer decides what to display.
@@ -364,10 +366,15 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const runPromise = engine.sendMessage(message as any, {
       onTextDelta: (text) => {
+        if (toolSinceText && accumulatedText && !accumulatedText.endsWith("\n\n")) {
+          accumulatedText = accumulatedText.replace(/\n?$/, "\n\n");
+        }
+        toolSinceText = false;
         accumulatedText += text;
         mainWindow.webContents.send("chat:text-delta", { text, nonce, convId });
       },
       onToolStart: (id, name) => {
+        toolSinceText = true;
         accumulatedTools.push({ id, name, status: "running" });
         mainWindow.webContents.send("chat:tool-start", { id, name, nonce, convId });
       },

@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { ArrowRight, X } from "lucide-react";
 import type { FixPreview, FixResult } from "./types";
 import { isMobileChange, publishProfiles, type PendingChange } from "./changes";
 import { touchesDbSchema } from "./sync-impact-util";
+import StateView from "../ui/StateView";
+import Spinner from "../ui/Spinner";
 import "./sync-impact.css";
 
 interface ReviewDialogProps {
@@ -109,6 +112,14 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
     else setChanges(next);
   };
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   const previews = phase.step === "previewing" ? [] : phase.previews;
   const outcomes = phase.step === "applying" || phase.step === "done" ? phase.outcomes : [];
   const applicable = previews.filter(ready).length;
@@ -121,8 +132,8 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
           <span className="studio-inspector-eyebrow">
             {phase.step === "done" ? "Results" : "Review changes"} · {org}
           </span>
-          <button className="studio-icon-btn" onClick={close} disabled={busy} title="Close">
-            ×
+          <button className="ui-icon-btn" onClick={close} disabled={busy} title="Close" aria-label="Close">
+            <X size={16} aria-hidden />
           </button>
         </div>
         <h2 className="studio-inspector-title">
@@ -131,7 +142,7 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
             : `${changes.length} pending ${changes.length === 1 ? "change" : "changes"}`}
         </h2>
 
-        {phase.step === "previewing" && <div className="studio-empty-note">Checking the org…</div>}
+        {phase.step === "previewing" && <StateView kind="loading" title="Checking the org…" layout="inline" className="studio-modal-state" />}
 
         {phase.step !== "previewing" && (
           <ol className="studio-review-list">
@@ -252,7 +263,7 @@ function SyncImpact({ changes, excluded }: { changes: PendingChange[]; excluded:
     <div className="studio-sync-impact">
       <div className="studio-sync-impact-header">
         <span className="studio-finding-title">Sync impact</span>
-        {state.step === "running" && <div className="studio-spinner" />}
+        {state.step === "running" && <Spinner size={14} />}
         <button className="studio-btn" onClick={run} disabled={state.step === "running"}>
           {state.step === "done" ? "Re-estimate" : "Estimate sync impact"}
         </button>
@@ -279,7 +290,7 @@ function SyncImpact({ changes, excluded }: { changes: PendingChange[]; excluded:
                       {p.territoryNote ? `: ${p.territoryNote}` : ""})
                     </span>
                     <span>
-                      {fmt(p.totalBefore)} → {fmt(p.totalAfter)} records
+                      {fmt(p.totalBefore)} <ArrowRight size={12} aria-hidden className="studio-sync-impact-arrow" /> {fmt(p.totalAfter)} records
                     </span>
                     {p.pct !== null && p.pct !== 0 && (
                       <span className={`studio-sync-impact-pct ${p.pct > WARN_INCREASE_PCT ? "warn" : p.pct < 0 ? "good" : ""}`}>

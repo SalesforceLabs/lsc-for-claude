@@ -1,22 +1,7 @@
 /* Setup Overview — org verdict, org-wide checks, and a card per feature. Builds on readiness.css. */
 
-.studio-ovw {
-  max-width: 1080px;
-}
-
-.studio-ovw-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.studio-ovw-actions .studio-readiness-counts {
-  margin-right: auto;
-}
-
 .studio-ovw-notice {
-  font-size: 12px;
+  font-size: var(--font-sm);
   color: var(--text-secondary);
 }
 
@@ -24,50 +9,97 @@
   color: var(--error);
 }
 
+/* Do this first — a numbered list of rows */
 .studio-ovw-steps {
+  list-style: none;
+  counter-reset: step;
   margin: 0;
-  padding-left: 22px;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 13px;
+  gap: 2px;
 }
 
-.studio-ovw-steps .studio-link-btn {
-  font-size: 13px;
+.studio-ovw-steps li {
+  counter-increment: step;
+}
+
+.studio-ovw-steps button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
   text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.studio-ovw-steps button::before {
+  content: counter(step);
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--fill-control);
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.studio-ovw-steps button:hover {
+  background: var(--fill-hover);
+}
+
+.studio-ovw-step-title {
+  font-size: var(--font-base);
+  font-weight: 500;
+  color: var(--text-primary);
 }
 
 .studio-ovw-step-where {
-  margin-left: 8px;
-  font-size: 12px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-sm);
   color: var(--text-muted);
 }
 
 .studio-ovw-publish {
   list-style: none;
-  padding: 0 0 4px 14px;
+  padding: var(--space-1) 0 var(--space-1) 46px;
 }
 
+/* Feature cards — equal heights, footers pinned to the bottom */
 .studio-ovw-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-3);
 }
 
 .studio-ovw-card {
-  --card-color: var(--text-muted);
-  font: inherit;
-  text-align: left;
-  color: var(--text-primary);
+  min-height: 108px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  border-radius: var(--radius-sm);
+  gap: 10px;
+  padding: 14px var(--space-4);
+  border-radius: var(--radius);
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--card-color);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
 }
 
 button.studio-ovw-card {
@@ -75,46 +107,32 @@ button.studio-ovw-card {
   transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 
-button.studio-ovw-card:hover,
-button.studio-ovw-card:focus-visible {
+button.studio-ovw-card:hover {
   background: var(--bg-elevated);
-  border-color: color-mix(in srgb, var(--card-color) 50%, transparent);
-}
-
-.studio-ovw-card.ready { --card-color: var(--success); }
-.studio-ovw-card.issues { --card-color: var(--warning); }
-.studio-ovw-card.blocked { --card-color: var(--error); }
-
-.studio-ovw-card.loading {
-  opacity: 0.7;
+  border-color: var(--border-strong);
 }
 
 .studio-ovw-card-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  font-size: 13px;
+  gap: var(--space-2);
+  min-height: 20px;
+  font-size: var(--font-base);
   font-weight: 600;
-}
-
-.studio-ovw-badge {
-  flex-shrink: 0;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 999px;
-  color: var(--card-color);
-  background: color-mix(in srgb, var(--card-color) 14%, transparent);
 }
 
 .studio-ovw-card-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 10px;
-  font-size: 12px;
+  gap: 2px 10px;
+  font-size: var(--font-sm);
   color: var(--text-secondary);
+}
+
+.studio-ovw-card-foot {
+  margin-top: auto;
 }
 
 .studio-ovw-card-meta .blocking { color: var(--error); font-weight: 600; }
@@ -123,19 +141,13 @@ button.studio-ovw-card:focus-visible {
 .studio-ovw-card-fails {
   margin: 0;
   padding-left: 16px;
-  font-size: 12px;
+  font-size: var(--font-sm);
   color: var(--text-secondary);
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 .studio-ovw-card-fails .more {
   list-style: none;
   margin-left: -16px;
   color: var(--text-muted);
-}
-
-.studio-spinner.small {
-  width: 12px;
-  height: 12px;
-  border-width: 2px;
 }

@@ -1,73 +1,28 @@
-/* Plan editor: persona "who to test" choice and the territory picker. */
-.studio-perf-mode {
-  align-self: flex-start;
-  margin-bottom: 6px;
-}
-.studio-perf-select-row {
-  align-items: flex-end;
-}
-.studio-perf-select-row select.studio-filter {
-  flex: 1;
-  max-width: none;
-}
-.studio-perf-count {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex-shrink: 0;
-}
+/* Plan editor: persona cards, the territory picker and the YAML view. */
 .studio-perf-check-label {
-  display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 2px 0 6px;
-  font-size: 12px;
 }
-.studio-perf-warn-text {
-  color: var(--warning);
-}
-
-/* Plan sections: Personas / Targets / YAML tabs. */
 .studio-perf-plan-tabs {
   align-self: flex-start;
-  margin: 4px 0 12px;
-}
-.studio-perf-tab-issues {
-  display: inline-block;
-  min-width: 16px;
-  margin-left: 6px;
-  padding: 0 5px;
-  border-radius: 8px;
-  background: var(--error);
-  color: #fff;
-  font-size: 10px;
-  line-height: 16px;
-  text-align: center;
 }
 .studio-perf-yaml-text {
-  margin: 8px 0 0;
-  padding: 12px;
+  margin: 0;
+  padding: 12px 14px;
   max-width: 980px;
   background: var(--bg-tertiary);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow-x: auto;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+  line-height: 1.55;
   color: var(--text-primary);
 }
-
-/* First-sync simulation result */
-.studio-sim-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
+.studio-perf-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-.studio-sim-stat {
-  gap: 4px;
-}
-.studio-sim-stat-value {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
+.studio-perf-threshold-input {
+  max-width: 96px;
 }

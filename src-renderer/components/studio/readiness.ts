@@ -1,4 +1,5 @@
 import type { FeatureReadiness, ReadinessCheck, ReadinessStage } from "./types";
+import type { StatusTone } from "../ui/StatusIcon";
 
 /**
  * Readiness verdicts — pure helpers behind the Readiness view, the Setup
@@ -59,6 +60,11 @@ export function summarize(checks: ReadinessCheck[]): ReadinessSummary {
     unknown: unknown.length,
     skipped: checks.filter((c) => c.status === "skipped").length,
   };
+}
+
+/** The tone a verdict is shown in: ready passes, works-with-issues warns, blocked fails, unverified is neutral. */
+export function verdictTone(v: Verdict): StatusTone {
+  return { ready: "pass", issues: "warning", blocked: "error", unknown: "unknown" }[v] as StatusTone;
 }
 
 export function verdictText(s: ReadinessSummary): string {

@@ -15,6 +15,10 @@ import {
   validatePlan,
 } from "./perf-plan";
 import { asRunSummary, runSummary, trendRows } from "./perf-history";
+import { Download, LogIn, Play, Plus, Trash2, Upload, X } from "lucide-react";
+import Segmented from "../ui/Segmented";
+import Spinner from "../ui/Spinner";
+import { Callout } from "./PerfParts";
 import PlanEditor from "./PlanEditor";
 import RunReport from "./RunReport";
 import { useRunSims } from "./useRunSims";
@@ -588,13 +592,14 @@ export default function PerfView({ onAskClaude, seed }: PerfViewProps) {
         <div className="studio-perf-sidebar-header">
           <div className="studio-rail-title">Test plans</div>
           <button
-            className="studio-icon-btn"
+            type="button"
+            className="ui-icon-btn"
             title="New plan"
             aria-label="New plan"
             disabled={running}
             onClick={() => confirmLeave() && openDraft(emptyPlan())}
           >
-            +
+            <Plus size={16} aria-hidden="true" />
           </button>
         </div>
         {selection?.kind === "draft" && <div className="studio-rail-item active">{draft.name || "Untitled plan"} (unsaved)</div>}
@@ -616,7 +621,7 @@ export default function PerfView({ onAskClaude, seed }: PerfViewProps) {
               <div className="studio-perf-run-item active" title={job?.step ?? "Checking the plan"}>
                 <span className="studio-perf-run-open studio-perf-run-live">
                   <span className="studio-perf-run-line">
-                    {!lost && <span className="studio-spinner studio-perf-run-spinner" />}
+                    {!lost && <Spinner size={12} />}
                     <span>
                       {lost ? "Lost contact" : "Running"} · {job ? elapsed(job.startedAt) : "starting"}
                     </span>
@@ -632,7 +637,7 @@ export default function PerfView({ onAskClaude, seed }: PerfViewProps) {
               return (
                 <div key={r.id} className={`studio-perf-run-item${runView?.id === r.id ? " active" : ""}`}>
                   <button className="studio-perf-run-open" onClick={() => openRun(runs, r.id)}>
-                    <span className={`studio-sev-dot studio-perf-dot ${r.status}`} />
+                    <span className={`studio-perf-dot ${r.status}`} />
                     <span className="studio-perf-run-text">
                       <span>{new Date(r.startedAt).toLocaleString()}</span>
                       {worst && (
@@ -643,8 +648,8 @@ export default function PerfView({ onAskClaude, seed }: PerfViewProps) {
                       )}
                     </span>
                   </button>
-                  <button className="studio-chip-x" title="Delete run" aria-label="Delete run" onClick={() => removeRun(r.id)}>
-                    ×
+                  <button type="button" className="ui-icon-btn sm" title="Delete run" aria-label="Delete run" onClick={() => removeRun(r.id)}>
+                    <X size={14} aria-hidden="true" />
                   </button>
                 </div>
               );
@@ -655,67 +660,76 @@ export default function PerfView({ onAskClaude, seed }: PerfViewProps) {
 
       <div className="studio-perf-main">
         <div className="studio-perf-toolbar">
-          <div className="studio-ipad-mode" role="tablist">
-            <button
-              role="tab"
-              className={`studio-btn${tab === "plan" ? " active" : ""}`}
-              aria-selected={tab === "plan"}
-              onClick={() => setTab("plan")}
-            >
-              Plan
+          <Segmented
+            aria-label="Plan or report"
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: "plan", label: "Plan" },
+              { value: "report", label: "Report", disabled: !runView },
+            ]}
+          />
+          <div className="studio-perf-toolbar-actions">
+            <button type="button" className="ui-icon-btn" onClick={importYaml} disabled={running} aria-label="Import plan file" title="Load a plan from a YAML plan file (secondary path; most plans are built here)">
+              <Upload size={16} aria-hidden="true" />
             </button>
-            <button
-              role="tab"
-              className={`studio-btn${tab === "report" ? " active" : ""}`}
-              aria-selected={tab === "report"}
-              disabled={!runView}
-              onClick={() => setTab("report")}
-            >
-              Report
-            </button>
-          </div>
-          <div className="studio-header-actions">
-            <button className="studio-btn" onClick={importYaml} disabled={running} title="Load a plan from a YAML plan file (secondary path; most plans are built here)">
-              Import plan file
-            </button>
-            <button className="studio-btn" onClick={exportYaml} title="Save the plan as a YAML file to share it or run it with run_perf_assessment or CI">
-              Export plan file
+            <button type="button" className="ui-icon-btn" onClick={exportYaml} aria-label="Export plan file" title="Save the plan as a YAML file to share it or run it with run_perf_assessment or CI">
+              <Download size={16} aria-hidden="true" />
             </button>
             {selectedPlan && (
-              <button className="studio-btn" onClick={removePlan} disabled={running}>
-                Delete
+              <button type="button" className="ui-icon-btn" onClick={removePlan} disabled={running} aria-label="Delete plan" title="Delete plan">
+                <Trash2 size={16} aria-hidden="true" />
               </button>
             )}
-            <button className="studio-btn" onClick={save} disabled={running || !dirty}>
+            <span className="studio-perf-toolbar-divider" aria-hidden="true" />
+            <button type="button" className="studio-btn" onClick={save} disabled={running || !dirty}>
               Save
             </button>
             <button
+              type="button"
               className="studio-btn"
               onClick={checkOnly}
               disabled={running || checking || issues.length > 0}
               title="Look up the plan's users and territories in the connected org without running it"
             >
+              {checking && !running && <Spinner size={14} />}
               {checking && !running ? "Checking…" : "Check plan"}
             </button>
             <button
+              type="button"
               className="studio-btn primary"
               onClick={run}
               disabled={running || checking || issues.length > 0}
               title={issues.length ? issues.join("\n") : "Save the plan, check it, and run it against the connected org"}
             >
+              <Play size={14} aria-hidden="true" />
               Run test
             </button>
           </div>
         </div>
 
         {inFlight && (
-          <div className={`studio-finding ${lost ? "warning" : "info"} studio-perf-progress`}>
-            {!lost && <div className="studio-spinner" />}
-            <div className="studio-perf-progress-text">
-              <div className="studio-finding-title">
-                {lost ? `Lost contact with “${inFlight.planName}”` : `Running “${inFlight.planName}”`}
-              </div>
-              <div className="studio-finding-detail">
+          <div className="studio-perf-body-pad">
+            <Callout
+              tone={lost ? "warning" : "info"}
+              busy={!lost}
+              className="studio-perf-progress"
+              role="status"
+              title={lost ? `Lost contact with “${inFlight.planName}”` : `Running “${inFlight.planName}”`}
+              actions={
+                <>
+                  {lost && (
+                    <button type="button" className="studio-btn" onClick={() => setLost(false)}>
+                      Reconnect
+                    </button>
+                  )}
+                  <button type="button" className="studio-btn" onClick={cancel} disabled={!activeJob || job?.step === "Cancelling…"}>
+                    Cancel
+                  </button>
+                </>
+              }
+            >
+              <div className="studio-perf-hint">
                 {lost
                   ? "Studio couldn't reach the run for a while. It may still be going."
                   : job
@@ -724,20 +738,18 @@ export default function PerfView({ onAskClaude, seed }: PerfViewProps) {
                       ? "Checking the plan's users…"
                       : "Connecting to the org…"}
               </div>
-              {!lost && job?.progress && <div className="studio-finding-detail">{progressLabel(job)}</div>}
+              {!lost && job?.progress && <div className="studio-perf-hint ui-num">{progressLabel(job)}</div>}
               {!lost && <ProgressBar job={job} />}
-            </div>
-            {lost && (
-              <button className="studio-btn" onClick={() => setLost(false)}>
-                Reconnect
-              </button>
-            )}
-            <button className="studio-btn" onClick={cancel} disabled={!activeJob || job?.step === "Cancelling…"}>
-              Cancel
-            </button>
+            </Callout>
           </div>
         )}
-        {notice && <div className={`studio-finding ${notice.kind === "error" ? "error" : "info"} studio-perf-notice`}>{notice.text}</div>}
+        {notice && (
+          <div className="studio-perf-body-pad">
+            <Callout tone={notice.kind === "error" ? "error" : "info"} className="studio-perf-notice" role={notice.kind === "error" ? "alert" : "status"}>
+              {notice.text}
+            </Callout>
+          </div>
+        )}
 
         <div className="studio-perf-body">
           {tab === "report" && runView ? (
@@ -753,10 +765,9 @@ export default function PerfView({ onAskClaude, seed }: PerfViewProps) {
               sims={runSims}
             />
           ) : (
-            <>
+            <div className="studio-perf-plan-stack">
               {(issues.length > 0 || checkErrors.length > 0) && (
-                <div className="studio-finding warning studio-perf-notice">
-                  <div className="studio-finding-title">Before this plan can run</div>
+                <Callout tone="warning" title="Before this plan can run">
                   <ul className="studio-perf-issues">
                     {issues.map((i) => (
                       <li key={i}>{i}</li>
@@ -765,33 +776,32 @@ export default function PerfView({ onAskClaude, seed }: PerfViewProps) {
                       <li key={issueText(i)}>{issueText(i)}</li>
                     ))}
                   </ul>
-                </div>
+                </Callout>
               )}
               {checkWarnings.length > 0 && (
-                <div className="studio-finding info studio-perf-notice">
-                  <div className="studio-finding-title">Worth a look before running</div>
+                <Callout tone="info" title="Worth a look before running">
                   <ul className="studio-perf-issues">
                     {checkWarnings.map((i) => (
                       <li key={issueText(i)}>{issueText(i)}</li>
                     ))}
                   </ul>
-                </div>
+                </Callout>
               )}
               {!hasCustomerTargets(draft) && (
-                <div className="studio-finding info studio-perf-notice">
-                  <div className="studio-finding-title">No customer targets yet</div>
-                  <div className="studio-finding-detail">
+                <Callout tone="info" title="No customer targets yet">
+                  <div className="studio-perf-hint">
                     This plan only has the default metadata download target. Enter the customer's targets (Targets tab) before running, or the
                     report can't say whether anything else is met.
                   </div>
-                </div>
+                </Callout>
               )}
-              <div className="studio-perf-hint">
+              <div className="studio-perf-hint studio-perf-login-row">
                 {loginPersonas.length
                   ? `Exact table lists, from each user's own metadata download: ${loginPersonas.join("; ")}.`
                   : "Which tables each rep syncs is worked out from their profile's metadata and object permissions."}{" "}
                 {mobileLogins.length > 0 && "Users picked by profile use a login too when the username matches. "}
-                <button className="studio-btn" onClick={mobileLogin} disabled={running || mobileLoggingIn} title="Sign in as a persona user through the LSC mobile app, so the run reads that user's real table list">
+                <button type="button" className="studio-btn sm" onClick={mobileLogin} disabled={running || mobileLoggingIn} title="Sign in as a persona user through the LSC mobile app, so the run reads that user's real table list">
+                  {mobileLoggingIn ? <Spinner size={12} /> : <LogIn size={14} aria-hidden="true" />}
                   {mobileLoggingIn ? "Logging in…" : "Log in as mobile user…"}
                 </button>
               </div>
@@ -802,7 +812,7 @@ export default function PerfView({ onAskClaude, seed }: PerfViewProps) {
                 profiles={profiles}
                 disabled={running}
               />
-            </>
+            </div>
           )}
         </div>
       </div>

@@ -1,4 +1,7 @@
 import React, { useState } from "react";
+import { CircleCheck, TriangleAlert } from "lucide-react";
+import Spinner from "./ui/Spinner";
+import Segmented from "./ui/Segmented";
 import {
   CONNECTION_CHOICES,
   connectionChoice,
@@ -163,17 +166,18 @@ export default function SetupScreen({ onConnect, error, detected, initial, onCan
     : "Leave blank if the endpoint needs none";
 
   return (
-    <div className="setup-screen no-drag">
-      <div className="setup-container">
+    <div className="setup-screen">
+      <div className="setup-drag drag-region" />
+      <div className="setup-container ui-enter">
         <div className="setup-header">
           <h1>Roz for LSC</h1>
           <p>AI-powered assistant for LSC implementations</p>
         </div>
 
-        <div className="settings-panel">
-          <div className="form-group">
-            <label>How do you want to connect?</label>
-            <select value={kind} onChange={(e) => changeKind(e.target.value as LlmConnectionKind)}>
+        <div className="setup-card">
+          <div className="setup-field">
+            <label className="ui-label" htmlFor="setup-kind">How do you want to connect?</label>
+            <select id="setup-kind" className="ui-field" value={kind} onChange={(e) => changeKind(e.target.value as LlmConnectionKind)}>
               {CONNECTION_CHOICES.map((c) => (
                 <option key={c.kind} value={c.kind}>
                   {c.label}
@@ -204,9 +208,10 @@ export default function SetupScreen({ onConnect, error, detected, initial, onCan
 
           {gateway && (
             <>
-              <div className="form-group">
-                <label>Base URL</label>
+              <div className="setup-field">
+                <div className="ui-label">Base URL</div>
                 <input
+                  className="ui-field"
                   type="text"
                   placeholder={
                     kind === "anthropic-gateway"
@@ -230,9 +235,10 @@ export default function SetupScreen({ onConnect, error, detected, initial, onCan
                   Must be https (http only for localhost).
                 </p>
               </div>
-              <div className="form-group">
-                <label>Send the token as</label>
+              <div className="setup-field">
+                <div className="ui-label">Send the token as</div>
                 <select
+                  className="ui-field"
                   value={authHeader ?? AUTH_HEADERS[choice.style][0].value}
                   onChange={(e) => edited(setAuthHeader)(e.target.value as LlmAuthHeader)}
                 >
@@ -243,25 +249,23 @@ export default function SetupScreen({ onConnect, error, detected, initial, onCan
                   ))}
                 </select>
               </div>
-              <div className="form-group">
-                <div className="setup-radio">
-                  <label>
-                    <input type="radio" checked={!useCommand} onChange={() => edited(setUseCommand)(false)} />
-                    Token
-                  </label>
-                  <label>
-                    <input type="radio" checked={useCommand} onChange={() => edited(setUseCommand)(true)} />
-                    Run a command for the token
-                  </label>
-                </div>
-              </div>
+              <Segmented
+                aria-label="Token source"
+                value={useCommand ? "command" : "token"}
+                onChange={(v) => edited(setUseCommand)(v === "command")}
+                options={[
+                  { value: "token", label: "Token" },
+                  { value: "command", label: "Run a command" },
+                ]}
+              />
             </>
           )}
 
           {kind !== "claude-code" && !(gateway && useCommand) && (
-            <div className="form-group">
-              <label>{gateway ? "Token" : "API key"}</label>
+            <div className="setup-field">
+              <div className="ui-label">{gateway ? "Token" : "API key"}</div>
               <input
+                className="ui-field"
                 type="password"
                 placeholder={secretPlaceholder}
                 value={secret}
@@ -294,9 +298,10 @@ export default function SetupScreen({ onConnect, error, detected, initial, onCan
           )}
 
           {gateway && useCommand && (
-            <div className="form-group">
-              <label>Token command</label>
+            <div className="setup-field">
+              <div className="ui-label">Token command</div>
               <input
+                className="ui-field"
                 type="text"
                 placeholder="e.g. my-sso-tool print-token"
                 value={tokenCommand}
@@ -312,9 +317,10 @@ export default function SetupScreen({ onConnect, error, detected, initial, onCan
           )}
 
           {gateway && (
-            <div className="form-group">
-              <label>Extra headers</label>
+            <div className="setup-field">
+              <div className="ui-label">Extra headers</div>
               <textarea
+                className="ui-field"
                 rows={2}
                 placeholder="Header-Name: value (one per line, optional)"
                 value={headers}
@@ -325,9 +331,10 @@ export default function SetupScreen({ onConnect, error, detected, initial, onCan
           )}
 
           {needsModel && (
-            <div className="form-group">
-              <label>Model</label>
+            <div className="setup-field">
+              <div className="ui-label">Model</div>
               <input
+                className="ui-field"
                 type="text"
                 list="setup-models"
                 placeholder={kind === "openai" ? "e.g. gpt-5" : "Model or deployment name"}
@@ -351,33 +358,38 @@ export default function SetupScreen({ onConnect, error, detected, initial, onCan
           )}
 
           {test?.ok && (
-            <div className="setup-success">
+            <div className="setup-success" role="status">
+              <CircleCheck size={16} strokeWidth={1.9} aria-hidden="true" />
+              <span>
               Connection works{test.model ? ` — ${test.model} answered` : ""}.
               {test.models?.length ? ` ${test.models.length} models available.` : ""}
+              </span>
             </div>
           )}
-          {displayError && <div className="setup-error">{displayError}</div>}
+          {displayError && (
+            <div className="setup-error" role="alert">
+              <TriangleAlert size={16} strokeWidth={1.9} aria-hidden="true" />
+              <span>{displayError}</span>
+            </div>
+          )}
 
-          <div className="form-row" style={{ marginTop: 4 }}>
+          <div className="setup-actions">
             {onCancel && (
-              <button className="btn-secondary" onClick={onCancel} disabled={!!busy}>
+              <button className="studio-btn lg" onClick={onCancel} disabled={!!busy}>
                 Cancel
               </button>
             )}
-            <button className="btn-secondary" onClick={handleTest} disabled={!!busy || !canSubmit}>
-              {busy === "test" ? "Testing..." : "Test connection"}
+            <button className="studio-btn lg" onClick={handleTest} disabled={!!busy || !canSubmit}>
+              {busy === "test" && <Spinner size={13} />}
+              {busy === "test" ? "Testing…" : "Test connection"}
             </button>
-            <button
-              className="btn-primary"
-              style={{ flex: 1 }}
-              onClick={handleConnect}
-              disabled={!!busy || !canSubmit}
-            >
-              {busy === "connect" ? "Connecting..." : "Connect"}
+            <button className="studio-btn primary lg grow" onClick={handleConnect} disabled={!!busy || !canSubmit}>
+              {busy === "connect" && <Spinner size={13} />}
+              {busy === "connect" ? "Connecting…" : "Connect"}
             </button>
           </div>
 
-          <p className="setup-hint" style={{ marginTop: 12, textAlign: "center" }}>
+          <p className="setup-hint setup-footnote">
             The app reconnects with this setup next time. If Claude Code is set up for a gateway, or{" "}
             <code>ANTHROPIC_API_KEY</code> is set, it connects automatically.
           </p>

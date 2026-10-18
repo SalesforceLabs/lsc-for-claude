@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { Ellipsis, LayoutGrid, Library, PanelLeft, Pencil, Pin, PinOff, SquarePen, Terminal, Trash2, X } from "lucide-react";
 import { rozTileSrc, useAppIcon } from "../app-icon";
 
 interface Conversation {
@@ -25,6 +26,7 @@ interface SidebarProps {
   onTogglePin: (id: string) => void;
   onOpenLibrary: () => void;
   studioActive: boolean;
+  libraryActive: boolean;
   onOpenStudio: () => void;
 }
 
@@ -44,6 +46,7 @@ export default function Sidebar({
   onTogglePin,
   onOpenLibrary,
   studioActive,
+  libraryActive,
   onOpenStudio,
 }: SidebarProps) {
   const appIcon = useAppIcon();
@@ -125,23 +128,52 @@ export default function Sidebar({
     return d.toLocaleDateString();
   };
 
+  const renderCommands = () => (
+    <div className="commands-modal-backdrop" onClick={() => setShowCommands(false)}>
+      <div className="commands-modal" role="dialog" aria-label="Commands" onClick={(e) => e.stopPropagation()}>
+        <div className="commands-modal-header">
+          <span className="commands-modal-title">Commands</span>
+          <button className="ui-icon-btn" onClick={() => setShowCommands(false)} aria-label="Close">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="commands-modal-body">
+          {commands.map((cmd) => (
+            <button
+              key={cmd.name}
+              className="commands-modal-item"
+              onClick={() => { onCommandClick(cmd.name); setShowCommands(false); }}
+            >
+              <span className="commands-modal-cmd">/lsc:{cmd.name}</span>
+              <span className="commands-modal-desc">{cmd.description}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
   if (collapsed) {
     return (
       <div className="sidebar collapsed">
-        <button className="sidebar-expand-btn" onClick={onToggleCollapse} title="Expand sidebar">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
+        <div className="sidebar-collapsed-head" />
+        <button className="sidebar-collapsed-btn" onClick={onToggleCollapse} title="Show sidebar" aria-label="Show sidebar">
+          <PanelLeft size={17} strokeWidth={1.75} />
         </button>
-        <button className="sidebar-collapsed-btn" onClick={onNewChat} title="New Session">
-          <IconPlus />
+        <div className="sidebar-collapsed-sep" />
+        <button className="sidebar-collapsed-btn" onClick={onNewChat} title="New session" aria-label="New session">
+          <SquarePen size={17} strokeWidth={1.75} />
         </button>
-        <button className="sidebar-collapsed-btn" onClick={onOpenStudio} title="Studio">
-          <IconStudio />
+        <button className={`sidebar-collapsed-btn${studioActive ? " active" : ""}`} onClick={onOpenStudio} title="Studio" aria-label="Studio">
+          <LayoutGrid size={17} strokeWidth={1.75} />
         </button>
-        <button className="sidebar-collapsed-btn" onClick={onOpenLibrary} title="Library">
-          <IconLibrary />
+        <button className={`sidebar-collapsed-btn${libraryActive ? " active" : ""}`} onClick={onOpenLibrary} title="Library" aria-label="Library">
+          <Library size={17} strokeWidth={1.75} />
         </button>
+        <button className="sidebar-collapsed-btn" onClick={() => setShowCommands(true)} title="Commands" aria-label="Commands">
+          <Terminal size={17} strokeWidth={1.75} />
+        </button>
+        {showCommands && renderCommands()}
       </div>
     );
   }
@@ -170,21 +202,9 @@ export default function Sidebar({
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <div
-            className="history-item-title"
-            style={{
-              color:
-                conv.id === activeConversationId
-                  ? "var(--text-primary)"
-                  : "var(--text-secondary)",
-            }}
-          >
-            {streamingConvIds.has(conv.id) && (
-              <span className="session-active-dot" />
-            )}
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-              {conv.title}
-            </span>
+          <div className="history-item-title" title={conv.title}>
+            {streamingConvIds.has(conv.id) && <span className="session-active-dot" />}
+            <span className="history-item-text">{conv.title}</span>
           </div>
         )}
       </div>
@@ -196,20 +216,25 @@ export default function Sidebar({
             setMenuOpenId(menuOpenId === conv.id ? null : conv.id);
           }}
           title="More options"
+          aria-label="More options"
+          aria-haspopup="menu"
+          aria-expanded={menuOpenId === conv.id}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" />
-          </svg>
+          <Ellipsis size={15} strokeWidth={2} />
         </button>
         {menuOpenId === conv.id && (
-          <div className="history-overflow-menu">
-            <button onClick={(e) => { e.stopPropagation(); handlePin(conv.id); }}>
+          <div className="history-overflow-menu" role="menu">
+            <button role="menuitem" onClick={(e) => { e.stopPropagation(); handlePin(conv.id); }}>
+              {conv.pinned ? <PinOff size={14} /> : <Pin size={14} />}
               {conv.pinned ? "Unpin" : "Pin to top"}
             </button>
-            <button onClick={(e) => { e.stopPropagation(); startRename(conv); }}>
+            <button role="menuitem" onClick={(e) => { e.stopPropagation(); startRename(conv); }}>
+              <Pencil size={14} />
               Rename
             </button>
-            <button className="danger" onClick={(e) => { e.stopPropagation(); handleDelete(conv.id); }}>
+            <div className="history-overflow-sep" />
+            <button role="menuitem" className="danger" onClick={(e) => { e.stopPropagation(); handleDelete(conv.id); }}>
+              <Trash2 size={14} />
               Delete
             </button>
           </div>
@@ -221,41 +246,35 @@ export default function Sidebar({
   return (
     <div className="sidebar">
       <div className="sidebar-header">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <img src={rozTileSrc(appIcon)} alt="" className="sidebar-logo" />
-            <h1>Roz</h1>
-          </div>
-          <button className="sidebar-collapse-btn" onClick={onToggleCollapse} title="Collapse sidebar">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
+        <div className="sidebar-brand">
+          <img src={rozTileSrc(appIcon)} alt="" className="sidebar-logo" />
+          <h1>Roz</h1>
         </div>
+        <button className="ui-icon-btn" onClick={onToggleCollapse} title="Hide sidebar" aria-label="Hide sidebar">
+          <PanelLeft size={17} strokeWidth={1.75} />
+        </button>
       </div>
 
-      {/* Navigation menu items */}
-      <div className="sidebar-nav">
+      <nav className="sidebar-nav">
         <button className="sidebar-nav-item" onClick={onNewChat}>
-          <IconPlus />
+          <SquarePen size={16} strokeWidth={1.75} />
           <span>New session</span>
         </button>
-        <button className={`sidebar-nav-item${studioActive ? " active" : ""}`} onClick={onOpenStudio}>
-          <IconStudio />
+        <button className={`sidebar-nav-item${studioActive ? " active" : ""}`} onClick={onOpenStudio} aria-current={studioActive ? "page" : undefined}>
+          <LayoutGrid size={16} strokeWidth={1.75} />
           <span>Studio</span>
         </button>
-        <button className="sidebar-nav-item" onClick={onOpenLibrary}>
-          <IconLibrary />
+        <button className={`sidebar-nav-item${libraryActive ? " active" : ""}`} onClick={onOpenLibrary} aria-current={libraryActive ? "page" : undefined}>
+          <Library size={16} strokeWidth={1.75} />
           <span>Library</span>
           {libraryCount > 0 && <span className="sidebar-nav-badge">{libraryCount}</span>}
         </button>
         <button className="sidebar-nav-item" onClick={() => setShowCommands(true)}>
-          <IconTerminal />
+          <Terminal size={16} strokeWidth={1.75} />
           <span>Commands</span>
         </button>
-      </div>
+      </nav>
 
-      {/* Session history */}
       <div className="sidebar-sessions">
         {pinned.length > 0 && (
           <>
@@ -271,74 +290,10 @@ export default function Sidebar({
             {unpinned.map(renderItem)}
           </>
         )}
+        {conversations.length === 0 && <div className="sidebar-sessions-empty">Your sessions will appear here.</div>}
       </div>
 
-      {/* Commands Modal */}
-      {showCommands && (
-        <div className="commands-modal-backdrop" onClick={() => setShowCommands(false)}>
-          <div className="commands-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="commands-modal-header">
-              <span className="commands-modal-title">Commands</span>
-              <button className="commands-modal-close" onClick={() => setShowCommands(false)}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-            <div className="commands-modal-body">
-              {commands.map((cmd) => (
-                <button
-                  key={cmd.name}
-                  className="commands-modal-item"
-                  onClick={() => { onCommandClick(cmd.name); setShowCommands(false); }}
-                >
-                  <span className="commands-modal-cmd">/lsc:{cmd.name}</span>
-                  <span className="commands-modal-desc">{cmd.description}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {showCommands && renderCommands()}
     </div>
   );
 }
-
-/* ─── Icons ─── */
-
-const iconProps = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-
-function IconPlus() {
-  return (
-    <svg {...iconProps}>
-      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-  );
-}
-
-function IconLibrary() {
-  return (
-    <svg {...iconProps}>
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-    </svg>
-  );
-}
-
-function IconStudio() {
-  return (
-    <svg {...iconProps}>
-      <rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" />
-      <rect x="14" y="14" width="7" height="7" rx="1.5" /><path d="M10 6.5h4M17.5 10v4" />
-    </svg>
-  );
-}
-
-function IconTerminal() {
-  return (
-    <svg {...iconProps}>
-      <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
-    </svg>
-  );
-}
-

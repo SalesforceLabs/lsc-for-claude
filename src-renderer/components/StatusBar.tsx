@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { Check, ChevronUp, Cloud, RefreshCw, Settings, TriangleAlert } from "lucide-react";
+import Spinner from "./ui/Spinner";
+import Segmented from "./ui/Segmented";
 
 interface SfOrg {
   alias?: string;
@@ -166,10 +169,7 @@ export default function StatusBar({ toolCount, onSettingsClick }: StatusBarProps
   return (
     <div className="status-bar" ref={rootRef}>
       <button className="status-bar-settings" onClick={onSettingsClick} title="Settings">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
+        <Settings size={13} strokeWidth={1.9} aria-hidden="true" />
         <span>Settings</span>
         <span className="status-bar-meta">{toolCount} tools</span>
       </button>
@@ -184,24 +184,20 @@ export default function StatusBar({ toolCount, onSettingsClick }: StatusBarProps
         aria-expanded={menuOpen}
       >
         <span className={`status-bar-dot ${state}`} />
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />
-        </svg>
+        <Cloud size={13} strokeWidth={1.9} aria-hidden="true" />
         <span className="status-bar-label">{label}</span>
         {current && <span className="status-bar-host">{hostOf(current.instanceUrl)}</span>}
         {current && !chosen && <span className="status-bar-tag">sf default</span>}
         {missing && <span className="status-bar-tag warning">not authenticated</span>}
+        <ChevronUp size={12} strokeWidth={2} className="status-bar-chevron" aria-hidden="true" />
       </button>
 
       {menuOpen && (
         <div className="status-bar-menu" role="menu">
           <div className="status-bar-menu-header">
             <span>Salesforce orgs (sf CLI)</span>
-            <button className="status-bar-icon-btn" onClick={() => fetchOrgs()} disabled={loading} title="Refresh org list">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={loading ? { animation: "spin 1s linear infinite" } : undefined}>
-                <path d="M1 4v6h6" /><path d="M23 20v-6h-6" />
-                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
-              </svg>
+            <button className="ui-icon-btn sm" onClick={() => fetchOrgs()} disabled={loading} title="Refresh org list" aria-label="Refresh org list">
+              {loading ? <Spinner size={12} /> : <RefreshCw size={13} strokeWidth={1.9} aria-hidden="true" />}
             </button>
           </div>
           <div className="status-bar-menu-list">
@@ -218,7 +214,7 @@ export default function StatusBar({ toolCount, onSettingsClick }: StatusBarProps
                   className={`status-bar-menu-item ${active ? "active" : ""}`}
                   onClick={() => { selectOrg(orgKey(o)); setMenuOpen(false); }}
                 >
-                  <span className="status-bar-check">{active ? "✓" : ""}</span>
+                  <span className="status-bar-check">{active && <Check size={14} strokeWidth={2.25} aria-hidden="true" />}</span>
                   <span className="status-bar-menu-text">
                     <span className="status-bar-menu-name">
                       {o.alias || o.username}
@@ -248,20 +244,26 @@ export default function StatusBar({ toolCount, onSettingsClick }: StatusBarProps
                   autoFocus
                   spellCheck={false}
                 />
-                <div className="org-toggle">
-                  <button className={`org-toggle-btn ${!isSandbox ? "active" : ""}`} onClick={() => setIsSandbox(false)}>
-                    Production
-                  </button>
-                  <button className={`org-toggle-btn ${isSandbox ? "active" : ""}`} onClick={() => setIsSandbox(true)}>
-                    Sandbox
-                  </button>
-                </div>
-                <button className="btn-primary" onClick={startLogin} style={{ width: "100%" }}>
+                <Segmented
+                  aria-label="Org type"
+                  value={isSandbox ? "sandbox" : "production"}
+                  onChange={(v) => setIsSandbox(v === "sandbox")}
+                  options={[
+                    { value: "production", label: "Production" },
+                    { value: "sandbox", label: "Sandbox" },
+                  ]}
+                />
+                <button className="btn-primary" onClick={startLogin}>
                   Log in
                 </button>
               </div>
             )}
-            {notice && <div className="status-bar-menu-notice">{notice}</div>}
+            {notice && (
+              <div className="status-bar-menu-notice" role="alert">
+                <TriangleAlert size={13} strokeWidth={1.9} aria-hidden="true" />
+                <span>{notice}</span>
+              </div>
+            )}
           </div>
         </div>
       )}

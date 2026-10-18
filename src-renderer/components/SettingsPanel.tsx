@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { Plus, RefreshCw, TriangleAlert, X } from "lucide-react";
+import Spinner from "./ui/Spinner";
+import Segmented from "./ui/Segmented";
 import { pickModel, type ModelOption } from "../models";
 import { ROZ_ICONS, rozIcon, rozTileSrc, setAppIcon, type RozIcon } from "../app-icon";
 
@@ -92,174 +95,180 @@ export default function SettingsPanel({
 
   const orgLabel = (o: SfOrg) => o.alias ? `${o.alias} (${o.username})` : o.username;
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div className="settings-overlay" onClick={onClose}>
-      <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
-        <h2>Settings</h2>
-
-        <div className="form-group">
-          <label>Connected via</label>
-          <div className="form-row">
-            <input
-              type="text"
-              value={connectedVia || "Not connected"}
-              readOnly
-              style={{ opacity: 0.7, flex: 1 }}
-            />
-            <button className="btn-secondary" onClick={onChangeConnection}>
-              Change…
-            </button>
-          </div>
+      <div
+        className="settings-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="settings-header">
+          <h2 id="settings-title">Settings</h2>
+          <button className="ui-icon-btn" onClick={onClose} title="Close (Esc)" aria-label="Close settings">
+            <X size={16} strokeWidth={1.9} aria-hidden="true" />
+          </button>
         </div>
 
-        {/* Salesforce Org Section */}
-        <div className="form-group org-section">
-          <label>
-            <span
-              className="status-dot"
-              style={{
-                display: "inline-block",
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                marginRight: 6,
-                background: selectedOrg ? "var(--success)" : "var(--text-muted)",
-                boxShadow: selectedOrg ? "0 0 6px rgba(52, 211, 153, 0.4)" : "none",
-              }}
-            />
-            Salesforce Org
-          </label>
-          <div className="org-row">
-            <select
-              value={selectedOrg}
-              onChange={(e) => handleOrgChange(e.target.value)}
-              disabled={orgsLoading}
-              style={{ flex: 1 }}
-            >
-              <option value="">
-                {orgsLoading ? "Loading..." : orgs.length === 0 ? "No orgs found" : "Select an org..."}
-              </option>
-              {orgs.map((o) => (
-                <option key={o.username} value={o.alias || o.username}>
-                  {orgLabel(o)}
+        <div className="settings-body">
+          <section className="settings-group">
+            <label className="ui-label" htmlFor="settings-connected">
+              Connected via
+            </label>
+            <div className="settings-row">
+              <input id="settings-connected" className="ui-field" type="text" value={connectedVia || "Not connected"} readOnly />
+              <button className="studio-btn" onClick={onChangeConnection}>
+                Change…
+              </button>
+            </div>
+          </section>
+
+          <section className="settings-group">
+            <label className="ui-label" htmlFor="settings-org">
+              <span className="settings-label-row">
+                <span className={`settings-dot ${selectedOrg ? "on" : ""}`} aria-hidden="true" />
+                Salesforce org
+              </span>
+            </label>
+            <div className="settings-row">
+              <select
+                id="settings-org"
+                className="ui-field"
+                value={selectedOrg}
+                onChange={(e) => handleOrgChange(e.target.value)}
+                disabled={orgsLoading}
+              >
+                <option value="">
+                  {orgsLoading ? "Loading…" : orgs.length === 0 ? "No orgs found" : "Select an org…"}
                 </option>
+                {orgs.map((o) => (
+                  <option key={o.username} value={o.alias || o.username}>
+                    {orgLabel(o)}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="ui-icon-btn bordered"
+                onClick={fetchOrgs}
+                disabled={orgsLoading}
+                title="Refresh org list"
+                aria-label="Refresh org list"
+              >
+                {orgsLoading ? <Spinner size={14} /> : <RefreshCw size={14} strokeWidth={1.9} aria-hidden="true" />}
+              </button>
+            </div>
+            {orgsError && (
+              <div className="settings-note error" role="alert">
+                <TriangleAlert size={14} strokeWidth={1.9} aria-hidden="true" />
+                <span>{orgsError}</span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="studio-btn ghost sm settings-connect-toggle"
+              onClick={() => { setShowLogin(!showLogin); setLoginStarted(false); }}
+              aria-expanded={showLogin}
+            >
+              {showLogin ? <X size={14} strokeWidth={1.9} aria-hidden="true" /> : <Plus size={14} strokeWidth={1.9} aria-hidden="true" />}
+              {showLogin ? "Cancel" : "Connect new org"}
+            </button>
+            {showLogin && (
+              <div className="settings-login ui-enter">
+                <input
+                  className="ui-field"
+                  type="text"
+                  placeholder="Alias (optional)"
+                  aria-label="Alias"
+                  value={loginAlias}
+                  onChange={(e) => setLoginAlias(e.target.value)}
+                  spellCheck={false}
+                />
+                <Segmented
+                  aria-label="Org type"
+                  value={isSandbox ? "sandbox" : "production"}
+                  onChange={(v) => setIsSandbox(v === "sandbox")}
+                  options={[
+                    { value: "production", label: "Production" },
+                    { value: "sandbox", label: "Sandbox" },
+                  ]}
+                />
+                <button className="btn-primary" onClick={handleLogin} disabled={loginStarted}>
+                  {loginStarted && <Spinner size={13} />}
+                  {loginStarted ? "Waiting for browser login…" : "Log in"}
+                </button>
+                {loginStarted && (
+                  <div className="settings-hint">Complete the login in your browser, then refresh the list above.</div>
+                )}
+              </div>
+            )}
+          </section>
+
+          <section className="settings-group">
+            <label className="ui-label" htmlFor="settings-model">
+              Default model
+            </label>
+            <select id="settings-model" className="ui-field" value={model} onChange={(e) => setModel(e.target.value)}>
+              {modelOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
-            <button
-              className="org-refresh-btn"
-              onClick={fetchOrgs}
-              disabled={orgsLoading}
-              title="Refresh org list"
-            >
-              {orgsLoading ? (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "spin 1s linear infinite" }}>
-                  <path d="M21 12a9 9 0 1 1-6.22-8.56" />
-                </svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 4v6h6" /><path d="M23 20v-6h-6" />
-                  <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
-                </svg>
-              )}
-            </button>
-          </div>
-          {orgsError && <div className="org-error">{orgsError}</div>}
+          </section>
 
-          {/* Connect New Org */}
-          <button
-            className="org-connect-toggle"
-            onClick={() => { setShowLogin(!showLogin); setLoginStarted(false); }}
-          >
-            {showLogin ? "Cancel" : "Connect New Org"}
-          </button>
-          {showLogin && (
-            <div className="org-login-form">
-              <input
-                type="text"
-                placeholder="Alias (optional)"
-                value={loginAlias}
-                onChange={(e) => setLoginAlias(e.target.value)}
-              />
-              <div className="org-toggle">
+          <section className="settings-group">
+            <div className="ui-label" id="app-icon-label">App icon</div>
+            <div className="app-icon-picker" role="radiogroup" aria-labelledby="app-icon-label">
+              {ROZ_ICONS.map((icon) => (
                 <button
-                  className={`org-toggle-btn ${!isSandbox ? "active" : ""}`}
-                  onClick={() => setIsSandbox(false)}
+                  key={icon.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={appIcon === icon.id}
+                  className={`app-icon-option ${appIcon === icon.id ? "active" : ""}`}
+                  onClick={() => setAppIconChoice(icon.id)}
                 >
-                  Production
+                  <img src={rozTileSrc(icon.id)} alt="" />
+                  <span>{icon.label}</span>
                 </button>
-                <button
-                  className={`org-toggle-btn ${isSandbox ? "active" : ""}`}
-                  onClick={() => setIsSandbox(true)}
-                >
-                  Sandbox
-                </button>
-              </div>
-              <button
-                className="btn-primary"
-                onClick={handleLogin}
-                disabled={loginStarted}
-                style={{ width: "100%" }}
-              >
-                {loginStarted ? "Waiting for browser login..." : "Login"}
-              </button>
-              {loginStarted && (
-                <div className="org-login-hint">
-                  Complete login in your browser, then click Refresh above.
-                </div>
-              )}
+              ))}
             </div>
-          )}
+          </section>
+
+          <section className="settings-group">
+            <label className="ui-label" htmlFor="settings-consumer-key">
+              LSC mobile app consumer key
+            </label>
+            <input
+              id="settings-consumer-key"
+              className="ui-field"
+              type="text"
+              value={mobileClientId}
+              onChange={(e) => setMobileClientId(e.target.value)}
+              placeholder="Optional"
+              spellCheck={false}
+              autoComplete="off"
+            />
+            <div className="settings-hint">
+              The remoteAccessConsumerKey from the LSC iOS app's bootconfig.plist. Needed for First sync's “Log in as
+              mobile user”.
+            </div>
+          </section>
         </div>
 
-        <div className="form-group">
-          <label>Default model</label>
-          <select value={model} onChange={(e) => setModel(e.target.value)}>
-            {modelOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label id="app-icon-label">App icon</label>
-          <div className="app-icon-picker" role="radiogroup" aria-labelledby="app-icon-label">
-            {ROZ_ICONS.map((icon) => (
-              <button
-                key={icon.id}
-                type="button"
-                role="radio"
-                aria-checked={appIcon === icon.id}
-                className={`app-icon-option ${appIcon === icon.id ? "active" : ""}`}
-                onClick={() => setAppIconChoice(icon.id)}
-              >
-                <img src={rozTileSrc(icon.id)} alt="" />
-                <span>{icon.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="form-group">
-          <label>LSC mobile app consumer key</label>
-          <input
-            type="text"
-            value={mobileClientId}
-            onChange={(e) => setMobileClientId(e.target.value)}
-            placeholder="Optional"
-            spellCheck={false}
-            autoComplete="off"
-          />
-          <div className="org-login-hint">
-            The remoteAccessConsumerKey from the LSC iOS app's bootconfig.plist.
-            Needed for First sync's "Log in as mobile user".
-          </div>
-        </div>
-
-        <div className="form-actions">
-          <button className="btn-secondary" onClick={onClose} style={{ marginLeft: "auto" }}>
+        <div className="settings-footer">
+          <button className="studio-btn lg" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn-primary" onClick={handleSave}>
+          <button className="studio-btn primary lg" onClick={handleSave}>
             Save
           </button>
         </div>

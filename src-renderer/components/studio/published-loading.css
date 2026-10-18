@@ -1,24 +1,27 @@
 /* The published iPad's loading state: spinner, elapsed time, a bar and the step list. */
-.studio-ipad-loading {
+.studio-ipad-wrap.studio-ipad-loading {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  max-width: 520px;
-  font-size: 12px;
+  align-items: stretch;
+  gap: 12px;
+  width: min(440px, 100%);
+  margin: 12vh auto 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  font-size: var(--font-sm);
   color: var(--text-secondary);
+  animation: ui-fade-in 0.25s var(--ease-out) 0.12s both;
 }
 
 .studio-ipad-loading-head {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.studio-ipad-loading-head .studio-spinner {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  flex-shrink: 0;
+  font-size: var(--font-base);
+  font-weight: 500;
+  color: var(--text-primary);
 }
 
 .studio-ipad-loading-time {
@@ -30,7 +33,7 @@
 .studio-ipad-loading-bar {
   height: 4px;
   border-radius: 2px;
-  background: var(--bg-tertiary);
+  background: var(--fill-active);
   overflow: hidden;
 }
 
@@ -44,7 +47,7 @@
 .studio-ipad-loading-steps {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -68,10 +71,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
-  font-size: 11px;
 }
 
 .studio-ipad-loading-steps li.done .studio-ipad-loading-mark {
@@ -80,24 +82,19 @@
 
 .studio-ipad-loading-steps li.failed .studio-ipad-loading-mark {
   color: var(--error);
-  font-weight: 700;
-}
-
-.studio-ipad-loading-steps .studio-spinner.studio-ipad-loading-mark {
-  width: 10px;
-  height: 10px;
-  margin: 0 1px;
-  border-width: 1.5px;
 }
 
 .studio-ipad-loading-note {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
   color: var(--text-muted);
+  line-height: 1.5;
 }
 
 .studio-ipad-loading-steps li.waiting .studio-ipad-loading-mark::before {
   content: "";
   width: 7px;
   height: 7px;
-  border: 1.5px solid var(--bg-tertiary);
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
   border-radius: 50%;
 }

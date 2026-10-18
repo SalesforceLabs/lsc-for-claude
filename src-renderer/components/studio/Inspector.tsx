@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, ArrowRight, Check, ChevronRight, ExternalLink, Plus, Sparkles, X } from "lucide-react";
 import type { CreateConfigFix, FeatureMap, FlowOutline, ItemDetail, ItemEdit, LayoutSidebar, ProfileOption, StudioFinding, StudioFix, StudioItem, StudioSurface, SurfaceId } from "./types";
 import { worstSeverity } from "./findings";
 import ProfilePicker from "./ProfilePicker";
@@ -25,6 +26,7 @@ import {
   withoutSuggestion,
   type PendingChange,
 } from "./changes";
+import StateView from "../ui/StateView";
 import { AssistantName } from "../../hooks/useAssistantName";
 
 interface InspectorProps {
@@ -135,7 +137,7 @@ export default function Inspector({
       <div className="studio-inspector-header">
         {item ? (
           <button className="studio-link-btn" onClick={() => setItemId(null)}>
-            ← {surface.title}
+            <ArrowLeft size={14} aria-hidden /> {surface.title}
           </button>
         ) : (
           <span className="studio-inspector-eyebrow">{map.title}</span>
@@ -143,11 +145,11 @@ export default function Inspector({
         <span className="studio-inspector-header-actions">
           {onOpenInSetup && (
             <button className="studio-link-btn" onClick={onOpenInSetup} title={`Open ${map.title} in Setup`}>
-              Open in Setup
+              Open in Setup <ExternalLink size={12} aria-hidden />
             </button>
           )}
-          <button className="studio-icon-btn" onClick={onClose} title="Close">
-            ×
+          <button className="ui-icon-btn" onClick={onClose} title="Close" aria-label="Close">
+            <X size={16} aria-hidden />
           </button>
         </span>
       </div>
@@ -190,12 +192,12 @@ export default function Inspector({
             <div className="studio-create-row">
               {surface.creates?.map((c) => (
                 <button key={c.label} className="studio-btn studio-new-btn" onClick={() => queue.create(c)}>
-                  + {c.label}
+                  <Plus size={14} aria-hidden /> {c.label}
                 </button>
               ))}
               {queuedCreates.map((c) => (
                 <button key={changeKey(c)} className="studio-fix-btn queued" title="In pending changes — click to edit" onClick={() => queue.create(c)}>
-                  ✓ {c.recordLabel || c.developerName} (pending)
+                  <Check size={12} aria-hidden /> {c.recordLabel || c.developerName} (pending)
                 </button>
               ))}
             </div>
@@ -204,6 +206,7 @@ export default function Inspector({
           {surface.items.length > 8 && (
             <input
               className="studio-filter"
+              aria-label="Filter items"
               placeholder={`Filter ${surface.items.length} items…`}
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
@@ -217,9 +220,9 @@ export default function Inspector({
           {groups.map((group) => (
             <React.Fragment key={group.object ?? ""}>
               {group.object && (
-                <div className="studio-item-group">
-                  {group.object} <span className="studio-item-group-count">{group.items.length}</span>
-                </div>
+                <h3 className="ui-section-title studio-item-group">
+                  {group.object} <span className="count">{group.items.length}</span>
+                </h3>
               )}
               <ul className="studio-item-list">
             {group.items.map((i) => {
@@ -237,7 +240,7 @@ export default function Inspector({
                       <span className={`studio-lens-tag ${fit}`}>{fit === "conditional" ? "Depends" : "Not for profile"}</span>
                     )}
                     {worst && <span className={`studio-sev-dot ${worst}`} title={`${i.findings.length} finding(s)`} />}
-                    <span className="studio-chevron">›</span>
+                    <ChevronRight className="studio-chevron" size={14} aria-hidden />
                   </button>
                 </li>
               );
@@ -258,7 +261,7 @@ export default function Inspector({
             className="studio-ask-btn"
             onClick={() => onAskClaude(surfacePrompt(map, surface, lens))}
           >
-            Ask <AssistantName /> about {surface.title}
+            <Sparkles size={14} aria-hidden /> Ask <AssistantName /> about {surface.title}
           </button>
         </div>
       )}
@@ -323,14 +326,14 @@ function ItemView({
       </div>
       {item.sublabel && <p className="studio-inspector-desc">{item.sublabel}</p>}
       {item.active !== undefined && !item.edit && (
-        <span className={`studio-status ${item.active ? "active" : "inactive"}`}>
+        <span className={`ui-pill ${item.active ? "pass" : ""}`}>
           {item.active ? "Active" : "Inactive"}
         </span>
       )}
       {lens && item.audience && <LensBanner item={item} lens={lens} />}
       {item.checkProfile && onCheckProfile && lens?.profile !== item.checkProfile && (
         <button className="studio-fix-btn studio-check-profile-btn" onClick={() => onCheckProfile(item.checkProfile!)}>
-          Check {item.checkProfile}'s setup →
+          Check {item.checkProfile}'s setup <ArrowRight size={12} aria-hidden />
         </button>
       )}
 
@@ -363,7 +366,7 @@ function ItemView({
         </dl>
       )}
 
-      {loading && <div className="studio-empty-note">Loading…</div>}
+      {loading && <StateView kind="loading" title="Loading…" layout="inline" className="studio-inspector-state" />}
       {error && <FindingList findings={[{ severity: "error", title: "Couldn't load detail", detail: error }]} />}
       {detail?.findings && <FindingList findings={detail.findings} queue={queue} />}
       {detail?.sidebar && <SidebarPanel layoutLabel={item.label} sidebar={detail.sidebar} queue={queue} />}
@@ -379,7 +382,7 @@ function ItemView({
         className="studio-ask-btn"
         onClick={() => onAskClaude(itemPrompt(map, surface, item, lens, code?.text))}
       >
-        Ask <AssistantName /> about this
+        <Sparkles size={14} aria-hidden /> Ask <AssistantName /> about this
       </button>
     </div>
   );
@@ -442,7 +445,7 @@ function EditPanel({ item, edit, profiles, queue }: { item: StudioItem; edit: It
             <span className="studio-switch-knob" />
           </button>
           <span className="studio-edit-value">{active ? "On" : "Off"}</span>
-          {activeQueued && <span className="studio-pending-tag">Pending</span>}
+          {activeQueued && <span className="ui-pill warning">Pending</span>}
         </div>
       )}
       {active !== undefined && isTrigger && activeQueued && (
@@ -455,7 +458,7 @@ function EditPanel({ item, edit, profiles, queue }: { item: StudioItem; edit: It
         <div className="studio-edit-block">
           <div className="studio-edit-row">
             <span className="studio-edit-label">Who sees this</span>
-            {profilesQueued && <span className="studio-pending-tag">Pending</span>}
+            {profilesQueued && <span className="ui-pill warning">Pending</span>}
             <button className="studio-link-btn studio-edit-action" onClick={() => setPicking((v) => !v)}>
               {picking ? "Done" : "Edit"}
             </button>
@@ -514,7 +517,8 @@ function FindingList({ findings, queue, affects }: { findings: StudioFinding[]; 
                         title={queued ? "In pending changes — click to edit" : "Review and add to pending changes"}
                         onClick={() => queue.create(fix)}
                       >
-                        {queued ? `✓ ${fix.label}` : `${fix.label}…`}
+                        {queued && <Check size={12} aria-hidden />}
+                        {queued ? fix.label : `${fix.label}…`}
                       </button>
                     );
                   }
@@ -526,7 +530,8 @@ function FindingList({ findings, queue, affects }: { findings: StudioFinding[]; 
                       title={queued ? "In pending changes — click to remove" : "Add to pending changes"}
                       onClick={() => queue.toggle({ fix, affects: suggestionAffects(fix, affects) })}
                     >
-                      {queued ? `✓ ${fix.label}` : fix.label}
+                      {queued && <Check size={12} aria-hidden />}
+                      {fix.label}
                     </button>
                   );
                 })}
@@ -562,7 +567,7 @@ function ScriptEditor({ item, original, queued, queue }: { item: StudioItem; ori
         {pendingCode !== null && (
           <div className="studio-edit-row">
             <span className="studio-edit-label">Code</span>
-            <span className="studio-pending-tag">Pending</span>
+            <span className="ui-pill warning">Pending</span>
             <button className="studio-link-btn studio-edit-action" onClick={() => queue.toggle({ fix: queued! })}>
               Discard edit
             </button>
@@ -700,7 +705,7 @@ function SidebarPanel({ layoutLabel, sidebar, queue }: { layoutLabel: string; si
           {queuedAdds.map((f) => (
             <span key={f.relationshipName} className="studio-chip" title="In pending changes — click to remove">
               <button className="studio-link-btn" onClick={() => queue.toggle({ fix: f })}>
-                {f.relationshipName} (pending) ×
+                {f.relationshipName} (pending) <X size={12} aria-hidden />
               </button>
             </span>
           ))}

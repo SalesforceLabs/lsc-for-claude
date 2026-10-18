@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { X } from "lucide-react";
 import type { ProfileOption, PublishStatus } from "./types";
 
 interface PublishDialogProps {
@@ -68,13 +69,21 @@ export default function PublishDialog({ org, profiles, preselected, onClose }: P
 
   const count = selected.size;
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !starting) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   return (
     <div className="studio-modal-backdrop" onClick={() => !starting && onClose()}>
       <div className="studio-modal" role="dialog" aria-label="Publish to iPad" onClick={(e) => e.stopPropagation()}>
         <div className="studio-modal-header">
           <span className="studio-inspector-eyebrow">Publish to iPad · {org}</span>
-          <button className="studio-icon-btn" onClick={onClose} disabled={starting} title="Close">
-            ×
+          <button className="ui-icon-btn" onClick={onClose} disabled={starting} title="Close" aria-label="Close">
+            <X size={16} aria-hidden />
           </button>
         </div>
         <h2 className="studio-inspector-title">Regenerate the mobile metadata cache</h2>
@@ -86,6 +95,7 @@ export default function PublishDialog({ org, profiles, preselected, onClose }: P
             </p>
             <input
               className="studio-filter"
+              aria-label="Filter profiles"
               placeholder="Filter profiles…"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}

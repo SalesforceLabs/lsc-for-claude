@@ -1,7 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import {
+  BookOpen, Code, FileText, LayoutGrid, List, Maximize2, MessageSquare, Minimize2, Search, Table2, Trash2, Workflow, X,
+  type LucideIcon,
+} from "lucide-react";
 import { useDiagramControls, DiagramZoomToolbar, DiagramViewport } from "./ChatView";
+import StateView from "./ui/StateView";
+import Segmented from "./ui/Segmented";
 
 interface LibraryItem {
   id: string;
@@ -31,35 +37,16 @@ const TYPE_LABELS: Record<string, string> = {
   table: "Table",
 };
 
-const iconStyle = { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+const TYPE_ICONS: Record<string, LucideIcon> = {
+  diagram: Workflow,
+  code: Code,
+  table: Table2,
+  response: FileText,
+};
 
 function TypeIcon({ type }: { type: string }) {
-  switch (type) {
-    case "diagram":
-      return (
-        <svg {...iconStyle}>
-          <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" />
-        </svg>
-      );
-    case "code":
-      return (
-        <svg {...iconStyle}>
-          <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
-        </svg>
-      );
-    case "table":
-      return (
-        <svg {...iconStyle}>
-          <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" /><line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" />
-        </svg>
-      );
-    default: // response
-      return (
-        <svg {...iconStyle}>
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
-        </svg>
-      );
-  }
+  const Icon = TYPE_ICONS[type] ?? FileText;
+  return <Icon size={16} strokeWidth={1.75} aria-hidden="true" />;
 }
 
 function formatDate(dateStr: string) {
@@ -88,27 +75,21 @@ function LibraryDiagramDetail({ svg }: { svg: string }) {
   }, [isFullscreen]);
 
   const fullscreenBtn = (
-    <button onClick={() => setIsFullscreen((f) => !f)} title={isFullscreen ? "Exit full screen" : "Full screen"}>
-      {isFullscreen ? (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" />
-        </svg>
-      ) : (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
-        </svg>
-      )}
+    <button
+      onClick={() => setIsFullscreen((f) => !f)}
+      title={isFullscreen ? "Exit full screen" : "Full screen"}
+      aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
+    >
+      {isFullscreen ? <Minimize2 size={14} strokeWidth={1.9} aria-hidden="true" /> : <Maximize2 size={14} strokeWidth={1.9} aria-hidden="true" />}
     </button>
   );
 
   if (isFullscreen) {
     return (
-      <div className="mermaid-panel-fullscreen" style={{ display: "flex", flexDirection: "column" }}>
-        <div className="mermaid-panel-header">
+      <div className="mermaid-panel mermaid-panel-fullscreen">
+        <div className="mermaid-panel-header drag-region">
           <span className="mermaid-card-label">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" />
-            </svg>
+            <Workflow size={15} strokeWidth={1.75} aria-hidden="true" />
             Diagram
           </span>
           <DiagramZoomToolbar controls={controls} extraButtons={fullscreenBtn} />
@@ -192,50 +173,46 @@ export default function LibraryPanel({ items, onClose, onDelete, onSearch, onGoT
     <div className={`library-panel${selectedItem ? " with-detail" : ""}`}>
       {/* Main list area */}
       <div className="library-main">
-        <div className="library-panel-header">
+        <div className="library-panel-header drag-region">
           <span className="library-panel-title">Library</span>
-          <input
-            className="library-search"
-            type="text"
-            placeholder="Search saved items..."
-            value={searchQuery}
-            onChange={handleSearchChange}
+          <label className="library-search">
+            <Search size={14} strokeWidth={1.9} aria-hidden="true" />
+            <input
+              type="text"
+              placeholder="Search saved items"
+              aria-label="Search saved items"
+              value={searchQuery}
+              onChange={handleSearchChange}
+              spellCheck={false}
+            />
+          </label>
+          <Segmented
+            size="md"
+            aria-label="View"
+            value={viewMode}
+            onChange={setViewMode}
+            options={[
+              { value: "list", label: <span className="sr-only">List</span>, icon: List, title: "List view" },
+              { value: "cards", label: <span className="sr-only">Cards</span>, icon: LayoutGrid, title: "Card view" },
+            ]}
           />
-          <div className="library-view-toggle">
-            <button
-              className={viewMode === "list" ? "active" : ""}
-              onClick={() => setViewMode("list")}
-              title="List view"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
-                <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
-              </svg>
-            </button>
-            <button
-              className={viewMode === "cards" ? "active" : ""}
-              onClick={() => setViewMode("cards")}
-              title="Card view"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
-                <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
-              </svg>
-            </button>
-          </div>
-          <button className="library-close-btn" onClick={onClose} title="Close (Esc)">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+          <button className="ui-icon-btn" onClick={onClose} title="Close (Esc)" aria-label="Close Library">
+            <X size={16} strokeWidth={1.9} aria-hidden="true" />
           </button>
         </div>
 
         <div className="library-panel-body">
           {items.length === 0 ? (
-            <div className="library-empty">
-              {searchQuery ? "No results found" : "No saved items yet"}
-              <p>Save diagrams from your conversations using the bookmark icon on diagram cards.</p>
-            </div>
+            <StateView
+              kind="empty"
+              icon={searchQuery ? Search : BookOpen}
+              title={searchQuery ? "No results" : "Nothing saved yet"}
+              detail={
+                searchQuery
+                  ? `No saved items match “${searchQuery}”.`
+                  : "Save diagrams from your conversations with the bookmark on a diagram card."
+              }
+            />
           ) : viewMode === "list" ? (
             <div className="library-list">
               {items.map((item) => (
@@ -254,11 +231,12 @@ export default function LibraryPanel({ items, onClose, onDelete, onSearch, onGoT
                     </span>
                   </div>
                   <button
-                    className="library-list-delete"
+                    className="ui-icon-btn sm library-row-delete"
                     onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
                     title="Delete"
+                    aria-label={`Delete ${item.title}`}
                   >
-                    &times;
+                    <Trash2 size={14} strokeWidth={1.75} aria-hidden="true" />
                   </button>
                 </div>
               ))}
@@ -284,11 +262,12 @@ export default function LibraryPanel({ items, onClose, onDelete, onSearch, onGoT
                     <span className="library-card-icon"><TypeIcon type={item.contentType} /></span>
                     <span className="library-card-title">{item.title}</span>
                     <button
-                      className="library-card-delete"
+                      className="ui-icon-btn sm library-row-delete"
                       onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
                       title="Delete"
+                      aria-label={`Delete ${item.title}`}
                     >
-                      &times;
+                      <Trash2 size={14} strokeWidth={1.75} aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -302,7 +281,7 @@ export default function LibraryPanel({ items, onClose, onDelete, onSearch, onGoT
       {selectedItem && (
         <div className="library-detail" ref={detailPanelRef} style={detailWidth ? { width: detailWidth } : undefined}>
           <div className="library-detail-resize" onPointerDown={onResizePointerDown} />
-          <div className="library-detail-header">
+          <div className="library-detail-header drag-region">
             <div className="library-detail-title-row">
               <span className="library-detail-icon"><TypeIcon type={selectedItem.contentType} /></span>
               <span className="library-detail-title">{selectedItem.title}</span>
@@ -310,32 +289,29 @@ export default function LibraryPanel({ items, onClose, onDelete, onSearch, onGoT
             <div className="library-detail-actions">
               {selectedItem.sourceConversationId && (
                 <button
-                  className="library-detail-goto"
+                  className="ui-icon-btn"
                   onClick={() => onGoToSession(selectedItem.sourceConversationId!)}
                   title={selectedItem.sourceConversationTitle ? `Go to "${selectedItem.sourceConversationTitle}"` : "Go to session"}
+                  aria-label="Go to session"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                  </svg>
+                  <MessageSquare size={16} strokeWidth={1.75} aria-hidden="true" />
                 </button>
               )}
               <button
-                className="library-detail-delete"
+                className="ui-icon-btn danger"
                 onClick={() => handleDelete(selectedItem.id)}
                 title="Delete item"
+                aria-label="Delete item"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                </svg>
+                <Trash2 size={16} strokeWidth={1.75} aria-hidden="true" />
               </button>
               <button
-                className="library-detail-close"
+                className="ui-icon-btn"
                 onClick={() => setSelectedId(null)}
                 title="Close panel"
+                aria-label="Close panel"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                <X size={16} strokeWidth={1.9} aria-hidden="true" />
               </button>
             </div>
           </div>

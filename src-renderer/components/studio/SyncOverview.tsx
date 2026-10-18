@@ -2,8 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { SurfaceId } from "./types";
 import { formatNumber } from "./perf-plan";
 import { formatSeconds } from "./sim-types";
+import { Activity, ExternalLink, Play, RefreshCw, Sparkles, UserRoundSearch } from "lucide-react";
 import "./sync-overview.css";
 import { AssistantName } from "../../hooks/useAssistantName";
+import Segmented from "../ui/Segmented";
+import Spinner from "../ui/Spinner";
+import StateView from "../ui/StateView";
+import { Callout, Disclosure as DisclosureButton, Metric } from "./PerfParts";
 
 export interface SyncOverviewProps {
   onAskClaude: (prompt: string) => void;
@@ -81,23 +86,13 @@ interface OverviewData {
 }
 
 const WINDOWS = [7, 30, 90];
-const BANNER_CLASS: Record<Status, string> = { healthy: "success", struggling: "warning", failing: "error", "no-data": "info" };
+const BANNER_TONE: Record<Status, "pass" | "warning" | "error" | "info"> = { healthy: "pass", struggling: "warning", failing: "error", "no-data": "info" };
 /** Reps pre-selected for "Test these reps". */
 const DEFAULT_TEST_COUNT = 3;
 const SPARK_W = 360;
 const SPARK_H = 56;
 
 const seconds = (v: number | undefined) => (v === undefined ? "—" : formatSeconds(v));
-
-function Tile({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="sync-overview-tile">
-      <div className="sync-overview-tile-value">{value}</div>
-      <div className="sync-overview-tile-label">{label}</div>
-      {hint && <div className="studio-perf-hint">{hint}</div>}
-    </div>
-  );
-}
 
 /** Bars of one value per day; the title carries the exact numbers. */
 function Trend({ daily, pick, label }: { daily: DailyPoint[]; pick: (d: DailyPoint) => number | undefined; label: string }) {
@@ -106,7 +101,7 @@ function Trend({ daily, pick, label }: { daily: DailyPoint[]; pick: (d: DailyPoi
   const bar = SPARK_W / Math.max(1, daily.length);
   return (
     <figure className="sync-overview-trend">
-      <figcaption className="studio-perf-hint">{label}</figcaption>
+      <figcaption className="studio-perf-meta">{label}</figcaption>
       <svg viewBox={`0 0 ${SPARK_W} ${SPARK_H}`} role="img" aria-label={`${label}, by day`} preserveAspectRatio="none">
         {daily.map((d, i) => {
           const v = values[i];
@@ -126,9 +121,9 @@ function Disclosure({ title, children }: { title: string; children: React.ReactN
   const [open, setOpen] = useState(false);
   return (
     <div className="sync-overview-section">
-      <button type="button" className="studio-perf-disclosure" aria-expanded={open} onClick={() => setOpen(!open)}>
-        {open ? "▾" : "▸"} {title}
-      </button>
+      <DisclosureButton open={open} onToggle={() => setOpen(!open)}>
+        {title}
+      </DisclosureButton>
       {open && children}
     </div>
   );
@@ -212,81 +207,88 @@ export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUs
   return (
     <div className="sync-overview">
       <div className="sync-overview-toolbar">
-        <div className="studio-ipad-mode" role="group" aria-label="Time window">
-          {WINDOWS.map((d) => (
-            <button key={d} type="button" className={`studio-btn${days === d ? " active" : ""}`} aria-pressed={days === d} onClick={() => setDays(d)}>
-              {d} days
-            </button>
-          ))}
-        </div>
+        <Segmented
+          aria-label="Time window"
+          size="sm"
+          value={String(days)}
+          onChange={(v) => setDays(Number(v))}
+          options={WINDOWS.map((d) => ({ value: String(d), label: `${d} days` }))}
+        />
+        <span className="sync-overview-toolbar-spacer" />
         <button type="button" className="studio-btn" disabled={loading} onClick={() => void load(days)}>
+          {loading ? <Spinner size={14} /> : <RefreshCw size={14} aria-hidden="true" />}
           {loading ? "Refreshing…" : "Refresh"}
         </button>
         {data && (
           <button type="button" className="studio-btn" onClick={() => onAskClaude(askPrompt(data))}>
+            <Sparkles size={14} aria-hidden="true" />
             Ask <AssistantName />
           </button>
         )}
       </div>
 
-      {loading && !data && (
-        <div className="studio-perf-progress" role="status">
-          <div className="studio-spinner" />
-          <span>Reading sync data from the org…</span>
-        </div>
+      {loading && !data && <StateView layout="inline" kind="loading" title="Reading sync data from the org…" />}
+      {error && !data && (
+        <StateView
+          layout="inline"
+          kind="error"
+          title="Couldn't load sync health"
+          detail={error}
+          actions={
+            <button type="button" className="studio-btn" onClick={() => void load(days)}>
+              <RefreshCw size={14} aria-hidden="true" />
+              Try again
+            </button>
+          }
+        />
       )}
-      {error && (
-        <div className="studio-finding error" role="alert">
-          {error}
-        </div>
-      )}
+      {error && data && <Callout tone="error">{error}</Callout>}
 
       {data && (
         <div className="sync-overview-body" aria-busy={loading}>
           {data.verdict && (
-            <div className={`studio-finding ${BANNER_CLASS[data.verdict.status]} sync-overview-banner`}>
-              <strong>{data.verdict.headline}</strong>
+            <Callout tone={BANNER_TONE[data.verdict.status]} title={data.verdict.headline}>
               {t && data.needAttention > 0 && (
-                <span className="studio-perf-hint">
-                  {" "}
+                <div>
                   {data.needAttention} of {data.reps} reps need attention.
-                </span>
+                </div>
               )}
-              <div className="studio-finding-detail">
+              <div className="studio-perf-hint">
                 Judged against Studio's rules of thumb (failures: warn at 2%, fail at 10%; metadata download p95: warn at 5 s, fail at 10 s), not the
                 customer's targets — set those in Sign-off.
               </div>
-            </div>
+            </Callout>
           )}
 
           {!t && (
-            <div className="studio-perf-hint">
-              <p>
-                Sync health comes from DeviceSyncSummary, a record each rep's iPad writes to Salesforce after every sync. It holds how long the sync took,
-                how many records came down and whether it finished. Nothing has been recorded for this window yet, so there are no sync numbers to show.
-              </p>
-            </div>
+            <StateView
+              layout="inline"
+              kind="empty"
+              icon={Activity}
+              title="No sync data for this window"
+              detail="Sync health comes from DeviceSyncSummary, a record each rep's iPad writes to Salesforce after every sync. It holds how long the sync took, how many records came down and whether it finished. Nothing has been recorded for this window yet."
+            />
           )}
 
           {t && (
             <>
               {data.rowsCoverage?.truncated && (
-                <div className="studio-finding warning" role="note">
+                <Callout tone="warning" role="note">
                   This window has too many syncs to read in full. Sync times and the rep list cover only the most recent part
                   {data.rowsCoverage.from ? `, from ${data.rowsCoverage.from} on` : ""}. Failure totals and the daily trend cover the whole window.
-                </div>
+                </Callout>
               )}
-              <div className="sync-overview-tiles">
-                <Tile label="Typical slow update" value={seconds(t.delta.total.p95)} hint="Delta sync, 19 in 20 are faster" />
-                <Tile label="Typical slow first sync" value={seconds(t.initial.total.p95)} hint="19 in 20 are faster" />
-                <Tile label="Syncs that failed" value={t.failureRatePct === undefined ? "—" : `${formatNumber(t.failureRatePct)}%`} />
-                <Tile label="Device database size" value={t.dbSizeGb.p95 === undefined ? "—" : `${formatNumber(t.dbSizeGb.p95, 2)} GB`} hint="19 in 20 are smaller" />
-                <Tile label="Reps who synced" value={formatNumber(data.reps)} hint={`${formatNumber(data.totals?.syncs ?? t.samples)} syncs`} />
+              <div className="studio-metrics">
+                <Metric label="Typical slow update" value={seconds(t.delta.total.p95)} hint="Delta sync, 19 in 20 are faster" />
+                <Metric label="Typical slow first sync" value={seconds(t.initial.total.p95)} hint="19 in 20 are faster" />
+                <Metric label="Syncs that failed" value={t.failureRatePct === undefined ? "—" : `${formatNumber(t.failureRatePct)}%`} />
+                <Metric label="Device database size" value={t.dbSizeGb.p95 === undefined ? "—" : `${formatNumber(t.dbSizeGb.p95, 2)} GB`} hint="19 in 20 are smaller" />
+                <Metric label="Reps who synced" value={formatNumber(data.reps)} hint={`${formatNumber(data.totals?.syncs ?? t.samples)} syncs`} />
               </div>
 
               {data.daily.length > 1 && (
                 <div className="sync-overview-section">
-                  <h3 className="studio-perf-section-title">Trend</h3>
+                  <h3 className="ui-section-title">Trend</h3>
                   <div className="sync-overview-trends">
                     <Trend daily={data.daily} pick={(d) => d.deltaP90} label="Update sync time, seconds (slowest 10%)" />
                     <Trend daily={data.daily} pick={(d) => d.failures} label="Failed syncs per day" />
@@ -297,17 +299,28 @@ export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUs
 
               <div className="sync-overview-section">
                 <div className="sync-overview-section-head">
-                  <h3 className="studio-perf-section-title">Reps who need attention</h3>
+                  <h3 className="ui-section-title">
+                    Reps who need attention
+                    {data.usersAtRisk.length > 0 && <span className="count">{data.usersAtRisk.length}</span>}
+                  </h3>
                   {testable.length > 0 && (
                     <button type="button" className="studio-btn" disabled={selected.size === 0} onClick={() => onTestUsers([...selected])}>
+                      <Play size={14} aria-hidden="true" />
                       Test these reps ({selected.size})
                     </button>
                   )}
                 </div>
                 {data.usersAtRisk.length === 0 ? (
-                  <div className="studio-perf-hint">No rep stands out. Every rep's syncs are in line with the rest of the org.</div>
+                  <StateView
+                    layout="inline"
+                    kind="empty"
+                    icon={Activity}
+                    title="No rep stands out"
+                    detail="Every rep's syncs are in line with the rest of the org."
+                    className="sync-overview-empty"
+                  />
                 ) : (
-                  <table className="studio-change-table studio-perf-table">
+                  <table className="studio-perf-table sync-overview-table">
                     <thead>
                       <tr>
                         <th aria-label="Select" />
@@ -323,7 +336,7 @@ export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUs
                     <tbody>
                       {data.usersAtRisk.map((u) => (
                         <tr key={u.username}>
-                          <td>
+                          <td className="check">
                             {u.userId && (
                               <input
                                 type="checkbox"
@@ -335,9 +348,9 @@ export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUs
                           </td>
                           <td>
                             {u.name}
-                            <div className="studio-picker-meta">{u.username}</div>
+                            <div className="studio-perf-meta">{u.username}</div>
                           </td>
-                          <td className="studio-picker-meta">{u.profile || "—"}</td>
+                          <td className="meta">{u.profile || "—"}</td>
                           <td className="num">{u.territories}</td>
                           <td className="num">{seconds(u.deltaP90Sec)}</td>
                           <td className="num">
@@ -352,7 +365,8 @@ export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUs
                           </td>
                           <td>
                             {u.userId && (
-                              <button type="button" className="studio-btn" onClick={() => onInvestigateUser(u.userId as string)}>
+                              <button type="button" className="studio-btn sm" onClick={() => onInvestigateUser(u.userId as string)}>
+                                <UserRoundSearch size={14} aria-hidden="true" />
                                 Investigate
                               </button>
                             )}
@@ -368,18 +382,25 @@ export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUs
 
           {data.schemaRisks.length > 0 && (
             <div className="sync-overview-section">
-              <h3 className="studio-perf-section-title">Sync settings worth a look</h3>
+              <h3 className="ui-section-title">
+                Sync settings worth a look
+                <span className="count">{data.schemaRisks.length}</span>
+              </h3>
               <div className="sync-overview-risks">
                 {data.schemaRisks.slice(0, 12).map((r) => (
-                  <div key={`${r.developerName}:${r.title}`} className={`studio-finding ${r.severity} sync-overview-risk`}>
-                    <div>
-                      <strong>{r.title}</strong>
-                      <div className="studio-perf-hint">{r.detail}</div>
-                    </div>
-                    <button type="button" className="studio-btn" onClick={() => onOpenSetup("mobile-sync", "syncedObjects", r.itemId)}>
-                      Open in Setup
-                    </button>
-                  </div>
+                  <Callout
+                    key={`${r.developerName}:${r.title}`}
+                    tone={r.severity}
+                    title={r.title}
+                    actions={
+                      <button type="button" className="studio-btn" onClick={() => onOpenSetup("mobile-sync", "syncedObjects", r.itemId)}>
+                        <ExternalLink size={14} aria-hidden="true" />
+                        Open in Setup
+                      </button>
+                    }
+                  >
+                    <div className="studio-perf-hint">{r.detail}</div>
+                  </Callout>
                 ))}
                 {data.schemaRisks.length > 12 && <div className="studio-perf-hint">and {data.schemaRisks.length - 12} more in Mobile Sync setup.</div>}
               </div>
@@ -388,7 +409,7 @@ export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUs
 
           {t && t.byAppVersion.length > 0 && (
             <Disclosure title="By app version">
-              <table className="studio-change-table studio-perf-table">
+              <table className="studio-perf-table">
                 <thead>
                   <tr>
                     <th>App version</th>
@@ -412,7 +433,7 @@ export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUs
           )}
           {t && t.byNetwork.length > 0 && (
             <Disclosure title="By network">
-              <table className="studio-change-table studio-perf-table">
+              <table className="studio-perf-table">
                 <thead>
                   <tr>
                     <th>Network</th>

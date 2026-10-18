@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { X } from "lucide-react";
 import type { CreateConfigFix, ProfileOption, StudioItem } from "./types";
 import ProfilePicker from "./ProfilePicker";
 import {
@@ -59,6 +60,14 @@ export default function CreateDialog({ draft, source, objects, profiles, onCance
     if (!nameEdited) setDeveloperName(apiNameFor(v, spec.prefix));
   };
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   const submit = () => {
     setTried(true);
     if (problems.length) return;
@@ -78,8 +87,8 @@ export default function CreateDialog({ draft, source, objects, profiles, onCance
       <div className="studio-modal studio-create" role="dialog" aria-label={draft.label} onClick={(e) => e.stopPropagation()}>
         <div className="studio-modal-header">
           <span className="studio-inspector-eyebrow">{copying ? `Duplicate · ${draft.copyFrom}` : `New ${spec.noun}`}</span>
-          <button className="studio-icon-btn" onClick={onCancel} title="Close">
-            ×
+          <button className="ui-icon-btn" onClick={onCancel} title="Close" aria-label="Close">
+            <X size={16} aria-hidden />
           </button>
         </div>
         <h2 className="studio-inspector-title">{draft.label}</h2>

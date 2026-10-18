@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Check, X } from "lucide-react";
+import Spinner from "../ui/Spinner";
 import "./published-loading.css";
 
 // Renderer copy of LoadProgress in src/studio/published-progress.ts.
@@ -47,7 +49,7 @@ export default function PublishedLoading({ profile }: { profile: string }) {
   return (
     <div className="studio-ipad-wrap studio-ipad-loading" role="status" aria-live="polite">
       <div className="studio-ipad-loading-head">
-        <span className="studio-spinner" aria-hidden="true" />
+        <Spinner size={16} />
         <span>Reading {profile}'s published iPad configuration…</span>
         <span className="studio-ipad-loading-time">{seconds}s</span>
       </div>
@@ -72,8 +74,23 @@ export default function PublishedLoading({ profile }: { profile: string }) {
 }
 
 function StepMark({ state }: { state: LoadStep["state"] }) {
-  if (state === "running") return <span className="studio-spinner studio-ipad-loading-mark" aria-label="Running" />;
-  if (state === "done") return <span className="studio-ipad-loading-mark" aria-label="Done">✓</span>;
-  if (state === "failed") return <span className="studio-ipad-loading-mark" aria-label="Failed">!</span>;
+  if (state === "running")
+    return (
+      <span className="studio-ipad-loading-mark" aria-label="Running">
+        <Spinner size={12} />
+      </span>
+    );
+  if (state === "done")
+    return (
+      <span className="studio-ipad-loading-mark" aria-label="Done">
+        <Check size={13} strokeWidth={2.75} aria-hidden="true" />
+      </span>
+    );
+  if (state === "failed")
+    return (
+      <span className="studio-ipad-loading-mark" aria-label="Failed">
+        <X size={13} strokeWidth={2.75} aria-hidden="true" />
+      </span>
+    );
   return <span className="studio-ipad-loading-mark" aria-label="Waiting" />;
 }

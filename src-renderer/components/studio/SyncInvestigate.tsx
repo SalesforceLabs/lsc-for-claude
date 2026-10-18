@@ -1,8 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
 import type { SurfaceId, StudioFix } from "./types";
 import { isQueued, queueChange, type PendingChange } from "./changes";
+import { ExternalLink, RefreshCw, Sparkles, UserRoundSearch } from "lucide-react";
 import "./sync-investigate.css";
 import { AssistantName } from "../../hooks/useAssistantName";
+import StateView from "../ui/StateView";
+import StatusIcon from "../ui/StatusIcon";
+import { Callout, Metric } from "./PerfParts";
 
 export interface SyncInvestigateProps {
   userId: string | null;
@@ -177,7 +181,7 @@ function UserPicker({ onPick }: { onPick: (u: PerfUser) => void }) {
 
   return (
     <div className="studio-perf-user-search">
-      <label className="studio-perf-field-label" htmlFor="sync-investigate-search">
+      <label className="ui-label" htmlFor="sync-investigate-search">
         Find a rep
       </label>
       <input
@@ -187,10 +191,10 @@ function UserPicker({ onPick }: { onPick: (u: PerfUser) => void }) {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
-      {state.error && <div className="studio-placeholder-error">{state.error}</div>}
+      {state.error && <Callout tone="error">{state.error}</Callout>}
       {search.trim() && !state.error && (
         <ul className="studio-picker-list studio-perf-user-list">
-          {state.loading && state.users.length === 0 && <li className="studio-picker-meta">Searching…</li>}
+          {state.loading && state.users.length === 0 && <li className="studio-picker-meta" role="status">Searching…</li>}
           {!state.loading && state.users.length === 0 && <li className="studio-picker-meta">No active users match.</li>}
           {state.users.map((u) => (
             <li key={u.id}>
@@ -227,6 +231,7 @@ function TableDetail({ table, pending, onQueue, onOpenSetup }: TableDetailProps)
         <span className="studio-perf-name">{table.sobject}</span>
         {schema && (
           <button type="button" className="studio-btn" onClick={() => onOpenSetup("mobile-sync", "syncedObjects", schema.itemId)}>
+            <ExternalLink size={14} aria-hidden="true" />
             Open in Setup
           </button>
         )}
@@ -242,14 +247,14 @@ function TableDetail({ table, pending, onQueue, onOpenSetup }: TableDetailProps)
             const queued = fix ? isQueued(pending, fix) : false;
             return (
               <li key={h.id} className="sync-investigate-hint">
-                <span className={`studio-sev-dot ${h.severity}`} aria-hidden="true" />
+                <StatusIcon tone={h.severity} size={18} />
                 <div className="sync-investigate-hint-body">
                   <div className="sync-investigate-hint-title">{h.title}</div>
                   <div className="studio-perf-hint">{h.detail}</div>
                   {s && schema && (
                     <button
                       type="button"
-                      className="studio-btn primary studio-perf-small"
+                      className="studio-btn primary sm"
                       disabled={queued}
                       onClick={() => onQueue(schema, s)}
                     >
@@ -334,36 +339,54 @@ export default function SyncInvestigate({ userId, onUserChange, onAskClaude, onO
     <div className="studio-perf-body sync-investigate">
       <UserPicker onPick={(u) => onUserChange(u.id)} />
 
-      {load.status === "idle" && <div className="studio-perf-hint">Pick a rep to see what their iPad downloads and what to change.</div>}
+      {load.status === "idle" && (
+        <StateView
+          layout="inline"
+          kind="empty"
+          icon={UserRoundSearch}
+          title="Pick a rep"
+          detail="Search above to see what their iPad downloads and what to change."
+        />
+      )}
 
       {load.status === "loading" && (
-        <div className="studio-perf-progress" role="status">
-          <div className="studio-spinner" />
-          <div className="studio-perf-progress-text">Counting what this rep's iPad downloads, table by table. This can take a minute.</div>
-        </div>
+        <StateView
+          layout="inline"
+          kind="loading"
+          title="Counting what this rep's iPad downloads"
+          detail="Table by table. This can take a minute."
+        />
       )}
 
       {load.status === "error" && (
-        <div className="studio-placeholder-error" role="alert">
-          {load.error}{" "}
-          <button type="button" className="studio-btn studio-perf-small" onClick={() => setReload((n) => n + 1)}>
-            Try again
-          </button>
-        </div>
+        <StateView
+          layout="inline"
+          kind="error"
+          title="Couldn't read this rep's sync"
+          detail={load.error}
+          actions={
+            <button type="button" className="studio-btn" onClick={() => setReload((n) => n + 1)}>
+              <RefreshCw size={14} aria-hidden="true" />
+              Try again
+            </button>
+          }
+        />
       )}
 
       {detail && terr && sync && (
         <>
           <section className="studio-perf-section" aria-label="Rep summary">
-            <div className="studio-perf-section-header">
+            <div className="sync-investigate-head">
               <h2 className="studio-perf-section-title">
-                {detail.user.name} <span className="studio-picker-meta">{detail.user.username}</span>
+                {detail.user.name} <span className="studio-perf-meta">{detail.user.username}</span>
               </h2>
-              <div className="studio-perf-row">
+              <div className="sync-investigate-head-actions">
                 <button type="button" className="studio-btn" onClick={() => setReload((n) => n + 1)}>
+                  <RefreshCw size={14} aria-hidden="true" />
                   Refresh
                 </button>
                 <button type="button" className="studio-btn primary" onClick={() => onAskClaude(askPrompt(detail, terr))}>
+                  <Sparkles size={14} aria-hidden="true" />
                   Ask <AssistantName /> how to make this lighter
                 </button>
               </div>
@@ -373,7 +396,7 @@ export default function SyncInvestigate({ userId, onUserChange, onAskClaude, onO
             </div>
             {detail.territories.length > 1 && (
               <label className="sync-investigate-territory">
-                <span className="studio-perf-field-label">Territory</span>
+                <span className="ui-label">Territory</span>
                 <select
                   className="studio-filter"
                   value={territoryIdx}
@@ -394,38 +417,33 @@ export default function SyncInvestigate({ userId, onUserChange, onAskClaude, onO
               <div className="studio-perf-hint">Showing the first {detail.territories.length} of {detail.user.territories.length} territories.</div>
             )}
             <div className="sync-investigate-stats">
-              <div>
-                <div className="sync-investigate-stat-value">{fmt(terr.totalRecords)}</div>
-                <div className="studio-perf-metric-meta">records to download{terr.upperBoundRecords > 0 ? ` (up to ${fmt(terr.upperBoundRecords)} may be over-counted)` : ""}</div>
-              </div>
-              <div>
-                <div className="sync-investigate-stat-value">{fmt(terr.totalDeviceRequests)}</div>
-                <div className="studio-perf-metric-meta">estimated requests</div>
-              </div>
+              <Metric
+                label="Records to download"
+                value={fmt(terr.totalRecords)}
+                hint={terr.upperBoundRecords > 0 ? `Up to ${fmt(terr.upperBoundRecords)} may be over-counted` : undefined}
+              />
+              <Metric label="Estimated requests" value={fmt(terr.totalDeviceRequests)} />
               {detail.telemetry && detail.telemetry.summary.samples > 0 && (
                 <>
-                  <div>
-                    <div className="sync-investigate-stat-value">{fmtSec(detail.telemetry.summary.delta.total.p90)}</div>
-                    <div className="studio-perf-metric-meta">daily sync, slow end (p90)</div>
-                  </div>
-                  <div>
-                    <div className="sync-investigate-stat-value">{fmtSec(detail.telemetry.summary.initial.total.p90)}</div>
-                    <div className="studio-perf-metric-meta">first sync, slow end (p90)</div>
-                  </div>
-                  <div>
-                    <div className="sync-investigate-stat-value">{Math.round(detail.telemetry.summary.failureRatePct ?? 0)}%</div>
-                    <div className="studio-perf-metric-meta">syncs failing</div>
-                  </div>
+                  <Metric label="Daily sync, slow end (p90)" value={fmtSec(detail.telemetry.summary.delta.total.p90)} />
+                  <Metric label="First sync, slow end (p90)" value={fmtSec(detail.telemetry.summary.initial.total.p90)} />
+                  <Metric label="Syncs failing" value={`${Math.round(detail.telemetry.summary.failureRatePct ?? 0)}%`} />
                 </>
               )}
             </div>
-            <div className={`studio-chip ${sync.tone} sync-investigate-verdict`}>{sync.text}</div>
+            <Callout tone={sync.tone === "ok" ? "pass" : sync.tone}>{sync.text}</Callout>
           </section>
 
           <section className="studio-perf-section" aria-label="Tables">
-            <h3 className="studio-perf-section-title">What the iPad downloads, heaviest first</h3>
+            <h3 className="ui-section-title">What the iPad downloads, heaviest first</h3>
             {terr.tables.length === 0 ? (
-              <div className="studio-perf-hint">No tables sync for this rep. Check that their profile has DB Schema records.</div>
+              <StateView
+                layout="inline"
+                kind="empty"
+                title="No tables sync for this rep"
+                detail="Check that their profile has DB Schema records."
+                className="sync-overview-empty"
+              />
             ) : (
               <ul className="sync-investigate-tables">
                 {terr.tables.map((t) => (
@@ -438,9 +456,9 @@ export default function SyncInvestigate({ userId, onUserChange, onAskClaude, onO
                     >
                       <span className="sync-investigate-row-name">
                         {t.sobject}
-                        {queuedFor(t) && <span className="studio-chip info">Queued</span>}
-                        {t.status !== "counted" && <span className={`studio-chip ${t.status === "error" ? "error" : "muted"}`}>{t.status === "error" ? "Filter fails" : "Not estimated"}</span>}
-                        {t.hints.some((h) => h.severity === "warning") && t.status === "counted" && <span className="studio-chip warning">Can be lighter</span>}
+                        {queuedFor(t) && <span className="ui-pill info">Queued</span>}
+                        {t.status !== "counted" && <span className={`ui-pill${t.status === "error" ? " error" : ""}`}>{t.status === "error" ? "Filter fails" : "Not estimated"}</span>}
+                        {t.hints.some((h) => h.severity === "warning") && t.status === "counted" && <span className="ui-pill warning">Can be lighter</span>}
                       </span>
                       <span className="sync-investigate-row-count">{t.status === "counted" ? `${fmt(t.records)} · ${t.sharePct < 1 && t.records > 0 ? "<1" : Math.round(t.sharePct)}%` : "—"}</span>
                       <span className="studio-perf-bar" aria-hidden="true">

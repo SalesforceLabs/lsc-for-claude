@@ -19,6 +19,20 @@ import SetupOverview from "./SetupOverview";
 import UserTraceView from "./UserTraceView";
 import DriftView from "./DriftView";
 import type { ReadinessState } from "./readiness";
+import {
+  Activity,
+  CloudUpload,
+  History,
+  LayoutDashboard,
+  RefreshCw,
+  Tablet,
+  UserRound,
+  UserRoundSearch,
+  type LucideIcon,
+} from "lucide-react";
+import Segmented from "../ui/Segmented";
+import StateView from "../ui/StateView";
+import Spinner from "../ui/Spinner";
 import "./studio.css";
 
 interface StudioViewProps {
@@ -242,8 +256,23 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   const inspectedSurface = inspectedMap?.surfaces.find((s) => s.id === previewInspect?.surface) ?? null;
   const inspectedCheckable = !!inspectedMap?.surfaces.some(isScoped);
 
+  const previewSubtitle =
+    previewMode === "published"
+      ? `Exactly as ${lens ? `${lens.profile}'s` : "a profile's"} users last downloaded it, from the profile's metadata cache`
+      : `Estimated after the next publish from the live configuration${
+          lens ? ` for ${lens.profile}` : ""
+        } — permission sets and record sharing aren't evaluated`;
+
+  const featureBusy = state?.status === "loading" || readiness[featureId]?.status === "loading";
+  const featureSubtitle = map
+    ? `${map.summary} · ${map.org} · mapped ${new Date(map.collectedAt).toLocaleString()}${
+        activeLens ? ` · checking ${activeLens.profile} — permission sets and record sharing aren't evaluated` : ""
+      }`
+    : undefined;
+
   const lensPicker = (label: string, title: string, value: string | null, onChange: (profile: string | null) => void) => (
     <label className={`studio-lens-picker${value ? " active" : ""}`} title={title}>
+      <UserRound size={14} strokeWidth={2} aria-hidden="true" />
       <span>{label}</span>
       <select value={value ?? ""} onChange={(e) => onChange(e.target.value || null)}>
         <option value="">{value ? "All configuration" : "Choose…"}</option>
@@ -256,13 +285,43 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     </label>
   );
 
+  const railItem = (id: Section, label: string, title: string, onClick: () => void, Icon: LucideIcon) => (
+    <button
+      className={`studio-rail-item${section === id ? " active" : ""}`}
+      aria-current={section === id ? "page" : undefined}
+      title={title}
+      onClick={onClick}
+    >
+      <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
+      <span className="studio-rail-label">{label}</span>
+    </button>
+  );
+
+  const publishButton = (
+    <button
+      className="studio-btn collapsible"
+      onClick={() => setPublishing(null)}
+      title="Publish to iPad — regenerate the mobile metadata cache"
+    >
+      <CloudUpload aria-hidden="true" />
+      <span className="studio-btn-label">Publish to iPad</span>
+    </button>
+  );
+
+  const refreshButton = (busy: boolean, onClick: () => void, title: string) => (
+    <button className="ui-icon-btn" onClick={onClick} disabled={busy} title={title} aria-label={title}>
+      {busy ? <Spinner size={14} /> : <RefreshCw size={15} strokeWidth={2} aria-hidden="true" />}
+    </button>
+  );
+
   const tray = pending.length > 0 && (
     <div className="studio-tray">
       <span className="studio-tray-count">
-        {pending.length} pending {pending.length === 1 ? "change" : "changes"}
+        <span className="studio-tray-badge">{pending.length}</span>
+        pending {pending.length === 1 ? "change" : "changes"}
       </span>
       <span className="studio-tray-list">{pending.map((p) => p.fix.label).join(" · ")}</span>
-      <button className="studio-btn" onClick={() => setPending([])}>
+      <button className="studio-btn ghost" onClick={() => setPending([])}>
         Discard all
       </button>
       <button className="studio-btn primary" onClick={() => setReviewing(true)} disabled={!readyOrg}>
@@ -273,122 +332,100 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
 
   return (
     <div className="studio">
-      <nav className="studio-rail">
+      <nav className="studio-rail" aria-label="Studio">
+        <div className="studio-rail-head">Studio</div>
         <div className="studio-rail-title">iPad</div>
-        <button
-          className={`studio-rail-item${section === "preview" ? " active" : ""}`}
-          title="What LSC Mobile shows a profile — as last published, or estimated after the next publish"
-          onClick={() => openPreview()}
-        >
-          <span>Preview</span>
-        </button>
+        {railItem(
+          "preview",
+          "Preview",
+          "What LSC Mobile shows a profile — as last published, or estimated after the next publish",
+          () => openPreview(),
+          Tablet
+        )}
         <div className="studio-rail-title studio-rail-section">Setup</div>
-        <button
-          className={`studio-rail-item${section === "overview" ? " active" : ""}`}
-          title="Every feature's readiness at a glance, and what blocks them all"
-          onClick={() => setSection("overview")}
-        >
-          <span>Overview</span>
-        </button>
-        <button
-          className={`studio-rail-item${section === "user-check" ? " active" : ""}`}
-          title="Why can't a rep do something? Check one user's setup end to end"
-          onClick={() => setSection("user-check")}
-        >
-          <span>Check a user</span>
-        </button>
-        <button
-          className={`studio-rail-item${section === "drift" ? " active" : ""}`}
-          title="What changed in the org's LSC configuration since a saved snapshot"
-          onClick={() => setSection("drift")}
-        >
-          <span>What changed</span>
-        </button>
+        {railItem("overview", "Overview", "Every feature's readiness at a glance, and what blocks them all", () => setSection("overview"), LayoutDashboard)}
+        {railItem(
+          "user-check",
+          "Check a user",
+          "Why can't a rep do something? Check one user's setup end to end",
+          () => setSection("user-check"),
+          UserRoundSearch
+        )}
+        {railItem(
+          "drift",
+          "What changed",
+          "What changed in the org's LSC configuration since a saved snapshot",
+          () => setSection("drift"),
+          History
+        )}
         <div className="studio-rail-title studio-rail-section">Features</div>
         {features.map((f) => (
           <button
             key={f.id}
             className={`studio-rail-item${section === "setup" && f.id === featureId ? " active" : ""}`}
+            aria-current={section === "setup" && f.id === featureId ? "page" : undefined}
             disabled={!f.available}
-            title={f.description}
+            title={`${f.title} — ${f.description}`}
             onClick={() => openSetup(f.id)}
           >
-            <span>{f.title}</span>
+            <span className="studio-rail-label">{f.title}</span>
             {!f.available && <span className="studio-soon">Soon</span>}
           </button>
         ))}
         <div className="studio-rail-title studio-rail-section">Testing</div>
-        <button
-          className={`studio-rail-item${section === "sync" ? " active" : ""}`}
-          title="How reps' iPads are syncing, who is struggling and why, and go-live sign-off"
-          onClick={() => {
+        {railItem(
+          "sync",
+          "Sync health",
+          "How reps' iPads are syncing, who is struggling and why, and go-live sign-off",
+          () => {
             setSection("sync");
             setSyncOpened(true);
-          }}
-        >
-          <span>Sync health</span>
-        </button>
+          },
+          Activity
+        )}
       </nav>
 
       {previewOpened && (
-        <section className="studio-main" hidden={section !== "preview"}>
+        <section className="studio-main ui-enter" hidden={section !== "preview"}>
           <header className="studio-header">
-            <div>
+            <div className="studio-heading">
               <h1 className="studio-title">iPad preview</h1>
-              <div className="studio-subtitle">
-                {previewMode === "published"
-                  ? lens
-                    ? `The iPad exactly as ${lens.profile}'s users last downloaded it, from the profile's metadata cache.`
-                    : "The iPad exactly as a profile's users last downloaded it, from the profile's metadata cache."
-                  : `An estimate of the iPad after the next publish, built from the live configuration${
-                      lens ? ` for ${lens.profile}` : ""
-                    } — permission sets and record sharing aren't evaluated.`}
+              <div className="studio-subtitle" title={previewSubtitle}>
+                {previewSubtitle}
               </div>
             </div>
             <div className="studio-header-actions">
-              <div className="studio-ipad-mode" role="group" aria-label="Preview mode">
-                <button
-                  type="button"
-                  className={`studio-btn${previewMode === "published" ? " active" : ""}`}
-                  aria-pressed={previewMode === "published"}
-                  onClick={() => setPreviewMode("published")}
-                >
-                  As published
-                </button>
-                <button
-                  type="button"
-                  className={`studio-btn${previewMode === "estimate" ? " active" : ""}`}
-                  aria-pressed={previewMode === "estimate"}
-                  onClick={() => setPreviewMode("estimate")}
-                >
-                  After next publish (estimate)
-                </button>
-              </div>
+              {readyOrg && publishButton}
+              {previewMode === "estimate" &&
+                refreshButton(
+                  previewLoading,
+                  () => {
+                    for (const id of PREVIEW_FEATURES) load(id, true);
+                    if (maps.visit) load("visit", true);
+                  },
+                  previewLoading ? "Mapping…" : "Refresh"
+                )}
+            </div>
+          </header>
+          <div className="studio-subbar">
+            <Segmented
+              aria-label="Preview mode"
+              value={previewMode}
+              onChange={setPreviewMode}
+              options={[
+                { value: "published", label: "As published" },
+                { value: "estimate", label: "After next publish", title: "An estimate of the iPad after the next publish" },
+              ]}
+            />
+            <div className="studio-subbar-group">
               {lensPicker(
                 lens ? "Previewing as" : "Preview as",
                 "The profile whose iPad to show",
                 lens?.profile ?? null,
                 (profile) => setLens(profile ? { profile } : null)
               )}
-              {readyOrg && (
-                <button className="studio-btn" onClick={() => setPublishing(null)} title="Regenerate the mobile metadata cache">
-                  Publish to iPad
-                </button>
-              )}
-              {previewMode === "estimate" && (
-                <button
-                  className="studio-btn"
-                  onClick={() => {
-                    for (const id of PREVIEW_FEATURES) load(id, true);
-                    if (maps.visit) load("visit", true);
-                  }}
-                  disabled={previewLoading}
-                >
-                  {previewLoading ? "Mapping…" : "Refresh"}
-                </button>
-              )}
             </div>
-          </header>
+          </div>
 
           <div className="studio-stage">
             <div className="studio-canvas">
@@ -401,11 +438,12 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
                     onPickUser={(userId) => loadPublished(publishedProfile, false, userId)}
                   />
                 ) : (
-                  <div className="studio-placeholder">
-                    <div className="studio-placeholder-sub">
-                      Choose a profile in “Preview as” to see the iPad exactly as that profile's users last downloaded it.
-                    </div>
-                  </div>
+                  <StateView
+                    kind="empty"
+                    icon={Tablet}
+                    title="Choose a profile"
+                    detail="Pick one in “Preview as” to see the iPad exactly as that profile's users last downloaded it."
+                  />
                 )
               ) : (
                 <IpadPreview
@@ -453,7 +491,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
       )}
 
       {syncOpened && (
-        <section className="studio-main" hidden={section !== "sync"}>
+        <section className="studio-main ui-enter" hidden={section !== "sync"}>
           <SyncHealthView
             onAskClaude={onAskClaude}
             onOpenSetup={(id, surface = null, item = null) => openSetup(id, surface, item)}
@@ -465,7 +503,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
       )}
 
       {section === "overview" && (
-        <section className="studio-main">
+        <section className="studio-main ui-enter">
           <div className="studio-scroll">
             <SetupOverview
               key={configVersion}
@@ -489,7 +527,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
       )}
 
       {section === "user-check" && (
-        <section className="studio-main">
+        <section className="studio-main ui-enter">
           <div className="studio-scroll">
             <UserTraceView
               features={features}
@@ -508,17 +546,17 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
       )}
 
       {section === "drift" && (
-        <section className="studio-main">
+        <section className="studio-main ui-enter">
           <DriftView onAskClaude={onAskClaude} onOpenFeature={(id) => openSetup(id)} />
         </section>
       )}
 
-      <section className="studio-main" hidden={section !== "setup"}>
+      <section className="studio-main ui-enter" hidden={section !== "setup"}>
         <header className="studio-header">
-          <div>
+          <div className="studio-heading">
             <h1 className="studio-title">{feature?.title ?? "Studio"}</h1>
             {map && (
-              <div className="studio-subtitle">
+              <div className="studio-subtitle" title={featureSubtitle}>
                 {map.summary} · {map.org} · mapped {new Date(map.collectedAt).toLocaleString()}
                 {activeLens && (
                   <span className="studio-lens-note">
@@ -530,27 +568,48 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             )}
           </div>
           <div className="studio-header-actions">
-            {!activeLens && (
-              <div className="studio-view-tabs" role="group" aria-label="View">
-                <button
-                  type="button"
-                  aria-pressed={featureView === "readiness"}
-                  onClick={() => {
-                    setFeatureView("readiness");
-                    selectSurface(null);
-                  }}
-                >
-                  Readiness
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={featureView === "board"}
-                  onClick={() => setFeatureView("board")}
-                >
-                  All configuration
-                </button>
-              </div>
+            {map && canPreview && (
+              <button
+                className="studio-btn collapsible"
+                onClick={() => openPreview(featureId === "visit" ? "Visit" : undefined)}
+                title="Preview on iPad — a block render of what LSC Mobile shows: tabs, home page, and record actions"
+              >
+                <Tablet aria-hidden="true" />
+                <span className="studio-btn-label">Preview on iPad</span>
+              </button>
             )}
+            {map && publishButton}
+            {refreshButton(
+              featureBusy,
+              () => {
+                load(featureId, true);
+                loadReadiness(featureId, true);
+              },
+              featureBusy ? "Checking…" : "Refresh"
+            )}
+          </div>
+        </header>
+        <div className="studio-subbar">
+          <div className="studio-subbar-group">
+            {!activeLens && (
+              <Segmented
+                aria-label="View"
+                value={featureView}
+                onChange={(view) => {
+                  setFeatureView(view);
+                  if (view === "readiness") selectSurface(null);
+                }}
+                options={[
+                  { value: "readiness", label: "Readiness" },
+                  { value: "board", label: "All configuration" },
+                ]}
+              />
+            )}
+            {map && featureView === "board" && (
+              <SeverityChips counts={countBySeverity(mapFindings(map, activeLens))} emptyLabel="No issues found" />
+            )}
+          </div>
+          <div className="studio-subbar-group">
             {!activeLens && featureView === "readiness" && (
               <button
                 className="studio-btn"
@@ -560,14 +619,9 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
                 }}
                 title="Check one rep's setup for this feature"
               >
+                <UserRoundSearch aria-hidden="true" />
                 Check a user…
               </button>
-            )}
-            {map && featureView === "board" && (
-              <SeverityChips
-                counts={countBySeverity(mapFindings(map, activeLens))}
-                emptyLabel="No issues found"
-              />
             )}
             {checkable &&
               lensPicker(
@@ -576,36 +630,12 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
                 activeLens?.profile ?? null,
                 checkProfile
               )}
-            {map && canPreview && (
-              <button
-                className="studio-btn"
-                onClick={() => openPreview(featureId === "visit" ? "Visit" : undefined)}
-                title="A block render of what LSC Mobile shows — tabs, home page, and record actions"
-              >
-                Preview on iPad
-              </button>
-            )}
-            {map && (
-              <button className="studio-btn" onClick={() => setPublishing(null)} title="Regenerate the mobile metadata cache">
-                Publish to iPad
-              </button>
-            )}
-            <button
-              className="studio-btn"
-              onClick={() => {
-                load(featureId, true);
-                loadReadiness(featureId, true);
-              }}
-              disabled={state?.status === "loading" || readiness[featureId]?.status === "loading"}
-            >
-              {state?.status === "loading" || readiness[featureId]?.status === "loading" ? "Checking…" : "Refresh"}
-            </button>
           </div>
-        </header>
+        </div>
 
         <div className="studio-stage">
           {!activeLens && featureView === "readiness" && (
-            <div className="studio-canvas studio-scroll">
+            <div key={`readiness:${featureId}`} className="studio-canvas studio-scroll ui-enter">
               <ReadinessView
                 title={feature?.title ?? featureId}
                 state={readiness[featureId]}
@@ -623,25 +653,26 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             </div>
           )}
           {(activeLens || featureView === "board") && (!state || state.status === "loading") && (
-            <div className="studio-placeholder">
-              <div className="studio-spinner" />
-              <div>Mapping {feature?.title ?? "feature"} configuration…</div>
-              <div className="studio-placeholder-sub">
-                Reading objects, scripts, rules, triggers, mobile sync, actions, and settings from your org.
-              </div>
-            </div>
+            <StateView
+              kind="loading"
+              title={`Mapping ${feature?.title ?? "feature"} configuration…`}
+              detail="Reading objects, scripts, rules, triggers, mobile sync, actions, and settings from your org."
+            />
           )}
           {(activeLens || featureView === "board") && state?.status === "error" && (
-            <div className="studio-placeholder">
-              <div className="studio-placeholder-error">Couldn't map this feature</div>
-              <div className="studio-placeholder-sub">{state.error}</div>
-              <button className="studio-btn" onClick={() => load(featureId, true)}>
-                Try again
-              </button>
-            </div>
+            <StateView
+              kind="error"
+              title="Couldn't map this feature"
+              detail={state.error}
+              actions={
+                <button className="studio-btn" onClick={() => load(featureId, true)}>
+                  Try again
+                </button>
+              }
+            />
           )}
           {map && (activeLens || featureView === "board") && (
-            <div className="studio-canvas">
+            <div key={`board:${featureId}:${activeLens ? "lens" : "all"}`} className="studio-canvas ui-enter">
               {activeLens ? (
                 <LensChecklist
                   map={map}

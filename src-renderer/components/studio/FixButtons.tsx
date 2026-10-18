@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Check } from "lucide-react";
 import type { CreateConfigFix, ProfileOption, StudioFix } from "./types";
 import CreateDialog from "./CreateDialog";
 import {
@@ -65,7 +66,8 @@ export default function FixButtons({ fixes, pending, onPendingChange, profiles, 
               title={queued ? "In pending changes — click to edit" : "Review and add to pending changes"}
               onClick={() => openCreate(fix)}
             >
-              {queued ? `✓ ${fix.label}` : `${fix.label}…`}
+              {queued && <Check size={12} aria-hidden="true" />}
+              {queued ? fix.label : `${fix.label}…`}
             </button>
           );
         }
@@ -78,7 +80,8 @@ export default function FixButtons({ fixes, pending, onPendingChange, profiles, 
             title={queued ? "In pending changes — click to remove" : "Add to pending changes"}
             onClick={() => toggle(fix)}
           >
-            {queued ? `✓ ${fix.label}` : fix.label}
+            {queued && <Check size={12} aria-hidden="true" />}
+            {fix.label}
           </button>
         );
       })}

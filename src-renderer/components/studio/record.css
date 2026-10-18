@@ -444,7 +444,8 @@
 .studio-ipad-rec-offline {
   margin-top: 12px;
   padding: 8px 12px;
-  border-left: 3px solid #dd7a01;
+  border: 1px solid #f9c99a;
+  border-radius: 8px;
   background: #fef1e6;
   font-size: 13px;
   line-height: 18px;
@@ -452,7 +453,7 @@
 }
 
 .studio-ipad-rec-offline.gated {
-  border-left-color: #c9c9c9;
+  border-color: #dddbda;
   background: #f3f3f3;
   color: #5c5c5c;
 }

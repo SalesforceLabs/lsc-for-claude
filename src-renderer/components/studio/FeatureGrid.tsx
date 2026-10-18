@@ -1,10 +1,8 @@
 import React from "react";
+import { CircleAlert } from "lucide-react";
 import type { FeatureMap, StudioSurface, SurfaceId } from "./types";
 import { allFindings, countBySeverity, worstSeverity } from "./findings";
 import { SeverityChips } from "./SeverityChips";
-
-/** Lane accent colours, by column index. */
-const LANE_COLORS = ["#a78bfa", "#3b82f6", "#34d399", "#f59e0b", "#f472b6", "#22d3ee"];
 
 interface FeatureGridProps {
   map: FeatureMap;
@@ -17,13 +15,9 @@ export default function FeatureGrid({ map, selectedSurface, onSelectSurface }: F
   const lanes = map.lanes.filter((lane) => map.surfaces.some((s) => s.lane === lane.id));
   return (
     <div className="studio-board" onClick={() => onSelectSurface(null)}>
-      {lanes.map((lane, idx) => (
-        <div
-          key={lane.id}
-          className="studio-board-lane"
-          style={{ "--lane-color": LANE_COLORS[idx % LANE_COLORS.length] } as React.CSSProperties}
-        >
-          <div className="studio-lane-title">{lane.title}</div>
+      {lanes.map((lane) => (
+        <section key={lane.id} className="studio-board-lane">
+          <h3 className="ui-section-title">{lane.title}</h3>
           {map.surfaces
             .filter((s) => s.lane === lane.id)
             .map((surface) => (
@@ -34,7 +28,7 @@ export default function FeatureGrid({ map, selectedSurface, onSelectSurface }: F
                 onSelect={() => onSelectSurface(surface.id)}
               />
             ))}
-        </div>
+        </section>
       ))}
     </div>
   );
@@ -58,7 +52,7 @@ function SurfaceCard({ surface, selected, onSelect }: { surface: StudioSurface; 
     >
       <div className="studio-surface-header">
         <span className="studio-surface-title">{surface.title}</span>
-        <span className="studio-surface-count">{surface.error ? "!" : surface.items.length}</span>
+        <span className="studio-surface-count">{surface.error ? <CircleAlert size={12} aria-label="Couldn't load" /> : surface.items.length}</span>
       </div>
       {surface.error ? (
         <div className="studio-surface-error">Couldn't load</div>

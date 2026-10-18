@@ -7,24 +7,15 @@
 .sync-investigate-territory {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   max-width: 360px;
 }
 .sync-investigate-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
 }
-.sync-investigate-stat-value {
-  font-size: 20px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-}
-.sync-investigate-verdict {
-  align-self: flex-start;
-  white-space: normal;
-}
+
 .sync-investigate-tables {
   list-style: none;
   margin: 0;
@@ -37,24 +28,23 @@
   width: 100%;
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 2px 12px;
+  gap: 4px 12px;
   padding: 8px 10px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: none;
   color: inherit;
+  font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 .sync-investigate-row:hover,
 .sync-investigate-row.selected {
   background: var(--bg-secondary);
   border-color: var(--border);
 }
-.sync-investigate-row:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
+
 .sync-investigate-row-name {
   display: flex;
   align-items: center;
@@ -62,13 +52,14 @@
   font-weight: 500;
 }
 .sync-investigate-row-count {
-  font-size: 12px;
+  font-size: var(--font-sm);
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
 }
 .sync-investigate-row .studio-perf-bar {
   grid-column: 1 / -1;
   display: block;
+  margin-top: 0;
 }
 .sync-investigate-fill {
   display: block;
@@ -89,10 +80,6 @@
   gap: 8px;
   align-items: flex-start;
 }
-.sync-investigate-hint .studio-sev-dot {
-  margin-top: 5px;
-  flex-shrink: 0;
-}
 .sync-investigate-hint-body {
   display: flex;
   flex-direction: column;
@@ -101,14 +88,17 @@
 }
 .sync-investigate-hint-title {
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--font-base);
+}
+.sync-investigate-hint .ui-status-icon {
+  margin-top: 1px;
 }
 .sync-investigate-props {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 4px 12px;
+  gap: 6px 16px;
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-sm);
 }
 .sync-investigate-props dt {
   color: var(--text-muted);
@@ -120,5 +110,31 @@
 .sync-investigate-details summary {
   cursor: pointer;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--font-sm);
+}
+.sync-investigate-details summary:hover {
+  color: var(--text-primary);
+}
+.sync-investigate-details ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+.sync-investigate-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.sync-investigate-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sync-investigate-territory {
+  max-width: 360px;
+}
+.sync-investigate-state {
+  position: relative;
+  min-height: 240px;
 }

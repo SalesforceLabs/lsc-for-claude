@@ -4,6 +4,7 @@ import type { PendingChange } from "./changes";
 import SyncOverview from "./SyncOverview";
 import SyncInvestigate from "./SyncInvestigate";
 import SignoffView from "./SignoffView";
+import Segmented from "../ui/Segmented";
 
 /**
  * Sync health — the admin's view of mobile sync, in the order they ask:
@@ -27,10 +28,9 @@ const TABS: Array<{ id: SyncTab; label: string; title: string }> = [
 ];
 
 const SUBTITLES: Record<SyncTab, string> = {
-  overview: "How reps' iPads are syncing across the org, and who is struggling. Read from field telemetry — no setup needed.",
-  investigate: "What one rep's iPad downloads, table by table, and what to change to make it lighter. Every query is read-only.",
-  signoff:
-    "Check personas against the customer's targets and replay a first sync, then export a go-live report. Every query is read-only.",
+  overview: "How reps' iPads are syncing, from field telemetry",
+  investigate: "What one rep's iPad downloads, and how to make it lighter",
+  signoff: "Test plans, first-sync replays and the go-live report",
 };
 
 export default function SyncHealthView({ onAskClaude, onOpenSetup, pending, onPendingChange }: SyncHealthViewProps) {
@@ -49,26 +49,17 @@ export default function SyncHealthView({ onAskClaude, onOpenSetup, pending, onPe
   return (
     <>
       <header className="studio-header">
-        <div>
+        <div className="studio-sync-head-text">
           <h1 className="studio-title">Sync health</h1>
           <div className="studio-subtitle">{SUBTITLES[tab]}</div>
         </div>
         <div className="studio-header-actions">
-          <div className="studio-ipad-mode" role="tablist" aria-label="Sync health">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                className={`studio-btn${tab === t.id ? " active" : ""}`}
-                aria-selected={tab === t.id}
-                title={t.title}
-                onClick={() => open(t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            aria-label="Sync health"
+            value={tab}
+            onChange={open}
+            options={TABS.map((t) => ({ value: t.id, label: t.label, title: t.title }))}
+          />
         </div>
       </header>
       {opened.has("overview") && (

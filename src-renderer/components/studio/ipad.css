@@ -15,8 +15,21 @@
   align-items: center;
   gap: 6px;
   max-width: 960px;
-  font-size: 12px;
+  min-height: var(--control);
+  font-size: var(--font-sm);
   color: var(--text-secondary);
+}
+
+.studio-ipad-meta .studio-ipad-viewer {
+  flex: 0 1 auto;
+  width: auto;
+  max-width: 220px;
+  height: var(--control-sm);
+  font-size: var(--font-sm);
+}
+
+.studio-ipad-meta .studio-ipad-reload {
+  margin-left: 4px;
 }
 
 .studio-ipad-meta .studio-ipad-cache {

@@ -14,6 +14,10 @@ import {
   planToYaml,
   type PlanArea,
 } from "./perf-plan";
+import { Check, Copy, Plus, X } from "lucide-react";
+import Segmented from "../ui/Segmented";
+import StateView from "../ui/StateView";
+import { Callout, Disclosure } from "./PerfParts";
 import "./perf-editor.css";
 
 interface PlanEditorProps {
@@ -73,7 +77,7 @@ function ThresholdTable({
               {(["warn", "fail"] as const).map((field) => (
                 <td key={field}>
                   <input
-                    className="studio-filter studio-perf-number"
+                    className="studio-filter studio-perf-number studio-perf-threshold-input"
                     type="number"
                     min={0}
                     step="any"
@@ -148,10 +152,10 @@ function UserSearch({
         </select>
       </div>
       {state.error ? (
-        <div className="studio-placeholder-error">{state.error}</div>
+        <Callout tone="error">{state.error}</Callout>
       ) : (
         <ul className="studio-picker-list studio-perf-user-list">
-          {state.loading && state.users.length === 0 && <li className="studio-picker-meta">Searching…</li>}
+          {state.loading && state.users.length === 0 && <li className="studio-picker-meta" role="status">Searching…</li>}
           {!state.loading && state.users.length === 0 && <li className="studio-picker-meta">No active users match.</li>}
           {state.users.map((u) => {
             const added = taken.has(u.username.toLowerCase());
@@ -311,33 +315,24 @@ function PersonaCard({
           onChange={(e) => onChange({ ...persona, name: e.target.value })}
           aria-label="Persona name"
         />
-        <button className="studio-icon-btn" onClick={onRemove} disabled={disabled} title="Remove persona" aria-label="Remove persona">
-          ×
+        <button type="button" className="ui-icon-btn" onClick={onRemove} disabled={disabled} title="Remove persona" aria-label="Remove persona">
+          <X size={16} aria-hidden="true" />
         </button>
       </div>
 
       <div className="studio-perf-field-label">Who to test</div>
-      <div className="studio-ipad-mode studio-perf-mode" role="radiogroup" aria-label="Who to test">
-        <button
-          role="radio"
-          aria-checked={mode === "profile"}
-          className={`studio-btn studio-perf-small${mode === "profile" ? " active" : ""}`}
-          disabled={disabled}
-          onClick={() => switchMode("profile")}
-        >
-          Heaviest users of a profile
-        </button>
-        <button
-          role="radio"
-          aria-checked={mode === "users"}
-          className={`studio-btn studio-perf-small${mode === "users" ? " active" : ""}`}
-          disabled={disabled}
-          onClick={() => switchMode("users")}
-        >
-          Specific users
-        </button>
+      <div className="studio-perf-mode">
+        <Segmented
+          aria-label="Who to test"
+          size="sm"
+          value={mode}
+          onChange={switchMode}
+          options={[
+            { value: "profile", label: "Heaviest users of a profile", disabled },
+            { value: "users", label: "Specific users", disabled },
+          ]}
+        />
       </div>
-
       {mode === "profile" ? (
         <>
           <div className="studio-perf-row studio-perf-select-row">
@@ -361,7 +356,7 @@ function PersonaCard({
               ))}
             </select>
             <label className="studio-perf-count">
-              <span className="studio-perf-metric-meta">Users</span>
+              <span className="studio-perf-field-label">Users</span>
               <input
                 className="studio-filter studio-perf-number"
                 type="number"
@@ -381,7 +376,7 @@ function PersonaCard({
           <div className="studio-perf-hint">
             Each run tests the active users of this profile with the most territories, the ones who sync the most data.
           </div>
-          <label className="studio-perf-check-label">
+          <label className="ui-check studio-perf-check-label">
             <input
               type="checkbox"
               checked={!!persona.select?.preferSynced}
@@ -396,7 +391,7 @@ function PersonaCard({
           {persona.users.length > 0 && (
             <div className="studio-perf-hint">
               Also tests {persona.users.join(", ")}.{" "}
-              <button className="studio-link-btn" disabled={disabled} onClick={() => onChange({ ...persona, users: [] })}>
+              <button type="button" className="studio-link-btn" disabled={disabled} onClick={() => onChange({ ...persona, users: [] })}>
                 Remove
               </button>
             </div>
@@ -404,22 +399,24 @@ function PersonaCard({
         </>
       ) : (
         <>
-          <div className="studio-chips">
+          <div className="studio-perf-chips">
             {persona.users.map((u) => (
-              <span key={u} className="studio-chip">
+              <span key={u} className="studio-perf-chip">
                 {u}
                 <button
-                  className="studio-chip-x"
+                  type="button"
+                  className="ui-icon-btn"
                   disabled={disabled}
                   onClick={() => onChange({ ...persona, users: persona.users.filter((x) => x !== u) })}
                   aria-label={`Remove ${u}`}
                 >
-                  ×
+                  <X size={12} aria-hidden="true" />
                 </button>
               </span>
             ))}
-            <button className="studio-btn studio-perf-small" onClick={() => setPicking(!picking)} disabled={disabled}>
-              {picking ? "Done" : "Add users…"}
+            <button type="button" className="studio-btn sm" onClick={() => setPicking(!picking)} disabled={disabled}>
+              {picking ? <Check size={14} aria-hidden="true" /> : <Plus size={14} aria-hidden="true" />}
+              {picking ? "Done" : "Add users"}
             </button>
           </div>
           {picking && (
@@ -439,9 +436,9 @@ function PersonaCard({
         <TerritoryPicker persona={persona} disabled={disabled} onChange={(territory) => onChange({ ...persona, territory })} />
       </div>
 
-      <button className="studio-perf-disclosure" onClick={() => setShowThresholds(!showThresholds)}>
-        {showThresholds ? "▾" : "▸"} Persona targets{overrides ? ` (${overrides} overridden)` : " — using the plan's targets"}
-      </button>
+      <Disclosure open={showThresholds} onToggle={() => setShowThresholds(!showThresholds)}>
+        Persona targets{overrides ? ` (${overrides} overridden)` : " — using the plan's targets"}
+      </Disclosure>
       {showThresholds && (
         <ThresholdTable
           thresholds={persona.thresholds}
@@ -505,29 +502,15 @@ export default function PlanEditor({ plan, onChange, profiles, disabled }: PlanE
         </div>
       </section>
 
-      <div className="studio-ipad-mode studio-perf-plan-tabs" role="tablist" aria-label="Plan sections">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            role="tab"
-            id={`perf-plan-tab-${t.id}`}
-            aria-selected={tab === t.id}
-            aria-controls={`perf-plan-panel-${t.id}`}
-            className={`studio-btn${tab === t.id ? " active" : ""}`}
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-            {t.issues > 0 && (
-              <span className="studio-perf-tab-issues" aria-label={`${t.issues} to fix`}>
-                {t.issues}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-
+      <Segmented
+        aria-label="Plan sections"
+        className="studio-perf-plan-tabs"
+        value={tab}
+        onChange={setTab}
+        options={tabs.map((t) => ({ value: t.id, label: t.label, count: t.issues > 0 ? t.issues : undefined, title: t.issues > 0 ? `${t.issues} to fix` : undefined }))}
+      />
       {tab === "personas" && (
-        <section className="studio-perf-section" role="tabpanel" id="perf-plan-panel-personas" aria-labelledby="perf-plan-tab-personas">
+        <section className="studio-perf-section" aria-label="Personas">
           <div className="studio-perf-section-header">
             <div className="studio-perf-hint">
               A persona is a type of rep, such as a field rep. Each one is tested as its own reps, not as you: pick a profile
@@ -536,14 +519,24 @@ export default function PlanEditor({ plan, onChange, profiles, disabled }: PlanE
               on the rep are counted org-wide and flagged when the object's sharing would hide records from them.
             </div>
             <button
+              type="button"
               className="studio-btn"
               disabled={disabled}
               onClick={() => onChange({ ...plan, personas: [...plan.personas, emptyPersona(plan.personas.length)] })}
             >
+              <Plus size={14} aria-hidden="true" />
               Add persona
             </button>
           </div>
-          {plan.personas.length === 0 && <div className="studio-perf-hint">Add a persona, a type of rep whose sync load you want to test.</div>}
+          {plan.personas.length === 0 && (
+            <StateView
+              layout="inline"
+              kind="empty"
+              title="No personas yet"
+              detail="Add a persona, a type of rep whose sync load you want to test."
+              className="sync-overview-empty"
+            />
+          )}
           {plan.personas.map((p, i) => (
             <PersonaCard
               key={keys.current[i]}
@@ -560,7 +553,7 @@ export default function PlanEditor({ plan, onChange, profiles, disabled }: PlanE
       )}
 
       {tab === "targets" && (
-        <section className="studio-perf-section" role="tabpanel" id="perf-plan-panel-targets" aria-labelledby="perf-plan-tab-targets">
+        <section className="studio-perf-section" aria-label="Targets">
           <div className="studio-perf-hint">
             The customer's targets for every persona. A persona can set its own. Warn is the target; fail is the limit. Leave
             a measure blank to report it without a pass or fail.
@@ -597,10 +590,11 @@ function YamlPanel({ plan }: { plan: PerfPlan }) {
     setTimeout(() => setCopied(false), 1500);
   };
   return (
-    <section className="studio-perf-section" role="tabpanel" id="perf-plan-panel-yaml" aria-labelledby="perf-plan-tab-yaml">
+    <section className="studio-perf-section" aria-label="Import / export">
       <div className="studio-perf-section-header">
         <div className="studio-perf-hint">The same plan as a YAML file, to share it, keep it in version control, or run it with run_perf_assessment or in CI. Most people never need this.</div>
-        <button className="studio-btn" onClick={copy}>
+        <button type="button" className="studio-btn" onClick={copy}>
+          {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
           {copied ? "Copied" : "Copy"}
         </button>
       </div>

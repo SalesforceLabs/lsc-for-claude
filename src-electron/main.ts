@@ -42,13 +42,16 @@ if (app.isPackaged) app.setPath("userData", path.join(app.getPath("appData"), "L
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
-    width: 1100,
-    height: 750,
-    minWidth: 600,
-    minHeight: 400,
+    width: 1280,
+    height: 820,
+    minWidth: 880,
+    minHeight: 560,
     title: "Roz for LSC",
+    // Matches --bg-primary so the window never flashes white before the renderer paints.
+    backgroundColor: "#0a0f1a",
     titleBarStyle: "hiddenInset",
-    trafficLightPosition: { x: 16, y: 16 },
+    // Centred in the 52px sidebar header (--toolbar-height).
+    trafficLightPosition: { x: 18, y: 19 },
     webPreferences: {
       preload: path.join(__dirname, "..", "src-electron", "preload.cjs"),
       contextIsolation: true,

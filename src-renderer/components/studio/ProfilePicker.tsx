@@ -24,7 +24,7 @@ export default function ProfilePicker({
 
   return (
     <div className="studio-picker">
-      <input className="studio-filter" placeholder="Filter profiles…" value={filter} onChange={(e) => setFilter(e.target.value)} />
+      <input className="studio-filter" aria-label="Filter profiles" placeholder="Filter profiles…" value={filter} onChange={(e) => setFilter(e.target.value)} />
       <ul className="studio-picker-list">
         {rows.map((p) => (
           <li key={p.name}>

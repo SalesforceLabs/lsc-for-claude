@@ -10,6 +10,10 @@ import {
   summaryText,
   when,
 } from "./drift-format";
+import { ArrowRight, Camera, ExternalLink, GitCompare, RefreshCw, Sparkles, Trash2 } from "lucide-react";
+import StatusIcon from "../ui/StatusIcon";
+import StateView from "../ui/StateView";
+import "./readiness.css";
 import "./drift.css";
 import { AssistantName } from "../../hooks/useAssistantName";
 
@@ -88,21 +92,28 @@ export default function DriftView({ onAskClaude, onOpenFeature }: DriftViewProps
 
   if (error && !list) {
     return (
-      <div className="studio-placeholder">
-        <div className="studio-placeholder-error">Couldn't load what changed</div>
-        <div className="studio-placeholder-sub">{error}</div>
-        <button className="studio-btn" onClick={load}>
-          Try again
-        </button>
+      <div className="studio-drift-fill">
+        <StateView
+          kind="error"
+          title="Couldn't load what changed"
+          detail={error}
+          actions={
+            <button className="studio-btn" onClick={load}>
+              <RefreshCw aria-hidden="true" /> Try again
+            </button>
+          }
+        />
       </div>
     );
   }
   if (!list) {
     return (
-      <div className="studio-placeholder">
-        <div className="studio-spinner" />
-        <div>Looking for recent changes…</div>
-        <div className="studio-placeholder-sub">Reading when your configuration was last modified. Every query is read-only.</div>
+      <div className="studio-drift-fill">
+        <StateView
+          kind="loading"
+          title="Looking for recent changes…"
+          detail="Reading when your configuration was last modified. Every query is read-only."
+        />
       </div>
     );
   }
@@ -112,10 +123,10 @@ export default function DriftView({ onAskClaude, onOpenFeature }: DriftViewProps
     <div className="studio-drift">
       <aside className="studio-drift-side">
         <div className="studio-drift-side-head">
-          <h3 className="studio-lane-title">Snapshots</h3>
+          <h3 className="ui-section-title">Snapshots</h3>
           {naming === null && (
             <button className="studio-btn primary" onClick={() => setNaming("")}>
-              Save snapshot
+              <Camera aria-hidden="true" /> Save snapshot
             </button>
           )}
         </div>
@@ -129,6 +140,7 @@ export default function DriftView({ onAskClaude, onOpenFeature }: DriftViewProps
           >
             <input
               autoFocus
+              className="studio-input"
               value={naming}
               onChange={(e) => setNaming(e.target.value)}
               placeholder="Label, e.g. Go-live baseline"
@@ -145,9 +157,10 @@ export default function DriftView({ onAskClaude, onOpenFeature }: DriftViewProps
         )}
         {error && <div className="studio-drift-error">{error}</div>}
         {list.snapshots.length === 0 ? (
-          <p className="studio-drift-empty">
-            No snapshots yet. Save one now (before go-live, or before a risky change) and compare against it later.
-          </p>
+          <div className="studio-drift-empty">
+            <Camera size={16} aria-hidden="true" />
+            <p>No snapshots yet. Save one now (before go-live, or before a risky change) and compare against it later.</p>
+          </div>
         ) : (
           <ul className="studio-drift-snaps">
             {list.snapshots.map((s) => (
@@ -158,21 +171,27 @@ export default function DriftView({ onAskClaude, onOpenFeature }: DriftViewProps
                   {s.counts.triggerHandlers} handlers
                 </div>
                 <div className="studio-drift-snap-actions">
-                  <button className="studio-btn" onClick={() => compare(s.id)} disabled={busy}>
-                    Compare
+                  <button className="studio-btn sm" onClick={() => compare(s.id)} disabled={busy}>
+                    <GitCompare aria-hidden="true" /> Compare
                   </button>
                   {confirmDelete === s.id ? (
                     <>
-                      <button className="studio-btn danger" onClick={() => remove(s.id)} disabled={busy}>
+                      <button className="studio-btn sm danger" onClick={() => remove(s.id)} disabled={busy}>
                         Delete for good
                       </button>
-                      <button className="studio-btn" onClick={() => setConfirmDelete(null)}>
+                      <button className="studio-btn sm" onClick={() => setConfirmDelete(null)}>
                         Keep
                       </button>
                     </>
                   ) : (
-                    <button className="studio-btn" onClick={() => setConfirmDelete(s.id)} disabled={busy}>
-                      Delete
+                    <button
+                      className="ui-icon-btn sm studio-drift-delete"
+                      onClick={() => setConfirmDelete(s.id)}
+                      disabled={busy}
+                      title="Delete snapshot"
+                      aria-label={`Delete snapshot ${s.label}`}
+                    >
+                      <Trash2 size={14} aria-hidden="true" />
                     </button>
                   )}
                 </div>
@@ -194,6 +213,7 @@ export default function DriftView({ onAskClaude, onOpenFeature }: DriftViewProps
       </aside>
 
       <div className="studio-drift-main">
+        <div className="studio-drift-page ui-enter" key={snapshot && diff ? snapshot.id : "recent"}>
         {snapshot && diff ? (
           <DiffPanel
             snapshot={snapshot}
@@ -205,6 +225,7 @@ export default function DriftView({ onAskClaude, onOpenFeature }: DriftViewProps
         ) : (
           <RecentPanel recent={list.recent} onAskClaude={onAskClaude} onOpenFeature={onOpenFeature} onRefresh={load} />
         )}
+        </div>
       </div>
     </div>
   );
@@ -226,47 +247,53 @@ function DiffPanel({
   const diff = state.status === "ready" ? state.diff : null;
   const groups = useMemo(() => (diff ? groupByFeature(diff.changes) : []), [diff]);
   if (state.status === "loading") {
-    return (
-      <div className="studio-drift-status">
-        <div className="studio-spinner" />
-        <div>Comparing the org now with “{snapshot.label}”…</div>
-      </div>
-    );
+    return <StateView kind="loading" layout="inline" title={`Comparing the org now with “${snapshot.label}”…`} />;
   }
   if (state.status === "error") {
     return (
-      <div className="studio-drift-status">
-        <div className="studio-placeholder-error">Couldn't compare</div>
-        <div className="studio-placeholder-sub">{state.error}</div>
-        <button className="studio-btn" onClick={onRetry}>
-          Try again
-        </button>
-      </div>
+      <StateView
+        kind="error"
+        layout="inline"
+        title="Couldn't compare"
+        detail={state.error}
+        actions={
+          <button className="studio-btn" onClick={onRetry}>
+            <RefreshCw aria-hidden="true" /> Try again
+          </button>
+        }
+      />
     );
   }
   const d = state.diff;
   return (
     <>
       <header className="studio-drift-head">
-        <h2>Since “{snapshot.label}”</h2>
-        <div className="studio-drift-meta">
-          Saved {when(snapshot.createdAt)} · {summaryText(d.counts)}
+        <div>
+          <h2>Since “{snapshot.label}”</h2>
+          <p>
+            Saved {when(snapshot.createdAt)} · {summaryText(d.counts)}
+          </p>
         </div>
       </header>
       {d.changes.length === 0 ? (
-        <div className="studio-drift-clear">✓ Nothing in Admin Console settings, DB Schema, actions or trigger handlers has changed since this snapshot.</div>
+        <div className="studio-drift-clear">
+          <StatusIcon tone="pass" size={20} />
+          Nothing in Admin Console settings, DB Schema, actions or trigger handlers has changed since this snapshot.
+        </div>
       ) : (
         groups.map((g) => (
           <section key={g.featureId ?? "other"} className="studio-drift-group">
-            <h3 className="studio-lane-title">
-              {g.title}
-              <span className="studio-drift-count">{g.items.length}</span>
+            <div className="studio-section-head">
+              <h3 className="ui-section-title">
+                {g.title}
+                <span className="count">{g.items.length}</span>
+              </h3>
               {g.featureId && (
-                <button className="studio-btn" onClick={() => onOpenFeature(g.featureId!)}>
-                  Open feature
+                <button className="studio-btn sm" onClick={() => onOpenFeature(g.featureId!)}>
+                  <ExternalLink aria-hidden="true" /> Open feature
                 </button>
               )}
-            </h3>
+            </div>
             {g.items.map((c) => (
               <ChangeCard key={c.key} change={c} onAsk={() => onAskClaude(askAboutChange(c, snapshot))} />
             ))}
@@ -277,19 +304,22 @@ function DiffPanel({
   );
 }
 
+const KIND_TONE = { added: "pass", removed: "error", changed: "warning" } as const;
+const KIND_LABEL = { added: "Added", removed: "Removed", changed: "Changed" } as const;
+
 function ChangeCard({ change: c, onAsk }: { change: DriftChange; onAsk: () => void }) {
   const active = describeActive(c.active);
   return (
     <article className={`studio-drift-card ${c.kind}`}>
       <div className="studio-drift-card-head">
-        <span className={`studio-drift-kind ${c.kind}`}>{c.kind}</span>
+        <span className={`ui-pill ${KIND_TONE[c.kind]}`}>{KIND_LABEL[c.kind]}</span>
         <strong>{c.label || c.developerName}</strong>
         <span className="studio-drift-meta">
           {c.category}
           {c.label && c.label !== c.developerName ? ` · ${c.developerName}` : ""}
         </span>
-        <button className="studio-btn" onClick={onAsk}>
-          Ask <AssistantName />
+        <button className="studio-btn sm" onClick={onAsk}>
+          <Sparkles aria-hidden="true" /> Ask <AssistantName />
         </button>
       </div>
       {(c.modifiedBy || c.modifiedAt) && (
@@ -308,7 +338,7 @@ function ChangeCard({ change: c, onAsk }: { change: DriftChange; onAsk: () => vo
               {c.kind === "changed" && (
                 <>
                   <span className="studio-drift-before">{formatValue(f.before)}</span>
-                  <span aria-hidden="true">→</span>
+                  <ArrowRight size={12} aria-hidden="true" className="studio-drift-arrow" />
                   <span className="studio-drift-after">{formatValue(f.after)}</span>
                 </>
               )}
@@ -340,43 +370,50 @@ function RecentPanel({
   return (
     <>
       <header className="studio-drift-head">
-        <h2>Recent changes (last {recent.days} days)</h2>
-        <div className="studio-drift-meta">
-          {recent.changes.length} items modified. Save a snapshot to see exactly which settings changed, and how.
-          <button className="studio-btn" onClick={onRefresh}>
-            Refresh
-          </button>
+        <div>
+          <h2>Recent changes</h2>
+          <p>
+            {recent.changes.length} {recent.changes.length === 1 ? "item" : "items"} modified in the last {recent.days} days. Save a snapshot to see exactly which settings changed, and how.
+          </p>
         </div>
+        <button className="studio-btn" onClick={onRefresh}>
+          <RefreshCw aria-hidden="true" /> Refresh
+        </button>
       </header>
       {recent.errors.length > 0 && (
         <div className="studio-drift-error">Some sources couldn't be read: {recent.errors.join("; ")}</div>
       )}
       {recent.changes.length === 0 && recent.errors.length === 0 && (
-        <div className="studio-drift-clear">✓ No LSC configuration was modified in the last {recent.days} days.</div>
+        <div className="studio-drift-clear">
+          <StatusIcon tone="pass" size={20} />
+          No LSC configuration was modified in the last {recent.days} days.
+        </div>
       )}
       {groups.map((g) => (
         <section key={g.featureId ?? "other"} className="studio-drift-group">
-          <h3 className="studio-lane-title">
-            {g.title}
-            <span className="studio-drift-count">{g.items.length}</span>
+          <div className="studio-section-head">
+            <h3 className="ui-section-title">
+              {g.title}
+              <span className="count">{g.items.length}</span>
+            </h3>
             {g.featureId && (
-              <button className="studio-btn" onClick={() => onOpenFeature(g.featureId!)}>
-                Open feature
+              <button className="studio-btn sm" onClick={() => onOpenFeature(g.featureId!)}>
+                <ExternalLink aria-hidden="true" /> Open feature
               </button>
             )}
-          </h3>
+          </div>
           <ul className="studio-drift-recent">
             {g.items.map((c: RecentChange, i) => (
               <li key={`${c.kind}-${c.name}-${i}`}>
-                <span className="studio-drift-kind recent">{RECENT_KIND_LABEL[c.kind]}</span>
+                <span className="ui-pill">{RECENT_KIND_LABEL[c.kind]}</span>
                 <strong>{c.name}</strong>
                 {c.detail && <span className="studio-drift-meta">{c.detail}</span>}
                 <span className="studio-drift-meta studio-drift-when">
                   {c.modifiedBy ? `${c.modifiedBy} · ` : ""}
                   {when(c.modifiedAt)}
                 </span>
-                <button className="studio-btn" onClick={() => onAskClaude(askAboutRecent(c))}>
-                  Ask <AssistantName />
+                <button className="studio-btn sm" onClick={() => onAskClaude(askAboutRecent(c))}>
+                  <Sparkles aria-hidden="true" /> Ask <AssistantName />
                 </button>
               </li>
             ))}

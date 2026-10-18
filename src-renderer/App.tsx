@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import Spinner from "./components/ui/Spinner";
 import { useChat } from "./hooks/useChat";
 import { useEngine } from "./hooks/useEngine";
 import { useLibrary } from "./hooks/useLibrary";
@@ -108,8 +109,10 @@ export default function App() {
   // Show a brief loading state while auto-detecting
   if (autoDetecting) {
     return (
-      <div className="connecting-splash no-drag">
-        Connecting...
+      <div className="connecting-splash">
+        <div className="setup-drag drag-region" />
+        <Spinner size={20} />
+        <span>Connecting…</span>
       </div>
     );
   }
@@ -136,18 +139,17 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      <div className="titlebar" />
       <div className="app-container">
       <Sidebar
         commands={commands}
         providerType={engine.providerType}
-        activeConversationId={chat.conversationId}
+        activeConversationId={studioOpen || libraryPanelOpen ? null : chat.conversationId}
         streamingConvIds={chat.streamingConvIds}
         libraryCount={library.items.length}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
         onCommandClick={(name) => { chat.clear(); setStudioOpen(false); setLibraryPanelOpen(false); setPrefillInput(`/lsc:${name} `); }}
-        onNewChat={() => { setStudioOpen(false); chat.clear(); }}
+        onNewChat={() => { setStudioOpen(false); setLibraryPanelOpen(false); chat.clear(); }}
         onLoadConversation={(id) => { setStudioOpen(false); setLibraryPanelOpen(false); chat.loadConversation(id); }}
         onDeleteConversation={async (id) => {
           await window.lscApi.deleteConversation(id);
@@ -163,8 +165,10 @@ export default function App() {
         }}
         onOpenLibrary={() => handleOpenLibrary()}
         studioActive={studioOpen}
+        libraryActive={libraryPanelOpen && !studioOpen}
         onOpenStudio={() => { setLibraryPanelOpen(false); setStudioOpen(true); }}
       />
+      <div key={studioOpen ? "studio" : libraryPanelOpen ? "library" : "chat"} className="view-pane ui-enter">
       {studioOpen ? (
         <StudioView onAskClaude={handleAskClaude} />
       ) : libraryPanelOpen ? (
@@ -195,6 +199,7 @@ export default function App() {
           onPrefillConsumed={() => setPrefillInput(undefined)}
         />
       )}
+      </div>
       {showSettings && (
         <SettingsPanel
           connectedVia={engine.label}

@@ -3,9 +3,24 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import mermaid from "mermaid";
-import { ChatMessage, ContentBlock, ToolCall, ImageAttachment, getFullText } from "../hooks/useChat";
+import {
+  ArrowUp, Bookmark, BookmarkCheck, Check, ChevronDown, ChevronRight, CircleAlert, Copy, ExternalLink, FileText,
+  Maximize2, Minimize2, Minus, Paperclip, Plus, RotateCcw, Scan, Square, TriangleAlert, Workflow, Wrench, X,
+} from "lucide-react";
+import { ChatMessage, ContentBlock, ToolCall, ImageAttachment } from "../hooks/useChat";
 import { pickModel, type ModelOption } from "../models";
 import { rozTileSrc, useAppIcon } from "../app-icon";
+import Spinner from "./ui/Spinner";
+
+/** Lucide defaults for icons in chat chrome. */
+const ICON = { size: 14, strokeWidth: 1.9, "aria-hidden": true } as const;
+
+/** The text of a reply for copying: its text blocks as separate paragraphs. */
+function replyText(msg: ChatMessage): string {
+  return msg.blocks
+    .flatMap((b) => (b.type === "text" && b.text.trim() ? [b.text.trim()] : []))
+    .join("\n\n");
+}
 
 // Initialize mermaid with dark theme
 mermaid.initialize({
@@ -269,35 +284,43 @@ function MermaidDiagram({ chart, onOpen, onSave, saved }: { chart: string; onOpe
   }
 
   return (
-    <div className="mermaid-card" onClick={() => svg && onOpen?.(svg)}>
-      <div className="mermaid-card-header">
-        <span className="mermaid-card-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" />
-          </svg>
+    <div
+      className={`mermaid-card${svg ? "" : " pending"}`}
+      role="button"
+      tabIndex={svg ? 0 : -1}
+      onClick={() => svg && onOpen?.(svg)}
+      onKeyDown={(e) => {
+        if (svg && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onOpen?.(svg);
+        }
+      }}
+    >
+      <span className="mermaid-card-icon">
+        <Workflow size={16} strokeWidth={1.75} aria-hidden="true" />
+      </span>
+      <div className="mermaid-card-info">
+        <span className="mermaid-card-title">Diagram</span>
+        <span className="mermaid-card-meta">
+          {!svg ? (
+            <><Spinner size={11} /> Generating…</>
+          ) : saved ? (
+            "Saved to Library"
+          ) : (
+            "Click to explore"
+          )}
         </span>
-        <div className="mermaid-card-info">
-          <span className="mermaid-card-title">Diagram</span>
-          <span className="mermaid-card-meta">
-            {!svg ? (
-              <><span className="mermaid-inline-dot" /> Generating...</>
-            ) : saved ? (
-              "Saved to Library"
-            ) : (
-              "Click to explore"
-            )}
-          </span>
-        </div>
-        {svg && onSave && (
-          <button
-            className={`mermaid-save-btn${saved ? " mermaid-save-btn-saved" : ""}`}
-            onClick={(e) => { e.stopPropagation(); if (!saved) onSave(svg, chart); }}
-            title={saved ? "Saved to Library" : "Save to Library"}
-          >
-            {saved ? <IconBookmarkFilled /> : <IconBookmark />}
-          </button>
-        )}
       </div>
+      {svg && onSave && (
+        <button
+          className={`mermaid-save-btn${saved ? " mermaid-save-btn-saved" : ""}`}
+          onClick={(e) => { e.stopPropagation(); if (!saved) onSave(svg, chart); }}
+          title={saved ? "Saved to Library" : "Save to Library"}
+          aria-label={saved ? "Saved to Library" : "Save to Library"}
+        >
+          {saved ? <BookmarkCheck {...ICON} /> : <Bookmark {...ICON} />}
+        </button>
+      )}
     </div>
   );
 }
@@ -356,14 +379,10 @@ export function DiagramZoomToolbar({ controls, extraButtons }: {
   const { zoom, zoomIn, zoomOut, zoomReset, zoomFit } = controls;
   return (
     <div className="mermaid-zoom-controls">
-      <button onClick={zoomOut} title="Zoom out" disabled={zoom <= 0.1}>−</button>
-      <button onClick={zoomReset} title="Reset zoom">{Math.round(zoom * 100)}%</button>
-      <button onClick={zoomIn} title="Zoom in">+</button>
-      <button onClick={zoomFit} title="Fit in window">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M8 3H5a2 2 0 0 0-2 2v3" /><path d="M21 8V5a2 2 0 0 0-2-2h-3" /><path d="M3 16v3a2 2 0 0 0 2 2h3" /><path d="M16 21h3a2 2 0 0 0 2-2v-3" />
-        </svg>
-      </button>
+      <button onClick={zoomOut} title="Zoom out" aria-label="Zoom out" disabled={zoom <= 0.1}><Minus {...ICON} /></button>
+      <button className="zoom-level" onClick={zoomReset} title="Reset zoom">{Math.round(zoom * 100)}%</button>
+      <button onClick={zoomIn} title="Zoom in" aria-label="Zoom in"><Plus {...ICON} /></button>
+      <button onClick={zoomFit} title="Fit in window" aria-label="Fit in window"><Scan {...ICON} /></button>
       {extraButtons}
     </div>
   );
@@ -426,8 +445,12 @@ function MermaidViewerPanel({ svg, onClose }: { svg: string; onClose: () => void
   }, [onClose, isFullscreen]);
 
   const fullscreenBtn = (
-    <button onClick={() => setIsFullscreen((f) => !f)} title={isFullscreen ? "Exit full screen" : "Full screen"}>
-      {isFullscreen ? <IconExitFullscreen /> : <IconFullscreen />}
+    <button
+      onClick={() => setIsFullscreen((f) => !f)}
+      title={isFullscreen ? "Exit full screen" : "Full screen"}
+      aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
+    >
+      {isFullscreen ? <Minimize2 {...ICON} /> : <Maximize2 {...ICON} />}
     </button>
   );
 
@@ -438,18 +461,14 @@ function MermaidViewerPanel({ svg, onClose }: { svg: string; onClose: () => void
       style={!isFullscreen && panelWidth ? { width: panelWidth } : undefined}
     >
       {!isFullscreen && <div className="mermaid-panel-resize" onPointerDown={onResizePointerDown} />}
-      <div className="mermaid-panel-header">
+      <div className="mermaid-panel-header drag-region">
         <span className="mermaid-card-label">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" />
-          </svg>
+          <Workflow size={15} strokeWidth={1.75} aria-hidden="true" />
           Diagram
         </span>
         <DiagramZoomToolbar controls={controls} extraButtons={fullscreenBtn} />
-        <button className="mermaid-close-btn" onClick={onClose} title="Close (Esc)">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+        <button className="ui-icon-btn" onClick={onClose} title="Close (Esc)" aria-label="Close">
+          <X size={16} strokeWidth={1.9} aria-hidden="true" />
         </button>
       </div>
       <DiagramViewport svg={svg} controls={controls} />
@@ -505,30 +524,24 @@ function DocViewerPanel({
   return (
     <div className="doc-panel" ref={panelRef} style={panelWidth ? { width: panelWidth } : undefined}>
       <div className="mermaid-panel-resize" onPointerDown={onResizePointerDown} />
-      <div className="doc-panel-header">
+      <div className="doc-panel-header drag-region">
         <div className="doc-panel-title-row">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
-          </svg>
+          <FileText size={16} strokeWidth={1.75} aria-hidden="true" />
           <span className="doc-panel-title">{title}</span>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div className="doc-panel-actions">
           {isGuide && pdfFileName && (
             <button
-              className="doc-panel-pdf-btn"
+              className="studio-btn sm"
               title="Open in Preview"
               onClick={() => window.lscApi.openPdfAtPage(pdfFileName, page || startPage || 1)}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
+              <ExternalLink {...ICON} />
               Open in Preview
             </button>
           )}
-          <button className="mermaid-close-btn" onClick={onClose} title="Close (Esc)">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+          <button className="ui-icon-btn" onClick={onClose} title="Close (Esc)" aria-label="Close">
+            <X size={16} strokeWidth={1.9} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -590,6 +603,22 @@ function tableToText(table: HTMLTableElement): string {
         .join("\t")
     )
     .join("\n");
+}
+
+/** A compact pill that shows the chosen model; the native select sits invisibly on top so the menu stays native. */
+function ModelPicker({ value, options, onChange }: { value: string; options: ModelOption[]; onChange: (value: string) => void }) {
+  const current = options.find((o) => o.value === value);
+  return (
+    <label className="model-pill" title="Model">
+      <span className="model-pill-label">{current?.label ?? value}</span>
+      <ChevronDown size={12} strokeWidth={2.25} aria-hidden="true" />
+      <select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Model">
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+    </label>
+  );
 }
 
 interface LibraryItem {
@@ -1028,10 +1057,12 @@ export default function ChatView({
         onDrop={handleDrop}
       >
         {autocomplete.length > 0 && (
-          <div className="autocomplete-popup">
+          <div className="autocomplete-popup" role="listbox" aria-label="Commands">
             {autocomplete.map((cmd, i) => (
               <div
                 key={cmd.name}
+                role="option"
+                aria-selected={i === selectedIdx}
                 ref={(el) => {
                   if (el) autocompleteItemsRef.current.set(i, el);
                   else autocompleteItemsRef.current.delete(i);
@@ -1054,7 +1085,9 @@ export default function ChatView({
             {images.map((img) => (
               <div key={img.id} className="image-preview-thumb">
                 <img src={`data:${img.mediaType};base64,${img.data}`} alt="attachment" />
-                <button className="image-remove-btn" onClick={() => removeImage(img.id)}>&times;</button>
+                <button className="image-remove-btn" onClick={() => removeImage(img.id)} aria-label="Remove image">
+                  <X size={12} strokeWidth={2.25} aria-hidden="true" />
+                </button>
               </div>
             ))}
           </div>
@@ -1066,8 +1099,8 @@ export default function ChatView({
           onKeyDown={handleKeyDown}
           placeholder={
             messages.length === 0
-              ? "Ask about LSC, run a command, or type / to see options..."
-              : "Type a message..."
+              ? "Ask about LSC, run a command, or type / to see options…"
+              : "Reply…"
           }
           rows={1}
         />
@@ -1088,34 +1121,31 @@ export default function ChatView({
               className="toolbar-btn"
               onClick={() => fileInputRef.current?.click()}
               title="Attach image"
+              aria-label="Attach image"
             >
-              <IconPaperclip />
+              <Paperclip size={16} strokeWidth={1.75} aria-hidden="true" />
             </button>
           </div>
           <div className="input-toolbar-right">
-            <select
-              className="model-picker"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-            >
-              {modelOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+            <ModelPicker value={model} options={modelOptions} onChange={setModel} />
             {isStreaming ? (
               <button
                 className="toolbar-send stop"
                 onClick={onAbort}
+                title="Stop generating"
+                aria-label="Stop generating"
               >
-                Stop
+                <Square size={11} fill="currentColor" strokeWidth={0} aria-hidden="true" />
               </button>
             ) : (
               <button
                 className="toolbar-send"
                 onClick={handleSubmit}
                 disabled={!input.trim()}
+                title="Send (Enter)"
+                aria-label="Send"
               >
-                <IconSend />
+                <ArrowUp size={16} strokeWidth={2.25} aria-hidden="true" />
               </button>
             )}
           </div>
@@ -1127,6 +1157,7 @@ export default function ChatView({
   if (messages.length === 0) {
     return (
       <div className="main-area">
+        <div className="pane-toolbar drag-region" />
         <div className="welcome">
           <div className="welcome-logo-wrap">
             <img src={rozTileSrc(appIcon)} alt="" className="welcome-logo" />
@@ -1136,13 +1167,6 @@ export default function ChatView({
             Ask questions about LSC, run SOQL queries, configure
             modules, or type <strong>/</strong> to see available commands.
           </p>
-          <div className="model-selector">
-            <select value={model} onChange={(e) => setModel(e.target.value)}>
-              {modelOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
         </div>
         {inputArea}
       </div>
@@ -1154,6 +1178,7 @@ export default function ChatView({
   return (
     <div className={`main-area${hasPanel ? " with-panel" : ""}`}>
       <div className="main-area-chat">
+      <div className="pane-toolbar bordered drag-region" />
       <div className="chat-messages" ref={chatContainerRef}>
         {messages.map((msg) => (
           <div key={msg.id} className={`message ${msg.role}`}>
@@ -1321,20 +1346,22 @@ export default function ChatView({
                     <button
                       className="action-btn"
                       title="Copy"
-                      onClick={() => copy(getFullText(msg), msg.id)}
+                      aria-label="Copy reply"
+                      onClick={() => copy(replyText(msg), msg.id)}
                     >
-                      {copiedId === msg.id ? <IconCheck /> : <IconCopy />}
+                      {copiedId === msg.id ? <Check {...ICON} className="copied" /> : <Copy {...ICON} />}
                     </button>
                     {getUserPromptFor(msg.id) && (
                       <button
                         className="action-btn"
                         title="Retry"
+                        aria-label="Retry"
                         onClick={() => {
                           const prompt = getUserPromptFor(msg.id);
                           if (prompt) onRerun(prompt);
                         }}
                       >
-                        <IconRetry />
+                        <RotateCcw {...ICON} />
                       </button>
                     )}
                   </div>
@@ -1344,7 +1371,10 @@ export default function ChatView({
           </div>
         ))}
         {error && (
-          <div className="error-banner">{error}</div>
+          <div className="error-banner" role="alert">
+            <TriangleAlert size={15} strokeWidth={1.9} aria-hidden="true" />
+            <span>{error}</span>
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>
@@ -1369,82 +1399,6 @@ export default function ChatView({
         />
       )}
     </div>
-  );
-}
-
-const iconProps = { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-
-function IconCopy() {
-  return (
-    <svg {...iconProps}>
-      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-    </svg>
-  );
-}
-
-function IconCheck() {
-  return (
-    <svg {...iconProps} stroke="var(--success)">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
-}
-
-function IconRetry() {
-  return (
-    <svg {...iconProps}>
-      <polyline points="1 4 1 10 7 10" />
-      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-    </svg>
-  );
-}
-
-function IconPaperclip() {
-  return (
-    <svg {...iconProps}>
-      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-    </svg>
-  );
-}
-
-function IconBookmark() {
-  return (
-    <svg {...iconProps}>
-      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-    </svg>
-  );
-}
-
-function IconBookmarkFilled() {
-  return (
-    <svg {...iconProps} fill="currentColor">
-      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-    </svg>
-  );
-}
-
-function IconSend() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-      <path d="M3.478 2.405a.75.75 0 0 0-.926.94l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.405Z" />
-    </svg>
-  );
-}
-
-function IconFullscreen() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
-    </svg>
-  );
-}
-
-function IconExitFullscreen() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" />
-    </svg>
   );
 }
 
@@ -1474,8 +1428,9 @@ function CopyableCode({
         className="code-copy-btn"
         onClick={handleCopy}
         title="Copy code"
+        aria-label="Copy code"
       >
-        {copiedId === copyId ? <IconCheck /> : <IconCopy />}
+        {copiedId === copyId ? <Check {...ICON} className="copied" /> : <Copy {...ICON} />}
       </button>
     </div>
   );
@@ -1507,9 +1462,25 @@ function CopyableTable({
         onClick={handleCopy}
         title="Copy table"
       >
+        {copiedId === copyId ? <Check {...ICON} size={12} className="copied" /> : <Copy {...ICON} size={12} />}
         {copiedId === copyId ? "Copied" : "Copy"}
       </button>
     </div>
+  );
+}
+
+function ToolStatus({ status, label }: { status: ToolCall["status"]; label: string }) {
+  return (
+    <span className={`tool-status ${status}`}>
+      {status === "running" ? (
+        <Spinner size={11} />
+      ) : status === "error" ? (
+        <CircleAlert size={12} strokeWidth={2} aria-hidden="true" />
+      ) : (
+        <Check size={12} strokeWidth={2.25} aria-hidden="true" />
+      )}
+      {label}
+    </span>
   );
 }
 
@@ -1525,7 +1496,7 @@ function ToolGroup({
   const hasError = tools.some((t) => t.status === "error");
   const runningCount = tools.filter((t) => t.status === "running").length;
 
-  const statusClass = !allDone ? "running" : hasError ? "error" : "success";
+  const status: ToolCall["status"] = !allDone ? "running" : hasError ? "error" : "success";
   const statusLabel = !allDone
     ? `${runningCount} running`
     : hasError
@@ -1534,22 +1505,20 @@ function ToolGroup({
 
   return (
     <div className="tool-group">
-      <div
+      <button
+        type="button"
         className={`tool-group-header${expanded ? " expanded" : ""}`}
+        aria-expanded={expanded}
         onClick={() => setExpanded(!expanded)}
       >
-        <span className={`tool-chevron${expanded ? " open" : ""}`}>&#9654;</span>
-        <span className="tool-group-icon">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-          </svg>
-        </span>
+        <ChevronRight className={`tool-chevron${expanded ? " open" : ""}`} size={12} strokeWidth={2.25} aria-hidden="true" />
+        <Wrench className="tool-group-icon" size={13} strokeWidth={1.75} aria-hidden="true" />
         <span className="tool-group-summary">
           Used {tools.length} tools
         </span>
         <span className="tool-group-names">{summarizeTools(tools)}</span>
-        <span className={`tool-status ${statusClass}`}>{statusLabel}</span>
-      </div>
+        <ToolStatus status={status} label={statusLabel} />
+      </button>
       {expanded && (
         <div className="tool-group-body">
           {tools.map((tool) => (
@@ -1582,11 +1551,11 @@ function ToolCallBlock({
 
   return (
     <div className="tool-call">
-      <div className="tool-call-header" onClick={onToggle}>
-        <span className={`tool-chevron${isOpen ? " open" : ""}`}>&#9654;</span>
+      <button type="button" className="tool-call-header" aria-expanded={isOpen} onClick={onToggle}>
+        <ChevronRight className={`tool-chevron${isOpen ? " open" : ""}`} size={12} strokeWidth={2.25} aria-hidden="true" />
         <span className="tool-name">{tool.name}</span>
-        <span className={`tool-status ${tool.status}`}>{statusLabel}</span>
-      </div>
+        <ToolStatus status={tool.status} label={statusLabel} />
+      </button>
       <div className={`tool-call-body-wrapper${isOpen ? " open" : ""}`}>
         <div className="tool-call-body">
           <div className="tool-call-body-inner">
@@ -1594,7 +1563,7 @@ function ToolCallBlock({
               ? tool.result.length > 3000
                 ? tool.result.slice(0, 3000) + "\n...(truncated)"
                 : tool.result
-              : "Waiting for result..."}
+              : "Waiting for result…"}
           </div>
         </div>
       </div>

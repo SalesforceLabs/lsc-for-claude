@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Plus, RotateCcw, X } from "lucide-react";
+import StateView from "../ui/StateView";
 import type { AccessOptions, AccessRef, StudioFix, StudioItem, UserAccess } from "./types";
 import type { PendingChange } from "./changes";
 
@@ -71,7 +73,7 @@ export default function UserAccessPanel({ user, others, pending, onQueue, refres
       </div>
     );
   }
-  if (!access || !options) return <div className="studio-empty-note">Loading access…</div>;
+  if (!access || !options) return <StateView kind="loading" title="Loading access…" layout="inline" className="studio-inspector-state" />;
 
   const held = new Set(access.access.map(refKey));
   const licensesQueued = pending.flatMap((p) => (p.fix.kind === "assignPsl" && p.fix.userId === user.id ? [p.fix] : []));
@@ -136,7 +138,7 @@ export default function UserAccessPanel({ user, others, pending, onQueue, refres
           ))}
           {licensesQueued.map((l) => (
             <span key={l.pslId} className="studio-chip adding">
-              + {l.pslLabel}
+              <Plus size={10} aria-hidden /> {l.pslLabel}
             </span>
           ))}
         </div>
@@ -150,7 +152,7 @@ export default function UserAccessPanel({ user, others, pending, onQueue, refres
             <div className="studio-edit-row">
               <span className="studio-edit-label">{s.title}</span>
               <button className="studio-link-btn studio-edit-action" onClick={() => setAdding(adding === s.type ? null : s.type)}>
-                {adding === s.type ? "Done" : "+ Add"}
+                {adding === s.type ? "Done" : <><Plus size={12} aria-hidden /> Add</>}
               </button>
             </div>
             <div className="studio-chips">
@@ -165,16 +167,16 @@ export default function UserAccessPanel({ user, others, pending, onQueue, refres
                       title={removing ? "Keep" : `Remove from ${user.name}`}
                       onClick={() => (removing ? undoQueued(a) : onQueue([take(a)]))}
                     >
-                      {removing ? "↺" : "×"}
+                      {removing ? <RotateCcw size={10} aria-hidden /> : <X size={10} aria-hidden />}
                     </button>
                   </span>
                 );
               })}
               {additions.map((a) => (
                 <span key={a.id} className="studio-chip adding">
-                  + {a.label}
-                  <button className="studio-chip-x" title="Don't add" onClick={() => undoQueued(a)}>
-                    ×
+                  <Plus size={10} aria-hidden /> {a.label}
+                  <button className="studio-chip-x" title="Don't add" aria-label="Don't add" onClick={() => undoQueued(a)}>
+                    <X size={10} aria-hidden />
                   </button>
                 </span>
               ))}
@@ -192,7 +194,7 @@ export default function UserAccessPanel({ user, others, pending, onQueue, refres
       {others.length > 0 && (
         <div className="studio-edit-block">
           {copying ? (
-            <select className="studio-input" defaultValue="" onChange={(e) => sameAs(e.target.value)}>
+            <select className="studio-select" aria-label="Copy access from" defaultValue="" onChange={(e) => sameAs(e.target.value)}>
               <option value="" disabled>
                 Give {user.name} the same access as…
               </option>

@@ -1,15 +1,23 @@
+/* What changed — a snapshot rail beside a reading column of changes. Page, section and pill styles come from
+   readiness.css and ui.css. */
+
 .studio-drift {
   display: flex;
   height: 100%;
   min-height: 0;
 }
 
+.studio-drift-fill {
+  position: relative;
+  height: 100%;
+}
+
 .studio-drift-side {
   flex: 0 0 320px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  gap: var(--space-3);
+  padding: var(--space-4);
   border-right: 1px solid var(--border);
   overflow-y: auto;
 }
@@ -18,9 +26,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  min-height: var(--control);
 }
 
-.studio-drift-side-head .studio-lane-title {
+.studio-drift-side-head .ui-section-title {
   margin: 0;
 }
 
@@ -32,13 +41,6 @@
 
 .studio-drift-name input {
   flex: 1 1 100%;
-  padding: 6px 10px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xs);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 12px;
 }
 
 .studio-drift-snaps {
@@ -47,17 +49,18 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .studio-drift-snaps li {
-  padding: 10px 12px;
+  padding: 10px var(--space-3);
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   display: flex;
   flex-direction: column;
   gap: 6px;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
 }
 
 .studio-drift-snaps li.selected {
@@ -66,117 +69,137 @@
 }
 
 .studio-drift-snap-label {
+  font-size: var(--font-base);
   font-weight: 500;
   color: var(--text-primary);
 }
 
 .studio-drift-snap-actions {
   display: flex;
+  align-items: center;
   gap: 6px;
 }
 
-.studio-btn.danger {
-  border-color: var(--error);
-  color: var(--error);
+.studio-drift-delete {
+  margin-left: auto;
 }
 
-.studio-drift-empty,
+.studio-drift-empty {
+  display: flex;
+  gap: 10px;
+  padding: var(--space-3);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+}
+
+.studio-drift-empty svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.studio-drift-empty p {
+  margin: 0;
+  font-size: var(--font-sm);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
 .studio-drift-meta {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-sm);
   color: var(--text-muted);
 }
 
 .studio-drift-error {
-  font-size: 12px;
+  font-size: var(--font-sm);
   color: var(--error);
 }
 
 .studio-drift-main {
   flex: 1;
   min-width: 0;
-  padding: 16px 24px 32px;
   overflow-y: auto;
+}
+
+.studio-drift-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-8) var(--space-10);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-5);
+}
+
+.studio-drift-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.studio-drift-head > .studio-btn {
+  margin-left: auto;
 }
 
 .studio-drift-head h2 {
-  margin: 0 0 4px;
-  font-size: 16px;
+  margin: 0;
+  font-size: var(--font-xl);
+  font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--text-primary);
 }
 
-.studio-drift-head .studio-btn {
-  margin-left: 10px;
-}
-
-.studio-drift-status {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
+.studio-drift-head p {
+  margin: 4px 0 0;
+  font-size: var(--font-base);
+  line-height: 1.5;
   color: var(--text-secondary);
 }
 
 .studio-drift-clear {
-  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-secondary);
-  color: var(--success);
-  font-size: 13px;
+  color: var(--text-secondary);
+  font-size: var(--font-base);
 }
 
 .studio-drift-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
-.studio-drift-group .studio-lane-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.studio-drift-group .studio-lane-title .studio-btn {
-  margin-left: auto;
-}
-
-.studio-drift-count {
-  font-weight: 400;
-  color: var(--text-muted);
+.studio-drift-group .studio-section-head {
+  margin-bottom: 4px;
 }
 
 .studio-drift-card {
-  padding: 10px 14px;
+  padding: 12px var(--space-4);
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--warning);
   border-radius: var(--radius-sm);
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-
-.studio-drift-card.added {
-  border-left-color: var(--success);
-}
-
-.studio-drift-card.removed {
-  border-left-color: var(--error);
+  gap: var(--space-2);
 }
 
 .studio-drift-card-head,
 .studio-drift-recent li {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: var(--space-2);
   flex-wrap: wrap;
+}
+
+.studio-drift-card-head strong {
+  font-size: var(--font-base);
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .studio-drift-card-head .studio-btn,
@@ -184,32 +207,8 @@
   margin-left: auto;
 }
 
-.studio-drift-kind {
-  padding: 1px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  background: var(--bg-tertiary);
-  color: var(--warning);
-}
-
-.studio-drift-kind.added {
-  color: var(--success);
-}
-
-.studio-drift-kind.removed {
-  color: var(--error);
-}
-
-.studio-drift-kind.recent {
-  color: var(--text-secondary);
-  text-transform: none;
-  letter-spacing: 0;
-}
-
 .studio-drift-line {
-  font-size: 12px;
+  font-size: var(--font-sm);
   color: var(--text-secondary);
 }
 
@@ -220,13 +219,13 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--font-sm);
 }
 
 .studio-drift-fields li {
   display: flex;
-  gap: 8px;
-  align-items: baseline;
+  gap: var(--space-2);
+  align-items: center;
   flex-wrap: wrap;
 }
 
@@ -235,9 +234,15 @@
   font-weight: 500;
 }
 
+.studio-drift-arrow {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
 .studio-drift-before,
 .studio-drift-after {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
+  font-size: var(--font-xs);
   overflow-wrap: anywhere;
 }
 
@@ -259,10 +264,16 @@
 }
 
 .studio-drift-recent li {
-  padding: 8px 12px;
+  min-height: 44px;
+  padding: 8px var(--space-3);
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+}
+
+.studio-drift-recent strong {
+  font-size: var(--font-base);
+  font-weight: 600;
 }
 
 .studio-drift-when {
