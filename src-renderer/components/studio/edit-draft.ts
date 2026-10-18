@@ -400,7 +400,8 @@ export type VerbId =
   | "column"
   | "heading"
   | "required"
-  | "readonly";
+  | "readonly"
+  | "add";
 
 /** Something the toolbar offers. `run` returns the tray it leaves; absent when the verb is shown disabled, with `reason`. */
 export interface Verb {
@@ -408,7 +409,18 @@ export interface Verb {
   label: string;
   title: string;
   run?: (pending: PendingChange[]) => PendingChange[];
+  /** Set instead of `run` when the verb asks for a choice first ("Add field…"): the inspector opens a picker over `options`. */
+  pick?: VerbPick;
   reason?: string;
+}
+
+export interface VerbPick {
+  /** The picker's accessible name. */
+  label: string;
+  options: { value: string; label: string; detail?: string }[];
+  /** Shown when there's nothing to pick. */
+  empty: string;
+  choose: (value: string, pending: PendingChange[]) => PendingChange[];
 }
 
 function fieldFix(item: StudioItem, field: string, to: number, label: string): StudioFix | null {

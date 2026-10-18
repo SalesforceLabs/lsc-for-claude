@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import type { CreateConfigFix, FeatureMap, LiveLayout, ProfileOption } from "./types";
+import type { CreateConfigFix, FeatureMap, LiveCompactLayout, LiveLayout, ProfileOption } from "./types";
 import type { PublishedIpad, PublishedResult } from "./published-types";
 import type { PreviewEdit } from "./PublishedIpadPreview";
 import { createAffects, queueChange, type PendingChange } from "./changes";
-import { actionVerbs, draftHomeMenu, draftTabs, tabVerbs, type Verb } from "./edit-draft";
+import { actionVerbs, draftHomeMenu, draftTabs, tabVerbs, type Verb, type VerbPick } from "./edit-draft";
 import { describeTarget, syncAction, syncFilter, type EditTarget } from "./edit-targets";
 import {
   alignLayout,
@@ -17,7 +17,8 @@ import {
   type DraftSection,
   type LayoutDraft,
 } from "./layout-draft";
-import BlockInspector from "./BlockInspector";
+import { alignCompact, compactTargetOf, compactVerbs, crowdedNote, draftHeader, type CompactDraft, type DraftHeaderField } from "./compact-draft";
+import BlockInspector, { compactReach } from "./BlockInspector";
 import CreateDialog from "./CreateDialog";
 
 interface PreviewEditOptions {
@@ -59,15 +60,19 @@ export function usePreviewEdit({
   const [creating, setCreating] = useState<CreateConfigFix | null>(null);
   const snapshot: PublishedIpad | null = result && !("missing" in result) ? result : null;
 
+  // A verb waiting on a choice ("Add field…"), shown as a picker in the inspector.
+  const [picking, setPicking] = useState<VerbPick | null>(null);
+
   // Another profile, user or mode is another screen: start without a selection.
   useEffect(() => setSelected(null), [on, profile, snapshot]);
+  useEffect(() => setPicking(null), [selected, draft]);
 
   // Page layouts as they are in the org now, read when one of their blocks is selected
   // (and for layouts with queued edits): the preview shows the last publish.
   const [liveLayouts, setLiveLayouts] = useState<Record<string, LiveState>>({});
   useEffect(() => setLiveLayouts({}), [org]);
   const wanted = useMemo(() => {
-    const names = new Set(pending.flatMap((p) => (p.fix.kind === "editMetadata" ? [p.fix.doc.fullName] : [])));
+    const names = new Set(pending.flatMap((p) => (p.fix.kind === "editMetadata" && p.fix.doc.type === "Layout" ? [p.fix.doc.fullName] : [])));
     const layout = selected && "layout" in selected ? selected.layout : undefined;
     if (on && layout) names.add(layout);
     return [...names].sort();
@@ -85,6 +90,28 @@ export function usePreviewEdit({
   useEffect(() => {
     for (const name of wanted) if (!liveLayouts[name]) fetchLayout(name);
   }, [wanted, liveLayouts, fetchLayout]);
+
+  // Compact layouts (the record header) the same way, read when a header field is selected.
+  const [liveCompacts, setLiveCompacts] = useState<Record<string, LiveCompactState>>({});
+  useEffect(() => setLiveCompacts({}), [org]);
+  const wantedCompacts = useMemo(() => {
+    const names = new Set(pending.flatMap((p) => (p.fix.kind === "editMetadata" && p.fix.doc.type === "CompactLayout" ? [p.fix.doc.fullName] : [])));
+    if (on && selected?.kind === "headerField") names.add(selected.compactLayout);
+    return [...names].sort();
+  }, [pending, selected, on]);
+  const fetchCompact = useCallback((name: string) => {
+    setLiveCompacts((m) => ({ ...m, [name]: { status: "loading" } }));
+    window.lscApi.studioMetadataDoc("CompactLayout", name).then(
+      (res) => {
+        const error = res.error ?? res.data?.error;
+        setLiveCompacts((m) => ({ ...m, [name]: error ? { status: "error", error } : { status: "ready", live: res.data as LiveCompactLayout } }));
+      },
+      (e: unknown) => setLiveCompacts((m) => ({ ...m, [name]: { status: "error", error: String(e) } }))
+    );
+  }, []);
+  useEffect(() => {
+    for (const name of wantedCompacts) if (!liveCompacts[name]) fetchCompact(name);
+  }, [wantedCompacts, liveCompacts, fetchCompact]);
 
   const surface = (map: FeatureMap | null, id: string) => map?.surfaces.find((s) => s.id === id);
   const tabItems = surface(actionsMap, "navigationTabs")?.items;
@@ -141,6 +168,41 @@ export function usePreviewEdit({
     return out;
   }, [liveLayouts, snapshot, overlay]);
 
+  const compacts = useMemo(() => {
+    const out: Record<string, CompactEntry> = {};
+    for (const [name, state] of Object.entries(liveCompacts)) {
+      if (state.status !== "ready") {
+        out[name] = state;
+        continue;
+      }
+      const published = snapshot?.compactFields?.[name];
+      const base = state.live.fields;
+      if (!published || !alignCompact(snapshot?.compactSources?.[name], published, base)) {
+        out[name] = { status: "stale", live: state.live, note: COMPACT_STALE };
+        continue;
+      }
+      try {
+        const target = compactTargetOf(name, base, overlay);
+        const fields = draftHeader(published, state.live, base, target);
+        const object = name.slice(0, name.indexOf("."));
+        const hidden = (f: string) => !!snapshot?.records?.fields[object]?.[f.toLowerCase()]?.hidden;
+        const draft: CompactDraft = {
+          fullName: name,
+          label: state.live.label,
+          live: state.live,
+          base,
+          target,
+          shown: fields.filter((f) => f.state !== "removed" && !hidden(f.spec.name)).map((f) => f.spec.name),
+        };
+        out[name] = { status: "ready", draft, fields };
+      } catch (e) {
+        if (!(e instanceof StaleDraftError)) throw e;
+        out[name] = { status: "stale", live: state.live, note: `The queued edits no longer fit this compact layout: ${e.message} Take them out of the tray and refresh the preview.` };
+      }
+    }
+    return out;
+  }, [liveCompacts, snapshot, overlay]);
+
   // Blocks are found again by name: a move changes their index.
   const verbs = useMemo((): Verb[] => {
     if (!selected || !profile) return [];
@@ -151,6 +213,10 @@ export function usePreviewEdit({
     if (selected.kind === "action" && selected.place === "home") {
       const i = homeMenu.findIndex((d) => d.value.name === selected.name);
       return i < 0 ? [] : actionVerbs(homeMenu, i, pending, profile);
+    }
+    if (selected.kind === "headerField") {
+      const c = compacts[selected.compactLayout];
+      return c?.status === "ready" ? compactVerbs(c.draft, selected.field, selected.label) : [];
     }
     const entry = "layout" in selected && selected.layout ? layouts[selected.layout] : undefined;
     if (entry?.status !== "ready") return [];
@@ -163,7 +229,7 @@ export function usePreviewEdit({
     }
     if (selected.kind === "related" && selected.relatedList) return relatedVerbs(d, selected.relatedList, selected.label);
     return [];
-  }, [selected, tabs, homeMenu, pending, profile, layouts]);
+  }, [selected, tabs, homeMenu, pending, profile, layouts, compacts]);
 
   const info = useMemo(
     () =>
@@ -173,13 +239,19 @@ export function usePreviewEdit({
     [selected, snapshot, profile, overlay, tabs, homeMenu]
   );
   const layoutEntry = selected && "layout" in selected && selected.layout ? layouts[selected.layout] : undefined;
-  const layoutStatus = statusOf(layoutEntry);
+  const layoutStatus = selected?.kind === "headerField" ? compactStatusOf(compacts[selected.compactLayout]) : statusOf(layoutEntry);
   const sync =
     info?.syncObject && snapshot && profile && syncFilter(snapshot, info.syncObject) === null
       ? syncAction(info.syncObject, synced, profile, pending)
       : null;
 
-  const run = useCallback((verb: Verb) => verb.run && onPendingChange(verb.run(pending)), [pending, onPendingChange]);
+  const run = useCallback(
+    (verb: Verb) => {
+      if (verb.pick) setPicking(verb.pick);
+      else if (verb.run) onPendingChange(verb.run(pending));
+    },
+    [pending, onPendingChange]
+  );
   const openSetup = useCallback(() => {
     if (org && info?.setup) window.lscApi.openSfOrg(org, info.setup.path);
   }, [org, info]);
@@ -192,13 +264,14 @@ export function usePreviewEdit({
           tabs,
           homeMenu,
           layouts,
+          compacts,
           selected,
           onSelect: setSelected,
           verbs: draft ? verbs : [],
           onRun: run,
           setup: org ? info?.setup : null,
           onSetup: openSetup,
-          horizontal: selected?.kind === "tab",
+          horizontal: selected?.kind === "tab" || selected?.kind === "headerField",
         }
       : undefined;
 
@@ -212,8 +285,21 @@ export function usePreviewEdit({
           verbs={verbs}
           draft={draft}
           onRun={run}
+          horizontal={edit.horizontal}
+          picking={picking}
+          onPick={(value) => {
+            if (picking) onPendingChange(picking.choose(value, pending));
+            setPicking(null);
+          }}
+          onCancelPick={() => setPicking(null)}
           layout={layoutStatus}
-          onRetryLayout={selected && "layout" in selected && selected.layout ? () => fetchLayout(selected.layout!) : undefined}
+          onRetryLayout={
+            selected?.kind === "headerField"
+              ? () => fetchCompact(selected.compactLayout)
+              : selected && "layout" in selected && selected.layout
+                ? () => fetchLayout(selected.layout!)
+                : undefined
+          }
           sync={sync}
           onSync={() => {
             if (sync?.kind === "change") onPendingChange(queueChange(pending, sync.change));
@@ -244,6 +330,7 @@ export function usePreviewEdit({
 const NONE: PendingChange[] = [];
 
 type LiveState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; live: LiveLayout };
+type LiveCompactState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; live: LiveCompactLayout };
 
 /** A page layout in edit mode: still loading, unreadable, out of line with the last publish, or ready to draw and edit. */
 export type LayoutEntry =
@@ -251,6 +338,16 @@ export type LayoutEntry =
   | { status: "error"; error: string }
   | { status: "stale"; live: LiveLayout; note: string }
   | { status: "ready"; draft: LayoutDraft; sections: DraftSection[] };
+
+/** A compact layout in edit mode, like `LayoutEntry`: `fields` is the header as the tray leaves it. */
+export type CompactEntry =
+  | { status: "loading" }
+  | { status: "error"; error: string }
+  | { status: "stale"; live: LiveCompactLayout; note: string }
+  | { status: "ready"; draft: CompactDraft; fields: DraftHeaderField[] };
+
+const COMPACT_STALE =
+  "This compact layout changed in Setup since the last publish, so Studio can't line the record header up with it. Publish to iPad (or refresh the preview) to edit it here.";
 
 const STALE =
   "This page layout changed in Setup since the last publish, so Studio can't line the preview up with it. Publish to iPad (or refresh the preview) to edit it here.";
@@ -262,6 +359,10 @@ export interface LayoutStatus {
   problem?: string;
   canRetry?: boolean;
   profiles?: string[] | null;
+  /** Who a change reaches, when it isn't a page layout's profiles (a compact layout's record types). */
+  reach?: string;
+  /** A heads-up about the arrangement (a crowded header). */
+  note?: string;
   production?: boolean;
 }
 
@@ -276,5 +377,22 @@ function statusOf(entry: LayoutEntry | undefined): LayoutStatus | undefined {
       return { problem: entry.note, profiles: entry.live.profiles, production: entry.live.production };
     case "ready":
       return { profiles: entry.draft.live.profiles, production: entry.draft.live.production };
+  }
+}
+
+function compactStatusOf(entry: CompactEntry | undefined): LayoutStatus | undefined {
+  if (!entry) return undefined;
+  const reach = (live: LiveCompactLayout) => (live.recordTypes ? { reach: compactReach(live.recordTypes) } : {});
+  switch (entry.status) {
+    case "loading":
+      return { loading: true };
+    case "error":
+      return { problem: `Couldn't read the compact layout from the org: ${entry.error}`, canRetry: true };
+    case "stale":
+      return { problem: entry.note, ...reach(entry.live), production: entry.live.production };
+    case "ready": {
+      const note = crowdedNote(entry.draft);
+      return { ...reach(entry.draft.live), ...(note ? { note } : {}), production: entry.draft.live.production };
+    }
   }
 }

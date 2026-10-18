@@ -13,6 +13,7 @@ import {
   Columns2,
   Heading,
   Lock,
+  Plus,
   Undo2,
   ArrowDown,
   ArrowLeft,
@@ -100,6 +101,7 @@ const VERB_ICONS: Record<VerbId, LucideIcon> = {
   heading: Heading,
   required: Asterisk,
   readonly: Lock,
+  add: Plus,
 };
 
 /** Toolbar words; the full sentence ("Hide for LS Rep") is the button's tooltip and stays in the inspector. */
@@ -117,7 +119,7 @@ export interface EditSurfaceProps {
   /** "Open in Setup" for blocks Studio can't change itself. */
   setup?: { label: string } | null;
   onSetup?: () => void;
-  /** Tab moves left / right rather than up / down. */
+  /** Tab and header field moves go left / right rather than up / down. */
   horizontal?: boolean;
   children: React.ReactNode;
 }
@@ -342,8 +344,8 @@ function Toolbar({
             key={v.id}
             type="button"
             className={iconOnly ? "ui-icon-btn" : "studio-btn ghost sm"}
-            disabled={!v.run}
-            title={v.run ? v.title : v.reason}
+            disabled={!v.run && !v.pick}
+            title={v.run || v.pick ? v.title : v.reason}
             aria-label={v.label}
             onClick={() => onRun(v)}
           >

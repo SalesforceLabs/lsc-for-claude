@@ -5,8 +5,11 @@ import {
   Columns2,
   Heading,
   Lock,
+  Plus,
   Undo2,
   ArrowDown,
+  ArrowLeft,
+  ArrowRight,
   ArrowUp,
   CloudOff,
   ExternalLink,
@@ -21,8 +24,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { TargetInfo, SyncAction } from "./edit-targets";
-import type { Verb, VerbId } from "./edit-draft";
+import type { Verb, VerbId, VerbPick } from "./edit-draft";
 import type { LayoutStatus } from "./usePreviewEdit";
+import SearchPicker from "../ui/SearchPicker";
 import Spinner from "../ui/Spinner";
 import StatusIcon from "../ui/StatusIcon";
 
@@ -40,6 +44,7 @@ const ICONS: Record<VerbId, LucideIcon> = {
   heading: Heading,
   required: Asterisk,
   readonly: Lock,
+  add: Plus,
 };
 
 /**
@@ -53,6 +58,10 @@ export default function BlockInspector({
   verbs,
   draft,
   onRun,
+  horizontal,
+  picking,
+  onPick,
+  onCancelPick,
   layout,
   onRetryLayout,
   sync,
@@ -67,6 +76,12 @@ export default function BlockInspector({
   /** Verbs only run in Draft; Published explains. */
   draft: boolean;
   onRun: (verb: Verb) => void;
+  /** Moves go left / right (tabs, header fields). */
+  horizontal?: boolean;
+  /** The choice a verb asked for ("Add field…"), open in place of the verb buttons. */
+  picking?: VerbPick | null;
+  onPick?: (value: string) => void;
+  onCancelPick?: () => void;
   /** The page layout behind the block, as read from the org. */
   layout?: LayoutStatus;
   onRetryLayout?: () => void;
@@ -165,13 +180,33 @@ export default function BlockInspector({
               Production org
             </span>
           )}
-          {verbs.length > 0 && (
+          {layout?.note && (
+            <p className="studio-block-reach" role="status">
+              <StatusIcon tone="warning" size={16} />
+              <span>{layout.note}</span>
+            </p>
+          )}
+          {picking && onPick && onCancelPick ? (
+            <SearchPicker
+              options={picking.options}
+              aria-label={picking.label}
+              placeholder="Search fields"
+              empty={picking.empty}
+              onPick={onPick}
+              onClose={onCancelPick}
+            />
+          ) : verbs.length > 0 && (
             <div className="studio-block-verbs">
               {verbs.map((v) => {
-                const Icon = ICONS[v.id];
+                const Icon =
+                  horizontal && v.id === "up"
+                    ? ArrowLeft
+                    : horizontal && v.id === "down"
+                      ? ArrowRight
+                      : ICONS[v.id];
                 const why = !draft
                   ? "Switch to Draft to queue changes"
-                  : v.run
+                  : v.run || v.pick
                     ? v.title
                     : v.reason;
                 return (
@@ -179,7 +214,7 @@ export default function BlockInspector({
                     key={v.id}
                     type="button"
                     className="studio-btn sm"
-                    disabled={!draft || !v.run}
+                    disabled={!draft || (!v.run && !v.pick)}
                     title={why}
                     onClick={() => onRun(v)}
                   >
@@ -190,10 +225,10 @@ export default function BlockInspector({
               })}
             </div>
           )}
-          {(layout?.profiles || info.reach) && (
+          {(layout?.profiles || layout?.reach || info.reach) && (
             <p className="studio-block-reach">
               <UsersRound size={14} aria-hidden />
-              <span>{layout?.profiles ? layoutReach(layout.profiles) : info.reach}</span>
+              <span>{layout?.profiles ? layoutReach(layout.profiles) : (layout?.reach ?? info.reach)}</span>
             </p>
           )}
           <ol className="studio-block-steps">
@@ -237,4 +272,13 @@ export function layoutReach(profiles: string[]): string {
   const shown = profiles.slice(0, 4).join(", ");
   const more = profiles.length > 4 ? ` and ${profiles.length - 4} more` : "";
   return `The layout for ${profiles.length === 1 ? "1 profile" : `${profiles.length} profiles`} (${shown}${more}). A change reaches them all.`;
+}
+
+/** Who a compact layout change reaches, from the record types assigned it. */
+export function compactReach(recordTypes: string[]): string {
+  if (!recordTypes.length) return "No record type is assigned this compact layout.";
+  const shown = recordTypes.slice(0, 4).join(", ");
+  const more = recordTypes.length > 4 ? ` and ${recordTypes.length - 4} more` : "";
+  const n = recordTypes.length === 1 ? "1 record type" : `${recordTypes.length} record types`;
+  return `The compact layout for ${n} (${shown}${more}), for every profile. A change reaches them all.`;
 }
