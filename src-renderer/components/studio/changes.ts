@@ -1,4 +1,4 @@
-import type { CompactOp, CreateConfigFix, ItemEdit, LayoutOp, StudioFix, StudioItem } from "./types";
+import type { CompactOp, CreateConfigFix, FlexiPageOp, ItemEdit, LayoutOp, StudioFix, StudioItem } from "./types";
 
 /**
  * Pending changes — edits queued in Studio's tray until the admin reviews and
@@ -257,6 +257,17 @@ export function scriptChange(item: StudioItem, from: string, to: string): Studio
 export function queuedLayoutOps(pending: PendingChange[], layoutName: string): LayoutOp[] {
   const queued = pending.find((p) => p.fix.kind === "editMetadata" && p.fix.doc.type === "Layout" && p.fix.doc.fullName === layoutName)?.fix;
   return queued?.kind === "editMetadata" && queued.doc.type === "Layout" ? (queued.ops as LayoutOp[]) : [];
+}
+
+/** The ops queued for a Lightning page. */
+export function queuedFlexiPageOps(pending: PendingChange[], fullName: string): FlexiPageOp[] {
+  const queued = pending.find((p) => p.fix.kind === "editMetadata" && p.fix.doc.type === "FlexiPage" && p.fix.doc.fullName === fullName)?.fix;
+  return queued?.kind === "editMetadata" && queued.doc.type === "FlexiPage" ? (queued.ops as FlexiPageOp[]) : [];
+}
+
+/** A Lightning page change with these ops — what's queued for the page is replaced by it. */
+export function flexiPageOpsChange(fullName: string, label: string, ops: FlexiPageOp[]): StudioFix {
+  return { kind: "editMetadata", label: `Edit Lightning page ${label}`, doc: { type: "FlexiPage", fullName, label }, ops };
 }
 
 /** A page layout change with these ops — what's queued for the layout is replaced by it. */

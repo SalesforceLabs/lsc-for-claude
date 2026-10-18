@@ -51,7 +51,23 @@ export interface PublishedComponent {
   /** force:highlightsPanel's dynamic actions (`actionNames`), in order. */
   actions?: string[];
   /** flexipage:tabset children. */
-  tabs?: { title: string; active: boolean; components: PublishedComponent[] }[];
+  tabs?: { title: string; active: boolean; components: PublishedComponent[]; source?: FlexiSource }[];
+  /** Where the component sits in its Lightning page's XML, for edits made in the preview. */
+  source?: FlexiSource;
+}
+
+/** One step down a Lightning page: an item of the region or facet above, as the page lists it. */
+export interface FlexiStep {
+  component: string;
+  identifier: string | null;
+  /** Index among the container's items, counting ones the iPad skips. */
+  index: number;
+}
+
+/** The top-level region, then the items down to it: a tab is [tabset, tab], a component in a tab [tabset, tab, component]. */
+export interface FlexiSource {
+  region: string;
+  path: FlexiStep[];
 }
 
 export interface PublishedPage {

@@ -402,7 +402,9 @@ export type VerbId =
   | "required"
   | "readonly"
   | "addField"
-  | "addRelated";
+  | "addRelated"
+  | "default"
+  | "insertComponent";
 
 /** A verb that asks which one first ("Add field…"): a search picker over `options`, and picking one runs it. */
 export interface VerbPick {

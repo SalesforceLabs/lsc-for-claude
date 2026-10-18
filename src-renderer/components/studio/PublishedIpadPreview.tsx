@@ -12,7 +12,7 @@ import type {
   PublishedTab,
 } from "./published-types";
 import IpadScreen from "./IpadScreen";
-import RecordScreen, { LayoutEdits } from "./IpadRecord";
+import RecordScreen, { asDrawn, blockIdentity, draftClass, LayoutEdits, usePageDraft } from "./IpadRecord";
 import IpadFabs from "./IpadFabs";
 import { Dashboard } from "./IpadDashboard";
 import { ReportsTree } from "./IpadReports";
@@ -29,7 +29,8 @@ import { CustomIcon } from "./assets/icons";
 import { findDeepLinkTab, findRecordId, isDeepLink, parseDeepLink } from "./deep-link";
 import { EditSurface, editAttrs, Mark, useEditOn, type EditSurfaceProps } from "./EditLayer";
 import type { DraftAction, DraftTab } from "./edit-draft";
-import type { CompactEntry, LayoutEntry } from "./usePreviewEdit";
+import type { CompactEntry, LayoutEntry, PageEntry } from "./usePreviewEdit";
+import { draftComponents, draftRecordTabs, sourceKey } from "./flexipage-draft";
 import {
   ActivityPlanProgress,
   HomeEditVisitContext,
@@ -57,6 +58,8 @@ export interface PreviewEdit extends Omit<EditSurfaceProps, "children"> {
   layouts: Record<string, LayoutEntry>;
   /** Compact layouts (record headers) read from the org, by `Object.Name`. */
   compacts: Record<string, CompactEntry>;
+  /** Lightning pages (Home and record pages) read from the org, by developer name. */
+  pages: Record<string, PageEntry>;
 }
 
 interface PublishedIpadPreviewProps {
@@ -182,8 +185,8 @@ function Device({
       });
   }, [allTabs, edit?.draft, edit?.tabs, editing]);
   const layoutEdits = useMemo(
-    () => (edit?.on ? { draft: edit.draft, layouts: edit.layouts, compacts: edit.compacts } : null),
-    [edit?.on, edit?.draft, edit?.layouts, edit?.compacts]
+    () => (edit?.on ? { draft: edit.draft, layouts: edit.layouts, compacts: edit.compacts, pages: edit.pages } : null),
+    [edit?.on, edit?.draft, edit?.layouts, edit?.compacts, edit?.pages]
   );
   const onHome = tab?.kind === "home" && !!snapshot.home && record === null;
   // The app gates Agentforce on the user-info "Agentforce" feature flag, which the CLI can't read; a Home welcome component stands in for it.
@@ -489,7 +492,11 @@ function Region({
   layout?: PublishedLayout;
   multi?: MultiEntity;
 }) {
-  const shown = components.filter((c) => c.supported && c.visibility !== "hidden");
+  // In Draft the tray's arrangement, with removed blocks as ghosts and inserted ones drawn as placeholders.
+  const pd = usePageDraft(page.name);
+  const drawn = (pd ? draftComponents(pd, components) : asDrawn(components)).filter((d) => d.value.supported && d.value.visibility !== "hidden");
+  const shown = drawn.map((d) => d.value);
+  const stateOf = (c: PublishedComponent) => drawn[shown.indexOf(c)];
   const target = (c: PublishedComponent) => ({
     kind: "component" as const,
     page: page.name,
@@ -502,16 +509,20 @@ function Region({
     home,
     visibility: c.visibility === "conditional" ? ("conditional" as const) : ("shown" as const),
     ...(c.visibilityNote ? { visibilityNote: c.visibilityNote } : {}),
+    ...blockIdentity(c, stateOf(c)),
   });
-  const card = (c: PublishedComponent, key: number) =>
+  const card = (c: PublishedComponent, key: number) => {
+    const state = stateOf(c).state;
     // A tab set and the record header aren't one block: their parts are marked inside.
-    c.tabs || /(^|:)highlightsPanel$/.test(c.name) ? (
-      <ComponentCard key={key} page={page} c={c} snapshot={snapshot} object={object} layout={layout} multi={multi} />
-    ) : (
+    if (c.tabs || /(^|:)highlightsPanel$/.test(c.name))
+      return <ComponentCard key={key} page={page} c={c} snapshot={snapshot} object={object} layout={layout} multi={multi} />;
+    const node = <ComponentCard page={page} c={c} snapshot={snapshot} object={object} layout={layout} multi={multi} />;
+    return (
       <Mark key={key} target={target(c)}>
-        <ComponentCard page={page} c={c} snapshot={snapshot} object={object} layout={layout} multi={multi} />
+        {state === "same" ? node : <div className={`studio-ipad-draft-block${draftClass(state)}`}>{node}</div>}
       </Mark>
     );
+  };
   const rows: PublishedComponent[][] = [];
   for (const c of shown) {
     const last = rows[rows.length - 1];
@@ -621,17 +632,33 @@ function TabSet({
   layout?: PublishedLayout;
   multi?: MultiEntity;
 }) {
-  const first = Math.max(0, tabs.findIndex((t) => t.active));
+  const pd = usePageDraft(page.name);
+  const drawn = pd ? draftRecordTabs(pd, tabs) : asDrawn(tabs);
+  const first = Math.max(0, drawn.findIndex((t) => t.value.active));
   const [i, setI] = useState(first);
-  const tab = tabs[i];
+  const tab = drawn[Math.min(i, drawn.length - 1)]?.value;
   if (!tab) return null;
   return (
     <>
       <div className="studio-ipad-chips">
-        {tabs.map((t, j) => (
-          <button key={j} type="button" className={`studio-ipad-chip${j === i ? " current" : ""}`} onClick={() => setI(j)}>
-            {t.title}
-          </button>
+        {drawn.map(({ value: t, state }, j) => (
+          <Mark
+            key={j}
+            target={{
+              kind: "recordTab",
+              page: page.name,
+              pageLabel: page.label,
+              title: t.title,
+              index: j,
+              count: drawn.length,
+              active: t.active,
+              ...(t.source ? { source: sourceKey(t.source) } : {}),
+            }}
+          >
+            <button type="button" className={`studio-ipad-chip${t === tab ? " current" : ""}${draftClass(state)}`} onClick={() => setI(j)}>
+              {t.title}
+            </button>
+          </Mark>
         ))}
       </div>
       <Region page={page} region={`${tab.title} tab`} components={tab.components} home={false} snapshot={snapshot} object={object} layout={layout} multi={multi} />

@@ -3,7 +3,8 @@ import { z } from "zod";
 import { validateOrgConnection } from "../salesforce/auth.js";
 import { getFeature, listFeatures } from "../studio/features.js";
 import { collectFeatureMap, collectItemDetail, collectProfileOptions } from "../studio/collect.js";
-import { readLiveCompactLayout, readLiveLayout } from "../studio/metadata/live.js";
+import { readLiveCompactLayout, readLiveFlexiPage, readLiveLayout } from "../studio/metadata/live.js";
+import { collectCatalog } from "../studio/component-catalog.js";
 import { accessOptions, userAccess } from "../studio/access.js";
 import { collectReadiness } from "../studio/readiness/index.js";
 import { collectSetupOverview } from "../studio/overview.js";
@@ -79,6 +80,30 @@ const layoutOpSchema = z.discriminatedUnion("op", [
     object: z.string().optional(),
   }),
 ]);
+const flexiItemRef = z.object({ component: z.string().max(255), identifier: z.string().max(255).nullable(), index: z.number().int().min(0) });
+const flexiComponentRef = z.object({ region: z.string().max(255), item: flexiItemRef });
+const flexiPageOpSchema = z.discriminatedUnion("op", [
+  z.object({ op: z.literal("moveComponent"), component: flexiComponentRef, before: flexiItemRef.nullable() }),
+  z.object({ op: z.literal("removeComponent"), component: flexiComponentRef }),
+  z.object({
+    op: z.literal("addComponent"),
+    region: z.string().max(255),
+    before: flexiItemRef.nullable(),
+    component: z.string().max(255),
+    identifier: z.string().max(255).nullable(),
+    properties: z.array(z.object({ name: z.string().max(255), value: z.string().max(4000) })).max(50).optional(),
+    xml: z.string().max(1_000_000).optional(),
+    facets: z.array(z.object({ xml: z.string().max(1_000_000), at: z.number().int().min(0) })).max(100).optional(),
+  }),
+  z.object({
+    op: z.literal("setComponentProperty"),
+    component: flexiComponentRef,
+    property: z.enum(["mobileHeight", "active", "title", "maxRecordsToDisplay", "rowsToDisplay"]),
+    from: z.string().max(255).nullable(),
+    to: z.string().max(255).nullable(),
+  }),
+]);
+const flexiPageName = z.string().regex(/^\w+$/).max(255);
 
 const compactOpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("moveCompactField"), field: z.string(), before: z.string().nullable() }),
@@ -187,8 +212,9 @@ const fixSchema = z.discriminatedUnion("kind", [
     doc: z.discriminatedUnion("type", [
       z.object({ type: z.literal("Layout"), fullName: layoutName, label: z.string() }),
       z.object({ type: z.literal("CompactLayout"), fullName: compactLayoutName, label: z.string() }),
+      z.object({ type: z.literal("FlexiPage"), fullName: flexiPageName, label: z.string() }),
     ]),
-    ops: z.array(z.union([layoutOpSchema, compactOpSchema])).max(200),
+    ops: z.array(z.union([layoutOpSchema, compactOpSchema, flexiPageOpSchema])).max(200),
   }),
 ]);
 
@@ -329,17 +355,37 @@ export function register(server: McpServer) {
 
   server.tool(
     "studio_metadata_doc",
-    "LSC Studio (GUI data): a page layout or compact layout as it is in the org now — a layout's sections, fields, related lists and the profiles using it; a compact layout's fields, the fields it could take and the record types using it — and whether the org is production, for editing it in the iPad preview. Read-only. Returns JSON.",
-    { type: z.enum(["Layout", "CompactLayout"]), fullName: z.string().max(255) },
+    "LSC Studio (GUI data): a page layout, compact layout or Lightning page as it is in the org now — a layout's sections, fields, related lists and the profiles using it; a compact layout's fields, the fields it could take and the record types using it; a Lightning page's regions, facets and components, the profiles and apps it's assigned in and whether it's managed — and whether the org is production, for editing it in the iPad preview. Read-only. Returns JSON.",
+    { type: z.enum(["Layout", "CompactLayout", "FlexiPage"]), fullName: z.string().max(255) },
     async ({ type, fullName }) => {
-      const name = (type === "Layout" ? layoutName : compactLayoutName).safeParse(fullName);
+      const name = (type === "Layout" ? layoutName : type === "CompactLayout" ? compactLayoutName : flexiPageName).safeParse(fullName);
       if (!name.success) return jsonError(`Invalid ${type} name: ${fullName}`);
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(type === "Layout" ? await readLiveLayout(fullName, connection.targetOrg) : await readLiveCompactLayout(fullName, connection.targetOrg));
+        const org = connection.targetOrg;
+        return json(
+          type === "Layout" ? await readLiveLayout(fullName, org) : type === "CompactLayout" ? await readLiveCompactLayout(fullName, org) : await readLiveFlexiPage(fullName, org)
+        );
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_component_catalog",
+    "LSC Studio (GUI data): the components \"Insert component…\" offers for a Home or record Lightning page in the iPad preview — Recent items, the org's inline LWCs, related lists of synced child objects, and greyed-out ones that need Lightning App Builder. Read-only. Returns JSON.",
+    { pageType: z.enum(["HomePage", "RecordPage"]), sobject: z.string().regex(/^\w+$/).max(80).nullable().optional() },
+    async ({ pageType, sobject }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await collectCatalog(pageType, sobject ?? null, connection.targetOrg));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

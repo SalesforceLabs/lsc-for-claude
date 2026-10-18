@@ -75,7 +75,28 @@ export interface PublishedComponent {
   /** force:highlightsPanel's `actionNames` (the record's dynamic actions), in order. */
   actions?: string[];
   /** flexipage:tabset children. */
-  tabs?: { title: string; active: boolean; components: PublishedComponent[] }[];
+  tabs?: { title: string; active: boolean; components: PublishedComponent[]; source?: FlexiSource }[];
+  /** Where the component sits in its Lightning page's XML, for edits made in the preview. */
+  source?: FlexiSource;
+}
+
+/** One step down a Lightning page: an item of the region or facet above, as the page lists it. */
+export interface FlexiStep {
+  component: string;
+  identifier: string | null;
+  /** Index among the container's items, counting ones the iPad skips. */
+  index: number;
+}
+
+/**
+ * A published component or record tab in its Lightning page: the top-level
+ * region, then the items down to it — a tab is [tabset, tab], a component in a
+ * tab [tabset, tab, component]. Each step but the last points at its facet
+ * (the tabset's `tabs`, a tab's `body`), which the cache inlines.
+ */
+export interface FlexiSource {
+  region: string;
+  path: FlexiStep[];
 }
 
 export interface PublishedPage {
@@ -664,7 +685,12 @@ const PROP_KEEP = new Set([
   "mobileHeight",
 ]);
 
-function toComponent(item: Row): PublishedComponent | null {
+const stepOf = (item: Row, index: number): FlexiStep => {
+  const ci = obj(item.componentInstance);
+  return { component: str(ci.componentName), identifier: str(ci.identifier) || null, index };
+};
+
+function toComponent(item: Row, at?: FlexiSource): PublishedComponent | null {
   const ci = obj(item.componentInstance);
   const name = str(ci.componentName);
   if (!name) return null;
@@ -681,6 +707,7 @@ function toComponent(item: Row): PublishedComponent | null {
     halfWidth: isHalfWidth(trimNamespace(name), all),
     ...visibilityOf(ci.visibilityRule),
     properties,
+    ...(at ? { source: at } : {}),
   };
   if (trimNamespace(name) === "force:highlightsPanel") {
     const prop = arr(ci.componentInstanceProperties).find((p) => p.name === "actionNames");
@@ -689,16 +716,20 @@ function toComponent(item: Row): PublishedComponent | null {
     if (names.length) c.actions = names;
   }
   if (trimNamespace(name) === "flexipage:tabset") {
-    c.tabs = arr(item.itemInstances).flatMap((child) => {
+    c.tabs = arr(item.itemInstances).flatMap((child, t) => {
       const tab = obj(child.componentInstance);
       if (str(tab.componentName) !== "flexipage:tab") return [];
       if (visibilityOf(tab.visibilityRule).visibility === "hidden") return [];
       const tp = propsOf(tab);
+      const tabAt = at && { region: at.region, path: [...at.path, stepOf(child, t)] };
       return [
         {
           title: tabTitle(tp.title ?? ""),
           active: tp.active === "true",
-          components: arr(child.itemInstances).map(toComponent).filter((x): x is PublishedComponent => !!x),
+          components: arr(child.itemInstances)
+            .map((x, i) => toComponent(x, tabAt && { region: tabAt.region, path: [...tabAt.path, stepOf(x, i)] }))
+            .filter((x): x is PublishedComponent => !!x),
+          ...(tabAt ? { source: tabAt } : {}),
         },
       ];
     });
@@ -716,7 +747,7 @@ function tabTitle(raw: string): string {
 }
 
 /** Region slots per template — SFFlexiPageView.xib restoration identifiers. */
-const TEMPLATE_REGIONS: Record<string, string[]> = {
+export const TEMPLATE_REGIONS: Record<string, string[]> = {
   recordHomeSingleColTemplateDesktop: ["header", "main"],
   recordHomeTemplateDesktop: ["header", "main", "sidebar"],
   appHomeTemplateHeaderTwoColumnsLeftSidebar: ["header", "sidebar", "main"],
@@ -740,7 +771,8 @@ export function buildPage(name: string, page: Row): PublishedPage {
   for (const slot of slots) {
     const region = regions.find((r) => str(r.name) === slot);
     if (!region) continue;
-    result.regions.push({ name: slot, components: arr(region.itemInstances).map(toComponent).filter((x): x is PublishedComponent => !!x) });
+    const components = arr(region.itemInstances).map((item, i) => toComponent(item, { region: slot, path: [stepOf(item, i)] }));
+    result.regions.push({ name: slot, components: components.filter((x): x is PublishedComponent => !!x) });
   }
   for (const r of regions) {
     if (slots.includes(str(r.name))) continue;
@@ -1295,7 +1327,7 @@ export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing |
 
 const FILES = ["nav", "ui", "permissions", "db", "sobjects", "reporting"] as const;
 const CACHE_ROOT = path.join(os.tmpdir(), "lsc-studio-published");
-const SNAPSHOT_VERSION = 39;
+const SNAPSHOT_VERSION = 40;
 /** UserService.defaultLanguage — the translation file used when the user's is missing. */
 const DEFAULT_LANGUAGE = "en_US";
 /** Distinct permission-set combinations pre-built per download. */

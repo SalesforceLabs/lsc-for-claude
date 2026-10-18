@@ -18,12 +18,32 @@ import { LiveInlineLwc } from "./LiveInlineLwc";
 import { CustomIcon, FileIcon, PersonAccountIcon } from "./assets/icons";
 import type { DraftState } from "./edit-draft";
 import { addedRelated, draftRelated } from "./layout-draft";
-import type { CompactEntry, LayoutEntry } from "./usePreviewEdit";
+import { draftComponents, draftRecordTabs, sourceKey, type DrawnBlock, type PageDraft } from "./flexipage-draft";
+import type { CompactEntry, LayoutEntry, PageEntry } from "./usePreviewEdit";
 
-/** Edit mode's page layouts and compact layouts, read from the org: Draft draws them as the tray would leave them. */
-export const LayoutEdits = createContext<{ draft: boolean; layouts: Record<string, LayoutEntry>; compacts?: Record<string, CompactEntry> } | null>(null);
+/** Edit mode's page layouts, compact layouts and Lightning pages, read from the org: Draft draws them as the tray would leave them. */
+export const LayoutEdits = createContext<{
+  draft: boolean;
+  layouts: Record<string, LayoutEntry>;
+  compacts?: Record<string, CompactEntry>;
+  pages?: Record<string, PageEntry>;
+} | null>(null);
 
-const draftClass = (state: DraftState | undefined) => (state === "removed" ? " ghost" : state === "added" || state === "moved" ? " pending" : "");
+/** The Lightning page Draft draws, when it's read from the org and lines up with the published one. */
+export function usePageDraft(page: string | undefined): PageDraft | null {
+  const edits = useContext(LayoutEdits);
+  const entry = page && edits?.draft ? edits.pages?.[page] : undefined;
+  return entry?.status === "ready" ? entry.draft : null;
+}
+
+/** Published blocks as they are, for drawing outside Draft. */
+export const asDrawn = <T,>(values: T[]): DrawnBlock<T>[] => values.map((value) => ({ value, key: "", state: "same" }));
+
+/** A Lightning page component's edit-mode identity: its place in the page's XML, or the item Draft inserted. */
+export const blockIdentity = (c: PublishedComponent, d: DrawnBlock<PublishedComponent>) =>
+  d.state === "added" ? { item: d.key, added: true } : c.source ? { source: sourceKey(c.source) } : {};
+
+export const draftClass = (state: DraftState | undefined) => (state === "removed" ? " ghost" : state === "added" || state === "moved" ? " pending" : "");
 
 /** Highlights/segment/tab metrics, measured on LSC Mobile (pt). */
 const SCREEN_W = 1210;
@@ -136,22 +156,48 @@ function RecordBody({ snapshot, rec }: { snapshot: PublishedIpad; rec: Published
   const { object, rt, page } = pageOf(snapshot, rec);
   const components = mainComponents(page);
   const tabset = components.find((c) => c.tabs);
-  const tabs = useMemo(
-    () => (tabset?.tabs ?? [{ title: "Details", active: true, components: components.filter((c) => !c.tabs && bare(c.name) !== "highlightsPanel") }]).filter((t) => t.components.some((c) => renderable(c, snapshot, rec))),
-    [tabset, components, snapshot, rec]
-  );
-  const [i, setI] = useState(Math.max(0, tabs.findIndex((t) => t.active)));
-  const tab = tabs[Math.min(i, tabs.length - 1)];
+  const pd = usePageDraft(page?.name);
+  const tabs = useMemo(() => {
+    const drawn =
+      pd && tabset?.tabs
+        ? draftRecordTabs(pd, tabset.tabs)
+        : asDrawn(tabset?.tabs ?? [{ title: "Details", active: true, components: components.filter((c) => !c.tabs && bare(c.name) !== "highlightsPanel") }]);
+    return drawn.filter((t) => t.value.components.some((c) => renderable(c, snapshot, rec)));
+  }, [pd, tabset, components, snapshot, rec]);
+  const [i, setI] = useState(Math.max(0, tabs.findIndex((t) => t.value.active)));
+  const at = Math.min(i, tabs.length - 1);
+  const tab = tabs[at]?.value;
   return (
     <div className="studio-ipad-rec">
       <Header snapshot={snapshot} rec={rec} object={object} compact={rt?.compactLayout ?? object?.defaultCompactLayout ?? null} />
       {tabs.length > 1 && (
         <div className={`studio-ipad-rec-tabs${tabs.length > 5 ? " scroll" : ""}`}>
-          {tabs.map((t, j) => (
-            <button key={j} type="button" className={`studio-ipad-rec-tab${t === tab ? " current" : ""}`} onClick={() => setI(j)}>
-              {t.title}
-            </button>
-          ))}
+          {tabs.map(({ value: t, state }, j) => {
+            const button = (
+              <button key={j} type="button" className={`studio-ipad-rec-tab${j === at ? " current" : ""}${draftClass(state)}`} onClick={() => setI(j)}>
+                {t.title}
+              </button>
+            );
+            return page && tabset ? (
+              <Mark
+                key={j}
+                target={{
+                  kind: "recordTab",
+                  page: page.name,
+                  pageLabel: page.label,
+                  title: t.title,
+                  index: j,
+                  count: tabs.length,
+                  active: t.active,
+                  ...(t.source ? { source: sourceKey(t.source) } : {}),
+                }}
+              >
+                {button}
+              </Mark>
+            ) : (
+              button
+            );
+          })}
         </div>
       )}
       <div className="studio-ipad-rec-body">{tab && <TabContent components={tab.components} snapshot={snapshot} rec={rec} page={page} region={tabs.length > 1 ? `${tab.title} tab` : "main"} layout={rt?.layout ?? undefined} />}</div>
@@ -190,11 +236,16 @@ function TabContent({
   layout?: string;
 }) {
   const details = components.filter((c) => c.visibility !== "hidden" && /^(multiEntityRecordView|detailPanel)$/.test(bare(c.name)));
-  const shown = components.filter((c) => renderable(c, snapshot, rec));
+  // In Draft the tray's arrangement, with removed blocks as ghosts and inserted ones drawn as placeholders.
+  const pd = usePageDraft(page?.name);
+  const drawn = (pd ? draftComponents(pd, components) : asDrawn(components)).filter((d) => d.state === "added" || renderable(d.value, snapshot, rec));
+  const shown = drawn.map((d) => d.value);
   // Details and related lists are marked part by part; any other component is one block of its Lightning page.
   const marked = (c: PublishedComponent, k: number, node: React.ReactNode) => {
     const name = bare(c.name);
-    if (!page || !node || details.includes(c) || /^(relatedListContainer|relatedListSingleContainer|LSCGenericRelatedList|AccountAffiliations)$/.test(name)) return node;
+    const d = drawn[k];
+    if (d.state === "added") node = <PlaceholderCard title={c.label} />;
+    if (!page || !node || (d.state !== "added" && (details.includes(c) || /^(relatedListContainer|relatedListSingleContainer|LSCGenericRelatedList|AccountAffiliations)$/.test(name)))) return node;
     return (
       <Mark
         target={{
@@ -209,9 +260,10 @@ function TabContent({
           home: false,
           visibility: c.visibility === "conditional" ? "conditional" : "shown",
           ...(c.visibilityNote ? { visibilityNote: c.visibilityNote } : {}),
+          ...blockIdentity(c, d),
         }}
       >
-        {node}
+        {d.state === "same" ? node : <div className={`studio-ipad-draft-block${draftClass(d.state)}`}>{node}</div>}
       </Mark>
     );
   };
