@@ -745,7 +745,7 @@ function tabTitle(raw: string): string {
 }
 
 /** Region slots per template — SFFlexiPageView.xib restoration identifiers. */
-const TEMPLATE_REGIONS: Record<string, string[]> = {
+export const TEMPLATE_REGIONS: Record<string, string[]> = {
   recordHomeSingleColTemplateDesktop: ["header", "main"],
   recordHomeTemplateDesktop: ["header", "main", "sidebar"],
   appHomeTemplateHeaderTwoColumnsLeftSidebar: ["header", "sidebar", "main"],

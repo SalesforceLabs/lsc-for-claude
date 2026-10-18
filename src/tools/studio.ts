@@ -4,6 +4,7 @@ import { validateOrgConnection } from "../salesforce/auth.js";
 import { getFeature, listFeatures } from "../studio/features.js";
 import { collectFeatureMap, collectItemDetail, collectProfileOptions } from "../studio/collect.js";
 import { readLiveFlexiPage, readLiveLayout } from "../studio/metadata/live.js";
+import { collectCatalog } from "../studio/component-catalog.js";
 import { accessOptions, userAccess } from "../studio/access.js";
 import { collectReadiness } from "../studio/readiness/index.js";
 import { collectSetupOverview } from "../studio/overview.js";
@@ -356,6 +357,23 @@ export function register(server: McpServer) {
       if (!valid) return jsonError(`Invalid ${type} name: ${fullName}`);
       try {
         return json(type === "FlexiPage" ? await readLiveFlexiPage(fullName, connection.targetOrg) : await readLiveLayout(fullName, connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_component_catalog",
+    "LSC Studio (GUI data): the components \"Insert component…\" offers for a Home or record Lightning page in the iPad preview — Recent items, the org's inline LWCs, related lists of synced child objects, and greyed-out ones that need Lightning App Builder. Read-only. Returns JSON.",
+    { pageType: z.enum(["HomePage", "RecordPage"]), sobject: z.string().regex(/^\w+$/).max(80).nullable().optional() },
+    async ({ pageType, sobject }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await collectCatalog(pageType, sobject ?? null, connection.targetOrg));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

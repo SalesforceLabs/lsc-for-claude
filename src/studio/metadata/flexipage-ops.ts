@@ -11,6 +11,7 @@
  * it. Ops apply in order, each to the result of the one before.
  */
 
+import { TEMPLATE_REGIONS } from "../published.js";
 import type { FlexiItemRef, FlexiPageOp, FlexiPageProperty } from "../types.js";
 import { childText, childrenNamed, cloneNode, insertInOrder, leaf, parseXml, serializeNode, setChildText, type XmlNode } from "./xml.js";
 
@@ -318,6 +319,7 @@ export function applyFlexiPageOp(root: XmlNode, op: FlexiPageOp): { inverse: Fle
         if (componentOf(item) !== op.component || identifierOf(item) !== op.identifier) throw new Error("The component doesn't match its XML.");
       } else {
         if (!op.identifier || !COMPONENT.test(op.component)) throw new Error("A new component needs a component name and an identifier.");
+        if (!insertableRegion(root, region)) throw new Error(`The iPad doesn't show the ${regionName(region)} region of this page's template.`);
         item = newItem(op.component, op.identifier, op.properties ?? []);
       }
       const facets = (op.facets ?? []).map((f) => ({ node: parseFragment(f.xml, "flexiPageRegions"), at: f.at }));
@@ -370,12 +372,38 @@ export function applyFlexiPageOps(root: XmlNode, ops: FlexiPageOp[]): { root: Xm
   return { root: copy, inverse, changes };
 }
 
-/** Review warnings the ops trip on the iPad: long tab titles. */
-export function flexiPageWarnings(ops: FlexiPageOp[]): string[] {
-  return ops.flatMap((op) =>
+/** True when the item's visibility rule has several criteria and no boolean filter — the iPad only checks the first. */
+function firstCriterionOnly(item: XmlNode): boolean {
+  const rule = instanceOf(item)?.children.find((c) => c.tag === "visibilityRule");
+  return !!rule && childrenNamed(rule, "criteria").length > 1 && !childText(rule, "booleanFilter");
+}
+
+/** Review warnings the ops trip on the iPad: long tab titles, and visibility rules it reads differently, on the edited page `root`. */
+export function flexiPageWarnings(ops: FlexiPageOp[], root?: XmlNode): string[] {
+  const out = ops.flatMap((op) =>
     op.op === "setComponentProperty" && op.property === "title" && op.to && tabTitle(op.to).length > TAB_TITLE_MAX
       ? [`The tab title "${tabTitle(op.to)}" is over ${TAB_TITLE_MAX} characters — the iPad cuts it short.`]
       : []
   );
+  if (!root) return out;
+  const touched = new Set(
+    ops.flatMap((op) => (op.op === "addComponent" ? [op.identifier] : op.op === "removeComponent" ? [] : [op.component.item.identifier])).filter(Boolean)
+  );
+  for (const r of regionsOf(root)) {
+    for (const item of itemsOf(r)) {
+      if (touched.has(identifierOf(item)) && firstCriterionOnly(item)) {
+        out.push(`${itemWords(item)} has a visibility rule with several conditions and no filter logic — the iPad only checks the first condition.`);
+      }
+    }
+  }
+  return out;
+}
+
+/** Regions a new component can go in: the template's slots on the iPad, and any facet (a tab's body). */
+function insertableRegion(root: XmlNode, region: XmlNode): boolean {
+  if (childText(region, "type") === "Facet") return true;
+  const name = childText(childrenNamed(root, "template")[0] ?? { tag: "template", children: [] }, "name") ?? "";
+  const slots = TEMPLATE_REGIONS[name.includes(":") ? name.split(":")[1] : name] ?? TEMPLATE_REGIONS.defaultFlexiPage;
+  return slots.includes(regionName(region));
 }
 

@@ -347,7 +347,7 @@ async function planEditFlexiPage(fix: MetadataFix, doc: MetadataDoc, org: string
       },
     };
   }
-  preview.warnings.push(reach, ...flexiPageWarnings(ops), PUBLISH_WARNING);
+  preview.warnings.push(reach, ...flexiPageWarnings(ops, result.root), PUBLISH_WARNING);
   if (production) preview.production = true;
   return { preview, root: result.root, inverse: result.inverse };
 }

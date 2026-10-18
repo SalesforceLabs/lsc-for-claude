@@ -149,6 +149,29 @@ describe("Lightning page ops", () => {
     );
   });
 
+  it("inserts only into regions the template has on the iPad, or a facet", () => {
+    const sidebar = parseXml(xml.replace("<name>header</name>", "<name>sidebar</name>"));
+    const add = (region: string): FlexiPageOp => ({ op: "addComponent", region, before: null, component: "flexipage:recentItems", identifier: "flexipage_recentItems" });
+    expect(() => applyFlexiPageOps(sidebar, [add("sidebar")])).toThrow(/doesn't show the sidebar region/);
+    expect(() => applyFlexiPageOps(root, [add("header")])).not.toThrow();
+    // Putting back a removed component isn't refused: it was there.
+    const removed = applyFlexiPageOps(sidebar, [
+      { op: "removeComponent", component: { region: "sidebar", item: { component: "force:highlightsPanel", identifier: "force_highlightsPanel", index: 0 } } },
+    ]);
+    expect(() => applyFlexiPageOps(removed.root, removed.inverse)).not.toThrow();
+  });
+
+  it("warns when an edited component's visibility rule has conditions the iPad skips", () => {
+    const rule =
+      "<visibilityRule><criteria><leftValue>{!$Client.formFactor}</leftValue><operator>EQUAL</operator><rightValue>Large</rightValue></criteria>" +
+      "<criteria><leftValue>{!$Permission.CustomPermission.X}</leftValue><operator>EQUAL</operator><rightValue>true</rightValue></criteria></visibilityRule>";
+    const ruled = parseXml(xml.replace("<identifier>flexipage_tab5</identifier>", `<identifier>flexipage_tab5</identifier>${rule}`));
+    const op: FlexiPageOp = { op: "moveComponent", component: { region: TABS, item: tab("flexipage_tab5") }, before: null };
+    const { root: r } = applyFlexiPageOps(ruled, [op]);
+    expect(flexiPageWarnings([op], r)).toEqual(['Tab "Insights" has a visibility rule with several conditions and no filter logic — the iPad only checks the first condition.']);
+    expect(flexiPageWarnings([op], applyFlexiPageOps(root, [op]).root)).toEqual([]);
+  });
+
   it("warns about tab titles the iPad cuts", () => {
     const op: FlexiPageOp = {
       op: "setComponentProperty",
