@@ -70,6 +70,7 @@ interface LscApi {
     theme?: string;
     sfTargetOrg?: string;
     mobileClientId?: string;
+    appIcon?: string;
   }>;
   saveSettings(settings: Record<string, unknown>): Promise<{ ok: boolean }>;
 

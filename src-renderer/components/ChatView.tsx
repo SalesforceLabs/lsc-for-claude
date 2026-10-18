@@ -5,6 +5,7 @@ import rehypeRaw from "rehype-raw";
 import mermaid from "mermaid";
 import { ChatMessage, ContentBlock, ToolCall, ImageAttachment, getFullText } from "../hooks/useChat";
 import { pickModel, type ModelOption } from "../models";
+import { rozTileSrc, useAppIcon } from "../app-icon";
 
 // Initialize mermaid with dark theme
 mermaid.initialize({
@@ -657,6 +658,7 @@ export default function ChatView({
   prefillInput,
   onPrefillConsumed,
 }: ChatViewProps) {
+  const appIcon = useAppIcon();
   const [input, setInput] = useState(prefillInput || "");
 
   // Consume prefilled input when it arrives
@@ -1127,9 +1129,9 @@ export default function ChatView({
       <div className="main-area">
         <div className="welcome">
           <div className="welcome-logo-wrap">
-            <img src="lsc-logo-2026.png" alt="LSC" className="welcome-logo" />
+            <img src={rozTileSrc(appIcon)} alt="" className="welcome-logo" />
           </div>
-          <h2>LSC Assistant</h2>
+          <h2>Roz for LSC</h2>
           <p>
             Ask questions about LSC, run SOQL queries, configure
             modules, or type <strong>/</strong> to see available commands.

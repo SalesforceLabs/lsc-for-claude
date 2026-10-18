@@ -3,6 +3,8 @@ import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
 import { registerIpcHandlers } from "./ipc/handlers.js";
 import { STUDIO_BROWSER_PARTITION } from "./studio-browser.js";
+import { applyAppIcon } from "./app-icon.js";
+import { loadSettings } from "./settings.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,13 +37,16 @@ let mainWindow: BrowserWindow | null = null;
 /** Partitions Studio's preview browsers have attached with, to recognize their guests. */
 const previewPartitions = new Set<string>();
 
+// Packaged builds were named "LSC Assistant" before the rename to Roz; keep their data folder.
+if (app.isPackaged) app.setPath("userData", path.join(app.getPath("appData"), "LSC Assistant"));
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1100,
     height: 750,
     minWidth: 600,
     minHeight: 400,
-    title: "LSC Assistant",
+    title: "Roz for LSC",
     titleBarStyle: "hiddenInset",
     trafficLightPosition: { x: 16, y: 16 },
     webPreferences: {
@@ -119,6 +124,7 @@ app.whenReady().then(() => {
   });
 
   createWindow();
+  applyAppIcon(loadSettings().appIcon, mainWindow);
 });
 
 app.on("window-all-closed", () => {

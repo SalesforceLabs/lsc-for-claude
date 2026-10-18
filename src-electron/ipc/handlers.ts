@@ -16,6 +16,7 @@ import { detectClaudeCodeGateway } from "../llm/claude-code-config.js";
 import { apiStyle, Connection, CONNECTION_KINDS, connectionLabel } from "../llm/connection.js";
 import { chatModels, cleanConnection, createProvider, testConnection } from "../llm/create.js";
 import { loadSettings, migrateSettings, saveSettings, Settings } from "../settings.js";
+import { applyAppIcon } from "../app-icon.js";
 import { getSecret, hasSecret, setSecret } from "../secrets.js";
 import {
   listConversations,
@@ -226,6 +227,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   ipcMain.handle("settings:save", async (_event, settings: Settings) => {
     saveSettings(settings);
+    applyAppIcon(settings.appIcon, mainWindow);
     return { ok: true };
   });
 

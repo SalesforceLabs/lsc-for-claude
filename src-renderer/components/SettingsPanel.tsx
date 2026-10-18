@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { pickModel, type ModelOption } from "../models";
+import { ROZ_ICONS, rozIcon, rozTileSrc, setAppIcon, type RozIcon } from "../app-icon";
 
 interface SfOrg {
   alias?: string;
@@ -27,6 +28,7 @@ export default function SettingsPanel({
 }: SettingsPanelProps) {
   const [model, setModel] = useState("");
   const [mobileClientId, setMobileClientId] = useState("");
+  const [appIcon, setAppIconChoice] = useState<RozIcon>(ROZ_ICONS[0].id);
 
   // Org state
   const [orgs, setOrgs] = useState<SfOrg[]>([]);
@@ -57,6 +59,7 @@ export default function SettingsPanel({
       setModel(pickModel(s.model, modelOptions));
       if (s.sfTargetOrg) setSelectedOrg(s.sfTargetOrg);
       setMobileClientId(s.mobileClientId || "");
+      setAppIconChoice(rozIcon(s.appIcon));
     });
     fetchOrgs();
   }, [fetchOrgs, modelOptions]);
@@ -81,7 +84,9 @@ export default function SettingsPanel({
       ...current,
       model,
       mobileClientId: mobileClientId.trim() || undefined,
+      appIcon,
     });
+    setAppIcon(appIcon);
     onClose();
   };
 
@@ -213,6 +218,25 @@ export default function SettingsPanel({
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
+        </div>
+
+        <div className="form-group">
+          <label id="app-icon-label">App icon</label>
+          <div className="app-icon-picker" role="radiogroup" aria-labelledby="app-icon-label">
+            {ROZ_ICONS.map((icon) => (
+              <button
+                key={icon.id}
+                type="button"
+                role="radio"
+                aria-checked={appIcon === icon.id}
+                className={`app-icon-option ${appIcon === icon.id ? "active" : ""}`}
+                onClick={() => setAppIconChoice(icon.id)}
+              >
+                <img src={rozTileSrc(icon.id)} alt="" />
+                <span>{icon.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="form-group">

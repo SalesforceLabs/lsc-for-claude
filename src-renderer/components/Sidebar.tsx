@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { rozTileSrc, useAppIcon } from "../app-icon";
 
 interface Conversation {
   id: string;
@@ -45,6 +46,7 @@ export default function Sidebar({
   studioActive,
   onOpenStudio,
 }: SidebarProps) {
+  const appIcon = useAppIcon();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [showCommands, setShowCommands] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
@@ -221,8 +223,8 @@ export default function Sidebar({
       <div className="sidebar-header">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <img src="lsc-logo-2026.png" alt="" className="sidebar-logo" />
-            <h1>LSC Assistant</h1>
+            <img src={rozTileSrc(appIcon)} alt="" className="sidebar-logo" />
+            <h1>Roz</h1>
           </div>
           <button className="sidebar-collapse-btn" onClick={onToggleCollapse} title="Collapse sidebar">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

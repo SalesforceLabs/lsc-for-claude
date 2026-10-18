@@ -1,5 +1,5 @@
 appId: com.salesforce.lsc-assistant
-productName: LSC Assistant
+productName: Roz for LSC
 directories:
   output: release
 files:
@@ -14,6 +14,7 @@ files:
   - package.json
 mac:
   category: public.app-category.developer-tools
+  icon: build/icon.icns
   target:
     - dmg
     - zip
@@ -27,10 +28,12 @@ mac:
   entitlementsInherit: build/entitlements.mac.plist
   notarize: true
 win:
+  icon: build/icon.ico
   target:
     - nsis
     - zip
 linux:
+  icon: build/icon.png
   target:
     - AppImage
     - deb

@@ -7,8 +7,7 @@ import Sidebar from "./components/Sidebar";
 import LibraryPanel from "./components/LibraryPanel";
 import SettingsPanel from "./components/SettingsPanel";
 import SetupScreen, { type DetectedProviders } from "./components/SetupScreen";
-import { assistantName, type LlmConnection } from "./connection";
-import { AssistantNameContext } from "./hooks/useAssistantName";
+import { type LlmConnection } from "./connection";
 import { modelOptionsFor } from "./models";
 import StudioView from "./components/studio/StudioView";
 import StatusBar from "./components/StatusBar";
@@ -136,7 +135,6 @@ export default function App() {
   }
 
   return (
-    <AssistantNameContext.Provider value={assistantName(engine.apiStyle)}>
     <div className="app-layout">
       <div className="titlebar" />
       <div className="app-container">
@@ -208,6 +206,5 @@ export default function App() {
       </div>
       <StatusBar toolCount={engine.toolCount} onSettingsClick={() => setShowSettings(true)} />
     </div>
-    </AssistantNameContext.Provider>
   );
 }

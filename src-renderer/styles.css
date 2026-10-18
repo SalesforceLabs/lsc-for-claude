@@ -415,7 +415,6 @@ body {
 .sidebar-logo {
   width: 24px;
   height: 24px;
-  border-radius: 5px;
 }
 
 .sidebar-header h1 {
@@ -1160,8 +1159,8 @@ body {
 }
 
 .welcome-logo {
-  width: 56px;
-  height: 56px;
+  width: 72px;
+  height: 72px;
   animation: logo-anchor 5s ease-in-out infinite;
 }
 
@@ -2529,6 +2528,43 @@ mark.highlight {
 .org-toggle-btn.active {
   background: var(--accent);
   color: white;
+}
+
+.app-icon-picker {
+  display: flex;
+  gap: 8px;
+}
+
+.app-icon-option {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 4px 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.app-icon-option img {
+  width: 48px;
+  height: 48px;
+}
+
+.app-icon-option:hover {
+  color: var(--text-primary);
+}
+
+.app-icon-option.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  color: var(--text-primary);
 }
 
 .org-login-hint {

@@ -166,7 +166,7 @@ export default function SetupScreen({ onConnect, error, detected, initial, onCan
     <div className="setup-screen no-drag">
       <div className="setup-container">
         <div className="setup-header">
-          <h1>LSC Assistant</h1>
+          <h1>Roz for LSC</h1>
           <p>AI-powered assistant for LSC implementations</p>
         </div>
 
@@ -345,7 +345,7 @@ export default function SetupScreen({ onConnect, error, detected, initial, onCan
                 {test?.models?.length
                   ? `${test.models.length} model${test.models.length === 1 ? "" : "s"} found — pick one or type a name.`
                   : "Test the connection to list the models the endpoint serves."}{" "}
-                LSC Assistant is tested with Claude; other models may vary.
+                Roz is tested with Claude; other models may vary.
               </p>
             </div>
           )}

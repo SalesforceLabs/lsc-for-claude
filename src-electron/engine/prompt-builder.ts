@@ -21,7 +21,7 @@ export class PromptBuilder {
 
     // Core identity
     parts.push(
-      "You are LSC Assistant, an AI assistant specialized in Salesforce LSC (LSC) for Customer Engagement implementations."
+      "You are Roz, the AI assistant in the Roz for LSC app, specialized in Salesforce LSC (LSC) for Customer Engagement implementations."
     );
     parts.push(
       "You help consultants, developers, and administrators with LSC configuration, troubleshooting, and best practices."

@@ -54,10 +54,8 @@ export function connectionChoice(kind: string | undefined): ConnectionChoice | u
   return CONNECTION_CHOICES.find((c) => c.kind === kind);
 }
 
-/** "Claude" when the app talks to Claude, else a neutral name — used in "Ask … how to fix". */
-export function assistantName(style: LlmApiStyle | undefined): string {
-  return style === "openai" ? "AI" : "Claude";
-}
+/** The in-app assistant's name on every connection — used in "Ask … how to fix". */
+export const ASSISTANT_NAME = "Roz";
 
 /** `Name: value` lines to headers, and back. */
 export function parseHeaderLines(text: string): Record<string, string> {

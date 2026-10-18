@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { apiStyle, baseUrlProblem, migrateLegacyConnection } from "../../../src-electron/llm/connection.js";
 import { describeHttpError, describeNetworkError, isAuthError } from "../../../src-electron/llm/errors.js";
 import {
-  assistantName,
+  ASSISTANT_NAME,
   CONNECTION_CHOICES,
   headerLines,
   parseHeaderLines,
@@ -74,9 +74,7 @@ describe("renderer connection helpers", () => {
     expect(parseHeaderLines(headerLines(headers))).toEqual(headers);
   });
 
-  it("names the assistant after the model family", () => {
-    expect(assistantName("anthropic")).toBe("Claude");
-    expect(assistantName(undefined)).toBe("Claude");
-    expect(assistantName("openai")).toBe("AI");
+  it("names the assistant Roz on every connection", () => {
+    expect(ASSISTANT_NAME).toBe("Roz");
   });
 });

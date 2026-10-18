@@ -1,7 +1,8 @@
 import React, { createContext, useContext } from "react";
+import { ASSISTANT_NAME } from "../connection";
 
-/** Who "Ask … how to fix" hands off to: "Claude" on Claude connections, "AI" otherwise. */
-export const AssistantNameContext = createContext("Claude");
+/** Who "Ask … how to fix" hands off to. */
+export const AssistantNameContext = createContext(ASSISTANT_NAME);
 
 export function useAssistantName(): string {
   return useContext(AssistantNameContext);

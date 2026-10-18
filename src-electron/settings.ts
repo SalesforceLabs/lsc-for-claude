@@ -11,6 +11,8 @@ export interface Settings {
   sfTargetOrg?: string;
   // LSC mobile app connected-app consumer key, for First sync mobile login
   mobileClientId?: string;
+  /** Which Roz icon the Dock or window shows (app-icon.ts). */
+  appIcon?: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
