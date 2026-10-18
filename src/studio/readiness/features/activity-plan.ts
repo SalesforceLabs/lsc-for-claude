@@ -1,6 +1,7 @@
 /** Activity Plan readiness: its validation rules plus Studio's own checks. */
 
-import { plural, query } from "../../helpers.js";
+import { activeTerritories } from "../../collectors/territory-users.js";
+import { countGroupedBy, plural, query } from "../../helpers.js";
 import { runCheck, type ReadinessModule } from "../index.js";
 import {
   countOf,
@@ -21,12 +22,12 @@ const readiness: ReadinessModule = {
     const handlers = loadHandlers(org);
     const schema = loadDbSchema(org);
     // Active-model territories with a field user — the ones that need a plan.
-    const staffed = lazy(() =>
-      query(
-        `SELECT Territory2Id, Territory2.Name tname, COUNT(Id) cnt FROM UserTerritory2Association WHERE Territory2.Territory2Model.State = 'Active' AND IsActive = true GROUP BY Territory2Id, Territory2.Name`,
-        org
-      )
-    );
+    // Counted per chunk of territory ids: one grouped query stops at 2,000 groups.
+    const staffed = lazy(async () => {
+      const { rows } = await activeTerritories(org);
+      const users = await countGroupedBy("UserTerritory2Association", "Territory2Id", rows.map((t) => String(t.Id)), org, "IsActive = true");
+      return rows.filter((t) => users.get(String(t.Id))).map((t) => ({ Territory2Id: String(t.Id), tname: String(t.Name), cnt: users.get(String(t.Id)) }));
+    });
 
     return Promise.all([
       handlersCheck(
@@ -181,8 +182,8 @@ const readiness: ReadinessModule = {
           return bare.length
             ? {
                 pass: false,
-                detail: `${bare.length} of ${people.length} staffed territories have no active plan.`,
-                examples: bare.map((r) => String(r.tname)),
+                detail: `${bare.length} of ${people.length} staffed territories have no active plan.${bare.length > 25 ? " Showing the first 25." : ""}`,
+                examples: bare.slice(0, 25).map((r) => String(r.tname)),
               }
             : { pass: true, detail: `All ${people.length} staffed territories are covered.` };
         }

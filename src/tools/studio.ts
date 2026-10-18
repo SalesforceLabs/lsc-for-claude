@@ -10,7 +10,7 @@ import { traceUser } from "../studio/user-trace.js";
 import { drift } from "../studio/drift.js";
 import { applyFix, previewFix } from "../studio/fixes.js";
 import { publishStatus, startPublish } from "../studio/publish.js";
-import { loadPublishedIpad } from "../studio/published.js";
+import { loadPublishedIpad, searchProfileUsers } from "../studio/published.js";
 import { loadProgress } from "../studio/published-progress.js";
 import { compileInlineLwc } from "../studio/lwc/compile.js";
 import { lwcRequest } from "../studio/lwc/request.js";
@@ -332,6 +332,23 @@ export function register(server: McpServer) {
   );
 
   server.tool(
+    "studio_ipad_published_users",
+    "LSC Studio (GUI data): active users of a profile whose name contains `search`, for the iPad preview's user picker when the profile has more users than it lists. Read-only. Returns JSON { users }.",
+    { profile: z.string().min(1).max(255), search: z.string().min(1).max(80) },
+    async ({ profile, search }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json({ users: await searchProfileUsers(profile, search, connection.targetOrg) });
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
     "studio_ipad_published_progress",
     "LSC Studio (GUI data): which step a running studio_ipad_published load for a profile is on (steps waiting / running / done / failed, with start and finish times), or null when none has run. Read-only; makes no org calls. Returns JSON.",
     { profile: z.string().min(1).max(255) },
@@ -378,15 +395,15 @@ export function register(server: McpServer) {
 
   server.tool(
     "studio_access_options",
-    "LSC Studio (GUI data): permission sets, permission set groups, and territories that can be given to a user. Read-only. Returns JSON.",
-    {},
-    async () => {
+    "LSC Studio (GUI data): permission sets, permission set groups, and territories that can be given to a user (at most 2,000 of each; `truncated` gives totals — pass `search` to find others by name). Read-only. Returns JSON.",
+    { search: z.string().max(80).optional() },
+    async ({ search }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await accessOptions(connection.targetOrg));
+        return json(await accessOptions(connection.targetOrg, search));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

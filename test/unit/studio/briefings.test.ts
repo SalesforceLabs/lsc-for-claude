@@ -51,8 +51,7 @@ function healthy(): [string, Row[] | Error][] {
     ]],
     ["FROM PrstContentDefinition", [{ Id: "1fa1", DeveloperName: "Def", MasterLabel: "Daily", IsActive: true, ContentType: "Podcast" }]],
     ["FROM PrstCntntDefAssignment", [{ Id: "1fb1", IsActive: true, AssignedToId: "00e1", AssignedTo: { Name: "Rep" }, PrstContentDefinition: { MasterLabel: "Daily" } }]],
-    ["MAX(CreatedDate)", [{ TargetUserId: "005a", cnt: 5, latest: new Date().toISOString() }]],
-    ["FROM User WHERE Id IN", [{ Id: "005a", Profile: { Name: "Rep" } }]],
+    ["MAX(CreatedDate)", [{ pn: "Rep", cnt: 5, latest: new Date().toISOString() }]],
     ["LIKE '%Briefing%'", [
       { Label: "Briefings: Generate Daily Briefings Text", ApiName: "GenDailyBriefingsText", ActiveVersionId: "v1", ProcessType: "AutoLaunchedFlow" },
       { Label: "Briefings: Schedule Daily Briefings of Provider Accounts", ApiName: "SchdDlyBriefingsOfPrvdAcct", ActiveVersionId: null, ProcessType: "AutoLaunchedFlow" },
@@ -171,7 +170,7 @@ describe("collectBriefings", () => {
 
   it("flags empty account summarization and stale content", async () => {
     set("FROM PrvdAccountTerritorySummary", []);
-    set("MAX(CreatedDate)", [{ TargetUserId: "005a", cnt: 5, latest: "2026-01-01T00:00:00.000+0000" }]);
+    set("MAX(CreatedDate)", [{ pn: "Rep", cnt: 5, latest: "2026-01-01T00:00:00.000+0000" }]);
     const r = await collectBriefings("org");
     expect(titles(surface(r, "accountSummarization"))).toContain("No summary records");
     expect(titles(surface(r, "generated"))).toContain("No new briefings in 3+ days");

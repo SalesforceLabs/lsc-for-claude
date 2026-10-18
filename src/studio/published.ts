@@ -16,7 +16,7 @@ import * as path from "path";
 import { promisify } from "util";
 import { resolveScalarTags } from "../perf/sync-volume.js";
 import { apiRequest } from "../salesforce/cli.js";
-import { count, ID_PATTERN, inList, query, type Row } from "./helpers.js";
+import { count, ID_PATTERN, inList, query, queryResult, type Row } from "./helpers.js";
 import { collectScreens, type PublishedScreens, type ScreenContext } from "./screens/index.js";
 import { collectRecords, type PublishedRecords } from "./screens/record.js";
 import { attachReportData, type PublishedReportData } from "./screens/report-data.js";
@@ -165,6 +165,10 @@ export interface PublishedIpad {
   viewer: PublishedViewer | null;
   /** Active users on the profile, for picking whose iPad to preview. */
   users: { id: string; name: string }[];
+  /** Active users on the profile; more than `users` lists when `usersTruncated`. */
+  usersTotal?: number;
+  /** `users` is the most recently active few; others are found with `searchProfileUsers`. */
+  usersTruncated?: boolean;
   /** Dashboards the pages' `embeddedDashboard` components show, by developer name. */
   dashboards: Record<string, PublishedDashboard>;
   /** The viewer's custom settings that change what a native screen shows; absent without a viewer. */
@@ -173,6 +177,8 @@ export interface PublishedIpad {
   reports?: PublishedReportItem[];
   /** Object tabs' list view records as `Object.ListName` → data; absent when they couldn't be read. */
   lists?: Record<string, PublishedListData>;
+  /** Why a list view has no data (`Object.ListName` → note): unreadable filter, timeout, or past the per-object cap. */
+  listErrors?: Record<string, string>;
   /** `db.json`: the tables the app downloads, as object → DB Schema WhereSoql ("" = every record the user can read). */
   sync?: Record<string, string>;
   /** Native screens (Intelligent Content, Accounts, Planner, Tableau) as the viewer's iPad draws them, read live. */
@@ -212,6 +218,8 @@ export interface PublishedDashboard {
   components: PublishedDashboardComponent[];
   /** When the results were last refreshed (only with `data`). */
   refreshedAt?: string;
+  /** Why `data` is missing for a shared-results dashboard (couldn't be read, or past the cap). */
+  dataNote?: string;
 }
 
 export interface PublishedDashboardComponent {
@@ -1183,14 +1191,14 @@ export function dashboardData(result: Row): DashboardData {
  * those show every viewer the same results, so reading them as the admin is
  * what the iPad shows. Kept out of the saved snapshot so they stay current.
  */
-async function withDashboardData(dashboards: Record<string, PublishedDashboard>, org: string): Promise<Record<string, PublishedDashboard>> {
-  const out: Record<string, PublishedDashboard> = {};
-  await Promise.all(
-    Object.entries(dashboards).map(async ([name, d]) => {
-      out[name] = d;
-      if (!d.sharedResults || !ID_PATTERN.test(d.id)) return;
-      const res = await apiRequest<Row>(`/services/data/v62.0/analytics/dashboards/${d.id}`, "GET", undefined, org);
-      if (!res.success || !res.data) return;
+async function withDashboardData(dashboards: Record<string, PublishedDashboard>, org: string, track?: LoadTracker): Promise<Record<string, PublishedDashboard>> {
+  const out: Record<string, PublishedDashboard> = { ...dashboards };
+  const shared = Object.entries(dashboards).filter(([, d]) => d.sharedResults && ID_PATTERN.test(d.id));
+  let finished = 0;
+  await runPool(shared.slice(0, DASHBOARDS_READ), LIST_CONCURRENCY, async ([name, d]) => {
+    try {
+      const res = await withTimeout(apiRequest<Row>(`/services/data/v62.0/analytics/dashboards/${d.id}`, "GET", undefined, org), LIST_VIEW_TIMEOUT_MS, "Reading this dashboard");
+      if (!res.success || !res.data) throw new Error(res.error || "no data returned");
       const data = new Map(arr(res.data.componentData).map((c) => [str(c.componentId), c]));
       let refreshedAt: string | undefined;
       const components = d.components.map((c) => {
@@ -1201,10 +1209,17 @@ async function withDashboardData(dashboards: Record<string, PublishedDashboard>,
         return { ...c, data: dashboardData(result) };
       });
       out[name] = { ...d, components, refreshedAt };
-    })
-  );
+    } catch (err) {
+      out[name] = { ...d, dataNote: `Couldn't read the dashboard's results: ${reason(err)}` };
+    }
+    track?.detail("dashboards", `${++finished} of ${Math.min(shared.length, DASHBOARDS_READ)} dashboards`);
+  });
+  for (const [name, d] of shared.slice(DASHBOARDS_READ)) out[name] = { ...d, dataNote: `Results not read: only the first ${DASHBOARDS_READ} dashboards are loaded.` };
   return out;
 }
+
+/** Dashboards whose results are read per load. */
+const DASHBOARDS_READ = 30;
 
 /**
  * Who a user is for list view sharing: role and public group developer
@@ -1286,12 +1301,15 @@ interface CacheRecord {
  * with a document (the server's own pick isn't exposed, so newest wins).
  */
 async function latestCache(profile: string, org: string): Promise<CacheRecord | null> {
+  // Filtered by profile in SOQL (case-insensitive, like ieq) so a busy org's other profiles can't crowd it out.
   const rows = await query(
     `SELECT Id, Name, Status, Profile.Name, LastModifiedDate, MetadataDocument.LatestPublishedVersionId, MetadataDocument.ContentSize
      FROM LifeSciMobileMetadataRecord
-     WHERE ParentMobileMetadataRecId != null AND MetadataDocumentId != null
-     ORDER BY LastModifiedDate DESC LIMIT 2000`,
-    org
+     WHERE ParentMobileMetadataRecId != null AND MetadataDocumentId != null AND Profile.Name = ${soqlString(profile)}
+     ORDER BY LastModifiedDate DESC LIMIT 200`,
+    org,
+    false,
+    { allowTruncated: true }
   );
   const mine = rows.filter((r) => ieq(str(obj(r.Profile).Name), profile));
   const pick = mine.find((r) => r.Status === "Active") ?? mine[0];
@@ -1306,17 +1324,32 @@ async function latestCache(profile: string, org: string): Promise<CacheRecord | 
   };
 }
 
-function download(contentVersionId: string, dest: string, org: string): Promise<void> {
+/** Base allowance for the download, plus time per MB (a slow link moves about 0.5 MB/s), capped. */
+export function downloadTimeoutMs(sizeBytes: number | null): number {
+  const base = 300_000;
+  if (!sizeBytes || sizeBytes <= 0) return base;
+  return Math.min(1_800_000, Math.max(base, base + Math.ceil(sizeBytes / 1_000_000) * 2000));
+}
+
+function download(contentVersionId: string, dest: string, org: string, sizeBytes: number | null = null): Promise<void> {
+  const timeout = downloadTimeoutMs(sizeBytes);
   return new Promise((resolve, reject) => {
     const child = spawn(
       "sf",
       ["api", "request", "rest", `/services/data/v62.0/sobjects/ContentVersion/${contentVersionId}/VersionData`, "--stream-to-file", dest, "--target-org", org],
-      { stdio: "pipe", timeout: 300000 }
+      { stdio: "pipe", timeout }
     );
     let stderr = "";
     child.stderr?.on("data", (d) => (stderr += d.toString()));
     child.on("error", reject);
-    child.on("close", (code) => (code === 0 ? resolve() : reject(new Error(stderr.trim() || `Download failed (exit ${code})`))));
+    child.on("close", (code, signal) => {
+      if (code === 0) return resolve();
+      if (signal) {
+        const size = sizeBytes ? ` (${(sizeBytes / 1_048_576).toFixed(0)} MB)` : "";
+        return reject(new Error(`Downloading the metadata cache${size} timed out after ${Math.round(timeout / 60_000)} minutes. The connection to the org is too slow or the file is too large; try again, or on a faster network.`));
+      }
+      reject(new Error(stderr.trim() || `Download failed (exit ${code})`));
+    });
   });
 }
 
@@ -1334,29 +1367,33 @@ async function extract(zip: string, dir: string, languages: string[]): Promise<{
     const code = (err as { code?: number }).code;
     if (code !== 11) throw new Error(`Couldn't unpack the metadata cache (${err instanceof Error ? err.message : String(err)}). Studio needs the unzip command.`);
   }
-  const read = (f: string): Row => {
+  // Parsing is synchronous and the files can be tens of MB: let progress polls through between them.
+  const read = async (f: string): Promise<Row> => {
     const p = path.join(dir, `${f}.json`);
-    return fs.existsSync(p) ? (JSON.parse(fs.readFileSync(p, "utf8")) as Row) : {};
+    await yieldToEventLoop();
+    return fs.existsSync(p) ? (JSON.parse(await fs.promises.readFile(p, "utf8")) as Row) : {};
   };
   const tabTranslations = new Map<string, Row>();
   for (const l of languages) {
     if (fs.existsSync(path.join(dir, `${l}.json`))) {
-      const t = read(l);
+      const t = await read(l);
       tabTranslations.set(l, { tabs: obj(t.tabs), layouts: layoutTranslations(obj(t.objects)), fields: fieldTranslations(obj(t.objects)) });
     }
   }
   return {
     files: {
-      nav: read("nav") as Record<string, Row>,
-      ui: read("ui"),
-      permissions: read("permissions"),
-      db: read("db"),
-      sobjects: read("sobjects") as Record<string, Row>,
-      reporting: read("reporting"),
+      nav: (await read("nav")) as Record<string, Row>,
+      ui: await read("ui"),
+      permissions: await read("permissions"),
+      db: await read("db"),
+      sobjects: (await read("sobjects")) as Record<string, Row>,
+      reporting: await read("reporting"),
     },
     tabTranslations,
   };
 }
+
+const yieldToEventLoop = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 /** TranslatedObject.layouts, keyed by layoutName: non-empty section and related list labels. */
 function layoutTranslations(objects: Row): Record<string, { sections: Record<string, string>; relatedLists: Record<string, string> }> {
@@ -1393,37 +1430,94 @@ interface ProfileUser {
   permissionSets: string[];
 }
 
-/**
- * Active users on the profile with their directly assigned permission sets —
- * the list the app gets at sync (UserDao.getUserAssignedPermissionSets: not
- * profile-owned, `ns__Name`).
- */
-async function profileUsers(profile: string, org: string): Promise<ProfileUser[]> {
-  const name = soqlString(profile);
-  const [users, assignments] = await Promise.all([
-    query(`SELECT Id, Name, LastLoginDate, LanguageLocaleKey FROM User WHERE IsActive = true AND Profile.Name = ${name} ORDER BY Name LIMIT 500`, org),
-    query(
-      `SELECT AssigneeId, PermissionSet.Name, PermissionSet.NamespacePrefix FROM PermissionSetAssignment
-       WHERE PermissionSet.IsOwnedByProfile = false AND Assignee.IsActive = true AND Assignee.Profile.Name = ${name} LIMIT 20000`,
-      org
-    ),
-  ]);
+/** Users listed for the picker; a bigger profile shows its most recently active and the rest are found by name. */
+export const USER_LIMIT = 500;
+
+/** Escape a LIKE term: quote, backslash, and the wildcards. */
+const likeEscape = (v: string) => v.replace(/[\\'%_]/g, (c) => `\\${c}`);
+
+const LANGUAGE = /^[A-Za-z]{2,3}(_[A-Za-z0-9]{2,4})*$/;
+
+/** The permission sets assigned directly to each user (UserDao.getUserAssignedPermissionSets: not profile-owned, `ns__Name`), asked for in chunks. */
+async function assignedSets(userIds: string[], org: string): Promise<Map<string, string[]>> {
   const sets = new Map<string, string[]>();
-  for (const a of assignments) {
-    const ps = obj(a.PermissionSet);
-    const ns = str(ps.NamespacePrefix);
-    const list = sets.get(str(a.AssigneeId)) ?? [];
-    list.push(ns ? `${ns}__${str(ps.Name)}` : str(ps.Name));
-    sets.set(str(a.AssigneeId), list);
+  const ids = userIds.filter((id) => ID_PATTERN.test(id));
+  for (let i = 0; i < ids.length; i += 200) {
+    const rows = await query(
+      `SELECT AssigneeId, PermissionSet.Name, PermissionSet.NamespacePrefix FROM PermissionSetAssignment
+       WHERE PermissionSet.IsOwnedByProfile = false AND AssigneeId IN (${inList(ids.slice(i, i + 200))})`,
+      org
+    );
+    for (const a of rows) {
+      const ps = obj(a.PermissionSet);
+      const ns = str(ps.NamespacePrefix);
+      const list = sets.get(str(a.AssigneeId)) ?? [];
+      list.push(ns ? `${ns}__${str(ps.Name)}` : str(ps.Name));
+      sets.set(str(a.AssigneeId), list);
+    }
   }
-  return users.map((u) => ({
+  return sets;
+}
+
+function toProfileUser(u: Row, sets: Map<string, string[]>): ProfileUser {
+  return {
     id: str(u.Id),
     name: str(u.Name),
     lastLogin: str(u.LastLoginDate),
     // Only used to build a file name inside the ZIP.
-    language: /^[A-Za-z]{2,3}(_[A-Za-z0-9]{2,4})*$/.test(str(u.LanguageLocaleKey)) ? str(u.LanguageLocaleKey) : DEFAULT_LANGUAGE,
+    language: LANGUAGE.test(str(u.LanguageLocaleKey)) ? str(u.LanguageLocaleKey) : DEFAULT_LANGUAGE,
     permissionSets: (sets.get(str(u.Id)) ?? []).sort(),
-  }));
+  };
+}
+
+export interface ProfileUsers {
+  users: ProfileUser[];
+  /** Active users on the profile. */
+  total: number;
+  /** `users` holds the `USER_LIMIT` most recently active only. */
+  truncated: boolean;
+}
+
+/**
+ * Active users on the profile with their directly assigned permission sets.
+ * A profile with more than `USER_LIMIT` users lists the most recently active
+ * ones (the likeliest to be typical) and says how many there are; permission
+ * sets are read only for the users listed.
+ */
+async function profileUsers(profile: string, org: string): Promise<ProfileUsers> {
+  const result = await queryResult(
+    `SELECT Id, Name, LastLoginDate, LanguageLocaleKey FROM User WHERE IsActive = true AND Profile.Name = ${soqlString(profile)} ORDER BY LastLoginDate DESC NULLS LAST, Name LIMIT ${USER_LIMIT}`,
+    org,
+    false,
+    { allowTruncated: true }
+  );
+  const rows = result.records as Row[];
+  const total = Math.max(result.totalSize ?? rows.length, rows.length);
+  const sets = await assignedSets(rows.map((u) => str(u.Id)), org);
+  return { users: rows.map((u) => toProfileUser(u, sets)), total, truncated: total > rows.length };
+}
+
+/** One active user of the profile, for a pick outside the listed users. */
+async function profileUserById(profile: string, id: string, org: string): Promise<ProfileUser | undefined> {
+  if (!ID_PATTERN.test(id)) return undefined;
+  const rows = await query(
+    `SELECT Id, Name, LastLoginDate, LanguageLocaleKey FROM User WHERE Id = '${id}' AND IsActive = true AND Profile.Name = ${soqlString(profile)}`,
+    org
+  );
+  return rows[0] ? toProfileUser(rows[0], await assignedSets([id], org)) : undefined;
+}
+
+/** Active users of the profile whose name contains `text`, for the picker when the profile has more users than it lists. */
+export async function searchProfileUsers(profile: string, text: string, org: string, limit = 50): Promise<{ id: string; name: string }[]> {
+  const term = text.trim();
+  if (!term) return [];
+  const rows = await query(
+    `SELECT Id, Name FROM User WHERE IsActive = true AND Profile.Name = ${soqlString(profile)} AND Name LIKE '%${likeEscape(term)}%' ORDER BY Name LIMIT ${Math.max(1, Math.min(limit, 200))}`,
+    org,
+    false,
+    { allowTruncated: true }
+  );
+  return rows.map((u) => ({ id: str(u.Id), name: str(u.Name) }));
 }
 
 const comboKey = (sets: string[]) => createHash("sha1").update(sets.join("\n")).digest("hex").slice(0, 12);
@@ -1642,14 +1736,16 @@ async function viewerScreens(
   userId: string | undefined,
   org: string,
   track: LoadTracker
-): Promise<Pick<PublishedIpad, "settings" | "reports" | "lists" | "screens" | "records">> {
+): Promise<Pick<PublishedIpad, "settings" | "reports" | "lists" | "listErrors" | "screens" | "records">> {
   if (!userId) return {};
   track.plan(["reports", "lists", "screens", "records"]);
-  const [reports, lists, screens] = await Promise.all([
+  const [reports, listResult, screens] = await Promise.all([
     track.run("reports", () => viewerReportsTab(core, userId, org)),
-    track.run("lists", () => viewerLists(core, userId, org)),
+    track.run("lists", () => viewerLists(core, userId, org, track)),
     track.run("screens", () => viewerContext(core, userId, org).then(collectScreens).catch(() => ({}) as PublishedScreens)),
   ]);
+  const lists = listResult?.data;
+  const listErrors = listResult && Object.keys(listResult.errors).length ? listResult.errors : undefined;
   const home = (screens as PublishedScreens).home;
   // Records other screens open: the Accounts cards, the Home NBC cards (account) and Visits To Submit rows (visit editor).
   const cards = [...new Set([...((screens as PublishedScreens).accounts?.cards.map((c) => c.id) ?? []), ...(home?.nbc?.cards.map((c) => c.accountId) ?? [])])];
@@ -1667,7 +1763,7 @@ async function viewerScreens(
             .catch(() => undefined)
         )
       : undefined;
-  return { ...reports, ...(lists ? { lists } : {}), ...(Object.keys(screens).length ? { screens } : {}), ...(records && Object.keys(records.byId).length ? { records } : {}) };
+  return { ...reports, ...(lists ? { lists } : {}), ...(listErrors ? { listErrors } : {}), ...(Object.keys(screens).length ? { screens } : {}), ...(records && Object.keys(records.byId).length ? { records } : {}) };
 }
 
 /** The viewer's territories, locale, and sync scope, for the native screens' collectors. */
@@ -1713,6 +1809,53 @@ async function viewerReportsTab(core: SnapshotCore, userId: string, org: string)
 
 /** DataTableView pages: AllSObjectsDataService.rowsPerPage. */
 const LIST_PAGE = 20;
+/** List views read per object tab; the rest are shown as placeholders with a note saying so. */
+export const LIST_VIEWS_PER_OBJECT = 8;
+const LIST_VIEW_TIMEOUT_MS = 45_000;
+/** Total time for all list views; the ones not started by then are skipped with a note. */
+const LIST_BUDGET_MS = 180_000;
+const LIST_CONCURRENCY = 4;
+
+/** Reject if `p` takes longer than `ms`; the work behind it isn't cancelled, but it's no longer waited on. */
+export function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const limit = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${what} took longer than ${Math.round(ms / 1000)} seconds`)), ms);
+  });
+  return Promise.race([p, limit]).finally(() => clearTimeout(timer));
+}
+
+/** Run `fn` over `items` with at most `concurrency` in flight, in order. */
+export async function runPool<T>(items: T[], concurrency: number, fn: (item: T) => Promise<void>): Promise<void> {
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+      while (next < items.length) await fn(items[next++]);
+    })
+  );
+}
+
+const reason = (err: unknown) => (err instanceof Error ? err.message : String(err)).replace(/\s+/g, " ").slice(0, 200);
+
+/**
+ * The list views to read, in priority order: every object tab's default view
+ * first (tabs in order), then the others, at most `LIST_VIEWS_PER_OBJECT` per
+ * object. `skipped` are the ones past that cap.
+ */
+export function planListViews(core: SnapshotCore, objects: string[]): { tasks: { object: string; view: PublishedListView }[]; skipped: { object: string; view: PublishedListView }[] } {
+  const ranked: { object: string; view: PublishedListView; rank: number; order: number }[] = [];
+  const skipped: { object: string; view: PublishedListView }[] = [];
+  objects.forEach((object, order) => {
+    const o = core.objects[object];
+    const views = [...o.listViews].sort((a, b) => Number(b.name === o.defaultListView) - Number(a.name === o.defaultListView));
+    views.forEach((view, i) => {
+      if (i < LIST_VIEWS_PER_OBJECT) ranked.push({ object, view, rank: i === 0 ? 0 : 1, order });
+      else skipped.push({ object, view });
+    });
+  });
+  ranked.sort((a, b) => a.rank - b.rank || a.order - b.order);
+  return { tasks: ranked.map(({ object, view }) => ({ object, view })), skipped };
+}
 
 /**
  * SFSObjectsListSQLPredicate over the device's synced records: the list view
@@ -1720,8 +1863,14 @@ const LIST_PAGE = 20;
  * object), plus `OwnerId = <viewer>` for "Mine" — the app ignores other
  * scopes. Read as the admin, so counts match when the viewer's sync holds
  * every record the filter selects. Sorted like the describe's `orderBy`.
+ * A list view that can't be read gets a note in `errors` instead of data.
  */
-async function viewerLists(core: SnapshotCore, userId: string, org: string): Promise<Record<string, PublishedListData> | undefined> {
+async function viewerLists(
+  core: SnapshotCore,
+  userId: string,
+  org: string,
+  track?: LoadTracker
+): Promise<{ data: Record<string, PublishedListData>; errors: Record<string, string> } | undefined> {
   const objects = [...new Set(core.tabs.filter((t) => t.kind === "object" && t.sobject).map((t) => t.sobject as string))].filter((o) => core.objects[o]);
   if (objects.length === 0) return undefined;
   const [users, assignments] = await Promise.all([
@@ -1732,57 +1881,85 @@ async function viewerLists(core: SnapshotCore, userId: string, org: string): Pro
   const territories = assignments.map((a) => ({ id: str(a.Territory2Id), name: str(obj(a.Territory2).Name) }));
   const scope = syncScope(core, userId, territories);
   const out: Record<string, PublishedListData> = {};
-  await Promise.all(
-    objects.map(async (name) => {
-      const listviews = await apiRequest<Row>(`/services/data/v62.0/sobjects/${name}/listviews`, "GET", undefined, org);
-      const describeUrls = new Map(arr(listviews.success ? listviews.data?.listviews : []).map((l) => [str(l.developerName), str(l.describeUrl)]));
-      await Promise.all(
-        core.objects[name].listViews.map(async (lv) => {
-          const q = lv.query;
-          if (!q) return;
-          let where = q.where;
-          let mine = q.mine;
-          let orderBy = "";
-          const url = describeUrls.get(lv.name);
-          if (url?.startsWith("/services/data/")) {
-            const d = await apiRequest<Row>(url, "GET", undefined, org);
-            const soql = d.success ? str(d.data?.query) : "";
-            if (soql) {
-              const m = /\sWHERE\s([\s\S]*?)(?:\sORDER BY\s([\s\S]*))?$/i.exec(soql.replace(/\sUSING SCOPE \w+/i, ""));
-              const o = /\sORDER BY\s([\s\S]*)$/i.exec(soql);
-              where = m?.[1]?.trim() ?? "";
-              orderBy = o?.[1]?.trim() ?? "";
-              mine = str(d.data?.scope).toLowerCase() === "mine";
-            }
-          }
-          if (where === null) return;
-          const synced = scope(name);
-          const conditions = [mine ? `OwnerId = '${userId}'` : "", where ? `(${where})` : "", synced ? `(${synced})` : ""].filter(Boolean);
-          const filter = conditions.length ? ` WHERE ${conditions.join(" AND ")}` : "";
-          const first = q.fields.find((f) => f && !f.path.startsWith("toLabel("))?.path ?? "Id";
-          const fields = q.fields.filter((f): f is ListViewField => !!f);
-          const paths = [...new Set(fields.flatMap((f) => (f.ref ? [f.path, f.ref.idPath] : [f.path])))];
-          try {
-            const [total, records] = await Promise.all([
-              count(`SELECT COUNT() FROM ${name}${filter}`, org),
-              query(`SELECT Id${paths.length ? `, ${paths.join(", ")}` : ""} FROM ${name}${filter} ORDER BY ${orderBy || `${first} ASC NULLS FIRST, Id ASC NULLS FIRST`} LIMIT ${LIST_PAGE}`, org),
-            ]);
-            const unsynced = await unsyncedReferences(records, fields, scope, org);
-            const cell = (r: Row, f: ListViewField | null) => {
-              if (!f) return "";
-              // The app joins the related record from its local database, so one it didn't download shows blank.
-              if (f.ref && unsynced.has(str(pathValue(r, f.ref.idPath)))) return "";
-              return listCell(pathValue(r, f.path), f.type, format);
-            };
-            out[`${name}.${lv.name}`] = { count: total, rows: records.map((r) => ({ id: str(r.Id), cells: q.fields.map((f) => cell(r, f)) })) };
-          } catch {
-            // A filter SOQL can't express (or a field the admin can't read) — the list keeps its placeholder rows.
-          }
-        })
+  const errors: Record<string, string> = {};
+  const { tasks, skipped } = planListViews(core, objects);
+  for (const { object, view } of skipped) errors[`${object}.${view.name}`] = `Not read: only the first ${LIST_VIEWS_PER_OBJECT} list views of each object are loaded.`;
+
+  const describeUrls = new Map<string, Promise<Map<string, string>>>();
+  const urlsFor = (name: string) => {
+    let p = describeUrls.get(name);
+    if (!p) {
+      p = apiRequest<Row>(`/services/data/v62.0/sobjects/${name}/listviews`, "GET", undefined, org).then(
+        (res) => new Map(arr(res.success ? res.data?.listviews : []).map((l) => [str(l.developerName), str(l.describeUrl)])),
+        () => new Map<string, string>()
       );
-    })
-  );
-  return out;
+      describeUrls.set(name, p);
+    }
+    return p;
+  };
+
+  const deadline = Date.now() + LIST_BUDGET_MS;
+  let finished = 0;
+  const readView = async (name: string, lv: PublishedListView, key: string) => {
+    const q = lv.query;
+    if (!q) {
+      errors[key] = "The cache has no filter for this list view.";
+      return;
+    }
+    let where = q.where;
+    let mine = q.mine;
+    let orderBy = "";
+    const url = (await urlsFor(name)).get(lv.name);
+    if (url?.startsWith("/services/data/")) {
+      const d = await apiRequest<Row>(url, "GET", undefined, org);
+      const soql = d.success ? str(d.data?.query) : "";
+      if (soql) {
+        const m = /\sWHERE\s([\s\S]*?)(?:\sORDER BY\s([\s\S]*))?$/i.exec(soql.replace(/\sUSING SCOPE \w+/i, ""));
+        const o = /\sORDER BY\s([\s\S]*)$/i.exec(soql);
+        where = m?.[1]?.trim() ?? "";
+        orderBy = o?.[1]?.trim() ?? "";
+        mine = str(d.data?.scope).toLowerCase() === "mine";
+      }
+    }
+    if (where === null) {
+      errors[key] = "Its filter can't be written as SOQL, so its records aren't read.";
+      return;
+    }
+    const synced = scope(name);
+    const conditions = [mine ? `OwnerId = '${userId}'` : "", where ? `(${where})` : "", synced ? `(${synced})` : ""].filter(Boolean);
+    const filter = conditions.length ? ` WHERE ${conditions.join(" AND ")}` : "";
+    const first = q.fields.find((f) => f && !f.path.startsWith("toLabel("))?.path ?? "Id";
+    const fields = q.fields.filter((f): f is ListViewField => !!f);
+    const paths = [...new Set(fields.flatMap((f) => (f.ref ? [f.path, f.ref.idPath] : [f.path])))];
+    const [total, records] = await Promise.all([
+      count(`SELECT COUNT() FROM ${name}${filter}`, org),
+      query(`SELECT Id${paths.length ? `, ${paths.join(", ")}` : ""} FROM ${name}${filter} ORDER BY ${orderBy || `${first} ASC NULLS FIRST, Id ASC NULLS FIRST`} LIMIT ${LIST_PAGE}`, org),
+    ]);
+    const unsynced = await unsyncedReferences(records, fields, scope, org);
+    const cell = (r: Row, f: ListViewField | null) => {
+      if (!f) return "";
+      // The app joins the related record from its local database, so one it didn't download shows blank.
+      if (f.ref && unsynced.has(str(pathValue(r, f.ref.idPath)))) return "";
+      return listCell(pathValue(r, f.path), f.type, format);
+    };
+    out[key] = { count: total, rows: records.map((r) => ({ id: str(r.Id), cells: q.fields.map((f) => cell(r, f)) })) };
+  };
+
+  await runPool(tasks, LIST_CONCURRENCY, async ({ object, view }) => {
+    const key = `${object}.${view.name}`;
+    if (Date.now() > deadline) {
+      errors[key] = `Not read: the ${Math.round(LIST_BUDGET_MS / 60_000)}-minute time budget for list views ran out. Reload to try again.`;
+    } else {
+      try {
+        await withTimeout(readView(object, view, key), LIST_VIEW_TIMEOUT_MS, "Reading this list view");
+      } catch (err) {
+        // A filter SOQL can't express, a field the admin can't read, or a timeout — the list keeps its placeholder rows and says why.
+        errors[key] = `Couldn't read: ${reason(err)}`;
+      }
+    }
+    track?.detail("lists", `${++finished} of ${tasks.length} list views`);
+  });
+  return { data: out, errors };
 }
 
 /**
@@ -1871,56 +2048,175 @@ export function listCell(value: unknown, type: string, format: { timeZone: strin
   }
 }
 
+/** Downloaded caches kept on disk, newest first (each holds only the built snapshots), and their total size. */
+const CACHE_KEEP = 20;
+const CACHE_MAX_BYTES = 1 << 30;
+/** Extra permission-set combinations are built only while this much time remains; the rest build on first use. */
+const EXTRA_COMBO_BUDGET_MS = 60_000;
+
+function dirSize(dir: string): number {
+  let total = 0;
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    try {
+      total += e.isDirectory() ? dirSize(path.join(dir, e.name)) : fs.statSync(path.join(dir, e.name)).size;
+    } catch {
+      // Removed while counting.
+    }
+  }
+  return total;
+}
+
+/**
+ * Drop the least recently used cache directories beyond `keep` or `maxBytes`
+ * (newest first wins). `protect`ed directories are always kept. Returns the
+ * directories removed.
+ */
+export function pruneCache(root: string, options: { keep: number; maxBytes: number; protect?: string[] }): string[] {
+  if (!fs.existsSync(root)) return [];
+  const dirs = fs
+    .readdirSync(root, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => {
+      const full = path.join(root, e.name);
+      return { full, mtime: fs.statSync(full).mtimeMs, size: dirSize(full) };
+    })
+    // Protected directories first so they count against the limits, then newest first.
+    .sort((a, b) => Number(options.protect?.includes(b.full) ?? false) - Number(options.protect?.includes(a.full) ?? false) || b.mtime - a.mtime);
+  const removed: string[] = [];
+  let kept = 0;
+  let bytes = 0;
+  for (const d of dirs) {
+    const protectedDir = options.protect?.includes(d.full) ?? false;
+    if (protectedDir || (kept < options.keep && bytes + d.size <= options.maxBytes)) {
+      kept++;
+      bytes += d.size;
+    } else {
+      fs.rmSync(d.full, { recursive: true, force: true });
+      removed.push(d.full);
+    }
+  }
+  return removed;
+}
+
+/** Loads running now, by org / profile / user, so a repeat call (a retry after the 5-minute call timeout, a double click) joins instead of starting another. */
+const inflight = new Map<string, Promise<PublishedIpad | { profile: string; missing: true }>>();
+/** Snapshot builds running now, by ContentVersion, so two users of one profile don't unpack the same directory at once. */
+const builds = new Map<string, Promise<unknown>>();
+
 /**
  * Load the iPad as one user of a profile sees it (the profile's most typical
  * user unless `userId` is given). Cache files never change once published, so
  * snapshots are kept on disk by ContentVersion Id and permission-set combination.
  */
-export async function loadPublishedIpad(
+export function loadPublishedIpad(
   profile: string,
   org: string,
   userId?: string
 ): Promise<PublishedIpad | { profile: string; missing: true }> {
+  const key = [org, profile, userId ?? ""].join("\u0000");
+  const running = inflight.get(key);
+  if (running) return running;
   const track = new LoadTracker(profile);
-  try {
-    return await loadWithProgress(profile, org, userId, track);
-  } finally {
+  const load = loadWithProgress(profile, org, userId, track).finally(() => {
     track.finish();
-  }
+    inflight.delete(key);
+  });
+  inflight.set(key, load);
+  return load;
 }
 
 async function loadWithProgress(profile: string, org: string, userId: string | undefined, track: LoadTracker): Promise<PublishedIpad | { profile: string; missing: true }> {
-  const [cache, users] = await track.run("cache", () => Promise.all([latestCache(profile, org), profileUsers(profile, org)]));
+  const [cache, listed] = await track.run("cache", () => Promise.all([latestCache(profile, org), profileUsers(profile, org)]));
   if (!cache) return { profile, missing: true };
   if (!ID_PATTERN.test(cache.contentVersionId)) throw new Error("The metadata cache record has no downloadable file.");
 
-  const user = (userId && users.find((u) => u.id === userId)) || defaultUser(users);
+  const { users, total: usersTotal, truncated: usersTruncated } = listed;
+  // A pick outside the listed users (found by name) is read on its own.
+  const picked = userId ? (users.find((u) => u.id === userId) ?? (await profileUserById(profile, userId, org))) : undefined;
+  const user = picked || defaultUser(users);
   const permissionSets = user?.permissionSets ?? [];
   const viewer: PublishedViewer | null = user ? { userId: user.id, name: user.name, permissionSets } : null;
-  const userList = users.map((u) => ({ id: u.id, name: u.name }));
+  const userList = (user && !users.some((u) => u.id === user.id) ? [...users, user] : users).map((u) => ({ id: u.id, name: u.name }));
+  const userInfo = { users: userList, usersTotal, ...(usersTruncated ? { usersTruncated } : {}) };
+  const userNotes = usersTruncated
+    ? [
+        `This profile has ${usersTotal.toLocaleString("en-US")} active users; the ${users.length.toLocaleString("en-US")} most recently active are listed${userId ? "" : " and the default viewer is picked from them"}. Search by name to preview another.`,
+      ]
+    : [];
+  const withNotes = <T extends { notes: string[] }>(core: T): T => (userNotes.length ? { ...core, notes: [...core.notes, ...userNotes] } : core);
 
   const language = user?.language ?? DEFAULT_LANGUAGE;
 
   const sharing = user ? track.run("sharing", () => viewerSharing(user.id, org)) : Promise.resolve(null);
   const dir = path.join(CACHE_ROOT, cache.contentVersionId);
   const snapshotPath = (sets: string[], lang: string) => path.join(dir, `snapshot-v${SNAPSHOT_VERSION}-${lang}-${comboKey(sets)}.json`);
-  if (fs.existsSync(snapshotPath(permissionSets, language))) {
-    const saved = JSON.parse(fs.readFileSync(snapshotPath(permissionSets, language), "utf8")) as SnapshotCore;
-    const shared = applyListViewSharing(saved, await sharing);
-    const [dashboards, screens] = await Promise.all([track.run("dashboards", () => withDashboardData(saved.dashboards ?? {}, org)), viewerScreens(shared, user?.id, org, track)]);
-    return { ...shared, ...screens, dashboards, profile, cache, viewer, users: userList };
-  }
+  const readSaved = (): SnapshotCore | null => {
+    const file = snapshotPath(permissionSets, language);
+    if (!fs.existsSync(file)) return null;
+    // Recently used caches survive pruneCache.
+    const now = new Date();
+    fs.utimes(dir, now, now, () => undefined);
+    return JSON.parse(fs.readFileSync(file, "utf8")) as SnapshotCore;
+  };
+  const finish = async (core: SnapshotCore): Promise<PublishedIpad> => {
+    const shared = applyListViewSharing(core, await sharing);
+    const [dashboards, screens] = await Promise.all([track.run("dashboards", () => withDashboardData(core.dashboards ?? {}, org, track)), viewerScreens(shared, user?.id, org, track)]);
+    return { ...withNotes(shared), ...screens, dashboards, profile, cache, viewer, ...userInfo };
+  };
 
+  let saved = readSaved();
+  if (!saved) {
+    const building = builds.get(cache.contentVersionId);
+    if (building) {
+      // Another load is unpacking this cache: wait, then use whatever it built.
+      await building.catch(() => undefined);
+      saved = readSaved();
+    }
+  }
+  if (saved) return finish(saved);
+
+  const build = buildSnapshots({ profile, org, cache, users, user, permissionSets, language, dir, snapshotPath, track });
+  const marker = build.then(() => undefined, () => undefined);
+  builds.set(cache.contentVersionId, marker);
+  try {
+    return await finish(await build);
+  } finally {
+    if (builds.get(cache.contentVersionId) === marker) builds.delete(cache.contentVersionId);
+  }
+}
+
+interface BuildInput {
+  profile: string;
+  org: string;
+  cache: CacheRecord;
+  users: ProfileUser[];
+  user: ProfileUser | undefined;
+  permissionSets: string[];
+  language: string;
+  dir: string;
+  snapshotPath: (sets: string[], lang: string) => string;
+  track: LoadTracker;
+}
+
+/** Download and unpack the cache, build the requested user's snapshot first, then the profile's other combinations while time allows. */
+async function buildSnapshots(input: BuildInput): Promise<SnapshotCore> {
+  const { profile, org, cache, users, permissionSets, language, dir, snapshotPath, track } = input;
   fs.mkdirSync(dir, { recursive: true });
+  try {
+    pruneCache(CACHE_ROOT, { keep: CACHE_KEEP, maxBytes: CACHE_MAX_BYTES, protect: [dir] });
+  } catch {
+    // Pruning is housekeeping; never fail a load for it.
+  }
   const zip = path.join(dir, "cache.zip");
   let languages: string[] = [];
   track.plan(["download", "unpack", "access", "build"]);
   try {
-    await track.run("download", () => download(cache.contentVersionId, zip, org));
-    // Build every combination on the profile now, so switching users doesn't re-download.
+    await track.run("download", () => download(cache.contentVersionId, zip, org, cache.sizeBytes));
+    // The requested combination first, then the profile's others so switching users doesn't re-download.
     const combos = new Map<string, { sets: string[]; language: string }>([[`${language} ${comboKey(permissionSets)}`, { sets: permissionSets, language }]]);
     for (const u of users) {
-      if (combos.size < MAX_COMBOS) combos.set(`${u.language} ${comboKey(u.permissionSets)}`, { sets: u.permissionSets, language: u.language });
+      const key = `${u.language} ${comboKey(u.permissionSets)}`;
+      if (combos.size < MAX_COMBOS && !combos.has(key)) combos.set(key, { sets: u.permissionSets, language: u.language });
     }
     languages = [...new Set([...[...combos.values()].map((c) => c.language), DEFAULT_LANGUAGE])];
     const { files, tabTranslations } = await track.run("unpack", () => extract(zip, dir, languages));
@@ -1928,20 +2224,25 @@ async function loadWithProgress(profile: string, org: string, userId: string | u
       ...new Set([...Object.values(files.nav).map((t) => str(t.sobjectName)).filter(Boolean), ...Object.values(MULTI_ENTITY).map((m) => m.with)]),
     ];
     const available = await track.run("access", () => availableTablesFor(profile, tabObjects, org));
-    const core = await track.run("build", async () => {
+    return await track.run("build", async () => {
       let result: SnapshotCore | null = null;
+      const started = Date.now();
+      let built = 0;
       for (const c of combos.values()) {
+        const requested = c.sets === permissionSets && c.language === language;
+        // Past the time budget the other combinations are skipped; they build when first picked.
+        if (!requested && result && Date.now() - started > EXTRA_COMBO_BUDGET_MS) break;
         // OfflineUserService.getCurrentLocalizationFile: the user's language, else en_US.
         const translations = tabTranslations.get(c.language) ?? tabTranslations.get(DEFAULT_LANGUAGE);
         const snapshot = buildSnapshot({ ...files, translations }, { profile, cache, permissionSets: c.sets, availableTables: available?.(c.sets) });
-        fs.writeFileSync(snapshotPath(c.sets, c.language), JSON.stringify(snapshot));
-        if (c.sets === permissionSets && c.language === language) result = snapshot;
+        await fs.promises.writeFile(snapshotPath(c.sets, c.language), JSON.stringify(snapshot));
+        if (requested) result = snapshot;
+        track.detail("build", `${++built} of ${combos.size} combinations`);
+        // Building and serializing are synchronous: let progress polls through between combinations.
+        await yieldToEventLoop();
       }
       return result as SnapshotCore;
     });
-    const shared = applyListViewSharing(core, await sharing);
-    const [dashboards, screens] = await Promise.all([track.run("dashboards", () => withDashboardData(core.dashboards, org)), viewerScreens(shared, user?.id, org, track)]);
-    return { ...shared, ...screens, dashboards, viewer, users: userList };
   } finally {
     // Keep only the snapshots — the raw files hold the org's full metadata.
     for (const f of ["cache.zip", ...FILES.map((x) => `${x}.json`), ...languages.map((l) => `${l}.json`)]) fs.rmSync(path.join(dir, f), { force: true });

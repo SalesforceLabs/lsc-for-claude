@@ -23,7 +23,7 @@ export function fetchCategories(org: string, categories: string[], strict = fals
   return collectCategoryRecords(
     org,
     `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category IN (${inList(categories)}) ORDER BY Category`,
-    { strict }
+    { strict, cache: true }
   );
 }
 

@@ -1,7 +1,8 @@
 /** Account Management readiness: its validation rules plus Studio's own checks. */
 
 import { collectCategoryRecords } from "../../../config/collect.js";
-import { count, inList, plural, query } from "../../helpers.js";
+import { activeTerritories } from "../../collectors/territory-users.js";
+import { count, countGroupedBy, inList, plural, query } from "../../helpers.js";
 import { runCheck, type ReadinessModule } from "../index.js";
 import { duplicateSyncResult, handlersResult, loadDbSchema, loadHandlers, once, syncResult } from "./_visit-shared.js";
 
@@ -31,6 +32,17 @@ const SYNCED_OBJECTS = ["Account", "HealthcareProvider", "ContactPointAddress", 
 /** DCR requests that never reached a final state after this many days are stuck. */
 const DCR_STALE_DAYS = 7;
 
+/**
+ * Accounts matching an anti-join condition. A COUNT over an anti-join scans the
+ * whole table and times out on big orgs, so this reads the first few matches:
+ * the answer is "none" or "at least N", with those as examples.
+ */
+const SAMPLE = 5;
+async function sampleAccounts(where: string, org: string): Promise<{ some: boolean; atLeast: string; names: string[] }> {
+  const rows = await query(`SELECT Name FROM Account WHERE ${where} LIMIT ${SAMPLE}`, org);
+  return { some: rows.length > 0, atLeast: rows.length >= SAMPLE ? `${SAMPLE} or more` : String(rows.length), names: rows.map((r) => String(r.Name)) };
+}
+
 const readiness: ReadinessModule = {
   ruleFiles: ["account-management-config.yaml"],
   checks: async (org) => {
@@ -55,10 +67,11 @@ const readiness: ReadinessModule = {
           uiPath: "Admin Console > Territory Alignment",
         },
         async () => {
-          const aligned = await count(
-            `SELECT COUNT() FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2.Territory2Model.State = 'Active'`,
-            org
-          );
+          // Counted per chunk of the active model's territories instead of joining every association to its model.
+          const { rows: territories, model } = await activeTerritories(org);
+          if (!model) return { pass: true, skip: true, detail: "No active territory model." };
+          const perTerritory = await countGroupedBy("ObjectTerritory2Association", "Territory2Id", territories.map((t) => String(t.Id)), org, "SobjectType = 'Account'");
+          const aligned = [...perTerritory.values()].reduce((a, b) => a + b, 0);
           if (!aligned) return { pass: true, skip: true, detail: "No accounts are aligned in the active territory model." };
           const info = await count(`SELECT COUNT() FROM ProviderAcctTerritoryInfo WHERE IsActive = true`, org);
           const missing = Math.max(0, aligned - info);
@@ -97,15 +110,13 @@ const readiness: ReadinessModule = {
           uiPath: "Account > Addresses",
         },
         async () => {
-          const total = await count(`SELECT COUNT() FROM Account WHERE IsPersonAccount = true`, org);
-          if (!total) return { pass: true, skip: true, detail: "No person accounts." };
-          const where = `IsPersonAccount = true AND Id NOT IN (SELECT ParentId FROM ContactPointAddress)`;
-          const n = await count(`SELECT COUNT() FROM Account WHERE ${where}`, org);
-          const rows = n ? await query(`SELECT Name FROM Account WHERE ${where} LIMIT 5`, org) : [];
+          const any = await query(`SELECT Id FROM Account WHERE IsPersonAccount = true LIMIT 1`, org);
+          if (!any.length) return { pass: true, skip: true, detail: "No person accounts." };
+          const found = await sampleAccounts(`IsPersonAccount = true AND Id NOT IN (SELECT ParentId FROM ContactPointAddress)`, org);
           return {
-            pass: n === 0,
-            detail: n ? `${n} of ${total} person accounts have no address.` : `All ${total} person accounts have an address.`,
-            examples: rows.map((r) => String(r.Name)),
+            pass: !found.some,
+            detail: found.some ? `${found.atLeast} person accounts have no address (first matches shown; not a full count).` : "No person account was found without an address.",
+            examples: found.names,
           };
         }
       ),
@@ -121,12 +132,11 @@ const readiness: ReadinessModule = {
         },
         async () => {
           const where = `Id IN (SELECT ParentId FROM ContactPointAddress) AND Id NOT IN (SELECT ParentId FROM ContactPointAddress WHERE IsPrimary = true)`;
-          const n = await count(`SELECT COUNT() FROM Account WHERE ${where}`, org);
-          const rows = n ? await query(`SELECT Name FROM Account WHERE ${where} LIMIT 5`, org) : [];
+          const found = await sampleAccounts(where, org);
           return {
-            pass: n === 0,
-            detail: n ? `${plural(n, "account")} have addresses but none marked primary.` : "Every account with addresses has a primary one.",
-            examples: rows.map((r) => String(r.Name)),
+            pass: !found.some,
+            detail: found.some ? `${found.atLeast} accounts have addresses but none marked primary (first matches shown; not a full count).` : "No account was found with addresses but none primary.",
+            examples: found.names,
           };
         }
       ),
@@ -141,13 +151,13 @@ const readiness: ReadinessModule = {
           uiPath: "Healthcare Providers tab",
         },
         async () => {
-          const where = `IsPersonAccount = true AND Id NOT IN (SELECT AccountId FROM HealthcareProvider)`;
-          const n = await count(`SELECT COUNT() FROM Account WHERE ${where}`, org);
-          const rows = n ? await query(`SELECT Name FROM Account WHERE ${where} LIMIT 5`, org) : [];
+          const found = await sampleAccounts(`IsPersonAccount = true AND Id NOT IN (SELECT AccountId FROM HealthcareProvider)`, org);
           return {
-            pass: n === 0,
-            detail: n ? `${plural(n, "person account")} without a Healthcare Provider record.` : "Every person account has a Healthcare Provider record.",
-            examples: rows.map((r) => String(r.Name)),
+            pass: !found.some,
+            detail: found.some
+              ? `${found.atLeast} person accounts have no Healthcare Provider record (first matches shown; not a full count).`
+              : "No person account was found without a Healthcare Provider record.",
+            examples: found.names,
           };
         }
       ),
@@ -263,7 +273,7 @@ const readiness: ReadinessModule = {
           surface: "adminSettings",
         },
         async () => {
-          const records = await collectCategoryRecords(org, `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'AddressSettings'`, { strict: true });
+          const records = await collectCategoryRecords(org, `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'AddressSettings'`, { strict: true, cache: true });
           const active = records.find((r) => r.isActive);
           if (!active) return { pass: true, skip: true, detail: "Address settings aren't configured in this org." };
           const field = String(active.fields.ContactPointAddressFormulaField ?? "").trim();

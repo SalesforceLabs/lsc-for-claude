@@ -10,6 +10,8 @@ export interface LoadStep {
   key: LoadStepKey;
   label: string;
   state: LoadStepState;
+  /** Partial progress while running ("12 of 40 list views"), or why a step was cut short. */
+  detail?: string;
 }
 
 export interface LoadProgress {
@@ -63,6 +65,12 @@ export class LoadTracker {
       step.state = "failed";
       throw err;
     }
+  }
+
+  /** Say how far a step is, so a slow one shows partial progress. */
+  detail(key: LoadStepKey, text: string): void {
+    const step = this.find(key);
+    if (step) step.detail = text;
   }
 
   /** The load returned: steps it skipped (cached, or no viewer) drop out. */

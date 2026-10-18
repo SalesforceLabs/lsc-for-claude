@@ -5,6 +5,7 @@
  */
 
 import type { ConfigRecord } from "../../config/types.js";
+import { chunkIds } from "../../tools/helpers.js";
 import type { CustomCollector } from "../collect.js";
 import type { StudioFinding, StudioFix, StudioItem } from "../types.js";
 import {
@@ -100,18 +101,31 @@ export interface CacheRecord {
   profile: string | null;
 }
 
+/** Recent attempts that aren't live (failed or in progress) kept for the map; each can carry a long ErrorLog. */
+const RECENT_ATTEMPTS = 25;
+const CACHE_COLUMNS = "Id, Name, Status, IntegrationStatus, IntegrationErrorCode, IntegrationErrorMessage, LastModifiedDate, ProfileId";
+
+/**
+ * Every live (Active / Published) cache — however old, so a profile published
+ * long ago still counts as published — plus the newest few attempts that
+ * aren't live, newest first. ErrorLog is only read for those attempts.
+ */
 export async function fetchCache(org: string): Promise<CacheRecord[]> {
-  const rows = await query(
-    `SELECT Id, Name, Status, IntegrationStatus, IntegrationErrorCode, IntegrationErrorMessage, ErrorLog, LastModifiedDate, ProfileId FROM LifeSciMobileMetadataRecord ORDER BY LastModifiedDate DESC LIMIT 200`,
-    org
-  );
+  const [live, attempts] = await Promise.all([
+    query(`SELECT ${CACHE_COLUMNS} FROM LifeSciMobileMetadataRecord WHERE Status IN ('Active', 'Published') ORDER BY LastModifiedDate DESC`, org),
+    query(
+      `SELECT ${CACHE_COLUMNS}, ErrorLog FROM LifeSciMobileMetadataRecord WHERE Status NOT IN ('Active', 'Published') ORDER BY LastModifiedDate DESC LIMIT ${RECENT_ATTEMPTS}`,
+      org
+    ),
+  ]);
+  const seen = new Set<string>();
+  const rows = [...live, ...attempts]
+    .filter((r) => !seen.has(String(r.Id)) && seen.add(String(r.Id)))
+    .sort((a, b) => String(b.LastModifiedDate).localeCompare(String(a.LastModifiedDate)));
   const ids = [...new Set(rows.map((r) => r.ProfileId).filter(Boolean) as string[])];
   const names = new Map<string, string>();
-  if (ids.length) {
-    for (const p of await query(`SELECT Id, Name FROM Profile WHERE Id IN (${inList(ids)})`, org)) {
-      names.set(String(p.Id), String(p.Name));
-    }
-  }
+  const profileRows = await Promise.all(chunkIds(ids).map((chunk) => query(`SELECT Id, Name FROM Profile WHERE Id IN (${inList(chunk)})`, org)));
+  for (const p of profileRows.flat()) names.set(String(p.Id), String(p.Name));
   return rows.map((row) => ({
     row,
     profile: row.ProfileId ? (names.get(String(row.ProfileId)) ?? String(row.ProfileId)) : null,

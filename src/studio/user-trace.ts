@@ -242,6 +242,13 @@ function checkPermissions(user: UserInfo, feature: FeatureDefinition | undefined
         return { pass: setNames.length > 0, detail: setNames.length ? `${plural(setNames.length, "permission set")}: ${setNames.slice(0, 6).join(", ")}` : "No permission sets or groups assigned." };
       }
       const parentIds = new Set(assignments.map((a) => str(a.PermissionSetId)).filter(Boolean));
+      // A group's own permission set holds its combined permissions only once the group has
+      // recalculated, so the member permission sets are read as well.
+      const groupIds = [...new Set(assignments.map((a) => str(a.PermissionSetGroupId)).filter(Boolean))];
+      if (groupIds.length) {
+        const members = await query(`SELECT PermissionSetId FROM PermissionSetGroupComponent WHERE PermissionSetGroupId IN (${inList(groupIds)})`, org);
+        for (const m of members) parentIds.add(str(m.PermissionSetId));
+      }
       if (user.profileId) {
         const own = await query(`SELECT Id FROM PermissionSet WHERE ProfileId = '${user.profileId}'`, org);
         for (const r of own) parentIds.add(str(r.Id));

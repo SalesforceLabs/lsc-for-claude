@@ -19,7 +19,7 @@ export function once<T>(fn: () => Promise<T>): () => Promise<T> {
 
 /** Every DB Schema record (object sync rows) in the org. */
 export const loadDbSchema = (org: string) =>
-  collectCategoryRecords(org, `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'DbSchema'`, { strict: true });
+  collectCategoryRecords(org, `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'DbSchema'`, { strict: true, cache: true });
 
 export interface HandlerRow {
   developerName: string;

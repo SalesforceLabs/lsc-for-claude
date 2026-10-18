@@ -84,6 +84,29 @@ describe("traceUser", () => {
     expect(c.detail).toContain("ProviderVisit");
   });
 
+  it("reads object access through the member permission sets of an assigned group", async () => {
+    org.PermissionSetAssignment = [{ PermissionSetId: "0PS000000000009", PermissionSetGroupId: "0PG000000000001", PermissionSet: { Label: "Rep Group", Name: "Rep_Group" } }];
+    org.PermissionSetGroupComponent = [{ PermissionSetId: "0PS000000000077" }];
+    vi.mocked(runSoqlQuery).mockImplementation(((q: string) =>
+      q.includes("FROM ObjectPermissions")
+        ? Promise.resolve({
+            success: true,
+            data: {
+              totalSize: 1,
+              done: true,
+              // Only the group's member set grants read, on every object asked about.
+              records: q.includes("'0PS000000000077'")
+                ? [...(/SobjectType IN \(([^)]*)\)/.exec(q)?.[1].matchAll(/'(\w+)'/g) ?? [])].map((m) => ({ SobjectType: m[1], PermissionsRead: true }))
+                : [],
+            },
+          })
+        : respond(q)) as never);
+    const t = await traceUser(USER, "visit", "o");
+    expect(byId(t.checks, "user.access.permissions").status).toBe("pass");
+    const asked = vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0]));
+    expect(asked.some((q) => q.includes("FROM PermissionSetGroupComponent WHERE PermissionSetGroupId IN ('0PG000000000001')"))).toBe(true);
+  });
+
   it("fails DB Schema when the primary object isn't assigned to the profile", async () => {
     config = [dbSchema("Visit", ["Other"])];
     const t = await traceUser(USER, "visit", "o");

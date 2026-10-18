@@ -22,6 +22,19 @@ export const FV_VALUE_COLUMNS = [
 ];
 
 /**
+ * Ids per IN-list query. Each quoted id costs about 26 characters once the
+ * request is URL-encoded, so ~400 ids stay under a ~12k-character budget (the
+ * old fixed 50 spent ~1,300 and multiplied the round trips).
+ */
+export const ID_CHUNK_SIZE = 400;
+
+export function chunkIds<T>(ids: T[], size = ID_CHUNK_SIZE): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < ids.length; i += size) chunks.push(ids.slice(i, i + size));
+  return chunks;
+}
+
+/**
  * Query LifeSciConfigAssignment records for a set of parent record IDs and resolve
  * AssignedToId references to Profile/PermissionSet names.
  */
@@ -37,20 +50,24 @@ export async function queryAssignments(
   const assignedToIds = new Set<string>();
   const rawAssignments: Array<Record<string, unknown>> = [];
 
-  // Chunked like queryFieldValues, so a long id list doesn't overflow the request URL.
-  const chunkSize = 50;
-  for (let i = 0; i < recordIds.length; i += chunkSize) {
-    const chunk = recordIds.slice(i, i + chunkSize);
-    const idFilter =
-      chunk.length === 1
-        ? `LifeSciConfigRecordId = '${chunk[0]}'`
-        : `LifeSciConfigRecordId IN (${chunk.map((id) => `'${id}'`).join(",")})`;
+  // Chunked so a long id list doesn't overflow the request URL; chunks run side
+  // by side and the process-wide limiter caps how many reach the org at once.
+  const chunkResults = await Promise.all(
+    chunkIds(recordIds).map((chunk) => {
+      const idFilter =
+        chunk.length === 1
+          ? `LifeSciConfigRecordId = '${chunk[0]}'`
+          : `LifeSciConfigRecordId IN (${chunk.map((id) => `'${id}'`).join(",")})`;
+      const assignQuery = `SELECT Id, LifeSciConfigRecordId, AssignedToId, AssignmentLevel FROM LifeSciConfigAssignment WHERE ${idFilter}`;
+      return runToolingQuery(assignQuery, targetOrg);
+    })
+  );
 
-    const assignQuery = `SELECT Id, LifeSciConfigRecordId, AssignedToId, AssignmentLevel FROM LifeSciConfigAssignment WHERE ${idFilter}`;
-    const assignResult = await runToolingQuery(assignQuery, targetOrg);
-
-    if (!assignResult.success) {
-      if (strict) throw new Error(`Couldn't read Admin Console assignments: ${assignResult.error ?? "query failed"}`);
+  for (const assignResult of chunkResults) {
+    if (!assignResult.success || assignResult.data?.truncated) {
+      if (strict) {
+        throw new Error(`Couldn't read Admin Console assignments: ${assignResult.error ?? "too many assignments to read"}`);
+      }
       continue;
     }
 
@@ -65,29 +82,23 @@ export async function queryAssignments(
 
   const nameMap = new Map<string, string>();
   if (assignedToIds.size > 0) {
-    const idList = [...assignedToIds].map((id) => `'${id}'`).join(",");
-
-    const profileQuery = `SELECT Id, Name FROM Profile WHERE Id IN (${idList})`;
-    const profileResult = await cachedToolingQuery(profileQuery, targetOrg);
-    if (profileResult.success && profileResult.data?.records) {
-      for (const p of profileResult.data.records) {
-        const pr = p as Record<string, unknown>;
-        nameMap.set(pr.Id as string, pr.Name as string);
-      }
-    }
-
-    const unresolvedIds = [...assignedToIds].filter((id) => !nameMap.has(id));
-    if (unresolvedIds.length > 0) {
-      const psIdList = unresolvedIds.map((id) => `'${id}'`).join(",");
-      const psQuery = `SELECT Id, Name FROM PermissionSet WHERE Id IN (${psIdList})`;
-      const psResult = await cachedToolingQuery(psQuery, targetOrg);
-      if (psResult.success && psResult.data?.records) {
-        for (const ps of psResult.data.records) {
-          const psr = ps as Record<string, unknown>;
-          nameMap.set(psr.Id as string, psr.Name as string);
+    const resolveNames = async (object: string, ids: string[]) => {
+      const results = await Promise.all(
+        chunkIds(ids).map((chunk) =>
+          cachedToolingQuery(`SELECT Id, Name FROM ${object} WHERE Id IN (${chunk.map((id) => `'${id}'`).join(",")})`, targetOrg)
+        )
+      );
+      for (const r of results) {
+        for (const row of r.success ? (r.data?.records ?? []) : []) {
+          const rr = row as Record<string, unknown>;
+          nameMap.set(rr.Id as string, rr.Name as string);
         }
       }
-    }
+    };
+
+    await resolveNames("Profile", [...assignedToIds]);
+    const unresolvedIds = [...assignedToIds].filter((id) => !nameMap.has(id));
+    if (unresolvedIds.length > 0) await resolveNames("PermissionSet", unresolvedIds);
   }
 
   for (const a of rawAssignments) {
@@ -212,36 +223,39 @@ export async function queryFieldValues(
 
   const parentIdCol = includeParentId ? ", LifeSciConfigRecordId" : "";
 
-  const chunkSize = 50;
-  for (let i = 0; i < recordIds.length; i += chunkSize) {
-    const chunk = recordIds.slice(i, i + chunkSize);
-
-    let fvQuery: string;
-
-    if (chunk.length === 1) {
-      fvQuery = `SELECT Id, FieldName, DataType, ${columns.join(", ")}${parentIdCol} FROM LifeSciConfigFieldValue WHERE LifeSciConfigRecordId = '${chunk[0]}' ORDER BY FieldName`;
-    } else {
-      const idList = chunk.map((id) => `'${id}'`).join(",");
-      fvQuery = `SELECT Id, FieldName, DataType, ${columns.join(", ")}, LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE LifeSciConfigRecordId IN (${idList}) ORDER BY FieldName`;
-    }
-
-    const fvResult = await runToolingQuery(fvQuery, targetOrg);
-
-    if (!fvResult.success) {
-      return { fieldValuesByRecord, queryError: fvResult.error || "Unknown query error" };
-    }
-
-    if (fvResult.data?.records) {
-      for (const fv of fvResult.data.records) {
-        const f = fv as Record<string, unknown>;
-        const parentId = (f.LifeSciConfigRecordId as string) || chunk[0];
-        if (!fieldValuesByRecord.has(parentId)) {
-          fieldValuesByRecord.set(parentId, []);
-        }
-        fieldValuesByRecord.get(parentId)!.push(f);
+  // Chunks run side by side; the process-wide limiter caps how many reach the org at once.
+  const chunkResults = await Promise.all(
+    chunkIds(recordIds).map(async (chunk) => {
+      let fvQuery: string;
+      if (chunk.length === 1) {
+        fvQuery = `SELECT Id, FieldName, DataType, ${columns.join(", ")}${parentIdCol} FROM LifeSciConfigFieldValue WHERE LifeSciConfigRecordId = '${chunk[0]}' ORDER BY FieldName`;
+      } else {
+        const idList = chunk.map((id) => `'${id}'`).join(",");
+        fvQuery = `SELECT Id, FieldName, DataType, ${columns.join(", ")}, LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE LifeSciConfigRecordId IN (${idList}) ORDER BY FieldName`;
       }
+      return { chunk, fvResult: await runToolingQuery(fvQuery, targetOrg) };
+    })
+  );
+
+  let queryError: string | undefined;
+  for (const { chunk, fvResult } of chunkResults) {
+    if (!fvResult.success) {
+      queryError ??= fvResult.error || "Unknown query error";
+      continue;
+    }
+    if (fvResult.data?.truncated) {
+      queryError ??= "Too many field values to read in one query";
+      continue;
+    }
+    for (const fv of fvResult.data?.records ?? []) {
+      const f = fv as Record<string, unknown>;
+      const parentId = (f.LifeSciConfigRecordId as string) || chunk[0];
+      if (!fieldValuesByRecord.has(parentId)) {
+        fieldValuesByRecord.set(parentId, []);
+      }
+      fieldValuesByRecord.get(parentId)!.push(f);
     }
   }
 
-  return { fieldValuesByRecord };
+  return queryError ? { fieldValuesByRecord, queryError } : { fieldValuesByRecord };
 }

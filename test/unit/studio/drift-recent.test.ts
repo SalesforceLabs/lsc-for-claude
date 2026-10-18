@@ -36,6 +36,25 @@ describe("recentChanges", () => {
     const { changes } = await recentChanges("org");
     expect(changes.map((c) => c.modifiedBy)).toEqual(["New"]);
   });
+
+  it("says which sources have more changes than were read, and lists only the newest", async () => {
+    tooling.LifeScienceTriggerHandler = Array.from({ length: 101 }, (_, i) => ({
+      DeveloperName: `H${i}`,
+      MasterLabel: `H${i}`,
+      LastModifiedDate: `2026-10-${String(28 - (i % 28)).padStart(2, "0")}T00:00:00.000+0000`,
+    }));
+    const { changes, errors, limited } = await recentChanges("org");
+    expect(changes).toHaveLength(100);
+    expect(limited).toEqual(["Trigger handlers"]);
+    expect(errors[0]).toContain("Trigger handlers: more changed");
+  });
+
+  it("stays quiet when a source is exactly at its limit", async () => {
+    tooling.LifeScienceTriggerHandler = Array.from({ length: 100 }, (_, i) => ({ DeveloperName: `H${i}`, MasterLabel: `H${i}`, LastModifiedDate: "2026-10-01T00:00:00.000+0000" }));
+    const { errors, limited } = await recentChanges("org");
+    expect(limited).toEqual([]);
+    expect(errors).toEqual([]);
+  });
 });
 
 describe("attachModifiers", () => {

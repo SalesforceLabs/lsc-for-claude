@@ -6,7 +6,7 @@
 
 import { createRecord, deleteRecord } from "../salesforce/cli.js";
 import { assertId } from "./change-helpers.js";
-import { query, type Row } from "./helpers.js";
+import { count, query, type Row } from "./helpers.js";
 import type { AccessOptions, AccessRef, FixPreview, FixResult, StudioFix, UserAccess } from "./types.js";
 
 type AccessFix = Extract<StudioFix, { kind: "assignAccess" | "removeAccess" }>;
@@ -63,29 +63,59 @@ export async function userAccess(userId: string, org: string): Promise<UserAcces
   };
 }
 
-export async function accessOptions(org: string): Promise<AccessOptions> {
+/** Options for one kind that were cut off: how many are listed and how many match. */
+export interface OptionsCutOff {
+  listed: number;
+  total: number;
+}
+
+/** `AccessOptions`, plus which lists were cut at the limit (absent when nothing was). */
+export type AccessOptionsResult = AccessOptions & {
+  truncated?: Partial<Record<"permissionSets" | "permissionSetGroups" | "territories", OptionsCutOff>>;
+};
+
+/** A `LIKE` pattern matching `term` anywhere, with its wildcards and quotes escaped. */
+const likeTerm = (term: string) => `'%${term.replace(/[\\'%_]/g, (c) => `\\${c}`)}%'`;
+
+/**
+ * What can be given to a user. `search` filters by name on the server so a big
+ * org's list can be narrowed past the first 2,000; a list still cut off says so
+ * in `truncated`, with the true number of matches.
+ */
+export async function accessOptions(org: string, search?: string): Promise<AccessOptionsResult> {
+  const term = search?.trim();
+  const and = (field: string) => (term ? ` AND ${field} LIKE ${likeTerm(term)}` : "");
+  // Session-based sets need activation in a session; group-owned sets are assigned through their group.
+  const setWhere = `IsOwnedByProfile = false AND PermissionSetGroupId = null AND Type IN ('Regular', 'Standard')${and("Label")}`;
+  const groupWhere = term ? `WHERE MasterLabel LIKE ${likeTerm(term)}` : "";
+  const terrWhere = term ? `WHERE Name LIKE ${likeTerm(term)}` : "";
   const [sets, groups, territories] = await Promise.all([
-    // Session-based sets need activation in a session; group-owned sets are assigned through their group.
-    query(
-      `SELECT Id, Label FROM PermissionSet WHERE IsOwnedByProfile = false AND PermissionSetGroupId = null AND Type IN ('Regular', 'Standard') ORDER BY Label LIMIT ${OPTION_LIMIT}`,
-      org
-    ),
-    query(`SELECT Id, MasterLabel FROM PermissionSetGroup ORDER BY MasterLabel LIMIT ${OPTION_LIMIT}`, org),
-    query(
-      `SELECT Id, Name, Territory2Model.Name, Territory2Model.State FROM Territory2 ORDER BY Name LIMIT ${OPTION_LIMIT}`,
-      org
-    ),
+    query(`SELECT Id, Label FROM PermissionSet WHERE ${setWhere} ORDER BY Label LIMIT ${OPTION_LIMIT + 1}`, org),
+    query(`SELECT Id, MasterLabel FROM PermissionSetGroup ${groupWhere} ORDER BY MasterLabel LIMIT ${OPTION_LIMIT + 1}`, org),
+    query(`SELECT Id, Name, Territory2Model.Name, Territory2Model.State FROM Territory2 ${terrWhere} ORDER BY Name LIMIT ${OPTION_LIMIT + 1}`, org),
+  ]);
+  const truncated: NonNullable<AccessOptionsResult["truncated"]> = {};
+  const cut = async (key: keyof typeof truncated, rows: Row[], totalQuery: string) => {
+    if (rows.length <= OPTION_LIMIT) return rows;
+    truncated[key] = { listed: OPTION_LIMIT, total: await count(totalQuery, org).catch(() => rows.length) };
+    return rows.slice(0, OPTION_LIMIT);
+  };
+  const [setRows, groupRows, territoryRows] = await Promise.all([
+    cut("permissionSets", sets, `SELECT COUNT() FROM PermissionSet WHERE ${setWhere}`),
+    cut("permissionSetGroups", groups, `SELECT COUNT() FROM PermissionSetGroup ${groupWhere}`),
+    cut("territories", territories, `SELECT COUNT() FROM Territory2 ${terrWhere}`),
   ]);
   return {
-    permissionSets: sets.map((r) => ({ type: "permissionSet", id: String(r.Id), label: String(r.Label) })),
-    permissionSetGroups: groups.map((r) => ({ type: "permissionSetGroup", id: String(r.Id), label: String(r.MasterLabel) })),
-    territories: territories.map((r) => ({
+    permissionSets: setRows.map((r) => ({ type: "permissionSet", id: String(r.Id), label: String(r.Label) })),
+    permissionSetGroups: groupRows.map((r) => ({ type: "permissionSetGroup", id: String(r.Id), label: String(r.MasterLabel) })),
+    territories: territoryRows.map((r) => ({
       type: "territory",
       id: String(r.Id),
       label: String(r.Name),
       model: String(rel(r, "Territory2Model.Name") ?? ""),
       planning: rel(r, "Territory2Model.State") !== "Active",
     })),
+    ...(Object.keys(truncated).length ? { truncated } : {}),
   };
 }
 

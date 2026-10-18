@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildInlineLwc } from "../../../../src/studio/lwc/compile.js";
-import { lwcRequest, refuseLwcRequest } from "../../../../src/studio/lwc/request.js";
+import { lwcRequest, MAX_LWC_RESPONSE_BYTES, refuseLwcRequest } from "../../../../src/studio/lwc/request.js";
 import { salesforceFallback, salesforceModule, SHIMMED_LIGHTNING } from "../../../../src/studio/lwc/shims.js";
 import { inlineLwcFrame } from "../../../../src-renderer/components/studio/inline-lwc-frame.js";
 import type { DeviceHttp, DeviceRequest } from "../../../../src/perf/device/session.js";
@@ -39,6 +39,12 @@ describe("lwcRequest", () => {
   it("shapes UI API errors like the platform's", async () => {
     const r = await lwcRequest("org", { method: "GET", path: "/ui-api/records/001" }, reply(404, [{ errorCode: "NOT_FOUND", message: "The requested resource does not exist" }]));
     expect(r).toEqual({ ok: false, status: 404, statusText: "Not Found", body: { errorCode: "NOT_FOUND", message: "The requested resource does not exist" } });
+  });
+
+  it("refuses a response over the size cap", async () => {
+    const big: DeviceHttp = async () => ({ status: 200, headers: {}, body: Buffer.alloc(MAX_LWC_RESPONSE_BYTES + 1, "a") });
+    const r = await lwcRequest("org", { method: "GET", path: "/ui-api/records/001" }, big);
+    expect(r).toMatchObject({ ok: false, status: 413, body: { errorCode: "STUDIO_RESPONSE_TOO_LARGE" } });
   });
 
   it("never sends a refused request", async () => {

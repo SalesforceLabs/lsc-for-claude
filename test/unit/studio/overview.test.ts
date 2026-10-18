@@ -84,6 +84,30 @@ describe("collectSetupOverview", () => {
     expect(o.checks.find((c) => c.id === "overview.mobile.unpublished")?.status).toBe("pass");
     expect(o.unpublishedProfiles).toEqual([]);
   });
+
+  it("reads caches only for the LSC profiles, with no row cap", async () => {
+    await collectSetupOverview("org");
+    const q = vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0])).find((x) => x.includes("FROM LifeSciMobileMetadataRecord"))!;
+    expect(q).toContain("ProfileId IN ('p1','p2')");
+    expect(q).not.toContain("LIMIT");
+  });
+
+  it("counts users without a territory instead of using the 200-name sample", async () => {
+    vi.mocked(runSoqlQuery).mockImplementation(((q: string) =>
+      /^SELECT COUNT\(\) FROM User/.test(q)
+        ? Promise.resolve({ success: true, data: { totalSize: 900, done: true, records: [] } })
+        : reply(soql[key(q)] ?? [])) as never);
+    const o = await collectSetupOverview("org");
+    expect(o.checks.find((c) => c.id === "overview.data.users-without-territory")?.detail).toContain("900 users");
+  });
+
+  it("says when the change search was limited to the lookback window", async () => {
+    soql.LifeSciMobileMetadataRecord = [{ Status: "Active", ProfileId: "p1", LastModifiedDate: iso(400) }];
+    const o = await collectSetupOverview("org");
+    expect(o.checks.find((c) => c.id === "overview.mobile.unpublished")?.detail).toContain("Looked back 180 days only");
+    const since = vi.mocked(runToolingQuery).mock.calls.map((c) => String(c[0])).find((x) => x.includes("FROM LifeSciConfigRecord WHERE LastModifiedDate >"))!;
+    expect(Date.parse(/> (\S+)/.exec(since)![1])).toBeGreaterThan(Date.now() - 181 * DAY);
+  });
 });
 
 describe("cachesByProfile", () => {

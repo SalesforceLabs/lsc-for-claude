@@ -5,6 +5,7 @@
 
 import { QueryTruncatedError, runSoqlQuery, runToolingQuery, type SoqlQueryResult } from "../salesforce/cli.js";
 import type { ConfigRecord } from "../config/types.js";
+import { chunkIds } from "../tools/helpers.js";
 import type { Audience, ItemEdit, StudioFinding, StudioItem, StudioSurface } from "./types.js";
 
 export type Row = Record<string, unknown>;
@@ -48,6 +49,41 @@ export async function count(soql: string, org: string): Promise<number> {
   const result = await runSoqlQuery(soql, org);
   if (!result.success) throw new Error(result.error || "Query failed");
   return result.data?.totalSize ?? 0;
+}
+
+/**
+ * `COUNT(Id)` per value of `key` for the given ids. An aggregate query can't
+ * page past 2,000 groups, so ids go in IN-list chunks (≤ 400 groups each) and
+ * the chunks are merged. Ids with no rows are absent from the map.
+ */
+export async function countGroupedBy(
+  object: string,
+  key: string,
+  ids: string[],
+  org: string,
+  where?: string
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  const chunks = await Promise.all(
+    chunkIds(ids).map((chunk) =>
+      query(
+        `SELECT ${key}, COUNT(Id) cnt FROM ${object} WHERE ${key} IN (${inList(chunk)})${where ? ` AND ${where}` : ""} GROUP BY ${key}`,
+        org
+      )
+    )
+  );
+  for (const r of chunks.flat()) out.set(String(r[key]), Number(r.cnt ?? r.expr0 ?? 0));
+  return out;
+}
+
+/** An info finding saying a list was cut short — never leave a cap unannounced. */
+export function showingNote(shown: number, total: number, noun: string, order?: string): StudioFinding {
+  const n = (v: number) => v.toLocaleString("en-US");
+  return {
+    severity: "info",
+    title: `Showing ${n(shown)} of ${n(total)} ${noun}`,
+    ...(order ? { detail: `${order}. Counts in findings cover all ${n(total)}.` } : {}),
+  };
 }
 
 export function inList(values: string[]): string {

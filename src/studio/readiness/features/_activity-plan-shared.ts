@@ -80,7 +80,7 @@ export function handlersCheck(
 
 export const loadDbSchema = (org: string) =>
   lazy(() =>
-    collectCategoryRecords(org, `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'DbSchema'`, { strict: true })
+    collectCategoryRecords(org, `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'DbSchema'`, { strict: true, cache: true })
   );
 
 const sobjectOf = (r: ConfigRecord) => String(r.fields.SObject || "").toLowerCase();

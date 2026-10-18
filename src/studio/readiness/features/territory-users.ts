@@ -1,7 +1,7 @@
 /** Territory & Users readiness: the territory model, alignment, field users and their licenses. */
 
-import { fieldProfiles, LSC_PSL } from "../../collectors/territory-users.js";
-import { inList, plural, query, type Row } from "../../helpers.js";
+import { activeTerritories, fieldProfiles, LSC_PSL } from "../../collectors/territory-users.js";
+import { count, countGroupedBy, inList, plural, query, type Row } from "../../helpers.js";
 import type { StudioFix } from "../../types.js";
 import { runCheck, type ReadinessModule } from "../index.js";
 import {
@@ -17,6 +17,8 @@ import {
 
 /** One-click license fixes are capped; the rest are listed in the detail. */
 const MAX_FIXES = 10;
+/** Example rows listed in a check's detail. */
+const MAX_EXAMPLES = 25;
 
 const readiness: ReadinessModule = {
   ruleFiles: ["territory-alignment-config.yaml"],
@@ -32,14 +34,16 @@ const readiness: ReadinessModule = {
       return rows.filter((r) => LSC_PSL.test(String(r.DeveloperName)));
     });
     const free = (p: Row) => p.Status === "Active" && Number(p.TotalLicenses) > Number(p.UsedLicenses);
-    /** Active field users, optionally limited by extra SOQL conditions. */
+    /** Active field users, optionally limited by extra SOQL conditions: the true total plus a sample. */
     const fieldUsers = async (extra: string) => {
       const names = await profiles();
       if (names.length === 0) return null;
-      return query(
-        `SELECT Id, Name FROM User WHERE IsActive = true AND Profile.Name IN (${inList(names)}) ${extra} ORDER BY Name LIMIT 200`,
-        org
-      );
+      const where = `IsActive = true AND Profile.Name IN (${inList(names)}) ${extra}`;
+      const [total, rows] = await Promise.all([
+        count(`SELECT COUNT() FROM User WHERE ${where}`, org),
+        query(`SELECT Id, Name FROM User WHERE ${where} ORDER BY Name LIMIT 200`, org),
+      ]);
+      return { total, rows };
     };
 
     return Promise.all([
@@ -73,15 +77,16 @@ const readiness: ReadinessModule = {
           const psls = await lscPsl();
           if (!psls.length) return { pass: true, skip: true, detail: "No Life Science Commercial license in this org." };
           // Licensed means holding any of the org's LSC licenses.
-          const rows = await fieldUsers(
+          const found = await fieldUsers(
             `AND Id NOT IN (SELECT AssigneeId FROM PermissionSetLicenseAssign WHERE PermissionSetLicenseId IN (${inList(psls.map((p) => String(p.Id)))}))`
           );
-          if (!rows) return { pass: true, skip: true, detail: "No field profiles found (no profile has LSC Mobile app settings)." };
-          if (rows.length === 0) return { pass: true, detail: "Every field user is licensed." };
+          if (!found) return { pass: true, skip: true, detail: "No field profiles found (no profile has LSC Mobile app settings)." };
+          const { total, rows } = found;
+          if (total === 0) return { pass: true, detail: "Every field user is licensed." };
           // Only one license with seats is an unambiguous fix; with several, which one is the admin's call.
           const open = psls.filter(free);
           const psl = open.length === 1 ? open[0] : undefined;
-          if (!psl) return { pass: false, detail: `${plural(rows.length, "field user")} without it.`, examples: labels(rows) };
+          if (!psl) return { pass: false, detail: `${plural(total, "field user")} without it.`, examples: labels(rows) };
           const fixes: StudioFix[] = rows.slice(0, MAX_FIXES).map((u) => ({
             kind: "assignPsl",
             label: `Assign ${psl.MasterLabel} to ${u.Name}`,
@@ -90,7 +95,7 @@ const readiness: ReadinessModule = {
             pslId: String(psl.Id),
             pslLabel: String(psl.MasterLabel),
           }));
-          return { pass: false, detail: `${plural(rows.length, "field user")} without it.`, examples: labels(rows), fixes };
+          return { pass: false, detail: `${plural(total, "field user")} without it.`, examples: labels(rows), fixes };
         }
       ),
 
@@ -131,12 +136,12 @@ const readiness: ReadinessModule = {
           surface: "fieldUsers",
         },
         async () => {
-          const rows = await fieldUsers(
+          const found = await fieldUsers(
             `AND Id NOT IN (SELECT UserId FROM UserTerritory2Association WHERE Territory2.Territory2Model.State = 'Active')`
           );
-          if (!rows) return { pass: true, skip: true, detail: "No field profiles found." };
-          return rows.length
-            ? { pass: false, detail: `${plural(rows.length, "field user")} in no active-model territory.`, examples: labels(rows) }
+          if (!found) return { pass: true, skip: true, detail: "No field profiles found." };
+          return found.total
+            ? { pass: false, detail: `${plural(found.total, "field user")} in no active-model territory.`, examples: labels(found.rows) }
             : { pass: true, detail: "Every field user has a territory." };
         }
       ),
@@ -153,23 +158,21 @@ const readiness: ReadinessModule = {
           surface: "territories",
         },
         async () => {
-          const [withAccounts, withUsers] = await Promise.all([
-            query(
-              `SELECT Territory2Id, Territory2.Name tname, COUNT(Id) cnt FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2.Territory2Model.State = 'Active' GROUP BY Territory2Id, Territory2.Name`,
-              org
-            ),
-            query(
-              `SELECT Territory2Id FROM UserTerritory2Association WHERE Territory2.Territory2Model.State = 'Active'`,
-              org
-            ),
+          // Counted per chunk of the active model's territories: one grouped query stops at 2,000 groups.
+          const { rows: territories } = await activeTerritories(org);
+          const ids = territories.map((t) => String(t.Id));
+          const [accounts, users] = await Promise.all([
+            countGroupedBy("ObjectTerritory2Association", "Territory2Id", ids, org, "SobjectType = 'Account'"),
+            countGroupedBy("UserTerritory2Association", "Territory2Id", ids, org),
           ]);
-          const staffed = new Set(withUsers.map((r) => String(r.Territory2Id)));
-          const bare = withAccounts.filter((r) => !staffed.has(String(r.Territory2Id)));
+          const names = new Map(territories.map((t) => [String(t.Id), String(t.Name)]));
+          const withAccounts = [...accounts.entries()].filter(([, n]) => n > 0);
+          const bare = withAccounts.filter(([id]) => !users.get(id)).sort((a, b) => b[1] - a[1]);
           return bare.length
             ? {
                 pass: false,
-                detail: `${bare.length} of ${withAccounts.length} territories with accounts have no user.`,
-                examples: bare.map((r) => `${r.tname} (${plural(Number(r.cnt), "account")})`),
+                detail: `${bare.length} of ${withAccounts.length} territories with accounts have no user.${bare.length > MAX_EXAMPLES ? ` Showing the ${MAX_EXAMPLES} with the most accounts.` : ""}`,
+                examples: bare.slice(0, MAX_EXAMPLES).map(([id, n]) => `${names.get(id) ?? id} (${plural(n, "account")})`),
               }
             : { pass: true, detail: `All ${withAccounts.length} territories with accounts have users.` };
         }

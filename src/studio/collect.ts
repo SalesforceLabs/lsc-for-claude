@@ -9,6 +9,8 @@
  */
 
 import { collectCategoryRecords } from "../config/collect.js";
+import { sharedRead } from "../config/read-cache.js";
+import { chunkIds } from "../tools/helpers.js";
 import { cachedDescribeSObject } from "../salesforce/cli.js";
 import { MAX_SIDEBAR_RELATED_LISTS, relatedListNames, retrieveLayoutXml } from "../salesforce/visit-layout.js";
 import type { ConfigRecord } from "../config/types.js";
@@ -205,8 +207,14 @@ export function scriptCodeFindings(code: string): StudioFinding[] {
 
 function collectCustomScripts(feature: FeatureDefinition, org: string): Promise<StudioSurface> {
   return surface("customScripts", async () => {
+    // Only this feature's scripts — CodeText is long text, so pulling every script in the org is the heavy part.
+    const scope = [
+      feature.objects.length ? `ObjectName IN (${inList(feature.objects)})` : "",
+      feature.includeVisitActionValidation ? "Type = 'VisitActionValidation'" : "",
+    ].filter(Boolean);
+    if (scope.length === 0) return { items: [] };
     const rows = await query(
-      `SELECT Id, Name, ComponentName, Type, ObjectName, OperationEventType, CodeText, CreatedDate FROM LifeScienceCustomScript ORDER BY CreatedDate, Id`,
+      `SELECT Id, Name, ComponentName, Type, ObjectName, OperationEventType, CodeText, CreatedDate FROM LifeScienceCustomScript WHERE ${scope.join(" OR ")} ORDER BY CreatedDate, Id`,
       org
     );
     const objects = new Set(feature.objects.map((o) => o.toLowerCase()));
@@ -339,9 +347,12 @@ function collectApexTriggers(objects: string[], org: string): Promise<StudioSurf
 function collectFlows(objects: ObjectInfo[], org: string): Promise<StudioSurface> {
   return surface("flows", async () => {
     if (objects.length === 0) return { items: [] };
-    const rows = await query(
-      `SELECT DurableId, ApiName, Label, ProcessType, TriggerType, IsActive, TriggerObjectOrEventLabel FROM FlowDefinitionView WHERE TriggerType IN ('RecordBeforeSave', 'RecordAfterSave', 'RecordBeforeDelete')`,
-      org
+    // The same org-wide list serves every feature, so it's read once and shared.
+    const rows = await sharedRead(org, "studio:record-triggered-flows", () =>
+      query(
+        `SELECT DurableId, ApiName, Label, ProcessType, TriggerType, IsActive, TriggerObjectOrEventLabel FROM FlowDefinitionView WHERE TriggerType IN ('RecordBeforeSave', 'RecordAfterSave', 'RecordBeforeDelete')`,
+        org
+      )
     );
     const labels = new Set(objects.map((o) => o.label));
     return {
@@ -398,7 +409,8 @@ function collectDbSchema(feature: FeatureDefinition, found: ObjectInfo[], org: s
   return surface("dbSchema", async () => {
     const records = await collectCategoryRecords(
       org,
-      `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'DbSchema'`
+      `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'DbSchema'`,
+      { cache: true }
     );
     const objects = new Set(feature.objects.map((o) => o.toLowerCase()));
     const mine = records.filter((r) => objects.has(String(r.fields.SObject || "").toLowerCase()));
@@ -445,7 +457,8 @@ function collectActions(feature: FeatureDefinition, org: string): Promise<Studio
   return surface("actions", async () => {
     const records = await collectCategoryRecords(
       org,
-      `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category IN ('QuickAction', 'CustomAction') ORDER BY Category`
+      `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category IN ('QuickAction', 'CustomAction') ORDER BY Category`,
+      { cache: true }
     );
     return {
       items: records
@@ -469,7 +482,8 @@ function collectAdminSettings(feature: FeatureDefinition, org: string): Promise<
     const like = feature.adminCategoryKeywords.map((k) => `Category LIKE '%${k.replace(/'/g, "\\'")}%'`).join(" OR ");
     const records = await collectCategoryRecords(
       org,
-      `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE (${like}) AND Category NOT IN ('DbSchema', 'QuickAction', 'CustomAction') ORDER BY Category`
+      `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE (${like}) AND Category NOT IN ('DbSchema', 'QuickAction', 'CustomAction') ORDER BY Category`,
+      { cache: true }
     );
     const names = await resolveIdNames(records, org);
     return {
@@ -512,7 +526,8 @@ async function resolveIdNames(records: ConfigRecord[], org: string): Promise<Map
       const batch = [...ids].filter((id) => id.startsWith(prefix));
       if (batch.length === 0) return;
       try {
-        for (const r of await query(`${soql} (${inList(batch)})`, org)) {
+        const chunks = await Promise.all(chunkIds(batch).map((ids) => query(`${soql} (${inList(ids)})`, org)));
+        for (const r of chunks.flat()) {
           const id = String(r.Id);
           names.set(id, String(r.Name));
           names.set(id.slice(0, 15), String(r.Name));

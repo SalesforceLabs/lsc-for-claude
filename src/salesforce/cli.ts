@@ -12,6 +12,7 @@ import * as os from "os";
 import { cacheGet, cacheSet, queryCacheKey, describeCacheKey } from "../cache.js";
 import { sfLimiter } from "./limiter.js";
 import { directGet, directQuery, type DirectCredentials } from "./direct.js";
+import { invalidateSharedReads } from "../config/read-cache.js";
 
 const execAsync = promisify(exec);
 
@@ -212,7 +213,26 @@ export async function execSfCommand<T>(
   args: string[] = [],
   options: { targetOrg?: string; timeout?: number; cwd?: string; env?: Record<string, string> } = {}
 ): Promise<CliResult<T>> {
-  return sfLimiter.run(() => spawnSfJson<T>(command, args, options));
+  const run = () => sfLimiter.run(() => spawnSfJson<T>(command, args, options));
+  return writesToOrg(command, args) ? asWrite(options.targetOrg, run) : run();
+}
+
+/** Drop shared reads before a write (so none starts from old data) and after it (so none read mid-write sticks). */
+async function asWrite<T>(org: string | undefined, write: () => Promise<T>): Promise<T> {
+  invalidateSharedReads(org);
+  try {
+    return await write();
+  } finally {
+    invalidateSharedReads(org);
+  }
+}
+
+/** sf commands that change the org. */
+function writesToOrg(command: string, args: string[]): boolean {
+  const sub = args[0] ?? "";
+  if (command === "data") return /^(create|update|delete|upsert|import)$/.test(sub);
+  if (command === "project") return sub === "deploy";
+  return command === "apex" && sub === "run";
 }
 
 function timeoutMessage(ms: number): string {
@@ -319,7 +339,10 @@ export async function runSoqlQuery(
   targetOrg: string,
   options: { useToolingApi?: boolean; maxRows?: number } = {}
 ): Promise<CliResult<SoqlQueryResult>> {
-  const maxRows = Math.max(1, options.maxRows ?? DEFAULT_MAX_QUERY_ROWS);
+  // LSC_SF_MAX_QUERY_ROWS lowers the cap to rehearse a large org's truncation on a small one.
+  const rehearsal = Number(process.env.LSC_SF_MAX_QUERY_ROWS);
+  const cap = Number.isFinite(rehearsal) && rehearsal >= 1 ? Math.min(rehearsal, options.maxRows ?? Infinity) : undefined;
+  const maxRows = Math.max(1, cap ?? options.maxRows ?? DEFAULT_MAX_QUERY_ROWS);
   const direct = await directQuery(query, targetOrg, directCredentials, { tooling: options.useToolingApi, maxRows });
   if (direct) {
     if (!direct.ok) return { success: false, error: direct.error, timedOut: direct.timedOut };
@@ -716,7 +739,8 @@ export async function apiRequest<T>(
         : { success: false, error: direct.error, timedOut: direct.timedOut };
     }
   }
-  return sfLimiter.run(() => spawnApiRequest<T>(endpoint, method, body, targetOrg));
+  const run = () => sfLimiter.run(() => spawnApiRequest<T>(endpoint, method, body, targetOrg));
+  return method === "GET" ? run() : asWrite(targetOrg, run);
 }
 
 function spawnApiRequest<T>(

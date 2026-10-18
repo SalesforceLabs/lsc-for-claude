@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `106`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `107`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -75,6 +75,7 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_feature_map",
   "studio_ipad_published",
   "studio_ipad_published_progress",
+  "studio_ipad_published_users",
   "studio_item_detail",
   "studio_list_features",
   "studio_list_profiles",
@@ -1322,6 +1323,19 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
     },
   },
   {
+    "name": "studio_ipad_published_users",
+    "params": {
+      "profile": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "search": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
     "name": "studio_ipad_published_progress",
     "params": {
       "profile": {
@@ -1358,7 +1372,12 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
   },
   {
     "name": "studio_access_options",
-    "params": {},
+    "params": {
+      "search": {
+        "optional": true,
+        "type": "ZodString",
+      },
+    },
   },
   {
     "name": "studio_perf_users",

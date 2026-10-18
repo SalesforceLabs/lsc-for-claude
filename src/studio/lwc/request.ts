@@ -8,6 +8,9 @@ import { createDeviceSession, type DeviceHttp } from "../../perf/device/session.
 
 const API = "/services/data/v68.0";
 
+/** Largest answer relayed to the preview frame (over postMessage); a bigger one is refused with a message saying so. */
+export const MAX_LWC_RESPONSE_BYTES = 5 * 1024 * 1024;
+
 export interface LwcRequest {
   method: "GET" | "POST";
   /** Relative to the data API: `/ui-api/records/001…?fields=Account.Name`, `/graphql`. */
@@ -68,6 +71,15 @@ export async function lwcRequest(org: string, req: LwcRequest, http?: DeviceHttp
     });
   let res = await send(false);
   if (res.status === 401 && !http) res = await send(true);
+  if (res.body.length > MAX_LWC_RESPONSE_BYTES) {
+    const mb = (res.body.length / 1048576).toFixed(1);
+    return {
+      ok: false,
+      status: 413,
+      statusText: "Payload Too Large",
+      body: { message: `The answer is ${mb} MB; Studio's preview relays at most ${MAX_LWC_RESPONSE_BYTES / 1048576} MB. Ask for fewer records or fields (for example a smaller \`first\` in the GraphQL query).`, errorCode: "STUDIO_RESPONSE_TOO_LARGE" },
+    };
+  }
   const text = res.body.toString("utf8");
   let data: unknown = null;
   try {

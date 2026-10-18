@@ -6,7 +6,8 @@
  * single feature owns.
  */
 
-import { inList, plural, query, type Row } from "./helpers.js";
+import { chunkIds } from "../tools/helpers.js";
+import { count, inList, plural, query, type Row } from "./helpers.js";
 import { runCheck } from "./readiness/index.js";
 import { cachesByProfile, daysSince, unpublishedChanges, type ConfigChange } from "./overview-logic.js";
 import type { ReadinessCheck } from "./types.js";
@@ -25,6 +26,8 @@ export interface SetupOverview {
 const MOBILE_CATEGORIES = ["DbSchema", "UISchema", "QuickAction", "CustomAction", "ApplicationSettings", "ProfileBasedAppSettings"];
 /** A live cache older than this is worth a nudge even with no recorded changes. */
 const OLD_CACHE_DAYS = 90;
+/** How far back unpublished changes are looked for; a cache older than this is compared against what this window holds. */
+const CHANGES_LOOKBACK_DAYS = 180;
 /** The LSC license, matched like `LSC_PSL` in collectors/territory-users.ts and the user trace. */
 const LSC_PSL = "(PermissionSetLicense.DeveloperName LIKE '%LSC4CE%' OR PermissionSetLicense.DeveloperName LIKE '%LifeScienceCommercial%')";
 
@@ -41,13 +44,18 @@ export async function collectSetupOverview(org: string): Promise<SetupOverview> 
     return () => (p ??= fn());
   };
   const lscProfiles = memo(() => fetchLscProfiles(org));
-  const caches = memo(async () => cachesByProfile(await fetchCacheRows(org)));
+  // Only the LSC profiles' caches are read — an org-wide read would be cut off by a row cap.
+  const caches = memo(async () => cachesByProfile(await fetchCacheRows(org, (await lscProfiles()).map((p) => p.id))));
   const unpublished = memo(async () => {
     const [byProfile, profiles] = await Promise.all([caches(), lscProfiles()]);
-    const live = [...byProfile.values()].filter((c) => c.activeAt !== undefined);
-    const changes = await fetchChanges(org, Math.min(...live.map((c) => c.activeAt!)), live.length === 0);
     const names = new Map(profiles.map((p) => [p.id, p.name]));
-    return unpublishedChanges(byProfile, changes).filter((u) => names.has(u.profileId)).map((u) => ({ ...u, name: names.get(u.profileId)! }));
+    const live = [...byProfile.values()].filter((c) => c.activeAt !== undefined && names.has(c.profileId));
+    const floor = Date.now() - CHANGES_LOOKBACK_DAYS * 86_400_000;
+    const oldest = Math.min(...live.map((c) => c.activeAt!));
+    const capped = live.length > 0 && oldest < floor;
+    const changes = await fetchChanges(org, Math.max(oldest, floor), live.length === 0);
+    const list = unpublishedChanges(byProfile, changes).filter((u) => names.has(u.profileId)).map((u) => ({ ...u, name: names.get(u.profileId)! }));
+    return Object.assign(list, { cappedAtDays: capped ? CHANGES_LOOKBACK_DAYS : undefined });
   });
   const psls = memo(() => fetchPsls(org));
 
@@ -129,15 +137,15 @@ export async function collectSetupOverview(org: string): Promise<SetupOverview> 
       async () => {
         const [model] = await query(`SELECT Id FROM Territory2Model WHERE State = 'Active' LIMIT 1`, org);
         if (!model) return { pass: true, skip: true, detail: "No active territory model." };
-        const rows = await query(
-          `SELECT Id, Name FROM User WHERE IsActive = true AND UserType = 'Standard' AND (NOT Profile.Name LIKE '%Admin%') ` +
-            `AND Id IN (SELECT AssigneeId FROM PermissionSetLicenseAssign WHERE ${LSC_PSL}) ` +
-            `AND Id NOT IN (SELECT UserId FROM UserTerritory2Association WHERE Territory2.Territory2ModelId = '${model.Id}') ORDER BY Name LIMIT 200`,
-          org
-        );
+        const where =
+          `FROM User WHERE IsActive = true AND UserType = 'Standard' AND (NOT Profile.Name LIKE '%Admin%') ` +
+          `AND Id IN (SELECT AssigneeId FROM PermissionSetLicenseAssign WHERE ${LSC_PSL}) ` +
+          `AND Id NOT IN (SELECT UserId FROM UserTerritory2Association WHERE Territory2.Territory2ModelId = '${model.Id}')`;
+        // The number is a COUNT(); LIMIT only bounds the names listed.
+        const [total, rows] = await Promise.all([count(`SELECT COUNT() ${where}`, org), query(`SELECT Id, Name ${where} ORDER BY Name LIMIT 200`, org)]);
         return {
-          pass: rows.length === 0,
-          detail: rows.length ? `${plural(rows.length, "user")} with no territory` : undefined,
+          pass: total === 0,
+          detail: total ? `${plural(total, "user")} with no territory` : undefined,
           examples: rows.map((r) => String(r.Name)),
         };
       }
@@ -196,7 +204,13 @@ export async function collectSetupOverview(org: string): Promise<SetupOverview> 
         const distinct = new Set(list.flatMap((u) => u.changes.map((c) => c.label)));
         return {
           pass: list.length === 0,
-          detail: list.length ? `${plural(distinct.size, "configuration change")} not on iPads yet · ${plural(list.length, "profile")} affected` : undefined,
+          detail:
+            [
+              list.length ? `${plural(distinct.size, "configuration change")} not on iPads yet · ${plural(list.length, "profile")} affected` : undefined,
+              list.cappedAtDays ? `Looked back ${list.cappedAtDays} days only; a profile published longer ago may be missing older changes.` : undefined,
+            ]
+              .filter(Boolean)
+              .join(" · ") || undefined,
           examples: list.map((u) => u.name),
         };
       }
@@ -265,11 +279,17 @@ async function fetchLscProfiles(org: string): Promise<LscProfile[]> {
   return rows.filter((r) => r.pid).map((r) => ({ id: String(r.pid), name: String(r.pn), users: Number(r.cnt ?? r.expr0 ?? 0) }));
 }
 
-function fetchCacheRows(org: string): Promise<Row[]> {
-  return query(
-    `SELECT Id, Status, IntegrationStatus, IntegrationErrorCode, IntegrationErrorMessage, LastModifiedDate, ProfileId FROM LifeSciMobileMetadataRecord WHERE ProfileId != null ORDER BY LastModifiedDate DESC LIMIT 2000`,
-    org
+/** Every cache record of the given profiles (no row cap; a read cut off by the size limit throws). */
+async function fetchCacheRows(org: string, profileIds: string[]): Promise<Row[]> {
+  const groups = await Promise.all(
+    chunkIds(profileIds).map((chunk) =>
+      query(
+        `SELECT Id, Status, IntegrationStatus, IntegrationErrorCode, IntegrationErrorMessage, LastModifiedDate, ProfileId FROM LifeSciMobileMetadataRecord WHERE ProfileId IN (${inList(chunk)}) ORDER BY LastModifiedDate DESC`,
+        org
+      )
+    )
   );
+  return groups.flat();
 }
 
 /** Mobile-relevant Admin Console records (or their assignments) edited after `since`. */
@@ -288,10 +308,8 @@ async function fetchChanges(org: string, since: number, none: boolean): Promise<
     valueAt.set(id, Math.max(valueAt.get(id) ?? 0, Date.parse(String(v.LastModifiedDate))));
   }
   const ids = [...new Set([...edited.map((r) => String(r.Id)), ...valueAt.keys(), ...reassigned.map((r) => String(r.LifeSciConfigRecordId))])];
-  const chunks: string[][] = [];
-  for (let i = 0; i < ids.length; i += 150) chunks.push(ids.slice(i, i + 150));
   const out: ConfigChange[] = [];
-  for (const chunk of chunks) {
+  await Promise.all(chunkIds(ids, 150).map(async (chunk) => {
     const [records, assignments] = await Promise.all([
       query(
         `SELECT Id, DeveloperName, IsOrgLevel, LastModifiedDate, LifeSciConfigCategory.Category FROM LifeSciConfigRecord WHERE Id IN (${inList(chunk)})`,
@@ -316,6 +334,6 @@ async function fetchChanges(org: string, since: number, none: boolean): Promise<
         allProfiles: r.IsOrgLevel === true || mine.some((a) => a.AssignmentLevel !== "Profile"),
       });
     }
-  }
+  }));
   return out;
 }

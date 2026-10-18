@@ -67,6 +67,8 @@ export interface RecentChanges {
   changes: RecentChange[];
   /** Sources that couldn't be read, e.g. "Flows: insufficient access". */
   errors: string[];
+  /** Sources with more changes in the window than were read (also worded in `errors`). */
+  limited?: string[];
 }
 
 export interface DriftList {

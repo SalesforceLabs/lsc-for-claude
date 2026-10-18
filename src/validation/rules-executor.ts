@@ -122,6 +122,23 @@ async function executeSoqlCheck(
   };
 }
 
+/** Expectations that only ask whether any row matches. */
+const EXISTENCE_EXPECTS = new Set(["count > 0", "count >= 1", "count == 0"]);
+
+/**
+ * A plain `SELECT COUNT() FROM ...` whose rule only tests for presence is
+ * answered by reading one row: counting every match can time out on a large
+ * table when the answer needs only the first. Null when the query or the
+ * expectation needs the real number.
+ */
+function existenceQuery(check: RuleCheck): string | null {
+  const q = check.query?.trim().replace(/\s+/g, " ");
+  if (!q || !EXISTENCE_EXPECTS.has(check.expect)) return null;
+  const m = /^SELECT COUNT\(\) (FROM .+)$/i.exec(q);
+  if (!m || /\b(GROUP BY|LIMIT|HAVING|OFFSET)\b/i.test(m[1])) return null;
+  return `SELECT Id ${m[1]} LIMIT 1`;
+}
+
 /**
  * Execute a SOQL COUNT check
  */
@@ -134,9 +151,9 @@ async function executeSoqlCountCheck(
     return { passed: false, message: "No query specified for SOQL count check", unavailable: true };
   }
 
-  const result = useToolingApi
-    ? await runToolingQuery(check.query, targetOrg)
-    : await runSoqlQuery(check.query, targetOrg);
+  const exists = existenceQuery(check);
+  const sql = exists ?? check.query;
+  const result = useToolingApi ? await runToolingQuery(sql, targetOrg) : await runSoqlQuery(sql, targetOrg);
 
   if (!result.success) {
     // Check if it's an object not found error
@@ -157,7 +174,8 @@ async function executeSoqlCountCheck(
   }
 
   // For COUNT() queries, the result is in totalSize
-  const count = result.data?.totalSize || 0;
+  // (An existence query reads at most one row, so its count is 0 or 1.)
+  const count = exists ? Math.min(1, result.data?.totalSize || result.data?.records?.length || 0) : result.data?.totalSize || 0;
 
   // Evaluate the expect condition
   const evaluated = evaluateExpectCondition(check.expect, { count });
@@ -165,6 +183,14 @@ async function executeSoqlCountCheck(
     return { passed: false, message: `Can't evaluate condition: ${check.expect}`, unavailable: true };
   }
   const passed = evaluated;
+
+  if (exists) {
+    return {
+      passed,
+      message: passed ? `Check passed (${count ? "found a matching record" : "no matching record"})` : `Check failed: ${count ? "a matching record exists" : "no matching record"}, expected ${check.expect}`,
+      details: { exists: count > 0 },
+    };
+  }
 
   return {
     passed,

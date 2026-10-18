@@ -11,6 +11,7 @@ vi.mock("../../../src/config/collect.js", () => ({
 
 const { runSoqlQuery, runToolingQuery } = await import("../../../src/salesforce/cli.js");
 const { collectCategoryRecords } = await import("../../../src/config/collect.js");
+const { invalidateSharedReads } = await import("../../../src/config/read-cache.js");
 const { collectFeatureMap, collectItemDetail } = await import("../../../src/studio/collect.js");
 const { getFeature } = await import("../../../src/studio/features.js");
 
@@ -73,6 +74,7 @@ async function visitMap() {
 }
 
 beforeEach(() => {
+  invalidateSharedReads();
   org = {
     EntityDefinition: [
       { QualifiedApiName: "Visit", Label: "Visit" },
@@ -329,14 +331,50 @@ describe("collectFeatureMap — Territory & Users", () => {
         Id: "005A",
         Name: "Covered",
         Profile: { Name: "Rep" },
-        UserTerritory2Associations: { records: [{ Territory2: { Name: "North" } }] },
         PermissionSetLicenseAssignments: { records: [{ PermissionSetLicense: { MasterLabel: "Life Science Commercial", DeveloperName: "IndustriesLSC4CEPsl" } }] },
       },
-      { Id: "005B", Name: "Bare", Profile: { Name: "Rep" }, UserTerritory2Associations: null, PermissionSetLicenseAssignments: null },
+      { Id: "005B", Name: "Bare", Profile: { Name: "Rep" }, PermissionSetLicenseAssignments: null },
     ];
+    org.UserTerritory2Association = [{ UserId: "005A", Territory2: { Name: "North" } }];
     const s = (await orgMap("territory-users")).surfaces.find((x) => x.id === "fieldUsers")!;
     expect(s.items[0].findings).toEqual([]);
     expect(s.items[1].findings.map((f) => f.title)).toEqual(["No territory", "No Life Science Commercial license"]);
+    expect(s.items[0].properties.Territories).toBe("North");
+  });
+
+  it("sends at most 500 territories, busiest first, and says how many exist", async () => {
+    org.Territory2Model = [{ Id: "0MA1", Name: "Live", State: "Active" }];
+    org.Territory2 = Array.from({ length: 700 }, (_, i) => ({ Id: `T${i}`, Name: `Territory ${i}`, ParentTerritory2Id: null }));
+    org.UserTerritory2Association = [{ Territory2Id: "T650", cnt: 9 }];
+    const map = await orgMap("territory-users");
+    const s = map.surfaces.find((x) => x.id === "territories")!;
+    expect(s.items).toHaveLength(500);
+    expect(s.items[0].id).toBe("T650");
+    expect(s.findings.map((f) => f.title)).toContain("Showing 500 of 700 territories");
+    expect(map.summary).toContain("700 territories");
+  });
+
+  it("counts users per territory in chunks so aggregates never pass 2,000 groups", async () => {
+    org.Territory2Model = [{ Id: "0MA1", Name: "Live", State: "Active" }];
+    org.Territory2 = Array.from({ length: 1000 }, (_, i) => ({ Id: `T${i}`, Name: `T ${i}` }));
+    await orgMap("territory-users");
+    const grouped = vi
+      .mocked(runSoqlQuery)
+      .mock.calls.map((c) => String(c[0]))
+      .filter((q) => q.includes("FROM UserTerritory2Association") && q.includes("GROUP BY"));
+    expect(grouped).toHaveLength(3);
+    for (const q of grouped) expect((q.match(/'T\d+'/g) ?? []).length).toBeLessThanOrEqual(400);
+  });
+
+  it("says when more field users exist than were read", async () => {
+    configRecords.ProfileBasedAppSettings = [configRec("ProfileBasedAppSettings", "Rep_Settings", {}, true, ["Rep"])];
+    org.User = [{ Id: "005B", Name: "Bare", Profile: { Name: "Rep" }, PermissionSetLicenseAssignments: null }];
+    vi.mocked(runSoqlQuery).mockImplementation(((q: string) =>
+      /^SELECT COUNT\(\) FROM User/.test(q)
+        ? Promise.resolve({ success: true, data: { totalSize: 900, done: true, records: [] } })
+        : respond(q)) as never);
+    const s = (await orgMap("territory-users")).surfaces.find((x) => x.id === "fieldUsers")!;
+    expect(s.findings.map((f) => f.title)).toContain("Showing 1 of 900 field users");
   });
 });
 

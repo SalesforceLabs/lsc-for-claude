@@ -25,6 +25,7 @@ import {
   unwrap,
   type Row,
 } from "../helpers.js";
+import { fetchCache, isLiveCache, type CacheRecord } from "./mobile-sync.js";
 import { fetchCategories, newDbSchema, profilesOf } from "./shared.js";
 
 /** Licenses Briefings depends on (Field Insights text generation runs on Einstein / Agentforce). */
@@ -77,25 +78,7 @@ export const syncs = (r: ConfigRecord, object: string) =>
   String(r.fields.SObject ?? "").toLowerCase() === object.toLowerCase() ||
   r.developerName.toLowerCase() === `dbschema_${object}`.toLowerCase();
 
-export interface CacheRecord {
-  row: Row;
-  profile: string | null;
-}
-
-export async function fetchCache(org: string): Promise<CacheRecord[]> {
-  const rows = await query(
-    `SELECT Id, Name, Status, IntegrationStatus, IntegrationErrorMessage, LastModifiedDate, ProfileId FROM LifeSciMobileMetadataRecord ORDER BY LastModifiedDate DESC LIMIT 200`,
-    org
-  );
-  const ids = [...new Set(rows.map((r) => r.ProfileId).filter(Boolean) as string[])];
-  const names = new Map<string, string>();
-  if (ids.length) {
-    for (const p of await query(`SELECT Id, Name FROM Profile WHERE Id IN (${inList(ids)})`, org)) names.set(String(p.Id), String(p.Name));
-  }
-  return rows.map((row) => ({ row, profile: row.ProfileId ? (names.get(String(row.ProfileId)) ?? String(row.ProfileId)) : null }));
-}
-
-const isLiveCache = (c: CacheRecord) => c.row.Status === "Active" || c.row.Status === "Published";
+export { fetchCache, isLiveCache, type CacheRecord };
 
 /** Profile → number, from an aggregate query with a text column `key`. */
 export async function countBy(soql: string, key: string, org: string): Promise<Map<string, number>> {
@@ -122,15 +105,7 @@ export const collectBriefings: CustomCollector = async (org) => {
     optionalQuery(`SELECT Id, IsActive, AssignedToId, AssignedTo.Name, PrstContentDefinition.MasterLabel FROM PrstCntntDefAssignment ORDER BY AssignedTo.Name`, org)
   );
   const content = settle(
-    optionalQuery(`SELECT TargetUserId, COUNT(Id) cnt, MAX(CreatedDate) latest FROM PresentationContent GROUP BY TargetUserId`, org)
-  );
-  const contentUsers = settle(
-    unwrap(content).then(async (rows) => {
-      const ids = (rows ?? []).map((r) => String(r.TargetUserId)).filter(Boolean);
-      if (ids.length === 0) return new Map<string, string>();
-      const users = await query(`SELECT Id, Profile.Name FROM User WHERE Id IN (${inList(ids)})`, org);
-      return new Map(users.map((u) => [String(u.Id), String(rel(u, "Profile.Name"))]));
-    })
+    optionalQuery(`SELECT TargetUser.Profile.Name pn, COUNT(Id) cnt, MAX(CreatedDate) latest FROM PresentationContent GROUP BY TargetUser.Profile.Name`, org)
   );
   // Flows: the managed ones plus anything else with "Briefing" in its name (clones of the schedule).
   const flows = settle(
@@ -355,21 +330,17 @@ export const collectBriefings: CustomCollector = async (org) => {
     buildSurface(
       { id: "assignments", title: "Profile Assignments", lane: "content", description: "PrstCntntDefAssignment — the profiles that receive daily briefings, with their readiness." },
       async () => {
-        const [rows, userCounts, generated, byUser, caches, schema] = await Promise.all([
+        const [rows, userCounts, generated, caches, schema] = await Promise.all([
           unwrap(assignments),
           unwrap(briefingUsers),
           unwrap(content),
-          unwrap(contentUsers),
           unwrap(cache),
           unwrap(dbSchema),
         ]);
         if (rows === null) return { items: [], findings: [NOT_ENABLED] };
 
         const withContent = new Set<string>();
-        for (const r of generated ?? []) {
-          const profile = byUser.get(String(r.TargetUserId));
-          if (profile) withContent.add(profile);
-        }
+        for (const r of generated ?? []) if (r.pn) withContent.add(String(r.pn));
         const syncing = (profile: string) => REQUIRED_SYNC_OBJECTS.some((o) => schema.some((r) => r.isActive && syncs(r, o) && profilesOf(r).includes(profile)));
         const liveCache = (profile: string) => caches.some((c) => c.profile === profile && isLiveCache(c));
         const orgCache = caches.some((c) => c.profile === null && isLiveCache(c));
@@ -431,16 +402,15 @@ export const collectBriefings: CustomCollector = async (org) => {
     buildSurface(
       { id: "generated", title: "Generated Briefings", lane: "content", description: "PresentationContent — the briefings produced so far, by profile." },
       async () => {
-        const [rows, byUser, on] = await Promise.all([unwrap(content), unwrap(contentUsers), unwrap(enabled)]);
+        const [rows, on] = await Promise.all([unwrap(content), unwrap(enabled)]);
         if (rows === null) return { items: [], findings: [NOT_ENABLED] };
-        const byProfile = new Map<string, { total: number; users: number; latest: string }>();
+        const byProfile = new Map<string, { total: number; latest: string }>();
         let newest = "";
         for (const r of rows) {
-          const profile = byUser.get(String(r.TargetUserId)) ?? "Unknown profile";
+          const profile = r.pn ? String(r.pn) : "Unknown profile";
           const latest = String(r.latest ?? "");
-          const cur = byProfile.get(profile) ?? { total: 0, users: 0, latest: "" };
+          const cur = byProfile.get(profile) ?? { total: 0, latest: "" };
           cur.total += Number(r.cnt ?? 0);
-          cur.users++;
           if (latest > cur.latest) cur.latest = latest;
           byProfile.set(profile, cur);
           if (latest > newest) newest = latest;
@@ -449,8 +419,8 @@ export const collectBriefings: CustomCollector = async (org) => {
           .sort((a, b) => a[0].localeCompare(b[0]))
           .map(([profile, s]) =>
             item(`content:${profile}`, profile, {
-              sublabel: `${plural(s.total, "briefing")} · ${plural(s.users, "user")}`,
-              properties: { Briefings: s.total, Users: s.users, "Latest generated": s.latest },
+              sublabel: plural(s.total, "briefing"),
+              properties: { Briefings: s.total, "Latest generated": s.latest },
               audience: profileAudience(profile),
             })
           );
