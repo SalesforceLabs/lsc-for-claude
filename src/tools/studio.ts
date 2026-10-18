@@ -217,6 +217,24 @@ const fixSchema = z.discriminatedUnion("kind", [
     ]),
     ops: z.array(z.union([layoutOpSchema, compactOpSchema, flexiPageOpSchema])).max(200),
   }),
+  z.object({
+    kind: z.literal("copyForProfile"),
+    label: z.string(),
+    doc: z.discriminatedUnion("type", [
+      z.object({ type: z.literal("Layout"), fullName: layoutName, label: z.string() }),
+      z.object({ type: z.literal("FlexiPage"), fullName: flexiPageName, label: z.string() }),
+    ]),
+    copy: z.object({ fullName: z.string().regex(/^[^\r\n:\\/]+$/).max(255), label: z.string().max(255) }),
+    profile: z.string().max(255),
+    ops: z.array(z.union([layoutOpSchema, flexiPageOpSchema])).max(200).optional(),
+    revert: z
+      .object({
+        moves: z
+          .array(z.object({ recordType: z.string().nullable().optional(), app: z.string().optional(), added: z.boolean().optional() }))
+          .max(200),
+      })
+      .optional(),
+  }),
 ]);
 
 function json(data: unknown) {

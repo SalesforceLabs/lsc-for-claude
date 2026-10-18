@@ -26,6 +26,7 @@ import { applyCompactOps, StaleCompactError } from "./metadata/compact-ops.js";
 import { applyLayoutOps, relatedListCount, StaleLayoutError, type LayoutChange } from "./metadata/layout-ops.js";
 import { applyFlexiPageOps, flexiPageWarnings, StaleFlexiPageError } from "./metadata/flexipage-ops.js";
 import { compactLayoutRecordTypes, flexiPageReach, isManagedFlexiPage, isProductionOrg, layoutProfiles, splitCompactName } from "./metadata/live.js";
+import { applyCopy, previewCopy } from "./metadata/copy-fix.js";
 import { serializeXml, type XmlNode } from "./metadata/xml.js";
 import { scriptCodeFindings } from "./collect.js";
 import { lineCount, lineDiff } from "./diff.js";
@@ -36,6 +37,7 @@ type ScriptFix = Extract<StudioFix, { kind: "setCustomScriptCode" }>;
 type LayoutFix = Extract<StudioFix, { kind: "setLayoutRelatedList" }>;
 type RuleFix = Extract<StudioFix, { kind: "setActive" }> & { record: { type: "validationRule" } };
 type MetadataFix = Extract<StudioFix, { kind: "editMetadata" }>;
+type CopyFix = Extract<StudioFix, { kind: "copyForProfile" }>;
 
 // --- Custom script code ----------------------------------------------------------
 
@@ -412,13 +414,14 @@ async function applyEditMetadata(fix: MetadataFix, org: string): Promise<FixResu
 
 // --- Public API (dispatched from fixes.ts) --------------------------------------------
 
-export type EditFix = ScriptFix | LayoutFix | RuleFix | MetadataFix;
+export type EditFix = ScriptFix | LayoutFix | RuleFix | MetadataFix | CopyFix;
 
 export function isEditFix(fix: StudioFix): fix is EditFix {
   return (
     fix.kind === "setCustomScriptCode" ||
     fix.kind === "setLayoutRelatedList" ||
     fix.kind === "editMetadata" ||
+    fix.kind === "copyForProfile" ||
     (fix.kind === "setActive" && isRuleFix(fix))
   );
 }
@@ -437,6 +440,8 @@ export async function previewEdit(fix: EditFix, org: string): Promise<FixPreview
     }
     case "editMetadata":
       return previewEditMetadata(fix, org);
+    case "copyForProfile":
+      return previewCopy(fix, org);
   }
 }
 
@@ -450,5 +455,7 @@ export async function applyEdit(fix: EditFix, org: string): Promise<FixResult> {
       return applyRuleActive(fix, org);
     case "editMetadata":
       return applyEditMetadata(fix, org);
+    case "copyForProfile":
+      return applyCopy(fix, org);
   }
 }

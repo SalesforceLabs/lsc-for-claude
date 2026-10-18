@@ -219,7 +219,7 @@ const STANDARD_PROFILES: Record<string, string> = {
   ContractManager: "Contract Manager",
   StandardAul: "Standard Platform User",
 };
-const profileName = (metadataName: string) => STANDARD_PROFILES[metadataName] ?? decodeURIComponent(metadataName);
+export const profileName = (metadataName: string) => STANDARD_PROFILES[metadataName] ?? decodeURIComponent(metadataName);
 
 interface PageAssignments {
   /** Page name → profiles it's assigned to in some app. */
@@ -229,7 +229,7 @@ interface PageAssignments {
 }
 
 const ASSIGNMENTS_TTL_MS = 5 * 60_000;
-const assignmentsCache = new Map<string, { at: number; value: Promise<PageAssignments | null> }>();
+export const assignmentsCache = new Map<string, { at: number; value: Promise<PageAssignments | null> }>();
 
 /** Every app's Lightning page assignments (profile overrides and app defaults) on large form factors. */
 async function pageAssignments(org: string): Promise<PageAssignments | null> {
