@@ -11,6 +11,7 @@ import {
   ArrowRight,
   ArrowUp,
   CloudOff,
+  Copy,
   ExternalLink,
   Eye,
   EyeOff,
@@ -58,6 +59,12 @@ const ICONS: Record<VerbId, LucideIcon> = {
  * why this profile's iPad shows it, the changes Studio can queue from here, and
  * Setup steps (with Open in Setup) for the ones it can't.
  */
+/** The inspector's "copy just for this profile" row: an offer, the queued copy, or why a copy isn't possible. */
+export type CopyAction =
+  | { kind: "offer"; onCopy: () => void }
+  | { kind: "queued"; onTakeOut: () => void }
+  | { kind: "explain"; text: string };
+
 export default function BlockInspector({
   info,
   profile,
@@ -75,6 +82,7 @@ export default function BlockInspector({
   onStudio,
   onClose,
   selection,
+  copy,
 }: {
   info: TargetInfo;
   profile: string;
@@ -98,6 +106,8 @@ export default function BlockInspector({
   onClose: () => void;
   /** "3 fields" when several blocks are selected: the inspector explains the last one clicked, its changes apply to all. */
   selection?: string;
+  /** Making a copy of the shared layout or page just for this profile (see usePreviewEdit). */
+  copy?: CopyAction;
 }) {
   return (
     <aside
@@ -240,6 +250,33 @@ export default function BlockInspector({
               <UsersRound size={14} aria-hidden />
               <span>{layout?.profiles ? layoutReach(layout.profiles) : (layout?.reach ?? info.reach)}</span>
             </p>
+          )}
+          {copy?.kind === "explain" && (
+            <p className="studio-block-reach" role="status">
+              <Copy size={14} aria-hidden />
+              <span>{copy.text}</span>
+            </p>
+          )}
+          {copy && copy.kind !== "explain" && (
+            <div className="studio-block-verbs">
+              {copy.kind === "offer" ? (
+                <button
+                  type="button"
+                  className="studio-btn sm"
+                  disabled={!draft}
+                  title={draft ? `Copy this ${layout?.noun ?? "layout"} and point only ${profile} at the copy` : "Switch to Draft to queue changes"}
+                  onClick={copy.onCopy}
+                >
+                  <Copy size={14} aria-hidden />
+                  Make a copy just for {profile}
+                </button>
+              ) : (
+                <button type="button" className="studio-btn ghost sm" onClick={copy.onTakeOut} title="Take the copy out of the tray">
+                  <Undo2 size={14} aria-hidden />
+                  Take the copy out
+                </button>
+              )}
+            </div>
           )}
           <ol className="studio-block-steps">
             {info.how.map((h, i) => (

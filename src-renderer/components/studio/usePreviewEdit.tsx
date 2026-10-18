@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ListPlus, SquarePlus, TextCursorInput } from "lucide-react";
-import type { ComponentCatalog, CreateConfigFix, FeatureMap, LiveCompactLayout, LiveFlexiPage, LiveLayout, ProfileOption } from "./types";
+import type { ComponentCatalog, CreateConfigFix, FeatureMap, StudioFix, LiveCompactLayout, LiveFlexiPage, LiveLayout, ProfileOption } from "./types";
 import type { PublishedIpad, PublishedResult } from "./published-types";
 import type { PreviewEdit } from "./PublishedIpadPreview";
 import type { EditDrop } from "./EditLayer";
-import { createAffects, queueChange, type PendingChange } from "./changes";
+import { changeKey, commitFrom, createAffects, queueChange, queuedCopy, queuedFlexiPageOps, queuedLayoutOps, viewFor, type PendingChange } from "./changes";
+import { flexiPageCopyName, layoutCopyName } from "./copy-names";
 import { actionVerbs, draftHomeMenu, draftTabs, moveActionTo, moveTabTo, tabVerbs, type DraftTab, type Verb } from "./edit-draft";
 import { describeTarget, syncAction, syncFilter, type EditTarget } from "./edit-targets";
 import {
@@ -36,7 +37,7 @@ import {
   targetOf as pageTargetOf,
   type PageDraft,
 } from "./flexipage-draft";
-import BlockInspector, { compactReach, pageReach } from "./BlockInspector";
+import BlockInspector, { compactReach, pageReach, type CopyAction } from "./BlockInspector";
 import CreateDialog from "./CreateDialog";
 import SearchPicker from "../ui/SearchPicker";
 import { extendSelection, groupVerbs, selectionNoun } from "./multi-select";
@@ -70,12 +71,16 @@ export function usePreviewEdit({
   result,
   actionsMap,
   syncMap,
-  pending,
-  onPendingChange,
+  pending: tray,
+  onPendingChange: onTrayChange,
   org,
   profiles,
   onOpenStudio,
 }: PreviewEditOptions): { edit: PreviewEdit | undefined; panel: React.ReactNode } {
+  // The tray as this profile's draft sees it: a copy made just for the profile stands in for the shared
+  // document, and edits to it go back into the copy (changes.ts, viewFor / commitFrom).
+  const pending = useMemo(() => viewFor(tray, profile), [tray, profile]);
+  const onPendingChange = useCallback((next: PendingChange[]) => onTrayChange(commitFrom(tray, profile, next)), [tray, profile, onTrayChange]);
   // The selected blocks, the last one clicked first: ⌘- or ⇧-click adds blocks like it (multi-select.ts).
   const [selection, setSelection] = useState<EditTarget[]>([]);
   const selected = selection[0] ?? null;
@@ -297,12 +302,60 @@ export function usePreviewEdit({
     [selected, snapshot, profile, overlay, tabs, homeMenu]
   );
   const layoutEntry = selected && "layout" in selected && selected.layout ? layouts[selected.layout] : undefined;
-  const layoutStatus =
+  const baseStatus =
     selected?.kind === "headerField"
       ? compactStatusOf(compacts[selected.compactLayout])
       : selectedPage
         ? pageStatusOf(pageEntry)
         : statusOf(layoutEntry);
+
+  // "Make a copy just for this profile": offered for a layout or page other profiles share, "Only [profile]" once queued.
+  const copyAction = useMemo((): CopyAction | undefined => {
+    if (!profile || !selected) return undefined;
+    if (selected.kind === "headerField") return { kind: "explain", text: COMPACT_COPY_NOTE(profile) };
+    const here = (name: string) => name.toLowerCase() === profile.toLowerCase();
+    const target = pageDraft
+      ? {
+          doc: { type: "FlexiPage" as const, fullName: pageDraft.fullName, label: pageDraft.label },
+          shared:
+            !!pageDraft.live.profiles &&
+            !!pageDraft.live.appDefaults &&
+            !pageDraft.live.reachPending &&
+            (pageDraft.live.profiles.some((n) => !here(n)) || pageDraft.live.appDefaults.length > 0),
+        }
+      : !selectedPage && layoutEntry?.status === "ready"
+        ? {
+            doc: { type: "Layout" as const, fullName: layoutEntry.draft.fullName, label: layoutEntry.draft.label },
+            shared: !!layoutEntry.draft.live.profiles?.some((n) => !here(n)),
+          }
+        : null;
+    if (!target) return undefined;
+    const queued = queuedCopy(pending, target.doc, profile);
+    if (queued) return { kind: "queued", onTakeOut: () => onPendingChange(pending.filter((p) => p.fix.kind !== "copyForProfile" || changeKey(p.fix) !== changeKey(queued))) };
+    if (!target.shared) return undefined;
+    const { doc } = target;
+    return {
+      kind: "offer",
+      onCopy: () => {
+        const names = doc.type === "Layout" ? layoutCopyName(doc.fullName, profile) : flexiPageCopyName(doc.fullName, profile, doc.label);
+        // The copy starts from what this draft shows: the edits queued for the shared document come with it.
+        const ops = doc.type === "Layout" ? queuedLayoutOps(pending, doc.fullName) : queuedFlexiPageOps(pending, doc.fullName);
+        const fix: StudioFix = {
+          kind: "copyForProfile",
+          label: `Make a copy of ${doc.label} just for ${profile}`,
+          doc,
+          copy: names,
+          profile,
+          ...(ops.length ? { ops } : {}),
+        };
+        onPendingChange(queueChange(pending, { fix, affects: [profile] }));
+      },
+    };
+  }, [profile, selected, selectedPage, pageDraft, layoutEntry, pending, onPendingChange]);
+  const layoutStatus =
+    copyAction?.kind === "queued" && baseStatus && !baseStatus.loading
+      ? { ...baseStatus, profiles: undefined, reach: `Only ${profile}. A copy made for them: changes here reach no other profile.` }
+      : baseStatus;
   const sync =
     info?.syncObject && snapshot && profile && syncFilter(snapshot, info.syncObject) === null
       ? syncAction(info.syncObject, synced, profile, pending)
@@ -397,6 +450,7 @@ export function usePreviewEdit({
           onRun={run}
           horizontal={edit.horizontal}
           layout={layoutStatus}
+          copy={copyAction}
           onRetryLayout={
             selected?.kind === "headerField"
               ? () => fetchCompact(selected.compactLayout)
@@ -461,6 +515,10 @@ export function usePreviewEdit({
 }
 
 const NONE: PendingChange[] = [];
+
+/** Why a compact layout (the record header) has no "copy just for this profile". */
+const COMPACT_COPY_NOTE = (profile: string) =>
+  `Compact layouts are assigned to record types, not profiles, so a copy can't be limited to ${profile}. Changing the header changes it for every profile that uses the record type.`;
 
 /** Each read page layout as the tray `overlay` leaves it. Pure, so a group verb can rebuild it against any tray. */
 export function buildLayouts(liveLayouts: Record<string, LiveState>, snapshot: PublishedIpad | null, overlay: PendingChange[]): Record<string, LayoutEntry> {
