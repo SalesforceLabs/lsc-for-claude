@@ -215,6 +215,34 @@ describe("deleteConfigRecord", () => {
     });
   });
 
+  it("switches an active record off first — Salesforce won't delete an active record's required values", async () => {
+    records = [{ Id: "1LR000000000001", DeveloperName: del.developerName, MasterLabel: "Search Google", IsActive: true, IsOrgLevel: false }];
+    org.LifeSciConfigFieldValue = [{ Id: "1LF000000000001", FieldName: "ActionType", DataType: "PICKLIST", PicklistValue: "URL" }];
+    const order: string[] = [];
+    vi.mocked(cli.updateToolingRecord).mockImplementation((async (_s: string, _id: string, body: unknown) => {
+      order.push(`update ${JSON.stringify(body)}`);
+      return { success: true };
+    }) as never);
+    vi.mocked(cli.deleteToolingRecord).mockImplementation((async (s: string) => {
+      order.push(`delete ${s}`);
+      return { success: true };
+    }) as never);
+
+    const result = await applyFix(del, "org");
+    expect(order).toEqual(['update {"IsActive":false}', "delete LifeSciConfigFieldValue", "delete LifeSciConfigRecord"]);
+    expect(result).toMatchObject({ ok: true, undo: { kind: "createConfigRecord", active: true } });
+  });
+
+  it("switches the record back on when nothing could be deleted", async () => {
+    records = [{ Id: "1LR000000000001", DeveloperName: del.developerName, MasterLabel: "Search Google", IsActive: true, IsOrgLevel: false }];
+    org.LifeSciConfigFieldValue = [{ Id: "1LF000000000001", FieldName: "ActionType", DataType: "PICKLIST", PicklistValue: "URL" }];
+    vi.mocked(cli.deleteToolingRecord).mockResolvedValue({ success: false, error: "nope" });
+
+    const result = await applyFix(del, "org");
+    expect(result.ok).toBe(false);
+    expect(vi.mocked(cli.updateToolingRecord).mock.calls.map((c) => c[2])).toEqual([{ IsActive: false }, { IsActive: true }]);
+  });
+
   it("refuses records already gone and org-level defaults", async () => {
     expect((await previewFix(del, "org")).blocked).toBe("Already deleted. Refresh the map.");
     records = [{ Id: "1LR000000000001", DeveloperName: del.developerName, IsOrgLevel: true }];
