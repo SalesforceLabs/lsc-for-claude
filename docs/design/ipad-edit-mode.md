@@ -1,6 +1,6 @@
 # iPad preview — Edit mode
 
-Status: design, 2026-10-18. Branch `feat/ipad-edit-mode`.
+Status: Phases 1–2 built; Phase 3 designed, 2026-10-18. Branch `feat/ipad-edit-mode`.
 
 ## The problem
 
@@ -29,7 +29,7 @@ A segmented control above the device: **Published · Draft**. A pencil **Edit** 
 - **Published**: what reps have today, from the metadata cache.
 - **Draft**: Published with every pending tray change laid on top. Turning Edit on switches to Draft automatically.
 
-This replaces the "After next publish (estimate)" schematic. Draft is the estimate, drawn with the real renderer.
+Draft replaces the "After next publish (estimate)" schematic: Draft is the estimate, drawn with the real renderer. The schematic stays as a third segment (**Schematic**) until Visit engagement sidebar editing moves into Draft in Phase 3a.
 
 ### Hover and select
 
@@ -91,25 +91,9 @@ flowchart LR
 | List views | ListView | none | Phase 4 (filters are a larger UI) |
 | Visibility rules, record type assignment, FLS | various | none | Explain + Open in Setup only (for now) |
 
-### New fix kinds (Phase 3)
+### Metadata edits
 
-All three follow the pattern `visit-layout.ts` already uses: retrieve XML → apply a structured op → deploy.
-
-```ts
-type MetadataOp =
-  | { op: "move"; path: ItemPath; toIndex: number }
-  | { op: "remove"; path: ItemPath }
-  | { op: "insert"; parent: ItemPath; index: number; item: unknown }
-  | { op: "setProp"; path: ItemPath; name: string; value: string | null };
-
-{ kind: "editFlexiPage"; pageName; ops: MetadataOp[]; baseHash; label }
-{ kind: "editLayout";    layoutName; ops: MetadataOp[]; baseHash; label }
-{ kind: "editCompactLayout"; name; ops: MetadataOp[]; baseHash; label }
-```
-
-- **Stale guard**: `baseHash` is the hash of the retrieved XML when the change was queued. Preview refuses if it has changed, matching the existing "changed since the map was loaded".
-- **Undo**: the apply result snapshots the pre-deploy XML; undo redeploys it, guarded by the post-deploy hash.
-- **Tray merging**: several gestures on one page combine into one fix, with ops appended. `queueChange` replaces by key and keeps the original base. One deploy per page.
+Phase 3 covers these surfaces; the full design is in **Phase 3 design** below.
 
 ## Foundation work (Phase 1): provenance
 
@@ -125,13 +109,164 @@ Phase 1 delivers the hover/select layer and the What / Why / How inspector over 
 
 ## Phases
 
-1. **Select & explain**: provenance in the snapshot; hover/select/toolbar shell; What/Why/How inspector over Published; Open in Setup. *No writes.*
-2. **Draft + Admin Console edits**: Published/Draft toggle; pending overlay for TabOrder, SortOrder, IsActive, create/delete; drag reorder and hide/add for tabs and ••• actions; DB Schema "not synced" chip. Retire the schematic estimate.
-3. **Metadata edits**: `editFlexiPage`, `editLayout`, `editCompactLayout` with hash guard and undo; library popover; reach warnings; Draft rendering of ops.
-4. **Polish & breadth**: list views, component props sheet, ⌘Z wired to the tray, multi-select, before/after split view.
+1. **Select & explain** *(built)*: hover/select/toolbar shell; What / Why / How inspector; Open in Setup with a deep link (`sfOrg:open` takes a path). *No writes.* Provenance was built only as far as the explain layer needs it: block keys use names and post-filter indices. Phase 3 adds the rest.
+2. **Draft + Admin Console edits** *(built)*: Published · Draft · Schematic; pending overlay for TabOrder, SortOrder, IsActive, profile assignments and creates; move/hide/turn off for tabs and Home ••• actions with reach warnings; **Add to iPad sync** for objects the profile doesn't sync. Drag is deferred to 3d. The Schematic stays until 3a, because it is still the only place to edit the Visit engagement sidebar.
+3. **Metadata edits**, in four steps (see **Phase 3 design**):
+   - 3a: provenance, a metadata document layer, `editMetadata` for Layouts. Visit sidebar editing moves into Draft and the Schematic is retired.
+   - 3b: Compact layouts (record header).
+   - 3c: Lightning pages: move/remove components and tabs, then insert from the library.
+   - 3d: drag to reorder, insertion points, keyboard moves.
+4. **Polish & breadth**: list views, component props sheet, ⌘Z wired to the tray, multi-select, before/after split view, "Make a copy just for this profile".
+
+## Phase 3 design
+
+Grounded in three surveys of the code on 2026-10-18: Studio's write path, the published snapshot, and how lifesciences-ios renders pages.
+
+### What we start from
+
+- **The cache is Metadata-shaped JSON.** `published.ts` reads `ui.flexiPages`, `ui.pageLayouts` and `ui.compactLayouts` from the metadata cache. They have the same structure as the Metadata API XML, so a position in the cache *can* be a position in the XML, if we keep it. Today we don't:
+  - Indices are counted after filtering out unsupported components, hidden tabs, blank layout items, empty sections and Name in compact layouts, so one hidden neighbour shifts every key.
+  - `componentInstance.identifier` is never read.
+  - Facet regions are discarded, because tabsets arrive pre-nested.
+  - Related-list targets carry a label, not the `relatedList` name.
+- **The only metadata write is Visit layout related lists** (`visit-layout.ts`):
+  - It runs `sf project retrieve` into a temp SFDX project, edits the XML with regexes, then runs `sf project deploy --source-dir`. Each step is a 5–30 s CLI call, and the temp dirs are never cleaned up.
+  - There is no XML parser in the repo.
+  - Stale guards compare values (`from` vs live), not hashes.
+  - Undo is a computed inverse fix, not a saved copy.
+  - Each related list is its own change and its own deploy.
+- **Nothing tells production from sandbox on write**, and nothing checks whether a page is managed and can't be deployed.
+- **The iPad (UIKit renderer, not the iPhone SwiftUI one) decides what Draft must show:**
+  - It drops unsupported components *silently*. Only an empty Home page shows a message.
+  - Only these template regions exist:
+
+    | Template | Regions |
+    |---|---|
+    | recordHomeSingleColTemplateDesktop | header, main |
+    | recordHomeTemplateDesktop | header, main, sidebar |
+    | appHomeTemplateHeaderTwoColumnsLeftSidebar | header, sidebar, main |
+    | defaultAppHomeTemplate | header, main |
+    | defaultFlexiPage | main |
+    | desktopTemplate | top |
+
+    Other templates, and a page whose only region is main, fall back to defaultFlexiPage, so their header and sidebar components vanish.
+  - The Lightning page's tabset decides the record tabs; the layout only fills the detail panel and the related lists.
+  - Related lists whose child object isn't synced are skipped silently. Single related lists show 5 rows unless the list is dynamic or ADVGRID.
+  - The record header is the record name plus the compact layout's fields in one scrolling row. There is no field limit; fields equal to the title, Account `Name` and unreadable fields are dropped.
+  - A visibility rule with several criteria and no boolean filter probably hides its component.
+
+### Addressing: names first, structural indices second
+
+An edit has to point at one element of one document even if the org changed after the cache was built. Each block gets a `source` in the snapshot (bump `SNAPSHOT_VERSION`):
+
+| Block | Document | Address |
+|---|---|---|
+| Lightning page component | `FlexiPage:<DevName>` | `{ region, facet?, index }`: XML region name (or the facet a tab points at) and the index *before* filtering, plus `expect: { componentName, identifier? }` |
+| Record page tab | `FlexiPage:<DevName>` | the `flexipage:tab` item in the tabset's `tabs` facet, `{ facet, index, expect: { title } }` |
+| Layout section | `Layout:<Obj-Name>` | `{ section: index }`, counting empty sections, `expect: { label }` (the raw XML label) |
+| Layout field | `Layout:<Obj-Name>` | keyed by `field` (unique on a layout), with `{ section, column, row }` for moves |
+| Related list | `Layout:<Obj-Name>` | keyed by `relatedList` name (`Contacts`, `Visit.ParentId`…) |
+| Compact layout field | `CompactLayout:<Obj.Name>` | keyed by field API name |
+
+Fields, related lists and compact-layout fields are addressed by name, so unrelated edits elsewhere in the document never invalidate them. Components and sections have no reliable name, so they use indices with an `expect` check.
+
+**Live alignment.** When you select a block on a page, Studio retrieves that document once for the edit session (`studio_metadata_doc`, cached per org + document until apply) and checks the snapshot's addresses against it:
+- **They match:** the block is editable.
+- **They don't match** (someone changed the page in Setup since the last publish): the block stays explain-only, with *"This page changed in Setup since the last publish. Publish to iPad first, or edit it in Setup."* Draft never mixes an unpublished org version with the cache.
+
+### Document layer (server)
+
+`src/studio/metadata-doc.ts` generalizes `visit-layout.ts`:
+
+- **Retrieve and deploy.** Retrieve by `type:fullName`, and find the file by type rather than "first file in the folder":
+  - `layouts/X.layout-meta.xml`
+  - `flexipages/X.flexipage-meta.xml`
+  - `objects/<Obj>/compactLayouts/X.compactLayout-meta.xml`
+
+  Deploy the one file. Temp folders are removed after each call.
+- **Parse with `fast-xml-parser`** (new dependency) in `preserveOrder` mode, so a round-trip keeps element order and unknown elements. Serialize with the same indentation Salesforce uses, so the review diff shows only what changed. Ops work on the parsed tree; they replace the regexes.
+- **Can it be deployed?** The preview reads `NamespacePrefix` / `ManageableState` (FlexiPage via SOQL, Layout and CompactLayout via Tooling). A managed, installed page is blocked with steps to clone it in Lightning App Builder.
+- **Reach**, computed at preview time and also shown in the inspector:
+  - Layouts: Tooling `ProfileLayout` (profile × record type → layout).
+  - Compact layouts: the record type assignments in the object's metadata.
+  - Lightning pages: their activations in `CustomApplication` profile overrides plus object action overrides, retrieved with the document. When that can't be read, Studio says *"may be used by other profiles"* rather than guessing.
+
+### One fix kind
+
+```ts
+type DocRef =
+  | { type: "Layout"; fullName: string }        // "Account-HCP Layout" (with ns__ when namespaced)
+  | { type: "CompactLayout"; fullName: string } // "Account.LSC_HCP"
+  | { type: "FlexiPage"; fullName: string };
+
+type MetadataOp =
+  | { op: "move"; from: Address; to: Address }
+  | { op: "remove"; at: Address; removed?: string }     // removed: the element's XML, filled in at apply time for undo
+  | { op: "insert"; at: Address; element: InsertSpec }  // InsertSpec: field / relatedList / component from the catalog
+  | { op: "set"; at: Address; name: string; from: string | null; to: string | null };
+
+{ kind: "editMetadata"; doc: DocRef; label: string; ops: MetadataOp[] }
+```
+
+Why one kind rather than three: preview, apply, undo, guards, Zod schema, tray key and review rendering are the same for every document type. Only address resolution and the catalog differ per type, and they sit behind `metadata-doc.ts`.
+
+- **Stale guard:** per op, as Studio does today. Every address carries `expect`, and `set` carries `from`. The preview resolves each op against the live document:
+  - **The item is missing or different:** *"changed since the map was loaded"*.
+  - **Every op is already true:** *"Already applied. Refresh the map."*
+
+  A whole-document hash would refuse whenever anyone touched anything else on the page.
+- **Undo** is the inverse op list, in reverse order (move ↔ move, insert ↔ remove, set ↔ set), so it stays small enough for IPC and the Zod schema. The only snapshot it needs is the removed element's XML, captured at apply time.
+- **Tray merging:** the change key is `metadata:<type>:<fullName>`. `queueChange` appends ops to the existing fix, so one page means one retrieve and one deploy. Inverse ops cancel (move A down then up, remove then show), and an empty fix is dropped. The existing Visit related-list fix becomes `editMetadata` on its layout; its Inspector board entry queues the same kind.
+- **Review:** the before/after shows the ops in plain words (*"Move field Specialty to section Details, column 1, row 3"*) plus the XML diff, collapsed. The warnings:
+  - the reach (every profile and record type that uses the document);
+  - the iOS rules each op trips (next section);
+  - `PUBLISH_WARNING`.
+
+### Ops per surface
+
+| Surface | Ops in Phase 3 | Notes from iOS |
+|---|---|---|
+| **Layout** (3a) | move/remove field; move field across columns and sections; set field behavior Required / Edit / Readonly; move/remove section; toggle the section heading (`detailHeading`); move/remove/add related list (replaces `visit-layout.ts`); add a field from the object's fields not on the layout | Unreadable fields are dropped; System fields hidden; OwnerId, RecordTypeId and auto-number fields stay locked whatever the behavior; section style and collapsing are ignored; related lists need the child synced, so add offers **Add to iPad sync** |
+| **Compact layout** (3b) | move/remove/add field | The title is always the record name; a field equal to the title or Account `Name` is dropped; no field limit, but fields after the first 6 or so scroll off, so warn at 7 or more |
+| **Lightning page** (3c) | move/remove a component within its region or facet; move/remove a record tab; insert from the library; `set` on a short list of properties: `mobileHeight` for inline LWCs, a tab's `active` flag and `title`, `maxRecordsToDisplay` / `rowsToDisplay` | Moves across regions are refused (as already designed). Insert only into regions the template has on iPad. Tab titles over 25 characters are cut. A component with a multi-criteria rule and no boolean filter gets a warning |
+
+**Library** (3c, `src/studio/component-catalog.ts`). A catalog of components the iPad renders, built from `published.ts`'s support rules plus full `namespace:name` values (today's suffix rules aren't full names). Each entry has: label, where it may go (Home / record, regions), required properties, and whether Studio can fill them in.
+- Phase 3 offers only components Studio can insert completely:
+  - anything you removed in this session;
+  - `flexipage:recentItems`;
+  - the org's `lscMobileInline_*` LWCs (prefilled `mobileHeight` 400);
+  - related lists of synced child objects.
+- Components that need a report, dashboard or list view are listed greyed out with *"Add in Lightning App Builder"* and Open in Setup, until the props sheet in Phase 4.
+
+### Draft for metadata
+
+The renderer applies queued ops to the snapshot (`src-renderer/components/studio/draft-metadata.ts`). It works on the same addresses, mirroring the server's op application on XML. A shared fixture test runs both on the same cases and compares the results.
+
+- **Moved** blocks pulse purple once; **removed** ones are ghosts; **inserted** ones are drawn with the real renderer.
+- Where the iPad would drop something silently, Draft shows it instead:
+  - an inserted component the template's iPad regions don't have, or the iPad doesn't support: a dashed ghost, *"Won't show on iPad: …"*;
+  - a related list for an unsynced child: the same ghost, with **Add to iPad sync**;
+  - a field the rep can't read: a struck-through label with the field-security reason.
+- Draft stays honest about what isn't simulated: it never fetches new data, so an inserted related list shows its columns with *"Records appear after sync"*.
+
+### Production
+
+`Organization.IsSandbox` is read once per org, and the Studio header shows a **Production** pill. For metadata changes on production, the review dialog's Apply button reads *"Apply to production"*. It is enabled only after a checkbox: *"I understand these pages change for reps as soon as they next sync after publish."* Admin Console changes keep today's flow.
+
+### Risks
+
+- **Retrieve/deploy latency** (5–30 s per document through the CLI). Mitigations:
+  - retrieve the document when the block is selected, not at apply;
+  - one deploy per document;
+  - the review dialog shows a progress line per document.
+
+  If this is still slow, a later step can switch to the Metadata API over REST (`deployRequest`) without changing the fix shape.
+- **Not atomic:** another admin can change the page between preview and deploy. The per-op guards run again inside apply, right before the deploy, and the window left is a few seconds. The same race exists for Admin Console fixes today.
+- **Serializer drift:** if a round-trip changes formatting, the review diff gets noisy. A round-trip test on retrieved samples of all three types (no op applied → byte-identical) gates 3a.
 
 ## Open questions
 
-- **Shared pages.** Editing a FlexiPage used by several profiles changes it for all of them. Do we offer *"Make a copy just for Rep"*? That means cloning the page and reassigning it per app+profile in the CustomApplication's profile action overrides: more Metadata, more risk. Proposed: warn in Phase 3, consider copying in Phase 4.
-- **Production orgs.** FlexiPage, Layout and CompactLayout deploys don't run Apex tests, but they are live on apply. Do we want an org-type guard (an extra confirm on production)?
-- **iOS fidelity.** Draft draws metadata the device hasn't seen. Rules ported from lifesciences-ios must decide what Draft shows (e.g. an unsupported component added to Home is shown greyed out with "won't render on iPad").
+- **Shared pages.** Decided: warn on reach (Phase 2 and 3). *"Make a copy just for this profile"* is Phase 4.
+- **Production orgs.** Proposed: the confirm in **Production** above. Is a checkbox enough, or should metadata edits be off by default on production?
+- **New dependency.** `fast-xml-parser` (MIT, no dependencies) for a faithful round-trip. The alternative is extending today's regex edits, which won't stretch to moving sections and facets safely.
+- **Layout first?** 3a starts with Layouts because they have the most requests (fields, sections, related lists) and they retire the Schematic. Lightning page components (Home order) are 3c because insert needs the catalog.
