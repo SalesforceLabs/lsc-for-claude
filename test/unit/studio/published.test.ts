@@ -525,6 +525,24 @@ describe("layout labels", () => {
     expect(l.sections.map((s) => s.label)).toEqual(["System Information", "MyCustom", "Infos", null]);
     expect(l.relatedLists[0].label).toBe("PVs");
   });
+
+  it("records where each section sits in the layout, counting the sections the app drops", () => {
+    const f = files();
+    const layout = (f.ui.pageLayouts as Record<string, Row>)["Visit-Visit Layout"];
+    layout.layoutSections = [
+      { label: "Info", detailHeading: true, layoutColumns: [] },
+      {
+        label: "Info",
+        detailHeading: false,
+        layoutColumns: [
+          { layoutItems: [] },
+          { layoutItems: [{ fullName: "Name", compoundFieldName: "Name" }, { fullName: "FirstName", compoundFieldName: "Name" }, { fullName: "Status" }] },
+        ],
+      },
+    ];
+    const [section] = buildSnapshot(f, meta).layouts["Visit-Visit Layout"].sections;
+    expect(section.source).toEqual({ label: "Info", nth: 1, columns: [1], fields: [["Name", "Name", "Status"]], heading: false });
+  });
 });
 
 describe("multiEntityRecordView", () => {

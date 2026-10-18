@@ -76,9 +76,18 @@ export interface RecordFieldSpec {
   readOnly?: boolean;
 }
 
+/** Where a published section sits in the layout's XML (label as written, which of that label, XML column indexes, each field's layout item). */
+export interface LayoutSectionSource {
+  label: string;
+  nth: number;
+  columns: number[];
+  fields: string[][];
+  heading: boolean;
+}
+
 export interface PublishedLayout {
   name: string;
-  sections: { label: string | null; columns: string[][]; fields?: RecordFieldSpec[][] }[];
+  sections: { label: string | null; columns: string[][]; fields?: RecordFieldSpec[][]; source?: LayoutSectionSource }[];
   relatedLists: { name: string; label: string; columns?: RecordFieldSpec[] }[];
   actions: string[];
   actionItems?: { name: string; label: string; type: string; sortOrder: string }[];

@@ -88,10 +88,24 @@ export interface PublishedPage {
   droppedRegions: { name: string; components: string[] }[];
 }
 
+/** Where a published section sits in the layout's XML, for edits made in the preview. */
+export interface LayoutSectionSource {
+  /** The section's label as written in the layout, before translation. */
+  label: string;
+  /** Which of the layout's sections with this label it is. */
+  nth: number;
+  /** The XML column index of each column shown. */
+  columns: number[];
+  /** The layout item each shown field belongs to, parallel to the section's `columns` (a compound field's parts name the compound field). */
+  fields: string[][];
+  /** detailHeading, whether or not the label is blank. */
+  heading: boolean;
+}
+
 export interface PublishedLayout {
   name: string;
   /** `fields` are the columns' items as the cache describes them (API name, type, lookup targets, picklist labels), parallel to `columns`. */
-  sections: { label: string | null; columns: string[][]; fields?: RecordFieldSpec[][] }[];
+  sections: { label: string | null; columns: string[][]; fields?: RecordFieldSpec[][]; source?: LayoutSectionSource }[];
   relatedLists: { name: string; label: string; columns?: RecordFieldSpec[] }[];
   actions: string[];
   /** Each platform action as the cache lists it, for the ••• menu (MetadataActionItem). */
@@ -770,22 +784,31 @@ const layoutObject = (layoutName: string) => layoutName.slice(0, Math.max(0, lay
 function buildLayout(name: string, layout: Row, translation: Row = {}, itemLabel: (item: Row) => string = (f) => str(f.label) || str(f.fullName)): PublishedLayout {
   const sectionLabels = obj(translation.sections);
   const relatedListLabels = obj(translation.relatedLists);
+  const seen = new Map<string, number>();
   const sections = arr(layout.layoutSections).flatMap((s) => {
+    // Which of the sections with this label it is, counting the ones the app drops — the layout XML's order.
+    const nth = seen.get(str(s.label)) ?? 0;
+    seen.set(str(s.label), nth + 1);
     const specs = arr(s.layoutColumns)
-      .map((col) =>
-        arr(col.layoutItems)
+      .map((col, index) => ({
+        index,
+        items: arr(col.layoutItems)
           .filter((f) => str(f.fullName) || str(f.field))
           .map((f) => ({ label: itemLabel(f), item: f }))
-          .filter((x) => x.label)
-      )
-      .filter((c) => c.length);
-    const columns = specs.map((c) => c.map((x) => x.label));
-    const fields = specs.map((c) => c.map((x) => recordFieldSpec(x.item, x.label)));
+          .filter((x) => x.label),
+      }))
+      .filter((c) => c.items.length);
+    const columns = specs.map((c) => c.items.map((x) => x.label));
+    const fields = specs.map((c) => c.items.map((x) => recordFieldSpec(x.item, x.label)));
     if (!columns.length) return [];
     // SFDynamicLayoutContainer: the title is only laid out (not covered by the columns) when detailHeading is on.
     const label = sectionLabel(s, str(sectionLabels[str(s.label)]) || undefined);
-    const heading = (s.detailHeading === true || str(s.detailHeading) === "true") && label.trim() ? label : null;
-    return [{ label: heading, columns, fields }];
+    const detailHeading = s.detailHeading === true || str(s.detailHeading) === "true";
+    const heading = detailHeading && label.trim() ? label : null;
+    // A compound field (Name, BillingAddress) is one layout item the cache lists with each of its parts.
+    const layoutFields = specs.map((c) => c.items.map((x) => str(x.item.compoundFieldName) || str(x.item.fullName) || str(x.item.field)));
+    const source = { label: str(s.label), nth, columns: specs.map((c) => c.index), fields: layoutFields, heading: detailHeading };
+    return [{ label: heading, columns, fields, source }];
   });
   const relatedLists = arr(layout.relatedLists).map((r) => {
     const rl = str(r.relatedList);
@@ -1267,7 +1290,7 @@ export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing |
 
 const FILES = ["nav", "ui", "permissions", "db", "sobjects", "reporting"] as const;
 const CACHE_ROOT = path.join(os.tmpdir(), "lsc-studio-published");
-const SNAPSHOT_VERSION = 38;
+const SNAPSHOT_VERSION = 39;
 /** UserService.defaultLanguage — the translation file used when the user's is missing. */
 const DEFAULT_LANGUAGE = "en_US";
 /** Distinct permission-set combinations pre-built per download. */
