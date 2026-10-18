@@ -135,6 +135,24 @@
   box-shadow: 0 0 0 2px var(--bg-elevated);
 }
 
+/* Empty layout columns appear as drop targets while a field is dragged. */
+.studio-edit-surface.dragging .studio-ipad-rec-col.empty {
+  min-height: 44px;
+  border: 1px dashed var(--edit-pending);
+  border-radius: var(--radius-xs);
+  background: var(--accent-subtle);
+}
+
+/* The tab bar's stand-in for the next page's first tab: takes no room, drawn nowhere, but counted when a drag picks its place. */
+.studio-edit-edge {
+  flex: none;
+  align-self: stretch;
+  width: 2px;
+  margin-left: -2px;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .studio-edit-ring.dropped {
   animation: studio-edit-pulse 0.6s var(--ease-out);
 }

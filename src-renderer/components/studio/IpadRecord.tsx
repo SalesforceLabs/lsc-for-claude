@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useMemo, useState } from "react";
-import { Mark } from "./EditLayer";
+import { Anchor, Mark, slotAttrs, useDragFamily } from "./EditLayer";
 import type {
   InlineLwcCheck,
   PublishedComponent,
@@ -28,6 +28,14 @@ export const LayoutEdits = createContext<{
   compacts?: Record<string, CompactEntry>;
   pages?: Record<string, PageEntry>;
 } | null>(null);
+
+/**
+ * The record tab each open record is on (Details, Related…), kept by whoever draws the preview so
+ * the published and Draft sides, and the modes between them, show the same one. Keyed by the tab's
+ * place in the page (`sourceKey`), else its title.
+ */
+export const RecordTabs = createContext<{ selected: Record<string, string>; select: (record: string, tab: string) => void } | null>(null);
+const tabKeyOf = (t: { title: string; source?: Parameters<typeof sourceKey>[0] }) => (t.source ? sourceKey(t.source) : t.title);
 
 /** The Lightning page Draft draws, when it's read from the org and lines up with the published one. */
 export function usePageDraft(page: string | undefined): PageDraft | null {
@@ -147,12 +155,12 @@ export default function RecordScreen({ snapshot, recordId, onOpenRecord }: { sna
   if (!rec) return null;
   return (
     <OpenRecord.Provider value={onOpenRecord}>
-      <RecordBody key={recordId} snapshot={snapshot} rec={rec} />
+      <RecordBody key={recordId} recordId={recordId} snapshot={snapshot} rec={rec} />
     </OpenRecord.Provider>
   );
 }
 
-function RecordBody({ snapshot, rec }: { snapshot: PublishedIpad; rec: PublishedRecordData }) {
+function RecordBody({ recordId, snapshot, rec }: { recordId: string; snapshot: PublishedIpad; rec: PublishedRecordData }) {
   const { object, rt, page } = pageOf(snapshot, rec);
   const components = mainComponents(page);
   const tabset = components.find((c) => c.tabs);
@@ -164,15 +172,23 @@ function RecordBody({ snapshot, rec }: { snapshot: PublishedIpad; rec: Published
         : asDrawn(tabset?.tabs ?? [{ title: "Details", active: true, components: components.filter((c) => !c.tabs && bare(c.name) !== "highlightsPanel") }]);
     return drawn.filter((t) => t.value.components.some((c) => renderable(c, snapshot, rec)));
   }, [pd, tabset, components, snapshot, rec]);
-  const [i, setI] = useState(Math.max(0, tabs.findIndex((t) => t.value.active)));
-  const at = Math.min(i, tabs.length - 1);
+  const shared = useContext(RecordTabs);
+  const [own, setOwn] = useState<string | null>(null);
+  const chosen = shared ? shared.selected[recordId] : own;
+  const wanted = chosen === undefined || chosen === null ? -1 : tabs.findIndex((t) => tabKeyOf(t.value) === chosen);
+  const setI = (j: number) => {
+    const key = tabKeyOf(tabs[j].value);
+    if (shared) shared.select(recordId, key);
+    else setOwn(key);
+  };
+  const at = Math.min(wanted >= 0 ? wanted : Math.max(0, tabs.findIndex((t) => t.value.active)), tabs.length - 1);
   const tab = tabs[at]?.value;
   return (
     <div className="studio-ipad-rec">
       <Header snapshot={snapshot} rec={rec} object={object} compact={rt?.compactLayout ?? object?.defaultCompactLayout ?? null} />
       {tabs.length > 1 && (
         <div className={`studio-ipad-rec-tabs${tabs.length > 5 ? " scroll" : ""}`}>
-          {tabs.map(({ value: t, state }, j) => {
+          {tabs.map(({ value: t, state, key }, j) => {
             const button = (
               <button key={j} type="button" className={`studio-ipad-rec-tab${j === at ? " current" : ""}${draftClass(state)}`} onClick={() => setI(j)}>
                 {t.title}
@@ -191,6 +207,7 @@ function RecordBody({ snapshot, rec }: { snapshot: PublishedIpad; rec: Published
                   active: t.active,
                   ...(t.source ? { source: sourceKey(t.source) } : {}),
                 }}
+                drag={pd ? { family: `recordTabs:${page.name}`, list: "tabs", id: key, ghost: state === "removed", horizontal: true } : undefined}
               >
                 {button}
               </Mark>
@@ -240,29 +257,32 @@ function TabContent({
   const pd = usePageDraft(page?.name);
   const drawn = (pd ? draftComponents(pd, components) : asDrawn(components)).filter((d) => d.state === "added" || renderable(d.value, snapshot, rec));
   const shown = drawn.map((d) => d.value);
-  // Details and related lists are marked part by part; any other component is one block of its Lightning page.
+  // Details and the layout's related lists are marked part by part; any other component, a single related list included, is one block of its Lightning page.
   const marked = (c: PublishedComponent, k: number, node: React.ReactNode) => {
     const name = bare(c.name);
     const d = drawn[k];
     if (d.state === "added") node = <PlaceholderCard title={c.label} />;
-    if (!page || !node || (d.state !== "added" && (details.includes(c) || /^(relatedListContainer|relatedListSingleContainer|LSCGenericRelatedList|AccountAffiliations)$/.test(name)))) return node;
+    if (!page || !node) return node;
+    const target = {
+      kind: "component" as const,
+      page: page.name,
+      pageLabel: page.label,
+      region,
+      index: k,
+      count: shown.length,
+      name: c.name,
+      label: c.properties.label || PLACEHOLDER_TITLES[name] || c.label || name,
+      home: false,
+      visibility: c.visibility === "conditional" ? ("conditional" as const) : ("shown" as const),
+      ...(c.visibilityNote ? { visibilityNote: c.visibilityNote } : {}),
+      ...blockIdentity(c, d),
+    };
+    // In Draft the blocks drag within their region or tab; the parts-marked ones still hold their place in the order.
+    const drag = pd ? { family: `page:${page.name}`, list: region, id: d.key, ghost: d.state === "removed" } : undefined;
+    if (d.state !== "added" && (details.includes(c) || name === "relatedListContainer"))
+      return drag ? <Anchor target={target} drag={drag}>{node}</Anchor> : node;
     return (
-      <Mark
-        target={{
-          kind: "component",
-          page: page.name,
-          pageLabel: page.label,
-          region,
-          index: k,
-          count: shown.length,
-          name: c.name,
-          label: c.properties.label || PLACEHOLDER_TITLES[name] || c.label || name,
-          home: false,
-          visibility: c.visibility === "conditional" ? "conditional" : "shown",
-          ...(c.visibilityNote ? { visibilityNote: c.visibilityNote } : {}),
-          ...blockIdentity(c, d),
-        }}
-      >
+      <Mark target={target} drag={drag}>
         {d.state === "same" ? node : <div className={`studio-ipad-draft-block${draftClass(d.state)}`}>{node}</div>}
       </Mark>
     );
@@ -270,7 +290,8 @@ function TabContent({
   const edits = useContext(LayoutEdits);
   const entry = layout ? edits?.layouts[layout] : undefined;
   const lists = entry?.status === "ready" ? entry.draft : null;
-  const related = (r: PublishedRelated, key: React.Key, state?: DraftState) => {
+  const related = (r: PublishedRelated, key: React.Key, state?: DraftState, mark = true) => {
+    if (!mark) return <RelatedCard key={key} snapshot={snapshot} related={r} editable={rec.editable} draft={state} />;
     const listed = !!lists && (lists.base.relatedLists.includes(r.api) || lists.target.relatedLists.includes(r.api));
     return (
       <Mark
@@ -332,11 +353,11 @@ function TabContent({
     if (name === "relatedListContainer") return <React.Fragment key={k}>{allRelated()}</React.Fragment>;
     if (name === "relatedListSingleContainer") {
       const r = findRelated(rec, c.properties.relatedListApiName);
-      return r ? related(r, k) : null;
+      return r ? related(r, k, undefined, !page) : null;
     }
     if (name === "LSCGenericRelatedList") {
       const r = Object.values(rec.related).find((x) => x.api === "LSCGenericRelatedList" && x.label === c.properties.label);
-      return r ? related(r, k) : null;
+      return r ? related(r, k, undefined, !page) : null;
     }
     if (name === "ActivityHistory") {
       const r = findRelated(rec, "ActivityHistory");
@@ -344,7 +365,7 @@ function TabContent({
     }
     if (name === "AccountAffiliations") {
       const r = findRelated(rec, "AccountAffiliations");
-      return r ? related(r, k) : null;
+      return r ? related(r, k, undefined, !page) : null;
     }
     if (name === "Ratings" && rec.ratings) return <RatingsCard ratings={rec.ratings} />;
     if (rec.dashboard) {
@@ -552,6 +573,8 @@ interface DrawnSection {
   label: string | null;
   orgKey?: number;
   state?: DraftState;
+  /** Org columns with nothing to draw, which a dragged field can still be dropped in (Draft). */
+  emptyColumns?: number[];
   /** `col`: the field's column in the org's layout section, in Draft (drawn columns skip empty ones). */
   columns: { spec: RecordFieldSpec; item?: string; required?: boolean; readOnly?: boolean; state?: DraftState; col?: number }[][];
 }
@@ -568,6 +591,7 @@ function drawnSections(snapshot: PublishedIpad, layout: PublishedLayout, entry: 
         label: d.label,
         orgKey: d.key,
         state: d.state,
+        emptyColumns: d.emptyColumns,
         columns: d.columns
           .map((col) =>
             col
@@ -595,6 +619,7 @@ function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: Publishe
   const layouts = detailLayouts(snapshot, rec);
   const [editing, setEditing] = useState(false);
   const edits = useContext(LayoutEdits);
+  const dragging = useDragFamily();
   return (
     <div className="studio-ipad-rec-card details">
       {editing && <EditSheet snapshot={snapshot} rec={rec} onClose={() => setEditing(false)} />}
@@ -614,6 +639,11 @@ function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: Publishe
           const first = li === 0 && si === 0;
           const cls = s.label ? (si === 0 ? " layout-gap" : " section-gap") : "";
           const draggable = drags && s.orgKey !== undefined;
+          // Columns by their place in the org's layout; while a field of this layout is dragged, the empty ones show too, to drop it in.
+          const fieldFamily = `fields:${layout.name}`;
+          const columns = (draggable && s.state !== "removed" ? s.columns.map((col, ci) => ({ column: col[0]?.col ?? ci, col })) : s.columns.map((col, ci) => ({ column: ci, col })))
+            .concat(draggable && dragging === fieldFamily ? (s.emptyColumns ?? []).map((column) => ({ column, col: [] })) : [])
+            .sort((a, b) => a.column - b.column);
           return (
             <Mark
               key={`${li}.${s.key}`}
@@ -628,8 +658,12 @@ function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: Publishe
                 </div>
               )}
               <div className="studio-ipad-rec-cols">
-                {s.columns.map((col, ci) => (
-                  <div key={ci} className="studio-ipad-rec-col">
+                {columns.map(({ col, column: orgColumn }) => (
+                  <div
+                    key={orgColumn}
+                    className={`studio-ipad-rec-col${col.length ? "" : " empty"}`}
+                    {...slotAttrs(draggable && s.state !== "removed", { family: fieldFamily, list: { section: s.orgKey, column: orgColumn } })}
+                  >
                     {col.map(({ spec: f, item, required, readOnly, state, col: column }, fi) => {
                       const v = valueOf(rec, object, f);
                       const meta = metaOf(snapshot, object, f);
@@ -639,7 +673,7 @@ function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: Publishe
                           target={{ kind: "field", layout: layout.name, section: s.label, field: f.name, label: meta.label, required, readOnly, ...(item ? { item } : {}) }}
                           drag={
                             draggable && item && column !== undefined && s.state !== "removed"
-                              ? { family: `fields:${layout.name}`, list: { section: s.orgKey, column }, id: item, ghost: state === "removed" }
+                              ? { family: fieldFamily, list: { section: s.orgKey, column }, id: item, ghost: state === "removed" }
                               : undefined
                           }
                         >

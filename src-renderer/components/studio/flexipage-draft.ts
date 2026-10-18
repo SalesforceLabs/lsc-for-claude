@@ -533,6 +533,27 @@ export function componentVerbs(d: PageDraft, key: string, label: string, shown: 
   return out;
 }
 
+/**
+ * A component or record tab dropped right before the item keyed `before` (null:
+ * last in its region or tab set). One diffed change, as the move verbs queue;
+ * null when either isn't in the arranged page, they're in different containers,
+ * or a tab and a component would be mixed.
+ */
+function moveItemTo(d: PageDraft, key: string, before: string | null, tab: boolean, pending: PendingChange[]): PendingChange[] | null {
+  if (before === key) return pending;
+  const next = clone(d.target);
+  const at = locateItem(next, key);
+  if (!at || (at.item.component === "flexipage:tab") !== tab) return null;
+  const target = before === null ? null : at.region.items.find((i) => i.key === before);
+  if (before !== null && !target) return null;
+  at.region.items.splice(at.index, 1);
+  at.region.items.splice(target ? at.region.items.indexOf(target) : at.region.items.length, 0, at.item);
+  return arrange(d, next, pending);
+}
+
+export const moveComponentTo = (d: PageDraft, key: string, before: string | null, pending: PendingChange[]) => moveItemTo(d, key, before, false, pending);
+export const moveRecordTabTo = (d: PageDraft, key: string, before: string | null, pending: PendingChange[]) => moveItemTo(d, key, before, true, pending);
+
 /** A property the properties sheet lets the admin set on the selected block. */
 export interface PropertyEdit {
   property: FlexiPageProperty;

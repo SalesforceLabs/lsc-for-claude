@@ -33,6 +33,8 @@ import {
   insertVerb,
   locateItem,
   modelOf as pageModelOf,
+  moveComponentTo,
+  moveRecordTabTo,
   propertyEdits,
   targetOf as pageTargetOf,
   type PageDraft,
@@ -355,6 +357,18 @@ export function usePreviewEdit({
           return moveTabTo(snapshot.tabs, tabItems ?? [], profile, t.fullName, before?.kind === "tab" ? before.fullName : null, pending);
         if (t.kind === "action" && t.place === "home")
           return moveActionTo(snapshot.screens?.fabs?.home ?? [], actionItems ?? [], profile, t.name, before?.kind === "action" ? before.name : null, pending);
+        if (t.kind === "component" || t.kind === "recordTab") {
+          // Within the region or tab set it's drawn in; the org item a block is comes from its source (or Draft's insert).
+          const entry = pages[t.page];
+          if (entry?.status !== "ready" || (t.kind === "component" && list !== t.region)) return null;
+          const d = entry.draft;
+          const keyOf = (x: EditTarget) =>
+            x.kind === "component" || x.kind === "recordTab" ? ((x.kind === "component" ? x.item : undefined) ?? (x.source ? d.aligned.get(x.source) : undefined)) : undefined;
+          const key = keyOf(t);
+          const next = before ? keyOf(before) : null;
+          if (!key || next === undefined) return null;
+          return t.kind === "recordTab" ? moveRecordTabTo(d, key, next, pending) : moveComponentTo(d, key, next, pending);
+        }
         if (t.kind === "headerField") {
           const c = compacts[t.compactLayout];
           return c?.status === "ready" ? moveCompactFieldTo(c.draft, t.field, before?.kind === "headerField" ? before.field : null, pending) : null;
@@ -376,7 +390,7 @@ export function usePreviewEdit({
       onPendingChange(moved);
       return true;
     },
-    [snapshot, profile, tabItems, actionItems, compacts, layouts, pending, onPendingChange]
+    [snapshot, profile, tabItems, actionItems, compacts, layouts, pages, pending, onPendingChange]
   );
   const openSetup = useCallback(() => {
     if (org && info?.setup) window.lscApi.openSfOrg(org, info.setup.path);
