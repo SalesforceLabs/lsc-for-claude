@@ -298,6 +298,16 @@ describe("publish to iPad", () => {
     (org.LifeSciMobileMetadataRecord as Row[])[0] = { Id: "1MR000000000001", Status: "Active" };
     expect((await publishStatus("1MR000000000001", "org")).state).toBe("done");
   });
+
+  it("is only done once the cache is Active: Published and Loading are still running, Inactive failed", async () => {
+    const at = async (Status: string) => {
+      org.LifeSciMobileMetadataRecord = [{ Id: "1MR000000000001", Status }];
+      return publishStatus("1MR000000000001", "org");
+    };
+    expect((await at("Published")).state).toBe("running");
+    expect((await at("Loading")).state).toBe("running");
+    expect(await at("Inactive")).toMatchObject({ state: "failed", error: expect.stringContaining("without activating it") });
+  });
 });
 
 describe("closestName", () => {

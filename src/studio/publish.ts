@@ -59,12 +59,16 @@ export async function publishStatus(parentId: string, org: string): Promise<Publ
     .map((r) => String((r.Profile as { Name?: string } | null)?.Name ?? ""))
     .filter(Boolean);
   const status = String(parent.Status ?? "Unknown");
-  const failed = status === "Error" || parent.IntegrationStatus === "Error";
+  // The parent goes ValidationCompleted -> Published (job queued) -> Loading -> Active. Only Active has a cache
+  // ZIP reps can download; a new job that ends Inactive was never activated (generation failed or a later
+  // publish replaced it), so reporting it done would leave the old cache in place without saying so.
+  const failed = status === "Error" || status === "Inactive" || parent.IntegrationStatus === "Error";
+  const reason = status === "Inactive" ? "Salesforce ended the cache generation without activating it, so reps still get the previous cache. Publish again." : "Cache generation failed.";
   return {
     parentId,
-    state: failed ? "failed" : status === "Active" || status === "Published" ? "done" : "running",
+    state: failed ? "failed" : status === "Active" ? "done" : "running",
     status,
     profiles,
-    error: failed ? String(parent.IntegrationErrorMessage || "Cache generation failed.") : undefined,
+    error: failed ? String(parent.IntegrationErrorMessage || reason) : undefined,
   };
 }
