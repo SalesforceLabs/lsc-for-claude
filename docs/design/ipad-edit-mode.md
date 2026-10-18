@@ -1,6 +1,6 @@
 # iPad preview — Edit mode
 
-Status: Phases 1–2 built; Phase 3 designed, 2026-10-18. Branch `feat/ipad-edit-mode`.
+Status: Phases 1–2 and 3a built; 3b–3d designed, 2026-10-18. Branch `feat/ipad-edit-mode`.
 
 ## The problem
 
@@ -10,7 +10,7 @@ An admin looking at the iPad preview asks three questions about anything on scre
 2. **Why do I see it?** Which profile, permission set, assignment or visibility rule makes it show up for this rep?
 3. **How do I change it?** Move it, hide it, remove it, add something next to it, configure it.
 
-Today the "As published" preview, the accurate one, answers none of these: nothing in it can be clicked. The "After next publish" schematic can be clicked, but it doesn't look like the app. Edit mode merges the two: the accurate picture, where you can select things and change them in place.
+Before edit mode, the "As published" preview, the accurate one, answered none of these: nothing in it could be clicked. The "After next publish" schematic could be clicked, but it didn't look like the app. Edit mode merges the two: the accurate picture, where you can select things and change them in place.
 
 ## Principles
 
@@ -29,7 +29,7 @@ A segmented control above the device: **Published · Draft**. A pencil **Edit** 
 - **Published**: what reps have today, from the metadata cache.
 - **Draft**: Published with every pending tray change laid on top. Turning Edit on switches to Draft automatically.
 
-Draft replaces the "After next publish (estimate)" schematic: Draft is the estimate, drawn with the real renderer. The schematic stays as a third segment (**Schematic**) until Visit engagement sidebar editing moves into Draft in Phase 3a.
+Draft replaces the "After next publish (estimate)" schematic: Draft is the estimate, drawn with the real renderer. The schematic was a third segment (**Schematic**) until Visit engagement sidebar editing moved into Draft; Phase 3a retired it.
 
 ### Hover and select
 
@@ -110,9 +110,9 @@ Phase 1 delivers the hover/select layer and the What / Why / How inspector over 
 ## Phases
 
 1. **Select & explain** *(built)*: hover/select/toolbar shell; What / Why / How inspector; Open in Setup with a deep link (`sfOrg:open` takes a path). *No writes.* Provenance was built only as far as the explain layer needs it: block keys use names and post-filter indices. Phase 3 adds the rest.
-2. **Draft + Admin Console edits** *(built)*: Published · Draft · Schematic; pending overlay for TabOrder, SortOrder, IsActive, profile assignments and creates; move/hide/turn off for tabs and Home ••• actions with reach warnings; **Add to iPad sync** for objects the profile doesn't sync. Drag is deferred to 3d. The Schematic stays until 3a, because it is still the only place to edit the Visit engagement sidebar.
+2. **Draft + Admin Console edits** *(built)*: Published · Draft · Schematic; pending overlay for TabOrder, SortOrder, IsActive, profile assignments and creates; move/hide/turn off for tabs and Home ••• actions with reach warnings; **Add to iPad sync** for objects the profile doesn't sync. Drag is deferred to 3d. The Schematic stayed until 3a, because it was still the only place to edit the Visit engagement sidebar.
 3. **Metadata edits**, in four steps (see **Phase 3 design**):
-   - 3a: provenance, a metadata document layer, `editMetadata` for Layouts. Visit sidebar editing moves into Draft and the Schematic is retired.
+   - 3a *(built)*: provenance, a metadata document layer, `editMetadata` for Layouts. Visit sidebar editing moved into Draft and the Schematic is retired: the preview is **Published · Draft**. Sections, fields and related lists move, hide and change behavior in place; **Add field…** and **Add related list…** pick from the object's describe (`available` / `availableRelated` on the live layout), and an added list whose child isn't synced offers **Add to iPad sync**.
    - 3b: Compact layouts (record header).
    - 3c: Lightning pages: move/remove components and tabs, then insert from the library.
    - 3d: drag to reorder, insertion points, keyboard moves.
