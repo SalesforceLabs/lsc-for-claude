@@ -51,7 +51,7 @@ import {
   deleteLibraryItem,
   searchLibraryItems,
 } from "../engine/library.js";
-import { getStudioCache, setStudioCacheText, clearStudioCache } from "../engine/studio-cache.js";
+import { getStudioCacheRow, setStudioCacheText, clearStudioCache } from "../engine/studio-cache.js";
 import { isCacheable } from "../engine/studio-cache-policy.js";
 import { createInFlight } from "../engine/in-flight.js";
 import { openInPreviewBrowser, type BrowserAuth } from "../studio-browser.js";
@@ -82,6 +82,8 @@ const STUDIO_CACHED_TOOLS = new Set([
   "studio_ipad_published",
   "studio_readiness",
   "studio_setup_overview",
+  "studio_sync_overview",
+  "studio_sync_user",
 ]);
 
 // Shared resources (created once at engine:start)
@@ -639,8 +641,9 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       const org = loadSettings().sfTargetOrg ?? "";
       const argsKey = JSON.stringify(args);
       if (cacheable && !refresh) {
-        const cached = getStudioCache(org, toolName, argsKey);
-        if (cached !== undefined) return { data: cached };
+        // `cachedAt` lets a view say how old the answer is ("Updated 12 min ago").
+        const cached = getStudioCacheRow(org, toolName, argsKey);
+        if (cached) return { data: JSON.parse(cached.text), cachedAt: cached.cachedAt };
       }
       // Identical concurrent calls share one load (a timed-out one keeps running server-side).
       return studioInFlight(`${org}\u0000${toolName}\u0000${argsKey}\u0000${refresh}`, async () => {
@@ -652,6 +655,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
           const result = await client.callTool(toolName, args, { timeoutMs: toolName === "studio_ipad_published" ? 8 * 60_000 : 5 * 60_000 });
           const text = result.content.find((c) => c.type === "text")?.text ?? "{}";
           const data = JSON.parse(text);
+          const cachedAt = new Date().toISOString();
           // Partial results (failed surfaces, checks that couldn't run) shouldn't stick — the next open retries.
           if (cacheable && isCacheable(toolName, data)) {
             // Refreshing a map means the org changed — item details may be stale too.
@@ -671,8 +675,9 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
             clearStudioCache(org, "studio_readiness");
             clearStudioCache(org, "studio_setup_overview");
             clearStudioCache(org, "studio_ipad_published");
+            clearStudioCache(org, "studio_sync_user");
           }
-          return { data };
+          return { data, cachedAt };
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           if (/time(d)?[ -]?out/i.test(message)) {

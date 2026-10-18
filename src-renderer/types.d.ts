@@ -82,6 +82,8 @@ export interface PerfSimRecord {
 interface StudioResponse {
   data?: unknown & { error?: string };
   error?: string;
+  /** When the answer was read from the org (ISO) — earlier than now when it came from the cache. */
+  cachedAt?: string;
 }
 
 interface LscApi {
@@ -142,8 +144,8 @@ interface LscApi {
   studioPerfReport(result: unknown, days?: number): Promise<StudioResponse>;
   studioPerfTerritories(input: { users: string[]; select?: { profile: string; count?: number } }): Promise<StudioResponse>;
   studioConnectedOrg(): Promise<StudioResponse>;
-  studioSyncOverview(days?: number): Promise<StudioResponse>;
-  studioSyncUser(userId: string, days?: number): Promise<StudioResponse>;
+  studioSyncOverview(days?: number, refresh?: boolean): Promise<StudioResponse>;
+  studioSyncUser(userId: string, days?: number, refresh?: boolean): Promise<StudioResponse>;
   studioSyncImpact(changes: unknown[], profiles?: string[]): Promise<StudioResponse>;
   studioSignoffReport(input: { assessment: unknown; simulations?: unknown[]; baseline?: unknown; days?: number }): Promise<StudioResponse>;
 

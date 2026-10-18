@@ -8,6 +8,7 @@ import { AssistantName } from "../../hooks/useAssistantName";
 import Segmented from "../ui/Segmented";
 import Spinner from "../ui/Spinner";
 import StateView from "../ui/StateView";
+import UpdatedAgo from "../ui/UpdatedAgo";
 import { Callout, Disclosure as DisclosureButton, Metric } from "./PerfParts";
 
 export interface SyncOverviewProps {
@@ -152,6 +153,7 @@ export function askPrompt(data: OverviewData): string {
 export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUser, onTestUsers }: SyncOverviewProps) {
   const [days, setDays] = useState(30);
   const [data, setData] = useState<OverviewData | null>(null);
+  const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -159,13 +161,14 @@ export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUs
   // Only the newest request may update the screen, so a slow 90-day answer can't replace a 7-day one.
   const latest = useRef(0);
 
-  const load = useCallback(async (span: number) => {
+  // `refresh` skips the main process's hour-long cache (Refresh, Try again).
+  const load = useCallback(async (span: number, refresh = false) => {
     const request = ++latest.current;
     setLoading(true);
     setError(null);
     let res: Awaited<ReturnType<typeof window.lscApi.studioSyncOverview>>;
     try {
-      res = await window.lscApi.studioSyncOverview(span);
+      res = await window.lscApi.studioSyncOverview(span, refresh);
     } catch (e) {
       if (request === latest.current) {
         setError((e as Error).message || "Couldn't load sync health.");
@@ -181,6 +184,7 @@ export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUs
     }
     const next = res.data as OverviewData;
     setData(next);
+    setCachedAt(res.cachedAt ?? null);
     setSelected(
       new Set(
         next.usersAtRisk
@@ -215,7 +219,8 @@ export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUs
           options={WINDOWS.map((d) => ({ value: String(d), label: `${d} days` }))}
         />
         <span className="sync-overview-toolbar-spacer" />
-        <button type="button" className="studio-btn" disabled={loading} onClick={() => void load(days)}>
+        {data && !loading && <UpdatedAgo at={cachedAt} />}
+        <button type="button" className="studio-btn" disabled={loading} onClick={() => void load(days, true)}>
           {loading ? <Spinner size={14} /> : <RefreshCw size={14} aria-hidden="true" />}
           {loading ? "Refreshing…" : "Refresh"}
         </button>
@@ -235,7 +240,7 @@ export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUs
           title="Couldn't load sync health"
           detail={error}
           actions={
-            <button type="button" className="studio-btn" onClick={() => void load(days)}>
+            <button type="button" className="studio-btn" onClick={() => void load(days, true)}>
               <RefreshCw size={14} aria-hidden="true" />
               Try again
             </button>

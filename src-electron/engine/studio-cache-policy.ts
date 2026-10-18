@@ -7,6 +7,16 @@
 export const STUDIO_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 /** Most rows kept in the table; the oldest go first when pruning at startup. */
 export const STUDIO_CACHE_MAX_ROWS = 400;
+/** Sync telemetry keeps arriving, so sync health is kept for an hour rather than a day. */
+const TTL_BY_TOOL: Record<string, number> = {
+  studio_sync_overview: 60 * 60 * 1000,
+  studio_sync_user: 60 * 60 * 1000,
+};
+
+/** How long a tool's cached result stays fresh. */
+export function ttlFor(toolName: string): number {
+  return TTL_BY_TOOL[toolName] ?? STUDIO_CACHE_TTL_MS;
+}
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
 
@@ -26,7 +36,7 @@ function marked(v: unknown): boolean {
 const TRANSIENT =
   /timed out|took longer than|time budget|didn't answer within|too many for one query|too many records to read|QUERY_TIMEOUT|REQUEST_LIMIT_EXCEEDED|SERVER_UNAVAILABLE|UNABLE_TO_LOCK_ROW|lost the connection|socket hang up|ECONN|ETIMEDOUT|ENOTFOUND|HTTP 5\d\d|Engine not started/i;
 
-function transient(v: unknown, field: "error" | "detail" | "dataNote"): boolean {
+function transient(v: unknown, field: "error" | "detail" | "dataNote" | "note"): boolean {
   return isObj(v) && typeof v[field] === "string" && TRANSIENT.test(v[field] as string);
 }
 
@@ -52,6 +62,15 @@ export function isCacheable(toolName: string, data: unknown): boolean {
       const values = (v: unknown): unknown[] => (isObj(v) ? Object.values(v) : []);
       if (values(data.listErrors).some((e) => typeof e === "string" && TRANSIENT.test(e))) return false;
       return !values(data.dashboards).some((d) => transient(d, "dataNote"));
+    }
+    case "studio_sync_overview":
+      // A truncated window is the org's size, not a failure; a telemetry read that failed is.
+      return !rows("notes").some((n) => typeof n === "string" && TRANSIENT.test(n));
+    case "studio_sync_user": {
+      if (typeof data.telemetryError === "string" && TRANSIENT.test(data.telemetryError)) return false;
+      const tables = rows("territories").flatMap((t) => (isObj(t) && Array.isArray(t.tables) ? (t.tables as unknown[]) : []));
+      // A filter that can't run is the org's answer; a count that timed out (or the table it hangs off) may not be.
+      return !tables.some((t) => isObj(t) && (t.status === "timed-out" || t.sourceFailed === true || (t.status === "error" && transient(t, "note"))));
     }
     default:
       return true;

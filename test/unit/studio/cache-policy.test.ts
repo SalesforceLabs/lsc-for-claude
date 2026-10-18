@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { STUDIO_CACHE_TTL_MS, isCacheable, isFresh } from "../../../src-electron/engine/studio-cache-policy.js";
+import { STUDIO_CACHE_TTL_MS, isCacheable, isFresh, ttlFor } from "../../../src-electron/engine/studio-cache-policy.js";
 import { createInFlight } from "../../../src-electron/engine/in-flight.js";
 
 describe("isCacheable", () => {
@@ -48,6 +48,21 @@ describe("isCacheable", () => {
   it("keeps complete results", () => {
     expect(isCacheable("studio_list_profiles", { profiles: [] })).toBe(true);
   });
+
+  it("rejects sync health whose telemetry read failed transiently, keeps a big org's truncated window", () => {
+    expect(isCacheable("studio_sync_overview", { notes: ["Couldn't read sync telemetry: Query timed out after 120s"] })).toBe(false);
+    expect(isCacheable("studio_sync_overview", { notes: ["This window has more than 20,000 syncs."], rowsCoverage: { truncated: true } })).toBe(true);
+    expect(isCacheable("studio_sync_overview", { notes: ["DeviceSyncSummary isn't available in this org, so there is no field sync data to show."] })).toBe(true);
+  });
+
+  it("rejects a rep's sync with a count that timed out, keeps one whose filter can't run", () => {
+    const withTable = (t: Record<string, unknown>) => ({ territories: [{ tables: [{ status: "counted" }, t] }] });
+    expect(isCacheable("studio_sync_user", withTable({ status: "timed-out" }))).toBe(false);
+    expect(isCacheable("studio_sync_user", withTable({ status: "counted", sourceFailed: true }))).toBe(false);
+    expect(isCacheable("studio_sync_user", withTable({ status: "error", note: "REQUEST_LIMIT_EXCEEDED" }))).toBe(false);
+    expect(isCacheable("studio_sync_user", withTable({ status: "error", note: "MALFORMED_QUERY: unexpected token" }))).toBe(true);
+    expect(isCacheable("studio_sync_user", { territories: [], telemetryError: "socket hang up" })).toBe(false);
+  });
 });
 
 describe("isFresh", () => {
@@ -56,6 +71,12 @@ describe("isFresh", () => {
     expect(isFresh("2026-01-01T12:00:00Z", now)).toBe(true);
     expect(isFresh(new Date(now - STUDIO_CACHE_TTL_MS - 1).toISOString(), now)).toBe(false);
     expect(isFresh("garbage", now)).toBe(false);
+  });
+
+  it("keeps sync health for an hour, everything else for the default TTL", () => {
+    expect(ttlFor("studio_sync_overview")).toBe(60 * 60 * 1000);
+    expect(ttlFor("studio_sync_user")).toBe(60 * 60 * 1000);
+    expect(ttlFor("studio_feature_map")).toBe(STUDIO_CACHE_TTL_MS);
   });
 });
 

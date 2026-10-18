@@ -116,9 +116,11 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioPerfTerritories: (input) => ipcRenderer.invoke("studio:call", "studio_perf_territories", input),
   // Sync health — org-wide overview, one user's drill-down, what-if impact, sign-off report
   studioConnectedOrg: () => ipcRenderer.invoke("studio:call", "studio_connected_org", {}),
-  studioSyncOverview: (days) => ipcRenderer.invoke("studio:call", "studio_sync_overview", days === undefined ? {} : { days }),
-  studioSyncUser: (userId, days) =>
-    ipcRenderer.invoke("studio:call", "studio_sync_user", days === undefined ? { userId } : { userId, days }),
+  // Cached for an hour in the main process; `refresh` bypasses the cache.
+  studioSyncOverview: (days, refresh = false) =>
+    ipcRenderer.invoke("studio:call", "studio_sync_overview", days === undefined ? {} : { days }, refresh),
+  studioSyncUser: (userId, days, refresh = false) =>
+    ipcRenderer.invoke("studio:call", "studio_sync_user", days === undefined ? { userId } : { userId, days }, refresh),
   studioSyncImpact: (changes, profiles) =>
     ipcRenderer.invoke("studio:call", "studio_sync_impact", profiles === undefined ? { changes } : { changes, profiles }),
   studioSignoffReport: (input) => ipcRenderer.invoke("studio:call", "studio_signoff_report", input),

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { SurfaceId, StudioFix } from "./types";
 import { isQueued, queueChange, type PendingChange } from "./changes";
 import { ExternalLink, RefreshCw, Sparkles, UserRoundSearch } from "lucide-react";
@@ -6,11 +6,13 @@ import "./sync-investigate.css";
 import { AssistantName } from "../../hooks/useAssistantName";
 import StateView from "../ui/StateView";
 import StatusIcon from "../ui/StatusIcon";
+import UpdatedAgo from "../ui/UpdatedAgo";
 import { Callout, Metric } from "./PerfParts";
 
 import { useOrgs } from "../../hooks/useOrgs";
 import { useMobileLogins } from "../../hooks/useMobileLogins";
 import { testUserName, testUsersFor } from "../../test-users";
+
 export interface SyncInvestigateProps {
   userId: string | null;
   onUserChange: (userId: string | null) => void;
@@ -102,7 +104,7 @@ interface PerfUser {
   syncs?: number;
 }
 
-type Load = { status: "idle" } | { status: "loading" } | { status: "error"; error: string } | { status: "ready"; detail: SyncUserDetail };
+type Load = { status: "idle" } | { status: "loading" } | { status: "error"; error: string } | { status: "ready"; detail: SyncUserDetail; cachedAt?: string };
 
 const WINDOW_DAYS = 30;
 const SEARCH_DEBOUNCE_MS = 350;
@@ -326,8 +328,13 @@ export default function SyncInvestigate({ userId, onUserChange, onAskClaude, onO
   const [load, setLoad] = useState<Load>({ status: "idle" });
   const [territoryIdx, setTerritoryIdx] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
-  // Bumped by Refresh to reload the same user.
+  // Bumped by Refresh to reload the same user, skipping the main process's cache.
   const [reload, setReload] = useState(0);
+  const refreshNext = useRef(false);
+  const refresh = () => {
+    refreshNext.current = true;
+    setReload((n) => n + 1);
+  };
 
   useEffect(() => {
     if (!userId) {
@@ -338,12 +345,14 @@ export default function SyncInvestigate({ userId, onUserChange, onAskClaude, onO
     setLoad({ status: "loading" });
     setTerritoryIdx(0);
     setSelected(null);
+    const skipCache = refreshNext.current;
+    refreshNext.current = false;
     window.lscApi
-      .studioSyncUser(userId, WINDOW_DAYS)
+      .studioSyncUser(userId, WINDOW_DAYS, skipCache)
       .then((res) => {
         if (stale) return;
         const error = errorOf(res);
-        setLoad(error ? { status: "error", error } : { status: "ready", detail: res.data as SyncUserDetail });
+        setLoad(error ? { status: "error", error } : { status: "ready", detail: res.data as SyncUserDetail, cachedAt: res.cachedAt });
       })
       .catch((e) => {
         if (!stale) setLoad({ status: "error", error: e instanceof Error ? e.message : String(e) });
@@ -399,7 +408,7 @@ export default function SyncInvestigate({ userId, onUserChange, onAskClaude, onO
           title="Couldn't read this rep's sync"
           detail={load.error}
           actions={
-            <button type="button" className="studio-btn" onClick={() => setReload((n) => n + 1)}>
+            <button type="button" className="studio-btn" onClick={refresh}>
               <RefreshCw size={14} aria-hidden="true" />
               Try again
             </button>
@@ -415,7 +424,8 @@ export default function SyncInvestigate({ userId, onUserChange, onAskClaude, onO
                 {detail.user.name} <span className="studio-perf-meta">{detail.user.username}</span>
               </h2>
               <div className="sync-investigate-head-actions">
-                <button type="button" className="studio-btn" onClick={() => setReload((n) => n + 1)}>
+                <UpdatedAgo at={load.status === "ready" ? load.cachedAt : null} />
+                <button type="button" className="studio-btn" onClick={refresh}>
                   <RefreshCw size={14} aria-hidden="true" />
                   Refresh
                 </button>

@@ -1,5 +1,5 @@
 import { getDb } from "./history.js";
-import { STUDIO_CACHE_MAX_ROWS, STUDIO_CACHE_TTL_MS, isFresh } from "./studio-cache-policy.js";
+import { STUDIO_CACHE_MAX_ROWS, STUDIO_CACHE_TTL_MS, isFresh, ttlFor } from "./studio-cache-policy.js";
 
 /**
  * Persistent cache for Studio tool results. Feature maps fan out to dozens of
@@ -45,17 +45,21 @@ function prune(d: ReturnType<typeof getDb>): void {
   ).run(STUDIO_CACHE_MAX_ROWS);
 }
 
-/** The stored JSON text, or undefined when missing or past the TTL. */
-export function getStudioCacheText(org: string, tool: string, args: string): string | undefined {
+/** The stored JSON text and when it was saved (ISO), or undefined when missing or past the TTL. */
+export function getStudioCacheRow(org: string, tool: string, args: string): { text: string; cachedAt: string } | undefined {
   const row = db()
     .prepare("SELECT data, cached_at FROM studio_cache WHERE org = ? AND tool = ? AND args = ?")
     .get(org, key(tool), args) as { data: string; cached_at: string } | undefined;
   if (!row) return undefined;
-  if (!isFresh(row.cached_at)) {
+  if (!isFresh(row.cached_at, Date.now(), ttlFor(tool))) {
     db().prepare("DELETE FROM studio_cache WHERE org = ? AND tool = ? AND args = ?").run(org, key(tool), args);
     return undefined;
   }
-  return row.data;
+  return { text: row.data, cachedAt: row.cached_at };
+}
+
+export function getStudioCacheText(org: string, tool: string, args: string): string | undefined {
+  return getStudioCacheRow(org, tool, args)?.text;
 }
 
 export function getStudioCache(org: string, tool: string, args: string): unknown | undefined {

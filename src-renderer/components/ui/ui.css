@@ -573,3 +573,10 @@ input[type="radio"]:not(.studio-ipad-screen *):disabled {
 .ui-show-more-total {
   color: var(--text-muted);
 }
+
+/* "Updated 12 min ago" beside a Refresh button (UpdatedAgo.tsx). */
+.ui-updated {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
