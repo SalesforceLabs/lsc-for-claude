@@ -1,5 +1,5 @@
 /**
- * Studio "Sync health → Sign-off": a plain-language readiness report for the
+ * Studio "Testing → Test plans": a plain-language readiness report for the
  * customer, from a performance assessment and any first-sync simulations, with
  * the detailed reports as an appendix. Doesn't touch the org.
  */

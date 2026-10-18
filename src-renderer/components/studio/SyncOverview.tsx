@@ -13,9 +13,9 @@ import { Callout, Disclosure as DisclosureButton, Metric } from "./PerfParts";
 export interface SyncOverviewProps {
   onAskClaude: (prompt: string) => void;
   onOpenSetup: (featureId: string, surface?: SurfaceId | null, item?: string | null) => void;
-  /** Open a user in Investigate. */
+  /** Open a user in Check a rep's sync. */
   onInvestigateUser: (userId: string) => void;
-  /** Start a Sign-off test plan with these users. */
+  /** Start a test plan with these users. */
   onTestUsers: (userIds: string[]) => void;
 }
 
@@ -255,7 +255,7 @@ export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUs
               )}
               <div className="studio-perf-hint">
                 Judged against Studio's rules of thumb (failures: warn at 2%, fail at 10%; metadata download p95: warn at 5 s, fail at 10 s), not the
-                customer's targets — set those in Sign-off.
+                customer's targets — set those in a test plan.
               </div>
             </Callout>
           )}

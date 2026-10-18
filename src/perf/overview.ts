@@ -1,5 +1,5 @@
 /**
- * Pure helpers behind Studio's Sync health → Overview: the org verdict, the
+ * Pure helpers behind Studio's Testing → Sync health: the org verdict, the
  * daily trend, the users most at risk (a simple, explainable score) and the
  * DB Schema settings worth a look. No org access here.
  */

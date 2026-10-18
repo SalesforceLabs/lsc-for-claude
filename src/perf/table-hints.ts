@@ -1,7 +1,7 @@
 /**
  * Plain-language reasons a table makes a rep's sync heavy, with a concrete
- * change to propose where one is safe. Pure — Studio's Sync health →
- * Investigate feeds it a table's predicted volume and its DB Schema settings.
+ * change to propose where one is safe. Pure — Studio's Testing →
+ * Check a rep's sync feeds it a table's predicted volume and its DB Schema settings.
  */
 
 import type { TableStatus } from "./sync-volume.js";

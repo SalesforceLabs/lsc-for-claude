@@ -8,6 +8,9 @@ import StateView from "../ui/StateView";
 import StatusIcon from "../ui/StatusIcon";
 import { Callout, Metric } from "./PerfParts";
 
+import { useOrgs } from "../../hooks/useOrgs";
+import { useMobileLogins } from "../../hooks/useMobileLogins";
+import { testUserName, testUsersFor } from "../../test-users";
 export interface SyncInvestigateProps {
   userId: string | null;
   onUserChange: (userId: string | null) => void;
@@ -164,8 +167,12 @@ function askPrompt(detail: SyncUserDetail, terr: SyncTerritory): string {
   ].join("\n");
 }
 
-function UserPicker({ onPick }: { onPick: (u: PerfUser) => void }) {
+function UserPicker({ onPick }: { onPick: (userId: string) => void }) {
   const [search, setSearch] = useState("");
+  // The org's test users are offered before anything is typed.
+  const { current: currentOrg } = useOrgs();
+  const mobile = useMobileLogins();
+  const testUsers = testUsersFor(mobile.logins, currentOrg?.orgId);
   const [state, setState] = useState<{ loading: boolean; users: PerfUser[]; error?: string }>({ loading: false, users: [] });
 
   useEffect(() => {
@@ -200,13 +207,32 @@ function UserPicker({ onPick }: { onPick: (u: PerfUser) => void }) {
         onChange={(e) => setSearch(e.target.value)}
       />
       {state.error && <Callout tone="error">{state.error}</Callout>}
+      {!search.trim() && testUsers.length > 0 && (
+        <ul className="studio-picker-list studio-perf-user-list" aria-label="Test users">
+          <li className="studio-picker-meta">Test users</li>
+          {testUsers.map((l) => (
+            <li key={l.id}>
+              <button
+                type="button"
+                className="studio-picker-row studio-perf-user-row"
+                // Logins made before user Ids were recorded are found by username instead.
+                onClick={() => (l.userId ? onPick(l.userId) : setSearch(l.username))}
+              >
+                <span className="studio-picker-name">
+                  {testUserName(l)} {l.displayName && <span className="studio-picker-meta">{l.username}</span>}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       {search.trim() && !state.error && (
         <ul className="studio-picker-list studio-perf-user-list">
           {state.loading && state.users.length === 0 && <li className="studio-picker-meta" role="status">Searching…</li>}
           {!state.loading && state.users.length === 0 && <li className="studio-picker-meta">No active users match.</li>}
           {state.users.map((u) => (
             <li key={u.id}>
-              <button type="button" className="studio-picker-row studio-perf-user-row" onClick={() => onPick(u)}>
+              <button type="button" className="studio-picker-row studio-perf-user-row" onClick={() => onPick(u.id)}>
                 <span className="studio-picker-name">
                   {u.name} <span className="studio-picker-meta">{u.username}</span>
                 </span>
@@ -345,7 +371,7 @@ export default function SyncInvestigate({ userId, onUserChange, onAskClaude, onO
 
   return (
     <div className="studio-perf-body sync-investigate">
-      <UserPicker onPick={(u) => onUserChange(u.id)} />
+      <UserPicker onPick={onUserChange} />
 
       {load.status === "idle" && (
         <StateView
@@ -353,7 +379,7 @@ export default function SyncInvestigate({ userId, onUserChange, onAskClaude, onO
           kind="empty"
           icon={UserRoundSearch}
           title="Pick a rep"
-          detail="Search above to see what their iPad downloads and what to change."
+          detail="Pick a test user or search above to see what their iPad downloads and what to change."
         />
       )}
 

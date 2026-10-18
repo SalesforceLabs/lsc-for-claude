@@ -3,7 +3,7 @@ import { ChevronRight } from "lucide-react";
 import StatusIcon, { type StatusTone } from "../ui/StatusIcon";
 import Spinner from "../ui/Spinner";
 
-/** Small building blocks shared by the Sync health and Sign-off screens, so they read as one product. */
+/** Small building blocks shared by the Testing sync pages, so they read as one product. */
 
 interface CalloutProps {
   tone: "pass" | "warning" | "error" | "info";

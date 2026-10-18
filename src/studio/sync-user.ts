@@ -1,5 +1,5 @@
 /**
- * Studio "Sync health → Investigate": one user's predicted sync volume per
+ * Studio "Testing → Check a rep's sync": one user's predicted sync volume per
  * table, their own sync history, and why each heavy table is heavy. Read-only.
  *
  * Volume is resolved the way a performance assessment does (compiled schema

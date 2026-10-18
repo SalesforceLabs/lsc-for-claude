@@ -75,7 +75,9 @@ if (mode === "tour") {
   await step("06-check-a-user", () => nav(".studio-rail-item", "Check a user"));
   await step("07-what-changed", () => nav(".studio-rail-item", "What changed"));
   await step("08-sync-health", () => nav(".studio-rail-item", "Sync health"));
-  await step("09-signoff", () => nav(".ui-segmented button", "Sign-off"));
+  await step("09-check-a-rep", () => nav(".studio-rail-item", "Check a rep's sync"));
+  await step("09-test-plans", () => nav(".studio-rail-item", "Test plans"));
+  await step("09-first-sync", () => nav(".studio-rail-item", "First sync"));
   await step("10-feature-readiness", () => nav(".studio-rail-item:not([disabled])", "Visit"));
   await step("11-feature-board", () => nav(".ui-segmented button", "All configuration"));
   await step("12-ipad-preview", () => nav(".studio-rail-item", "Preview"));

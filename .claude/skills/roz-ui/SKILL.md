@@ -82,7 +82,7 @@ Type-checking doesn't show a wrapped header, a mismatched colour or a squashed b
    test's exemptions for genuine iPad simulation or charts.
 2. Run `npm run electron:build`, then `node scripts/ui-shots.mjs tour /tmp/roz-shots`. It launches the
    app with its saved connection and org, visits every main screen (chat, Library, Commands, Settings,
-   Studio Overview / Check a user / What changed / Sync health / Sign-off / a feature's Readiness and
+   Studio Overview / Check a user / What changed / Sync health / Check a rep's sync / Test plans / First sync / a feature's Readiness and
    board / iPad preview, plus a narrow 960×640 window), and saves PNGs. It also prints renderer console errors.
    Add `ROZ_SHOTS_THEME=light` (or `dark`) to take the tour in one palette; otherwise it follows the OS.
 3. **Read the screenshots for every screen you touched, in both palettes**, including the narrow one. Check alignment,

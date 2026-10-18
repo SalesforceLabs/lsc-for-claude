@@ -2188,29 +2188,12 @@ textarea.studio-input {
   margin-top: 1px;
 }
 
-/* Sign-off bar and intro */
-.studio-signoff-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 24px 0;
-}
-.studio-signoff-intro {
-  padding: 8px 24px 0;
-  max-width: 980px;
-}
-
-/* Sync health: each tab fills the page below the header; the views inside scroll themselves. */
-.studio-sync-tab,
-.studio-signoff-pane {
+/* Testing sync pages: the body fills the page below the header; the views inside scroll themselves. */
+.studio-sync-tab {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-}
-.studio-sync-tab[hidden],
-.studio-signoff-pane[hidden] {
-  display: none;
 }
 .studio-sync-tab > .sync-overview {
   overflow-y: auto;

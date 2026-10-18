@@ -1,4 +1,4 @@
-/* Sync health → Investigate: the table list with share bars, hint rows, and the header stats. */
+/* Testing → Check a rep's sync: the table list with share bars, hint rows, and the header stats. */
 .sync-investigate {
   display: flex;
   flex-direction: column;

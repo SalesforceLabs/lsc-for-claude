@@ -1,5 +1,5 @@
 /**
- * Studio "Sync health → Overview": org-wide sync health from field telemetry
+ * Studio "Testing → Sync health": org-wide sync health from field telemetry
  * (DeviceSyncSummary) and the users most at risk, with no test plan needed.
  * Read-only, and a fixed handful of aggregate queries however many reps there are.
  */

@@ -13,7 +13,7 @@ import Inspector from "./Inspector";
 import ReviewDialog from "./ReviewDialog";
 import PublishDialog from "./PublishDialog";
 import type { PendingChange } from "./changes";
-import SyncHealthView from "./SyncHealthView";
+import TestingPages, { SYNC_PAGES, type SyncPage } from "./TestingPages";
 import ReadinessView from "./ReadinessView";
 import SetupOverview from "./SetupOverview";
 import UserTraceView from "./UserTraceView";
@@ -22,10 +22,13 @@ import TestUsersView from "./TestUsersView";
 import type { ReadinessState } from "./readiness";
 import {
   Activity,
+  ClipboardCheck,
+  CloudDownload,
   CloudUpload,
   History,
   LayoutDashboard,
   RefreshCw,
+  ScanSearch,
   Tablet,
   UserRound,
   UserRoundSearch,
@@ -49,7 +52,7 @@ const PREVIEW_HOSTS = [...PREVIEW_FEATURES, "visit"];
 type MapState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; map: FeatureMap };
 
 /** What the main pane shows: the iPad preview, a Setup page or feature, or a Testing page. */
-type Section = "preview" | "overview" | "user-check" | "drift" | "setup" | "sync" | "test-users";
+type Section = "preview" | "overview" | "user-check" | "drift" | "setup" | SyncPage | "test-users";
 
 /** A preview block opened in the inspector beside the preview. */
 interface PreviewInspect {
@@ -69,8 +72,13 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   const [readiness, setReadiness] = useState<Record<string, ReadinessState>>({});
   // The org a user check last read, for applying its changes before any map is loaded.
   const [seenOrg, setSeenOrg] = useState<string | undefined>(undefined);
-  // Sync health stays mounted once opened so a run keeps polling while another page is shown.
+  // The sync pages stay mounted once one is opened so a run keeps polling while another page is shown.
   const [syncOpened, setSyncOpened] = useState(false);
+  const syncPage = (SYNC_PAGES as string[]).includes(section) ? (section as SyncPage) : null;
+  const openSyncPage = (page: SyncPage) => {
+    setSection(page);
+    setSyncOpened(true);
+  };
   // Maps are kept per feature so switching back doesn't re-query the org.
   const [maps, setMaps] = useState<Record<string, MapState>>({});
   const [selectedSurface, setSelectedSurface] = useState<SurfaceId | null>(null);
@@ -361,15 +369,27 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           History
         )}
         <div className="studio-rail-title studio-rail-section">Testing</div>
+        {railItem("sync", "Sync health", "How reps' iPads are syncing, and who is struggling", () => openSyncPage("sync"), Activity)}
         {railItem(
-          "sync",
-          "Sync health",
-          "How reps' iPads are syncing, who is struggling and why, and go-live sign-off",
-          () => {
-            setSection("sync");
-            setSyncOpened(true);
-          },
-          Activity
+          "sync-rep",
+          "Check a rep's sync",
+          "What one rep's iPad downloads, table by table, and how to make it lighter",
+          () => openSyncPage("sync-rep"),
+          ScanSearch
+        )}
+        {railItem(
+          "test-plans",
+          "Test plans",
+          "Check the customer's sync targets with real reps, and export a go-live report",
+          () => openSyncPage("test-plans"),
+          ClipboardCheck
+        )}
+        {railItem(
+          "first-sync",
+          "First sync",
+          "Download what a rep's iPad would on its first sync, and time it",
+          () => openSyncPage("first-sync"),
+          CloudDownload
         )}
         {railItem(
           "test-users",
@@ -504,15 +524,15 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
       )}
 
       {syncOpened && (
-        <section className="studio-main ui-enter" hidden={section !== "sync"}>
-          <SyncHealthView
-            onAskClaude={onAskClaude}
-            onOpenSetup={(id, surface = null, item = null) => openSetup(id, surface, item)}
-            pending={pending}
-            onPendingChange={setPending}
-          />
-          {tray}
-        </section>
+        <TestingPages
+          page={syncPage}
+          onNavigate={openSyncPage}
+          onAskClaude={onAskClaude}
+          onOpenSetup={(id, surface = null, item = null) => openSetup(id, surface, item)}
+          pending={pending}
+          onPendingChange={setPending}
+          tray={tray}
+        />
       )}
 
       {section === "overview" && (
