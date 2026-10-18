@@ -473,9 +473,14 @@
   border-radius: 4px;
 }
 
+.studio-ipad-rec-live-fit {
+  overflow: hidden;
+}
+
+/* Sized and scaled inline by LiveInlineLwc to cancel the iPad screen's scale. */
 .studio-ipad-rec-live-frame {
   display: block;
-  width: 100%;
+  transform-origin: 0 0;
   border: 0;
   background: #fff;
 }

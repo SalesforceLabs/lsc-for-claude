@@ -23,17 +23,33 @@ export type FrameMessage =
   | { __studio: "error"; message: string; mounted: boolean }
   | { __studio: "warn"; message: string };
 
+/** The host's message setting the frame's zoom (see LiveInlineLwc). */
+export interface ZoomMessage {
+  __studio: "zoom";
+  zoom: number;
+}
+
 /** Script text safe inside an inline `<script>`: no early `</script>` or `<!--`. */
 function inlineScript(code: string): string {
   return code.replace(/<\/(script)/gi, "<\\/$1").replace(/<!--/g, "<\\!--");
 }
 
-export function inlineLwcFrame(script: string, css: string, context: InlineLwcContext): string {
+/**
+ * `zoom` lays the component out in iPad points while the host draws the frame
+ * unscaled, so its text is rasterized at full resolution; the host updates it
+ * with a ZoomMessage.
+ */
+export function inlineLwcFrame(script: string, css: string, context: InlineLwcContext, zoom = 1): string {
   return `<!doctype html>
 <html><head><meta charset="utf-8">
 <style>${css.replace(/<\/(style)/gi, "<\\/$1")}</style>
 <style>html,body{margin:0;background:#fff;font-size:13px}body{overflow:auto}#root{min-height:100%}</style>
-<script>globalThis.__studioContext = ${inlineScript(JSON.stringify(context))};</script>
+<style>html{zoom:${zoom}}</style>
+<script>globalThis.__studioContext = ${inlineScript(JSON.stringify(context))};
+window.addEventListener("message", (e) => {
+  const m = e.data;
+  if (e.source === window.parent && m && m.__studio === "zoom" && m.zoom > 0) document.documentElement.style.zoom = String(m.zoom);
+});</script>
 </head><body class="slds-scope"><div id="root"></div>
 <script>${inlineScript(script)}</script>
 </body></html>`;

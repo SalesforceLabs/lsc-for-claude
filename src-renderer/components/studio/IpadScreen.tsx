@@ -1,9 +1,12 @@
-import React, { useLayoutEffect, useRef, useState } from "react";
+import React, { createContext, useLayoutEffect, useRef, useState } from "react";
 import "./ipad.css";
 
 /** An 11-inch iPad in landscape, in points. Everything inside is sized in points. */
 export const IPAD_WIDTH = 1210;
 export const IPAD_HEIGHT = 834;
+
+/** The screen's current scale, for content that has to undo it (frames are blurry when scaled). */
+export const IpadScaleContext = createContext(1);
 
 /**
  * The iPad screen drawn at its real size in points and scaled down to fit the
@@ -25,7 +28,7 @@ export default function IpadScreen({ label, children }: { label: string; childre
     <div className="studio-ipad" role="region" aria-label={label}>
       <div ref={fit} className="studio-ipad-fit" style={{ height: IPAD_HEIGHT * scale }}>
         <div className="studio-ipad-screen" style={{ transform: `scale(${scale})` }}>
-          {children}
+          <IpadScaleContext.Provider value={scale}>{children}</IpadScaleContext.Provider>
         </div>
       </div>
     </div>

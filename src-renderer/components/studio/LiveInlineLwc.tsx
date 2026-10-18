@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { InlineLwcCheck } from "./published-types";
-import { inlineLwcFrame, type FrameMessage, type InlineLwcContext } from "./inline-lwc-frame";
+import { inlineLwcFrame, type FrameMessage, type InlineLwcContext, type ZoomMessage } from "./inline-lwc-frame";
+import { IpadScaleContext } from "./IpadScreen";
 
 /**
  * An org inline LWC (lscMobileInline_*) running live in the iPad preview: the
@@ -67,13 +68,18 @@ export function LiveInlineLwc({
   const [notes, setNotes] = useState<string[]>([]);
   const frame = useRef<HTMLIFrameElement>(null);
   const ctxKey = JSON.stringify(context);
+  // The iPad screen is CSS-scaled, which would draw the frame from a downsampled
+  // texture; the frame undoes the scale and zooms its own content instead.
+  const scale = useContext(IpadScaleContext);
+  const scaleRef = useRef(scale);
+  scaleRef.current = scale;
 
   useEffect(() => {
     let live = true;
     setState({ kind: "loading" });
     setNotes([]);
     Promise.all([compiled(name, generation), sldsCss()]).then(
-      ([c, styles]) => live && setState({ kind: "ready", html: inlineLwcFrame(c.script, styles, { ...context, componentName: name }), placeholders: c.placeholders }),
+      ([c, styles]) => live && setState({ kind: "ready", html: inlineLwcFrame(c.script, styles, { ...context, componentName: name }, scaleRef.current), placeholders: c.placeholders }),
       (e: unknown) => live && setState({ kind: "failed", message: e instanceof Error ? e.message : String(e) })
     );
     return () => {
@@ -117,6 +123,10 @@ export function LiveInlineLwc({
     return () => window.removeEventListener("message", onMessage);
   }, [state.kind]);
 
+  useEffect(() => {
+    frame.current?.contentWindow?.postMessage({ __studio: "zoom", zoom: scale } satisfies ZoomMessage, "*");
+  }, [scale]);
+
   const caption = useMemo(
     () => (state.kind === "ready" && state.placeholders.length ? ` ${state.placeholders.map((p) => `<lightning-${p.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase())}>`).join(", ")} drawn as a placeholder.` : ""),
     [state]
@@ -130,7 +140,17 @@ export function LiveInlineLwc({
           Loading {name.replace(/^lscMobileInline_/, "")}…
         </div>
       ) : (
-        <iframe ref={frame} title={name} sandbox="allow-scripts" srcDoc={state.html} style={{ height }} className="studio-ipad-rec-live-frame" />
+        <div className="studio-ipad-rec-live-fit" style={{ height }}>
+          <iframe
+            ref={frame}
+            title={name}
+            sandbox="allow-scripts"
+            srcDoc={state.html}
+            onLoad={() => frame.current?.contentWindow?.postMessage({ __studio: "zoom", zoom: scaleRef.current } satisfies ZoomMessage, "*")}
+            style={{ width: `${100 * scale}%`, height: height * scale, transform: `scale(${1 / scale})` }}
+            className="studio-ipad-rec-live-frame"
+          />
+        </div>
       )}
       {notes.map((n) => (
         <div key={n} className="studio-ipad-rec-live-note">
