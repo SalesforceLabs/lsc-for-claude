@@ -2,22 +2,15 @@ import React, { useEffect, useRef, useState } from "react";
 import { Check, X } from "lucide-react";
 import Spinner from "../ui/Spinner";
 import "./published-loading.css";
-
-// Renderer copy of LoadProgress in src/studio/published-progress.ts.
-interface LoadStep {
-  key: string;
-  label: string;
-  state: "waiting" | "running" | "done" | "failed";
-  detail?: string;
-}
-interface LoadProgress {
-  profile: string;
-  startedAt: number;
-  finishedAt?: number;
-  steps: LoadStep[];
-}
+import { loadFraction, type LoadProgress, type LoadStep } from "./published-loading-logic";
 
 const POLL_MS = 500;
+
+function stepTime(s: LoadStep, now: number): string {
+  if (!s.startedAt) return "";
+  const ms = (s.endedAt ?? now) - s.startedAt;
+  return ms < 950 ? `${Math.max(1, Math.round(ms / 10) * 10)} ms` : `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`;
+}
 
 /** While the published iPad loads: which step it's on, how far along, and how long it's taken. */
 export default function PublishedLoading({ profile }: { profile: string }) {
@@ -44,8 +37,7 @@ export default function PublishedLoading({ profile }: { profile: string }) {
   }, [profile]);
 
   const steps = progress?.steps ?? [];
-  const done = steps.filter((s) => s.state === "done" || s.state === "failed").length;
-  const fraction = steps.length ? done / steps.length : 0;
+  const fraction = loadFraction(steps);
   const seconds = Math.max(0, Math.round((now - (progress?.startedAt ?? openedAt.current)) / 1000));
   return (
     <div className="studio-ipad-wrap studio-ipad-loading" role="status" aria-live="polite">
@@ -64,6 +56,7 @@ export default function PublishedLoading({ profile }: { profile: string }) {
               <StepMark state={s.state} />
               {s.label}
               {s.detail && <span className="studio-ipad-loading-detail"> · {s.detail}</span>}
+              {s.startedAt && <span className="studio-ipad-loading-detail"> · {stepTime(s, now)}</span>}
             </li>
           ))}
         </ol>

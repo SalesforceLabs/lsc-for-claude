@@ -38,7 +38,9 @@ export class McpClient {
     this.serverDir = serverDir ?? path.resolve(__dirname, "..", "..");
   }
 
+  /** Connects if there's no server yet; a running one is left alone (the pool calls this on every `get`). */
   start(): Promise<void> {
+    if (this.client && !this.starting) return Promise.resolve();
     this.starting ??= this.connect().finally(() => (this.starting = null));
     return this.starting;
   }

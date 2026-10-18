@@ -12,6 +12,9 @@ export interface LoadStep {
   state: LoadStepState;
   /** Partial progress while running ("12 of 40 list views"), or why a step was cut short. */
   detail?: string;
+  /** When the step began and ended, for per-step times. */
+  startedAt?: number;
+  endedAt?: number;
 }
 
 export interface LoadProgress {
@@ -57,6 +60,7 @@ export class LoadTracker {
     this.plan([key]);
     const step = this.find(key) as LoadStep;
     step.state = "running";
+    step.startedAt = Date.now();
     try {
       const value = await fn();
       step.state = "done";
@@ -64,6 +68,8 @@ export class LoadTracker {
     } catch (err) {
       step.state = "failed";
       throw err;
+    } finally {
+      step.endedAt = Date.now();
     }
   }
 
