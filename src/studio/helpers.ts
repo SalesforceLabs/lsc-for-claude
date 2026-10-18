@@ -3,7 +3,7 @@
  * surface constructors, and Admin Console record mapping.
  */
 
-import { runSoqlQuery, runToolingQuery } from "../salesforce/cli.js";
+import { QueryTruncatedError, runSoqlQuery, runToolingQuery, type SoqlQueryResult } from "../salesforce/cli.js";
 import type { ConfigRecord } from "../config/types.js";
 import type { Audience, ItemEdit, StudioFinding, StudioItem, StudioSurface } from "./types.js";
 
@@ -13,10 +13,35 @@ export type SurfaceMeta = Pick<StudioSurface, "id" | "title" | "lane" | "descrip
 
 export const ID_PATTERN = /^[a-zA-Z0-9]{15,18}$/;
 
-export async function query(soql: string, org: string, tooling = false): Promise<Row[]> {
-  const result = tooling ? await runToolingQuery(soql, org) : await runSoqlQuery(soql, org);
+export interface QueryOptions {
+  /** Return the rows read so far instead of throwing when the row cap is hit. */
+  allowTruncated?: boolean;
+  /** Row cap (default 50,000). */
+  maxRows?: number;
+}
+
+/**
+ * Rows for a query. Throws `QueryTruncatedError` when more rows matched than
+ * could be read, unless `allowTruncated` — then use `queryResult` to tell.
+ */
+export async function query(soql: string, org: string, tooling = false, options: QueryOptions = {}): Promise<Row[]> {
+  return (await queryResult(soql, org, tooling, options)).records as Row[];
+}
+
+/** Like `query`, with `totalSize` and `truncated` for "showing N of M" notes. */
+export async function queryResult(
+  soql: string,
+  org: string,
+  tooling = false,
+  options: QueryOptions = {}
+): Promise<SoqlQueryResult> {
+  const result = tooling
+    ? await runToolingQuery(soql, org, { maxRows: options.maxRows })
+    : await runSoqlQuery(soql, org, { maxRows: options.maxRows });
   if (!result.success) throw new Error(result.error || "Query failed");
-  return (result.data?.records || []) as Row[];
+  const data = result.data ?? { totalSize: 0, done: true, records: [] };
+  if (data.truncated && !options.allowTruncated) throw new QueryTruncatedError(data.records.length, data.totalSize);
+  return { ...data, records: data.records ?? [] };
 }
 
 export async function count(soql: string, org: string): Promise<number> {

@@ -26,6 +26,9 @@ vi.mock("util", async (importOriginal) => {
   };
 });
 
+// These tests cover the sf CLI path; the direct REST fast path has its own (direct.test.ts).
+process.env.LSC_SF_DIRECT = "0";
+
 const { spawn, exec } = await import("child_process");
 const mockSpawn = vi.mocked(spawn);
 

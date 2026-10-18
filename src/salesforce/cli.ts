@@ -10,6 +10,8 @@ import * as path from "path";
 import * as crypto from "crypto";
 import * as os from "os";
 import { cacheGet, cacheSet, queryCacheKey, describeCacheKey } from "../cache.js";
+import { sfLimiter } from "./limiter.js";
+import { directGet, directQuery, type DirectCredentials } from "./direct.js";
 
 const execAsync = promisify(exec);
 
@@ -18,6 +20,8 @@ export interface CliResult<T = unknown> {
   data?: T;
   error?: string;
   rawOutput?: string;
+  /** The call was stopped at its time limit (the error says so). */
+  timedOut?: boolean;
 }
 
 export interface SfOrg {
@@ -39,6 +43,30 @@ export interface SoqlQueryResult {
   totalSize: number;
   done: boolean;
   records: Record<string, unknown>[];
+  /**
+   * Fewer records came back than matched (`totalSize`) because the row cap
+   * (`maxRows`, default 50,000 — the sf CLI's own default) was reached.
+   */
+  truncated?: boolean;
+}
+
+/** Rows a query reads before it stops and reports `truncated` (the sf CLI's default). */
+export const DEFAULT_MAX_QUERY_ROWS = 50_000;
+
+/**
+ * Thrown by query helpers when a result hit the row cap — a partial list
+ * would silently undercount, so callers must opt in to partial results.
+ */
+export class QueryTruncatedError extends Error {
+  constructor(
+    readonly held: number,
+    readonly totalSize: number
+  ) {
+    super(
+      `Only ${held.toLocaleString("en-US")} of ${totalSize.toLocaleString("en-US")} matching records could be read — too many for one query.`
+    );
+    this.name = "QueryTruncatedError";
+  }
 }
 
 export interface SObjectDescribeResult {
@@ -182,7 +210,19 @@ export function ensureTmpSfdxProject(): string {
 export async function execSfCommand<T>(
   command: string,
   args: string[] = [],
-  options: { targetOrg?: string; timeout?: number; cwd?: string } = {}
+  options: { targetOrg?: string; timeout?: number; cwd?: string; env?: Record<string, string> } = {}
+): Promise<CliResult<T>> {
+  return sfLimiter.run(() => spawnSfJson<T>(command, args, options));
+}
+
+function timeoutMessage(ms: number): string {
+  return `Salesforce didn't answer within ${Math.round(ms / 1000)}s — the sf command was stopped. Large orgs can need a narrower filter.`;
+}
+
+function spawnSfJson<T>(
+  command: string,
+  args: string[],
+  options: { targetOrg?: string; timeout?: number; cwd?: string; env?: Record<string, string> }
 ): Promise<CliResult<T>> {
   return new Promise((resolve) => {
     const fullArgs = [command, ...args, "--json"];
@@ -197,7 +237,9 @@ export async function execSfCommand<T>(
       stdio: "pipe",
       timeout,
       ...(options.cwd ? { cwd: options.cwd } : {}),
+      ...(options.env ? { env: { ...process.env, ...options.env } } : {}),
     });
+    const started = Date.now();
 
     let stdout = "";
     let stderr = "";
@@ -210,7 +252,12 @@ export async function execSfCommand<T>(
       stderr += data.toString();
     });
 
-    child.on("close", (code) => {
+    child.on("close", (code, signal) => {
+      // Killed by the spawn timeout: stdout is partial, so say what happened.
+      if (code === null && signal && Date.now() - started >= timeout - 50) {
+        resolve({ success: false, timedOut: true, error: timeoutMessage(timeout), rawOutput: stdout || stderr });
+        return;
+      }
       try {
         const result = JSON.parse(stdout);
 
@@ -270,15 +317,79 @@ export async function getOrgDisplay(targetOrg: string): Promise<CliResult<SfOrg>
 export async function runSoqlQuery(
   query: string,
   targetOrg: string,
-  options: { useToolingApi?: boolean } = {}
+  options: { useToolingApi?: boolean; maxRows?: number } = {}
 ): Promise<CliResult<SoqlQueryResult>> {
+  const maxRows = Math.max(1, options.maxRows ?? DEFAULT_MAX_QUERY_ROWS);
+  const direct = await directQuery(query, targetOrg, directCredentials, { tooling: options.useToolingApi, maxRows });
+  if (direct) {
+    if (!direct.ok) return { success: false, error: direct.error, timedOut: direct.timedOut };
+    return { success: true, data: markTruncated(query, direct.data) };
+  }
   const args = ["query", "--query", query];
   if (options.useToolingApi) {
     args.push("--use-tooling-api");
   }
-  return execSfCommand<SoqlQueryResult>("data", args, {
+  const result = await execSfCommand<SoqlQueryResult>("data", args, {
     targetOrg,
+    ...(maxRows !== DEFAULT_MAX_QUERY_ROWS ? { env: { SF_ORG_MAX_QUERY_LIMIT: String(maxRows) } } : {}),
   });
+  if (result.success && result.data) result.data = markTruncated(query, result.data);
+  return result;
+}
+
+const COUNT_ONLY = /^\s*select\s+count\(\s*\)\s+from\b/i;
+
+/**
+ * Flag a result that holds fewer records than matched. `SELECT COUNT()` has no
+ * records by design, and LIMIT queries report `totalSize` up to the limit.
+ */
+export function markTruncated(query: string, data: SoqlQueryResult): SoqlQueryResult {
+  const held = data.records?.length ?? 0;
+  if (data.truncated || (held < (data.totalSize ?? 0) && !COUNT_ONLY.test(query))) {
+    return { ...data, truncated: true };
+  }
+  return data;
+}
+
+/** The sf CLI's login for an org, for the direct REST fast path. */
+async function directCredentials(org: string): Promise<DirectCredentials | null> {
+  const login = await readOrgLogin(org);
+  return login.success ? login.data! : null;
+}
+
+const usableToken = (v: unknown): string => (typeof v === "string" && v && !/redacted/i.test(v) ? v : "");
+
+/**
+ * The sf CLI's access token, instance URL and API version for an org. Recent
+ * CLIs redact the token in `sf org display`, so it comes from
+ * `sf org auth show-access-token`; older CLIs without that command still
+ * show it in `org display` (with SF_TEMP_SHOW_SECRETS during the transition).
+ */
+async function readOrgLogin(org: string): Promise<CliResult<DirectCredentials>> {
+  const [display, shown] = await Promise.all([
+    execSfCommand<Record<string, unknown>>("org", ["display"], { targetOrg: org }),
+    execSfCommand<Record<string, unknown>>("org", ["auth", "show-access-token"], { targetOrg: org }),
+  ]);
+  if (!display.success || !display.data) {
+    return { success: false, error: display.error || "Failed to get org credentials" };
+  }
+  const instanceUrl = typeof display.data.instanceUrl === "string" ? display.data.instanceUrl : "";
+  const apiVersion = typeof display.data.apiVersion === "string" ? display.data.apiVersion : undefined;
+  let accessToken = usableToken(shown.data?.accessToken) || usableToken(display.data.accessToken);
+  if (!accessToken && !shown.success) {
+    const revealed = await execSfCommand<Record<string, unknown>>("org", ["display"], {
+      targetOrg: org,
+      env: { SF_TEMP_SHOW_SECRETS: "true" },
+    });
+    accessToken = usableToken(revealed.data?.accessToken);
+  }
+  if (!accessToken || !instanceUrl) {
+    return {
+      success: false,
+      error: "Org credentials missing accessToken or instanceUrl. Re-authenticate with: sf org login web",
+    };
+  }
+  return { success: true, data: { accessToken, instanceUrl, apiVersion } };
 }
 
 /**
@@ -286,9 +397,10 @@ export async function runSoqlQuery(
  */
 export async function runToolingQuery(
   query: string,
-  targetOrg: string
+  targetOrg: string,
+  options: { maxRows?: number } = {}
 ): Promise<CliResult<SoqlQueryResult>> {
-  return runSoqlQuery(query, targetOrg, { useToolingApi: true });
+  return runSoqlQuery(query, targetOrg, { useToolingApi: true, ...options });
 }
 
 /**
@@ -596,6 +708,23 @@ export async function apiRequest<T>(
   body: unknown | undefined,
   targetOrg: string
 ): Promise<CliResult<T>> {
+  if (method === "GET" && body === undefined) {
+    const direct = await directGet<T>(endpoint, targetOrg, directCredentials);
+    if (direct) {
+      return direct.ok
+        ? { success: true, data: direct.data }
+        : { success: false, error: direct.error, timedOut: direct.timedOut };
+    }
+  }
+  return sfLimiter.run(() => spawnApiRequest<T>(endpoint, method, body, targetOrg));
+}
+
+function spawnApiRequest<T>(
+  endpoint: string,
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+  body: unknown | undefined,
+  targetOrg: string
+): Promise<CliResult<T>> {
   return new Promise((resolve) => {
     const args = ["api", "request", "rest", endpoint, "--method", method];
 
@@ -608,10 +737,12 @@ export async function apiRequest<T>(
 
     args.push("--target-org", targetOrg);
 
+    const timeout = 120000;
     const child = spawn("sf", args, {
       stdio: "pipe",
-      timeout: 120000,
+      timeout,
     });
+    const started = Date.now();
 
     let stdout = "";
     let stderr = "";
@@ -624,7 +755,11 @@ export async function apiRequest<T>(
       stderr += data.toString();
     });
 
-    child.on("close", (code) => {
+    child.on("close", (code, signal) => {
+      if (code === null && signal && Date.now() - started >= timeout - 50) {
+        resolve({ success: false, timedOut: true, error: timeoutMessage(timeout), rawOutput: stdout || stderr });
+        return;
+      }
       if (code === 0) {
         try {
           const result = JSON.parse(stdout);
@@ -714,26 +849,9 @@ export interface OrgCredentials {
  * Get access token and instance URL for a target org via `sf org display`
  */
 export async function getOrgCredentials(targetOrg: string): Promise<CliResult<OrgCredentials>> {
-  const result = await execSfCommand<Record<string, unknown>>("org", ["display"], {
-    targetOrg,
-  });
-
-  if (!result.success || !result.data) {
-    return { success: false, error: result.error || "Failed to get org credentials" };
-  }
-
-  const accessToken = result.data.accessToken as string | undefined;
-  const instanceUrl = result.data.instanceUrl as string | undefined;
-
-  if (!accessToken || !instanceUrl) {
-    return {
-      success: false,
-      error:
-        "Org credentials missing accessToken or instanceUrl. Re-authenticate with: sf org login web",
-    };
-  }
-
-  return { success: true, data: { accessToken, instanceUrl } };
+  const login = await readOrgLogin(targetOrg);
+  if (!login.success) return { success: false, error: login.error };
+  return { success: true, data: { accessToken: login.data!.accessToken, instanceUrl: login.data!.instanceUrl } };
 }
 
 export interface ContentVersionUploadResult {

@@ -1,0 +1,221 @@
+/**
+ * Direct REST transport for SOQL and REST GETs.
+ *
+ * Every `sf data query` spawn costs 1–2 s of CLI start-up before the query
+ * even runs; a large org's sync-volume estimate issues thousands of queries.
+ * This client reuses the sf CLI's own login (`sf org display`) and talks to the
+ * REST API over one keep-alive connection pool instead, paging with
+ * nextRecordsUrl up to a row cap and reporting when the cap was hit.
+ *
+ * It is a fast path, not a replacement: anything it can't do (no usable
+ * token, network/proxy/certificate trouble, URLs too long for a GET) returns
+ * `null` and the caller falls back to the sf CLI. A network-level failure
+ * turns the fast path off for that org for the rest of the session.
+ *
+ * Tokens are only ever sent to the org's own https instance URL.
+ */
+
+import { sfLimiter } from "./limiter.js";
+
+export interface DirectCredentials {
+  accessToken: string;
+  instanceUrl: string;
+  apiVersion?: string;
+}
+
+export type CredentialFetcher = (org: string) => Promise<DirectCredentials | null>;
+
+export interface DirectQueryResult {
+  totalSize: number;
+  done: boolean;
+  records: Record<string, unknown>[];
+  truncated?: boolean;
+}
+
+export type DirectOutcome<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: string; timedOut?: boolean; status?: number };
+
+/** Salesforce rejects request URIs past ~16 KB; stay under it and let the CLI try. */
+export const MAX_GET_URL_CHARS = 15_000;
+const DEFAULT_TIMEOUT_MS = 120_000;
+const DEFAULT_API_VERSION = "62.0";
+
+const credentials = new Map<string, Promise<DirectCredentials | null>>();
+const disabledOrgs = new Set<string>();
+
+export function directEnabled(org: string): boolean {
+  if (process.env.LSC_SF_DIRECT === "0") return false;
+  return !disabledOrgs.has(org);
+}
+
+/** Forget cached logins (after an org switch or re-login) and re-enable the fast path. */
+export function resetDirect(org?: string): void {
+  if (org) {
+    credentials.delete(org);
+    disabledOrgs.delete(org);
+  } else {
+    credentials.clear();
+    disabledOrgs.clear();
+  }
+}
+
+function isHttpsInstance(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+async function getCredentials(org: string, fetcher: CredentialFetcher, fresh = false): Promise<DirectCredentials | null> {
+  if (fresh) credentials.delete(org);
+  let pending = credentials.get(org);
+  if (!pending) {
+    pending = fetcher(org).then((c) => (c && c.accessToken && isHttpsInstance(c.instanceUrl) ? c : null)).catch(() => null);
+    credentials.set(org, pending);
+  }
+  const creds = await pending;
+  if (!creds) credentials.delete(org);
+  return creds;
+}
+
+function errorText(status: number, body: string): string {
+  try {
+    const parsed = JSON.parse(body);
+    const list = Array.isArray(parsed) ? parsed : [parsed];
+    const parts = list
+      .map((e: { errorCode?: string; message?: string }) =>
+        e && (e.message || e.errorCode) ? `${e.errorCode ? `${e.errorCode}: ` : ""}${e.message ?? ""}`.trim() : ""
+      )
+      .filter(Boolean);
+    if (parts.length) return parts.join("; ");
+  } catch {
+    // not JSON
+  }
+  return body.trim() || `HTTP ${status}`;
+}
+
+interface RawResponse {
+  status: number;
+  body: string;
+}
+
+/**
+ * One GET against the org. `null` means "transport unusable — fall back".
+ * Retries once on a 5xx, once with a fresh token on a 401.
+ */
+async function getOnce(
+  org: string,
+  pathAndQuery: string,
+  fetcher: CredentialFetcher,
+  timeoutMs: number
+): Promise<RawResponse | { timedOut: true } | null> {
+  let creds = await getCredentials(org, fetcher);
+  if (!creds) return null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const url = `${creds.instanceUrl.replace(/\/$/, "")}${pathAndQuery}`;
+    if (url.length > MAX_GET_URL_CHARS) return null;
+    let res: Response;
+    try {
+      res = await sfLimiter.run(() =>
+        fetch(url, {
+          headers: { Authorization: `Bearer ${creds!.accessToken}`, Accept: "application/json" },
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+      );
+    } catch (err) {
+      const name = err instanceof Error ? err.name : "";
+      if (name === "TimeoutError" || name === "AbortError") return { timedOut: true };
+      // DNS, proxy, TLS, connection refused — this machine can't reach the org directly.
+      disabledOrgs.add(org);
+      return null;
+    }
+    const body = await res.text();
+    if (res.status === 401 && attempt === 0) {
+      const next = await getCredentials(org, fetcher, true);
+      // Same (expired) token back means sf didn't refresh it; the CLI will.
+      if (!next || next.accessToken === creds.accessToken) return null;
+      creds = next;
+      continue;
+    }
+    if (res.status === 401) return null;
+    if (res.status >= 500 && attempt < 2) {
+      await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+      continue;
+    }
+    return { status: res.status, body };
+  }
+  return null;
+}
+
+async function apiVersion(org: string, fetcher: CredentialFetcher): Promise<string> {
+  const creds = await getCredentials(org, fetcher);
+  return creds?.apiVersion || DEFAULT_API_VERSION;
+}
+
+/**
+ * Run a SOQL query over REST, following nextRecordsUrl until done or until
+ * `maxRows` records are held (then `truncated` is set). `null` = fall back.
+ */
+export async function directQuery(
+  query: string,
+  org: string,
+  fetcher: CredentialFetcher,
+  options: { tooling?: boolean; maxRows: number; timeoutMs?: number }
+): Promise<DirectOutcome<DirectQueryResult> | null> {
+  if (!directEnabled(org)) return null;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const version = await apiVersion(org, fetcher);
+  let next: string | null = `/services/data/v${version}/${options.tooling ? "tooling/" : ""}query?q=${encodeURIComponent(query)}`;
+  const records: Record<string, unknown>[] = [];
+  let totalSize = 0;
+  let first = true;
+  while (next) {
+    const res = await getOnce(org, next, fetcher, timeoutMs);
+    if (!res) {
+      // Can't page further over REST; only fall back if nothing was read yet.
+      if (first) return null;
+      return { ok: false, error: "Lost the connection to Salesforce while paging the query results" };
+    }
+    if ("timedOut" in res) return { ok: false, timedOut: true, error: `Query timed out after ${Math.round(timeoutMs / 1000)}s` };
+    if (res.status >= 400) return { ok: false, status: res.status, error: errorText(res.status, res.body) };
+    let page: { totalSize?: number; done?: boolean; records?: Record<string, unknown>[]; nextRecordsUrl?: string };
+    try {
+      page = JSON.parse(res.body);
+    } catch {
+      return first ? null : { ok: false, error: "Salesforce returned an unreadable query page" };
+    }
+    if (first) totalSize = page.totalSize ?? 0;
+    first = false;
+    for (const r of page.records ?? []) records.push(r);
+    next = page.done === false && page.nextRecordsUrl ? page.nextRecordsUrl : null;
+    if ((next && records.length >= options.maxRows) || records.length > options.maxRows) {
+      return { ok: true, data: { totalSize, done: false, records: records.slice(0, options.maxRows), truncated: true } };
+    }
+  }
+  return { ok: true, data: { totalSize, done: true, records } };
+}
+
+/**
+ * A REST GET (`endpoint` is a path under the instance, e.g. /services/data/v62.0/...).
+ * Mirrors `sf api request rest`: parsed JSON on 2xx, raw text if it isn't JSON.
+ */
+export async function directGet<T>(
+  endpoint: string,
+  org: string,
+  fetcher: CredentialFetcher,
+  timeoutMs = DEFAULT_TIMEOUT_MS
+): Promise<DirectOutcome<T> | null> {
+  if (!directEnabled(org) || !endpoint.startsWith("/")) return null;
+  const res = await getOnce(org, endpoint, fetcher, timeoutMs);
+  if (!res) return null;
+  if ("timedOut" in res) return { ok: false, timedOut: true, error: `Request timed out after ${Math.round(timeoutMs / 1000)}s` };
+  if (res.status >= 400) return { ok: false, status: res.status, error: errorText(res.status, res.body) };
+  try {
+    return { ok: true, data: JSON.parse(res.body) as T };
+  } catch {
+    return { ok: true, data: res.body as unknown as T };
+  }
+}
