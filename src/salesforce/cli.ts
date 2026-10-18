@@ -665,7 +665,9 @@ export async function retrieveMetadata(
   targetOrg: string
 ): Promise<CliResult<{ outputDir: string }>> {
   const projectDir = ensureTmpSfdxProject();
-  const relativeOutput = path.join("retrieve-output", `${Date.now()}`);
+  // Unique per call: two retrieves started in the same millisecond (Studio previews fixes side by side)
+  // must not share a folder, or each finds the other's files and deletes them when done.
+  const relativeOutput = path.join("retrieve-output", `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
   const absoluteOutput = path.join(projectDir, relativeOutput);
   fs.mkdirSync(absoluteOutput, { recursive: true });
 

@@ -675,6 +675,23 @@ describe("cli.ts", () => {
       expect(result.success).toBe(true);
       expect(result.data?.outputDir).toContain("retrieve-output");
     });
+
+    it("gives retrieves started in the same millisecond their own folders", async () => {
+      // Studio previews fixes side by side; two Lightning pages retrieved into one folder came back as each other's XML.
+      const now = vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+      try {
+        const first = retrieveMetadata("", "FlexiPage:A", "my-org");
+        simulateSfSuccess(mockProc, {});
+        const a = await first;
+        const second = retrieveMetadata("", "FlexiPage:B", "my-org");
+        simulateSfSuccess(mockProc, {});
+        const b = await second;
+        expect(a.data?.outputDir).toBeTruthy();
+        expect(a.data?.outputDir).not.toBe(b.data?.outputDir);
+      } finally {
+        now.mockRestore();
+      }
+    });
   });
 
   // ==========================================================================
