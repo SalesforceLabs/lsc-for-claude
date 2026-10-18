@@ -55,4 +55,13 @@ describe("syncImpact", () => {
     const bad = await syncImpact("o", { changes: [{ ...change, to: "Bad = 1" }] }, { querier: () => fakeOrg([]) });
     expect(bad.profiles[0].failing[0].message).toMatch(/Bad/);
   });
+
+  it("asks the org each distinct query once, and counts only the changed table after the change", async () => {
+    const org = fakeOrg(["a", "b"]);
+    const change = { kind: "setConfigField", category: "DbSchema", developerName: "Visit", field: "WhereSoql", from: null, to: "Status = 'X'" };
+    const r = await syncImpact("o", { changes: [change] }, { querier: () => org });
+    expect(new Set(org.log).size).toBe(org.log.length);
+    expect(r.queries).toBe(org.log.length);
+    expect(org.log.filter((q) => /COUNT\(\) FROM Visit/i.test(q) && /Status = 'X'/.test(q))).toHaveLength(1);
+  });
 });

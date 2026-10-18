@@ -21,6 +21,8 @@ import {
   loadDbSchemaEntries,
   loadUserContext,
   incompleteTables,
+  mapWithConcurrency,
+  memoizeQuerier,
   mayOvercount,
   pickLargestTerritories,
   profileTerritory,
@@ -50,6 +52,8 @@ export interface SyncUserInput {
 
 /** Territories profiled when the caller doesn't cap them. */
 export const DEFAULT_MAX_TERRITORIES = 10;
+/** Territories counted at once; the shared limiter still caps requests in flight. */
+const TERRITORY_CONCURRENCY = 3;
 /** Recent syncs returned for the user's history. */
 const RECENT_SYNCS = 10;
 
@@ -270,18 +274,40 @@ function toSyncTerritory(vol: TerritoryVolume, records: SchemaRecordRef[], user:
 
 export async function syncUserDetail(org: string, input: SyncUserInput, deps: SyncUserDeps = defaultDeps): Promise<SyncUserDetail> {
   const days = input.days ?? DEFAULT_TELEMETRY_DAYS;
-  const querier = deps.querier(org);
+  const querier = memoizeQuerier(deps.querier(org));
 
+  // The org-wide reads don't depend on who the user is: start them with the user lookup.
+  const entriesJob = loadDbSchemaEntries(querier);
+  const recordsJob = (deps.dbSchemaRecords ?? loadSchemaRecords)(org, querier);
+  entriesJob.catch(() => undefined);
+  recordsJob.catch(() => undefined);
   const user = await loadUserContext(querier, input.userId);
-  const entries = await loadDbSchemaEntries(querier);
+
+  // Everything below needs only the user: the DB Schema records, the compiled archive (the long pole,
+  // a download on a cold cache), the record refs, the territory ranking and the user's telemetry are
+  // independent reads, so they run together.
+  const telemetryJob = (async (): Promise<{ telemetry?: SyncUserTelemetry; telemetryError?: string }> => {
+    try {
+      const { samples, summary } = await loadTelemetry(querier, deps.telemetryFields(org), { days, userIds: [user.id] });
+      return { telemetry: { summary, recent: samples.slice(0, RECENT_SYNCS) } };
+    } catch (e) {
+      return { telemetryError: e instanceof Error ? e.message : String(e) };
+    }
+  })();
+  const compiled = deps.compiledSchema?.(org, querier);
+  const cap = input.maxTerritories ?? DEFAULT_MAX_TERRITORIES;
+  const [entries, found, records, picked] = await Promise.all([
+    entriesJob,
+    compiled ? compiled.tablesFor(user) : Promise.resolve(null),
+    recordsJob,
+    pickLargestTerritories(querier, user.territories, cap),
+  ]);
   const dbSchemaTables = selectApplicableTables(entries, user);
 
   let tables: ApplicableTable[] = dbSchemaTables;
   let schemaSource: SchemaSource = "db-schema";
   const schemaNotes: string[] = [];
-  const compiled = deps.compiledSchema?.(org, querier);
-  if (compiled) {
-    const found = await compiled.tablesFor(user);
+  if (found) {
     if ("result" in found) {
       tables = found.result.tables;
       schemaSource = found.result.source ?? "compiled";
@@ -291,28 +317,16 @@ export async function syncUserDetail(org: string, input: SyncUserInput, deps: Sy
     }
   }
 
-  const records = await (deps.dbSchemaRecords ?? loadSchemaRecords)(org, querier);
-
-  const cap = input.maxTerritories ?? DEFAULT_MAX_TERRITORIES;
-  const picked = await pickLargestTerritories(querier, user.territories, cap);
   if (picked.note) schemaNotes.push(picked.note);
   const targets: Array<{ id: string; name: string } | null> = picked.picked.length ? picked.picked : [null];
-  const volumes: TerritoryVolume[] = [];
   // One id cache for the user: the OT2A and Account id lists are read once, not per table.
   const options = { ...DEFAULT_PROFILE_OPTIONS, idCache: new Map() };
-  for (const territory of targets) {
-    volumes.push(await profileTerritory(querier, user, territory, tables, options));
-  }
+  const volumes: TerritoryVolume[] = await mapWithConcurrency(targets, TERRITORY_CONCURRENCY, (territory) =>
+    profileTerritory(querier, user, territory, tables, options)
+  );
   await annotateSharing(querier, volumes);
 
-  let telemetry: SyncUserTelemetry | undefined;
-  let telemetryError: string | undefined;
-  try {
-    const { samples, summary } = await loadTelemetry(querier, deps.telemetryFields(org), { days, userIds: [user.id] });
-    telemetry = { summary, recent: samples.slice(0, RECENT_SYNCS) };
-  } catch (e) {
-    telemetryError = e instanceof Error ? e.message : String(e);
-  }
+  const { telemetry, telemetryError } = await telemetryJob;
 
   return {
     generatedAt: new Date().toISOString(),

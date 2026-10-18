@@ -29,6 +29,30 @@ export interface OrgQuerier {
   tooling(query: string): Promise<CliResult<SoqlQueryResult>>;
 }
 
+/**
+ * A querier that asks the org once per distinct query for as long as it lives: concurrent and repeated
+ * identical queries share one answer (the same COUNT() across territories, the id lists several tables
+ * read, the DB Schema reads of two steps). Only successes are kept, so a failure is retried by the next
+ * caller; an in-flight query is shared either way. Meant for one run, never for a long-lived server.
+ */
+export function memoizeQuerier(org: OrgQuerier): OrgQuerier {
+  const make = (run: (q: string, options?: QueryOptions) => Promise<CliResult<SoqlQueryResult>>, kind: string) => {
+    const cache = new Map<string, Promise<CliResult<SoqlQueryResult>>>();
+    return (q: string, options?: QueryOptions) => {
+      const key = `${kind}|${options?.maxRows ?? ""}|${q}`;
+      let hit = cache.get(key);
+      if (!hit) {
+        hit = run(q, options);
+        cache.set(key, hit);
+        const forget = () => cache.delete(key);
+        hit.then((r) => r.success || forget(), forget);
+      }
+      return hit;
+    };
+  };
+  return { soql: make((q, o) => org.soql(q, o), "s"), tooling: make((q) => org.tooling(q), "t") };
+}
+
 // ---------------------------------------------------------------------------
 // DB Schema records
 // ---------------------------------------------------------------------------
@@ -72,15 +96,21 @@ export async function loadDbSchemaEntries(org: OrgQuerier): Promise<DbSchemaEntr
   const fieldsByRecord = new Map<string, Record<string, unknown>>();
   const profileIdsByRecord = new Map<string, Set<string>>();
 
-  for (let i = 0; i < ids.length; i += 50) {
-    const idList = ids
-      .slice(i, i + 50)
-      .map((id) => `'${id}'`)
-      .join(",");
-
-    const fvResult = await org.tooling(
-      `SELECT LifeSciConfigRecordId, FieldName, DataType, ${FV_VALUE_COLUMNS.join(", ")} FROM LifeSciConfigFieldValue WHERE LifeSciConfigRecordId IN (${idList})`
-    );
+  // The 50-id chunks are independent reads; run them together and merge in chunk order so a repeated
+  // field name is overwritten exactly as the serial loop did.
+  const idChunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += 50) idChunks.push(ids.slice(i, i + 50));
+  const chunkResults = await mapWithConcurrency(idChunks, DEFAULT_PROFILE_OPTIONS.concurrency, async (chunk) => {
+    const idList = chunk.map((id) => `'${id}'`).join(",");
+    const [fvResult, asgResult] = await Promise.all([
+      org.tooling(
+        `SELECT LifeSciConfigRecordId, FieldName, DataType, ${FV_VALUE_COLUMNS.join(", ")} FROM LifeSciConfigFieldValue WHERE LifeSciConfigRecordId IN (${idList})`
+      ),
+      org.tooling(`SELECT LifeSciConfigRecordId, AssignedToId, AssignmentLevel FROM LifeSciConfigAssignment WHERE LifeSciConfigRecordId IN (${idList})`),
+    ]);
+    return { fvResult, asgResult };
+  });
+  for (const { fvResult, asgResult } of chunkResults) {
     if (!fvResult.success) throw new Error(`DbSchema field value query failed: ${fvResult.error}`);
     for (const fv of fvResult.data?.records ?? []) {
       const parentId = fv.LifeSciConfigRecordId as string;
@@ -88,10 +118,6 @@ export async function loadDbSchemaEntries(org: OrgQuerier): Promise<DbSchemaEntr
       fields[fv.FieldName as string] = extractFieldValue(fv);
       fieldsByRecord.set(parentId, fields);
     }
-
-    const asgResult = await org.tooling(
-      `SELECT LifeSciConfigRecordId, AssignedToId, AssignmentLevel FROM LifeSciConfigAssignment WHERE LifeSciConfigRecordId IN (${idList})`
-    );
     if (!asgResult.success) throw new Error(`DbSchema assignment query failed: ${asgResult.error}`);
     for (const a of asgResult.data?.records ?? []) {
       if (String(a.AssignmentLevel ?? "Profile").toLowerCase() !== "profile") continue;
@@ -756,18 +782,18 @@ export async function loadUserContext(org: OrgQuerier, userRef: string): Promise
   const userId = u.Id as string;
   const profile = (u.Profile as Record<string, unknown> | null) ?? null;
 
-  const psResult = await org.soql(
-    `SELECT PermissionSet.Name FROM PermissionSetAssignment WHERE AssigneeId = '${userId}'`
-  );
+  const [psResult, terrResult] = await Promise.all([
+    org.soql(`SELECT PermissionSet.Name FROM PermissionSetAssignment WHERE AssigneeId = '${userId}'`),
+    org.soql(
+      `SELECT Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId = '${userId}' AND Territory2.Territory2Model.State = 'Active' ORDER BY Territory2.Name`
+    ),
+  ]);
   const permissionSets = new Set<string>();
   for (const r of psResult.data?.records ?? []) {
     const ps = r.PermissionSet as Record<string, unknown> | null;
     if (ps?.Name) permissionSets.add(ps.Name as string);
   }
 
-  const terrResult = await org.soql(
-    `SELECT Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId = '${userId}' AND Territory2.Territory2Model.State = 'Active' ORDER BY Territory2.Name`
-  );
   const territories: Array<{ id: string; name: string }> = [];
   for (const r of terrResult.data?.records ?? []) {
     const t = r.Territory2 as Record<string, unknown> | null;
