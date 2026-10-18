@@ -670,7 +670,7 @@ function propsOf(ci: Row): Record<string, string> {
   return out;
 }
 
-const PROP_KEEP = new Set([
+export const PROP_KEEP = new Set([
   "totalCards",
   "graphName",
   "label",

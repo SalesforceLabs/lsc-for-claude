@@ -146,7 +146,7 @@ export interface FlexiComponentRef {
 }
 
 /** A Lightning page property Studio can set from the preview. */
-export type FlexiPageProperty = "mobileHeight" | "active" | "title" | "maxRecordsToDisplay" | "rowsToDisplay";
+export type FlexiPageProperty = string;
 
 /**
  * One edit to a Lightning page. Moves stay within the component's region or

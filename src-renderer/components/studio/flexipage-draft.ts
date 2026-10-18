@@ -1,4 +1,5 @@
 import type { FlexiSource, PublishedComponent, PublishedPage } from "./published-types";
+import { checkProp, DYNAMIC_COMPONENTS, IPAD_READS, normalizeProp, untypedDef, type ComponentPropDef, type ComponentProps } from "./component-props";
 import type { ComponentCatalog, FlexiItemRef, FlexiPageEditFix, FlexiPageOp, FlexiPageProperty, LiveFlexiPage } from "./types";
 import { flexiPageOpsChange, pendingFor, queueChange, type PendingChange } from "./changes";
 import type { DraftState, Verb } from "./edit-draft";
@@ -32,7 +33,8 @@ export interface FlexiModel {
 }
 
 /** Properties Studio sets from the preview; the rest of a component is left as it is. */
-export const FLEXI_PROPERTIES: FlexiPageProperty[] = ["mobileHeight", "active", "title", "maxRecordsToDisplay", "rowsToDisplay"];
+/** The names of the properties either item has, in a stable order. */
+const propertyKeys = (a: Record<string, string>, b: Record<string, string>): string[] => [...new Set([...Object.keys(a), ...Object.keys(b)])].sort();
 /** Tab titles longer than this are cut on the iPad. */
 export const TAB_TITLE_MAX = 25;
 
@@ -235,7 +237,7 @@ export function diffOps(base: FlexiModel, target: FlexiModel): FlexiPageOp[] {
     const cr = regionOf(cur, tr.name)!;
     for (const item of tr.items) {
       const now = cr.items.find((i) => i.key === item.key)!;
-      for (const property of FLEXI_PROPERTIES) {
+      for (const property of propertyKeys(now.properties, item.properties)) {
         const from = now.properties[property] ?? null;
         const to = item.properties[property] ?? null;
         if (from !== to) push({ op: "setComponentProperty", component: { region: tr.name, item: itemRef(cr, now) }, property, from, to });
@@ -344,15 +346,24 @@ export function insertedLabel(component: string, properties: Record<string, stri
   return name;
 }
 
-/** A published block with the target's property edits. */
-function withProperties(c: PublishedComponent, props: Record<string, string>): PublishedComponent {
+/**
+ * A published block with the target's property edits: what the org's item has
+ * and the target's doesn't is dropped, and what the target sets is passed on
+ * where the iPad reads it (a property the preview already keeps, one in
+ * `IPAD_READS`, or any property of a component that reads them all).
+ */
+function withProperties(c: PublishedComponent, props: Record<string, string>, orgProps: Record<string, string>): PublishedComponent {
   const properties = { ...c.properties };
-  for (const p of FLEXI_PROPERTIES) {
-    if (p === "active" || p === "title") continue;
-    if (props[p] !== undefined) properties[p] = props[p];
-    else if (p in properties && p in c.properties) delete properties[p];
+  const name = c.name.includes(":") ? c.name.split(":")[1] : c.name;
+  const all = DYNAMIC_COMPONENTS.includes(name);
+  for (const k of propertyKeys(orgProps, props)) {
+    if (k === "active") continue;
+    if (props[k] !== undefined) {
+      if (all || k in c.properties || IPAD_READS.includes(k)) properties[k] = props[k];
+    } else delete properties[k];
   }
-  return { ...c, properties };
+  const halfWidth = name === "ActivityPlanByProduct" ? properties.showEnhActivityPlanOnMobileHomepage !== "true" : c.halfWidth;
+  return { ...c, properties, halfWidth };
 }
 
 export interface DrawnBlock<T> {
@@ -391,7 +402,7 @@ function draftList<T>(d: PageDraft, published: T[], sourceOf: (t: T) => FlexiSou
     }
     if (!known || !item) return [];
     const liveItem = regionOf(d.base, container)!.items.find((i) => i.key === key)!;
-    const edited = FLEXI_PROPERTIES.some((p) => (liveItem.properties[p] ?? null) !== (item.properties[p] ?? null));
+    const edited = propertyKeys(liveItem.properties, item.properties).some((p) => (liveItem.properties[p] ?? null) !== (item.properties[p] ?? null));
     const moved = common.indexOf(key) !== commonTarget.indexOf(key);
     return [{ value: edit(known, item), key, state: moved || edited ? "moved" : "same" }];
   });
@@ -411,7 +422,7 @@ export function draftComponents(d: PageDraft, published: PublishedComponent[]): 
       visibility: "shown",
       properties: { ...item.properties },
     }),
-    (c, item) => withProperties(c, item.properties)
+    (c, item) => withProperties(c, item.properties, locateItem(d.base, item.key)?.item.properties ?? {})
   );
 }
 
@@ -522,47 +533,95 @@ export function componentVerbs(d: PageDraft, key: string, label: string, shown: 
   return out;
 }
 
-/** A property the inspector lets the admin set on the selected block. */
+/** A property the properties sheet lets the admin set on the selected block. */
 export interface PropertyEdit {
   property: FlexiPageProperty;
-  label: string;
+  def: ComponentPropDef;
+  /** The value in the arranged page (the definition's default when it has none). */
   value: string;
-  kind: "number" | "text";
-  /** The tray with the property set to `value`; null when `value` isn't valid, with `problem`. */
+  /** The value on the org's page, or null when it has none. */
+  orgValue: string | null;
+  /** The arranged page's value differs from the org's. */
+  changed: boolean;
+  /** Shown but not editable: it identifies the component. */
+  readOnly: boolean;
+  /** The tray with the property set to `value`; null when `value` isn't valid. An empty value takes the property off. */
   set: (value: string, pending: PendingChange[]) => PendingChange[] | null;
+  /** The tray with the property back at the org's value. */
+  reset: (pending: PendingChange[]) => PendingChange[];
   /** What's wrong with `value`, or a warning about it. */
   check: (value: string) => { problem?: string; warning?: string };
 }
 
-/** The properties of one block Studio can set: an inline LWC's height, a tab's title, a list's row count. */
-export function propertyEdits(d: PageDraft, key: string): PropertyEdit[] {
+/** What the sheet falls back on until `studio_component_props` answers (or when it can't): the short list Phase 3c set. */
+function fallbackDefs(component: string, name: string, properties: Record<string, string>): ComponentPropDef[] {
+  const used = (d: Omit<ComponentPropDef, "ipad">): ComponentPropDef => ({ ...d, ipad: "used" });
+  const defs: ComponentPropDef[] = [];
+  if (component === "flexipage:tab") defs.push(used({ name: "title", label: "Tab title", type: "String", required: true }));
+  if (name.startsWith("lscMobileInline_")) defs.push(used({ name: "mobileHeight", label: "Height on iPad (pt)", type: "Integer", min: 1, max: 9999, default: "400" }));
+  if ("rowsToDisplay" in properties || name === "relatedListSingleContainer") defs.push(used({ name: "rowsToDisplay", label: "Rows to show", type: "Integer", min: 1, max: 9999 }));
+  if ("maxRecordsToDisplay" in properties) defs.push(used({ name: "maxRecordsToDisplay", label: "Records to show", type: "Integer", min: 1, max: 9999 }));
+  return defs;
+}
+
+const READ_ONLY = new Set(["relatedListApiName", "parentFieldApiName"]);
+
+/**
+ * The properties of one block Studio can set: the component's definitions
+ * (`studio_component_props`, or the short 3c list while they load), then the
+ * simple properties already on the page that no definition covers. A property
+ * that names a region of the page (a tabset's tabs) is left out.
+ */
+export function propertyEdits(d: PageDraft, key: string, loaded?: ComponentProps | null): PropertyEdit[] {
   const at = locateItem(d.target, key);
   if (!at) return [];
   const name = at.item.component.includes(":") ? at.item.component.split(":")[1] : at.item.component;
-  const props: { property: FlexiPageProperty; label: string; kind: PropertyEdit["kind"] }[] = [];
-  if (at.item.component === "flexipage:tab") props.push({ property: "title", label: "Tab title", kind: "text" });
-  if (name.startsWith("lscMobileInline_")) props.push({ property: "mobileHeight", label: "Height on iPad (pt)", kind: "number" });
-  if ("rowsToDisplay" in at.item.properties || name === "relatedListSingleContainer") props.push({ property: "rowsToDisplay", label: "Rows to show", kind: "number" });
-  if ("maxRecordsToDisplay" in at.item.properties) props.push({ property: "maxRecordsToDisplay", label: "Records to show", kind: "number" });
-  return props.map((p) => {
-    const check = (value: string) => {
-      if (p.kind === "number") return /^\d{1,4}$/.test(value.trim()) && Number(value) >= 1 ? {} : { problem: "Enter a whole number from 1 to 9999." };
-      if (!value.trim()) return { problem: "A tab needs a title." };
-      if (value.length > 255) return { problem: "Titles can be at most 255 characters." };
-      return tabTitle(value).length > TAB_TITLE_MAX ? { warning: `Over ${TAB_TITLE_MAX} characters — the iPad cuts it short.` } : {};
-    };
-    return {
-      ...p,
-      value: p.property === "mobileHeight" ? (at.item.properties.mobileHeight ?? "400") : (at.item.properties[p.property] ?? ""),
-      check,
-      set: (value: string, pending: PendingChange[]) => {
-        if (check(value).problem) return null;
+  const props = at.item.properties;
+  const orgProps = locateItem(d.base, key)?.item.properties ?? {};
+  const pointers = new Set(Object.entries({ ...orgProps, ...props }).filter(([, v]) => d.target.regions.some((r) => r.facet && r.name === v)).map(([k]) => k));
+  const dynamic = !!loaded?.dynamic || DYNAMIC_COMPONENTS.includes(name);
+  const defs = new Map<string, ComponentPropDef>();
+  for (const def of loaded?.properties ?? []) defs.set(def.name, def);
+  for (const def of fallbackDefs(at.item.component, name, props)) if (!defs.has(def.name)) defs.set(def.name, def);
+  for (const k of Object.keys({ ...orgProps, ...props })) {
+    if (!defs.has(k) && !pointers.has(k) && k !== "active") defs.set(k, untypedDef(k, dynamic));
+  }
+  const result = [...defs.values()]
+    .filter((def) => !pointers.has(def.name) && def.name !== "active")
+    .map((def): PropertyEdit => {
+      const tabTitleField = at.item.component === "flexipage:tab" && def.name === "title";
+      const check = (value: string) => {
+        const base = checkProp(def, value);
+        if (tabTitleField && !base.problem) {
+          if (!value.trim()) return { problem: "A tab needs a title." };
+          if (value.length > 255) return { problem: "Titles can be at most 255 characters." };
+          return tabTitle(value).length > TAB_TITLE_MAX ? { warning: `Over ${TAB_TITLE_MAX} characters — the iPad cuts it short.` } : {};
+        }
+        return base;
+      };
+      const write = (value: string | null, pending: PendingChange[]) => {
         const next = clone(d.target);
-        locateItem(next, key)!.item.properties[p.property] = p.kind === "number" ? String(Number(value)) : value;
+        const item = locateItem(next, key)!.item;
+        if (value === null) delete item.properties[def.name];
+        else item.properties[def.name] = value;
         return arrange(d, next, pending);
-      },
-    };
-  });
+      };
+      const orgValue = orgProps[def.name] ?? null;
+      return {
+        property: def.name,
+        def,
+        value: props[def.name] ?? def.default ?? "",
+        orgValue,
+        changed: (props[def.name] ?? null) !== orgValue,
+        readOnly: READ_ONLY.has(def.name),
+        check: (value) => (tabTitleField && !value.trim() ? { problem: "A tab needs a title." } : check(value)),
+        set: (value, pending) => (check(value).problem ? null : write(normalizeProp(def, value), pending)),
+        reset: (pending) => write(orgValue, pending),
+      };
+    });
+  // Properties the iPad reads first, then the ones Studio can't tell about, then the ones it ignores.
+  const rank = (e: PropertyEdit) => (e.def.ipad === "used" ? 0 : e.def.ipad === "unknown" ? 1 : 2);
+  return result.map((e, i) => ({ e, i })).sort((a, b) => rank(a.e) - rank(b.e) || a.i - b.i).map((x) => x.e);
 }
 
 /** Every identifier the org's page or the arranged one uses: a new component's must differ from both. */

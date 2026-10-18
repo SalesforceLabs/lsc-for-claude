@@ -14,7 +14,7 @@ import {
   identifierOf,
 } from "../../../src/studio/metadata/flexipage-ops.js";
 import { liveFlexiPageOf } from "../../../src/studio/metadata/live.js";
-import { parseXml, serializeXml, type XmlNode } from "../../../src/studio/metadata/xml.js";
+import { cloneNode, parseXml, serializeXml, type XmlNode } from "../../../src/studio/metadata/xml.js";
 import type { FlexiItemRef, FlexiPageOp } from "../../../src/studio/types.js";
 
 const xml = readFileSync(join(__dirname, "../../fixtures/metadata/Account_LSDO_PH_FSR_KAM_MSL_HCO_HCP.flexipage-meta.xml"), "utf8");
@@ -84,6 +84,26 @@ describe("Lightning page ops", () => {
     const { root: r, changes } = roundTrip([{ op: "moveComponent", component: { region: RELATED, item: rl("force_relatedListSingleContainer4") }, before: rl("force_relatedListSingleContainer") }]);
     expect(ids(r, RELATED).slice(0, 2)).toEqual(["force_relatedListSingleContainer4", "force_relatedListSingleContainer"]);
     expect(changes[0].before).toBe('Position 3 of 7 in the "Related" tab');
+  });
+
+  it("sets any simple property, adding it in name order, and removes it again", () => {
+    const rl = { region: RELATED, item: { component: "force:relatedListSingleContainer", identifier: "force_relatedListSingleContainer", index: 0 } };
+    const { root: r, changes } = roundTrip([
+      { op: "setComponentProperty", component: rl, property: "showActionBar", from: "true", to: "false" },
+      { op: "setComponentProperty", component: rl, property: "zeta", from: null, to: "Z" },
+    ]);
+    const props = propertiesOf(itemsOf(region(r, RELATED))[0]);
+    expect(props.showActionBar).toBe("false");
+    expect(props.zeta).toBe("Z");
+    expect(changes.map((c) => c.after)).toEqual(["false", "Z"]);
+    expect(() => applyFlexiPageOps(cloneNode(root), [{ op: "setComponentProperty", component: rl, property: "showActionBar", from: "false", to: "x".repeat(1001) }])).toThrow(/Invalid/);
+    expect(() => applyFlexiPageOps(cloneNode(root), [{ op: "setComponentProperty", component: rl, property: "bad name", from: null, to: "x" }])).toThrow();
+  });
+
+  it("refuses a property that points at a region of the page", () => {
+    expect(() =>
+      applyFlexiPageOps(cloneNode(root), [{ op: "setComponentProperty", component: { region: TABS, item: tab("flexipage_tab5") }, property: "body", from: INSIGHTS, to: null }])
+    ).toThrow(/region/);
   });
 
   it("sets a tab's title and default flag, and an inline LWC's height", () => {

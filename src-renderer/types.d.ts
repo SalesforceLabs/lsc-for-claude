@@ -98,6 +98,7 @@ interface LscApi {
   studioMetadataDoc(type: "Layout" | "CompactLayout" | "FlexiPage", fullName: string): Promise<StudioResponse>;
   studioPageReach(fullName: string): Promise<StudioResponse>;
   studioComponentCatalog(pageType: "HomePage" | "RecordPage", sobject: string | null): Promise<StudioResponse>;
+  studioComponentProps(component: string, pageType?: "HomePage" | "RecordPage"): Promise<StudioResponse>;
   studioListProfiles(): Promise<StudioResponse>;
   studioUserAccess(userId: string): Promise<StudioResponse>;
   studioAccessOptions(): Promise<StudioResponse>;

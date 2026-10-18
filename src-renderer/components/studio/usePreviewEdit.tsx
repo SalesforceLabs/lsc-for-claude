@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ListPlus, SquarePlus, TextCursorInput } from "lucide-react";
 import type { ComponentCatalog, CreateConfigFix, FeatureMap, LiveCompactLayout, LiveFlexiPage, LiveLayout, ProfileOption } from "./types";
+import type { ComponentProps } from "./component-props";
 import type { PublishedIpad, PublishedResult } from "./published-types";
 import type { PreviewEdit } from "./PublishedIpadPreview";
 import type { EditDrop } from "./EditLayer";
@@ -287,7 +288,26 @@ export function usePreviewEdit({
     return groupVerbs(selection, pending, at, selectionNoun(selected, selection.length));
   }, [selected, selection, tabs, homeMenu, pending, profile, layouts, compacts, snapshot, tabItems, actionItems, liveLayouts, liveCompacts, pageDraft, pageItem, catalog]);
   const groupName = selected && selection.length > 1 ? `${selection.length} ${selectionNoun(selected, selection.length)}` : undefined;
-  const properties = useMemo(() => (pageDraft && pageItem ? propertyEdits(pageDraft, pageItem.key) : []), [pageDraft, pageItem]);
+  // The selected component's property definitions: its js-meta.xml or the curated table, read once per component.
+  const [propDefs, setPropDefs] = useState<Record<string, ComponentProps | "loading" | { error: string }>>({});
+  useEffect(() => setPropDefs({}), [org]);
+  const selectedComponent = pageDraft && pageItem ? locateItem(pageDraft.target, pageItem.key)?.item.component : undefined;
+  const propsKey = selectedComponent && pageDraft ? `${pageDraft.live.pageType}:${selectedComponent}` : undefined;
+  useEffect(() => {
+    if (!on || !draft || !propsKey || !selectedComponent || !pageDraft || propDefs[propsKey]) return;
+    setPropDefs((m) => ({ ...m, [propsKey]: "loading" }));
+    const pageType = pageDraft.live.pageType === "HomePage" || pageDraft.live.pageType === "RecordPage" ? pageDraft.live.pageType : undefined;
+    window.lscApi.studioComponentProps(selectedComponent, pageType).then(
+      (res) => {
+        const error = res.error ?? res.data?.error;
+        setPropDefs((m) => ({ ...m, [propsKey]: error ? { error: String(error) } : (res.data as ComponentProps) }));
+      },
+      (e: unknown) => setPropDefs((m) => ({ ...m, [propsKey]: { error: String(e) } }))
+    );
+  }, [on, draft, propsKey, selectedComponent, pageDraft, propDefs]);
+  const propState = propsKey ? propDefs[propsKey] : undefined;
+  const loadedProps = propState && propState !== "loading" && !("error" in propState) ? propState : null;
+  const properties = useMemo(() => (pageDraft && pageItem ? propertyEdits(pageDraft, pageItem.key, loadedProps) : []), [pageDraft, pageItem, loadedProps]);
 
   const info = useMemo(
     () =>
@@ -411,6 +431,10 @@ export function usePreviewEdit({
             const next = p.set(value, pending);
             if (next) onPendingChange(next);
           }}
+          onPropertyReset={(p) => onPendingChange(p.reset(pending))}
+          propertiesLoading={propState === "loading"}
+          propertiesNote={propState && typeof propState === "object" && "error" in propState ? `Couldn't read the component's property definitions: ${propState.error}` : loadedProps?.note}
+          propertiesDynamic={loadedProps?.dynamic}
           sync={sync}
           onSync={() => {
             if (sync?.kind === "change") onPendingChange(queueChange(pending, sync.change));
