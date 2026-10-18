@@ -108,8 +108,12 @@ export function diffListViewOps(base: ListViewModel, target: ListViewModel): Lis
  */
 export function alignListView(published: PublishedListView | undefined, live: string[]): boolean {
   const source = published?.source;
-  return !!source && source.columns.length === live.length && source.columns.every((c, i) => c === live[i]);
+  return !!source && source.columns.length === live.length && source.columns.every((c, i) => sameColumn(c, live[i]));
 }
+
+/** The cache names a lookup column by its Id field (`AccountId`) where the view stores the relationship (`Account`). */
+const sameColumn = (published: string, live: string) => published === live || published === `${live}Id`;
+const columnIndex = (published: string[], live: string) => published.findIndex((c) => sameColumn(c, live));
 
 /** Set when the view's filters or scope were changed in Setup since the publish: the rows drawn come from the earlier ones. */
 export function filtersChanged(published: PublishedListView | undefined, live: LiveListView): boolean {
@@ -153,7 +157,7 @@ export function draftListColumns(published: PublishedListView, live: LiveListVie
   const common = base.filter((c) => target.includes(c));
   const commonTarget = target.filter((c) => base.includes(c));
   return withGhosts(base, target).map(({ key, ghost }) => {
-    const orig = ids.indexOf(key);
+    const orig = columnIndex(ids, key);
     const added = !base.includes(key);
     const state: DraftState = ghost ? "removed" : added ? "added" : common.indexOf(key) !== commonTarget.indexOf(key) ? "moved" : "same";
     return { id: key, label: orig >= 0 && published.columns[orig] ? published.columns[orig] : labelFor(key, live), state, orig: orig >= 0 ? orig : null };

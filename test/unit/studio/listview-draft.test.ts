@@ -154,6 +154,10 @@ describe("what the iPad draws", () => {
     expect(alignListView(published, [...base.columns].reverse())).toBe(false);
     expect(alignListView({ ...published, source: undefined }, base.columns)).toBe(false);
     expect(alignListView(undefined, base.columns)).toBe(false);
+    // The cache names a lookup by its Id field where the view stores the relationship.
+    const lookup = { ...published, source: { ...published.source!, columns: ["Name", "AccountId", "OwnerId"] } };
+    expect(alignListView(lookup, ["Name", "Account", "Owner"])).toBe(true);
+    expect(alignListView(lookup, ["Name", "Owner", "Account"])).toBe(false);
   });
 
   it("notes filters or scope changed since the publish", () => {
