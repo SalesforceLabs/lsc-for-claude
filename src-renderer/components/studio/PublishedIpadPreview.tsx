@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { CloudOff, RotateCw } from "lucide-react";
 import StateView from "../ui/StateView";
 import type {
@@ -69,6 +69,8 @@ interface PublishedIpadPreviewProps {
   onPickUser: (userId: string) => void;
   /** Edit mode; computed by the caller from the snapshot this preview reports through `state`. */
   edit?: PreviewEdit;
+  /** Before / after: the published iPad beside the Draft one (Draft only). */
+  split?: boolean;
 }
 
 /**
@@ -76,7 +78,7 @@ interface PublishedIpadPreviewProps {
  * components, and record pages read from the profile's metadata cache, laid
  * out the way LSC Mobile builds them. Record data is placeholder.
  */
-export default function PublishedIpadPreview({ profile, state, onRefresh, onPickUser, edit }: PublishedIpadPreviewProps) {
+export default function PublishedIpadPreview({ profile, state, onRefresh, onPickUser, edit, split }: PublishedIpadPreviewProps) {
   if (!state || state.status === "loading") {
     return <PublishedLoading profile={profile} />;
   }
@@ -105,7 +107,7 @@ export default function PublishedIpadPreview({ profile, state, onRefresh, onPick
       />
     );
   }
-  return <Device key={result.viewer?.userId ?? ""} snapshot={result} onRefresh={() => onRefresh(result.viewer?.userId)} onPickUser={onPickUser} edit={edit} />;
+  return <Device key={result.viewer?.userId ?? ""} snapshot={result} onRefresh={() => onRefresh(result.viewer?.userId)} onPickUser={onPickUser} edit={edit} split={split && !!edit?.draft} />;
 }
 
 function Device({
@@ -113,11 +115,13 @@ function Device({
   onRefresh,
   onPickUser,
   edit,
+  split,
 }: {
   snapshot: PublishedIpad;
   onRefresh: () => void;
   onPickUser: (userId: string) => void;
   edit?: PreviewEdit;
+  split?: boolean;
 }) {
   // Draft adds the tabs the tray would add (drawn as "coming soon" until published).
   const allTabs = useMemo(() => (edit?.draft ? edit.tabs.map((d) => d.tab) : snapshot.tabs), [edit?.draft, edit?.tabs, snapshot.tabs]);
@@ -188,10 +192,58 @@ function Device({
     () => (edit?.on ? { draft: edit.draft, layouts: edit.layouts, compacts: edit.compacts, pages: edit.pages } : null),
     [edit?.on, edit?.draft, edit?.layouts, edit?.compacts, edit?.pages]
   );
-  const onHome = tab?.kind === "home" && !!snapshot.home && record === null;
+  // Before / after: the published side follows the Draft side's tab, record and scrolling, and isn't selectable.
+  const publishedTabs = useMemo<ChromeTab[]>(
+    () => snapshot.tabs.filter((t) => t.kind !== "recent").map((t) => ({ key: t.fullName, label: t.label, title: t.fullName, className: "", attrs: {} })),
+    [snapshot.tabs]
+  );
+  const pages = useRef<[HTMLDivElement | null, HTMLDivElement | null]>([null, null]);
+  const mirror = (side: 0 | 1) => (e: React.UIEvent) => mirrorScroll(e.target as Element, pages.current[side], pages.current[side ? 0 : 1]);
   // The app gates Agentforce on the user-info "Agentforce" feature flag, which the CLI can't read; a Home welcome component stands in for it.
   const homeHasAgentforce = !!snapshot.home?.regions.some((r) => r.components.some((c) => c.supported && /lsAgentforceWelcome$/.test(c.name)));
   const generated = snapshot.cache.generatedAt ? new Date(snapshot.cache.generatedAt).toLocaleString() : "unknown";
+  const screen = (published: boolean) => {
+    const shown = published ? (snapshot.tabs.find((t) => t.fullName === current) ?? snapshot.tabs[0]) : tab;
+    const home = shown?.kind === "home" && !!snapshot.home && record === null;
+    const side = published ? 0 : 1;
+    return (
+      <IpadScreen label={!published && edit?.draft ? "iPad preview (draft)" : "iPad preview (published)"}>
+        <IpadStatusBar />
+        <IpadTopBar
+          tabs={published ? publishedTabs : chromeTabs}
+          current={shown?.fullName ?? ""}
+          onOpen={(key) => {
+            const t = allTabs.find((x) => x.fullName === key);
+            if (t) open(t);
+          }}
+          searchKey={snapshot.tabs.find((t) => t.kind === "recent")?.fullName}
+          onBack={record !== null ? () => setRecord(null) : undefined}
+          name={initials(snapshot.viewer?.name ?? snapshot.profile)}
+          onBriefings={() => setSheet({ kind: "briefings" })}
+          briefingsOpen={!published && sheet?.kind === "briefings"}
+          onBell={() => setSheet({ kind: "alerts" })}
+          onAvatar={() => setSheet({ kind: "profile" })}
+        />
+        <div
+          ref={split ? (el) => void (pages.current[side] = el) : undefined}
+          onScrollCapture={split ? mirror(side) : undefined}
+          className={`studio-ipad-page${shown?.kind === "empty" ? " blank" : ""}${home ? " home" : ""}${shown?.kind === "reports" && snapshot.reports ? " flush" : ""}${record === null && hasNativeScreen(shown, snapshot) ? " native" : ""}${record === null && isLwcOnly(shown, snapshot) ? " lwc-full" : ""}${record && snapshot.records?.byId[record] ? " record" : ""}`}
+        >
+          {shown && <Screen key={shown.fullName} tab={shown} snapshot={snapshot} record={record} onOpenRecord={setRecord} onNew={(label, objectName) => setNewSheet(newPresentation(label, objectName))} onNote={note} onAction={(item) => setNewSheet(presentationFor(item, { onRecord: true }))} onEditVisit={(id) => setNewSheet({ kind: "visit", edit: id })} />}
+        </div>
+        {/* Sheets open on the Draft side only. */}
+        {!published && <ChromeSheets sheet={sheet} snapshot={snapshot} onClose={() => setSheet(null)} onLink={followLink} />}
+        {!published && newSheet && <IpadActionSheet presentation={newSheet} ctx={{ snapshot, record: null }} onClose={() => setNewSheet(null)} />}
+        <IpadFabs snapshot={snapshot} tab={shown} record={record} agentforce={homeHasAgentforce} homeMenu={!published && edit?.draft ? edit.homeMenu : undefined} />
+      </IpadScreen>
+    );
+  };
+
+  const draftSide = (
+    <EditSurface on={editing} selected={edit?.selected ?? null} onSelect={edit?.onSelect ?? (() => {})} also={edit?.also} name={edit?.name} verbs={edit?.verbs ?? []} onRun={edit?.onRun ?? (() => {})} setup={edit?.setup} onSetup={edit?.onSetup} horizontal={edit?.horizontal} onDrop={edit?.onDrop}>
+      <LayoutEdits.Provider value={layoutEdits}>{screen(false)}</LayoutEdits.Provider>
+    </EditSurface>
+  );
 
   return (
     <div className="studio-ipad-wrap">
@@ -237,34 +289,20 @@ function Device({
         </button>
       </div>
 
-      <EditSurface on={editing} selected={edit?.selected ?? null} onSelect={edit?.onSelect ?? (() => {})} verbs={edit?.verbs ?? []} onRun={edit?.onRun ?? (() => {})} setup={edit?.setup} onSetup={edit?.onSetup} horizontal={edit?.horizontal} onDrop={edit?.onDrop}>
-      <LayoutEdits.Provider value={layoutEdits}>
-      <IpadScreen label={edit?.draft ? "iPad preview (draft)" : "iPad preview (published)"}>
-        <IpadStatusBar />
-        <IpadTopBar
-          tabs={chromeTabs}
-          current={tab?.fullName ?? ""}
-          onOpen={(key) => {
-            const t = allTabs.find((x) => x.fullName === key);
-            if (t) open(t);
-          }}
-          searchKey={snapshot.tabs.find((t) => t.kind === "recent")?.fullName}
-          onBack={record !== null ? () => setRecord(null) : undefined}
-          name={initials(snapshot.viewer?.name ?? snapshot.profile)}
-          onBriefings={() => setSheet({ kind: "briefings" })}
-          briefingsOpen={sheet?.kind === "briefings"}
-          onBell={() => setSheet({ kind: "alerts" })}
-          onAvatar={() => setSheet({ kind: "profile" })}
-        />
-        <div className={`studio-ipad-page${tab?.kind === "empty" ? " blank" : ""}${onHome ? " home" : ""}${tab?.kind === "reports" && snapshot.reports ? " flush" : ""}${record === null && hasNativeScreen(tab, snapshot) ? " native" : ""}${record === null && isLwcOnly(tab, snapshot) ? " lwc-full" : ""}${record && snapshot.records?.byId[record] ? " record" : ""}`}>
-          {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={setRecord} onNew={(label, objectName) => setNewSheet(newPresentation(label, objectName))} onNote={note} onAction={(item) => setNewSheet(presentationFor(item, { onRecord: true }))} onEditVisit={(id) => setNewSheet({ kind: "visit", edit: id })} />}
+      {split ? (
+        <div className="studio-ipad-split">
+          <div className="studio-ipad-side">
+            <div className="studio-ipad-side-label">Published</div>
+            {screen(true)}
+          </div>
+          <div className="studio-ipad-side">
+            <div className="studio-ipad-side-label">Draft</div>
+            {draftSide}
+          </div>
         </div>
-        <ChromeSheets sheet={sheet} snapshot={snapshot} onClose={() => setSheet(null)} onLink={followLink} />
-        {newSheet && <IpadActionSheet presentation={newSheet} ctx={{ snapshot, record: null }} onClose={() => setNewSheet(null)} />}
-        <IpadFabs snapshot={snapshot} tab={tab} record={record} agentforce={homeHasAgentforce} homeMenu={edit?.draft ? edit.homeMenu : undefined} />
-      </IpadScreen>
-      </LayoutEdits.Provider>
-      </EditSurface>
+      ) : (
+        draftSide
+      )}
 
       <ul className="studio-ipad-legend">
         <li>
@@ -918,4 +956,24 @@ function newPresentation(label: string, objectName: string): Presentation {
   if (/inquir/i.test(objectName)) return { kind: "inquiry" };
   if (objectName === "Visit") return { kind: "visit" };
   return { kind: "placeholder", title: label, type: "Create form", target: objectName, detail: "The app opens the object's create form here; Studio never saves records." };
+}
+
+/**
+ * Scrolls the other side of the before / after view to match: the page itself,
+ * or the scroller inside it with the same class at the same place. Blocks the
+ * Draft adds or removes shift things a little; it's kept in step, not exact.
+ */
+function mirrorScroll(el: Element, from: HTMLElement | null, to: HTMLElement | null) {
+  if (!from || !to) return;
+  let twin: Element | undefined = to;
+  if (el !== from) {
+    const classes = typeof el.className === "string" ? el.className.trim().split(/\s+/).filter(Boolean) : [];
+    if (!classes.length) return;
+    const sel = classes.map((c) => `.${CSS.escape(c)}`).join("");
+    twin = to.querySelectorAll(sel)[[...from.querySelectorAll(sel)].indexOf(el)];
+  }
+  if (!twin) return;
+  // The twin's own scroll event comes back here and stops: the positions already match.
+  if (Math.abs(twin.scrollTop - el.scrollTop) > 1) twin.scrollTop = el.scrollTop;
+  if (Math.abs(twin.scrollLeft - el.scrollLeft) > 1) twin.scrollLeft = el.scrollLeft;
 }

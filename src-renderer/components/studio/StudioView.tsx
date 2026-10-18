@@ -11,7 +11,7 @@ import type { PublishedResult } from "./published-types";
 import Inspector from "./Inspector";
 import ReviewDialog from "./ReviewDialog";
 import PublishDialog from "./PublishDialog";
-import type { PendingChange } from "./changes";
+import { useTrayHistory } from "./tray-history";
 import SyncHealthView from "./SyncHealthView";
 import ReadinessView from "./ReadinessView";
 import SetupOverview from "./SetupOverview";
@@ -24,8 +24,10 @@ import {
   History,
   LayoutDashboard,
   Pencil,
+  Redo2,
   RefreshCw,
   Tablet,
+  Undo2,
   UserRound,
   UserRoundSearch,
   type LucideIcon,
@@ -65,9 +67,10 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   // Maps are kept per feature so switching back doesn't re-query the org.
   const [maps, setMaps] = useState<Record<string, MapState>>({});
   const [selectedSurface, setSelectedSurface] = useState<SurfaceId | null>(null);
-  // Edits queued in the tray, applied together from the review dialog.
-  const [pending, setPending] = useState<PendingChange[]>([]);
   const [reviewing, setReviewing] = useState(false);
+  // Edits queued in the tray, applied together from the review dialog; ⌘Z / ⇧⌘Z step through them (not while reviewing).
+  const tray = useTrayHistory(reviewing);
+  const { pending, setPending } = tray;
   // Profiles to preselect in "Publish to iPad"; undefined = closed, null = none preselected.
   const [publishing, setPublishing] = useState<string[] | null | undefined>(undefined);
   // "View as" — kept across features so switching features keeps the same point of view.
@@ -76,7 +79,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   // iPad preview — stays mounted once opened so its screen survives switching sections.
   const [previewOpened, setPreviewOpened] = useState(false);
   // "published" reads the profile's last metadata cache; "draft" lays the tray over it.
-  const [previewMode, setPreviewMode] = useState<"published" | "draft">("published");
+  const [previewMode, setPreviewMode] = useState<"published" | "draft" | "split">("published");
   // Edit mode: select blocks in the published preview to see what they are and change them.
   const [editOn, setEditOn] = useState(false);
   const [published, setPublished] = useState<Record<string, PublishedState>>({});
@@ -253,7 +256,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   const publishedState = publishedProfile ? published[publishedProfile] : undefined;
   const { edit: previewEdit, panel: editPanel } = usePreviewEdit({
     on: editOn && previewShown,
-    draft: previewMode === "draft",
+    draft: previewMode !== "published",
     profile: publishedProfile,
     result: publishedState?.status === "ready" ? publishedState.result : undefined,
     actionsMap: readyMap("actions-home"),
@@ -268,7 +271,9 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   const previewSubtitle =
     previewMode === "published"
       ? `Exactly as ${lens ? `${lens.profile}'s` : "a profile's"} users last downloaded it, from the profile's metadata cache`
-      : `As published, with ${pending.length === 1 ? "the pending change" : `${pending.length || "no"} pending changes`} laid on top — tabs, Home actions, DB Schema and page layouts`;
+      : previewMode === "split"
+        ? `Published on the left, Draft on the right with ${pending.length === 1 ? "the pending change" : `${pending.length || "no"} pending changes`} — select blocks on the Draft side`
+        : `As published, with ${pending.length === 1 ? "the pending change" : `${pending.length || "no"} pending changes`} laid on top — tabs, Home actions, DB Schema and page layouts`;
 
   const featureBusy = state?.status === "loading" || readiness[featureId]?.status === "loading";
   const featureSubtitle = map
@@ -321,13 +326,40 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     </button>
   );
 
-  const tray = pending.length > 0 && (
+  const isMac = /Mac/.test(navigator.userAgent);
+  const undoKeys = isMac ? "⌘Z" : "Ctrl+Z";
+  const redoKeys = isMac ? "⇧⌘Z" : "Ctrl+Shift+Z";
+  const historyButtons = (
+    <>
+      <button
+        className="ui-icon-btn"
+        onClick={tray.undo}
+        disabled={!tray.undoLabel}
+        aria-label="Undo"
+        title={tray.undoLabel ? `Undo ${tray.undoLabel} (${undoKeys})` : `Nothing to undo (${undoKeys})`}
+      >
+        <Undo2 size={14} aria-hidden="true" />
+      </button>
+      <button
+        className="ui-icon-btn"
+        onClick={tray.redo}
+        disabled={!tray.redoLabel}
+        aria-label="Redo"
+        title={tray.redoLabel ? `Redo ${tray.redoLabel} (${redoKeys})` : `Nothing to redo (${redoKeys})`}
+      >
+        <Redo2 size={14} aria-hidden="true" />
+      </button>
+    </>
+  );
+  // Stays up while the tray is empty but a step can be undone or redone, so it can be put back.
+  const trayBar = pending.length > 0 ? (
     <div className="studio-tray">
       <span className="studio-tray-count">
         <span className="studio-tray-badge">{pending.length}</span>
         pending {pending.length === 1 ? "change" : "changes"}
       </span>
       <span className="studio-tray-list">{pending.map((p) => p.fix.label).join(" · ")}</span>
+      {historyButtons}
       <button className="studio-btn ghost" onClick={() => setPending([])}>
         Discard all
       </button>
@@ -335,7 +367,24 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         Review & apply…
       </button>
     </div>
-  );
+  ) : tray.undoLabel || tray.redoLabel ? (
+    <div className="studio-tray">
+      <span className="studio-tray-count">No pending changes</span>
+      <span className="studio-tray-list" />
+      {tray.undoLabel && (
+        <button className="studio-btn ghost" onClick={tray.undo} title={`Undo ${tray.undoLabel} (${undoKeys})`}>
+          <Undo2 size={14} aria-hidden="true" />
+          Undo
+        </button>
+      )}
+      {tray.redoLabel && (
+        <button className="studio-btn ghost" onClick={tray.redo} title={`Redo ${tray.redoLabel} (${redoKeys})`}>
+          <Redo2 size={14} aria-hidden="true" />
+          Redo
+        </button>
+      )}
+    </div>
+  ) : null;
 
   return (
     <div className="studio">
@@ -424,6 +473,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               options={[
                 { value: "published", label: "Published", title: "What reps have today, from the metadata cache" },
                 { value: "draft", label: "Draft", title: "Published, with the pending changes laid on top" },
+                { value: "split", label: "Side by side", title: "Published and Draft next to each other; select blocks on the Draft side" },
               ]}
             />
             <div className="studio-subbar-group">
@@ -445,6 +495,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
                   onRefresh={(userId) => loadPublished(publishedProfile, true, userId)}
                   onPickUser={(userId) => loadPublished(publishedProfile, false, userId)}
                   edit={previewEdit}
+                  split={previewMode === "split"}
                 />
               ) : (
                 <StateView
@@ -458,7 +509,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             {editPanel}
           </div>
 
-          {tray}
+          {trayBar}
         </section>
       )}
 
@@ -470,7 +521,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             pending={pending}
             onPendingChange={setPending}
           />
-          {tray}
+          {trayBar}
         </section>
       )}
 
@@ -494,7 +545,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               onAskClaude={onAskClaude}
             />
           </div>
-          {tray}
+          {trayBar}
         </section>
       )}
 
@@ -513,7 +564,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               onOrgSeen={setSeenOrg}
             />
           </div>
-          {tray}
+          {trayBar}
         </section>
       )}
 
@@ -677,7 +728,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           )}
         </div>
 
-        {tray}
+        {trayBar}
       </section>
 
       {readyOrg && reviewing && (
@@ -686,7 +737,9 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           org={readyOrg}
           onClose={(applied, remaining) => {
             setReviewing(false);
-            setPending(remaining);
+            // Applied changes can't be taken back from the tray; their undo is in the review dialog.
+            if (applied.length > 0) tray.reset(remaining);
+            else setPending(remaining);
             // Other features' maps may be stale too; the main process dropped them from its cache.
             if (applied.length > 0) {
               setMaps({});

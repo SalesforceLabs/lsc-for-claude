@@ -1,6 +1,6 @@
 # iPad preview — Edit mode
 
-Status: Phases 1–2 and 3a–3d built; 4 designed, 2026-10-18. Branch `feat/ipad-edit-mode`.
+Status: Phases 1–2, 3a–3d and 4a (undo/redo, multi-select, side by side) built; the rest of 4 designed, 2026-10-18. Branch `feat/ipad-edit-mode`.
 
 ## The problem
 
@@ -123,6 +123,7 @@ Phase 1 delivers the hover/select layer and the What / Why / How inspector over 
      - Not yet: a record page's single related lists are still selected as layout related lists, so they can't be moved or removed as page components.
    - 3d *(built)*: drag to reorder, insertion points, keyboard moves. In Draft, tabs, Home ••• actions, layout sections, fields, related lists and header fields drag with pointer events (`DragSpec` on `editAttrs` / `Mark`, `onDrop` on `EditSurface`): the block lifts, a purple line marks where it would land, and a drop pulses (or nudges when refused); Escape cancels. Siblings don't slide aside — the line stands in for that. Fields cross columns and sections; other drags stay in their list (sections of one layout, the tab bar, the Home menu, one header). A drop queues what the verbs would — `moveTabTo` / `moveActionTo` step the up/down verbs, `moveFieldTo` / `moveSectionTo` / `moveRelatedTo` and `moveCompactFieldTo` re-arrange and re-diff — and a drop back where it started queues nothing. ⌥↑/⌥↓ (⌥←/⌥→ in the tab bar and header) run the move verbs on the selection. A layout with no related lists shows a placeholder card in Draft that takes **Add related list…**. Not yet: empty columns as drop targets, auto-scroll while dragging, dragging across tab-bar pages.
 4. **Polish & breadth**: list views, component props sheet, ⌘Z wired to the tray, multi-select, before/after split view, "Make a copy just for this profile".
+   - 4a *(built)*: **Undo / redo** for the tray (`tray-history.ts`): every queue, removal, verb and Discard all is a step; ⌘Z / ⇧⌘Z (Ctrl on Windows and Linux) anywhere except text fields and while Review is open, plus Undo / Redo icon buttons in the tray whose tooltips say what they'd take back. The tray stays up, empty, while a step can be undone or redone; applying starts a new history. **Multi-select** (`multi-select.ts`): ⌘- or ⇧-click adds a block of the same kind in the same container (layout, compact layout, Lightning region, tab bar, ••• menu) or drops it again; every selected block is ringed and the toolbar names the group ("3 fields"). Only verbs every block has with the same label are offered (remove / restore, hide / show, turn off / on, required, read only, heading, discard); moves, columns and adds stay single-block. A group verb runs block by block, each against the tray the last one left, so layouts still end up as one diffed change per document. **Side by side** (the preview's third mode): Published and Draft at half size, sharing tab, record and scroll position; only the Draft side is selectable and opens sheets.
 
 ## Phase 3 design
 
