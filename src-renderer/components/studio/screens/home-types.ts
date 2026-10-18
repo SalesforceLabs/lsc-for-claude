@@ -25,7 +25,7 @@ export interface HomeVisit {
 export interface PublishedHome {
   nbc?: { cards: HomeNbcCard[]; lastRefreshed: string; lastRefreshedSource?: string };
   visits?: { total: number; items: HomeVisit[] };
-  plan?: { cycle?: string; activityType?: string };
+  plan?: { cycle?: string; activityType?: string; axis?: { days: number; today: number; ticks: { index: number; label: string }[] } };
 }
 
 /** UIPageControl window: up to 9 dots, the ones at a clipped edge shrink (one more page than shown in that direction). */

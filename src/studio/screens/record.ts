@@ -8,6 +8,8 @@ import { apiRequest } from "../../salesforce/cli.js";
 import { ID_PATTERN, inList, query, type Row } from "../helpers.js";
 import { listCell, MULTI_ENTITY, trimNamespace, type PublishedComponent, type PublishedListData } from "../published.js";
 import type { ScreenContext } from "./context.js";
+import { evalProfileFormula, usesProfileName } from "./record-formula.js";
+import { readRatingLayout } from "./record-ratings.js";
 import { checkInlineLwc, type InlineLwcCheck, type LwcFile } from "./inline-lwc.js";
 import { collectDashboards, type PublishedDashboard } from "./record-dashboard.js";
 import type { RecordFieldSpec } from "./record-fields.js";
@@ -61,6 +63,15 @@ export interface PublishedRecordData {
   expenses?: { count: number; total: string };
   /** Account Dashboard tab cards (Provider Summary, Overview, Next Best Actions, Map). */
   dashboard?: PublishedDashboard;
+  /** Inquiry stage path: the Status picklist's active labels in order, and the current one. */
+  stagePath?: { steps: string[]; current: string };
+  /** Account Ratings tab (CustomerRatings): the layout's cards by segment; `cards` is null when the org doesn't expose the layout entities. */
+  ratings?: PublishedRatings;
+}
+
+export interface PublishedRatings {
+  layout: string;
+  cards: { tab: "General" | "Product" | "Territory"; title: string; value: string; editable: boolean; updated: string; live: boolean }[] | null;
 }
 
 export interface PublishedRecords {
@@ -266,7 +277,7 @@ async function fetchRows(ctx: ScreenContext, object: string, where: string, extr
   for (const name of specs.keys()) {
     const f = describe.fields.get(name.toLowerCase());
     paths.add(name);
-    if (f && str(f.type) === "reference" && f.relationshipName) paths.add(`${str(f.relationshipName)}.Name`);
+    if (f && str(f.type) === "reference" && f.relationshipName) paths.add(`${str(f.relationshipName)}.${refNameField(f)}`);
   }
   const select = (list: string[]) => `SELECT ${list.join(", ")} FROM ${object} WHERE ${where}`;
   try {
@@ -339,18 +350,23 @@ function fieldMeta(fetched: Fetched, perms?: Map<string, boolean> | null): Recor
   return out;
 }
 
-function toValues(ctx: ScreenContext, fetched: Fetched, row: Row, unsynced: Set<string>): Record<string, string> {
+/** The field a lookup shows: a Case has no Name, its CaseNumber stands in. */
+const refNameField = (f: Row) => (arr(f.referenceTo).map(str).includes("Case") ? "CaseNumber" : "Name");
+
+function toValues(ctx: ScreenContext, fetched: Fetched, row: Row, unsynced: Set<string>, profile: string | null = null): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [name, spec] of fetched.specs) {
     const f = fetched.describe.fields.get(name.toLowerCase());
     const raw = row[name];
     if (f && str(f.type) === "reference") {
       const rel = f.relationshipName ? obj(row[str(f.relationshipName)]) : {};
-      const shown = unsynced.has(str(raw)) ? "" : str(rel.Name);
+      const shown = unsynced.has(str(raw)) ? "" : str(rel[refNameField(f)]);
       out[name.toLowerCase()] = shown;
       continue;
     }
-    let text = formatValue(raw, spec, f, ctx.format, true);
+    let text = formatValue(raw, spec, f, ctx.format, !/^(Provider)?Visit$/.test(fetched.describe.name));
+    // A formula on $Profile.Name was computed for the connected admin; the device holds the rep's value.
+    if (profile && f?.calculated === true && usesProfileName(str(f.calculatedFormula))) text = evalProfileFormula(str(f.calculatedFormula), profile) ?? text;
     // A person account's Name prints with its salutation (the device joins the compound name).
     if (text && str(f?.name) === fetched.describe.nameField && fetched.describe.fields.has("salutation") && str(row.Salutation)) text = `${salutationLabel(fetched.describe, str(row.Salutation))} ${text}`;
     out[name.toLowerCase()] = text;
@@ -626,6 +642,9 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
   const objects = [...wanted.keys()].filter((o) => ctx.core.objects[o] && wanted.get(o)?.length);
   if (!objects.length) return undefined;
   const { inline, inlineChecks } = await inlineCards(ctx, objects);
+  const viewerProfile = await query(`SELECT Profile.Name FROM User WHERE Id = '${ctx.userId}'`, ctx.org)
+    .then((r) => str(obj(r[0]?.Profile).Name) || null)
+    .catch(() => null);
   const inlineFor = (o: string) => [...new Set(Object.values(inline).filter((c) => c.object === o).flatMap((c) => c.cells.map((x) => x.field)))];
 
   await Promise.all(
@@ -657,11 +676,41 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
       const dashboardOn = components.some((c) => /^(accountSummary|accountManagementDashboard|nextBestActions|accountMapDisplay)$/.test(trimNamespace(c.name)));
       const dashboards = dashboardOn ? await collectDashboards(ctx, ids).catch(() => new Map<string, PublishedDashboard>()) : new Map<string, PublishedDashboard>();
 
+      const ratingsComponent = object === "Account" ? components.find((c) => trimNamespace(c.name) === "Ratings") : undefined;
+      const ratingsLayout = ratingsComponent?.properties.layoutName ?? "";
+      const ratingItems = ratingsLayout ? await readRatingLayout(ctx, ratingsLayout) : null;
+      const ratingRows = new Map<string, Row>();
+      if (ratingItems?.length) {
+        const wanted = [...new Set(ratingItems.filter((i) => i.sobject === "Account").map((i) => i.field).filter((f) => main.describe.fields.has(f.toLowerCase())))];
+        const got = await query(`SELECT Id, LastModifiedDate${wanted.map((f) => `, ${f}`).join("")} FROM Account WHERE Id IN (${inList(ids)})`, ctx.org).catch(() => [] as Row[]);
+        for (const g of got) ratingRows.set(str(g.Id), g);
+      }
+      const ratingsOf = (id: string): PublishedRatings | undefined => {
+        if (!ratingsLayout) return undefined;
+        if (!ratingItems) return { layout: ratingsLayout, cards: null };
+        const row = ratingRows.get(id);
+        return {
+          layout: ratingsLayout,
+          cards: ratingItems.map((i) => {
+            const tab = i.sobject === "Account" ? "General" : /ProviderAcctTerritoryInfo/i.test(i.sobject) ? "Territory" : "Product";
+            const f = main.describe.fields.get(i.field.toLowerCase());
+            const live = tab === "General" && !!f && !!row;
+            const value = live ? formatValue(row?.[str(f?.name)], { type: "", picklist: undefined }, f, ctx.format, true) : "";
+            const updated = live && row?.LastModifiedDate ? new Intl.DateTimeFormat(ctx.format.locale, { dateStyle: "medium", timeZone: ctx.format.timeZone }).format(new Date(str(row.LastModifiedDate))) : "";
+            return { tab, title: i.label, value, editable: live && f?.updateable === true, updated, live } as const;
+          }),
+        };
+      };
+
+      const stagePathOn = object === "Inquiry" && components.some((c) => trimNamespace(c.name) === "LifeSciStagePathContainer");
+      const statusField = main.describe.fields.get("status");
+      const statusSteps = stagePathOn ? arr(statusField?.picklistValues).filter((p) => p.active !== false).map((p) => str(p.label) || str(p.value)) : [];
+
       for (const row of main.rows) {
         const id = str(row.Id);
-        const values: Record<string, Record<string, string>> = { [object]: toValues(ctx, main, row, unsynced) };
+        const values: Record<string, Record<string, string>> = { [object]: toValues(ctx, main, row, unsynced, viewerProfile) };
         const partnerRow = linkedFetch?.rows.find((r) => str(r[linkField]).slice(0, 15) === id.slice(0, 15));
-        if (linkedFetch && partnerRow) values[partner] = toValues(ctx, linkedFetch, partnerRow, unsynced);
+        if (linkedFetch && partnerRow) values[partner] = toValues(ctx, linkedFetch, partnerRow, unsynced, viewerProfile);
         const rtName = main.describe.recordTypes.get(str(row.RecordTypeId)) ?? null;
         const status = str(partnerRow?.Status ?? row.Status);
         byId[id] = {
@@ -674,6 +723,8 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
           editable: isEditable({ object, status, ownerId: str(row.OwnerId), viewerId: ctx.userId, hasEditAccess: edit.get(id) === true, updateable: main.describe.updateable }),
           related: Object.fromEntries((rel.get(id) ?? []).map((r) => [r.key, r])),
           ...(dashboards.has(id) ? { dashboard: dashboards.get(id) } : {}),
+          ...(ratingsOf(id) ? { ratings: ratingsOf(id) } : {}),
+          ...(statusSteps.length ? { stagePath: { steps: statusSteps, current: picklistText(str(row.Status), undefined, statusField) } } : {}),
           ...(expenses ? { expenses: expenses.get(id) ?? { count: 0, total: `${expenses.currency} 0.00` } } : {}),
         };
       }

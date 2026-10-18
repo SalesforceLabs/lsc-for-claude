@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { homeMenu, recordMenu, recordMenus, type HomeQuickAction, type LayoutActionItem } from "../../../../src/studio/screens/fabs.js";
+import { emailTemplateList, homeMenu, recordMenu, recordMenus, type HomeQuickAction, type LayoutActionItem } from "../../../../src/studio/screens/fabs.js";
 import { fabState, menuLayout, recordFabItems } from "../../../../src-renderer/components/studio/ipad-fabs-logic";
 
 const PROFILE = "LS PH Field Sales Representative";
@@ -122,5 +122,19 @@ describe("recordFabItems", () => {
     expect(recordFabItems(fabs, "Visit", "Missing")).toHaveLength(1);
     expect(recordFabItems(fabs, "Account", "x")).toEqual([]);
     expect(recordFabItems(undefined, "Visit", "Call")).toEqual([]);
+  });
+});
+
+describe("emailTemplateList", () => {
+  const rows = [
+    { Id: "b", Name: "Zeta", Product: { Name: "P" }, Description: "d" },
+    { Id: "a", Name: "alpha" },
+    { Id: "c", Name: "" },
+  ];
+  it("sorts by name and drops unnamed templates", () => {
+    expect(emailTemplateList(rows, []).map((t) => t.id)).toEqual(["a", "b"]);
+  });
+  it("narrows to the territory's assigned templates", () => {
+    expect(emailTemplateList(rows, ["b"])).toEqual([{ id: "b", name: "Zeta", product: "P", description: "d" }]);
   });
 });

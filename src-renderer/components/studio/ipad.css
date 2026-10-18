@@ -1064,6 +1064,8 @@ button.studio-ipad-chip {
 }
 
 .studio-ipad-mic {
+  width: 23px;
+  height: 23px;
   color: #747474;
 }
 
@@ -1353,14 +1355,16 @@ button.studio-ipad-chip {
   gap: 10px;
   padding: 5px 0 8px;
   border-radius: 15px;
-  background: radial-gradient(circle 600px at 50% 50%, #014486, #032d60 55%, #03234d);
+  /* AgentforceWelcomeView.background: blue30, blue20, blue15 over a 200pt radius. */
+  background: radial-gradient(circle 200px at 50% 50%, #014486, #032d60, #03234d);
 }
 
 .studio-ipad-h-helix {
+  /* AgentforceWelcomeView.background: a 250x250 template image at the leading edge, centered vertically. */
   position: absolute;
   left: 0;
-  top: 0;
-  opacity: 0.06;
+  top: 50%;
+  margin-top: -125px;
 }
 
 .studio-ipad-h-greeting {
@@ -1623,9 +1627,6 @@ button.studio-ipad-chip {
 .studio-ipad-h-map {
   position: relative;
   flex: 1;
-  background:
-    radial-gradient(ellipse 60% 70% at 55% 50%, #b9dca3 0 60%, transparent 61%),
-    linear-gradient(#cfe7bd, #bfe0a8);
 }
 
 .studio-ipad-h-locate {
@@ -1641,15 +1642,6 @@ button.studio-ipad-chip {
   background: #fff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
   color: #5c5c5c;
-}
-
-.studio-ipad-h-maps-mark {
-  position: absolute;
-  left: 10px;
-  bottom: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #2e2e2e;
 }
 
 /* embeddedDashboard: the dashboard's grid, no spacing; tiles inset 10, white, radius 18. */
@@ -1935,7 +1927,11 @@ button.studio-ipad-chip {
   align-items: flex-end;
   gap: 0;
   padding-right: 5px;
-  font-size: 16px;
+  font-size: 14px;
+}
+
+.studio-ipad-h-app-cycle .studio-ipad-h-caption {
+  font-size: 12px;
 }
 
 .studio-ipad-h-legend {
@@ -1949,6 +1945,13 @@ button.studio-ipad-chip {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+.studio-ipad-h-legend b {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin-right: -4px;
 }
 
 .studio-ipad-h-legend i {
@@ -1992,10 +1995,10 @@ button.studio-ipad-chip {
 }
 
 .studio-ipad-h-pace {
-  flex: 1;
-  width: 100%;
-  min-height: 0;
-  margin-top: 12px;
+  flex: none;
+  width: 519px;
+  height: 410px;
+  margin-top: -7px;
 }
 
 .studio-ipad-h-picker {

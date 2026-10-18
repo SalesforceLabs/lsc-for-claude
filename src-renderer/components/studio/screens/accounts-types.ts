@@ -4,8 +4,11 @@ export interface PublishedAccountCard {
   id: string;
   name: string;
   hco: boolean;
+  recordType?: string;
   address: string;
   license?: "valid" | "invalid";
+  /** [latitude, longitude] the map view plots. */
+  geo?: [number, number];
   /** Values the Sort popover orders by (empty or missing sorts last). */
   sort?: Record<string, string>;
   cells: string[][];

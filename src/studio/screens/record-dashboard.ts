@@ -7,7 +7,7 @@
 import { ID_PATTERN, inList, query, type Row } from "../helpers.js";
 import type { ScreenContext } from "./context.js";
 import { apiRequest } from "../../salesforce/cli.js";
-import { formatAddress } from "./accounts.js";
+import { formatAddress, plottable } from "./accounts.js";
 
 const str = (v: unknown): string => (typeof v === "string" ? v : v == null ? "" : String(v));
 
@@ -15,7 +15,7 @@ export interface PublishedDashboard {
   summary: { generated: string; sections: { title: string; items: string[] }[] } | null;
   overview: { target: boolean; specialties: { label: string; primary: boolean }[] };
   nba: { week: string; items: { id: string; title: string; type: string; due: string; status: string }[] };
-  map: { address: string; license: "validated" | "notValidated" | "disabled" };
+  map: { address: string; license: "validated" | "notValidated" | "disabled"; /** Latitude, longitude of the address the map centres on (null/0 coordinates dropped like the device). */ geo?: [number, number] };
 }
 
 interface SummarySection {
@@ -110,7 +110,7 @@ export async function collectDashboards(ctx: ScreenContext, ids: string[]): Prom
     territoryIds.length
       ? run("ProviderAcctTerritoryInfo", `SELECT AccountId, IsTargetedAccount, PreferredAddressId FROM ProviderAcctTerritoryInfo WHERE AccountId IN (${inIds}) AND Territory2Id IN (${inList(territoryIds)})`)
       : Promise.resolve(none),
-    run("ContactPointAddress", `SELECT Id, ParentId, Street, PostalCode, City, State, StateCode, Country, IsPrimary, LastModifiedDate FROM ContactPointAddress WHERE ParentId IN (${inIds}) AND IsActive = true`),
+    run("ContactPointAddress", `SELECT Id, ParentId, Street, PostalCode, City, State, StateCode, Country, IsPrimary, Latitude, Longitude, LastModifiedDate FROM ContactPointAddress WHERE ParentId IN (${inIds}) AND IsActive = true`),
     run(
       "TerritoryAcctRcmdAction",
       `SELECT Id, AccountId, Name, ActionType, Status, DueDate FROM TerritoryAcctRcmdAction WHERE AccountId IN (${inIds}) AND DueDate >= ${week.from} AND DueDate <= ${week.to} ORDER BY DueDate ASC`
@@ -165,7 +165,7 @@ export async function collectDashboards(ctx: ScreenContext, ids: string[]): Prom
         week: week.label,
         items: mine(nba).map((r) => ({ id: str(r.Id), title: str(r.Name), type: str(r.ActionType), due: str(r.DueDate), status: str(r.Status) })),
       },
-      map: { address: addr ? formatAddress(addr) : "", license },
+      map: { address: addr ? formatAddress(addr) : "", license, ...(addr && plottable(addr.Latitude, addr.Longitude) ? { geo: [addr.Latitude as number, addr.Longitude as number] as [number, number] } : {}) },
     });
   }
   return out;

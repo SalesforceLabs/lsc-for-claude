@@ -791,13 +791,18 @@
   overflow: hidden;
   background: linear-gradient(135deg, #e8eef0 0 60%, #bfe3f7 60% 100%);
 }
+.studio-ipad-rec-map .studio-ipad-rec-map-base {
+  position: absolute;
+  inset: 0;
+}
 .studio-ipad-rec-map-panel {
+  z-index: 1;
   position: absolute;
   left: 15px;
-  top: 22px;
-  width: 430px;
+  top: 15px;
+  width: 449px;
   box-sizing: border-box;
-  padding: 16px 20px 24px;
+  padding: 12px 20px 24px;
   background: #fff;
   border-radius: 8px;
 }
@@ -807,7 +812,8 @@
   color: #032d60;
 }
 .studio-ipad-rec-map-panel .a {
-  margin-top: 10px;
+  max-width: 260px;
+  margin-top: 5px;
   font-size: 15px;
   line-height: 17px;
   color: #0250d9;
@@ -816,7 +822,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-top: 6px;
+  margin-top: 12px;
   padding: 4px 8px;
   border-radius: 4px;
   background: #bdeee6;
@@ -838,6 +844,7 @@
   color: #0250d9;
 }
 .studio-ipad-rec-map-note {
+  z-index: 1;
   position: absolute;
   right: 12px;
   bottom: 8px;
@@ -1056,5 +1063,265 @@
 }
 .studio-ipad-rec-sheet-field .inp .ic.plus {
   margin-right: 8px;
+  color: #0250d9;
+}
+
+/* Inquiry status path (InquiryProgressComponent): 91pt block, five 220pt columns from x 1, node centre 26pt down, labels centred 71pt down. */
+.studio-ipad-rec-stage {
+  position: relative;
+  height: 91px;
+}
+
+.studio-ipad-rec-stage-row {
+  position: absolute;
+  top: 0;
+  left: 1px;
+  display: flex;
+  width: 1100px;
+}
+
+.studio-ipad-rec-stage-step {
+  position: relative;
+  flex: none;
+  width: 220px;
+  height: 91px;
+  --r: 6px;
+}
+
+.studio-ipad-rec-stage-step.done {
+  --r: 13px;
+}
+
+.studio-ipad-rec-stage-step.current {
+  --r: 15px;
+}
+
+.studio-ipad-rec-stage-step .node {
+  position: absolute;
+  top: calc(26px - var(--r));
+  left: calc(110px - var(--r));
+  box-sizing: border-box;
+  width: calc(var(--r) * 2);
+  height: calc(var(--r) * 2);
+  border-radius: 50%;
+  background: #a6a6a6;
+  color: #fff;
+  font-size: 15px;
+  line-height: calc(var(--r) * 2);
+  text-align: center;
+}
+
+.studio-ipad-rec-stage-step.done .node {
+  background: #0b6b5e;
+}
+
+.studio-ipad-rec-stage-step.current .node {
+  border: 6px solid #0250d9;
+  background: #fff;
+}
+
+.studio-ipad-rec-stage-step .line {
+  position: absolute;
+  top: 24px;
+  height: 4px;
+  background: #a6a6a6;
+}
+
+.studio-ipad-rec-stage-step .line.l {
+  left: 0;
+  width: calc(110px - var(--r) - 9px);
+}
+
+.studio-ipad-rec-stage-step .line.r {
+  left: calc(110px + var(--r) + 9px);
+  width: calc(110px - var(--r) - 9px);
+}
+
+.studio-ipad-rec-stage-step:first-child .line.l,
+.studio-ipad-rec-stage-step:last-child .line.r {
+  display: none;
+}
+
+.studio-ipad-rec-stage-step.done .line.r,
+.studio-ipad-rec-stage-step.done .line.l,
+.studio-ipad-rec-stage-step.current .line.l {
+  background: #0250d9;
+}
+
+.studio-ipad-rec-stage-step .label {
+  position: absolute;
+  top: 61px;
+  width: 100%;
+  font-size: 16px;
+  line-height: 20px;
+  color: #032d60;
+  text-align: center;
+}
+
+.studio-ipad-rec-stage-step.current .label {
+  font-weight: 600;
+}
+
+.studio-ipad-rec-stage-actions {
+  position: absolute;
+  top: 7px;
+  left: 1032px;
+  box-sizing: border-box;
+  width: 100px;
+  height: 33px;
+  border: 1px solid #0250d9;
+  border-radius: 17px;
+  background: #fff;
+  color: #0250d9;
+  font: inherit;
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.studio-ipad-rec-stage-actions::after {
+  content: " \2304";
+}
+
+/* Customer Ratings: 1170pt card, segments 33pt at +33, cards 340x243 on a 356/261pt pitch from x 80, first row at +97. */
+.studio-ipad-rec-card.ratings {
+  position: relative;
+  min-height: 510px;
+  padding: 33px 58px 24px;
+}
+
+.studio-ipad-rec-rt-seg {
+  display: flex;
+  justify-content: center;
+  height: 33px;
+  margin-bottom: 31px;
+}
+
+.studio-ipad-rec-rt-seg button {
+  box-sizing: border-box;
+  height: 33px;
+  padding: 0 11px;
+  border: 1px solid #c9c9c9;
+  background: #e8e8e8;
+  font: inherit;
+  font-size: 16px;
+  color: #2e2e2e;
+  cursor: pointer;
+}
+
+.studio-ipad-rec-rt-seg button:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.studio-ipad-rec-rt-seg button:last-child {
+  border-radius: 0 8px 8px 0;
+}
+
+.studio-ipad-rec-rt-seg button.current {
+  background: #fff;
+  border-radius: 8px;
+}
+
+.studio-ipad-rec-rt-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 340px);
+  gap: 16px 16px;
+}
+
+.studio-ipad-rec-rt-card {
+  position: relative;
+  box-sizing: border-box;
+  height: 245px;
+  padding: 0 15px;
+  border: 1px solid #c9c9c9;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.studio-ipad-rec-rt-head {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  margin-top: 13px;
+}
+
+.studio-ipad-rec-rt-head .title {
+  max-width: 221px;
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 21px;
+  color: #2e2e2e;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-ipad-rec-rt-head .info {
+  flex: none;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: #747474;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.studio-ipad-rec-rt-pill {
+  margin-left: auto;
+  box-sizing: border-box;
+  width: 52px;
+  height: 40px;
+  border: 1px solid #5c5c5c;
+  border-radius: 20px;
+  color: #0250d9;
+  font-size: 16px;
+  line-height: 38px;
+  text-align: center;
+}
+
+.studio-ipad-rec-rt-value {
+  box-sizing: border-box;
+  height: 54px;
+  margin: 41px -4px 0;
+  border-radius: 4px;
+  background: #c4c4c4;
+  font-size: 24px;
+  line-height: 54px;
+  color: #2e2e2e;
+  text-align: center;
+}
+
+.studio-ipad-rec-rt-value.set {
+  background: #00e0c6;
+}
+
+.studio-ipad-rec-rt-cleared {
+  margin-top: 5px;
+  font-size: 13px;
+  line-height: 22px;
+  color: #5c5c5c;
+  text-align: center;
+}
+
+.studio-ipad-rec-rt-foot {
+  position: absolute;
+  right: 15px;
+  bottom: 12px;
+  left: 15px;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2e2e2e;
+}
+
+.studio-ipad-rec-rt-foot .clear {
+  margin-left: auto;
+  font-size: 18px;
   color: #0250d9;
 }

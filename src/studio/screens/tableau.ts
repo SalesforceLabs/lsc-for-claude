@@ -24,6 +24,31 @@ export interface PublishedTableauMetric {
   description: string;
   /** "Metric Unavailable" badge (MetricRowViewModel.isMetricUnavailable). */
   unavailable?: boolean;
+  /** The detail screen's chart: the metric's time series from Data Cloud, when it can be reproduced. */
+  detail?: PublishedTableauDetail;
+}
+
+export interface PublishedTableauTick {
+  value: number;
+  label: string;
+}
+
+/**
+ * What the metric detail screen's line chart shows. The expected-range band and the trend sentences come from the
+ * insights service, which answers only the mobile app's session, so they are not part of this.
+ */
+export interface PublishedTableauDetail {
+  /** "month" draws one dot per month, "day" a line. */
+  granularity: "day" | "month";
+  /** [ISO date after the Activity Date shift, value as plotted (percent measures ×100)], oldest first. */
+  series: [string, number][];
+  startLabel: string;
+  endLabel: string;
+  /** The last point's value, formatted for the label beside it. */
+  lastLabel: string;
+  /** Axis ticks and the plotted domain (bottom padded like the device). */
+  ticks: PublishedTableauTick[];
+  domain: [number, number];
 }
 
 export interface PublishedTableau {
@@ -109,6 +134,100 @@ export function formatPercentMeasure(v: number, decimals = 2): string {
 export function formatBanValue(v: number, dataType: string | undefined, decimals?: number): string {
   if (dataType === "Percentage") return formatPercentMeasure(v, decimals ?? 2);
   return formatShort(Number(v.toPrecision(12)));
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "Nov 1, 2024" from an ISO date (the chart's axis labels). */
+export function formatChartDate(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  return `${MONTHS[m - 1]} ${d}, ${y}`;
+}
+
+/** An axis value: "600", "1K", "2.5K", "0.5" — whole numbers when large, trimmed decimals when small. */
+export function formatAxisValue(v: number, percent: boolean): string {
+  const abs = Math.abs(v);
+  let text: string;
+  if (abs >= 1e9) text = `${trim(v / 1e9)}B`;
+  else if (abs >= 1e6) text = `${trim(v / 1e6)}M`;
+  else if (abs >= 1e3) text = `${trim(v / 1e3)}K`;
+  else text = String(Math.round(v * 100) / 100);
+  return percent ? `${text}%` : text;
+}
+
+/** Days from `from` to `to` (both ISO dates). */
+function dayDiff(from: string, to: string): number {
+  return Math.round((Date.parse(`${to.slice(0, 10)}T00:00:00Z`) - Date.parse(`${from.slice(0, 10)}T00:00:00Z`)) / 86400000);
+}
+
+function addDays(iso: string, days: number): string {
+  return new Date(Date.parse(`${iso.slice(0, 10)}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
+}
+
+/** The first of the current month in `timeZone`, as ISO (DATETRUNC('month', TODAY())). */
+export function firstOfThisMonth(now: Date, timeZone: string): string {
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "2-digit" }).formatToParts(now);
+  } catch {
+    parts = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", year: "numeric", month: "2-digit" }).formatToParts(now);
+  }
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "01";
+  return `${get("year")}-${get("month")}-01`;
+}
+
+/**
+ * Activity Date: `DATEADD('day', DATEDIFF('day', {MAX(date)}, DATETRUNC('month', TODAY())), date)` — the latest day moves to the
+ * first of this month. Sorted oldest first; points sharing a shifted day are not merged (the rows are already grouped by day).
+ */
+export function shiftSeries(rows: [string, number][], firstOfMonth: string | null): [string, number][] {
+  const sorted = rows.filter(([d, v]) => /^\d{4}-\d{2}-\d{2}/.test(d) && Number.isFinite(v)).map(([d, v]) => [d.slice(0, 10), v] as [string, number]).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  if (!sorted.length || !firstOfMonth) return sorted;
+  const shift = dayDiff(sorted[sorted.length - 1][0], firstOfMonth);
+  return sorted.map(([d, v]) => [addDays(d, shift), v]);
+}
+
+/** One dot per month when every point falls on the 1st, else a daily line. */
+export function seriesGranularity(series: [string, number][]): "day" | "month" {
+  return series.length > 1 && series.every(([d]) => d.endsWith("-01")) ? "month" : "day";
+}
+
+/**
+ * Y axis fitted to the device's charts. The device lets Tableau's native engine pick the ticks (the viz spec only says
+ * range Auto + includeZero, ticks Auto, so the algorithm is not in the iOS repo or its JS bundle); this reproduces what was
+ * measured on five metrics: start at 0 (or the minimum when negative), reach 1.25x the highest value, three steps of
+ * 1/2/5 x 10^n, plus 7 for small whole-number counts (0/7/14); the bottom is padded 4.2% so the axis sits under the 0 tick.
+ */
+export function chartTicks(min: number, max: number, percent: boolean, countLike = false): { ticks: PublishedTableauTick[]; domain: [number, number] } {
+  const lo = Math.min(0, min);
+  let hi = max * 1.25;
+  if (!(hi > lo)) hi = lo + 1;
+  const raw = (hi - lo) / 3;
+  const pow = 10 ** Math.floor(Math.log10(raw));
+  const candidates = (countLike && pow === 1 ? [1, 2, 5, 7, 10] : [1, 2, 5, 10]).map((m) => m * pow);
+  const step = candidates.reduce((best, c) => (Math.abs(Math.log(c / raw)) < Math.abs(Math.log(best / raw)) ? c : best));
+  const ticks: PublishedTableauTick[] = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) {
+    const value = Math.round(v / step) * step;
+    ticks.push({ value, label: formatAxisValue(value, percent) });
+  }
+  return { ticks, domain: [lo - (hi - lo) * 0.042, hi] };
+}
+
+/** The chart for a series of plotted values. */
+export function buildDetail(series: [string, number][], percent: boolean, granularity: "day" | "month" = seriesGranularity(series)): PublishedTableauDetail | undefined {
+  if (series.length < 2) return undefined;
+  const values = series.map((p) => p[1]);
+  const { ticks, domain } = chartTicks(Math.min(...values), Math.max(...values), percent, !percent && values.every(Number.isInteger) && Math.max(...values) < 100);
+  return {
+    granularity,
+    series,
+    startLabel: formatChartDate(series[0][0]),
+    endLabel: formatChartDate(series[series.length - 1][0]),
+    lastLabel: formatAxisValue(values[values.length - 1], percent),
+    ticks,
+    domain,
+  };
 }
 
 function popcFacts(bundle: Row | undefined): Row | undefined {
@@ -285,6 +404,67 @@ async function computeAllTimeBan(org: string, sub: Row, model: Row | undefined):
   return formatBanValue(n, typeof calc.dataType === "string" ? calc.dataType : undefined, typeof calc.decimalPlace === "number" ? calc.decimalPlace : undefined);
 }
 
+/**
+ * The data object column behind a metric's time dimension and whether the Activity Date shift applies: the semantic model's
+ * calculated date is either a plain `[Obj].[Date]` or the shifted `DATEADD('day', DATEDIFF('day', {MAX(date)}, DATETRUNC('month', TODAY())), date)`.
+ */
+export function timeColumn(ref: Row | undefined, model: Row | undefined): { table: string; column: string; shifted: boolean } | undefined {
+  const objects = (model?.semanticDataObjects ?? []) as SemanticObject[];
+  const column = (o: string, f: string): { table: string; column: string } | undefined => {
+    const obj = objects.find((x) => x.apiName === o);
+    const field = (obj?.semanticDimensions ?? []).find((x) => x.apiName === f);
+    return obj && typeof field?.dataObjectFieldName === "string" ? { table: obj.dataObjectName, column: field.dataObjectFieldName } : undefined;
+  };
+  const tf = ref?.tableFieldReference as Row | undefined;
+  if (tf) {
+    const c = column(String(tf.tableApiName), String(tf.fieldApiName));
+    return c && { ...c, shifted: false };
+  }
+  const calc = ((model?.semanticCalculatedDimensions ?? []) as Row[]).find((d) => d.apiName === ref?.calculatedFieldApiName);
+  if (typeof calc?.expression !== "string") return undefined;
+  const text = calc.expression.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&").trim();
+  const plain = /^\[([^\]]+)\]\.\[([^\]]+)\]$/.exec(text);
+  if (plain) {
+    const c = column(plain[1], plain[2]);
+    return c && { ...c, shifted: false };
+  }
+  const shifted = /^DATEADD\('day',\s*DATEDIFF\('day',\s*\{MAX\(\[([^\]]+)\]\.\[([^\]]+)\]\)\},\s*DATETRUNC\('month',\s*TODAY\(\)\)\),\s*\[([^\]]+)\]\.\[([^\]]+)\]\)$/.exec(text);
+  if (shifted && shifted[1] === shifted[3] && shifted[2] === shifted[4]) {
+    const c = column(shifted[1], shifted[2]);
+    return c && { ...c, shifted: true };
+  }
+  return undefined;
+}
+
+/**
+ * The detail chart's series for an unfiltered, all-time followed metric: the metric's aggregate per day of its time dimension,
+ * from Data Cloud (`ssot/query-sql`, read-only, the connected user's access), then shifted like Activity Date.
+ */
+async function computeDetail(org: string, sub: Row, model: Row | undefined, timeZone: string): Promise<PublishedTableauDetail | undefined> {
+  const metric = sub.semanticMetric as Row | undefined;
+  const ref = (metric?.measurementReference as Row | undefined)?.calculatedFieldApiName;
+  const agg = AGG[String(metric?.aggregationType)];
+  if (!model || !agg || typeof ref !== "string") return undefined;
+  const some = (arr: unknown) => Array.isArray(arr) && arr.length > 0;
+  if (some(sub.filters) || some(metric?.filters) || some(model.semanticModelFilters)) return undefined;
+  const calc = ((model.semanticCalculatedMeasurements ?? []) as Row[]).find((c) => c.apiName === ref);
+  const objects = (model.semanticDataObjects ?? []) as SemanticObject[];
+  if (!calc || typeof calc.expression !== "string" || some(calc.filters) || objects.some((o) => some(o.filters))) return undefined;
+  const e = expressionToSql(calc.expression, objects);
+  const time = timeColumn(metric?.timeDimensionReference as Row | undefined, model);
+  if (!e || !time || time.table !== e.table || !/^\w+$/.test(time.column)) return undefined;
+  const res = await apiRequest<Row>("/services/data/v66.0/ssot/query-sql", "POST", { sql: `SELECT "${time.column}" AS d, ${agg}(${e.sql}) AS v FROM "${e.table}" GROUP BY "${time.column}"` }, org);
+  const rows = res.data?.data as unknown[][] | undefined;
+  if (!res.success || !Array.isArray(rows)) return undefined;
+  const percent = calc.dataType === "Percentage";
+  const points = rows.flatMap((r): [string, number][] => {
+    const n = typeof r[1] === "number" ? r[1] : typeof r[1] === "string" && r[1] !== "" ? Number(r[1]) : NaN;
+    return typeof r[0] === "string" && Number.isFinite(n) ? [[r[0], percent ? Number((n * 100).toPrecision(12)) : n]] : [];
+  });
+  // Monthly data stays monthly after the day shift, so the dot-or-line choice is made on the stored dates.
+  return buildDetail(shiftSeries(points, time.shifted ? firstOfThisMonth(new Date(), timeZone) : null), percent, seriesGranularity(shiftSeries(points, null)));
+}
+
 export async function collectTableau(ctx: ScreenContext): Promise<PublishedTableau | undefined> {
   const follows = await loadFollows(ctx);
   if (!follows.length) return { metrics: [], valuesLoaded: true };
@@ -340,12 +520,14 @@ export async function collectTableau(ctx: ScreenContext): Promise<PublishedTable
       }
     }
     if (ban === "-") loaded = false;
+    const detail = allTime && !bundle ? await computeDetail(ctx.org, sub, model, ctx.format.timeZone).catch(() => undefined) : undefined;
     metrics.push({
       id: f.id,
       name: String(metric.label ?? f.label),
       ban,
       popc: bundle ? parsePopc(bundle, allTime) : { comparison: allTime ? EMPTY_ALL_TIME_COMPARISON : NO_VALUE },
       description: describeTimeRange(f.followedTimeRange),
+      ...(detail ? { detail } : {}),
     });
   }
   // Device order is alphabetical by metric name (observed; the SDK view models don't sort).

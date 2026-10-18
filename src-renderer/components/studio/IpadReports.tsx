@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import type { PublishedReportItem } from "./published-types";
 import { IpadSearchField } from "./IpadChrome";
+import { ReportViewer } from "./ReportViewer";
 
 /**
  * MultiReportsViewController: a 64pt header (search bar, "Collapse All") over
@@ -8,6 +9,8 @@ import { IpadSearchField } from "./IpadChrome";
  */
 export function ReportsTree({ items }: { items: PublishedReportItem[] }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
+  const [viewing, setViewing] = useState<PublishedReportItem | null>(null);
+  const root = useRef<HTMLDivElement>(null);
   const rows: React.ReactNode[] = [];
   const walk = (list: PublishedReportItem[], level: number, path: string) => {
     list.forEach((item, i) => {
@@ -19,6 +22,7 @@ export function ReportsTree({ items }: { items: PublishedReportItem[] }) {
           item={item}
           level={level}
           expanded={expanded}
+          onOpenReport={() => setViewing(item)}
           onToggle={() =>
             setOpen((prev) => {
               const next = new Set(prev);
@@ -34,7 +38,7 @@ export function ReportsTree({ items }: { items: PublishedReportItem[] }) {
   };
   walk(items, 0, "");
   return (
-    <div className="studio-ipad-reports">
+    <div className="studio-ipad-reports" ref={root}>
       <div className="studio-ipad-reports-head">
         <IpadSearchField className="studio-ipad-reports-search" mic={false} />
         <button type="button" className="studio-ipad-reports-collapse" onClick={() => setOpen(new Set())}>
@@ -42,12 +46,13 @@ export function ReportsTree({ items }: { items: PublishedReportItem[] }) {
         </button>
       </div>
       {rows}
+      {viewing && <ReportViewer item={viewing} host={root.current?.closest(".studio-ipad-screen") ?? null} onClose={() => setViewing(null)} />}
     </div>
   );
 }
 
 /** MultiReportsTableViewCell.setup: chevron (hidden for reports), type icon (none for sections), title, description. */
-function ReportRow({ item, level, expanded, onToggle }: { item: PublishedReportItem; level: number; expanded: boolean; onToggle: () => void }) {
+function ReportRow({ item, level, expanded, onToggle, onOpenReport }: { item: PublishedReportItem; level: number; expanded: boolean; onToggle: () => void; onOpenReport: () => void }) {
   let left = 8 + 24 * level;
   if (item.kind === "report" && level > 0) left -= 24;
   const report = item.kind === "report";
@@ -55,7 +60,7 @@ function ReportRow({ item, level, expanded, onToggle }: { item: PublishedReportI
     <div
       className={`studio-ipad-report-row${report ? " report" : ""}${level === 0 && !expanded ? " separated" : ""}`}
       style={{ paddingLeft: left }}
-      onClick={report ? undefined : onToggle}
+      onClick={report ? onOpenReport : onToggle}
     >
       <span className="studio-ipad-report-chevron">
         {!report && (

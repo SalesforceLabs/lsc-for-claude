@@ -16,7 +16,7 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** Planner (PlannerContainerViewController), drawn like LSC Mobile at 1210×834pt. Null until there is data, so the preview keeps its placeholder. */
-export default function CalendarScreen({ tab, snapshot }: ScreenProps): React.ReactElement | null {
+export default function CalendarScreen({ tab, snapshot, onOpenRecord }: ScreenProps): React.ReactElement | null {
   const data = snapshot.screens?.calendar;
   void tab;
   // The now-line and today follow the clock in the user's zone; re-read every 30 s.
@@ -27,11 +27,11 @@ export default function CalendarScreen({ tab, snapshot }: ScreenProps): React.Re
   }, []);
   const live = React.useMemo(() => (data ? withLiveClock(data) : undefined), [data, tick]);
   if (!live) return null;
-  return <Planner data={live} accounts={snapshot.screens?.accounts} />;
+  return <Planner data={live} accounts={snapshot.screens?.accounts} onOpenRecord={onOpenRecord} />;
 }
 
 /** The Planner's mode and the day it is centred on (an index into `data.days`). */
-function Planner({ data: live, accounts }: { data: PublishedCalendar; accounts: PublishedAccounts | undefined }) {
+function Planner({ data: live, accounts, onOpenRecord }: { data: PublishedCalendar; accounts: PublishedAccounts | undefined; onOpenRecord?: (id: string) => void }) {
   const [hidden, setHidden] = React.useState<Set<CalendarSegment["kind"]>>(new Set());
   const [menu, setMenu] = React.useState<"plus" | "more" | "advanced" | null>(null);
   // Filter Events hides whole kinds from every view.
@@ -58,7 +58,12 @@ function Planner({ data: live, accounts }: { data: PublishedCalendar; accounts: 
       <AccountsPane accounts={data.accounts} showLastVisit={data.settings.showLastVisit} lists={accounts ? [...accounts.lists.own, ...accounts.lists.shared] : []} onAdvanced={() => setMenu("advanced")} />
       <div className="studio-ipad-calendar-main">
         <Toolbar data={data} mode={mode} setMode={setMode} anchor={anchor} shown={shown} onStep={step} onToday={() => setAnchor(todayIdx)} viewsToday={viewsToday} onPlus={() => setMenu("plus")} onMore={() => setMenu("more")} />
-        {mode === "Month" ? <MonthView data={data} first={monthStart(anchor)} month={monthOf(anchor)} /> : <TimeView data={data} shown={shown} />}
+        {mode === "Month" ? (
+          // The day label and "N More..." open that date in Day view (CalendarCoordinator); the chips themselves do nothing.
+          <MonthView data={data} first={monthStart(anchor)} month={monthOf(anchor)} onDay={(di) => { setAnchor(di); setMode("Day"); }} />
+        ) : (
+          <TimeView data={data} shown={shown} onOpenRecord={onOpenRecord} />
+        )}
       </div>
       {menu === "plus" && <PlusMenu onClose={() => setMenu(null)} />}
       {menu === "more" && <MoreMenu hidden={hidden} hiddenSub={hiddenSub} range={weekRange(data.now)} onApply={(h, sub) => { setHidden(h); setHiddenSub(sub); }} onClose={() => setMenu(null)} />}
@@ -322,8 +327,10 @@ function EventIcon({ icon, size, color }: { icon: CalendarIcon; size: number; co
 }
 
 /** Day, Work Week and Week: day headers, the All Day row and the scrolling time grid (CalendarWeekViewController). */
-function TimeView({ data, shown }: { data: PublishedCalendar; shown: number[] }) {
+function TimeView({ data, shown, onOpenRecord }: { data: PublishedCalendar; shown: number[]; onOpenRecord?: (id: string) => void }) {
   const { settings, days } = data;
+  // On the device (this org) a Day/Week visit tile opens the Visit record itself; other events have no preview here.
+  const open = (s: CalendarSegment) => (s.kind === "visit" ? { onClick: () => onOpenRecord?.(s.id), style: { cursor: "pointer" } } : {});
   const colW = 790 / shown.length;
   const H = hourHeight(settings.dayDuration);
   const scroll = pointFor(parseStartTime(settings.startTime), settings.dayDuration);
@@ -394,7 +401,9 @@ function TimeView({ data, shown }: { data: PublishedCalendar; shown: number[] })
                 <div
                   key={`${seg.id}${seg.day}`}
                   className="studio-ipad-calendar-tile"
+                  onClick={open(seg).onClick}
                   style={{
+                    ...open(seg).style,
                     left: 58 + i * colW + box.left,
                     width: box.width,
                     top: pointFor(seg.startMin, settings.dayDuration) + 2,
@@ -429,7 +438,7 @@ const MONTH_ROW = (834 - 96 - 60 - 30) / 5;
 const MONTH_PITCH = 24.5;
 
 /** CalendarMonthViewController: five week rows, up to three chips a day and "N More...". */
-function MonthView({ data, first, month }: { data: PublishedCalendar; first: number; month: string }) {
+function MonthView({ data, first, month, onDay }: { data: PublishedCalendar; first: number; month: string; onDay: (dayIndex: number) => void }) {
   const { days } = data;
   const start = first - (first % 7);
   const idx = Array.from({ length: 35 }, (_, i) => start + i).filter((i) => i < days.length);
@@ -450,14 +459,14 @@ function MonthView({ data, first, month }: { data: PublishedCalendar; first: num
         const hiddenCount = segs.length - shownSegs.length;
         return (
           <div key={d.date} className="studio-ipad-calendar-month-cell" style={{ left: (n % 7) * (848 / 7), top: 30 + Math.floor(n / 7) * MONTH_ROW, height: MONTH_ROW }}>
-            <div className={`studio-ipad-calendar-month-day${d.today ? " today" : d.date.startsWith(month) ? "" : " out"}`}>{`${MONTHS[Number(d.date.slice(5, 7)) - 1]} ${d.dayOfMonth}`}</div>
+            <div className={`studio-ipad-calendar-month-day${d.today ? " today" : d.date.startsWith(month) ? "" : " out"}`} role="button" onClick={() => onDay(di)}>{`${MONTHS[Number(d.date.slice(5, 7)) - 1]} ${d.dayOfMonth}`}</div>
             {shownSegs.map((s, k) => (
               <div key={`${s.id}${s.day}`} className="studio-ipad-calendar-month-chip" style={{ top: 25 + k * MONTH_PITCH, background: s.background, color: s.text }}>
                 {s.icon && <EventIcon icon={s.icon} size={10} color={s.text} />}
                 <span>{s.title}</span>
               </div>
             ))}
-            {hiddenCount > 0 && <div className="studio-ipad-calendar-month-more">{hiddenCount} More...</div>}
+            {hiddenCount > 0 && <div className="studio-ipad-calendar-month-more" role="button" onClick={() => onDay(di)}>{hiddenCount} More...</div>}
           </div>
         );
       })}

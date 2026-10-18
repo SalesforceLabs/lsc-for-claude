@@ -20,6 +20,7 @@ import { initials } from "./ipad-chrome";
 import { ChromeSheets, SearchTab, type ChromeSheet } from "./IpadChromeSheets";
 import { CardList, cardModeFor, rowActions, saveCardMode, SortButton, sortRows, ViewModeButton, type SortState } from "./IpadListControls";
 import IpadActionSheet from "./IpadActionSheets";
+import PublishedLoading from "./PublishedLoading";
 import type { PublishedFabItem } from "./screens/fabs-types";
 import { presentationFor, type Presentation } from "./ipad-fab-actions";
 import { CustomIcon } from "./assets/icons";
@@ -56,7 +57,7 @@ interface PublishedIpadPreviewProps {
  */
 export default function PublishedIpadPreview({ profile, state, onRefresh, onPickUser }: PublishedIpadPreviewProps) {
   if (!state || state.status === "loading") {
-    return <div className="studio-ipad-wrap studio-ipad-meta">Reading {profile}'s published iPad configuration…</div>;
+    return <PublishedLoading profile={profile} />;
   }
   if (state.status === "error") {
     return (
@@ -239,7 +240,7 @@ function Screen({
   onEditVisit: (id: string) => void;
 }) {
   // An open record takes precedence over the tab's native screen (the Accounts cards open their record).
-  if (record !== null && snapshot.records?.byId[record]) return <RecordScreen snapshot={snapshot} recordId={record} />;
+  if (record !== null && snapshot.records?.byId[record]) return <RecordScreen snapshot={snapshot} recordId={record} onOpenRecord={onOpenRecord} />;
   if (record === null && hasNativeScreen(tab, snapshot)) return <NativeScreen tab={tab} snapshot={snapshot} onOpenRecord={onOpenRecord} />;
   switch (tab.kind) {
     case "home":
@@ -267,7 +268,7 @@ function Screen({
     case "accounts": {
       const object = snapshot.objects[tab.kind === "accounts" ? "Account" : (tab.sobject ?? "")];
       if (!object) return <Native title={tab.label} text={`${tab.sobject ?? "Object"} list`} />;
-      if (record !== null && snapshot.records?.byId[record]) return <RecordScreen snapshot={snapshot} recordId={record} />;
+      if (record !== null && snapshot.records?.byId[record]) return <RecordScreen snapshot={snapshot} recordId={record} onOpenRecord={onOpenRecord} />;
       return record !== null ? (
         <RecordView object={object} snapshot={snapshot} />
       ) : (

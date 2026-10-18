@@ -10,7 +10,14 @@ export interface PublishedAlert {
   pill: AlertPill;
 }
 
+export interface PublishedCardAction {
+  name: string;
+  label: string;
+  recordTypes: string[];
+}
+
 export interface PublishedChrome {
+  cardActions: PublishedCardAction[];
   alerts: PublishedAlert[];
   profile: { username: string; territory: string | null; synced: string | null };
 }

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { createContext, useContext, useMemo, useState } from "react";
 import type {
   InlineLwcCheck,
   PublishedComponent,
@@ -34,7 +34,7 @@ export function textWidth(text: string, size: number, weight = 400): number {
  * SFComponentHighlightPanelView.calculateCellWidths: each cell fits the wider of its label and value
  * plus the cell padding; spare room across the 15pt-inset view is shared evenly.
  */
-export function highlightWidths(cells: { label: string; value: string }[], measure: (t: string, bold: boolean) => number = (t, b) => textWidth(t, b ? 16 : 14, 400)): number[] {
+export function highlightWidths(cells: { label: string; value: string }[], measure: (t: string, bold: boolean) => number = (t) => textWidth(t, 16, 400)): number[] {
   const widths = cells.map((c) => Math.max(measure(c.value, true), measure(c.label, false)) + CELL_PADDING);
   const total = widths.reduce((a, b) => a + b, 0);
   const room = SCREEN_W - 2 * 15;
@@ -110,10 +110,17 @@ const bare = (name: string) => name.replace(/^.*:/, "");
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
-export default function RecordScreen({ snapshot, recordId }: { snapshot: PublishedIpad; recordId: string }) {
+/** Opens another collected record (a related-list row) in the same preview. */
+const OpenRecord = createContext<((id: string) => void) | undefined>(undefined);
+
+export default function RecordScreen({ snapshot, recordId, onOpenRecord }: { snapshot: PublishedIpad; recordId: string; onOpenRecord?: (id: string) => void }) {
   const rec = snapshot.records?.byId[recordId];
   if (!rec) return null;
-  return <RecordBody snapshot={snapshot} rec={rec} />;
+  return (
+    <OpenRecord.Provider value={onOpenRecord}>
+      <RecordBody key={recordId} snapshot={snapshot} rec={rec} />
+    </OpenRecord.Provider>
+  );
 }
 
 function RecordBody({ snapshot, rec }: { snapshot: PublishedIpad; rec: PublishedRecordData }) {
@@ -198,6 +205,7 @@ function TabContent({ components, snapshot, rec }: { components: PublishedCompon
             const r = findRelated(rec, "AccountAffiliations");
             return r ? <RelatedCard key={k} snapshot={snapshot} related={r} editable={rec.editable} /> : null;
           }
+          if (name === "Ratings" && rec.ratings) return <RatingsCard key={k} ratings={rec.ratings} />;
           if (rec.dashboard) {
             if (name === "accountSummary") return <SummaryCard key={k} data={rec.dashboard} />;
             if (name === "accountManagementDashboard") return <OverviewCard key={k} data={rec.dashboard} />;
@@ -229,6 +237,8 @@ function Header({ snapshot, rec, object, compact }: { snapshot: PublishedIpad; r
         <span className="studio-ipad-rec-icon" style={theme ? { background: theme.color } : undefined} aria-hidden="true">
           {person ? (
             <PersonAccountIcon />
+          ) : /work_plan_selection_rule/.test(theme?.iconUrl ?? "") ? (
+            <CustomIcon />
           ) : theme && !broken ? (
             <img src={theme.iconUrl} alt="" onError={() => setBroken(true)} />
           ) : (
@@ -242,11 +252,34 @@ function Header({ snapshot, rec, object, compact }: { snapshot: PublishedIpad; r
         {cells.map((c, k) => (
           <div key={k} className="studio-ipad-rec-hl-cell" style={{ width: widths[k] }}>
             <div className="studio-ipad-rec-hl-label">{c.label}</div>
-            <div className={`studio-ipad-rec-hl-value${c.value && LOOKUP.has(c.spec.type) ? " link" : ""}`}>{c.value}</div>
+            <div className={`studio-ipad-rec-hl-value${c.value && (LOOKUP.has(c.spec.type) || c.spec.type === "masterdetail") ? " link" : ""}`}>{c.value}</div>
           </div>
         ))}
       </div>
+      {rec.stagePath && <StagePath path={rec.stagePath} />}
     </>
+  );
+}
+
+/** The Inquiry status path (InquiryProgressComponent): done steps checked, the current one ringed, the rest dots. Inert here. */
+function StagePath({ path }: { path: { steps: string[]; current: string } }) {
+  const at = path.steps.indexOf(path.current);
+  return (
+    <div className="studio-ipad-rec-stage">
+      <div className="studio-ipad-rec-stage-row">
+        {path.steps.map((s, k) => (
+          <div key={s} className={`studio-ipad-rec-stage-step${k < at ? " done" : k === at ? " current" : ""}`}>
+            <div className="line l" />
+            <div className="line r" />
+            <span className="node">{k < at ? "✓" : ""}</span>
+            <div className="label">{s}</div>
+          </div>
+        ))}
+      </div>
+      <button type="button" className="studio-ipad-rec-stage-actions" disabled title="Actions are not run from this preview">
+        Actions
+      </button>
+    </div>
   );
 }
 
@@ -413,6 +446,7 @@ function RelatedCard({ snapshot, related, editable = false }: { snapshot: Publis
     [related]
   );
   const shown = related.rows.slice(0, 5);
+  const open = useContext(OpenRecord);
   const file = !theme && /ContentDocument/.test(related.object);
   return (
     <div className="studio-ipad-rec-card related">
@@ -448,7 +482,7 @@ function RelatedCard({ snapshot, related, editable = false }: { snapshot: Publis
             ))}
           </div>
           {shown.map((r) => (
-            <div key={r.id} className="studio-ipad-rec-tr">
+            <div key={r.id} className="studio-ipad-rec-tr" style={open && snapshot.records?.byId[r.id] ? { cursor: "pointer" } : undefined} onClick={open && snapshot.records?.byId[r.id] ? () => open(r.id) : undefined}>
               {related.columns.map((c, k) => (
                 <span key={k} className={`studio-ipad-rec-td${r.cells[k] && LINK_COLUMNS.has(c.type) ? " link" : ""}`} style={{ width: widths[k] }}>
                   {r.cells[k]}
@@ -474,6 +508,52 @@ function RelatedCard({ snapshot, related, editable = false }: { snapshot: Publis
         </div>
       )}
       {related.count > 5 && <div className="studio-ipad-rec-viewall">View All</div>}
+    </div>
+  );
+}
+
+/** Customer Ratings (module/CustomerRatings): General / Product / Territory segments over a grid of rating cards. Edit and Clear are inert. */
+function RatingsCard({ ratings }: { ratings: NonNullable<PublishedRecordData["ratings"]> }) {
+  const tabs = (["General", "Product", "Territory"] as const).filter((t) => ratings.cards?.some((c) => c.tab === t));
+  const [tab, setTab] = useState<(typeof tabs)[number]>(tabs[0] ?? "General");
+  if (!ratings.cards) {
+    return (
+      <div className="studio-ipad-rec-card placeholder">
+        <div className="studio-ipad-rec-ph-title">Ratings</div>
+        <div className="studio-ipad-rec-ph-note">
+          The rating layout &ldquo;{ratings.layout}&rdquo; is synced to the iPad but this org does not expose its entities to the API, so Studio cannot draw its cards.
+        </div>
+      </div>
+    );
+  }
+  const shown = ratings.cards.filter((c) => c.tab === tab);
+  return (
+    <div className="studio-ipad-rec-card ratings">
+      <div className="studio-ipad-rec-rt-seg" role="tablist">
+        {tabs.map((t) => (
+          <button key={t} type="button" role="tab" className={t === tab ? "current" : undefined} onClick={() => setTab(t)}>
+            {t}
+          </button>
+        ))}
+      </div>
+      {shown.some((c) => !c.live) && <div className="studio-ipad-rec-ph-note">Values for this segment are not read by the preview; the iPad draws them from its local tables.</div>}
+      <div className="studio-ipad-rec-rt-grid">
+        {shown.map((c, k) => (
+          <div key={k} className="studio-ipad-rec-rt-card">
+            <div className="studio-ipad-rec-rt-head">
+              <span className="title">{c.title}</span>
+              <span className="info" aria-hidden="true">i</span>
+              {c.editable && <span className="studio-ipad-rec-rt-pill edit">Edit</span>}
+            </div>
+            <div className={`studio-ipad-rec-rt-value${c.value ? " set" : ""}`}>{c.value || "--"}</div>
+            {!c.value && <div className="studio-ipad-rec-rt-cleared">Value was cleared.</div>}
+            <div className="studio-ipad-rec-rt-foot">
+              <span>{c.updated ? `Last updated on ${c.updated}` : ""}</span>
+              {c.editable && <span className="clear">Clear</span>}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

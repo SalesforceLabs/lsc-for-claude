@@ -1,4 +1,5 @@
 import React from "react";
+import { IpadMap } from "./IpadMap";
 import type { PublishedDashboard } from "./published-types";
 import { AstroIcon, EmptyArt } from "./IpadHome";
 import "./record.css";
@@ -163,11 +164,15 @@ export function ActivityHistoryCard({ rows }: { rows: { id: string; cells: strin
   );
 }
 
+/** Points per degree: city-scale, the closest the offline base map draws honestly. */
+const MAP_CARD_PPD = 400;
+
 export function MapCard({ data }: { data: PublishedDashboard }) {
   const m = data.map;
   return (
     <div className="studio-ipad-rec-card dash mapcard">
       <div className="studio-ipad-rec-map" aria-label="Map">
+        {m.geo && <IpadMap className="studio-ipad-rec-map-base" view={{ lat: m.geo[0], lon: m.geo[1], ppd: MAP_CARD_PPD }} showLabels={false} width={1139} height={305} />}
         <div className="studio-ipad-rec-map-panel">
           <div className="h">Address</div>
           <div className="a">{m.address || "No address"}</div>
@@ -181,7 +186,7 @@ export function MapCard({ data }: { data: PublishedDashboard }) {
           )}
           <span className="studio-ipad-rec-map-dir">Get Directions</span>
         </div>
-        <div className="studio-ipad-rec-map-note">On the iPad Apple Maps draws the map here; this preview shows the address only.</div>
+        <div className="studio-ipad-rec-map-note">{m.geo ? "The iPad draws street-level Apple Maps here; this preview shows the coast and borders only." : "On the iPad Apple Maps draws the map here; this account has no coordinates, so the preview shows the address only."}</div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { visitFields, visitTimes, picklistStart } from "../../../../src-renderer/components/studio/ipad-visit-form";
+import { visitFields, visitTimes, picklistStart, autoNumber } from "../../../../src-renderer/components/studio/ipad-visit-form";
 import type { PublishedLayout, RecordFieldSpec } from "../../../../src-renderer/components/studio/published-types";
 import { defaultPlace, licenseBadge } from "../../../../src/studio/screens/fabs.js";
 
@@ -59,6 +59,31 @@ describe("visitFields", () => {
     expect(by.TerritoryId.readOnly).toBe(true);
     expect(by.Status.readOnly).toBe(true);
     expect(by.Channel.required).toBeUndefined();
+  });
+});
+
+describe("visitFields edit mode and blank filler", () => {
+  const l = layout([{ label: null, fields: [[f("Channel", "picklist"), f("Num_Details__c", "summary"), f("Name")], [f("Call_type__c", "picklist")]] }]);
+  it("keeps rollup summaries only for an existing record", () => {
+    expect(visitFields([l]).map((s) => s.name)).not.toContain("Num_Details__c");
+    expect(visitFields([l], { edit: true }).map((s) => s.name)).toContain("Num_Details__c");
+  });
+  it("leaves an uneven last row without a trailing blank", () => {
+    const odd = layout([{ label: null, fields: [[f("Channel", "picklist"), f("Name")], [f("Call_type__c", "picklist")]] }]);
+    const out = visitFields([odd], { edit: true });
+    expect(out.length % 2).toBe(1);
+    expect(out.some((x) => x.type === "blank")).toBe(false);
+  });
+});
+
+describe("autoNumber", () => {
+  it("zero-pads the first half and ends with the temporary star", () => {
+    const n = autoNumber("ABCDEFGH-1234-5678-9ABC-DEF012345678");
+    expect(n).toMatch(/^00000\d{4}\*$/);
+  });
+  it("is stable for a seed and follows the field's display format", () => {
+    expect(autoNumber("AAAA")).toBe(autoNumber("AAAA"));
+    expect(autoNumber("X", "V-{0000}")).toMatch(/^V-\d{4}\*$/);
   });
 });
 

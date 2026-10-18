@@ -104,6 +104,7 @@ interface LscApi {
   studioLwcBundle(name: string): Promise<StudioResponse>;
   studioLwcRequest(method: "GET" | "POST", path: string, body?: unknown): Promise<StudioResponse>;
   studioIpadPublished(profile: string, refresh?: boolean, userId?: string): Promise<StudioResponse>;
+  studioIpadPublishedProgress(profile: string): Promise<StudioResponse>;
   studioPreviewFix(fix: unknown): Promise<StudioResponse>;
   studioApplyFix(fix: unknown, expectedOrg: string): Promise<StudioResponse>;
   studioPublishMobile(profiles: string[], expectedOrg: string): Promise<StudioResponse>;

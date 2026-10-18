@@ -1,3 +1,4 @@
+import type { PublishedReportData } from "./report-types";
 import type { PublishedScreens } from "./screens/types";
 
 // Structural copy of the snapshot types in src/studio/published.ts — the renderer bundle cannot import from src/. Keep in sync.
@@ -183,13 +184,22 @@ export interface PublishedRecordData {
   related: Record<string, PublishedRelated>;
   expenses?: { count: number; total: string };
   dashboard?: PublishedDashboard;
+  /** Inquiry stage path: the Status picklist's active labels in order, and the current one. */
+  stagePath?: { steps: string[]; current: string };
+  /** Account Ratings tab cards; `cards` is null when the org doesn't expose the rating layout entities. */
+  ratings?: PublishedRatings;
+}
+
+export interface PublishedRatings {
+  layout: string;
+  cards: { tab: "General" | "Product" | "Territory"; title: string; value: string; editable: boolean; updated: string; live: boolean }[] | null;
 }
 
 export interface PublishedDashboard {
   summary: { generated: string; sections: { title: string; items: string[] }[] } | null;
   overview: { target: boolean; specialties: { label: string; primary: boolean }[] };
   nba: { week: string; items: { id: string; title: string; type: string; due: string; status: string }[] };
-  map: { address: string; license: "validated" | "notValidated" | "disabled" };
+  map: { address: string; license: "validated" | "notValidated" | "disabled"; geo?: [number, number] };
 }
 
 export interface PublishedRecords {
@@ -213,6 +223,11 @@ export interface PublishedReportItem {
   description?: string;
   /** Summary and tabular reports open natively, the rest on the web. */
   native?: boolean;
+  /** Report Id, format, and its result when run read-only for the "View Report" sheet. */
+  id?: string;
+  format?: string;
+  data?: PublishedReportData;
+  ran?: boolean;
   children: PublishedReportItem[];
 }
 

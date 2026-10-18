@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useRef, useState } from "react";
 import { MicIcon } from "./IpadChrome";
+import { IpadMap } from "./IpadMap";
 import noResultsUnknown from "./assets/noresults-unknown.png";
 import { pageDots } from "./screens/home-types";
 import type { HomeNbcCard, HomeVisit, PublishedHome } from "./screens/home-types";
@@ -68,14 +69,15 @@ function greeting(name: string | undefined, now = new Date()): string {
   return `Good ${part}${first ? `, ${first}` : ""}! How can Agentforce help?`;
 }
 
+/** home-icon-background.pdf (lifesciences-ios Assets.xcassets), drawn template-white at the PDF's 4 percent alpha. */
+const HELIX = "M 232.9 -18.1 C 230.3 -19.4 227.0 -19.4 224.4 -18.8 L 158.6 -84.7 C 159.3 -87.3 159.3 -90.5 158.0 -93.1 C 155.4 -99.7 147.6 -102.9 141.0 -99.7 C 76.6 -71.6 59.0 -1.2 57.0 57.4 C -49.1 62.0 -88.8 109.6 -103.1 149.4 C -105.7 155.9 -101.8 163.7 -95.3 166.3 C -94.0 167.0 -92.1 167.0 -90.8 167.0 C -89.5 167.0 -88.8 167.0 -87.5 166.3 L -26.3 227.6 C -26.9 230.3 -26.9 232.9 -26.3 235.5 C -24.3 240.7 -19.1 244 -13.9 244 C -12.6 244 -10.6 244 -9.3 243.3 C 30.3 229 77.9 189.2 82.4 82.9 C 184.0 78.3 223.8 35.2 240.1 -1.2 C 242.7 -7.7 239.4 -15.5 232.9 -18.1 Z M 195.8 17.6 L 122.1 -56.0 C 126.7 -60.5 131.9 -64.5 137.8 -68.4 L 208.1 2.0 C 204.9 7.8 201.0 12.4 195.8 17.6 Z M 87.0 18.9 L 120.8 52.8 C 109.1 54.8 96.7 56.1 83.1 56.8 C 83.7 43.1 85.0 30.7 87.0 18.9 Z M 150.2 45.0 L 94.8 -10.3 C 98.0 -19.4 102.0 -27.9 106.5 -35.8 L 175.6 33.3 C 167.7 37.8 159.3 41.8 150.2 45.0 Z M 51.8 122.0 L 17.9 88.1 C 29.6 86.1 42.7 84.8 56.4 84.2 C 55.1 97.9 53.8 110.2 51.8 122.0 Z M 32.3 176.8 L -36.7 107.6 C -28.9 103.1 -20.4 99.2 -11.3 95.9 L 44.0 151.3 C 40.7 160.5 36.8 168.9 32.3 176.8 Z M -4.8 213.3 L -73.2 144.8 C -69.3 137.0 -63.4 129.8 -57.5 123.9 L 16.0 197.6 C 10.1 203.5 2.9 208.7 -4.8 213.3 Z M -4.8 213.3";
+
 export function AgentforceWelcome({ prompts, viewerName }: { prompts: string[]; viewerName?: string }) {
   return (
     <div className="studio-ipad-h-inset studio-ipad-h-inset-welcome">
       <div className="studio-ipad-h-welcome">
-        <svg className="studio-ipad-h-helix" width="250" height="250" viewBox="0 0 250 250" aria-hidden="true">
-          {Array.from({ length: 9 }, (_, i) => (
-            <path key={i} d={`M${-40 + i * 34} 260 C ${20 + i * 34} 160, ${-20 + i * 34} 90, ${60 + i * 34} -10`} fill="none" stroke="#fff" strokeWidth="14" />
-          ))}
+        <svg className="studio-ipad-h-helix" width="250" height="250" viewBox="0 0 241 244" preserveAspectRatio="none" aria-hidden="true">
+          <path d={HELIX} fill="#fff" fillOpacity="0.04" />
         </svg>
         <div className="studio-ipad-h-greeting">{greeting(viewerName)}</div>
         <div className="studio-ipad-h-ask">
@@ -283,14 +285,13 @@ export function UpNextMap() {
             <span className="studio-ipad-h-capsule">Schedule a visit</span>
           </div>
         </div>
-        <div className="studio-ipad-h-map" aria-label="Map">
+        <IpadMap className="studio-ipad-h-map" home width={764} height={510}>
           <span className="studio-ipad-h-locate">
             <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
               <path d="M19 3 3 10l7 2 2 7Z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
             </svg>
           </span>
-          <span className="studio-ipad-h-maps-mark"> Maps</span>
-        </div>
+        </IpadMap>
       </div>
     </div>
   );
@@ -298,12 +299,12 @@ export function UpNextMap() {
 
 // ── ActivityPlanByProduct (enhanced) ──────────────────────────────────────────
 
-function Legend({ items }: { items: [string, string][] }) {
+function Legend({ items }: { items: [string, string, boolean?][] }) {
   return (
     <div className="studio-ipad-h-legend">
-      {items.map(([label, color]) => (
+      {items.map(([label, color, dots]) => (
         <span key={label}>
-          <i style={{ background: color }} />
+          {dots ? <b style={{ color }}>···</b> : <i style={{ background: color }} />}
           {label}
         </span>
       ))}
@@ -370,20 +371,62 @@ export function ActivityPlanProgress({ enhanced, plan }: { enhanced: boolean; pl
         </div>
         <div className="studio-ipad-h-app-right">
           <div className="studio-ipad-h-app-sub">Progress Over Time</div>
-          <Legend items={[["Current Pace", "#4d8ef7"], ["Pace required to stay on track", "#06a59a"], ["Today", "#e3066a"]]} />
+          <Legend items={[["Current Pace", "#4d8ef7"], ["Pace required to stay on track", "#06a59a"], ["Today", "#e3066a", true]]} />
           <div className="studio-ipad-h-app-sub">All Activities</div>
-          <svg className="studio-ipad-h-pace" viewBox="0 0 520 380" preserveAspectRatio="none" aria-hidden="true">
-            {[20, 100, 180, 260, 340].map((y) => (
-              <line key={y} x1="44" y1={y} x2="520" y2={y} stroke="#e5e5e5" />
-            ))}
-            <line x1="44" y1="340" x2="520" y2="20" stroke="#06a59a" strokeWidth="4" />
-            <line x1="44" y1="340" x2="420" y2="340" stroke="#4d8ef7" strokeWidth="4" strokeDasharray="8 5" />
-            <line x1="420" y1="20" x2="420" y2="340" stroke="#e3066a" strokeWidth="2.5" strokeDasharray="6 5" />
-          </svg>
+          <PaceChart axis={plan?.axis} />
         </div>
       </div>
       <span className="studio-ipad-h-capsule centered">View Details</span>
     </div>
+  );
+}
+
+/** Plot box of ActivityPlanChart's Chart, in the svg's own pixels (device: x 45...518, 100% at y 31, 0% at y 352). */
+const PACE = { left: 45, right: 518, top: 31, bottom: 352 };
+
+/**
+ * ActivityPlanChart: Activity% 0...100 on y, the cycle's days on x with month ticks. Required pace is the straight 0 -> 100 line,
+ * current pace the dashed capped cumulative (0 until the viewer's goals have progress) up to the Today rule and its ring.
+ */
+export function PaceChart({ axis }: { axis?: { days: number; today: number; ticks: { index: number; label: string }[] } }) {
+  const { left, right, top, bottom } = PACE;
+  const y = (pct: number) => bottom - ((bottom - top) * pct) / 100;
+  const x = (i: number) => left + (axis && axis.days > 1 ? (i / (axis.days - 1)) * (right - left) : 0);
+  const todayX = axis ? x(axis.today) : null;
+  return (
+    <svg className="studio-ipad-h-pace" width="519" height="410" viewBox="0 0 519 410" aria-hidden="true">
+      {[0, 25, 50, 75, 100].map((v) => (
+        <g key={v}>
+          <line x1={left} y1={y(v)} x2={right} y2={y(v)} stroke="#dcdcdc" strokeWidth="1" />
+          <text x={left - 5} y={y(v) + 4} textAnchor="end" fontSize="12" fill="#8a8a8a">
+            {v}
+          </text>
+        </g>
+      ))}
+      {axis?.ticks.map((t) => (
+        <g key={t.index}>
+          <line x1={x(t.index)} y1={bottom} x2={x(t.index)} y2={bottom + 6} stroke="#dcdcdc" />
+          <text x={x(t.index)} y={bottom + 17} textAnchor="middle" fontSize="12" fill="#8a8a8a">
+            {t.label}
+          </text>
+        </g>
+      ))}
+      <text transform={`translate(8 ${(top + bottom) / 2}) rotate(-90)`} textAnchor="middle" fontSize="12" fontWeight="600">
+        Activity%
+      </text>
+      <text x={(left + right) / 2} y={bottom + 39} textAnchor="middle" fontSize="12" fontWeight="600">
+        Quarter
+      </text>
+      {todayX !== null && <line x1={todayX} y1={top} x2={todayX} y2={bottom} stroke="#e3066a" strokeWidth="3" strokeDasharray="5 5" />}
+      <line x1={left} y1={y(0)} x2={right} y2={y(100)} stroke="#06a59a" strokeWidth="5" />
+      {todayX !== null && (
+        <g>
+          <line x1={left} y1={y(0)} x2={todayX} y2={y(0)} stroke="#4d8ef7" strokeWidth="5" strokeDasharray="6 4" />
+          <circle cx={todayX} cy={y(0)} r="4.5" fill="#fff" />
+          <circle cx={todayX} cy={y(0)} r="7" fill="none" stroke="#c9c9c9" strokeWidth="2" />
+        </g>
+      )}
+    </svg>
   );
 }
 

@@ -19,7 +19,9 @@ import { apiRequest } from "../salesforce/cli.js";
 import { count, ID_PATTERN, inList, query, type Row } from "./helpers.js";
 import { collectScreens, type PublishedScreens, type ScreenContext } from "./screens/index.js";
 import { collectRecords, type PublishedRecords } from "./screens/record.js";
+import { attachReportData, type PublishedReportData } from "./screens/report-data.js";
 import { recordFieldSpec, type RecordFieldSpec } from "./screens/record-fields.js";
+import { LoadTracker } from "./published-progress.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -191,6 +193,11 @@ export interface PublishedReportItem {
   description?: string;
   /** MultiReportViewFormat: summary and tabular reports open natively, the rest on the web. */
   native?: boolean;
+  /** Report Id, format, and its result when run read-only for the "View Report" sheet (screens/report-data.ts). */
+  id?: string;
+  format?: string;
+  data?: PublishedReportData;
+  ran?: boolean;
   children: PublishedReportItem[];
 }
 
@@ -626,7 +633,20 @@ function propsOf(ci: Row): Record<string, string> {
   return out;
 }
 
-const PROP_KEEP = new Set(["totalCards", "graphName", "label", "title", "richTextValue", "maxRecords", "entityNames", "relatedListApiName", "dashboardName", "showEnhActivityPlanOnMobileHomepage", "mobileHeight"]);
+const PROP_KEEP = new Set([
+  "totalCards",
+  "graphName",
+  "label",
+  "title",
+  "richTextValue",
+  "maxRecords",
+  "entityNames",
+  "relatedListApiName",
+  "layoutName",
+  "dashboardName",
+  "showEnhActivityPlanOnMobileHomepage",
+  "mobileHeight",
+]);
 
 function toComponent(item: Row): PublishedComponent | null {
   const ci = obj(item.componentInstance);
@@ -635,7 +655,7 @@ function toComponent(item: Row): PublishedComponent | null {
   const all = propsOf(ci);
   const properties: Record<string, string> = {};
   // AgentforceWelcomeViewModel: every non-empty property is a prompt chip, whatever its name.
-  const keepAll = trimNamespace(name) === "lsAgentforceWelcome";
+  const keepAll = trimNamespace(name) === "lsAgentforceWelcome" || trimNamespace(name) === "Ratings";
   for (const [k, v] of Object.entries(all)) if (keepAll || PROP_KEEP.has(k)) properties[k] = k === "richTextValue" ? v.slice(0, 4000) : v;
   const { label, supported } = componentInfo(name);
   const c: PublishedComponent = {
@@ -1054,7 +1074,7 @@ export function buildReportTree(folders: Row[], reports: Row[], salesChart: bool
   const byTitle = (a: PublishedReportItem, b: PublishedReportItem) => (a.title < b.title ? -1 : a.title > b.title ? 1 : 0);
   const report = (r: Row): PublishedReportItem => {
     const format = str(r.Format).toLowerCase();
-    return { kind: "report", title: str(r.Name), description: str(r.Description) || undefined, native: format.includes("summary") || format.includes("tabular"), children: [] };
+    return { kind: "report", title: str(r.Name), description: str(r.Description) || undefined, native: format.includes("summary") || format.includes("tabular"), ...(str(r.Id) ? { id: str(r.Id), format: str(r.Format) } : {}), children: [] };
   };
   const build = (f: Row, kind: "section" | "folder"): PublishedReportItem => ({
     kind,
@@ -1247,7 +1267,7 @@ export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing |
 
 const FILES = ["nav", "ui", "permissions", "db", "sobjects", "reporting"] as const;
 const CACHE_ROOT = path.join(os.tmpdir(), "lsc-studio-published");
-const SNAPSHOT_VERSION = 28;
+const SNAPSHOT_VERSION = 38;
 /** UserService.defaultLanguage — the translation file used when the user's is missing. */
 const DEFAULT_LANGUAGE = "en_US";
 /** Distinct permission-set combinations pre-built per download. */
@@ -1514,7 +1534,9 @@ async function viewerReports(userId: string, salesChart: boolean, org: string): 
       const owner = str(r.OwnerId);
       return readable.has(owner) || owner === userId || owner.startsWith("00D");
     });
-    return buildReportTree(visibleFolders, visibleReports, salesChart);
+    const tree = buildReportTree(visibleFolders, visibleReports, salesChart);
+    await attachReportData(tree, org);
+    return tree;
   } catch {
     return undefined;
   }
@@ -1615,18 +1637,36 @@ export async function viewerConfig(categories: string[], userId: string, org: st
 const FV_COLUMNS = ["TextValue", "IntegerValue", "PicklistValue", "HasBooleanValue", "LongTextValue", "NumberValue", "UrlValue"];
 
 /** What the viewer's native screens and lists show, read live (never saved with the snapshot). */
-async function viewerScreens(core: SnapshotCore, userId: string | undefined, org: string): Promise<Pick<PublishedIpad, "settings" | "reports" | "lists" | "screens" | "records">> {
+async function viewerScreens(
+  core: SnapshotCore,
+  userId: string | undefined,
+  org: string,
+  track: LoadTracker
+): Promise<Pick<PublishedIpad, "settings" | "reports" | "lists" | "screens" | "records">> {
   if (!userId) return {};
+  track.plan(["reports", "lists", "screens", "records"]);
   const [reports, lists, screens] = await Promise.all([
-    viewerReportsTab(core, userId, org),
-    viewerLists(core, userId, org),
-    viewerContext(core, userId, org).then(collectScreens).catch(() => ({}) as PublishedScreens),
+    track.run("reports", () => viewerReportsTab(core, userId, org)),
+    track.run("lists", () => viewerLists(core, userId, org)),
+    track.run("screens", () => viewerContext(core, userId, org).then(collectScreens).catch(() => ({}) as PublishedScreens)),
   ]);
   const home = (screens as PublishedScreens).home;
   // Records other screens open: the Accounts cards, the Home NBC cards (account) and Visits To Submit rows (visit editor).
   const cards = [...new Set([...((screens as PublishedScreens).accounts?.cards.map((c) => c.id) ?? []), ...(home?.nbc?.cards.map((c) => c.accountId) ?? [])])];
-  const visits = home?.visits?.items.map((v) => v.id) ?? [];
-  const records = lists || cards.length || visits.length ? await viewerContext(core, userId, org).then((ctx) => collectRecords(ctx, lists ?? {}, { Account: cards, Visit: visits })).catch(() => undefined) : undefined;
+  // ...and the Calendar's visit tiles, which open the Visit record.
+  // collectRecords keeps the first 30 per object: the rows go first, then the tiles nearest today fill the rest.
+  const cal = (screens as PublishedScreens).calendar;
+  const today = cal ? Math.max(0, cal.days.findIndex((d) => d.today)) : 0;
+  const calVisits = (cal?.segments.filter((s) => s.kind === "visit") ?? []).sort((a, b) => Math.abs(a.day - today) - Math.abs(b.day - today)).map((s) => s.id);
+  const visits = [...new Set([...(home?.visits?.items.map((v) => v.id) ?? []), ...calVisits])];
+  const records =
+    lists || cards.length || visits.length
+      ? await track.run("records", () =>
+          viewerContext(core, userId, org)
+            .then((ctx) => collectRecords(ctx, lists ?? {}, { Account: cards, Visit: visits }))
+            .catch(() => undefined)
+        )
+      : undefined;
   return { ...reports, ...(lists ? { lists } : {}), ...(Object.keys(screens).length ? { screens } : {}), ...(records && Object.keys(records.byId).length ? { records } : {}) };
 }
 
@@ -1841,7 +1881,16 @@ export async function loadPublishedIpad(
   org: string,
   userId?: string
 ): Promise<PublishedIpad | { profile: string; missing: true }> {
-  const [cache, users] = await Promise.all([latestCache(profile, org), profileUsers(profile, org)]);
+  const track = new LoadTracker(profile);
+  try {
+    return await loadWithProgress(profile, org, userId, track);
+  } finally {
+    track.finish();
+  }
+}
+
+async function loadWithProgress(profile: string, org: string, userId: string | undefined, track: LoadTracker): Promise<PublishedIpad | { profile: string; missing: true }> {
+  const [cache, users] = await track.run("cache", () => Promise.all([latestCache(profile, org), profileUsers(profile, org)]));
   if (!cache) return { profile, missing: true };
   if (!ID_PATTERN.test(cache.contentVersionId)) throw new Error("The metadata cache record has no downloadable file.");
 
@@ -1852,43 +1901,46 @@ export async function loadPublishedIpad(
 
   const language = user?.language ?? DEFAULT_LANGUAGE;
 
-  const sharing = user ? viewerSharing(user.id, org) : Promise.resolve(null);
+  const sharing = user ? track.run("sharing", () => viewerSharing(user.id, org)) : Promise.resolve(null);
   const dir = path.join(CACHE_ROOT, cache.contentVersionId);
   const snapshotPath = (sets: string[], lang: string) => path.join(dir, `snapshot-v${SNAPSHOT_VERSION}-${lang}-${comboKey(sets)}.json`);
   if (fs.existsSync(snapshotPath(permissionSets, language))) {
     const saved = JSON.parse(fs.readFileSync(snapshotPath(permissionSets, language), "utf8")) as SnapshotCore;
     const shared = applyListViewSharing(saved, await sharing);
-    const [dashboards, screens] = await Promise.all([withDashboardData(saved.dashboards ?? {}, org), viewerScreens(shared, user?.id, org)]);
+    const [dashboards, screens] = await Promise.all([track.run("dashboards", () => withDashboardData(saved.dashboards ?? {}, org)), viewerScreens(shared, user?.id, org, track)]);
     return { ...shared, ...screens, dashboards, profile, cache, viewer, users: userList };
   }
 
   fs.mkdirSync(dir, { recursive: true });
   const zip = path.join(dir, "cache.zip");
   let languages: string[] = [];
+  track.plan(["download", "unpack", "access", "build"]);
   try {
-    await download(cache.contentVersionId, zip, org);
+    await track.run("download", () => download(cache.contentVersionId, zip, org));
     // Build every combination on the profile now, so switching users doesn't re-download.
     const combos = new Map<string, { sets: string[]; language: string }>([[`${language} ${comboKey(permissionSets)}`, { sets: permissionSets, language }]]);
     for (const u of users) {
       if (combos.size < MAX_COMBOS) combos.set(`${u.language} ${comboKey(u.permissionSets)}`, { sets: u.permissionSets, language: u.language });
     }
     languages = [...new Set([...[...combos.values()].map((c) => c.language), DEFAULT_LANGUAGE])];
-    const { files, tabTranslations } = await extract(zip, dir, languages);
+    const { files, tabTranslations } = await track.run("unpack", () => extract(zip, dir, languages));
     const tabObjects = [
       ...new Set([...Object.values(files.nav).map((t) => str(t.sobjectName)).filter(Boolean), ...Object.values(MULTI_ENTITY).map((m) => m.with)]),
     ];
-    const available = await availableTablesFor(profile, tabObjects, org);
-    let result: SnapshotCore | null = null;
-    for (const c of combos.values()) {
-      // OfflineUserService.getCurrentLocalizationFile: the user's language, else en_US.
-      const translations = tabTranslations.get(c.language) ?? tabTranslations.get(DEFAULT_LANGUAGE);
-      const snapshot = buildSnapshot({ ...files, translations }, { profile, cache, permissionSets: c.sets, availableTables: available?.(c.sets) });
-      fs.writeFileSync(snapshotPath(c.sets, c.language), JSON.stringify(snapshot));
-      if (c.sets === permissionSets && c.language === language) result = snapshot;
-    }
-    const core = result as SnapshotCore;
+    const available = await track.run("access", () => availableTablesFor(profile, tabObjects, org));
+    const core = await track.run("build", async () => {
+      let result: SnapshotCore | null = null;
+      for (const c of combos.values()) {
+        // OfflineUserService.getCurrentLocalizationFile: the user's language, else en_US.
+        const translations = tabTranslations.get(c.language) ?? tabTranslations.get(DEFAULT_LANGUAGE);
+        const snapshot = buildSnapshot({ ...files, translations }, { profile, cache, permissionSets: c.sets, availableTables: available?.(c.sets) });
+        fs.writeFileSync(snapshotPath(c.sets, c.language), JSON.stringify(snapshot));
+        if (c.sets === permissionSets && c.language === language) result = snapshot;
+      }
+      return result as SnapshotCore;
+    });
     const shared = applyListViewSharing(core, await sharing);
-    const [dashboards, screens] = await Promise.all([withDashboardData(core.dashboards, org), viewerScreens(shared, user?.id, org)]);
+    const [dashboards, screens] = await Promise.all([track.run("dashboards", () => withDashboardData(core.dashboards, org)), viewerScreens(shared, user?.id, org, track)]);
     return { ...shared, ...screens, dashboards, viewer, users: userList };
   } finally {
     // Keep only the snapshots — the raw files hold the org's full metadata.

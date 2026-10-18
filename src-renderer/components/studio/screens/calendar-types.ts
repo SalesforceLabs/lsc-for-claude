@@ -9,7 +9,7 @@ export interface CalendarDay {
 
 export interface CalendarSegment {
   id: string;
-  kind: "visit" | "event" | "tot" | "holiday";
+  kind: "visit" | "event" | "tot" | "holiday" | "todo";
   title: string;
   day: number;
   startMin: number;
@@ -19,6 +19,10 @@ export interface CalendarSegment {
   text: string;
   faded?: boolean;
   done?: boolean;
+  /** Not submitted and IsConfirmed: the Filter Events "Confirmed Visit" toggle. */
+  confirmed?: boolean;
+  /** An Assessment Task's Status label; the Filter Events drill-in toggles on it. */
+  status?: string;
   icon?: CalendarIcon;
 }
 

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
+import { IpadMap, type IpadMapPin } from "../IpadMap";
 import { Sheet } from "./interact-ui";
 import "./accounts-overlays.css";
 
@@ -106,10 +107,10 @@ export function SelectBar({ selected, allLabel, onCancel, onAll, onUpdate, onAdd
   );
 }
 
-/** The map view (Apple Maps on the iPad). The preview has no map tiles, so it says so and lists what would be plotted. */
-export function MapPanel({ plotted, onOptimize }: { plotted: number; onOptimize: () => void }) {
+/** The map view (Apple Maps on the iPad): the accounts that have a coordinate, fitted the way MKMapView.showAnnotations does. */
+export function MapPanel({ pins, onOptimize }: { pins: IpadMapPin[]; onOptimize: () => void }) {
   return (
-    <div className="studio-ipad-accounts-map-panel">
+    <IpadMap className="studio-ipad-accounts-map-panel" pins={pins} fit width={923} height={493}>
       <button type="button" className="fit" aria-label="Show all">
         <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
           <path d="M3 7V4h3M14 4h3v3M17 13v3h-3M6 16H3v-3" fill="none" stroke="#0250d9" strokeWidth="1.600" strokeLinecap="round" />
@@ -119,10 +120,6 @@ export function MapPanel({ plotted, onOptimize }: { plotted: number; onOptimize:
       <button type="button" className="optimize" onClick={onOptimize}>
         Optimize View
       </button>
-      <div className="note">
-        <b>Map view</b>
-        <span>On the iPad this is an Apple Map with {plotted} accounts plotted as pins. Studio doesn't render map tiles.</span>
-      </div>
-    </div>
+    </IpadMap>
   );
 }

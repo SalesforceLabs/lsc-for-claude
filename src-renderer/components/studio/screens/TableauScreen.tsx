@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import { MetricDetail } from "./TableauDetail";
 import type { ScreenProps } from "./types";
 import "./tableau.css";
 
@@ -21,7 +22,10 @@ function TableauLogo(): React.ReactElement {
 /** Tableau Followed Metrics (LSCTableauViewController), drawn like LSC Mobile at 1210×834pt. Null until there is data, so the preview keeps its placeholder. */
 export default function TableauScreen({ snapshot }: ScreenProps): React.ReactElement | null {
   const data = snapshot.screens?.tableau;
+  const [openId, setOpenId] = useState<string | null>(null);
   if (!data) return null;
+  const open = openId ? data.metrics.find((m) => m.id === openId) : undefined;
+  if (open) return <MetricDetail metric={open} onBack={() => setOpenId(null)} />;
   return (
     <div className="studio-ipad-tableau">
       <div className="studio-ipad-tableau-header">
@@ -39,7 +43,7 @@ export default function TableauScreen({ snapshot }: ScreenProps): React.ReactEle
       ) : (
         <div className="studio-ipad-tableau-list">
           {data.metrics.map((m) => (
-            <div key={m.id} className="studio-ipad-tableau-card">
+            <div key={m.id} className="studio-ipad-tableau-card" onClick={m.unavailable ? undefined : () => setOpenId(m.id)}>
               <div className="studio-ipad-tableau-row">
                 <div className="studio-ipad-tableau-name">{m.name}</div>
                 <div className="studio-ipad-tableau-ban">{m.unavailable ? "Metric Unavailable" : m.ban}</div>
