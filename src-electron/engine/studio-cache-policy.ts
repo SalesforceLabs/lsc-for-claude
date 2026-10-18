@@ -24,9 +24,9 @@ function marked(v: unknown): boolean {
  * and is as cacheable as a pass.
  */
 const TRANSIENT =
-  /timed out|didn't answer within|too many for one query|too many records to read|QUERY_TIMEOUT|REQUEST_LIMIT_EXCEEDED|SERVER_UNAVAILABLE|UNABLE_TO_LOCK_ROW|lost the connection|socket hang up|ECONN|ETIMEDOUT|ENOTFOUND|HTTP 5\d\d|Engine not started/i;
+  /timed out|took longer than|time budget|didn't answer within|too many for one query|too many records to read|QUERY_TIMEOUT|REQUEST_LIMIT_EXCEEDED|SERVER_UNAVAILABLE|UNABLE_TO_LOCK_ROW|lost the connection|socket hang up|ECONN|ETIMEDOUT|ENOTFOUND|HTTP 5\d\d|Engine not started/i;
 
-function transient(v: unknown, field: "error" | "detail"): boolean {
+function transient(v: unknown, field: "error" | "detail" | "dataNote"): boolean {
   return isObj(v) && typeof v[field] === "string" && TRANSIENT.test(v[field] as string);
 }
 
@@ -46,6 +46,13 @@ export function isCacheable(toolName: string, data: unknown): boolean {
     case "studio_readiness":
     case "studio_setup_overview":
       return !rows("checks").some((c) => transient(c, "error") || (isObj(c) && c.status === "unknown" && transient(c, "detail")));
+    case "studio_ipad_published": {
+      // Screens or list views cut short by size or time; a list view whose filter can't run is the org's answer.
+      if (rows("dataNotes").length > 0) return false;
+      const values = (v: unknown): unknown[] => (isObj(v) ? Object.values(v) : []);
+      if (values(data.listErrors).some((e) => typeof e === "string" && TRANSIENT.test(e))) return false;
+      return !values(data.dashboards).some((d) => transient(d, "dataNote"));
+    }
     default:
       return true;
   }

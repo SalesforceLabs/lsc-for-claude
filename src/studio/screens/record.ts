@@ -7,7 +7,7 @@
 import { apiRequest } from "../../salesforce/cli.js";
 import { ID_PATTERN, inList, query, type Row } from "../helpers.js";
 import { listCell, MULTI_ENTITY, trimNamespace, type PublishedComponent, type PublishedListData } from "../published.js";
-import type { ScreenContext } from "./context.js";
+import { type ScreenContext, softFail } from "./context.js";
 import { evalProfileFormula, usesProfileName } from "./record-formula.js";
 import { readRatingLayout } from "./record-ratings.js";
 import { checkInlineLwc, type InlineLwcCheck, type LwcFile } from "./inline-lwc.js";
@@ -493,7 +493,7 @@ async function relatedLists(ctx: ScreenContext, object: string, ids: string[], d
       const owner = new Map<string, string>(ids.map((id) => [id, id]));
       if (viaContact) {
         owner.clear();
-        const contacts = await query(`SELECT Id, PersonContactId FROM Account WHERE Id IN (${inList(ids)})`, ctx.org).catch(() => [] as Row[]);
+        const contacts = await query(`SELECT Id, PersonContactId FROM Account WHERE Id IN (${inList(ids)})`, ctx.org).catch(softFail(ctx, "Record page", [] as Row[]));
         for (const c of contacts) if (str(c.PersonContactId)) owner.set(str(c.PersonContactId), str(c.Id));
       }
       const parents = [...owner.keys()];
@@ -516,7 +516,7 @@ async function relatedLists(ctx: ScreenContext, object: string, ids: string[], d
         const orderBy = fx ? fx.order.split(" ")[0] : cd.fields.has(cd.nameField.toLowerCase()) ? cd.nameField : rel(paths[0] ?? "Id");
         const dir = fx ? fx.order.split(" ")[1] : "DESC";
         const select = (p: string[]) => `SELECT Id, ${field}, ${[...new Set(p)].join(", ")} FROM ${child} WHERE ${field} IN (${inList(parents)})${scoped} ORDER BY ${orderBy} ${dir} LIMIT 1000`;
-        const records = await query(select(paths.map(rel)), ctx.org).catch(() => query(select(paths.filter((p) => !p.includes("."))), ctx.org).catch(() => [] as Row[]));
+        const records = await query(select(paths.map(rel)), ctx.org).catch(() => query(select(paths.filter((p) => !p.includes("."))), ctx.org).catch(softFail(ctx, `Record page (${child} related list)`, [] as Row[])));
         for (const r of records) {
           const parent = owner.get(str(r[field])) ?? str(r[field]);
           const list = rowsBy.get(parent) ?? [];
@@ -587,7 +587,7 @@ async function affiliations(ctx: ScreenContext, ids: string[]): Promise<Map<stri
   const other = (r: Row, id: string) => (str(r.AccountId) === id ? str(r.RelatedAccountId) : str(r.AccountId));
   const wanted = [...new Set(rows.flatMap((r) => ids.map((id) => other(r, id))))].filter((x) => ID_PATTERN.test(x));
   if (!wanted.length) return out;
-  const held = new Set((await query(`SELECT Id FROM Account WHERE Id IN (${inList(wanted)})${accountCond ? ` AND (${accountCond})` : ""}`, ctx.org).catch(() => [] as Row[])).map((a) => str(a.Id)));
+  const held = new Set((await query(`SELECT Id FROM Account WHERE Id IN (${inList(wanted)})${accountCond ? ` AND (${accountCond})` : ""}`, ctx.org).catch(softFail(ctx, "Record page (affiliations)", [] as Row[]))).map((a) => str(a.Id)));
   const columns = [
     { label: "Account", type: "reference" },
     { label: "Account", type: "reference" },
@@ -618,7 +618,7 @@ async function inlineCards(ctx: ScreenContext, objects: string[]): Promise<Pick<
   const load = async (bundles: string[]): Promise<LwcFile[]> => {
     const valid = bundles.filter((b) => /^\w+$/.test(b));
     if (!valid.length) return [];
-    const rows = await query(`SELECT LightningComponentBundle.DeveloperName, FilePath, Source FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName IN (${inList(valid)})`, ctx.org, true).catch(() => [] as Row[]);
+    const rows = await query(`SELECT LightningComponentBundle.DeveloperName, FilePath, Source FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName IN (${inList(valid)})`, ctx.org, true).catch(softFail(ctx, "Record page", [] as Row[]));
     return rows.map((r) => ({ bundle: str(obj(r.LightningComponentBundle).DeveloperName), path: str(r.FilePath), source: str(r.Source) }));
   };
   await Promise.all(
@@ -653,7 +653,7 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
       const partner = MULTI_ENTITY[object]?.with;
       const [main, access] = await Promise.all([
         fetchRows(ctx, object, `Id IN (${inList(ids)})`, ["Status"].filter(() => object === "Visit"), inlineFor(object)),
-        query(`SELECT RecordId, HasEditAccess FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND RecordId IN (${inList(ids)})`, ctx.org).catch(() => [] as Row[]),
+        query(`SELECT RecordId, HasEditAccess FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND RecordId IN (${inList(ids)})`, ctx.org).catch(softFail(ctx, "Record page", [] as Row[])),
       ]);
       if (!main) return;
       // The partner record is the one whose lookup points back at this record (MultiEntityViewModel.getFetchQuery).
@@ -682,7 +682,7 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
       const ratingRows = new Map<string, Row>();
       if (ratingItems?.length) {
         const wanted = [...new Set(ratingItems.filter((i) => i.sobject === "Account").map((i) => i.field).filter((f) => main.describe.fields.has(f.toLowerCase())))];
-        const got = await query(`SELECT Id, LastModifiedDate${wanted.map((f) => `, ${f}`).join("")} FROM Account WHERE Id IN (${inList(ids)})`, ctx.org).catch(() => [] as Row[]);
+        const got = await query(`SELECT Id, LastModifiedDate${wanted.map((f) => `, ${f}`).join("")} FROM Account WHERE Id IN (${inList(ids)})`, ctx.org).catch(softFail(ctx, "Record page", [] as Row[]));
         for (const g of got) ratingRows.set(str(g.Id), g);
       }
       const ratingsOf = (id: string): PublishedRatings | undefined => {
@@ -745,10 +745,10 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
 /** Expenses tab: ExpenseOriginId → Visit; the total sums Amount in the org's currency. */
 async function readExpenses(ctx: ScreenContext, ids: string[]): Promise<Map<string, { count: number; total: string }> & { currency: string }> {
   const out = new Map<string, { count: number; total: string }>() as Map<string, { count: number; total: string }> & { currency: string };
-  const corporate = await query("SELECT IsoCode FROM CurrencyType WHERE IsCorporate = true", ctx.org).catch(() => [] as Row[]);
+  const corporate = await query("SELECT IsoCode FROM CurrencyType WHERE IsCorporate = true", ctx.org).catch(softFail(ctx, "Record page", [] as Row[]));
   const iso = str(corporate[0]?.IsoCode);
   out.currency = /^[A-Z]{3}$/.test(iso) ? iso : "USD";
-  const rows = await query(`SELECT ExpenseOriginId, Amount FROM Expense WHERE ExpenseOriginId IN (${inList(ids)})`, ctx.org).catch(() => [] as Row[]);
+  const rows = await query(`SELECT ExpenseOriginId, Amount FROM Expense WHERE ExpenseOriginId IN (${inList(ids)})`, ctx.org).catch(softFail(ctx, "Record page (Expenses tab)", [] as Row[]));
   const sums = new Map<string, { count: number; sum: number }>();
   for (const r of rows) {
     const s = sums.get(str(r.ExpenseOriginId)) ?? { count: 0, sum: 0 };

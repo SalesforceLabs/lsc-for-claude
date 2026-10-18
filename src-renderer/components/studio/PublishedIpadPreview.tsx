@@ -186,6 +186,12 @@ function Device({
           {" "}
           · {snapshot.cache.name}, generated {generated}
         </span>
+        {(snapshot.dataNotes?.length ?? 0) > 0 && (
+          <span className="studio-ipad-muted" title={snapshot.dataNotes!.join("\n")}>
+            {" "}
+            · {snapshot.dataNotes!.length} {snapshot.dataNotes!.length === 1 ? "part" : "parts"} not fully read
+          </span>
+        )}
         {dashboardNotes.length > 0 && (
           <span className="studio-ipad-muted" title={dashboardNotes.join("\n")}>
             {" "}
@@ -237,6 +243,16 @@ function Device({
           <span className="studio-ipad-swatch conditional" /> Shown only when its visibility rule passes
         </li>
       </ul>
+      {(snapshot.dataNotes?.length ?? 0) > 0 && (
+        <div className="studio-ipad-note studio-ipad-data-notes">
+          <p>Some live data couldn't be read in full, so these parts of the preview show less than the rep's iPad:</p>
+          <ul>
+            {snapshot.dataNotes!.map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <p className="studio-ipad-note">
         Read from the metadata cache {snapshot.profile} downloads — tabs, page components, layouts, and list views are
         what the app renders; record data is placeholder. {snapshot.notes.join(" ")}

@@ -1,7 +1,7 @@
 /** The app chrome's data: the bell's Alerts modal (AppAlert) and the profile sheet's Synced / Territory / username lines. */
 
 import { inList, query, type Row } from "../helpers.js";
-import type { ScreenContext } from "./context.js";
+import { type ScreenContext, softFail } from "./context.js";
 import { actionTitle, configRecords, supportedAction } from "./fabs.js";
 
 /** OCEDBNotificationType; the pill a type belongs to (NotificationViewController). */
@@ -166,9 +166,11 @@ async function collectAlerts(ctx: ScreenContext, now: Date): Promise<PublishedAl
     .map(toRow)
     .filter((a) => isAlertShown(a, now));
   const readable = new Set<string>();
-  for (let i = 0; i < rows.length; i += 200) {
-    const ids = rows.slice(i, i + 200).map((a) => a.id);
-    const access = await query(`SELECT RecordId FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND HasReadAccess = true AND RecordId IN (${inList(ids)})`, ctx.org);
+  const parts: string[][] = [];
+  for (let i = 0; i < rows.length; i += 200) parts.push(rows.slice(i, i + 200).map((a) => a.id));
+  for (const access of await Promise.all(
+    parts.map((ids) => query(`SELECT RecordId FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND HasReadAccess = true AND RecordId IN (${inList(ids)})`, ctx.org))
+  )) {
     for (const r of access) readable.add(str(r.RecordId));
   }
   return rows
@@ -226,10 +228,10 @@ async function collectCardActions(ctx: ScreenContext): Promise<PublishedCardActi
 export async function collectChrome(ctx: ScreenContext): Promise<PublishedChrome> {
   const now = new Date();
   const [alerts, user, sync, cardActions] = await Promise.all([
-    collectAlerts(ctx, now).catch(() => []),
-    query(`SELECT Username FROM User WHERE Id = '${ctx.userId}'`, ctx.org).catch(() => []),
+    collectAlerts(ctx, now).catch(softFail(ctx, "Alerts", [] as PublishedAlert[])),
+    query(`SELECT Username FROM User WHERE Id = '${ctx.userId}'`, ctx.org).catch(softFail(ctx, "Alerts and profile", [] as Row[])),
     lastSync(ctx).catch(() => null),
-    collectCardActions(ctx).catch(() => []),
+    collectCardActions(ctx).catch(softFail(ctx, "Card actions", [] as PublishedCardAction[])),
   ]);
   return {
     cardActions,

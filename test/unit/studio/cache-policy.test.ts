@@ -34,6 +34,17 @@ describe("isCacheable", () => {
     expect(isCacheable("studio_readiness", missing)).toBe(true);
   });
 
+  it("rejects a published iPad whose live reads were cut short", () => {
+    expect(isCacheable("studio_ipad_published", { dataNotes: ["Calendar accounts pane: showing the first 2,000 of 9,000 accounts by name."] })).toBe(false);
+    expect(isCacheable("studio_ipad_published", { listErrors: { "Account.All": "Reading the list views took longer than the time budget" } })).toBe(false);
+    expect(isCacheable("studio_ipad_published", { dashboards: { d: { title: "D", dataNote: "Query timed out after 120s" } } })).toBe(false);
+  });
+
+  it("keeps a published iPad whose gaps are the org's answer", () => {
+    const answer = { dataNotes: [], listErrors: { "Account.Mine": "No such column 'Foo__c' on Account" }, dashboards: { d: { title: "D", dataNote: "No access to the report" } } };
+    expect(isCacheable("studio_ipad_published", answer)).toBe(true);
+  });
+
   it("keeps complete results", () => {
     expect(isCacheable("studio_list_profiles", { profiles: [] })).toBe(true);
   });

@@ -535,8 +535,9 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         const client = await readyMcpClient();
         if (!client) return { error: "Engine not started" };
         try {
-          // A feature map fans out to many sf CLI queries; allow well over the SDK's 60s default.
-          const result = await client.callTool(toolName, args, { timeoutMs: 5 * 60_000 });
+          // A feature map fans out to many sf CLI queries; allow well over the SDK's 60s default. The published
+          // iPad adds the metadata download to its live reads (list views up to ~4 minutes, then records).
+          const result = await client.callTool(toolName, args, { timeoutMs: toolName === "studio_ipad_published" ? 8 * 60_000 : 5 * 60_000 });
           const text = result.content.find((c) => c.type === "text")?.text ?? "{}";
           const data = JSON.parse(text);
           // Partial results (failed surfaces, checks that couldn't run) shouldn't stick — the next open retries.

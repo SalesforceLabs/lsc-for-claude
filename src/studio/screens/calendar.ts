@@ -1,7 +1,7 @@
 /** Planner calendar (PlannerContainerViewController) — the viewer's week and synced accounts, as their iPad shows them. */
 
-import { inList, query, type Row } from "../helpers.js";
-import type { ScreenContext } from "./context.js";
+import { inList, query, queryResult, type Row } from "../helpers.js";
+import { softFail, type ScreenContext } from "./context.js";
 
 export interface CalendarDay {
   /** yyyy-mm-dd in the viewer's time zone. */
@@ -242,19 +242,39 @@ export async function collectCalendar(ctx: ScreenContext): Promise<PublishedCale
   };
 }
 
+/** Accounts the Calendar's pane holds (first by name); the account lists' member ids cover this many. */
+export const CALENDAR_ACCOUNTS = 2000;
+
 /** The accounts pane: the viewer's synced accounts by name (ICU order), with Last Visit from their territory's ProviderAcctTerritoryInfo. */
 async function collectAccounts(ctx: ScreenContext, showLastVisit: boolean): Promise<CalendarAccount[]> {
   const scope = ctx.scope("Account");
   if (scope === undefined || scope === null) return [];
-  const rows = await query(`SELECT Id, Name, IsPersonAccount FROM Account ${scope ? `WHERE ${scope}` : ""} LIMIT 2000`, ctx.org).catch(() => [] as Row[]);
+  const result = await queryResult(`SELECT Id, Name, IsPersonAccount FROM Account ${scope ? `WHERE ${scope} ` : ""}ORDER BY Name ASC NULLS LAST`, ctx.org, false, {
+    allowTruncated: true,
+    maxRows: CALENDAR_ACCOUNTS,
+  }).catch(softFail(ctx, "Calendar accounts pane", null));
+  const rows = (result?.records ?? []) as Row[];
+  if (result?.truncated) {
+    ctx.note(`Calendar accounts pane: showing the first ${rows.length.toLocaleString("en-US")} of ${result.totalSize.toLocaleString("en-US")} accounts by name.`);
+  }
   const last = new Map<string, string>();
   const terrs = ctx.territories.map((t) => t.id);
   if (showLastVisit && terrs.length) {
-    for (const ids of chunks(rows.map((r) => text(r.Id)), 200)) {
-      const pati = await query(
-        `SELECT AccountId, LastProviderVisitDate FROM ProviderAcctTerritoryInfo WHERE Territory2Id IN (${inList(terrs)}) AND AccountId IN (${inList(ids)}) AND LastProviderVisitDate != null`,
-        ctx.org
-      ).catch(() => [] as Row[]);
+    const parts = chunks(rows.map((r) => text(r.Id)), 200);
+    const batches: Row[][] = [];
+    for (let i = 0; i < parts.length; i += 4) {
+      batches.push(
+        ...(await Promise.all(
+          parts.slice(i, i + 4).map((ids) =>
+            query(
+              `SELECT AccountId, LastProviderVisitDate FROM ProviderAcctTerritoryInfo WHERE Territory2Id IN (${inList(terrs)}) AND AccountId IN (${inList(ids)}) AND LastProviderVisitDate != null`,
+              ctx.org
+            ).catch(softFail(ctx, "Calendar accounts pane (Last Visit)", [] as Row[]))
+          )
+        ))
+      );
+    }
+    for (const pati of batches) {
       for (const p of pati) {
         const id = text(p.AccountId);
         const d = text(p.LastProviderVisitDate).slice(0, 10);
@@ -303,12 +323,12 @@ async function collectSegments(ctx: ScreenContext, a: WeekArgs): Promise<Calenda
   };
   // Records the viewer can't read aren't on their device.
   const readable = async (ids: string[]): Promise<Set<string>> => {
-    const rows = await inBatches(ids, (part) => query(`SELECT RecordId, HasReadAccess FROM UserRecordAccess WHERE UserId = '${userId}' AND RecordId IN (${inList(part)})`, org).catch(() => [] as Row[]));
+    const rows = await inBatches(ids, (part) => query(`SELECT RecordId, HasReadAccess FROM UserRecordAccess WHERE UserId = '${userId}' AND RecordId IN (${inList(part)})`, org).catch(softFail(ctx, "Calendar", [] as Row[])));
     return new Set(rows.filter((r) => r.HasReadAccess === true).map((r) => text(r.RecordId)));
   };
   // CalendarEventsColorSchema inputs: the call's own record says whether it was submitted, and by which channel.
   const providerVisits = async (ids: string[]): Promise<Map<string, Row>> => {
-    const rows = await inBatches(ids, (part) => query(`SELECT VisitId, Status, VisitSubmitDateTime, Channel, IsConfirmed FROM ProviderVisit WHERE VisitId IN (${inList(part)})`, org).catch(() => [] as Row[]));
+    const rows = await inBatches(ids, (part) => query(`SELECT VisitId, Status, VisitSubmitDateTime, Channel, IsConfirmed FROM ProviderVisit WHERE VisitId IN (${inList(part)})`, org).catch(softFail(ctx, "Calendar", [] as Row[])));
     return new Map(rows.map((r) => [text(r.VisitId), r]));
   };
 
@@ -321,7 +341,7 @@ async function collectSegments(ctx: ScreenContext, a: WeekArgs): Promise<Calenda
          WHERE ParentVisitId = null AND PlannedVisitStartTime < ${to} AND PlannedVisitEndTime > ${from}
          AND Id IN (SELECT VisitId FROM ProviderVisit WHERE TerritoryId IN (${inList(a.territories)}))${w} LIMIT 4000`,
         org
-      ).catch(() => [] as Row[]);
+      ).catch(softFail(ctx, "Calendar", [] as Row[]));
       const ids = rows.map((r) => text(r.Id));
       const [ok, pvs] = await Promise.all([readable(ids), providerVisits(ids)]);
       for (const r of rows.filter((r) => ok.has(text(r.Id)))) {
@@ -339,7 +359,7 @@ async function collectSegments(ctx: ScreenContext, a: WeekArgs): Promise<Calenda
         `SELECT Id, Subject, StartDateTime, EndDateTime, IsAllDayEvent FROM Event
          WHERE OwnerId = '${userId}' AND StartDateTime < ${to} AND EndDateTime > ${from}${w} LIMIT 4000`,
         org
-      ).catch(() => [] as Row[]);
+      ).catch(softFail(ctx, "Calendar", [] as Row[]));
       const ok = await readable(rows.map((r) => text(r.Id)));
       for (const r of rows.filter((r) => ok.has(text(r.Id)))) {
         add(text(r.Id), "event", text(r.Subject), Date.parse(text(r.StartDateTime)), Date.parse(text(r.EndDateTime)), r.IsAllDayEvent === true, a.colors.general, { icon: "clipboard" });
@@ -352,7 +372,7 @@ async function collectSegments(ctx: ScreenContext, a: WeekArgs): Promise<Calenda
         `SELECT Id, Name, StartDate, EndDate FROM TerritoryUserDowntime
          WHERE TerritoryId IN (${inList(a.territories)}) AND StartDate < ${to} AND EndDate > ${from}${w} LIMIT 4000`,
         org
-      ).catch(() => [] as Row[]);
+      ).catch(softFail(ctx, "Calendar", [] as Row[]));
       for (const r of rows) add(text(r.Id), "tot", text(r.Name), Date.parse(text(r.StartDate)), Date.parse(text(r.EndDate)), false, a.colors.tot, { icon: "clipboard" });
     })(),
     (async () => {
@@ -363,7 +383,7 @@ async function collectSegments(ctx: ScreenContext, a: WeekArgs): Promise<Calenda
         `SELECT Id, Name, Status, DueDate FROM AssessmentTask
          WHERE IsVisibleInPlanner = true AND DueDate >= ${a.days[0].date} AND DueDate <= ${a.days[a.days.length - 1].date}${w} LIMIT 2000`,
         org
-      ).catch(() => [] as Row[]);
+      ).catch(softFail(ctx, "Calendar", [] as Row[]));
       const ok = await readable(rows.map((r) => text(r.Id)));
       for (const r of rows.filter((r) => ok.has(text(r.Id)))) {
         const [y, m, d] = text(r.DueDate).slice(0, 10).split("-").map(Number);
@@ -378,7 +398,7 @@ async function collectSegments(ctx: ScreenContext, a: WeekArgs): Promise<Calenda
       const rows = await query(
         `SELECT Id, Name, ActivityDate FROM Holiday WHERE ActivityDate >= ${a.days[0].date} AND ActivityDate <= ${a.days[a.days.length - 1].date}${w} LIMIT 500`,
         org
-      ).catch(() => [] as Row[]);
+      ).catch(softFail(ctx, "Calendar", [] as Row[]));
       for (const r of rows) {
         const [y, m, d] = text(r.ActivityDate).slice(0, 10).split("-").map(Number);
         const start = zonedInstant(y, m, d, format.timeZone);

@@ -147,6 +147,8 @@ export interface PublishedIpad {
   screens?: PublishedScreens;
   /** Records the list views open, read live (src/studio/screens/record.ts). */
   records?: PublishedRecords;
+  /** What the live reads couldn't read in full (too many rows, too slow); absent when everything was read. */
+  dataNotes?: string[];
 }
 
 export interface PublishedRelated {

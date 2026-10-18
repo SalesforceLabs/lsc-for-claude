@@ -17,3 +17,17 @@
   height: var(--control-sm);
   font-size: var(--font-sm);
 }
+
+.studio-ipad-data-notes {
+  align-self: stretch;
+  text-align: left;
+}
+
+.studio-ipad-data-notes p {
+  margin: 0 0 4px;
+}
+
+.studio-ipad-data-notes ul {
+  margin: 0;
+  padding-left: 18px;
+}

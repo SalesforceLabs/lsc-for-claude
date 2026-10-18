@@ -2,7 +2,7 @@
 
 import { inList, query, type Row } from "../helpers.js";
 import { formatAddress } from "./accounts.js";
-import type { ScreenContext } from "./context.js";
+import { type ScreenContext, softFail } from "./context.js";
 
 export interface HomeNbcCard {
   accountId: string;
@@ -170,7 +170,7 @@ async function inBatches(ids: string[], run: (part: string[]) => Promise<Row[]>)
 /** Rows the viewer can read (the queries run as the admin): UserRecordAccess, 200 ids per query. */
 async function readable(ids: string[], ctx: ScreenContext): Promise<Set<string>> {
   const rows = await inBatches(ids, (part) =>
-    query(`SELECT RecordId FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND HasReadAccess = true AND RecordId IN (${inList(part)})`, ctx.org).catch(() => [] as Row[])
+    query(`SELECT RecordId FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND HasReadAccess = true AND RecordId IN (${inList(part)})`, ctx.org).catch(softFail(ctx, "Home", [] as Row[]))
   );
   return new Set(rows.map((r) => str(r.RecordId)));
 }
@@ -219,7 +219,7 @@ async function collectNbc(ctx: ScreenContext, now: Date): Promise<PublishedHome[
   if (!ids.length) return { cards: [], lastRefreshed: "Last Refreshed: --", lastRefreshedSource: LAST_REFRESHED_SOURCE };
   // The device's last_call join: an account visited (Submitted) after its score was last modified is left out.
   const visits = await inBatches(ids, (part) =>
-    query(`SELECT AccountId, MAX(PlannedStartTime) m FROM ProviderVisit WHERE Status = 'Submitted' AND AccountId IN (${inList(part)}) GROUP BY AccountId`, ctx.org).catch(() => [] as Row[])
+    query(`SELECT AccountId, MAX(PlannedStartTime) m FROM ProviderVisit WHERE Status = 'Submitted' AND AccountId IN (${inList(part)}) GROUP BY AccountId`, ctx.org).catch(softFail(ctx, "Home", [] as Row[]))
   );
   const lastCall = new Map(visits.map((r) => [str(r.AccountId), dateOf(r.m)]));
   candidates = candidates.filter((r) => {
@@ -230,13 +230,13 @@ async function collectNbc(ctx: ScreenContext, now: Date): Promise<PublishedHome[
   const ok = await readable(candidates.map((r) => str(r.AccountId)), ctx);
   const top = candidates.filter((r) => ok.has(str(r.AccountId))).slice(0, props.maxCards);
   const topIds = top.map((r) => str(r.AccountId));
-  const q = (soql: (list: string) => string) => inBatches(topIds, (part) => query(soql(inList(part)), ctx.org).catch(() => [] as Row[]));
+  const q = (soql: (list: string) => string) => inBatches(topIds, (part) => query(soql(inList(part)), ctx.org).catch(softFail(ctx, "Home", [] as Row[])));
   const [specs, addrs, patis, goals, sync] = await Promise.all([
     q((l) => `SELECT AccountId, Name, LastModifiedDate FROM HealthcareProviderSpecialty WHERE AccountId IN (${l}) ORDER BY LastModifiedDate DESC`),
     q((l) => `SELECT ParentId, FullAddress, Street, PostalCode, City, State, Country, LastModifiedDate FROM ContactPointAddress WHERE ParentId IN (${l}) AND IsActive = true ORDER BY LastModifiedDate DESC`),
     q((l) => `SELECT AccountId, IsTargetedAccount, LastProviderVisitDate FROM ProviderAcctTerritoryInfo WHERE AccountId IN (${l}) AND Territory2Id = '${terr[0]}' AND IsActive = true ORDER BY LastModifiedDate DESC`),
     q((l) => `SELECT AccountId, ProratedOverallGoal FROM ProviderActivityGoal WHERE AccountId IN (${l}) ORDER BY LastModifiedDate DESC`),
-    query(`SELECT DownloadStart FROM DeviceSyncSummary WHERE OwnerId = '${ctx.userId}' AND Type = 'data' AND DownloadEnd != null ORDER BY DownloadStart DESC LIMIT 1`, ctx.org).catch(() => [] as Row[]),
+    query(`SELECT DownloadStart FROM DeviceSyncSummary WHERE OwnerId = '${ctx.userId}' AND Type = 'data' AND DownloadEnd != null ORDER BY DownloadStart DESC LIMIT 1`, ctx.org).catch(softFail(ctx, "Home", [] as Row[])),
   ]);
   const first = (rows: Row[], key: string) => {
     const m = new Map<string, Row>();
@@ -285,11 +285,11 @@ async function collectVisits(ctx: ScreenContext, now: Date): Promise<PublishedHo
   const ok = await readable(rows.map((r) => str(r.Id)), ctx);
   const shown = rows.filter((r) => ok.has(str(r.Id)));
   const places = [...new Set(shown.map((r) => str(r.PlaceId)).filter((p) => p.startsWith("8lW")))];
-  const addrRows = await inBatches(places, (part) => query(`SELECT Id, Street, PostalCode, City, State, Country FROM ContactPointAddress WHERE Id IN (${inList(part)})`, ctx.org).catch(() => [] as Row[]));
+  const addrRows = await inBatches(places, (part) => query(`SELECT Id, Street, PostalCode, City, State, Country FROM ContactPointAddress WHERE Id IN (${inList(part)})`, ctx.org).catch(softFail(ctx, "Home", [] as Row[])));
   const addr = new Map(addrRows.map((r) => [str(r.Id), formatAddress(r)]));
   const kids = new Map<string, number>();
   const parentIds = shown.map((r) => str(r.Id));
-  for (const r of await inBatches(parentIds, (part) => query(`SELECT ParentVisitId, COUNT(Id) n FROM Visit WHERE ParentVisitId IN (${inList(part)}) GROUP BY ParentVisitId`, ctx.org).catch(() => [] as Row[])))
+  for (const r of await inBatches(parentIds, (part) => query(`SELECT ParentVisitId, COUNT(Id) n FROM Visit WHERE ParentVisitId IN (${inList(part)}) GROUP BY ParentVisitId`, ctx.org).catch(softFail(ctx, "Home", [] as Row[]))))
     kids.set(str(r.ParentVisitId), Number(r.n ?? 0));
   const defaultMinutes = 60;
   const starts = shown.map((r) => dateOf(r.PlannedVisitStartTime) ?? now);
@@ -321,8 +321,8 @@ async function collectPlan(ctx: ScreenContext, now: Date): Promise<PublishedHome
       `SELECT ActivityPlan.TimePeriod.StartDate, ActivityPlan.TimePeriod.EndDate FROM ActivityPlanTerritory
        WHERE TerritoryId = '${terr}' AND ActivityPlan.IsActive = true AND ActivityPlan.Type = 'AccountGoal'`,
       ctx.org
-    ).catch(() => [] as Row[]),
-    query("SELECT MasterLabel, DisplayOrder FROM ProviderActivityMeasureType WHERE IsActive = true", ctx.org).catch(() => [] as Row[]),
+    ).catch(softFail(ctx, "Home", [] as Row[])),
+    query("SELECT MasterLabel, DisplayOrder FROM ProviderActivityMeasureType WHERE IsActive = true", ctx.org).catch(softFail(ctx, "Home", [] as Row[])),
   ]);
   const out: NonNullable<PublishedHome["plan"]> = {};
   for (const p of plans) {

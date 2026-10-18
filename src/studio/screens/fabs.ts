@@ -2,7 +2,7 @@
 
 import { inList, query, type Row } from "../helpers.js";
 import type { PublishedLayout, PublishedPage, PublishedComponent, SnapshotCore } from "../published.js";
-import type { ScreenContext } from "./context.js";
+import { type ScreenContext, softFail } from "./context.js";
 import { accountWhere, CARD_CAP, formatAddress } from "./accounts.js";
 
 /** What a custom action (or a layout's URL / App / LWC action) targets — enough to say what the app would open. */
@@ -284,12 +284,12 @@ async function collectVisitCreate(ctx: ScreenContext): Promise<PublishedVisitCre
   const sdlField = field(cfg.StateDistributorLicenseSettings, "TDDFormulaField");
   const sdlStates = str(configKey(cfg.StateDistributorLicenseSettings, "TDDDStates")).split(";").filter(Boolean);
 
-  const accounts = await query(`SELECT Id, RecordType.Name, RecordType.IsPersonType FROM Account${accountWhere(scope)} ORDER BY Name ASC NULLS LAST LIMIT ${CARD_CAP}`, org).catch(() => [] as Row[]);
+  const accounts = await query(`SELECT Id, RecordType.Name, RecordType.IsPersonType FROM Account${accountWhere(scope)} ORDER BY Name ASC NULLS LAST LIMIT ${CARD_CAP}`, org).catch(softFail(ctx, "Floating buttons", [] as Row[]));
   const ids = accounts.map((a) => str(a.Id));
   if (!ids.length) return result;
   const parts: string[][] = [];
   for (let i = 0; i < ids.length; i += 150) parts.push(ids.slice(i, i + 150));
-  const run = async (build: (inIds: string) => string): Promise<Row[]> => (await Promise.all(parts.map((p) => query(build(inList(p)), org).catch(() => [] as Row[])))).flat();
+  const run = async (build: (inIds: string) => string): Promise<Row[]> => (await Promise.all(parts.map((p) => query(build(inList(p)), org).catch(softFail(ctx, "Floating buttons", [] as Row[]))))).flat();
   const territoryIds = ctx.territories.map((t) => t.id);
   const [titles, atis, addresses] = await Promise.all([
     run((inIds) => `SELECT AccountId, toLabel(ProfessionalTitle) FROM HealthcareProvider WHERE AccountId IN (${inIds})`),
@@ -308,7 +308,7 @@ async function collectVisitCreate(ctx: ScreenContext): Promise<PublishedVisitCre
   const [byAccount, byPlace] = await Promise.all([
     slnOn ? run((inIds) => `SELECT ${columns} FROM BusinessLicense WHERE AccountId IN (${inIds}) AND ${live}`) : Promise.resolve([] as Row[]),
     deaOn || sdlOn
-      ? (await Promise.all(placeParts.map((p) => query(`SELECT ${columns} FROM BusinessLicense WHERE ContactPointAddressId IN (${inList(p)}) AND ${live}`, org).catch(() => [] as Row[])))).flat()
+      ? (await Promise.all(placeParts.map((p) => query(`SELECT ${columns} FROM BusinessLicense WHERE ContactPointAddressId IN (${inList(p)}) AND ${live}`, org).catch(softFail(ctx, "Floating buttons", [] as Row[]))))).flat()
       : Promise.resolve([] as Row[]),
   ]);
   for (const a of accounts) {
@@ -357,7 +357,7 @@ async function collectEmailTemplates(ctx: ScreenContext): Promise<PublishedEmail
   const templates = await query("SELECT Id, Name, Description, Product.Name FROM LifeSciEmailTemplate WHERE IsActive = true AND Name != null", ctx.org);
   const territoryId = ctx.territories[0]?.id;
   const assigned = territoryId
-    ? await query(`SELECT TemplateReferenceRecordId FROM TerritoryContentTmplAsgnt WHERE TerritoryId IN (${inList([territoryId])})`, ctx.org).catch(() => [] as Row[])
+    ? await query(`SELECT TemplateReferenceRecordId FROM TerritoryContentTmplAsgnt WHERE TerritoryId IN (${inList([territoryId])})`, ctx.org).catch(softFail(ctx, "Floating buttons", [] as Row[]))
     : [];
   return emailTemplateList(
     templates,

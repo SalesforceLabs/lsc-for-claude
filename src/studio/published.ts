@@ -18,10 +18,13 @@ import { resolveScalarTags } from "../perf/sync-volume.js";
 import { apiRequest } from "../salesforce/cli.js";
 import { count, ID_PATTERN, inList, query, queryResult, type Row } from "./helpers.js";
 import { collectScreens, type PublishedScreens, type ScreenContext } from "./screens/index.js";
+import { isScaleError, withTimeout } from "./screens/context.js";
 import { collectRecords, type PublishedRecords } from "./screens/record.js";
 import { attachReportData, type PublishedReportData } from "./screens/report-data.js";
 import { recordFieldSpec, type RecordFieldSpec } from "./screens/record-fields.js";
 import { LoadTracker } from "./published-progress.js";
+
+export { withTimeout };
 
 const execFileAsync = promisify(execFile);
 
@@ -185,6 +188,8 @@ export interface PublishedIpad {
   screens?: PublishedScreens;
   /** Records the list views open (layout values, related lists), read live; absent when none could be read. */
   records?: PublishedRecords;
+  /** What the live screens couldn't read in full (too many rows, too slow); a load with these isn't cached. */
+  dataNotes?: string[];
 }
 
 export interface PublishedSettings {
@@ -1585,7 +1590,9 @@ async function availableTablesFor(
       const readable = new Set([...fromProfile, ...permissionSets.flatMap((ps) => [...(fromSet.get(ps) ?? [])])]);
       return new Set(candidates.filter((s) => readable.has(s) || !hasPermissions.has(s)));
     };
-  } catch {
+  } catch (err) {
+    // Snapshots built from the fallback are kept per cache version, so a read cut short fails the load instead.
+    if (isScaleError(err)) throw err;
     return null;
   }
 }
@@ -1607,13 +1614,18 @@ async function ancestors(sobject: string, parentField: string, fields: string, i
  * filter, so the user's sharing decides): report folders they can read, the
  * reports in them, the org's unfiled public reports, and their own private ones.
  */
-async function viewerReports(userId: string, salesChart: boolean, org: string): Promise<PublishedReportItem[] | undefined> {
+async function viewerReports(userId: string, salesChart: boolean, org: string, note: (message: string) => void): Promise<PublishedReportItem[] | undefined> {
   if (!ID_PATTERN.test(userId)) return undefined;
   try {
-    const [folders, reports] = await Promise.all([
-      query(`SELECT Id, Name, ParentId FROM Folder WHERE Type = 'Report'`, org),
-      query(`SELECT Id, Name, Description, Format, FolderName, OwnerId FROM Report`, org),
+    const [folderResult, reportResult] = await Promise.all([
+      queryResult(`SELECT Id, Name, ParentId FROM Folder WHERE Type = 'Report' ORDER BY Name`, org, false, { allowTruncated: true, maxRows: REPORT_ROWS }),
+      queryResult(`SELECT Id, Name, Description, Format, FolderName, OwnerId FROM Report ORDER BY Name`, org, false, { allowTruncated: true, maxRows: REPORT_ROWS }),
     ]);
+    const folders = folderResult.records as Row[];
+    const reports = reportResult.records as Row[];
+    for (const [result, noun] of [[folderResult, "report folders"], [reportResult, "reports"]] as const) {
+      if (result.truncated) note(`Reports tab: read the first ${result.records.length.toLocaleString("en-US")} of ${result.totalSize.toLocaleString("en-US")} ${noun} by name; the rest aren't shown.`);
+    }
     const readable = new Set<string>();
     const ids = folders.map((f) => str(f.Id)).filter((id) => ID_PATTERN.test(id));
     const chunks: string[][] = [];
@@ -1631,10 +1643,14 @@ async function viewerReports(userId: string, salesChart: boolean, org: string): 
     const tree = buildReportTree(visibleFolders, visibleReports, salesChart);
     await attachReportData(tree, org);
     return tree;
-  } catch {
+  } catch (err) {
+    if (isScaleError(err)) note(`Reports tab not shown with data: ${reason(err)}`);
     return undefined;
   }
 }
+
+/** Report folders and reports read for the Reports tab (each); an org with more is told so. */
+const REPORT_ROWS = 10_000;
 
 /** The user's role, public groups (nested included), and territories, for list view sharing; null if the org won't say. */
 async function viewerSharing(userId: string, org: string): Promise<ViewerSharing | null> {
@@ -1736,13 +1752,29 @@ async function viewerScreens(
   userId: string | undefined,
   org: string,
   track: LoadTracker
-): Promise<Pick<PublishedIpad, "settings" | "reports" | "lists" | "listErrors" | "screens" | "records">> {
+): Promise<Pick<PublishedIpad, "settings" | "reports" | "lists" | "listErrors" | "screens" | "records" | "dataNotes">> {
   if (!userId) return {};
   track.plan(["reports", "lists", "screens", "records"]);
+  const notes: string[] = [];
+  const note = (message: string) => {
+    if (!notes.includes(message)) notes.push(message);
+  };
   const [reports, listResult, screens] = await Promise.all([
-    track.run("reports", () => viewerReportsTab(core, userId, org)),
+    track.run("reports", () =>
+      withTimeout(viewerReportsTab(core, userId, org, note), REPORTS_TIMEOUT_MS, "Reading the Reports tab").catch((err) => {
+        note(`Reports tab not shown with data: ${reason(err)}`);
+        return {};
+      })
+    ),
     track.run("lists", () => viewerLists(core, userId, org, track)),
-    track.run("screens", () => viewerContext(core, userId, org).then(collectScreens).catch(() => ({}) as PublishedScreens)),
+    track.run("screens", () =>
+      viewerContext(core, userId, org, note)
+        .then(collectScreens)
+        .catch((err) => {
+          if (isScaleError(err)) note(`Native screens not shown with data: ${reason(err)}`);
+          return {} as PublishedScreens;
+        })
+    ),
   ]);
   const lists = listResult?.data;
   const listErrors = listResult && Object.keys(listResult.errors).length ? listResult.errors : undefined;
@@ -1758,19 +1790,37 @@ async function viewerScreens(
   const records =
     lists || cards.length || visits.length
       ? await track.run("records", () =>
-          viewerContext(core, userId, org)
-            .then((ctx) => collectRecords(ctx, lists ?? {}, { Account: cards, Visit: visits }))
-            .catch(() => undefined)
+          withTimeout(
+            viewerContext(core, userId, org, note).then((ctx) => collectRecords(ctx, lists ?? {}, { Account: cards, Visit: visits })),
+            RECORDS_TIMEOUT_MS,
+            "Reading the records list views and cards open"
+          ).catch((err) => {
+            if (isScaleError(err)) note(`Record pages not shown with data: ${reason(err)}`);
+            return undefined;
+          })
         )
       : undefined;
-  return { ...reports, ...(lists ? { lists } : {}), ...(listErrors ? { listErrors } : {}), ...(Object.keys(screens).length ? { screens } : {}), ...(records && Object.keys(records.byId).length ? { records } : {}) };
+  return {
+    ...reports,
+    ...(lists ? { lists } : {}),
+    ...(listErrors ? { listErrors } : {}),
+    ...(Object.keys(screens).length ? { screens } : {}),
+    ...(records && Object.keys(records.byId).length ? { records } : {}),
+    ...(notes.length ? { dataNotes: notes } : {}),
+  };
 }
 
 /** The viewer's territories, locale, and sync scope, for the native screens' collectors. */
-async function viewerContext(core: SnapshotCore, userId: string, org: string): Promise<ScreenContext> {
+async function viewerContext(core: SnapshotCore, userId: string, org: string, note: (message: string) => void): Promise<ScreenContext> {
+  const soft = (what: string) => (err: unknown) => {
+    if (isScaleError(err)) note(`${what}: ${reason(err)}`);
+    return [] as Row[];
+  };
   const [users, assignments] = await Promise.all([
-    query(`SELECT TimeZoneSidKey, LocaleSidKey FROM User WHERE Id = '${userId}'`, org).catch(() => [] as Row[]),
-    query(`SELECT Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId = '${userId}' AND Territory2.Territory2Model.State = 'Active'`, org).catch(() => [] as Row[]),
+    query(`SELECT TimeZoneSidKey, LocaleSidKey FROM User WHERE Id = '${userId}'`, org).catch(soft("The rep's time zone and locale (UTC and en-US used)")),
+    query(`SELECT Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId = '${userId}' AND Territory2.Territory2Model.State = 'Active'`, org).catch(
+      soft("The rep's territories (screens read as if they had none)")
+    ),
   ]);
   const territories = assignments.map((a) => ({ id: str(a.Territory2Id), name: str(obj(a.Territory2).Name) }));
   return {
@@ -1781,6 +1831,7 @@ async function viewerContext(core: SnapshotCore, userId: string, org: string): P
     format: { timeZone: str(users[0]?.TimeZoneSidKey) || "UTC", locale: (str(users[0]?.LocaleSidKey) || "en_US").replace(/_/g, "-") },
     scope: syncScope(core, userId, territories),
     config: (categories) => viewerConfig(categories, userId, org),
+    note,
   };
 }
 
@@ -1794,13 +1845,13 @@ function syncScope(core: SnapshotCore, userId: string, territories: { id: string
 }
 
 /** ReportsTabCoordinator reads ReportsAndDashboardsSync; the report tree only shows with ShowSalesforceReports. */
-async function viewerReportsTab(core: SnapshotCore, userId: string, org: string): Promise<Pick<PublishedIpad, "settings" | "reports">> {
+async function viewerReportsTab(core: SnapshotCore, userId: string, org: string, note: (message: string) => void): Promise<Pick<PublishedIpad, "settings" | "reports">> {
   if (!core.tabs.some((t) => t.kind === "reports")) return {};
   try {
     const config = await viewerConfig(["ReportsAndDashboardsSync"], userId, org);
     const r = config.ReportsAndDashboardsSync ?? {};
     const settings: PublishedSettings = { reports: { salesChart: r.ShowSalesChart === true, salesforceReports: r.ShowSalesforceReports === true } };
-    const reports = settings.reports.salesforceReports ? await viewerReports(userId, settings.reports.salesChart, org) : undefined;
+    const reports = settings.reports.salesforceReports ? await viewerReports(userId, settings.reports.salesChart, org, note) : undefined;
     return { settings, reports };
   } catch {
     return {};
@@ -1815,15 +1866,11 @@ const LIST_VIEW_TIMEOUT_MS = 45_000;
 /** Total time for all list views; the ones not started by then are skipped with a note. */
 const LIST_BUDGET_MS = 180_000;
 const LIST_CONCURRENCY = 4;
+/** Longest the Reports tab (folders, sharing, report results) is waited on. */
+const REPORTS_TIMEOUT_MS = 90_000;
+/** Longest the records step (the pages list views and cards open) is waited on. */
+const RECORDS_TIMEOUT_MS = 60_000;
 
-/** Reject if `p` takes longer than `ms`; the work behind it isn't cancelled, but it's no longer waited on. */
-export function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
-  let timer: NodeJS.Timeout;
-  const limit = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${what} took longer than ${Math.round(ms / 1000)} seconds`)), ms);
-  });
-  return Promise.race([p, limit]).finally(() => clearTimeout(timer));
-}
 
 /** Run `fn` over `items` with at most `concurrency` in flight, in order. */
 export async function runPool<T>(items: T[], concurrency: number, fn: (item: T) => Promise<void>): Promise<void> {

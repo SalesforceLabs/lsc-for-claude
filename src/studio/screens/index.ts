@@ -4,7 +4,7 @@ import { collectAccounts, type PublishedAccounts } from "./accounts.js";
 import { collectCalendar, type PublishedCalendar } from "./calendar.js";
 import { collectChrome, type PublishedChrome } from "./chrome.js";
 import { collectContent, type PublishedContent } from "./content.js";
-import type { ScreenContext } from "./context.js";
+import { errorText, isScaleError, withTimeout, type ScreenContext } from "./context.js";
 import { collectFabs, type PublishedFabs } from "./fabs.js";
 import { collectHome, type PublishedHome } from "./home.js";
 import { collectTableau, type PublishedTableau } from "./tableau.js";
@@ -35,13 +35,34 @@ const COLLECTORS: { [K in keyof PublishedScreens]-?: { kind: string | null; coll
   chrome: { kind: null, collect: collectChrome },
 };
 
-/** Runs the collector of each screen the viewer has a tab for; one that fails is left out. */
+/** Longest one screen's collector is waited on, so a large org's slow reads don't hold up the whole preview. */
+export const SCREEN_TIMEOUT_MS = 90_000;
+
+const SCREEN_NAMES: Record<keyof PublishedScreens, string> = {
+  content: "Content",
+  accounts: "Accounts",
+  calendar: "Calendar",
+  tableau: "Tableau",
+  fabs: "Floating buttons",
+  home: "Home",
+  chrome: "Alerts and profile",
+};
+
+/**
+ * Runs the collector of each screen the viewer has a tab for. One that fails
+ * is left out — with a note when the cause is scale (too many rows, too slow),
+ * quietly when the org lacks what it reads.
+ */
 export async function collectScreens(ctx: ScreenContext): Promise<PublishedScreens> {
   const out: Record<string, unknown> = {};
   await Promise.all(
     Object.entries(COLLECTORS).map(async ([key, c]) => {
       if (c.kind !== null && !ctx.core.tabs.some((t) => t.kind === c.kind)) return;
-      const data = await c.collect(ctx).catch(() => undefined);
+      const name = SCREEN_NAMES[key as keyof PublishedScreens];
+      const data = await withTimeout<unknown>(c.collect(ctx), SCREEN_TIMEOUT_MS, `Reading the ${name} screen`).catch((err) => {
+        if (isScaleError(err)) ctx.note(`${name} screen not shown with data: ${errorText(err)}`);
+        return undefined;
+      });
       if (data !== undefined) out[key] = data;
     })
   );

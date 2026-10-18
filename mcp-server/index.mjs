@@ -77171,8 +77171,8 @@ Content-Type: ${contentType || detectContentType(filePath)}\r
       body
     });
     if (!response.ok) {
-      const errorText2 = await response.text();
-      return { success: false, error: `Upload failed (${response.status}): ${errorText2}` };
+      const errorText3 = await response.text();
+      return { success: false, error: `Upload failed (${response.status}): ${errorText3}` };
     }
     const result = await response.json();
     const contentVersionId = result.id;
@@ -100693,6 +100693,28 @@ import * as os3 from "os";
 import * as path7 from "path";
 import { promisify as promisify4 } from "util";
 
+// src/studio/screens/context.ts
+var SCALE_ERROR = /too many|timed out|took longer than|didn't answer within|running for too long|QUERY_TIMEOUT|REQUEST_LIMIT_EXCEEDED|EXCEEDED_ID_LIMIT|SERVER_UNAVAILABLE|UNABLE_TO_LOCK_ROW|socket hang up|ECONN|ETIMEDOUT|ENOTFOUND|HTTP 5\d\d/i;
+function isScaleError(err) {
+  return SCALE_ERROR.test(err instanceof Error ? err.message : String(err));
+}
+function errorText2(err) {
+  return err instanceof Error ? err.message : String(err);
+}
+function softFail(ctx, what, fallback) {
+  return (err) => {
+    if (isScaleError(err)) ctx.note(`${what}: ${errorText2(err)}`);
+    return fallback;
+  };
+}
+function withTimeout(p, ms2, what) {
+  let timer;
+  const limit = new Promise((_2, reject) => {
+    timer = setTimeout(() => reject(new Error(`${what} took longer than ${Math.round(ms2 / 1e3)} seconds`)), ms2);
+  });
+  return Promise.race([p, limit]).finally(() => clearTimeout(timer));
+}
+
 // src/studio/screens/accounts.ts
 var CARD_CAP = 300;
 function chipCount(n) {
@@ -100738,21 +100760,49 @@ var str2 = (v) => typeof v === "string" ? v : "";
 var chunks = (a, n) => Array.from({ length: Math.ceil(a.length / n) }, (_2, i) => a.slice(i * n, i * n + n));
 async function readable(ids, ctx) {
   const out = /* @__PURE__ */ new Set();
-  for (const part of chunks(ids, 200)) {
-    const rows3 = await query(`SELECT RecordId FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND HasReadAccess = true AND RecordId IN (${inList(part)})`, ctx.org);
-    for (const r of rows3) out.add(str2(r.RecordId));
+  const parts = chunks(ids, 200);
+  for (let i = 0; i < parts.length; i += 4) {
+    const batch = await Promise.all(
+      parts.slice(i, i + 4).map((part) => query(`SELECT RecordId FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND HasReadAccess = true AND RecordId IN (${inList(part)})`, ctx.org))
+    );
+    for (const r of batch.flat()) out.add(str2(r.RecordId));
   }
   return out;
 }
-async function listMembers(listId, from, org) {
-  const members = await query(`SELECT AccountId FROM LifeSciAccountListMember WHERE LifeScienceAccountListId = '${listId}' AND AccountId != null`, org);
-  const ids = [...new Set(members.map((m) => str2(m.AccountId)))];
-  const parts = await Promise.all(chunks(ids, 200).map((part) => query(`SELECT Id ${from(`Id IN (${inList(part)})`)}`, org)));
-  return parts.flat().map((r) => str2(r.Id));
+var MEMBER_IDS = 2e3;
+var CANDIDATE_ROWS = 2e4;
+var LIST_ROWS = 2e3;
+var LISTS_COUNTED = 100;
+async function heldMembers(ctx, from, object3, where2, what) {
+  const sub = `SELECT AccountId FROM ${object3} WHERE ${where2}`;
+  if (!/\bSELECT\b/i.test(where2)) {
+    try {
+      const [n, rows3] = await Promise.all([
+        count(`SELECT COUNT() ${from(`Id IN (${sub})`)}`, ctx.org),
+        query(`SELECT Id ${from(`Id IN (${sub})`)} ORDER BY Name ASC NULLS LAST LIMIT ${MEMBER_IDS}`, ctx.org)
+      ]);
+      return { ids: rows3.map((r) => str2(r.Id)), count: n };
+    } catch (err) {
+      if (isScaleError(err)) throw err;
+    }
+  }
+  const res = await queryResult(sub, ctx.org, false, { allowTruncated: true, maxRows: CANDIDATE_ROWS });
+  const candidates = [...new Set(res.records.map((r) => str2(r.AccountId)).filter(Boolean))];
+  const held = [];
+  const parts = chunks(candidates, 200);
+  for (let i = 0; i < parts.length; i += 4) {
+    held.push(...(await Promise.all(parts.slice(i, i + 4).map((part) => query(`SELECT Id, Name ${from(`Id IN (${inList(part)})`)}`, ctx.org)))).flat());
+  }
+  if (res.truncated) {
+    ctx.note(`${what}: read ${res.records.length.toLocaleString("en-US")} of ${res.totalSize.toLocaleString("en-US")} rows, so its count is a minimum.`);
+  }
+  const byName = held.sort((a, b) => str2(a.Name).localeCompare(str2(b.Name), void 0, { sensitivity: "base" }));
+  return { ids: byName.slice(0, MEMBER_IDS).map((r) => str2(r.Id)), count: held.length, atLeast: res.truncated || void 0 };
 }
-async function heldAccounts(ids, from, org) {
-  const parts = await Promise.all(chunks([...new Set(ids)], 200).map((part) => query(`SELECT Id ${from(`Id IN (${inList(part)})`)}`, org).catch(() => [])));
-  return parts.flat().map((r) => str2(r.Id));
+function membersDetail(m) {
+  if (!m) return "Not counted";
+  if (m.atLeast) return `${m.count.toLocaleString("en-US")}+ Accounts`;
+  return `${m.count.toLocaleString("en-US")} Account${m.count === 1 ? "" : "s"}`;
 }
 async function activePlanId(type, ctx) {
   const terr = ctx.territories.map((t) => t.id);
@@ -100760,7 +100810,7 @@ async function activePlanId(type, ctx) {
   const plans = await query(
     `SELECT ActivityPlanId, ActivityPlan.TimePeriod.StartDate, ActivityPlan.TimePeriod.EndDate FROM ActivityPlanTerritory WHERE TerritoryId IN (${inList(terr)}) AND ActivityPlan.IsActive = true AND ActivityPlan.Type = '${type}'`,
     ctx.org
-  ).catch(() => []);
+  ).catch(softFail(ctx, "Activity Plans filter", []));
   const now = Date.now();
   for (const p of plans) {
     const tp = p.ActivityPlan?.TimePeriod;
@@ -100776,27 +100826,56 @@ async function collectBuiltInFilters(ctx, from) {
     const s2 = ctx.scope(table);
     return s2 === void 0 || s2 === null ? null : s2 ? ` AND (${s2})` : "";
   };
-  const members = async (ids) => heldAccounts(ids, from, ctx.org);
+  const none2 = { ids: [], count: 0 };
+  const members = (object3, where2, what) => heldMembers(ctx, from, object3, where2, what).catch(softFail(ctx, what, null));
   const nbc = async () => {
     const w = scoped2("TerritoryAccountScore");
-    if (w === null || !terr.length) return [];
-    const rows3 = await query(`SELECT AccountId FROM TerritoryAccountScore WHERE TerritoryId IN (${inList(terr)}) AND Rank != null AND AccountId != null${w}`, ctx.org).catch(() => []);
-    return members(rows3.map((r) => str2(r.AccountId)));
+    if (w === null || !terr.length) return none2;
+    return members("TerritoryAccountScore", `TerritoryId IN (${inList(terr)}) AND Rank != null AND AccountId != null${w}`, "Next Best Customers filter");
   };
   const goals = async (type) => {
     const w = scoped2("ProviderActivityGoal");
     const plan = await activePlanId(type, ctx);
-    if (w === null || !plan) return [];
+    if (w === null || !plan) return none2;
     const measure = type === "AccountGoal" ? " AND Id IN (SELECT ProviderActivityGoalId FROM ProviderActivityGoalMeasure WHERE ProductList = null)" : "";
-    const rows3 = await query(`SELECT AccountId FROM ProviderActivityGoal WHERE ActivityPlanId = '${plan}' AND AccountId != null${measure}${w}`, ctx.org).catch(() => []);
-    return members(rows3.map((r) => str2(r.AccountId)));
+    const what = type === "AccountGoal" ? "Activity Plans filter" : "Activity Plans with Weightages filter";
+    return members("ProviderActivityGoal", `ActivityPlanId = '${plan}' AND AccountId != null${measure}${w}`, what);
   };
   const [n, a, wt] = await Promise.all([nbc(), goals("AccountGoal"), goals("WeightedTerritoryGoals")]);
-  const row = (id2, name, ids) => ({ id: id2, name, detail: `${ids.length} Account${ids.length === 1 ? "" : "s"}`, memberIds: ids });
+  const row = (id2, name, m) => ({ id: id2, name, detail: membersDetail(m), ...m ? { memberIds: m.ids } : {} });
   return [row("filter:nbc", "Next Best Customers", n), row("filter:activityplan", "Activity Plans", a), row("filter:weighted", "Activity Plans with Weightages", wt)];
 }
 async function byIds(ids, run2) {
   return (await Promise.all(chunks(ids, 150).map((part) => run2(inList(part))))).flat();
+}
+async function sidebarLists(ctx, from) {
+  const { org, userId } = ctx;
+  const read2 = (where2, order) => queryResult(`SELECT Id, Name, OwnerId FROM LifeScienceAccountList WHERE Type = 'List' AND ${where2} ORDER BY ${order}`, org, false, { allowTruncated: true, maxRows: LIST_ROWS }).catch(
+    softFail(ctx, "Account lists", null)
+  );
+  const [own, others] = await Promise.all([read2(`OwnerId = '${userId}'`, "Name"), read2(`OwnerId != '${userId}'`, "LastModifiedDate DESC")]);
+  if (own?.truncated) ctx.note(`Account lists: showing ${own.records.length.toLocaleString("en-US")} of the viewer's ${own.totalSize.toLocaleString("en-US")} lists.`);
+  if (others?.truncated) ctx.note(`Account lists: checked the ${others.records.length.toLocaleString("en-US")} most recently changed of ${others.totalSize.toLocaleString("en-US")} other lists in the org for sharing.`);
+  const otherRows = others?.records ?? [];
+  const visible = await readable(otherRows.map((l) => str2(l.Id)), ctx).catch(softFail(ctx, "Account lists shared with the viewer", /* @__PURE__ */ new Set()));
+  const rows3 = [...own?.records ?? [], ...otherRows.filter((l) => visible.has(str2(l.Id)))];
+  if (rows3.length > LISTS_COUNTED) ctx.note(`Account lists: members counted for the first ${LISTS_COUNTED} of ${rows3.length.toLocaleString("en-US")} lists; the rest show "Not counted".`);
+  const out = [];
+  const counting = rows3.slice(0, LISTS_COUNTED);
+  for (let i = 0; i < counting.length; i += 4) {
+    out.push(
+      ...await Promise.all(
+        counting.slice(i, i + 4).map(async (l) => {
+          const m = await heldMembers(ctx, from, "LifeSciAccountListMember", `LifeScienceAccountListId = '${str2(l.Id)}' AND AccountId != null`, `Account list "${str2(l.Name)}"`).catch(
+            softFail(ctx, `Account list "${str2(l.Name)}"`, null)
+          );
+          return { id: str2(l.Id), name: str2(l.Name), ownerId: str2(l.OwnerId), detail: membersDetail(m), ...m ? { memberIds: m.ids } : {} };
+        })
+      )
+    );
+  }
+  for (const l of rows3.slice(LISTS_COUNTED)) out.push({ id: str2(l.Id), name: str2(l.Name), ownerId: str2(l.OwnerId), detail: membersDetail(null) });
+  return out;
 }
 async function collectAccounts(ctx) {
   const scope = ctx.scope("Account");
@@ -100827,14 +100906,14 @@ async function collectAccounts(ctx) {
         () => query(`SELECT AccountId, IsTargetedAccount, LastProviderVisitDate, PreferredAddressId ${where2}`, org)
       );
     }) : none2,
-    ids.length ? byIds(ids, (inIds) => query(`SELECT AccountId, Specialties FROM HealthcareProvider WHERE AccountId IN (${inIds})`, org).catch(() => [])) : none2,
-    ids.length ? byIds(ids, (inIds) => query(`SELECT Id, ParentId, Street, PostalCode, City, State, StateCode, Country, IsPrimary, Latitude, Longitude FROM ContactPointAddress WHERE ParentId IN (${inIds}) AND IsActive = true`, org).catch(() => [])) : none2,
+    ids.length ? byIds(ids, (inIds) => query(`SELECT AccountId, Specialties FROM HealthcareProvider WHERE AccountId IN (${inIds})`, org).catch(softFail(ctx, "Accounts", []))) : none2,
+    ids.length ? byIds(ids, (inIds) => query(`SELECT Id, ParentId, Street, PostalCode, City, State, StateCode, Country, IsPrimary, Latitude, Longitude FROM ContactPointAddress WHERE ParentId IN (${inIds}) AND IsActive = true`, org).catch(softFail(ctx, "Accounts", []))) : none2,
     ids.length && licensesOn ? byIds(
       ids,
       (inIds) => query(
         `SELECT AccountId, JurisdictionState, IsLicenseValidated${slnField ? `, ${slnField}` : ""} FROM BusinessLicense WHERE AccountId IN (${inIds}) AND ComplianceScope = 'JurisdictionState' AND IsActive = true AND LicenseNumber != null AND PeriodStart <= TODAY AND PeriodEnd >= TODAY`,
         org
-      ).catch(() => [])
+      ).catch(softFail(ctx, "Accounts", []))
     ) : none2
   ]);
   const cards = accounts.map((a) => {
@@ -100882,16 +100961,12 @@ async function collectAccounts(ctx) {
       ]
     };
   });
-  const listRows = await query("SELECT Id, Name, OwnerId FROM LifeScienceAccountList WHERE Type = 'List'", org).catch(() => []);
-  const visible = await readable(listRows.map((l) => str2(l.Id)), ctx).catch(() => /* @__PURE__ */ new Set());
-  const counted2 = await Promise.all(
-    listRows.filter((l) => visible.has(str2(l.Id))).map(async (l) => {
-      const memberIds = await listMembers(str2(l.Id), from, org).catch(() => []);
-      const n = memberIds.length;
-      return { id: str2(l.Id), name: str2(l.Name), ownerId: str2(l.OwnerId), detail: `${n} Account${n === 1 ? "" : "s"}`, memberIds };
-    })
+  const counted2 = await sidebarLists(ctx, from);
+  const advancedResult = await queryResult("SELECT Id, Name FROM LifeScienceAccountList WHERE Type = 'AdvancedFilter' ORDER BY Name", org, false, { allowTruncated: true, maxRows: LIST_ROWS }).catch(
+    softFail(ctx, "Advanced Filters", null)
   );
-  const advanced = await query("SELECT Id, Name FROM LifeScienceAccountList WHERE Type = 'AdvancedFilter' ORDER BY Name", org).catch(() => []);
+  if (advancedResult?.truncated) ctx.note(`Advanced Filters: showing the first ${advancedResult.records.length.toLocaleString("en-US")} of ${advancedResult.totalSize.toLocaleString("en-US")} by name.`);
+  const advanced = advancedResult?.records ?? [];
   const grouped = groupLists(counted2, ctx.userId);
   const strip = ({ id: id2, name, detail, memberIds }) => ({ id: id2, name, detail, memberIds });
   return {
@@ -100906,7 +100981,7 @@ async function collectAccounts(ctx) {
     ],
     lists: { own: grouped.own.map(strip), shared: grouped.shared.map(strip) },
     advancedFilters: advanced.map((a) => ({ id: str2(a.Id), name: str2(a.Name) })),
-    builtInFilters: await collectBuiltInFilters(ctx, from).catch(() => void 0),
+    builtInFilters: await collectBuiltInFilters(ctx, from).catch(softFail(ctx, "Filters", void 0)),
     sortLabel: sortLabel(["Name"]),
     columns: DEFAULT_COLUMNS,
     cards
@@ -101042,18 +101117,36 @@ async function collectCalendar(ctx) {
     segments
   };
 }
+var CALENDAR_ACCOUNTS = 2e3;
 async function collectAccounts2(ctx, showLastVisit) {
   const scope = ctx.scope("Account");
   if (scope === void 0 || scope === null) return [];
-  const rows3 = await query(`SELECT Id, Name, IsPersonAccount FROM Account ${scope ? `WHERE ${scope}` : ""} LIMIT 2000`, ctx.org).catch(() => []);
+  const result = await queryResult(`SELECT Id, Name, IsPersonAccount FROM Account ${scope ? `WHERE ${scope} ` : ""}ORDER BY Name ASC NULLS LAST`, ctx.org, false, {
+    allowTruncated: true,
+    maxRows: CALENDAR_ACCOUNTS
+  }).catch(softFail(ctx, "Calendar accounts pane", null));
+  const rows3 = result?.records ?? [];
+  if (result?.truncated) {
+    ctx.note(`Calendar accounts pane: showing the first ${rows3.length.toLocaleString("en-US")} of ${result.totalSize.toLocaleString("en-US")} accounts by name.`);
+  }
   const last = /* @__PURE__ */ new Map();
   const terrs = ctx.territories.map((t) => t.id);
   if (showLastVisit && terrs.length) {
-    for (const ids of chunks2(rows3.map((r) => text2(r.Id)), 200)) {
-      const pati = await query(
-        `SELECT AccountId, LastProviderVisitDate FROM ProviderAcctTerritoryInfo WHERE Territory2Id IN (${inList(terrs)}) AND AccountId IN (${inList(ids)}) AND LastProviderVisitDate != null`,
-        ctx.org
-      ).catch(() => []);
+    const parts = chunks2(rows3.map((r) => text2(r.Id)), 200);
+    const batches = [];
+    for (let i = 0; i < parts.length; i += 4) {
+      batches.push(
+        ...await Promise.all(
+          parts.slice(i, i + 4).map(
+            (ids) => query(
+              `SELECT AccountId, LastProviderVisitDate FROM ProviderAcctTerritoryInfo WHERE Territory2Id IN (${inList(terrs)}) AND AccountId IN (${inList(ids)}) AND LastProviderVisitDate != null`,
+              ctx.org
+            ).catch(softFail(ctx, "Calendar accounts pane (Last Visit)", []))
+          )
+        )
+      );
+    }
+    for (const pati of batches) {
       for (const p of pati) {
         const id2 = text2(p.AccountId);
         const d = text2(p.LastProviderVisitDate).slice(0, 10);
@@ -101085,11 +101178,11 @@ async function collectSegments(ctx, a) {
     return rows3;
   };
   const readable3 = async (ids) => {
-    const rows3 = await inBatches2(ids, (part) => query(`SELECT RecordId, HasReadAccess FROM UserRecordAccess WHERE UserId = '${userId}' AND RecordId IN (${inList(part)})`, org).catch(() => []));
+    const rows3 = await inBatches2(ids, (part) => query(`SELECT RecordId, HasReadAccess FROM UserRecordAccess WHERE UserId = '${userId}' AND RecordId IN (${inList(part)})`, org).catch(softFail(ctx, "Calendar", [])));
     return new Set(rows3.filter((r) => r.HasReadAccess === true).map((r) => text2(r.RecordId)));
   };
   const providerVisits = async (ids) => {
-    const rows3 = await inBatches2(ids, (part) => query(`SELECT VisitId, Status, VisitSubmitDateTime, Channel, IsConfirmed FROM ProviderVisit WHERE VisitId IN (${inList(part)})`, org).catch(() => []));
+    const rows3 = await inBatches2(ids, (part) => query(`SELECT VisitId, Status, VisitSubmitDateTime, Channel, IsConfirmed FROM ProviderVisit WHERE VisitId IN (${inList(part)})`, org).catch(softFail(ctx, "Calendar", [])));
     return new Map(rows3.map((r) => [text2(r.VisitId), r]));
   };
   await Promise.all([
@@ -101101,7 +101194,7 @@ async function collectSegments(ctx, a) {
          WHERE ParentVisitId = null AND PlannedVisitStartTime < ${to} AND PlannedVisitEndTime > ${from}
          AND Id IN (SELECT VisitId FROM ProviderVisit WHERE TerritoryId IN (${inList(a.territories)}))${w} LIMIT 4000`,
         org
-      ).catch(() => []);
+      ).catch(softFail(ctx, "Calendar", []));
       const ids = rows3.map((r) => text2(r.Id));
       const [ok, pvs] = await Promise.all([readable3(ids), providerVisits(ids)]);
       for (const r of rows3.filter((r2) => ok.has(text2(r2.Id)))) {
@@ -101119,7 +101212,7 @@ async function collectSegments(ctx, a) {
         `SELECT Id, Subject, StartDateTime, EndDateTime, IsAllDayEvent FROM Event
          WHERE OwnerId = '${userId}' AND StartDateTime < ${to} AND EndDateTime > ${from}${w} LIMIT 4000`,
         org
-      ).catch(() => []);
+      ).catch(softFail(ctx, "Calendar", []));
       const ok = await readable3(rows3.map((r) => text2(r.Id)));
       for (const r of rows3.filter((r2) => ok.has(text2(r2.Id)))) {
         add(text2(r.Id), "event", text2(r.Subject), Date.parse(text2(r.StartDateTime)), Date.parse(text2(r.EndDateTime)), r.IsAllDayEvent === true, a.colors.general, { icon: "clipboard" });
@@ -101132,7 +101225,7 @@ async function collectSegments(ctx, a) {
         `SELECT Id, Name, StartDate, EndDate FROM TerritoryUserDowntime
          WHERE TerritoryId IN (${inList(a.territories)}) AND StartDate < ${to} AND EndDate > ${from}${w} LIMIT 4000`,
         org
-      ).catch(() => []);
+      ).catch(softFail(ctx, "Calendar", []));
       for (const r of rows3) add(text2(r.Id), "tot", text2(r.Name), Date.parse(text2(r.StartDate)), Date.parse(text2(r.EndDate)), false, a.colors.tot, { icon: "clipboard" });
     })(),
     (async () => {
@@ -101142,7 +101235,7 @@ async function collectSegments(ctx, a) {
         `SELECT Id, Name, Status, DueDate FROM AssessmentTask
          WHERE IsVisibleInPlanner = true AND DueDate >= ${a.days[0].date} AND DueDate <= ${a.days[a.days.length - 1].date}${w} LIMIT 2000`,
         org
-      ).catch(() => []);
+      ).catch(softFail(ctx, "Calendar", []));
       const ok = await readable3(rows3.map((r) => text2(r.Id)));
       for (const r of rows3.filter((r2) => ok.has(text2(r2.Id)))) {
         const [y, m, d] = text2(r.DueDate).slice(0, 10).split("-").map(Number);
@@ -101157,7 +101250,7 @@ async function collectSegments(ctx, a) {
       const rows3 = await query(
         `SELECT Id, Name, ActivityDate FROM Holiday WHERE ActivityDate >= ${a.days[0].date} AND ActivityDate <= ${a.days[a.days.length - 1].date}${w} LIMIT 500`,
         org
-      ).catch(() => []);
+      ).catch(softFail(ctx, "Calendar", []));
       for (const r of rows3) {
         const [y, m, d] = text2(r.ActivityDate).slice(0, 10).split("-").map(Number);
         const start = zonedInstant(y, m, d, format.timeZone);
@@ -101301,12 +101394,12 @@ async function collectVisitCreate(ctx) {
   const sdlOn = configKey(cfg.StateDistributorLicenseSettings, "IsTDDDLicensingEnabled") === true;
   const sdlField = field(cfg.StateDistributorLicenseSettings, "TDDFormulaField");
   const sdlStates = str3(configKey(cfg.StateDistributorLicenseSettings, "TDDDStates")).split(";").filter(Boolean);
-  const accounts = await query(`SELECT Id, RecordType.Name, RecordType.IsPersonType FROM Account${accountWhere(scope)} ORDER BY Name ASC NULLS LAST LIMIT ${CARD_CAP}`, org).catch(() => []);
+  const accounts = await query(`SELECT Id, RecordType.Name, RecordType.IsPersonType FROM Account${accountWhere(scope)} ORDER BY Name ASC NULLS LAST LIMIT ${CARD_CAP}`, org).catch(softFail(ctx, "Floating buttons", []));
   const ids = accounts.map((a) => str3(a.Id));
   if (!ids.length) return result;
   const parts = [];
   for (let i = 0; i < ids.length; i += 150) parts.push(ids.slice(i, i + 150));
-  const run2 = async (build) => (await Promise.all(parts.map((p) => query(build(inList(p)), org).catch(() => [])))).flat();
+  const run2 = async (build) => (await Promise.all(parts.map((p) => query(build(inList(p)), org).catch(softFail(ctx, "Floating buttons", []))))).flat();
   const territoryIds = ctx.territories.map((t) => t.id);
   const [titles, atis, addresses] = await Promise.all([
     run2((inIds) => `SELECT AccountId, toLabel(ProfessionalTitle) FROM HealthcareProvider WHERE AccountId IN (${inIds})`),
@@ -101323,7 +101416,7 @@ async function collectVisitCreate(ctx) {
   for (let i = 0; i < placeIds.length; i += 150) placeParts.push(placeIds.slice(i, i + 150));
   const [byAccount, byPlace] = await Promise.all([
     slnOn ? run2((inIds) => `SELECT ${columns} FROM BusinessLicense WHERE AccountId IN (${inIds}) AND ${live}`) : Promise.resolve([]),
-    deaOn || sdlOn ? (await Promise.all(placeParts.map((p) => query(`SELECT ${columns} FROM BusinessLicense WHERE ContactPointAddressId IN (${inList(p)}) AND ${live}`, org).catch(() => [])))).flat() : Promise.resolve([])
+    deaOn || sdlOn ? (await Promise.all(placeParts.map((p) => query(`SELECT ${columns} FROM BusinessLicense WHERE ContactPointAddressId IN (${inList(p)}) AND ${live}`, org).catch(softFail(ctx, "Floating buttons", []))))).flat() : Promise.resolve([])
   ]);
   for (const a of accounts) {
     const id2 = str3(a.Id);
@@ -101361,7 +101454,7 @@ function emailTemplateList(rows3, assignedToTerritory) {
 async function collectEmailTemplates(ctx) {
   const templates = await query("SELECT Id, Name, Description, Product.Name FROM LifeSciEmailTemplate WHERE IsActive = true AND Name != null", ctx.org);
   const territoryId = ctx.territories[0]?.id;
-  const assigned = territoryId ? await query(`SELECT TemplateReferenceRecordId FROM TerritoryContentTmplAsgnt WHERE TerritoryId IN (${inList([territoryId])})`, ctx.org).catch(() => []) : [];
+  const assigned = territoryId ? await query(`SELECT TemplateReferenceRecordId FROM TerritoryContentTmplAsgnt WHERE TerritoryId IN (${inList([territoryId])})`, ctx.org).catch(softFail(ctx, "Floating buttons", [])) : [];
   return emailTemplateList(
     templates,
     assigned.map((a) => str3(a.TemplateReferenceRecordId))
@@ -101477,9 +101570,11 @@ async function collectAlerts(ctx, now) {
     ctx.org
   )).map(toRow).filter((a) => isAlertShown(a, now));
   const readable3 = /* @__PURE__ */ new Set();
-  for (let i = 0; i < rows3.length; i += 200) {
-    const ids = rows3.slice(i, i + 200).map((a) => a.id);
-    const access = await query(`SELECT RecordId FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND HasReadAccess = true AND RecordId IN (${inList(ids)})`, ctx.org);
+  const parts = [];
+  for (let i = 0; i < rows3.length; i += 200) parts.push(rows3.slice(i, i + 200).map((a) => a.id));
+  for (const access of await Promise.all(
+    parts.map((ids) => query(`SELECT RecordId FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND HasReadAccess = true AND RecordId IN (${inList(ids)})`, ctx.org))
+  )) {
     for (const r of access) readable3.add(str4(r.RecordId));
   }
   return rows3.filter((a) => readable3.has(a.id)).map((a) => ({ id: a.id, title: a.subject, body: alertBody(a.additional, a.message), when: alertWhen(a.effective, now, ctx.format), pill: alertPill(a.type) }));
@@ -101513,10 +101608,10 @@ async function collectCardActions(ctx) {
 async function collectChrome(ctx) {
   const now = /* @__PURE__ */ new Date();
   const [alerts, user, sync, cardActions] = await Promise.all([
-    collectAlerts(ctx, now).catch(() => []),
-    query(`SELECT Username FROM User WHERE Id = '${ctx.userId}'`, ctx.org).catch(() => []),
+    collectAlerts(ctx, now).catch(softFail(ctx, "Alerts", [])),
+    query(`SELECT Username FROM User WHERE Id = '${ctx.userId}'`, ctx.org).catch(softFail(ctx, "Alerts and profile", [])),
     lastSync(ctx).catch(() => null),
-    collectCardActions(ctx).catch(() => [])
+    collectCardActions(ctx).catch(softFail(ctx, "Card actions", []))
   ]);
   return {
     cardActions,
@@ -101857,7 +101952,7 @@ async function inBatches(ids, run2) {
 async function readable2(ids, ctx) {
   const rows3 = await inBatches(
     ids,
-    (part) => query(`SELECT RecordId FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND HasReadAccess = true AND RecordId IN (${inList(part)})`, ctx.org).catch(() => [])
+    (part) => query(`SELECT RecordId FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND HasReadAccess = true AND RecordId IN (${inList(part)})`, ctx.org).catch(softFail(ctx, "Home", []))
   );
   return new Set(rows3.map((r) => str5(r.RecordId)));
 }
@@ -101897,7 +101992,7 @@ async function collectNbc(ctx, now) {
   if (!ids.length) return { cards: [], lastRefreshed: "Last Refreshed: --", lastRefreshedSource: LAST_REFRESHED_SOURCE };
   const visits = await inBatches(
     ids,
-    (part) => query(`SELECT AccountId, MAX(PlannedStartTime) m FROM ProviderVisit WHERE Status = 'Submitted' AND AccountId IN (${inList(part)}) GROUP BY AccountId`, ctx.org).catch(() => [])
+    (part) => query(`SELECT AccountId, MAX(PlannedStartTime) m FROM ProviderVisit WHERE Status = 'Submitted' AND AccountId IN (${inList(part)}) GROUP BY AccountId`, ctx.org).catch(softFail(ctx, "Home", []))
   );
   const lastCall = new Map(visits.map((r) => [str5(r.AccountId), dateOf(r.m)]));
   candidates = candidates.filter((r) => {
@@ -101908,13 +102003,13 @@ async function collectNbc(ctx, now) {
   const ok = await readable2(candidates.map((r) => str5(r.AccountId)), ctx);
   const top = candidates.filter((r) => ok.has(str5(r.AccountId))).slice(0, props.maxCards);
   const topIds = top.map((r) => str5(r.AccountId));
-  const q = (soql) => inBatches(topIds, (part) => query(soql(inList(part)), ctx.org).catch(() => []));
+  const q = (soql) => inBatches(topIds, (part) => query(soql(inList(part)), ctx.org).catch(softFail(ctx, "Home", [])));
   const [specs, addrs, patis, goals, sync] = await Promise.all([
     q((l) => `SELECT AccountId, Name, LastModifiedDate FROM HealthcareProviderSpecialty WHERE AccountId IN (${l}) ORDER BY LastModifiedDate DESC`),
     q((l) => `SELECT ParentId, FullAddress, Street, PostalCode, City, State, Country, LastModifiedDate FROM ContactPointAddress WHERE ParentId IN (${l}) AND IsActive = true ORDER BY LastModifiedDate DESC`),
     q((l) => `SELECT AccountId, IsTargetedAccount, LastProviderVisitDate FROM ProviderAcctTerritoryInfo WHERE AccountId IN (${l}) AND Territory2Id = '${terr[0]}' AND IsActive = true ORDER BY LastModifiedDate DESC`),
     q((l) => `SELECT AccountId, ProratedOverallGoal FROM ProviderActivityGoal WHERE AccountId IN (${l}) ORDER BY LastModifiedDate DESC`),
-    query(`SELECT DownloadStart FROM DeviceSyncSummary WHERE OwnerId = '${ctx.userId}' AND Type = 'data' AND DownloadEnd != null ORDER BY DownloadStart DESC LIMIT 1`, ctx.org).catch(() => [])
+    query(`SELECT DownloadStart FROM DeviceSyncSummary WHERE OwnerId = '${ctx.userId}' AND Type = 'data' AND DownloadEnd != null ORDER BY DownloadStart DESC LIMIT 1`, ctx.org).catch(softFail(ctx, "Home", []))
   ]);
   const first = (rows4, key2) => {
     const m = /* @__PURE__ */ new Map();
@@ -101961,11 +102056,11 @@ async function collectVisits(ctx, now) {
   const ok = await readable2(rows3.map((r) => str5(r.Id)), ctx);
   const shown = rows3.filter((r) => ok.has(str5(r.Id)));
   const places = [...new Set(shown.map((r) => str5(r.PlaceId)).filter((p) => p.startsWith("8lW")))];
-  const addrRows = await inBatches(places, (part) => query(`SELECT Id, Street, PostalCode, City, State, Country FROM ContactPointAddress WHERE Id IN (${inList(part)})`, ctx.org).catch(() => []));
+  const addrRows = await inBatches(places, (part) => query(`SELECT Id, Street, PostalCode, City, State, Country FROM ContactPointAddress WHERE Id IN (${inList(part)})`, ctx.org).catch(softFail(ctx, "Home", [])));
   const addr = new Map(addrRows.map((r) => [str5(r.Id), formatAddress(r)]));
   const kids = /* @__PURE__ */ new Map();
   const parentIds = shown.map((r) => str5(r.Id));
-  for (const r of await inBatches(parentIds, (part) => query(`SELECT ParentVisitId, COUNT(Id) n FROM Visit WHERE ParentVisitId IN (${inList(part)}) GROUP BY ParentVisitId`, ctx.org).catch(() => [])))
+  for (const r of await inBatches(parentIds, (part) => query(`SELECT ParentVisitId, COUNT(Id) n FROM Visit WHERE ParentVisitId IN (${inList(part)}) GROUP BY ParentVisitId`, ctx.org).catch(softFail(ctx, "Home", []))))
     kids.set(str5(r.ParentVisitId), Number(r.n ?? 0));
   const defaultMinutes = 60;
   const starts = shown.map((r) => dateOf(r.PlannedVisitStartTime) ?? now);
@@ -101995,8 +102090,8 @@ async function collectPlan(ctx, now) {
       `SELECT ActivityPlan.TimePeriod.StartDate, ActivityPlan.TimePeriod.EndDate FROM ActivityPlanTerritory
        WHERE TerritoryId = '${terr}' AND ActivityPlan.IsActive = true AND ActivityPlan.Type = 'AccountGoal'`,
       ctx.org
-    ).catch(() => []),
-    query("SELECT MasterLabel, DisplayOrder FROM ProviderActivityMeasureType WHERE IsActive = true", ctx.org).catch(() => [])
+    ).catch(softFail(ctx, "Home", [])),
+    query("SELECT MasterLabel, DisplayOrder FROM ProviderActivityMeasureType WHERE IsActive = true", ctx.org).catch(softFail(ctx, "Home", []))
   ]);
   const out = {};
   for (const p of plans) {
@@ -102402,12 +102497,26 @@ var COLLECTORS = {
   // Alerts and the profile sheet belong to the top bar, not to a tab.
   chrome: { kind: null, collect: collectChrome }
 };
+var SCREEN_TIMEOUT_MS = 9e4;
+var SCREEN_NAMES = {
+  content: "Content",
+  accounts: "Accounts",
+  calendar: "Calendar",
+  tableau: "Tableau",
+  fabs: "Floating buttons",
+  home: "Home",
+  chrome: "Alerts and profile"
+};
 async function collectScreens(ctx) {
   const out = {};
   await Promise.all(
     Object.entries(COLLECTORS).map(async ([key2, c]) => {
       if (c.kind !== null && !ctx.core.tabs.some((t) => t.kind === c.kind)) return;
-      const data = await c.collect(ctx).catch(() => void 0);
+      const name = SCREEN_NAMES[key2];
+      const data = await withTimeout(c.collect(ctx), SCREEN_TIMEOUT_MS, `Reading the ${name} screen`).catch((err) => {
+        if (isScaleError(err)) ctx.note(`${name} screen not shown with data: ${errorText2(err)}`);
+        return void 0;
+      });
       if (data !== void 0) out[key2] = data;
     })
   );
@@ -103028,7 +103137,7 @@ async function relatedLists(ctx, object3, ids, d) {
       const owner = new Map(ids.map((id2) => [id2, id2]));
       if (viaContact) {
         owner.clear();
-        const contacts = await query(`SELECT Id, PersonContactId FROM Account WHERE Id IN (${inList(ids)})`, ctx.org).catch(() => []);
+        const contacts = await query(`SELECT Id, PersonContactId FROM Account WHERE Id IN (${inList(ids)})`, ctx.org).catch(softFail(ctx, "Record page", []));
         for (const c of contacts) if (str8(c.PersonContactId)) owner.set(str8(c.PersonContactId), str8(c.Id));
       }
       const parents = [...owner.keys()];
@@ -103050,7 +103159,7 @@ async function relatedLists(ctx, object3, ids, d) {
         const orderBy = fx ? fx.order.split(" ")[0] : cd.fields.has(cd.nameField.toLowerCase()) ? cd.nameField : rel5(paths[0] ?? "Id");
         const dir = fx ? fx.order.split(" ")[1] : "DESC";
         const select = (p) => `SELECT Id, ${field}, ${[...new Set(p)].join(", ")} FROM ${child} WHERE ${field} IN (${inList(parents)})${scoped2} ORDER BY ${orderBy} ${dir} LIMIT 1000`;
-        const records = await query(select(paths.map(rel5)), ctx.org).catch(() => query(select(paths.filter((p) => !p.includes("."))), ctx.org).catch(() => []));
+        const records = await query(select(paths.map(rel5)), ctx.org).catch(() => query(select(paths.filter((p) => !p.includes("."))), ctx.org).catch(softFail(ctx, `Record page (${child} related list)`, [])));
         for (const r of records) {
           const parent = owner.get(str8(r[field])) ?? str8(r[field]);
           const list = rowsBy.get(parent) ?? [];
@@ -103114,7 +103223,7 @@ async function affiliations(ctx, ids) {
   const other = (r, id2) => str8(r.AccountId) === id2 ? str8(r.RelatedAccountId) : str8(r.AccountId);
   const wanted = [...new Set(rows3.flatMap((r) => ids.map((id2) => other(r, id2))))].filter((x) => ID_PATTERN.test(x));
   if (!wanted.length) return out;
-  const held = new Set((await query(`SELECT Id FROM Account WHERE Id IN (${inList(wanted)})${accountCond ? ` AND (${accountCond})` : ""}`, ctx.org).catch(() => [])).map((a) => str8(a.Id)));
+  const held = new Set((await query(`SELECT Id FROM Account WHERE Id IN (${inList(wanted)})${accountCond ? ` AND (${accountCond})` : ""}`, ctx.org).catch(softFail(ctx, "Record page (affiliations)", []))).map((a) => str8(a.Id)));
   const columns = [
     { label: "Account", type: "reference" },
     { label: "Account", type: "reference" },
@@ -103143,7 +103252,7 @@ async function inlineCards(ctx, objects) {
   const load = async (bundles) => {
     const valid = bundles.filter((b) => /^\w+$/.test(b));
     if (!valid.length) return [];
-    const rows3 = await query(`SELECT LightningComponentBundle.DeveloperName, FilePath, Source FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName IN (${inList(valid)})`, ctx.org, true).catch(() => []);
+    const rows3 = await query(`SELECT LightningComponentBundle.DeveloperName, FilePath, Source FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName IN (${inList(valid)})`, ctx.org, true).catch(softFail(ctx, "Record page", []));
     return rows3.map((r) => ({ bundle: str8(obj2(r.LightningComponentBundle).DeveloperName), path: str8(r.FilePath), source: str8(r.Source) }));
   };
   await Promise.all(
@@ -103174,7 +103283,7 @@ async function collectRecords(ctx, lists, extra = {}) {
       const partner = MULTI_ENTITY[object3]?.with;
       const [main2, access] = await Promise.all([
         fetchRows(ctx, object3, `Id IN (${inList(ids)})`, ["Status"].filter(() => object3 === "Visit"), inlineFor(object3)),
-        query(`SELECT RecordId, HasEditAccess FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND RecordId IN (${inList(ids)})`, ctx.org).catch(() => [])
+        query(`SELECT RecordId, HasEditAccess FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND RecordId IN (${inList(ids)})`, ctx.org).catch(softFail(ctx, "Record page", []))
       ]);
       if (!main2) return;
       let linkedFetch = null;
@@ -103201,7 +103310,7 @@ async function collectRecords(ctx, lists, extra = {}) {
       const ratingRows = /* @__PURE__ */ new Map();
       if (ratingItems?.length) {
         const wanted2 = [...new Set(ratingItems.filter((i) => i.sobject === "Account").map((i) => i.field).filter((f) => main2.describe.fields.has(f.toLowerCase())))];
-        const got = await query(`SELECT Id, LastModifiedDate${wanted2.map((f) => `, ${f}`).join("")} FROM Account WHERE Id IN (${inList(ids)})`, ctx.org).catch(() => []);
+        const got = await query(`SELECT Id, LastModifiedDate${wanted2.map((f) => `, ${f}`).join("")} FROM Account WHERE Id IN (${inList(ids)})`, ctx.org).catch(softFail(ctx, "Record page", []));
         for (const g of got) ratingRows.set(str8(g.Id), g);
       }
       const ratingsOf = (id2) => {
@@ -103259,10 +103368,10 @@ async function collectRecords(ctx, lists, extra = {}) {
 }
 async function readExpenses(ctx, ids) {
   const out = /* @__PURE__ */ new Map();
-  const corporate = await query("SELECT IsoCode FROM CurrencyType WHERE IsCorporate = true", ctx.org).catch(() => []);
+  const corporate = await query("SELECT IsoCode FROM CurrencyType WHERE IsCorporate = true", ctx.org).catch(softFail(ctx, "Record page", []));
   const iso2 = str8(corporate[0]?.IsoCode);
   out.currency = /^[A-Z]{3}$/.test(iso2) ? iso2 : "USD";
-  const rows3 = await query(`SELECT ExpenseOriginId, Amount FROM Expense WHERE ExpenseOriginId IN (${inList(ids)})`, ctx.org).catch(() => []);
+  const rows3 = await query(`SELECT ExpenseOriginId, Amount FROM Expense WHERE ExpenseOriginId IN (${inList(ids)})`, ctx.org).catch(softFail(ctx, "Record page (Expenses tab)", []));
   const sums = /* @__PURE__ */ new Map();
   for (const r of rows3) {
     const s2 = sums.get(str8(r.ExpenseOriginId)) ?? { count: 0, sum: 0 };
@@ -104491,7 +104600,8 @@ async function availableTablesFor(profile, sobjects, org) {
       const readable3 = /* @__PURE__ */ new Set([...fromProfile, ...permissionSets.flatMap((ps) => [...fromSet.get(ps) ?? []])]);
       return new Set(candidates.filter((s2) => readable3.has(s2) || !hasPermissions.has(s2)));
     };
-  } catch {
+  } catch (err) {
+    if (isScaleError(err)) throw err;
     return null;
   }
 }
@@ -104505,13 +104615,18 @@ async function ancestors(sobject2, parentField, fields, ids, org) {
   }
   return [...seen.values()];
 }
-async function viewerReports(userId, salesChart, org) {
+async function viewerReports(userId, salesChart, org, note) {
   if (!ID_PATTERN.test(userId)) return void 0;
   try {
-    const [folders, reports] = await Promise.all([
-      query(`SELECT Id, Name, ParentId FROM Folder WHERE Type = 'Report'`, org),
-      query(`SELECT Id, Name, Description, Format, FolderName, OwnerId FROM Report`, org)
+    const [folderResult, reportResult] = await Promise.all([
+      queryResult(`SELECT Id, Name, ParentId FROM Folder WHERE Type = 'Report' ORDER BY Name`, org, false, { allowTruncated: true, maxRows: REPORT_ROWS }),
+      queryResult(`SELECT Id, Name, Description, Format, FolderName, OwnerId FROM Report ORDER BY Name`, org, false, { allowTruncated: true, maxRows: REPORT_ROWS })
     ]);
+    const folders = folderResult.records;
+    const reports = reportResult.records;
+    for (const [result, noun] of [[folderResult, "report folders"], [reportResult, "reports"]]) {
+      if (result.truncated) note(`Reports tab: read the first ${result.records.length.toLocaleString("en-US")} of ${result.totalSize.toLocaleString("en-US")} ${noun} by name; the rest aren't shown.`);
+    }
     const readable3 = /* @__PURE__ */ new Set();
     const ids = folders.map((f) => str10(f.Id)).filter((id2) => ID_PATTERN.test(id2));
     const chunks5 = [];
@@ -104529,10 +104644,12 @@ async function viewerReports(userId, salesChart, org) {
     const tree = buildReportTree(visibleFolders, visibleReports, salesChart);
     await attachReportData(tree, org);
     return tree;
-  } catch {
+  } catch (err) {
+    if (isScaleError(err)) note(`Reports tab not shown with data: ${reason(err)}`);
     return void 0;
   }
 }
+var REPORT_ROWS = 1e4;
 async function viewerSharing(userId, org) {
   if (!ID_PATTERN.test(userId)) return null;
   try {
@@ -104616,10 +104733,26 @@ var FV_COLUMNS = ["TextValue", "IntegerValue", "PicklistValue", "HasBooleanValue
 async function viewerScreens(core, userId, org, track) {
   if (!userId) return {};
   track.plan(["reports", "lists", "screens", "records"]);
+  const notes = [];
+  const note = (message) => {
+    if (!notes.includes(message)) notes.push(message);
+  };
   const [reports, listResult, screens] = await Promise.all([
-    track.run("reports", () => viewerReportsTab(core, userId, org)),
+    track.run(
+      "reports",
+      () => withTimeout(viewerReportsTab(core, userId, org, note), REPORTS_TIMEOUT_MS, "Reading the Reports tab").catch((err) => {
+        note(`Reports tab not shown with data: ${reason(err)}`);
+        return {};
+      })
+    ),
     track.run("lists", () => viewerLists(core, userId, org, track)),
-    track.run("screens", () => viewerContext(core, userId, org).then(collectScreens).catch(() => ({})))
+    track.run(
+      "screens",
+      () => viewerContext(core, userId, org, note).then(collectScreens).catch((err) => {
+        if (isScaleError(err)) note(`Native screens not shown with data: ${reason(err)}`);
+        return {};
+      })
+    )
   ]);
   const lists = listResult?.data;
   const listErrors = listResult && Object.keys(listResult.errors).length ? listResult.errors : void 0;
@@ -104631,14 +104764,34 @@ async function viewerScreens(core, userId, org, track) {
   const visits = [.../* @__PURE__ */ new Set([...home?.visits?.items.map((v) => v.id) ?? [], ...calVisits])];
   const records = lists || cards.length || visits.length ? await track.run(
     "records",
-    () => viewerContext(core, userId, org).then((ctx) => collectRecords(ctx, lists ?? {}, { Account: cards, Visit: visits })).catch(() => void 0)
+    () => withTimeout(
+      viewerContext(core, userId, org, note).then((ctx) => collectRecords(ctx, lists ?? {}, { Account: cards, Visit: visits })),
+      RECORDS_TIMEOUT_MS,
+      "Reading the records list views and cards open"
+    ).catch((err) => {
+      if (isScaleError(err)) note(`Record pages not shown with data: ${reason(err)}`);
+      return void 0;
+    })
   ) : void 0;
-  return { ...reports, ...lists ? { lists } : {}, ...listErrors ? { listErrors } : {}, ...Object.keys(screens).length ? { screens } : {}, ...records && Object.keys(records.byId).length ? { records } : {} };
+  return {
+    ...reports,
+    ...lists ? { lists } : {},
+    ...listErrors ? { listErrors } : {},
+    ...Object.keys(screens).length ? { screens } : {},
+    ...records && Object.keys(records.byId).length ? { records } : {},
+    ...notes.length ? { dataNotes: notes } : {}
+  };
 }
-async function viewerContext(core, userId, org) {
+async function viewerContext(core, userId, org, note) {
+  const soft = (what) => (err) => {
+    if (isScaleError(err)) note(`${what}: ${reason(err)}`);
+    return [];
+  };
   const [users, assignments] = await Promise.all([
-    query(`SELECT TimeZoneSidKey, LocaleSidKey FROM User WHERE Id = '${userId}'`, org).catch(() => []),
-    query(`SELECT Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId = '${userId}' AND Territory2.Territory2Model.State = 'Active'`, org).catch(() => [])
+    query(`SELECT TimeZoneSidKey, LocaleSidKey FROM User WHERE Id = '${userId}'`, org).catch(soft("The rep's time zone and locale (UTC and en-US used)")),
+    query(`SELECT Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId = '${userId}' AND Territory2.Territory2Model.State = 'Active'`, org).catch(
+      soft("The rep's territories (screens read as if they had none)")
+    )
   ]);
   const territories = assignments.map((a) => ({ id: str10(a.Territory2Id), name: str10(obj4(a.Territory2).Name) }));
   return {
@@ -104648,7 +104801,8 @@ async function viewerContext(core, userId, org) {
     territories,
     format: { timeZone: str10(users[0]?.TimeZoneSidKey) || "UTC", locale: (str10(users[0]?.LocaleSidKey) || "en_US").replace(/_/g, "-") },
     scope: syncScope(core, userId, territories),
-    config: (categories) => viewerConfig(categories, userId, org)
+    config: (categories) => viewerConfig(categories, userId, org),
+    note
   };
 }
 function syncScope(core, userId, territories) {
@@ -104658,13 +104812,13 @@ function syncScope(core, userId, territories) {
     return key2 === void 0 ? void 0 : syncCondition(core.sync[key2], userId, territories);
   };
 }
-async function viewerReportsTab(core, userId, org) {
+async function viewerReportsTab(core, userId, org, note) {
   if (!core.tabs.some((t) => t.kind === "reports")) return {};
   try {
     const config2 = await viewerConfig(["ReportsAndDashboardsSync"], userId, org);
     const r = config2.ReportsAndDashboardsSync ?? {};
     const settings = { reports: { salesChart: r.ShowSalesChart === true, salesforceReports: r.ShowSalesforceReports === true } };
-    const reports = settings.reports.salesforceReports ? await viewerReports(userId, settings.reports.salesChart, org) : void 0;
+    const reports = settings.reports.salesforceReports ? await viewerReports(userId, settings.reports.salesChart, org, note) : void 0;
     return { settings, reports };
   } catch {
     return {};
@@ -104675,13 +104829,8 @@ var LIST_VIEWS_PER_OBJECT = 8;
 var LIST_VIEW_TIMEOUT_MS = 45e3;
 var LIST_BUDGET_MS = 18e4;
 var LIST_CONCURRENCY = 4;
-function withTimeout(p, ms2, what) {
-  let timer;
-  const limit = new Promise((_2, reject) => {
-    timer = setTimeout(() => reject(new Error(`${what} took longer than ${Math.round(ms2 / 1e3)} seconds`)), ms2);
-  });
-  return Promise.race([p, limit]).finally(() => clearTimeout(timer));
-}
+var REPORTS_TIMEOUT_MS = 9e4;
+var RECORDS_TIMEOUT_MS = 6e4;
 async function runPool(items, concurrency, fn) {
   let next = 0;
   await Promise.all(
@@ -107687,9 +107836,16 @@ ${fmt2(upper)} of these records come from tables whose filter isn't scoped to th
 ${timedOut.length} table(s) timed out (${timedOut.map((t) => t.sobject).join(", ")}) \u2014 the table is too large to count in time, which is a sync-size problem rather than a bad filter.
 `;
       }
-      if (problems.length > timedOut.length) {
+      const errors = problems.filter((t) => t.status === "error");
+      if (errors.length) {
         out += `
-${problems.length - timedOut.length} table(s) could not be counted \u2014 see notes. Errors usually mean the WhereSoql filter is invalid for this user and will fail on device too.
+${errors.length} table(s) could not be counted \u2014 see notes. Errors usually mean the WhereSoql filter is invalid for this user and will fail on device too.
+`;
+      }
+      const notEstimated = problems.length - timedOut.length - errors.length;
+      if (notEstimated) {
+        out += `
+${notEstimated} table(s) not estimated \u2014 their filters are resolved on the device at sync time (see notes).
 `;
       }
       out += "\n";
@@ -110824,7 +110980,7 @@ async function loadSamples(org, fields, days) {
   return {
     samples: records.map((r) => toSyncSample(r)).filter((s2) => s2 !== null),
     rows: records.length,
-    truncated: records.length >= TELEMETRY_LIMIT
+    truncated: records.length >= TELEMETRY_LIMIT || result.data?.truncated === true
   };
 }
 async function loadAggregates(org, fields, days) {
@@ -110924,7 +111080,7 @@ async function syncOverview(org, input, deps = defaultDeps3) {
       result.rowsCoverage = { rows: rowCount, from: oldest, truncated };
       if (truncated) {
         notes.push(
-          `This window has more than ${TELEMETRY_LIMIT.toLocaleString("en-US")} syncs. Per-rep numbers and sync times cover only the most recent part, from ${oldest ?? "the latest day"} on; the daily counts and failure totals cover the whole window.`
+          `This window has more than ${rowCount.toLocaleString("en-US")} syncs. Per-rep numbers and sync times cover only the most recent part, from ${oldest ?? "the latest day"} on; the daily counts and failure totals cover the whole window.`
         );
       }
       const ranking = rankUsersAtRisk(samples, summary, MAX_AT_RISK);
