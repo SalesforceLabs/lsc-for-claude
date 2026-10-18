@@ -20,3 +20,10 @@ Persona: Olivia (Business Admin). Builds on Discovery Framework (see Discovery F
 ## Notes
 - Once a coaching event is saved, its linked Assessment Definition becomes immutable.
 - Scoring details: see [admin setup](./release-264-coaching-admin-setup.md).
+
+## Verified Against Official Help
+- Help: admins author question banks, configure scoring, and assign weights to competencies using Discovery Framework and OmniStudio; templates support scoring questions. Requires Life Sciences Commercial Admin permission set + Assessment Platform User permission. Available starting September 2026.
+- Not in Help (deck only): Usage Type, Type/Subtype/Language uniqueness rules, immutability, sharing steps.
+
+## Sources
+- https://help.salesforce.com/s/articleView?id=release-notes.rn_lsc_enablement_coaching_build_standardized_evaluations_with_discovery_framework.htm&release=264.0.0&type=5

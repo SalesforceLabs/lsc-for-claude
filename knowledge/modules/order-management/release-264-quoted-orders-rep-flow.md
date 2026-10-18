@@ -30,3 +30,15 @@ End-user experience for the Pharmacy Sales Rep on the Life Sciences Cloud iPad a
 ## Gotchas
 - Products on the Store Assortment marked Required appear under the Priority Products tab only if enabled in Orders and Pricing Settings.
 - Submitted quotes are locked by the generic workflow; editing requires an unlock request approved by a manager.
+
+## Verified Against Official Help
+- Help: reps tap **Net Unit Price** on a line item to see the waterfall; the quote must have line items priced through a discount flow. Offline quotes: the Offline Pricing SDK computes the waterfall on device and uploads it at next sync (no manual download). Previously submitted or web-created quotes require downloading waterfall data.
+- Unlock requests can be submitted offline and queue until sync; manager approves/rejects from the Quote record page or a notification (approve -> Draft; reject -> Rejected, stays locked).
+- Help says Quote PDF generate/view/edit is web-only; the deck's iPad PDF/email step is not confirmed.
+- Pricing is on-save only (recalculated when the rep saves the quote). The deck's "every change re-runs pricing" should be read in that light.
+
+## Sources
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_price_waterfall.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_quote_locking_unlocking.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_pricing_procedures.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_setup_basics.htm&release=264.0.0&type=5

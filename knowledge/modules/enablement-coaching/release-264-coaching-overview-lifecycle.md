@@ -67,3 +67,12 @@ Cancelled rules:
 12. Session link is optional (can be multiple; other interaction types in future).
 13. Hard deletion on reassignment (Future): coach reassignment before first coach status move deletes the original response.
 14. Offline conflict resolution: standard LSC sync rules when web and iPad edit different fields.
+
+## Verified Against Official Help
+- Availability: Lightning Experience, Enterprise/Unlimited, Life Sciences Cloud license + Life Sciences Cloud for Customer Engagement add-on + Customer Engagement managed package. Features available starting **September 2026**. Offline, calendar, and session features also run on the Life Sciences Cloud mobile app for iOS (**iPad only**).
+- Help describes five feature areas: Discovery Framework assessment templates, historical evaluation scores, linked field visits, offline support, calendar scheduling. Self-evaluation and formal acknowledgment are mentioned in the summary.
+- Help does not document the status names, blind-period rules, or the four lifecycle variations; those remain from the internal deck.
+
+## Sources
+- https://help.salesforce.com/s/articleView?id=release-notes.rn_lsc_enablement_coaching.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=release-notes.rn_lsc_enablement_coaching_complete_evaluations_anywhere_with_offline_support.htm&release=264.0.0&type=5

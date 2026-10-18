@@ -31,3 +31,14 @@ With Acknowledgement enabled: coach views the employee's acknowledgment comments
 
 ## Calendar
 Coaching events appear in the calendar with an event indicator (OOB colors; customizable), can be filtered, and a coaching event can be created from the calendar (coach only).
+
+## Verified Against Official Help
+- **Correction/nuance on linking visits:** Help says coaches select field visit records from the related list **while the session is in Planned or Self-Evaluation status**; linked visits show in the session header and become visible to the coachee after the session is shared. The deck's "any time the evaluation is editable by the coach" is broader than Help. One or multiple visits can be linked, creating an audit trail of when and where observations were gathered.
+- Calendar: coaches create sessions from the calendar grid or Enablement Coaching tab; employees see sessions only after the coach shares them.
+- Previous scores populate in the Evaluation tab; **Show Previous Evaluation Score** toggle.
+- Offline: coaches can complete entire evaluations offline on iPad and sync later.
+
+## Sources
+- https://help.salesforce.com/s/articleView?id=release-notes.rn_lsc_enablement_coaching_link_field_visits_with_evaluations.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=release-notes.rn_lsc_enablement_coaching_schedule_and_track_from_calendar.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=release-notes.rn_lsc_enablement_coaching_view_historical_evaluation_scores.htm&release=264.0.0&type=5

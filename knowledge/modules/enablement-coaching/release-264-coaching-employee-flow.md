@@ -19,3 +19,11 @@ In the flow of work, the Previous field links to the prior completed event, so c
 
 ## Calendar
 Both coach and employee see coaching events in the calendar with the event indicator and filters; only the coach can create coaching events.
+
+## Verified Against Official Help
+- Help confirms employees see coaching sessions only after the coach shares them, and that linked field visits become visible to the coachee after sharing. Previous scores appear alongside current evaluations (most recent completed evaluation using the same template).
+- Help gives no detail on the self-evaluation or acknowledgment steps beyond the summary ("employee self-evaluation" and "formal acknowledgments"); the flow above is deck-sourced.
+
+## Sources
+- https://help.salesforce.com/s/articleView?id=release-notes.rn_lsc_enablement_coaching.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=release-notes.rn_lsc_enablement_coaching_link_field_visits_with_evaluations.htm&release=264.0.0&type=5
