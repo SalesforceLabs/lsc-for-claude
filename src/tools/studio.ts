@@ -3,6 +3,7 @@ import { z } from "zod";
 import { validateOrgConnection } from "../salesforce/auth.js";
 import { getFeature, listFeatures } from "../studio/features.js";
 import { collectFeatureMap, collectItemDetail, collectProfileOptions } from "../studio/collect.js";
+import { readLiveLayout } from "../studio/metadata/live.js";
 import { accessOptions, userAccess } from "../studio/access.js";
 import { collectReadiness } from "../studio/readiness/index.js";
 import { collectSetupOverview } from "../studio/overview.js";
@@ -308,6 +309,23 @@ export function register(server: McpServer) {
       }
       try {
         return json(await collectItemDetail(kind, id, connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_metadata_doc",
+    "LSC Studio (GUI data): a page layout as it is in the org now — sections, fields, related lists, the profiles using it, and whether the org is production — for editing it in the iPad preview. Read-only. Returns JSON.",
+    { type: z.literal("Layout"), fullName: z.string().regex(/^[^\r\n:]+-[^\r\n]+$/).max(255) },
+    async ({ fullName }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await readLiveLayout(fullName, connection.targetOrg));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

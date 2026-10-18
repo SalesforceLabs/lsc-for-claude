@@ -23,6 +23,7 @@ import {
 import { assertId, assertNames, PUBLISH_WARNING } from "./change-helpers.js";
 import { deployDoc, withDoc, type MetadataDoc } from "./metadata/doc.js";
 import { applyLayoutOps, relatedListCount, StaleLayoutError } from "./metadata/layout-ops.js";
+import { isProductionOrg, layoutProfiles } from "./metadata/live.js";
 import { serializeXml, type XmlNode } from "./metadata/xml.js";
 import { scriptCodeFindings } from "./collect.js";
 import { lineCount, lineDiff } from "./diff.js";
@@ -238,39 +239,15 @@ async function applySetLayoutRelatedList(fix: LayoutFix, org: string): Promise<F
 
 // --- Page layouts edited in the iPad preview ------------------------------------------
 
-const soqlString = (v: string) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
-
-export async function isProductionOrg(org: string): Promise<boolean> {
-  try {
-    const [rec] = await query("SELECT IsSandbox FROM Organization LIMIT 1", org);
-    return rec?.IsSandbox === false;
-  } catch {
-    return false;
-  }
-}
-
 /** "…the layout for 3 profiles (A, B, C)" — every profile assigned the layout gets a deployed change. */
 async function layoutReach(fix: MetadataFix, org: string): Promise<string> {
-  const fallback = `Deploys ${fix.doc.label} to the org — every profile assigned this layout gets the change.`;
-  try {
-    const dash = fix.doc.fullName.indexOf("-");
-    const object = fix.doc.fullName.slice(0, dash);
-    const name = decodeURIComponent(fix.doc.fullName.slice(dash + 1));
-    const layouts = await query(`SELECT Id, TableEnumOrId FROM Layout WHERE Name = ${soqlString(name)}`, org, true);
-    const table = object === "PersonAccount" ? "Account" : object;
-    const layout = layouts.length === 1 ? layouts[0] : layouts.find((l) => l.TableEnumOrId === table);
-    if (!layout) return fallback;
-    assertId(String(layout.Id));
-    const rows = await query(`SELECT Profile.Name FROM ProfileLayout WHERE LayoutId = '${layout.Id}'`, org, true);
-    const profiles = [...new Set(rows.map((r) => (r.Profile as Row | null)?.Name).filter((n): n is string => !!n))].sort();
-    if (!profiles.length) return `Deploys ${fix.doc.label} to the org. No profile is assigned this layout.`;
-    const shown = profiles.length > 4 ? `${profiles.slice(0, 4).join(", ")} and ${profiles.length - 4} more` : profiles.join(", ");
-    return profiles.length === 1
-      ? `Deploys ${fix.doc.label} to the org — it's the layout for ${shown}.`
-      : `Deploys ${fix.doc.label} to the org — it's the layout for ${profiles.length} profiles (${shown}), and they all get the change.`;
-  } catch {
-    return fallback;
-  }
+  const profiles = await layoutProfiles(fix.doc.fullName, org);
+  if (!profiles) return `Deploys ${fix.doc.label} to the org — every profile assigned this layout gets the change.`;
+  if (!profiles.length) return `Deploys ${fix.doc.label} to the org. No profile is assigned this layout.`;
+  const shown = profiles.length > 4 ? `${profiles.slice(0, 4).join(", ")} and ${profiles.length - 4} more` : profiles.join(", ");
+  return profiles.length === 1
+    ? `Deploys ${fix.doc.label} to the org — it's the layout for ${shown}.`
+    : `Deploys ${fix.doc.label} to the org — it's the layout for ${profiles.length} profiles (${shown}), and they all get the change.`;
 }
 
 interface MetadataPlan {

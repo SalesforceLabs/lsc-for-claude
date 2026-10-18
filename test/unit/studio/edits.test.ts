@@ -344,6 +344,22 @@ describe("editMetadata (page layouts)", () => {
     });
   });
 
+  it("reads the live layout's structure, the profiles using it and whether the org is production", async () => {
+    const { readLiveLayout } = await import("../../../src/studio/metadata/live.js");
+    const live = await readLiveLayout(doc.fullName, "org");
+    expect(live.sections.map((s) => [s.label, s.nth, s.heading, s.columns.map((c) => c.length)])).toEqual([
+      ["Account Information", 0, true, [3, 2]],
+      ["Additional Information", 0, true, [2, 0]],
+      ["Description Information", 0, false, [0]],
+      ["Custom Links", 0, false, [0, 0, 0]],
+    ]);
+    expect(live.sections[0].columns[0][0]).toEqual({ field: "Name", behavior: "Required" });
+    expect(live.relatedLists).toHaveLength(18);
+    expect(live.profiles).toEqual(["LS Manager", "LS Rep"]);
+    expect(live.production).toBe(false);
+    expect(fs.readdirSync(dir)).toEqual([]);
+  });
+
   it("flags production orgs", async () => {
     org.Organization = [{ IsSandbox: false }];
     expect((await previewFix(fix, "org")).production).toBe(true);

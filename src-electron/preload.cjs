@@ -79,6 +79,7 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioDrift: (input) => ipcRenderer.invoke("studio:call", "studio_drift", input),
   studioItemDetail: (kind, id) =>
     ipcRenderer.invoke("studio:call", "studio_item_detail", { kind, id }),
+  studioMetadataDoc: (type, fullName) => ipcRenderer.invoke("studio:call", "studio_metadata_doc", { type, fullName }),
   studioListProfiles: () => ipcRenderer.invoke("studio:call", "studio_list_profiles"),
   studioUserAccess: (userId) => ipcRenderer.invoke("studio:call", "studio_user_access", { userId }),
   studioAccessOptions: () => ipcRenderer.invoke("studio:call", "studio_access_options"),

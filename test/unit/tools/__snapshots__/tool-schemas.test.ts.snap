@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `106`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `107`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -80,6 +80,7 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_list_profiles",
   "studio_lwc_bundle",
   "studio_lwc_request",
+  "studio_metadata_doc",
   "studio_perf_active",
   "studio_perf_cancel",
   "studio_perf_check",
@@ -1292,6 +1293,19 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
       "kind": {
         "optional": false,
         "type": "ZodEnum",
+      },
+    },
+  },
+  {
+    "name": "studio_metadata_doc",
+    "params": {
+      "fullName": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "type": {
+        "optional": false,
+        "type": "ZodLiteral",
       },
     },
   },

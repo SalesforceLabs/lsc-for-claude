@@ -94,6 +94,8 @@ interface LscApi {
     input: { action: "list"; days?: number } | { action: "save"; label?: string } | { action: "diff"; id: string } | { action: "delete"; id: string }
   ): Promise<StudioResponse>;
   studioItemDetail(kind: string, id: string): Promise<StudioResponse>;
+  /** The layout as it is in the org now (sections, fields, related lists, profiles using it, production) — never cached. */
+  studioMetadataDoc(type: "Layout", fullName: string): Promise<StudioResponse>;
   studioListProfiles(): Promise<StudioResponse>;
   studioUserAccess(userId: string): Promise<StudioResponse>;
   studioAccessOptions(): Promise<StudioResponse>;

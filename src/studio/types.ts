@@ -122,6 +122,17 @@ export interface MetadataDocRef {
   label: string;
 }
 
+/** A page layout as it is in the org now, for lining the published preview up before editing. */
+export interface LiveLayout {
+  type: "Layout";
+  fullName: string;
+  sections: { label: string; nth: number; heading: boolean; columns: { field: string; behavior: FieldBehavior }[][] }[];
+  relatedLists: string[];
+  /** Profiles assigned the layout; null when that couldn't be read. */
+  profiles: string[] | null;
+  production: boolean;
+}
+
 /**
  * Edits to one metadata document, deployed together. Each op is checked against
  * the document as retrieved; undo is the reversed inverse ops.
