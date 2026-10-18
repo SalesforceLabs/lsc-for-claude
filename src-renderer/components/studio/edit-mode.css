@@ -266,3 +266,29 @@
   gap: var(--space-2);
   align-items: center;
 }
+
+/* The properties sheet of a Lightning page component. */
+.studio-props {
+  margin: var(--space-2) 0;
+}
+
+.studio-props-title {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-sm);
+  font-weight: 600;
+}
+
+.studio-prop-unused .studio-form-label,
+.studio-prop-unused .studio-input {
+  opacity: 0.6;
+}
+
+.studio-prop-org {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}

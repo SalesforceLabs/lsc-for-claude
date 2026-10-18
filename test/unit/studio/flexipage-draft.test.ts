@@ -221,6 +221,56 @@ describe("flexipage-draft", () => {
     expect(locateItem(target, "c_lscMobileInline_CarouselLwc")!.item.properties.mobileHeight).toBe("600");
   });
 
+  it("lists definitions then the page's other simple properties, leaving region pointers out", () => {
+    const defs = { component: "force:relatedListSingleContainer", source: "curated" as const, properties: [{ name: "showActionBar", label: "Show action bar", type: "Boolean" as const, ipad: "unused" as const }] };
+    const edits = propertyEdits(draftOf(), "force_relatedListSingleContainer", defs);
+    expect(edits.map((e) => e.property)).toContain("showActionBar");
+    expect(edits.find((e) => e.property === "relatedListApiName")!.readOnly).toBe(true);
+    // The unused one sorts last; the tab's body pointer isn't offered.
+    expect(edits[edits.length - 1].def.ipad).toBe("unused");
+    expect(propertyEdits(draftOf(), "flexipage_tab5").map((e) => e.property)).toEqual(["title"]);
+  });
+
+  it("edits a typed property, shows the org's value, resets it, and round-trips to the XML", () => {
+    const defs = { component: "force:relatedListSingleContainer", source: "curated" as const, properties: [{ name: "showActionBar", label: "Show action bar", type: "Boolean" as const, ipad: "unused" as const }] };
+    const bar = (pending: PendingChange[] = []) => propertyEdits(draftOf(pending), "force_relatedListSingleContainer", defs).find((e) => e.property === "showActionBar")!;
+    expect(bar().changed).toBe(false);
+    const pending = bar().set("false", [])!;
+    const edited = bar(pending);
+    expect(edited).toMatchObject({ value: "false", orgValue: "true", changed: true });
+    expect(queued(pending)).toEqual([expect.objectContaining({ op: "setComponentProperty", property: "showActionBar", from: "true", to: "false" })]);
+    expect(locateItem(roundTrips(pending), "force_relatedListSingleContainer")!.item.properties.showActionBar).toBe("false");
+    // Reset puts the org's value back, so nothing is left to apply.
+    expect(queued(edited.reset(pending))).toEqual([]);
+  });
+
+  it("takes an optional property off with an empty value and sets a new one", () => {
+    const defs = { component: "lscMobileInline_CarouselLwc", source: "bundle" as const, properties: [{ name: "heading", label: "Heading", type: "String" as const, ipad: "unknown" as const }] };
+    const heading = (pending: PendingChange[] = []) => propertyEdits(draftOf(pending), "c_lscMobileInline_CarouselLwc", defs).find((e) => e.property === "heading")!;
+    expect(heading().value).toBe("");
+    const set = heading().set("Welcome", [])!;
+    expect(queued(set)).toEqual([expect.objectContaining({ op: "setComponentProperty", property: "heading", from: null, to: "Welcome" })]);
+    expect(locateItem(roundTrips(set), "c_lscMobileInline_CarouselLwc")!.item.properties.heading).toBe("Welcome");
+    const cleared = heading(set).set("", set)!;
+    expect(queued(cleared)).toEqual([]);
+  });
+
+  it("refuses values the definition's range rules out", () => {
+    const defs = { component: "lscMobileInline_CarouselLwc", source: "bundle" as const, properties: [{ name: "mobileHeight", label: "Height", type: "Integer" as const, min: 100, max: 900, ipad: "used" as const }] };
+    const height = propertyEdits(draftOf(), "c_lscMobileInline_CarouselLwc", defs).find((e) => e.property === "mobileHeight")!;
+    expect(height.set("50", [])).toBeNull();
+    expect(height.set("901", [])).toBeNull();
+    expect(height.set("500", [])).not.toBeNull();
+  });
+
+  it("draws a pending property where the preview reads it", () => {
+    const edited = propertyEdits(draftOf(), "c_lscMobileInline_CarouselLwc").find((e) => e.property === "mobileHeight")!.set("640", [])!;
+    const comp: PublishedComponent = { name: "lscMobileInline_CarouselLwc", label: "x", supported: true, halfWidth: false, visibility: "shown", properties: { mobileHeight: "550" }, source: published.regions[0].components[0].tabs![2].components[0].source };
+    const drawn = draftComponents(draftOf(edited), [comp]);
+    expect(drawn[0].value.properties.mobileHeight).toBe("640");
+    expect(drawn[0].state).toBe("moved");
+  });
+
   it("makes a tab the default", () => {
     const pending = verbOf(draftOf(), "flexipage_tab9", "default", true).run!([]);
     const target = roundTrips(pending);

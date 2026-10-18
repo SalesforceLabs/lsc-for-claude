@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   Asterisk,
   CircleMinus,
@@ -31,6 +31,7 @@ import type { Verb, VerbId } from "./edit-draft";
 import type { LayoutStatus } from "./usePreviewEdit";
 import type { PropertyEdit } from "./flexipage-draft";
 import Spinner from "../ui/Spinner";
+import PropertiesSheet from "./PropertiesSheet";
 import StatusIcon from "../ui/StatusIcon";
 
 const ICONS: Record<VerbId, LucideIcon> = {
@@ -69,6 +70,10 @@ export default function BlockInspector({
   onRetryLayout,
   properties,
   onProperty,
+  onPropertyReset,
+  propertiesLoading,
+  propertiesNote,
+  propertiesDynamic,
   sync,
   onSync,
   onSetup,
@@ -90,6 +95,11 @@ export default function BlockInspector({
   /** Lightning page properties the block's inspector can set (a tab's title, an inline LWC's height). */
   properties?: PropertyEdit[];
   onProperty?: (edit: PropertyEdit, value: string) => void;
+  onPropertyReset?: (edit: PropertyEdit) => void;
+  /** The component's property definitions are still loading. */
+  propertiesLoading?: boolean;
+  propertiesNote?: string;
+  propertiesDynamic?: string;
   /** Shown when the block's records aren't synced to this profile's iPad. */
   sync: SyncAction | null;
   onSync: () => void;
@@ -228,12 +238,8 @@ export default function BlockInspector({
               })}
             </div>
           )}
-          {properties && properties.length > 0 && onProperty && (
-            <div className="studio-form">
-              {properties.map((p) => (
-                <PropertyField key={p.property} edit={p} draft={draft} onSet={(value) => onProperty(p, value)} />
-              ))}
-            </div>
+          {properties && onProperty && onPropertyReset && (
+            <PropertiesSheet properties={properties} draft={draft} loading={!!propertiesLoading} note={propertiesNote} dynamic={propertiesDynamic} onSet={onProperty} onReset={onPropertyReset} />
           )}
           {(layout?.profiles || layout?.reach || info.reach) && (
             <p className="studio-block-reach">
@@ -273,44 +279,6 @@ export default function BlockInspector({
         </section>
       </div>
     </aside>
-  );
-}
-
-/** One Lightning page property: queued when the field is left or Enter is pressed, if the value is valid and changed. */
-function PropertyField({ edit, draft, onSet }: { edit: PropertyEdit; draft: boolean; onSet: (value: string) => void }) {
-  const [value, setValue] = useState(edit.value);
-  useEffect(() => setValue(edit.value), [edit.value]);
-  const { problem, warning } = edit.check(value);
-  const commit = () => {
-    if (value !== edit.value && !problem) onSet(value);
-  };
-  return (
-    <label className="studio-form-row">
-      <span className="studio-form-label">{edit.label}</span>
-      <span className="studio-form-field">
-        <input
-          className="studio-input"
-          type={edit.kind === "number" ? "number" : "text"}
-          min={edit.kind === "number" ? 1 : undefined}
-          value={value}
-          disabled={!draft}
-          title={draft ? undefined : "Switch to Draft to queue changes"}
-          aria-invalid={!!problem}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") commit();
-            if (e.key === "Escape") setValue(edit.value);
-          }}
-        />
-        {(problem || warning) && (
-          <span className="studio-form-help" role="status">
-            <StatusIcon tone={problem ? "error" : "warning"} size={14} />
-            {problem ?? warning}
-          </span>
-        )}
-      </span>
-    </label>
   );
 }
 
