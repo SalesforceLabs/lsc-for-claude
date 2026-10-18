@@ -8,6 +8,7 @@ import LibraryPanel from "./components/LibraryPanel";
 import SettingsPanel from "./components/SettingsPanel";
 import SetupScreen from "./components/SetupScreen";
 import StudioView from "./components/studio/StudioView";
+import StatusBar from "./components/StatusBar";
 
 export default function App() {
   const chat = useChat();
@@ -150,7 +151,6 @@ export default function App() {
       <div className="app-container">
       <Sidebar
         commands={commands}
-        toolCount={engine.toolCount}
         providerType={engine.providerType}
         activeConversationId={chat.conversationId}
         streamingConvIds={chat.streamingConvIds}
@@ -158,7 +158,6 @@ export default function App() {
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
         onCommandClick={(name) => { chat.clear(); setStudioOpen(false); setLibraryPanelOpen(false); setPrefillInput(`/lsc:${name} `); }}
-        onSettingsClick={() => setShowSettings(true)}
         onNewChat={() => { setStudioOpen(false); chat.clear(); }}
         onLoadConversation={(id) => { setStudioOpen(false); setLibraryPanelOpen(false); chat.loadConversation(id); }}
         onDeleteConversation={async (id) => {
@@ -218,6 +217,7 @@ export default function App() {
         />
       )}
       </div>
+      <StatusBar toolCount={engine.toolCount} onSettingsClick={() => setShowSettings(true)} />
     </div>
   );
 }

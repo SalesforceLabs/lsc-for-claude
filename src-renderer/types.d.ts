@@ -158,9 +158,11 @@ interface LscApi {
     error?: string;
   }>;
   setSfOrg(org: string): Promise<{ ok: boolean }>;
-  /** Called with the new org whenever Settings switches it; returns an unsubscribe function. */
+  /** Called with the new org whenever Settings or the status bar switches it; returns an unsubscribe function. */
   onSfOrgChanged(callback: (org: string) => void): () => void;
   loginSfOrg(alias?: string, instanceUrl?: string): Promise<{ ok: boolean; error?: string }>;
+  /** Open the org in the default browser through its sf CLI connection. */
+  openSfOrg(org: string): Promise<{ ok: boolean; error?: string }>;
 
   // Engine
   startEngine(

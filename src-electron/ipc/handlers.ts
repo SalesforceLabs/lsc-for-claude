@@ -706,6 +706,25 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     });
   });
 
+  // Opens the org in the default browser, signed in through the sf CLI connection.
+  ipcMain.handle("sfOrg:open", async (_event, org: string) => {
+    return new Promise((resolve) => {
+      execFile("sf", ["org", "open", "--target-org", org, "--url-only", "--json"], { timeout: 30000 }, (error, stdout) => {
+        try {
+          const url = JSON.parse(stdout)?.result?.url;
+          if (typeof url === "string" && url.startsWith("https://")) {
+            shell.openExternal(url);
+            resolve({ ok: true });
+            return;
+          }
+        } catch {
+          // Fall through to the error below.
+        }
+        resolve({ ok: false, error: error?.message ?? "sf org open returned no URL" });
+      });
+    });
+  });
+
   // --- Mobile logins for the first-sync simulator (tokens never leave the main process except to the engine) ---
 
   ipcMain.handle("mobileLogin:start", async (_event, loginUrl: string) => {
