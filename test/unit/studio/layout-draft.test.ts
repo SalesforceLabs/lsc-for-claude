@@ -13,6 +13,9 @@ import {
   draftSections,
   fieldVerbs,
   modelOf,
+  moveFieldTo,
+  moveRelatedTo,
+  moveSectionTo,
   relatedVerbs,
   sectionVerbs,
   targetOf,
@@ -22,7 +25,7 @@ import {
 } from "../../../src-renderer/components/studio/layout-draft.js";
 import type { PendingChange } from "../../../src-renderer/components/studio/changes.js";
 import type { PublishedLayout, PublishedRelated } from "../../../src-renderer/components/studio/published-types.js";
-import type { FieldBehavior, LiveLayout } from "../../../src-renderer/components/studio/types.js";
+import type { FieldBehavior, LayoutOp, LiveLayout } from "../../../src-renderer/components/studio/types.js";
 
 const FULL_NAME = "PersonAccount-HCP Layout";
 const xml = readFileSync(join(__dirname, "../../fixtures/metadata/PersonAccount-HCP_Layout.layout-meta.xml"), "utf8");
@@ -278,5 +281,77 @@ describe("drawing the draft", () => {
     const extra = addedRelated(d, [rel(a)], (o) => `${o}s`);
     expect(extra).toEqual([{ key: "added:Opportunities", api: "Opportunities", label: "Opportunitys", object: "Opportunity", count: 0, columns: [], rows: [] }]);
     expect(draftRelated([rel(a), ...extra], d.base, d.target).map((r) => `${r.related.api}:${r.state}`)).toEqual([`${a}:removed`, "Opportunities:added"]);
+  });
+});
+
+describe("layout drops", () => {
+  const P: PendingChange[] = [];
+  /** The tray's one change: the ops between the org's layout and the drawn one, which the server deploys as drawn. */
+  const deploysDrop = (pending: PendingChange[] | null) => {
+    expect(pending).toHaveLength(1);
+    const ops = (pending![0].fix as { ops: LayoutOp[] }).ops;
+    const drawn = targetOf(FULL_NAME, base, pending!);
+    expect(ops).toEqual(diffOps(base, drawn));
+    expect(shape(modelOf(liveOf(applyLayoutOps(root, ops).root)))).toEqual(shape(drawn));
+    return drawn;
+  };
+
+  it("queues nothing for a drop where the block already is", () => {
+    const d = draftOf();
+    const [first, second] = base.sections[0].columns[0];
+    expect(moveFieldTo(d, first.field, { section: 0, column: 0, before: second.field }, P)).toBe(P);
+    expect(moveFieldTo(d, first.field, { section: 0, column: 0, before: first.field }, P)).toBe(P);
+    expect(moveSectionTo(d, 0, base.sections[1].key, P)).toBe(P);
+    expect(moveSectionTo(d, base.sections.at(-1)!.key, null, P)).toBe(P);
+    const [a, b] = base.relatedLists;
+    expect(moveRelatedTo(d, a, b, P)).toBe(P);
+  });
+
+  it("queues what Move down does for a drop one place down", () => {
+    const d = draftOf();
+    const [first, , third] = base.sections[0].columns[0];
+    const shown = base.sections[0].columns[0].map((i) => i.field);
+    const dropped = moveFieldTo(d, first.field, { section: 0, column: 0, before: third.field }, P);
+    expect(dropped).toEqual(run(fieldVerbs(d, first.field, first.field, shown), "down"));
+  });
+
+  it("moves a field into another section's column, and dropping it back leaves nothing", () => {
+    const [from, to] = base.sections;
+    const field = from.columns[0][0].field;
+    const before = to.columns[0][0].field;
+    const moved = moveFieldTo(draftOf(), field, { section: to.key, column: 0, before }, P)!;
+    const drawn = deploysDrop(moved);
+    expect(drawn.sections[1].columns[0].slice(0, 2).map((i) => i.field)).toEqual([field, before]);
+    expect(drawn.sections[0].columns[0].map((i) => i.field)).not.toContain(field);
+    const back = moveFieldTo(draftOf(moved), field, { section: from.key, column: 0, before: from.columns[0][1].field }, moved);
+    expect(back).toEqual([]);
+  });
+
+  it("moves a field to the end of the other column", () => {
+    const field = base.sections[0].columns[0][1].field;
+    const drawn = deploysDrop(moveFieldTo(draftOf(), field, { section: 0, column: 1, before: null }, P));
+    expect(drawn.sections[0].columns[1].at(-1)?.field).toBe(field);
+  });
+
+  it("moves sections and related lists in one change each, and dropping them back leaves nothing", () => {
+    const keys = base.sections.map((s) => s.key);
+    const last = moveSectionTo(draftOf(), keys[0], null, P)!;
+    expect(deploysDrop(last).sections.map((s) => s.key)).toEqual([...keys.slice(1), keys[0]]);
+    expect(moveSectionTo(draftOf(last), keys[0], keys[1], last)).toEqual([]);
+
+    const lists = base.relatedLists;
+    const first = moveRelatedTo(draftOf(), lists[2], lists[0], P)!;
+    expect(deploysDrop(first).relatedLists).toEqual([lists[2], lists[0], lists[1], ...lists.slice(3)]);
+    expect(moveRelatedTo(draftOf(first), lists[2], lists[3] ?? null, first)).toEqual([]);
+  });
+
+  it("refuses a drop on something that isn't on the layout", () => {
+    const d = draftOf();
+    const field = base.sections[0].columns[0][0].field;
+    expect(moveFieldTo(d, "Nope__c", { section: 0, column: 0, before: null }, P)).toBeNull();
+    expect(moveFieldTo(d, field, { section: 99, column: 0, before: null }, P)).toBeNull();
+    expect(moveFieldTo(d, field, { section: 0, column: 0, before: "Nope__c" }, P)).toBeNull();
+    expect(moveSectionTo(d, 0, 99, P)).toBeNull();
+    expect(moveRelatedTo(d, "Nope", null, P)).toBeNull();
   });
 });

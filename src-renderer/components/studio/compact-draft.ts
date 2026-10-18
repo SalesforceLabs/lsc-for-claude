@@ -194,6 +194,15 @@ export function compactVerbs(d: CompactDraft, field: string, label: string): Ver
   ];
 }
 
+/** A header field dropped right before `before` (null: last): one diffed change, as Move left / right queue. Null when either isn't in the header. */
+export function moveCompactFieldTo(d: CompactDraft, field: string, before: string | null, pending: PendingChange[]): PendingChange[] | null {
+  if (before === field) return pending;
+  if (!d.target.includes(field) || (before !== null && !d.target.includes(before))) return null;
+  const next = d.target.filter((f) => f !== field);
+  next.splice(before === null ? next.length : next.indexOf(before), 0, field);
+  return next.every((f, i) => f === d.target[i]) ? pending : arrange(d, next, pending);
+}
+
 /** Shown in the inspector once the header holds more than fits across the screen. */
 export function crowdedNote(d: CompactDraft): string | null {
   const n = d.target.filter((f) => !isTitle(f)).length;

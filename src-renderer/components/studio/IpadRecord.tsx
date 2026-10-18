@@ -218,29 +218,51 @@ function TabContent({
   const edits = useContext(LayoutEdits);
   const entry = layout ? edits?.layouts[layout] : undefined;
   const lists = entry?.status === "ready" ? entry.draft : null;
-  const related = (r: PublishedRelated, key: React.Key, state?: DraftState) => (
-    <Mark
-      key={key}
-      target={{
-        kind: "related",
-        object: r.object,
-        label: r.label,
-        parent: rec.object,
-        ...(layout ? { layout } : {}),
-        ...(lists && (lists.base.relatedLists.includes(r.api) || lists.target.relatedLists.includes(r.api)) ? { relatedList: r.api } : {}),
-      }}
-    >
-      <RelatedCard snapshot={snapshot} related={r} editable={rec.editable} draft={state} />
-    </Mark>
-  );
-  const allRelated = (): React.ReactNode =>
-    lists && edits?.draft
-      ? draftRelated(
-          [...Object.values(rec.related), ...addedRelated(lists, Object.values(rec.related), (o) => snapshot.objects[o]?.label ?? o)],
-          lists.base,
-          lists.target
-        ).map((d) => related(d.related, d.related.key, d.state))
-      : Object.values(rec.related).map((r) => related(r, r.key));
+  const related = (r: PublishedRelated, key: React.Key, state?: DraftState) => {
+    const listed = !!lists && (lists.base.relatedLists.includes(r.api) || lists.target.relatedLists.includes(r.api));
+    return (
+      <Mark
+        key={key}
+        target={{
+          kind: "related",
+          object: r.object,
+          label: r.label,
+          parent: rec.object,
+          ...(layout ? { layout } : {}),
+          ...(listed ? { relatedList: r.api } : {}),
+        }}
+        drag={listed && state !== undefined ? { family: `related:${layout}`, id: r.api, ghost: state === "removed" } : undefined}
+      >
+        <RelatedCard snapshot={snapshot} related={r} editable={rec.editable} draft={state} />
+      </Mark>
+    );
+  };
+  const allRelated = (): React.ReactNode => {
+    const drafted: { related: PublishedRelated; state?: DraftState }[] =
+      lists && edits?.draft
+        ? draftRelated(
+            [...Object.values(rec.related), ...addedRelated(lists, Object.values(rec.related), (o) => snapshot.objects[o]?.label ?? o)],
+            lists.base,
+            lists.target
+          )
+        : Object.values(rec.related).map((r) => ({ related: r }));
+    const cards = drafted.map((d) => related(d.related, d.related.key, d.state));
+    if (!edits?.draft || !layout || drafted.some((d) => d.state !== "removed")) return cards;
+    // With no related list to select, Draft draws a placeholder where "Add related list…" starts.
+    return (
+      <>
+        {cards}
+        <Mark target={{ kind: "related", object: "", label: "Related lists", parent: rec.object, layout }}>
+          <div className="studio-ipad-rec-card related studio-ipad-rec-rl-placeholder">
+            <div className="studio-ipad-rec-rl-head">
+              <span className="studio-ipad-rec-rl-title">No related lists</span>
+            </div>
+            <div className="studio-ipad-rec-rl-hint">Select this card to add a related list to the layout.</div>
+          </div>
+        </Mark>
+      </>
+    );
+  };
   return (
     <>
       {shown.map((c, k) => (
@@ -292,7 +314,8 @@ function Header({ snapshot, rec, object, compact }: { snapshot: PublishedIpad; r
   const entry = fullName ? edits?.compacts?.[fullName] : undefined;
   const specs = (fullName ? snapshot.compactFields?.[fullName] : undefined) ?? [];
   // Draft draws the header as the tray leaves it: removed fields as ghosts, added ones pending.
-  const drafted = edits?.draft && entry?.status === "ready" ? entry.fields : specs.map((spec) => ({ spec, state: "same" as DraftState }));
+  const drags = !!edits?.draft && entry?.status === "ready";
+  const drafted = drags && entry ? entry.fields : specs.map((spec) => ({ spec, state: "same" as DraftState }));
   const cells = drafted
     .map((d) => ({ ...d, meta: metaOf(snapshot, rec.object, d.spec) }))
     .filter((c) => !c.meta.hidden)
@@ -340,6 +363,7 @@ function Header({ snapshot, rec, object, compact }: { snapshot: PublishedIpad; r
                   label: c.label,
                   ...(c.state === "added" ? { added: true } : {}),
                 }}
+                drag={drags ? { family: `header:${fullName}`, id: c.spec.name, ghost: c.state === "removed", horizontal: true } : undefined}
               >
                 {cell}
               </Mark>
@@ -476,7 +500,8 @@ interface DrawnSection {
   label: string | null;
   orgKey?: number;
   state?: DraftState;
-  columns: { spec: RecordFieldSpec; item?: string; required?: boolean; readOnly?: boolean; state?: DraftState }[][];
+  /** `col`: the field's column in the org's layout section, in Draft (drawn columns skip empty ones). */
+  columns: { spec: RecordFieldSpec; item?: string; required?: boolean; readOnly?: boolean; state?: DraftState; col?: number }[][];
 }
 
 function drawnSections(snapshot: PublishedIpad, layout: PublishedLayout, entry: LayoutEntry | undefined, draft: boolean): DrawnSection[] {
@@ -495,7 +520,7 @@ function drawnSections(snapshot: PublishedIpad, layout: PublishedLayout, entry: 
           .map((col) =>
             col
               .filter((f) => shown(f.spec))
-              .map((f) => ({ spec: f.spec, item: f.item, required: f.behavior === "Required", readOnly: f.behavior === "Readonly", state: f.state }))
+              .map((f) => ({ spec: f.spec, item: f.item, required: f.behavior === "Required", readOnly: f.behavior === "Readonly", state: f.state, col: f.col }))
           )
           .filter((c) => c.length),
       }))
@@ -531,13 +556,17 @@ function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: Publishe
       {layouts.map((layout, li) => {
         const object = layoutObject(layout.name);
         const sections = drawnSections(snapshot, layout, edits?.layouts[layout.name], !!edits?.draft);
+        // In Draft, sections and fields drag within this layout; fields across columns and sections.
+        const drags = !!edits?.draft && edits.layouts[layout.name]?.status === "ready";
         return sections.map((s, si) => {
           const first = li === 0 && si === 0;
           const cls = s.label ? (si === 0 ? " layout-gap" : " section-gap") : "";
+          const draggable = drags && s.orgKey !== undefined;
           return (
             <Mark
               key={`${li}.${s.key}`}
               target={{ kind: "section", layout: layout.name, index: s.index, count: sections.length, label: s.label, ...(s.orgKey !== undefined ? { key: s.orgKey } : {}) }}
+              drag={draggable ? { family: `sections:${layout.name}`, id: String(s.orgKey), ghost: s.state === "removed" } : undefined}
             >
             <div className={`studio-ipad-rec-section${first ? " first" : ""}${cls}${first && s.label ? " labeled" : ""}${draftClass(s.state)}`}>
               {s.label && (
@@ -549,13 +578,18 @@ function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: Publishe
               <div className="studio-ipad-rec-cols">
                 {s.columns.map((col, ci) => (
                   <div key={ci} className="studio-ipad-rec-col">
-                    {col.map(({ spec: f, item, required, readOnly, state }, fi) => {
+                    {col.map(({ spec: f, item, required, readOnly, state, col: column }, fi) => {
                       const v = valueOf(rec, object, f);
                       const meta = metaOf(snapshot, object, f);
                       return (
                         <Mark
                           key={`${f.name}.${fi}`}
                           target={{ kind: "field", layout: layout.name, section: s.label, field: f.name, label: meta.label, required, readOnly, ...(item ? { item } : {}) }}
+                          drag={
+                            draggable && item && column !== undefined && s.state !== "removed"
+                              ? { family: `fields:${layout.name}`, list: { section: s.orgKey, column }, id: item, ghost: state === "removed" }
+                              : undefined
+                          }
                         >
                           <div className={`studio-ipad-rec-field${f.type === "textarea" ? " tall" : ""}${draftClass(state)}`}>
                             <div className="studio-ipad-rec-label">

@@ -11,6 +11,7 @@ import {
   crowdedNote,
   diffCompactOps,
   draftHeader,
+  moveCompactFieldTo,
   type CompactDraft,
 } from "../../../src-renderer/components/studio/compact-draft.js";
 import type { PendingChange } from "../../../src-renderer/components/studio/changes.js";
@@ -126,6 +127,37 @@ describe("compact verbs", () => {
     expect(crowdedNote(draftOf([]))).toBeNull();
     const more = verbsFor(draftOf([]), "AccountNumber").find((v) => v.id === "addField")!.pick!.run("Phone", []);
     expect(crowdedNote(draftOf(more))).toBe("7 fields in the header — fields after the first 6 or so scroll off the iPad's screen.");
+  });
+});
+
+describe("compact drops", () => {
+  const P: PendingChange[] = [];
+
+  it("queues nothing for a drop where the field already is", () => {
+    const d = draftOf(P);
+    expect(moveCompactFieldTo(d, base[1], base[2], P)).toBe(P);
+    expect(moveCompactFieldTo(d, base[1], base[1], P)).toBe(P);
+    expect(moveCompactFieldTo(d, base.at(-1)!, null, P)).toBe(P);
+  });
+
+  it("queues what Move right does for a drop one place right", () => {
+    const d = draftOf(P);
+    expect(moveCompactFieldTo(d, "AccountNumber", base[3], P)).toEqual(runVerb(d, "AccountNumber", "down", P));
+  });
+
+  it("queues one change the server deploys as drawn, and dropping it back leaves nothing", () => {
+    const field = base[1];
+    const moved = moveCompactFieldTo(draftOf(P), field, null, P)!;
+    expect(moved).toHaveLength(1);
+    const d = draftOf(moved);
+    expect(d.target).toEqual([...base.filter((f) => f !== field), field]);
+    serverAgrees((moved[0].fix as { ops: CompactOp[] }).ops, d.target);
+    expect(moveCompactFieldTo(d, field, base[2], moved)).toEqual([]);
+  });
+
+  it("refuses a drop on a field that isn't in the header", () => {
+    expect(moveCompactFieldTo(draftOf(P), "Phone", null, P)).toBeNull();
+    expect(moveCompactFieldTo(draftOf(P), base[1], "Phone", P)).toBeNull();
   });
 });
 

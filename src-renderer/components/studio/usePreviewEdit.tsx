@@ -3,8 +3,9 @@ import { ListPlus, TextCursorInput } from "lucide-react";
 import type { CreateConfigFix, FeatureMap, LiveCompactLayout, LiveLayout, ProfileOption } from "./types";
 import type { PublishedIpad, PublishedResult } from "./published-types";
 import type { PreviewEdit } from "./PublishedIpadPreview";
+import type { EditDrop } from "./EditLayer";
 import { createAffects, queueChange, type PendingChange } from "./changes";
-import { actionVerbs, draftHomeMenu, draftTabs, tabVerbs, type Verb } from "./edit-draft";
+import { actionVerbs, draftHomeMenu, draftTabs, moveActionTo, moveTabTo, tabVerbs, type Verb } from "./edit-draft";
 import { describeTarget, syncAction, syncFilter, type EditTarget } from "./edit-targets";
 import {
   addRelatedVerb,
@@ -12,15 +13,19 @@ import {
   draftSections,
   fieldVerbs,
   modelOf,
+  moveFieldTo,
+  moveRelatedTo,
+  moveSectionTo,
   relatedObject,
   relatedVerbs,
   sectionVerbs,
   StaleDraftError,
   targetOf,
   type DraftSection,
+  type FieldSlot,
   type LayoutDraft,
 } from "./layout-draft";
-import { alignCompact, compactTargetOf, compactVerbs, crowdedNote, draftHeader, type CompactDraft, type DraftHeaderField } from "./compact-draft";
+import { alignCompact, compactTargetOf, compactVerbs, crowdedNote, draftHeader, moveCompactFieldTo, type CompactDraft, type DraftHeaderField } from "./compact-draft";
 import BlockInspector, { compactReach } from "./BlockInspector";
 import CreateDialog from "./CreateDialog";
 import SearchPicker from "../ui/SearchPicker";
@@ -270,6 +275,38 @@ export function usePreviewEdit({
       setSelected({ kind: "related", object, label: snapshot?.objects[object]?.label ?? object, parent: selected.parent, layout: selected.layout, relatedList: value });
     }
   };
+  // A drop in Draft queues what the move verbs would: tab and action SortOrders, or the layout's one diffed change.
+  const drop = useCallback(
+    (t: EditTarget, { list, before }: EditDrop): boolean => {
+      if (!snapshot || !profile) return false;
+      const moved = ((): PendingChange[] | null => {
+        if (t.kind === "tab")
+          return moveTabTo(snapshot.tabs, tabItems ?? [], profile, t.fullName, before?.kind === "tab" ? before.fullName : null, pending);
+        if (t.kind === "action" && t.place === "home")
+          return moveActionTo(snapshot.screens?.fabs?.home ?? [], actionItems ?? [], profile, t.name, before?.kind === "action" ? before.name : null, pending);
+        if (t.kind === "headerField") {
+          const c = compacts[t.compactLayout];
+          return c?.status === "ready" ? moveCompactFieldTo(c.draft, t.field, before?.kind === "headerField" ? before.field : null, pending) : null;
+        }
+        const entry = "layout" in t && t.layout ? layouts[t.layout] : undefined;
+        if (entry?.status !== "ready") return null;
+        const d = entry.draft;
+        if (t.kind === "section" && t.key !== undefined)
+          return moveSectionTo(d, t.key, before?.kind === "section" ? (before.key ?? null) : null, pending);
+        if (t.kind === "field" && t.item) {
+          const { section, column } = list as Omit<FieldSlot, "before">;
+          return moveFieldTo(d, t.item, { section, column, before: before?.kind === "field" ? (before.item ?? null) : null }, pending);
+        }
+        if (t.kind === "related" && t.relatedList)
+          return moveRelatedTo(d, t.relatedList, before?.kind === "related" ? (before.relatedList ?? null) : null, pending);
+        return null;
+      })();
+      if (!moved || moved === pending) return false;
+      onPendingChange(moved);
+      return true;
+    },
+    [snapshot, profile, tabItems, actionItems, compacts, layouts, pending, onPendingChange]
+  );
   const openSetup = useCallback(() => {
     if (org && info?.setup) window.lscApi.openSfOrg(org, info.setup.path);
   }, [org, info]);
@@ -287,6 +324,7 @@ export function usePreviewEdit({
           onSelect: setSelected,
           verbs: draft ? verbs : [],
           onRun: run,
+          onDrop: draft ? drop : undefined,
           setup: org ? info?.setup : null,
           onSetup: openSetup,
           horizontal: selected?.kind === "tab" || selected?.kind === "headerField",

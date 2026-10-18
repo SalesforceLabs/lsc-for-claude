@@ -62,7 +62,13 @@ function Menu({ items, states, object, onClose, onPick }: { items: PublishedFabI
             className={`studio-ipad-fab-item${states?.[i] === "removed" ? " ghost" : states?.[i] === "added" || states?.[i] === "moved" ? " pending" : ""}`}
             title={a.name}
             role="button"
-            {...editAttrs(editing, { kind: "action", name: a.name, label: a.label, index: i, place: object ? "record" : "home", ...(object ? { object } : {}) })}
+            {...editAttrs(
+              editing,
+              { kind: "action", name: a.name, label: a.label, index: i, place: object ? "record" : "home", ...(object ? { object } : {}) },
+              false,
+              // Draft drags the Home menu only; record actions come from the layout and have no order to change here.
+              states && !object ? { family: "home-actions", id: a.name, ghost: states[i] === "removed" } : undefined
+            )}
             onClick={(e) => {
               e.stopPropagation();
               onPick(a);

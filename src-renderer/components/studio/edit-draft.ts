@@ -654,3 +654,84 @@ export function actionVerbs(
   }
   return [...verbs, ...visibilityVerbs(item, d.state, profile, pending, "action", d.quick)];
 }
+
+// --- Drops -----------------------------------------------------------------------
+
+/**
+ * A drop in the tab bar or the Home menu: the block's up / down verb, run until
+ * it sits where it was dropped (right before `before` among the blocks still
+ * shown, or last) or as near as the verbs take it. So the tray is exactly what
+ * the same moves made one at a time would leave.
+ */
+function stepTo(
+  order: (pending: PendingChange[]) => string[],
+  verbsAt: (pending: PendingChange[], name: string) => Verb[],
+  name: string,
+  before: string | null,
+  pending: PendingChange[]
+): PendingChange[] {
+  const start = order(pending);
+  const from = start.indexOf(name);
+  const at = before === null ? start.length - 1 : start.indexOf(before);
+  if (from < 0 || at < 0 || before === name) return pending;
+  const to = before !== null && at > from ? at - 1 : at;
+  let p = pending;
+  for (let n = 0; n < start.length; n++) {
+    const now = order(p).indexOf(name);
+    if (now === to) break;
+    const verb = verbsAt(p, name).find((v) => v.id === (to < now ? "up" : "down"));
+    if (!verb?.run) break;
+    const next = verb.run(p);
+    // A step that lands no nearer (past a slot it can't hold, like a Lightning app tab's) ends the move.
+    if (Math.abs(to - order(next).indexOf(name)) >= Math.abs(to - now)) break;
+    p = next;
+  }
+  return p;
+}
+
+const shownNames = <T extends { state: DraftState }>(rows: T[], name: (r: T) => string) =>
+  rows.filter((r) => r.state !== "removed").map(name);
+
+/** A tab dropped right before the tab `before` (null: last), by the TabOrder swaps Move left / right queue. */
+export function moveTabTo(
+  tabs: PublishedTab[],
+  tabItems: StudioItem[],
+  profile: string,
+  fullName: string,
+  before: string | null,
+  pending: PendingChange[]
+): PendingChange[] {
+  const bar = (p: PendingChange[]) => draftTabs(tabs, tabItems, p, profile);
+  return stepTo(
+    (p) => shownNames(bar(p), (d) => d.tab.fullName),
+    (p, name) => {
+      const b = bar(p);
+      return tabVerbs(b, b.findIndex((d) => d.tab.fullName === name), p, profile);
+    },
+    fullName,
+    before,
+    pending
+  );
+}
+
+/** A Home ••• action dropped right before `before` (null: last), by the SortOrder swaps Move up / down queue. */
+export function moveActionTo(
+  published: PublishedFabItem[],
+  actionItems: StudioItem[],
+  profile: string,
+  name: string,
+  before: string | null,
+  pending: PendingChange[]
+): PendingChange[] {
+  const menu = (p: PendingChange[]) => draftHomeMenu(published, actionItems, p, profile);
+  return stepTo(
+    (p) => shownNames(menu(p), (d) => d.value.name),
+    (p, n) => {
+      const m = menu(p);
+      return actionVerbs(m, m.findIndex((d) => d.value.name === n), p, profile);
+    },
+    name,
+    before,
+    pending
+  );
+}

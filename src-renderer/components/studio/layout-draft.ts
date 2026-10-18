@@ -287,6 +287,8 @@ export interface DraftField {
   item: string;
   behavior: FieldBehavior;
   state: DraftState;
+  /** Its column in the layout section (drawn columns skip empty ones). */
+  col: number;
 }
 
 export interface DraftSection {
@@ -360,7 +362,7 @@ export function draftSections(
             before.col !== ci ||
             liveCol.filter((f) => col.some((i) => i.field === f)).indexOf(field) !== col.map((i) => i.field).filter((f) => liveCol.includes(f)).indexOf(field);
           const state: DraftState = gone || ghost ? "removed" : !before ? "added" : moved || liveItem?.behavior !== item.behavior ? "moved" : "same";
-          return (specs.get(field) ?? []).map((spec) => ({ spec, item: field, behavior: item.behavior, state }));
+          return (specs.get(field) ?? []).map((spec) => ({ spec, item: field, behavior: item.behavior, state, col: ci }));
         });
       })
       .filter((c) => c.length);
@@ -671,4 +673,57 @@ export function relatedVerbs(d: LayoutDraft, name: string, label: string, notSyn
     }),
     addRelatedVerb(d, name, notSynced),
   ];
+}
+
+// --- Drops -------------------------------------------------------------------------
+
+/** Where a dragged field lands: a column of a section (by key), right before a field, or last when `before` is null. */
+export interface FieldSlot {
+  section: number;
+  column: number;
+  before: string | null;
+}
+
+/** The tray with `next` arranged, left as it is when the drop changes nothing. */
+function settle(d: LayoutDraft, next: LayoutModel, pending: PendingChange[]): PendingChange[] {
+  return JSON.stringify(next) === JSON.stringify(d.target) ? pending : arrange(d, next, pending);
+}
+
+/**
+ * A field dropped at `slot`: within its column, into another column or another
+ * section. One diffed change, as the move verbs queue; null when the field or
+ * the slot isn't on the layout.
+ */
+export function moveFieldTo(d: LayoutDraft, field: string, slot: FieldSlot, pending: PendingChange[]): PendingChange[] | null {
+  if (slot.before === field) return pending;
+  const next = clone(d.target);
+  const at = locate(next, field);
+  const column = sectionByKey(next, slot.section)?.columns[slot.column];
+  if (!at || !column) return null;
+  const [item] = at.sec.columns[at.col].splice(at.index, 1);
+  const before = slot.before ? column.findIndex((i) => i.field === slot.before) : -1;
+  if (slot.before && before < 0) return null;
+  place(column, item, before);
+  return settle(d, next, pending);
+}
+
+/** A section dropped right before the section keyed `before` (null: last). */
+export function moveSectionTo(d: LayoutDraft, key: number, before: number | null, pending: PendingChange[]): PendingChange[] | null {
+  if (before === key) return pending;
+  const next = clone(d.target);
+  const sec = sectionByKey(next, key);
+  if (!sec || (before !== null && !sectionByKey(next, before))) return null;
+  next.sections = next.sections.filter((s) => s !== sec);
+  place(next.sections, sec, before === null ? -1 : next.sections.findIndex((s) => s.key === before));
+  return settle(d, next, pending);
+}
+
+/** A related list dropped right before `before` (null: last). */
+export function moveRelatedTo(d: LayoutDraft, name: string, before: string | null, pending: PendingChange[]): PendingChange[] | null {
+  if (before === name) return pending;
+  const next = clone(d.target);
+  if (!next.relatedLists.includes(name) || (before !== null && !next.relatedLists.includes(before))) return null;
+  next.relatedLists = next.relatedLists.filter((r) => r !== name);
+  placeRelated(next, name, before);
+  return settle(d, next, pending);
 }

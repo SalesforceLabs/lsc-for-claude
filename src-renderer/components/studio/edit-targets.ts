@@ -348,7 +348,8 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
         what: [
           t.layout ? `Page layout "${t.layout}"` : `${t.parent} record page`,
           "Related lists",
-          t.object,
+          // Draft's placeholder for a layout with none has no object.
+          ...(t.object ? [t.object] : []),
         ],
         why: [
           "The related list is on the record's page layout, or a related-list component on its Lightning page.",
