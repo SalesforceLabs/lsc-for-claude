@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { ListPlus, TextCursorInput } from "lucide-react";
 import type { CreateConfigFix, FeatureMap, LiveLayout, ProfileOption } from "./types";
 import type { PublishedIpad, PublishedResult } from "./published-types";
 import type { PreviewEdit } from "./PublishedIpadPreview";
@@ -6,10 +7,12 @@ import { createAffects, queueChange, type PendingChange } from "./changes";
 import { actionVerbs, draftHomeMenu, draftTabs, tabVerbs, type Verb } from "./edit-draft";
 import { describeTarget, syncAction, syncFilter, type EditTarget } from "./edit-targets";
 import {
+  addRelatedVerb,
   alignLayout,
   draftSections,
   fieldVerbs,
   modelOf,
+  relatedObject,
   relatedVerbs,
   sectionVerbs,
   StaleDraftError,
@@ -19,6 +22,7 @@ import {
 } from "./layout-draft";
 import BlockInspector from "./BlockInspector";
 import CreateDialog from "./CreateDialog";
+import SearchPicker from "../ui/SearchPicker";
 
 interface PreviewEditOptions {
   /** Edit mode is on: blocks can be selected. */
@@ -57,10 +61,13 @@ export function usePreviewEdit({
 }: PreviewEditOptions): { edit: PreviewEdit | undefined; panel: React.ReactNode } {
   const [selected, setSelected] = useState<EditTarget | null>(null);
   const [creating, setCreating] = useState<CreateConfigFix | null>(null);
+  // A verb that asks which field or related list first.
+  const [picking, setPicking] = useState<Verb | null>(null);
   const snapshot: PublishedIpad | null = result && !("missing" in result) ? result : null;
 
   // Another profile, user or mode is another screen: start without a selection.
   useEffect(() => setSelected(null), [on, profile, snapshot]);
+  useEffect(() => setPicking(null), [selected, draft]);
 
   // Page layouts as they are in the org now, read when one of their blocks is selected
   // (and for layouts with queued edits): the preview shows the last publish.
@@ -120,9 +127,10 @@ export function usePreviewEdit({
       }
       try {
         const target = targetOf(name, base, overlay);
-        const sections = draftSections(published, base, target, aligned);
+        const sections = draftSections(published, base, target, aligned, state.live.available);
+        // Lists added in Draft are drawn too, so moves step past them.
         const listed = new Set(published.relatedLists.map((r) => r.name));
-        const shownRelated = target.relatedLists.filter((r) => listed.has(r));
+        const shownRelated = target.relatedLists.filter((r) => listed.has(r) || !base.relatedLists.includes(r));
         const draft: LayoutDraft = {
           fullName: name,
           label: name.slice(name.indexOf("-") + 1),
@@ -161,9 +169,12 @@ export function usePreviewEdit({
       const shown = [...new Set((column ?? []).filter((f) => f.state !== "removed").map((f) => f.item))];
       return fieldVerbs(d, selected.item, selected.label, shown);
     }
-    if (selected.kind === "related" && selected.relatedList) return relatedVerbs(d, selected.relatedList, selected.label);
+    if (selected.kind === "related") {
+      const notSynced = (object: string) => !!snapshot && syncFilter(snapshot, object) === null;
+      return selected.relatedList ? relatedVerbs(d, selected.relatedList, selected.label, notSynced) : [addRelatedVerb(d, null, notSynced)];
+    }
     return [];
-  }, [selected, tabs, homeMenu, pending, profile, layouts]);
+  }, [selected, tabs, homeMenu, pending, profile, layouts, snapshot]);
 
   const info = useMemo(
     () =>
@@ -179,7 +190,24 @@ export function usePreviewEdit({
       ? syncAction(info.syncObject, synced, profile, pending)
       : null;
 
-  const run = useCallback((verb: Verb) => verb.run && onPendingChange(verb.run(pending)), [pending, onPendingChange]);
+  const run = useCallback(
+    (verb: Verb) => {
+      if (verb.pick) setPicking(verb);
+      else if (verb.run) onPendingChange(verb.run(pending));
+    },
+    [pending, onPendingChange]
+  );
+  const pick = (value: string) => {
+    if (!picking?.pick) return;
+    onPendingChange(picking.pick.run(value, pending));
+    setPicking(null);
+    // Select the new related list, so the inspector can offer to sync its records to the iPad.
+    const entry = selected?.kind === "related" && selected.layout ? layouts[selected.layout] : undefined;
+    if (picking.id === "addRelated" && selected?.kind === "related" && entry?.status === "ready") {
+      const object = relatedObject(entry.draft, value);
+      setSelected({ kind: "related", object, label: snapshot?.objects[object]?.label ?? object, parent: selected.parent, layout: selected.layout, relatedList: value });
+    }
+  };
   const openSetup = useCallback(() => {
     if (org && info?.setup) window.lscApi.openSfOrg(org, info.setup.path);
   }, [org, info]);
@@ -223,6 +251,19 @@ export function usePreviewEdit({
           onStudio={info.studio ? () => onOpenStudio(info.studio!.featureId, info.studio!.surface, info.studio!.itemId) : undefined}
           onClose={() => setSelected(null)}
         />
+        {picking?.pick && (
+          <SearchPicker
+            title={picking.pick.title}
+            eyebrow={layoutEntry?.status === "ready" ? `Page layout · ${layoutEntry.draft.label}` : undefined}
+            description={picking.pick.description}
+            options={picking.pick.options}
+            placeholder={picking.pick.placeholder}
+            emptyTitle={picking.pick.empty}
+            emptyIcon={picking.id === "addField" ? TextCursorInput : ListPlus}
+            onPick={pick}
+            onCancel={() => setPicking(null)}
+          />
+        )}
         {creating && (
           <CreateDialog
             draft={creating}

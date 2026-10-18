@@ -24,6 +24,8 @@ import {
   Power,
   PowerOff,
   Trash2,
+  ListPlus,
+  TextCursorInput,
   type LucideIcon,
 } from "lucide-react";
 import { targetKey, targetTag, type EditTarget } from "./edit-targets";
@@ -100,10 +102,12 @@ const VERB_ICONS: Record<VerbId, LucideIcon> = {
   heading: Heading,
   required: Asterisk,
   readonly: Lock,
+  addField: TextCursorInput,
+  addRelated: ListPlus,
 };
 
 /** Toolbar words; the full sentence ("Hide for LS Rep") is the button's tooltip and stays in the inspector. */
-const TOOLBAR_LABELS: Partial<Record<VerbId, string>> = { hide: "Hide", show: "Show" };
+const TOOLBAR_LABELS: Partial<Record<VerbId, string>> = { hide: "Hide", show: "Show", addField: "Add field", addRelated: "Add list" };
 /** Verbs the toolbar draws as an icon alone; their tooltip says what they do. */
 const ICON_ONLY = new Set<VerbId>(["up", "down", "column", "heading", "required", "readonly"]);
 
@@ -342,8 +346,8 @@ function Toolbar({
             key={v.id}
             type="button"
             className={iconOnly ? "ui-icon-btn" : "studio-btn ghost sm"}
-            disabled={!v.run}
-            title={v.run ? v.title : v.reason}
+            disabled={!v.run && !v.pick}
+            title={v.run || v.pick ? v.title : v.reason}
             aria-label={v.label}
             onClick={() => onRun(v)}
           >

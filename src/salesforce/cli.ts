@@ -51,11 +51,15 @@ export interface SObjectDescribeResult {
     required: boolean;
     updateable: boolean;
     createable: boolean;
+    /** Set on a compound field's parts (e.g. BillingStreet → BillingAddress). */
+    compoundFieldName?: string | null;
+    deprecatedAndHidden?: boolean;
   }>;
   childRelationships?: Array<{
     childSObject: string;
     relationshipName: string | null;
     field: string;
+    deprecatedAndHidden?: boolean;
   }>;
 }
 

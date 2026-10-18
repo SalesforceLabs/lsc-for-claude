@@ -119,6 +119,24 @@ export interface LiveLayout {
   /** Profiles assigned the layout; null when that couldn't be read. */
   profiles: string[] | null;
   production: boolean;
+  /** The object's fields the layout could show but doesn't (readable; no system fields or compound parts), by label; null when the object couldn't be described. */
+  available: LayoutFieldOption[] | null;
+  /** Related lists the layout could show but doesn't: the object's child relationships; null when the object couldn't be described. */
+  availableRelated: RelatedListOption[] | null;
+}
+
+export interface LayoutFieldOption {
+  field: string;
+  label: string;
+  /** The describe type, e.g. "string", "picklist", "reference". */
+  type: string;
+}
+
+export interface RelatedListOption {
+  /** The name the layout's XML uses: the relationship name, or Child.Field for custom children and lookups. */
+  relatedList: string;
+  /** The child object. */
+  object: string;
 }
 
 /**

@@ -17,7 +17,7 @@ import "./record.css";
 import { LiveInlineLwc } from "./LiveInlineLwc";
 import { CustomIcon, FileIcon, PersonAccountIcon } from "./assets/icons";
 import type { DraftState } from "./edit-draft";
-import { draftRelated } from "./layout-draft";
+import { addedRelated, draftRelated } from "./layout-draft";
 import type { LayoutEntry } from "./usePreviewEdit";
 
 /** Edit mode's page layouts, read from the org: Draft draws them as the tray would leave them. */
@@ -235,7 +235,11 @@ function TabContent({
   );
   const allRelated = (): React.ReactNode =>
     lists && edits?.draft
-      ? draftRelated(Object.values(rec.related), lists.base, lists.target).map((d) => related(d.related, d.related.key, d.state))
+      ? draftRelated(
+          [...Object.values(rec.related), ...addedRelated(lists, Object.values(rec.related), (o) => snapshot.objects[o]?.label ?? o)],
+          lists.base,
+          lists.target
+        ).map((d) => related(d.related, d.related.key, d.state))
       : Object.values(rec.related).map((r) => related(r, r.key));
   return (
     <>

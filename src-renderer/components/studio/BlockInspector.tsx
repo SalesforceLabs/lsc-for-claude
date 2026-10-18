@@ -18,6 +18,8 @@ import {
   Trash2,
   UsersRound,
   X,
+  ListPlus,
+  TextCursorInput,
   type LucideIcon,
 } from "lucide-react";
 import type { TargetInfo, SyncAction } from "./edit-targets";
@@ -40,6 +42,8 @@ const ICONS: Record<VerbId, LucideIcon> = {
   heading: Heading,
   required: Asterisk,
   readonly: Lock,
+  addField: TextCursorInput,
+  addRelated: ListPlus,
 };
 
 /**
@@ -171,7 +175,7 @@ export default function BlockInspector({
                 const Icon = ICONS[v.id];
                 const why = !draft
                   ? "Switch to Draft to queue changes"
-                  : v.run
+                  : v.run || v.pick
                     ? v.title
                     : v.reason;
                 return (
@@ -179,7 +183,7 @@ export default function BlockInspector({
                     key={v.id}
                     type="button"
                     className="studio-btn sm"
-                    disabled={!draft || !v.run}
+                    disabled={!draft || (!v.run && !v.pick)}
                     title={why}
                     onClick={() => onRun(v)}
                   >
