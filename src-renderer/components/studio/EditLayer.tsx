@@ -115,7 +115,12 @@ const ICON_ONLY = new Set<VerbId>(["up", "down", "column", "heading", "required"
 export interface EditSurfaceProps {
   on: boolean;
   selected: EditTarget | null;
-  onSelect: (target: EditTarget | null) => void;
+  /** `extend`: a ⌘- or ⇧-click, adding the block to the selection (multi-select.ts). */
+  onSelect: (target: EditTarget | null, extend?: boolean) => void;
+  /** The rest of a multi-selection, ringed beside `selected`; the toolbar stays on `selected`. */
+  also?: EditTarget[];
+  /** The toolbar's name for the selection ("3 fields"), when it isn't the block's own. */
+  name?: string;
   /** Verbs for the selected block, and the tray they'd leave. */
   verbs: Verb[];
   onRun: (verb: Verb) => void;
@@ -131,6 +136,8 @@ export function EditSurface({
   on,
   selected,
   onSelect,
+  also,
+  name,
   verbs,
   onRun,
   setup,
@@ -144,7 +151,9 @@ export function EditSurface({
     hover: null,
     selected: null,
   });
+  const [alsoBoxes, setAlsoBoxes] = useState<DOMRect[]>([]);
   const selectedKey = selected ? targetKey(selected) : null;
+  const alsoKeys = (also ?? []).map(targetKey).join("\n");
 
   const find = (key: string | null) =>
     (key && root.current?.querySelector(`[data-edit-key="${CSS.escape(key)}"]`)) || null;
@@ -161,7 +170,17 @@ export function EditSurface({
     setBoxes((prev) =>
       sameBox(prev.hover, next.hover) && sameBox(prev.selected, next.selected) ? prev : next
     );
-  }, [hover, selectedKey]);
+    const rest = alsoKeys
+      ? alsoKeys.split("\n").flatMap((k) => {
+          const a = find(k);
+          const b = a && boxOf(a, origin);
+          return b ? [b] : [];
+        })
+      : [];
+    setAlsoBoxes((prev) =>
+      prev.length === rest.length && prev.every((b, i) => sameBox(b, rest[i])) ? prev : rest
+    );
+  }, [hover, selectedKey, alsoKeys]);
 
   useLayoutEffect(measure);
   useEffect(() => {
@@ -240,8 +259,9 @@ export function EditSurface({
     if (!el) return;
     const t = targetOf(el);
     if (!t) return;
-    onSelect(t);
-    if (!el.hasAttribute("data-edit-pass")) {
+    const extend = e.metaKey || e.shiftKey;
+    onSelect(t, extend);
+    if (extend || !el.hasAttribute("data-edit-pass")) {
       e.preventDefault();
       e.stopPropagation();
     }
@@ -270,10 +290,14 @@ export function EditSurface({
             {boxes.selected && selected && (
               <>
                 <div className="studio-edit-ring" style={rectStyle(boxes.selected)} />
+                {alsoBoxes.map((b, i) => (
+                  <div key={i} className="studio-edit-ring" style={rectStyle(b)} />
+                ))}
                 <Toolbar
                   box={boxes.selected}
                   width={root.current?.clientWidth ?? 0}
                   target={selected}
+                  name={name}
                   verbs={verbs}
                   onRun={onRun}
                   setup={setup}
@@ -304,6 +328,7 @@ function Toolbar({
   box,
   width,
   target,
+  name,
   verbs,
   onRun,
   setup,
@@ -314,6 +339,7 @@ function Toolbar({
   /** The surface's width: a block in its right half anchors the toolbar to its right edge so it stays on the device. */
   width: number;
   target: EditTarget;
+  name?: string;
   verbs: Verb[];
   onRun: (v: Verb) => void;
   setup?: { label: string } | null;
@@ -331,9 +357,9 @@ function Toolbar({
       className={`studio-edit-toolbar${below ? " below" : ""}`}
       style={style}
       role="toolbar"
-      aria-label={`Edit ${targetTag(target)}`}
+      aria-label={`Edit ${name ?? targetTag(target)}`}
     >
-      <span className="studio-edit-toolbar-name">{targetTag(target)}</span>
+      <span className="studio-edit-toolbar-name">{name ?? targetTag(target)}</span>
       {verbs.map((v) => {
         const Icon =
           horizontal && v.id === "up"

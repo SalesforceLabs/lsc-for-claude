@@ -67,6 +67,7 @@ export default function BlockInspector({
   onSetup,
   onStudio,
   onClose,
+  selection,
 }: {
   info: TargetInfo;
   profile: string;
@@ -85,6 +86,8 @@ export default function BlockInspector({
   onSetup?: () => void;
   onStudio?: () => void;
   onClose: () => void;
+  /** "3 fields" when several blocks are selected: the inspector explains the last one clicked, its changes apply to all. */
+  selection?: string;
 }) {
   return (
     <aside
@@ -100,6 +103,11 @@ export default function BlockInspector({
       <div className="studio-inspector-body">
         <h2 className="studio-inspector-title">{info.title}</h2>
         {info.draftOnly && <span className="ui-pill info">In Draft only</span>}
+        {selection && (
+          <span className="ui-pill info" title="Changes below apply to every selected block; ⌘- or ⇧-click a block to add or drop it">
+            {selection} selected
+          </span>
+        )}
 
         <section className="studio-block-section">
           <h3 className="ui-section-title">What</h3>

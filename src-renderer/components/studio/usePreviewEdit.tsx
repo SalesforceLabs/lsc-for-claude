@@ -4,7 +4,7 @@ import type { CreateConfigFix, FeatureMap, LiveCompactLayout, LiveLayout, Profil
 import type { PublishedIpad, PublishedResult } from "./published-types";
 import type { PreviewEdit } from "./PublishedIpadPreview";
 import { createAffects, queueChange, type PendingChange } from "./changes";
-import { actionVerbs, draftHomeMenu, draftTabs, tabVerbs, type Verb } from "./edit-draft";
+import { actionVerbs, draftHomeMenu, draftTabs, tabVerbs, type DraftTab, type Verb } from "./edit-draft";
 import { describeTarget, syncAction, syncFilter, type EditTarget } from "./edit-targets";
 import {
   addRelatedVerb,
@@ -24,6 +24,7 @@ import { alignCompact, compactTargetOf, compactVerbs, crowdedNote, draftHeader, 
 import BlockInspector, { compactReach } from "./BlockInspector";
 import CreateDialog from "./CreateDialog";
 import SearchPicker from "../ui/SearchPicker";
+import { extendSelection, groupVerbs, selectionNoun } from "./multi-select";
 
 interface PreviewEditOptions {
   /** Edit mode is on: blocks can be selected. */
@@ -60,14 +61,21 @@ export function usePreviewEdit({
   profiles,
   onOpenStudio,
 }: PreviewEditOptions): { edit: PreviewEdit | undefined; panel: React.ReactNode } {
-  const [selected, setSelected] = useState<EditTarget | null>(null);
+  // The selected blocks, the last one clicked first: ⌘- or ⇧-click adds blocks like it (multi-select.ts).
+  const [selection, setSelection] = useState<EditTarget[]>([]);
+  const selected = selection[0] ?? null;
+  const setSelected = useCallback((t: EditTarget | null) => setSelection(t ? [t] : []), []);
+  const onSelect = useCallback(
+    (t: EditTarget | null, extend?: boolean) => setSelection((s) => (t ? extendSelection(s, t, !!extend) : [])),
+    []
+  );
   const [creating, setCreating] = useState<CreateConfigFix | null>(null);
   // A verb that asks which field or related list first.
   const [picking, setPicking] = useState<Verb | null>(null);
   const snapshot: PublishedIpad | null = result && !("missing" in result) ? result : null;
 
   // Another profile, user or mode is another screen: start without a selection.
-  useEffect(() => setSelected(null), [on, profile, snapshot]);
+  useEffect(() => setSelected(null), [on, profile, snapshot, setSelected]);
   useEffect(() => setPicking(null), [selected, draft]);
 
   // Page layouts as they are in the org now, read when one of their blocks is selected
@@ -134,109 +142,27 @@ export function usePreviewEdit({
     [snapshot, actionItems, overlay, profile]
   );
 
-  const layouts = useMemo(() => {
-    const out: Record<string, LayoutEntry> = {};
-    for (const [name, state] of Object.entries(liveLayouts)) {
-      if (state.status !== "ready") {
-        out[name] = state;
-        continue;
-      }
-      const published = snapshot?.layouts[name];
-      const base = modelOf(state.live);
-      const aligned = published && alignLayout(published, base);
-      if (!published || !aligned) {
-        out[name] = { status: "stale", live: state.live, note: STALE };
-        continue;
-      }
-      try {
-        const target = targetOf(name, base, overlay);
-        const sections = draftSections(published, base, target, aligned, state.live.available);
-        // Lists added in Draft are drawn too, so moves step past them.
-        const listed = new Set(published.relatedLists.map((r) => r.name));
-        const shownRelated = target.relatedLists.filter((r) => listed.has(r) || !base.relatedLists.includes(r));
-        const draft: LayoutDraft = {
-          fullName: name,
-          label: name.slice(name.indexOf("-") + 1),
-          live: state.live,
-          base,
-          target,
-          shownSections: sections.filter((x) => x.state !== "removed").map((x) => x.key),
-          shownRelated: shownRelated.length ? shownRelated : target.relatedLists,
-        };
-        out[name] = { status: "ready", draft, sections };
-      } catch (e) {
-        if (!(e instanceof StaleDraftError)) throw e;
-        out[name] = { status: "stale", live: state.live, note: `The queued edits no longer fit this layout: ${e.message} Take them out of the tray and refresh the preview.` };
-      }
-    }
-    return out;
-  }, [liveLayouts, snapshot, overlay]);
+  const layouts = useMemo(() => buildLayouts(liveLayouts, snapshot, overlay), [liveLayouts, snapshot, overlay]);
 
-  const compacts = useMemo(() => {
-    const out: Record<string, CompactEntry> = {};
-    for (const [name, state] of Object.entries(liveCompacts)) {
-      if (state.status !== "ready") {
-        out[name] = state;
-        continue;
-      }
-      const published = snapshot?.compactFields?.[name];
-      const base = state.live.fields;
-      if (!published || !alignCompact(snapshot?.compactSources?.[name], published, base)) {
-        out[name] = { status: "stale", live: state.live, note: COMPACT_STALE };
-        continue;
-      }
-      try {
-        const target = compactTargetOf(name, base, overlay);
-        const fields = draftHeader(published, state.live, base, target);
-        const object = name.slice(0, name.indexOf("."));
-        const hidden = (f: string) => !!snapshot?.records?.fields[object]?.[f.toLowerCase()]?.hidden;
-        const draft: CompactDraft = {
-          fullName: name,
-          label: state.live.label,
-          live: state.live,
-          base,
-          target,
-          shown: fields.filter((f) => f.state !== "removed" && !hidden(f.spec.name)).map((f) => f.spec.name),
-        };
-        out[name] = { status: "ready", draft, fields };
-      } catch (e) {
-        if (!(e instanceof StaleDraftError)) throw e;
-        out[name] = { status: "stale", live: state.live, note: `The queued edits no longer fit this compact layout: ${e.message} Take them out of the tray and refresh the preview.` };
-      }
-    }
-    return out;
-  }, [liveCompacts, snapshot, overlay]);
+  const compacts = useMemo(() => buildCompacts(liveCompacts, snapshot, overlay), [liveCompacts, snapshot, overlay]);
 
-  // Blocks are found again by name: a move changes their index.
   const verbs = useMemo((): Verb[] => {
     if (!selected || !profile) return [];
-    if (selected.kind === "tab") {
-      const i = tabs.findIndex((d) => d.tab.fullName === selected.fullName);
-      return i < 0 ? [] : tabVerbs(tabs, i, pending, profile);
-    }
-    if (selected.kind === "action" && selected.place === "home") {
-      const i = homeMenu.findIndex((d) => d.value.name === selected.name);
-      return i < 0 ? [] : actionVerbs(homeMenu, i, pending, profile);
-    }
-    if (selected.kind === "headerField") {
-      const c = compacts[selected.compactLayout];
-      return c?.status === "ready" ? compactVerbs(c.draft, selected.field, selected.label) : [];
-    }
-    const entry = "layout" in selected && selected.layout ? layouts[selected.layout] : undefined;
-    if (entry?.status !== "ready") return [];
-    const d = entry.draft;
-    if (selected.kind === "section" && selected.key !== undefined) return sectionVerbs(d, selected.key);
-    if (selected.kind === "field" && selected.item) {
-      const column = entry.sections.flatMap((x) => x.columns).find((c) => c.some((f) => f.item === selected.item));
-      const shown = [...new Set((column ?? []).filter((f) => f.state !== "removed").map((f) => f.item))];
-      return fieldVerbs(d, selected.item, selected.label, shown);
-    }
-    if (selected.kind === "related") {
-      const notSynced = (object: string) => !!snapshot && syncFilter(snapshot, object) === null;
-      return selected.relatedList ? relatedVerbs(d, selected.relatedList, selected.label, notSynced) : [addRelatedVerb(d, null, notSynced)];
-    }
-    return [];
-  }, [selected, tabs, homeMenu, pending, profile, layouts, compacts, snapshot]);
+    if (selection.length < 2) return blockVerbs(selected, { tabs, homeMenu, pending, profile, layouts, compacts, snapshot });
+    // A group verb runs block by block, each against the tray the last one left, so the drafts are rebuilt from it.
+    const at = (t: EditTarget, p: PendingChange[]) =>
+      blockVerbs(t, {
+        tabs: snapshot ? draftTabs(snapshot.tabs, tabItems ?? [], p, profile) : [],
+        homeMenu: snapshot ? draftHomeMenu(snapshot.screens?.fabs?.home ?? [], actionItems ?? [], p, profile) : [],
+        pending: p,
+        profile,
+        layouts: buildLayouts(liveLayouts, snapshot, p),
+        compacts: buildCompacts(liveCompacts, snapshot, p),
+        snapshot,
+      });
+    return groupVerbs(selection, pending, at, selectionNoun(selected, selection.length));
+  }, [selected, selection, tabs, homeMenu, pending, profile, layouts, compacts, snapshot, tabItems, actionItems, liveLayouts, liveCompacts]);
+  const groupName = selected && selection.length > 1 ? `${selection.length} ${selectionNoun(selected, selection.length)}` : undefined;
 
   const info = useMemo(
     () =>
@@ -284,7 +210,9 @@ export function usePreviewEdit({
           layouts,
           compacts,
           selected,
-          onSelect: setSelected,
+          onSelect,
+          also: selection.slice(1),
+          name: groupName,
           verbs: draft ? verbs : [],
           onRun: run,
           setup: org ? info?.setup : null,
@@ -297,7 +225,7 @@ export function usePreviewEdit({
     edit && info && profile ? (
       <>
         <BlockInspector
-          key={JSON.stringify(selected)}
+          key={JSON.stringify(selected) + selection.length}
           info={info}
           profile={profile}
           verbs={verbs}
@@ -320,6 +248,7 @@ export function usePreviewEdit({
           onSetup={org && info.setup ? openSetup : undefined}
           onStudio={info.studio ? () => onOpenStudio(info.studio!.featureId, info.studio!.surface, info.studio!.itemId) : undefined}
           onClose={() => setSelected(null)}
+          selection={groupName}
         />
         {picking?.pick && (
           <SearchPicker
@@ -360,8 +289,125 @@ export function usePreviewEdit({
 
 const NONE: PendingChange[] = [];
 
-type LiveState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; live: LiveLayout };
-type LiveCompactState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; live: LiveCompactLayout };
+/** Each read page layout as the tray `overlay` leaves it. Pure, so a group verb can rebuild it against any tray. */
+export function buildLayouts(liveLayouts: Record<string, LiveState>, snapshot: PublishedIpad | null, overlay: PendingChange[]): Record<string, LayoutEntry> {
+  const out: Record<string, LayoutEntry> = {};
+  for (const [name, state] of Object.entries(liveLayouts)) {
+    if (state.status !== "ready") {
+      out[name] = state;
+      continue;
+    }
+    const published = snapshot?.layouts[name];
+    const base = modelOf(state.live);
+    const aligned = published && alignLayout(published, base);
+    if (!published || !aligned) {
+      out[name] = { status: "stale", live: state.live, note: STALE };
+      continue;
+    }
+    try {
+      const target = targetOf(name, base, overlay);
+      const sections = draftSections(published, base, target, aligned, state.live.available);
+      // Lists added in Draft are drawn too, so moves step past them.
+      const listed = new Set(published.relatedLists.map((r) => r.name));
+      const shownRelated = target.relatedLists.filter((r) => listed.has(r) || !base.relatedLists.includes(r));
+      const draft: LayoutDraft = {
+        fullName: name,
+        label: name.slice(name.indexOf("-") + 1),
+        live: state.live,
+        base,
+        target,
+        shownSections: sections.filter((x) => x.state !== "removed").map((x) => x.key),
+        shownRelated: shownRelated.length ? shownRelated : target.relatedLists,
+      };
+      out[name] = { status: "ready", draft, sections };
+    } catch (e) {
+      if (!(e instanceof StaleDraftError)) throw e;
+      out[name] = { status: "stale", live: state.live, note: `The queued edits no longer fit this layout: ${e.message} Take them out of the tray and refresh the preview.` };
+    }
+  }
+  return out;
+}
+
+/** Each read compact layout as the tray `overlay` leaves it, like `buildLayouts`. */
+export function buildCompacts(liveCompacts: Record<string, LiveCompactState>, snapshot: PublishedIpad | null, overlay: PendingChange[]): Record<string, CompactEntry> {
+  const out: Record<string, CompactEntry> = {};
+  for (const [name, state] of Object.entries(liveCompacts)) {
+    if (state.status !== "ready") {
+      out[name] = state;
+      continue;
+    }
+    const published = snapshot?.compactFields?.[name];
+    const base = state.live.fields;
+    if (!published || !alignCompact(snapshot?.compactSources?.[name], published, base)) {
+      out[name] = { status: "stale", live: state.live, note: COMPACT_STALE };
+      continue;
+    }
+    try {
+      const target = compactTargetOf(name, base, overlay);
+      const fields = draftHeader(published, state.live, base, target);
+      const object = name.slice(0, name.indexOf("."));
+      const hidden = (f: string) => !!snapshot?.records?.fields[object]?.[f.toLowerCase()]?.hidden;
+      const draft: CompactDraft = {
+        fullName: name,
+        label: state.live.label,
+        live: state.live,
+        base,
+        target,
+        shown: fields.filter((f) => f.state !== "removed" && !hidden(f.spec.name)).map((f) => f.spec.name),
+      };
+      out[name] = { status: "ready", draft, fields };
+    } catch (e) {
+      if (!(e instanceof StaleDraftError)) throw e;
+      out[name] = { status: "stale", live: state.live, note: `The queued edits no longer fit this compact layout: ${e.message} Take them out of the tray and refresh the preview.` };
+    }
+  }
+  return out;
+}
+
+/** What a block's verbs are drawn from: the Draft tab bar, Home menu and layouts for one tray. */
+export interface VerbContext {
+  tabs: DraftTab[];
+  homeMenu: ReturnType<typeof draftHomeMenu>;
+  pending: PendingChange[];
+  profile: string;
+  layouts: Record<string, LayoutEntry>;
+  compacts: Record<string, CompactEntry>;
+  snapshot: PublishedIpad | null;
+}
+
+/** The verbs for one block. Blocks are found again by name: a move changes their index. */
+export function blockVerbs(selected: EditTarget, { tabs, homeMenu, pending, profile, layouts, compacts, snapshot }: VerbContext): Verb[] {
+  if (!profile) return [];
+  if (selected.kind === "tab") {
+    const i = tabs.findIndex((d) => d.tab.fullName === selected.fullName);
+    return i < 0 ? [] : tabVerbs(tabs, i, pending, profile);
+  }
+  if (selected.kind === "action" && selected.place === "home") {
+    const i = homeMenu.findIndex((d) => d.value.name === selected.name);
+    return i < 0 ? [] : actionVerbs(homeMenu, i, pending, profile);
+  }
+  if (selected.kind === "headerField") {
+    const c = compacts[selected.compactLayout];
+    return c?.status === "ready" ? compactVerbs(c.draft, selected.field, selected.label) : [];
+  }
+  const entry = "layout" in selected && selected.layout ? layouts[selected.layout] : undefined;
+  if (entry?.status !== "ready") return [];
+  const d = entry.draft;
+  if (selected.kind === "section" && selected.key !== undefined) return sectionVerbs(d, selected.key);
+  if (selected.kind === "field" && selected.item) {
+    const column = entry.sections.flatMap((x) => x.columns).find((c) => c.some((f) => f.item === selected.item));
+    const shown = [...new Set((column ?? []).filter((f) => f.state !== "removed").map((f) => f.item))];
+    return fieldVerbs(d, selected.item, selected.label, shown);
+  }
+  if (selected.kind === "related") {
+    const notSynced = (object: string) => !!snapshot && syncFilter(snapshot, object) === null;
+    return selected.relatedList ? relatedVerbs(d, selected.relatedList, selected.label, notSynced) : [addRelatedVerb(d, null, notSynced)];
+  }
+  return [];
+}
+
+export type LiveState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; live: LiveLayout };
+export type LiveCompactState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; live: LiveCompactLayout };
 
 /** A page layout in edit mode: still loading, unreadable, out of line with the last publish, or ready to draw and edit. */
 export type LayoutEntry =
