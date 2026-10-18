@@ -1,6 +1,6 @@
 # iPad preview — Edit mode
 
-Status: Phases 1–2, 3a–3d, 4a (undo/redo, multi-select, side by side) and 4b list views built; the rest of 4 designed, 2026-10-18. Branch `feat/ipad-edit-mode`.
+Status: Phases 1–2, 3a–3d, 4a (undo/redo, multi-select, side by side) and 4b (component properties, drag and polish, copy for one profile, list views) built, 2026-10-18. Branch `feat/ipad-edit-mode`.
 
 ## The problem
 
