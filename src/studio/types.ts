@@ -106,7 +106,7 @@ export interface FieldSlot {
 export type LayoutOp =
   | { op: "moveField"; field: string; to: FieldSlot }
   | { op: "removeField"; field: string }
-  | { op: "addField"; field: string; behavior: FieldBehavior; to: FieldSlot; xml?: string }
+  | { op: "addField"; field: string; behavior: FieldBehavior; to: FieldSlot; xml?: string; relatedObject?: boolean }
   | { op: "setFieldBehavior"; field: string; from: FieldBehavior; to: FieldBehavior }
   | { op: "moveSection"; section: SectionRef; before: SectionRef | null }
   | { op: "removeSection"; section: SectionRef }

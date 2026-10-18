@@ -56,6 +56,19 @@ describe("layout ops", () => {
     expect(inverse[1]).toMatchObject({ op: "addField", field: "Type", xml: expect.stringContaining("<field>Type</field>") });
   });
 
+  it("puts back a lookup's relatedObjects entry the org drops when its field is removed", () => {
+    const withRelated = parseXml(xml.replace("    <relatedLists>", "    <relatedObjects>Type</relatedObjects>\n    <relatedLists>"));
+    const removed = applyLayoutOps(withRelated, [{ op: "removeField", field: "Type" }]);
+    expect(removed.inverse[0]).toMatchObject({ op: "addField", field: "Type", relatedObject: true });
+    // The org drops the entry on deploy, so the edit drops it too and undo restores it.
+    expect(childrenNamed(removed.root, "relatedObjects")).toHaveLength(0);
+    const back = applyLayoutOps(removed.root, removed.inverse);
+    expect(serializeXml(back.root)).toContain("<relatedObjects>Type</relatedObjects>");
+    expect(childrenNamed(back.root, "relatedObjects")).toHaveLength(1);
+    // A layout without the entry doesn't get one.
+    expect(applyLayoutOps(root, [{ op: "removeField", field: "Type" }]).inverse[0]).not.toHaveProperty("relatedObject");
+  });
+
   it("changes a field's behavior, refusing when it isn't what the map saw", () => {
     const { changes } = roundTrip([{ op: "setFieldBehavior", field: "Name", from: "Required", to: "Readonly" }]);
     expect(changes[0]).toMatchObject({ before: "Required", after: "Read only" });
