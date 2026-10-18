@@ -20,6 +20,7 @@ import { initials } from "./ipad-chrome";
 import { ChromeSheets, SearchTab, type ChromeSheet } from "./IpadChromeSheets";
 import { CardList, cardModeFor, rowActions, saveCardMode, SortButton, sortRows, ViewModeButton, type SortState } from "./IpadListControls";
 import IpadActionSheet from "./IpadActionSheets";
+import PublishedLoading from "./PublishedLoading";
 import type { PublishedFabItem } from "./screens/fabs-types";
 import { presentationFor, type Presentation } from "./ipad-fab-actions";
 import { CustomIcon } from "./assets/icons";
@@ -55,7 +56,7 @@ interface PublishedIpadPreviewProps {
  */
 export default function PublishedIpadPreview({ profile, state, onRefresh, onPickUser }: PublishedIpadPreviewProps) {
   if (!state || state.status === "loading") {
-    return <div className="studio-ipad-wrap studio-ipad-meta">Reading {profile}'s published iPad configuration…</div>;
+    return <PublishedLoading profile={profile} />;
   }
   if (state.status === "error") {
     return (

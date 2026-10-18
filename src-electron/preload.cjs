@@ -78,6 +78,7 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioAccessOptions: () => ipcRenderer.invoke("studio:call", "studio_access_options"),
   studioIpadPublished: (profile, refresh = false, userId) =>
     ipcRenderer.invoke("studio:call", "studio_ipad_published", userId ? { profile, userId } : { profile }, refresh),
+  studioIpadPublishedProgress: (profile) => ipcRenderer.invoke("studio:call", "studio_ipad_published_progress", { profile }),
   // Studio fixes — previewed, then applied only after the user confirms in the UI
   studioPreviewFix: (fix) => ipcRenderer.invoke("studio:call", "studio_preview_fix", { fix }),
   studioApplyFix: (fix, expectedOrg) =>

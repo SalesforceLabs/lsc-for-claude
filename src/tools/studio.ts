@@ -7,6 +7,7 @@ import { accessOptions, userAccess } from "../studio/access.js";
 import { applyFix, previewFix } from "../studio/fixes.js";
 import { publishStatus, startPublish } from "../studio/publish.js";
 import { loadPublishedIpad } from "../studio/published.js";
+import { loadProgress } from "../studio/published-progress.js";
 import type { StudioFix } from "../studio/types.js";
 import {
   activePerfRun,
@@ -238,6 +239,13 @@ export function register(server: McpServer) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
     }
+  );
+
+  server.tool(
+    "studio_ipad_published_progress",
+    "LSC Studio (GUI data): which step a running studio_ipad_published load for a profile is on (steps waiting / running / done / failed, with start and finish times), or null when none has run. Read-only; makes no org calls. Returns JSON.",
+    { profile: z.string().min(1).max(255) },
+    async ({ profile }) => json({ progress: loadProgress(profile) })
   );
 
   server.tool(
