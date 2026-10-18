@@ -1,4 +1,4 @@
-import type { CompactOp, CreateConfigFix, FlexiPageOp, ItemEdit, LayoutOp, StudioFix, StudioItem } from "./types";
+import type { CompactOp, CreateConfigFix, FlexiPageOp, ItemEdit, LayoutOp, ListViewOp, StudioFix, StudioItem } from "./types";
 
 /**
  * Pending changes — edits queued in Studio's tray until the admin reviews and
@@ -284,6 +284,17 @@ export function queuedCompactOps(pending: PendingChange[], fullName: string): Co
 /** A compact layout change with these ops — what's queued for the compact layout is replaced by it. */
 export function compactOpsChange(fullName: string, label: string, ops: CompactOp[]): StudioFix {
   return { kind: "editMetadata", label: `Edit compact layout ${label}`, doc: { type: "CompactLayout", fullName, label }, ops };
+}
+
+/** The list view ops queued for a list view ("Object.Name"). */
+export function queuedListViewOps(pending: PendingChange[], fullName: string): ListViewOp[] {
+  const queued = pending.find((p) => p.fix.kind === "editMetadata" && p.fix.doc.type === "ListView" && p.fix.doc.fullName === fullName)?.fix;
+  return queued?.kind === "editMetadata" && queued.doc.type === "ListView" ? (queued.ops as ListViewOp[]) : [];
+}
+
+/** A list view change with these ops — what's queued for the list view is replaced by it. */
+export function listViewOpsChange(fullName: string, label: string, ops: ListViewOp[]): StudioFix {
+  return { kind: "editMetadata", label: `Edit list view ${label}`, doc: { type: "ListView", fullName, label }, ops };
 }
 
 /** The layout change with a related list added to or taken out of a Visit layout's engagement sidebar, on top of what's queued for the layout. */
