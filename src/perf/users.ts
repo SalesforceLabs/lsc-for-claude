@@ -96,6 +96,19 @@ const idKey = (id: string) => id.slice(0, 15);
 const syncWindow = (days: number) => `CreatedDate = LAST_N_DAYS:${Math.max(1, Math.floor(days))}`;
 
 /**
+ * Run a DeviceSyncSummary query that counts data syncs only: "clm" rows are content downloads (the same
+ * rows telemetry skips) and can outnumber real syncs many times over. Orgs whose object has no Type
+ * field get the unfiltered query.
+ */
+async function dataSyncRows(org: OrgQuerier, build: (window: string) => string, days: number): Promise<Row[]> {
+  try {
+    return await rows(org, build(`${syncWindow(days)} AND Type != 'clm'`));
+  } catch {
+    return rows(org, build(syncWindow(days)));
+  }
+}
+
+/**
  * DeviceSyncSummary rows per user (keyed by idKey) in the last `days` days, or
  * null when the org's sync telemetry can't be read — callers then say nothing
  * about syncs rather than reporting everyone as idle.
@@ -104,9 +117,10 @@ export async function recentSyncCounts(org: OrgQuerier, userIds: string[], days:
   const out = new Map<string, number>();
   if (userIds.length === 0) return out;
   try {
-    const counts = await rows(
+    const counts = await dataSyncRows(
       org,
-      `SELECT CreatedById, COUNT(Id) cnt FROM DeviceSyncSummary WHERE CreatedById IN (${inList(userIds)}) AND ${syncWindow(days)} GROUP BY CreatedById`
+      (window) => `SELECT CreatedById, COUNT(Id) cnt FROM DeviceSyncSummary WHERE CreatedById IN (${inList(userIds)}) AND ${window} GROUP BY CreatedById`,
+      days
     );
     for (const r of counts) out.set(idKey(String(r.CreatedById)), territoryCount(r));
     return out;
@@ -154,9 +168,10 @@ async function heaviestOfProfile(org: OrgQuerier, profile: string, limit: number
 async function syncingOfProfile(org: OrgQuerier, profile: string, limit: number, days: number): Promise<PerfUser[]> {
   let synced: Row[];
   try {
-    synced = await rows(
+    synced = await dataSyncRows(
       org,
-      `SELECT CreatedById, COUNT(Id) cnt FROM DeviceSyncSummary WHERE CreatedBy.Profile.Name = '${soqlString(profile)}' AND CreatedBy.IsActive = true AND CreatedBy.UserType = 'Standard' AND ${syncWindow(days)} GROUP BY CreatedById ORDER BY COUNT(Id) DESC LIMIT 200`
+      (window) => `SELECT CreatedById, COUNT(Id) cnt FROM DeviceSyncSummary WHERE CreatedBy.Profile.Name = '${soqlString(profile)}' AND CreatedBy.IsActive = true AND CreatedBy.UserType = 'Standard' AND ${window} GROUP BY CreatedById ORDER BY COUNT(Id) DESC LIMIT 200`,
+      days
     );
   } catch {
     return [];

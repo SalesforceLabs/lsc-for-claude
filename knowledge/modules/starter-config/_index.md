@@ -19,3 +19,7 @@
 ## Support Engineering Training (LSC4CE Value Chain)
 
 - [LSStarterConfig — Support Engineering Training](./support-engineering-lsstarter-config.md) — live walkthrough, Heroku constraints, troubleshooting patterns, duplicate handling logic
+
+## Winter '27 (Release 264) Enhancements
+
+- [release-264-first-visit-ai-agent](./release-264-first-visit-ai-agent.md) — AI coding agent workflow from package-ready org to a field rep's first visit (territories, users, metadata, test data, cache).

@@ -15,11 +15,12 @@
 
 ## Winter '27 (Release 264) Enhancements
 
-Source deck was marked WIP; content may change. The deck also lists an iPad-only "Optimized Content Library" (see more presentations at a glance) but provides no detail slide.
+Source deck was marked WIP before GA; Winter '27 is now released (see `release-notes/winter-27-official`). The deck also lists an iPad-only "Optimized Content Library" (see more presentations at a glance) but provides no detail slide.
 
 - [release-264-in-content-interaction-tracking](./release-264-in-content-interaction-tracking.md) - `PresentationPlayer.trackInteraction()` captures element-level engagement in HTML content as in-content clickstream metrics
 - [release-264-clickstream-data-retention](./release-264-clickstream-data-retention.md) - Data Retention tab to purge `PresentationClickStreamEntry` records manually or on schedule, with Data Cloud archiving
 - [release-264-player-quick-actions](./release-264-player-quick-actions.md) - Inquiry and Survey quick actions surfaced from the Presentation Player menu
+- [release-264-content-ingestion-api](./release-264-content-ingestion-api.md) — Content Ingestion API: ingest remediated CLM ZIPs, PDFs and email templates from external DAM systems (MuleSoft), with automated territory distribution.
 
 ## Support Engineering Training (LSC4CE Value Chain)
 

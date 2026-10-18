@@ -133,10 +133,10 @@ function verdict(a: AssessmentResult): string {
   const notMeasured = c.unmeasured ? ` ${c.unmeasured} could not be measured, so they are unproven.` : "";
   if (c.missed > 0) {
     const failing = a.personas.filter((p) => p.evaluations.some((e) => e.status === "fail")).map((p) => p.persona.name);
-    return `**Not ready for sign-off.** ${c.missed} of ${c.total} targets were missed across ${personas} (${failing.join(", ")}). ${c.met} were met${c.close ? ` and ${c.close} are close to their limits` : ""}.${notMeasured}`;
+    return `**Not ready for sign-off.** ${c.missed} of ${c.total} targets were missed across ${personas} (${failing.join(", ")}). ${c.met} were met${c.close ? ` and ${c.close} ${c.close === 1 ? "is" : "are"} close to ${c.close === 1 ? "its limit" : "their limits"}` : ""}.${notMeasured}`;
   }
   if (c.unmeasured > 0) {
-    return `**Not proven yet.** ${c.met} of ${c.total} targets were met across ${personas}, but ${c.unmeasured} could not be measured${c.close ? ` and ${c.close} are close to their limits` : ""}. Fix what blocked the measurement and run again before signing off.`;
+    return `**Not proven yet.** ${c.met} of ${c.total} targets were met across ${personas}, but ${c.unmeasured} could not be measured${c.close ? ` and ${c.close} ${c.close === 1 ? "is" : "are"} close to ${c.close === 1 ? "its limit" : "their limits"}` : ""}. Fix what blocked the measurement and run again before signing off.`;
   }
   if (c.close > 0) {
     return `**Ready, with items to watch.** All ${personas} are within their limits, but ${c.close} of ${c.total} targets are close to the limit. ${c.met} were comfortably met.`;

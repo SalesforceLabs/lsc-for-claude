@@ -81,7 +81,7 @@ interface Field {
   value: Value;
 }
 
-interface Assignee {
+export interface Assignee {
   name: string;
   id: string;
 }
@@ -127,7 +127,7 @@ async function snapshot(rec: Row, org: string): Promise<Snapshot> {
 }
 
 /** Name → Id for the given names (case-insensitive), from `Profile` or `PermissionSet`. */
-async function resolveNames(sobject: "Profile" | "PermissionSet", names: string[], org: string): Promise<{ found: Assignee[]; missing: string[] }> {
+export async function resolveNames(sobject: "Profile" | "PermissionSet", names: string[], org: string): Promise<{ found: Assignee[]; missing: string[] }> {
   if (!names.length) return { found: [], missing: [] };
   const rows = await query(`SELECT Id, Name FROM ${sobject} WHERE Name IN (${inList(names)})`, org);
   const byName = new Map(rows.map((r) => [String(r.Name).toLowerCase(), String(r.Id)]));
@@ -366,9 +366,18 @@ export async function applyDelete(fix: DeleteFix, org: string): Promise<FixResul
     ...snap.assignmentIds.map((id) => ({ sobject: "LifeSciConfigAssignment", id })),
     { sobject: "LifeSciConfigRecord", id: snap.recordId },
   ];
+  // Salesforce won't delete the required field values of an active record, so switch it off first.
+  if (snap.active) {
+    const off = await updateToolingRecord("LifeSciConfigRecord", snap.recordId, { IsActive: false }, org);
+    if (!off.success) {
+      return { ok: false, message: `Couldn't switch off ${fix.recordLabel} before deleting it: ${off.error || "unknown error"}. Nothing was deleted.` };
+    }
+  }
   for (const [i, step] of steps.entries()) {
     const res = await deleteToolingRecord(step.sobject, step.id, org);
     if (!res.success) {
+      // Nothing deleted yet: put it back on, as it was.
+      if (!i && snap.active) await updateToolingRecord("LifeSciConfigRecord", snap.recordId, { IsActive: true }, org);
       return {
         ok: false,
         message: `Couldn't delete ${fix.recordLabel}: ${res.error || "unknown error"}.${i ? " It was partly removed — refresh the map before trying again." : ""}`,
