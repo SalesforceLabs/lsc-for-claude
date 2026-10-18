@@ -1,6 +1,6 @@
 # iPad preview — Edit mode
 
-Status: Phases 1–2, 3a and 3b built; 3c–3d designed, 2026-10-18. Branch `feat/ipad-edit-mode`.
+Status: Phases 1–2, 3a, 3b and 4a (undo/redo, multi-select, side by side) built; 3c–3d designed, 2026-10-18. Branch `feat/ipad-edit-mode`.
 
 ## The problem
 
@@ -117,6 +117,7 @@ Phase 1 delivers the hover/select layer and the What / Why / How inspector over 
    - 3c: Lightning pages: move/remove components and tabs, then insert from the library.
    - 3d: drag to reorder, insertion points, keyboard moves.
 4. **Polish & breadth**: list views, component props sheet, ⌘Z wired to the tray, multi-select, before/after split view, "Make a copy just for this profile".
+   - 4a *(built)*: **Undo / redo** for the tray (`tray-history.ts`): every queue, removal, verb and Discard all is a step; ⌘Z / ⇧⌘Z (Ctrl on Windows and Linux) anywhere except text fields and while Review is open, plus Undo / Redo icon buttons in the tray whose tooltips say what they'd take back. The tray stays up, empty, while a step can be undone or redone; applying starts a new history. **Multi-select** (`multi-select.ts`): ⌘- or ⇧-click adds a block of the same kind in the same container (layout, compact layout, Lightning region, tab bar, ••• menu) or drops it again; every selected block is ringed and the toolbar names the group ("3 fields"). Only verbs every block has with the same label are offered (remove / restore, hide / show, turn off / on, required, read only, heading, discard); moves, columns and adds stay single-block. A group verb runs block by block, each against the tray the last one left, so layouts still end up as one diffed change per document. **Side by side** (the preview's third mode): Published and Draft at half size, sharing tab, record and scroll position; only the Draft side is selectable and opens sheets.
 
 ## Phase 3 design
 
