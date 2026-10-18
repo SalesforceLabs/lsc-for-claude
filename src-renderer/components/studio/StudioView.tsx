@@ -358,6 +358,17 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           () => setSection("drift"),
           History
         )}
+        <div className="studio-rail-title studio-rail-section">Testing</div>
+        {railItem(
+          "sync",
+          "Sync health",
+          "How reps' iPads are syncing, who is struggling and why, and go-live sign-off",
+          () => {
+            setSection("sync");
+            setSyncOpened(true);
+          },
+          Activity
+        )}
         <div className="studio-rail-title studio-rail-section">Features</div>
         {features.map((f) => (
           <button
@@ -372,17 +383,6 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             {!f.available && <span className="studio-soon">Soon</span>}
           </button>
         ))}
-        <div className="studio-rail-title studio-rail-section">Testing</div>
-        {railItem(
-          "sync",
-          "Sync health",
-          "How reps' iPads are syncing, who is struggling and why, and go-live sign-off",
-          () => {
-            setSection("sync");
-            setSyncOpened(true);
-          },
-          Activity
-        )}
       </nav>
 
       {previewOpened && (
