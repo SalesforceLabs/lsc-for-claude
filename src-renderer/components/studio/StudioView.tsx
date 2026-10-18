@@ -12,6 +12,7 @@ import Inspector from "./Inspector";
 import ReviewDialog from "./ReviewDialog";
 import PublishDialog from "./PublishDialog";
 import { useTrayHistory } from "./tray-history";
+import { fixAffectsPublished, isRevalidating, markAllStale, needsLoad, type Revalidating } from "./fix-effects";
 import TestingPages, { SYNC_PAGES, type SyncPage } from "./TestingPages";
 import ReadinessView from "./ReadinessView";
 import SetupOverview from "./SetupOverview";
@@ -51,7 +52,10 @@ const PREVIEW_FEATURES = ["actions-home", "mobile-sync"];
 /** Features whose page offers a "Preview on iPad" shortcut. */
 const PREVIEW_HOSTS = [...PREVIEW_FEATURES, "visit"];
 
-type MapState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; map: FeatureMap };
+type MapState =
+  | { status: "loading" }
+  | { status: "error"; error: string }
+  | ({ status: "ready"; map: FeatureMap } & Revalidating);
 
 /** What the main pane shows: the iPad preview, a Setup page or feature, or a Testing page. */
 type Section = "preview" | "overview" | "user-check" | "drift" | "setup" | SyncPage | "test-users";
@@ -114,15 +118,23 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     loadProfiles();
   }, [loadProfiles]);
 
-  // Maps are persisted per org by the main process; `refresh` re-queries the org.
+  // Maps are persisted per org by the main process; `refresh` re-queries the org. A map already on screen stays
+  // there, marked refreshing, while the new one loads; a request older than the latest is ignored.
+  const mapRequests = useRef<Record<string, number>>({});
   const load = useCallback(async (id: string, refresh = false) => {
-    setMaps((m) => ({ ...m, [id]: { status: "loading" } }));
+    const ticket = (mapRequests.current[id] ?? 0) + 1;
+    mapRequests.current[id] = ticket;
+    setMaps((m) => {
+      const prev = m[id];
+      return { ...m, [id]: prev?.status === "ready" ? { ...prev, stale: false, refreshing: true } : { status: "loading" } };
+    });
     const res = await window.lscApi.studioFeatureMap(id, refresh);
+    if (mapRequests.current[id] !== ticket) return;
     const error = res.error || (res.data as { error?: string } | undefined)?.error;
-    setMaps((m) => ({
-      ...m,
-      [id]: error ? { status: "error", error } : { status: "ready", map: res.data as FeatureMap },
-    }));
+    setMaps((m) => {
+      // A failed reload is shown as an error, never as the old answer: it may no longer be true.
+      return { ...m, [id]: error ? { status: "error", error } : { status: "ready", map: res.data as FeatureMap } };
+    });
     // A refresh dropped the cached profile list too.
     if (refresh) loadProfiles();
   }, [loadProfiles]);
@@ -131,17 +143,21 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   const readinessRequests = useRef<Record<string, number>>({});
   /** Bumped when the org's configuration changes under the pages (apply, org switch), remounting the Overview. */
   const [configVersion, setConfigVersion] = useState(0);
+  /** Bumped when something is written to the org; the Overview reloads in place (keeping what it shows). */
+  const [writeVersion, setWriteVersion] = useState(0);
   const loadReadiness = useCallback(async (id: string, refresh = false) => {
     const ticket = (readinessRequests.current[id] ?? 0) + 1;
     readinessRequests.current[id] = ticket;
-    setReadiness((r) => ({ ...r, [id]: { status: "loading" } }));
+    setReadiness((r) => {
+      const prev = r[id];
+      return { ...r, [id]: prev?.status === "ready" ? { ...prev, stale: false, refreshing: true } : { status: "loading" } };
+    });
     const res = await window.lscApi.studioReadiness(id, refresh);
     if (readinessRequests.current[id] !== ticket) return;
     const error = res.error || (res.data as { error?: string } | undefined)?.error;
-    setReadiness((r) => ({
-      ...r,
-      [id]: error ? { status: "error", error } : { status: "ready", readiness: res.data as FeatureReadiness },
-    }));
+    setReadiness((r) => {
+      return { ...r, [id]: error ? { status: "error", error } : { status: "ready", readiness: res.data as FeatureReadiness } };
+    });
   }, []);
 
   /** Forget every feature's readiness (and any load still in flight), so pages re-read the org. */
@@ -154,6 +170,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   useEffect(
     () =>
       window.lscApi.onSfOrgChanged(() => {
+        for (const id of Object.keys(mapRequests.current)) mapRequests.current[id] += 1;
         setMaps({});
         resetReadiness();
       }),
@@ -162,23 +179,42 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
 
   useEffect(() => {
     if (section !== "setup") return;
-    if (!maps[featureId]) load(featureId);
-    if (!readiness[featureId]) loadReadiness(featureId);
+    if (needsLoad(maps[featureId])) load(featureId);
+    if (needsLoad(readiness[featureId])) loadReadiness(featureId);
   }, [section, featureId, maps, load, readiness, loadReadiness]);
 
   const canPreview = PREVIEW_HOSTS.includes(featureId);
   useEffect(() => {
     if (!previewOpened) return;
-    for (const id of PREVIEW_FEATURES) if (!maps[id]) load(id);
+    for (const id of PREVIEW_FEATURES) if (needsLoad(maps[id])) load(id);
   }, [previewOpened, maps, load]);
-  const loadPublished = useCallback(async (profile: string, refresh = false, userId?: string) => {
-    setPublished((p) => ({ ...p, [profile]: { status: "loading" } }));
+  // Which rep each profile's preview was loaded for, so a reload after a write shows the same one.
+  const publishedUsers = useRef<Record<string, string | undefined>>({});
+  const publishedRequests = useRef<Record<string, number>>({});
+  const loadPublished = useCallback(async (profile: string, refresh = false, userId?: string, keepShown = false) => {
+    const ticket = (publishedRequests.current[profile] ?? 0) + 1;
+    publishedRequests.current[profile] = ticket;
+    publishedUsers.current[profile] = userId;
+    // After a write the old preview stays up (marked refreshing); a refresh or another rep shows the loading screen.
+    setPublished((p) => {
+      const prev = p[profile];
+      return { ...p, [profile]: keepShown && prev?.status === "ready" ? { ...prev, stale: false, refreshing: true } : { status: "loading" } };
+    });
     const res = await window.lscApi.studioIpadPublished(profile, refresh, userId);
+    if (publishedRequests.current[profile] !== ticket) return;
     const error = res.error || (res.data as { error?: string } | undefined)?.error;
-    setPublished((p) => ({
-      ...p,
-      [profile]: error ? { status: "error", error } : { status: "ready", result: res.data as PublishedResult },
-    }));
+    setPublished((p) => {
+      return { ...p, [profile]: error ? { status: "error", error } : { status: "ready", result: res.data as PublishedResult } };
+    });
+  }, []);
+  /** Something was written to the org: every finished result on screen is out of date until reloaded. */
+  const markStale = useCallback((alsoPublished: boolean) => {
+    // Responses to requests made before the write must not land as current.
+    for (const r of [mapRequests, readinessRequests, publishedRequests]) for (const id of Object.keys(r.current)) r.current[id] += 1;
+    setMaps((m) => markAllStale(m));
+    setReadiness((r) => markAllStale(r));
+    if (alsoPublished) setPublished((p) => markAllStale(p));
+    setWriteVersion((v) => v + 1);
   }, []);
   const readyMap = (id: string) => {
     const m = maps[id];
@@ -218,6 +254,27 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     });
   }, []);
   const previewShown = section === "preview" && !!publishedProfile;
+  // Stable between renders so the memoized preview isn't redrawn for unrelated Studio state.
+  const refreshPublished = useCallback(
+    (userId?: string) => {
+      if (publishedProfile) loadPublished(publishedProfile, true, userId);
+    },
+    [publishedProfile, loadPublished]
+  );
+  const pickPublishedUser = useCallback(
+    (userId: string) => {
+      if (publishedProfile) loadPublished(publishedProfile, false, userId);
+    },
+    [publishedProfile, loadPublished]
+  );
+  const searchPublishedUsers = useCallback(
+    async (text: string) => {
+      if (!publishedProfile) return [];
+      const res = await window.lscApi.studioIpadPublishedUsers(publishedProfile, text);
+      return (res.data as { users?: { id: string; name: string }[] } | undefined)?.users ?? [];
+    },
+    [publishedProfile]
+  );
   useEffect(() => {
     if (!previewShown) return;
     const onKey = (e: KeyboardEvent) => {
@@ -231,7 +288,10 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [previewShown, toggleEdit, reviewing, publishing]);
   useEffect(() => {
-    if (publishedProfile && !published[publishedProfile]) loadPublished(publishedProfile);
+    if (!publishedProfile) return;
+    const state = published[publishedProfile];
+    if (!state) loadPublished(publishedProfile);
+    else if (needsLoad(state)) loadPublished(publishedProfile, false, publishedUsers.current[publishedProfile], true);
   }, [publishedProfile, published, loadPublished]);
 
   // Profiles with users, plus any profile a loaded map assigns config to (it may have no users yet).
@@ -276,6 +336,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     org: readyOrg,
     profiles,
     onOpenStudio: (id, surface, item) => openSetup(id, surface, item),
+    writeVersion,
   });
 
   const previewSubtitle =
@@ -285,9 +346,13 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         ? `Published on the left, Draft on the right with ${pending.length === 1 ? "the pending change" : `${pending.length || "no"} pending changes`} — select blocks on the Draft side`
         : `As published, with ${pending.length === 1 ? "the pending change" : `${pending.length || "no"} pending changes`} laid on top — tabs, Home actions, DB Schema and page layouts`;
 
-  const featureBusy = state?.status === "loading" || readiness[featureId]?.status === "loading";
+  const featureBusy =
+    state?.status === "loading" ||
+    readiness[featureId]?.status === "loading" ||
+    isRevalidating(state as Revalidating | undefined) ||
+    isRevalidating(readiness[featureId] as Revalidating | undefined);
   const featureSubtitle = map
-    ? `${map.summary} · ${map.org} · mapped ${new Date(map.collectedAt).toLocaleString()}${
+    ? `${map.summary} · ${map.org} · ${isRevalidating(state as Revalidating | undefined) ? "refreshing…" : `mapped ${new Date(map.collectedAt).toLocaleString()}`}${
         activeLens ? ` · checking ${activeLens.profile} — permission sets and record sharing aren't evaluated` : ""
       }`
     : undefined;
@@ -491,6 +556,11 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
                   <span className="studio-btn-label">Edit</span>
                 </button>
               )}
+              {publishedState?.status === "ready" && isRevalidating(publishedState) && (
+                <span className="ui-updated" role="status">
+                  <Spinner size={12} /> Refreshing…
+                </span>
+              )}
               {readyOrg && publishButton}
             </div>
           </header>
@@ -521,14 +591,11 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
                 <PublishedIpadPreview
                   profile={publishedProfile}
                   state={publishedState}
-                  onRefresh={(userId) => loadPublished(publishedProfile, true, userId)}
-                  onPickUser={(userId) => loadPublished(publishedProfile, false, userId)}
+                  onRefresh={refreshPublished}
+                  onPickUser={pickPublishedUser}
                   edit={previewEdit}
                   split={previewMode === "split"}
-                  onSearchUsers={async (text) => {
-                    const res = await window.lscApi.studioIpadPublishedUsers(publishedProfile, text);
-                    return (res.data as { users?: { id: string; name: string }[] } | undefined)?.users ?? [];
-                  }}
+                  onSearchUsers={searchPublishedUsers}
                 />
               ) : (
                 <StateView
@@ -563,6 +630,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           <div className="studio-scroll">
             <SetupOverview
               key={configVersion}
+              version={writeVersion}
               features={features}
               readiness={readiness}
               loadReadiness={loadReadiness}
@@ -621,7 +689,8 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             <h1 className="studio-title">{feature?.title ?? "Studio"}</h1>
             {map && (
               <div className="studio-subtitle" title={featureSubtitle}>
-                {map.summary} · {map.org} · mapped {new Date(map.collectedAt).toLocaleString()}
+                {map.summary} · {map.org} ·{" "}
+                {isRevalidating(state as Revalidating | undefined) ? "refreshing…" : `mapped ${new Date(map.collectedAt).toLocaleString()}`}
                 {activeLens && (
                   <span className="studio-lens-note">
                     {" "}
@@ -649,7 +718,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
                 load(featureId, true);
                 loadReadiness(featureId, true);
               },
-              featureBusy ? "Checking…" : "Refresh"
+              featureBusy ? "Refreshing…" : "Refresh"
             )}
           </div>
         </header>
@@ -781,13 +850,9 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             // Applied changes can't be taken back from the tray; their undo is in the review dialog.
             if (applied.length > 0) tray.reset(remaining);
             else setPending(remaining);
-            // Other features' maps may be stale too; the main process dropped them from its cache.
-            if (applied.length > 0) {
-              setMaps({});
-              resetReadiness();
-              load(featureId, true);
-              if (previewOpened) for (const id of PREVIEW_FEATURES) if (id !== featureId) load(id, true);
-            }
+            // Any feature's map and readiness may have changed; the main process dropped them from its cache. What's
+            // on screen stays, marked refreshing, and reloads when its page is showing — nothing is blanked.
+            if (applied.length > 0) markStale(applied.some((c) => fixAffectsPublished(c.fix)));
           }}
           onPublish={(preselect) => setPublishing(preselect)}
         />
@@ -798,6 +863,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           profiles={profiles}
           preselected={publishing}
           onClose={() => setPublishing(undefined)}
+          onPublished={() => markStale(true)}
         />
       )}
     </div>

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ListPlus, SquarePlus, TextCursorInput } from "lucide-react";
 import type { ComponentCatalog, CreateConfigFix, FeatureMap, StudioFix, LiveCompactLayout, LiveFlexiPage, LiveLayout, LiveListView, ProfileOption } from "./types";
 import type { ComponentProps } from "./component-props";
@@ -74,6 +74,8 @@ interface PreviewEditOptions {
   org: string | undefined;
   profiles: ProfileOption[];
   onOpenStudio: (featureId: string, surface: string, itemId: string) => void;
+  /** Moves when something is written to the org: the documents read live are read again. */
+  writeVersion?: number;
 }
 
 /**
@@ -93,6 +95,7 @@ export function usePreviewEdit({
   org,
   profiles,
   onOpenStudio,
+  writeVersion = 0,
 }: PreviewEditOptions): { edit: PreviewEdit | undefined; panel: React.ReactNode } {
   // The tray as this profile's draft sees it: a copy made just for the profile stands in for the shared
   // document, and edits to it go back into the copy (changes.ts, viewFor / commitFrom).
@@ -125,8 +128,9 @@ export function usePreviewEdit({
     if (on && layout) names.add(layout);
     return [...names].sort();
   }, [pending, selected, on]);
-  const fetchLayout = useCallback((name: string) => {
-    setLiveLayouts((m) => ({ ...m, [name]: { status: "loading" } }));
+  const fetchLayout = useCallback((name: string, keep = false) => {
+    // After a write the document on screen stays (and is replaced when the new one arrives).
+    setLiveLayouts((m) => (keep && m[name]?.status === "ready" ? m : { ...m, [name]: { status: "loading" } }));
     window.lscApi.studioMetadataDoc("Layout", name).then(
       (res) => {
         const error = res.error ?? res.data?.error;
@@ -147,8 +151,9 @@ export function usePreviewEdit({
     if (on && selected?.kind === "headerField") names.add(selected.compactLayout);
     return [...names].sort();
   }, [pending, selected, on]);
-  const fetchCompact = useCallback((name: string) => {
-    setLiveCompacts((m) => ({ ...m, [name]: { status: "loading" } }));
+  const fetchCompact = useCallback((name: string, keep = false) => {
+    // After a write the document on screen stays (and is replaced when the new one arrives).
+    setLiveCompacts((m) => (keep && m[name]?.status === "ready" ? m : { ...m, [name]: { status: "loading" } }));
     window.lscApi.studioMetadataDoc("CompactLayout", name).then(
       (res) => {
         const error = res.error ?? res.data?.error;
@@ -169,8 +174,9 @@ export function usePreviewEdit({
     if (on && (selected?.kind === "listView" || selected?.kind === "listColumn")) names.add(listViewNameOf(selected));
     return [...names].sort();
   }, [pending, selected, on]);
-  const fetchListView = useCallback((name: string) => {
-    setLiveListViews((m) => ({ ...m, [name]: { status: "loading" } }));
+  const fetchListView = useCallback((name: string, keep = false) => {
+    // After a write the document on screen stays (and is replaced when the new one arrives).
+    setLiveListViews((m) => (keep && m[name]?.status === "ready" ? m : { ...m, [name]: { status: "loading" } }));
     window.lscApi.studioMetadataDoc("ListView", name).then(
       (res) => {
         const error = res.error ?? res.data?.error;
@@ -192,8 +198,9 @@ export function usePreviewEdit({
     if (on && selectedPage) names.add(selectedPage);
     return [...names].sort();
   }, [pending, selectedPage, on]);
-  const fetchPage = useCallback((name: string) => {
-    setLivePages((m) => ({ ...m, [name]: { status: "loading" } }));
+  const fetchPage = useCallback((name: string, keep = false) => {
+    // After a write the document on screen stays (and is replaced when the new one arrives).
+    setLivePages((m) => (keep && m[name]?.status === "ready" ? m : { ...m, [name]: { status: "loading" } }));
     window.lscApi.studioMetadataDoc("FlexiPage", name).then(
       (res) => {
         const error = res.error ?? res.data?.error;
@@ -217,6 +224,18 @@ export function usePreviewEdit({
   useEffect(() => {
     for (const name of wantedPages) if (!livePages[name]) fetchPage(name);
   }, [wantedPages, livePages, fetchPage]);
+
+  // A write changed documents we hold: read the ones in use again, without blanking them.
+  const seenWrite = useRef(writeVersion);
+  useEffect(() => {
+    if (writeVersion === seenWrite.current) return;
+    seenWrite.current = writeVersion;
+    for (const name of Object.keys(liveLayouts)) fetchLayout(name, true);
+    for (const name of Object.keys(liveCompacts)) fetchCompact(name, true);
+    for (const name of Object.keys(liveListViews)) fetchListView(name, true);
+    for (const name of Object.keys(livePages)) fetchPage(name, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [writeVersion]);
 
   // What "Insert component…" offers, per page type and object.
   const [catalogs, setCatalogs] = useState<Record<string, ComponentCatalog | "loading" | { error: string }>>({});
@@ -494,7 +513,13 @@ export function usePreviewEdit({
     if (org && info?.setup) window.lscApi.openSfOrg(org, info.setup.path);
   }, [org, info]);
 
-  const edit: PreviewEdit | undefined =
+  // Stable while nothing it describes changed, so the memoized preview below it isn't redrawn for unrelated state.
+  const horizontal =
+    selected?.kind === "tab" || selected?.kind === "headerField" || selected?.kind === "recordTab" || selected?.kind === "listColumn";
+  const also = useMemo(() => selection.slice(1), [selection]);
+  const setupInfo = org ? info?.setup : null;
+  const edit: PreviewEdit | undefined = useMemo(
+    () =>
     on && snapshot
       ? {
           on,
@@ -507,16 +532,18 @@ export function usePreviewEdit({
           pages,
           selected,
           onSelect,
-          also: selection.slice(1),
+          also,
           name: groupName,
           verbs: draft ? verbs : [],
           onRun: run,
           onDrop: draft ? drop : undefined,
-          setup: org ? info?.setup : null,
+          setup: setupInfo,
           onSetup: openSetup,
-          horizontal: selected?.kind === "tab" || selected?.kind === "headerField" || selected?.kind === "recordTab" || selected?.kind === "listColumn",
+          horizontal,
         }
-      : undefined;
+      : undefined,
+    [on, snapshot, draft, tabs, homeMenu, layouts, compacts, listViews, pages, selected, onSelect, also, groupName, verbs, run, drop, setupInfo, openSetup, horizontal]
+  );
 
   const panel =
     edit && info && profile ? (

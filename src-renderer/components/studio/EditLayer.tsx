@@ -439,17 +439,28 @@ export function EditSurface({
   useEffect(() => {
     const el = root.current;
     if (!el || !on) return;
-    const observer = new ResizeObserver(measure);
+    // Scrolls and DOM changes come in bursts; measure once per frame (a scroll event fires before that frame's
+    // animation callbacks, so the outlines still move with the content).
+    let frame = 0;
+    const schedule = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        measure();
+      });
+    };
+    const observer = new ResizeObserver(schedule);
     observer.observe(el);
-    el.addEventListener("scroll", measure, true);
+    el.addEventListener("scroll", schedule, true);
     // Clicks inside the preview can open or close things (menus, record tabs) after the layout effect ran.
     const screen = el.querySelector(".studio-ipad-screen");
-    const mutations = new MutationObserver(() => requestAnimationFrame(measure));
+    const mutations = new MutationObserver(schedule);
     if (screen) mutations.observe(screen, { childList: true, subtree: true });
     return () => {
+      if (frame) cancelAnimationFrame(frame);
       observer.disconnect();
       mutations.disconnect();
-      el.removeEventListener("scroll", measure, true);
+      el.removeEventListener("scroll", schedule, true);
     };
   }, [on, measure]);
 

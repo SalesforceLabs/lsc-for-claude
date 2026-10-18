@@ -35,6 +35,7 @@ import { EditSurface, editAttrs, Mark, useEditOn, type EditSurfaceProps } from "
 import type { DraftAction, DraftState, DraftTab } from "./edit-draft";
 import type { CompactEntry, LayoutEntry, ListViewEntry, PageEntry } from "./usePreviewEdit";
 import { draftComponents, draftRecordTabs, sourceKey } from "./flexipage-draft";
+import type { Revalidating } from "./fix-effects";
 import {
   ActivityPlanProgress,
   HomeEditVisitContext,
@@ -51,7 +52,7 @@ import {
 export type PublishedState =
   | { status: "loading" }
   | { status: "error"; error: string }
-  | { status: "ready"; result: PublishedResult };
+  | ({ status: "ready"; result: PublishedResult } & Revalidating);
 
 /** Edit mode over the preview: selection, and — in Draft — the tab bar and Home menu with the tray laid on top. */
 export interface PreviewEdit extends Omit<EditSurfaceProps, "children"> {
@@ -86,7 +87,7 @@ interface PublishedIpadPreviewProps {
  * components, and record pages read from the profile's metadata cache, laid
  * out the way LSC Mobile builds them. Record data is placeholder.
  */
-export default function PublishedIpadPreview({ profile, state, onRefresh, onPickUser, onSearchUsers, edit, split }: PublishedIpadPreviewProps) {
+function PublishedIpadPreviewImpl({ profile, state, onRefresh, onPickUser, onSearchUsers, edit, split }: PublishedIpadPreviewProps) {
   if (!state || state.status === "loading") {
     return <PublishedLoading profile={profile} />;
   }
@@ -117,6 +118,9 @@ export default function PublishedIpadPreview({ profile, state, onRefresh, onPick
   }
   return <Device key={result.viewer?.userId ?? ""} snapshot={result} onRefresh={() => onRefresh(result.viewer?.userId)} onPickUser={onPickUser} onSearchUsers={onSearchUsers} edit={edit} split={split && !!edit?.draft} />;
 }
+
+/** Redrawn only when its state, the edit description or the mode change — not for every Studio state update. */
+export default React.memo(PublishedIpadPreviewImpl);
 
 function Device({
   snapshot,

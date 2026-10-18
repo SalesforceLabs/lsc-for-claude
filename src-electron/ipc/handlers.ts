@@ -53,6 +53,13 @@ import {
 } from "../engine/library.js";
 import { getStudioCacheRow, setStudioCacheText, clearStudioCache } from "../engine/studio-cache.js";
 import { isCacheable } from "../engine/studio-cache-policy.js";
+import {
+  INVALIDATED_BY_MAP_REFRESH,
+  INVALIDATED_BY_PUBLISH,
+  bumpGeneration,
+  generationOf,
+  toolsInvalidatedByApply,
+} from "../engine/studio-invalidation.js";
 import { createInFlight } from "../engine/in-flight.js";
 import { openInPreviewBrowser, type BrowserAuth } from "../studio-browser.js";
 import {
@@ -73,6 +80,12 @@ import {
 } from "../engine/perf-store.js";
 
 const studioInFlight = createInFlight<{ data?: unknown; error?: string }>();
+
+/** Drop cached Studio results for an org and make loads already in flight skip the cache. */
+function invalidate(org: string, tools: string[]): void {
+  bumpGeneration(org);
+  for (const tool of tools) clearStudioCache(org, tool);
+}
 
 const STUDIO_CACHED_TOOLS = new Set([
   "studio_feature_map",
@@ -650,7 +663,9 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         if (cached) return { data: JSON.parse(cached.text), cachedAt: cached.cachedAt };
       }
       // Identical concurrent calls share one load (a timed-out one keeps running server-side).
-      return studioInFlight(`${org}\u0000${toolName}\u0000${argsKey}\u0000${refresh}`, async () => {
+      // A load that began before a write (generation) neither joins nor feeds the cache after it.
+      const gen = generationOf(org);
+      return studioInFlight(`${org}\u0000${toolName}\u0000${argsKey}\u0000${refresh}\u0000${gen}`, async () => {
         const client = await readyMcpClient();
         if (!client) return { error: "Engine not started" };
         try {
@@ -661,29 +676,22 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
           const data = JSON.parse(text);
           const cachedAt = new Date().toISOString();
           // Partial results (failed surfaces, checks that couldn't run) shouldn't stick — the next open retries.
-          if (cacheable && isCacheable(toolName, data)) {
+          if (cacheable && isCacheable(toolName, data) && generationOf(org) === gen) {
             // Refreshing a map means the org changed — item details may be stale too.
             if (refresh && toolName === "studio_feature_map") {
-              clearStudioCache(org, "studio_item_detail");
-              clearStudioCache(org, "studio_list_profiles");
-              clearStudioCache(org, "studio_access_options");
-              clearStudioCache(org, "studio_ipad_published");
+              for (const tool of INVALIDATED_BY_MAP_REFRESH) clearStudioCache(org, tool);
             }
             setStudioCacheText(org, toolName, argsKey, text);
           }
-          // An applied change alters the org, so every cached map for it may be stale.
-          if (toolName === "studio_apply_fix" && data?.ok) clearStudioCache(org);
+          // An applied change alters the org: drop what it can affect (not the slow, unaffected published iPad).
+          if (toolName === "studio_apply_fix" && data?.ok) invalidate(org, toolsInvalidatedByApply(args.fix));
           // A finished publish changes the metadata cache surfaces.
-          if (toolName === "studio_publish_status" && data?.state === "done") {
-            clearStudioCache(org, "studio_feature_map");
-            clearStudioCache(org, "studio_readiness");
-            clearStudioCache(org, "studio_setup_overview");
-            clearStudioCache(org, "studio_ipad_published");
-            clearStudioCache(org, "studio_sync_user");
-          }
+          if (toolName === "studio_publish_status" && data?.state === "done") invalidate(org, INVALIDATED_BY_PUBLISH);
           return { data, cachedAt };
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
+          // A write that errored or timed out may still have landed.
+          if (toolName === "studio_apply_fix") invalidate(org, toolsInvalidatedByApply(args.fix));
           if (/time(d)?[ -]?out/i.test(message)) {
             return {
               error:

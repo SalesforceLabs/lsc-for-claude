@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, Copy, Download, RefreshCw, UserRoundSearch, CloudUpload } from "lucide-react";
 import StatusIcon, { type StatusTone } from "../ui/StatusIcon";
 import StateView from "../ui/StateView";
+import Spinner from "../ui/Spinner";
 import type { FeatureSummary, ProfileOption } from "./types";
 import type { PendingChange } from "./changes";
 import { CheckRow, VerdictCard } from "./ReadinessView";
@@ -36,6 +37,8 @@ export interface SetupOverviewProps {
   pending: PendingChange[];
   onPendingChange: (pending: PendingChange[]) => void;
   onAskClaude: (prompt: string) => void;
+  /** Moves when something is written to the org; the page reloads in place, keeping what it shows. */
+  version?: number;
 }
 
 type OverviewState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; data: SetupOverviewData };
@@ -54,6 +57,7 @@ export default function SetupOverview({
   pending,
   onPendingChange,
   onAskClaude,
+  version = 0,
 }: SetupOverviewProps) {
   const [overview, setOverview] = useState<OverviewState>({ status: "loading" });
   const [open, setOpen] = useState<string | null>(null);
@@ -62,15 +66,29 @@ export default function SetupOverview({
   const [exporting, setExporting] = useState(false);
   const [notice, setNotice] = useState<{ kind: "info" | "error"; text: string } | null>(null);
 
-  const loadOverview = useCallback(async (refresh = false) => {
-    setOverview((o) => (refresh && o.status === "ready" ? o : { status: "loading" }));
+  // Newest request wins; what's on screen stays (marked refreshing) while a reload runs.
+  const [overviewRefreshing, setOverviewRefreshing] = useState(false);
+  const overviewTicket = useRef(0);
+  const loadOverview = useCallback(async (refresh = false, keep = refresh) => {
+    const ticket = ++overviewTicket.current;
+    setOverview((o) => (keep && o.status === "ready" ? o : { status: "loading" }));
+    setOverviewRefreshing(true);
     const res = await window.lscApi.studioSetupOverview(refresh);
+    if (overviewTicket.current !== ticket) return;
+    setOverviewRefreshing(false);
     const error = res.error || (res.data as { error?: string } | undefined)?.error;
     setOverview(error ? { status: "error", error } : { status: "ready", data: res.data as SetupOverviewData });
   }, []);
   useEffect(() => {
     loadOverview();
   }, [loadOverview]);
+  // A write elsewhere in Studio: the main process dropped its cached overview, so this reads the org again.
+  const firstVersion = useRef(version);
+  useEffect(() => {
+    if (version === firstVersion.current) return;
+    firstVersion.current = version;
+    loadOverview(false, true);
+  }, [version, loadOverview]);
 
   // Feature readiness loads a few at a time, so the page fills in as results arrive.
   const ids = useMemo(() => features.filter((f) => f.available).map((f) => f.id), [features]);
@@ -168,8 +186,8 @@ export default function SetupOverview({
           <button className="studio-btn" onClick={copyReport} title="Copy the report as Markdown">
             <Copy aria-hidden="true" /> Copy
           </button>
-          <button className="studio-btn" onClick={refresh}>
-            <RefreshCw aria-hidden="true" /> Refresh
+          <button className="studio-btn" onClick={refresh} disabled={overviewRefreshing}>
+            {overviewRefreshing ? <Spinner size={14} /> : <RefreshCw aria-hidden="true" />} {overviewRefreshing ? "Refreshing…" : "Refresh"}
           </button>
         </div>
       </header>
