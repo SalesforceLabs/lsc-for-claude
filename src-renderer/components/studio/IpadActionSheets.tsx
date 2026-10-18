@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { PublishedIpad, PublishedLayout, RecordFieldSpec } from "./published-types";
 import type { Presentation } from "./ipad-fab-actions";
 import { agentName } from "./ipad-fab-actions";
@@ -7,6 +7,8 @@ import { EmptyArt } from "./IpadHome";
 import { HcoIcon, NewPersonAccountIcon } from "./assets/icons";
 import { fmtDateTime, picklistStart, visitFields, visitTimes } from "./ipad-visit-form";
 import type { VisitCreateAccount } from "./screens/fabs-types";
+import type { MobileLoginInfo } from "../../types";
+import { chooseAuth, loginUrlFor, myDomainOf, partitionFor, sameUserId, type BrowserAuth } from "./browser-auth";
 import "./action-sheets.css";
 
 /**
@@ -518,7 +520,123 @@ function SurveySheet({ onClose }: { onClose: () => void }) {
 
 // ── Custom actions: in-app browser, Safari, placeholder ───────────────────────
 
-function Browser({ url, hideSafari, onClose }: { url: string; hideSafari: boolean; onClose: () => void }) {
+/** The parts of Electron's <webview> element the preview browser uses. */
+interface WebviewEl extends HTMLElement {
+  getWebContentsId(): number;
+  canGoBack(): boolean;
+  canGoForward(): boolean;
+  goBack(): void;
+  goForward(): void;
+  reload(): void;
+  getURL(): string;
+}
+
+/** The sign-in picked for a rep's pages when Studio held no login for them, kept for the app session. */
+const rememberedAuth = new Map<string, BrowserAuth>();
+
+type BrowserStatus = { signedInAs?: string; note?: string; error?: string };
+
+/**
+ * The in-app browser, live: the page loads in a <webview> with an in-memory session per identity. Salesforce
+ * pages are signed in as the previewed rep through their mobile login — the same logins First sync uses — so
+ * they show what the rep sees; until Studio holds one, the sheet offers to log in as the rep, or to continue
+ * as the sf CLI connection. Pages outside Salesforce load signed out. Only https pages load.
+ */
+function Browser({ url, hideSafari, ctx, onClose }: { url: string; hideSafari: boolean; ctx: SheetContext; onClose: () => void }) {
+  const ref = useRef<WebviewEl>(null);
+  const viewer = ctx.snapshot.viewer;
+  const live = /^https:\/\//i.test(url);
+  const host = live ? new URL(url).hostname : "";
+  const memoKey = `${myDomainOf(host) ?? host}|${viewer?.userId ?? ""}`;
+  const [logins, setLogins] = useState<MobileLoginInfo[] | null>(null);
+  const [picked, setPicked] = useState<BrowserAuth | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [status, setStatus] = useState<BrowserStatus | null>(null);
+  const [nav, setNav] = useState({ back: false, forward: false });
+
+  useEffect(() => {
+    window.lscApi.mobileLoginList().then((res) => setLogins(res.logins));
+  }, []);
+
+  const choice = logins ? chooseAuth(url, logins, viewer?.userId ?? null, rememberedAuth.get(memoKey) ?? null) : null;
+  const auth = asking ? null : (picked ?? choice?.auth ?? null);
+  const authLogin = auth && "loginId" in auth ? logins?.find((l) => l.id === auth.loginId) : undefined;
+  const isRep = !!authLogin && !!viewer && sameUserId(authLogin.userId, viewer.userId);
+  const partition = auth ? partitionFor(auth) : null;
+
+  const use = (next: BrowserAuth) => {
+    rememberedAuth.set(memoKey, next);
+    setPicked(next);
+    setAsking(false);
+    setStatus(null);
+  };
+  const logIn = async () => {
+    setLoggingIn(true);
+    setLoginError(null);
+    const res = await window.lscApi.mobileLoginStart(loginUrlFor(host) ?? "https://login.salesforce.com");
+    setLoggingIn(false);
+    if (!res.login) {
+      setLoginError(res.error ?? "The login didn't finish.");
+      return;
+    }
+    const list = await window.lscApi.mobileLoginList();
+    setLogins(list.logins);
+    use({ loginId: res.login.id });
+  };
+
+  useEffect(() => {
+    const wv = ref.current;
+    if (!wv || !auth) return;
+    let opened = false;
+    const onReady = () => {
+      if (opened) return;
+      opened = true;
+      window.lscApi.studioBrowserOpen(wv.getWebContentsId(), url, auth).then(setStatus);
+    };
+    const onNavigate = () => setNav({ back: wv.canGoBack(), forward: wv.canGoForward() });
+    wv.addEventListener("dom-ready", onReady);
+    wv.addEventListener("did-navigate", onNavigate);
+    wv.addEventListener("did-navigate-in-page", onNavigate);
+    return () => {
+      wv.removeEventListener("dom-ready", onReady);
+      wv.removeEventListener("did-navigate", onNavigate);
+      wv.removeEventListener("did-navigate-in-page", onNavigate);
+    };
+    // A new identity remounts the webview (keyed by partition), so re-run only when it changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, partition]);
+
+  const ico = (label: string, glyph: string, enabled: boolean, act: () => void) => (
+    <button
+      type="button"
+      className={`studio-ipad-act-ico${enabled ? "" : " disabled"}`}
+      aria-label={label}
+      title={label}
+      disabled={!enabled}
+      onClick={act}
+    >
+      {glyph}
+    </button>
+  );
+
+  const rep = viewer?.name ?? "a rep";
+  const statusText = !status
+    ? null
+    : status.error
+      ? `Couldn't load the page: ${status.error}`
+      : status.note
+        ? status.note
+        : status.signedInAs
+          ? isRep
+            ? `Signed in as ${authLogin?.displayName ?? status.signedInAs}, the previewed rep`
+            : auth && "cli" in auth
+              ? `Signed in as ${status.signedInAs} — Studio's sf CLI connection, not ${rep}`
+              : `Signed in as ${authLogin?.displayName ?? status.signedInAs}, not ${rep}`
+          : null;
+  const offerSwitch = !!status && !isRep && !!auth && !("public" in auth);
+
   return (
     <Full className="browser">
       <NavBar
@@ -526,17 +644,60 @@ function Browser({ url, hideSafari, onClose }: { url: string; hideSafari: boolea
         title="External URL"
         right={
           <>
-            <span className="studio-ipad-act-ico disabled">‹</span>
-            <span className="studio-ipad-act-ico disabled">›</span>
-            <span className="studio-ipad-act-ico">↻</span>
-            {!hideSafari && <span className="studio-ipad-act-ico">◎</span>}
+            {ico("Back", "‹", nav.back, () => ref.current?.goBack())}
+            {ico("Forward", "›", nav.forward, () => ref.current?.goForward())}
+            {ico("Reload", "↻", !!auth, () => ref.current?.reload())}
+            {!hideSafari && ico("Open in browser", "◎", live, () => window.lscApi.openExternal(ref.current?.getURL() || url))}
           </>
         }
       />
-      <div className="studio-ipad-act-webplaceholder">
-        <div className="studio-ipad-act-weburl">{url}</div>
-        <div className="studio-ipad-act-webnote">The app loads this page in a full-screen browser. Studio doesn't load external URLs; it shows the address instead.</div>
-      </div>
+      {!live ? (
+        <div className="studio-ipad-act-webplaceholder">
+          <div className="studio-ipad-act-weburl">{url}</div>
+          <div className="studio-ipad-act-webnote">The app loads this page in a full-screen browser. Studio only loads https pages; it shows the address instead.</div>
+        </div>
+      ) : auth && partition ? (
+        <div className="studio-ipad-act-web">
+          <webview key={partition} ref={ref} className="studio-ipad-act-webview" src="about:blank" partition={partition} />
+          {statusText && (
+            <div className={`studio-ipad-act-webstatus${status?.error ? " error" : ""}`}>
+              {statusText}
+              {offerSwitch && (
+                <button type="button" onClick={() => setAsking(true)}>
+                  {viewer ? `Sign in as ${viewer.name}…` : "Switch user…"}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="studio-ipad-act-webplaceholder">
+          {!logins ? (
+            <div className="studio-ipad-act-webnote">Checking Studio's mobile logins…</div>
+          ) : (
+            <div className="studio-ipad-act-signin">
+              <div className="studio-ipad-act-signint">See this page as {rep}</div>
+              <div className="studio-ipad-act-webnote">
+                The app opens it signed in as the rep. Log in as {rep} once and Studio uses that login here and in First sync for
+                the rest of the session.
+              </div>
+              <button type="button" className="studio-ipad-act-signinbtn" onClick={logIn} disabled={loggingIn}>
+                {loggingIn ? "Waiting for the login window…" : viewer ? `Log in as ${viewer.name}…` : "Log in as a mobile user…"}
+              </button>
+              {loginError && <div className="studio-ipad-act-signinerr">{loginError}</div>}
+              {(choice?.candidates ?? []).map((l) => (
+                <button key={l.id} type="button" className="studio-link-btn" onClick={() => use({ loginId: l.id })}>
+                  Use {l.displayName ?? l.username} instead
+                </button>
+              ))}
+              <button type="button" className="studio-link-btn" onClick={() => use({ cli: true })}>
+                Continue as Studio's sf CLI connection
+              </button>
+              <div className="studio-ipad-act-weburl">{url}</div>
+            </div>
+          )}
+        </div>
+      )}
     </Full>
   );
 }
@@ -615,7 +776,7 @@ export default function IpadActionSheet({ presentation, ctx, onClose }: { presen
     case "survey":
       return <SurveySheet onClose={onClose} />;
     case "browser":
-      return <Browser url={presentation.url} hideSafari={presentation.hideSafari} onClose={onClose} />;
+      return <Browser url={presentation.url} hideSafari={presentation.hideSafari} ctx={ctx} onClose={onClose} />;
     case "agent":
       return <AgentPanel ctx={ctx} utterance={presentation.utterance} onClose={onClose} />;
     case "safari":

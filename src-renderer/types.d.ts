@@ -35,6 +35,8 @@ export interface PerfRunRecord {
 export interface MobileLoginInfo {
   id: string;
   username: string;
+  /** The user's Id, so the iPad preview can pick the login for the rep it shows. */
+  userId?: string;
   displayName?: string;
   orgId?: string;
   instanceUrl: string;
@@ -163,6 +165,12 @@ interface LscApi {
   loginSfOrg(alias?: string, instanceUrl?: string): Promise<{ ok: boolean; error?: string }>;
   /** Open the org in the default browser through its sf CLI connection. */
   openSfOrg(org: string): Promise<{ ok: boolean; error?: string }>;
+  /** Load `url` into a Studio preview <webview> in `auth`'s partition, signed in as that user when it's a page of their org. */
+  studioBrowserOpen(
+    guestId: number,
+    url: string,
+    auth: { loginId: string } | { cli: true } | { public: true }
+  ): Promise<{ signedInAs?: string; note?: string; error?: string }>;
 
   // Engine
   startEngine(

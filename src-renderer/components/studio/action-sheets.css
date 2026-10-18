@@ -66,6 +66,8 @@
 .studio-ipad-act-split { margin-left: 14px; padding: 0 12px; border-left: 1px solid #0250d9; line-height: 36px; }
 
 .studio-ipad-act-ico { width: 40px; text-align: center; font-size: 26px; color: #444; }
+button.studio-ipad-act-ico { padding: 0; background: none; border: none; font: inherit; font-size: 26px; cursor: pointer; }
+button.studio-ipad-act-ico:disabled { cursor: default; }
 .studio-ipad-act-ico.disabled { color: #bbb; }
 
 .studio-ipad-act-body { flex: 1; overflow: auto; padding: 32px 20px; }
@@ -143,6 +145,16 @@
 .studio-ipad-act-sheet.survey .studio-ipad-act-nav { background: #f3f3f3; }
 
 /* In-app browser and facts sheets */
+.studio-ipad-act-web { position: relative; flex: 1; min-height: 0; display: flex; background: #fff; }
+.studio-ipad-act-webview { flex: 1; width: 100%; height: 100%; border: none; }
+.studio-ipad-act-webstatus { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); max-width: 80%; padding: 6px 12px; border-radius: 14px; background: rgba(0, 0, 0, 0.7); color: #fff; font-size: 13px; display: flex; align-items: center; gap: 10px; }
+.studio-ipad-act-webstatus button { padding: 0; background: none; border: none; color: #8ab4ff; font: inherit; cursor: pointer; }
+.studio-ipad-act-signin { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 520px; }
+.studio-ipad-act-signint { font-size: 22px; font-weight: 600; }
+.studio-ipad-act-signinbtn { padding: 10px 20px; border: none; border-radius: 10px; background: #0250d9; color: #fff; font: inherit; font-size: 16px; cursor: pointer; }
+.studio-ipad-act-signinbtn:disabled { opacity: 0.6; cursor: default; }
+.studio-ipad-act-signinerr { color: #ba0517; font-size: 14px; }
+.studio-ipad-act-webstatus.error { background: rgba(186, 5, 23, 0.85); }
 .studio-ipad-act-webplaceholder { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #fff; text-align: center; padding: 0 120px; }
 .studio-ipad-act-weburl { max-width: 100%; padding: 10px 16px; border-radius: 10px; background: #f3f3f3; font-size: 16px; word-break: break-all; }
 .studio-ipad-act-webnote { color: #666; font-size: 14px; }

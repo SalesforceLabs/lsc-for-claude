@@ -1,7 +1,8 @@
-import { app, BrowserWindow, shell, protocol, net } from "electron";
+import { app, BrowserWindow, shell, protocol, net, session } from "electron";
 import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
 import { registerIpcHandlers } from "./ipc/handlers.js";
+import { STUDIO_BROWSER_PARTITION } from "./studio-browser.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,6 +31,9 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 let mainWindow: BrowserWindow | null = null;
+
+/** Partitions Studio's preview browsers have attached with, to recognize their guests. */
+const previewPartitions = new Set<string>();
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -75,6 +79,27 @@ function createWindow(): void {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: "deny" };
+  });
+
+  // <webview> guests never get Node or a preload. Studio's preview browser is held to its own session and
+  // https pages; its popups are refused rather than opened in the system browser.
+  mainWindow.webContents.on("will-attach-webview", (event, webPreferences, params) => {
+    delete webPreferences.preload;
+    webPreferences.nodeIntegration = false;
+    webPreferences.contextIsolation = true;
+    if (params.partition?.startsWith(STUDIO_BROWSER_PARTITION)) {
+      previewPartitions.add(params.partition);
+      webPreferences.sandbox = true;
+      if (params.src && params.src !== "about:blank" && !params.src.startsWith("https:")) event.preventDefault();
+    }
+  });
+  mainWindow.webContents.on("did-attach-webview", (_event, guest) => {
+    if ([...previewPartitions].some((p) => session.fromPartition(p) === guest.session)) {
+      guest.setWindowOpenHandler(() => ({ action: "deny" }));
+      guest.on("will-navigate", (e, url) => {
+        if (!url.startsWith("https:")) e.preventDefault();
+      });
+    }
   });
 
   mainWindow.on("closed", () => {

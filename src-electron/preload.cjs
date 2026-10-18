@@ -66,6 +66,7 @@ contextBridge.exposeInMainWorld("lscApi", {
   },
   loginSfOrg: (alias, instanceUrl) => ipcRenderer.invoke("sfOrg:login", alias, instanceUrl),
   openSfOrg: (org) => ipcRenderer.invoke("sfOrg:open", org),
+  studioBrowserOpen: (guestId, url, auth) => ipcRenderer.invoke("studioBrowser:open", guestId, url, auth),
 
   // Studio — read-only feature maps served by the studio_* MCP tools
   studioListFeatures: () => ipcRenderer.invoke("studio:call", "studio_list_features"),

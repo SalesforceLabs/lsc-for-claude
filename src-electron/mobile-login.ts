@@ -49,6 +49,8 @@ function isSalesforceUrl(url: string): boolean {
 export interface MobileLoginInfo {
   id: string;
   username: string;
+  /** The user's Id, so the iPad preview can pick the login for the rep it shows. */
+  userId?: string;
   displayName?: string;
   orgId?: string;
   instanceUrl: string;
@@ -65,9 +67,10 @@ const logins = new Map<string, MobileLogin>();
 
 const base64url = (buf: Buffer) => buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
-const publicInfo = ({ id, username, displayName, orgId, instanceUrl }: MobileLogin): MobileLoginInfo => ({
+const publicInfo = ({ id, username, userId, displayName, orgId, instanceUrl }: MobileLogin): MobileLoginInfo => ({
   id,
   username,
+  userId,
   displayName,
   orgId,
   instanceUrl,
@@ -182,6 +185,7 @@ export async function startMobileLogin(loginUrl: string, parent?: BrowserWindow)
   const login: MobileLogin = {
     id: `mobile-${base64url(crypto.randomBytes(6))}`,
     username,
+    userId: typeof identity.user_id === "string" ? identity.user_id : undefined,
     displayName: typeof identity.display_name === "string" ? identity.display_name : undefined,
     orgId: typeof identity.organization_id === "string" ? identity.organization_id : undefined,
     instanceUrl,
@@ -202,23 +206,53 @@ export function removeMobileLogin(id: string): void {
   logins.delete(id);
 }
 
+async function refresh(login: MobileLogin): Promise<void> {
+  if (!login.refreshToken) return;
+  try {
+    const token = await tokenRequest(login.loginUrl, { grant_type: "refresh_token", refresh_token: login.refreshToken });
+    if (typeof token.access_token === "string") {
+      login.accessToken = token.access_token;
+      login.issuedAt = Date.now();
+      if (typeof token.instance_url === "string" && isSalesforceUrl(token.instance_url)) login.instanceUrl = token.instance_url;
+    }
+  } catch {
+    // Keep the current token; the caller reports it if it has expired.
+  }
+}
+
 /** The login's token for a run, refreshed first when it's old enough to expire mid-run. */
 export async function mobileLoginCredentials(
   id: string
 ): Promise<{ instanceUrl: string; accessToken: string; username: string; orgId?: string }> {
   const login = logins.get(id);
   if (!login) throw new Error("That mobile login has ended. Log in again.");
-  if (login.refreshToken && Date.now() - login.issuedAt > REFRESH_AFTER_MS) {
-    try {
-      const token = await tokenRequest(login.loginUrl, { grant_type: "refresh_token", refresh_token: login.refreshToken });
-      if (typeof token.access_token === "string") {
-        login.accessToken = token.access_token;
-        login.issuedAt = Date.now();
-        if (typeof token.instance_url === "string" && isSalesforceUrl(token.instance_url)) login.instanceUrl = token.instance_url;
-      }
-    } catch {
-      // Keep the current token; the run reports it if it has expired.
-    }
-  }
+  if (Date.now() - login.issuedAt > REFRESH_AFTER_MS) await refresh(login);
   return { instanceUrl: login.instanceUrl, accessToken: login.accessToken, username: login.username, orgId: login.orgId };
+}
+
+/**
+ * A single-use frontdoor link that signs a browser in as the login's user and lands on `path` — the
+ * singleaccess endpoint `sf org open` uses, which needs the token's `web` scope. A rejected token is
+ * refreshed once and retried, since the endpoint answers 403 rather than 401 for an expired session.
+ */
+export async function mobileLoginFrontdoor(id: string, path: string): Promise<{ url: string; instanceUrl: string; username: string }> {
+  const login = logins.get(id);
+  if (!login) throw new Error("That mobile login has ended. Log in again.");
+  if (Date.now() - login.issuedAt > REFRESH_AFTER_MS) await refresh(login);
+  const request = async () => {
+    const url = new URL("/services/oauth2/singleaccess", login.instanceUrl);
+    url.searchParams.set("redirect_uri", path);
+    return fetch(url, { headers: { Authorization: `Bearer ${login.accessToken}`, Accept: "application/json" } });
+  };
+  let res = await request();
+  if ((res.status === 401 || res.status === 403) && login.refreshToken) {
+    await refresh(login);
+    res = await request();
+  }
+  const data = (await res.json().catch(() => ({}))) as { frontdoor_uri?: string; error?: string; error_description?: string };
+  if (!res.ok || !data.frontdoor_uri || !isSalesforceUrl(data.frontdoor_uri)) {
+    const reason = [data.error, data.error_description].filter(Boolean).join(": ") || `HTTP ${res.status}`;
+    throw new Error(`Salesforce wouldn't sign the page in as ${login.username} (${reason}).`);
+  }
+  return { url: data.frontdoor_uri, instanceUrl: login.instanceUrl, username: login.username };
 }

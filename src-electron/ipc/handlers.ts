@@ -32,6 +32,7 @@ import {
   searchLibraryItems,
 } from "../engine/library.js";
 import { getStudioCache, setStudioCache, clearStudioCache } from "../engine/studio-cache.js";
+import { openInPreviewBrowser, type BrowserAuth } from "../studio-browser.js";
 import {
   adoptUnassigned,
   listPerfPlans,
@@ -723,6 +724,16 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         resolve({ ok: false, error: error?.message ?? "sf org open returned no URL" });
       });
     });
+  });
+
+  // --- Studio's iPad preview browser (the frontdoor link stays in this process) ---
+
+  ipcMain.handle("studioBrowser:open", async (event, guestId: number, url: string, auth: BrowserAuth) => {
+    try {
+      return await openInPreviewBrowser(event.sender, guestId, url, auth);
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) };
+    }
   });
 
   // --- Mobile logins for the first-sync simulator (tokens never leave the main process except to the engine) ---
