@@ -1,7 +1,9 @@
 import { LLMProvider, Message, ContentBlock, StreamChunk } from "../llm/provider.js";
-import { McpClient, STUDIO_TOOL_PREFIX } from "../mcp/client.js";
+import { STUDIO_TOOL_PREFIX } from "../mcp/client.js";
+import type { ToolHost } from "../mcp/pool.js";
 import { PromptBuilder } from "./prompt-builder.js";
 import type { StoredMessage } from "./history.js";
+import { ORG_SWITCH_TOOLS, orgPromptSection, orgSwitchRefusal, type SessionOrg } from "./session-org.js";
 
 export interface ConversationCallbacks {
   onTextDelta: (text: string) => void;
@@ -20,21 +22,25 @@ const MAX_TOOL_ROUNDS = 25;
 
 export class ConversationEngine {
   private llm: LLMProvider;
-  private mcp: McpClient;
+  private mcp: ToolHost;
   private promptBuilder: PromptBuilder;
+  /** The org this session works in — its tools run there and nowhere else. */
+  private org: SessionOrg | null;
   private messages: Message[] = [];
   private systemPrompt: string = "";
   private currentAbort: AbortToken | null = null;
   private model?: string;
 
-  constructor(llm: LLMProvider, mcp: McpClient, promptBuilder: PromptBuilder) {
+  constructor(llm: LLMProvider, mcp: ToolHost, promptBuilder: PromptBuilder, org: SessionOrg | null = null) {
     this.llm = llm;
     this.mcp = mcp;
     this.promptBuilder = promptBuilder;
+    this.org = org;
   }
 
   initialize(): void {
-    this.systemPrompt = this.promptBuilder.buildSystemPrompt();
+    // Last, so the shared prompt above it stays identical across sessions.
+    this.systemPrompt = `${this.promptBuilder.buildSystemPrompt()}\n\n${orgPromptSection(this.org)}\n`;
   }
 
   getMessages(): Message[] {
@@ -158,7 +164,7 @@ export class ConversationEngine {
   }
 
   private async runToolLoop(
-    tools: ReturnType<McpClient["getTools"]>,
+    tools: ReturnType<ToolHost["getTools"]>,
     callbacks: ConversationCallbacks,
     messages: Message[],
     abort: AbortToken
@@ -202,6 +208,10 @@ export class ConversationEngine {
           // Studio tools (including fixes that write to the org) are UI-only — never run one the model names.
           if (toolCall.name!.startsWith(STUDIO_TOOL_PREFIX)) {
             throw new Error(`${toolCall.name} is only available from the Studio UI.`);
+          }
+          // A session stays in its org; its server would otherwise be pointed elsewhere for every later call.
+          if (ORG_SWITCH_TOOLS.has(toolCall.name!)) {
+            throw new Error(orgSwitchRefusal(this.org));
           }
           const result = await this.mcp.callTool(
             toolCall.name!,

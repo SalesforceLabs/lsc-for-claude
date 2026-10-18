@@ -16,7 +16,7 @@ contextBridge.exposeInMainWorld("lscApi", {
 
   // Chat — nonce is passed to tag stream events, convId for server-side persistence
   sendMessage: (message, nonce, convId, model) => ipcRenderer.invoke("chat:send", message, nonce, convId, model),
-  abortChat: () => ipcRenderer.invoke("chat:abort"),
+  abortChat: (convId) => ipcRenderer.invoke("chat:abort", convId),
   clearChat: () => ipcRenderer.invoke("chat:clear"),
 
   // Chat events — all events include nonce + convId
@@ -56,7 +56,12 @@ contextBridge.exposeInMainWorld("lscApi", {
   listSkills: () => ipcRenderer.invoke("skills:list"),
 
   // Salesforce Org
-  listSfOrgs: () => ipcRenderer.invoke("sfOrg:list"),
+  listSfOrgs: (options) => ipcRenderer.invoke("sfOrg:list", options),
+  onSfOrgRoles: (cb) => {
+    const handler = (_event, roles) => cb(roles);
+    ipcRenderer.on("sfOrg:roles", handler);
+    return () => ipcRenderer.removeListener("sfOrg:roles", handler);
+  },
   setSfOrg: (org) => ipcRenderer.invoke("sfOrg:set", org),
   onSfOrgChanged: (callback) => {
     const handler = (_event, data) => callback(data.org);
@@ -140,13 +145,17 @@ contextBridge.exposeInMainWorld("lscApi", {
   perfSaveFile: (defaultName, text, kind) => ipcRenderer.invoke("perf:saveFile", defaultName, text, kind),
 
   // Library
-  listLibraryItems: () => ipcRenderer.invoke("library:list"),
+  listLibraryItems: (scope) => ipcRenderer.invoke("library:list", scope),
   saveLibraryItem: (input) => ipcRenderer.invoke("library:save", input),
   deleteLibraryItem: (id) => ipcRenderer.invoke("library:delete", id),
-  searchLibraryItems: (query) => ipcRenderer.invoke("library:search", query),
+  searchLibraryItems: (query, scope) => ipcRenderer.invoke("library:search", query, scope),
 
   // Conversation History
-  listConversations: () => ipcRenderer.invoke("history:list"),
+  listConversations: (scope) => ipcRenderer.invoke("history:list", scope),
+  searchConversations: (query, scope) => ipcRenderer.invoke("history:search", query, scope),
+  getConversation: (id) => ipcRenderer.invoke("history:get", id),
+  moveConversationsToOrg: (ids) => ipcRenderer.invoke("history:move-to-org", ids),
+  deleteConversations: (ids) => ipcRenderer.invoke("history:delete-many", ids),
   createConversation: (firstMessage) =>
     ipcRenderer.invoke("history:create", firstMessage),
   deleteConversation: (id) => ipcRenderer.invoke("history:delete", id),

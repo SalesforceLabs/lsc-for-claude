@@ -1,27 +1,55 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Ellipsis, LayoutGrid, Library, PanelLeft, Pencil, Pin, PinOff, SquarePen, Terminal, Trash2, X } from "lucide-react";
+import {
+  Building2,
+  ChevronRight,
+  Ellipsis,
+  LayoutGrid,
+  Library,
+  PanelLeft,
+  Pencil,
+  Pin,
+  PinOff,
+  Search,
+  SearchX,
+  SquarePen,
+  Terminal,
+  Trash2,
+  X,
+} from "lucide-react";
 import { rozTileSrc, useAppIcon } from "../app-icon";
+import OrgSwitcher from "./OrgSwitcher";
+import Segmented from "./ui/Segmented";
+import Spinner from "./ui/Spinner";
+import StateView from "./ui/StateView";
+import { useOrgs } from "../hooks/useOrgs";
+import { orgLabel, sameUsername } from "../orgs";
+import type { Conversation, OrgScope } from "../types";
 
-interface Conversation {
-  id: string;
-  title: string;
-  pinned: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+/** Remembers whether "Not linked to an org" is expanded; it starts collapsed. */
+const UNLINKED_OPEN_KEY = "roz.sidebar.unlinkedOpen";
+/** The row-menu id for the "Not linked to an org" section's own menu. */
+const UNLINKED_MENU = "section:unlinked";
 
 interface SidebarProps {
   commands: Array<{ name: string; description: string }>;
   providerType: string;
   activeConversationId: string | null;
   streamingConvIds: Set<string>;
+  /** The selected org's username ("" for none); undefined until it's known. */
+  orgId: string | undefined;
+  /** The selected org's name, for the empty state. */
+  orgName?: string;
+  /** Usernames (lowercased) of orgs with a session running, for the org menu. */
+  runningOrgs: Set<string>;
   libraryCount: number;
   collapsed: boolean;
   onToggleCollapse: () => void;
   onCommandClick: (name: string) => void;
   onNewChat: () => void;
   onLoadConversation: (id: string) => void;
-  onDeleteConversation: (id: string) => void;
+  onDeleteConversations: (ids: string[]) => Promise<void>;
+  /** Unlinked sessions were moved into the selected org. */
+  onSessionsMoved: () => void;
   onRenameConversation: (id: string, title: string) => void;
   onTogglePin: (id: string) => void;
   onOpenLibrary: () => void;
@@ -35,13 +63,17 @@ export default function Sidebar({
   providerType,
   activeConversationId,
   streamingConvIds,
+  orgId,
+  orgName,
+  runningOrgs,
   libraryCount,
   onCommandClick,
   onNewChat,
   onLoadConversation,
   collapsed,
   onToggleCollapse,
-  onDeleteConversation,
+  onDeleteConversations,
+  onSessionsMoved,
   onRenameConversation,
   onTogglePin,
   onOpenLibrary,
@@ -57,16 +89,71 @@ export default function Sidebar({
   const [renameValue, setRenameValue] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const { orgs } = useOrgs();
+  const [unlinkedOpen, setUnlinkedOpen] = useState(() => localStorage.getItem(UNLINKED_OPEN_KEY) === "1");
 
+  // Search finds a session in this org or any other; opening one from another org switches to it.
+  const [query, setQuery] = useState("");
+  const [searchScope, setSearchScope] = useState<OrgScope>("org");
+  const [results, setResults] = useState<Conversation[] | null>(null);
+  const [searchError, setSearchError] = useState("");
+  const [searchRun, setSearchRun] = useState(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searching = query.trim().length > 0;
+
+  // The selected org's sessions, plus those from before sessions were tied to an org.
   const refreshHistory = useCallback(async () => {
-    if (!window.lscApi) return;
-    const list = await window.lscApi.listConversations();
+    if (!window.lscApi || orgId === undefined) return;
+    const list = await window.lscApi.listConversations("org");
     setConversations(list);
-  }, []);
+  }, [orgId]);
 
   useEffect(() => {
     refreshHistory();
-  }, [refreshHistory, activeConversationId]);
+  }, [refreshHistory, activeConversationId, streamingConvIds]);
+
+  // A new org starts its search in that org, as the Library does.
+  useEffect(() => setSearchScope("org"), [orgId]);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (!q || !window.lscApi || orgId === undefined) {
+      setResults(null);
+      return;
+    }
+    // The last results stay up while the next search runs, so typing doesn't flash a spinner.
+    let stale = false;
+    const timer = setTimeout(() => {
+      window.lscApi
+        .searchConversations(q, searchScope)
+        .then((found) => {
+          if (stale) return;
+          setResults(found);
+          setSearchError("");
+        })
+        .catch((e) => {
+          if (stale) return;
+          setResults([]);
+          setSearchError(e instanceof Error ? e.message : String(e));
+        });
+    }, 150);
+    return () => {
+      stale = true;
+      clearTimeout(timer);
+    };
+  }, [query, searchScope, orgId, searchRun]);
+
+  const clearSearch = () => {
+    setQuery("");
+    setSearchError("");
+  };
+
+  const toggleUnlinked = () => {
+    setUnlinkedOpen((open) => {
+      localStorage.setItem(UNLINKED_OPEN_KEY, open ? "0" : "1");
+      return !open;
+    });
+  };
 
   // Close menu on outside click
   useEffect(() => {
@@ -99,8 +186,27 @@ export default function Sidebar({
 
   const handleDelete = (id: string) => {
     setMenuOpenId(null);
-    onDeleteConversation(id);
+    onDeleteConversations([id]);
     setConversations((prev) => prev.filter((c) => c.id !== id));
+    setResults((prev) => prev && prev.filter((c) => c.id !== id));
+  };
+
+  const deleteAll = async (ids: string[]) => {
+    setMenuOpenId(null);
+    const n = ids.length;
+    const what = n === 1 ? "1 session" : `${n} sessions`;
+    if (!window.confirm(`Delete ${what} not linked to an org? This can't be undone.`)) return;
+    await onDeleteConversations(ids);
+    await refreshHistory();
+  };
+
+  // Only sessions with no org move; the main process leaves any already in an org alone.
+  const moveToOrg = async (ids: string[]) => {
+    setMenuOpenId(null);
+    const res = await window.lscApi.moveConversationsToOrg(ids);
+    if (res.moved) onSessionsMoved();
+    await refreshHistory();
+    if (searching) setSearchRun((n) => n + 1);
   };
 
   const handlePin = async (id: string) => {
@@ -173,6 +279,7 @@ export default function Sidebar({
           <PanelLeft size={17} strokeWidth={1.75} />
         </button>
         <div className="sidebar-collapsed-sep" />
+        <OrgSwitcher runningOrgs={runningOrgs} compact />
         <button className="sidebar-collapsed-btn" onClick={onNewChat} title="New session" aria-label="New session">
           <SquarePen size={17} strokeWidth={1.75} />
         </button>
@@ -191,7 +298,16 @@ export default function Sidebar({
   }
 
   const pinned = conversations.filter((c) => c.pinned);
-  const unpinned = conversations.filter((c) => !c.pinned);
+  const recent = conversations.filter((c) => !c.pinned && c.org);
+  const unlinked = conversations.filter((c) => !c.pinned && !c.org);
+  // The session on screen stays visible even while its section is collapsed.
+  const showUnlinked = unlinkedOpen || unlinked.some((c) => c.id === activeConversationId);
+
+  const canMove = !!orgId && !!orgName;
+
+  /** In search across orgs, sessions from another org say which one (opening them switches to it). */
+  const elsewhere = (conv: Conversation): conv is Conversation & { org: NonNullable<Conversation["org"]> } =>
+    searching && searchScope === "all" && !!conv.org && !(orgId && sameUsername(conv.org.username, orgId));
 
   const renderItem = (conv: Conversation) => (
     <div
@@ -217,6 +333,11 @@ export default function Sidebar({
           <div className="history-item-title" title={conv.title}>
             {streamingConvIds.has(conv.id) && <span className="session-active-dot" />}
             <span className="history-item-text">{conv.title}</span>
+            {elsewhere(conv) && (
+              <span className="history-item-org" title={`In ${orgLabel(conv.org, orgs)}`}>
+                {orgLabel(conv.org, orgs)}
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -240,6 +361,12 @@ export default function Sidebar({
               {conv.pinned ? <PinOff size={14} /> : <Pin size={14} />}
               {conv.pinned ? "Unpin" : "Pin to top"}
             </button>
+            {!conv.org && canMove && (
+              <button role="menuitem" onClick={(e) => { e.stopPropagation(); moveToOrg([conv.id]); }}>
+                <Building2 size={14} />
+                <span className="history-overflow-label">Move to {orgName}</span>
+              </button>
+            )}
             <button role="menuitem" onClick={(e) => { e.stopPropagation(); startRename(conv); }}>
               <Pencil size={14} />
               Rename
@@ -267,6 +394,8 @@ export default function Sidebar({
         </button>
       </div>
 
+      <OrgSwitcher runningOrgs={runningOrgs} />
+
       <nav className="sidebar-nav">
         <button className="sidebar-nav-item" onClick={onNewChat}>
           <SquarePen size={16} strokeWidth={1.75} />
@@ -287,22 +416,143 @@ export default function Sidebar({
         </button>
       </nav>
 
+      <div className="sidebar-search">
+        <Search size={14} aria-hidden="true" />
+        <input
+          ref={searchInputRef}
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") clearSearch();
+          }}
+          placeholder="Search sessions"
+          aria-label="Search sessions"
+          spellCheck={false}
+        />
+        {searching && (
+          <button className="ui-icon-btn sm" onClick={() => { clearSearch(); searchInputRef.current?.focus(); }} aria-label="Clear search">
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
       <div className="sidebar-sessions">
-        {pinned.length > 0 && (
+        {searching ? (
           <>
-            <div className="sidebar-section-title">Pinned</div>
-            {pinned.map(renderItem)}
+            <Segmented
+              className="sidebar-search-scope"
+              size="sm"
+              aria-label="Search in"
+              value={searchScope}
+              onChange={setSearchScope}
+              options={[
+                { value: "org", label: "This org", title: orgName ? `Sessions in ${orgName}` : undefined },
+                { value: "all", label: "All orgs" },
+              ]}
+            />
+            {results === null ? (
+              <div className="sidebar-search-status">
+                <Spinner size={14} />
+              </div>
+            ) : searchError ? (
+              <StateView
+                kind="error"
+                layout="inline"
+                title="Couldn't search sessions"
+                detail={searchError}
+                actions={<button className="studio-btn sm" onClick={() => setSearchRun((n) => n + 1)}>Retry</button>}
+              />
+            ) : results.length === 0 ? (
+              <StateView
+                kind="empty"
+                layout="inline"
+                icon={SearchX}
+                title="No sessions match"
+                detail={searchScope === "org" && orgName ? `Nothing in ${orgName} mentions “${query.trim()}”.` : `No session mentions “${query.trim()}”.`}
+                actions={
+                  searchScope === "org" ? (
+                    <button className="studio-btn sm" onClick={() => setSearchScope("all")}>Search all orgs</button>
+                  ) : undefined
+                }
+              />
+            ) : (
+              <>
+                <div className="sidebar-section-title">
+                  {results.length === 1 ? "1 session" : `${results.length} sessions`}
+                </div>
+                {results.map(renderItem)}
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            {pinned.length > 0 && (
+              <>
+                <div className="sidebar-section-title">Pinned</div>
+                {pinned.map(renderItem)}
+              </>
+            )}
+            {recent.length > 0 && (
+              <>
+                <div className="sidebar-section-title">
+                  {pinned.length > 0 ? "Recent" : "Sessions"}
+                </div>
+                {recent.map(renderItem)}
+              </>
+            )}
+            {recent.length === 0 && pinned.length === 0 && (
+              <div className="sidebar-sessions-empty">
+                {orgName ? `Sessions in ${orgName} will appear here.` : "Your sessions will appear here."}
+              </div>
+            )}
+            {unlinked.length > 0 && (
+              <>
+                <div className="sidebar-section-head">
+                  <button
+                    className="sidebar-section-toggle"
+                    onClick={toggleUnlinked}
+                    aria-expanded={showUnlinked}
+                    title="Sessions from before Roz tied each session to an org. One joins the org you're in when you send it a message, or move them here."
+                  >
+                    <ChevronRight size={12} className="sidebar-section-chevron" aria-hidden="true" />
+                    <span className="sidebar-section-label">Not linked to an org</span>
+                    <span className="count">{unlinked.length}</span>
+                  </button>
+                  <div className="history-item-actions" ref={menuOpenId === UNLINKED_MENU ? menuRef : undefined}>
+                    <button
+                      className="history-overflow-btn"
+                      onClick={() => setMenuOpenId(menuOpenId === UNLINKED_MENU ? null : UNLINKED_MENU)}
+                      aria-label="Sessions not linked to an org: more options"
+                      aria-haspopup="menu"
+                      aria-expanded={menuOpenId === UNLINKED_MENU}
+                    >
+                      <Ellipsis size={15} strokeWidth={2} />
+                    </button>
+                    {menuOpenId === UNLINKED_MENU && (
+                      <div className="history-overflow-menu wide" role="menu">
+                        {canMove && (
+                          <>
+                            <button role="menuitem" onClick={() => moveToOrg(unlinked.map((c) => c.id))}>
+                              <Building2 size={14} />
+                              <span className="history-overflow-label">Move all to {orgName}</span>
+                            </button>
+                            <div className="history-overflow-sep" />
+                          </>
+                        )}
+                        <button role="menuitem" className="danger" onClick={() => deleteAll(unlinked.map((c) => c.id))}>
+                          <Trash2 size={14} />
+                          {unlinked.length === 1 ? "Delete 1 session…" : `Delete ${unlinked.length} sessions…`}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {showUnlinked && unlinked.map(renderItem)}
+              </>
+            )}
           </>
         )}
-        {unpinned.length > 0 && (
-          <>
-            <div className="sidebar-section-title">
-              {pinned.length > 0 ? "Recent" : "Sessions"}
-            </div>
-            {unpinned.map(renderItem)}
-          </>
-        )}
-        {conversations.length === 0 && <div className="sidebar-sessions-empty">Your sessions will appear here.</div>}
       </div>
 
       {showCommands && renderCommands()}

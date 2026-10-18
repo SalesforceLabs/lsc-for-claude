@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, dialog, shell, net } from "electron";
+import { app, ipcMain, BrowserWindow, dialog, shell, net } from "electron";
 import { execFile, spawn } from "child_process";
 import { watch } from "fs";
 import { readFile, writeFile } from "fs/promises";
@@ -9,6 +9,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { ConversationEngine } from "../engine/conversation.js";
 import { McpClient, STUDIO_TOOL_PREFIX } from "../mcp/client.js";
+import { McpPool, type PoolOrg } from "../mcp/pool.js";
+import { listSfOrgs, orgKey, pickOrg, resolveOrg, toOrgRef, type OrgKind, type OrgRef } from "../orgs.js";
+import { OrgRoles } from "../org-roles.js";
+import type { SessionOrg } from "../engine/session-org.js";
 import { listMobileLogins, mobileLoginCredentials, removeMobileLogin, startMobileLogin } from "../mobile-login.js";
 import { PromptBuilder } from "../engine/prompt-builder.js";
 import { LLMProvider } from "../llm/provider.js";
@@ -23,6 +27,11 @@ import {
   listConversations,
   createConversation,
   deleteConversation,
+  getConversation,
+  bindConversationOrg,
+  bindConversationsOrg,
+  searchConversations,
+  orgUsernameForLabel,
   getMessages,
   addMessage,
   updateConversationTitle,
@@ -68,7 +77,9 @@ let llm: LLMProvider | null = null;
 // The running connection and the models it lists, so the picker only offers ones it serves
 let llmConnection: Connection | null = null;
 let llmModels: string[] | null = null;
-let mcpClient: McpClient | null = null;
+// One MCP server per Salesforce connection (see pool.ts); Studio uses the selected org's.
+let mcpPool: McpPool | null = null;
+let poolSweep: NodeJS.Timeout | null = null;
 let promptBuilder: PromptBuilder | null = null;
 let engineStarting: Promise<unknown> | null = null;
 
@@ -77,32 +88,67 @@ let mcpStarted = false;
 let resolveMcpReady: () => void = () => {};
 let mcpReady = new Promise<void>((resolve) => (resolveMcpReady = resolve));
 
-/** Point the MCP server at the org chosen in Settings, so tools and per-org stores agree. */
-async function applyTargetOrg(client: McpClient): Promise<void> {
-  const org = loadSettings().sfTargetOrg;
-  if (!org) return;
-  try {
-    await client.callTool("set_target_org", { org });
-  } catch {
-    // The org may have been logged out; tools report the connection problem themselves.
-  }
+/** A server for `org`, pointed at it every time it (re)starts — the target lives in the server's memory. */
+function createOrgClient(org: PoolOrg): McpClient {
+  return new McpClient(undefined, async (client) => {
+    if (!org.target) return;
+    try {
+      await client.callTool("set_target_org", { org: org.target });
+    } catch {
+      // The org may have been logged out; tools report the connection problem themselves.
+    }
+  });
 }
 
-/** The started MCP client, waiting briefly if the engine hasn't started yet. */
+interface SelectedOrg {
+  /** Null only when there's no org to work in at all. */
+  ref: OrgRef | null;
+  kind?: OrgKind;
+  pool: PoolOrg;
+}
+
+/** The org selected in the app: the one in Settings, else the sf CLI default (or the only connection). */
+async function selectedOrg(): Promise<SelectedOrg> {
+  const key = loadSettings().sfTargetOrg;
+  const org = await resolveOrg(key);
+  if (org) return { ref: toOrgRef(org), kind: org.kind, pool: { username: org.username, target: orgKey(org) } };
+  if (key) {
+    // Logged out or renamed: keep it by name, so nothing quietly runs in another org.
+    const username = orgUsernameForLabel(key) ?? key;
+    return { ref: { username, label: key }, pool: { username, target: key } };
+  }
+  return { ref: null, pool: { username: "", target: "" } };
+}
+
+/** The server for a session's org; by its username, so a renamed alias still finds it. */
+async function sessionOrg(ref: OrgRef | null): Promise<{ org: SessionOrg | null; pool: PoolOrg }> {
+  if (!ref) return { org: null, pool: { username: "", target: "" } };
+  const live = pickOrg((await listSfOrgs()).orgs, ref.username);
+  return {
+    org: { ref: live ? toOrgRef(live) : ref, kind: live?.kind },
+    pool: { username: ref.username, target: live ? orgKey(live) : ref.username },
+  };
+}
+
+/** The selected org's server, waiting briefly if the engine hasn't started yet. */
 async function readyMcpClient(timeoutMs = 60_000): Promise<McpClient | null> {
   if (!mcpStarted) {
     let timer: NodeJS.Timeout | undefined;
     await Promise.race([mcpReady, new Promise((resolve) => (timer = setTimeout(resolve, timeoutMs)))]);
     clearTimeout(timer);
   }
-  return mcpStarted ? mcpClient : null;
+  if (!mcpStarted || !mcpPool) return null;
+  return mcpPool.get((await selectedOrg()).pool);
 }
+
+/** How long a server for an org nobody's looking at stays up after its last call. */
+const POOL_IDLE_MS = 10 * 60_000;
 
 // Per-session engines
 const engines = new Map<string, ConversationEngine>();
 
-// Track which session is actively streaming (for abort)
-let activeConvId: string | null = null;
+// Sessions with a run in flight, and the connection each runs as — their servers stay up.
+const runningConvs = new Map<string, string>();
 
 const secretName = (connection: Connection) => `llm:${connection.kind}`;
 
@@ -114,7 +160,7 @@ function providerFor(connection: Connection, secret?: string): LLMProvider {
 
 /** What the renderer needs about the running connection. */
 function engineState() {
-  const tools = mcpClient!.getTools();
+  const tools = mcpPool!.getTools();
   return {
     ok: true,
     providerType: llmConnection!.kind,
@@ -127,16 +173,20 @@ function engineState() {
   };
 }
 
-/** Get or create an engine for a conversation. Restores messages from DB on first access. */
-function getOrCreateEngine(convId: string): ConversationEngine {
+/**
+ * Get or create an engine for a conversation, working in the conversation's org.
+ * Restores messages from DB on first access.
+ */
+async function getOrCreateEngine(convId: string, ref: OrgRef | null): Promise<ConversationEngine> {
   const existing = engines.get(convId);
   if (existing) return existing;
 
-  if (!llm || !mcpClient || !promptBuilder) {
+  if (!llm || !mcpPool || !promptBuilder) {
     throw new Error("Engine not started");
   }
 
-  const engine = new ConversationEngine(llm, mcpClient, promptBuilder);
+  const { org, pool } = await sessionOrg(ref);
+  const engine = new ConversationEngine(llm, mcpPool.host(pool), promptBuilder, org);
   engine.initialize();
 
   // Restore message history from DB so the LLM has full conversation context
@@ -182,8 +232,10 @@ function watchMcpServer(): void {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       reloading = reloading.then(async () => {
-        if (!mcpClient) return;
-        if (await longJobRunning(mcpClient)) {
+        const clients = mcpPool?.running() ?? [];
+        if (clients.length === 0) return;
+        for (const client of clients) {
+          if (!(await longJobRunning(client))) continue;
           if (!deferred) console.log("[dev] MCP server reload deferred until the running Studio job finishes");
           deferred = true;
           schedule(RELOAD_RETRY_MS);
@@ -191,8 +243,8 @@ function watchMcpServer(): void {
         }
         deferred = false;
         try {
-          await mcpClient.restart();
-          console.log("[dev] MCP server reloaded");
+          await Promise.all(clients.map((client) => client.restart()));
+          console.log(`[dev] MCP server reloaded (${clients.length})`);
         } catch (error) {
           console.error("[dev] MCP server reload failed:", error);
         }
@@ -280,15 +332,19 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       const provider = providerFor(clean, secret);
       const models = chatModels(apiStyle(clean.kind), (await provider.listModels?.()) ?? null);
 
-      if (!mcpClient || !promptBuilder) {
+      if (!mcpPool || !promptBuilder) {
         const doStart = async () => {
-          // The target org lives in the server's memory, so every (re)spawn re-applies it.
-          const client = new McpClient(undefined, applyTargetOrg);
-          await client.start();
-          mcpClient = client;
+          const pool = new McpPool(createOrgClient);
+          await pool.get((await selectedOrg()).pool);
+          mcpPool = pool;
           promptBuilder = new PromptBuilder();
           mcpStarted = true;
           resolveMcpReady();
+          // Servers for orgs nobody is looking at are stopped once idle; a Studio job or a run keeps one up.
+          poolSweep = setInterval(async () => {
+            const keep = [(await selectedOrg()).pool.username, ...runningConvs.values()];
+            await pool.sweep(keep, POOL_IDLE_MS, longJobRunning).catch(() => {});
+          }, 60_000);
         };
         engineStarting = doStart();
         try {
@@ -322,13 +378,15 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       engine.abort();
     }
     engines.clear();
-    activeConvId = null;
+    runningConvs.clear();
 
-    await mcpClient?.stop();
+    if (poolSweep) clearInterval(poolSweep);
+    poolSweep = null;
+    await mcpPool?.stopAll();
     llm = null;
     llmConnection = null;
     llmModels = null;
-    mcpClient = null;
+    mcpPool = null;
     promptBuilder = null;
     mcpStarted = false;
     mcpReady = new Promise<void>((resolve) => (resolveMcpReady = resolve));
@@ -338,18 +396,26 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   // --- Chat ---
 
   ipcMain.handle("chat:send", async (_event, message: string | unknown[], nonce: number, convId: string, model?: string) => {
-    if (!llm || !mcpClient || !promptBuilder) {
+    if (!llm || !mcpPool || !promptBuilder) {
       return { ok: false, error: "Engine not started" };
     }
 
     let engine: ConversationEngine;
+    let username: string;
     try {
-      engine = getOrCreateEngine(convId);
+      // A session from before orgs were recorded joins the selected org with its next message.
+      let org = getConversation(convId)?.org ?? null;
+      if (!org) {
+        org = (await selectedOrg()).ref;
+        if (org) bindConversationOrg(convId, org);
+      }
+      username = org?.username ?? "";
+      engine = await getOrCreateEngine(convId, org);
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
 
-    activeConvId = convId;
+    runningConvs.set(convId, username);
 
     // Extract text for history persistence (images are not stored in history DB)
     let textForHistory: string;
@@ -407,9 +473,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
     // Persist when the run finishes — whether it completed, errored, or was aborted.
     runPromise.finally(() => {
-      if (activeConvId === convId) {
-        activeConvId = null;
-      }
+      runningConvs.delete(convId);
       if (convId && (accumulatedText || accumulatedTools.length > 0)) {
         addMessage(
           convId,
@@ -425,10 +489,9 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     return { ok: true };
   });
 
-  ipcMain.handle("chat:abort", async () => {
-    if (activeConvId) {
-      engines.get(activeConvId)?.abort();
-    }
+  // Stops the given session's run — another session (perhaps in another org) may be running too.
+  ipcMain.handle("chat:abort", async (_event, convId: string) => {
+    engines.get(convId)?.abort();
     return { ok: true };
   });
 
@@ -452,15 +515,32 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   // --- Conversation History ---
 
-  ipcMain.handle("history:list", async () => {
-    return listConversations();
+  /** The selected org's sessions (and any not tied to an org); `all` for every org's. */
+  ipcMain.handle("history:list", async (_event, scope: "org" | "all" = "org") => {
+    const { ref } = await selectedOrg();
+    return listConversations({ orgUsername: scope === "all" || !ref ? undefined : ref.username });
   });
 
+  ipcMain.handle("history:search", async (_event, query: string, scope: "org" | "all" = "org") => {
+    const { ref } = await selectedOrg();
+    return searchConversations(query, { orgUsername: scope === "all" || !ref ? undefined : ref.username });
+  });
+
+  ipcMain.handle("history:get", async (_event, id: string) => getConversation(id) ?? null);
+
+  // Sessions with no org join the selected one; sessions already in an org never move.
+  ipcMain.handle("history:move-to-org", async (_event, ids: string[]) => {
+    const { ref } = await selectedOrg();
+    if (!ref) return { ok: false, moved: 0, error: "No org is selected" };
+    return { ok: true, moved: bindConversationsOrg(ids, ref) };
+  });
+
+  // A new session works in the org selected now, for good.
   ipcMain.handle("history:create", async (_event, firstMessage: string) => {
-    return createConversation(firstMessage);
+    return createConversation(firstMessage, (await selectedOrg()).ref);
   });
 
-  ipcMain.handle("history:delete", async (_event, id: string) => {
+  const removeConversation = (id: string) => {
     // Also remove the per-session engine
     const engine = engines.get(id);
     if (engine) {
@@ -468,6 +548,15 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       engines.delete(id);
     }
     deleteConversation(id);
+  };
+
+  ipcMain.handle("history:delete", async (_event, id: string) => {
+    removeConversation(id);
+    return { ok: true };
+  });
+
+  ipcMain.handle("history:delete-many", async (_event, ids: string[]) => {
+    for (const id of ids) removeConversation(id);
     return { ok: true };
   });
 
@@ -500,12 +589,20 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   // --- Library ---
 
-  ipcMain.handle("library:list", async () => {
-    return listLibraryItems();
+  /** Library scope: the selected org's items (and those from no known org), or every org's. */
+  const libraryOrg = async (scope: "org" | "all") => {
+    if (scope === "all") return undefined;
+    return (await selectedOrg()).ref?.username;
+  };
+
+  ipcMain.handle("library:list", async (_event, scope: "org" | "all" = "org") => {
+    return listLibraryItems({ orgUsername: await libraryOrg(scope) });
   });
 
+  // Saved under its session's org; from no session (or one not tied yet), the selected org.
   ipcMain.handle("library:save", async (_event, input) => {
-    return createLibraryItem(input);
+    const fromSession = input.sourceConversationId ? getConversation(input.sourceConversationId)?.org : null;
+    return createLibraryItem({ ...input, org: fromSession ?? (await selectedOrg()).ref });
   });
 
   ipcMain.handle("library:delete", async (_event, id: string) => {
@@ -513,8 +610,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     return { ok: true };
   });
 
-  ipcMain.handle("library:search", async (_event, query: string) => {
-    return searchLibraryItems(query);
+  ipcMain.handle("library:search", async (_event, query: string, scope: "org" | "all" = "org") => {
+    return searchLibraryItems(query, { orgUsername: await libraryOrg(scope) });
   });
 
   // --- Studio (direct MCP calls, no LLM) ---
@@ -661,47 +758,27 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   // --- Salesforce Org Management ---
 
-  ipcMain.handle("sfOrg:list", async () => {
-    return new Promise((resolve) => {
-      execFile("sf", ["org", "list", "--json"], { timeout: 15000 }, (error, stdout) => {
-        if (error) {
-          resolve({ orgs: [], error: error.message });
-          return;
-        }
-        try {
-          const data = JSON.parse(stdout);
-          const orgs: Array<{ alias?: string; username: string; orgId: string; instanceUrl: string; isDefault?: boolean }> = [];
-          const seen = new Set<string>();
-          for (const category of ["nonScratchOrgs", "scratchOrgs", "sandboxes", "devHubs", "other"]) {
-            const list = data?.result?.[category];
-            if (!Array.isArray(list)) continue;
-            for (const o of list) {
-              const username = o.username || o.userName;
-              if (!username || seen.has(username)) continue;
-              seen.add(username);
-              orgs.push({
-                alias: o.alias || undefined,
-                username,
-                orgId: o.orgId || "",
-                instanceUrl: o.instanceUrl || "",
-                isDefault: o.isDefaultUsername || o.isDefaultDevHub || false,
-              });
-            }
-          }
-          resolve({ orgs });
-        } catch {
-          resolve({ orgs: [], error: "Failed to parse sf org list output" });
-        }
-      });
-    });
+  // Which connections are LSC admins, checked in the background; the renderer hears as roles arrive.
+  const orgRoles = new OrgRoles(path.join(app.getPath("userData"), "org-roles.json"), (roles) => {
+    if (!mainWindow.isDestroyed()) mainWindow.webContents.send("sfOrg:roles", roles);
   });
 
+  ipcMain.handle("sfOrg:list", async (_event, options?: { recheckRoles?: boolean }) => {
+    const list = await listSfOrgs({ fresh: true });
+    orgRoles.check(list.orgs, { force: options?.recheckRoles });
+    return { ...list, orgs: list.orgs.map((o) => ({ ...o, role: orgRoles.get(o.username) })) };
+  });
+
+  // Studio and new sessions follow the selected org; sessions already running stay in theirs.
   ipcMain.handle("sfOrg:set", async (_event, org: string) => {
-    const settings = loadSettings();
-    saveSettings({ ...settings, sfTargetOrg: org });
-    if (mcpStarted && mcpClient) await applyTargetOrg(mcpClient);
-    mainWindow.webContents.send("sfOrg:changed", { org });
-    return { ok: true };
+    // Store the alias when there is one, so per-org stores (Studio cache, test plans) keep one key.
+    const match = pickOrg((await listSfOrgs()).orgs, org);
+    const key = match ? orgKey(match) : org;
+    saveSettings({ ...loadSettings(), sfTargetOrg: key });
+    mainWindow.webContents.send("sfOrg:changed", { org: key });
+    // Start its server now, so Studio's first call doesn't wait on a spawn.
+    if (mcpStarted && mcpPool) mcpPool.get((await selectedOrg()).pool).catch(() => {});
+    return { ok: true, org: key };
   });
 
   ipcMain.handle("sfOrg:login", async (_event, alias?: string, instanceUrl?: string) => {

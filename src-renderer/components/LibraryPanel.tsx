@@ -9,21 +9,20 @@ import { useDiagramControls, DiagramZoomToolbar, DiagramViewport } from "./ChatV
 import StateView from "./ui/StateView";
 import Segmented from "./ui/Segmented";
 import { useMermaidSvg } from "../mermaid";
-
-interface LibraryItem {
-  id: string;
-  title: string;
-  content: string;
-  contentType: "response" | "code" | "diagram" | "table";
-  svg?: string;
-  sourceConversationId?: string;
-  sourceConversationTitle?: string;
-  tags: string[];
-  createdAt: string;
-}
+import type { LibraryItem, OrgScope } from "../types";
 
 interface LibraryPanelProps {
   items: LibraryItem[];
+  loading: boolean;
+  error: string;
+  onRetry: () => void;
+  /** This org's items (plus those tied to none), or every org's. */
+  scope: OrgScope;
+  onScopeChange: (scope: OrgScope) => void;
+  /** The selected org's name, for the empty state. */
+  orgName?: string;
+  /** How to name an item's org: its connection's current alias if it's still there. */
+  labelOrg: (item: LibraryItem) => string;
   onClose: () => void;
   onDelete: (id: string) => void;
   onSearch: (query: string) => void;
@@ -122,7 +121,21 @@ function LibraryDiagramDetail({ item }: { item: LibraryItem }) {
   );
 }
 
-export default function LibraryPanel({ items, onClose, onDelete, onSearch, onGoToSession, focusItemId }: LibraryPanelProps) {
+export default function LibraryPanel({
+  items,
+  loading,
+  error,
+  onRetry,
+  scope,
+  onScopeChange,
+  orgName,
+  labelOrg,
+  onClose,
+  onDelete,
+  onSearch,
+  onGoToSession,
+  focusItemId,
+}: LibraryPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(focusItemId ?? null);
   const [viewMode, setViewMode] = useState<"list" | "cards">("cards");
   const [searchQuery, setSearchQuery] = useState("");
@@ -186,6 +199,16 @@ export default function LibraryPanel({ items, onClose, onDelete, onSearch, onGoT
       <div className="library-main">
         <div className="library-panel-header drag-region">
           <span className="library-panel-title">Library</span>
+          <Segmented
+            size="sm"
+            aria-label="Show items from"
+            value={scope}
+            onChange={onScopeChange}
+            options={[
+              { value: "org", label: "This org", title: orgName ? `Items from ${orgName}` : undefined },
+              { value: "all", label: "All orgs" },
+            ]}
+          />
           <label className="library-search">
             <Search size={14} strokeWidth={1.9} aria-hidden="true" />
             <input
@@ -213,15 +236,33 @@ export default function LibraryPanel({ items, onClose, onDelete, onSearch, onGoT
         </div>
 
         <div className="library-panel-body">
-          {items.length === 0 ? (
+          {error && items.length === 0 ? (
+            <StateView
+              kind="error"
+              title="Couldn't load the Library"
+              detail={error}
+              actions={<button className="studio-btn" onClick={onRetry}>Retry</button>}
+            />
+          ) : loading && items.length === 0 ? (
+            <StateView kind="loading" title="Loading saved items…" />
+          ) : items.length === 0 ? (
             <StateView
               kind="empty"
               icon={searchQuery ? Search : BookOpen}
-              title={searchQuery ? "No results" : "Nothing saved yet"}
+              title={searchQuery ? "No results" : scope === "org" && orgName ? `Nothing saved in ${orgName} yet` : "Nothing saved yet"}
               detail={
                 searchQuery
-                  ? `No saved items match “${searchQuery}”.`
-                  : "Save diagrams from your conversations with the bookmark on a diagram card."
+                  ? `No saved items ${scope === "org" ? "in this org " : ""}match “${searchQuery}”.`
+                  : scope === "org"
+                  ? "Save diagrams from this org's sessions with the bookmark on a diagram card. Items from other orgs are under All orgs."
+                  : "Save diagrams from your sessions with the bookmark on a diagram card."
+              }
+              actions={
+                scope === "org" ? (
+                  <button className="studio-btn" onClick={() => onScopeChange("all")}>
+                    Show all orgs
+                  </button>
+                ) : undefined
               }
             />
           ) : viewMode === "list" ? (
@@ -236,6 +277,7 @@ export default function LibraryPanel({ items, onClose, onDelete, onSearch, onGoT
                   <div className="library-list-info">
                     <span className="library-list-title">{item.title}</span>
                     <span className="library-list-meta">
+                      {scope === "all" && <>{labelOrg(item)} &middot; </>}
                       {TYPE_LABELS[item.contentType] || item.contentType}
                       {item.sourceConversationTitle && <> &middot; {item.sourceConversationTitle}</>}
                       {" "}&middot; {formatDate(item.createdAt)}
@@ -272,6 +314,11 @@ export default function LibraryPanel({ items, onClose, onDelete, onSearch, onGoT
                   <div className="library-card-footer">
                     <span className="library-card-icon"><TypeIcon type={item.contentType} /></span>
                     <span className="library-card-title">{item.title}</span>
+                    {scope === "all" && (
+                      <span className="ui-pill library-card-org" title={item.org?.username}>
+                        {labelOrg(item)}
+                      </span>
+                    )}
                     <button
                       className="ui-icon-btn sm library-row-delete"
                       onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
@@ -334,7 +381,7 @@ export default function LibraryPanel({ items, onClose, onDelete, onSearch, onGoT
                 onClick={(e) => { e.preventDefault(); onGoToSession(selectedItem.sourceConversationId!); }}
               >{selectedItem.sourceConversationTitle}</a></>
             )}
-            {" "}&middot; {formatDate(selectedItem.createdAt)}
+            {" "}&middot; {labelOrg(selectedItem)} &middot; {formatDate(selectedItem.createdAt)}
           </div>
           {selectedItem.contentType === "diagram" && selectedItem.svg ? (
             <LibraryDiagramDetail item={selectedItem} />
