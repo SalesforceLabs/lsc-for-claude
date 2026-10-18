@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -948,9 +948,6 @@ export default function ChatView({
       setInput("");
       setImages([]);
       historyIdx.current = -1;
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "44px";
-      }
     }
   }, [input, isStreaming, onSend, model, images]);
 
@@ -1010,10 +1007,15 @@ export default function ChatView({
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     historyIdx.current = -1;
     setInput(e.target.value);
-    const el = e.target;
+  };
+
+  // Fit the textarea to its text, including text set from code (prefill, history, submit)
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
     el.style.height = "44px";
     el.style.height = Math.min(el.scrollHeight, 200) + "px";
-  };
+  }, [input]);
 
   const inputArea = (
     <div className="input-area">
