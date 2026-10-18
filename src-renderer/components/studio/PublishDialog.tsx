@@ -8,6 +8,8 @@ interface PublishDialogProps {
   /** Profiles to preselect (the ones recent changes affect); null = let the admin choose. */
   preselected: string[] | null;
   onClose: () => void;
+  /** The metadata cache finished regenerating, so what Studio shows of the published iPad is out of date. */
+  onPublished?: () => void;
 }
 
 const POLL_MS = 5000;
@@ -20,7 +22,7 @@ function responseError(res: { data?: unknown; error?: string }): string | undefi
  * "Publish to iPad" — regenerate the mobile metadata cache for chosen profiles
  * so reps' devices pick up configuration changes on their next sync.
  */
-export default function PublishDialog({ org, profiles, preselected, onClose }: PublishDialogProps) {
+export default function PublishDialog({ org, profiles, preselected, onClose, onPublished }: PublishDialogProps) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set((preselected ?? []).map((p) => p.toLowerCase())));
   const [filter, setFilter] = useState("");
   const [status, setStatus] = useState<PublishStatus | null>(null);
@@ -35,6 +37,12 @@ export default function PublishDialog({ org, profiles, preselected, onClose }: P
       .filter((p) => !q || p.name.toLowerCase().includes(q))
       .sort((a, b) => Number(selected.has(b.name.toLowerCase())) - Number(selected.has(a.name.toLowerCase())) || a.name.localeCompare(b.name));
   }, [profiles, filter, selected]);
+
+  const state = status?.state;
+  useEffect(() => {
+    if (state === "done") onPublished?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   useEffect(() => {
     if (status?.state !== "running") return;

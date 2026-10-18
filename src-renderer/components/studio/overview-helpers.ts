@@ -1,4 +1,5 @@
 import type { FeatureSummary, ReadinessCheck } from "./types";
+import { needsLoad, type Revalidating } from "./fix-effects";
 import { STAGES, summarize, verdictText, type ReadinessState, type ReadinessSummary, type Verdict } from "./readiness";
 
 /** `studio_setup_overview` result. Copy of `SetupOverview` in src/studio/overview.ts. */
@@ -71,8 +72,9 @@ export function pickToLoad(
   refresh: ReadonlySet<string> = new Set(),
   limit = LOAD_CONCURRENCY
 ): string[] {
-  const inFlight = ids.filter((id) => readiness[id]?.status === "loading").length;
-  const wanted = ids.filter((id) => !readiness[id] || (refresh.has(id) && readiness[id].status !== "loading"));
+  const busy = (id: string) => readiness[id]?.status === "loading" || (readiness[id] as Revalidating | undefined)?.refreshing === true;
+  const inFlight = ids.filter(busy).length;
+  const wanted = ids.filter((id) => !readiness[id] || (refresh.has(id) && !busy(id)) || needsLoad(readiness[id]));
   return wanted.slice(0, Math.max(0, limit - inFlight));
 }
 

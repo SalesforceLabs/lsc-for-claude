@@ -1,5 +1,6 @@
 import type { FeatureReadiness, ReadinessCheck, ReadinessStage } from "./types";
 import type { StatusTone } from "../ui/StatusIcon";
+import type { Revalidating } from "./fix-effects";
 
 /**
  * Readiness verdicts — pure helpers behind the Readiness view, the Setup
@@ -10,7 +11,7 @@ import type { StatusTone } from "../ui/StatusIcon";
 export type ReadinessState =
   | { status: "loading" }
   | { status: "error"; error: string }
-  | { status: "ready"; readiness: FeatureReadiness };
+  | ({ status: "ready"; readiness: FeatureReadiness } & Revalidating);
 
 /** Stage titles, in order. Copy of `STAGES` in src/studio/readiness/index.ts. */
 export const STAGES: { id: ReadinessStage; title: string }[] = [

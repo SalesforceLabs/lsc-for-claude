@@ -6,6 +6,7 @@ import type { ProfileOption, ReadinessCheck, SurfaceId } from "./types";
 import type { PendingChange } from "./changes";
 import FixButtons from "./FixButtons";
 import { askPrompt, byStage, sortForAttention, summarize, verdictText, verdictTone, type ReadinessState } from "./readiness";
+import { isRevalidating } from "./fix-effects";
 import "./readiness.css";
 import { AssistantName } from "../../hooks/useAssistantName";
 
@@ -73,6 +74,7 @@ export default function ReadinessView({
   }
 
   const details = [
+    isRevalidating(state) && "Refreshing — these results are from before your last change",
     `${summary.passed} of ${summary.ran} passing`,
     summary.suggestions.length > 0 && `${summary.suggestions.length} best-practice ${summary.suggestions.length === 1 ? "suggestion" : "suggestions"}`,
     summary.unknown > 0 && `${summary.unknown} couldn't be checked`,
