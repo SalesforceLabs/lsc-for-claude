@@ -76,6 +76,8 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioListProfiles: () => ipcRenderer.invoke("studio:call", "studio_list_profiles"),
   studioUserAccess: (userId) => ipcRenderer.invoke("studio:call", "studio_user_access", { userId }),
   studioAccessOptions: () => ipcRenderer.invoke("studio:call", "studio_access_options"),
+  studioLwcBundle: (name) => ipcRenderer.invoke("studio:call", "studio_lwc_bundle", { name }),
+  studioLwcRequest: (method, path, body) => ipcRenderer.invoke("studio:call", "studio_lwc_request", body === undefined ? { method, path } : { method, path, body }),
   studioIpadPublished: (profile, refresh = false, userId) =>
     ipcRenderer.invoke("studio:call", "studio_ipad_published", userId ? { profile, userId } : { profile }, refresh),
   studioIpadPublishedProgress: (profile) => ipcRenderer.invoke("studio:call", "studio_ipad_published_progress", { profile }),

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useMemo, useState } from "react";
 import type {
+  InlineLwcCheck,
   PublishedComponent,
   PublishedFieldMeta,
   PublishedIpad,
@@ -12,6 +13,7 @@ import type {
 import { EmptyArt } from "./IpadHome";
 import { ActivityHistoryCard, MapCard, NextBestActionsCard, OverviewCard, SummaryCard } from "./DashboardCards";
 import "./record.css";
+import { LiveInlineLwc } from "./LiveInlineLwc";
 import { CustomIcon, FileIcon, PersonAccountIcon } from "./assets/icons";
 
 /** Highlights/segment/tab metrics, measured on LSC Mobile (pt). */
@@ -154,7 +156,7 @@ function renderable(c: PublishedComponent, snapshot: PublishedIpad, rec: Publish
   if (!isVisit(rec) && !/^(multiEntityRecordView|detailPanel|relatedListSingleContainer|relatedListContainer)$/.test(name) && !/^lscMobileInline_/.test(name)) return true;
   if (!isVisit(rec) && /^lscMobileInline_/.test(name)) return true;
   if (name === "multiEntityRecordView" || name === "detailPanel" || name === "ExpensesListView" || name === "relatedListContainer") return true;
-  if (/^lscMobileInline_/.test(name)) return !!snapshot.records?.inline[name];
+  if (/^lscMobileInline_/.test(name)) return !!snapshot.records?.inline[name] || !!snapshot.records?.inlineChecks?.[name];
   if (name === "relatedListSingleContainer") return !!findRelated(rec, c.properties.relatedListApiName);
   return false;
 }
@@ -174,7 +176,7 @@ function TabContent({ components, snapshot, rec }: { components: PublishedCompon
           if (details.includes(c)) return <DetailsCard key={k} snapshot={snapshot} rec={rec} />;
           if (name === "AccountTerritoryFields") return null;
           if (name === "ExpensesListView") return <ExpensesCard key={k} rec={rec} />;
-          if (/^lscMobileInline_/.test(name)) return snapshot.records?.inline[name] ? <InlineCard key={k} snapshot={snapshot} rec={rec} name={name} /> : <PlaceholderCard key={k} title={PLACEHOLDER_TITLES[name] ?? name.replace(/^lscMobileInline_/, "")} />;
+          if (/^lscMobileInline_/.test(name)) return <InlineSlot key={k} snapshot={snapshot} rec={rec} name={name} height={Number(c.properties.mobileHeight) || 400} />;
           if (name === "relatedListContainer")
             return (
               <React.Fragment key={k}>
@@ -510,7 +512,6 @@ function RelatedCard({ snapshot, related, editable = false }: { snapshot: Publis
   );
 }
 
-/** A flexipage component the preview cannot draw from data: its title on an empty card. */
 /** Customer Ratings (module/CustomerRatings): General / Product / Territory segments over a grid of rating cards. Edit and Clear are inert. */
 function RatingsCard({ ratings }: { ratings: NonNullable<PublishedRecordData["ratings"]> }) {
   const tabs = (["General", "Product", "Territory"] as const).filter((t) => ratings.cards?.some((c) => c.tab === t));
@@ -557,11 +558,14 @@ function RatingsCard({ ratings }: { ratings: NonNullable<PublishedRecordData["ra
   );
 }
 
-function PlaceholderCard({ title }: { title: string }) {
+/** A flexipage component the preview cannot draw from data: its title on an empty card. */
+function PlaceholderCard({ title, check, reason }: { title: string; check?: InlineLwcCheck; reason?: string }) {
   return (
     <div className="studio-ipad-rec-card placeholder">
       <div className="studio-ipad-rec-ph-title">{title}</div>
       <div className="studio-ipad-rec-ph-note">On the iPad this card is drawn live from the org; this preview does not draw it.</div>
+      {reason && <LiveFailed reason={reason} />}
+      {check && <OfflineNote check={check} />}
     </div>
   );
 }
@@ -587,8 +591,42 @@ function ExpensesCard({ rec }: { rec: PublishedRecordData }) {
   );
 }
 
+const generations = new WeakMap<PublishedIpad, string>();
+let generationSeq = 0;
+
+/** A key per loaded snapshot, so reloading the preview recompiles inline components from the org. */
+function generationOf(snapshot: PublishedIpad): string {
+  let g = generations.get(snapshot);
+  if (!g) generations.set(snapshot, (g = String(++generationSeq)));
+  return g;
+}
+
+/**
+ * An org inline LWC: run live when the org has it (inlineChecks lists the
+ * bundles read), otherwise — or when it can't run here — the card read from
+ * its template, or a placeholder.
+ */
+function InlineSlot({ snapshot, rec, name, height }: { snapshot: PublishedIpad; rec: PublishedRecordData; name: string; height: number }) {
+  const check = snapshot.records?.inlineChecks?.[name];
+  const offline = (reason?: string) =>
+    snapshot.records?.inline[name] ? <InlineCard snapshot={snapshot} rec={rec} name={name} reason={reason} /> : <PlaceholderCard title={PLACEHOLDER_TITLES[name] ?? name.replace(/^lscMobileInline_/, "")} check={check} reason={reason} />;
+  // A snapshot cached before inline checks existed has none: try it live anyway.
+  if (check && !check.bundles.includes(name)) return offline();
+  const { timeZone, locale } = Intl.DateTimeFormat().resolvedOptions();
+  return (
+    <LiveInlineLwc
+      name={name}
+      context={{ recordId: rec.id, objectApiName: rec.object, userId: snapshot.viewer?.userId, locale, timeZone }}
+      height={height}
+      generation={generationOf(snapshot)}
+      fallback={(reason) => offline(reason)}
+      footer={check && <OfflineNote check={check} />}
+    />
+  );
+}
+
 /** An org-defined inline LWC (lscMobileInline_*) read from its template. */
-function InlineCard({ snapshot, rec, name }: { snapshot: PublishedIpad; rec: PublishedRecordData; name: string }) {
+function InlineCard({ snapshot, rec, name, reason }: { snapshot: PublishedIpad; rec: PublishedRecordData; name: string; reason?: string }) {
   const card = snapshot.records?.inline[name];
   if (!card) return null;
   const rows: (typeof card.cells)[] = [];
@@ -613,6 +651,38 @@ function InlineCard({ snapshot, rec, name }: { snapshot: PublishedIpad; rec: Pub
           </div>
         ))}
       </div>
+      {reason && <LiveFailed reason={reason} />}
+      {snapshot.records?.inlineChecks?.[name] && <OfflineNote check={snapshot.records.inlineChecks[name]} />}
+    </div>
+  );
+}
+
+function LiveFailed({ reason }: { reason: string }) {
+  return <div className="studio-ipad-rec-live-failed">Studio couldn't run this component live: {reason}</div>;
+}
+
+const ISSUE_TEXT: Record<InlineLwcCheck["issues"][number]["kind"], (detail: string) => string> = {
+  apex: (d) => `Apex ${d}`,
+  adapter: (d) => d,
+  graphql: () => "GraphQL",
+  network: (d) => d,
+  component: (d) => `<${d}>`,
+};
+
+/** What an inline LWC needs the network for on the iPad (Studio's note, not drawn by the app). */
+function OfflineNote({ check }: { check: InlineLwcCheck }) {
+  const text = (i: InlineLwcCheck["issues"][number]) => ISSUE_TEXT[i.kind](i.detail) + (i.bundle ? ` (in c/${i.bundle})` : "");
+  const online = check.issues.filter((i) => i.severity === "online");
+  const gated = check.issues.filter((i) => i.severity === "gated");
+  if (!online.length && !gated.length) return null;
+  return (
+    <div className={`studio-ipad-rec-offline${online.length ? "" : " gated"}`}>
+      {online.length > 0 && (
+        <p>
+          <strong>Needs a connection on the iPad:</strong> {online.map(text).join(", ")}.
+        </p>
+      )}
+      {gated.length > 0 && <p>{gated.map(text).join(", ")} works offline only when the org has offline GraphQL for LSC Mobile turned on.</p>}
     </div>
   );
 }

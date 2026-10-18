@@ -6,6 +6,10 @@ import { registerIpcHandlers } from "./ipc/handlers.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// A FORCE_COLOR inherited from the terminal makes `sf ... --json` colour its
+// JSON; the sf calls here and the MCP server spawned below inherit this env.
+delete process.env.FORCE_COLOR;
+
 // Only load the Vite dev server when explicitly told to (set by `electron:dev`).
 // Running the built app (`electron:start`) leaves this unset so we load the
 // bundled renderer directly instead of probing a dev server that isn't running.
