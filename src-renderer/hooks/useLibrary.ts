@@ -1,27 +1,30 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import type { LibraryItem, OrgScope } from "../types";
 
-interface LibraryItem {
-  id: string;
-  title: string;
-  content: string;
-  contentType: "response" | "code" | "diagram" | "table";
-  svg?: string;
-  sourceConversationId?: string;
-  tags: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export function useLibrary() {
+/**
+ * Library items for the selected org (plus those tied to none), or for every org.
+ * `orgId` is the selected org's username — undefined while it's still being worked out,
+ * so the list doesn't flash another org's items first.
+ */
+export function useLibrary(orgId: string | undefined, scope: OrgScope) {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const query = useRef("");
 
   const refresh = useCallback(async () => {
-    if (!window.lscApi?.listLibraryItems) return;
-    const list = await window.lscApi.listLibraryItems();
-    setItems(list);
-    setLoading(false);
-  }, []);
+    if (!window.lscApi?.listLibraryItems || orgId === undefined) return;
+    setLoading(true);
+    try {
+      const q = query.current.trim();
+      setItems(q ? await window.lscApi.searchLibraryItems(q, scope) : await window.lscApi.listLibraryItems(scope));
+      setError("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [orgId, scope]);
 
   useEffect(() => {
     refresh();
@@ -44,24 +47,19 @@ export function useLibrary() {
     []
   );
 
-  const deleteItem = useCallback(
-    async (id: string) => {
-      if (!window.lscApi?.deleteLibraryItem) return;
-      setItems((prev) => prev.filter((i) => i.id !== id));
-      await window.lscApi.deleteLibraryItem(id);
+  const deleteItem = useCallback(async (id: string) => {
+    if (!window.lscApi?.deleteLibraryItem) return;
+    setItems((prev) => prev.filter((i) => i.id !== id));
+    await window.lscApi.deleteLibraryItem(id);
+  }, []);
+
+  const search = useCallback(
+    async (q: string) => {
+      query.current = q;
+      await refresh();
     },
-    []
+    [refresh]
   );
 
-  const search = useCallback(async (query: string) => {
-    if (!window.lscApi?.searchLibraryItems) return;
-    if (!query.trim()) {
-      refresh();
-      return;
-    }
-    const results = await window.lscApi.searchLibraryItems(query);
-    setItems(results);
-  }, [refresh]);
-
-  return { items, loading, saveItem, deleteItem, search, refresh };
+  return { items, loading, error, saveItem, deleteItem, search, refresh };
 }

@@ -374,19 +374,28 @@ export function register(server: McpServer) {
 
   server.tool(
     "studio_lwc_request",
-    "LSC Studio (GUI data): answers a request from a live-previewed inline LWC — UI API GETs and GraphQL queries only, as the connected user; writes are refused. Returns JSON.",
+    "LSC Studio (GUI data): answers a request from a live-previewed inline LWC — UI API GETs and GraphQL queries only, as the connected user or, with mobileLogin, as the previewed rep; writes are refused. Returns JSON.",
     {
       method: z.enum(["GET", "POST"]),
       path: z.string().min(1).max(8000),
       body: z.unknown().optional(),
+      mobileLogin: z
+        .object({
+          instanceUrl: z.string().url().max(255),
+          accessToken: z.string().min(1).max(4096),
+          username: z.string().min(1).max(255),
+          orgId: z.string().max(18).optional(),
+        })
+        .optional()
+        .describe("The previewed rep's login, made by Studio through the LSC mobile app's connected app; answered as them instead of the sf CLI connection"),
     },
-    async ({ method, path, body }) => {
+    async ({ method, path, body, mobileLogin }) => {
       const connection = await validateOrgConnection();
-      if (!connection.valid || !connection.targetOrg) {
+      if (!mobileLogin && (!connection.valid || !connection.targetOrg)) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await lwcRequest(connection.targetOrg, { method, path, body }));
+        return json(await lwcRequest(mobileLogin ?? connection.targetOrg!, { method, path, body }));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

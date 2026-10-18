@@ -53,6 +53,11 @@ describe("lwcRequest", () => {
     };
     expect(await lwcRequest("org", { method: "POST", path: "/ui-api/records", body: {} }, http)).toMatchObject({ ok: false, status: 403 });
   });
+
+  it("sends a rep's token only to a Salesforce host", async () => {
+    const rep = { instanceUrl: "https://evil.example.com", accessToken: "t", username: "rep@acme.com" };
+    await expect(lwcRequest(rep, { method: "GET", path: "/ui-api/records/001" })).rejects.toThrow(/not a Salesforce HTTPS URL/);
+  });
 });
 
 describe("salesforceModule", () => {

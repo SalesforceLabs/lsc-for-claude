@@ -3,7 +3,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import {
-  ArrowUp, Bookmark, BookmarkCheck, Check, ChevronDown, ChevronRight, CircleAlert, Copy, ExternalLink, FileText,
+  ArrowUp, Bookmark, Building2, BookmarkCheck, Check, ChevronDown, ChevronRight, CircleAlert, Copy, ExternalLink, FileText,
   Maximize2, Minimize2, Minus, Paperclip, Plus, RotateCcw, Scan, Square, TriangleAlert, Workflow, Wrench, X,
 } from "lucide-react";
 import { ChatMessage, ContentBlock, ToolCall, ImageAttachment } from "../hooks/useChat";
@@ -11,6 +11,7 @@ import { pickModel, type ModelOption } from "../models";
 import { rozTileSrc, useAppIcon } from "../app-icon";
 import Spinner from "./ui/Spinner";
 import { useMermaidSvg } from "../mermaid";
+import { hostOf, KIND_LABEL, type SessionOrgView } from "../orgs";
 
 /** Lucide defaults for icons in chat chrome. */
 const ICON = { size: 14, strokeWidth: 1.9, "aria-hidden": true } as const;
@@ -589,6 +590,11 @@ interface ChatViewProps {
   savedDiagramContents?: Set<string>;
   prefillInput?: string;
   onPrefillConsumed?: () => void;
+  /** The org this session works in (a new session: the selected org); null with none. */
+  org?: SessionOrgView | null;
+  /** Log in to the session's org again, when its login has expired. */
+  onOrgLogin?: () => void;
+  waitingLogin?: boolean;
 }
 
 /** Persistent scroll positions keyed by conversationId. Lives outside the component. */
@@ -625,6 +631,9 @@ export default function ChatView({
   savedDiagramContents,
   prefillInput,
   onPrefillConsumed,
+  org,
+  onOrgLogin,
+  waitingLogin,
 }: ChatViewProps) {
   const appIcon = useAppIcon();
   const [input, setInput] = useState(prefillInput || "");
@@ -987,8 +996,26 @@ export default function ChatView({
     el.style.height = Math.min(el.scrollHeight, 200) + "px";
   }, [input]);
 
+  const orgNotice = org && org.state !== "ok" && (
+    <div className="composer-notice" role="status">
+      <TriangleAlert {...ICON} />
+      <span className="composer-notice-text">
+        {org.state === "expired"
+          ? `Your login to ${org.label} has expired. Tools that read or change the org will fail until you log in again.`
+          : `${org.label} isn't in your sf CLI connections any more. Log in to it again to use its data in this session.`}
+      </span>
+      {onOrgLogin && (
+        <button className="studio-btn sm" onClick={onOrgLogin} disabled={waitingLogin}>
+          {waitingLogin && <Spinner size={12} />}
+          {waitingLogin ? "Waiting for login…" : "Log in again"}
+        </button>
+      )}
+    </div>
+  );
+
   const inputArea = (
     <div className="input-area">
+      {orgNotice}
       <div
         className={`input-card${dragActive ? " drag-active" : ""}`}
         onDragOver={handleDragOver}
@@ -1064,6 +1091,16 @@ export default function ChatView({
             >
               <Paperclip size={16} strokeWidth={1.75} aria-hidden="true" />
             </button>
+            {org && (
+              <span
+                className="composer-org"
+                title={`This session works in ${org.label}\n${org.ref.username}${org.ref.instanceUrl ? `\n${hostOf(org.ref.instanceUrl)}` : ""}`}
+              >
+                <Building2 {...ICON} />
+                <span className="composer-org-name">{org.label}</span>
+                {org.kind === "production" && <span className="ui-pill warning">{KIND_LABEL.production}</span>}
+              </span>
+            )}
           </div>
           <div className="input-toolbar-right">
             <ModelPicker value={model} options={modelOptions} onChange={setModel} />

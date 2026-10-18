@@ -7,7 +7,7 @@ import { AstroIcon, EmptyArt } from "./IpadHome";
 import { HcoIcon, NewPersonAccountIcon } from "./assets/icons";
 import { autoNumber, fmtDateTime, picklistStart, visitFields, visitTimes } from "./ipad-visit-form";
 import type { VisitCreateAccount } from "./screens/fabs-types";
-import type { MobileLoginInfo } from "../../types";
+import { useMobileLogins } from "../../hooks/useMobileLogins";
 import { chooseAuth, loginUrlFor, myDomainOf, partitionFor, sameUserId, type BrowserAuth } from "./browser-auth";
 import "./action-sheets.css";
 
@@ -694,7 +694,7 @@ type BrowserStatus = { signedInAs?: string; note?: string; error?: string };
 /**
  * The in-app browser, live: the page loads in a <webview> with an in-memory session per identity. Salesforce
  * pages are signed in as the previewed rep through their mobile login — the same logins First sync uses — so
- * they show what the rep sees; until Studio holds one, the sheet offers to log in as the rep, or to continue
+ * they show what the rep sees; until Studio holds one, the sheet offers to sign in as the rep, or to continue
  * as the sf CLI connection. Pages outside Salesforce load signed out. Only https pages load.
  */
 function Browser({ url, hideSafari, ctx, onClose }: { url: string; hideSafari: boolean; ctx: SheetContext; onClose: () => void }) {
@@ -703,17 +703,14 @@ function Browser({ url, hideSafari, ctx, onClose }: { url: string; hideSafari: b
   const live = /^https:\/\//i.test(url);
   const host = live ? new URL(url).hostname : "";
   const memoKey = `${myDomainOf(host) ?? host}|${viewer?.userId ?? ""}`;
-  const [logins, setLogins] = useState<MobileLoginInfo[] | null>(null);
+  const mobile = useMobileLogins();
+  const logins = mobile.loaded ? mobile.logins : null;
   const [picked, setPicked] = useState<BrowserAuth | null>(null);
   const [asking, setAsking] = useState(false);
   const [loggingIn, setLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [status, setStatus] = useState<BrowserStatus | null>(null);
   const [nav, setNav] = useState({ back: false, forward: false });
-
-  useEffect(() => {
-    window.lscApi.mobileLoginList().then((res) => setLogins(res.logins));
-  }, []);
 
   const choice = logins ? chooseAuth(url, logins, viewer?.userId ?? null, rememberedAuth.get(memoKey) ?? null) : null;
   const auth = asking ? null : (picked ?? choice?.auth ?? null);
@@ -736,8 +733,6 @@ function Browser({ url, hideSafari, ctx, onClose }: { url: string; hideSafari: b
       setLoginError(res.error ?? "The login didn't finish.");
       return;
     }
-    const list = await window.lscApi.mobileLoginList();
-    setLogins(list.logins);
     use({ loginId: res.login.id });
   };
 
@@ -828,16 +823,16 @@ function Browser({ url, hideSafari, ctx, onClose }: { url: string; hideSafari: b
       ) : (
         <div className="studio-ipad-act-webplaceholder">
           {!logins ? (
-            <div className="studio-ipad-act-webnote">Checking Studio's mobile logins…</div>
+            <div className="studio-ipad-act-webnote">Checking Studio's test users…</div>
           ) : (
             <div className="studio-ipad-act-signin">
               <div className="studio-ipad-act-signint">See this page as {rep}</div>
               <div className="studio-ipad-act-webnote">
-                The app opens it signed in as the rep. Log in as {rep} once and Studio uses that login here and in First sync for
-                the rest of the session.
+                The app opens it signed in as the rep. Sign in as {rep} once and Studio keeps them as a test user for this page,
+                inline components and First sync.
               </div>
               <button type="button" className="studio-ipad-act-signinbtn" onClick={logIn} disabled={loggingIn}>
-                {loggingIn ? "Waiting for the login window…" : viewer ? `Log in as ${viewer.name}…` : "Log in as a mobile user…"}
+                {loggingIn ? "Waiting for sign-in…" : viewer ? `Sign in as ${viewer.name}…` : "Sign in a test user…"}
               </button>
               {loginError && <div className="studio-ipad-act-signinerr">{loginError}</div>}
               {(choice?.candidates ?? []).map((l) => (

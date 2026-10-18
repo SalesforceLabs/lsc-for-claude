@@ -26,6 +26,9 @@ export class McpClient {
   private serverDir: string;
   /** The (re)connect in flight, so concurrent calls share one respawn. */
   private starting: Promise<void> | null = null;
+  /** Tool calls in flight, and when the last one finished — the pool only stops idle servers. */
+  private inFlight = 0;
+  private lastUsedAt = Date.now();
 
   /**
    * @param onStarted runs after every successful (re)start — e.g. to re-apply the
@@ -93,6 +96,15 @@ export class McpClient {
     await this.start();
   }
 
+  /** Whether the server is running and has had no call for `ms`. */
+  idleFor(ms: number): boolean {
+    return this.inFlight === 0 && Date.now() - this.lastUsedAt >= ms;
+  }
+
+  get running(): boolean {
+    return !!this.client;
+  }
+
   getTools(): ToolDefinition[] {
     return this.tools.filter((t) => !t.name.startsWith(STUDIO_TOOL_PREFIX));
   }
@@ -102,15 +114,22 @@ export class McpClient {
     args: Record<string, unknown>,
     options?: { timeoutMs?: number }
   ): Promise<McpToolResult> {
-    if (!this.client) await this.start();
-    const client = this.client as Client | null;
-    if (!client) throw new Error("MCP client not connected");
+    this.inFlight++;
+    let result;
+    try {
+      if (!this.client) await this.start();
+      const client = this.client as Client | null;
+      if (!client) throw new Error("MCP client not connected");
 
-    const result = await client.callTool(
-      { name, arguments: args },
-      undefined,
-      options?.timeoutMs ? { timeout: options.timeoutMs } : undefined
-    );
+      result = await client.callTool(
+        { name, arguments: args },
+        undefined,
+        options?.timeoutMs ? { timeout: options.timeoutMs } : undefined
+      );
+    } finally {
+      this.inFlight--;
+      this.lastUsedAt = Date.now();
+    }
 
     return {
       content: (result.content as Array<{ type: string; text: string }>) || [],

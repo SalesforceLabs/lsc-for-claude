@@ -1,0 +1,92 @@
+/* Test users: reps' mobile logins on the selected org. */
+
+.studio-test-users {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+}
+
+.studio-test-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 52px;
+  padding: var(--space-2) var(--space-4);
+}
+
+.studio-test-user + .studio-test-user {
+  border-top: 1px solid var(--border);
+}
+
+.studio-test-user-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--control);
+  height: var(--control);
+  border-radius: 50%;
+  background: var(--fill-control);
+  color: var(--text-secondary);
+}
+
+.studio-test-user-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.studio-test-user-name,
+.studio-test-user-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-test-user-name {
+  font-size: var(--font-base);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.studio-test-user-sub {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.studio-test-users-error {
+  font-size: var(--font-sm);
+  color: var(--error);
+}
+
+.studio-test-users-note {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+
+/* "As Carmen Central" / "As your admin login · Sign in as Carmen…", wherever Studio acts as a rep. */
+.studio-test-user-chip-wrap {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+}
+
+.studio-test-user-chip {
+  gap: var(--space-1);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-test-user-chip-error {
+  font-size: var(--font-sm);
+  color: var(--error);
+}

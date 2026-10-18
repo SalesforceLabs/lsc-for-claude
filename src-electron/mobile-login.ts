@@ -5,14 +5,17 @@
  *
  * The flow is the iOS app's: OAuth web-server flow with PKCE and no client
  * secret, redirecting to the app's mobilesfdc:// URI, which the login window
- * intercepts instead of following. Tokens stay in this process's memory for
- * the app session; they are never written to disk, logged, or sent to the
- * renderer.
+ * intercepts instead of following. Tokens never leave the main process: they
+ * aren't logged or sent to the renderer. Logins with a refresh token are
+ * remembered across restarts, encrypted with the OS keychain like model keys
+ * (secrets.ts); the rest last until Roz quits.
  */
 
-import { BrowserWindow } from "electron";
+import type { BrowserWindow } from "electron";
+import { openLoginWindow } from "./login-window.js";
 import crypto from "crypto";
 import { loadSettings } from "./settings.js";
+import { deleteSecret, getSecret, setSecret } from "./secrets.js";
 
 /**
  * The LSC mobile app's connected-app consumer key: the Settings value first,
@@ -54,27 +57,89 @@ export interface MobileLoginInfo {
   displayName?: string;
   orgId?: string;
   instanceUrl: string;
+  /** `expired`: Salesforce turned the refresh token down (revoked, or the user's password changed) — sign in again. */
+  status: "signedIn" | "expired";
+  /** Kept across restarts; false when Salesforce gave no refresh token, so it ends when Roz quits. */
+  remembered: boolean;
 }
 
-interface MobileLogin extends MobileLoginInfo {
+interface MobileLogin extends Omit<MobileLoginInfo, "status" | "remembered"> {
   loginUrl: string;
   accessToken: string;
   refreshToken?: string;
   issuedAt: number;
+  expired?: boolean;
 }
 
 const logins = new Map<string, MobileLogin>();
 
+const STORE_KEY = "mobile-logins";
+let loaded = false;
+
+/** The remembered logins, read from the keychain on first use. */
+function ensureLoaded(): void {
+  if (loaded) return;
+  loaded = true;
+  let saved: unknown;
+  try {
+    saved = JSON.parse(getSecret(STORE_KEY) ?? "[]");
+  } catch {
+    return;
+  }
+  if (!Array.isArray(saved)) return;
+  for (const l of saved as Partial<MobileLogin>[]) {
+    const ok =
+      typeof l.id === "string" &&
+      typeof l.username === "string" &&
+      typeof l.accessToken === "string" &&
+      typeof l.refreshToken === "string" &&
+      typeof l.instanceUrl === "string" &&
+      typeof l.loginUrl === "string" &&
+      isSalesforceUrl(l.instanceUrl) &&
+      isSalesforceUrl(l.loginUrl);
+    if (ok) logins.set(l.id as string, { ...(l as MobileLogin), issuedAt: Number(l.issuedAt) || 0, expired: !!l.expired });
+  }
+}
+
+function save(): void {
+  const keep = [...logins.values()].filter((l) => l.refreshToken);
+  try {
+    if (keep.length) setSecret(STORE_KEY, JSON.stringify(keep));
+    else deleteSecret(STORE_KEY);
+  } catch {
+    // Not remembered this time; the logins still work until Roz quits.
+  }
+}
+
+const listeners = new Set<(logins: MobileLoginInfo[]) => void>();
+
+/** Called with every login whenever one is added, removed, or expires. */
+export function onMobileLoginsChanged(listener: (logins: MobileLoginInfo[]) => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function changed(): void {
+  save();
+  const list = listMobileLogins();
+  for (const l of listeners) l(list);
+}
+
 const base64url = (buf: Buffer) => buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
-const publicInfo = ({ id, username, userId, displayName, orgId, instanceUrl }: MobileLogin): MobileLoginInfo => ({
+const publicInfo = ({ id, username, userId, displayName, orgId, instanceUrl, refreshToken, expired }: MobileLogin): MobileLoginInfo => ({
   id,
   username,
   userId,
   displayName,
   orgId,
   instanceUrl,
+  status: expired ? "expired" : "signedIn",
+  remembered: !!refreshToken,
 });
+
+/** Salesforce answered and said no — as opposed to the request not getting through. */
+class TokenRejected extends Error {}
 
 async function tokenRequest(loginUrl: string, params: Record<string, string>): Promise<Record<string, unknown>> {
   const res = await fetch(`${loginUrl}/services/oauth2/token`, {
@@ -85,7 +150,9 @@ async function tokenRequest(loginUrl: string, params: Record<string, string>): P
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
     const reason = [data.error, data.error_description].filter(Boolean).join(": ") || `HTTP ${res.status}`;
-    throw new Error(`Salesforce rejected the login (${reason}).`);
+    const message = `Salesforce rejected the login (${reason}).`;
+    // 400 invalid_grant is how a revoked or expired refresh token comes back; a 5xx is Salesforce having trouble.
+    throw res.status === 400 || res.status === 401 ? new TokenRejected(message) : new Error(message);
   }
   return data;
 }
@@ -106,20 +173,8 @@ function authorize(loginUrl: string, parent: BrowserWindow | undefined, challeng
   }).toString();
 
   return new Promise((resolve, reject) => {
-    const win = new BrowserWindow({
-      parent,
-      modal: !!parent,
-      width: 520,
-      height: 760,
-      title: "Log in as a mobile user",
-      webPreferences: {
-        // A fresh in-memory partition per login: no cookies from earlier logins or the app.
-        partition: `mobile-login-${state}`,
-        nodeIntegration: false,
-        contextIsolation: true,
-        sandbox: true,
-      },
-    });
+    // A fresh in-memory partition per login: no cookies from earlier logins or the app.
+    const { win, page } = openLoginWindow({ parent, title: "Sign in a test user", partition: `mobile-login-${state}` });
     let settled = false;
     const finish = (err: Error | null, code?: string) => {
       if (settled) return;
@@ -140,11 +195,11 @@ function authorize(loginUrl: string, parent: BrowserWindow | undefined, challeng
         finish(null, params.get("code") as string);
       }
     };
-    win.webContents.on("will-redirect", intercept);
-    win.webContents.on("will-navigate", intercept);
-    win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+    page.on("will-redirect", intercept);
+    page.on("will-navigate", intercept);
+    page.setWindowOpenHandler(() => ({ action: "deny" }));
     win.on("closed", () => finish(new Error("Login window closed.")));
-    win.loadURL(url.toString()).catch(() => {
+    page.loadURL(url.toString()).catch(() => {
       // Aborted loads (the intercepted redirect) reject here; real failures surface in the window.
     });
   });
@@ -152,6 +207,7 @@ function authorize(loginUrl: string, parent: BrowserWindow | undefined, challeng
 
 /** Log in through the LSC mobile app's connected app; resolves once the user has signed in. */
 export async function startMobileLogin(loginUrl: string, parent?: BrowserWindow): Promise<MobileLoginInfo> {
+  ensureLoaded();
   const base = loginUrl.trim().replace(/\/+$/, "");
   if (!isSalesforceUrl(base)) throw new Error(`"${loginUrl}" is not a Salesforce HTTPS login URL.`);
   mobileClientId();
@@ -195,15 +251,26 @@ export async function startMobileLogin(loginUrl: string, parent?: BrowserWindow)
     issuedAt: Date.now(),
   };
   logins.set(login.id, login);
+  changed();
   return publicInfo(login);
 }
 
+/** Sign in again as an expired login's user, on the same login URL. */
+export async function renewMobileLogin(id: string, parent?: BrowserWindow): Promise<MobileLoginInfo> {
+  ensureLoaded();
+  const login = logins.get(id);
+  if (!login) throw new Error("That login was removed.");
+  return startMobileLogin(login.loginUrl, parent);
+}
+
 export function listMobileLogins(): MobileLoginInfo[] {
+  ensureLoaded();
   return [...logins.values()].map(publicInfo);
 }
 
 export function removeMobileLogin(id: string): void {
-  logins.delete(id);
+  ensureLoaded();
+  if (logins.delete(id)) changed();
 }
 
 async function refresh(login: MobileLogin): Promise<void> {
@@ -211,22 +278,45 @@ async function refresh(login: MobileLogin): Promise<void> {
   try {
     const token = await tokenRequest(login.loginUrl, { grant_type: "refresh_token", refresh_token: login.refreshToken });
     if (typeof token.access_token === "string") {
+      const wasExpired = login.expired;
       login.accessToken = token.access_token;
       login.issuedAt = Date.now();
+      login.expired = false;
       if (typeof token.instance_url === "string" && isSalesforceUrl(token.instance_url)) login.instanceUrl = token.instance_url;
+      if (wasExpired) changed();
+      else save();
     }
-  } catch {
-    // Keep the current token; the caller reports it if it has expired.
+  } catch (error) {
+    // Turned down: the user has to sign in again. Not reached (offline, say): keep the current token.
+    if (error instanceof TokenRejected && !login.expired) {
+      login.expired = true;
+      changed();
+    }
   }
+}
+
+/** Refresh the logins not refreshed lately, so their status is current (when a list of test users opens). */
+export async function checkMobileLogins(): Promise<MobileLoginInfo[]> {
+  ensureLoaded();
+  await Promise.all([...logins.values()].filter((l) => Date.now() - l.issuedAt > REFRESH_AFTER_MS).map(refresh));
+  return listMobileLogins();
+}
+
+function usableLogin(id: string): MobileLogin {
+  ensureLoaded();
+  const login = logins.get(id);
+  if (!login) throw new Error("That test user was forgotten. Sign them in again from Studio → Test users.");
+  if (login.expired) throw new Error(`${login.displayName ?? login.username}'s login has expired. Sign in again.`);
+  return login;
 }
 
 /** The login's token for a run, refreshed first when it's old enough to expire mid-run. */
 export async function mobileLoginCredentials(
   id: string
 ): Promise<{ instanceUrl: string; accessToken: string; username: string; orgId?: string }> {
-  const login = logins.get(id);
-  if (!login) throw new Error("That mobile login has ended. Log in again.");
+  const login = usableLogin(id);
   if (Date.now() - login.issuedAt > REFRESH_AFTER_MS) await refresh(login);
+  if (login.expired) throw new Error(`${login.displayName ?? login.username}'s login has expired. Sign in again.`);
   return { instanceUrl: login.instanceUrl, accessToken: login.accessToken, username: login.username, orgId: login.orgId };
 }
 
@@ -236,8 +326,7 @@ export async function mobileLoginCredentials(
  * refreshed once and retried, since the endpoint answers 403 rather than 401 for an expired session.
  */
 export async function mobileLoginFrontdoor(id: string, path: string): Promise<{ url: string; instanceUrl: string; username: string }> {
-  const login = logins.get(id);
-  if (!login) throw new Error("That mobile login has ended. Log in again.");
+  const login = usableLogin(id);
   if (Date.now() - login.issuedAt > REFRESH_AFTER_MS) await refresh(login);
   const request = async () => {
     const url = new URL("/services/oauth2/singleaccess", login.instanceUrl);

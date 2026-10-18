@@ -31,6 +31,12 @@ describe("chooseAuth", () => {
     expect(chooseAuth(page, [rep], "005000000000001AAA", { cli: true }).auth).toEqual({ loginId: "mobile-1" });
   });
 
+  it("doesn't sign a page in with an expired login", () => {
+    const choice = chooseAuth(page, [{ ...rep, status: "expired" as const }, other], rep.userId, null);
+    expect(choice.auth).toBeNull();
+    expect(choice.candidates.map((l) => l.id)).toEqual(["mobile-2"]);
+  });
+
   it("loads pages outside Salesforce signed out", () => {
     expect(chooseAuth("https://example.com/x", [rep], rep.userId, null).auth).toEqual({ public: true });
   });

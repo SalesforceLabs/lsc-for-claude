@@ -1,20 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Monitor, Moon, Plus, RefreshCw, Sun, TriangleAlert, X, type LucideIcon } from "lucide-react";
-import Spinner from "./ui/Spinner";
+import { Monitor, Moon, Sun, X, type LucideIcon } from "lucide-react";
 import Segmented from "./ui/Segmented";
 import { pickModel, type ModelOption } from "../models";
 import { ROZ_ICONS, rozIcon, rozTileSrc, setAppIcon, type RozIcon } from "../app-icon";
 import { APP_THEMES, appTheme, type AppTheme } from "../theme";
+import { useOrgs } from "../hooks/useOrgs";
+import { hostOf, KIND_LABEL, orgKey } from "../orgs";
 
 const THEME_ICONS: Record<AppTheme, LucideIcon> = { system: Monitor, light: Sun, dark: Moon };
-
-interface SfOrg {
-  alias?: string;
-  username: string;
-  orgId: string;
-  instanceUrl: string;
-  isDefault?: boolean;
-}
 
 interface SettingsPanelProps {
   /** How the running engine reaches the model, e.g. "OpenAI API key". */
@@ -38,54 +31,17 @@ export default function SettingsPanel({
   const [theme, setTheme] = useState<AppTheme>("system");
   const [savedTheme, setSavedTheme] = useState<AppTheme>("system");
 
-  // Org state
-  const [orgs, setOrgs] = useState<SfOrg[]>([]);
-  const [selectedOrg, setSelectedOrg] = useState("");
-  const [orgsLoading, setOrgsLoading] = useState(false);
-  const [orgsError, setOrgsError] = useState("");
-  const [showLogin, setShowLogin] = useState(false);
-  const [loginAlias, setLoginAlias] = useState("");
-  const [isSandbox, setIsSandbox] = useState(false);
-  const [loginStarted, setLoginStarted] = useState(false);
-
-  const fetchOrgs = useCallback(async () => {
-    setOrgsLoading(true);
-    setOrgsError("");
-    try {
-      const result = await window.lscApi.listSfOrgs();
-      setOrgs(result.orgs || []);
-      if (result.error) setOrgsError(result.error);
-    } catch {
-      setOrgsError("Failed to list orgs");
-    } finally {
-      setOrgsLoading(false);
-    }
-  }, []);
+  const { current, chosen, loading: orgsLoading } = useOrgs();
 
   useEffect(() => {
     window.lscApi.getSettings().then((s) => {
       setModel(pickModel(s.model, modelOptions));
-      if (s.sfTargetOrg) setSelectedOrg(s.sfTargetOrg);
       setMobileClientId(s.mobileClientId || "");
       setAppIconChoice(rozIcon(s.appIcon));
       setTheme(appTheme(s.theme));
       setSavedTheme(appTheme(s.theme));
     });
-    fetchOrgs();
-  }, [fetchOrgs, modelOptions]);
-
-  const handleOrgChange = async (value: string) => {
-    setSelectedOrg(value);
-    if (value) {
-      await window.lscApi.setSfOrg(value);
-    }
-  };
-
-  const handleLogin = async () => {
-    const instanceUrl = isSandbox ? "https://test.salesforce.com" : undefined;
-    await window.lscApi.loginSfOrg(loginAlias || undefined, instanceUrl);
-    setLoginStarted(true);
-  };
+  }, [modelOptions]);
 
   // A picked appearance shows at once; closing without saving puts the saved one back.
   const pickTheme = (value: AppTheme) => {
@@ -100,9 +56,9 @@ export default function SettingsPanel({
 
   const handleSave = async () => {
     // settings:save replaces the whole file, so merge into the current settings.
-    const current = await window.lscApi.getSettings();
+    const saved = await window.lscApi.getSettings();
     await window.lscApi.saveSettings({
-      ...current,
+      ...saved,
       model,
       mobileClientId: mobileClientId.trim() || undefined,
       appIcon,
@@ -111,8 +67,6 @@ export default function SettingsPanel({
     setAppIcon(appIcon);
     onClose();
   };
-
-  const orgLabel = (o: SfOrg) => o.alias ? `${o.alias} (${o.username})` : o.username;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -153,83 +107,22 @@ export default function SettingsPanel({
 
           <section className="settings-group">
             <label className="ui-label" htmlFor="settings-org">
-              <span className="settings-label-row">
-                <span className={`settings-dot ${selectedOrg ? "on" : ""}`} aria-hidden="true" />
-                Salesforce org
-              </span>
+              Salesforce org
             </label>
-            <div className="settings-row">
-              <select
-                id="settings-org"
-                className="ui-field"
-                value={selectedOrg}
-                onChange={(e) => handleOrgChange(e.target.value)}
-                disabled={orgsLoading}
-              >
-                <option value="">
-                  {orgsLoading ? "Loading…" : orgs.length === 0 ? "No orgs found" : "Select an org…"}
-                </option>
-                {orgs.map((o) => (
-                  <option key={o.username} value={o.alias || o.username}>
-                    {orgLabel(o)}
-                  </option>
-                ))}
-              </select>
-              <button
-                className="ui-icon-btn bordered"
-                onClick={fetchOrgs}
-                disabled={orgsLoading}
-                title="Refresh org list"
-                aria-label="Refresh org list"
-              >
-                {orgsLoading ? <Spinner size={14} /> : <RefreshCw size={14} strokeWidth={1.9} aria-hidden="true" />}
-              </button>
+            <input
+              id="settings-org"
+              className="ui-field"
+              type="text"
+              readOnly
+              value={
+                current
+                  ? `${orgKey(current)} · ${KIND_LABEL[current.kind]} · ${hostOf(current.instanceUrl)}`
+                  : chosen || (orgsLoading ? "Loading…" : "None")
+              }
+            />
+            <div className="settings-hint">
+              Switch orgs or log in to another from the menu at the top of the sidebar. Each session stays in the org it started in.
             </div>
-            {orgsError && (
-              <div className="settings-note error" role="alert">
-                <TriangleAlert size={14} strokeWidth={1.9} aria-hidden="true" />
-                <span>{orgsError}</span>
-              </div>
-            )}
-
-            <button
-              type="button"
-              className="studio-btn ghost sm settings-connect-toggle"
-              onClick={() => { setShowLogin(!showLogin); setLoginStarted(false); }}
-              aria-expanded={showLogin}
-            >
-              {showLogin ? <X size={14} strokeWidth={1.9} aria-hidden="true" /> : <Plus size={14} strokeWidth={1.9} aria-hidden="true" />}
-              {showLogin ? "Cancel" : "Connect new org"}
-            </button>
-            {showLogin && (
-              <div className="settings-login ui-enter">
-                <input
-                  className="ui-field"
-                  type="text"
-                  placeholder="Alias (optional)"
-                  aria-label="Alias"
-                  value={loginAlias}
-                  onChange={(e) => setLoginAlias(e.target.value)}
-                  spellCheck={false}
-                />
-                <Segmented
-                  aria-label="Org type"
-                  value={isSandbox ? "sandbox" : "production"}
-                  onChange={(v) => setIsSandbox(v === "sandbox")}
-                  options={[
-                    { value: "production", label: "Production" },
-                    { value: "sandbox", label: "Sandbox" },
-                  ]}
-                />
-                <button className="btn-primary" onClick={handleLogin} disabled={loginStarted}>
-                  {loginStarted && <Spinner size={13} />}
-                  {loginStarted ? "Waiting for browser login…" : "Log in"}
-                </button>
-                {loginStarted && (
-                  <div className="settings-hint">Complete the login in your browser, then refresh the list above.</div>
-                )}
-              </div>
-            )}
           </section>
 
           <section className="settings-group">

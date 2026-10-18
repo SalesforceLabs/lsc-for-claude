@@ -12,6 +12,9 @@ import type {
   PublishedTab,
 } from "./published-types";
 import IpadScreen from "./IpadScreen";
+import TestUserChip from "./TestUserChip";
+import { RepLoginContext, useMobileLogins } from "../../hooks/useMobileLogins";
+import { testUserFor } from "../../test-users";
 import RecordScreen from "./IpadRecord";
 import IpadFabs from "./IpadFabs";
 import { Dashboard } from "./IpadDashboard";
@@ -153,8 +156,11 @@ function Device({
   const homeHasAgentforce = !!snapshot.home?.regions.some((r) => r.components.some((c) => c.supported && /lsAgentforceWelcome$/.test(c.name)));
   const dashboardNotes = Object.values(snapshot.dashboards ?? {}).flatMap((d) => (d.dataNote ? [`${d.title} — ${d.dataNote}`] : []));
   const generated = snapshot.cache.generatedAt ? new Date(snapshot.cache.generatedAt).toLocaleString() : "unknown";
+  const mobile = useMobileLogins();
+  const repLogin = testUserFor(mobile.logins, snapshot.viewer?.userId);
 
   return (
+    <RepLoginContext.Provider value={repLogin?.status === "signedIn" ? repLogin.id : undefined}>
     <div className="studio-ipad-wrap">
       <div className="studio-ipad-meta">
         Published for <strong>{snapshot.profile}</strong>
@@ -174,7 +180,14 @@ function Device({
                 </option>
               ))}
             </select>
-            <span className="studio-ipad-muted"> ({snapshot.viewer.permissionSets.length} permission sets)</span>
+            <span className="studio-ipad-muted"> ({snapshot.viewer.permissionSets.length} permission sets)</span>{" "}
+            <TestUserChip
+              logins={mobile.logins}
+              userId={snapshot.viewer.userId}
+              name={snapshot.viewer.name}
+              signedInTitle={`Inline components and Salesforce pages in the in-app browser load as ${snapshot.viewer.name}. The rest of the preview is read by your admin connection.`}
+              adminTitle={`Inline components and Salesforce pages load as your admin connection, which can see more than ${snapshot.viewer.name} can. Sign in as them to see their data.`}
+            />
             {snapshot.usersTruncated && (
               <UserSearch shown={snapshot.users.length} total={snapshot.usersTotal ?? snapshot.users.length} onSearch={onSearchUsers} onPick={onPickUser} />
             )}
@@ -258,6 +271,7 @@ function Device({
         what the app renders; record data is placeholder. {snapshot.notes.join(" ")}
       </p>
     </div>
+    </RepLoginContext.Provider>
   );
 }
 

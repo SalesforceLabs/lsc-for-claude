@@ -33,6 +33,10 @@ import StatusIcon from "../ui/StatusIcon";
 import Segmented from "../ui/Segmented";
 import Spinner from "../ui/Spinner";
 import { Bar, Callout, Disclosure, Metric } from "./PerfParts";
+import TestUserChip from "./TestUserChip";
+import { useOrgs } from "../../hooks/useOrgs";
+import { useMobileLogins } from "../../hooks/useMobileLogins";
+import { testUserName, testUsersFor } from "../../test-users";
 import "./perf-editor.css";
 
 /** The simulation in flight, kept so polling resumes if the view is left and reopened. */
@@ -398,12 +402,9 @@ function SimResult({ result, status, onExport, onExportReport }: {
 }
 
 function LoginPanel({
-  mobile,
   onStart,
   onClose,
 }: {
-  /** Log in through the LSC mobile app's connected app instead of adding an sf CLI connection. */
-  mobile: boolean;
   onStart: (alias: string, instanceUrl: string) => void;
   onClose: () => void;
 }) {
@@ -415,19 +416,12 @@ function LoginPanel({
   const validAlias = alias.trim() === "" || /^[A-Za-z0-9._-]+$/.test(alias.trim());
   return (
     <div className="studio-perf-card">
-      <h3 className="studio-perf-section-title">{mobile ? "Log in as a mobile user" : "Add an sf CLI connection"}</h3>
-      {mobile ? (
-        <div className="studio-perf-hint">
-          A Salesforce login window opens. Sign in with the user's username and password — the login goes through the LSC
-          mobile app's connected app, like the iPad, so the org answers the mobile sync requests. It lasts until Studio quits.
-        </div>
-      ) : (
-        <div className="studio-perf-hint">
-          Your browser opens the Salesforce login page. Sign in as the user to simulate — an end user's username and password, or
-          an admin. If the browser is already signed in to that org, sign out first or use a private window, or the new
-          connection will be for whoever is signed in.
-        </div>
-      )}
+      <h3 className="studio-perf-section-title">Add an sf CLI connection</h3>
+      <div className="studio-perf-hint">
+        Your browser opens the Salesforce login page. Sign in as the user to simulate — an end user's username and password, or
+        an admin. If the browser is already signed in to that org, sign out first or use a private window, or the new
+        connection will be for whoever is signed in.
+      </div>
       <div className="studio-perf-grid">
         <label className="studio-perf-field">
           <span className="studio-perf-field-label">Login URL</span>
@@ -450,18 +444,16 @@ function LoginPanel({
             )}
           </div>
         </label>
-        {!mobile && (
-          <label className="studio-perf-field">
-            <span className="studio-perf-field-label">Alias (optional)</span>
-            <input className="studio-filter" placeholder="e.g. rep-east" value={alias} onChange={(e) => setAlias(e.target.value)} />
-          </label>
-        )}
+        <label className="studio-perf-field">
+          <span className="studio-perf-field-label">Alias (optional)</span>
+          <input className="studio-filter" placeholder="e.g. rep-east" value={alias} onChange={(e) => setAlias(e.target.value)} />
+        </label>
       </div>
       {!validAlias && <div className="studio-perf-hint studio-perf-warn-text" role="alert">An alias can use letters, numbers, dots, dashes and underscores.</div>}
       <div className="studio-perf-summary-actions">
         <button type="button" className="studio-btn primary" disabled={!validUrl || !validAlias} onClick={() => onStart(alias.trim(), url)}>
           <LogIn size={14} aria-hidden="true" />
-          {mobile ? "Open login window" : "Open browser to sign in"}
+          Open browser to sign in
         </button>
         <button type="button" className="studio-btn" onClick={onClose}>
           Cancel
@@ -501,8 +493,13 @@ export default function SimulateView() {
   const [contentClm, setContentClm] = useState(false);
   const [contentMaxFiles, setContentMaxFiles] = useState("");
   const [contentMaxMb, setContentMaxMb] = useState("");
-  const [loginOpen, setLoginOpen] = useState<"mobile" | "cli" | null>(null);
-  const [mobileLogins, setMobileLogins] = useState<MobileLoginInfo[]>([]);
+  const [loginOpen, setLoginOpen] = useState(false);
+  // sf CLI connections are offered only on request: the org's mobile sync endpoints usually refuse them.
+  const [cliOpen, setCliOpen] = useState(false);
+  const { current: currentOrg } = useOrgs();
+  const mobile = useMobileLogins();
+  // The selected org's test users; signed-in first.
+  const mobileLogins = testUsersFor(mobile.logins, currentOrg?.orgId);
   const [mobileLoggingIn, setMobileLoggingIn] = useState(false);
   // No consumer key in Settings (the LSC_MOBILE_CLIENT_ID env var isn't visible here), or a login said so.
   const [keyMissing, setKeyMissing] = useState(false);
@@ -544,12 +541,8 @@ export default function SimulateView() {
   }, []);
 
   useEffect(() => {
-    window.lscApi.mobileLoginList().then((res) => setMobileLogins(res.logins));
     window.lscApi.getSettings().then((settings) => setKeyMissing(!settings.mobileClientId?.trim()));
-    loadConnections().then((list) => {
-      const preferred = list.find((c) => c.isDefault) ?? list[0];
-      setConnection((current) => current || (preferred ? connectionRef(preferred) : ""));
-    });
+    loadConnections();
     loadSims();
     if (!readActiveJob()) {
       window.lscApi.studioSimActive().then((res) => {
@@ -595,28 +588,38 @@ export default function SimulateView() {
     };
   }, [waitingLogin, loadConnections]);
 
-  const startMobileLogin = async (_alias: string, loginUrl: string) => {
-    setLoginOpen(null);
+  // Another org's test users aren't offered; start over when the org changes.
+  useEffect(() => {
+    setConnection((current) => (mobileLoginId(current) ? "" : current));
+  }, [currentOrg?.orgId]);
+
+  // Run as the org's first signed-in test user until one is picked.
+  const firstTestUser = mobileLogins.find((l) => l.status === "signedIn");
+  useEffect(() => {
+    if (firstTestUser) setConnection((current) => current || mobileRef(firstTestUser));
+  }, [firstTestUser]);
+
+  const startMobileLogin = async (renew?: MobileLoginInfo) => {
+    if (!currentOrg) return;
     setNotice(null);
     setMobileLoggingIn(true);
     try {
-      const res = await window.lscApi.mobileLoginStart(loginUrl);
+      const res = renew ? await window.lscApi.mobileLoginRenew(renew.id) : await window.lscApi.mobileLoginStart(currentOrg.instanceUrl);
       if (!res.login) {
         if (/consumer key/i.test(res.error ?? "")) setKeyMissing(true);
         else if (res.error !== "Login window closed.") setNotice({ kind: "error", text: res.error ?? "Login failed." });
         return;
       }
       setKeyMissing(false);
-      setMobileLogins((await window.lscApi.mobileLoginList()).logins);
       setConnection(mobileRef(res.login));
-      setNotice({ kind: "info", text: `Logged in as ${res.login.username} through the mobile app.` });
+      setNotice({ kind: "info", text: `Signed in as ${res.login.username} through the LSC mobile app.` });
     } finally {
       setMobileLoggingIn(false);
     }
   };
 
   const startLogin = async (alias: string, instanceUrl: string) => {
-    setLoginOpen(null);
+    setLoginOpen(false);
     setNotice(null);
     const before = connections;
     const res = await window.lscApi.loginSfOrg(alias || undefined, instanceUrl);
@@ -804,8 +807,10 @@ export default function SimulateView() {
     if (!res.canceled && res.path) setNotice({ kind: "info", text: `Saved ${res.path}` });
   };
 
-  const selected =
-    mobileLogins.find((l) => mobileRef(l) === connection) ?? connections.find((c) => connectionRef(c) === connection);
+  const selectedLogin = mobileLogins.find((l) => mobileRef(l) === connection);
+  const selected = selectedLogin ?? connections.find((c) => connectionRef(c) === connection);
+  const isCli = !!connection && !selectedLogin && !mobileLoginId(connection);
+  const runnable = selectedLogin?.status === "signedIn" || (isCli && !!selected);
   const progress = job?.tables;
   const pct = progress && progress.total > 0 ? Math.min(100, Math.round((progress.done / progress.total) * 100)) : null;
 
@@ -867,8 +872,14 @@ export default function SimulateView() {
               type="button"
               className="studio-btn primary"
               onClick={run}
-              disabled={running || !connection}
-              title={connection ? `Simulate a first sync as ${connection}` : "Choose a connection first"}
+              disabled={running || !runnable}
+              title={
+                runnable
+                  ? `Simulate a first sync as ${selectedLogin ? testUserName(selectedLogin) : connection}`
+                  : selectedLogin
+                  ? `${testUserName(selectedLogin)}'s login expired — sign in again first`
+                  : "Choose a test user first"
+              }
             >
               <Play size={14} aria-hidden="true" />
               Run simulation
@@ -939,11 +950,11 @@ export default function SimulateView() {
                     <div className="studio-perf-hint">
                       Salesforce answers the mobile sync requests only for logins made through the LSC mobile app, and sf CLI logins
                       get a 404 from them. Add the app's consumer key in Settings (LSC mobile app consumer key, the
-                      remoteAccessConsumerKey in the iOS app's bootconfig.plist), then log in as the rep here. If you set
+                      remoteAccessConsumerKey in the iOS app's bootconfig.plist), then sign in a test user here. If you set
                       LSC_MOBILE_CLIENT_ID instead, you can ignore this and try the login.
                     </div>
                     <div className="studio-perf-hint">
-                      Without a key you can still use an sf CLI connection. It works only if the org lets that login reach the mobile
+                      Without a key you can still use an sf CLI connection (under “Use an sf CLI connection instead”). It works only if the org lets that login reach the mobile
                       sync endpoints, which it usually doesn't. If the run fails with a 404, that is the reason, not a problem with
                       the rep's setup.
                     </div>
@@ -957,17 +968,18 @@ export default function SimulateView() {
                     onChange={(e) => setConnection(e.target.value)}
                     aria-label="User to run as"
                   >
-                    {connections.length === 0 && mobileLogins.length === 0 && <option value="">No logins yet</option>}
+                    {!selected && <option value="">{mobileLogins.length ? "Choose a test user" : "No test users yet"}</option>}
                     {mobileLogins.length > 0 && (
-                      <optgroup label="Mobile app logins">
+                      <optgroup label="Test users">
                         {mobileLogins.map((l) => (
                           <option key={l.id} value={mobileRef(l)}>
-                            {l.displayName ? `${l.displayName} · ${l.username}` : l.username} — {host(l.instanceUrl)}
+                            {testUserName(l)} · {l.username}
+                            {l.status === "expired" ? " — login expired" : ""}
                           </option>
                         ))}
                       </optgroup>
                     )}
-                    {connections.length > 0 && (
+                    {(cliOpen || isCli) && connections.length > 0 && (
                       <optgroup label="sf CLI connections">
                         {connections.map((c) => (
                           <option key={c.username} value={connectionRef(c)}>
@@ -977,33 +989,52 @@ export default function SimulateView() {
                       </optgroup>
                     )}
                   </select>
-                  <button type="button" className="studio-btn" onClick={loadConnections} disabled={running} title="Re-read the sf CLI's connections">
-                    <RefreshCw size={14} aria-hidden="true" />
-                    Refresh
-                  </button>
                   <button
                     type="button"
                     className="studio-btn primary"
-                    onClick={() => setLoginOpen("mobile")}
-                    disabled={running || mobileLoggingIn || !!loginOpen}
+                    onClick={() => startMobileLogin()}
+                    disabled={running || mobileLoggingIn || !currentOrg?.connected}
                   >
                     {mobileLoggingIn ? <Spinner size={14} /> : <LogIn size={14} aria-hidden="true" />}
-                    {mobileLoggingIn ? "Logging in…" : "Log in as mobile user…"}
-                  </button>
-                  <button type="button" className="studio-btn" onClick={() => setLoginOpen("cli")} disabled={running || !!waitingLogin || !!loginOpen}>
-                    <Terminal size={14} aria-hidden="true" />
-                    Add sf CLI connection…
+                    {mobileLoggingIn ? "Waiting for sign-in…" : "Sign in a test user…"}
                   </button>
                 </div>
-                <div className="studio-perf-hint">Mobile logins last only while Studio is open; sf CLI connections stay until removed.</div>
-                {connectionsError && <div className="studio-perf-hint studio-perf-warn-text">Couldn't list sf CLI connections: {connectionsError}</div>}
-                {selected && <div className="studio-perf-hint">{selected.instanceUrl}</div>}
-                {loginOpen && (
-                  <LoginPanel
-                    mobile={loginOpen === "mobile"}
-                    onStart={loginOpen === "mobile" ? startMobileLogin : startLogin}
-                    onClose={() => setLoginOpen(null)}
-                  />
+                {selectedLogin && (
+                  <div className="studio-perf-row">
+                    <TestUserChip
+                      logins={mobileLogins}
+                      userId={selectedLogin.userId ?? ""}
+                      name={testUserName(selectedLogin)}
+                      signedInTitle="The simulation signs in as this rep through the LSC mobile app, as their iPad would."
+                      adminTitle="Sign in again to run as this rep."
+                    />
+                  </div>
+                )}
+                <div className="studio-perf-hint">
+                  Test users sign in through the LSC mobile app, like an iPad, and are remembered until you forget them in Test users.
+                </div>
+                <Disclosure open={cliOpen || isCli} onToggle={() => setCliOpen(!(cliOpen || isCli))}>
+                  Use an sf CLI connection instead
+                </Disclosure>
+                {(cliOpen || isCli) && (
+                  <>
+                    <div className="studio-perf-hint">
+                      Orgs usually refuse the mobile sync requests from sf CLI logins (a 404), so use one only if this org allows it.
+                    </div>
+                    <div className="studio-perf-row">
+                      <button type="button" className="studio-btn" onClick={loadConnections} disabled={running} title="Re-read the sf CLI's connections">
+                        <RefreshCw size={14} aria-hidden="true" />
+                        Refresh
+                      </button>
+                      <button type="button" className="studio-btn" onClick={() => setLoginOpen(true)} disabled={running || !!waitingLogin || loginOpen}>
+                        <Terminal size={14} aria-hidden="true" />
+                        Add sf CLI connection…
+                      </button>
+                    </div>
+                    {connectionsError && <div className="studio-perf-hint studio-perf-warn-text">Couldn't list sf CLI connections: {connectionsError}</div>}
+                    {selected && isCli && <div className="studio-perf-hint">{selected.instanceUrl}</div>}
+                    {loginOpen && <LoginPanel onStart={startLogin} onClose={() => setLoginOpen(false)} />}
+                  </>
                 )}
                 {waitingLogin && (
                   <Callout

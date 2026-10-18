@@ -1,13 +1,30 @@
 import type { LlmConnection, LlmConnectionKind, LlmConnectionTest } from "./connection";
 import type { AppTheme } from "./theme";
+import type { OrgRef, OrgRole, SfOrg } from "./orgs";
 
-interface LibraryItem {
+/** A chat session; `org` is the org it works in, null for sessions from before orgs were recorded. */
+export interface Conversation {
+  id: string;
+  title: string;
+  pinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+  org: OrgRef | null;
+}
+
+/** Sessions and Library items are scoped to the selected org (plus those tied to none), or `all`. */
+export type OrgScope = "org" | "all";
+
+export interface LibraryItem {
   id: string;
   title: string;
   content: string;
   contentType: "response" | "code" | "diagram" | "table";
   svg?: string;
   sourceConversationId?: string;
+  sourceConversationTitle?: string;
+  /** The org the item came from; null if it isn't known. */
+  org: OrgRef | null;
   tags: string[];
   createdAt: string;
   updatedAt: string;
@@ -43,6 +60,10 @@ export interface MobileLoginInfo {
   displayName?: string;
   orgId?: string;
   instanceUrl: string;
+  /** `expired`: Salesforce turned the refresh token down — sign in again. */
+  status: "signedIn" | "expired";
+  /** Kept across restarts (in the keychain); false when it ends when Roz quits. */
+  remembered: boolean;
 }
 
 export interface PerfSimRecord {
@@ -102,6 +123,8 @@ interface LscApi {
   studioAccessOptions(search?: string): Promise<StudioResponse>;
   studioLwcBundle(name: string): Promise<StudioResponse>;
   studioLwcRequest(method: "GET" | "POST", path: string, body?: unknown): Promise<StudioResponse>;
+  /** As the previewed rep's mobile login instead of the sf CLI connection. */
+  studioLwcRequestAs(loginId: string, method: "GET" | "POST", path: string, body?: unknown): Promise<StudioResponse>;
   studioIpadPublished(profile: string, refresh?: boolean, userId?: string): Promise<StudioResponse>;
   studioIpadPublishedUsers(profile: string, search: string): Promise<StudioResponse>;
   studioIpadPublishedProgress(profile: string): Promise<StudioResponse>;
@@ -141,6 +164,9 @@ interface LscApi {
   mobileLoginStart(loginUrl: string): Promise<{ login?: MobileLoginInfo; error?: string }>;
   mobileLoginList(): Promise<{ logins: MobileLoginInfo[] }>;
   mobileLoginRemove(id: string): Promise<{ ok: boolean }>;
+  mobileLoginCheck(): Promise<{ logins: MobileLoginInfo[] }>;
+  mobileLoginRenew(id: string): Promise<{ login?: MobileLoginInfo; error?: string }>;
+  onMobileLoginsChanged(callback: (logins: MobileLoginInfo[]) => void): () => void;
   studioSimStatus(jobId: string): Promise<StudioResponse>;
   studioSimCancel(jobId: string): Promise<StudioResponse>;
   studioSimActive(): Promise<StudioResponse>;
@@ -154,7 +180,7 @@ interface LscApi {
   perfSaveFile(defaultName: string, text: string, kind: "yaml" | "json" | "md"): Promise<{ canceled: boolean; path?: string }>;
 
   // Library
-  listLibraryItems(): Promise<LibraryItem[]>;
+  listLibraryItems(scope?: OrgScope): Promise<LibraryItem[]>;
   saveLibraryItem(input: {
     title: string;
     content: string;
@@ -164,14 +190,15 @@ interface LscApi {
     tags?: string[];
   }): Promise<LibraryItem>;
   deleteLibraryItem(id: string): Promise<{ ok: boolean }>;
-  searchLibraryItems(query: string): Promise<LibraryItem[]>;
+  searchLibraryItems(query: string, scope?: OrgScope): Promise<LibraryItem[]>;
 
   // Salesforce Org
-  listSfOrgs(): Promise<{
-    orgs: Array<{ alias?: string; username: string; orgId: string; instanceUrl: string; isDefault?: boolean }>;
-    error?: string;
-  }>;
-  setSfOrg(org: string): Promise<{ ok: boolean }>;
+  /** `recheckRoles` checks again which connections are LSC admins (otherwise once a day). */
+  listSfOrgs(options?: { recheckRoles?: boolean }): Promise<{ orgs: SfOrg[]; error?: string }>;
+  /** Roles by lowercased username, sent as background checks finish. */
+  onSfOrgRoles(callback: (roles: Record<string, OrgRole>) => void): () => void;
+  /** Select the org for Studio, Library and new sessions; returns the key it was stored as. */
+  setSfOrg(org: string): Promise<{ ok: boolean; org: string }>;
   /** Called with the new org whenever Settings or the status bar switches it; returns an unsubscribe function. */
   onSfOrgChanged(callback: (org: string) => void): () => void;
   loginSfOrg(alias?: string, instanceUrl?: string): Promise<{ ok: boolean; error?: string }>;
@@ -205,7 +232,7 @@ interface LscApi {
 
   // Chat
   sendMessage(message: string | unknown[], nonce: number, convId: string, model?: string): Promise<{ ok: boolean; error?: string }>;
-  abortChat(): Promise<{ ok: boolean }>;
+  abortChat(convId: string): Promise<{ ok: boolean }>;
   clearChat(): Promise<{ ok: boolean }>;
 
   // Chat events — all include nonce + convId to identify which stream they belong to
@@ -223,12 +250,14 @@ interface LscApi {
   listSkills(): Promise<Array<{ name: string; description: string }>>;
 
   // Conversation History
-  listConversations(): Promise<
-    Array<{ id: string; title: string; pinned: boolean; createdAt: string; updatedAt: string }>
-  >;
-  createConversation(
-    firstMessage: string
-  ): Promise<{ id: string; title: string; pinned: boolean; createdAt: string; updatedAt: string }>;
+  listConversations(scope?: OrgScope): Promise<Conversation[]>;
+  searchConversations(query: string, scope?: OrgScope): Promise<Conversation[]>;
+  getConversation(id: string): Promise<Conversation | null>;
+  /** Ties sessions that have no org yet to the selected org. */
+  moveConversationsToOrg(ids: string[]): Promise<{ ok: boolean; moved: number; error?: string }>;
+  deleteConversations(ids: string[]): Promise<{ ok: boolean }>;
+  /** Creates a session in the org selected now. */
+  createConversation(firstMessage: string): Promise<Conversation>;
   togglePinConversation(id: string): Promise<{ ok: boolean }>;
   deleteConversation(id: string): Promise<{ ok: boolean }>;
   renameConversation(id: string, title: string): Promise<{ ok: boolean }>;
