@@ -6,7 +6,7 @@
 #
 # Verified object names:
 #   - Event (standard)
-#   - TimeSheetEntry (standard)
+#   - TerritoryUserDowntime (standard; Time Off Territory)
 #   - Visit (standard)
 #   - BusinessHours (standard)
 #   - Holiday (standard)
@@ -34,6 +34,8 @@ rules:
       and TOT. This is an informational check - a calendar can function with
       only visits and TOT, but general events provide additional scheduling flexibility.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: info
     check:
       type: soql_count
@@ -66,25 +68,25 @@ rules:
   - id: calendar-002
     name: Time Off Territory records exist
     description: |
-      Checks whether TimeSheetEntry records exist with Type = 'TimeOffTerritory'.
+      Checks whether TerritoryUserDowntime (Time Off Territory) records exist.
       TOT records track when sales reps are out of territory for vacation, training,
       or other reasons. If no TOT records exist, this is informational - it may
       indicate the org has not started using TOT yet, or reps have not created
       any TOT entries. TOT is critical for compliance and activity plan calculations.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: info
     check:
       type: soql_count
       query: >
         SELECT COUNT()
-        FROM TimeSheetEntry
-        WHERE Type = 'TimeOffTerritory'
+        FROM TerritoryUserDowntime
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, StartDateTime, EndDateTime, OwnerId, Owner.Name, Reason, Type
-        FROM TimeSheetEntry
-        WHERE Type = 'TimeOffTerritory'
-        ORDER BY StartDateTime DESC
+        SELECT Id, Name, StartDate, EndDate, User.Name, DowntimeType, SlotType
+        FROM TerritoryUserDowntime
+        ORDER BY StartDate DESC
         LIMIT 10
     symptoms:
       - "No TOT blocks showing on calendar"
@@ -92,7 +94,7 @@ rules:
       - "Activity plan not accounting for out-of-territory time"
     resolution:
       steps:
-        - "Verify users have TimeSheetEntry object access"
+        - "Verify users have Territory User Downtime object access"
         - "Check Admin Console > Planner Administration > Calendar Event tab"
         - "Ensure Time Off Territory activity type is enabled"
         - "Navigate to Admin Console > Time Off Territory to configure settings"
@@ -114,6 +116,7 @@ rules:
       during non-business hours). Without business hours, the calendar lacks visual
       guidance and TOT validation may not work correctly.
     category: configuration
+    stage: config
     severity: warning
     check:
       type: soql_count
@@ -153,6 +156,8 @@ rules:
       on dates when the organization is closed. Holidays improve scheduling accuracy
       and compliance.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: info
     check:
       type: soql_count
@@ -192,6 +197,7 @@ rules:
       typically the core use case for LSC Calendar. Visits with PlannedVisitStartTime
       and PlannedVisitEndTime appear as scheduled activities on the calendar.
     category: configuration
+    stage: data
     severity: info
     check:
       type: soql_count
@@ -226,11 +232,12 @@ rules:
     name: Mobile metadata cache active for calendar objects
     description: |
       Verifies that mobile metadata cache is active. Calendar functionality on mobile
-      requires an active metadata cache that includes Event, Visit, TimeSheetEntry,
+      requires an active metadata cache that includes Event, Visit, TerritoryUserDowntime,
       and related objects. Without active cache, calendar data will not sync to mobile
       devices and calendar features (drag-and-drop scheduling, routines, TOT creation)
       will not work on iPad. This is a critical check for mobile users.
     category: metadata-cache
+    stage: mobile
     severity: warning
     check:
       type: soql_count
@@ -253,7 +260,7 @@ rules:
     resolution:
       steps:
         - "Navigate to Admin Console > Mobile > Object Metadata Cache Configuration"
-        - "Verify Event, Visit, TimeSheetEntry, and Account objects are included in DB Schema"
+        - "Verify Event, Visit, TerritoryUserDowntime, and Account objects are included in DB Schema"
         - "Regenerate metadata cache for affected profiles"
         - "Have users sync their mobile devices"
       ui_path: "Admin Console > Mobile > Object Metadata Cache Configuration"
@@ -286,7 +293,7 @@ groups:
 
   calendar-tot:
     name: "Time Off Territory Check"
-    description: "TOT-specific checks - TimeSheetEntry records and business hours"
+    description: "TOT-specific checks - TerritoryUserDowntime records and business hours"
     rules:
       - calendar-002
       - calendar-003

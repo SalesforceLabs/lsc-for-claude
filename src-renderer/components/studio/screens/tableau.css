@@ -1,0 +1,50 @@
+/* Tableau Followed Metrics (LSCTableauViewController). Prefix every class with studio-ipad-tableau. */
+.studio-ipad-tableau {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0 16px 16px;
+  background: #f3f3f3;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  color: #2e2e2e;
+  overflow: hidden;
+}
+
+.studio-ipad-tableau-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 38px;
+  margin-bottom: 24px;
+}
+
+.studio-ipad-tableau-logo { flex: none; }
+
+.studio-ipad-tableau-eyebrow { font-size: 14px; line-height: 17px; color: #2e2e2e; }
+.studio-ipad-tableau-title { font-size: 18px; line-height: 21px; font-weight: 600; }
+
+.studio-ipad-tableau-list { display: flex; flex-direction: column; gap: 12px; }
+
+.studio-ipad-tableau-card {
+  cursor: pointer;
+  height: 88px;
+  box-sizing: border-box;
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.studio-ipad-tableau-row { display: flex; justify-content: space-between; align-items: flex-start; }
+.studio-ipad-tableau-name { font-size: 16px; line-height: 20px; font-weight: 600; }
+.studio-ipad-tableau-ban { font-size: 20px; line-height: 24px; font-weight: 600; text-align: right; }
+
+.studio-ipad-tableau-row + .studio-ipad-tableau-line { margin-top: 4px; }
+.studio-ipad-tableau-line { margin-top: 3px; font-size: 13px; line-height: 17px; color: #5c5c5c; max-width: 850px; }
+.studio-ipad-tableau-rel { font-weight: 600; }
+.studio-ipad-tableau-rel.positive { color: #2e844a; }
+.studio-ipad-tableau-rel.negative { color: #ba0517; }
+.studio-ipad-tableau-rel.neutral { color: #0176d3; }
+
+.studio-ipad-tableau-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 120px 0 32px; text-align: center; }
+.studio-ipad-tableau-empty-title { font-size: 20px; font-weight: 600; }
+.studio-ipad-tableau-empty-body { font-size: 14px; color: #5c5c5c; }

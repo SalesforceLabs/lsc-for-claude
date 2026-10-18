@@ -32,6 +32,8 @@ rules:
       Lists & Filters functionality. Without accounts, users will see
       empty lists, and all filtering capabilities will be non-functional.
     category: data
+    stage: data
+    studio_surface: objects
     severity: error
     check:
       type: soql_count
@@ -72,6 +74,8 @@ rules:
       ProviderAcctTerritoryInfo records are created automatically when accounts
       are assigned to territories.
     category: data
+    stage: data
+    studio_surface: providerTerritoryInfo
     severity: warning
     check:
       type: soql_count
@@ -114,6 +118,7 @@ rules:
       are commonly used for filtering and segmentation. Admin can also
       configure list column settings per record type.
     category: configuration
+    stage: config
     severity: warning
     check:
       type: soql
@@ -153,6 +158,8 @@ rules:
       not display in account lists. This is informational as map view
       is an optional feature.
     category: data
+    stage: data
+    studio_surface: objects
     severity: info
     check:
       type: soql_count
@@ -197,6 +204,7 @@ rules:
       filtering, sorting, and bulk actions will not work offline. Users will
       see sync errors and empty lists on iPad.
     category: metadata-cache
+    stage: mobile
     severity: warning
     check:
       type: soql_count

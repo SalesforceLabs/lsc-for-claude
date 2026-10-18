@@ -1,0 +1,387 @@
+/* Page-style Studio views (readiness, overview, check a user, what changed, profile checks):
+   one reading column, a verdict card, and check rows. Tone is carried by a status icon, a pill and the
+   progress bar — cards stay neutral. */
+
+/* Scroll container for the page-style views; the board scrolls itself. */
+.studio-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.studio-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-8) var(--space-10);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.studio-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3) var(--space-4);
+}
+
+/* The title takes what's left and never squeezes below a readable width; the actions wrap under it. */
+.studio-page-head > :first-child {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.studio-page-head h2 {
+  margin: 0;
+  font-size: var(--font-2xl);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.studio-page-head p {
+  margin: 4px 0 0;
+  max-width: 62ch;
+  font-size: var(--font-base);
+  line-height: 1.5;
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
+
+.studio-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.studio-page section > .ui-section-title {
+  margin-bottom: var(--space-3);
+}
+
+/* ── Verdict ── */
+
+.studio-verdict {
+  --verdict-color: var(--text-muted);
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: var(--space-4) 18px;
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+}
+
+.studio-verdict.pass { --verdict-color: var(--success); }
+.studio-verdict.warning { --verdict-color: var(--warning); }
+.studio-verdict.error { --verdict-color: var(--error); }
+.studio-verdict.info { --verdict-color: var(--accent); }
+
+.studio-verdict-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.studio-verdict-title {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  font-size: var(--font-lg);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+
+.studio-verdict.unknown .studio-verdict-title {
+  font-size: var(--font-md);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.studio-verdict-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--fill-active);
+  overflow: hidden;
+}
+
+.studio-verdict-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--verdict-color);
+  transition: width var(--transition-base);
+}
+
+.studio-verdict-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px var(--space-4);
+  min-height: var(--control-sm);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.studio-verdict-meta .ui-check {
+  margin-left: auto;
+}
+
+.studio-verdict-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.studio-verdict-fix {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.studio-verdict-fix label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.studio-verdict-fix select {
+  max-width: 280px;
+}
+
+.studio-readiness-allgood {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 2px;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+/* ── Check rows ── */
+
+.studio-checklist-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.studio-rcheck,
+.studio-check {
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.studio-rcheck {
+  list-style: none;
+}
+
+.studio-rcheck:hover,
+.studio-check:hover {
+  border-color: var(--border-strong);
+}
+
+.studio-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-right: var(--space-3);
+}
+
+.studio-check.shared {
+  background: transparent;
+}
+
+.studio-check.selected {
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.studio-check-main {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  border-radius: inherit;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.studio-check-main:hover {
+  background: var(--fill-hover);
+}
+
+.studio-check.shared .studio-check-main {
+  padding: var(--space-2) 14px;
+}
+
+.studio-check-num {
+  width: 16px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.studio-check-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.studio-check-label {
+  font-size: var(--font-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.studio-rcheck.unknown .studio-check-label,
+.studio-rcheck.skipped .studio-check-label,
+.studio-check.everyone .studio-check-label {
+  color: var(--text-secondary);
+}
+
+.studio-check-detail {
+  font-size: var(--font-sm);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.studio-check-finding {
+  font-size: var(--font-sm);
+}
+
+.studio-check-finding.error { color: var(--error); }
+.studio-check-finding.warning { color: var(--warning); }
+
+.studio-check-chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform var(--transition-fast);
+}
+
+.studio-check-main[aria-expanded="true"] .studio-check-chevron {
+  transform: rotate(90deg);
+}
+
+.studio-check-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.studio-rcheck > .studio-fix-row {
+  margin: 0;
+  padding: 0 14px 12px 46px;
+}
+
+.studio-rcheck-body {
+  padding: 0 14px 14px 46px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.studio-rcheck-body p {
+  margin: 0;
+}
+
+.studio-rcheck-body strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.studio-rcheck-steps {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.studio-rcheck-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-top: var(--space-1);
+}
+
+.studio-rcheck-id {
+  margin-left: auto;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+/* ── Profile check (View as) ── */
+
+.studio-checklist {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+}
+
+.studio-checklist-back {
+  align-self: flex-start;
+}
+
+.studio-checklist-title {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--font-2xl);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.studio-checklist-eyebrow {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.studio-verdict-bar.neutral > span {
+  background: var(--accent);
+}
+
+.studio-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.studio-section-head .ui-section-title {
+  margin: 0;
+}

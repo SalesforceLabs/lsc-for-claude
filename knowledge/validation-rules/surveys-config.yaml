@@ -10,10 +10,9 @@
 #   - SurveyPage (standard)
 #   - SurveyQuestion (standard)
 #   - SurveyQuestionChoice (standard)
-#   - SurveyResponse (standard)
-#   - SurveyQuestionResponse (standard)
-#   - SurveySubject (standard)
 #   - SurveyInvitation (standard)
+#   - SurveyResponseOffline, SurveyQstnResponseOffline (what the iPad writes)
+#   - SurveyResponse, SurveyQuestionResponse (standard web responses)
 #   - SurveyShare (standard)
 #   - LifeSciMobileMetadataRecord (standard)
 
@@ -39,6 +38,8 @@ rules:
       feedback or measure customer satisfaction.
     category: configuration
     severity: error
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
@@ -46,7 +47,7 @@ rules:
         FROM Survey
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, Status, ActiveVersionId, Description
+        SELECT Id, Name, SurveyType, ActiveVersionId, Description
         FROM Survey
         ORDER BY Name
         LIMIT 10
@@ -56,12 +57,12 @@ rules:
       - "Cannot capture HCP feedback"
     resolution:
       steps:
-        - "Navigate to Setup > Surveys or App Launcher > Surveys"
+        - "Navigate to App Launcher > Surveys"
         - "Click 'New Survey' to create a survey"
         - "Add survey pages and questions"
         - "Configure question types (text, choice, rating, date, etc.)"
         - "Activate the survey to make it available to users"
-      ui_path: "Setup > Surveys or App Launcher > Surveys"
+      ui_path: "App Launcher > Surveys"
     tags: [survey, configuration]
 
   # ===========================================================================
@@ -71,24 +72,26 @@ rules:
   - id: survey-002
     name: Active SurveyVersion records exist
     description: |
-      Checks that at least one SurveyVersion with Status = 'Active' exists.
+      Checks that at least one SurveyVersion with SurveyStatus = 'Active' exists.
       Survey versions contain the actual survey content (pages, questions, logic).
       A survey must have an active version for reps to launch it. Without an
       active version, the survey will appear in the list but cannot be opened.
       The ActiveVersionId field on the Survey record points to the active version.
     category: configuration
     severity: warning
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
         SELECT COUNT()
         FROM SurveyVersion
-        WHERE Status = 'Active'
+        WHERE SurveyStatus = 'Active'
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, SurveyId, Survey.Name, Status, VersionNumber
+        SELECT Id, Name, SurveyId, Survey.Name, SurveyStatus, VersionNumber
         FROM SurveyVersion
-        ORDER BY Survey.Name, VersionNumber DESC
+        ORDER BY Name
         LIMIT 10
     symptoms:
       - "Survey appears in list but cannot be launched"
@@ -118,6 +121,8 @@ rules:
       Questions should cover the feedback or information needed from HCPs.
     category: configuration
     severity: warning
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
@@ -125,9 +130,8 @@ rules:
         FROM SurveyQuestion
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, QuestionName, DataType, SurveyPageId
+        SELECT Id, Name, QuestionName, QuestionType, SurveyVersionId
         FROM SurveyQuestion
-        ORDER BY Name
         LIMIT 10
     symptoms:
       - "Survey opens but shows no questions"
@@ -160,6 +164,8 @@ rules:
       This is informational only and does not block survey functionality.
     category: configuration
     severity: info
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
@@ -167,9 +173,8 @@ rules:
         FROM SurveyInvitation
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, SurveyId, Survey.Name, InvitationLink, ParticipantId
+        SELECT Id, Name, SurveyId, Survey.Name, ResponseStatus
         FROM SurveyInvitation
-        ORDER BY CreatedDate DESC
         LIMIT 10
     symptoms:
       - "Cannot track who was sent surveys"
@@ -189,9 +194,9 @@ rules:
   # ===========================================================================
 
   - id: survey-005
-    name: SurveyResponse records exist
+    name: Survey responses have been captured
     description: |
-      Checks whether SurveyResponse records exist. Survey responses are created
+      Checks whether Survey responses have been captured. Survey responses are created
       when a survey is completed and submitted. If no responses exist, either
       surveys have not been launched yet, or there are configuration issues
       preventing response creation. For new implementations, this is expected.
@@ -199,16 +204,18 @@ rules:
       issues, mobile cache problems, or survey sharing configuration errors.
     category: configuration
     severity: info
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
         SELECT COUNT()
-        FROM SurveyResponse
+        FROM SurveyResponseOffline
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, SurveyVersionId, SurveyVersion.Name, ParentId, CreatedById, CreatedBy.Name, CreatedDate
-        FROM SurveyResponse
-        ORDER BY CreatedDate DESC
+        SELECT Id, Name, SurveyName, Status, CompletionDateTime
+        FROM SurveyResponseOffline
+        ORDER BY CompletionDateTime DESC
         LIMIT 10
     symptoms:
       - "No survey data being captured"
@@ -218,10 +225,10 @@ rules:
     resolution:
       steps:
         - "Verify surveys are active and shared correctly"
-        - "Check mobile metadata cache includes SurveyResponse object"
-        - "Verify users have Create permission on SurveyResponse"
+        - "Check the DB Schema includes SurveyResponseOffline"
+        - "Verify users have Create permission on SurveyResponseOffline"
         - "Test survey completion on desktop and mobile"
-        - "Check debug logs for trigger errors on SurveyResponse"
+        - "Check debug logs for trigger errors on SurveyResponseOffline"
         - "For mobile, ensure device has synced after survey completion"
       ui_path: "Survey > View Responses"
     tags: [survey, responses, data]
@@ -231,25 +238,27 @@ rules:
   # ===========================================================================
 
   - id: survey-006
-    name: Mobile metadata cache active for survey objects
+    name: A mobile metadata cache has been published
     description: |
       Verifies that mobile metadata cache is active. Survey management on mobile
       requires an active metadata cache that includes Survey, SurveyVersion,
-      SurveyPage, SurveyQuestion, SurveyQuestionChoice, SurveyResponse,
-      SurveyQuestionResponse, and SurveySubject objects. Without active cache,
+      SurveyPage, SurveyQuestion, SurveyQuestionChoice, SurveyInvitation,
+      SurveyResponseOffline, and SurveyQstnResponseOffline objects. Without active cache,
       surveys will not be available on mobile devices, offline survey completion
       will not work, and survey data will not sync correctly.
     category: metadata-cache
     severity: warning
+    stage: mobile
+    studio_surface: dbSchema
     check:
       type: soql_count
       query: >
         SELECT COUNT()
         FROM LifeSciMobileMetadataRecord
-        WHERE Status IN ('Active', 'Published')
+        WHERE Status = 'Active'
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, Status, IntegrationStatus, LastModifiedDate
+        SELECT Id, Name, Status, LastModifiedDate
         FROM LifeSciMobileMetadataRecord
         ORDER BY LastModifiedDate DESC
         LIMIT 10
@@ -263,7 +272,7 @@ rules:
       steps:
         - "Navigate to Admin Console > Mobile > Object Metadata Cache Configuration"
         - "Verify Survey, SurveyVersion, SurveyPage, SurveyQuestion, SurveyQuestionChoice are in DB Schema"
-        - "Verify SurveyResponse, SurveyQuestionResponse, SurveySubject are in DB Schema"
+        - "Verify SurveyResponseOffline, SurveyQstnResponseOffline are in DB Schema"
         - "Regenerate metadata cache for affected profiles"
         - "Use generate_mobile_metadata_cache tool with appropriate profile names"
         - "Have users sync their mobile devices after cache regeneration"

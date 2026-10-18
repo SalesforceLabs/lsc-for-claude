@@ -2,7 +2,7 @@
 # =====================================================
 # Rules to validate Account Management configuration including
 # accounts, healthcare providers, addresses, business licenses,
-# affiliations, territory info, DCR managed fields, and mobile cache.
+# affiliations, territory info, and mobile cache.
 #
 # Verified object names:
 #   - Account (standard)
@@ -19,7 +19,7 @@ category_name: "Account Management Configuration"
 description: |
   Validation rules for LSC Account Management configuration.
   Covers accounts, healthcare providers, addresses, business licenses,
-  affiliations, territory info, DCR managed fields, and mobile cache.
+  affiliations, territory info, and mobile cache.
 
 rules:
   # ===========================================================================
@@ -35,6 +35,8 @@ rules:
       for HCPs (Healthcare Professionals) and standard accounts for HCOs
       (Healthcare Organizations).
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: error
     check:
       type: soql_count
@@ -73,6 +75,8 @@ rules:
       specific functionality like specialties, NPI tracking, and professional
       details will not be available.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: error
     check:
       type: soql_count
@@ -111,6 +115,8 @@ rules:
       and a primary address should be designated via IsPrimary field or through
       ProviderAcctTerritoryInfo preferred address logic.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: error
     check:
       type: soql_count
@@ -150,6 +156,8 @@ rules:
       and compliance scope settings. Not all implementations require business
       licenses, but they are needed for sample management compliance.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: warning
     check:
       type: soql_count
@@ -188,6 +196,8 @@ rules:
       visualizations. Trigger handlers (HardAffiliationHandler,
       AffiliationReciprocalHandler) automate affiliation management.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: warning
     check:
       type: soql_count
@@ -226,6 +236,8 @@ rules:
       They are essential for territory alignment, visit tracking, and activity
       plan calculations.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: warning
     check:
       type: soql_count
@@ -253,40 +265,6 @@ rules:
     tags: [account, configuration, territory]
 
   # ===========================================================================
-  # SECTION 7: DCR Managed Fields
-  # ===========================================================================
-
-  - id: acct-007
-    name: DCR managed fields configured (if DCR is used)
-    description: |
-      Checks whether LifeSciDataChgDefMngFld records exist. These records
-      define which fields on which objects require Data Change Request (DCR)
-      approval before changes are applied. DCR is optional — only needed when
-      data governance workflows are required. If no managed field records exist,
-      DCR functionality will not be active.
-    category: configuration
-    severity: info
-    check:
-      type: soql_count
-      query: >
-        SELECT COUNT()
-        FROM LifeSciDataChgDefMngFld
-      expect: "count >= 0"
-    symptoms:
-      - "DCR not triggering on field changes"
-      - "Data changes applied immediately without approval"
-      - "DCR workflow not starting"
-    resolution:
-      steps:
-        - "If DCR is required, create LifeSciDataChgDefMngFld records"
-        - "Set ObjectApiName and FieldApiName for each managed field"
-        - "Set ApplyChangeImmediately based on governance requirements"
-        - "Activate DCRHandler trigger"
-        - "Configure DCR settings in Admin Console > Account Management > Data Change Request"
-      ui_path: "Admin Console > Account Management > Data Change Request"
-    tags: [account, configuration, dcr]
-
-  # ===========================================================================
   # SECTION 8: Mobile Metadata Cache
   # ===========================================================================
 
@@ -299,6 +277,7 @@ rules:
       objects. Without active cache, account data will not sync to mobile
       devices and the Provider Card will not work offline.
     category: metadata-cache
+    stage: mobile
     severity: warning
     check:
       type: soql_count
@@ -334,7 +313,7 @@ rules:
 groups:
   account-config-check:
     name: "Full Account Configuration Check"
-    description: "Comprehensive check of all account management configuration - accounts, providers, addresses, licenses, affiliations, DCR, and cache"
+    description: "Comprehensive check of all account management configuration - accounts, providers, addresses, licenses, affiliations, and cache"
     rules:
       - acct-001
       - acct-002
@@ -342,7 +321,6 @@ groups:
       - acct-004
       - acct-005
       - acct-006
-      - acct-007
       - acct-008
 
   account-core-check:
@@ -355,12 +333,11 @@ groups:
 
   account-features-check:
     name: "Account Features Data Check"
-    description: "Check feature-specific account data - licenses, affiliations, territory info, and DCR"
+    description: "Check feature-specific account data - licenses, affiliations, and territory info"
     rules:
       - acct-004
       - acct-005
       - acct-006
-      - acct-007
 
   account-mobile:
     name: "Account Mobile Check"

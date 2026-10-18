@@ -1,0 +1,746 @@
+/* ─── Shared UI primitives ───
+   One look for buttons, fields, checkboxes, segmented controls, status icons, and loading / empty / error
+   states across the whole app. Existing component classes (.studio-btn, .studio-input, .btn-primary …)
+   are styled here so every screen shares the same metrics. The simulated iPad (.studio-ipad-screen)
+   draws its own controls and is excluded from the global rules. */
+
+/* ── Focus ── */
+
+:where(button, a, input, select, textarea, [tabindex]):focus-visible:not(.studio-ipad-screen *) {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ── Buttons ── */
+
+.studio-btn,
+.btn-primary,
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--control);
+  padding: 0 12px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-strong);
+  background: var(--fill-control);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--font-sm);
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.studio-btn svg,
+.btn-primary svg,
+.btn-secondary svg {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+.studio-btn:hover:not(:disabled),
+.btn-secondary:hover:not(:disabled) {
+  background: var(--fill-active);
+}
+
+.studio-btn:active:not(:disabled),
+.btn-secondary:active:not(:disabled) {
+  background: var(--fill-active);
+}
+
+.studio-btn.primary,
+.btn-primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: #fff;
+}
+
+.studio-btn.primary:hover:not(:disabled),
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.studio-btn.danger {
+  color: var(--error);
+}
+
+.studio-btn.ghost {
+  border-color: transparent;
+  background: none;
+  color: var(--text-secondary);
+}
+
+.studio-btn.ghost:hover:not(:disabled) {
+  background: var(--fill-hover);
+  color: var(--text-primary);
+}
+
+.studio-btn.sm {
+  height: var(--control-sm);
+  padding: 0 8px;
+  font-size: var(--font-xs);
+}
+
+.studio-btn.lg,
+.btn-primary,
+.btn-secondary {
+  height: var(--control-lg);
+  padding: 0 16px;
+  font-size: var(--font-base);
+}
+
+.studio-btn:disabled,
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Square, icon-only button. */
+.ui-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--control);
+  height: var(--control);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.ui-icon-btn:hover:not(:disabled) {
+  background: var(--fill-hover);
+  color: var(--text-primary);
+}
+
+.ui-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ui-icon-btn.sm {
+  width: var(--control-sm);
+  height: var(--control-sm);
+}
+
+/* ── Text fields and selects ── */
+
+.studio-input,
+.studio-select,
+.studio-filter,
+.ui-field {
+  height: var(--control);
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-xs);
+  background: var(--bg-field);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--font-base);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+textarea.studio-input,
+textarea.ui-field {
+  height: auto;
+  padding: 8px 10px;
+  line-height: 1.5;
+}
+
+.studio-input::placeholder,
+.studio-filter::placeholder,
+.ui-field::placeholder {
+  color: var(--text-muted);
+}
+
+.studio-input:focus,
+.studio-select:focus,
+.studio-filter:focus,
+.ui-field:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.studio-select,
+select.ui-field,
+select.studio-filter {
+  appearance: none;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7 15 5 5 5-5'/%3E%3Cpath d='m7 9 5-5 5 5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.studio-select option,
+select.ui-field option {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Label stacked over a field. */
+.ui-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--font-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* ── Checkboxes and radios ── */
+
+input[type="checkbox"]:not(.studio-ipad-screen *),
+input[type="radio"]:not(.studio-ipad-screen *) {
+  appearance: none;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  border: 1px solid var(--border-control);
+  border-radius: 4px;
+  background: var(--fill-control);
+  display: inline-grid;
+  place-content: center;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+input[type="radio"]:not(.studio-ipad-screen *) {
+  border-radius: 50%;
+}
+
+input[type="checkbox"]:not(.studio-ipad-screen *):checked,
+input[type="radio"]:not(.studio-ipad-screen *):checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+input[type="checkbox"]:not(.studio-ipad-screen *):checked::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: #fff;
+  clip-path: polygon(14% 52%, 0 66%, 38% 100%, 100% 22%, 86% 8%, 38% 72%);
+}
+
+input[type="radio"]:not(.studio-ipad-screen *):checked::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+input[type="checkbox"]:not(.studio-ipad-screen *):disabled,
+input[type="radio"]:not(.studio-ipad-screen *):disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* A checkbox with its label beside it. */
+.ui-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.ui-check:hover {
+  color: var(--text-primary);
+}
+
+/* ── Segmented control ── */
+
+.ui-segmented,
+.studio-view-tabs {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 2px;
+  height: var(--control);
+  padding: 2px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-inset);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.ui-segmented button,
+.studio-view-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--font-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.ui-segmented button:hover:not(:disabled):not([aria-selected="true"]),
+.studio-view-tabs button:hover:not([aria-pressed="true"]) {
+  color: var(--text-primary);
+}
+
+.ui-segmented button[aria-selected="true"],
+.studio-view-tabs button[aria-pressed="true"] {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--border);
+}
+
+.ui-segmented button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ui-segmented.sm {
+  height: var(--control-sm);
+}
+
+.ui-segmented.sm button {
+  padding: 0 8px;
+  font-size: var(--font-xs);
+}
+
+.ui-segmented-count {
+  min-width: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--fill-active);
+  color: var(--text-secondary);
+  font-size: var(--font-2xs);
+  font-weight: 600;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Status icon ── */
+
+.ui-status-icon {
+  --tone: var(--text-muted);
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 16%, transparent);
+}
+
+.ui-status-icon.solid {
+  color: var(--bg-primary);
+  background: var(--tone);
+}
+
+.ui-status-icon.pass { --tone: var(--success); }
+.ui-status-icon.error { --tone: var(--error); }
+.ui-status-icon.warning { --tone: var(--warning); }
+.ui-status-icon.info { --tone: var(--accent); }
+.ui-status-icon.unknown,
+.ui-status-icon.skipped { --tone: var(--text-muted); }
+
+/* Status pill — a short label on a tint of its tone. */
+.ui-pill {
+  --tone: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ui-pill.error { --tone: var(--error); }
+.ui-pill.warning { --tone: var(--warning); }
+.ui-pill.info { --tone: var(--accent); }
+.ui-pill.pass { --tone: var(--success); }
+
+/* ── Spinner ── */
+
+.ui-spinner {
+  display: inline-block;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: var(--border-strong);
+  border-top-color: var(--text-secondary);
+  border-radius: 50%;
+  animation: ui-spin 0.7s linear infinite, ui-fade-in 0.2s ease-out 0.15s both;
+}
+
+@keyframes ui-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Loading / empty / error states ── */
+
+.ui-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: var(--space-8) var(--space-6);
+  text-align: center;
+  animation: ui-fade-in 0.25s var(--ease-out) both;
+}
+
+.ui-state.fill {
+  position: absolute;
+  inset: 0;
+}
+
+.ui-state.inline {
+  min-height: 240px;
+}
+
+.ui-state.loading {
+  animation-delay: 0.12s;
+}
+
+.ui-state-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 4px;
+  border-radius: 12px;
+  background: var(--fill-control);
+  color: var(--text-secondary);
+}
+
+.ui-state.error .ui-state-icon {
+  background: var(--error-subtle);
+  color: var(--error);
+}
+
+.ui-state .ui-spinner {
+  margin-bottom: 6px;
+}
+
+.ui-state-title {
+  font-size: var(--font-md);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ui-state-detail {
+  max-width: 400px;
+  font-size: var(--font-sm);
+  line-height: 1.5;
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
+
+.ui-state-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* ── Skeleton ── */
+
+.ui-skeleton {
+  border-radius: var(--radius-xs);
+  background: linear-gradient(90deg, var(--fill-hover) 0%, var(--fill-active) 50%, var(--fill-hover) 100%);
+  background-size: 200% 100%;
+  animation: ui-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes ui-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+/* ── Section heading: an eyebrow with an optional count beside it ── */
+
+.ui-section-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ui-section-title .count {
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Transitions between views ── */
+
+.ui-enter {
+  animation: ui-view-in 0.22s var(--ease-out) both;
+}
+
+@keyframes ui-view-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes ui-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ui-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *:not(.ui-spinner),
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Search picker ── */
+
+.ui-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.ui-picker-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ui-picker-search > svg {
+  position: absolute;
+  left: 9px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.ui-picker-search .ui-field {
+  width: 100%;
+  padding-left: 28px;
+}
+
+.ui-picker-list {
+  max-height: 240px;
+  margin: 0;
+  padding: var(--space-1) 0;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--bg-tertiary);
+}
+
+.ui-picker-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 30px;
+  padding: 0 10px;
+  cursor: pointer;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+}
+
+.ui-picker-row.active {
+  background: var(--fill-hover);
+}
+
+.ui-picker-label,
+.ui-picker-detail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-picker-label {
+  flex: 1 1 auto;
+}
+
+.ui-picker-detail {
+  flex: 0 1 auto;
+  max-width: 50%;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+}
+
+.ui-picker-empty {
+  margin: 0;
+  padding: var(--space-2) 0;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.ui-picker-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Numbers that change in place shouldn't jitter. */
+.ui-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* "Show more" row at the end of a long list (Limited.tsx). */
+.ui-show-more {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 var(--space-2);
+  list-style: none;
+  font-size: var(--font-sm);
+}
+.ui-show-more-total {
+  color: var(--text-muted);
+}
+
+/* "Updated 12 min ago" beside a Refresh button (UpdatedAgo.tsx). */
+.ui-updated {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ── Search picker (SearchPicker.tsx): a search field over a list of options ── */
+
+.studio-modal.ui-picker {
+  width: 480px;
+}
+
+.ui-picker-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ui-picker-search svg {
+  position: absolute;
+  left: var(--space-3);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.ui-picker-search .studio-input {
+  flex: 1;
+  min-width: 0;
+  padding-left: var(--space-8);
+}
+
+.ui-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1) 0;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.ui-picker-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  width: 100%;
+  height: 30px;
+  padding: 0 var(--space-3);
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--font-base);
+  text-align: left;
+  line-height: 30px;
+  cursor: pointer;
+}
+
+.ui-picker-list [aria-selected="true"] .ui-picker-row {
+  background: var(--fill-hover);
+}
+
+.ui-picker-label,
+.ui-picker-detail {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ui-picker-label {
+  flex: 0 1 auto;
+}
+
+.ui-picker-detail {
+  flex: 1 1 0;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.ui-picker-count {
+  align-self: flex-end;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}

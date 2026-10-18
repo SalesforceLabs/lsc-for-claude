@@ -18,6 +18,7 @@ const {
   setTargetOrg,
   clearTargetOrg,
   checkSetupStatus,
+  invalidateSetupStatus,
   getSetupInstructions,
   formatOrgList,
   getEffectiveTargetOrg,
@@ -32,6 +33,7 @@ const { isSfCliInstalled, getSfCliVersion, listOrgs } = await import(
 describe("auth.ts", () => {
   beforeEach(() => {
     clearTargetOrg();
+    invalidateSetupStatus();
   });
 
   // ==========================================================================
@@ -60,6 +62,58 @@ describe("auth.ts", () => {
   // checkSetupStatus
   // ==========================================================================
   describe("checkSetupStatus()", () => {
+    const mockCli = (orgs: typeof MOCK_ORG_LIST_RESULT) => {
+      vi.mocked(isSfCliInstalled).mockResolvedValue(true);
+      vi.mocked(getSfCliVersion).mockResolvedValue({ success: true, data: "2.30.0" });
+      vi.mocked(listOrgs).mockResolvedValue({ success: true, data: orgs });
+    };
+
+    it("reuses a recent org list instead of running sf org list again", async () => {
+      mockCli(MOCK_ORG_LIST_RESULT);
+      await checkSetupStatus();
+      await validateOrgConnection();
+      expect(listOrgs).toHaveBeenCalledTimes(1);
+    });
+
+    it("shares one sf org list between concurrent checks", async () => {
+      mockCli(MOCK_ORG_LIST_RESULT);
+      await Promise.all([checkSetupStatus(), checkSetupStatus(), validateOrgConnection()]);
+      expect(listOrgs).toHaveBeenCalledTimes(1);
+    });
+
+    it("runs sf org list again when fresh, invalidated, or the cache has expired", async () => {
+      mockCli(MOCK_ORG_LIST_RESULT);
+      await checkSetupStatus();
+      await checkSetupStatus({ fresh: true });
+      expect(listOrgs).toHaveBeenCalledTimes(2);
+      invalidateSetupStatus();
+      await checkSetupStatus();
+      expect(listOrgs).toHaveBeenCalledTimes(3);
+
+      vi.useFakeTimers({ toFake: ["Date"] });
+      try {
+        vi.setSystemTime(Date.now() + 6 * 60 * 1000);
+        await checkSetupStatus();
+        expect(listOrgs).toHaveBeenCalledTimes(4);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("doesn't keep a result with no orgs, so a new login is seen on the next check", async () => {
+      mockCli({ nonScratchOrgs: [], scratchOrgs: [] });
+      expect((await checkSetupStatus()).hasAuthenticatedOrgs).toBe(false);
+      mockCli(MOCK_ORG_LIST_RESULT);
+      expect((await checkSetupStatus()).hasAuthenticatedOrgs).toBe(true);
+    });
+
+    it("doesn't keep a result with the CLI missing", async () => {
+      vi.mocked(isSfCliInstalled).mockResolvedValue(false);
+      expect((await checkSetupStatus()).cliInstalled).toBe(false);
+      mockCli(MOCK_ORG_LIST_RESULT);
+      expect((await checkSetupStatus()).cliInstalled).toBe(true);
+    });
+
     it("returns install_cli when CLI not installed", async () => {
       vi.mocked(isSfCliInstalled).mockResolvedValue(false);
 

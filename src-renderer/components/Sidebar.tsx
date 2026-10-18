@@ -1,50 +1,87 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import {
+  Building2,
+  ChevronRight,
+  Ellipsis,
+  LayoutGrid,
+  Library,
+  PanelLeft,
+  Pencil,
+  Pin,
+  PinOff,
+  Search,
+  SearchX,
+  SquarePen,
+  Terminal,
+  Trash2,
+  X,
+} from "lucide-react";
+import { rozTileSrc, useAppIcon } from "../app-icon";
+import OrgSwitcher from "./OrgSwitcher";
+import Segmented from "./ui/Segmented";
+import Spinner from "./ui/Spinner";
+import StateView from "./ui/StateView";
+import { useOrgs } from "../hooks/useOrgs";
+import { orgLabel, sameUsername } from "../orgs";
+import type { Conversation, OrgScope } from "../types";
 
-interface Conversation {
-  id: string;
-  title: string;
-  pinned: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+/** Remembers whether "Not linked to an org" is expanded; it starts collapsed. */
+const UNLINKED_OPEN_KEY = "roz.sidebar.unlinkedOpen";
+/** The row-menu id for the "Not linked to an org" section's own menu. */
+const UNLINKED_MENU = "section:unlinked";
 
 interface SidebarProps {
   commands: Array<{ name: string; description: string }>;
-  toolCount: number;
   providerType: string;
   activeConversationId: string | null;
   streamingConvIds: Set<string>;
+  /** The selected org's username ("" for none); undefined until it's known. */
+  orgId: string | undefined;
+  /** The selected org's name, for the empty state. */
+  orgName?: string;
+  /** Usernames (lowercased) of orgs with a session running, for the org menu. */
+  runningOrgs: Set<string>;
   libraryCount: number;
   collapsed: boolean;
   onToggleCollapse: () => void;
   onCommandClick: (name: string) => void;
-  onSettingsClick: () => void;
   onNewChat: () => void;
   onLoadConversation: (id: string) => void;
-  onDeleteConversation: (id: string) => void;
+  onDeleteConversations: (ids: string[]) => Promise<void>;
+  /** Unlinked sessions were moved into the selected org. */
+  onSessionsMoved: () => void;
   onRenameConversation: (id: string, title: string) => void;
   onTogglePin: (id: string) => void;
   onOpenLibrary: () => void;
+  studioActive: boolean;
+  libraryActive: boolean;
+  onOpenStudio: () => void;
 }
 
 export default function Sidebar({
   commands,
-  toolCount,
   providerType,
   activeConversationId,
   streamingConvIds,
+  orgId,
+  orgName,
+  runningOrgs,
   libraryCount,
   onCommandClick,
-  onSettingsClick,
   onNewChat,
   onLoadConversation,
   collapsed,
   onToggleCollapse,
-  onDeleteConversation,
+  onDeleteConversations,
+  onSessionsMoved,
   onRenameConversation,
   onTogglePin,
   onOpenLibrary,
+  studioActive,
+  libraryActive,
+  onOpenStudio,
 }: SidebarProps) {
+  const appIcon = useAppIcon();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [showCommands, setShowCommands] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
@@ -52,16 +89,71 @@ export default function Sidebar({
   const [renameValue, setRenameValue] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const { orgs } = useOrgs();
+  const [unlinkedOpen, setUnlinkedOpen] = useState(() => localStorage.getItem(UNLINKED_OPEN_KEY) === "1");
 
+  // Search finds a session in this org or any other; opening one from another org switches to it.
+  const [query, setQuery] = useState("");
+  const [searchScope, setSearchScope] = useState<OrgScope>("org");
+  const [results, setResults] = useState<Conversation[] | null>(null);
+  const [searchError, setSearchError] = useState("");
+  const [searchRun, setSearchRun] = useState(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searching = query.trim().length > 0;
+
+  // The selected org's sessions, plus those from before sessions were tied to an org.
   const refreshHistory = useCallback(async () => {
-    if (!window.lscApi) return;
-    const list = await window.lscApi.listConversations();
+    if (!window.lscApi || orgId === undefined) return;
+    const list = await window.lscApi.listConversations("org");
     setConversations(list);
-  }, []);
+  }, [orgId]);
 
   useEffect(() => {
     refreshHistory();
-  }, [refreshHistory, activeConversationId]);
+  }, [refreshHistory, activeConversationId, streamingConvIds]);
+
+  // A new org starts its search in that org, as the Library does.
+  useEffect(() => setSearchScope("org"), [orgId]);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (!q || !window.lscApi || orgId === undefined) {
+      setResults(null);
+      return;
+    }
+    // The last results stay up while the next search runs, so typing doesn't flash a spinner.
+    let stale = false;
+    const timer = setTimeout(() => {
+      window.lscApi
+        .searchConversations(q, searchScope)
+        .then((found) => {
+          if (stale) return;
+          setResults(found);
+          setSearchError("");
+        })
+        .catch((e) => {
+          if (stale) return;
+          setResults([]);
+          setSearchError(e instanceof Error ? e.message : String(e));
+        });
+    }, 150);
+    return () => {
+      stale = true;
+      clearTimeout(timer);
+    };
+  }, [query, searchScope, orgId, searchRun]);
+
+  const clearSearch = () => {
+    setQuery("");
+    setSearchError("");
+  };
+
+  const toggleUnlinked = () => {
+    setUnlinkedOpen((open) => {
+      localStorage.setItem(UNLINKED_OPEN_KEY, open ? "0" : "1");
+      return !open;
+    });
+  };
 
   // Close menu on outside click
   useEffect(() => {
@@ -75,6 +167,18 @@ export default function Sidebar({
     return () => document.removeEventListener("mousedown", onClick);
   }, [menuOpenId]);
 
+  // Escape closes the commands sheet and the row menu
+  useEffect(() => {
+    if (!showCommands && !menuOpenId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setShowCommands(false);
+      setMenuOpenId(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [showCommands, menuOpenId]);
+
   // Focus rename input when it appears
   useEffect(() => {
     if (renamingId) renameInputRef.current?.focus();
@@ -82,8 +186,27 @@ export default function Sidebar({
 
   const handleDelete = (id: string) => {
     setMenuOpenId(null);
-    onDeleteConversation(id);
+    onDeleteConversations([id]);
     setConversations((prev) => prev.filter((c) => c.id !== id));
+    setResults((prev) => prev && prev.filter((c) => c.id !== id));
+  };
+
+  const deleteAll = async (ids: string[]) => {
+    setMenuOpenId(null);
+    const n = ids.length;
+    const what = n === 1 ? "1 session" : `${n} sessions`;
+    if (!window.confirm(`Delete ${what} not linked to an org? This can't be undone.`)) return;
+    await onDeleteConversations(ids);
+    await refreshHistory();
+  };
+
+  // Only sessions with no org move; the main process leaves any already in an org alone.
+  const moveToOrg = async (ids: string[]) => {
+    setMenuOpenId(null);
+    const res = await window.lscApi.moveConversationsToOrg(ids);
+    if (res.moved) onSessionsMoved();
+    await refreshHistory();
+    if (searching) setSearchRun((n) => n + 1);
   };
 
   const handlePin = async (id: string) => {
@@ -123,29 +246,68 @@ export default function Sidebar({
     return d.toLocaleDateString();
   };
 
+  const renderCommands = () => (
+    <div className="commands-modal-backdrop" onClick={() => setShowCommands(false)}>
+      <div className="commands-modal" role="dialog" aria-label="Commands" onClick={(e) => e.stopPropagation()}>
+        <div className="commands-modal-header">
+          <span className="commands-modal-title">Commands</span>
+          <button className="ui-icon-btn" onClick={() => setShowCommands(false)} aria-label="Close">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="commands-modal-body">
+          {commands.map((cmd) => (
+            <button
+              key={cmd.name}
+              className="commands-modal-item"
+              onClick={() => { onCommandClick(cmd.name); setShowCommands(false); }}
+            >
+              <span className="commands-modal-cmd">/lsc:{cmd.name}</span>
+              <span className="commands-modal-desc">{cmd.description}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
   if (collapsed) {
     return (
       <div className="sidebar collapsed">
-        <button className="sidebar-expand-btn" onClick={onToggleCollapse} title="Expand sidebar">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
+        <div className="sidebar-collapsed-head" />
+        <button className="sidebar-collapsed-btn" onClick={onToggleCollapse} title="Show sidebar" aria-label="Show sidebar">
+          <PanelLeft size={17} strokeWidth={1.75} />
         </button>
-        <button className="sidebar-collapsed-btn" onClick={onNewChat} title="New Session">
-          <IconPlus />
+        <div className="sidebar-collapsed-sep" />
+        <OrgSwitcher runningOrgs={runningOrgs} compact />
+        <button className="sidebar-collapsed-btn" onClick={onNewChat} title="New session" aria-label="New session">
+          <SquarePen size={17} strokeWidth={1.75} />
         </button>
-        <button className="sidebar-collapsed-btn" onClick={onOpenLibrary} title="Library">
-          <IconLibrary />
+        <button className={`sidebar-collapsed-btn${studioActive ? " active" : ""}`} onClick={onOpenStudio} title="Studio" aria-label="Studio">
+          <LayoutGrid size={17} strokeWidth={1.75} />
         </button>
-        <button className="sidebar-collapsed-btn" onClick={onSettingsClick} title="Settings">
-          <IconSettings />
+        <button className={`sidebar-collapsed-btn${libraryActive ? " active" : ""}`} onClick={onOpenLibrary} title="Library" aria-label="Library">
+          <Library size={17} strokeWidth={1.75} />
         </button>
+        <button className="sidebar-collapsed-btn" onClick={() => setShowCommands(true)} title="Commands" aria-label="Commands">
+          <Terminal size={17} strokeWidth={1.75} />
+        </button>
+        {showCommands && renderCommands()}
       </div>
     );
   }
 
   const pinned = conversations.filter((c) => c.pinned);
-  const unpinned = conversations.filter((c) => !c.pinned);
+  const recent = conversations.filter((c) => !c.pinned && c.org);
+  const unlinked = conversations.filter((c) => !c.pinned && !c.org);
+  // The session on screen stays visible even while its section is collapsed.
+  const showUnlinked = unlinkedOpen || unlinked.some((c) => c.id === activeConversationId);
+
+  const canMove = !!orgId && !!orgName;
+
+  /** In search across orgs, sessions from another org say which one (opening them switches to it). */
+  const elsewhere = (conv: Conversation): conv is Conversation & { org: NonNullable<Conversation["org"]> } =>
+    searching && searchScope === "all" && !!conv.org && !(orgId && sameUsername(conv.org.username, orgId));
 
   const renderItem = (conv: Conversation) => (
     <div
@@ -168,21 +330,14 @@ export default function Sidebar({
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <div
-            className="history-item-title"
-            style={{
-              color:
-                conv.id === activeConversationId
-                  ? "var(--text-primary)"
-                  : "var(--text-secondary)",
-            }}
-          >
-            {streamingConvIds.has(conv.id) && (
-              <span className="session-active-dot" />
+          <div className="history-item-title" title={conv.title}>
+            {streamingConvIds.has(conv.id) && <span className="session-active-dot" />}
+            <span className="history-item-text">{conv.title}</span>
+            {elsewhere(conv) && (
+              <span className="history-item-org" title={`In ${orgLabel(conv.org, orgs)}`}>
+                {orgLabel(conv.org, orgs)}
+              </span>
             )}
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-              {conv.title}
-            </span>
           </div>
         )}
       </div>
@@ -194,20 +349,31 @@ export default function Sidebar({
             setMenuOpenId(menuOpenId === conv.id ? null : conv.id);
           }}
           title="More options"
+          aria-label="More options"
+          aria-haspopup="menu"
+          aria-expanded={menuOpenId === conv.id}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" />
-          </svg>
+          <Ellipsis size={15} strokeWidth={2} />
         </button>
         {menuOpenId === conv.id && (
-          <div className="history-overflow-menu">
-            <button onClick={(e) => { e.stopPropagation(); handlePin(conv.id); }}>
+          <div className="history-overflow-menu" role="menu">
+            <button role="menuitem" onClick={(e) => { e.stopPropagation(); handlePin(conv.id); }}>
+              {conv.pinned ? <PinOff size={14} /> : <Pin size={14} />}
               {conv.pinned ? "Unpin" : "Pin to top"}
             </button>
-            <button onClick={(e) => { e.stopPropagation(); startRename(conv); }}>
+            {!conv.org && canMove && (
+              <button role="menuitem" onClick={(e) => { e.stopPropagation(); moveToOrg([conv.id]); }}>
+                <Building2 size={14} />
+                <span className="history-overflow-label">Move to {orgName}</span>
+              </button>
+            )}
+            <button role="menuitem" onClick={(e) => { e.stopPropagation(); startRename(conv); }}>
+              <Pencil size={14} />
               Rename
             </button>
-            <button className="danger" onClick={(e) => { e.stopPropagation(); handleDelete(conv.id); }}>
+            <div className="history-overflow-sep" />
+            <button role="menuitem" className="danger" onClick={(e) => { e.stopPropagation(); handleDelete(conv.id); }}>
+              <Trash2 size={14} />
               Delete
             </button>
           </div>
@@ -219,128 +385,177 @@ export default function Sidebar({
   return (
     <div className="sidebar">
       <div className="sidebar-header">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <img src="lsc-logo-2026.png" alt="" className="sidebar-logo" />
-            <h1>LSC Assistant</h1>
-          </div>
-          <button className="sidebar-collapse-btn" onClick={onToggleCollapse} title="Collapse sidebar">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
+        <div className="sidebar-brand">
+          <img src={rozTileSrc(appIcon)} alt="" className="sidebar-logo" />
+          <h1>Roz</h1>
         </div>
+        <button className="ui-icon-btn" onClick={onToggleCollapse} title="Hide sidebar" aria-label="Hide sidebar">
+          <PanelLeft size={17} strokeWidth={1.75} />
+        </button>
       </div>
 
-      {/* Navigation menu items */}
-      <div className="sidebar-nav">
+      <OrgSwitcher runningOrgs={runningOrgs} />
+
+      <nav className="sidebar-nav">
         <button className="sidebar-nav-item" onClick={onNewChat}>
-          <IconPlus />
+          <SquarePen size={16} strokeWidth={1.75} />
           <span>New session</span>
         </button>
-        <button className="sidebar-nav-item" onClick={onOpenLibrary}>
-          <IconLibrary />
+        <button className={`sidebar-nav-item${studioActive ? " active" : ""}`} onClick={onOpenStudio} aria-current={studioActive ? "page" : undefined}>
+          <LayoutGrid size={16} strokeWidth={1.75} />
+          <span>Studio</span>
+        </button>
+        <button className={`sidebar-nav-item${libraryActive ? " active" : ""}`} onClick={onOpenLibrary} aria-current={libraryActive ? "page" : undefined}>
+          <Library size={16} strokeWidth={1.75} />
           <span>Library</span>
           {libraryCount > 0 && <span className="sidebar-nav-badge">{libraryCount}</span>}
         </button>
         <button className="sidebar-nav-item" onClick={() => setShowCommands(true)}>
-          <IconTerminal />
+          <Terminal size={16} strokeWidth={1.75} />
           <span>Commands</span>
         </button>
+      </nav>
+
+      <div className="sidebar-search">
+        <Search size={14} aria-hidden="true" />
+        <input
+          ref={searchInputRef}
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") clearSearch();
+          }}
+          placeholder="Search sessions"
+          aria-label="Search sessions"
+          spellCheck={false}
+        />
+        {searching && (
+          <button className="ui-icon-btn sm" onClick={() => { clearSearch(); searchInputRef.current?.focus(); }} aria-label="Clear search">
+            <X size={14} />
+          </button>
+        )}
       </div>
 
-      {/* Session history */}
       <div className="sidebar-sessions">
-        {pinned.length > 0 && (
+        {searching ? (
           <>
-            <div className="sidebar-section-title">Pinned</div>
-            {pinned.map(renderItem)}
+            <Segmented
+              className="sidebar-search-scope"
+              size="sm"
+              aria-label="Search in"
+              value={searchScope}
+              onChange={setSearchScope}
+              options={[
+                { value: "org", label: "This org", title: orgName ? `Sessions in ${orgName}` : undefined },
+                { value: "all", label: "All orgs" },
+              ]}
+            />
+            {results === null ? (
+              <div className="sidebar-search-status">
+                <Spinner size={14} />
+              </div>
+            ) : searchError ? (
+              <StateView
+                kind="error"
+                layout="inline"
+                title="Couldn't search sessions"
+                detail={searchError}
+                actions={<button className="studio-btn sm" onClick={() => setSearchRun((n) => n + 1)}>Retry</button>}
+              />
+            ) : results.length === 0 ? (
+              <StateView
+                kind="empty"
+                layout="inline"
+                icon={SearchX}
+                title="No sessions match"
+                detail={searchScope === "org" && orgName ? `Nothing in ${orgName} mentions “${query.trim()}”.` : `No session mentions “${query.trim()}”.`}
+                actions={
+                  searchScope === "org" ? (
+                    <button className="studio-btn sm" onClick={() => setSearchScope("all")}>Search all orgs</button>
+                  ) : undefined
+                }
+              />
+            ) : (
+              <>
+                <div className="sidebar-section-title">
+                  {results.length === 1 ? "1 session" : `${results.length} sessions`}
+                </div>
+                {results.map(renderItem)}
+              </>
+            )}
           </>
-        )}
-        {unpinned.length > 0 && (
+        ) : (
           <>
-            <div className="sidebar-section-title">
-              {pinned.length > 0 ? "Recent" : "Sessions"}
-            </div>
-            {unpinned.map(renderItem)}
+            {pinned.length > 0 && (
+              <>
+                <div className="sidebar-section-title">Pinned</div>
+                {pinned.map(renderItem)}
+              </>
+            )}
+            {recent.length > 0 && (
+              <>
+                <div className="sidebar-section-title">
+                  {pinned.length > 0 ? "Recent" : "Sessions"}
+                </div>
+                {recent.map(renderItem)}
+              </>
+            )}
+            {recent.length === 0 && pinned.length === 0 && (
+              <div className="sidebar-sessions-empty">
+                {orgName ? `Sessions in ${orgName} will appear here.` : "Your sessions will appear here."}
+              </div>
+            )}
+            {unlinked.length > 0 && (
+              <>
+                <div className="sidebar-section-head">
+                  <button
+                    className="sidebar-section-toggle"
+                    onClick={toggleUnlinked}
+                    aria-expanded={showUnlinked}
+                    title="Sessions from before Roz tied each session to an org. One joins the org you're in when you send it a message, or move them here."
+                  >
+                    <ChevronRight size={12} className="sidebar-section-chevron" aria-hidden="true" />
+                    <span className="sidebar-section-label">Not linked to an org</span>
+                    <span className="count">{unlinked.length}</span>
+                  </button>
+                  <div className="history-item-actions" ref={menuOpenId === UNLINKED_MENU ? menuRef : undefined}>
+                    <button
+                      className="history-overflow-btn"
+                      onClick={() => setMenuOpenId(menuOpenId === UNLINKED_MENU ? null : UNLINKED_MENU)}
+                      aria-label="Sessions not linked to an org: more options"
+                      aria-haspopup="menu"
+                      aria-expanded={menuOpenId === UNLINKED_MENU}
+                    >
+                      <Ellipsis size={15} strokeWidth={2} />
+                    </button>
+                    {menuOpenId === UNLINKED_MENU && (
+                      <div className="history-overflow-menu wide" role="menu">
+                        {canMove && (
+                          <>
+                            <button role="menuitem" onClick={() => moveToOrg(unlinked.map((c) => c.id))}>
+                              <Building2 size={14} />
+                              <span className="history-overflow-label">Move all to {orgName}</span>
+                            </button>
+                            <div className="history-overflow-sep" />
+                          </>
+                        )}
+                        <button role="menuitem" className="danger" onClick={() => deleteAll(unlinked.map((c) => c.id))}>
+                          <Trash2 size={14} />
+                          {unlinked.length === 1 ? "Delete 1 session…" : `Delete ${unlinked.length} sessions…`}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {showUnlinked && unlinked.map(renderItem)}
+              </>
+            )}
           </>
         )}
       </div>
 
-      {/* Footer */}
-      <div className="sidebar-footer">
-        <button className="sidebar-nav-item" onClick={onSettingsClick}>
-          <IconSettings />
-          <span>Settings</span>
-          <span className="sidebar-nav-meta">{toolCount} tools</span>
-        </button>
-      </div>
-
-      {/* Commands Modal */}
-      {showCommands && (
-        <div className="commands-modal-backdrop" onClick={() => setShowCommands(false)}>
-          <div className="commands-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="commands-modal-header">
-              <span className="commands-modal-title">Commands</span>
-              <button className="commands-modal-close" onClick={() => setShowCommands(false)}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-            <div className="commands-modal-body">
-              {commands.map((cmd) => (
-                <button
-                  key={cmd.name}
-                  className="commands-modal-item"
-                  onClick={() => { onCommandClick(cmd.name); setShowCommands(false); }}
-                >
-                  <span className="commands-modal-cmd">/lsc:{cmd.name}</span>
-                  <span className="commands-modal-desc">{cmd.description}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {showCommands && renderCommands()}
     </div>
-  );
-}
-
-/* ─── Icons ─── */
-
-const iconProps = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-
-function IconPlus() {
-  return (
-    <svg {...iconProps}>
-      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-    </svg>
-  );
-}
-
-function IconLibrary() {
-  return (
-    <svg {...iconProps}>
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-    </svg>
-  );
-}
-
-function IconTerminal() {
-  return (
-    <svg {...iconProps}>
-      <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
-    </svg>
-  );
-}
-
-function IconSettings() {
-  return (
-    <svg {...iconProps}>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
   );
 }

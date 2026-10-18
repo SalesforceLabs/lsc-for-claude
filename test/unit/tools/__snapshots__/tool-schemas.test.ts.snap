@@ -1,11 +1,12 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `69`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `111`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
   "add_navigation_tab",
   "add_visit_engagement_sidebar_item",
+  "analyze_sync_telemetry",
   "assign_permission_set",
   "assign_presentation_content",
   "audit_mobile_config",
@@ -60,11 +61,52 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "list_users",
   "list_validation_groups",
   "open_org",
+  "profile_sync_volume",
   "retrieve_metadata",
   "run_apex",
+  "run_perf_assessment",
   "run_soql",
   "search_lsc_knowledge",
   "set_target_org",
+  "simulate_initial_sync",
+  "studio_access_options",
+  "studio_component_catalog",
+  "studio_component_props",
+  "studio_connected_org",
+  "studio_drift",
+  "studio_feature_map",
+  "studio_ipad_published",
+  "studio_ipad_published_progress",
+  "studio_ipad_published_users",
+  "studio_item_detail",
+  "studio_list_features",
+  "studio_list_profiles",
+  "studio_lwc_bundle",
+  "studio_lwc_request",
+  "studio_metadata_doc",
+  "studio_page_reach",
+  "studio_perf_active",
+  "studio_perf_cancel",
+  "studio_perf_check",
+  "studio_perf_parse_plan",
+  "studio_perf_report",
+  "studio_perf_start",
+  "studio_perf_status",
+  "studio_perf_territories",
+  "studio_perf_users",
+  "studio_readiness",
+  "studio_setup_overview",
+  "studio_signoff_report",
+  "studio_sim_active",
+  "studio_sim_cancel",
+  "studio_sim_report",
+  "studio_sim_start",
+  "studio_sim_status",
+  "studio_sync_impact",
+  "studio_sync_overview",
+  "studio_sync_user",
+  "studio_user_access",
+  "studio_user_trace",
   "toggle_db_schema",
   "toggle_trigger_handler",
   "unassign_permission_set",
@@ -1181,6 +1223,558 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
       },
       "username": {
         "optional": true,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_list_features",
+    "params": {},
+  },
+  {
+    "name": "studio_feature_map",
+    "params": {
+      "featureId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_readiness",
+    "params": {
+      "featureId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_setup_overview",
+    "params": {},
+  },
+  {
+    "name": "studio_user_trace",
+    "params": {
+      "featureId": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "userId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_drift",
+    "params": {
+      "action": {
+        "optional": false,
+        "type": "ZodEnum",
+      },
+      "days": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "id": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "label": {
+        "optional": true,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_item_detail",
+    "params": {
+      "id": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "kind": {
+        "optional": false,
+        "type": "ZodEnum",
+      },
+    },
+  },
+  {
+    "name": "studio_metadata_doc",
+    "params": {
+      "fullName": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "type": {
+        "optional": false,
+        "type": "ZodEnum",
+      },
+    },
+  },
+  {
+    "name": "studio_page_reach",
+    "params": {
+      "fullName": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_component_catalog",
+    "params": {
+      "pageType": {
+        "optional": false,
+        "type": "ZodEnum",
+      },
+      "sobject": {
+        "optional": true,
+        "type": "ZodNullable",
+      },
+    },
+  },
+  {
+    "name": "studio_component_props",
+    "params": {
+      "component": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "pageType": {
+        "optional": true,
+        "type": "ZodEnum",
+      },
+    },
+  },
+  {
+    "name": "studio_list_profiles",
+    "params": {},
+  },
+  {
+    "name": "studio_user_access",
+    "params": {
+      "userId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_ipad_published",
+    "params": {
+      "profile": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "userId": {
+        "optional": true,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_ipad_published_users",
+    "params": {
+      "profile": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "search": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_ipad_published_progress",
+    "params": {
+      "profile": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_lwc_bundle",
+    "params": {
+      "name": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_lwc_request",
+    "params": {
+      "body": {
+        "optional": true,
+        "type": "ZodUnknown",
+      },
+      "method": {
+        "optional": false,
+        "type": "ZodEnum",
+      },
+      "mobileLogin": {
+        "optional": true,
+        "type": "ZodObject",
+      },
+      "path": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_access_options",
+    "params": {
+      "search": {
+        "optional": true,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_perf_users",
+    "params": {
+      "days": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "profile": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "search": {
+        "optional": true,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_perf_parse_plan",
+    "params": {
+      "yaml": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_perf_start",
+    "params": {
+      "mobileLogins": {
+        "optional": true,
+        "type": "ZodArray",
+      },
+      "plan": {
+        "optional": false,
+        "type": "ZodObject",
+      },
+    },
+  },
+  {
+    "name": "studio_perf_status",
+    "params": {
+      "jobId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_connected_org",
+    "params": {},
+  },
+  {
+    "name": "studio_perf_active",
+    "params": {},
+  },
+  {
+    "name": "studio_perf_check",
+    "params": {
+      "plan": {
+        "optional": false,
+        "type": "ZodObject",
+      },
+    },
+  },
+  {
+    "name": "studio_perf_territories",
+    "params": {
+      "select": {
+        "optional": true,
+        "type": "ZodObject",
+      },
+      "users": {
+        "optional": false,
+        "type": "ZodArray",
+      },
+    },
+  },
+  {
+    "name": "studio_perf_report",
+    "params": {
+      "days": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "result": {
+        "optional": false,
+        "type": "ZodObject",
+      },
+    },
+  },
+  {
+    "name": "studio_perf_cancel",
+    "params": {
+      "jobId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_sim_start",
+    "params": {
+      "connection": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "mobileLogin": {
+        "optional": true,
+        "type": "ZodObject",
+      },
+      "options": {
+        "optional": true,
+        "type": "ZodObject",
+      },
+    },
+  },
+  {
+    "name": "studio_sim_status",
+    "params": {
+      "jobId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_sim_active",
+    "params": {},
+  },
+  {
+    "name": "studio_sim_cancel",
+    "params": {
+      "jobId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_sim_report",
+    "params": {
+      "result": {
+        "optional": false,
+        "type": "ZodObject",
+      },
+    },
+  },
+  {
+    "name": "studio_sync_overview",
+    "params": {
+      "days": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+    },
+  },
+  {
+    "name": "studio_sync_user",
+    "params": {
+      "days": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "maxTerritories": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "userId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_sync_impact",
+    "params": {
+      "changes": {
+        "optional": false,
+        "type": "ZodArray",
+      },
+      "profiles": {
+        "optional": true,
+        "type": "ZodArray",
+      },
+    },
+  },
+  {
+    "name": "studio_signoff_report",
+    "params": {
+      "assessment": {
+        "optional": false,
+        "type": "ZodObject",
+      },
+      "baseline": {
+        "optional": true,
+        "type": "ZodObject",
+      },
+      "days": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "simulations": {
+        "optional": true,
+        "type": "ZodArray",
+      },
+    },
+  },
+  {
+    "name": "profile_sync_volume",
+    "params": {
+      "countAsOrg": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "idsPerQuery": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "targetOrg": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "territory": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "users": {
+        "optional": false,
+        "type": "ZodArray",
+      },
+    },
+  },
+  {
+    "name": "analyze_sync_telemetry",
+    "params": {
+      "days": {
+        "optional": true,
+        "type": "ZodOptional",
+      },
+      "profileName": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "targetOrg": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "users": {
+        "optional": true,
+        "type": "ZodArray",
+      },
+    },
+  },
+  {
+    "name": "run_perf_assessment",
+    "params": {
+      "countAsOrg": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "outputPath": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "profilePath": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "profileYaml": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "targetOrg": {
+        "optional": true,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "simulate_initial_sync",
+    "params": {
+      "apiVersion": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "deviceRamGB": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "dynamicBatchSize": {
+        "optional": true,
+        "type": "ZodBoolean",
+      },
+      "exclude": {
+        "optional": true,
+        "type": "ZodArray",
+      },
+      "forceFlow": {
+        "optional": true,
+        "type": "ZodEnum",
+      },
+      "include": {
+        "optional": true,
+        "type": "ZodArray",
+      },
+      "legacyPaging": {
+        "optional": true,
+        "type": "ZodOptional",
+      },
+      "maxRecordsPerTable": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "maxSeconds": {
+        "optional": true,
+        "type": "ZodOptional",
+      },
+      "maxTotalRecords": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "network": {
+        "optional": true,
+        "type": "ZodObject",
+      },
+      "outputPath": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "tableTimeoutSeconds": {
+        "optional": true,
+        "type": "ZodOptional",
+      },
+      "territory": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "username": {
+        "optional": false,
         "type": "ZodString",
       },
     },

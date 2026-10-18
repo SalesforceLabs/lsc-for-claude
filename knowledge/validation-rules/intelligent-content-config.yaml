@@ -8,11 +8,10 @@
 #   - Presentation (standard)
 #   - PresentationPage (standard)
 #   - PresentationShare (standard - territory distribution via sharing records)
-#   - PresentationPageContent (standard)
+#   - PresentationLinkedPage (standard - links pages to presentations)
 #   - PresentationPageProduct (standard)
-#   - LifeSciPresEvent (standard - tracking)
+#   - PresentationClickStrmEntry (standard - tracking)
 #   - Topic (standard - categories)
-#   - ProviderAcctTerritoryInfo (standard)
 #   - LifeSciMobileMetadataRecord (standard)
 
 schema_version: "1.0"
@@ -37,6 +36,8 @@ rules:
       access approved marketing materials during visits.
     category: configuration
     severity: error
+    stage: enabled
+    studio_surface: objects
     check:
       type: soql_count
       query: >
@@ -44,7 +45,7 @@ rules:
         FROM Presentation
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, Status, IsActive, IsCustomPresentation, CreatedDate
+        SELECT Id, Name, Status, ActivationDate, CreatedDate
         FROM Presentation
         ORDER BY CreatedDate DESC
         LIMIT 10
@@ -72,17 +73,19 @@ rules:
       This check ensures that reps have access to at least some approved content.
     category: configuration
     severity: warning
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
         SELECT COUNT()
         FROM Presentation
-        WHERE IsActive = true
+        WHERE Status = 'Active'
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, Status, IsActive, ActivationDate, DeactivationDate
+        SELECT Id, Name, Status, ActivationDate, DeactivationDate
         FROM Presentation
-        WHERE IsActive = false
+        WHERE Status != 'Active'
         ORDER BY CreatedDate DESC
         LIMIT 10
     symptoms:
@@ -113,16 +116,19 @@ rules:
       Without pages, presentations cannot be displayed to HCPs.
     category: configuration
     severity: warning
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
         SELECT COUNT()
         FROM PresentationPage
+        WHERE Status = 'Active'
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, PresentationId, Presentation.Name, PageOrder, IsMandatory
+        SELECT Id, Name, Type, Status
         FROM PresentationPage
-        ORDER BY PresentationId, PageOrder
+        ORDER BY CreatedDate DESC
         LIMIT 10
     symptoms:
       - "Presentations configured but cannot be opened"
@@ -148,6 +154,8 @@ rules:
       If no mandatory pages exist, verify this is intentional.
     category: configuration
     severity: info
+    stage: config
+    studio_surface: objects
     check:
       type: soql_count
       query: >
@@ -183,6 +191,8 @@ rules:
       even if they are active.
     category: configuration
     severity: warning
+    stage: access
+    studio_surface: objects
     check:
       type: soql_count
       query: >
@@ -223,6 +233,8 @@ rules:
       presentations. If no product assignments exist, product tracking will not work.
     category: configuration
     severity: info
+    stage: config
+    studio_surface: objects
     check:
       type: soql_count
       query: >
@@ -252,25 +264,26 @@ rules:
   # ===========================================================================
 
   - id: content-008
-    name: Presentation tracking configured
+    name: Presentation usage has been tracked
     description: |
-      Checks whether presentation usage tracking records (LifeSciPresEvent) exist.
-      These records capture which presentations were shown during visits, including
-      time spent, pages viewed, products detailed, and HCP feedback. If no tracking
-      records exist, either presentations have not been used yet, or tracking is
-      disabled in Presentation Settings. This check helps verify that tracking
-      is working correctly after presentations have been deployed.
+      Checks whether presentation click-stream records (PresentationClickStrmEntry) exist.
+      These records capture which presentations and pages were shown during visits,
+      how long, and the HCP's reaction. If none exist after presentations have been
+      used in the field, tracking may be turned off in Presentation Settings or
+      reps are only using Preview Mode. Expected to be empty before go-live.
     category: tracking
     severity: info
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
         SELECT COUNT()
-        FROM LifeSciPresEvent
-      expect: "count >= 0"
+        FROM PresentationClickStrmEntry
+      expect: "count > 0"
       error_detail_query: >
-        SELECT Id, PresentationId, Presentation.Name, VisitId, Duration, CreatedDate
-        FROM LifeSciPresEvent
+        SELECT Id, PresentationName, UsageStartDateTime
+        FROM PresentationClickStrmEntry
         ORDER BY CreatedDate DESC
         LIMIT 10
     symptoms:
@@ -290,74 +303,31 @@ rules:
     tags: [content, tracking, analytics]
 
   # ===========================================================================
-  # SECTION 6: Recommended/Targeted Presentations
-  # ===========================================================================
-
-  - id: content-009
-    name: Recommended or targeted presentations configured
-    description: |
-      Checks whether recommended or targeted presentations are configured in
-      ProviderAcctTerritoryInfo records. Recommended presentations provide
-      personalized content suggestions based on HCP profile and engagement history.
-      Targeted presentations enforce compliance by restricting which content is
-      visible for specific accounts. If neither exist, personalization and
-      targeting features are not being used.
-    category: configuration
-    severity: info
-    check:
-      type: soql_count
-      query: >
-        SELECT COUNT()
-        FROM ProviderAcctTerritoryInfo
-        WHERE RecommendedPresentations != null OR TargetedPresentations != null
-      expect: "count >= 0"
-      error_detail_query: >
-        SELECT Id, AccountId, Account.Name, Territory2.Name, RecommendedPresentations, TargetedPresentations
-        FROM ProviderAcctTerritoryInfo
-        WHERE RecommendedPresentations != null OR TargetedPresentations != null
-        LIMIT 10
-    symptoms:
-      - "Recommended presentations not appearing"
-      - "Targeted presentations not enforcing compliance"
-      - "Personalization features not working"
-    resolution:
-      steps:
-        - "Populate ProviderAcctTerritoryInfo.RecommendedPresentations with JSON format: {\"presentationIds\": [\"id1\", \"id2\"], \"order\": [\"id1\", \"id2\"]}"
-        - "Populate ProviderAcctTerritoryInfo.TargetedPresentations with list of presentation IDs"
-        - "Load data via API, Data Loader, or manual entry"
-        - "Admin Console > Intelligent Content > Presentation Settings"
-        - "Enable 'Show Next Best Message' for recommended presentations"
-        - "Configure 'Targeted Presentations - Warn Context' or 'Targeted Presentations - Restriction Context'"
-      ui_path: "Admin Console > Intelligent Content > Presentation Settings"
-    tags: [content, configuration, personalization, targeting]
-
-  # ===========================================================================
-  # SECTION 7: Content Categories (Topics)
+  # SECTION 6: Content Categories (Topics)
   # ===========================================================================
 
   - id: content-010
-    name: Topics configured for organizing presentations
+    name: Presentations are organized with topics
     description: |
-      Checks whether Topics exist for organizing presentations in the Content
-      Library. Topics allow reps to filter and find content by category
-      (therapeutic area, product line, campaign, etc.). Without topics, the
-      Content Library displays as a flat list, making it harder to navigate
-      large content libraries. This is an optional feature but highly recommended
-      for orgs with many presentations.
+      Checks whether any presentation has a Topic assigned (TopicAssignment on a
+      Presentation). Topics let reps filter the Content Library by category
+      (therapeutic area, product line, campaign). Without them the library is a
+      flat list, which gets hard to navigate in larger libraries. Optional, but
+      recommended once there are more than a handful of presentations.
     category: configuration
     severity: info
+    stage: config
+    studio_surface: objects
     check:
       type: soql_count
       query: >
         SELECT COUNT()
-        FROM Topic
-        WHERE NetworkId = null
-      expect: "count >= 0"
+        FROM TopicAssignment
+        WHERE EntityType = 'Presentation'
+      expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, Description
+        SELECT Id, Name
         FROM Topic
-        WHERE NetworkId = null
-        ORDER BY Name
         LIMIT 10
     symptoms:
       - "Content Library shows flat list of presentations"
@@ -378,7 +348,7 @@ rules:
   # ===========================================================================
 
   - id: content-011
-    name: Mobile metadata cache active for presentation objects
+    name: A mobile metadata cache has been published
     description: |
       Verifies that mobile metadata cache is active. Intelligent Content on mobile
       requires an active metadata cache that includes Presentation, PresentationPage,
@@ -386,6 +356,8 @@ rules:
       will not sync to mobile devices and the Content Library will be empty on iPad.
     category: metadata-cache
     severity: warning
+    stage: mobile
+    studio_surface: dbSchema
     check:
       type: soql_count
       query: >
@@ -406,55 +378,13 @@ rules:
     resolution:
       steps:
         - "Navigate to Admin Console > Mobile > Object Metadata Cache Configuration"
-        - "Verify DB Schema enabled for: Presentation, PresentationPage, PresentationPageContent, PresentationShare, PresentationPageProduct, Topic, LifeSciPresEvent"
+        - "Verify DB Schema enabled for: Presentation, PresentationPage, PresentationLinkedPage, PresentationPageProduct, PresentationForum, PresentationClickStrmEntry"
         - "Regenerate metadata cache for affected profiles"
         - "Use generate_mobile_metadata_cache({ profileNames: [...] })"
         - "Verify with check_mobile_cache_status()"
         - "Have users sync their mobile devices"
       ui_path: "Admin Console > Mobile > Object Metadata Cache Configuration"
     tags: [content, mobile, cache]
-
-  # ===========================================================================
-  # SECTION 9: Presentation Settings Configuration
-  # ===========================================================================
-
-  - id: content-012
-    name: Presentation Settings configured at org level
-    description: |
-      Checks whether Presentation Settings are configured at the Org level.
-      Presentation Settings control features like tracking, search, feedback capture,
-      drawing tools, laser pointer, content library organization, and more.
-      Settings can be applied at Org, Profile, or User level. This check verifies
-      that at least org-level defaults exist. Note that this check uses Tooling API
-      and may require additional permissions.
-    category: configuration
-    severity: info
-    check:
-      type: soql_count
-      query: >
-        SELECT COUNT()
-        FROM LifeSciConfigCategory
-        WHERE DeveloperName LIKE '%Presentation%'
-      expect: "count >= 0"
-      error_detail_query: >
-        SELECT DeveloperName, MasterLabel
-        FROM LifeSciConfigCategory
-        WHERE DeveloperName LIKE '%Presentation%'
-    symptoms:
-      - "Presentation features not working as expected"
-      - "Search not finding presentations"
-      - "Drawing tools or laser pointer not available"
-      - "Tracking not capturing data"
-    resolution:
-      steps:
-        - "Navigate to Admin Console > Intelligent Content > Presentation Settings"
-        - "Configure settings at Org/Profile/User level"
-        - "Enable required features: tracking, search, feedback, drawing tools, laser pointer"
-        - "Set Presentation Search Field for advanced search"
-        - "Configure Targeted Presentations (Warn or Restriction Context)"
-        - "Enable 'Create Custom Presentations' if needed"
-      ui_path: "Admin Console > Intelligent Content > Presentation Settings"
-    tags: [content, configuration, settings]
 
 # ===========================================================================
 # Validation Groups
@@ -473,10 +403,8 @@ groups:
       - content-005
       - content-007
       - content-008
-      - content-009
       - content-010
       - content-011
-      - content-012
 
   content-presentations:
     name: "Presentation Check"
@@ -509,4 +437,3 @@ groups:
       - content-003
       - content-005
       - content-011
-      - content-012

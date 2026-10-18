@@ -23,6 +23,8 @@ rules:
       Insights flows don't appear. This is a prerequisite for all other checks.
     category: configuration
     severity: error
+    stage: enabled
+    studio_surface: toggle
     check:
       type: soql_count
       query: >
@@ -50,9 +52,13 @@ rules:
     description: |
       The "Generate Provider Account Territory Summary" flow must be active.
       Account Summarization is the data source for Briefings — without it,
-      no podcast text is generated.
+      no podcast text is generated. Orgs that renamed the flow will not match
+      by label; the "summaries are current" check in Studio is the reliable
+      signal that summarization is running.
     category: configuration
-    severity: error
+    severity: warning
+    stage: data
+    studio_surface: accountSummarization
     check:
       type: soql_count
       query: >
@@ -79,6 +85,8 @@ rules:
       Account Summarization has run at least once.
     category: configuration
     severity: error
+    stage: data
+    studio_surface: accountSummarization
     check:
       type: soql_count
       query: >
@@ -105,6 +113,8 @@ rules:
       Configure Briefings → Manage Assignments in Setup.
     category: configuration
     severity: error
+    stage: config
+    studio_surface: definitions
     check:
       type: soql_count
       query: >
@@ -132,6 +142,8 @@ rules:
       Profile assignments determine which users receive daily audio briefings.
     category: configuration
     severity: error
+    stage: config
+    studio_surface: assignments
     check:
       type: soql_count
       query: >
@@ -161,6 +173,8 @@ rules:
       after the Briefings toggle is enabled.
     category: configuration
     severity: error
+    stage: config
+    studio_surface: flows
     check:
       type: soql_count
       query: >
@@ -188,6 +202,8 @@ rules:
       is used to verify the clone is running.
     category: configuration
     severity: warning
+    stage: config
+    studio_surface: flows
     check:
       type: soql_count
       query: >
@@ -219,6 +235,8 @@ rules:
       for the mobile app to sync briefing content.
     category: metadata-cache
     severity: error
+    stage: mobile
+    studio_surface: syncSchema
     check:
       type: tooling_soql_count
       query: >
@@ -246,6 +264,8 @@ rules:
       for tracking briefing playback on mobile.
     category: metadata-cache
     severity: error
+    stage: mobile
+    studio_surface: syncSchema
     check:
       type: tooling_soql_count
       query: >
@@ -272,6 +292,8 @@ rules:
       for mobile to know which profiles receive briefings.
     category: metadata-cache
     severity: error
+    stage: mobile
+    studio_surface: syncSchema
     check:
       type: tooling_soql_count
       query: >
@@ -298,6 +320,8 @@ rules:
       for mobile to access content definition metadata.
     category: metadata-cache
     severity: error
+    stage: mobile
+    studio_surface: syncSchema
     check:
       type: tooling_soql_count
       query: >
@@ -329,6 +353,8 @@ rules:
       AND read access to PresentationContent.
     category: permissions
     severity: warning
+    stage: access
+    studio_surface: permissionSets
     check:
       type: soql_count
       query: >

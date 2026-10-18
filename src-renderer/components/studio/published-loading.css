@@ -1,0 +1,104 @@
+/* The published iPad's loading state: spinner, elapsed time, a bar and the step list. */
+.studio-ipad-wrap.studio-ipad-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  width: min(440px, 100%);
+  margin: 12vh auto 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  animation: ui-fade-in 0.25s var(--ease-out) 0.12s both;
+}
+
+.studio-ipad-loading-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--font-base);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.studio-ipad-loading-time {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.studio-ipad-loading-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--fill-active);
+  overflow: hidden;
+}
+
+.studio-ipad-loading-bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease-out;
+}
+
+.studio-ipad-loading-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.studio-ipad-loading-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.studio-ipad-loading-steps li.waiting {
+  color: var(--text-muted);
+}
+
+.studio-ipad-loading-steps li.running {
+  color: var(--text-primary);
+}
+
+.studio-ipad-loading-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.studio-ipad-loading-steps li.done .studio-ipad-loading-mark {
+  color: var(--success);
+}
+
+.studio-ipad-loading-steps li.failed .studio-ipad-loading-mark {
+  color: var(--error);
+}
+
+.studio-ipad-loading-note {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.studio-ipad-loading-steps li.waiting .studio-ipad-loading-mark::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 50%;
+}
+
+.studio-ipad-loading-detail {
+  color: var(--text-muted);
+}

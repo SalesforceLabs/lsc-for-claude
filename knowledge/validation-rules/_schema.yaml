@@ -170,6 +170,23 @@ fields:
       type: string
     description: Additional tags for filtering (e.g., ["ipad", "sandbox", "production"])
 
+  stage:
+    type: string
+    enum: [enabled, access, data, config, mobile]
+    description: |
+      LSC Studio readiness stage the rule is shown under. When left out it is
+      inferred from category: deployment → enabled, permissions → access,
+      territory → data, mobile-login / metadata-cache / sync → mobile,
+      configuration → config.
+
+  studio_surface:
+    type: string
+    description: |
+      LSC Studio board surface that shows the records this rule checks
+      (objects, recordTypes, layouts, customScripts, validationRules,
+      apexTriggers, flows, triggerHandlers, dbSchema, actions, adminSettings,
+      compliance, or an org-wide feature's own surface id).
+
 # Example Rule
 # ============
 example:

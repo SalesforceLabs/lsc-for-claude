@@ -1,0 +1,85 @@
+# Medical Inquiries Configuration Validation Rules
+# ================================================
+# Rules for validating Medical Inquiry setup in an LSC org.
+
+schema_version: "1.0"
+category_name: "Medical Inquiries Configuration"
+description: |
+  Validation rules for Medical Inquiries: the Inquiry object, its linked Case,
+  record types and the disclaimer statement.
+
+rules:
+  - id: medinq-001
+    name: Inquiry object is available
+    description: |
+      The Inquiry object is only present when Medical Inquiries is part of the org's
+      license and package. Without it nothing else in this module can work.
+    category: configuration
+    severity: error
+    stage: enabled
+    studio_surface: objects
+    check:
+      type: soql_count
+      query: >
+        SELECT COUNT()
+        FROM Inquiry
+      expect: "count >= 0"
+    symptoms:
+      - "sObject type 'Inquiry' is not supported"
+    resolution:
+      steps:
+        - "Confirm the Life Sciences Commercial license is provisioned"
+        - "Ask your Salesforce account team to enable Medical Inquiries"
+      ui_path: "Setup > Company Information"
+    tags: [medical-inquiries, configuration]
+
+  - id: medinq-002
+    name: Inquiry record types exist
+    description: |
+      Inquiries are split by record type (Medical Inquiry, Adverse Event, General).
+      The record type decides the form, the queue and the stage path.
+    category: configuration
+    severity: error
+    stage: config
+    studio_surface: recordTypes
+    check:
+      type: soql_count
+      query: >
+        SELECT COUNT()
+        FROM RecordType
+        WHERE SobjectType = 'Inquiry' AND IsActive = true
+      expect: "count > 0"
+    symptoms:
+      - "Cannot choose an inquiry type when creating an inquiry"
+    resolution:
+      steps:
+        - "Open Setup > Object Manager > Inquiry > Record Types"
+        - "Create and activate the record types your medical team uses"
+      ui_path: "Setup > Object Manager > Inquiry > Record Types"
+    tags: [medical-inquiries, record-types]
+
+  - id: medinq-003
+    name: Inquiry disclaimer statement is defined
+    description: |
+      The disclaimer the rep reads out or shows before submitting an inquiry comes
+      from a compliance statement with Module Type Medical Inquiry and Statement Type
+      Disclaimer. Without one the inquiry is saved with no disclaimer text.
+    category: configuration
+    severity: warning
+    stage: config
+    studio_surface: compliance
+    check:
+      type: soql_count
+      query: >
+        SELECT COUNT()
+        FROM ComplianceStatementDef
+        WHERE ModuleType = 'MedicalInquiry' AND StatementType = 'Disclaimer'
+      expect: "count > 0"
+    symptoms:
+      - "Inquiry Disclaimer Text is empty"
+    resolution:
+      steps:
+        - "Open App Launcher > Compliance Statement Definitions"
+        - "Create a statement with Module Type Medical Inquiry and Statement Type Disclaimer"
+      ui_path: "App Launcher > Compliance Statement Definitions"
+    tags: [medical-inquiries, compliance]

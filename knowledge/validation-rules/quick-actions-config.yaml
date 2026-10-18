@@ -35,6 +35,8 @@ rules:
       LifeSciConfigRecord metadata with category QuickAction.
     category: configuration
     severity: info
+    stage: config
+    studio_surface: actions
     check:
       type: tooling_soql
       query: >
@@ -64,6 +66,8 @@ rules:
       won't be visible to users.
     category: configuration
     severity: warning
+    stage: config
+    studio_surface: actions
     check:
       type: tooling_soql
       query: >
@@ -87,31 +91,34 @@ rules:
     tags: [quick-actions, configuration]
 
   - id: quickaction-003
-    name: Home quick actions count optimal for mobile
+    name: Home page quick actions fit the iPad home page
     description: |
-      Checks the total number of active quick actions. Only 5 quick actions
-      can be displayed on the mobile Home Page floating action button.
-      Having more than 5 active Home actions means some won't be visible.
+      Counts active quick actions whose Location is HomePage. The iPad home
+      page shows only five, so more than 5 active Home actions means the rest
+      are not reachable from the floating action button.
     category: configuration
     severity: warning
+    stage: config
+    studio_surface: homeActions
     check:
       type: tooling_soql_count
       query: >
         SELECT COUNT()
-        FROM LifeSciConfigRecord
-        WHERE LifeSciConfigCategoryId IN (
-          SELECT Id FROM LifeSciConfigCategory WHERE Category = 'QuickAction'
-        )
-        AND IsActive = true
+        FROM LifeSciConfigFieldValue
+        WHERE FieldName = 'Location'
+        AND PicklistValue = 'HomePage'
+        AND LifeSciConfigRecord.IsActive = true
+        AND LifeSciConfigRecord.LifeSciConfigCategory.Category = 'QuickAction'
       expect: "count <= 5"
       error_detail_query: >
-        SELECT Id, MasterLabel, IsActive
+        SELECT Id, DeveloperName, MasterLabel
         FROM LifeSciConfigRecord
-        WHERE LifeSciConfigCategoryId IN (
-          SELECT Id FROM LifeSciConfigCategory WHERE Category = 'QuickAction'
+        WHERE IsActive = true
+        AND LifeSciConfigCategory.Category = 'QuickAction'
+        AND Id IN (
+          SELECT LifeSciConfigRecordId FROM LifeSciConfigFieldValue
+          WHERE FieldName = 'Location' AND PicklistValue = 'HomePage'
         )
-        AND IsActive = true
-        ORDER BY MasterLabel
     symptoms:
       - "Not all quick actions visible on mobile home page"
       - "Quick actions missing on iPad floating button"
@@ -138,6 +145,8 @@ rules:
       functionality defined by the administrator.
     category: configuration
     severity: info
+    stage: config
+    studio_surface: actions
     check:
       type: tooling_soql
       query: >
@@ -171,6 +180,8 @@ rules:
       on mobile devices. Without metadata cache, quick actions won't sync to iPad.
     category: metadata-cache
     severity: error
+    stage: mobile
+    studio_surface: metadataCache
     check:
       type: soql
       query: >
@@ -201,6 +212,8 @@ rules:
       prevent quick actions and other mobile features from working correctly.
     category: metadata-cache
     severity: error
+    stage: mobile
+    studio_surface: metadataCache
     check:
       type: soql
       query: >
@@ -231,6 +244,8 @@ rules:
       to an active metadata cache configuration.
     category: configuration
     severity: warning
+    stage: mobile
+    studio_surface: metadataCache
     check:
       type: soql
       query: >

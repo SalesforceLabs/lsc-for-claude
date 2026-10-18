@@ -5,14 +5,14 @@
 # contact points, and mobile cache.
 #
 # Verified object names:
-#   - CommunicationSubscription (standard)
-#   - CommunicationSubscriptionConsent (standard)
-#   - CommunicationSubscriptionChannelType (standard)
+#   - CommSubscription (standard)
+#   - CommSubscriptionConsent (standard)
+#   - CommSubscriptionChannelType (standard)
 #   - EngagementChannelType (standard)
 #   - ContactPointEmail (standard)
 #   - ContactPointPhone (standard)
 #   - ContactPointAddress (standard)
-#   - ComplianceStatementDefinition (standard)
+#   - ComplianceStatementDef (standard)
 #   - DigitalSignature (standard)
 #   - LifeSciMobileMetadataRecord (standard)
 
@@ -30,27 +30,23 @@ rules:
   # ===========================================================================
 
   - id: consent-001
-    name: Communication subscriptions exist and are active
+    name: Communication subscriptions exist
     description: |
-      Verifies that at least one active CommunicationSubscription record exists.
+      Verifies that at least one active CommSubscription record exists.
       Communication subscriptions define the topics for which consent is collected
       (e.g., "Email Access", "Product Updates", "Event Invitations").
       Without subscriptions, reps cannot capture consent preferences, and the
       consent capture screen will be blank or non-functional.
     category: configuration
     severity: error
+    stage: config
+    studio_surface: objects
     check:
       type: soql_count
       query: >
         SELECT COUNT()
-        FROM CommunicationSubscription
-        WHERE Status = 'Active'
+        FROM CommSubscription
       expect: "count > 0"
-      error_detail_query: >
-        SELECT Id, Name, Status, DataUsePurposeId, CreatedDate
-        FROM CommunicationSubscription
-        ORDER BY CreatedDate DESC
-        LIMIT 10
     symptoms:
       - "Consent screen is blank"
       - "No subscriptions available for consent capture"
@@ -79,6 +75,8 @@ rules:
       has consented to, limiting consent granularity.
     category: configuration
     severity: warning
+    stage: config
+    studio_surface: objects
     check:
       type: soql
       query: >
@@ -107,7 +105,7 @@ rules:
   - id: consent-003
     name: Channels are mapped to subscriptions
     description: |
-      Verifies that CommunicationSubscriptionChannelType records exist.
+      Verifies that CommSubscriptionChannelType records exist.
       These junction records link engagement channels to communication
       subscriptions, defining which channels are available for consent
       on each subscription. Without these mappings, the consent screen
@@ -115,17 +113,17 @@ rules:
       invalid channel/subscription combinations.
     category: configuration
     severity: warning
+    stage: config
+    studio_surface: objects
     check:
       type: soql_count
       query: >
         SELECT COUNT()
-        FROM CommunicationSubscriptionChannelType
+        FROM CommSubscriptionChannelType
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, CommunicationSubscriptionId, CommunicationSubscription.Name,
-               EngagementChannelTypeId, EngagementChannelType.Name
-        FROM CommunicationSubscriptionChannelType
-        ORDER BY CommunicationSubscription.Name
+        SELECT Id, CommSubscriptionId, EngagementChannelTypeId
+        FROM CommSubscriptionChannelType
         LIMIT 20
     symptoms:
       - "Channels not showing for subscription"
@@ -133,7 +131,7 @@ rules:
       - "Subscription has no available channels"
     resolution:
       steps:
-        - "Create CommunicationSubscriptionChannelType records"
+        - "Create CommSubscriptionChannelType records"
         - "Link each Communication Subscription to relevant Engagement Channel Types"
         - "Example: 'Product Updates' subscription mapped to Email and SMS channels"
         - "Use Data Loader or Apex if bulk creation is needed"
@@ -147,24 +145,25 @@ rules:
   - id: consent-004
     name: Consent records exist for HCPs
     description: |
-      Checks whether CommunicationSubscriptionConsent records exist.
+      Checks whether CommSubscriptionConsent records exist.
       These records represent HCP consent preferences for specific
       subscriptions and channels (Opt-In, Opt-Out, Not Asked).
       If no consent records exist, consent capture may not be functioning,
       or reps have not started capturing consent yet. This is informational
       only, as absence of consent records is expected in new implementations.
     category: configuration
-    severity: warning
+    severity: info
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
         SELECT COUNT()
-        FROM CommunicationSubscriptionConsent
+        FROM CommSubscriptionConsent
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, AccountId, Account.Name, CommunicationSubscriptionId,
-               CommunicationSubscription.Name, Status, ChannelType, CreatedDate
-        FROM CommunicationSubscriptionConsent
+        SELECT Id, Name, PrivacyConsentStatus, ConsentCapturedDateTime
+        FROM CommSubscriptionConsent
         ORDER BY CreatedDate DESC
         LIMIT 10
     symptoms:
@@ -176,7 +175,7 @@ rules:
         - "Navigate to an HCP Account > Consent tab"
         - "Click 'Capture Consent' or 'Edit'"
         - "Select consent preferences for subscriptions and channels"
-        - "Save to create CommunicationSubscriptionConsent records"
+        - "Save to create CommSubscriptionConsent records"
         - "If consent tab is missing, add Consent component to Account page layout"
       ui_path: "Account > Consent tab"
     tags: [consent, data, consent-record]
@@ -195,7 +194,9 @@ rules:
       correctly. This is informational only, as absence of email records
       is expected if email consent is not used.
     category: configuration
-    severity: warning
+    severity: info
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
@@ -203,7 +204,7 @@ rules:
         FROM ContactPointEmail
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, EmailAddress, IsPrimary, ParentId, CreatedDate
+        SELECT Id, Name, EmailAddress, IsPrimary, ParentId
         FROM ContactPointEmail
         ORDER BY CreatedDate DESC
         LIMIT 10
@@ -236,6 +237,8 @@ rules:
       if phone/SMS consent is not used.
     category: configuration
     severity: info
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
@@ -243,7 +246,7 @@ rules:
         FROM ContactPointPhone
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, TelephoneNumber, IsPrimary, ParentId, CreatedDate
+        SELECT Id, Name, TelephoneNumber, IsPrimary, ParentId
         FROM ContactPointPhone
         ORDER BY CreatedDate DESC
         LIMIT 10
@@ -268,20 +271,26 @@ rules:
   - id: consent-007
     name: Compliance statements configured for Consent module
     description: |
-      Verifies that ComplianceStatementDefinition records exist for the
+      Verifies that ComplianceStatementDef records exist for the
       Consent module. Compliance statements provide disclaimer and terms &
       conditions text shown on the consent capture screen. Without them,
       the consent screen may not display required legal disclaimers,
       which could lead to non-compliant consent capture.
     category: configuration
     severity: warning
+    stage: config
+    studio_surface: compliance
     check:
-      type: soql
+      type: soql_count
       query: >
-        SELECT Id, Name, Module, StatementType, IsActive
-        FROM ComplianceStatementDefinition
-        WHERE Module = 'Consent'
-      expect: "records.length > 0"
+        SELECT COUNT()
+        FROM ComplianceStatementDef
+        WHERE ModuleType = 'Consent'
+      expect: "count > 0"
+      error_detail_query: >
+        SELECT Id, Name, ModuleType, StatementType
+        FROM ComplianceStatementDef
+        LIMIT 10
     symptoms:
       - "No disclaimer text on consent screen"
       - "Missing terms and conditions"
@@ -289,7 +298,7 @@ rules:
     resolution:
       steps:
         - "Navigate to Setup > Compliance Statement Definitions"
-        - "Create a new ComplianceStatementDefinition record"
+        - "Create a new ComplianceStatementDef record"
         - "Set Module to 'Consent'"
         - "Set Statement Type (e.g., 'Disclaimer', 'Terms and Conditions')"
         - "Enter statement text"
@@ -312,6 +321,8 @@ rules:
       signature capture is not required or if consent is captured via web only.
     category: configuration
     severity: info
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
@@ -319,7 +330,7 @@ rules:
         FROM DigitalSignature
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, CreatedDate, CreatedBy.Name, SignatureType
+        SELECT Id, DigitalSignatureNumber, SignatureType, SignedDate
         FROM DigitalSignature
         ORDER BY CreatedDate DESC
         LIMIT 10
@@ -342,16 +353,18 @@ rules:
   # ===========================================================================
 
   - id: consent-009
-    name: Mobile metadata cache active for consent objects
+    name: A mobile metadata cache has been published
     description: |
       Verifies that mobile metadata cache is active. Consent management on
       mobile requires an active metadata cache that includes consent-related
-      objects (CommunicationSubscription, CommunicationSubscriptionConsent,
+      objects (CommSubscription, CommSubscriptionConsent,
       EngagementChannelType, ContactPointEmail, etc.). Without active cache,
       consent data will not sync to mobile devices and consent capture will
       not work offline.
     category: metadata-cache
     severity: warning
+    stage: mobile
+    studio_surface: dbSchema
     check:
       type: soql_count
       query: >
@@ -373,12 +386,12 @@ rules:
       steps:
         - "Navigate to Admin Console > Mobile > Object Metadata Cache Configuration"
         - "Verify consent objects are included in DB Schema:"
-        - "  - CommunicationSubscription"
-        - "  - CommunicationSubscriptionConsent"
-        - "  - CommunicationSubscriptionChannelType"
+        - "  - CommSubscription"
+        - "  - CommSubscriptionConsent"
+        - "  - CommSubscriptionChannelType"
         - "  - EngagementChannelType"
         - "  - ContactPointEmail, ContactPointPhone, ContactPointAddress"
-        - "  - ComplianceStatementDefinition"
+        - "  - ComplianceStatementDef"
         - "  - DigitalSignature"
         - "Regenerate metadata cache for affected profiles"
         - "Have users sync their mobile devices"

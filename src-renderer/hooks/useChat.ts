@@ -244,8 +244,9 @@ export function useChat() {
 
   /** Abort — only called from the explicit "Stop" button */
   const abort = useCallback(async () => {
-    await window.lscApi.abortChat();
+    // Stop the session on screen; others keep running in the background.
     const convId = conversationIdRef.current;
+    if (convId) await window.lscApi.abortChat(convId);
     if (convId) {
       const bg = bgStreams.current.get(convId);
       if (bg) {

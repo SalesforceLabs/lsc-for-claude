@@ -4,20 +4,19 @@ contextBridge.exposeInMainWorld("lscApi", {
   // Settings
   getSettings: () => ipcRenderer.invoke("settings:get"),
   saveSettings: (settings) => ipcRenderer.invoke("settings:save", settings),
+  previewTheme: (theme) => ipcRenderer.invoke("theme:preview", theme),
 
-  // Provider
-  detectEnvProvider: () => ipcRenderer.invoke("provider:detect-env"),
-  validateProvider: (type, credentials) =>
-    ipcRenderer.invoke("provider:validate", type, credentials),
+  // Connections — secrets go to the main process (keychain) and never come back
+  detectProvider: () => ipcRenderer.invoke("provider:detect"),
+  testProvider: (connection, secret) => ipcRenderer.invoke("provider:test", connection, secret),
 
   // Engine
-  startEngine: (providerType, credentials) =>
-    ipcRenderer.invoke("engine:start", providerType, credentials),
+  startEngine: (connection, secret) => ipcRenderer.invoke("engine:start", connection, secret),
   stopEngine: () => ipcRenderer.invoke("engine:stop"),
 
   // Chat — nonce is passed to tag stream events, convId for server-side persistence
   sendMessage: (message, nonce, convId, model) => ipcRenderer.invoke("chat:send", message, nonce, convId, model),
-  abortChat: () => ipcRenderer.invoke("chat:abort"),
+  abortChat: (convId) => ipcRenderer.invoke("chat:abort", convId),
   clearChat: () => ipcRenderer.invoke("chat:clear"),
 
   // Chat events — all events include nonce + convId
@@ -57,18 +56,122 @@ contextBridge.exposeInMainWorld("lscApi", {
   listSkills: () => ipcRenderer.invoke("skills:list"),
 
   // Salesforce Org
-  listSfOrgs: () => ipcRenderer.invoke("sfOrg:list"),
+  listSfOrgs: (options) => ipcRenderer.invoke("sfOrg:list", options),
+  onSfOrgRoles: (cb) => {
+    const handler = (_event, roles) => cb(roles);
+    ipcRenderer.on("sfOrg:roles", handler);
+    return () => ipcRenderer.removeListener("sfOrg:roles", handler);
+  },
   setSfOrg: (org) => ipcRenderer.invoke("sfOrg:set", org),
+  onSfOrgChanged: (callback) => {
+    const handler = (_event, data) => callback(data.org);
+    ipcRenderer.on("sfOrg:changed", handler);
+    return () => ipcRenderer.removeListener("sfOrg:changed", handler);
+  },
   loginSfOrg: (alias, instanceUrl) => ipcRenderer.invoke("sfOrg:login", alias, instanceUrl),
+  openSfOrg: (org, path) => ipcRenderer.invoke("sfOrg:open", org, path),
+  studioBrowserOpen: (guestId, url, auth) => ipcRenderer.invoke("studioBrowser:open", guestId, url, auth),
+
+  // Studio — read-only feature maps served by the studio_* MCP tools
+  studioListFeatures: () => ipcRenderer.invoke("studio:call", "studio_list_features"),
+  // Results are cached per org in the main process; `refresh` bypasses the cache.
+  studioFeatureMap: (featureId, refresh = false) =>
+    ipcRenderer.invoke("studio:call", "studio_feature_map", { featureId }, refresh),
+  studioReadiness: (featureId, refresh = false) =>
+    ipcRenderer.invoke("studio:call", "studio_readiness", { featureId }, refresh),
+  studioSetupOverview: (refresh = false) => ipcRenderer.invoke("studio:call", "studio_setup_overview", {}, refresh),
+  studioUserTrace: (userId, featureId) =>
+    ipcRenderer.invoke("studio:call", "studio_user_trace", featureId ? { userId, featureId } : { userId }),
+  studioDrift: (input) => ipcRenderer.invoke("studio:call", "studio_drift", input),
+  studioItemDetail: (kind, id) =>
+    ipcRenderer.invoke("studio:call", "studio_item_detail", { kind, id }),
+  studioMetadataDoc: (type, fullName) => ipcRenderer.invoke("studio:call", "studio_metadata_doc", { type, fullName }),
+  studioPageReach: (fullName) => ipcRenderer.invoke("studio:call", "studio_page_reach", { fullName }),
+  studioComponentCatalog: (pageType, sobject) => ipcRenderer.invoke("studio:call", "studio_component_catalog", { pageType, sobject }),
+  studioComponentProps: (component, pageType) => ipcRenderer.invoke("studio:call", "studio_component_props", { component, pageType }),
+  studioListProfiles: () => ipcRenderer.invoke("studio:call", "studio_list_profiles"),
+  studioUserAccess: (userId) => ipcRenderer.invoke("studio:call", "studio_user_access", { userId }),
+  studioAccessOptions: (search) => ipcRenderer.invoke("studio:call", "studio_access_options", search ? { search } : {}),
+  studioLwcBundle: (name) => ipcRenderer.invoke("studio:call", "studio_lwc_bundle", { name }),
+  studioLwcRequest: (method, path, body) => ipcRenderer.invoke("studio:call", "studio_lwc_request", body === undefined ? { method, path } : { method, path, body }),
+  studioLwcRequestAs: (loginId, method, path, body) =>
+    ipcRenderer.invoke("studio:lwcRequestAs", loginId, body === undefined ? { method, path } : { method, path, body }),
+  studioIpadPublished: (profile, refresh = false, userId) =>
+    ipcRenderer.invoke("studio:call", "studio_ipad_published", userId ? { profile, userId } : { profile }, refresh),
+  studioIpadPublishedUsers: (profile, search) => ipcRenderer.invoke("studio:call", "studio_ipad_published_users", { profile, search }),
+  studioIpadPublishedProgress: (profile) => ipcRenderer.invoke("studio:call", "studio_ipad_published_progress", { profile }),
+  // Studio fixes — previewed, then applied only after the user confirms in the UI
+  studioPreviewFix: (fix) => ipcRenderer.invoke("studio:call", "studio_preview_fix", { fix }),
+  studioApplyFix: (fix, expectedOrg) =>
+    ipcRenderer.invoke("studio:call", "studio_apply_fix", { fix, expectedOrg }),
+  studioPublishMobile: (profiles, expectedOrg) =>
+    ipcRenderer.invoke("studio:call", "studio_publish_mobile", { profiles, expectedOrg }),
+  studioPublishStatus: (parentId) => ipcRenderer.invoke("studio:call", "studio_publish_status", { parentId }),
+  // Studio performance testing — runs are read-only background jobs polled for progress
+  studioPerfUsers: (search, profile, days) => ipcRenderer.invoke("studio:call", "studio_perf_users", { search, profile, days }),
+  studioPerfParsePlan: (yaml) => ipcRenderer.invoke("studio:call", "studio_perf_parse_plan", { yaml }),
+  studioPerfStart: (plan) => ipcRenderer.invoke("studio:call", "studio_perf_start", { plan }),
+  studioPerfStatus: (jobId) => ipcRenderer.invoke("studio:call", "studio_perf_status", { jobId }),
+  studioPerfCancel: (jobId) => ipcRenderer.invoke("studio:call", "studio_perf_cancel", { jobId }),
+  studioPerfActive: () => ipcRenderer.invoke("studio:call", "studio_perf_active", {}),
+  studioPerfCheck: (plan) => ipcRenderer.invoke("studio:call", "studio_perf_check", { plan }),
+  studioPerfReport: (result, days) =>
+    ipcRenderer.invoke("studio:call", "studio_perf_report", days === undefined ? { result } : { result, days }),
+  studioPerfTerritories: (input) => ipcRenderer.invoke("studio:call", "studio_perf_territories", input),
+  // Sync health — org-wide overview, one user's drill-down, what-if impact, sign-off report
+  studioConnectedOrg: () => ipcRenderer.invoke("studio:call", "studio_connected_org", {}),
+  // Cached for an hour in the main process; `refresh` bypasses the cache.
+  studioSyncOverview: (days, refresh = false) =>
+    ipcRenderer.invoke("studio:call", "studio_sync_overview", days === undefined ? {} : { days }, refresh),
+  studioSyncUser: (userId, days, refresh = false) =>
+    ipcRenderer.invoke("studio:call", "studio_sync_user", days === undefined ? { userId } : { userId, days }, refresh),
+  studioSyncImpact: (changes, profiles) =>
+    ipcRenderer.invoke("studio:call", "studio_sync_impact", profiles === undefined ? { changes } : { changes, profiles }),
+  studioSignoffReport: (input) => ipcRenderer.invoke("studio:call", "studio_signoff_report", input),
+  perfListPlans: () => ipcRenderer.invoke("perf:listPlans"),
+  perfSavePlan: (input) => ipcRenderer.invoke("perf:savePlan", input),
+  perfDeletePlan: (id) => ipcRenderer.invoke("perf:deletePlan", id),
+  perfListRuns: (planId) => ipcRenderer.invoke("perf:listRuns", planId),
+  perfGetRun: (id) => ipcRenderer.invoke("perf:getRun", id),
+  perfSaveRun: (input) => ipcRenderer.invoke("perf:saveRun", input),
+  perfDeleteRun: (id) => ipcRenderer.invoke("perf:deleteRun", id),
+  // First-sync simulation — runs as a chosen sf CLI connection; finished results are kept locally
+  studioSimStart: (connection, options) => ipcRenderer.invoke("studio:call", "studio_sim_start", { connection, options }),
+  studioPerfStartMobile: (plan) => ipcRenderer.invoke("studio:perfStartMobile", plan),
+  studioSimStartMobile: (loginId, options) => ipcRenderer.invoke("studio:simStartMobile", loginId, options),
+  mobileLoginStart: (loginUrl) => ipcRenderer.invoke("mobileLogin:start", loginUrl),
+  mobileLoginList: () => ipcRenderer.invoke("mobileLogin:list"),
+  mobileLoginRemove: (id) => ipcRenderer.invoke("mobileLogin:remove", id),
+  mobileLoginCheck: () => ipcRenderer.invoke("mobileLogin:check"),
+  mobileLoginRenew: (id) => ipcRenderer.invoke("mobileLogin:renew", id),
+  onMobileLoginsChanged: (cb) => {
+    const handler = (_event, logins) => cb(logins);
+    ipcRenderer.on("mobileLogin:changed", handler);
+    return () => ipcRenderer.removeListener("mobileLogin:changed", handler);
+  },
+  studioSimStatus: (jobId) => ipcRenderer.invoke("studio:call", "studio_sim_status", { jobId }),
+  studioSimCancel: (jobId) => ipcRenderer.invoke("studio:call", "studio_sim_cancel", { jobId }),
+  studioSimActive: () => ipcRenderer.invoke("studio:call", "studio_sim_active", {}),
+  studioSimReport: (result) => ipcRenderer.invoke("studio:call", "studio_sim_report", { result }),
+  perfListSims: () => ipcRenderer.invoke("perf:listSims"),
+  perfGetSim: (id) => ipcRenderer.invoke("perf:getSim", id),
+  perfSaveSim: (input) => ipcRenderer.invoke("perf:saveSim", input),
+  perfDeleteSim: (id) => ipcRenderer.invoke("perf:deleteSim", id),
+  perfOpenFile: () => ipcRenderer.invoke("perf:openFile"),
+  perfSaveFile: (defaultName, text, kind) => ipcRenderer.invoke("perf:saveFile", defaultName, text, kind),
 
   // Library
-  listLibraryItems: () => ipcRenderer.invoke("library:list"),
+  listLibraryItems: (scope) => ipcRenderer.invoke("library:list", scope),
   saveLibraryItem: (input) => ipcRenderer.invoke("library:save", input),
   deleteLibraryItem: (id) => ipcRenderer.invoke("library:delete", id),
-  searchLibraryItems: (query) => ipcRenderer.invoke("library:search", query),
+  searchLibraryItems: (query, scope) => ipcRenderer.invoke("library:search", query, scope),
 
   // Conversation History
-  listConversations: () => ipcRenderer.invoke("history:list"),
+  listConversations: (scope) => ipcRenderer.invoke("history:list", scope),
+  searchConversations: (query, scope) => ipcRenderer.invoke("history:search", query, scope),
+  getConversation: (id) => ipcRenderer.invoke("history:get", id),
+  moveConversationsToOrg: (ids) => ipcRenderer.invoke("history:move-to-org", ids),
+  deleteConversations: (ids) => ipcRenderer.invoke("history:delete-many", ids),
   createConversation: (firstMessage) =>
     ipcRenderer.invoke("history:create", firstMessage),
   deleteConversation: (id) => ipcRenderer.invoke("history:delete", id),

@@ -32,6 +32,8 @@ rules:
       App Alerts framework has been initialized with at least one alert.
     category: configuration
     severity: error
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
@@ -41,6 +43,7 @@ rules:
       error_detail_query: >
         SELECT Id, Subject, Type, DisplayContextType, EffectiveDate, ValidUntilDate
         FROM AppAlert
+        ORDER BY EffectiveDate DESC
         LIMIT 10
     symptoms:
       - "No alerts showing in notification pane"
@@ -59,23 +62,29 @@ rules:
     tags: [app-alerts, configuration]
 
   - id: app-alert-002
-    name: Active AppAlert records exist with valid date ranges
+    name: Alerts are currently in effect
     description: |
-      Verifies that at least one AppAlert record is currently active (EffectiveDate <= TODAY
-      and ValidUntilDate >= TODAY). Alerts outside their date range will not be visible
-      to users. This check ensures that users have current, relevant alerts available.
-      Without active alerts, the notification pane will appear empty even if alert
-      records exist in the org.
+      Verifies that at least one AppAlert is currently in effect: its EffectiveDate has
+      passed and its ValidUntilDate is empty (never expires) or still ahead. Alerts
+      outside that window are not shown to users. Without any, the notification pane
+      appears empty even if alert records exist in the org.
     category: configuration
     severity: warning
+    stage: data
+    studio_surface: objects
     check:
-      type: soql
+      type: soql_count
       query: >
-        SELECT Id, Subject, Type, DisplayContextType, EffectiveDate, ValidUntilDate
+        SELECT COUNT()
         FROM AppAlert
         WHERE EffectiveDate <= TODAY
-        AND ValidUntilDate >= TODAY
-      expect: "records.length > 0"
+        AND (ValidUntilDate = null OR ValidUntilDate >= TODAY)
+      expect: "count > 0"
+      error_detail_query: >
+        SELECT Id, Subject, Type, EffectiveDate, ValidUntilDate
+        FROM AppAlert
+        ORDER BY ValidUntilDate DESC
+        LIMIT 10
     symptoms:
       - "Alerts not showing despite being created"
       - "Notification pane empty for all users"
@@ -84,7 +93,7 @@ rules:
       steps:
         - "Navigate to App Launcher > App Alerts"
         - "Review existing alerts and check EffectiveDate and ValidUntilDate fields"
-        - "Ensure at least one alert has EffectiveDate <= TODAY and ValidUntilDate >= TODAY"
+        - "Ensure at least one alert has EffectiveDate <= TODAY and ValidUntilDate is empty or >= TODAY"
         - "Update dates on existing alerts or create new alerts with current dates"
         - "For Notification and Recommendation on mobile: ValidUntilDate - EffectiveDate < 7 days = expires on ValidUntilDate; otherwise shows for max 7 days"
       ui_path: "App Launcher > App Alerts"
@@ -95,7 +104,7 @@ rules:
   # ===========================================================================
 
   - id: app-alert-003
-    name: AppAlertTerritory records exist for alert distribution
+    name: Alerts are targeted to territories
     description: |
       Checks whether AppAlertTerritory records exist. AppAlertTerritory records
       link alerts to territories and control which users see which alerts.
@@ -104,6 +113,8 @@ rules:
       oversight that causes alerts to be invisible to all users.
     category: configuration
     severity: warning
+    stage: config
+    studio_surface: objects
     check:
       type: soql_count
       query: >
@@ -111,7 +122,7 @@ rules:
         FROM AppAlertTerritory
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, AppAlertId, AppAlert.Subject, Territory2Id, Territory2.Name
+        SELECT Id, AlertReferenceRecordId, TerritoryId, Territory.Name
         FROM AppAlertTerritory
         LIMIT 10
     symptoms:
@@ -144,6 +155,8 @@ rules:
       assess alert adoption and engagement.
     category: configuration
     severity: info
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
@@ -151,7 +164,7 @@ rules:
         FROM AppAlertUserResponse
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, AppAlertId, AppAlert.Subject, UserId, User.Name, ResponseType, CreatedDate
+        SELECT Id, AlertReferenceRecordId, UserId, UserAction, IsAlertRead, CreatedDate
         FROM AppAlertUserResponse
         ORDER BY CreatedDate DESC
         LIMIT 10
@@ -163,7 +176,7 @@ rules:
       steps:
         - "Verify that alerts are visible to users (check territory assignments)"
         - "Confirm that users have accessed the notification pane"
-        - "Check that AppAlertTriggerHandler is active in Admin Console > Trigger Handlers"
+        - "Check that NotificationTerritorySharingHandler is active in Admin Console > Trigger Handlers"
         - "Verify mobile DB schemas include AppAlertUserResponse for target profiles"
         - "Have test users interact with alerts (read, dismiss, resolve)"
         - "Query AppAlertUserResponse to verify records are being created"
@@ -184,13 +197,15 @@ rules:
       the Home Office Announcements widget will be empty.
     category: configuration
     severity: info
+    stage: data
+    studio_surface: objects
     check:
-      type: soql
+      type: soql_count
       query: >
-        SELECT Id, Subject, Message, ImageURL, EffectiveDate, ValidUntilDate
+        SELECT COUNT()
         FROM AppAlert
         WHERE Type = 'Announcement'
-      expect: "records.length > 0"
+      expect: "count > 0"
     symptoms:
       - "Home Office Announcements widget empty"
       - "No announcements visible on Home page"
@@ -199,7 +214,7 @@ rules:
       steps:
         - "Navigate to App Launcher > App Alerts > New"
         - "Set Type to 'Announcement'"
-        - "Populate Subject, Message, and ImageURL (optional)"
+        - "Populate Subject, Message, and ImageUrl (optional)"
         - "Set EffectiveDate and ValidUntilDate"
         - "Add AppAlertTerritory records to control visibility"
         - "Verify the Home Office Announcements widget is added to the Home page layout"
@@ -212,7 +227,7 @@ rules:
   # ===========================================================================
 
   - id: app-alert-006
-    name: Mobile metadata cache active for app alerts
+    name: A mobile metadata cache has been published
     description: |
       Verifies that mobile metadata cache is active. App Alerts on mobile require
       an active metadata cache that includes AppAlert, AppAlertTerritory, and
@@ -222,15 +237,17 @@ rules:
       alerts exist.
     category: metadata-cache
     severity: warning
+    stage: mobile
+    studio_surface: dbSchema
     check:
       type: soql_count
       query: >
         SELECT COUNT()
         FROM LifeSciMobileMetadataRecord
-        WHERE Status IN ('Active', 'Published')
+        WHERE Status = 'Active'
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, Status, IntegrationStatus, LastModifiedDate
+        SELECT Id, Name, Status, LastModifiedDate
         FROM LifeSciMobileMetadataRecord
         ORDER BY LastModifiedDate DESC
         LIMIT 10

@@ -73,6 +73,10 @@ export interface ValidationRule {
   issue_ref?: string;
   prerequisites?: string[];
   tags?: string[];
+  /** LSC Studio readiness stage; inferred from `category` when left out. */
+  stage?: "enabled" | "access" | "data" | "config" | "mobile";
+  /** LSC Studio board surface that shows the records this rule checks (e.g. "dbSchema"). */
+  studio_surface?: string;
 }
 
 export interface ValidationGroup {
@@ -82,6 +86,8 @@ export interface ValidationGroup {
 }
 
 export interface ValidationRuleFile {
+  /** File name the rules were read from, e.g. "visit-management-config.yaml". */
+  file: string;
   schema_version: string;
   category_name: string;
   description: string;
@@ -136,13 +142,21 @@ export function loadAllRules(): ValidationRuleFile[] {
     try {
       const content = readFileSync(join(RULES_DIR, file), "utf-8");
       const parsed = parseYaml(content) as ValidationRuleFile;
-      ruleFiles.push(parsed);
+      ruleFiles.push({ ...parsed, file });
     } catch (error) {
       console.error(`Failed to parse ${file}:`, error);
     }
   }
 
   return ruleFiles;
+}
+
+/**
+ * Rules from the named files (e.g. "visit-management-config.yaml"), in file order
+ */
+export function getRulesFromFiles(files: string[]): ValidationRule[] {
+  const byFile = new Map(loadAllRules().map((rf) => [rf.file, rf.rules || []]));
+  return files.flatMap((f) => byFile.get(f) ?? []);
 }
 
 /**

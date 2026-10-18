@@ -17,6 +17,7 @@ import {
 } from "../salesforce/cli.js";
 import {
   checkSetupStatus,
+  invalidateSetupStatus,
   getSetupInstructions,
   formatOrgList,
   validateOrgConnection,
@@ -30,7 +31,7 @@ export function register(server: McpServer) {
     "Check if Salesforce CLI is installed and orgs are authenticated. Run this first to ensure everything is set up correctly.",
     {},
     async () => {
-      const status = await checkSetupStatus();
+      const status = await checkSetupStatus({ fresh: true });
 
       let message = "# LSC Plugin Setup Status\n\n";
 
@@ -135,6 +136,7 @@ export function register(server: McpServer) {
       };
     }
 
+    invalidateSetupStatus();
     const result = await listOrgs();
 
     if (!result.success) {
@@ -184,6 +186,7 @@ export function register(server: McpServer) {
     },
     async ({ org }) => {
       // Validate the org exists
+      invalidateSetupStatus();
       const result = await listOrgs();
 
       if (!result.success) {

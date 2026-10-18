@@ -1,0 +1,89 @@
+/* Testing → Sync health */
+.sync-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 24px 32px;
+}
+.sync-overview-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sync-overview-toolbar-spacer {
+  flex: 1;
+}
+.sync-overview-body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  transition: opacity var(--transition-base);
+}
+.sync-overview-body[aria-busy="true"] {
+  opacity: 0.55;
+}
+.sync-overview-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sync-overview-section .ui-section-title,
+.sync-overview-section-head .ui-section-title {
+  margin: 0;
+}
+.ui-state.sync-overview-empty {
+  min-height: 120px;
+}
+.sync-overview-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--control);
+}
+.sync-overview-trends {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.sync-overview-trend {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+.sync-overview-trend svg {
+  width: 100%;
+  height: 56px;
+  fill: var(--accent);
+}
+.sync-overview-reasons {
+  margin: 0;
+  padding-left: 16px;
+  color: var(--text-secondary);
+}
+.sync-overview-reasons li {
+  line-height: 1.45;
+}
+.sync-overview-table td {
+  vertical-align: top;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.sync-overview-table td.check {
+  width: 28px;
+}
+.sync-overview-risks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sync-overview-notes {
+  margin: 0;
+  padding-left: 16px;
+}

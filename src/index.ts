@@ -31,6 +31,13 @@ import { register as registerApex } from "./tools/apex.js";
 import { register as registerBulkOperations } from "./tools/bulk-operations.js";
 import { register as registerMetadata } from "./tools/metadata.js";
 import { register as registerBriefings } from "./tools/briefings.js";
+import { register as registerStudio } from "./tools/studio.js";
+import { register as registerPerf } from "./tools/perf.js";
+import { register as registerPerfSimulate } from "./tools/perf-simulate.js";
+
+// A FORCE_COLOR inherited from the user's terminal makes `sf ... --json`
+// colour its JSON, which then fails to parse. Every sf call inherits this env.
+delete process.env.FORCE_COLOR;
 
 // Create the MCP server
 const server = new McpServer({
@@ -59,6 +66,9 @@ registerApex(server);
 registerBulkOperations(server);
 registerMetadata(server);
 registerBriefings(server);
+registerStudio(server);
+registerPerf(server);
+registerPerfSimulate(server);
 
 // ============================================================================
 // MAIN

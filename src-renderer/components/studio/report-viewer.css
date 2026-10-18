@@ -1,0 +1,149 @@
+/* "View Report" sheet (ReportDetailsViewController), measured on LSC Mobile at 1210×834pt: bar 24–82, header 56, rows 60, totals 64, columns 200. */
+.studio-ipad-reportview {
+  position: absolute;
+  inset: 24px 0 0 0;
+  z-index: 95;
+  background: #fff;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  color: #181818;
+}
+
+.studio-ipad-reportview-bar {
+  position: relative;
+  height: 58px;
+  background: #f3f3f3;
+}
+
+.studio-ipad-reportview-title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 33px;
+  transform: translateY(-50%);
+  text-align: center;
+  font-size: 17px;
+  font-weight: 600;
+  color: #000;
+}
+
+.studio-ipad-reportview-bar.data .studio-ipad-reportview-title,
+.studio-ipad-reportview-bar.data .studio-ipad-reportview-btn {
+  top: 24px;
+}
+
+.studio-ipad-reportview-btn {
+  position: absolute;
+  top: 33px;
+  transform: translateY(-50%);
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 17px;
+  color: #666;
+  white-space: nowrap;
+}
+
+.studio-ipad-reportview-btn.left { left: 20px; cursor: pointer; }
+.studio-ipad-reportview-btn.right { right: 20px; }
+
+.studio-ipad-reportview-message {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 335px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  font-size: 17px;
+  color: #000;
+}
+
+.studio-ipad-reportview-note {
+  max-width: 520px;
+  font-size: 14px;
+  line-height: 19px;
+  color: #5c5c5c;
+}
+
+.studio-ipad-reportview-scroll {
+  position: absolute;
+  inset: 58px 0 0 0;
+  overflow: auto;
+}
+
+.studio-ipad-reportview-grid { min-width: 100%; }
+
+.studio-ipad-reportview-line {
+  display: flex;
+  box-sizing: border-box;
+  height: 60px;
+  border-bottom: 1px solid #c9c9c9;
+  background: #fff;
+}
+
+.studio-ipad-reportview-line.head { height: 56px; background: #f3f3f3; }
+.studio-ipad-reportview-line.total { height: 64px; }
+.studio-ipad-reportview-line.grand { height: 64px; background: #666; color: #fff; border-bottom: none; }
+
+.studio-ipad-reportview-gutter {
+  flex: 0 0 10px;
+  box-sizing: border-box;
+  border-right: 1px solid #c9c9c9;
+}
+
+.studio-ipad-reportview-line.grand .studio-ipad-reportview-gutter { border-right-color: #c9c9c9; }
+
+.studio-ipad-reportview-cell {
+  flex: 0 0 200px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  padding: 0 16px;
+  font-size: 17px;
+  line-height: 19px;
+  border-right: 1px solid #c9c9c9;
+}
+
+.studio-ipad-reportview-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.studio-ipad-reportview-webtools {
+  position: absolute;
+  right: 20px;
+  top: 33px;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 32px;
+  font-size: 22px;
+  color: #666;
+}
+
+.studio-ipad-reportview-message.web { top: 120px; }
+.studio-ipad-reportview-cell.head { color: #666; font-weight: 500; }
+.studio-ipad-reportview-cell.link { color: #0250d9; }
+.studio-ipad-reportview-line.total .studio-ipad-reportview-cell { text-align: left; }
+.studio-ipad-reportview-line.grand .studio-ipad-reportview-cell { color: #fff; }
+
+.studio-ipad-reportview-label {
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  padding: 3px 9px;
+  border: 1px dashed #b58105;
+  border-radius: 10px;
+  background: #fff9e6;
+  color: #7a5600;
+  font-size: 11px;
+  line-height: 14px;
+}

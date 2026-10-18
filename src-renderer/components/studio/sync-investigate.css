@@ -1,0 +1,140 @@
+/* Testing → Check a rep's sync: the table list with share bars, hint rows, and the header stats. */
+.sync-investigate {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.sync-investigate-territory {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 360px;
+}
+.sync-investigate-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.sync-investigate-tables {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sync-investigate-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.sync-investigate-row:hover,
+.sync-investigate-row.selected {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+}
+
+.sync-investigate-row-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+.sync-investigate-row-count {
+  font-size: var(--font-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+.sync-investigate-row .studio-perf-bar {
+  grid-column: 1 / -1;
+  display: block;
+  margin-top: 0;
+}
+.sync-investigate-fill {
+  display: block;
+}
+.sync-investigate-detail {
+  margin: 4px 0 8px 10px;
+}
+.sync-investigate-hints {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sync-investigate-hint {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.sync-investigate-hint-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.sync-investigate-hint-title {
+  font-weight: 600;
+  font-size: var(--font-base);
+}
+.sync-investigate-hint .ui-status-icon {
+  margin-top: 1px;
+}
+.sync-investigate-props {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0;
+  font-size: var(--font-sm);
+}
+.sync-investigate-props dt {
+  color: var(--text-muted);
+}
+.sync-investigate-props dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.sync-investigate-details summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+}
+.sync-investigate-details summary:hover {
+  color: var(--text-primary);
+}
+.sync-investigate-details ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+.sync-investigate-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.sync-investigate-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sync-investigate-territory {
+  max-width: 360px;
+}
+.sync-investigate-state {
+  position: relative;
+  min-height: 240px;
+}
