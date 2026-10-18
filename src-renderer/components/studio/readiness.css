@@ -20,8 +20,15 @@
 
 .studio-page-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
-  gap: var(--space-4);
+  gap: var(--space-3) var(--space-4);
+}
+
+/* The title takes what's left and never squeezes below a readable width; the actions wrap under it. */
+.studio-page-head > :first-child {
+  flex: 1 1 280px;
+  min-width: 0;
 }
 
 .studio-page-head h2 {
@@ -47,7 +54,6 @@
   justify-content: flex-end;
   gap: var(--space-2);
   margin-left: auto;
-  flex-shrink: 0;
 }
 
 .studio-page section > .ui-section-title {

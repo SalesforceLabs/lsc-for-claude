@@ -45,6 +45,7 @@
   --space-8: 32px;
   --space-10: 40px;
   /* Type scale. 13px is the body size of app chrome; 14px for reading (chat). */
+  --font-2xs: 10px; /* badges and counts only */
   --font-xs: 11px;
   --font-sm: 12px;
   --font-base: 13px;
@@ -52,6 +53,8 @@
   --font-lg: 15px;
   --font-xl: 17px;
   --font-2xl: 20px;
+  --font-display: 28px; /* page heroes: welcome, setup */
+  --font-code: 12px;
   --font-mono: "SF Mono", ui-monospace, Menlo, monospace;
   /* Control heights: every button, input, select and segmented control is one of these. */
   --control-sm: 24px;
@@ -73,7 +76,7 @@
 
 body {
   font-family: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  font-size: 14px;
+  font-size: var(--font-md);
   line-height: 1.6;
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -205,7 +208,7 @@ body {
   padding: 0 6px;
   border-radius: 999px;
   background: var(--fill-control);
-  font-size: 10px;
+  font-size: var(--font-2xs);
   font-weight: 500;
   line-height: 16px;
   color: var(--text-muted);
@@ -516,7 +519,7 @@ body {
   border-radius: 9px;
   background: var(--fill-active);
   color: var(--text-secondary);
-  font-size: 10.5px;
+  font-size: var(--font-2xs);
   font-weight: 600;
   line-height: 18px;
   text-align: center;
@@ -1209,7 +1212,7 @@ body {
 }
 
 .welcome h2 {
-  font-size: 28px;
+  font-size: var(--font-display);
   font-weight: 600;
   margin-bottom: 10px;
   letter-spacing: -0.025em;
@@ -1570,7 +1573,7 @@ body {
   padding: 2px 6px;
   border-radius: 5px;
   font-family: "SF Mono", "Fira Code", ui-monospace, monospace;
-  font-size: 13px;
+  font-size: var(--font-base);
 }
 
 /* Code blocks */
@@ -1587,7 +1590,7 @@ body {
   background: none;
   padding: 0;
   border-radius: 0;
-  font-size: 12.5px;
+  font-size: var(--font-code);
   line-height: 1.6;
 }
 
@@ -1596,7 +1599,7 @@ body {
   border-collapse: collapse;
   width: 100%;
   margin: 10px 0;
-  font-size: 13px;
+  font-size: var(--font-base);
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
@@ -1611,7 +1614,7 @@ body {
 .message-content th {
   background: var(--bg-tertiary);
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--font-sm);
   text-transform: none;
   letter-spacing: 0;
 }
@@ -1828,7 +1831,7 @@ body {
 }
 
 .setup-header h1 {
-  font-size: 26px;
+  font-size: var(--font-display);
   font-weight: 600;
   margin-bottom: 8px;
   letter-spacing: -0.03em;
@@ -2292,7 +2295,7 @@ body {
 }
 
 .doc-panel-meta {
-  font-size: 11px;
+  font-size: var(--font-xs);
   color: var(--text-muted);
   padding: 6px 16px;
   border-bottom: 1px solid var(--border-subtle);
@@ -2308,7 +2311,7 @@ body {
 }
 
 .doc-panel-body .message-content {
-  font-size: 13px;
+  font-size: var(--font-base);
 }
 
 .doc-panel-pdf-iframe {
@@ -2319,7 +2322,7 @@ body {
 }
 
 .doc-panel-pre {
-  font-size: 12px;
+  font-size: var(--font-sm);
   color: var(--text-secondary);
   white-space: pre-wrap;
   word-break: break-word;
@@ -2332,7 +2335,7 @@ body {
 }
 
 .page-marker {
-  font-size: 10px;
+  font-size: var(--font-2xs);
   color: var(--text-muted);
   border-top: 1px dashed var(--border);
   margin: 16px 0 8px;
@@ -2390,7 +2393,7 @@ mark.highlight {
 
 .tool-group-names {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--font-xs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2432,7 +2435,7 @@ mark.highlight {
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   font-family: inherit;
-  font-size: 11px;
+  font-size: var(--font-xs);
   cursor: pointer;
   transition: border-color var(--transition-fast), color var(--transition-fast);
 }
@@ -2464,7 +2467,7 @@ mark.highlight {
   border-radius: 9px;
   background: var(--accent-subtle);
   color: var(--accent);
-  font-size: 10px;
+  font-size: var(--font-2xs);
   font-weight: 600;
   margin-left: 6px;
   vertical-align: middle;
@@ -2818,7 +2821,7 @@ mark.highlight {
 }
 
 .library-detail-body .message-content {
-  font-size: 13px;
+  font-size: var(--font-base);
 }
 
 .library-detail-svg {

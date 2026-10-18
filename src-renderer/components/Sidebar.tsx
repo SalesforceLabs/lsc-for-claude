@@ -80,6 +80,18 @@ export default function Sidebar({
     return () => document.removeEventListener("mousedown", onClick);
   }, [menuOpenId]);
 
+  // Escape closes the commands sheet and the row menu
+  useEffect(() => {
+    if (!showCommands && !menuOpenId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setShowCommands(false);
+      setMenuOpenId(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [showCommands, menuOpenId]);
+
   // Focus rename input when it appears
   useEffect(() => {
     if (renamingId) renameInputRef.current?.focus();
