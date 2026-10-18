@@ -13,7 +13,7 @@ import type { StudioCheckResult } from "../index.js";
 
 /** Every DB Schema record in the org. */
 export function loadDbSchema(org: string): Promise<ConfigRecord[]> {
-  return fetchCategories(org, ["DbSchema"]);
+  return fetchCategories(org, ["DbSchema"], true);
 }
 
 const sobject = (r: ConfigRecord) => String(r.fields.SObject ?? "").toLowerCase();

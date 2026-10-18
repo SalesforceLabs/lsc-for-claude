@@ -25,8 +25,8 @@ const HIGH_VOLUME_ROWS = 50_000;
 
 /** A WHERE clause error that means the filter is wrong, as opposed to the object not being queryable by this user. */
 const FILTER_ERROR = /INVALID_FIELD|MALFORMED_QUERY|INVALID_TYPE|No such column|unexpected token|didn't understand|is not supported/i;
-/** The record's own object isn't queryable (missing, or the admin can't read it) — says nothing about the filter. */
-const objectUnavailable = (sobject: string, error: string) => new RegExp(`sObject type '${sobject.replace(/[^\w]/g, "")}' is not supported`, "i").test(error);
+/** An object the probe touches (the record's own or one in a subquery) isn't queryable by the admin — says nothing about the filter. */
+const objectUnavailable = (error: string) => /sObject type '[^']*' is not supported/i.test(error);
 
 /** The filter with the app's tags replaced by placeholder values, ready to run with LIMIT 1. */
 function probeSoql(sobject: string, where: string): string {
@@ -40,9 +40,9 @@ function probeSoql(sobject: string, where: string): string {
 const readiness: ReadinessModule = {
   ruleFiles: ["mobile-config.yaml"],
   checks: async (org) => {
-    const schema = once(() => fetchCategories(org, ["DbSchema"]));
-    const uiSchema = once(() => fetchCategories(org, ["UISchema"]));
-    const settings = once(() => fetchCategories(org, SETTINGS_CATEGORIES));
+    const schema = once(() => fetchCategories(org, ["DbSchema"], true));
+    const uiSchema = once(() => fetchCategories(org, ["UISchema"], true));
+    const settings = once(() => fetchCategories(org, SETTINGS_CATEGORIES, true));
     const caches = once(() => fetchCache(org));
     const dataRecords = async () => (await schema()).filter((r) => r.fields.Type !== "CONFIGURATION");
     /** Profile names the active DB Schema records are assigned to. */
@@ -178,7 +178,7 @@ const readiness: ReadinessModule = {
             await Promise.all(
               filtered.slice(i, i + 4).map(async (e) => {
                 const r = await runSoqlQuery(probeSoql(e.sobject, e.whereSoql!), org);
-                if (!r.success && FILTER_ERROR.test(String(r.error)) && !objectUnavailable(e.sobject, String(r.error))) problems.push(`${e.sobject}: ${String(r.error).split("\n")[0].slice(0, 140)}`);
+                if (!r.success && FILTER_ERROR.test(String(r.error)) && !objectUnavailable(String(r.error))) problems.push(`${e.sobject}: ${String(r.error).split("\n")[0].slice(0, 140)}`);
               })
             );
           }
@@ -227,8 +227,8 @@ const readiness: ReadinessModule = {
         },
         async () => {
           const [profiles, all] = await Promise.all([syncedProfiles(), settings()]);
-          const have = new Set(byCategory(all, "ProfileBasedAppSettings").filter((r) => r.isActive).flatMap(profilesOf));
-          const missing = profiles.filter((p) => !have.has(p));
+          const have = new Set(byCategory(all, "ProfileBasedAppSettings").filter((r) => r.isActive).flatMap(profilesOf).map((p) => p.toLowerCase()));
+          const missing = profiles.filter((p) => !have.has(p.toLowerCase()));
           if (!missing.length) return { pass: true, detail: `${plural(profiles.length, "synced profile")} all have app settings.` };
           const ids = new Map(
             (await query(`SELECT Id, Name FROM Profile WHERE Name IN (${inList(missing)})`, org)).map((p) => [String(p.Name), String(p.Id)])
@@ -253,7 +253,7 @@ const readiness: ReadinessModule = {
           const [profiles, all] = await Promise.all([syncedProfiles(), caches()]);
           if (!profiles.length) return { pass: true, skip: true, detail: "No profile is assigned DB Schema records." };
           const live = all.filter(isLiveCache);
-          const missing = profiles.filter((p) => !live.some((c) => c.profile === p));
+          const missing = profiles.filter((p) => !live.some((c) => c.profile?.toLowerCase() === p.toLowerCase()));
           return missing.length
             ? { pass: false, detail: `${plural(missing.length, "synced profile")} without a published cache: ${missing.join(", ")}.`, examples: missing }
             : { pass: true, detail: `${plural(profiles.length, "synced profile")} all have a published cache.` };
@@ -289,7 +289,7 @@ const readiness: ReadinessModule = {
         async () => {
           const [profiles, ui] = await Promise.all([syncedProfiles(), uiSchema()]);
           const tabs = ui.filter((r) => isNavTab(r) && r.isActive);
-          const missing = profiles.filter((p) => !tabs.some((t) => profilesOf(t).includes(p)));
+          const missing = profiles.filter((p) => !tabs.some((t) => profilesOf(t).some((n) => n.toLowerCase() === p.toLowerCase())));
           if (!missing.length) return { pass: true, detail: `${plural(profiles.length, "synced profile")} all have navigation tabs.` };
           const fixes: StudioFix[] = missing.flatMap((p) => noNavTabs(p, tabs).fixes ?? []);
           return { pass: false, detail: `${plural(missing.length, "synced profile")} without tabs: ${missing.join(", ")}.`, examples: missing, fixes };

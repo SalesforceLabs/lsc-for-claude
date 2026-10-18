@@ -74,25 +74,33 @@ function crashed(featureId: string, err: unknown): ReadinessCheck {
 
 // ─── Rules ──────────────────────────────────────────────────────────────────
 
-/** Run rules a few at a time; a rule waits for its prerequisites and is skipped if one didn't pass. */
+/**
+ * Run rules a few at a time; a rule waits for its prerequisites and is skipped
+ * if one failed, or can't be checked if one couldn't be (or the prerequisites loop).
+ */
 export async function runRules(rules: ValidationRule[], org: string): Promise<ReadinessCheck[]> {
   const ids = new Set(rules.map((r) => r.id));
   const results = new Map<string, Promise<ReadinessCheck>>();
   const limit = semaphore(CONCURRENCY);
-  const run = (rule: ValidationRule): Promise<ReadinessCheck> => {
+  const run = (rule: ValidationRule, path: string[]): Promise<ReadinessCheck> => {
     let p = results.get(rule.id);
     if (p) return p;
-    p = (async () => {
-      const prereqs = (rule.prerequisites ?? []).filter((id) => ids.has(id));
-      const done = await Promise.all(prereqs.map((id) => run(rules.find((r) => r.id === id)!)));
-      const blocked = done.find((d) => d.status !== "pass");
-      if (blocked) return { ...ruleBase(rule), status: "skipped", detail: `Depends on "${blocked.title}", which didn't pass.` };
-      return limit(() => checkRule(rule, org));
-    })();
+    const prereqs = (rule.prerequisites ?? []).filter((id) => ids.has(id));
+    const loop = prereqs.find((id) => id === rule.id || path.includes(id));
+    p = loop
+      ? Promise.resolve({ ...ruleBase(rule), status: "unknown", detail: `Its prerequisites loop back through "${loop}".` })
+      : (async (): Promise<ReadinessCheck> => {
+          const done = await Promise.all(prereqs.map((id) => run(rules.find((r) => r.id === id)!, [...path, rule.id])));
+          const failed = done.find((d) => d.status === "fail" || d.status === "skipped");
+          if (failed) return { ...ruleBase(rule), status: "skipped", detail: `Depends on "${failed.title}", which didn't pass.` };
+          const unknown = done.find((d) => d.status !== "pass");
+          if (unknown) return { ...ruleBase(rule), status: "unknown", detail: `Depends on "${unknown.title}", which couldn't be checked.` };
+          return limit(() => checkRule(rule, org));
+        })();
     results.set(rule.id, p);
     return p;
   };
-  return Promise.all(rules.map(run));
+  return Promise.all(rules.map((r) => run(r, [])));
 }
 
 function ruleBase(rule: ValidationRule): Omit<ReadinessCheck, "status"> {
@@ -142,13 +150,15 @@ function semaphore(max: number) {
   let active = 0;
   const waiting: (() => void)[] = [];
   return async <T>(fn: () => Promise<T>): Promise<T> => {
+    // A finished run hands its slot straight to the next waiter, so a newcomer can't take it in between.
     if (active >= max) await new Promise<void>((resolve) => waiting.push(resolve));
-    active++;
+    else active++;
     try {
       return await fn();
     } finally {
-      active--;
-      waiting.shift()?.();
+      const next = waiting.shift();
+      if (next) next();
+      else active--;
     }
   };
 }

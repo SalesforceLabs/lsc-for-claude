@@ -7,6 +7,7 @@
 
 import type { ConfigRecord } from "../config/types.js";
 import { actionAudience, fetchCategories } from "./collectors/shared.js";
+import { LSC_PSL } from "./collectors/territory-users.js";
 import { getFeature, type FeatureDefinition } from "./features.js";
 import { audienceOf, inList, matchesAny, plural, query, type Row } from "./helpers.js";
 import { runCheck } from "./readiness/index.js";
@@ -23,8 +24,6 @@ export interface UserTrace {
   checks: ReadinessCheck[];
 }
 
-/** The Life Sciences Commercial PSL every LSC user needs (same test as the Territory & Users collector). */
-const LSC_PSL = /LSC4CE|LifeScienceCommercial/i;
 /** A cache older than this many days at the user's last sync is suspect; config newer than the cache is what matters. */
 const STALE_SYNC_DAYS = 14;
 
@@ -127,8 +126,8 @@ function gather(user: UserInfo, org: string): Facts {
       `SELECT Territory2Id, Territory2.Name, Territory2.Territory2Model.State FROM UserTerritory2Association WHERE UserId = '${id}'`,
       org
     ),
-    dbSchema: fetchCategories(org, ["DbSchema"]),
-    actions: fetchCategories(org, ["QuickAction", "CustomAction"]),
+    dbSchema: fetchCategories(org, ["DbSchema"], true),
+    actions: fetchCategories(org, ["QuickAction", "CustomAction"], true),
     caches: user.profile
       ? query(
           `SELECT Id, Status, IntegrationStatus, IntegrationErrorMessage, LastModifiedDate, Profile.Name FROM LifeSciMobileMetadataRecord WHERE ParentMobileMetadataRecId != null AND Profile.Name = '${user.profile.replace(/'/g, "\\'")}' ORDER BY LastModifiedDate DESC LIMIT 20`,
@@ -194,7 +193,13 @@ function checkLscPsl(user: UserInfo, facts: Facts, _org: string): Promise<Readin
       const { assigned, available } = await facts.psls;
       const have = assigned.filter((a) => LSC_PSL.test(str(rel(a, "PermissionSetLicense.DeveloperName"))));
       if (have.length) return { pass: true, detail: have.map((a) => str(rel(a, "PermissionSetLicense.MasterLabel"))).join(", ") };
-      const open = available.find((p) => LSC_PSL.test(str(p.DeveloperName)) && p.Status === "Active" && Number(p.TotalLicenses) > Number(p.UsedLicenses));
+      const lsc = available.filter((p) => LSC_PSL.test(str(p.DeveloperName)));
+      const withSeats = lsc.filter((p) => p.Status === "Active" && Number(p.TotalLicenses) > Number(p.UsedLicenses));
+      // Only one license with seats is an unambiguous fix; with several, which one is the admin's call.
+      const open = withSeats.length === 1 ? withSeats[0] : undefined;
+      if (withSeats.length > 1) {
+        return { pass: false, detail: `None assigned. ${withSeats.length} LSC licenses have free seats: ${withSeats.map((p) => str(p.MasterLabel)).join(", ")}.` };
+      }
       const fixes: StudioFix[] = open
         ? [{ kind: "assignPsl", label: `Assign ${str(open.MasterLabel)} to ${user.name}`, userId: user.id, userName: user.name, pslId: str(open.Id), pslLabel: str(open.MasterLabel) }]
         : [];
@@ -202,7 +207,7 @@ function checkLscPsl(user: UserInfo, facts: Facts, _org: string): Promise<Readin
         pass: false,
         detail: open
           ? `None assigned. ${str(open.MasterLabel)} has ${Number(open.TotalLicenses) - Number(open.UsedLicenses)} of ${open.TotalLicenses} seats free.`
-          : available.length
+          : lsc.length
             ? "None assigned, and no Life Sciences Commercial licenses are free — buy or release seats first."
             : "None assigned, and the org has no Life Sciences Commercial license.",
         fixes,
@@ -397,7 +402,9 @@ function checkLastSync(user: UserInfo, facts: Facts): Promise<ReadinessCheck> {
       const days = Math.floor((Date.now() - Date.parse(str(done.DownloadEnd))) / 86_400_000);
       const when = str(done.DownloadEnd).slice(0, 10);
       if (days > STALE_SYNC_DAYS) return { pass: false, detail: `Last finished sync was ${when} (${days} days ago).` };
-      const failedSince = latest !== done && !latest.DownloadEnd;
+      // An attempt started in the last half hour may still be running.
+      const inProgress = Date.now() - Date.parse(str(latest.DownloadStart || latest.CreatedDate)) < 30 * 60_000;
+      const failedSince = latest !== done && !latest.DownloadEnd && !inProgress;
       return { pass: !failedSince, detail: failedSince ? `Last finished sync ${when}, but the latest attempt (${str(latest.CreatedDate).slice(0, 10)}) didn't finish.` : `Last finished sync ${when}.` };
     }
   );

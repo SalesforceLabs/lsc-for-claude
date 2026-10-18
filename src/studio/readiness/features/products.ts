@@ -132,7 +132,7 @@ const readiness: ReadinessModule = {
           surface: "adminSettings",
         },
         async () => {
-          const records = await collectCategoryRecords(org, `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'ProductAdminSettings'`);
+          const records = await collectCategoryRecords(org, `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'ProductAdminSettings'`, { strict: true });
           return records.length ? { pass: true, detail: "Product admin settings are saved." } : { pass: false, detail: "No Product admin settings record." };
         }
       ),

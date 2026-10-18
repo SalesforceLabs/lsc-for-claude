@@ -14,7 +14,7 @@ const readiness: ReadinessModule = {
     const handlers = loadHandlers(org);
     const schema = loadDbSchema(org);
     const settings = lazy(() =>
-      fetchCategories(org, ["PlannerAdministration", "TimeOffTerritoryRule", "TimeOffTerritorySettings", "WorkingDaysConfig"])
+      fetchCategories(org, ["PlannerAdministration", "TimeOffTerritoryRule", "TimeOffTerritorySettings", "WorkingDaysConfig"], true)
     );
 
     return Promise.all([

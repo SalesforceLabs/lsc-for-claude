@@ -53,7 +53,7 @@ const readiness: ReadinessModule = {
           surface: "adminSettings",
         },
         async () => {
-          const records = await fetchCategories(org, ["OptAdministration"]);
+          const records = await fetchCategories(org, ["OptAdministration"], true);
           const active = records.filter((r) => r.isActive);
           if (active.length) {
             const orgLevel = active.find((r) => r.isOrgLevel) ?? active[0];

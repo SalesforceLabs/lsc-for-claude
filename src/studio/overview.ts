@@ -25,7 +25,8 @@ export interface SetupOverview {
 const MOBILE_CATEGORIES = ["DbSchema", "UISchema", "QuickAction", "CustomAction", "ApplicationSettings", "ProfileBasedAppSettings"];
 /** A live cache older than this is worth a nudge even with no recorded changes. */
 const OLD_CACHE_DAYS = 90;
-const LSC_PSL = "PermissionSetLicense.DeveloperName LIKE '%LSC4CE%'";
+/** The LSC license, matched like `LSC_PSL` in collectors/territory-users.ts and the user trace. */
+const LSC_PSL = "(PermissionSetLicense.DeveloperName LIKE '%LSC4CE%' OR PermissionSetLicense.DeveloperName LIKE '%LifeScienceCommercial%')";
 
 interface LscProfile {
   id: string;
@@ -187,7 +188,7 @@ export async function collectSetupOverview(org: string): Promise<SetupOverview> 
         stage: "mobile",
         title: "iPads have the latest Admin Console configuration",
         severity: "warning",
-        why: "Mobile settings, DB Schema, tabs and actions reach the iPad only when the profile's metadata cache is regenerated. Changes after the last publish aren't on reps' devices yet.",
+        why: "Mobile settings, DB Schema, tabs and actions reach the iPad only when the profile's metadata cache is regenerated. Changes after the last publish aren't on reps' devices yet. Deleted records leave nothing to compare, so a deletion alone isn't flagged here.",
         uiPath: "Admin Console > Mobile > Metadata Cache",
       },
       async () => {

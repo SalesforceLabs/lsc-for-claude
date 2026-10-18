@@ -26,27 +26,52 @@ function recent(kind: RecentKind, name: string, featureId: string | null, r: Row
   };
 }
 
+/** The newer of two rows by LastModifiedDate. */
+const newer = (a: Row | undefined, b: Row) => (!a || String(b.LastModifiedDate) > String(a.LastModifiedDate) ? b : a);
+
+/**
+ * Admin Console records changed since `since`. Editing a setting's value touches only its
+ * field value row, and reassigning it only the assignment row, so all three count; each
+ * record is listed once, stamped with its newest change.
+ */
 async function recentConfig(since: string, org: string): Promise<RecentChange[]> {
-  const [rows, cats] = await Promise.all([
+  const rel = "LifeSciConfigRecord.DeveloperName, LifeSciConfigRecord.MasterLabel, LifeSciConfigRecord.LifeSciConfigCategoryId";
+  const [rows, values, assignments, cats] = await Promise.all([
     query(
-      `SELECT DeveloperName, MasterLabel, LifeSciConfigCategoryId, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigRecord WHERE LastModifiedDate >= ${since} ORDER BY LastModifiedDate DESC LIMIT 200`,
+      `SELECT Id, DeveloperName, MasterLabel, LifeSciConfigCategoryId, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigRecord WHERE LastModifiedDate >= ${since} ORDER BY LastModifiedDate DESC LIMIT 200`,
+      org,
+      true
+    ),
+    query(
+      `SELECT LifeSciConfigRecordId, ${rel}, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigFieldValue WHERE LastModifiedDate >= ${since} ORDER BY LastModifiedDate DESC LIMIT 500`,
+      org,
+      true
+    ),
+    query(
+      `SELECT LifeSciConfigRecordId, ${rel}, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigAssignment WHERE LastModifiedDate >= ${since} ORDER BY LastModifiedDate DESC LIMIT 500`,
       org,
       true
     ),
     query(`SELECT Id, Category FROM LifeSciConfigCategory`, org, true),
   ]);
   const category = new Map(cats.map((c) => [c.Id as string, c.Category as string]));
-  return rows.map((r) => {
-    const cat = category.get(r.LifeSciConfigCategoryId as string) || "";
-    const dev = r.DeveloperName as string;
-    const featureId = featureForRecord({
-      kind: "record",
-      category: cat,
-      developerName: dev,
-      label: r.MasterLabel as string,
-      fields: {},
-    });
-    return recent("config", (r.MasterLabel as string) || dev, featureId, r, cat);
+  // Record id → its identity and newest change.
+  const byId = new Map<string, { dev: string; label: string; categoryId: string; latest: Row }>();
+  for (const r of rows) {
+    byId.set(String(r.Id), { dev: r.DeveloperName as string, label: r.MasterLabel as string, categoryId: r.LifeSciConfigCategoryId as string, latest: r });
+  }
+  for (const r of [...values, ...assignments]) {
+    const rec = r.LifeSciConfigRecord as Row | null;
+    if (!rec) continue;
+    const id = String(r.LifeSciConfigRecordId);
+    const known = byId.get(id);
+    if (known) known.latest = newer(known.latest, r);
+    else byId.set(id, { dev: rec.DeveloperName as string, label: rec.MasterLabel as string, categoryId: rec.LifeSciConfigCategoryId as string, latest: r });
+  }
+  return [...byId.values()].map(({ dev, label, categoryId, latest }) => {
+    const cat = category.get(categoryId) || "";
+    const featureId = featureForRecord({ kind: "record", category: cat, developerName: dev, label, fields: {} });
+    return recent("config", label || dev, featureId, latest, cat);
   });
 }
 
@@ -145,11 +170,28 @@ export async function attachModifiers(changes: DriftChange[], org: string): Prom
     const object = kind === "triggerHandler" ? "LifeScienceTriggerHandler" : "LifeSciConfigRecord";
     for (let i = 0; i < names.length; i += 80) {
       const rows = await query(
-        `SELECT DeveloperName, LastModifiedDate, LastModifiedBy.Name FROM ${object} WHERE DeveloperName IN (${inList(names.slice(i, i + 80).map((n) => byName.get(n)!.developerName))})`,
+        `SELECT Id, DeveloperName, LastModifiedDate, LastModifiedBy.Name FROM ${object} WHERE DeveloperName IN (${inList(names.slice(i, i + 80).map((n) => byName.get(n)!.developerName))})`,
         org,
         true
       );
-      for (const r of rows) {
+      // An Admin Console record's newest change may be on a field value or assignment row.
+      const latest = new Map(rows.map((r) => [String(r.Id), r]));
+      if (kind === "record" && rows.length) {
+        const ids = inList([...latest.keys()]);
+        const children = await Promise.all(
+          ["LifeSciConfigFieldValue", "LifeSciConfigAssignment"].map((child) =>
+            query(`SELECT LifeSciConfigRecordId, LastModifiedDate, LastModifiedBy.Name FROM ${child} WHERE LifeSciConfigRecordId IN (${ids})`, org, true).catch(
+              () => [] as Row[]
+            )
+          )
+        );
+        for (const r of children.flat()) {
+          const id = String(r.LifeSciConfigRecordId);
+          const parent = latest.get(id);
+          if (parent && newer(parent, r) === r) latest.set(id, { ...r, DeveloperName: parent.DeveloperName });
+        }
+      }
+      for (const r of latest.values()) {
         const c = byName.get(String(r.DeveloperName).toLowerCase());
         if (c) stamp(c, r);
       }

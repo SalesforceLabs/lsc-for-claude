@@ -77,9 +77,11 @@ export async function cacheFreshResult(org: string, caches: CacheRecord[], categ
 
   const byName = new Map(records.map((r) => [r.developerName, r]));
   const profiles = forProfiles.length ? forProfiles : [...dates.keys()];
+  // Profile names in assignments and on the cache needn't agree on case.
+  const dateOf = new Map([...dates].map(([p, at]) => [p.toLowerCase(), at]));
   const stale: string[] = [];
   for (const profile of profiles) {
-    const published = dates.get(profile);
+    const published = dateOf.get(profile.toLowerCase());
     if (published === undefined) continue;
     const hit = [...changed].filter(([name, at]) => {
       if (at <= published) return false;
@@ -102,12 +104,8 @@ export async function cacheFreshResult(org: string, caches: CacheRecord[], categ
  * could reach anyone, so they count.
  */
 function reaches(rec: ConfigRecord, profile: string): boolean {
-  if (rec.category === "QuickAction" || rec.category === "CustomAction") {
-    const audience = actionAudience(rec);
-    return !audience || audience.profiles.includes(profile) || audience.permissionSets.length > 0;
-  }
-  const audience = audienceOf(rec);
-  return !audience || audience.profiles.includes(profile) || audience.permissionSets.length > 0;
+  const audience = rec.category === "QuickAction" || rec.category === "CustomAction" ? actionAudience(rec) : audienceOf(rec);
+  return !audience || audience.profiles.some((p) => p.toLowerCase() === profile.toLowerCase()) || audience.permissionSets.length > 0;
 }
 
 export { fetchCache };
@@ -123,6 +121,9 @@ export function daysSince(date: unknown, now = Date.now()): number | null {
  * `profiles` should sync it through an active record. Gives a "copy" fix per gap —
  * switch a record on, add the profile to a record, or create one for the profiles.
  */
+/** Whether `rec` is assigned to `profile`, ignoring case. */
+const hasProfile = (rec: ConfigRecord, profile: string) => profilesOf(rec).some((p) => p.toLowerCase() === profile.toLowerCase());
+
 export function profileSyncResult(schema: ConfigRecord[], objects: string[], profiles: string[]): StudioCheckResult {
   if (!profiles.length) return { pass: true, skip: true, detail: "No profile has active users for this feature yet." };
   const sobject = (r: ConfigRecord) => String(r.fields.SObject ?? "").toLowerCase();
@@ -131,7 +132,7 @@ export function profileSyncResult(schema: ConfigRecord[], objects: string[], pro
   for (const obj of objects) {
     const mine = schema.filter((r) => sobject(r) === obj.toLowerCase());
     const active = mine.filter((r) => r.isActive);
-    const missing = profiles.filter((p) => !active.some((r) => r.isOrgLevel || profilesOf(r).includes(p)));
+    const missing = profiles.filter((p) => !active.some((r) => r.isOrgLevel || hasProfile(r, p)));
     if (!missing.length) continue;
     gaps.push(`${obj}: ${missing.join(", ")}`);
     const offs = mine.filter((r) => !r.isActive);
@@ -154,7 +155,7 @@ export function profileSyncResult(schema: ConfigRecord[], objects: string[], pro
       });
       // Switching it on only helps the profiles it's given to; add the rest.
       if (!off.isOrgLevel) {
-        for (const p of missing.filter((p) => !profilesOf(off).includes(p))) {
+        for (const p of missing.filter((p) => !hasProfile(off, p))) {
           const fix = addProfileFix(off, p, `Sync ${obj} to ${p}`);
           if (fix) fixes.push(fix);
         }

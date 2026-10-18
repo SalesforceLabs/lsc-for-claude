@@ -1,7 +1,7 @@
 /** Territory & Users readiness: the territory model, alignment, field users and their licenses. */
 
 import { fieldProfiles, LSC_PSL } from "../../collectors/territory-users.js";
-import { inList, plural, query } from "../../helpers.js";
+import { inList, plural, query, type Row } from "../../helpers.js";
 import type { StudioFix } from "../../types.js";
 import { runCheck, type ReadinessModule } from "../index.js";
 import {
@@ -29,8 +29,9 @@ const readiness: ReadinessModule = {
         `SELECT Id, DeveloperName, MasterLabel, TotalLicenses, UsedLicenses, Status FROM PermissionSetLicense WHERE DeveloperName LIKE '%LSC4CE%' OR DeveloperName LIKE '%LifeScienceCommercial%'`,
         org
       );
-      return rows.find((r) => LSC_PSL.test(String(r.DeveloperName)));
+      return rows.filter((r) => LSC_PSL.test(String(r.DeveloperName)));
     });
+    const free = (p: Row) => p.Status === "Active" && Number(p.TotalLicenses) > Number(p.UsedLicenses);
     /** Active field users, optionally limited by extra SOQL conditions. */
     const fieldUsers = async (extra: string) => {
       const names = await profiles();
@@ -69,13 +70,18 @@ const readiness: ReadinessModule = {
           surface: "fieldUsers",
         },
         async () => {
-          const psl = await lscPsl();
-          if (!psl) return { pass: true, skip: true, detail: "No Life Science Commercial license in this org." };
+          const psls = await lscPsl();
+          if (!psls.length) return { pass: true, skip: true, detail: "No Life Science Commercial license in this org." };
+          // Licensed means holding any of the org's LSC licenses.
           const rows = await fieldUsers(
-            `AND Id NOT IN (SELECT AssigneeId FROM PermissionSetLicenseAssign WHERE PermissionSetLicenseId = '${psl.Id}')`
+            `AND Id NOT IN (SELECT AssigneeId FROM PermissionSetLicenseAssign WHERE PermissionSetLicenseId IN (${inList(psls.map((p) => String(p.Id)))}))`
           );
           if (!rows) return { pass: true, skip: true, detail: "No field profiles found (no profile has LSC Mobile app settings)." };
           if (rows.length === 0) return { pass: true, detail: "Every field user is licensed." };
+          // Only one license with seats is an unambiguous fix; with several, which one is the admin's call.
+          const open = psls.filter(free);
+          const psl = open.length === 1 ? open[0] : undefined;
+          if (!psl) return { pass: false, detail: `${plural(rows.length, "field user")} without it.`, examples: labels(rows) };
           const fixes: StudioFix[] = rows.slice(0, MAX_FIXES).map((u) => ({
             kind: "assignPsl",
             label: `Assign ${psl.MasterLabel} to ${u.Name}`,
@@ -100,13 +106,16 @@ const readiness: ReadinessModule = {
           surface: "psls",
         },
         async () => {
-          const psl = await lscPsl();
-          if (!psl) return { pass: true, skip: true, detail: "No Life Science Commercial license in this org." };
-          const used = Number(psl.UsedLicenses);
-          const total = Number(psl.TotalLicenses);
-          if (!total) return { pass: false, detail: `${psl.MasterLabel}: no licenses (${psl.Status}).` };
-          const pct = Math.round((used / total) * 100);
-          return { pass: pct < 90, detail: `${used} of ${total} used (${pct}%).` };
+          const psls = await lscPsl();
+          if (!psls.length) return { pass: true, skip: true, detail: "No Life Science Commercial license in this org." };
+          const parts = psls.map((psl) => {
+            const used = Number(psl.UsedLicenses);
+            const total = Number(psl.TotalLicenses);
+            const pct = total ? Math.round((used / total) * 100) : 100;
+            return { ok: total > 0 && pct < 90, text: total ? `${psl.MasterLabel}: ${used} of ${total} used (${pct}%)` : `${psl.MasterLabel}: no licenses (${psl.Status})` };
+          });
+          // Room on any one LSC license is room to provision.
+          return { pass: parts.some((p) => p.ok), detail: `${parts.map((p) => p.text).join("; ")}.` };
         }
       ),
 
@@ -178,16 +187,17 @@ const readiness: ReadinessModule = {
           surface: "providerTerritoryInfo",
         },
         async () => {
+          // Active model only: planning or archived models keep their own info rows.
           const [orphans, missing, aligned] = await Promise.all([
             countOf(
-              `SELECT COUNT() FROM ProviderAcctTerritoryInfo WHERE AccountId NOT IN (SELECT ObjectId FROM ObjectTerritory2Association WHERE SobjectType = 'Account')`,
+              `SELECT COUNT() FROM ProviderAcctTerritoryInfo WHERE Territory2.Territory2Model.State = 'Active' AND AccountId NOT IN (SELECT ObjectId FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2.Territory2Model.State = 'Active')`,
               org
             ),
             countOf(
               `SELECT COUNT() FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2.Territory2Model.State = 'Active' AND ObjectId NOT IN (SELECT AccountId FROM ProviderAcctTerritoryInfo)`,
               org
             ),
-            countOf(`SELECT COUNT() FROM ObjectTerritory2Association WHERE SobjectType = 'Account'`, org),
+            countOf(`SELECT COUNT() FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2.Territory2Model.State = 'Active'`, org),
           ]);
           if (aligned === 0 && orphans === 0) return { pass: true, skip: true, detail: "No account alignment yet." };
           const parts = [

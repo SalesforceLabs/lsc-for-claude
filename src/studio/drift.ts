@@ -28,10 +28,10 @@ export async function drift(input: DriftInput, org: string) {
       return { org, snapshots, recent };
     }
     case "save":
-      return { snapshot: await saveSnapshot(org, await collectConfig(org), input.label) };
+      return { snapshot: await saveSnapshot(org, await collectConfig(org, undefined, { strict: true }), input.label) };
     case "diff": {
       const stored = await loadSnapshot(org, input.id);
-      const diff = diffSnapshots(stored.config, await collectConfig(org), stored.meta);
+      const diff = diffSnapshots(stored.config, await collectConfig(org, undefined, { strict: true }), stored.meta);
       await attachModifiers(diff.changes, org);
       return diff;
     }

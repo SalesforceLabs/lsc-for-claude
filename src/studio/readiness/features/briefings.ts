@@ -47,7 +47,7 @@ const readiness: ReadinessModule = {
       ]);
       return [...new Map(groups.flat().map((r) => [String(r.ApiName), r] as [string, Row])).values()];
     });
-    const dbSchema = once(() => fetchCategories(org, ["DbSchema"]));
+    const dbSchema = once(() => fetchCategories(org, ["DbSchema"], true));
     const caches = once(() => fetchCache(org));
     const gate = (fn: () => Promise<StudioCheckResult>) => async () => ((await enabled()) ? fn() : OFF);
 
@@ -267,7 +267,7 @@ const readiness: ReadinessModule = {
           const assigned = await profiles();
           if (!assigned.length) return { pass: true, skip: true, detail: "No profile is assigned a content definition yet." };
           const live = (await caches()).filter(isLiveCache);
-          const none = assigned.filter((p) => !live.some((c) => c.profile === p));
+          const none = assigned.filter((p) => !live.some((c) => c.profile?.toLowerCase() === p.toLowerCase()));
           return none.length
             ? { pass: false, detail: `${plural(none.length, "profile")} without a published cache: ${none.join(", ")}.`, examples: none }
             : { pass: true, detail: `All ${plural(assigned.length, "profile")} have a published cache.` };

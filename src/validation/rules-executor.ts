@@ -131,7 +131,7 @@ async function executeSoqlCountCheck(
   useToolingApi: boolean = false
 ): Promise<CheckOutcome> {
   if (!check.query) {
-    return { passed: false, message: "No query specified for SOQL count check" };
+    return { passed: false, message: "No query specified for SOQL count check", unavailable: true };
   }
 
   const result = useToolingApi

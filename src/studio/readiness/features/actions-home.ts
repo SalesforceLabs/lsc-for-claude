@@ -12,9 +12,9 @@ import { once } from "./_visit-shared.js";
 const readiness: ReadinessModule = {
   ruleFiles: ["quick-actions-config.yaml", "home-page-config.yaml"],
   checks: async (org) => {
-    const actions = once(() => fetchCategories(org, ["QuickAction", "CustomAction"]));
-    const uiSchema = once(() => fetchCategories(org, ["UISchema"]));
-    const dbSchema = once(() => fetchCategories(org, ["DbSchema"]));
+    const actions = once(() => fetchCategories(org, ["QuickAction", "CustomAction"], true));
+    const uiSchema = once(() => fetchCategories(org, ["UISchema"], true));
+    const dbSchema = once(() => fetchCategories(org, ["DbSchema"], true));
     const known = once(() => fetchKnown(org));
     const caches = once(() => fetchCache(org));
     const active = async () => (await actions()).filter((r) => r.isActive);
@@ -163,7 +163,7 @@ const readiness: ReadinessModule = {
         async () => {
           const [names, ui, k] = await Promise.all([profiles(), uiSchema(), known()]);
           const tabs = ui.filter((r) => isNavTab(r) && r.isActive);
-          const bare = names.filter((p) => k.profiles.has(p.toLowerCase()) && !tabs.some((t) => profilesOf(t).includes(p)));
+          const bare = names.filter((p) => k.profiles.has(p.toLowerCase()) && !tabs.some((t) => profilesOf(t).some((n) => n.toLowerCase() === p.toLowerCase())));
           if (!bare.length) return { pass: true, detail: `${plural(names.length, "profile")} checked; each has tabs.` };
           return { pass: false, detail: `${plural(bare.length, "profile")} without tabs: ${bare.join(", ")}.`, examples: bare, fixes: bare.flatMap((p) => noNavTabs(p, tabs).fixes ?? []) };
         }

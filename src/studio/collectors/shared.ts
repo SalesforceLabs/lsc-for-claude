@@ -18,10 +18,12 @@ import {
 } from "../helpers.js";
 
 /** All Admin Console records in the given categories. */
-export function fetchCategories(org: string, categories: string[]): Promise<ConfigRecord[]> {
+/** `strict` throws when a query fails rather than returning what could be read (see `CollectOptions`). */
+export function fetchCategories(org: string, categories: string[], strict = false): Promise<ConfigRecord[]> {
   return collectCategoryRecords(
     org,
-    `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category IN (${inList(categories)}) ORDER BY Category`
+    `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category IN (${inList(categories)}) ORDER BY Category`,
+    { strict }
   );
 }
 

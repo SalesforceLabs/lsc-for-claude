@@ -27,32 +27,41 @@ export const FV_VALUE_COLUMNS = [
  */
 export async function queryAssignments(
   recordIds: string[],
-  targetOrg: string
+  targetOrg: string,
+  strict = false
 ): Promise<Map<string, Array<{ id: string; name: string; level: string }>>> {
   const result = new Map<string, Array<{ id: string; name: string; level: string }>>();
 
   if (recordIds.length === 0) return result;
 
-  const idFilter =
-    recordIds.length === 1
-      ? `LifeSciConfigRecordId = '${recordIds[0]}'`
-      : `LifeSciConfigRecordId IN (${recordIds.map((id) => `'${id}'`).join(",")})`;
-
-  const assignQuery = `SELECT Id, LifeSciConfigRecordId, AssignedToId, AssignmentLevel FROM LifeSciConfigAssignment WHERE ${idFilter}`;
-  const assignResult = await runToolingQuery(assignQuery, targetOrg);
-
-  if (!assignResult.success || !assignResult.data?.records?.length) {
-    return result;
-  }
-
   const assignedToIds = new Set<string>();
   const rawAssignments: Array<Record<string, unknown>> = [];
 
-  for (const r of assignResult.data.records) {
-    const a = r as Record<string, unknown>;
-    rawAssignments.push(a);
-    if (a.AssignedToId) assignedToIds.add(a.AssignedToId as string);
+  // Chunked like queryFieldValues, so a long id list doesn't overflow the request URL.
+  const chunkSize = 50;
+  for (let i = 0; i < recordIds.length; i += chunkSize) {
+    const chunk = recordIds.slice(i, i + chunkSize);
+    const idFilter =
+      chunk.length === 1
+        ? `LifeSciConfigRecordId = '${chunk[0]}'`
+        : `LifeSciConfigRecordId IN (${chunk.map((id) => `'${id}'`).join(",")})`;
+
+    const assignQuery = `SELECT Id, LifeSciConfigRecordId, AssignedToId, AssignmentLevel FROM LifeSciConfigAssignment WHERE ${idFilter}`;
+    const assignResult = await runToolingQuery(assignQuery, targetOrg);
+
+    if (!assignResult.success) {
+      if (strict) throw new Error(`Couldn't read Admin Console assignments: ${assignResult.error ?? "query failed"}`);
+      continue;
+    }
+
+    for (const r of assignResult.data?.records ?? []) {
+      const a = r as Record<string, unknown>;
+      rawAssignments.push(a);
+      if (a.AssignedToId) assignedToIds.add(a.AssignedToId as string);
+    }
   }
+
+  if (rawAssignments.length === 0) return result;
 
   const nameMap = new Map<string, string>();
   if (assignedToIds.size > 0) {

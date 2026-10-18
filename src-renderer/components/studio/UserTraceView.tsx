@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { FeatureSummary, ProfileOption } from "./types";
 import type { PerfUser } from "./perf-types";
 import type { PendingChange } from "./changes";
@@ -44,6 +44,8 @@ export default function UserTraceView({
   }, [initialFeatureId]);
   const [state, setState] = useState<TraceState>({ status: "idle" });
   const [open, setOpen] = useState<string | null>(null);
+  /** Bumped per run and when the user changes, so a late answer for another rep is dropped. */
+  const request = useRef(0);
 
   useEffect(() => {
     if (user && search === user.name) return;
@@ -66,8 +68,10 @@ export default function UserTraceView({
 
   const run = async () => {
     if (!user) return;
+    const token = ++request.current;
     setState({ status: "loading" });
     const res = await window.lscApi.studioUserTrace(user.id, featureId || undefined);
+    if (token !== request.current) return;
     const error = res.error || res.data?.error;
     if (error) return setState({ status: "error", error });
     const trace = res.data as Extract<TraceState, { status: "ready" }>["trace"];
@@ -92,6 +96,8 @@ export default function UserTraceView({
             onChange={(e) => {
               setSearch(e.target.value);
               setUser(null);
+              request.current++;
+              setState({ status: "idle" });
             }}
           />
         </label>
@@ -128,6 +134,7 @@ export default function UserTraceView({
                     onClick={() => {
                       setUser(u);
                       setSearch(u.name);
+                      request.current++;
                       setState({ status: "idle" });
                     }}
                   >

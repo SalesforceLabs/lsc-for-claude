@@ -263,10 +263,7 @@ const readiness: ReadinessModule = {
           surface: "adminSettings",
         },
         async () => {
-          const records = await collectCategoryRecords(
-            org,
-            `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'AddressSettings'`
-          );
+          const records = await collectCategoryRecords(org, `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'AddressSettings'`, { strict: true });
           const active = records.find((r) => r.isActive);
           if (!active) return { pass: true, skip: true, detail: "Address settings aren't configured in this org." };
           const field = String(active.fields.ContactPointAddressFormulaField ?? "").trim();
