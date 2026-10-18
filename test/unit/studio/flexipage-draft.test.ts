@@ -1,0 +1,250 @@
+import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { applyFlexiPageOps, newIdentifier as serverIdentifier, tabTitle as serverTabTitle } from "../../../src/studio/metadata/flexipage-ops.js";
+import { liveFlexiPageOf } from "../../../src/studio/metadata/live.js";
+import { cloneNode, parseXml, type XmlNode } from "../../../src/studio/metadata/xml.js";
+import {
+  alignFlexiPage,
+  componentVerbs,
+  diffOps,
+  draftComponents,
+  draftRecordTabs,
+  insertComponent,
+  insertVerb,
+  locateItem,
+  modelOf,
+  newIdentifier,
+  propertyEdits,
+  removedItems,
+  tabTitle,
+  targetOf,
+  type FlexiModel,
+  type PageDraft,
+} from "../../../src-renderer/components/studio/flexipage-draft.js";
+import { StaleDraftError } from "../../../src-renderer/components/studio/layout-draft.js";
+import type { PendingChange } from "../../../src-renderer/components/studio/changes.js";
+import type { FlexiSource, PublishedComponent, PublishedPage } from "../../../src-renderer/components/studio/published-types.js";
+import type { ComponentCatalog, FlexiPageOp, LiveFlexiPage } from "../../../src-renderer/components/studio/types.js";
+
+const FULL_NAME = "Account_LSDO_PH_FSR_KAM_MSL_HCO_HCP";
+const root = parseXml(readFileSync(join(__dirname, "../../fixtures/metadata/Account_LSDO_PH_FSR_KAM_MSL_HCO_HCP.flexipage-meta.xml"), "utf8"));
+
+const liveOf = (r: XmlNode): LiveFlexiPage => ({ ...liveFlexiPageOf(FULL_NAME, r), profiles: ["Field Sales"], appDefaults: [], managed: false, production: false });
+const live = liveOf(root);
+const base = modelOf(live);
+
+const TABS = "Facet-c9e9688e-b828-4cab-a8fa-56c617c55316";
+const INSIGHTS = "Facet-a64df66a-8ac1-4153-9d43-f68fb0d03a9e";
+const RELATED = "Facet-15c92d90-79cd-4674-9108-2d4261d4f834";
+
+/** The published page as the metadata cache would describe it, with sources: main's tabset, its tabs and their components. */
+function publishedOf(m: FlexiModel): PublishedPage {
+  const region = (name: string) => m.regions.find((r) => r.name === name)!;
+  const step = (name: string, i: number) => {
+    const it = region(name).items[i];
+    return { component: it.component, identifier: it.identifier, index: i };
+  };
+  const tabset = region("main").items[0];
+  const tabsetStep = step("main", 0);
+  const tabs = region(TABS).items.map((t, ti) => {
+    const tabSource: FlexiSource = { region: "main", path: [tabsetStep, step(TABS, ti)] };
+    const body = t.facets[0];
+    return {
+      title: tabTitle(t.properties.title ?? ""),
+      active: t.properties.active === "true",
+      source: tabSource,
+      components: region(body).items.map((c, ci): PublishedComponent => ({
+        name: c.component,
+        label: c.component,
+        supported: true,
+        halfWidth: false,
+        visibility: "shown",
+        properties: { ...c.properties },
+        source: { region: "main", path: [...tabSource.path, step(body, ci)] },
+      })),
+    };
+  });
+  const comp: PublishedComponent = { name: tabset.component, label: "Tabs", supported: true, halfWidth: false, visibility: "shown", properties: {}, tabs, source: { region: "main", path: [tabsetStep] } };
+  return { name: FULL_NAME, label: live.label, type: "RecordPage", template: live.template, regions: [{ name: "main", components: [comp] }], droppedRegions: [] };
+}
+
+const published = publishedOf(base);
+
+function draftOf(pending: PendingChange[] = []): PageDraft {
+  return { fullName: FULL_NAME, label: live.label, live, base, target: targetOf(FULL_NAME, base, pending), aligned: alignFlexiPage(published, base)! };
+}
+
+const queued = (pending: PendingChange[]): FlexiPageOp[] => {
+  const fix = pending.find((p) => p.fix.kind === "editMetadata" && p.fix.doc.type === "FlexiPage")?.fix;
+  return fix && fix.kind === "editMetadata" ? (fix.ops as FlexiPageOp[]) : [];
+};
+
+/** Regions by name with their items, keys left out (the server re-reads identifiers). */
+const shape = (m: FlexiModel) =>
+  Object.fromEntries(m.regions.map((r) => [r.name, { facet: r.facet, items: r.items.map((i) => ({ component: i.component, identifier: i.identifier, properties: i.properties, facets: i.facets })) }]));
+
+/** The tray's ops, applied by the server to the org's XML and read back, give exactly the arranged page. */
+function roundTrips(pending: PendingChange[]) {
+  const target = targetOf(FULL_NAME, base, pending);
+  const ops = queued(pending);
+  expect(ops).toEqual(diffOps(base, target));
+  const { root: out } = applyFlexiPageOps(cloneNode(root), ops);
+  expect(shape(modelOf(liveOf(out)))).toEqual(shape(target));
+  return target;
+}
+
+const verbOf = (d: PageDraft, key: string, id: string, tab = false, shown?: string[]) => {
+  const at = locateItem(d.target, key)!;
+  const v = componentVerbs(d, key, key, shown ?? at.region.items.map((i) => i.key), tab).find((x) => x.id === id);
+  if (!v) throw new Error(`no ${id} verb`);
+  return v;
+};
+
+describe("flexipage-draft", () => {
+  it("reads the org's page and diffs nothing when nothing changed", () => {
+    expect(base.regions.find((r) => r.name === "main")!.items.map((i) => i.component)).toEqual(["flexipage:tabset"]);
+    expect(diffOps(base, targetOf(FULL_NAME, base, []))).toEqual([]);
+  });
+
+  it("lines every published block up with the org's page", () => {
+    const aligned = alignFlexiPage(published, base)!;
+    expect(aligned.size).toBe(1 + 10 + base.regions.filter((r) => r.facet && r.name !== TABS).reduce((n, r) => n + r.items.length, 0));
+    expect(aligned.get(`main/flexipage_tabset/flexipage_tab`)).toBe("flexipage_tab");
+  });
+
+  it("doesn't line up a published page that changed in Setup", () => {
+    const moved = publishedOf(base);
+    const tabs = moved.regions[0].components[0].tabs!;
+    tabs.push(tabs.shift()!);
+    expect(alignFlexiPage(moved, base)).toBeNull();
+    const renamed = publishedOf(base);
+    renamed.regions[0].components[0].tabs![0].source!.path[1].identifier = "flexipage_tab99";
+    expect(alignFlexiPage(renamed, base)).toBeNull();
+  });
+
+  it("moves a tab left and round-trips through the server", () => {
+    const pending = verbOf(draftOf(), "flexipage_tab", "up", true).run!([]);
+    const target = roundTrips(pending);
+    expect(target.regions.find((r) => r.name === TABS)!.items.map((i) => i.key).slice(2, 4)).toEqual(["flexipage_tab", "flexipage_tab5"]);
+    expect(pending[0].affects).toEqual(["Field Sales"]);
+    // Back again drops the change.
+    expect(verbOf(draftOf(pending), "flexipage_tab", "down", true).run!(pending)).toEqual([]);
+  });
+
+  it("can't move the first tab left", () => {
+    const v = verbOf(draftOf(), "flexipage_tab3", "up", true);
+    expect(v.run).toBeUndefined();
+    expect(v.reason).toBe("Already the first tab");
+  });
+
+  it("removes a tab with its body, draws it as a ghost, and restores it", () => {
+    const pending = verbOf(draftOf(), "flexipage_tab5", "remove", true).run!([]);
+    const target = roundTrips(pending);
+    expect(target.regions.some((r) => r.name === INSIGHTS)).toBe(false);
+    const d = draftOf(pending);
+    const tabs = draftRecordTabs(d, published.regions[0].components[0].tabs!);
+    expect(tabs.find((t) => t.key === "flexipage_tab5")!.state).toBe("removed");
+    const restore = componentVerbs(d, "flexipage_tab5", "Insights", [], true);
+    expect(restore.map((v) => v.id)).toEqual(["restore"]);
+    expect(restore[0].run!(pending)).toEqual([]);
+  });
+
+  it("moves a component in a tab, steps past what the iPad doesn't draw, and draws it pending", () => {
+    const shown = ["force_relatedListSingleContainer", "force_relatedListSingleContainer4"];
+    const pending = verbOf(draftOf(), "force_relatedListSingleContainer4", "up", false, shown).run!([]);
+    const target = roundTrips(pending);
+    expect(target.regions.find((r) => r.name === RELATED)!.items.map((i) => i.key).slice(0, 3)).toEqual([
+      "force_relatedListSingleContainer4",
+      "force_relatedListSingleContainer",
+      "force_relatedListSingleContainer3",
+    ]);
+    const related = published.regions[0].components[0].tabs!.find((t) => t.title === "Related")!;
+    const drawn = draftComponents(draftOf(pending), related.components);
+    expect(drawn.slice(0, 2).map((b) => [b.key, b.state])).toEqual([
+      ["force_relatedListSingleContainer4", "moved"],
+      ["force_relatedListSingleContainer", "moved"],
+    ]);
+  });
+
+  it("removes a component and lists it to put back", () => {
+    const pending = verbOf(draftOf(), "lsc4ce_Ratings", "remove").run!([]);
+    roundTrips(pending);
+    const d = draftOf(pending);
+    expect(removedItems(d).map((r) => r.key)).toEqual(["lsc4ce_Ratings"]);
+    const ratings = published.regions[0].components[0].tabs!.find((t) => t.title === "Ratings")!;
+    expect(draftComponents(d, ratings.components).map((b) => b.state)).toEqual(["removed"]);
+  });
+
+  it("inserts a catalog component after the selected one with App Builder's identifier", () => {
+    const catalog: ComponentCatalog = {
+      setupPath: "/lightning/setup/FlexiPageList/home",
+      entries: [
+        { key: "lwc:lscMobileInline_Other", component: "lscMobileInline_Other", label: "Other", group: "Inline LWC", pages: ["RecordPage"], properties: [{ name: "mobileHeight", value: "400" }], insertable: true },
+        { key: "std:activity", component: "runtime_sales_activities:activityPanel", label: "Activity", group: "Standard", pages: ["RecordPage"], properties: [], insertable: false },
+      ],
+    };
+    const v = insertVerb(draftOf(), "c_lscMobileInline_CarouselLwc", catalog);
+    expect(v.pick!.options.map((o) => o.value)).toEqual(["new:lwc:lscMobileInline_Other"]);
+    expect(v.pick!.description).toContain("Activity");
+    const pending = v.pick!.run("new:lwc:lscMobileInline_Other", []);
+    const target = roundTrips(pending);
+    expect(target.regions.find((r) => r.name === INSIGHTS)!.items.map((i) => i.identifier)).toEqual(["c_lscMobileInline_CarouselLwc", "c_lscMobileInline_Other"]);
+    const insights = published.regions[0].components[0].tabs!.find((t) => t.title === "Insights")!;
+    expect(draftComponents(draftOf(pending), insights.components).map((b) => b.state)).toEqual(["same", "added"]);
+  });
+
+  it("leaves related lists already on the page out of the catalog", () => {
+    const catalog: ComponentCatalog = {
+      setupPath: "",
+      entries: [
+        { key: "rl:Visits", component: "force:relatedListSingleContainer", label: "Visits", group: "Related list", pages: ["RecordPage"], properties: [{ name: "relatedListApiName", value: "Visits" }], insertable: true, object: "Visit" },
+      ],
+    };
+    expect(insertVerb(draftOf(), "force_relatedListSingleContainer", catalog).pick!.options).toEqual([]);
+    expect(insertVerb(draftOf(), "force_relatedListSingleContainer", null).reason).toBe("Loading the component library…");
+  });
+
+  it("sets an inline LWC's height and a tab's title, warning on long titles", () => {
+    const height = propertyEdits(draftOf(), "c_lscMobileInline_CarouselLwc").find((p) => p.property === "mobileHeight")!;
+    expect(height.value).toBe("550");
+    expect(height.check("0").problem).toBeTruthy();
+    expect(height.set("abc", [])).toBeNull();
+    let pending = height.set("600", [])!;
+    roundTrips(pending);
+    const title = propertyEdits(draftOf(pending), "flexipage_tab5").find((p) => p.property === "title")!;
+    expect(title.check("A title that runs past twenty-five").warning).toContain("25");
+    expect(title.check("").problem).toBeTruthy();
+    pending = title.set("Field insights", pending)!;
+    const target = roundTrips(pending);
+    expect(locateItem(target, "flexipage_tab5")!.item.properties.title).toBe("Field insights");
+    expect(locateItem(target, "c_lscMobileInline_CarouselLwc")!.item.properties.mobileHeight).toBe("600");
+  });
+
+  it("makes a tab the default", () => {
+    const pending = verbOf(draftOf(), "flexipage_tab9", "default", true).run!([]);
+    const target = roundTrips(pending);
+    expect(target.regions.find((r) => r.name === TABS)!.items.filter((i) => i.properties.active === "true").map((i) => i.key)).toEqual(["flexipage_tab9"]);
+    const tabs = draftRecordTabs(draftOf(pending), published.regions[0].components[0].tabs!);
+    expect(tabs.find((t) => t.key === "flexipage_tab9")!.value.active).toBe(true);
+    expect(verbOf(draftOf(pending), "flexipage_tab9", "default", true).run).toBeUndefined();
+  });
+
+  it("throws StaleDraftError when the queued ops no longer fit the page", () => {
+    const pending = insertComponent(draftOf(), INSIGHTS, null, "lscMobileInline_Other", [], []);
+    const ops = queued(pending);
+    const gone: FlexiPageOp = { op: "removeComponent", component: { region: INSIGHTS, item: { component: "lscMobileInline_Gone", identifier: "c_lscMobileInline_Gone", index: 0 } } };
+    const stale = [{ ...pending[0], fix: { ...pending[0].fix, ops: [...ops, gone] } } as PendingChange];
+    expect(() => targetOf(FULL_NAME, base, stale)).toThrow(StaleDraftError);
+  });
+
+  it("names new components and tabs as the server does", () => {
+    const taken = new Set(["c_lscMobileInline_X", "force_relatedListSingleContainer", "force_relatedListSingleContainer2"]);
+    for (const c of ["lscMobileInline_X", "lscMobileInline_Y", "force:relatedListSingleContainer", "flexipage:tab"]) {
+      expect(newIdentifier(c, taken)).toBe(serverIdentifier(c, taken));
+    }
+    for (const t of ["Standard.Tab.detail", "Standard.Tab.relatedLists", "{!$Label.lsc4ce__Dashboard}", "{!$Label.Mine}", "Plain"]) {
+      expect(tabTitle(t)).toBe(serverTabTitle(t));
+    }
+  });
+});

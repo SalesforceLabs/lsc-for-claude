@@ -1365,3 +1365,22 @@
 .studio-ipad-rec-section.pending .studio-ipad-rec-field.pending {
   box-shadow: none;
 }
+
+/* Lightning page components and tabs in Draft: removed ones as ghosts, inserted, moved or edited ones purple. */
+.studio-ipad-draft-block.ghost,
+.studio-ipad-rec-tab.ghost,
+.studio-ipad-chip.ghost {
+  opacity: 0.45;
+}
+
+.studio-ipad-rec-tab.ghost,
+.studio-ipad-chip.ghost {
+  text-decoration: line-through;
+}
+
+.studio-ipad-draft-block.pending,
+.studio-ipad-rec-tab.pending,
+.studio-ipad-chip.pending {
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 2.5px #9050e9;
+}

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Asterisk,
   CircleMinus,
@@ -29,6 +29,7 @@ import {
 import type { TargetInfo, SyncAction } from "./edit-targets";
 import type { Verb, VerbId } from "./edit-draft";
 import type { LayoutStatus } from "./usePreviewEdit";
+import type { PropertyEdit } from "./flexipage-draft";
 import Spinner from "../ui/Spinner";
 import StatusIcon from "../ui/StatusIcon";
 
@@ -66,6 +67,8 @@ export default function BlockInspector({
   horizontal,
   layout,
   onRetryLayout,
+  properties,
+  onProperty,
   sync,
   onSync,
   onSetup,
@@ -83,6 +86,9 @@ export default function BlockInspector({
   /** The page layout behind the block, as read from the org. */
   layout?: LayoutStatus;
   onRetryLayout?: () => void;
+  /** Lightning page properties the block's inspector can set (a tab's title, an inline LWC's height). */
+  properties?: PropertyEdit[];
+  onProperty?: (edit: PropertyEdit, value: string) => void;
   /** Shown when the block's records aren't synced to this profile's iPad. */
   sync: SyncAction | null;
   onSync: () => void;
@@ -154,7 +160,7 @@ export default function BlockInspector({
           {layout?.loading && (
             <p className="studio-block-reach" role="status">
               <Spinner size={14} />
-              <span>Reading the layout from the org…</span>
+              <span>Reading the {layout.noun ?? "layout"} from the org…</span>
             </p>
           )}
           {layout?.problem && (
@@ -174,7 +180,7 @@ export default function BlockInspector({
             </div>
           )}
           {layout?.production && (
-            <span className="ui-pill warning" title="Changes to this layout deploy to a production org">
+            <span className="ui-pill warning" title={`Changes to this ${layout.noun ?? "layout"} deploy to a production org`}>
               Production org
             </span>
           )}
@@ -212,6 +218,13 @@ export default function BlockInspector({
                   </button>
                 );
               })}
+            </div>
+          )}
+          {properties && properties.length > 0 && onProperty && (
+            <div className="studio-form">
+              {properties.map((p) => (
+                <PropertyField key={p.property} edit={p} draft={draft} onSet={(value) => onProperty(p, value)} />
+              ))}
             </div>
           )}
           {(layout?.profiles || layout?.reach || info.reach) && (
@@ -253,6 +266,55 @@ export default function BlockInspector({
       </div>
     </aside>
   );
+}
+
+/** One Lightning page property: queued when the field is left or Enter is pressed, if the value is valid and changed. */
+function PropertyField({ edit, draft, onSet }: { edit: PropertyEdit; draft: boolean; onSet: (value: string) => void }) {
+  const [value, setValue] = useState(edit.value);
+  useEffect(() => setValue(edit.value), [edit.value]);
+  const { problem, warning } = edit.check(value);
+  const commit = () => {
+    if (value !== edit.value && !problem) onSet(value);
+  };
+  return (
+    <label className="studio-form-row">
+      <span className="studio-form-label">{edit.label}</span>
+      <span className="studio-form-field">
+        <input
+          className="studio-input"
+          type={edit.kind === "number" ? "number" : "text"}
+          min={edit.kind === "number" ? 1 : undefined}
+          value={value}
+          disabled={!draft}
+          title={draft ? undefined : "Switch to Draft to queue changes"}
+          aria-invalid={!!problem}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") setValue(edit.value);
+          }}
+        />
+        {(problem || warning) && (
+          <span className="studio-form-help" role="status">
+            <StatusIcon tone={problem ? "error" : "warning"} size={14} />
+            {problem ?? warning}
+          </span>
+        )}
+      </span>
+    </label>
+  );
+}
+
+/** Who a Lightning page change reaches, from the apps that assign it (profile overrides and app defaults). */
+export function pageReach(profiles: string[], apps: string[]): string {
+  const list = (xs: string[]) => `${xs.slice(0, 4).join(", ")}${xs.length > 4 ? ` and ${xs.length - 4} more` : ""}`;
+  const parts = [
+    profiles.length && `assigned to ${profiles.length === 1 ? "1 profile" : `${profiles.length} profiles`} (${list(profiles)})`,
+    apps.length && `the default for ${apps.length === 1 ? "1 app" : `${apps.length} apps`} (${list(apps)})`,
+  ].filter(Boolean);
+  if (!parts.length) return "No app assigns this page to a profile; it may be the org default. A change reaches everyone who gets it.";
+  return `The page is ${parts.join(" and ")}. A change reaches everyone who gets it.`;
 }
 
 /** Who a layout change reaches, from the layout's profile assignments. */

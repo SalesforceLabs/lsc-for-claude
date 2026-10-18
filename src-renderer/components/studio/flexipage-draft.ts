@@ -1,5 +1,5 @@
 import type { FlexiSource, PublishedComponent, PublishedPage } from "./published-types";
-import type { EditMetadataFix, FlexiItemRef, FlexiPageOp, FlexiPageProperty, LiveFlexiPage } from "./types";
+import type { ComponentCatalog, FlexiItemRef, FlexiPageEditFix, FlexiPageOp, FlexiPageProperty, LiveFlexiPage } from "./types";
 import { flexiPageOpsChange, pendingFor, queueChange, type PendingChange } from "./changes";
 import type { DraftState, Verb } from "./edit-draft";
 import { StaleDraftError, withGhosts } from "./layout-draft";
@@ -430,14 +430,14 @@ export function draftRecordTabs(d: PageDraft, tabs: PublishedTab[]): DrawnBlock<
 
 // --- Verbs -------------------------------------------------------------------------
 
-export function flexiPageFix(fullName: string, label: string, ops: FlexiPageOp[]): EditMetadataFix {
-  return flexiPageOpsChange(fullName, label, ops) as EditMetadataFix;
+export function flexiPageFix(fullName: string, label: string, ops: FlexiPageOp[]): FlexiPageEditFix {
+  return flexiPageOpsChange(fullName, label, ops) as FlexiPageEditFix;
 }
 
 /** The page's target once the tray is applied; throws `StaleDraftError` when the queued ops don't fit the org's page. */
 export function targetOf(fullName: string, base: FlexiModel, pending: PendingChange[]): FlexiModel {
   const queued = pendingFor(pending, flexiPageFix(fullName, "", []))?.fix;
-  return queued?.kind === "editMetadata" ? applyOps(base, queued.ops as FlexiPageOp[]) : clone(base);
+  return queued?.kind === "editMetadata" && queued.doc.type === "FlexiPage" ? applyOps(base, queued.ops as FlexiPageOp[]) : clone(base);
 }
 
 /** The tray with this page arranged as `next` (its change dropped when that's the org's page). */
@@ -610,4 +610,43 @@ export function insertPoint(d: PageDraft, key: string): { region: string; before
     return body ? { region: body, before: null } : null;
   }
   return { region: at.region.name, before: at.region.items[at.index + 1]?.key ?? null };
+}
+
+/**
+ * "Insert component…" next to the selected block: a search picker over the
+ * catalog's insertable components (related lists already on the page left out)
+ * and the components removed in Draft from the same region or tab. What needs
+ * Lightning App Builder is named in the description, not offered.
+ */
+export function insertVerb(d: PageDraft, key: string, catalog: ComponentCatalog | null): Verb {
+  const label = "Insert component…";
+  const title = "Insert a component after this one";
+  const point = insertPoint(d, key);
+  if (!point) return { id: "insertComponent", label, title, reason: "Restore it first" };
+  if (!catalog) return { id: "insertComponent", label, title, reason: "Loading the component library…" };
+  const placed = new Set(d.target.regions.flatMap((r) => r.items.flatMap((i) => i.properties.relatedListApiName ?? [])));
+  const entries = catalog.entries.filter((e) => e.insertable && !(e.group === "Related list" && placed.has(e.properties.find((p) => p.name === "relatedListApiName")?.value ?? "")));
+  const removed = removedItems(d).filter((r) => r.region === point.region);
+  const options = [
+    ...removed.map((r) => ({ value: `back:${r.key}`, label: insertedLabel(r.component, r.properties), detail: "Removed in Draft — put it back here" })),
+    ...entries.map((e) => ({ value: `new:${e.key}`, label: e.label, detail: e.group === "Related list" && e.object ? `Related list · ${e.object}` : e.group })),
+  ];
+  const later = catalog.entries.filter((e) => !e.insertable).map((e) => e.label);
+  return {
+    id: "insertComponent",
+    label,
+    title,
+    pick: {
+      title: "Insert component",
+      description: later.length ? `${later.join(", ")} need content Studio can't fill in — add them in Lightning App Builder.` : undefined,
+      placeholder: "Search components",
+      empty: "No components to insert here",
+      options,
+      run: (value, pending) => {
+        if (value.startsWith("back:")) return reinsertComponent(d, value.slice(5), point.region, point.before, pending) ?? pending;
+        const entry = entries.find((e) => `new:${e.key}` === value);
+        return entry ? insertComponent(d, point.region, point.before, entry.component, entry.properties, pending) : pending;
+      },
+    },
+  };
 }

@@ -177,3 +177,9 @@
   flex: none;
   margin-top: 1px;
 }
+
+.studio-block-inspector .studio-form-help {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}

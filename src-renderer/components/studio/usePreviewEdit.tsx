@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ListPlus, TextCursorInput } from "lucide-react";
-import type { CreateConfigFix, FeatureMap, LiveCompactLayout, LiveLayout, ProfileOption } from "./types";
+import { ListPlus, SquarePlus, TextCursorInput } from "lucide-react";
+import type { ComponentCatalog, CreateConfigFix, FeatureMap, LiveCompactLayout, LiveFlexiPage, LiveLayout, ProfileOption } from "./types";
 import type { PublishedIpad, PublishedResult } from "./published-types";
 import type { PreviewEdit } from "./PublishedIpadPreview";
 import { createAffects, queueChange, type PendingChange } from "./changes";
@@ -21,7 +21,17 @@ import {
   type LayoutDraft,
 } from "./layout-draft";
 import { alignCompact, compactTargetOf, compactVerbs, crowdedNote, draftHeader, type CompactDraft, type DraftHeaderField } from "./compact-draft";
-import BlockInspector, { compactReach } from "./BlockInspector";
+import {
+  alignFlexiPage,
+  componentVerbs,
+  insertVerb,
+  locateItem,
+  modelOf as pageModelOf,
+  propertyEdits,
+  targetOf as pageTargetOf,
+  type PageDraft,
+} from "./flexipage-draft";
+import BlockInspector, { compactReach, pageReach } from "./BlockInspector";
 import CreateDialog from "./CreateDialog";
 import SearchPicker from "../ui/SearchPicker";
 
@@ -116,6 +126,33 @@ export function usePreviewEdit({
     for (const name of wantedCompacts) if (!liveCompacts[name]) fetchCompact(name);
   }, [wantedCompacts, liveCompacts, fetchCompact]);
 
+  // Lightning pages (Home and record pages) the same way, read when one of their components or tabs is selected.
+  const [livePages, setLivePages] = useState<Record<string, LivePageState>>({});
+  useEffect(() => setLivePages({}), [org]);
+  const selectedPage = selected?.kind === "component" || selected?.kind === "recordTab" ? selected.page : undefined;
+  const wantedPages = useMemo(() => {
+    const names = new Set(pending.flatMap((p) => (p.fix.kind === "editMetadata" && p.fix.doc.type === "FlexiPage" ? [p.fix.doc.fullName] : [])));
+    if (on && selectedPage) names.add(selectedPage);
+    return [...names].sort();
+  }, [pending, selectedPage, on]);
+  const fetchPage = useCallback((name: string) => {
+    setLivePages((m) => ({ ...m, [name]: { status: "loading" } }));
+    window.lscApi.studioMetadataDoc("FlexiPage", name).then(
+      (res) => {
+        const error = res.error ?? res.data?.error;
+        setLivePages((m) => ({ ...m, [name]: error ? { status: "error", error } : { status: "ready", live: res.data as LiveFlexiPage } }));
+      },
+      (e: unknown) => setLivePages((m) => ({ ...m, [name]: { status: "error", error: String(e) } }))
+    );
+  }, []);
+  useEffect(() => {
+    for (const name of wantedPages) if (!livePages[name]) fetchPage(name);
+  }, [wantedPages, livePages, fetchPage]);
+
+  // What "Insert component…" offers, per page type and object.
+  const [catalogs, setCatalogs] = useState<Record<string, ComponentCatalog | "loading" | { error: string }>>({});
+  useEffect(() => setCatalogs({}), [org]);
+
   const surface = (map: FeatureMap | null, id: string) => map?.surfaces.find((s) => s.id === id);
   const tabItems = surface(actionsMap, "navigationTabs")?.items;
   const actionItems = surface(actionsMap, "homeActions")?.items;
@@ -207,6 +244,68 @@ export function usePreviewEdit({
     return out;
   }, [liveCompacts, snapshot, overlay]);
 
+  const pages = useMemo(() => {
+    const out: Record<string, PageEntry> = {};
+    for (const [name, state] of Object.entries(livePages)) {
+      if (state.status !== "ready") {
+        out[name] = state;
+        continue;
+      }
+      const published = snapshot?.pages[name] ?? (snapshot?.home?.name === name ? snapshot.home : undefined);
+      const base = pageModelOf(state.live);
+      const aligned = published && alignFlexiPage(published, base);
+      if (!published || !aligned) {
+        out[name] = { status: "stale", live: state.live, note: PAGE_STALE };
+        continue;
+      }
+      if (state.live.managed) {
+        out[name] = { status: "stale", live: state.live, note: MANAGED };
+        continue;
+      }
+      try {
+        const target = pageTargetOf(name, base, overlay);
+        out[name] = { status: "ready", draft: { fullName: name, label: state.live.label, live: state.live, base, target, aligned } };
+      } catch (e) {
+        if (!(e instanceof StaleDraftError)) throw e;
+        out[name] = { status: "stale", live: state.live, note: `The queued edits no longer fit this Lightning page: ${e.message} Take them out of the tray and refresh the preview.` };
+      }
+    }
+    return out;
+  }, [livePages, snapshot, overlay]);
+
+  const pageEntry = selectedPage ? pages[selectedPage] : undefined;
+  const pageDraft = pageEntry?.status === "ready" ? pageEntry.draft : undefined;
+  const catalogKey =
+    pageDraft && (pageDraft.live.pageType === "HomePage" || pageDraft.live.pageType === "RecordPage")
+      ? `${pageDraft.live.pageType}:${pageDraft.live.sobjectType ?? ""}`
+      : undefined;
+  useEffect(() => {
+    if (!on || !draft || !catalogKey || !pageDraft || catalogs[catalogKey]) return;
+    setCatalogs((m) => ({ ...m, [catalogKey]: "loading" }));
+    window.lscApi.studioComponentCatalog(pageDraft.live.pageType as "HomePage" | "RecordPage", pageDraft.live.sobjectType).then(
+      (res) => {
+        const error = res.error ?? res.data?.error;
+        setCatalogs((m) => ({ ...m, [catalogKey]: error ? { error } : (res.data as ComponentCatalog) }));
+      },
+      (e: unknown) => setCatalogs((m) => ({ ...m, [catalogKey]: { error: String(e) } }))
+    );
+  }, [on, draft, catalogKey, pageDraft, catalogs]);
+  const catalogState = catalogKey ? catalogs[catalogKey] : undefined;
+  const catalog = catalogState && catalogState !== "loading" && !("error" in catalogState) ? catalogState : null;
+
+  // The org item a selected component or tab is, and the keys drawn beside it (published or inserted in Draft).
+  const pageItem = useMemo(() => {
+    if (!pageDraft || (selected?.kind !== "component" && selected?.kind !== "recordTab")) return undefined;
+    const key = (selected.kind === "component" ? selected.item : undefined) ?? (selected.source ? pageDraft.aligned.get(selected.source) : undefined);
+    if (!key) return undefined;
+    const published = new Set(pageDraft.aligned.values());
+    const at = locateItem(pageDraft.target, key) ?? locateItem(pageDraft.base, key);
+    const region = at && pageDraft.target.regions.find((r) => r.name === at.region.name);
+    const inBase = (k: string) => !!locateItem(pageDraft.base, k);
+    const shown = (region?.items ?? []).map((i) => i.key).filter((k) => published.has(k) || !inBase(k));
+    return { key, shown };
+  }, [pageDraft, selected]);
+
   // Blocks are found again by name: a move changes their index.
   const verbs = useMemo((): Verb[] => {
     if (!selected || !profile) return [];
@@ -222,6 +321,12 @@ export function usePreviewEdit({
       const c = compacts[selected.compactLayout];
       return c?.status === "ready" ? compactVerbs(c.draft, selected.field, selected.label) : [];
     }
+    if (selected.kind === "component" || selected.kind === "recordTab") {
+      if (!pageDraft || !pageItem) return [];
+      const tab = selected.kind === "recordTab";
+      const moves = componentVerbs(pageDraft, pageItem.key, tab ? selected.title : selected.label, pageItem.shown, tab);
+      return tab ? moves : [...moves, insertVerb(pageDraft, pageItem.key, catalog)];
+    }
     const entry = "layout" in selected && selected.layout ? layouts[selected.layout] : undefined;
     if (entry?.status !== "ready") return [];
     const d = entry.draft;
@@ -236,7 +341,8 @@ export function usePreviewEdit({
       return selected.relatedList ? relatedVerbs(d, selected.relatedList, selected.label, notSynced) : [addRelatedVerb(d, null, notSynced)];
     }
     return [];
-  }, [selected, tabs, homeMenu, pending, profile, layouts, compacts, snapshot]);
+  }, [selected, tabs, homeMenu, pending, profile, layouts, compacts, snapshot, pageDraft, pageItem, catalog]);
+  const properties = useMemo(() => (pageDraft && pageItem ? propertyEdits(pageDraft, pageItem.key) : []), [pageDraft, pageItem]);
 
   const info = useMemo(
     () =>
@@ -246,7 +352,12 @@ export function usePreviewEdit({
     [selected, snapshot, profile, overlay, tabs, homeMenu]
   );
   const layoutEntry = selected && "layout" in selected && selected.layout ? layouts[selected.layout] : undefined;
-  const layoutStatus = selected?.kind === "headerField" ? compactStatusOf(compacts[selected.compactLayout]) : statusOf(layoutEntry);
+  const layoutStatus =
+    selected?.kind === "headerField"
+      ? compactStatusOf(compacts[selected.compactLayout])
+      : selectedPage
+        ? pageStatusOf(pageEntry)
+        : statusOf(layoutEntry);
   const sync =
     info?.syncObject && snapshot && profile && syncFilter(snapshot, info.syncObject) === null
       ? syncAction(info.syncObject, synced, profile, pending)
@@ -283,13 +394,14 @@ export function usePreviewEdit({
           homeMenu,
           layouts,
           compacts,
+          pages,
           selected,
           onSelect: setSelected,
           verbs: draft ? verbs : [],
           onRun: run,
           setup: org ? info?.setup : null,
           onSetup: openSetup,
-          horizontal: selected?.kind === "tab" || selected?.kind === "headerField",
+          horizontal: selected?.kind === "tab" || selected?.kind === "headerField" || selected?.kind === "recordTab",
         }
       : undefined;
 
@@ -308,10 +420,17 @@ export function usePreviewEdit({
           onRetryLayout={
             selected?.kind === "headerField"
               ? () => fetchCompact(selected.compactLayout)
-              : selected && "layout" in selected && selected.layout
+              : selectedPage
+                ? () => fetchPage(selectedPage)
+                : selected && "layout" in selected && selected.layout
                 ? () => fetchLayout(selected.layout!)
                 : undefined
           }
+          properties={properties}
+          onProperty={(p, value) => {
+            const next = p.set(value, pending);
+            if (next) onPendingChange(next);
+          }}
           sync={sync}
           onSync={() => {
             if (sync?.kind === "change") onPendingChange(queueChange(pending, sync.change));
@@ -327,7 +446,9 @@ export function usePreviewEdit({
             eyebrow={
               selected?.kind === "headerField"
                 ? "Compact layout · record header"
-                : layoutEntry?.status === "ready"
+                : pageDraft
+                  ? `Lightning page · ${pageDraft.label}`
+                  : layoutEntry?.status === "ready"
                   ? `Page layout · ${layoutEntry.draft.label}`
                   : undefined
             }
@@ -335,7 +456,7 @@ export function usePreviewEdit({
             options={picking.pick.options}
             placeholder={picking.pick.placeholder}
             emptyTitle={picking.pick.empty}
-            emptyIcon={picking.id === "addField" ? TextCursorInput : ListPlus}
+            emptyIcon={picking.id === "addField" ? TextCursorInput : picking.id === "insertComponent" ? SquarePlus : ListPlus}
             onPick={pick}
             onCancel={() => setPicking(null)}
           />
@@ -361,6 +482,7 @@ export function usePreviewEdit({
 const NONE: PendingChange[] = [];
 
 type LiveState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; live: LiveLayout };
+type LivePageState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; live: LiveFlexiPage };
 type LiveCompactState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; live: LiveCompactLayout };
 
 /** A page layout in edit mode: still loading, unreadable, out of line with the last publish, or ready to draw and edit. */
@@ -376,6 +498,19 @@ export type CompactEntry =
   | { status: "error"; error: string }
   | { status: "stale"; live: LiveCompactLayout; note: string }
   | { status: "ready"; draft: CompactDraft; fields: DraftHeaderField[] };
+
+/** A Lightning page in edit mode, like `LayoutEntry`; a managed page comes back stale, saying why. */
+export type PageEntry =
+  | { status: "loading" }
+  | { status: "error"; error: string }
+  | { status: "stale"; live: LiveFlexiPage; note: string }
+  | { status: "ready"; draft: PageDraft };
+
+const PAGE_STALE =
+  "This Lightning page changed in Setup since the last publish, so Studio can't line the preview up with it. Publish to iPad (or refresh the preview) to edit it here.";
+
+const MANAGED =
+  "This Lightning page was installed from a managed package, so it can't be deployed — change it (or a copy) in Lightning App Builder.";
 
 const COMPACT_STALE =
   "This compact layout changed in Setup since the last publish, so Studio can't line the record header up with it. Publish to iPad (or refresh the preview) to edit it here.";
@@ -395,6 +530,8 @@ export interface LayoutStatus {
   /** A heads-up about the arrangement (a crowded header). */
   note?: string;
   production?: boolean;
+  /** What the block comes from, for "Reading the … from the org" (default "layout"). */
+  noun?: string;
 }
 
 function statusOf(entry: LayoutEntry | undefined): LayoutStatus | undefined {
@@ -425,5 +562,21 @@ function compactStatusOf(entry: CompactEntry | undefined): LayoutStatus | undefi
       const note = crowdedNote(entry.draft);
       return { ...reach(entry.draft.live), ...(note ? { note } : {}), production: entry.draft.live.production };
     }
+  }
+}
+
+function pageStatusOf(entry: PageEntry | undefined): LayoutStatus | undefined {
+  if (!entry) return undefined;
+  const noun = "Lightning page";
+  const about = (live: LiveFlexiPage) => ({ noun, reach: pageReach(live.profiles ?? [], live.appDefaults ?? []), production: live.production });
+  switch (entry.status) {
+    case "loading":
+      return { loading: true, noun };
+    case "error":
+      return { problem: `Couldn't read the Lightning page from the org: ${entry.error}`, canRetry: true, noun };
+    case "stale":
+      return { problem: entry.note, ...about(entry.live) };
+    case "ready":
+      return about(entry.draft.live);
   }
 }

@@ -1,6 +1,6 @@
 # iPad preview — Edit mode
 
-Status: Phases 1–2, 3a and 3b built; 3c–3d designed, 2026-10-18. Branch `feat/ipad-edit-mode`.
+Status: Phases 1–2 and 3a–3c built; 3d designed, 2026-10-18. Branch `feat/ipad-edit-mode`.
 
 ## The problem
 
@@ -114,7 +114,13 @@ Phase 1 delivers the hover/select layer and the What / Why / How inspector over 
 3. **Metadata edits**, in four steps (see **Phase 3 design**):
    - 3a *(built)*: provenance, a metadata document layer, `editMetadata` for Layouts. Visit sidebar editing moved into Draft and the Schematic is retired: the preview is **Published · Draft**. Sections, fields and related lists move, hide and change behavior in place; **Add field…** and **Add related list…** pick from the object's describe (`available` / `availableRelated` on the live layout), and an added list whose child isn't synced offers **Add to iPad sync**.
    - 3b: Compact layouts (record header) *(built)*: header fields move left/right, remove/restore, and **Add field…** (a searchable picker); one diffed `editMetadata` change per compact layout (`metadata:CompactLayout:<fullName>`); warns at 7 or more fields; Add is refused at the Metadata API's 10-field limit.
-   - 3c: Lightning pages: move/remove components and tabs, then insert from the library.
+   - 3c: Lightning pages *(built)*:
+     - Home and record page components move up/down and can be removed or restored. Record tabs move left/right, can be removed or restored, and can become the default.
+     - **Insert component…** is a search picker over `studio_component_catalog` and the components removed in Draft. Components that need Lightning App Builder are named in its description, not shown greyed: `SearchPicker` has no disabled options.
+     - The inspector edits `mobileHeight`, a tab's `title` (warns over 25 characters) and `rowsToDisplay` / `maxRecordsToDisplay`.
+     - Each page gets one diffed `editMetadata` change (`metadata:FlexiPage:<fullName>`, `flexipage-ops.ts`).
+     - The reach is profile assignments plus app defaults. Managed pages are explain-only.
+     - Not yet: a record page's single related lists are still selected as layout related lists, so they can't be moved or removed as page components.
    - 3d: drag to reorder, insertion points, keyboard moves.
 4. **Polish & breadth**: list views, component props sheet, ⌘Z wired to the tray, multi-select, before/after split view, "Make a copy just for this profile".
 

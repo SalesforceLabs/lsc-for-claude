@@ -30,7 +30,15 @@ export type EditTarget =
       home: boolean;
       visibility: "shown" | "conditional";
       visibilityNote?: string;
+      /** Where it is in the page's XML (`sourceKey`), when the snapshot records it. */
+      source?: string;
+      /** The org item, for a component Draft inserted (it has no published source). */
+      item?: string;
+      /** Added in Draft: nothing to explain from the published page. */
+      added?: boolean;
     }
+  /** A tab of a record page's tab set; `index` / `count` among the drawn tabs. */
+  | { kind: "recordTab"; page: string; pageLabel: string; title: string; index: number; count: number; active: boolean; source?: string }
   /** `key`: the section's index in the org's layout, once the preview is lined up with it. */
   | { kind: "section"; layout: string; index: number; count: number; label: string | null; key?: number }
   | {
@@ -66,7 +74,9 @@ export function targetKey(t: EditTarget): string {
     case "tab":
       return `tab:${t.fullName}`;
     case "component":
-      return `component:${t.page}:${t.region}:${t.index}`;
+      return `component:${t.page}:${t.source ?? (t.item ? `+${t.item}` : `${t.region}:${t.index}`)}`;
+    case "recordTab":
+      return `recordTab:${t.page}:${t.source ?? t.index}`;
     case "section":
       return `section:${t.layout}:${t.key !== undefined ? `k${t.key}` : t.index}`;
     case "field":
@@ -95,6 +105,8 @@ function kindLabel(t: EditTarget): string {
       return "Tab";
     case "component":
       return t.home ? "Home component" : "Page component";
+    case "recordTab":
+      return "Record tab";
     case "section":
       return "Layout section";
     case "field":
@@ -118,6 +130,8 @@ function titleOf(t: EditTarget): string {
       return t.label || "Untitled section";
     case "highlights":
       return t.compactLayout ?? "Default compact layout";
+    case "recordTab":
+      return t.title;
     default:
       return t.label;
   }
@@ -265,6 +279,23 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
       };
     }
     case "component": {
+      if (t.added) {
+        const related = /(^|:)relatedListSingleContainer$/.test(t.name);
+        return {
+          ...base,
+          draftOnly: true,
+          what: [`Lightning page "${t.pageLabel}"`, `${t.region} region`, "New component (pending)"],
+          why: ["Draft inserts it here; the page's XML gets it when the tray is applied."],
+          how: [
+            related
+              ? "Its records reach the iPad only if the profile syncs the child object (DB Schema)."
+              : "Its other properties are App Builder's defaults; change them in Lightning App Builder after applying.",
+            PUBLISH,
+          ],
+          reach: "Every app, profile and record type the page is activated for.",
+          setup: SETUP.flexiPages,
+        };
+      }
       const notes =
         t.visibility === "conditional"
           ? [
@@ -295,6 +326,23 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
         setup: SETUP.flexiPages,
       };
     }
+    case "recordTab":
+      return {
+        ...base,
+        what: [`Lightning page "${t.pageLabel}"`, "Tabs component", `${ordinal(t.index + 1)} of ${t.count} tabs`],
+        why: [
+          "This is the Lightning page assigned to the record type.",
+          t.active ? "It's the tab the record opens on." : "The record opens on another tab; this one shows when tapped.",
+        ],
+        how: [
+          `Setup › Lightning App Builder › open "${t.pageLabel}" › Edit, then select the Tabs component.`,
+          "Reorder, rename or remove tabs, or pick the default tab, in its properties. Removing a tab removes what's in it.",
+          "Save.",
+          PUBLISH,
+        ],
+        reach: "Every app, profile and record type the page is activated for.",
+        setup: SETUP.flexiPages,
+      };
     case "section": {
       const object = layoutObject(t.layout);
       return {
