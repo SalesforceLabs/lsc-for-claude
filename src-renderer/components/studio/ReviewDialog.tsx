@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { ArrowRight, X } from "lucide-react";
-import type { FixPreview, FixResult } from "./types";
+import { ArrowRight, ChevronRight, X } from "lucide-react";
+import type { FixChange, FixPreview, FixResult } from "./types";
 import { isMobileChange, publishProfiles, type PendingChange } from "./changes";
 import { touchesDbSchema } from "./sync-impact-util";
 import StateView from "../ui/StateView";
 import Spinner from "../ui/Spinner";
+import StatusIcon from "../ui/StatusIcon";
 import "./sync-impact.css";
 
 interface ReviewDialogProps {
@@ -131,19 +132,28 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
   return (
     <div className="studio-modal-backdrop" onClick={close}>
       <div className="studio-modal studio-review" role="dialog" aria-label="Review changes" onClick={(e) => e.stopPropagation()}>
-        <div className="studio-modal-header">
-          <span className="studio-inspector-eyebrow">
-            {phase.step === "done" ? "Results" : "Review changes"} · {org}
-          </span>
-          <button className="ui-icon-btn" onClick={close} disabled={busy} title="Close" aria-label="Close">
-            <X size={16} aria-hidden />
-          </button>
+        <div className="studio-review-head">
+          <div className="studio-modal-header">
+            <span className="studio-inspector-eyebrow">
+              {phase.step === "done" ? "Results" : "Review changes"} · {org}
+            </span>
+            <button className="ui-icon-btn" onClick={close} disabled={busy} title="Close" aria-label="Close">
+              <X size={16} aria-hidden />
+            </button>
+          </div>
+          <h2 className="studio-inspector-title">
+            {phase.step === "done"
+              ? `${outcomes.filter((o) => o?.state === "ok").length} of ${changes.length} applied`
+              : `${changes.length} pending ${changes.length === 1 ? "change" : "changes"}`}
+          </h2>
+          {phase.step === "review" && applicable < changes.length && (
+            <div className="studio-review-summary">
+              {applicable} can be applied · {changes.length - applicable} can't — {changes.length - applicable === 1 ? "it stays" : "they stay"} in the tray
+            </div>
+          )}
         </div>
-        <h2 className="studio-inspector-title">
-          {phase.step === "done"
-            ? `${outcomes.filter((o) => o?.state === "ok").length} of ${changes.length} applied`
-            : `${changes.length} pending ${changes.length === 1 ? "change" : "changes"}`}
-        </h2>
+
+        <div className="studio-review-body">
 
         {phase.step === "previewing" && <StateView kind="loading" title="Checking the org…" layout="inline" className="studio-modal-state" />}
 
@@ -178,11 +188,15 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
           </div>
         )}
 
+        </div>
+
+        <div className="studio-review-foot">
         {phase.step === "review" && production && (
-          <div className="studio-finding warning">
-            <div className="studio-finding-title">This is a production org</div>
-            <div className="studio-finding-detail">
-              Page layout changes deploy to production right away and reach every rep on the profiles listed.
+          <div className="studio-review-production">
+            <StatusIcon tone="warning" size={20} />
+            <div className="studio-review-production-text">
+              <div className="studio-finding-title">This is a production org</div>
+              <div className="studio-finding-detail">Layout and page changes deploy right away and reach every rep on the profiles listed.</div>
             </div>
             <label className="ui-check">
               <input type="checkbox" checked={productionOk} onChange={(e) => setProductionOk(e.target.checked)} />
@@ -220,10 +234,13 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
               >
                 {phase.step === "applying"
                   ? "Applying…"
-                  : `Apply ${applicable === changes.length ? "" : `${applicable} of ${changes.length} `}to ${production ? "production" : org}`}
+                  : phase.step === "previewing"
+                    ? "Apply"
+                    : `Apply ${applicable} ${applicable === 1 ? "change" : "changes"}${production ? " to production" : ""}`}
               </button>
             </>
           )}
+        </div>
         </div>
       </div>
     </div>
@@ -381,30 +398,50 @@ function ChangeCard({
   outcome: Outcome | null;
   onRemove?: () => void;
 }) {
+  const problem = outcome
+    ? null
+    : typeof preview === "string"
+      ? preview
+      : preview?.blocked ?? null;
+  const changes = typeof preview === "object" ? preview.changes : [];
+  const targets = [...new Set(changes.map((c) => c.target))];
+  // With one record the table drops its Record column, so name it here unless the title already does.
+  const subtitle = targets.length === 1 && !label.includes(targets[0]) ? targets[0] : null;
   return (
-    <li className={`studio-review-card${outcome ? ` ${outcome.state}` : ""}`}>
+    <li className={`studio-review-card${outcome ? ` ${outcome.state}` : ""}${problem ? " blocked" : ""}`}>
       <div className="studio-review-card-header">
-        <span className="studio-finding-title">{label}</span>
+        <span className="studio-finding-title" title={label}>
+          {label}
+        </span>
         {outcome && <span className={`studio-review-badge ${outcome.state}`}>{BADGES[outcome.state]}</span>}
+        {problem && <span className="ui-pill error">Can't apply</span>}
         {onRemove && (
           <button className="studio-link-btn" onClick={onRemove} title="Remove from this batch">
             Remove
           </button>
         )}
       </div>
-      {typeof preview === "string" && <div className="studio-finding-detail error-text">{preview}</div>}
-      {typeof preview === "object" && (
-        <>
-          <ChangeTable preview={preview} />
-          {!outcome &&
-            preview.warnings.map((w) => (
-              <div key={w} className="studio-finding-detail">
-                {w}
-              </div>
-            ))}
-          {!outcome && preview.blocked && <div className="studio-finding-detail error-text">Can't apply: {preview.blocked}</div>}
-        </>
+      {subtitle && (
+        <div className="studio-review-target" title={subtitle}>
+          {subtitle}
+        </div>
       )}
+      {problem && (
+        <div className="studio-review-problem">
+          <StatusIcon tone="error" size={16} />
+          <span>{problem}</span>
+        </div>
+      )}
+      {changes.length > 0 && <ChangeTable changes={changes} />}
+      {changes.some((c) => c.diff?.length) && <DiffDisclosure changes={changes} />}
+      {!outcome &&
+        typeof preview === "object" &&
+        preview.warnings.map((w) => (
+          <div key={w} className="studio-review-warning">
+            <StatusIcon tone="warning" size={16} />
+            <span>{w}</span>
+          </div>
+        ))}
       {outcome && outcome.state !== "ok" && <div className="studio-finding-detail error-text">{outcome.message}</div>}
       {outcome?.state === "ok" && <div className="studio-finding-detail">{outcome.result.message}</div>}
     </li>
@@ -413,49 +450,72 @@ function ChangeCard({
 
 const BADGES = { ok: "Applied", failed: "Failed", skipped: "Skipped" };
 
-function ChangeTable({ preview }: { preview: FixPreview }) {
+function ChangeTable({ changes }: { changes: FixChange[] }) {
+  // A layout or page edit names the same document on every row; say it once, in the card's title.
+  const showRecord = new Set(changes.map((c) => c.target)).size > 1;
   return (
-    <table className="studio-change-table">
+    <table className={`studio-change-table${showRecord ? " with-record" : ""}`}>
+      <colgroup>
+        {showRecord && <col className="record" />}
+        <col className="field" />
+        <col />
+        <col />
+      </colgroup>
       <thead>
         <tr>
-          <th>Record</th>
-          <th>Field</th>
+          {showRecord && <th>Record</th>}
+          <th>Change</th>
           <th>Before</th>
           <th>After</th>
         </tr>
       </thead>
       <tbody>
-        {preview.changes.map((c, i) => (
-          <React.Fragment key={i}>
-            <tr>
-              <td>{c.target}</td>
-              <td>{c.field}</td>
-              {c.diff ? (
-                <>
-                  <td className="before">{c.before}</td>
-                  <td className="after">{c.after}</td>
-                </>
-              ) : (
-                <ListDiff before={c.before} after={c.after} />
-              )}
-            </tr>
-            {c.diff && c.diff.length > 0 && (
-              <tr className="studio-diff-row">
-                <td colSpan={4}>
-                  <pre className="studio-diff">
-                    {c.diff.map((line, j) => (
-                      <div key={j} className={line.startsWith("+ ") ? "add" : line.startsWith("- ") ? "remove" : "same"}>
-                        {line}
-                      </div>
-                    ))}
-                  </pre>
-                </td>
-              </tr>
+        {changes.map((c, i) => (
+          <tr key={i}>
+            {showRecord && <td>{c.target}</td>}
+            <td>{c.field}</td>
+            {c.diff ? (
+              <>
+                <td className="before">{c.before}</td>
+                <td className="after">{c.after}</td>
+              </>
+            ) : (
+              <ListDiff before={c.before} after={c.after} />
             )}
-          </React.Fragment>
+          </tr>
         ))}
       </tbody>
     </table>
+  );
+}
+
+const DIFF_OPEN_LINES = 12;
+
+/** The line diffs behind a card's rows (XML or script code), folded away unless short. */
+function DiffDisclosure({ changes }: { changes: FixChange[] }) {
+  const lines = changes.flatMap((c) => c.diff ?? []);
+  const xml = lines.some((l) => /^[-+ ] *</.test(l));
+  const [open, setOpen] = useState(lines.length <= DIFF_OPEN_LINES);
+  const changed = lines.filter((l) => l.startsWith("+ ") || l.startsWith("- ")).length;
+  return (
+    <div className="studio-review-diff">
+      <button className="studio-review-diff-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <ChevronRight size={14} aria-hidden className={open ? "open" : undefined} />
+        {open ? "Hide" : "Show"} {xml ? "XML" : "code"} changes
+        <span className="count">
+          {changed} {changed === 1 ? "line" : "lines"}
+        </span>
+      </button>
+      {open && (
+        <pre className="studio-diff">
+          {lines.map((line, j) => (
+            <div key={j} className={line.startsWith("+ ") ? "add" : line.startsWith("- ") ? "remove" : "same"}>
+              {line}
+            </div>
+          ))}
+        </pre>
+      )}
+    </div>
   );
 }
 

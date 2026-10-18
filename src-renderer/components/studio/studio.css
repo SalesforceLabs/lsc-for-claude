@@ -709,8 +709,21 @@
 
 .studio-change-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: var(--font-sm);
+}
+
+.studio-change-table col.field {
+  width: 36%;
+}
+
+.studio-change-table.with-record col.record {
+  width: 24%;
+}
+
+.studio-change-table.with-record col.field {
+  width: 26%;
 }
 
 .studio-change-table th {
@@ -725,11 +738,11 @@
   padding: 6px 8px 6px 0;
   vertical-align: top;
   color: var(--text-primary);
-  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
-.studio-change-table td:nth-child(-n + 2) {
-  white-space: nowrap;
+.studio-change-table td:first-child {
+  color: var(--text-secondary);
 }
 
 .studio-change-table .same {
@@ -1263,7 +1276,151 @@
 /* Review dialog */
 
 .studio-modal.studio-review {
-  width: 680px;
+  width: 760px;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.studio-review-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-5) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.studio-review-head .studio-inspector-title {
+  margin: 0;
+}
+
+.studio-review-summary {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+
+.studio-review-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+}
+
+.studio-review-foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5) var(--space-4);
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.studio-review-foot .studio-modal-actions {
+  margin-top: 0;
+}
+
+.studio-review-production {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--warning-subtle);
+  border: 1px solid color-mix(in srgb, var(--warning) 35%, transparent);
+  border-radius: var(--radius-xs);
+}
+
+.studio-review-production-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.studio-review-production-text .studio-finding-detail {
+  white-space: normal;
+}
+
+.studio-review-production .ui-check {
+  flex: none;
+  white-space: nowrap;
+}
+
+.studio-review-target {
+  margin-top: -2px;
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-review-problem,
+.studio-review-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.studio-review-problem {
+  color: var(--error);
+}
+
+.studio-review-warning {
+  color: var(--text-secondary);
+}
+
+.studio-review-problem > :first-child,
+.studio-review-warning > :first-child {
+  flex: none;
+  margin-top: 1px;
+}
+
+.studio-review-diff {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.studio-review-diff-toggle {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--control-sm);
+  padding: 0 var(--space-2) 0 var(--space-1);
+  margin-left: calc(var(--space-1) * -1);
+  border: none;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+
+.studio-review-diff-toggle:hover {
+  background: var(--fill-hover);
+  color: var(--text-primary);
+}
+
+.studio-review-diff-toggle svg {
+  transition: transform var(--transition-fast);
+}
+
+.studio-review-diff-toggle svg.open {
+  transform: rotate(90deg);
+}
+
+.studio-review-diff-toggle .count {
+  color: var(--text-muted);
+}
+
+.studio-review-diff-toggle .count::before {
+  content: "· ";
 }
 
 .studio-review-list {
@@ -1288,11 +1445,20 @@
 .studio-review-card.ok { border-color: color-mix(in srgb, var(--success) 45%, transparent); }
 .studio-review-card.failed { border-color: color-mix(in srgb, var(--error) 45%, transparent); }
 .studio-review-card.skipped { opacity: 0.7; }
+.studio-review-card.blocked { background: var(--error-subtle); border-color: color-mix(in srgb, var(--error) 30%, transparent); }
 
 .studio-review-card-header {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+}
+
+.studio-review-card-header .studio-finding-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .studio-review-card-header .studio-link-btn {
