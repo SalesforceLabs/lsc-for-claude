@@ -1,5 +1,5 @@
 import type { PublishedLayout, PublishedRelated, RecordFieldSpec } from "./published-types";
-import type { EditMetadataFix, FieldBehavior, LayoutFieldOption, LayoutOp, LiveLayout, SectionRef } from "./types";
+import type { FieldBehavior, LayoutEditFix, LayoutFieldOption, LayoutOp, LiveLayout, SectionRef } from "./types";
 import { layoutOpsChange, pendingFor, queuedLayoutOps, queueChange, type PendingChange } from "./changes";
 import type { DraftState, Verb } from "./edit-draft";
 
@@ -432,14 +432,14 @@ export interface LayoutDraft {
   shownRelated: string[];
 }
 
-export function layoutFix(fullName: string, label: string, ops: LayoutOp[]): EditMetadataFix {
-  return layoutOpsChange(fullName, label, ops) as EditMetadataFix;
+export function layoutFix(fullName: string, label: string, ops: LayoutOp[]): LayoutEditFix {
+  return layoutOpsChange(fullName, label, ops) as LayoutEditFix;
 }
 
 /** The layout's target once the tray is applied; throws `StaleDraftError` when the queued ops don't fit the org's layout. */
 export function targetOf(fullName: string, base: LayoutModel, pending: PendingChange[]): LayoutModel {
   const queued = pendingFor(pending, layoutFix(fullName, "", []))?.fix;
-  return queued?.kind === "editMetadata" ? applyOps(base, queued.ops) : clone(base);
+  return queued?.kind === "editMetadata" && queued.doc.type === "Layout" ? applyOps(base, queued.ops as LayoutOp[]) : clone(base);
 }
 
 /** The tray with this layout arranged as `next` (its change dropped when that's the org's layout). */

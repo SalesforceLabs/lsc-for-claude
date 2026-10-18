@@ -13,6 +13,7 @@ import {
   Columns2,
   Heading,
   Lock,
+  Plus,
   Undo2,
   ArrowDown,
   ArrowLeft,
@@ -121,7 +122,7 @@ export interface EditSurfaceProps {
   /** "Open in Setup" for blocks Studio can't change itself. */
   setup?: { label: string } | null;
   onSetup?: () => void;
-  /** Tab moves left / right rather than up / down. */
+  /** Tab and header field moves go left / right rather than up / down. */
   horizontal?: boolean;
   children: React.ReactNode;
 }

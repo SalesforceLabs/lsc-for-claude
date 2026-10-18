@@ -18,10 +18,10 @@ import { LiveInlineLwc } from "./LiveInlineLwc";
 import { CustomIcon, FileIcon, PersonAccountIcon } from "./assets/icons";
 import type { DraftState } from "./edit-draft";
 import { addedRelated, draftRelated } from "./layout-draft";
-import type { LayoutEntry } from "./usePreviewEdit";
+import type { CompactEntry, LayoutEntry } from "./usePreviewEdit";
 
-/** Edit mode's page layouts, read from the org: Draft draws them as the tray would leave them. */
-export const LayoutEdits = createContext<{ draft: boolean; layouts: Record<string, LayoutEntry> } | null>(null);
+/** Edit mode's page layouts and compact layouts, read from the org: Draft draws them as the tray would leave them. */
+export const LayoutEdits = createContext<{ draft: boolean; layouts: Record<string, LayoutEntry>; compacts?: Record<string, CompactEntry> } | null>(null);
 
 const draftClass = (state: DraftState | undefined) => (state === "removed" ? " ghost" : state === "added" || state === "moved" ? " pending" : "");
 
@@ -287,11 +287,18 @@ function TabContent({
 
 function Header({ snapshot, rec, object, compact }: { snapshot: PublishedIpad; rec: PublishedRecordData; object?: PublishedObject; compact: string | null }) {
   const [broken, setBroken] = useState(false);
-  const specs = (compact ? snapshot.compactFields?.[`${rec.object}.${compact}`] : undefined) ?? [];
-  const cells = specs
-    .map((s) => ({ spec: s, meta: metaOf(snapshot, rec.object, s) }))
+  const fullName = compact ? `${rec.object}.${compact}` : null;
+  const edits = useContext(LayoutEdits);
+  const entry = fullName ? edits?.compacts?.[fullName] : undefined;
+  const specs = (fullName ? snapshot.compactFields?.[fullName] : undefined) ?? [];
+  // Draft draws the header as the tray leaves it: removed fields as ghosts, added ones pending.
+  const drafted = edits?.draft && entry?.status === "ready" ? entry.fields : specs.map((spec) => ({ spec, state: "same" as DraftState }));
+  const cells = drafted
+    .map((d) => ({ ...d, meta: metaOf(snapshot, rec.object, d.spec) }))
     .filter((c) => !c.meta.hidden)
-    .map((c) => ({ spec: c.spec, label: c.spec.label, value: valueOf(rec, rec.object, c.spec) }));
+    .map((c) => ({ spec: c.spec, state: c.state, label: c.spec.label, value: valueOf(rec, rec.object, c.spec) }))
+    // SFComponentHighlightPanelView.filterCompactLayoutFields: outside Account, a field showing the title isn't repeated.
+    .filter((c) => rec.object === "Account" || !c.value || c.value !== rec.title);
   const widths = useMemo(() => highlightWidths(cells.map((c) => ({ label: c.label, value: c.value }))), [cells]);
   const theme = object?.theme;
   // A person account (a PersonAccount layout) uses the standard:person_account glyph.
@@ -315,12 +322,31 @@ function Header({ snapshot, rec, object, compact }: { snapshot: PublishedIpad; r
       </div>
       <Mark target={{ kind: "highlights", object: rec.object, compactLayout: compact, fields: cells.map((c) => c.label) }}>
         <div className="studio-ipad-rec-hl">
-          {cells.map((c, k) => (
-            <div key={k} className="studio-ipad-rec-hl-cell" style={{ width: widths[k] }}>
-              <div className="studio-ipad-rec-hl-label">{c.label}</div>
-              <div className={`studio-ipad-rec-hl-value${c.value && (LOOKUP.has(c.spec.type) || c.spec.type === "masterdetail") ? " link" : ""}`}>{c.value}</div>
-            </div>
-          ))}
+          {cells.map((c, k) => {
+            const cell = (
+              <div className={`studio-ipad-rec-hl-cell${draftClass(c.state)}`} style={{ width: widths[k] }}>
+                <div className="studio-ipad-rec-hl-label">{c.label}</div>
+                <div className={`studio-ipad-rec-hl-value${c.value && (LOOKUP.has(c.spec.type) || c.spec.type === "masterdetail") ? " link" : ""}`}>{c.value}</div>
+              </div>
+            );
+            return fullName ? (
+              <Mark
+                key={c.spec.name}
+                target={{
+                  kind: "headerField",
+                  object: rec.object,
+                  compactLayout: fullName,
+                  field: c.spec.name,
+                  label: c.label,
+                  ...(c.state === "added" ? { added: true } : {}),
+                }}
+              >
+                {cell}
+              </Mark>
+            ) : (
+              <React.Fragment key={k}>{cell}</React.Fragment>
+            );
+          })}
         </div>
       </Mark>
       {rec.stagePath && <StagePath path={rec.stagePath} />}

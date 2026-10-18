@@ -1305,7 +1305,7 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
       },
       "type": {
         "optional": false,
-        "type": "ZodLiteral",
+        "type": "ZodEnum",
       },
     },
   },

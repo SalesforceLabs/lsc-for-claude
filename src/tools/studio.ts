@@ -3,7 +3,7 @@ import { z } from "zod";
 import { validateOrgConnection } from "../salesforce/auth.js";
 import { getFeature, listFeatures } from "../studio/features.js";
 import { collectFeatureMap, collectItemDetail, collectProfileOptions } from "../studio/collect.js";
-import { readLiveLayout } from "../studio/metadata/live.js";
+import { readLiveCompactLayout, readLiveLayout } from "../studio/metadata/live.js";
 import { accessOptions, userAccess } from "../studio/access.js";
 import { collectReadiness } from "../studio/readiness/index.js";
 import { collectSetupOverview } from "../studio/overview.js";
@@ -79,6 +79,14 @@ const layoutOpSchema = z.discriminatedUnion("op", [
     object: z.string().optional(),
   }),
 ]);
+
+const compactOpSchema = z.discriminatedUnion("op", [
+  z.object({ op: z.literal("moveCompactField"), field: z.string(), before: z.string().nullable() }),
+  z.object({ op: z.literal("removeCompactField"), field: z.string() }),
+  z.object({ op: z.literal("addCompactField"), field: z.string(), before: z.string().nullable() }),
+]);
+const layoutName = z.string().regex(/^[^\r\n:]+-[^\r\n]+$/).max(255);
+const compactLayoutName = z.string().regex(/^\w+\.\w+$/).max(255);
 
 const fixSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("assignPsl"), label: z.string(), userId: id, userName: z.string(), pslId: id, pslLabel: z.string() }),
@@ -175,8 +183,12 @@ const fixSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("editMetadata"),
     label: z.string(),
-    doc: z.object({ type: z.literal("Layout"), fullName: z.string().regex(/^[^\r\n:]+-[^\r\n]+$/).max(255), label: z.string() }),
-    ops: z.array(layoutOpSchema).max(200),
+    // Ops are checked against the document's type when the edit is previewed.
+    doc: z.discriminatedUnion("type", [
+      z.object({ type: z.literal("Layout"), fullName: layoutName, label: z.string() }),
+      z.object({ type: z.literal("CompactLayout"), fullName: compactLayoutName, label: z.string() }),
+    ]),
+    ops: z.array(z.union([layoutOpSchema, compactOpSchema])).max(200),
   }),
 ]);
 
@@ -317,15 +329,17 @@ export function register(server: McpServer) {
 
   server.tool(
     "studio_metadata_doc",
-    "LSC Studio (GUI data): a page layout as it is in the org now — sections, fields, related lists, the profiles using it, and whether the org is production — for editing it in the iPad preview. Read-only. Returns JSON.",
-    { type: z.literal("Layout"), fullName: z.string().regex(/^[^\r\n:]+-[^\r\n]+$/).max(255) },
-    async ({ fullName }) => {
+    "LSC Studio (GUI data): a page layout or compact layout as it is in the org now — a layout's sections, fields, related lists and the profiles using it; a compact layout's fields, the fields it could take and the record types using it — and whether the org is production, for editing it in the iPad preview. Read-only. Returns JSON.",
+    { type: z.enum(["Layout", "CompactLayout"]), fullName: z.string().max(255) },
+    async ({ type, fullName }) => {
+      const name = (type === "Layout" ? layoutName : compactLayoutName).safeParse(fullName);
+      if (!name.success) return jsonError(`Invalid ${type} name: ${fullName}`);
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await readLiveLayout(fullName, connection.targetOrg));
+        return json(type === "Layout" ? await readLiveLayout(fullName, connection.targetOrg) : await readLiveCompactLayout(fullName, connection.targetOrg));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

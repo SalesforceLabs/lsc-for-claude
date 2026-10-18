@@ -1,6 +1,6 @@
 # iPad preview — Edit mode
 
-Status: Phases 1–2 and 3a built; 3b–3d designed, 2026-10-18. Branch `feat/ipad-edit-mode`.
+Status: Phases 1–2, 3a and 3b built; 3c–3d designed, 2026-10-18. Branch `feat/ipad-edit-mode`.
 
 ## The problem
 
@@ -113,7 +113,7 @@ Phase 1 delivers the hover/select layer and the What / Why / How inspector over 
 2. **Draft + Admin Console edits** *(built)*: Published · Draft · Schematic; pending overlay for TabOrder, SortOrder, IsActive, profile assignments and creates; move/hide/turn off for tabs and Home ••• actions with reach warnings; **Add to iPad sync** for objects the profile doesn't sync. Drag is deferred to 3d. The Schematic stayed until 3a, because it was still the only place to edit the Visit engagement sidebar.
 3. **Metadata edits**, in four steps (see **Phase 3 design**):
    - 3a *(built)*: provenance, a metadata document layer, `editMetadata` for Layouts. Visit sidebar editing moved into Draft and the Schematic is retired: the preview is **Published · Draft**. Sections, fields and related lists move, hide and change behavior in place; **Add field…** and **Add related list…** pick from the object's describe (`available` / `availableRelated` on the live layout), and an added list whose child isn't synced offers **Add to iPad sync**.
-   - 3b: Compact layouts (record header).
+   - 3b: Compact layouts (record header) *(built)*: header fields move left/right, remove/restore, and **Add field…** (a searchable picker); one diffed `editMetadata` change per compact layout (`metadata:CompactLayout:<fullName>`); warns at 7 or more fields; Add is refused at the Metadata API's 10-field limit.
    - 3c: Lightning pages: move/remove components and tabs, then insert from the library.
    - 3d: drag to reorder, insertion points, keyboard moves.
 4. **Polish & breadth**: list views, component props sheet, ⌘Z wired to the tray, multi-select, before/after split view, "Make a copy just for this profile".

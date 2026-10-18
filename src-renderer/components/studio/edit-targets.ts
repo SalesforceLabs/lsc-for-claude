@@ -47,6 +47,8 @@ export type EditTarget =
   /** `relatedList`: its name on the layout, when the layout lists it. */
   | { kind: "related"; object: string; label: string; parent: string; layout?: string; relatedList?: string }
   | { kind: "highlights"; object: string; compactLayout: string | null; fields: string[] }
+  /** One field of the record header; `compactLayout` is its Metadata API name ("Account.LSC_Compact"). */
+  | { kind: "headerField"; object: string; compactLayout: string; field: string; label: string; added?: boolean }
   /** A ••• menu item; `index` is its place in the Draft menu (Home) or the record's menu. */
   | {
       kind: "action";
@@ -73,6 +75,8 @@ export function targetKey(t: EditTarget): string {
       return `related:${t.parent}:${t.object}:${t.label}`;
     case "highlights":
       return `highlights:${t.object}:${t.compactLayout ?? ""}`;
+    case "headerField":
+      return `headerField:${t.compactLayout}:${t.field}`;
     case "action":
       return `action:${t.place}:${t.object ?? ""}:${t.name}`;
     case "listView":
@@ -99,6 +103,8 @@ function kindLabel(t: EditTarget): string {
       return "Related list";
     case "highlights":
       return "Record header";
+    case "headerField":
+      return "Header field";
     case "action":
       return t.place === "home" ? "Home action" : "Record action";
     case "listView":
@@ -378,6 +384,25 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
         reach: "Every record type assigned this compact layout, for every profile.",
         setup: SETUP.compactLayouts(t.object),
       };
+    case "headerField": {
+      const name = t.compactLayout.slice(t.compactLayout.indexOf(".") + 1);
+      return {
+        ...base,
+        draftOnly: !!t.added,
+        what: [t.object, `Compact layout "${name}"`, t.field],
+        why: [
+          "The field is on the compact layout the record type uses, so the iPad shows it in the record header.",
+          "The record's name is the header's title, so a Name field isn't repeated. The profile has to be able to read the field (field-level security).",
+        ],
+        how: [
+          `Setup › Object Manager › ${t.object} › Compact Layouts › ${name} › Edit, then add, remove or reorder the fields.`,
+          "The header fits about 6 fields across; the rest scroll off to the side.",
+          PUBLISH,
+        ],
+        reach: "Every record type assigned this compact layout, for every profile.",
+        setup: SETUP.compactLayouts(t.object),
+      };
+    }
     case "action": {
       if (t.place === "record") {
         const object = t.object ?? "the object";

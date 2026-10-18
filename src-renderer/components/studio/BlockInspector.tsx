@@ -7,6 +7,8 @@ import {
   Lock,
   Undo2,
   ArrowDown,
+  ArrowLeft,
+  ArrowRight,
   ArrowUp,
   CloudOff,
   ExternalLink,
@@ -57,6 +59,7 @@ export default function BlockInspector({
   verbs,
   draft,
   onRun,
+  horizontal,
   layout,
   onRetryLayout,
   sync,
@@ -71,6 +74,8 @@ export default function BlockInspector({
   /** Verbs only run in Draft; Published explains. */
   draft: boolean;
   onRun: (verb: Verb) => void;
+  /** Moves go left / right (tabs, header fields). */
+  horizontal?: boolean;
   /** The page layout behind the block, as read from the org. */
   layout?: LayoutStatus;
   onRetryLayout?: () => void;
@@ -169,10 +174,21 @@ export default function BlockInspector({
               Production org
             </span>
           )}
+          {layout?.note && (
+            <p className="studio-block-reach" role="status">
+              <StatusIcon tone="warning" size={16} />
+              <span>{layout.note}</span>
+            </p>
+          )}
           {verbs.length > 0 && (
             <div className="studio-block-verbs">
               {verbs.map((v) => {
-                const Icon = ICONS[v.id];
+                const Icon =
+                  horizontal && v.id === "up"
+                    ? ArrowLeft
+                    : horizontal && v.id === "down"
+                      ? ArrowRight
+                      : ICONS[v.id];
                 const why = !draft
                   ? "Switch to Draft to queue changes"
                   : v.run || v.pick
@@ -194,10 +210,10 @@ export default function BlockInspector({
               })}
             </div>
           )}
-          {(layout?.profiles || info.reach) && (
+          {(layout?.profiles || layout?.reach || info.reach) && (
             <p className="studio-block-reach">
               <UsersRound size={14} aria-hidden />
-              <span>{layout?.profiles ? layoutReach(layout.profiles) : info.reach}</span>
+              <span>{layout?.profiles ? layoutReach(layout.profiles) : (layout?.reach ?? info.reach)}</span>
             </p>
           )}
           <ol className="studio-block-steps">
@@ -241,4 +257,13 @@ export function layoutReach(profiles: string[]): string {
   const shown = profiles.slice(0, 4).join(", ");
   const more = profiles.length > 4 ? ` and ${profiles.length - 4} more` : "";
   return `The layout for ${profiles.length === 1 ? "1 profile" : `${profiles.length} profiles`} (${shown}${more}). A change reaches them all.`;
+}
+
+/** Who a compact layout change reaches, from the record types assigned it. */
+export function compactReach(recordTypes: string[]): string {
+  if (!recordTypes.length) return "No record type is assigned this compact layout.";
+  const shown = recordTypes.slice(0, 4).join(", ");
+  const more = recordTypes.length > 4 ? ` and ${recordTypes.length - 4} more` : "";
+  const n = recordTypes.length === 1 ? "1 record type" : `${recordTypes.length} record types`;
+  return `The compact layout for ${n} (${shown}${more}), for every profile. A change reaches them all.`;
 }

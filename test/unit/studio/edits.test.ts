@@ -410,3 +410,113 @@ describe("editMetadata (page layouts)", () => {
     expect(result.message).toMatch(/INVALID_FIELD.*Nothing was changed/);
   });
 });
+
+describe("editMetadata (compact layouts)", () => {
+  let dir: string;
+  let deployed: string | null;
+  const XML = fs.readFileSync(path.join(__dirname, "../../fixtures/metadata/Account_Layout.compactLayout-meta.xml"), "utf-8");
+  const doc = { type: "CompactLayout" as const, fullName: "Account.Account_Layout", label: "Account" };
+  const fix: StudioFix = {
+    kind: "editMetadata",
+    label: "Edit compact layout Account",
+    doc,
+    ops: [
+      { op: "removeCompactField", field: "NumberOfEmployees" },
+      { op: "addCompactField", field: "Phone", before: "AccountNumber" },
+    ],
+  };
+  const mappings = (names: [string, string][]) => ({
+    success: true,
+    data: { recordTypeCompactLayoutMappings: names.map(([compactLayoutName, recordTypeName]) => ({ compactLayoutName, recordTypeName })) },
+  });
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "studio-doc-"));
+    deployed = null;
+    vi.mocked(cli.retrieveMetadata).mockImplementation(async () => {
+      const out = fs.mkdtempSync(path.join(dir, "out-"));
+      fs.mkdirSync(path.join(out, "compactLayouts"));
+      fs.writeFileSync(path.join(out, "compactLayouts", "Account.Account_Layout.compactLayout-meta.xml"), XML);
+      return { success: true, data: { outputDir: out } };
+    });
+    vi.mocked(cli.deployMetadata).mockImplementation(async (source) => {
+      deployed = fs.readFileSync(source, "utf-8");
+      return { success: true };
+    });
+    vi.mocked(cli.apiRequest).mockResolvedValue(
+      mappings([
+        ["Account_Layout", "HCP"],
+        ["Account_Layout", "HCO"],
+        ["Other", "Master"],
+      ]) as never
+    );
+    org.Organization = [{ IsSandbox: true }];
+  });
+  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  it("previews the field changes with the XML diff and the record types it reaches, then deploys with an undo", async () => {
+    const preview = await previewFix(fix, "org");
+    expect(preview.blocked).toBeUndefined();
+    expect(preview.changes.map((c) => [c.field, c.before, c.after])).toEqual([
+      ["Field NumberOfEmployees", "Position 6 of 7", "(removed)"],
+      ["Field Phone", "(not on the compact layout)", "Position 2 of 7"],
+    ]);
+    expect(preview.changes[1].diff).toEqual(expect.arrayContaining(["+     <fields>Phone</fields>", "-     <fields>NumberOfEmployees</fields>"]));
+    expect(preview.warnings[0]).toBe("Deploys Account to the org — it's the compact layout for 2 record types (HCO, HCP), for every profile.");
+    expect(cli.apiRequest).toHaveBeenCalledWith("/services/data/v66.0/sobjects/Account/describe/compactLayouts", "GET", undefined, "org");
+
+    const result = await applyFix(fix, "org");
+    expect(result.ok).toBe(true);
+    expect(deployed).toContain("<fields>Name</fields>\n    <fields>Phone</fields>\n    <fields>AccountNumber</fields>");
+    expect(deployed).not.toContain("NumberOfEmployees");
+    expect(cli.deployMetadata).toHaveBeenCalledWith(expect.stringMatching(/compactLayout-meta\.xml$/), "org");
+    expect(result.undo).toMatchObject({
+      kind: "editMetadata",
+      doc,
+      ops: [
+        { op: "removeCompactField", field: "Phone" },
+        { op: "addCompactField", field: "NumberOfEmployees", before: "SDO_Days_Since_Activity__c" },
+      ],
+    });
+  });
+
+  it("reads the live compact layout: fields, fields that could be added, record types, production", async () => {
+    vi.mocked(cli.cachedDescribeSObject).mockResolvedValue({
+      success: true,
+      data: {
+        name: "Account",
+        label: "Account",
+        fields: [
+          { name: "Phone", label: "Phone", type: "phone", required: false, updateable: true, createable: true },
+          { name: "Description", label: "Description", type: "textarea", required: false, updateable: true, createable: true },
+          { name: "Id", label: "Account ID", type: "id", required: false, updateable: false, createable: false },
+        ],
+      },
+    });
+    org.Organization = [{ IsSandbox: false }];
+    const { readLiveCompactLayout } = await import("../../../src/studio/metadata/live.js");
+    const live = await readLiveCompactLayout(doc.fullName, "org");
+    expect(live).toMatchObject({ type: "CompactLayout", fullName: doc.fullName, label: "Account", recordTypes: ["HCO", "HCP"], production: true });
+    expect(live.fields).toHaveLength(7);
+    expect(live.available).toEqual([{ name: "Phone", label: "Phone", type: "phone" }]);
+    expect(fs.readdirSync(dir)).toEqual([]);
+  });
+
+  it("says when no record type is assigned it", async () => {
+    vi.mocked(cli.apiRequest).mockResolvedValue(mappings([["Other", "Master"]]) as never);
+    expect((await previewFix(fix, "org")).warnings[0]).toBe("Deploys Account to the org. No record type is assigned this compact layout.");
+  });
+
+  it("refuses when the compact layout changed, page layout ops, and bad names", async () => {
+    const stale: StudioFix = { ...fix, ops: [{ op: "removeCompactField", field: "Gone__c" }] };
+    expect((await previewFix(stale, "org")).blocked).toBe(
+      "Account changed since the preview was loaded: Gone__c isn't on the compact layout. Refresh the preview."
+    );
+    const wrong = { ...fix, ops: [{ op: "removeField", field: "Type" }] } as unknown as StudioFix;
+    expect((await previewFix(wrong, "org")).blocked).toBe("These edits don't apply to a CompactLayout.");
+    const bad: StudioFix = { ...fix, doc: { ...doc, fullName: "Account-Account Layout" } };
+    expect((await previewFix(bad, "org")).blocked).toMatch(/Invalid compact layout name/);
+    expect((await applyFix(stale, "org")).ok).toBe(false);
+    expect(cli.deployMetadata).not.toHaveBeenCalled();
+  });
+});

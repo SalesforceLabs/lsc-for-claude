@@ -3,13 +3,16 @@
  * and related lists as they are in the org now (the preview shows the last
  * publish), which profiles use it, whether the org is production, and the
  * fields and related lists that could be added. The renderer lines the
- * published layout up against it before offering edits.
+ * published layout up against it before offering edits. Compact layouts (the
+ * record header) likewise: their fields, the fields that could be added, and
+ * the record types assigned them.
  */
 
-import { cachedDescribeSObject, type SObjectDescribeResult } from "../../salesforce/cli.js";
+import { apiRequest, cachedDescribeSObject, type SObjectDescribeResult } from "../../salesforce/cli.js";
 import { assertId } from "../change-helpers.js";
 import { query, type Row } from "../helpers.js";
-import type { LayoutFieldOption, LiveLayout, RelatedListOption } from "../types.js";
+import type { LayoutFieldOption, LiveCompactLayout, LiveLayout, RelatedListOption } from "../types.js";
+import { compactFields } from "./compact-ops.js";
 import { withDoc } from "./doc.js";
 import { childText, childrenNamed } from "./xml.js";
 
@@ -154,4 +157,48 @@ export async function readLiveLayout(fullName: string, org: string): Promise<Liv
     available: desc ? availableFields(fullName, desc, placed) : null,
     availableRelated: desc ? relatedListOptions(desc, structure.relatedLists).map(({ relatedList, object }) => ({ relatedList, object })) : null,
   } as LiveLayout;
+}
+
+/** Describe types a compact layout can't hold (text areas, multi-select picklists) or that aren't fields to show. */
+const NOT_COMPACT = new Set(["textarea", "multipicklist", "base64", "id", "address", "location"]);
+
+/** "Account.LSC_Compact" → ["Account", "LSC_Compact"]; throws on anything else. */
+export function splitCompactName(fullName: string): [string, string] {
+  const m = /^(\w+)\.(\w+)$/.exec(fullName);
+  if (!m) throw new Error(`Invalid compact layout name: ${fullName}`);
+  return [m[1], m[2]];
+}
+
+/** Record types assigned the compact layout ("Master" for the object's default), sorted; null when that can't be read. */
+export async function compactLayoutRecordTypes(fullName: string, org: string): Promise<string[] | null> {
+  try {
+    const [object, name] = splitCompactName(fullName);
+    const res = await apiRequest<{ recordTypeCompactLayoutMappings?: { compactLayoutName?: string; recordTypeName?: string }[] }>(
+      `/services/data/v66.0/sobjects/${object}/describe/compactLayouts`,
+      "GET",
+      undefined,
+      org
+    );
+    if (!res.success || !res.data) return null;
+    const names = (res.data.recordTypeCompactLayoutMappings ?? []).flatMap((m) =>
+      m.compactLayoutName === name && m.recordTypeName ? [m.recordTypeName] : []
+    );
+    return [...new Set(names)].sort();
+  } catch {
+    return null;
+  }
+}
+
+export async function readLiveCompactLayout(fullName: string, org: string): Promise<LiveCompactLayout> {
+  const [object] = splitCompactName(fullName);
+  const [doc, available, recordTypes, production] = await Promise.all([
+    withDoc("CompactLayout", fullName, org, async ({ root }) => ({ label: childText(root, "label") ?? fullName, fields: compactFields(root) })),
+    cachedDescribeSObject(object, org).then(
+      (r) => (r.success && r.data ? r.data.fields.filter((f) => !NOT_COMPACT.has(f.type)).map((f) => ({ name: f.name, label: f.label, type: f.type })) : []),
+      () => []
+    ),
+    compactLayoutRecordTypes(fullName, org),
+    isProductionOrg(org),
+  ]);
+  return { type: "CompactLayout", fullName, ...doc, available, recordTypes, production };
 }
