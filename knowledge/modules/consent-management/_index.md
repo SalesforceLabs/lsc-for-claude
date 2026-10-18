@@ -15,3 +15,7 @@
 - **Disclaimer text** — Comes from `ComplianceStatementDef` with `ModuleType = Consent Management`, `StatementType = Disclaimer`; record-level sharing required.
 
 - [support-engineering-consent-management](./support-engineering-consent-management.md) — Jun 2026 session. LS Core PSL + perm set requirements, Consent tab + LWC placement on Account page, communication subscription/channel/engagement sharing (CRITICAL: territory edit access ≠ consent access), signature vs attachment proof modes per Module Type, PATI vs account-column filter logic with 3 priority rules, disclaimer setup via Compliance Statement Definition, 7 troubleshooting patterns.
+
+## Winter '27 (Release 264) Enhancements
+
+- [release-264-verbal-and-paper-consent](./release-264-verbal-and-paper-consent.md) — Verbal consent and paper-form document reference as consent proof; `IsVerbalConsent`, `ConsentDocumentReference`.

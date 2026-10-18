@@ -73,3 +73,16 @@ See [calendar-tot-routine-myteam](../calendar-tot-routine-myteam/_index.md).
 - Do not add extra Omni elements to the coaching form; they are untested and unsupported.
 - Only Discovery Framework Data Type = Score is supported for Enablement Coaching in this release.
 - Scoring is not normalized or enforced to 100.
+
+## Verified Against Official Help
+- Admins need the **Life Sciences Commercial Admin** permission set **and Assessment Platform User permission** to create and manage assessment templates (Help; the Assessment Platform User requirement is not in the deck section above).
+- Calendar: in the Admin Console, admins configure calendar event metadata to map Enablement Coaching sessions to calendar views; coaches create sessions from the calendar grid or the Enablement Coaching tab and Salesforce automatically creates the associated calendar events.
+- Previous scores: when a coach creates a session using a template used before, previous scores populate automatically and show in the **Evaluation** tab; the **Show Previous Evaluation Score** toggle switches the comparison on/off.
+- Related Discovery Framework permission sets (general DF Help): OmniStudio Admin for admins who create/edit DF OmniScript assessments; OmniStudio User for users who run them.
+- Not found in Help: Coach permission details, Mapping/Coachee/Coach User Profile settings, workflow action names, metadata cache entity list. These remain deck-sourced and unverified.
+
+## Sources
+- https://help.salesforce.com/s/articleView?id=release-notes.rn_lsc_enablement_coaching_build_standardized_evaluations_with_discovery_framework.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=release-notes.rn_lsc_enablement_coaching_schedule_and_track_from_calendar.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=release-notes.rn_lsc_enablement_coaching_view_historical_evaluation_scores.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.discovery_framework_editions_permissions.htm&release=264.0.0&type=5 (search excerpt)

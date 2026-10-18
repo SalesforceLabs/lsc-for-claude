@@ -17,3 +17,7 @@
 - **Import Objective prerequisites** — Goal Definition `IsActive = true` + Action Plan Template `TemplateType = KAM` + `Target = AccountPlanObjective`.
 
 - [support-engineering-account-plan](./support-engineering-account-plan.md) — Jun 2026 session (53-slide deck). KAM + Sprint Settings, full hierarchical entity model, Action Plan Template Assignment, Import Stakeholder (6-step), Stakeholder Details + Hierarchical components, Import Objective with 3 prerequisites, Sprint assign/unassign, Participant/Stakeholder assignment via `AccountPlanparticipantsAndStakeholder` LWC, roll-up via KAM trigger handlers, 9 troubleshooting patterns.
+
+## Winter '27 (Release 264) Enhancements
+
+- [release-264-kam-ai-coding-agent](./release-264-kam-ai-coding-agent.md) — AI coding agent skills that automate KAM prerequisites, stakeholder picklists and goal/task import.

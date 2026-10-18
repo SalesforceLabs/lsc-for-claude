@@ -31,8 +31,22 @@ Translation Workbench can be used to translate the category values (per the deck
 ### 2. Configure TOT Rules
 
 In **Admin Console > Time Off Territory**:
-1. Select **Downtime Category** as the field used for TOT rules.
+1. Select **Downtime Category** as the field used for TOT rules (per the deck; the Help rules article does not mention this).
 2. Configure **overlapping rules** for each Downtime Category as needed.
+
+Per Help ("Configure Time Off Territory Rules", permission set Life Sciences Commercial Admin):
+1. App Launcher > **Admin Console** > **Time Off Territory** > **Time Off Territory Rules**.
+2. Turn on Time Off Territory Rules. When off, standard validations apply: no TOT entries during visits, non-business hours or holidays.
+3. Select the profile (or **Default** for all profiles).
+4. Select a rule to update, **Default** for default parameters, or **New Rule** to create one.
+5. The default rule decides whether a time-off entry can be created during an event and applies to all TOT types.
+6. To override for a specific TOT type, set values in that type's row; blank values fall back to the default rule.
+7. Save.
+
+### Prerequisites (Help: "Get Your Org Ready for Time Off Territory")
+
+- Activate trigger handlers: `TUDUpdateHandler`, `TUDBHValidationHandler`, `TUDVisitValidationHandler`, `TUDHolidayValidationHandler`, `TUDOverlapHandler`, `TUDEventValidationHandler`, `TUDSharingHandler`, `VisitTimeOffValidationHandler`, `MngEventDateTimeValidationHandler`.
+- Admin Console > **Planner** > **Planner Settings**: select profile (or Default) and set **Global Business Hours** (create business hours in Setup first if none exist). Save.
 
 ## End-User Flow (iPad and Web)
 
@@ -59,3 +73,9 @@ In **Admin Console > Time Off Territory**:
 ## Licensing
 
 Not stated in the deck.
+
+## Sources
+
+- https://help.salesforce.com/s/articleView?id=ind.lsc_time_off_territory_get_your_org_ready.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_time_off_territory_configure_rules.htm&release=264.0.0&type=5
+- Unverified in Help: the `DowntimeCategory` field on Territory User Downtime / `TerritoryUserDowntime`, Object Manager picklist and page-layout steps, and Downtime Category selection in TOT rules (deck only). The Help rules article refers to "TOT types" generically.

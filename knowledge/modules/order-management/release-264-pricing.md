@@ -68,3 +68,21 @@ Typical chain: Pricing Setting -> List Price -> Volume Discount -> Tier Discount
 - Not supported offline: contract-based pricing, attribute-based discounts (other than via PAM decision table as described), bundle products.
 - Use the Life Sciences Commercial subtype for both recipe and procedure, not Revenue Cloud, or it will not run offline.
 - Refresh decision tables after every tier change.
+
+## Verified Against Official Help
+- Pricing procedure: create **one** procedure with **Life Sciences Commercial** as Usage Subtype; it serves web and iPad, all LS quoted orders route to it, and the default procedure cannot be deleted. Help states only **on-save pricing** is supported.
+- Pricing recipe: the default recipe is an org-level pointer; changing it applies to new quotes only and does not reprice existing quotes. Sales Transaction Type's procedure overrides the Admin Console selection.
+- Price Waterfall turns on automatically via Salesforce Go. Turning off: whole waterfall removes cached data on next sync and hides the popover for all; **Price Waterfall Persistence** off (waterfall stays on) allows online viewing but no offline viewing; per-user off hides it for that user only.
+- Pricing runs from cached data on iPad; regenerate metadata cache after price book or procedure changes.
+- Pricing Elements are covered in a separate Help article not fetched (element list above remains deck-sourced).
+- **Connect API (Dev guide):** POST `/connect/core-pricing/waterfalls/retrieve` (API v67.0+), body WaterfallDownloadInputRepresentation with `lineItems[]` of `lineItemId` + `executionId`; response WaterfallDownloadOutputRepresentation; optional query parameter `waterfallView=lsc-summary` runs a server-side optimization removing elements that don't affect net unit price (proration, formula pricing, zero-value adjustments, hidden elements); omitted returns the complete waterfall from PricingWaterfallLog.
+- **Invocable actions (264 release note):** `getQualifiedProducts` (PricebookEntry IDs a user may use for an account and territories); `setLsQuoteDocumentDefaults` (default attributes on document recipients for a quote document based on its Lightning flexipage layout); `shareQuoteBasedOnAccount` (syncs Quote sharing to Account sharing by upserting QuoteShare from AccountShare); `evaluateAccess` (checks a user permission for the running user); also `cloneActvtyPlanTerritories`.
+
+## Sources
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_pricing_procedures.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_price_waterfall.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_setup_basics.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=release-notes.rn_lsc_order_management_automate_order_calculations.htm&release=264.0.0&type=5
+- https://developer.salesforce.com/docs/atlas.en-us.life_sciences_dev_guide.meta/life_sciences_dev_guide/connect_resources_waterfall_download.htm (search excerpt)
+- https://help.salesforce.com/s/articleView?id=release-notes.rn_lifesciences_connect_apis.htm&release=264.0.0&type=5 (search excerpt)
+- https://help.salesforce.com/s/articleView?id=release-notes.rn_invocable_actions.htm&release=264.0.0&type=5 (search excerpt)

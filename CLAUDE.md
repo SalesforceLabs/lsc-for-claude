@@ -382,6 +382,10 @@ The plugin includes an MCP server that provides these tools:
 | **Starter Config** | ✅ Full | LSStarterConfig — bulk-configure trigger handlers, admin settings, DB Schema in one shot (Spring '26) |
 | **Custom Scripts** | ✅ Full | Validation + checklist LWC patterns, IIFE/CodeText conventions, Locker Service gotchas, Visit Action Validation |
 
+### Recent Additions (Oct 2026)
+
+**Winter '27 (Release 264) official release notes** — `knowledge/release-notes/winter-27-official.md` (retrievable with `get_release_notes`, slug `winter-27-official`) covers the full Life Sciences section: new/changed objects, invocable actions, Connect API, and every feature by area. Module docs use the `release-264-*` prefix and now span 20+ modules, including new coverage for relevance-based account search, activity plan cloning/mobile review, verbal/paper consent, offline & nested custom LSC apps, the KAM and first-visit AI coding agent skills, the Content Ingestion API, Event Management trigger handlers, and Digital Verification.
+
 ### Recent Additions (Jun 2026)
 
 **LSC4CE Value Chain Training (Engineering → Support, 15 sessions, 18 files)** — Deep support-engineering content spanning Feb 2026 → Jun 2026 across 14 modules. Topics: Sync internals, Search Before Create (internal + OneKey), Medical Inquiry multi-entity setup, KAM Account Plan deep dive, Consent Management proof + filtering, Quick & Custom Actions (Spring '26 + evergreen config guide), Validations via Custom Scripts, LSStarterConfig, Territory Alignment Jobs, Activity Plan, Activity Timeline, Visit Management (configuration + troubleshooting + side menu), Intelligent Content, Generic Workflow. Files use the `support-engineering-*` prefix (evergreen) or `release-260-*` (Spring '26-specific). Two new modules introduced: `starter-config/`, `custom-scripts/`.
