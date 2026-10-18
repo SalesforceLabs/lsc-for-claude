@@ -121,6 +121,19 @@ export interface PublishedRecordType {
   multiEntity?: { layouts: string[]; note?: string; error?: string };
 }
 
+export interface PublishedListView {
+  name: string;
+  label: string;
+  /** Column labels. */
+  columns: string[];
+  /** The view's `sharedTo` (non-empty entries); absent = visible to all users. */
+  sharedTo?: Record<string, string[]>;
+  /** How to read its rows: a field type per column (null when the app drops it). */
+  query?: { fields: ({ path: string; type: string } | null)[]; where?: string | null; mine?: boolean };
+  /** The view as the cache stores it: the metadata name, column ids, filter scope, filters and logic. */
+  source?: { fullName: string; columns: string[]; filterScope: string | null; filters: { field: string; operation: string; value: string }[]; booleanFilter: string | null };
+}
+
 export interface PublishedObject {
   name: string;
   label: string;
@@ -128,7 +141,7 @@ export interface PublishedObject {
   recordTypes: PublishedRecordType[];
   /** Used when a record has no record type. */
   defaultCompactLayout: string | null;
-  listViews: { name: string; label: string; columns: string[]; /** How to read its rows: a field type per column (null when the app drops it). */ query?: { fields: ({ path: string; type: string } | null)[] } }[];
+  listViews: PublishedListView[];
   defaultListView: string | null;
   /** List views shared only with roles, groups, or territories the viewer isn't in. */
   hiddenListViews?: { label: string; reason: string }[];

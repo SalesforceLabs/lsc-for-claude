@@ -1397,3 +1397,16 @@
   border-radius: 6px;
   box-shadow: inset 0 0 0 2.5px #9050e9;
 }
+
+/* Edit mode's Draft on a list view's table: removed columns are ghosts, added or moved ones are outlined. */
+.studio-ipad-table-cell.ghost {
+  opacity: 0.45;
+}
+
+.studio-ipad-table-row.head .studio-ipad-table-cell.ghost {
+  text-decoration: line-through;
+}
+
+.studio-ipad-table-cell.pending {
+  box-shadow: inset 0 0 0 2.5px #9050e9;
+}

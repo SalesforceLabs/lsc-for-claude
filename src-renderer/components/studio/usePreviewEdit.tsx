@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ListPlus, SquarePlus, TextCursorInput } from "lucide-react";
-import type { ComponentCatalog, CreateConfigFix, FeatureMap, StudioFix, LiveCompactLayout, LiveFlexiPage, LiveLayout, ProfileOption } from "./types";
+import type { ComponentCatalog, CreateConfigFix, FeatureMap, StudioFix, LiveCompactLayout, LiveFlexiPage, LiveLayout, LiveListView, ProfileOption } from "./types";
 import type { ComponentProps } from "./component-props";
-import type { PublishedIpad, PublishedResult } from "./published-types";
+import type { PublishedIpad, PublishedListView, PublishedResult } from "./published-types";
 import type { PreviewEdit } from "./PublishedIpadPreview";
 import type { EditDrop } from "./EditLayer";
 import { changeKey, commitFrom, createAffects, queueChange, queuedCopy, queuedFlexiPageOps, queuedLayoutOps, viewFor, type PendingChange } from "./changes";
@@ -40,7 +40,21 @@ import {
   targetOf as pageTargetOf,
   type PageDraft,
 } from "./flexipage-draft";
-import BlockInspector, { compactReach, pageReach, type CopyAction } from "./BlockInspector";
+import {
+  alignListView,
+  draftListColumns,
+  filtersChanged,
+  isLegacyId,
+  listColumnVerbs,
+  listViewTargetOf,
+  listViewVerbs,
+  modelOf as listModelOf,
+  moveListColumnTo,
+  type DraftListColumn,
+  type ListViewDraft,
+} from "./listview-draft";
+import ListViewEditor from "./ListViewEditor";
+import BlockInspector, { compactReach, listViewReach, pageReach, type CopyAction } from "./BlockInspector";
 import CreateDialog from "./CreateDialog";
 import SearchPicker from "../ui/SearchPicker";
 import { extendSelection, groupVerbs, selectionNoun } from "./multi-select";
@@ -147,6 +161,28 @@ export function usePreviewEdit({
     for (const name of wantedCompacts) if (!liveCompacts[name]) fetchCompact(name);
   }, [wantedCompacts, liveCompacts, fetchCompact]);
 
+  // List views the same way, read when a list view or one of its columns is selected.
+  const [liveListViews, setLiveListViews] = useState<Record<string, LiveListViewState>>({});
+  useEffect(() => setLiveListViews({}), [org]);
+  const wantedListViews = useMemo(() => {
+    const names = new Set(pending.flatMap((p) => (p.fix.kind === "editMetadata" && p.fix.doc.type === "ListView" ? [p.fix.doc.fullName] : [])));
+    if (on && (selected?.kind === "listView" || selected?.kind === "listColumn")) names.add(listViewNameOf(selected));
+    return [...names].sort();
+  }, [pending, selected, on]);
+  const fetchListView = useCallback((name: string) => {
+    setLiveListViews((m) => ({ ...m, [name]: { status: "loading" } }));
+    window.lscApi.studioMetadataDoc("ListView", name).then(
+      (res) => {
+        const error = res.error ?? res.data?.error;
+        setLiveListViews((m) => ({ ...m, [name]: error ? { status: "error", error } : { status: "ready", live: res.data as LiveListView } }));
+      },
+      (e: unknown) => setLiveListViews((m) => ({ ...m, [name]: { status: "error", error: String(e) } }))
+    );
+  }, []);
+  useEffect(() => {
+    for (const name of wantedListViews) if (!liveListViews[name]) fetchListView(name);
+  }, [wantedListViews, liveListViews, fetchListView]);
+
   // Lightning pages (Home and record pages) the same way, read when one of their components or tabs is selected.
   const [livePages, setLivePages] = useState<Record<string, LivePageState>>({});
   useEffect(() => setLivePages({}), [org]);
@@ -207,6 +243,8 @@ export function usePreviewEdit({
   const layouts = useMemo(() => buildLayouts(liveLayouts, snapshot, overlay), [liveLayouts, snapshot, overlay]);
 
   const compacts = useMemo(() => buildCompacts(liveCompacts, snapshot, overlay), [liveCompacts, snapshot, overlay]);
+
+  const listViews = useMemo(() => buildListViews(liveListViews, snapshot, overlay), [liveListViews, snapshot, overlay]);
 
   const pages = useMemo(() => {
     const out: Record<string, PageEntry> = {};
@@ -279,7 +317,7 @@ export function usePreviewEdit({
         const moves = componentVerbs(pageDraft, pageItem.key, tab ? selected.title : selected.label, pageItem.shown, tab);
         return tab ? moves : [...moves, insertVerb(pageDraft, pageItem.key, catalog)];
       }
-      return blockVerbs(selected, { tabs, homeMenu, pending, profile, layouts, compacts, snapshot });
+      return blockVerbs(selected, { tabs, homeMenu, pending, profile, layouts, compacts, listViews, snapshot });
     }
     // A group verb runs block by block, each against the tray the last one left, so the drafts are rebuilt from it.
     const at = (t: EditTarget, p: PendingChange[]) =>
@@ -290,10 +328,11 @@ export function usePreviewEdit({
         profile,
         layouts: buildLayouts(liveLayouts, snapshot, p),
         compacts: buildCompacts(liveCompacts, snapshot, p),
+        listViews: buildListViews(liveListViews, snapshot, p),
         snapshot,
       });
     return groupVerbs(selection, pending, at, selectionNoun(selected, selection.length));
-  }, [selected, selection, tabs, homeMenu, pending, profile, layouts, compacts, snapshot, tabItems, actionItems, liveLayouts, liveCompacts, pageDraft, pageItem, catalog]);
+  }, [selected, selection, tabs, homeMenu, pending, profile, layouts, compacts, listViews, snapshot, tabItems, actionItems, liveLayouts, liveCompacts, liveListViews, pageDraft, pageItem, catalog]);
   const groupName = selected && selection.length > 1 ? `${selection.length} ${selectionNoun(selected, selection.length)}` : undefined;
   // The selected component's property definitions: its js-meta.xml or the curated table, read once per component.
   const [propDefs, setPropDefs] = useState<Record<string, ComponentProps | "loading" | { error: string }>>({});
@@ -327,7 +366,9 @@ export function usePreviewEdit({
   const baseStatus =
     selected?.kind === "headerField"
       ? compactStatusOf(compacts[selected.compactLayout])
-      : selectedPage
+      : selected?.kind === "listView" || selected?.kind === "listColumn"
+        ? listViewStatusOf(listViews[listViewNameOf(selected)], snapshot?.objects[selected.object]?.listViews)
+        : selectedPage
         ? pageStatusOf(pageEntry)
         : statusOf(layoutEntry);
 
@@ -422,6 +463,10 @@ export function usePreviewEdit({
           if (!key || next === undefined) return null;
           return t.kind === "recordTab" ? moveRecordTabTo(d, key, next, pending) : moveComponentTo(d, key, next, pending);
         }
+        if (t.kind === "listColumn") {
+          const l = listViews[t.listView];
+          return l?.status === "ready" ? moveListColumnTo(l.draft, t.column, before?.kind === "listColumn" ? before.column : null, pending) : null;
+        }
         if (t.kind === "headerField") {
           const c = compacts[t.compactLayout];
           return c?.status === "ready" ? moveCompactFieldTo(c.draft, t.field, before?.kind === "headerField" ? before.field : null, pending) : null;
@@ -443,7 +488,7 @@ export function usePreviewEdit({
       onPendingChange(moved);
       return true;
     },
-    [snapshot, profile, tabItems, actionItems, compacts, layouts, pages, pending, onPendingChange]
+    [snapshot, profile, tabItems, actionItems, compacts, layouts, pages, listViews, pending, onPendingChange]
   );
   const openSetup = useCallback(() => {
     if (org && info?.setup) window.lscApi.openSfOrg(org, info.setup.path);
@@ -458,6 +503,7 @@ export function usePreviewEdit({
           homeMenu,
           layouts,
           compacts,
+          listViews,
           pages,
           selected,
           onSelect,
@@ -468,7 +514,7 @@ export function usePreviewEdit({
           onDrop: draft ? drop : undefined,
           setup: org ? info?.setup : null,
           onSetup: openSetup,
-          horizontal: selected?.kind === "tab" || selected?.kind === "headerField" || selected?.kind === "recordTab",
+          horizontal: selected?.kind === "tab" || selected?.kind === "headerField" || selected?.kind === "recordTab" || selected?.kind === "listColumn",
         }
       : undefined;
 
@@ -488,13 +534,25 @@ export function usePreviewEdit({
           onRetryLayout={
             selected?.kind === "headerField"
               ? () => fetchCompact(selected.compactLayout)
-              : selectedPage
+              : selected?.kind === "listView" || selected?.kind === "listColumn"
+                ? () => fetchListView(listViewNameOf(selected))
+                : selectedPage
                 ? () => fetchPage(selectedPage)
                 : selected && "layout" in selected && selected.layout
                 ? () => fetchLayout(selected.layout!)
                 : undefined
           }
           properties={properties}
+          extra={
+            (selected?.kind === "listView" || selected?.kind === "listColumn") && listViews[listViewNameOf(selected)]?.status === "ready" ? (
+              <ListViewEditor
+                draft={(listViews[listViewNameOf(selected)] as Extract<ListViewEntry, { status: "ready" }>).draft}
+                editable={draft}
+                pending={pending}
+                onChange={onPendingChange}
+              />
+            ) : undefined
+          }
           onProperty={(p, value) => {
             const next = p.set(value, pending);
             if (next) onPendingChange(next);
@@ -519,7 +577,9 @@ export function usePreviewEdit({
             eyebrow={
               selected?.kind === "headerField"
                 ? "Compact layout · record header"
-                : pageDraft
+                : selected?.kind === "listView" || selected?.kind === "listColumn"
+                  ? `List view · ${selected.kind === "listView" ? selected.label : selected.viewLabel}`
+                  : pageDraft
                   ? `Lightning page · ${pageDraft.label}`
                   : layoutEntry?.status === "ready"
                   ? `Page layout · ${layoutEntry.draft.label}`
@@ -633,6 +693,57 @@ export function buildCompacts(liveCompacts: Record<string, LiveCompactState>, sn
   return out;
 }
 
+/** The list view's Metadata API name ("Account.MyAccounts") for a list view or column target. */
+export function listViewNameOf(t: Extract<EditTarget, { kind: "listView" | "listColumn" }>): string {
+  return t.kind === "listView" ? `${t.object}.${t.name}` : t.listView;
+}
+
+const LIST_STALE =
+  "This list view's columns changed in Setup since the last publish, so Studio can't line the list up with it. Publish to iPad (or refresh the preview) to edit it here.";
+
+const LIST_MANAGED = "This list view was installed from a managed package, so it can't be changed. Create a copy in Setup and edit that.";
+
+/** Each read list view as the tray `overlay` leaves it, like `buildCompacts`. */
+export function buildListViews(liveListViews: Record<string, LiveListViewState>, snapshot: PublishedIpad | null, overlay: PendingChange[]): Record<string, ListViewEntry> {
+  const out: Record<string, ListViewEntry> = {};
+  for (const [name, state] of Object.entries(liveListViews)) {
+    if (state.status !== "ready") {
+      out[name] = state;
+      continue;
+    }
+    const live = state.live;
+    if (live.managed) {
+      out[name] = { status: "stale", live, note: LIST_MANAGED };
+      continue;
+    }
+    const object = name.slice(0, name.indexOf("."));
+    const published = snapshot?.objects[object]?.listViews.find((l) => l.source?.fullName === name || `${object}.${l.name}` === name);
+    const base = listModelOf(live);
+    if (!published || !alignListView(published, base.columns)) {
+      out[name] = { status: "stale", live, note: LIST_STALE };
+      continue;
+    }
+    try {
+      const target = listViewTargetOf(name, base, overlay);
+      const columns = draftListColumns(published, live, base.columns, target.columns);
+      const draft: ListViewDraft = {
+        fullName: name,
+        label: live.label,
+        live,
+        base,
+        target,
+        shown: columns.filter((c) => c.state !== "removed").map((c) => c.id),
+        legacy: base.columns.some(isLegacyId) || base.filters.some((f) => isLegacyId(f.field)),
+      };
+      out[name] = { status: "ready", draft, columns, published, filtersChanged: filtersChanged(published, live) };
+    } catch (e) {
+      if (!(e instanceof StaleDraftError)) throw e;
+      out[name] = { status: "stale", live, note: `The queued edits no longer fit this list view: ${e.message} Take them out of the tray and refresh the preview.` };
+    }
+  }
+  return out;
+}
+
 /** What a block's verbs are drawn from: the Draft tab bar, Home menu and layouts for one tray. */
 export interface VerbContext {
   tabs: DraftTab[];
@@ -641,11 +752,12 @@ export interface VerbContext {
   profile: string;
   layouts: Record<string, LayoutEntry>;
   compacts: Record<string, CompactEntry>;
+  listViews: Record<string, ListViewEntry>;
   snapshot: PublishedIpad | null;
 }
 
 /** The verbs for one block. Blocks are found again by name: a move changes their index. */
-export function blockVerbs(selected: EditTarget, { tabs, homeMenu, pending, profile, layouts, compacts, snapshot }: VerbContext): Verb[] {
+export function blockVerbs(selected: EditTarget, { tabs, homeMenu, pending, profile, layouts, compacts, listViews, snapshot }: VerbContext): Verb[] {
   if (!profile) return [];
   if (selected.kind === "tab") {
     const i = tabs.findIndex((d) => d.tab.fullName === selected.fullName);
@@ -658,6 +770,11 @@ export function blockVerbs(selected: EditTarget, { tabs, homeMenu, pending, prof
   if (selected.kind === "headerField") {
     const c = compacts[selected.compactLayout];
     return c?.status === "ready" ? compactVerbs(c.draft, selected.field, selected.label) : [];
+  }
+  if (selected.kind === "listView" || selected.kind === "listColumn") {
+    const l = listViews[listViewNameOf(selected)];
+    if (l?.status !== "ready") return [];
+    return selected.kind === "listView" ? listViewVerbs(l.draft) : listColumnVerbs(l.draft, selected.column, selected.label);
   }
   const entry = "layout" in selected && selected.layout ? layouts[selected.layout] : undefined;
   if (entry?.status !== "ready") return [];
@@ -677,6 +794,7 @@ export function blockVerbs(selected: EditTarget, { tabs, homeMenu, pending, prof
 
 export type LiveState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; live: LiveLayout };
 export type LiveCompactState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; live: LiveCompactLayout };
+export type LiveListViewState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; live: LiveListView };
 export type LivePageState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; live: LiveFlexiPage };
 
 /** A page layout in edit mode: still loading, unreadable, out of line with the last publish, or ready to draw and edit. */
@@ -692,6 +810,13 @@ export type CompactEntry =
   | { status: "error"; error: string }
   | { status: "stale"; live: LiveCompactLayout; note: string }
   | { status: "ready"; draft: CompactDraft; fields: DraftHeaderField[] };
+
+/** A list view in edit mode, like `CompactEntry`: `columns` is the list as the tray leaves it; a managed view comes back stale, saying why. */
+export type ListViewEntry =
+  | { status: "loading" }
+  | { status: "error"; error: string }
+  | { status: "stale"; live: LiveListView; note: string }
+  | { status: "ready"; draft: ListViewDraft; columns: DraftListColumn[]; published: PublishedListView; filtersChanged: boolean };
 
 /** A Lightning page in edit mode, like `LayoutEntry`; a managed page comes back stale, saying why. */
 export type PageEntry =
@@ -756,6 +881,28 @@ function compactStatusOf(entry: CompactEntry | undefined): LayoutStatus | undefi
       const note = crowdedNote(entry.draft);
       return { ...reach(entry.draft.live), ...(note ? { note } : {}), production: entry.draft.live.production };
     }
+  }
+}
+
+function listViewStatusOf(entry: ListViewEntry | undefined, _published?: PublishedListView[]): LayoutStatus | undefined {
+  if (!entry) return undefined;
+  const noun = "list view";
+  switch (entry.status) {
+    case "loading":
+      return { loading: true, noun };
+    case "error":
+      return { problem: `Couldn't read the list view from the org: ${entry.error}`, canRetry: true, noun };
+    case "stale":
+      return { problem: entry.note, reach: listViewReach(entry.live.sharedTo), production: entry.live.production, noun };
+    case "ready":
+      return {
+        reach: listViewReach(entry.draft.live.sharedTo),
+        production: entry.draft.live.production,
+        noun,
+        ...(entry.filtersChanged
+          ? { note: "This list view's filters or scope changed in Setup since the last publish, so the rows drawn here come from the earlier ones. The columns are current." }
+          : {}),
+      };
   }
 }
 

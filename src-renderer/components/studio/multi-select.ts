@@ -22,6 +22,8 @@ export function containerOf(t: EditTarget): string | null {
       return t.layout ? `related:${t.layout}` : null;
     case "headerField":
       return `headerField:${t.compactLayout}`;
+    case "listColumn":
+      return `listColumn:${t.listView}`;
     case "action":
       return `action:${t.place}:${t.object ?? ""}`;
     // Lightning page components and record tabs are edited one at a time.
@@ -104,6 +106,7 @@ export function selectionNoun(t: EditTarget, n: number): string {
     headerField: ["header field", "header fields"],
     action: ["action", "actions"],
     listView: ["list view", "list views"],
+    listColumn: ["column", "columns"],
   };
   return words[t.kind][n === 1 ? 0 : 1];
 }

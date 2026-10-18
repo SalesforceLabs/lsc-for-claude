@@ -66,7 +66,9 @@ export type EditTarget =
       place: "home" | "record";
       object?: string;
     }
-  | { kind: "listView"; object: string; name: string; label: string };
+  | { kind: "listView"; object: string; name: string; label: string }
+  /** One column of a list view; `listView` is its Metadata API name ("Account.MyAccounts"), `column` the id the view stores. */
+  | { kind: "listColumn"; object: string; listView: string; viewLabel: string; column: string; label: string; added?: boolean };
 
 /** Stable identity of a block, for hover, selection, and the DOM's `data-edit-key`. */
 export function targetKey(t: EditTarget): string {
@@ -91,6 +93,8 @@ export function targetKey(t: EditTarget): string {
       return `action:${t.place}:${t.object ?? ""}:${t.name}`;
     case "listView":
       return `listView:${t.object}:${t.name}`;
+    case "listColumn":
+      return `listColumn:${t.listView}:${t.column}`;
   }
 }
 
@@ -121,6 +125,8 @@ function kindLabel(t: EditTarget): string {
       return t.place === "home" ? "Home action" : "Record action";
     case "listView":
       return "List view";
+    case "listColumn":
+      return "List column";
   }
 }
 
@@ -531,13 +537,33 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
         why: [
           "The list view is shared with the rep: with all users, or a group, role or territory they're in.",
           ...(hidden.length ? [`${hidden.length} other list views aren't shared with them.`] : []),
+          "The iPad lists a view's records as Everything or Mine; it ignores any other filter scope. A view's sort comes from the org, and can't be changed here.",
         ],
         how: [
           `Open ${t.object} in Salesforce, choose the list view, then the gear: Edit List Filters, Select Fields to Display, or Sharing Settings.`,
-          PUBLISH,
+          "Change its columns, filters and filter scope here in Draft. The iPad reads list views from the org when a rep opens them, so there is nothing to publish.",
         ],
         reach: "Everyone the list view is shared with.",
         setup: SETUP.listView(t.object, t.name),
+        syncObject: t.object,
+      };
+    }
+    case "listColumn": {
+      const name = t.listView.slice(t.listView.indexOf(".") + 1);
+      return {
+        ...base,
+        draftOnly: !!t.added,
+        what: [t.object, `List view "${t.viewLabel}"`, t.column],
+        why: [
+          "The list view has the field as a column, so the iPad shows it as a column of the list.",
+          "The profile has to be able to read the field (field-level security).",
+        ],
+        how: [
+          `Open ${t.object} in Salesforce, choose the list view "${name}", then the gear: Select Fields to Display.`,
+          "Move, remove or add columns from the toolbar; the order is the order on the iPad.",
+        ],
+        reach: "Everyone the list view is shared with.",
+        setup: SETUP.listView(t.object, name),
         syncObject: t.object,
       };
     }

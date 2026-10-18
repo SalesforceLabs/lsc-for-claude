@@ -1,5 +1,5 @@
 /**
- * One metadata document (a page layout, compact layout or Lightning page)
+ * One metadata document (a page layout, compact layout, Lightning page or list view)
  * retrieved into the session's temp SFDX project, edited as an XML tree, and
  * deployed back as that single file. The retrieve folder is removed afterwards.
  */
@@ -9,13 +9,14 @@ import * as path from "path";
 import { deployMetadata, retrieveMetadata } from "../../salesforce/cli.js";
 import { parseXml, serializeXml, type XmlNode } from "./xml.js";
 
-export type MetadataDocType = "Layout" | "CompactLayout" | "FlexiPage" | "Profile";
+export type MetadataDocType = "Layout" | "CompactLayout" | "FlexiPage" | "Profile" | "ListView";
 
 const SUFFIX: Record<MetadataDocType, string> = {
   Layout: ".layout-meta.xml",
   CompactLayout: ".compactLayout-meta.xml",
   FlexiPage: ".flexipage-meta.xml",
   Profile: ".profile-meta.xml",
+  ListView: ".listView-meta.xml",
 };
 
 export interface MetadataDoc {

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { validateOrgConnection } from "../salesforce/auth.js";
 import { getFeature, listFeatures } from "../studio/features.js";
 import { collectFeatureMap, collectItemDetail, collectProfileOptions } from "../studio/collect.js";
-import { flexiPageReach, readLiveCompactLayout, readLiveFlexiPage, readLiveLayout } from "../studio/metadata/live.js";
+import { flexiPageReach, readLiveCompactLayout, readLiveFlexiPage, readLiveLayout, readLiveListView } from "../studio/metadata/live.js";
 import { collectCatalog } from "../studio/component-catalog.js";
 import { collectComponentProps } from "../studio/component-props.js";
 import { accessOptions, userAccess } from "../studio/access.js";
@@ -111,8 +111,23 @@ const compactOpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("removeCompactField"), field: z.string() }),
   z.object({ op: z.literal("addCompactField"), field: z.string(), before: z.string().nullable() }),
 ]);
+const listViewFilterSchema = z.object({ field: z.string().max(255), operation: z.string().max(40), value: z.string().max(1000) });
+const listViewOpSchema = z.discriminatedUnion("op", [
+  z.object({ op: z.literal("moveListColumn"), column: z.string(), before: z.string().nullable() }),
+  z.object({ op: z.literal("removeListColumn"), column: z.string() }),
+  z.object({ op: z.literal("addListColumn"), column: z.string(), before: z.string().nullable() }),
+  z.object({ op: z.literal("setListFilterScope"), from: z.string().nullable(), to: z.string() }),
+  z.object({
+    op: z.literal("setListFilters"),
+    from: z.array(listViewFilterSchema).max(50),
+    to: z.array(listViewFilterSchema).max(50),
+    fromLogic: z.string().max(255).nullable(),
+    toLogic: z.string().max(255).nullable(),
+  }),
+]);
 const layoutName = z.string().regex(/^[^\r\n:]+-[^\r\n]+$/).max(255);
 const compactLayoutName = z.string().regex(/^\w+\.\w+$/).max(255);
+const listViewName = compactLayoutName;
 
 const fixSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("assignPsl"), label: z.string(), userId: id, userName: z.string(), pslId: id, pslLabel: z.string() }),
@@ -214,8 +229,9 @@ const fixSchema = z.discriminatedUnion("kind", [
       z.object({ type: z.literal("Layout"), fullName: layoutName, label: z.string() }),
       z.object({ type: z.literal("CompactLayout"), fullName: compactLayoutName, label: z.string() }),
       z.object({ type: z.literal("FlexiPage"), fullName: flexiPageName, label: z.string() }),
+      z.object({ type: z.literal("ListView"), fullName: listViewName, label: z.string() }),
     ]),
-    ops: z.array(z.union([layoutOpSchema, compactOpSchema, flexiPageOpSchema])).max(200),
+    ops: z.array(z.union([layoutOpSchema, compactOpSchema, flexiPageOpSchema, listViewOpSchema])).max(200),
   }),
   z.object({
     kind: z.literal("copyForProfile"),
@@ -374,10 +390,10 @@ export function register(server: McpServer) {
 
   server.tool(
     "studio_metadata_doc",
-    "LSC Studio (GUI data): a page layout, compact layout or Lightning page as it is in the org now — a layout's sections, fields, related lists and the profiles using it; a compact layout's fields, the fields it could take and the record types using it; a Lightning page's regions, facets and components, the profiles and apps it's assigned in and whether it's managed — and whether the org is production, for editing it in the iPad preview. Read-only. Returns JSON.",
-    { type: z.enum(["Layout", "CompactLayout", "FlexiPage"]), fullName: z.string().max(255) },
+    "LSC Studio (GUI data): a page layout, compact layout, Lightning page or list view as it is in the org now — a layout's sections, fields, related lists and the profiles using it; a compact layout's fields, the fields it could take and the record types using it; a Lightning page's regions, facets and components, the profiles and apps it's assigned in and whether it's managed; a list view's columns, filters, filter scope, who it's shared with and the object's fields — and whether the org is production, for editing it in the iPad preview. Read-only. Returns JSON.",
+    { type: z.enum(["Layout", "CompactLayout", "FlexiPage", "ListView"]), fullName: z.string().max(255) },
     async ({ type, fullName }) => {
-      const name = (type === "Layout" ? layoutName : type === "CompactLayout" ? compactLayoutName : flexiPageName).safeParse(fullName);
+      const name = (type === "Layout" ? layoutName : type === "CompactLayout" ? compactLayoutName : type === "ListView" ? listViewName : flexiPageName).safeParse(fullName);
       if (!name.success) return jsonError(`Invalid ${type} name: ${fullName}`);
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
@@ -386,7 +402,13 @@ export function register(server: McpServer) {
       try {
         const org = connection.targetOrg;
         return json(
-          type === "Layout" ? await readLiveLayout(fullName, org) : type === "CompactLayout" ? await readLiveCompactLayout(fullName, org) : await readLiveFlexiPage(fullName, org)
+          type === "Layout"
+            ? await readLiveLayout(fullName, org)
+            : type === "CompactLayout"
+              ? await readLiveCompactLayout(fullName, org)
+              : type === "ListView"
+                ? await readLiveListView(fullName, org)
+                : await readLiveFlexiPage(fullName, org)
         );
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));

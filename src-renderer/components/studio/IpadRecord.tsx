@@ -19,13 +19,14 @@ import { CustomIcon, FileIcon, PersonAccountIcon } from "./assets/icons";
 import type { DraftState } from "./edit-draft";
 import { addedRelated, draftRelated } from "./layout-draft";
 import { draftComponents, draftRecordTabs, sourceKey, type DrawnBlock, type PageDraft } from "./flexipage-draft";
-import type { CompactEntry, LayoutEntry, PageEntry } from "./usePreviewEdit";
+import type { CompactEntry, LayoutEntry, ListViewEntry, PageEntry } from "./usePreviewEdit";
 
 /** Edit mode's page layouts, compact layouts and Lightning pages, read from the org: Draft draws them as the tray would leave them. */
 export const LayoutEdits = createContext<{
   draft: boolean;
   layouts: Record<string, LayoutEntry>;
   compacts?: Record<string, CompactEntry>;
+  listViews?: Record<string, ListViewEntry>;
   pages?: Record<string, PageEntry>;
 } | null>(null);
 
