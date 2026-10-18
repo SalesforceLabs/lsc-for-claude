@@ -1,7 +1,8 @@
 /**
  * Edits to a Lightning page's XML: move, remove and insert components and
- * record tabs within their region or facet, and set a few properties
- * (`mobileHeight`, a tab's `active` and `title`, `maxRecordsToDisplay` / `rowsToDisplay`).
+ * record tabs within their region or facet, and set a component's simple
+ * properties (the properties sheet: `mobileHeight`, a tab's `active` and `title`,
+ * `rowsToDisplay`, any other string value of up to 1,000 characters).
  *
  * Regions and facets are found by name; items by their `identifier` when they
  * have one, else by index, and their component name is checked either way.
@@ -170,6 +171,9 @@ const position = (root: XmlNode, region: XmlNode, item: XmlNode) =>
 
 // --- Properties --------------------------------------------------------------------
 
+const NUMBER_PROPERTIES = new Set(["mobileHeight", "maxRecordsToDisplay", "rowsToDisplay"]);
+const VALUE_MAX = 1000;
+
 function propertyAllowed(component: string, property: FlexiPageProperty): boolean {
   const name = component.includes(":") ? component.split(":")[1] : component;
   switch (property) {
@@ -177,10 +181,9 @@ function propertyAllowed(component: string, property: FlexiPageProperty): boolea
       return name.startsWith("lscMobileInline_");
     case "active":
     case "title":
-      return component === "flexipage:tab";
-    case "maxRecordsToDisplay":
-    case "rowsToDisplay":
-      return true;
+      return component === "flexipage:tab" || property === "title";
+    default:
+      return /^\w+$/.test(property);
   }
 }
 
@@ -190,7 +193,9 @@ function assertValue(property: FlexiPageProperty, value: string | null): void {
       ? value === null || value === "true" || value === "false"
       : property === "title"
         ? value !== null && value.trim().length > 0 && value.length <= 255
-        : value !== null && /^\d{1,4}$/.test(value) && Number(value) >= 1;
+        : NUMBER_PROPERTIES.has(property)
+          ? value !== null && /^\d{1,4}$/.test(value) && Number(value) >= 1
+          : value === null || value.length <= VALUE_MAX;
   if (!ok) throw new Error(`Invalid ${property}: ${value ?? "(none)"}`);
 }
 
@@ -346,6 +351,11 @@ export function applyFlexiPageOp(root: XmlNode, op: FlexiPageOp): { inverse: Fle
       assertValue(op.property, op.to);
       const region = findRegion(root, op.component.region);
       const item = findItem(region, op.component.item);
+      const node = propertyNode(item, op.property);
+      if (node && childrenNamed(node, "valueList").length) throw new Error(`Studio can't set ${op.property}: it is a list.`);
+      if (facetsOf(root, item).includes(propertiesOf(item)[op.property] ?? "") || facetsOf(root, item).includes(op.to ?? "\0")) {
+        throw new Error(`Studio can't set ${op.property}: it points at a region of the page.`);
+      }
       const now = propertiesOf(item)[op.property] ?? null;
       if (now !== op.from) {
         throw new StaleFlexiPageError(`${itemWords(item)}'s ${op.property} is now ${valueWords(op.property, now)}.`);

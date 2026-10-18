@@ -5,6 +5,7 @@ import { getFeature, listFeatures } from "../studio/features.js";
 import { collectFeatureMap, collectItemDetail, collectProfileOptions } from "../studio/collect.js";
 import { flexiPageReach, readLiveCompactLayout, readLiveFlexiPage, readLiveLayout } from "../studio/metadata/live.js";
 import { collectCatalog } from "../studio/component-catalog.js";
+import { collectComponentProps } from "../studio/component-props.js";
 import { accessOptions, userAccess } from "../studio/access.js";
 import { collectReadiness } from "../studio/readiness/index.js";
 import { collectSetupOverview } from "../studio/overview.js";
@@ -98,9 +99,9 @@ const flexiPageOpSchema = z.discriminatedUnion("op", [
   z.object({
     op: z.literal("setComponentProperty"),
     component: flexiComponentRef,
-    property: z.enum(["mobileHeight", "active", "title", "maxRecordsToDisplay", "rowsToDisplay"]),
-    from: z.string().max(255).nullable(),
-    to: z.string().max(255).nullable(),
+    property: z.string().regex(/^\w+$/).max(80),
+    from: z.string().max(1000).nullable(),
+    to: z.string().max(1000).nullable(),
   }),
 ]);
 const flexiPageName = z.string().regex(/^\w+$/).max(255);
@@ -401,6 +402,23 @@ export function register(server: McpServer) {
       }
       try {
         return json(await collectCatalog(pageType, sobject ?? null, connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_component_props",
+    "LSC Studio (GUI data): the properties of a Home or record Lightning page component for the iPad preview's properties sheet — a custom LWC's from its js-meta.xml targetConfigs, standard and LSC components from a curated table — each with type, range, options, default and whether the iPad reads it. Read-only. Returns JSON.",
+    { component: z.string().regex(/^\w+(:\w+)?$/).max(160), pageType: z.enum(["HomePage", "RecordPage"]).optional() },
+    async ({ component, pageType }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await collectComponentProps(component, pageType, connection.targetOrg));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
