@@ -246,7 +246,11 @@ function checkPermissions(user: UserInfo, feature: FeatureDefinition | undefined
       // recalculated, so the member permission sets are read as well.
       const groupIds = [...new Set(assignments.map((a) => str(a.PermissionSetGroupId)).filter(Boolean))];
       if (groupIds.length) {
-        const members = await query(`SELECT PermissionSetId FROM PermissionSetGroupComponent WHERE PermissionSetGroupId IN (${inList(groupIds)})`, org);
+        // A muting set's Read takes access away, so it isn't a source of access.
+        const members = await query(
+          `SELECT PermissionSetId FROM PermissionSetGroupComponent WHERE PermissionSetGroupId IN (${inList(groupIds)}) AND PermissionSet.Type != 'Muting'`,
+          org
+        );
         for (const m of members) parentIds.add(str(m.PermissionSetId));
       }
       if (user.profileId) {
@@ -254,6 +258,9 @@ function checkPermissions(user: UserInfo, feature: FeatureDefinition | undefined
         for (const r of own) parentIds.add(str(r.Id));
       }
       if (!parentIds.size) return { pass: false, detail: "No permission sets or profile permissions found.", fixes: [] };
+      // View All Data / Modify All Data read every object without any object permission rows.
+      const sets = await query(`SELECT Id, PermissionsViewAllData, PermissionsModifyAllData FROM PermissionSet WHERE Id IN (${inList([...parentIds])})`, org);
+      if (sets.some((r) => r.PermissionsViewAllData === true || r.PermissionsModifyAllData === true)) return { pass: true, detail: `Reads all ${objects.length} objects through View All Data or Modify All Data.` };
       const perms = await query(
         `SELECT SobjectType, PermissionsRead FROM ObjectPermissions WHERE SobjectType IN (${inList(objects)}) AND ParentId IN (${inList([...parentIds])})`,
         org

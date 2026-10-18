@@ -84,6 +84,15 @@ describe("traceUser", () => {
     expect(c.detail).toContain("ProviderVisit");
   });
 
+  it("passes object access for View All Data without object permission rows", async () => {
+    org.PermissionSet = [{ Id: "0PS000000000001", PermissionsViewAllData: true }];
+    org.ObjectPermissions = [];
+    const t = await traceUser(USER, "visit", "o");
+    const c = byId(t.checks, "user.access.permissions");
+    expect(c.status).toBe("pass");
+    expect(c.detail).toContain("View All Data");
+  });
+
   it("reads object access through the member permission sets of an assigned group", async () => {
     org.PermissionSetAssignment = [{ PermissionSetId: "0PS000000000009", PermissionSetGroupId: "0PG000000000001", PermissionSet: { Label: "Rep Group", Name: "Rep_Group" } }];
     org.PermissionSetGroupComponent = [{ PermissionSetId: "0PS000000000077" }];
