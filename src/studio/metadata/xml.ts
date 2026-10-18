@@ -61,6 +61,9 @@ export function serializeXml(root: XmlNode): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n${write(root, 0)}`;
 }
 
+/** One element on its own, without the declaration — what an undo keeps of something removed. */
+export const serializeNode = (node: XmlNode): string => write(node, 0);
+
 const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" };
 const UNESCAPES: Record<string, string> = Object.fromEntries(Object.entries(ESCAPES).map(([k, v]) => [v, k]));
 

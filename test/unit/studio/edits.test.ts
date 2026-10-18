@@ -282,3 +282,100 @@ describe("Visit engagement sidebar", () => {
     });
   });
 });
+
+describe("editMetadata (page layouts)", () => {
+  let dir: string;
+  let deployed: string | null;
+  const XML = fs.readFileSync(path.join(__dirname, "../../fixtures/metadata/PersonAccount-HCP_Layout.layout-meta.xml"), "utf-8");
+  const doc = { type: "Layout" as const, fullName: "PersonAccount-HCP Layout", label: "HCP Layout" };
+  const fix: StudioFix = {
+    kind: "editMetadata",
+    label: "Edit HCP Layout",
+    doc,
+    ops: [
+      { op: "moveRelatedList", relatedList: "Visits", before: "ContactPointAddresses" },
+      { op: "setFieldBehavior", field: "Type", from: "Edit", to: "Required" },
+    ],
+  };
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "studio-doc-"));
+    deployed = null;
+    vi.mocked(cli.retrieveMetadata).mockImplementation(async () => {
+      const out = fs.mkdtempSync(path.join(dir, "out-"));
+      fs.mkdirSync(path.join(out, "layouts"));
+      fs.writeFileSync(path.join(out, "layouts", "PersonAccount-HCP Layout.layout-meta.xml"), XML);
+      return { success: true, data: { outputDir: out } };
+    });
+    vi.mocked(cli.deployMetadata).mockImplementation(async (source) => {
+      deployed = fs.readFileSync(source, "utf-8");
+      return { success: true };
+    });
+    org.Layout = [{ Id: "00h000000000001", TableEnumOrId: "Account" }];
+    org.ProfileLayout = [{ Profile: { Name: "LS Rep" } }, { Profile: { Name: "LS Manager" } }, { Profile: { Name: "LS Rep" } }];
+    org.Organization = [{ IsSandbox: true }];
+    org.LifeSciConfigRecord = [];
+  });
+  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  it("previews each change in words with the XML diff and who it reaches, then deploys the one file", async () => {
+    const preview = await previewFix(fix, "org");
+    expect(preview.blocked).toBeUndefined();
+    expect(preview.changes.map((c) => [c.field, c.before, c.after])).toEqual([
+      ["Related list Visits", "Position 11 of 18", "Position 1 of 18"],
+      ["Field Type", "Editable", "Required"],
+    ]);
+    expect(preview.changes[1].diff).toContain("+                 <behavior>Required</behavior>");
+    expect(preview.warnings[0]).toBe("Deploys HCP Layout to the org — it's the layout for 2 profiles (LS Manager, LS Rep), and they all get the change.");
+    expect(preview.production).toBeUndefined();
+    // The retrieve folder is cleaned up.
+    expect(fs.readdirSync(dir)).toEqual([]);
+
+    const result = await applyFix(fix, "org");
+    expect(result.ok).toBe(true);
+    expect(deployed).toContain("<behavior>Required</behavior>\n                <field>Type</field>");
+    expect(cli.deployMetadata).toHaveBeenCalledWith(expect.stringMatching(/layout-meta\.xml$/), "org");
+    expect(result.undo).toMatchObject({
+      kind: "editMetadata",
+      ops: [
+        { op: "setFieldBehavior", field: "Type", from: "Required", to: "Edit" },
+        { op: "moveRelatedList", relatedList: "Visits", before: "AccountAssignedTerritory2sRelatedList" },
+      ],
+    });
+  });
+
+  it("flags production orgs", async () => {
+    org.Organization = [{ IsSandbox: false }];
+    expect((await previewFix(fix, "org")).production).toBe(true);
+  });
+
+  it("refuses when the layout changed since the preview was loaded", async () => {
+    const stale: StudioFix = { ...fix, ops: [{ op: "removeField", field: "Gone__c" }] };
+    const preview = await previewFix(stale, "org");
+    expect(preview.blocked).toBe("HCP Layout changed since the preview was loaded: Gone__c isn't on the layout. Refresh the preview.");
+    expect((await applyFix(stale, "org")).ok).toBe(false);
+    expect(cli.deployMetadata).not.toHaveBeenCalled();
+  });
+
+  it("warns when an added related list's object doesn't sync", async () => {
+    const addList: StudioFix = { ...fix, ops: [{ op: "addRelatedList", relatedList: "Gadgets__r", before: null, object: "Gadget__c" }] };
+    const preview = await previewFix(addList, "org");
+    expect(preview.warnings.join(" ")).toContain("No DB Schema record for Gadget__c");
+  });
+
+  it("caps a Visit layout's related lists at the sidebar's 10", async () => {
+    const visit: StudioFix = {
+      ...fix,
+      doc: { ...doc, fullName: "Visit-Visit Layout" },
+      ops: [{ op: "addRelatedList", relatedList: "Gadgets__r", before: null }],
+    };
+    expect((await previewFix(visit, "org")).blocked).toMatch(/would have 19 related lists/);
+  });
+
+  it("reports a failed deploy without claiming success", async () => {
+    vi.mocked(cli.deployMetadata).mockResolvedValue({ success: false, error: "INVALID_FIELD" });
+    const result = await applyFix(fix, "org");
+    expect(result).toMatchObject({ ok: false });
+    expect(result.message).toMatch(/INVALID_FIELD.*Nothing was changed/);
+  });
+});

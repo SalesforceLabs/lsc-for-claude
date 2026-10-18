@@ -80,7 +80,58 @@ export type StudioFix =
       relationshipName: string;
       /** true inserts the related list into the layout; false removes it (the undo). */
       add: boolean;
-    };
+    }
+  | EditMetadataFix;
+
+/** A page layout field's behavior. */
+export type FieldBehavior = "Edit" | "Required" | "Readonly";
+
+/** A layout section by its label as written in the XML and which of the sections with that label it is. */
+export interface SectionRef {
+  label: string;
+  nth: number;
+}
+
+/** A place in a layout column: before the field `before`, or at the end; `at` (a row index) is set by undo. */
+export interface FieldSlot {
+  section: SectionRef;
+  /** Column index in the XML. */
+  column: number;
+  before: string | null;
+  at?: number;
+}
+
+/** One edit to a page layout. Removes carry the removed XML when they're an undo. */
+export type LayoutOp =
+  | { op: "moveField"; field: string; to: FieldSlot }
+  | { op: "removeField"; field: string }
+  | { op: "addField"; field: string; behavior: FieldBehavior; to: FieldSlot; xml?: string }
+  | { op: "setFieldBehavior"; field: string; from: FieldBehavior; to: FieldBehavior }
+  | { op: "moveSection"; section: SectionRef; before: SectionRef | null }
+  | { op: "removeSection"; section: SectionRef }
+  | { op: "addSection"; xml: string; before: SectionRef | null }
+  | { op: "setSectionHeading"; section: SectionRef; from: boolean; to: boolean }
+  | { op: "moveRelatedList"; relatedList: string; before: string | null }
+  | { op: "removeRelatedList"; relatedList: string }
+  | { op: "addRelatedList"; relatedList: string; before: string | null; xml?: string; object?: string };
+
+export interface MetadataDocRef {
+  type: "Layout";
+  /** Metadata API name, e.g. "Account-Account Layout". */
+  fullName: string;
+  label: string;
+}
+
+/**
+ * Edits to one metadata document, deployed together. Each op is checked against
+ * the document as retrieved; undo is the reversed inverse ops.
+ */
+export interface EditMetadataFix {
+  kind: "editMetadata";
+  label: string;
+  doc: MetadataDocRef;
+  ops: LayoutOp[];
+}
 
 /** A field value on a new Admin Console record. `dataType` may be left out when it's known for the category or copied. */
 export interface ConfigFieldInput {
@@ -173,6 +224,8 @@ export interface FixPreview {
   warnings: string[];
   /** Set when the fix can't be applied (already done, no capacity, org changed). */
   blocked?: string;
+  /** The org is a production org (metadata deploys ask for an extra confirmation). */
+  production?: boolean;
 }
 
 export interface FixResult {

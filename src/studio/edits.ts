@@ -1,6 +1,7 @@
 /**
  * Studio edits to org metadata outside the Admin Console: custom script code,
- * validation rules, and the Visit engagement sidebar (page layout related lists).
+ * validation rules, the Visit engagement sidebar (page layout related lists),
+ * and page layouts edited in the iPad preview (`editMetadata`).
  *
  * Same contract as fixes.ts — previews re-read the live org and refuse (`blocked`)
  * when it no longer matches what the map saw; applying re-runs the preview and
@@ -20,6 +21,9 @@ import {
   type RetrievedLayout,
 } from "../salesforce/visit-layout.js";
 import { assertId, assertNames, PUBLISH_WARNING } from "./change-helpers.js";
+import { deployDoc, withDoc, type MetadataDoc } from "./metadata/doc.js";
+import { applyLayoutOps, relatedListCount, StaleLayoutError } from "./metadata/layout-ops.js";
+import { serializeXml, type XmlNode } from "./metadata/xml.js";
 import { scriptCodeFindings } from "./collect.js";
 import { lineCount, lineDiff } from "./diff.js";
 import { query, type Row } from "./helpers.js";
@@ -28,6 +32,7 @@ import type { FixPreview, FixResult, StudioFix } from "./types.js";
 type ScriptFix = Extract<StudioFix, { kind: "setCustomScriptCode" }>;
 type LayoutFix = Extract<StudioFix, { kind: "setLayoutRelatedList" }>;
 type RuleFix = Extract<StudioFix, { kind: "setActive" }> & { record: { type: "validationRule" } };
+type MetadataFix = Extract<StudioFix, { kind: "editMetadata" }>;
 
 // --- Custom script code ----------------------------------------------------------
 
@@ -231,12 +236,128 @@ async function applySetLayoutRelatedList(fix: LayoutFix, org: string): Promise<F
   };
 }
 
+// --- Page layouts edited in the iPad preview ------------------------------------------
+
+const soqlString = (v: string) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+
+export async function isProductionOrg(org: string): Promise<boolean> {
+  try {
+    const [rec] = await query("SELECT IsSandbox FROM Organization LIMIT 1", org);
+    return rec?.IsSandbox === false;
+  } catch {
+    return false;
+  }
+}
+
+/** "…the layout for 3 profiles (A, B, C)" — every profile assigned the layout gets a deployed change. */
+async function layoutReach(fix: MetadataFix, org: string): Promise<string> {
+  const fallback = `Deploys ${fix.doc.label} to the org — every profile assigned this layout gets the change.`;
+  try {
+    const dash = fix.doc.fullName.indexOf("-");
+    const object = fix.doc.fullName.slice(0, dash);
+    const name = decodeURIComponent(fix.doc.fullName.slice(dash + 1));
+    const layouts = await query(`SELECT Id, TableEnumOrId FROM Layout WHERE Name = ${soqlString(name)}`, org, true);
+    const table = object === "PersonAccount" ? "Account" : object;
+    const layout = layouts.length === 1 ? layouts[0] : layouts.find((l) => l.TableEnumOrId === table);
+    if (!layout) return fallback;
+    assertId(String(layout.Id));
+    const rows = await query(`SELECT Profile.Name FROM ProfileLayout WHERE LayoutId = '${layout.Id}'`, org, true);
+    const profiles = [...new Set(rows.map((r) => (r.Profile as Row | null)?.Name).filter((n): n is string => !!n))].sort();
+    if (!profiles.length) return `Deploys ${fix.doc.label} to the org. No profile is assigned this layout.`;
+    const shown = profiles.length > 4 ? `${profiles.slice(0, 4).join(", ")} and ${profiles.length - 4} more` : profiles.join(", ");
+    return profiles.length === 1
+      ? `Deploys ${fix.doc.label} to the org — it's the layout for ${shown}.`
+      : `Deploys ${fix.doc.label} to the org — it's the layout for ${profiles.length} profiles (${shown}), and they all get the change.`;
+  } catch {
+    return fallback;
+  }
+}
+
+interface MetadataPlan {
+  preview: FixPreview;
+  root?: XmlNode;
+  inverse?: MetadataFix["ops"];
+}
+
+async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string): Promise<MetadataPlan> {
+  const preview: FixPreview = { org, title: fix.label, changes: [], warnings: [] };
+  if (!fix.ops.length) return { preview: { ...preview, blocked: "Nothing to change." } };
+  let result: ReturnType<typeof applyLayoutOps>;
+  try {
+    result = applyLayoutOps(doc.root, fix.ops);
+  } catch (e) {
+    if (!(e instanceof StaleLayoutError)) throw e;
+    return { preview: { ...preview, blocked: `${fix.doc.label} changed since the preview was loaded: ${e.message} Refresh the preview.` } };
+  }
+  const after = serializeXml(result.root);
+  const diff = lineDiff(doc.xml, after);
+  if (!diff.length) return { preview: { ...preview, blocked: `${fix.doc.label} already looks like this. Refresh the preview.` } };
+  preview.changes = result.changes.map((c) => ({ target: fix.doc.label, ...c }));
+  preview.changes[preview.changes.length - 1].diff = diff;
+
+  if (fix.doc.fullName.startsWith("Visit-")) {
+    const [before, now] = [relatedListCount(doc.root), relatedListCount(result.root)];
+    if (now > before && now > MAX_SIDEBAR_RELATED_LISTS) {
+      return {
+        preview: {
+          ...preview,
+          blocked: `${fix.doc.label} would have ${now} related lists — the visit sidebar holds ${MAX_SIDEBAR_RELATED_LISTS} (8 out-of-the-box + 2 custom). Remove one first.`,
+        },
+      };
+    }
+  }
+
+  const [reach, production, ...dbWarnings] = await Promise.all([
+    layoutReach(fix, org),
+    isProductionOrg(org),
+    ...fix.ops.flatMap((op) => (op.op === "addRelatedList" && op.object && !op.xml ? [dbSchemaWarning(op.object, org)] : [])),
+  ]);
+  preview.warnings.push(reach as string, ...(dbWarnings as (string | null)[]).filter((w): w is string => !!w), PUBLISH_WARNING);
+  if (production) preview.production = true;
+  return { preview, root: result.root, inverse: result.inverse };
+}
+
+async function previewEditMetadata(fix: MetadataFix, org: string): Promise<FixPreview> {
+  const title = fix.label;
+  try {
+    return await withDoc(fix.doc.type, fix.doc.fullName, org, async (doc) => (await planEditMetadata(fix, doc, org)).preview);
+  } catch (e) {
+    return { org, title, changes: [], warnings: [], blocked: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+async function applyEditMetadata(fix: MetadataFix, org: string): Promise<FixResult> {
+  try {
+    return await withDoc(fix.doc.type, fix.doc.fullName, org, async (doc) => {
+      const { preview, root, inverse } = await planEditMetadata(fix, doc, org);
+      if (preview.blocked || !root || !inverse) return { ok: false, message: preview.blocked || "Nothing to update." };
+      try {
+        await deployDoc(doc, root, org);
+      } catch (e) {
+        return { ok: false, message: `${e instanceof Error ? e.message : String(e)}. Nothing was changed.` };
+      }
+      return {
+        ok: true,
+        message: `Updated ${fix.doc.label}.`,
+        undo: { kind: "editMetadata", label: `Undo: ${fix.label}`, doc: fix.doc, ops: inverse },
+      };
+    });
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 // --- Public API (dispatched from fixes.ts) --------------------------------------------
 
-export type EditFix = ScriptFix | LayoutFix | RuleFix;
+export type EditFix = ScriptFix | LayoutFix | RuleFix | MetadataFix;
 
 export function isEditFix(fix: StudioFix): fix is EditFix {
-  return fix.kind === "setCustomScriptCode" || fix.kind === "setLayoutRelatedList" || (fix.kind === "setActive" && isRuleFix(fix));
+  return (
+    fix.kind === "setCustomScriptCode" ||
+    fix.kind === "setLayoutRelatedList" ||
+    fix.kind === "editMetadata" ||
+    (fix.kind === "setActive" && isRuleFix(fix))
+  );
 }
 
 export async function previewEdit(fix: EditFix, org: string): Promise<FixPreview> {
@@ -251,6 +372,8 @@ export async function previewEdit(fix: EditFix, org: string): Promise<FixPreview
       const { metadata: _metadata, id: _id, ...preview } = await previewRuleActive(fix, org);
       return preview;
     }
+    case "editMetadata":
+      return previewEditMetadata(fix, org);
   }
 }
 
@@ -262,5 +385,7 @@ export async function applyEdit(fix: EditFix, org: string): Promise<FixResult> {
       return applySetLayoutRelatedList(fix, org);
     case "setActive":
       return applyRuleActive(fix, org);
+    case "editMetadata":
+      return applyEditMetadata(fix, org);
   }
 }

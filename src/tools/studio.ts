@@ -51,6 +51,34 @@ const accessSchema = z.object({
   id,
   label: z.string(),
 });
+const sectionRef = z.object({ label: z.string(), nth: z.number().int().min(0) });
+const fieldSlot = z.object({
+  section: sectionRef,
+  column: z.number().int().min(0),
+  before: z.string().nullable(),
+  at: z.number().int().min(0).optional(),
+});
+const behavior = z.enum(["Edit", "Required", "Readonly"]);
+const layoutOpSchema = z.discriminatedUnion("op", [
+  z.object({ op: z.literal("moveField"), field: z.string(), to: fieldSlot }),
+  z.object({ op: z.literal("removeField"), field: z.string() }),
+  z.object({ op: z.literal("addField"), field: z.string(), behavior, to: fieldSlot, xml: z.string().optional() }),
+  z.object({ op: z.literal("setFieldBehavior"), field: z.string(), from: behavior, to: behavior }),
+  z.object({ op: z.literal("moveSection"), section: sectionRef, before: sectionRef.nullable() }),
+  z.object({ op: z.literal("removeSection"), section: sectionRef }),
+  z.object({ op: z.literal("addSection"), xml: z.string(), before: sectionRef.nullable() }),
+  z.object({ op: z.literal("setSectionHeading"), section: sectionRef, from: z.boolean(), to: z.boolean() }),
+  z.object({ op: z.literal("moveRelatedList"), relatedList: z.string(), before: z.string().nullable() }),
+  z.object({ op: z.literal("removeRelatedList"), relatedList: z.string() }),
+  z.object({
+    op: z.literal("addRelatedList"),
+    relatedList: z.string(),
+    before: z.string().nullable(),
+    xml: z.string().optional(),
+    object: z.string().optional(),
+  }),
+]);
+
 const fixSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("assignPsl"), label: z.string(), userId: id, userName: z.string(), pslId: id, pslLabel: z.string() }),
   z.object({
@@ -142,6 +170,12 @@ const fixSchema = z.discriminatedUnion("kind", [
     objectName: z.string(),
     relationshipName: z.string(),
     add: z.boolean(),
+  }),
+  z.object({
+    kind: z.literal("editMetadata"),
+    label: z.string(),
+    doc: z.object({ type: z.literal("Layout"), fullName: z.string().regex(/^[^\r\n:]+-[^\r\n]+$/).max(255), label: z.string() }),
+    ops: z.array(layoutOpSchema).max(200),
   }),
 ]);
 
