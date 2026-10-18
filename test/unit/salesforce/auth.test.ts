@@ -93,6 +93,11 @@ describe("auth.ts", () => {
       vi.useFakeTimers({ toFake: ["Date"] });
       try {
         vi.setSystemTime(Date.now() + 6 * 60 * 1000);
+        // The expired probe answers at once; a new one runs behind it.
+        const stale = await checkSetupStatus();
+        expect(stale.hasAuthenticatedOrgs).toBe(true);
+        await vi.waitFor(() => expect(listOrgs).toHaveBeenCalledTimes(4));
+        await checkSetupStatus();
         await checkSetupStatus();
         expect(listOrgs).toHaveBeenCalledTimes(4);
       } finally {

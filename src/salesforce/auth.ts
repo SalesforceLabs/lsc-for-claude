@@ -84,8 +84,26 @@ async function probeCli(): Promise<CliProbe> {
   };
 }
 
+let refreshing: Promise<unknown> | undefined;
+
 function probe(fresh: boolean): Promise<CliProbe> {
   if (!fresh && cachedProbe && Date.now() - cachedProbe.at < PROBE_TTL_MS) return cachedProbe.promise;
+  // An old probe that found orgs is served while a new one runs in the background, so no call waits on `sf org list`.
+  if (!fresh && cachedProbe) {
+    if (!refreshing) {
+      const old = cachedProbe;
+      refreshing = probeCli()
+        .then((p) => {
+          if (cachedProbe === old) {
+            if (p.orgs?.length) cachedProbe = { at: Date.now(), promise: Promise.resolve(p) };
+            else cachedProbe = undefined;
+          }
+        })
+        .catch(() => undefined)
+        .finally(() => (refreshing = undefined));
+    }
+    return cachedProbe.promise;
+  }
   const promise = probeCli();
   const entry = { at: Date.now(), promise };
   cachedProbe = entry;

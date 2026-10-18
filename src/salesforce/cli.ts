@@ -11,7 +11,8 @@ import * as crypto from "crypto";
 import * as os from "os";
 import { cacheGet, cacheSet, queryCacheKey, describeCacheKey } from "../cache.js";
 import { sfLimiter } from "./limiter.js";
-import { directGet, directQuery, type DirectCredentials } from "./direct.js";
+import { directApiVersion, directEnabled, directGet, directQuery, type DirectCredentials } from "./direct.js";
+import { directDeploy, directRetrieve } from "./direct-metadata.js";
 import { invalidateSharedReads } from "../config/read-cache.js";
 
 const execAsync = promisify(exec);
@@ -527,6 +528,12 @@ export async function describeSObject(
   objectName: string,
   targetOrg: string
 ): Promise<CliResult<SObjectDescribeResult>> {
+  if (directEnabled(targetOrg) && /^\w+$/.test(objectName)) {
+    const version = await directApiVersion(targetOrg, directCredentials);
+    const direct = await directGet<SObjectDescribeResult>(`/services/data/v${version}/sobjects/${objectName}/describe`, targetOrg, directCredentials);
+    if (direct?.ok && typeof direct.data === "object") return { success: true, data: direct.data };
+    if (direct && !direct.ok) return { success: false, error: direct.error, timedOut: direct.timedOut };
+  }
   return execSfCommand<SObjectDescribeResult>("sobject", ["describe", "--sobject", objectName], {
     targetOrg,
   });
@@ -620,6 +627,8 @@ export async function deployMetadata(
   targetOrg: string
 ): Promise<CliResult<unknown>> {
   const cwd = ensureTmpSfdxProject();
+  const direct = await asWrite(targetOrg, () => directDeploy(sourcePath, targetOrg, directCredentials));
+  if (direct) return direct.ok ? { success: true, data: {} } : { success: false, error: direct.error, timedOut: direct.timedOut };
   return execSfCommand("project", ["deploy", "start", "--source-dir", sourcePath], {
     targetOrg,
     timeout: 300000,
@@ -665,9 +674,12 @@ export async function retrieveMetadata(
   targetOrg: string
 ): Promise<CliResult<{ outputDir: string }>> {
   const projectDir = ensureTmpSfdxProject();
-  const relativeOutput = path.join("retrieve-output", `${Date.now()}`);
+  const relativeOutput = path.join("retrieve-output", `${Date.now()}-${crypto.randomBytes(3).toString("hex")}`);
   const absoluteOutput = path.join(projectDir, relativeOutput);
   fs.mkdirSync(absoluteOutput, { recursive: true });
+
+  const direct = await directRetrieve([metadata].flat(), targetOrg, absoluteOutput, directCredentials);
+  if (direct) return direct.ok ? { success: true, data: { outputDir: absoluteOutput } } : { success: false, error: direct.error, timedOut: direct.timedOut };
 
   const result = await execSfCommand(
     "project",

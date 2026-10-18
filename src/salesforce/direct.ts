@@ -219,3 +219,66 @@ export async function directGet<T>(
     return { ok: true, data: res.body as unknown as T };
   }
 }
+
+const soapEscape = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/**
+ * One Metadata API SOAP call (`body` is the operation element, e.g. `<retrieve>…</retrieve>`).
+ * Gives back the response envelope on 2xx, the fault string otherwise. `null` means
+ * "transport unusable — fall back": no token, network trouble, or an expired token
+ * sf didn't refresh. Retried only on an invalid session, which Salesforce rejects
+ * before acting, so a deploy is never sent twice.
+ */
+export async function directMetadataSoap(
+  org: string,
+  body: string,
+  fetcher: CredentialFetcher,
+  timeoutMs = DEFAULT_TIMEOUT_MS
+): Promise<DirectOutcome<string> | null> {
+  if (!directEnabled(org)) return null;
+  let creds = await getCredentials(org, fetcher);
+  if (!creds) return null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const version = creds.apiVersion || DEFAULT_API_VERSION;
+    const url = `${creds.instanceUrl.replace(/\/$/, "")}/services/Soap/m/${version}`;
+    const envelope =
+      `<?xml version="1.0" encoding="UTF-8"?><env:Envelope xmlns:env="http://schemas.xmlsoap.org/soap/envelope/" xmlns="http://soap.sforce.com/2006/04/metadata">` +
+      `<env:Header><SessionHeader><sessionId>${soapEscape(creds.accessToken)}</sessionId></SessionHeader></env:Header><env:Body>${body}</env:Body></env:Envelope>`;
+    let res: Response;
+    try {
+      res = await sfLimiter.run(() =>
+        fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "text/xml; charset=utf-8", SOAPAction: '""' },
+          body: envelope,
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+      );
+    } catch (err) {
+      const name = err instanceof Error ? err.name : "";
+      if (name === "TimeoutError" || name === "AbortError") {
+        return { ok: false, timedOut: true, error: `Request timed out after ${Math.round(timeoutMs / 1000)}s` };
+      }
+      disabledOrgs.add(org);
+      return null;
+    }
+    const text = await res.text();
+    if (res.ok) return { ok: true, data: text };
+    const code = /<faultcode>([^<]*)<\/faultcode>/.exec(text)?.[1] ?? "";
+    const message = /<faultstring>([^<]*)<\/faultstring>/.exec(text)?.[1] ?? "";
+    if (/INVALID_SESSION_ID/.test(code)) {
+      if (attempt > 0) return null;
+      const next = await getCredentials(org, fetcher, true);
+      if (!next || next.accessToken === creds.accessToken) return null;
+      creds = next;
+      continue;
+    }
+    return { ok: false, status: res.status, error: message ? `${code.replace(/^\w+:/, "")}: ${message}`.replace(/^: /, "") : `HTTP ${res.status}` };
+  }
+  return null;
+}
+
+/** The API version the direct path talks to an org with (the sf CLI's), for package manifests. */
+export async function directApiVersion(org: string, fetcher: CredentialFetcher): Promise<string> {
+  return apiVersion(org, fetcher);
+}
