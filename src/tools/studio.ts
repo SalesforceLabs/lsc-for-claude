@@ -79,6 +79,7 @@ const layoutOpSchema = z.discriminatedUnion("op", [
     before: z.string().nullable(),
     xml: z.string().optional(),
     object: z.string().optional(),
+    nameField: z.string().optional(),
   }),
 ]);
 const flexiItemRef = z.object({ component: z.string().max(255), identifier: z.string().max(255).nullable(), index: z.number().int().min(0) });

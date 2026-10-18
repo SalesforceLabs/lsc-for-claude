@@ -191,11 +191,11 @@ function placeRelated(root: XmlNode, rl: XmlNode, before: string | null): void {
 
 const relatedPosition = (root: XmlNode, rl: XmlNode) => `${relatedLists(root).indexOf(rl) + 1} of ${relatedLists(root).length}`;
 
-/** The block a new related list gets: its Name column, without the New button (not every child object takes MassDeleteAll, and the org refuses a layout that excludes an action the list lacks). */
-export function newRelatedList(name: string): XmlNode {
+/** The block a new related list gets: its name column (`nameField`; the legacy NAME token only suits some objects), without the New button (not every child object takes MassDeleteAll, and the org refuses a layout that excludes an action the list lacks). */
+export function newRelatedList(name: string, nameField = "NAME"): XmlNode {
   return {
     tag: "relatedLists",
-    children: [leaf("excludeButtons", "New"), leaf("fields", "NAME"), leaf("relatedList", name)],
+    children: [leaf("excludeButtons", "New"), leaf("fields", nameField), leaf("relatedList", name)],
   };
 }
 
@@ -338,7 +338,7 @@ export function applyLayoutOp(root: XmlNode, op: LayoutOp): { inverse: LayoutOp;
       if (relatedLists(root).some((r) => relatedName(r) === op.relatedList)) {
         throw new StaleLayoutError(`The related list ${op.relatedList} is already on the layout.`);
       }
-      const rl = op.xml ? parseFragment(op.xml, "relatedLists") : newRelatedList(op.relatedList);
+      const rl = op.xml ? parseFragment(op.xml, "relatedLists") : newRelatedList(op.relatedList, op.nameField);
       if (relatedName(rl) !== op.relatedList) throw new Error("The related list doesn't match its XML.");
       placeRelated(root, rl, op.before);
       return {

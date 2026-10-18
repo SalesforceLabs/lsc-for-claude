@@ -114,7 +114,7 @@ export type LayoutOp =
   | { op: "setSectionHeading"; section: SectionRef; from: boolean; to: boolean }
   | { op: "moveRelatedList"; relatedList: string; before: string | null }
   | { op: "removeRelatedList"; relatedList: string }
-  | { op: "addRelatedList"; relatedList: string; before: string | null; xml?: string; object?: string };
+  | { op: "addRelatedList"; relatedList: string; before: string | null; xml?: string; object?: string; nameField?: string };
 
 /** One edit to a compact layout's fields (the record header). `before` is the field it goes in front of, or null for the end. */
 export type CompactOp =

@@ -428,6 +428,17 @@ describe("editMetadata (page layouts)", () => {
     expect(cli.deployMetadata).toHaveBeenCalledWith(expect.stringMatching(/layout-meta\.xml$/), "org", true);
   });
 
+  it("gives a new related list the child's record-name field, not the legacy NAME token", async () => {
+    vi.mocked(cli.cachedDescribeSObject).mockResolvedValue({
+      success: true,
+      data: { name: "Gadget__c", label: "Gadget", fields: [{ name: "Id" }, { name: "Name", nameField: true }] },
+    } as never);
+    const add: StudioFix = { ...fix, ops: [{ op: "addRelatedList", relatedList: "Gadgets__r", before: null, object: "Gadget__c" }] };
+    expect((await applyFix(add, "org")).ok).toBe(true);
+    expect(deployed).toContain("<fields>Name</fields>\n        <relatedList>Gadgets__r</relatedList>");
+    expect(deployed).not.toContain("MassDeleteAll");
+  });
+
   it("still previews when the check itself couldn't run", async () => {
     vi.mocked(cli.deployMetadata).mockImplementation(async (_source, _org, checkOnly) =>
       checkOnly ? { success: false, error: "network down" } : { success: true }

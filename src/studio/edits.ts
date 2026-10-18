@@ -8,7 +8,7 @@
  * returns the inverse fix.
  */
 
-import { apiRequest, deployMetadata, describeSObject, updateToolingRecord } from "../salesforce/cli.js";
+import { apiRequest, cachedDescribeSObject, deployMetadata, describeSObject, updateToolingRecord } from "../salesforce/cli.js";
 import {
   MAX_SIDEBAR_RELATED_LISTS,
   countRelatedLists,
@@ -279,6 +279,22 @@ function applyFixOps(fix: MetadataFix, root: XmlNode): { root: XmlNode; inverse:
   return isCompactFix(fix) ? applyCompactOps(root, fix.ops) : applyLayoutOps(root, fix.ops as LayoutOp[]);
 }
 
+/** A new related list shows the child's record-name field; the org refuses `NAME` for many objects, so ask the child's describe. */
+async function withNameFields(ops: LayoutOp[], org: string): Promise<LayoutOp[]> {
+  return Promise.all(
+    ops.map(async (op) => {
+      if (op.op !== "addRelatedList" || op.xml || op.nameField || !op.object) return op;
+      try {
+        const described = await cachedDescribeSObject(op.object, org);
+        const nameField = described.success ? described.data?.fields.find((f) => f.nameField)?.name : undefined;
+        return nameField ? { ...op, nameField } : op;
+      } catch {
+        return op;
+      }
+    })
+  );
+}
+
 interface MetadataPlan {
   preview: FixPreview;
   root?: XmlNode;
@@ -297,7 +313,7 @@ async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string)
   if (!fix.ops.length) return { preview: { ...preview, blocked: "Nothing to change." } };
   let result: ReturnType<typeof applyFixOps>;
   try {
-    result = applyFixOps(fix, doc.root);
+    result = applyFixOps(fix.doc.type === "Layout" ? ({ ...fix, ops: await withNameFields(fix.ops as LayoutOp[], org) } as MetadataFix) : fix, doc.root);
   } catch (e) {
     if (!(e instanceof StaleLayoutError) && !(e instanceof StaleCompactError)) throw e;
     return { preview: { ...preview, blocked: `${fix.doc.label} changed since the preview was loaded: ${e.message} Refresh the preview.` } };

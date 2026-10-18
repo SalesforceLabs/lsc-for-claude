@@ -87,6 +87,8 @@ export interface SObjectDescribeResult {
     deprecatedAndHidden?: boolean;
     /** Whether the field can be used in a list view filter. */
     filterable?: boolean;
+    /** The object's record-name field. */
+    nameField?: boolean;
   }>;
   childRelationships?: Array<{
     childSObject: string;
