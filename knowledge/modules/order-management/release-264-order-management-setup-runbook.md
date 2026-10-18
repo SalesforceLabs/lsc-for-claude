@@ -37,3 +37,15 @@ Create the custom Pricebook2 (active), then insert PricebookEntry rows in the St
 
 ## Not Yet Validated in the Field Notes
 Quote-enabled Account record type/layout, Visit Record Type Routing, FLS by profile, Product Catalog for LSC, Assortment/Store Assortment, PTA with Purpose = Quote, Price Adjustment Tiers for LS products, mobile cache regeneration, Store Check setup, and end-to-end rep validation were left undone (they need design decisions or UI).
+
+## Verified Against Official Help
+- Help confirms the Salesforce Go path and the toggle contents (Revenue Cloud, Quotes, Document Builder, Advanced Approvals, Context Service, Salesforce Pricing, Price Waterfall, Transaction Pricing, Quote Capture, Standard Price Book), then deploy the Quote record page. Requires the Revenue Lifecycle Management add-on license, which aligns with the runbook's "Revenue Cloud not enabled" signal.
+- Help rep permission sets also include Health Cloud Starter and Life Sciences Core (assign by label, consistent with the error table above).
+- Admin Console path in Help: Admin Console > Orders Management > Quotes and Pricing settings tab.
+- Regenerate the mobile metadata cache after any price book or pricing procedure change.
+- Setup entry points, Store Check: Help "Set Up Store Check" (turn on in Salesforce Go > Agentforce Life Sciences > Store Check; seven-step Configure Store Check; Action Plan Type = LS Store Check; assortment UsageType = Store Check; publishing an action plan template locks it).
+
+## Sources
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_setup_om_basics.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_get_org_ready_users.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_store_check_setup.htm&release=264.0.0&type=5

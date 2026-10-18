@@ -135,7 +135,7 @@ function gather(user: UserInfo, org: string): Facts {
         )
       : Promise.resolve([]),
     syncs: query(
-      `SELECT Id, Type, DownloadStart, DownloadEnd, CreatedDate FROM DeviceSyncSummary WHERE CreatedById = '${id}' ORDER BY CreatedDate DESC LIMIT 20`,
+      `SELECT Id, Type, DownloadStart, DownloadEnd, CreatedDate FROM DeviceSyncSummary WHERE CreatedById = '${id}' AND Type != 'clm' ORDER BY CreatedDate DESC LIMIT 20`,
       org
     ),
   };

@@ -44,7 +44,7 @@ This plugin gives Claude deep expertise in Salesforce LSC for Customer Engagemen
 
 In Claude Code, run:
 ```
-/plugin marketplace add SalesforceLabs/LSC-for-Claude
+/plugin marketplace add SalesforceLabs/lsc-for-claude
 /plugin install lsc@lsc
 ```
 
@@ -53,11 +53,11 @@ This installs the plugin directly — no `npm install` or build step needed. The
 **Option 2: Local Development (Recommended)**
 
 ```bash
-git clone https://github.com/SalesforceLabs/LSC-for-Claude.git
-cd LSC-for-Claude
+git clone https://github.com/SalesforceLabs/lsc-for-claude.git
+cd lsc-for-claude
 npm install
 npm run build
-claude --plugin-dir ./LSC-for-Claude
+claude --plugin-dir ./lsc-for-claude
 ```
 
 ### First-Time Setup

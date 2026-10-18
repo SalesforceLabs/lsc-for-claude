@@ -35,3 +35,12 @@ Group visit:
 4. Tap Create Visit to open the visit with the remaining selections as attendees.
 
 Individual visit (mobile): in the Attendee section, tap the row-level calendar icon next to the attendee to start a visit for that attendee.
+
+## Verification Notes
+
+- No Help article for "Create Visit" from a Managed Event was found in the index (searched visit/attendee/workflow terms). The component name `industries_ls_commercial:eventVisitParticipantSelectorLauncher`, **Allowed Attendance Statuses for Visits** (not present in the verified Field Events Profile Settings article), and the Workflow Configuration steps above are from the release note and **unverified**.
+- Verified related group-visit behavior (Add Attendees to Group Visits): add the **Child Visits** related list to the Visit page layout (enables the Attendees sidebar); each attendee gets a child visit linked to the parent; the account on a child visit cannot be changed (remove and re-add); removing an attendee deletes its visit and provider visit records; after the parent visit is submitted, Attendees is read-only; deleting a parent visit deletes children without warning, but is blocked if the parent is Completed or any child has a signature. Do not configure a New button on the Related List - Life Sciences Attendees component.
+
+## Sources
+
+- https://help.salesforce.com/s/articleView?id=ind.lsc_visit_management_add_attendees.htm&release=264.0.0&type=5

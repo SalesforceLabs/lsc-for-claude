@@ -60,3 +60,17 @@ Order Management requires Life Sciences Cloud for Customer Engagement plus the n
 ## Limitations / Gotchas
 - Agent support to recommend orders from sales trends and stock-out risk is described as future; today reps start from last order or store assortment.
 - Setup depends on Revenue Cloud Advanced; without it the Salesforce Go Order Management checklist cannot complete (see the runbook).
+
+## Verified Against Official Help
+- **Licensing correction:** Help states the requirement as Life Sciences Cloud + Life Sciences Cloud for Customer Engagement add-on + **Revenue Lifecycle Management add-on license** (and the managed package); it does not mention new SKU tiers or "Revenue Cloud Advanced". Mobile is iPad only.
+- Help: reps can pre-populate orders from an account's last order or assortments, capture digital signatures, work offline, and use approval workflows that block edits to submitted orders while managers can unlock/approve.
+- Dev guide: an order is a **Quote** (Quote + QuoteLineItem); Life Sciences adds fields on Quote and QuoteLineItem. Store Check uses Consumer Goods objects (Assortment, StoreAssortment, AssortmentProduct, RetailStoreKpi, RetailVisitKpi, AssessmentIndicatorDefinition) with LS-added fields; Pricing uses Revenue Lifecycle Management objects.
+- Order Management scope/cost disclaimer (Orders and Pricing only): not found in fetched Help.
+- Store Check release note: available with Agentforce for Life Sciences Cloud add-on license; turn on via Setup > Salesforce Go > Agentforce Life Sciences > Store Check. Help's "Set Up Store Check" is the setup entry point (the "Set Up Store Checks" link title in the release note).
+- New objects AsmtIndDefExt, DistributionChannel, QuoteDocumentCreationEvent: not verified.
+
+## Sources
+- https://developer.salesforce.com/docs/atlas.en-us.life_sciences_dev_guide.meta/life_sciences_dev_guide/life_sciences_order_management.htm
+- https://help.salesforce.com/s/articleView?id=release-notes.rn_lsc_order_management_create_quotes_from_anywhere.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=release-notes.rn_lsc_customer_engagement_store_check.htm&release=264.0.0&type=5 (search excerpt)
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_store_check_setup.htm&release=264.0.0&type=5
