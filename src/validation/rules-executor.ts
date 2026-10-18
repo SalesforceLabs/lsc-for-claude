@@ -15,10 +15,15 @@ import { getAllRules, getRulesByGroup, getValidationGroups } from "./rules-loade
 /**
  * Execute a single rule check against the org
  */
-async function executeCheck(
-  check: RuleCheck,
-  targetOrg: string
-): Promise<{ passed: boolean; message: string; details?: unknown }> {
+/** A check's outcome. `unavailable` = it couldn't be evaluated (query failed, unsupported type or condition). */
+export interface CheckOutcome {
+  passed: boolean;
+  message: string;
+  details?: unknown;
+  unavailable?: boolean;
+}
+
+export async function executeCheck(check: RuleCheck, targetOrg: string): Promise<CheckOutcome> {
   try {
     switch (check.type) {
       case "soql":
@@ -43,6 +48,7 @@ async function executeCheck(
         return {
           passed: true,
           message: `Check type '${check.type}' not yet implemented - skipped`,
+          unavailable: true,
         };
 
       default:
@@ -55,6 +61,7 @@ async function executeCheck(
     return {
       passed: false,
       message: `Check execution failed: ${error instanceof Error ? error.message : String(error)}`,
+      unavailable: true,
     };
   }
 }
@@ -66,7 +73,7 @@ async function executeSoqlCheck(
   check: RuleCheck,
   targetOrg: string,
   useToolingApi: boolean = false
-): Promise<{ passed: boolean; message: string; details?: unknown }> {
+): Promise<CheckOutcome> {
   if (!check.query) {
     return { passed: false, message: "No query specified for SOQL check" };
   }
@@ -82,22 +89,28 @@ async function executeSoqlCheck(
         passed: false,
         message: `Object not found in org - this feature may not be installed`,
         details: { error: result.error },
+        unavailable: true,
       };
     }
     return {
       passed: false,
       message: `Query failed: ${result.error}`,
       details: { error: result.error },
+      unavailable: true,
     };
   }
 
   const records = result.data?.records || [];
 
   // Evaluate the expect condition
-  const passed = evaluateExpectCondition(check.expect, {
+  const evaluated = evaluateExpectCondition(check.expect, {
     records,
     count: records.length,
   });
+  if (evaluated === null) {
+    return { passed: false, message: `Can't evaluate condition: ${check.expect}`, unavailable: true };
+  }
+  const passed = evaluated;
 
   return {
     passed,
@@ -115,7 +128,7 @@ async function executeSoqlCountCheck(
   check: RuleCheck,
   targetOrg: string,
   useToolingApi: boolean = false
-): Promise<{ passed: boolean; message: string; details?: unknown }> {
+): Promise<CheckOutcome> {
   if (!check.query) {
     return { passed: false, message: "No query specified for SOQL count check" };
   }
@@ -131,12 +144,14 @@ async function executeSoqlCountCheck(
         passed: false,
         message: `Object not found in org - this feature may not be installed`,
         details: { error: result.error },
+        unavailable: true,
       };
     }
     return {
       passed: false,
       message: `Query failed: ${result.error}`,
       details: { error: result.error },
+      unavailable: true,
     };
   }
 
@@ -144,7 +159,11 @@ async function executeSoqlCountCheck(
   const count = result.data?.totalSize || 0;
 
   // Evaluate the expect condition
-  const passed = evaluateExpectCondition(check.expect, { count });
+  const evaluated = evaluateExpectCondition(check.expect, { count });
+  if (evaluated === null) {
+    return { passed: false, message: `Can't evaluate condition: ${check.expect}`, unavailable: true };
+  }
+  const passed = evaluated;
 
   return {
     passed,
@@ -161,16 +180,12 @@ async function executeSoqlCountCheck(
 async function executeCompositeCheck(
   check: RuleCheck,
   targetOrg: string
-): Promise<{ passed: boolean; message: string; details?: unknown }> {
+): Promise<CheckOutcome> {
   if (!check.checks || check.checks.length === 0) {
     return { passed: false, message: "No sub-checks specified for composite check" };
   }
 
-  const subResults: Array<{
-    passed: boolean;
-    message: string;
-    details?: unknown;
-  }> = [];
+  const subResults: CheckOutcome[] = [];
 
   for (const subCheck of check.checks) {
     const subResult = await executeCheck(subCheck, targetOrg);
@@ -182,6 +197,8 @@ async function executeCompositeCheck(
 
   return {
     passed: allPassed,
+    // Unknown only when nothing definitely failed.
+    unavailable: !allPassed && subResults.every((r) => r.passed || r.unavailable) ? true : undefined,
     message: allPassed
       ? `All ${subResults.length} sub-checks passed`
       : `${subResults.filter((r) => !r.passed).length} of ${subResults.length} sub-checks failed`,
@@ -198,11 +215,13 @@ async function executeCompositeCheck(
  * - "records.length > 0"
  * - "records.length == 0"
  * - "true" (always pass)
+ *
+ * Returns null when the condition can't be evaluated.
  */
 function evaluateExpectCondition(
   expect: string,
   context: { records?: unknown[]; count?: number; result?: unknown }
-): boolean {
+): boolean | null {
   try {
     // Handle simple cases first
     if (expect === "true") return true;
@@ -280,10 +299,10 @@ function evaluateExpectCondition(
 
     // If we can't parse the condition, log it and return false for safety
     console.error(`Unable to evaluate expect condition: ${expect}`);
-    return false;
+    return null;
   } catch (error) {
     console.error(`Error evaluating expect condition '${expect}':`, error);
-    return false;
+    return null;
   }
 }
 
