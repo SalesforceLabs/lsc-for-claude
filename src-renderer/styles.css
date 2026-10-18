@@ -2398,17 +2398,72 @@ body {
   border: 1px solid var(--border-strong);
 }
 
-/* ─── Connecting Splash ─── */
+/* ─── Launch screen (LaunchScreen.tsx) ─── */
 
-.connecting-splash {
+.launch-screen {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
   height: 100vh;
-  color: var(--text-secondary);
-  font-size: var(--font-lg);
-  letter-spacing: -0.01em;
+  background:
+    radial-gradient(ellipse 60% 45% at 50% 42%, color-mix(in srgb, var(--glow-violet) 7%, transparent), transparent 70%),
+    var(--bg-primary);
+}
+
+/* Held back briefly so a quick reconnect goes straight to the app. */
+.launch-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: var(--space-10);
+  animation: launch-in 0.6s var(--ease-out) 0.25s both;
+}
+
+.launch-logo-wrap {
+  margin-bottom: var(--space-6);
+}
+
+.launch-title {
+  font-size: var(--font-2xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-bottom: var(--space-5);
+}
+
+.launch-progress {
+  position: relative;
+  width: 140px;
+  height: 2px;
+  border-radius: 1px;
+  overflow: hidden;
+  background: var(--fill-control);
+}
+
+.launch-progress span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: launch-sweep 1.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.launch-status {
+  margin-top: var(--space-4);
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  animation: ui-fade-in 0.3s var(--ease-out) both;
+}
+
+@keyframes launch-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes launch-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
 }
 
 /* ─── Mermaid Diagrams ─── */

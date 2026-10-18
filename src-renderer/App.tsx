@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import Spinner from "./components/ui/Spinner";
+import LaunchScreen from "./components/LaunchScreen";
 import { useChat } from "./hooks/useChat";
 import { useEngine } from "./hooks/useEngine";
 import { useLibrary } from "./hooks/useLibrary";
@@ -8,7 +8,7 @@ import Sidebar from "./components/Sidebar";
 import LibraryPanel from "./components/LibraryPanel";
 import SettingsPanel from "./components/SettingsPanel";
 import SetupScreen, { type DetectedProviders } from "./components/SetupScreen";
-import { type LlmConnection } from "./connection";
+import { type LlmConnection, type LlmConnectionKind } from "./connection";
 import { modelOptionsFor } from "./models";
 import StudioView from "./components/studio/StudioView";
 import StatusBar from "./components/StatusBar";
@@ -33,6 +33,7 @@ export default function App() {
   const [changingConnection, setChangingConnection] = useState(false);
   const [libraryFocusItemId, setLibraryFocusItemId] = useState<string | null>(null);
   const [autoDetecting, setAutoDetecting] = useState(true);
+  const [connectingTo, setConnectingTo] = useState<LlmConnectionKind | undefined>();
   const [prefillInput, setPrefillInput] = useState<string | undefined>();
   const [commands, setCommands] = useState<
     Array<{ name: string; description: string }>
@@ -61,7 +62,10 @@ export default function App() {
         const candidate: LlmConnection | undefined =
           settings.connection ??
           (found.claudeCode ? { kind: "claude-code" } : found.env.anthropic ? { kind: "anthropic" } : undefined);
-        if (candidate) await engine.start(candidate);
+        if (candidate) {
+          setConnectingTo(candidate.kind);
+          await engine.start(candidate);
+        }
       } catch {
         // Fall through to setup screen
       }
@@ -215,16 +219,7 @@ export default function App() {
     [library.items]
   );
 
-  // Show a brief loading state while auto-detecting
-  if (autoDetecting) {
-    return (
-      <div className="connecting-splash">
-        <div className="setup-drag drag-region" />
-        <Spinner size={20} />
-        <span>Connecting…</span>
-      </div>
-    );
-  }
+  if (autoDetecting) return <LaunchScreen connecting={connectingTo} />;
 
   if (!engine.connected || changingConnection) {
     return (

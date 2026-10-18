@@ -1140,8 +1140,8 @@ export default function ChatView({
           </div>
           <h2>Roz for LSC</h2>
           <p>
-            Ask questions about LSC, run SOQL queries, configure
-            modules, or type <strong>/</strong> to see available commands.
+            Ask how a feature works, review your org's setup, or get help
+            configuring something new. Type <strong>/</strong> for commands.
           </p>
         </div>
         {inputArea}
