@@ -33,8 +33,8 @@ export default function PropertiesSheet({
 }) {
   if (!properties.length && !loading && !note) return null;
   return (
-    <section className="studio-props" aria-label="Properties">
-      <h4 className="studio-props-title">
+    <section className="studio-propsheet" aria-label="Properties">
+      <h4 className="studio-propsheet-title">
         Properties
         {loading && <Spinner size={12} />}
       </h4>
