@@ -39,11 +39,11 @@ export default function SignoffView({ onAskClaude, seed }: SignoffViewProps) {
           ? "A test plan checks the customer's targets for each persona (a type of rep, such as a field rep) using real reps from the org: predicted sync volume and, where devices have synced, real sync times. Run it, then export a sign-off report."
           : "First sync signs in as one rep and downloads what their iPad would on its first sync, so you can see how long a new rep waits."}
       </div>
-      <div hidden={mode !== "plan"}>
+      <div className="studio-signoff-pane" hidden={mode !== "plan"}>
         <PerfView onAskClaude={onAskClaude} seed={seed} />
       </div>
       {simOpened && (
-        <div hidden={mode !== "firstSync"}>
+        <div className="studio-signoff-pane" hidden={mode !== "firstSync"}>
           <SimulateView />
         </div>
       )}
