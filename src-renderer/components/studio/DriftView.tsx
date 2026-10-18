@@ -11,6 +11,7 @@ import {
   when,
 } from "./drift-format";
 import "./drift.css";
+import { AssistantName } from "../../hooks/useAssistantName";
 
 export interface DriftViewProps {
   onAskClaude: (prompt: string) => void;
@@ -288,7 +289,7 @@ function ChangeCard({ change: c, onAsk }: { change: DriftChange; onAsk: () => vo
           {c.label && c.label !== c.developerName ? ` · ${c.developerName}` : ""}
         </span>
         <button className="studio-btn" onClick={onAsk}>
-          Ask Claude
+          Ask <AssistantName />
         </button>
       </div>
       {(c.modifiedBy || c.modifiedAt) && (
@@ -375,7 +376,7 @@ function RecentPanel({
                   {when(c.modifiedAt)}
                 </span>
                 <button className="studio-btn" onClick={() => onAskClaude(askAboutRecent(c))}>
-                  Ask Claude
+                  Ask <AssistantName />
                 </button>
               </li>
             ))}

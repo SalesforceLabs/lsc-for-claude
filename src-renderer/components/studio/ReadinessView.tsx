@@ -4,6 +4,7 @@ import type { PendingChange } from "./changes";
 import FixButtons from "./FixButtons";
 import { askPrompt, byStage, sortForAttention, summarize, verdictText, type ReadinessState } from "./readiness";
 import "./readiness.css";
+import { AssistantName } from "../../hooks/useAssistantName";
 
 const ICONS: Record<ReadinessCheck["status"], string> = { pass: "✓", fail: "✗", unknown: "?", skipped: "–" };
 const STATUS_TEXT: Record<ReadinessCheck["status"], string> = {
@@ -195,7 +196,7 @@ export function CheckRow({ check, expanded, onToggle, onShowSurface, onAsk, fixP
             )}
             {check.status !== "pass" && check.status !== "skipped" && (
               <button type="button" className="studio-link-btn" onClick={onAsk}>
-                Ask Claude how to fix
+                Ask <AssistantName /> how to fix
               </button>
             )}
             <span className="studio-rcheck-id">

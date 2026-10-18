@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { pickModel, type ModelOption } from "../models";
 
 interface SfOrg {
   alias?: string;
@@ -9,29 +10,22 @@ interface SfOrg {
 }
 
 interface SettingsPanelProps {
+  /** How the running engine reaches the model, e.g. "OpenAI API key". */
+  connectedVia?: string;
+  /** The models the connection offers (see modelOptionsFor). */
+  modelOptions: ModelOption[];
   onClose: () => void;
-  onDisconnect: () => void;
-}
-
-function providerLabel(providerType: string): string {
-  switch (providerType) {
-    case "api-key":
-      return "Anthropic API Key";
-    case "bedrock-gateway":
-      return "Bedrock / custom gateway";
-    case "sf-gateway":
-      return "Salesforce LLM Gateway";
-    default:
-      return "Not connected";
-  }
+  /** Back to the setup screen; the saved connection stays until a new one connects. */
+  onChangeConnection: () => void;
 }
 
 export default function SettingsPanel({
+  connectedVia,
+  modelOptions,
   onClose,
-  onDisconnect,
+  onChangeConnection,
 }: SettingsPanelProps) {
   const [model, setModel] = useState("");
-  const [providerType, setProviderType] = useState("");
   const [mobileClientId, setMobileClientId] = useState("");
 
   // Org state
@@ -60,13 +54,12 @@ export default function SettingsPanel({
 
   useEffect(() => {
     window.lscApi.getSettings().then((s) => {
-      if (s.providerType) setProviderType(s.providerType);
-      setModel(s.model || "claude-sonnet-5");
+      setModel(pickModel(s.model, modelOptions));
       if (s.sfTargetOrg) setSelectedOrg(s.sfTargetOrg);
       setMobileClientId(s.mobileClientId || "");
     });
     fetchOrgs();
-  }, [fetchOrgs]);
+  }, [fetchOrgs, modelOptions]);
 
   const handleOrgChange = async (value: string) => {
     setSelectedOrg(value);
@@ -101,12 +94,17 @@ export default function SettingsPanel({
 
         <div className="form-group">
           <label>Connected via</label>
-          <input
-            type="text"
-            value={providerLabel(providerType)}
-            readOnly
-            style={{ opacity: 0.7 }}
-          />
+          <div className="form-row">
+            <input
+              type="text"
+              value={connectedVia || "Not connected"}
+              readOnly
+              style={{ opacity: 0.7, flex: 1 }}
+            />
+            <button className="btn-secondary" onClick={onChangeConnection}>
+              Change…
+            </button>
+          </div>
         </div>
 
         {/* Salesforce Org Section */}
@@ -209,14 +207,11 @@ export default function SettingsPanel({
         </div>
 
         <div className="form-group">
-          <label>Model</label>
+          <label>Default model</label>
           <select value={model} onChange={(e) => setModel(e.target.value)}>
-            <>
-              <option value="claude-opus-5">Claude Opus 5</option>
-              <option value="claude-sonnet-5">Claude Sonnet 5</option>
-              <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
-              <option value="claude-fable-5-1">Claude Fable 5.1</option>
-            </>
+            {modelOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
           </select>
         </div>
 
@@ -237,14 +232,7 @@ export default function SettingsPanel({
         </div>
 
         <div className="form-actions">
-          <button
-            className="btn-secondary"
-            onClick={onDisconnect}
-            style={{ marginRight: "auto", color: "var(--error)" }}
-          >
-            Disconnect
-          </button>
-          <button className="btn-secondary" onClick={onClose}>
+          <button className="btn-secondary" onClick={onClose} style={{ marginLeft: "auto" }}>
             Cancel
           </button>
           <button className="btn-primary" onClick={handleSave}>

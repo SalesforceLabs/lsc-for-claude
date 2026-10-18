@@ -6,6 +6,10 @@ A Claude Code plugin providing LSC-specific knowledge, templates, tools, skills,
 
 When running inside the Electron app and a user asks to see something in "diagram form", "as a diagram", "visualize this", or similar phrasing, **always use Mermaid syntax** (` ```mermaid ` code blocks). The Electron app renders Mermaid diagrams as interactive SVGs with zoom, pan, and fullscreen controls. Do not use ASCII art or plaintext diagrams when Mermaid can represent the content.
 
+## Model Connections — Electron App
+
+The app reaches a model through one saved connection (`src-electron/llm/`): `claude-code` (Salesforce employees — the gateway, `apiKeyHelper`/token and `ANTHROPIC_CUSTOM_HEADERS` read from Claude Code's `~/.claude/settings.json` at connect time; the gateway host is never shipped in the app), `anthropic` (personal key), `anthropic-gateway` (a company gateway serving `/v1/messages`), `openai`, or `openai-compatible` (Azure OpenAI, LiteLLM, Ollama, company gateways serving `/chat/completions`). OpenAI-style connections are best-effort: `openai.ts` converts the engine's Anthropic-shaped history and tools to Chat Completions and back; prompts aren't tuned per model, and "Ask Claude" labels become "Ask AI" (`hooks/useAssistantName.tsx`). Keys and tokens live in the OS keychain (`src-electron/secrets.ts`, safeStorage), never in settings.json and never sent to the renderer; token commands run in the main process; tokens only go over https (http for localhost only — `baseUrlProblem`). All requests use Electron's `net.fetch` for system certificates and proxies. The setup screen tests a connection (list models + one tiny message) before saving it; startup reconnects with the saved connection, else Claude Code's gateway, else `ANTHROPIC_API_KEY`.
+
 ## Org Selection — IMPORTANT
 
 When connecting to a Salesforce org, follow these rules strictly:

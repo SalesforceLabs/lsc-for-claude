@@ -1284,7 +1284,8 @@ body {
 }
 
 .form-group input,
-.form-group select {
+.form-group select,
+.form-group textarea {
   width: 100%;
   padding: 10px 14px;
   background: var(--bg-primary);
@@ -1298,7 +1299,8 @@ body {
 }
 
 .form-group input:focus,
-.form-group select:focus {
+.form-group select:focus,
+.form-group textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
@@ -1762,10 +1764,11 @@ body {
 
 .setup-screen {
   display: flex;
-  align-items: center;
+  align-items: safe center;
   justify-content: center;
   height: 100vh;
   padding: 40px;
+  overflow-y: auto;
 }
 
 .setup-container {
@@ -1798,6 +1801,46 @@ body {
   background: rgba(248, 113, 113, 0.08);
   border: 1px solid rgba(248, 113, 113, 0.15);
   border-radius: var(--radius-sm);
+}
+
+.setup-success {
+  color: var(--success);
+  font-size: 13px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: rgba(52, 211, 153, 0.08);
+  border: 1px solid rgba(52, 211, 153, 0.15);
+  border-radius: var(--radius-sm);
+}
+
+.form-group textarea {
+  resize: vertical;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+}
+
+.form-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.setup-radio {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.form-group .setup-radio label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-weight: 400;
+}
+
+.form-group .setup-radio input {
+  width: auto;
 }
 
 .setup-hint {

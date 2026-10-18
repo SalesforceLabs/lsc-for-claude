@@ -1,3 +1,5 @@
+import type { LlmConnection, LlmConnectionKind, LlmConnectionTest } from "./connection";
+
 interface LibraryItem {
   id: string;
   title: string;
@@ -63,12 +65,7 @@ interface StudioResponse {
 interface LscApi {
   // Settings
   getSettings(): Promise<{
-    providerType: string;
-    apiKey?: string;
-    baseUrl?: string;
-    authToken?: string;
-    gatewayUrl?: string;
-    gatewayToken?: string;
+    connection?: LlmConnection;
     model?: string;
     theme?: string;
     sfTargetOrg?: string;
@@ -76,17 +73,15 @@ interface LscApi {
   }>;
   saveSettings(settings: Record<string, unknown>): Promise<{ ok: boolean }>;
 
-  // Provider
-  detectEnvProvider(): Promise<{
-    detected: boolean;
-    providerType?: string;
-    credentials?: Record<string, unknown>;
-    label?: string;
+  // Connections
+  /** What's available without asking: Claude Code's gateway host, env API keys, kinds with a saved key. */
+  detectProvider(): Promise<{
+    claudeCode?: string;
+    env: { anthropic: boolean; openai: boolean };
+    savedSecrets: LlmConnectionKind[];
   }>;
-  validateProvider(
-    type: string,
-    credentials: Record<string, unknown>
-  ): Promise<{ valid: boolean; error?: string }>;
+  /** List models and send one tiny message; `secret` overrides the saved key for this test. */
+  testProvider(connection: LlmConnection, secret?: string): Promise<LlmConnectionTest>;
 
   // Studio — `data` is the parsed JSON from the studio_* MCP tool (may itself carry `error`)
   studioListFeatures(): Promise<StudioResponse>;
@@ -185,13 +180,20 @@ interface LscApi {
   ): Promise<{ signedInAs?: string; note?: string; error?: string }>;
 
   // Engine
+  /** Connect; a given `secret` is saved to the keychain on success. */
   startEngine(
-    providerType: string,
-    credentials: Record<string, unknown>
+    connection: LlmConnection,
+    secret?: string
   ): Promise<{
     ok: boolean;
+    providerType?: LlmConnectionKind;
+    apiStyle?: "anthropic" | "openai";
+    label?: string;
+    defaultModel?: string;
     toolCount?: number;
     tools?: Array<{ name: string; description: string }>;
+    /** Model ids the provider serves, when it lists them (gateways). */
+    models?: string[];
     error?: string;
   }>;
   stopEngine(): Promise<{ ok: boolean }>;

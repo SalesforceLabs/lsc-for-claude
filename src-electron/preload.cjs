@@ -5,14 +5,12 @@ contextBridge.exposeInMainWorld("lscApi", {
   getSettings: () => ipcRenderer.invoke("settings:get"),
   saveSettings: (settings) => ipcRenderer.invoke("settings:save", settings),
 
-  // Provider
-  detectEnvProvider: () => ipcRenderer.invoke("provider:detect-env"),
-  validateProvider: (type, credentials) =>
-    ipcRenderer.invoke("provider:validate", type, credentials),
+  // Connections — secrets go to the main process (keychain) and never come back
+  detectProvider: () => ipcRenderer.invoke("provider:detect"),
+  testProvider: (connection, secret) => ipcRenderer.invoke("provider:test", connection, secret),
 
   // Engine
-  startEngine: (providerType, credentials) =>
-    ipcRenderer.invoke("engine:start", providerType, credentials),
+  startEngine: (connection, secret) => ipcRenderer.invoke("engine:start", connection, secret),
   stopEngine: () => ipcRenderer.invoke("engine:stop"),
 
   // Chat — nonce is passed to tag stream events, convId for server-side persistence

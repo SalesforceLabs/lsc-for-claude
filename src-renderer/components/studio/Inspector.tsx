@@ -25,6 +25,7 @@ import {
   withoutSuggestion,
   type PendingChange,
 } from "./changes";
+import { AssistantName } from "../../hooks/useAssistantName";
 
 interface InspectorProps {
   map: FeatureMap;
@@ -257,7 +258,7 @@ export default function Inspector({
             className="studio-ask-btn"
             onClick={() => onAskClaude(surfacePrompt(map, surface, lens))}
           >
-            Ask Claude about {surface.title}
+            Ask <AssistantName /> about {surface.title}
           </button>
         </div>
       )}
@@ -378,7 +379,7 @@ function ItemView({
         className="studio-ask-btn"
         onClick={() => onAskClaude(itemPrompt(map, surface, item, lens, code?.text))}
       >
-        Ask Claude about this
+        Ask <AssistantName /> about this
       </button>
     </div>
   );

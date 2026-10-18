@@ -3,6 +3,7 @@ import type { SurfaceId } from "./types";
 import { formatNumber } from "./perf-plan";
 import { formatSeconds } from "./sim-types";
 import "./sync-overview.css";
+import { AssistantName } from "../../hooks/useAssistantName";
 
 export interface SyncOverviewProps {
   onAskClaude: (prompt: string) => void;
@@ -223,7 +224,7 @@ export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUs
         </button>
         {data && (
           <button type="button" className="studio-btn" onClick={() => onAskClaude(askPrompt(data))}>
-            Ask Claude
+            Ask <AssistantName />
           </button>
         )}
       </div>

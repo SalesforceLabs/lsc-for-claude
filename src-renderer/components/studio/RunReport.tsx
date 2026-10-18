@@ -17,6 +17,7 @@ import { DIFF_PCT, compareVolume, simulatedSeconds, type TableFlag, type VolumeC
 import { formatSeconds } from "./sim-types";
 import type { RunSim, RunSims } from "./useRunSims";
 import { personaVerdict } from "./signoff-verdict";
+import { AssistantName } from "../../hooks/useAssistantName";
 
 interface RunReportProps {
   result: AssessmentResult;
@@ -429,7 +430,7 @@ export default function RunReport({ result, previous, trend, onAskClaude, onExpo
         <div className="studio-header-actions">
           {onAskClaude && result.status !== "pass" && (
             <button className="studio-btn primary" onClick={onAskClaude}>
-              Ask Claude how to fix
+              Ask <AssistantName /> how to fix
             </button>
           )}
           {onBaseline && (

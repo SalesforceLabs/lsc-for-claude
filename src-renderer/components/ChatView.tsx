@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import mermaid from "mermaid";
 import { ChatMessage, ContentBlock, ToolCall, ImageAttachment, getFullText } from "../hooks/useChat";
+import { pickModel, type ModelOption } from "../models";
 
 // Initialize mermaid with dark theme
 mermaid.initialize({
@@ -609,7 +610,8 @@ interface ChatViewProps {
   commands: Array<{ name: string; description: string }>;
   conversationId: string | null;
   defaultModel?: string;
-  providerType?: string;
+  /** The models the connection offers (see modelOptionsFor). */
+  modelOptions: ModelOption[];
   onSend: (text: string, model?: string, images?: ImageAttachment[]) => void;
   onAbort: () => void;
   onRerun: (text: string) => void;
@@ -638,29 +640,6 @@ type DocPanelState = {
 };
 const docPanelStates = new Map<string, DocPanelState>();
 
-const CLAUDE_5_MODELS: Array<{ value: string; label: string }> = [
-  { value: "claude-opus-5", label: "Opus 5" },
-  { value: "claude-sonnet-5", label: "Sonnet 5" },
-  { value: "claude-haiku-4-5-20251001", label: "Haiku 4.5" },
-  { value: "claude-fable-5-1", label: "Fable 5.1" },
-];
-
-const MODELS_BY_PROVIDER: Record<string, Array<{ value: string; label: string }>> = {
-  "bedrock-gateway": CLAUDE_5_MODELS,
-  "api-key": CLAUDE_5_MODELS,
-  "sf-gateway": CLAUDE_5_MODELS,
-};
-
-function getModelOptions(providerType?: string) {
-  return MODELS_BY_PROVIDER[providerType || "api-key"] || MODELS_BY_PROVIDER["api-key"];
-}
-
-function getModelLabel(modelId: string, providerType?: string): string {
-  const options = getModelOptions(providerType);
-  const match = options.find((o) => o.value === modelId);
-  return match?.label ?? modelId;
-}
-
 export default function ChatView({
   messages,
   isStreaming,
@@ -668,7 +647,7 @@ export default function ChatView({
   commands,
   conversationId,
   defaultModel,
-  providerType,
+  modelOptions,
   onSend,
   onAbort,
   onRerun,
@@ -704,8 +683,11 @@ export default function ChatView({
     startPage?: number;
     endPage?: number;
   } | null>(null);
-  const modelOptions = getModelOptions(providerType);
-  const [model, setModel] = useState(defaultModel || modelOptions[0].value);
+  const [model, setModel] = useState(() => pickModel(defaultModel, modelOptions));
+  // A saved default or earlier pick the provider doesn't serve falls back to one it does.
+  useEffect(() => {
+    setModel((current) => pickModel(current, modelOptions));
+  }, [modelOptions]);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);

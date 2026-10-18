@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow, dialog, shell } from "electron";
+import { ipcMain, BrowserWindow, dialog, shell, net } from "electron";
 import { execFile, spawn } from "child_process";
 import { watch } from "fs";
 import { readFile, writeFile } from "fs/promises";
@@ -12,10 +12,11 @@ import { McpClient, STUDIO_TOOL_PREFIX } from "../mcp/client.js";
 import { listMobileLogins, mobileLoginCredentials, removeMobileLogin, startMobileLogin } from "../mobile-login.js";
 import { PromptBuilder } from "../engine/prompt-builder.js";
 import { LLMProvider } from "../llm/provider.js";
-import { ApiKeyProvider } from "../llm/api-key.js";
-import { SFGatewayProvider } from "../llm/sf-gateway.js";
-import { BedrockGatewayProvider, detectGatewayFromEnv } from "../llm/bedrock-gateway.js";
-import { loadSettings, saveSettings, Settings } from "../settings.js";
+import { detectClaudeCodeGateway } from "../llm/claude-code-config.js";
+import { apiStyle, Connection, CONNECTION_KINDS, connectionLabel } from "../llm/connection.js";
+import { chatModels, cleanConnection, createProvider, testConnection } from "../llm/create.js";
+import { loadSettings, migrateSettings, saveSettings, Settings } from "../settings.js";
+import { getSecret, hasSecret, setSecret } from "../secrets.js";
 import {
   listConversations,
   createConversation,
@@ -62,6 +63,9 @@ const STUDIO_CACHED_TOOLS = new Set([
 
 // Shared resources (created once at engine:start)
 let llm: LLMProvider | null = null;
+// The running connection and the models it lists, so the picker only offers ones it serves
+let llmConnection: Connection | null = null;
+let llmModels: string[] | null = null;
 let mcpClient: McpClient | null = null;
 let promptBuilder: PromptBuilder | null = null;
 let engineStarting: Promise<unknown> | null = null;
@@ -98,20 +102,27 @@ const engines = new Map<string, ConversationEngine>();
 // Track which session is actively streaming (for abort)
 let activeConvId: string | null = null;
 
-function createProvider(
-  providerType: string,
-  credentials: { apiKey?: string; accessToken?: string; gatewayUrl?: string; authToken?: string; baseUrl?: string }
-): LLMProvider {
-  switch (providerType) {
-    case "api-key":
-      return new ApiKeyProvider(credentials.apiKey!);
-    case "sf-gateway":
-      return new SFGatewayProvider(credentials.accessToken!, credentials.gatewayUrl);
-    case "bedrock-gateway":
-      return new BedrockGatewayProvider(credentials.authToken!, credentials.baseUrl!);
-    default:
-      throw new Error(`Unknown provider: ${providerType}`);
-  }
+const secretName = (connection: Connection) => `llm:${connection.kind}`;
+
+/** A provider for `connection`, using `secret` if one was just entered, else the saved one. */
+function providerFor(connection: Connection, secret?: string): LLMProvider {
+  // net.fetch goes through Chromium: system certificates (company root CAs) and proxy settings.
+  return createProvider(connection, secret || getSecret(secretName(connection)), (url, init) => net.fetch(url, init));
+}
+
+/** What the renderer needs about the running connection. */
+function engineState() {
+  const tools = mcpClient!.getTools();
+  return {
+    ok: true,
+    providerType: llmConnection!.kind,
+    apiStyle: apiStyle(llmConnection!.kind),
+    label: connectionLabel(llmConnection!.kind),
+    defaultModel: llmConnection!.model,
+    toolCount: tools.length,
+    tools: tools.map((t) => ({ name: t.name, description: t.description })),
+    models: llmModels ?? undefined,
+  };
 }
 
 /** Get or create an engine for a conversation. Restores messages from DB on first access. */
@@ -202,6 +213,13 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   // --- Settings ---
 
+  // Old settings kept keys in plain text; move them to the keychain before anything reads them.
+  try {
+    migrateSettings((connection, secret) => setSecret(secretName(connection), secret));
+  } catch (error) {
+    console.error("Couldn't migrate LLM settings:", error);
+  }
+
   ipcMain.handle("settings:get", async () => {
     return loadSettings();
   });
@@ -211,120 +229,83 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     return { ok: true };
   });
 
-  // --- Auto-detect env-based credentials ---
+  // --- Connections ---
 
-  ipcMain.handle("provider:detect-env", async () => {
-    const gateway = detectGatewayFromEnv();
+  /** What's available without asking: Claude Code's gateway, env API keys, and saved keys. */
+  ipcMain.handle("provider:detect", async () => {
+    const gateway = detectClaudeCodeGateway();
+    let claudeCode: string | undefined;
     if (gateway) {
-      return {
-        detected: true,
-        providerType: "bedrock-gateway",
-        credentials: gateway,
-        label: "SF AI Model Gateway (Bedrock)",
-      };
-    }
-
-    // Check for plain Anthropic API key in env
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (apiKey) {
-      return {
-        detected: true,
-        providerType: "api-key",
-        credentials: { apiKey },
-        label: "Anthropic API Key (from env)",
-      };
-    }
-
-    return { detected: false };
-  });
-
-  // --- Provider Management ---
-
-  ipcMain.handle(
-    "provider:validate",
-    async (
-      _event,
-      type: string,
-      credentials: { apiKey?: string; accessToken?: string; gatewayUrl?: string }
-    ) => {
       try {
-        const provider = createProvider(type, credentials);
-        const valid = await provider.validateCredentials();
-        return { valid };
-      } catch (error) {
-        return {
-          valid: false,
-          error: error instanceof Error ? error.message : String(error),
-        };
+        claudeCode = new URL(gateway.baseUrl).host;
+      } catch {
+        claudeCode = gateway.baseUrl;
       }
     }
-  );
+    return {
+      claudeCode,
+      env: { anthropic: !!process.env.ANTHROPIC_API_KEY, openai: !!process.env.OPENAI_API_KEY },
+      savedSecrets: CONNECTION_KINDS.filter((kind) => hasSecret(`llm:${kind}`)),
+    };
+  });
+
+  ipcMain.handle("provider:test", async (_event, connection: Connection, secret?: string) => {
+    try {
+      const clean = cleanConnection(connection);
+      return await testConnection(providerFor(clean, secret), clean);
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
 
   // --- Engine Lifecycle ---
 
-  ipcMain.handle(
-    "engine:start",
-    async (
-      _event,
-      providerType: string,
-      credentials: Record<string, string | undefined>
-    ) => {
-      // If already running, return existing state
-      if (llm && mcpClient && promptBuilder) {
-        const tools = mcpClient.getTools();
-        return {
-          ok: true,
-          providerType,
-          toolCount: tools.length,
-          tools: tools.map((t) => ({ name: t.name, description: t.description })),
-        };
-      }
+  /**
+   * Connect with `connection` (and a just-entered `secret`, saved to the keychain).
+   * Starts the MCP server the first time; later calls only swap the model connection.
+   */
+  ipcMain.handle("engine:start", async (_event, connection: Connection, secret?: string) => {
+    try {
+      if (engineStarting) await engineStarting.catch(() => {});
+      const clean = cleanConnection(connection);
+      const provider = providerFor(clean, secret);
+      const models = chatModels(apiStyle(clean.kind), (await provider.listModels?.()) ?? null);
 
-      // If a start is already in progress, wait for it
-      if (engineStarting) {
-        await engineStarting;
-        if (llm && mcpClient && promptBuilder) {
-          const tools = mcpClient.getTools();
-          return {
-            ok: true,
-            providerType,
-            toolCount: tools.length,
-            tools: tools.map((t) => ({ name: t.name, description: t.description })),
-          };
+      if (!mcpClient || !promptBuilder) {
+        const doStart = async () => {
+          // The target org lives in the server's memory, so every (re)spawn re-applies it.
+          const client = new McpClient(undefined, applyTargetOrg);
+          await client.start();
+          mcpClient = client;
+          promptBuilder = new PromptBuilder();
+          mcpStarted = true;
+          resolveMcpReady();
+        };
+        engineStarting = doStart();
+        try {
+          await engineStarting;
+        } finally {
+          engineStarting = null;
         }
       }
 
-      const doStart = async () => {
-        llm = createProvider(providerType, credentials);
-        // The target org lives in the server's memory, so every (re)spawn re-applies it.
-        mcpClient = new McpClient(undefined, applyTargetOrg);
-        await mcpClient.start();
-        promptBuilder = new PromptBuilder();
-        mcpStarted = true;
-        resolveMcpReady();
+      // Sessions hold the provider they were made with; they're rebuilt from history on next use.
+      for (const engine of engines.values()) engine.abort();
+      engines.clear();
+      llm = provider;
+      llmConnection = clean;
+      llmModels = models;
+
+      if (secret) setSecret(secretName(clean), secret);
+      saveSettings({ ...loadSettings(), connection: clean });
+      return engineState();
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
       };
-
-      try {
-        engineStarting = doStart();
-        await engineStarting;
-        engineStarting = null;
-
-        const tools = mcpClient!.getTools();
-        return {
-          ok: true,
-          providerType,
-          toolCount: tools.length,
-          tools: tools.map((t) => ({ name: t.name, description: t.description })),
-        };
-      } catch (error) {
-        engineStarting = null;
-        return {
-          ok: false,
-          error: error instanceof Error ? error.message : String(error),
-        };
-      }
     }
-  );
+  });
 
   ipcMain.handle("engine:stop", async () => {
     // Abort all active engines
@@ -336,6 +317,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
     await mcpClient?.stop();
     llm = null;
+    llmConnection = null;
+    llmModels = null;
     mcpClient = null;
     promptBuilder = null;
     mcpStarted = false;

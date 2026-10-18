@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import type { SurfaceId, StudioFix } from "./types";
 import { isQueued, queueChange, type PendingChange } from "./changes";
 import "./sync-investigate.css";
+import { AssistantName } from "../../hooks/useAssistantName";
 
 export interface SyncInvestigateProps {
   userId: string | null;
@@ -363,7 +364,7 @@ export default function SyncInvestigate({ userId, onUserChange, onAskClaude, onO
                   Refresh
                 </button>
                 <button type="button" className="studio-btn primary" onClick={() => onAskClaude(askPrompt(detail, terr))}>
-                  Ask Claude how to make this lighter
+                  Ask <AssistantName /> how to make this lighter
                 </button>
               </div>
             </div>

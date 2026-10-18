@@ -6,7 +6,10 @@ import ChatView from "./components/ChatView";
 import Sidebar from "./components/Sidebar";
 import LibraryPanel from "./components/LibraryPanel";
 import SettingsPanel from "./components/SettingsPanel";
-import SetupScreen from "./components/SetupScreen";
+import SetupScreen, { type DetectedProviders } from "./components/SetupScreen";
+import { assistantName, type LlmConnection } from "./connection";
+import { AssistantNameContext } from "./hooks/useAssistantName";
+import { modelOptionsFor } from "./models";
 import StudioView from "./components/studio/StudioView";
 import StatusBar from "./components/StatusBar";
 
@@ -17,6 +20,11 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [libraryPanelOpen, setLibraryPanelOpen] = useState(false);
   const [studioOpen, setStudioOpen] = useState(false);
+  // What the setup screen can offer without asking, and the saved connection to start from
+  const [detected, setDetected] = useState<DetectedProviders>({ env: { anthropic: false, openai: false }, savedSecrets: [] });
+  const [savedConnection, setSavedConnection] = useState<LlmConnection | undefined>();
+  // Opened from Settings while connected: the setup screen replaces the app until it connects or is cancelled
+  const [changingConnection, setChangingConnection] = useState(false);
   const [libraryFocusItemId, setLibraryFocusItemId] = useState<string | null>(null);
   const [autoDetecting, setAutoDetecting] = useState(true);
   const [prefillInput, setPrefillInput] = useState<string | undefined>();
@@ -33,7 +41,7 @@ export default function App() {
     }).catch(() => {});
   }, []);
 
-  // Auto-connect: env vars first, then saved settings, then show setup
+  // Auto-connect: the saved connection, then Claude Code's gateway, then ANTHROPIC_API_KEY, else setup
   useEffect(() => {
     if (!window.lscApi) {
       setAutoDetecting(false);
@@ -41,36 +49,13 @@ export default function App() {
     }
     (async () => {
       try {
-        // 1. Check for env-based credentials (Bedrock gateway, ANTHROPIC_API_KEY)
-        const env = await window.lscApi.detectEnvProvider();
-        if (env.detected && env.providerType && env.credentials) {
-          await engine.start(env.providerType, env.credentials);
-          setAutoDetecting(false);
-          return;
-        }
-
-        // 2. Fall back to saved settings
-        const settings = await window.lscApi.getSettings();
-        if (settings.providerType === "api-key" && settings.apiKey) {
-          await engine.start("api-key", { apiKey: settings.apiKey });
-        } else if (
-          settings.providerType === "bedrock-gateway" &&
-          settings.authToken &&
-          settings.baseUrl
-        ) {
-          await engine.start("bedrock-gateway", {
-            authToken: settings.authToken,
-            baseUrl: settings.baseUrl,
-          });
-        } else if (
-          settings.providerType === "sf-gateway" &&
-          settings.gatewayToken
-        ) {
-          await engine.start("sf-gateway", {
-            accessToken: settings.gatewayToken,
-            gatewayUrl: settings.gatewayUrl,
-          });
-        }
+        const [found, settings] = await Promise.all([window.lscApi.detectProvider(), window.lscApi.getSettings()]);
+        setDetected(found);
+        setSavedConnection(settings.connection);
+        const candidate: LlmConnection | undefined =
+          settings.connection ??
+          (found.claudeCode ? { kind: "claude-code" } : found.env.anthropic ? { kind: "anthropic" } : undefined);
+        if (candidate) await engine.start(candidate);
       } catch {
         // Fall through to setup screen
       }
@@ -78,6 +63,19 @@ export default function App() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const openConnectionSetup = useCallback(async () => {
+    setShowSettings(false);
+    const [found, settings] = await Promise.all([window.lscApi.detectProvider(), window.lscApi.getSettings()]);
+    setDetected(found);
+    setSavedConnection(settings.connection);
+    setChangingConnection(true);
+  }, []);
+
+  const modelOptions = useMemo(
+    () => modelOptionsFor(engine.apiStyle, engine.models, engine.defaultModel),
+    [engine.apiStyle, engine.models, engine.defaultModel]
+  );
 
   // Studio → chat handoff: open a fresh session with the context prefilled for the user to edit.
   const handleAskClaude = useCallback((prompt: string) => {
@@ -117,35 +115,28 @@ export default function App() {
     );
   }
 
-  if (!engine.connected) {
+  if (!engine.connected || changingConnection) {
     return (
       <SetupScreen
-        onConnect={async (providerType, credentials) => {
-          const result = await engine.start(providerType, credentials);
+        onConnect={async (connection, secret) => {
+          // The main process saves the connection (and the secret, to the keychain) once it starts.
+          const result = await engine.start(connection, secret);
           if (result.ok) {
-            await window.lscApi.saveSettings({
-              providerType,
-              ...(providerType === "api-key"
-                ? { apiKey: credentials.apiKey }
-                : providerType === "bedrock-gateway"
-                ? {
-                    authToken: credentials.authToken,
-                    baseUrl: credentials.baseUrl,
-                  }
-                : {
-                    gatewayToken: credentials.accessToken,
-                    gatewayUrl: credentials.gatewayUrl,
-                  }),
-            });
+            setSavedConnection(connection);
+            setChangingConnection(false);
           }
           return result;
         }}
         error={engine.error}
+        detected={detected}
+        initial={savedConnection}
+        onCancel={engine.connected ? () => setChangingConnection(false) : undefined}
       />
     );
   }
 
   return (
+    <AssistantNameContext.Provider value={assistantName(engine.apiStyle)}>
     <div className="app-layout">
       <div className="titlebar" />
       <div className="app-container">
@@ -195,7 +186,7 @@ export default function App() {
           commands={commands}
           conversationId={chat.conversationId}
           defaultModel={defaultModel}
-          providerType={engine.providerType}
+          modelOptions={modelOptions}
           onSend={chat.sendMessage}
           onAbort={chat.abort}
           onRerun={chat.sendMessage}
@@ -208,16 +199,15 @@ export default function App() {
       )}
       {showSettings && (
         <SettingsPanel
+          connectedVia={engine.label}
+          modelOptions={modelOptions}
           onClose={() => setShowSettings(false)}
-          onDisconnect={async () => {
-            await engine.stop();
-            await window.lscApi.saveSettings({ providerType: "" });
-            setShowSettings(false);
-          }}
+          onChangeConnection={openConnectionSetup}
         />
       )}
       </div>
       <StatusBar toolCount={engine.toolCount} onSettingsClick={() => setShowSettings(true)} />
     </div>
+    </AssistantNameContext.Provider>
   );
 }

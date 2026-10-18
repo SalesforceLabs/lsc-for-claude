@@ -7,6 +7,7 @@ import { STAGES } from "./readiness";
 import { firstProblem, needsPublish, traceAskPrompt, traceHeadline, type TraceState } from "./user-trace-state";
 import "./readiness.css";
 import "./user-trace.css";
+import { AssistantName } from "../../hooks/useAssistantName";
 
 export interface UserTraceViewProps {
   features: FeatureSummary[];
@@ -186,7 +187,7 @@ export default function UserTraceView({
               )}
               {!headline.ok && (
                 <button type="button" className="studio-link-btn" onClick={() => onAskClaude(traceAskPrompt(trace, feature?.title))}>
-                  Ask Claude about this user
+                  Ask <AssistantName /> about this user
                 </button>
               )}
               {trace.profile && (trace.checks.some(needsPublish) || pending.length > 0) && (
