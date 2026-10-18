@@ -103,9 +103,15 @@ export type LayoutOp =
   | { op: "removeRelatedList"; relatedList: string }
   | { op: "addRelatedList"; relatedList: string; before: string | null; xml?: string; object?: string };
 
+/** One edit to a compact layout's fields (the record header). `before` is the field it goes in front of, or null for the end. */
+export type CompactOp =
+  | { op: "moveCompactField"; field: string; before: string | null }
+  | { op: "removeCompactField"; field: string }
+  | { op: "addCompactField"; field: string; before: string | null };
+
 export interface MetadataDocRef {
-  type: "Layout";
-  /** Metadata API name, e.g. "Account-Account Layout". */
+  type: "Layout" | "CompactLayout";
+  /** Metadata API name, e.g. "Account-Account Layout" or "Account.LSC_Account_Compact". */
   fullName: string;
   label: string;
 }
@@ -125,11 +131,34 @@ export interface LiveLayout {
  * Edits to one metadata document, deployed together. Each op is checked against
  * the document as retrieved; undo is the reversed inverse ops.
  */
-export interface EditMetadataFix {
+export type EditMetadataFix = LayoutEditFix | CompactLayoutEditFix;
+
+export interface LayoutEditFix {
   kind: "editMetadata";
   label: string;
-  doc: MetadataDocRef;
+  doc: MetadataDocRef & { type: "Layout" };
   ops: LayoutOp[];
+}
+
+export interface CompactLayoutEditFix {
+  kind: "editMetadata";
+  label: string;
+  doc: MetadataDocRef & { type: "CompactLayout" };
+  ops: CompactOp[];
+}
+
+/** A compact layout as it is in the org now, for lining the published record header up before editing. */
+export interface LiveCompactLayout {
+  type: "CompactLayout";
+  fullName: string;
+  label: string;
+  /** API names, in order. */
+  fields: string[];
+  /** Fields that can go on a compact layout, from the object's describe; empty when it couldn't be read. */
+  available: { name: string; label: string; type: string }[];
+  /** Record types assigned it ("Master" when it's the object's default); null when that couldn't be read. */
+  recordTypes: string[] | null;
+  production: boolean;
 }
 
 /** A field value on a new Admin Console record. `dataType` may be left out when it's known for the category or copied. */
