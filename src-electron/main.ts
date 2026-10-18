@@ -4,6 +4,7 @@ import { fileURLToPath, pathToFileURL } from "url";
 import { registerIpcHandlers } from "./ipc/handlers.js";
 import { STUDIO_BROWSER_PARTITION } from "./studio-browser.js";
 import { applyAppIcon } from "./app-icon.js";
+import { applyTheme, watchSystemTheme, windowBackground } from "./theme.js";
 import { loadSettings } from "./settings.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -47,8 +48,8 @@ function createWindow(): void {
     minWidth: 880,
     minHeight: 560,
     title: "Roz for LSC",
-    // Matches --bg-primary so the window never flashes white before the renderer paints.
-    backgroundColor: "#0a0f1a",
+    // Matches --bg-primary so the window never flashes the other palette before the renderer paints.
+    backgroundColor: windowBackground(),
     titleBarStyle: "hiddenInset",
     // Centred in the 52px sidebar header (--toolbar-height).
     trafficLightPosition: { x: 18, y: 19 },
@@ -126,8 +127,11 @@ app.whenReady().then(() => {
     return net.fetch(pathToFileURL(filePath).toString());
   });
 
+  const settings = loadSettings();
+  applyTheme(settings.theme);
+  watchSystemTheme(() => mainWindow);
   createWindow();
-  applyAppIcon(loadSettings().appIcon, mainWindow);
+  applyAppIcon(settings.appIcon, mainWindow);
 });
 
 app.on("window-all-closed", () => {

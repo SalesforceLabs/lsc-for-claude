@@ -52,7 +52,7 @@
 
 .studio-btn:active:not(:disabled),
 .btn-secondary:active:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--fill-active);
 }
 
 .studio-btn.primary,
@@ -145,7 +145,7 @@
   padding: 0 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-xs);
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-field);
   color: var(--text-primary);
   font: inherit;
   font-size: var(--font-base);
@@ -211,9 +211,9 @@ input[type="radio"]:not(.studio-ipad-screen *) {
   width: 14px;
   height: 14px;
   margin: 0;
-  border: 1px solid rgba(255, 255, 255, 0.24);
+  border: 1px solid var(--border-control);
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--fill-control);
   display: inline-grid;
   place-content: center;
   cursor: pointer;
@@ -277,7 +277,7 @@ input[type="radio"]:not(.studio-ipad-screen *):disabled {
   height: var(--control);
   padding: 2px;
   border-radius: var(--radius-xs);
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--bg-inset);
   box-shadow: inset 0 0 0 1px var(--border);
 }
 
@@ -309,7 +309,7 @@ input[type="radio"]:not(.studio-ipad-screen *):disabled {
 .studio-view-tabs button[aria-pressed="true"] {
   background: var(--bg-tertiary);
   color: var(--text-primary);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--border);
 }
 
 .ui-segmented button:disabled {
@@ -391,7 +391,7 @@ input[type="radio"]:not(.studio-ipad-screen *):disabled {
   flex-shrink: 0;
   box-sizing: border-box;
   border-style: solid;
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: var(--border-strong);
   border-top-color: var(--text-secondary);
   border-radius: 50%;
   animation: ui-spin 0.7s linear infinite, ui-fade-in 0.2s ease-out 0.15s both;
@@ -474,7 +474,7 @@ input[type="radio"]:not(.studio-ipad-screen *):disabled {
 
 .ui-skeleton {
   border-radius: var(--radius-xs);
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.04) 100%);
+  background: linear-gradient(90deg, var(--fill-hover) 0%, var(--fill-active) 50%, var(--fill-hover) 100%);
   background-size: 200% 100%;
   animation: ui-shimmer 1.4s ease-in-out infinite;
 }

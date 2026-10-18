@@ -41,7 +41,12 @@ Need something new? Add it to `components/ui/` and `ui.css` so the next screen c
   - Lucide v1 names: `TriangleAlert`, `CircleAlert`, `CircleQuestionMark` (the old aliases don't exist).
 - **Tokens, not literals** (`:root` in `styles.css`):
   - Colour: `--text-*`, `--bg-*`, `--fill-*`, `--border*`, `--accent`, `--success|error|warning(-subtle)`.
-    Hex only defines a token. The one allowed literal is `#fff`, for text on the accent.
+    Hex and `rgba()` only define a token. The one allowed literal is `#fff`, for text on the accent.
+    Every colour token has a light value in the `@media (prefers-color-scheme: light)` block
+    (the test checks); a new token needs both. Tint a tone with `color-mix(in srgb, var(--tone) 12%, transparent)`.
+  - Appearance (System / Light / Dark, in Settings) sets Electron's `nativeTheme.themeSource`
+    (`src-electron/theme.ts`); CSS follows `prefers-color-scheme`. Code that can't use `var()` reads
+    `cssToken()` and re-renders on `useColorScheme()` (`src-renderer/theme.ts`; Mermaid in `mermaid.ts`).
   - Type: `--font-2xs` (badges only), `--font-xs` 11, `--font-sm` 12, `--font-base` 13 (app chrome),
     `--font-md` 14 (reading), `--font-lg`, `--font-xl`, `--font-2xl` (page titles), `--font-display`,
     `--font-code`. No raw `px` font sizes.
@@ -79,7 +84,8 @@ Type-checking doesn't show a wrapped header, a mismatched colour or a squashed b
    app with its saved connection and org, visits every main screen (chat, Library, Commands, Settings,
    Studio Overview / Check a user / What changed / Sync health / Sign-off / a feature's Readiness and
    board / iPad preview, plus a narrow 960×640 window), and saves PNGs. It also prints renderer console errors.
-3. **Read the screenshots for every screen you touched**, including the narrow one. Check alignment,
+   Add `ROZ_SHOTS_THEME=light` (or `dark`) to take the tour in one palette; otherwise it follows the OS.
+3. **Read the screenshots for every screen you touched, in both palettes**, including the narrow one. Check alignment,
    wrapping, truncation, spacing, state coverage and colour, against the rules above.
 4. To check one state or interaction, use the REPL: `printf 'nav .studio-rail-item::Sync health\nwait 3000\nss sync\nquit\n' | node scripts/ui-shots.mjs repl /tmp/roz-shots`.
    It also takes `click TEXT`, `eval JS`, `size W H` and `errors`.

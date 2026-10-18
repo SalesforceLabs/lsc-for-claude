@@ -2,7 +2,6 @@ import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMe
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
-import mermaid from "mermaid";
 import {
   ArrowUp, Bookmark, BookmarkCheck, Check, ChevronDown, ChevronRight, CircleAlert, Copy, ExternalLink, FileText,
   Maximize2, Minimize2, Minus, Paperclip, Plus, RotateCcw, Scan, Square, TriangleAlert, Workflow, Wrench, X,
@@ -11,6 +10,7 @@ import { ChatMessage, ContentBlock, ToolCall, ImageAttachment } from "../hooks/u
 import { pickModel, type ModelOption } from "../models";
 import { rozTileSrc, useAppIcon } from "../app-icon";
 import Spinner from "./ui/Spinner";
+import { useMermaidSvg } from "../mermaid";
 
 /** Lucide defaults for icons in chat chrome. */
 const ICON = { size: 14, strokeWidth: 1.9, "aria-hidden": true } as const;
@@ -21,24 +21,6 @@ function replyText(msg: ChatMessage): string {
     .flatMap((b) => (b.type === "text" && b.text.trim() ? [b.text.trim()] : []))
     .join("\n\n");
 }
-
-// Initialize mermaid with dark theme
-mermaid.initialize({
-  startOnLoad: false,
-  theme: "dark",
-  themeVariables: {
-    darkMode: true,
-    background: "#0a0f1a",
-    primaryColor: "#3b82f6",
-    primaryTextColor: "#f1f5f9",
-    primaryBorderColor: "#2563eb",
-    lineColor: "#64748b",
-    secondaryColor: "#1f2937",
-    tertiaryColor: "#111827",
-  },
-  flowchart: { htmlLabels: true, curve: "basis" },
-  securityLevel: "loose",
-});
 
 /**
  * Wrap ASCII art / diagram blocks in code fences so the Markdown
@@ -225,55 +207,11 @@ function summarizeTools(tools: ToolCall[]): string {
     .join(", ");
 }
 
-/** Inline mermaid card — renders SVG, calls onOpen when clicked */
-let mermaidIdCounter = 0;
-/** Cache rendered SVGs so re-mounts don't flash "Generating..." */
-const mermaidSvgCache = new Map<string, string>();
-
-/** Offscreen container for mermaid.render() so temp SVGs never flash on screen */
-function getMermaidContainer(): HTMLElement {
-  let el = document.getElementById("mermaid-offscreen");
-  if (!el) {
-    el = document.createElement("div");
-    el.id = "mermaid-offscreen";
-    el.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;";
-    document.body.appendChild(el);
-  }
-  return el;
-}
-
-function MermaidDiagram({ chart, onOpen, onSave, saved }: { chart: string; onOpen?: (svg: string) => void; onSave?: (svg: string, chart: string) => void; saved?: boolean }) {
-  const [svg, setSvg] = useState<string | null>(() => mermaidSvgCache.get(chart.trim()) ?? null);
-  const [error, setError] = useState<string | null>(null);
-  const renderAttempt = useRef(0);
-
-  useEffect(() => {
-    const trimmed = chart.trim();
-    const cached = mermaidSvgCache.get(trimmed);
-    if (cached) { setSvg(cached); return; }
-
-    const attempt = ++renderAttempt.current;
-    const timer = setTimeout(async () => {
-      if (attempt !== renderAttempt.current) return;
-      const id = `mermaid-${++mermaidIdCounter}-${Date.now()}`;
-      try {
-        const container = getMermaidContainer();
-        const { svg: rendered } = await mermaid.render(id, trimmed, container);
-        if (attempt === renderAttempt.current) {
-          mermaidSvgCache.set(trimmed, rendered);
-          setSvg(rendered);
-          setError(null);
-        }
-      } catch {
-        document.getElementById(`d${id}`)?.remove();
-        getMermaidContainer().innerHTML = "";
-        if (attempt === renderAttempt.current && chart.includes("\n")) {
-          setError("Diagram syntax error");
-        }
-      }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [chart]);
+/** Inline mermaid card — renders SVG, calls onOpen with the chart when clicked */
+function MermaidDiagram({ chart, onOpen, onSave, saved }: { chart: string; onOpen?: (chart: string) => void; onSave?: (svg: string, chart: string) => void; saved?: boolean }) {
+  // Debounced while the reply streams; a half-written chart is only an error once it spans lines.
+  const { svg, error: failed } = useMermaidSvg(chart, 500);
+  const error = failed && chart.includes("\n");
 
   if (error) {
     return (
@@ -288,11 +226,11 @@ function MermaidDiagram({ chart, onOpen, onSave, saved }: { chart: string; onOpe
       className={`mermaid-card${svg ? "" : " pending"}`}
       role="button"
       tabIndex={svg ? 0 : -1}
-      onClick={() => svg && onOpen?.(svg)}
+      onClick={() => svg && onOpen?.(chart)}
       onKeyDown={(e) => {
         if (svg && (e.key === "Enter" || e.key === " ")) {
           e.preventDefault();
-          onOpen?.(svg);
+          onOpen?.(chart);
         }
       }}
     >
@@ -411,7 +349,8 @@ export function DiagramViewport({ svg, controls }: { svg: string; controls: Retu
 }
 
 /** Side panel viewer for mermaid diagrams — sits alongside the chat area */
-function MermaidViewerPanel({ svg, onClose }: { svg: string; onClose: () => void }) {
+function MermaidViewerPanel({ chart, onClose }: { chart: string; onClose: () => void }) {
+  const { svg } = useMermaidSvg(chart);
   const [panelWidth, setPanelWidth] = useState<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -471,7 +410,7 @@ function MermaidViewerPanel({ svg, onClose }: { svg: string; onClose: () => void
           <X size={16} strokeWidth={1.9} aria-hidden="true" />
         </button>
       </div>
-      <DiagramViewport svg={svg} controls={controls} />
+      <DiagramViewport svg={svg ?? ""} controls={controls} />
     </div>
   );
 }
@@ -701,7 +640,7 @@ export default function ChatView({
   }, [prefillInput]); // eslint-disable-line react-hooks/exhaustive-deps
   const [images, setImages] = useState<ImageAttachment[]>([]);
   const [dragActive, setDragActive] = useState(false);
-  const [diagramSvg, setDiagramSvg] = useState<string | null>(null);
+  const [diagramChart, setDiagramChart] = useState<string | null>(null);
   const [docPanel, setDocPanel] = useState<{
     title: string;
     content: string;
@@ -781,7 +720,7 @@ export default function ChatView({
     if (result.ok && result.content) {
       const name = filePath.split("/").pop() || filePath;
       setDocPanel({ title: name, content: result.content, path: filePath });
-      setDiagramSvg(null);
+      setDiagramChart(null);
     }
   }, []);
 
@@ -801,7 +740,7 @@ export default function ChatView({
         startPage: result.startPage,
         endPage: result.endPage,
       });
-      setDiagramSvg(null);
+      setDiagramChart(null);
     }
   }, []);
 
@@ -896,7 +835,7 @@ export default function ChatView({
     // Restore incoming panel state
     const saved = conversationId ? docPanelStates.get(conversationId) : null;
     setDocPanel(saved ?? null);
-    setDiagramSvg(null);
+    setDiagramChart(null);
     prevConvForPanelRef.current = conversationId;
   }, [conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1173,7 +1112,7 @@ export default function ChatView({
     );
   }
 
-  const hasPanel = diagramSvg || docPanel;
+  const hasPanel = diagramChart || docPanel;
 
   return (
     <div className={`main-area${hasPanel ? " with-panel" : ""}`}>
@@ -1243,7 +1182,7 @@ export default function ChatView({
                               return (
                                 <MermaidDiagram
                                   chart={text}
-                                  onOpen={setDiagramSvg}
+                                  onOpen={setDiagramChart}
                                   saved={savedDiagramContents?.has(text)}
                                   onSave={(svg, chart) => {
                                     onSaveToLibrary({
@@ -1380,8 +1319,8 @@ export default function ChatView({
       </div>
       {inputArea}
       </div>
-      {diagramSvg && !docPanel && (
-        <MermaidViewerPanel svg={diagramSvg} onClose={() => setDiagramSvg(null)} />
+      {diagramChart && !docPanel && (
+        <MermaidViewerPanel chart={diagramChart} onClose={() => setDiagramChart(null)} />
       )}
       {docPanel && (
         <DocViewerPanel

@@ -926,6 +926,8 @@ button.studio-ipad-title:hover {
   height: 12px;
   border-radius: 999px;
   background: #fff;
+  /* Keeps the white pill visible on the light palette's white page. */
+  border: 1px solid var(--border-strong);
 }
 
 .studio-ipad-swatch.conditional {

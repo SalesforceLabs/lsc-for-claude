@@ -8,6 +8,7 @@ import {
 import { useDiagramControls, DiagramZoomToolbar, DiagramViewport } from "./ChatView";
 import StateView from "./ui/StateView";
 import Segmented from "./ui/Segmented";
+import { useMermaidSvg } from "../mermaid";
 
 interface LibraryItem {
   id: string;
@@ -63,7 +64,17 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString();
 }
 
-function LibraryDiagramDetail({ svg }: { svg: string }) {
+/** A saved diagram drawn in the current palette; the SVG saved with it shows until that's ready. */
+function useLibrarySvg(item: LibraryItem): string {
+  return useMermaidSvg(item.content).svg ?? item.svg ?? "";
+}
+
+function LibraryCardDiagram({ item }: { item: LibraryItem }) {
+  return <div className="library-card-svg" dangerouslySetInnerHTML={{ __html: useLibrarySvg(item) }} />;
+}
+
+function LibraryDiagramDetail({ item }: { item: LibraryItem }) {
+  const svg = useLibrarySvg(item);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const controls = useDiagramControls();
 
@@ -251,7 +262,7 @@ export default function LibraryPanel({ items, onClose, onDelete, onSearch, onGoT
                 >
                   <div className="library-card-preview">
                     {item.contentType === "diagram" && item.svg ? (
-                      <div className="library-card-svg" dangerouslySetInnerHTML={{ __html: item.svg }} />
+                      <LibraryCardDiagram item={item} />
                     ) : (
                       <div className="library-card-text">
                         {item.content.slice(0, 200)}
@@ -326,7 +337,7 @@ export default function LibraryPanel({ items, onClose, onDelete, onSearch, onGoT
             {" "}&middot; {formatDate(selectedItem.createdAt)}
           </div>
           {selectedItem.contentType === "diagram" && selectedItem.svg ? (
-            <LibraryDiagramDetail svg={selectedItem.svg} />
+            <LibraryDiagramDetail item={selectedItem} />
           ) : (
             <div className="library-detail-body">
               <div className="message-content">

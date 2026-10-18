@@ -1,4 +1,5 @@
 import type { LlmConnection, LlmConnectionKind, LlmConnectionTest } from "./connection";
+import type { AppTheme } from "./theme";
 
 interface LibraryItem {
   id: string;
@@ -67,12 +68,14 @@ interface LscApi {
   getSettings(): Promise<{
     connection?: LlmConnection;
     model?: string;
-    theme?: string;
+    theme?: AppTheme;
     sfTargetOrg?: string;
     mobileClientId?: string;
     appIcon?: string;
   }>;
   saveSettings(settings: Record<string, unknown>): Promise<{ ok: boolean }>;
+  /** Shows an appearance without saving it (Settings' live preview). */
+  previewTheme(theme: AppTheme): Promise<void>;
 
   // Connections
   /** What's available without asking: Claude Code's gateway host, env API keys, kinds with a saved key. */
