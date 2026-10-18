@@ -16,7 +16,7 @@ The Lightning Mobile Runtime hosts LWCs in the app. With offline support on, an 
 
 Supported (local handlers): `getRecord`, `createRecord`, `updateRecord`, `deleteRecord`, `getRecordCreateDefaults`, `getLayout`, `getRecordUi`, `getLookupRecords` (`lightning/uiRecordApi`); `getRelatedListRecords` (`lightning/uiRelatedListApi`); `getObjectInfo`, `getObjectInfos` (batch; partial failures possible), `getPicklistValues`, `getPicklistValuesByRecordType` (`lightning/uiObjectInfoApi`).
 
-Unsupported (cannot resolve offline): `notifyRecordUpdateAvailable`; `getRelatedListInfo`, `getRelatedListInfoBatch`, `getRelatedListsInfo`, `getRelatedListRecordsBatch`, `getRelatedListCount`; `getNavItems` (`lightning/uiAppsApi`); **`graphql` (`lightning/uiGraphQLApi`)**; any Connect API (`/connect/`), Apex REST (`/services/apexrest/`) and SOQL via REST (`/services/data/{version}/query`) call. Apex methods are also not in the supported list.
+Unsupported (cannot resolve offline, per the Help table as published; `graphql` is now supported in Winter '27, see below): `notifyRecordUpdateAvailable`; `getRelatedListInfo`, `getRelatedListInfoBatch`, `getRelatedListsInfo`, `getRelatedListRecordsBatch`, `getRelatedListCount`; `getNavItems` (`lightning/uiAppsApi`); **`graphql` (`lightning/uiGraphQLApi`)**; any Connect API (`/connect/`), Apex REST (`/services/apexrest/`) and SOQL via REST (`/services/data/{version}/query`) call. Apex methods are also not in the supported list.
 
 ## Resolve GraphQL Queries Offline
 
@@ -25,7 +25,8 @@ When offline, the mobile app resolves GraphQL queries from your custom LWCs agai
 - Turn on offline support for the Life Sciences Cloud mobile app.
 - Build queries with the `graphql` wire adapter from `lightning/uiGraphQLApi`.
 - Only data in the synced DB Schema is available offline; make sure the queried objects/fields are enabled in DB Schema (`list_db_schema`).
-- **Conflict to verify:** the Winter '27 release note says offline GraphQL resolves from synced data, but the Help adapter table lists `graphql` (`lightning/uiGraphQLApi`) as unsupported offline. Test in the target app version before relying on it. Salesforce's Mobile Offline developer guide describes Offline GraphQL as a subset: no aggregate queries, no mutations, pagination only on top-level record queries (not nested child queries), no optional fields or dynamic query construction, and `lightning/graphql` does not support offline (use `lightning/uiGraphQLApi`).
+- **Availability (confirmed internally, not yet reflected in Help):** offline GraphQL is available in Winter '27 **without a feature gate ("gator")**, as long as the admin setting is enabled (Admin Console > Mobile > Application Settings > LSC Mobile Apps > **Use Mobile Apps offline**). The Help adapter table (`lsc_custom_lwc_apps_offline_adapters`) still lists `graphql` (`lightning/uiGraphQLApi`) as unsupported offline, so that article appears out of date.
+- **Limits (Mobile Offline developer guide):** offline GraphQL is a subset: no aggregate queries, no mutations, pagination only on top-level record queries (not nested child queries), no optional fields or dynamic query construction, and `lightning/graphql` does not support offline (use `lightning/uiGraphQLApi`).
 - See official help: "Supported and Unsupported LWC Adapters for Offline Use".
 
 ## Combine Multiple Components in a Single LSC App

@@ -45,7 +45,7 @@ Account Search now ranks the strongest matches first (by relevance, not alphabet
 - **Request Remote Consent Signatures from Participants on Mobile Phones** (week of Oct 5) — HCPs on phones review consent topics, opt in/out and sign electronically (previously laptop/desktop only).
 - **Capture Consent in More Ways** — verbal consent or a document reference to a paper form; admins can require at least one proof. Admin Console > Consent Administration (mobile and web proof settings). New fields `CommSubConsentCmplSnpsht.IsVerbalConsent` and `ConsentDocumentReference`.
 - **Access Custom LSC Apps Offline** (week of Oct 5) — custom app bundles download on every sync; no prior connected session required.
-- **Resolve GraphQL Queries Offline in Custom LSC Apps** (week of Oct 5, iPad) — offline support on; use the `graphql` wire adapter from `lightning/uiGraphQLApi`.
+- **Resolve GraphQL Queries Offline in Custom LSC Apps** (week of Oct 5, iPad) — offline support on; use the `graphql` wire adapter from `lightning/uiGraphQLApi`. Available without a feature gate when the offline admin setting is enabled (confirmed internally, not yet reflected in Help; the Help adapter table still lists `graphql` as unsupported).
 - **Combine Multiple Components in a Single LSC App** (week of Oct 5, iPad) — one parent LWC (with `lscMobileInline_` prefix and a `targets` entry) can nest multiple child LWCs on the Home Page or a record-page tab.
 
 ## Event Management
