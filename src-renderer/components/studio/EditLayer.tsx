@@ -85,6 +85,35 @@ export function editAttrs(on: boolean, target: EditTarget, pass = false, drag?: 
 
 export const useEditOn = () => useContext(EditContext);
 
+/** The family being dragged right now (null when nothing is), so a list can show its empty drop targets only while one is. */
+const DragContext = createContext<string | null>(null);
+export const useDragFamily = () => useContext(DragContext);
+
+/**
+ * Makes an element a place blocks of `drag.family` can be dropped in `drag.list`,
+ * even when the list has no block (an empty layout column); with blocks it widens
+ * the list's drop area to this element.
+ */
+export function slotAttrs(on: boolean, drag: DragSpec): Record<string, string> {
+  return on ? { "data-edit-slot": drag.family, "data-edit-list": JSON.stringify(drag.list ?? null) } : {};
+}
+
+/**
+ * Counts in a list's order without being selectable or draggable itself: a block
+ * the page draws in parts (the details card) still has a place a drop can land before.
+ */
+export function Anchor({ target, drag, children }: { target: EditTarget; drag: DragSpec; children: React.ReactNode }) {
+  const on = useContext(EditContext);
+  if (!on) return <>{children}</>;
+  const attrs = editAttrs(true, target, false, drag);
+  delete attrs["data-edit-key"];
+  return (
+    <div className="studio-edit-mark" {...attrs} data-edit-anchor="">
+      {children}
+    </div>
+  );
+}
+
 /** A selectable block. Lays out as its children (display: contents). */
 export function Mark({ target, drag, children }: { target: EditTarget; drag?: DragSpec; children: React.ReactNode }) {
   const on = useContext(EditContext);
@@ -159,12 +188,24 @@ function dragLists(root: Element, family: string, origin: DOMRect): DragList[] {
     else items.push({ id, target, box });
     lists.set(dragList(el), items);
   }
-  return [...lists].map(([list, items]) => ({ list, items, box: items.map((i) => i.box).reduce(union) }));
+  const slots = new Map<string, DOMRect>();
+  for (const el of root.querySelectorAll(`[data-edit-slot="${CSS.escape(family)}"]`)) {
+    const box = boxOf(el, origin);
+    const at = dragList(el);
+    if (box) slots.set(at, slots.has(at) ? union(slots.get(at)!, box) : box);
+  }
+  return [...new Set([...lists.keys(), ...slots.keys()])].map((list) => {
+    const items = lists.get(list) ?? [];
+    const slot = slots.get(list);
+    return { list, items, box: [...items.map((i) => i.box), ...(slot ? [slot] : [])].reduce(union) };
+  });
 }
 
 /**
- * Where a drag at (x, y) lands: the nearest list, before the first block whose
- * middle is past the pointer. `drop` is null right next to where the block is.
+ * Where a drag at (x, y) lands: the nearest list, before the first block the
+ * pointer hasn't passed. Blocks that wrap (two Home components to a row) are
+ * ordered by row, then left to right, and get a vertical line within a row.
+ * `drop` is null right next to where the block is.
  */
 function landing(
   lists: DragList[],
@@ -172,20 +213,37 @@ function landing(
   y: number,
   dragged: { id: string; list: string },
   horizontal: boolean
-): { line: DOMRect; drop: EditDrop | null } | null {
+): { line: DOMRect; across: boolean; drop: EditDrop | null } | null {
   if (!lists.length) return null;
   const near = lists.reduce((a, b) => (distance(b.box, x, y) < distance(a.box, x, y) ? b : a));
-  const mid = (r: DOMRect) => (horizontal ? r.x + r.width / 2 : r.y + r.height / 2);
-  const k = near.items.filter((i) => mid(i.box) < (horizontal ? x : y)).length;
-  const prev = near.items[k - 1];
-  const next = near.items[k];
+  const { items } = near;
+  if (!items.length) {
+    // An empty list takes the drop at its top.
+    const b = near.box;
+    return { line: new DOMRect(b.x, b.y + 1, b.width, 3), across: false, drop: { list: JSON.parse(near.list) as unknown, before: null } };
+  }
+  const overlap = (a: DOMRect, b: DOMRect) => Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > Math.min(a.height, b.height) / 2;
+  const wraps = (i: DragItem) => !horizontal && items.some((o) => o !== i && overlap(o.box, i.box));
+  const inRow = (i: DragItem) => wraps(i) && y >= i.box.top && y <= i.box.bottom;
+  const passed = (i: DragItem) =>
+    horizontal || inRow(i) ? i.box.x + i.box.width / 2 < x : i.box.y + i.box.height / 2 < y;
+  const k = items.filter(passed).length;
+  const prev = items[k - 1];
+  const next = items[k];
   const here = near.list === dragged.list && (prev?.id === dragged.id || next?.id === dragged.id);
-  const [end, start] = horizontal ? (["right", "left"] as const) : (["bottom", "top"] as const);
-  const at = prev && next ? (prev.box[end] + next.box[start]) / 2 : prev ? prev.box[end] + 2 : next.box[start] - 2;
-  const line = horizontal
-    ? new DOMRect(at - 1.5, near.box.y, 3, near.box.height)
-    : new DOMRect(near.box.x, at - 1.5, near.box.width, 3);
-  return { line, drop: here ? null : { list: JSON.parse(near.list) as unknown, before: next?.target ?? null } };
+  const drop = here ? null : { list: JSON.parse(near.list) as unknown, before: next?.target ?? null };
+  const rect = (r: DOMRect, across: boolean, at: number) =>
+    across ? new DOMRect(at - 1.5, r.y, 3, r.height) : new DOMRect(r.x, at - 1.5, r.width, 3);
+  if (horizontal) {
+    const at = prev && next ? (prev.box.right + next.box.left) / 2 : prev ? prev.box.right + 2 : next.box.left - 2;
+    return { line: rect(near.box, true, at), across: true, drop };
+  }
+  if (prev && next && overlap(prev.box, next.box))
+    return { line: rect(union(prev.box, next.box), true, (prev.box.right + next.box.left) / 2), across: true, drop };
+  if (next && inRow(next)) return { line: rect(next.box, true, next.box.left - 2), across: true, drop };
+  if (prev && inRow(prev)) return { line: rect(prev.box, true, prev.box.right + 2), across: true, drop };
+  const at = prev && next ? (prev.box.bottom + next.box.top) / 2 : prev ? prev.box.bottom + 2 : next.box.top - 2;
+  return { line: rect(near.box, false, at), across: false, drop };
 }
 
 const VERB_ICONS: Record<VerbId, LucideIcon> = {
@@ -245,7 +303,26 @@ interface Press {
   horizontal: boolean;
   target: EditTarget;
   started: boolean;
+  /** The nearest scrolling ancestor of the pressed block: scrolled while the pointer is at its top or bottom edge. */
+  scroll: HTMLElement | null;
+  /** The block's box when the drag started, which the lifted copy follows the pointer from (the page may scroll under it). */
+  grab: DOMRect | null;
 }
+
+/** The nearest ancestor that scrolls vertically. */
+function scrollParent(el: Element): HTMLElement | null {
+  for (let n = el.parentElement; n; n = n.parentElement) {
+    const o = getComputedStyle(n).overflowY;
+    if ((o === "auto" || o === "scroll") && n.scrollHeight > n.clientHeight) return n;
+  }
+  return null;
+}
+
+/** How near a scrolling edge the pointer has to be (px on screen), and the fastest scroll per frame. */
+const SCROLL_EDGE = 56;
+const SCROLL_MAX = 16;
+/** How long a dragged tab rests on a tab-bar pager before the bar turns the page. */
+const PAGER_DWELL_MS = 550;
 
 export function EditSurface({
   on,
@@ -267,7 +344,8 @@ export function EditSurface({
   const landed = useRef<EditDrop | null>(null);
   // The click that ends a drag isn't a selection.
   const swallowClick = useRef(false);
-  const [drag, setDrag] = useState<{ lift: DOMRect | null; line: DOMRect | null; horizontal: boolean; tag: string } | null>(null);
+  const [drag, setDrag] = useState<{ lift: DOMRect | null; line: DOMRect | null; horizontal: boolean; tag: string; family: string } | null>(null);
+  const pointer = useRef<{ x: number; y: number } | null>(null);
   const [flash, setFlash] = useState<"dropped" | "refused" | null>(null);
   const latest = useRef({ onDrop, onSelect });
   latest.current = { onDrop, onSelect };
@@ -388,27 +466,63 @@ export function EditSurface({
   // Dragging, with pointer events on the window so a drag that leaves the device still ends.
   useEffect(() => {
     if (!on) return;
-    const move = (e: PointerEvent) => {
+    // Where the pointer is now lands the block; run again when the page scrolls or turns under a still pointer.
+    const update = () => {
       const p = press.current;
       const el = root.current;
-      if (!p || !el) return;
+      const pt = pointer.current;
+      if (!p?.started || !el || !pt) return;
+      const origin = el.getBoundingClientRect();
+      const lists = dragLists(el, p.family, origin);
+      p.grab ??= lists.find((l) => l.list === p.list)?.items.find((i) => i.id === p.id)?.box ?? null;
+      const at = landing(lists, pt.x - origin.left, pt.y - origin.top, p, p.horizontal);
+      landed.current = at?.drop ?? null;
+      setDrag({
+        lift: p.grab ? new DOMRect(p.grab.x + pt.x - p.x, p.grab.y + pt.y - p.y, p.grab.width, p.grab.height) : null,
+        line: at?.drop ? at.line : null,
+        horizontal: at?.across ?? p.horizontal,
+        tag: targetTag(p.target),
+        family: p.family,
+      });
+    };
+    let frame = 0;
+    let rest: { pager: Element; since: number } | null = null;
+    // While a drag is on: scroll the page when the pointer sits at its top or bottom edge, and turn the tab bar's page when a tab rests on a pager.
+    const tick = (now: number) => {
+      const p = press.current;
+      const pt = pointer.current;
+      frame = 0;
+      if (!p?.started || !pt) return;
+      const r = p.scroll?.getBoundingClientRect();
+      if (p.scroll && r && pt.x >= r.left && pt.x <= r.right && pt.y >= r.top - SCROLL_EDGE && pt.y <= r.bottom + SCROLL_EDGE) {
+        const into = pt.y < r.top + SCROLL_EDGE ? pt.y - (r.top + SCROLL_EDGE) : pt.y > r.bottom - SCROLL_EDGE ? pt.y - (r.bottom - SCROLL_EDGE) : 0;
+        const dy = Math.max(-SCROLL_MAX, Math.min(SCROLL_MAX, Math.round(into / 3)));
+        const was = p.scroll.scrollTop;
+        if (dy) p.scroll.scrollTop = was + dy;
+        if (p.scroll.scrollTop !== was) update();
+      }
+      const pager = p.family === "tabs" ? document.elementFromPoint(pt.x, pt.y)?.closest(".studio-ipad-pager") : null;
+      if (!pager) rest = null;
+      else if (rest?.pager !== pager) rest = { pager, since: now };
+      else if (now - rest.since > PAGER_DWELL_MS) {
+        (pager as HTMLElement).click();
+        rest = null;
+        setTimeout(update, 60);
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    const move = (e: PointerEvent) => {
+      const p = press.current;
+      if (!p || !root.current) return;
       if (!p.started) {
         if (Math.hypot(e.clientX - p.x, e.clientY - p.y) < 4) return;
         p.started = true;
         latest.current.onSelect(p.target);
       }
       e.preventDefault();
-      const origin = el.getBoundingClientRect();
-      const lists = dragLists(el, p.family, origin);
-      const own = lists.find((l) => l.list === p.list)?.items.find((i) => i.id === p.id)?.box;
-      const at = landing(lists, e.clientX - origin.left, e.clientY - origin.top, p, p.horizontal);
-      landed.current = at?.drop ?? null;
-      setDrag({
-        lift: own ? new DOMRect(own.x + e.clientX - p.x, own.y + e.clientY - p.y, own.width, own.height) : null,
-        line: at?.drop ? at.line : null,
-        horizontal: p.horizontal,
-        tag: targetTag(p.target),
-      });
+      pointer.current = { x: e.clientX, y: e.clientY };
+      update();
+      if (!frame) frame = requestAnimationFrame(tick);
     };
     const up = () => {
       const p = press.current;
@@ -428,6 +542,7 @@ export function EditSurface({
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", endDrag);
+      cancelAnimationFrame(frame);
       endDrag();
     };
   }, [on, endDrag]);
@@ -458,6 +573,8 @@ export function EditSurface({
       horizontal: el.getAttribute("data-edit-axis") === "x",
       target,
       started: false,
+      scroll: scrollParent(el),
+      grab: null,
     };
   };
   const onClickCapture = (e: React.MouseEvent) => {
@@ -483,6 +600,7 @@ export function EditSurface({
   const hoverTarget = targetOf(find(hover));
   return (
     <EditContext.Provider value={on}>
+      <DragContext.Provider value={drag?.family ?? null}>
       <div
         ref={root}
         className={`studio-edit-surface${on ? " on" : ""}${onDrop ? " draft" : ""}${drag ? " dragging" : ""}`}
@@ -538,6 +656,7 @@ export function EditSurface({
           </div>
         )}
       </div>
+      </DragContext.Provider>
     </EditContext.Provider>
   );
 }

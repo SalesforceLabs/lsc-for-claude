@@ -301,6 +301,8 @@ export interface DraftSection {
   heading: boolean;
   state: DraftState;
   columns: DraftField[][];
+  /** Indices (in the org's layout) of the columns left with nothing to draw; a field can still be dropped in them. */
+  emptyColumns: number[];
 }
 
 /** Each layout item's drawn parts, read from the published layout. */
@@ -348,7 +350,7 @@ export function draftSections(
     const liveSec = sectionByKey(live, key)!;
     const sec = ghost ? liveSec : sectionByKey(target, key)!;
     const pub = pubByKey.get(key);
-    const columns = sec.columns
+    const all = sec.columns
       .map((col, ci) => {
         const liveCol = (liveSec.columns[ci] ?? []).map((i) => i.field);
         const order = ghost ? liveCol.map((key) => ({ key, ghost: true })) : withGhosts(liveCol, col.map((i) => i.field), removedField);
@@ -364,9 +366,11 @@ export function draftSections(
           const state: DraftState = gone || ghost ? "removed" : !before ? "added" : moved || liveItem?.behavior !== item.behavior ? "moved" : "same";
           return (specs.get(field) ?? []).map((spec) => ({ spec, item: field, behavior: item.behavior, state, col: ci }));
         });
-      })
-      .filter((c) => c.length);
+      });
+    const columns = all.filter((c) => c.length);
     if (!columns.length) return [];
+    // The section's columns with no field to draw: where a drag can still drop one.
+    const emptyColumns = ghost ? [] : all.flatMap((c, ci) => (c.length ? [] : [ci]));
     const name = pub?.label ?? sec.label;
     const moved = !ghost && commonLive.indexOf(key) !== commonTarget.indexOf(key);
     return [
@@ -378,6 +382,7 @@ export function draftSections(
         heading: sec.heading,
         state: ghost ? "removed" : moved || sec.heading !== liveSec.heading ? "moved" : "same",
         columns,
+        emptyColumns,
       },
     ];
   });

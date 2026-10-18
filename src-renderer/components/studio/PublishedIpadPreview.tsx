@@ -12,7 +12,7 @@ import type {
   PublishedTab,
 } from "./published-types";
 import IpadScreen from "./IpadScreen";
-import RecordScreen, { asDrawn, blockIdentity, draftClass, LayoutEdits, usePageDraft } from "./IpadRecord";
+import RecordScreen, { asDrawn, blockIdentity, draftClass, LayoutEdits, RecordTabs, usePageDraft } from "./IpadRecord";
 import IpadFabs from "./IpadFabs";
 import { Dashboard } from "./IpadDashboard";
 import { ReportsTree } from "./IpadReports";
@@ -128,6 +128,9 @@ function Device({
   const [current, setCurrent] = useState(snapshot.tabs[0]?.fullName ?? "");
   // The id of the open record ("" when the list row has no prefetched data); null shows the list.
   const [record, setRecord] = useState<string | null>(null);
+  // The record tab (Details, Related…) each record is on, shared by the published and Draft sides.
+  const [recordTabs, setRecordTabs] = useState<Record<string, string>>({});
+  const sharedTabs = useMemo(() => ({ selected: recordTabs, select: (id: string, tab: string) => setRecordTabs((m) => ({ ...m, [id]: tab })) }), [recordTabs]);
   const [sheet, setSheet] = useState<ChromeSheet | null>(null);
   const [newSheet, setNewSheet] = useState<Presentation | null>(null);
   const tab = allTabs.find((t) => t.fullName === current) ?? allTabs[0];
@@ -240,9 +243,11 @@ function Device({
   };
 
   const draftSide = (
+    <RecordTabs.Provider value={sharedTabs}>
     <EditSurface on={editing} selected={edit?.selected ?? null} onSelect={edit?.onSelect ?? (() => {})} also={edit?.also} name={edit?.name} verbs={edit?.verbs ?? []} onRun={edit?.onRun ?? (() => {})} setup={edit?.setup} onSetup={edit?.onSetup} horizontal={edit?.horizontal} onDrop={edit?.onDrop}>
       <LayoutEdits.Provider value={layoutEdits}>{screen(false)}</LayoutEdits.Provider>
     </EditSurface>
+    </RecordTabs.Provider>
   );
 
   return (
@@ -293,7 +298,7 @@ function Device({
         <div className="studio-ipad-split">
           <div className="studio-ipad-side">
             <div className="studio-ipad-side-label">Published</div>
-            {screen(true)}
+            <RecordTabs.Provider value={sharedTabs}>{screen(true)}</RecordTabs.Provider>
           </div>
           <div className="studio-ipad-side">
             <div className="studio-ipad-side-label">Draft</div>
@@ -555,8 +560,13 @@ function Region({
     if (c.tabs || /(^|:)highlightsPanel$/.test(c.name))
       return <ComponentCard key={key} page={page} c={c} snapshot={snapshot} object={object} layout={layout} multi={multi} />;
     const node = <ComponentCard page={page} c={c} snapshot={snapshot} object={object} layout={layout} multi={multi} />;
+    const d = stateOf(c);
     return (
-      <Mark key={key} target={target(c)}>
+      <Mark
+        key={key}
+        target={target(c)}
+        drag={pd ? { family: `page:${page.name}`, list: region, id: d.key, ghost: state === "removed" } : undefined}
+      >
         {state === "same" ? node : <div className={`studio-ipad-draft-block${draftClass(state)}`}>{node}</div>}
       </Mark>
     );
@@ -679,9 +689,10 @@ function TabSet({
   return (
     <>
       <div className="studio-ipad-chips">
-        {drawn.map(({ value: t, state }, j) => (
+        {drawn.map(({ value: t, state, key }, j) => (
           <Mark
             key={j}
+            drag={pd ? { family: `recordTabs:${page.name}`, list: "tabs", id: key, ghost: state === "removed", horizontal: true } : undefined}
             target={{
               kind: "recordTab",
               page: page.name,

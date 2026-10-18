@@ -14,6 +14,8 @@ import {
   insertVerb,
   locateItem,
   modelOf,
+  moveComponentTo,
+  moveRecordTabTo,
   newIdentifier,
   propertyEdits,
   removedItems,
@@ -165,6 +167,38 @@ describe("flexipage-draft", () => {
       ["force_relatedListSingleContainer4", "moved"],
       ["force_relatedListSingleContainer", "moved"],
     ]);
+  });
+
+  it("drops a tab before another, matching the move verbs, and a drop back in place queues nothing", () => {
+    const keys = () => base.regions.find((r) => r.name === TABS)!.items.map((i) => i.key);
+    const [a, b, c] = [keys()[2], keys()[3], keys()[4]];
+    const pending = moveRecordTabTo(draftOf(), b, a, [])!;
+    const target = roundTrips(pending);
+    expect(target.regions.find((r) => r.name === TABS)!.items.map((i) => i.key).slice(2, 4)).toEqual([b, a]);
+    expect(moveRecordTabTo(draftOf(), b, a, [])).toEqual(verbOf(draftOf(), b, "up", true).run!([]));
+    // Back where it was, or before its own next neighbour, is the org's page again.
+    expect(moveRecordTabTo(draftOf(pending), b, c, pending)).toEqual([]);
+    expect(moveRecordTabTo(draftOf(), a, b, [])).toEqual([]);
+    // Last in the tab set.
+    const last = moveRecordTabTo(draftOf(), a, null, [])!;
+    expect(roundTrips(last).regions.find((r) => r.name === TABS)!.items.at(-1)!.key).toBe(a);
+  });
+
+  it("drops a component within its region, and refuses other regions and tabs mixed with components", () => {
+    const items = base.regions.find((r) => r.name === RELATED)!.items.map((i) => i.key);
+    const pending = moveComponentTo(draftOf(), items[2], items[0], [])!;
+    const target = roundTrips(pending);
+    expect(target.regions.find((r) => r.name === RELATED)!.items.map((i) => i.key).slice(0, 3)).toEqual([items[2], items[0], items[1]]);
+    expect(moveComponentTo(draftOf(), items[1], items[0], [])).toEqual(verbOf(draftOf(), items[1], "up").run!([]));
+    expect(moveComponentTo(draftOf(), items[0], items[1], [])).toEqual([]);
+    const other = base.regions.find((r) => r.name === INSIGHTS)!.items[0].key;
+    expect(moveComponentTo(draftOf(), items[0], other, [])).toBeNull();
+    expect(moveComponentTo(draftOf(), items[0], "nope", [])).toBeNull();
+    expect(moveComponentTo(draftOf(), "flexipage_tab", null, [])).toBeNull();
+    expect(moveRecordTabTo(draftOf(), items[0], null, [])).toBeNull();
+    // A removed component isn't on the arranged page.
+    const removed = verbOf(draftOf(), items[0], "remove").run!([]);
+    expect(moveComponentTo(draftOf(removed), items[0], null, removed)).toBeNull();
   });
 
   it("removes a component and lists it to put back", () => {
