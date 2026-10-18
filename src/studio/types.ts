@@ -81,7 +81,8 @@ export type StudioFix =
       /** true inserts the related list into the layout; false removes it (the undo). */
       add: boolean;
     }
-  | EditMetadataFix;
+  | EditMetadataFix
+  | CopyForProfileFix;
 
 /** A page layout field's behavior. */
 export type FieldBehavior = "Edit" | "Required" | "Readonly";
@@ -237,6 +238,36 @@ export interface RelatedListOption {
  * the document as retrieved; undo is the reversed inverse ops.
  */
 export type EditMetadataFix = LayoutEditFix | CompactLayoutEditFix | FlexiPageEditFix;
+
+/**
+ * "Make a copy just for this profile": clone a page layout or Lightning page under a new
+ * name and point only `profile` at the copy (its layout assignments, or its
+ * CustomApplication page overrides). `ops` are the edits made to the copy: the tray keeps them here
+ * (not as an edit of the source) while the profile's draft is shown. Undo is the same fix with
+ * `revert`: point the profile back at the source, then delete the copy.
+ */
+export interface CopyForProfileFix {
+  kind: "copyForProfile";
+  label: string;
+  /** The shared document being copied. */
+  doc: MetadataDocRef & { type: "Layout" | "FlexiPage" };
+  copy: { fullName: string; label: string };
+  /** The profile's name as Profile.Name has it ("LS Rep", "System Administrator"). */
+  profile: string;
+  ops?: (LayoutOp | FlexiPageOp)[];
+  /** Set on an undo: the assignments to put back (what the apply moved). */
+  revert?: { moves: CopyMove[] };
+}
+
+/** One assignment a copy moved the profile to: a layout's record type, or an app's page override. */
+export interface CopyMove {
+  /** Layout: the record type ("Account.HCP"), null for the object's default. */
+  recordType?: string | null;
+  /** Lightning page: the CustomApplication's name. */
+  app?: string;
+  /** Lightning page: the profile had no override of its own there, so one was added (undo removes it). */
+  added?: boolean;
+}
 
 export interface LayoutEditFix {
   kind: "editMetadata";

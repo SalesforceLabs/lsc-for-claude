@@ -9,12 +9,13 @@ import * as path from "path";
 import { deployMetadata, retrieveMetadata } from "../../salesforce/cli.js";
 import { parseXml, serializeXml, type XmlNode } from "./xml.js";
 
-export type MetadataDocType = "Layout" | "CompactLayout" | "FlexiPage";
+export type MetadataDocType = "Layout" | "CompactLayout" | "FlexiPage" | "Profile";
 
 const SUFFIX: Record<MetadataDocType, string> = {
   Layout: ".layout-meta.xml",
   CompactLayout: ".compactLayout-meta.xml",
   FlexiPage: ".flexipage-meta.xml",
+  Profile: ".profile-meta.xml",
 };
 
 export interface MetadataDoc {
@@ -52,6 +53,31 @@ export async function retrieveDoc(type: MetadataDocType, fullName: string, org: 
   }
   const xml = fs.readFileSync(filePath, "utf-8");
   return { type, fullName, xml, root: parseXml(xml), filePath, outputDir };
+}
+
+/**
+ * Retrieve several documents of different types in one call (one of each type); they share one retrieve folder (removed by `discardDoc` on any of them).
+ * A profile comes with its layout assignments only for the layouts retrieved beside it.
+ */
+export async function retrieveDocs(entries: { type: MetadataDocType; fullName: string }[], org: string): Promise<MetadataDoc[]> {
+  const result = await retrieveMetadata(
+    "",
+    entries.map((e) => `${e.type}:${e.fullName}`),
+    org
+  );
+  if (!result.success || !result.data) throw new Error(`Couldn't retrieve ${entries.map((e) => e.fullName).join(", ")}: ${result.error ?? "unknown error"}`);
+  const { outputDir } = result.data;
+  try {
+    return entries.map(({ type, fullName }) => {
+      const filePath = fs.existsSync(outputDir) ? findFile(outputDir, SUFFIX[type]) : undefined;
+      if (!filePath) throw new Error(`${fullName} wasn't found in the org. It may have been renamed or deleted.`);
+      const xml = fs.readFileSync(filePath, "utf-8");
+      return { type, fullName, xml, root: parseXml(xml), filePath, outputDir };
+    });
+  } catch (e) {
+    discardDir(outputDir);
+    throw e;
+  }
 }
 
 /** Write `root` over the retrieved file and deploy that file alone. */

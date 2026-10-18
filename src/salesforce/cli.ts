@@ -491,13 +491,40 @@ export async function deployMetadata(
 }
 
 /**
+ * Delete one metadata component (a destructive-changes deploy of an otherwise empty package).
+ * The component must not be in use (a layout still assigned, a page still activated).
+ */
+export async function deleteMetadata(type: string, fullName: string, targetOrg: string): Promise<CliResult<unknown>> {
+  const cwd = ensureTmpSfdxProject();
+  const dir = path.join(cwd, "destructive", `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  fs.mkdirSync(dir, { recursive: true });
+  const xml = (body: string) =>
+    `<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n${body}    <version>62.0</version>\n</Package>\n`;
+  const escaped = fullName.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  fs.writeFileSync(path.join(dir, "package.xml"), xml(""));
+  fs.writeFileSync(
+    path.join(dir, "destructiveChanges.xml"),
+    xml(`    <types>\n        <members>${escaped}</members>\n        <name>${type}</name>\n    </types>\n`)
+  );
+  try {
+    return await execSfCommand(
+      "project",
+      ["deploy", "start", "--manifest", path.join(dir, "package.xml"), "--post-destructive-changes", path.join(dir, "destructiveChanges.xml")],
+      { targetOrg, timeout: 300000, cwd }
+    );
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/**
  * Retrieve metadata from an org.
  * Output directory must be inside the SFDX project root, so we always retrieve
  * into a timestamped subdir of the tmp project and return the actual path.
  */
 export async function retrieveMetadata(
   _targetPath: string,
-  metadata: string,
+  metadata: string | string[],
   targetOrg: string
 ): Promise<CliResult<{ outputDir: string }>> {
   const projectDir = ensureTmpSfdxProject();
@@ -507,7 +534,7 @@ export async function retrieveMetadata(
 
   const result = await execSfCommand(
     "project",
-    ["retrieve", "start", "--metadata", metadata, "--output-dir", relativeOutput],
+    ["retrieve", "start", ...[metadata].flat().flatMap((m) => ["--metadata", m]), "--output-dir", relativeOutput],
     { targetOrg, timeout: 300000, cwd: projectDir }
   );
 
