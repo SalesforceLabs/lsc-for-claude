@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `97`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `101`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -71,6 +71,7 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "simulate_initial_sync",
   "studio_access_options",
   "studio_connected_org",
+  "studio_drift",
   "studio_feature_map",
   "studio_ipad_published",
   "studio_item_detail",
@@ -87,12 +88,15 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_perf_status",
   "studio_perf_territories",
   "studio_perf_users",
+  "studio_readiness",
+  "studio_setup_overview",
   "studio_sim_active",
   "studio_sim_cancel",
   "studio_sim_report",
   "studio_sim_start",
   "studio_sim_status",
   "studio_user_access",
+  "studio_user_trace",
   "toggle_db_schema",
   "toggle_trigger_handler",
   "unassign_permission_set",
@@ -1222,6 +1226,53 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
     "params": {
       "featureId": {
         "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_readiness",
+    "params": {
+      "featureId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_setup_overview",
+    "params": {},
+  },
+  {
+    "name": "studio_user_trace",
+    "params": {
+      "featureId": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "userId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_drift",
+    "params": {
+      "action": {
+        "optional": false,
+        "type": "ZodEnum",
+      },
+      "days": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "id": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "label": {
+        "optional": true,
         "type": "ZodString",
       },
     },

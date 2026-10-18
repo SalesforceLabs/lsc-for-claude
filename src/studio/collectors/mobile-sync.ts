@@ -25,11 +25,11 @@ import {
 } from "../helpers.js";
 import { addProfileFix, busiestProfile, byCategory, fetchCategories, isNavTab, navTabsSurface, newDbSchema, profilesOf } from "./shared.js";
 
-const SETTINGS_CATEGORIES = ["ApplicationSettings", "ProfileBasedAppSettings"];
+export const SETTINGS_CATEGORIES = ["ApplicationSettings", "ProfileBasedAppSettings"];
 const SYNC_CATEGORIES = ["SyncTransactionConfig", "SyncProcessorConfiguration", "SyncTransactionAdminView", "LogSettings"];
 
 /** The effective sync query a DB Schema record describes. */
-function syncSoql(r: ConfigRecord): string | null {
+export function syncSoql(r: ConfigRecord): string | null {
   const fields = splitList(r.fields.MandatoryFields);
   if (fields.length === 0 && !r.fields.WhereSoql) return null;
   const select = fields.length ? fields.map((f) => `  ${f}`).join(",\n") : "  …";
@@ -38,7 +38,7 @@ function syncSoql(r: ConfigRecord): string | null {
 }
 
 /** CONFIGURATION records sync an Admin Console category rather than a business object. */
-function dbSchemaLabel(r: ConfigRecord): string {
+export function dbSchemaLabel(r: ConfigRecord): string {
   if (r.fields.Type === "CONFIGURATION" && r.fields.Category) return `Admin Console · ${r.fields.Category}`;
   return String(r.fields.SObject || r.label || r.developerName);
 }
@@ -78,7 +78,7 @@ function dbSchemaItem(r: ConfigRecord, duplicates: Map<string, string[]>): Studi
 }
 
 /** developerName → profiles where another active record syncs the same object. */
-function findDuplicates(records: ConfigRecord[]): Map<string, string[]> {
+export function findDuplicates(records: ConfigRecord[]): Map<string, string[]> {
   const byKey = new Map<string, ConfigRecord[]>();
   for (const r of records.filter((r) => r.isActive)) {
     for (const p of profilesOf(r)) {
@@ -95,12 +95,12 @@ function findDuplicates(records: ConfigRecord[]): Map<string, string[]> {
   return out;
 }
 
-interface CacheRecord {
+export interface CacheRecord {
   row: Row;
   profile: string | null;
 }
 
-async function fetchCache(org: string): Promise<CacheRecord[]> {
+export async function fetchCache(org: string): Promise<CacheRecord[]> {
   const rows = await query(
     `SELECT Id, Name, Status, IntegrationStatus, IntegrationErrorCode, IntegrationErrorMessage, ErrorLog, LastModifiedDate, ProfileId FROM LifeSciMobileMetadataRecord ORDER BY LastModifiedDate DESC LIMIT 200`,
     org
@@ -118,7 +118,7 @@ async function fetchCache(org: string): Promise<CacheRecord[]> {
   }));
 }
 
-const isLiveCache = (c: CacheRecord) => c.row.Status === "Active" || c.row.Status === "Published";
+export const isLiveCache = (c: CacheRecord) => c.row.Status === "Active" || c.row.Status === "Published";
 
 function cacheFindings(r: Row): StudioFinding[] {
   const message = r.IntegrationErrorMessage || r.IntegrationErrorCode;
@@ -135,7 +135,7 @@ function cacheFindings(r: Row): StudioFinding[] {
 }
 
 /** "No profile app settings", suggesting a copy of another profile's settings (never made-up values). */
-function noAppSettings(profile: string, profileId: string | undefined, profileSettings: ConfigRecord[], all: ConfigRecord[]): StudioFinding {
+export function noAppSettings(profile: string, profileId: string | undefined, profileSettings: ConfigRecord[], all: ConfigRecord[]): StudioFinding {
   const finding: StudioFinding = {
     severity: "info",
     title: "No profile app settings",
@@ -164,7 +164,7 @@ function noAppSettings(profile: string, profileId: string | undefined, profileSe
 }
 
 /** "No navigation tabs", suggesting the tabs of the profile that has the most. */
-function noNavTabs(profile: string, activeTabs: ConfigRecord[]): StudioFinding {
+export function noNavTabs(profile: string, activeTabs: ConfigRecord[]): StudioFinding {
   const finding: StudioFinding = { severity: "info", title: "No navigation tabs", detail: "The iPad will show only default navigation." };
   const ref = busiestProfile(activeTabs, profilesOf, profile);
   if (!ref) return finding;

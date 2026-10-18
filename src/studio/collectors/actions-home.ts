@@ -21,7 +21,7 @@ import {
   profilesOf,
 } from "./shared.js";
 
-const ORG_URL = /[\w-]+\.(?:lightning\.force\.com|my\.salesforce\.com|my\.site\.com)/i;
+export const ORG_URL = /[\w-]+\.(?:lightning\.force\.com|my\.salesforce\.com|my\.site\.com)/i;
 
 /** Quick action Locations grouped onto record surfaces; HomePage gets its own. */
 const RECORD_LOCATIONS: { location: string; id: string; title: string }[] = [
@@ -33,13 +33,13 @@ const RECORD_LOCATIONS: { location: string; id: string; title: string }[] = [
 const OPTIONAL_SURFACES = new Set([...RECORD_LOCATIONS.map((l) => l.id), "otherQuickActions", "stagePathActions"]);
 
 /** Names an org knows about (lower-cased → as written), for checking the Profiles / PermissionSets / RecordTypes an action targets. */
-interface Known {
+export interface Known {
   profiles: Map<string, string>;
   permissionSets: Map<string, string>;
   recordTypes: Map<string, string>;
 }
 
-async function fetchKnown(org: string): Promise<Known> {
+export async function fetchKnown(org: string): Promise<Known> {
   const [profiles, permissionSets, recordTypes] = await Promise.all([
     query(`SELECT Name FROM Profile`, org),
     query(`SELECT Name, NamespacePrefix FROM PermissionSet WHERE IsOwnedByProfile = false`, org),
@@ -97,7 +97,7 @@ function rewriteList(raw: string, from: string, to: string | null): string {
     .join(sep);
 }
 
-function actionFindings(r: ConfigRecord, known: Known | null): StudioFinding[] {
+export function actionFindings(r: ConfigRecord, known: Known | null): StudioFinding[] {
   const findings: StudioFinding[] = [];
   const url = Object.values(r.fields)
     .map((v) => (typeof v === "string" ? ORG_URL.exec(v)?.[0] : undefined))
@@ -144,7 +144,7 @@ function actionFindings(r: ConfigRecord, known: Known | null): StudioFinding[] {
   return findings;
 }
 
-function actionItem(r: ConfigRecord, known: Known | null): StudioItem {
+export function actionItem(r: ConfigRecord, known: Known | null): StudioItem {
   const isQuick = r.category === "QuickAction";
   const target = isQuick
     ? [r.fields.SObject, actionProfiles(r).join(", ") || "All profiles"]
@@ -158,7 +158,7 @@ function actionItem(r: ConfigRecord, known: Known | null): StudioItem {
 }
 
 /** Info findings for quick actions sharing a SortOrder on the same location + object. */
-function sortCollisions(records: ConfigRecord[]): StudioFinding[] {
+export function sortCollisions(records: ConfigRecord[]): StudioFinding[] {
   const groups = new Map<string, ConfigRecord[]>();
   for (const r of records.filter((r) => r.isActive && r.fields.SortOrder != null && r.fields.SortOrder !== "")) {
     const key = `${r.fields.Location}|${r.fields.SObject ?? ""}|${r.fields.SortOrder}`;
@@ -177,7 +177,7 @@ function sortCollisions(records: ConfigRecord[]): StudioFinding[] {
  * "No home page actions", suggesting the home page actions of the profile that
  * has the most — an existing setup to copy rather than a made-up default.
  */
-function noHomeActions(profile: string, activeQuick: ConfigRecord[], profileExists: boolean): StudioFinding {
+export function noHomeActions(profile: string, activeQuick: ConfigRecord[], profileExists: boolean): StudioFinding {
   const finding: StudioFinding = {
     severity: "info",
     title: "No home page actions",

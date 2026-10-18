@@ -12,7 +12,7 @@ const LSC_PSL_FILTER = `DeveloperName LIKE '%LSC4CE%' OR DeveloperName LIKE '%Li
 const LSC_PS_FILTER = `(NamespacePrefix IN ('lsc4ce', 'HealthCloudGA') OR Label LIKE '%Life Science%' OR Label LIKE '%Sample%' OR Label LIKE '%CLM%') AND IsOwnedByProfile = false`;
 const USER_LIMIT = 500;
 /** The Life Sciences Commercial PSL every LSC user needs. */
-const LSC_PSL = /LSC4CE|LifeScienceCommercial/i;
+export const LSC_PSL = /LSC4CE|LifeScienceCommercial/i;
 
 /** Some alignment objects only exist when the matching LSC feature is enabled. */
 async function optionalQuery(soql: string, org: string): Promise<Row[] | null> {
@@ -41,7 +41,7 @@ async function countBy(soql: string, key: string, org: string): Promise<Map<stri
 }
 
 /** Field profiles — those with LSC Mobile app settings; falls back to a name heuristic. */
-async function fieldProfiles(org: string): Promise<string[]> {
+export async function fieldProfiles(org: string): Promise<string[]> {
   try {
     const recs = await fetchCategories(org, ["ProfileBasedAppSettings"]);
     const names = [...new Set(recs.flatMap(profilesOf))];

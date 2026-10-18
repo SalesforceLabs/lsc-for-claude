@@ -28,10 +28,10 @@ import {
 import { fetchCategories, newDbSchema, profilesOf } from "./shared.js";
 
 /** Licenses Briefings depends on (Field Insights text generation runs on Einstein / Agentforce). */
-const REQUIRED_PSLS = ["Life Science Commercial", "Health Cloud Starter", "Agentforce for LSC Feature Access", "Einstein Prompt Templates"];
+export const REQUIRED_PSLS = ["Life Science Commercial", "Health Cloud Starter", "Agentforce for LSC Feature Access", "Einstein Prompt Templates"];
 
 /** Standard permission sets that must be assigned to someone. */
-const STANDARD_PERMISSION_SETS = [
+export const STANDARD_PERMISSION_SETS = [
   { name: "HealthCloudStarter", label: "Health Cloud Starter" },
   { name: "EinsteinGPTPromptTemplateManager", label: "Prompt Template Manager" },
   { name: "EinsteinGPTPromptTemplateUser", label: "Prompt Template User" },
@@ -39,21 +39,21 @@ const STANDARD_PERMISSION_SETS = [
 ];
 
 /** The objects that must be in DB Schema for briefings to reach the iPad. */
-const REQUIRED_SYNC_OBJECTS = ["PresentationContent", "PrstCntntUsageSummary", "PrstCntntDefAssignment", "PrstContentDefinition"];
+export const REQUIRED_SYNC_OBJECTS = ["PresentationContent", "PrstCntntUsageSummary", "PrstCntntDefAssignment", "PrstContentDefinition"];
 
 /** Managed flow API names (with and without the `stories__` namespace prefix). */
-const TEXT_GEN_FLOW = /^(stories__)?GenDailyBriefingsText$/;
-const SCHEDULE_FLOW = /^(stories__)?SchdDlyBriefingsOfPrvdAcct$/;
-const SUMMARY_FLOW_LABEL = "Generate Provider Account Territory Summary";
+export const TEXT_GEN_FLOW = /^(stories__)?GenDailyBriefingsText$/;
+export const SCHEDULE_FLOW = /^(stories__)?SchdDlyBriefingsOfPrvdAcct$/;
+export const SUMMARY_FLOW_LABEL = "Generate Provider Account Territory Summary";
 
 /** Briefings content older than this many days means the scheduled flow has stopped producing it. */
-const STALE_DAYS = 3;
-const DAY_MS = 24 * 60 * 60 * 1000;
+export const STALE_DAYS = 3;
+export const DAY_MS = 24 * 60 * 60 * 1000;
 
-const isMissingObject = (err: unknown) => /is not supported|INVALID_TYPE|does not exist/i.test(String(err instanceof Error ? err.message : err));
+export const isMissingObject = (err: unknown) => /is not supported|INVALID_TYPE|does not exist/i.test(String(err instanceof Error ? err.message : err));
 
 /** Briefings objects only exist once the toggle is on; a missing object resolves to null. */
-async function optionalQuery(soql: string, org: string): Promise<Row[] | null> {
+export async function optionalQuery(soql: string, org: string): Promise<Row[] | null> {
   try {
     return await query(soql, org);
   } catch (err) {
@@ -62,7 +62,7 @@ async function optionalQuery(soql: string, org: string): Promise<Row[] | null> {
   }
 }
 
-function rel(r: Row, path: string): unknown {
+export function rel(r: Row, path: string): unknown {
   return path.split(".").reduce<unknown>((v, k) => (v as Row | undefined)?.[k], r);
 }
 
@@ -73,16 +73,16 @@ const NOT_ENABLED: StudioFinding = {
 };
 
 /** The Briefings DB Schema record syncing `object`, if any. */
-const syncs = (r: ConfigRecord, object: string) =>
+export const syncs = (r: ConfigRecord, object: string) =>
   String(r.fields.SObject ?? "").toLowerCase() === object.toLowerCase() ||
   r.developerName.toLowerCase() === `dbschema_${object}`.toLowerCase();
 
-interface CacheRecord {
+export interface CacheRecord {
   row: Row;
   profile: string | null;
 }
 
-async function fetchCache(org: string): Promise<CacheRecord[]> {
+export async function fetchCache(org: string): Promise<CacheRecord[]> {
   const rows = await query(
     `SELECT Id, Name, Status, IntegrationStatus, IntegrationErrorMessage, LastModifiedDate, ProfileId FROM LifeSciMobileMetadataRecord ORDER BY LastModifiedDate DESC LIMIT 200`,
     org
@@ -98,7 +98,7 @@ async function fetchCache(org: string): Promise<CacheRecord[]> {
 const isLiveCache = (c: CacheRecord) => c.row.Status === "Active" || c.row.Status === "Published";
 
 /** Profile → number, from an aggregate query with a text column `key`. */
-async function countBy(soql: string, key: string, org: string): Promise<Map<string, number>> {
+export async function countBy(soql: string, key: string, org: string): Promise<Map<string, number>> {
   const rows = await query(soql, org);
   return new Map(rows.filter((r) => r[key]).map((r) => [String(r[key]), Number(r.cnt ?? r.expr0 ?? 0)]));
 }

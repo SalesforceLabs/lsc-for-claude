@@ -4,6 +4,10 @@ import { validateOrgConnection } from "../salesforce/auth.js";
 import { getFeature, listFeatures } from "../studio/features.js";
 import { collectFeatureMap, collectItemDetail, collectProfileOptions } from "../studio/collect.js";
 import { accessOptions, userAccess } from "../studio/access.js";
+import { collectReadiness } from "../studio/readiness/index.js";
+import { collectSetupOverview } from "../studio/overview.js";
+import { traceUser } from "../studio/user-trace.js";
+import { drift } from "../studio/drift.js";
 import { applyFix, previewFix } from "../studio/fixes.js";
 import { publishStatus, startPublish } from "../studio/publish.js";
 import { loadPublishedIpad } from "../studio/published.js";
@@ -168,6 +172,86 @@ export function register(server: McpServer) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       return json(await collectFeatureMap(feature, connection.targetOrg));
+    }
+  );
+
+  server.tool(
+    "studio_readiness",
+    "LSC Studio (GUI data): is one LSC feature ready for the field? Runs the feature's validation rules and Studio's checks (switched on, access, data, settings, iPad), each pass/fail/unknown with how to fix it. Read-only. Returns JSON.",
+    {
+      featureId: z.string().describe("Feature id from studio_list_features, e.g. 'visit'"),
+    },
+    async ({ featureId }) => {
+      const feature = getFeature(featureId);
+      if (!feature) return jsonError(`Unknown feature: ${featureId}`);
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      return json(await collectReadiness(feature, connection.targetOrg));
+    }
+  );
+
+  server.tool(
+    "studio_setup_overview",
+    "LSC Studio (GUI data): org-wide setup signals no single feature owns — license capacity, metadata cache freshness, changes not yet published to the iPad, territory model. Read-only. Returns JSON.",
+    {},
+    async () => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await collectSetupOverview(connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_user_trace",
+    "LSC Studio (GUI data): check one user's setup end to end — licenses, permission sets, territory, what syncs to their iPad, metadata cache, last sync — optionally for one feature, and point at the first broken link. Read-only. Returns JSON.",
+    {
+      userId: id,
+      featureId: z.string().optional().describe("Feature id to narrow the check to, e.g. 'samples'"),
+    },
+    async ({ userId, featureId }) => {
+      if (featureId && !getFeature(featureId)) return jsonError(`Unknown feature: ${featureId}`);
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await traceUser(userId, featureId ?? null, connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_drift",
+    "LSC Studio (GUI data): configuration snapshots for \"What changed\" — list saved snapshots, save one of the org now, diff the org now against one, or delete one. Reads the org; writes only local snapshot files. Returns JSON.",
+    {
+      action: z.enum(["list", "save", "diff", "delete"]),
+      id: z.string().optional().describe("Snapshot id, for diff and delete"),
+      label: z.string().optional().describe("Label for a new snapshot"),
+      days: z.number().int().min(1).max(365).optional().describe("For list: how many days of recent changes (default 14)"),
+    },
+    async ({ action, id: snapshotId, label, days }) => {
+      if ((action === "diff" || action === "delete") && !snapshotId) return jsonError(`${action} needs a snapshot id`);
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      const input =
+        action === "list" ? { action, days } : action === "save" ? { action, label } : { action, id: snapshotId! };
+      try {
+        return json(await drift(input, connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
     }
   );
 

@@ -1,0 +1,73 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { ConfigRecord } from "../../../../src/config/types.js";
+
+vi.mock("../../../../src/salesforce/cli.js", () => ({ runSoqlQuery: vi.fn(), runToolingQuery: vi.fn() }));
+vi.mock("../../../../src/config/collect.js", () => ({ collectCategoryRecords: vi.fn() }));
+
+const { runSoqlQuery, runToolingQuery } = await import("../../../../src/salesforce/cli.js");
+const { collectCategoryRecords } = await import("../../../../src/config/collect.js");
+const { default: feature } = await import("../../../../src/studio/readiness/features/app-alerts.js");
+
+type Row = Record<string, unknown>;
+/** Rows (or a COUNT override) returned per outer FROM-object. */
+let org: Record<string, Row[] | number>;
+let handlers: Row[];
+let schema: ConfigRecord[];
+
+function respond(soql: string) {
+  let outer = soql;
+  while (/\([^()]*\)/.test(outer)) outer = outer.replace(/\([^()]*\)/g, "");
+  const from = /FROM\s+(\w+)/i.exec(outer)?.[1] ?? "";
+  const v = org[from] ?? [];
+  const rows = typeof v === "number" ? [] : v;
+  const total = typeof v === "number" ? v : rows.length;
+  return Promise.resolve({ success: true, data: { totalSize: total, done: true, records: rows } });
+}
+
+const schemaRec = (sobject: string, profile = "Rep", isActive = true): ConfigRecord =>
+  ({ category: "DbSchema", developerName: "db_" + sobject, label: sobject, isActive, isOrgLevel: false, fields: { SObject: sobject }, fieldTypes: {}, assignments: [{ name: profile, level: "Profile" }] }) as ConfigRecord;
+const handler = (developerName: string, IsActive: boolean) => ({ DeveloperName: developerName, MasterLabel: developerName, IsActive });
+
+beforeEach(() => {
+  org = {};
+  handlers = [];
+  schema = [];
+  vi.mocked(runSoqlQuery).mockImplementation(((q: string) => respond(q)) as never);
+  vi.mocked(runToolingQuery).mockImplementation(((q: string) => (/FROM\s+LifeScienceTriggerHandler/i.test(q) ? Promise.resolve({ success: true, data: { totalSize: handlers.length, done: true, records: handlers } }) : respond(q))) as never);
+  vi.mocked(collectCategoryRecords).mockImplementation((async () => schema) as never);
+});
+
+const run = async () => Object.fromEntries((await feature.checks!("test-org")).map((c) => [c.id, c]));
+
+describe("app alerts readiness", () => {
+  it("lists alerts in effect that no territory targets", async () => {
+    org.AppAlert = [{ Id: "a1", Subject: "Visit Confirmation" }];
+    const c = (await run())["app-alerts.access.targeted"];
+    expect(c.status).toBe("fail");
+    expect(c.examples).toEqual(["Visit Confirmation"]);
+  });
+
+  it("skips targeting when no alert is in effect", async () => {
+    org.AppAlert = 0;
+    expect((await run())["app-alerts.access.targeted"].status).toBe("skipped");
+  });
+
+  it("flags alerts that end before they start", async () => {
+    org.AppAlert = [{ Subject: "Backwards", EffectiveDate: "2026-05-01T00:00:00.000+0000", ValidUntilDate: "2026-04-01T00:00:00.000+0000" }, { Subject: "Fine", EffectiveDate: "2026-04-01T00:00:00.000+0000", ValidUntilDate: "2026-05-01T00:00:00.000+0000" }];
+    const c = (await run())["app-alerts.config.dates"];
+    expect(c.status).toBe("fail");
+    expect(c.examples).toEqual(["Backwards"]);
+  });
+
+  it("offers to switch on the sharing handler", async () => {
+    handlers = [handler("NotificationTerritorySharingHandler", false)];
+    expect((await run())["app-alerts.enabled.handlers"].fixes).toHaveLength(1);
+  });
+
+  it("fails when the alert territories aren't synced", async () => {
+    schema = [schemaRec("AppAlert"), schemaRec("AppAlertUserResponse")];
+    const c = (await run())["app-alerts.mobile.alert-objects"];
+    expect(c.status).toBe("fail");
+    expect(c.examples).toContain("AppAlertTerritory: not synced");
+  });
+});
