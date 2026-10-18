@@ -104,10 +104,89 @@ export type LayoutOp =
   | { op: "addRelatedList"; relatedList: string; before: string | null; xml?: string; object?: string };
 
 export interface MetadataDocRef {
-  type: "Layout";
-  /** Metadata API name, e.g. "Account-Account Layout". */
+  type: "Layout" | "FlexiPage";
+  /** Metadata API name, e.g. "Account-Account Layout" or a Lightning page's developer name. */
   fullName: string;
   label: string;
+}
+
+/** One item of a Lightning page region or facet: by `identifier` when it has one, else by index; `component` is checked. */
+export interface FlexiItemRef {
+  component: string;
+  identifier: string | null;
+  index: number;
+}
+
+/** A component (or record tab) on a Lightning page: the region or facet it's in, by XML name, and the item. */
+export interface FlexiComponentRef {
+  region: string;
+  item: FlexiItemRef;
+}
+
+/** A Lightning page property Studio can set from the preview. */
+export type FlexiPageProperty = "mobileHeight" | "active" | "title" | "maxRecordsToDisplay" | "rowsToDisplay";
+
+/** One edit to a Lightning page (src/studio/metadata/flexipage-ops.ts). */
+export type FlexiPageOp =
+  | { op: "moveComponent"; component: FlexiComponentRef; before: FlexiItemRef | null }
+  | { op: "removeComponent"; component: FlexiComponentRef }
+  | {
+      op: "addComponent";
+      region: string;
+      before: FlexiItemRef | null;
+      component: string;
+      identifier: string | null;
+      properties?: { name: string; value: string }[];
+      xml?: string;
+      facets?: { xml: string; at: number }[];
+    }
+  | { op: "setComponentProperty"; component: FlexiComponentRef; property: FlexiPageProperty; from: string | null; to: string | null };
+
+export type MetadataOp = LayoutOp | FlexiPageOp;
+
+/** A Lightning page item as it is in the org now. */
+export interface LiveFlexiItem {
+  component: string;
+  identifier: string | null;
+  properties: Record<string, string>;
+  /** Facet regions its properties name (a tabset's `tabs`, a tab's `body`). */
+  facets: string[];
+}
+
+/** A Lightning page as it is in the org now, for lining the published preview up before editing. */
+export interface LiveFlexiPage {
+  type: "FlexiPage";
+  fullName: string;
+  label: string;
+  pageType: string;
+  template: string;
+  sobjectType: string | null;
+  regions: { name: string; facet: boolean; items: LiveFlexiItem[] }[];
+  /** Profiles the page is assigned to in an app; null when that couldn't be read. */
+  profiles: string[] | null;
+  /** Apps whose default page this is; null when that couldn't be read. */
+  appDefaults: string[] | null;
+  /** Installed from a managed package — it can't be deployed. */
+  managed: boolean;
+  production: boolean;
+}
+
+/** One component "Insert component…" offers (src/studio/component-catalog.ts). */
+export interface CatalogEntry {
+  key: string;
+  component: string;
+  label: string;
+  group: "Standard" | "Inline LWC" | "Related list";
+  pages: ("HomePage" | "RecordPage")[];
+  properties: { name: string; value: string }[];
+  insertable: boolean;
+  needs?: string;
+  object?: string;
+}
+
+export interface ComponentCatalog {
+  entries: CatalogEntry[];
+  setupPath: string;
 }
 
 /** A page layout as it is in the org now, for lining the published preview up before editing. */
@@ -129,7 +208,8 @@ export interface EditMetadataFix {
   kind: "editMetadata";
   label: string;
   doc: MetadataDocRef;
-  ops: LayoutOp[];
+  /** LayoutOps for a Layout, FlexiPageOps for a FlexiPage. */
+  ops: MetadataOp[];
 }
 
 /** A field value on a new Admin Console record. `dataType` may be left out when it's known for the category or copied. */

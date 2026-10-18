@@ -419,7 +419,7 @@ export function layoutFix(fullName: string, label: string, ops: LayoutOp[]): Edi
 /** The layout's target once the tray is applied; throws `StaleDraftError` when the queued ops don't fit the org's layout. */
 export function targetOf(fullName: string, base: LayoutModel, pending: PendingChange[]): LayoutModel {
   const queued = pendingFor(pending, layoutFix(fullName, "", []))?.fix;
-  return queued?.kind === "editMetadata" ? applyOps(base, queued.ops) : clone(base);
+  return queued?.kind === "editMetadata" ? applyOps(base, queued.ops as LayoutOp[]) : clone(base);
 }
 
 /** The tray with this layout arranged as `next` (its change dropped when that's the org's layout). */
