@@ -616,7 +616,11 @@ export function propertyEdits(d: PageDraft, key: string, loaded?: ComponentProps
         if (tabTitleField && !base.problem) {
           if (!value.trim()) return { problem: "A tab needs a title." };
           if (value.length > 255) return { problem: "Titles can be at most 255 characters." };
-          return tabTitle(value).length > TAB_TITLE_MAX ? { warning: `Over ${TAB_TITLE_MAX} characters — the iPad cuts it short.` } : {};
+          const shown = tabTitle(value);
+          if (shown.length > TAB_TITLE_MAX) return { warning: `Over ${TAB_TITLE_MAX} characters — the iPad cuts it short.` };
+          // A label reference is translated per rep; typed text replaces it with one fixed title.
+          if (shown !== value) return { warning: `Shown as "${shown}", from ${/^Standard\./.test(value) ? "a standard title" : "a custom label"} translated for each rep. Typing a title replaces it with fixed text.` };
+          return {};
         }
         return base;
       };

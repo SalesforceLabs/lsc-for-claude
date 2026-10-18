@@ -121,6 +121,16 @@ describe("column verbs", () => {
     expect(draftOf(after.pick!.run("Phone", [])).target.columns[1]).toBe("Phone");
   });
 
+  it("doesn't offer a lookup's Id field when the view shows the lookup", () => {
+    const d = draftOf();
+    const withLookup: ListViewDraft = {
+      ...d,
+      target: { ...d.target, columns: [...d.target.columns, "Account"] },
+      live: { ...d.live, available: [...d.live.available, { name: "AccountId", label: "Account ID", type: "reference" }] },
+    };
+    expect(addableColumns(withLookup).map((a) => a.name)).not.toContain("AccountId");
+  });
+
   it("an old-style view takes only custom fields", () => {
     const legacy: ListViewDraft = { ...draftOf(), legacy: true };
     expect(addableColumns(legacy).map((a) => a.name)).toEqual(["IsFutureVisit__c"]);

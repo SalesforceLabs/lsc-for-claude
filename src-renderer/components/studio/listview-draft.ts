@@ -219,7 +219,7 @@ const NOT_A_COLUMN = new Set(["base64", "address", "location", "complexvalue", "
 
 /** Fields that could be added as a column: not already one, and on an old-style view only custom fields (the ids it can take). */
 export function addableColumns(d: ListViewDraft): { name: string; label: string; type: string }[] {
-  return d.live.available.filter((a) => !d.target.columns.includes(a.name) && !NOT_A_COLUMN.has(a.type) && (!d.legacy || a.name.endsWith("__c")));
+  return d.live.available.filter((a) => !d.target.columns.some((c) => sameColumn(a.name, c)) && !NOT_A_COLUMN.has(a.type) && (!d.legacy || a.name.endsWith("__c")));
 }
 
 /** "Add column…": fields the view doesn't show yet, placed after `after` (or at the end). */

@@ -249,6 +249,8 @@ describe("flexipage-draft", () => {
     const title = propertyEdits(draftOf(pending), "flexipage_tab5").find((p) => p.property === "title")!;
     expect(title.check("A title that runs past twenty-five").warning).toContain("25");
     expect(title.check("").problem).toBeTruthy();
+    expect(title.check("{!$Label.lsc4ce__Dashboard}").warning).toBe(`Shown as "Dashboard", from a custom label translated for each rep. Typing a title replaces it with fixed text.`);
+    expect(title.check("Insights").warning).toBeUndefined();
     pending = title.set("Field insights", pending)!;
     const target = roundTrips(pending);
     expect(locateItem(target, "flexipage_tab5")!.item.properties.title).toBe("Field insights");
