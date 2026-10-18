@@ -122,6 +122,13 @@ describe("traceUser", () => {
     expect(byId(t.checks, "user.mobile.db-schema").status).toBe("fail");
   });
 
+  it("leaves content downloads (clm) out of the sync history", async () => {
+    await traceUser(USER, null, "o");
+    const qs = vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0])).filter((q) => q.includes("FROM DeviceSyncSummary"));
+    expect(qs.length).toBeGreaterThan(0);
+    for (const q of qs) expect(q).toContain("Type != 'clm'");
+  });
+
   it("treats an unreadable source as unknown, not failing", async () => {
     org.DeviceSyncSummary = new Error("No such column");
     const t = await traceUser(USER, null, "o");

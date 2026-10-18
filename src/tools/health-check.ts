@@ -3,6 +3,9 @@ import { z } from "zod";
 import { runSoqlQuery, runToolingQuery } from "../salesforce/cli.js";
 import { validateOrgConnection } from "../salesforce/auth.js";
 
+/** The newest Active mobile metadata cache record. (`MobileApplicationDetail` isn't an object in the org.) */
+export const MOBILE_CACHE_QUERY = `SELECT Id, LastModifiedDate FROM LifeSciMobileMetadataRecord WHERE Status = 'Active' ORDER BY LastModifiedDate DESC LIMIT 1`;
+
 export function register(server: McpServer) {
   server.tool(
     "health_check",
@@ -150,13 +153,12 @@ export function register(server: McpServer) {
       }
 
       // 5. Mobile Cache
-      const cacheQuery = `SELECT Id, CreatedDate FROM MobileApplicationDetail WHERE Type = 'MetadataCache' ORDER BY CreatedDate DESC LIMIT 1`;
-      const cacheResult = await runSoqlQuery(cacheQuery, effectiveOrg);
+      const cacheResult = await runSoqlQuery(MOBILE_CACHE_QUERY, effectiveOrg);
       let cacheInfo = "No mobile metadata cache found.";
 
       if (cacheResult.success && cacheResult.data?.records?.length) {
         const cache = cacheResult.data.records[0] as Record<string, unknown>;
-        const createdDate = cache.CreatedDate as string;
+        const createdDate = cache.LastModifiedDate as string;
         const daysAgo = Math.floor(
           (Date.now() - new Date(createdDate).getTime()) / (1000 * 60 * 60 * 24)
         );
