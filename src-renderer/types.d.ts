@@ -96,6 +96,7 @@ interface LscApi {
   studioItemDetail(kind: string, id: string): Promise<StudioResponse>;
   /** The layout as it is in the org now (sections, fields, related lists, profiles using it, production) — never cached. */
   studioMetadataDoc(type: "Layout" | "CompactLayout" | "FlexiPage", fullName: string): Promise<StudioResponse>;
+  studioPageReach(fullName: string): Promise<StudioResponse>;
   studioComponentCatalog(pageType: "HomePage" | "RecordPage", sobject: string | null): Promise<StudioResponse>;
   studioListProfiles(): Promise<StudioResponse>;
   studioUserAccess(userId: string): Promise<StudioResponse>;

@@ -169,4 +169,20 @@ describe("editMetadata (Lightning pages)", () => {
     expect(live).toMatchObject({ label: "Account-LSDO-PH FSR KAM MSL-HCO-HCP", profiles: ["LS Rep", "System Administrator"], appDefaults: ["LSC Field Sales"], managed: false, production: false });
     expect(live.regions.map((r) => r.name).slice(0, 2)).toEqual(["header", "Facet-fc76644f-1710-419f-be76-404a421690a8"]);
   });
+
+  it("answers without who gets it when reading the apps is slow, and that keeps loading", async () => {
+    const { readLiveFlexiPage, flexiPageReach } = await import("../../../src/studio/metadata/live.js");
+    const retrieve = vi.mocked(cli.retrieveMetadata).getMockImplementation()!;
+    let release!: () => void;
+    const slow = new Promise<void>((r) => (release = r));
+    vi.mocked(cli.retrieveMetadata).mockImplementation(async (p, metadata, org) => {
+      if (metadata === "CustomApplication") await slow;
+      return retrieve(p, metadata, org);
+    });
+    const live = await readLiveFlexiPage(PAGE, target, 10);
+    expect(live).toMatchObject({ profiles: null, appDefaults: null, reachPending: true });
+    release();
+    expect(await flexiPageReach(PAGE, target)).toEqual({ profiles: ["LS Rep", "System Administrator"], appDefaults: ["LSC Field Sales"] });
+    expect(vi.mocked(cli.retrieveMetadata).mock.calls.filter((c) => c[1] === "CustomApplication")).toHaveLength(1);
+  });
 });

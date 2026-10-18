@@ -324,12 +324,18 @@ export function liveFlexiPageOf(fullName: string, root: XmlNode): Omit<LiveFlexi
   };
 }
 
-export async function readLiveFlexiPage(fullName: string, org: string): Promise<LiveFlexiPage> {
+/** How long a page read waits for its reach before answering without it (it keeps loading, shared through the assignments cache). */
+const REACH_WAIT_MS = 4000;
+
+export async function readLiveFlexiPage(fullName: string, org: string, reachWaitMs = REACH_WAIT_MS): Promise<LiveFlexiPage> {
+  const pending = Symbol("pending");
+  const reachRead = flexiPageReach(fullName, org);
   const [structure, reach, managed, production] = await Promise.all([
     withDoc("FlexiPage", fullName, org, async ({ root }) => liveFlexiPageOf(fullName, root)),
-    flexiPageReach(fullName, org),
+    Promise.race([reachRead, new Promise<typeof pending>((r) => setTimeout(() => r(pending), reachWaitMs).unref?.())]),
     isManagedFlexiPage(fullName, org),
     isProductionOrg(org),
   ]);
+  if (reach === pending) return { ...structure, profiles: null, appDefaults: null, reachPending: true, managed, production };
   return { ...structure, profiles: reach?.profiles ?? null, appDefaults: reach?.appDefaults ?? null, managed, production };
 }

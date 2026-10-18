@@ -3,7 +3,7 @@ import { z } from "zod";
 import { validateOrgConnection } from "../salesforce/auth.js";
 import { getFeature, listFeatures } from "../studio/features.js";
 import { collectFeatureMap, collectItemDetail, collectProfileOptions } from "../studio/collect.js";
-import { readLiveCompactLayout, readLiveFlexiPage, readLiveLayout } from "../studio/metadata/live.js";
+import { flexiPageReach, readLiveCompactLayout, readLiveFlexiPage, readLiveLayout } from "../studio/metadata/live.js";
 import { collectCatalog } from "../studio/component-catalog.js";
 import { accessOptions, userAccess } from "../studio/access.js";
 import { collectReadiness } from "../studio/readiness/index.js";
@@ -372,6 +372,21 @@ export function register(server: McpServer) {
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
+    }
+  );
+
+  server.tool(
+    "studio_page_reach",
+    "LSC Studio (GUI data): the profiles a Lightning page is assigned to and the apps it's the default page of, for when `studio_metadata_doc` answered before that was worked out (`reachPending`). Read-only. Returns JSON (null fields when it couldn't be read).",
+    { fullName: z.string().max(255) },
+    async ({ fullName }) => {
+      if (!flexiPageName.safeParse(fullName).success) return jsonError(`Invalid FlexiPage name: ${fullName}`);
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      const reach = await flexiPageReach(fullName, connection.targetOrg);
+      return json({ profiles: reach?.profiles ?? null, appDefaults: reach?.appDefaults ?? null });
     }
   );
 

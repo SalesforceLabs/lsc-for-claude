@@ -172,6 +172,8 @@ export interface LiveFlexiPage {
   profiles: string[] | null;
   /** Apps whose default page this is; null when that couldn't be read. */
   appDefaults: string[] | null;
+  /** Who gets the page is still being worked out (reading every app takes a while in big orgs); `studio_page_reach` waits for it. */
+  reachPending?: boolean;
   /** Installed from a managed package — it can't be deployed. */
   managed: boolean;
   production: boolean;

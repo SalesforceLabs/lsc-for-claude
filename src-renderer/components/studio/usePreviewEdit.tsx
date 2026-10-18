@@ -153,7 +153,19 @@ export function usePreviewEdit({
     window.lscApi.studioMetadataDoc("FlexiPage", name).then(
       (res) => {
         const error = res.error ?? res.data?.error;
-        setLivePages((m) => ({ ...m, [name]: error ? { status: "error", error } : { status: "ready", live: res.data as LiveFlexiPage } }));
+        const live = res.data as LiveFlexiPage;
+        setLivePages((m) => ({ ...m, [name]: error ? { status: "error", error } : { status: "ready", live } }));
+        if (error || !live.reachPending) return;
+        // Who gets the page can take a minute in big orgs (every app is read); edit meanwhile, then fill it in.
+        const settle = (reach: Pick<LiveFlexiPage, "profiles" | "appDefaults">) =>
+          setLivePages((m) => {
+            const cur = m[name];
+            return cur?.status === "ready" && cur.live === live ? { ...m, [name]: { status: "ready", live: { ...live, ...reach, reachPending: false } } } : m;
+          });
+        window.lscApi.studioPageReach(name).then(
+          (r) => settle(r.error || r.data?.error ? { profiles: null, appDefaults: null } : (r.data as Pick<LiveFlexiPage, "profiles" | "appDefaults">)),
+          () => settle({ profiles: null, appDefaults: null })
+        );
       },
       (e: unknown) => setLivePages((m) => ({ ...m, [name]: { status: "error", error: String(e) } }))
     );
@@ -654,7 +666,13 @@ function compactStatusOf(entry: CompactEntry | undefined): LayoutStatus | undefi
 function pageStatusOf(entry: PageEntry | undefined): LayoutStatus | undefined {
   if (!entry) return undefined;
   const noun = "Lightning page";
-  const about = (live: LiveFlexiPage) => ({ noun, reach: pageReach(live.profiles ?? [], live.appDefaults ?? []), production: live.production });
+  const reachOf = (live: LiveFlexiPage) =>
+    live.reachPending
+      ? "Working out which profiles and apps get this page…"
+      : live.profiles && live.appDefaults
+        ? pageReach(live.profiles, live.appDefaults)
+        : "Couldn't read which apps assign this page, so who a change reaches isn't known — check its activations in Lightning App Builder.";
+  const about = (live: LiveFlexiPage) => ({ noun, reach: reachOf(live), production: live.production });
   switch (entry.status) {
     case "loading":
       return { loading: true, noun };

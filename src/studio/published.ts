@@ -1327,6 +1327,7 @@ export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing |
 
 const FILES = ["nav", "ui", "permissions", "db", "sobjects", "reporting"] as const;
 const CACHE_ROOT = path.join(os.tmpdir(), "lsc-studio-published");
+/** Bump when the snapshot's shape changes — and bump the app's `CACHE_VERSION` (src-electron/engine/studio-cache.ts) too, or it keeps serving the old shape for a day. */
 const SNAPSHOT_VERSION = 40;
 /** UserService.defaultLanguage — the translation file used when the user's is missing. */
 const DEFAULT_LANGUAGE = "en_US";
