@@ -310,7 +310,9 @@ async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string)
 
   if (fix.doc.type === "Layout" && fix.doc.fullName.startsWith("Visit-")) {
     const [before, now] = [relatedListCount(doc.root), relatedListCount(result.root)];
-    if (now > before && now > MAX_SIDEBAR_RELATED_LISTS) {
+    // An undo puts back related lists it carries the XML of (the layout may already be over the cap); anything new is held to it.
+    const addsNew = (fix.ops as LayoutOp[]).some((op) => op.op === "addRelatedList" && !op.xml);
+    if (now > before && now > MAX_SIDEBAR_RELATED_LISTS && addsNew) {
       return {
         preview: {
           ...preview,

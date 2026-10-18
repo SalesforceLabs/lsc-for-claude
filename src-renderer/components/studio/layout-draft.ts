@@ -179,7 +179,9 @@ export function diffOps(base: LayoutModel, target: LayoutModel): LayoutOp[] {
     const after = cur.sections.slice(cur.sections.indexOf(sec) + 1).find((s) => kept.has(s.key));
     const next = order[j + 1];
     if ((after?.key ?? null) === (next ?? null)) continue;
-    const before = next === undefined ? null : refOf(cur, sectionByKey(cur, next)!);
+    // The op applies after the section is lifted out, so its neighbour is named as the layout reads without it (same-label sections renumber).
+    const without = { ...cur, sections: cur.sections.filter((s) => s !== sec) };
+    const before = next === undefined ? null : refOf(without, sectionByKey(without, next)!);
     push({ op: "moveSection", section: refOf(cur, sec), before });
   }
 

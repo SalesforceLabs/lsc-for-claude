@@ -403,6 +403,15 @@ describe("editMetadata (page layouts)", () => {
     expect((await previewFix(visit, "org")).blocked).toMatch(/would have 19 related lists/);
   });
 
+  it("lets an undo put back a related list on a Visit layout that is already over the cap", async () => {
+    const undo: StudioFix = {
+      ...fix,
+      doc: { ...doc, fullName: "Visit-Visit Layout" },
+      ops: [{ op: "addRelatedList", relatedList: "Gadgets__r", before: null, xml: "<relatedLists>\n    <fields>NAME</fields>\n    <relatedList>Gadgets__r</relatedList>\n</relatedLists>\n" }],
+    };
+    expect((await previewFix(undo, "org")).blocked).toBeUndefined();
+  });
+
   it("reports a failed deploy without claiming success", async () => {
     vi.mocked(cli.deployMetadata).mockResolvedValue({ success: false, error: "INVALID_FIELD" });
     const result = await applyFix(fix, "org");
