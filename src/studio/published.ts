@@ -168,6 +168,11 @@ export interface PublishedListView {
   sharedTo?: Record<string, string[]>;
   /** How to read its rows: a SOQL path and field type per column (null when the app drops it), and the cache's filter. */
   query?: { fields: (ListViewField | null)[]; where: string | null; mine: boolean };
+  /**
+   * The view as the cache stores it, for lining it up against the org's before editing:
+   * the metadata name (`Object.Name`), the column ids, the filter scope, filters and logic.
+   */
+  source?: { fullName: string; columns: string[]; filterScope: string | null; filters: { field: string; operation: string; value: string }[]; booleanFilter: string | null };
 }
 
 /** A list view column's SOQL path; a reference also names the record it points at, which shows only if it synced. */
@@ -966,7 +971,7 @@ function buildObject(name: string, sobject: Row, ui: Row, profile: Row): Publish
     .filter(([k]) => k.startsWith(`${name}.`))
     // AllSObjectsViewController.listViews drops recently viewed lists.
     .filter(([, v]) => str(obj(v).filterScope).toLowerCase() !== "mru")
-    .map(([, v]) => {
+    .map(([key, v]) => {
       const lv = obj(v);
       const sharedTo = Object.fromEntries(
         Object.entries(obj(lv.sharedTo))
@@ -978,6 +983,13 @@ function buildObject(name: string, sobject: Row, ui: Row, profile: Row): Publish
         label: str(lv.label) || str(lv.fullName),
         columns: arr(lv.columns).map((c) => str(c.label) || str(c.fullName)),
         ...(Object.keys(sharedTo).length ? { sharedTo } : {}),
+        source: {
+          fullName: key,
+          columns: arr(lv.columns).map((c) => str(c.fullName)),
+          filterScope: lv.filterScope ? str(lv.filterScope) : null,
+          filters: arr(lv.filters).map((f) => ({ field: str(f.field), operation: str(f.operation), value: str(f.value) })),
+          booleanFilter: lv.booleanFilter ? str(lv.booleanFilter) : null,
+        },
         query: {
           fields: arr(lv.columns).map((c) => listViewField(c, fields)),
           where: listViewWhere(arr(lv.filters), lv.booleanFilter ? str(lv.booleanFilter) : null, fields),
@@ -1328,7 +1340,7 @@ export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing |
 const FILES = ["nav", "ui", "permissions", "db", "sobjects", "reporting"] as const;
 const CACHE_ROOT = path.join(os.tmpdir(), "lsc-studio-published");
 /** Bump when the snapshot's shape changes — and bump the app's `CACHE_VERSION` (src-electron/engine/studio-cache.ts) too, or it keeps serving the old shape for a day. */
-const SNAPSHOT_VERSION = 40;
+const SNAPSHOT_VERSION = 41;
 /** UserService.defaultLanguage — the translation file used when the user's is missing. */
 const DEFAULT_LANGUAGE = "en_US";
 /** Distinct permission-set combinations pre-built per download. */
