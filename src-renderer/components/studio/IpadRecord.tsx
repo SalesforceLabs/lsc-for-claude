@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useMemo, useState } from "react";
+import { Mark } from "./EditLayer";
 import type {
   InlineLwcCheck,
   PublishedComponent,
@@ -145,7 +146,7 @@ function RecordBody({ snapshot, rec }: { snapshot: PublishedIpad; rec: Published
           ))}
         </div>
       )}
-      <div className="studio-ipad-rec-body">{tab && <TabContent components={tab.components} snapshot={snapshot} rec={rec} />}</div>
+      <div className="studio-ipad-rec-body">{tab && <TabContent components={tab.components} snapshot={snapshot} rec={rec} page={page} region={tabs.length > 1 ? `${tab.title} tab` : "main"} layout={rt?.layout ?? undefined} />}</div>
     </div>
   );
 }
@@ -165,57 +166,92 @@ function findRelated(rec: PublishedRecordData, api: string | undefined): Publish
   return api ? Object.values(rec.related).find((r) => r.api === api) : undefined;
 }
 
-function TabContent({ components, snapshot, rec }: { components: PublishedComponent[]; snapshot: PublishedIpad; rec: PublishedRecordData }) {
+function TabContent({
+  components,
+  snapshot,
+  rec,
+  page,
+  region,
+  layout,
+}: {
+  components: PublishedComponent[];
+  snapshot: PublishedIpad;
+  rec: PublishedRecordData;
+  page?: ReturnType<typeof pageOf>["page"];
+  region: string;
+  layout?: string;
+}) {
   const details = components.filter((c) => c.visibility !== "hidden" && /^(multiEntityRecordView|detailPanel)$/.test(bare(c.name)));
+  const shown = components.filter((c) => renderable(c, snapshot, rec));
+  // Details and related lists are marked part by part; any other component is one block of its Lightning page.
+  const marked = (c: PublishedComponent, k: number, node: React.ReactNode) => {
+    const name = bare(c.name);
+    if (!page || !node || details.includes(c) || /^(relatedListContainer|relatedListSingleContainer|LSCGenericRelatedList|AccountAffiliations)$/.test(name)) return node;
+    return (
+      <Mark
+        target={{
+          kind: "component",
+          page: page.name,
+          pageLabel: page.label,
+          region,
+          index: k,
+          count: shown.length,
+          name: c.name,
+          label: c.properties.label || PLACEHOLDER_TITLES[name] || c.label || name,
+          home: false,
+          visibility: c.visibility === "conditional" ? "conditional" : "shown",
+          ...(c.visibilityNote ? { visibilityNote: c.visibilityNote } : {}),
+        }}
+      >
+        {node}
+      </Mark>
+    );
+  };
+  const related = (r: PublishedRelated, key: React.Key) => (
+    <Mark key={key} target={{ kind: "related", object: r.object, label: r.label, parent: rec.object, ...(layout ? { layout } : {}) }}>
+      <RelatedCard snapshot={snapshot} related={r} editable={rec.editable} />
+    </Mark>
+  );
   return (
     <>
-      {components
-        .filter((c) => renderable(c, snapshot, rec))
-        .map((c, k) => {
-          const name = bare(c.name);
-          if (details.includes(c)) return <DetailsCard key={k} snapshot={snapshot} rec={rec} />;
-          if (name === "AccountTerritoryFields") return null;
-          if (name === "ExpensesListView") return <ExpensesCard key={k} rec={rec} />;
-          if (/^lscMobileInline_/.test(name)) return <InlineSlot key={k} snapshot={snapshot} rec={rec} name={name} height={Number(c.properties.mobileHeight) || 400} />;
-          if (name === "relatedListContainer")
-            return (
-              <React.Fragment key={k}>
-                {Object.values(rec.related).map((r) => (
-                  <RelatedCard key={r.key} snapshot={snapshot} related={r} editable={rec.editable} />
-                ))}
-              </React.Fragment>
-            );
-          if (name === "relatedListSingleContainer") {
-            const r = findRelated(rec, c.properties.relatedListApiName);
-            return r ? <RelatedCard key={k} snapshot={snapshot} related={r} editable={rec.editable} /> : null;
-          }
-          if (name === "LSCGenericRelatedList") {
-            const r = Object.values(rec.related).find((x) => x.api === "LSCGenericRelatedList" && x.label === c.properties.label);
-            return r ? <RelatedCard key={k} snapshot={snapshot} related={r} editable={rec.editable} /> : null;
-          }
-          if (name === "ActivityHistory") {
-            const r = findRelated(rec, "ActivityHistory");
-            return r ? <ActivityHistoryCard key={k} rows={r.rows} /> : null;
-          }
-          if (name === "ActivityHistory") {
-            const r = findRelated(rec, "ActivityHistory");
-            return r ? <ActivityHistoryCard key={k} rows={r.rows} /> : null;
-          }
-          if (name === "AccountAffiliations") {
-            const r = findRelated(rec, "AccountAffiliations");
-            return r ? <RelatedCard key={k} snapshot={snapshot} related={r} editable={rec.editable} /> : null;
-          }
-          if (name === "Ratings" && rec.ratings) return <RatingsCard key={k} ratings={rec.ratings} />;
-          if (rec.dashboard) {
-            if (name === "accountSummary") return <SummaryCard key={k} data={rec.dashboard} />;
-            if (name === "accountManagementDashboard") return <OverviewCard key={k} data={rec.dashboard} />;
-            if (name === "nextBestActions") return <NextBestActionsCard key={k} data={rec.dashboard} />;
-            if (name === "accountMapDisplay") return <MapCard key={k} data={rec.dashboard} />;
-          }
-          return <PlaceholderCard key={k} title={PLACEHOLDER_TITLES[name] ?? c.properties.label ?? c.label ?? name} />;
-        })}
+      {shown.map((c, k) => (
+        <React.Fragment key={k}>{marked(c, k, card(c, k))}</React.Fragment>
+      ))}
     </>
   );
+
+  function card(c: PublishedComponent, k: number): React.ReactNode {
+    const name = bare(c.name);
+    if (details.includes(c)) return <DetailsCard key={k} snapshot={snapshot} rec={rec} />;
+    if (name === "AccountTerritoryFields") return null;
+    if (name === "ExpensesListView") return <ExpensesCard rec={rec} />;
+    if (/^lscMobileInline_/.test(name)) return <InlineSlot snapshot={snapshot} rec={rec} name={name} height={Number(c.properties.mobileHeight) || 400} />;
+    if (name === "relatedListContainer") return <React.Fragment key={k}>{Object.values(rec.related).map((r) => related(r, r.key))}</React.Fragment>;
+    if (name === "relatedListSingleContainer") {
+      const r = findRelated(rec, c.properties.relatedListApiName);
+      return r ? related(r, k) : null;
+    }
+    if (name === "LSCGenericRelatedList") {
+      const r = Object.values(rec.related).find((x) => x.api === "LSCGenericRelatedList" && x.label === c.properties.label);
+      return r ? related(r, k) : null;
+    }
+    if (name === "ActivityHistory") {
+      const r = findRelated(rec, "ActivityHistory");
+      return r ? <ActivityHistoryCard rows={r.rows} /> : null;
+    }
+    if (name === "AccountAffiliations") {
+      const r = findRelated(rec, "AccountAffiliations");
+      return r ? related(r, k) : null;
+    }
+    if (name === "Ratings" && rec.ratings) return <RatingsCard ratings={rec.ratings} />;
+    if (rec.dashboard) {
+      if (name === "accountSummary") return <SummaryCard data={rec.dashboard} />;
+      if (name === "accountManagementDashboard") return <OverviewCard data={rec.dashboard} />;
+      if (name === "nextBestActions") return <NextBestActionsCard data={rec.dashboard} />;
+      if (name === "accountMapDisplay") return <MapCard data={rec.dashboard} />;
+    }
+    return <PlaceholderCard title={PLACEHOLDER_TITLES[name] ?? c.properties.label ?? c.label ?? name} />;
+  }
 }
 
 // ── Header and highlights ─────────────────────────────────────────────────────
@@ -248,14 +284,16 @@ function Header({ snapshot, rec, object, compact }: { snapshot: PublishedIpad; r
         <div className="studio-ipad-rec-eyebrow">{object?.label ?? rec.object}</div>
         <div className="studio-ipad-rec-title">{rec.title || rec.id}</div>
       </div>
-      <div className="studio-ipad-rec-hl">
-        {cells.map((c, k) => (
-          <div key={k} className="studio-ipad-rec-hl-cell" style={{ width: widths[k] }}>
-            <div className="studio-ipad-rec-hl-label">{c.label}</div>
-            <div className={`studio-ipad-rec-hl-value${c.value && (LOOKUP.has(c.spec.type) || c.spec.type === "masterdetail") ? " link" : ""}`}>{c.value}</div>
-          </div>
-        ))}
-      </div>
+      <Mark target={{ kind: "highlights", object: rec.object, compactLayout: compact, fields: cells.map((c) => c.label) }}>
+        <div className="studio-ipad-rec-hl">
+          {cells.map((c, k) => (
+            <div key={k} className="studio-ipad-rec-hl-cell" style={{ width: widths[k] }}>
+              <div className="studio-ipad-rec-hl-label">{c.label}</div>
+              <div className={`studio-ipad-rec-hl-value${c.value && (LOOKUP.has(c.spec.type) || c.spec.type === "masterdetail") ? " link" : ""}`}>{c.value}</div>
+            </div>
+          ))}
+        </div>
+      </Mark>
       {rec.stagePath && <StagePath path={rec.stagePath} />}
     </>
   );
@@ -391,13 +429,14 @@ function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: Publishe
         const object = layoutObject(layout.name);
         // Compound-field components and addresses are not drawn; a section left with no field disappears.
         const sections = layout.sections
-          .map((s) => ({ s, cols: (s.fields ?? s.columns.map((col) => col.map((label) => ({ name: label, label, type: "" })))).map((col) => col.filter((f) => !metaOf(snapshot, object, f).hidden)) }))
+          .map((s) => ({ s, cols: (s.fields ?? s.columns.map((col) => col.map((label): RecordFieldSpec => ({ name: label, label, type: "" })))).map((col) => col.filter((f) => !metaOf(snapshot, object, f).hidden)) }))
           .filter((x) => x.cols.some((c) => c.length));
         return sections.map(({ s, cols }, si) => {
           const first = li === 0 && si === 0;
           const cls = s.label ? (si === 0 ? " layout-gap" : " section-gap") : "";
           return (
-            <div key={`${li}.${si}`} className={`studio-ipad-rec-section${first ? " first" : ""}${cls}${first && s.label ? " labeled" : ""}`}>
+            <Mark key={`${li}.${si}`} target={{ kind: "section", layout: layout.name, index: layout.sections.indexOf(s), count: layout.sections.length, label: s.label }}>
+            <div className={`studio-ipad-rec-section${first ? " first" : ""}${cls}${first && s.label ? " labeled" : ""}`}>
               {s.label && (
                 <div className="studio-ipad-rec-section-head">
                   <div className="studio-ipad-rec-section-title">{s.label}</div>
@@ -411,19 +450,22 @@ function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: Publishe
                       const v = valueOf(rec, object, f);
                       const meta = metaOf(snapshot, object, f);
                       return (
-                        <div key={fi} className={`studio-ipad-rec-field${f.type === "textarea" ? " tall" : ""}`}>
-                          <div className="studio-ipad-rec-label">
-                            {meta.label}
-                            {meta.help && <span className="studio-ipad-rec-help" aria-hidden="true">i</span>}
+                        <Mark key={fi} target={{ kind: "field", layout: layout.name, section: s.label, field: f.name, label: meta.label, required: f.required, readOnly: f.readOnly }}>
+                          <div className={`studio-ipad-rec-field${f.type === "textarea" ? " tall" : ""}`}>
+                            <div className="studio-ipad-rec-label">
+                              {meta.label}
+                              {meta.help && <span className="studio-ipad-rec-help" aria-hidden="true">i</span>}
+                            </div>
+                            <div className={`studio-ipad-rec-value${v && LOOKUP.has(f.type) ? " link" : ""}`}>{v}</div>
                           </div>
-                          <div className={`studio-ipad-rec-value${v && LOOKUP.has(f.type) ? " link" : ""}`}>{v}</div>
-                        </div>
+                        </Mark>
                       );
                     })}
                   </div>
                 ))}
               </div>
             </div>
+            </Mark>
           );
         });
       })}

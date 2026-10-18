@@ -1,0 +1,162 @@
+/* Edit mode: hover outlines, the selection ring and its toolbar, drawn over the scaled iPad. */
+
+.studio-edit-surface {
+  position: relative;
+}
+
+.studio-edit-mark {
+  display: contents;
+}
+
+.studio-edit-surface.on [data-edit-key] {
+  cursor: default;
+}
+
+.studio-edit-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.studio-edit-hover,
+.studio-edit-ring {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: var(--radius-xs);
+}
+
+.studio-edit-hover {
+  border: 1px solid var(--accent);
+  background: var(--accent-subtle);
+}
+
+.studio-edit-ring {
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-glow);
+  transition:
+    left var(--transition-fast) var(--ease-out),
+    top var(--transition-fast) var(--ease-out),
+    width var(--transition-fast) var(--ease-out),
+    height var(--transition-fast) var(--ease-out);
+}
+
+.studio-edit-tag {
+  position: absolute;
+  left: -1px;
+  bottom: 100%;
+  max-width: 280px;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  background: var(--accent);
+  color: #fff;
+  font-size: var(--font-xs);
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.studio-edit-toolbar {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: calc(100% - var(--space-2));
+  padding: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-popover);
+  translate: 0 -100%;
+  pointer-events: auto;
+  white-space: nowrap;
+  animation: ui-pop-in var(--transition-fast) var(--ease-out);
+}
+
+.studio-edit-toolbar.below {
+  translate: none;
+}
+
+.studio-edit-toolbar-name {
+  padding: 0 var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.studio-edit-toolbar .studio-btn,
+.studio-edit-toolbar .ui-icon-btn {
+  flex: none;
+}
+
+/* The inspector beside the preview in edit mode: What / Why / How. */
+
+.studio-block-section .ui-section-title {
+  margin-bottom: var(--space-2);
+}
+
+.studio-block-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+}
+
+.studio-block-crumbs li + li::before {
+  content: "›";
+  margin-right: var(--space-1);
+  color: var(--text-secondary);
+}
+
+.studio-block-list,
+.studio-block-steps {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-sm);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.studio-block-steps {
+  margin-top: var(--space-2);
+}
+
+.studio-block-verbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-2) 0;
+}
+
+.studio-block-sync {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--warning-subtle);
+  color: var(--warning);
+}
+
+.studio-block-sync > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  color: var(--text-primary);
+}
+
+.studio-block-sync-title {
+  font-size: var(--font-sm);
+  font-weight: 600;
+}

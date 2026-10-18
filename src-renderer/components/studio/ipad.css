@@ -2322,3 +2322,9 @@ button.studio-ipad-chip {
   font-size: 18px;
   cursor: pointer;
 }
+
+/* Edit mode's Draft: what the tray takes away stays as a ghost until it's applied. */
+.studio-ipad-pill.ghost {
+  opacity: 0.45;
+  text-decoration: line-through;
+}

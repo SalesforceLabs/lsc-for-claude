@@ -27,6 +27,8 @@ import type { PublishedFabItem } from "./screens/fabs-types";
 import { presentationFor, type Presentation } from "./ipad-fab-actions";
 import { CustomIcon } from "./assets/icons";
 import { findDeepLinkTab, findRecordId, isDeepLink, parseDeepLink } from "./deep-link";
+import { EditSurface, editAttrs, Mark, useEditOn, type EditSurfaceProps } from "./EditLayer";
+import type { DraftAction, DraftTab } from "./edit-draft";
 import {
   ActivityPlanProgress,
   HomeEditVisitContext,
@@ -45,11 +47,20 @@ export type PublishedState =
   | { status: "error"; error: string }
   | { status: "ready"; result: PublishedResult };
 
+/** Edit mode over the preview: selection, and — in Draft — the tab bar and Home menu with the tray laid on top. */
+export interface PreviewEdit extends Omit<EditSurfaceProps, "children"> {
+  draft: boolean;
+  tabs: DraftTab[];
+  homeMenu: DraftAction[];
+}
+
 interface PublishedIpadPreviewProps {
   profile: string;
   state: PublishedState | undefined;
   onRefresh: (userId?: string) => void;
   onPickUser: (userId: string) => void;
+  /** Edit mode; computed by the caller from the snapshot this preview reports through `state`. */
+  edit?: PreviewEdit;
 }
 
 /**
@@ -57,7 +68,7 @@ interface PublishedIpadPreviewProps {
  * components, and record pages read from the profile's metadata cache, laid
  * out the way LSC Mobile builds them. Record data is placeholder.
  */
-export default function PublishedIpadPreview({ profile, state, onRefresh, onPickUser }: PublishedIpadPreviewProps) {
+export default function PublishedIpadPreview({ profile, state, onRefresh, onPickUser, edit }: PublishedIpadPreviewProps) {
   if (!state || state.status === "loading") {
     return <PublishedLoading profile={profile} />;
   }
@@ -86,24 +97,28 @@ export default function PublishedIpadPreview({ profile, state, onRefresh, onPick
       />
     );
   }
-  return <Device key={result.viewer?.userId ?? ""} snapshot={result} onRefresh={() => onRefresh(result.viewer?.userId)} onPickUser={onPickUser} />;
+  return <Device key={result.viewer?.userId ?? ""} snapshot={result} onRefresh={() => onRefresh(result.viewer?.userId)} onPickUser={onPickUser} edit={edit} />;
 }
 
 function Device({
   snapshot,
   onRefresh,
   onPickUser,
+  edit,
 }: {
   snapshot: PublishedIpad;
   onRefresh: () => void;
   onPickUser: (userId: string) => void;
+  edit?: PreviewEdit;
 }) {
+  // Draft adds the tabs the tray would add (drawn as "coming soon" until published).
+  const allTabs = useMemo(() => (edit?.draft ? edit.tabs.map((d) => d.tab) : snapshot.tabs), [edit?.draft, edit?.tabs, snapshot.tabs]);
   const [current, setCurrent] = useState(snapshot.tabs[0]?.fullName ?? "");
   // The id of the open record ("" when the list row has no prefetched data); null shows the list.
   const [record, setRecord] = useState<string | null>(null);
   const [sheet, setSheet] = useState<ChromeSheet | null>(null);
   const [newSheet, setNewSheet] = useState<Presentation | null>(null);
-  const tab = snapshot.tabs.find((t) => t.fullName === current) ?? snapshot.tabs[0];
+  const tab = allTabs.find((t) => t.fullName === current) ?? allTabs[0];
   const open = (t: PublishedTab) => {
     setCurrent(t.fullName);
     setRecord(null);
@@ -139,10 +154,23 @@ function Device({
     if (o.kind === "quickAction") note(o.action, `On the iPad this runs the ${o.action} quick action on the record. Studio does not run it.`);
   };
   // UITabBarController in .tabBar mode: the tabs in a paged floating bar, search pinned last.
-  const chromeTabs = useMemo<ChromeTab[]>(
-    () => snapshot.tabs.filter((t) => t.kind !== "recent").map((t) => ({ key: t.fullName, label: t.label, title: t.fullName })),
-    [snapshot.tabs]
-  );
+  const editing = !!edit?.on;
+  const chromeTabs = useMemo<ChromeTab[]>(() => {
+    const states = new Map(edit?.draft ? edit.tabs.map((d) => [d.tab.fullName, d.state]) : []);
+    return allTabs
+      .map((t, index) => ({ t, index }))
+      .filter(({ t }) => t.kind !== "recent")
+      .map(({ t, index }) => {
+        const state = states.get(t.fullName);
+        return {
+          key: t.fullName,
+          label: t.label,
+          title: t.fullName,
+          className: state === "removed" ? " ghost" : state === "added" || state === "moved" ? " pending" : "",
+          attrs: editAttrs(editing, { kind: "tab", fullName: t.fullName, label: t.label, index }, true),
+        };
+      });
+  }, [allTabs, edit?.draft, edit?.tabs, editing]);
   const onHome = tab?.kind === "home" && !!snapshot.home && record === null;
   // The app gates Agentforce on the user-info "Agentforce" feature flag, which the CLI can't read; a Home welcome component stands in for it.
   const homeHasAgentforce = !!snapshot.home?.regions.some((r) => r.components.some((c) => c.supported && /lsAgentforceWelcome$/.test(c.name)));
@@ -192,13 +220,14 @@ function Device({
         </button>
       </div>
 
-      <IpadScreen label="iPad preview (published)">
+      <EditSurface on={editing} selected={edit?.selected ?? null} onSelect={edit?.onSelect ?? (() => {})} verbs={edit?.verbs ?? []} onRun={edit?.onRun ?? (() => {})} setup={edit?.setup} onSetup={edit?.onSetup} horizontal={edit?.horizontal}>
+      <IpadScreen label={edit?.draft ? "iPad preview (draft)" : "iPad preview (published)"}>
         <IpadStatusBar />
         <IpadTopBar
           tabs={chromeTabs}
           current={tab?.fullName ?? ""}
           onOpen={(key) => {
-            const t = snapshot.tabs.find((x) => x.fullName === key);
+            const t = allTabs.find((x) => x.fullName === key);
             if (t) open(t);
           }}
           searchKey={snapshot.tabs.find((t) => t.kind === "recent")?.fullName}
@@ -214,8 +243,9 @@ function Device({
         </div>
         <ChromeSheets sheet={sheet} snapshot={snapshot} onClose={() => setSheet(null)} onLink={followLink} />
         {newSheet && <IpadActionSheet presentation={newSheet} ctx={{ snapshot, record: null }} onClose={() => setNewSheet(null)} />}
-        <IpadFabs snapshot={snapshot} tab={tab} record={record} agentforce={homeHasAgentforce} />
+        <IpadFabs snapshot={snapshot} tab={tab} record={record} agentforce={homeHasAgentforce} homeMenu={edit?.draft ? edit.homeMenu : undefined} />
       </IpadScreen>
+      </EditSurface>
 
       <ul className="studio-ipad-legend">
         <li>
@@ -411,7 +441,7 @@ function PageView({
         <div className="studio-ipad-ph fill">There are no supported lightning components configured for this page.</div>
       ) : (
         page.regions.map((r) => (
-          <Region key={r.name} components={r.components} home={home} snapshot={snapshot} object={object} layout={layout} multi={multi} />
+          <Region key={r.name} page={page} region={r.name} components={r.components} home={home} snapshot={snapshot} object={object} layout={layout} multi={multi} />
         ))
       )}
       {(notShown.length > 0 || dropped.length > 0) && (
@@ -425,6 +455,8 @@ function PageView({
 
 /** SFLayoutScrollRegion.addHomeComponent — half-width Home components pair up two per row. */
 function Region({
+  page,
+  region,
   components,
   home,
   snapshot,
@@ -432,6 +464,8 @@ function Region({
   layout,
   multi,
 }: {
+  page: PublishedPage;
+  region: string;
   components: PublishedComponent[];
   home: boolean;
   snapshot: PublishedIpad;
@@ -440,6 +474,28 @@ function Region({
   multi?: MultiEntity;
 }) {
   const shown = components.filter((c) => c.supported && c.visibility !== "hidden");
+  const target = (c: PublishedComponent) => ({
+    kind: "component" as const,
+    page: page.name,
+    pageLabel: page.label,
+    region,
+    index: shown.indexOf(c),
+    count: shown.length,
+    name: c.name,
+    label: c.properties.label || c.properties.title || c.label,
+    home,
+    visibility: c.visibility === "conditional" ? ("conditional" as const) : ("shown" as const),
+    ...(c.visibilityNote ? { visibilityNote: c.visibilityNote } : {}),
+  });
+  const card = (c: PublishedComponent, key: number) =>
+    // A tab set and the record header aren't one block: their parts are marked inside.
+    c.tabs || /(^|:)highlightsPanel$/.test(c.name) ? (
+      <ComponentCard key={key} page={page} c={c} snapshot={snapshot} object={object} layout={layout} multi={multi} />
+    ) : (
+      <Mark key={key} target={target(c)}>
+        <ComponentCard page={page} c={c} snapshot={snapshot} object={object} layout={layout} multi={multi} />
+      </Mark>
+    );
   const rows: PublishedComponent[][] = [];
   for (const c of shown) {
     const last = rows[rows.length - 1];
@@ -451,12 +507,10 @@ function Region({
       {rows.map((row, i) =>
         row.length === 2 || (home && row[0].halfWidth) ? (
           <div key={i} className="studio-ipad-pair">
-            {row.map((c, j) => (
-              <ComponentCard key={j} c={c} snapshot={snapshot} object={object} layout={layout} multi={multi} />
-            ))}
+            {row.map((c, j) => card(c, j))}
           </div>
         ) : (
-          <ComponentCard key={i} c={row[0]} snapshot={snapshot} object={object} layout={layout} multi={multi} />
+          card(row[0], i)
         )
       )}
     </>
@@ -464,12 +518,14 @@ function Region({
 }
 
 function ComponentCard({
+  page,
   c,
   snapshot,
   object,
   layout,
   multi,
 }: {
+  page: PublishedPage;
   c: PublishedComponent;
   snapshot: PublishedIpad;
   object?: PublishedObject;
@@ -480,7 +536,7 @@ function ComponentCard({
   const name = c.name.replace(/^.*:/, "");
   const p = c.properties;
 
-  if (c.tabs) return <TabSet tabs={c.tabs} snapshot={snapshot} object={object} layout={layout} multi={multi} />;
+  if (c.tabs) return <TabSet page={page} tabs={c.tabs} snapshot={snapshot} object={object} layout={layout} multi={multi} />;
   if (name === "highlightsPanel") return null; // drawn by the record header
   if (name === "multiEntityRecordView" && multi) {
     if (multi.error) return <div className={cls}>{multi.error}</div>;
@@ -535,12 +591,14 @@ function ComponentCard({
 }
 
 function TabSet({
+  page,
   tabs,
   snapshot,
   object,
   layout,
   multi,
 }: {
+  page: PublishedPage;
   tabs: NonNullable<PublishedComponent["tabs"]>;
   snapshot: PublishedIpad;
   object?: PublishedObject;
@@ -560,7 +618,7 @@ function TabSet({
           </button>
         ))}
       </div>
-      <Region components={tab.components} home={false} snapshot={snapshot} object={object} layout={layout} multi={multi} />
+      <Region page={page} region={`${tab.title} tab`} components={tab.components} home={false} snapshot={snapshot} object={object} layout={layout} multi={multi} />
       {tab.components.some((c) => !c.supported) && (
         <div className="studio-ipad-hint">
           Not shown on iPad: {tab.components.filter((c) => !c.supported).map((c) => c.label).join(", ")}
@@ -577,21 +635,25 @@ function LayoutSections({ layout }: { layout: PublishedLayout }) {
   return (
     <>
       {layout.sections.map((s, i) => (
-        <div key={i} className="studio-ipad-card">
-          {s.label && <strong>{s.label}</strong>}
-          <div className="studio-ipad-columns">
-            {s.columns.map((col, j) => (
-              <div key={j}>
-                {col.map((f) => (
-                  <div key={f} className="studio-ipad-field">
-                    <span className="studio-ipad-hint">{f}</span>
-                    <span className="studio-ipad-ph line" />
-                  </div>
-                ))}
-              </div>
-            ))}
+        <Mark key={i} target={{ kind: "section", layout: layout.name, index: i, count: layout.sections.length, label: s.label }}>
+          <div className="studio-ipad-card">
+            {s.label && <strong>{s.label}</strong>}
+            <div className="studio-ipad-columns">
+              {s.columns.map((col, j) => (
+                <div key={j}>
+                  {col.map((f) => (
+                    <Mark key={f} target={{ kind: "field", layout: layout.name, section: s.label, field: f, label: f }}>
+                      <div className="studio-ipad-field">
+                        <span className="studio-ipad-hint">{f}</span>
+                        <span className="studio-ipad-ph line" />
+                      </div>
+                    </Mark>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        </Mark>
       ))}
     </>
   );
@@ -619,6 +681,7 @@ function ListView({
   onOpenRecord: (id: string) => void;
   onNew: (label: string, objectName: string) => void;
 }) {
+  const editing = useEditOn();
   const [viewName, setViewName] = useState(object.defaultListView);
   const [query, setQuery] = useState("");
   const [cards, setCards] = useState(() => cardModeFor(object.name));
@@ -650,6 +713,7 @@ function ListView({
               type="button"
               className={`studio-ipad-lv-chip${l.name === view?.name ? " current" : ""}`}
               onClick={() => setViewName(l.name)}
+              {...editAttrs(editing, { kind: "listView", object: object.name, name: l.name, label: l.label }, true)}
             >
               {l.label}
               {lists?.[`${object.name}.${l.name}`] && <ListCount count={lists[`${object.name}.${l.name}`].count} />}
@@ -775,14 +839,16 @@ function RecordView({ object, snapshot }: { object: PublishedObject; snapshot: P
         )}
       </Head>
       {highlights.length > 0 && (
-        <div className="studio-ipad-highlights">
-          {highlights.map((h) => (
-            <div key={h} className="studio-ipad-field">
-              <span className="studio-ipad-hint">{h}</span>
-              <span className="studio-ipad-ph line" />
-            </div>
-          ))}
-        </div>
+        <Mark target={{ kind: "highlights", object: object.name, compactLayout: compactName ?? null, fields: highlights }}>
+          <div className="studio-ipad-highlights">
+            {highlights.map((h) => (
+              <div key={h} className="studio-ipad-field">
+                <span className="studio-ipad-hint">{h}</span>
+                <span className="studio-ipad-ph line" />
+              </div>
+            ))}
+          </div>
+        </Mark>
       )}
       {layout && layout.actions.length > 0 && (
         <div className="studio-ipad-hint">Layout actions: {layout.actions.join(" · ")}</div>

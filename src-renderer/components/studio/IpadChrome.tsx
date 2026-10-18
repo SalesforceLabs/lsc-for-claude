@@ -9,6 +9,8 @@ export interface ChromeTab {
   /** Extra classes (visibility, findings, pending changes). */
   className?: string;
   badge?: React.ReactNode;
+  /** Extra attributes for the pill (edit mode's selection marks). */
+  attrs?: Record<string, string>;
 }
 
 /** The iPadOS status bar. */
@@ -93,6 +95,7 @@ export function IpadTopBar({
               className={`studio-ipad-pill${t.key === current ? " current" : ""}${t.className ?? ""}`}
               title={t.title}
               onClick={() => onOpen(t.key)}
+              {...t.attrs}
             >
               {t.label}
               {t.badge}
