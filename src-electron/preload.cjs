@@ -63,7 +63,7 @@ contextBridge.exposeInMainWorld("lscApi", {
     return () => ipcRenderer.removeListener("sfOrg:changed", handler);
   },
   loginSfOrg: (alias, instanceUrl) => ipcRenderer.invoke("sfOrg:login", alias, instanceUrl),
-  openSfOrg: (org) => ipcRenderer.invoke("sfOrg:open", org),
+  openSfOrg: (org, path) => ipcRenderer.invoke("sfOrg:open", org, path),
   studioBrowserOpen: (guestId, url, auth) => ipcRenderer.invoke("studioBrowser:open", guestId, url, auth),
 
   // Studio — read-only feature maps served by the studio_* MCP tools

@@ -1,7 +1,10 @@
 /* Edit mode: hover outlines, the selection ring and its toolbar, drawn over the scaled iPad. */
 
+/* Takes the device frame's width: the frame is 100% of its parent, up to 960px. */
 .studio-edit-surface {
   position: relative;
+  width: 100%;
+  max-width: 960px;
 }
 
 .studio-edit-mark {
@@ -159,4 +162,18 @@
 .studio-block-sync-title {
   font-size: var(--font-sm);
   font-weight: 600;
+}
+
+.studio-block-reach {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin: var(--space-2) 0;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+}
+
+.studio-block-reach svg {
+  flex: none;
+  margin-top: 1px;
 }

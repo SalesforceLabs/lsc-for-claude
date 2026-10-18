@@ -7,6 +7,7 @@ import FeatureGrid from "./FeatureGrid";
 import LensChecklist from "./LensChecklist";
 import IpadPreview from "./IpadPreview";
 import PublishedIpadPreview, { type PublishedState } from "./PublishedIpadPreview";
+import { usePreviewEdit } from "./usePreviewEdit";
 import type { PublishedResult } from "./published-types";
 import type { IpadBlock } from "./ipad";
 import Inspector from "./Inspector";
@@ -24,6 +25,7 @@ import {
   CloudUpload,
   History,
   LayoutDashboard,
+  Pencil,
   RefreshCw,
   Tablet,
   UserRound,
@@ -86,8 +88,11 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   const [previewStart, setPreviewStart] = useState<string | undefined>(undefined);
   const [previewKey, setPreviewKey] = useState(0);
   const [previewInspect, setPreviewInspect] = useState<PreviewInspect | null>(null);
-  // "published" reads the profile's last metadata cache; "estimate" simulates the iPad after the next publish.
-  const [previewMode, setPreviewMode] = useState<"published" | "estimate">("published");
+  // "published" reads the profile's last metadata cache; "draft" lays the tray over it; "estimate" is the
+  // schematic simulated from the live maps (still where the Visit engagement sidebar is edited).
+  const [previewMode, setPreviewMode] = useState<"published" | "draft" | "estimate">("published");
+  // Edit mode: select blocks in the published preview to see what they are and change them.
+  const [editOn, setEditOn] = useState(false);
   const [published, setPublished] = useState<Record<string, PublishedState>>({});
   // Item the inspector opens, e.g. a block clicked in the preview.
   const [focusItem, setFocusItem] = useState<string | null>(null);
@@ -217,7 +222,27 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     selectSurface(null);
   };
 
-  const publishedProfile = previewOpened && previewMode === "published" ? (lens?.profile ?? null) : null;
+  const publishedProfile = previewOpened && previewMode !== "estimate" ? (lens?.profile ?? null) : null;
+  const toggleEdit = useCallback(() => {
+    setEditOn((on) => {
+      // Edits are made in Draft; Published stays selectable to explain what reps have today.
+      if (!on) setPreviewMode("draft");
+      return !on;
+    });
+  }, []);
+  const previewShown = section === "preview" && previewMode !== "estimate" && !!publishedProfile;
+  useEffect(() => {
+    if (!previewShown) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement as HTMLElement | null;
+      if (e.key !== "e" || e.metaKey || e.ctrlKey || e.altKey || reviewing || publishing !== undefined) return;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      e.preventDefault();
+      toggleEdit();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [previewShown, toggleEdit, reviewing, publishing]);
   useEffect(() => {
     if (publishedProfile && !published[publishedProfile]) loadPublished(publishedProfile);
   }, [publishedProfile, published, loadPublished]);
@@ -252,6 +277,20 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     seenOrg ??
     connectedOrg;
   const previewLoading = PREVIEW_FEATURES.some((id) => maps[id]?.status === "loading");
+  const publishedState = publishedProfile ? published[publishedProfile] : undefined;
+  const { edit: previewEdit, panel: editPanel } = usePreviewEdit({
+    on: editOn && previewShown,
+    draft: previewMode === "draft",
+    profile: publishedProfile,
+    result: publishedState?.status === "ready" ? publishedState.result : undefined,
+    actionsMap: readyMap("actions-home"),
+    syncMap: readyMap("mobile-sync"),
+    pending,
+    onPendingChange: setPending,
+    org: readyOrg,
+    profiles,
+    onOpenStudio: (id, surface, item) => openSetup(id, surface, item),
+  });
   const inspectedMap = previewInspect ? readyMap(previewInspect.featureId) : null;
   const inspectedSurface = inspectedMap?.surfaces.find((s) => s.id === previewInspect?.surface) ?? null;
   const inspectedCheckable = !!inspectedMap?.surfaces.some(isScoped);
@@ -259,7 +298,9 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   const previewSubtitle =
     previewMode === "published"
       ? `Exactly as ${lens ? `${lens.profile}'s` : "a profile's"} users last downloaded it, from the profile's metadata cache`
-      : `Estimated after the next publish from the live configuration${
+      : previewMode === "draft"
+        ? `As published, with ${pending.length === 1 ? "the pending change" : `${pending.length || "no"} pending changes`} laid on top — tabs, Home actions and DB Schema`
+        : `Schematic estimate after the next publish from the live configuration${
           lens ? ` for ${lens.profile}` : ""
         } — permission sets and record sharing aren't evaluated`;
 
@@ -395,6 +436,17 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               </div>
             </div>
             <div className="studio-header-actions">
+              {previewMode !== "estimate" && publishedProfile && (
+                <button
+                  className={`studio-btn collapsible${editOn ? " active" : ""}`}
+                  aria-pressed={editOn}
+                  onClick={toggleEdit}
+                  title="Edit — select anything on the iPad to see where it comes from and change it (E)"
+                >
+                  <Pencil aria-hidden="true" />
+                  <span className="studio-btn-label">Edit</span>
+                </button>
+              )}
               {readyOrg && publishButton}
               {previewMode === "estimate" &&
                 refreshButton(
@@ -413,8 +465,13 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               value={previewMode}
               onChange={setPreviewMode}
               options={[
-                { value: "published", label: "As published" },
-                { value: "estimate", label: "After next publish", title: "An estimate of the iPad after the next publish" },
+                { value: "published", label: "Published", title: "What reps have today, from the metadata cache" },
+                { value: "draft", label: "Draft", title: "Published, with the pending changes laid on top" },
+                {
+                  value: "estimate",
+                  label: "Schematic",
+                  title: "A block estimate of the iPad after the next publish, from the live configuration",
+                },
               ]}
             />
             <div className="studio-subbar-group">
@@ -429,13 +486,14 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
 
           <div className="studio-stage">
             <div className="studio-canvas">
-              {previewMode === "published" ? (
+              {previewMode !== "estimate" ? (
                 publishedProfile ? (
                   <PublishedIpadPreview
                     profile={publishedProfile}
-                    state={published[publishedProfile]}
+                    state={publishedState}
                     onRefresh={(userId) => loadPublished(publishedProfile, true, userId)}
                     onPickUser={(userId) => loadPublished(publishedProfile, false, userId)}
+                    edit={previewEdit}
                   />
                 ) : (
                   <StateView
@@ -461,6 +519,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
                 />
               )}
             </div>
+            {previewMode !== "estimate" && editPanel}
             {previewMode === "estimate" && inspectedMap && inspectedSurface && previewInspect && (
               <Inspector
                 key={`${previewInspect.featureId}:${previewInspect.surface}:${previewInspect.itemId}`}

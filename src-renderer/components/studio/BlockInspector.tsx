@@ -10,6 +10,7 @@ import {
   PowerOff,
   SquareArrowOutUpRight,
   Trash2,
+  UsersRound,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -142,7 +143,12 @@ export default function BlockInspector({
               })}
             </div>
           )}
-          {info.reach && <p className="studio-inspector-desc">{info.reach}</p>}
+          {info.reach && (
+            <p className="studio-block-reach">
+              <UsersRound size={14} aria-hidden />
+              <span>{info.reach}</span>
+            </p>
+          )}
           <ol className="studio-block-steps">
             {info.how.map((h, i) => (
               <li key={i}>{h}</li>

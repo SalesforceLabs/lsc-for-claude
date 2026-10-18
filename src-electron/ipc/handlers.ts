@@ -105,6 +105,10 @@ let activeConvId: string | null = null;
 
 const secretName = (connection: Connection) => `llm:${connection.kind}`;
 
+/** A path inside the org for `sf org open --path`: org-relative, no scheme or host, URL-safe characters only. */
+const isOrgPath = (path: unknown): path is string =>
+  typeof path === "string" && path.length <= 512 && /^\/(?!\/)[A-Za-z0-9/_\-.~%?=&]*$/.test(path);
+
 /** A provider for `connection`, using `secret` if one was just entered, else the saved one. */
 function providerFor(connection: Connection, secret?: string): LLMProvider {
   // net.fetch goes through Chromium: system certificates (company root CAs) and proxy settings.
@@ -709,10 +713,13 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     });
   });
 
-  // Opens the org in the default browser, signed in through the sf CLI connection.
-  ipcMain.handle("sfOrg:open", async (_event, org: string) => {
+  // Opens the org in the default browser, signed in through the sf CLI connection — optionally on a page
+  // inside it (an org-relative path such as /lightning/setup/FlexiPageList/home).
+  ipcMain.handle("sfOrg:open", async (_event, org: string, path?: string) => {
+    if (path !== undefined && !isOrgPath(path)) return { ok: false, error: "Not a page in the org" };
+    const args = ["org", "open", "--target-org", org, "--url-only", "--json", ...(path ? ["--path", path] : [])];
     return new Promise((resolve) => {
-      execFile("sf", ["org", "open", "--target-org", org, "--url-only", "--json"], { timeout: 30000 }, (error, stdout) => {
+      execFile("sf", args, { timeout: 30000 }, (error, stdout) => {
         try {
           const url = JSON.parse(stdout)?.result?.url;
           if (typeof url === "string" && url.startsWith("https://")) {

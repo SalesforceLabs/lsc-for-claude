@@ -90,6 +90,9 @@ const VERB_ICONS: Record<VerbId, LucideIcon> = {
   discard: Trash2,
 };
 
+/** Toolbar words; the full sentence ("Hide for LS Rep") is the button's tooltip and stays in the inspector. */
+const TOOLBAR_LABELS: Partial<Record<VerbId, string>> = { hide: "Hide", show: "Show" };
+
 export interface EditSurfaceProps {
   on: boolean;
   selected: EditTarget | null;
@@ -250,6 +253,7 @@ export function EditSurface({
                 <div className="studio-edit-ring" style={rectStyle(boxes.selected)} />
                 <Toolbar
                   box={boxes.selected}
+                  width={root.current?.clientWidth ?? 0}
                   target={selected}
                   verbs={verbs}
                   onRun={onRun}
@@ -279,6 +283,7 @@ const rectStyle = (r: DOMRect): React.CSSProperties => ({
 /** The floating toolbar above the selection (below it when there's no room). */
 function Toolbar({
   box,
+  width,
   target,
   verbs,
   onRun,
@@ -287,6 +292,8 @@ function Toolbar({
   horizontal,
 }: {
   box: DOMRect;
+  /** The surface's width: a block in its right half anchors the toolbar to its right edge so it stays on the device. */
+  width: number;
   target: EditTarget;
   verbs: Verb[];
   onRun: (v: Verb) => void;
@@ -295,8 +302,9 @@ function Toolbar({
   horizontal?: boolean;
 }) {
   const below = box.y < 44;
+  const right = width > 0 && box.x + box.width / 2 > width / 2;
   const style: React.CSSProperties = {
-    left: Math.max(4, box.x),
+    ...(right ? { right: Math.max(4, width - box.right) } : { left: Math.max(4, box.x) }),
     top: below ? box.bottom + 8 : box.y - 8,
   };
   return (
@@ -326,7 +334,7 @@ function Toolbar({
             onClick={() => onRun(v)}
           >
             <Icon size={14} aria-hidden />
-            {!iconOnly && v.label}
+            {!iconOnly && (TOOLBAR_LABELS[v.id] ?? v.label)}
           </button>
         );
       })}

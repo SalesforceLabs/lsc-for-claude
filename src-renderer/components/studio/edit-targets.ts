@@ -7,7 +7,7 @@ import {
   profileChange,
   type PendingChange,
 } from "./changes";
-import type { DraftAction, DraftTab } from "./edit-draft";
+import { effectiveField, type DraftAction, type DraftTab } from "./edit-draft";
 
 /**
  * Edit mode's provenance: every block in the published preview an admin can
@@ -224,7 +224,7 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
             `${item.label} (TabName ${String(item.properties.TabName ?? t.fullName)})`,
           ],
           why: [
-            `${effectiveActive(item.edit!, ctx.pending) ? "An active" : "A switched-off"} UI Settings tab record at TabOrder ${String(item.properties.TabOrder ?? "?")}.`,
+            `${effectiveActive(item.edit!, ctx.pending) ? "An active" : "A switched-off"} UI Settings tab record at TabOrder ${String(effectiveField(item, "TabOrder", ctx.pending) ?? "?")}.`,
             audienceLine(item, ctx.pending),
             "The profile's tab visibility lets it through, so the iPad keeps it.",
           ],
@@ -434,7 +434,7 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
         studio,
         what: ["Admin Console", "Quick actions (Location HomePage)", item.label],
         why: [
-          `SortOrder ${String(item.properties.SortOrder ?? "?")} puts it ${ordinal(t.index + 1)} in the menu.`,
+          `SortOrder ${String(effectiveField(item, "SortOrder", ctx.pending) ?? "?")} puts it ${ordinal(ctx.homeMenu.filter((x) => x.state !== "removed").indexOf(d) + 1)} in the menu.`,
           `${ctx.profile} is listed in its Profiles field.`,
           "Home shows only New Visit, Inquiry, Share Content, Email and Order quick actions.",
         ],

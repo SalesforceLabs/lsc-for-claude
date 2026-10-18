@@ -172,7 +172,8 @@ interface LscApi {
   onSfOrgChanged(callback: (org: string) => void): () => void;
   loginSfOrg(alias?: string, instanceUrl?: string): Promise<{ ok: boolean; error?: string }>;
   /** Open the org in the default browser through its sf CLI connection. */
-  openSfOrg(org: string): Promise<{ ok: boolean; error?: string }>;
+  /** `path`: a page inside the org, e.g. "/lightning/setup/FlexiPageList/home". */
+  openSfOrg(org: string, path?: string): Promise<{ ok: boolean; error?: string }>;
   /** Load `url` into a Studio preview <webview> in `auth`'s partition, signed in as that user when it's a page of their org. */
   studioBrowserOpen(
     guestId: number,
