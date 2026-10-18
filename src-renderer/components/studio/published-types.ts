@@ -166,6 +166,12 @@ export interface PublishedInlineCard {
   cells: { label: string; field: string; half: boolean }[];
 }
 
+/** Offline check of an inline LWC against the iPad's network shunt (src/studio/screens/inline-lwc.ts). */
+export interface InlineLwcCheck {
+  issues: { severity: "online" | "gated"; kind: "apex" | "adapter" | "graphql" | "network" | "component"; detail: string; bundle?: string }[];
+  bundles: string[];
+}
+
 export interface PublishedRecordData {
   id: string;
   object: string;
@@ -190,6 +196,7 @@ export interface PublishedRecords {
   byId: Record<string, PublishedRecordData>;
   themes: Record<string, { color: string; iconUrl: string }>;
   inline: Record<string, PublishedInlineCard>;
+  inlineChecks?: Record<string, InlineLwcCheck>;
   fields: Record<string, Record<string, PublishedFieldMeta>>;
 }
 

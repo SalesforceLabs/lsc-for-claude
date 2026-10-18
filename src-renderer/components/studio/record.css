@@ -440,6 +440,75 @@
   color: #5c5c5c;
 }
 
+/* Studio's offline note under an inline LWC — not part of the app's card. */
+.studio-ipad-rec-offline {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-left: 3px solid #dd7a01;
+  background: #fef1e6;
+  font-size: 13px;
+  line-height: 18px;
+  color: #3e3e3c;
+}
+
+.studio-ipad-rec-offline.gated {
+  border-left-color: #c9c9c9;
+  background: #f3f3f3;
+  color: #5c5c5c;
+}
+
+.studio-ipad-rec-offline p {
+  margin: 0;
+}
+
+.studio-ipad-rec-offline p + p {
+  margin-top: 4px;
+}
+
+/* A live inline LWC: the iPad's web view is a fixed-height frame (mobileHeight) that scrolls inside. */
+.studio-ipad-rec-card.live {
+  margin-top: 1px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.studio-ipad-rec-live-frame {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.studio-ipad-rec-live-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #706e6b;
+  font-size: 14px;
+}
+
+.studio-ipad-rec-live-note {
+  margin: 6px 12px 0;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: #f3f3f3;
+  color: #3e3e3c;
+  font-size: 12px;
+}
+
+.studio-ipad-rec-live-caption {
+  padding: 6px 12px 8px;
+  border-top: 1px dashed #dddbda;
+  color: #706e6b;
+  font-size: 11px;
+}
+
+.studio-ipad-rec-live-failed {
+  margin-top: 10px;
+  color: #706e6b;
+  font-size: 12px;
+}
+
 .studio-ipad-rec-viewall {
   margin-top: 32px;
   height: 14px;

@@ -7,6 +7,8 @@ import { accessOptions, userAccess } from "../studio/access.js";
 import { applyFix, previewFix } from "../studio/fixes.js";
 import { publishStatus, startPublish } from "../studio/publish.js";
 import { loadPublishedIpad } from "../studio/published.js";
+import { compileInlineLwc } from "../studio/lwc/compile.js";
+import { lwcRequest } from "../studio/lwc/request.js";
 import type { StudioFix } from "../studio/types.js";
 import {
   activePerfRun,
@@ -234,6 +236,44 @@ export function register(server: McpServer) {
       }
       try {
         return json(await loadPublishedIpad(profile, connection.targetOrg, userId));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_lwc_bundle",
+    "LSC Studio (GUI data): one inline LWC (lscMobileInline_*) and the c/ components it uses, compiled with lightning-base-components and Studio's stand-ins for LDS and other platform modules into a script for the iPad preview's live frame, plus its offline check. Read-only. Returns JSON.",
+    { name: z.string().regex(/^\w{1,80}$/) },
+    async ({ name }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await compileInlineLwc(connection.targetOrg, name));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_lwc_request",
+    "LSC Studio (GUI data): answers a request from a live-previewed inline LWC — UI API GETs and GraphQL queries only, as the connected user; writes are refused. Returns JSON.",
+    {
+      method: z.enum(["GET", "POST"]),
+      path: z.string().min(1).max(8000),
+      body: z.unknown().optional(),
+    },
+    async ({ method, path, body }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await lwcRequest(connection.targetOrg, { method, path, body }));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

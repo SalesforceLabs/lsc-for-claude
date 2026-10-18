@@ -8,6 +8,7 @@ import { apiRequest } from "../../salesforce/cli.js";
 import { ID_PATTERN, inList, query, type Row } from "../helpers.js";
 import { listCell, MULTI_ENTITY, trimNamespace, type PublishedComponent, type PublishedListData } from "../published.js";
 import type { ScreenContext } from "./context.js";
+import { checkInlineLwc, type InlineLwcCheck, type LwcFile } from "./inline-lwc.js";
 import { collectDashboards, type PublishedDashboard } from "./record-dashboard.js";
 import type { RecordFieldSpec } from "./record-fields.js";
 
@@ -68,6 +69,8 @@ export interface PublishedRecords {
   themes: Record<string, { color: string; iconUrl: string }>;
   /** Org-defined inline components (`lscMobileInline_*`) by component name. */
   inline: Record<string, PublishedInlineCard>;
+  /** Offline check of each org-defined inline component, by component name. */
+  inlineChecks: Record<string, InlineLwcCheck>;
   /** Per object and lower-cased field: the label the device reads from the field's own describe, and whether it is drawn. */
   fields: Record<string, Record<string, PublishedFieldMeta>>;
 }
@@ -592,18 +595,27 @@ async function themeOf(ctx: ScreenContext, object: string): Promise<{ color: str
   return t.color ? { color: `#${str(t.color).replace(/^#/, "")}`, iconUrl: str(t.iconUrl) } : null;
 }
 
-async function inlineCards(ctx: ScreenContext, objects: string[]): Promise<Record<string, PublishedInlineCard>> {
+async function inlineCards(ctx: ScreenContext, objects: string[]): Promise<Pick<PublishedRecords, "inline" | "inlineChecks">> {
   const names = new Set(objects.flatMap((o) => pageComponents(ctx, o)).map((c) => trimNamespace(c.name)).filter((n) => /^lscMobileInline_\w+$/.test(n)));
-  const out: Record<string, PublishedInlineCard> = {};
+  const inline: Record<string, PublishedInlineCard> = {};
+  const inlineChecks: Record<string, InlineLwcCheck> = {};
+  const load = async (bundles: string[]): Promise<LwcFile[]> => {
+    const valid = bundles.filter((b) => /^\w+$/.test(b));
+    if (!valid.length) return [];
+    const rows = await query(`SELECT LightningComponentBundle.DeveloperName, FilePath, Source FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName IN (${inList(valid)})`, ctx.org, true).catch(() => [] as Row[]);
+    return rows.map((r) => ({ bundle: str(obj(r.LightningComponentBundle).DeveloperName), path: str(r.FilePath), source: str(r.Source) }));
+  };
   await Promise.all(
     [...names].map(async (n) => {
-      const files = await query(`SELECT FilePath, Source FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName = '${n}'`, ctx.org, true).catch(() => [] as Row[]);
-      const source = (ext: string) => str(files.find((f) => str(f.FilePath).endsWith(ext))?.Source);
+      const files = await load([n]);
+      if (!files.length) return;
+      const source = (ext: string) => files.find((f) => f.path.endsWith(ext))?.source ?? "";
       const card = parseInlineCard(source(".html"), source(".js"));
-      if (card) out[n] = card;
+      if (card) inline[n] = card;
+      inlineChecks[n] = await checkInlineLwc(n, load, files);
     })
   );
-  return out;
+  return { inline, inlineChecks };
 }
 
 export async function collectRecords(ctx: ScreenContext, lists: Record<string, PublishedListData>, extra: Record<string, string[]> = {}): Promise<PublishedRecords | undefined> {
@@ -613,7 +625,7 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
   const themes: Record<string, { color: string; iconUrl: string }> = {};
   const objects = [...wanted.keys()].filter((o) => ctx.core.objects[o] && wanted.get(o)?.length);
   if (!objects.length) return undefined;
-  const inline = await inlineCards(ctx, objects);
+  const { inline, inlineChecks } = await inlineCards(ctx, objects);
   const inlineFor = (o: string) => [...new Set(Object.values(inline).filter((c) => c.object === o).flatMap((c) => c.cells.map((x) => x.field)))];
 
   await Promise.all(
@@ -676,7 +688,7 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
       if (t) themes[c] = t;
     })
   );
-  return { byId, themes, inline, fields };
+  return { byId, themes, inline, inlineChecks, fields };
 }
 
 /** Expenses tab: ExpenseOriginId → Visit; the total sums Amount in the org's currency. */
