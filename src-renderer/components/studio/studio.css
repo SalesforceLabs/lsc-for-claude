@@ -627,6 +627,7 @@
 
 .studio-finding.error { border-color: color-mix(in srgb, var(--error) 45%, transparent); }
 .studio-finding.warning { border-color: color-mix(in srgb, var(--warning) 45%, transparent); }
+.studio-finding .ui-check { margin-top: var(--space-2); }
 .studio-finding.info { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .studio-finding.success { border-color: color-mix(in srgb, var(--success) 45%, transparent); }
 

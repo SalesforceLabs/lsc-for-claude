@@ -47,6 +47,7 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
   const [applied, setApplied] = useState<PendingChange[]>([]);
   // Reviewing an Undo batch — cancelling it leaves nothing pending (the originals are already applied).
   const [undoing, setUndoing] = useState(false);
+  const [productionOk, setProductionOk] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,6 +124,8 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
   const previews = phase.step === "previewing" ? [] : phase.previews;
   const outcomes = phase.step === "applying" || phase.step === "done" ? phase.outcomes : [];
   const applicable = previews.filter(ready).length;
+  // Metadata deploys to a production org take an extra, explicit confirmation.
+  const production = previews.some((p) => ready(p) && !!p.production);
   const mobileApplied = applied.filter((c) => isMobileChange(c.fix));
 
   return (
@@ -175,6 +178,19 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
           </div>
         )}
 
+        {phase.step === "review" && production && (
+          <div className="studio-finding warning">
+            <div className="studio-finding-title">This is a production org</div>
+            <div className="studio-finding-detail">
+              Page layout changes deploy to production right away and reach every rep on the profiles listed.
+            </div>
+            <label className="ui-check">
+              <input type="checkbox" checked={productionOk} onChange={(e) => setProductionOk(e.target.checked)} />
+              I want to change production
+            </label>
+          </div>
+        )}
+
         <div className="studio-modal-actions">
           {phase.step === "done" ? (
             <>
@@ -199,12 +215,12 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
               </button>
               <button
                 className="studio-btn primary"
-                disabled={busy || applicable === 0}
+                disabled={busy || applicable === 0 || (production && !productionOk)}
                 onClick={() => phase.step === "review" && applyAll(phase.previews)}
               >
                 {phase.step === "applying"
                   ? "Applying…"
-                  : `Apply ${applicable === changes.length ? "" : `${applicable} of ${changes.length} `}to ${org}`}
+                  : `Apply ${applicable === changes.length ? "" : `${applicable} of ${changes.length} `}to ${production ? "production" : org}`}
               </button>
             </>
           )}
