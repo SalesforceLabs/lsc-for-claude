@@ -409,6 +409,22 @@ describe("editMetadata (page layouts)", () => {
     expect(result).toMatchObject({ ok: false });
     expect(result.message).toMatch(/INVALID_FIELD.*Nothing was changed/);
   });
+
+  it("asks the org to check a layout change in the preview and blocks what it would refuse", async () => {
+    vi.mocked(cli.deployMetadata).mockImplementation(async (_source, _org, checkOnly) =>
+      checkOnly ? { success: false, rejected: true, error: "Field:Type must be Readonly" } : { success: true }
+    );
+    const preview = await previewFix(fix, "org");
+    expect(preview.blocked).toBe("The org would refuse this change: Field:Type must be Readonly");
+    expect(cli.deployMetadata).toHaveBeenCalledWith(expect.stringMatching(/layout-meta\.xml$/), "org", true);
+  });
+
+  it("still previews when the check itself couldn't run", async () => {
+    vi.mocked(cli.deployMetadata).mockImplementation(async (_source, _org, checkOnly) =>
+      checkOnly ? { success: false, error: "network down" } : { success: true }
+    );
+    expect((await previewFix(fix, "org")).blocked).toBeUndefined();
+  });
 });
 
 describe("editMetadata (compact layouts)", () => {

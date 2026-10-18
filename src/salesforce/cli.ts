@@ -23,6 +23,8 @@ export interface CliResult<T = unknown> {
   rawOutput?: string;
   /** The call was stopped at its time limit (the error says so). */
   timedOut?: boolean;
+  /** A deploy the org refused (as opposed to one that couldn't run); `error` has the org's reasons. */
+  rejected?: boolean;
 }
 
 export interface SfOrg {
@@ -617,14 +619,47 @@ export async function deleteRecord(
  */
 export async function deployMetadata(
   sourcePath: string,
-  targetOrg: string
+  targetOrg: string,
+  /** Validate only: the org checks the deploy and changes nothing. */
+  checkOnly = false
 ): Promise<CliResult<unknown>> {
   const cwd = ensureTmpSfdxProject();
-  return execSfCommand("project", ["deploy", "start", "--source-dir", sourcePath], {
-    targetOrg,
-    timeout: 300000,
-    cwd,
-  });
+  return deployOutcome(
+    await execSfCommand("project", ["deploy", "start", "--source-dir", sourcePath, ...(checkOnly ? ["--dry-run"] : [])], {
+      targetOrg,
+      timeout: 300000,
+      cwd,
+    })
+  );
+}
+
+/**
+ * `sf project deploy start --json` can answer with a parsed result whose deploy
+ * failed (status "Failed", component failures, a non-zero status inside the JSON).
+ * Turn that into a failed CliResult naming the problems, so no caller mistakes it for success.
+ */
+export function deployOutcome(res: CliResult<unknown>): CliResult<unknown> {
+  const d = res.data as
+    | {
+        success?: boolean;
+        status?: string;
+        details?: { componentFailures?: unknown; runTestResult?: { failures?: unknown } };
+      }
+    | undefined;
+  if (!d || typeof d !== "object") return res;
+  const asList = (v: unknown): { problem?: string; fullName?: string; componentType?: string }[] =>
+    Array.isArray(v) ? v : v && typeof v === "object" ? [v] : [];
+  const failures = asList(d.details?.componentFailures);
+  const failed = d.success === false || d.status === "Failed" || d.status === "Canceled" || failures.length > 0;
+  if (!failed) return res;
+  if (!res.success && !failures.length) return res;
+  const problems = failures.map((f) => [f.problem, f.fullName && `(${f.fullName})`].filter(Boolean).join(" ")).filter(Boolean);
+  return {
+    ...res,
+    success: false,
+    rejected: failures.length > 0,
+    error: problems.length ? problems.join("; ") : `The deploy ${String(d.status ?? "failed").toLowerCase()}.`,
+  };
 }
 
 /**
@@ -644,10 +679,12 @@ export async function deleteMetadata(type: string, fullName: string, targetOrg: 
     xml(`    <types>\n        <members>${escaped}</members>\n        <name>${type}</name>\n    </types>\n`)
   );
   try {
-    return await execSfCommand(
-      "project",
-      ["deploy", "start", "--manifest", path.join(dir, "package.xml"), "--post-destructive-changes", path.join(dir, "destructiveChanges.xml")],
-      { targetOrg, timeout: 300000, cwd }
+    return deployOutcome(
+      await execSfCommand(
+        "project",
+        ["deploy", "start", "--manifest", path.join(dir, "package.xml"), "--post-destructive-changes", path.join(dir, "destructiveChanges.xml")],
+        { targetOrg, timeout: 300000, cwd }
+      )
     );
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

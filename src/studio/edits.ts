@@ -21,7 +21,7 @@ import {
   type RetrievedLayout,
 } from "../salesforce/visit-layout.js";
 import { assertId, assertNames, PUBLISH_WARNING } from "./change-helpers.js";
-import { deployDoc, withDoc, type MetadataDoc } from "./metadata/doc.js";
+import { deployDoc, validateDoc, withDoc, type MetadataDoc } from "./metadata/doc.js";
 import { applyCompactOps, StaleCompactError } from "./metadata/compact-ops.js";
 import { applyLayoutOps, relatedListCount, StaleLayoutError, type LayoutChange } from "./metadata/layout-ops.js";
 import { applyListViewOps, StaleListViewError } from "./metadata/listview-ops.js";
@@ -440,7 +440,15 @@ async function previewEditMetadata(fix: MetadataFix, org: string): Promise<FixPr
   try {
     if (isCompactFix(fix)) splitCompactName(fix.doc.fullName);
     if (fix.doc.type === "ListView") splitListViewName(fix.doc.fullName);
-    return await withDoc(fix.doc.type, fix.doc.fullName, org, async (doc) => (await planEditMetadata(fix, doc, org)).preview);
+    return await withDoc(fix.doc.type, fix.doc.fullName, org, async (doc) => {
+      const { preview, root } = await planEditMetadata(fix, doc, org);
+      // Layout rules the XML can't show (required fields, read-only system fields, related lists the object doesn't offer): ask the org.
+      if (!preview.blocked && root && fix.doc.type === "Layout") {
+        const refused = await validateDoc(doc, root, org).catch(() => null);
+        if (refused) return { ...preview, blocked: `The org would refuse this change: ${refused}` };
+      }
+      return preview;
+    });
   } catch (e) {
     return { org, title, changes: [], warnings: [], blocked: e instanceof Error ? e.message : String(e) };
   }
