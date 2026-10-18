@@ -204,6 +204,7 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
     signal: opts.signal,
     now,
     onRecords: collector ? (table, records) => collector.observe(table, records) : undefined,
+    onNote: (note) => notes.push(note),
     onTable: (r) => {
       progress.done++;
       progress.records += r.records;

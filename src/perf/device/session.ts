@@ -23,6 +23,12 @@ export interface DeviceRequest {
    */
   gzip?: boolean;
   signal?: AbortSignal;
+  /**
+   * Count the response body and drop it: the transport streams it (decoding as it goes) instead of
+   * holding it, and `body` comes back empty with the decoded size in `bodyBytes`. For file downloads
+   * whose content isn't read.
+   */
+  discardBody?: boolean;
   /** Set by `shapeHttp`; a transport that streams applies the link's bandwidth limits while it reads and writes. */
   shaper?: NetworkShaper;
 }
@@ -32,6 +38,8 @@ export interface DeviceResponse {
   headers: Record<string, string>;
   /** Decoded body (gzip, deflate and br are decoded, as URLSession does). */
   body: Buffer;
+  /** Decoded body size when the body was discarded (`discardBody`); absent means `body.length`. */
+  bodyBytes?: number;
   /** Body bytes as they crossed the wire, before content decoding; what a device downloads. Absent means `body.length`. */
   wireBytes?: number;
   /** True when the transport already applied `req.shaper`'s bandwidth limits. */
@@ -163,6 +171,56 @@ function decodeBody(body: Buffer, encoding: string | undefined): Buffer {
   }
 }
 
+/** Counts a response body's decoded size as it streams by, holding none of it. */
+export class BodyCounter {
+  private bytes = 0;
+  private readonly decoder: zlib.Gunzip | zlib.Inflate | zlib.BrotliDecompress | undefined;
+  private readonly finished: Promise<void> | undefined;
+
+  constructor(encoding: string | undefined) {
+    switch ((encoding ?? "").trim().toLowerCase()) {
+      case "gzip":
+      case "x-gzip":
+        this.decoder = zlib.createGunzip();
+        break;
+      case "deflate":
+        this.decoder = zlib.createInflate();
+        break;
+      case "br":
+        this.decoder = zlib.createBrotliDecompress();
+        break;
+      default:
+        this.decoder = undefined;
+    }
+    if (this.decoder) {
+      const decoder = this.decoder;
+      decoder.on("data", (d: Buffer) => (this.bytes += d.length));
+      this.finished = new Promise<void>((resolve, reject) => {
+        decoder.on("end", resolve);
+        decoder.on("error", reject);
+      });
+      // A decode failure surfaces from end(); keep it from being unhandled before then.
+      this.finished.catch(() => undefined);
+    }
+  }
+
+  async write(chunk: Buffer): Promise<void> {
+    if (!this.decoder) {
+      this.bytes += chunk.length;
+      return;
+    }
+    if (!this.decoder.write(chunk)) await new Promise<void>((resolve) => this.decoder?.once("drain", resolve));
+  }
+
+  async end(): Promise<number> {
+    if (this.decoder) {
+      this.decoder.end();
+      await this.finished;
+    }
+    return this.bytes;
+  }
+}
+
 function requestHeaders(token: string, req: DeviceRequest, gzipped: boolean, body: Buffer | undefined): Record<string, string> {
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
@@ -221,19 +279,27 @@ function nodeRequest(
         const shaper = req.shaper;
         const chunks: Buffer[] = [];
         let wire = 0;
+        const responseHeaders: Record<string, string> = {};
+        for (const [k, v] of Object.entries(res.headers)) {
+          if (v !== undefined) responseHeaders[k.toLowerCase()] = Array.isArray(v) ? v.join(", ") : v;
+        }
+        const counter = req.discardBody ? new BodyCounter(responseHeaders["content-encoding"]) : undefined;
         (async () => {
           // Taking from the bucket between reads leaves the socket unread, so TCP backs the real download off.
           for await (const chunk of res as AsyncIterable<Buffer>) {
-            chunks.push(chunk);
+            if (counter) await counter.write(chunk);
+            else chunks.push(chunk);
             wire += chunk.length;
             if (shaper) await shaper.down.takeSliced(chunk.length);
           }
-          const responseHeaders: Record<string, string> = {};
-          for (const [k, v] of Object.entries(res.headers)) {
-            if (v !== undefined) responseHeaders[k.toLowerCase()] = Array.isArray(v) ? v.join(", ") : v;
+          const shapedFlag = shaper ? { shaped: true } : {};
+          if (counter) {
+            const bodyBytes = await counter.end();
+            resolve({ status, headers: responseHeaders, body: Buffer.alloc(0), bodyBytes, wireBytes: wire, ...shapedFlag });
+            return;
           }
           const decoded = decodeBody(Buffer.concat(chunks), responseHeaders["content-encoding"]);
-          resolve({ status, headers: responseHeaders, body: decoded, wireBytes: wire, ...(shaper ? { shaped: true } : {}) });
+          resolve({ status, headers: responseHeaders, body: decoded, wireBytes: wire, ...shapedFlag });
         })().catch(reject);
       }
     );

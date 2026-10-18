@@ -42,7 +42,7 @@ const userRow = (id: string, username: string, name: string, profile = "Field Sa
 describe("findHeaviestUsers", () => {
   it("ranks a profile's users across all territory assignments, then fills with users without territories", async () => {
     const org = mockOrg([
-      [/FROM UserTerritory2Association .*GROUP BY UserId ORDER BY COUNT\(Id\) DESC LIMIT 3$/, () => ok([{ UserId: "005B", cnt: 6 }, { UserId: "005A", expr0: 2 }])],
+      [/FROM UserTerritory2Association .*GROUP BY UserId ORDER BY COUNT\(Id\) DESC LIMIT 25$/, () => ok([{ UserId: "005B", cnt: 6 }, { UserId: "005A", expr0: 2 }])],
       [/FROM User WHERE Id IN \('005B','005A'\)$/, () => ok([userRow("005A", "a@x", "Alice"), userRow("005B", "b@x", "Bob")])],
       [/FROM User WHERE .* AND Id NOT IN \('005B','005A'\) ORDER BY Name LIMIT 1$/, () => ok([userRow("005C", "c@x", "Cy")])],
     ]);
@@ -60,11 +60,11 @@ describe("findHeaviestUsers", () => {
 
   it("doesn't fill when the ranking already has enough users", async () => {
     const org = mockOrg([
-      [/GROUP BY UserId ORDER BY COUNT\(Id\) DESC LIMIT 1$/, () => ok([{ UserId: "005B", cnt: 6 }])],
+      [/GROUP BY UserId ORDER BY COUNT\(Id\) DESC LIMIT 25$/, () => ok([{ UserId: "005B", cnt: 6 }])],
       [/FROM User WHERE Id IN/, () => ok([userRow("005B", "b@x", "Bob")])],
     ]);
     expect((await findHeaviestUsers(org, { profile: "Field Sales", limit: 1 })).map((u) => u.username)).toEqual(["b@x"]);
-    expect(org.log).toHaveLength(2);
+    expect(org.log.some((q) => /NOT IN/.test(q) && /FROM User WHERE/.test(q))).toBe(false);
   });
 
   it("escapes the profile name", async () => {
@@ -122,7 +122,7 @@ describe("sync counts", () => {
         ok([{ CreatedById: "005A", cnt: 50 }, { CreatedById: "005B", cnt: 2 }])],
       [/FROM User WHERE Id IN \('005A','005B'\)$/, () => ok([userRow("005A", "a@x", "Alice"), userRow("005B", "b@x", "Bob")])],
       [/FROM UserTerritory2Association WHERE UserId IN \('005A','005B'\) .*GROUP BY UserId$/, () => ok([{ UserId: "005B", cnt: 5 }])],
-      [/FROM UserTerritory2Association .*UserId NOT IN \('005B','005A'\) GROUP BY UserId ORDER BY COUNT\(Id\) DESC LIMIT 1$/, () =>
+      [/FROM UserTerritory2Association .*UserId NOT IN \('005B','005A'\) GROUP BY UserId ORDER BY COUNT\(Id\) DESC LIMIT 25$/, () =>
         ok([{ UserId: "005C", cnt: 9 }])],
       [/FROM User WHERE Id IN \('005C'\)$/, () => ok([userRow("005C", "c@x", "Cy")])],
       [/FROM DeviceSyncSummary WHERE CreatedById IN \('005C'\)/, () => ok([])],
@@ -140,7 +140,7 @@ describe("sync counts", () => {
   it("falls back to the territory ranking when preferSynced but sync telemetry is unreadable", async () => {
     const org = mockOrg([
       [/DeviceSyncSummary/, () => ({ success: false, error: "no access" })],
-      [/FROM UserTerritory2Association .*GROUP BY UserId ORDER BY COUNT\(Id\) DESC LIMIT 1$/, () => ok([{ UserId: "005C", cnt: 9 }])],
+      [/FROM UserTerritory2Association .*GROUP BY UserId ORDER BY COUNT\(Id\) DESC LIMIT 25$/, () => ok([{ UserId: "005C", cnt: 9 }])],
       [/FROM User WHERE Id IN \('005C'\)$/, () => ok([userRow("005C", "c@x", "Cy")])],
     ]);
     const users = await findHeaviestUsers(org, { profile: "Field Sales", limit: 1, preferSynced: true });

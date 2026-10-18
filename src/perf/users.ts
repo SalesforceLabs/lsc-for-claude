@@ -4,7 +4,7 @@
  * pre-flight lookup of every user a plan names.
  */
 
-import type { OrgQuerier } from "./sync-volume.js";
+import { territoryAccountCounts, type OrgQuerier } from "./sync-volume.js";
 import { DEFAULT_TELEMETRY_DAYS, type NfrProfile, type Persona } from "./nfr.js";
 
 type Row = Record<string, unknown>;
@@ -16,6 +16,8 @@ export interface PerfUser {
   profile: string;
   /** Territories in the active territory model. */
   territories: number;
+  /** Account rows aligned to the user's territories (a shared account counts once per territory); absent when not ranked by volume. */
+  accounts?: number;
   /** DeviceSyncSummary rows in the telemetry window; absent when the org's sync telemetry can't be read. */
   syncs?: number;
 }
@@ -53,7 +55,40 @@ function toPerfUser(u: Row, territories: number): PerfUser {
   };
 }
 
-const byLoad = (a: PerfUser, b: PerfUser) => b.territories - a.territories || a.name.localeCompare(b.name);
+const byLoad = (a: PerfUser, b: PerfUser) =>
+  (b.accounts ?? 0) - (a.accounts ?? 0) || b.territories - a.territories || a.name.localeCompare(b.name);
+
+/** Candidates ranked by territory count that are re-ranked by data volume; bounds the volume queries. */
+const CANDIDATE_POOL = 25;
+
+/**
+ * Attach each user's aligned account volume: their active-model territories in
+ * one query, then those territories' Account counts in chunked aggregates (a
+ * bounded handful of queries). Users come back unchanged when the volumes can't
+ * be read, so ranking falls back to territory count.
+ */
+async function withAccountVolume(org: OrgQuerier, users: PerfUser[]): Promise<PerfUser[]> {
+  if (users.length === 0) return users;
+  try {
+    const assigned = await rows(
+      org,
+      `SELECT UserId, Territory2Id FROM UserTerritory2Association WHERE UserId IN (${inList(users.map((u) => u.id))}) AND ${ACTIVE_MODEL}`
+    );
+    const byUser = new Map<string, string[]>();
+    for (const a of assigned) {
+      const key = idKey(String(a.UserId));
+      byUser.set(key, [...(byUser.get(key) ?? []), String(a.Territory2Id)]);
+    }
+    const territories = [...new Set(assigned.map((a) => String(a.Territory2Id)))].map((id) => ({ id }));
+    const sizes = await territoryAccountCounts(org, territories);
+    return users.map((u) => ({
+      ...u,
+      accounts: (byUser.get(idKey(u.id)) ?? []).reduce((n, t) => n + (sizes.get(idKey(t)) ?? 0), 0),
+    }));
+  } catch {
+    return users;
+  }
+}
 
 /** 15- and 18-character ids of the same record share their first 15 characters. */
 const idKey = (id: string) => id.slice(0, 15);
@@ -93,13 +128,15 @@ async function heaviestOfProfile(org: OrgQuerier, profile: string, limit: number
   const notIn = (field: string, ids: string[]) => (ids.length ? ` AND ${field} NOT IN (${inList(ids)})` : "");
   const ranked = await rows(
     org,
-    `SELECT UserId, COUNT(Id) cnt FROM UserTerritory2Association WHERE User.Profile.Name = '${p}' AND User.IsActive = true AND User.UserType = 'Standard' AND ${ACTIVE_MODEL}${notIn("UserId", exclude)} GROUP BY UserId ORDER BY COUNT(Id) DESC LIMIT ${limit}`
+    `SELECT UserId, COUNT(Id) cnt FROM UserTerritory2Association WHERE User.Profile.Name = '${p}' AND User.IsActive = true AND User.UserType = 'Standard' AND ${ACTIVE_MODEL}${notIn("UserId", exclude)} GROUP BY UserId ORDER BY COUNT(Id) DESC LIMIT ${Math.max(limit, CANDIDATE_POOL)}`
   );
   const counts = new Map(ranked.map((r) => [String(r.UserId), territoryCount(r)]));
   const loaded = counts.size
     ? await rows(org, `SELECT Id, Username, Name, Profile.Name FROM User WHERE Id IN (${inList([...counts.keys()])})`)
     : [];
-  const users = loaded.map((u) => toPerfUser(u, counts.get(String(u.Id)) ?? 0)).sort(byLoad);
+  const users = (await withAccountVolume(org, loaded.map((u) => toPerfUser(u, counts.get(String(u.Id)) ?? 0))))
+    .sort(byLoad)
+    .slice(0, limit);
   if (users.length < limit) {
     const fill = await rows(
       org,
@@ -135,9 +172,12 @@ async function syncingOfProfile(org: OrgQuerier, profile: string, limit: number,
     ),
   ]);
   const territories = new Map(counts.map((r) => [idKey(String(r.UserId)), territoryCount(r)]));
-  return loaded
-    .map((u) => ({ ...toPerfUser(u, territories.get(idKey(String(u.Id))) ?? 0), syncs: syncs.get(idKey(String(u.Id))) ?? 0 }))
-    .sort((a, b) => b.territories - a.territories || (b.syncs ?? 0) - (a.syncs ?? 0) || a.name.localeCompare(b.name))
+  const withVolume = await withAccountVolume(
+    org,
+    loaded.map((u) => ({ ...toPerfUser(u, territories.get(idKey(String(u.Id))) ?? 0), syncs: syncs.get(idKey(String(u.Id))) ?? 0 }))
+  );
+  return withVolume
+    .sort((a, b) => (b.accounts ?? 0) - (a.accounts ?? 0) || b.territories - a.territories || (b.syncs ?? 0) - (a.syncs ?? 0) || a.name.localeCompare(b.name))
     .slice(0, limit);
 }
 
@@ -183,10 +223,8 @@ export async function findHeaviestUsers(
     `SELECT UserId, COUNT(Id) cnt FROM UserTerritory2Association WHERE UserId IN (${inList(users.map((u) => String(u.Id)))}) AND ${ACTIVE_MODEL} GROUP BY UserId`
   );
   const byUser = new Map(counts.map((r) => [String(r.UserId), territoryCount(r)]));
-  const ranked = users
-    .map((u) => toPerfUser(u, byUser.get(String(u.Id)) ?? 0))
-    .sort(byLoad)
-    .slice(0, limit);
+  const byTerritories = users.map((u) => toPerfUser(u, byUser.get(String(u.Id)) ?? 0)).sort(byLoad);
+  const ranked = (await withAccountVolume(org, byTerritories.slice(0, CANDIDATE_POOL))).sort(byLoad).slice(0, limit);
   return withSyncs(org, ranked, filters.days);
 }
 

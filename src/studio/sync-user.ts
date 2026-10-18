@@ -20,7 +20,9 @@ import {
   annotateSharing,
   loadDbSchemaEntries,
   loadUserContext,
+  incompleteTables,
   mayOvercount,
+  pickLargestTerritories,
   profileTerritory,
   selectApplicableTables,
   upperBoundRecords,
@@ -91,6 +93,10 @@ export interface SyncTable {
   sharingModel?: string;
   /** The org-wide count may exceed what the user downloads (restricted sharing). */
   mayOvercount: boolean;
+  /** The count is a minimum (its id list was cut short). */
+  lowerBound?: boolean;
+  /** The table it is filtered by failed, so this one couldn't be counted. */
+  sourceFailed?: boolean;
   /** Null when no DB Schema record matched (e.g. a table only in the compiled archive). */
   schema: SchemaRecordRef | null;
   hints: TableHint[];
@@ -102,6 +108,8 @@ export interface SyncTerritory {
   totalDeviceRequests: number;
   /** Records from counts that may exceed the user's own visibility. */
   upperBoundRecords: number;
+  /** Tables that failed, timed out or are minimums: the totals are at least this much. */
+  incompleteCount: number;
   tables: SyncTable[];
 }
 
@@ -141,7 +149,7 @@ export interface SyncUserDeps extends PerfDeps {
 
 const defaultDeps: SyncUserDeps = {
   querier: (org) => ({
-    soql: (q) => runSoqlQuery(q, org),
+    soql: (q, options) => runSoqlQuery(q, org, options),
     tooling: (q) => runToolingQuery(q, org),
   }),
   telemetryFields: (org) => async () => {
@@ -227,6 +235,8 @@ function toSyncTerritory(vol: TerritoryVolume, records: SchemaRecordRef[], user:
       ...(t.scope ? { scope: t.scope } : {}),
       ...(t.sharingModel ? { sharingModel: t.sharingModel } : {}),
       mayOvercount: over,
+      ...(t.lowerBound ? { lowerBound: true } : {}),
+      ...(t.sourceFailed ? { sourceFailed: true } : {}),
       schema,
       hints: explainTable({
         sobject: t.sobject,
@@ -234,6 +244,7 @@ function toSyncTerritory(vol: TerritoryVolume, records: SchemaRecordRef[], user:
         records: t.records,
         deviceRequests: t.deviceRequests,
         note: t.note,
+        lowerBound: t.lowerBound,
         mayOvercount: over,
         totalRecords: vol.totalRecords,
         schema: schema && {
@@ -252,6 +263,7 @@ function toSyncTerritory(vol: TerritoryVolume, records: SchemaRecordRef[], user:
     totalRecords: vol.totalRecords,
     totalDeviceRequests: vol.totalDeviceRequests,
     upperBoundRecords: upperBoundRecords(vol),
+    incompleteCount: incompleteTables(vol).length,
     tables,
   };
 }
@@ -282,17 +294,21 @@ export async function syncUserDetail(org: string, input: SyncUserInput, deps: Sy
   const records = await (deps.dbSchemaRecords ?? loadSchemaRecords)(org, querier);
 
   const cap = input.maxTerritories ?? DEFAULT_MAX_TERRITORIES;
-  const targets: Array<{ id: string; name: string } | null> = user.territories.length ? user.territories.slice(0, cap) : [null];
+  const picked = await pickLargestTerritories(querier, user.territories, cap);
+  if (picked.note) schemaNotes.push(picked.note);
+  const targets: Array<{ id: string; name: string } | null> = picked.picked.length ? picked.picked : [null];
   const volumes: TerritoryVolume[] = [];
+  // One id cache for the user: the OT2A and Account id lists are read once, not per table.
+  const options = { ...DEFAULT_PROFILE_OPTIONS, idCache: new Map() };
   for (const territory of targets) {
-    volumes.push(await profileTerritory(querier, user, territory, tables, DEFAULT_PROFILE_OPTIONS));
+    volumes.push(await profileTerritory(querier, user, territory, tables, options));
   }
   await annotateSharing(querier, volumes);
 
   let telemetry: SyncUserTelemetry | undefined;
   let telemetryError: string | undefined;
   try {
-    const { samples, summary } = await loadTelemetry(querier, deps.telemetryFields(org), { days, usernames: [user.username] });
+    const { samples, summary } = await loadTelemetry(querier, deps.telemetryFields(org), { days, userIds: [user.id] });
     telemetry = { summary, recent: samples.slice(0, RECENT_SYNCS) };
   } catch (e) {
     telemetryError = e instanceof Error ? e.message : String(e);

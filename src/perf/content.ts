@@ -41,6 +41,10 @@ export const DEFAULT_CONTENT_MAX_BYTES = 2 * 1024 ** 3;
 export const DEFAULT_CHUNK = 10 * 1024 * 1024;
 /** Downloads CLM runs at once (`CLMDownloadService.maxConcurentDownloadRequests`). */
 export const CLM_CONCURRENCY = 4;
+/** Rows kept in memory per kind of record (attachments, links, documents, versions, presentations, pages); more are counted and ignored. */
+export const DEFAULT_MAX_COLLECTED_ROWS = 250_000;
+/** A returned `Body` longer than this is file content, not the URL the app GETs; never kept. */
+const MAX_BODY_URL = 512;
 const LARGEST = 5;
 const MAX_ERRORS = 3;
 
@@ -120,6 +124,8 @@ export class ContentCollector {
   private readonly tableNames: Set<string>;
   private readonly prefixes = new Set<string>();
   private readonly attachmentRows: Array<{ id: string; parentId: string; body?: string; size: number; name: string }> = [];
+  /** Rows not kept because a kind reached `maxRows`, by kind. */
+  private readonly dropped = new Map<string, number>();
   private readonly cdls: Cdl[] = [];
   private readonly docs = new Map<string, Doc>();
   private readonly versions = new Map<string, Version>();
@@ -129,9 +135,17 @@ export class ContentCollector {
 
   constructor(
     private readonly want: { attachments: boolean; clm: boolean },
-    tables: Array<Pick<SchemaTable, "sobject">>
+    tables: Array<Pick<SchemaTable, "sobject">>,
+    private readonly maxRows: number = DEFAULT_MAX_COLLECTED_ROWS
   ) {
     this.tableNames = new Set(tables.map((t) => t.sobject.toLowerCase()));
+  }
+
+  /** Whether another row of this kind fits; counts the ones that don't. */
+  private room(kind: string, held: number): boolean {
+    if (held < this.maxRows) return true;
+    this.dropped.set(kind, (this.dropped.get(kind) ?? 0) + 1);
+    return false;
   }
 
   observe(table: Pick<SchemaTable, "sobject" | "attachmentsSupport">, records: Row[]): void {
@@ -150,7 +164,10 @@ export class ContentCollector {
           const r = lower(raw);
           const id = str(r.id);
           const parentId = str(r.parentid);
-          if (id && parentId) this.attachmentRows.push({ id, parentId, body: str(r.body), size: num(r.bodylength), name: str(r.name) ?? id });
+          if (!id || !parentId || !this.room("Attachment", this.attachmentRows.length)) continue;
+          // Over the REST API Body is the URL to GET; anything long is file content, which isn't kept.
+          const body = str(r.body);
+          this.attachmentRows.push({ id, parentId, body: body && body.length <= MAX_BODY_URL ? body : undefined, size: num(r.bodylength), name: str(r.name) ?? id });
         }
         return;
       case "contentdocumentlink":
@@ -159,7 +176,7 @@ export class ContentCollector {
           const r = lower(raw);
           const docId = str(r.contentdocumentid);
           const linkedId = str(r.linkedentityid);
-          if (docId && linkedId) this.cdls.push({ docId, linkedId });
+          if (docId && linkedId && this.room("ContentDocumentLink", this.cdls.length)) this.cdls.push({ docId, linkedId });
         }
         return;
       case "contentdocument":
@@ -167,7 +184,7 @@ export class ContentCollector {
         for (const raw of records) {
           const r = lower(raw);
           const id = str(r.id);
-          if (id) this.docs.set(id, { id, latestVersionId: str(r.latestpublishedversionid), fileType: str(r.filetype) });
+          if (id && (this.docs.has(id) || this.room("ContentDocument", this.docs.size))) this.docs.set(id, { id, latestVersionId: str(r.latestpublishedversionid), fileType: str(r.filetype) });
         }
         return;
       case "contentversion":
@@ -175,7 +192,7 @@ export class ContentCollector {
         for (const raw of records) {
           const r = lower(raw);
           const id = str(r.id);
-          if (!id) continue;
+          if (!id || !(this.versions.has(id) || this.room("ContentVersion", this.versions.size))) continue;
           const url = str(r.versiondataurl) ?? (typeof r.versiondata === "string" && r.versiondata.startsWith("/") ? r.versiondata : undefined);
           this.versions.set(id, {
             id,
@@ -193,7 +210,7 @@ export class ContentCollector {
         for (const raw of records) {
           const r = lower(raw);
           const id = str(r.id);
-          if (id) {
+          if (id && this.room("Presentation", this.presentations.length)) {
             this.presentations.push({
               id,
               name: str(r.name) ?? id,
@@ -212,7 +229,7 @@ export class ContentCollector {
           const r = lower(raw);
           const presentationId = str(r.presentationid);
           const pageId = str(r.presentationpageid);
-          if (presentationId && pageId) this.links.push({ presentationId, pageId, order: num(r.displayorder) });
+          if (presentationId && pageId && this.room("PresentationLinkedPage", this.links.length)) this.links.push({ presentationId, pageId, order: num(r.displayorder) });
         }
         return;
       case "presentationpage":
@@ -220,7 +237,7 @@ export class ContentCollector {
         for (const raw of records) {
           const r = lower(raw);
           const id = str(r.id);
-          if (id) this.pages.set(id, { id, name: str(r.name) ?? id, type: str(r.type) ?? "", status: str(r.status) });
+          if (id && (this.pages.has(id) || this.room("PresentationPage", this.pages.size))) this.pages.set(id, { id, name: str(r.name) ?? id, type: str(r.type) ?? "", status: str(r.status) });
         }
         return;
       default:
@@ -245,6 +262,10 @@ export class ContentCollector {
     const plan: ContentPlan = { attachments: [], clm: [], notes: [] };
     if (this.want.attachments) this.planAttachments(plan, apiVersion);
     if (this.want.clm) this.planClm(plan, apiVersion, now);
+    if (this.dropped.size > 0) {
+      const what = [...this.dropped].map(([kind, n]) => `${n.toLocaleString("en-US")} ${kind}`).join(", ");
+      plan.notes.push(`To bound memory the content planner keeps at most ${this.maxRows.toLocaleString("en-US")} rows of each kind; ${what} more were ignored, so the content numbers are lower bounds.`);
+    }
     return plan;
   }
 
@@ -402,9 +423,10 @@ class KindRun {
     if (!(url.startsWith("/") && !url.startsWith("//")) && !isSalesforceUrl(url)) {
       throw new Error("refused a URL outside Salesforce");
     }
-    const res = await this.session.http({ method: "GET", url, headers, signal: this.o.signal });
+    // Attachment bodies can be hundreds of MB and are only counted: have the transport stream and drop them.
+    const res = await this.session.http({ method: "GET", url, headers, signal: this.o.signal, discardBody: true });
     if (res.status < 200 || res.status >= 300) throw new Error(`HTTP ${res.status}`);
-    const n = res.body.length;
+    const n = res.bodyBytes ?? res.body.length;
     this.result.bytes += n;
     return n;
   }

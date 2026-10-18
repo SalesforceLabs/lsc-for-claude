@@ -72,7 +72,7 @@ export interface SyncImpactDeps {
 
 const defaultDeps: SyncImpactDeps = {
   querier: (org) => ({
-    soql: (q) => runSoqlQuery(q, org),
+    soql: (q, options) => runSoqlQuery(q, org, options),
     tooling: (q) => runToolingQuery(q, org),
   }),
 };
@@ -95,7 +95,7 @@ export async function syncImpact(
   const raw = deps.querier(orgName);
   let queries = 0;
   const org: OrgQuerier = {
-    soql: (q) => (queries++, raw.soql(q)),
+    soql: (q, options) => (queries++, raw.soql(q, options)),
     tooling: (q) => (queries++, raw.tooling(q)),
   };
 

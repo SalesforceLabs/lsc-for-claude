@@ -100,7 +100,13 @@ export interface ReplayOptions {
   onTable?: (result: TableResult) => void;
   /** Called with each page of downloaded records, so a caller can keep the few fields it needs (the content-download phase). */
   onRecords?: (table: SchemaTable, records: Record<string, unknown>[]) => void;
+  /** Most ids kept across the collected id lists (account, OT2A, related entity, content document); default 2,000,000. */
+  maxCollectedIds?: number;
+  /** Called at the end with anything that makes the numbers lower bounds. */
+  onNote?: (note: string) => void;
 }
+
+export const DEFAULT_MAX_COLLECTED_IDS = 2_000_000;
 
 export const CONTENT_CHUNK = 1500;
 /** DownloadManager.maxBatchRequestSize / minBatchRequestSize: sub-requests per composite/batch. */
@@ -539,6 +545,8 @@ interface Run {
   deadline: number | undefined;
   totalRecords: number;
   aborted: boolean;
+  /** Room left in the collected id lists; `hit` once an id was dropped. */
+  idBudget: { left: number; hit: boolean };
 }
 
 class StopTable extends Error {}
@@ -558,12 +566,18 @@ export function timeoutScope(parent: AbortSignal | undefined, ms: number | undef
   };
 }
 
-function collectIds(table: SchemaTable, records: Record<string, unknown>[], ids: CollectedIds): void {
+function collectIds(table: SchemaTable, records: Record<string, unknown>[], ids: CollectedIds, budget: Run["idBudget"]): void {
   const n = table.sobject.toLowerCase();
   const add = (set: Set<string>, key: string) => {
     for (const r of records) {
       const v = r[key];
-      if (typeof v === "string" && v) set.add(v);
+      if (typeof v !== "string" || !v || set.has(v)) continue;
+      if (budget.left <= 0) {
+        budget.hit = true;
+        continue;
+      }
+      budget.left--;
+      set.add(v);
     }
   };
   if (n === OT2A) add(ids.ot2aObjIds, "ObjectId");
@@ -614,7 +628,7 @@ class TableRunner {
 
   /** Account a page of records; returns false when a record cap or the time budget stops the table. */
   private accept(records: Record<string, unknown>[]): boolean {
-    collectIds(this.table, records, this.run.ids);
+    collectIds(this.table, records, this.run.ids, this.run.idBudget);
     this.o.idStore?.add(this.table.sobject, records);
     this.o.onRecords?.(this.table, records);
     this.result.records += records.length;
@@ -829,6 +843,7 @@ export async function replayInitialSync(opts: ReplayOptions): Promise<TableResul
     deadline: opts.maxSeconds ? now() + opts.maxSeconds * 1000 : undefined,
     totalRecords: 0,
     aborted: false,
+    idBudget: { left: opts.maxCollectedIds ?? DEFAULT_MAX_COLLECTED_IDS, hit: false },
   };
   const queue = new SmartQueue({ maxConcurrent: opts.concurrency ?? MAX_CONCURRENT_TABLES[opts.flow] });
   const results = new Map<SchemaTable, TableResult>();
@@ -863,5 +878,8 @@ export async function replayInitialSync(opts: ReplayOptions): Promise<TableResul
     );
   }
   if (opts.idStore) opts.idStore.collected = run.ids;
+  if (run.idBudget.hit) {
+    opts.onNote?.(`The simulator keeps at most ${(opts.maxCollectedIds ?? DEFAULT_MAX_COLLECTED_IDS).toLocaleString("en-US")} ids for the id-list filters of later tables; more were dropped, so those tables' requests and records are lower bounds.`);
+  }
   return opts.tables.map((t) => results.get(t) ?? skipped(t, "not scheduled"));
 }

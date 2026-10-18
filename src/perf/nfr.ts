@@ -115,7 +115,8 @@ export function effectiveThresholds(profile: NfrProfile, persona: Persona): Thre
   };
 }
 
-export type EvalStatus = "pass" | "warn" | "fail" | "no-data" | "no-threshold";
+/** "incomplete": the value is a minimum or missing parts, so it can't be called a pass. */
+export type EvalStatus = "pass" | "warn" | "fail" | "no-data" | "no-threshold" | "incomplete";
 
 export interface MetricEvaluation {
   metric: MetricKey;
@@ -123,6 +124,8 @@ export interface MetricEvaluation {
   threshold: Threshold | undefined;
   status: EvalStatus;
   detail?: string;
+  /** Why the value may be understated (tables that couldn't be counted in full). */
+  incomplete?: string;
 }
 
 export function evaluateMetric(
@@ -140,9 +143,19 @@ export function evaluateMetric(
   return { metric, value, threshold, status, detail };
 }
 
-/** Worst status wins; no-data / no-threshold never fail an assessment. */
+/**
+ * Note that a value is built from data that is missing or a minimum. A value
+ * already over a limit stays warn/fail (more data only raises it); one that
+ * would pass or has no limit becomes "incomplete".
+ */
+export function markIncomplete(e: MetricEvaluation, reason: string): MetricEvaluation {
+  const status = e.status === "pass" || e.status === "no-threshold" ? "incomplete" : e.status;
+  return { ...e, status, incomplete: reason };
+}
+
+/** Worst status wins; no-data / no-threshold never fail an assessment, and incomplete never passes. */
 export function overallStatus(evals: MetricEvaluation[]): "pass" | "warn" | "fail" {
   if (evals.some((e) => e.status === "fail")) return "fail";
-  if (evals.some((e) => e.status === "warn")) return "warn";
+  if (evals.some((e) => e.status === "warn" || e.status === "incomplete")) return "warn";
   return "pass";
 }

@@ -89,7 +89,7 @@ function plainValue(metric: string, v: number): string {
 }
 
 /** A measure with a target that couldn't be measured is still a target: unproven, not absent. */
-const isUnmeasured = (e: MetricEvaluation) => e.status === "no-data" && !!e.threshold;
+const isUnmeasured = (e: MetricEvaluation) => (e.status === "no-data" || e.status === "incomplete") && !!e.threshold;
 const isTarget = (e: MetricEvaluation) => e.status === "pass" || e.status === "warn" || e.status === "fail" || isUnmeasured(e);
 
 /** "Delta sync p95 is 2.3 min against a 2 min target" for an evaluation that didn't pass. */
@@ -109,6 +109,7 @@ const STATUS_WORD: Record<EvalStatus, string> = {
   fail: "Missed",
   "no-data": "Not measured",
   "no-threshold": "No target set",
+  incomplete: "Not proven (some tables could not be counted)",
 };
 
 function counts(personas: PersonaResult[]) {

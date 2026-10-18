@@ -19,7 +19,7 @@ import { DEFAULT_TELEMETRY_DAYS, loadNfrProfile, parseNfrProfile } from "../perf
 
 function querier(targetOrg: string): OrgQuerier {
   return {
-    soql: (q) => runSoqlQuery(q, targetOrg),
+    soql: (q, options) => runSoqlQuery(q, targetOrg, options),
     tooling: (q) => runToolingQuery(q, targetOrg),
   };
 }

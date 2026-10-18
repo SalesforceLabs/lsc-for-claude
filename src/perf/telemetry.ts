@@ -179,6 +179,24 @@ export interface TelemetrySummary {
   byNetwork: Array<{ key: string; n: number; deltaP95: number | undefined }>;
   byAppVersion: Array<{ key: string; n: number; deltaP95: number | undefined; failureRatePct: number }>;
   slowest: SyncSample[];
+  /** How much of the window the samples cover; set by loadTelemetry. */
+  coverage?: TelemetryCoverage;
+}
+
+/**
+ * Which syncs were read. "all": every sync in the window. "sampled": the window
+ * held more syncs than the row cap, so the newest few from each slice of it were
+ * read — percentiles then describe a sample spread across the window.
+ */
+export interface TelemetryCoverage {
+  mode: "all" | "sampled";
+  /** Row cap that applied to one query. */
+  limit: number;
+  /** Days in one slice of the window when sampled. */
+  sliceDays?: number;
+  /** Oldest and newest sync read (CreatedDate). */
+  oldest?: string;
+  newest?: string;
 }
 
 function groupBy(samples: SyncSample[], key: (s: SyncSample) => string): Map<string, SyncSample[]> {
@@ -248,15 +266,32 @@ function soqlString(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
+/** Rows one telemetry query reads when the caller doesn't say. */
+export const TELEMETRY_ROW_LIMIT = 10000;
+
+export interface TelemetryFilters {
+  days: number;
+  usernames?: string[];
+  /** Users by Id — preferred over usernames, which need a join. */
+  userIds?: string[];
+  profileName?: string;
+  limit?: number;
+  /** Read only this CreatedDate span (ISO datetimes, from inclusive, to exclusive) instead of the last `days`. */
+  range?: { from: string; to: string };
+}
+
 /** Build the DeviceSyncSummary query, selecting only fields the org exposes. */
-export function buildTelemetryQuery(
-  availableFields: Set<string>,
-  filters: { days: number; usernames?: string[]; profileName?: string; limit?: number }
-): string {
+export function buildTelemetryQuery(availableFields: Set<string>, filters: TelemetryFilters): string {
   const lower = new Set([...availableFields].map((f) => f.toLowerCase()));
   const fields = TELEMETRY_FIELDS.filter((f) => lower.has(f.toLowerCase()));
-  const where = [`CreatedDate = LAST_N_DAYS:${Math.max(1, Math.floor(filters.days))}`];
-  if (filters.usernames?.length) {
+  const where = [
+    filters.range
+      ? `CreatedDate >= ${filters.range.from} AND CreatedDate < ${filters.range.to}`
+      : `CreatedDate = LAST_N_DAYS:${Math.max(1, Math.floor(filters.days))}`,
+  ];
+  if (filters.userIds?.length) {
+    where.push(`CreatedById IN (${filters.userIds.map((u) => `'${soqlString(u)}'`).join(",")})`);
+  } else if (filters.usernames?.length) {
     where.push(
       `CreatedBy.Username IN (${filters.usernames.map((u) => `'${soqlString(u)}'`).join(",")})`
     );
@@ -266,5 +301,5 @@ export function buildTelemetryQuery(
   }
   return `SELECT ${[...fields, "CreatedBy.Username"].join(", ")} FROM DeviceSyncSummary WHERE ${where.join(
     " AND "
-  )} ORDER BY CreatedDate DESC LIMIT ${filters.limit ?? 10000}`;
+  )} ORDER BY CreatedDate DESC LIMIT ${filters.limit ?? TELEMETRY_ROW_LIMIT}`;
 }

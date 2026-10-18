@@ -16,10 +16,16 @@
  */
 
 import type { CliResult, SoqlQueryResult } from "../salesforce/cli.js";
+import { MAX_GET_URL_CHARS } from "../salesforce/direct.js";
 import { FV_VALUE_COLUMNS, extractFieldValue } from "../tools/helpers.js";
 
+export interface QueryOptions {
+  /** Most rows to read before the result is flagged `truncated` (the querier's own default when absent). */
+  maxRows?: number;
+}
+
 export interface OrgQuerier {
-  soql(query: string): Promise<CliResult<SoqlQueryResult>>;
+  soql(query: string, options?: QueryOptions): Promise<CliResult<SoqlQueryResult>>;
   tooling(query: string): Promise<CliResult<SoqlQueryResult>>;
 }
 
@@ -273,7 +279,8 @@ export function initialSyncRequests(queries: number | null, records: number): nu
 // Profiling
 // ---------------------------------------------------------------------------
 
-export type TableStatus = "counted" | "not-estimated" | "error";
+/** "timed-out": the COUNT() ran out of time, which says the table is too large to count, not that its filter is wrong. */
+export type TableStatus = "counted" | "not-estimated" | "error" | "timed-out";
 
 /**
  * How a counted table was narrowed to the user. "user": the filter (or the id
@@ -296,6 +303,19 @@ export interface TableVolume {
   scope?: CountScope;
   /** The object's internal org-wide default (EntityDefinition.InternalSharingModel), set on org-wide counts. */
   sharingModel?: string;
+  /** The count is a minimum: an id list it was counted from was cut off at the row cap. */
+  lowerBound?: boolean;
+  /** Not estimated because the table its ids come from couldn't be counted. */
+  sourceFailed?: boolean;
+}
+
+/** A table whose number is missing or only a minimum, so totals that include it understate the sync. */
+export function isIncomplete(t: TableVolume): boolean {
+  return t.status === "error" || t.status === "timed-out" || t.lowerBound === true || t.sourceFailed === true;
+}
+
+export function incompleteTables(terr: TerritoryVolume): TableVolume[] {
+  return terr.tables.filter(isIncomplete);
 }
 
 /** Org-wide defaults under which every internal user reads every record. */
@@ -327,15 +347,34 @@ export interface TerritoryVolume {
   totalDeviceRequests: number;
 }
 
-export interface ProfileOptions {
-  /** Ids inlined per COUNT() query issued by the harness. */
-  idsPerQuery: number;
-  concurrency: number;
+/** Ids read for an id-list tag. */
+interface IdFetch {
+  ids: string[];
+  /** Rows the id query returned (an id can repeat). */
+  rows: number;
+  /** More rows matched than were read, so `ids` is a prefix of the real list. */
+  truncated: boolean;
 }
 
-export const DEFAULT_PROFILE_OPTIONS: ProfileOptions = { idsPerQuery: 200, concurrency: 4 };
+export interface ProfileOptions {
+  /** Most ids inlined per COUNT() query; the URL length budget may lower it per query. */
+  idsPerQuery: number;
+  concurrency: number;
+  /** Id lists already read, by query, so tables and users sharing a territory read them once. */
+  idCache?: Map<string, Promise<IdFetch>>;
+}
 
-async function mapWithConcurrency<T, R>(
+export const DEFAULT_PROFILE_OPTIONS: ProfileOptions = { idsPerQuery: 500, concurrency: 6 };
+
+/** Ids kept for one id-list tag; a longer list is cut and everything counted from it is a lower bound. */
+export const MAX_TAG_IDS = 500_000;
+
+/** Request path, API version and `q=` that share the GET URL with the query. */
+const URL_OVERHEAD = 400;
+/** An id as it appears URL-encoded in an IN list: %27 + 18 chars + %27 + %2C. */
+const ENCODED_ID_CHARS = 27;
+
+export async function mapWithConcurrency<T, R>(
   items: T[],
   concurrency: number,
   fn: (item: T) => Promise<R>
@@ -352,30 +391,70 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
+/** A query that failed; `timedOut` tells a too-large table from a bad filter. */
+class QueryFailure extends Error {
+  constructor(
+    message: string,
+    readonly timedOut: boolean
+  ) {
+    super(message);
+  }
+}
+
 async function countQuery(org: OrgQuerier, sobject: string, where: string | null): Promise<number> {
   const q = where ? `SELECT COUNT() FROM ${sobject} WHERE ${where}` : `SELECT COUNT() FROM ${sobject}`;
   const result = await org.soql(q);
-  if (!result.success) throw new Error(result.error || "COUNT() query failed");
+  if (!result.success) throw new QueryFailure(result.error || "COUNT() query failed", result.timedOut === true);
   return result.data?.totalSize ?? 0;
 }
 
-async function fetchIds(
-  org: OrgQuerier,
-  sobject: string,
-  idField: string,
-  where: string | null
-): Promise<string[]> {
+async function fetchIdsUncached(org: OrgQuerier, sobject: string, idField: string, where: string | null): Promise<IdFetch> {
   const q = where
     ? `SELECT ${idField} FROM ${sobject} WHERE ${where}`
     : `SELECT ${idField} FROM ${sobject}`;
-  const result = await org.soql(q);
-  if (!result.success) throw new Error(result.error || `${sobject} id query failed`);
+  const result = await org.soql(q, { maxRows: MAX_TAG_IDS });
+  if (!result.success) throw new QueryFailure(result.error || `${sobject} id query failed`, result.timedOut === true);
+  const records = result.data?.records ?? [];
   const ids = new Set<string>();
-  for (const r of result.data?.records ?? []) {
+  for (const r of records) {
     const v = r[idField];
     if (typeof v === "string") ids.add(v);
   }
-  return [...ids];
+  return { ids: [...ids], rows: records.length, truncated: result.data?.truncated === true };
+}
+
+/** Run `fn` once per key; a failure isn't kept, so a retry asks the org again. */
+function memo(cache: Map<string, Promise<IdFetch>> | undefined, key: string, fn: () => Promise<IdFetch>): Promise<IdFetch> {
+  if (!cache) return fn();
+  let hit = cache.get(key);
+  if (!hit) {
+    hit = fn();
+    cache.set(key, hit);
+    hit.catch(() => cache.delete(key));
+  }
+  return hit;
+}
+
+/**
+ * Ids per query so the query fits a REST GET URL: what's left of the budget
+ * after the query without its ids, over the encoded size of one id (times the
+ * number of places the tag appears), capped at `max`.
+ */
+export function idChunkSize(templateWithoutIds: string, tagCount: number, max: number): number {
+  const room = MAX_GET_URL_CHARS - URL_OVERHEAD - encodeURIComponent(templateWithoutIds).length;
+  return Math.max(1, Math.min(max, Math.floor(room / (ENCODED_ID_CHARS * Math.max(1, tagCount)))));
+}
+
+function idChunks(
+  selectClause: string,
+  sobject: string,
+  conditional: string,
+  tag: string,
+  ids: string[],
+  max: number
+): string[][] {
+  const template = `${selectClause} FROM ${sobject} WHERE ${substituteIdTag(conditional, tag, [])}`;
+  return splitChunks(ids, idChunkSize(template, countTag(conditional, tag), max));
 }
 
 /**
@@ -391,7 +470,7 @@ async function countWithIdTag(
   options: ProfileOptions
 ): Promise<number> {
   if (ids.length === 0) return 0;
-  const chunks = splitChunks(ids, options.idsPerQuery);
+  const chunks = idChunks("SELECT COUNT()", sobject, conditional, tag, ids, options.idsPerQuery);
   const counts = await mapWithConcurrency(chunks, options.concurrency, (chunk) =>
     countQuery(org, sobject, substituteIdTag(conditional, tag, chunk))
   );
@@ -406,17 +485,30 @@ async function fetchIdsWithIdTag(
   tag: string,
   ids: string[],
   options: ProfileOptions
-): Promise<string[]> {
-  if (ids.length === 0) return [];
-  const chunks = splitChunks(ids, options.idsPerQuery);
-  const lists = await mapWithConcurrency(chunks, options.concurrency, (chunk) =>
-    fetchIds(org, sobject, idField, substituteIdTag(conditional, tag, chunk))
+): Promise<IdFetch> {
+  if (ids.length === 0) return { ids: [], rows: 0, truncated: false };
+  const chunks = idChunks(`SELECT ${idField}`, sobject, conditional, tag, ids, options.idsPerQuery);
+  const parts = await mapWithConcurrency(chunks, options.concurrency, (chunk) =>
+    fetchIdsUncached(org, sobject, idField, substituteIdTag(conditional, tag, chunk))
   );
-  return [...new Set(lists.flat())];
+  const all = [...new Set(parts.flatMap((p) => p.ids))];
+  return {
+    ids: all.slice(0, MAX_TAG_IDS),
+    rows: parts.reduce((n, p) => n + p.rows, 0),
+    truncated: parts.some((p) => p.truncated) || all.length > MAX_TAG_IDS,
+  };
 }
 
 function errorMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
+}
+
+const TIMED_OUT_NOTE = "The count timed out — this table is too large to count in time, so its size is not in the totals.";
+
+/** A failed table: "timed-out" when the org ran out of time, otherwise "error" with the message. */
+function failedVolume(e: unknown): Pick<TableVolume, "status" | "records" | "deviceRequests" | "note"> {
+  const timedOut = e instanceof QueryFailure && e.timedOut;
+  return { status: timedOut ? "timed-out" : "error", records: 0, deviceRequests: null, note: timedOut ? `${TIMED_OUT_NOTE} (${errorMessage(e)})` : errorMessage(e) };
 }
 
 /**
@@ -461,24 +553,51 @@ export async function profileTerritory(
   });
 
   // The app loads ObjectTerritory2Association first, then Account, when other
-  // filters reference their ids.
+  // filters reference their ids. The id lists are read once per query across
+  // tables, territories and users (`idCache`).
+  const cache = options.idCache ?? new Map<string, Promise<IdFetch>>();
   let ot2aIds: string[] = [];
   let ot2aFailed = false;
+  let ot2aLower = false;
+  let ot2aKey = "";
   const ot2aTable = findTable("ObjectTerritory2Association");
   if (ot2aTable && anyUses(TAG_OT2A_IDS)) {
+    ot2aKey = `OT2A|${resolved(ot2aTable)}`;
+    const where = resolved(ot2aTable);
     try {
-      ot2aIds = await fetchIds(org, ot2aTable.entry.sobject, "ObjectId", resolved(ot2aTable));
-      const total = await countQuery(org, ot2aTable.entry.sobject, resolved(ot2aTable));
-      volumes.push({ ...base(ot2aTable), status: "counted", records: total, deviceRequests: initialSyncRequests(1, total), scope: ownScope(ot2aTable) });
+      const fetched = await memo(cache, ot2aKey, () => fetchIdsUncached(org, ot2aTable.entry.sobject, "ObjectId", where));
+      ot2aIds = fetched.ids;
+      let total = fetched.rows;
+      let totalLower = false;
+      if (fetched.truncated) {
+        // The id list is cut short; the table's own size still counts exactly.
+        ot2aLower = true;
+        try {
+          total = await countQuery(org, ot2aTable.entry.sobject, where);
+        } catch {
+          totalLower = true;
+        }
+      }
+      volumes.push({
+        ...base(ot2aTable),
+        status: "counted",
+        records: total,
+        deviceRequests: initialSyncRequests(1, total),
+        scope: ownScope(ot2aTable),
+        ...(totalLower ? { lowerBound: true } : {}),
+        ...(fetched.truncated ? { note: `Only the first ${fetched.rows.toLocaleString("en-US")} ids could be read, so tables filtered by {OT2A.OBJ.IDS} are counted as minimums` } : {}),
+      });
     } catch (e) {
       ot2aFailed = true;
-      volumes.push({ ...base(ot2aTable), status: "error", records: 0, deviceRequests: null, note: errorMessage(e) });
+      volumes.push({ ...base(ot2aTable), ...failedVolume(e) });
     }
     tick();
   }
 
   let accountIds: string[] = [];
   let accountFailed = false;
+  /** Tables filtered by {ACCOUNT.IDS} count only the accounts whose ids were read. */
+  let accountLower = false;
   const accountTable = findTable("Account");
   const ot2aScope = ownScope(ot2aTable);
   const accountScope =
@@ -488,29 +607,44 @@ export async function profileTerritory(
   if (accountTable && anyUses(TAG_ACCOUNT_IDS)) {
     const cond = resolved(accountTable);
     try {
-      if (cond && containsTag(cond, TAG_OT2A_IDS)) {
-        accountIds = await fetchIdsWithIdTag(org, "Account", "Id", cond, TAG_OT2A_IDS, ot2aIds, options);
+      if (cond && containsTag(cond, TAG_OT2A_IDS) && ot2aFailed) {
+        accountFailed = true;
+        volumes.push({ ...base(accountTable), status: "not-estimated", records: 0, deviceRequests: null, idTag: TAG_OT2A_IDS, sourceFailed: true, note: `${TAG_OT2A_IDS} could not be resolved because its source table query failed` });
+      } else if (cond && containsTag(cond, TAG_OT2A_IDS)) {
+        const fetched = await memo(cache, `Account|${cond}|${ot2aKey}`, () =>
+          fetchIdsWithIdTag(org, "Account", "Id", cond, TAG_OT2A_IDS, ot2aIds, options)
+        );
+        accountIds = fetched.ids;
+        const sourceLower = ot2aLower;
+        let records = accountIds.length;
+        if (fetched.truncated) records = await countWithIdTag(org, "Account", cond, TAG_OT2A_IDS, ot2aIds, options);
+        accountLower = sourceLower || fetched.truncated;
         volumes.push({
           ...base(accountTable),
           status: "counted",
-          records: accountIds.length,
-          deviceRequests: initialSyncRequests(estimateDeviceRequests("Account", cond, TAG_OT2A_IDS, ot2aIds.length), accountIds.length),
+          records,
+          deviceRequests: initialSyncRequests(estimateDeviceRequests("Account", cond, TAG_OT2A_IDS, ot2aIds.length), records),
           idTag: TAG_OT2A_IDS,
           scope: accountScope,
+          ...(sourceLower ? { lowerBound: true } : {}),
         });
       } else {
-        accountIds = await fetchIds(org, "Account", "Id", cond);
+        const fetched = await memo(cache, `Account|${cond}`, () => fetchIdsUncached(org, "Account", "Id", cond));
+        accountIds = fetched.ids;
+        const records = fetched.truncated ? await countQuery(org, "Account", cond) : accountIds.length;
+        accountLower = fetched.truncated;
         volumes.push({
           ...base(accountTable),
           status: "counted",
-          records: accountIds.length,
-          deviceRequests: initialSyncRequests(1, accountIds.length),
+          records,
+          deviceRequests: initialSyncRequests(1, records),
           scope: accountScope,
+          ...(fetched.truncated ? { note: `Only the first ${fetched.rows.toLocaleString("en-US")} ids could be read, so tables filtered by {ACCOUNT.IDS} are counted as minimums` } : {}),
         });
       }
     } catch (e) {
       accountFailed = true;
-      volumes.push({ ...base(accountTable), status: "error", records: 0, deviceRequests: null, note: errorMessage(e) });
+      volumes.push({ ...base(accountTable), ...failedVolume(e) });
     }
     tick();
   }
@@ -541,12 +675,13 @@ export async function profileTerritory(
         const ids = hasAccount ? accountIds : ot2aIds;
         const source = hasAccount ? accountTable : ot2aTable;
         if ((hasAccount && accountFailed) || (hasOt2a && ot2aFailed)) {
-          return { ...base(t), status: "not-estimated", records: 0, deviceRequests: null, idTag: tag, note: `${tag} could not be resolved because its source table query failed` };
+          return { ...base(t), status: "not-estimated", records: 0, deviceRequests: null, idTag: tag, sourceFailed: true, note: `${tag} could not be resolved because its source table query failed` };
         }
         if (!source) {
           return { ...base(t), status: "counted", records: 0, deviceRequests: 0, idTag: tag, scope: "user", note: `${tag} is used but its source table is not in this user's DB Schema, so the app has no ids to substitute` };
         }
         const records = await countWithIdTag(org, t.entry.sobject, cond, tag, ids, options);
+        const lower = hasAccount ? accountLower : ot2aLower;
         return {
           ...base(t),
           status: "counted",
@@ -554,12 +689,13 @@ export async function profileTerritory(
           deviceRequests: initialSyncRequests(estimateDeviceRequests(t.entry.sobject, cond, tag, ids.length), records),
           idTag: tag,
           scope: viaIds(t, hasAccount ? accountScope : ot2aScope),
+          ...(lower ? { lowerBound: true, note: `Counted from the first ${ids.length.toLocaleString("en-US")} ${tag} ids only — a minimum` } : {}),
         };
       }
       const records = await countQuery(org, t.entry.sobject, cond);
       return { ...base(t), status: "counted", records, deviceRequests: initialSyncRequests(1, records), scope: ownScope(t) };
     } catch (e) {
-      return { ...base(t), status: "error", records: 0, deviceRequests: null, note: errorMessage(e) };
+      return { ...base(t), ...failedVolume(e) };
     } finally {
       tick();
     }
@@ -647,4 +783,47 @@ export async function loadUserContext(org: OrgQuerier, userRef: string): Promise
     permissionSets,
     territories,
   };
+}
+
+/** Territories per aggregate query when ranking them by aligned accounts. */
+const TERRITORY_RANK_CHUNK = 150;
+
+/** Aligned Account rows per territory (keyed by 15-character id), in chunked GROUP BY queries. Throws when one fails. */
+export async function territoryAccountCounts(org: OrgQuerier, territories: Array<{ id: string }>): Promise<Map<string, number>> {
+  const sizes = new Map<string, number>();
+  const chunks = splitChunks(territories, TERRITORY_RANK_CHUNK);
+  await mapWithConcurrency(chunks, DEFAULT_PROFILE_OPTIONS.concurrency, async (chunk) => {
+    const list = chunk.map((t) => `'${soqlString(t.id)}'`).join(",");
+    const result = await org.soql(
+      `SELECT Territory2Id, COUNT(Id) cnt FROM ObjectTerritory2Association WHERE ObjectType = 'Account' AND Territory2Id IN (${list}) GROUP BY Territory2Id`
+    );
+    if (!result.success) throw new Error(result.error || "territory size query failed");
+    for (const r of result.data?.records ?? []) sizes.set(String(r.Territory2Id).slice(0, 15), Number(r.cnt ?? r.expr0 ?? 0));
+  });
+  return sizes;
+}
+
+/**
+ * Choose which of a user's territories to profile. Over the cap, the ones with
+ * the most aligned accounts win — they carry the heaviest sync — and `note` says
+ * how many were left out. Falls back to name order (with a note saying so) when
+ * the sizes can't be read.
+ */
+export async function pickLargestTerritories(
+  org: OrgQuerier,
+  territories: Array<{ id: string; name: string }>,
+  cap: number
+): Promise<{ picked: Array<{ id: string; name: string }>; note?: string }> {
+  if (territories.length <= cap) return { picked: territories };
+  try {
+    const sizes = await territoryAccountCounts(org, territories);
+    const sizeOf = (t: { id: string }) => sizes.get(t.id.slice(0, 15)) ?? 0;
+    const picked = [...territories].sort((a, b) => sizeOf(b) - sizeOf(a) || a.name.localeCompare(b.name)).slice(0, cap);
+    return { picked, note: `Checked the ${cap} largest of ${territories.length} territories (by aligned accounts); the other ${territories.length - cap} are smaller.` };
+  } catch (e) {
+    return {
+      picked: territories.slice(0, cap),
+      note: `Checked the first ${cap} of ${territories.length} territories in name order — couldn't rank them by size (${errorMessage(e)}), so a larger one may be missing.`,
+    };
+  }
 }

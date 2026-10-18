@@ -63,7 +63,7 @@ export interface SyncOverviewDeps {
 
 const defaultDeps: SyncOverviewDeps = {
   querier: (org) => ({
-    soql: (q) => runSoqlQuery(q, org),
+    soql: (q, options) => runSoqlQuery(q, org, options),
     tooling: (q) => runToolingQuery(q, org),
   }),
   telemetryFields: (org) => async () => {
@@ -99,7 +99,7 @@ async function loadSamples(
   return {
     samples: records.map((r) => toSyncSample(r)).filter((s): s is SyncSample => s !== null),
     rows: records.length,
-    truncated: records.length >= TELEMETRY_LIMIT,
+    truncated: records.length >= TELEMETRY_LIMIT || result.data?.truncated === true,
   };
 }
 
@@ -216,7 +216,7 @@ export async function syncOverview(
       result.rowsCoverage = { rows: rowCount, from: oldest, truncated };
       if (truncated) {
         notes.push(
-          `This window has more than ${TELEMETRY_LIMIT.toLocaleString("en-US")} syncs. Per-rep numbers and sync times cover only the most recent part, from ${oldest ?? "the latest day"} on; the daily counts and failure totals cover the whole window.`
+          `This window has more than ${rowCount.toLocaleString("en-US")} syncs. Per-rep numbers and sync times cover only the most recent part, from ${oldest ?? "the latest day"} on; the daily counts and failure totals cover the whole window.`
         );
       }
       const ranking = rankUsersAtRisk(samples, summary, MAX_AT_RISK);

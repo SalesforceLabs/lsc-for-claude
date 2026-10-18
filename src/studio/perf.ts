@@ -45,7 +45,7 @@ export interface PerfDeps {
 
 const defaultDeps: PerfDeps = {
   querier: (org) => ({
-    soql: (q) => runSoqlQuery(q, org),
+    soql: (q, options) => runSoqlQuery(q, org, options),
     tooling: (q) => runToolingQuery(q, org),
   }),
   telemetryFields: (org) => async () => {
@@ -86,14 +86,14 @@ function tracked(inner: OrgQuerier, job: PerfJob): OrgQuerier {
   };
   const wrap =
     (fn: OrgQuerier["soql"]): OrgQuerier["soql"] =>
-    async (q) => {
+    async (q, options) => {
       guard();
       job.queries++;
-      const result = await fn(q);
+      const result = await fn(q, options);
       guard();
       return result;
     };
-  return { soql: wrap((q) => inner.soql(q)), tooling: wrap((q) => inner.tooling(q)) };
+  return { soql: wrap((q, options) => inner.soql(q, options)), tooling: wrap((q) => inner.tooling(q)) };
 }
 
 export function startPerfRun(

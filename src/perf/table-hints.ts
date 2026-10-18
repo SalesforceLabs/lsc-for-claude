@@ -48,6 +48,8 @@ export interface ExplainInput {
   records: number;
   deviceRequests: number | null;
   note?: string;
+  /** The count is a minimum (its id list was cut short). */
+  lowerBound?: boolean;
   /** True when an org-wide count may exceed what the user downloads (see mayOvercount). */
   mayOvercount: boolean;
   /** The user's predicted records in this territory across all tables. */
@@ -105,6 +107,15 @@ export function explainTable(t: ExplainInput): TableHint[] {
   const hints: TableHint[] = [];
   const schema = t.schema ?? null;
 
+  if (t.status === "timed-out") {
+    hints.push({
+      id: "count-timed-out",
+      severity: "warning",
+      title: "Too large to count in time",
+      detail: `${t.note ? `${t.note} ` : ""}The count on ${t.sobject} timed out, so it isn't in the totals. That usually means the table is very large for this filter; a tighter WhereSoql (or an indexed field in it) helps both this check and the iPad.`,
+    });
+    return hints;
+  }
   if (t.status === "error") {
     hints.push({
       id: "filter-failed",
@@ -122,6 +133,15 @@ export function explainTable(t: ExplainInput): TableHint[] {
       detail: `${t.note ? `${t.note}. ` : ""}Studio can't count this table ahead of time, so it isn't in the totals. A first-sync replay measures it for real.`,
     });
     return hints;
+  }
+
+  if (t.lowerBound) {
+    hints.push({
+      id: "lower-bound",
+      severity: "info",
+      title: "Count is a minimum",
+      detail: `${t.note ? `${t.note}. ` : ""}Only part of the ids this filter depends on could be read, so ${t.sobject} has at least ${fmt(t.records)} records.`,
+    });
   }
 
   const share = sharePct(t.records, t.totalRecords);
