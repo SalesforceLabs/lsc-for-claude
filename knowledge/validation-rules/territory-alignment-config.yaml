@@ -8,7 +8,7 @@
 #   - Territory2Model (standard Salesforce)
 #   - Territory2 (standard Salesforce)
 #   - ObjectTerritory2Association (standard Salesforce)
-#   - TerritoryGeoAssignmentRule (standard)
+#   - TerrGeoAssignmentRule (standard)
 #   - TerritoryProviderAffiliationAlignmentRule (standard)
 #   - ProviderAcctTerritoryInfo (standard)
 #   - LifeSciMobileMetadataRecord (standard)
@@ -34,6 +34,8 @@ rules:
       Management, which requires an active model before territories can be created.
       Without an active model, territory assignments and alignment will not function.
     category: configuration
+    stage: enabled
+    studio_surface: territoryModels
     severity: error
     check:
       type: soql_count
@@ -71,6 +73,8 @@ rules:
       user assignments cannot be configured. Each territory can have child
       territories forming a hierarchical structure.
     category: configuration
+    stage: data
+    studio_surface: territories
     severity: error
     check:
       type: soql_count
@@ -115,6 +119,8 @@ rules:
       Missing assignments mean accounts won't be shared with territory users
       and ProviderAcctTerritoryInfo records won't be generated.
     category: configuration
+    stage: data
+    studio_surface: explicitAssignments
     severity: warning
     check:
       type: soql_count
@@ -151,7 +157,7 @@ rules:
   - id: territory-004
     name: Geo-based alignment rules configured (if using geo alignment)
     description: |
-      Checks whether TerritoryGeoAssignmentRule records exist for geo-based
+      Checks whether TerrGeoAssignmentRule records exist for geo-based
       alignment. These rules enable automatic account-to-territory assignment
       based on zip codes or brick codes from ContactPointAddress records.
       If your implementation uses geographic territory alignment (common in
@@ -159,16 +165,19 @@ rules:
       alignment cannot be processed by the Align Zip to Territory or Align
       Brick to Territory batch jobs.
     category: configuration
-    severity: warning
+    stage: config
+    studio_surface: geoRules
+    severity: info
     check:
-      type: soql
+      type: soql_count
       query: >
-        SELECT Id, Name, Territory2Id, Territory2.Name, UsageType, IsActive
-        FROM TerritoryGeoAssignmentRule
-        WHERE IsActive = true
-        ORDER BY UsageType, Territory2.Name
-        LIMIT 20
-      expect: "records.length > 0"
+        SELECT COUNT()
+        FROM TerrGeoAssignmentRule
+      expect: "count > 0"
+      error_detail_query: >
+        SELECT Id, Name, Territory2.Name, GeoCodeType, GeoCode
+        FROM TerrGeoAssignmentRule
+        LIMIT 10
     symptoms:
       - "Zip code alignment not working"
       - "Brick code alignment not working"
@@ -177,9 +186,9 @@ rules:
     resolution:
       steps:
         - "Determine if your implementation uses geographic alignment"
-        - "If yes, create TerritoryGeoAssignmentRule records"
-        - "Set UsageType to 'ZipToTerritory' for zip code alignment"
-        - "Set UsageType to 'BrickToTerritory' for brick code alignment"
+        - "If yes, create Terr Geo Assignment Rule records"
+        - "Set GeoCodeType to 'ZipToTerritory' for zip code alignment"
+        - "Set GeoCodeType to 'BrickToTerritory' for brick code alignment"
         - "Rules can be created in Admin Console or loaded via data import"
         - "Run Align Zip to Territory or Align Brick to Territory job"
       ui_path: "Admin Console > Territory Management Jobs"
@@ -192,7 +201,7 @@ rules:
   - id: territory-005
     name: Affiliation alignment rules configured (if using affiliation alignment)
     description: |
-      Checks whether TerritoryProviderAffiliationAlignmentRule records exist.
+      Checks whether TerrProvAffilAssignRule (affiliation alignment rule) records exist.
       These rules enable automatic territory assignment for affiliated accounts
       based on ProviderAffiliation records (e.g., HCP working at an HCO).
       Affiliation alignment is optional but common in complex territory models
@@ -200,13 +209,14 @@ rules:
       The affiliation alignment job runs automatically after other alignment
       jobs complete, but only if these rules exist.
     category: configuration
+    stage: config
+    studio_surface: affiliationRules
     severity: info
     check:
       type: soql
       query: >
-        SELECT Id, Name, Territory2Id, Territory2.Name, AccountType, AffiliationRole, IsActive
-        FROM TerritoryProviderAffiliationAlignmentRule
-        WHERE IsActive = true
+        SELECT Id, Name, Territory2Id, Territory2.Name, AccountType, AffiliationRole
+        FROM TerrProvAffilAssignRule
         ORDER BY Territory2.Name
         LIMIT 20
       expect: "records.length > 0"
@@ -240,6 +250,8 @@ rules:
       scoring, and territory reporting. Missing records indicate alignment jobs
       have not been run or there are no account-to-territory assignments.
     category: configuration
+    stage: data
+    studio_surface: providerTerritoryInfo
     severity: warning
     check:
       type: soql_count
@@ -281,6 +293,7 @@ rules:
       territory data will not sync to mobile devices and territory-based
       features (visit tracking, account lists) will not work properly.
     category: metadata-cache
+    stage: mobile
     severity: warning
     check:
       type: soql_count

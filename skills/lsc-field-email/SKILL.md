@@ -60,14 +60,17 @@ Re-run the checks from Step 1 to confirm everything is configured correctly.
 | Correct | Wrong (NEVER use) |
 |---------|-------------------|
 | `LifeSciEmailTemplate` | `EmailTemplate__c`, `LifeSciEmailTemplate__c` |
-| `CommunicationSubscription` | `CommunicationSubscription__c`, `ConsentTopic__c` |
+| `CommSubscription` | `CommunicationSubscription`, `CommunicationSubscription__c`, `ConsentTopic__c` |
+| `CommSubscriptionChannelType` | `CommunicationSubscriptionChannelType` |
 | `CommSubscriptionConsent` | `CommunicationSubscriptionConsent`, `Consent__c`, `EmailConsent__c` |
 | `ContactPointEmail` | — |
-| `LifeSciEmailJob` | `EmailJob__c` |
-| `LifeSciEmailQueue` | `EmailQueue__c` |
-| `LifeSciEmailFragment` | `EmailFragment__c` |
-| `LifeSciEmailAttachment` | `EmailAttachment__c` |
+| `LifeScienceEmail` (sent emails and the send queue — `Status` New / Retry until sent) | `LifeSciEmailQueue`, `LifeSciEmailJob`, `EmailQueue__c`, `EmailJob__c` |
+| `LifeScienceEmailFragment` (fragment content) | `LifeSciEmailFragment`, `EmailFragment__c` |
+| `LifeSciEmailTmplFragment` / `LifeSciEmailTmplRelaFrgmt` (template ↔ fragment links) | — |
+| `LifeSciEmailTemplateShare` (template sharing to territories) | — |
 | `DataUsePurpose` | — |
+
+There is no email attachment object (`LifeSciEmailAttachment` doesn't exist). Sending runs as the scheduled Apex job `EmailQueueSendSchedulable`.
 
 ### Tool Restrictions
 - **DO NOT** use `run_soql` for Admin Console settings — use `list_admin_settings`

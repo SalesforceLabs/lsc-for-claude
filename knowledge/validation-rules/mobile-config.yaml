@@ -29,6 +29,8 @@ rules:
       record was not found" errors.
     category: metadata-cache
     severity: error
+    stage: mobile
+    studio_surface: metadataCache
     check:
       type: soql_count
       query: >
@@ -56,22 +58,25 @@ rules:
     tags: [ipad, mobile, login]
 
   - id: mobile-004
-    name: Users have required LSC permission sets
+    name: Active users have an LSC permission set assigned
     description: |
-      Checks that mobile users have the Life Sciences Field Sales Representative
-      permission set (or equivalent role-based permission set) assigned.
-      Missing permission sets cause 400/403 errors on login.
+      Checks that at least one active user has a Life Sciences permission set
+      (Field Sales Representative or an equivalent role-based set) assigned.
+      Users without one get 400/403 errors on mobile login.
     category: permissions
     severity: error
+    stage: access
     check:
-      type: soql
+      type: soql_count
       query: >
-        SELECT Id, Name
-        FROM PermissionSet
-        WHERE Name LIKE '%LifeSciences%'
-        OR Name LIKE '%Life_Sciences%'
-        OR Name LIKE '%LSC%'
-      expect: "records.length > 0"
+        SELECT COUNT()
+        FROM PermissionSetAssignment
+        WHERE Assignee.IsActive = true
+        AND PermissionSet.IsOwnedByProfile = false
+        AND (PermissionSet.Name LIKE '%LifeSciences%'
+        OR PermissionSet.Name LIKE '%Life_Sciences%'
+        OR PermissionSet.Name LIKE '%LSC%')
+      expect: "count > 0"
     symptoms:
       - "Unknown Error. The operation couldn't be completed. (com.salesforce.RestAPI.ErrorDomain error 400)"
       - "Unknown Error. The operation couldn't be completed. (com.salesforce.RestAPI.ErrorDomain error 403)"
@@ -87,13 +92,15 @@ rules:
     tags: [ipad, mobile, permissions, login]
 
   - id: mobile-005
-    name: Mobile app version number is correct
+    name: Metadata cache records carry an application version number
     description: |
       Verifies the Application Version Number in LifeSciMobileMetadataRecord
       matches the org's API version. Incorrect version numbers cause login
       failures for non-admin users.
     category: configuration
     severity: warning
+    stage: config
+    studio_surface: appSettings
     check:
       type: soql
       query: >
@@ -127,6 +134,8 @@ rules:
       backend processing issues.
     category: metadata-cache
     severity: warning
+    stage: mobile
+    studio_surface: metadataCache
     check:
       type: soql
       query: >
@@ -162,6 +171,8 @@ rules:
       errors. These need to be investigated and regenerated.
     category: metadata-cache
     severity: error
+    stage: mobile
+    studio_surface: metadataCache
     check:
       type: soql
       query: >
@@ -196,6 +207,8 @@ rules:
       mobile devices for those users.
     category: metadata-cache
     severity: error
+    stage: mobile
+    studio_surface: metadataCache
     check:
       type: soql
       query: >
@@ -225,19 +238,24 @@ rules:
   - id: config-002
     name: View Setup Configuration permission enabled
     description: |
-      Checks if the View Setup Configuration permission is available.
-      This permission is required for proper mobile app functionality
-      and API access.
+      Checks that an assigned Life Sciences permission set grants View Setup
+      and Configuration. This permission is required for proper mobile app
+      functionality and API access.
     category: permissions
     severity: warning
+    stage: access
     check:
-      type: soql
+      type: soql_count
       query: >
-        SELECT Id, Name
-        FROM PermissionSet
-        WHERE Name LIKE '%LifeSciences%'
-        OR Name LIKE '%Life_Sciences%'
-      expect: "records.length > 0"
+        SELECT COUNT()
+        FROM PermissionSetAssignment
+        WHERE Assignee.IsActive = true
+        AND PermissionSet.IsOwnedByProfile = false
+        AND PermissionSet.PermissionsViewSetup = true
+        AND (PermissionSet.Name LIKE '%LifeSciences%'
+        OR PermissionSet.Name LIKE '%Life_Sciences%'
+        OR PermissionSet.Name LIKE '%LSC%')
+      expect: "count > 0"
     symptoms:
       - "403 error on mobile login"
       - "Configuration error"

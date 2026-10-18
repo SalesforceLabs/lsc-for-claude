@@ -10,7 +10,7 @@
 #   - TimePeriod (standard)
 #   - ProviderActivityGoal (standard)
 #   - ProviderActivityGoalMeasure (standard)
-#   - PrvdActvtyGoalMeasurePrdct (standard)
+#   - PrvdActvtyGoalMeasureProdt (standard)
 #   - ProviderAcctTerritoryInfo (standard)
 #   - LifeSciMobileMetadataRecord (standard)
 
@@ -34,6 +34,8 @@ rules:
       plans reference TimePeriod records to determine when the plan is valid.
       Without time periods, activity plans cannot be created or activated.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: error
     check:
       type: soql_count
@@ -70,6 +72,8 @@ rules:
       They reference a TimePeriod and are linked to territories via
       ActivityPlanTerritory records.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: error
     check:
       type: soql_count
@@ -107,6 +111,8 @@ rules:
       with any territory and goals cannot be assigned to accounts within
       territories. Each plan needs at least one territory assignment.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: error
     check:
       type: soql_count
@@ -143,6 +149,8 @@ rules:
       product-level goal, and non-product-level goal for each target account.
       Without goals, the activity plan has no targets to track against.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: warning
     check:
       type: soql_count
@@ -181,6 +189,8 @@ rules:
       Measure Types configured in Admin Console. For weighted plans, the Type
       must be "Weighted Goal" with an Activity Weight Value.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: warning
     check:
       type: soql_count
@@ -214,6 +224,8 @@ rules:
       Calculate Provider Activity Goal Measures batch job. Without them,
       territory-level attainment tracking will not work.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: warning
     check:
       type: soql_count
@@ -246,6 +258,7 @@ rules:
       ProviderActivityGoal, ProviderActivityGoalMeasure, and related objects.
       Without active cache, activity plan data will not sync to mobile devices.
     category: metadata-cache
+    stage: mobile
     severity: warning
     check:
       type: soql_count

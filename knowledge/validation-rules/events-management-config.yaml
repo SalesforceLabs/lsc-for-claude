@@ -1,0 +1,106 @@
+# Events Management Configuration Validation Rules
+# =================================================
+# Rules for validating Managed Events setup in an LSC org.
+
+schema_version: "1.0"
+category_name: "Events Management Configuration"
+description: |
+  Validation rules for Events Management: the Managed Event objects,
+  event types, participant types and roles.
+
+rules:
+  - id: events-001
+    name: Managed Event objects are available
+    description: |
+      The MngEvent object is only present once Events Management is part of the
+      org's license and package. Without it nothing else in this module can work.
+    category: configuration
+    severity: error
+    stage: enabled
+    studio_surface: objects
+    check:
+      type: soql_count
+      query: >
+        SELECT COUNT()
+        FROM MngEvent
+      expect: "count >= 0"
+    symptoms:
+      - "sObject type 'MngEvent' is not supported"
+    resolution:
+      steps:
+        - "Confirm the Life Sciences Commercial license is provisioned"
+        - "Ask your Salesforce account team to enable Events Management"
+      ui_path: "Setup > Company Information"
+    tags: [events, configuration]
+
+  - id: events-002
+    name: Event types exist
+    description: |
+      Every managed event belongs to an event type, which decides its template
+      (speaker meeting, presentation, exhibit). With no types, reps cannot create events.
+    category: data
+    severity: error
+    stage: data
+    studio_surface: objects
+    check:
+      type: soql_count
+      query: >
+        SELECT COUNT()
+        FROM MngEventType
+      expect: "count > 0"
+    symptoms:
+      - "Event type picklist is empty when creating an event"
+    resolution:
+      steps:
+        - "Open App Launcher > Event Types"
+        - "Create an event type for each kind of event the business runs"
+      ui_path: "App Launcher > Event Types"
+    tags: [events, event-types]
+
+  - id: events-003
+    name: Participant types exist
+    description: |
+      Participant types (HCP, employee, speaker) classify who attends. Without them
+      a participant cannot be added to an event.
+    category: data
+    severity: warning
+    stage: data
+    studio_surface: objects
+    check:
+      type: soql_count
+      query: >
+        SELECT COUNT()
+        FROM EventMgmtParticipantType
+      expect: "count > 0"
+    symptoms:
+      - "Cannot add participants to an event"
+    resolution:
+      steps:
+        - "Open App Launcher > Event Participant Types"
+        - "Create the participant types your events use"
+      ui_path: "App Launcher > Event Participant Types"
+    tags: [events, participants]
+
+  - id: events-004
+    name: Participant roles exist
+    description: |
+      Participant roles (attendee, speaker, moderator) say what each person does at an
+      event. They are linked to types and event types through the type-role map.
+    category: data
+    severity: warning
+    stage: data
+    studio_surface: objects
+    check:
+      type: soql_count
+      query: >
+        SELECT COUNT()
+        FROM EventMgmtParticipantRole
+      expect: "count > 0"
+    symptoms:
+      - "Role picklist empty on a participant"
+    resolution:
+      steps:
+        - "Open App Launcher > Event Participant Roles"
+        - "Create the roles your events use"
+      ui_path: "App Launcher > Event Participant Roles"
+    tags: [events, participants]
