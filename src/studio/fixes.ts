@@ -26,7 +26,7 @@ import {
   MOBILE_CATEGORIES,
   PUBLISH_WARNING,
 } from "./change-helpers.js";
-import { applyCreate, applyDelete, previewCreate, previewDelete } from "./create.js";
+import { applyCreate, applyDelete, previewCreate, previewDelete, resolveNames } from "./create.js";
 import { applyEdit, isEditFix, previewEdit } from "./edits.js";
 import { inList, query, splitList, type Row } from "./helpers.js";
 import type { FixPreview, FixResult, RecordRef, StudioFix } from "./types.js";
@@ -130,6 +130,9 @@ async function previewSetConfigField(
     const to = splitList(fix.to);
     preview.warnings.push(...(await audienceWarnings(splitList(fix.from), to, org)));
     if (to.length === 0) preview.warnings.push("With no profiles listed, every profile sees this action.");
+    // A misspelled profile would silently match nobody (create.ts says the same for a new record).
+    const unknown = await resolveNames("Profile", to.filter((n) => !splitList(fix.from).some((f) => f.toLowerCase() === n.toLowerCase())), org);
+    if (unknown.missing.length) preview.warnings.push(`Not a profile in this org: ${unknown.missing.join(", ")}.`);
   }
   if (MOBILE_CATEGORIES.has(fix.category)) preview.warnings.push(PUBLISH_WARNING);
   return { ...preview, target };

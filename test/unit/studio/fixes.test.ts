@@ -155,6 +155,13 @@ describe("setConfigField on Profiles", () => {
       "Publish to iPad afterwards so reps get the change.",
     ]);
   });
+
+  it("warns about a profile name that isn't in the org instead of letting a typo through silently", async () => {
+    const typo = { ...setProfiles, to: "System Administrator;LS MT Feild Sales Representative" };
+    const preview = await previewFix(typo, "org");
+    expect(preview.blocked).toBeUndefined();
+    expect(preview.warnings).toContain("Not a profile in this org: LS MT Feild Sales Representative.");
+  });
 });
 
 describe("setActive", () => {
