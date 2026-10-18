@@ -23,12 +23,23 @@ function Sheet({ className = "", children }: { className?: string; children: Rea
 }
 
 /** The sheets behind the top-bar buttons (TabsCoordinator, UserProfileCoordinator, StoriesCoordinator). */
-export function ChromeSheets({ sheet, snapshot, onClose }: { sheet: ChromeSheet | null; snapshot: PublishedIpad; onClose: () => void }) {
+export function ChromeSheets({
+  sheet,
+  snapshot,
+  onClose,
+  onLink,
+}: {
+  sheet: ChromeSheet | null;
+  snapshot: PublishedIpad;
+  onClose: () => void;
+  /** A link tapped in an alert body, with its `target`. */
+  onLink: (url: string, target: string) => void;
+}) {
   if (!sheet) return null;
   const chrome = snapshot.screens?.chrome;
   switch (sheet.kind) {
     case "alerts":
-      return <AlertsModal chrome={chrome} onClose={onClose} />;
+      return <AlertsModal chrome={chrome} onClose={onClose} onLink={onLink} />;
     case "profile":
       return <ProfileSheet snapshot={snapshot} chrome={chrome} onClose={onClose} />;
     case "briefings":
@@ -92,8 +103,15 @@ const PILLS: { key: AlertPill; label: string; empty: string }[] = [
 ];
 
 /** NotificationViewController: pink bell title, close button, three pills, then the cards or the empty placeholder. */
-function AlertsModal({ chrome, onClose }: { chrome: PublishedChrome | undefined; onClose: () => void }) {
+function AlertsModal({ chrome, onClose, onLink }: { chrome: PublishedChrome | undefined; onClose: () => void; onLink: (url: string, target: string) => void }) {
   const [pill, setPill] = useState<AlertPill>("alerts");
+  // Links in the HTML body never reach the OS: NotificationLinkOpener routes them inside the app.
+  const onBodyClick = (e: React.MouseEvent) => {
+    const a = (e.target as Element).closest("a[href]");
+    if (!a) return;
+    e.preventDefault();
+    onLink(a.getAttribute("href") ?? "", a.getAttribute("target") ?? "");
+  };
   const shown = chrome?.alerts.filter((a) => a.pill === pill) ?? [];
   const label = PILLS.find((p) => p.key === pill)!;
   return (
@@ -132,7 +150,7 @@ function AlertsModal({ chrome, onClose }: { chrome: PublishedChrome | undefined;
               <div className="studio-ipad-chrome-alert-main">
                 <div className="studio-ipad-chrome-alert-when">{a.when}</div>
                 <div className="studio-ipad-chrome-alert-title">{a.title}</div>
-                <div className="studio-ipad-chrome-alert-body" dangerouslySetInnerHTML={{ __html: a.body }} />
+                <div className="studio-ipad-chrome-alert-body" onClick={onBodyClick} dangerouslySetInnerHTML={{ __html: a.body }} />
               </div>
             </div>
           ))}

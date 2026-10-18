@@ -23,6 +23,7 @@ import IpadActionSheet from "./IpadActionSheets";
 import type { PublishedFabItem } from "./screens/fabs-types";
 import { presentationFor, type Presentation } from "./ipad-fab-actions";
 import { CustomIcon } from "./assets/icons";
+import { findDeepLinkTab, findRecordId, isDeepLink, parseDeepLink } from "./deep-link";
 import {
   ActivityPlanProgress,
   HomeEditVisitContext,
@@ -98,6 +99,36 @@ function Device({
     setCurrent(t.fullName);
     setRecord(null);
   };
+  const note = (label: string, text: string) => setSheet({ kind: "note", label, text });
+  // NotificationLinkOpener: deep links go to DeepLinkService (which dismisses the sheet first), web links to the in-app browser or Safari.
+  const followLink = (url: string, target: string) => {
+    if (!isDeepLink(url)) {
+      if (/^(https?:)?\/\//i.test(url)) {
+        const full = url.startsWith("//") ? `https:${url}` : url;
+        setNewSheet(target === "_blank" ? { kind: "safari", url: full } : { kind: "browser", url: full, hideSafari: false });
+      } else note("Link", `The app hands ${url} to iOS to open; Studio can't.`);
+      return;
+    }
+    const nav = parseDeepLink(url);
+    if (!nav) return note("Deep link", `Cannot parse deeplink URL: ${url}.`);
+    if (nav.kind === "upsert") return note("Deep link", "This link creates or updates records from its parameters. Studio never writes records.");
+    let dest: PublishedTab | undefined;
+    if (nav.kind !== "modal") {
+      dest = findDeepLinkTab(nav.tab, snapshot.tabs);
+      if (!dest) return note("Deep link", `Cannot open deeplink URL ${url}. Tab is not available ${nav.tab.name}.`);
+    }
+    setSheet(null);
+    if (dest) open(dest);
+    if (nav.kind === "tab") return;
+    const o = nav.object;
+    if (o.kind === "new") return setNewSheet(newPresentation(`New ${o.sobject}`, o.sobject));
+    const id = findRecordId(o.recordId, snapshot.records?.byId);
+    if (id) setRecord(id);
+    if (o.kind === "edit" && o.sobject.toLowerCase() === "visit") return setNewSheet({ kind: "visit", edit: id ?? o.recordId });
+    if (!id) return note(o.sobject, `On the iPad this opens the ${o.sobject} record ${o.recordId}. Studio did not capture it for this snapshot (the preview holds the first records of each list), so it cannot be drawn here.`);
+    if (o.kind === "edit") note(o.sobject, "On the iPad this opens the record's edit form. Studio never saves records.");
+    if (o.kind === "quickAction") note(o.action, `On the iPad this runs the ${o.action} quick action on the record. Studio does not run it.`);
+  };
   // UITabBarController in .tabBar mode: the tabs in a paged floating bar, search pinned last.
   const chromeTabs = useMemo<ChromeTab[]>(
     () => snapshot.tabs.filter((t) => t.kind !== "recent").map((t) => ({ key: t.fullName, label: t.label, title: t.fullName })),
@@ -168,9 +199,9 @@ function Device({
           onAvatar={() => setSheet({ kind: "profile" })}
         />
         <div className={`studio-ipad-page${tab?.kind === "empty" ? " blank" : ""}${onHome ? " home" : ""}${tab?.kind === "reports" && snapshot.reports ? " flush" : ""}${record === null && hasNativeScreen(tab, snapshot) ? " native" : ""}${record === null && isLwcOnly(tab, snapshot) ? " lwc-full" : ""}${record && snapshot.records?.byId[record] ? " record" : ""}`}>
-          {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={setRecord} onNew={(label, objectName) => setNewSheet(newPresentation(label, objectName))} onNote={(label, text) => setSheet({ kind: "note", label, text })} onAction={(item) => setNewSheet(presentationFor(item, { onRecord: true }))} onEditVisit={(id) => setNewSheet({ kind: "visit", edit: id })} />}
+          {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={setRecord} onNew={(label, objectName) => setNewSheet(newPresentation(label, objectName))} onNote={note} onAction={(item) => setNewSheet(presentationFor(item, { onRecord: true }))} onEditVisit={(id) => setNewSheet({ kind: "visit", edit: id })} />}
         </div>
-        <ChromeSheets sheet={sheet} snapshot={snapshot} onClose={() => setSheet(null)} />
+        <ChromeSheets sheet={sheet} snapshot={snapshot} onClose={() => setSheet(null)} onLink={followLink} />
         {newSheet && <IpadActionSheet presentation={newSheet} ctx={{ snapshot, record: null }} onClose={() => setNewSheet(null)} />}
         <IpadFabs snapshot={snapshot} tab={tab} record={record} agentforce={homeHasAgentforce} />
       </IpadScreen>
