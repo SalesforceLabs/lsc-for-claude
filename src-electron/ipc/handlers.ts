@@ -50,7 +50,15 @@ import {
   type PerfSimRecord,
 } from "../engine/perf-store.js";
 
-const STUDIO_CACHED_TOOLS = new Set(["studio_feature_map", "studio_item_detail", "studio_list_profiles", "studio_access_options", "studio_ipad_published"]);
+const STUDIO_CACHED_TOOLS = new Set([
+  "studio_feature_map",
+  "studio_item_detail",
+  "studio_list_profiles",
+  "studio_access_options",
+  "studio_ipad_published",
+  "studio_readiness",
+  "studio_setup_overview",
+]);
 
 // Shared resources (created once at engine:start)
 let llm: LLMProvider | null = null;
@@ -549,6 +557,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         // A finished publish changes the metadata cache surfaces.
         if (toolName === "studio_publish_status" && data?.state === "done") {
           clearStudioCache(org, "studio_feature_map");
+          clearStudioCache(org, "studio_readiness");
+          clearStudioCache(org, "studio_setup_overview");
           clearStudioCache(org, "studio_ipad_published");
         }
         return { data };

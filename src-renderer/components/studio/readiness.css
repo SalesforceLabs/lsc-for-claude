@@ -1,0 +1,149 @@
+/* Readiness view — a feature's checks by stage. Reuses the verdict and check-row styles in studio.css. */
+
+.studio-readiness {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 20px 24px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.studio-verdict.issues {
+  --verdict-color: var(--warning);
+}
+
+.studio-readiness-counts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.studio-readiness-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.studio-readiness-stage .studio-lane-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.studio-readiness-stage-count {
+  font-size: 11px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-muted);
+}
+
+.studio-readiness-allgood {
+  font-size: 12px;
+  color: var(--success);
+  padding: 4px 2px;
+}
+
+.studio-rcheck {
+  --check-color: var(--text-muted);
+  list-style: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--check-color);
+}
+
+.studio-rcheck.pass { --check-color: var(--success); }
+.studio-rcheck.error { --check-color: var(--error); }
+.studio-rcheck.warning { --check-color: var(--warning); }
+.studio-rcheck.info { --check-color: var(--accent); }
+.studio-rcheck.unknown,
+.studio-rcheck.skipped { --check-color: var(--text-muted); }
+
+.studio-rcheck.unknown .studio-check-label,
+.studio-rcheck.skipped .studio-check-label {
+  color: var(--text-secondary);
+}
+
+.studio-rcheck-sev {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--check-color);
+  background: color-mix(in srgb, var(--check-color) 14%, transparent);
+}
+
+.studio-rcheck > .studio-fix-row {
+  padding: 0 14px 12px 48px;
+}
+
+.studio-rcheck-body {
+  padding: 0 14px 12px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.studio-rcheck-body p {
+  margin: 0;
+}
+
+.studio-rcheck-body strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.studio-rcheck-steps {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.studio-rcheck-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.studio-rcheck-id {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Readiness | All configuration */
+.studio-view-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-tertiary);
+}
+
+.studio-view-tabs button {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 12px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.studio-view-tabs button[aria-pressed="true"] {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}

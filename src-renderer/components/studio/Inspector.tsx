@@ -31,6 +31,8 @@ interface InspectorProps {
   surface: StudioSurface;
   lens: Lens;
   onClose: () => void;
+  /** Opens this surface on its feature's Setup board; set when the inspector is docked beside the iPad preview. */
+  onOpenInSetup?: () => void;
   onAskClaude: (prompt: string) => void;
   /** Opens the profile check; set when the feature has per-profile setup. */
   onCheckProfile?: (profile: string) => void;
@@ -64,6 +66,7 @@ export default function Inspector({
   surface,
   lens,
   onClose,
+  onOpenInSetup,
   onAskClaude,
   onCheckProfile,
   profiles,
@@ -136,9 +139,16 @@ export default function Inspector({
         ) : (
           <span className="studio-inspector-eyebrow">{map.title}</span>
         )}
-        <button className="studio-icon-btn" onClick={onClose} title="Close">
-          ×
-        </button>
+        <span className="studio-inspector-header-actions">
+          {onOpenInSetup && (
+            <button className="studio-link-btn" onClick={onOpenInSetup} title={`Open ${map.title} in Setup`}>
+              Open in Setup
+            </button>
+          )}
+          <button className="studio-icon-btn" onClick={onClose} title="Close">
+            ×
+          </button>
+        </span>
       </div>
 
       {creating && (

@@ -91,6 +91,12 @@ interface LscApi {
   // Studio — `data` is the parsed JSON from the studio_* MCP tool (may itself carry `error`)
   studioListFeatures(): Promise<StudioResponse>;
   studioFeatureMap(featureId: string, refresh?: boolean): Promise<StudioResponse>;
+  studioReadiness(featureId: string, refresh?: boolean): Promise<StudioResponse>;
+  studioSetupOverview(refresh?: boolean): Promise<StudioResponse>;
+  studioUserTrace(userId: string, featureId?: string): Promise<StudioResponse>;
+  studioDrift(
+    input: { action: "list"; days?: number } | { action: "save"; label?: string } | { action: "diff"; id: string } | { action: "delete"; id: string }
+  ): Promise<StudioResponse>;
   studioItemDetail(kind: string, id: string): Promise<StudioResponse>;
   studioListProfiles(): Promise<StudioResponse>;
   studioUserAccess(userId: string): Promise<StudioResponse>;

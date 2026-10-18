@@ -325,3 +325,52 @@ export interface FlowOutline {
   /** Records changed, actions run, and errors raised, in path order. */
   effects: string[];
 }
+
+/**
+ * Readiness stages, in the order an admin works through them: is the feature
+ * switched on, can the right people use it, is its data in place, are its
+ * settings and rules right, and does it reach the iPad.
+ */
+export type ReadinessStage = "enabled" | "access" | "data" | "config" | "mobile";
+
+/**
+ * pass / fail — the check ran. unknown — it couldn't run (query failed, object
+ * missing). skipped — not applicable, or a check it depends on failed.
+ */
+export type ReadinessStatus = "pass" | "fail" | "unknown" | "skipped";
+
+/** One readiness check: a rule from knowledge/validation-rules or a Studio check. */
+export interface ReadinessCheck {
+  /** Rule id (e.g. "sample-001") or a Studio check id (e.g. "visit.data.current-period"). */
+  id: string;
+  stage: ReadinessStage;
+  title: string;
+  status: ReadinessStatus;
+  /** How bad a failure is — error blocks the feature, warning should be fixed, info is best practice. */
+  severity: Severity;
+  /** What Studio found, e.g. "0 active sample products". */
+  detail?: string;
+  /** Why it matters, in a sentence or two. */
+  why?: string;
+  /** How to fix it by hand. */
+  steps?: string[];
+  /** Where to go in Salesforce, e.g. "Admin Console > Mobile > DB Schema". */
+  uiPath?: string;
+  /** Board surface that shows the records this check is about. */
+  surface?: SurfaceId;
+  /** One-click changes that resolve it (queued, previewed, then applied). */
+  fixes?: StudioFix[];
+  /** A few of the records that failed, labelled for people. */
+  examples?: string[];
+  /** "rule" = knowledge/validation-rules YAML, "studio" = a TypeScript check. */
+  source: "rule" | "studio";
+}
+
+/** Every readiness check for one feature, from `studio_readiness`. */
+export interface FeatureReadiness {
+  featureId: string;
+  title: string;
+  org: string;
+  collectedAt: string;
+  checks: ReadinessCheck[];
+}

@@ -18,6 +18,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  overflow-y: auto;
 }
 
 .studio-rail-title {
@@ -375,6 +376,12 @@
   justify-content: space-between;
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
+}
+
+.studio-inspector-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .studio-inspector-eyebrow {
@@ -1836,6 +1843,7 @@ textarea.studio-input {
   gap: 12px;
   padding: 12px 20px 0;
 }
+.studio-header-actions .studio-ipad-mode,
 .studio-perf-toolbar .studio-ipad-mode {
   margin-bottom: 0;
 }
