@@ -1,6 +1,6 @@
 # iPad preview — Edit mode
 
-Status: Phases 1–2, 3a and 3b built; 3c–3d designed, 2026-10-18. Branch `feat/ipad-edit-mode`.
+Status: Phases 1–2, 3a, 3b and 3d built; 3c designed, 2026-10-18. Branch `feat/ipad-edit-mode`.
 
 ## The problem
 
@@ -115,7 +115,7 @@ Phase 1 delivers the hover/select layer and the What / Why / How inspector over 
    - 3a *(built)*: provenance, a metadata document layer, `editMetadata` for Layouts. Visit sidebar editing moved into Draft and the Schematic is retired: the preview is **Published · Draft**. Sections, fields and related lists move, hide and change behavior in place; **Add field…** and **Add related list…** pick from the object's describe (`available` / `availableRelated` on the live layout), and an added list whose child isn't synced offers **Add to iPad sync**.
    - 3b: Compact layouts (record header) *(built)*: header fields move left/right, remove/restore, and **Add field…** (a searchable picker); one diffed `editMetadata` change per compact layout (`metadata:CompactLayout:<fullName>`); warns at 7 or more fields; Add is refused at the Metadata API's 10-field limit.
    - 3c: Lightning pages: move/remove components and tabs, then insert from the library.
-   - 3d: drag to reorder, insertion points, keyboard moves.
+   - 3d *(built)*: drag to reorder, insertion points, keyboard moves. In Draft, tabs, Home ••• actions, layout sections, fields, related lists and header fields drag with pointer events (`DragSpec` on `editAttrs` / `Mark`, `onDrop` on `EditSurface`): the block lifts, a purple line marks where it would land, and a drop pulses (or nudges when refused); Escape cancels. Siblings don't slide aside — the line stands in for that. Fields cross columns and sections; other drags stay in their list (sections of one layout, the tab bar, the Home menu, one header). A drop queues what the verbs would — `moveTabTo` / `moveActionTo` step the up/down verbs, `moveFieldTo` / `moveSectionTo` / `moveRelatedTo` and `moveCompactFieldTo` re-arrange and re-diff — and a drop back where it started queues nothing. ⌥↑/⌥↓ (⌥←/⌥→ in the tab bar and header) run the move verbs on the selection. A layout with no related lists shows a placeholder card in Draft that takes **Add related list…**. Not yet: empty columns as drop targets, auto-scroll while dragging, dragging across tab-bar pages.
 4. **Polish & breadth**: list views, component props sheet, ⌘Z wired to the tray, multi-select, before/after split view, "Make a copy just for this profile".
 
 ## Phase 3 design

@@ -330,6 +330,19 @@
   white-space: nowrap;
 }
 
+/* Edit mode's Draft only: a dashed card standing in for a layout with no related lists. */
+.studio-ipad-rec-card.related.studio-ipad-rec-rl-placeholder {
+  border: 2px dashed #c9c9c9;
+  box-shadow: none;
+  background: transparent;
+}
+
+.studio-ipad-rec-rl-hint {
+  font-size: 15px;
+  line-height: 20px;
+  color: #747474;
+}
+
 /* Table: 44pt header row (37pt button at +7), 44pt rows, text inset 16. */
 .studio-ipad-rec-table {
   position: relative;

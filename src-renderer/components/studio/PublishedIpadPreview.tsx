@@ -172,7 +172,12 @@ function Device({
           label: t.label,
           title: t.fullName,
           className: state === "removed" ? " ghost" : state === "added" || state === "moved" ? " pending" : "",
-          attrs: editAttrs(editing, { kind: "tab", fullName: t.fullName, label: t.label, index }, true),
+          attrs: editAttrs(
+            editing,
+            { kind: "tab", fullName: t.fullName, label: t.label, index },
+            true,
+            edit?.draft ? { family: "tabs", id: t.fullName, ghost: state === "removed", horizontal: true } : undefined
+          ),
         };
       });
   }, [allTabs, edit?.draft, edit?.tabs, editing]);
@@ -229,7 +234,7 @@ function Device({
         </button>
       </div>
 
-      <EditSurface on={editing} selected={edit?.selected ?? null} onSelect={edit?.onSelect ?? (() => {})} verbs={edit?.verbs ?? []} onRun={edit?.onRun ?? (() => {})} setup={edit?.setup} onSetup={edit?.onSetup} horizontal={edit?.horizontal}>
+      <EditSurface on={editing} selected={edit?.selected ?? null} onSelect={edit?.onSelect ?? (() => {})} verbs={edit?.verbs ?? []} onRun={edit?.onRun ?? (() => {})} setup={edit?.setup} onSetup={edit?.onSetup} horizontal={edit?.horizontal} onDrop={edit?.onDrop}>
       <LayoutEdits.Provider value={layoutEdits}>
       <IpadScreen label={edit?.draft ? "iPad preview (draft)" : "iPad preview (published)"}>
         <IpadStatusBar />

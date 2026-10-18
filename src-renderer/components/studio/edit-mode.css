@@ -95,6 +95,89 @@
   flex: none;
 }
 
+/* Dragging in Draft: the block lifts, a line marks where it would go, and a drop pulses (or nudges when refused). */
+
+.studio-edit-surface {
+  /* Draft's "pending" purple, as the iPad draws queued changes (record.css). */
+  --edit-pending: #9050e9;
+}
+
+.studio-edit-surface.draft [data-edit-drag]:not([data-edit-ghost]) {
+  cursor: grab;
+  user-select: none;
+}
+
+.studio-edit-surface.dragging,
+.studio-edit-surface.dragging [data-edit-key] {
+  cursor: grabbing;
+}
+
+.studio-edit-ring.lifted {
+  border-style: dashed;
+  box-shadow: none;
+  opacity: 0.6;
+}
+
+.studio-edit-lift {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-xs);
+  background: var(--accent-subtle);
+  box-shadow: var(--shadow-popover);
+  scale: 1.02;
+}
+
+.studio-edit-insert {
+  position: absolute;
+  border-radius: 2px;
+  background: var(--edit-pending);
+  box-shadow: 0 0 0 2px var(--bg-elevated);
+}
+
+.studio-edit-ring.dropped {
+  animation: studio-edit-pulse 0.6s var(--ease-out);
+}
+
+.studio-edit-ring.refused {
+  animation: studio-edit-nudge 0.3s var(--ease-out);
+}
+
+@keyframes studio-edit-pulse {
+  0% {
+    border-color: var(--edit-pending);
+    box-shadow: 0 0 0 0 var(--edit-pending);
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+@keyframes studio-edit-nudge {
+  25% {
+    translate: -4px 0;
+  }
+  75% {
+    translate: 4px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-edit-lift {
+    scale: none;
+  }
+
+  .studio-edit-ring {
+    transition: none;
+  }
+
+  .studio-edit-ring.dropped,
+  .studio-edit-ring.refused {
+    animation: none;
+    border-color: var(--edit-pending);
+  }
+}
+
 /* The inspector beside the preview in edit mode: What / Why / How. */
 
 .studio-block-section .ui-section-title {

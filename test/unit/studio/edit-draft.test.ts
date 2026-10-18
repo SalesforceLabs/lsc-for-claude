@@ -4,6 +4,8 @@ import {
   draftHomeMenu,
   draftTabs,
   effectiveField,
+  moveActionTo,
+  moveTabTo,
   tabVerbs,
 } from "../../../src-renderer/components/studio/edit-draft.js";
 import { activeChange, queueChange, type PendingChange } from "../../../src-renderer/components/studio/changes.js";
@@ -188,5 +190,46 @@ describe("draft Home menu", () => {
   it("leaves out quick actions Home doesn't show", () => {
     const other = quickAction("Log_Call", "LogACall", 0);
     expect(draftHomeMenu(fabs, [...actions, other], [], REP).map((d) => d.value.name)).toEqual(["NewVisit", "Email"]);
+  });
+});
+
+describe("drops in the tab bar and the Home menu", () => {
+  const P: PendingChange[] = [];
+  const bar3 = [...published, tab("Inbox")];
+  const items3 = [...items, tabItem("TAB_Inbox", "Inbox", 30)];
+  const names = (pending: PendingChange[]) => draftTabs(bar3, items3, pending, REP).map((d) => d.tab.fullName);
+
+  it("queues nothing for a drop where the tab already is", () => {
+    expect(moveTabTo(bar3, items3, REP, "Account", "Calendar", P)).toBe(P);
+    expect(moveTabTo(bar3, items3, REP, "Account", "Account", P)).toBe(P);
+    expect(moveTabTo(bar3, items3, REP, "Inbox", null, P)).toBe(P);
+  });
+
+  it("queues the swaps Move left would, one place at a time, and dropping it back leaves nothing", () => {
+    const dropped = moveTabTo(bar3, items3, REP, "Inbox", "Account", P);
+    const once = run(P, tabVerbs(draftTabs(bar3, items3, P, REP), 3, P, REP), "up");
+    const twice = run(once, tabVerbs(draftTabs(bar3, items3, once, REP), 2, once, REP), "up");
+    expect(dropped).toEqual(twice);
+    expect(names(dropped)).toEqual(["standard-home", "Inbox", "Account", "Calendar"]);
+    expect(moveTabTo(bar3, items3, REP, "Inbox", null, dropped)).toEqual([]);
+  });
+
+  it("stops at a Lightning app tab, which keeps its slot", () => {
+    const dropped = moveTabTo(bar3, items3, REP, "Calendar", "standard-home", P);
+    expect(names(dropped)).toEqual(["standard-home", "Calendar", "Account", "Inbox"]);
+    expect(moveTabTo(bar3, items3, REP, "standard-home", null, P)).toBe(P);
+  });
+
+  it("moves a quick action as Move up / down would", () => {
+    const actions = [quickAction("New_Visit", "NewVisit", 1), quickAction("Email", "Email", 2)];
+    const fabs = [
+      { name: "NewVisit", label: "New Visit" },
+      { name: "Email", label: "Email" },
+    ];
+    expect(moveActionTo(fabs, actions, REP, "NewVisit", "Email", P)).toBe(P);
+    const dropped = moveActionTo(fabs, actions, REP, "NewVisit", null, P);
+    expect(dropped).toEqual(run(P, actionVerbs(draftHomeMenu(fabs, actions, P, REP), 0, P, REP), "down"));
+    expect(draftHomeMenu(fabs, actions, dropped, REP).map((d) => d.value.name)).toEqual(["Email", "NewVisit"]);
+    expect(moveActionTo(fabs, actions, REP, "NewVisit", "Email", dropped)).toEqual([]);
   });
 });
