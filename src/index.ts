@@ -35,6 +35,10 @@ import { register as registerStudio } from "./tools/studio.js";
 import { register as registerPerf } from "./tools/perf.js";
 import { register as registerPerfSimulate } from "./tools/perf-simulate.js";
 
+// A FORCE_COLOR inherited from the user's terminal makes `sf ... --json`
+// colour its JSON, which then fails to parse. Every sf call inherits this env.
+delete process.env.FORCE_COLOR;
+
 // Create the MCP server
 const server = new McpServer({
   name: "LSC-for-Claude",
