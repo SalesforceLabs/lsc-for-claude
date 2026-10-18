@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useContext, useMemo, useRef, useState } from "react";
 import { CloudOff, RotateCw } from "lucide-react";
 import StateView from "../ui/StateView";
 import type {
@@ -28,8 +28,8 @@ import { presentationFor, type Presentation } from "./ipad-fab-actions";
 import { CustomIcon } from "./assets/icons";
 import { findDeepLinkTab, findRecordId, isDeepLink, parseDeepLink } from "./deep-link";
 import { EditSurface, editAttrs, Mark, useEditOn, type EditSurfaceProps } from "./EditLayer";
-import type { DraftAction, DraftTab } from "./edit-draft";
-import type { CompactEntry, LayoutEntry, PageEntry } from "./usePreviewEdit";
+import type { DraftAction, DraftState, DraftTab } from "./edit-draft";
+import type { CompactEntry, LayoutEntry, ListViewEntry, PageEntry } from "./usePreviewEdit";
 import { draftComponents, draftRecordTabs, sourceKey } from "./flexipage-draft";
 import {
   ActivityPlanProgress,
@@ -58,6 +58,8 @@ export interface PreviewEdit extends Omit<EditSurfaceProps, "children"> {
   layouts: Record<string, LayoutEntry>;
   /** Compact layouts (record headers) read from the org, by `Object.Name`. */
   compacts: Record<string, CompactEntry>;
+  /** List views read from the org, by `Object.Name`. */
+  listViews: Record<string, ListViewEntry>;
   /** Lightning pages (Home and record pages) read from the org, by developer name. */
   pages: Record<string, PageEntry>;
 }
@@ -189,8 +191,8 @@ function Device({
       });
   }, [allTabs, edit?.draft, edit?.tabs, editing]);
   const layoutEdits = useMemo(
-    () => (edit?.on ? { draft: edit.draft, layouts: edit.layouts, compacts: edit.compacts, pages: edit.pages } : null),
-    [edit?.on, edit?.draft, edit?.layouts, edit?.compacts, edit?.pages]
+    () => (edit?.on ? { draft: edit.draft, layouts: edit.layouts, compacts: edit.compacts, listViews: edit.listViews, pages: edit.pages } : null),
+    [edit?.on, edit?.draft, edit?.layouts, edit?.compacts, edit?.listViews, edit?.pages]
   );
   // Before / after: the published side follows the Draft side's tab, record and scrolling, and isn't selectable.
   const publishedTabs = useMemo<ChromeTab[]>(
@@ -763,6 +765,7 @@ function ListView({
   onNew: (label: string, objectName: string) => void;
 }) {
   const editing = useEditOn();
+  const edits = useContext(LayoutEdits);
   const [viewName, setViewName] = useState(object.defaultListView);
   const [query, setQuery] = useState("");
   const [cards, setCards] = useState(() => cardModeFor(object.name));
@@ -821,7 +824,23 @@ function ListView({
           if (cards && shown) {
             return <CardList rows={shown.rows} onOpen={onOpenRecord} actions={cardActions} onAction={onAction} links={(view.query?.fields ?? []).map((f) => f?.type === "lookup" || f?.type === "formula")} />;
           }
-          return <DataTable columns={view.columns.map(columnLabel)} data={shown} onOpenRecord={onOpenRecord} />;
+          // A column is selectable once the view says which field it is (its source); Draft lays the tray's column edits over it.
+          const fullName = view.source?.fullName;
+          const entry = fullName && edits?.draft ? edits.listViews?.[fullName] : undefined;
+          const spec = (id: string, label: string, state?: DraftState): TableCol["attrs"] =>
+            editing && fullName && id
+              ? editAttrs(
+                  true,
+                  { kind: "listColumn", object: object.name, listView: fullName, viewLabel: view.label, column: id, label, added: state === "added" },
+                  false,
+                  edits?.draft ? { family: `listcols:${fullName}`, id, ghost: state === "removed", horizontal: true } : undefined
+                )
+              : undefined;
+          const cols: TableCol[] =
+            entry?.status === "ready"
+              ? entry.columns.map((c) => ({ label: columnLabel(c.label), orig: c.orig, state: c.state, attrs: spec(c.id, columnLabel(c.label), c.state) }))
+              : view.columns.map((c, i) => ({ label: columnLabel(c), orig: i, attrs: spec(view.source?.columns[i] ?? "", columnLabel(c)) }));
+          return <DataTable columns={cols} data={shown} onOpenRecord={onOpenRecord} />;
         })()}
     </div>
   );
@@ -840,23 +859,31 @@ function ListCount({ count }: { count: number }) {
   return <span className={`studio-ipad-lv-count${count < 10 ? " single" : ""}`}>{count}</span>;
 }
 
-function DataTable({ columns, data, onOpenRecord }: { columns: string[]; data?: PublishedListData; onOpenRecord: (id: string) => void }) {
+/** A column as drawn: `orig` is its place in the published rows' cells (null: added in Draft, nothing to show yet). */
+interface TableCol {
+  label: string;
+  orig: number | null;
+  state?: DraftState;
+  attrs?: Record<string, string>;
+}
+
+function DataTable({ columns, data, onOpenRecord }: { columns: TableCol[]; data?: PublishedListData; onOpenRecord: (id: string) => void }) {
   const width = `max(250px, calc(100% / ${Math.max(columns.length, 1)}))`;
   return (
     <div className="studio-ipad-table">
       <div className="studio-ipad-table-row head">
         {columns.map((c, i) => (
-          <span key={i} className={`studio-ipad-table-cell${i === 0 ? " sorted" : ""}`} style={{ width, flex: "none" }}>
-            {c}
+          <span key={i} className={`studio-ipad-table-cell${i === 0 ? " sorted" : ""}${draftClass(c.state)}`} style={{ width, flex: "none" }} {...c.attrs}>
+            {c.label}
             {i === 0 && <span className="studio-ipad-sort" aria-label="Sorted ascending">↑</span>}
           </span>
         ))}
       </div>
       {data?.rows.map((row) => (
         <button key={row.id} type="button" className="studio-ipad-table-row" onClick={() => onOpenRecord(row.id)}>
-          {columns.map((_, i) => (
-            <span key={i} className="studio-ipad-table-cell value" style={{ width, flex: "none" }}>
-              {row.cells[i]}
+          {columns.map((c, i) => (
+            <span key={i} className={`studio-ipad-table-cell value${draftClass(c.state)}`} style={{ width, flex: "none" }}>
+              {c.orig === null ? null : row.cells[c.orig]}
             </span>
           ))}
         </button>

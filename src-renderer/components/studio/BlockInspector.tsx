@@ -69,6 +69,7 @@ export default function BlockInspector({
   onRetryLayout,
   properties,
   onProperty,
+  extra,
   sync,
   onSync,
   onSetup,
@@ -90,6 +91,8 @@ export default function BlockInspector({
   /** Lightning page properties the block's inspector can set (a tab's title, an inline LWC's height). */
   properties?: PropertyEdit[];
   onProperty?: (edit: PropertyEdit, value: string) => void;
+  /** Editors only this kind of block has (a list view's filters). */
+  extra?: React.ReactNode;
   /** Shown when the block's records aren't synced to this profile's iPad. */
   sync: SyncAction | null;
   onSync: () => void;
@@ -235,6 +238,7 @@ export default function BlockInspector({
               ))}
             </div>
           )}
+          {extra}
           {(layout?.profiles || layout?.reach || info.reach) && (
             <p className="studio-block-reach">
               <UsersRound size={14} aria-hidden />
@@ -340,4 +344,24 @@ export function compactReach(recordTypes: string[]): string {
   const more = recordTypes.length > 4 ? ` and ${recordTypes.length - 4} more` : "";
   const n = recordTypes.length === 1 ? "1 record type" : `${recordTypes.length} record types`;
   return `The compact layout for ${n} (${shown}${more}), for every profile. A change reaches them all.`;
+}
+
+const SHARED_KINDS: Record<string, string> = {
+  allInternalUsers: "all internal users",
+  allPartnerUsers: "all partner users",
+  group: "group",
+  role: "role",
+  roleAndSubordinates: "role and subordinates",
+  roleAndSubordinatesInternal: "role and subordinates",
+  territory: "territory",
+  territoryAndSubordinates: "territory and subordinates",
+};
+
+/** Who sees a list view, from its `sharedTo` (null: no sharing set, so every user). */
+export function listViewReach(sharedTo: { kind: string; name: string }[] | null): string {
+  if (!sharedTo) return "Shared with all users. A change reaches them all.";
+  if (!sharedTo.length) return "Not shared with anyone but its owner.";
+  const shown = sharedTo.slice(0, 4).map((s) => (s.name ? `${SHARED_KINDS[s.kind] ?? s.kind} ${s.name}` : (SHARED_KINDS[s.kind] ?? s.kind)));
+  const more = sharedTo.length > 4 ? ` and ${sharedTo.length - 4} more` : "";
+  return `Shared with ${shown.join(", ")}${more}. A change reaches everyone it is shared with.`;
 }
