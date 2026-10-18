@@ -345,8 +345,23 @@ describe("editMetadata (page layouts)", () => {
   });
 
   it("reads the live layout's structure, the profiles using it and whether the org is production", async () => {
+    vi.mocked(cli.cachedDescribeSObject).mockResolvedValue({
+      success: true,
+      data: {
+        name: "Account",
+        label: "Account",
+        fields: [
+          { name: "Name", label: "Name", type: "string", required: true, updateable: true, createable: true },
+          { name: "Tier__c", label: "Tier", type: "picklist", required: false, updateable: true, createable: true },
+        ],
+        childRelationships: [{ childSObject: "Opportunity", relationshipName: "Opportunities", field: "AccountId" }],
+      },
+    });
     const { readLiveLayout } = await import("../../../src/studio/metadata/live.js");
     const live = await readLiveLayout(doc.fullName, "org");
+    expect(cli.cachedDescribeSObject).toHaveBeenCalledWith("Account", "org");
+    expect(live.available).toEqual([{ field: "Tier__c", label: "Tier", type: "picklist" }]);
+    expect(live.availableRelated).toEqual([{ relatedList: "Opportunities", object: "Opportunity" }]);
     expect(live.sections.map((s) => [s.label, s.nth, s.heading, s.columns.map((c) => c.length)])).toEqual([
       ["Account Information", 0, true, [3, 2]],
       ["Additional Information", 0, true, [2, 0]],
