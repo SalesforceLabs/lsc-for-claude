@@ -811,6 +811,10 @@ export default function SimulateView() {
   const selected = selectedLogin ?? connections.find((c) => connectionRef(c) === connection);
   const isCli = !!connection && !selectedLogin && !mobileLoginId(connection);
   const runnable = selectedLogin?.status === "signedIn" || (isCli && !!selected);
+  // Who the running simulation is for: the job reports a username; show the test user's name when it's one of theirs.
+  const jobLogin = job && mobileLogins.find((l) => l.username.toLowerCase() === job.connection.toLowerCase());
+  const selectedName = selectedLogin ? testUserName(selectedLogin) : selected ? connectionLabel(selected as SfConnection) : connection;
+  const runningAs = jobLogin ? testUserName(jobLogin) : job?.connection ?? selectedName;
   const progress = job?.tables;
   const pct = progress && progress.total > 0 ? Math.min(100, Math.round((progress.done / progress.total) * 100)) : null;
 
@@ -829,7 +833,7 @@ export default function SimulateView() {
                   {lost ? "Lost contact" : "Running"} · {job ? elapsed(job.startedAt) : "starting"}
                 </span>
               </span>
-              <span className="studio-perf-run-meta">{job?.connection ?? connection}</span>
+              <span className="studio-perf-run-meta">{runningAs}</span>
             </span>
           </div>
         )}
@@ -875,7 +879,7 @@ export default function SimulateView() {
               disabled={running || !runnable}
               title={
                 runnable
-                  ? `Simulate a first sync as ${selectedLogin ? testUserName(selectedLogin) : connection}`
+                  ? `Simulate a first sync as ${selectedName}`
                   : selectedLogin
                   ? `${testUserName(selectedLogin)}'s login expired — sign in again first`
                   : "Choose a test user first"
@@ -894,7 +898,7 @@ export default function SimulateView() {
               busy={!lost}
               className="studio-perf-progress"
               role="status"
-              title={lost ? "Lost contact with the simulation" : `Simulating a first sync as ${job?.connection ?? connection}`}
+              title={lost ? "Lost contact with the simulation" : `Simulating a first sync as ${runningAs}`}
               actions={
                 <>
                   {lost && (
