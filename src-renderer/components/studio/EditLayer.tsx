@@ -13,6 +13,7 @@ import {
   Columns2,
   Heading,
   Lock,
+  Plus,
   Undo2,
   ArrowDown,
   ArrowLeft,
@@ -24,6 +25,10 @@ import {
   Power,
   PowerOff,
   Trash2,
+  ListPlus,
+  TextCursorInput,
+  SquarePlus,
+  Star,
   type LucideIcon,
 } from "lucide-react";
 import { targetKey, targetTag, type EditTarget } from "./edit-targets";
@@ -100,10 +105,14 @@ const VERB_ICONS: Record<VerbId, LucideIcon> = {
   heading: Heading,
   required: Asterisk,
   readonly: Lock,
+  addField: TextCursorInput,
+  addRelated: ListPlus,
+  default: Star,
+  insertComponent: SquarePlus,
 };
 
 /** Toolbar words; the full sentence ("Hide for LS Rep") is the button's tooltip and stays in the inspector. */
-const TOOLBAR_LABELS: Partial<Record<VerbId, string>> = { hide: "Hide", show: "Show" };
+const TOOLBAR_LABELS: Partial<Record<VerbId, string>> = { hide: "Hide", show: "Show", addField: "Add field", addRelated: "Add list", insertComponent: "Insert" };
 /** Verbs the toolbar draws as an icon alone; their tooltip says what they do. */
 const ICON_ONLY = new Set<VerbId>(["up", "down", "column", "heading", "required", "readonly"]);
 
@@ -117,7 +126,7 @@ export interface EditSurfaceProps {
   /** "Open in Setup" for blocks Studio can't change itself. */
   setup?: { label: string } | null;
   onSetup?: () => void;
-  /** Tab moves left / right rather than up / down. */
+  /** Tab and header field moves go left / right rather than up / down. */
   horizontal?: boolean;
   children: React.ReactNode;
 }
@@ -342,8 +351,8 @@ function Toolbar({
             key={v.id}
             type="button"
             className={iconOnly ? "ui-icon-btn" : "studio-btn ghost sm"}
-            disabled={!v.run}
-            title={v.run ? v.title : v.reason}
+            disabled={!v.run && !v.pick}
+            title={v.run || v.pick ? v.title : v.reason}
             aria-label={v.label}
             onClick={() => onRun(v)}
           >

@@ -1,5 +1,5 @@
 import type { PublishedLayout, PublishedRelated, RecordFieldSpec } from "./published-types";
-import type { EditMetadataFix, FieldBehavior, LayoutOp, LiveLayout, SectionRef } from "./types";
+import type { FieldBehavior, LayoutEditFix, LayoutFieldOption, LayoutOp, LiveLayout, SectionRef } from "./types";
 import { layoutOpsChange, pendingFor, queuedLayoutOps, queueChange, type PendingChange } from "./changes";
 import type { DraftState, Verb } from "./edit-draft";
 
@@ -324,9 +324,12 @@ export function draftSections(
   published: PublishedLayout,
   live: LayoutModel,
   target: LayoutModel,
-  aligned: number[]
+  aligned: number[],
+  available: LayoutFieldOption[] | null = null
 ): DraftSection[] {
   const specs = specsByItem(published);
+  // A field added in Draft was never published: it's drawn from the object's describe.
+  for (const f of available ?? []) if (!specs.has(f.field)) specs.set(f.field, [{ name: f.field, label: f.label, type: f.type }]);
   const pubByKey = new Map(aligned.map((key, i) => [key, published.sections[i]]));
   const where = (m: LayoutModel, field: string) => {
     const at = locate(m, field);
@@ -378,6 +381,23 @@ export function draftSections(
   });
 }
 
+/**
+ * Related lists added in Draft, which the published record has no card for:
+ * empty cards for `draftRelated` to place, labelled by `labelOf` (the child object).
+ */
+export function addedRelated(d: LayoutDraft, related: PublishedRelated[], labelOf: (object: string) => string): PublishedRelated[] {
+  return d.target.relatedLists.flatMap((name) => {
+    if (d.base.relatedLists.includes(name) || related.some((r) => r.api === name)) return [];
+    const object = relatedObject(d, name);
+    return [{ key: `added:${name}`, api: name, label: labelOf(object), object, count: 0, columns: [], rows: [] }];
+  });
+}
+
+/** The child object of a related list that could be added. */
+export function relatedObject(d: LayoutDraft, name: string): string {
+  return d.live.availableRelated?.find((r) => r.relatedList === name)?.object ?? name.split(".")[0];
+}
+
 /** Related lists in Draft order, with removed ones as ghosts; lists the layout doesn't name keep their place after them. */
 export function draftRelated(related: PublishedRelated[], live: LayoutModel, target: LayoutModel): { related: PublishedRelated; state: DraftState }[] {
   const named = related.filter((r) => live.relatedLists.includes(r.api) || target.relatedLists.includes(r.api));
@@ -412,20 +432,23 @@ export interface LayoutDraft {
   shownRelated: string[];
 }
 
-export function layoutFix(fullName: string, label: string, ops: LayoutOp[]): EditMetadataFix {
-  return layoutOpsChange(fullName, label, ops) as EditMetadataFix;
+export function layoutFix(fullName: string, label: string, ops: LayoutOp[]): LayoutEditFix {
+  return layoutOpsChange(fullName, label, ops) as LayoutEditFix;
 }
 
 /** The layout's target once the tray is applied; throws `StaleDraftError` when the queued ops don't fit the org's layout. */
 export function targetOf(fullName: string, base: LayoutModel, pending: PendingChange[]): LayoutModel {
   const queued = pendingFor(pending, layoutFix(fullName, "", []))?.fix;
-  return queued?.kind === "editMetadata" ? applyOps(base, queued.ops as LayoutOp[]) : clone(base);
+  return queued?.kind === "editMetadata" && queued.doc.type === "Layout" ? applyOps(base, queued.ops as LayoutOp[]) : clone(base);
 }
 
 /** The tray with this layout arranged as `next` (its change dropped when that's the org's layout). */
 function arrange(d: LayoutDraft, next: LayoutModel, pending: PendingChange[]): PendingChange[] {
   // A related list added from the board keeps its object, for the DB Schema check.
-  const objects = new Map(queuedLayoutOps(pending, d.fullName).flatMap((o) => (o.op === "addRelatedList" && o.object ? [[o.relatedList, o.object]] : [])));
+  const objects = new Map([
+    ...(d.live.availableRelated ?? []).map((r): [string, string] => [r.relatedList, r.object]),
+    ...queuedLayoutOps(pending, d.fullName).flatMap((o): [string, string][] => (o.op === "addRelatedList" && o.object ? [[o.relatedList, o.object]] : [])),
+  ]);
   const ops = diffOps(d.base, next).map((o) => (o.op === "addRelatedList" && objects.has(o.relatedList) ? { ...o, object: objects.get(o.relatedList) } : o));
   const fix = layoutFix(d.fullName, d.label, ops);
   const without = pending.filter((p) => !(p.fix.kind === "editMetadata" && p.fix.doc.fullName === d.fullName));
@@ -477,10 +500,92 @@ export function sectionVerbs(d: LayoutDraft, key: number): Verb[] {
     verb(d, "heading", sec.heading ? "Hide heading" : "Show heading", `${sec.heading ? "Hide" : "Show"} the heading of ${name}`, (m) => {
       sectionByKey(m, key)!.heading = !sec.heading;
     }),
+    addFieldVerb(d, key, name),
     verb(d, "remove", "Remove", `Take ${name} and its fields off the layout`, (m) => {
       m.sections = m.sections.filter((s) => s.key !== key);
     }),
   ];
+}
+
+const TYPE_WORDS: Record<string, string> = {
+  string: "Text",
+  textarea: "Text area",
+  picklist: "Picklist",
+  multipicklist: "Multi-select picklist",
+  reference: "Lookup",
+  boolean: "Checkbox",
+  date: "Date",
+  datetime: "Date/time",
+  double: "Number",
+  int: "Number",
+  currency: "Currency",
+  percent: "Percent",
+  phone: "Phone",
+  email: "Email",
+  url: "URL",
+  address: "Address",
+};
+
+/** "Add field…": a field the object has but the layout doesn't, at the end of the section's first column. */
+function addFieldVerb(d: LayoutDraft, key: number, name: string): Verb {
+  const sec = sectionByKey(d.target, key)!;
+  const title = `Add a field to ${name}, at the end of its first column`;
+  if (!d.live.available) return { id: "addField", label: "Add field…", title, reason: "Couldn't read the object's fields from the org" };
+  if (!sec.columns.length) return { id: "addField", label: "Add field…", title, reason: "The section has no columns" };
+  const options = d.live.available
+    .filter((f) => !locate(d.target, f.field))
+    .map((f) => ({ value: f.field, label: f.label, detail: `${f.field} · ${TYPE_WORDS[f.type] ?? f.type}` }));
+  return {
+    id: "addField",
+    label: "Add field…",
+    title,
+    pick: {
+      title: `Add a field to ${name}`,
+      description: "Fields of the object that aren't on this layout. The field goes at the end of the section's first column, editable; move it or change it from there.",
+      placeholder: "Search fields",
+      empty: "Every field the object has is already on this layout.",
+      options,
+      run: (field, pending) => {
+        const next = clone(d.target);
+        sectionByKey(next, key)!.columns[0].push({ field, behavior: "Edit" });
+        return arrange(d, next, pending);
+      },
+    },
+  };
+}
+
+/**
+ * "Add related list…": a child relationship the layout doesn't list, right after
+ * `after` (or last). `notSynced` marks children the profile's iPad has no table for.
+ */
+export function addRelatedVerb(d: LayoutDraft, after: string | null, notSynced: (object: string) => boolean = () => false): Verb {
+  const title = after ? "Add a related list after this one" : "Add a related list to the layout";
+  if (!d.live.availableRelated) return { id: "addRelated", label: "Add related list…", title, reason: "Couldn't read the object's child relationships from the org" };
+  const options = d.live.availableRelated
+    .filter((r) => !d.target.relatedLists.includes(r.relatedList) && !d.base.relatedLists.includes(r.relatedList))
+    .map((r) => ({
+      value: r.relatedList,
+      label: r.object,
+      detail: [r.relatedList !== r.object ? r.relatedList : "", notSynced(r.object) ? "not synced to this iPad" : ""].filter(Boolean).join(" · ") || undefined,
+    }));
+  return {
+    id: "addRelated",
+    label: "Add related list…",
+    title,
+    pick: {
+      title: "Add a related list",
+      description: "Child objects that aren't on this layout. On the iPad a related list only shows records the profile syncs.",
+      placeholder: "Search objects",
+      empty: "Every child relationship is already on this layout.",
+      options,
+      run: (name, pending) => {
+        const next = clone(d.target);
+        const at = after ? next.relatedLists.indexOf(after) : -1;
+        next.relatedLists.splice(at < 0 ? next.relatedLists.length : at + 1, 0, name);
+        return arrange(d, next, pending);
+      },
+    },
+  };
 }
 
 export function fieldVerbs(d: LayoutDraft, field: string, label: string, shownFields: string[]): Verb[] {
@@ -544,7 +649,7 @@ export function fieldVerbs(d: LayoutDraft, field: string, label: string, shownFi
   ];
 }
 
-export function relatedVerbs(d: LayoutDraft, name: string, label: string): Verb[] {
+export function relatedVerbs(d: LayoutDraft, name: string, label: string, notSynced?: (object: string) => boolean): Verb[] {
   if (!d.target.relatedLists.includes(name)) {
     if (!d.base.relatedLists.includes(name)) return [];
     return [
@@ -564,5 +669,6 @@ export function relatedVerbs(d: LayoutDraft, name: string, label: string): Verb[
     verb(d, "remove", "Remove", `Take ${label} off the layout`, (m) => {
       m.relatedLists = m.relatedLists.filter((r) => r !== name);
     }),
+    addRelatedVerb(d, name, notSynced),
   ];
 }

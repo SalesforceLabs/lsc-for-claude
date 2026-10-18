@@ -103,9 +103,15 @@ export type LayoutOp =
   | { op: "removeRelatedList"; relatedList: string }
   | { op: "addRelatedList"; relatedList: string; before: string | null; xml?: string; object?: string };
 
+/** One edit to a compact layout's fields (the record header). `before` is the field it goes in front of, or null for the end. */
+export type CompactOp =
+  | { op: "moveCompactField"; field: string; before: string | null }
+  | { op: "removeCompactField"; field: string }
+  | { op: "addCompactField"; field: string; before: string | null };
+
 export interface MetadataDocRef {
-  type: "Layout" | "FlexiPage";
-  /** Metadata API name, e.g. "Account-Account Layout" or a Lightning page's developer name. */
+  type: "Layout" | "CompactLayout" | "FlexiPage";
+  /** Metadata API name, e.g. "Account-Account Layout", "Account.LSC_Account_Compact" or a Lightning page's developer name. */
   fullName: string;
   label: string;
 }
@@ -142,7 +148,7 @@ export type FlexiPageOp =
     }
   | { op: "setComponentProperty"; component: FlexiComponentRef; property: FlexiPageProperty; from: string | null; to: string | null };
 
-export type MetadataOp = LayoutOp | FlexiPageOp;
+export type MetadataOp = LayoutOp | CompactOp | FlexiPageOp;
 
 /** A Lightning page item as it is in the org now. */
 export interface LiveFlexiItem {
@@ -198,18 +204,65 @@ export interface LiveLayout {
   /** Profiles assigned the layout; null when that couldn't be read. */
   profiles: string[] | null;
   production: boolean;
+  /** The object's fields the layout could show but doesn't (readable; no system fields or compound parts), by label; null when the object couldn't be described. */
+  available: LayoutFieldOption[] | null;
+  /** Related lists the layout could show but doesn't: the object's child relationships; null when the object couldn't be described. */
+  availableRelated: RelatedListOption[] | null;
+}
+
+export interface LayoutFieldOption {
+  field: string;
+  label: string;
+  /** The describe type, e.g. "string", "picklist", "reference". */
+  type: string;
+}
+
+export interface RelatedListOption {
+  /** The name the layout's XML uses: the relationship name, or Child.Field for custom children and lookups. */
+  relatedList: string;
+  /** The child object. */
+  object: string;
 }
 
 /**
  * Edits to one metadata document, deployed together. Each op is checked against
  * the document as retrieved; undo is the reversed inverse ops.
  */
-export interface EditMetadataFix {
+export type EditMetadataFix = LayoutEditFix | CompactLayoutEditFix | FlexiPageEditFix;
+
+export interface LayoutEditFix {
   kind: "editMetadata";
   label: string;
-  doc: MetadataDocRef;
-  /** LayoutOps for a Layout, FlexiPageOps for a FlexiPage. */
-  ops: MetadataOp[];
+  doc: MetadataDocRef & { type: "Layout" };
+  ops: LayoutOp[];
+}
+
+export interface CompactLayoutEditFix {
+  kind: "editMetadata";
+  label: string;
+  doc: MetadataDocRef & { type: "CompactLayout" };
+  ops: CompactOp[];
+}
+
+export interface FlexiPageEditFix {
+  kind: "editMetadata";
+  label: string;
+  doc: MetadataDocRef & { type: "FlexiPage" };
+  ops: FlexiPageOp[];
+}
+
+/** A compact layout as it is in the org now, for lining the published record header up before editing. */
+export interface LiveCompactLayout {
+  type: "CompactLayout";
+  fullName: string;
+  label: string;
+  /** API names, in order. */
+  fields: string[];
+  /** Fields that can go on a compact layout, from the object's describe; empty when it couldn't be read. */
+  available: { name: string; label: string; type: string }[];
+  /** Record types assigned it ("Master" when it's the object's default); null when that couldn't be read. */
+  recordTypes: string[] | null;
+  production: boolean;
 }
 
 /** A field value on a new Admin Console record. `dataType` may be left out when it's known for the category or copied. */

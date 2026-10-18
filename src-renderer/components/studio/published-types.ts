@@ -147,6 +147,8 @@ export interface PublishedIpad {
   pages: Record<string, PublishedPage>;
   compactLayouts: Record<string, string[]>;
   compactFields?: Record<string, RecordFieldSpec[]>;
+  /** Each record header's compact layout (Metadata API name) and its fields' API names in order, the title's field included. */
+  compactSources?: Record<string, { fullName: string; fields: string[] }>;
   notes: string[];
   /** The user whose permission sets were merged in; null when the profile has no active users. */
   viewer: { userId: string; name: string; permissionSets: string[] } | null;

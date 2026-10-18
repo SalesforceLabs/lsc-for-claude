@@ -400,14 +400,33 @@ export type VerbId =
   | "column"
   | "heading"
   | "required"
-  | "readonly";
+  | "readonly"
+  | "addField"
+  | "addRelated"
+  | "default"
+  | "insertComponent";
 
-/** Something the toolbar offers. `run` returns the tray it leaves; absent when the verb is shown disabled, with `reason`. */
+/** A verb that asks which one first ("Add field…"): a search picker over `options`, and picking one runs it. */
+export interface VerbPick {
+  title: string;
+  description?: string;
+  placeholder: string;
+  /** Shown when there is nothing to pick. */
+  empty: string;
+  options: { value: string; label: string; detail?: string }[];
+  run: (value: string, pending: PendingChange[]) => PendingChange[];
+}
+
+/**
+ * Something the toolbar offers. `run` returns the tray it leaves; `pick` asks
+ * first; with neither the verb is shown disabled, with `reason`.
+ */
 export interface Verb {
   id: VerbId;
   label: string;
   title: string;
   run?: (pending: PendingChange[]) => PendingChange[];
+  pick?: VerbPick;
   reason?: string;
 }
 

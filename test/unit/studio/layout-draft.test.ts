@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { applyLayoutOps } from "../../../src/studio/metadata/layout-ops.js";
 import { childText, childrenNamed, parseXml, type XmlNode } from "../../../src/studio/metadata/xml.js";
 import {
+  addedRelated,
+  addRelatedVerb,
   alignLayout,
   applyOps,
   diffOps,
@@ -51,6 +53,14 @@ function liveOf(r: XmlNode): LiveLayout {
     relatedLists: childrenNamed(r, "relatedLists").map((l) => childText(l, "relatedList") ?? ""),
     profiles: ["LS Rep", "LS Manager"],
     production: false,
+    available: [
+      { field: "PersonEmail", label: "Email", type: "email" },
+      { field: "Specialty__c", label: "Specialty", type: "picklist" },
+    ],
+    availableRelated: [
+      { relatedList: "Opportunities", object: "Opportunity" },
+      { relatedList: "Sample_Request__c.Account__c", object: "Sample_Request__c" },
+    ],
   };
 }
 
@@ -161,6 +171,49 @@ describe("layout verbs", () => {
     const col = run(fieldVerbs(d, "Type", "Type", []), "column");
     expect(targetOf(FULL_NAME, base, col).sections[0].columns[1].at(-1)?.field).toBe("Type");
   });
+
+  const pick = (verbs: { id: string; pick?: { options: { value: string }[]; run: (v: string, p: PendingChange[]) => PendingChange[] } }[], id: string, value: string, pending: PendingChange[] = []) => {
+    const p = verbs.find((x) => x.id === id)?.pick;
+    expect(p?.options.map((o) => o.value)).toContain(value);
+    return p!.run(value, pending);
+  };
+
+  it("adds a field at the end of the section's first column, and the server deploys it", () => {
+    const added = pick(sectionVerbs(draftOf(), 0), "addField", "Specialty__c");
+    const fix = added[0].fix;
+    expect(fix).toMatchObject({ kind: "editMetadata", ops: [{ op: "addField", field: "Specialty__c", behavior: "Edit", to: { section: { label: "Account Information", nth: 0 }, column: 0, before: null } }] });
+    const target = targetOf(FULL_NAME, base, added);
+    expect(target.sections[0].columns[0].at(-1)).toEqual({ field: "Specialty__c", behavior: "Edit" });
+    deploysAs(target);
+    // Once added it isn't offered again, and taking it off leaves no change.
+    const again = sectionVerbs(draftOf(added), 0).find((v) => v.id === "addField")?.pick;
+    expect(again?.options.map((o) => o.value)).not.toContain("Specialty__c");
+    expect(run(fieldVerbs(draftOf(added), "Specialty__c", "Specialty", []), "remove", added)).toEqual([]);
+  });
+
+  it("can't add fields when the object couldn't be described", () => {
+    const d = { ...draftOf(), live: { ...live, available: null } };
+    const v = sectionVerbs(d, 0).find((x) => x.id === "addField");
+    expect(v?.pick).toBeUndefined();
+    expect(v?.reason).toMatch(/Couldn't read/);
+  });
+
+  it("adds a related list after the selected one, with its object for the DB Schema check", () => {
+    const [first, second] = base.relatedLists;
+    const added = pick(relatedVerbs(draftOf(), first, first), "addRelated", "Sample_Request__c.Account__c");
+    const target = targetOf(FULL_NAME, base, added);
+    expect(target.relatedLists.slice(0, 3)).toEqual([first, "Sample_Request__c.Account__c", second]);
+    const ops = (added[0].fix as { ops: { op: string; object?: string }[] }).ops;
+    expect(ops.find((o) => o.op === "addRelatedList")).toMatchObject({ relatedList: "Sample_Request__c.Account__c", object: "Sample_Request__c" });
+    deploysAs(target);
+    expect(addRelatedVerb(draftOf(added), null).pick?.options.map((o) => o.value)).toEqual(["Opportunities"]);
+  });
+
+  it("marks children the iPad doesn't sync", () => {
+    const options = addRelatedVerb(draftOf(), null, (o) => o === "Opportunity").pick!.options;
+    expect(options.find((o) => o.value === "Opportunities")?.detail).toMatch(/not synced/);
+    expect(options.find((o) => o.value === "Sample_Request__c.Account__c")?.detail).not.toMatch(/not synced/);
+  });
 });
 
 describe("drawing the draft", () => {
@@ -208,5 +261,22 @@ describe("drawing the draft", () => {
       `${b}:same`,
       "Other:same",
     ]);
+  });
+
+  it("draws an added field from the describe, as pending", () => {
+    const t = applyOps(base, [{ op: "addField", field: "PersonEmail", behavior: "Edit", to: { section: { label: "Account Information", nth: 0 }, column: 1, before: null } }]);
+    const [sec] = draftSections(published, base, t, [0], live.available);
+    expect(sec.columns[1].at(-1)).toMatchObject({ spec: { name: "PersonEmail", label: "Email", type: "email" }, item: "PersonEmail", state: "added" });
+  });
+
+  it("gives an added related list an empty card in its place", () => {
+    const [a] = base.relatedLists;
+    const pending = run(relatedVerbs(draftOf(), a, a), "remove");
+    const added = addRelatedVerb(draftOf(pending), null).pick!.run("Opportunities", pending);
+    const d = draftOf(added);
+    const rel = (api: string): PublishedRelated => ({ key: api, api, label: api, object: api, count: 0, columns: [], rows: [] });
+    const extra = addedRelated(d, [rel(a)], (o) => `${o}s`);
+    expect(extra).toEqual([{ key: "added:Opportunities", api: "Opportunities", label: "Opportunitys", object: "Opportunity", count: 0, columns: [], rows: [] }]);
+    expect(draftRelated([rel(a), ...extra], d.base, d.target).map((r) => `${r.related.api}:${r.state}`)).toEqual([`${a}:removed`, "Opportunities:added"]);
   });
 });

@@ -1,4 +1,4 @@
-import type { CreateConfigFix, FlexiPageOp, ItemEdit, LayoutOp, StudioFix, StudioItem } from "./types";
+import type { CompactOp, CreateConfigFix, FlexiPageOp, ItemEdit, LayoutOp, StudioFix, StudioItem } from "./types";
 
 /**
  * Pending changes — edits queued in Studio's tray until the admin reviews and
@@ -256,13 +256,13 @@ export function scriptChange(item: StudioItem, from: string, to: string): Studio
 /** The layout ops queued for a page layout. */
 export function queuedLayoutOps(pending: PendingChange[], layoutName: string): LayoutOp[] {
   const queued = pending.find((p) => p.fix.kind === "editMetadata" && p.fix.doc.type === "Layout" && p.fix.doc.fullName === layoutName)?.fix;
-  return queued?.kind === "editMetadata" ? (queued.ops as LayoutOp[]) : [];
+  return queued?.kind === "editMetadata" && queued.doc.type === "Layout" ? (queued.ops as LayoutOp[]) : [];
 }
 
 /** The ops queued for a Lightning page. */
 export function queuedFlexiPageOps(pending: PendingChange[], fullName: string): FlexiPageOp[] {
   const queued = pending.find((p) => p.fix.kind === "editMetadata" && p.fix.doc.type === "FlexiPage" && p.fix.doc.fullName === fullName)?.fix;
-  return queued?.kind === "editMetadata" ? (queued.ops as FlexiPageOp[]) : [];
+  return queued?.kind === "editMetadata" && queued.doc.type === "FlexiPage" ? (queued.ops as FlexiPageOp[]) : [];
 }
 
 /** A Lightning page change with these ops — what's queued for the page is replaced by it. */
@@ -273,6 +273,17 @@ export function flexiPageOpsChange(fullName: string, label: string, ops: FlexiPa
 /** A page layout change with these ops — what's queued for the layout is replaced by it. */
 export function layoutOpsChange(layoutName: string, layoutLabel: string, ops: LayoutOp[]): StudioFix {
   return { kind: "editMetadata", label: `Edit page layout ${layoutLabel}`, doc: { type: "Layout", fullName: layoutName, label: layoutLabel }, ops };
+}
+
+/** The compact layout ops queued for a record header. */
+export function queuedCompactOps(pending: PendingChange[], fullName: string): CompactOp[] {
+  const queued = pending.find((p) => p.fix.kind === "editMetadata" && p.fix.doc.type === "CompactLayout" && p.fix.doc.fullName === fullName)?.fix;
+  return queued?.kind === "editMetadata" && queued.doc.type === "CompactLayout" ? (queued.ops as CompactOp[]) : [];
+}
+
+/** A compact layout change with these ops — what's queued for the compact layout is replaced by it. */
+export function compactOpsChange(fullName: string, label: string, ops: CompactOp[]): StudioFix {
+  return { kind: "editMetadata", label: `Edit compact layout ${label}`, doc: { type: "CompactLayout", fullName, label }, ops };
 }
 
 /** The layout change with a related list added to or taken out of a Visit layout's engagement sidebar, on top of what's queued for the layout. */

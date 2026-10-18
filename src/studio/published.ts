@@ -195,6 +195,8 @@ export interface PublishedIpad {
   compactLayouts: Record<string, string[]>;
   /** The compact layouts' fields as the cache describes them, parallel to `compactLayouts`. */
   compactFields?: Record<string, RecordFieldSpec[]>;
+  /** Where each record header comes from, for edits made in the preview: the compact layout's Metadata API name and its fields' API names in order, the title's field included. */
+  compactSources?: Record<string, { fullName: string; fields: string[] }>;
   notes: string[];
   /** The user whose permission sets were merged in; null when the profile has no active users. */
   viewer: PublishedViewer | null;
@@ -1082,16 +1084,19 @@ export function buildSnapshot(
   const pages: Record<string, PublishedPage> = {};
   const compactLayouts: Record<string, string[]> = {};
   const compactFields: Record<string, RecordFieldSpec[]> = {};
+  const compactSources: Record<string, { fullName: string; fields: string[] }> = {};
   for (const name of previewObjects(tabs, files)) {
     const o = buildObject(name, obj(files.sobjects[name]), files.ui, profile);
     objects[name] = o;
     const compactNames = new Set([o.defaultCompactLayout, ...o.recordTypes.map((r) => r.compactLayout)].filter((x): x is string => !!x));
     for (const c of compactNames) {
       const cl = obj(compact[`${name}.${c}`] ?? compact[c]);
-      // SFComponentHighlightPanelView.filterCompactLayoutFields: the record name is the title, so its field isn't repeated.
+      // SFComponentHighlightPanelView.filterCompactLayoutFields: the record name is the title, so its field isn't repeated
+      // (an Account's Name by API name; elsewhere any field whose value is the title, which the record screen drops).
       const shown = arr(cl.fields).filter((f) => str(f.fullName).toLowerCase() !== "name");
       compactLayouts[`${name}.${c}`] = shown.map((f) => fieldLabel(files, name, f));
       compactFields[`${name}.${c}`] = shown.map((f) => recordFieldSpec(f, fieldLabel(files, name, f)));
+      compactSources[`${name}.${c}`] = { fullName: `${name}.${c}`, fields: arr(cl.fields).map((f) => str(f.fullName)).filter((f) => f) };
     }
     for (const rt of o.recordTypes) {
       const page = rt.flexiPage ? obj(flexiPages[rt.flexiPage]) : {};
@@ -1116,7 +1121,7 @@ export function buildSnapshot(
 
   const sync = Object.fromEntries(Object.entries(files.db).map(([table, entry]) => [table, str(obj(entry).WhereSoql).trim()]));
 
-  return { profile: meta.profile, cache: meta.cache, tabs, hiddenTabs: hidden, home, objects, layouts, pages, compactLayouts, compactFields, dashboards, notes, sync };
+  return { profile: meta.profile, cache: meta.cache, tabs, hiddenTabs: hidden, home, objects, layouts, pages, compactLayouts, compactFields, compactSources, dashboards, notes, sync };
 }
 
 /**

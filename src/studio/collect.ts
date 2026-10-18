@@ -11,6 +11,7 @@
 import { collectCategoryRecords } from "../config/collect.js";
 import { cachedDescribeSObject } from "../salesforce/cli.js";
 import { MAX_SIDEBAR_RELATED_LISTS, relatedListNames, retrieveLayoutXml } from "../salesforce/visit-layout.js";
+import { relatedListOptions } from "./metadata/live.js";
 import type { ConfigRecord } from "../config/types.js";
 import type { FeatureDefinition } from "./features.js";
 import type { FeatureMap, ItemDetail, DetailKind, LaneDef, ProfileOption, StudioFinding, StudioItem, StudioSurface, Lane } from "./types.js";
@@ -676,10 +677,9 @@ export async function collectItemDetail(kind: DetailKind, id: string, org: strin
       const layout = await retrieveLayoutXml(layoutName, org).catch(() => null);
       const relatedLists = layout?.ok ? relatedListNames(layout.xml) : null;
       const described = await cachedDescribeSObject(SIDEBAR_OBJECT, org);
-      const candidates = (described.data?.childRelationships ?? [])
-        .filter((c) => c.relationshipName && !(relatedLists ?? []).includes(c.relationshipName))
-        .map((c) => ({ objectName: c.childSObject, relationshipName: c.relationshipName! }))
-        .sort((a, b) => Number(b.objectName.endsWith("__c")) - Number(a.objectName.endsWith("__c")) || a.objectName.localeCompare(b.objectName));
+      const candidates = described.data
+        ? relatedListOptions(described.data, relatedLists ?? []).map((c) => ({ objectName: c.object, relationshipName: c.relationshipName }))
+        : [];
       return {
         kind,
         id,

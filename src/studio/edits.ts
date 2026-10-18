@@ -1,7 +1,7 @@
 /**
  * Studio edits to org metadata outside the Admin Console: custom script code,
  * validation rules, the Visit engagement sidebar (page layout related lists),
- * and page layouts and Lightning pages edited in the iPad preview (`editMetadata`).
+ * and page layouts, compact layouts and Lightning pages edited in the iPad preview (`editMetadata`).
  *
  * Same contract as fixes.ts — previews re-read the live org and refuse (`blocked`)
  * when it no longer matches what the map saw; applying re-runs the preview and
@@ -22,14 +22,15 @@ import {
 } from "../salesforce/visit-layout.js";
 import { assertId, assertNames, PUBLISH_WARNING } from "./change-helpers.js";
 import { deployDoc, withDoc, type MetadataDoc } from "./metadata/doc.js";
-import { applyLayoutOps, relatedListCount, StaleLayoutError } from "./metadata/layout-ops.js";
+import { applyCompactOps, StaleCompactError } from "./metadata/compact-ops.js";
+import { applyLayoutOps, relatedListCount, StaleLayoutError, type LayoutChange } from "./metadata/layout-ops.js";
 import { applyFlexiPageOps, flexiPageWarnings, StaleFlexiPageError } from "./metadata/flexipage-ops.js";
-import { flexiPageReach, isManagedFlexiPage, isProductionOrg, layoutProfiles } from "./metadata/live.js";
+import { compactLayoutRecordTypes, flexiPageReach, isManagedFlexiPage, isProductionOrg, layoutProfiles, splitCompactName } from "./metadata/live.js";
 import { serializeXml, type XmlNode } from "./metadata/xml.js";
 import { scriptCodeFindings } from "./collect.js";
 import { lineCount, lineDiff } from "./diff.js";
 import { query, type Row } from "./helpers.js";
-import type { FixPreview, FixResult, FlexiPageOp, LayoutOp, StudioFix } from "./types.js";
+import type { CompactLayoutEditFix, CompactOp, FixPreview, FixResult, FlexiPageEditFix, FlexiPageOp, LayoutOp, StudioFix } from "./types.js";
 
 type ScriptFix = Extract<StudioFix, { kind: "setCustomScriptCode" }>;
 type LayoutFix = Extract<StudioFix, { kind: "setLayoutRelatedList" }>;
@@ -251,10 +252,34 @@ async function layoutReach(fix: MetadataFix, org: string): Promise<string> {
     : `Deploys ${fix.doc.label} to the org — it's the layout for ${profiles.length} profiles (${shown}), and they all get the change.`;
 }
 
+// --- Compact layouts (the record header) edited in the iPad preview ----------------------
+
+const COMPACT_OPS = new Set<string>(["moveCompactField", "removeCompactField", "addCompactField"]);
+const isCompactFix = (fix: MetadataFix): fix is CompactLayoutEditFix => fix.doc.type === "CompactLayout";
+
+/** "…the compact layout for 2 record types (A, B)" — compact layouts are assigned per record type, for every profile. */
+async function compactReach(fix: MetadataFix, org: string): Promise<string> {
+  const types = await compactLayoutRecordTypes(fix.doc.fullName, org);
+  const label = fix.doc.label;
+  if (!types) return `Deploys ${label} to the org — every record type assigned this compact layout gets the change, for every profile.`;
+  if (!types.length) return `Deploys ${label} to the org. No record type is assigned this compact layout.`;
+  const shown = types.length > 4 ? `${types.slice(0, 4).join(", ")} and ${types.length - 4} more` : types.join(", ");
+  return types.length === 1
+    ? `Deploys ${label} to the org — it's the compact layout for the ${shown} record type, for every profile.`
+    : `Deploys ${label} to the org — it's the compact layout for ${types.length} record types (${shown}), for every profile.`;
+}
+
+/** The fix's ops applied to the document; ops of the wrong kind for the document are refused. */
+function applyFixOps(fix: MetadataFix, root: XmlNode): { root: XmlNode; inverse: (LayoutOp | CompactOp)[]; changes: LayoutChange[] } {
+  const ops = fix.ops as (LayoutOp | CompactOp)[];
+  if (ops.some((o) => COMPACT_OPS.has(o.op) !== isCompactFix(fix))) throw new Error(`These edits don't apply to a ${fix.doc.type}.`);
+  return isCompactFix(fix) ? applyCompactOps(root, fix.ops) : applyLayoutOps(root, fix.ops as LayoutOp[]);
+}
+
 interface MetadataPlan {
   preview: FixPreview;
   root?: XmlNode;
-  inverse?: MetadataFix["ops"];
+  inverse?: (LayoutOp | CompactOp | FlexiPageOp)[];
 }
 
 const FLEXIPAGE_OPS = new Set(["moveComponent", "removeComponent", "addComponent", "setComponentProperty"]);
@@ -264,12 +289,11 @@ async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string)
   if (fix.doc.type === "FlexiPage") return planEditFlexiPage(fix, doc, org);
   const preview: FixPreview = { org, title: fix.label, changes: [], warnings: [] };
   if (!fix.ops.length) return { preview: { ...preview, blocked: "Nothing to change." } };
-  const ops = fix.ops as LayoutOp[];
-  let result: ReturnType<typeof applyLayoutOps>;
+  let result: ReturnType<typeof applyFixOps>;
   try {
-    result = applyLayoutOps(doc.root, ops);
+    result = applyFixOps(fix, doc.root);
   } catch (e) {
-    if (!(e instanceof StaleLayoutError)) throw e;
+    if (!(e instanceof StaleLayoutError) && !(e instanceof StaleCompactError)) throw e;
     return { preview: { ...preview, blocked: `${fix.doc.label} changed since the preview was loaded: ${e.message} Refresh the preview.` } };
   }
   const after = serializeXml(result.root);
@@ -278,7 +302,7 @@ async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string)
   preview.changes = result.changes.map((c) => ({ target: fix.doc.label, ...c }));
   preview.changes[preview.changes.length - 1].diff = diff;
 
-  if (fix.doc.fullName.startsWith("Visit-")) {
+  if (fix.doc.type === "Layout" && fix.doc.fullName.startsWith("Visit-")) {
     const [before, now] = [relatedListCount(doc.root), relatedListCount(result.root)];
     if (now > before && now > MAX_SIDEBAR_RELATED_LISTS) {
       return {
@@ -291,9 +315,11 @@ async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string)
   }
 
   const [reach, production, ...dbWarnings] = await Promise.all([
-    layoutReach(fix, org),
+    isCompactFix(fix) ? compactReach(fix, org) : layoutReach(fix, org),
     isProductionOrg(org),
-    ...ops.flatMap((op) => (op.op === "addRelatedList" && op.object && !op.xml ? [dbSchemaWarning(op.object, org)] : [])),
+    ...(fix.ops as (LayoutOp | CompactOp)[]).flatMap((op) =>
+      op.op === "addRelatedList" && op.object && !op.xml ? [dbSchemaWarning(op.object, org)] : []
+    ),
   ]);
   preview.warnings.push(reach as string, ...(dbWarnings as (string | null)[]).filter((w): w is string => !!w), PUBLISH_WARNING);
   if (production) preview.production = true;
@@ -355,6 +381,7 @@ async function planEditFlexiPage(fix: MetadataFix, doc: MetadataDoc, org: string
 async function previewEditMetadata(fix: MetadataFix, org: string): Promise<FixPreview> {
   const title = fix.label;
   try {
+    if (isCompactFix(fix)) splitCompactName(fix.doc.fullName);
     return await withDoc(fix.doc.type, fix.doc.fullName, org, async (doc) => (await planEditMetadata(fix, doc, org)).preview);
   } catch (e) {
     return { org, title, changes: [], warnings: [], blocked: e instanceof Error ? e.message : String(e) };
@@ -363,6 +390,7 @@ async function previewEditMetadata(fix: MetadataFix, org: string): Promise<FixPr
 
 async function applyEditMetadata(fix: MetadataFix, org: string): Promise<FixResult> {
   try {
+    if (isCompactFix(fix)) splitCompactName(fix.doc.fullName);
     return await withDoc(fix.doc.type, fix.doc.fullName, org, async (doc) => {
       const { preview, root, inverse } = await planEditMetadata(fix, doc, org);
       if (preview.blocked || !root || !inverse) return { ok: false, message: preview.blocked || "Nothing to update." };
@@ -374,7 +402,7 @@ async function applyEditMetadata(fix: MetadataFix, org: string): Promise<FixResu
       return {
         ok: true,
         message: `Updated ${fix.doc.label}.`,
-        undo: { kind: "editMetadata", label: `Undo: ${fix.label}`, doc: fix.doc, ops: inverse },
+        undo: { kind: "editMetadata", label: `Undo: ${fix.label}`, doc: fix.doc, ops: inverse } as MetadataFix,
       };
     });
   } catch (e) {
