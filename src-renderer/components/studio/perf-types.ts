@@ -35,7 +35,7 @@ export interface PerfPlan {
   telemetry?: { days?: number };
 }
 
-export type EvalStatus = "pass" | "warn" | "fail" | "no-data" | "no-threshold";
+export type EvalStatus = "pass" | "warn" | "fail" | "no-data" | "no-threshold" | "incomplete";
 export type RunStatus = "pass" | "warn" | "fail";
 
 export interface MetricEvaluation {
@@ -44,19 +44,25 @@ export interface MetricEvaluation {
   threshold: Threshold | undefined;
   status: EvalStatus;
   detail?: string;
+  /** Why the value may be understated (tables that could not be counted in full). */
+  incomplete?: string;
 }
 
 export interface TableVolume {
   sobject: string;
   developerName: string;
   matchedBy: "profile" | "permissionSet";
-  status: "counted" | "not-estimated" | "error";
+  status: "counted" | "not-estimated" | "error" | "timed-out";
   records: number;
   deviceRequests: number | null;
   idTag?: string;
   note?: string;
   scope?: "user" | "org-wide";
   sharingModel?: string;
+  /** The count is a minimum (its id list was cut short). */
+  lowerBound?: boolean;
+  /** The table it is filtered by failed, so this one could not be counted. */
+  sourceFailed?: boolean;
 }
 
 export interface TerritoryVolume {
@@ -82,6 +88,8 @@ export interface UserVolume {
   /** Where the table list came from: the user's own metadata download (mobile login), the profile's compiled archive, or the raw DB Schema records. */
   schemaSource?: "compiled" | "db-schema" | "user-download";
   schemaNotes?: string[];
+  /** Set when only the largest territories were checked. */
+  territoryNote?: string;
   error?: string;
 }
 
@@ -103,6 +111,8 @@ export interface TelemetrySummary {
   dbSizeGb: Distribution;
   byNetwork: Array<{ key: string; n: number; deltaP95?: number }>;
   byAppVersion: Array<{ key: string; n: number; deltaP95?: number; failureRatePct: number }>;
+  /** Set when the row cap was hit and the summary reads a sample of the window. */
+  coverage?: { mode: "all" | "sampled"; limit: number; sliceDays?: number; oldest?: string; newest?: string };
   slowest: Array<{ id: string; createdDate: string; user: string; kind: "initial" | "delta"; totalSec?: number; downloadedRecords?: number }>;
 }
 

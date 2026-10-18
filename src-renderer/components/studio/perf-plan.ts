@@ -157,6 +157,11 @@ export function mayOvercount(t: TableVolume): boolean {
   );
 }
 
+/** Tables whose count is missing or a minimum: failed, timed out, cut short, or filtered by a table that failed. */
+export function incompleteTables(terr: TerritoryVolume): TableVolume[] {
+  return terr.tables.filter((t) => t.status === "error" || t.status === "timed-out" || t.lowerBound || t.sourceFailed);
+}
+
 export function upperBoundRecords(terr: TerritoryVolume): number {
   return terr.tables.filter(mayOvercount).reduce((n, t) => n + t.records, 0);
 }
@@ -270,6 +275,7 @@ export const STATUS_LABEL: Record<EvalStatus, string> = {
   fail: "Fail",
   "no-data": "No data",
   "no-threshold": "No target",
+  incomplete: "Incomplete",
 };
 
 /** Studio chip class for a status (see .studio-chip variants). */
@@ -279,6 +285,7 @@ export const STATUS_CHIP: Record<EvalStatus, string> = {
   fail: "error",
   "no-data": "muted",
   "no-threshold": "info",
+  incomplete: "warning",
 };
 
 /** A prompt for "Ask Claude" that explains the failing metrics and their drivers. */

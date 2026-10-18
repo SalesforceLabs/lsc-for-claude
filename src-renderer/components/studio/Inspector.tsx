@@ -27,6 +27,7 @@ import {
   type PendingChange,
 } from "./changes";
 import StateView from "../ui/StateView";
+import { Limited } from "../ui/Limited";
 import { AssistantName } from "../../hooks/useAssistantName";
 
 interface InspectorProps {
@@ -225,7 +226,7 @@ export default function Inspector({
                 </h3>
               )}
               <ul className="studio-item-list">
-            {group.items.map((i) => {
+            <Limited as="li" items={group.items} render={(i) => {
               const worst = worstSeverity(i.findings);
               const { fit, reason } = fitFor(i, lens);
               return (
@@ -244,7 +245,7 @@ export default function Inspector({
                   </button>
                 </li>
               );
-            })}
+            }} />
               </ul>
             </React.Fragment>
           ))}

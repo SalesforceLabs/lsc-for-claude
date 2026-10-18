@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { AssessmentResult, Distribution, PersonaResult, TerritoryVolume, UserVolume } from "./perf-types";
+import type { AssessmentResult, Distribution, PersonaResult, TableVolume, TelemetrySummary, TerritoryVolume, UserVolume } from "./perf-types";
 import {
   STATUS_CHIP,
   STATUS_LABEL,
@@ -9,6 +9,7 @@ import {
   mayOvercount,
   metricDeltas,
   metricInfo,
+  incompleteTables,
   planChanges,
   upperBoundRecords,
 } from "./perf-plan";
@@ -66,6 +67,12 @@ function Delta({ value, unit }: { value: number | undefined; unit: string }) {
   );
 }
 
+function flaggedLabel(t: TableVolume): string {
+  if (t.status === "error") return "Query failed";
+  if (t.status === "timed-out") return "Timed out";
+  return t.sourceFailed ? "Not counted" : "Not estimated";
+}
+
 function TerritoryTables({ terr }: { terr: TerritoryVolume }) {
   const [all, setAll] = useState(false);
   // Counted tables are sorted by size; errors and estimates that couldn't run are always shown.
@@ -73,12 +80,18 @@ function TerritoryTables({ terr }: { terr: TerritoryVolume }) {
   const flagged = terr.tables.filter((t) => t.status !== "counted");
   const shown = all ? counted : counted.slice(0, 8);
   const upper = upperBoundRecords(terr);
+  const gaps = incompleteTables(terr).length;
   return (
     <div className="studio-perf-territory">
       <div className="studio-perf-territory-title">
-        {terr.territory?.name ?? "No territory"} · {formatNumber(terr.totalRecords)} records ·{" "}
+        {terr.territory?.name ?? "No territory"} · {gaps > 0 ? "at least " : ""}{formatNumber(terr.totalRecords)} records ·{" "}
         {formatNumber(terr.totalDeviceRequests)} device requests
       </div>
+      {gaps > 0 && (
+        <div className="studio-perf-hint">
+          {gaps} {gaps === 1 ? "table" : "tables"} could not be counted in full, so these totals are minimums.
+        </div>
+      )}
       {upper > 0 && (
         <div className="studio-perf-hint">
           Up to {formatNumber(upper)} of these come from tables whose filter isn't scoped to the user, on objects with
@@ -110,7 +123,10 @@ function TerritoryTables({ terr }: { terr: TerritoryVolume }) {
                   </span>
                 )}
               </td>
-              <td className="num">{formatNumber(t.records)}</td>
+              <td className="num">
+                {t.lowerBound ? "≥ " : ""}
+                {formatNumber(t.records)}
+              </td>
               <td className="num">{t.deviceRequests === null ? "—" : formatNumber(t.deviceRequests)}</td>
             </tr>
           ))}
@@ -118,8 +134,8 @@ function TerritoryTables({ terr }: { terr: TerritoryVolume }) {
             <tr key={t.developerName} className={`studio-perf-flagged ${t.status}`}>
               <td>{t.sobject}</td>
               <td colSpan={3}>
-                <span className={`ui-pill${t.status === "error" ? " error" : ""}`}>
-                  {t.status === "error" ? "Query failed" : "Not estimated"}
+                <span className={`ui-pill${t.status === "error" || t.status === "timed-out" ? " error" : ""}`}>
+                  {flaggedLabel(t)}
                 </span>{" "}
                 {t.note}
               </td>
@@ -239,6 +255,7 @@ function UserVolumes({ v, sim }: { v: UserVolume; sim?: RunSim }) {
           </span>
         )}
       </Disclosure>
+      {open && v.territoryNote && <div className="studio-perf-hint">{v.territoryNote}</div>}
       {open &&
         v.schemaNotes?.map((n) => (
           <div key={n} className="studio-perf-hint">
@@ -280,6 +297,12 @@ function SimulatedTiming({ sims }: { sims: RunSim[] }) {
   );
 }
 
+function coverageNote(t: TelemetrySummary): string {
+  const c = t.coverage;
+  const span = c?.oldest && c.newest ? `, from ${c.oldest.slice(0, 10)} to ${c.newest.slice(0, 10)}` : "";
+  return `More than ${formatNumber(c?.limit)} syncs matched, so this is a sample of the newest syncs in each part of the window${span}. Percentiles describe the sample, not every sync.`;
+}
+
 function Telemetry({ p, sims = [] }: { p: PersonaResult; sims?: RunSim[] }) {
   const timing = <SimulatedTiming sims={sims} />;
   if (p.telemetryError) {
@@ -301,6 +324,7 @@ function Telemetry({ p, sims = [] }: { p: PersonaResult; sims?: RunSim[] }) {
   }
   return (
     <>
+      {t.coverage?.mode === "sampled" && <div className="studio-perf-hint">{coverageNote(t)}</div>}
       <table className="studio-perf-table">
         <thead>
           <tr>
@@ -379,6 +403,13 @@ function BaselinePanel({ onApply, onClose }: { onApply: (margin: { warnPct: numb
   );
 }
 
+/** Distinct tables, across every persona, user and territory, whose count is missing or a minimum. */
+function countUncounted(result: AssessmentResult): number {
+  const names = new Set<string>();
+  for (const p of result.personas) for (const v of p.volumes) for (const terr of v.territories) for (const t of incompleteTables(terr)) names.add(t.sobject);
+  return names.size;
+}
+
 function Trend({ rows }: { rows: TrendRow[] }) {
   return (
     <section className="studio-perf-section">
@@ -424,6 +455,7 @@ export default function RunReport({ result, previous, trend, onAskClaude, onExpo
   // Differences between the two runs' plans, so a jump in a metric isn't read as the org changing.
   const changes = previous ? planChanges(result, previous) : new Map<string, string[]>();
   const banner = BANNER[result.status];
+  const uncounted = countUncounted(result);
   return (
     <div className="studio-perf-report">
       <div className="studio-perf-summary">
@@ -488,6 +520,12 @@ export default function RunReport({ result, previous, trend, onAskClaude, onExpo
         />
       )}
 
+      {uncounted > 0 && (
+        <Callout tone="warning" title={`${uncounted} ${uncounted === 1 ? "table" : "tables"} could not be counted`}>
+          Predicted volumes that include them are minimums, and measures built on them cannot pass until they are counted.
+        </Callout>
+      )}
+
       <ul className="studio-perf-verdicts">
         {result.personas.map((p) => {
           const v = personaVerdict(p);
@@ -545,8 +583,12 @@ export default function RunReport({ result, previous, trend, onAskClaude, onExpo
                     <td>
                       <div>{info.label}</div>
                       {e.detail && <div className="studio-perf-metric-meta">{e.detail}</div>}
+                      {e.incomplete && <div className="studio-perf-metric-meta">Incomplete: {e.incomplete}</div>}
                     </td>
-                    <td className="num">{formatValue(e)}</td>
+                    <td className="num">
+                      {e.incomplete && e.value !== undefined ? "≥ " : ""}
+                      {formatValue(e)}
+                    </td>
                     <td className="num">{formatNumber(e.threshold?.warn)}</td>
                     <td className="num">{formatNumber(e.threshold?.fail)}</td>
                     <td>

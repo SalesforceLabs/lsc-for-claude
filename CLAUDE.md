@@ -369,7 +369,8 @@ All read-only against the org; safe in production. NFR profile format: `docs/per
 | `studio_user_access` | One user's permission set licenses, permission sets, permission set groups, and territories, as JSON (for the inspector's access panel) |
 | `studio_ipad_published` | The iPad as last published for one user of a profile (the profile's most typical user unless `userId` is given; their assigned permission sets are merged in like the app does) — tabs, Home page components, record types, layouts, Lightning pages, compact layouts, and list views read from the profile's active metadata cache ZIP and resolved the way LSC Mobile does (tab filters/routing, template region slots, supported components, visibility rules), as JSON |
 | `studio_ipad_published_progress` | Which step a running `studio_ipad_published` load for a profile is on (waiting / running / done / failed, with times), or null; no org calls, as JSON |
-| `studio_access_options` | Permission sets, permission set groups, and territories a user can be given, as JSON |
+| `studio_ipad_published_users` | Active users of a profile whose name contains a search term, for the iPad preview's user picker when the profile has more users than it lists, as JSON |
+| `studio_access_options` | Permission sets, permission set groups, and territories a user can be given (at most 2,000 of each, with totals when cut; `search` finds the rest by name), as JSON |
 | `studio_lwc_bundle` | One inline LWC (`lscMobileInline_*`) and the `c/` components it uses, compiled with lightning-base-components and Studio's stand-ins for LDS and other platform modules into a script for the iPad preview's live frame, plus its offline check, as JSON |
 | `studio_lwc_request` | Answer a request from a live-previewed inline LWC — UI API GETs and GraphQL queries only, as the connected user; writes and other endpoints refused |
 | `studio_preview_fix` | Preview a Studio change against the live org (before/after, who gains/loses access, warnings, or why it's blocked) without writing anything |
@@ -625,6 +626,14 @@ npm run lint     # Lint code
 1. **New object docs**: Add to `knowledge/objects/{ObjectName}.md`
 2. **New patterns**: Add to `knowledge/patterns/{pattern-name}.md`
 3. **New tools**: Implement in `src/tools/` and register in `src/index.ts`
+
+### Salesforce calls in large orgs
+- **Every sf call goes through one limiter** (`src/salesforce/limiter.ts`, `LSC_SF_CONCURRENCY`, default 6): `execSfCommand` and `apiRequest` hold a slot only around the leaf call, so nested fan-out can't deadlock. Don't spawn `sf` yourself.
+- **SOQL and REST GETs try a direct REST path first** (`src/salesforce/direct.ts`): the sf CLI's own login (`sf org auth show-access-token` — `sf org display` now redacts tokens; `readOrgLogin`) over keep-alive `fetch`, paging `nextRecordsUrl`, ~10× faster than spawning `sf`. Tokens only go to the org's https instance URL; anything it can't do (no token, network/proxy/TLS trouble, URLs over 15,000 chars) falls back to the CLI, and a network failure turns it off for that org for the session. `LSC_SF_DIRECT=0` turns it off.
+- **Queries never truncate silently.** `runSoqlQuery` reads at most `maxRows` (default 50,000) and sets `truncated` when more matched; Studio's `query()` (`src/studio/helpers.ts`) throws `QueryTruncatedError` then unless `allowTruncated`. Use `COUNT()` / `countGroupedBy` (IN-list chunks, under the 2,000-group aggregate limit) instead of reading rows to count them, and announce any cap with `showingNote`. A query that runs past its timeout reports `timedOut`; readiness turns it into "couldn't check". `LSC_SF_MAX_QUERY_ROWS` lowers the cap for every query, to rehearse a large org's truncation paths on a small one.
+- **Sync volume is never "pass" when incomplete**: tables whose count failed, timed out or hit a cap are `lowerBound` / `sourceFailed` / `timed-out`, the metric is `incomplete` (rolls up to warn) and reports say how many tables couldn't be counted.
+- **Short shared reads** (`src/config/read-cache.ts`): Admin Console categories, territories and the flow list are shared for 60 s by concurrent Studio surfaces; any write through `execSfCommand` / `apiRequest` drops them.
+- **The app's Studio cache** (`studio-cache.ts`, policy in `studio-cache-policy.ts`) keeps results for 24 h and at most 400 rows, never keeps results cut short by something transient (timeouts, truncation, network errors — a missing object is the org's answer and is kept), and identical concurrent `studio:call`s share one load (`in-flight.ts`). Long lists render the first 200 with "Show N more" (`ui/Limited.tsx`).
 
 ### Testing
 - Unit tests for all tools

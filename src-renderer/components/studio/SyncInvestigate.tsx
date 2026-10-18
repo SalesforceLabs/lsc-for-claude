@@ -49,7 +49,7 @@ interface SchemaRecordRef {
 interface SyncTable {
   sobject: string;
   developerName: string;
-  status: "counted" | "not-estimated" | "error";
+  status: "counted" | "not-estimated" | "error" | "timed-out";
   records: number;
   sharePct: number;
   deviceRequests: number | null;
@@ -58,6 +58,8 @@ interface SyncTable {
   scope?: "user" | "org-wide";
   sharingModel?: string;
   mayOvercount: boolean;
+  lowerBound?: boolean;
+  sourceFailed?: boolean;
   schema: SchemaRecordRef | null;
   hints: TableHint[];
 }
@@ -66,6 +68,7 @@ interface SyncTerritory {
   totalRecords: number;
   totalDeviceRequests: number;
   upperBoundRecords: number;
+  incompleteCount?: number;
   tables: SyncTable[];
 }
 interface Dist {
@@ -82,7 +85,7 @@ interface SyncUserDetail {
   tableCount: number;
   territories: SyncTerritory[];
   telemetry?: {
-    summary: { samples: number; failureRatePct?: number; initial: { total: Dist }; delta: { total: Dist } };
+    summary: { samples: number; coverage?: { mode: "all" | "sampled"; limit: number; oldest?: string; newest?: string }; failureRatePct?: number; initial: { total: Dist }; delta: { total: Dist } };
     recent: Array<{ id: string; createdDate: string; kind: "initial" | "delta"; outcome: string; totalSec?: number; downloadedRecords?: number }>;
   };
   telemetryError?: string;
@@ -113,6 +116,11 @@ const SCHEMA_SOURCE: Record<SyncUserDetail["schemaSource"], string> = {
 
 const fmt = (n: number | undefined | null) => (n === undefined || n === null ? "—" : n.toLocaleString("en-US"));
 const fmtSec = (n: number | undefined) => (n === undefined ? "—" : n < 90 ? `${Math.round(n)}s` : `${(n / 60).toFixed(1)} min`);
+function notCountedLabel(t: SyncTable): string {
+  if (t.status === "error") return "Filter fails";
+  if (t.status === "timed-out") return "Timed out";
+  return t.sourceFailed ? "Not counted" : "Not estimated";
+}
 const errorOf = (res: { data?: unknown; error?: string }) => res.error || (res.data as { error?: string } | undefined)?.error;
 
 /** The setConfigField fix a hint's suggestion becomes — the same shape Inspector and the collectors build for a DB Schema field. */
@@ -416,10 +424,15 @@ export default function SyncInvestigate({ userId, onUserChange, onAskClaude, onO
             {detail.user.territories.length > detail.territories.length && (
               <div className="studio-perf-hint">Showing the first {detail.territories.length} of {detail.user.territories.length} territories.</div>
             )}
+            {(terr.incompleteCount ?? 0) > 0 && (
+              <Callout tone="warning">
+                {terr.incompleteCount} {terr.incompleteCount === 1 ? "table" : "tables"} could not be counted in full, so the totals below are minimums.
+              </Callout>
+            )}
             <div className="sync-investigate-stats">
               <Metric
                 label="Records to download"
-                value={fmt(terr.totalRecords)}
+                value={`${(terr.incompleteCount ?? 0) > 0 ? "≥ " : ""}${fmt(terr.totalRecords)}`}
                 hint={terr.upperBoundRecords > 0 ? `Up to ${fmt(terr.upperBoundRecords)} may be over-counted` : undefined}
               />
               <Metric label="Estimated requests" value={fmt(terr.totalDeviceRequests)} />
@@ -457,10 +470,11 @@ export default function SyncInvestigate({ userId, onUserChange, onAskClaude, onO
                       <span className="sync-investigate-row-name">
                         {t.sobject}
                         {queuedFor(t) && <span className="ui-pill info">Queued</span>}
-                        {t.status !== "counted" && <span className={`ui-pill${t.status === "error" ? " error" : ""}`}>{t.status === "error" ? "Filter fails" : "Not estimated"}</span>}
+                        {t.status !== "counted" && <span className={`ui-pill${t.status === "error" || t.status === "timed-out" ? " error" : ""}`}>{notCountedLabel(t)}</span>}
+                        {t.status === "counted" && t.lowerBound && <span className="ui-pill warning">At least</span>}
                         {t.hints.some((h) => h.severity === "warning") && t.status === "counted" && <span className="ui-pill warning">Can be lighter</span>}
                       </span>
-                      <span className="sync-investigate-row-count">{t.status === "counted" ? `${fmt(t.records)} · ${t.sharePct < 1 && t.records > 0 ? "<1" : Math.round(t.sharePct)}%` : "—"}</span>
+                      <span className="sync-investigate-row-count">{t.status === "counted" ? `${t.lowerBound ? "≥ " : ""}${fmt(t.records)} · ${t.sharePct < 1 && t.records > 0 ? "<1" : Math.round(t.sharePct)}%` : "—"}</span>
                       <span className="studio-perf-bar" aria-hidden="true">
                         <span className="studio-perf-bar-fill sync-investigate-fill" style={{ width: `${(t.records / maxRecords) * 100}%` }} />
                       </span>
@@ -492,6 +506,12 @@ export default function SyncInvestigate({ userId, onUserChange, onAskClaude, onO
                   </li>
                 ))}
               {detail.telemetryError && <li>Sync history: {detail.telemetryError}</li>}
+              {detail.telemetry?.summary.coverage?.mode === "sampled" && (
+                <li>
+                  Sync history is a sample: more than {fmt(detail.telemetry.summary.coverage.limit)} syncs matched
+                  {detail.telemetry.summary.coverage.oldest ? `, so it reads syncs back to ${detail.telemetry.summary.coverage.oldest.slice(0, 10)}` : ""}.
+                </li>
+              )}
               <li>Predicted at {new Date(detail.generatedAt).toLocaleString()}; sync history covers the last {detail.days} days.</li>
             </ul>
           </details>

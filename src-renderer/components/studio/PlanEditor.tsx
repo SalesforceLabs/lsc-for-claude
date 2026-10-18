@@ -17,6 +17,7 @@ import {
 import { Check, Copy, Plus, X } from "lucide-react";
 import Segmented from "../ui/Segmented";
 import StateView from "../ui/StateView";
+import { Limited } from "../ui/Limited";
 import { Callout, Disclosure } from "./PerfParts";
 import "./perf-editor.css";
 
@@ -157,7 +158,7 @@ function UserSearch({
         <ul className="studio-picker-list studio-perf-user-list">
           {state.loading && state.users.length === 0 && <li className="studio-picker-meta" role="status">Searching…</li>}
           {!state.loading && state.users.length === 0 && <li className="studio-picker-meta">No active users match.</li>}
-          {state.users.map((u) => {
+          <Limited as="li" items={state.users} render={(u) => {
             const added = taken.has(u.username.toLowerCase());
             return (
               <li key={u.id}>
@@ -183,7 +184,7 @@ function UserSearch({
                 </button>
               </li>
             );
-          })}
+          }} />
         </ul>
       )}
       <div className="studio-perf-hint">

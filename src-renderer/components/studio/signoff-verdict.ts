@@ -37,7 +37,7 @@ export function personaVerdict(p: PersonaResult): Verdict {
   const met = targets.filter((e) => e.status === "pass").length;
   const failed = targets.filter((e) => e.status === "fail");
   const close = targets.filter((e) => e.status === "warn");
-  const unmeasured = p.evaluations.filter((e) => e.status === "no-data" && e.threshold).length;
+  const unmeasured = p.evaluations.filter((e) => (e.status === "no-data" || e.status === "incomplete") && e.threshold).length;
   const total = targets.length + unmeasured;
   const name = p.persona.name || "This persona";
   if (total === 0) return { text: `${name} has no customer targets to check yet.`, tone: "info" };

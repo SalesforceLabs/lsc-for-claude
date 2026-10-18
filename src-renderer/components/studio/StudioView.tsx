@@ -436,6 +436,10 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
                     state={published[publishedProfile]}
                     onRefresh={(userId) => loadPublished(publishedProfile, true, userId)}
                     onPickUser={(userId) => loadPublished(publishedProfile, false, userId)}
+                    onSearchUsers={async (text) => {
+                      const res = await window.lscApi.studioIpadPublishedUsers(publishedProfile, text);
+                      return (res.data as { users?: { id: string; name: string }[] } | undefined)?.users ?? [];
+                    }}
                   />
                 ) : (
                   <StateView

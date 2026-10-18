@@ -33,7 +33,9 @@ import {
   deleteLibraryItem,
   searchLibraryItems,
 } from "../engine/library.js";
-import { getStudioCache, setStudioCache, clearStudioCache } from "../engine/studio-cache.js";
+import { getStudioCache, setStudioCacheText, clearStudioCache } from "../engine/studio-cache.js";
+import { isCacheable } from "../engine/studio-cache-policy.js";
+import { createInFlight } from "../engine/in-flight.js";
 import { openInPreviewBrowser, type BrowserAuth } from "../studio-browser.js";
 import {
   adoptUnassigned,
@@ -51,6 +53,8 @@ import {
   type PerfRunRecord,
   type PerfSimRecord,
 } from "../engine/perf-store.js";
+
+const studioInFlight = createInFlight<{ data?: unknown; error?: string }>();
 
 const STUDIO_CACHED_TOOLS = new Set([
   "studio_feature_map",
@@ -526,37 +530,47 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         const cached = getStudioCache(org, toolName, argsKey);
         if (cached !== undefined) return { data: cached };
       }
-      const client = await readyMcpClient();
-      if (!client) return { error: "Engine not started" };
-      try {
-        // A feature map fans out to many sf CLI queries; allow well over the SDK's 60s default.
-        const result = await client.callTool(toolName, args, { timeoutMs: 5 * 60_000 });
-        const text = result.content.find((c) => c.type === "text")?.text ?? "{}";
-        const data = JSON.parse(text);
-        // A layout whose XML couldn't be retrieved shouldn't stick — the next open retries.
-        if (cacheable && !data?.error && data?.sidebar?.relatedLists !== null) {
-          // Refreshing a map means the org changed — item details may be stale too.
-          if (refresh && toolName === "studio_feature_map") {
-            clearStudioCache(org, "studio_item_detail");
-            clearStudioCache(org, "studio_list_profiles");
-            clearStudioCache(org, "studio_access_options");
+      // Identical concurrent calls share one load (a timed-out one keeps running server-side).
+      return studioInFlight(`${org}\u0000${toolName}\u0000${argsKey}\u0000${refresh}`, async () => {
+        const client = await readyMcpClient();
+        if (!client) return { error: "Engine not started" };
+        try {
+          // A feature map fans out to many sf CLI queries; allow well over the SDK's 60s default.
+          const result = await client.callTool(toolName, args, { timeoutMs: 5 * 60_000 });
+          const text = result.content.find((c) => c.type === "text")?.text ?? "{}";
+          const data = JSON.parse(text);
+          // Partial results (failed surfaces, checks that couldn't run) shouldn't stick — the next open retries.
+          if (cacheable && isCacheable(toolName, data)) {
+            // Refreshing a map means the org changed — item details may be stale too.
+            if (refresh && toolName === "studio_feature_map") {
+              clearStudioCache(org, "studio_item_detail");
+              clearStudioCache(org, "studio_list_profiles");
+              clearStudioCache(org, "studio_access_options");
+              clearStudioCache(org, "studio_ipad_published");
+            }
+            setStudioCacheText(org, toolName, argsKey, text);
+          }
+          // An applied change alters the org, so every cached map for it may be stale.
+          if (toolName === "studio_apply_fix" && data?.ok) clearStudioCache(org);
+          // A finished publish changes the metadata cache surfaces.
+          if (toolName === "studio_publish_status" && data?.state === "done") {
+            clearStudioCache(org, "studio_feature_map");
+            clearStudioCache(org, "studio_readiness");
+            clearStudioCache(org, "studio_setup_overview");
             clearStudioCache(org, "studio_ipad_published");
           }
-          setStudioCache(org, toolName, argsKey, data);
+          return { data };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (/time(d)?[ -]?out/i.test(message)) {
+            return {
+              error:
+                "This is taking longer than 5 minutes. It is still loading in the background, so try again in a minute and it should be ready.",
+            };
+          }
+          return { error: message };
         }
-        // An applied change alters the org, so every cached map for it may be stale.
-        if (toolName === "studio_apply_fix" && data?.ok) clearStudioCache(org);
-        // A finished publish changes the metadata cache surfaces.
-        if (toolName === "studio_publish_status" && data?.state === "done") {
-          clearStudioCache(org, "studio_feature_map");
-          clearStudioCache(org, "studio_readiness");
-          clearStudioCache(org, "studio_setup_overview");
-          clearStudioCache(org, "studio_ipad_published");
-        }
-        return { data };
-      } catch (error) {
-        return { error: error instanceof Error ? error.message : String(error) };
-      }
+      });
     }
   );
 

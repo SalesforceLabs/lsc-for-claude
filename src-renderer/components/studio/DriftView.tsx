@@ -13,6 +13,7 @@ import {
 import { ArrowRight, Camera, ExternalLink, GitCompare, RefreshCw, Sparkles, Trash2 } from "lucide-react";
 import StatusIcon from "../ui/StatusIcon";
 import StateView from "../ui/StateView";
+import { Limited } from "../ui/Limited";
 import "./readiness.css";
 import "./drift.css";
 import { AssistantName } from "../../hooks/useAssistantName";
@@ -294,9 +295,11 @@ function DiffPanel({
                 </button>
               )}
             </div>
-            {g.items.map((c) => (
-              <ChangeCard key={c.key} change={c} onAsk={() => onAskClaude(askAboutChange(c, snapshot))} />
-            ))}
+            <Limited
+              items={g.items}
+              limit={50}
+              render={(c) => <ChangeCard key={c.key} change={c} onAsk={() => onAskClaude(askAboutChange(c, snapshot))} />}
+            />
           </section>
         ))
       )}
@@ -403,7 +406,7 @@ function RecentPanel({
             )}
           </div>
           <ul className="studio-drift-recent">
-            {g.items.map((c: RecentChange, i) => (
+            <Limited as="li" items={g.items} render={(c: RecentChange, i) => (
               <li key={`${c.kind}-${c.name}-${i}`}>
                 <span className="ui-pill">{RECENT_KIND_LABEL[c.kind]}</span>
                 <strong>{c.name}</strong>
@@ -416,7 +419,7 @@ function RecentPanel({
                   <Sparkles aria-hidden="true" /> Ask <AssistantName />
                 </button>
               </li>
-            ))}
+            )} />
           </ul>
         </section>
       ))}

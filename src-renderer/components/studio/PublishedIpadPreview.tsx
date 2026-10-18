@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { CloudOff, RotateCw } from "lucide-react";
 import StateView from "../ui/StateView";
 import type {
@@ -23,6 +23,7 @@ import { ChromeSheets, SearchTab, type ChromeSheet } from "./IpadChromeSheets";
 import { CardList, cardModeFor, rowActions, saveCardMode, SortButton, sortRows, ViewModeButton, type SortState } from "./IpadListControls";
 import IpadActionSheet from "./IpadActionSheets";
 import PublishedLoading from "./PublishedLoading";
+import "./published-notes.css";
 import type { PublishedFabItem } from "./screens/fabs-types";
 import { presentationFor, type Presentation } from "./ipad-fab-actions";
 import { CustomIcon } from "./assets/icons";
@@ -50,6 +51,8 @@ interface PublishedIpadPreviewProps {
   state: PublishedState | undefined;
   onRefresh: (userId?: string) => void;
   onPickUser: (userId: string) => void;
+  /** Active users of the profile whose name contains the text, for profiles with more users than the picker lists. */
+  onSearchUsers?: (text: string) => Promise<{ id: string; name: string }[]>;
 }
 
 /**
@@ -57,7 +60,7 @@ interface PublishedIpadPreviewProps {
  * components, and record pages read from the profile's metadata cache, laid
  * out the way LSC Mobile builds them. Record data is placeholder.
  */
-export default function PublishedIpadPreview({ profile, state, onRefresh, onPickUser }: PublishedIpadPreviewProps) {
+export default function PublishedIpadPreview({ profile, state, onRefresh, onPickUser, onSearchUsers }: PublishedIpadPreviewProps) {
   if (!state || state.status === "loading") {
     return <PublishedLoading profile={profile} />;
   }
@@ -86,17 +89,19 @@ export default function PublishedIpadPreview({ profile, state, onRefresh, onPick
       />
     );
   }
-  return <Device key={result.viewer?.userId ?? ""} snapshot={result} onRefresh={() => onRefresh(result.viewer?.userId)} onPickUser={onPickUser} />;
+  return <Device key={result.viewer?.userId ?? ""} snapshot={result} onRefresh={() => onRefresh(result.viewer?.userId)} onPickUser={onPickUser} onSearchUsers={onSearchUsers} />;
 }
 
 function Device({
   snapshot,
   onRefresh,
   onPickUser,
+  onSearchUsers,
 }: {
   snapshot: PublishedIpad;
   onRefresh: () => void;
   onPickUser: (userId: string) => void;
+  onSearchUsers?: (text: string) => Promise<{ id: string; name: string }[]>;
 }) {
   const [current, setCurrent] = useState(snapshot.tabs[0]?.fullName ?? "");
   // The id of the open record ("" when the list row has no prefetched data); null shows the list.
@@ -146,6 +151,7 @@ function Device({
   const onHome = tab?.kind === "home" && !!snapshot.home && record === null;
   // The app gates Agentforce on the user-info "Agentforce" feature flag, which the CLI can't read; a Home welcome component stands in for it.
   const homeHasAgentforce = !!snapshot.home?.regions.some((r) => r.components.some((c) => c.supported && /lsAgentforceWelcome$/.test(c.name)));
+  const dashboardNotes = Object.values(snapshot.dashboards ?? {}).flatMap((d) => (d.dataNote ? [`${d.title} — ${d.dataNote}`] : []));
   const generated = snapshot.cache.generatedAt ? new Date(snapshot.cache.generatedAt).toLocaleString() : "unknown";
 
   return (
@@ -169,6 +175,9 @@ function Device({
               ))}
             </select>
             <span className="studio-ipad-muted"> ({snapshot.viewer.permissionSets.length} permission sets)</span>
+            {snapshot.usersTruncated && (
+              <UserSearch shown={snapshot.users.length} total={snapshot.usersTotal ?? snapshot.users.length} onSearch={onSearchUsers} onPick={onPickUser} />
+            )}
           </>
         ) : (
           <span className="studio-ipad-muted"> · no active users, so no permission sets are merged in</span>
@@ -177,6 +186,12 @@ function Device({
           {" "}
           · {snapshot.cache.name}, generated {generated}
         </span>
+        {dashboardNotes.length > 0 && (
+          <span className="studio-ipad-muted" title={dashboardNotes.join("\n")}>
+            {" "}
+            · {dashboardNotes.length} dashboards without results
+          </span>
+        )}
         {snapshot.hiddenTabs.length > 0 && (
           <span
             className="studio-ipad-muted"
@@ -282,7 +297,7 @@ function Screen({
       return record !== null ? (
         <RecordView object={object} snapshot={snapshot} />
       ) : (
-        <ListView tab={tab} object={object} lists={snapshot.lists} accounts={tab.kind === "accounts"} onOpenRecord={onOpenRecord} onNew={onNew} cardActions={rowActions(snapshot, object.name)} onAction={onAction} />
+        <ListView tab={tab} object={object} lists={snapshot.lists} listErrors={snapshot.listErrors} accounts={tab.kind === "accounts"} onOpenRecord={onOpenRecord} onNew={onNew} cardActions={rowActions(snapshot, object.name)} onAction={onAction} />
       );
     }
     case "empty":
@@ -604,6 +619,7 @@ function ListView({
   tab,
   object,
   lists,
+  listErrors,
   accounts,
   onOpenRecord,
   onNew,
@@ -615,6 +631,7 @@ function ListView({
   tab: PublishedTab;
   object: PublishedObject;
   lists?: Record<string, PublishedListData>;
+  listErrors?: Record<string, string>;
   accounts: boolean;
   onOpenRecord: (id: string) => void;
   onNew: (label: string, objectName: string) => void;
@@ -676,7 +693,13 @@ function ListView({
           if (cards && shown) {
             return <CardList rows={shown.rows} onOpen={onOpenRecord} actions={cardActions} onAction={onAction} links={(view.query?.fields ?? []).map((f) => f?.type === "lookup" || f?.type === "formula")} />;
           }
-          return <DataTable columns={view.columns.map(columnLabel)} data={shown} onOpenRecord={onOpenRecord} />;
+          const unread = !data ? listErrors?.[`${object.name}.${view.name}`] : undefined;
+          return (
+            <>
+              {unread && <div className="studio-ipad-lv-unread" role="note">{unread} The rows below are placeholders.</div>}
+              <DataTable columns={view.columns.map(columnLabel)} data={shown} onOpenRecord={onOpenRecord} />
+            </>
+          );
         })()}
     </div>
   );
@@ -809,4 +832,69 @@ function newPresentation(label: string, objectName: string): Presentation {
   if (/inquir/i.test(objectName)) return { kind: "inquiry" };
   if (objectName === "Visit") return { kind: "visit" };
   return { kind: "placeholder", title: label, type: "Create form", target: objectName, detail: "The app opens the object's create form here; Studio never saves records." };
+}
+
+/** For a profile with more users than the picker lists: find one by name. */
+function UserSearch({
+  shown,
+  total,
+  onSearch,
+  onPick,
+}: {
+  shown: number;
+  total: number;
+  onSearch?: (text: string) => Promise<{ id: string; name: string }[]>;
+  onPick: (userId: string) => void;
+}) {
+  const [text, setText] = useState("");
+  const [found, setFound] = useState<{ id: string; name: string }[]>([]);
+  // A ref, so a parent re-render (a new function each time) doesn't restart the debounce.
+  const search = useRef(onSearch);
+  search.current = onSearch;
+  useEffect(() => {
+    if (!search.current || text.trim().length < 2) {
+      setFound([]);
+      return;
+    }
+    let live = true;
+    const timer = setTimeout(() => {
+      search.current?.(text)
+        .then((users) => live && setFound(users))
+        .catch(() => live && setFound([]));
+    }, 250);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [text]);
+  return (
+    <span className="studio-ipad-user-search">
+      <span className="studio-ipad-muted">
+        {" "}
+        · showing {shown.toLocaleString()} of {total.toLocaleString()} users
+      </span>
+      {onSearch && (
+        <>
+          <input
+            className="studio-input"
+            type="search"
+            list="studio-ipad-user-matches"
+            placeholder="Find a user by name"
+            aria-label="Find a user by name"
+            value={text}
+            onChange={(e) => {
+              const match = found.find((u) => u.name === e.target.value);
+              if (match) onPick(match.id);
+              else setText(e.target.value);
+            }}
+          />
+          <datalist id="studio-ipad-user-matches">
+            {found.map((u) => (
+              <option key={u.id} value={u.name} />
+            ))}
+          </datalist>
+        </>
+      )}
+    </span>
+  );
 }

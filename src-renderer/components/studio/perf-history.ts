@@ -15,7 +15,7 @@ export interface RunSummary {
   worst?: { persona: string; metric: MetricKey; status: EvalStatus; value?: number };
 }
 
-const SEVERITY: Record<EvalStatus, number> = { fail: 3, warn: 2, pass: 1, "no-threshold": 0, "no-data": 0 };
+const SEVERITY: Record<EvalStatus, number> = { fail: 3, warn: 2, pass: 1, "no-threshold": 0, "no-data": 0, incomplete: 1 };
 
 /** How far a value is toward its limit: 1 means at the fail (or, without one, warn) threshold. */
 function loadRatio(p: MetricPoint): number {

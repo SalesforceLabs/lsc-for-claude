@@ -560,3 +560,16 @@ input[type="radio"]:not(.studio-ipad-screen *):disabled {
 .ui-num {
   font-variant-numeric: tabular-nums;
 }
+
+/* "Show more" row at the end of a long list (Limited.tsx). */
+.ui-show-more {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 var(--space-2);
+  list-style: none;
+  font-size: var(--font-sm);
+}
+.ui-show-more-total {
+  color: var(--text-muted);
+}

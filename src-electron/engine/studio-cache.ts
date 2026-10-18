@@ -1,8 +1,10 @@
 import { getDb } from "./history.js";
+import { STUDIO_CACHE_MAX_ROWS, STUDIO_CACHE_TTL_MS, isFresh } from "./studio-cache-policy.js";
 
 /**
  * Persistent cache for Studio tool results. Feature maps fan out to dozens of
- * sf CLI queries, so results are kept per org until the user hits Refresh.
+ * sf CLI queries, so results are kept per org until the user hits Refresh or
+ * they pass the TTL (`studio-cache-policy.ts`).
  */
 
 let initialized = false;
@@ -28,23 +30,50 @@ function db() {
       );
     `);
     initialized = true;
+    prune(d);
   }
   return d;
 }
 
-export function getStudioCache(org: string, tool: string, args: string): unknown | undefined {
-  const row = db()
-    .prepare("SELECT data FROM studio_cache WHERE org = ? AND tool = ? AND args = ?")
-    .get(org, key(tool), args) as { data: string } | undefined;
-  return row ? JSON.parse(row.data) : undefined;
+/** Drop expired and older-version rows, then the oldest beyond the size cap. */
+function prune(d: ReturnType<typeof getDb>): void {
+  const cutoff = new Date(Date.now() - STUDIO_CACHE_TTL_MS).toISOString();
+  d.prepare("DELETE FROM studio_cache WHERE cached_at < ? OR tool NOT LIKE ?").run(cutoff, `%@${CACHE_VERSION}`);
+  d.prepare(
+    `DELETE FROM studio_cache WHERE rowid IN (
+       SELECT rowid FROM studio_cache ORDER BY cached_at DESC LIMIT -1 OFFSET ?)`
+  ).run(STUDIO_CACHE_MAX_ROWS);
 }
 
-export function setStudioCache(org: string, tool: string, args: string, data: unknown): void {
+/** The stored JSON text, or undefined when missing or past the TTL. */
+export function getStudioCacheText(org: string, tool: string, args: string): string | undefined {
+  const row = db()
+    .prepare("SELECT data, cached_at FROM studio_cache WHERE org = ? AND tool = ? AND args = ?")
+    .get(org, key(tool), args) as { data: string; cached_at: string } | undefined;
+  if (!row) return undefined;
+  if (!isFresh(row.cached_at)) {
+    db().prepare("DELETE FROM studio_cache WHERE org = ? AND tool = ? AND args = ?").run(org, key(tool), args);
+    return undefined;
+  }
+  return row.data;
+}
+
+export function getStudioCache(org: string, tool: string, args: string): unknown | undefined {
+  const text = getStudioCacheText(org, tool, args);
+  return text === undefined ? undefined : JSON.parse(text);
+}
+
+/** Store a result already serialized as JSON text, so a large map is stringified once. */
+export function setStudioCacheText(org: string, tool: string, args: string, text: string): void {
   db()
     .prepare(
       "INSERT OR REPLACE INTO studio_cache (org, tool, args, data, cached_at) VALUES (?, ?, ?, ?, ?)"
     )
-    .run(org, key(tool), args, JSON.stringify(data), new Date().toISOString());
+    .run(org, key(tool), args, text, new Date().toISOString());
+}
+
+export function setStudioCache(org: string, tool: string, args: string, data: unknown): void {
+  setStudioCacheText(org, tool, args, JSON.stringify(data));
 }
 
 /** Drop cached results for an org, optionally only for one tool. */

@@ -127,6 +127,10 @@ export interface PublishedIpad {
   viewer: { userId: string; name: string; permissionSets: string[] } | null;
   /** Active users on the profile, for picking whose iPad to preview. */
   users: { id: string; name: string }[];
+  /** Active users on the profile; more than `users` lists when `usersTruncated`. */
+  usersTotal?: number;
+  /** `users` is only the most recently active few; others are found by name. */
+  usersTruncated?: boolean;
   /** Dashboards the pages' `embeddedDashboard` components show, by developer name. */
   dashboards: Record<string, PublishedDashboard>;
   /** Custom settings from the cache's `config.json` (absent in snapshots saved before they were read). */
@@ -135,6 +139,8 @@ export interface PublishedIpad {
   reports?: PublishedReportItem[];
   /** Object tabs' list view records as `Object.ListName` → data; absent when they couldn't be read. */
   lists?: Record<string, PublishedListData>;
+  /** Why a list view has no data (`Object.ListName` → note). */
+  listErrors?: Record<string, string>;
   /** `db.json`: the tables the app downloads, as object → DB Schema WhereSoql ("" = every record the user can read). */
   sync?: Record<string, string>;
   /** Native screens (Intelligent Content, Accounts, Planner, Tableau) as the viewer's iPad draws them, read live. */
@@ -242,6 +248,8 @@ export interface PublishedDashboard {
   components: PublishedDashboardComponent[];
   /** When the results were last refreshed (only with `data`). */
   refreshedAt?: string;
+  /** Why a shared-results dashboard has no data. */
+  dataNote?: string;
 }
 
 export interface PublishedDashboardComponent {

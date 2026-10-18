@@ -1,0 +1,19 @@
+/* Notes the published preview shows about what it couldn't or didn't read. */
+.studio-ipad-lv-unread {
+  padding: 6px 12px;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  line-height: 1.4;
+}
+
+.studio-ipad-meta .studio-ipad-user-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.studio-ipad-meta .studio-ipad-user-search .studio-input {
+  width: 170px;
+  height: var(--control-sm);
+  font-size: var(--font-sm);
+}

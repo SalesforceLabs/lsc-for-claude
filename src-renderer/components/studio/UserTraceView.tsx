@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { CloudUpload, ExternalLink, Play, RefreshCw, Sparkles, UserRound } from "lucide-react";
 import Spinner from "../ui/Spinner";
 import StateView from "../ui/StateView";
+import { Limited } from "../ui/Limited";
 import type { FeatureSummary, ProfileOption } from "./types";
 import type { PerfUser } from "./perf-types";
 import type { PendingChange } from "./changes";
@@ -144,7 +145,7 @@ export default function UserTraceView({
           )}
           {users.list.length > 0 && (
             <ul className="studio-utrace-users" aria-label="Matching users">
-              {users.list.map((u) => (
+              <Limited as="li" items={users.list} render={(u) => (
                 <li key={u.id}>
                   <button
                     type="button"
@@ -162,7 +163,7 @@ export default function UserTraceView({
                     <span className="studio-utrace-user-profile">{u.profile}</span>
                   </button>
                 </li>
-              ))}
+              )} />
             </ul>
           )}
           {!users.loading && !users.error && users.list.length === 0 && <div className="studio-utrace-note">No active users match.</div>}

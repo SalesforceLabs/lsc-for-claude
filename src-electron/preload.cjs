@@ -81,11 +81,12 @@ contextBridge.exposeInMainWorld("lscApi", {
     ipcRenderer.invoke("studio:call", "studio_item_detail", { kind, id }),
   studioListProfiles: () => ipcRenderer.invoke("studio:call", "studio_list_profiles"),
   studioUserAccess: (userId) => ipcRenderer.invoke("studio:call", "studio_user_access", { userId }),
-  studioAccessOptions: () => ipcRenderer.invoke("studio:call", "studio_access_options"),
+  studioAccessOptions: (search) => ipcRenderer.invoke("studio:call", "studio_access_options", search ? { search } : {}),
   studioLwcBundle: (name) => ipcRenderer.invoke("studio:call", "studio_lwc_bundle", { name }),
   studioLwcRequest: (method, path, body) => ipcRenderer.invoke("studio:call", "studio_lwc_request", body === undefined ? { method, path } : { method, path, body }),
   studioIpadPublished: (profile, refresh = false, userId) =>
     ipcRenderer.invoke("studio:call", "studio_ipad_published", userId ? { profile, userId } : { profile }, refresh),
+  studioIpadPublishedUsers: (profile, search) => ipcRenderer.invoke("studio:call", "studio_ipad_published_users", { profile, search }),
   studioIpadPublishedProgress: (profile) => ipcRenderer.invoke("studio:call", "studio_ipad_published_progress", { profile }),
   // Studio fixes — previewed, then applied only after the user confirms in the UI
   studioPreviewFix: (fix) => ipcRenderer.invoke("studio:call", "studio_preview_fix", { fix }),

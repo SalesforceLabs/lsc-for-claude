@@ -8,6 +8,7 @@ interface LoadStep {
   key: string;
   label: string;
   state: "waiting" | "running" | "done" | "failed";
+  detail?: string;
 }
 interface LoadProgress {
   profile: string;
@@ -62,6 +63,7 @@ export default function PublishedLoading({ profile }: { profile: string }) {
             <li key={s.key} className={s.state}>
               <StepMark state={s.state} />
               {s.label}
+              {s.detail && <span className="studio-ipad-loading-detail"> · {s.detail}</span>}
             </li>
           ))}
         </ol>

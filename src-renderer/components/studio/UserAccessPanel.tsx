@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, RotateCcw, X } from "lucide-react";
 import StateView from "../ui/StateView";
 import type { AccessOptions, AccessRef, StudioFix, StudioItem, UserAccess } from "./types";
@@ -90,8 +90,12 @@ export default function UserAccessPanel({ user, others, pending, onQueue, refres
     onQueue([q.kind === "assignAccess" ? take({ ...ref, assignmentId }) : give(ref)]);
   };
 
-  const optionsFor = (type: Kind): AccessRef[] =>
-    type === "permissionSet" ? options.permissionSets : type === "permissionSetGroup" ? options.permissionSetGroups : options.territories;
+  const listKey = (type: Kind) => (type === "permissionSet" ? "permissionSets" : type === "permissionSetGroup" ? "permissionSetGroups" : "territories");
+  const optionsFor = (type: Kind): AccessRef[] => options[listKey(type)];
+  const searchFor = (type: Kind) => async (text: string) => {
+    const res = await window.lscApi.studioAccessOptions(text);
+    return responseError(res) ? [] : (res.data as AccessOptions)[listKey(type)];
+  };
 
   const sameAs = async (otherId: string) => {
     const other = others.find((o) => o.id === otherId);
@@ -183,7 +187,10 @@ export default function UserAccessPanel({ user, others, pending, onQueue, refres
             </div>
             {adding === s.type && (
               <AccessPicker
-                options={optionsFor(s.type).filter((o) => !held.has(refKey(o)) && !queued.has(refKey(o)))}
+                options={optionsFor(s.type)}
+                hidden={(o) => held.has(refKey(o)) || queued.has(refKey(o))}
+                truncated={options.truncated?.[listKey(s.type)]}
+                onSearch={searchFor(s.type)}
                 onPick={(ref) => onQueue([give(ref)])}
               />
             )}
@@ -218,16 +225,56 @@ export default function UserAccessPanel({ user, others, pending, onQueue, refres
 
 const PICKER_ROWS = 50;
 
-function AccessPicker({ options, onPick }: { options: AccessRef[]; onPick: (ref: AccessRef) => void }) {
+function AccessPicker({
+  options,
+  hidden,
+  truncated,
+  onSearch,
+  onPick,
+}: {
+  options: AccessRef[];
+  /** Already held or queued — not offered. */
+  hidden: (ref: AccessRef) => boolean;
+  /** Set when the list was cut short; typing then searches the org by name. */
+  truncated?: { listed: number; total: number };
+  onSearch: (text: string) => Promise<AccessRef[]>;
+  onPick: (ref: AccessRef) => void;
+}) {
   const [filter, setFilter] = useState("");
+  const [found, setFound] = useState<{ text: string; rows: AccessRef[] } | null>(null);
+  const search = useRef(onSearch);
+  search.current = onSearch;
   const q = filter.trim().toLowerCase();
+  useEffect(() => {
+    if (!truncated || q.length < 2) return setFound(null);
+    let live = true;
+    const timer = setTimeout(() => {
+      search.current(q).then(
+        (rows) => live && setFound({ text: q, rows }),
+        () => live && setFound(null)
+      );
+    }, 250);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [q, truncated]);
+  // The org's answer replaces the local list once it's back for what's typed.
+  const source = found?.text === q ? found.rows : options;
   // Territories in the active model first — those are the ones that give accounts today.
-  const rows = options
+  const rows = source
+    .filter((o) => !hidden(o))
     .filter((o) => !q || `${o.label} ${(o as { model?: string }).model ?? ""}`.toLowerCase().includes(q))
     .sort((a, b) => Number(!!(a as { planning?: boolean }).planning) - Number(!!(b as { planning?: boolean }).planning));
   return (
     <div className="studio-picker">
-      <input className="studio-filter" placeholder={`Filter ${options.length}…`} value={filter} onChange={(e) => setFilter(e.target.value)} autoFocus />
+      <input
+        className="studio-filter"
+        placeholder={truncated ? `Search ${truncated.total.toLocaleString()} by name…` : `Filter ${options.length}…`}
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        autoFocus
+      />
       <ul className="studio-picker-list">
         {rows.slice(0, PICKER_ROWS).map((o) => {
           const t = o as AccessRef & { model?: string; planning?: boolean };

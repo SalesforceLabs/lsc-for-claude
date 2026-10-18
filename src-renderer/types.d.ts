@@ -96,10 +96,11 @@ interface LscApi {
   studioItemDetail(kind: string, id: string): Promise<StudioResponse>;
   studioListProfiles(): Promise<StudioResponse>;
   studioUserAccess(userId: string): Promise<StudioResponse>;
-  studioAccessOptions(): Promise<StudioResponse>;
+  studioAccessOptions(search?: string): Promise<StudioResponse>;
   studioLwcBundle(name: string): Promise<StudioResponse>;
   studioLwcRequest(method: "GET" | "POST", path: string, body?: unknown): Promise<StudioResponse>;
   studioIpadPublished(profile: string, refresh?: boolean, userId?: string): Promise<StudioResponse>;
+  studioIpadPublishedUsers(profile: string, search: string): Promise<StudioResponse>;
   studioIpadPublishedProgress(profile: string): Promise<StudioResponse>;
   studioPreviewFix(fix: unknown): Promise<StudioResponse>;
   studioApplyFix(fix: unknown, expectedOrg: string): Promise<StudioResponse>;

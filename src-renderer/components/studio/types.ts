@@ -117,6 +117,8 @@ export interface AccessOptions {
   permissionSetGroups: AccessRef[];
   /** Territories, labelled with their model; `planning` when the model isn't active. */
   territories: (AccessRef & { model: string; planning: boolean })[];
+  /** Lists cut at the server's cap, with how many exist — find the rest by name. */
+  truncated?: Partial<Record<"permissionSets" | "permissionSetGroups" | "territories", { listed: number; total: number }>>;
 }
 
 /** A record Studio can switch on or off. */
