@@ -24,13 +24,14 @@ import { assertId, assertNames, PUBLISH_WARNING } from "./change-helpers.js";
 import { deployDoc, withDoc, type MetadataDoc } from "./metadata/doc.js";
 import { applyCompactOps, StaleCompactError } from "./metadata/compact-ops.js";
 import { applyLayoutOps, relatedListCount, StaleLayoutError, type LayoutChange } from "./metadata/layout-ops.js";
+import { applyListViewOps, StaleListViewError } from "./metadata/listview-ops.js";
 import { applyFlexiPageOps, flexiPageWarnings, StaleFlexiPageError } from "./metadata/flexipage-ops.js";
-import { compactLayoutRecordTypes, flexiPageReach, isManagedFlexiPage, isProductionOrg, layoutProfiles, splitCompactName } from "./metadata/live.js";
+import { compactLayoutRecordTypes, flexiPageReach, isManagedFlexiPage, isProductionOrg, layoutProfiles, liveListViewOf, splitCompactName, splitListViewName } from "./metadata/live.js";
 import { serializeXml, type XmlNode } from "./metadata/xml.js";
 import { scriptCodeFindings } from "./collect.js";
 import { lineCount, lineDiff } from "./diff.js";
 import { query, type Row } from "./helpers.js";
-import type { CompactLayoutEditFix, CompactOp, FixPreview, FixResult, FlexiPageEditFix, FlexiPageOp, LayoutOp, StudioFix } from "./types.js";
+import type { CompactLayoutEditFix, CompactOp, FixPreview, FixResult, FlexiPageEditFix, FlexiPageOp, LayoutOp, ListViewOp, StudioFix } from "./types.js";
 
 type ScriptFix = Extract<StudioFix, { kind: "setCustomScriptCode" }>;
 type LayoutFix = Extract<StudioFix, { kind: "setLayoutRelatedList" }>;
@@ -279,13 +280,16 @@ function applyFixOps(fix: MetadataFix, root: XmlNode): { root: XmlNode; inverse:
 interface MetadataPlan {
   preview: FixPreview;
   root?: XmlNode;
-  inverse?: (LayoutOp | CompactOp | FlexiPageOp)[];
+  inverse?: (LayoutOp | CompactOp | FlexiPageOp | ListViewOp)[];
 }
 
 const FLEXIPAGE_OPS = new Set(["moveComponent", "removeComponent", "addComponent", "setComponentProperty"]);
 
 async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string): Promise<MetadataPlan> {
-  if (fix.ops.some((op) => FLEXIPAGE_OPS.has(op.op) !== (fix.doc.type === "FlexiPage"))) throw new Error(`These changes aren't ${fix.doc.type} edits.`);
+  if (fix.ops.some((op) => FLEXIPAGE_OPS.has(op.op) !== (fix.doc.type === "FlexiPage") || LISTVIEW_OPS.has(op.op) !== (fix.doc.type === "ListView"))) {
+    throw new Error(`These changes aren't ${fix.doc.type} edits.`);
+  }
+  if (fix.doc.type === "ListView") return planEditListView(fix, doc, org);
   if (fix.doc.type === "FlexiPage") return planEditFlexiPage(fix, doc, org);
   const preview: FixPreview = { org, title: fix.label, changes: [], warnings: [] };
   if (!fix.ops.length) return { preview: { ...preview, blocked: "Nothing to change." } };
@@ -378,10 +382,62 @@ async function planEditFlexiPage(fix: MetadataFix, doc: MetadataDoc, org: string
   return { preview, root: result.root, inverse: result.inverse };
 }
 
+// --- List views edited in the iPad preview ------------------------------------------
+
+const LISTVIEW_OPS = new Set<string>(["moveListColumn", "removeListColumn", "addListColumn", "setListFilterScope", "setListFilters"]);
+
+const SHARED_KINDS: Record<string, string> = {
+  allInternalUsers: "all internal users",
+  allPartnerUsers: "all partner users",
+  group: "group",
+  role: "role",
+  roleAndSubordinates: "role and subordinates",
+  roleAndSubordinatesInternal: "role and subordinates",
+  territory: "territory",
+  territoryAndSubordinates: "territory and subordinates",
+};
+
+/** "...shared with group A, role B" - who sees the list view; a view with no sharing is every user's. */
+function listViewReach(label: string, sharedTo: { kind: string; name: string }[] | null): string {
+  if (!sharedTo) return `Deploys ${label} to the org - it's shared with all users, and they all get the change.`;
+  if (!sharedTo.length) return `Deploys ${label} to the org. It isn't shared with anyone but its owner.`;
+  const shown = sharedTo.slice(0, 4).map((s) => (s.name ? `${SHARED_KINDS[s.kind] ?? s.kind} ${s.name}` : (SHARED_KINDS[s.kind] ?? s.kind)));
+  const more = sharedTo.length > 4 ? ` and ${sharedTo.length - 4} more` : "";
+  return `Deploys ${label} to the org - it's shared with ${shown.join(", ")}${more}, and everyone it's shared with gets the change.`;
+}
+
+async function planEditListView(fix: MetadataFix, doc: MetadataDoc, org: string): Promise<MetadataPlan> {
+  const preview: FixPreview = { org, title: fix.label, changes: [], warnings: [] };
+  if (!fix.ops.length) return { preview: { ...preview, blocked: "Nothing to change." } };
+  const live = liveListViewOf(fix.doc.fullName, doc.root);
+  if (live.managed) {
+    return {
+      preview: { ...preview, blocked: `${fix.doc.label} was installed from a managed package, so it can't be changed. Create a copy in Setup and edit that.` },
+    };
+  }
+  let result: ReturnType<typeof applyListViewOps>;
+  try {
+    result = applyListViewOps(doc.root, fix.ops as ListViewOp[]);
+  } catch (e) {
+    if (!(e instanceof StaleListViewError)) throw e;
+    return { preview: { ...preview, blocked: `${fix.doc.label} changed since the preview was loaded: ${e.message} Refresh the preview.` } };
+  }
+  const diff = lineDiff(doc.xml, serializeXml(result.root));
+  if (!diff.length) return { preview: { ...preview, blocked: `${fix.doc.label} already looks like this. Refresh the preview.` } };
+  preview.changes = result.changes.map((c) => ({ target: fix.doc.label, ...c }));
+  preview.changes[preview.changes.length - 1].diff = diff;
+  preview.warnings.push(listViewReach(fix.doc.label, live.sharedTo));
+  // The iPad lists an object's views live, so reps see a deployed change without a metadata cache publish.
+  preview.warnings.push("The iPad reads list views from the org when a rep opens the list, so no publish to iPad is needed.");
+  if (await isProductionOrg(org)) preview.production = true;
+  return { preview, root: result.root, inverse: result.inverse };
+}
+
 async function previewEditMetadata(fix: MetadataFix, org: string): Promise<FixPreview> {
   const title = fix.label;
   try {
     if (isCompactFix(fix)) splitCompactName(fix.doc.fullName);
+    if (fix.doc.type === "ListView") splitListViewName(fix.doc.fullName);
     return await withDoc(fix.doc.type, fix.doc.fullName, org, async (doc) => (await planEditMetadata(fix, doc, org)).preview);
   } catch (e) {
     return { org, title, changes: [], warnings: [], blocked: e instanceof Error ? e.message : String(e) };
@@ -391,6 +447,7 @@ async function previewEditMetadata(fix: MetadataFix, org: string): Promise<FixPr
 async function applyEditMetadata(fix: MetadataFix, org: string): Promise<FixResult> {
   try {
     if (isCompactFix(fix)) splitCompactName(fix.doc.fullName);
+    if (fix.doc.type === "ListView") splitListViewName(fix.doc.fullName);
     return await withDoc(fix.doc.type, fix.doc.fullName, org, async (doc) => {
       const { preview, root, inverse } = await planEditMetadata(fix, doc, org);
       if (preview.blocked || !root || !inverse) return { ok: false, message: preview.blocked || "Nothing to update." };

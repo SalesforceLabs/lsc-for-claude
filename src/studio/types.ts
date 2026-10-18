@@ -121,8 +121,28 @@ export type CompactOp =
   | { op: "removeCompactField"; field: string }
   | { op: "addCompactField"; field: string; before: string | null };
 
+/** One filter row of a list view: the field, the operation word the Metadata API uses and the raw value. */
+export interface ListViewFilter {
+  field: string;
+  operation: string;
+  value: string;
+}
+
+/**
+ * One edit to a list view's XML. Columns are found by the id the view stores
+ * (an API name, or a legacy id like `ACCOUNT.NAME` on standard objects). `before` is the column
+ * it goes in front of, or null for the end. The filter ops carry what they replace so a view
+ * that changed in Setup since is noticed.
+ */
+export type ListViewOp =
+  | { op: "moveListColumn"; column: string; before: string | null }
+  | { op: "removeListColumn"; column: string }
+  | { op: "addListColumn"; column: string; before: string | null }
+  | { op: "setListFilterScope"; from: string | null; to: string }
+  | { op: "setListFilters"; from: ListViewFilter[]; to: ListViewFilter[]; fromLogic: string | null; toLogic: string | null };
+
 export interface MetadataDocRef {
-  type: "Layout" | "CompactLayout" | "FlexiPage";
+  type: "Layout" | "CompactLayout" | "FlexiPage" | "ListView";
   /** Metadata API name, e.g. "Account-Account Layout", "Account.LSC_Account_Compact" or a Lightning page's developer name. */
   fullName: string;
   label: string;
@@ -171,7 +191,7 @@ export type FlexiPageOp =
     }
   | { op: "setComponentProperty"; component: FlexiComponentRef; property: FlexiPageProperty; from: string | null; to: string | null };
 
-export type MetadataOp = LayoutOp | CompactOp | FlexiPageOp;
+export type MetadataOp = LayoutOp | CompactOp | FlexiPageOp | ListViewOp;
 
 /** A Lightning page item as it is in the org now. */
 export interface LiveFlexiItem {
@@ -236,7 +256,7 @@ export interface RelatedListOption {
  * Edits to one metadata document, deployed together. Each op is checked against
  * the document as retrieved; undo is the reversed inverse ops.
  */
-export type EditMetadataFix = LayoutEditFix | CompactLayoutEditFix | FlexiPageEditFix;
+export type EditMetadataFix = LayoutEditFix | CompactLayoutEditFix | FlexiPageEditFix | ListViewEditFix;
 
 export interface LayoutEditFix {
   kind: "editMetadata";
@@ -252,11 +272,42 @@ export interface FlexiPageEditFix {
   ops: FlexiPageOp[];
 }
 
+export interface ListViewEditFix {
+  kind: "editMetadata";
+  label: string;
+  doc: MetadataDocRef & { type: "ListView" };
+  ops: ListViewOp[];
+}
+
 export interface CompactLayoutEditFix {
   kind: "editMetadata";
   label: string;
   doc: MetadataDocRef & { type: "CompactLayout" };
   ops: CompactOp[];
+}
+
+/**
+ * A list view as it is in the org now, for lining the published columns up before editing.
+ * The metadata has no sort element, so sort isn't here (and isn't editable).
+ */
+export interface LiveListView {
+  type: "ListView";
+  fullName: string;
+  label: string;
+  /** Column ids as the view stores them, in order. */
+  columns: string[];
+  /** Everything, Mine, Team, MyTerritory…; null when the view has none. */
+  filterScope: string | null;
+  filters: ListViewFilter[];
+  /** "1 AND (2 OR 3)"; null when the view has no logic. */
+  booleanFilter: string | null;
+  /** Who it's shared with: all users when null, else the groups and roles. */
+  sharedTo: { kind: string; name: string }[] | null;
+  /** Fields that can be added as columns, from the object's describe; empty when it couldn't be read. */
+  available: { name: string; label: string; type: string; filterable: boolean }[];
+  /** Installed from a managed package, so it can't be changed. */
+  managed: boolean;
+  production: boolean;
 }
 
 /** A compact layout as it is in the org now, for lining the published record header up before editing. */

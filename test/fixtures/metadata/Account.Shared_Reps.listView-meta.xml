@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Shared_Reps</fullName>
+    <booleanFilter>1 AND (2 OR 3)</booleanFilter>
+    <columns>Name</columns>
+    <columns>Phone</columns>
+    <columns>Industry</columns>
+    <filterScope>Everything</filterScope>
+    <filters>
+        <field>Industry</field>
+        <operation>equals</operation>
+        <value>Pharma</value>
+    </filters>
+    <filters>
+        <field>Type</field>
+        <operation>notEqual</operation>
+        <value>Prospect</value>
+    </filters>
+    <filters>
+        <field>Phone</field>
+        <operation>startsWith</operation>
+        <value>415</value>
+    </filters>
+    <label>Shared Reps</label>
+    <sharedTo>
+        <group>Field_Reps</group>
+        <role>East_Reps</role>
+    </sharedTo>
+</ListView>

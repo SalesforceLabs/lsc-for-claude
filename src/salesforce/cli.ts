@@ -54,6 +54,8 @@ export interface SObjectDescribeResult {
     /** Set on a compound field's parts (e.g. BillingStreet → BillingAddress). */
     compoundFieldName?: string | null;
     deprecatedAndHidden?: boolean;
+    /** Whether the field can be used in a list view filter. */
+    filterable?: boolean;
   }>;
   childRelationships?: Array<{
     childSObject: string;

@@ -14,11 +14,12 @@ import * as path from "path";
 import { apiRequest, cachedDescribeSObject, retrieveMetadata, type SObjectDescribeResult } from "../../salesforce/cli.js";
 import { assertId } from "../change-helpers.js";
 import { query, type Row } from "../helpers.js";
-import type { LayoutFieldOption, LiveCompactLayout, LiveFlexiPage, LiveLayout, RelatedListOption } from "../types.js";
+import type { LayoutFieldOption, LiveCompactLayout, LiveFlexiPage, LiveLayout, LiveListView, RelatedListOption } from "../types.js";
+import { listBooleanFilter, listColumns, listFilters, listFilterScope } from "./listview-ops.js";
 import { compactFields } from "./compact-ops.js";
 import { withDoc } from "./doc.js";
 import { componentOf, facetsOf, identifierOf, itemsOf, propertiesOf, regionName, regionsOf } from "./flexipage-ops.js";
-import { childText, childrenNamed, parseXml, type XmlNode } from "./xml.js";
+import { childText, childrenNamed, parseXml, unescapeXml, type XmlNode } from "./xml.js";
 
 const soqlString = (v: string) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 
@@ -338,4 +339,47 @@ export async function readLiveFlexiPage(fullName: string, org: string, reachWait
   ]);
   if (reach === pending) return { ...structure, profiles: null, appDefaults: null, reachPending: true, managed, production };
   return { ...structure, profiles: reach?.profiles ?? null, appDefaults: reach?.appDefaults ?? null, managed, production };
+}
+
+// --- List views ------------------------------------------------------------------------
+
+/** "Account.AllAccounts" → ["Account", "AllAccounts"]; throws on anything else. */
+export function splitListViewName(fullName: string): [string, string] {
+  const m = /^(\w+)\.(\w+)$/.exec(fullName);
+  if (!m) throw new Error(`Invalid list view name: ${fullName}`);
+  return [m[1], m[2]];
+}
+
+/** A view installed from a managed package carries its namespace ("FSL__All"), which a view of the org's own never does. */
+export const isManagedListView = (fullName: string): boolean => /^[A-Za-z][A-Za-z0-9]*__\w+$/.test(splitListViewName(fullName)[1]);
+
+export function liveListViewOf(fullName: string, root: XmlNode): Omit<LiveListView, "available" | "production"> {
+  const shared = childrenNamed(root, "sharedTo")[0];
+  return {
+    type: "ListView",
+    fullName,
+    label: childText(root, "label") ?? fullName,
+    columns: listColumns(root),
+    filterScope: listFilterScope(root),
+    filters: listFilters(root),
+    booleanFilter: listBooleanFilter(root),
+    sharedTo: shared ? shared.children.map((c) => ({ kind: c.tag, name: unescapeXml(c.text ?? "") })) : null,
+    managed: isManagedListView(fullName),
+  };
+}
+
+export async function readLiveListView(fullName: string, org: string): Promise<LiveListView> {
+  const [object] = splitListViewName(fullName);
+  const [doc, available, production] = await Promise.all([
+    withDoc("ListView", fullName, org, async ({ root }) => liveListViewOf(fullName, root)),
+    cachedDescribeSObject(object, org).then(
+      (r) =>
+        r.success && r.data
+          ? r.data.fields.filter((f) => f.type !== "base64").map((f) => ({ name: f.name, label: f.label, type: f.type, filterable: f.filterable !== false }))
+          : [],
+      () => []
+    ),
+    isProductionOrg(org),
+  ]);
+  return { ...doc, available, production };
 }
