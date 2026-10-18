@@ -1,5 +1,11 @@
 import React from "react";
 import {
+  Asterisk,
+  CircleMinus,
+  Columns2,
+  Heading,
+  Lock,
+  Undo2,
   ArrowDown,
   ArrowUp,
   CloudOff,
@@ -25,6 +31,12 @@ const ICONS: Record<VerbId, LucideIcon> = {
   off: PowerOff,
   on: Power,
   discard: Trash2,
+  remove: CircleMinus,
+  restore: Undo2,
+  column: Columns2,
+  heading: Heading,
+  required: Asterisk,
+  readonly: Lock,
 };
 
 /**

@@ -8,6 +8,12 @@ import React, {
   useState,
 } from "react";
 import {
+  Asterisk,
+  CircleMinus,
+  Columns2,
+  Heading,
+  Lock,
+  Undo2,
   ArrowDown,
   ArrowLeft,
   ArrowRight,
@@ -88,10 +94,18 @@ const VERB_ICONS: Record<VerbId, LucideIcon> = {
   off: PowerOff,
   on: Power,
   discard: Trash2,
+  remove: CircleMinus,
+  restore: Undo2,
+  column: Columns2,
+  heading: Heading,
+  required: Asterisk,
+  readonly: Lock,
 };
 
 /** Toolbar words; the full sentence ("Hide for LS Rep") is the button's tooltip and stays in the inspector. */
 const TOOLBAR_LABELS: Partial<Record<VerbId, string>> = { hide: "Hide", show: "Show" };
+/** Verbs the toolbar draws as an icon alone; their tooltip says what they do. */
+const ICON_ONLY = new Set<VerbId>(["up", "down", "column", "heading", "required", "readonly"]);
 
 export interface EditSurfaceProps {
   on: boolean;
@@ -200,7 +214,7 @@ export function EditSurface({
           : e.altKey && forward
             ? ["down"]
             : e.key === "Backspace" || e.key === "Delete"
-              ? ["hide", "off", "discard"]
+              ? ["hide", "off", "discard", "remove"]
               : [];
       const verb = want.map((id) => verbs.find((v) => v.id === id && v.run)).find(Boolean);
       if (verb) {
@@ -322,7 +336,7 @@ function Toolbar({
             : horizontal && v.id === "down"
               ? ArrowRight
               : VERB_ICONS[v.id];
-        const iconOnly = v.id === "up" || v.id === "down";
+        const iconOnly = ICON_ONLY.has(v.id);
         return (
           <button
             key={v.id}

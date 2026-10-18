@@ -387,7 +387,20 @@ export function draftHomeMenu(
 
 // --- Verbs -----------------------------------------------------------------------
 
-export type VerbId = "up" | "down" | "hide" | "show" | "off" | "on" | "discard";
+export type VerbId =
+  | "up"
+  | "down"
+  | "hide"
+  | "show"
+  | "off"
+  | "on"
+  | "discard"
+  | "remove"
+  | "restore"
+  | "column"
+  | "heading"
+  | "required"
+  | "readonly";
 
 /** Something the toolbar offers. `run` returns the tray it leaves; absent when the verb is shown disabled, with `reason`. */
 export interface Verb {

@@ -37,6 +37,9 @@ export function changeKey(fix: StudioFix): string {
       return `script:${fix.scriptId}`;
     case "setLayoutRelatedList":
       return `layout:${fix.layoutName}:${fix.relationshipName}`;
+    case "editMetadata":
+      // The ops are the whole difference from the org's document, so a newer edit replaces the older one.
+      return `metadata:${fix.doc.type}:${fix.doc.fullName}`;
   }
 }
 
@@ -53,6 +56,8 @@ function isNoop(fix: StudioFix): boolean {
       return listKey(fix.from) === listKey(fix.to);
     case "setCustomScriptCode":
       return fix.from === fix.to;
+    case "editMetadata":
+      return fix.ops.length === 0;
     default:
       return false;
   }
@@ -103,6 +108,7 @@ export function isMobileChange(fix: StudioFix): boolean {
     case "createConfigRecord":
     case "deleteConfigRecord":
       return MOBILE_CATEGORIES.has(fix.category);
+    case "editMetadata":
     case "setLayoutRelatedList":
       // The layout feeds the iPad's visit engagement sidebar; it applies to every profile using it.
       return true;
