@@ -1,7 +1,7 @@
 import type { Audience, FeatureMap, LayoutSidebar, Severity, StudioItem, SurfaceId } from "./types";
 import { fitFor, type Fit, type Lens } from "./lens";
 import { worstSeverity } from "./findings";
-import { effectiveActive, effectiveProfiles, pendingFor, activeChange, profileChange, type PendingChange } from "./changes";
+import { effectiveActive, effectiveProfiles, pendingFor, activeChange, profileChange, queuedLayoutOps, type PendingChange } from "./changes";
 
 /**
  * Studio's iPad preview — a block render of what LSC Mobile shows one profile,
@@ -251,14 +251,12 @@ export interface SidebarEntry {
 
 /** The related lists a Visit layout puts in the engagement sidebar, with queued adds and removes applied. */
 export function sidebarEntries(sidebar: LayoutSidebar, pending: PendingChange[]): SidebarEntry[] {
-  const changes = pending.flatMap((p) =>
-    p.fix.kind === "setLayoutRelatedList" && p.fix.layoutName === sidebar.layoutName ? [p.fix] : []
-  );
   const entries: SidebarEntry[] = (sidebar.relatedLists ?? []).map((relationshipName) => ({ relationshipName }));
-  for (const c of changes) {
-    const existing = entries.find((e) => e.relationshipName === c.relationshipName);
-    if (c.add && !existing) entries.push({ relationshipName: c.relationshipName, objectName: c.objectName, pending: "add" });
-    if (!c.add && existing) existing.pending = "remove";
+  for (const o of queuedLayoutOps(pending, sidebar.layoutName)) {
+    if (o.op !== "addRelatedList" && o.op !== "removeRelatedList") continue;
+    const existing = entries.find((e) => e.relationshipName === o.relatedList);
+    if (o.op === "addRelatedList" && !existing) entries.push({ relationshipName: o.relatedList, objectName: o.object, pending: "add" });
+    if (o.op === "removeRelatedList" && existing) existing.pending = "remove";
   }
   return entries;
 }

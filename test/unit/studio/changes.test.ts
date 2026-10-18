@@ -69,9 +69,16 @@ describe("pending changes for code, validation rules, and layouts", () => {
 
   it("drops a sidebar add that is taken back out, and counts the layout as an iPad change", () => {
     const cand = { objectName: "Thing__c", relationshipName: "Things__r" };
-    const add = layoutChange("Visit-Visit Layout", "Visit Layout", cand, true);
+    const add = layoutChange([], "Visit-Visit Layout", "Visit Layout", cand, true);
     const pending = queueChange([], { fix: add });
     expect(publishProfiles(pending)).toBeNull();
-    expect(queueChange(pending, { fix: layoutChange("Visit-Visit Layout", "Visit Layout", cand, false) })).toEqual([]);
+    expect(queueChange(pending, { fix: layoutChange(pending, "Visit-Visit Layout", "Visit Layout", cand, false) })).toEqual([]);
+  });
+
+  it("takes an existing related list out of the sidebar, and puts it back as no change", () => {
+    const cand = { objectName: "Sample", relationshipName: "Samples" };
+    const pending = queueChange([], { fix: layoutChange([], "Visit-Visit Layout", "Visit Layout", cand, false) });
+    expect(pending[0].fix).toMatchObject({ kind: "editMetadata", ops: [{ op: "removeRelatedList", relatedList: "Samples" }] });
+    expect(queueChange(pending, { fix: layoutChange(pending, "Visit-Visit Layout", "Visit Layout", cand, true) })).toEqual([]);
   });
 });

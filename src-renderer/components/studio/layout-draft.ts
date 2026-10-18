@@ -1,6 +1,6 @@
 import type { PublishedLayout, PublishedRelated, RecordFieldSpec } from "./published-types";
 import type { EditMetadataFix, FieldBehavior, LayoutOp, LiveLayout, SectionRef } from "./types";
-import { pendingFor, queueChange, type PendingChange } from "./changes";
+import { layoutOpsChange, pendingFor, queuedLayoutOps, queueChange, type PendingChange } from "./changes";
 import type { DraftState, Verb } from "./edit-draft";
 
 /**
@@ -413,7 +413,7 @@ export interface LayoutDraft {
 }
 
 export function layoutFix(fullName: string, label: string, ops: LayoutOp[]): EditMetadataFix {
-  return { kind: "editMetadata", label: `Edit page layout ${label}`, doc: { type: "Layout", fullName, label }, ops };
+  return layoutOpsChange(fullName, label, ops) as EditMetadataFix;
 }
 
 /** The layout's target once the tray is applied; throws `StaleDraftError` when the queued ops don't fit the org's layout. */
@@ -424,7 +424,10 @@ export function targetOf(fullName: string, base: LayoutModel, pending: PendingCh
 
 /** The tray with this layout arranged as `next` (its change dropped when that's the org's layout). */
 function arrange(d: LayoutDraft, next: LayoutModel, pending: PendingChange[]): PendingChange[] {
-  const fix = layoutFix(d.fullName, d.label, diffOps(d.base, next));
+  // A related list added from the board keeps its object, for the DB Schema check.
+  const objects = new Map(queuedLayoutOps(pending, d.fullName).flatMap((o) => (o.op === "addRelatedList" && o.object ? [[o.relatedList, o.object]] : [])));
+  const ops = diffOps(d.base, next).map((o) => (o.op === "addRelatedList" && objects.has(o.relatedList) ? { ...o, object: objects.get(o.relatedList) } : o));
+  const fix = layoutFix(d.fullName, d.label, ops);
   const without = pending.filter((p) => !(p.fix.kind === "editMetadata" && p.fix.doc.fullName === d.fullName));
   return queueChange(without, { fix, ...(d.live.profiles ? { affects: d.live.profiles } : {}) });
 }

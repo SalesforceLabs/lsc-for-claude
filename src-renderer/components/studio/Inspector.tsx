@@ -11,6 +11,7 @@ import {
   activeChange,
   changeKey,
   layoutChange,
+  queuedLayoutOps,
   scriptChange,
   createAffects,
   effectiveActive,
@@ -674,8 +675,8 @@ function FlowPanel({ flow }: { flow: FlowOutline }) {
 /** Related lists in a Visit layout's engagement sidebar, and a picker to add another. */
 function SidebarPanel({ layoutLabel, sidebar, queue }: { layoutLabel: string; sidebar: LayoutSidebar; queue: Queue }) {
   const [choice, setChoice] = useState("");
-  const queuedAdds = queue.pending.flatMap((p) =>
-    p.fix.kind === "setLayoutRelatedList" && p.fix.layoutName === sidebar.layoutName && p.fix.add ? [p.fix] : []
+  const queuedAdds = queuedLayoutOps(queue.pending, sidebar.layoutName).flatMap((o) =>
+    o.op === "addRelatedList" ? [{ relationshipName: o.relatedList, objectName: o.object ?? o.relatedList }] : []
   );
   const count = sidebar.relatedLists?.length ?? null;
   const full = count !== null && count + queuedAdds.length >= sidebar.max;
@@ -683,7 +684,7 @@ function SidebarPanel({ layoutLabel, sidebar, queue }: { layoutLabel: string; si
   const add = () => {
     const candidate = sidebar.candidates.find((c) => c.relationshipName === choice);
     if (!candidate) return;
-    queue.queue({ fix: layoutChange(sidebar.layoutName, layoutLabel, candidate, true) });
+    queue.queue({ fix: layoutChange(queue.pending, sidebar.layoutName, layoutLabel, candidate, true) });
     setChoice("");
   };
 
@@ -704,7 +705,7 @@ function SidebarPanel({ layoutLabel, sidebar, queue }: { layoutLabel: string; si
           ))}
           {queuedAdds.map((f) => (
             <span key={f.relationshipName} className="studio-chip" title="In pending changes — click to remove">
-              <button className="studio-link-btn" onClick={() => queue.toggle({ fix: f })}>
+              <button className="studio-link-btn" onClick={() => queue.queue({ fix: layoutChange(queue.pending, sidebar.layoutName, layoutLabel, f, false) })}>
                 {f.relationshipName} (pending) <X size={12} aria-hidden />
               </button>
             </span>

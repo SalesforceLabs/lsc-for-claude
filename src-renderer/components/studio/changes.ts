@@ -1,4 +1,4 @@
-import type { CreateConfigFix, ItemEdit, StudioFix, StudioItem } from "./types";
+import type { CreateConfigFix, ItemEdit, LayoutOp, StudioFix, StudioItem } from "./types";
 
 /**
  * Pending changes — edits queued in Studio's tray until the admin reviews and
@@ -253,20 +253,32 @@ export function scriptChange(item: StudioItem, from: string, to: string): Studio
   return { kind: "setCustomScriptCode", label: `Edit code of ${item.label}`, scriptId: item.id, scriptName: item.label, from, to };
 }
 
-/** A change adding (or removing) a related list on a Visit layout's engagement sidebar. */
+/** The layout ops queued for a page layout. */
+export function queuedLayoutOps(pending: PendingChange[], layoutName: string): LayoutOp[] {
+  const queued = pending.find((p) => p.fix.kind === "editMetadata" && p.fix.doc.fullName === layoutName)?.fix;
+  return queued?.kind === "editMetadata" ? queued.ops : [];
+}
+
+/** A page layout change with these ops — what's queued for the layout is replaced by it. */
+export function layoutOpsChange(layoutName: string, layoutLabel: string, ops: LayoutOp[]): StudioFix {
+  return { kind: "editMetadata", label: `Edit page layout ${layoutLabel}`, doc: { type: "Layout", fullName: layoutName, label: layoutLabel }, ops };
+}
+
+/** The layout change with a related list added to or taken out of a Visit layout's engagement sidebar, on top of what's queued for the layout. */
 export function layoutChange(
+  pending: PendingChange[],
   layoutName: string,
   layoutLabel: string,
   candidate: { objectName: string; relationshipName: string },
   add: boolean
 ): StudioFix {
-  return {
-    kind: "setLayoutRelatedList",
-    label: `${add ? "Add" : "Remove"} ${candidate.objectName} ${add ? "to" : "from"} the sidebar of ${layoutLabel}`,
-    layoutName,
-    layoutLabel,
-    objectName: candidate.objectName,
-    relationshipName: candidate.relationshipName,
-    add,
-  };
+  const queued = queuedLayoutOps(pending, layoutName);
+  const name = candidate.relationshipName;
+  const wasAdded = queued.some((o) => o.op === "addRelatedList" && o.relatedList === name);
+  const wasRemoved = queued.some((o) => o.op === "removeRelatedList" && o.relatedList === name);
+  const ops = queued.filter((o) => !((o.op === "addRelatedList" || o.op === "removeRelatedList") && o.relatedList === name));
+  // Adding back a list queued for removal (or taking out one queued to be added) is no change for it.
+  if (add && !wasRemoved) ops.push({ op: "addRelatedList", relatedList: name, before: null, object: candidate.objectName });
+  if (!add && !wasAdded) ops.push({ op: "removeRelatedList", relatedList: name });
+  return layoutOpsChange(layoutName, layoutLabel, ops);
 }
