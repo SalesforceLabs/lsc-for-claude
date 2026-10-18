@@ -150,6 +150,52 @@ function boxOf(el: Element, origin: DOMRect): DOMRect | null {
   return new DOMRect(r.left - origin.left, r.top - origin.top, r.width, r.height);
 }
 
+/** A block's box with the visible part of the page it is drawn on: the box clipped by every scrolling or clipping ancestor, in the surface's coordinates. */
+export interface Seen {
+  box: DOMRect;
+  /** The nearest clipping rect (the scroll viewport), in the surface's coordinates. */
+  clip: DOMRect;
+}
+
+/** `box` cut to what the scroll containers around `el` show, or null when none of it is on screen. */
+export function seenOf(el: Element, root: Element, origin: DOMRect): Seen | null {
+  const box = boxOf(el, origin);
+  if (!box) return null;
+  let left = -Infinity;
+  let top = -Infinity;
+  let right = Infinity;
+  let bottom = Infinity;
+  for (let n = el.parentElement; n && n !== root; n = n.parentElement) {
+    const st = getComputedStyle(n);
+    if (st.display === "contents" || (st.overflowX === "visible" && st.overflowY === "visible")) continue;
+    const r = n.getBoundingClientRect();
+    if (st.overflowX !== "visible") {
+      left = Math.max(left, r.left - origin.left);
+      right = Math.min(right, r.right - origin.left);
+    }
+    if (st.overflowY !== "visible") {
+      top = Math.max(top, r.top - origin.top);
+      bottom = Math.min(bottom, r.bottom - origin.top);
+    }
+  }
+  const clip = new DOMRect(
+    Number.isFinite(left) ? left : box.left,
+    Number.isFinite(top) ? top : box.top,
+    (Number.isFinite(right) ? right : box.right) - (Number.isFinite(left) ? left : box.left),
+    (Number.isFinite(bottom) ? bottom : box.bottom) - (Number.isFinite(top) ? top : box.top)
+  );
+  return { box, clip };
+}
+
+/** The part of `seen.box` inside its clip, or null when it is entirely outside. */
+export function visibleBox({ box, clip }: Seen): DOMRect | null {
+  const l = Math.max(box.left, clip.left);
+  const t = Math.max(box.top, clip.top);
+  const r = Math.min(box.right, clip.right);
+  const b = Math.min(box.bottom, clip.bottom);
+  return r > l && b > t ? new DOMRect(l, t, r - l, b - t) : null;
+}
+
 const union = (a: DOMRect, b: DOMRect) => {
   const left = Math.min(a.left, b.left);
   const top = Math.min(a.top, b.top);
@@ -354,11 +400,11 @@ export function EditSurface({
     landed.current = null;
     setDrag(null);
   }, []);
-  const [boxes, setBoxes] = useState<{ hover: DOMRect | null; selected: DOMRect | null }>({
+  const [boxes, setBoxes] = useState<{ hover: Seen | null; selected: Seen | null }>({
     hover: null,
     selected: null,
   });
-  const [alsoBoxes, setAlsoBoxes] = useState<DOMRect[]>([]);
+  const [alsoBoxes, setAlsoBoxes] = useState<Seen[]>([]);
   const selectedKey = selected ? targetKey(selected) : null;
   const alsoKeys = (also ?? []).map(targetKey).join("\n");
 
@@ -371,21 +417,21 @@ export function EditSurface({
     const h = find(hover);
     const s = find(selectedKey);
     const next = {
-      hover: h && hover !== selectedKey ? boxOf(h, origin) : null,
-      selected: s ? boxOf(s, origin) : null,
+      hover: h && hover !== selectedKey ? seenOf(h, el, origin) : null,
+      selected: s ? seenOf(s, el, origin) : null,
     };
     setBoxes((prev) =>
-      sameBox(prev.hover, next.hover) && sameBox(prev.selected, next.selected) ? prev : next
+      sameSeen(prev.hover, next.hover) && sameSeen(prev.selected, next.selected) ? prev : next
     );
     const rest = alsoKeys
       ? alsoKeys.split("\n").flatMap((k) => {
           const a = find(k);
-          const b = a && boxOf(a, origin);
+          const b = a && seenOf(a, el, origin);
           return b ? [b] : [];
         })
       : [];
     setAlsoBoxes((prev) =>
-      prev.length === rest.length && prev.every((b, i) => sameBox(b, rest[i])) ? prev : rest
+      prev.length === rest.length && prev.every((b, i) => sameSeen(b, rest[i])) ? prev : rest
     );
   }, [hover, selectedKey, alsoKeys]);
 
@@ -615,21 +661,16 @@ export function EditSurface({
         {on && (
           <div className="studio-edit-overlay" aria-hidden={!selected}>
             {boxes.hover && hoverTarget && !drag && (
-              <div className="studio-edit-hover" style={rectStyle(boxes.hover)}>
-                <span className="studio-edit-tag">{targetTag(hoverTarget)}</span>
-              </div>
+              <Clipped seen={boxes.hover} className="studio-edit-hover" tag={targetTag(hoverTarget)} />
             )}
             {boxes.selected && selected && (
               <>
-                <div
-                  className={`studio-edit-ring${drag ? " lifted" : ""}${flash ? ` ${flash}` : ""}`}
-                  style={rectStyle(boxes.selected)}
-                />
-                {!drag &&
-                  alsoBoxes.map((b, i) => <div key={i} className="studio-edit-ring" style={rectStyle(b)} />)}
-                {!drag && (
+                <Clipped seen={boxes.selected} className={`studio-edit-ring${drag ? " lifted" : ""}${flash ? ` ${flash}` : ""}`} />
+                {!drag && alsoBoxes.map((b, i) => <Clipped key={i} seen={b} className="studio-edit-ring" />)}
+                {!drag && visibleBox(boxes.selected) && (
                   <Toolbar
-                    box={boxes.selected}
+                    box={visibleBox(boxes.selected)!}
+                    clip={boxes.selected.clip}
                     width={root.current?.clientWidth ?? 0}
                     target={selected}
                     name={name}
@@ -663,6 +704,23 @@ export function EditSurface({
 
 const sameBox = (a: DOMRect | null, b: DOMRect | null) =>
   a && b ? a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height : a === b;
+const sameSeen = (a: Seen | null, b: Seen | null) => (a && b ? sameBox(a.box, b.box) && sameBox(a.clip, b.clip) : a === b);
+
+/** An outline drawn inside a box that clips it to the scroll viewport it belongs to; nothing when it is scrolled fully out of view. */
+function Clipped({ seen, className, tag }: { seen: Seen; className: string; tag?: string }) {
+  const shown = visibleBox(seen);
+  if (!shown) return null;
+  const { box, clip } = seen;
+  // A label above the block would be cut off at the viewport's top: tuck it inside instead.
+  const inside = box.y - clip.y < 18;
+  return (
+    <div className="studio-edit-clip" style={rectStyle(clip)}>
+      <div className={className} style={rectStyle(new DOMRect(box.x - clip.x, box.y - clip.y, box.width, box.height))}>
+        {tag && <span className={`studio-edit-tag${inside ? " inside" : ""}`}>{tag}</span>}
+      </div>
+    </div>
+  );
+}
 
 const rectStyle = (r: DOMRect): React.CSSProperties => ({
   left: r.x,
@@ -674,6 +732,7 @@ const rectStyle = (r: DOMRect): React.CSSProperties => ({
 /** The floating toolbar above the selection (below it when there's no room). */
 function Toolbar({
   box,
+  clip,
   width,
   target,
   name,
@@ -683,7 +742,10 @@ function Toolbar({
   onSetup,
   horizontal,
 }: {
+  /** The part of the selection that is on screen. */
   box: DOMRect;
+  /** The scroll viewport the selection is in: the toolbar stays inside it. */
+  clip: DOMRect;
   /** The surface's width: a block in its right half anchors the toolbar to its right edge so it stays on the device. */
   width: number;
   target: EditTarget;
@@ -694,11 +756,16 @@ function Toolbar({
   onSetup?: () => void;
   horizontal?: boolean;
 }) {
-  const below = box.y < 44;
+  const TOOLBAR_H = 44;
+  const above = box.y - clip.y >= TOOLBAR_H + 8;
+  const roomBelow = clip.bottom - box.bottom >= TOOLBAR_H + 8;
+  // Above the block, else below it, else tucked inside the viewport's top edge.
+  const below = !above;
+  const top = above ? box.y - 8 : roomBelow ? box.bottom + 8 : clip.y + 8;
   const right = width > 0 && box.x + box.width / 2 > width / 2;
   const style: React.CSSProperties = {
     ...(right ? { right: Math.max(4, width - box.right) } : { left: Math.max(4, box.x) }),
-    top: below ? box.bottom + 8 : box.y - 8,
+    top,
   };
   return (
     <div

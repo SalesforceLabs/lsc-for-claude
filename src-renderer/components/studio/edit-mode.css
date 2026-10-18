@@ -22,6 +22,13 @@
   z-index: 20;
 }
 
+/* Outlines live in a box the size of the scroll viewport, so what scrolls out of it is cut off. */
+.studio-edit-clip {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .studio-edit-hover,
 .studio-edit-ring {
   position: absolute;
@@ -58,6 +65,12 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.studio-edit-tag.inside {
+  bottom: auto;
+  top: 0;
+  border-radius: 0 0 var(--radius-xs) 0;
 }
 
 .studio-edit-toolbar {
