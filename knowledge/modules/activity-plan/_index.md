@@ -29,3 +29,7 @@ All three types support both Non-Product and Product measure types.
 ## Support Engineering Training (LSC4CE Value Chain)
 
 - [support-engineering-activity-plan](./support-engineering-activity-plan.md) — Apr 30, 2026 session. All 4 measure type configs, 7 mandatory triggers, full job tailing chains (Validate → Calculate → Reset → AccountGoals), Review/Adjustment widget setup, 6 W-number bug patterns with diagnosis steps.
+
+## Winter '27 (Release 264) Enhancements
+
+- [release-264-clone-and-mobile-review](./release-264-clone-and-mobile-review.md) — Clone Plan on web (`cloneActvtyPlanTerritories`) and review/adjust activity plans on iPad.

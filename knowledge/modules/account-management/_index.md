@@ -27,3 +27,7 @@ Deep-dive support engineering content on Search Before Create (SBC) from the Eng
 
 - [support-engineering-search-before-create-part1](./support-engineering-search-before-create-part1.md) — May 8, 2026 (Saumya Sharma). Data flattening (triggers + job), Search Outside Territory, Advanced Search (HCP/HCO/By ID), License Search, default + custom field sets via Field Set Mapping, Manual Alignment, 4 troubleshooting patterns.
 - [support-engineering-search-before-create-part2](./support-engineering-search-before-create-part2.md) — May 12, 2026 (Saumya Sharma). External Search settings (MuleSoft integration, contract checks, granular download controls), External Account Download (auto-territory alignment + DCR skip), Create Account flow (record-type selector + auto-population + field sets), Affiliated-account auto-alignment, DCR approval workflow, 8 troubleshooting patterns.
+
+## Winter '27 (Release 264) Enhancements
+
+- [release-264-relevance-based-account-search](./release-264-relevance-based-account-search.md) — iPad Account Search ranks by relevance with dynamic filters (address-only / account-only / consolidated).

@@ -68,3 +68,30 @@ Quoted Orders are launched from the Visit (Visit tabs include Store Check and Qu
 ## Limitations / Gotchas
 - The waterfall is data-intensive; not all of it downloads. It is available on demand (tap Net Unit Price; if not cached the app guides the rep to download online).
 - Cost books are not supported for LSC Order Management.
+
+## Verified Against Official Help (Set Up Quotes and Pricing)
+- **Scope/licensing:** Help lists the **Revenue Lifecycle Management add-on license** (plus Life Sciences Cloud, Customer Engagement add-on, managed package; iPad only for mobile) as the requirement for quoted orders and pricing. Turn on: Setup > **Salesforce Go** > Customer Engagement - Order Management > Setup (release note wording: Agentforce Life Sciences > LSC Order Management). Needs the **Life Sciences Commercial Admin** permission set.
+- The toggle activates: Revenue Cloud, Quotes (no opportunity needed), Document Builder, Advanced Approvals (web only), Context Service, Salesforce Pricing, Price Waterfall, Transaction Pricing, Quote Capture, Standard Price Book. Then deploy the Quote record page.
+- **Rep/user permission sets (Help):** Health Cloud Starter, Life Sciences Core, Life Sciences Field Sales Representative, Product Catalog Management Viewer, Document Builder User, Price and Tax Calculation for Quoting, Salesforce Pricing Runtime User. Create custom profiles from Standard User with Read + View All on Sales Transaction Type and Application Usage Assignments; reps need Read/Edit on those objects.
+- **Correction:** the admin list above says "Life Sciences Commercial Core"; Help names **Life Sciences Core** for users and Life Sciences Commercial Admin for admins.
+- **FLS (read-only for reps):** Quote: Status, GrandTotal, CalculationStatus, ValidationResult, TotalPrice, Subtotal. QuoteLineItem: TotalLineAmount, Subtotal, NetUnitPrice, NetTotalPrice, TotalAdjustmentAmount, TotalAdjustment, PriceWaterfallIdentifier, Discount, DiscountAmount, Margin, MarginAmount.
+- **Sharing:** Quote = Private (so reps see only their territory's quotes); Catalog = Public Read Only for reps; also review Expression Set, Price Adjustment Schedule, Sales Transaction Type, Product Territory (Detailed) Availability, Product, Life Science Stage Action/Object.
+- **Admin Console path (Help):** App Launcher > Admin Console > **Orders Management** > **Quotes and Pricing settings** tab; choose org or profile. Sections: Product Views (Last Order or Store Assortment, plus last-order status), Default Pricing Procedure, Priority Products tab (Enable Priority Products Tab), Disclaimer Filters, Price Waterfall Settings, Default Quote Document, Quote Fields and Mobile Layout. (Deck calls this "Orders and Pricing Settings".)
+- **Sales Transaction Type** pricing procedure takes priority over the Admin Console selection; it is auto-populated on iPad-created quotes.
+- **Flows shipped:** Browse Product Catalog; Build Product Details (calls the getQualifiedProducts action); Generate Quote Document for Agentforce Life Sciences (triggered by Quote Document Creation event); Set Quote Document Defaults (default signature ID); Share Created Quote; Share Quotes (recurring); Validate Mandatory Quote Fields (Account, Billing/Shipping Contact Point Address, Sales Transaction Type when App Usage Type is Life Sciences Order Management).
+- **Locking/unlocking:** workflow stages Draft, Submitted, Request for Unlock; a record-triggered approval flow routes to the owner's manager (approve -> Draft/unlocked; reject -> Rejected/locked); optional notification flow and Approval tracking components on the Quote page. Help marks the sample flow "for reference only". Unlock requests can be submitted offline.
+- **Mobile cache objects (Data type):** Quote, QuoteLineItem, QuoteDocument, Quote Document Recipient, DigitalSignature, DocumentRecipient, Pricebook2, PricebookEntry, PriceAdjustmentSchedule, PriceAdjustmentTier, Product2, ProductSellingModel, ProductCategoryProduct, LifeSciMarketableProduct, ProductTerritoryAvailability and ProductTerrDtlAvailability (where: `Territory.Name = '{USER.TERRITORY}' AND AlignmentType = 'Territory Exclusion'`), LifeSciProductAcctRstrc, UnitOfmeasure. Regenerate the cache after changing price books or pricing procedures (iPad prices from cached data). Custom Price Adjustment Matrix objects need their own cache record.
+- Quote PDFs can be generated, viewed, and edited only from web (per Help); the deck shows iPad PDF generation, which Help does not confirm.
+- Not verified: "Cost books not supported", TPT for LS4CE Mobile, Max Quote Line Items, Visit record type routing steps.
+
+## Sources
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_setup_basics.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_setup_om_basics.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_get_org_ready_users.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_flows.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_mobile_app_configuration.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_quote_locking_unlocking.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_admin_console_configurations.htm&release=264.0.0&type=5 (search excerpt)
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_configure_product_views.htm&release=264.0.0&type=5 (search excerpt)
+- https://help.salesforce.com/s/articleView?id=ind.lsc_order_management_configure_priority_product_tab.htm&release=264.0.0&type=5 (search excerpt)
+- https://help.salesforce.com/s/articleView?id=release-notes.rn_lsc_order_management_create_quotes_from_anywhere.htm&release=264.0.0&type=5

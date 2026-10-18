@@ -72,6 +72,11 @@ describe("renderSignoffReport", () => {
     expect(md).toContain("Device DB size p95 has a target but could not be measured");
   });
 
+  it("says 'is close to its limit' for a single near-limit target", () => {
+    const md = renderSignoffReport({ assessment: failing() });
+    expect(md).toContain("and 1 is close to its limit.");
+  });
+
   it("orders risks with the missed targets first", () => {
     const md = renderSignoffReport({ assessment: failing() });
     const risks = md.slice(md.indexOf("## Top risks"));

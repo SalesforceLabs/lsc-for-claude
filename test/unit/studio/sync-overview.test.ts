@@ -63,4 +63,24 @@ describe("syncOverview", () => {
     expect(r.usersAtRisk[0].reasons).toContain("In 14 territories");
     expect(r.daily).toHaveLength(1);
   });
+
+  it("counts failures in the totals when the org has no CompletionStatus", async () => {
+    const queries: string[] = [];
+    const d = deps({ fields: ["Id", "CreatedDate", "Type", "DownloadStart", "IsDownloadCompleted"], telemetry: [] });
+    const inner = d.querier("org");
+    const base = inner.soql.bind(inner);
+    inner.soql = async (q: string) => {
+      queries.push(q);
+      if (q.includes("GROUP BY") && q.includes("FROM DeviceSyncSummary")) {
+        if (q.includes("DownloadStart != null")) return ok([{ d: "2026-10-01", ok: true, c: 8 }, { d: "2026-10-01", ok: false, c: 2 }]);
+        return ok([{ d: "2026-10-01", c: 15 }]);
+      }
+      return base(q);
+    };
+    const r = await syncOverview("org", {}, { ...d, querier: () => inner });
+    expect(r.totals).toMatchObject({ syncs: 15, failed: 2 });
+    expect(r.totals?.failureRatePct).toBeCloseTo(20);
+    expect(r.daily[0]).toMatchObject({ syncs: 15, failures: 2 });
+    expect(queries.some((q) => q.includes("CompletionStatus"))).toBe(false);
+  });
 });

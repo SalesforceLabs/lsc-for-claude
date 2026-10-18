@@ -15,3 +15,4 @@ Remote Engagement in Life Sciences Cloud (LSC) provides virtual detailing and re
 ## Winter '27 (Release 264) Enhancements
 
 - [release-264-remote-engagement-web-twilio](./release-264-remote-engagement-web-twilio.md) — Twilio-powered Remote Engagement on Salesforce Web: Trusted URL (Lightning Experience Pages CSP) setup, Start Remote Engagement flow, signatures, and web limitations
+- [release-264-remote-consent-signatures-mobile](./release-264-remote-consent-signatures-mobile.md) — HCPs joining on phones can now sign consent during remote sessions.

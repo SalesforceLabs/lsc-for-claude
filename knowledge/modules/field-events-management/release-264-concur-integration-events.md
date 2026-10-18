@@ -21,3 +21,18 @@ Prerequisite: use the built-in MuleSoft **Concur Expense Sync** integration. Cus
    - Expense Report Statuses: reports available for linking
    - Managed Event Status for Expenses: events eligible for linking expenses to reports
 3. Set Concur Integration Expense Status and Expense Report Status to **Pending** for records that should sync or link.
+
+## Verification Notes
+
+- No Help article covering Concur for **events** (Concur Settings, Managed Event Status for Expenses, event expense to Expense Report Entry) was found in the index. The setup above is from the release note and **unverified**.
+- Verified for the existing **visit** Concur integration:
+  - Prebuilt **Concur Expense Sync** app deployed via MuleSoft Direct; bidirectional sync. Setup: https://developer.salesforce.com/docs/industries/lifesciences/guide/mulesoft-direct-integrations.html#concur-expense-sync
+  - Expenses sync only when linked to an **Expense Report** (App Launcher > Expense Reports > New; expenses without a report do not sync). Admins can create reports and transfer ownership to the rep.
+  - Create an expense from the Visit Expenses tab: New > Expense Only or Expense & Receipt (capture the receipt first), pick expense type, report, currency, amount.
+  - Expense types need Expense Availability Type, active, and effective dates covering today. Related trigger handlers (visits): ExpenseLockHandler, ExpenseParticipantLockHandler, ExpenseParticipantNameHandler, ContentDocumentLinkLockHandler, ContentDocumentLockHandler.
+
+## Sources
+
+- https://help.salesforce.com/s/articleView?id=ind.lsc_sync_visit_expenses_to_concur.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_concur_expense_sync_setup_using_mulesoft_integration.htm&release=264.0.0&type=5
+- https://help.salesforce.com/s/articleView?id=ind.lsc_visit_management_config_expenses.htm&release=264.0.0&type=5
