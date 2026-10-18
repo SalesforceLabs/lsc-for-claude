@@ -81,6 +81,8 @@ export default function BlockInspector({
   propertiesLoading,
   propertiesNote,
   propertiesDynamic,
+  propertiesComponentNote,
+  propertiesNotDrawn,
   extra,
   sync,
   onSync,
@@ -109,6 +111,10 @@ export default function BlockInspector({
   propertiesLoading?: boolean;
   propertiesNote?: string;
   propertiesDynamic?: string;
+  /** Said once for the whole component: not drawn on the iPad, what an inline LWC is passed, or not traced. */
+  propertiesComponentNote?: string;
+  /** The iPad doesn't draw the component, so its fields don't each repeat "Not used on the iPad". */
+  propertiesNotDrawn?: boolean;
   /** Editors only this kind of block has (a list view's filters). */
   extra?: React.ReactNode;
   /** Shown when the block's records aren't synced to this profile's iPad. */
@@ -252,7 +258,7 @@ export default function BlockInspector({
             </div>
           )}
           {properties && onProperty && onPropertyReset && (
-            <PropertiesSheet properties={properties} draft={draft} loading={!!propertiesLoading} note={propertiesNote} dynamic={propertiesDynamic} onSet={onProperty} onReset={onPropertyReset} />
+            <PropertiesSheet properties={properties} draft={draft} loading={!!propertiesLoading} note={propertiesNote} dynamic={propertiesDynamic} componentNote={propertiesComponentNote} notDrawn={propertiesNotDrawn} onSet={onProperty} onReset={onPropertyReset} />
           )}
           {extra}
           {(layout?.profiles || layout?.reach || info.reach) && (

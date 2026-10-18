@@ -647,6 +647,10 @@ export function componentInfo(name: string): { label: string; supported: boolean
   if (name.toLowerCase() === "industries_ls_commercial:lscmobileinline_offlineassessmentselectionwrapper")
     return { label: "Offline assessment", supported: true };
   if (trimmed.toLowerCase().includes("lsstorecheckvisit")) return { label: "Store check", supported: true };
+  // MeetingsModule.getComponent: GenericRelatedList's `~=` is a case-insensitive contains of "LSCGenericRelatedList"
+  // (GenericRelatedList.swift:45) and "LSCVideoCallRecordingList" is matched exactly (MeetingsModule.swift:294).
+  if (trimmed.toLowerCase().includes("lscgenericrelatedlist")) return { label: "Generic related list", supported: true };
+  if (trimmed === "LSCVideoCallRecordingList") return { label: "Video call recordings", supported: true };
   if (MEETING_COMPONENTS.some((m) => trimmed === m || trimmed.endsWith(m))) return { label: "Meeting component", supported: true };
   for (const [suffix, label, ignoreCase] of SUFFIX_COMPONENTS) {
     if (ignoreCase ? trimmed.toLowerCase().endsWith(suffix.toLowerCase()) : trimmed.endsWith(suffix)) return { label, supported: true };
