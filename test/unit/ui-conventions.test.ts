@@ -76,6 +76,21 @@ describe("UI conventions", () => {
     expect(offenders(css, /#[0-9a-fA-F]{3,8}\b/, (l) => /^\s*--[\w-]+\s*:/.test(l) || !/#(?!fff\b|ffffff\b)[0-9a-fA-F]{3,8}\b/i.test(l))).toEqual([]);
   });
 
+  it("takes translucent colours from the tokens too, so both palettes reach them", () => {
+    expect(offenders(css, /\b(rgba?|hsla?)\(/, (l) => /^\s*--[\w-]+\s*:/.test(l))).toEqual([]);
+  });
+
+  it("gives the light palette a value for every colour token", () => {
+    const styles = fs.readFileSync(path.join(ROOT, "styles.css"), "utf8");
+    const light = styles.slice(styles.indexOf("@media (prefers-color-scheme: light)"));
+    const names = (block: string) => [...block.matchAll(/^\s*(--[\w-]+)\s*:\s*(#|rgba?\()/gm)].map((m) => m[1]);
+    // Brand hues and the scrim over images are the same in both.
+    const shared = /^--(glow-|scrim-on-image$)/;
+    const dark = names(styles.slice(0, styles.indexOf("\n}\n"))).filter((n) => !shared.test(n));
+    expect(dark.length).toBeGreaterThan(30);
+    expect(dark.filter((n) => !names(light).includes(n))).toEqual([]);
+  });
+
   it("sizes text on the type scale", () => {
     expect(offenders(css, /font-size:\s*[0-9.]+px/)).toEqual([]);
   });

@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld("lscApi", {
   // Settings
   getSettings: () => ipcRenderer.invoke("settings:get"),
   saveSettings: (settings) => ipcRenderer.invoke("settings:save", settings),
+  previewTheme: (theme) => ipcRenderer.invoke("theme:preview", theme),
 
   // Connections — secrets go to the main process (keychain) and never come back
   detectProvider: () => ipcRenderer.invoke("provider:detect"),

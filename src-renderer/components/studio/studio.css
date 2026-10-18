@@ -667,7 +667,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--scrim);
   animation: ui-fade-in 0.15s ease-out both;
 }
 
@@ -739,7 +739,7 @@
 .studio-change-table td.before {
   color: var(--error);
   text-decoration: line-through;
-  text-decoration-color: rgba(248, 113, 113, 0.5);
+  text-decoration-color: color-mix(in srgb, var(--error) 50%, transparent);
 }
 
 .studio-change-table .after,
@@ -995,7 +995,7 @@
 }
 
 .studio-lens-tag.conditional {
-  background: rgba(251, 191, 36, 0.14);
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
   color: var(--warning);
 }
 
@@ -1008,14 +1008,14 @@
 .studio-lens-banner {
   margin: 10px 0;
   padding: 8px 10px;
-  border: 1px solid rgba(52, 211, 153, 0.35);
+  border: 1px solid color-mix(in srgb, var(--success) 35%, transparent);
   border-radius: var(--radius-xs);
-  background: rgba(52, 211, 153, 0.08);
+  background: color-mix(in srgb, var(--success) 8%, transparent);
 }
 
 .studio-lens-banner.conditional {
-  border-color: rgba(251, 191, 36, 0.35);
-  background: rgba(251, 191, 36, 0.08);
+  border-color: color-mix(in srgb, var(--warning) 35%, transparent);
+  background: color-mix(in srgb, var(--warning) 8%, transparent);
 }
 
 .studio-lens-banner.excluded {
@@ -1099,7 +1099,7 @@
 .studio-pending-tag {
   padding: 1px 6px;
   border-radius: 999px;
-  background: rgba(251, 191, 36, 0.14);
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
   color: var(--warning);
   font-size: var(--font-2xs);
   font-weight: 600;
@@ -1153,10 +1153,10 @@
 }
 
 .studio-chip.unknown {
-  background: rgba(248, 113, 113, 0.12);
+  background: color-mix(in srgb, var(--error) 12%, transparent);
   color: var(--error);
   text-decoration: line-through;
-  text-decoration-color: rgba(248, 113, 113, 0.5);
+  text-decoration-color: color-mix(in srgb, var(--error) 50%, transparent);
 }
 
 .studio-picker {
@@ -1215,7 +1215,7 @@
   padding: 0 16px 0 20px;
   background: var(--bg-elevated);
   border-top: 1px solid var(--border-strong);
-  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 -8px 24px var(--shadow-color);
   animation: studio-tray-in 0.24s var(--ease-out) both;
 }
 
@@ -1307,8 +1307,8 @@
   letter-spacing: 0.04em;
 }
 
-.studio-review-badge.ok { background: rgba(52, 211, 153, 0.14); color: var(--success); }
-.studio-review-badge.failed { background: rgba(248, 113, 113, 0.14); color: var(--error); }
+.studio-review-badge.ok { background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); }
+.studio-review-badge.failed { background: color-mix(in srgb, var(--error) 14%, transparent); color: var(--error); }
 .studio-review-badge.skipped { background: var(--bg-tertiary); color: var(--text-muted); }
 
 /* ─── New records & user access ─────────────────────────────────────────── */
@@ -1384,12 +1384,12 @@ textarea.studio-input {
 }
 
 .studio-chip.adding {
-  background: rgba(52, 211, 153, 0.14);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
   color: var(--success);
 }
 
 .studio-chip.removing {
-  background: rgba(248, 113, 113, 0.12);
+  background: color-mix(in srgb, var(--error) 12%, transparent);
   color: var(--error);
   text-decoration: line-through;
 }
@@ -1492,12 +1492,12 @@ textarea.studio-input {
 
 .studio-diff .add {
   color: var(--success);
-  background: rgba(74, 222, 128, 0.08);
+  background: color-mix(in srgb, var(--success) 8%, transparent);
 }
 
 .studio-diff .remove {
   color: var(--error);
-  background: rgba(248, 113, 113, 0.08);
+  background: color-mix(in srgb, var(--error) 8%, transparent);
 }
 
 .studio-diff .same {

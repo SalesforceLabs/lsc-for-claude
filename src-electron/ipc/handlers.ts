@@ -17,6 +17,7 @@ import { apiStyle, Connection, CONNECTION_KINDS, connectionLabel } from "../llm/
 import { chatModels, cleanConnection, createProvider, testConnection } from "../llm/create.js";
 import { loadSettings, migrateSettings, saveSettings, Settings } from "../settings.js";
 import { applyAppIcon } from "../app-icon.js";
+import { applyTheme } from "../theme.js";
 import { getSecret, hasSecret, setSecret } from "../secrets.js";
 import {
   listConversations,
@@ -228,7 +229,13 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle("settings:save", async (_event, settings: Settings) => {
     saveSettings(settings);
     applyAppIcon(settings.appIcon, mainWindow);
+    applyTheme(settings.theme, mainWindow);
     return { ok: true };
+  });
+
+  /** Settings shows an appearance as soon as it's picked; Cancel puts the saved one back. */
+  ipcMain.handle("theme:preview", async (_event, theme: unknown) => {
+    applyTheme(theme, mainWindow);
   });
 
   // --- Connections ---

@@ -95,6 +95,6 @@
   content: "";
   width: 7px;
   height: 7px;
-  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  border: 1.5px solid var(--border-strong);
   border-radius: 50%;
 }

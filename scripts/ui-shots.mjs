@@ -7,6 +7,7 @@
 //
 // Build first (npm run electron:build). The app starts with its saved connection and target org,
 // so Studio screens show real data; pages that need an org show their empty state without one.
+// ROZ_SHOTS_THEME=light|dark shows that palette for the run without changing the saved appearance.
 // For repl from a non-interactive shell, feed it a regular file through tail -f (a fifo hits EOF
 // after each write):  : > /tmp/roz-in; tail -f /tmp/roz-in | node scripts/ui-shots.mjs repl > out.log &
 import { _electron } from "playwright-core";
@@ -53,6 +54,10 @@ const step = async (name, run) => {
   }
 };
 
+// Playwright emulates a light prefers-color-scheme by default; turn that off so the app's own appearance shows.
+await page.emulateMedia({ colorScheme: null });
+const theme = process.env.ROZ_SHOTS_THEME;
+if (theme) await app.evaluate(({ nativeTheme }, t) => { nativeTheme.themeSource = t; }, theme);
 await size(1440, 900);
 await page.waitForTimeout(5000);
 

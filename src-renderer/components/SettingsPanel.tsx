@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Plus, RefreshCw, TriangleAlert, X } from "lucide-react";
+import { Monitor, Moon, Plus, RefreshCw, Sun, TriangleAlert, X, type LucideIcon } from "lucide-react";
 import Spinner from "./ui/Spinner";
 import Segmented from "./ui/Segmented";
 import { pickModel, type ModelOption } from "../models";
 import { ROZ_ICONS, rozIcon, rozTileSrc, setAppIcon, type RozIcon } from "../app-icon";
+import { APP_THEMES, appTheme, type AppTheme } from "../theme";
+
+const THEME_ICONS: Record<AppTheme, LucideIcon> = { system: Monitor, light: Sun, dark: Moon };
 
 interface SfOrg {
   alias?: string;
@@ -32,6 +35,8 @@ export default function SettingsPanel({
   const [model, setModel] = useState("");
   const [mobileClientId, setMobileClientId] = useState("");
   const [appIcon, setAppIconChoice] = useState<RozIcon>(ROZ_ICONS[0].id);
+  const [theme, setTheme] = useState<AppTheme>("system");
+  const [savedTheme, setSavedTheme] = useState<AppTheme>("system");
 
   // Org state
   const [orgs, setOrgs] = useState<SfOrg[]>([]);
@@ -63,6 +68,8 @@ export default function SettingsPanel({
       if (s.sfTargetOrg) setSelectedOrg(s.sfTargetOrg);
       setMobileClientId(s.mobileClientId || "");
       setAppIconChoice(rozIcon(s.appIcon));
+      setTheme(appTheme(s.theme));
+      setSavedTheme(appTheme(s.theme));
     });
     fetchOrgs();
   }, [fetchOrgs, modelOptions]);
@@ -80,6 +87,17 @@ export default function SettingsPanel({
     setLoginStarted(true);
   };
 
+  // A picked appearance shows at once; closing without saving puts the saved one back.
+  const pickTheme = (value: AppTheme) => {
+    setTheme(value);
+    window.lscApi.previewTheme(value);
+  };
+
+  const handleCancel = useCallback(() => {
+    if (theme !== savedTheme) window.lscApi.previewTheme(savedTheme);
+    onClose();
+  }, [theme, savedTheme, onClose]);
+
   const handleSave = async () => {
     // settings:save replaces the whole file, so merge into the current settings.
     const current = await window.lscApi.getSettings();
@@ -88,6 +106,7 @@ export default function SettingsPanel({
       model,
       mobileClientId: mobileClientId.trim() || undefined,
       appIcon,
+      theme,
     });
     setAppIcon(appIcon);
     onClose();
@@ -97,14 +116,14 @@ export default function SettingsPanel({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") handleCancel();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [handleCancel]);
 
   return (
-    <div className="settings-overlay" onClick={onClose}>
+    <div className="settings-overlay" onClick={handleCancel}>
       <div
         className="settings-panel"
         role="dialog"
@@ -114,7 +133,7 @@ export default function SettingsPanel({
       >
         <div className="settings-header">
           <h2 id="settings-title">Settings</h2>
-          <button className="ui-icon-btn" onClick={onClose} title="Close (Esc)" aria-label="Close settings">
+          <button className="ui-icon-btn" onClick={handleCancel} title="Close (Esc)" aria-label="Close settings">
             <X size={16} strokeWidth={1.9} aria-hidden="true" />
           </button>
         </div>
@@ -225,6 +244,16 @@ export default function SettingsPanel({
           </section>
 
           <section className="settings-group">
+            <div className="ui-label">Appearance</div>
+            <Segmented
+              aria-label="Appearance"
+              value={theme}
+              onChange={pickTheme}
+              options={APP_THEMES.map((t) => ({ value: t.id, label: t.label, icon: THEME_ICONS[t.id] }))}
+            />
+          </section>
+
+          <section className="settings-group">
             <div className="ui-label" id="app-icon-label">App icon</div>
             <div className="app-icon-picker" role="radiogroup" aria-labelledby="app-icon-label">
               {ROZ_ICONS.map((icon) => (
@@ -265,7 +294,7 @@ export default function SettingsPanel({
         </div>
 
         <div className="settings-footer">
-          <button className="studio-btn lg" onClick={onClose}>
+          <button className="studio-btn lg" onClick={handleCancel}>
             Cancel
           </button>
           <button className="studio-btn primary lg" onClick={handleSave}>
