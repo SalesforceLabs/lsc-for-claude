@@ -2324,3 +2324,37 @@ button.studio-ipad-chip {
   font-size: 18px;
   cursor: pointer;
 }
+
+/* Edit mode's Draft: what the tray takes away stays as a ghost until it's applied. */
+.studio-ipad-pill.ghost {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+/* Before / after: Published and Draft side by side, each scaled to half the canvas. */
+
+.studio-ipad-split {
+  display: flex;
+  gap: var(--space-3);
+  width: 100%;
+  align-items: flex-start;
+}
+
+.studio-ipad-side {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.studio-ipad-side-label {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.studio-ipad-side .studio-ipad {
+  padding: var(--space-2);
+  border-radius: var(--radius);
+}

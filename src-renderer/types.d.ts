@@ -120,6 +120,11 @@ interface LscApi {
     input: { action: "list"; days?: number } | { action: "save"; label?: string } | { action: "diff"; id: string } | { action: "delete"; id: string }
   ): Promise<StudioResponse>;
   studioItemDetail(kind: string, id: string): Promise<StudioResponse>;
+  /** The layout as it is in the org now (sections, fields, related lists, profiles using it, production) — never cached. */
+  studioMetadataDoc(type: "Layout" | "CompactLayout" | "FlexiPage" | "ListView", fullName: string): Promise<StudioResponse>;
+  studioPageReach(fullName: string): Promise<StudioResponse>;
+  studioComponentCatalog(pageType: "HomePage" | "RecordPage", sobject: string | null): Promise<StudioResponse>;
+  studioComponentProps(component: string, pageType?: "HomePage" | "RecordPage"): Promise<StudioResponse>;
   studioListProfiles(): Promise<StudioResponse>;
   studioUserAccess(userId: string): Promise<StudioResponse>;
   studioAccessOptions(search?: string): Promise<StudioResponse>;
@@ -205,7 +210,8 @@ interface LscApi {
   onSfOrgChanged(callback: (org: string) => void): () => void;
   loginSfOrg(alias?: string, instanceUrl?: string): Promise<{ ok: boolean; error?: string }>;
   /** Open the org in the default browser through its sf CLI connection. */
-  openSfOrg(org: string): Promise<{ ok: boolean; error?: string }>;
+  /** `path`: a page inside the org, e.g. "/lightning/setup/FlexiPageList/home". */
+  openSfOrg(org: string, path?: string): Promise<{ ok: boolean; error?: string }>;
   /** Load `url` into a Studio preview <webview> in `auth`'s partition, signed in as that user when it's a page of their org. */
   studioBrowserOpen(
     guestId: number,

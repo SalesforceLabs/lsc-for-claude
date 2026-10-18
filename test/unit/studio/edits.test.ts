@@ -282,3 +282,241 @@ describe("Visit engagement sidebar", () => {
     });
   });
 });
+
+describe("editMetadata (page layouts)", () => {
+  let dir: string;
+  let deployed: string | null;
+  const XML = fs.readFileSync(path.join(__dirname, "../../fixtures/metadata/PersonAccount-HCP_Layout.layout-meta.xml"), "utf-8");
+  const doc = { type: "Layout" as const, fullName: "PersonAccount-HCP Layout", label: "HCP Layout" };
+  const fix: StudioFix = {
+    kind: "editMetadata",
+    label: "Edit HCP Layout",
+    doc,
+    ops: [
+      { op: "moveRelatedList", relatedList: "Visits", before: "ContactPointAddresses" },
+      { op: "setFieldBehavior", field: "Type", from: "Edit", to: "Required" },
+    ],
+  };
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "studio-doc-"));
+    deployed = null;
+    vi.mocked(cli.retrieveMetadata).mockImplementation(async () => {
+      const out = fs.mkdtempSync(path.join(dir, "out-"));
+      fs.mkdirSync(path.join(out, "layouts"));
+      fs.writeFileSync(path.join(out, "layouts", "PersonAccount-HCP Layout.layout-meta.xml"), XML);
+      return { success: true, data: { outputDir: out } };
+    });
+    vi.mocked(cli.deployMetadata).mockImplementation(async (source) => {
+      deployed = fs.readFileSync(source, "utf-8");
+      return { success: true };
+    });
+    org.Layout = [{ Id: "00h000000000001", TableEnumOrId: "Account" }];
+    org.ProfileLayout = [{ Profile: { Name: "LS Rep" } }, { Profile: { Name: "LS Manager" } }, { Profile: { Name: "LS Rep" } }];
+    org.Organization = [{ IsSandbox: true }];
+    org.LifeSciConfigRecord = [];
+  });
+  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  it("previews each change in words with the XML diff and who it reaches, then deploys the one file", async () => {
+    const preview = await previewFix(fix, "org");
+    expect(preview.blocked).toBeUndefined();
+    expect(preview.changes.map((c) => [c.field, c.before, c.after])).toEqual([
+      ["Related list Visits", "Position 11 of 18", "Position 1 of 18"],
+      ["Field Type", "Editable", "Required"],
+    ]);
+    expect(preview.changes[1].diff).toContain("+                 <behavior>Required</behavior>");
+    expect(preview.warnings[0]).toBe("Deploys HCP Layout to the org — it's the layout for 2 profiles (LS Manager, LS Rep), and they all get the change.");
+    expect(preview.production).toBeUndefined();
+    // The retrieve folder is cleaned up.
+    expect(fs.readdirSync(dir)).toEqual([]);
+
+    const result = await applyFix(fix, "org");
+    expect(result.ok).toBe(true);
+    expect(deployed).toContain("<behavior>Required</behavior>\n                <field>Type</field>");
+    expect(cli.deployMetadata).toHaveBeenCalledWith(expect.stringMatching(/layout-meta\.xml$/), "org");
+    expect(result.undo).toMatchObject({
+      kind: "editMetadata",
+      ops: [
+        { op: "setFieldBehavior", field: "Type", from: "Required", to: "Edit" },
+        { op: "moveRelatedList", relatedList: "Visits", before: "AccountAssignedTerritory2sRelatedList" },
+      ],
+    });
+  });
+
+  it("reads the live layout's structure, the profiles using it and whether the org is production", async () => {
+    vi.mocked(cli.cachedDescribeSObject).mockResolvedValue({
+      success: true,
+      data: {
+        name: "Account",
+        label: "Account",
+        fields: [
+          { name: "Name", label: "Name", type: "string", required: true, updateable: true, createable: true },
+          { name: "Tier__c", label: "Tier", type: "picklist", required: false, updateable: true, createable: true },
+        ],
+        childRelationships: [{ childSObject: "Opportunity", relationshipName: "Opportunities", field: "AccountId" }],
+      },
+    });
+    const { readLiveLayout } = await import("../../../src/studio/metadata/live.js");
+    const live = await readLiveLayout(doc.fullName, "org");
+    expect(cli.cachedDescribeSObject).toHaveBeenCalledWith("Account", "org");
+    expect(live.available).toEqual([{ field: "Tier__c", label: "Tier", type: "picklist" }]);
+    expect(live.availableRelated).toEqual([{ relatedList: "Opportunities", object: "Opportunity" }]);
+    expect(live.sections.map((s) => [s.label, s.nth, s.heading, s.columns.map((c) => c.length)])).toEqual([
+      ["Account Information", 0, true, [3, 2]],
+      ["Additional Information", 0, true, [2, 0]],
+      ["Description Information", 0, false, [0]],
+      ["Custom Links", 0, false, [0, 0, 0]],
+    ]);
+    expect(live.sections[0].columns[0][0]).toEqual({ field: "Name", behavior: "Required" });
+    expect(live.relatedLists).toHaveLength(18);
+    expect(live.profiles).toEqual(["LS Manager", "LS Rep"]);
+    expect(live.production).toBe(false);
+    expect(fs.readdirSync(dir)).toEqual([]);
+  });
+
+  it("flags production orgs", async () => {
+    org.Organization = [{ IsSandbox: false }];
+    expect((await previewFix(fix, "org")).production).toBe(true);
+  });
+
+  it("refuses when the layout changed since the preview was loaded", async () => {
+    const stale: StudioFix = { ...fix, ops: [{ op: "removeField", field: "Gone__c" }] };
+    const preview = await previewFix(stale, "org");
+    expect(preview.blocked).toBe("HCP Layout changed since the preview was loaded: Gone__c isn't on the layout. Refresh the preview.");
+    expect((await applyFix(stale, "org")).ok).toBe(false);
+    expect(cli.deployMetadata).not.toHaveBeenCalled();
+  });
+
+  it("warns when an added related list's object doesn't sync", async () => {
+    const addList: StudioFix = { ...fix, ops: [{ op: "addRelatedList", relatedList: "Gadgets__r", before: null, object: "Gadget__c" }] };
+    const preview = await previewFix(addList, "org");
+    expect(preview.warnings.join(" ")).toContain("No DB Schema record for Gadget__c");
+  });
+
+  it("caps a Visit layout's related lists at the sidebar's 10", async () => {
+    const visit: StudioFix = {
+      ...fix,
+      doc: { ...doc, fullName: "Visit-Visit Layout" },
+      ops: [{ op: "addRelatedList", relatedList: "Gadgets__r", before: null }],
+    };
+    expect((await previewFix(visit, "org")).blocked).toMatch(/would have 19 related lists/);
+  });
+
+  it("reports a failed deploy without claiming success", async () => {
+    vi.mocked(cli.deployMetadata).mockResolvedValue({ success: false, error: "INVALID_FIELD" });
+    const result = await applyFix(fix, "org");
+    expect(result).toMatchObject({ ok: false });
+    expect(result.message).toMatch(/INVALID_FIELD.*Nothing was changed/);
+  });
+});
+
+describe("editMetadata (compact layouts)", () => {
+  let dir: string;
+  let deployed: string | null;
+  const XML = fs.readFileSync(path.join(__dirname, "../../fixtures/metadata/Account_Layout.compactLayout-meta.xml"), "utf-8");
+  const doc = { type: "CompactLayout" as const, fullName: "Account.Account_Layout", label: "Account" };
+  const fix: StudioFix = {
+    kind: "editMetadata",
+    label: "Edit compact layout Account",
+    doc,
+    ops: [
+      { op: "removeCompactField", field: "NumberOfEmployees" },
+      { op: "addCompactField", field: "Phone", before: "AccountNumber" },
+    ],
+  };
+  const mappings = (names: [string, string][]) => ({
+    success: true,
+    data: { recordTypeCompactLayoutMappings: names.map(([compactLayoutName, recordTypeName]) => ({ compactLayoutName, recordTypeName })) },
+  });
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "studio-doc-"));
+    deployed = null;
+    vi.mocked(cli.retrieveMetadata).mockImplementation(async () => {
+      const out = fs.mkdtempSync(path.join(dir, "out-"));
+      fs.mkdirSync(path.join(out, "compactLayouts"));
+      fs.writeFileSync(path.join(out, "compactLayouts", "Account.Account_Layout.compactLayout-meta.xml"), XML);
+      return { success: true, data: { outputDir: out } };
+    });
+    vi.mocked(cli.deployMetadata).mockImplementation(async (source) => {
+      deployed = fs.readFileSync(source, "utf-8");
+      return { success: true };
+    });
+    vi.mocked(cli.apiRequest).mockResolvedValue(
+      mappings([
+        ["Account_Layout", "HCP"],
+        ["Account_Layout", "HCO"],
+        ["Other", "Master"],
+      ]) as never
+    );
+    org.Organization = [{ IsSandbox: true }];
+  });
+  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  it("previews the field changes with the XML diff and the record types it reaches, then deploys with an undo", async () => {
+    const preview = await previewFix(fix, "org");
+    expect(preview.blocked).toBeUndefined();
+    expect(preview.changes.map((c) => [c.field, c.before, c.after])).toEqual([
+      ["Field NumberOfEmployees", "Position 6 of 7", "(removed)"],
+      ["Field Phone", "(not on the compact layout)", "Position 2 of 7"],
+    ]);
+    expect(preview.changes[1].diff).toEqual(expect.arrayContaining(["+     <fields>Phone</fields>", "-     <fields>NumberOfEmployees</fields>"]));
+    expect(preview.warnings[0]).toBe("Deploys Account to the org — it's the compact layout for 2 record types (HCO, HCP), for every profile.");
+    expect(cli.apiRequest).toHaveBeenCalledWith("/services/data/v66.0/sobjects/Account/describe/compactLayouts", "GET", undefined, "org");
+
+    const result = await applyFix(fix, "org");
+    expect(result.ok).toBe(true);
+    expect(deployed).toContain("<fields>Name</fields>\n    <fields>Phone</fields>\n    <fields>AccountNumber</fields>");
+    expect(deployed).not.toContain("NumberOfEmployees");
+    expect(cli.deployMetadata).toHaveBeenCalledWith(expect.stringMatching(/compactLayout-meta\.xml$/), "org");
+    expect(result.undo).toMatchObject({
+      kind: "editMetadata",
+      doc,
+      ops: [
+        { op: "removeCompactField", field: "Phone" },
+        { op: "addCompactField", field: "NumberOfEmployees", before: "SDO_Days_Since_Activity__c" },
+      ],
+    });
+  });
+
+  it("reads the live compact layout: fields, fields that could be added, record types, production", async () => {
+    vi.mocked(cli.cachedDescribeSObject).mockResolvedValue({
+      success: true,
+      data: {
+        name: "Account",
+        label: "Account",
+        fields: [
+          { name: "Phone", label: "Phone", type: "phone", required: false, updateable: true, createable: true },
+          { name: "Description", label: "Description", type: "textarea", required: false, updateable: true, createable: true },
+          { name: "Id", label: "Account ID", type: "id", required: false, updateable: false, createable: false },
+        ],
+      },
+    });
+    org.Organization = [{ IsSandbox: false }];
+    const { readLiveCompactLayout } = await import("../../../src/studio/metadata/live.js");
+    const live = await readLiveCompactLayout(doc.fullName, "org");
+    expect(live).toMatchObject({ type: "CompactLayout", fullName: doc.fullName, label: "Account", recordTypes: ["HCO", "HCP"], production: true });
+    expect(live.fields).toHaveLength(7);
+    expect(live.available).toEqual([{ name: "Phone", label: "Phone", type: "phone" }]);
+    expect(fs.readdirSync(dir)).toEqual([]);
+  });
+
+  it("says when no record type is assigned it", async () => {
+    vi.mocked(cli.apiRequest).mockResolvedValue(mappings([["Other", "Master"]]) as never);
+    expect((await previewFix(fix, "org")).warnings[0]).toBe("Deploys Account to the org. No record type is assigned this compact layout.");
+  });
+
+  it("refuses when the compact layout changed, page layout ops, and bad names", async () => {
+    const stale: StudioFix = { ...fix, ops: [{ op: "removeCompactField", field: "Gone__c" }] };
+    expect((await previewFix(stale, "org")).blocked).toBe(
+      "Account changed since the preview was loaded: Gone__c isn't on the compact layout. Refresh the preview."
+    );
+    const wrong = { ...fix, ops: [{ op: "removeField", field: "Type" }] } as unknown as StudioFix;
+    expect((await previewFix(wrong, "org")).blocked).toBe("These edits don't apply to a CompactLayout.");
+    const bad: StudioFix = { ...fix, doc: { ...doc, fullName: "Account-Account Layout" } };
+    expect((await previewFix(bad, "org")).blocked).toMatch(/Invalid compact layout name/);
+    expect((await applyFix(stale, "org")).ok).toBe(false);
+    expect(cli.deployMetadata).not.toHaveBeenCalled();
+  });
+});

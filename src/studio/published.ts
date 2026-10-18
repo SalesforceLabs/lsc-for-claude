@@ -78,7 +78,28 @@ export interface PublishedComponent {
   /** force:highlightsPanel's `actionNames` (the record's dynamic actions), in order. */
   actions?: string[];
   /** flexipage:tabset children. */
-  tabs?: { title: string; active: boolean; components: PublishedComponent[] }[];
+  tabs?: { title: string; active: boolean; components: PublishedComponent[]; source?: FlexiSource }[];
+  /** Where the component sits in its Lightning page's XML, for edits made in the preview. */
+  source?: FlexiSource;
+}
+
+/** One step down a Lightning page: an item of the region or facet above, as the page lists it. */
+export interface FlexiStep {
+  component: string;
+  identifier: string | null;
+  /** Index among the container's items, counting ones the iPad skips. */
+  index: number;
+}
+
+/**
+ * A published component or record tab in its Lightning page: the top-level
+ * region, then the items down to it — a tab is [tabset, tab], a component in a
+ * tab [tabset, tab, component]. Each step but the last points at its facet
+ * (the tabset's `tabs`, a tab's `body`), which the cache inlines.
+ */
+export interface FlexiSource {
+  region: string;
+  path: FlexiStep[];
 }
 
 export interface PublishedPage {
@@ -91,10 +112,24 @@ export interface PublishedPage {
   droppedRegions: { name: string; components: string[] }[];
 }
 
+/** Where a published section sits in the layout's XML, for edits made in the preview. */
+export interface LayoutSectionSource {
+  /** The section's label as written in the layout, before translation. */
+  label: string;
+  /** Which of the layout's sections with this label it is. */
+  nth: number;
+  /** The XML column index of each column shown. */
+  columns: number[];
+  /** The layout item each shown field belongs to, parallel to the section's `columns` (a compound field's parts name the compound field). */
+  fields: string[][];
+  /** detailHeading, whether or not the label is blank. */
+  heading: boolean;
+}
+
 export interface PublishedLayout {
   name: string;
   /** `fields` are the columns' items as the cache describes them (API name, type, lookup targets, picklist labels), parallel to `columns`. */
-  sections: { label: string | null; columns: string[][]; fields?: RecordFieldSpec[][] }[];
+  sections: { label: string | null; columns: string[][]; fields?: RecordFieldSpec[][]; source?: LayoutSectionSource }[];
   relatedLists: { name: string; label: string; columns?: RecordFieldSpec[] }[];
   actions: string[];
   /** Each platform action as the cache lists it, for the ••• menu (MetadataActionItem). */
@@ -136,6 +171,11 @@ export interface PublishedListView {
   sharedTo?: Record<string, string[]>;
   /** How to read its rows: a SOQL path and field type per column (null when the app drops it), and the cache's filter. */
   query?: { fields: (ListViewField | null)[]; where: string | null; mine: boolean };
+  /**
+   * The view as the cache stores it, for lining it up against the org's before editing:
+   * the metadata name (`Object.Name`), the column ids, the filter scope, filters and logic.
+   */
+  source?: { fullName: string; columns: string[]; filterScope: string | null; filters: { field: string; operation: string; value: string }[]; booleanFilter: string | null };
 }
 
 /** A list view column's SOQL path; a reference also names the record it points at, which shows only if it synced. */
@@ -163,6 +203,8 @@ export interface PublishedIpad {
   compactLayouts: Record<string, string[]>;
   /** The compact layouts' fields as the cache describes them, parallel to `compactLayouts`. */
   compactFields?: Record<string, RecordFieldSpec[]>;
+  /** Where each record header comes from, for edits made in the preview: the compact layout's Metadata API name and its fields' API names in order, the title's field included. */
+  compactSources?: Record<string, { fullName: string; fields: string[] }>;
   notes: string[];
   /** The user whose permission sets were merged in; null when the profile has no active users. */
   viewer: PublishedViewer | null;
@@ -646,7 +688,7 @@ function propsOf(ci: Row): Record<string, string> {
   return out;
 }
 
-const PROP_KEEP = new Set([
+export const PROP_KEEP = new Set([
   "totalCards",
   "graphName",
   "label",
@@ -661,7 +703,12 @@ const PROP_KEEP = new Set([
   "mobileHeight",
 ]);
 
-function toComponent(item: Row): PublishedComponent | null {
+const stepOf = (item: Row, index: number): FlexiStep => {
+  const ci = obj(item.componentInstance);
+  return { component: str(ci.componentName), identifier: str(ci.identifier) || null, index };
+};
+
+function toComponent(item: Row, at?: FlexiSource): PublishedComponent | null {
   const ci = obj(item.componentInstance);
   const name = str(ci.componentName);
   if (!name) return null;
@@ -678,6 +725,7 @@ function toComponent(item: Row): PublishedComponent | null {
     halfWidth: isHalfWidth(trimNamespace(name), all),
     ...visibilityOf(ci.visibilityRule),
     properties,
+    ...(at ? { source: at } : {}),
   };
   if (trimNamespace(name) === "force:highlightsPanel") {
     const prop = arr(ci.componentInstanceProperties).find((p) => p.name === "actionNames");
@@ -686,16 +734,20 @@ function toComponent(item: Row): PublishedComponent | null {
     if (names.length) c.actions = names;
   }
   if (trimNamespace(name) === "flexipage:tabset") {
-    c.tabs = arr(item.itemInstances).flatMap((child) => {
+    c.tabs = arr(item.itemInstances).flatMap((child, t) => {
       const tab = obj(child.componentInstance);
       if (str(tab.componentName) !== "flexipage:tab") return [];
       if (visibilityOf(tab.visibilityRule).visibility === "hidden") return [];
       const tp = propsOf(tab);
+      const tabAt = at && { region: at.region, path: [...at.path, stepOf(child, t)] };
       return [
         {
           title: tabTitle(tp.title ?? ""),
           active: tp.active === "true",
-          components: arr(child.itemInstances).map(toComponent).filter((x): x is PublishedComponent => !!x),
+          components: arr(child.itemInstances)
+            .map((x, i) => toComponent(x, tabAt && { region: tabAt.region, path: [...tabAt.path, stepOf(x, i)] }))
+            .filter((x): x is PublishedComponent => !!x),
+          ...(tabAt ? { source: tabAt } : {}),
         },
       ];
     });
@@ -713,7 +765,7 @@ function tabTitle(raw: string): string {
 }
 
 /** Region slots per template — SFFlexiPageView.xib restoration identifiers. */
-const TEMPLATE_REGIONS: Record<string, string[]> = {
+export const TEMPLATE_REGIONS: Record<string, string[]> = {
   recordHomeSingleColTemplateDesktop: ["header", "main"],
   recordHomeTemplateDesktop: ["header", "main", "sidebar"],
   appHomeTemplateHeaderTwoColumnsLeftSidebar: ["header", "sidebar", "main"],
@@ -737,7 +789,8 @@ export function buildPage(name: string, page: Row): PublishedPage {
   for (const slot of slots) {
     const region = regions.find((r) => str(r.name) === slot);
     if (!region) continue;
-    result.regions.push({ name: slot, components: arr(region.itemInstances).map(toComponent).filter((x): x is PublishedComponent => !!x) });
+    const components = arr(region.itemInstances).map((item, i) => toComponent(item, { region: slot, path: [stepOf(item, i)] }));
+    result.regions.push({ name: slot, components: components.filter((x): x is PublishedComponent => !!x) });
   }
   for (const r of regions) {
     if (slots.includes(str(r.name))) continue;
@@ -783,22 +836,31 @@ const layoutObject = (layoutName: string) => layoutName.slice(0, Math.max(0, lay
 function buildLayout(name: string, layout: Row, translation: Row = {}, itemLabel: (item: Row) => string = (f) => str(f.label) || str(f.fullName)): PublishedLayout {
   const sectionLabels = obj(translation.sections);
   const relatedListLabels = obj(translation.relatedLists);
+  const seen = new Map<string, number>();
   const sections = arr(layout.layoutSections).flatMap((s) => {
+    // Which of the sections with this label it is, counting the ones the app drops — the layout XML's order.
+    const nth = seen.get(str(s.label)) ?? 0;
+    seen.set(str(s.label), nth + 1);
     const specs = arr(s.layoutColumns)
-      .map((col) =>
-        arr(col.layoutItems)
+      .map((col, index) => ({
+        index,
+        items: arr(col.layoutItems)
           .filter((f) => str(f.fullName) || str(f.field))
           .map((f) => ({ label: itemLabel(f), item: f }))
-          .filter((x) => x.label)
-      )
-      .filter((c) => c.length);
-    const columns = specs.map((c) => c.map((x) => x.label));
-    const fields = specs.map((c) => c.map((x) => recordFieldSpec(x.item, x.label)));
+          .filter((x) => x.label),
+      }))
+      .filter((c) => c.items.length);
+    const columns = specs.map((c) => c.items.map((x) => x.label));
+    const fields = specs.map((c) => c.items.map((x) => recordFieldSpec(x.item, x.label)));
     if (!columns.length) return [];
     // SFDynamicLayoutContainer: the title is only laid out (not covered by the columns) when detailHeading is on.
     const label = sectionLabel(s, str(sectionLabels[str(s.label)]) || undefined);
-    const heading = (s.detailHeading === true || str(s.detailHeading) === "true") && label.trim() ? label : null;
-    return [{ label: heading, columns, fields }];
+    const detailHeading = s.detailHeading === true || str(s.detailHeading) === "true";
+    const heading = detailHeading && label.trim() ? label : null;
+    // A compound field (Name, BillingAddress) is one layout item the cache lists with each of its parts.
+    const layoutFields = specs.map((c) => c.items.map((x) => str(x.item.compoundFieldName) || str(x.item.fullName) || str(x.item.field)));
+    const source = { label: str(s.label), nth, columns: specs.map((c) => c.index), fields: layoutFields, heading: detailHeading };
+    return [{ label: heading, columns, fields, source }];
   });
   const relatedLists = arr(layout.relatedLists).map((r) => {
     const rl = str(r.relatedList);
@@ -922,7 +984,7 @@ function buildObject(name: string, sobject: Row, ui: Row, profile: Row): Publish
     .filter(([k]) => k.startsWith(`${name}.`))
     // AllSObjectsViewController.listViews drops recently viewed lists.
     .filter(([, v]) => str(obj(v).filterScope).toLowerCase() !== "mru")
-    .map(([, v]) => {
+    .map(([key, v]) => {
       const lv = obj(v);
       const sharedTo = Object.fromEntries(
         Object.entries(obj(lv.sharedTo))
@@ -934,6 +996,13 @@ function buildObject(name: string, sobject: Row, ui: Row, profile: Row): Publish
         label: str(lv.label) || str(lv.fullName),
         columns: arr(lv.columns).map((c) => str(c.label) || str(c.fullName)),
         ...(Object.keys(sharedTo).length ? { sharedTo } : {}),
+        source: {
+          fullName: key,
+          columns: arr(lv.columns).map((c) => str(c.fullName)),
+          filterScope: lv.filterScope ? str(lv.filterScope) : null,
+          filters: arr(lv.filters).map((f) => ({ field: str(f.field), operation: str(f.operation), value: str(f.value) })),
+          booleanFilter: lv.booleanFilter ? str(lv.booleanFilter) : null,
+        },
         query: {
           fields: arr(lv.columns).map((c) => listViewField(c, fields)),
           where: listViewWhere(arr(lv.filters), lv.booleanFilter ? str(lv.booleanFilter) : null, fields),
@@ -1040,16 +1109,19 @@ export function buildSnapshot(
   const pages: Record<string, PublishedPage> = {};
   const compactLayouts: Record<string, string[]> = {};
   const compactFields: Record<string, RecordFieldSpec[]> = {};
+  const compactSources: Record<string, { fullName: string; fields: string[] }> = {};
   for (const name of previewObjects(tabs, files)) {
     const o = buildObject(name, obj(files.sobjects[name]), files.ui, profile);
     objects[name] = o;
     const compactNames = new Set([o.defaultCompactLayout, ...o.recordTypes.map((r) => r.compactLayout)].filter((x): x is string => !!x));
     for (const c of compactNames) {
       const cl = obj(compact[`${name}.${c}`] ?? compact[c]);
-      // SFComponentHighlightPanelView.filterCompactLayoutFields: the record name is the title, so its field isn't repeated.
+      // SFComponentHighlightPanelView.filterCompactLayoutFields: the record name is the title, so its field isn't repeated
+      // (an Account's Name by API name; elsewhere any field whose value is the title, which the record screen drops).
       const shown = arr(cl.fields).filter((f) => str(f.fullName).toLowerCase() !== "name");
       compactLayouts[`${name}.${c}`] = shown.map((f) => fieldLabel(files, name, f));
       compactFields[`${name}.${c}`] = shown.map((f) => recordFieldSpec(f, fieldLabel(files, name, f)));
+      compactSources[`${name}.${c}`] = { fullName: `${name}.${c}`, fields: arr(cl.fields).map((f) => str(f.fullName)).filter((f) => f) };
     }
     for (const rt of o.recordTypes) {
       const page = rt.flexiPage ? obj(flexiPages[rt.flexiPage]) : {};
@@ -1074,7 +1146,7 @@ export function buildSnapshot(
 
   const sync = Object.fromEntries(Object.entries(files.db).map(([table, entry]) => [table, str(obj(entry).WhereSoql).trim()]));
 
-  return { profile: meta.profile, cache: meta.cache, tabs, hiddenTabs: hidden, home, objects, layouts, pages, compactLayouts, compactFields, dashboards, notes, sync };
+  return { profile: meta.profile, cache: meta.cache, tabs, hiddenTabs: hidden, home, objects, layouts, pages, compactLayouts, compactFields, compactSources, dashboards, notes, sync };
 }
 
 /**
@@ -1287,7 +1359,8 @@ export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing |
 
 const FILES = ["nav", "ui", "permissions", "db", "sobjects", "reporting"] as const;
 const CACHE_ROOT = path.join(os.tmpdir(), "lsc-studio-published");
-const SNAPSHOT_VERSION = 38;
+/** Bump when the snapshot's shape changes — and bump the app's `CACHE_VERSION` (src-electron/engine/studio-cache.ts) too, or it keeps serving the old shape for a day. */
+const SNAPSHOT_VERSION = 41;
 /** UserService.defaultLanguage — the translation file used when the user's is missing. */
 const DEFAULT_LANGUAGE = "en_US";
 /** Distinct permission-set combinations pre-built per download. */

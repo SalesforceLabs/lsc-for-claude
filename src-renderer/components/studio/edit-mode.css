@@ -1,0 +1,348 @@
+/* Edit mode: hover outlines, the selection ring and its toolbar, drawn over the scaled iPad. */
+
+/* Takes the device frame's width: the frame is 100% of its parent, up to 960px. */
+.studio-edit-surface {
+  position: relative;
+  width: 100%;
+  max-width: 960px;
+}
+
+.studio-edit-mark {
+  display: contents;
+}
+
+.studio-edit-surface.on [data-edit-key] {
+  cursor: default;
+}
+
+.studio-edit-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.studio-edit-hover,
+.studio-edit-ring {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: var(--radius-xs);
+}
+
+.studio-edit-hover {
+  border: 1px solid var(--accent);
+  background: var(--accent-subtle);
+}
+
+.studio-edit-ring {
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-glow);
+  transition:
+    left var(--transition-fast) var(--ease-out),
+    top var(--transition-fast) var(--ease-out),
+    width var(--transition-fast) var(--ease-out),
+    height var(--transition-fast) var(--ease-out);
+}
+
+.studio-edit-tag {
+  position: absolute;
+  left: -1px;
+  bottom: 100%;
+  max-width: 280px;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  background: var(--accent);
+  color: #fff;
+  font-size: var(--font-xs);
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.studio-edit-toolbar {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: calc(100% - var(--space-2));
+  padding: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-popover);
+  translate: 0 -100%;
+  pointer-events: auto;
+  white-space: nowrap;
+  animation: ui-pop-in var(--transition-fast) var(--ease-out);
+}
+
+.studio-edit-toolbar.below {
+  translate: none;
+}
+
+.studio-edit-toolbar-name {
+  padding: 0 var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.studio-edit-toolbar .studio-btn,
+.studio-edit-toolbar .ui-icon-btn {
+  flex: none;
+}
+
+/* Dragging in Draft: the block lifts, a line marks where it would go, and a drop pulses (or nudges when refused). */
+
+.studio-edit-surface {
+  /* Draft's "pending" purple, as the iPad draws queued changes (record.css). */
+  --edit-pending: #9050e9;
+}
+
+.studio-edit-surface.draft [data-edit-drag]:not([data-edit-ghost]) {
+  cursor: grab;
+  user-select: none;
+}
+
+.studio-edit-surface.dragging,
+.studio-edit-surface.dragging [data-edit-key] {
+  cursor: grabbing;
+}
+
+.studio-edit-ring.lifted {
+  border-style: dashed;
+  box-shadow: none;
+  opacity: 0.6;
+}
+
+.studio-edit-lift {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-xs);
+  background: var(--accent-subtle);
+  box-shadow: var(--shadow-popover);
+  scale: 1.02;
+}
+
+.studio-edit-insert {
+  position: absolute;
+  border-radius: 2px;
+  background: var(--edit-pending);
+  box-shadow: 0 0 0 2px var(--bg-elevated);
+}
+
+/* Empty layout columns appear as drop targets while a field is dragged. */
+.studio-edit-surface.dragging .studio-ipad-rec-col.empty {
+  min-height: 44px;
+  border: 1px dashed var(--edit-pending);
+  border-radius: var(--radius-xs);
+  background: var(--accent-subtle);
+}
+
+/* The tab bar's stand-in for the next page's first tab: takes no room, drawn nowhere, but counted when a drag picks its place. */
+.studio-edit-edge {
+  flex: none;
+  align-self: stretch;
+  width: 2px;
+  margin-left: -2px;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.studio-edit-ring.dropped {
+  animation: studio-edit-pulse 0.6s var(--ease-out);
+}
+
+.studio-edit-ring.refused {
+  animation: studio-edit-nudge 0.3s var(--ease-out);
+}
+
+@keyframes studio-edit-pulse {
+  0% {
+    border-color: var(--edit-pending);
+    box-shadow: 0 0 0 0 var(--edit-pending);
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+@keyframes studio-edit-nudge {
+  25% {
+    translate: -4px 0;
+  }
+  75% {
+    translate: 4px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-edit-lift {
+    scale: none;
+  }
+
+  .studio-edit-ring {
+    transition: none;
+  }
+
+  .studio-edit-ring.dropped,
+  .studio-edit-ring.refused {
+    animation: none;
+    border-color: var(--edit-pending);
+  }
+}
+
+/* The inspector beside the preview in edit mode: What / Why / How. */
+
+.studio-block-section .ui-section-title {
+  margin-bottom: var(--space-2);
+}
+
+.studio-block-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+}
+
+.studio-block-crumbs li + li::before {
+  content: "›";
+  margin-right: var(--space-1);
+  color: var(--text-secondary);
+}
+
+.studio-block-list,
+.studio-block-steps {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-sm);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.studio-block-steps {
+  margin-top: var(--space-2);
+}
+
+.studio-block-verbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-2) 0;
+}
+
+.studio-block-sync {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--warning-subtle);
+  color: var(--warning);
+}
+
+.studio-block-sync > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  color: var(--text-primary);
+}
+
+.studio-block-sync-title {
+  font-size: var(--font-sm);
+  font-weight: 600;
+}
+
+.studio-block-reach {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin: var(--space-2) 0;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+}
+
+.studio-block-reach svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.studio-block-inspector .studio-form-help {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* The properties sheet of a Lightning page component. */
+.studio-propsheet {
+  margin: var(--space-2) 0;
+}
+
+.studio-propsheet-title {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-sm);
+  font-weight: 600;
+}
+
+.studio-prop-unused .studio-form-label,
+.studio-prop-unused .studio-input {
+  opacity: 0.6;
+}
+
+.studio-prop-org {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* List view editor: filter rows stack in the narrow inspector. */
+.studio-listview-filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+
+.studio-listview-filter {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-1) var(--space-2);
+  align-items: center;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+}
+
+.studio-listview-filter > .ui-field,
+.studio-listview-filter > .studio-input {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.studio-listview-filter-no {
+  grid-column: 1;
+  grid-row: 1;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+}
+
+.studio-listview-filter > .studio-btn {
+  grid-column: 3;
+  grid-row: 1;
+}

@@ -9,6 +9,8 @@ export interface ChromeTab {
   /** Extra classes (visibility, findings, pending changes). */
   className?: string;
   badge?: React.ReactNode;
+  /** Extra attributes for the pill (edit mode's selection marks). */
+  attrs?: Record<string, string>;
 }
 
 /** The iPadOS status bar. */
@@ -63,6 +65,9 @@ export function IpadTopBar({
   const startPage = Math.max(0, pages.findIndex((p) => p.some((i) => tabs[i].key === current)));
   const [page, setPage] = useState(startPage);
   const shown = pages[Math.min(page, pages.length - 1)] ?? [];
+  const next = pages[Math.min(page, pages.length - 1) + 1]?.[0];
+  const nextAttrs = next === undefined ? undefined : tabs[next]?.attrs;
+  const nextEdge = nextAttrs?.["data-edit-drag"] ? { ...nextAttrs, "data-edit-key": undefined } : undefined;
   // Opening a tab from outside the bar (a deep link) turns to its page.
   // The pinned search tab isn't in a page: opening it keeps the page the bar is on, as on the device.
   const showing = shown.some((i) => tabs[i]?.key === current) || !tabs.some((t) => t.key === current);
@@ -93,12 +98,15 @@ export function IpadTopBar({
               className={`studio-ipad-pill${t.key === current ? " current" : ""}${t.className ?? ""}`}
               title={t.title}
               onClick={() => onOpen(t.key)}
+              {...t.attrs}
             >
               {t.label}
               {t.badge}
             </button>
           );
         })}
+        {/* A dragged tab dropped at the end of this page goes before the next page's first tab: an invisible stand-in marks that place. */}
+        {nextEdge && <span className="studio-edit-edge" aria-hidden="true" {...nextEdge} />}
         <button
           type="button"
           className={`studio-ipad-pill search${searchKey && searchKey === current ? " current" : ""}`}

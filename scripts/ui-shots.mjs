@@ -4,6 +4,7 @@
 //   node scripts/ui-shots.mjs [tour] [outDir]   fixed tour of every main screen (default /tmp/roz-shots)
 //   node scripts/ui-shots.mjs repl [outDir]     commands on stdin, one per line:
 //       ss NAME | click TEXT | nav SELECTOR::TEXT | eval JS | size W H | wait MS | quit
+//       down SELECTOR [FRAC] | move SELECTOR [FRAC] | up   (press, drag to, release; FRAC = how far down the element)
 //
 // Build first (npm run electron:build). The app starts with its saved connection and target org,
 // so Studio screens show real data; pages that need an org show their empty state without one.
@@ -103,6 +104,18 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
     else if (cmd === "size") await size(+rest[0], +rest[1]);
     else if (cmd === "wait") await page.waitForTimeout(+arg);
     else if (cmd === "errors") console.log(JSON.stringify(errors));
+    else if (cmd === "down" || cmd === "move") {
+      // down SELECTOR / move SELECTOR [fraction of its height]: press on, or drag to, an element.
+      const frac = rest.length > 1 && /^[\d.]+$/.test(rest.at(-1)) ? +rest.pop() : 0.5;
+      const sel = rest.join(" ");
+      const box = await page.locator(sel).first().boundingBox();
+      if (!box) throw new Error(`nothing matches ${sel}`);
+      const y = box.y + box.height * frac;
+      if (cmd === "down") {
+        await page.mouse.move(box.x + box.width / 2, y);
+        await page.mouse.down();
+      } else await page.mouse.move(box.x + box.width / 2, y, { steps: 12 });
+    } else if (cmd === "up") await page.mouse.up();
     else if (cmd === "quit") break;
     if (cmd && cmd !== "eval" && cmd !== "errors") console.log("ok", line);
   } catch (e) {

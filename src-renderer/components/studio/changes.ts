@@ -1,4 +1,4 @@
-import type { CreateConfigFix, ItemEdit, StudioFix, StudioItem } from "./types";
+import type { CompactOp, CopyForProfileFix, CreateConfigFix, FlexiPageOp, ItemEdit, LayoutOp, ListViewOp, StudioFix, StudioItem } from "./types";
 
 /**
  * Pending changes — edits queued in Studio's tray until the admin reviews and
@@ -37,6 +37,11 @@ export function changeKey(fix: StudioFix): string {
       return `script:${fix.scriptId}`;
     case "setLayoutRelatedList":
       return `layout:${fix.layoutName}:${fix.relationshipName}`;
+    case "editMetadata":
+      // The ops are the whole difference from the org's document, so a newer edit replaces the older one.
+      return `metadata:${fix.doc.type}:${fix.doc.fullName}`;
+    case "copyForProfile":
+      return `copy:${fix.doc.type}:${fix.doc.fullName}:${fix.profile.toLowerCase()}`;
   }
 }
 
@@ -53,6 +58,8 @@ function isNoop(fix: StudioFix): boolean {
       return listKey(fix.from) === listKey(fix.to);
     case "setCustomScriptCode":
       return fix.from === fix.to;
+    case "editMetadata":
+      return fix.ops.length === 0;
     default:
       return false;
   }
@@ -103,6 +110,8 @@ export function isMobileChange(fix: StudioFix): boolean {
     case "createConfigRecord":
     case "deleteConfigRecord":
       return MOBILE_CATEGORIES.has(fix.category);
+    case "editMetadata":
+    case "copyForProfile":
     case "setLayoutRelatedList":
       // The layout feeds the iPad's visit engagement sidebar; it applies to every profile using it.
       return true;
@@ -247,20 +256,149 @@ export function scriptChange(item: StudioItem, from: string, to: string): Studio
   return { kind: "setCustomScriptCode", label: `Edit code of ${item.label}`, scriptId: item.id, scriptName: item.label, from, to };
 }
 
-/** A change adding (or removing) a related list on a Visit layout's engagement sidebar. */
+/** The layout ops queued for a page layout. */
+export function queuedLayoutOps(pending: PendingChange[], layoutName: string): LayoutOp[] {
+  const queued = pending.find((p) => p.fix.kind === "editMetadata" && p.fix.doc.type === "Layout" && p.fix.doc.fullName === layoutName)?.fix;
+  return queued?.kind === "editMetadata" && queued.doc.type === "Layout" ? (queued.ops as LayoutOp[]) : [];
+}
+
+/** The ops queued for a Lightning page. */
+export function queuedFlexiPageOps(pending: PendingChange[], fullName: string): FlexiPageOp[] {
+  const queued = pending.find((p) => p.fix.kind === "editMetadata" && p.fix.doc.type === "FlexiPage" && p.fix.doc.fullName === fullName)?.fix;
+  return queued?.kind === "editMetadata" && queued.doc.type === "FlexiPage" ? (queued.ops as FlexiPageOp[]) : [];
+}
+
+/** A Lightning page change with these ops — what's queued for the page is replaced by it. */
+export function flexiPageOpsChange(fullName: string, label: string, ops: FlexiPageOp[]): StudioFix {
+  return { kind: "editMetadata", label: `Edit Lightning page ${label}`, doc: { type: "FlexiPage", fullName, label }, ops };
+}
+
+/** A page layout change with these ops — what's queued for the layout is replaced by it. */
+export function layoutOpsChange(layoutName: string, layoutLabel: string, ops: LayoutOp[]): StudioFix {
+  return { kind: "editMetadata", label: `Edit page layout ${layoutLabel}`, doc: { type: "Layout", fullName: layoutName, label: layoutLabel }, ops };
+}
+
+/** The compact layout ops queued for a record header. */
+export function queuedCompactOps(pending: PendingChange[], fullName: string): CompactOp[] {
+  const queued = pending.find((p) => p.fix.kind === "editMetadata" && p.fix.doc.type === "CompactLayout" && p.fix.doc.fullName === fullName)?.fix;
+  return queued?.kind === "editMetadata" && queued.doc.type === "CompactLayout" ? (queued.ops as CompactOp[]) : [];
+}
+
+/** A compact layout change with these ops — what's queued for the compact layout is replaced by it. */
+export function compactOpsChange(fullName: string, label: string, ops: CompactOp[]): StudioFix {
+  return { kind: "editMetadata", label: `Edit compact layout ${label}`, doc: { type: "CompactLayout", fullName, label }, ops };
+}
+
+/** The list view ops queued for a list view ("Object.Name"). */
+export function queuedListViewOps(pending: PendingChange[], fullName: string): ListViewOp[] {
+  const queued = pending.find((p) => p.fix.kind === "editMetadata" && p.fix.doc.type === "ListView" && p.fix.doc.fullName === fullName)?.fix;
+  return queued?.kind === "editMetadata" && queued.doc.type === "ListView" ? (queued.ops as ListViewOp[]) : [];
+}
+
+/** A list view change with these ops — what's queued for the list view is replaced by it. */
+export function listViewOpsChange(fullName: string, label: string, ops: ListViewOp[]): StudioFix {
+  return { kind: "editMetadata", label: `Edit list view ${label}`, doc: { type: "ListView", fullName, label }, ops };
+}
+
+/** The layout change with a related list added to or taken out of a Visit layout's engagement sidebar, on top of what's queued for the layout. */
 export function layoutChange(
+  pending: PendingChange[],
   layoutName: string,
   layoutLabel: string,
   candidate: { objectName: string; relationshipName: string },
   add: boolean
 ): StudioFix {
-  return {
-    kind: "setLayoutRelatedList",
-    label: `${add ? "Add" : "Remove"} ${candidate.objectName} ${add ? "to" : "from"} the sidebar of ${layoutLabel}`,
-    layoutName,
-    layoutLabel,
-    objectName: candidate.objectName,
-    relationshipName: candidate.relationshipName,
-    add,
-  };
+  const queued = queuedLayoutOps(pending, layoutName);
+  const name = candidate.relationshipName;
+  const wasAdded = queued.some((o) => o.op === "addRelatedList" && o.relatedList === name);
+  const wasRemoved = queued.some((o) => o.op === "removeRelatedList" && o.relatedList === name);
+  const ops = queued.filter((o) => !((o.op === "addRelatedList" || o.op === "removeRelatedList") && o.relatedList === name));
+  // Adding back a list queued for removal (or taking out one queued to be added) is no change for it.
+  if (add && !wasRemoved) ops.push({ op: "addRelatedList", relatedList: name, before: null, object: candidate.objectName });
+  if (!add && !wasAdded) ops.push({ op: "removeRelatedList", relatedList: name });
+  return layoutOpsChange(layoutName, layoutLabel, ops);
+}
+
+// --- Copies just for one profile ---------------------------------------------------
+
+type EditFix = Extract<StudioFix, { kind: "editMetadata" }>;
+
+const isEdit = (fix: StudioFix): fix is EditFix => fix.kind === "editMetadata";
+const isCopy = (fix: StudioFix): fix is CopyForProfileFix => fix.kind === "copyForProfile" && !fix.revert;
+const sameProfile = (a: string, b: string | null) => !!b && a.toLowerCase() === b.toLowerCase();
+const docKey = (doc: { type: string; fullName: string }) => `${doc.type}:${doc.fullName}`;
+
+/** The copy queued for this document and profile. */
+export function queuedCopy(pending: PendingChange[], doc: { type: string; fullName: string }, profile: string | null): CopyForProfileFix | undefined {
+  for (const p of pending) if (isCopy(p.fix) && docKey(p.fix.doc) === docKey(doc) && sameProfile(p.fix.profile, profile)) return p.fix;
+  return undefined;
+}
+
+/**
+ * The tray as one profile's draft sees it. A queued copy replaces its document for that
+ * profile: the copy's own edits stand in for the edits queued for the shared document, which
+ * don't reach the profile any more. Other profiles' drafts see the tray as it is, so the
+ * copy's edits never show on a document they still share. Everything the draft code does
+ * (queueing, replacing, diffing against the org) then works on the document's name as before.
+ */
+export function viewFor(pending: PendingChange[], profile: string | null): PendingChange[] {
+  const copies = pending.flatMap((p) => (isCopy(p.fix) && sameProfile(p.fix.profile, profile) ? [p.fix] : []));
+  if (!copies.length) return pending;
+  let out = pending;
+  for (const copy of copies) {
+    const key = docKey(copy.doc);
+    const virtual: PendingChange | null = copy.ops?.length
+      ? { fix: { kind: "editMetadata", label: `Edit ${copy.copy.label}`, doc: copy.doc, ops: copy.ops } as StudioFix, affects: [copy.profile] }
+      : null;
+    const at = out.findIndex((p) => isEdit(p.fix) && docKey(p.fix.doc) === key);
+    if (at >= 0) out = out.flatMap((p, i) => (i === at ? (virtual ? [virtual] : []) : [p]));
+    else if (virtual) out = [...out, virtual];
+  }
+  return out;
+}
+
+/**
+ * The tray after a draft changed its view `next` (see `viewFor`): the copy's edits go back into the
+ * copy, and the edits queued for the shared document are put back as they were. A copy queued or
+ * taken out in the view is kept or dropped as it says. Copies are kept ahead of edits of their own
+ * document, so the copy is made from the document as it is in the org.
+ */
+export function commitFrom(raw: PendingChange[], profile: string | null, next: PendingChange[]): PendingChange[] {
+  const rawCopies = raw.flatMap((p) => (isCopy(p.fix) && sameProfile(p.fix.profile, profile) ? [p.fix] : []));
+  if (!rawCopies.length && !next.some((p) => isCopy(p.fix))) return next;
+  const docs = new Set(rawCopies.map((c) => docKey(c.doc)));
+  const originalOf = (key: string) => raw.find((r) => isEdit(r.fix) && docKey(r.fix.doc) === key);
+  const seen = new Set<string>();
+  const out: PendingChange[] = [];
+  for (const p of next) {
+    if (isEdit(p.fix) && docs.has(docKey(p.fix.doc))) {
+      // The copy's edits are handed to the copy below; the shared document's own edit goes back in their place.
+      const key = docKey(p.fix.doc);
+      seen.add(key);
+      const original = originalOf(key);
+      if (original) out.push(original);
+      continue;
+    }
+    out.push(p);
+  }
+  // Edits to the shared document that the view hid (the copy had no edits of its own) stay where they were.
+  for (const key of docs) {
+    const original = originalOf(key);
+    if (!seen.has(key) && original) out.push(original);
+  }
+  const edited = (key: string) => next.find((n) => isEdit(n.fix) && docKey(n.fix.doc) === key)?.fix as EditFix | undefined;
+  const result = out.map((p) => {
+    if (!isCopy(p.fix) || !sameProfile(p.fix.profile, profile) || !docs.has(docKey(p.fix.doc))) return p;
+    const ops = (edited(docKey(p.fix.doc))?.ops ?? []) as NonNullable<CopyForProfileFix["ops"]>;
+    const { ops: _before, ...rest } = p.fix;
+    return { ...p, fix: ops.length ? { ...rest, ops } : rest };
+  });
+  return copiesFirst(result);
+}
+
+/** The tray with each copy ahead of any edit of the document it copies (the same array when already so). */
+export function copiesFirst(pending: PendingChange[]): PendingChange[] {
+  const late = pending.some((p, i) => isCopy(p.fix) && pending.slice(0, i).some((e) => isEdit(e.fix) && docKey(e.fix.doc) === docKey((p.fix as CopyForProfileFix).doc)));
+  if (!late) return pending;
+  return [...pending.filter((p) => isCopy(p.fix)), ...pending.filter((p) => !isCopy(p.fix))];
 }

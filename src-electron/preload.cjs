@@ -69,7 +69,7 @@ contextBridge.exposeInMainWorld("lscApi", {
     return () => ipcRenderer.removeListener("sfOrg:changed", handler);
   },
   loginSfOrg: (alias, instanceUrl) => ipcRenderer.invoke("sfOrg:login", alias, instanceUrl),
-  openSfOrg: (org) => ipcRenderer.invoke("sfOrg:open", org),
+  openSfOrg: (org, path) => ipcRenderer.invoke("sfOrg:open", org, path),
   studioBrowserOpen: (guestId, url, auth) => ipcRenderer.invoke("studioBrowser:open", guestId, url, auth),
 
   // Studio — read-only feature maps served by the studio_* MCP tools
@@ -85,6 +85,10 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioDrift: (input) => ipcRenderer.invoke("studio:call", "studio_drift", input),
   studioItemDetail: (kind, id) =>
     ipcRenderer.invoke("studio:call", "studio_item_detail", { kind, id }),
+  studioMetadataDoc: (type, fullName) => ipcRenderer.invoke("studio:call", "studio_metadata_doc", { type, fullName }),
+  studioPageReach: (fullName) => ipcRenderer.invoke("studio:call", "studio_page_reach", { fullName }),
+  studioComponentCatalog: (pageType, sobject) => ipcRenderer.invoke("studio:call", "studio_component_catalog", { pageType, sobject }),
+  studioComponentProps: (component, pageType) => ipcRenderer.invoke("studio:call", "studio_component_props", { component, pageType }),
   studioListProfiles: () => ipcRenderer.invoke("studio:call", "studio_list_profiles"),
   studioUserAccess: (userId) => ipcRenderer.invoke("studio:call", "studio_user_access", { userId }),
   studioAccessOptions: (search) => ipcRenderer.invoke("studio:call", "studio_access_options", search ? { search } : {}),

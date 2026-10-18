@@ -13,7 +13,7 @@ let initialized = false;
  * Bump when the shape of a cached result changes (e.g. a new FeatureMap field),
  * so maps saved by an older build are re-collected instead of shown half-empty.
  */
-const CACHE_VERSION = 3;
+const CACHE_VERSION = 5;
 const key = (tool: string) => `${tool}@${CACHE_VERSION}`;
 
 function db() {

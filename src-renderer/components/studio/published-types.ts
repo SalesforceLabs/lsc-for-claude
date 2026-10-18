@@ -51,7 +51,23 @@ export interface PublishedComponent {
   /** force:highlightsPanel's dynamic actions (`actionNames`), in order. */
   actions?: string[];
   /** flexipage:tabset children. */
-  tabs?: { title: string; active: boolean; components: PublishedComponent[] }[];
+  tabs?: { title: string; active: boolean; components: PublishedComponent[]; source?: FlexiSource }[];
+  /** Where the component sits in its Lightning page's XML, for edits made in the preview. */
+  source?: FlexiSource;
+}
+
+/** One step down a Lightning page: an item of the region or facet above, as the page lists it. */
+export interface FlexiStep {
+  component: string;
+  identifier: string | null;
+  /** Index among the container's items, counting ones the iPad skips. */
+  index: number;
+}
+
+/** The top-level region, then the items down to it: a tab is [tabset, tab], a component in a tab [tabset, tab, component]. */
+export interface FlexiSource {
+  region: string;
+  path: FlexiStep[];
 }
 
 export interface PublishedPage {
@@ -76,9 +92,18 @@ export interface RecordFieldSpec {
   readOnly?: boolean;
 }
 
+/** Where a published section sits in the layout's XML (label as written, which of that label, XML column indexes, each field's layout item). */
+export interface LayoutSectionSource {
+  label: string;
+  nth: number;
+  columns: number[];
+  fields: string[][];
+  heading: boolean;
+}
+
 export interface PublishedLayout {
   name: string;
-  sections: { label: string | null; columns: string[][]; fields?: RecordFieldSpec[][] }[];
+  sections: { label: string | null; columns: string[][]; fields?: RecordFieldSpec[][]; source?: LayoutSectionSource }[];
   relatedLists: { name: string; label: string; columns?: RecordFieldSpec[] }[];
   actions: string[];
   actionItems?: { name: string; label: string; type: string; sortOrder: string }[];
@@ -96,6 +121,19 @@ export interface PublishedRecordType {
   multiEntity?: { layouts: string[]; note?: string; error?: string };
 }
 
+export interface PublishedListView {
+  name: string;
+  label: string;
+  /** Column labels. */
+  columns: string[];
+  /** The view's `sharedTo` (non-empty entries); absent = visible to all users. */
+  sharedTo?: Record<string, string[]>;
+  /** How to read its rows: a field type per column (null when the app drops it). */
+  query?: { fields: ({ path: string; type: string } | null)[]; where?: string | null; mine?: boolean };
+  /** The view as the cache stores it: the metadata name, column ids, filter scope, filters and logic. */
+  source?: { fullName: string; columns: string[]; filterScope: string | null; filters: { field: string; operation: string; value: string }[]; booleanFilter: string | null };
+}
+
 export interface PublishedObject {
   name: string;
   label: string;
@@ -103,7 +141,7 @@ export interface PublishedObject {
   recordTypes: PublishedRecordType[];
   /** Used when a record has no record type. */
   defaultCompactLayout: string | null;
-  listViews: { name: string; label: string; columns: string[]; /** How to read its rows: a field type per column (null when the app drops it). */ query?: { fields: ({ path: string; type: string } | null)[] } }[];
+  listViews: PublishedListView[];
   defaultListView: string | null;
   /** List views shared only with roles, groups, or territories the viewer isn't in. */
   hiddenListViews?: { label: string; reason: string }[];
@@ -122,6 +160,8 @@ export interface PublishedIpad {
   pages: Record<string, PublishedPage>;
   compactLayouts: Record<string, string[]>;
   compactFields?: Record<string, RecordFieldSpec[]>;
+  /** Each record header's compact layout (Metadata API name) and its fields' API names in order, the title's field included. */
+  compactSources?: Record<string, { fullName: string; fields: string[] }>;
   notes: string[];
   /** The user whose permission sets were merged in; null when the profile has no active users. */
   viewer: { userId: string; name: string; permissionSets: string[] } | null;

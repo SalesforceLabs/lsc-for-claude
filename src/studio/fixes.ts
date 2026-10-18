@@ -333,6 +333,8 @@ export async function previewFix(fix: StudioFix, org: string): Promise<FixPrevie
       return previewAccess(fix, org);
     case "setCustomScriptCode":
     case "setLayoutRelatedList":
+    case "editMetadata":
+    case "copyForProfile":
       return previewEdit(fix, org);
   }
 }
@@ -431,6 +433,8 @@ export async function applyFix(fix: StudioFix, org: string): Promise<FixResult> 
       return applyAccess(fix, org);
     case "setCustomScriptCode":
     case "setLayoutRelatedList":
+    case "editMetadata":
+    case "copyForProfile":
       return applyEdit(fix, org);
   }
 }

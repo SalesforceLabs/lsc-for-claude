@@ -5,6 +5,8 @@ import { fabState, menuLayout, MENU, recordFabItems } from "./ipad-fabs-logic";
 import type { PublishedFabItem } from "./screens/fabs-types";
 import IpadActionSheet from "./IpadActionSheets";
 import { AGENT_BUTTON, presentationFor, type Presentation } from "./ipad-fab-actions";
+import { editAttrs, useEditOn } from "./EditLayer";
+import type { DraftState } from "./edit-draft";
 import "./fabs.css";
 
 /** agent_astro.svg (OCEDemo/Assets.xcassets), template-tinted with the accent color. */
@@ -47,8 +49,9 @@ function Dots() {
 }
 
 /** VerticallyStackedQuickActionsViewController: a dim over the screen, the stacked action capsules, and the ••• turned into a white close button. An item closes the menu and opens what the app presents for it (IpadActionSheets); the preview never runs the action. */
-function Menu({ items, onClose, onPick }: { items: PublishedFabItem[]; onClose: () => void; onPick: (item: PublishedFabItem) => void }) {
+function Menu({ items, states, object, onClose, onPick }: { items: PublishedFabItem[]; states?: DraftState[]; object?: string; onClose: () => void; onPick: (item: PublishedFabItem) => void }) {
   const { width, tops } = useMemo(() => menuLayout(items.map((i) => textWidth(i.label, 18, 600))), [items]);
+  const editing = useEditOn();
   return (
     <>
       <div className="studio-ipad-fab-dim" onClick={onClose} />
@@ -56,9 +59,16 @@ function Menu({ items, onClose, onPick }: { items: PublishedFabItem[]; onClose: 
         {items.map((a, i) => (
           <span
             key={a.name}
-            className="studio-ipad-fab-item"
+            className={`studio-ipad-fab-item${states?.[i] === "removed" ? " ghost" : states?.[i] === "added" || states?.[i] === "moved" ? " pending" : ""}`}
             title={a.name}
             role="button"
+            {...editAttrs(
+              editing,
+              { kind: "action", name: a.name, label: a.label, index: i, place: object ? "record" : "home", ...(object ? { object } : {}) },
+              false,
+              // Draft drags the Home menu only; record actions come from the layout and have no order to change here.
+              states && !object ? { family: "home-actions", id: a.name, ghost: states[i] === "removed" } : undefined
+            )}
             onClick={(e) => {
               e.stopPropagation();
               onPick(a);
@@ -82,12 +92,27 @@ function Menu({ items, onClose, onPick }: { items: PublishedFabItem[]; onClose: 
  * (see fabState). ••• toggles its menu; a menu item or the Agentforce button opens a drawn copy of what
  * the app presents (IpadActionSheets). The preview never saves or calls the org.
  */
-export default function IpadFabs({ snapshot, tab, record, agentforce }: { snapshot: PublishedIpad; tab: PublishedTab | undefined; record: string | null; agentforce: boolean }) {
+export default function IpadFabs({
+  snapshot,
+  tab,
+  record,
+  agentforce,
+  homeMenu,
+}: {
+  snapshot: PublishedIpad;
+  tab: PublishedTab | undefined;
+  record: string | null;
+  agentforce: boolean;
+  /** Draft's Home menu (edit mode), in place of the published one. */
+  homeMenu?: { value: PublishedFabItem; state: DraftState }[];
+}) {
   const [open, setOpen] = useState(false);
   const [shown, setShown] = useState<Presentation | null>(null);
   const rec = record ? snapshot.records?.byId[record] : undefined;
   const fabs = snapshot.screens?.fabs;
-  const items = rec ? recordFabItems(fabs, rec.object, rec.recordType ?? undefined) : tab?.kind === "home" && record === null ? (fabs?.home ?? []) : [];
+  const onHome = !rec && tab?.kind === "home" && record === null;
+  const items = rec ? recordFabItems(fabs, rec.object, rec.recordType ?? undefined) : onHome ? (homeMenu?.map((d) => d.value) ?? fabs?.home ?? []) : [];
+  const states = onHome ? homeMenu?.map((d) => d.state) : undefined;
   const state = fabState({ kind: tab?.kind, onRecord: !!rec, menuCount: items.length, agentforce });
   if (!state.astro && !state.more) return null;
   return (
@@ -103,6 +128,8 @@ export default function IpadFabs({ snapshot, tab, record, agentforce }: { snapsh
       {open && state.more && (
         <Menu
           items={items}
+          states={states}
+          object={rec?.object}
           onClose={() => setOpen(false)}
           onPick={(item) => {
             setOpen(false);

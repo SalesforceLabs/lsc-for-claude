@@ -5,14 +5,13 @@ import { audienceProfiles, isScoped, type Lens } from "./lens";
 import { SeverityChips } from "./SeverityChips";
 import FeatureGrid from "./FeatureGrid";
 import LensChecklist from "./LensChecklist";
-import IpadPreview from "./IpadPreview";
 import PublishedIpadPreview, { type PublishedState } from "./PublishedIpadPreview";
+import { usePreviewEdit } from "./usePreviewEdit";
 import type { PublishedResult } from "./published-types";
-import type { IpadBlock } from "./ipad";
 import Inspector from "./Inspector";
 import ReviewDialog from "./ReviewDialog";
 import PublishDialog from "./PublishDialog";
-import type { PendingChange } from "./changes";
+import { useTrayHistory } from "./tray-history";
 import TestingPages, { SYNC_PAGES, type SyncPage } from "./TestingPages";
 import ReadinessView from "./ReadinessView";
 import SetupOverview from "./SetupOverview";
@@ -27,9 +26,12 @@ import {
   CloudUpload,
   History,
   LayoutDashboard,
+  Pencil,
+  Redo2,
   RefreshCw,
   ScanSearch,
   Tablet,
+  Undo2,
   UserRound,
   UserRoundSearch,
   UsersRound,
@@ -44,7 +46,7 @@ interface StudioViewProps {
   onAskClaude: (prompt: string) => void;
 }
 
-/** Features the iPad preview is drawn from, loaded when it opens; Visit is loaded when its tab is opened. */
+/** Features the iPad preview's edit mode reads (tabs, Home actions, DB Schema), loaded when it opens. */
 const PREVIEW_FEATURES = ["actions-home", "mobile-sync"];
 /** Features whose page offers a "Preview on iPad" shortcut. */
 const PREVIEW_HOSTS = [...PREVIEW_FEATURES, "visit"];
@@ -53,13 +55,6 @@ type MapState = { status: "loading" } | { status: "error"; error: string } | { s
 
 /** What the main pane shows: the iPad preview, a Setup page or feature, or a Testing page. */
 type Section = "preview" | "overview" | "user-check" | "drift" | "setup" | SyncPage | "test-users";
-
-/** A preview block opened in the inspector beside the preview. */
-interface PreviewInspect {
-  featureId: string;
-  surface: SurfaceId;
-  itemId: string;
-}
 
 export default function StudioView({ onAskClaude }: StudioViewProps) {
   const [features, setFeatures] = useState<FeatureSummary[]>([]);
@@ -82,9 +77,10 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   // Maps are kept per feature so switching back doesn't re-query the org.
   const [maps, setMaps] = useState<Record<string, MapState>>({});
   const [selectedSurface, setSelectedSurface] = useState<SurfaceId | null>(null);
-  // Edits queued in the tray, applied together from the review dialog.
-  const [pending, setPending] = useState<PendingChange[]>([]);
   const [reviewing, setReviewing] = useState(false);
+  // Edits queued in the tray, applied together from the review dialog; ⌘Z / ⇧⌘Z step through them (not while reviewing).
+  const tray = useTrayHistory(reviewing);
+  const { pending, setPending } = tray;
   // Profiles to preselect in "Publish to iPad"; undefined = closed, null = none preselected.
   const [publishing, setPublishing] = useState<string[] | null | undefined>(undefined);
   // "View as" — kept across features so switching features keeps the same point of view.
@@ -92,12 +88,10 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
   // iPad preview — stays mounted once opened so its screen survives switching sections.
   const [previewOpened, setPreviewOpened] = useState(false);
-  // Object the preview opens on, from a feature's "Preview on iPad"; the key remounts it so it opens there again.
-  const [previewStart, setPreviewStart] = useState<string | undefined>(undefined);
-  const [previewKey, setPreviewKey] = useState(0);
-  const [previewInspect, setPreviewInspect] = useState<PreviewInspect | null>(null);
-  // "published" reads the profile's last metadata cache; "estimate" simulates the iPad after the next publish.
-  const [previewMode, setPreviewMode] = useState<"published" | "estimate">("published");
+  // "published" reads the profile's last metadata cache; "draft" lays the tray over it.
+  const [previewMode, setPreviewMode] = useState<"published" | "draft" | "split">("published");
+  // Edit mode: select blocks in the published preview to see what they are and change them.
+  const [editOn, setEditOn] = useState(false);
   const [published, setPublished] = useState<Record<string, PublishedState>>({});
   // Item the inspector opens, e.g. a block clicked in the preview.
   const [focusItem, setFocusItem] = useState<string | null>(null);
@@ -177,9 +171,6 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     if (!previewOpened) return;
     for (const id of PREVIEW_FEATURES) if (!maps[id]) load(id);
   }, [previewOpened, maps, load]);
-  useEffect(() => {
-    if (previewInspect && !maps[previewInspect.featureId]) load(previewInspect.featureId);
-  }, [previewInspect, maps, load]);
   const loadPublished = useCallback(async (profile: string, refresh = false, userId?: string) => {
     setPublished((p) => ({ ...p, [profile]: { status: "loading" } }));
     const res = await window.lscApi.studioIpadPublished(profile, refresh, userId);
@@ -189,22 +180,13 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
       [profile]: error ? { status: "error", error } : { status: "ready", result: res.data as PublishedResult },
     }));
   }, []);
-  const loadVisit = useCallback(() => {
-    if (!maps.visit) load("visit");
-  }, [maps.visit, load]);
   const readyMap = (id: string) => {
     const m = maps[id];
     return m?.status === "ready" ? m.map : null;
   };
-  const inspectBlock = (block: IpadBlock) =>
-    setPreviewInspect({ featureId: block.featureId, surface: block.surface, itemId: block.itemId });
-  const openPreview = (startOn?: string) => {
+  const openPreview = () => {
     setSection("preview");
     setPreviewOpened(true);
-    if (startOn) {
-      setPreviewStart(startOn);
-      setPreviewKey((k) => k + 1);
-    }
   };
   const openSetup = (id: string, surface: SurfaceId | null = null, item: string | null = null) => {
     setSection("setup");
@@ -227,7 +209,27 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     selectSurface(null);
   };
 
-  const publishedProfile = previewOpened && previewMode === "published" ? (lens?.profile ?? null) : null;
+  const publishedProfile = previewOpened ? (lens?.profile ?? null) : null;
+  const toggleEdit = useCallback(() => {
+    setEditOn((on) => {
+      // Edits are made in Draft; Published stays selectable to explain what reps have today.
+      if (!on) setPreviewMode("draft");
+      return !on;
+    });
+  }, []);
+  const previewShown = section === "preview" && !!publishedProfile;
+  useEffect(() => {
+    if (!previewShown) return;
+    const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement as HTMLElement | null;
+      if (e.key !== "e" || e.metaKey || e.ctrlKey || e.altKey || reviewing || publishing !== undefined) return;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      e.preventDefault();
+      toggleEdit();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [previewShown, toggleEdit, reviewing, publishing]);
   useEffect(() => {
     if (publishedProfile && !published[publishedProfile]) loadPublished(publishedProfile);
   }, [publishedProfile, published, loadPublished]);
@@ -261,17 +263,27 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     Object.values(readiness).find((r) => r.status === "ready")?.readiness.org ??
     seenOrg ??
     connectedOrg;
-  const previewLoading = PREVIEW_FEATURES.some((id) => maps[id]?.status === "loading");
-  const inspectedMap = previewInspect ? readyMap(previewInspect.featureId) : null;
-  const inspectedSurface = inspectedMap?.surfaces.find((s) => s.id === previewInspect?.surface) ?? null;
-  const inspectedCheckable = !!inspectedMap?.surfaces.some(isScoped);
+  const publishedState = publishedProfile ? published[publishedProfile] : undefined;
+  const { edit: previewEdit, panel: editPanel } = usePreviewEdit({
+    on: editOn && previewShown,
+    draft: previewMode !== "published",
+    profile: publishedProfile,
+    result: publishedState?.status === "ready" ? publishedState.result : undefined,
+    actionsMap: readyMap("actions-home"),
+    syncMap: readyMap("mobile-sync"),
+    pending,
+    onPendingChange: setPending,
+    org: readyOrg,
+    profiles,
+    onOpenStudio: (id, surface, item) => openSetup(id, surface, item),
+  });
 
   const previewSubtitle =
     previewMode === "published"
       ? `Exactly as ${lens ? `${lens.profile}'s` : "a profile's"} users last downloaded it, from the profile's metadata cache`
-      : `Estimated after the next publish from the live configuration${
-          lens ? ` for ${lens.profile}` : ""
-        } — permission sets and record sharing aren't evaluated`;
+      : previewMode === "split"
+        ? `Published on the left, Draft on the right with ${pending.length === 1 ? "the pending change" : `${pending.length || "no"} pending changes`} — select blocks on the Draft side`
+        : `As published, with ${pending.length === 1 ? "the pending change" : `${pending.length || "no"} pending changes`} laid on top — tabs, Home actions, DB Schema and page layouts`;
 
   const featureBusy = state?.status === "loading" || readiness[featureId]?.status === "loading";
   const featureSubtitle = map
@@ -324,13 +336,40 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     </button>
   );
 
-  const tray = pending.length > 0 && (
+  const isMac = /Mac/.test(navigator.userAgent);
+  const undoKeys = isMac ? "⌘Z" : "Ctrl+Z";
+  const redoKeys = isMac ? "⇧⌘Z" : "Ctrl+Shift+Z";
+  const historyButtons = (
+    <>
+      <button
+        className="ui-icon-btn"
+        onClick={tray.undo}
+        disabled={!tray.undoLabel}
+        aria-label="Undo"
+        title={tray.undoLabel ? `Undo ${tray.undoLabel} (${undoKeys})` : `Nothing to undo (${undoKeys})`}
+      >
+        <Undo2 size={14} aria-hidden="true" />
+      </button>
+      <button
+        className="ui-icon-btn"
+        onClick={tray.redo}
+        disabled={!tray.redoLabel}
+        aria-label="Redo"
+        title={tray.redoLabel ? `Redo ${tray.redoLabel} (${redoKeys})` : `Nothing to redo (${redoKeys})`}
+      >
+        <Redo2 size={14} aria-hidden="true" />
+      </button>
+    </>
+  );
+  // Stays up while the tray is empty but a step can be undone or redone, so it can be put back.
+  const trayBar = pending.length > 0 ? (
     <div className="studio-tray">
       <span className="studio-tray-count">
         <span className="studio-tray-badge">{pending.length}</span>
         pending {pending.length === 1 ? "change" : "changes"}
       </span>
       <span className="studio-tray-list">{pending.map((p) => p.fix.label).join(" · ")}</span>
+      {historyButtons}
       <button className="studio-btn ghost" onClick={() => setPending([])}>
         Discard all
       </button>
@@ -338,7 +377,24 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         Review & apply…
       </button>
     </div>
-  );
+  ) : tray.undoLabel || tray.redoLabel ? (
+    <div className="studio-tray">
+      <span className="studio-tray-count">No pending changes</span>
+      <span className="studio-tray-list" />
+      {tray.undoLabel && (
+        <button className="studio-btn ghost" onClick={tray.undo} title={`Undo ${tray.undoLabel} (${undoKeys})`}>
+          <Undo2 size={14} aria-hidden="true" />
+          Undo
+        </button>
+      )}
+      {tray.redoLabel && (
+        <button className="studio-btn ghost" onClick={tray.redo} title={`Redo ${tray.redoLabel} (${redoKeys})`}>
+          <Redo2 size={14} aria-hidden="true" />
+          Redo
+        </button>
+      )}
+    </div>
+  ) : null;
 
   return (
     <div className="studio">
@@ -348,7 +404,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         {railItem(
           "preview",
           "Preview",
-          "What LSC Mobile shows a profile — as last published, or estimated after the next publish",
+          "What LSC Mobile shows a profile — as last published, or with pending changes laid on top",
           () => openPreview(),
           Tablet
         )}
@@ -424,16 +480,18 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               </div>
             </div>
             <div className="studio-header-actions">
+              {publishedProfile && (
+                <button
+                  className={`studio-btn collapsible${editOn ? " active" : ""}`}
+                  aria-pressed={editOn}
+                  onClick={toggleEdit}
+                  title="Edit — select anything on the iPad to see where it comes from and change it (E)"
+                >
+                  <Pencil aria-hidden="true" />
+                  <span className="studio-btn-label">Edit</span>
+                </button>
+              )}
               {readyOrg && publishButton}
-              {previewMode === "estimate" &&
-                refreshButton(
-                  previewLoading,
-                  () => {
-                    for (const id of PREVIEW_FEATURES) load(id, true);
-                    if (maps.visit) load("visit", true);
-                  },
-                  previewLoading ? "Mapping…" : "Refresh"
-                )}
             </div>
           </header>
           <div className="studio-subbar">
@@ -442,8 +500,9 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               value={previewMode}
               onChange={setPreviewMode}
               options={[
-                { value: "published", label: "As published" },
-                { value: "estimate", label: "After next publish", title: "An estimate of the iPad after the next publish" },
+                { value: "published", label: "Published", title: "What reps have today, from the metadata cache" },
+                { value: "draft", label: "Draft", title: "Published, with the pending changes laid on top" },
+                { value: "split", label: "Side by side", title: "Published and Draft next to each other; select blocks on the Draft side" },
               ]}
             />
             <div className="studio-subbar-group">
@@ -458,68 +517,32 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
 
           <div className="studio-stage">
             <div className="studio-canvas">
-              {previewMode === "published" ? (
-                publishedProfile ? (
-                  <PublishedIpadPreview
-                    profile={publishedProfile}
-                    state={published[publishedProfile]}
-                    onRefresh={(userId) => loadPublished(publishedProfile, true, userId)}
-                    onPickUser={(userId) => loadPublished(publishedProfile, false, userId)}
-                    onSearchUsers={async (text) => {
-                      const res = await window.lscApi.studioIpadPublishedUsers(publishedProfile, text);
-                      return (res.data as { users?: { id: string; name: string }[] } | undefined)?.users ?? [];
-                    }}
-                  />
-                ) : (
-                  <StateView
-                    kind="empty"
-                    icon={Tablet}
-                    title="Choose a profile"
-                    detail="Pick one in “Preview as” to see the iPad exactly as that profile's users last downloaded it."
-                  />
-                )
+              {publishedProfile ? (
+                <PublishedIpadPreview
+                  profile={publishedProfile}
+                  state={publishedState}
+                  onRefresh={(userId) => loadPublished(publishedProfile, true, userId)}
+                  onPickUser={(userId) => loadPublished(publishedProfile, false, userId)}
+                  edit={previewEdit}
+                  split={previewMode === "split"}
+                  onSearchUsers={async (text) => {
+                    const res = await window.lscApi.studioIpadPublishedUsers(publishedProfile, text);
+                    return (res.data as { users?: { id: string; name: string }[] } | undefined)?.users ?? [];
+                  }}
+                />
               ) : (
-                <IpadPreview
-                  key={previewKey}
-                  actionsMap={readyMap("actions-home")}
-                  syncMap={readyMap("mobile-sync")}
-                  visitMap={readyMap("visit")}
-                  onLoadVisit={loadVisit}
-                  visitError={maps.visit?.status === "error" ? maps.visit.error : undefined}
-                  lens={lens}
-                  pending={pending}
-                  onSelect={inspectBlock}
-                  selectedItem={previewInspect?.itemId ?? null}
-                  startOn={previewStart}
+                <StateView
+                  kind="empty"
+                  icon={Tablet}
+                  title="Choose a profile"
+                  detail="Pick one in “Preview as” to see the iPad exactly as that profile's users last downloaded it."
                 />
               )}
             </div>
-            {previewMode === "estimate" && inspectedMap && inspectedSurface && previewInspect && (
-              <Inspector
-                key={`${previewInspect.featureId}:${previewInspect.surface}:${previewInspect.itemId}`}
-                map={inspectedMap}
-                surface={inspectedSurface}
-                lens={inspectedCheckable ? lens : null}
-                onClose={() => setPreviewInspect(null)}
-                onOpenInSetup={() => openSetup(previewInspect.featureId, previewInspect.surface, previewInspect.itemId)}
-                onCheckProfile={
-                  inspectedCheckable
-                    ? (profile) => {
-                        setLens({ profile });
-                        openSetup(previewInspect.featureId);
-                      }
-                    : undefined
-                }
-                onAskClaude={onAskClaude}
-                profiles={profiles}
-                pending={pending}
-                onPendingChange={setPending}
-                focusItem={previewInspect.itemId}
-              />
-            )}
+            {editPanel}
           </div>
 
-          {tray}
+          {trayBar}
         </section>
       )}
 
@@ -531,7 +554,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           onOpenSetup={(id, surface = null, item = null) => openSetup(id, surface, item)}
           pending={pending}
           onPendingChange={setPending}
-          tray={tray}
+          tray={trayBar}
         />
       )}
 
@@ -555,7 +578,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               onAskClaude={onAskClaude}
             />
           </div>
-          {tray}
+          {trayBar}
         </section>
       )}
 
@@ -574,7 +597,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               onOrgSeen={setSeenOrg}
             />
           </div>
-          {tray}
+          {trayBar}
         </section>
       )}
 
@@ -612,8 +635,8 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             {map && canPreview && (
               <button
                 className="studio-btn collapsible"
-                onClick={() => openPreview(featureId === "visit" ? "Visit" : undefined)}
-                title="Preview on iPad — a block render of what LSC Mobile shows: tabs, home page, and record actions"
+                onClick={() => openPreview()}
+                title="Preview on iPad — what LSC Mobile shows a profile, as last published or with pending changes in Draft"
               >
                 <Tablet aria-hidden="true" />
                 <span className="studio-btn-label">Preview on iPad</span>
@@ -746,7 +769,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           )}
         </div>
 
-        {tray}
+        {trayBar}
       </section>
 
       {readyOrg && reviewing && (
@@ -755,7 +778,9 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           org={readyOrg}
           onClose={(applied, remaining) => {
             setReviewing(false);
-            setPending(remaining);
+            // Applied changes can't be taken back from the tray; their undo is in the review dialog.
+            if (applied.length > 0) tray.reset(remaining);
+            else setPending(remaining);
             // Other features' maps may be stale too; the main process dropped them from its cache.
             if (applied.length > 0) {
               setMaps({});

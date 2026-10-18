@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `107`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `111`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -70,6 +70,8 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "set_target_org",
   "simulate_initial_sync",
   "studio_access_options",
+  "studio_component_catalog",
+  "studio_component_props",
   "studio_connected_org",
   "studio_drift",
   "studio_feature_map",
@@ -81,6 +83,8 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_list_profiles",
   "studio_lwc_bundle",
   "studio_lwc_request",
+  "studio_metadata_doc",
+  "studio_page_reach",
   "studio_perf_active",
   "studio_perf_cancel",
   "studio_perf_check",
@@ -1292,6 +1296,54 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
       },
       "kind": {
         "optional": false,
+        "type": "ZodEnum",
+      },
+    },
+  },
+  {
+    "name": "studio_metadata_doc",
+    "params": {
+      "fullName": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "type": {
+        "optional": false,
+        "type": "ZodEnum",
+      },
+    },
+  },
+  {
+    "name": "studio_page_reach",
+    "params": {
+      "fullName": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_component_catalog",
+    "params": {
+      "pageType": {
+        "optional": false,
+        "type": "ZodEnum",
+      },
+      "sobject": {
+        "optional": true,
+        "type": "ZodNullable",
+      },
+    },
+  },
+  {
+    "name": "studio_component_props",
+    "params": {
+      "component": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "pageType": {
+        "optional": true,
         "type": "ZodEnum",
       },
     },

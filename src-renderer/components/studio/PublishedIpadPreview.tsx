@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { CloudOff, RotateCw } from "lucide-react";
 import StateView from "../ui/StateView";
 import type {
@@ -15,7 +15,7 @@ import IpadScreen from "./IpadScreen";
 import TestUserChip from "./TestUserChip";
 import { RepLoginContext, useMobileLogins } from "../../hooks/useMobileLogins";
 import { testUserFor } from "../../test-users";
-import RecordScreen from "./IpadRecord";
+import RecordScreen, { asDrawn, blockIdentity, draftClass, LayoutEdits, RecordTabs, usePageDraft } from "./IpadRecord";
 import IpadFabs from "./IpadFabs";
 import { Dashboard } from "./IpadDashboard";
 import { ReportsTree } from "./IpadReports";
@@ -31,6 +31,10 @@ import type { PublishedFabItem } from "./screens/fabs-types";
 import { presentationFor, type Presentation } from "./ipad-fab-actions";
 import { CustomIcon } from "./assets/icons";
 import { findDeepLinkTab, findRecordId, isDeepLink, parseDeepLink } from "./deep-link";
+import { EditSurface, editAttrs, Mark, useEditOn, type EditSurfaceProps } from "./EditLayer";
+import type { DraftAction, DraftState, DraftTab } from "./edit-draft";
+import type { CompactEntry, LayoutEntry, ListViewEntry, PageEntry } from "./usePreviewEdit";
+import { draftComponents, draftRecordTabs, sourceKey } from "./flexipage-draft";
 import {
   ActivityPlanProgress,
   HomeEditVisitContext,
@@ -49,6 +53,21 @@ export type PublishedState =
   | { status: "error"; error: string }
   | { status: "ready"; result: PublishedResult };
 
+/** Edit mode over the preview: selection, and — in Draft — the tab bar and Home menu with the tray laid on top. */
+export interface PreviewEdit extends Omit<EditSurfaceProps, "children"> {
+  draft: boolean;
+  tabs: DraftTab[];
+  homeMenu: DraftAction[];
+  /** Page layouts read from the org, by name, for drawing and editing them in Draft. */
+  layouts: Record<string, LayoutEntry>;
+  /** Compact layouts (record headers) read from the org, by `Object.Name`. */
+  compacts: Record<string, CompactEntry>;
+  /** List views read from the org, by `Object.Name`. */
+  listViews: Record<string, ListViewEntry>;
+  /** Lightning pages (Home and record pages) read from the org, by developer name. */
+  pages: Record<string, PageEntry>;
+}
+
 interface PublishedIpadPreviewProps {
   profile: string;
   state: PublishedState | undefined;
@@ -56,6 +75,10 @@ interface PublishedIpadPreviewProps {
   onPickUser: (userId: string) => void;
   /** Active users of the profile whose name contains the text, for profiles with more users than the picker lists. */
   onSearchUsers?: (text: string) => Promise<{ id: string; name: string }[]>;
+  /** Edit mode; computed by the caller from the snapshot this preview reports through `state`. */
+  edit?: PreviewEdit;
+  /** Before / after: the published iPad beside the Draft one (Draft only). */
+  split?: boolean;
 }
 
 /**
@@ -63,7 +86,7 @@ interface PublishedIpadPreviewProps {
  * components, and record pages read from the profile's metadata cache, laid
  * out the way LSC Mobile builds them. Record data is placeholder.
  */
-export default function PublishedIpadPreview({ profile, state, onRefresh, onPickUser, onSearchUsers }: PublishedIpadPreviewProps) {
+export default function PublishedIpadPreview({ profile, state, onRefresh, onPickUser, onSearchUsers, edit, split }: PublishedIpadPreviewProps) {
   if (!state || state.status === "loading") {
     return <PublishedLoading profile={profile} />;
   }
@@ -92,7 +115,7 @@ export default function PublishedIpadPreview({ profile, state, onRefresh, onPick
       />
     );
   }
-  return <Device key={result.viewer?.userId ?? ""} snapshot={result} onRefresh={() => onRefresh(result.viewer?.userId)} onPickUser={onPickUser} onSearchUsers={onSearchUsers} />;
+  return <Device key={result.viewer?.userId ?? ""} snapshot={result} onRefresh={() => onRefresh(result.viewer?.userId)} onPickUser={onPickUser} onSearchUsers={onSearchUsers} edit={edit} split={split && !!edit?.draft} />;
 }
 
 function Device({
@@ -100,18 +123,27 @@ function Device({
   onRefresh,
   onPickUser,
   onSearchUsers,
+  edit,
+  split,
 }: {
   snapshot: PublishedIpad;
   onRefresh: () => void;
   onPickUser: (userId: string) => void;
   onSearchUsers?: (text: string) => Promise<{ id: string; name: string }[]>;
+  edit?: PreviewEdit;
+  split?: boolean;
 }) {
+  // Draft adds the tabs the tray would add (drawn as "coming soon" until published).
+  const allTabs = useMemo(() => (edit?.draft ? edit.tabs.map((d) => d.tab) : snapshot.tabs), [edit?.draft, edit?.tabs, snapshot.tabs]);
   const [current, setCurrent] = useState(snapshot.tabs[0]?.fullName ?? "");
   // The id of the open record ("" when the list row has no prefetched data); null shows the list.
   const [record, setRecord] = useState<string | null>(null);
+  // The record tab (Details, Related…) each record is on, shared by the published and Draft sides.
+  const [recordTabs, setRecordTabs] = useState<Record<string, string>>({});
+  const sharedTabs = useMemo(() => ({ selected: recordTabs, select: (id: string, tab: string) => setRecordTabs((m) => ({ ...m, [id]: tab })) }), [recordTabs]);
   const [sheet, setSheet] = useState<ChromeSheet | null>(null);
   const [newSheet, setNewSheet] = useState<Presentation | null>(null);
-  const tab = snapshot.tabs.find((t) => t.fullName === current) ?? snapshot.tabs[0];
+  const tab = allTabs.find((t) => t.fullName === current) ?? allTabs[0];
   const open = (t: PublishedTab) => {
     setCurrent(t.fullName);
     setRecord(null);
@@ -147,17 +179,89 @@ function Device({
     if (o.kind === "quickAction") note(o.action, `On the iPad this runs the ${o.action} quick action on the record. Studio does not run it.`);
   };
   // UITabBarController in .tabBar mode: the tabs in a paged floating bar, search pinned last.
-  const chromeTabs = useMemo<ChromeTab[]>(
-    () => snapshot.tabs.filter((t) => t.kind !== "recent").map((t) => ({ key: t.fullName, label: t.label, title: t.fullName })),
+  const editing = !!edit?.on;
+  const chromeTabs = useMemo<ChromeTab[]>(() => {
+    const states = new Map(edit?.draft ? edit.tabs.map((d) => [d.tab.fullName, d.state]) : []);
+    return allTabs
+      .map((t, index) => ({ t, index }))
+      .filter(({ t }) => t.kind !== "recent")
+      .map(({ t, index }) => {
+        const state = states.get(t.fullName);
+        return {
+          key: t.fullName,
+          label: t.label,
+          title: t.fullName,
+          className: state === "removed" ? " ghost" : state === "added" || state === "moved" ? " pending" : "",
+          attrs: editAttrs(
+            editing,
+            { kind: "tab", fullName: t.fullName, label: t.label, index },
+            true,
+            edit?.draft ? { family: "tabs", id: t.fullName, ghost: state === "removed", horizontal: true } : undefined
+          ),
+        };
+      });
+  }, [allTabs, edit?.draft, edit?.tabs, editing]);
+  const layoutEdits = useMemo(
+    () => (edit?.on ? { draft: edit.draft, layouts: edit.layouts, compacts: edit.compacts, listViews: edit.listViews, pages: edit.pages } : null),
+    [edit?.on, edit?.draft, edit?.layouts, edit?.compacts, edit?.listViews, edit?.pages]
+  );
+  // Before / after: the published side follows the Draft side's tab, record and scrolling, and isn't selectable.
+  const publishedTabs = useMemo<ChromeTab[]>(
+    () => snapshot.tabs.filter((t) => t.kind !== "recent").map((t) => ({ key: t.fullName, label: t.label, title: t.fullName, className: "", attrs: {} })),
     [snapshot.tabs]
   );
-  const onHome = tab?.kind === "home" && !!snapshot.home && record === null;
+  const pages = useRef<[HTMLDivElement | null, HTMLDivElement | null]>([null, null]);
+  const mirror = (side: 0 | 1) => (e: React.UIEvent) => mirrorScroll(e.target as Element, pages.current[side], pages.current[side ? 0 : 1]);
   // The app gates Agentforce on the user-info "Agentforce" feature flag, which the CLI can't read; a Home welcome component stands in for it.
   const homeHasAgentforce = !!snapshot.home?.regions.some((r) => r.components.some((c) => c.supported && /lsAgentforceWelcome$/.test(c.name)));
   const dashboardNotes = Object.values(snapshot.dashboards ?? {}).flatMap((d) => (d.dataNote ? [`${d.title} — ${d.dataNote}`] : []));
   const generated = snapshot.cache.generatedAt ? new Date(snapshot.cache.generatedAt).toLocaleString() : "unknown";
   const mobile = useMobileLogins();
   const repLogin = testUserFor(mobile.logins, snapshot.viewer?.userId);
+  const screen = (published: boolean) => {
+    const shown = published ? (snapshot.tabs.find((t) => t.fullName === current) ?? snapshot.tabs[0]) : tab;
+    const home = shown?.kind === "home" && !!snapshot.home && record === null;
+    const side = published ? 0 : 1;
+    return (
+      <IpadScreen label={!published && edit?.draft ? "iPad preview (draft)" : "iPad preview (published)"}>
+        <IpadStatusBar />
+        <IpadTopBar
+          tabs={published ? publishedTabs : chromeTabs}
+          current={shown?.fullName ?? ""}
+          onOpen={(key) => {
+            const t = allTabs.find((x) => x.fullName === key);
+            if (t) open(t);
+          }}
+          searchKey={snapshot.tabs.find((t) => t.kind === "recent")?.fullName}
+          onBack={record !== null ? () => setRecord(null) : undefined}
+          name={initials(snapshot.viewer?.name ?? snapshot.profile)}
+          onBriefings={() => setSheet({ kind: "briefings" })}
+          briefingsOpen={!published && sheet?.kind === "briefings"}
+          onBell={() => setSheet({ kind: "alerts" })}
+          onAvatar={() => setSheet({ kind: "profile" })}
+        />
+        <div
+          ref={split ? (el) => void (pages.current[side] = el) : undefined}
+          onScrollCapture={split ? mirror(side) : undefined}
+          className={`studio-ipad-page${shown?.kind === "empty" ? " blank" : ""}${home ? " home" : ""}${shown?.kind === "reports" && snapshot.reports ? " flush" : ""}${record === null && hasNativeScreen(shown, snapshot) ? " native" : ""}${record === null && isLwcOnly(shown, snapshot) ? " lwc-full" : ""}${record && snapshot.records?.byId[record] ? " record" : ""}`}
+        >
+          {shown && <Screen key={shown.fullName} tab={shown} snapshot={snapshot} record={record} onOpenRecord={setRecord} onNew={(label, objectName) => setNewSheet(newPresentation(label, objectName))} onNote={note} onAction={(item) => setNewSheet(presentationFor(item, { onRecord: true }))} onEditVisit={(id) => setNewSheet({ kind: "visit", edit: id })} />}
+        </div>
+        {/* Sheets open on the Draft side only. */}
+        {!published && <ChromeSheets sheet={sheet} snapshot={snapshot} onClose={() => setSheet(null)} onLink={followLink} />}
+        {!published && newSheet && <IpadActionSheet presentation={newSheet} ctx={{ snapshot, record: null }} onClose={() => setNewSheet(null)} />}
+        <IpadFabs snapshot={snapshot} tab={shown} record={record} agentforce={homeHasAgentforce} homeMenu={!published && edit?.draft ? edit.homeMenu : undefined} />
+      </IpadScreen>
+    );
+  };
+
+  const draftSide = (
+    <RecordTabs.Provider value={sharedTabs}>
+    <EditSurface on={editing} selected={edit?.selected ?? null} onSelect={edit?.onSelect ?? (() => {})} also={edit?.also} name={edit?.name} verbs={edit?.verbs ?? []} onRun={edit?.onRun ?? (() => {})} setup={edit?.setup} onSetup={edit?.onSetup} horizontal={edit?.horizontal} onDrop={edit?.onDrop}>
+      <LayoutEdits.Provider value={layoutEdits}>{screen(false)}</LayoutEdits.Provider>
+    </EditSurface>
+    </RecordTabs.Provider>
+  );
 
   return (
     <RepLoginContext.Provider value={repLogin?.status === "signedIn" ? repLogin.id : undefined}>
@@ -226,30 +330,20 @@ function Device({
         </button>
       </div>
 
-      <IpadScreen label="iPad preview (published)">
-        <IpadStatusBar />
-        <IpadTopBar
-          tabs={chromeTabs}
-          current={tab?.fullName ?? ""}
-          onOpen={(key) => {
-            const t = snapshot.tabs.find((x) => x.fullName === key);
-            if (t) open(t);
-          }}
-          searchKey={snapshot.tabs.find((t) => t.kind === "recent")?.fullName}
-          onBack={record !== null ? () => setRecord(null) : undefined}
-          name={initials(snapshot.viewer?.name ?? snapshot.profile)}
-          onBriefings={() => setSheet({ kind: "briefings" })}
-          briefingsOpen={sheet?.kind === "briefings"}
-          onBell={() => setSheet({ kind: "alerts" })}
-          onAvatar={() => setSheet({ kind: "profile" })}
-        />
-        <div className={`studio-ipad-page${tab?.kind === "empty" ? " blank" : ""}${onHome ? " home" : ""}${tab?.kind === "reports" && snapshot.reports ? " flush" : ""}${record === null && hasNativeScreen(tab, snapshot) ? " native" : ""}${record === null && isLwcOnly(tab, snapshot) ? " lwc-full" : ""}${record && snapshot.records?.byId[record] ? " record" : ""}`}>
-          {tab && <Screen key={tab.fullName} tab={tab} snapshot={snapshot} record={record} onOpenRecord={setRecord} onNew={(label, objectName) => setNewSheet(newPresentation(label, objectName))} onNote={note} onAction={(item) => setNewSheet(presentationFor(item, { onRecord: true }))} onEditVisit={(id) => setNewSheet({ kind: "visit", edit: id })} />}
+      {split ? (
+        <div className="studio-ipad-split">
+          <div className="studio-ipad-side">
+            <div className="studio-ipad-side-label">Published</div>
+            <RecordTabs.Provider value={sharedTabs}>{screen(true)}</RecordTabs.Provider>
+          </div>
+          <div className="studio-ipad-side">
+            <div className="studio-ipad-side-label">Draft</div>
+            {draftSide}
+          </div>
         </div>
-        <ChromeSheets sheet={sheet} snapshot={snapshot} onClose={() => setSheet(null)} onLink={followLink} />
-        {newSheet && <IpadActionSheet presentation={newSheet} ctx={{ snapshot, record: null }} onClose={() => setNewSheet(null)} />}
-        <IpadFabs snapshot={snapshot} tab={tab} record={record} agentforce={homeHasAgentforce} />
-      </IpadScreen>
+      ) : (
+        draftSide
+      )}
 
       <ul className="studio-ipad-legend">
         <li>
@@ -456,7 +550,7 @@ function PageView({
         <div className="studio-ipad-ph fill">There are no supported lightning components configured for this page.</div>
       ) : (
         page.regions.map((r) => (
-          <Region key={r.name} components={r.components} home={home} snapshot={snapshot} object={object} layout={layout} multi={multi} />
+          <Region key={r.name} page={page} region={r.name} components={r.components} home={home} snapshot={snapshot} object={object} layout={layout} multi={multi} />
         ))
       )}
       {(notShown.length > 0 || dropped.length > 0) && (
@@ -470,6 +564,8 @@ function PageView({
 
 /** SFLayoutScrollRegion.addHomeComponent — half-width Home components pair up two per row. */
 function Region({
+  page,
+  region,
   components,
   home,
   snapshot,
@@ -477,6 +573,8 @@ function Region({
   layout,
   multi,
 }: {
+  page: PublishedPage;
+  region: string;
   components: PublishedComponent[];
   home: boolean;
   snapshot: PublishedIpad;
@@ -484,7 +582,42 @@ function Region({
   layout?: PublishedLayout;
   multi?: MultiEntity;
 }) {
-  const shown = components.filter((c) => c.supported && c.visibility !== "hidden");
+  // In Draft the tray's arrangement, with removed blocks as ghosts and inserted ones drawn as placeholders.
+  const pd = usePageDraft(page.name);
+  const drawn = (pd ? draftComponents(pd, components) : asDrawn(components)).filter((d) => d.value.supported && d.value.visibility !== "hidden");
+  const shown = drawn.map((d) => d.value);
+  const stateOf = (c: PublishedComponent) => drawn[shown.indexOf(c)];
+  const target = (c: PublishedComponent) => ({
+    kind: "component" as const,
+    page: page.name,
+    pageLabel: page.label,
+    region,
+    index: shown.indexOf(c),
+    count: shown.length,
+    name: c.name,
+    label: c.properties.label || c.properties.title || c.label,
+    home,
+    visibility: c.visibility === "conditional" ? ("conditional" as const) : ("shown" as const),
+    ...(c.visibilityNote ? { visibilityNote: c.visibilityNote } : {}),
+    ...blockIdentity(c, stateOf(c)),
+  });
+  const card = (c: PublishedComponent, key: number) => {
+    const state = stateOf(c).state;
+    // A tab set and the record header aren't one block: their parts are marked inside.
+    if (c.tabs || /(^|:)highlightsPanel$/.test(c.name))
+      return <ComponentCard key={key} page={page} c={c} snapshot={snapshot} object={object} layout={layout} multi={multi} />;
+    const node = <ComponentCard page={page} c={c} snapshot={snapshot} object={object} layout={layout} multi={multi} />;
+    const d = stateOf(c);
+    return (
+      <Mark
+        key={key}
+        target={target(c)}
+        drag={pd ? { family: `page:${page.name}`, list: region, id: d.key, ghost: state === "removed" } : undefined}
+      >
+        {state === "same" ? node : <div className={`studio-ipad-draft-block${draftClass(state)}`}>{node}</div>}
+      </Mark>
+    );
+  };
   const rows: PublishedComponent[][] = [];
   for (const c of shown) {
     const last = rows[rows.length - 1];
@@ -496,12 +629,10 @@ function Region({
       {rows.map((row, i) =>
         row.length === 2 || (home && row[0].halfWidth) ? (
           <div key={i} className="studio-ipad-pair">
-            {row.map((c, j) => (
-              <ComponentCard key={j} c={c} snapshot={snapshot} object={object} layout={layout} multi={multi} />
-            ))}
+            {row.map((c, j) => card(c, j))}
           </div>
         ) : (
-          <ComponentCard key={i} c={row[0]} snapshot={snapshot} object={object} layout={layout} multi={multi} />
+          card(row[0], i)
         )
       )}
     </>
@@ -509,12 +640,14 @@ function Region({
 }
 
 function ComponentCard({
+  page,
   c,
   snapshot,
   object,
   layout,
   multi,
 }: {
+  page: PublishedPage;
   c: PublishedComponent;
   snapshot: PublishedIpad;
   object?: PublishedObject;
@@ -525,7 +658,7 @@ function ComponentCard({
   const name = c.name.replace(/^.*:/, "");
   const p = c.properties;
 
-  if (c.tabs) return <TabSet tabs={c.tabs} snapshot={snapshot} object={object} layout={layout} multi={multi} />;
+  if (c.tabs) return <TabSet page={page} tabs={c.tabs} snapshot={snapshot} object={object} layout={layout} multi={multi} />;
   if (name === "highlightsPanel") return null; // drawn by the record header
   if (name === "multiEntityRecordView" && multi) {
     if (multi.error) return <div className={cls}>{multi.error}</div>;
@@ -580,32 +713,51 @@ function ComponentCard({
 }
 
 function TabSet({
+  page,
   tabs,
   snapshot,
   object,
   layout,
   multi,
 }: {
+  page: PublishedPage;
   tabs: NonNullable<PublishedComponent["tabs"]>;
   snapshot: PublishedIpad;
   object?: PublishedObject;
   layout?: PublishedLayout;
   multi?: MultiEntity;
 }) {
-  const first = Math.max(0, tabs.findIndex((t) => t.active));
+  const pd = usePageDraft(page.name);
+  const drawn = pd ? draftRecordTabs(pd, tabs) : asDrawn(tabs);
+  const first = Math.max(0, drawn.findIndex((t) => t.value.active));
   const [i, setI] = useState(first);
-  const tab = tabs[i];
+  const tab = drawn[Math.min(i, drawn.length - 1)]?.value;
   if (!tab) return null;
   return (
     <>
       <div className="studio-ipad-chips">
-        {tabs.map((t, j) => (
-          <button key={j} type="button" className={`studio-ipad-chip${j === i ? " current" : ""}`} onClick={() => setI(j)}>
-            {t.title}
-          </button>
+        {drawn.map(({ value: t, state, key }, j) => (
+          <Mark
+            key={j}
+            drag={pd ? { family: `recordTabs:${page.name}`, list: "tabs", id: key, ghost: state === "removed", horizontal: true } : undefined}
+            target={{
+              kind: "recordTab",
+              page: page.name,
+              pageLabel: page.label,
+              title: t.title,
+              index: j,
+              count: drawn.length,
+              active: t.active,
+              ...(t.source ? { source: sourceKey(t.source) } : {}),
+            }}
+          >
+            <button type="button" className={`studio-ipad-chip${t === tab ? " current" : ""}${draftClass(state)}`} onClick={() => setI(j)}>
+              {t.title}
+            </button>
+          </Mark>
         ))}
       </div>
-      <Region components={tab.components} home={false} snapshot={snapshot} object={object} layout={layout} multi={multi} />
+      <Region page={page} region={`${tab.title} tab`} components={tab.components} home={false} snapshot={snapshot} object={object} layout={layout} multi={multi} />
       {tab.components.some((c) => !c.supported) && (
         <div className="studio-ipad-hint">
           Not shown on iPad: {tab.components.filter((c) => !c.supported).map((c) => c.label).join(", ")}
@@ -622,21 +774,25 @@ function LayoutSections({ layout }: { layout: PublishedLayout }) {
   return (
     <>
       {layout.sections.map((s, i) => (
-        <div key={i} className="studio-ipad-card">
-          {s.label && <strong>{s.label}</strong>}
-          <div className="studio-ipad-columns">
-            {s.columns.map((col, j) => (
-              <div key={j}>
-                {col.map((f) => (
-                  <div key={f} className="studio-ipad-field">
-                    <span className="studio-ipad-hint">{f}</span>
-                    <span className="studio-ipad-ph line" />
-                  </div>
-                ))}
-              </div>
-            ))}
+        <Mark key={i} target={{ kind: "section", layout: layout.name, index: i, count: layout.sections.length, label: s.label }}>
+          <div className="studio-ipad-card">
+            {s.label && <strong>{s.label}</strong>}
+            <div className="studio-ipad-columns">
+              {s.columns.map((col, j) => (
+                <div key={j}>
+                  {col.map((f) => (
+                    <Mark key={f} target={{ kind: "field", layout: layout.name, section: s.label, field: f, label: f }}>
+                      <div className="studio-ipad-field">
+                        <span className="studio-ipad-hint">{f}</span>
+                        <span className="studio-ipad-ph line" />
+                      </div>
+                    </Mark>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        </Mark>
       ))}
     </>
   );
@@ -666,6 +822,8 @@ function ListView({
   onOpenRecord: (id: string) => void;
   onNew: (label: string, objectName: string) => void;
 }) {
+  const editing = useEditOn();
+  const edits = useContext(LayoutEdits);
   const [viewName, setViewName] = useState(object.defaultListView);
   const [query, setQuery] = useState("");
   const [cards, setCards] = useState(() => cardModeFor(object.name));
@@ -697,6 +855,7 @@ function ListView({
               type="button"
               className={`studio-ipad-lv-chip${l.name === view?.name ? " current" : ""}`}
               onClick={() => setViewName(l.name)}
+              {...editAttrs(editing, { kind: "listView", object: object.name, name: l.name, label: l.label }, true)}
             >
               {l.label}
               {lists?.[`${object.name}.${l.name}`] && <ListCount count={lists[`${object.name}.${l.name}`].count} />}
@@ -723,11 +882,27 @@ function ListView({
           if (cards && shown) {
             return <CardList rows={shown.rows} onOpen={onOpenRecord} actions={cardActions} onAction={onAction} links={(view.query?.fields ?? []).map((f) => f?.type === "lookup" || f?.type === "formula")} />;
           }
+          // A column is selectable once the view says which field it is (its source); Draft lays the tray's column edits over it.
+          const fullName = view.source?.fullName;
+          const entry = fullName && edits?.draft ? edits.listViews?.[fullName] : undefined;
+          const spec = (id: string, label: string, state?: DraftState): TableCol["attrs"] =>
+            editing && fullName && id
+              ? editAttrs(
+                  true,
+                  { kind: "listColumn", object: object.name, listView: fullName, viewLabel: view.label, column: id, label, added: state === "added" },
+                  false,
+                  edits?.draft ? { family: `listcols:${fullName}`, id, ghost: state === "removed", horizontal: true } : undefined
+                )
+              : undefined;
+          const cols: TableCol[] =
+            entry?.status === "ready"
+              ? entry.columns.map((c) => ({ label: columnLabel(c.label), orig: c.orig, state: c.state, attrs: spec(c.id, columnLabel(c.label), c.state) }))
+              : view.columns.map((c, i) => ({ label: columnLabel(c), orig: i, attrs: spec(view.source?.columns[i] ?? "", columnLabel(c)) }));
           const unread = !data ? listErrors?.[`${object.name}.${view.name}`] : undefined;
           return (
             <>
               {unread && <div className="studio-ipad-lv-unread" role="note">{unread} The rows below are placeholders.</div>}
-              <DataTable columns={view.columns.map(columnLabel)} data={shown} onOpenRecord={onOpenRecord} />
+              <DataTable columns={cols} data={shown} onOpenRecord={onOpenRecord} />
             </>
           );
         })()}
@@ -748,23 +923,31 @@ function ListCount({ count }: { count: number }) {
   return <span className={`studio-ipad-lv-count${count < 10 ? " single" : ""}`}>{count}</span>;
 }
 
-function DataTable({ columns, data, onOpenRecord }: { columns: string[]; data?: PublishedListData; onOpenRecord: (id: string) => void }) {
+/** A column as drawn: `orig` is its place in the published rows' cells (null: added in Draft, nothing to show yet). */
+interface TableCol {
+  label: string;
+  orig: number | null;
+  state?: DraftState;
+  attrs?: Record<string, string>;
+}
+
+function DataTable({ columns, data, onOpenRecord }: { columns: TableCol[]; data?: PublishedListData; onOpenRecord: (id: string) => void }) {
   const width = `max(250px, calc(100% / ${Math.max(columns.length, 1)}))`;
   return (
     <div className="studio-ipad-table">
       <div className="studio-ipad-table-row head">
         {columns.map((c, i) => (
-          <span key={i} className={`studio-ipad-table-cell${i === 0 ? " sorted" : ""}`} style={{ width, flex: "none" }}>
-            {c}
+          <span key={i} className={`studio-ipad-table-cell${i === 0 ? " sorted" : ""}${draftClass(c.state)}`} style={{ width, flex: "none" }} {...c.attrs}>
+            {c.label}
             {i === 0 && <span className="studio-ipad-sort" aria-label="Sorted ascending">↑</span>}
           </span>
         ))}
       </div>
       {data?.rows.map((row) => (
         <button key={row.id} type="button" className="studio-ipad-table-row" onClick={() => onOpenRecord(row.id)}>
-          {columns.map((_, i) => (
-            <span key={i} className="studio-ipad-table-cell value" style={{ width, flex: "none" }}>
-              {row.cells[i]}
+          {columns.map((c, i) => (
+            <span key={i} className={`studio-ipad-table-cell value${draftClass(c.state)}`} style={{ width, flex: "none" }}>
+              {c.orig === null ? null : row.cells[c.orig]}
             </span>
           ))}
         </button>
@@ -828,14 +1011,16 @@ function RecordView({ object, snapshot }: { object: PublishedObject; snapshot: P
         )}
       </Head>
       {highlights.length > 0 && (
-        <div className="studio-ipad-highlights">
-          {highlights.map((h) => (
-            <div key={h} className="studio-ipad-field">
-              <span className="studio-ipad-hint">{h}</span>
-              <span className="studio-ipad-ph line" />
-            </div>
-          ))}
-        </div>
+        <Mark target={{ kind: "highlights", object: object.name, compactLayout: compactName ?? null, fields: highlights }}>
+          <div className="studio-ipad-highlights">
+            {highlights.map((h) => (
+              <div key={h} className="studio-ipad-field">
+                <span className="studio-ipad-hint">{h}</span>
+                <span className="studio-ipad-ph line" />
+              </div>
+            ))}
+          </div>
+        </Mark>
       )}
       {layout && layout.actions.length > 0 && (
         <div className="studio-ipad-hint">Layout actions: {layout.actions.join(" · ")}</div>
@@ -927,4 +1112,24 @@ function UserSearch({
       )}
     </span>
   );
+}
+
+/**
+ * Scrolls the other side of the before / after view to match: the page itself,
+ * or the scroller inside it with the same class at the same place. Blocks the
+ * Draft adds or removes shift things a little; it's kept in step, not exact.
+ */
+function mirrorScroll(el: Element, from: HTMLElement | null, to: HTMLElement | null) {
+  if (!from || !to) return;
+  let twin: Element | undefined = to;
+  if (el !== from) {
+    const classes = typeof el.className === "string" ? el.className.trim().split(/\s+/).filter(Boolean) : [];
+    if (!classes.length) return;
+    const sel = classes.map((c) => `.${CSS.escape(c)}`).join("");
+    twin = to.querySelectorAll(sel)[[...from.querySelectorAll(sel)].indexOf(el)];
+  }
+  if (!twin) return;
+  // The twin's own scroll event comes back here and stops: the positions already match.
+  if (Math.abs(twin.scrollTop - el.scrollTop) > 1) twin.scrollTop = el.scrollTop;
+  if (Math.abs(twin.scrollLeft - el.scrollLeft) > 1) twin.scrollLeft = el.scrollLeft;
 }

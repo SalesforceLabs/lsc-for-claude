@@ -247,8 +247,46 @@ describe("buildPage", () => {
     });
     expect(page.template).toBe("defaultFlexiPage");
     expect(page.regions[0].components[0].tabs).toEqual([
-      { title: "Details", active: true, components: [expect.objectContaining({ label: "Record details" })] },
+      { title: "Details", active: true, components: [expect.objectContaining({ label: "Record details" })], source: expect.anything() },
     ]);
+  });
+  it("records where each component and record tab sits in the page, counting skipped items", () => {
+    const tabset = (tabs: Row[]) => ({ componentInstance: { componentName: "flexipage:tabset", identifier: "flexipage_tabset" }, itemInstances: tabs });
+    const tab = (identifier: string, children: Row[], hidden = false) => ({
+      componentInstance: {
+        componentName: "flexipage:tab",
+        identifier,
+        componentInstanceProperties: [{ name: "title", value: identifier }],
+        ...(hidden ? { visibilityRule: { criteria: [{ leftValue: "{!$Browser.formFactor}" }] } } : {}),
+      },
+      itemInstances: children,
+    });
+    const page = buildPage("Acct", {
+      type: "RecordPage",
+      template: { name: "flexipage:recordHomeSingleColTemplateDesktop" },
+      flexiPageRegions: [
+        { name: "header", type: "Region", itemInstances: [{ componentInstance: { componentName: "force:highlightsPanel", identifier: "force_highlightsPanel" } }] },
+        {
+          name: "main",
+          type: "Region",
+          itemInstances: [
+            tabset([
+              tab("flexipage_tab", [], true),
+              tab("flexipage_tab2", [{}, { componentInstance: { componentName: "force:detailPanel" } }]),
+            ]),
+          ],
+        },
+      ],
+    });
+    expect(page.regions[0].components[0].source).toEqual({
+      region: "header",
+      path: [{ component: "force:highlightsPanel", identifier: "force_highlightsPanel", index: 0 }],
+    });
+    const [shown] = page.regions[1].components[0].tabs!;
+    const tabStep = { component: "flexipage:tab", identifier: "flexipage_tab2", index: 1 };
+    const setStep = { component: "flexipage:tabset", identifier: "flexipage_tabset", index: 0 };
+    expect(shown.source).toEqual({ region: "main", path: [setStep, tabStep] });
+    expect(shown.components[0].source).toEqual({ region: "main", path: [setStep, tabStep, { component: "force:detailPanel", identifier: null, index: 1 }] });
   });
 });
 
@@ -524,6 +562,24 @@ describe("layout labels", () => {
     const l = buildSnapshot(f, meta).layouts["Visit-Visit Layout"];
     expect(l.sections.map((s) => s.label)).toEqual(["System Information", "MyCustom", "Infos", null]);
     expect(l.relatedLists[0].label).toBe("PVs");
+  });
+
+  it("records where each section sits in the layout, counting the sections the app drops", () => {
+    const f = files();
+    const layout = (f.ui.pageLayouts as Record<string, Row>)["Visit-Visit Layout"];
+    layout.layoutSections = [
+      { label: "Info", detailHeading: true, layoutColumns: [] },
+      {
+        label: "Info",
+        detailHeading: false,
+        layoutColumns: [
+          { layoutItems: [] },
+          { layoutItems: [{ fullName: "Name", compoundFieldName: "Name" }, { fullName: "FirstName", compoundFieldName: "Name" }, { fullName: "Status" }] },
+        ],
+      },
+    ];
+    const [section] = buildSnapshot(f, meta).layouts["Visit-Visit Layout"].sections;
+    expect(section.source).toEqual({ label: "Info", nth: 1, columns: [1], fields: [["Name", "Name", "Status"]], heading: false });
   });
 });
 

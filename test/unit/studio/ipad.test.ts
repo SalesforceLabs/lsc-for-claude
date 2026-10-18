@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { FeatureMap, StudioItem, StudioSurface } from "../../../src-renderer/components/studio/types.js";
 import { buildIpadPreview, sidebarEntries } from "../../../src-renderer/components/studio/ipad.js";
-import { activeChange, layoutChange, profileChange, queueChange } from "../../../src-renderer/components/studio/changes.js";
+import { activeChange, layoutChange, profileChange, queueChange, type PendingChange } from "../../../src-renderer/components/studio/changes.js";
 
 type Props = StudioItem["properties"];
 
@@ -92,9 +92,9 @@ describe("Visit engagement sidebar", () => {
   const sidebar = { layoutName: "Visit-Visit Layout", relatedLists: ["ProviderVisits", "Samples"], max: 10, candidates: [] };
 
   it("applies queued adds and removes for the same layout only", () => {
-    let pending = queueChange([], { fix: layoutChange("Visit-Visit Layout", "Visit Layout", { objectName: "Survey__c", relationshipName: "Surveys__r" }, true) });
-    pending = queueChange(pending, { fix: layoutChange("Visit-Visit Layout", "Visit Layout", { objectName: "Sample", relationshipName: "Samples" }, false) });
-    pending = queueChange(pending, { fix: layoutChange("Visit-Other", "Other", { objectName: "X__c", relationshipName: "X__r" }, true) });
+    let pending: PendingChange[] = queueChange([], { fix: layoutChange([], "Visit-Visit Layout", "Visit Layout", { objectName: "Survey__c", relationshipName: "Surveys__r" }, true) });
+    pending = queueChange(pending, { fix: layoutChange(pending, "Visit-Visit Layout", "Visit Layout", { objectName: "Sample", relationshipName: "Samples" }, false) });
+    pending = queueChange(pending, { fix: layoutChange(pending, "Visit-Other", "Other", { objectName: "X__c", relationshipName: "X__r" }, true) });
     expect(sidebarEntries(sidebar, pending)).toEqual([
       { relationshipName: "ProviderVisits" },
       { relationshipName: "Samples", pending: "remove" },

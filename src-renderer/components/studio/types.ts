@@ -68,7 +68,286 @@ export type StudioFix =
       relationshipName: string;
       /** true inserts the related list into the layout; false removes it (the undo). */
       add: boolean;
-    };
+    }
+  | EditMetadataFix
+  | CopyForProfileFix;
+
+/** A page layout field's behavior. */
+export type FieldBehavior = "Edit" | "Required" | "Readonly";
+
+/** A layout section by its label as written in the XML and which of the sections with that label it is. */
+export interface SectionRef {
+  label: string;
+  nth: number;
+}
+
+/** A place in a layout column: before the field `before`, or at the end; `at` (a row index) is set by undo. */
+export interface FieldSlot {
+  section: SectionRef;
+  /** Column index in the XML. */
+  column: number;
+  before: string | null;
+  at?: number;
+}
+
+/** One edit to a page layout. Removes carry the removed XML when they're an undo. */
+export type LayoutOp =
+  | { op: "moveField"; field: string; to: FieldSlot }
+  | { op: "removeField"; field: string }
+  | { op: "addField"; field: string; behavior: FieldBehavior; to: FieldSlot; xml?: string }
+  | { op: "setFieldBehavior"; field: string; from: FieldBehavior; to: FieldBehavior }
+  | { op: "moveSection"; section: SectionRef; before: SectionRef | null }
+  | { op: "removeSection"; section: SectionRef }
+  | { op: "addSection"; xml: string; before: SectionRef | null }
+  | { op: "setSectionHeading"; section: SectionRef; from: boolean; to: boolean }
+  | { op: "moveRelatedList"; relatedList: string; before: string | null }
+  | { op: "removeRelatedList"; relatedList: string }
+  | { op: "addRelatedList"; relatedList: string; before: string | null; xml?: string; object?: string };
+
+/** One edit to a compact layout's fields (the record header). `before` is the field it goes in front of, or null for the end. */
+export type CompactOp =
+  | { op: "moveCompactField"; field: string; before: string | null }
+  | { op: "removeCompactField"; field: string }
+  | { op: "addCompactField"; field: string; before: string | null };
+
+/** One filter row of a list view: the field, the operation word the Metadata API uses and the raw value. */
+export interface ListViewFilter {
+  field: string;
+  operation: string;
+  value: string;
+}
+
+/**
+ * One edit to a list view's XML. Columns are found by the id the view stores
+ * (an API name, or a legacy id like `ACCOUNT.NAME` on standard objects). `before` is the column
+ * it goes in front of, or null for the end. The filter ops carry what they replace so a view
+ * that changed in Setup since is noticed.
+ */
+export type ListViewOp =
+  | { op: "moveListColumn"; column: string; before: string | null }
+  | { op: "removeListColumn"; column: string }
+  | { op: "addListColumn"; column: string; before: string | null }
+  | { op: "setListFilterScope"; from: string | null; to: string }
+  | { op: "setListFilters"; from: ListViewFilter[]; to: ListViewFilter[]; fromLogic: string | null; toLogic: string | null };
+
+export interface MetadataDocRef {
+  type: "Layout" | "CompactLayout" | "FlexiPage" | "ListView";
+  /** Metadata API name, e.g. "Account-Account Layout", "Account.LSC_Account_Compact" or a Lightning page's developer name. */
+  fullName: string;
+  label: string;
+}
+
+/** One item of a Lightning page region or facet: by `identifier` when it has one, else by index; `component` is checked. */
+export interface FlexiItemRef {
+  component: string;
+  identifier: string | null;
+  index: number;
+}
+
+/** A component (or record tab) on a Lightning page: the region or facet it's in, by XML name, and the item. */
+export interface FlexiComponentRef {
+  region: string;
+  item: FlexiItemRef;
+}
+
+/** A Lightning page property Studio can set from the preview. */
+export type FlexiPageProperty = string;
+
+/** One edit to a Lightning page (src/studio/metadata/flexipage-ops.ts). */
+export type FlexiPageOp =
+  | { op: "moveComponent"; component: FlexiComponentRef; before: FlexiItemRef | null }
+  | { op: "removeComponent"; component: FlexiComponentRef }
+  | {
+      op: "addComponent";
+      region: string;
+      before: FlexiItemRef | null;
+      component: string;
+      identifier: string | null;
+      properties?: { name: string; value: string }[];
+      xml?: string;
+      facets?: { xml: string; at: number }[];
+    }
+  | { op: "setComponentProperty"; component: FlexiComponentRef; property: FlexiPageProperty; from: string | null; to: string | null };
+
+export type MetadataOp = LayoutOp | CompactOp | FlexiPageOp | ListViewOp;
+
+/** A Lightning page item as it is in the org now. */
+export interface LiveFlexiItem {
+  component: string;
+  identifier: string | null;
+  properties: Record<string, string>;
+  /** Facet regions its properties name (a tabset's `tabs`, a tab's `body`). */
+  facets: string[];
+}
+
+/** A Lightning page as it is in the org now, for lining the published preview up before editing. */
+export interface LiveFlexiPage {
+  type: "FlexiPage";
+  fullName: string;
+  label: string;
+  pageType: string;
+  template: string;
+  sobjectType: string | null;
+  regions: { name: string; facet: boolean; items: LiveFlexiItem[] }[];
+  /** Profiles the page is assigned to in an app; null when that couldn't be read. */
+  profiles: string[] | null;
+  /** Apps whose default page this is; null when that couldn't be read. */
+  appDefaults: string[] | null;
+  /** Who gets the page is still being worked out (reading every app takes a while in big orgs); `studio_page_reach` waits for it. */
+  reachPending?: boolean;
+  /** Installed from a managed package — it can't be deployed. */
+  managed: boolean;
+  production: boolean;
+}
+
+/** One component "Insert component…" offers (src/studio/component-catalog.ts). */
+export interface CatalogEntry {
+  key: string;
+  component: string;
+  label: string;
+  group: "Standard" | "Inline LWC" | "Related list";
+  pages: ("HomePage" | "RecordPage")[];
+  properties: { name: string; value: string }[];
+  insertable: boolean;
+  needs?: string;
+  object?: string;
+}
+
+export interface ComponentCatalog {
+  entries: CatalogEntry[];
+  setupPath: string;
+}
+
+/** A page layout as it is in the org now, for lining the published preview up before editing. */
+export interface LiveLayout {
+  type: "Layout";
+  fullName: string;
+  sections: { label: string; nth: number; heading: boolean; columns: { field: string; behavior: FieldBehavior }[][] }[];
+  relatedLists: string[];
+  /** Profiles assigned the layout; null when that couldn't be read. */
+  profiles: string[] | null;
+  production: boolean;
+  /** The object's fields the layout could show but doesn't (readable; no system fields or compound parts), by label; null when the object couldn't be described. */
+  available: LayoutFieldOption[] | null;
+  /** Related lists the layout could show but doesn't: the object's child relationships; null when the object couldn't be described. */
+  availableRelated: RelatedListOption[] | null;
+}
+
+export interface LayoutFieldOption {
+  field: string;
+  label: string;
+  /** The describe type, e.g. "string", "picklist", "reference". */
+  type: string;
+}
+
+export interface RelatedListOption {
+  /** The name the layout's XML uses: the relationship name, or Child.Field for custom children and lookups. */
+  relatedList: string;
+  /** The child object. */
+  object: string;
+}
+
+/**
+ * Edits to one metadata document, deployed together. Each op is checked against
+ * the document as retrieved; undo is the reversed inverse ops.
+ */
+export type EditMetadataFix = LayoutEditFix | CompactLayoutEditFix | FlexiPageEditFix | ListViewEditFix;
+
+/**
+ * "Make a copy just for this profile": clone a page layout or Lightning page under a new
+ * name and point only `profile` at the copy (its layout assignments, or its
+ * CustomApplication page overrides). `ops` are the edits made to the copy: the tray keeps them here
+ * (not as an edit of the source) while the profile's draft is shown. Undo is the same fix with
+ * `revert`: point the profile back at the source, then delete the copy.
+ */
+export interface CopyForProfileFix {
+  kind: "copyForProfile";
+  label: string;
+  /** The shared document being copied. */
+  doc: MetadataDocRef & { type: "Layout" | "FlexiPage" };
+  copy: { fullName: string; label: string };
+  /** The profile's name as Profile.Name has it ("LS Rep", "System Administrator"). */
+  profile: string;
+  ops?: (LayoutOp | FlexiPageOp)[];
+  /** Set on an undo: the assignments to put back (what the apply moved). */
+  revert?: { moves: CopyMove[] };
+}
+
+/** One assignment a copy moved the profile to: a layout's record type, or an app's page override. */
+export interface CopyMove {
+  /** Layout: the record type ("Account.HCP"), null for the object's default. */
+  recordType?: string | null;
+  /** Lightning page: the CustomApplication's name. */
+  app?: string;
+  /** Lightning page: the profile had no override of its own there, so one was added (undo removes it). */
+  added?: boolean;
+}
+
+export interface LayoutEditFix {
+  kind: "editMetadata";
+  label: string;
+  doc: MetadataDocRef & { type: "Layout" };
+  ops: LayoutOp[];
+}
+
+export interface ListViewEditFix {
+  kind: "editMetadata";
+  label: string;
+  doc: MetadataDocRef & { type: "ListView" };
+  ops: ListViewOp[];
+}
+
+export interface CompactLayoutEditFix {
+  kind: "editMetadata";
+  label: string;
+  doc: MetadataDocRef & { type: "CompactLayout" };
+  ops: CompactOp[];
+}
+
+export interface FlexiPageEditFix {
+  kind: "editMetadata";
+  label: string;
+  doc: MetadataDocRef & { type: "FlexiPage" };
+  ops: FlexiPageOp[];
+}
+
+/**
+ * A list view as it is in the org now, for lining the published columns up before editing.
+ * The metadata has no sort element, so sort isn't here (and isn't editable).
+ */
+export interface LiveListView {
+  type: "ListView";
+  fullName: string;
+  label: string;
+  /** Column ids as the view stores them, in order. */
+  columns: string[];
+  /** Everything, Mine, Team, MyTerritory…; null when the view has none. */
+  filterScope: string | null;
+  filters: ListViewFilter[];
+  /** "1 AND (2 OR 3)"; null when the view has no logic. */
+  booleanFilter: string | null;
+  /** Who it's shared with: all users when null, else the groups and roles. */
+  sharedTo: { kind: string; name: string }[] | null;
+  /** Fields that can be added as columns, from the object's describe; empty when it couldn't be read. */
+  available: { name: string; label: string; type: string; filterable: boolean }[];
+  /** Installed from a managed package, so it can't be changed. */
+  managed: boolean;
+  production: boolean;
+}
+
+/** A compact layout as it is in the org now, for lining the published record header up before editing. */
+export interface LiveCompactLayout {
+  type: "CompactLayout";
+  fullName: string;
+  label: string;
+  /** API names, in order. */
+  fields: string[];
+  /** Fields that can go on a compact layout, from the object's describe; empty when it couldn't be read. */
+  available: { name: string; label: string; type: string }[];
+  /** Record types assigned it ("Master" when it's the object's default); null when that couldn't be read. */
+  recordTypes: string[] | null;
+  production: boolean;
+}
 
 /** A field value on a new Admin Console record. `dataType` may be left out when it's known for the category or copied. */
 export interface ConfigFieldInput {
@@ -163,6 +442,8 @@ export interface FixPreview {
   warnings: string[];
   /** Set when the fix can't be applied (already done, no capacity, org changed). */
   blocked?: string;
+  /** The org is a production org (metadata deploys ask for an extra confirmation). */
+  production?: boolean;
 }
 
 export interface FixResult {
