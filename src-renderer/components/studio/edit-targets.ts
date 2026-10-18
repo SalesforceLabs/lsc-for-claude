@@ -31,7 +31,8 @@ export type EditTarget =
       visibility: "shown" | "conditional";
       visibilityNote?: string;
     }
-  | { kind: "section"; layout: string; index: number; count: number; label: string | null }
+  /** `key`: the section's index in the org's layout, once the preview is lined up with it. */
+  | { kind: "section"; layout: string; index: number; count: number; label: string | null; key?: number }
   | {
       kind: "field";
       layout: string;
@@ -40,8 +41,11 @@ export type EditTarget =
       label: string;
       required?: boolean;
       readOnly?: boolean;
+      /** The layout item: a compound field's name for its parts. */
+      item?: string;
     }
-  | { kind: "related"; object: string; label: string; parent: string; layout?: string }
+  /** `relatedList`: its name on the layout, when the layout lists it. */
+  | { kind: "related"; object: string; label: string; parent: string; layout?: string; relatedList?: string }
   | { kind: "highlights"; object: string; compactLayout: string | null; fields: string[] }
   /** A ••• menu item; `index` is its place in the Draft menu (Home) or the record's menu. */
   | {
@@ -62,7 +66,7 @@ export function targetKey(t: EditTarget): string {
     case "component":
       return `component:${t.page}:${t.region}:${t.index}`;
     case "section":
-      return `section:${t.layout}:${t.index}`;
+      return `section:${t.layout}:${t.key !== undefined ? `k${t.key}` : t.index}`;
     case "field":
       return `field:${t.layout}:${t.field}`;
     case "related":

@@ -1,10 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import type { CreateConfigFix, FeatureMap, ProfileOption } from "./types";
+import type { CreateConfigFix, FeatureMap, LiveLayout, ProfileOption } from "./types";
 import type { PublishedIpad, PublishedResult } from "./published-types";
 import type { PreviewEdit } from "./PublishedIpadPreview";
 import { createAffects, queueChange, type PendingChange } from "./changes";
 import { actionVerbs, draftHomeMenu, draftTabs, tabVerbs, type Verb } from "./edit-draft";
 import { describeTarget, syncAction, syncFilter, type EditTarget } from "./edit-targets";
+import {
+  alignLayout,
+  draftSections,
+  fieldVerbs,
+  modelOf,
+  relatedVerbs,
+  sectionVerbs,
+  StaleDraftError,
+  targetOf,
+  type DraftSection,
+  type LayoutDraft,
+} from "./layout-draft";
 import BlockInspector from "./BlockInspector";
 import CreateDialog from "./CreateDialog";
 
@@ -50,6 +62,30 @@ export function usePreviewEdit({
   // Another profile, user or mode is another screen: start without a selection.
   useEffect(() => setSelected(null), [on, profile, snapshot]);
 
+  // Page layouts as they are in the org now, read when one of their blocks is selected
+  // (and for layouts with queued edits): the preview shows the last publish.
+  const [liveLayouts, setLiveLayouts] = useState<Record<string, LiveState>>({});
+  useEffect(() => setLiveLayouts({}), [org]);
+  const wanted = useMemo(() => {
+    const names = new Set(pending.flatMap((p) => (p.fix.kind === "editMetadata" ? [p.fix.doc.fullName] : [])));
+    const layout = selected && "layout" in selected ? selected.layout : undefined;
+    if (on && layout) names.add(layout);
+    return [...names].sort();
+  }, [pending, selected, on]);
+  const fetchLayout = useCallback((name: string) => {
+    setLiveLayouts((m) => ({ ...m, [name]: { status: "loading" } }));
+    window.lscApi.studioMetadataDoc("Layout", name).then(
+      (res) => {
+        const error = res.error ?? res.data?.error;
+        setLiveLayouts((m) => ({ ...m, [name]: error ? { status: "error", error } : { status: "ready", live: res.data as LiveLayout } }));
+      },
+      (e: unknown) => setLiveLayouts((m) => ({ ...m, [name]: { status: "error", error: String(e) } }))
+    );
+  }, []);
+  useEffect(() => {
+    for (const name of wanted) if (!liveLayouts[name]) fetchLayout(name);
+  }, [wanted, liveLayouts, fetchLayout]);
+
   const surface = (map: FeatureMap | null, id: string) => map?.surfaces.find((s) => s.id === id);
   const tabItems = surface(actionsMap, "navigationTabs")?.items;
   const actionItems = surface(actionsMap, "homeActions")?.items;
@@ -68,6 +104,43 @@ export function usePreviewEdit({
     [snapshot, actionItems, overlay, profile]
   );
 
+  const layouts = useMemo(() => {
+    const out: Record<string, LayoutEntry> = {};
+    for (const [name, state] of Object.entries(liveLayouts)) {
+      if (state.status !== "ready") {
+        out[name] = state;
+        continue;
+      }
+      const published = snapshot?.layouts[name];
+      const base = modelOf(state.live);
+      const aligned = published && alignLayout(published, base);
+      if (!published || !aligned) {
+        out[name] = { status: "stale", live: state.live, note: STALE };
+        continue;
+      }
+      try {
+        const target = targetOf(name, base, overlay);
+        const sections = draftSections(published, base, target, aligned);
+        const listed = new Set(published.relatedLists.map((r) => r.name));
+        const shownRelated = target.relatedLists.filter((r) => listed.has(r));
+        const draft: LayoutDraft = {
+          fullName: name,
+          label: name.slice(name.indexOf("-") + 1),
+          live: state.live,
+          base,
+          target,
+          shownSections: sections.filter((x) => x.state !== "removed").map((x) => x.key),
+          shownRelated: shownRelated.length ? shownRelated : target.relatedLists,
+        };
+        out[name] = { status: "ready", draft, sections };
+      } catch (e) {
+        if (!(e instanceof StaleDraftError)) throw e;
+        out[name] = { status: "stale", live: state.live, note: `The queued edits no longer fit this layout: ${e.message} Take them out of the tray and refresh the preview.` };
+      }
+    }
+    return out;
+  }, [liveLayouts, snapshot, overlay]);
+
   // Blocks are found again by name: a move changes their index.
   const verbs = useMemo((): Verb[] => {
     if (!selected || !profile) return [];
@@ -79,8 +152,18 @@ export function usePreviewEdit({
       const i = homeMenu.findIndex((d) => d.value.name === selected.name);
       return i < 0 ? [] : actionVerbs(homeMenu, i, pending, profile);
     }
+    const entry = "layout" in selected && selected.layout ? layouts[selected.layout] : undefined;
+    if (entry?.status !== "ready") return [];
+    const d = entry.draft;
+    if (selected.kind === "section" && selected.key !== undefined) return sectionVerbs(d, selected.key);
+    if (selected.kind === "field" && selected.item) {
+      const column = entry.sections.flatMap((x) => x.columns).find((c) => c.some((f) => f.item === selected.item));
+      const shown = [...new Set((column ?? []).filter((f) => f.state !== "removed").map((f) => f.item))];
+      return fieldVerbs(d, selected.item, selected.label, shown);
+    }
+    if (selected.kind === "related" && selected.relatedList) return relatedVerbs(d, selected.relatedList, selected.label);
     return [];
-  }, [selected, tabs, homeMenu, pending, profile]);
+  }, [selected, tabs, homeMenu, pending, profile, layouts]);
 
   const info = useMemo(
     () =>
@@ -89,6 +172,8 @@ export function usePreviewEdit({
         : null,
     [selected, snapshot, profile, overlay, tabs, homeMenu]
   );
+  const layoutEntry = selected && "layout" in selected && selected.layout ? layouts[selected.layout] : undefined;
+  const layoutStatus = statusOf(layoutEntry);
   const sync =
     info?.syncObject && snapshot && profile && syncFilter(snapshot, info.syncObject) === null
       ? syncAction(info.syncObject, synced, profile, pending)
@@ -106,6 +191,7 @@ export function usePreviewEdit({
           draft,
           tabs,
           homeMenu,
+          layouts,
           selected,
           onSelect: setSelected,
           verbs: draft ? verbs : [],
@@ -126,6 +212,8 @@ export function usePreviewEdit({
           verbs={verbs}
           draft={draft}
           onRun={run}
+          layout={layoutStatus}
+          onRetryLayout={selected && "layout" in selected && selected.layout ? () => fetchLayout(selected.layout!) : undefined}
           sync={sync}
           onSync={() => {
             if (sync?.kind === "change") onPendingChange(queueChange(pending, sync.change));
@@ -154,3 +242,39 @@ export function usePreviewEdit({
 }
 
 const NONE: PendingChange[] = [];
+
+type LiveState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; live: LiveLayout };
+
+/** A page layout in edit mode: still loading, unreadable, out of line with the last publish, or ready to draw and edit. */
+export type LayoutEntry =
+  | { status: "loading" }
+  | { status: "error"; error: string }
+  | { status: "stale"; live: LiveLayout; note: string }
+  | { status: "ready"; draft: LayoutDraft; sections: DraftSection[] };
+
+const STALE =
+  "This page layout changed in Setup since the last publish, so Studio can't line the preview up with it. Publish to iPad (or refresh the preview) to edit it here.";
+
+/** What the inspector says about the selected block's layout. */
+export interface LayoutStatus {
+  loading?: boolean;
+  /** Why it can't be edited here. */
+  problem?: string;
+  canRetry?: boolean;
+  profiles?: string[] | null;
+  production?: boolean;
+}
+
+function statusOf(entry: LayoutEntry | undefined): LayoutStatus | undefined {
+  if (!entry) return undefined;
+  switch (entry.status) {
+    case "loading":
+      return { loading: true };
+    case "error":
+      return { problem: `Couldn't read the layout from the org: ${entry.error}`, canRetry: true };
+    case "stale":
+      return { problem: entry.note, profiles: entry.live.profiles, production: entry.live.production };
+    case "ready":
+      return { profiles: entry.draft.live.profiles, production: entry.draft.live.production };
+  }
+}

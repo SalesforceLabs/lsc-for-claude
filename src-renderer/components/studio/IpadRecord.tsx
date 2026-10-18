@@ -16,6 +16,14 @@ import { ActivityHistoryCard, MapCard, NextBestActionsCard, OverviewCard, Summar
 import "./record.css";
 import { LiveInlineLwc } from "./LiveInlineLwc";
 import { CustomIcon, FileIcon, PersonAccountIcon } from "./assets/icons";
+import type { DraftState } from "./edit-draft";
+import { draftRelated } from "./layout-draft";
+import type { LayoutEntry } from "./usePreviewEdit";
+
+/** Edit mode's page layouts, read from the org: Draft draws them as the tray would leave them. */
+export const LayoutEdits = createContext<{ draft: boolean; layouts: Record<string, LayoutEntry> } | null>(null);
+
+const draftClass = (state: DraftState | undefined) => (state === "removed" ? " ghost" : state === "added" || state === "moved" ? " pending" : "");
 
 /** Highlights/segment/tab metrics, measured on LSC Mobile (pt). */
 const SCREEN_W = 1210;
@@ -207,11 +215,28 @@ function TabContent({
       </Mark>
     );
   };
-  const related = (r: PublishedRelated, key: React.Key) => (
-    <Mark key={key} target={{ kind: "related", object: r.object, label: r.label, parent: rec.object, ...(layout ? { layout } : {}) }}>
-      <RelatedCard snapshot={snapshot} related={r} editable={rec.editable} />
+  const edits = useContext(LayoutEdits);
+  const entry = layout ? edits?.layouts[layout] : undefined;
+  const lists = entry?.status === "ready" ? entry.draft : null;
+  const related = (r: PublishedRelated, key: React.Key, state?: DraftState) => (
+    <Mark
+      key={key}
+      target={{
+        kind: "related",
+        object: r.object,
+        label: r.label,
+        parent: rec.object,
+        ...(layout ? { layout } : {}),
+        ...(lists && (lists.base.relatedLists.includes(r.api) || lists.target.relatedLists.includes(r.api)) ? { relatedList: r.api } : {}),
+      }}
+    >
+      <RelatedCard snapshot={snapshot} related={r} editable={rec.editable} draft={state} />
     </Mark>
   );
+  const allRelated = (): React.ReactNode =>
+    lists && edits?.draft
+      ? draftRelated(Object.values(rec.related), lists.base, lists.target).map((d) => related(d.related, d.related.key, d.state))
+      : Object.values(rec.related).map((r) => related(r, r.key));
   return (
     <>
       {shown.map((c, k) => (
@@ -226,7 +251,7 @@ function TabContent({
     if (name === "AccountTerritoryFields") return null;
     if (name === "ExpensesListView") return <ExpensesCard rec={rec} />;
     if (/^lscMobileInline_/.test(name)) return <InlineSlot snapshot={snapshot} rec={rec} name={name} height={Number(c.properties.mobileHeight) || 400} />;
-    if (name === "relatedListContainer") return <React.Fragment key={k}>{Object.values(rec.related).map((r) => related(r, r.key))}</React.Fragment>;
+    if (name === "relatedListContainer") return <React.Fragment key={k}>{allRelated()}</React.Fragment>;
     if (name === "relatedListSingleContainer") {
       const r = findRelated(rec, c.properties.relatedListApiName);
       return r ? related(r, k) : null;
@@ -412,9 +437,57 @@ function EditSheet({ snapshot, rec, onClose }: { snapshot: PublishedIpad; rec: P
   );
 }
 
+/** A details section as drawn: from the published layout, or from a Draft layout. */
+interface DrawnSection {
+  key: string;
+  layout: string;
+  /** Its place among the layout's drawn sections. */
+  index: number;
+  label: string | null;
+  orgKey?: number;
+  state?: DraftState;
+  columns: { spec: RecordFieldSpec; item?: string; required?: boolean; readOnly?: boolean; state?: DraftState }[][];
+}
+
+function drawnSections(snapshot: PublishedIpad, layout: PublishedLayout, entry: LayoutEntry | undefined, draft: boolean): DrawnSection[] {
+  const object = layoutObject(layout.name);
+  const shown = (spec: RecordFieldSpec) => !metaOf(snapshot, object, spec).hidden;
+  if (draft && entry?.status === "ready") {
+    return entry.sections
+      .map((d, index) => ({
+        key: `k${d.key}`,
+        layout: layout.name,
+        index,
+        label: d.label,
+        orgKey: d.key,
+        state: d.state,
+        columns: d.columns
+          .map((col) =>
+            col
+              .filter((f) => shown(f.spec))
+              .map((f) => ({ spec: f.spec, item: f.item, required: f.behavior === "Required", readOnly: f.behavior === "Readonly", state: f.state }))
+          )
+          .filter((c) => c.length),
+      }))
+      .filter((d) => d.columns.length);
+  }
+  const ready = entry?.status === "ready" ? entry : null;
+  return layout.sections.flatMap((s, i): DrawnSection[] => {
+    // Compound-field components and addresses are not drawn; a section left with no field disappears.
+    const fields = s.fields ?? s.columns.map((col) => col.map((label): RecordFieldSpec => ({ name: label, label, type: "" })));
+    const columns = fields.map((col, ci) =>
+      col.flatMap((spec, fi) => (shown(spec) ? [{ spec, item: s.source?.fields[ci]?.[fi], required: spec.required, readOnly: spec.readOnly }] : []))
+    );
+    if (!columns.some((c) => c.length)) return [];
+    const orgKey = ready?.sections.find((d) => d.ref.label === s.source?.label && d.ref.nth === s.source?.nth)?.key;
+    return [{ key: String(i), layout: layout.name, index: i, label: s.label, ...(orgKey !== undefined ? { orgKey } : {}), columns }];
+  });
+}
+
 function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: PublishedRecordData }) {
   const layouts = detailLayouts(snapshot, rec);
   const [editing, setEditing] = useState(false);
+  const edits = useContext(LayoutEdits);
   return (
     <div className="studio-ipad-rec-card details">
       {editing && <EditSheet snapshot={snapshot} rec={rec} onClose={() => setEditing(false)} />}
@@ -427,16 +500,16 @@ function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: Publishe
       )}
       {layouts.map((layout, li) => {
         const object = layoutObject(layout.name);
-        // Compound-field components and addresses are not drawn; a section left with no field disappears.
-        const sections = layout.sections
-          .map((s) => ({ s, cols: (s.fields ?? s.columns.map((col) => col.map((label): RecordFieldSpec => ({ name: label, label, type: "" })))).map((col) => col.filter((f) => !metaOf(snapshot, object, f).hidden)) }))
-          .filter((x) => x.cols.some((c) => c.length));
-        return sections.map(({ s, cols }, si) => {
+        const sections = drawnSections(snapshot, layout, edits?.layouts[layout.name], !!edits?.draft);
+        return sections.map((s, si) => {
           const first = li === 0 && si === 0;
           const cls = s.label ? (si === 0 ? " layout-gap" : " section-gap") : "";
           return (
-            <Mark key={`${li}.${si}`} target={{ kind: "section", layout: layout.name, index: layout.sections.indexOf(s), count: layout.sections.length, label: s.label }}>
-            <div className={`studio-ipad-rec-section${first ? " first" : ""}${cls}${first && s.label ? " labeled" : ""}`}>
+            <Mark
+              key={`${li}.${s.key}`}
+              target={{ kind: "section", layout: layout.name, index: s.index, count: sections.length, label: s.label, ...(s.orgKey !== undefined ? { key: s.orgKey } : {}) }}
+            >
+            <div className={`studio-ipad-rec-section${first ? " first" : ""}${cls}${first && s.label ? " labeled" : ""}${draftClass(s.state)}`}>
               {s.label && (
                 <div className="studio-ipad-rec-section-head">
                   <div className="studio-ipad-rec-section-title">{s.label}</div>
@@ -444,14 +517,17 @@ function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: Publishe
                 </div>
               )}
               <div className="studio-ipad-rec-cols">
-                {cols.map((col, ci) => (
+                {s.columns.map((col, ci) => (
                   <div key={ci} className="studio-ipad-rec-col">
-                    {col.map((f, fi) => {
+                    {col.map(({ spec: f, item, required, readOnly, state }, fi) => {
                       const v = valueOf(rec, object, f);
                       const meta = metaOf(snapshot, object, f);
                       return (
-                        <Mark key={fi} target={{ kind: "field", layout: layout.name, section: s.label, field: f.name, label: meta.label, required: f.required, readOnly: f.readOnly }}>
-                          <div className={`studio-ipad-rec-field${f.type === "textarea" ? " tall" : ""}`}>
+                        <Mark
+                          key={`${f.name}.${fi}`}
+                          target={{ kind: "field", layout: layout.name, section: s.label, field: f.name, label: meta.label, required, readOnly, ...(item ? { item } : {}) }}
+                        >
+                          <div className={`studio-ipad-rec-field${f.type === "textarea" ? " tall" : ""}${draftClass(state)}`}>
                             <div className="studio-ipad-rec-label">
                               {meta.label}
                               {meta.help && <span className="studio-ipad-rec-help" aria-hidden="true">i</span>}
@@ -480,7 +556,7 @@ const TABLE_MAX = 1080;
 const TABLE_W = 1137;
 const LINK_COLUMNS = new Set(["email", "url", "phone"]);
 
-function RelatedCard({ snapshot, related, editable = false }: { snapshot: PublishedIpad; related: PublishedRelated; editable?: boolean }) {
+function RelatedCard({ snapshot, related, editable = false, draft }: { snapshot: PublishedIpad; related: PublishedRelated; editable?: boolean; draft?: DraftState }) {
   const theme = snapshot.records?.themes[related.object];
   const [broken, setBroken] = useState(false);
   const widths = useMemo(
@@ -491,7 +567,7 @@ function RelatedCard({ snapshot, related, editable = false }: { snapshot: Publis
   const open = useContext(OpenRecord);
   const file = !theme && /ContentDocument/.test(related.object);
   return (
-    <div className="studio-ipad-rec-card related">
+    <div className={`studio-ipad-rec-card related${draftClass(draft)}`}>
       <div className="studio-ipad-rec-rl-head">
         <span className="studio-ipad-rec-rl-icon" style={{ background: theme?.color ?? "#939393" }} aria-hidden="true">
           {file ? <FileIcon /> : /work_plan_selection_rule/.test(theme?.iconUrl ?? "") ? <CustomIcon /> : theme?.iconUrl && !broken ? <img src={theme.iconUrl} alt="" onError={() => setBroken(true)} /> : related.label.slice(0, 1)}

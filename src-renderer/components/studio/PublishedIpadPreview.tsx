@@ -12,7 +12,7 @@ import type {
   PublishedTab,
 } from "./published-types";
 import IpadScreen from "./IpadScreen";
-import RecordScreen from "./IpadRecord";
+import RecordScreen, { LayoutEdits } from "./IpadRecord";
 import IpadFabs from "./IpadFabs";
 import { Dashboard } from "./IpadDashboard";
 import { ReportsTree } from "./IpadReports";
@@ -29,6 +29,7 @@ import { CustomIcon } from "./assets/icons";
 import { findDeepLinkTab, findRecordId, isDeepLink, parseDeepLink } from "./deep-link";
 import { EditSurface, editAttrs, Mark, useEditOn, type EditSurfaceProps } from "./EditLayer";
 import type { DraftAction, DraftTab } from "./edit-draft";
+import type { LayoutEntry } from "./usePreviewEdit";
 import {
   ActivityPlanProgress,
   HomeEditVisitContext,
@@ -52,6 +53,8 @@ export interface PreviewEdit extends Omit<EditSurfaceProps, "children"> {
   draft: boolean;
   tabs: DraftTab[];
   homeMenu: DraftAction[];
+  /** Page layouts read from the org, by name, for drawing and editing them in Draft. */
+  layouts: Record<string, LayoutEntry>;
 }
 
 interface PublishedIpadPreviewProps {
@@ -171,6 +174,7 @@ function Device({
         };
       });
   }, [allTabs, edit?.draft, edit?.tabs, editing]);
+  const layoutEdits = useMemo(() => (edit?.on ? { draft: edit.draft, layouts: edit.layouts } : null), [edit?.on, edit?.draft, edit?.layouts]);
   const onHome = tab?.kind === "home" && !!snapshot.home && record === null;
   // The app gates Agentforce on the user-info "Agentforce" feature flag, which the CLI can't read; a Home welcome component stands in for it.
   const homeHasAgentforce = !!snapshot.home?.regions.some((r) => r.components.some((c) => c.supported && /lsAgentforceWelcome$/.test(c.name)));
@@ -221,6 +225,7 @@ function Device({
       </div>
 
       <EditSurface on={editing} selected={edit?.selected ?? null} onSelect={edit?.onSelect ?? (() => {})} verbs={edit?.verbs ?? []} onRun={edit?.onRun ?? (() => {})} setup={edit?.setup} onSetup={edit?.onSetup} horizontal={edit?.horizontal}>
+      <LayoutEdits.Provider value={layoutEdits}>
       <IpadScreen label={edit?.draft ? "iPad preview (draft)" : "iPad preview (published)"}>
         <IpadStatusBar />
         <IpadTopBar
@@ -245,6 +250,7 @@ function Device({
         {newSheet && <IpadActionSheet presentation={newSheet} ctx={{ snapshot, record: null }} onClose={() => setNewSheet(null)} />}
         <IpadFabs snapshot={snapshot} tab={tab} record={record} agentforce={homeHasAgentforce} homeMenu={edit?.draft ? edit.homeMenu : undefined} />
       </IpadScreen>
+      </LayoutEdits.Provider>
       </EditSurface>
 
       <ul className="studio-ipad-legend">

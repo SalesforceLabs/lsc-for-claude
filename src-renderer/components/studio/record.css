@@ -1331,3 +1331,34 @@
   font-size: 18px;
   color: #0250d9;
 }
+
+/* Edit mode's Draft (see ipad.css): ghosts for what the tray takes off the layout, purple for what it adds or moves. */
+.studio-ipad-rec-field.ghost,
+.studio-ipad-rec-card.ghost {
+  opacity: 0.45;
+}
+
+.studio-ipad-rec-field.ghost .studio-ipad-rec-label,
+.studio-ipad-rec-section.ghost .studio-ipad-rec-section-title,
+.studio-ipad-rec-card.ghost .studio-ipad-rec-rl-title {
+  text-decoration: line-through;
+}
+
+.studio-ipad-rec-section.ghost {
+  opacity: 0.45;
+}
+
+.studio-ipad-rec-section.ghost .studio-ipad-rec-field.ghost {
+  opacity: 1;
+}
+
+.studio-ipad-rec-field.pending,
+.studio-ipad-rec-section.pending,
+.studio-ipad-rec-card.pending {
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 2.5px #9050e9;
+}
+
+.studio-ipad-rec-section.pending .studio-ipad-rec-field.pending {
+  box-shadow: none;
+}

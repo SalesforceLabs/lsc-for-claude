@@ -22,6 +22,9 @@ import {
 } from "lucide-react";
 import type { TargetInfo, SyncAction } from "./edit-targets";
 import type { Verb, VerbId } from "./edit-draft";
+import type { LayoutStatus } from "./usePreviewEdit";
+import Spinner from "../ui/Spinner";
+import StatusIcon from "../ui/StatusIcon";
 
 const ICONS: Record<VerbId, LucideIcon> = {
   up: ArrowUp,
@@ -50,6 +53,8 @@ export default function BlockInspector({
   verbs,
   draft,
   onRun,
+  layout,
+  onRetryLayout,
   sync,
   onSync,
   onSetup,
@@ -62,6 +67,9 @@ export default function BlockInspector({
   /** Verbs only run in Draft; Published explains. */
   draft: boolean;
   onRun: (verb: Verb) => void;
+  /** The page layout behind the block, as read from the org. */
+  layout?: LayoutStatus;
+  onRetryLayout?: () => void;
   /** Shown when the block's records aren't synced to this profile's iPad. */
   sync: SyncAction | null;
   onSync: () => void;
@@ -130,6 +138,33 @@ export default function BlockInspector({
 
         <section className="studio-block-section">
           <h3 className="ui-section-title">How to change it</h3>
+          {layout?.loading && (
+            <p className="studio-block-reach" role="status">
+              <Spinner size={14} />
+              <span>Reading the layout from the org…</span>
+            </p>
+          )}
+          {layout?.problem && (
+            <div className="studio-block-reach" role="status">
+              <StatusIcon tone="warning" size={16} />
+              <span>
+                {layout.problem}
+                {layout.canRetry && onRetryLayout && (
+                  <>
+                    {" "}
+                    <button type="button" className="studio-btn ghost sm" onClick={onRetryLayout}>
+                      Retry
+                    </button>
+                  </>
+                )}
+              </span>
+            </div>
+          )}
+          {layout?.production && (
+            <span className="ui-pill warning" title="Changes to this layout deploy to a production org">
+              Production org
+            </span>
+          )}
           {verbs.length > 0 && (
             <div className="studio-block-verbs">
               {verbs.map((v) => {
@@ -155,10 +190,10 @@ export default function BlockInspector({
               })}
             </div>
           )}
-          {info.reach && (
+          {(layout?.profiles || info.reach) && (
             <p className="studio-block-reach">
               <UsersRound size={14} aria-hidden />
-              <span>{info.reach}</span>
+              <span>{layout?.profiles ? layoutReach(layout.profiles) : info.reach}</span>
             </p>
           )}
           <ol className="studio-block-steps">
@@ -194,4 +229,12 @@ export default function BlockInspector({
       </div>
     </aside>
   );
+}
+
+/** Who a layout change reaches, from the layout's profile assignments. */
+export function layoutReach(profiles: string[]): string {
+  if (!profiles.length) return "No profile is assigned this layout.";
+  const shown = profiles.slice(0, 4).join(", ");
+  const more = profiles.length > 4 ? ` and ${profiles.length - 4} more` : "";
+  return `The layout for ${profiles.length === 1 ? "1 profile" : `${profiles.length} profiles`} (${shown}${more}). A change reaches them all.`;
 }
