@@ -13,6 +13,8 @@ import { runSoqlQuery, runToolingQuery } from "../salesforce/cli.js";
 import {
   loadDbSchemaEntries,
   loadUserContext,
+  mapWithConcurrency,
+  memoizeQuerier,
   profileTerritory,
   selectApplicableTables,
   type OrgQuerier,
@@ -36,6 +38,8 @@ export const syncImpactInput = {
   profiles: z.array(z.string().max(255)).max(50).optional(),
 };
 
+/** Profiles estimated at once. */
+const PROFILE_CONCURRENCY = 3;
 /** Profiles estimated per request; the rest are listed in the notes. */
 export const MAX_PROFILES = 5;
 
@@ -94,10 +98,10 @@ export async function syncImpact(
 ): Promise<SyncImpactResult> {
   const raw = deps.querier(orgName);
   let queries = 0;
-  const org: OrgQuerier = {
+  const org: OrgQuerier = memoizeQuerier({
     soql: (q, options) => (queries++, raw.soql(q, options)),
     tooling: (q) => (queries++, raw.tooling(q)),
-  };
+  });
 
   const relevant = input.changes.filter(touchesDbSchema);
   const notes: string[] = [];
@@ -128,41 +132,43 @@ export async function syncImpact(
   }
   if (names.length === 0) notes.push("No profile is affected by these changes (permission-set-only records aren't estimated).");
 
-  const profiles: ProfileImpact[] = [];
-  for (const profile of names) {
+  // Profiles are independent: each picks its heaviest user and counts before/after. The memoized org
+  // answers an identical query once (the id sources both sides read, a table that did not change).
+  const profiles: ProfileImpact[] = await mapWithConcurrency(names, PROFILE_CONCURRENCY, async (profile): Promise<ProfileImpact> => {
     try {
       const users = await findHeaviestUsers(org, { profile, limit: 1 });
       const user = users[0];
-      if (!user) {
-        profiles.push(emptyImpact(profile, `No active user on ${profile}`));
-        continue;
-      }
+      if (!user) return emptyImpact(profile, `No active user on ${profile}`);
       const ctx = await loadUserContext(org, user.id);
       const { territory, note: territoryNote } = await pickTerritory(org, ctx.territories);
       const tablesBefore = selectApplicableTables(before, ctx);
       const tablesAfter = selectApplicableTables(applied.entries, ctx);
       const changed = changedSobjects(tablesBefore, tablesAfter);
 
-      const beforeVol = await profileTerritory(org, ctx, territory, tablesBefore);
       let diff;
       if (changed.size === 0) {
+        const beforeVol = await profileTerritory(org, ctx, territory, tablesBefore);
         diff = diffVolumes(beforeVol.tables, [], changed, false);
       } else {
         const plan = planRecount(tablesAfter, changed);
-        const afterVol = await profileTerritory(org, ctx, territory, plan.after);
+        // The two sides only read, so they run together.
+        const [beforeVol, afterVol] = await Promise.all([
+          profileTerritory(org, ctx, territory, tablesBefore),
+          profileTerritory(org, ctx, territory, plan.after),
+        ]);
         diff = diffVolumes(beforeVol.tables, afterVol.tables, changed, plan.full);
       }
-      profiles.push({
+      return {
         profile,
         user: { id: user.id, username: ctx.username, name: ctx.name },
         territory: territory?.name ?? null,
         ...(territoryNote ? { territoryNote } : {}),
         ...diff,
-      });
+      };
     } catch (e) {
-      profiles.push(emptyImpact(profile, e instanceof Error ? e.message : String(e)));
+      return emptyImpact(profile, e instanceof Error ? e.message : String(e));
     }
-  }
+  });
 
   notes.unshift(
     "Each profile is estimated for its heaviest active user, from DB Schema records (not the compiled metadata archive), counted as the connected admin; org-wide counts may exceed what a rep downloads."

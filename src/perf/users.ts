@@ -319,18 +319,21 @@ export async function lookupUsers(org: OrgQuerier, refs: string[], days?: number
   const found = await rows(org, `SELECT Id, Username, Name, IsActive, Profile.Name FROM User WHERE ${where}`);
 
   const territories = new Map<string, Array<{ id: string; name: string }>>();
-  if (found.length) {
-    const assignments = await rows(
-      org,
-      `SELECT UserId, Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId IN (${inList(found.map((u) => String(u.Id)))}) AND ${ACTIVE_MODEL} ORDER BY Territory2.Name`
-    );
-    for (const a of assignments) {
-      const list = territories.get(idKey(String(a.UserId))) ?? [];
-      list.push({ id: String(a.Territory2Id), name: String((a.Territory2 as { Name?: string } | null)?.Name ?? "") });
-      territories.set(idKey(String(a.UserId)), list);
-    }
+  // Territories and sync counts both need only the users found, so they are read together.
+  const [assignments, syncs] = await Promise.all([
+    found.length
+      ? rows(
+          org,
+          `SELECT UserId, Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId IN (${inList(found.map((u) => String(u.Id)))}) AND ${ACTIVE_MODEL} ORDER BY Territory2.Name`
+        )
+      : Promise.resolve([] as Row[]),
+    days !== undefined && found.length ? recentSyncCounts(org, found.map((u) => String(u.Id)), days) : Promise.resolve(null),
+  ]);
+  for (const a of assignments) {
+    const list = territories.get(idKey(String(a.UserId))) ?? [];
+    list.push({ id: String(a.Territory2Id), name: String((a.Territory2 as { Name?: string } | null)?.Name ?? "") });
+    territories.set(idKey(String(a.UserId)), list);
   }
-  const syncs = days !== undefined && found.length ? await recentSyncCounts(org, found.map((u) => String(u.Id)), days) : null;
 
   for (const ref of unique) {
     const u = found.find((r) => (isUserId(ref) ? idKey(String(r.Id)) === idKey(ref) : sameUser(String(r.Username), ref)));
@@ -358,8 +361,10 @@ export async function checkPlan(org: OrgQuerier, orgName: string, plan: NfrProfi
   const issues: PlanIssue[] = [];
   const resolved = [];
   const days = plan.telemetry?.days ?? DEFAULT_TELEMETRY_DAYS;
-  for (const persona of plan.personas) {
-    const { users, selected } = await resolvePersonaUsers(org, persona, days);
+  // Personas resolve independently; issues are added in persona order below.
+  const picks = await Promise.all(plan.personas.map((persona) => resolvePersonaUsers(org, persona, days)));
+  for (const [i, persona] of plan.personas.entries()) {
+    const { users, selected } = picks[i];
     if (persona.select && selected.length === 0) {
       issues.push({
         persona: persona.name,

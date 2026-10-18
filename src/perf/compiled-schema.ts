@@ -15,6 +15,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { createHash } from "crypto";
 import type { DbSchemaEntry, ApplicableTable, OrgQuerier, UserContext } from "./sync-volume.js";
 import { downloadArchive, readMetadataFiles, type MetadataDownloadInfo, type MetadataFiles } from "./device/metadata.js";
 import type { DeviceSession } from "./device/session.js";
@@ -186,13 +187,74 @@ export async function loadObjectAccess(org: OrgQuerier, userId: string, sobjects
   if (sobjects.length === 0) return null;
   const names = sobjects.map((n) => `'${soqlString(n)}'`).join(",");
   // Aggregate queries can't page, so the lookup is scoped to the archive's tables.
-  const governed = await org.soql(`SELECT SobjectType FROM ObjectPermissions WHERE SobjectType IN (${names}) GROUP BY SobjectType`);
-  const readable = await org.soql(
-    `SELECT SobjectType FROM ObjectPermissions WHERE PermissionsRead = true AND SobjectType IN (${names}) AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE AssigneeId = '${soqlString(userId)}') GROUP BY SobjectType`
-  );
+  const [governed, readable] = await Promise.all([
+    org.soql(`SELECT SobjectType FROM ObjectPermissions WHERE SobjectType IN (${names}) GROUP BY SobjectType`),
+    org.soql(
+      `SELECT SobjectType FROM ObjectPermissions WHERE PermissionsRead = true AND SobjectType IN (${names}) AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE AssigneeId = '${soqlString(userId)}') GROUP BY SobjectType`
+    ),
+  ]);
   if (!governed.success || !readable.success) return null;
   const access = { governed: sobjectTypes(governed.data?.records), readable: sobjectTypes(readable.data?.records) };
   return access.governed.size > 0 && access.readable.size > 0 ? access : null;
+}
+
+/**
+ * Archives are immutable per ContentVersion (its MD5 is part of the key), so the parsed files are kept
+ * for the life of the process and the zip on disk across processes: a profile's archive is downloaded
+ * once, not on every run. A cached zip is re-hashed against the org's checksum before it is trusted.
+ */
+const MAX_CACHED_ARCHIVES = 4;
+const memoryCache = new Map<string, MetadataFiles>();
+
+function diskCacheDir(): string {
+  return path.join(os.tmpdir(), "lsc-perf-md-cache");
+}
+
+function md5OfFile(file: string): string {
+  return createHash("md5").update(fs.readFileSync(file)).digest("hex");
+}
+
+function remember(key: string, files: MetadataFiles): void {
+  memoryCache.delete(key);
+  memoryCache.set(key, files);
+  while (memoryCache.size > MAX_CACHED_ARCHIVES) memoryCache.delete(memoryCache.keys().next().value as string);
+}
+
+/** The archive's files from memory or disk, or null when it has to be downloaded. */
+function cachedFiles(ref: ArchiveRef): MetadataFiles | null {
+  const key = `${ref.contentVersionId}|${ref.checksum}`;
+  const hit = memoryCache.get(key);
+  if (hit) {
+    remember(key, hit);
+    return hit;
+  }
+  const file = path.join(diskCacheDir(), `${ref.checksum.replace(/[^a-f0-9]/g, "")}.zip`);
+  try {
+    if (!fs.existsSync(file)) return null;
+    if (md5OfFile(file) !== ref.checksum) {
+      fs.rmSync(file, { force: true });
+      return null;
+    }
+    const files = readMetadataFiles(file);
+    remember(key, files);
+    return files;
+  } catch {
+    return null;
+  }
+}
+
+function storeArchive(ref: ArchiveRef, zip: string, files: MetadataFiles): void {
+  remember(`${ref.contentVersionId}|${ref.checksum}`, files);
+  try {
+    const dir = diskCacheDir();
+    fs.mkdirSync(dir, { recursive: true });
+    const dest = path.join(dir, `${ref.checksum.replace(/[^a-f0-9]/g, "")}.zip`);
+    const tmp = `${dest}.${process.pid}.${Date.now()}.tmp`;
+    fs.copyFileSync(zip, tmp);
+    fs.renameSync(tmp, dest);
+  } catch {
+    // The cache is an optimization only.
+  }
 }
 
 async function downloadProfileFiles(session: DeviceSession, ref: ArchiveRef): Promise<{ files: MetadataFiles; bytes: number }> {
@@ -206,7 +268,9 @@ async function downloadProfileFiles(session: DeviceSession, ref: ArchiveRef): Pr
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lsc-perf-md-"));
   try {
     const dl = await downloadArchive(session, info, dir);
-    return { files: readMetadataFiles(dl.file), bytes: dl.bytes };
+    const files = readMetadataFiles(dl.file);
+    storeArchive(ref, dl.file, files);
+    return { files, bytes: dl.bytes };
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -233,8 +297,10 @@ export function createCompiledSchemaSource(deps: CompiledSchemaSourceDeps): Comp
       pending = (async () => {
         const ref = await findProfileArchive(deps.org, profileId);
         if (!ref) return { reason: "no active metadata archive for the profile" };
-        const session = await deps.getSession();
-        const { files, bytes } = await downloadProfileFiles(session, ref);
+        const cachedHit = cachedFiles(ref);
+        const { files, bytes } = cachedHit
+          ? { files: cachedHit, bytes: ref.contentSize }
+          : await downloadProfileFiles(await deps.getSession(), ref);
         if (Object.keys(files.db).length === 0) return { reason: `archive ${ref.recordId} has no db.json tables` };
         return { files, bytes, recordId: ref.recordId };
       })().catch((e): { reason: string } => ({ reason: errorMessage(e) }));
@@ -262,4 +328,10 @@ export function createCompiledSchemaSource(deps: CompiledSchemaSourceDeps): Comp
       return { result: { tables, notes } };
     },
   };
+}
+
+/** Forget cached archives (tests). */
+export function clearArchiveCache(opts: { disk?: boolean } = {}): void {
+  memoryCache.clear();
+  if (opts.disk) fs.rmSync(diskCacheDir(), { recursive: true, force: true });
 }

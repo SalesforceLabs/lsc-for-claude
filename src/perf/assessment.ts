@@ -8,6 +8,7 @@ import {
   type TerritoryVolume,
   type UserContext,
   type ProfileOptions,
+  type ApplicableTable,
   DEFAULT_PROFILE_OPTIONS,
   annotateSharing,
   incompleteTables,
@@ -16,6 +17,7 @@ import {
   upperBoundRecords,
   loadUserContext,
   mapWithConcurrency,
+  memoizeQuerier,
   pickLargestTerritories,
   profileTerritory,
   selectApplicableTables,
@@ -77,9 +79,12 @@ export interface StepProgress {
  */
 export type StepHook = (step: string, progress?: StepProgress) => void;
 
+/** Territories of one user counted at once; the shared limiter still caps requests in flight. */
+const TERRITORY_CONCURRENCY = 3;
+
 export async function profileUsers(
-  configOrg: OrgQuerier,
-  countOrg: OrgQuerier,
+  configOrgIn: OrgQuerier,
+  countOrgIn: OrgQuerier,
   userRefs: string[],
   opts: {
     territory?: string;
@@ -89,26 +94,41 @@ export async function profileUsers(
     compiledSchema?: CompiledSchemaSource;
   } & Partial<ProfileOptions> = {}
 ): Promise<UserVolume[]> {
+  // One answer per distinct query for this call (the same COUNT() in several territories or for several users).
+  const configOrg = memoizeQuerier(configOrgIn);
+  const countOrg = countOrgIn === configOrgIn ? configOrg : memoizeQuerier(countOrgIn);
   // Users in the same territory share the id lists their tables are counted from.
   const options: ProfileOptions = { ...DEFAULT_PROFILE_OPTIONS, ...opts, idCache: opts.idCache ?? new Map() };
   opts.onStep?.("Reading DB Schema records");
   const entries = await loadDbSchemaEntries(configOrg);
-  const results: UserVolume[] = [];
 
-  for (const [index, ref] of userRefs.entries()) {
+  // Each user's setup (account, table list, territories) is only reads, and users of one profile share
+  // one archive download, so every user is prepared at once; the counting then runs user by user.
+  type Prepared =
+    | { error: UserVolume }
+    | {
+        user: UserContext;
+        tables: ApplicableTable[];
+        schemaSource: SchemaSource;
+        schemaNotes: string[];
+        territories: Array<{ id: string; name: string } | null>;
+        territoryNote?: string;
+      };
+  const prepare = async (ref: string, index: number): Promise<Prepared> => {
     const at = { user: index + 1, users: userRefs.length };
     let user: UserContext;
     opts.onStep?.(`Loading ${ref}`, at);
     try {
       user = await loadUserContext(configOrg, ref);
     } catch (e) {
-      results.push({
-        user: { id: "", username: ref, name: ref, profileId: "", profileName: "", territories: [], permissionSetCount: 0 },
-        tableCount: 0,
-        territories: [],
-        error: e instanceof Error ? e.message : String(e),
-      });
-      continue;
+      return {
+        error: {
+          user: { id: "", username: ref, name: ref, profileId: "", profileName: "", territories: [], permissionSetCount: 0 },
+          tableCount: 0,
+          territories: [],
+          error: e instanceof Error ? e.message : String(e),
+        },
+      };
     }
 
     const dbSchemaTables = selectApplicableTables(entries, user);
@@ -152,17 +172,34 @@ export async function profileUsers(
       territories = cap.picked;
       territoryNote = cap.note;
     }
+    return { user, tables, schemaSource, schemaNotes, territories, territoryNote };
+  };
+  const prepared = userRefs.map((ref, index) => prepare(ref, index));
+  // A later user's setup failing must not surface as an unhandled rejection while an earlier user counts.
+  for (const p of prepared) p.catch(() => undefined);
 
-    const volumes: TerritoryVolume[] = [];
-    for (const territory of territories) {
-      const step = `Counting ${tables.length} tables for ${user.username}${territory ? ` in ${territory.name}` : ""}`;
-      opts.onStep?.(step, { ...at, tables: { done: 0, total: tables.length } });
-      volumes.push(
-        await profileTerritory(countOrg, user, territory, tables, options, (done, total) =>
-          opts.onStep?.(step, { ...at, tables: { done, total } })
-        )
-      );
+  const results: UserVolume[] = [];
+  for (const [index, pending] of prepared.entries()) {
+    const at = { user: index + 1, users: userRefs.length };
+    const prep = await pending;
+    if ("error" in prep) {
+      results.push(prep.error);
+      continue;
     }
+    const { user, tables, schemaSource, schemaNotes, territories, territoryNote } = prep;
+
+    // Territories of one user count together (the id lists they share are read once); progress sums them.
+    const doneBy = territories.map(() => 0);
+    const step = (territory: { name: string } | null) =>
+      `Counting ${tables.length} tables for ${user.username}${territory ? ` in ${territory.name}` : ""}`;
+    opts.onStep?.(step(territories[0]), { ...at, tables: { done: 0, total: tables.length * territories.length } });
+    const volumes: TerritoryVolume[] = await mapWithConcurrency(territories, TERRITORY_CONCURRENCY, (territory) => {
+      const slot = territories.indexOf(territory);
+      return profileTerritory(countOrg, user, territory, tables, options, (done) => {
+        doneBy[slot] = done;
+        opts.onStep?.(step(territory), { ...at, tables: { done: doneBy.reduce((a, b) => a + b, 0), total: tables.length * territories.length } });
+      });
+    });
 
     const { permissionSets, ...rest } = user;
     results.push({
@@ -386,11 +423,14 @@ export function incompleteSummary(volumes: UserVolume[]): string | undefined {
 export async function runAssessment(
   profile: NfrProfile,
   orgName: string,
-  configOrg: OrgQuerier,
-  countOrg: OrgQuerier,
+  configOrgIn: OrgQuerier,
+  countOrgIn: OrgQuerier,
   describeTelemetryFields: () => Promise<Set<string>>,
   options: Partial<ProfileOptions> & { onStep?: StepHook; compiledSchema?: CompiledSchemaSource } = {}
 ): Promise<AssessmentResult> {
+  // One answer per distinct query for the whole run, across personas and users.
+  const configOrg = memoizeQuerier(configOrgIn);
+  const countOrg = countOrgIn === configOrgIn ? configOrg : memoizeQuerier(countOrgIn);
   const personas: PersonaResult[] = [];
   for (const [index, persona] of profile.personas.entries()) {
     const prefix = `${persona.name} (${index + 1}/${profile.personas.length})`;
