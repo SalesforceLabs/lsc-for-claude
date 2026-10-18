@@ -1,7 +1,7 @@
 /**
  * Studio edits to org metadata outside the Admin Console: custom script code,
  * validation rules, the Visit engagement sidebar (page layout related lists),
- * and page layouts edited in the iPad preview (`editMetadata`).
+ * and page layouts and Lightning pages edited in the iPad preview (`editMetadata`).
  *
  * Same contract as fixes.ts — previews re-read the live org and refuse (`blocked`)
  * when it no longer matches what the map saw; applying re-runs the preview and
@@ -23,12 +23,13 @@ import {
 import { assertId, assertNames, PUBLISH_WARNING } from "./change-helpers.js";
 import { deployDoc, withDoc, type MetadataDoc } from "./metadata/doc.js";
 import { applyLayoutOps, relatedListCount, StaleLayoutError } from "./metadata/layout-ops.js";
-import { isProductionOrg, layoutProfiles } from "./metadata/live.js";
+import { applyFlexiPageOps, flexiPageWarnings, StaleFlexiPageError } from "./metadata/flexipage-ops.js";
+import { flexiPageReach, isManagedFlexiPage, isProductionOrg, layoutProfiles } from "./metadata/live.js";
 import { serializeXml, type XmlNode } from "./metadata/xml.js";
 import { scriptCodeFindings } from "./collect.js";
 import { lineCount, lineDiff } from "./diff.js";
 import { query, type Row } from "./helpers.js";
-import type { FixPreview, FixResult, StudioFix } from "./types.js";
+import type { FixPreview, FixResult, FlexiPageOp, LayoutOp, StudioFix } from "./types.js";
 
 type ScriptFix = Extract<StudioFix, { kind: "setCustomScriptCode" }>;
 type LayoutFix = Extract<StudioFix, { kind: "setLayoutRelatedList" }>;
@@ -256,12 +257,17 @@ interface MetadataPlan {
   inverse?: MetadataFix["ops"];
 }
 
+const FLEXIPAGE_OPS = new Set(["moveComponent", "removeComponent", "addComponent", "setComponentProperty"]);
+
 async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string): Promise<MetadataPlan> {
+  if (fix.ops.some((op) => FLEXIPAGE_OPS.has(op.op) !== (fix.doc.type === "FlexiPage"))) throw new Error(`These changes aren't ${fix.doc.type} edits.`);
+  if (fix.doc.type === "FlexiPage") return planEditFlexiPage(fix, doc, org);
   const preview: FixPreview = { org, title: fix.label, changes: [], warnings: [] };
   if (!fix.ops.length) return { preview: { ...preview, blocked: "Nothing to change." } };
+  const ops = fix.ops as LayoutOp[];
   let result: ReturnType<typeof applyLayoutOps>;
   try {
-    result = applyLayoutOps(doc.root, fix.ops);
+    result = applyLayoutOps(doc.root, ops);
   } catch (e) {
     if (!(e instanceof StaleLayoutError)) throw e;
     return { preview: { ...preview, blocked: `${fix.doc.label} changed since the preview was loaded: ${e.message} Refresh the preview.` } };
@@ -287,9 +293,61 @@ async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string)
   const [reach, production, ...dbWarnings] = await Promise.all([
     layoutReach(fix, org),
     isProductionOrg(org),
-    ...fix.ops.flatMap((op) => (op.op === "addRelatedList" && op.object && !op.xml ? [dbSchemaWarning(op.object, org)] : [])),
+    ...ops.flatMap((op) => (op.op === "addRelatedList" && op.object && !op.xml ? [dbSchemaWarning(op.object, org)] : [])),
   ]);
   preview.warnings.push(reach as string, ...(dbWarnings as (string | null)[]).filter((w): w is string => !!w), PUBLISH_WARNING);
+  if (production) preview.production = true;
+  return { preview, root: result.root, inverse: result.inverse };
+}
+
+// --- Lightning pages edited in the iPad preview ------------------------------------
+
+/** "…the page for 3 profiles (A, B, C) and the default in App X" — everyone who gets the page gets the change. */
+async function flexiPageReachWarning(fix: MetadataFix, org: string): Promise<string> {
+  const reach = await flexiPageReach(fix.doc.fullName, org);
+  if (!reach) return `Deploys ${fix.doc.label} to the org — it may be used by other profiles and apps too.`;
+  const { profiles, appDefaults } = reach;
+  const list = (names: string[]) => (names.length > 4 ? `${names.slice(0, 4).join(", ")} and ${names.length - 4} more` : names.join(", "));
+  if (!profiles.length && !appDefaults.length) {
+    return `Deploys ${fix.doc.label} to the org. No app assigns it to a profile, but it may be an object's or the org's default page.`;
+  }
+  const parts = [
+    ...(profiles.length ? [profiles.length === 1 ? `the page for ${profiles[0]}` : `the page for ${profiles.length} profiles (${list(profiles)})`] : []),
+    ...(appDefaults.length ? [`the default in ${list(appDefaults)}`] : []),
+  ];
+  return `Deploys ${fix.doc.label} to the org — it's ${parts.join(" and ")}, and everyone who gets it gets the change.`;
+}
+
+async function planEditFlexiPage(fix: MetadataFix, doc: MetadataDoc, org: string): Promise<MetadataPlan> {
+  const preview: FixPreview = { org, title: fix.label, changes: [], warnings: [] };
+  if (!fix.ops.length) return { preview: { ...preview, blocked: "Nothing to change." } };
+  const ops = fix.ops as FlexiPageOp[];
+  let result: ReturnType<typeof applyFlexiPageOps>;
+  try {
+    result = applyFlexiPageOps(doc.root, ops);
+  } catch (e) {
+    if (!(e instanceof StaleFlexiPageError)) throw e;
+    return { preview: { ...preview, blocked: `${fix.doc.label} changed since the preview was loaded: ${e.message} Refresh the preview.` } };
+  }
+  const diff = lineDiff(doc.xml, serializeXml(result.root));
+  if (!diff.length) return { preview: { ...preview, blocked: `${fix.doc.label} already looks like this. Refresh the preview.` } };
+  preview.changes = result.changes.map((c) => ({ target: fix.doc.label, ...c }));
+  preview.changes[preview.changes.length - 1].diff = diff;
+
+  const [managed, reach, production] = await Promise.all([
+    isManagedFlexiPage(fix.doc.fullName, org),
+    flexiPageReachWarning(fix, org),
+    isProductionOrg(org),
+  ]);
+  if (managed) {
+    return {
+      preview: {
+        ...preview,
+        blocked: `${fix.doc.label} was installed from a managed package, so it can't be changed. Clone it in Lightning App Builder, assign the copy, and edit that.`,
+      },
+    };
+  }
+  preview.warnings.push(reach, ...flexiPageWarnings(ops), PUBLISH_WARNING);
   if (production) preview.production = true;
   return { preview, root: result.root, inverse: result.inverse };
 }

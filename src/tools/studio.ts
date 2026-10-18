@@ -3,7 +3,7 @@ import { z } from "zod";
 import { validateOrgConnection } from "../salesforce/auth.js";
 import { getFeature, listFeatures } from "../studio/features.js";
 import { collectFeatureMap, collectItemDetail, collectProfileOptions } from "../studio/collect.js";
-import { readLiveLayout } from "../studio/metadata/live.js";
+import { readLiveFlexiPage, readLiveLayout } from "../studio/metadata/live.js";
 import { accessOptions, userAccess } from "../studio/access.js";
 import { collectReadiness } from "../studio/readiness/index.js";
 import { collectSetupOverview } from "../studio/overview.js";
@@ -79,6 +79,30 @@ const layoutOpSchema = z.discriminatedUnion("op", [
     object: z.string().optional(),
   }),
 ]);
+const flexiItemRef = z.object({ component: z.string().max(255), identifier: z.string().max(255).nullable(), index: z.number().int().min(0) });
+const flexiComponentRef = z.object({ region: z.string().max(255), item: flexiItemRef });
+const flexiPageOpSchema = z.discriminatedUnion("op", [
+  z.object({ op: z.literal("moveComponent"), component: flexiComponentRef, before: flexiItemRef.nullable() }),
+  z.object({ op: z.literal("removeComponent"), component: flexiComponentRef }),
+  z.object({
+    op: z.literal("addComponent"),
+    region: z.string().max(255),
+    before: flexiItemRef.nullable(),
+    component: z.string().max(255),
+    identifier: z.string().max(255).nullable(),
+    properties: z.array(z.object({ name: z.string().max(255), value: z.string().max(4000) })).max(50).optional(),
+    xml: z.string().max(1_000_000).optional(),
+    facets: z.array(z.object({ xml: z.string().max(1_000_000), at: z.number().int().min(0) })).max(100).optional(),
+  }),
+  z.object({
+    op: z.literal("setComponentProperty"),
+    component: flexiComponentRef,
+    property: z.enum(["mobileHeight", "active", "title", "maxRecordsToDisplay", "rowsToDisplay"]),
+    from: z.string().max(255).nullable(),
+    to: z.string().max(255).nullable(),
+  }),
+]);
+const flexiPageName = z.string().regex(/^\w+$/).max(255);
 
 const fixSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("assignPsl"), label: z.string(), userId: id, userName: z.string(), pslId: id, pslLabel: z.string() }),
@@ -175,8 +199,12 @@ const fixSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("editMetadata"),
     label: z.string(),
-    doc: z.object({ type: z.literal("Layout"), fullName: z.string().regex(/^[^\r\n:]+-[^\r\n]+$/).max(255), label: z.string() }),
-    ops: z.array(layoutOpSchema).max(200),
+    doc: z.discriminatedUnion("type", [
+      z.object({ type: z.literal("Layout"), fullName: z.string().regex(/^[^\r\n:]+-[^\r\n]+$/).max(255), label: z.string() }),
+      z.object({ type: z.literal("FlexiPage"), fullName: flexiPageName, label: z.string() }),
+    ]),
+    // Which list applies is checked against doc.type when the ops are applied.
+    ops: z.union([z.array(layoutOpSchema).max(200), z.array(flexiPageOpSchema).max(200)]),
   }),
 ]);
 
@@ -317,15 +345,17 @@ export function register(server: McpServer) {
 
   server.tool(
     "studio_metadata_doc",
-    "LSC Studio (GUI data): a page layout as it is in the org now — sections, fields, related lists, the profiles using it, and whether the org is production — for editing it in the iPad preview. Read-only. Returns JSON.",
-    { type: z.literal("Layout"), fullName: z.string().regex(/^[^\r\n:]+-[^\r\n]+$/).max(255) },
-    async ({ fullName }) => {
+    "LSC Studio (GUI data): a page layout (sections, fields, related lists) or Lightning page (regions, facets, components) as it is in the org now, who it reaches, and whether the org is production — for editing it in the iPad preview. Read-only. Returns JSON.",
+    { type: z.enum(["Layout", "FlexiPage"]), fullName: z.string().regex(/^[^\r\n:]+$/).max(255) },
+    async ({ type, fullName }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
+      const valid = type === "FlexiPage" ? /^\w+$/.test(fullName) : /^[^\r\n:]+-[^\r\n]+$/.test(fullName);
+      if (!valid) return jsonError(`Invalid ${type} name: ${fullName}`);
       try {
-        return json(await readLiveLayout(fullName, connection.targetOrg));
+        return json(type === "FlexiPage" ? await readLiveFlexiPage(fullName, connection.targetOrg) : await readLiveLayout(fullName, connection.targetOrg));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
