@@ -131,8 +131,8 @@ describe("copyForProfile", () => {
       const preview = await previewFix(layoutCopy, target);
       expect(preview.blocked).toBeUndefined();
       expect(preview.changes.map((c) => [c.target, c.field, c.before, c.after])).toEqual([
-        ["HCP Layout - LS Rep", "New page layout", "(doesn't exist yet)", "A copy of HCP Layout"],
-        ["LS Rep", "Layout · Record type PersonAccount.HCP", "HCP Layout", "HCP Layout - LS Rep"],
+        ["Page layout", "New copy", "(doesn't exist yet)", "HCP Layout - LS Rep: a copy of HCP Layout"],
+        ["LS Rep", "Layout · Record type HCP", "HCP Layout", "HCP Layout - LS Rep"],
       ]);
       expect(preview.warnings[0]).toContain("moves only LS Rep to it (1 assignment). Every other profile keeps “HCP Layout”.");
       expect(preview.production).toBeUndefined();
@@ -191,8 +191,8 @@ describe("copyForProfile", () => {
       const undo = done.undo as CopyForProfileFix;
       const preview = await previewFix(undo, target);
       expect(preview.changes.map((c) => [c.field, c.before, c.after])).toEqual([
-        ["Layout · Record type PersonAccount.HCP", "HCP Layout - LS Rep", "HCP Layout"],
-        ["Page layout", "Exists", "Deleted"],
+        ["Layout · Record type HCP", "HCP Layout - LS Rep", "HCP Layout"],
+        ["Copy", "HCP Layout - LS Rep", "Deleted"],
       ]);
       const result = await applyFix(undo, target);
       expect(result.ok).toBe(true);
@@ -242,7 +242,7 @@ describe("copyForProfile", () => {
       const preview = await previewFix(pageCopy, target);
       expect(preview.blocked).toBeUndefined();
       expect(preview.changes.map((c) => [c.field, c.before, c.after])).toEqual([
-        ["New Lightning page", "(doesn't exist yet)", "A copy of Account HCP page"],
+        ["New copy", "(doesn't exist yet)", "Account HCP page (LS Rep): a copy of Account HCP page"],
         ["Page in LSC_Field_Sales", "Account HCP page", "Account HCP page (LS Rep)"],
       ]);
       expect(cli.deployMetadata).not.toHaveBeenCalled();

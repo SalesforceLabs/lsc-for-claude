@@ -34,7 +34,7 @@ import { assignmentsCache, isProductionOrg } from "./live.js";
 import { parseXml, serializeXml, setChildText, type XmlNode } from "./xml.js";
 
 const soqlString = (v: string) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
-const rtLabel = (rt: string | null | undefined) => (rt ? `Record type ${rt}` : "Default (no record type)");
+const rtLabel = (rt: string | null | undefined) => (rt ? `Record type ${rt.slice(rt.indexOf(".") + 1)}` : "Default (no record type)");
 
 interface AppFile {
   name: string;
@@ -130,14 +130,15 @@ async function planLayoutCreate(fix: CopyForProfileFix, org: string, layout: Met
 
   const { moves } = reassignLayout(profile.root, source, copy);
   const copyXml = serializeXml(root);
+  // Short record and field names: the table keeps its first two columns on one line.
   preview.changes.push({
-    target: fix.copy.label,
-    field: "New page layout",
+    target: "Page layout",
+    field: "New copy",
     before: "(doesn't exist yet)",
-    after: `A copy of ${fix.doc.label}${fix.ops?.length ? " with your edits" : ""}`,
+    after: `${fix.copy.label}: a copy of ${fix.doc.label}${fix.ops?.length ? " with your edits" : ""}`,
     ...(fix.ops?.length ? { diff: lineDiff(layout.xml, copyXml) } : {}),
   });
-  for (const c of opChanges) preview.changes.push({ target: fix.copy.label, ...c });
+  for (const c of opChanges) preview.changes.push({ target: "Copy", ...c });
   for (const m of moves) preview.changes.push({ target: fix.profile, field: `Layout · ${rtLabel(m.recordType)}`, before: fix.doc.label, after: fix.copy.label });
   preview.warnings.push(
     `Creates the page layout “${fix.copy.label}” and moves only ${fix.profile} to it (${moves.length} ${moves.length === 1 ? "assignment" : "assignments"}). Every other profile keeps “${fix.doc.label}”.`,
@@ -167,7 +168,7 @@ async function planLayoutRevert(fix: CopyForProfileFix, org: string, profile: Me
   }
   const { moves } = reassignLayout(profile.root, fix.copy.fullName, fix.doc.fullName, wanted);
   for (const m of moves) preview.changes.push({ target: fix.profile, field: `Layout · ${rtLabel(m.recordType)}`, before: fix.copy.label, after: fix.doc.label });
-  preview.changes.push({ target: fix.copy.label, field: "Page layout", before: "Exists", after: "Deleted" });
+  preview.changes.push({ target: "Page layout", field: "Copy", before: fix.copy.label, after: "Deleted" });
   preview.warnings.push(`Points ${fix.profile} back at “${fix.doc.label}” and deletes the copy “${fix.copy.label}”, including any edits made to it.`, PUBLISH_WARNING);
   if (await isProductionOrg(org)) preview.production = true;
   return {
@@ -212,7 +213,7 @@ async function planPage(fix: CopyForProfileFix, org: string, page: MetadataDoc |
       moves.push(m);
       preview.changes.push({ target: fix.profile, field: `Page in ${m.app}`, before: fix.copy.label, after: m.added ? `${fix.doc.label} (the app's default)` : fix.doc.label });
     }
-    preview.changes.push({ target: fix.copy.label, field: "Lightning page", before: "Exists", after: "Deleted" });
+    preview.changes.push({ target: "Lightning page", field: "Copy", before: fix.copy.label, after: "Deleted" });
     preview.warnings.push(`Points ${fix.profile} back at “${fix.doc.label}” and deletes the copy “${fix.copy.label}”, including any edits made to it.`, PUBLISH_WARNING);
     if (await isProductionOrg(org)) preview.production = true;
     return { preview, moves, page: { copyPath: "", copyXml: "", apps: changedApps } };
@@ -254,13 +255,13 @@ async function planPage(fix: CopyForProfileFix, org: string, page: MetadataDoc |
   setChildText(copyRoot, "masterLabel", fix.copy.label, ["masterLabel"]);
   const copyXml = serializeXml(copyRoot);
   preview.changes.unshift({
-    target: fix.copy.label,
-    field: "New Lightning page",
+    target: "Lightning page",
+    field: "New copy",
     before: "(doesn't exist yet)",
-    after: `A copy of ${fix.doc.label}${fix.ops?.length ? " with your edits" : ""}`,
+    after: `${fix.copy.label}: a copy of ${fix.doc.label}${fix.ops?.length ? " with your edits" : ""}`,
     ...(fix.ops?.length ? { diff: lineDiff(page!.xml, copyXml) } : {}),
   });
-  preview.changes.splice(1, 0, ...opChanges.map((c) => ({ target: fix.copy.label, ...c })));
+  preview.changes.splice(1, 0, ...opChanges.map((c) => ({ target: "Copy", ...c })));
   const added = moves.filter((m) => m.added).length;
   preview.warnings.push(
     `Creates the Lightning page “${fix.copy.label}” and points only ${fix.profile} at it in ${moves.length} ${moves.length === 1 ? "app" : "apps"}. Every other profile keeps “${fix.doc.label}”.`,
