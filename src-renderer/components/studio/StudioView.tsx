@@ -13,8 +13,7 @@ import Inspector from "./Inspector";
 import ReviewDialog from "./ReviewDialog";
 import PublishDialog from "./PublishDialog";
 import type { PendingChange } from "./changes";
-import PerfView from "./PerfView";
-import SimulateView from "./SimulateView";
+import SyncHealthView from "./SyncHealthView";
 import ReadinessView from "./ReadinessView";
 import SetupOverview from "./SetupOverview";
 import UserTraceView from "./UserTraceView";
@@ -34,7 +33,7 @@ const PREVIEW_HOSTS = [...PREVIEW_FEATURES, "visit"];
 type MapState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; map: FeatureMap };
 
 /** What the main pane shows: the iPad preview, a Setup page or feature, or a Testing page. */
-type Section = "preview" | "overview" | "user-check" | "drift" | "setup" | "performance" | "simulate";
+type Section = "preview" | "overview" | "user-check" | "drift" | "setup" | "sync";
 
 /** A preview block opened in the inspector beside the preview. */
 interface PreviewInspect {
@@ -54,9 +53,8 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   const [readiness, setReadiness] = useState<Record<string, ReadinessState>>({});
   // The org a user check last read, for applying its changes before any map is loaded.
   const [seenOrg, setSeenOrg] = useState<string | undefined>(undefined);
-  // Testing pages stay mounted once opened so a run keeps polling while another page is shown.
-  const [perfOpened, setPerfOpened] = useState(false);
-  const [simOpened, setSimOpened] = useState(false);
+  // Sync health stays mounted once opened so a run keeps polling while another page is shown.
+  const [syncOpened, setSyncOpened] = useState(false);
   // Maps are kept per feature so switching back doesn't re-query the org.
   const [maps, setMaps] = useState<Record<string, MapState>>({});
   const [selectedSurface, setSelectedSurface] = useState<SurfaceId | null>(null);
@@ -222,12 +220,23 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     return [...options.values()].sort((a, b) => a.name.localeCompare(b.name));
   }, [profiles, maps]);
 
+  // Sync health reads telemetry before any map is loaded; its changes go to the org the MCP server is connected to.
+  const [connectedOrg, setConnectedOrg] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    if (!syncOpened || connectedOrg) return;
+    window.lscApi.studioConnectedOrg().then((res) => {
+      const org = (res.data as { org?: string } | undefined)?.org;
+      if (org) setConnectedOrg(org);
+    });
+  }, [syncOpened, connectedOrg]);
+
   // Changes are applied against the org Studio last read — from a map, or from readiness checks on the Setup pages.
   const readyOrg =
     map?.org ??
     Object.values(maps).find((m) => m.status === "ready")?.map.org ??
     Object.values(readiness).find((r) => r.status === "ready")?.readiness.org ??
-    seenOrg;
+    seenOrg ??
+    connectedOrg;
   const previewLoading = PREVIEW_FEATURES.some((id) => maps[id]?.status === "loading");
   const inspectedMap = previewInspect ? readyMap(previewInspect.featureId) : null;
   const inspectedSurface = inspectedMap?.surfaces.find((s) => s.id === previewInspect?.surface) ?? null;
@@ -310,24 +319,14 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         ))}
         <div className="studio-rail-title studio-rail-section">Testing</div>
         <button
-          className={`studio-rail-item${section === "performance" ? " active" : ""}`}
-          title="Validate sync volume and field sync performance against NFR targets"
+          className={`studio-rail-item${section === "sync" ? " active" : ""}`}
+          title="How reps' iPads are syncing, who is struggling and why, and go-live sign-off"
           onClick={() => {
-            setSection("performance");
-            setPerfOpened(true);
+            setSection("sync");
+            setSyncOpened(true);
           }}
         >
-          <span>Performance</span>
-        </button>
-        <button
-          className={`studio-rail-item${section === "simulate" ? " active" : ""}`}
-          title="Replay an iOS first sync as a mobile user and time the download"
-          onClick={() => {
-            setSection("simulate");
-            setSimOpened(true);
-          }}
-        >
-          <span>First sync</span>
+          <span>Sync health</span>
         </button>
       </nav>
 
@@ -453,33 +452,15 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         </section>
       )}
 
-      {perfOpened && (
-        <section className="studio-main" hidden={section !== "performance"}>
-          <header className="studio-header">
-            <div>
-              <h1 className="studio-title">Performance</h1>
-              <div className="studio-subtitle">
-                Predict each persona's sync volume from configuration, measure field sync telemetry, and check both against
-                NFR targets. Every query is read-only.
-              </div>
-            </div>
-          </header>
-          <PerfView onAskClaude={onAskClaude} />
-        </section>
-      )}
-
-      {simOpened && (
-        <section className="studio-main" hidden={section !== "simulate"}>
-          <header className="studio-header">
-            <div>
-              <h1 className="studio-title">First sync</h1>
-              <div className="studio-subtitle">
-                Replay what the iOS app downloads on a first sync — user info, the metadata archive, and every table's data — as
-                the sf CLI connection you choose, and time each part. Every request is read-only.
-              </div>
-            </div>
-          </header>
-          <SimulateView />
+      {syncOpened && (
+        <section className="studio-main" hidden={section !== "sync"}>
+          <SyncHealthView
+            onAskClaude={onAskClaude}
+            onOpenSetup={(id, surface = null, item = null) => openSetup(id, surface, item)}
+            pending={pending}
+            onPendingChange={setPending}
+          />
+          {tray}
         </section>
       )}
 

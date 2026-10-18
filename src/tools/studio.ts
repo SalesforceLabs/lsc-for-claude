@@ -29,6 +29,10 @@ import { activeSimulation, cancelSimulation, simulationStatus, startSimulation }
 import { renderSimulation } from "./perf-simulate.js";
 import { MAX_SIM_RUNS, renderRunsSection, type SimRunsSummary } from "../studio/sim-runs.js";
 import type { SimulationResult } from "../perf/simulate.js";
+import { syncOverview, syncOverviewInput } from "../studio/sync-overview.js";
+import { syncUserDetail, syncUserInput } from "../studio/sync-user.js";
+import { syncImpact, syncImpactInput } from "../studio/sync-impact.js";
+import { renderSignoffReport, signoffReportInput } from "../studio/signoff-report.js";
 
 /**
  * LSC Studio data tools. These return raw JSON for the Electron app's visual
@@ -382,6 +386,7 @@ export function register(server: McpServer) {
   );
 
   registerPerfTools(server);
+  registerSyncHealthTools(server);
   if (process.env.LSC_STUDIO_FIXES === "1") registerFixTools(server);
 }
 
@@ -674,6 +679,72 @@ function registerPerfTools(server: McpServer) {
         const markdown = renderSimulation(result as unknown as SimulationResult);
         const runs = renderRunsSection(result as { runs?: SimRunsSummary });
         return json({ markdown: runs ? markdown.replace("## Slowest tables", () => `${runs}## Slowest tables`) : markdown });
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+}
+
+function registerSyncHealthTools(server: McpServer) {
+  server.tool(
+    "studio_sync_overview",
+    "LSC Studio (GUI data): org-wide mobile sync health from DeviceSyncSummary over the last `days` days (default 30) — trend, failure rate, by app version and network — and the users most at risk. Read-only. Returns JSON.",
+    syncOverviewInput,
+    async (input) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await syncOverview(connection.targetOrg, input));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_sync_user",
+    "LSC Studio (GUI data): one user's predicted mobile sync volume per table with the DB Schema record behind each and why heavy tables are heavy, plus their own recent syncs. Read-only. Returns JSON.",
+    syncUserInput,
+    async (input) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await syncUserDetail(connection.targetOrg, input));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_sync_impact",
+    "LSC Studio (GUI data): predicted mobile sync volume before and after pending DB Schema changes (Studio fixes), per affected profile. Read-only — nothing is written. Returns JSON.",
+    syncImpactInput,
+    async (input) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await syncImpact(connection.targetOrg, input));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_signoff_report",
+    "LSC Studio (GUI data): render a plain-language go-live sign-off report from a performance assessment result and optional first-sync simulation results, with the detailed reports as an appendix. Doesn't touch the org. Returns JSON { markdown }.",
+    signoffReportInput,
+    async (input) => {
+      try {
+        return json({ markdown: renderSignoffReport(input) });
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

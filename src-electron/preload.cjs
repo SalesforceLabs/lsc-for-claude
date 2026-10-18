@@ -106,6 +106,14 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioPerfReport: (result, days) =>
     ipcRenderer.invoke("studio:call", "studio_perf_report", days === undefined ? { result } : { result, days }),
   studioPerfTerritories: (input) => ipcRenderer.invoke("studio:call", "studio_perf_territories", input),
+  // Sync health — org-wide overview, one user's drill-down, what-if impact, sign-off report
+  studioConnectedOrg: () => ipcRenderer.invoke("studio:call", "studio_connected_org", {}),
+  studioSyncOverview: (days) => ipcRenderer.invoke("studio:call", "studio_sync_overview", days === undefined ? {} : { days }),
+  studioSyncUser: (userId, days) =>
+    ipcRenderer.invoke("studio:call", "studio_sync_user", days === undefined ? { userId } : { userId, days }),
+  studioSyncImpact: (changes, profiles) =>
+    ipcRenderer.invoke("studio:call", "studio_sync_impact", profiles === undefined ? { changes } : { changes, profiles }),
+  studioSignoffReport: (input) => ipcRenderer.invoke("studio:call", "studio_signoff_report", input),
   perfListPlans: () => ipcRenderer.invoke("perf:listPlans"),
   perfSavePlan: (input) => ipcRenderer.invoke("perf:savePlan", input),
   perfDeletePlan: (id) => ipcRenderer.invoke("perf:deletePlan", id),

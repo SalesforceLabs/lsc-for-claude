@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `101`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `105`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -90,11 +90,15 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_perf_users",
   "studio_readiness",
   "studio_setup_overview",
+  "studio_signoff_report",
   "studio_sim_active",
   "studio_sim_cancel",
   "studio_sim_report",
   "studio_sim_start",
   "studio_sim_status",
+  "studio_sync_impact",
+  "studio_sync_overview",
+  "studio_sync_user",
   "studio_user_access",
   "studio_user_trace",
   "toggle_db_schema",
@@ -1491,6 +1495,66 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
       "result": {
         "optional": false,
         "type": "ZodObject",
+      },
+    },
+  },
+  {
+    "name": "studio_sync_overview",
+    "params": {
+      "days": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+    },
+  },
+  {
+    "name": "studio_sync_user",
+    "params": {
+      "days": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "maxTerritories": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "userId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_sync_impact",
+    "params": {
+      "changes": {
+        "optional": false,
+        "type": "ZodArray",
+      },
+      "profiles": {
+        "optional": true,
+        "type": "ZodArray",
+      },
+    },
+  },
+  {
+    "name": "studio_signoff_report",
+    "params": {
+      "assessment": {
+        "optional": false,
+        "type": "ZodObject",
+      },
+      "baseline": {
+        "optional": true,
+        "type": "ZodObject",
+      },
+      "days": {
+        "optional": true,
+        "type": "ZodNumber",
+      },
+      "simulations": {
+        "optional": true,
+        "type": "ZodArray",
       },
     },
   },

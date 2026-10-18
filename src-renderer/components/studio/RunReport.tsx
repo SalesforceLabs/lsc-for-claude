@@ -16,6 +16,7 @@ import { sparkPoints, type TrendRow } from "./perf-history";
 import { DIFF_PCT, compareVolume, simulatedSeconds, type TableFlag, type VolumeComparison } from "./perf-compare";
 import { formatSeconds } from "./sim-types";
 import type { RunSim, RunSims } from "./useRunSims";
+import { personaVerdict } from "./signoff-verdict";
 
 interface RunReportProps {
   result: AssessmentResult;
@@ -25,6 +26,8 @@ interface RunReportProps {
   onAskClaude?: () => void;
   onExport?: () => void;
   onExportReport?: () => void;
+  /** Save the customer-facing sign-off report (verdict, targets, risks, appendix). */
+  onExportSignoff?: () => void;
   /** Newest finished First sync per tested user (lower-cased username), to check the prediction against. */
   sims?: RunSims;
   /** Set the plan's targets from this run's values plus a margin. */
@@ -35,9 +38,9 @@ const SPARK_W = 120;
 const SPARK_H = 24;
 
 const BANNER: Record<AssessmentResult["status"], { cls: string; text: string }> = {
-  pass: { cls: "success", text: "Every persona met its targets" },
-  warn: { cls: "warning", text: "Some metrics are close to their limits" },
-  fail: { cls: "error", text: "Some metrics exceed their limits" },
+  pass: { cls: "success", text: "Every persona met the customer's targets" },
+  warn: { cls: "warning", text: "Some measures are close to their limits" },
+  fail: { cls: "error", text: "Some measures are over their limits" },
 };
 
 function Delta({ value, unit }: { value: number | undefined; unit: string }) {
@@ -405,7 +408,7 @@ function Trend({ rows }: { rows: TrendRow[] }) {
   );
 }
 
-export default function RunReport({ result, previous, trend, onAskClaude, onExport, onExportReport, onBaseline, sims }: RunReportProps) {
+export default function RunReport({ result, previous, trend, onAskClaude, onExport, onExportReport, onExportSignoff, onBaseline, sims }: RunReportProps) {
   const [baselineOpen, setBaselineOpen] = useState(false);
   const deltas = metricDeltas(result, previous);
   // Differences between the two runs' plans, so a jump in a metric isn't read as the org changing.
@@ -434,9 +437,14 @@ export default function RunReport({ result, previous, trend, onAskClaude, onExpo
               Use as baseline
             </button>
           )}
+          {onExportSignoff && (
+            <button className="studio-btn primary" onClick={onExportSignoff} title="Save a plain-language report for the customer, with the detailed results as an appendix">
+              Export sign-off report
+            </button>
+          )}
           {onExportReport && (
-            <button className="studio-btn" onClick={onExportReport} title="Save a Markdown report to share">
-              Export report
+            <button className="studio-btn" onClick={onExportReport} title="Save the detailed results as Markdown">
+              Export detailed report
             </button>
           )}
           {onExport && (
@@ -456,6 +464,17 @@ export default function RunReport({ result, previous, trend, onAskClaude, onExpo
           onClose={() => setBaselineOpen(false)}
         />
       )}
+
+      <ul className="studio-perf-verdicts">
+        {result.personas.map((p) => {
+          const v = personaVerdict(p);
+          return (
+            <li key={p.persona.name} className={`studio-perf-verdict ${v.tone}`}>
+              {v.text}
+            </li>
+          );
+        })}
+      </ul>
 
       {changes.size > 0 && (
         <div className="studio-finding info studio-perf-notice">

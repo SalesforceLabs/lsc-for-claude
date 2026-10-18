@@ -2077,3 +2077,28 @@ textarea.studio-input {
 .studio-perf-scope {
   margin-left: 6px;
 }
+
+/* Sign-off: plain-language verdicts at the head of a run report */
+.studio-perf-verdicts {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.studio-perf-verdict {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.studio-perf-verdict.success { border-left-color: var(--success); }
+.studio-perf-verdict.warning { border-left-color: var(--warning); }
+.studio-perf-verdict.error { border-left-color: var(--error); }
+.studio-perf-verdict.info { border-left-color: var(--accent); }
+.studio-signoff-intro {
+  padding: 8px 16px 0;
+}

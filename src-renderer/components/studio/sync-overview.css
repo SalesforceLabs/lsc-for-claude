@@ -1,0 +1,84 @@
+.sync-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 24px;
+}
+.sync-overview-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sync-overview-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.sync-overview-body[aria-busy="true"] {
+  opacity: 0.6;
+}
+.sync-overview-banner {
+  font-size: 15px;
+}
+.sync-overview-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+.sync-overview-tile {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--bg-secondary);
+}
+.sync-overview-tile-value {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.sync-overview-tile-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.sync-overview-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sync-overview-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sync-overview-trends {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.sync-overview-trend {
+  margin: 0;
+}
+.sync-overview-trend svg {
+  width: 100%;
+  height: 56px;
+  fill: var(--accent);
+}
+.sync-overview-reasons {
+  margin: 0;
+  padding-left: 16px;
+}
+.sync-overview-risks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sync-overview-risk {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sync-overview-notes {
+  margin: 0;
+  padding-left: 16px;
+}

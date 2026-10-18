@@ -21,6 +21,8 @@ import { useRunSims } from "./useRunSims";
 
 interface PerfViewProps {
   onAskClaude: (prompt: string) => void;
+  /** Reps handed over from Overview; a new key starts a new unsaved plan with them. */
+  seed?: { key: number; userIds: string[] } | null;
 }
 
 /** The run in flight, kept so polling resumes if the view is left and reopened. */
@@ -90,11 +92,13 @@ function ProgressBar({ job }: { job: PerfJobStatus | null }) {
 
 const issueText = (i: CheckIssue) => (i.persona ? `${i.persona}: ${i.message}` : i.message);
 
-export default function PerfView({ onAskClaude }: PerfViewProps) {
+export default function PerfView({ onAskClaude, seed }: PerfViewProps) {
   const [plans, setPlans] = useState<PerfPlanRecord[]>([]);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [draft, setDraft] = useState<PerfPlan>(emptyPlan);
   const [dirty, setDirty] = useState(false);
+  // Something was typed or handed in since the plan or draft opened; a fresh draft is dirty (unsaved) but not edited.
+  const [edited, setEdited] = useState(false);
   const [runs, setRuns] = useState<PerfRunRecord[]>([]);
   const [runView, setRunView] = useState<RunView | null>(null);
   const [tab, setTab] = useState<"plan" | "report">("plan");
@@ -114,6 +118,9 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
   const [mobileLoggingIn, setMobileLoggingIn] = useState(false);
   // Bumped to remount the editor when a different plan is loaded.
   const [editorKey, setEditorKey] = useState(0);
+  // The first load has finished, so a hand-off from Overview won't be overwritten by it.
+  const [loaded, setLoaded] = useState(false);
+  const seededKey = useRef<number | null>(null);
   const [, tick] = useState(0);
 
   const runSims = useRunSims(runView);
@@ -154,6 +161,7 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
       setSelection({ kind: "plan", id: record.id });
       setDraft(record.plan as PerfPlan);
       setDirty(false);
+      setEdited(false);
       setRunView(null);
       setTab("plan");
       setNotice(null);
@@ -168,6 +176,7 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
     setSelection({ kind: "draft" });
     setDraft(plan);
     setDirty(true);
+    setEdited(false);
     setRuns([]);
     setRunView(null);
     setTab("plan");
@@ -203,6 +212,7 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
 
   useEffect(() => {
     reload().then(() => {
+      setLoaded(true);
       if (!readActiveJob()) attachActive();
     });
   }, [reload, attachActive]);
@@ -216,6 +226,26 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
       }),
     [reload, flash]
   );
+
+  // Reps handed over from Overview become a new unsaved plan, so nothing already saved is touched.
+  useEffect(() => {
+    if (!seed || !loaded || seededKey.current === seed.key) return;
+    seededKey.current = seed.key;
+    const userIds = [...new Set(seed.userIds.map((u) => u.trim()).filter(Boolean))];
+    if (!userIds.length) return;
+    if (edited && !window.confirm("Discard unsaved changes to this plan?")) {
+      setNotice({ kind: "info", text: "The reps from Overview weren't added because you kept your unsaved changes. Save, then send them again." });
+      return;
+    }
+    const plan = emptyPlan();
+    openDraft({ ...plan, name: "Reps from Overview", personas: [{ ...plan.personas[0], name: "Reps from Overview", users: userIds }] });
+    // Handed-in reps are unsaved work too: a second hand-off asks before replacing them.
+    setEdited(true);
+    setNotice({
+      kind: "info",
+      text: `Started a new plan with ${userIds.length} ${userIds.length === 1 ? "rep" : "reps"} from Overview. Add the customer's targets, then run the test.`,
+    });
+  }, [seed, loaded, edited, openDraft]);
 
   const plansRef = useRef(plans);
   plansRef.current = plans;
@@ -314,6 +344,7 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
   const editDraft = (plan: PerfPlan) => {
     setDraft(plan);
     setDirty(true);
+    setEdited(true);
     setCheckIssues([]);
   };
 
@@ -328,6 +359,7 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
     setSelection({ kind: "plan", id: record.id });
     setDraft(plan);
     setDirty(false);
+    setEdited(false);
     return record;
   };
 
@@ -432,7 +464,12 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
     try {
       const res = await window.lscApi.mobileLoginStart(org.instanceUrl);
       if (!res.login) {
-        if (res.error !== "Login window closed.") setNotice({ kind: "error", text: res.error ?? "Login failed." });
+        if (/consumer key/i.test(res.error ?? "")) {
+          setNotice({
+            kind: "error",
+            text: "A mobile login needs the LSC mobile app consumer key. Add it in Settings (LSC mobile app consumer key). Without it the run still works, but table lists are worked out from profile metadata instead of each rep's own download.",
+          });
+        } else if (res.error !== "Login window closed.") setNotice({ kind: "error", text: res.error ?? "Login failed." });
         return;
       }
       setMobileLogins((await window.lscApi.mobileLoginList()).logins);
@@ -485,6 +522,26 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
       return;
     }
     const res = await window.lscApi.perfSaveFile(runFileName(runView.result, "md"), markdown, "md");
+    if (!res.canceled && res.path) setNotice({ kind: "info", text: `Saved ${res.path}` });
+  };
+
+  /** The customer-facing report: this run, the run before it as the baseline, and First syncs of the same reps. */
+  const exportSignoff = async () => {
+    if (!runView) return;
+    const simulations = [...new Map([...runSims.values()].map((s) => [s.id, s.result])).values()];
+    const report = await window.lscApi.studioSignoffReport({
+      assessment: runView.result,
+      simulations: simulations.length ? simulations : undefined,
+      baseline: runView.previous ?? undefined,
+      days: draft.telemetry?.days,
+    });
+    const error = responseError(report);
+    const markdown = (report.data as { markdown?: string } | undefined)?.markdown;
+    if (error || !markdown) {
+      setNotice({ kind: "error", text: `Couldn't build the sign-off report: ${error ?? "no report came back"}` });
+      return;
+    }
+    const res = await window.lscApi.perfSaveFile(runFileName({ ...runView.result, profile: `${runView.result.profile} sign-off` }, "md"), markdown, "md");
     if (!res.canceled && res.path) setNotice({ kind: "info", text: `Saved ${res.path}` });
   };
 
@@ -618,11 +675,11 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
             </button>
           </div>
           <div className="studio-header-actions">
-            <button className="studio-btn" onClick={importYaml} disabled={running} title="Load a plan from an NFR profile YAML file">
-              Import YAML
+            <button className="studio-btn" onClick={importYaml} disabled={running} title="Load a plan from a YAML plan file (secondary path; most plans are built here)">
+              Import plan file
             </button>
-            <button className="studio-btn" onClick={exportYaml} title="Save as YAML for run_perf_assessment or CI">
-              Export YAML
+            <button className="studio-btn" onClick={exportYaml} title="Save the plan as a YAML file to share it or run it with run_perf_assessment or CI">
+              Export plan file
             </button>
             {selectedPlan && (
               <button className="studio-btn" onClick={removePlan} disabled={running}>
@@ -691,6 +748,7 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
               onAskClaude={() => onAskClaude(remediationPrompt(runView.result))}
               onExport={exportRun}
               onExportReport={exportReport}
+              onExportSignoff={exportSignoff}
               onBaseline={running ? undefined : useAsBaseline}
               sims={runSims}
             />
@@ -723,15 +781,15 @@ export default function PerfView({ onAskClaude }: PerfViewProps) {
                 <div className="studio-finding info studio-perf-notice">
                   <div className="studio-finding-title">No customer targets yet</div>
                   <div className="studio-finding-detail">
-                    This plan only has the default metadata download target. Enter the customer's NFR targets (Targets tab) before running, or the
-                    report can't pass or fail anything else.
+                    This plan only has the default metadata download target. Enter the customer's targets (Targets tab) before running, or the
+                    report can't say whether anything else is met.
                   </div>
                 </div>
               )}
               <div className="studio-perf-hint">
                 {loginPersonas.length
                   ? `Exact table lists, from each user's own metadata download: ${loginPersonas.join("; ")}.`
-                  : "Table lists are approximated from the profile's metadata and object permissions."}{" "}
+                  : "Which tables each rep syncs is worked out from their profile's metadata and object permissions."}{" "}
                 {mobileLogins.length > 0 && "Users picked by profile use a login too when the username matches. "}
                 <button className="studio-btn" onClick={mobileLogin} disabled={running || mobileLoggingIn} title="Sign in as a persona user through the LSC mobile app, so the run reads that user's real table list">
                   {mobileLoggingIn ? "Logging in…" : "Log in as mobile user…"}

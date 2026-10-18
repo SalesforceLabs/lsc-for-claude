@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import type { FixPreview, FixResult } from "./types";
 import { isMobileChange, publishProfiles, type PendingChange } from "./changes";
+import { touchesDbSchema } from "./sync-impact-util";
+import "./sync-impact.css";
 
 interface ReviewDialogProps {
   changes: PendingChange[];
@@ -145,6 +147,14 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
           </ol>
         )}
 
+        {phase.step === "review" && changes.some((c) => touchesDbSchema(c.fix as unknown as Record<string, unknown>)) && (
+          <SyncImpact
+            key={JSON.stringify(changes.map((c) => c.fix))}
+            changes={changes.filter((c, i) => ready(phase.previews[i]))}
+            excluded={changes.filter((c, i) => !ready(phase.previews[i]) && touchesDbSchema(c.fix as unknown as Record<string, unknown>)).map((c) => c.fix.label)}
+          />
+        )}
+
         {phase.step === "done" && mobileApplied.length > 0 && (
           <div className="studio-finding info">
             <div className="studio-finding-title">Reps won't see this on the iPad yet</div>
@@ -189,6 +199,146 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+interface ImpactTable {
+  sobject: string;
+  before: number | null;
+  after: number | null;
+  delta: number;
+  note?: string;
+}
+interface ProfileImpact {
+  profile: string;
+  user: { username: string; name: string };
+  territory: string | null;
+  territoryNote?: string;
+  totalBefore: number;
+  totalAfter: number;
+  pct: number | null;
+  tables: ImpactTable[];
+  failing: { sobject: string; developerName: string; message: string }[];
+  error?: string;
+}
+interface ImpactResult {
+  profiles: ProfileImpact[];
+  unmodeled: { label: string; reason: string }[];
+  notes: string[];
+  queries: number;
+}
+
+/** Large increases in a rep's sync volume are worth a second look. */
+const WARN_INCREASE_PCT = 25;
+
+const fmt = (n: number | null) => (n === null ? "—" : n.toLocaleString());
+const fmtPct = (p: number) => `${p > 0 ? "+" : p < 0 ? "−" : ""}${Math.abs(Math.round(p))}%`;
+
+/** Predicted records per affected profile, before and after the pending DB Schema changes. Runs only on request. */
+function SyncImpact({ changes, excluded }: { changes: PendingChange[]; excluded: string[] }) {
+  const [state, setState] = useState<{ step: "idle" } | { step: "running" } | { step: "done"; result: ImpactResult } | { step: "error"; message: string }>({ step: "idle" });
+  const [open, setOpen] = useState<string | null>(null);
+
+  const run = async () => {
+    setState({ step: "running" });
+    const res = await window.lscApi.studioSyncImpact(changes.map((c) => c.fix));
+    const error = responseError(res);
+    if (error || !res.data) setState({ step: "error", message: error || "No result" });
+    else setState({ step: "done", result: res.data as ImpactResult });
+  };
+
+  return (
+    <div className="studio-sync-impact">
+      <div className="studio-sync-impact-header">
+        <span className="studio-finding-title">Sync impact</span>
+        {state.step === "running" && <div className="studio-spinner" />}
+        <button className="studio-btn" onClick={run} disabled={state.step === "running"}>
+          {state.step === "done" ? "Re-estimate" : "Estimate sync impact"}
+        </button>
+      </div>
+      {state.step === "idle" && (
+        <div className="studio-sync-impact-note">Predicts records per affected profile before and after. Runs read-only COUNT() queries.</div>
+      )}
+      {state.step === "error" && <div className="studio-sync-impact-error">{state.message}</div>}
+      {state.step === "done" && (
+        <>
+          {state.result.profiles.map((p) => (
+            <div key={p.profile} className="studio-sync-impact-profile">
+              {p.error ? (
+                <div className="studio-sync-impact-error">
+                  {p.profile}: {p.error}
+                </div>
+              ) : (
+                <>
+                  <div className="studio-sync-impact-line">
+                    <strong>{p.profile}</strong>
+                    <span className="studio-empty-note">
+                      (via {p.user.username}
+                      {p.territory ? `, ${p.territory}` : ""}
+                      {p.territoryNote ? `: ${p.territoryNote}` : ""})
+                    </span>
+                    <span>
+                      {fmt(p.totalBefore)} → {fmt(p.totalAfter)} records
+                    </span>
+                    {p.pct !== null && p.pct !== 0 && (
+                      <span className={`studio-sync-impact-pct ${p.pct > WARN_INCREASE_PCT ? "warn" : p.pct < 0 ? "good" : ""}`}>
+                        ({fmtPct(p.pct)}){p.pct > WARN_INCREASE_PCT ? " large increase" : ""}
+                      </span>
+                    )}
+                    {p.tables.length > 0 && (
+                      <button className="studio-link-btn" onClick={() => setOpen(open === p.profile ? null : p.profile)}>
+                        {open === p.profile ? "Hide tables" : `${p.tables.length} ${p.tables.length === 1 ? "table" : "tables"}`}
+                      </button>
+                    )}
+                  </div>
+                  {p.failing.map((f) => (
+                    <div key={f.developerName} className="studio-sync-impact-error">
+                      This filter doesn't run: {f.sobject} ({f.developerName}) — {f.message}
+                    </div>
+                  ))}
+                  {open === p.profile && (
+                    <table className="studio-sync-impact-tables">
+                      <thead>
+                        <tr>
+                          <th>Table</th>
+                          <th>Before</th>
+                          <th>After</th>
+                          <th>Change</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {p.tables.map((t) => (
+                          <tr key={t.sobject} title={t.note}>
+                            <td>{t.sobject}</td>
+                            <td>{fmt(t.before)}</td>
+                            <td>{fmt(t.after)}</td>
+                            <td>{t.delta > 0 ? "+" : t.delta < 0 ? "−" : ""}{Math.abs(t.delta).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </>
+              )}
+            </div>
+          ))}
+          {excluded.length > 0 && (
+            <div className="studio-sync-impact-note">Left out because they can't be applied: {excluded.join(", ")}.</div>
+          )}
+          {state.result.unmodeled.map((u, i) => (
+            <div key={i} className="studio-sync-impact-note">
+              Not estimated: {u.label} — {u.reason}
+            </div>
+          ))}
+          {state.result.notes.map((n, i) => (
+            <div key={i} className="studio-sync-impact-note">
+              {n}
+            </div>
+          ))}
+          <div className="studio-sync-impact-note">{state.result.queries} org queries.</div>
+        </>
+      )}
     </div>
   );
 }

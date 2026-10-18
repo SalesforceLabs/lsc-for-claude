@@ -1,0 +1,124 @@
+/* Sync health → Investigate: the table list with share bars, hint rows, and the header stats. */
+.sync-investigate {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.sync-investigate-territory {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 360px;
+}
+.sync-investigate-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+.sync-investigate-stat-value {
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.sync-investigate-verdict {
+  align-self: flex-start;
+  white-space: normal;
+}
+.sync-investigate-tables {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sync-investigate-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sync-investigate-row:hover,
+.sync-investigate-row.selected {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+}
+.sync-investigate-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.sync-investigate-row-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+.sync-investigate-row-count {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+.sync-investigate-row .studio-perf-bar {
+  grid-column: 1 / -1;
+  display: block;
+}
+.sync-investigate-fill {
+  display: block;
+}
+.sync-investigate-detail {
+  margin: 4px 0 8px 10px;
+}
+.sync-investigate-hints {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sync-investigate-hint {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.sync-investigate-hint .studio-sev-dot {
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+.sync-investigate-hint-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.sync-investigate-hint-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+.sync-investigate-props {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 12px;
+}
+.sync-investigate-props dt {
+  color: var(--text-muted);
+}
+.sync-investigate-props dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.sync-investigate-details summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 12px;
+}

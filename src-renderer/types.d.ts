@@ -117,6 +117,11 @@ interface LscApi {
   studioPerfCheck(plan: unknown): Promise<StudioResponse>;
   studioPerfReport(result: unknown, days?: number): Promise<StudioResponse>;
   studioPerfTerritories(input: { users: string[]; select?: { profile: string; count?: number } }): Promise<StudioResponse>;
+  studioConnectedOrg(): Promise<StudioResponse>;
+  studioSyncOverview(days?: number): Promise<StudioResponse>;
+  studioSyncUser(userId: string, days?: number): Promise<StudioResponse>;
+  studioSyncImpact(changes: unknown[], profiles?: string[]): Promise<StudioResponse>;
+  studioSignoffReport(input: { assessment: unknown; simulations?: unknown[]; baseline?: unknown; days?: number }): Promise<StudioResponse>;
 
   // Studio performance testing — plans and run history, stored per org by the main process
   perfListPlans(): Promise<PerfPlanRecord[]>;

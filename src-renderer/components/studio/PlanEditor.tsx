@@ -440,7 +440,7 @@ function PersonaCard({
       </div>
 
       <button className="studio-perf-disclosure" onClick={() => setShowThresholds(!showThresholds)}>
-        {showThresholds ? "▾" : "▸"} Persona thresholds{overrides ? ` (${overrides} overridden)` : " — using plan targets"}
+        {showThresholds ? "▾" : "▸"} Persona targets{overrides ? ` (${overrides} overridden)` : " — using the plan's targets"}
       </button>
       {showThresholds && (
         <ThresholdTable
@@ -473,7 +473,7 @@ export default function PlanEditor({ plan, onChange, profiles, disabled }: PlanE
   const tabs: Array<{ id: Tab; label: string; issues: number }> = [
     { id: "personas", label: `Personas (${plan.personas.length})`, issues: count("personas") },
     { id: "targets", label: "Targets", issues: count("targets") },
-    { id: "yaml", label: "YAML", issues: 0 },
+    { id: "yaml", label: "Import / export", issues: 0 },
   ];
 
   return (
@@ -490,7 +490,7 @@ export default function PlanEditor({ plan, onChange, profiles, disabled }: PlanE
             />
           </label>
           <label className="studio-perf-field">
-            <span className="studio-perf-field-label">Telemetry window (days)</span>
+            <span className="studio-perf-field-label">Real syncs to look at (last days)</span>
             <input
               className="studio-filter studio-perf-number"
               type="number"
@@ -530,11 +530,10 @@ export default function PlanEditor({ plan, onChange, profiles, disabled }: PlanE
         <section className="studio-perf-section" role="tabpanel" id="perf-plan-panel-personas" aria-labelledby="perf-plan-tab-personas">
           <div className="studio-perf-section-header">
             <div className="studio-perf-hint">
-              Each persona is tested as its own users, not as you: pick a profile to test its heaviest users (the plan
-              then works in any sandbox), or name specific users. Their profile and permission sets pick the DB Schema
-              tables, and their territories and user tags fill in each table's filter. Tables whose filter doesn't
-              depend on the user are counted org-wide and flagged when the object's sharing would hide records from
-              them.
+              A persona is a type of rep, such as a field rep. Each one is tested as its own reps, not as you: pick a profile
+              to test its heaviest reps (the plan then works in any sandbox), or name specific reps. Their profile,
+              permission sets and territories decide which tables they sync and how many records. Tables that don't depend
+              on the rep are counted org-wide and flagged when the object's sharing would hide records from them.
             </div>
             <button
               className="studio-btn"
@@ -544,7 +543,7 @@ export default function PlanEditor({ plan, onChange, profiles, disabled }: PlanE
               Add persona
             </button>
           </div>
-          {plan.personas.length === 0 && <div className="studio-perf-hint">Add a persona — a role whose sync load you want to test.</div>}
+          {plan.personas.length === 0 && <div className="studio-perf-hint">Add a persona, a type of rep whose sync load you want to test.</div>}
           {plan.personas.map((p, i) => (
             <PersonaCard
               key={keys.current[i]}
@@ -563,7 +562,8 @@ export default function PlanEditor({ plan, onChange, profiles, disabled }: PlanE
       {tab === "targets" && (
         <section className="studio-perf-section" role="tabpanel" id="perf-plan-panel-targets" aria-labelledby="perf-plan-tab-targets">
           <div className="studio-perf-hint">
-            Plan-wide NFR targets. Personas can override them. Leave a metric blank to report it without a pass/fail.
+            The customer's targets for every persona. A persona can set its own. Warn is the target; fail is the limit. Leave
+            a measure blank to report it without a pass or fail.
           </div>
           <ThresholdTable
             thresholds={plan.thresholds}
@@ -599,7 +599,7 @@ function YamlPanel({ plan }: { plan: PerfPlan }) {
   return (
     <section className="studio-perf-section" role="tabpanel" id="perf-plan-panel-yaml" aria-labelledby="perf-plan-tab-yaml">
       <div className="studio-perf-section-header">
-        <div className="studio-perf-hint">Use this with run_perf_assessment or in CI.</div>
+        <div className="studio-perf-hint">The same plan as a YAML file, to share it, keep it in version control, or run it with run_perf_assessment or in CI. Most people never need this.</div>
         <button className="studio-btn" onClick={copy}>
           {copied ? "Copied" : "Copy"}
         </button>

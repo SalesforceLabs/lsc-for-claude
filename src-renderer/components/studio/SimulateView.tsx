@@ -131,6 +131,16 @@ function ContentSection({ content }: { content: SimContent }) {
   );
 }
 
+/** Terms from the notes and tables, in plain words. */
+const GLOSSARY: Array<[string, string]> = [
+  ["Network time", "Time spent downloading. A real device also spends time saving the data to its database, so real first syncs take longer."],
+  ["OT2A, Account and the rest", "The order the app downloads tables in: the first two groups come first, then everything else."],
+  ["DSTR", "DeviceSyncTransactionRecord, a table the app downloads in several passes. Its passes are added up into one row."],
+  ["SmartQueue", "The app's download scheduler. It runs a few tables at once and holds back heavy ones, so tables overlap in time."],
+  ["Query locators", "Server-side cursors that page through big query results. The app keeps only a few open at a time, which limits how many tables run together."],
+  ["Median across runs", "With several runs, each time shown is the middle value, so one slow run doesn't skew it. Record counts come from the run closest to the median."],
+];
+
 function SimResult({ result, status, onExport, onExportReport }: {
   result: SimulationResult;
   status: PerfSimRecord["status"];
@@ -145,6 +155,7 @@ function SimResult({ result, status, onExport, onExportReport }: {
   const runs = multiRuns(result);
   const delta = deltaOf(result);
   const [allDelta, setAllDelta] = useState(false);
+  const [details, setDetails] = useState(false);
   const deltaTables = delta?.tables ?? [];
   const deltaSkipped = deltaTables.filter((x) => x.skipped);
   const deltaRanked = deltaTables.filter((x) => !x.skipped).sort((a, b) => b.seconds - a.seconds || b.toDownload - a.toDownload);
@@ -351,25 +362,33 @@ function SimResult({ result, status, onExport, onExportReport }: {
               {allDelta ? "Show fewer" : `Show all ${deltaTables.length - deltaSkipped.length} tables`}
             </button>
           )}
-          <ul className="studio-perf-issues">
-            {delta.notes.map((n) => (
-              <li key={n}>{n}</li>
-            ))}
-          </ul>
         </section>
       )}
       {result.content && <ContentSection content={result.content} />}
 
-      {result.notes.length > 0 && (
-        <section className="studio-perf-section">
-          <h2 className="studio-perf-section-title">Notes</h2>
-          <ul className="studio-perf-issues">
-            {result.notes.map((n) => (
-              <li key={n}>{n}</li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <section className="studio-perf-section">
+        <button className="studio-perf-disclosure" onClick={() => setDetails(!details)} aria-expanded={details}>
+          {details ? "▾" : "▸"} Details
+        </button>
+        {details && (
+          <>
+            <div className="studio-perf-hint">Engineering notes and terms behind these numbers.</div>
+            <ul className="studio-perf-issues">
+              {result.notes.map((n) => (
+                <li key={n}>{n}</li>
+              ))}
+              {delta?.notes.map((n) => (
+                <li key={n}>{n}</li>
+              ))}
+              {GLOSSARY.map(([term, meaning]) => (
+                <li key={term}>
+                  <strong>{term}:</strong> {meaning}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
     </div>
   );
 }
@@ -480,6 +499,8 @@ export default function SimulateView() {
   const [loginOpen, setLoginOpen] = useState<"mobile" | "cli" | null>(null);
   const [mobileLogins, setMobileLogins] = useState<MobileLoginInfo[]>([]);
   const [mobileLoggingIn, setMobileLoggingIn] = useState(false);
+  // No consumer key in Settings (the LSC_MOBILE_CLIENT_ID env var isn't visible here), or a login said so.
+  const [keyMissing, setKeyMissing] = useState(false);
   // Watching `sf org list` for the connection a browser login is creating.
   const [waitingLogin, setWaitingLogin] = useState<{ before: SfConnection[]; since: number } | null>(null);
 
@@ -519,6 +540,7 @@ export default function SimulateView() {
 
   useEffect(() => {
     window.lscApi.mobileLoginList().then((res) => setMobileLogins(res.logins));
+    window.lscApi.getSettings().then((settings) => setKeyMissing(!settings.mobileClientId?.trim()));
     loadConnections().then((list) => {
       const preferred = list.find((c) => c.isDefault) ?? list[0];
       setConnection((current) => current || (preferred ? connectionRef(preferred) : ""));
@@ -575,9 +597,11 @@ export default function SimulateView() {
     try {
       const res = await window.lscApi.mobileLoginStart(loginUrl);
       if (!res.login) {
-        if (res.error !== "Login window closed.") setNotice({ kind: "error", text: res.error ?? "Login failed." });
+        if (/consumer key/i.test(res.error ?? "")) setKeyMissing(true);
+        else if (res.error !== "Login window closed.") setNotice({ kind: "error", text: res.error ?? "Login failed." });
         return;
       }
+      setKeyMissing(false);
       setMobileLogins((await window.lscApi.mobileLoginList()).logins);
       setConnection(mobileRef(res.login));
       setNotice({ kind: "info", text: `Logged in as ${res.login.username} through the mobile app.` });
@@ -897,11 +921,25 @@ export default function SimulateView() {
                   <h2 className="studio-perf-section-title">Run as</h2>
                 </div>
                 <div className="studio-perf-hint">
-                  The simulation downloads what an iOS device would on its first sync, as the user you pick. Log in as the user
-                  through the mobile app: orgs answer the mobile sync requests only for that login, so sf CLI connections usually
-                  fail with a 404. It only reads from the org, and it measures network time only — a device also spends time
-                  writing its database.
+                  This signs in as one rep and downloads what their iPad would on its first sync, so you can see how long it takes.
+                  It only reads from the org, and it measures network time only: a device also spends time saving the data.
                 </div>
+                {keyMissing && (
+                  <div className="studio-finding info studio-perf-notice">
+                    <div className="studio-finding-title">Mobile login needs the LSC mobile app consumer key</div>
+                    <div className="studio-finding-detail">
+                      Salesforce answers the mobile sync requests only for logins made through the LSC mobile app, and sf CLI logins
+                      get a 404 from them. Add the app's consumer key in Settings (LSC mobile app consumer key, the
+                      remoteAccessConsumerKey in the iOS app's bootconfig.plist), then log in as the rep here. If you set
+                      LSC_MOBILE_CLIENT_ID instead, you can ignore this and try the login.
+                    </div>
+                    <div className="studio-finding-detail">
+                      Without a key you can still use an sf CLI connection. It works only if the org lets that login reach the mobile
+                      sync endpoints, which it usually doesn't. If the run fails with a 404, that is the reason, not a problem with
+                      the rep's setup.
+                    </div>
+                  </div>
+                )}
                 <div className="studio-perf-row">
                   <select
                     className="studio-filter"
@@ -995,59 +1033,63 @@ export default function SimulateView() {
                       onChange={(e) => setMinutes(e.target.value)}
                     />
                   </label>
-                  <label className="studio-perf-field">
-                    <span className="studio-perf-field-label">Runs (1–{MAX_SIM_RUNS})</span>
-                    <input
-                      className="studio-filter studio-perf-number"
-                      type="number"
-                      min={1}
-                      max={MAX_SIM_RUNS}
-                      value={runs}
-                      disabled={running}
-                      onChange={(e) => setRuns(e.target.value)}
-                      title="Run back to back as the same login and report the median and spread"
-                    />
-                  </label>
-                  <label className="studio-perf-field">
-                    <span className="studio-perf-field-label">Network (presets approximate)</span>
-                    <select
-                      className="studio-filter"
-                      value={network}
-                      disabled={running}
-                      onChange={(e) => setNetwork(e.target.value as SimNetworkProfile)}
-                      title={SIM_NETWORK_LIMITATION}
-                    >
-                      {SIM_NETWORK_PROFILES.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.id === "none" ? p.label : `${p.label} · ${p.rttMs} ms, ${p.downMbps}/${p.upMbps} Mbps`}
-                        </option>
-                      ))}
-                      <option value="custom">Custom</option>
-                    </select>
-                  </label>
                 </div>
-                {network === "custom" && (
-                  <div className="studio-perf-grid">
-                    <label className="studio-perf-field">
-                      <span className="studio-perf-field-label">Round trip (ms)</span>
-                      <input className="studio-filter studio-perf-number" type="number" min={0} max={5000} value={customRtt} disabled={running} onChange={(e) => setCustomRtt(e.target.value)} />
-                    </label>
-                    <label className="studio-perf-field">
-                      <span className="studio-perf-field-label">Down (Mbps)</span>
-                      <input className="studio-filter studio-perf-number" type="number" min={0.05} step="any" value={customDown} disabled={running} onChange={(e) => setCustomDown(e.target.value)} />
-                    </label>
-                    <label className="studio-perf-field">
-                      <span className="studio-perf-field-label">Up (Mbps)</span>
-                      <input className="studio-filter studio-perf-number" type="number" min={0.05} step="any" value={customUp} disabled={running} onChange={(e) => setCustomUp(e.target.value)} />
-                    </label>
-                  </div>
-                )}
-                {network !== "none" && <div className="studio-perf-hint">{SIM_NETWORK_LIMITATION}</div>}
                 <button className="studio-perf-disclosure" onClick={() => setAdvanced(!advanced)}>
                   {advanced ? "▾" : "▸"} Advanced
                 </button>
                 {advanced && (
                   <>
+                    <div className="studio-perf-hint">Engineering options. The defaults suit most sign-off checks.</div>
+                    <div className="studio-perf-grid">
+                      <label className="studio-perf-field">
+                          <span className="studio-perf-field-label">Runs (1–{MAX_SIM_RUNS})</span>
+                        <input
+                          className="studio-filter studio-perf-number"
+                          type="number"
+                          min={1}
+                          max={MAX_SIM_RUNS}
+                          value={runs}
+                          disabled={running}
+                          onChange={(e) => setRuns(e.target.value)}
+                          title="Run back to back as the same login and report the median and spread"
+                        />
+                    </label>
+                    <label className="studio-perf-field">
+                      <span className="studio-perf-field-label">Network (presets approximate)</span>
+                      <select
+                        className="studio-filter"
+                        value={network}
+                        disabled={running}
+                        onChange={(e) => setNetwork(e.target.value as SimNetworkProfile)}
+                        title={SIM_NETWORK_LIMITATION}
+                      >
+                        {SIM_NETWORK_PROFILES.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.id === "none" ? p.label : `${p.label} · ${p.rttMs} ms, ${p.downMbps}/${p.upMbps} Mbps`}
+                          </option>
+                        ))}
+                        <option value="custom">Custom</option>
+                      </select>
+                    </label>
+                    </div>
+                    {network === "custom" && (
+                      <div className="studio-perf-grid">
+                        <label className="studio-perf-field">
+                          <span className="studio-perf-field-label">Round trip (ms)</span>
+                          <input className="studio-filter studio-perf-number" type="number" min={0} max={5000} value={customRtt} disabled={running} onChange={(e) => setCustomRtt(e.target.value)} />
+                        </label>
+                        <label className="studio-perf-field">
+                          <span className="studio-perf-field-label">Down (Mbps)</span>
+                          <input className="studio-filter studio-perf-number" type="number" min={0.05} step="any" value={customDown} disabled={running} onChange={(e) => setCustomDown(e.target.value)} />
+                        </label>
+                        <label className="studio-perf-field">
+                          <span className="studio-perf-field-label">Up (Mbps)</span>
+                          <input className="studio-filter studio-perf-number" type="number" min={0.05} step="any" value={customUp} disabled={running} onChange={(e) => setCustomUp(e.target.value)} />
+                        </label>
+                      </div>
+                    )}
+                    {network !== "none" && <div className="studio-perf-hint">{SIM_NETWORK_LIMITATION}</div>}
+
                     <div className="studio-perf-grid">
                       <label className="studio-perf-field">
                         <span className="studio-perf-field-label">Sync flow</span>
