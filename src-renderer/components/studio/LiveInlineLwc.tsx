@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import type { InlineLwcCheck } from "./published-types";
 import { inlineLwcFrame, type FrameMessage, type InlineLwcContext, type ZoomMessage } from "./inline-lwc-frame";
 import { IpadScaleContext } from "./IpadScreen";
+import { RepLoginContext } from "../../hooks/useMobileLogins";
 
 /**
  * An org inline LWC (lscMobileInline_*) running live in the iPad preview: the
@@ -73,6 +74,10 @@ export function LiveInlineLwc({
   const scale = useContext(IpadScaleContext);
   const scaleRef = useRef(scale);
   scaleRef.current = scale;
+  // Data loads as the previewed rep when Studio holds their login, else as the sf CLI connection.
+  const repLogin = useContext(RepLoginContext);
+  const repLoginRef = useRef(repLogin);
+  repLoginRef.current = repLogin;
 
   useEffect(() => {
     let live = true;
@@ -85,9 +90,9 @@ export function LiveInlineLwc({
     return () => {
       live = false;
     };
-    // context is compared by value through ctxKey.
+    // context is compared by value through ctxKey; a new identity redraws the component with its data.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, generation, ctxKey]);
+  }, [name, generation, ctxKey, repLogin]);
 
   useEffect(() => {
     if (state.kind !== "ready") return;
@@ -99,7 +104,10 @@ export function LiveInlineLwc({
       if (!m || typeof m !== "object") return;
       switch (m.__studio) {
         case "request": {
-          const r = await window.lscApi.studioLwcRequest(m.method, m.path, m.body);
+          const as = repLoginRef.current;
+          const r = as
+            ? await window.lscApi.studioLwcRequestAs(as, m.method, m.path, m.body)
+            : await window.lscApi.studioLwcRequest(m.method, m.path, m.body);
           const data = r.data as { ok?: boolean; data?: unknown; error?: string } | undefined;
           const reply = data?.ok
             ? { __studio: "response", id: m.id, ok: true, data: data.data }

@@ -10,10 +10,18 @@ const __dirname = path.dirname(__filename);
 import { ConversationEngine } from "../engine/conversation.js";
 import { McpClient, STUDIO_TOOL_PREFIX } from "../mcp/client.js";
 import { McpPool, type PoolOrg } from "../mcp/pool.js";
-import { listSfOrgs, orgKey, pickOrg, resolveOrg, toOrgRef, type OrgKind, type OrgRef } from "../orgs.js";
+import { listSfOrgs, orgKey, pickOrg, resolveOrg, sameOrgId, toOrgRef, type OrgKind, type OrgRef } from "../orgs.js";
 import { OrgRoles } from "../org-roles.js";
 import type { SessionOrg } from "../engine/session-org.js";
-import { listMobileLogins, mobileLoginCredentials, removeMobileLogin, startMobileLogin } from "../mobile-login.js";
+import {
+  checkMobileLogins,
+  listMobileLogins,
+  mobileLoginCredentials,
+  onMobileLoginsChanged,
+  removeMobileLogin,
+  renewMobileLogin,
+  startMobileLogin,
+} from "../mobile-login.js";
 import { PromptBuilder } from "../engine/prompt-builder.js";
 import { LLMProvider } from "../llm/provider.js";
 import { detectClaudeCodeGateway } from "../llm/claude-code-config.js";
@@ -822,7 +830,11 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     }
   });
 
-  // --- Mobile logins for the first-sync simulator (tokens never leave the main process except to the engine) ---
+  // --- Test users' mobile logins (tokens never leave the main process except to the engine) ---
+
+  onMobileLoginsChanged((logins) => {
+    if (!mainWindow.isDestroyed()) mainWindow.webContents.send("mobileLogin:changed", logins);
+  });
 
   ipcMain.handle("mobileLogin:start", async (_event, loginUrl: string) => {
     try {
@@ -833,6 +845,31 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   });
 
   ipcMain.handle("mobileLogin:list", async () => ({ logins: listMobileLogins() }));
+
+  // Refreshes logins not used lately, so "Signed in" / "Expired" is current.
+  ipcMain.handle("mobileLogin:check", async () => ({ logins: await checkMobileLogins() }));
+
+  ipcMain.handle("mobileLogin:renew", async (_event, id: string) => {
+    try {
+      return { login: await renewMobileLogin(id, mainWindow) };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  // An inline LWC's data request in the iPad preview, answered as the previewed rep's mobile login.
+  ipcMain.handle("studio:lwcRequestAs", async (_event, loginId: string, req: { method: string; path: string; body?: unknown }) => {
+    const client = await readyMcpClient();
+    if (!client) return { error: "Engine not started" };
+    try {
+      const mobileLogin = await mobileLoginCredentials(loginId);
+      const result = await client.callTool("studio_lwc_request", { ...req, mobileLogin });
+      const text = result.content.find((c) => c.type === "text")?.text ?? "{}";
+      return result.isError ? { error: text } : { data: JSON.parse(text) };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) };
+    }
+  });
 
   ipcMain.handle("mobileLogin:remove", async (_event, id: string) => {
     removeMobileLogin(id);
@@ -857,7 +894,12 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     const client = await readyMcpClient();
     if (!client) return { error: "Engine not started" };
     try {
-      const mobileLogins = await Promise.all(listMobileLogins().map((l) => mobileLoginCredentials(l.id)));
+      // Only the selected org's test users, and only those still signed in.
+      const orgId = (await resolveOrg(loadSettings().sfTargetOrg))?.orgId;
+      const usable = listMobileLogins().filter((l) => l.status === "signedIn" && (!orgId || !l.orgId || sameOrgId(l.orgId, orgId)));
+      const mobileLogins = (await Promise.all(usable.map((l) => mobileLoginCredentials(l.id).catch(() => null)))).filter(
+        (l): l is NonNullable<typeof l> => !!l
+      ).slice(0, 25);
       const result = await client.callTool("studio_perf_start", { plan, ...(mobileLogins.length ? { mobileLogins } : {}) });
       return { data: JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}") };
     } catch (error) {

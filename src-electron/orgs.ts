@@ -147,6 +147,11 @@ function runOrgList(): Promise<OrgList> {
  * The connection `key` (an alias or username) names; with no key, the one the tools
  * fall back to — the sf CLI default, or the only connection there is.
  */
+/** 15- and 18-character org Ids of the same org compare equal. */
+export function sameOrgId(a: string | undefined, b: string | undefined): boolean {
+  return !!a && !!b && a.slice(0, 15) === b.slice(0, 15);
+}
+
 export function pickOrg(orgs: SfOrg[], key?: string): SfOrg | undefined {
   if (key) return orgs.find((o) => matchesOrg(o, key));
   return orgs.find((o) => o.isDefault) ?? (orgs.length === 1 ? orgs[0] : undefined);

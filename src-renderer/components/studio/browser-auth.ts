@@ -54,7 +54,8 @@ export function chooseAuth(
 ): AuthChoice {
   const domain = domainOfUrl(url);
   if (!domain) return { auth: { public: true }, candidates: [] };
-  const candidates = logins.filter((l) => domainOfUrl(l.instanceUrl) === domain);
+  // An expired login can't sign a page in; it's signed in again from Test users or the chip.
+  const candidates = logins.filter((l) => l.status !== "expired" && domainOfUrl(l.instanceUrl) === domain);
   const rep = viewerUserId ? candidates.find((l) => sameUserId(l.userId, viewerUserId)) : undefined;
   if (rep) return { auth: { loginId: rep.id }, candidates };
   if (remembered && ("cli" in remembered || ("loginId" in remembered && candidates.some((l) => l.id === remembered.loginId)))) {

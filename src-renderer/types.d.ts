@@ -60,6 +60,10 @@ export interface MobileLoginInfo {
   displayName?: string;
   orgId?: string;
   instanceUrl: string;
+  /** `expired`: Salesforce turned the refresh token down — sign in again. */
+  status: "signedIn" | "expired";
+  /** Kept across restarts (in the keychain); false when it ends when Roz quits. */
+  remembered: boolean;
 }
 
 export interface PerfSimRecord {
@@ -119,6 +123,8 @@ interface LscApi {
   studioAccessOptions(): Promise<StudioResponse>;
   studioLwcBundle(name: string): Promise<StudioResponse>;
   studioLwcRequest(method: "GET" | "POST", path: string, body?: unknown): Promise<StudioResponse>;
+  /** As the previewed rep's mobile login instead of the sf CLI connection. */
+  studioLwcRequestAs(loginId: string, method: "GET" | "POST", path: string, body?: unknown): Promise<StudioResponse>;
   studioIpadPublished(profile: string, refresh?: boolean, userId?: string): Promise<StudioResponse>;
   studioIpadPublishedProgress(profile: string): Promise<StudioResponse>;
   studioPreviewFix(fix: unknown): Promise<StudioResponse>;
@@ -157,6 +163,9 @@ interface LscApi {
   mobileLoginStart(loginUrl: string): Promise<{ login?: MobileLoginInfo; error?: string }>;
   mobileLoginList(): Promise<{ logins: MobileLoginInfo[] }>;
   mobileLoginRemove(id: string): Promise<{ ok: boolean }>;
+  mobileLoginCheck(): Promise<{ logins: MobileLoginInfo[] }>;
+  mobileLoginRenew(id: string): Promise<{ login?: MobileLoginInfo; error?: string }>;
+  onMobileLoginsChanged(callback: (logins: MobileLoginInfo[]) => void): () => void;
   studioSimStatus(jobId: string): Promise<StudioResponse>;
   studioSimCancel(jobId: string): Promise<StudioResponse>;
   studioSimActive(): Promise<StudioResponse>;

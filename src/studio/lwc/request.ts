@@ -1,10 +1,11 @@
 /**
  * Answers the requests an inline LWC makes in Studio's live preview: UI API
- * reads and GraphQL queries, as the connected Salesforce user. Writes and any
+ * reads and GraphQL queries, as the connected Salesforce user or the previewed
+ * rep's mobile login. Writes and any
  * other endpoint are refused, so a previewed component can't change the org.
  */
 
-import { createDeviceSession, type DeviceHttp } from "../../perf/device/session.js";
+import { createDeviceSession, createTokenSession, type DeviceHttp, type TokenLogin } from "../../perf/device/session.js";
 
 const API = "/services/data/v68.0";
 
@@ -55,19 +56,23 @@ function errorBody(data: unknown, fallback: string): { message: string; errorCod
   };
 }
 
-/** `http` replaces the org's session (tests). */
-export async function lwcRequest(org: string, req: LwcRequest, http?: DeviceHttp): Promise<LwcResponse> {
+/**
+ * As the sf CLI connection `as` names, or as a mobile login (its token is used for this request only and
+ * the main process refreshes it). `http` replaces the session (tests).
+ */
+export async function lwcRequest(as: string | TokenLogin, req: LwcRequest, http?: DeviceHttp): Promise<LwcResponse> {
   const refused = refuseLwcRequest(req);
   if (refused) return { ok: false, status: 403, statusText: "Forbidden", body: { message: refused } };
+  const tokenHttp = typeof as === "string" || http ? undefined : createTokenSession(as).http;
   const send = async (fresh: boolean) =>
-    (http ?? (await orgHttp(org, fresh)))({
+    (http ?? tokenHttp ?? (await orgHttp(as as string, fresh)))({
       method: req.method,
       url: `${API}${req.path}`,
       headers: { Accept: "application/json", ...(req.method === "POST" ? { "Content-Type": "application/json" } : {}) },
       body: req.method === "POST" ? JSON.stringify(req.body) : undefined,
     });
   let res = await send(false);
-  if (res.status === 401 && !http) res = await send(true);
+  if (res.status === 401 && !http && !tokenHttp) res = await send(true);
   const text = res.body.toString("utf8");
   let data: unknown = null;
   try {

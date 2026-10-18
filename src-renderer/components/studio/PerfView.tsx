@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { AssessmentResult, PerfCheckResult, PerfJobStatus, PerfPlan } from "./perf-types";
 import type { ProfileOption } from "./types";
-import type { MobileLoginInfo, PerfPlanRecord, PerfRunRecord } from "../../types";
+import type { PerfPlanRecord, PerfRunRecord } from "../../types";
+import { useOrgs } from "../../hooks/useOrgs";
+import { useMobileLogins } from "../../hooks/useMobileLogins";
+import { testUserName, testUsersFor } from "../../test-users";
 import {
   applyBaseline,
   emptyPlan,
@@ -117,8 +120,11 @@ export default function PerfView({ onAskClaude, seed }: PerfViewProps) {
   const [checkIssues, setCheckIssues] = useState<CheckIssue[]>([]);
   const [notice, setNotice] = useState<{ kind: "error" | "info"; text: string } | null>(null);
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
-  // Logins made through the LSC mobile app; a persona user with one gets an exact table list.
-  const [mobileLogins, setMobileLogins] = useState<MobileLoginInfo[]>([]);
+  // The org's test users (LSC mobile app logins); a persona user signed in as one gets an exact table list.
+  const { current: currentOrg } = useOrgs();
+  const mobile = useMobileLogins();
+  const testUsers = testUsersFor(mobile.logins, currentOrg?.orgId);
+  const mobileLogins = testUsers.filter((l) => l.status === "signedIn");
   const [mobileLoggingIn, setMobileLoggingIn] = useState(false);
   // Bumped to remount the editor when a different plan is loaded.
   const [editorKey, setEditorKey] = useState(0);
@@ -195,7 +201,6 @@ export default function PerfView({ onAskClaude, seed }: PerfViewProps) {
     const first = (active && list.find((p) => p.id === active.planId)) || list[0];
     if (first) await openPlan(first);
     else openDraft(emptyPlan());
-    window.lscApi.mobileLoginList().then((res) => setMobileLogins(res.logins));
     window.lscApi.studioListProfiles().then((res) => {
       setProfiles(Array.isArray(res.data) ? (res.data as ProfileOption[]) : []);
     });
@@ -375,6 +380,9 @@ export default function PerfView({ onAskClaude, seed }: PerfViewProps) {
     const users = p.users.filter((u) => loginNames.has(u.trim().toLowerCase()));
     return users.length ? [`${p.name.trim() || "Persona"} (${users.join(", ")})`] : [];
   });
+  // Persona users whose test user login expired: they fall back to profile metadata until signed in again.
+  const planUsers = new Set(draft.personas.flatMap((p) => p.users.map((u) => u.trim().toLowerCase())));
+  const expiredPersonaUsers = testUsers.filter((l) => l.status === "expired" && planUsers.has(l.username.toLowerCase()));
 
   /** Look the plan's users and territories up in the org; null when the check itself couldn't run. */
   const checkPlan = async (plan: PerfPlan, planOrg: string | undefined): Promise<CheckIssue[] | null> => {
@@ -454,19 +462,13 @@ export default function PerfView({ onAskClaude, seed }: PerfViewProps) {
     }
   };
 
-  /** Open the Salesforce login for the plan's org so a persona user can be signed in through the mobile app. */
+  /** Sign a persona user in as a test user, through the LSC mobile app on the selected org. */
   const mobileLogin = async () => {
     setNotice(null);
-    const orgName = (selectedPlan?.org || (await window.lscApi.getSettings()).sfTargetOrg || "").toLowerCase();
-    const orgs = (await window.lscApi.listSfOrgs()).orgs ?? [];
-    const org = orgs.find((o) => o.alias?.toLowerCase() === orgName || o.username.toLowerCase() === orgName) ?? (orgName ? undefined : orgs.find((o) => o.isDefault));
-    if (!org) {
-      setNotice({ kind: "error", text: "Studio couldn't find this org's login URL. Log in from First sync instead." });
-      return;
-    }
+    if (!currentOrg) return;
     setMobileLoggingIn(true);
     try {
-      const res = await window.lscApi.mobileLoginStart(org.instanceUrl);
+      const res = await window.lscApi.mobileLoginStart(currentOrg.instanceUrl);
       if (!res.login) {
         if (/consumer key/i.test(res.error ?? "")) {
           setNotice({
@@ -476,8 +478,7 @@ export default function PerfView({ onAskClaude, seed }: PerfViewProps) {
         } else if (res.error !== "Login window closed.") setNotice({ kind: "error", text: res.error ?? "Login failed." });
         return;
       }
-      setMobileLogins((await window.lscApi.mobileLoginList()).logins);
-      flash(`Logged in as ${res.login.username}. Its next run uses that user's own metadata download.`);
+      flash(`Signed in as ${res.login.username}. The next run uses that user's own metadata download.`);
     } finally {
       setMobileLoggingIn(false);
     }
@@ -799,10 +800,18 @@ export default function PerfView({ onAskClaude, seed }: PerfViewProps) {
                 {loginPersonas.length
                   ? `Exact table lists, from each user's own metadata download: ${loginPersonas.join("; ")}.`
                   : "Which tables each rep syncs is worked out from their profile's metadata and object permissions."}{" "}
-                {mobileLogins.length > 0 && "Users picked by profile use a login too when the username matches. "}
-                <button type="button" className="studio-btn sm" onClick={mobileLogin} disabled={running || mobileLoggingIn} title="Sign in as a persona user through the LSC mobile app, so the run reads that user's real table list">
+                {mobileLogins.length > 0 && "Users picked by profile use their test user too when the username matches. "}
+                {expiredPersonaUsers.length > 0 &&
+                  `${expiredPersonaUsers.map(testUserName).join(", ")}: login expired, so profile metadata is used — sign in again in Test users. `}
+                <button
+                  type="button"
+                  className="studio-btn sm"
+                  onClick={mobileLogin}
+                  disabled={running || mobileLoggingIn || !currentOrg?.connected}
+                  title="Sign in as a persona user through the LSC mobile app, so the run reads that user's real table list"
+                >
                   {mobileLoggingIn ? <Spinner size={12} /> : <LogIn size={14} aria-hidden="true" />}
-                  {mobileLoggingIn ? "Logging in…" : "Log in as mobile user…"}
+                  {mobileLoggingIn ? "Waiting for sign-in…" : "Sign in a test user…"}
                 </button>
               </div>
               <PlanEditor

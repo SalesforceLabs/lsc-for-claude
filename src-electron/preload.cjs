@@ -90,6 +90,8 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioAccessOptions: () => ipcRenderer.invoke("studio:call", "studio_access_options"),
   studioLwcBundle: (name) => ipcRenderer.invoke("studio:call", "studio_lwc_bundle", { name }),
   studioLwcRequest: (method, path, body) => ipcRenderer.invoke("studio:call", "studio_lwc_request", body === undefined ? { method, path } : { method, path, body }),
+  studioLwcRequestAs: (loginId, method, path, body) =>
+    ipcRenderer.invoke("studio:lwcRequestAs", loginId, body === undefined ? { method, path } : { method, path, body }),
   studioIpadPublished: (profile, refresh = false, userId) =>
     ipcRenderer.invoke("studio:call", "studio_ipad_published", userId ? { profile, userId } : { profile }, refresh),
   studioIpadPublishedProgress: (profile) => ipcRenderer.invoke("studio:call", "studio_ipad_published_progress", { profile }),
@@ -133,6 +135,13 @@ contextBridge.exposeInMainWorld("lscApi", {
   mobileLoginStart: (loginUrl) => ipcRenderer.invoke("mobileLogin:start", loginUrl),
   mobileLoginList: () => ipcRenderer.invoke("mobileLogin:list"),
   mobileLoginRemove: (id) => ipcRenderer.invoke("mobileLogin:remove", id),
+  mobileLoginCheck: () => ipcRenderer.invoke("mobileLogin:check"),
+  mobileLoginRenew: (id) => ipcRenderer.invoke("mobileLogin:renew", id),
+  onMobileLoginsChanged: (cb) => {
+    const handler = (_event, logins) => cb(logins);
+    ipcRenderer.on("mobileLogin:changed", handler);
+    return () => ipcRenderer.removeListener("mobileLogin:changed", handler);
+  },
   studioSimStatus: (jobId) => ipcRenderer.invoke("studio:call", "studio_sim_status", { jobId }),
   studioSimCancel: (jobId) => ipcRenderer.invoke("studio:call", "studio_sim_cancel", { jobId }),
   studioSimActive: () => ipcRenderer.invoke("studio:call", "studio_sim_active", {}),

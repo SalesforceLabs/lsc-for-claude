@@ -18,6 +18,7 @@ import ReadinessView from "./ReadinessView";
 import SetupOverview from "./SetupOverview";
 import UserTraceView from "./UserTraceView";
 import DriftView from "./DriftView";
+import TestUsersView from "./TestUsersView";
 import type { ReadinessState } from "./readiness";
 import {
   Activity,
@@ -28,6 +29,7 @@ import {
   Tablet,
   UserRound,
   UserRoundSearch,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 import Segmented from "../ui/Segmented";
@@ -47,7 +49,7 @@ const PREVIEW_HOSTS = [...PREVIEW_FEATURES, "visit"];
 type MapState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; map: FeatureMap };
 
 /** What the main pane shows: the iPad preview, a Setup page or feature, or a Testing page. */
-type Section = "preview" | "overview" | "user-check" | "drift" | "setup" | "sync";
+type Section = "preview" | "overview" | "user-check" | "drift" | "setup" | "sync" | "test-users";
 
 /** A preview block opened in the inspector beside the preview. */
 interface PreviewInspect {
@@ -369,6 +371,13 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           },
           Activity
         )}
+        {railItem(
+          "test-users",
+          "Test users",
+          "Reps signed in through the LSC mobile app, for the iPad preview, First sync and test plans",
+          () => setSection("test-users"),
+          UsersRound
+        )}
         <div className="studio-rail-title studio-rail-section">Features</div>
         {features.map((f) => (
           <button
@@ -542,6 +551,14 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             />
           </div>
           {tray}
+        </section>
+      )}
+
+      {section === "test-users" && (
+        <section className="studio-main ui-enter">
+          <div className="studio-scroll">
+            <TestUsersView />
+          </div>
         </section>
       )}
 

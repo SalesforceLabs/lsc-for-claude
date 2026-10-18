@@ -12,6 +12,9 @@ import type {
   PublishedTab,
 } from "./published-types";
 import IpadScreen from "./IpadScreen";
+import TestUserChip from "./TestUserChip";
+import { RepLoginContext, useMobileLogins } from "../../hooks/useMobileLogins";
+import { testUserFor } from "../../test-users";
 import RecordScreen from "./IpadRecord";
 import IpadFabs from "./IpadFabs";
 import { Dashboard } from "./IpadDashboard";
@@ -147,8 +150,11 @@ function Device({
   // The app gates Agentforce on the user-info "Agentforce" feature flag, which the CLI can't read; a Home welcome component stands in for it.
   const homeHasAgentforce = !!snapshot.home?.regions.some((r) => r.components.some((c) => c.supported && /lsAgentforceWelcome$/.test(c.name)));
   const generated = snapshot.cache.generatedAt ? new Date(snapshot.cache.generatedAt).toLocaleString() : "unknown";
+  const mobile = useMobileLogins();
+  const repLogin = testUserFor(mobile.logins, snapshot.viewer?.userId);
 
   return (
+    <RepLoginContext.Provider value={repLogin?.status === "signedIn" ? repLogin.id : undefined}>
     <div className="studio-ipad-wrap">
       <div className="studio-ipad-meta">
         Published for <strong>{snapshot.profile}</strong>
@@ -168,7 +174,14 @@ function Device({
                 </option>
               ))}
             </select>
-            <span className="studio-ipad-muted"> ({snapshot.viewer.permissionSets.length} permission sets)</span>
+            <span className="studio-ipad-muted"> ({snapshot.viewer.permissionSets.length} permission sets)</span>{" "}
+            <TestUserChip
+              logins={mobile.logins}
+              userId={snapshot.viewer.userId}
+              name={snapshot.viewer.name}
+              signedInTitle={`Inline components and Salesforce pages in the in-app browser load as ${snapshot.viewer.name}. The rest of the preview is read by your admin connection.`}
+              adminTitle={`Inline components and Salesforce pages load as your admin connection, which can see more than ${snapshot.viewer.name} can. Sign in as them to see their data.`}
+            />
           </>
         ) : (
           <span className="studio-ipad-muted"> · no active users, so no permission sets are merged in</span>
@@ -227,6 +240,7 @@ function Device({
         what the app renders; record data is placeholder. {snapshot.notes.join(" ")}
       </p>
     </div>
+    </RepLoginContext.Provider>
   );
 }
 
