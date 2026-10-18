@@ -86,12 +86,26 @@ describe("findHeaviestUsers", () => {
 describe("sync counts", () => {
   it("counts each user's DeviceSyncSummary rows in the window, matching 15- and 18-character ids", async () => {
     const org = mockOrg([
-      [/FROM DeviceSyncSummary WHERE CreatedById IN \('005A00000000001AAA','005B'\) AND CreatedDate = LAST_N_DAYS:14 GROUP BY CreatedById$/, () =>
+      [/FROM DeviceSyncSummary WHERE CreatedById IN \('005A00000000001AAA','005B'\) AND CreatedDate = LAST_N_DAYS:14 AND Type != 'clm' GROUP BY CreatedById$/, () =>
         ok([{ CreatedById: "005A00000000001", cnt: 9 }])],
     ]);
     const counts = await recentSyncCounts(org, ["005A00000000001AAA", "005B"], 14);
     expect(counts?.get("005A00000000001")).toBe(9);
     expect(counts?.has("005B")).toBe(false);
+  });
+
+  it("leaves out content (clm) rows, and falls back when the org has no Type field", async () => {
+    const queries: string[] = [];
+    const org = mockOrg([
+      [/FROM DeviceSyncSummary/, (q: string) => {
+        queries.push(q);
+        return /Type != 'clm'/.test(q) ? { success: false, error: "No such column 'Type'" } : ok([{ CreatedById: "005A", cnt: 4 }]);
+      }],
+    ]);
+    const counts = await recentSyncCounts(org, ["005A"], 30);
+    expect(counts?.get("005A")).toBe(4);
+    expect(queries).toHaveLength(2);
+    expect(queries[0]).toContain("Type != 'clm'");
   });
 
   it("returns null when sync telemetry can't be read", async () => {

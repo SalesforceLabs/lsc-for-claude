@@ -109,8 +109,26 @@ async function loadAggregates(org: OrgQuerier, fields: Set<string>, days: number
   const status = has("CompletionStatus");
   const where = [`CreatedDate = LAST_N_DAYS:${Math.max(1, Math.floor(days))}`, ...(has("Type") ? [`Type != 'clm'`] : [])];
   const select = `SELECT DAY_ONLY(CreatedDate) d${status ? ", CompletionStatus st" : ""}, COUNT(Id) c FROM DeviceSyncSummary WHERE ${where.join(" AND ")} GROUP BY DAY_ONLY(CreatedDate)${status ? ", CompletionStatus" : ""}`;
+  const toAgg = (r: Record<string, unknown>, st: string): DayAggregate => ({ day: String(r.d), status: st, count: Number(r.c ?? r.expr0 ?? 0) });
   try {
-    return (await rows(org, select)).map((r) => ({ day: String(r.d), status: String(r.st ?? ""), count: Number(r.c ?? r.expr0 ?? 0) }));
+    const all = await rows(org, select);
+    if (status || !has("IsDownloadCompleted") || !has("DownloadStart")) {
+      return all.map((r) => toAgg(r, String(r.st ?? "")));
+    }
+    // No CompletionStatus here: read the outcome the way the per-sync rows do (syncOutcome) — a sync that
+    // reached the download step either finished it or failed; the rest stopped before downloading.
+    const reached = await rows(
+      org,
+      `SELECT DAY_ONLY(CreatedDate) d, IsDownloadCompleted ok, COUNT(Id) c FROM DeviceSyncSummary WHERE ${where.join(" AND ")} AND DownloadStart != null GROUP BY DAY_ONLY(CreatedDate), IsDownloadCompleted`
+    );
+    const out: DayAggregate[] = reached.map((r) => toAgg(r, r.ok === false ? "Failed" : "Finished"));
+    const reachedByDay = new Map<string, number>();
+    for (const a of out) reachedByDay.set(a.day, (reachedByDay.get(a.day) ?? 0) + a.count);
+    for (const r of all) {
+      const left = Number(r.c ?? r.expr0 ?? 0) - (reachedByDay.get(String(r.d)) ?? 0);
+      if (left > 0) out.push({ day: String(r.d), status: "Stopped early", count: left });
+    }
+    return out;
   } catch {
     return null;
   }
