@@ -5,11 +5,9 @@ import { audienceProfiles, isScoped, type Lens } from "./lens";
 import { SeverityChips } from "./SeverityChips";
 import FeatureGrid from "./FeatureGrid";
 import LensChecklist from "./LensChecklist";
-import IpadPreview from "./IpadPreview";
 import PublishedIpadPreview, { type PublishedState } from "./PublishedIpadPreview";
 import { usePreviewEdit } from "./usePreviewEdit";
 import type { PublishedResult } from "./published-types";
-import type { IpadBlock } from "./ipad";
 import Inspector from "./Inspector";
 import ReviewDialog from "./ReviewDialog";
 import PublishDialog from "./PublishDialog";
@@ -41,7 +39,7 @@ interface StudioViewProps {
   onAskClaude: (prompt: string) => void;
 }
 
-/** Features the iPad preview is drawn from, loaded when it opens; Visit is loaded when its tab is opened. */
+/** Features the iPad preview's edit mode reads (tabs, Home actions, DB Schema), loaded when it opens. */
 const PREVIEW_FEATURES = ["actions-home", "mobile-sync"];
 /** Features whose page offers a "Preview on iPad" shortcut. */
 const PREVIEW_HOSTS = [...PREVIEW_FEATURES, "visit"];
@@ -50,13 +48,6 @@ type MapState = { status: "loading" } | { status: "error"; error: string } | { s
 
 /** What the main pane shows: the iPad preview, a Setup page or feature, or a Testing page. */
 type Section = "preview" | "overview" | "user-check" | "drift" | "setup" | "sync";
-
-/** A preview block opened in the inspector beside the preview. */
-interface PreviewInspect {
-  featureId: string;
-  surface: SurfaceId;
-  itemId: string;
-}
 
 export default function StudioView({ onAskClaude }: StudioViewProps) {
   const [features, setFeatures] = useState<FeatureSummary[]>([]);
@@ -84,13 +75,8 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
   // iPad preview — stays mounted once opened so its screen survives switching sections.
   const [previewOpened, setPreviewOpened] = useState(false);
-  // Object the preview opens on, from a feature's "Preview on iPad"; the key remounts it so it opens there again.
-  const [previewStart, setPreviewStart] = useState<string | undefined>(undefined);
-  const [previewKey, setPreviewKey] = useState(0);
-  const [previewInspect, setPreviewInspect] = useState<PreviewInspect | null>(null);
-  // "published" reads the profile's last metadata cache; "draft" lays the tray over it; "estimate" is the
-  // schematic simulated from the live maps (still where the Visit engagement sidebar is edited).
-  const [previewMode, setPreviewMode] = useState<"published" | "draft" | "estimate">("published");
+  // "published" reads the profile's last metadata cache; "draft" lays the tray over it.
+  const [previewMode, setPreviewMode] = useState<"published" | "draft">("published");
   // Edit mode: select blocks in the published preview to see what they are and change them.
   const [editOn, setEditOn] = useState(false);
   const [published, setPublished] = useState<Record<string, PublishedState>>({});
@@ -172,9 +158,6 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     if (!previewOpened) return;
     for (const id of PREVIEW_FEATURES) if (!maps[id]) load(id);
   }, [previewOpened, maps, load]);
-  useEffect(() => {
-    if (previewInspect && !maps[previewInspect.featureId]) load(previewInspect.featureId);
-  }, [previewInspect, maps, load]);
   const loadPublished = useCallback(async (profile: string, refresh = false, userId?: string) => {
     setPublished((p) => ({ ...p, [profile]: { status: "loading" } }));
     const res = await window.lscApi.studioIpadPublished(profile, refresh, userId);
@@ -184,22 +167,13 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
       [profile]: error ? { status: "error", error } : { status: "ready", result: res.data as PublishedResult },
     }));
   }, []);
-  const loadVisit = useCallback(() => {
-    if (!maps.visit) load("visit");
-  }, [maps.visit, load]);
   const readyMap = (id: string) => {
     const m = maps[id];
     return m?.status === "ready" ? m.map : null;
   };
-  const inspectBlock = (block: IpadBlock) =>
-    setPreviewInspect({ featureId: block.featureId, surface: block.surface, itemId: block.itemId });
-  const openPreview = (startOn?: string) => {
+  const openPreview = () => {
     setSection("preview");
     setPreviewOpened(true);
-    if (startOn) {
-      setPreviewStart(startOn);
-      setPreviewKey((k) => k + 1);
-    }
   };
   const openSetup = (id: string, surface: SurfaceId | null = null, item: string | null = null) => {
     setSection("setup");
@@ -222,7 +196,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     selectSurface(null);
   };
 
-  const publishedProfile = previewOpened && previewMode !== "estimate" ? (lens?.profile ?? null) : null;
+  const publishedProfile = previewOpened ? (lens?.profile ?? null) : null;
   const toggleEdit = useCallback(() => {
     setEditOn((on) => {
       // Edits are made in Draft; Published stays selectable to explain what reps have today.
@@ -230,7 +204,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
       return !on;
     });
   }, []);
-  const previewShown = section === "preview" && previewMode !== "estimate" && !!publishedProfile;
+  const previewShown = section === "preview" && !!publishedProfile;
   useEffect(() => {
     if (!previewShown) return;
     const onKey = (e: KeyboardEvent) => {
@@ -276,7 +250,6 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     Object.values(readiness).find((r) => r.status === "ready")?.readiness.org ??
     seenOrg ??
     connectedOrg;
-  const previewLoading = PREVIEW_FEATURES.some((id) => maps[id]?.status === "loading");
   const publishedState = publishedProfile ? published[publishedProfile] : undefined;
   const { edit: previewEdit, panel: editPanel } = usePreviewEdit({
     on: editOn && previewShown,
@@ -291,18 +264,11 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     profiles,
     onOpenStudio: (id, surface, item) => openSetup(id, surface, item),
   });
-  const inspectedMap = previewInspect ? readyMap(previewInspect.featureId) : null;
-  const inspectedSurface = inspectedMap?.surfaces.find((s) => s.id === previewInspect?.surface) ?? null;
-  const inspectedCheckable = !!inspectedMap?.surfaces.some(isScoped);
 
   const previewSubtitle =
     previewMode === "published"
       ? `Exactly as ${lens ? `${lens.profile}'s` : "a profile's"} users last downloaded it, from the profile's metadata cache`
-      : previewMode === "draft"
-        ? `As published, with ${pending.length === 1 ? "the pending change" : `${pending.length || "no"} pending changes`} laid on top — tabs, Home actions and DB Schema`
-        : `Schematic estimate after the next publish from the live configuration${
-          lens ? ` for ${lens.profile}` : ""
-        } — permission sets and record sharing aren't evaluated`;
+      : `As published, with ${pending.length === 1 ? "the pending change" : `${pending.length || "no"} pending changes`} laid on top — tabs, Home actions, DB Schema and page layouts`;
 
   const featureBusy = state?.status === "loading" || readiness[featureId]?.status === "loading";
   const featureSubtitle = map
@@ -379,7 +345,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         {railItem(
           "preview",
           "Preview",
-          "What LSC Mobile shows a profile — as last published, or estimated after the next publish",
+          "What LSC Mobile shows a profile — as last published, or with pending changes laid on top",
           () => openPreview(),
           Tablet
         )}
@@ -436,7 +402,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               </div>
             </div>
             <div className="studio-header-actions">
-              {previewMode !== "estimate" && publishedProfile && (
+              {publishedProfile && (
                 <button
                   className={`studio-btn collapsible${editOn ? " active" : ""}`}
                   aria-pressed={editOn}
@@ -448,15 +414,6 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
                 </button>
               )}
               {readyOrg && publishButton}
-              {previewMode === "estimate" &&
-                refreshButton(
-                  previewLoading,
-                  () => {
-                    for (const id of PREVIEW_FEATURES) load(id, true);
-                    if (maps.visit) load("visit", true);
-                  },
-                  previewLoading ? "Mapping…" : "Refresh"
-                )}
             </div>
           </header>
           <div className="studio-subbar">
@@ -467,11 +424,6 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               options={[
                 { value: "published", label: "Published", title: "What reps have today, from the metadata cache" },
                 { value: "draft", label: "Draft", title: "Published, with the pending changes laid on top" },
-                {
-                  value: "estimate",
-                  label: "Schematic",
-                  title: "A block estimate of the iPad after the next publish, from the live configuration",
-                },
               ]}
             />
             <div className="studio-subbar-group">
@@ -486,63 +438,24 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
 
           <div className="studio-stage">
             <div className="studio-canvas">
-              {previewMode !== "estimate" ? (
-                publishedProfile ? (
-                  <PublishedIpadPreview
-                    profile={publishedProfile}
-                    state={publishedState}
-                    onRefresh={(userId) => loadPublished(publishedProfile, true, userId)}
-                    onPickUser={(userId) => loadPublished(publishedProfile, false, userId)}
-                    edit={previewEdit}
-                  />
-                ) : (
-                  <StateView
-                    kind="empty"
-                    icon={Tablet}
-                    title="Choose a profile"
-                    detail="Pick one in “Preview as” to see the iPad exactly as that profile's users last downloaded it."
-                  />
-                )
+              {publishedProfile ? (
+                <PublishedIpadPreview
+                  profile={publishedProfile}
+                  state={publishedState}
+                  onRefresh={(userId) => loadPublished(publishedProfile, true, userId)}
+                  onPickUser={(userId) => loadPublished(publishedProfile, false, userId)}
+                  edit={previewEdit}
+                />
               ) : (
-                <IpadPreview
-                  key={previewKey}
-                  actionsMap={readyMap("actions-home")}
-                  syncMap={readyMap("mobile-sync")}
-                  visitMap={readyMap("visit")}
-                  onLoadVisit={loadVisit}
-                  visitError={maps.visit?.status === "error" ? maps.visit.error : undefined}
-                  lens={lens}
-                  pending={pending}
-                  onSelect={inspectBlock}
-                  selectedItem={previewInspect?.itemId ?? null}
-                  startOn={previewStart}
+                <StateView
+                  kind="empty"
+                  icon={Tablet}
+                  title="Choose a profile"
+                  detail="Pick one in “Preview as” to see the iPad exactly as that profile's users last downloaded it."
                 />
               )}
             </div>
-            {previewMode !== "estimate" && editPanel}
-            {previewMode === "estimate" && inspectedMap && inspectedSurface && previewInspect && (
-              <Inspector
-                key={`${previewInspect.featureId}:${previewInspect.surface}:${previewInspect.itemId}`}
-                map={inspectedMap}
-                surface={inspectedSurface}
-                lens={inspectedCheckable ? lens : null}
-                onClose={() => setPreviewInspect(null)}
-                onOpenInSetup={() => openSetup(previewInspect.featureId, previewInspect.surface, previewInspect.itemId)}
-                onCheckProfile={
-                  inspectedCheckable
-                    ? (profile) => {
-                        setLens({ profile });
-                        openSetup(previewInspect.featureId);
-                      }
-                    : undefined
-                }
-                onAskClaude={onAskClaude}
-                profiles={profiles}
-                pending={pending}
-                onPendingChange={setPending}
-                focusItem={previewInspect.itemId}
-              />
-            )}
+            {editPanel}
           </div>
 
           {tray}
@@ -630,8 +543,8 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             {map && canPreview && (
               <button
                 className="studio-btn collapsible"
-                onClick={() => openPreview(featureId === "visit" ? "Visit" : undefined)}
-                title="Preview on iPad — a block render of what LSC Mobile shows: tabs, home page, and record actions"
+                onClick={() => openPreview()}
+                title="Preview on iPad — what LSC Mobile shows a profile, as last published or with pending changes in Draft"
               >
                 <Tablet aria-hidden="true" />
                 <span className="studio-btn-label">Preview on iPad</span>
