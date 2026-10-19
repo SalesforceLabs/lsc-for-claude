@@ -211,6 +211,21 @@ describe("directDeploy", () => {
     expect(await directDeploy(file, ORG, async () => creds)).toEqual({ ok: true, data: undefined });
   });
 
+  it("reports a status as soon as Salesforce accepts the deploy, before the first poll", async () => {
+    const file = path.join(tmp, "A-B.layout-meta.xml");
+    fs.writeFileSync(file, "<Layout/>");
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(xmlResponse(envelope("deploy", "<done>false</done><id>0Af1</id>")))
+        .mockResolvedValueOnce(xmlResponse(envelope("checkDeployStatus", "<done>true</done><id>0Af1</id><status>Succeeded</status><success>true</success>")))
+    );
+    const seen: (string | undefined)[] = [];
+    await directDeploy(file, ORG, async () => creds, undefined, (s) => seen.push(s.status));
+    expect(seen).toEqual(["Queued", "Succeeded"]);
+  });
+
   it("validates only when asked to check", async () => {
     const file = path.join(tmp, "A-B.layout-meta.xml");
     fs.writeFileSync(file, "<Layout/>");

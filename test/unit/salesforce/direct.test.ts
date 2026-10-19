@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { directGet, directQuery, resetDirect, MAX_GET_URL_CHARS } from "../../../src/salesforce/direct.js";
-import { Limiter } from "../../../src/salesforce/limiter.js";
+import { Limiter, urgentScope } from "../../../src/salesforce/limiter.js";
 import { markTruncated } from "../../../src/salesforce/cli.js";
 
 const ORG = "big-org";
@@ -144,6 +144,24 @@ describe("Limiter", () => {
     );
     expect(peak).toBe(3);
     expect(done).toHaveLength(20);
+    expect(limiter.stats()).toEqual({ active: 0, waiting: 0 });
+  });
+
+  it("lets urgent calls (and everything started in an urgentScope) pass a full queue, within the reserve", async () => {
+    const limiter = new Limiter(() => 1);
+    const order: string[] = [];
+    let release!: () => void;
+    const hold = limiter.run(() => new Promise<void>((r) => (release = r)));
+    const queued = [1, 2, 3].map((i) => limiter.run(async () => void order.push(`bg${i}`)));
+    await limiter.run(async () => void order.push("urgent"), { urgent: true });
+    await urgentScope(async () => {
+      await Promise.resolve();
+      await limiter.run(async () => void order.push("scoped"));
+    });
+    expect(order).toEqual(["urgent", "scoped"]);
+    release();
+    await Promise.all([hold, ...queued]);
+    expect(order.slice(2)).toEqual(["bg1", "bg2", "bg3"]);
     expect(limiter.stats()).toEqual({ active: 0, waiting: 0 });
   });
 

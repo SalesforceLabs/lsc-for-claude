@@ -126,6 +126,12 @@ async function runAsync(
   if (!first.ok) return first;
   const id = String(first.data.id ?? "");
   if (!id) return { ok: false, error: `Salesforce didn't start the ${startOp}` };
+  // Salesforce took it: say so now, not after the first poll, so the row never sits with nothing to show.
+  try {
+    onStatus?.({ operation: startOp === "deploy" ? "deploy" : "retrieve", status: "Queued" });
+  } catch {
+    // Progress is advisory.
+  }
   for (let n = 0; ; n++) {
     if (Date.now() - began > timeoutMs) return { ok: false, timedOut: true, error: `The ${startOp} didn't finish in ${Math.round(timeoutMs / 1000)}s` };
     await sleep(pollDelay(n));

@@ -79,9 +79,11 @@ export default function ReviewProgress({ id, phase, labels, finished }: Props) {
                     {v.steps.map((s) => (
                       <li key={s.key} className={s.state}>
                         <Mark state={s.state} />
-                        <span>{s.label}</span>
-                        {s.detail && <span className="studio-review-progress-detail"> · {s.detail}</span>}
-                        {s.startedAt && <span className="studio-review-progress-detail"> · {stepTime(s, now)}</span>}
+                        <span className="studio-review-progress-text">
+                          {s.label}
+                          {s.detail && <span className="studio-review-progress-detail"> · {s.detail}</span>}
+                          {s.startedAt && <span className="studio-review-progress-detail"> · {stepTime(s, now)}</span>}
+                        </span>
                       </li>
                     ))}
                   </ol>
