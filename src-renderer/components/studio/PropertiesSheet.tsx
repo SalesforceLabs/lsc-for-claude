@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Undo2 } from "lucide-react";
 import type { PropertyEdit } from "./flexipage-draft";
+import { fieldIpadNote } from "./component-props";
 import StatusIcon from "../ui/StatusIcon";
 import Spinner from "../ui/Spinner";
 
@@ -17,6 +18,8 @@ export default function PropertiesSheet({
   loading,
   note,
   dynamic,
+  componentNote,
+  notDrawn = false,
   onSet,
   onReset,
 }: {
@@ -28,29 +31,35 @@ export default function PropertiesSheet({
   note?: string;
   /** The component reads every property it has, whatever its name. */
   dynamic?: string;
+  /** What the iPad does with the component as a whole: not drawn (so no property is used), an inline LWC's height only, or not traced. */
+  componentNote?: string;
+  /** The iPad doesn't draw the component: the note above says so once, so the fields stay quiet. */
+  notDrawn?: boolean;
   onSet: (edit: PropertyEdit, value: string) => void;
   onReset: (edit: PropertyEdit) => void;
 }) {
-  if (!properties.length && !loading && !note) return null;
+  if (!properties.length && !loading && !note && !componentNote) return null;
   return (
     <section className="studio-propsheet" aria-label="Properties">
       <h4 className="studio-propsheet-title">
         Properties
         {loading && <Spinner size={12} />}
       </h4>
+      {componentNote && <p className="studio-form-help">{componentNote}</p>}
       {dynamic && <p className="studio-form-help">{dynamic}</p>}
       {note && <p className="studio-form-help">{note}</p>}
       <div className="studio-form">
         {properties.map((p) => (
-          <PropertyField key={p.property} edit={p} draft={draft} onSet={(value) => onSet(p, value)} onReset={() => onReset(p)} />
+          <PropertyField key={p.property} edit={p} draft={draft} notDrawn={notDrawn} onSet={(value) => onSet(p, value)} onReset={() => onReset(p)} />
         ))}
       </div>
     </section>
   );
 }
 
-function PropertyField({ edit, draft, onSet, onReset }: { edit: PropertyEdit; draft: boolean; onSet: (value: string) => void; onReset: () => void }) {
+function PropertyField({ edit, draft, notDrawn, onSet, onReset }: { edit: PropertyEdit; draft: boolean; notDrawn: boolean; onSet: (value: string) => void; onReset: () => void }) {
   const { def } = edit;
+  const ipadNote = fieldIpadNote(def, notDrawn);
   const [value, setValue] = useState(edit.value);
   useEffect(() => setValue(edit.value), [edit.value]);
   const { problem, warning } = edit.check(value);
@@ -125,9 +134,7 @@ function PropertyField({ edit, draft, onSet, onReset }: { edit: PropertyEdit; dr
       </label>
       <span className="studio-form-field">
         {input}
-        {def.ipad === "unused" && <span className="studio-form-help">Not used on the iPad{def.ipadNote && def.ipadNote !== "The iPad ignores this." ? ` — ${def.ipadNote}` : ""}</span>}
-        {def.ipad === "unknown" && def.ipadNote && <span className="studio-form-help">{def.ipadNote}</span>}
-        {def.ipad === "used" && def.ipadNote && <span className="studio-form-help">{def.ipadNote}</span>}
+        {ipadNote && <span className="studio-form-help">{ipadNote}</span>}
         {def.description && <span className="studio-form-help">{def.description}</span>}
         {(problem || warning) && (
           <span className="studio-form-help" role="status">

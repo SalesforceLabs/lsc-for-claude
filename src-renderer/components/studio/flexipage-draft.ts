@@ -1,5 +1,5 @@
 import type { FlexiSource, PublishedComponent, PublishedPage } from "./published-types";
-import { checkProp, DYNAMIC_COMPONENTS, IPAD_READS, normalizeProp, untypedDef, type ComponentPropDef, type ComponentProps } from "./component-props";
+import { checkProp, DYNAMIC_COMPONENTS, IPAD_READS, normalizeProp, untypedDef, type ComponentPropDef, type ComponentProps, type Unlisted } from "./component-props";
 import type { ComponentCatalog, FlexiItemRef, FlexiPageEditFix, FlexiPageOp, FlexiPageProperty, LiveFlexiPage } from "./types";
 import { flexiPageOpsChange, pendingFor, queueChange, type PendingChange } from "./changes";
 import type { DraftState, Verb } from "./edit-draft";
@@ -600,12 +600,12 @@ export function propertyEdits(d: PageDraft, key: string, loaded?: ComponentProps
   const props = at.item.properties;
   const orgProps = locateItem(d.base, key)?.item.properties ?? {};
   const pointers = new Set(Object.entries({ ...orgProps, ...props }).filter(([, v]) => d.target.regions.some((r) => r.facet && r.name === v)).map(([k]) => k));
-  const dynamic = !!loaded?.dynamic || DYNAMIC_COMPONENTS.includes(name);
+  const unlisted: Unlisted | undefined = loaded?.unlisted ?? (DYNAMIC_COMPONENTS.includes(name) ? "used" : undefined);
   const defs = new Map<string, ComponentPropDef>();
   for (const def of loaded?.properties ?? []) defs.set(def.name, def);
   for (const def of fallbackDefs(at.item.component, name, props)) if (!defs.has(def.name)) defs.set(def.name, def);
   for (const k of Object.keys({ ...orgProps, ...props })) {
-    if (!defs.has(k) && !pointers.has(k) && k !== "active") defs.set(k, untypedDef(k, dynamic));
+    if (!defs.has(k) && !pointers.has(k) && k !== "active") defs.set(k, untypedDef(k, unlisted));
   }
   const result = [...defs.values()]
     .filter((def) => !pointers.has(def.name) && def.name !== "active")

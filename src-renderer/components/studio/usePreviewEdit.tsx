@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ListPlus, SquarePlus, TextCursorInput } from "lucide-react";
 import type { ComponentCatalog, CreateConfigFix, FeatureMap, StudioFix, LiveCompactLayout, LiveFlexiPage, LiveLayout, LiveListView, ProfileOption } from "./types";
-import type { ComponentProps } from "./component-props";
+import { componentNote, type ComponentProps } from "./component-props";
 import type { PublishedIpad, PublishedListView, PublishedResult } from "./published-types";
 import type { PreviewEdit } from "./PublishedIpadPreview";
 import type { EditDrop } from "./EditLayer";
@@ -585,6 +585,8 @@ export function usePreviewEdit({
           propertiesLoading={propState === "loading"}
           propertiesNote={propState && typeof propState === "object" && "error" in propState ? `Couldn't read the component's property definitions: ${propState.error}` : loadedProps?.note}
           propertiesDynamic={loadedProps?.dynamic}
+          propertiesComponentNote={componentNote(loadedProps) ?? undefined}
+          propertiesNotDrawn={loadedProps?.renders === "no"}
           sync={sync}
           onSync={() => {
             if (sync?.kind === "change") onPendingChange(queueChange(pending, sync.change));

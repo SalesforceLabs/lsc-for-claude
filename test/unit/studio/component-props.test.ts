@@ -9,7 +9,7 @@ vi.mock("../../../src/salesforce/cli.js", () => ({
 
 const cli = await import("../../../src/salesforce/cli.js");
 const server = await import("../../../src/studio/component-props.js");
-const { checkProp, normalizeProp, untypedDef, IPAD_READS: rendererReads, DYNAMIC_COMPONENTS } = await import("../../../src-renderer/components/studio/component-props.js");
+const { checkProp, normalizeProp, untypedDef, fieldIpadNote, componentNote, IPAD_READS: rendererReads, DYNAMIC_COMPONENTS } = await import("../../../src-renderer/components/studio/component-props.js");
 
 const META = `<?xml version="1.0" encoding="UTF-8"?>
 <LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
@@ -73,7 +73,7 @@ describe("collectComponentProps", () => {
     const res = await server.collectComponentProps("flexipage:richText", "HomePage", "org");
     expect(res.source).toBe("curated");
     expect(res.properties.find((p) => p.name === "richTextValue")).toMatchObject({ ipad: "used", multiline: true });
-    expect(res.properties.find((p) => p.name === "decorate")).toMatchObject({ ipad: "unused" });
+    expect(res.properties.find((p) => p.name === "decorate")).toMatchObject({ ipad: "used" });
     expect(cli.runToolingQuery).not.toHaveBeenCalled();
   });
 
@@ -87,7 +87,11 @@ describe("collectComponentProps", () => {
     const res = await server.collectComponentProps("lscMobileInline_Carousel", "RecordPage", "org");
     expect(res.source).toBe("bundle");
     expect(res.properties.find((p) => p.name === "mobileHeight")).toMatchObject({ ipad: "used", min: 100, max: 900 });
-    expect(res.properties.find((p) => p.name === "heading")).toMatchObject({ ipad: "unknown" });
+    // LMRModule.swift:110: only the height is handed to an inline LWC, so its own properties are not used.
+    expect(res.properties.find((p) => p.name === "heading")).toMatchObject({ ipad: "unused" });
+    expect(res.renders).toBe("yes");
+    expect(res.rendersNote).toMatch(/only its height/);
+    expect(res.unlisted).toBe("unused");
     const soql = String(vi.mocked(cli.runToolingQuery).mock.calls[0][0]);
     expect(soql).toContain("DeveloperName = 'lscMobileInline_Carousel'");
     expect(soql).toContain("NamespacePrefix = null");
@@ -99,6 +103,44 @@ describe("collectComponentProps", () => {
     expect(String(vi.mocked(cli.runToolingQuery).mock.calls[0][0])).toContain("NamespacePrefix = 'lsc4ce'");
     expect(res.properties.map((p) => p.name)).toEqual(["mobileHeight"]);
     expect(res.note).toMatch(/js-meta/);
+  });
+
+  it("covers analytics_embedding:metric with typed, iPad-read properties", async () => {
+    const res = await server.collectComponentProps("analytics_embedding:metric", "RecordPage", "org");
+    expect(res.source).toBe("curated");
+    expect(res.renders).toBe("yes");
+    expect(res.properties.length).toBeGreaterThan(0);
+    expect(res.properties.find((p) => p.name === "metricId")).toBeTruthy();
+    expect(res.unlisted).toBe("unused");
+  });
+
+  it("says once, at the component level, that an undrawn component's properties are unused", async () => {
+    vi.mocked(cli.runToolingQuery).mockResolvedValue({ success: true, data: { records: [] } } as never);
+    const res = await server.collectComponentProps("forceChatter:publisher", "RecordPage", "org");
+    expect(res.renders).toBe("no");
+    expect(res.rendersNote).toBe(server.NOT_RENDERED_NOTE);
+    expect(res.unlisted).toBe("unused");
+    expect(res.properties.every((p) => p.ipad !== "used")).toBe(true);
+  });
+
+  it("answers every curated component without an org call, never 'unknown' except untraced ones", async () => {
+    const names = [
+      "flexipage:tab", "flexipage:tabset", "flexipage:richText", "flexipage:accordion", "flexipage:fieldSection",
+      "force:relatedListContainer", "lst:dynamicRelatedList", "analytics_embedding:dashboard",
+      "analytics_embedding:visualization", "analytics_embedding:metric", "flowruntime:interview",
+      "c:LSCGenericRelatedList", "c:LSCVideoCallRecordingList", "c:AccountSalesChart", "c:Ratings", "c:ganttChart",
+    ];
+    for (const n of names) {
+      const res = await server.collectComponentProps(n, "RecordPage", "org");
+      expect(res.unlisted, n).not.toBe("unknown");
+    }
+    expect(cli.runToolingQuery).not.toHaveBeenCalled();
+  });
+
+  it("flags untraced components once", async () => {
+    const res = await server.collectComponentProps("c:profilingQuestions", "RecordPage", "org");
+    expect(res.unlisted).toBe("unknown");
+    expect(res.rendersNote).toBe(server.UNTRACED_NOTE);
   });
 
   it("rejects odd component names", async () => {
@@ -137,10 +179,37 @@ describe("typed checks", () => {
     expect(normalizeProp({ ...int, type: "String" }, "007")).toBe("007");
   });
 
-  it("marks untyped properties the iPad reads", () => {
-    expect(untypedDef("richTextValue", false).ipad).toBe("used");
-    expect(untypedDef("anything", false).ipad).toBe("unknown");
-    expect(untypedDef("anything", true).ipad).toBe("used");
+  it("marks untyped properties by what the component says about unlisted ones", () => {
+    expect(untypedDef("anything", "used").ipad).toBe("used");
+    expect(untypedDef("anything", "unused").ipad).toBe("unused");
+    expect(untypedDef("anything", "unknown")).toMatchObject({ ipad: "unknown" });
+    // Every component reads its title as the header (SFComponentViewController.swift:119).
+    expect(untypedDef("title", "unused").ipad).toBe("used");
+    // Until the answer arrives, nothing is claimed beyond the preview's own list.
+    expect(untypedDef("richTextValue").ipad).toBe("used");
+    expect(untypedDef("anything").ipad).toBe("unknown");
+    expect(untypedDef("anything").ipadNote).toBeUndefined();
+  });
+
+  it("never says Studio doesn't know on a field", () => {
+    const unknown = untypedDef("x", "unknown");
+    expect(fieldIpadNote(unknown, false)).toBeNull();
+  });
+
+  it("says Not used on the iPad per field, but once for a component the iPad doesn't draw", () => {
+    const def = untypedDef("x", "unused");
+    expect(fieldIpadNote(def, false)).toBe("Not used on the iPad");
+    expect(fieldIpadNote(def, true)).toBeNull();
+    expect(fieldIpadNote({ ...def, ipadNote: "The iPad draws its own tab bar." }, false)).toBe("Not used on the iPad — The iPad draws its own tab bar.");
+    expect(fieldIpadNote(untypedDef("x", "used"), false)).toBeNull();
+  });
+
+  it("builds the component line", () => {
+    const base = { component: "c:x", source: "none" as const, properties: [], unlisted: "unused" as const };
+    expect(componentNote({ ...base, renders: "no" })).toMatch(/doesn't draw this component/);
+    expect(componentNote({ ...base, renders: "yes", rendersNote: "Only the height." })).toBe("Only the height.");
+    expect(componentNote({ ...base, renders: "yes" })).toBeNull();
+    expect(componentNote(null)).toBeNull();
   });
 });
 
