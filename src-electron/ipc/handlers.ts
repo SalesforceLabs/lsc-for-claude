@@ -653,6 +653,18 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       if (!toolName.startsWith(STUDIO_TOOL_PREFIX)) {
         return { error: `Not a Studio tool: ${toolName}` };
       }
+      // Live progress of a running preview/apply: no cache and no shared in-flight call (each poll
+      // must see the state as it is now), and it makes no org calls so it never queues behind the work.
+      if (toolName === "studio_fix_progress") {
+        const client = await readyMcpClient();
+        if (!client) return { error: "Engine not started" };
+        try {
+          const result = await client.callTool(toolName, args, { timeoutMs: 15_000 });
+          return { data: JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}") };
+        } catch (error) {
+          return { error: error instanceof Error ? error.message : String(error) };
+        }
+      }
       // Org-backed results are persisted per org; the feature list is static and cheap.
       const cacheable = STUDIO_CACHED_TOOLS.has(toolName);
       const org = loadSettings().sfTargetOrg ?? "";

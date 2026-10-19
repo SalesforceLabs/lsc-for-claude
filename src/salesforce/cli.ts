@@ -12,7 +12,7 @@ import * as os from "os";
 import { cacheGet, cacheSet, queryCacheKey, describeCacheKey } from "../cache.js";
 import { sfLimiter } from "./limiter.js";
 import { directApiVersion, directDownload, directEnabled, directGet, directPostRead, directQuery, type DirectCredentials } from "./direct.js";
-import { directDeploy, directRetrieve } from "./direct-metadata.js";
+import { directDeploy, directRetrieve, type StatusHook } from "./direct-metadata.js";
 import { invalidateSharedReads } from "../config/read-cache.js";
 
 const execAsync = promisify(exec);
@@ -624,10 +624,11 @@ export async function deleteRecord(
  */
 export async function deployMetadata(
   sourcePath: string,
-  targetOrg: string
+  targetOrg: string,
+  onStatus?: StatusHook
 ): Promise<CliResult<unknown>> {
   const cwd = ensureTmpSfdxProject();
-  const direct = await asWrite(targetOrg, () => directDeploy(sourcePath, targetOrg, directCredentials));
+  const direct = await asWrite(targetOrg, () => directDeploy(sourcePath, targetOrg, directCredentials, undefined, onStatus));
   if (direct) return direct.ok ? { success: true, data: {} } : { success: false, error: direct.error, timedOut: direct.timedOut };
   return execSfCommand("project", ["deploy", "start", "--source-dir", sourcePath], {
     targetOrg,
@@ -671,14 +672,15 @@ export async function deleteMetadata(type: string, fullName: string, targetOrg: 
 export async function retrieveMetadata(
   _targetPath: string,
   metadata: string | string[],
-  targetOrg: string
+  targetOrg: string,
+  onStatus?: StatusHook
 ): Promise<CliResult<{ outputDir: string }>> {
   const projectDir = ensureTmpSfdxProject();
   const relativeOutput = path.join("retrieve-output", `${Date.now()}-${crypto.randomBytes(3).toString("hex")}`);
   const absoluteOutput = path.join(projectDir, relativeOutput);
   fs.mkdirSync(absoluteOutput, { recursive: true });
 
-  const direct = await directRetrieve([metadata].flat(), targetOrg, absoluteOutput, directCredentials);
+  const direct = await directRetrieve([metadata].flat(), targetOrg, absoluteOutput, directCredentials, undefined, onStatus);
   if (direct) return direct.ok ? { success: true, data: { outputDir: absoluteOutput } } : { success: false, error: direct.error, timedOut: direct.timedOut };
 
   const result = await execSfCommand(
