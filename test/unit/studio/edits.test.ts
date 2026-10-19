@@ -221,6 +221,21 @@ describe("Visit engagement sidebar", () => {
     expect(result.undo).toMatchObject({ kind: "setLayoutRelatedList", add: false, relationshipName: "Gadgets__r" });
   });
 
+  it("writes the child's record-name field, not NAME, and no MassDeleteAll", async () => {
+    vi.mocked(cli.cachedDescribeSObject).mockResolvedValue({
+      success: true,
+      data: { name: "Gadget__c", label: "Gadget", fields: [{ name: "Id" }, { name: "Title__c", nameField: true }] },
+    } as never);
+    const preview = await previewFix(add, "org");
+    expect(preview.changes[0].diff).toContain("+     <fields>Title__c</fields>");
+    const result = await applyFix(add, "org");
+    expect(result.ok).toBe(true);
+    const xml = deployedXml();
+    expect(xml).toContain("<fields>Title__c</fields>");
+    expect(xml).not.toContain("MassDeleteAll");
+    vi.mocked(cli.cachedDescribeSObject).mockReset();
+  });
+
   it("removes only the named related list on undo", async () => {
     const remove = { ...add, add: false, relationshipName: "Things__r", objectName: "Thing__c" } as StudioFix;
     const result = await applyFix(remove, "org");
