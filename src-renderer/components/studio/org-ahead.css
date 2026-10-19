@@ -1,4 +1,4 @@
-/* "Changes not on iPads yet": the preview header's indicator and its popover (UnpublishedIndicator.tsx). */
+/* "Changes not on iPads yet": the release bar's list of them (UnpublishedList.tsx). */
 
 .org-ahead-quiet {
   display: inline-flex;

@@ -7,7 +7,6 @@ import {
   groupItems,
   indicatorFor,
   indicatorLabel,
-  inspectorNote,
   knownDocuments,
   movedKeys,
   orgAheadFor,
@@ -119,19 +118,6 @@ describe("groupItems", () => {
     expect(groups.map((g) => g.id)).toEqual(["pages", "tabs", "sync", "live"]);
     expect(groups[0].items.map((i) => i.name)).toEqual(["New", "Old"]);
     expect(groups[3].note).toMatch(/no publish/);
-  });
-});
-
-describe("inspector note", () => {
-  it("says what changed, who and that iPads keep the old version", () => {
-    const n = inspectorNote(item("layout", "A", "2026-10-17T12:00:00.000Z"));
-    expect(n).toMatch(/^Changed in the org on .* by Ann\. iPads still show this version until you publish\.$/);
-  });
-
-  it("says live items need no publish and omits an unknown editor", () => {
-    const n = inspectorNote(item("listView", "A.B", "2026-10-17T12:00:00.000Z", { live: true, lastModifiedBy: null }));
-    expect(n).toMatch(/reps already have it/);
-    expect(n).not.toMatch(/ by /);
   });
 });
 

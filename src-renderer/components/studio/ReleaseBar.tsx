@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronRight, CircleAlert, CircleCheck, Cloud, CloudUpload, ListChecks, Redo2, RotateCcw, RotateCw, Tablet, Undo2, X } from "lucide-react";
 import Spinner from "../ui/Spinner";
-import { UnpublishedList } from "./UnpublishedIndicator";
+import { UnpublishedList } from "./UnpublishedList";
 import { timeAgo, type UnpublishedItem, type UnpublishedState } from "./org-ahead";
 import { reachLabel, reachOfChange } from "./reach";
 import { ipadStepLabel, orgWideNote, primaryAction, profileOrgStep, sessionOrgStep, type OrgStep } from "./release-bar-logic";

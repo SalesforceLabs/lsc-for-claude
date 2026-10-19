@@ -218,16 +218,6 @@ export function whoWhen(item: UnpublishedItem, now = Date.now()): string {
   return item.lastModifiedBy ? `${item.lastModifiedBy} · ${when}` : when;
 }
 
-/** The inspector's sentence for a block whose document changed in the org. */
-export function inspectorNote(item: UnpublishedItem): string {
-  const date = new Date(item.lastModifiedAt);
-  const when = Number.isFinite(date.getTime()) ? date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "an unknown date";
-  const who = item.lastModifiedBy ? ` by ${item.lastModifiedBy}` : "";
-  return item.live
-    ? `Changed in the org on ${when}${who}. iPads read this from the org, so reps already have it.`
-    : `Changed in the org on ${when}${who}. iPads still show this version until you publish.`;
-}
-
 /** The snapshot's documents, so the check ignores changes to other profiles'. */
 export function knownDocuments(s: PublishedIpad): Record<string, string[]> {
   const objects = Object.values(s.objects);
