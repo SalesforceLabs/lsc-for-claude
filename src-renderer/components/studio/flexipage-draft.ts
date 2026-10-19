@@ -315,6 +315,24 @@ export function alignFlexiPage(page: PublishedPage, live: FlexiModel): Map<strin
   return out;
 }
 
+/**
+ * The published blocks that still line up with the org's page, for a page Setup
+ * has changed since the last publish (when `alignFlexiPage` says no). Blocks the
+ * org no longer has are left out and counted in `gone`.
+ */
+export function alignFlexiPagePartial(page: PublishedPage, live: FlexiModel): { aligned: Map<string, string>; gone: number } {
+  const aligned = new Map<string, string>();
+  let gone = 0;
+  for (const list of publishedLists(page)) {
+    for (const s of list) {
+      const hit = s && resolve(live, s);
+      if (hit) aligned.set(sourceKey(s), hit.item.key);
+      else gone++;
+    }
+  }
+  return { aligned, gone };
+}
+
 // --- Drawing -----------------------------------------------------------------------
 
 /** One Lightning page in Draft: the org's version, the arranged one, and how published blocks map onto it. */
@@ -325,6 +343,8 @@ export interface PageDraft {
   base: FlexiModel;
   target: FlexiModel;
   aligned: Map<string, string>;
+  /** Set when the org's page differs from the published one: components Setup added are drawn marked, and `gone` published blocks the org no longer has aren't. */
+  ahead?: { gone: number };
 }
 
 /** The org item a published block is. */
@@ -374,6 +394,8 @@ export interface DrawnBlock<T> {
   /** The org item, or the inserted one. */
   key: string;
   state: DraftState;
+  /** In the org's page and not on iPads yet (drawn as a placeholder with `state: "added"`). */
+  ahead?: boolean;
 }
 
 /**
@@ -402,6 +424,10 @@ function draftList<T>(d: PageDraft, published: T[], sourceOf: (t: T) => FlexiSou
     if (!liveKeys.includes(key)) {
       const made = item && make(item);
       return made ? [{ value: made, key, state: "added" }] : [];
+    }
+    if (!known && item && d.ahead) {
+      const made = make(item);
+      return made ? [{ value: made, key, state: "added", ahead: true }] : [];
     }
     if (!known || !item) return [];
     const liveItem = regionOf(d.base, container)!.items.find((i) => i.key === key)!;

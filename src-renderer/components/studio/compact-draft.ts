@@ -77,25 +77,42 @@ const isTitle = (field: string) => field.toLowerCase() === "name";
 export interface DraftHeaderField {
   spec: RecordFieldSpec;
   state: DraftState;
+  /** In the org but not on iPads yet, or on iPads but removed in the org (a ghost that can't be selected). */
+  ahead?: "added" | "removed";
 }
 
 /**
  * The header's fields as the tray leaves them: the target order with removed
  * fields as ghosts where they were, added ones drawn from the object's describe.
+ *
+ * `source` is the compact layout's fields as the cache had them. Draft draws the
+ * org's layout, so a field Setup added since is drawn from the describe and
+ * marked `ahead: "added"`, and one Setup removed stays as a `ahead: "removed"` ghost.
  */
-export function draftHeader(published: RecordFieldSpec[], live: LiveCompactLayout, base: string[], target: string[]): DraftHeaderField[] {
+export function draftHeader(published: RecordFieldSpec[], live: LiveCompactLayout, base: string[], target: string[], source?: string[]): DraftHeaderField[] {
   const specs = new Map(published.map((s) => [s.name, s]));
   const common = base.filter((f) => target.includes(f));
   const commonTarget = target.filter((f) => base.includes(f));
-  return withGhosts(base, target).flatMap(({ key, ghost }) => {
+  const pub = source ? new Set(source) : null;
+  const gone = new Set((source ?? []).filter((f) => !base.includes(f) && !isTitle(f)));
+  const tray = withGhosts(base, target);
+  const order: { key: string; ghost: boolean; orgGone?: boolean }[] = gone.size
+    ? withGhosts(source!, tray.map((o) => o.key), (k) => gone.has(k)).map(({ key, ghost }) => (ghost ? { key, ghost: true, orgGone: true } : tray.find((o) => o.key === key)!))
+    : tray;
+  return order.flatMap(({ key, ghost, orgGone }): DraftHeaderField[] => {
     if (isTitle(key)) return [];
+    if (orgGone) {
+      const spec = specs.get(key);
+      return spec ? [{ spec, state: "removed" as DraftState, ahead: "removed" as const }] : [];
+    }
     const added = !base.includes(key);
+    const orgNew = !added && !!pub && !pub.has(key);
     const known = live.available.find((a) => a.name === key);
     // Fields the cache left out (the profile can't read them) stay out; added ones come from the describe.
-    const spec = specs.get(key) ?? (added && known ? { name: key, label: known.label, type: known.type } : undefined);
+    const spec = specs.get(key) ?? ((added || orgNew) && known ? { name: key, label: known.label, type: known.type } : undefined);
     if (!spec) return [];
     const state: DraftState = ghost ? "removed" : added ? "added" : common.indexOf(key) !== commonTarget.indexOf(key) ? "moved" : "same";
-    return [{ spec, state }];
+    return [{ spec, state, ...(orgNew && !ghost ? { ahead: "added" as const } : {}) }];
   });
 }
 

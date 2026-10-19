@@ -115,6 +115,11 @@ export function availableFields(fullName: string, described: SObjectDescribeResu
     .sort((a, b) => a.label.localeCompare(b.label) || a.field.localeCompare(b.field));
 }
 
+/** The fields on the layout, with the describe's label and type (an item the describe doesn't list, such as a custom component, is left out). */
+export function placedFields(described: SObjectDescribeResult, onLayout: Set<string>): LayoutFieldOption[] {
+  return described.fields.filter((f) => onLayout.has(f.name)).map((f) => ({ field: f.name, label: f.label, type: f.type }));
+}
+
 /** Child objects that are never a layout's related list. */
 const NOT_RELATED_LIST = /(Share|Feed|History|ChangeEvent|__hd|__e)$/;
 
@@ -174,6 +179,7 @@ export async function readLiveLayout(fullName: string, org: string): Promise<Liv
     profiles,
     production,
     available: desc ? availableFields(fullName, desc, placed) : null,
+    placed: desc ? placedFields(desc, placed) : null,
     availableRelated: desc ? relatedListOptions(desc, structure.relatedLists).map(({ relatedList, object }) => ({ relatedList, object })) : null,
   } as LiveLayout;
 }

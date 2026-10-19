@@ -13,6 +13,11 @@ import { describeTarget, syncAction, syncFilter, type EditTarget } from "./edit-
 import {
   addRelatedVerb,
   alignLayout,
+  aheadOf,
+  isAhead,
+  ORG_AHEAD_GONE,
+  ORG_AHEAD_TAG,
+  type LayoutAhead,
   draftSections,
   fieldVerbs,
   modelOf,
@@ -31,6 +36,7 @@ import {
 import { alignCompact, compactTargetOf, compactVerbs, crowdedNote, draftHeader, moveCompactFieldTo, type CompactDraft, type DraftHeaderField } from "./compact-draft";
 import {
   alignFlexiPage,
+  alignFlexiPagePartial,
   componentVerbs,
   insertVerb,
   locateItem,
@@ -42,7 +48,6 @@ import {
   type PageDraft,
 } from "./flexipage-draft";
 import {
-  alignListView,
   draftListColumns,
   filtersChanged,
   isLegacyId,
@@ -272,18 +277,21 @@ export function usePreviewEdit({
       }
       const published = snapshot?.pages[name] ?? (snapshot?.home?.name === name ? snapshot.home : undefined);
       const base = pageModelOf(state.live);
-      const aligned = published && alignFlexiPage(published, base);
-      if (!published || !aligned) {
-        out[name] = { status: "stale", live: state.live, note: PAGE_STALE };
+      if (!published) {
+        out[name] = { status: "stale", live: state.live, note: PAGE_NOT_PUBLISHED };
         continue;
       }
+      // Draft draws the org's page: published blocks that still line up, plus what Setup added since, marked.
+      const full = alignFlexiPage(published, base);
+      const partial = full ? null : alignFlexiPagePartial(published, base);
+      const aligned = full ?? partial!.aligned;
       if (state.live.managed) {
         out[name] = { status: "stale", live: state.live, note: MANAGED };
         continue;
       }
       try {
         const target = pageTargetOf(name, base, overlay);
-        out[name] = { status: "ready", draft: { fullName: name, label: state.live.label, live: state.live, base, target, aligned } };
+        out[name] = { status: "ready", draft: { fullName: name, label: state.live.label, live: state.live, base, target, aligned, ...(partial ? { ahead: { gone: partial.gone } } : {}) } };
       } catch (e) {
         if (!(e instanceof StaleDraftError)) throw e;
         out[name] = { status: "stale", live: state.live, note: `The queued edits no longer fit this Lightning page: ${e.message} Take them out of the tray and refresh the preview.` };
@@ -663,18 +671,21 @@ export function buildLayouts(liveLayouts: Record<string, LiveState>, snapshot: P
       continue;
     }
     const published = snapshot?.layouts[name];
-    const base = modelOf(state.live);
-    const aligned = published && alignLayout(published, base);
-    if (!published || !aligned) {
-      out[name] = { status: "stale", live: state.live, note: STALE };
+    if (!published) {
+      out[name] = { status: "stale", live: state.live, note: LAYOUT_NOT_PUBLISHED };
       continue;
     }
+    // Draft draws the org's layout. Where the cache has the same field it's drawn from the cache; what Setup added since
+    // is drawn from the describe and marked "not on iPads yet", what it removed stays as a ghost.
+    const base = modelOf(state.live);
+    const aligned = alignLayout(published, base) ?? [];
+    const ahead = aheadOf(published, base);
     try {
       const target = targetOf(name, base, overlay);
-      const sections = draftSections(published, base, target, aligned, state.live.available);
+      const sections = draftSections(published, base, target, aligned, state.live.available, { placed: state.live.placed, ahead });
       // Lists added in Draft are drawn too, so moves step past them.
       const listed = new Set(published.relatedLists.map((r) => r.name));
-      const shownRelated = target.relatedLists.filter((r) => listed.has(r) || !base.relatedLists.includes(r));
+      const shownRelated = target.relatedLists.filter((r) => listed.has(r) || !base.relatedLists.includes(r) || !!ahead?.related.has(r));
       const draft: LayoutDraft = {
         fullName: name,
         label: name.slice(name.indexOf("-") + 1),
@@ -683,6 +694,7 @@ export function buildLayouts(liveLayouts: Record<string, LiveState>, snapshot: P
         target,
         shownSections: sections.filter((x) => x.state !== "removed").map((x) => x.key),
         shownRelated: shownRelated.length ? shownRelated : target.relatedLists,
+        ahead,
       };
       out[name] = { status: "ready", draft, sections };
     } catch (e) {
@@ -703,13 +715,13 @@ export function buildCompacts(liveCompacts: Record<string, LiveCompactState>, sn
     }
     const published = snapshot?.compactFields?.[name];
     const base = state.live.fields;
-    if (!published || !alignCompact(snapshot?.compactSources?.[name], published, base)) {
-      out[name] = { status: "stale", live: state.live, note: COMPACT_STALE };
+    if (!published) {
+      out[name] = { status: "stale", live: state.live, note: COMPACT_NOT_PUBLISHED };
       continue;
     }
     try {
       const target = compactTargetOf(name, base, overlay);
-      const fields = draftHeader(published, state.live, base, target);
+      const fields = draftHeader(published, state.live, base, target, snapshot?.compactSources?.[name]?.fields);
       const object = name.slice(0, name.indexOf("."));
       const hidden = (f: string) => !!snapshot?.records?.fields[object]?.[f.toLowerCase()]?.hidden;
       const draft: CompactDraft = {
@@ -734,8 +746,8 @@ export function listViewNameOf(t: Extract<EditTarget, { kind: "listView" | "list
   return t.kind === "listView" ? `${t.object}.${t.name}` : t.listView;
 }
 
-const LIST_STALE =
-  "This list view's columns changed in Setup since the last publish, so Studio can't line the list up with it. Publish to iPad (or refresh the preview) to edit it here.";
+const LIST_NOT_PUBLISHED =
+  "This profile's last publish doesn't have this list view (or has it from an older version of Studio), so there is nothing to draw its rows from yet. Publish to iPad to edit it here.";
 
 const LIST_MANAGED = "This list view was installed from a managed package, so it can't be changed. Create a copy in Setup and edit that.";
 
@@ -755,8 +767,8 @@ export function buildListViews(liveListViews: Record<string, LiveListViewState>,
     const object = name.slice(0, name.indexOf("."));
     const published = snapshot?.objects[object]?.listViews.find((l) => l.source?.fullName === name || `${object}.${l.name}` === name);
     const base = listModelOf(live);
-    if (!published || !alignListView(published, base.columns)) {
-      out[name] = { status: "stale", live, note: LIST_STALE };
+    if (!published?.source) {
+      out[name] = { status: "stale", live, note: LIST_NOT_PUBLISHED };
       continue;
     }
     try {
@@ -861,17 +873,19 @@ export type PageEntry =
   | { status: "stale"; live: LiveFlexiPage; note: string }
   | { status: "ready"; draft: PageDraft };
 
-const PAGE_STALE =
-  "This Lightning page changed in Setup since the last publish, so Studio can't line the preview up with it. Publish to iPad (or refresh the preview) to edit it here.";
+const PAGE_NOT_PUBLISHED =
+  "This profile's last publish doesn't have this Lightning page (it was assigned or created in Setup afterwards), so there is nothing to draw it from yet. Publish to iPad to edit it here.";
+
+const AHEAD_SOME = (n: number) => `${n} ${n === 1 ? "thing" : "things"} here ${n === 1 ? "is" : "are"} in the org but not on iPads yet (marked "${ORG_AHEAD_TAG}"). Publish to iPad so reps get ${n === 1 ? "it" : "them"}.`;
 
 const MANAGED =
   "This Lightning page was installed from a managed package, so it can't be deployed — change it (or a copy) in Lightning App Builder.";
 
-const COMPACT_STALE =
-  "This compact layout changed in Setup since the last publish, so Studio can't line the record header up with it. Publish to iPad (or refresh the preview) to edit it here.";
+const COMPACT_NOT_PUBLISHED =
+  "This profile's last publish doesn't have this compact layout (it was assigned or created in Setup afterwards), so there is nothing to draw the record header from yet. Publish to iPad to edit it here.";
 
-const STALE =
-  "This page layout changed in Setup since the last publish, so Studio can't line the preview up with it. Publish to iPad (or refresh the preview) to edit it here.";
+const LAYOUT_NOT_PUBLISHED =
+  "This profile's last publish doesn't have this page layout (it was assigned or created in Setup afterwards), so there is nothing to draw it on yet. Publish to iPad to edit it here.";
 
 /** What the inspector says about the selected block's layout. */
 export interface LayoutStatus {
@@ -899,8 +913,17 @@ function statusOf(entry: LayoutEntry | undefined): LayoutStatus | undefined {
     case "stale":
       return { problem: entry.note, profiles: entry.live.profiles, production: entry.live.production };
     case "ready":
-      return { profiles: entry.draft.live.profiles, production: entry.draft.live.production };
+      return { profiles: entry.draft.live.profiles, production: entry.draft.live.production, ...aheadNote(entry.draft.ahead) };
   }
+}
+
+/** A summary of what the org has that iPads don't (and the reverse) on a layout. */
+function aheadNote(a: LayoutAhead | null | undefined): { note: string } | {} {
+  if (!isAhead(a)) return {};
+  const n = a!.fields.size + a!.related.size + a!.sections.size;
+  const gone = a!.gone.length + a!.goneRelated.length + a!.goneElsewhere;
+  const parts = [n ? AHEAD_SOME(n) : "", gone ? `${gone} ${gone === 1 ? "item was" : "items were"} removed in the org but ${gone === 1 ? "is" : "are"} still on iPads (marked "${ORG_AHEAD_GONE}").` : ""].filter(Boolean);
+  return { note: parts.join(" ") };
 }
 
 function compactStatusOf(entry: CompactEntry | undefined): LayoutStatus | undefined {
@@ -914,7 +937,11 @@ function compactStatusOf(entry: CompactEntry | undefined): LayoutStatus | undefi
     case "stale":
       return { problem: entry.note, ...reach(entry.live), production: entry.live.production };
     case "ready": {
-      const note = crowdedNote(entry.draft);
+      const crowded = crowdedNote(entry.draft);
+      const n = entry.fields.filter((f) => f.ahead === "added").length;
+      const gone = entry.fields.filter((f) => f.ahead === "removed").length;
+      const ahead = [n ? AHEAD_SOME(n) : "", gone ? `${gone} ${gone === 1 ? "field was" : "fields were"} removed in the org but ${gone === 1 ? "is" : "are"} still on iPads (marked "${ORG_AHEAD_GONE}").` : ""].filter(Boolean).join(" ");
+      const note = [crowded, ahead].filter(Boolean).join(" ");
       return { ...reach(entry.draft.live), ...(note ? { note } : {}), production: entry.draft.live.production };
     }
   }
@@ -935,9 +962,16 @@ function listViewStatusOf(entry: ListViewEntry | undefined, _published?: Publish
         reach: listViewReach(entry.draft.live.sharedTo),
         production: entry.draft.live.production,
         noun,
-        ...(entry.filtersChanged
-          ? { note: "This list view's filters or scope changed in Setup since the last publish, so the rows drawn here come from the earlier ones. The columns are current." }
-          : {}),
+        ...(() => {
+          const n = entry.columns.filter((c) => c.ahead === "added").length;
+          const gone = entry.columns.filter((c) => c.ahead === "removed").length;
+          const parts = [
+            n ? AHEAD_SOME(n) : "",
+            gone ? `${gone} ${gone === 1 ? "column was" : "columns were"} removed in the org but ${gone === 1 ? "is" : "are"} still on iPads (marked "${ORG_AHEAD_GONE}").` : "",
+            entry.filtersChanged ? "The filters or scope changed in Setup and aren't on iPads yet, so the rows drawn here are the ones iPads show now." : "",
+          ].filter(Boolean);
+          return parts.length ? { note: parts.join(" ") } : {};
+        })(),
       };
   }
 }
@@ -959,7 +993,14 @@ function pageStatusOf(entry: PageEntry | undefined): LayoutStatus | undefined {
       return { problem: `Couldn't read the Lightning page from the org: ${entry.error}`, canRetry: true, noun };
     case "stale":
       return { problem: entry.note, ...about(entry.live) };
-    case "ready":
-      return about(entry.draft.live);
+    case "ready": {
+      const gone = entry.draft.ahead?.gone ?? 0;
+      return {
+        ...about(entry.draft.live),
+        ...(entry.draft.ahead
+          ? { note: `This page changed in Setup since the last publish. Components added there are drawn as placeholders marked "${ORG_AHEAD_TAG}"${gone ? `; ${gone} ${gone === 1 ? "block" : "blocks"} removed there ${gone === 1 ? "isn't" : "aren't"} drawn` : ""}. Publish to iPad so reps get the page as it is now.` }
+          : {}),
+      };
+    }
   }
 }
