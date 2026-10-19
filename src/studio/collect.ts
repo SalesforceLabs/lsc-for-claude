@@ -8,6 +8,7 @@
  * per surface, then cross-surface checks (e.g. mobile sync coverage) run last.
  */
 
+import { recordTriggeredFlows } from "./flows.js";
 import { collectCategoryRecords } from "../config/collect.js";
 import { sharedRead } from "../config/read-cache.js";
 import { chunkIds } from "../tools/helpers.js";
@@ -15,7 +16,7 @@ import { cachedDescribeSObject } from "../salesforce/cli.js";
 import { MAX_SIDEBAR_RELATED_LISTS, relatedListNames, retrieveLayoutXml } from "../salesforce/visit-layout.js";
 import { relatedListOptions } from "./metadata/live.js";
 import type { ConfigRecord } from "../config/types.js";
-import type { FeatureDefinition } from "./features.js";
+import { FEATURES, type FeatureDefinition } from "./features.js";
 import type { FeatureMap, ItemDetail, DetailKind, LaneDef, ProfileOption, StudioFinding, StudioItem, StudioSurface, Lane } from "./types.js";
 import {
   ID_PATTERN,
@@ -89,6 +90,80 @@ function surface(
   return buildSurface({ id, ...SURFACES[id] }, collect);
 }
 
+// ─── Reads shared across features ──────────────────────────────────────────
+
+/** Every object any feature owns — the scope of the one read each per-object surface shares. */
+const ALL_OBJECTS = [...new Set(FEATURES.flatMap((f) => f.objects))];
+const ALL_OBJECTS_LOWER = new Set(ALL_OBJECTS.map((o) => o.toLowerCase()));
+
+/** Start the reads every feature's surfaces share, so they overlap with the first one. */
+function warmSharedReads(org: string): void {
+  for (const warm of [
+    () => recordTriggeredFlows(org),
+    () => unionRows(org, "recordTypes", false, recordTypesSql),
+    () => unionRows(org, "layouts", true, layoutsSql),
+    () => unionRows(org, "validationRules", true, validationRulesSql),
+    () => unionRows(org, "apexTriggers", true, apexTriggersSql),
+    () => unionRows(org, "customScripts", false, customScriptsSql),
+    () => triggerHandlerRows(org),
+  ]) {
+    warm().catch(() => undefined);
+  }
+}
+
+/**
+ * One read of a per-object surface for every feature's objects at once, kept for a minute and shared
+ * by all the object features (each used to run its own IN-list query for the same table).
+ */
+function unionRows(org: string, kind: string, tooling: boolean, sql: (objects: string) => string): Promise<Row[]> {
+  return sharedRead(org, `studio:union:${kind}`, () => query(sql(inList(ALL_OBJECTS)), org, tooling));
+}
+
+/**
+ * A feature's rows of a per-object surface, taken from the shared read. Whatever the shared read can't
+ * answer exactly (it failed or was cut short, a row names an object outside the feature objects, or the
+ * feature asks about an object no feature owns) goes to the feature's own query, as before.
+ */
+async function rowsForObjects(
+  org: string,
+  kind: string,
+  tooling: boolean,
+  sql: (objects: string) => string,
+  objects: string[],
+  keyOf: (r: Row) => unknown
+): Promise<Row[]> {
+  const own = () => query(sql(inList(objects)), org, tooling);
+  if (objects.some((o) => !ALL_OBJECTS_LOWER.has(o.toLowerCase()))) return own();
+  let all: Row[];
+  try {
+    all = await unionRows(org, kind, tooling, sql);
+  } catch {
+    return own();
+  }
+  const keyOfLower = (r: Row) => String(keyOf(r) ?? "").toLowerCase();
+  if (!all.every((r) => ALL_OBJECTS_LOWER.has(keyOfLower(r)))) return own();
+  const wanted = new Set(objects.map((o) => o.toLowerCase()));
+  return all.filter((r) => wanted.has(keyOfLower(r)));
+}
+
+const recordTypesSql = (list: string) =>
+  `SELECT Id, Name, DeveloperName, SobjectType, IsActive, Description FROM RecordType WHERE SobjectType IN (${list}) ORDER BY SobjectType, Name, Id`;
+const layoutsSql = (list: string) => `SELECT Id, Name, TableEnumOrId FROM Layout WHERE TableEnumOrId IN (${list}) ORDER BY Name`;
+const validationRulesSql = (list: string) =>
+  `SELECT Id, ValidationName, Active, Description, ErrorMessage, ErrorDisplayField, EntityDefinition.QualifiedApiName FROM ValidationRule WHERE EntityDefinition.QualifiedApiName IN (${list}) ORDER BY ValidationName`;
+const apexTriggersSql = (list: string) =>
+  `SELECT Id, Name, TableEnumOrId, Status, NamespacePrefix FROM ApexTrigger WHERE TableEnumOrId IN (${list}) ORDER BY Name`;
+const entitiesSql = (list: string) => `SELECT QualifiedApiName, Label, PluralLabel, KeyPrefix FROM EntityDefinition WHERE QualifiedApiName IN (${list})`;
+const customScriptsSql = (list: string) =>
+  `SELECT Id, Name, ComponentName, Type, ObjectName, OperationEventType, CodeText, CreatedDate FROM LifeScienceCustomScript WHERE ObjectName IN (${list}) OR Type = 'VisitActionValidation' ORDER BY CreatedDate, Id`;
+
+/** The org's trigger handlers — the same list for every feature, which picks its own by keyword. */
+function triggerHandlerRows(org: string): Promise<Row[]> {
+  return sharedRead(org, "studio:trigger-handlers", () =>
+    query(`SELECT Id, DeveloperName, MasterLabel, IsActive, Description FROM LifeScienceTriggerHandler ORDER BY MasterLabel`, org, true)
+  );
+}
+
 // ─── Surface collectors ─────────────────────────────────────────────────────
 
 interface ObjectInfo {
@@ -99,11 +174,7 @@ interface ObjectInfo {
 async function collectObjects(feature: FeatureDefinition, org: string): Promise<{ surface: StudioSurface; found: ObjectInfo[] }> {
   const found: ObjectInfo[] = [];
   const s = await surface("objects", async () => {
-    const rows = await query(
-      `SELECT QualifiedApiName, Label, PluralLabel, KeyPrefix FROM EntityDefinition WHERE QualifiedApiName IN (${inList(feature.objects)})`,
-      org,
-      true
-    );
+    const rows = await rowsForObjects(org, "entities", true, entitiesSql, feature.objects, (r) => r.QualifiedApiName);
     const byName = new Map(rows.map((r) => [r.QualifiedApiName as string, r]));
     const items: StudioItem[] = [];
     const findings: StudioFinding[] = [];
@@ -133,10 +204,7 @@ async function collectObjects(feature: FeatureDefinition, org: string): Promise<
 function collectRecordTypes(objects: string[], org: string): Promise<StudioSurface> {
   return surface("recordTypes", async () => {
     if (objects.length === 0) return { items: [] };
-    const rows = await query(
-      `SELECT Id, Name, DeveloperName, SobjectType, IsActive, Description FROM RecordType WHERE SobjectType IN (${inList(objects)}) ORDER BY SobjectType, Name`,
-      org
-    );
+    const rows = await rowsForObjects(org, "recordTypes", false, recordTypesSql, objects, (r) => r.SobjectType);
     return {
       items: rows.map((r) =>
         item(r.Id as string, r.Name as string, {
@@ -158,11 +226,7 @@ const SIDEBAR_OBJECT = "Visit";
 function collectLayouts(objects: string[], org: string): Promise<StudioSurface> {
   return surface("layouts", async () => {
     if (objects.length === 0) return { items: [] };
-    const rows = await query(
-      `SELECT Id, Name, TableEnumOrId FROM Layout WHERE TableEnumOrId IN (${inList(objects)}) ORDER BY Name`,
-      org,
-      true
-    );
+    const rows = await rowsForObjects(org, "layouts", true, layoutsSql, objects, (r) => r.TableEnumOrId);
     return {
       items: rows.map((r) =>
         item(r.Id as string, r.Name as string, {
@@ -214,10 +278,15 @@ function collectCustomScripts(feature: FeatureDefinition, org: string): Promise<
       feature.includeVisitActionValidation ? "Type = 'VisitActionValidation'" : "",
     ].filter(Boolean);
     if (scope.length === 0) return { items: [] };
-    const rows = await query(
-      `SELECT Id, Name, ComponentName, Type, ObjectName, OperationEventType, CodeText, CreatedDate FROM LifeScienceCustomScript WHERE ${scope.join(" OR ")} ORDER BY CreatedDate, Id`,
-      org
-    );
+    const own = () =>
+      query(
+        `SELECT Id, Name, ComponentName, Type, ObjectName, OperationEventType, CodeText, CreatedDate FROM LifeScienceCustomScript WHERE ${scope.join(" OR ")} ORDER BY CreatedDate, Id`,
+        org
+      );
+    // The shared read covers every feature's objects plus Visit Action Validation; the filter below keeps this feature's.
+    const rows = feature.objects.every((o) => ALL_OBJECTS_LOWER.has(o.toLowerCase()))
+      ? await unionRows(org, "customScripts", false, customScriptsSql).catch(own)
+      : await own();
     const objects = new Set(feature.objects.map((o) => o.toLowerCase()));
     const isVav = (r: Row) => r.Type === "VisitActionValidation";
     const relevant = rows.filter(
@@ -287,10 +356,13 @@ function collectCustomScripts(feature: FeatureDefinition, org: string): Promise<
 function collectValidationRules(objects: string[], org: string): Promise<StudioSurface> {
   return surface("validationRules", async () => {
     if (objects.length === 0) return { items: [] };
-    const rows = await query(
-      `SELECT Id, ValidationName, Active, Description, ErrorMessage, ErrorDisplayField, EntityDefinition.QualifiedApiName FROM ValidationRule WHERE EntityDefinition.QualifiedApiName IN (${inList(objects)}) ORDER BY ValidationName`,
+    const rows = await rowsForObjects(
       org,
-      true
+      "validationRules",
+      true,
+      validationRulesSql,
+      objects,
+      (r) => (r.EntityDefinition as Row | null)?.QualifiedApiName
     );
     return {
       items: rows.map((r) => {
@@ -315,11 +387,7 @@ function collectValidationRules(objects: string[], org: string): Promise<StudioS
 function collectApexTriggers(objects: string[], org: string): Promise<StudioSurface> {
   return surface("apexTriggers", async () => {
     if (objects.length === 0) return { items: [] };
-    const rows = await query(
-      `SELECT Id, Name, TableEnumOrId, Status, NamespacePrefix FROM ApexTrigger WHERE TableEnumOrId IN (${inList(objects)}) ORDER BY Name`,
-      org,
-      true
-    );
+    const rows = await rowsForObjects(org, "apexTriggers", true, apexTriggersSql, objects, (r) => r.TableEnumOrId);
     const items = rows.map((r) =>
       item(r.Id as string, r.Name as string, {
         sublabel: r.TableEnumOrId as string,
@@ -349,12 +417,7 @@ function collectFlows(objects: ObjectInfo[], org: string): Promise<StudioSurface
   return surface("flows", async () => {
     if (objects.length === 0) return { items: [] };
     // The same org-wide list serves every feature, so it's read once and shared.
-    const rows = await sharedRead(org, "studio:record-triggered-flows", () =>
-      query(
-        `SELECT DurableId, ApiName, Label, ProcessType, TriggerType, IsActive, TriggerObjectOrEventLabel FROM FlowDefinitionView WHERE TriggerType IN ('RecordBeforeSave', 'RecordAfterSave', 'RecordBeforeDelete')`,
-        org
-      )
-    );
+    const rows = await recordTriggeredFlows(org);
     const labels = new Set(objects.map((o) => o.label));
     return {
       items: rows
@@ -378,11 +441,7 @@ function collectFlows(objects: ObjectInfo[], org: string): Promise<StudioSurface
 
 function collectTriggerHandlers(feature: FeatureDefinition, org: string): Promise<StudioSurface> {
   return surface("triggerHandlers", async () => {
-    const rows = await query(
-      `SELECT Id, DeveloperName, MasterLabel, IsActive, Description FROM LifeScienceTriggerHandler ORDER BY MasterLabel`,
-      org,
-      true
-    );
+    const rows = await triggerHandlerRows(org);
     return {
       items: rows
         .filter((r) =>
@@ -584,6 +643,8 @@ export async function collectFeatureMap(feature: FeatureDefinition, org: string)
   const envelope = { featureId: feature.id, title: feature.title, org, objects: feature.objects };
   const custom = CUSTOM_COLLECTORS[feature.id];
   if (custom) return { ...envelope, ...(await custom(org)), collectedAt: new Date().toISOString() };
+
+  warmSharedReads(org);
 
   // Objects first — later surfaces only query objects that actually exist.
   const { surface: objects, found } = await collectObjects(feature, org);

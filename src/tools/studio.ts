@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { refreshSharedReads, withSharedReads } from "../config/read-cache.js";
 import { z } from "zod";
 import { validateOrgConnection } from "../salesforce/auth.js";
 import { getFeature, listFeatures } from "../studio/features.js";
@@ -274,8 +275,9 @@ export function register(server: McpServer) {
     "LSC Studio (GUI data): collect every configuration surface for one LSC feature (objects, record types, layouts, custom scripts, validation rules, Apex triggers, flows, trigger handlers, DB Schema, actions, Admin Console settings, compliance) with health findings. Read-only. Returns JSON.",
     {
       featureId: z.string().describe("Feature id from studio_list_features, e.g. 'visit'"),
+      refresh: z.boolean().optional().describe("Read the org again instead of reusing reads shared in the last minute"),
     },
-    async ({ featureId }) => {
+    async ({ featureId, refresh }) => {
       const feature = getFeature(featureId);
       if (!feature) return jsonError(`Unknown feature: ${featureId}`);
       if (!feature.available) return jsonError(`${feature.title} isn't available in Studio yet.`);
@@ -284,7 +286,9 @@ export function register(server: McpServer) {
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
-      return json(await collectFeatureMap(feature, connection.targetOrg));
+      const org = connection.targetOrg;
+      if (refresh) refreshSharedReads(org);
+      return json(await withSharedReads(() => collectFeatureMap(feature, org)));
     }
   );
 
@@ -293,29 +297,34 @@ export function register(server: McpServer) {
     "LSC Studio (GUI data): is one LSC feature ready for the field? Runs the feature's validation rules and Studio's checks (switched on, access, data, settings, iPad), each pass/fail/unknown with how to fix it. Read-only. Returns JSON.",
     {
       featureId: z.string().describe("Feature id from studio_list_features, e.g. 'visit'"),
+      refresh: z.boolean().optional().describe("Read the org again instead of reusing reads shared in the last minute"),
     },
-    async ({ featureId }) => {
+    async ({ featureId, refresh }) => {
       const feature = getFeature(featureId);
       if (!feature) return jsonError(`Unknown feature: ${featureId}`);
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
-      return json(await collectReadiness(feature, connection.targetOrg));
+      const org = connection.targetOrg;
+      if (refresh) refreshSharedReads(org);
+      return json(await withSharedReads(() => collectReadiness(feature, org)));
     }
   );
 
   server.tool(
     "studio_setup_overview",
     "LSC Studio (GUI data): org-wide setup signals no single feature owns — license capacity, metadata cache freshness, changes not yet published to the iPad, territory model. Read-only. Returns JSON.",
-    {},
-    async () => {
+    { refresh: z.boolean().optional().describe("Read the org again instead of reusing reads shared in the last minute"), },
+    async ({ refresh }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await collectSetupOverview(connection.targetOrg));
+        const org = connection.targetOrg;
+        if (refresh) refreshSharedReads(org);
+        return json(await withSharedReads(() => collectSetupOverview(org)));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -328,15 +337,18 @@ export function register(server: McpServer) {
     {
       userId: id,
       featureId: z.string().optional().describe("Feature id to narrow the check to, e.g. 'samples'"),
+      refresh: z.boolean().optional().describe("Read the org again instead of reusing reads shared in the last minute"),
     },
-    async ({ userId, featureId }) => {
+    async ({ userId, featureId, refresh }) => {
       if (featureId && !getFeature(featureId)) return jsonError(`Unknown feature: ${featureId}`);
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await traceUser(userId, featureId ?? null, connection.targetOrg));
+        const org = connection.targetOrg;
+        if (refresh) refreshSharedReads(org);
+        return json(await withSharedReads(() => traceUser(userId, featureId ?? null, org)));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -351,8 +363,9 @@ export function register(server: McpServer) {
       id: z.string().optional().describe("Snapshot id, for diff and delete"),
       label: z.string().optional().describe("Label for a new snapshot"),
       days: z.number().int().min(1).max(365).optional().describe("For list: how many days of recent changes (default 14)"),
+      refresh: z.boolean().optional().describe("Read the org again instead of reusing reads shared in the last minute"),
     },
-    async ({ action, id: snapshotId, label, days }) => {
+    async ({ action, id: snapshotId, label, days, refresh }) => {
       if ((action === "diff" || action === "delete") && !snapshotId) return jsonError(`${action} needs a snapshot id`);
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
@@ -361,7 +374,10 @@ export function register(server: McpServer) {
       const input =
         action === "list" ? { action, days } : action === "save" ? { action, label } : { action, id: snapshotId! };
       try {
-        return json(await drift(input, connection.targetOrg));
+        const org = connection.targetOrg;
+        if (refresh) refreshSharedReads(org);
+        // Only the list reads recent changes where a minute-old answer is fine; save and diff see the org as it is.
+        return json(await (input.action === "list" ? withSharedReads(() => drift(input, org)) : drift(input, org)));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -381,7 +397,8 @@ export function register(server: McpServer) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await collectItemDetail(kind, id, connection.targetOrg));
+        const org = connection.targetOrg;
+        return json(await withSharedReads(() => collectItemDetail(kind, id, org)));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -492,7 +509,8 @@ export function register(server: McpServer) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await userAccess(userId, connection.targetOrg));
+        const org = connection.targetOrg;
+        return json(await withSharedReads(() => userAccess(userId, org)));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

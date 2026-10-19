@@ -116,6 +116,25 @@ function probe(fresh: boolean): Promise<CliProbe> {
   return promise;
 }
 
+/**
+ * Keep an org list that was just read (by `set_target_org`) as the probe, so the next tool call doesn't run
+ * `sf org list` again — it takes 8-9 s. Only the quick `--version` is read here.
+ */
+export function primeSetupStatus(result: SfOrgListResult | undefined): void {
+  const orgs = [...(result?.nonScratchOrgs || []), ...(result?.scratchOrgs || [])];
+  if (orgs.length === 0) return;
+  const promise: Promise<CliProbe> = getSfCliVersion().then((v) => ({
+    cliInstalled: true,
+    cliVersion: v.success ? v.data : undefined,
+    orgs,
+  }));
+  const entry = { at: Date.now(), promise };
+  cachedProbe = entry;
+  promise.catch(() => {
+    if (cachedProbe === entry) cachedProbe = undefined;
+  });
+}
+
 /** Forget the cached CLI/org probe so the next check runs `sf org list` again. */
 export function invalidateSetupStatus(): void {
   cachedProbe = undefined;

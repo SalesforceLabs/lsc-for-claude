@@ -8,6 +8,7 @@ import {
   STANDARD_PERMISSION_SETS,
   SUMMARY_FLOW_LABEL,
   TEXT_GEN_FLOW,
+  briefingFlowGroups,
   countBy,
   isMissingObject,
   optionalQuery,
@@ -41,10 +42,7 @@ const readiness: ReadinessModule = {
     /** Profiles that receive briefings, from the active content definition assignments. */
     const profiles = async () => [...new Set((await assignments()).map((a) => String(rel(a, "AssignedTo.Name"))))].sort();
     const flows = once(async () => {
-      const groups = await Promise.all([
-        query(`SELECT Label, ApiName, ActiveVersionId FROM FlowDefinitionView WHERE ApiName LIKE '%Briefing%'`, org),
-        query(`SELECT Label, ApiName, ActiveVersionId FROM FlowDefinitionView WHERE Label LIKE '%Briefing%'`, org),
-      ]);
+      const groups = await briefingFlowGroups(org, false);
       return [...new Map(groups.flat().map((r) => [String(r.ApiName), r] as [string, Row])).values()];
     });
     const dbSchema = once(() => fetchCategories(org, ["DbSchema"], true));

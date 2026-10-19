@@ -1238,6 +1238,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
         "optional": false,
         "type": "ZodString",
       },
+      "refresh": {
+        "optional": true,
+        "type": "ZodBoolean",
+      },
     },
   },
   {
@@ -1247,11 +1251,20 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
         "optional": false,
         "type": "ZodString",
       },
+      "refresh": {
+        "optional": true,
+        "type": "ZodBoolean",
+      },
     },
   },
   {
     "name": "studio_setup_overview",
-    "params": {},
+    "params": {
+      "refresh": {
+        "optional": true,
+        "type": "ZodBoolean",
+      },
+    },
   },
   {
     "name": "studio_user_trace",
@@ -1259,6 +1272,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
       "featureId": {
         "optional": true,
         "type": "ZodString",
+      },
+      "refresh": {
+        "optional": true,
+        "type": "ZodBoolean",
       },
       "userId": {
         "optional": false,
@@ -1284,6 +1301,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
       "label": {
         "optional": true,
         "type": "ZodString",
+      },
+      "refresh": {
+        "optional": true,
+        "type": "ZodBoolean",
       },
     },
   },
