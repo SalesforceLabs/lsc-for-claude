@@ -834,3 +834,82 @@ input[type="radio"]:not(.studio-ipad-screen *):disabled {
 .ui-menu-item.danger {
   color: var(--error);
 }
+
+/* ── JSON tree (JsonTree.tsx): a collapsible JSON value ── */
+
+.ui-json {
+  font-family: var(--font-mono);
+  font-size: var(--font-code);
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.ui-json-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-height: 20px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ui-json-toggle {
+  width: 100%;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ui-json-toggle:hover {
+  background: var(--fill-hover);
+}
+
+.ui-json-chevron {
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--text-muted);
+  transition: transform var(--transition-fast);
+}
+
+.ui-json-chevron.open {
+  transform: rotate(90deg);
+}
+
+.ui-json-key {
+  color: var(--syn-property);
+}
+
+.ui-json-key,
+.ui-json-colon,
+.ui-json-summary {
+  flex-shrink: 0;
+  white-space: pre;
+}
+
+.ui-json-row > .ui-json-string,
+.ui-json-row > .ui-json-number {
+  min-width: 0;
+}
+
+.ui-json-colon,
+.ui-json-summary,
+.ui-json-null {
+  color: var(--text-muted);
+}
+
+.ui-json-string {
+  color: var(--syn-string);
+}
+
+.ui-json-number,
+.ui-json-bool {
+  color: var(--syn-number);
+}
+
+.ui-json .ui-show-more {
+  padding-left: var(--space-6);
+}

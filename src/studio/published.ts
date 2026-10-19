@@ -1415,7 +1415,7 @@ export function downloadTimeoutMs(sizeBytes: number | null): number {
   return Math.min(1_800_000, Math.max(base, base + Math.ceil(sizeBytes / 1_000_000) * 2000));
 }
 
-async function download(contentVersionId: string, dest: string, org: string, sizeBytes: number | null = null): Promise<void> {
+export async function download(contentVersionId: string, dest: string, org: string, sizeBytes: number | null = null): Promise<void> {
   const timeout = downloadTimeoutMs(sizeBytes);
   const res = await downloadToFile(`/services/data/v62.0/sobjects/ContentVersion/${contentVersionId}/VersionData`, dest, org, timeout);
   if (res.success) return;

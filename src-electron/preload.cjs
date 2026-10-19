@@ -143,6 +143,12 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioPublishMobile: (profiles, expectedOrg) =>
     ipcRenderer.invoke("studio:call", "studio_publish_mobile", { profiles, expectedOrg }),
   studioPublishStatus: (parentId) => ipcRenderer.invoke("studio:call", "studio_publish_status", { parentId }),
+  // Metadata cache page (read-only; ZIPs are downloaded by the engine and saved through a dialog)
+  studioMetadataCache: () => ipcRenderer.invoke("studio:call", "studio_metadata_cache", {}),
+  studioMetadataCacheLog: (recordId) => ipcRenderer.invoke("studio:call", "studio_metadata_cache_log", { recordId }),
+  studioMetadataCacheContents: (recordId) => ipcRenderer.invoke("studio:call", "studio_metadata_cache_contents", { recordId }),
+  studioMetadataCacheFile: (recordId, path) => ipcRenderer.invoke("studio:call", "studio_metadata_cache_file", { recordId, path }),
+  studioSaveMetadataCache: (recordId) => ipcRenderer.invoke("studio:saveMetadataCache", recordId),
   // Studio performance testing — runs are read-only background jobs polled for progress
   studioPerfUsers: (search, profile, days) => ipcRenderer.invoke("studio:call", "studio_perf_users", { search, profile, days }),
   studioPerfParsePlan: (yaml) => ipcRenderer.invoke("studio:call", "studio_perf_parse_plan", { yaml }),

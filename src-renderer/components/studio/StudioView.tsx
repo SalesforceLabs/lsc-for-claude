@@ -28,10 +28,12 @@ import SetupOverview from "./SetupOverview";
 import UserTraceView from "./UserTraceView";
 import DriftView from "./DriftView";
 import TestUsersView from "./TestUsersView";
+import MetadataCacheView from "./MetadataCacheView";
 import CustomScriptsView from "./scripts/CustomScriptsView";
 import type { ReadinessState } from "./readiness";
 import {
   Activity,
+  Archive,
   ClipboardCheck,
   CloudDownload,
   FileCode2,
@@ -75,7 +77,7 @@ type MapState =
   | ({ status: "ready"; map: FeatureMap } & Revalidating);
 
 /** What the main pane shows: the iPad preview, a Setup page or feature, or a Testing page. */
-type Section = "preview" | "apps" | "overview" | "user-check" | "drift" | "setup" | SyncPage | "test-users" | "custom-scripts";
+type Section = "preview" | "apps" | "overview" | "user-check" | "drift" | "setup" | SyncPage | "test-users" | "custom-scripts" | "metadata-cache";
 
 export default function StudioView({ onAskClaude }: StudioViewProps) {
   const [features, setFeatures] = useState<FeatureSummary[]>([]);
@@ -577,6 +579,13 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           () => openPreview(),
           Tablet
         )}
+        {railItem(
+          "metadata-cache",
+          "Metadata cache",
+          "What each profile's iPads download, the publishes that built it, and what's inside",
+          () => setSection("metadata-cache"),
+          Archive
+        )}
         <div className="studio-rail-title studio-rail-section">Setup</div>
         {railItem("overview", "Overview", "Every feature's readiness at a glance, and what blocks them all", () => setSection("overview"), LayoutDashboard)}
         {railItem(
@@ -805,6 +814,25 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               onPublish={(preselect) => setPublishing(preselect)}
               onOrgSeen={setSeenOrg}
               onOpenSyncRep={openSyncRep}
+            />
+          </div>
+          {releaseBar(false)}
+        </section>
+      )}
+
+      {section === "metadata-cache" && (
+        <section className="studio-main ui-enter">
+          <div className="studio-scroll">
+            <MetadataCacheView
+              version={writeVersion}
+              job={publishJob}
+              onPublish={(preselect) => setPublishing(preselect)}
+              onPreview={(profile) => {
+                setLens({ profile });
+                setPreviewMode("published");
+                openPreview();
+              }}
+              onAskClaude={onAskClaude}
             />
           </div>
           {releaseBar(false)}

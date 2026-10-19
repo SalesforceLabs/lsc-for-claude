@@ -8,7 +8,7 @@
  */
 
 import { createRecord, generateMobileMetadataCache, updateRecord } from "../salesforce/cli.js";
-import { ID_PATTERN, inList, query } from "./helpers.js";
+import { ID_PATTERN, inList, query, type Row } from "./helpers.js";
 import type { PublishStatus } from "./types.js";
 
 const API_VERSION = "65.0";
@@ -47,7 +47,7 @@ export async function startPublish(profileNames: string[], org: string): Promise
 }
 
 /** The message in a record's ErrorLog (JSON `{"message": ...}` or plain text), if it has one. */
-function cacheErrorText(log: unknown): string {
+export function cacheErrorText(log: unknown): string {
   if (typeof log !== "string" || !log.trim()) return "";
   try {
     const m = (JSON.parse(log) as { message?: unknown }).message;
@@ -55,6 +55,28 @@ function cacheErrorText(log: unknown): string {
   } catch {
     return log;
   }
+}
+
+/**
+ * Where a generation job stands, from its parent record and one child per profile
+ * (each row with Status, IntegrationStatus, IntegrationErrorMessage, ErrorLog, MetadataDocumentId).
+ */
+export function jobOutcome(parent: Row, children: Row[]): { state: PublishStatus["state"]; error?: string } {
+  const status = String(parent.Status ?? "Unknown");
+  // The parent reads "Published" while the profiles' caches are still being built, and the job can end Inactive with only an ErrorLog to say why.
+  // A job that ends Active can carry an ErrorLog too ("No StoreCheckFeature developer names found…") — a note, not a failure.
+  const errorLog = [parent, ...children].map((r) => cacheErrorText(r.ErrorLog)).find(Boolean);
+  const failed =
+    status === "Error" ||
+    parent.IntegrationStatus === "Error" ||
+    status === "Inactive" ||
+    children.some((r) => r.Status === "Error" || r.Status === "Inactive");
+  const built = status === "Active" || (status === "Published" && children.length > 0 && children.every((r) => r.Status === "Active" && r.MetadataDocumentId));
+  if (!failed) return { state: built ? "done" : "running" };
+  return {
+    state: "failed",
+    error: String(parent.IntegrationErrorMessage || errorLog || (status === "Inactive" ? "Salesforce ended the cache generation without activating it, so reps still get the previous cache. Publish again." : "Cache generation failed.")),
+  };
 }
 
 export async function publishStatus(parentId: string, org: string): Promise<PublishStatus> {
@@ -65,26 +87,8 @@ export async function publishStatus(parentId: string, org: string): Promise<Publ
   );
   const parent = rows.find((r) => r.Id === parentId);
   if (!parent) throw new Error("The publish job no longer exists.");
-  const profiles = rows
-    .filter((r) => r.Id !== parentId)
-    .map((r) => String((r.Profile as { Name?: string } | null)?.Name ?? ""))
-    .filter(Boolean);
-  const status = String(parent.Status ?? "Unknown");
   const children = rows.filter((r) => r.Id !== parentId);
-  // The parent reads "Published" while the profiles' caches are still being built, and the job can end Inactive with only an ErrorLog to say why.
-  // A job that ends Active can carry an ErrorLog too ("No StoreCheckFeature developer names found…") — a note, not a failure.
-  const errorLog = [parent, ...children].map((r) => cacheErrorText(r.ErrorLog)).find(Boolean);
-  const failed =
-    status === "Error" ||
-    parent.IntegrationStatus === "Error" ||
-    status === "Inactive" ||
-    children.some((r) => r.Status === "Error" || r.Status === "Inactive");
-  const built = status === "Active" || (status === "Published" && children.length > 0 && children.every((r) => r.Status === "Active" && r.MetadataDocumentId));
-  return {
-    parentId,
-    state: failed ? "failed" : built ? "done" : "running",
-    status,
-    profiles,
-    error: failed ? String(parent.IntegrationErrorMessage || errorLog || (status === "Inactive" ? "Salesforce ended the cache generation without activating it, so reps still get the previous cache. Publish again." : "Cache generation failed.")) : undefined,
-  };
+  const profiles = children.map((r) => String((r.Profile as { Name?: string } | null)?.Name ?? "")).filter(Boolean);
+  const { state, error } = jobOutcome(parent, children);
+  return { parentId, state, status: String(parent.Status ?? "Unknown"), profiles, error };
 }

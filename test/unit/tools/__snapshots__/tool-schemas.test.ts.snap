@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `133`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `137`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -99,6 +99,10 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_list_profiles",
   "studio_lwc_bundle",
   "studio_lwc_request",
+  "studio_metadata_cache",
+  "studio_metadata_cache_contents",
+  "studio_metadata_cache_file",
+  "studio_metadata_cache_log",
   "studio_metadata_doc",
   "studio_page_reach",
   "studio_perf_active",
@@ -1464,6 +1468,41 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
         "type": "ZodObject",
       },
       "profile": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_metadata_cache",
+    "params": {},
+  },
+  {
+    "name": "studio_metadata_cache_log",
+    "params": {
+      "recordId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_metadata_cache_contents",
+    "params": {
+      "recordId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_metadata_cache_file",
+    "params": {
+      "path": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "recordId": {
         "optional": false,
         "type": "ZodString",
       },

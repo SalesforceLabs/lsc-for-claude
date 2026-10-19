@@ -185,6 +185,16 @@ interface LscApi {
   studioFeatureMapProgress(featureId: string, readiness?: boolean): Promise<StudioResponse>;
   studioPublishMobile(profiles: string[], expectedOrg: string): Promise<StudioResponse>;
   studioPublishStatus(parentId: string): Promise<StudioResponse>;
+  /** Every profile's metadata cache and the newest generation jobs. */
+  studioMetadataCache(): Promise<StudioResponse>;
+  /** The full ErrorLog of a cache record (and, for a job, of its profiles' records). */
+  studioMetadataCacheLog(recordId: string): Promise<StudioResponse>;
+  /** The files in a cache record's ZIP (downloads it on first use). */
+  studioMetadataCacheContents(recordId: string): Promise<StudioResponse>;
+  /** One file from a cache record's ZIP. */
+  studioMetadataCacheFile(recordId: string, path: string): Promise<StudioResponse>;
+  /** Save a cache record's ZIP through a save dialog. */
+  studioSaveMetadataCache(recordId: string): Promise<{ canceled?: boolean; path?: string; error?: string }>;
   studioPerfUsers(search?: string, profile?: string, days?: number): Promise<StudioResponse>;
   studioPerfParsePlan(yaml: string): Promise<StudioResponse>;
   studioPerfStart(plan: unknown): Promise<StudioResponse>;

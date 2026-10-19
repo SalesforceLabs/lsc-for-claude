@@ -9,7 +9,7 @@
 import { chunkIds } from "../tools/helpers.js";
 import { count, inList, plural, query, type Row } from "./helpers.js";
 import { runCheck } from "./readiness/index.js";
-import { cachesByProfile, daysSince, unpublishedChanges } from "./overview-logic.js";
+import { cachesByProfile, daysSince, unpublishedChanges, type ProfileCache } from "./overview-logic.js";
 import type { ReadinessCheck } from "./types.js";
 import { fetchConfigEdits } from "./unpublished.js";
 
@@ -31,7 +31,7 @@ const CHANGES_LOOKBACK_DAYS = 180;
 /** The LSC license, matched like `LSC_PSL` in collectors/territory-users.ts and the user trace. */
 const LSC_PSL = "(PermissionSetLicense.DeveloperName LIKE '%LSC4CE%' OR PermissionSetLicense.DeveloperName LIKE '%LifeScienceCommercial%')";
 
-interface LscProfile {
+export interface LscProfile {
   id: string;
   name: string;
   users: number;
@@ -48,18 +48,7 @@ export async function collectSetupOverview(org: string): Promise<SetupOverview> 
   const caches = memo(async () => cachesByProfile(await fetchCacheRows(org, (await lscProfiles()).map((p) => p.id))));
   const unpublished = memo(async () => {
     const [byProfile, profiles] = await Promise.all([caches(), lscProfiles()]);
-    const names = new Map(profiles.map((p) => [p.id, p.name]));
-    const live = [...byProfile.values()].filter((c) => c.activeAt !== undefined && names.has(c.profileId));
-    const floor = Date.now() - CHANGES_LOOKBACK_DAYS * 86_400_000;
-    const oldest = Math.min(...live.map((c) => c.activeStartedAt ?? c.activeAt!));
-    const capped = live.length > 0 && oldest < floor;
-    // The same edits, rules and boundary (generation start) as the iPad preview's "not on iPads yet".
-    const edits = live.length ? await fetchConfigEdits(org, Math.max(oldest, floor)) : [];
-    const list = unpublishedChanges(byProfile, edits)
-      .filter((u) => names.has(u.profileId))
-      .map((u) => ({ ...u, name: names.get(u.profileId)! }))
-      .sort((a, b) => b.items.length - a.items.length || a.name.localeCompare(b.name));
-    return Object.assign(list, { cappedAtDays: capped ? CHANGES_LOOKBACK_DAYS : undefined });
+    return profilesBehind(org, byProfile, new Map(profiles.map((p) => [p.id, p.name])));
   });
   const psls = memo(() => fetchPsls(org));
 
@@ -256,6 +245,24 @@ export async function collectSetupOverview(org: string): Promise<SetupOverview> 
   };
 }
 
+/**
+ * The named profiles whose live cache is behind the Admin Console, most changes first — the same edits,
+ * rules and boundary (generation start) as the iPad preview's "not on iPads yet". `cappedAtDays` is set
+ * when a cache is older than the lookback, so older changes may be missing.
+ */
+export async function profilesBehind(org: string, byProfile: Map<string, ProfileCache>, names: Map<string, string>) {
+  const live = [...byProfile.values()].filter((c) => c.activeAt !== undefined && names.has(c.profileId));
+  const floor = Date.now() - CHANGES_LOOKBACK_DAYS * 86_400_000;
+  const oldest = Math.min(...live.map((c) => c.activeStartedAt ?? c.activeAt!));
+  const capped = live.length > 0 && oldest < floor;
+  const edits = live.length ? await fetchConfigEdits(org, Math.max(oldest, floor)) : [];
+  const list = unpublishedChanges(byProfile, edits)
+    .filter((u) => names.has(u.profileId))
+    .map((u) => ({ ...u, name: names.get(u.profileId)! }))
+    .sort((a, b) => b.items.length - a.items.length || a.name.localeCompare(b.name));
+  return Object.assign(list, { cappedAtDays: capped ? CHANGES_LOOKBACK_DAYS : undefined });
+}
+
 // ─── Queries ────────────────────────────────────────────────────────────────
 
 interface Psl {
@@ -275,7 +282,7 @@ async function fetchPsls(org: string): Promise<Psl[]> {
 }
 
 /** Profiles of active users who hold an LSC permission set license, with how many. */
-async function fetchLscProfiles(org: string): Promise<LscProfile[]> {
+export async function fetchLscProfiles(org: string): Promise<LscProfile[]> {
   const rows = await query(
     `SELECT Profile.Name pn, ProfileId pid, COUNT(Id) cnt FROM User WHERE IsActive = true AND UserType = 'Standard' ` +
       `AND Id IN (SELECT AssigneeId FROM PermissionSetLicenseAssign WHERE ${LSC_PSL}) GROUP BY Profile.Name, ProfileId ORDER BY COUNT(Id) DESC`,

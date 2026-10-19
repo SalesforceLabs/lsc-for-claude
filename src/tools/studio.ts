@@ -21,6 +21,7 @@ import { runReport } from "../studio/screens/report-data.js";
 import { loadProgress } from "../studio/published-progress.js";
 import { mapProgress, mapKey, readinessKey } from "../studio/map-progress.js";
 import { collectUnpublished } from "../studio/unpublished.js";
+import { cacheContents, cacheFile, cacheLog, collectMetadataCache } from "../studio/metadata-cache.js";
 import { fixProgress, startFixChange } from "../studio/fix-progress.js";
 import { compileInlineLwc } from "../studio/lwc/compile.js";
 import { lwcRequest } from "../studio/lwc/request.js";
@@ -721,6 +722,74 @@ export function register(server: McpServer) {
       }
       try {
         return json(await collectUnpublished(profile, connection.targetOrg, known));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_metadata_cache",
+    "LSC Studio (GUI data): the Metadata cache page — every LSC profile's metadata cache (what its iPads download now, size, a newer failed or running attempt, how many Admin Console changes it is behind) and the newest generation jobs with each profile's record and the start of its ErrorLog. Read-only. Returns JSON.",
+    {},
+    async () => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await collectMetadataCache(connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_metadata_cache_log",
+    "LSC Studio (GUI data): the full ErrorLog of one metadata cache record and, for a generation job, of each profile's record. Read-only. Returns JSON.",
+    { recordId: id },
+    async ({ recordId }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await cacheLog(recordId, connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_metadata_cache_contents",
+    "LSC Studio (GUI data): the files inside one metadata cache record's ZIP (path, size, compressed size), downloading it to a temporary folder that keeps the last few. Read-only. Returns JSON.",
+    { recordId: id },
+    async ({ recordId }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await cacheContents(recordId, connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_metadata_cache_file",
+    "LSC Studio (GUI data): one file from a metadata cache record's ZIP — text (files over 24 MB cut to their first 1 MB, marked truncated), an image as a data URL, or marked binary. Read-only. Returns JSON.",
+    { recordId: id, path: z.string().min(1).max(1024) },
+    async ({ recordId, path }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await cacheFile(recordId, path, connection.targetOrg));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

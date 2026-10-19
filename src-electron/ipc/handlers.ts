@@ -1,8 +1,9 @@
 import { app, ipcMain, BrowserWindow, dialog, shell, net } from "electron";
 import { execFile, spawn } from "child_process";
 import { watch } from "fs";
-import { readFile, writeFile } from "fs/promises";
+import { copyFile, readFile, writeFile } from "fs/promises";
 import { fileURLToPath } from "url";
+import os from "os";
 import path from "path";
 
 /** Studio tools that take `refresh` to read the org again rather than reuse its short shared reads. */
@@ -94,6 +95,8 @@ function invalidate(org: string, tools: string[]): void {
   for (const tool of tools) clearStudioCache(org, tool);
 }
 
+/** Tools that may download a whole metadata cache first (allowed as long as the download itself, `downloadTimeoutMs`). */
+const CACHE_DOWNLOAD_TOOLS = new Set(["studio_metadata_cache_contents", "studio_metadata_cache_file"]);
 const STUDIO_CACHED_TOOLS = new Set([
   "studio_feature_map",
   "studio_item_detail",
@@ -755,7 +758,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
           // iPad adds the metadata download to its live reads (list views up to ~4 minutes, then records).
           const mobileLogins = (await Promise.all(offered.map((l) => mobileLoginCredentials(l.id).catch(() => null)))).filter((l): l is NonNullable<typeof l> => !!l);
           const callArgs = { ...args, ...(refresh && STUDIO_REFRESHABLE.has(toolName) ? { refresh: true } : {}), ...(mobileLogins.length ? { mobileLogins } : {}) };
-          const result = await client.callTool(toolName, callArgs, { timeoutMs: toolName === "studio_ipad_published" ? 8 * 60_000 : 5 * 60_000 });
+          const result = await client.callTool(toolName, callArgs, { timeoutMs: toolName === "studio_ipad_published" ? 8 * 60_000 : CACHE_DOWNLOAD_TOOLS.has(toolName) ? 30 * 60_000 : 5 * 60_000 });
           const text = result.content.find((c) => c.type === "text")?.text ?? "{}";
           const data = JSON.parse(text);
           const cachedAt = new Date().toISOString();
@@ -930,6 +933,32 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       const result = await client.callTool("studio_export_source", { folder, changes, items }, { timeoutMs: 5 * 60_000 });
       const data = JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}");
       return data?.error ? { error: String(data.error) } : { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  // Save a metadata cache's ZIP where the user picks: the engine downloads it (studio_metadata_cache_contents), this copies it.
+  ipcMain.handle("studio:saveMetadataCache", async (_event, recordId: string) => {
+    if (typeof recordId !== "string" || !/^[a-zA-Z0-9]{15,18}$/.test(recordId)) return { error: "Invalid record Id." };
+    const client = await readyMcpClient();
+    if (!client) return { error: "Engine not started" };
+    try {
+      const result = await client.callTool("studio_metadata_cache_contents", { recordId }, { timeoutMs: 30 * 60_000 });
+      const data = JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}") as { error?: string; zipPath?: string; profile?: string | null; generatedAt?: string };
+      if (data.error || !data.zipPath) return { error: data.error || "The cache couldn't be downloaded." };
+      // Only ever copy out of the engine's download folder.
+      const root = path.join(os.tmpdir(), "lsc-studio-cache-zips") + path.sep;
+      if (!path.resolve(data.zipPath).startsWith(root)) return { error: "Unexpected download location." };
+      const base = `${(data.profile || "Org level").replace(/[^\w .-]+/g, "_")} metadata cache ${(data.generatedAt || "").slice(0, 10)}`.trim();
+      const res = await dialog.showSaveDialog(mainWindow, {
+        title: "Download metadata cache",
+        defaultPath: `${base}.zip`,
+        filters: [{ name: "ZIP archive", extensions: ["zip"] }],
+      });
+      if (res.canceled || !res.filePath) return { canceled: true };
+      await copyFile(data.zipPath, res.filePath);
+      return { canceled: false, path: res.filePath };
     } catch (error) {
       return { error: error instanceof Error ? error.message : String(error) };
     }
