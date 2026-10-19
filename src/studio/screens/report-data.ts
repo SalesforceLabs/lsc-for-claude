@@ -159,12 +159,46 @@ export function buildReportData(run: Row): PublishedReportData | undefined {
   return out;
 }
 
-/** Run one report read-only. Undefined when it can't be run or isn't a native format. */
-export async function runReport(id: string, org: string): Promise<PublishedReportData | undefined> {
-  if (!/^00O[A-Za-z0-9]{12,15}$/.test(id)) return undefined;
+/**
+ * Report results are a preview, not live data, and each run counts against the org's 500 synchronous report runs
+ * an hour — so a run is reused for `REPORT_TTL_MS`, and a run that fails (quota spent, timeout) falls back to the
+ * last result however old. Kept in memory only: these are customer records, not configuration.
+ */
+const REPORT_TTL_MS = 6 * 60 * 60 * 1000;
+const MAX_CACHED_REPORTS = 500;
+const reportCache = new Map<string, { at: number; data: PublishedReportData }>();
+const reportRuns = new Map<string, Promise<PublishedReportData | undefined>>();
+
+export function clearReportCache(): void {
+  reportCache.clear();
+  reportRuns.clear();
+}
+
+async function fetchReport(id: string, org: string): Promise<PublishedReportData | undefined> {
   const res = await apiRequest<Row>(`/services/data/v66.0/analytics/reports/${id}?includeDetails=true`, "GET", undefined, org);
   if (!res.success || !res.data || typeof res.data !== "object") return undefined;
   return buildReportData(res.data);
+}
+
+/** Run one report read-only. Undefined when it can't be run or isn't a native format. */
+export async function runReport(id: string, org: string, now = Date.now()): Promise<PublishedReportData | undefined> {
+  if (!/^00O[A-Za-z0-9]{12,15}$/.test(id)) return undefined;
+  const key = `${org}|${id}`;
+  const hit = reportCache.get(key);
+  if (hit && now - hit.at < REPORT_TTL_MS) return hit.data;
+  let run = reportRuns.get(key);
+  if (!run) {
+    run = fetchReport(id, org)
+      .catch(() => undefined)
+      .finally(() => reportRuns.delete(key));
+    reportRuns.set(key, run);
+  }
+  const data = await run;
+  if (!data) return hit?.data;
+  reportCache.delete(key);
+  reportCache.set(key, { at: now, data });
+  while (reportCache.size > MAX_CACHED_REPORTS) reportCache.delete(reportCache.keys().next().value as string);
+  return data;
 }
 
 interface Runnable {
