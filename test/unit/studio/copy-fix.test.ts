@@ -24,6 +24,8 @@ let org: Record<string, Row[]>;
 
 function respond(query: string) {
   const from = /FROM\s+(\w+)/i.exec(query)?.[1] ?? "";
+  // Apps are read over Tooling per app in the org; these tests serve them through the Metadata API retrieve instead.
+  if (from === "CustomApplication") return Promise.resolve({ success: false, error: "not served here" });
   const rows = org[from] ?? [];
   return Promise.resolve({ success: true, data: { totalSize: rows.length, done: true, records: rows } });
 }
@@ -89,6 +91,7 @@ describe("copyForProfile", () => {
   let assigned: string; // the layout the profile has now
   let appRep: string; // the page the profile's override has now
   let failDeploy: (n: number) => boolean;
+  let deploys: number;
   let n = 0;
   let target: string;
 
@@ -118,9 +121,15 @@ describe("copyForProfile", () => {
       }
       return { success: true, data: { outputDir: out } };
     });
+    deploys = 0;
+    // Each deploy is a folder of files (the copy and the assignments go together); `deployed` lists the files, in the folder's order.
     vi.mocked(cli.deployMetadata).mockImplementation(async (source) => {
-      deployed.push({ file: path.basename(source), xml: fs.readFileSync(source, "utf-8") });
-      return failDeploy(deployed.length) ? { success: false, error: "boom" } : { success: true };
+      const files = fs.statSync(source).isDirectory()
+        ? fs.readdirSync(source, { withFileTypes: true }).flatMap((e) => fs.readdirSync(path.join(source, e.name)).map((f) => path.join(source, e.name, f)))
+        : [source];
+      deploys++;
+      for (const f of files) deployed.push({ file: path.basename(f), xml: fs.readFileSync(f, "utf-8") });
+      return failDeploy(deploys) ? { success: false, error: "boom" } : { success: true };
     });
     vi.mocked(cli.deleteMetadata).mockResolvedValue({ success: true } as never);
   });
@@ -153,34 +162,24 @@ describe("copyForProfile", () => {
 
       const result = await applyFix(fix, target);
       expect(result.ok).toBe(true);
-      expect(deployed.map((d) => d.file)).toEqual([`${COPY}.layout-meta.xml`, "LS Rep.profile-meta.xml"]);
-      expect(deployed[0].xml).not.toContain("<relatedList>ContactPointEmails</relatedList>");
-      expect(deployed[1].xml).toContain(`<layout>${COPY}</layout>`);
-      expect(deployed[1].xml).toContain("<recordType>PersonAccount.HCP</recordType>");
-      expect(deployed[1].xml).not.toContain("Visit-Visit Layout");
-      expect(deployed[1].xml).not.toContain("userLicense");
+      expect(deploys).toBe(1);
+      expect(deployed.map((d) => d.file).sort()).toEqual(["LS Rep.profile-meta.xml", `${COPY}.layout-meta.xml`]);
+      const copyFile = deployed.find((d) => d.file.endsWith(".layout-meta.xml"))!;
+      const profileFile = deployed.find((d) => d.file.endsWith(".profile-meta.xml"))!;
+      expect(copyFile.xml).not.toContain("<relatedList>ContactPointEmails</relatedList>");
+      expect(profileFile.xml).toContain(`<layout>${COPY}</layout>`);
+      expect(profileFile.xml).toContain("<recordType>PersonAccount.HCP</recordType>");
+      expect(profileFile.xml).not.toContain("Visit-Visit Layout");
+      expect(profileFile.xml).not.toContain("userLicense");
       expect(result.undo).toMatchObject({ kind: "copyForProfile", copy: { fullName: COPY }, revert: { moves: [{ recordType: "PersonAccount.HCP" }] } });
     });
 
-    it("removes the copy again when the reassignment fails", async () => {
-      failDeploy = (count) => count === 2;
-      const result = await applyFix(layoutCopy, target);
-      expect(result.ok).toBe(false);
-      expect(result.message).toContain("Couldn't move LS Rep to the copy: boom. The copy was removed; nothing was changed.");
-      expect(cli.deleteMetadata).toHaveBeenCalledWith("Layout", COPY, target);
-    });
-
-    it("says so when the copy can't be removed after a failed reassignment", async () => {
-      failDeploy = (count) => count === 2;
-      vi.mocked(cli.deleteMetadata).mockResolvedValue({ success: false, error: "nope" } as never);
-      expect((await applyFix(layoutCopy, target)).message).toContain("still in the org (nope); delete it in Setup");
-    });
-
-    it("changes nothing when the copy can't be created", async () => {
+    it("changes nothing when the copy and the reassignment can't be deployed (one deploy: all or nothing)", async () => {
       failDeploy = (count) => count === 1;
       const result = await applyFix(layoutCopy, target);
       expect(result.ok).toBe(false);
-      expect(deployed).toHaveLength(1);
+      expect(result.message).toContain("Couldn't create HCP Layout - LS Rep and point LS Rep at it: boom. Nothing was changed.");
+      expect(deploys).toBe(1);
       expect(cli.deleteMetadata).not.toHaveBeenCalled();
     });
 
@@ -251,18 +250,19 @@ describe("copyForProfile", () => {
     it("creates the page, then re-points only the profile's override", async () => {
       const result = await applyFix(pageCopy, target);
       expect(result.ok).toBe(true);
-      expect(deployed.map((d) => d.file)).toEqual([`${COPY_PAGE}.flexipage-meta.xml`, "LSC_Field_Sales.app-meta.xml"]);
-      expect(deployed[0].xml).toContain("<masterLabel>Account HCP page (LS Rep)</masterLabel>");
-      expect(deployed[1].xml).toBe(appXml(COPY_PAGE));
+      expect(deploys).toBe(1);
+      expect(deployed.map((d) => d.file).sort()).toEqual([`${COPY_PAGE}.flexipage-meta.xml`, "LSC_Field_Sales.app-meta.xml"]);
+      expect(deployed.find((d) => d.file.endsWith(".flexipage-meta.xml"))!.xml).toContain("<masterLabel>Account HCP page (LS Rep)</masterLabel>");
+      expect(deployed.find((d) => d.file.endsWith(".app-meta.xml"))!.xml).toBe(appXml(COPY_PAGE));
       expect(result.undo).toMatchObject({ kind: "copyForProfile", revert: { moves: [{ app: "LSC_Field_Sales" }] } });
     });
 
-    it("puts the apps back and removes the page when an app can't be changed", async () => {
-      failDeploy = (count) => count === 2;
+    it("changes nothing when the page and its apps can't be deployed together", async () => {
+      failDeploy = (count) => count === 1;
       const result = await applyFix(pageCopy, target);
       expect(result.ok).toBe(false);
-      expect(result.message).toContain("The copy was removed; nothing was changed.");
-      expect(cli.deleteMetadata).toHaveBeenCalledWith("FlexiPage", COPY_PAGE, target);
+      expect(result.message).toContain("Nothing was changed.");
+      expect(cli.deleteMetadata).not.toHaveBeenCalled();
     });
 
     it("undoes: restores the override, then deletes the page", async () => {

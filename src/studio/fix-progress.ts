@@ -254,7 +254,7 @@ export function planFixSteps(fix: StudioFix, phase: "preview" | "apply"): Planne
       return [
         { key: "retrieve", label: `${apply ? "Re-reading" : "Reading"} ${label} from the org${apply ? " to check nothing changed" : ""}` },
         { key: "diff", label: `Building the diff for ${label}` },
-        ...(type === "ListView"
+        ...(type === "ListView" || apply
           ? []
           : [
               {
@@ -267,7 +267,7 @@ export function planFixSteps(fix: StudioFix, phase: "preview" | "apply"): Planne
                       : `Finding the profiles ${label} reaches`,
               },
             ]),
-        { key: "production", label: "Checking whether this is a production org" },
+        ...(apply ? [] : [{ key: "production", label: "Checking whether this is a production org" }]),
         ...(type === "Layout" && !apply ? [{ key: "validate", label: `Asking the org whether it would accept the change` }] : []),
         ...(apply ? [{ key: "deploy", label: `Deploying ${label}` }] : []),
       ];

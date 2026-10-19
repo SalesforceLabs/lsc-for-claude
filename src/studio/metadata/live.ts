@@ -23,13 +23,27 @@ import { childText, childrenNamed, parseXml, unescapeXml, type XmlNode } from ".
 
 const soqlString = (v: string) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 
+/** Whether an org is production never changes, so the answer (not a failed lookup) is kept for the session. */
+const productionOrgs = new Map<string, boolean>();
 export async function isProductionOrg(org: string): Promise<boolean> {
+  const known = productionOrgs.get(org);
+  if (known !== undefined) return known;
   try {
     const [rec] = await query("SELECT IsSandbox FROM Organization LIMIT 1", org);
-    return rec?.IsSandbox === false;
+    if (!rec) return false;
+    const production = rec.IsSandbox === false;
+    productionOrgs.set(org, production);
+    return production;
   } catch {
     return false;
   }
+}
+
+/** Drop everything remembered about an org (for tests, and after a connection changes). */
+export function forgetLiveOrg(org: string): void {
+  productionOrgs.delete(org);
+  appCache.delete(org);
+  assignmentsCache.delete(org);
 }
 
 /** Profiles assigned the layout (any record type), sorted; null when the layout can't be found in Tooling. */
@@ -229,43 +243,171 @@ interface PageAssignments {
   appDefaults: Map<string, Set<string>>;
 }
 
-const ASSIGNMENTS_TTL_MS = 5 * 60_000;
+const ASSIGNMENTS_TTL_MS = 30_000;
 export const assignmentsCache = new Map<string, { at: number; value: Promise<PageAssignments | null> }>();
+
+/** One app's page overrides, however they were read: only what the reach needs. */
+export interface AppOverrides {
+  /** The app's Metadata API name (`standard__LightningSales`, `MyApp`, `ns__MyApp`). */
+  fullName: string;
+  label: string;
+  profileActionOverrides: { content?: string; profile?: string; formFactor?: string }[];
+  actionOverrides: { content?: string; formFactor?: string }[];
+}
+
+/** Fold apps' overrides into the page → profiles / apps maps (large form factors only). */
+function assignmentsOf(apps: AppOverrides[]): PageAssignments {
+  const out: PageAssignments = { profiles: new Map(), appDefaults: new Map() };
+  const add = (m: Map<string, Set<string>>, page: string, v: string) => m.set(page, (m.get(page) ?? new Set()).add(v));
+  const large = (o: { formFactor?: string }) => (o.formFactor ?? "Large") === "Large";
+  for (const app of apps) {
+    for (const o of app.profileActionOverrides) {
+      if (o.content && o.profile && large(o)) add(out.profiles, o.content, profileName(o.profile));
+    }
+    for (const o of app.actionOverrides) {
+      if (o.content && large(o)) add(out.appDefaults, o.content, app.label);
+    }
+  }
+  return out;
+}
+
+/** Apps read one at a time over Tooling, this many in flight (the shared limiter caps the rest). */
+const APP_READS_IN_FLIGHT = 8;
+/** An app read this soon after its last change might predate a same-second save; read it again next time. */
+const APP_SETTLE_MS = 2500;
+
+interface CachedApp {
+  /** The `LastModifiedDate` the read was validated against. */
+  modified: string;
+  readAt: number;
+  app: AppOverrides;
+}
+const appCache = new Map<string, Map<string, CachedApp>>();
+const appLoads = new Map<string, Promise<AppOverrides[] | null>>();
+
+async function loadAppsViaTooling(org: string): Promise<AppOverrides[] | null> {
+  try {
+    const list = await query(
+      "SELECT Id, DeveloperName, NamespacePrefix, Label, ManageableState, LastModifiedDate FROM CustomApplication",
+      org,
+      true
+    );
+    const rows = list.filter((r) => r.ManageableState !== "installed");
+    const cache = appCache.get(org) ?? new Map<string, CachedApp>();
+    appCache.set(org, cache);
+    const live = new Set(rows.map((r) => String(r.Id)));
+    for (const id of [...cache.keys()]) if (!live.has(id)) cache.delete(id);
+    const apps: (AppOverrides | null)[] = new Array(rows.length).fill(null);
+    const stale: number[] = [];
+    rows.forEach((r, i) => {
+      const hit = cache.get(String(r.Id));
+      const modified = String(r.LastModifiedDate ?? "");
+      if (hit && modified && hit.modified === modified && hit.readAt > Date.parse(modified) + APP_SETTLE_MS) apps[i] = hit.app;
+      else stale.push(i);
+    });
+    let next = 0;
+    const worker = async () => {
+      for (let n = next++; n < stale.length; n = next++) {
+        const i = stale[n];
+        const id = String(rows[i].Id);
+        assertId(id);
+        const readAt = Date.now();
+        const [row] = await query(`SELECT Label, DeveloperName, NamespacePrefix, Metadata FROM CustomApplication WHERE Id = '${id}'`, org, true);
+        const m = row?.Metadata as Row | null | undefined;
+        if (!m) throw new Error(`No metadata for app ${id}`);
+        const rowsOf = (v: unknown) => (Array.isArray(v) ? (v as Row[]) : []);
+        const str = (v: unknown) => (typeof v === "string" ? v : undefined);
+        const dev = String(row.DeveloperName ?? "");
+        const ns = typeof row.NamespacePrefix === "string" && row.NamespacePrefix ? row.NamespacePrefix : "";
+        const app: AppOverrides = {
+          fullName: ns ? `${ns}__${dev}` : dev,
+          label: str(m.label) || dev,
+          profileActionOverrides: rowsOf(m.profileActionOverrides).map((o) => ({ content: str(o.content), profile: str(o.profile), formFactor: str(o.formFactor) })),
+          actionOverrides: rowsOf(m.actionOverrides).map((o) => ({ content: str(o.content), formFactor: str(o.formFactor) })),
+        };
+        apps[i] = app;
+        cache.set(id, { modified: String(rows[i].LastModifiedDate ?? ""), readAt, app });
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(APP_READS_IN_FLIGHT, stale.length) }, worker));
+    return apps as AppOverrides[];
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Every app's overrides over the Tooling API: the app list with each app's last-modified time (one query), then
+ * the Metadata of the apps that are new or changed since they were last read. Tooling serves an app's Metadata
+ * one row at a time, but a read is ~0.1-0.3 s where a wildcard Metadata API retrieve takes ~1 s per app (two
+ * minutes for a hundred apps). Apps installed from a package are left out, as a wildcard retrieve leaves them
+ * out. Null when any read fails, so the caller can fall back. Reads in flight are shared.
+ */
+export function appOverridesViaTooling(org: string): Promise<AppOverrides[] | null> {
+  const running = appLoads.get(org);
+  if (running) return running;
+  const load = loadAppsViaTooling(org).finally(() => appLoads.delete(org));
+  appLoads.set(org, load);
+  return load;
+}
+
+/** The same, from a wildcard Metadata API retrieve of every app (slow: kept as the fallback and as the reference the Tooling read is checked against). */
+export async function appOverridesViaRetrieve(org: string): Promise<AppOverrides[] | null> {
+  const result = await retrieveMetadata("", "CustomApplication", org);
+  if (!result.success || !result.data) return null;
+  const { outputDir } = result.data;
+  try {
+    return appFiles(outputDir).map((file) => {
+      const root = parseXml(fs.readFileSync(file, "utf-8"));
+      const fullName = path.basename(file).replace(/\.app-meta\.xml$/, "");
+      return {
+        fullName,
+        label: childText(root, "label") || fullName,
+        profileActionOverrides: childrenNamed(root, "profileActionOverrides").map((o) => ({
+          content: childText(o, "content"),
+          profile: childText(o, "profile"),
+          formFactor: childText(o, "formFactor"),
+        })),
+        actionOverrides: childrenNamed(root, "actionOverrides").map((o) => ({ content: childText(o, "content"), formFactor: childText(o, "formFactor") })),
+      };
+    });
+  } catch {
+    return null;
+  } finally {
+    fs.rmSync(outputDir, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Names of the apps with any override (any profile, any screen) for the Lightning page: the only apps a copy of
+ * the page can be pointed from. Null when the apps couldn't be read over Tooling (the caller reads them all).
+ */
+export async function appsReferencingPage(page: string, org: string): Promise<string[] | null> {
+  const apps = await appOverridesViaTooling(org);
+  if (!apps) return null;
+  return apps.filter((a) => a.profileActionOverrides.some((o) => o.content === page) || a.actionOverrides.some((o) => o.content === page)).map((a) => a.fullName);
+}
 
 /** Every app's Lightning page assignments (profile overrides and app defaults) on large form factors. */
 async function pageAssignments(org: string): Promise<PageAssignments | null> {
   const hit = assignmentsCache.get(org);
   if (hit && Date.now() - hit.at < ASSIGNMENTS_TTL_MS) return hit.value;
   const value = (async (): Promise<PageAssignments | null> => {
-    const result = await retrieveMetadata("", "CustomApplication", org);
-    if (!result.success || !result.data) return null;
-    const { outputDir } = result.data;
-    try {
-      const out: PageAssignments = { profiles: new Map(), appDefaults: new Map() };
-      const add = (m: Map<string, Set<string>>, page: string, v: string) => m.set(page, (m.get(page) ?? new Set()).add(v));
-      const large = (n: XmlNode) => (childText(n, "formFactor") ?? "Large") === "Large";
-      for (const file of appFiles(outputDir)) {
-        const root = parseXml(fs.readFileSync(file, "utf-8"));
-        const app = childText(root, "label") || path.basename(file).replace(/\.app-meta\.xml$/, "");
-        for (const o of childrenNamed(root, "profileActionOverrides")) {
-          const page = childText(o, "content");
-          const profile = childText(o, "profile");
-          if (page && profile && large(o)) add(out.profiles, page, profileName(profile));
-        }
-        for (const o of childrenNamed(root, "actionOverrides")) {
-          const page = childText(o, "content");
-          if (page && large(o)) add(out.appDefaults, page, app);
-        }
-      }
-      return out;
-    } catch {
-      return null;
-    } finally {
-      fs.rmSync(outputDir, { recursive: true, force: true });
-    }
+    const apps = (await appOverridesViaTooling(org)) ?? (await appOverridesViaRetrieve(org));
+    return apps ? assignmentsOf(apps) : null;
   })();
   assignmentsCache.set(org, { at: Date.now(), value });
+  value.then((v) => {
+    if (!v && assignmentsCache.get(org)?.value === value) assignmentsCache.delete(org);
+  });
   return value;
+}
+
+/** Page assignments from the given apps as sorted arrays, for checking one source against the other. */
+export function pageAssignmentsOf(apps: AppOverrides[]): { profiles: [string, string[]][]; appDefaults: [string, string[]][] } {
+  const all = assignmentsOf(apps);
+  const flat = (m: Map<string, Set<string>>) => [...m].map(([k, v]): [string, string[]] => [k, [...v].sort()]).sort((a, b) => a[0].localeCompare(b[0]));
+  return { profiles: flat(all.profiles), appDefaults: flat(all.appDefaults) };
 }
 
 function appFiles(dir: string): string[] {

@@ -12,6 +12,7 @@
  */
 
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import { deleteMetadata, deployMetadata, retrieveMetadata } from "../../salesforce/cli.js";
 import { PUBLISH_WARNING } from "../change-helpers.js";
@@ -20,6 +21,7 @@ import { query } from "../helpers.js";
 import type { CopyForProfileFix, CopyMove, FixPreview, FixResult, FlexiPageOp, LayoutOp } from "../types.js";
 import { discardDoc, retrieveDocs, withDoc, type MetadataDoc } from "./doc.js";
 import type { FixTracker } from "../fix-progress.js";
+import type { StatusHook } from "../../salesforce/direct-metadata.js";
 import {
   isFlexiPageName,
   layoutAssignmentFile,
@@ -31,7 +33,7 @@ import {
 } from "./copy.js";
 import { applyFlexiPageOps, StaleFlexiPageError } from "./flexipage-ops.js";
 import { applyLayoutOps, StaleLayoutError } from "./layout-ops.js";
-import { assignmentsCache, isProductionOrg } from "./live.js";
+import { appsReferencingPage, assignmentsCache, isProductionOrg } from "./live.js";
 import { parseXml, serializeXml, setChildText, type XmlNode } from "./xml.js";
 
 const soqlString = (v: string) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
@@ -52,10 +54,17 @@ function appFiles(dir: string): string[] {
   });
 }
 
-/** Every CustomApplication of the org, retrieved into a folder that is removed afterwards. */
-async function withApps<T>(org: string, fn: (apps: AppFile[]) => Promise<T>, progress?: FixTracker): Promise<T> {
+/**
+ * CustomApplications retrieved into a folder that is removed afterwards: the named ones, or every app of the org
+ * when no names are given. A wildcard retrieve takes ~1 s per app, so callers that know which apps can matter pass them.
+ */
+async function withApps<T>(org: string, names: string[] | undefined, fn: (apps: AppFile[]) => Promise<T>, progress?: FixTracker): Promise<T> {
   progress?.begin("apps");
-  const result = await retrieveMetadata("", "CustomApplication", org, progress?.statusHook("apps"));
+  if (names && !names.length) {
+    progress?.end("apps");
+    return fn([]);
+  }
+  const result = await retrieveMetadata("", names ? names.map((n) => `CustomApplication:${n}`) : "CustomApplication", org, progress?.statusHook("apps"));
   if (!result.success || !result.data) throw new Error(`Couldn't retrieve the apps: ${result.error ?? "unknown error"}`);
   const { outputDir } = result.data;
   try {
@@ -70,12 +79,30 @@ async function withApps<T>(org: string, fn: (apps: AppFile[]) => Promise<T>, pro
   }
 }
 
+/** The apps that can hold overrides for the pages: those naming one of them (read over Tooling), or undefined when that can't be told. */
+async function appsNaming(pages: string[], org: string): Promise<string[] | undefined> {
+  const found = await Promise.all(pages.map((p) => appsReferencingPage(p, org)));
+  if (found.some((f) => !f)) return undefined;
+  return [...new Set(found.flatMap((f) => f!))];
+}
+
 async function exists(type: "Layout" | "FlexiPage", fullName: string, org: string): Promise<boolean> {
   if (type === "FlexiPage") {
     return (await query(`SELECT Id FROM FlexiPage WHERE DeveloperName = ${soqlString(fullName)}`, org, true)).length > 0;
   }
   const name = decodeURIComponent(fullName.slice(fullName.indexOf("-") + 1));
   return (await query(`SELECT Id FROM Layout WHERE Name = ${soqlString(name)}`, org, true)).length > 0;
+}
+
+/** An undo only touches the apps its recorded moves name (an app without a name means any could be, so all are read). */
+const revertApps = (fix: CopyForProfileFix): string[] | undefined =>
+  fix.revert!.moves.every((m) => m.app) ? [...new Set(fix.revert!.moves.map((m) => m.app!))] : undefined;
+
+/** Whether the copy's name is taken, asked while the documents are retrieved (nothing, for an undo). A failed lookup surfaces where the answer is used. */
+function nameTaken(fix: CopyForProfileFix, org: string): Promise<boolean> {
+  const taken = fix.revert ? Promise.resolve(false) : exists(fix.doc.type, fix.copy.fullName, org);
+  taken.catch(() => undefined);
+  return taken;
 }
 
 /** What a fix is allowed to name, checked before anything is retrieved. */
@@ -107,7 +134,7 @@ interface Plan {
 
 // --- Page layouts ------------------------------------------------------------------------------
 
-async function planLayoutCreate(fix: CopyForProfileFix, org: string, layout: MetadataDoc, profile: MetadataDoc): Promise<Plan> {
+async function planLayoutCreate(fix: CopyForProfileFix, org: string, layout: MetadataDoc, profile: MetadataDoc, taken: Promise<boolean>): Promise<Plan> {
   const preview = base(fix, org);
   const [source, copy] = [fix.doc.fullName, fix.copy.fullName];
   let root = layout.root;
@@ -129,7 +156,7 @@ async function planLayoutCreate(fix: CopyForProfileFix, org: string, layout: Met
       `${fix.profile} isn't assigned ${fix.doc.label} in the org any more (or never was, directly), so a copy wouldn't change what it sees. Refresh the preview.`
     );
   }
-  if (await exists("Layout", copy, org)) return blocked(preview, `A page layout named “${fix.copy.label}” already exists. Take this copy out of the tray and make it again.`);
+  if (await taken) return blocked(preview, `A page layout named “${fix.copy.label}” already exists. Take this copy out of the tray and make it again.`);
 
   const { moves } = reassignLayout(profile.root, source, copy);
   const copyXml = serializeXml(root);
@@ -202,7 +229,7 @@ async function withLayoutDocs<T>(fix: CopyForProfileFix, org: string, fn: (layou
 
 // --- Lightning pages ------------------------------------------------------------------------------
 
-async function planPage(fix: CopyForProfileFix, org: string, page: MetadataDoc | null, apps: AppFile[]): Promise<Plan> {
+async function planPage(fix: CopyForProfileFix, org: string, page: MetadataDoc | null, apps: AppFile[], taken?: Promise<boolean>): Promise<Plan> {
   const preview = base(fix, org);
   const [source, copy] = [fix.doc.fullName, fix.copy.fullName];
   const changedApps: { file: AppFile; xml: string }[] = [];
@@ -255,7 +282,7 @@ async function planPage(fix: CopyForProfileFix, org: string, page: MetadataDoc |
       `No app gives ${fix.profile} ${fix.doc.label} (it may be an object's or the org's default page), so there's nothing to point at a copy. Assign the page to an app in Lightning App Builder first.`
     );
   }
-  if (await exists("FlexiPage", copy, org)) return blocked(preview, `A Lightning page named ${copy} already exists. Take this copy out of the tray and make it again.`);
+  if (await (taken ?? exists("FlexiPage", copy, org))) return blocked(preview, `A Lightning page named ${copy} already exists. Take this copy out of the tray and make it again.`);
 
   const copyRoot = parseXml(serializeXml(root));
   setChildText(copyRoot, "masterLabel", fix.copy.label, ["masterLabel"]);
@@ -293,22 +320,26 @@ async function plan(fix: CopyForProfileFix, org: string, progress?: FixTracker):
   const invalid = validate(fix);
   if (invalid) return blocked(base(fix, org), invalid);
   if (fix.doc.type === "Layout") {
+    const taken = nameTaken(fix, org);
     return withLayoutDocs(
       fix,
       org,
-      (layout, profile) => planning(progress, () => (fix.revert ? planLayoutRevert(fix, org, profile) : planLayoutCreate(fix, org, layout, profile))),
+      (layout, profile) => planning(progress, () => (fix.revert ? planLayoutRevert(fix, org, profile) : planLayoutCreate(fix, org, layout, profile, taken))),
       progress
     );
   }
-  if (fix.revert) return withApps(org, (apps) => planning(progress, () => planPage(fix, org, null, apps)), progress);
+  if (fix.revert) return withApps(org, revertApps(fix), (apps) => planning(progress, () => planPage(fix, org, null, apps)), progress);
+  const taken = nameTaken(fix, org);
+  const candidates = appsNaming([fix.doc.fullName], org);
+  candidates.catch(() => undefined);
   progress?.begin("retrieve");
   return withDoc(
     "FlexiPage",
     fix.doc.fullName,
     org,
-    (page) => {
+    async (page) => {
       progress?.end("retrieve");
-      return withApps(org, (apps) => planning(progress, () => planPage(fix, org, page, apps)), progress);
+      return withApps(org, await candidates, (apps) => planning(progress, () => planPage(fix, org, page, apps, taken)), progress);
     },
     progress?.statusHook("retrieve")
   );
@@ -339,23 +370,27 @@ export async function applyCopy(fix: CopyForProfileFix, org: string, progress?: 
       return result;
     };
     if (fix.doc.type === "Layout") {
+      const taken = nameTaken(fix, org);
       return await withLayoutDocs(
         fix,
         org,
         async (layout, profile) =>
-          run(await planning(progress, () => (fix.revert ? planLayoutRevert(fix, org, profile) : planLayoutCreate(fix, org, layout, profile)))),
+          run(await planning(progress, () => (fix.revert ? planLayoutRevert(fix, org, profile) : planLayoutCreate(fix, org, layout, profile, taken)))),
         progress
       );
     }
-    if (fix.revert) return await withApps(org, async (apps) => run(await planning(progress, () => planPage(fix, org, null, apps))), progress);
+    if (fix.revert) return await withApps(org, revertApps(fix), async (apps) => run(await planning(progress, () => planPage(fix, org, null, apps))), progress);
+    const taken = nameTaken(fix, org);
+    const candidates = appsNaming([fix.doc.fullName], org);
+    candidates.catch(() => undefined);
     progress?.begin("retrieve");
     return await withDoc(
       "FlexiPage",
       fix.doc.fullName,
       org,
-      (page) => {
+      async (page) => {
         progress?.end("retrieve");
-        return withApps(org, async (apps) => run(await planning(progress, () => planPage(fix, org, page, apps))), progress);
+        return withApps(org, await candidates, async (apps) => run(await planning(progress, () => planPage(fix, org, page, apps, taken))), progress);
       },
       progress?.statusHook("retrieve")
     );
@@ -374,48 +409,36 @@ async function deleteCopy(fix: CopyForProfileFix, org: string): Promise<string |
   return res.success ? null : errorOf(res);
 }
 
-async function create(fix: CopyForProfileFix, p: Plan, org: string, progress?: FixTracker): Promise<FixResult> {
-  const onStatus = progress?.statusHook("deploy");
-  const moves = p.moves!;
-  if (p.layout) {
-    fs.writeFileSync(p.layout.copyPath, p.layout.copyXml, "utf-8");
-    const made = await deployMetadata(p.layout.copyPath, org, onStatus);
-    if (!made.success) return { ok: false, message: `Couldn't create ${fix.copy.label}: ${errorOf(made)}. Nothing was changed.` };
-    fs.writeFileSync(p.layout.profilePath, p.layout.profileXml, "utf-8");
-    const moved = await deployMetadata(p.layout.profilePath, org, onStatus);
-    if (!moved.success) {
-      const left = await deleteCopy(fix, org);
-      return {
-        ok: false,
-        message: `Couldn't move ${fix.profile} to the copy: ${errorOf(moved)}. ${left ? `The copy “${fix.copy.label}” is still in the org (${left}); delete it in Setup.` : "The copy was removed; nothing was changed."}`,
-      };
+/**
+ * Deploy several files as one package. A deploy is all or nothing, so either every file lands or none does, and
+ * it costs one wait in the org's deploy queue instead of one per file.
+ */
+async function deployTogether(files: { filePath: string; xml: string }[], org: string, onStatus?: StatusHook): Promise<{ success: boolean; error?: string }> {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "studio-copy-deploy-"));
+  try {
+    for (const f of files) {
+      const folder = path.join(dir, path.basename(path.dirname(f.filePath)));
+      fs.mkdirSync(folder, { recursive: true });
+      fs.writeFileSync(path.join(folder, path.basename(f.filePath)), f.xml, "utf-8");
     }
-  } else {
-    const page = p.page!;
-    fs.writeFileSync(page.copyPath, page.copyXml, "utf-8");
-    const made = await deployMetadata(page.copyPath, org, onStatus);
-    if (!made.success) return { ok: false, message: `Couldn't create ${fix.copy.label}: ${errorOf(made)}. Nothing was changed.` };
-    const done: { file: AppFile; xml: string }[] = [];
-    for (const app of page.apps) {
-      fs.writeFileSync(app.file.filePath, app.xml, "utf-8");
-      const moved = await deployMetadata(app.file.filePath, org, onStatus);
-      if (moved.success) {
-        done.push(app);
-        continue;
-      }
-      // Put the apps already changed back, then remove the copy.
-      const stuck: string[] = [];
-      for (const d of done) {
-        fs.writeFileSync(d.file.filePath, d.file.xml, "utf-8");
-        if (!(await deployMetadata(d.file.filePath, org, onStatus)).success) stuck.push(d.file.name);
-      }
-      const left = stuck.length ? "still points at the copy in " + stuck.join(", ") : await deleteCopy(fix, org);
-      return {
-        ok: false,
-        message: `Couldn't change ${app.file.name}: ${errorOf(moved)}. ${left ? `${fix.profile} ${stuck.length ? left : `kept its pages, but the copy “${fix.copy.label}” is still in the org (${left}); delete it in Setup`}.` : "The copy was removed; nothing was changed."}`,
-      };
-    }
+    const result = await deployMetadata(dir, org, onStatus);
+    return result.success ? { success: true } : { success: false, error: errorOf(result) };
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
   }
+}
+
+async function create(fix: CopyForProfileFix, p: Plan, org: string, progress?: FixTracker): Promise<FixResult> {
+  const moves = p.moves!;
+  // The copy and the assignments that point at it go in one deploy: it either all lands or nothing changes.
+  const files = p.layout
+    ? [
+        { filePath: p.layout.copyPath, xml: p.layout.copyXml },
+        { filePath: p.layout.profilePath, xml: p.layout.profileXml },
+      ]
+    : [{ filePath: p.page!.copyPath, xml: p.page!.copyXml }, ...p.page!.apps.map((a) => ({ filePath: a.file.filePath, xml: a.xml }))];
+  const made = await deployTogether(files, org, progress?.statusHook("deploy"));
+  if (!made.success) return { ok: false, message: `Couldn't create ${fix.copy.label} and point ${fix.profile} at it: ${made.error}. Nothing was changed.` };
   return {
     ok: true,
     message: `Created ${fix.copy.label} and pointed ${fix.profile} at it.`,
@@ -426,16 +449,10 @@ async function create(fix: CopyForProfileFix, p: Plan, org: string, progress?: F
 async function revert(fix: CopyForProfileFix, p: Plan, org: string, progress?: FixTracker): Promise<FixResult> {
   const onStatus = progress?.statusHook("deploy");
   const moves = p.moves!;
-  if (p.layout) {
-    fs.writeFileSync(p.layout.profilePath, p.layout.profileXml, "utf-8");
-    const moved = await deployMetadata(p.layout.profilePath, org, onStatus);
-    if (!moved.success) return { ok: false, message: `Couldn't point ${fix.profile} back at ${fix.doc.label}: ${errorOf(moved)}. The copy was left in place.` };
-  } else {
-    for (const app of p.page!.apps) {
-      fs.writeFileSync(app.file.filePath, app.xml, "utf-8");
-      const moved = await deployMetadata(app.file.filePath, org, onStatus);
-      if (!moved.success) return { ok: false, message: `Couldn't change ${app.file.name}: ${errorOf(moved)}. The copy was left in place.` };
-    }
+  const files = p.layout ? [{ filePath: p.layout.profilePath, xml: p.layout.profileXml }] : p.page!.apps.map((a) => ({ filePath: a.file.filePath, xml: a.xml }));
+  const moved = await deployTogether(files, org, onStatus);
+  if (!moved.success) {
+    return { ok: false, message: `Couldn't point ${fix.profile} back at ${fix.doc.label}: ${moved.error}. The copy was left in place.` };
   }
   const left = await deleteCopy(fix, org);
   return {

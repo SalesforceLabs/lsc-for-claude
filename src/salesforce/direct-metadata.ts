@@ -76,7 +76,7 @@ function manifest(members: Member[], version: string): string {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const POLL_MS = [200, 200, 300, 300, 500, 500, 750];
-const pollDelay = (n: number) => POLL_MS[n] ?? 1000;
+const pollDelay = (n: number) => POLL_MS[n] ?? 750;
 
 type Result = Record<string, unknown>;
 
@@ -352,6 +352,32 @@ function deployError(result: Result): string {
   if (failures.length) return failures.join("; ");
   if (result.errorMessage) return String(result.errorMessage);
   return `Deploy ${String(result.status ?? "failed")}`;
+}
+
+/**
+ * Delete one component, as a post-destructive deploy of an otherwise empty package does through the CLI.
+ * `null` = the transport is unusable: use the CLI.
+ */
+export async function directDelete(
+  type: string,
+  fullName: string,
+  org: string,
+  fetcher: CredentialFetcher,
+  timeoutMs = DEFAULT_TIMEOUT_MS
+): Promise<DirectOutcome<void> | null> {
+  if (!directEnabled(org)) return null;
+  const version = await directApiVersion(org, fetcher);
+  const head = `<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="${MD_NS}">`;
+  const zip = zipFiles([
+    { name: "package.xml", data: Buffer.from(`${head}<version>${version}</version></Package>\n`, "utf-8") },
+    { name: "destructiveChangesPost.xml", data: Buffer.from(`${head}${manifest([{ type, fullName }], version)}</Package>\n`, "utf-8") },
+  ]);
+  const start = `<deploy><ZipFile>${zip.toString("base64")}</ZipFile><DeployOptions><rollbackOnError>true</rollbackOnError><singlePackage>true</singlePackage></DeployOptions></deploy>`;
+  const check = (id: string) => `<checkDeployStatus><asyncProcessId>${id}</asyncProcessId><includeDetails>true</includeDetails></checkDeployStatus>`;
+  const res = await runAsync(org, fetcher, start, check, "deploy", "checkDeployStatus", timeoutMs);
+  if (!res || !res.ok) return res;
+  if (res.data.success !== "true" || res.data.status !== "Succeeded") return { ok: false, error: deployError(res.data) };
+  return { ok: true, data: undefined };
 }
 
 /**

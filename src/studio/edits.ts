@@ -306,13 +306,14 @@ interface MetadataPlan {
 
 const FLEXIPAGE_OPS = new Set(["moveComponent", "removeComponent", "addComponent", "setComponentProperty"]);
 
-async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string, progress?: FixTracker): Promise<MetadataPlan> {
+/** `forApply` leaves out what only the review dialog shows (who is reached, production), keeping every check that can block. */
+async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string, progress?: FixTracker, forApply = false): Promise<MetadataPlan> {
   progress?.begin("diff");
   if (fix.ops.some((op) => FLEXIPAGE_OPS.has(op.op) !== (fix.doc.type === "FlexiPage") || LISTVIEW_OPS.has(op.op) !== (fix.doc.type === "ListView"))) {
     throw new Error(`These changes aren't ${fix.doc.type} edits.`);
   }
-  if (fix.doc.type === "ListView") return planEditListView(fix, doc, org, progress);
-  if (fix.doc.type === "FlexiPage") return planEditFlexiPage(fix, doc, org, progress);
+  if (fix.doc.type === "ListView") return planEditListView(fix, doc, org, progress, forApply);
+  if (fix.doc.type === "FlexiPage") return planEditFlexiPage(fix, doc, org, progress, forApply);
   const preview: FixPreview = { org, title: fix.label, changes: [], warnings: [] };
   if (!fix.ops.length) return { preview: { ...preview, blocked: "Nothing to change." } };
   let result: ReturnType<typeof applyFixOps>;
@@ -344,8 +345,8 @@ async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string,
   }
 
   const [reach, production, ...dbWarnings] = await Promise.all([
-    step(progress, "reach", () => (isCompactFix(fix) ? compactReach(fix, org) : layoutReach(fix, org))),
-    step(progress, "production", () => isProductionOrg(org)),
+    forApply ? "" : step(progress, "reach", () => (isCompactFix(fix) ? compactReach(fix, org) : layoutReach(fix, org))),
+    forApply ? false : step(progress, "production", () => isProductionOrg(org)),
     ...(fix.ops as (LayoutOp | CompactOp)[]).flatMap((op) =>
       op.op === "addRelatedList" && op.object && !op.xml ? [dbSchemaWarning(op.object, org)] : []
     ),
@@ -373,7 +374,7 @@ async function flexiPageReachWarning(fix: MetadataFix, org: string): Promise<str
   return `Deploys ${fix.doc.label} to the org — it's ${parts.join(" and ")}, and everyone who gets it gets the change.`;
 }
 
-async function planEditFlexiPage(fix: MetadataFix, doc: MetadataDoc, org: string, progress?: FixTracker): Promise<MetadataPlan> {
+async function planEditFlexiPage(fix: MetadataFix, doc: MetadataDoc, org: string, progress?: FixTracker, forApply = false): Promise<MetadataPlan> {
   const preview: FixPreview = { org, title: fix.label, changes: [], warnings: [] };
   if (!fix.ops.length) return { preview: { ...preview, blocked: "Nothing to change." } };
   const ops = fix.ops as FlexiPageOp[];
@@ -392,8 +393,8 @@ async function planEditFlexiPage(fix: MetadataFix, doc: MetadataDoc, org: string
 
   const [managed, reach, production] = await Promise.all([
     isManagedFlexiPage(fix.doc.fullName, org),
-    step(progress, "reach", () => flexiPageReachWarning(fix, org)),
-    step(progress, "production", () => isProductionOrg(org)),
+    forApply ? "" : step(progress, "reach", () => flexiPageReachWarning(fix, org)),
+    forApply ? false : step(progress, "production", () => isProductionOrg(org)),
   ]);
   if (managed) {
     return {
@@ -432,7 +433,7 @@ function listViewReach(label: string, sharedTo: { kind: string; name: string }[]
   return `Deploys ${label} to the org - it's shared with ${shown.join(", ")}${more}, and everyone it's shared with gets the change.`;
 }
 
-async function planEditListView(fix: MetadataFix, doc: MetadataDoc, org: string, progress?: FixTracker): Promise<MetadataPlan> {
+async function planEditListView(fix: MetadataFix, doc: MetadataDoc, org: string, progress?: FixTracker, forApply = false): Promise<MetadataPlan> {
   const preview: FixPreview = { org, title: fix.label, changes: [], warnings: [] };
   if (!fix.ops.length) return { preview: { ...preview, blocked: "Nothing to change." } };
   const live = liveListViewOf(fix.doc.fullName, doc.root);
@@ -456,7 +457,7 @@ async function planEditListView(fix: MetadataFix, doc: MetadataDoc, org: string,
   preview.warnings.push(listViewReach(fix.doc.label, live.sharedTo));
   // The iPad lists an object's views live, so reps see a deployed change without a metadata cache publish.
   preview.warnings.push("The iPad reads list views from the org when a rep opens the list, so no publish to iPad is needed.");
-  if (await step(progress, "production", () => isProductionOrg(org))) preview.production = true;
+  if (!forApply && (await step(progress, "production", () => isProductionOrg(org)))) preview.production = true;
   return { preview, root: result.root, inverse: result.inverse };
 }
 
@@ -495,7 +496,7 @@ async function applyEditMetadata(fix: MetadataFix, org: string, progress?: FixTr
     progress?.begin("retrieve");
     return await withDoc(fix.doc.type, fix.doc.fullName, org, async (doc) => {
       progress?.end("retrieve");
-      const { preview, root, inverse } = await planEditMetadata(fix, doc, org, progress);
+      const { preview, root, inverse } = await planEditMetadata(fix, doc, org, progress, true);
       if (preview.blocked || !root || !inverse) return { ok: false, message: preview.blocked || "Nothing to update." };
       try {
         await step(progress, "deploy", () => deployDoc(doc, root, org, progress?.statusHook("deploy")));

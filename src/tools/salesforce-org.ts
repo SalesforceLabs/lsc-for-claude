@@ -18,6 +18,7 @@ import {
 import {
   checkSetupStatus,
   invalidateSetupStatus,
+  primeSetupStatus,
   getSetupInstructions,
   formatOrgList,
   validateOrgConnection,
@@ -215,6 +216,7 @@ export function register(server: McpServer) {
       }
 
       setTargetOrg(org);
+      primeSetupStatus(allOrgs);
 
       return {
         content: [

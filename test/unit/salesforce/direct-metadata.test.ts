@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { buildDeployZip, directDeploy, directRetrieve, parseMetadataSpecs, zipFiles } from "../../../src/salesforce/direct-metadata.js";
+import { buildDeployZip, directDelete, directDeploy, directRetrieve, parseMetadataSpecs, zipFiles } from "../../../src/salesforce/direct-metadata.js";
 import { resetDirect } from "../../../src/salesforce/direct.js";
 import { ZipReader } from "../../../src/perf/device/zip.js";
 
@@ -142,6 +142,37 @@ describe("directRetrieve", () => {
     const fetcher = vi.fn(async () => creds);
     expect(await directRetrieve(["Layout:A-B"], ORG, tmp, fetcher)).toBeNull();
     expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+describe("directDelete", () => {
+  it("sends an empty package with a post-destructive list of the one component", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(xmlResponse(envelope("deploy", "<done>false</done><id>0Af1</id>")))
+      .mockResolvedValueOnce(xmlResponse(envelope("checkDeployStatus", "<done>true</done><id>0Af1</id><status>Succeeded</status><success>true</success>")));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await directDelete("Layout", "Contact-Copy & Co", ORG, async () => creds)).toEqual({ ok: true, data: undefined });
+    const body = String(fetchMock.mock.calls[0][1].body);
+    const zip = Buffer.from(/<ZipFile>([^<]+)<\/ZipFile>/.exec(body)![1], "base64");
+    const files = readZip(zip);
+    expect(Object.keys(files).sort()).toEqual(["destructiveChangesPost.xml", "package.xml"]);
+    expect(files["destructiveChangesPost.xml"]).toContain("<members>Contact-Copy &amp; Co</members><name>Layout</name>");
+    expect(files["package.xml"]).not.toContain("<types>");
+    expect(body).toContain("<rollbackOnError>true</rollbackOnError>");
+  });
+
+  it("reports why the component can't be deleted", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(xmlResponse(envelope("deploy", "<done>false</done><id>0Af1</id>")))
+        .mockResolvedValueOnce(
+          xmlResponse(envelope("checkDeployStatus", "<done>true</done><id>0Af1</id><status>Failed</status><success>false</success><details><componentFailures><fullName>X</fullName><problem>in use</problem></componentFailures></details>"))
+        )
+    );
+    expect(await directDelete("Layout", "X", ORG, async () => creds)).toEqual({ ok: false, error: "X: in use" });
   });
 });
 
