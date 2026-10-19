@@ -262,6 +262,9 @@
   resize: none;
 }
 .assist-input::placeholder {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text-secondary);
 }
 .assist-send {
@@ -276,4 +279,11 @@
 .assist-send.stop {
   background: var(--fill-hover, var(--fill-subtle));
   color: var(--text-primary);
+}
+
+/* Shown when the reader scrolls up from the newest message. */
+.assist-latest {
+  align-self: center;
+  margin-top: calc(-1 * var(--space-8));
+  box-shadow: var(--shadow-sm);
 }

@@ -94,6 +94,8 @@ function invalidate(org: string, tools: string[]): void {
 const STUDIO_CACHED_TOOLS = new Set([
   "studio_feature_map",
   "studio_item_detail",
+  // --- custom scripts: server ---
+  "studio_custom_scripts",
   "studio_list_profiles",
   "studio_access_options",
   "studio_ipad_published",

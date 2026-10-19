@@ -121,6 +121,15 @@ The editor shows these live as lint; preview shows errors/warnings as review war
 
 `setCustomScriptCode` stays (the Inspector uses it) but is re-implemented on the same save path, so it now works in orgs where `CodeText` isn't updateable.
 
+**Deviations as built (stream A, verified end to end on peter-lsc-260-trial):**
+- Types live in `src/studio/scripts/types.ts`, copied byte for byte to `src-renderer/components/studio/scripts/script-types.ts` (a test keeps them equal).
+- `createCustomScript` has an extra optional `adoptBundle` (set by the undo of a delete: an existing bundle with the same code is reused instead of refused).
+- `ScriptLibrary` gains `unavailable` (no custom script object in the org); the page shows "This org doesn't have custom scripts" instead of offering New script.
+- Script status gains the label "No stage path" (a stage object with the script but no `LifeSciStagePath`).
+- Preview and apply for the four new kinds live in `src/studio/scripts/fixes.ts`, dispatched from `edits.ts`; the save primitives are in `save.ts` and `lwc.ts`. Saves validate only the fields being changed.
+- `setCustomScriptCode` no longer needs `CodeText` to be updateable; a package-owned component is refused unless `CodeText` is updateable.
+- The Tooling `LightningComponentResource` PATCH, creating a bundle with a temp-dir deploy, and deleting one with `deleteMetadata` all worked on the demo org. The retrieve-swap-deploy fallback is only covered by unit mocks.
+
 Renderer change keys: `script:${scriptId}` for save (merge code + field edits into one pending change, keeping the original `from`), `script-new:${componentName}`, `script-delete:${scriptId}`, `stage:${stageObjectId}:${role}`. A queued create shows in the library as a draft row ("New · not in the org yet").
 
 ## Test run (stream B)
@@ -144,6 +153,13 @@ interface ScriptTestResult {
 ```
 
 Runs in a Node `vm` context with a time limit (5 s CPU, 20 s total with queries), no `require`, no network except `db` → read-only SOQL as the connected admin (say so in `notes`). `record.setValue`/`save` are recorded, never written. Web vs iPad switches the context-data keys (`ProviderVisitProdDetailing.VisitId` vs `ProviderVisitProdDetailing`), field-name casing and `db.query` result shapes (`sObject` on web, opaque methods-only object on iPad) per the reference. The renderer's `ScriptTestPanel` shows results the way the app would (a validation dialog with the result rows), then logs and queries.
+
+**As built (deviations):**
+- `studio_script_test` also accepts `operationEventType?`. `ScriptTestResult` gains an optional `recorded` list (the `setValue`/`save` calls that were recorded, not applied), carried by the panel's `TestRunResult` (`script-test-logic.ts`), which `script-model.ts` re-exports as `ScriptTestResult`.
+- VAV test records are `ProviderVisit` rows (ordered by planned start, 25 at most); a `Visit` id is accepted and resolved to its ProviderVisit. Children link by `ProviderVisitId`, falling back to `VisitId` (ProductDisbursement has only `VisitId`).
+- On web, `[validateVisit()]` resolves to `[[...]]`; the runner flattens one level before checking the contract, as the app does.
+- On web the script runs once, with native async/await: `db` calls return real Promises that the host settles when the query returns. Each synchronous segment is limited to 5 s CPU (cumulative) and the whole run to 20 s. `Date` and `Math.random` are real. On iPad the app strips async/await, so `db` is synchronous there; the runner replays the script (up to 12 passes) to answer it from queries fetched between passes, and on iPad only the clock is held at the run's start and `Math.random()` is seeded. A note says so.
+- `ScriptTestPanel` takes an optional `onJumpTo(line, column)` for the error's "Jump to line", and optional `onResult` / `onAskRoz`. Preload: `studioScriptTestRecords(args)` and `studioScriptTest(args)`.
 
 ## Ask Roz (stream D)
 

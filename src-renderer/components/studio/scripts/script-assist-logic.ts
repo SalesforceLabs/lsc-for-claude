@@ -98,6 +98,12 @@ export function replySummary(text: string): string {
     .join("\n\n");
 }
 
+/** The summary as one line for the proposal header: its first line without a list marker or Markdown emphasis. */
+export function summaryLine(summary: string): string {
+  const first = summary.split("\n").find((l) => l.trim()) ?? "";
+  return first.replace(/^\s*(?:[-*+]|\d+[.)])\s+/, "").replace(/(\*\*|__|`)/g, "").trim();
+}
+
 // --- Diff stats -------------------------------------------------------------------------------
 
 export interface DiffStats {

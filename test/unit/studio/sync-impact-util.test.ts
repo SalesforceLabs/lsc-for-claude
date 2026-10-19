@@ -10,6 +10,7 @@ const fixtures: Record<string, unknown>[] = [
   { kind: "setActive", record: { type: "triggerHandler", developerName: "X" } },
   { kind: "assignPsl" },
   { kind: "setCustomScriptCode" },
+  ...["saveCustomScript", "createCustomScript", "deleteCustomScript", "assignCustomScript"].map((kind) => ({ kind })),
 ];
 
 describe("touchesDbSchema copies", () => {

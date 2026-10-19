@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ArrowUp, FileDiff, RotateCw, Sparkles, Square, SquarePen, TriangleAlert, X } from "lucide-react";
+import { ArrowDown, ArrowUp, FileDiff, RotateCw, Sparkles, Square, SquarePen, TriangleAlert, X } from "lucide-react";
 import { useAssistantName } from "../../../hooks/useAssistantName";
 import Spinner from "../../ui/Spinner";
 import {
@@ -47,6 +47,16 @@ export interface ScriptAssistPanelProps {
 /** Other parts of the page can ask the composer to take focus (⌘K). */
 export const FOCUS_ASSIST_EVENT = "roz:focus-assist";
 
+/** Text waiting to go in the message box; kept here so a panel that is still opening picks it up when it mounts. */
+let pendingPrefill: string | null = null;
+const PREFILL_ASSIST_EVENT = "roz:prefill-assist";
+
+/** Puts text in the message box without sending it (after anything already there) and focuses it. */
+export function prefillAssist(text: string): void {
+  pendingPrefill = text;
+  window.dispatchEvent(new Event(PREFILL_ASSIST_EVENT));
+}
+
 export default function ScriptAssistPanel({ scriptKey, script, diagnostics, lastTest, proposal, onPropose, onClose }: ScriptAssistPanelProps) {
   const name = useAssistantName();
   const conversation = useAssistConversation(scriptKey);
@@ -56,6 +66,14 @@ export default function ScriptAssistPanel({ scriptKey, script, diagnostics, last
   const composer = useRef<HTMLTextAreaElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
+  const [scrolledUp, setScrolledUp] = useState(false);
+  const toLatest = () => {
+    const el = scroller.current;
+    if (!el) return;
+    pinned.current = true;
+    setScrolledUp(false);
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  };
 
   // What a new message is built from: the editor as it is right now.
   const context = useMemo(() => ({ script, diagnostics, lastTest }), [script, diagnostics, lastTest]);
@@ -107,10 +125,25 @@ export default function ScriptAssistPanel({ scriptKey, script, diagnostics, last
         focus();
       }
     };
+    const prefill = () => {
+      const text = pendingPrefill;
+      if (text === null) return;
+      pendingPrefill = null;
+      setDraft((d) => (d.trim() ? `${d.replace(/\s+$/, "")}\n${text}` : text));
+      requestAnimationFrame(() => {
+        const el = composer.current;
+        if (!el) return;
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+      });
+    };
+    prefill();
     window.addEventListener(FOCUS_ASSIST_EVENT, focus);
+    window.addEventListener(PREFILL_ASSIST_EVENT, prefill);
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener(FOCUS_ASSIST_EVENT, focus);
+      window.removeEventListener(PREFILL_ASSIST_EVENT, prefill);
       window.removeEventListener("keydown", onKey);
     };
   }, []);
@@ -138,6 +171,7 @@ export default function ScriptAssistPanel({ scriptKey, script, diagnostics, last
         onScroll={(e) => {
           const el = e.currentTarget;
           pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+          if (scrolledUp === pinned.current) setScrolledUp(!pinned.current);
         }}
       >
         {empty ? (
@@ -145,7 +179,23 @@ export default function ScriptAssistPanel({ scriptKey, script, diagnostics, last
             <p className="assist-empty-lead">Describe what the script should check, or ask about it. I'll write it and show the change before anything is saved.</p>
             <div className="assist-starters" role="list">
               {starterPrompts(script.type, script.objectName).map((prompt) => (
-                <button key={prompt} type="button" role="listitem" className="assist-starter" onClick={() => send(prompt)}>
+                <button
+                  key={prompt}
+                  type="button"
+                  role="listitem"
+                  className="assist-starter"
+                  title="Put this in the message box so you can edit it before sending"
+                  onClick={() => {
+                    setDraft(prompt);
+                    requestAnimationFrame(() => {
+                      const el = composer.current;
+                      if (el) {
+                        el.focus();
+                        el.setSelectionRange(prompt.length, prompt.length);
+                      }
+                    });
+                  }}
+                >
                   {prompt}
                 </button>
               ))}
@@ -174,6 +224,12 @@ export default function ScriptAssistPanel({ scriptKey, script, diagnostics, last
       </div>
 
       <footer className="assist-foot">
+        {scrolledUp && !empty && (
+          <button type="button" className="studio-btn sm assist-latest" onClick={toLatest}>
+            <ArrowDown size={14} aria-hidden="true" />
+            {busy ? "Follow the reply" : "Latest"}
+          </button>
+        )}
         {(problems > 0 || failedTest) && !busy && (
           <div className="assist-chips">
             {problems > 0 && (
@@ -197,7 +253,7 @@ export default function ScriptAssistPanel({ scriptKey, script, diagnostics, last
             className="assist-input"
             rows={1}
             value={draft}
-            placeholder={empty ? `Tell ${name} what this script should do` : "Ask for a change or a question"}
+            placeholder={empty ? "Describe what the script should do" : "Ask for a change or a question"}
             aria-label={`Message ${name}`}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -282,7 +338,7 @@ function AssistReply({
             <FileDiff size={16} aria-hidden="true" className="assist-card-icon" />
             <div className="assist-card-text">
               <span className="assist-card-title">Proposed change</span>
-              <span className="assist-card-meta">{describeDiff(stats)}</span>
+              <span className="assist-card-meta">{stats.added || stats.removed ? describeDiff(stats) : "Matches the editor"}</span>
             </div>
             <button type="button" className="studio-btn sm" onClick={() => onView(s.code)}>
               View in editor

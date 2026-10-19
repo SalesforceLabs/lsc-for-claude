@@ -562,6 +562,11 @@ input[type="radio"]:not(.studio-ipad-screen *):disabled {
   -webkit-app-region: no-drag;
 }
 
+.ui-resize-handle.left {
+  right: auto;
+  left: -3px;
+}
+
 .ui-resize-handle::after {
   content: "";
   position: absolute;

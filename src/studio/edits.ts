@@ -30,11 +30,13 @@ import { applyFlexiPageOps, flexiPageWarnings, StaleFlexiPageError } from "./met
 import { compactLayoutRecordTypes, isManagedFlexiPage, knownFlexiPageReach, isProductionOrg, layoutProfiles, liveListViewOf, splitCompactName, splitListViewName } from "./metadata/live.js";
 import { applyCopy, previewCopy } from "./metadata/copy-fix.js";
 import { serializeXml, type XmlNode } from "./metadata/xml.js";
-import { scriptCodeFindings } from "./collect.js";
+import { applySaveScript, applyScriptFix, isScriptKindFix, previewSaveScript, previewScriptFix, type ScriptKindFix } from "./scripts/fixes.js";
+import { fieldsOf, readScriptRow } from "./scripts/save.js";
 import { lineCount, lineDiff } from "./diff.js";
 import { query, type Row } from "./helpers.js";
 import { step, type FixTracker } from "./fix-progress.js";
 import type { CompactLayoutEditFix, CompactOp, FixPreview, FixResult, FlexiPageEditFix, FlexiPageOp, LayoutOp, ListViewOp, StudioFix } from "./types.js";
+import type { SaveCustomScriptFix } from "./scripts/types.js";
 
 type ScriptFix = Extract<StudioFix, { kind: "setCustomScriptCode" }>;
 type LayoutFix = Extract<StudioFix, { kind: "setLayoutRelatedList" }>;
@@ -46,49 +48,32 @@ type CopyFix = Extract<StudioFix, { kind: "copyForProfile" }>;
 
 const sizeOf = (code: string) => `${lineCount(code)} lines, ${code.length} characters`;
 
-async function previewSetCustomScriptCode(fix: ScriptFix, org: string, progress?: FixTracker): Promise<FixPreview> {
+/** The older code-only edit, run on the same save path as `saveCustomScript` (component first, then the record). */
+async function asSave(fix: ScriptFix, org: string): Promise<SaveCustomScriptFix | null> {
   assertId(fix.scriptId);
-  const preview: FixPreview = {
-    org,
-    title: fix.label,
-    changes: [
-      { target: fix.scriptName, field: "CodeText", before: sizeOf(fix.from), after: sizeOf(fix.to), diff: lineDiff(fix.from, fix.to) },
-    ],
-    warnings: [],
+  const row = await readScriptRow(org, fix.scriptId);
+  if (!row) return null;
+  return {
+    kind: "saveCustomScript",
+    label: fix.label,
+    scriptId: fix.scriptId,
+    scriptName: fix.scriptName,
+    from: { code: fix.from, fields: fieldsOf(row) },
+    to: { code: fix.to },
   };
-  const [row] = await step(progress, "read", () => query(`SELECT Id, CodeText FROM LifeScienceCustomScript WHERE Id = '${fix.scriptId}'`, org));
-  if (!row) return { ...preview, blocked: `${fix.scriptName} no longer exists.` };
+}
 
-  const current = String(row.CodeText ?? "");
-  if (current === fix.to) return { ...preview, blocked: "Already applied. Refresh the map." };
-  if (current !== fix.from) {
-    return { ...preview, blocked: `${fix.scriptName}'s code changed since the map was loaded. Refresh the map and try again.` };
-  }
-
-  // The platform can refuse writes to CodeText (it's normally filled by Refresh in the Admin Console).
-  const described = await step(progress, "describe", () => describeSObject("LifeScienceCustomScript", org));
-  const field = described.success ? described.data?.fields.find((f) => f.name === "CodeText") : undefined;
-  if (field && !field.updateable) {
-    return {
-      ...preview,
-      blocked:
-        "This org doesn't let the API write CodeText. Edit the script's LWC, deploy it, then click Refresh in Admin Console > Workflow Configuration > Custom Scripts.",
-    };
-  }
-
-  for (const f of scriptCodeFindings(fix.to)) preview.warnings.push(f.detail ? `${f.title}. ${f.detail}` : f.title);
-  preview.warnings.push("Clicking Refresh in Admin Console > Custom Scripts overwrites CodeText from the deployed LWC, discarding this edit.");
-  return preview;
+async function previewSetCustomScriptCode(fix: ScriptFix, org: string, progress?: FixTracker): Promise<FixPreview> {
+  const save = await step(progress, "read", () => asSave(fix, org));
+  if (!save) return { org, title: fix.label, changes: [], warnings: [], blocked: `${fix.scriptName} no longer exists.` };
+  return previewSaveScript(save, org, progress);
 }
 
 async function applySetCustomScriptCode(fix: ScriptFix, org: string, progress?: FixTracker): Promise<FixResult> {
-  const preview = await previewSetCustomScriptCode(fix, org, progress);
-  if (preview.blocked) return { ok: false, message: preview.blocked };
-  // Raw API call: the code can be large and multi-line, which `sf data update record --values` can't carry.
-  const res = await step(progress, "write", () =>
-    apiRequest<void>(`/services/data/v66.0/sobjects/LifeScienceCustomScript/${fix.scriptId}`, "PATCH", { CodeText: fix.to }, org)
-  );
-  if (!res.success) return { ok: false, message: res.error || "Couldn't update the script." };
+  const save = await step(progress, "read", () => asSave(fix, org));
+  if (!save) return { ok: false, message: `${fix.scriptName} no longer exists.` };
+  const res = await applySaveScript(save, org, progress);
+  if (!res.ok) return res;
   return {
     ok: true,
     message: `${fix.scriptName}: code updated (${sizeOf(fix.from)} → ${sizeOf(fix.to)}).`,
@@ -520,11 +505,12 @@ async function applyEditMetadata(fix: MetadataFix, org: string, progress?: FixTr
 
 // --- Public API (dispatched from fixes.ts) --------------------------------------------
 
-export type EditFix = ScriptFix | LayoutFix | RuleFix | MetadataFix | CopyFix;
+export type EditFix = ScriptFix | ScriptKindFix | LayoutFix | RuleFix | MetadataFix | CopyFix;
 
 export function isEditFix(fix: StudioFix): fix is EditFix {
   return (
     fix.kind === "setCustomScriptCode" ||
+    isScriptKindFix(fix) ||
     fix.kind === "setLayoutRelatedList" ||
     fix.kind === "editMetadata" ||
     fix.kind === "copyForProfile" ||
@@ -536,6 +522,11 @@ export async function previewEdit(fix: EditFix, org: string, progress?: FixTrack
   switch (fix.kind) {
     case "setCustomScriptCode":
       return previewSetCustomScriptCode(fix, org, progress);
+    case "createCustomScript":
+    case "saveCustomScript":
+    case "deleteCustomScript":
+    case "assignCustomScript":
+      return previewScriptFix(fix, org, progress);
     case "setLayoutRelatedList": {
       const { layout: _layout, ...preview } = await previewSetLayoutRelatedList(fix, org, progress);
       return preview;
@@ -555,6 +546,11 @@ export async function applyEdit(fix: EditFix, org: string, progress?: FixTracker
   switch (fix.kind) {
     case "setCustomScriptCode":
       return applySetCustomScriptCode(fix, org, progress);
+    case "createCustomScript":
+    case "saveCustomScript":
+    case "deleteCustomScript":
+    case "assignCustomScript":
+      return applyScriptFix(fix, org, progress);
     case "setLayoutRelatedList":
       return applySetLayoutRelatedList(fix, org, progress);
     case "setActive":

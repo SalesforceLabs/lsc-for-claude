@@ -1,0 +1,237 @@
+/* Test panel for the custom script editor. Tokens only; see the roz-ui skill. */
+.stest {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.stest-setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.stest-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.stest-label {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.stest-record {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  justify-content: flex-start;
+  overflow: hidden;
+}
+.stest-record span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stest-env {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  flex: 1 1 110px;
+}
+.stest-kbd {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.stest-body-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.stest-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* The compact validation dialog mock */
+.stest-dialog {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.stest-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+.stest-dialog-title {
+  margin: 0;
+  font-size: var(--font-md);
+  font-weight: 600;
+}
+.stest-dialog-detail {
+  margin-top: 2px;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+.stest-dialog-meta {
+  margin-left: auto;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.stest-results {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1) 0;
+}
+.stest-result {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-base);
+  overflow-wrap: anywhere;
+}
+.stest-result-empty {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+
+/* Error with its position */
+.stest-error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+}
+.stest-error-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.stest-error-message {
+  font-family: var(--font-mono);
+  font-size: var(--font-code);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.stest-contract {
+  margin: 0;
+  padding-left: var(--space-4);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+/* Collapsible sections */
+.stest-section > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.stest-section > summary::-webkit-details-marker {
+  display: none;
+}
+.stest-section > summary .chev {
+  transition: transform var(--transition-fast);
+}
+.stest-section[open] > summary .chev {
+  transform: rotate(90deg);
+}
+.stest-section-body {
+  margin-top: var(--space-2);
+}
+.stest-log {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-xs);
+  background: var(--bg-inset);
+  font-family: var(--font-mono);
+  font-size: var(--font-code);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.stest-log .warn {
+  color: var(--warning);
+}
+.stest-log .error {
+  color: var(--error);
+}
+.stest-query {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.stest-query:first-child {
+  border-top: none;
+}
+.stest-query code {
+  font-family: var(--font-mono);
+  font-size: var(--font-code);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+.stest-query-meta {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.stest-notes {
+  margin: 0;
+  padding-left: var(--space-4);
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.stest-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* While a rerun is in flight the previous result stays visible but dimmed. */
+.stest-body.busy > .stest-dialog,
+.stest-body.busy > .stest-error {
+  opacity: 0.5;
+}

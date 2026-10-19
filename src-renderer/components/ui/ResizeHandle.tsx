@@ -12,6 +12,8 @@ interface ResizeHandleProps {
   /** Reported so the panel can switch its width transition off while dragging. */
   onDragging?: (dragging: boolean) => void;
   label: string;
+  /** Which edge of the panel the handle is on; a panel on the right widens when dragged left. */
+  edge?: "right" | "left";
 }
 
 /**
@@ -19,9 +21,10 @@ interface ResizeHandleProps {
  * on hover and drag, double-click to reset, arrow keys to nudge. Place it inside a
  * `position: relative` panel.
  */
-export default function ResizeHandle({ value, min, max, onChange, onReset, onDragging, label }: ResizeHandleProps) {
+export default function ResizeHandle({ value, min, max, onChange, onReset, onDragging, label, edge = "right" }: ResizeHandleProps) {
   const start = useRef<{ x: number; w: number } | null>(null);
   const [active, setActive] = useState(false);
+  const sign = edge === "left" ? -1 : 1;
   const clamp = (w: number) => Math.min(max, Math.max(min, w));
   const end = () => {
     start.current = null;
@@ -31,7 +34,7 @@ export default function ResizeHandle({ value, min, max, onChange, onReset, onDra
 
   return (
     <div
-      className={`ui-resize-handle${active ? " active" : ""}`}
+      className={`ui-resize-handle${edge === "left" ? " left" : ""}${active ? " active" : ""}`}
       role="separator"
       aria-orientation="vertical"
       aria-label={label}
@@ -47,15 +50,15 @@ export default function ResizeHandle({ value, min, max, onChange, onReset, onDra
         onDragging?.(true);
       }}
       onPointerMove={(e) => {
-        if (start.current) onChange(clamp(start.current.w + e.clientX - start.current.x));
+        if (start.current) onChange(clamp(start.current.w + sign * (e.clientX - start.current.x)));
       }}
       onPointerUp={end}
       onPointerCancel={end}
       onDoubleClick={onReset}
       onKeyDown={(e) => {
         const step = e.shiftKey ? 32 : 8;
-        if (e.key === "ArrowLeft") onChange(clamp(value - step));
-        else if (e.key === "ArrowRight") onChange(clamp(value + step));
+        if (e.key === "ArrowLeft") onChange(clamp(value - sign * step));
+        else if (e.key === "ArrowRight") onChange(clamp(value + sign * step));
         else if (e.key === "Home") onReset();
         else return;
         e.preventDefault();

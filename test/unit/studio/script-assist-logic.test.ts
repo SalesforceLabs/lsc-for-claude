@@ -10,6 +10,7 @@ import {
   requestMessages,
   splitReply,
   starterPrompts,
+  summaryLine,
   testFailed,
   type AssistMessage,
 } from "../../../src-renderer/components/studio/scripts/script-assist-logic";
@@ -44,6 +45,14 @@ describe("splitReply", () => {
   });
   it("summarises without the code", () => {
     expect(replySummary("- one\n```javascript\nx\n```")).toBe("- one");
+  });
+});
+
+describe("summaryLine", () => {
+  it("keeps the first line without its list marker or emphasis", () => {
+    expect(summaryLine("- I added a **warning**.\n- Another point")).toBe("I added a warning.");
+    expect(summaryLine("\n1. First\n2. Second")).toBe("First");
+    expect(summaryLine("Plain text")).toBe("Plain text");
   });
 });
 

@@ -155,6 +155,25 @@ interface LscApi {
   studioIpadReports(userId: string): Promise<StudioResponse>;
   /** One report's result for the View Report sheet, run when it is opened. */
   studioReportData(reportId: string, userId?: string): Promise<StudioResponse>;
+  // --- custom scripts: editor ---
+  /** The custom script library: scripts, stage objects and what runs. */
+  studioCustomScripts(refresh?: boolean): Promise<StudioResponse>;
+  /** One script with its code, as it is in the org now. */
+  studioCustomScript(id: string): Promise<StudioResponse>;
+  // --- custom scripts: runner ---
+  /** Records a script can be tested against (visits for Visit Action Validation), searchable. */
+  studioScriptTestRecords(args: { type: string; objectName?: string | null; search?: string }): Promise<StudioResponse>;
+  /** A simulated run of the given code against one record, read-only. */
+  studioScriptTest(args: {
+    code: string;
+    type: string;
+    recordId: string;
+    objectName?: string | null;
+    operationEventType?: string | null;
+    platform: "web" | "ipad";
+    env?: { actionName?: string; fromStatus?: string; toStatus?: string; fieldName?: string };
+    userId?: string;
+  }): Promise<StudioResponse>;
   studioUnpublished(profile: string, known?: Record<string, string[]>, refresh?: boolean): Promise<StudioResponse>;
   studioPreviewFix(fix: unknown, progress?: { id: string; index: number; total: number }): Promise<StudioResponse>;
   studioApplyFix(fix: unknown, expectedOrg: string, progress?: { id: string; index: number; total: number }): Promise<StudioResponse>;

@@ -41,6 +41,10 @@ describe("what an applied change drops from the cache", () => {
     expect(toolsInvalidatedByApply({ kind: "assignAccess" })).toContain("studio_sync_overview");
     expect(toolsInvalidatedByApply(edit("Layout"))).not.toContain("studio_sync_user");
     expect(toolsInvalidatedByApply({ kind: "setCustomScriptCode" })).not.toContain("studio_sync_user");
+    for (const kind of ["saveCustomScript", "createCustomScript", "deleteCustomScript", "assignCustomScript"]) {
+      expect(toolsInvalidatedByApply({ kind })).not.toContain("studio_sync_user");
+      expect(toolsInvalidatedByApply({ kind })).toContain("studio_custom_scripts");
+    }
   });
 
   it("drops the published iPad after a publish", () => {

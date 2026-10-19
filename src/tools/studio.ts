@@ -24,6 +24,7 @@ import { fixProgress, startFixChange } from "../studio/fix-progress.js";
 import { compileInlineLwc } from "../studio/lwc/compile.js";
 import { lwcRequest } from "../studio/lwc/request.js";
 import type { StudioFix } from "../studio/types.js";
+import { collectScriptDetail, collectScriptLibrary } from "../studio/scripts/library.js";
 import {
   activePerfRun,
   cancelPerfRun,
@@ -43,6 +44,8 @@ import { syncOverview, syncOverviewInput } from "../studio/sync-overview.js";
 import { syncUserDetail, syncUserInput, syncUserProgress } from "../studio/sync-user.js";
 import { syncImpact, syncImpactInput } from "../studio/sync-impact.js";
 import { renderSignoffReport, signoffReportInput } from "../studio/signoff-report.js";
+// --- custom scripts: runner ---
+import { createOrgReader, listScriptTestRecords, runScriptTest } from "../studio/scripts/runner/index.js";
 
 /**
  * LSC Studio data tools. These return raw JSON for the Electron app's visual
@@ -55,6 +58,24 @@ import { renderSignoffReport, signoffReportInput } from "../studio/signoff-repor
  */
 
 const id = z.string().regex(/^[a-zA-Z0-9]{15,18}$/);
+// --- custom scripts: server ---
+const scriptTypeSchema = z.enum(["Validation", "Checklist", "VisitActionValidation"]);
+const scriptEventSchema = z.enum(["OnCreate", "OnUpdate", "OnDelete"]);
+const scriptRoleSchema = z.enum(["validation", "checklist"]);
+/** An LWC folder name: lower-case start, letters/digits/underscores, no double or trailing underscore. */
+const lwcNameSchema = z
+  .string()
+  .regex(/^[a-z][A-Za-z0-9_]{0,79}$/)
+  .refine((n) => !n.includes("__") && !n.endsWith("_"), "No double or trailing underscore");
+const scriptFieldsSchema = z.object({
+  name: z.string().min(1).max(80),
+  componentName: lwcNameSchema,
+  type: scriptTypeSchema,
+  objectName: z.string().max(80).nullable(),
+  operationEventType: scriptEventSchema.nullable(),
+});
+// --- end custom scripts: server ---
+
 const accessSchema = z.object({
   type: z.enum(["permissionSet", "permissionSetGroup", "territory"]),
   id,
@@ -211,6 +232,38 @@ const fixSchema = z.discriminatedUnion("kind", [
     access: accessSchema,
     assignmentId: id,
   }),
+  // --- custom scripts: server ---
+  z.object({
+    kind: z.literal("createCustomScript"),
+    label: z.string(),
+    name: z.string().min(1).max(80),
+    componentName: lwcNameSchema,
+    type: scriptTypeSchema,
+    objectName: z.string().max(80).nullable(),
+    operationEventType: scriptEventSchema.nullable(),
+    code: z.string().max(131072),
+    assign: z.array(z.object({ stageObjectId: id, role: scriptRoleSchema })).max(20).optional(),
+    adoptBundle: z.boolean().optional(),
+  }),
+  z.object({
+    kind: z.literal("saveCustomScript"),
+    label: z.string(),
+    scriptId: id,
+    scriptName: z.string(),
+    from: z.object({ code: z.string().max(131072), fields: scriptFieldsSchema }),
+    to: z.object({ code: z.string().max(131072).optional(), fields: scriptFieldsSchema.partial().optional() }),
+  }),
+  z.object({ kind: z.literal("deleteCustomScript"), label: z.string(), scriptId: id, scriptName: z.string(), deleteBundle: z.boolean() }),
+  z.object({
+    kind: z.literal("assignCustomScript"),
+    label: z.string(),
+    stageObjectId: id,
+    stageObjectName: z.string(),
+    role: scriptRoleSchema,
+    from: id.nullable(),
+    to: id.nullable(),
+  }),
+  // --- end custom scripts: server ---
   z.object({
     kind: z.literal("setCustomScriptCode"),
     label: z.string(),
@@ -632,6 +685,42 @@ export function register(server: McpServer) {
     }
   );
 
+  // --- custom scripts: server ---
+  server.tool(
+    "studio_custom_scripts",
+    "LSC Studio (GUI data): the custom script library — every script with its type, object, status (will it run), LWC bundle, stage object assignments and static-check counts, plus the org's stage objects. Read-only. Returns JSON.",
+    {},
+    async () => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await collectScriptLibrary(connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_custom_script",
+    "LSC Studio (GUI data): one custom script as the org holds it now — CodeText, the LWC bundle's code and other files, and whether they have drifted apart. Never cached. Read-only. Returns JSON.",
+    { id },
+    async ({ id: scriptId }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await collectScriptDetail(scriptId, connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+  // --- end custom scripts: server ---
+
   server.tool(
     "studio_ipad_published_users",
     "LSC Studio (GUI data): active users of a profile whose name contains `search`, for the iPad preview's user picker when the profile has more users than it lists. Read-only. Returns JSON { users }.",
@@ -749,6 +838,61 @@ export function register(server: McpServer) {
       }
       try {
         return json(await accessOptions(connection.targetOrg, search));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  // --- custom scripts: runner ---
+  server.tool(
+    "studio_script_test_records",
+    "LSC Studio (GUI data): recent records a custom script can be tested against (Visit Action Validation: ProviderVisit records with account, date, status and child counts; other types: records of `objectName`). Read-only. Returns JSON.",
+    {
+      type: z.enum(["Validation", "Checklist", "VisitActionValidation"]),
+      objectName: z.string().max(255).nullable().optional(),
+      search: z.string().max(100).optional(),
+    },
+    async ({ type, objectName, search }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await listScriptTestRecords({ type, objectName, search }, createOrgReader(connection.targetOrg)));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_script_test",
+    "LSC Studio (GUI data): run a custom script in a sandbox against a real record, as the connected admin (a simulation, not the rep). Reads the org with read-only SOQL; setValue/save are recorded, never written. Returns JSON.",
+    {
+      code: z.string().max(200_000),
+      type: z.enum(["Validation", "Checklist", "VisitActionValidation"]),
+      recordId: z.string().max(18).optional(),
+      objectName: z.string().max(255).nullable().optional(),
+      operationEventType: z.string().max(50).nullable().optional(),
+      platform: z.enum(["web", "ipad"]),
+      env: z
+        .object({
+          actionName: z.string().max(255).optional(),
+          fromStatus: z.string().max(255).optional(),
+          toStatus: z.string().max(255).optional(),
+          fieldName: z.string().max(255).optional(),
+        })
+        .optional(),
+      userId: z.string().max(18).optional(),
+    },
+    async (request) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await runScriptTest(request, createOrgReader(connection.targetOrg)));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
