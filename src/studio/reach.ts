@@ -66,6 +66,9 @@ export function reachOfFix(fix: StudioFix, profiles?: string[]): ChangeReach {
       return withProfiles({ desktop: "now", ipad: "publish" });
     case "copyForProfile":
       return withProfiles({ desktop: "now", ipad: "publish" }, [fix.profile]);
+    default:
+      // Custom script components and assignments (scripts/fixes.ts) are read from the metadata cache too.
+      return withProfiles({ desktop: "now", ipad: "publish" });
   }
 }
 
