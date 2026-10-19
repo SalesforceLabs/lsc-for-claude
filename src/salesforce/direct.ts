@@ -114,7 +114,7 @@ async function getOnce(
   pathAndQuery: string,
   fetcher: CredentialFetcher,
   timeoutMs: number,
-  request?: { method: "POST"; body: unknown }
+  request?: { method: "POST" | "PATCH"; body: unknown }
 ): Promise<RawResponse | { timedOut: true } | null> {
   let creds = await getCredentials(org, fetcher);
   if (!creds) return null;
@@ -370,4 +370,30 @@ export async function directDownload(
     }
   }
   return null;
+}
+
+/** Tooling sobjects whose `Metadata` the direct path may PATCH (a closed list: this is a write path). */
+const TOOLING_WRITE_TYPES = new Set(["FlexiPage", "CompactLayout", "CustomApplication"]);
+
+/**
+ * PATCH one Tooling API record's `Metadata` (`/tooling/sobjects/<Type>/<Id>`). Same contract as
+ * `directGet`: `null` = transport unusable (no token, network trouble, expired token), fall back;
+ * a refusal comes back as `{ ok: false }` with Salesforce's reasons. A PATCH sets state, so the
+ * retry on a 5xx or an expired token is safe.
+ */
+export async function directToolingPatch(
+  type: string,
+  id: string,
+  metadata: unknown,
+  org: string,
+  fetcher: CredentialFetcher,
+  timeoutMs = DEFAULT_TIMEOUT_MS
+): Promise<DirectOutcome<void> | null> {
+  if (!directEnabled(org) || !TOOLING_WRITE_TYPES.has(type) || !/^[a-zA-Z0-9]{15,18}$/.test(id)) return null;
+  const version = await apiVersion(org, fetcher);
+  const res = await getOnce(org, `/services/data/v${version}/tooling/sobjects/${type}/${id}`, fetcher, timeoutMs, { method: "PATCH", body: { Metadata: metadata } });
+  if (!res) return null;
+  if ("timedOut" in res) return { ok: false, timedOut: true, error: `Request timed out after ${Math.round(timeoutMs / 1000)}s` };
+  if (res.status >= 400) return { ok: false, status: res.status, error: errorText(res.status, res.body) };
+  return { ok: true, data: undefined };
 }
