@@ -224,7 +224,7 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
 
         <div className="studio-review-foot">
         {phase.step === "review" && next.length > 0 && <WhatNext title="What happens next" lines={next} />}
-        {phase.step === "review" && <SourceWarning changes={changes.map((c) => c.fix)} />}
+        {phase.step === "review" && !undoing && <SourceWarning changes={changes.map((c) => c.fix)} />}
         {phase.step === "review" && production && (
           <div className="studio-review-production">
             <StatusIcon tone="warning" size={20} />
