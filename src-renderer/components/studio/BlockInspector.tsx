@@ -11,7 +11,6 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
-  CircleDot,
   CloudOff,
   Copy,
   ExternalLink,
@@ -35,7 +34,8 @@ import type { Verb, VerbId } from "./edit-draft";
 import type { LayoutStatus } from "./usePreviewEdit";
 import type { PropertyEdit } from "./flexipage-draft";
 import Spinner from "../ui/Spinner";
-import { inspectorNote, type UnpublishedItem } from "./org-ahead";
+import type { WhereRow } from "./where-this-is";
+import "./org-ahead.css";
 import PropertiesSheet from "./PropertiesSheet";
 import StatusIcon from "../ui/StatusIcon";
 
@@ -79,7 +79,7 @@ export default function BlockInspector({
   onRun,
   horizontal,
   layout,
-  orgAhead,
+  where,
   onRetryLayout,
   properties,
   onProperty,
@@ -108,8 +108,8 @@ export default function BlockInspector({
   horizontal?: boolean;
   /** The page layout behind the block, as read from the org. */
   layout?: LayoutStatus;
-  /** The block's document changed in the org after the profile's last publish. */
-  orgAhead?: UnpublishedItem;
+  /** The block in your tray, the org, and on iPads (see where-this-is.ts). */
+  where?: WhereRow[];
   onRetryLayout?: () => void;
   /** Lightning page properties the block's inspector can set (a tab's title, an inline LWC's height). */
   properties?: PropertyEdit[];
@@ -136,6 +136,9 @@ export default function BlockInspector({
   /** Making a copy of the shared layout or page just for this profile (see usePreviewEdit). */
   copy?: CopyAction;
 }) {
+  // When Studio can make the change here, Setup's manual steps are the fallback, folded away.
+  const studioActs = verbs.length > 0 || !!properties?.length || !!extra || copy?.kind === "offer";
+  const manual = <SetupSteps info={info} onSetup={onSetup} />;
   return (
     <aside
       className="studio-inspector studio-block-inspector"
@@ -174,11 +177,21 @@ export default function BlockInspector({
           </ul>
         </section>
 
-        {orgAhead && (
-          <p className="studio-block-reach studio-org-ahead-note" role="status">
-            <CircleDot size={16} aria-hidden />
-            <span>{inspectorNote(orgAhead)}</span>
-          </p>
+        {where && (
+          <section className="studio-block-section">
+            <h3 className="ui-section-title">Where this is</h3>
+            <dl className="studio-block-where">
+              {where.map((r) => (
+                <div key={r.place} className={r.quiet ? "quiet" : undefined}>
+                  <dt>
+                    <span className={`org-ahead-swatch ${r.place === "ipad" ? "published" : r.place}`} aria-hidden />
+                    {r.label}
+                  </dt>
+                  <dd title={r.title}>{r.text}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
         )}
 
         {sync && (
@@ -309,37 +322,16 @@ export default function BlockInspector({
               )}
             </div>
           )}
-          <ol className="studio-block-steps">
-            {info.how.map((h, i) => (
-              <li key={i}>{h}</li>
-            ))}
-          </ol>
-          <div className="studio-block-verbs">
-            {info.setup && onSetup && (
-              <button
-                type="button"
-                className="studio-btn sm"
-                onClick={() => onSetup(info.setup!)}
-                title={`Open ${info.setup.label} in Salesforce`}
-              >
-                <ExternalLink size={14} aria-hidden />
-                Open in Setup
-              </button>
-            )}
-            {onSetup &&
-              info.setupMore?.map((l) => (
-                <button
-                  key={l.label}
-                  type="button"
-                  className="studio-btn ghost sm"
-                  onClick={() => onSetup(l)}
-                  title={`Open ${l.label} in Salesforce`}
-                >
-                  <ExternalLink size={14} aria-hidden />
-                  Open {l.label}
-                </button>
-              ))}
-            {info.studio && onStudio && (
+          {studioActs ? (
+            <details className="studio-block-setup">
+              <summary>Do this in Setup instead</summary>
+              {manual}
+            </details>
+          ) : (
+            manual
+          )}
+          {info.studio && onStudio && (
+            <div className="studio-block-verbs">
               <button
                 type="button"
                 className="studio-btn ghost sm"
@@ -349,11 +341,50 @@ export default function BlockInspector({
                 <SquareArrowOutUpRight size={14} aria-hidden />
                 Open in Studio
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </section>
       </div>
     </aside>
+  );
+}
+
+/** The manual way: Setup's steps for the change, with links into Setup. */
+function SetupSteps({ info, onSetup }: { info: TargetInfo; onSetup?: (link: SetupLink) => void }) {
+  return (
+    <>
+      <ol className="studio-block-steps">
+        {info.how.map((h, i) => (
+          <li key={i}>{h}</li>
+        ))}
+      </ol>
+      <div className="studio-block-verbs">
+        {info.setup && onSetup && (
+          <button
+            type="button"
+            className="studio-btn sm"
+            onClick={() => onSetup(info.setup!)}
+            title={`Open ${info.setup.label} in Salesforce`}
+          >
+            <ExternalLink size={14} aria-hidden />
+            Open in Setup
+          </button>
+        )}
+        {onSetup &&
+          info.setupMore?.map((l) => (
+            <button
+              key={l.label}
+              type="button"
+              className="studio-btn ghost sm"
+              onClick={() => onSetup(l)}
+              title={`Open ${l.label} in Salesforce`}
+            >
+              <ExternalLink size={14} aria-hidden />
+              Open {l.label}
+            </button>
+          ))}
+      </div>
+    </>
   );
 }
 

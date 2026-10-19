@@ -66,6 +66,7 @@ import ListViewEditor from "./ListViewEditor";
 import BlockInspector, { compactReach, listViewReach, pageReach, type CopyAction } from "./BlockInspector";
 import CreateDialog from "./CreateDialog";
 import { orgAheadApp, orgAheadFor, type OrgAheadIndex } from "./org-ahead";
+import { changesTouching, refsOfTarget, whereRows } from "./where-this-is";
 import SearchPicker from "../ui/SearchPicker";
 import { extendSelection, groupVerbs, selectionNoun } from "./multi-select";
 
@@ -674,6 +675,22 @@ export function usePreviewEdit({
       },
     };
   }, [profile, selected, selectedPage, pageDraft, layoutEntry, pending, onPendingChange, fromApp, app]);
+  // "Where this is": the block in your tray, the org and on iPads, from what the preview already holds.
+  const where = useMemo(() => {
+    if (!selected) return undefined;
+    const appName = fromApp ? matchedApp?.fullName : undefined;
+    const ahead = orgAhead ? (orgAheadFor(orgAhead, selected) ?? (appName ? orgAheadApp(orgAhead, appName) : undefined)) : undefined;
+    const mine = changesTouching(pending, refsOfTarget(selected, { tabs, homeMenu, app: appName }));
+    // The draft lined up with the org can see it moved on before the unpublished list says so (or when it can't).
+    const compact = selected.kind === "headerField" ? compacts[selected.compactLayout] : undefined;
+    const list = selected.kind === "listView" || selected.kind === "listColumn" ? listViews[listViewNameOf(selected)] : undefined;
+    const orgDiffers =
+      !!pageDraft?.ahead ||
+      (!selectedPage && layoutEntry?.status === "ready" && isAhead(layoutEntry.draft.ahead)) ||
+      (compact?.status === "ready" && compact.fields.some((f) => !!f.ahead)) ||
+      (list?.status === "ready" && (list.columns.some((c) => !!c.ahead) || !!list.filtersChanged));
+    return whereRows({ mine, orgAhead: ahead, orgDiffers, publishedAt: snapshot?.cache.generatedAt });
+  }, [selected, fromApp, matchedApp, orgAhead, pending, tabs, homeMenu, snapshot, compacts, listViews, pageDraft, selectedPage, layoutEntry]);
   const layoutStatus =
     copyAction?.kind === "queued" && baseStatus && !baseStatus.loading
       ? { ...baseStatus, profiles: undefined, reach: `Only ${profile}. A copy made for them: changes here reach no other profile.` }
@@ -802,7 +819,7 @@ export function usePreviewEdit({
         <BlockInspector
           key={JSON.stringify(selected) + selection.length}
           info={info}
-          orgAhead={orgAhead && selected ? (orgAheadFor(orgAhead, selected) ?? (fromApp && matchedApp ? orgAheadApp(orgAhead, matchedApp.fullName) : undefined)) : undefined}
+          where={where}
           profile={profile}
           verbs={verbs}
           draft={draft}

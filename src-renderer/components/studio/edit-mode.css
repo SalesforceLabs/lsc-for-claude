@@ -254,6 +254,51 @@
   margin-top: var(--space-2);
 }
 
+.studio-block-setup {
+  margin-top: var(--space-2);
+}
+
+.studio-block-setup > summary {
+  cursor: pointer;
+  width: fit-content;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.studio-block-setup > summary:hover {
+  color: var(--text-primary);
+}
+
+/* The block in your tray, the org and on iPads: a label column and its state. */
+.studio-block-where {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--font-sm);
+}
+
+.studio-block-where > div {
+  display: contents;
+}
+
+.studio-block-where dt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+}
+
+.studio-block-where dd {
+  margin: 0;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.studio-block-where .quiet dd {
+  color: var(--text-muted);
+}
+
 .studio-block-verbs {
   display: flex;
   flex-wrap: wrap;
