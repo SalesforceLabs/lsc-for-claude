@@ -51,6 +51,13 @@ const ready = (p: FixPreview | string | undefined): p is FixPreview => typeof p 
  * button, which names the org. Applied changes can be undone together, which
  * goes through the same review.
  */
+/** The dialog's heading: the batch before applying, the tally after. An undo is named as one. */
+export function reviewTitle(done: boolean, total: number, ok: number, undo: boolean): string {
+  if (done) return `${ok} of ${total} ${undo ? "undone" : "applied"}`;
+  if (undo) return total === 1 ? "Undo last apply" : `Undo ${total} changes`;
+  return `${total} pending ${total === 1 ? "change" : "changes"}`;
+}
+
 export default function ReviewDialog({ changes: initial, org, onClose, onPublish, onApplied, undo = false }: ReviewDialogProps) {
   const [changes, setChanges] = useState(initial);
   const [phase, setPhase] = useState<Phase>({ step: "previewing" });
@@ -164,20 +171,19 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
         <div className="studio-review-head">
           <div className="studio-modal-header">
             <span className="studio-inspector-eyebrow">
-              {phase.step === "done" ? "Results" : "Review changes"} · {org}
+              {phase.step === "done" ? "Results" : undoing ? "Review undo" : "Review changes"} · {org}
             </span>
             <button className="ui-icon-btn" onClick={close} disabled={busy} title="Close" aria-label="Close">
               <X size={16} aria-hidden />
             </button>
           </div>
           <h2 className="studio-inspector-title">
-            {phase.step === "done"
-              ? `${outcomes.filter((o) => o?.state === "ok").length} of ${changes.length} applied`
-              : `${changes.length} pending ${changes.length === 1 ? "change" : "changes"}`}
+            {reviewTitle(phase.step === "done", changes.length, outcomes.filter((o) => o?.state === "ok").length, undoing)}
           </h2>
           {phase.step === "review" && applicable < changes.length && (
             <div className="studio-review-summary">
-              {applicable} can be applied · {changes.length - applicable} can't — {changes.length - applicable === 1 ? "it stays" : "they stay"} in the tray
+              {applicable} can be applied · {changes.length - applicable} can't
+              {!undoing && <> — {changes.length - applicable === 1 ? "it stays" : "they stay"} in the tray</>}
             </div>
           )}
         </div>
