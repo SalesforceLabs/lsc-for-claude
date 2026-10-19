@@ -751,6 +751,9 @@ export const isCompactToolbar = (surfaceWidth: number): boolean => surfaceWidth 
 const COMPACT_BUTTON = 32;
 const COMPACT_CHROME = 18;
 
+/** A compact toolbar's width with `buttons` icon buttons. */
+export const compactWidth = (buttons: number): number => buttons * COMPACT_BUTTON + COMPACT_CHROME;
+
 /**
  * How many of a compact toolbar's `count` buttons fit in one row on a surface `surfaceWidth` wide;
  * the rest go under a More menu (which takes a slot itself), so the toolbar never wraps over the iPad.
@@ -810,8 +813,12 @@ function Toolbar({
     ...(hasSetup && !setupButton ? [{ label: "Open in Setup", icon: ExternalLink, onSelect: () => onSetup!() }] : []),
   ];
   const style: React.CSSProperties = {
-    // A compact toolbar is one row no wider than the device, so it sits at the surface's left edge.
-    ...(compact ? { left: 4 } : right ? { right: Math.max(4, width - box.right) } : { left: Math.max(4, box.x) }),
+    // A compact toolbar is one row no wider than the device: at the block's left edge, slid left as far as it must to stay on it.
+    ...(compact
+      ? { left: Math.max(4, Math.min(box.x, width - 4 - compactWidth(inline.length + (setupButton ? 1 : 0) + (more.length ? 1 : 0)))) }
+      : right
+        ? { right: Math.max(4, width - box.right) }
+        : { left: Math.max(4, box.x) }),
     top,
   };
   return (
