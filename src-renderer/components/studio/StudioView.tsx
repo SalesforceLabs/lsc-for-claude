@@ -615,6 +615,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               <UnpublishedIndicator
                 profile={publishedProfile}
                 state={unpublished.state}
+                snapshot={publishedSnapshot}
                 onRetry={unpublished.retry}
                 onShow={showUnpublished}
                 onPublish={() => setPublishing([publishedProfile])}

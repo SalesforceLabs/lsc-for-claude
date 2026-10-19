@@ -44,6 +44,8 @@ export interface UnpublishedItem {
   target: string;
   /** Already live on iPads without a publish. */
   live?: boolean;
+  /** What changed, when the server can say (Admin Console records). */
+  summary?: string[];
 }
 
 export interface UnpublishedResult {

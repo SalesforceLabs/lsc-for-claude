@@ -61,7 +61,7 @@ export async function fetchConfigEdits(org: string, since: number): Promise<Conf
   const iso = soqlTime(since);
   const [edited, valued, reassigned] = await Promise.all([
     query(`SELECT Id, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigRecord WHERE LastModifiedDate > ${iso}`, org, true),
-    query(`SELECT LifeSciConfigRecordId, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigFieldValue WHERE LastModifiedDate > ${iso}`, org, true),
+    query(`SELECT LifeSciConfigRecordId, FieldName, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigFieldValue WHERE LastModifiedDate > ${iso}`, org, true),
     query(`SELECT LifeSciConfigRecordId, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigAssignment WHERE LastModifiedDate > ${iso}`, org, true),
   ]);
   // The newest touch per record, from any of the three tables.
@@ -72,9 +72,15 @@ export async function fetchConfigEdits(org: string, since: number): Promise<Conf
     const prev = touched.get(id);
     if (!prev || at > prev.at) touched.set(id, { at, by: text(nested(row, "LastModifiedBy").Name) || null });
   };
+  const fieldsOf = new Map<string, string[]>();
   for (const r of edited) touch(text(r.Id), r);
-  for (const r of valued) touch(text(r.LifeSciConfigRecordId), r);
+  for (const r of valued) {
+    touch(text(r.LifeSciConfigRecordId), r);
+    if (text(r.FieldName)) fieldsOf.set(text(r.LifeSciConfigRecordId), [...(fieldsOf.get(text(r.LifeSciConfigRecordId)) ?? []), text(r.FieldName)]);
+  }
   for (const r of reassigned) touch(text(r.LifeSciConfigRecordId), r);
+  const editedIds = new Set(edited.map((r) => text(r.Id)));
+  const reassignedIds = new Set(reassigned.map((r) => text(r.LifeSciConfigRecordId)));
 
   const out: ConfigEdit[] = [];
   await Promise.all(
@@ -96,11 +102,39 @@ export async function fetchConfigEdits(org: string, since: number): Promise<Conf
           by: t.by,
           allProfiles: r.IsOrgLevel === true || mine.some((a) => a.AssignmentLevel !== "Profile"),
           profileIds: mine.filter((a) => a.AssignmentLevel === "Profile").map((a) => text(a.AssignedToId)),
+          changedFields: fieldsOf.get(text(r.Id)) ?? [],
+          assignmentsChanged: reassignedIds.has(text(r.Id)),
+          recordEdited: editedIds.has(text(r.Id)),
         });
       }
     })
   );
   return out;
+}
+
+/** The Tooling FlexiPage has no LastModifiedBy relationship, so read LastModifiedById and look the names up; without it the editor stays unknown. */
+async function flexiPageRows(since: string, org: string): Promise<Row[]> {
+  const cols = "Id, DeveloperName, MasterLabel, LastModifiedDate";
+  let rows: Row[];
+  try {
+    rows = await query(`SELECT ${cols}, LastModifiedById FROM FlexiPage WHERE ${since}`, org, true);
+  } catch {
+    return query(`SELECT ${cols} FROM FlexiPage WHERE ${since}`, org, true);
+  }
+  const ids = [...new Set(rows.map((r) => text(r.LastModifiedById)).filter(Boolean))];
+  if (ids.length === 0) return rows;
+  const names = new Map<string, string>();
+  try {
+    for (const chunk of chunkIds(ids, 200)) {
+      for (const u of await query(`SELECT Id, Name FROM User WHERE Id IN (${inList(chunk)})`, org)) names.set(text(u.Id), text(u.Name));
+    }
+  } catch {
+    return rows;
+  }
+  return rows.map((r) => {
+    const name = names.get(text(r.LastModifiedById));
+    return name ? { ...r, LastModifiedBy: { Name: name } } : r;
+  });
 }
 
 type Reader = { kind: string; read: () => Promise<UnpublishedItem[]> };
@@ -141,9 +175,8 @@ export async function collectUnpublished(profile: string, org: string, known?: K
         compactLayoutItems(recent(await query(`SELECT Id, DeveloperName, MasterLabel, SobjectType, LastModifiedDate, LastModifiedBy.Name FROM CompactLayout WHERE ${since}`, org, true)), scopes.compactLayouts),
     },
     {
-      // The Tooling FlexiPage has no LastModifiedBy: the editor stays unknown.
       kind: "Lightning pages",
-      read: async () => flexiPageItems(recent(await query(`SELECT Id, DeveloperName, MasterLabel, LastModifiedDate FROM FlexiPage WHERE ${since}`, org, true)), scopes.flexiPages),
+      read: async () => flexiPageItems(recent(await flexiPageRows(since, org)), scopes.flexiPages),
     },
     {
       kind: "Record types",
