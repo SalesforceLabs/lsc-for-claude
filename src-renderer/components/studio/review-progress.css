@@ -54,8 +54,16 @@
 .studio-review-progress-change,
 .studio-review-progress-steps li {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
+}
+
+/* The label and its meta ("· Salesforce: succeeded · 1.0s") are one run of text, so a long label wraps with its meta inline after it. */
+.studio-review-progress-text {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .studio-review-progress-changes > li.waiting,
@@ -74,6 +82,8 @@
   justify-content: center;
   width: 14px;
   height: 14px;
+  /* Centre the mark on the first line of text (line-height 1.4 of the small font). */
+  margin-top: 0.15em;
   flex-shrink: 0;
 }
 

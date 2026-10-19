@@ -8,6 +8,7 @@
  * stale data. Applying returns the inverse fix so the UI can offer Undo.
  */
 
+import { urgentScope } from "../salesforce/limiter.js";
 import {
   createRecord,
   createToolingRecord,
@@ -377,7 +378,12 @@ export async function previewFix(fix: StudioFix, org: string, progress?: FixTrac
   }
 }
 
-export async function applyFix(fix: StudioFix, org: string, progress?: FixTracker): Promise<FixResult> {
+/** Applying is something the person is watching: its reads and writes go ahead of the background queue (see `urgentScope`). */
+export function applyFix(fix: StudioFix, org: string, progress?: FixTracker): Promise<FixResult> {
+  return urgentScope(() => applyFixNow(fix, org, progress));
+}
+
+async function applyFixNow(fix: StudioFix, org: string, progress?: FixTracker): Promise<FixResult> {
   switch (fix.kind) {
     case "assignPsl": {
       const preview = await previewAssignPsl(fix, org, progress);
