@@ -29,7 +29,6 @@ describe("component catalog", () => {
   it("offers Recent items, inline LWCs at 400 high and synced related lists; greys out the rest with why", () => {
     const entries = buildCatalog(input);
     expect(entries.filter((e) => e.insertable).map((e) => e.key)).toEqual([
-      "flexipage:recentItems",
       "lsc4ce:lscMobileInline_Alpha",
       "lscMobileInline_Zeta",
       "force:relatedListSingleContainer:ContactPointAddresses",
@@ -51,7 +50,8 @@ describe("component catalog", () => {
   it("has no related lists or tabs on a Home page", () => {
     const entries = buildCatalog({ ...input, pageType: "HomePage", sobject: null });
     expect(entries.some((e) => e.group === "Related list" || e.component === "flexipage:tabset")).toBe(false);
-    expect(entries.map((e) => e.key)).toContain("flexipage:recentItems");
+    // The org rejects Recent items without its object list, so it can't be inserted with plain properties.
+    expect(entries.find((e) => e.key === "flexipage:recentItems")).toMatchObject({ insertable: false, needs: expect.stringContaining("the objects it lists") });
     expect(new Set(entries.map((e) => e.key)).size).toBe(entries.length);
   });
 
@@ -75,7 +75,7 @@ describe("component catalog", () => {
 
     it("reads the org's inline LWCs and the object's synced child lists", async () => {
       const { entries, setupPath } = await collectCatalog("RecordPage", "Account", "org");
-      expect(entries.filter((e) => e.insertable).map((e) => e.key)).toEqual(["flexipage:recentItems", "lscMobileInline_CarouselLwc", "force:relatedListSingleContainer:Visits"]);
+      expect(entries.filter((e) => e.insertable).map((e) => e.key)).toEqual(["lscMobileInline_CarouselLwc", "force:relatedListSingleContainer:Visits"]);
       expect(setupPath).toMatch(/^\/lightning\/setup\//);
     });
 

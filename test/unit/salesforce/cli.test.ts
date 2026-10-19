@@ -55,6 +55,8 @@ const {
   updateToolingRecord,
   deleteToolingRecord,
   deployMetadata,
+  deployOutcome,
+  ensureTmpSfdxProject,
   retrieveMetadata,
   listMetadata,
 } = await import("../../../src/salesforce/cli.js");
@@ -646,6 +648,51 @@ describe("cli.ts", () => {
         ]),
         expect.objectContaining({ timeout: 300000 })
       );
+    });
+  });
+
+  describe("ensureTmpSfdxProject()", () => {
+    it("uses a source API version new enough for objects like Inquiry", () => {
+      const dir = ensureTmpSfdxProject();
+      const fs = require("fs");
+      const proj = JSON.parse(fs.readFileSync(require("path").join(dir, "sfdx-project.json"), "utf8"));
+      expect(parseFloat(proj.sourceApiVersion)).toBeGreaterThanOrEqual(66);
+    });
+  });
+
+  describe("deployOutcome()", () => {
+    it("turns a deploy the org rejected into a failure with the org's reason", () => {
+      const r = deployOutcome({
+        success: true,
+        data: {
+          status: "Failed",
+          success: false,
+          numberComponentErrors: 1,
+          details: { componentFailures: [{ fullName: "Home_Page", problem: "Invalid component [flexipage:recentItems]: missing required property [entityNames]" }] },
+        },
+      });
+      expect(r.success).toBe(false);
+      expect(r.error).toBe("Home_Page: Invalid component [flexipage:recentItems]: missing required property [entityNames]");
+    });
+
+    it("accepts a single failure object and a bare Failed status", () => {
+      expect(deployOutcome({ success: true, data: { details: { componentFailures: { fullName: "X", problem: "bad", lineNumber: 4 } } } }).error).toBe("X: bad (line 4)");
+      expect(deployOutcome({ success: true, data: { status: "Failed" } }).error).toBe("The deploy ended Failed.");
+    });
+
+    it("leaves a deploy that succeeded, and CLI failures, alone", () => {
+      const ok = { success: true, data: { status: "Succeeded", success: true, numberComponentErrors: 0, details: { componentFailures: [] } } };
+      expect(deployOutcome(ok)).toBe(ok);
+      const bad = { success: false, error: "no org" };
+      expect(deployOutcome(bad)).toBe(bad);
+    });
+
+    it("deployMetadata() reports a rejected deploy as failed", async () => {
+      const promise = deployMetadata("/path/to/source", "my-org");
+      simulateSfSuccess(mockProc, { status: "Failed", success: false, details: { componentFailures: [{ fullName: "P", problem: "nope" }] } });
+      const r = await promise;
+      expect(r.success).toBe(false);
+      expect(r.error).toContain("nope");
     });
   });
 

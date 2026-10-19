@@ -42,19 +42,14 @@ export interface ComponentCatalog {
 export const DEFAULT_MOBILE_HEIGHT = "400";
 const SETUP_PATH = "/lightning/setup/FlexiPageList/home";
 
-/** Fixed entries: what Studio can insert, then what it can't yet, with why. */
+/**
+ * Fixed entries Studio can't insert yet, with why. Recent items is here because the org rejects it
+ * without its list of objects (`entityNames`), which a name/value property can't carry.
+ */
 const STANDARD: CatalogEntry[] = [
-  {
-    key: "flexipage:recentItems",
-    component: "flexipage:recentItems",
-    label: "Recent items",
-    group: "Standard",
-    pages: ["HomePage", "RecordPage"],
-    properties: [{ name: "maxRecords", value: "3" }],
-    insertable: true,
-  },
   ...(
     [
+      ["flexipage:recentItems", "Recent items", "the objects it lists", ["HomePage", "RecordPage"]],
       ["desktopDashboards:embeddedDashboard", "Dashboard", "a dashboard", ["HomePage", "RecordPage"]],
       ["flexipage:filterListCard", "List view", "a list view", ["HomePage", "RecordPage"]],
       ["flexipage:reportChart", "Report chart", "a report", ["HomePage", "RecordPage"]],
