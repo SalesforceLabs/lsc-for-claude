@@ -1,5 +1,8 @@
-import type { FixPreview, StudioFix } from "./types";
-import { isMobileChange, type PendingChange } from "./changes";
+import type { FixPreview } from "./types";
+import type { PendingChange } from "./changes";
+import { reachOfChange, type ChangeReach } from "./reach";
+
+export type { ChangeReach };
 
 /**
  * The review dialog's "What happens next": when each kind of user gets the
@@ -7,35 +10,8 @@ import { isMobileChange, type PendingChange } from "./changes";
  * views and access as reps open or sync.
  */
 
-/** Who gets a change and when (the server's `FixPreview.reach`; worked out here when a preview has none). */
-export interface ChangeReach {
-  desktop: "now" | "none";
-  ipad: "publish" | "live" | "nextSync" | "none";
-  profiles?: string[];
-}
-
-/** Kept until every server preview carries `reach`; matches what the server says for each kind. */
-function fallbackReach(fix: StudioFix): ChangeReach {
-  switch (fix.kind) {
-    case "editMetadata":
-      return fix.doc.type === "ListView" ? { desktop: "now", ipad: "live" } : { desktop: "now", ipad: "publish" };
-    case "copyForProfile":
-    case "setLayoutRelatedList":
-      return { desktop: "now", ipad: "publish" };
-    case "assignPsl":
-    case "removePsl":
-    case "assignAccess":
-    case "removeAccess":
-    case "setCustomScriptCode":
-      return { desktop: "now", ipad: "nextSync" };
-    default:
-      // Admin Console's mobile categories only reach the iPad, through its metadata cache.
-      return isMobileChange(fix) ? { desktop: "none", ipad: "publish" } : { desktop: "now", ipad: "none" };
-  }
-}
-
 export function reachFor(change: PendingChange, preview?: FixPreview & { reach?: ChangeReach }): ChangeReach {
-  const reach = preview?.reach ?? fallbackReach(change.fix);
+  const reach = reachOfChange(change, preview);
   const profiles = reach.profiles ?? change.affects;
   return profiles?.length ? { ...reach, profiles } : reach;
 }

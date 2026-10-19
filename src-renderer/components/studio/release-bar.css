@@ -1,0 +1,204 @@
+/* The release bar at the foot of Studio pages (ReleaseBar.tsx): Your changes → In the org → On iPads, plus the next step. */
+
+.release-bar {
+  container-type: inline-size;
+  gap: 12px;
+  padding: 0 16px 0 12px;
+}
+
+.release-steps {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.release-step-root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.release-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: var(--control);
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--font-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.release-step svg {
+  flex-shrink: 0;
+}
+
+.release-step:hover:not(:disabled),
+.release-step[aria-expanded="true"] {
+  background: var(--fill-hover);
+  color: var(--text-primary);
+}
+
+.release-step:disabled {
+  cursor: default;
+}
+
+.release-step:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.release-step-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.release-step.ipad.running {
+  color: var(--text-primary);
+}
+
+.release-step.ipad.done {
+  color: var(--success);
+}
+
+.release-step.ipad.failed,
+.release-warn {
+  color: var(--warning);
+}
+
+.release-sep {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.release-count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--fill-hover);
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.release-count.pending {
+  background: var(--info-subtle);
+  color: var(--accent);
+}
+
+.release-count.ahead {
+  background: var(--warning-subtle);
+  color: var(--warning);
+}
+
+.release-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.release-note {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  white-space: nowrap;
+}
+
+.release-calm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--control);
+  padding: 0 4px;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  white-space: nowrap;
+}
+
+.release-calm svg {
+  color: var(--success);
+}
+
+/* Lists open upward from the bar. */
+.org-ahead-popover.release-popover {
+  top: auto;
+  bottom: calc(100% + 10px);
+  width: 400px;
+}
+
+.release-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.release-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 4px 0;
+}
+
+.release-row-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.release-row-name,
+.release-row-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.release-row-name {
+  color: var(--text-primary);
+  font-size: var(--font-base);
+}
+
+.release-row-meta {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+}
+
+/* Narrow panes: the steps keep their icon and count, buttons with an icon keep only it (label in the tooltip). */
+@container (max-width: 760px) {
+  .release-step .release-step-label,
+  .release-calm .release-step-label,
+  .release-note {
+    display: none;
+  }
+  .release-bar .studio-btn.collapsible > .studio-btn-label {
+    display: none;
+  }
+  .release-bar .studio-btn.collapsible {
+    width: var(--control);
+    padding: 0;
+  }
+}
+
+/* While publishing, "On iPads" keeps its words: it's the one thing happening. */
+@container (max-width: 760px) {
+  .release-step.ipad.running .release-step-label,
+  .release-step.ipad.failed .release-step-label {
+    display: inline;
+  }
+}
