@@ -86,7 +86,14 @@ if (mode === "tour") {
   await step("06-check-a-user", () => nav(".studio-rail-item", "Check a user"));
   await step("07-what-changed", () => nav(".studio-rail-item", "What changed"));
   await step("08-sync-health", () => nav(".studio-rail-item", "Sync health"));
-  await step("09-check-a-rep", () => nav(".studio-rail-item", "Check a rep's sync"));
+  await step("09-rep-sync", async () => {
+    // The first "Investigate" in Sync health's list, when the org has telemetry.
+    await nav(".studio-rail-item", "Sync health");
+    await page.waitForTimeout(3000);
+    const investigate = page.locator("button", { hasText: "Investigate" }).first();
+    if (await investigate.count()) await investigate.click();
+    await page.waitForTimeout(20000);
+  });
   await step("09-test-plans", () => nav(".studio-rail-item", "Test plans"));
   await step("09-first-sync", () => nav(".studio-rail-item", "First sync"));
   await step("10-feature-readiness", () => nav(".studio-rail-item:not([disabled])", "Visit"));

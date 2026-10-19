@@ -30,6 +30,8 @@ interface PerfViewProps {
   onAskClaude: (prompt: string) => void;
   /** Reps handed over from Overview; a new key starts a new unsaved plan with them. */
   seed?: { key: number; userIds: string[] } | null;
+  /** Open a rep's sync detail in Sync health. */
+  onOpenRep?: (userId: string) => void;
 }
 
 /** The run in flight, kept so polling resumes if the view is left and reopened. */
@@ -99,7 +101,7 @@ function ProgressBar({ job }: { job: PerfJobStatus | null }) {
 
 const issueText = (i: CheckIssue) => (i.persona ? `${i.persona}: ${i.message}` : i.message);
 
-export default function PerfView({ onAskClaude, seed }: PerfViewProps) {
+export default function PerfView({ onAskClaude, seed, onOpenRep }: PerfViewProps) {
   const [plans, setPlans] = useState<PerfPlanRecord[]>([]);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [draft, setDraft] = useState<PerfPlan>(emptyPlan);
@@ -764,6 +766,7 @@ export default function PerfView({ onAskClaude, seed }: PerfViewProps) {
               onExportSignoff={exportSignoff}
               onBaseline={running ? undefined : useAsBaseline}
               sims={runSims}
+              onOpenRep={onOpenRep}
             />
           ) : (
             <div className="studio-perf-plan-stack">

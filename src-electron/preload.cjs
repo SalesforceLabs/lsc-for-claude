@@ -132,6 +132,8 @@ contextBridge.exposeInMainWorld("lscApi", {
     ipcRenderer.invoke("studio:call", "studio_sync_overview", days === undefined ? {} : { days }, refresh),
   studioSyncUser: (userId, days, refresh = false) =>
     ipcRenderer.invoke("studio:call", "studio_sync_user", days === undefined ? { userId } : { userId, days }, refresh),
+  // How far a running studioSyncUser has got (no org calls, never cached)
+  studioSyncUserProgress: (userId) => ipcRenderer.invoke("studio:call", "studio_sync_user_progress", { userId }),
   studioSyncImpact: (changes, profiles) =>
     ipcRenderer.invoke("studio:call", "studio_sync_impact", profiles === undefined ? { changes } : { changes, profiles }),
   studioSignoffReport: (input) => ipcRenderer.invoke("studio:call", "studio_signoff_report", input),

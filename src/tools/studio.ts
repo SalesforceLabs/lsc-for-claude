@@ -39,7 +39,7 @@ import { renderSimulation } from "./perf-simulate.js";
 import { MAX_SIM_RUNS, renderRunsSection, type SimRunsSummary } from "../studio/sim-runs.js";
 import type { SimulationResult } from "../perf/simulate.js";
 import { syncOverview, syncOverviewInput } from "../studio/sync-overview.js";
-import { syncUserDetail, syncUserInput } from "../studio/sync-user.js";
+import { syncUserDetail, syncUserInput, syncUserProgress } from "../studio/sync-user.js";
 import { syncImpact, syncImpactInput } from "../studio/sync-impact.js";
 import { renderSignoffReport, signoffReportInput } from "../studio/signoff-report.js";
 
@@ -1081,6 +1081,13 @@ function registerSyncHealthTools(server: McpServer) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
     }
+  );
+
+  server.tool(
+    "studio_sync_user_progress",
+    "LSC Studio (GUI data): how far a running studio_sync_user for this user has got (phase, tables counted of all, and per territory), or null when none ran lately. Read-only; makes no org calls. Returns JSON { progress }.",
+    { userId: z.string().regex(/^[a-zA-Z0-9]{15,18}$/) },
+    async ({ userId }) => json({ progress: syncUserProgress(userId) })
   );
 
   server.tool(

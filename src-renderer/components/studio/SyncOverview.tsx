@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SurfaceId } from "./types";
+import type { PendingChange } from "./changes";
+import RepSyncDetail from "./RepSyncDetail";
+import RepLookup from "./RepLookup";
 import { formatNumber } from "./perf-plan";
 import { formatSeconds } from "./sim-types";
 import { Activity, ExternalLink, Play, RefreshCw, Sparkles, UserRoundSearch } from "lucide-react";
@@ -14,8 +17,12 @@ import { Callout, Disclosure as DisclosureButton, Metric } from "./PerfParts";
 export interface SyncOverviewProps {
   onAskClaude: (prompt: string) => void;
   onOpenSetup: (featureId: string, surface?: SurfaceId | null, item?: string | null) => void;
-  /** Open a user in Check a rep's sync. */
-  onInvestigateUser: (userId: string) => void;
+  /** The rep opened inside Sync health (null = the overview). Controlled, so other pages can open a rep here. */
+  repUserId: string | null;
+  onRepChange: (userId: string | null) => void;
+  /** The pending-changes tray, for the fixes a rep's tables suggest. */
+  pending: PendingChange[];
+  onPendingChange: (pending: PendingChange[]) => void;
   /** Start a test plan with these users. */
   onTestUsers: (userIds: string[]) => void;
 }
@@ -90,30 +97,97 @@ const WINDOWS = [7, 30, 90];
 const BANNER_TONE: Record<Status, "pass" | "warning" | "error" | "info"> = { healthy: "pass", struggling: "warning", failing: "error", "no-data": "info" };
 /** Reps pre-selected for "Test these reps". */
 const DEFAULT_TEST_COUNT = 3;
-const SPARK_W = 360;
-const SPARK_H = 56;
 
 const seconds = (v: number | undefined) => (v === undefined ? "—" : formatSeconds(v));
 
-/** Bars of one value per day; the title carries the exact numbers. */
-function Trend({ daily, pick, label }: { daily: DailyPoint[]; pick: (d: DailyPoint) => number | undefined; label: string }) {
-  const values = daily.map(pick);
-  const max = Math.max(1, ...values.map((v) => v ?? 0));
-  const bar = SPARK_W / Math.max(1, daily.length);
+const DAY_MS = 86_400_000;
+const GRID_LINES = 2;
+
+/** The calendar days from the first to the last point, with a blank point for each day nothing synced. */
+function fillDays(daily: DailyPoint[]): DailyPoint[] {
+  if (daily.length < 2) return daily;
+  const byDay = new Map(daily.map((d) => [d.day, d]));
+  const out: DailyPoint[] = [];
+  const end = Date.parse(daily[daily.length - 1].day);
+  for (let t = Date.parse(daily[0].day); t <= end; t += DAY_MS) {
+    const day = new Date(t).toISOString().slice(0, 10);
+    out.push(byDay.get(day) ?? { day, syncs: 0, failures: 0 });
+  }
+  return out;
+}
+
+/** Round a maximum up to 1, 2, 5 or 10 times a power of ten, so the scale labels read cleanly. */
+export function niceMax(v: number): number {
+  if (v <= 1) return 1;
+  const pow = 10 ** Math.floor(Math.log10(v));
+  const f = v / pow;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * pow;
+}
+
+const shortDay = (day: string) => new Date(`${day}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+
+/**
+ * Bars of one value per calendar day, with a scale on the left, dates underneath and the exact value on hover.
+ * `pick` returns undefined for a day with nothing to show: it gets a dotted "no data" mark, apart from a real zero.
+ */
+function Trend({
+  daily,
+  pick,
+  label,
+  format,
+  headline,
+  noData,
+}: {
+  daily: DailyPoint[];
+  pick: (d: DailyPoint) => number | undefined;
+  label: string;
+  format: (v: number) => string;
+  headline: (values: Array<number | undefined>) => string;
+  noData: string;
+}) {
+  const days = useMemo(() => fillDays(daily), [daily]);
+  const values = days.map(pick);
+  const top = niceMax(Math.max(0, ...values.map((v) => v ?? 0)));
+  const ticks = Array.from({ length: GRID_LINES + 1 }, (_, i) => (top * (GRID_LINES - i)) / GRID_LINES);
+  const dates = days.length ? [days[0].day, days[Math.floor((days.length - 1) / 2)].day, days[days.length - 1].day] : [];
   return (
     <figure className="sync-overview-trend">
-      <figcaption className="studio-perf-meta">{label}</figcaption>
-      <svg viewBox={`0 0 ${SPARK_W} ${SPARK_H}`} role="img" aria-label={`${label}, by day`} preserveAspectRatio="none">
-        {daily.map((d, i) => {
-          const v = values[i];
-          const h = v === undefined ? 0 : Math.max(2, (v / max) * (SPARK_H - 4));
-          return (
-            <rect key={d.day} x={i * bar + bar * 0.15} y={SPARK_H - h} width={bar * 0.7} height={h} rx={1}>
-              <title>{`${d.day}: ${v === undefined ? "no data" : formatNumber(v)}`}</title>
-            </rect>
-          );
-        })}
-      </svg>
+      <figcaption className="sync-overview-trend-head">
+        <span className="studio-perf-meta">{label}</span>
+        <span className="sync-overview-trend-value ui-num">{headline(values)}</span>
+      </figcaption>
+      <div className="sync-overview-plot">
+        <div className="sync-overview-yaxis ui-num" aria-hidden="true">
+          {ticks.map((t) => (
+            <span key={t}>{format(t)}</span>
+          ))}
+        </div>
+        <div className="sync-overview-bars" role="img" aria-label={`${label}, by day: ${days.map((d, i) => `${shortDay(d.day)} ${values[i] === undefined ? noData : format(values[i] as number)}`).join(", ")}`}>
+          {ticks.map((t) => (
+            <span key={t} className="sync-overview-gridline" style={{ bottom: `${(t / top) * 100}%` }} />
+          ))}
+          {days.map((d, i) => {
+            const v = values[i];
+            const title = `${shortDay(d.day)}: ${v === undefined ? noData : format(v)}`;
+            return (
+              <span key={d.day} className="sync-overview-col" title={title}>
+                {v === undefined ? (
+                  <span className="sync-overview-nodata" />
+                ) : v === 0 ? (
+                  <span className="sync-overview-zero" />
+                ) : (
+                  <span className="sync-overview-bar" style={{ height: `${(v / top) * 100}%` }} />
+                )}
+              </span>
+            );
+          })}
+        </div>
+        <div className="sync-overview-xaxis" aria-hidden="true">
+          {dates.map((d, i) => (
+            <span key={`${d}-${i}`}>{shortDay(d)}</span>
+          ))}
+        </div>
+      </div>
     </figure>
   );
 }
@@ -150,13 +224,14 @@ export function askPrompt(data: OverviewData): string {
   return lines.join("\n");
 }
 
-export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUser, onTestUsers }: SyncOverviewProps) {
+export default function SyncOverview({ onAskClaude, onOpenSetup, repUserId, onRepChange, pending, onPendingChange, onTestUsers }: SyncOverviewProps) {
   const [days, setDays] = useState(30);
   const [data, setData] = useState<OverviewData | null>(null);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [lookingUp, setLookingUp] = useState(false);
 
   // Only the newest request may update the screen, so a slow 90-day answer can't replace a 7-day one.
   const latest = useRef(0);
@@ -208,8 +283,33 @@ export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUs
       return next;
     });
 
+  if (repUserId) {
+    return (
+      <div className="sync-overview">
+        <RepSyncDetail
+          userId={repUserId}
+          orgTypical={t ? { deltaSec: t.delta.total.p50, initialSec: t.initial.total.p50 } : undefined}
+          onBack={() => onRepChange(null)}
+          onAskClaude={onAskClaude}
+          onOpenSetup={onOpenSetup}
+          pending={pending}
+          onPendingChange={onPendingChange}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="sync-overview">
+      {lookingUp && (
+        <RepLookup
+          onCancel={() => setLookingUp(false)}
+          onPick={(id) => {
+            setLookingUp(false);
+            onRepChange(id);
+          }}
+        />
+      )}
       <div className="sync-overview-toolbar">
         <Segmented
           aria-label="Time window"
@@ -219,6 +319,10 @@ export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUs
           options={WINDOWS.map((d) => ({ value: String(d), label: `${d} days` }))}
         />
         <span className="sync-overview-toolbar-spacer" />
+        <button type="button" className="studio-btn" onClick={() => setLookingUp(true)}>
+          <UserRoundSearch size={14} aria-hidden="true" />
+          Look up a rep…
+        </button>
         {data && !loading && <UpdatedAgo at={cachedAt} />}
         <button type="button" className="studio-btn" disabled={loading} onClick={() => void load(days, true)}>
           {loading ? <Spinner size={14} /> : <RefreshCw size={14} aria-hidden="true" />}
@@ -295,9 +399,33 @@ export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUs
                 <div className="sync-overview-section">
                   <h3 className="ui-section-title">Trend</h3>
                   <div className="sync-overview-trends">
-                    <Trend daily={data.daily} pick={(d) => d.deltaP90} label="Update sync time, seconds (slowest 10%)" />
-                    <Trend daily={data.daily} pick={(d) => d.failures} label="Failed syncs per day" />
-                    <Trend daily={data.daily} pick={(d) => d.syncs} label="Syncs per day" />
+                    <Trend
+                      daily={data.daily}
+                      pick={(d) => d.deltaP90}
+                      label="Update sync time (slowest 10%)"
+                      format={seconds}
+                      headline={(vs) => {
+                        const last = [...vs].reverse().find((v) => v !== undefined);
+                        return last === undefined ? "No update syncs" : `Latest ${seconds(last)}`;
+                      }}
+                      noData="no update syncs finished"
+                    />
+                    <Trend
+                      daily={data.daily}
+                      pick={(d) => (d.syncs ? d.failures : undefined)}
+                      label="Failed syncs per day"
+                      format={formatNumber}
+                      headline={(vs) => `Total ${formatNumber(vs.reduce<number>((n, v) => n + (v ?? 0), 0))}`}
+                      noData="no syncs"
+                    />
+                    <Trend
+                      daily={data.daily}
+                      pick={(d) => (d.syncs ? d.syncs : undefined)}
+                      label="Syncs per day"
+                      format={formatNumber}
+                      headline={(vs) => `Total ${formatNumber(vs.reduce<number>((n, v) => n + (v ?? 0), 0))}`}
+                      noData="no syncs"
+                    />
                   </div>
                 </div>
               )}
@@ -370,7 +498,7 @@ export default function SyncOverview({ onAskClaude, onOpenSetup, onInvestigateUs
                           </td>
                           <td>
                             {u.userId && (
-                              <button type="button" className="studio-btn sm" onClick={() => onInvestigateUser(u.userId as string)}>
+                              <button type="button" className="studio-btn sm" onClick={() => onRepChange(u.userId as string)}>
                                 <UserRoundSearch size={14} aria-hidden="true" />
                                 Investigate
                               </button>

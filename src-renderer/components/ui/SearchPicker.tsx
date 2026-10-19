@@ -23,6 +23,12 @@ interface SearchPickerProps {
   emptyIcon?: LucideIcon;
   onPick: (value: string) => void;
   onCancel: () => void;
+  /** For options that come from a server search: told on every keystroke so the parent can re-query and pass new options. */
+  onQueryChange?: (q: string) => void;
+  /** A server search is running; shown beside the count. */
+  searching?: boolean;
+  /** The server search failed. */
+  error?: string;
 }
 
 /** A dialog that picks one of many: a search field over a list, filtered by label and detail as you type. */
@@ -37,6 +43,9 @@ export default function SearchPicker({
   emptyIcon,
   onPick,
   onCancel,
+  onQueryChange,
+  searching,
+  error,
 }: SearchPickerProps) {
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
@@ -80,7 +89,7 @@ export default function SearchPicker({
         </div>
         <h2 className="studio-inspector-title">{title}</h2>
         {description && <p className="studio-inspector-desc">{description}</p>}
-        {options.length === 0 ? (
+        {options.length === 0 && !onQueryChange && !searching ? (
           <StateView kind="empty" layout="inline" icon={emptyIcon} title={emptyTitle} detail={emptyDetail} className="studio-modal-state" />
         ) : (
           <>
@@ -94,13 +103,18 @@ export default function SearchPicker({
                 placeholder={placeholder}
                 aria-label={placeholder}
                 aria-controls="ui-picker-list"
-                onChange={(e) => setQ(e.target.value)}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  onQueryChange?.(e.target.value);
+                }}
                 onKeyDown={onKeyDown}
               />
             </label>
-            {shown.length === 0 ? (
+            {error && <StateView kind="error" layout="inline" title="Couldn't search" detail={error} className="studio-modal-state" />}
+            {!error && shown.length === 0 && searching && <StateView kind="loading" layout="inline" title="Searching…" className="studio-modal-state" />}
+            {!error && shown.length === 0 && !searching ? (
               <StateView kind="empty" layout="inline" icon={Search} title={`Nothing matches "${q}"`} detail="Try another word." className="studio-modal-state" />
-            ) : (
+            ) : error || shown.length === 0 ? null : (
               <ul className="ui-picker-list" id="ui-picker-list" role="listbox" aria-label={title} ref={listRef}>
                 {shown.map((o, i) => (
                   <li key={o.value} role="option" aria-selected={i === active} data-index={i}>
@@ -113,7 +127,7 @@ export default function SearchPicker({
               </ul>
             )}
             <span className="ui-picker-count ui-num">
-              {shown.length === options.length ? `${options.length}` : `${shown.length} of ${options.length}`}
+              {searching ? "Searching…" : shown.length === options.length ? `${options.length}` : `${shown.length} of ${options.length}`}
             </span>
           </>
         )}

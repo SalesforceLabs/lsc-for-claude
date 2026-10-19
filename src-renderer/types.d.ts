@@ -159,6 +159,7 @@ interface LscApi {
   studioConnectedOrg(): Promise<StudioResponse>;
   studioSyncOverview(days?: number, refresh?: boolean): Promise<StudioResponse>;
   studioSyncUser(userId: string, days?: number, refresh?: boolean): Promise<StudioResponse>;
+  studioSyncUserProgress(userId: string): Promise<StudioResponse>;
   studioSyncImpact(changes: unknown[], profiles?: string[]): Promise<StudioResponse>;
   studioSignoffReport(input: { assessment: unknown; simulations?: unknown[]; baseline?: unknown; days?: number }): Promise<StudioResponse>;
 

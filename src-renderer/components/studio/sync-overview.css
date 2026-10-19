@@ -57,10 +57,81 @@
   border-radius: var(--radius-sm);
   background: var(--bg-secondary);
 }
-.sync-overview-trend svg {
+.sync-overview-trend-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+}
+.sync-overview-trend-value {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.sync-overview-plot {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: 64px auto;
+  column-gap: 8px;
+  row-gap: 4px;
+}
+.sync-overview-yaxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  font-size: var(--font-xs);
+  line-height: 1;
+  color: var(--text-muted);
+}
+.sync-overview-bars {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+}
+.sync-overview-gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1px solid var(--border);
+  pointer-events: none;
+}
+.sync-overview-col {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+}
+.sync-overview-bar {
+  display: block;
   width: 100%;
-  height: 56px;
-  fill: var(--accent);
+  min-height: 2px;
+  background: var(--accent);
+  border-radius: 1px 1px 0 0;
+}
+.sync-overview-zero {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: var(--text-muted);
+}
+.sync-overview-nodata {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--border-strong) 0 2px, transparent 2px 4px);
+}
+.sync-overview-xaxis {
+  grid-column: 2;
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
 }
 .sync-overview-reasons {
   margin: 0;
