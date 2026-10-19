@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ArrowDown, ArrowUp, FileCode, Info, Square } from "lucide-react";
+import { ArrowDown, ArrowUp, ExternalLink, FileCode, Info, Square } from "lucide-react";
 import Spinner from "../../ui/Spinner";
 import StatusIcon from "../../ui/StatusIcon";
 import { builderApi } from "./api";
@@ -34,6 +34,8 @@ export default function Conversation({ project, writing, shownVersionId, onShowV
   const scroller = useRef<HTMLDivElement>(null);
   const stuck = useRef(true);
   const [away, setAway] = useState(false);
+  const [text, setText] = useState("");
+  const box = useRef<HTMLTextAreaElement>(null);
 
   const last = project.turns[project.turns.length - 1];
   const signal = `${project.turns.length}:${last?.steps.length ?? 0}:${last?.reply.length ?? 0}:${last?.status}:${writing?.chars ?? 0}`;
@@ -53,6 +55,17 @@ export default function Conversation({ project, writing, shownVersionId, onShowV
   return (
     <div className="bld-conv">
       <div className="bld-conv-scroll" ref={scroller} onScroll={onScroll} role="log" aria-live="polite" aria-label="Conversation">
+        {project.starter && (
+          <StarterIntro
+            project={project}
+            shownVersionId={shownVersionId}
+            onShowVersion={onShowVersion}
+            onTry={(prompt) => {
+              setText(prompt);
+              box.current?.focus();
+            }}
+          />
+        )}
         {project.turns.map((t) => (
           <TurnView key={t.id} project={project} turn={t} now={now} writing={writing?.turnId === t.id ? writing : undefined} shownVersionId={shownVersionId} onShowVersion={onShowVersion} />
         ))}
@@ -70,7 +83,7 @@ export default function Conversation({ project, writing, shownVersionId, onShowV
           {building ? "Follow the build" : "Latest"}
         </button>
       )}
-      <Composer project={project} building={building} />
+      <Composer project={project} building={building} text={text} setText={setText} box={box} />
     </div>
   );
 }
@@ -129,6 +142,45 @@ function TurnView({ project, turn, now, writing, shownVersionId, onShowVersion }
   );
 }
 
+/** Where a starter project came from, its first version, and prompts to try while nothing's been asked yet. */
+function StarterIntro({ project, shownVersionId, onShowVersion, onTry }: { project: AppProject; shownVersionId: string | null; onShowVersion: (id: string) => void; onTry: (prompt: string) => void }) {
+  const starter = project.starter!;
+  const version = project.versions.find((v) => v.source === "starter");
+  return (
+    <article className="bld-turn bld-starter-intro" aria-label="Started from a sample">
+      <div className="bld-reply">
+        <p>
+          Started from the <strong>{starter.label}</strong> sample. {starter.description}
+        </p>
+        <p className="bld-starter-from">
+          Copied from{" "}
+          <button type="button" className="bld-link bld-starter-repo" title={starter.url} onClick={() => void window.lscApi.openExternal(starter.url)}>
+            {starter.repo} @ {starter.sha.slice(0, 7)}
+            <ExternalLink size={12} aria-hidden="true" />
+          </button>
+        </p>
+        <p className="bld-starter-from">Ask for a change below. Nothing reaches the org until you deploy.</p>
+      </div>
+      {version && (
+        <button type="button" className="bld-version-chip" aria-pressed={shownVersionId === version.id} onClick={() => onShowVersion(version.id)} title="Show this version in the preview">
+          <StatusIcon tone={versionTone(version)} size={14} />
+          {versionSummary(project, version)}
+        </button>
+      )}
+      {project.turns.length === 0 && starter.tryNext.length > 0 && (
+        <div className="bld-try" role="list" aria-label="Try asking">
+          <span className="ui-label">Try asking</span>
+          {starter.tryNext.map((t) => (
+            <button key={t} type="button" role="listitem" className="bld-chip" onClick={() => onTry(t)}>
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
+    </article>
+  );
+}
+
 function StepRow({ step, now }: { step: AppStep; now: number }) {
   return (
     <li className={`bld-step ${step.status}`}>
@@ -153,11 +205,9 @@ function StepRow({ step, now }: { step: AppStep; now: number }) {
   );
 }
 
-function Composer({ project, building }: { project: AppProject; building: boolean }) {
-  const [text, setText] = useState("");
+function Composer({ project, building, text, setText, box }: { project: AppProject; building: boolean; text: string; setText: (t: string) => void; box: React.RefObject<HTMLTextAreaElement> }) {
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
-  const box = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     const el = box.current;
     if (!el) return;

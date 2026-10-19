@@ -1,0 +1,46 @@
+<template>
+    <lightning-card title={cardTitle} icon-name={iconName}>
+        <div class="slds-p-horizontal_medium">
+            <!-- Parent-injected markup (summary, filters, ...) -->
+            <slot></slot>
+
+            <template if:true={error}>
+                <div class="slds-text-color_error slds-p-vertical_small">{error}</div>
+            </template>
+
+            <template if:true={hasNodes}>
+                <!-- Horizontally scrolling, vertically compact timeline track -->
+                <div class="tl-scroll">
+                    <div class="tl-track">
+                        <template for:each={nodes} for:item="node">
+                            <div
+                                key={node.id}
+                                class="tl-node"
+                                data-id={node.id}
+                                role="button"
+                                tabindex="0"
+                                onclick={handleNodeSelect}
+                                onkeydown={handleNodeSelect}
+                            >
+                                <div class="tl-card">
+                                    <span class="tl-card__title">{node.title}</span>
+                                    <span class="tl-card__date">{node.dateLabel}</span>
+                                    <template if:true={node.status}>
+                                        <span class="tl-card__status">{node.status}</span>
+                                    </template>
+                                </div>
+                                <span class={node.dotClass}></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <template if:true={isEmpty}>
+                <p class="slds-text-body_small slds-p-vertical_small slds-text-color_weak">
+                    Nothing to plot yet.
+                </p>
+            </template>
+        </div>
+    </lightning-card>
+</template>

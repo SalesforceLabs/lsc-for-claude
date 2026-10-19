@@ -7,6 +7,7 @@ import SearchPicker from "../../ui/SearchPicker";
 import { builderApi } from "./api";
 import { COMMON_OBJECTS, EXAMPLES, TARGETS, needsObject, STATUS_LABEL, STATUS_TONE, projectStatus, relativeTime, targetLabel } from "./logic";
 import RunAsControl, { defaultRunAs } from "./RunAs";
+import StarterCards from "./StarterCards";
 import { useOrgs } from "../../../hooks/useOrgs";
 import { useMobileLogins } from "../../../hooks/useMobileLogins";
 import type { AppProjectsStore } from "./useAppProjects";
@@ -239,7 +240,7 @@ export default function Gallery({ store, onOpen }: GalleryProps) {
             layout="inline"
             icon={Tablet}
             title="No apps in this org yet"
-            detail="Describe one above, or start from an LSC app the org already has and change it with Roz."
+            detail="Describe one above, start from a sample below, or start from an LSC app the org already has and change it with Roz."
             className="bld-empty"
           />
         ) : (
@@ -250,6 +251,8 @@ export default function Gallery({ store, onOpen }: GalleryProps) {
           </div>
         )}
       </section>
+
+      <StarterCards store={store} onOpen={onOpen} runAs={runAs} />
 
       {pickingObject && (
         <SearchPicker

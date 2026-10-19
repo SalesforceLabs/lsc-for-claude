@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
-import { AppBuilder, followWrite, parseAppPath, pickBuilderModel, nameFromLabel, strongestModel, uniqueName } from "../../../src-electron/engine/app-builder.js";
+import { AppBuilder, followWrite, parseAppPath, pickBuilderModel, nameFromLabel, renameBundle, strongestModel, uniqueName } from "../../../src-electron/engine/app-builder.js";
 import { memoryAppStore, INTERRUPTED_MESSAGE } from "../../../src-electron/engine/app-store.js";
 import type { LLMProvider, Message, StreamChunk } from "../../../src-electron/llm/provider.js";
 import type { AppBuilderEvent, AppCheckResult, AppProject } from "../../../src-electron/engine/app-types.js";
@@ -48,7 +48,7 @@ const badCheck: AppCheckResult = {
   placeholders: [],
 };
 
-function setup(script: Step[], checks: AppCheckResult | AppCheckResult[] | ((n: number) => AppCheckResult), opts: { apps?: string[]; mobileLogin?: (id: string) => Promise<Record<string, unknown>> } = {}) {
+function setup(script: Step[], checks: AppCheckResult | AppCheckResult[] | ((n: number) => AppCheckResult), opts: { apps?: string[]; mobileLogin?: (id: string) => Promise<Record<string, unknown>>; starter?: unknown } = {}) {
   const store = memoryAppStore();
   const events: Array<{ projectId: string; event: AppBuilderEvent }> = [];
   const toolCalls: Array<{ tool: string; args: Record<string, unknown> }> = [];
@@ -71,6 +71,9 @@ function setup(script: Step[], checks: AppCheckResult | AppCheckResult[] | ((n: 
           return { objects: [{ name: "RecommendedAction", label: "RA", exists: true, synced: true, fields: [{ name: "Name", label: "Name", type: "string" }] }] };
         case "studio_app_sample":
           return { records: [{ Name: "a" }, { Name: "b" }], totalSize: 2 };
+        case "studio_app_starter_source":
+          if (!opts.starter) throw new Error("There's no starter app named " + String(args.id));
+          return structuredClone(opts.starter);
         case "studio_app_check": {
           const n = checkN++;
           return typeof checks === "function" ? checks(n) : Array.isArray(checks) ? checks[Math.min(n, checks.length - 1)] : checks;
@@ -440,6 +443,77 @@ describe("targets, run as, recovery", () => {
     expect(turn.error).toBe(INTERRUPTED_MESSAGE);
     expect(turn.steps[0].status).toBe("failed");
     expect(store.recoverInterrupted()).toBe(0);
+  });
+});
+
+const SN = "lscMobileInline_hcpEngagement";
+const starterFile = (bundle: string, file: string, source: string) => ({ bundle, path: `lwc/${bundle}/${file}`, source });
+const starter = {
+  name: SN,
+  target: "record",
+  objectApiName: "Account",
+  files: [
+    starterFile(SN, `${SN}.js`, `import { LightningElement } from 'lwc';\nexport default class HcpEngagement extends LightningElement {}\n`),
+    starterFile(SN, `${SN}.html`, `<template><c-lsc-mobile-inline_timeline></c-lsc-mobile-inline_timeline></template>\n`),
+    starterFile(SN, `${SN}.js-meta.xml`, `<masterLabel>${SN}</masterLabel>`),
+    starterFile("lscMobileInline_timeline", "lscMobileInline_timeline.js", `// used by ${SN}\n`),
+  ],
+  starter: { id: "hcp-engagement", label: "HCP engagement", description: "Visits and inquiries.", repo: "afls-ideas/x", sha: "a".repeat(40), url: "https://github.com/afls-ideas/x/tree/aaa", name: SN, target: "record", objects: ["Visit"], tryNext: ["Add a chart"] },
+};
+
+describe("starter apps", () => {
+  it("renames a bundle in its paths and in every file that names it, and nothing else", () => {
+    const out = renameBundle(starter.files, SN, SN + "2");
+    expect(out.map((f) => f.path)).toEqual([`lwc/${SN}2/${SN}2.js`, `lwc/${SN}2/${SN}2.html`, `lwc/${SN}2/${SN}2.js-meta.xml`, "lwc/lscMobileInline_timeline/lscMobileInline_timeline.js"]);
+    expect(out[2].source).toBe(`<masterLabel>${SN}2</masterLabel>`);
+    expect(out[3]).toEqual({ ...starter.files[3], source: `// used by ${SN}2\n` });
+    expect(renameBundle([starterFile("a", "a.js", `${SN}X`)], SN, "Y")[0].source).toBe(`${SN}X`);
+  });
+
+  it("starts a project with the starter as its first version, and reopens it while untouched", async () => {
+    const { builder, toolCalls } = setup([], okCheck, { starter });
+    const { project, error } = await builder.fromStarter("Org@X.com", "hcp-engagement");
+    expect(error).toBeUndefined();
+    expect(project!.org).toBe("org@x.com");
+    expect(project!.name).toBe(SN);
+    expect(project!.label).toBe("HCP engagement");
+    expect(project!.target).toBe("record");
+    expect(project!.objectApiName).toBe("Account");
+    expect(project!.starter).toMatchObject({ id: "hcp-engagement", repo: "afls-ideas/x", tryNext: ["Add a chart"] });
+    expect(project!.versions).toHaveLength(1);
+    expect(project!.versions[0].source).toBe("starter");
+    expect(project!.versions[0].files).toEqual(starter.files);
+    expect(project!.currentVersionId).toBe(project!.versions[0].id);
+    expect((toolCalls.find((c) => c.tool === "studio_app_check")!.args as { name: string }).name).toBe(SN);
+
+    const again = await builder.fromStarter("org@x.com", "hcp-engagement");
+    expect(again.project!.id).toBe(project!.id);
+  });
+
+  it("renames the starter when the org already has its bundle", async () => {
+    const { builder } = setup([], okCheck, { starter, apps: [SN] });
+    const { project } = await builder.fromStarter("o", "hcp-engagement");
+    expect(project!.name).toBe(SN + "2");
+    expect(project!.versions[0].files[0].path).toBe(`lwc/${SN}2/${SN}2.js`);
+    expect(project!.versions[0].files[3].bundle).toBe("lscMobileInline_timeline");
+  });
+
+  it("reports a starter the server doesn't have", async () => {
+    const { builder } = setup([], okCheck);
+    expect((await builder.fromStarter("o", "nope")).error).toContain("no starter app");
+  });
+
+  it("lets the model edit the starter's prefixed helper bundles, and tells it where the app came from", async () => {
+    const helper = { name: "write_app", input: { files: [{ path: "lwc/lscMobileInline_timeline/lscMobileInline_timeline.js", source: "// v2" }] } };
+    const { builder, seen } = setup([{ tools: [helper] }, { text: "ok" }], okCheck, { starter });
+    const { project } = await builder.fromStarter("o", "hcp-engagement");
+    expect(builder.send(project!.id, "tweak the timeline").ok).toBe(true);
+    const done = await finished(builder, project!.id);
+    expect(JSON.stringify(seen[0])).toContain("Started from the starter app");
+    expect(JSON.stringify(seen[1])).not.toContain("isn't allowed");
+    expect(done.versions).toHaveLength(2);
+    expect(done.versions[1].files.find((f) => f.bundle === "lscMobileInline_timeline")!.source).toBe("// v2");
+    expect(done.name).toBe(SN);
   });
 });
 

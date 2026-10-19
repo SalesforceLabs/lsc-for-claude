@@ -251,3 +251,24 @@ Rail: new section **Build** (above Testing) with **LSC apps** (`Sparkles`). View
   drives the Deploy dialog (production tick from the server's check, not the host name).
 - **Device frame**: preview defaults to iPad landscape with a Rotate control; the frame is a device
   spec (`kind: "ipad" | "iphone"`, orientation, size, safe areas) so iPhone can be added later.
+- **Starter apps** ("Start from a sample" in the gallery): working LSC apps from the
+  [afls-ideas](https://github.com/afls-ideas) GitHub account, copied at pinned commits into
+  `knowledge/app-starters/<id>/lwc/<bundle>/` (packaged with `knowledge/**`). The manifest
+  (`knowledge/app-starters/manifest.json`) gives each its repo, `sha`, parent bundle `name`, `target`,
+  `objectApiName`, the `bundles` to copy, `objects` the scan can't see (related-list ids in markup),
+  a description and `tryNext` prompts. `node scripts/sync-app-starters.mjs [--update] [id...]`
+  re-fetches the pinned files (`--update` moves each `sha` to the repo's default-branch tip first, so a
+  refresh is a reviewable diff); it writes only the listed bundles' files and never builds or runs them.
+  `test/unit/studio/apps/starters.test.ts` fails if a starter stops passing `checkApp` (no errors, compiles,
+  every copied bundle used). Server: `studio_app_starters` → `{ starters: AppStarter[] }` and
+  `studio_app_starter_source { id }` → `AppInput & { starter }` (`src/studio/apps/starters.ts`; no org).
+  Main: `AppBuilder.fromStarter(org, id, runAs?)` (`appBuilder:fromStarter`) makes a project whose first
+  version has `source: "starter"`, `label` the starter's and `starter` (`AppStarterRef`) recorded; an
+  untouched project from the same starter is reopened instead, and the parent bundle is renamed
+  (`renameBundle`, paths and references) when the org or another project already has its name. Helper
+  bundles keep their names, so `write_app` lets the model edit any prefixed bundle already in the project,
+  and the turn context says where the app came from. Two projects from the composable starters share
+  `lscMobileInline_relatedList` / `lscMobileInline_timeline`: deploying both deploys one copy of each
+  (the deploy plan lists them as overwritten). The conversation opens with the starter's source link,
+  its first version and the `tryNext` prompts (they fill the composer until the first turn).
+  Lint takes JS-only service modules (no template, no default class export) as helper bundles.

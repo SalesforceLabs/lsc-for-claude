@@ -51,6 +51,7 @@ import { describeForApp, MAX_DESCRIBE_OBJECTS } from "../studio/apps/describe.js
 import { sampleRecords } from "../studio/apps/sample.js";
 import type { RunAs } from "../studio/apps/run-as.js";
 import { appSource, listOrgApps } from "../studio/apps/org-apps.js";
+import { listStarters, starterSource } from "../studio/apps/starters.js";
 import { deployApp } from "../studio/apps/deploy.js";
 import { planDeploy } from "../studio/apps/plan.js";
 import { tabOptions } from "../studio/apps/tab-options.js";
@@ -1066,6 +1067,32 @@ function registerAppTools(server: McpServer) {
       }
       try {
         return json(await appSource(name, connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_app_starters",
+    "LSC Studio (GUI only): starter LSC apps the builder can begin from — working apps from the afls-ideas GitHub account, copied at pinned commits — with label, description, target, objects read and follow-up prompts. Read-only; no org needed. Returns JSON { starters }.",
+    {},
+    async () => {
+      try {
+        return json({ starters: listStarters() });
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_app_starter_source",
+    "LSC Studio (GUI only): one starter LSC app's files (the lscMobileInline_* bundle and the c/ components it uses) and where they came from. Read-only; no org needed. Returns JSON { name, target, objectApiName?, files, starter }.",
+    { id: z.string().regex(/^[a-z0-9-]{1,60}$/) },
+    async ({ id }) => {
+      try {
+        return json(starterSource(id));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

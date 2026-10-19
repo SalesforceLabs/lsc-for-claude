@@ -248,7 +248,10 @@ export function lintApp(input: AppInput): LintResult {
     const parent = bundle === name;
     const base = `lwc/${bundle}/${bundle}`;
     const has = (ext: string) => bundleFiles.find((f) => f.path === `${base}${ext}`);
-    for (const ext of [".js", ".html"]) {
+    // A nested JS-only bundle that exports functions (no template, no component class) is an LWC service module.
+    const js = has(".js");
+    const service = !parent && !!js && !has(".html") && !/export\s+default\s+class\b/.test(blankJsComments(js.source));
+    for (const ext of service ? [".js"] : [".js", ".html"]) {
       if (!has(ext)) add({ severity: "error", rule: `files.missing-${ext.slice(1)}`, message: `${bundle} has no ${bundle}${ext}.`, path: `${base}${ext}`, fix: `Add lwc/${bundle}/${bundle}${ext}.` });
     }
     if (!parent && bundle.startsWith(APP_PREFIX)) add({ severity: "warning", rule: "child.prefixed", message: `${bundle} is nested but carries the ${APP_PREFIX} prefix, so it would also be offered as an app on its own.`, fix: "Name nested components without the prefix, e.g. nextActionCard." });
@@ -264,7 +267,7 @@ export function lintApp(input: AppInput): LintResult {
       if (m && m[1] !== bundle) add({ severity: "error", rule: "files.naming", path: other.path, message: `${other.path} must be named ${bundle}.${m[2]}; the file name has to match the bundle.`, fix: `Rename it to lwc/${bundle}/${bundle}.${m[2]}.` });
     }
     for (const f of bundleFiles) {
-      if (f.path.endsWith(".js")) lintJs(input, f, parent, (i) => issues.push(i));
+      if (f.path.endsWith(".js")) lintJs(input, f, parent, service, (i) => issues.push(i));
       else if (f.path.endsWith(".html")) lintHtml(f, (i) => issues.push(i));
     }
   }
@@ -282,13 +285,13 @@ export function lintApp(input: AppInput): LintResult {
   return { issues, mobileHeight };
 }
 
-function lintJs(input: AppInput, f: AppFile, parent: boolean, add: (i: AppIssue) => void): void {
+function lintJs(input: AppInput, f: AppFile, parent: boolean, service: boolean, add: (i: AppIssue) => void): void {
   const js = blankJsComments(f.source);
   const at = (re: RegExp) => {
     const m = re.exec(js);
     return m ? lineAt(js, m.index) : undefined;
   };
-  if (!/export\s+default\s+class\b/.test(js)) {
+  if (!service && !/export\s+default\s+class\b/.test(js)) {
     add({ severity: "error", rule: "js.default-export", path: f.path, message: "The .js file must `export default class … extends LightningElement`.", fix: "Declare `export default class Name extends LightningElement { … }`." });
   }
   if (/\bimport\b[^;]*from\s+["']lwc["']/.test(js) && !/\bLightningElement\b/.test(js)) {

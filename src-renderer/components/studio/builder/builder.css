@@ -262,6 +262,91 @@
   font-size: var(--font-xs);
 }
 
+.bld-starters {
+  margin-top: var(--space-8);
+}
+
+.bld-starter-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-xs);
+  color: var(--accent);
+  background: var(--info-subtle);
+}
+
+.bld-starter-desc {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  line-height: 1.45;
+}
+
+.bld-starter.dimmed {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.bld-starter-source {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-xs);
+}
+
+.bld-starter-source svg {
+  flex: none;
+}
+
+.bld-starter-from {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.bld-starter-intro p {
+  margin: 0 0 var(--space-2);
+}
+
+.bld-starter-repo {
+  font-size: var(--font-sm);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.bld-starter-repo svg {
+  margin-left: var(--space-1);
+  vertical-align: -1px;
+}
+
+.bld-try {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.bld-try .ui-label {
+  flex-basis: 100%;
+}
+
+.bld-try .bld-chip {
+  height: auto;
+  min-height: var(--control);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius);
+  text-align: left;
+}
+
 .bld-pill-spin {
   margin-right: 4px;
 }
