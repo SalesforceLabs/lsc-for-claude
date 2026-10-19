@@ -181,7 +181,7 @@ function Device({
     const dest = snapshot.tabs.find((t) => t.fullName === reveal.tab);
     if (dest) {
       setCurrent(dest.fullName);
-      const first = reveal.record ? Object.values(snapshot.records?.byId ?? {}).find((r) => r.object === dest.sobject) : undefined;
+      const first = reveal.record ? Object.values(snapshot.records?.byId ?? {}).find((r) => r.object === (dest.kind === "accounts" ? "Account" : dest.sobject)) : undefined;
       setRecord(first ? first.id : null);
     }
   }, [reveal, snapshot]);

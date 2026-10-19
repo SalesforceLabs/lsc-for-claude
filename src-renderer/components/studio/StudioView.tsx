@@ -50,7 +50,7 @@ import {
 import Segmented from "../ui/Segmented";
 import { OrgAheadContext, useUnpublished } from "./useUnpublished";
 import { tabItemFor } from "./edit-draft";
-import { buildOrgAhead, revealPlan, type Reveal, type UnpublishedItem } from "./org-ahead";
+import { buildOrgAhead, insertReveal, revealPlan, type Reveal, type UnpublishedItem } from "./org-ahead";
 import StateView from "../ui/StateView";
 import FeatureLoading from "./FeatureLoading";
 import Spinner from "../ui/Spinner";
@@ -447,6 +447,15 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     revealed.current = reveal.nonce;
     if (reveal.select) previewEdit.onSelect(reveal.select);
   }, [reveal, previewEdit]);
+  // "Add to iPad" for a Home or record app: open the page it goes onto, once the profile's snapshot is read.
+  const intentRevealed = useRef(0);
+  useEffect(() => {
+    if (!insertIntent || intentRevealed.current === insertIntent.nonce || !publishedSnapshot) return;
+    if (insertIntent.target !== "home" && insertIntent.target !== "record") return;
+    intentRevealed.current = insertIntent.nonce;
+    const dest = insertReveal(publishedSnapshot, insertIntent.target, insertIntent.object);
+    if (dest) setReveal({ nonce: Date.now(), tab: dest.tab, record: dest.record, select: null });
+  }, [insertIntent, publishedSnapshot]);
   const showUnpublished = useCallback(
     (item: UnpublishedItem) => {
       const snap = publishedSnapshot;

@@ -15,6 +15,7 @@ import {
   ORG_AHEAD_MOVED,
   ORG_AHEAD_TAG,
   orgAheadTag,
+  insertReveal,
   revealPlan,
   timeAgo,
   whoWhen,
@@ -192,6 +193,16 @@ describe("revealPlan", () => {
 
   it("gives nothing for a document the snapshot doesn't have", () => {
     expect(revealPlan(item("layout", "Case-Other", "2026-10-17T00:00:00.000Z"), snapshot)).toBeNull();
+  });
+});
+
+describe("insertReveal", () => {
+  it("opens Home for a Home app and the object's tab in a record for a record app", () => {
+    expect(insertReveal(snapshot, "home")).toEqual({ tab: "Home_Tab", record: false });
+    expect(insertReveal(snapshot, "record", "Account")).toEqual({ tab: "standard-Account", record: true });
+    expect(insertReveal(snapshot, "record", "Case")).toBeNull();
+    const native = { ...snapshot, tabs: [{ fullName: "Accounts", label: "Accounts", kind: "accounts" }, ...snapshot.tabs.slice(1)] } as typeof snapshot;
+    expect(insertReveal(native, "record", "Account")).toEqual({ tab: "Accounts", record: true });
   });
 });
 

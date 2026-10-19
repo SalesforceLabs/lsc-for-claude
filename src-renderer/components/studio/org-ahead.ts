@@ -382,8 +382,15 @@ export type RevealPlan =
   | null;
 
 /** The object's tab on the iPad: the one that opens its list. */
+/** The object's list tab; Account's is the native Accounts tab, which names no object. */
 function objectTab(s: PublishedIpad, object: string): string | null {
-  return s.tabs.find((t) => t.kind === "object" && t.sobject === object)?.fullName ?? null;
+  return s.tabs.find((t) => (t.kind === "object" && t.sobject === object) || (t.kind === "accounts" && object === "Account"))?.fullName ?? null;
+}
+
+/** Where "Add to iPad" from the app builder opens the preview: the Home tab, or the object's tab with a record open. */
+export function insertReveal(s: PublishedIpad, target: "home" | "record", object?: string): { tab: string; record: boolean } | null {
+  const tab = target === "home" ? s.tabs.find((t) => t.kind === "home")?.fullName : object ? objectTab(s, object) : null;
+  return tab ? { tab, record: target === "record" } : null;
 }
 
 /** The layout `Object-Name` belongs to the first record type that uses it; the object is the part before the dash. */

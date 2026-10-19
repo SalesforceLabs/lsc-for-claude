@@ -112,6 +112,20 @@ describe("release bar", () => {
     expect(primaryAction({ pending: 0, org: { kind: "neverPublished" }, profile: "Rep", awaiting: [], job: null })).toMatchObject({ kind: "publish" });
   });
 
+  it("publishes every profile the session's changes reach when they reach this one", () => {
+    const awaiting = [layout(["Manager", "Rep", "Lead"])];
+    expect(primaryAction({ pending: 0, org: { kind: "count", count: 1, incomplete: false }, profile: "Rep", awaiting, job: null })).toMatchObject({
+      kind: "publish",
+      profiles: ["Rep", "Manager", "Lead"],
+      label: "Publish to iPad (3 profiles)…",
+    });
+    // Changes that don't reach the previewed profile stay out of its publish.
+    expect(primaryAction({ pending: 0, org: { kind: "count", count: 1, incomplete: false }, profile: "Rep", awaiting: [layout(["Manager"])], job: null })).toMatchObject({
+      profiles: ["Rep"],
+      label: "Publish to iPad (1 profile)…",
+    });
+  });
+
   it("publishes the session's profiles elsewhere", () => {
     const awaiting = [layout(["Rep"]), dbSchema(["Manager"])];
     expect(primaryAction({ pending: 0, org: sessionOrgStep(awaiting), profile: null, awaiting, job: null })).toMatchObject({
@@ -144,7 +158,8 @@ describe("release bar", () => {
 
   it("notes the profiles waiting org-wide beside a profile's publish", () => {
     expect(orgWideNote("Rep", [layout(["Rep"])])).toBeNull();
-    expect(orgWideNote("Rep", [layout(["Rep"]), dbSchema(["Manager"])])).toBe("2 profiles org-wide");
+    expect(orgWideNote("Rep", [layout(["Rep"]), dbSchema(["Manager"])])).toBeNull();
+    expect(orgWideNote("Rep", [dbSchema(["Manager"]), layout(["Lead"])])).toBe("2 profiles org-wide");
     expect(orgWideNote("Rep", [dbSchema()])).toBeNull();
     expect(orgWideNote(null, [layout(["Manager"])])).toBeNull();
   });

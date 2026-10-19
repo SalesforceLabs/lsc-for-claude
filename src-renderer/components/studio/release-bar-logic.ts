@@ -73,8 +73,9 @@ export function primaryAction({ pending, org, profile, awaiting, job }: PrimaryI
   if (pending > 0) return { kind: "review", count: pending };
   if (job?.state === "running") return { kind: "publishing", count: job.profiles.length };
   if (org.kind === "count" && org.count > 0) {
-    if (profile) return { kind: "publish", profiles: [profile], label: "Publish to iPad (1 profile)…", title: `Publish to iPad for ${profile}` };
-    const profiles = profilesToPublish(awaiting);
+    // In the preview: this profile, plus every other profile the session's applied changes reach when they reach this one
+    // (what the review dialog's "What happens next" names), so the button, that footer and the Publish dialog agree.
+    const profiles = profile ? withSession(profile, awaiting) : profilesToPublish(awaiting);
     return {
       kind: "publish",
       profiles,
@@ -92,16 +93,22 @@ export function primaryAction({ pending, org, profile, awaiting, job }: PrimaryI
   return { kind: "none" };
 }
 
+/** The previewed profile, and the other profiles the session's applied changes reach if they reach it too. */
+function withSession(profile: string, awaiting: PendingChange[]): string[] {
+  const reached = profilesToPublish(awaiting);
+  const includes = reached?.some((p) => p.toLowerCase() === profile.toLowerCase());
+  return includes && reached ? [profile, ...reached.filter((p) => p.toLowerCase() !== profile.toLowerCase())] : [profile];
+}
+
 /**
  * "· N org-wide" beside a profile-scoped publish: how many profiles the session's applied changes wait on,
- * when that is known and more than this one.
+ * when that is known and the publish doesn't already cover them (their changes don't reach this profile).
  */
 export function orgWideNote(profile: string | null, awaiting: PendingChange[]): string | null {
   if (!profile || awaiting.length === 0) return null;
   const profiles = profilesToPublish(awaiting);
-  if (!profiles) return null;
-  const others = profiles.filter((p) => p.toLowerCase() !== profile.toLowerCase());
-  if (others.length === 0) return null;
+  if (!profiles || profiles.length === 0) return null;
+  if (profiles.some((p) => p.toLowerCase() === profile.toLowerCase())) return null;
   return `${plural(profiles.length, "profile")} org-wide`;
 }
 

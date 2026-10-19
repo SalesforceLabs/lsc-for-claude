@@ -113,7 +113,13 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
       setPhase({ step: "applying", previews, outcomes: [...outcomes] });
     }
     setApplied((a) => [...a, ...done]);
-    if (done.length > 0) onApplied?.(done, undos, undoing);
+    // Hand on the profiles the footer named (the server's reach), so the release bar's publish names the same ones.
+    const reached = (c: PendingChange) => {
+      const i = changes.indexOf(c);
+      const profiles = reachFor(c, i >= 0 && ready(previews[i]) ? previews[i] : undefined).profiles;
+      return profiles ? { ...c, affects: profiles } : c;
+    };
+    if (done.length > 0) onApplied?.(done.map(reached), undos, undoing);
     setPhase({ step: "done", previews, outcomes: outcomes as Outcome[] });
   };
 
@@ -248,7 +254,7 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
                 </button>
               )}
               {mobileApplied.length > 0 && (
-                <button className="studio-btn" onClick={() => onPublish(publishProfiles(mobileApplied))}>
+                <button className="studio-btn" onClick={() => onPublish(publishProfiles(mobileApplied.map((c) => ({ ...c, affects: reachOf(c).profiles ?? c.affects }))))}>
                   Publish to iPad…
                 </button>
               )}
