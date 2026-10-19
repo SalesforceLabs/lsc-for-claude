@@ -11,6 +11,7 @@
  * query the admin can't run says nothing about whether the feature works.
  */
 
+import { sharedReadsActive } from "../../config/read-cache.js";
 import { executeCheck } from "../../validation/rules-executor.js";
 import { getRulesFromFiles, type Category, type ValidationRule } from "../../validation/rules-loader.js";
 import type { FeatureDefinition } from "../features.js";
@@ -79,6 +80,7 @@ function crashed(featureId: string, err: unknown): ReadinessCheck {
  * if one failed, or can't be checked if one couldn't be (or the prerequisites loop).
  */
 export async function runRules(rules: ValidationRule[], org: string): Promise<ReadinessCheck[]> {
+  warmSlowRules(rules, org);
   const ids = new Set(rules.map((r) => r.id));
   const results = new Map<string, Promise<ReadinessCheck>>();
   const limit = semaphore(CONCURRENCY);
@@ -101,6 +103,19 @@ export async function runRules(rules: ValidationRule[], org: string): Promise<Re
     return p;
   };
   return Promise.all(rules.map((r) => run(r, [])));
+}
+
+/**
+ * FlowDefinitionView answers take 12-24 s each on the server, and rules that wait behind prerequisites
+ * (or the concurrency limit) would start them one after another. Inside a shared read scope, start those
+ * rules' queries now: the rule's own run then finds the read in flight or done. Results are ignored here.
+ */
+function warmSlowRules(rules: ValidationRule[], org: string): void {
+  if (!sharedReadsActive()) return;
+  for (const rule of rules) {
+    const q = (rule.check as { query?: unknown }).query;
+    if (typeof q === "string" && /\bFlowDefinitionView\b/i.test(q)) executeCheck(rule.check, org).catch(() => undefined);
+  }
 }
 
 function ruleBase(rule: ValidationRule): Omit<ReadinessCheck, "status"> {

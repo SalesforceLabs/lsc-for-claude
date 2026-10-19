@@ -28,6 +28,13 @@ export const FV_VALUE_COLUMNS = [
  */
 export const ID_CHUNK_SIZE = 400;
 
+/**
+ * Parent ids per field-value query. Tooling pages hold 250 rows and each page is a round trip, so one
+ * 400-id query for a few thousand values is a long chain of sequential pages; smaller chunks run side
+ * by side (every record's values stay in one chunk, so results are looked up by id exactly as before).
+ */
+export const FIELD_VALUE_CHUNK_SIZE = 100;
+
 export function chunkIds<T>(ids: T[], size = ID_CHUNK_SIZE): T[][] {
   const chunks: T[][] = [];
   for (let i = 0; i < ids.length; i += size) chunks.push(ids.slice(i, i + size));
@@ -225,7 +232,7 @@ export async function queryFieldValues(
 
   // Chunks run side by side; the process-wide limiter caps how many reach the org at once.
   const chunkResults = await Promise.all(
-    chunkIds(recordIds).map(async (chunk) => {
+    chunkIds(recordIds, FIELD_VALUE_CHUNK_SIZE).map(async (chunk) => {
       let fvQuery: string;
       if (chunk.length === 1) {
         fvQuery = `SELECT Id, FieldName, DataType, ${columns.join(", ")}${parentIdCol} FROM LifeSciConfigFieldValue WHERE LifeSciConfigRecordId = '${chunk[0]}' ORDER BY FieldName`;

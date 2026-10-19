@@ -13,7 +13,7 @@ import { cacheGet, cacheSet, queryCacheKey, describeCacheKey } from "../cache.js
 import { sfLimiter } from "./limiter.js";
 import { directApiVersion, directDownload, directEnabled, directGet, directPostRead, directQuery, type DirectCredentials } from "./direct.js";
 import { directDelete, directDeploy, directRetrieve, type StatusHook } from "./direct-metadata.js";
-import { invalidateSharedReads } from "../config/read-cache.js";
+import { invalidateSharedReads, sharedRead, sharedReadsActive } from "../config/read-cache.js";
 
 const execAsync = promisify(exec);
 
@@ -345,7 +345,33 @@ export async function getOrgDisplay(targetOrg: string): Promise<CliResult<SfOrg>
 /**
  * Run a SOQL query
  */
+/** Carries a result that must not be kept (a failure, or one cut short) out of the shared read. */
+class Uncacheable {
+  constructor(readonly result: CliResult<SoqlQueryResult>) {}
+}
+
 export async function runSoqlQuery(
+  query: string,
+  targetOrg: string,
+  options: { useToolingApi?: boolean; maxRows?: number } = {}
+): Promise<CliResult<SoqlQueryResult>> {
+  // Inside a Studio read scope, identical queries share one read (see withSharedReads).
+  if (!sharedReadsActive()) return runSoqlQueryUncached(query, targetOrg, options);
+  const key = `soql:${options.useToolingApi ? "t" : "d"}:${options.maxRows ?? ""}:${query}`;
+  try {
+    const hit = await sharedRead(targetOrg, key, async () => {
+      const r = await runSoqlQueryUncached(query, targetOrg, options);
+      if (!r.success || !r.data || r.data.truncated) throw new Uncacheable(r);
+      return r;
+    });
+    return structuredClone(hit);
+  } catch (e) {
+    if (e instanceof Uncacheable) return structuredClone(e.result);
+    throw e;
+  }
+}
+
+async function runSoqlQueryUncached(
   query: string,
   targetOrg: string,
   options: { useToolingApi?: boolean; maxRows?: number } = {}
