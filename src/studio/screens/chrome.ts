@@ -210,7 +210,7 @@ export function searchCardActions(all: SearchQuickAction[], profile: string): Pu
 }
 
 async function collectCardActions(ctx: ScreenContext): Promise<PublishedCardAction[]> {
-  const rows = await configRecords("QuickAction", ctx.org);
+  const rows = await configRecords("QuickAction", ctx.adminOrg);
   return searchCardActions(
     rows.map((r) => ({
       label: r.label,

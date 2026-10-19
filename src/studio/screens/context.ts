@@ -10,7 +10,12 @@ import type { SnapshotCore } from "../published.js";
 export interface ScreenContext {
   core: SnapshotCore;
   userId: string;
+  /** The org name data reads go through: the rep's own login when `source` is "rep", else the admin connection. */
   org: string;
+  /** The admin sf CLI connection, for reads that aren't the rep's data (Admin Console, Tooling, telemetry, other users' permissions). */
+  adminOrg: string;
+  /** Whose view `org` gives: the rep's own sharing and field-level security, or the admin's approximation. */
+  source: "rep" | "admin";
   /** The viewer's territories in the active model. */
   territories: { id: string; name: string }[];
   /** The viewer's time zone and locale (`en-US` form), for formatting like the device. */

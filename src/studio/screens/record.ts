@@ -256,6 +256,15 @@ interface Fetched {
   describe: Describe;
 }
 
+/**
+ * `where`, plus, when the rows are read as the rep, the table's DB Schema filter with the rep's tags filled in
+ * (`ctx.scope`), so only rows the iPad's offline database holds come back. The admin reads stay as they were.
+ */
+export function syncedWhere(ctx: Pick<ScreenContext, "source" | "scope">, object: string, where: string): string {
+  const synced = ctx.source === "rep" ? ctx.scope(object) : undefined;
+  return synced ? `${where} AND (${synced})` : where;
+}
+
 /** Reads `ids` of `object` (or `where`) with every layout field the describe knows; lookups come as `Rel.Name`. */
 async function fetchRows(ctx: ScreenContext, object: string, where: string, extra: string[], inlineFields: string[] = []): Promise<Fetched | null> {
   const describe = await describeOf(ctx, object);
@@ -279,7 +288,7 @@ async function fetchRows(ctx: ScreenContext, object: string, where: string, extr
     paths.add(name);
     if (f && str(f.type) === "reference" && f.relationshipName) paths.add(`${str(f.relationshipName)}.${refNameField(f)}`);
   }
-  const select = (list: string[]) => `SELECT ${list.join(", ")} FROM ${object} WHERE ${where}`;
+  const select = (list: string[]) => `SELECT ${list.join(", ")} FROM ${object} WHERE ${syncedWhere(ctx, object, where)}`;
   try {
     return { rows: await query(select([...paths]), ctx.org), specs, describe };
   } catch {
@@ -324,7 +333,7 @@ const permissionTypes = (object: string) => (object === "Account" ? ["Account", 
 function fieldPermissionRows(ctx: ScreenContext, objects: string[]): Promise<Row[] | null> {
   const types = [...new Set(objects.flatMap(permissionTypes))];
   if (!types.length) return Promise.resolve(null);
-  return query(PERMISSION_SOQL(types, ctx.userId), ctx.org).catch(() => null);
+  return query(PERMISSION_SOQL(types, ctx.userId), ctx.adminOrg).catch(() => null);
 }
 
 /** The viewer's merged field read permissions for an object (profile, permission sets and groups); null when the org won't say. */
@@ -332,7 +341,7 @@ async function fieldReadPermissions(ctx: ScreenContext, object: string, shared?:
   try {
     const together = shared ? await shared : null;
     const types = new Set(permissionTypes(object).map((t) => t.toLowerCase()));
-    const rows = together ? together.filter((r) => types.has(str(r.Field).split(".")[0].toLowerCase())) : await query(PERMISSION_SOQL(permissionTypes(object), ctx.userId), ctx.org);
+    const rows = together ? together.filter((r) => types.has(str(r.Field).split(".")[0].toLowerCase())) : await query(PERMISSION_SOQL(permissionTypes(object), ctx.userId), ctx.adminOrg);
     const out = new Map<string, boolean>();
     const set = (name: string, read: boolean) => out.set(name, out.get(name) === true || read);
     for (const r of rows) {
@@ -634,7 +643,7 @@ async function inlineCards(ctx: ScreenContext, objects: string[]): Promise<Pick<
   const load = async (bundles: string[]): Promise<LwcFile[]> => {
     const valid = bundles.filter((b) => /^\w+$/.test(b));
     if (!valid.length) return [];
-    const rows = await query(`SELECT LightningComponentBundle.DeveloperName, FilePath, Source FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName IN (${inList(valid)})`, ctx.org, true).catch(softFail(ctx, "Record page", [] as Row[]));
+    const rows = await query(`SELECT LightningComponentBundle.DeveloperName, FilePath, Source FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName IN (${inList(valid)})`, ctx.adminOrg, true).catch(softFail(ctx, "Record page", [] as Row[]));
     return rows.map((r) => ({ bundle: str(obj(r.LightningComponentBundle).DeveloperName), path: str(r.FilePath), source: str(r.Source) }));
   };
   await Promise.all(

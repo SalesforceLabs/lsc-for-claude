@@ -370,7 +370,7 @@ async function collectEmailTemplates(ctx: ScreenContext): Promise<PublishedEmail
  * the org hands every active one to every device (OCEDBCustomActionModel filters by location only).
  */
 export async function collectFabs(ctx: ScreenContext): Promise<PublishedFabs> {
-  const [quick, custom] = await Promise.all([configRecords("QuickAction", ctx.org), configRecords("CustomAction", ctx.org)]);
+  const [quick, custom] = await Promise.all([configRecords("QuickAction", ctx.adminOrg), configRecords("CustomAction", ctx.adminOrg)]);
   return {
     home: homeMenu(
       quick.map((r) => ({

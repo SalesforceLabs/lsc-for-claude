@@ -110,6 +110,8 @@ export interface TokenLogin {
   accessToken: string;
   username: string;
   orgId?: string;
+  /** The Salesforce user id the login belongs to, when known. */
+  userId?: string;
 }
 
 /**

@@ -561,14 +561,32 @@ export function register(server: McpServer) {
   server.tool(
     "studio_ipad_published",
     "LSC Studio (GUI data): what the iPad actually renders for one user of a profile — tabs, Home page components, record layouts, and list views — read from the profile's published mobile metadata cache with the user's permission sets merged in (the profile's most typical user unless userId is given). Read-only. Returns JSON.",
-    { profile: z.string().min(1).max(255), userId: z.string().regex(/^[a-zA-Z0-9]{15,18}$/).optional() },
-    async ({ profile, userId }) => {
+    {
+      profile: z.string().min(1).max(255),
+      userId: z.string().regex(/^[a-zA-Z0-9]{15,18}$/).optional(),
+      mobileLogins: z
+        .array(
+          z.object({
+            instanceUrl: z.string().url().max(255),
+            accessToken: z.string().min(1).max(4096),
+            username: z.string().min(1).max(255),
+            orgId: z.string().max(18).optional(),
+            userId: z.string().max(18).optional(),
+          })
+        )
+        .max(25)
+        .optional()
+        .describe(
+          "Logins Studio made through the LSC mobile app's connected app. When one belongs to the previewed rep, the live screens and records are read with it (their own sharing and field-level security, rows limited to their sync filter); otherwise the sf CLI connection reads and approximates. Tokens are used for this load only and never returned."
+        ),
+    },
+    async ({ profile, userId, mobileLogins }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await loadPublishedIpad(profile, connection.targetOrg, userId));
+        return json(await loadPublishedIpad(profile, connection.targetOrg, userId, mobileLogins ?? []));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

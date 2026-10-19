@@ -1395,6 +1395,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
   {
     "name": "studio_ipad_published",
     "params": {
+      "mobileLogins": {
+        "optional": true,
+        "type": "ZodArray",
+      },
       "profile": {
         "optional": false,
         "type": "ZodString",

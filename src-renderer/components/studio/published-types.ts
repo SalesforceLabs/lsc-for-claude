@@ -187,6 +187,8 @@ export interface PublishedIpad {
   screens?: PublishedScreens;
   /** Records the list views open, read live (src/studio/screens/record.ts). */
   records?: PublishedRecords;
+  /** Whose view the live data was read with: the rep's own login (exact) or the admin connection (approximated). */
+  dataSource?: "rep" | "admin";
   /** What the live reads couldn't read in full (too many rows, too slow); absent when everything was read. */
   dataNotes?: string[];
 }
