@@ -2358,3 +2358,59 @@ button.studio-ipad-chip {
   padding: var(--space-2);
   border-radius: var(--radius);
 }
+
+/* Screens read on demand (the Reports tab, a report's result): a centred wait or failure note on white. */
+.studio-ipad-lazy {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+  color: #181818;
+}
+
+.studio-ipad-lazy-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.studio-ipad-lazy-detail {
+  max-width: 520px;
+  font-size: 14px;
+  line-height: 19px;
+  color: #5c5c5c;
+}
+
+.studio-ipad-lazy-retry {
+  margin-top: 6px;
+  padding: 7px 18px;
+  border: 1px solid #0250d9;
+  border-radius: 8px;
+  background: #fff;
+  color: #0250d9;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.studio-ipad-lazy-retry:focus-visible {
+  outline: 2px solid #0250d9;
+  outline-offset: 2px;
+}
+
+/* The Sales Chart / Reports placeholder inside the flush Reports page keeps the usual page padding. */
+.studio-ipad-reports-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  padding: 20px 16px;
+}
+
+/* The View Report sheet's own wait and failure notes sit where its messages do. */
+.studio-ipad-reportview .studio-ipad-lazy {
+  position: absolute;
+  inset: 82px 0 0 0;
+}

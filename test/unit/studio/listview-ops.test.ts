@@ -232,3 +232,22 @@ describe("validBooleanFilter", () => {
     expect(validBooleanFilter("1) AND (2", 2)).toBe(false);
   });
 });
+
+describe("columns of a view that names standard columns the old way", () => {
+  const legacy = `<?xml version="1.0" encoding="UTF-8"?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Mine</fullName>
+    <columns>ACCOUNT.NAME</columns>
+    <columns>ACCOUNT.TYPE</columns>
+    <filterScope>Everything</filterScope>
+    <label>Mine</label>
+</ListView>
+`;
+  it("refuses a standard field the org can't resolve, but takes custom fields and its own ids", () => {
+    expect(() => applyListViewOp(root(legacy), { op: "addListColumn", column: "Industry", before: null })).toThrow(/old way/);
+    const r = root(legacy);
+    applyListViewOp(r, { op: "addListColumn", column: "External_ID__c", before: null });
+    applyListViewOp(r, { op: "addListColumn", column: "ACCOUNT.PHONE1", before: null });
+    expect(listColumns(r)).toEqual(["ACCOUNT.NAME", "ACCOUNT.TYPE", "External_ID__c", "ACCOUNT.PHONE1"]);
+  });
+});

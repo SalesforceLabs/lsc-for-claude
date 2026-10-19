@@ -15,7 +15,8 @@ import { traceUser } from "../studio/user-trace.js";
 import { drift } from "../studio/drift.js";
 import { applyFix, previewFix } from "../studio/fixes.js";
 import { publishStatus, startPublish } from "../studio/publish.js";
-import { loadPublishedIpad, searchProfileUsers } from "../studio/published.js";
+import { loadIpadReports, loadPublishedIpad, searchProfileUsers } from "../studio/published.js";
+import { runReport } from "../studio/screens/report-data.js";
 import { loadProgress } from "../studio/published-progress.js";
 import { collectUnpublished } from "../studio/unpublished.js";
 import { fixProgress, startFixChange } from "../studio/fix-progress.js";
@@ -645,6 +646,41 @@ export function register(server: McpServer) {
     "LSC Studio (GUI data): which step a running studio_ipad_published load for a profile is on (steps waiting / running / done / failed, with start and finish times), or null when none has run. Read-only; makes no org calls. Returns JSON.",
     { profile: z.string().min(1).max(255) },
     async ({ profile }) => json({ progress: loadProgress(profile) })
+  );
+
+  server.tool(
+    "studio_ipad_reports",
+    "LSC Studio (GUI data): the Reports tab of the published iPad for one user — the tab's custom settings and, with ShowSalesforceReports, the folder and report tree the user can read (no report results). Read when the Reports tab is first opened rather than with studio_ipad_published. Read-only. Returns JSON { settings, reports?, dataNotes? }.",
+    { userId: z.string().regex(/^[a-zA-Z0-9]{15,18}$/) },
+    async ({ userId }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await loadIpadReports(userId, connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_report_data",
+    "LSC Studio (GUI data): one report's result for the iPad preview's View Report sheet, run read-only as the connected account (Summary and Tabular only; first 150 rows), reused for six hours from memory. Read-only. Returns JSON { id, data } — data is null when the report couldn't be run here. `userId` is the previewed rep; it doesn't change the run.",
+    { reportId: z.string().regex(/^00O[A-Za-z0-9]{12,15}$/), userId: z.string().regex(/^[a-zA-Z0-9]{15,18}$/).optional() },
+    async ({ reportId }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        const data = await runReport(reportId, connection.targetOrg);
+        return json({ id: reportId, data: data ?? null });
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
   );
 
   server.tool(

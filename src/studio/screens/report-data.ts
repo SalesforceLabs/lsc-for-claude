@@ -200,38 +200,3 @@ export async function runReport(id: string, org: string, now = Date.now()): Prom
   while (reportCache.size > MAX_CACHED_REPORTS) reportCache.delete(reportCache.keys().next().value as string);
   return data;
 }
-
-interface Runnable {
-  kind: "section" | "folder" | "report";
-  id?: string;
-  native?: boolean;
-  data?: PublishedReportData;
-  /** The run was attempted (so a missing `data` means "couldn't run", not "not tried"). */
-  ran?: boolean;
-  children: Runnable[];
-}
-
-/**
- * Run the tree's native reports (a few at a time, within `budgetMs`) and attach each result to its item, so the
- * viewer sheet can open them without another round trip. Items it doesn't get to keep no `ran` flag.
- */
-export async function attachReportData(items: Runnable[], org: string, budgetMs = 20000, maxReports = 60): Promise<void> {
-  const todo: Runnable[] = [];
-  const collect = (list: Runnable[]) => {
-    for (const i of list) {
-      if (i.kind === "report" && i.id && i.native) todo.push(i);
-      collect(i.children);
-    }
-  };
-  collect(items);
-  const deadline = Date.now() + budgetMs;
-  const queue = todo.slice(0, maxReports);
-  const worker = async () => {
-    for (let item = queue.shift(); item; item = queue.shift()) {
-      if (Date.now() > deadline) return;
-      item.ran = true;
-      item.data = await runReport(item.id as string, org).catch(() => undefined);
-    }
-  };
-  await Promise.all([worker(), worker(), worker(), worker()]);
-}

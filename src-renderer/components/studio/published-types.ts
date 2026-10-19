@@ -1,4 +1,3 @@
-import type { PublishedReportData } from "./report-types";
 import type { PublishedScreens } from "./screens/types";
 
 // Structural copy of the snapshot types in src/studio/published.ts — the renderer bundle cannot import from src/. Keep in sync.
@@ -173,10 +172,6 @@ export interface PublishedIpad {
   usersTruncated?: boolean;
   /** Dashboards the pages' `embeddedDashboard` components show, by developer name. */
   dashboards: Record<string, PublishedDashboard>;
-  /** Custom settings from the cache's `config.json` (absent in snapshots saved before they were read). */
-  settings?: { reports: { salesChart: boolean; salesforceReports: boolean } };
-  /** The Reports tab's tree as the viewer sees it; absent without a Reports tab. */
-  reports?: PublishedReportItem[];
   /** Object tabs' list view records as `Object.ListName` → data; absent when they couldn't be read. */
   lists?: Record<string, PublishedListData>;
   /** Why a list view has no data (`Object.ListName` → note). */
@@ -266,6 +261,15 @@ export interface PublishedListData {
   rows: { id: string; cells: string[] }[];
 }
 
+/** What `studio_ipad_reports` reads when the Reports tab opens (not part of the preview load). */
+export interface IpadReportsTab {
+  settings: { reports: { salesChart: boolean; salesforceReports: boolean } };
+  /** The tree as the viewer sees it; absent when the tab shows the Sales Chart instead. */
+  reports?: PublishedReportItem[];
+  /** Why the tree is shorter than the org's. */
+  dataNotes?: string[];
+}
+
 /** MultiReportItem: a top-level section, a subfolder, or a report. */
 export interface PublishedReportItem {
   kind: "section" | "folder" | "report";
@@ -273,11 +277,9 @@ export interface PublishedReportItem {
   description?: string;
   /** Summary and tabular reports open natively, the rest on the web. */
   native?: boolean;
-  /** Report Id, format, and its result when run read-only for the "View Report" sheet. */
+  /** Report Id and format; the result is run on open (`studio_report_data`). */
   id?: string;
   format?: string;
-  data?: PublishedReportData;
-  ran?: boolean;
   children: PublishedReportItem[];
 }
 

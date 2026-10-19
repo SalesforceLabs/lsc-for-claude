@@ -137,6 +137,10 @@ interface LscApi {
   studioIpadPublished(profile: string, refresh?: boolean, userId?: string): Promise<StudioResponse>;
   studioIpadPublishedUsers(profile: string, search: string): Promise<StudioResponse>;
   studioIpadPublishedProgress(profile: string): Promise<StudioResponse>;
+  /** The Reports tab's settings and folder/report tree for a rep, read when the tab opens. */
+  studioIpadReports(userId: string): Promise<StudioResponse>;
+  /** One report's result for the View Report sheet, run when it is opened. */
+  studioReportData(reportId: string, userId?: string): Promise<StudioResponse>;
   studioUnpublished(profile: string, known?: Record<string, string[]>, refresh?: boolean): Promise<StudioResponse>;
   studioPreviewFix(fix: unknown, progress?: { id: string; index: number; total: number }): Promise<StudioResponse>;
   studioApplyFix(fix: unknown, expectedOrg: string, progress?: { id: string; index: number; total: number }): Promise<StudioResponse>;

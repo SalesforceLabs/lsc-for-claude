@@ -195,6 +195,8 @@ export async function installSfCli(): Promise<CliResult<string>> {
  * A unique directory is created per process (session) using the PID.
  */
 const TMP_SFDX_PROJECT_DIR = path.join(os.tmpdir(), `lsc-sfdx-project-${process.pid}`);
+// Newer objects (Inquiry, ...) are rejected by older source API versions, which made their deploys fail.
+const TMP_PROJECT_API_VERSION = "66.0";
 
 export function ensureTmpSfdxProject(): string {
   const forceAppDir = path.join(TMP_SFDX_PROJECT_DIR, "force-app");
@@ -211,7 +213,7 @@ export function ensureTmpSfdxProject(): string {
           name: "lsc-tmp",
           namespace: "",
           sfdcLoginUrl: "https://login.salesforce.com",
-          sourceApiVersion: "62.0",
+          sourceApiVersion: TMP_PROJECT_API_VERSION,
         },
         null,
         2
@@ -684,32 +686,27 @@ export async function deployMetadata(
 }
 
 /**
- * `sf project deploy start --json` can answer with a parsed result whose deploy
- * failed (status "Failed", component failures, a non-zero status inside the JSON).
- * Turn that into a failed CliResult naming the problems, so no caller mistakes it for success.
+ * A deploy the org rejected still comes back from the CLI as JSON with a `result` (status "Failed",
+ * `componentFailures`), which `execSfCommand` reads as success. Turn that into the failure it is,
+ * carrying the org's reasons, so nothing reports a change that never landed.
  */
-export function deployOutcome(res: CliResult<unknown>): CliResult<unknown> {
-  const d = res.data as
-    | {
-        success?: boolean;
-        status?: string;
-        details?: { componentFailures?: unknown; runTestResult?: { failures?: unknown } };
-      }
+export function deployOutcome<T>(result: CliResult<T>): CliResult<T> {
+  const data = result.data as
+    | { success?: boolean; status?: string; numberComponentErrors?: number; details?: { componentFailures?: unknown } }
     | undefined;
-  if (!d || typeof d !== "object") return res;
-  const asList = (v: unknown): { problem?: string; fullName?: string; componentType?: string }[] =>
-    Array.isArray(v) ? v : v && typeof v === "object" ? [v] : [];
-  const failures = asList(d.details?.componentFailures);
-  const failed = d.success === false || d.status === "Failed" || d.status === "Canceled" || failures.length > 0;
-  if (!failed) return res;
-  if (!res.success && !failures.length) return res;
-  const problems = failures.map((f) => [f.problem, f.fullName && `(${f.fullName})`].filter(Boolean).join(" ")).filter(Boolean);
-  return {
-    ...res,
-    success: false,
-    rejected: failures.length > 0,
-    error: problems.length ? problems.join("; ") : `The deploy ${String(d.status ?? "failed").toLowerCase()}.`,
-  };
+  if (!data || typeof data !== "object") return result;
+  const raw = data.details?.componentFailures;
+  const failures = (Array.isArray(raw) ? raw : raw ? [raw] : []) as { fullName?: string; problem?: string; lineNumber?: number }[];
+  const failed =
+    data.success === false ||
+    (typeof data.status === "string" && /^(Failed|Canceled|Canceling)/i.test(data.status)) ||
+    (data.numberComponentErrors ?? 0) > 0 ||
+    failures.length > 0;
+  if (!failed) return result;
+  // A failure the CLI already flagged keeps its own message unless the JSON names the components.
+  if (!result.success && !failures.length) return result;
+  const reasons = failures.map((f) => `${f.fullName ? `${f.fullName}: ` : ""}${f.problem ?? "failed"}${f.lineNumber ? ` (line ${f.lineNumber})` : ""}`);
+  return { ...result, success: false, rejected: failures.length > 0, error: reasons.length ? reasons.join("; ") : `The deploy ${String(data.status ?? "failed").toLowerCase()}.` };
 }
 
 /**
@@ -723,7 +720,7 @@ export async function deleteMetadata(type: string, fullName: string, targetOrg: 
   const dir = path.join(cwd, "destructive", `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
   fs.mkdirSync(dir, { recursive: true });
   const xml = (body: string) =>
-    `<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n${body}    <version>62.0</version>\n</Package>\n`;
+    `<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n${body}    <version>${TMP_PROJECT_API_VERSION}</version>\n</Package>\n`;
   const escaped = fullName.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   fs.writeFileSync(path.join(dir, "package.xml"), xml(""));
   fs.writeFileSync(
@@ -755,6 +752,7 @@ export async function retrieveMetadata(
   onStatus?: StatusHook
 ): Promise<CliResult<{ outputDir: string }>> {
   const projectDir = ensureTmpSfdxProject();
+  // Unique per call: two retrieves started in the same millisecond must not share a folder.
   const relativeOutput = path.join("retrieve-output", `${Date.now()}-${crypto.randomBytes(3).toString("hex")}`);
   const absoluteOutput = path.join(projectDir, relativeOutput);
   fs.mkdirSync(absoluteOutput, { recursive: true });
