@@ -37,7 +37,7 @@ export interface DirectQueryResult {
 
 export type DirectOutcome<T> =
   | { ok: true; data: T }
-  | { ok: false; error: string; timedOut?: boolean; status?: number };
+  | { ok: false; error: string; timedOut?: boolean; status?: number; /** The org refused the components (not a transport problem). */ rejected?: boolean };
 
 /** Salesforce rejects request URIs past ~16 KB; stay under it and let the CLI try. */
 export const MAX_GET_URL_CHARS = 15_000;

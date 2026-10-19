@@ -90,6 +90,16 @@ export async function deployDoc(doc: MetadataDoc, root: XmlNode, org: string, on
   if (!result.success) throw new Error(`Couldn't deploy ${doc.fullName}: ${result.error ?? "unknown error"}`);
 }
 
+/**
+ * Ask the org whether it would accept `root` without deploying it (a check-only deploy).
+ * Returns the org's reasons when it would refuse, null when it would accept or the check couldn't run.
+ */
+export async function validateDoc(doc: MetadataDoc, root: XmlNode, org: string): Promise<string | null> {
+  fs.writeFileSync(doc.filePath, serializeXml(root), "utf-8");
+  const result = await deployMetadata(doc.filePath, org, undefined, true);
+  return result.rejected ? (result.error ?? "the org refused it") : null;
+}
+
 export function discardDoc(doc: MetadataDoc): void {
   discardDir(doc.outputDir);
 }

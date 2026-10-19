@@ -364,7 +364,9 @@ export async function directDeploy(
   org: string,
   fetcher: CredentialFetcher,
   timeoutMs = DEFAULT_TIMEOUT_MS,
-  onStatus?: StatusHook
+  onStatus?: StatusHook,
+  /** Validate only: the org checks the deploy and changes nothing. */
+  checkOnly = false
 ): Promise<DirectOutcome<void> | null> {
   if (!directEnabled(org)) return null;
   const version = await directApiVersion(org, fetcher);
@@ -375,10 +377,13 @@ export async function directDeploy(
     return null;
   }
   if (!built) return null;
-  const start = `<deploy><ZipFile>${built.zip.toString("base64")}</ZipFile><DeployOptions><rollbackOnError>true</rollbackOnError><singlePackage>true</singlePackage></DeployOptions></deploy>`;
+  const start = `<deploy><ZipFile>${built.zip.toString("base64")}</ZipFile><DeployOptions>${checkOnly ? "<checkOnly>true</checkOnly>" : ""}<rollbackOnError>true</rollbackOnError><singlePackage>true</singlePackage></DeployOptions></deploy>`;
   const check = (id: string) => `<checkDeployStatus><asyncProcessId>${id}</asyncProcessId><includeDetails>true</includeDetails></checkDeployStatus>`;
   const res = await runAsync(org, fetcher, start, check, "deploy", "checkDeployStatus", timeoutMs, onStatus);
   if (!res || !res.ok) return res;
-  if (res.data.success !== "true" || res.data.status !== "Succeeded") return { ok: false, error: deployError(res.data) };
+  if (res.data.success !== "true" || res.data.status !== "Succeeded") {
+    const failures = (res.data.details as Result | undefined)?.componentFailures as Result[] | undefined;
+    return { ok: false, error: deployError(res.data), rejected: Boolean(failures?.length) };
+  }
   return { ok: true, data: undefined };
 }

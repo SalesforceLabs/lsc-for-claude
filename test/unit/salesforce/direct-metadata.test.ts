@@ -162,7 +162,7 @@ describe("directDeploy", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
     const out = await directDeploy(file, ORG, async () => creds);
-    expect(out).toEqual({ ok: false, error: "A-B: Field 'Foo__c' doesn't exist" });
+    expect(out).toEqual({ ok: false, error: "A-B: Field 'Foo__c' doesn't exist", rejected: true });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0][1].body).toContain("<rollbackOnError>true</rollbackOnError>");
   });
@@ -178,6 +178,18 @@ describe("directDeploy", () => {
         .mockResolvedValueOnce(xmlResponse(envelope("checkDeployStatus", "<done>true</done><id>0Af1</id><status>Succeeded</status><success>true</success>")))
     );
     expect(await directDeploy(file, ORG, async () => creds)).toEqual({ ok: true, data: undefined });
+  });
+
+  it("validates only when asked to check", async () => {
+    const file = path.join(tmp, "A-B.layout-meta.xml");
+    fs.writeFileSync(file, "<Layout/>");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(xmlResponse(envelope("deploy", "<done>false</done><id>0Af1</id>")))
+      .mockResolvedValueOnce(xmlResponse(envelope("checkDeployStatus", "<done>true</done><id>0Af1</id><status>Succeeded</status><success>true</success>")));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await directDeploy(file, ORG, async () => creds, undefined, undefined, true)).toEqual({ ok: true, data: undefined });
+    expect(fetchMock.mock.calls[0][1].body).toContain("<checkOnly>true</checkOnly>");
   });
 
   it("says so, rather than deploying again, when the connection drops mid-deploy", async () => {

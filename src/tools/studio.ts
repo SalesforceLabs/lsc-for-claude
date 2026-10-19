@@ -66,7 +66,7 @@ const behavior = z.enum(["Edit", "Required", "Readonly"]);
 const layoutOpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("moveField"), field: z.string(), to: fieldSlot }),
   z.object({ op: z.literal("removeField"), field: z.string() }),
-  z.object({ op: z.literal("addField"), field: z.string(), behavior, to: fieldSlot, xml: z.string().optional() }),
+  z.object({ op: z.literal("addField"), field: z.string(), behavior, to: fieldSlot, xml: z.string().optional(), relatedObject: z.boolean().optional() }),
   z.object({ op: z.literal("setFieldBehavior"), field: z.string(), from: behavior, to: behavior }),
   z.object({ op: z.literal("moveSection"), section: sectionRef, before: sectionRef.nullable() }),
   z.object({ op: z.literal("removeSection"), section: sectionRef }),
@@ -80,6 +80,7 @@ const layoutOpSchema = z.discriminatedUnion("op", [
     before: z.string().nullable(),
     xml: z.string().optional(),
     object: z.string().optional(),
+    nameField: z.string().optional(),
   }),
 ]);
 const flexiItemRef = z.object({ component: z.string().max(255), identifier: z.string().max(255).nullable(), index: z.number().int().min(0) });

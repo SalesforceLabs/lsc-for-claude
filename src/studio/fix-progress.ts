@@ -268,6 +268,7 @@ export function planFixSteps(fix: StudioFix, phase: "preview" | "apply"): Planne
               },
             ]),
         { key: "production", label: "Checking whether this is a production org" },
+        ...(type === "Layout" && !apply ? [{ key: "validate", label: `Asking the org whether it would accept the change` }] : []),
         ...(apply ? [{ key: "deploy", label: `Deploying ${label}` }] : []),
       ];
     }
