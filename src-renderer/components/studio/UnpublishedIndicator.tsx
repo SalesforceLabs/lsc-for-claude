@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CircleAlert, CircleCheck, CircleDot, CloudUpload, RotateCw } from "lucide-react";
 import Spinner from "../ui/Spinner";
 import {
@@ -31,6 +31,15 @@ export default function UnpublishedIndicator({ profile, state, onRetry, onShow, 
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const ind = indicatorFor(state);
+  const popover = useRef<HTMLDivElement>(null);
+  // Keep the popover inside the window: slide it left by however far it would run off the right edge.
+  useLayoutEffect(() => {
+    const el = popover.current;
+    if (!open || !el) return;
+    el.style.left = "0px";
+    const over = el.getBoundingClientRect().right - (window.innerWidth - 16);
+    if (over > 0) el.style.left = `${-over}px`;
+  }, [open, state]);
 
   useEffect(() => {
     if (!open) return;
@@ -100,7 +109,7 @@ export default function UnpublishedIndicator({ profile, state, onRetry, onShow, 
         <span className="org-ahead-text">{indicatorLabel(ind)}</span>
       </button>
       {open && (
-        <div className="org-ahead-popover" role="dialog" aria-label="Changes not on iPads yet">
+        <div className="org-ahead-popover" ref={popover} role="dialog" aria-label="Changes not on iPads yet">
           <div className="org-ahead-scroll">
             {ind.incomplete && (
               <p className="org-ahead-warn" role="status">
