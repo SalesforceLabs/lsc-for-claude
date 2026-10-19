@@ -179,7 +179,23 @@
   font-size: var(--font-xs);
 }
 
-/* Beside the inspector the steps' words go before anything else: the org-wide note moves into Publish's tooltip. */
+/*
+ * Beside the inspector the steps' words go before anything else: the source step keeps its button,
+ * Undo last apply its icon (words in their tooltips), and the org-wide note moves into Publish's tooltip.
+ */
+@container (max-width: 1180px) {
+  .release-bar .source-step-text.waiting {
+    display: none;
+  }
+  .release-bar .studio-btn.undo-apply > .studio-btn-label {
+    display: none;
+  }
+  .release-bar .studio-btn.undo-apply {
+    width: var(--control);
+    padding: 0;
+  }
+}
+
 @container (max-width: 1040px) {
   .release-note {
     display: none;

@@ -142,7 +142,8 @@ export default function SettingsPanel({
                   />
                   Deployed from source control
                 </label>
-                <div className="settings-hint">{SOURCE_CONTROL_HINT}</div>              </>
+                <div className="settings-hint">{SOURCE_CONTROL_HINT}</div>
+              </>
             )}
           </section>
 

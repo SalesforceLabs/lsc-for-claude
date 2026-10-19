@@ -88,14 +88,14 @@ export default function SourceStep({ changes }: { changes: StudioFix[] }) {
     <div className="release-step-root source-step">
       <span
         className="source-step-label"
-        title={save.state === "error" ? save.message : "Applied in the org but not in your project's source files yet"}
+        title={save.state === "error" ? save.message : `Applied in the org but not in your project's source files yet (${files})`}
       >
         {save.state === "error" ? (
           <CircleAlert size={14} aria-hidden="true" className="source-step-failed" />
         ) : (
           <FolderGit2 size={14} aria-hidden="true" />
         )}
-        <span className="source-step-text">
+        <span className={"source-step-text" + (save.state === "error" ? "" : " waiting")}>
           {save.state === "error" ? "Couldn't save source files" : `Not in source control · ${files}`}
         </span>
       </span>

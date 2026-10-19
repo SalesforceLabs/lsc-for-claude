@@ -343,7 +343,7 @@ export default function ReleaseBar({
         </button>
         {onUndoLastApply && (
           <button
-            className="studio-btn ghost collapsible"
+            className="studio-btn ghost collapsible undo-apply"
             onClick={() => {
               setOpen(null);
               onUndoLastApply();
