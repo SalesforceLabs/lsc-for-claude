@@ -19,7 +19,7 @@ An admin can browse, read, write, test, create, assign and delete LSC custom scr
 
 ## Where it lives
 
-Studio rail → **Setup** → **Custom scripts** (after "What changed"), section id `"custom-scripts"`, kept mounted once opened (like the iPad preview) so an open editor and its Ask Roz conversation survive switching pages. Feature boards' custom script items get **Open in editor**, which opens this page on that script.
+Studio rail → **Build** → **Custom scripts** (above "LSC apps"), section id `"custom-scripts"`, kept mounted once opened (like the iPad preview) so an open editor and its Ask Roz conversation survive switching pages. Feature boards' custom script items get **Open in editor**, which opens this page on that script.
 
 Layout (one page, three columns at full width, collapsing gracefully):
 

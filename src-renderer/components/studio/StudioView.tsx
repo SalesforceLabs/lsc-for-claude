@@ -584,6 +584,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           () => setSection("drift"),
           History
         )}
+        <div className="studio-rail-title studio-rail-section">Build</div>
         {railItem(
           "custom-scripts",
           "Custom scripts",
@@ -591,7 +592,6 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           () => openScripts(),
           FileCode2
         )}
-        <div className="studio-rail-title studio-rail-section">Build</div>
         {railItem("apps", "LSC apps", "Describe an app for reps, watch Roz build it, and put it on the iPad", openApps, Sparkles)}
         <div className="studio-rail-title studio-rail-section">Testing</div>
         {railItem("sync", "Sync health", "How reps' iPads are syncing, and who is struggling", () => openSyncPage("sync"), Activity)}
