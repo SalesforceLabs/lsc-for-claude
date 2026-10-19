@@ -434,6 +434,10 @@ export function queuedCopy(pending: PendingChange[], doc: { type: string; fullNa
   return undefined;
 }
 
+/** Queued changes that reach a profile: those for everyone (no `affects`) and those naming it. */
+export const pendingForProfile = (pending: PendingChange[], profile: string): PendingChange[] =>
+  pending.filter((p) => !p.affects || p.affects.some((a) => sameProfile(a, profile)));
+
 /**
  * The tray as one profile's draft sees it. A queued copy replaces its document for that
  * profile: the copy's own edits stand in for the edits queued for the shared document, which

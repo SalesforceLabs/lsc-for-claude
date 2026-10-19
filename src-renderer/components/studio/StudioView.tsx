@@ -19,7 +19,7 @@ import { useSourceControl } from "../../hooks/useSourceControl";
 import { usePublishJob } from "./usePublishJob";
 import { reachOfChange, stillAwaiting } from "./reach";
 import { barVisible } from "./release-bar-logic";
-import type { PendingChange } from "./changes";
+import { pendingForProfile, viewFor, type PendingChange } from "./changes";
 import { useTrayHistory, withoutApplied } from "./tray-history";
 import { fixAffectsPublished, isRevalidating, markAllStale, needsLoad, type Revalidating } from "./fix-effects";
 import TestingPages, { SYNC_PAGES, type SyncPage } from "./TestingPages";
@@ -344,6 +344,10 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   };
 
   const publishedProfile = previewOpened ? (lens?.profile ?? null) : null;
+  const nextChanges = useMemo(
+    () => (publishedProfile ? pendingForProfile(viewFor(pending, publishedProfile), publishedProfile).length : 0),
+    [pending, publishedProfile],
+  );
   const previewShown = section === "preview" && !!publishedProfile;
   // Stable between renders so the memoized preview isn't redrawn for unrelated Studio state.
   const refreshPublished = useCallback(
@@ -691,6 +695,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
                   onPickUser={pickPublishedUser}
                   edit={previewEdit}
                   split={previewMode === "split"}
+                  nextChanges={nextChanges}
                   onSearchUsers={searchPublishedUsers}
                   reveal={reveal}
                 />

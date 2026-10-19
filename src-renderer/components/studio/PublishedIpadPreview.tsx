@@ -82,8 +82,20 @@ interface PublishedIpadPreviewProps {
   edit?: PreviewEdit;
   /** Compare: On iPads now beside Next publish. */
   split?: boolean;
+  /** Queued changes that reach this profile, for Next publish's header line. */
+  nextChanges?: number;
   /** "Show" from the unpublished-changes list: open this tab (and a record) once. */
   reveal?: Reveal | null;
+}
+
+/** The header's opening words for each mode. */
+export function headerLead(mode: "published" | "draft" | "split"): string {
+  return mode === "draft" ? "Next publish for" : mode === "split" ? "On iPads now and next publish for" : "Published for";
+}
+
+/** What Next publish draws: the org as it is now, plus the tray's changes that reach this profile. */
+export function nextPublishBasis(changes: number): string {
+  return changes === 0 ? "the org as it is now" : `the org now plus ${changes} ${changes === 1 ? "change" : "changes"}`;
 }
 
 /**
@@ -91,7 +103,7 @@ interface PublishedIpadPreviewProps {
  * components, and record pages read from the profile's metadata cache, laid
  * out the way LSC Mobile builds them. Record data is placeholder.
  */
-function PublishedIpadPreviewImpl({ profile, state, onRefresh, onPickUser, onSearchUsers, edit, split, reveal }: PublishedIpadPreviewProps) {
+function PublishedIpadPreviewImpl({ profile, state, onRefresh, onPickUser, onSearchUsers, edit, split, nextChanges, reveal }: PublishedIpadPreviewProps) {
   if (!state || state.status === "loading") {
     return <PublishedLoading profile={profile} />;
   }
@@ -120,7 +132,7 @@ function PublishedIpadPreviewImpl({ profile, state, onRefresh, onPickUser, onSea
       />
     );
   }
-  return <Device key={result.viewer?.userId ?? ""} snapshot={result} onRefresh={() => onRefresh(result.viewer?.userId)} onPickUser={onPickUser} onSearchUsers={onSearchUsers} edit={edit} split={split} reveal={reveal} />;
+  return <Device key={result.viewer?.userId ?? ""} snapshot={result} onRefresh={() => onRefresh(result.viewer?.userId)} onPickUser={onPickUser} onSearchUsers={onSearchUsers} edit={edit} split={split} nextChanges={nextChanges} reveal={reveal} />;
 }
 
 /** Redrawn only when its state, the edit description or the mode change — not for every Studio state update. */
@@ -133,6 +145,7 @@ function Device({
   onSearchUsers,
   edit,
   split,
+  nextChanges,
   reveal,
 }: {
   snapshot: PublishedIpad;
@@ -141,8 +154,10 @@ function Device({
   onSearchUsers?: (text: string) => Promise<{ id: string; name: string }[]>;
   edit?: PreviewEdit;
   split?: boolean;
+  nextChanges?: number;
   reveal?: Reveal | null;
 }) {
+  const mode = split ? "split" : edit?.draft ? "draft" : "published";
   // Draft adds the tabs the tray would add (drawn as "coming soon" until published).
   const allTabs = useMemo(() => (edit?.draft ? edit.tabs.map((d) => d.tab) : snapshot.tabs), [edit?.draft, edit?.tabs, snapshot.tabs]);
   const [current, setCurrent] = useState(snapshot.tabs[0]?.fullName ?? "");
@@ -304,7 +319,7 @@ function Device({
     <RepLoginContext.Provider value={repLogin?.status === "signedIn" ? repLogin.id : undefined}>
     <div className="studio-ipad-wrap">
       <div className="studio-ipad-meta">
-        Published for <strong>{snapshot.profile}</strong>
+        {headerLead(mode)} <strong>{snapshot.profile}</strong>
         {snapshot.viewer ? (
           <>
             {" "}
@@ -342,7 +357,7 @@ function Device({
         )}
         <span className="studio-ipad-muted">
           {" "}
-          · {snapshot.cache.name}, generated {generated}
+          · {mode === "draft" ? nextPublishBasis(nextChanges ?? 0) : `${snapshot.cache.name}, generated ${generated}`}
         </span>
         {(snapshot.dataNotes?.length ?? 0) > 0 && (
           <span className="studio-ipad-muted" title={snapshot.dataNotes!.join("\n")}>
