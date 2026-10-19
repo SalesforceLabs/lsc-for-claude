@@ -45,6 +45,7 @@ import UnpublishedIndicator from "./UnpublishedIndicator";
 import { OrgAheadContext, useUnpublished } from "./useUnpublished";
 import { buildOrgAhead, revealPlan, type Reveal, type UnpublishedItem } from "./org-ahead";
 import StateView from "../ui/StateView";
+import FeatureLoading from "./FeatureLoading";
 import Spinner from "../ui/Spinner";
 import "./studio.css";
 
@@ -845,6 +846,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           {!activeLens && featureView === "readiness" && (
             <div key={`readiness:${featureId}`} className="studio-canvas studio-scroll ui-enter">
               <ReadinessView
+                featureId={featureId}
                 title={feature?.title ?? featureId}
                 state={readiness[featureId]}
                 objects={map?.objects ?? []}
@@ -861,11 +863,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             </div>
           )}
           {(activeLens || featureView === "board") && (!state || state.status === "loading") && (
-            <StateView
-              kind="loading"
-              title={`Mapping ${feature?.title ?? "feature"} configuration…`}
-              detail="Reading objects, scripts, rules, triggers, mobile sync, actions, and settings from your org."
-            />
+            <FeatureLoading featureId={featureId} title={feature?.title ?? "feature"} kind="map" />
           )}
           {(activeLens || featureView === "board") && state?.status === "error" && (
             <StateView

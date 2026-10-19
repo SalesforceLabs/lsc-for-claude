@@ -6,11 +6,15 @@
 import { QueryTruncatedError, runSoqlQuery, runToolingQuery, type SoqlQueryResult } from "../salesforce/cli.js";
 import type { ConfigRecord } from "../config/types.js";
 import { chunkIds } from "../tools/helpers.js";
+import { currentMapTracker } from "./map-progress.js";
 import type { Audience, ItemEdit, StudioFinding, StudioItem, StudioSurface } from "./types.js";
 
 export type Row = Record<string, unknown>;
 export type Props = StudioItem["properties"];
 export type SurfaceMeta = Pick<StudioSurface, "id" | "title" | "lane" | "description">;
+
+/** LSC_STUDIO_TRACE=1 logs each query's time to stderr, for finding what a slow load waits on. */
+const TRACE = process.env.LSC_STUDIO_TRACE === "1";
 
 export const ID_PATTERN = /^[a-zA-Z0-9]{15,18}$/;
 
@@ -36,9 +40,11 @@ export async function queryResult(
   tooling = false,
   options: QueryOptions = {}
 ): Promise<SoqlQueryResult> {
+  const t0 = TRACE ? Date.now() : 0;
   const result = tooling
     ? await runToolingQuery(soql, org, { maxRows: options.maxRows })
     : await runSoqlQuery(soql, org, { maxRows: options.maxRows });
+  if (TRACE) console.error(`[query ${Date.now() - t0}ms${tooling ? " tooling" : ""}] ${soql.slice(0, 110)}`);
   if (!result.success) throw new Error(result.error || "Query failed");
   const data = result.data ?? { totalSize: 0, done: true, records: [] };
   if (data.truncated && !options.allowTruncated) throw new QueryTruncatedError(data.records.length, data.totalSize);
@@ -118,15 +124,36 @@ export function item(id: string, label: string, extra: Partial<StudioItem> = {})
   return { id, label, properties: {}, findings: [], ...extra };
 }
 
+/** What each standard surface's items are called in the loading checklist ("12 layouts"). */
+const SURFACE_NOUNS: Record<string, string> = {
+  objects: "object",
+  recordTypes: "record type",
+  layouts: "layout",
+  customScripts: "custom script",
+  validationRules: "validation rule",
+  apexTriggers: "Apex trigger",
+  flows: "flow",
+  triggerHandlers: "trigger handler",
+  dbSchema: "DB Schema record",
+  actions: "action",
+  adminSettings: "setting",
+  compliance: "compliance statement",
+};
+
 export async function buildSurface(
   meta: SurfaceMeta,
   collect: () => Promise<{ items: StudioItem[]; findings?: StudioFinding[]; creates?: StudioSurface["creates"] }>
 ): Promise<StudioSurface> {
+  const tracker = currentMapTracker();
+  tracker?.start(meta.id, meta.title);
   try {
     const { items, findings = [], creates } = await collect();
+    tracker?.end(meta.id, { count: items.length, noun: SURFACE_NOUNS[meta.id] });
     return { ...meta, items, findings, ...(creates?.length ? { creates } : {}) };
   } catch (err) {
-    return { ...meta, items: [], findings: [], error: err instanceof Error ? err.message : String(err) };
+    const error = err instanceof Error ? err.message : String(err);
+    tracker?.end(meta.id, { error });
+    return { ...meta, items: [], findings: [], error };
   }
 }
 

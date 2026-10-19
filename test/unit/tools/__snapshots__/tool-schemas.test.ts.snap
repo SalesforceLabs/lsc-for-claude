@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `116`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `117`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -75,6 +75,7 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_connected_org",
   "studio_drift",
   "studio_feature_map",
+  "studio_feature_map_progress",
   "studio_ipad_published",
   "studio_ipad_published_progress",
   "studio_ipad_published_users",
@@ -1244,6 +1245,19 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
         "type": "ZodString",
       },
       "refresh": {
+        "optional": true,
+        "type": "ZodBoolean",
+      },
+    },
+  },
+  {
+    "name": "studio_feature_map_progress",
+    "params": {
+      "featureId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "readiness": {
         "optional": true,
         "type": "ZodBoolean",
       },

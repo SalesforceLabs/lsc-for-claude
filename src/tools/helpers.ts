@@ -32,8 +32,10 @@ export const ID_CHUNK_SIZE = 400;
  * Parent ids per field-value query. Tooling pages hold 250 rows and each page is a round trip, so one
  * 400-id query for a few thousand values is a long chain of sequential pages; smaller chunks run side
  * by side (every record's values stay in one chunk, so results are looked up by id exactly as before).
+ * A record has about a dozen values, so 20 parents is about one page: on 215 DB Schema records, 20 read
+ * in ~0.6 s where 100 took ~1.0-1.9 s (the chunks are metered by the limiter, so more of them is cheap).
  */
-export const FIELD_VALUE_CHUNK_SIZE = 100;
+export const FIELD_VALUE_CHUNK_SIZE = 20;
 
 export function chunkIds<T>(ids: T[], size = ID_CHUNK_SIZE): T[][] {
   const chunks: T[][] = [];
@@ -103,9 +105,18 @@ export async function queryAssignments(
       }
     };
 
-    await resolveNames("Profile", [...assignedToIds]);
-    const unresolvedIds = [...assignedToIds].filter((id) => !nameMap.has(id));
-    if (unresolvedIds.length > 0) await resolveNames("PermissionSet", unresolvedIds);
+    // Profile ids start with 00e; anything else can only be a permission set (or group), which used to
+    // be asked for after the profile query found nothing. Asking both at once gives the same names.
+    const all = [...assignedToIds];
+    const profileIds = all.filter((id) => id.startsWith("00e"));
+    const otherIds = all.filter((id) => !id.startsWith("00e"));
+    await Promise.all([
+      profileIds.length > 0 ? resolveNames("Profile", profileIds) : undefined,
+      otherIds.length > 0 ? resolveNames("PermissionSet", otherIds) : undefined,
+    ]);
+    // A profile id the Profile query couldn't name (deleted) was tried as a permission set too.
+    const unresolvedProfiles = profileIds.filter((id) => !nameMap.has(id));
+    if (unresolvedProfiles.length > 0) await resolveNames("PermissionSet", unresolvedProfiles);
   }
 
   for (const a of rawAssignments) {

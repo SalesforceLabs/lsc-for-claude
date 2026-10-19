@@ -7,6 +7,12 @@ vi.mock("../../../src/salesforce/cli.js", () => ({
 }));
 vi.mock("../../../src/config/collect.js", () => ({
   collectCategoryRecords: vi.fn(),
+  // The narrowed read answers like the full one filtered by the probe (see config-where.test.ts for the real thing).
+  collectCategoryRecordsWhere: vi.fn(async (o: string, q: string, probe: { field: string; keep: (v: unknown) => boolean }) => {
+    const { collectCategoryRecords: all } = await import("../../../src/config/collect.js");
+    const records = (await all(o, q, {})) as ConfigRecord[];
+    return { developerNames: records.map((r) => r.developerName), records: records.filter((r) => probe.keep(r.fields[probe.field])) };
+  }),
 }));
 
 const { runSoqlQuery, runToolingQuery } = await import("../../../src/salesforce/cli.js");

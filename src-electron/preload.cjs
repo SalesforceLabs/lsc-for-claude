@@ -115,6 +115,7 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioApplyFix: (fix, expectedOrg, progress) =>
     ipcRenderer.invoke("studio:call", "studio_apply_fix", { fix, expectedOrg, ...(progress ? { progress } : {}) }),
   // Which step each change of a running preview or apply is on (no org calls, never cached)
+  studioFeatureMapProgress: (featureId, readiness = false) => ipcRenderer.invoke("studio:call", "studio_feature_map_progress", { featureId, readiness }),
   studioFixProgress: (id) => ipcRenderer.invoke("studio:call", "studio_fix_progress", { id }),
   studioPublishMobile: (profiles, expectedOrg) =>
     ipcRenderer.invoke("studio:call", "studio_publish_mobile", { profiles, expectedOrg }),

@@ -9,7 +9,7 @@
  */
 
 import { recordTriggeredFlows } from "./flows.js";
-import { collectCategoryRecords } from "../config/collect.js";
+import { collectCategoryRecords, collectCategoryRecordsWhere } from "../config/collect.js";
 import { sharedRead } from "../config/read-cache.js";
 import { chunkIds } from "../tools/helpers.js";
 import { cachedDescribeSObject } from "../salesforce/cli.js";
@@ -35,6 +35,7 @@ import { collectTerritoryUsers } from "./collectors/territory-users.js";
 import { collectActionsHome } from "./collectors/actions-home.js";
 import { collectBriefings } from "./collectors/briefings.js";
 import { actionAudience, newDbSchema, profilesOf } from "./collectors/shared.js";
+import { mapKey, trackMap } from "./map-progress.js";
 import { describeFlow, outlineText } from "./flow-outline.js";
 
 /** An org-wide feature's own collector — returns everything but the envelope. */
@@ -467,13 +468,21 @@ function collectTriggerHandlers(feature: FeatureDefinition, org: string): Promis
 
 function collectDbSchema(feature: FeatureDefinition, found: ObjectInfo[], org: string): Promise<StudioSurface> {
   return surface("dbSchema", async () => {
-    const records = await collectCategoryRecords(
-      org,
-      `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'DbSchema'`,
-      { cache: true }
-    );
+    const catQuery = `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'DbSchema'`;
     const objects = new Set(feature.objects.map((o) => o.toLowerCase()));
-    const mine = records.filter((r) => objects.has(String(r.fields.SObject || "").toLowerCase()));
+    const isMine = (v: unknown) => objects.has(String(v || "").toLowerCase());
+    // Only this feature's records need their values: read the SObject of every record, then the rest of the matches.
+    let records: Pick<ConfigRecord, "developerName">[];
+    let mine: ConfigRecord[];
+    try {
+      const narrowed = await collectCategoryRecordsWhere(org, catQuery, { field: "SObject", keep: isMine });
+      mine = narrowed.records;
+      records = narrowed.developerNames.map((developerName) => ({ developerName }));
+    } catch {
+      const all = await collectCategoryRecords(org, catQuery, { cache: true });
+      mine = all.filter((r) => isMine(r.fields.SObject));
+      records = all;
+    }
     // New records go to the profiles that already sync this feature's other objects.
     const profiles = [...new Set(mine.filter((r) => r.isActive).flatMap(profilesOf))].sort();
     return {
@@ -492,7 +501,7 @@ function mobileSyncFindings(
   feature: FeatureDefinition,
   found: ObjectInfo[],
   mine: ConfigRecord[],
-  all: ConfigRecord[],
+  all: Pick<ConfigRecord, "developerName">[],
   profiles: string[]
 ): StudioFinding[] {
   const findings: StudioFinding[] = [];
@@ -639,30 +648,49 @@ function flagSyncedFlows(flows: StudioSurface, dbSchema: StudioSurface, objects:
 
 // ─── Entry points ───────────────────────────────────────────────────────────
 
-export async function collectFeatureMap(feature: FeatureDefinition, org: string): Promise<FeatureMap> {
+/** Collect a feature's map, reporting each surface to `studio_feature_map_progress` as it goes. */
+export function collectFeatureMap(feature: FeatureDefinition, org: string): Promise<FeatureMap> {
+  return trackMap(mapKey(feature.id), feature.id, feature.title, (tracker) => {
+    if (!CUSTOM_COLLECTORS[feature.id]) {
+      const ids = (Object.keys(SURFACES) as StandardSurfaceId[]).filter((id) => id !== "compliance" || feature.complianceModuleType);
+      tracker.plan(ids.map((id) => ({ key: id, label: SURFACES[id].title })));
+    }
+    return gatherFeatureMap(feature, org);
+  });
+}
+
+async function gatherFeatureMap(feature: FeatureDefinition, org: string): Promise<FeatureMap> {
   const envelope = { featureId: feature.id, title: feature.title, org, objects: feature.objects };
   const custom = CUSTOM_COLLECTORS[feature.id];
   if (custom) return { ...envelope, ...(await custom(org)), collectedAt: new Date().toISOString() };
 
   warmSharedReads(org);
 
-  // Objects first — later surfaces only query objects that actually exist.
-  const { surface: objects, found } = await collectObjects(feature, org);
+  // Surfaces that don't depend on which objects exist start now, beside the objects describe.
+  const objectsRead = collectObjects(feature, org);
+  const independent = Promise.all([
+    collectCustomScripts(feature, org),
+    collectTriggerHandlers(feature, org),
+    collectActions(feature, org),
+    collectAdminSettings(feature, org),
+    feature.complianceModuleType ? collectCompliance(feature.complianceModuleType, org) : Promise.resolve(null),
+  ]);
+
+  // Later surfaces only query objects that actually exist.
+  const { surface: objects, found } = await objectsRead;
   const names = objects.error ? feature.objects : found.map((o) => o.name);
 
-  const [recordTypes, layouts, customScripts, validationRules, apexTriggers, flows, triggerHandlers, dbSchema, actions, adminSettings, compliance] =
+  const [[recordTypes, layouts, validationRules, apexTriggers, flows, dbSchema], [customScripts, triggerHandlers, actions, adminSettings, compliance]] =
     await Promise.all([
-      collectRecordTypes(names, org),
-      collectLayouts(names, org),
-      collectCustomScripts(feature, org),
-      collectValidationRules(names, org),
-      collectApexTriggers(names, org),
-      collectFlows(found, org),
-      collectTriggerHandlers(feature, org),
-      collectDbSchema(feature, found, org),
-      collectActions(feature, org),
-      collectAdminSettings(feature, org),
-      feature.complianceModuleType ? collectCompliance(feature.complianceModuleType, org) : Promise.resolve(null),
+      Promise.all([
+        collectRecordTypes(names, org),
+        collectLayouts(names, org),
+        collectValidationRules(names, org),
+        collectApexTriggers(names, org),
+        collectFlows(found, org),
+        collectDbSchema(feature, found, org),
+      ]),
+      independent,
     ]);
 
   flagSyncedFlows(flows, dbSchema, found);

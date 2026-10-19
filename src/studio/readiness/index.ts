@@ -17,6 +17,7 @@ import { getRulesFromFiles, type Category, type ValidationRule } from "../../val
 import type { FeatureDefinition } from "../features.js";
 import { query, type Row } from "../helpers.js";
 import type { FeatureReadiness, ReadinessCheck, ReadinessStage } from "../types.js";
+import { currentMapTracker, readinessKey, trackMap } from "../map-progress.js";
 import { MODULES } from "./modules.js";
 
 /** What a feature contributes to readiness. */
@@ -49,11 +50,29 @@ const STAGE_FOR_CATEGORY: Record<Category, ReadinessStage> = {
 const CONCURRENCY = 4;
 const MAX_EXAMPLES = 5;
 
-export async function collectReadiness(feature: FeatureDefinition, org: string): Promise<FeatureReadiness> {
+export function collectReadiness(feature: FeatureDefinition, org: string): Promise<FeatureReadiness> {
+  return trackMap(readinessKey(feature.id), feature.id, feature.title, () => gatherReadiness(feature, org));
+}
+
+async function gatherReadiness(feature: FeatureDefinition, org: string): Promise<FeatureReadiness> {
   const mod = MODULES[feature.id] ?? { ruleFiles: [] };
+  const tracker = currentMapTracker();
+  if (mod.checks) tracker?.plan([{ key: "studio-checks", label: "Studio's checks" }]);
   const [rules, custom] = await Promise.all([
     runRules(getRulesFromFiles(mod.ruleFiles), org),
-    mod.checks ? mod.checks(org).catch((err: unknown) => [crashed(feature.id, err)]) : Promise.resolve([]),
+    mod.checks
+      ? (async () => {
+          tracker?.start("studio-checks", "Studio's checks");
+          try {
+            const out = await mod.checks!(org);
+            tracker?.end("studio-checks", { count: out.length, noun: "check" });
+            return out;
+          } catch (err: unknown) {
+            tracker?.end("studio-checks", { error: err instanceof Error ? err.message : String(err) });
+            return [crashed(feature.id, err)];
+          }
+        })()
+      : Promise.resolve([]),
   ]);
   const order = new Map(STAGES.map((s, i) => [s.id, i]));
   // Stable sort: within a stage, rules keep their file order, then Studio checks.
@@ -81,6 +100,7 @@ function crashed(featureId: string, err: unknown): ReadinessCheck {
  */
 export async function runRules(rules: ValidationRule[], org: string): Promise<ReadinessCheck[]> {
   warmSlowRules(rules, org);
+  currentMapTracker()?.plan(rules.map((r) => ({ key: `rule:${r.id}`, label: r.name })));
   const ids = new Set(rules.map((r) => r.id));
   const results = new Map<string, Promise<ReadinessCheck>>();
   const limit = semaphore(CONCURRENCY);
@@ -133,6 +153,20 @@ function ruleBase(rule: ValidationRule): Omit<ReadinessCheck, "status"> {
 }
 
 async function checkRule(rule: ValidationRule, org: string): Promise<ReadinessCheck> {
+  const tracker = currentMapTracker();
+  const key = `rule:${rule.id}`;
+  tracker?.start(key, rule.name);
+  try {
+    const check = await checkRuleNow(rule, org);
+    tracker?.end(key, check.status === "unknown" ? { detail: "Couldn't check" } : { detail: check.status === "pass" ? "Passed" : "Needs attention" });
+    return check;
+  } catch (err) {
+    tracker?.end(key, { error: err instanceof Error ? err.message : String(err) });
+    throw err;
+  }
+}
+
+async function checkRuleNow(rule: ValidationRule, org: string): Promise<ReadinessCheck> {
   const base = ruleBase(rule);
   const outcome = await executeCheck(rule.check, org);
   if (outcome.unavailable) return { ...base, status: "unknown", detail: outcome.message };

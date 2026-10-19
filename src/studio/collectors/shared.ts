@@ -138,7 +138,7 @@ export function apiName(text: string): string {
 }
 
 /** `base` if no record uses it, else base_2, base_3, … (kept within the 80-character limit). */
-export function uniqueName(base: string, records: ConfigRecord[]): string {
+export function uniqueName(base: string, records: Pick<ConfigRecord, "developerName">[]): string {
   const taken = new Set(records.map((r) => r.developerName.toLowerCase()));
   const trimmed = base.slice(0, 76);
   if (!taken.has(trimmed.toLowerCase())) return trimmed;
@@ -212,7 +212,7 @@ export function newNavTab(uiSchema: ConfigRecord[]): CreateConfigFix {
 }
 
 /** A DB Schema record syncing `object` — the defaults create_db_schema uses, with no filter. */
-export function newDbSchema(object: string, dbSchema: ConfigRecord[], profiles: string[]): CreateConfigFix {
+export function newDbSchema(object: string, dbSchema: Pick<ConfigRecord, "developerName">[], profiles: string[]): CreateConfigFix {
   return {
     kind: "createConfigRecord",
     label: object ? `Add ${object} to iPad sync` : "New DB Schema record",
