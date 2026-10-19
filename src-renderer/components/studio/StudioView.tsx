@@ -30,7 +30,6 @@ import {
   Pencil,
   Redo2,
   RefreshCw,
-  ScanSearch,
   Tablet,
   Undo2,
   UserRound,
@@ -80,6 +79,12 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   const openSyncPage = (page: SyncPage) => {
     setSection(page);
     setSyncOpened(true);
+  };
+  // The rep open inside Sync health (its drill-in); any page can open one with openSyncRep.
+  const [syncRep, setSyncRep] = useState<string | null>(null);
+  const openSyncRep = (userId: string) => {
+    setSyncRep(userId);
+    openSyncPage("sync");
   };
   // Maps are kept per feature so switching back doesn't re-query the org.
   const [maps, setMaps] = useState<Record<string, MapState>>({});
@@ -528,13 +533,6 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         <div className="studio-rail-title studio-rail-section">Testing</div>
         {railItem("sync", "Sync health", "How reps' iPads are syncing, and who is struggling", () => openSyncPage("sync"), Activity)}
         {railItem(
-          "sync-rep",
-          "Check a rep's sync",
-          "What one rep's iPad downloads, table by table, and how to make it lighter",
-          () => openSyncPage("sync-rep"),
-          ScanSearch
-        )}
-        {railItem(
           "test-plans",
           "Test plans",
           "Check the customer's sync targets with real reps, and export a go-live report",
@@ -665,6 +663,9 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         <TestingPages
           page={syncPage}
           onNavigate={openSyncPage}
+          repUserId={syncRep}
+          onRepChange={setSyncRep}
+          onOpenRep={openSyncRep}
           onAskClaude={onAskClaude}
           onOpenSetup={(id, surface = null, item = null) => openSetup(id, surface, item)}
           pending={pending}
@@ -711,6 +712,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               onOpenFeature={(id) => openSetup(id)}
               onPublish={(preselect) => setPublishing(preselect)}
               onOrgSeen={setSeenOrg}
+              onOpenSyncRep={openSyncRep}
             />
           </div>
           {trayBar}

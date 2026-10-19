@@ -19,7 +19,7 @@ import { formatSeconds } from "./sim-types";
 import type { RunSim, RunSims } from "./useRunSims";
 import { personaVerdict } from "./signoff-verdict";
 import { AssistantName } from "../../hooks/useAssistantName";
-import { Download, FileText, Sparkles, Target } from "lucide-react";
+import { Download, FileText, Sparkles, Target, UserRoundSearch } from "lucide-react";
 import StatusIcon, { type StatusTone } from "../ui/StatusIcon";
 import { Callout, Disclosure } from "./PerfParts";
 
@@ -37,6 +37,8 @@ interface RunReportProps {
   sims?: RunSims;
   /** Set the plan's targets from this run's values plus a margin. */
   onBaseline?: (margin: { warnPct: number; failPct: number }) => void;
+  /** Open a tested rep's sync detail (Sync health), to see why their tables are heavy and queue fixes. */
+  onOpenRep?: (userId: string) => void;
 }
 
 const SPARK_W = 120;
@@ -228,7 +230,7 @@ function PredictedVsSimulated({ cmp, sim }: { cmp: VolumeComparison; sim: RunSim
   );
 }
 
-function UserVolumes({ v, sim }: { v: UserVolume; sim?: RunSim }) {
+function UserVolumes({ v, sim, onOpenRep }: { v: UserVolume; sim?: RunSim; onOpenRep?: (userId: string) => void }) {
   const [open, setOpen] = useState(false);
   const total = v.territories.reduce((n, t) => n + t.totalRecords, 0);
   const cmp = sim ? compareVolume(v, sim.result) : null;
@@ -255,6 +257,11 @@ function UserVolumes({ v, sim }: { v: UserVolume; sim?: RunSim }) {
           </span>
         )}
       </Disclosure>
+      {open && onOpenRep && !v.error && (
+        <button type="button" className="studio-link-btn" onClick={() => onOpenRep(v.user.id)}>
+          <UserRoundSearch size={12} aria-hidden="true" /> See why {v.user.name}'s tables are heavy
+        </button>
+      )}
       {open && v.territoryNote && <div className="studio-perf-hint">{v.territoryNote}</div>}
       {open &&
         v.schemaNotes?.map((n) => (
@@ -449,7 +456,7 @@ function Trend({ rows }: { rows: TrendRow[] }) {
   );
 }
 
-export default function RunReport({ result, previous, trend, onAskClaude, onExport, onExportReport, onExportSignoff, onBaseline, sims }: RunReportProps) {
+export default function RunReport({ result, previous, trend, onAskClaude, onExport, onExportReport, onExportSignoff, onBaseline, sims, onOpenRep }: RunReportProps) {
   const [baselineOpen, setBaselineOpen] = useState(false);
   const deltas = metricDeltas(result, previous);
   // Differences between the two runs' plans, so a jump in a metric isn't read as the org changing.
@@ -607,7 +614,7 @@ export default function RunReport({ result, previous, trend, onAskClaude, onExpo
 
           <h3 className="studio-perf-subtitle">Predicted sync volume</h3>
           {p.volumes.map((v) => (
-            <UserVolumes key={v.user.username} v={v} sim={sims?.get(v.user.username.toLowerCase())} />
+            <UserVolumes key={v.user.username} v={v} sim={sims?.get(v.user.username.toLowerCase())} onOpenRep={onOpenRep} />
           ))}
 
           <h3 className="studio-perf-subtitle">Field telemetry</h3>

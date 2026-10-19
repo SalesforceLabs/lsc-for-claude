@@ -659,7 +659,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       }
       // Live progress of a running preview/apply: no cache and no shared in-flight call (each poll
       // must see the state as it is now), and it makes no org calls so it never queues behind the work.
-      if (toolName === "studio_fix_progress") {
+      if (toolName === "studio_fix_progress" || toolName === "studio_sync_user_progress") {
         const client = await readyMcpClient();
         if (!client) return { error: "Engine not started" };
         try {

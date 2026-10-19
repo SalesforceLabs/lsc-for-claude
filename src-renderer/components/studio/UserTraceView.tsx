@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { CloudUpload, ExternalLink, Play, RefreshCw, Sparkles, UserRound } from "lucide-react";
+import { CloudUpload, ExternalLink, Play, RefreshCw, Sparkles, UserRound, UserRoundSearch } from "lucide-react";
 import Spinner from "../ui/Spinner";
 import StateView from "../ui/StateView";
 import { Limited } from "../ui/Limited";
@@ -23,6 +23,8 @@ export interface UserTraceViewProps {
   onPublish: (profiles: string[]) => void;
   /** Report the org a trace was read from, so pending changes can be applied against it. */
   onOrgSeen: (org: string) => void;
+  /** Open this rep in Sync health: what their iPad downloads and how their syncs are going. */
+  onOpenSyncRep?: (userId: string) => void;
   /** Feature picked when the view opens (from a feature page's "Check a user…"). */
   initialFeatureId?: string;
 }
@@ -37,6 +39,7 @@ export default function UserTraceView({
   onOpenFeature,
   onPublish,
   onOrgSeen,
+  onOpenSyncRep,
   initialFeatureId,
 }: UserTraceViewProps) {
   const [search, setSearch] = useState("");
@@ -222,6 +225,11 @@ export default function UserTraceView({
               {trace.profile && (trace.checks.some(needsPublish) || pending.length > 0) && (
                 <button type="button" className="studio-link-btn" onClick={() => onPublish([trace.profile!])}>
                   <CloudUpload size={12} aria-hidden="true" /> Publish to iPad
+                </button>
+              )}
+              {onOpenSyncRep && (
+                <button type="button" className="studio-link-btn" onClick={() => onOpenSyncRep(trace.userId)}>
+                  <UserRoundSearch size={12} aria-hidden="true" /> See their sync
                 </button>
               )}
               <button type="button" className="studio-link-btn" onClick={run}>

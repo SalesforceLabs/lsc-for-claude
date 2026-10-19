@@ -146,6 +146,41 @@ export interface SyncUserDetail {
   telemetryError?: string;
 }
 
+/** Where a running `syncUserDetail` is, for a view that shows progress while it counts. */
+export interface SyncUserProgress {
+  userId: string;
+  startedAt: number;
+  finishedAt?: number;
+  phase: "reading" | "counting" | "finishing" | "done" | "failed";
+  /** Tables counted so far and in all, across the territories being profiled. */
+  tablesDone: number;
+  tablesTotal: number;
+  /** One entry per territory being profiled, once they are known. */
+  territories: Array<{ name: string | null; done: number; total: number; state: "waiting" | "running" | "done" }>;
+}
+
+/** How long a finished entry stays readable, so the last poll sees it end. */
+const KEEP_PROGRESS_MS = 2 * 60_000;
+const progressRuns = new Map<string, SyncUserProgress>();
+
+/** The progress of the newest `syncUserDetail` for this user, or null when none ran lately. Makes no org calls. */
+export function syncUserProgress(userId: string): SyncUserProgress | null {
+  const p = progressRuns.get(userId);
+  if (!p) return null;
+  if (p.finishedAt && Date.now() - p.finishedAt > KEEP_PROGRESS_MS) {
+    progressRuns.delete(userId);
+    return null;
+  }
+  return p;
+}
+
+function startProgress(userId: string): SyncUserProgress {
+  for (const [id, p] of progressRuns) if (p.finishedAt && Date.now() - p.finishedAt > KEEP_PROGRESS_MS) progressRuns.delete(id);
+  const p: SyncUserProgress = { userId, startedAt: Date.now(), phase: "reading", tablesDone: 0, tablesTotal: 0, territories: [] };
+  progressRuns.set(userId, p);
+  return p;
+}
+
 export interface SyncUserDeps extends PerfDeps {
   /** DB Schema records with ids; defaults to the Admin Console collector plus an id lookup. */
   dbSchemaRecords?: (org: string, querier: ReturnType<PerfDeps["querier"]>) => Promise<SchemaRecordRef[]>;
@@ -273,6 +308,20 @@ function toSyncTerritory(vol: TerritoryVolume, records: SchemaRecordRef[], user:
 }
 
 export async function syncUserDetail(org: string, input: SyncUserInput, deps: SyncUserDeps = defaultDeps): Promise<SyncUserDetail> {
+  const progress = startProgress(input.userId);
+  try {
+    const detail = await syncUserDetailInner(org, input, deps, progress);
+    progress.phase = "done";
+    return detail;
+  } catch (e) {
+    progress.phase = "failed";
+    throw e;
+  } finally {
+    progress.finishedAt = Date.now();
+  }
+}
+
+async function syncUserDetailInner(org: string, input: SyncUserInput, deps: SyncUserDeps, progress: SyncUserProgress): Promise<SyncUserDetail> {
   const days = input.days ?? DEFAULT_TELEMETRY_DAYS;
   const querier = memoizeQuerier(deps.querier(org));
 
@@ -321,9 +370,22 @@ export async function syncUserDetail(org: string, input: SyncUserInput, deps: Sy
   const targets: Array<{ id: string; name: string } | null> = picked.picked.length ? picked.picked : [null];
   // One id cache for the user: the OT2A and Account id lists are read once, not per table.
   const options = { ...DEFAULT_PROFILE_OPTIONS, idCache: new Map() };
-  const volumes: TerritoryVolume[] = await mapWithConcurrency(targets, TERRITORY_CONCURRENCY, (territory) =>
-    profileTerritory(querier, user, territory, tables, options)
-  );
+  progress.phase = "counting";
+  progress.tablesTotal = tables.length * targets.length;
+  progress.territories = targets.map((t) => ({ name: t?.name ?? null, done: 0, total: tables.length, state: "waiting" as const }));
+  const volumes: TerritoryVolume[] = await mapWithConcurrency(targets, TERRITORY_CONCURRENCY, async (territory) => {
+    const entry = progress.territories[targets.indexOf(territory)];
+    entry.state = "running";
+    const volume = await profileTerritory(querier, user, territory, tables, options, (done) => {
+      entry.done = done;
+      progress.tablesDone = progress.territories.reduce((n, t) => n + t.done, 0);
+    });
+    entry.done = entry.total;
+    entry.state = "done";
+    progress.tablesDone = progress.territories.reduce((n, t) => n + t.done, 0);
+    return volume;
+  });
+  progress.phase = "finishing";
   await annotateSharing(querier, volumes);
 
   const { telemetry, telemetryError } = await telemetryJob;
