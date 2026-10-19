@@ -266,9 +266,12 @@ Rail: new section **Build** (above Testing) with **LSC apps** (`Sparkles`). View
   version has `source: "starter"`, `label` the starter's and `starter` (`AppStarterRef`) recorded; an
   untouched project from the same starter is reopened instead, and the parent bundle is renamed
   (`renameBundle`, paths and references) when the org or another project already has its name. Helper
-  bundles keep their names, so `write_app` lets the model edit any prefixed bundle already in the project,
-  and the turn context says where the app came from. Two projects from the composable starters share
-  `lscMobileInline_relatedList` / `lscMobileInline_timeline`: deploying both deploys one copy of each
-  (the deploy plan lists them as overwritten). The conversation opens with the starter's source link,
+  bundles get the project's own names (`helperName`: the parent's name without its prefix, then the
+  helper's — `lscMobileInline_timeline` in `lscMobileInline_hcpEngagement2` becomes
+  `hcpEngagement2Timeline`, unique across the org's projects), so they're unprefixed (the iPad offers
+  every `lscMobileInline_` bundle as an app) and two projects never deploy over each other's, or the
+  org's, helpers; `renameBundle` rewrites paths, `c/` imports and `<c-…>` tags. `write_app` still lets
+  the model edit a prefixed bundle already in a project (an imported app's), and the turn context says
+  where the app came from. The conversation opens with the starter's source link,
   its first version and the `tryNext` prompts (they fill the composer until the first turn).
   Lint takes JS-only service modules (no template, no default class export) as helper bundles.

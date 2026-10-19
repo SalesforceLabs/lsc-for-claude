@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
-import { AppBuilder, followWrite, parseAppPath, pickBuilderModel, nameFromLabel, renameBundle, strongestModel, uniqueName } from "../../../src-electron/engine/app-builder.js";
+import { AppBuilder, followWrite, parseAppPath, pickBuilderModel, nameFromLabel, helperName, renameBundle, strongestModel, uniqueName } from "../../../src-electron/engine/app-builder.js";
 import { memoryAppStore, INTERRUPTED_MESSAGE } from "../../../src-electron/engine/app-store.js";
 import type { LLMProvider, Message, StreamChunk } from "../../../src-electron/llm/provider.js";
 import type { AppBuilderEvent, AppCheckResult, AppProject } from "../../../src-electron/engine/app-types.js";
@@ -470,6 +470,24 @@ describe("starter apps", () => {
     expect(renameBundle([starterFile("a", "a.js", `${SN}X`)], SN, "Y")[0].source).toBe(`${SN}X`);
   });
 
+  it("renames a helper in markup tags and c/ imports too", () => {
+    const files = [
+      starterFile(SN, `${SN}.html`, `<template><c-lsc-mobile-inline_related-list></c-lsc-mobile-inline_related-list><c-lsc-mobile-inline_related-list-item></c-lsc-mobile-inline_related-list-item></template>`),
+      starterFile("lscMobileInline_relatedList", "lscMobileInline_relatedList.js", `import { edges } from 'c/lscMobileInlineGraphqlUtils';`),
+    ];
+    const out = renameBundle(renameBundle(files, "lscMobileInline_relatedList", "hcpEngagementRelatedList"), "lscMobileInlineGraphqlUtils", "hcpEngagementGraphqlUtils");
+    expect(out[0].source).toBe(`<template><c-hcp-engagement-related-list></c-hcp-engagement-related-list><c-lsc-mobile-inline_related-list-item></c-lsc-mobile-inline_related-list-item></template>`);
+    expect(out[1].path).toBe("lwc/hcpEngagementRelatedList/hcpEngagementRelatedList.js");
+    expect(out[1].source).toBe(`import { edges } from 'c/hcpEngagementGraphqlUtils';`);
+  });
+
+  it("names helpers after their project, without the iPad's prefix", () => {
+    expect(helperName(SN, "lscMobileInline_timeline")).toBe("hcpEngagementTimeline");
+    expect(helperName(SN + "2", "lscMobileInlineGraphqlUtils")).toBe("hcpEngagement2GraphqlUtils");
+    expect(helperName("lscMobileQuickAction_LogSample", "lscMobileInline_relatedList")).toBe("logSampleRelatedList");
+    expect(helperName(SN, "chartCard")).toBe("hcpEngagementChartCard");
+  });
+
   it("starts a project with the starter as its first version, and reopens it while untouched", async () => {
     const { builder, toolCalls } = setup([], okCheck, { starter });
     const { project, error } = await builder.fromStarter("Org@X.com", "hcp-engagement");
@@ -482,7 +500,8 @@ describe("starter apps", () => {
     expect(project!.starter).toMatchObject({ id: "hcp-engagement", repo: "afls-ideas/x", tryNext: ["Add a chart"] });
     expect(project!.versions).toHaveLength(1);
     expect(project!.versions[0].source).toBe("starter");
-    expect(project!.versions[0].files).toEqual(starter.files);
+    expect(project!.versions[0].files.map((f) => f.path)).toEqual([`lwc/${SN}/${SN}.js`, `lwc/${SN}/${SN}.html`, `lwc/${SN}/${SN}.js-meta.xml`, "lwc/hcpEngagementTimeline/hcpEngagementTimeline.js"]);
+    expect(project!.versions[0].files[1].source).toContain("<c-hcp-engagement-timeline>");
     expect(project!.currentVersionId).toBe(project!.versions[0].id);
     expect((toolCalls.find((c) => c.tool === "studio_app_check")!.args as { name: string }).name).toBe(SN);
 
@@ -495,7 +514,17 @@ describe("starter apps", () => {
     const { project } = await builder.fromStarter("o", "hcp-engagement");
     expect(project!.name).toBe(SN + "2");
     expect(project!.versions[0].files[0].path).toBe(`lwc/${SN}2/${SN}2.js`);
-    expect(project!.versions[0].files[3].bundle).toBe("lscMobileInline_timeline");
+    expect(project!.versions[0].files[3].bundle).toBe("hcpEngagement2Timeline");
+    expect(project!.versions[0].files[0].source).not.toContain("lscMobileInline_timeline");
+  });
+
+  it("gives a second project from the same starter its own helpers", async () => {
+    const { builder } = setup([{ tools: [{ name: "finish", input: { summary: "x" } }] }], okCheck, { starter });
+    const first = (await builder.fromStarter("o", "hcp-engagement")).project!;
+    builder.markDeployed(first.id, ["LightningComponentBundle:" + SN]);
+    const second = (await builder.fromStarter("o", "hcp-engagement")).project!;
+    expect(second.id).not.toBe(first.id);
+    expect(second.versions[0].files.map((f) => f.bundle)).not.toContain("hcpEngagementTimeline");
   });
 
   it("reports a starter the server doesn't have", async () => {
@@ -503,8 +532,8 @@ describe("starter apps", () => {
     expect((await builder.fromStarter("o", "nope")).error).toContain("no starter app");
   });
 
-  it("lets the model edit the starter's prefixed helper bundles, and tells it where the app came from", async () => {
-    const helper = { name: "write_app", input: { files: [{ path: "lwc/lscMobileInline_timeline/lscMobileInline_timeline.js", source: "// v2" }] } };
+  it("lets the model edit the starter's helper bundles, and tells it where the app came from", async () => {
+    const helper = { name: "write_app", input: { files: [{ path: "lwc/hcpEngagementTimeline/hcpEngagementTimeline.js", source: "// v2" }] } };
     const { builder, seen } = setup([{ tools: [helper] }, { text: "ok" }], okCheck, { starter });
     const { project } = await builder.fromStarter("o", "hcp-engagement");
     expect(builder.send(project!.id, "tweak the timeline").ok).toBe(true);
@@ -512,7 +541,7 @@ describe("starter apps", () => {
     expect(JSON.stringify(seen[0])).toContain("Started from the starter app");
     expect(JSON.stringify(seen[1])).not.toContain("isn't allowed");
     expect(done.versions).toHaveLength(2);
-    expect(done.versions[1].files.find((f) => f.bundle === "lscMobileInline_timeline")!.source).toBe("// v2");
+    expect(done.versions[1].files.find((f) => f.bundle === "hcpEngagementTimeline")!.source).toBe("// v2");
     expect(done.name).toBe(SN);
   });
 });

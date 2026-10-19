@@ -119,10 +119,31 @@ export function uniqueName(name: string, taken: Iterable<string>): string {
   }
 }
 
-/** Files with the bundle `from` renamed to `to`, in paths and wherever the whole name appears in sources. */
+/** A bundle's name as a markup tag uses it: `lscMobileInline_relatedList` → `lsc-mobile-inline_related-list`. */
+export const kebabName = (name: string): string => name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+
+/**
+ * Files with the bundle `from` renamed to `to`: in paths, wherever the whole name appears in sources
+ * (`c/from` imports, labels) and in markup tags (`<c-from-kebab>`).
+ */
 export function renameBundle(files: AppFile[], from: string, to: string): AppFile[] {
   const re = new RegExp(`\\b${from}\\b`, "g");
-  return files.map((f) => (f.bundle === from ? { bundle: to, path: f.path.replace(re, to), source: f.source.replace(re, to) } : { ...f, source: f.source.replace(re, to) }));
+  const tag = new RegExp(`(?<![\\w-])c-${kebabName(from)}(?![\\w-])`, "g");
+  const swap = (source: string) => source.replace(re, to).replace(tag, `c-${kebabName(to)}`);
+  return files.map((f) => (f.bundle === from ? { bundle: to, path: f.path.replace(re, to), source: swap(f.source) } : { ...f, source: swap(f.source) }));
+}
+
+/**
+ * A helper bundle's name inside a project named `parent`: the parent's name without its prefix, then the
+ * helper's own without one — `lscMobileInline_timeline` in `lscMobileInline_hcpEngagement2` is
+ * `hcpEngagement2Timeline`. Unprefixed, so the iPad doesn't offer it as an app; per project, so two
+ * projects from one starter never deploy over each other's (or the org's) helpers.
+ */
+export function helperName(parent: string, helper: string): string {
+  const base = parent.replace(NAME_PREFIX, "").replace(ACTION_PREFIX, "");
+  const own = helper.replace(/^lscMobile(Inline|QuickAction)_?/, "") || helper;
+  const name = `${base.charAt(0).toLowerCase()}${base.slice(1)}${own.charAt(0).toUpperCase()}${own.slice(1)}`;
+  return name.replace(/__+/g, "_").replace(/_$/, "").slice(0, 80);
 }
 
 const BUNDLE_RE = /^[A-Za-z][A-Za-z0-9_]*$/;
@@ -487,7 +508,13 @@ export class AppBuilder {
       ...(runAs ? { runAs } : {}),
     };
     project.name = await this.availableName(project, source.name);
-    const files = project.name === source.name ? source.files : renameBundle(source.files, source.name, project.name);
+    let files = project.name === source.name ? source.files : renameBundle(source.files, source.name, project.name);
+    const taken = new Set(this.deps.store.list(project.org).flatMap((p) => this.currentVersion(p)?.files.map((f) => f.bundle) ?? []));
+    for (const helper of [...new Set(source.files.map((f) => f.bundle))].filter((b) => b !== source.name)) {
+      const to = uniqueName(helperName(project.name, helper), taken);
+      taken.add(to);
+      files = renameBundle(files, helper, to);
+    }
     let check: AppCheckResult;
     try {
       check = await this.runCheck(project, files);
@@ -802,7 +829,7 @@ export class AppBuilder {
         project.runAs ? `Building for ${project.runAs.username}${project.runAs.profile ? ` (profile ${project.runAs.profile})` : ""}: describe_objects and sample_records show what they can see. Build for what they have access to.` : "",
         project.objectApiName ? `objectApiName: ${project.objectApiName}` : "",
         project.starter
-          ? `Started from the starter app "${project.starter.label}" (github.com/${project.starter.repo})${project.starter.description ? `: ${project.starter.description}` : ""}. Keep its structure and its helper bundles' names unless the request asks otherwise.`
+          ? `Started from the starter app "${project.starter.label}" (github.com/${project.starter.repo})${project.starter.description ? `: ${project.starter.description}` : ""}. Keep its structure and its bundles' names unless the request asks otherwise.`
           : "",
         "</app>",
       ]
