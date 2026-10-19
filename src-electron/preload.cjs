@@ -175,6 +175,9 @@ contextBridge.exposeInMainWorld("lscApi", {
   perfSaveSim: (input) => ipcRenderer.invoke("perf:saveSim", input),
   perfDeleteSim: (id) => ipcRenderer.invoke("perf:deleteSim", id),
   perfOpenFile: () => ipcRenderer.invoke("perf:openFile"),
+  sourceControlGet: () => ipcRenderer.invoke("sourceControl:get"),
+  sourceControlSet: (deployed) => ipcRenderer.invoke("sourceControl:set", deployed),
+  studioExportSource: (changes, items) => ipcRenderer.invoke("studio:exportSource", changes, items),
   perfSaveFile: (defaultName, text, kind) => ipcRenderer.invoke("perf:saveFile", defaultName, text, kind),
 
   // LSC App Builder — projects per org, turns run in the main process and stream events

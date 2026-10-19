@@ -47,6 +47,43 @@ export function orgOnlyLabel(fix: StudioFix): { label: "Org only"; title: string
 /** Changes that go into source files. */
 export const sourceChanges = (fixes: StudioFix[]): StudioFix[] => fixes.filter((f) => !orgOnlyReason(f));
 
+/**
+ * The source documents the changes touch ("Layout:Visit-Visit Layout"), for "N files" before
+ * anything is retrieved — `planSourceExport`'s items, validation rules by Id. Apps that assign
+ * a copied Lightning page are found only at export, so they aren't counted.
+ */
+export function sourceDocs(fixes: StudioFix[]): string[] {
+  const docs = new Set<string>();
+  for (const fix of sourceChanges(fixes)) {
+    switch (fix.kind) {
+      case "editMetadata":
+        docs.add(`${fix.doc.type}:${fix.doc.fullName}`);
+        break;
+      case "setLayoutRelatedList":
+        docs.add(`Layout:${fix.layoutName}`);
+        break;
+      case "copyForProfile":
+        docs.add(`${fix.doc.type}:${fix.copy.fullName}`);
+        if (fix.doc.type === "Layout") {
+          docs.add(`Layout:${fix.doc.fullName}`);
+          docs.add(`Profile:${fix.profile}`);
+        }
+        break;
+      case "setConfigField":
+      case "setProfileAssignments":
+      case "createConfigRecord":
+      case "deleteConfigRecord":
+        docs.add(`LifeSciConfigRecord:${fix.developerName}`);
+        break;
+      case "setActive":
+        if (fix.record.type === "config") docs.add(`LifeSciConfigRecord:${fix.record.developerName}`);
+        else if (fix.record.type === "validationRule") docs.add(`ValidationRule:${fix.record.id}`);
+        break;
+    }
+  }
+  return [...docs];
+}
+
 /** What `studio_export_source` returns (a structural copy of `SourceExportResult`). */
 export interface SourceExportResult {
   folder: string;

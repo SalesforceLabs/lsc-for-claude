@@ -20,7 +20,7 @@ import { parseMetadataSpecs } from "../salesforce/direct-metadata.js";
 import { inList, query } from "./helpers.js";
 import { appsReferencingPage } from "./metadata/live.js";
 import { profileFullName } from "./metadata/copy.js";
-import { childText, childrenNamed, parseXml, serializeXml } from "./metadata/xml.js";
+import { childText, childrenNamed, parseXml, serializeXml, type XmlNode } from "./metadata/xml.js";
 import type { StudioFix } from "./types.js";
 
 export type SourceType =
@@ -228,24 +228,42 @@ export function packageRoot(folder: string): string {
   return root;
 }
 
+/** The slot a layout assignment fills: one layout per record type, or per object without one. */
+const slotOf = (a: XmlNode): string => {
+  const rt = childText(a, "recordType");
+  return rt ? `rt:${rt}` : `default:${(childText(a, "layout") ?? "").split("-")[0]}`;
+};
+
+const assignmentOrder = (a: XmlNode): string => `${childText(a, "layout") ?? ""}\u0000${childText(a, "recordType") ?? ""}`;
+
 /**
  * Merge a retrieved profile (holding only its assignments to the retrieved layouts)
- * into the project's full profile file: the assignments to those layouts are
- * replaced, everything else is left as it was.
+ * into the project's full profile file. Assignments to those layouts, and to the slots
+ * (record types) the retrieved ones fill, are replaced; everything else is left as it was.
  */
-export function mergeProfileAssignments(existingXml: string, retrievedXml: string): string {
+export function mergeProfileAssignments(existingXml: string, retrievedXml: string, layouts: string[]): string {
   const existing = parseXml(existingXml);
-  const retrieved = parseXml(retrievedXml);
-  const fresh = childrenNamed(retrieved, "layoutAssignments");
-  const layouts = new Set(fresh.map((a) => childText(a, "layout")));
-  const kept = existing.children.filter((c) => c.tag !== "layoutAssignments" || !layouts.has(childText(c, "layout")));
-  // The new assignments go where the old ones were (nothing before the first one is dropped), else in tag order.
+  const fresh = childrenNamed(parseXml(retrievedXml), "layoutAssignments");
+  const replaced = new Set(layouts);
+  const slots = new Set(fresh.map(slotOf));
+  const stays = (c: XmlNode) => !replaced.has(childText(c, "layout") ?? "") && !slots.has(slotOf(c));
+  const assignments = [...childrenNamed(existing, "layoutAssignments").filter(stays), ...fresh].sort((a, b) =>
+    assignmentOrder(a) < assignmentOrder(b) ? -1 : assignmentOrder(a) > assignmentOrder(b) ? 1 : 0
+  );
+  // One sorted block, where the old ones were (else in tag order), as the CLI writes it.
+  const others = existing.children.filter((c) => c.tag !== "layoutAssignments");
   const at = existing.children.findIndex((c) => c.tag === "layoutAssignments");
-  const after = kept.findIndex((c) => c.tag > "layoutAssignments");
-  const insert = at >= 0 ? at : after < 0 ? kept.length : after;
-  existing.children = [...kept.slice(0, insert), ...fresh, ...kept.slice(insert)];
+  const after = others.findIndex((c) => c.tag > "layoutAssignments");
+  const insert = at >= 0 ? at : after < 0 ? others.length : after;
+  existing.children = [...others.slice(0, insert), ...assignments, ...others.slice(insert)];
   return serializeXml(existing);
 }
+
+/** The object a layout belongs to ("Account-HCP Layout" → "Account"); person account layouts use Account's record types. */
+export const layoutObject = (layout: string): string => {
+  const object = layout.split("-")[0];
+  return object === "PersonAccount" ? "Account" : object;
+};
 
 export interface SourceExportInput {
   /** Applied changes (as the tray holds them). */
@@ -299,11 +317,16 @@ function filesUnder(dir: string): string[] {
   return out;
 }
 
-/** Retrieve the items into a temp folder; direct-capable types and the rest go in separate calls. */
-async function retrieveAll(items: SourceItem[], org: string): Promise<{ dirs: string[]; errors: string[] }> {
+/**
+ * Retrieve the items into temp folders; direct-capable types and the rest go in separate calls.
+ * `recordTypes` ride along with the layouts and profiles (in the CLI's call), since a profile's
+ * record-type layout assignments only come back when their record types are retrieved too.
+ */
+async function retrieveAll(items: SourceItem[], recordTypes: string[], org: string): Promise<{ dirs: string[]; errors: string[] }> {
   const specs = items.map((i) => `${i.type}:${i.fullName}`);
-  const direct = specs.filter((s) => parseMetadataSpecs([s]));
-  const other = specs.filter((s) => !parseMetadataSpecs([s]));
+  const withProfile = (s: string) => recordTypes.length > 0 && (s.startsWith("Layout:") || s.startsWith("Profile:"));
+  const direct = specs.filter((s) => !withProfile(s) && parseMetadataSpecs([s]));
+  const other = [...specs.filter((s) => withProfile(s) || !parseMetadataSpecs([s])), ...recordTypes.map((r) => `RecordType:${r}`)];
   const dirs: string[] = [];
   const errors: string[] = [];
   for (const batch of [direct, other]) {
@@ -318,14 +341,26 @@ async function retrieveAll(items: SourceItem[], org: string): Promise<{ dirs: st
 async function lookupValidationRules(ids: string[], org: string): Promise<SourceItem[]> {
   if (ids.length === 0) return [];
   const rows = await query(
-    `SELECT Id, ValidationName, EntityDefinition.QualifiedApiName FROM ValidationRule WHERE Id IN (${inList(ids)})`,
+    `SELECT Id, ValidationName, NamespacePrefix, EntityDefinition.QualifiedApiName FROM ValidationRule WHERE Id IN (${inList(ids)})`,
     org,
     true
   );
+  // A managed rule's member name carries its namespace: "ns__Object__c.ns__Rule".
   return rows.map((r) => ({
     type: "ValidationRule" as const,
-    fullName: `${(r.EntityDefinition as { QualifiedApiName?: string } | null)?.QualifiedApiName}.${r.ValidationName}`,
+    fullName: `${(r.EntityDefinition as { QualifiedApiName?: string } | null)?.QualifiedApiName}.${ns(r.NamespacePrefix)}${r.ValidationName}`,
   }));
+}
+
+const ns = (prefix: unknown) => (typeof prefix === "string" && prefix ? `${prefix}__` : "");
+
+/** The record types of the layouts' objects ("Account.HCP"), when a profile's assignments are saved. */
+async function layoutRecordTypes(items: SourceItem[], org: string): Promise<string[]> {
+  if (!items.some((i) => i.type === "Profile")) return [];
+  const objects = [...new Set(items.filter((i) => i.type === "Layout").map((i) => layoutObject(i.fullName)))];
+  if (objects.length === 0) return [];
+  const rows = await query(`SELECT SobjectType, DeveloperName, NamespacePrefix FROM RecordType WHERE SobjectType IN (${inList(objects)})`, org);
+  return rows.map((r) => `${r.SobjectType}.${ns(r.NamespacePrefix)}${r.DeveloperName}`);
 }
 
 export async function exportSource(input: SourceExportInput, org: string): Promise<SourceExportResult> {
@@ -359,7 +394,7 @@ export async function exportSource(input: SourceExportInput, org: string): Promi
   };
   if (items.length === 0) return result;
 
-  const { dirs, errors } = await retrieveAll(items, org);
+  const { dirs, errors } = await retrieveAll(items, await layoutRecordTypes(items, org), org);
   if (dirs.length === 0) throw new Error(errors.join(" "));
   notes.push(...errors.map((e) => `Some items couldn't be retrieved: ${e}`));
 
@@ -367,6 +402,7 @@ export async function exportSource(input: SourceExportInput, org: string): Promi
   const retrieved = new Map<string, string>();
   for (const dir of dirs) for (const file of filesUnder(dir)) retrieved.set(path.relative(dir, file).split(path.sep).join("/"), file);
 
+  const layoutNames = items.filter((i) => i.type === "Layout").map((i) => i.fullName);
   try {
     for (const item of items) {
       // The CLI may percent-encode a name differently from how it was asked for: compare decoded.
@@ -382,7 +418,7 @@ export async function exportSource(input: SourceExportInput, org: string): Promi
       let status: SourceFileWritten["status"] = "written";
       if (item.type === "Profile") {
         if (fs.existsSync(to)) {
-          fs.writeFileSync(to, mergeProfileAssignments(fs.readFileSync(to, "utf-8"), fs.readFileSync(from, "utf-8")));
+          fs.writeFileSync(to, mergeProfileAssignments(fs.readFileSync(to, "utf-8"), fs.readFileSync(from, "utf-8"), layoutNames));
           status = "merged";
         } else {
           fs.copyFileSync(from, to);

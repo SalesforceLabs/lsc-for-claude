@@ -22,7 +22,8 @@ import {
   planSourceExport,
   sourcePathFor,
 } from "../../../src/studio/source-export.js";
-import { orgOnlyReason as rendererOrgOnlyReason, savedSummary } from "../../../src-renderer/components/studio/source-control.js";
+import { sourceControlFor, withSourceControl } from "../../../src-electron/source-control.js";
+import { orgOnlyReason as rendererOrgOnlyReason, savedSummary, sourceDocs } from "../../../src-renderer/components/studio/source-control.js";
 import type { StudioFix } from "../../../src/studio/types.js";
 
 const fix = (f: Record<string, unknown>) => ({ label: String(f.kind), ...f }) as unknown as StudioFix;
@@ -116,8 +117,39 @@ describe("renderer copy", () => {
     for (const f of FIXES) expect(rendererOrgOnlyReason(f as never)).toBe(orgOnlyReason(f));
   });
 
+  it("sourceDocs counts the documents planSourceExport saves", () => {
+    const fixes = [
+      ...FIXES,
+      fix({
+        kind: "copyForProfile",
+        doc: { type: "Layout", fullName: "Account-HCP Layout", label: "HCP" },
+        copy: { fullName: "Account-HCP Layout (Rep)", label: "HCP (Rep)" },
+        profile: "Rep",
+      }),
+    ];
+    const plan = planSourceExport(fixes);
+    // The deleted record is counted too: its file has to come out of source.
+    expect(sourceDocs(fixes as never)).toHaveLength(plan.items.length + plan.validationRuleIds.length + plan.removed.length);
+  });
+
   it("savedSummary shortens the home folder", () => {
     expect(savedSummary({ folder: "/Users/sam/proj", files: [{}, {}] } as never)).toBe("Saved 2 files to ~/proj");
+  });
+});
+
+describe("per-org setting", () => {
+  it("is off by default, keyed by lowercased username, and drops entries back at the defaults", () => {
+    expect(sourceControlFor({}, "Admin@Demo.org")).toEqual({ deployed: false });
+    expect(sourceControlFor({}, undefined)).toEqual({ deployed: false });
+    let s = withSourceControl({ model: "m" }, "Admin@Demo.org", { deployed: true });
+    expect(s).toEqual({ model: "m", sourceControl: { "admin@demo.org": { deployed: true } } });
+    s = withSourceControl(s, "admin@demo.org", { folder: "/p" });
+    expect(sourceControlFor(s, "ADMIN@demo.org")).toEqual({ deployed: true, folder: "/p" });
+    expect(sourceControlFor(s, "other@demo.org")).toEqual({ deployed: false });
+    s = withSourceControl(s, "admin@demo.org", { deployed: false });
+    expect(sourceControlFor(s, "admin@demo.org")).toEqual({ deployed: false, folder: "/p" });
+    s = withSourceControl(s, "admin@demo.org", { folder: undefined });
+    expect(s.sourceControl).toEqual({});
   });
 });
 
@@ -215,18 +247,32 @@ const RETRIEVED_PROFILE = `<?xml version="1.0" encoding="UTF-8"?>
 `;
 
 describe("mergeProfileAssignments", () => {
-  it("replaces only the assignments to the retrieved layouts and keeps the rest of the file", () => {
-    const merged = mergeProfileAssignments(FULL_PROFILE, RETRIEVED_PROFILE);
+  const LAYOUTS = ["Account-HCP Layout (Rep)", "Account-HCP Layout"];
+  const assignments = (xml: string) =>
+    [...xml.matchAll(/<layout>(.*?)<\/layout>(?:\s*<recordType>(.*?)<\/recordType>)?/g)].map((m) => `${m[1]} / ${m[2] ?? "-"}`);
+
+  it("replaces the assignments to the retrieved layouts and the record types they fill, sorted, keeping the rest of the file", () => {
+    const merged = mergeProfileAssignments(FULL_PROFILE, RETRIEVED_PROFILE, LAYOUTS);
+    expect(assignments(merged)).toEqual([
+      "Account-HCP Layout / Account.KOL",
+      "Account-HCP Layout (Rep) / Account.HCP",
+      "Visit-Visit Layout / -",
+    ]);
     expect(merged).toContain("<userLicense>Salesforce</userLicense>");
-    expect(merged).toContain("<layout>Visit-Visit Layout</layout>");
-    expect(merged.match(/<layoutAssignments>/g)).toHaveLength(3);
-    expect(merged).toContain("<recordType>Account.KOL</recordType>");
-    expect(merged.indexOf("Account-HCP Layout (Rep)")).toBeLessThan(merged.indexOf("Visit-Visit Layout"));
     expect(merged.indexOf("<custom>")).toBeLessThan(merged.indexOf("<layoutAssignments>"));
   });
 
+  it("drops an assignment to a retrieved layout the profile no longer uses, and one to another layout in a filled slot", () => {
+    const existing = FULL_PROFILE.replace(
+      "    <userLicense>",
+      "    <layoutAssignments>\n        <layout>Account-Old Layout</layout>\n        <recordType>Account.KOL</recordType>\n    </layoutAssignments>\n    <userLicense>"
+    );
+    const merged = mergeProfileAssignments(existing, RETRIEVED_PROFILE.replace(/ {4}<layoutAssignments>[\s\S]*?Account\.HCP[\s\S]*?<\/layoutAssignments>\n/, ""), LAYOUTS);
+    expect(assignments(merged)).toEqual(["Account-HCP Layout / Account.KOL", "Visit-Visit Layout / -"]);
+  });
+
   it("puts assignments in tag order when the file had none", () => {
-    const merged = mergeProfileAssignments(FULL_PROFILE.replace(/ {4}<layoutAssignments>[\s\S]*?<\/layoutAssignments>\n/g, ""), RETRIEVED_PROFILE);
+    const merged = mergeProfileAssignments(FULL_PROFILE.replace(/ {4}<layoutAssignments>[\s\S]*?<\/layoutAssignments>\n/g, ""), RETRIEVED_PROFILE, LAYOUTS);
     expect(merged.indexOf("<layoutAssignments>")).toBeGreaterThan(merged.indexOf("<custom>"));
     expect(merged.indexOf("<layoutAssignments>")).toBeLessThan(merged.indexOf("<userLicense>"));
   });
@@ -260,7 +306,14 @@ describe("exportSource", () => {
     write("profiles/Admin.profile-meta.xml", RETRIEVED_PROFILE);
     write("objects/Visit/validationRules/Needs_Date.validationRule-meta.xml", "<ValidationRule/>");
     retrieveMetadata.mockResolvedValue({ success: true, data: { outputDir: out } });
-    query.mockResolvedValue([{ Id: "03d", ValidationName: "Needs_Date", EntityDefinition: { QualifiedApiName: "Visit" } }]);
+    query.mockImplementation(async (soql: string) =>
+      soql.includes("FROM ValidationRule")
+        ? [{ Id: "03d", ValidationName: "Needs_Date", NamespacePrefix: null, EntityDefinition: { QualifiedApiName: "Visit" } }]
+        : [
+            { SobjectType: "Account", DeveloperName: "HCP", NamespacePrefix: null },
+            { SobjectType: "Account", DeveloperName: "KOL", NamespacePrefix: "lsc" },
+          ]
+    );
 
     const result = await exportSource(
       {
@@ -282,6 +335,19 @@ describe("exportSource", () => {
     );
 
     expect(query.mock.calls[0][0]).toContain("WHERE Id IN ('03d')");
+    expect(query.mock.calls[1][0]).toContain("WHERE SobjectType IN ('Account')");
+    // Record-type assignments only come back with their record types, so layouts and profile go with them.
+    expect(retrieveMetadata.mock.calls.map((c) => c[1])).toEqual([
+      [
+        "Layout:Account-HCP Layout (Rep)",
+        "Layout:Account-HCP Layout",
+        "Profile:Admin",
+        "LifeSciConfigRecord:Gone",
+        "ValidationRule:Visit.Needs_Date",
+        "RecordType:Account.HCP",
+        "RecordType:Account.lsc__KOL",
+      ],
+    ]);
     expect(result.packageDir).toBe("force-app/main/default");
     expect(result.files).toEqual([
       { type: "Layout", fullName: "Account-HCP Layout (Rep)", path: "force-app/main/default/layouts/Account-HCP Layout %28Rep%29.layout-meta.xml", status: "written" },
