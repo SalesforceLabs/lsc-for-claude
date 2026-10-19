@@ -236,7 +236,7 @@ async function collectNbc(ctx: ScreenContext, now: Date): Promise<PublishedHome[
     q((l) => `SELECT ParentId, FullAddress, Street, PostalCode, City, State, Country, LastModifiedDate FROM ContactPointAddress WHERE ParentId IN (${l}) AND IsActive = true ORDER BY LastModifiedDate DESC`),
     q((l) => `SELECT AccountId, IsTargetedAccount, LastProviderVisitDate FROM ProviderAcctTerritoryInfo WHERE AccountId IN (${l}) AND Territory2Id = '${terr[0]}' AND IsActive = true ORDER BY LastModifiedDate DESC`),
     q((l) => `SELECT AccountId, ProratedOverallGoal FROM ProviderActivityGoal WHERE AccountId IN (${l}) ORDER BY LastModifiedDate DESC`),
-    query(`SELECT DownloadStart FROM DeviceSyncSummary WHERE OwnerId = '${ctx.userId}' AND Type = 'data' AND DownloadEnd != null ORDER BY DownloadStart DESC LIMIT 1`, ctx.org).catch(softFail(ctx, "Home", [] as Row[])),
+    query(`SELECT DownloadStart FROM DeviceSyncSummary WHERE OwnerId = '${ctx.userId}' AND Type = 'data' AND DownloadEnd != null ORDER BY DownloadStart DESC LIMIT 1`, ctx.adminOrg).catch(softFail(ctx, "Home", [] as Row[])),
   ]);
   const first = (rows: Row[], key: string) => {
     const m = new Map<string, Row>();

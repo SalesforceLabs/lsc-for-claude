@@ -14,6 +14,7 @@ import { sfLimiter } from "./limiter.js";
 import { directApiVersion, directDownload, directEnabled, directGet, directPostRead, directQuery, type DirectCredentials } from "./direct.js";
 import { directDelete, directDeploy, directRetrieve, type StatusHook } from "./direct-metadata.js";
 import { invalidateSharedReads } from "../config/read-cache.js";
+import { isTokenOrg, tokenOrgCredentials, TOKEN_ORG_NO_CLI } from "./token-org.js";
 
 const execAsync = promisify(exec);
 
@@ -224,6 +225,8 @@ export async function execSfCommand<T>(
   args: string[] = [],
   options: { targetOrg?: string; timeout?: number; cwd?: string; env?: Record<string, string> } = {}
 ): Promise<CliResult<T>> {
+  // A rep's token org is only served by the direct REST path; never hand it to the CLI.
+  if (isTokenOrg(options.targetOrg)) return { success: false, error: TOKEN_ORG_NO_CLI };
   const run = () => sfLimiter.run(() => spawnSfJson<T>(command, args, options));
   return writesToOrg(command, args) ? asWrite(options.targetOrg, run) : run();
 }
@@ -387,6 +390,7 @@ export function markTruncated(query: string, data: SoqlQueryResult): SoqlQueryRe
 
 /** The sf CLI's login for an org, for the direct REST fast path. */
 async function directCredentials(org: string): Promise<DirectCredentials | null> {
+  if (isTokenOrg(org)) return tokenOrgCredentials(org);
   const login = await readOrgLogin(org);
   return login.success ? login.data! : null;
 }
@@ -851,6 +855,7 @@ export async function apiReadPost<T>(endpoint: string, body: unknown, targetOrg:
 export async function downloadToFile(endpoint: string, dest: string, targetOrg: string, timeoutMs: number): Promise<CliResult<void>> {
   const direct = await directDownload(endpoint, dest, targetOrg, directCredentials, timeoutMs);
   if (direct) return direct.ok ? { success: true } : { success: false, error: direct.error, timedOut: direct.timedOut };
+  if (isTokenOrg(targetOrg)) return { success: false, error: TOKEN_ORG_NO_CLI };
   return sfLimiter.run(
     () =>
       new Promise<CliResult<void>>((resolve) => {
@@ -874,6 +879,7 @@ function spawnApiRequest<T>(
   body: unknown | undefined,
   targetOrg: string
 ): Promise<CliResult<T>> {
+  if (isTokenOrg(targetOrg)) return Promise.resolve({ success: false, error: TOKEN_ORG_NO_CLI });
   return new Promise((resolve) => {
     const args = ["api", "request", "rest", endpoint, "--method", method];
 

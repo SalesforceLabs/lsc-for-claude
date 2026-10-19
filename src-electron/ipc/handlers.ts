@@ -10,6 +10,7 @@ const __dirname = path.dirname(__filename);
 import { ConversationEngine } from "../engine/conversation.js";
 import { McpClient, STUDIO_TOOL_PREFIX } from "../mcp/client.js";
 import { McpPool, type PoolOrg } from "../mcp/pool.js";
+import { cacheArgsWithRepLogins, repLoginsFor, type RepLoginRef } from "../engine/rep-logins.js";
 import { listSfOrgs, orgKey, pickOrg, resolveOrg, sameOrgId, toOrgRef, type OrgKind, type OrgRef } from "../orgs.js";
 import { OrgRoles } from "../org-roles.js";
 import type { SessionOrg } from "../engine/session-org.js";
@@ -668,7 +669,16 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       // Org-backed results are persisted per org; the feature list is static and cheap.
       const cacheable = STUDIO_CACHED_TOOLS.has(toolName);
       const org = loadSettings().sfTargetOrg ?? "";
-      const argsKey = JSON.stringify(args);
+      // The published iPad reads as the previewed rep when Studio holds their login (tokens go to the engine for this call only).
+      let offered: RepLoginRef[] = [];
+      if (toolName === "studio_ipad_published") {
+        const orgId = (await resolveOrg(loadSettings().sfTargetOrg))?.orgId;
+        offered = repLoginsFor(
+          listMobileLogins().filter((l) => !orgId || !l.orgId || sameOrgId(l.orgId, orgId)),
+          typeof args.userId === "string" ? args.userId : undefined
+        ).slice(0, 25);
+      }
+      const argsKey = JSON.stringify(cacheArgsWithRepLogins(args, offered));
       if (cacheable && !refresh) {
         // `cachedAt` lets a view say how old the answer is ("Updated 12 min ago").
         const cached = getStudioCacheRow(org, toolName, argsKey);
@@ -683,7 +693,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         try {
           // A feature map fans out to many sf CLI queries; allow well over the SDK's 60s default. The published
           // iPad adds the metadata download to its live reads (list views up to ~4 minutes, then records).
-          const result = await client.callTool(toolName, args, { timeoutMs: toolName === "studio_ipad_published" ? 8 * 60_000 : 5 * 60_000 });
+          const mobileLogins = (await Promise.all(offered.map((l) => mobileLoginCredentials(l.id).catch(() => null)))).filter((l): l is NonNullable<typeof l> => !!l);
+          const result = await client.callTool(toolName, mobileLogins.length ? { ...args, mobileLogins } : args, { timeoutMs: toolName === "studio_ipad_published" ? 8 * 60_000 : 5 * 60_000 });
           const text = result.content.find((c) => c.type === "text")?.text ?? "{}";
           const data = JSON.parse(text);
           const cachedAt = new Date().toISOString();

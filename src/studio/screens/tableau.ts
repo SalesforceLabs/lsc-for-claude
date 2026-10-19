@@ -275,7 +275,7 @@ async function get(org: string, path: string): Promise<Row | undefined> {
 
 /** The viewer's followed sub-metrics. The `followed-assets` endpoint honors the user id; `followed-asset-refs` returns the caller's own follows. */
 async function loadFollows(ctx: ScreenContext): Promise<Follow[]> {
-  const data = await get(ctx.org, `/services/data/v66.0/tableau/follow/followers/${ctx.userId}/followed-assets?followedAssetType=SemanticSubMetric`);
+  const data = await get(ctx.adminOrg, `/services/data/v66.0/tableau/follow/followers/${ctx.userId}/followed-assets?followedAssetType=SemanticSubMetric`);
   const rows = (data?.followedAssets ?? []) as Row[];
   return rows.map((r) => ({
     id: String(r.id),
@@ -469,16 +469,16 @@ export async function collectTableau(ctx: ScreenContext): Promise<PublishedTable
   const follows = await loadFollows(ctx);
   if (!follows.length) return { metrics: [], valuesLoaded: true };
 
-  const subs = ((await get(ctx.org, `/services/data/v66.0/ssot/semantic/sub-metrics/${follows.map((f) => f.id).join(",")}`))?.items ?? []) as Row[];
+  const subs = ((await get(ctx.adminOrg, `/services/data/v66.0/ssot/semantic/sub-metrics/${follows.map((f) => f.id).join(",")}`))?.items ?? []) as Row[];
   const subById = new Map(subs.map((s) => [String(s.id), s]));
 
   const models = new Map<string, Row>();
   for (const id of new Set(follows.map((f) => f.modelId).filter(Boolean))) {
-    const m = await get(ctx.org, `/services/data/v66.0/ssot/semantic/models/${id}`);
+    const m = await get(ctx.adminOrg, `/services/data/v66.0/ssot/semantic/models/${id}`);
     if (m) models.set(id, m);
   }
 
-  const jwt = await get(ctx.org, "/services/data/v62.0/sfap/lightning-jwt-service");
+  const jwt = await get(ctx.adminOrg, "/services/data/v62.0/sfap/lightning-jwt-service");
   const token = typeof jwt?.jwt === "string" && typeof jwt.baseUri === "string" ? { jwt: jwt.jwt, baseUri: jwt.baseUri } : undefined;
 
   const metrics: PublishedTableauMetric[] = [];
@@ -513,14 +513,14 @@ export async function collectTableau(ctx: ScreenContext): Promise<PublishedTable
     if (bundle) sources.add("insights");
     else if (allTime) {
       // The JWT/insights path needs the mobile app's session (the org 404s it for CLI logins), so compute the all-time aggregate directly.
-      const computed = await computeAllTimeBan(ctx.org, sub, model);
+      const computed = await computeAllTimeBan(ctx.adminOrg, sub, model);
       if (computed) {
         ban = computed;
         sources.add("data-cloud");
       }
     }
     if (ban === "-") loaded = false;
-    const detail = allTime && !bundle ? await computeDetail(ctx.org, sub, model, ctx.format.timeZone).catch(() => undefined) : undefined;
+    const detail = allTime && !bundle ? await computeDetail(ctx.adminOrg, sub, model, ctx.format.timeZone).catch(() => undefined) : undefined;
     metrics.push({
       id: f.id,
       name: String(metric.label ?? f.label),

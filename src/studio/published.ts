@@ -17,6 +17,8 @@ import { promisify } from "util";
 import { resolveScalarTags } from "../perf/sync-volume.js";
 import { apiRequest, downloadToFile } from "../salesforce/cli.js";
 import { count, ID_PATTERN, inList, query, queryResult, type Row } from "./helpers.js";
+import { registerTokenOrg, forgetTokenOrg, latestApiVersion } from "../salesforce/token-org.js";
+import type { TokenLogin } from "../perf/device/session.js";
 import { collectScreens, type PublishedScreens, type ScreenContext } from "./screens/index.js";
 import { isScaleError, withTimeout } from "./screens/context.js";
 import { collectRecords, type PublishedRecords } from "./screens/record.js";
@@ -230,6 +232,12 @@ export interface PublishedIpad {
   screens?: PublishedScreens;
   /** Records the list views open (layout values, related lists), read live; absent when none could be read. */
   records?: PublishedRecords;
+  /**
+   * Whose view the live screens and records were read with: "rep" = the previewed rep's own mobile login (their sharing and
+   * field-level security, rows limited to their sync filter); "admin" = the sf CLI connection, approximating the rep.
+   * Absent when no live data was read (no viewer).
+   */
+  dataSource?: "rep" | "admin";
   /** What the live screens couldn't read in full (too many rows, too slow); a load with these isn't cached. */
   dataNotes?: string[];
 }
@@ -1817,14 +1825,19 @@ async function viewerScreens(
   core: SnapshotCore,
   userId: string | undefined,
   org: string,
-  track: LoadTracker
-): Promise<Pick<PublishedIpad, "settings" | "reports" | "lists" | "listErrors" | "screens" | "records" | "dataNotes">> {
+  track: LoadTracker,
+  repLogin?: TokenLogin
+): Promise<Pick<PublishedIpad, "settings" | "reports" | "lists" | "listErrors" | "screens" | "records" | "dataNotes" | "dataSource">> {
   if (!userId) return {};
   track.plan(["reports", "lists", "screens", "records"]);
   const notes: string[] = [];
   const note = (message: string) => {
     if (!notes.includes(message)) notes.push(message);
   };
+  // Reads as the rep when their login works; a login the org turns down falls back to the admin reads, with a note.
+  const rep = repLogin ? await openRepReads(repLogin, userId, note) : undefined;
+  const readOrg = rep?.org ?? org;
+  const dataSource: "rep" | "admin" = rep ? "rep" : "admin";
   // The records step needs only the lists and the screens, so it starts as soon as they are in rather than after the slow Reports tab.
   // Its own notes are added after the others, as they were when it ran last.
   const recordNotes: string[] = [];
@@ -1837,9 +1850,9 @@ async function viewerScreens(
       return {};
     })
   );
-  const listsRun = track.run("lists", () => viewerLists(core, userId, org, track));
+  const listsRun = track.run("lists", () => viewerLists(core, userId, org, track, readOrg));
   const screensRun = track.run("screens", () =>
-    viewerContext(core, userId, org, note)
+    viewerContext(core, userId, org, note, readOrg)
       .then(collectScreens)
       .catch((err) => {
         if (isScaleError(err)) note(`Native screens not shown with data: ${reason(err)}`);
@@ -1861,7 +1874,7 @@ async function viewerScreens(
     return lists || cards.length || visits.length
       ? await track.run("records", () =>
           withTimeout(
-            viewerContext(core, userId, org, recordNote).then((ctx) => collectRecords(ctx, lists ?? {}, { Account: cards, Visit: visits })),
+            viewerContext(core, userId, org, recordNote, readOrg).then((ctx) => collectRecords(ctx, lists ?? {}, { Account: cards, Visit: visits })),
             RECORDS_TIMEOUT_MS,
             "Reading the records list views and cards open"
           ).catch((err) => {
@@ -1873,6 +1886,7 @@ async function viewerScreens(
   });
   const [reports, listResult, screens, records] = await Promise.all([reportsRun, listsRun, screensRun, recordsRun]);
   for (const message of recordNotes) note(message);
+  if (rep) forgetTokenOrg(rep.org);
   const lists = listResult?.data;
   const listErrors = listResult && Object.keys(listResult.errors).length ? listResult.errors : undefined;
   return {
@@ -1882,11 +1896,35 @@ async function viewerScreens(
     ...(Object.keys(screens).length ? { screens } : {}),
     ...(records && Object.keys(records.byId).length ? { records } : {}),
     ...(notes.length ? { dataNotes: notes } : {}),
+    dataSource,
   };
 }
 
+/**
+ * Puts the rep's login to use for reads: registers it as a token org and checks the org accepts it
+ * as that user. Undefined (with a note) when it doesn't, so the load falls back to the admin reads.
+ */
+export async function openRepReads(login: TokenLogin, userId: string, note: (message: string) => void): Promise<{ org: string } | undefined> {
+  let tokenOrg: string;
+  try {
+    tokenOrg = registerTokenOrg(login, await latestApiVersion(login.instanceUrl));
+  } catch (err) {
+    note(`The rep's login couldn't be used (${reason(err)}); read as your admin login instead.`);
+    return undefined;
+  }
+  try {
+    const me = await query(`SELECT Id FROM User WHERE Id = '${userId}'`, tokenOrg);
+    if (me.length) return { org: tokenOrg };
+    note("The rep's login couldn't read their own user; read as your admin login instead.");
+  } catch (err) {
+    note(`The rep's login was turned down (${reason(err)}); read as your admin login instead.`);
+  }
+  forgetTokenOrg(tokenOrg);
+  return undefined;
+}
+
 /** The viewer's territories, locale, and sync scope, for the native screens' collectors. */
-async function viewerContext(core: SnapshotCore, userId: string, org: string, note: (message: string) => void): Promise<ScreenContext> {
+async function viewerContext(core: SnapshotCore, userId: string, org: string, note: (message: string) => void, readOrg: string = org): Promise<ScreenContext> {
   const soft = (what: string) => (err: unknown) => {
     if (isScaleError(err)) note(`${what}: ${reason(err)}`);
     return [] as Row[];
@@ -1901,7 +1939,9 @@ async function viewerContext(core: SnapshotCore, userId: string, org: string, no
   return {
     core,
     userId,
-    org,
+    org: readOrg,
+    adminOrg: org,
+    source: readOrg === org ? "admin" : "rep",
     territories,
     format: { timeZone: str(users[0]?.TimeZoneSidKey) || "UTC", locale: (str(users[0]?.LocaleSidKey) || "en_US").replace(/_/g, "-") },
     scope: syncScope(core, userId, territories),
@@ -1991,7 +2031,8 @@ async function viewerLists(
   core: SnapshotCore,
   userId: string,
   org: string,
-  track?: LoadTracker
+  track?: LoadTracker,
+  readOrg: string = org
 ): Promise<{ data: Record<string, PublishedListData>; errors: Record<string, string> } | undefined> {
   const objects = [...new Set(core.tabs.filter((t) => t.kind === "object" && t.sobject).map((t) => t.sobject as string))].filter((o) => core.objects[o]);
   if (objects.length === 0) return undefined;
@@ -2011,7 +2052,7 @@ async function viewerLists(
   const urlsFor = (name: string) => {
     let p = describeUrls.get(name);
     if (!p) {
-      p = apiRequest<Row>(`/services/data/v62.0/sobjects/${name}/listviews`, "GET", undefined, org).then(
+      p = apiRequest<Row>(`/services/data/v62.0/sobjects/${name}/listviews`, "GET", undefined, readOrg).then(
         (res) => new Map(arr(res.success ? res.data?.listviews : []).map((l) => [str(l.developerName), str(l.describeUrl)])),
         () => new Map<string, string>()
       );
@@ -2033,7 +2074,7 @@ async function viewerLists(
     let orderBy = "";
     const url = (await urlsFor(name)).get(lv.name);
     if (url?.startsWith("/services/data/")) {
-      const d = await apiRequest<Row>(url, "GET", undefined, org);
+      const d = await apiRequest<Row>(url, "GET", undefined, readOrg);
       const soql = d.success ? str(d.data?.query) : "";
       if (soql) {
         const m = /\sWHERE\s([\s\S]*?)(?:\sORDER BY\s([\s\S]*))?$/i.exec(soql.replace(/\sUSING SCOPE \w+/i, ""));
@@ -2054,10 +2095,10 @@ async function viewerLists(
     const fields = q.fields.filter((f): f is ListViewField => !!f);
     const paths = [...new Set(fields.flatMap((f) => (f.ref ? [f.path, f.ref.idPath] : [f.path])))];
     const [total, records] = await Promise.all([
-      count(`SELECT COUNT() FROM ${name}${filter}`, org),
-      query(`SELECT Id${paths.length ? `, ${paths.join(", ")}` : ""} FROM ${name}${filter} ORDER BY ${orderBy || `${first} ASC NULLS FIRST, Id ASC NULLS FIRST`} LIMIT ${LIST_PAGE}`, org),
+      count(`SELECT COUNT() FROM ${name}${filter}`, readOrg),
+      query(`SELECT Id${paths.length ? `, ${paths.join(", ")}` : ""} FROM ${name}${filter} ORDER BY ${orderBy || `${first} ASC NULLS FIRST, Id ASC NULLS FIRST`} LIMIT ${LIST_PAGE}`, readOrg),
     ]);
-    const unsynced = await unsyncedReferences(records, fields, scope, org);
+    const unsynced = await unsyncedReferences(records, fields, scope, readOrg);
     const cell = (r: Row, f: ListViewField | null) => {
       if (!f) return "";
       // The app joins the related record from its local database, so one it didn't download shows blank.
@@ -2222,6 +2263,12 @@ export function pruneCache(root: string, options: { keep: number; maxBytes: numb
 
 /** Loads running now, by org / profile / user, so a repeat call (a retry after the 5-minute call timeout, a double click) joins instead of starting another. */
 const inflight = new Map<string, Promise<PublishedIpad | { profile: string; missing: true }>>();
+/** The login of the previewed rep among the ones Studio holds, matched by user id (15-character form). */
+export function repLoginFor(logins: TokenLogin[], userId: string | undefined): TokenLogin | undefined {
+  if (!userId) return undefined;
+  return logins.find((l) => l.userId && l.userId.slice(0, 15) === userId.slice(0, 15));
+}
+
 /** Snapshot builds running now, by ContentVersion, so two users of one profile don't unpack the same directory at once. */
 const builds = new Map<string, Promise<unknown>>();
 
@@ -2233,13 +2280,15 @@ const builds = new Map<string, Promise<unknown>>();
 export function loadPublishedIpad(
   profile: string,
   org: string,
-  userId?: string
+  userId?: string,
+  mobileLogins: TokenLogin[] = []
 ): Promise<PublishedIpad | { profile: string; missing: true }> {
-  const key = [org, profile, userId ?? ""].join("\u0000");
+  // Loads read with different logins stay apart: one key per set of rep logins offered.
+  const key = [org, profile, userId ?? "", mobileLogins.map((l) => `${l.userId ?? l.username}`).sort().join(",")].join("\u0000");
   const running = inflight.get(key);
   if (running) return running;
   const track = new LoadTracker(profile);
-  const load = loadWithProgress(profile, org, userId, track).finally(() => {
+  const load = loadWithProgress(profile, org, userId, track, mobileLogins).finally(() => {
     track.finish();
     inflight.delete(key);
   });
@@ -2247,7 +2296,7 @@ export function loadPublishedIpad(
   return load;
 }
 
-async function loadWithProgress(profile: string, org: string, userId: string | undefined, track: LoadTracker): Promise<PublishedIpad | { profile: string; missing: true }> {
+async function loadWithProgress(profile: string, org: string, userId: string | undefined, track: LoadTracker, mobileLogins: TokenLogin[] = []): Promise<PublishedIpad | { profile: string; missing: true }> {
   const [cache, listed] = await track.run("cache", () => Promise.all([latestCache(profile, org), profileUsers(profile, org)]));
   if (!cache) return { profile, missing: true };
   if (!ID_PATTERN.test(cache.contentVersionId)) throw new Error("The metadata cache record has no downloadable file.");
@@ -2282,7 +2331,7 @@ async function loadWithProgress(profile: string, org: string, userId: string | u
   };
   const finish = async (core: SnapshotCore): Promise<PublishedIpad> => {
     const shared = applyListViewSharing(core, await sharing);
-    const [dashboards, screens] = await Promise.all([track.run("dashboards", () => withDashboardData(core.dashboards ?? {}, org, track)), viewerScreens(shared, user?.id, org, track)]);
+    const [dashboards, screens] = await Promise.all([track.run("dashboards", () => withDashboardData(core.dashboards ?? {}, org, track)), viewerScreens(shared, user?.id, org, track, repLoginFor(mobileLogins, user?.id))]);
     return { ...withNotes(shared), ...screens, dashboards, profile, cache, viewer, ...userInfo };
   };
 

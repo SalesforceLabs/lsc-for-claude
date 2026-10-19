@@ -313,11 +313,11 @@ function usableLogin(id: string): MobileLogin {
 /** The login's token for a run, refreshed first when it's old enough to expire mid-run. */
 export async function mobileLoginCredentials(
   id: string
-): Promise<{ instanceUrl: string; accessToken: string; username: string; orgId?: string }> {
+): Promise<{ instanceUrl: string; accessToken: string; username: string; orgId?: string; userId?: string }> {
   const login = usableLogin(id);
   if (Date.now() - login.issuedAt > REFRESH_AFTER_MS) await refresh(login);
   if (login.expired) throw new Error(`${login.displayName ?? login.username}'s login has expired. Sign in again.`);
-  return { instanceUrl: login.instanceUrl, accessToken: login.accessToken, username: login.username, orgId: login.orgId };
+  return { instanceUrl: login.instanceUrl, accessToken: login.accessToken, username: login.username, orgId: login.orgId, userId: login.userId };
 }
 
 /**

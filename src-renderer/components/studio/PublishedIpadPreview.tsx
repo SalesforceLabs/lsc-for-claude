@@ -222,6 +222,15 @@ function Device({
   const generated = snapshot.cache.generatedAt ? new Date(snapshot.cache.generatedAt).toLocaleString() : "unknown";
   const mobile = useMobileLogins();
   const repLogin = testUserFor(mobile.logins, snapshot.viewer?.userId);
+  // Signing in as the rep after the data was read as the admin: read it again, now as them.
+  const readAsAdmin = snapshot.dataSource === "admin";
+  const repSignedIn = repLogin?.status === "signedIn";
+  const reloadedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!readAsAdmin || !repSignedIn || !repLogin || reloadedFor.current === repLogin.id) return;
+    reloadedFor.current = repLogin.id;
+    onRefresh();
+  }, [readAsAdmin, repSignedIn, repLogin, onRefresh]);
   const screen = (published: boolean) => {
     const shown = published ? (snapshot.tabs.find((t) => t.fullName === current) ?? snapshot.tabs[0]) : tab;
     const home = shown?.kind === "home" && !!snapshot.home && record === null;
@@ -293,7 +302,11 @@ function Device({
               logins={mobile.logins}
               userId={snapshot.viewer.userId}
               name={snapshot.viewer.name}
-              signedInTitle={`Inline components and Salesforce pages in the in-app browser load as ${snapshot.viewer.name}. The rest of the preview is read by your admin connection.`}
+              signedInTitle={
+                snapshot.dataSource === "rep"
+                  ? `Live data, inline components and Salesforce pages in the in-app browser are read as ${snapshot.viewer.name}: their sharing, field access and sync filter.`
+                  : `Inline components and Salesforce pages in the in-app browser load as ${snapshot.viewer.name}. The live data is being read again as them.`
+              }
               adminTitle={`Inline components and Salesforce pages load as your admin connection, which can see more than ${snapshot.viewer.name} can. Sign in as them to see their data.`}
             />
             {snapshot.usersTruncated && (
@@ -354,6 +367,15 @@ function Device({
           <span className="studio-ipad-swatch conditional" /> Shown only when its visibility rule passes
         </li>
       </ul>
+      {snapshot.dataSource && snapshot.viewer && (
+        <p className="studio-ipad-note studio-ipad-data-source" data-source={snapshot.dataSource}>
+          {snapshot.dataSource === "rep"
+            ? `Live data read as ${snapshot.viewer.name}: their own sharing and field access, limited to what their iPad syncs.`
+            : repSignedIn
+              ? `Live data read as your admin login, approximated. Reading it again as ${snapshot.viewer.name}…`
+              : `Live data read as your admin login, approximated: it can see more than ${snapshot.viewer.name} can. Sign in as ${snapshot.viewer.name} (above) for exact data.`}
+        </p>
+      )}
       {(snapshot.dataNotes?.length ?? 0) > 0 && (
         <div className="studio-ipad-note studio-ipad-data-notes">
           <p>Some live data couldn't be read in full, so these parts of the preview show less than the rep's iPad:</p>
