@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { ID_PATTERN, inList, query, type Row } from "../helpers.js";
+import { downloadToFile } from "../../salesforce/cli.js";
 import type { ScreenContext } from "./context.js";
 
 const run = promisify(execFile);
@@ -304,14 +305,37 @@ async function addPageThumbnails(cards: PublishedContentCard[], linked: Map<stri
   );
 }
 
+/** Downloaded sources by version, shared by the thumbnails cut from one file (a deck's pages) and dropped after a minute. */
+const sources = new Map<string, Promise<string>>();
+const SOURCE_KEEP_MS = 60_000;
+
+function sourceFile(org: string, version: string, type: string): Promise<string> {
+  const key = `${org}\u0000${version}\u0000${type}`;
+  const held = sources.get(key);
+  if (held) return held;
+  const dir = join(tmpdir(), "lsc-studio-content-src");
+  mkdirSync(dir, { recursive: true });
+  const file = join(dir, `${createHash("sha1").update(key).digest("hex")}.${type === "PDF" ? "pdf" : "zip"}`);
+  const fetched = downloadToFile(`/services/data/v62.0/sobjects/ContentVersion/${version}/VersionData`, file, org, 120000).then((res) => {
+    if (!res.success) throw new Error(res.error || "Download failed");
+    return file;
+  });
+  sources.set(key, fetched);
+  const drop = () => {
+    if (sources.get(key) === fetched) sources.delete(key);
+    rmSync(file, { force: true });
+  };
+  fetched.then(
+    () => setTimeout(drop, SOURCE_KEEP_MS).unref(),
+    drop
+  );
+  return fetched;
+}
+
 async function renderThumbnail(version: string, type: string, page: number, org: string): Promise<Buffer | undefined> {
   const dir = mkdtempSync(join(tmpdir(), "lsc-content-"));
   try {
-    const src = join(dir, type === "PDF" ? "in.pdf" : "in.zip");
-    await run("sf", ["api", "request", "rest", `/services/data/v62.0/sobjects/ContentVersion/${version}/VersionData`, "--stream-to-file", src, "--target-org", org], {
-      timeout: 120000,
-      maxBuffer: 4 << 20,
-    });
+    const src = await sourceFile(org, version, type);
     const out = join(dir, "out.jpg");
     if (type === "PDF") {
       try {

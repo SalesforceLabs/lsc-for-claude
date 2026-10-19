@@ -1,6 +1,6 @@
 /** Tableau Followed Metrics (LSCTableauViewController) — what the viewer's iPad shows. */
 
-import { apiRequest } from "../../salesforce/cli.js";
+import { apiReadPost, apiRequest } from "../../salesforce/cli.js";
 import type { Row } from "../helpers.js";
 import type { ScreenContext } from "./context.js";
 
@@ -397,7 +397,7 @@ async function computeAllTimeBan(org: string, sub: Row, model: Row | undefined):
   if (!calc || typeof calc.expression !== "string" || some(calc.filters) || objects.some((o) => some(o.filters))) return undefined;
   const e = expressionToSql(calc.expression, objects);
   if (!e) return undefined;
-  const res = await apiRequest<Row>("/services/data/v66.0/ssot/query-sql", "POST", { sql: `SELECT ${agg}(${e.sql}) AS v FROM "${e.table}"` }, org);
+  const res = await apiReadPost<Row>("/services/data/v66.0/ssot/query-sql", { sql: `SELECT ${agg}(${e.sql}) AS v FROM "${e.table}"` }, org);
   const v = (res.data?.data as unknown[][] | undefined)?.[0]?.[0];
   const n = typeof v === "number" ? v : typeof v === "string" && v !== "" ? Number(v) : NaN;
   if (!res.success || !Number.isFinite(n)) return undefined;
@@ -453,7 +453,7 @@ async function computeDetail(org: string, sub: Row, model: Row | undefined, time
   const e = expressionToSql(calc.expression, objects);
   const time = timeColumn(metric?.timeDimensionReference as Row | undefined, model);
   if (!e || !time || time.table !== e.table || !/^\w+$/.test(time.column)) return undefined;
-  const res = await apiRequest<Row>("/services/data/v66.0/ssot/query-sql", "POST", { sql: `SELECT "${time.column}" AS d, ${agg}(${e.sql}) AS v FROM "${e.table}" GROUP BY "${time.column}"` }, org);
+  const res = await apiReadPost<Row>("/services/data/v66.0/ssot/query-sql", { sql: `SELECT "${time.column}" AS d, ${agg}(${e.sql}) AS v FROM "${e.table}" GROUP BY "${time.column}"` }, org);
   const rows = res.data?.data as unknown[][] | undefined;
   if (!res.success || !Array.isArray(rows)) return undefined;
   const percent = calc.dataType === "Percentage";
