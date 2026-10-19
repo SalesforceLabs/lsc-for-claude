@@ -335,6 +335,9 @@ export function containerOf(d: PageDraft, key: string): string | undefined {
   return (locateItem(d.target, key) ?? locateItem(d.base, key))?.region.name;
 }
 
+/** The record details component (drawn from the layout), recognised by name: Draft draws copies of published blocks, so identity can't be used. */
+export const isDetailsBlock = (c: PublishedComponent) => c.visibility !== "hidden" && /^(multiEntityRecordView|detailPanel)$/.test(c.name.replace(/^.*:/, ""));
+
 /** A readable name for a component Draft inserted, which has no published block. */
 export function insertedLabel(component: string, properties: Record<string, string>): string {
   const name = component.includes(":") ? component.split(":")[1] : component;
