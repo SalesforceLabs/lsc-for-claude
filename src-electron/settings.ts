@@ -15,6 +15,8 @@ export interface Settings {
   appIcon?: string;
   /** Per org (lowercased username): deployed from source control, and the folder source files were last saved to. */
   sourceControl?: Record<string, { deployed: boolean; folder?: string }>;
+  /** Per org (lowercased username): the Salesforce API version pinned from the status bar; none = the org's own. */
+  apiVersions?: Record<string, string>;
 }
 
 const DEFAULT_SETTINGS: Settings = {

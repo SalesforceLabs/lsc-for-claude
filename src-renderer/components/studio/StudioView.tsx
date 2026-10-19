@@ -29,6 +29,7 @@ import UserTraceView from "./UserTraceView";
 import DriftView from "./DriftView";
 import TestUsersView from "./TestUsersView";
 import MetadataCacheView from "./MetadataCacheView";
+import ObjectSyncView from "./ObjectSyncView";
 import CustomScriptsView from "./scripts/CustomScriptsView";
 import type { ReadinessState } from "./readiness";
 import {
@@ -36,6 +37,7 @@ import {
   Archive,
   ClipboardCheck,
   CloudDownload,
+  Database,
   FileCode2,
   History,
   LayoutDashboard,
@@ -77,7 +79,7 @@ type MapState =
   | ({ status: "ready"; map: FeatureMap } & Revalidating);
 
 /** What the main pane shows: the iPad preview, a Setup page or feature, or a Testing page. */
-type Section = "preview" | "apps" | "overview" | "user-check" | "drift" | "setup" | SyncPage | "test-users" | "custom-scripts" | "metadata-cache";
+type Section = "preview" | "apps" | "overview" | "user-check" | "drift" | "setup" | SyncPage | "test-users" | "custom-scripts" | "metadata-cache" | "object-sync";
 
 export default function StudioView({ onAskClaude }: StudioViewProps) {
   const [features, setFeatures] = useState<FeatureSummary[]>([]);
@@ -586,6 +588,13 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           () => setSection("metadata-cache"),
           Archive
         )}
+        {railItem(
+          "object-sync",
+          "Object sync",
+          "Which objects and records LSC Mobile syncs, for whom — the DB Schema records",
+          () => setSection("object-sync"),
+          Database
+        )}
         <div className="studio-rail-title studio-rail-section">Setup</div>
         {railItem("overview", "Overview", "Every feature's readiness at a glance, and what blocks them all", () => setSection("overview"), LayoutDashboard)}
         {railItem(
@@ -835,6 +844,20 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               onAskClaude={onAskClaude}
             />
           </div>
+          {releaseBar(false)}
+        </section>
+      )}
+
+      {section === "object-sync" && (
+        <section className="studio-main ui-enter">
+          <ObjectSyncView
+            version={writeVersion}
+            pending={pending}
+            onPendingChange={setPending}
+            profiles={profiles}
+            onOrgSeen={setSeenOrg}
+            onOpenBoard={(surface, item) => openSetup("mobile-sync", surface as SurfaceId, item)}
+          />
           {releaseBar(false)}
         </section>
       )}

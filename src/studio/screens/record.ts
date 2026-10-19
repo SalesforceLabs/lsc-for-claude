@@ -4,7 +4,7 @@
  * REST GETs, batched per object so the query count stays bounded.
  */
 
-import { apiRequest } from "../../salesforce/cli.js";
+import { apiRequest, dataPath } from "../../salesforce/cli.js";
 import { ID_PATTERN, inList, query, type Row } from "../helpers.js";
 import { listCell, MULTI_ENTITY, trimNamespace, type PublishedComponent, type PublishedListData } from "../published.js";
 import { type ScreenContext, softFail } from "./context.js";
@@ -24,8 +24,6 @@ const PER_LIST = 10;
 const PER_OBJECT = 30;
 /** Related-list rows shown before "View All" (GenericRelatedListViewController). */
 export const RELATED_ROWS = 5;
-const API = "/services/data/v68.0";
-
 export interface PublishedRelated {
   /** `Child.Field`, the key of the layout's related list. */
   key: string;
@@ -207,7 +205,7 @@ function describeOf(ctx: ScreenContext, object: string): Promise<Describe | null
   const hit = cache.get(object);
   if (hit) return hit;
   const p = (async () => {
-    const r = await apiRequest<Row>(`${API}/sobjects/${object}/describe`, "GET", undefined, ctx.org).catch(() => null);
+    const r = await apiRequest<Row>(await dataPath(ctx.org, `/sobjects/${object}/describe`), "GET", undefined, ctx.org).catch(() => null);
     if (!r?.success || !r.data) return null;
     const d = r.data;
     const fields = new Map(arr(d.fields).map((f) => [str(f.name).toLowerCase(), f]));
@@ -631,7 +629,7 @@ async function affiliations(ctx: ScreenContext, ids: string[]): Promise<Map<stri
 async function themeOf(ctx: ScreenContext, object: string): Promise<{ color: string; iconUrl: string } | null> {
   const fromCore = ctx.core.objects[object]?.theme;
   if (fromCore) return fromCore;
-  const r = await apiRequest<Row>(`${API}/ui-api/object-info/${object}`, "GET", undefined, ctx.org).catch(() => null);
+  const r = await apiRequest<Row>(await dataPath(ctx.org, `/ui-api/object-info/${object}`), "GET", undefined, ctx.org).catch(() => null);
   const t = obj(r?.success ? r.data?.themeInfo : null);
   return t.color ? { color: `#${str(t.color).replace(/^#/, "")}`, iconUrl: str(t.iconUrl) } : null;
 }

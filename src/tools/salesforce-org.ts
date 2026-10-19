@@ -13,6 +13,7 @@ import {
   deleteRecord,
   getLoginCommand,
   generateMobileMetadataCache,
+  orgApiVersion,
   openOrg,
 } from "../salesforce/cli.js";
 import {
@@ -643,11 +644,11 @@ export function register(server: McpServer) {
         .describe(
           'Array of profile names to generate cache for. ASK THE USER which profiles to use. Examples: ["Field Sales Representative", "Medical Sales Representative", "Key Account Manager"]'
         ),
-      apiVersion: z.string().optional().describe('Salesforce API version (default: "64.0")'),
+      apiVersion: z.string().optional().describe("Salesforce API version (default: the org's API version)"),
       prefix: z.string().optional().describe('Namespace prefix (default: "lsc4ce")'),
       targetOrg: z.string().optional().describe("Optional: specific org to use"),
     },
-    async ({ profileNames, apiVersion = "65.0", prefix = "lsc4ce", targetOrg }) => {
+    async ({ profileNames, apiVersion: requestedVersion, prefix = "lsc4ce", targetOrg }) => {
       const validation = await validateOrgConnection();
       const effectiveOrg = targetOrg || validation.targetOrg;
 
@@ -662,6 +663,7 @@ export function register(server: McpServer) {
         };
       }
 
+      const apiVersion = requestedVersion ?? (await orgApiVersion(effectiveOrg));
       let message = "# Mobile Metadata Cache Generation\n\n";
 
       try {

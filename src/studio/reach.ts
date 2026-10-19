@@ -17,7 +17,7 @@ const uniq = (names: string[]) => {
   return [...seen.values()];
 };
 
-const splitNames = (v: string | number | null) => (typeof v === "string" ? v.split(/[,;]/) : []);
+const splitNames = (v: string | number | boolean | null) => (typeof v === "string" ? v.split(/[,;]/) : []);
 
 /** An Admin Console record: mobile categories reach the iPad only through a publish and aren't shown on desktop. */
 function configReach(category: string, profiles?: string[]): ChangeReach {

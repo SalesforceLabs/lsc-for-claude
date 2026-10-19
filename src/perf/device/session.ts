@@ -8,6 +8,7 @@
 import * as http from "http";
 import * as https from "https";
 import * as zlib from "zlib";
+import { FALLBACK_API_VERSION, resolveApiVersion } from "../../salesforce/api-version.js";
 import { execSfCommand } from "../../salesforce/cli.js";
 import type { NetworkShaper } from "./network.js";
 
@@ -62,7 +63,7 @@ export interface DeviceSession {
   http: DeviceHttp;
 }
 
-export const DEFAULT_API_VERSION = "v67.0";
+export const DEFAULT_API_VERSION = `v${FALLBACK_API_VERSION}`;
 
 export function normalizeApiVersion(v: string | undefined): string {
   if (!v) return DEFAULT_API_VERSION;
@@ -125,7 +126,7 @@ export function createTokenSession(login: TokenLogin, opts: SessionOptions = {})
     username: login.username,
     orgId: login.orgId,
     instanceUrl: login.instanceUrl,
-    apiVersion: normalizeApiVersion(opts.apiVersion),
+    apiVersion: opts.apiVersion ? normalizeApiVersion(opts.apiVersion) : `v${resolveApiVersion(login.instanceUrl, undefined)}`,
     http: createHttp(login.instanceUrl, login.accessToken, opts.fetchImpl),
   };
 }
@@ -431,7 +432,9 @@ export async function createDeviceSession(targetOrg: string, opts: SessionOption
   }
   if (!token) throw new Error(`No access token available for "${targetOrg}". ${AUTH_HELP}`);
 
-  const apiVersion = normalizeApiVersion(opts.apiVersion ?? (display.data.apiVersion as string | undefined));
+  const apiVersion = opts.apiVersion
+    ? normalizeApiVersion(opts.apiVersion)
+    : `v${resolveApiVersion(instanceUrl, display.data.apiVersion as string | undefined)}`;
   return {
     username,
     orgId: (display.data.id as string | undefined) ?? (display.data.orgId as string | undefined),

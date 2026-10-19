@@ -246,6 +246,24 @@ body {
   color: var(--text-muted);
 }
 
+/* The API version menu sits at the right end; its list opens upward and scrolls (orgs serve dozens of versions). */
+.status-bar-api {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-bar-api .ui-menu-list {
+  max-height: min(360px, 60vh);
+  overflow-y: auto;
+}
+
+.status-bar-warn {
+  color: var(--warning);
+}
+
 /* ─── Org switcher (top of the sidebar) ─── */
 
 .org-switcher {

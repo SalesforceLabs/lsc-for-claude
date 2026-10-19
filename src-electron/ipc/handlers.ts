@@ -35,6 +35,7 @@ import { chatModels, cleanConnection, createProvider, testConnection } from "../
 import { loadSettings, migrateSettings, saveSettings, Settings } from "../settings.js";
 import { applyAppIcon } from "../app-icon.js";
 import { sourceControlFor, withSourceControl } from "../source-control.js";
+import { apiVersionFor, withApiVersion } from "../api-version.js";
 import { applyTheme } from "../theme.js";
 import { getSecret, hasSecret, setSecret } from "../secrets.js";
 import {
@@ -138,7 +139,10 @@ function createOrgClient(org: PoolOrg): McpClient {
       await client.callTool("set_target_org", { org: org.target });
     } catch {
       // The org may have been logged out; tools report the connection problem themselves.
+      return;
     }
+    const pinned = apiVersionFor(loadSettings(), org.username);
+    if (pinned) await client.callTool("studio_set_api_version", { version: pinned }).catch(() => {});
   });
 }
 
@@ -910,6 +914,36 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     if (!ref?.username) return { ok: false, error: "No Salesforce org selected." };
     saveSettings(withSourceControl(loadSettings(), ref.username, { deployed: deployed === true }));
     return { ok: true };
+  });
+
+  // --- API version: pinned per org from the status bar; the org's server holds it in memory ---
+
+  const apiVersionCall = async (tool: string, args: Record<string, unknown>) => {
+    const client = await readyMcpClient();
+    if (!client) return { error: "Engine not started" };
+    try {
+      const result = await client.callTool(tool, args);
+      const data = JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}");
+      return data?.error ? { error: String(data.error) } : { data };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : String(e) };
+    }
+  };
+
+  ipcMain.handle("apiVersion:get", async () => {
+    const { ref } = await selectedOrg();
+    if (!ref?.username) return { org: null };
+    return { org: ref.username, ...(await apiVersionCall("studio_api_version", {})) };
+  });
+
+  ipcMain.handle("apiVersion:set", async (_event, version: string | null) => {
+    const { ref } = await selectedOrg();
+    if (!ref?.username) return { org: null, error: "No Salesforce org selected." };
+    const pin = typeof version === "string" && version ? version : null;
+    const res = await apiVersionCall("studio_set_api_version", { version: pin });
+    // Saved only once the org took it, so a refused version isn't pinned on the next start.
+    if (res.data) saveSettings(withApiVersion(loadSettings(), ref.username, pin));
+    return { org: ref.username, ...res };
   });
 
   // Pick the project folder (opening on the one last used for this org), then retrieve the changes' documents into it.

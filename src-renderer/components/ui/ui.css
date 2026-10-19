@@ -812,6 +812,7 @@ input[type="radio"]:not(.studio-ipad-screen *):disabled {
 
 .ui-menu-item {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 8px;
   height: var(--control);
@@ -833,6 +834,39 @@ input[type="radio"]:not(.studio-ipad-screen *):disabled {
 
 .ui-menu-item.danger {
   color: var(--error);
+}
+
+.ui-menu-list.above {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+/* A choice list keeps labels lined up whether or not the row is checked. */
+.ui-menu-check {
+  width: 14px;
+  flex-shrink: 0;
+}
+
+/* A text trigger (Menu's `trigger`): quiet, like the bar it sits in. */
+.ui-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 var(--space-2);
+  border: none;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.ui-menu-trigger:hover,
+.ui-menu-trigger[aria-expanded="true"] {
+  background: var(--fill-hover);
+  color: var(--text-primary);
 }
 
 /* ── JSON tree (JsonTree.tsx): a collapsible JSON value ── */

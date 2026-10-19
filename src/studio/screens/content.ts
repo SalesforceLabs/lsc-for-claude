@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { ID_PATTERN, inList, query, type Row } from "../helpers.js";
-import { downloadToFile } from "../../salesforce/cli.js";
+import { dataPath, downloadToFile } from "../../salesforce/cli.js";
 import type { ScreenContext } from "./context.js";
 
 const run = promisify(execFile);
@@ -316,7 +316,7 @@ function sourceFile(org: string, version: string, type: string): Promise<string>
   const dir = join(tmpdir(), "lsc-studio-content-src");
   mkdirSync(dir, { recursive: true });
   const file = join(dir, `${createHash("sha1").update(key).digest("hex")}.${type === "PDF" ? "pdf" : "zip"}`);
-  const fetched = downloadToFile(`/services/data/v62.0/sobjects/ContentVersion/${version}/VersionData`, file, org, 120000).then((res) => {
+  const fetched = dataPath(org, `/sobjects/ContentVersion/${version}/VersionData`).then((path) => downloadToFile(path, file, org, 120000)).then((res) => {
     if (!res.success) throw new Error(res.error || "Download failed");
     return file;
   });

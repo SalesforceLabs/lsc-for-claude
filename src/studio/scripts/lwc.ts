@@ -8,13 +8,12 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { deleteMetadata, deployMetadata, retrieveMetadata, updateToolingRecord } from "../../salesforce/cli.js";
+import { deleteMetadata, deployMetadata, orgApiVersion, retrieveMetadata, updateToolingRecord } from "../../salesforce/cli.js";
 import type { StatusHook } from "../../salesforce/direct-metadata.js";
 import { query, ID_PATTERN } from "../helpers.js";
 import { bundleEditable, type BundleInfo } from "./library.js";
 
 /** Matches the temp SFDX project's API version. */
-const API_VERSION = "66.0";
 
 /** The platform's rule for an LWC folder name: starts lower-case, letters/digits/underscore, no `__`, no trailing `_`. */
 export const LWC_NAME = /^[a-z][A-Za-z0-9_]{0,79}$/;
@@ -71,8 +70,8 @@ export async function readBundle(org: string, componentName: string): Promise<Bu
 
 const xmlEscape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-export const bundleMetaXml = (label: string) =>
-  `<?xml version="1.0" encoding="UTF-8"?>\n<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">\n    <apiVersion>${API_VERSION}</apiVersion>\n    <isExposed>false</isExposed>\n    <masterLabel>${xmlEscape(label)}</masterLabel>\n</LightningComponentBundle>\n`;
+export const bundleMetaXml = (label: string, apiVersion: string) =>
+  `<?xml version="1.0" encoding="UTF-8"?>\n<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">\n    <apiVersion>${apiVersion}</apiVersion>\n    <isExposed>false</isExposed>\n    <masterLabel>${xmlEscape(label)}</masterLabel>\n</LightningComponentBundle>\n`;
 
 /** Create a bundle holding just the .js, with a temp-directory deploy. */
 export async function createBundle(org: string, componentName: string, label: string, code: string, onStatus?: StatusHook): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -83,7 +82,7 @@ export async function createBundle(org: string, componentName: string, label: st
     const folder = path.join(dir, "lwc", componentName);
     fs.mkdirSync(folder, { recursive: true });
     fs.writeFileSync(path.join(folder, `${componentName}.js`), code, "utf-8");
-    fs.writeFileSync(path.join(folder, `${componentName}.js-meta.xml`), bundleMetaXml(label), "utf-8");
+    fs.writeFileSync(path.join(folder, `${componentName}.js-meta.xml`), bundleMetaXml(label, await orgApiVersion(org)), "utf-8");
     const res = await (onStatus ? deployMetadata(dir, org, onStatus) : deployMetadata(dir, org));
     return res.success ? { ok: true } : { ok: false, error: res.error ?? "The deploy failed." };
   } finally {

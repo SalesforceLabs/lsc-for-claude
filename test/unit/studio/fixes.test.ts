@@ -276,7 +276,7 @@ describe("publish to iPad", () => {
       "org"
     );
     expect(vi.mocked(cli.updateRecord).mock.calls.map((c) => c[1])).toEqual(["1MR000000000001", "1MR000000000002"]);
-    expect(cli.generateMobileMetadataCache).toHaveBeenCalledWith("1MR000000000001", "65.0", "lsc4ce", "org");
+    expect(cli.generateMobileMetadataCache).toHaveBeenCalledWith("1MR000000000001", undefined, "lsc4ce", "org");
     expect(status).toMatchObject({ parentId: "1MR000000000001", state: "running" });
   });
 

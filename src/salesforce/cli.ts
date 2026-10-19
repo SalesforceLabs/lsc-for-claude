@@ -11,11 +11,12 @@ import * as crypto from "crypto";
 import * as os from "os";
 import { cacheGet, cacheSet, queryCacheKey, describeCacheKey } from "../cache.js";
 import { sfLimiter } from "./limiter.js";
-import { directApiVersion, directDownload, directEnabled, directGet, directPostRead, directQuery, type DirectCredentials } from "./direct.js";
+import { directDownload, directEnabled, directGet, directPostRead, directQuery, directToolingWrite, type DirectCredentials, type DirectOutcome } from "./direct.js";
 import { directDelete, directDeploy, directRetrieve, type StatusHook } from "./direct-metadata.js";
 import { toolingWriteMetadata } from "./tooling-metadata.js";
 import { invalidateSharedReads, sharedRead, sharedReadsActive } from "../config/read-cache.js";
 import { isTokenOrg, tokenOrgCredentials, TOKEN_ORG_NO_CLI } from "./token-org.js";
+import { anyApiVersionPinned, FALLBACK_API_VERSION, normalizeVersion, pinnedApiVersion, resolveApiVersion } from "./api-version.js";
 
 const execAsync = promisify(exec);
 
@@ -196,7 +197,8 @@ export async function installSfCli(): Promise<CliResult<string>> {
  */
 const TMP_SFDX_PROJECT_DIR = path.join(os.tmpdir(), `lsc-sfdx-project-${process.pid}`);
 // Newer objects (Inquiry, ...) are rejected by older source API versions, which made their deploys fail.
-const TMP_PROJECT_API_VERSION = "66.0";
+// Calls themselves use the org's version (SF_ORG_API_VERSION when pinned); this only names the source format.
+const TMP_PROJECT_API_VERSION = FALLBACK_API_VERSION;
 
 export function ensureTmpSfdxProject(): string {
   const forceAppDir = path.join(TMP_SFDX_PROJECT_DIR, "force-app");
@@ -230,6 +232,10 @@ export async function execSfCommand<T>(
 ): Promise<CliResult<T>> {
   // A rep's token org is only served by the direct REST path; never hand it to the CLI.
   if (isTokenOrg(options.targetOrg)) return { success: false, error: TOKEN_ORG_NO_CLI };
+  // A version pinned for the org applies to the CLI too. `sf org` commands are how the login (and so the org's instance) is read.
+  if (options.targetOrg && command !== "org" && anyApiVersionPinned()) {
+    options = { ...options, env: { SF_ORG_API_VERSION: await orgApiVersion(options.targetOrg), ...options.env } };
+  }
   const run = () => sfLimiter.run(() => spawnSfJson<T>(command, args, options));
   return writesToOrg(command, args) ? asWrite(options.targetOrg, run) : run();
 }
@@ -417,6 +423,39 @@ export function markTruncated(query: string, data: SoqlQueryResult): SoqlQueryRe
   return data;
 }
 
+/** The API version calls to `org` use: the one pinned for it in the app, else the org's newest (see api-version.ts). */
+export async function orgApiVersion(org: string): Promise<string> {
+  // Read once per org, failures too: the CLI fallback calls this on every request.
+  let info = orgVersionInfo.get(org);
+  if (!info) {
+    info = directCredentials(org).catch(() => null);
+    orgVersionInfo.set(org, info);
+  }
+  const creds = await info;
+  return resolveApiVersion(creds?.instanceUrl, creds?.apiVersion);
+}
+
+const orgVersionInfo = new Map<string, Promise<DirectCredentials | null>>();
+
+/** What the org's version is made of: its instance (pins are keyed by it), the newest version it reports, and the pin. */
+export async function orgApiVersionDetails(
+  org: string
+): Promise<{ instanceUrl: string | null; reported: string | null; pinned: string | null; version: string }> {
+  const version = await orgApiVersion(org);
+  const creds = await orgVersionInfo.get(org);
+  return {
+    instanceUrl: creds?.instanceUrl ?? null,
+    reported: normalizeVersion(creds?.apiVersion),
+    pinned: pinnedApiVersion(creds?.instanceUrl),
+    version,
+  };
+}
+
+/** `/services/data/v<org's API version><rest>`; `rest` starts with "/". */
+export async function dataPath(org: string, rest: string): Promise<string> {
+  return `/services/data/v${await orgApiVersion(org)}${rest}`;
+}
+
 /** The sf CLI's login for an org, for the direct REST fast path. */
 async function directCredentials(org: string): Promise<DirectCredentials | null> {
   if (isTokenOrg(org)) return tokenOrgCredentials(org);
@@ -529,7 +568,9 @@ export async function createToolingRecord(
   data: Record<string, unknown>,
   targetOrg: string
 ): Promise<CliResult<{ id: string }>> {
-  const endpoint = `/services/data/v66.0/tooling/sobjects/${objectName}`;
+  const direct = await asWrite(targetOrg, () => directToolingWrite<{ id: string }>("POST", objectName, null, data, targetOrg, directCredentials));
+  if (direct) return fromDirect(direct);
+  const endpoint = await dataPath(targetOrg, `/tooling/sobjects/${objectName}`);
   return apiRequest<{ id: string }>(endpoint, "POST", data, targetOrg);
 }
 
@@ -542,7 +583,9 @@ export async function updateToolingRecord(
   data: Record<string, unknown>,
   targetOrg: string
 ): Promise<CliResult<void>> {
-  const endpoint = `/services/data/v66.0/tooling/sobjects/${objectName}/${recordId}`;
+  const direct = await asWrite(targetOrg, () => directToolingWrite<void>("PATCH", objectName, recordId, data, targetOrg, directCredentials));
+  if (direct) return fromDirect(direct);
+  const endpoint = await dataPath(targetOrg, `/tooling/sobjects/${objectName}/${recordId}`);
   return apiRequest<void>(endpoint, "PATCH", data, targetOrg);
 }
 
@@ -554,8 +597,15 @@ export async function deleteToolingRecord(
   recordId: string,
   targetOrg: string
 ): Promise<CliResult<void>> {
-  const endpoint = `/services/data/v66.0/tooling/sobjects/${objectName}/${recordId}`;
+  const direct = await asWrite(targetOrg, () => directToolingWrite<void>("DELETE", objectName, recordId, undefined, targetOrg, directCredentials));
+  if (direct) return fromDirect(direct);
+  const endpoint = await dataPath(targetOrg, `/tooling/sobjects/${objectName}/${recordId}`);
   return apiRequest<void>(endpoint, "DELETE", undefined, targetOrg);
+}
+
+/** A direct REST answer as the CLI wrapper's result. */
+function fromDirect<T>(direct: DirectOutcome<T>): CliResult<T> {
+  return direct.ok ? { success: true, data: direct.data } : { success: false, error: direct.error, timedOut: direct.timedOut };
 }
 
 /**
@@ -566,8 +616,7 @@ export async function describeSObject(
   targetOrg: string
 ): Promise<CliResult<SObjectDescribeResult>> {
   if (directEnabled(targetOrg) && /^\w+$/.test(objectName)) {
-    const version = await directApiVersion(targetOrg, directCredentials);
-    const direct = await directGet<SObjectDescribeResult>(`/services/data/v${version}/sobjects/${objectName}/describe`, targetOrg, directCredentials);
+    const direct = await directGet<SObjectDescribeResult>(await dataPath(targetOrg, `/sobjects/${objectName}/describe`), targetOrg, directCredentials);
     if (direct?.ok && typeof direct.data === "object") return { success: true, data: direct.data };
     if (direct && !direct.ok) return { success: false, error: direct.error, timedOut: direct.timedOut };
   }
@@ -719,8 +768,9 @@ export async function deleteMetadata(type: string, fullName: string, targetOrg: 
   const cwd = ensureTmpSfdxProject();
   const dir = path.join(cwd, "destructive", `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
   fs.mkdirSync(dir, { recursive: true });
+  const version = await orgApiVersion(targetOrg);
   const xml = (body: string) =>
-    `<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n${body}    <version>${TMP_PROJECT_API_VERSION}</version>\n</Package>\n`;
+    `<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n${body}    <version>${version}</version>\n</Package>\n`;
   const escaped = fullName.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   fs.writeFileSync(path.join(dir, "package.xml"), xml(""));
   fs.writeFileSync(
@@ -1007,14 +1057,15 @@ function spawnApiRequest<T>(
 }
 
 /**
- * Generate mobile metadata cache by calling the Connect API
+ * Generate mobile metadata cache by calling the Connect API. `version` defaults to the org's API version.
  */
 export async function generateMobileMetadataCache(
   parentMetadataRecordId: string,
-  apiVersion: string,
+  version: string | undefined,
   prefix: string,
   targetOrg: string
 ): Promise<CliResult<unknown>> {
+  const apiVersion = version ?? (await orgApiVersion(targetOrg));
   const endpoint = `/services/data/v${apiVersion}/connect/life-sciences/commercial/metadata/actions/generate`;
   const body = {
     parentMetadataRecordId,
@@ -1120,7 +1171,7 @@ export async function uploadContentVersion(
 
   const body = Buffer.concat(parts);
 
-  const url = `${instanceUrl}/services/data/v62.0/sobjects/ContentVersion`;
+  const url = `${instanceUrl}${await dataPath(targetOrg, "/sobjects/ContentVersion")}`;
 
   try {
     const response = await fetch(url, {
@@ -1203,7 +1254,7 @@ export async function createBulkPresentation(
   payload: BulkPresentationPayload,
   targetOrg: string
 ): Promise<CliResult<unknown>> {
-  const endpoint = "/services/data/v66.0/connect/life-sciences/commercial/bulk-presentation";
+  const endpoint = await dataPath(targetOrg, "/connect/life-sciences/commercial/bulk-presentation");
 
   const presentation: Record<string, unknown> = {
     name: payload.name,

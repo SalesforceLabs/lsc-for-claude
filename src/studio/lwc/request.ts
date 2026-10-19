@@ -5,9 +5,8 @@
  * other endpoint are refused, so a previewed component can't change the org.
  */
 
-import { createDeviceSession, createTokenSession, type DeviceHttp, type TokenLogin } from "../../perf/device/session.js";
+import { createDeviceSession, createTokenSession, DEFAULT_API_VERSION, type DeviceHttp, type DeviceSession, type TokenLogin } from "../../perf/device/session.js";
 
-const API = "/services/data/v68.0";
 
 /** Largest answer relayed to the preview frame (over postMessage); a bigger one is refused with a message saying so. */
 export const MAX_LWC_RESPONSE_BYTES = 5 * 1024 * 1024;
@@ -38,17 +37,22 @@ export function refuseLwcRequest(req: LwcRequest): string | null {
   return `Studio's preview doesn't send ${req.method} ${req.path}.`;
 }
 
-const sessions = new Map<string, Promise<DeviceHttp>>();
+const sessions = new Map<string, Promise<DeviceSession>>();
 
 /** The org's sf CLI session; the token stays inside it (src/perf/device/session.ts). */
-function orgHttp(org: string, fresh = false): Promise<DeviceHttp> {
+function orgSession(org: string, fresh = false): Promise<DeviceSession> {
   let h = fresh ? undefined : sessions.get(org);
   if (!h) {
-    h = createDeviceSession(org).then((s) => s.http);
+    h = createDeviceSession(org);
     sessions.set(org, h);
     h.catch(() => sessions.delete(org));
   }
   return h;
+}
+
+/** Forget the cached sessions, so the next request uses a newly pinned API version. */
+export function resetLwcSessions(): void {
+  sessions.clear();
 }
 
 function errorBody(data: unknown, fallback: string): { message: string; errorCode?: string } {
@@ -66,16 +70,19 @@ function errorBody(data: unknown, fallback: string): { message: string; errorCod
 export async function lwcRequest(as: string | TokenLogin, req: LwcRequest, http?: DeviceHttp): Promise<LwcResponse> {
   const refused = refuseLwcRequest(req);
   if (refused) return { ok: false, status: 403, statusText: "Forbidden", body: { message: refused } };
-  const tokenHttp = typeof as === "string" || http ? undefined : createTokenSession(as).http;
-  const send = async (fresh: boolean) =>
-    (http ?? tokenHttp ?? (await orgHttp(as as string, fresh)))({
+  const tokenSession = typeof as === "string" || http ? undefined : createTokenSession(as);
+  const send = async (fresh: boolean) => {
+    const session = http ? undefined : (tokenSession ?? (await orgSession(as as string, fresh)));
+    const version = session?.apiVersion ?? DEFAULT_API_VERSION;
+    return (http ?? session!.http)({
       method: req.method,
-      url: `${API}${req.path}`,
+      url: `/services/data/${version}${req.path}`,
       headers: { Accept: "application/json", ...(req.method === "POST" ? { "Content-Type": "application/json" } : {}) },
       body: req.method === "POST" ? JSON.stringify(req.body) : undefined,
     });
+  };
   let res = await send(false);
-  if (res.status === 401 && !http && !tokenHttp) res = await send(true);
+  if (res.status === 401 && !http && !tokenSession) res = await send(true);
   if (res.body.length > MAX_LWC_RESPONSE_BYTES) {
     const mb = (res.body.length / 1048576).toFixed(1);
     return {

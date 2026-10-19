@@ -81,6 +81,14 @@ export interface PerfSimRecord {
   result?: unknown;
 }
 
+/** studio_api_version's answer (src/studio/api-version.ts). */
+export interface ApiVersionInfo {
+  version: string;
+  pinned: string | null;
+  orgDefault: string;
+  available: string[];
+}
+
 interface StudioResponse {
   data?: unknown & { error?: string };
   error?: string;
@@ -195,6 +203,10 @@ interface LscApi {
   studioMetadataCacheFile(recordId: string, path: string): Promise<StudioResponse>;
   /** Save a cache record's ZIP through a save dialog. */
   studioSaveMetadataCache(recordId: string): Promise<{ canceled?: boolean; path?: string; error?: string }>;
+  /** Every DB Schema record, as the Object sync page's rows. */
+  studioObjectSync(): Promise<StudioResponse>;
+  /** Test-run DB Schema records' objects, fields and filters (read-only). */
+  studioObjectSyncCheck(developerNames: string[]): Promise<StudioResponse>;
   studioPerfUsers(search?: string, profile?: string, days?: number): Promise<StudioResponse>;
   studioPerfParsePlan(yaml: string): Promise<StudioResponse>;
   studioPerfStart(plan: unknown): Promise<StudioResponse>;
@@ -265,6 +277,10 @@ interface LscApi {
   // Source control — per org (the selected one): deployed from Git, and saving Studio's changes as source files
   sourceControlGet(): Promise<{ org: string | null; deployed: boolean; folder?: string }>;
   sourceControlSet(deployed: boolean): Promise<{ ok: boolean; error?: string }>;
+  /** The selected org's Salesforce API version: in use, pinned (null = the org's own), the org's own, and those it serves. */
+  apiVersionGet(): Promise<{ org: string | null; data?: ApiVersionInfo; error?: string }>;
+  /** Pin a version for the selected org (null: back to the org's own). */
+  apiVersionSet(version: string | null): Promise<{ org: string | null; data?: ApiVersionInfo; error?: string }>;
   /** Asks for the project folder (opening on the org's last one), then writes the changes' org versions there. */
   studioExportSource(
     changes: unknown[],

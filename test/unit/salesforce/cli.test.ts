@@ -59,7 +59,22 @@ const {
   ensureTmpSfdxProject,
   retrieveMetadata,
   listMetadata,
+  orgApiVersion,
 } = await import("../../../src/salesforce/cli.js");
+
+// URLs carry the org's API version, read once per org from `sf org display`; read it for
+// "my-org" up front so each test's spawns are only the calls it makes.
+{
+  const proc = createMockChildProcess();
+  mockSpawn.mockReturnValue(proc);
+  const version = orgApiVersion("my-org");
+  setTimeout(() => {
+    proc.stdout!.emit("data", Buffer.from(JSON.stringify({ status: 0, result: { instanceUrl: "https://my-org.my.salesforce.com", apiVersion: "66.0", accessToken: "token" } })));
+    proc.emit("close", 0);
+  }, 0);
+  await version;
+  mockSpawn.mockClear();
+}
 
 describe("cli.ts", () => {
   let mockProc: ChildProcess;

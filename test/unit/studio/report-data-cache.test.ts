@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("../../../src/salesforce/cli.js", () => ({ apiRequest: vi.fn() }));
+vi.mock("../../../src/salesforce/cli.js", () => ({
+  apiRequest: vi.fn(),
+  orgApiVersion: async () => "66.0",
+  dataPath: async (_org: string, rest: string) => `/services/data/v66.0${rest}`,
+}));
 
 const { apiRequest } = await import("../../../src/salesforce/cli.js");
 const { runReport, clearReportCache } = await import("../../../src/studio/screens/report-data.js");

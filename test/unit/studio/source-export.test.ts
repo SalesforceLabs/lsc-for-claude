@@ -6,7 +6,11 @@ import * as path from "node:path";
 const retrieveMetadata = vi.fn();
 const query = vi.fn();
 const appsReferencingPage = vi.fn();
-vi.mock("../../../src/salesforce/cli.js", () => ({ retrieveMetadata: (...a: unknown[]) => retrieveMetadata(...a) }));
+vi.mock("../../../src/salesforce/cli.js", () => ({
+  retrieveMetadata: (...a: unknown[]) => retrieveMetadata(...a),
+  orgApiVersion: async () => "66.0",
+  dataPath: async (_org: string, rest: string) => `/services/data/v66.0${rest}`,
+}));
 vi.mock("../../../src/studio/helpers.js", async (orig) => ({
   ...(await orig<typeof import("../../../src/studio/helpers.js")>()),
   query: (...a: unknown[]) => query(...a),
@@ -180,7 +184,7 @@ describe("buildPackageXml", () => {
         { type: "LifeSciConfigRecord", fullName: "DbSchema_Visit" },
         { type: "Layout", fullName: "Account-R&D Layout" },
         { type: "Layout", fullName: "Visit-Visit Layout" },
-      ])
+      ], "66.0")
     ).toBe(`<?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>

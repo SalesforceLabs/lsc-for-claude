@@ -5,6 +5,8 @@ import * as path from "path";
 import type { StudioFix } from "../../../src/studio/types.js";
 
 vi.mock("../../../src/salesforce/cli.js", () => ({
+  orgApiVersion: async () => "66.0",
+  dataPath: async (_org: string, rest: string) => `/services/data/v66.0${rest}`,
   runSoqlQuery: vi.fn(),
   runToolingQuery: vi.fn(),
   cachedDescribeSObject: vi.fn(),

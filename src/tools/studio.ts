@@ -22,9 +22,11 @@ import { loadProgress } from "../studio/published-progress.js";
 import { mapProgress, mapKey, readinessKey } from "../studio/map-progress.js";
 import { collectUnpublished } from "../studio/unpublished.js";
 import { cacheContents, cacheFile, cacheLog, collectMetadataCache } from "../studio/metadata-cache.js";
+import { checkObjectSync, collectObjectSync } from "../studio/object-sync.js";
 import { fixProgress, startFixChange } from "../studio/fix-progress.js";
 import { compileInlineLwc } from "../studio/lwc/compile.js";
 import { lwcRequest } from "../studio/lwc/request.js";
+import { apiVersionInfo, setApiVersion } from "../studio/api-version.js";
 import type { StudioFix } from "../studio/types.js";
 import { collectScriptDetail, collectScriptLibrary } from "../studio/scripts/library.js";
 import {
@@ -198,8 +200,8 @@ const fixSchema = z.discriminatedUnion("kind", [
     developerName: z.string(),
     recordLabel: z.string(),
     field: z.string(),
-    from: z.union([z.string(), z.number(), z.null()]),
-    to: z.union([z.string(), z.number(), z.null()]),
+    from: z.union([z.string(), z.number(), z.boolean(), z.null()]),
+    to: z.union([z.string(), z.number(), z.boolean(), z.null()]),
   }),
   z.object({
     kind: z.literal("setActive"),
@@ -796,6 +798,40 @@ export function register(server: McpServer) {
     }
   );
 
+  server.tool(
+    "studio_object_sync",
+    "LSC Studio (GUI data): the Object sync page — every DB Schema record (Admin Console › Mobile › Object Metadata Cache Configuration) with its object, type, active switch, validation status, filter, profile and permission set assignments, every field value, the sync query and Studio's findings (errors, invalid, unassigned, duplicates per profile), plus the org's queryable objects. Read-only. Returns JSON.",
+    {},
+    async () => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await collectObjectSync(connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_object_sync_check",
+    "LSC Studio (GUI data): check DB Schema records the way metadata cache generation would trip over them — the object exists and can be queried, the delta date field and synced fields are on it, and the filter runs as a one-row query with its tags filled with sample values. Read-only: it doesn't start the Admin Console's Validate job or change Status. Returns JSON.",
+    { developerNames: z.array(z.string().min(1).max(80)).min(1).max(500) },
+    async ({ developerNames }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await checkObjectSync(developerNames, connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
   // --- custom scripts: server ---
   server.tool(
     "studio_custom_scripts",
@@ -1294,6 +1330,36 @@ function registerPerfTools(server: McpServer) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       return json({ org: connection.targetOrg });
+    }
+  );
+
+  server.tool(
+    "studio_api_version",
+    "LSC Studio (GUI data): the Salesforce API version calls to the connected org use, the version pinned for it (null: the org's own), the org's own version and the versions it serves, newest first. Returns JSON { version, pinned, orgDefault, available }.",
+    {},
+    async () => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      return json(await apiVersionInfo(connection.targetOrg));
+    }
+  );
+
+  server.tool(
+    "studio_set_api_version",
+    "LSC Studio (GUI): pin the Salesforce API version for the connected org, or (null) go back to the org's own version. Refuses a version the org doesn't serve. Returns the same JSON as studio_api_version.",
+    { version: z.string().nullable().describe('e.g. "66.0", or null for the org\'s own version') },
+    async ({ version }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await setApiVersion(connection.targetOrg, version));
+      } catch (e) {
+        return jsonError(e instanceof Error ? e.message : String(e));
+      }
     }
   );
 

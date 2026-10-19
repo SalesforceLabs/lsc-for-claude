@@ -15,7 +15,7 @@ import * as os from "os";
 import * as path from "path";
 import { promisify } from "util";
 import { resolveScalarTags } from "../perf/sync-volume.js";
-import { apiRequest, downloadToFile } from "../salesforce/cli.js";
+import { apiRequest, dataPath, downloadToFile } from "../salesforce/cli.js";
 import { count, ID_PATTERN, inList, query, queryResult, type Row } from "./helpers.js";
 import { registerTokenOrg, forgetTokenOrg, latestApiVersion } from "../salesforce/token-org.js";
 import type { TokenLogin } from "../perf/device/session.js";
@@ -1280,7 +1280,7 @@ async function withDashboardData(dashboards: Record<string, PublishedDashboard>,
   let finished = 0;
   await runPool(shared.slice(0, DASHBOARDS_READ), LIST_CONCURRENCY, async ([name, d]) => {
     try {
-      const res = await withTimeout(apiRequest<Row>(`/services/data/v62.0/analytics/dashboards/${d.id}`, "GET", undefined, org), LIST_VIEW_TIMEOUT_MS, "Reading this dashboard");
+      const res = await withTimeout(apiRequest<Row>(await dataPath(org, `/analytics/dashboards/${d.id}`), "GET", undefined, org), LIST_VIEW_TIMEOUT_MS, "Reading this dashboard");
       if (!res.success || !res.data) throw new Error(res.error || "no data returned");
       const data = new Map(arr(res.data.componentData).map((c) => [str(c.componentId), c]));
       let refreshedAt: string | undefined;
@@ -1417,7 +1417,7 @@ export function downloadTimeoutMs(sizeBytes: number | null): number {
 
 export async function download(contentVersionId: string, dest: string, org: string, sizeBytes: number | null = null): Promise<void> {
   const timeout = downloadTimeoutMs(sizeBytes);
-  const res = await downloadToFile(`/services/data/v62.0/sobjects/ContentVersion/${contentVersionId}/VersionData`, dest, org, timeout);
+  const res = await downloadToFile(await dataPath(org, `/sobjects/ContentVersion/${contentVersionId}/VersionData`), dest, org, timeout);
   if (res.success) return;
   if (res.timedOut) {
     const size = sizeBytes ? ` (${(sizeBytes / 1_048_576).toFixed(0)} MB)` : "";
@@ -2041,7 +2041,7 @@ async function viewerLists(
   const urlsFor = (name: string) => {
     let p = describeUrls.get(name);
     if (!p) {
-      p = apiRequest<Row>(`/services/data/v62.0/sobjects/${name}/listviews`, "GET", undefined, readOrg).then(
+      p = dataPath(readOrg, `/sobjects/${name}/listviews`).then((path) => apiRequest<Row>(path, "GET", undefined, readOrg)).then(
         (res) => new Map(arr(res.success ? res.data?.listviews : []).map((l) => [str(l.developerName), str(l.describeUrl)])),
         () => new Map<string, string>()
       );

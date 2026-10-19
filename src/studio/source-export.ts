@@ -15,7 +15,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { retrieveMetadata } from "../salesforce/cli.js";
+import { orgApiVersion, retrieveMetadata } from "../salesforce/cli.js";
 import { parseMetadataSpecs } from "../salesforce/direct-metadata.js";
 import { inList, query } from "./helpers.js";
 import { appsReferencingPage } from "./metadata/live.js";
@@ -69,7 +69,6 @@ export interface SourcePlan {
 }
 
 export const PACKAGE_XML_PATH = path.join("manifest", "studio-package.xml");
-const API_VERSION = "66.0";
 
 const ORG_ONLY = {
   psl: "Permission set license assignments are user records in the org, not source files.",
@@ -189,7 +188,7 @@ export function sourcePathFor(item: SourceItem): string {
 }
 
 /** A package.xml naming the items, types and members sorted as the CLI writes them. */
-export function buildPackageXml(items: SourceItem[], version = API_VERSION): string {
+export function buildPackageXml(items: SourceItem[], version: string): string {
   const byType = new Map<string, Set<string>>();
   for (const i of items) {
     if (!byType.has(i.type)) byType.set(i.type, new Set());
@@ -431,7 +430,7 @@ export async function exportSource(input: SourceExportInput, org: string): Promi
     if (result.files.length > 0) {
       const manifest = path.join(folder, PACKAGE_XML_PATH);
       fs.mkdirSync(path.dirname(manifest), { recursive: true });
-      fs.writeFileSync(manifest, buildPackageXml(result.files));
+      fs.writeFileSync(manifest, buildPackageXml(result.files, await orgApiVersion(org)));
       result.manifest = rel(manifest);
     }
   } finally {

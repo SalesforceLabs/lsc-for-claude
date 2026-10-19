@@ -18,6 +18,7 @@
 import { createWriteStream, renameSync, rmSync } from "node:fs";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
+import { resolveApiVersion } from "./api-version.js";
 import { sfLimiter } from "./limiter.js";
 
 export interface DirectCredentials {
@@ -42,7 +43,6 @@ export type DirectOutcome<T> =
 /** Salesforce rejects request URIs past ~16 KB; stay under it and let the CLI try. */
 export const MAX_GET_URL_CHARS = 15_000;
 const DEFAULT_TIMEOUT_MS = 120_000;
-const DEFAULT_API_VERSION = "62.0";
 
 const credentials = new Map<string, Promise<DirectCredentials | null>>();
 const disabledOrgs = new Set<string>();
@@ -108,13 +108,18 @@ interface RawResponse {
 /**
  * One GET against the org. `null` means "transport unusable — fall back".
  * Retries once on a 5xx, once with a fresh token on a 401.
+ *
+ * A request marked `once` (a create, which isn't safe to send twice) is never
+ * retried on a 5xx, and a connection lost after it may have been sent comes
+ * back as a failure instead of `null`, so the CLI doesn't send it again. A 401
+ * is still retried: Salesforce refuses an expired token before acting.
  */
 async function getOnce(
   org: string,
   pathAndQuery: string,
   fetcher: CredentialFetcher,
   timeoutMs: number,
-  request?: { method: "POST" | "PATCH"; body: unknown }
+  request?: { method: "POST" | "PATCH" | "DELETE"; body?: unknown; once?: boolean }
 ): Promise<RawResponse | { timedOut: true } | null> {
   let creds = await getCredentials(org, fetcher);
   if (!creds) return null;
@@ -125,11 +130,11 @@ async function getOnce(
     try {
       res = await sfLimiter.run(() =>
         fetch(url, {
-          ...(request ? { method: request.method, body: JSON.stringify(request.body) } : {}),
+          ...(request ? { method: request.method, ...(request.body !== undefined ? { body: JSON.stringify(request.body) } : {}) } : {}),
           headers: {
             Authorization: `Bearer ${creds!.accessToken}`,
             Accept: "application/json",
-            ...(request ? { "Content-Type": "application/json" } : {}),
+            ...(request?.body !== undefined ? { "Content-Type": "application/json" } : {}),
           },
           signal: AbortSignal.timeout(timeoutMs),
         })
@@ -139,6 +144,7 @@ async function getOnce(
       if (name === "TimeoutError" || name === "AbortError") return { timedOut: true };
       // DNS, proxy, TLS, connection refused — this machine can't reach the org directly.
       disabledOrgs.add(org);
+      if (request?.once) return { status: 599, body: "Lost the connection to Salesforce during the request. Check the org before trying again." };
       return null;
     }
     const body = await res.text();
@@ -150,7 +156,7 @@ async function getOnce(
       continue;
     }
     if (res.status === 401) return null;
-    if (res.status >= 500 && attempt < 2) {
+    if (res.status >= 500 && attempt < 2 && !request?.once) {
       await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
       continue;
     }
@@ -161,7 +167,7 @@ async function getOnce(
 
 async function apiVersion(org: string, fetcher: CredentialFetcher): Promise<string> {
   const creds = await getCredentials(org, fetcher);
-  return creds?.apiVersion || DEFAULT_API_VERSION;
+  return resolveApiVersion(creds?.instanceUrl, creds?.apiVersion);
 }
 
 /**
@@ -208,7 +214,7 @@ export async function directQuery(
 }
 
 /**
- * A REST GET (`endpoint` is a path under the instance, e.g. /services/data/v62.0/...).
+ * A REST GET (`endpoint` is a path under the instance, e.g. from `dataPath` in cli.ts).
  * Mirrors `sf api request rest`: parsed JSON on 2xx, raw text if it isn't JSON.
  */
 export async function directGet<T>(
@@ -248,7 +254,7 @@ export async function directMetadataSoap(
   let creds = await getCredentials(org, fetcher);
   if (!creds) return null;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const version = creds.apiVersion || DEFAULT_API_VERSION;
+    const version = resolveApiVersion(creds.instanceUrl, creds.apiVersion);
     const url = `${creds.instanceUrl.replace(/\/$/, "")}/services/Soap/m/${version}`;
     const envelope =
       `<?xml version="1.0" encoding="UTF-8"?><env:Envelope xmlns:env="http://schemas.xmlsoap.org/soap/envelope/" xmlns="http://soap.sforce.com/2006/04/metadata">` +
@@ -287,7 +293,7 @@ export async function directMetadataSoap(
   return null;
 }
 
-/** The API version the direct path talks to an org with (the sf CLI's), for package manifests. */
+/** The API version for an org (pinned, else the sf CLI's), for URLs and package manifests. */
 export async function directApiVersion(org: string, fetcher: CredentialFetcher): Promise<string> {
   return apiVersion(org, fetcher);
 }
@@ -396,4 +402,39 @@ export async function directToolingPatch(
   if ("timedOut" in res) return { ok: false, timedOut: true, error: `Request timed out after ${Math.round(timeoutMs / 1000)}s` };
   if (res.status >= 400) return { ok: false, status: res.status, error: errorText(res.status, res.body) };
   return { ok: true, data: undefined };
+}
+
+/** Admin Console Tooling sobjects the direct path may create, update and delete (a closed list: this is a write path). */
+const TOOLING_RECORD_TYPES = new Set(["LifeSciConfigRecord", "LifeSciConfigFieldValue", "LifeSciConfigAssignment", "LifeScienceTriggerHandler"]);
+
+/**
+ * Create (POST, no `id`), update (PATCH) or delete (DELETE) one Admin Console Tooling record —
+ * what `sf api request rest` would do, without the CLI start-up. Same contract as `directGet`:
+ * `null` = transport unusable before anything was sent, fall back; otherwise the org's answer.
+ * Updates and deletes set state, so they are retried like reads; a create is sent once
+ * (`getOnce`'s `once`). Parsed JSON on 2xx (a create's `{ id, success }`), undefined on 204.
+ */
+export async function directToolingWrite<T>(
+  method: "POST" | "PATCH" | "DELETE",
+  type: string,
+  id: string | null,
+  body: unknown,
+  org: string,
+  fetcher: CredentialFetcher,
+  timeoutMs = DEFAULT_TIMEOUT_MS
+): Promise<DirectOutcome<T> | null> {
+  if (!directEnabled(org) || !TOOLING_RECORD_TYPES.has(type)) return null;
+  if (method === "POST" ? id !== null : !id || !/^[a-zA-Z0-9]{15,18}$/.test(id)) return null;
+  const version = await apiVersion(org, fetcher);
+  const path = `/services/data/v${version}/tooling/sobjects/${type}${id ? `/${id}` : ""}`;
+  const res = await getOnce(org, path, fetcher, timeoutMs, { method, body: method === "DELETE" ? undefined : body, once: method === "POST" });
+  if (!res) return null;
+  if ("timedOut" in res) return { ok: false, timedOut: true, error: `Request timed out after ${Math.round(timeoutMs / 1000)}s` };
+  if (res.status >= 400) return { ok: false, status: res.status, error: errorText(res.status, res.body) };
+  if (!res.body.trim()) return { ok: true, data: undefined as T };
+  try {
+    return { ok: true, data: JSON.parse(res.body) as T };
+  } catch {
+    return { ok: true, data: res.body as unknown as T };
+  }
 }

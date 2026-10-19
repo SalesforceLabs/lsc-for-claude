@@ -149,6 +149,9 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioMetadataCacheContents: (recordId) => ipcRenderer.invoke("studio:call", "studio_metadata_cache_contents", { recordId }),
   studioMetadataCacheFile: (recordId, path) => ipcRenderer.invoke("studio:call", "studio_metadata_cache_file", { recordId, path }),
   studioSaveMetadataCache: (recordId) => ipcRenderer.invoke("studio:saveMetadataCache", recordId),
+  // Object sync page (read-only; its changes go through the tray)
+  studioObjectSync: () => ipcRenderer.invoke("studio:call", "studio_object_sync", {}),
+  studioObjectSyncCheck: (developerNames) => ipcRenderer.invoke("studio:call", "studio_object_sync_check", { developerNames }),
   // Studio performance testing — runs are read-only background jobs polled for progress
   studioPerfUsers: (search, profile, days) => ipcRenderer.invoke("studio:call", "studio_perf_users", { search, profile, days }),
   studioPerfParsePlan: (yaml) => ipcRenderer.invoke("studio:call", "studio_perf_parse_plan", { yaml }),
@@ -204,6 +207,8 @@ contextBridge.exposeInMainWorld("lscApi", {
   perfOpenFile: () => ipcRenderer.invoke("perf:openFile"),
   sourceControlGet: () => ipcRenderer.invoke("sourceControl:get"),
   sourceControlSet: (deployed) => ipcRenderer.invoke("sourceControl:set", deployed),
+  apiVersionGet: () => ipcRenderer.invoke("apiVersion:get"),
+  apiVersionSet: (version) => ipcRenderer.invoke("apiVersion:set", version),
   studioExportSource: (changes, items) => ipcRenderer.invoke("studio:exportSource", changes, items),
   perfSaveFile: (defaultName, text, kind) => ipcRenderer.invoke("perf:saveFile", defaultName, text, kind),
 

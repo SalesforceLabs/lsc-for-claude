@@ -45,8 +45,8 @@ export type StudioFix =
       developerName: string;
       recordLabel: string;
       field: string;
-      from: string | number | null;
-      to: string | number | null;
+      from: string | number | boolean | null;
+      to: string | number | boolean | null;
     }
   | { kind: "setActive"; label: string; record: RecordRef; from: boolean; to: boolean }
   | {

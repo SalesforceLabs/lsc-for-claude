@@ -9,7 +9,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { apiRequest, retrieveMetadata } from "../../salesforce/cli.js";
+import { apiRequest, dataPath, retrieveMetadata } from "../../salesforce/cli.js";
 import { assertId } from "../change-helpers.js";
 import { query } from "../helpers.js";
 import type { AppTabOption, LiveApp } from "../types.js";
@@ -144,7 +144,7 @@ export function findProfileApp(profile: string, names: string[], org: string): P
 /** Every tab the org has, from the tab describe: names as apps list them. */
 function allTabs(org: string): Promise<AppTabOption[]> {
   return cached(tabListCache, org, 5 * TTL_MS, async () => {
-    const r = await apiRequest<{ name: string; label: string; custom?: boolean; sobjectName?: string | null }[]>("/services/data/v62.0/tabs", "GET", undefined, org);
+    const r = await apiRequest<{ name: string; label: string; custom?: boolean; sobjectName?: string | null }[]>(await dataPath(org, "/tabs"), "GET", undefined, org);
     if (!r.success || !Array.isArray(r.data)) return [];
     return r.data
       .filter((t) => t.name && t.label)

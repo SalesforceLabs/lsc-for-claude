@@ -11,7 +11,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { apiRequest, cachedDescribeSObject, retrieveMetadata, type SObjectDescribeResult } from "../../salesforce/cli.js";
+import { apiRequest, cachedDescribeSObject, dataPath, retrieveMetadata, type SObjectDescribeResult } from "../../salesforce/cli.js";
 import { assertId } from "../change-helpers.js";
 import { query, type Row } from "../helpers.js";
 import type { LayoutFieldOption, LiveCompactLayout, LiveFlexiPage, LiveLayout, LiveListView, RelatedListOption } from "../types.js";
@@ -229,7 +229,7 @@ export async function compactLayoutRecordTypes(fullName: string, org: string): P
   try {
     const [object, name] = splitCompactName(fullName);
     const res = await apiRequest<{ recordTypeCompactLayoutMappings?: { compactLayoutName?: string; recordTypeName?: string }[] }>(
-      `/services/data/v66.0/sobjects/${object}/describe/compactLayouts`,
+      await dataPath(org, `/sobjects/${object}/describe/compactLayouts`),
       "GET",
       undefined,
       org

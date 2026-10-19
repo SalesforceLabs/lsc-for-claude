@@ -10,14 +10,13 @@
  * it found it when a later step fails (best effort, reported in `error`).
  */
 
-import { apiRequest } from "../../salesforce/cli.js";
+import { apiRequest, dataPath } from "../../salesforce/cli.js";
 import type { StatusHook } from "../../salesforce/direct-metadata.js";
 import { query, type Row } from "../helpers.js";
 import { createBundle, deleteBundle, readBundle, writeBundleJs } from "./lwc.js";
 import { bundleEditable } from "./library.js";
 import type { ScriptFields, ScriptRole } from "./types.js";
 
-const SOBJECT = "/services/data/v66.0/sobjects";
 
 export type Outcome<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -135,11 +134,11 @@ export async function saveScript(org: string, input: SaveInput, hooks: SaveHooks
 
   // 2. The record: fields plus a touch (ComponentName) so the platform re-reads the component into CodeText.
   const undoRecord = async () => {
-    await apiRequest(`${SOBJECT}/LifeScienceCustomScript/${scriptId}`, "PATCH", recordBody(current.fields), org);
+    await apiRequest(await dataPath(org, `/sobjects/LifeScienceCustomScript/${scriptId}`), "PATCH", recordBody(current.fields), org);
   };
   const body: Record<string, unknown> = { ...recordBody({ ...next.fields }), ComponentName: component };
   if (viaCodeText) body.CodeText = next.code;
-  const patched = await run(hooks, "record", () => apiRequest<void>(`${SOBJECT}/LifeScienceCustomScript/${scriptId}`, "PATCH", body, org));
+  const patched = await run(hooks, "record", async () => apiRequest<void>(await dataPath(org, `/sobjects/LifeScienceCustomScript/${scriptId}`), "PATCH", body, org));
   if (!patched.success) {
     if (rollbackBundle) await (rollbackBundle as () => Promise<void>)().catch(() => undefined);
     return { ok: false, error: errorOf(patched) };
@@ -169,7 +168,7 @@ export interface CreateInput {
 const STAGE_FIELD: Record<ScriptRole, string> = { validation: "ValidationCustomScriptId", checklist: "ChecklistCustomScriptId" };
 
 export async function assignStage(org: string, stageObjectId: string, role: ScriptRole, scriptId: string | null): Promise<Outcome> {
-  const res = await apiRequest<void>(`${SOBJECT}/LifeSciStageObject/${stageObjectId}`, "PATCH", { [STAGE_FIELD[role]]: scriptId }, org);
+  const res = await apiRequest<void>(await dataPath(org, `/sobjects/LifeSciStageObject/${stageObjectId}`), "PATCH", { [STAGE_FIELD[role]]: scriptId }, org);
   return res.success ? { ok: true } : { ok: false, error: errorOf(res) };
 }
 
@@ -197,14 +196,14 @@ export async function createScript(org: string, input: CreateInput, hooks: SaveH
     if (createdBundle) await deleteBundle(org, fields.componentName).catch(() => undefined);
   };
 
-  const created = await run(hooks, "record", () => apiRequest<{ id: string }>(`${SOBJECT}/LifeScienceCustomScript`, "POST", recordBody(fields), org));
+  const created = await run(hooks, "record", async () => apiRequest<{ id: string }>(await dataPath(org, `/sobjects/LifeScienceCustomScript`), "POST", recordBody(fields), org));
   const scriptId = created.success ? created.data?.id : undefined;
   if (!scriptId) {
     await dropBundle();
     return { ok: false, error: errorOf(created) };
   }
   const dropRecord = async () => {
-    await apiRequest(`${SOBJECT}/LifeScienceCustomScript/${scriptId}`, "DELETE", undefined, org);
+    await apiRequest(await dataPath(org, `/sobjects/LifeScienceCustomScript/${scriptId}`), "DELETE", undefined, org);
   };
 
   const stored = await run(hooks, "verify", () => readCodeText(org, scriptId));
@@ -270,7 +269,7 @@ export async function deleteScript(
     }
     cleared.push({ stageObjectId: r.stageObjectId, role: r.role });
   }
-  const del = await run(hooks, "record", () => apiRequest<void>(`${SOBJECT}/LifeScienceCustomScript/${scriptId}`, "DELETE", undefined, org));
+  const del = await run(hooks, "record", async () => apiRequest<void>(await dataPath(org, `/sobjects/LifeScienceCustomScript/${scriptId}`), "DELETE", undefined, org));
   if (!del.success) {
     await restore();
     return { ok: false, error: errorOf(del) };

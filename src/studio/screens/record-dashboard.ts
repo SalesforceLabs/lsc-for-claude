@@ -6,7 +6,7 @@
 
 import { ID_PATTERN, inList, query, type Row } from "../helpers.js";
 import type { ScreenContext } from "./context.js";
-import { apiRequest } from "../../salesforce/cli.js";
+import { apiRequest, dataPath } from "../../salesforce/cli.js";
 import { formatAddress, plottable } from "./accounts.js";
 
 const str = (v: unknown): string => (typeof v === "string" ? v : v == null ? "" : String(v));
@@ -126,7 +126,7 @@ export async function collectDashboards(ctx: ScreenContext, ids: string[]): Prom
   // Specialty types print with their picklist labels.
   const typeLabels = new Map<string, string>();
   try {
-    const d = await apiRequest<Row>("/services/data/v68.0/sobjects/CareSpecialty/describe", "GET", undefined, ctx.org);
+    const d = await apiRequest<Row>(await dataPath(ctx.org, "/sobjects/CareSpecialty/describe"), "GET", undefined, ctx.org);
     const f = (Array.isArray(d.data?.fields) ? (d.data?.fields as Row[]) : []).find((x) => str(x.name) === "SpecialtyType");
     for (const p of Array.isArray(f?.picklistValues) ? (f?.picklistValues as Row[]) : []) typeLabels.set(str(p.value), str(p.label) || str(p.value));
   } catch {

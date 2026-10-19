@@ -1,0 +1,309 @@
+/* Studio → iPad → Object sync (ObjectSyncView.tsx). */
+
+.objsync-subbar .objsync-filters,
+.objsync-subbar .objsync-bulk {
+  flex-wrap: wrap;
+}
+
+.objsync-search {
+  width: 240px;
+  flex: 0 1 240px;
+}
+
+.objsync-profile {
+  width: 200px;
+  flex: 0 1 200px;
+}
+
+.objsync-selected {
+  font-size: var(--font-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  padding-right: 4px;
+}
+
+.objsync-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.objsync-canvas {
+  overflow: auto;
+  container: objsync / inline-size;
+}
+
+.objsync-table-wrap {
+  padding: 0 20px 24px;
+}
+
+/* Fixed columns so long names and filters end in "…" instead of widening the table. */
+.objsync-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--font-sm);
+}
+
+.objsync-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 30px;
+  padding: 0 12px 0 0;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-size: var(--font-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.objsync-table .objsync-col-name {
+  width: 26%;
+}
+.objsync-table .objsync-col-object {
+  width: 16%;
+}
+.objsync-table .objsync-col-type {
+  width: 100px;
+}
+.objsync-table .objsync-col-who {
+  width: 15%;
+}
+.objsync-table .objsync-col-status {
+  width: 110px;
+}
+
+/* With the detail panel open the table has about half the room: type, who and filter are in the panel. */
+.objsync-table.compact .objsync-col-type,
+.objsync-table.compact .objsync-col-who,
+.objsync-table.compact .objsync-col-filter {
+  display: none;
+}
+.objsync-table.compact .objsync-col-name {
+  width: auto;
+}
+.objsync-table.compact .objsync-col-object {
+  width: 32%;
+}
+@container objsync (max-width: 520px) {
+  .objsync-table.compact .objsync-col-object {
+    display: none;
+  }
+}
+
+.objsync-table td {
+  height: 30px;
+  padding: 0 12px 0 0;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.objsync-table .objsync-col-check {
+  width: 32px;
+  padding-left: 4px;
+}
+.objsync-table .objsync-col-active {
+  width: 56px;
+}
+.objsync-table .objsync-col-problems {
+  width: 32px;
+  padding-right: 4px;
+  text-align: center;
+}
+
+.objsync-row {
+  cursor: pointer;
+}
+.objsync-row:hover td {
+  background: var(--fill-hover);
+}
+.objsync-row[aria-selected="true"] td {
+  background: var(--fill-active);
+}
+.objsync-row.deleting td:not(.objsync-col-check):not(.objsync-col-problems) {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+.objsync-row.deleting .ui-pill {
+  text-decoration: none;
+}
+
+.objsync-table input[type="checkbox"] {
+  margin: 0;
+  vertical-align: middle;
+}
+
+.objsync-name .ui-pill {
+  margin-left: 6px;
+}
+.objsync-label {
+  font-weight: 500;
+}
+
+.objsync-table .mono,
+.objsync-devname,
+.objsync-soql {
+  font-family: var(--font-mono);
+  font-size: var(--font-xs);
+}
+
+.objsync-table td.objsync-col-filter {
+  color: var(--text-secondary);
+}
+
+.objsync-muted {
+  color: var(--text-muted);
+}
+
+.objsync-table .ui-show-more,
+.objsync-table-wrap > .ui-show-more {
+  padding-top: 8px;
+}
+
+/* --- Detail panel ------------------------------------------------------------ */
+
+.objsync-panel .studio-inspector-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.objsync-devname {
+  margin-top: 2px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.objsync-pills,
+.objsync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.objsync-actions {
+  margin-top: 8px;
+}
+
+.objsync-footer {
+  margin-top: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.objsync-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.objsync-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.objsync-panel .studio-form-row {
+  grid-template-columns: 110px 1fr;
+}
+
+.objsync-panel .studio-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.objsync-pending {
+  align-self: flex-start;
+}
+
+.objsync-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--control);
+}
+
+.objsync-soql {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.objsync-parts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.objsync-parts li {
+  display: grid;
+  grid-template-columns: 16px auto;
+  column-gap: 8px;
+  align-items: start;
+  font-size: var(--font-sm);
+}
+
+.objsync-part-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.objsync-part-detail {
+  grid-column: 2;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.objsync-other summary {
+  cursor: pointer;
+}
+
+.objsync-values {
+  display: grid;
+  grid-template-columns: minmax(90px, auto) 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: var(--font-sm);
+}
+
+.objsync-values dt {
+  color: var(--text-muted);
+}
+
+.objsync-values dd {
+  margin: 0;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+/* --- Bulk profiles dialog ---------------------------------------------------- */
+
+.objsync-assign {
+  width: min(480px, calc(100vw - 48px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

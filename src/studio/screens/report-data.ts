@@ -4,7 +4,7 @@
  * (`GET /analytics/reports/{id}?includeDetails=true`, read-only), so rows may differ from what the viewer sees.
  */
 
-import { apiRequest } from "../../salesforce/cli.js";
+import { apiRequest, dataPath } from "../../salesforce/cli.js";
 import type { Row } from "../helpers.js";
 
 export interface PublishedReportCell {
@@ -175,7 +175,7 @@ export function clearReportCache(): void {
 }
 
 async function fetchReport(id: string, org: string): Promise<PublishedReportData | undefined> {
-  const res = await apiRequest<Row>(`/services/data/v66.0/analytics/reports/${id}?includeDetails=true`, "GET", undefined, org);
+  const res = await apiRequest<Row>(await dataPath(org, `/analytics/reports/${id}?includeDetails=true`), "GET", undefined, org);
   if (!res.success || !res.data || typeof res.data !== "object") return undefined;
   return buildReportData(res.data);
 }

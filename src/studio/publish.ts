@@ -11,7 +11,6 @@ import { createRecord, generateMobileMetadataCache, updateRecord } from "../sale
 import { ID_PATTERN, inList, query, type Row } from "./helpers.js";
 import type { PublishStatus } from "./types.js";
 
-const API_VERSION = "65.0";
 const PREFIX = "lsc4ce";
 
 export async function startPublish(profileNames: string[], org: string): Promise<PublishStatus> {
@@ -42,7 +41,7 @@ export async function startPublish(profileNames: string[], org: string): Promise
   }
 
   // The generate call can report an error even when the async job starts; status polling is the source of truth.
-  await generateMobileMetadataCache(parentId, API_VERSION, PREFIX, org);
+  await generateMobileMetadataCache(parentId, undefined, PREFIX, org);
   return { parentId, state: "running", status: "Generating", profiles: profiles.map((p) => String(p.Name)) };
 }
 

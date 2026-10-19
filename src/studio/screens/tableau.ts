@@ -1,6 +1,6 @@
 /** Tableau Followed Metrics (LSCTableauViewController) — what the viewer's iPad shows. */
 
-import { apiReadPost, apiRequest } from "../../salesforce/cli.js";
+import { apiReadPost, apiRequest, dataPath } from "../../salesforce/cli.js";
 import type { Row } from "../helpers.js";
 import type { ScreenContext } from "./context.js";
 
@@ -275,7 +275,7 @@ async function get(org: string, path: string): Promise<Row | undefined> {
 
 /** The viewer's followed sub-metrics. The `followed-assets` endpoint honors the user id; `followed-asset-refs` returns the caller's own follows. */
 async function loadFollows(ctx: ScreenContext): Promise<Follow[]> {
-  const data = await get(ctx.adminOrg, `/services/data/v66.0/tableau/follow/followers/${ctx.userId}/followed-assets?followedAssetType=SemanticSubMetric`);
+  const data = await get(ctx.adminOrg, await dataPath(ctx.adminOrg, `/tableau/follow/followers/${ctx.userId}/followed-assets?followedAssetType=SemanticSubMetric`));
   const rows = (data?.followedAssets ?? []) as Row[];
   return rows.map((r) => ({
     id: String(r.id),
@@ -397,7 +397,7 @@ async function computeAllTimeBan(org: string, sub: Row, model: Row | undefined):
   if (!calc || typeof calc.expression !== "string" || some(calc.filters) || objects.some((o) => some(o.filters))) return undefined;
   const e = expressionToSql(calc.expression, objects);
   if (!e) return undefined;
-  const res = await apiReadPost<Row>("/services/data/v66.0/ssot/query-sql", { sql: `SELECT ${agg}(${e.sql}) AS v FROM "${e.table}"` }, org);
+  const res = await apiReadPost<Row>(await dataPath(org, "/ssot/query-sql"), { sql: `SELECT ${agg}(${e.sql}) AS v FROM "${e.table}"` }, org);
   const v = (res.data?.data as unknown[][] | undefined)?.[0]?.[0];
   const n = typeof v === "number" ? v : typeof v === "string" && v !== "" ? Number(v) : NaN;
   if (!res.success || !Number.isFinite(n)) return undefined;
@@ -453,7 +453,7 @@ async function computeDetail(org: string, sub: Row, model: Row | undefined, time
   const e = expressionToSql(calc.expression, objects);
   const time = timeColumn(metric?.timeDimensionReference as Row | undefined, model);
   if (!e || !time || time.table !== e.table || !/^\w+$/.test(time.column)) return undefined;
-  const res = await apiReadPost<Row>("/services/data/v66.0/ssot/query-sql", { sql: `SELECT "${time.column}" AS d, ${agg}(${e.sql}) AS v FROM "${e.table}" GROUP BY "${time.column}"` }, org);
+  const res = await apiReadPost<Row>(await dataPath(org, "/ssot/query-sql"), { sql: `SELECT "${time.column}" AS d, ${agg}(${e.sql}) AS v FROM "${e.table}" GROUP BY "${time.column}"` }, org);
   const rows = res.data?.data as unknown[][] | undefined;
   if (!res.success || !Array.isArray(rows)) return undefined;
   const percent = calc.dataType === "Percentage";
@@ -469,16 +469,16 @@ export async function collectTableau(ctx: ScreenContext): Promise<PublishedTable
   const follows = await loadFollows(ctx);
   if (!follows.length) return { metrics: [], valuesLoaded: true };
 
-  const subs = ((await get(ctx.adminOrg, `/services/data/v66.0/ssot/semantic/sub-metrics/${follows.map((f) => f.id).join(",")}`))?.items ?? []) as Row[];
+  const subs = ((await get(ctx.adminOrg, await dataPath(ctx.adminOrg, `/ssot/semantic/sub-metrics/${follows.map((f) => f.id).join(",")}`)))?.items ?? []) as Row[];
   const subById = new Map(subs.map((s) => [String(s.id), s]));
 
   const models = new Map<string, Row>();
   for (const id of new Set(follows.map((f) => f.modelId).filter(Boolean))) {
-    const m = await get(ctx.adminOrg, `/services/data/v66.0/ssot/semantic/models/${id}`);
+    const m = await get(ctx.adminOrg, await dataPath(ctx.adminOrg, `/ssot/semantic/models/${id}`));
     if (m) models.set(id, m);
   }
 
-  const jwt = await get(ctx.adminOrg, "/services/data/v62.0/sfap/lightning-jwt-service");
+  const jwt = await get(ctx.adminOrg, await dataPath(ctx.adminOrg, "/sfap/lightning-jwt-service"));
   const token = typeof jwt?.jwt === "string" && typeof jwt.baseUri === "string" ? { jwt: jwt.jwt, baseUri: jwt.baseUri } : undefined;
 
   const metrics: PublishedTableauMetric[] = [];

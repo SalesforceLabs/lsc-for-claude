@@ -497,8 +497,8 @@ function EditPanel({ item, edit, profiles, queue }: { item: StudioItem; edit: It
               {assigned.map((n) => (
                 <span
                   key={n}
-                  className={`studio-chip${known.has(n.toLowerCase()) ? "" : " unknown"}`}
-                  title={known.has(n.toLowerCase()) ? `${users.get(n.toLowerCase()) ?? 0} active user(s)` : "No profile with this name exists"}
+                  className={`studio-chip${known.has(n.toLowerCase()) ? "" : " muted"}`}
+                  title={known.has(n.toLowerCase()) ? `${users.get(n.toLowerCase()) ?? 0} active user(s)` : "No active users have this profile, or it no longer exists"}
                 >
                   {n}
                 </span>

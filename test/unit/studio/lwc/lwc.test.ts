@@ -4,6 +4,7 @@ import { lwcRequest, MAX_LWC_RESPONSE_BYTES, refuseLwcRequest } from "../../../.
 import { salesforceFallback, salesforceModule, SHIMMED_LIGHTNING } from "../../../../src/studio/lwc/shims.js";
 import { inlineLwcFrame } from "../../../../src-renderer/components/studio/inline-lwc-frame.js";
 import type { DeviceHttp, DeviceRequest } from "../../../../src/perf/device/session.js";
+import { FALLBACK_API_VERSION } from "../../../../src/salesforce/api-version.js";
 
 describe("refuseLwcRequest", () => {
   it("allows UI API reads and GraphQL queries", () => {
@@ -33,7 +34,7 @@ describe("lwcRequest", () => {
       return { status: 200, headers: {}, body: Buffer.from(`{"id":"001"}`) };
     };
     expect(await lwcRequest("org", { method: "GET", path: "/ui-api/records/001" }, http)).toEqual({ ok: true, data: { id: "001" } });
-    expect(seen).toMatchObject({ method: "GET", url: "/services/data/v68.0/ui-api/records/001", body: undefined });
+    expect(seen).toMatchObject({ method: "GET", url: `/services/data/v${FALLBACK_API_VERSION}/ui-api/records/001`, body: undefined });
   });
 
   it("shapes UI API errors like the platform's", async () => {

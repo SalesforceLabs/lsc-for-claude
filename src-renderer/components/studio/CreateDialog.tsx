@@ -130,7 +130,7 @@ export default function CreateDialog({ draft, source, objects, profiles, onCance
                   <span className="studio-edit-value">{where === "field" ? "Every profile (none listed)" : "No profiles yet"}</span>
                 )}
                 {assigned.map((n) => (
-                  <span key={n} className={`studio-chip${known.has(n.toLowerCase()) ? "" : " unknown"}`} title={known.has(n.toLowerCase()) ? undefined : "No profile with this name exists"}>
+                  <span key={n} className={`studio-chip${known.has(n.toLowerCase()) ? "" : " muted"}`} title={known.has(n.toLowerCase()) ? undefined : "No active users have this profile, or it no longer exists"}>
                     {n}
                   </span>
                 ))}

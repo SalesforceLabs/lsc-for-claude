@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `137`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `141`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -70,6 +70,7 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "set_target_org",
   "simulate_initial_sync",
   "studio_access_options",
+  "studio_api_version",
   "studio_app_check",
   "studio_app_deploy_plan",
   "studio_app_describe",
@@ -104,6 +105,8 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_metadata_cache_file",
   "studio_metadata_cache_log",
   "studio_metadata_doc",
+  "studio_object_sync",
+  "studio_object_sync_check",
   "studio_page_reach",
   "studio_perf_active",
   "studio_perf_cancel",
@@ -118,6 +121,7 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_report_data",
   "studio_script_test",
   "studio_script_test_records",
+  "studio_set_api_version",
   "studio_setup_links",
   "studio_setup_overview",
   "studio_signoff_report",
@@ -1509,6 +1513,19 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
     },
   },
   {
+    "name": "studio_object_sync",
+    "params": {},
+  },
+  {
+    "name": "studio_object_sync_check",
+    "params": {
+      "developerNames": {
+        "optional": false,
+        "type": "ZodArray",
+      },
+    },
+  },
+  {
     "name": "studio_custom_scripts",
     "params": {},
   },
@@ -1709,6 +1726,19 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
   {
     "name": "studio_connected_org",
     "params": {},
+  },
+  {
+    "name": "studio_api_version",
+    "params": {},
+  },
+  {
+    "name": "studio_set_api_version",
+    "params": {
+      "version": {
+        "optional": false,
+        "type": "ZodNullable",
+      },
+    },
   },
   {
     "name": "studio_perf_active",
