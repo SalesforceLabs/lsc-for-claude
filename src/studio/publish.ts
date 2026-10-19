@@ -46,10 +46,21 @@ export async function startPublish(profileNames: string[], org: string): Promise
   return { parentId, state: "running", status: "Generating", profiles: profiles.map((p) => String(p.Name)) };
 }
 
+/** The message in a record's ErrorLog (JSON `{"message": ...}` or plain text), if it has one. */
+function cacheErrorText(log: unknown): string {
+  if (typeof log !== "string" || !log.trim()) return "";
+  try {
+    const m = (JSON.parse(log) as { message?: unknown }).message;
+    return typeof m === "string" && m ? m : log;
+  } catch {
+    return log;
+  }
+}
+
 export async function publishStatus(parentId: string, org: string): Promise<PublishStatus> {
   if (!ID_PATTERN.test(parentId)) throw new Error(`Invalid record Id: ${parentId}`);
   const rows = await query(
-    `SELECT Id, Status, IntegrationStatus, IntegrationErrorMessage, Profile.Name FROM LifeSciMobileMetadataRecord WHERE Id = '${parentId}' OR ParentMobileMetadataRecId = '${parentId}'`,
+    `SELECT Id, Status, IntegrationStatus, IntegrationErrorMessage, ErrorLog, MetadataDocumentId, Profile.Name FROM LifeSciMobileMetadataRecord WHERE Id = '${parentId}' OR ParentMobileMetadataRecId = '${parentId}'`,
     org
   );
   const parent = rows.find((r) => r.Id === parentId);
@@ -59,12 +70,21 @@ export async function publishStatus(parentId: string, org: string): Promise<Publ
     .map((r) => String((r.Profile as { Name?: string } | null)?.Name ?? ""))
     .filter(Boolean);
   const status = String(parent.Status ?? "Unknown");
-  const failed = status === "Error" || parent.IntegrationStatus === "Error";
+  const children = rows.filter((r) => r.Id !== parentId);
+  // The parent reads "Published" while the profiles' caches are still being built, and the job can end Inactive with only an ErrorLog to say why.
+  const errorLog = [parent, ...children].map((r) => cacheErrorText(r.ErrorLog)).find(Boolean);
+  const failed =
+    status === "Error" ||
+    parent.IntegrationStatus === "Error" ||
+    status === "Inactive" ||
+    children.some((r) => r.Status === "Error" || r.Status === "Inactive") ||
+    Boolean(errorLog);
+  const built = status === "Active" || (status === "Published" && children.length > 0 && children.every((r) => r.Status === "Active" && r.MetadataDocumentId));
   return {
     parentId,
-    state: failed ? "failed" : status === "Active" || status === "Published" ? "done" : "running",
+    state: failed ? "failed" : built ? "done" : "running",
     status,
     profiles,
-    error: failed ? String(parent.IntegrationErrorMessage || "Cache generation failed.") : undefined,
+    error: failed ? String(parent.IntegrationErrorMessage || errorLog || "Cache generation failed.") : undefined,
   };
 }

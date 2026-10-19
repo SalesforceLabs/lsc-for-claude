@@ -291,6 +291,27 @@ describe("publish to iPad", () => {
     (org.LifeSciMobileMetadataRecord as Row[])[0] = { Id: "1MR000000000001", Status: "Active" };
     expect((await publishStatus("1MR000000000001", "org")).state).toBe("done");
   });
+
+  it("keeps waiting while the parent reads Published but the profile's cache has no file yet", async () => {
+    org.LifeSciMobileMetadataRecord = [
+      { Id: "1MR000000000001", Status: "Published" },
+      { Id: "1MR000000000002", Status: "ValidationCompleted", MetadataDocumentId: null, Profile: { Name: "LS PH Field Sales Representative" } },
+    ];
+    expect((await publishStatus("1MR000000000001", "org")).state).toBe("running");
+    (org.LifeSciMobileMetadataRecord as Row[])[1] = { Id: "1MR000000000002", Status: "Active", MetadataDocumentId: "069000000000001", Profile: { Name: "LS PH Field Sales Representative" } };
+    expect((await publishStatus("1MR000000000001", "org")).state).toBe("done");
+  });
+
+  it("reports a job that ended Inactive with an error log as failed, with the log's message", async () => {
+    org.LifeSciMobileMetadataRecord = [
+      { Id: "1MR000000000001", Status: "Inactive", ErrorLog: '{"message":"Unable to read SObject PrstContentDefinition over REST"}' },
+      { Id: "1MR000000000002", Status: "Inactive", Profile: { Name: "LS PH Field Sales Representative" } },
+    ];
+    expect(await publishStatus("1MR000000000001", "org")).toMatchObject({
+      state: "failed",
+      error: "Unable to read SObject PrstContentDefinition over REST",
+    });
+  });
 });
 
 describe("closestName", () => {
