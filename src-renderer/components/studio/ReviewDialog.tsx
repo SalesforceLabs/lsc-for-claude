@@ -160,9 +160,9 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
     const i = changes.indexOf(c);
     return reachFor(c, i >= 0 && ready(previews[i]) ? previews[i] : undefined);
   };
-  const next = whatHappensNext(changes.filter((_, i) => ready(previews[i])).map(reachOf));
+  const next = whatHappensNext(changes.filter((_, i) => ready(previews[i])).map(reachOf), { undo: undoing });
   // This batch only: after an Undo all, the original and its undo aren't two changes reps will get.
-  const nextApplied = whatHappensNext(changes.filter((_, i) => outcomes[i]?.state === "ok").map(reachOf), { done: true });
+  const nextApplied = whatHappensNext(changes.filter((_, i) => outcomes[i]?.state === "ok").map(reachOf), { done: true, undo: undoing });
   const mobileApplied = applied.filter((c) => reachOf(c).ipad === "publish");
 
   return (
@@ -242,7 +242,7 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
         <div className="studio-modal-actions">
           {phase.step === "done" ? (
             <>
-              {phase.outcomes.some((o) => o.state === "ok" && !!o.result.undo) && (
+              {!undoing && phase.outcomes.some((o) => o.state === "ok" && !!o.result.undo) && (
                 <button className="studio-btn" onClick={() => undoAll(phase.outcomes)}>
                   Undo all…
                 </button>

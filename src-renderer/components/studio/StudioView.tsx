@@ -14,7 +14,7 @@ import ReviewDialog from "./ReviewDialog";
 import PublishDialog from "./PublishDialog";
 import ReleaseBar from "./ReleaseBar";
 import SourceStep from "./SourceStep";
-import { sourceDocs } from "./source-control";
+import { sourceDocs, withoutUndone } from "./source-control";
 import { useSourceControl } from "../../hooks/useSourceControl";
 import { usePublishJob } from "./usePublishJob";
 import { reachOfChange, stillAwaiting } from "./reach";
@@ -995,7 +995,10 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             setLastApply(wasUndo ? null : undos.length ? undos : null);
             const toPublish = done.filter((c) => reachOfChange(c).ipad === "publish");
             if (toPublish.length) setAwaiting((a) => [...a, ...toPublish]);
-            if (done.length) setAppliedFixes((a) => [...a, ...done.map((c) => c.fix)]);
+            if (done.length) {
+              const fixes = done.map((c) => c.fix);
+              setAppliedFixes((a) => (wasUndo ? withoutUndone(a, fixes) : [...a, ...fixes]));
+            }
           }}
         />
       )}

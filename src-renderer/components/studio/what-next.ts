@@ -36,13 +36,36 @@ function listed(names: string[]): string {
  * One line per way the changes travel. `done` words them for after the apply
  * (the banner), so the footer and the banner always say the same thing.
  */
-export function whatHappensNext(reaches: ChangeReach[], { done = false }: { done?: boolean } = {}): NextLine[] {
+export function whatHappensNext(reaches: ChangeReach[], { done = false, undo = false }: { done?: boolean; undo?: boolean } = {}): NextLine[] {
   const desktop = reaches.filter((r) => r.desktop === "now").length;
   const publish = reaches.filter((r) => r.ipad === "publish");
   const live = reaches.filter((r) => r.ipad === "live").length;
   const nextSync = reaches.filter((r) => r.ipad === "nextSync").length;
   const profiles = [...new Map(publish.flatMap((r) => r.profiles ?? []).map((p) => [p.toLowerCase(), p])).values()];
   const out: NextLine[] = [];
+  if (undo) {
+    // An undo puts things back. Whether iPads ever had the change isn't known here, so the wording holds either way.
+    if (desktop)
+      out.push({
+        kind: "desktop",
+        count: desktop,
+        text: done ? "Desktop users see it restored now" : "Desktop users see it restored at once",
+      });
+    if (publish.length)
+      out.push({
+        kind: "publish",
+        count: publish.length,
+        text: `Publish to put iPads back in step with the org (${listed(profiles)}); if the change was never published, iPads aren't affected`,
+      });
+    if (live)
+      out.push({
+        kind: "live",
+        count: live,
+        text: done ? "The list view is restored on iPads now" : "The list view is restored on iPads right away",
+      });
+    if (nextSync) out.push({ kind: "nextSync", count: nextSync, text: "Reps get it restored on their next sync" });
+    return out;
+  }
   if (desktop)
     out.push({
       kind: "desktop",

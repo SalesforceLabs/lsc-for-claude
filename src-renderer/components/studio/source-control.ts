@@ -84,6 +84,20 @@ export function sourceDocs(fixes: StudioFix[]): string[] {
   return [...docs];
 }
 
+/**
+ * After an undo succeeds the documents it restored are back to how they were before the apply, so
+ * nothing is left to save for them: drop the applied fixes whose documents were all restored. Fixes
+ * that touch other documents too (partial undos) stay.
+ */
+export function withoutUndone(applied: StudioFix[], undone: StudioFix[]): StudioFix[] {
+  const restored = new Set(sourceDocs(undone));
+  if (restored.size === 0) return applied;
+  return applied.filter((f) => {
+    const docs = sourceDocs([f]);
+    return docs.length === 0 || !docs.every((d) => restored.has(d));
+  });
+}
+
 /** What `studio_export_source` returns (a structural copy of `SourceExportResult`). */
 export interface SourceExportResult {
   folder: string;
