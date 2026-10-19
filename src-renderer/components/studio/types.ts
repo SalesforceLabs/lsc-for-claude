@@ -446,6 +446,8 @@ export interface FixPreview {
   blocked?: string;
   /** The org is a production org (metadata deploys ask for an extra confirmation). */
   production?: boolean;
+  /** A Lightning page whose reach wasn't worked out (every app has to be read); the review dialog offers `studio_page_reach` on request. */
+  reachPage?: string;
 }
 
 export interface FixResult {

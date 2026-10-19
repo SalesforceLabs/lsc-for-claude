@@ -4,6 +4,7 @@ import type { FixChange, FixPreview, FixResult } from "./types";
 import { isMobileChange, publishProfiles, type PendingChange } from "./changes";
 import { touchesDbSchema } from "./sync-impact-util";
 import ReviewProgress from "./ReviewProgress";
+import { pageReach } from "./BlockInspector";
 import Spinner from "../ui/Spinner";
 import StatusIcon from "../ui/StatusIcon";
 import "./sync-impact.css";
@@ -448,12 +449,17 @@ function ChangeCard({
       {changes.some((c) => c.diff?.length) && <DiffDisclosure changes={changes} />}
       {!outcome &&
         typeof preview === "object" &&
-        preview.warnings.map((w) => (
-          <div key={w} className="studio-review-warning">
-            <StatusIcon tone="warning" size={16} />
-            <span>{w}</span>
-          </div>
-        ))}
+        preview.warnings.map((w, i) =>
+          // The first warning is the page's reach; when the server didn't work it out, it can be looked up here.
+          i === 0 && preview.reachPage ? (
+            <PageReachCheck key={w} fullName={preview.reachPage} warning={w} />
+          ) : (
+            <div key={w} className="studio-review-warning">
+              <StatusIcon tone="warning" size={16} />
+              <span>{w}</span>
+            </div>
+          )
+        )}
       {outcome && outcome.state !== "ok" && <div className="studio-finding-detail error-text">{outcome.message}</div>}
       {outcome?.state === "ok" && <div className="studio-finding-detail">{outcome.result.message}</div>}
     </li>
@@ -461,6 +467,43 @@ function ChangeCard({
 }
 
 const BADGES = { ok: "Applied", failed: "Failed", skipped: "Skipped" };
+
+/** Who a Lightning page change reaches, read only when asked: it means reading every app in the org. */
+function PageReachCheck({ fullName, warning }: { fullName: string; warning: string }) {
+  const [state, setState] = useState<{ step: "idle" } | { step: "running" } | { step: "done"; text: string } | { step: "error"; message: string }>({ step: "idle" });
+  const run = async () => {
+    setState({ step: "running" });
+    try {
+      const res = await window.lscApi.studioPageReach(fullName);
+      const error = responseError(res);
+      const reach = res.data as { profiles: string[] | null; appDefaults: string[] | null } | undefined;
+      if (error) setState({ step: "error", message: error });
+      else if (!reach?.profiles || !reach.appDefaults) setState({ step: "error", message: "Couldn't read the org's apps. Check the page's activations in Lightning App Builder." });
+      else setState({ step: "done", text: pageReach(reach.profiles, reach.appDefaults) });
+    } catch (e) {
+      setState({ step: "error", message: String(e) });
+    }
+  };
+  return (
+    <>
+      <div className="studio-review-warning">
+        <StatusIcon tone="warning" size={16} />
+        <span>{state.step === "done" ? state.text : warning}</span>
+      </div>
+      {state.step !== "done" && (
+        <div className="studio-review-reach">
+          <button className="studio-btn" onClick={run} disabled={state.step === "running"}>
+            {state.step === "running" && <Spinner size={12} />}
+            {state.step === "running" ? "Reading every app…" : state.step === "error" ? "Try again" : "Find who sees this page"}
+          </button>
+          <span className={state.step === "error" ? "error-text" : undefined}>
+            {state.step === "error" ? state.message : "Reads every app in the org. This can take a minute in big orgs."}
+          </span>
+        </div>
+      )}
+    </>
+  );
+}
 
 function ChangeTable({ changes }: { changes: FixChange[] }) {
   // A layout or page edit names the same document on every row; say it once, in the card's title.

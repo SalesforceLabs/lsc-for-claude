@@ -27,7 +27,7 @@ import { applyCompactOps, StaleCompactError } from "./metadata/compact-ops.js";
 import { applyLayoutOps, relatedListCount, StaleLayoutError, type LayoutChange } from "./metadata/layout-ops.js";
 import { applyListViewOps, StaleListViewError } from "./metadata/listview-ops.js";
 import { applyFlexiPageOps, flexiPageWarnings, StaleFlexiPageError } from "./metadata/flexipage-ops.js";
-import { compactLayoutRecordTypes, flexiPageReach, isManagedFlexiPage, isProductionOrg, layoutProfiles, liveListViewOf, splitCompactName, splitListViewName } from "./metadata/live.js";
+import { compactLayoutRecordTypes, isManagedFlexiPage, knownFlexiPageReach, isProductionOrg, layoutProfiles, liveListViewOf, splitCompactName, splitListViewName } from "./metadata/live.js";
 import { applyCopy, previewCopy } from "./metadata/copy-fix.js";
 import { serializeXml, type XmlNode } from "./metadata/xml.js";
 import { scriptCodeFindings } from "./collect.js";
@@ -354,20 +354,23 @@ async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string,
 
 // --- Lightning pages edited in the iPad preview ------------------------------------
 
-/** "…the page for 3 profiles (A, B, C) and the default in App X" — everyone who gets the page gets the change. */
-async function flexiPageReachWarning(fix: MetadataFix, org: string): Promise<string> {
-  const reach = await flexiPageReach(fix.doc.fullName, org);
-  if (!reach) return `Deploys ${fix.doc.label} to the org — it may be used by other profiles and apps too.`;
+/**
+ * "…the page for 3 profiles (A, B, C) and the default in App X" when every app was read lately; otherwise a plain warning,
+ * since reading them all can take a minute in big orgs — the review dialog offers that on request (`studio_page_reach`).
+ */
+function flexiPageReachWarning(fix: MetadataFix, org: string): { warning: string; known: boolean } {
+  const reach = knownFlexiPageReach(fix.doc.fullName, org);
+  if (!reach) return { warning: `Deploys ${fix.doc.label} to the org — other profiles and apps may use it too, and everyone who gets it gets the change.`, known: false };
   const { profiles, appDefaults } = reach;
   const list = (names: string[]) => (names.length > 4 ? `${names.slice(0, 4).join(", ")} and ${names.length - 4} more` : names.join(", "));
   if (!profiles.length && !appDefaults.length) {
-    return `Deploys ${fix.doc.label} to the org. No app assigns it to a profile, but it may be an object's or the org's default page.`;
+    return { warning: `Deploys ${fix.doc.label} to the org. No app assigns it to a profile, but it may be an object's or the org's default page.`, known: true };
   }
   const parts = [
     ...(profiles.length ? [profiles.length === 1 ? `the page for ${profiles[0]}` : `the page for ${profiles.length} profiles (${list(profiles)})`] : []),
     ...(appDefaults.length ? [`the default in ${list(appDefaults)}`] : []),
   ];
-  return `Deploys ${fix.doc.label} to the org — it's ${parts.join(" and ")}, and everyone who gets it gets the change.`;
+  return { warning: `Deploys ${fix.doc.label} to the org — it's ${parts.join(" and ")}, and everyone who gets it gets the change.`, known: true };
 }
 
 async function planEditFlexiPage(fix: MetadataFix, doc: MetadataDoc, org: string, progress?: FixTracker, forApply = false): Promise<MetadataPlan> {
@@ -387,9 +390,8 @@ async function planEditFlexiPage(fix: MetadataFix, doc: MetadataDoc, org: string
   preview.changes[preview.changes.length - 1].diff = diff;
   progress?.end("diff");
 
-  const [managed, reach, production] = await Promise.all([
+  const [managed, production] = await Promise.all([
     isManagedFlexiPage(fix.doc.fullName, org),
-    forApply ? "" : step(progress, "reach", () => flexiPageReachWarning(fix, org)),
     forApply ? false : step(progress, "production", () => isProductionOrg(org)),
   ]);
   if (managed) {
@@ -400,7 +402,12 @@ async function planEditFlexiPage(fix: MetadataFix, doc: MetadataDoc, org: string
       },
     };
   }
-  preview.warnings.push(reach, ...flexiPageWarnings(ops, result.root), PUBLISH_WARNING);
+  if (!forApply) {
+    const reach = flexiPageReachWarning(fix, org);
+    preview.warnings.push(reach.warning);
+    if (!reach.known) preview.reachPage = fix.doc.fullName;
+  }
+  preview.warnings.push(...flexiPageWarnings(ops, result.root), PUBLISH_WARNING);
   if (production) preview.production = true;
   return { preview, root: result.root, inverse: result.inverse };
 }
