@@ -13,6 +13,7 @@ import { cacheGet, cacheSet, queryCacheKey, describeCacheKey } from "../cache.js
 import { sfLimiter } from "./limiter.js";
 import { directApiVersion, directDownload, directEnabled, directGet, directPostRead, directQuery, type DirectCredentials } from "./direct.js";
 import { directDelete, directDeploy, directRetrieve, type StatusHook } from "./direct-metadata.js";
+import { toolingWriteMetadata } from "./tooling-metadata.js";
 import { invalidateSharedReads, sharedRead, sharedReadsActive } from "../config/read-cache.js";
 import { isTokenOrg, tokenOrgCredentials, TOKEN_ORG_NO_CLI } from "./token-org.js";
 
@@ -666,9 +667,14 @@ export async function deployMetadata(
   checkOnly = false
 ): Promise<CliResult<unknown>> {
   const cwd = ensureTmpSfdxProject();
+  // Validation stays on the Metadata API. A write of a Lightning page, compact layout or app tries the
+  // Tooling API first (several times faster) and falls back to the deploy on anything but a verified save.
   const direct = await (checkOnly
     ? directDeploy(sourcePath, targetOrg, directCredentials, undefined, onStatus, true)
-    : asWrite(targetOrg, () => directDeploy(sourcePath, targetOrg, directCredentials, undefined, onStatus)));
+    : asWrite(targetOrg, async () => {
+        const viaTooling = isTokenOrg(targetOrg) ? null : await toolingWriteMetadata(sourcePath, targetOrg, directCredentials, onStatus);
+        return viaTooling ?? directDeploy(sourcePath, targetOrg, directCredentials, undefined, onStatus);
+      }));
   if (direct) return direct.ok ? { success: true, data: {} } : { success: false, error: direct.error, timedOut: direct.timedOut, rejected: direct.rejected };
   return deployOutcome(
     await execSfCommand("project", ["deploy", "start", "--source-dir", sourcePath, ...(checkOnly ? ["--dry-run"] : [])], {
