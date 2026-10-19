@@ -35,6 +35,8 @@ export interface UnpublishedItem {
   target: string;
   /** Already live on iPads without a publish (list views are read from the org when opened). */
   live?: boolean;
+  /** What changed, in plain words, when the server can say (Admin Console records: which values were edited). Documents are summarised by the renderer. */
+  summary?: string[];
 }
 
 /** The documents the profile's snapshot references, so changes to other profiles' documents aren't counted. */
@@ -223,6 +225,22 @@ export interface ConfigEdit {
   allProfiles: boolean;
   /** Profile ids it's assigned to. */
   profileIds: string[];
+  /** Names of the value rows edited after the cache, e.g. `WhereSoql`. */
+  changedFields?: string[];
+  /** The profile assignments were edited after the cache. */
+  assignmentsChanged?: boolean;
+  /** The record itself (its Active switch, label…) was edited after the cache. */
+  recordEdited?: boolean;
+}
+
+/** Plain words for what an Admin Console edit touched; empty when the edit's parts are unknown. */
+export function configSummary(e: ConfigEdit): string[] {
+  const out: string[] = [];
+  const fields = [...new Set(e.changedFields ?? [])].sort();
+  for (const f of fields) out.push(`${f} changed`);
+  if (e.assignmentsChanged) out.push("Profile assignments changed");
+  if (e.recordEdited) out.push("Record settings changed (such as Active)");
+  return out;
 }
 
 const CONFIG_KIND: Record<string, UnpublishedKind> = {
@@ -253,6 +271,7 @@ export function configItems(edits: ConfigEdit[], profileId: string, boundaryMs: 
       lastModifiedAt: new Date(e.at).toISOString(),
       lastModifiedBy: e.by,
       target: `config:${name}`,
+      ...(configSummary(e).length ? { summary: configSummary(e) } : {}),
     });
   }
   return out;

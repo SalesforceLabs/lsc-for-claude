@@ -1,5 +1,24 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { CircleAlert, CircleCheck, CircleDot, CloudUpload, RotateCw } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  CircleAlert,
+  CircleCheck,
+  CircleDot,
+  CloudUpload,
+  Database,
+  LayoutDashboard,
+  LayoutTemplate,
+  List,
+  PanelBottom,
+  RotateCw,
+  Rows3,
+  Settings,
+  SlidersHorizontal,
+  Tag,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import Spinner from "../ui/Spinner";
 import {
   groupItems,
@@ -10,13 +29,45 @@ import {
   timeAgo,
   whoWhen,
   type UnpublishedItem,
+  type UnpublishedKind,
   type UnpublishedState,
 } from "./org-ahead";
+import { describeSummary, ROW_LINES } from "./org-ahead-summary";
+import { useChangeSummaries, type ChangeSummary } from "./useChangeSummaries";
+import type { PublishedIpad } from "./published-types";
 import "./org-ahead.css";
+
+const KIND_ICON: Record<UnpublishedKind, LucideIcon> = {
+  layout: LayoutTemplate,
+  compactLayout: Rows3,
+  flexiPage: LayoutDashboard,
+  recordType: Tag,
+  tab: PanelBottom,
+  listView: List,
+  dbSchema: Database,
+  uiSetting: SlidersHorizontal,
+  action: Zap,
+  appSetting: Settings,
+};
+
+const NO_ITEMS: UnpublishedItem[] = [];
+
+/** The row's second line: what changed, or a skeleton while it is read. Empty when nothing can be said. */
+function whatChanged(item: UnpublishedItem, s: ChangeSummary | undefined) {
+  if (item.summary?.length) return describeSummary(item.summary);
+  if (s?.status === "loading") return "loading" as const;
+  if (s?.status === "ready" && s.lines) {
+    // Read and compared, and a rep would see nothing different: say so rather than leave the row bare.
+    if (s.lines.length === 0) return { text: "Nothing reps would see has changed", all: [], none: true as const };
+    return describeSummary(s.lines);
+  }
+  return null;
+}
 
 interface Props {
   profile: string;
   state: UnpublishedState | undefined;
+  snapshot: PublishedIpad | null;
   onRetry: () => void;
   onShow: (item: UnpublishedItem) => void;
   onPublish: () => void;
@@ -27,18 +78,26 @@ interface Props {
  * up to date, an amber pill when the org is ahead (with a popover that lists what and offers Publish),
  * and a retry when the check itself failed — never a false "up to date".
  */
-export default function UnpublishedIndicator({ profile, state, onRetry, onShow, onPublish }: Props) {
+export default function UnpublishedIndicator({ profile, state, snapshot, onRetry, onShow, onPublish }: Props) {
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const root = useRef<HTMLDivElement>(null);
   const ind = indicatorFor(state);
+  const result = state?.status === "ready" ? state.result : undefined;
+  const summaries = useChangeSummaries(open, result?.items ?? NO_ITEMS, snapshot);
   const popover = useRef<HTMLDivElement>(null);
   // Keep the popover inside the window: slide it left by however far it would run off the right edge.
   useLayoutEffect(() => {
     const el = popover.current;
     if (!open || !el) return;
-    el.style.left = "0px";
-    const over = el.getBoundingClientRect().right - (window.innerWidth - 16);
-    if (over > 0) el.style.left = `${-over}px`;
+    const place = () => {
+      el.style.left = "0px";
+      const over = el.getBoundingClientRect().right - (window.innerWidth - 16);
+      if (over > 0) el.style.left = `${-over}px`;
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
   }, [open, state]);
 
   useEffect(() => {
@@ -93,7 +152,6 @@ export default function UnpublishedIndicator({ profile, state, onRetry, onShow, 
   }
 
   // Changes waiting. `state` is ready here.
-  const result = state?.status === "ready" ? state.result : undefined;
   const groups = result ? groupItems(result.items) : [];
   return (
     <div className="org-ahead-root" ref={root}>
@@ -103,10 +161,10 @@ export default function UnpublishedIndicator({ profile, state, onRetry, onShow, 
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={() => setOpen((o) => !o)}
-        title="The org has changes the iPads don't have yet"
+        title={indicatorLabel(ind)}
       >
         <CircleDot size={14} aria-hidden />
-        <span className="org-ahead-text">{indicatorLabel(ind)}</span>
+        <span className="org-ahead-text">{ind.count} not on iPads</span>
       </button>
       {open && (
         <div className="org-ahead-popover" ref={popover} role="dialog" aria-label="Changes not on iPads yet">
@@ -124,31 +182,71 @@ export default function UnpublishedIndicator({ profile, state, onRetry, onShow, 
             )}
             {groups.map((g) => (
               <section key={g.id} className="org-ahead-group">
-                <h3 className="ui-section-title">{g.title}</h3>
+                <h3 className="ui-section-title">
+                  {g.title}<span className="count">· {g.items.length}</span>
+                </h3>
                 {g.note && <p className="org-ahead-note">{g.note}</p>}
                 <ul>
-                  {g.items.map((item) => (
-                    <li key={item.id} className="org-ahead-row">
-                      <div className="org-ahead-row-main">
-                        <span className="org-ahead-row-name" title={item.name}>
-                          {item.label}
-                        </span>
-                        <span className="org-ahead-row-meta">
-                          {kindLabel(item.kind)} · {whoWhen(item)}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        className="studio-btn ghost sm"
-                        onClick={() => {
-                          setOpen(false);
-                          onShow(item);
-                        }}
-                      >
-                        Show
-                      </button>
-                    </li>
-                  ))}
+                  {g.items.map((item) => {
+                    const Icon = KIND_ICON[item.kind];
+                    const what = whatChanged(item, summaries[item.id]);
+                    const more = !!what && what !== "loading" && (what.all.length > ROW_LINES || what.all.some((l) => l.length > 48));
+                    const isOpen = expanded.has(item.id);
+                    return (
+                      <li key={item.id} className="org-ahead-item">
+                        <button
+                          type="button"
+                          className="org-ahead-row"
+                          aria-label={`Show ${item.label}`}
+                          onClick={() => {
+                            setOpen(false);
+                            onShow(item);
+                          }}
+                        >
+                          <Icon size={16} aria-hidden />
+                          <span className="org-ahead-row-main">
+                            <span className="org-ahead-row-name" title={item.name}>
+                              {item.label}
+                            </span>
+                            {what === "loading" && <span className="org-ahead-skeleton" aria-hidden="true" />}
+                            {what && what !== "loading" && what.text && (
+                              <span className={"org-ahead-row-what" + ("none" in what ? " none" : "")} title={what.all.length > 1 ? what.all.join("\n") : undefined}>
+                                {what.text}
+                              </span>
+                            )}
+                            <span className="org-ahead-row-meta">
+                              {kindLabel(item.kind)} · {whoWhen(item)}
+                            </span>
+                          </span>
+                          <ChevronRight size={14} aria-hidden className="org-ahead-chev" />
+                        </button>
+                        {more && (
+                          <button
+                            type="button"
+                            className="org-ahead-more"
+                            aria-expanded={isOpen}
+                            aria-label={`${isOpen ? "Hide" : "Show"} all ${what.all.length} changes to ${item.label}`}
+                            onClick={() =>
+                              setExpanded((cur) => {
+                                const next = new Set(cur);
+                                if (!next.delete(item.id)) next.add(item.id);
+                                return next;
+                              })
+                            }
+                          >
+                            <ChevronDown size={14} aria-hidden />
+                          </button>
+                        )}
+                        {more && isOpen && (
+                          <ul className="org-ahead-changes">
+                            {what.all.map((line) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </section>
             ))}
@@ -165,16 +263,17 @@ export default function UnpublishedIndicator({ profile, state, onRetry, onShow, 
             </li>
           </ul>
           <div className="org-ahead-foot">
-            <span className="org-ahead-muted">{ind.publishedAt ? `Last published ${timeAgo(ind.publishedAt)}` : "Not published yet"}</span>
+            <span className="org-ahead-muted org-ahead-text">{ind.publishedAt ? `Last published ${timeAgo(ind.publishedAt)}` : "Not published yet"}</span>
             <button
               type="button"
               className="studio-btn primary"
+              title={`Publish to iPad for ${profile}`}
               onClick={() => {
                 setOpen(false);
                 onPublish();
               }}
             >
-              <CloudUpload aria-hidden="true" /> Publish to iPad for {profile}
+              <CloudUpload aria-hidden="true" /> Publish to iPad
             </button>
           </div>
         </div>

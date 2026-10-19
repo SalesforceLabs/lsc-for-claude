@@ -63,7 +63,7 @@ export async function fetchConfigEdits(org: string, since: number): Promise<Conf
   const iso = soqlTime(since);
   const [edited, valued, reassigned] = await Promise.all([
     query(`SELECT Id, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigRecord WHERE LastModifiedDate > ${iso}`, org, true),
-    query(`SELECT LifeSciConfigRecordId, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigFieldValue WHERE LastModifiedDate > ${iso}`, org, true),
+    query(`SELECT LifeSciConfigRecordId, FieldName, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigFieldValue WHERE LastModifiedDate > ${iso}`, org, true),
     query(`SELECT LifeSciConfigRecordId, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigAssignment WHERE LastModifiedDate > ${iso}`, org, true),
   ]);
   // The newest touch per record, from any of the three tables.
@@ -74,9 +74,15 @@ export async function fetchConfigEdits(org: string, since: number): Promise<Conf
     const prev = touched.get(id);
     if (!prev || at > prev.at) touched.set(id, { at, by: text(nested(row, "LastModifiedBy").Name) || null });
   };
+  const fieldsOf = new Map<string, string[]>();
   for (const r of edited) touch(text(r.Id), r);
-  for (const r of valued) touch(text(r.LifeSciConfigRecordId), r);
+  for (const r of valued) {
+    touch(text(r.LifeSciConfigRecordId), r);
+    if (text(r.FieldName)) fieldsOf.set(text(r.LifeSciConfigRecordId), [...(fieldsOf.get(text(r.LifeSciConfigRecordId)) ?? []), text(r.FieldName)]);
+  }
   for (const r of reassigned) touch(text(r.LifeSciConfigRecordId), r);
+  const editedIds = new Set(edited.map((r) => text(r.Id)));
+  const reassignedIds = new Set(reassigned.map((r) => text(r.LifeSciConfigRecordId)));
 
   const out: ConfigEdit[] = [];
   await Promise.all(
@@ -98,11 +104,44 @@ export async function fetchConfigEdits(org: string, since: number): Promise<Conf
           by: t.by,
           allProfiles: r.IsOrgLevel === true || mine.some((a) => a.AssignmentLevel !== "Profile"),
           profileIds: mine.filter((a) => a.AssignmentLevel === "Profile").map((a) => text(a.AssignedToId)),
+          changedFields: fieldsOf.get(text(r.Id)) ?? [],
+          assignmentsChanged: reassignedIds.has(text(r.Id)),
+          recordEdited: editedIds.has(text(r.Id)),
         });
       }
     })
   );
   return out;
+}
+
+/** The Tooling FlexiPage has no LastModifiedBy relationship, so read LastModifiedById and look the names up; without it the editor stays unknown. */
+/**
+ * Lightning pages: Tooling `FlexiPage` has no `LastModifiedBy` (the column doesn't exist), so the
+ * author is read from the Setup Audit Trail, which logs "Changed Lightning Page: <label>". Pages
+ * saved some other way (a deploy that left no trail) simply have no author.
+ */
+async function flexiPageRows(since: string, org: string): Promise<Row[]> {
+  const rows = await query(`SELECT Id, DeveloperName, MasterLabel, LastModifiedDate FROM FlexiPage WHERE ${since}`, org, true);
+  if (rows.length === 0) return rows;
+  const earliest = rows.map((r) => text(r.LastModifiedDate)).sort()[0];
+  const who = new Map<string, string>();
+  try {
+    const trail = await query(
+      `SELECT Display, CreatedDate, CreatedBy.Name FROM SetupAuditTrail WHERE Action IN ('changedFlexiPage','createdFlexiPage') AND CreatedDate >= ${soqlTime(Date.parse(earliest))} ORDER BY CreatedDate DESC LIMIT 2000`,
+      org
+    );
+    for (const t of trail) {
+      const label = text(t.Display).replace(/^[^:]*:\s*/, "").trim().toLowerCase();
+      const name = text((t.CreatedBy as { Name?: unknown } | null)?.Name);
+      if (label && name && !who.has(label)) who.set(label, name);
+    }
+  } catch {
+    return rows;
+  }
+  return rows.map((r) => {
+    const name = who.get(text(r.MasterLabel).trim().toLowerCase()) ?? who.get(text(r.DeveloperName).trim().toLowerCase());
+    return name ? { ...r, LastModifiedBy: { Name: name } } : r;
+  });
 }
 
 type Reader = { kind: string; read: () => Promise<UnpublishedItem[]> };
@@ -143,9 +182,8 @@ export async function collectUnpublished(profile: string, org: string, known?: K
         compactLayoutItems(recent(await query(`SELECT Id, DeveloperName, MasterLabel, SobjectType, LastModifiedDate, LastModifiedBy.Name FROM CompactLayout WHERE ${since}`, org, true)), scopes.compactLayouts),
     },
     {
-      // The Tooling FlexiPage has no LastModifiedBy: the editor stays unknown.
       kind: "Lightning pages",
-      read: async () => flexiPageItems(recent(await query(`SELECT Id, DeveloperName, MasterLabel, LastModifiedDate FROM FlexiPage WHERE ${since}`, org, true)), scopes.flexiPages),
+      read: async () => flexiPageItems(recent(await flexiPageRows(since, org)), scopes.flexiPages),
     },
     {
       // Only the app the profile's tab bar comes from, found by the tabs the snapshot knows (not guessed when two fit).
