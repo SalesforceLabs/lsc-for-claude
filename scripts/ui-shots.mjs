@@ -9,6 +9,8 @@
 // Build first (npm run electron:build). The app starts with its saved connection and target org,
 // so Studio screens show real data; pages that need an org show their empty state without one.
 // ROZ_SHOTS_THEME=light|dark shows that palette for the run without changing the saved appearance.
+// ROZ_SHOTS_USER_DATA=DIR runs with that user-data folder (settings.json is copied in from the default one on first use),
+// so a Roz you are running yourself is left alone.
 // For repl from a non-interactive shell, feed it a regular file through tail -f (a fifo hits EOF
 // after each write):  : > /tmp/roz-in; tail -f /tmp/roz-in | node scripts/ui-shots.mjs repl > out.log &
 import { _electron } from "playwright-core";
@@ -27,7 +29,15 @@ if (!fs.existsSync(path.join(ROOT, "dist-electron", "main.js"))) {
 }
 
 const electronBin = (await import("electron")).default;
-const app = await _electron.launch({ executablePath: electronBin, args: [path.join(ROOT, "dist-electron", "main.js")], cwd: ROOT, timeout: 60_000 });
+const userData = process.env.ROZ_SHOTS_USER_DATA;
+const launchArgs = [path.join(ROOT, "dist-electron", "main.js")];
+if (userData) {
+  fs.mkdirSync(userData, { recursive: true });
+  const saved = path.join(process.env.HOME ?? "", "Library", "Application Support", "Electron", "settings.json");
+  if (fs.existsSync(saved) && !fs.existsSync(path.join(userData, "settings.json"))) fs.copyFileSync(saved, path.join(userData, "settings.json"));
+  launchArgs.push(`--user-data-dir=${userData}`);
+}
+const app = await _electron.launch({ executablePath: electronBin, args: launchArgs, cwd: ROOT, timeout: 60_000 });
 const page = await app.firstWindow();
 const errors = [];
 page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
