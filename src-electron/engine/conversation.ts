@@ -8,6 +8,8 @@ import { ORG_SWITCH_TOOLS, orgPromptSection, orgSwitchRefusal, type SessionOrg }
 export interface ConversationCallbacks {
   onTextDelta: (text: string) => void;
   onToolStart: (id: string, name: string) => void;
+  /** Right before a tool runs, once its input is complete — tools run one at a time. */
+  onToolRun?: (id: string, input: Record<string, unknown>) => void;
   onToolResult: (id: string, result: string, isError: boolean) => void;
   onToolEnd: (id: string) => void;
   onComplete: (message: Message) => void;
@@ -72,7 +74,7 @@ export class ConversationEngine {
         this.messages.push({ role: "user", content: msg.text });
       } else {
         // Assistant message
-        const toolCalls: Array<{ id: string; name: string; result?: string; isError?: boolean }> =
+        const toolCalls: Array<{ id: string; name: string; input?: Record<string, unknown>; result?: string; isError?: boolean }> =
           msg.toolCalls ? JSON.parse(msg.toolCalls) : [];
 
         if (toolCalls.length === 0) {
@@ -91,7 +93,7 @@ export class ConversationEngine {
               type: "tool_use",
               id: tc.id,
               name: tc.name,
-              input: {}, // We don't persist inputs, but the LLM doesn't need them for context
+              input: tc.input ?? {}, // Sessions saved before inputs were kept have none; the LLM doesn't need them
             });
           }
 
@@ -203,6 +205,8 @@ export class ConversationEngine {
 
       for (const toolCall of toolCalls) {
         if (abort.aborted) throw new Error("aborted");
+
+        if (!abort.aborted) callbacks.onToolRun?.(toolCall.id!, (toolCall.input ?? {}) as Record<string, unknown>);
 
         try {
           // Studio tools (including fixes that write to the org) are UI-only — never run one the model names.

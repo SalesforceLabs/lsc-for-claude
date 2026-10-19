@@ -1,9 +1,9 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from "react";
-import Markdown from "react-markdown";
+import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import {
-  ArrowUp, Bookmark, Building2, BookmarkCheck, Check, ChevronDown, ChevronRight, CircleAlert, Copy, ExternalLink, FileText,
+  ArrowUp, Bookmark, Building2, BookmarkCheck, Check, ChevronDown, ChevronRight, Circle, CircleAlert, Copy, ExternalLink, FileText,
   Maximize2, Minimize2, Minus, Paperclip, Plus, RotateCcw, Scan, Square, TriangleAlert, Workflow, Wrench, X,
 } from "lucide-react";
 import { ChatMessage, ContentBlock, ToolCall, ImageAttachment } from "../hooks/useChat";
@@ -11,6 +11,8 @@ import { pickModel, type ModelOption } from "../models";
 import { rozTileSrc, useAppIcon } from "../app-icon";
 import Spinner from "./ui/Spinner";
 import { useMermaidSvg } from "../mermaid";
+import { useSmoothText } from "../hooks/useSmoothText";
+import { openMermaidFence, replyActivity, summarizeTools, toolDetail, toolLabel, type Activity } from "../chat-activity";
 import { hostOf, KIND_LABEL, type SessionOrgView } from "../orgs";
 
 /** Lucide defaults for icons in chat chrome. */
@@ -199,20 +201,162 @@ function groupBlocks(blocks: ContentBlock[]): BlockGroup[] {
   return groups;
 }
 
-/** Summarize tool names: "check_lsc_setup, describe_sobject x7, run_soql" */
-function summarizeTools(tools: ToolCall[]): string {
-  const counts = new Map<string, number>();
-  for (const t of tools) counts.set(t.name, (counts.get(t.name) || 0) + 1);
-  return Array.from(counts.entries())
-    .map(([name, count]) => (count > 1 ? `${name} \u00d7${count}` : name))
-    .join(", ");
+/** What a reply's Markdown needs from the chat view; read through a ref so its components never change. */
+interface ReplyEnv {
+  copy: (text: string, id: string) => void;
+  openDiagram: (chart: string) => void;
+  saveDiagram: (svg: string, chart: string) => void;
+  openDocFile: (filePath: string) => void;
+  openGuideSection: (guideSlug: string, sectionSlug: string, page?: number, highlight?: string) => void;
 }
 
+/** Where a Markdown node starts in its source — a stable key for its copy button. */
+type MdNode = { position?: { start?: { offset?: number } } };
+function nodeOffset(node: unknown): number {
+  return (node as MdNode | undefined)?.position?.start?.offset ?? 0;
+}
+
+/**
+ * One text block of a reply. Its Markdown components are made once, so streaming new text
+ * re-renders the tree instead of remounting it (diagrams and copy buttons keep their state), and
+ * finished blocks don't re-render at all. While `live` the text is revealed at a steady pace, and
+ * a diagram whose fence hasn't closed is shown as being drawn rather than drawn half-written.
+ */
+const ReplyMarkdown = React.memo(function ReplyMarkdown({
+  text,
+  copyKey,
+  live,
+  copiedId,
+  savedDiagrams,
+  env,
+}: {
+  text: string;
+  copyKey: string;
+  live: boolean;
+  copiedId: string | null;
+  savedDiagrams?: Set<string>;
+  env: React.MutableRefObject<ReplyEnv>;
+}) {
+  const shown = useSmoothText(text, live);
+  const source = useMemo(() => preprocessMarkdown(shown), [shown]);
+  const drawingFrom = live || shown.length < text.length ? openMermaidFence(source) : -1;
+  const state = useRef({ copyKey, copiedId, savedDiagrams, drawingFrom });
+  state.current = { copyKey, copiedId, savedDiagrams, drawingFrom };
+
+  const components = useMemo<Components>(() => ({
+    table: ({ children, node: _node, ...props }) => (
+      <CopyableTable
+        onCopy={env.current.copy}
+        copyId={`${state.current.copyKey}-table-${nodeOffset(_node)}`}
+        copiedId={state.current.copiedId}
+      >
+        <table {...props}>{children}</table>
+      </CopyableTable>
+    ),
+    pre: ({ children, node: _node, ...props }) => {
+      // Diagrams draw their own card.
+      const child = React.Children.toArray(children)[0];
+      if (React.isValidElement(child) && (child.props as { className?: string })?.className === "language-mermaid") {
+        return <>{children}</>;
+      }
+      return (
+        <CopyableCode
+          onCopy={env.current.copy}
+          copyId={`${state.current.copyKey}-code-${nodeOffset(_node)}`}
+          copiedId={state.current.copiedId}
+        >
+          <pre {...props}>{children}</pre>
+        </CopyableCode>
+      );
+    },
+    code: ({ className, children, node: _node, ...props }) => {
+      if (className === "language-mermaid") {
+        const chart = String(children).replace(/\n$/, "");
+        const { drawingFrom: from, savedDiagrams: saved } = state.current;
+        return (
+          <MermaidDiagram
+            chart={chart}
+            drawing={from >= 0 && nodeOffset(_node) >= from}
+            onOpen={env.current.openDiagram}
+            saved={saved?.has(chart)}
+            onSave={env.current.saveDiagram}
+          />
+        );
+      }
+      return <code className={className} {...props}>{children}</code>;
+    },
+    a: ({ href, children, node: _node, ...props }) => {
+      if (href?.startsWith("lsc-file://")) {
+        const filePath = href.slice("lsc-file://".length);
+        return (
+          <a
+            {...props}
+            className="doc-link"
+            onClick={(e) => { e.preventDefault(); env.current.openDocFile(filePath); }}
+          >
+            {children}
+          </a>
+        );
+      }
+      if (href?.startsWith("lsc-section://")) {
+        const url = new URL(href.replace("lsc-section://", "https://placeholder/"));
+        const parts = url.pathname.split("/").filter(Boolean);
+        const guideSlug = parts[0];
+        const sectionSlug = parts[1];
+        const page = url.searchParams.get("page") ? parseInt(url.searchParams.get("page")!) : undefined;
+        const highlight = url.searchParams.get("highlight") || undefined;
+        return (
+          <a
+            className="doc-link"
+            href="#"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); env.current.openGuideSection(guideSlug, sectionSlug, page, highlight); }}
+          >
+            {children}
+          </a>
+        );
+      }
+      if (href?.startsWith("lsc-pdf://")) {
+        const url = new URL(href.replace("lsc-pdf://", "https://placeholder/"));
+        const pdfFileName = url.pathname.replace(/^\//, "");
+        const page = url.searchParams.get("page") ? parseInt(url.searchParams.get("page")!) : 1;
+        return (
+          <a
+            className="doc-link"
+            href="#"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.lscApi.openPdfAtPage(pdfFileName, page); }}
+          >
+            {children}
+          </a>
+        );
+      }
+      if (href?.startsWith("http://") || href?.startsWith("https://")) {
+        return (
+          <a
+            {...props}
+            className="doc-link"
+            onClick={(e) => { e.preventDefault(); window.lscApi.openExternal(href); }}
+          >
+            {children}
+          </a>
+        );
+      }
+      return <a href={href} {...props}>{children}</a>;
+    },
+  }), [env]);
+
+  return (
+    <div className="message-content">
+      <Markdown remarkPlugins={[remarkGfm]} urlTransform={(url) => url} components={components}>
+        {source}
+      </Markdown>
+    </div>
+  );
+});
+
 /** Inline mermaid card — renders SVG, calls onOpen with the chart when clicked */
-function MermaidDiagram({ chart, onOpen, onSave, saved }: { chart: string; onOpen?: (chart: string) => void; onSave?: (svg: string, chart: string) => void; saved?: boolean }) {
-  // Debounced while the reply streams; a half-written chart is only an error once it spans lines.
-  const { svg, error: failed } = useMermaidSvg(chart, 500);
-  const error = failed && chart.includes("\n");
+function MermaidDiagram({ chart, drawing, onOpen, onSave, saved }: { chart: string; drawing?: boolean; onOpen?: (chart: string) => void; onSave?: (svg: string, chart: string) => void; saved?: boolean }) {
+  // A chart still streaming in is drawn once, when its fence closes.
+  const { svg, error } = useMermaidSvg(drawing ? "" : chart);
 
   if (error) {
     return (
@@ -242,7 +386,7 @@ function MermaidDiagram({ chart, onOpen, onSave, saved }: { chart: string; onOpe
         <span className="mermaid-card-title">Diagram</span>
         <span className="mermaid-card-meta">
           {!svg ? (
-            <><Spinner size={11} /> Generating…</>
+            <><Spinner size={11} /> {drawing ? "Drawing…" : "Rendering…"}</>
           ) : saved ? (
             "Saved to Library"
           ) : (
@@ -753,6 +897,22 @@ export default function ChatView({
     }
   }, []);
 
+  const replyEnv = useRef<ReplyEnv>(null!);
+  replyEnv.current = {
+    copy,
+    openDiagram: setDiagramChart,
+    saveDiagram: (svg, chart) =>
+      onSaveToLibrary({
+        title: deriveDiagramTitle(chart),
+        content: chart,
+        contentType: "diagram",
+        svg,
+        sourceConversationId: conversationId ?? undefined,
+      }),
+    openDocFile,
+    openGuideSection,
+  };
+
   /** Find the user message that precedes a given assistant message */
   const getUserPromptFor = useCallback(
     (assistantMsgId: string): string | null => {
@@ -881,6 +1041,22 @@ export default function ChatView({
       messagesEndRef.current?.scrollIntoView({ behavior: isStreaming ? "instant" : "smooth" });
     }
   }, [messages, isStreaming]);
+
+  // While a reply streams its text grows between renders (it's revealed a frame at a time), so
+  // follow its height rather than the messages: stay pinned to the bottom unless the user scrolled up.
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (!container || !isStreaming) return;
+    const follow = () => {
+      if (restoringScrollRef.current || userScrolledRef.current) return;
+      container.style.scrollBehavior = "auto";
+      container.scrollTop = container.scrollHeight;
+      container.style.scrollBehavior = "";
+    };
+    const observer = new ResizeObserver(follow);
+    for (const child of Array.from(container.children)) observer.observe(child);
+    return () => observer.disconnect();
+  }, [isStreaming, messages.length]);
 
   // Compute autocomplete matches
   const autocomplete = useMemo(() => {
@@ -1176,127 +1352,17 @@ export default function ChatView({
               </>
             ) : (
               <div className="assistant-blocks">
-                {groupBlocks(msg.blocks).map((group, gi) =>
+                {groupBlocks(msg.blocks).map((group, gi, groups) =>
                   group.type === "text" ? (
-                    <div
+                    <ReplyMarkdown
                       key={gi}
-                      className={`message-content${
-                        msg.isStreaming && gi === groupBlocks(msg.blocks).length - 1
-                          ? " streaming-cursor"
-                          : ""
-                      }`}
-                    >
-                      <Markdown
-                        remarkPlugins={[remarkGfm]}
-                        urlTransform={(url) => url}
-                        components={{
-                          table: ({ children, ...props }) => (
-                            <CopyableTable onCopy={copy} copyId={`${msg.id}-table-${gi}`} copiedId={copiedId}>
-                              <table {...props}>{children}</table>
-                            </CopyableTable>
-                          ),
-                          pre: (() => {
-                            let codeIdx = 0;
-                            return ({ children, ...props }: React.HTMLAttributes<HTMLPreElement>) => {
-                              // Skip pre wrapper for mermaid diagrams
-                              const child = React.Children.toArray(children)[0];
-                              if (React.isValidElement(child)) {
-                                const childProps = child.props as Record<string, unknown>;
-                                if (childProps?.className === "language-mermaid" || child.type === MermaidDiagram) {
-                                  return <>{children}</>;
-                                }
-                              }
-                              return (
-                                <CopyableCode onCopy={copy} copyId={`${msg.id}-code-${gi}-${codeIdx++}`} copiedId={copiedId}>
-                                  <pre {...props}>{children}</pre>
-                                </CopyableCode>
-                              );
-                            };
-                          })(),
-                          code: ({ className, children, ...props }) => {
-                            if (className === "language-mermaid") {
-                              const text = String(children).replace(/\n$/, "");
-                              return (
-                                <MermaidDiagram
-                                  chart={text}
-                                  onOpen={setDiagramChart}
-                                  saved={savedDiagramContents?.has(text)}
-                                  onSave={(svg, chart) => {
-                                    onSaveToLibrary({
-                                      title: deriveDiagramTitle(chart),
-                                      content: chart,
-                                      contentType: "diagram",
-                                      svg,
-                                      sourceConversationId: conversationId ?? undefined,
-                                    });
-                                  }}
-                                />
-                              );
-                            }
-                            return <code className={className} {...props}>{children}</code>;
-                          },
-                          a: ({ href, children, ...props }) => {
-                            if (href?.startsWith("lsc-file://")) {
-                              const filePath = href.slice("lsc-file://".length);
-                              return (
-                                <a
-                                  {...props}
-                                  className="doc-link"
-                                  onClick={(e) => { e.preventDefault(); openDocFile(filePath); }}
-                                >
-                                  {children}
-                                </a>
-                              );
-                            }
-                            if (href?.startsWith("lsc-section://")) {
-                              const url = new URL(href.replace("lsc-section://", "https://placeholder/"));
-                              const parts = url.pathname.split("/").filter(Boolean);
-                              const guideSlug = parts[0];
-                              const sectionSlug = parts[1];
-                              const page = url.searchParams.get("page") ? parseInt(url.searchParams.get("page")!) : undefined;
-                              const highlight = url.searchParams.get("highlight") || undefined;
-                              return (
-                                <a
-                                  className="doc-link"
-                                  href="#"
-                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); openGuideSection(guideSlug, sectionSlug, page, highlight); }}
-                                >
-                                  {children}
-                                </a>
-                              );
-                            }
-                            if (href?.startsWith("lsc-pdf://")) {
-                              const url = new URL(href.replace("lsc-pdf://", "https://placeholder/"));
-                              const pdfFileName = url.pathname.replace(/^\//, "");
-                              const page = url.searchParams.get("page") ? parseInt(url.searchParams.get("page")!) : 1;
-                              return (
-                                <a
-                                  className="doc-link"
-                                  href="#"
-                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.lscApi.openPdfAtPage(pdfFileName, page); }}
-                                >
-                                  {children}
-                                </a>
-                              );
-                            }
-                            if (href?.startsWith("http://") || href?.startsWith("https://")) {
-                              return (
-                                <a
-                                  {...props}
-                                  className="doc-link"
-                                  onClick={(e) => { e.preventDefault(); window.lscApi.openExternal(href); }}
-                                >
-                                  {children}
-                                </a>
-                              );
-                            }
-                            return <a href={href} {...props}>{children}</a>;
-                          },
-                        }}
-                      >
-                        {preprocessMarkdown(group.text)}
-                      </Markdown>
-                    </div>
+                      text={group.text}
+                      copyKey={`${msg.id}-${gi}`}
+                      live={!!msg.isStreaming && gi === groups.length - 1}
+                      copiedId={copiedId}
+                      savedDiagrams={savedDiagramContents}
+                      env={replyEnv}
+                    />
                   ) : group.tools.length === 1 ? (
                     <ToolCallBlock
                       key={group.tools[0].id}
@@ -1311,11 +1377,10 @@ export default function ChatView({
                     />
                   )
                 )}
-                {msg.isStreaming && msg.blocks.length === 0 && (
-                  <div className="thinking-indicator">
-                    <span className="thinking-dot" />
-                  </div>
-                )}
+                {(() => {
+                  const activity = replyActivity(msg);
+                  return activity && <ReplyActivity key={activity.key} activity={activity} />;
+                })()}
                 {/* Action bar */}
                 {!msg.isStreaming && msg.blocks.length > 0 && (
                   <div className="message-actions">
@@ -1445,11 +1510,13 @@ function CopyableTable({
   );
 }
 
-function ToolStatus({ status, label }: { status: ToolCall["status"]; label: string }) {
+function ToolStatus({ status, label }: { status: ToolCall["status"]; label?: string }) {
   return (
     <span className={`tool-status ${status}`}>
       {status === "running" ? (
         <Spinner size={11} />
+      ) : status === "pending" ? (
+        <Circle size={11} strokeWidth={2} aria-hidden="true" />
       ) : status === "error" ? (
         <CircleAlert size={12} strokeWidth={2} aria-hidden="true" />
       ) : (
@@ -1457,6 +1524,25 @@ function ToolStatus({ status, label }: { status: ToolCall["status"]; label: stri
       )}
       {label}
     </span>
+  );
+}
+
+/** What a streaming reply is doing now — the line under it until it's finished. */
+function ReplyActivity({ activity }: { activity: Activity }) {
+  const [started] = useState(() => Date.now());
+  const [now, setNow] = useState(started);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const seconds = Math.floor((now - started) / 1000);
+  return (
+    <div className="reply-activity" role="status">
+      <Spinner size={12} />
+      <span className="reply-activity-label">{activity.label}</span>
+      {activity.detail && <span className="reply-activity-detail" title={activity.detail}>{activity.detail}</span>}
+      {activity.timed && seconds >= 3 && <span className="reply-activity-time">{seconds}s</span>}
+    </div>
   );
 }
 
@@ -1468,16 +1554,13 @@ function ToolGroup({
   onToggleTool: (toolId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const allDone = tools.every((t) => t.status !== "running");
-  const hasError = tools.some((t) => t.status === "error");
-  const runningCount = tools.filter((t) => t.status === "running").length;
+  const finished = tools.filter((t) => t.status === "success" || t.status === "error").length;
+  const failed = tools.filter((t) => t.status === "error").length;
+  const working = finished < tools.length;
 
-  const status: ToolCall["status"] = !allDone ? "running" : hasError ? "error" : "success";
-  const statusLabel = !allDone
-    ? `${runningCount} running`
-    : hasError
-      ? `${tools.filter((t) => t.status === "error").length} failed`
-      : "Done";
+  // No "Done" here: the reply may still be going — its activity line says so.
+  const status: ToolCall["status"] = working ? "running" : failed ? "error" : "success";
+  const statusLabel = working ? `${finished} of ${tools.length}` : failed ? `${failed} failed` : undefined;
 
   return (
     <div className="tool-group">
@@ -1490,7 +1573,7 @@ function ToolGroup({
         <ChevronRight className={`tool-chevron${expanded ? " open" : ""}`} size={12} strokeWidth={2.25} aria-hidden="true" />
         <Wrench className="tool-group-icon" size={13} strokeWidth={1.75} aria-hidden="true" />
         <span className="tool-group-summary">
-          Used {tools.length} tools
+          {tools.length} steps
         </span>
         <span className="tool-group-names">{summarizeTools(tools)}</span>
         <ToolStatus status={status} label={statusLabel} />
@@ -1518,28 +1601,29 @@ function ToolCallBlock({
   onToggle: () => void;
 }) {
   const isOpen = !tool.collapsed;
-  const statusLabel =
-    tool.status === "running"
-      ? "Running"
-      : tool.status === "error"
-        ? "Error"
-        : "Done";
+  const detail = toolDetail(tool.input);
+  const input = tool.input && Object.keys(tool.input).length > 0 ? JSON.stringify(tool.input, null, 2) : null;
 
   return (
     <div className="tool-call">
-      <button type="button" className="tool-call-header" aria-expanded={isOpen} onClick={onToggle}>
+      <button type="button" className="tool-call-header" aria-expanded={isOpen} onClick={onToggle} title={tool.name}>
         <ChevronRight className={`tool-chevron${isOpen ? " open" : ""}`} size={12} strokeWidth={2.25} aria-hidden="true" />
-        <span className="tool-name">{tool.name}</span>
-        <ToolStatus status={tool.status} label={statusLabel} />
+        <span className="tool-name">{toolLabel(tool)}</span>
+        {detail && <span className="tool-detail">{detail}</span>}
+        <ToolStatus status={tool.status} label={tool.status === "error" ? "Failed" : undefined} />
       </button>
       <div className={`tool-call-body-wrapper${isOpen ? " open" : ""}`}>
         <div className="tool-call-body">
           <div className="tool-call-body-inner">
+            <div className="tool-call-section-label">{tool.name}</div>
+            {input && <div className="tool-call-input">{input.length > 2000 ? input.slice(0, 2000) + "\n…(truncated)" : input}</div>}
             {tool.result
               ? tool.result.length > 3000
                 ? tool.result.slice(0, 3000) + "\n...(truncated)"
                 : tool.result
-              : "Waiting for result…"}
+              : tool.status === "pending"
+                ? "Not started yet…"
+                : "Waiting for result…"}
           </div>
         </div>
       </div>

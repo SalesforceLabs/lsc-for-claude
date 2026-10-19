@@ -69,7 +69,7 @@ export function renderMermaid(chart: string, scheme: ColorScheme): Promise<strin
 
 /**
  * A chart's SVG in the current palette, re-rendered when the palette changes (the previous SVG stays
- * up meanwhile). `delayMs` debounces charts that are still streaming in.
+ * up meanwhile). An empty chart isn't drawn. `delayMs` debounces charts that change quickly.
  */
 export function useMermaidSvg(chart: string, delayMs = 0): { svg: string | null; error: boolean } {
   const scheme = useColorScheme();
@@ -78,6 +78,7 @@ export function useMermaidSvg(chart: string, delayMs = 0): { svg: string | null;
   const [state, setState] = useState(() => ({ key, svg: svgCache.get(key) ?? null, error: false }));
 
   useEffect(() => {
+    if (!source) return; // nothing to draw yet
     const cached = svgCache.get(key);
     if (cached) {
       setState({ key, svg: cached, error: false });
