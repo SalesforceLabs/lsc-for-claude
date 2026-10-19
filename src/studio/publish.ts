@@ -72,13 +72,13 @@ export async function publishStatus(parentId: string, org: string): Promise<Publ
   const status = String(parent.Status ?? "Unknown");
   const children = rows.filter((r) => r.Id !== parentId);
   // The parent reads "Published" while the profiles' caches are still being built, and the job can end Inactive with only an ErrorLog to say why.
+  // A job that ends Active can carry an ErrorLog too ("No StoreCheckFeature developer names found…") — a note, not a failure.
   const errorLog = [parent, ...children].map((r) => cacheErrorText(r.ErrorLog)).find(Boolean);
   const failed =
     status === "Error" ||
     parent.IntegrationStatus === "Error" ||
     status === "Inactive" ||
-    children.some((r) => r.Status === "Error" || r.Status === "Inactive") ||
-    Boolean(errorLog);
+    children.some((r) => r.Status === "Error" || r.Status === "Inactive");
   const built = status === "Active" || (status === "Published" && children.length > 0 && children.every((r) => r.Status === "Active" && r.MetadataDocumentId));
   return {
     parentId,

@@ -329,6 +329,16 @@ describe("publish to iPad", () => {
       error: "Unable to read SObject PrstContentDefinition over REST",
     });
   });
+
+  it("reports a job that ended Active as done even when its error log has a note", async () => {
+    org.LifeSciMobileMetadataRecord = [
+      { Id: "1MR000000000001", Status: "Active", ErrorLog: '{"message":"No StoreCheckFeature developer names found, skipping FlexiPage metadata collection"}' },
+      { Id: "1MR000000000002", Status: "Active", MetadataDocumentId: "069000000000001", Profile: { Name: "LS PH Field Sales Representative" } },
+    ];
+    const status = await publishStatus("1MR000000000001", "org");
+    expect(status).toMatchObject({ state: "done", status: "Active" });
+    expect(status.error).toBeUndefined();
+  });
 });
 
 describe("closestName", () => {
