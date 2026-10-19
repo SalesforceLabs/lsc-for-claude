@@ -180,13 +180,12 @@ export function curatedFor(component: string): Curated | undefined {
   return CURATED[component] ?? CURATED[trimNs(component)];
 }
 
-/** An LWC's own properties: `mobileHeight` on an inline LWC is read; for the rest, Studio can't tell. */
+/** An LWC's own properties: `mobileHeight` on an inline LWC is read when the bundle declares it (the org rejects a property its js-meta.xml doesn't); for the rest, Studio can't tell. */
 function markBundleProps(component: string, defs: ComponentPropDef[]): ComponentPropDef[] {
   const mapped = defs.map((d): ComponentPropDef => {
     if (d.name === "mobileHeight" && isInline(component)) return { ...d, min: d.min ?? 1, ipad: "used", ipadNote: MOBILE_HEIGHT.ipadNote };
     return { ...d, ipadNote: "Studio can't tell whether the iPad passes this to the component." };
   });
-  if (isInline(component) && !mapped.some((d) => d.name === "mobileHeight")) mapped.unshift(MOBILE_HEIGHT);
   return mapped;
 }
 

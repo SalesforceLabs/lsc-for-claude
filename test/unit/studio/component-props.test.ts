@@ -93,6 +93,14 @@ describe("collectComponentProps", () => {
     expect(soql).toContain("NamespacePrefix = null");
   });
 
+  it("doesn't offer mobileHeight on an inline LWC whose bundle doesn't declare it (the org rejects it)", async () => {
+    const bare = `<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata"><targets><target>lightning__RecordPage</target></targets></LightningComponentBundle>`;
+    vi.mocked(cli.runToolingQuery).mockResolvedValue({ success: true, data: { records: [{ Source: bare }] } } as never);
+    const res = await server.collectComponentProps("lscMobileInline_Compliance", "RecordPage", "org");
+    expect(res.source).toBe("bundle");
+    expect(res.properties).toEqual([]);
+  });
+
   it("queries a namespaced bundle by its prefix and falls back when the source is hidden", async () => {
     vi.mocked(cli.runToolingQuery).mockResolvedValue({ success: true, data: { records: [] } } as never);
     const res = await server.collectComponentProps("lsc4ce:lscMobileInline_Alpha", "RecordPage", "org");

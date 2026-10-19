@@ -47,6 +47,16 @@ describe("component catalog", () => {
     expect(dashboard).toMatchObject({ insertable: false, needs: expect.stringContaining("Lightning App Builder") });
   });
 
+  it("doesn't offer activity children (Events, Tasks) as related lists, which the org rejects", () => {
+    const entries = buildCatalog({
+      ...input,
+      children: [{ relationshipName: "Events", childSObject: "Event" }, { relationshipName: "Visits", childSObject: "Visit" }],
+      synced: new Set(["Visit", "Event"]),
+    });
+    expect(entries.find((e) => e.key.endsWith(":Events"))).toMatchObject({ insertable: false, needs: expect.stringContaining("is an activity") });
+    expect(entries.find((e) => e.key.endsWith(":Visits"))!.insertable).toBe(true);
+  });
+
   it("has no related lists or tabs on a Home page", () => {
     const entries = buildCatalog({ ...input, pageType: "HomePage", sobject: null });
     expect(entries.some((e) => e.group === "Related list" || e.component === "flexipage:tabset")).toBe(false);
@@ -59,7 +69,11 @@ describe("component catalog", () => {
     beforeEach(() => {
       vi.clearAllMocks();
       vi.mocked(cli.runToolingQuery).mockImplementation((async (q: string) => {
-        const records = q.includes("LightningComponentBundle")
+        const records = q.includes("LightningComponentResource")
+          ? [
+              { LightningComponentBundle: { DeveloperName: "lscMobileInline_CarouselLwc", NamespacePrefix: null }, Source: "<LightningComponentBundle><targetConfigs><targetConfig targets=\"lightning__RecordPage\"><property name=\"mobileHeight\" type=\"Integer\"/></targetConfig></targetConfigs></LightningComponentBundle>" },
+            ]
+          : q.includes("LightningComponentBundle")
           ? [
               { DeveloperName: "lscMobileInline_CarouselLwc", NamespacePrefix: null, MasterLabel: "Carousel" },
               { DeveloperName: "lscMobileInlineHelper", NamespacePrefix: null, MasterLabel: "Not inline" },
@@ -77,6 +91,21 @@ describe("component catalog", () => {
       const { entries, setupPath } = await collectCatalog("RecordPage", "Account", "org");
       expect(entries.filter((e) => e.insertable).map((e) => e.key)).toEqual(["lscMobileInline_CarouselLwc", "force:relatedListSingleContainer:Visits"]);
       expect(setupPath).toMatch(/^\/lightning\/setup\//);
+    });
+
+    it("gives no mobileHeight to an inline LWC whose js-meta.xml doesn't declare it, and keeps it when the bundle can't be read", async () => {
+      vi.mocked(cli.runToolingQuery).mockImplementation((async (q: string) => {
+        const records = q.includes("LightningComponentResource")
+          ? [{ LightningComponentBundle: { DeveloperName: "lscMobileInline_Bare", NamespacePrefix: null }, Source: "<LightningComponentBundle><targets><target>lightning__RecordPage</target></targets></LightningComponentBundle>" }]
+          : [
+              { DeveloperName: "lscMobileInline_Bare", NamespacePrefix: null, MasterLabel: "Bare" },
+              { DeveloperName: "lscMobileInline_Hidden", NamespacePrefix: "mgd", MasterLabel: "Hidden" },
+            ];
+        return { success: true, data: { totalSize: records.length, done: true, records } };
+      }) as never);
+      const { entries } = await collectCatalog("HomePage", null, "org");
+      expect(entries.find((e) => e.key === "lscMobileInline_Bare")!.properties).toEqual([]);
+      expect(entries.find((e) => e.key === "mgd:lscMobileInline_Hidden")!.properties).toEqual([{ name: "mobileHeight", value: "400" }]);
     });
 
     it("doesn't describe anything for a Home page and refuses bad object names", async () => {
