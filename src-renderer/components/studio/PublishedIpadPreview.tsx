@@ -18,7 +18,7 @@ import { testUserFor } from "../../test-users";
 import RecordScreen, { aheadAttrs, aheadClass, asDrawn, blockIdentity, draftClass, LayoutEdits, RecordTabs, usePageDraft } from "./IpadRecord";
 import IpadFabs from "./IpadFabs";
 import { Dashboard } from "./IpadDashboard";
-import { ReportsTree } from "./IpadReports";
+import { ReportsTab } from "./IpadReports";
 import { hasNativeScreen, NativeScreen } from "./screens";
 import { IpadSearchField, IpadStatusBar, IpadTopBar, type ChromeTab } from "./IpadChrome";
 import { initials } from "./ipad-chrome";
@@ -274,7 +274,7 @@ function Device({
         <div
           ref={split ? (el) => void (pages.current[side] = el) : undefined}
           onScrollCapture={split ? mirror(side) : undefined}
-          className={`studio-ipad-page${shown?.kind === "empty" ? " blank" : ""}${home ? " home" : ""}${shown?.kind === "reports" && snapshot.reports ? " flush" : ""}${record === null && hasNativeScreen(shown, snapshot) ? " native" : ""}${record === null && isLwcOnly(shown, snapshot) ? " lwc-full" : ""}${record && snapshot.records?.byId[record] ? " record" : ""}`}
+          className={`studio-ipad-page${shown?.kind === "empty" ? " blank" : ""}${home ? " home" : ""}${shown?.kind === "reports" && snapshot.viewer ? " flush" : ""}${record === null && hasNativeScreen(shown, snapshot) ? " native" : ""}${record === null && isLwcOnly(shown, snapshot) ? " lwc-full" : ""}${record && snapshot.records?.byId[record] ? " record" : ""}`}
         >
           {shown && <Screen key={shown.fullName} tab={shown} snapshot={snapshot} record={record} onOpenRecord={setRecord} onNew={(label, objectName) => setNewSheet(newPresentation(label, objectName))} onNote={note} onAction={(item) => setNewSheet(presentationFor(item, { onRecord: true }))} onEditVisit={(id) => setNewSheet({ kind: "visit", edit: id })} />}
         </div>
@@ -474,8 +474,9 @@ function Screen({
       return <SearchTab />;
     case "reports":
       // ReportsTabCoordinator: the report tree with ShowSalesforceReports, else the Sales Chart report.
-      if (snapshot.reports) return <ReportsTree items={snapshot.reports} />;
-      return <Native title={tab.label} text={snapshot.settings?.reports.salesforceReports === false ? "Sales Chart (native screen)" : "Reports (native screen)"} />;
+      // Read when the tab opens, so the preview never waits on reports.
+      if (!snapshot.viewer) return <Native title={tab.label} text="Reports (native screen)" />;
+      return <ReportsTab userId={snapshot.viewer.userId} renderNative={(text) => <Native title={tab.label} text={text} />} />;
     default:
       return <Native title={tab.label} text={NATIVE_SCREENS[tab.kind] ?? tab.label} />;
   }

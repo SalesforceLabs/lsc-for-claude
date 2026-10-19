@@ -22,7 +22,6 @@ import type { TokenLogin } from "../perf/device/session.js";
 import { collectScreens, type PublishedScreens, type ScreenContext } from "./screens/index.js";
 import { isScaleError, withTimeout } from "./screens/context.js";
 import { collectRecords, type PublishedRecords } from "./screens/record.js";
-import { attachReportData, type PublishedReportData } from "./screens/report-data.js";
 import { recordFieldSpec, type RecordFieldSpec } from "./screens/record-fields.js";
 import { LoadTracker } from "./published-progress.js";
 
@@ -218,10 +217,6 @@ export interface PublishedIpad {
   usersTruncated?: boolean;
   /** Dashboards the pages' `embeddedDashboard` components show, by developer name. */
   dashboards: Record<string, PublishedDashboard>;
-  /** The viewer's custom settings that change what a native screen shows; absent without a viewer. */
-  settings?: PublishedSettings;
-  /** The Reports tab's tree as the viewer sees it (MultiReportsViewModel); absent without a Reports tab. */
-  reports?: PublishedReportItem[];
   /** Object tabs' list view records as `Object.ListName` → data; absent when they couldn't be read. */
   lists?: Record<string, PublishedListData>;
   /** Why a list view has no data (`Object.ListName` → note): unreadable filter, timeout, or past the per-object cap. */
@@ -257,7 +252,6 @@ export interface PublishedReportItem {
   /** Report Id, format, and its result when run read-only for the "View Report" sheet (screens/report-data.ts). */
   id?: string;
   format?: string;
-  data?: PublishedReportData;
   ran?: boolean;
   children: PublishedReportItem[];
 }
@@ -1690,7 +1684,7 @@ async function ancestors(sobject: string, parentField: string, fields: string, i
  */
 async function viewerReports(userId: string, salesChart: boolean, org: string, note: (message: string) => void): Promise<PublishedReportItem[] | undefined> {
   if (!ID_PATTERN.test(userId)) return undefined;
-  try {
+  {
     const [folderResult, reportResult] = await Promise.all([
       queryResult(`SELECT Id, Name, ParentId FROM Folder WHERE Type = 'Report' ORDER BY Name`, org, false, { allowTruncated: true, maxRows: REPORT_ROWS }),
       queryResult(`SELECT Id, Name, Description, Format, FolderName, OwnerId FROM Report ORDER BY Name`, org, false, { allowTruncated: true, maxRows: REPORT_ROWS }),
@@ -1714,12 +1708,7 @@ async function viewerReports(userId: string, salesChart: boolean, org: string, n
       const owner = str(r.OwnerId);
       return readable.has(owner) || owner === userId || owner.startsWith("00D");
     });
-    const tree = buildReportTree(visibleFolders, visibleReports, salesChart);
-    await attachReportData(tree, org);
-    return tree;
-  } catch (err) {
-    if (isScaleError(err)) note(`Reports tab not shown with data: ${reason(err)}`);
-    return undefined;
+    return buildReportTree(visibleFolders, visibleReports, salesChart);
   }
 }
 
@@ -1827,9 +1816,9 @@ async function viewerScreens(
   org: string,
   track: LoadTracker,
   repLogin?: TokenLogin
-): Promise<Pick<PublishedIpad, "settings" | "reports" | "lists" | "listErrors" | "screens" | "records" | "dataNotes" | "dataSource">> {
+): Promise<Pick<PublishedIpad, "lists" | "listErrors" | "screens" | "records" | "dataNotes" | "dataSource">> {
   if (!userId) return {};
-  track.plan(["reports", "lists", "screens", "records"]);
+  track.plan(["lists", "screens", "records"]);
   const notes: string[] = [];
   const note = (message: string) => {
     if (!notes.includes(message)) notes.push(message);
@@ -1838,18 +1827,12 @@ async function viewerScreens(
   const rep = repLogin ? await openRepReads(repLogin, userId, note) : undefined;
   const readOrg = rep?.org ?? org;
   const dataSource: "rep" | "admin" = rep ? "rep" : "admin";
-  // The records step needs only the lists and the screens, so it starts as soon as they are in rather than after the slow Reports tab.
+  // The records step needs only the lists and the screens, so it starts as soon as they are in.
   // Its own notes are added after the others, as they were when it ran last.
   const recordNotes: string[] = [];
   const recordNote = (message: string) => {
     if (!recordNotes.includes(message)) recordNotes.push(message);
   };
-  const reportsRun = track.run("reports", () =>
-    withTimeout(viewerReportsTab(core, userId, org, note), REPORTS_TIMEOUT_MS, "Reading the Reports tab").catch((err) => {
-      note(`Reports tab not shown with data: ${reason(err)}`);
-      return {};
-    })
-  );
   const listsRun = track.run("lists", () => viewerLists(core, userId, org, track, readOrg));
   const screensRun = track.run("screens", () =>
     viewerContext(core, userId, org, note, readOrg)
@@ -1884,13 +1867,12 @@ async function viewerScreens(
         )
       : undefined;
   });
-  const [reports, listResult, screens, records] = await Promise.all([reportsRun, listsRun, screensRun, recordsRun]);
+  const [listResult, screens, records] = await Promise.all([listsRun, screensRun, recordsRun]);
   for (const message of recordNotes) note(message);
   if (rep) forgetTokenOrg(rep.org);
   const lists = listResult?.data;
   const listErrors = listResult && Object.keys(listResult.errors).length ? listResult.errors : undefined;
   return {
-    ...reports,
     ...(lists ? { lists } : {}),
     ...(listErrors ? { listErrors } : {}),
     ...(Object.keys(screens).length ? { screens } : {}),
@@ -1959,18 +1941,27 @@ function syncScope(core: SnapshotCore, userId: string, territories: { id: string
   };
 }
 
-/** ReportsTabCoordinator reads ReportsAndDashboardsSync; the report tree only shows with ShowSalesforceReports. */
-async function viewerReportsTab(core: SnapshotCore, userId: string, org: string, note: (message: string) => void): Promise<Pick<PublishedIpad, "settings" | "reports">> {
-  if (!core.tabs.some((t) => t.kind === "reports")) return {};
-  try {
-    const config = await viewerConfig(["ReportsAndDashboardsSync"], userId, org);
-    const r = config.ReportsAndDashboardsSync ?? {};
-    const settings: PublishedSettings = { reports: { salesChart: r.ShowSalesChart === true, salesforceReports: r.ShowSalesforceReports === true } };
-    const reports = settings.reports.salesforceReports ? await viewerReports(userId, settings.reports.salesChart, org, note) : undefined;
-    return { settings, reports };
-  } catch {
-    return {};
-  }
+/** What the Reports tab shows: its custom settings and, with ShowSalesforceReports, the folder and report tree. */
+export interface IpadReports {
+  settings: PublishedSettings;
+  reports?: PublishedReportItem[];
+  /** Why the tree is shorter than the org's (row caps). */
+  dataNotes?: string[];
+}
+
+/**
+ * ReportsTabCoordinator reads ReportsAndDashboardsSync; the report tree only shows with ShowSalesforceReports.
+ * Read when the Reports tab is first opened, not with the preview (`studio_ipad_reports`); failures throw so the
+ * tab can say so and offer a retry. Report results are not read here: `studio_report_data` runs one on open.
+ */
+export async function loadIpadReports(userId: string, org: string): Promise<IpadReports> {
+  if (!ID_PATTERN.test(userId)) throw new Error("A user Id is needed to read the Reports tab.");
+  const notes: string[] = [];
+  const config = await viewerConfig(["ReportsAndDashboardsSync"], userId, org);
+  const r = config.ReportsAndDashboardsSync ?? {};
+  const settings: PublishedSettings = { reports: { salesChart: r.ShowSalesChart === true, salesforceReports: r.ShowSalesforceReports === true } };
+  const reports = settings.reports.salesforceReports ? await viewerReports(userId, settings.reports.salesChart, org, (m) => notes.push(m)) : undefined;
+  return { settings, ...(reports ? { reports } : {}), ...(notes.length ? { dataNotes: notes } : {}) };
 }
 
 /** DataTableView pages: AllSObjectsDataService.rowsPerPage. */
@@ -1981,8 +1972,6 @@ const LIST_VIEW_TIMEOUT_MS = 45_000;
 /** Total time for all list views; the ones not started by then are skipped with a note. */
 const LIST_BUDGET_MS = 180_000;
 const LIST_CONCURRENCY = 4;
-/** Longest the Reports tab (folders, sharing, report results) is waited on. */
-const REPORTS_TIMEOUT_MS = 90_000;
 /** Longest the records step (the pages list views and cards open) is waited on. */
 const RECORDS_TIMEOUT_MS = 60_000;
 

@@ -2,28 +2,60 @@ import React from "react";
 import { createPortal } from "react-dom";
 import type { PublishedReportItem } from "./published-types";
 import type { PublishedReportData } from "./report-types";
+import { IpadFail, IpadWait } from "./IpadLazyState";
+import { useLazyStudio, type Lazy } from "./useLazyStudio";
 import "./report-viewer.css";
 
 /** What the sheet shows for a report, decided from what the preview could read. */
-export type ReportViewState = { kind: "table"; data: PublishedReportData } | { kind: "empty" } | { kind: "web" } | { kind: "unavailable" };
+export type ReportViewState =
+  | { kind: "table"; data: PublishedReportData }
+  | { kind: "empty" }
+  | { kind: "web" }
+  | { kind: "unavailable" }
+  | { kind: "loading" }
+  | { kind: "error"; message: string };
+
+const COULD_NOT_RUN = "The preview could not run this report with the connected account, so it cannot show what the viewer would see.";
 
 /**
  * ReportDetailsViewController: Tabular and Summary reports with no rows say "No data available"; a failed fetch does too
  * in the app. The preview separates "the connected account got no rows" from "couldn't run it here" so it never shows an
  * empty report it doesn't know to be empty.
  */
-export function reportViewState(item: PublishedReportItem): ReportViewState {
+export function reportViewState(item: PublishedReportItem, fetched?: Lazy<PublishedReportData>): ReportViewState {
   if (!item.native) return { kind: "web" };
-  const data = item.data;
-  if (!data) return { kind: "unavailable" };
-  if (data.entries.length === 0) return { kind: "empty" };
-  return { kind: "table", data };
+  // The Sales Chart has no report Id to run.
+  if (!item.id || !fetched) return { kind: "unavailable" };
+  if (fetched.status === "loading") return { kind: "loading" };
+  if (fetched.status === "error") return { kind: "error", message: fetched.message };
+  if (fetched.data.entries.length === 0) return { kind: "empty" };
+  return { kind: "table", data: fetched.data };
+}
+
+/** What `studio_report_data` answers: the report's result, or null when it couldn't be run here (shown as an error with Retry). */
+export function pickReportData(answer: unknown): PublishedReportData {
+  const data = (answer as { data?: PublishedReportData | null } | undefined)?.data;
+  if (!data) throw new Error(COULD_NOT_RUN);
+  return data;
 }
 
 /** The "View Report" sheet (full screen): Close left, "View in Salesforce" right, the grid or a message below. */
-export function ReportViewer({ item, host, onClose }: { item: PublishedReportItem; host: Element | null; onClose: () => void }) {
+export function ReportViewer({ item, host, userId, onClose }: { item: PublishedReportItem; host: Element | null; userId?: string; onClose: () => void }) {
   if (!host) return null;
-  const state = reportViewState(item);
+  // Only a native report with an Id is run; the result is read now, when the rep opens it, not with the preview.
+  return item.native && item.id ? (
+    <RunningReport item={item} id={item.id} host={host} userId={userId} onClose={onClose} />
+  ) : (
+    <ReportSheet item={item} state={reportViewState(item)} host={host} onClose={onClose} onRetry={() => {}} />
+  );
+}
+
+function RunningReport({ item, id, host, userId, onClose }: { item: PublishedReportItem; id: string; host: Element; userId?: string; onClose: () => void }) {
+  const { state, retry } = useLazyStudio(`${id}|${userId ?? ""}`, () => window.lscApi.studioReportData(id, userId), pickReportData);
+  return <ReportSheet item={item} state={reportViewState(item, state)} host={host} onClose={onClose} onRetry={retry} />;
+}
+
+function ReportSheet({ item, state, host, onClose, onRetry }: { item: PublishedReportItem; state: ReportViewState; host: Element; onClose: () => void; onRetry: () => void }) {
   const node = (
     <div className="studio-ipad-reportview" role="dialog" aria-label="View Report">
       <div className={`studio-ipad-reportview-bar${state.kind === "table" ? " data" : ""}`}>
@@ -49,6 +81,8 @@ export function ReportViewer({ item, host, onClose }: { item: PublishedReportIte
           <div className="studio-ipad-reportview-note">{item.format || "This report"} opens in Salesforce&apos;s web report viewer in the app; the preview does not load org pages. Labelled note: the device shows a blank page while it loads.</div>
         </div>
       )}
+      {state.kind === "loading" && <IpadWait label="Running report…" />}
+      {state.kind === "error" && <IpadFail title="Couldn't run this report" message={state.message} onRetry={onRetry} />}
       {state.kind === "unavailable" && (
         <div className="studio-ipad-reportview-message">
           <div className="studio-ipad-reportview-note">The preview could not run this report with the connected account, so it cannot show what the viewer would see.</div>

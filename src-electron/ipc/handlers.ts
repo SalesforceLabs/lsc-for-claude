@@ -96,6 +96,8 @@ const STUDIO_CACHED_TOOLS = new Set([
   "studio_list_profiles",
   "studio_access_options",
   "studio_ipad_published",
+  // The folder and report tree is cheap to keep; report results (customer records) are never stored here.
+  "studio_ipad_reports",
   "studio_unpublished",
   "studio_readiness",
   "studio_setup_overview",

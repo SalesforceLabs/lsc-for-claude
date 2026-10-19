@@ -65,6 +65,9 @@ export function isCacheable(toolName: string, data: unknown): boolean {
       if (values(data.listErrors).some((e) => typeof e === "string" && TRANSIENT.test(e))) return false;
       return !values(data.dashboards).some((d) => transient(d, "dataNote"));
     }
+    case "studio_ipad_reports":
+      // A tree cut at the row cap is told to the user each time, like the published iPad's notes.
+      return rows("dataNotes").length === 0;
     case "studio_sync_overview":
       // A truncated window is the org's size, not a failure; a telemetry read that failed is.
       return !rows("notes").some((n) => typeof n === "string" && TRANSIENT.test(n));
