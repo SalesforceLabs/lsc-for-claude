@@ -1234,7 +1234,9 @@ button.studio-ipad-chip {
   gap: 0;
 }
 
-.studio-ipad-page.home > * {
+/* A selectable block's mark is `display: contents`, so the component inside it is the flex item. */
+.studio-ipad-page.home > *,
+.studio-ipad-page.home > .studio-edit-mark > * {
   flex-shrink: 0;
 }
 
