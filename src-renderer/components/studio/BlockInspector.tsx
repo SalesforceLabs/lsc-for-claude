@@ -10,6 +10,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  CircleDot,
   CloudOff,
   Copy,
   ExternalLink,
@@ -32,6 +33,7 @@ import type { Verb, VerbId } from "./edit-draft";
 import type { LayoutStatus } from "./usePreviewEdit";
 import type { PropertyEdit } from "./flexipage-draft";
 import Spinner from "../ui/Spinner";
+import { inspectorNote, type UnpublishedItem } from "./org-ahead";
 import PropertiesSheet from "./PropertiesSheet";
 import StatusIcon from "../ui/StatusIcon";
 
@@ -74,6 +76,7 @@ export default function BlockInspector({
   onRun,
   horizontal,
   layout,
+  orgAhead,
   onRetryLayout,
   properties,
   onProperty,
@@ -100,6 +103,8 @@ export default function BlockInspector({
   horizontal?: boolean;
   /** The page layout behind the block, as read from the org. */
   layout?: LayoutStatus;
+  /** The block's document changed in the org after the profile's last publish. */
+  orgAhead?: UnpublishedItem;
   onRetryLayout?: () => void;
   /** Lightning page properties the block's inspector can set (a tab's title, an inline LWC's height). */
   properties?: PropertyEdit[];
@@ -159,6 +164,13 @@ export default function BlockInspector({
             ))}
           </ul>
         </section>
+
+        {orgAhead && (
+          <p className="studio-block-reach studio-org-ahead-note" role="status">
+            <CircleDot size={16} aria-hidden />
+            <span>{inspectorNote(orgAhead)}</span>
+          </p>
+        )}
 
         {sync && (
           <div className="studio-block-sync" role="status">

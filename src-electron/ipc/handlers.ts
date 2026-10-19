@@ -93,6 +93,7 @@ const STUDIO_CACHED_TOOLS = new Set([
   "studio_list_profiles",
   "studio_access_options",
   "studio_ipad_published",
+  "studio_unpublished",
   "studio_readiness",
   "studio_setup_overview",
   "studio_sync_overview",

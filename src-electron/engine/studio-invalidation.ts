@@ -7,7 +7,7 @@
  * publish changes), the profile list and the permission options.
  */
 
-const MAPS = ["studio_feature_map", "studio_item_detail", "studio_readiness", "studio_setup_overview"];
+const MAPS = ["studio_feature_map", "studio_item_detail", "studio_readiness", "studio_setup_overview", "studio_unpublished"];
 /** Sync volume depends on DB Schema, who has which access and territories — not on layouts or script code. */
 const SYNC = ["studio_sync_user", "studio_sync_overview"];
 const PUBLISHED = "studio_ipad_published";
@@ -40,6 +40,7 @@ export function toolsInvalidatedByApply(fix: unknown): string[] {
 
 /** Cached tools to drop once a publish finishes: the metadata cache surfaces and what is read from the cache. */
 export const INVALIDATED_BY_PUBLISH = [
+  "studio_unpublished",
   "studio_feature_map",
   "studio_readiness",
   "studio_setup_overview",
@@ -48,7 +49,7 @@ export const INVALIDATED_BY_PUBLISH = [
 ];
 
 /** Cached tools to drop when the user refreshes a feature map: the org changed under it. */
-export const INVALIDATED_BY_MAP_REFRESH = ["studio_item_detail", "studio_list_profiles", "studio_access_options", "studio_ipad_published"];
+export const INVALIDATED_BY_MAP_REFRESH = ["studio_unpublished", "studio_item_detail", "studio_list_profiles", "studio_access_options", "studio_ipad_published"];
 
 /**
  * A counter per org that moves on every invalidation. A load that began before a write must not store

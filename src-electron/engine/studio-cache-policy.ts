@@ -11,6 +11,8 @@ export const STUDIO_CACHE_MAX_ROWS = 400;
 const TTL_BY_TOOL: Record<string, number> = {
   studio_sync_overview: 60 * 60 * 1000,
   studio_sync_user: 60 * 60 * 1000,
+  /** Changes land in the org all the time, and a stale "up to date" would mislead. */
+  studio_unpublished: 10 * 60 * 1000,
 };
 
 /** How long a tool's cached result stays fresh. */
