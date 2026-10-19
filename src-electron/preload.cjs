@@ -96,6 +96,7 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioComponentProps: (component, pageType) => ipcRenderer.invoke("studio:call", "studio_component_props", { component, pageType }),
   studioSetupLinks: (refs) => ipcRenderer.invoke("studio:call", "studio_setup_links", { refs }),
   studioListProfiles: () => ipcRenderer.invoke("studio:call", "studio_list_profiles"),
+  studioAppTabOptions: () => ipcRenderer.invoke("studio:call", "studio_app_tab_options"),
   studioUserAccess: (userId) => ipcRenderer.invoke("studio:call", "studio_user_access", { userId }),
   studioAccessOptions: (search) => ipcRenderer.invoke("studio:call", "studio_access_options", search ? { search } : {}),
   studioLwcBundle: (name) => ipcRenderer.invoke("studio:call", "studio_lwc_bundle", { name }),
@@ -174,6 +175,30 @@ contextBridge.exposeInMainWorld("lscApi", {
   perfDeleteSim: (id) => ipcRenderer.invoke("perf:deleteSim", id),
   perfOpenFile: () => ipcRenderer.invoke("perf:openFile"),
   perfSaveFile: (defaultName, text, kind) => ipcRenderer.invoke("perf:saveFile", defaultName, text, kind),
+
+  // LSC App Builder — projects per org, turns run in the main process and stream events
+  appList: () => ipcRenderer.invoke("appBuilder:list"),
+  appGet: (id) => ipcRenderer.invoke("appBuilder:get", id),
+  appCreate: (input) => ipcRenderer.invoke("appBuilder:create", input),
+  appSend: (id, prompt) => ipcRenderer.invoke("appBuilder:send", id, prompt),
+  appStop: (id) => ipcRenderer.invoke("appBuilder:stop", id),
+  appDelete: (id) => ipcRenderer.invoke("appBuilder:delete", id),
+  appSetRunAs: (id, runAs) => ipcRenderer.invoke("appBuilder:setRunAs", id, runAs),
+  appSetTabSettings: (id, tab) => ipcRenderer.invoke("appBuilder:setTabSettings", id, tab),
+  appDeployPlan: (id) => ipcRenderer.invoke("appBuilder:deployPlan", id),
+  appRename: (id, label) => ipcRenderer.invoke("appBuilder:rename", id, label),
+  appRestore: (id, versionId) => ipcRenderer.invoke("appBuilder:restore", id, versionId),
+  appEditFile: (id, path, source) => ipcRenderer.invoke("appBuilder:editFile", id, path, source),
+  appPreview: (id, versionId) => ipcRenderer.invoke("appBuilder:preview", id, versionId),
+  appDeploy: (id) => ipcRenderer.invoke("appBuilder:deploy", id),
+  appImport: (name) => ipcRenderer.invoke("appBuilder:import", name),
+  appOrgApps: () => ipcRenderer.invoke("appBuilder:orgApps"),
+  appDescribe: (objects, projectId) => ipcRenderer.invoke("appBuilder:describe", objects, projectId),
+  onAppEvent: (cb) => {
+    const handler = (_event, payload) => cb(payload);
+    ipcRenderer.on("appBuilder:event", handler);
+    return () => ipcRenderer.removeListener("appBuilder:event", handler);
+  },
 
   // Library
   listLibraryItems: (scope) => ipcRenderer.invoke("library:list", scope),

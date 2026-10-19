@@ -29,9 +29,10 @@ export async function isProductionOrg(org: string): Promise<boolean> {
   const known = productionOrgs.get(org);
   if (known !== undefined) return known;
   try {
-    const [rec] = await query("SELECT IsSandbox FROM Organization LIMIT 1", org);
+    const [rec] = await query("SELECT IsSandbox, TrialExpirationDate, OrganizationType FROM Organization LIMIT 1", org);
     if (!rec) return false;
-    const production = rec.IsSandbox === false;
+    // A trial or Developer Edition org is not a sandbox, but nothing in it is real data either (the renderer's OrgKind agrees).
+    const production = rec.IsSandbox === false && rec.TrialExpirationDate == null && rec.OrganizationType !== "Developer Edition";
     productionOrgs.set(org, production);
     return production;
   } catch {

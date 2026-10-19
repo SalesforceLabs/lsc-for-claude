@@ -1,6 +1,7 @@
 import type { LlmConnection, LlmConnectionKind, LlmConnectionTest } from "./connection";
 import type { AppTheme } from "./theme";
 import type { OrgRef, OrgRole, SfOrg } from "./orgs";
+import type { AppBuilderEvent, AppCheckResult, AppDeployPlan, AppDeployResult, AppObjectInfo, AppProject, AppRunAs, AppTabSettings, AppTarget, AppVersion, OrgApp } from "./components/studio/builder/types";
 
 /** A chat session; `org` is the org it works in, null for sessions from before orgs were recorded. */
 export interface Conversation {
@@ -128,6 +129,7 @@ interface LscApi {
   /** The deepest Setup pages for references (see `SetupRef`), in order; `exact` false = the list page. */
   studioSetupLinks(refs: unknown[]): Promise<StudioResponse>;
   studioListProfiles(): Promise<StudioResponse>;
+  studioAppTabOptions(): Promise<StudioResponse>;
   studioUserAccess(userId: string): Promise<StudioResponse>;
   studioAccessOptions(search?: string): Promise<StudioResponse>;
   studioLwcBundle(name: string): Promise<StudioResponse>;
@@ -163,6 +165,26 @@ interface LscApi {
   studioSyncUserProgress(userId: string): Promise<StudioResponse>;
   studioSyncImpact(changes: unknown[], profiles?: string[]): Promise<StudioResponse>;
   studioSignoffReport(input: { assessment: unknown; simulations?: unknown[]; baseline?: unknown; days?: number }): Promise<StudioResponse>;
+
+  // LSC App Builder — projects are stored per org by the main process; turns stream through onAppEvent
+  appList(): Promise<AppProject[]>;
+  appGet(id: string): Promise<AppProject | null>;
+  appCreate(input: { prompt: string; target: AppTarget; objectApiName?: string; runAs?: AppRunAs }): Promise<{ project?: AppProject; error?: string }>;
+  appSend(id: string, prompt: string): Promise<{ ok: boolean; error?: string }>;
+  appStop(id: string): Promise<void>;
+  appDelete(id: string): Promise<void>;
+  appSetRunAs(id: string, runAs: AppRunAs | null): Promise<void>;
+  appSetTabSettings(id: string, tab: AppTabSettings | null): Promise<void>;
+  appDeployPlan(id: string): Promise<{ plan?: AppDeployPlan; error?: string }>;
+  appRename(id: string, label: string): Promise<void>;
+  appRestore(id: string, versionId: string): Promise<{ version?: AppVersion; error?: string }>;
+  appEditFile(id: string, path: string, source: string): Promise<{ version?: AppVersion; error?: string }>;
+  appPreview(id: string, versionId?: string): Promise<{ script?: string; placeholders: string[]; check?: AppCheckResult; error?: string }>;
+  appDeploy(id: string): Promise<{ result?: AppDeployResult; error?: string }>;
+  appImport(name: string): Promise<{ project?: AppProject; error?: string }>;
+  appOrgApps(): Promise<{ apps?: OrgApp[]; error?: string }>;
+  appDescribe(objects: string[], projectId?: string): Promise<{ objects?: AppObjectInfo[]; error?: string }>;
+  onAppEvent(cb: (e: { projectId: string; event: AppBuilderEvent }) => void): () => void;
 
   // Studio performance testing — plans and run history, stored per org by the main process
   perfListPlans(): Promise<PerfPlanRecord[]>;

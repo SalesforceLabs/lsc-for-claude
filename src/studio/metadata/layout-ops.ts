@@ -207,6 +207,26 @@ function parseFragment(xml: string, tag: string): XmlNode {
 
 const hasRelatedObject = (root: XmlNode, field: string) => childrenNamed(root, "relatedObjects").some((n) => n.text === field);
 
+// --- Mobile & Lightning Actions (platformActionList) --------------------------------
+
+const ACTION_NAME = /^[\w.]+$/;
+
+/** The Record-context action list, the one the iPad's ••• menu reads. */
+function recordActionList(root: XmlNode): XmlNode | undefined {
+  return childrenNamed(root, "platformActionList").find((l) => (childText(l, "actionListContext") ?? "Record") === "Record");
+}
+
+const actionItems = (list: XmlNode) => childrenNamed(list, "platformActionListItems");
+const actionNameOf = (item: XmlNode) => childText(item, "actionName") ?? "";
+
+/** sortOrder runs 0..n-1 in list order, as the setup UI writes it. */
+function renumber(list: XmlNode): void {
+  actionItems(list).forEach((item, i) => setChildText(item, "sortOrder", String(i), ["actionName", "actionType", "sortOrder"]));
+}
+
+/** True when the layout has no action list of its own, so the iPad shows the global publisher layout's actions instead. */
+export const inheritsActionList = (root: XmlNode): boolean => !recordActionList(root);
+
 // --- Ops ---------------------------------------------------------------------------
 
 /** Apply one op to `root` in place; returns its inverse and what changed, in words. */
@@ -332,6 +352,49 @@ export function applyLayoutOp(root: XmlNode, op: LayoutOp): { inverse: LayoutOp;
         inverse: { op: "addRelatedList", relatedList: op.relatedList, before: next, xml: serializeNode(rl) },
         change: { field: `Related list ${op.relatedList}`, before: `Position ${was}`, after: "(removed)" },
       };
+    }
+    case "addAction": {
+      if (!ACTION_NAME.test(op.action)) throw new Error(`Invalid action name: ${op.action}`);
+      const actionType = op.actionType ?? "QuickAction";
+      if (!/^\w+$/.test(actionType)) throw new Error(`Invalid action type: ${actionType}`);
+      let list = recordActionList(root);
+      const created = !list;
+      if (!list) {
+        list = { tag: "platformActionList", children: [leaf("actionListContext", "Record")] };
+        insertInOrder(root, list, LAYOUT_ORDER);
+      }
+      if (actionItems(list).some((i) => actionNameOf(i) === op.action)) throw new StaleLayoutError(`${op.action} is already in the layout's actions.`);
+      const item: XmlNode = { tag: "platformActionListItems", children: [leaf("actionName", op.action), leaf("actionType", actionType), leaf("sortOrder", "0")] };
+      let index = list.children.length;
+      if (op.before) {
+        index = list.children.findIndex((c) => c.tag === "platformActionListItems" && actionNameOf(c) === op.before);
+        if (index < 0) throw new StaleLayoutError(`${op.before} isn't in the layout's actions any more.`);
+      }
+      list.children.splice(index, 0, item);
+      renumber(list);
+      const position = actionItems(list).indexOf(item) + 1;
+      return {
+        inverse: { op: "removeAction", action: op.action, ...(created ? { dropList: true } : {}) },
+        change: {
+          field: `Action ${op.action}`,
+          before: created ? "(no action list of its own — the iPad shows the global publisher layout's actions)" : "(not in the action menu)",
+          after: created ? `Position 1 of 1 — this layout now has its own list, so the menu shows only the actions in it` : `Position ${position} of ${actionItems(list).length}`,
+        },
+      };
+    }
+    case "removeAction": {
+      if (!ACTION_NAME.test(op.action)) throw new Error(`Invalid action name: ${op.action}`);
+      const list = recordActionList(root);
+      const items = list ? actionItems(list) : [];
+      const item = items.find((i) => actionNameOf(i) === op.action);
+      if (!list || !item) throw new StaleLayoutError(`${op.action} isn't in the layout's actions.`);
+      const next = items[items.indexOf(item) + 1];
+      const was = `Position ${items.indexOf(item) + 1} of ${items.length}`;
+      const inverse: LayoutOp = { op: "addAction", action: op.action, before: next ? actionNameOf(next) : null, ...(childText(item, "actionType") && childText(item, "actionType") !== "QuickAction" ? { actionType: childText(item, "actionType") } : {}) };
+      detach(list, item);
+      if (op.dropList) detach(root, list);
+      else renumber(list);
+      return { inverse, change: { field: `Action ${op.action}`, before: was, after: "(removed from the action menu)" } };
     }
     case "addRelatedList": {
       assertName(op.relatedList);

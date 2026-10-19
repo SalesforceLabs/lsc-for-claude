@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { applyLayoutOps, StaleLayoutError } from "../../../src/studio/metadata/layout-ops.js";
+import { applyLayoutOps, inheritsActionList, StaleLayoutError } from "../../../src/studio/metadata/layout-ops.js";
 import { childText, childrenNamed, parseXml, serializeXml, type XmlNode } from "../../../src/studio/metadata/xml.js";
 import type { LayoutOp } from "../../../src/studio/types.js";
 
@@ -121,5 +121,56 @@ describe("layout ops", () => {
   it("leaves the input tree alone", () => {
     applyLayoutOps(root, [{ op: "removeField", field: "Name" }]);
     expect(serializeXml(root)).toBe(xml);
+  });
+});
+
+describe("layout action ops (platformActionList)", () => {
+  const names = (r: XmlNode) =>
+    childrenNamed(r, "platformActionList").flatMap((l) => childrenNamed(l, "platformActionListItems").map((i) => childText(i, "actionName")));
+  const sortOrders = (r: XmlNode) =>
+    childrenNamed(r, "platformActionList").flatMap((l) => childrenNamed(l, "platformActionListItems").map((i) => childText(i, "sortOrder")));
+  const first = names(root)[0];
+
+  it("adds an action at the end and renumbers sortOrder", () => {
+    const { root: r, changes, inverse } = applyLayoutOps(root, [{ op: "addAction", action: "Account.Studio_Test", before: null }]);
+    const all = names(r);
+    expect(all.at(-1)).toBe("Account.Studio_Test");
+    expect(sortOrders(r)).toEqual(all.map((_, i) => String(i)));
+    expect(changes[0].after).toBe(`Position ${all.length} of ${all.length}`);
+    expect(inverse).toEqual([{ op: "removeAction", action: "Account.Studio_Test" }]);
+    expect(serializeXml(applyLayoutOps(r, inverse).root)).toBe(xml);
+  });
+
+  it("adds in front of another action", () => {
+    const { root: r } = applyLayoutOps(root, [{ op: "addAction", action: "Account.Studio_Test", before: first! }]);
+    expect(names(r)[0]).toBe("Account.Studio_Test");
+    expect(names(r)[1]).toBe(first);
+  });
+
+  it("removes an action and the inverse puts it back where it was", () => {
+    const target = names(root)[1]!;
+    const forward = applyLayoutOps(root, [{ op: "removeAction", action: target }]);
+    expect(names(forward.root)).not.toContain(target);
+    expect(forward.inverse[0]).toMatchObject({ op: "addAction", action: target, before: names(root)[2] });
+    expect(serializeXml(applyLayoutOps(forward.root, forward.inverse).root)).toBe(xml);
+  });
+
+  it("refuses duplicates, unknown targets and bad names", () => {
+    expect(() => applyLayoutOps(root, [{ op: "addAction", action: first!, before: null }])).toThrow(StaleLayoutError);
+    expect(() => applyLayoutOps(root, [{ op: "addAction", action: "Account.X", before: "Account.Nope" }])).toThrow(StaleLayoutError);
+    expect(() => applyLayoutOps(root, [{ op: "removeAction", action: "Account.Nope" }])).toThrow(StaleLayoutError);
+    expect(() => applyLayoutOps(root, [{ op: "addAction", action: "bad name<", before: null }])).toThrow();
+  });
+
+  it("creates the list when the layout has none and the inverse drops it again", () => {
+    const bare = parseXml(xml.replace(/<platformActionList>[\s\S]*?<\/platformActionList>\s*/, ""));
+    expect(inheritsActionList(bare)).toBe(true);
+    const bareXml = serializeXml(bare);
+    const forward = applyLayoutOps(bare, [{ op: "addAction", action: "Account.Studio_Test", before: null }]);
+    expect(names(forward.root)).toEqual(["Account.Studio_Test"]);
+    expect(inheritsActionList(forward.root)).toBe(false);
+    expect(forward.changes[0].before).toMatch(/global publisher layout/);
+    expect(forward.inverse).toEqual([{ op: "removeAction", action: "Account.Studio_Test", dropList: true }]);
+    expect(serializeXml(applyLayoutOps(forward.root, forward.inverse).root)).toBe(bareXml);
   });
 });

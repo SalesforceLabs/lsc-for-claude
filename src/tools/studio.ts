@@ -43,6 +43,16 @@ import { syncOverview, syncOverviewInput } from "../studio/sync-overview.js";
 import { syncUserDetail, syncUserInput, syncUserProgress } from "../studio/sync-user.js";
 import { syncImpact, syncImpactInput } from "../studio/sync-impact.js";
 import { renderSignoffReport, signoffReportInput } from "../studio/signoff-report.js";
+import { checkApp } from "../studio/apps/check.js";
+import { describeForApp, MAX_DESCRIBE_OBJECTS } from "../studio/apps/describe.js";
+import { sampleRecords } from "../studio/apps/sample.js";
+import type { RunAs } from "../studio/apps/run-as.js";
+import { appSource, listOrgApps } from "../studio/apps/org-apps.js";
+import { deployApp } from "../studio/apps/deploy.js";
+import { planDeploy } from "../studio/apps/plan.js";
+import { tabOptions } from "../studio/apps/tab-options.js";
+import { APP_BUILDER_GUIDE } from "../studio/apps/guide.js";
+import { MAX_FILES, MAX_FILE_BYTES } from "../studio/apps/lint.js";
 
 /**
  * LSC Studio data tools. These return raw JSON for the Electron app's visual
@@ -79,6 +89,8 @@ const layoutOpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("setSectionHeading"), section: sectionRef, from: z.boolean(), to: z.boolean() }),
   z.object({ op: z.literal("moveRelatedList"), relatedList: z.string(), before: z.string().nullable() }),
   z.object({ op: z.literal("removeRelatedList"), relatedList: z.string() }),
+  z.object({ op: z.literal("addAction"), action: z.string().max(255), before: z.string().max(255).nullable(), actionType: z.string().max(60).optional() }),
+  z.object({ op: z.literal("removeAction"), action: z.string().max(255), dropList: z.boolean().optional() }),
   z.object({
     op: z.literal("addRelatedList"),
     relatedList: z.string(),
@@ -757,7 +769,169 @@ export function register(server: McpServer) {
 
   registerPerfTools(server);
   registerSyncHealthTools(server);
+  registerAppTools(server);
   if (process.env.LSC_STUDIO_FIXES === "1") registerFixTools(server);
+}
+
+const appFileSchema = z.object({
+  bundle: z.string().regex(/^\w{1,80}$/),
+  path: z.string().max(200),
+  source: z.string().max(MAX_FILE_BYTES),
+});
+const runAsLogin = z
+  .object({
+    instanceUrl: z.string().url().max(255),
+    accessToken: z.string().min(1).max(4096),
+    username: z.string().min(1).max(255),
+    orgId: z.string().max(18).optional(),
+    userId: z.string().max(18).optional(),
+  })
+  .optional()
+  .describe("A test user's login, made by Studio through the LSC mobile app's connected app; the read is answered as them (their sharing and field access), never as the sf CLI admin. The token is used for this call only and never returned");
+
+const appInputShape = {
+  name: z.string().regex(/^\w{1,80}$/),
+  target: z.enum(["home", "record", "action", "tab"]),
+  objectApiName: z.string().regex(/^\w{1,80}$/).optional(),
+  files: z.array(appFileSchema).max(MAX_FILES),
+  tab: z
+    .object({
+      label: z.string().max(80).optional(),
+      application: z.string().regex(/^\w{1,80}$/).optional(),
+      profiles: z.array(z.string().regex(/^[^/\\]{1,120}$/)).max(50).optional(),
+    })
+    .optional()
+    .describe("tab target only: label, the CustomApplication that gets the tab, and the profiles that see it"),
+};
+
+/** The LSC App builder's tools (Studio → Build → LSC apps). Read-only; the deploy is in registerFixTools. */
+function registerAppTools(server: McpServer) {
+  server.tool(
+    "studio_app_guide",
+    "LSC Studio (GUI only): the LSC App builder's system prompt — the rules, offline data patterns, design guidance and workflow it follows. Read-only; no org needed. Returns JSON { guide }.",
+    {},
+    async () => json({ guide: APP_BUILDER_GUIDE })
+  );
+
+  server.tool(
+    "studio_app_check",
+    "LSC Studio (GUI only): check an LSC App's files — lint (meta file, targets, mobileHeight, naming), a real compile, the offline scan, and (when an org is connected) whether DB Schema syncs the objects it reads. Needs no org to compile. Read-only. Returns JSON { ok, issues, offline, script?, placeholders, mobileHeight?, objects? }.",
+    {
+      ...appInputShape,
+      userId: z.string().regex(/^005\w{12}(\w{3})?$/).optional().describe("Judge \"synced\" for this user's profile and permission sets"),
+      profile: z.string().regex(/^[^/\\]{1,120}$/).optional().describe("Judge \"synced\" for this profile (when no userId)"),
+    },
+    async ({ userId, profile, ...input }) => {
+      try {
+        const connection = await validateOrgConnection();
+        return json(await checkApp(input, connection.valid ? connection.targetOrg : undefined, { userId, profile }));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_app_describe",
+    `LSC Studio (GUI only): compact descriptions (real field API names, types, picklist values, whether DB Schema syncs it to the iPad, record count) of up to ${MAX_DESCRIBE_OBJECTS} objects, for the app builder. Read-only. Returns JSON { objects }.`,
+    { objects: z.array(z.string().regex(/^\w{1,80}$/)).min(1).max(MAX_DESCRIBE_OBJECTS), mobileLogin: runAsLogin },
+    async ({ objects, mobileLogin }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json({ objects: await describeForApp(objects, connection.targetOrg, mobileLogin as RunAs | undefined) });
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_app_sample",
+    "LSC Studio (GUI only): up to 5 real records from a SELECT-only SOQL query (anything else is refused, LIMIT is forced to 5 or less), so the app builder sees real values. Read-only. Returns JSON { records, totalSize }.",
+    { soql: z.string().min(1).max(2000), mobileLogin: runAsLogin },
+    async ({ soql, mobileLogin }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await sampleRecords(soql, connection.targetOrg, mobileLogin as RunAs | undefined));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_app_list",
+    "LSC Studio (GUI only): the org's LSC apps (unmanaged lscMobileInline_* bundles) with target, objects and last change. Read-only. Returns JSON { apps }.",
+    {},
+    async () => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json({ apps: await listOrgApps(connection.targetOrg) });
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_app_source",
+    "LSC Studio (GUI only): an LSC app's files from the org — the lscMobileInline_* bundle and the c/ components it uses. Read-only. Returns JSON { name, target, objectApiName?, files }.",
+    { name: z.string().regex(/^\w{1,80}$/) },
+    async ({ name }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await appSource(name, connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_app_tab_options",
+    "LSC Studio (GUI data): who can be given a nav tab app and which apps can hold it — profiles with active users (LSC permission set holders first; `name` is the metadata name `tab.profiles` takes) and the org's Lightning apps (`fullName` is what `tab.application` takes). Read-only. Returns JSON { profiles: { label, name, activeUsers, lscUsers }[], apps: { fullName, label }[] }.",
+    {},
+    async () => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await tabOptions(connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_app_deploy_plan",
+    "LSC Studio (GUI data): what deploying an LSC App would write (components, e.g. LightningComponentBundle, QuickAction, FlexiPage, CustomTab, Profile), which of those already exist in the org and would be overwritten, whether the org is production (not a sandbox and not a trial), and warnings. Read-only. Returns JSON { components, existing, production, warnings }.",
+    appInputShape,
+    async (input) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await planDeploy(input, connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
 }
 
 function registerPerfTools(server: McpServer) {
@@ -1187,6 +1361,26 @@ function registerFixTools(server: McpServer) {
         return jsonError(err instanceof Error ? err.message : String(err));
       } finally {
         tracker?.finish();
+      }
+    }
+  );
+
+  server.tool(
+    "studio_app_deploy",
+    "LSC Studio (GUI only): deploy an LSC App — its bundles; for a record page or quick action app the LightningWebComponent quick action; for a nav tab app the App page, custom tab, and (when given) the app membership and profile tab visibility. WRITES to the org. Only called from the Studio UI after the user confirms. Refuses if the app has lint errors or the target org isn't `expectedOrg`. Returns JSON { ok, deployed, error?, warnings, production }.",
+    { ...appInputShape, expectedOrg: z.string().describe("The org the user confirmed — the deploy is refused if the target org differs") },
+    async ({ expectedOrg, ...input }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      if (connection.targetOrg !== expectedOrg) {
+        return jsonError(`Target org is ${connection.targetOrg}, not ${expectedOrg}. Nothing was deployed.`);
+      }
+      try {
+        return json(await deployApp(input, connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
       }
     }
   );

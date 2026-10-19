@@ -782,3 +782,50 @@ input[type="radio"]:not(.studio-ipad-screen *):disabled {
   color: var(--text-muted);
   font-size: var(--font-sm);
 }
+
+/* ── Menu: a "more" button with a short list of actions ── */
+
+.ui-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.ui-menu-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-popover);
+  animation: ui-pop-in 0.14s var(--ease-out) both;
+}
+
+.ui-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--control);
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--font-sm);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ui-menu-item:hover {
+  background: var(--fill-hover);
+}
+
+.ui-menu-item.danger {
+  color: var(--error);
+}

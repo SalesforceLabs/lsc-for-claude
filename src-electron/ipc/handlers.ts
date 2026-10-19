@@ -64,6 +64,8 @@ import {
   toolsInvalidatedByApply,
 } from "../engine/studio-invalidation.js";
 import { createInFlight } from "../engine/in-flight.js";
+import { registerAppBuilderHandlers } from "./app-builder.js";
+import { pickBuilderModel } from "../engine/app-builder.js";
 import { openInPreviewBrowser, type BrowserAuth } from "../studio-browser.js";
 import {
   adoptUnassigned,
@@ -737,6 +739,21 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       });
     }
   );
+
+  // --- LSC App Builder (Studio -> Build) ---
+
+  registerAppBuilderHandlers({
+    mobileLogin: (loginId) => mobileLoginCredentials(loginId),
+    mainWindow,
+    llm: () => llm,
+    model: () => pickBuilderModel(llmConnection?.model, llmModels),
+    readyMcpClient,
+    selectedOrg: async () => {
+      const { ref, pool } = await selectedOrg();
+      return ref ? { username: ref.username, target: pool.target } : null;
+    },
+    invalidate: (tools) => invalidate(loadSettings().sfTargetOrg ?? "", tools),
+  });
 
   // --- Studio performance testing: plans and run history (per org) ---
 

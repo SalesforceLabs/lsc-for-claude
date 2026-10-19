@@ -26,6 +26,15 @@ and `knowledge/modules/lsc-apps/release-264-offline-and-nested-components.md`.
   takes `@api recordId` and `@api objectApiName`. On iPad it also needs a Quick Action of type
   LightningWebComponent on the object whose **Name equals the component name** (hidden from the
   action menu because of the prefix). Studio deploys that quick action with the bundle.
+- **Quick action** (`target: "action"`, launched from the record's action menu on the iPad):
+  targets `lightning__RecordAction` with `<targetConfig targets="lightning__RecordAction"><actionType>ScreenAction</actionType></targetConfig>`;
+  **no** `lscMobileInline_` prefix (the iPad hides prefixed quick actions from the menu) and no
+  `mobileHeight`. Takes `@api recordId` (set after construction — use a setter or read it in
+  connectedCallback/wire with `$recordId`) and `@api objectApiName`; closes itself with
+  `this.dispatchEvent(new CloseActionScreenEvent())` from `lightning/actions`. Needs a Quick Action
+  of type LightningWebComponent on the object, **added to the page layout's Mobile & Lightning
+  Actions** (`platformActionList`, the list the iPad's action menu reads). Help:
+  `ind.lsc_customer_engagement_create_and_add_lwc_quick_action_to_record_page`.
 - Only one LSC app per page (Home or record page) is recommended.
 - Users need access to every object/field used.
 - Offline (Admin Console > Mobile > Application Settings > "Use Mobile Apps offline"): supported
@@ -49,7 +58,7 @@ unless the user insists (then a warning).
 ```ts
 // same shape as LwcFile in src/studio/screens/inline-lwc.ts
 interface AppFile { bundle: string; path: string; source: string } // path: "lwc/<bundle>/<file>"
-type AppTarget = "home" | "record";
+type AppTarget = "home" | "record" | "action" | "tab";
 ```
 
 ### MCP tools (src/tools/studio.ts → src/studio/apps/*). `studio_` prefix = hidden from chat.
@@ -211,6 +220,34 @@ Rail: new section **Build** (above Testing) with **LSC apps** (`Sparkles`). View
    chrome) running the compiled script live (reuse `inlineLwcFrame`, `studio_lwc_request`),
    record picker for record targets, mobileHeight readout; Code = file tree + highlighted source,
    editable (save = appEditFile); Checks = issues grouped by severity + offline/DB-Schema notes.
-3. **Add to iPad**: after deploy, Home → opens the iPad preview in Draft and queues an
+3. **Add to iPad** for `action`: queue an `editMetadata` Layout change with the new LayoutOp
+   `{ op: "addAction"; action: "<Object>.<Name>"; before: string | null }` (and `removeAction`)
+   on the object's layout(s) the previewed profile gets, then the tray → apply → Publish flow.
+   Preview for `action`: the app in an iPad action sheet (modal) over a record page.
+4. **Add to iPad**: after deploy, Home → opens the iPad preview in Draft and queues an
    `addComponent` on the profile's Home page (or opens Insert component… preselected); Record →
    the object's record page tab.
+
+## Additions (Oct 2026)
+
+- **Nav tab** (`target: "tab"`, bundle keeps `lscMobileInline_`): deploy writes the bundle, an
+  AppPage FlexiPage (`flexipage:defaultAppHomeTemplate`, component with a `mobileHeight` instance
+  property), a CustomTab (`flexiPage` → the page; page and tab named like the bundle), and each
+  chosen profile's `tabVisibilities` DefaultOn (+ optional CustomApplication membership); then
+  Publish to iPad. **No UISchema record** — a UISchema "mobile" tab only opens native screens
+  ("Coming soon"). Verified against the org's existing flexipage tabs (MT_*, Pat_Sim) and
+  `published.ts` routing; a published read-back is pending (demo org's cache generation fails
+  org-side). Input `tab?: { label?, application?, profiles?: string[] }`.
+- **Quick action naming**: `lscMobileQuickAction_Xxx` (lifesciences-ios `LMRModule.swift`
+  `quickActionComponentTriggerPrefix` — prefetched for offline); never `lscMobileInline_`.
+  LayoutOps `addAction { action: "<Object>.<Name>", before, actionType? }` / `removeAction { action, dropList? }`.
+- **Run as a test user**: `AppProject.runAs?: { loginId, username, userId?, profile? }` (set at
+  create or with `appSetRunAs`). `studio_app_describe` / `studio_app_sample` take `mobileLogin`
+  (token resolved in main, never sent to the renderer), `studio_app_check` takes `userId`/`profile`
+  so "synced" is for that user's profile; the live preview's data requests go through
+  `lwcRequestAs(loginId)`. An expired login fails the turn / preview with "sign in again" — never a
+  silent fallback to the admin login. `AppObjectInfo.access` reports what the user can read.
+- **Deploy plan**: read-only `studio_app_deploy_plan` → `{ components, existing, production, warnings }`
+  drives the Deploy dialog (production tick from the server's check, not the host name).
+- **Device frame**: preview defaults to iPad landscape with a Rotate control; the frame is a device
+  spec (`kind: "ipad" | "iphone"`, orientation, size, safe areas) so iPhone can be added later.

@@ -120,6 +120,9 @@ function applyOp(m: LayoutModel, op: LayoutOp): void {
       if (m.relatedLists.includes(op.relatedList)) throw new StaleDraftError(`The related list ${op.relatedList} is already on the layout.`);
       placeRelated(m, op.relatedList, op.before);
       return;
+    case "addAction":
+    case "removeAction":
+      return;
   }
 }
 
@@ -561,7 +564,9 @@ function arrange(d: LayoutDraft, next: LayoutModel, pending: PendingChange[]): P
     ...(d.live.availableRelated ?? []).map((r): [string, string] => [r.relatedList, r.object]),
     ...queuedLayoutOps(pending, d.fullName).flatMap((o): [string, string][] => (o.op === "addRelatedList" && o.object ? [[o.relatedList, o.object]] : [])),
   ]);
-  const ops = diffOps(d.base, next).map((o) => (o.op === "addRelatedList" && objects.has(o.relatedList) ? { ...o, object: objects.get(o.relatedList) } : o));
+  const ops: LayoutOp[] = diffOps(d.base, next).map((o) => (o.op === "addRelatedList" && objects.has(o.relatedList) ? { ...o, object: objects.get(o.relatedList) } : o));
+  // Action ops aren't part of the drawn model: keep what's queued.
+  ops.push(...queuedLayoutOps(pending, d.fullName).filter((o) => o.op === "addAction" || o.op === "removeAction"));
   const fix = layoutFix(d.fullName, d.label, ops);
   const without = pending.filter((p) => !(p.fix.kind === "editMetadata" && p.fix.doc.fullName === d.fullName));
   return queueChange(without, { fix, ...(d.live.profiles ? { affects: d.live.profiles } : {}) });

@@ -62,3 +62,6 @@ export function bumpGeneration(org: string): number {
   generations.set(org, next);
   return next;
 }
+
+/** Cached tools to drop after an LSC app deploy: the new bundle shows up in maps, the component catalog and the unpublished list. */
+export const INVALIDATED_BY_APP_DEPLOY = [...MAPS, "studio_component_catalog", "studio_app_list"];

@@ -114,7 +114,10 @@ export type LayoutOp =
   | { op: "setSectionHeading"; section: SectionRef; from: boolean; to: boolean }
   | { op: "moveRelatedList"; relatedList: string; before: string | null }
   | { op: "removeRelatedList"; relatedList: string }
-  | { op: "addRelatedList"; relatedList: string; before: string | null; xml?: string; object?: string; nameField?: string };
+  | { op: "addRelatedList"; relatedList: string; before: string | null; xml?: string; object?: string; nameField?: string }
+  /** The Record context's Mobile & Lightning Actions (`platformActionList`, the iPad's ••• menu). `action` is the item's `actionName` ("Account.Log_Note"); `before` is the actionName it goes in front of, null for the end. */
+  | { op: "addAction"; action: string; before: string | null; /** The item's `actionType`; QuickAction when absent. */ actionType?: string; }
+  | { op: "removeAction"; action: string; /** Also remove the list itself (the undo of an add that created it). */ dropList?: boolean };
 
 /** One edit to a compact layout's fields (the record header). `before` is the field it goes in front of, or null for the end. */
 export type CompactOp =

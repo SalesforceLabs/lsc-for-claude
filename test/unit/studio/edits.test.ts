@@ -360,6 +360,28 @@ describe("editMetadata (page layouts)", () => {
     });
   });
 
+  it("adds a quick action to the layout's action menu, and warns when the layout has no list of its own", async () => {
+    const add: StudioFix = { kind: "editMetadata", label: "Add action", doc, ops: [{ op: "addAction", action: "Account.Studio_Test", before: null }] };
+    const preview = await previewFix(add, "org");
+    expect(preview.blocked).toBeUndefined();
+    expect(preview.changes[0].field).toBe("Action Account.Studio_Test");
+    expect(preview.warnings.join(" ")).not.toMatch(/global publisher layout/);
+    const result = await applyFix(add, "org");
+    expect(result.ok).toBe(true);
+    expect(deployed).toContain("<actionName>Account.Studio_Test</actionName>");
+    expect(result.undo).toMatchObject({ kind: "editMetadata", ops: [{ op: "removeAction", action: "Account.Studio_Test" }] });
+
+    const bare = XML.replace(/<platformActionList>[\s\S]*?<\/platformActionList>\s*/, "");
+    vi.mocked(cli.retrieveMetadata).mockImplementation(async () => {
+      const out = fs.mkdtempSync(path.join(dir, "out-"));
+      fs.mkdirSync(path.join(out, "layouts"));
+      fs.writeFileSync(path.join(out, "layouts", "PersonAccount-HCP Layout.layout-meta.xml"), bare);
+      return { success: true, data: { outputDir: out } };
+    });
+    const warned = await previewFix(add, "org");
+    expect(warned.warnings.join(" ")).toMatch(/global publisher layout/);
+  });
+
   it("reads the live layout's structure, the profiles using it and whether the org is production", async () => {
     vi.mocked(cli.cachedDescribeSObject).mockResolvedValue({
       success: true,

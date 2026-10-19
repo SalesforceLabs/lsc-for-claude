@@ -53,6 +53,7 @@ if (!g.__studioBridge) {
     emit("warn", { message });
   });
   document.addEventListener("lightning__showtoast", (e) => emit("toast", { toast: e.detail || {} }));
+  document.addEventListener("lightning__actionsclosescreen", () => emit("close"));
 }
 
 export function context() {
@@ -422,6 +423,18 @@ js(
 export class ShowToastEvent extends CustomEvent {
   constructor(toast) {
     super("lightning__showtoast", { composed: true, cancelable: true, bubbles: true, detail: toast });
+  }
+}
+`
+);
+
+// A quick action closes itself with this event; the host closes the action sheet when it sees the "close" message.
+js(
+  "actions",
+  `
+export class CloseActionScreenEvent extends CustomEvent {
+  constructor() {
+    super("lightning__actionsclosescreen", { composed: true, cancelable: true, bubbles: true });
   }
 }
 `

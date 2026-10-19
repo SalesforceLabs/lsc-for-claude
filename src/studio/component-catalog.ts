@@ -168,7 +168,7 @@ async function inlineLwcs(org: string, pageType: CatalogPageType): Promise<Catal
     });
 }
 
-async function syncedObjects(org: string): Promise<Set<string>> {
+export async function syncedObjects(org: string): Promise<Set<string>> {
   const rows = await query(
     `SELECT ObjectValue, TextValue FROM LifeSciConfigFieldValue
      WHERE FieldName = 'SObject' AND LifeSciConfigRecord.IsActive = true AND LifeSciConfigRecord.LifeSciConfigCategory.Category = 'DbSchema'`,

@@ -24,7 +24,7 @@ import {
 import { assertId, assertNames, PUBLISH_WARNING } from "./change-helpers.js";
 import { deployDoc, validateDoc, withDoc, type MetadataDoc } from "./metadata/doc.js";
 import { applyCompactOps, StaleCompactError } from "./metadata/compact-ops.js";
-import { applyLayoutOps, relatedListCount, StaleLayoutError, type LayoutChange } from "./metadata/layout-ops.js";
+import { applyLayoutOps, inheritsActionList, relatedListCount, StaleLayoutError, type LayoutChange } from "./metadata/layout-ops.js";
 import { applyListViewOps, StaleListViewError } from "./metadata/listview-ops.js";
 import { applyFlexiPageOps, flexiPageWarnings, StaleFlexiPageError } from "./metadata/flexipage-ops.js";
 import { compactLayoutRecordTypes, isManagedFlexiPage, knownFlexiPageReach, isProductionOrg, layoutProfiles, liveListViewOf, splitCompactName, splitListViewName } from "./metadata/live.js";
@@ -348,6 +348,11 @@ async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string,
     ),
   ]);
   preview.warnings.push(reach as string, ...(dbWarnings as (string | null)[]).filter((w): w is string => !!w), PUBLISH_WARNING);
+  if (fix.doc.type === "Layout" && inheritsActionList(doc.root) && !inheritsActionList(result.root)) {
+    preview.warnings.push(
+      `${fix.doc.label} has no Mobile & Lightning Actions list of its own, so the iPad shows the global publisher layout's actions. This change gives it a list containing only the new action: the ••• menu would lose every other action. Add the actions you want to keep as well, or add this action to the global layout instead.`
+    );
+  }
   if (production) preview.production = true;
   return { preview, root: result.root, inverse: result.inverse };
 }

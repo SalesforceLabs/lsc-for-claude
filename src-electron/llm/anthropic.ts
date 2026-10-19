@@ -87,12 +87,35 @@ export class AnthropicProvider implements LLMProvider {
       body.temperature = config.temperature;
     }
 
+    if (config?.cache) addCacheBreakpoints(body);
+
     return processAnthropicStream(await this.post(body, model), onChunk);
   }
 
   private post(body: Record<string, unknown>, model: string): Promise<Response> {
     return apiFetch(this.options, "anthropic", "/v1/messages", { method: "POST", body, headers: VERSION_HEADER }, model);
   }
+}
+
+const EPHEMERAL = { type: "ephemeral" };
+
+/**
+ * Mark the end of the system prompt, of the tools and of the conversation so far as cache
+ * breakpoints (at most 4 are allowed), so a later round of the same turn reads them from cache.
+ */
+export function addCacheBreakpoints(body: Record<string, unknown>): void {
+  if (typeof body.system === "string" && body.system) {
+    body.system = [{ type: "text", text: body.system, cache_control: EPHEMERAL }];
+  }
+  const tools = body.tools as Array<Record<string, unknown>> | undefined;
+  if (tools?.length) tools[tools.length - 1] = { ...tools[tools.length - 1], cache_control: EPHEMERAL };
+  const messages = body.messages as Array<{ role: string; content: unknown }>;
+  const last = messages[messages.length - 1];
+  if (!last) return;
+  const blocks = typeof last.content === "string" ? [{ type: "text", text: last.content }] : [...(last.content as Array<Record<string, unknown>>)];
+  if (!blocks.length) return;
+  blocks[blocks.length - 1] = { ...blocks[blocks.length - 1], cache_control: EPHEMERAL };
+  messages[messages.length - 1] = { ...last, content: blocks };
 }
 
 const VERSION_HEADER = { "anthropic-version": "2023-06-01" };
@@ -123,6 +146,11 @@ async function processAnthropicStream(
     }
 
     const eventType = event.type as string;
+
+    if (process.env.LSC_LLM_DEBUG && (eventType === "message_start" || eventType === "message_delta")) {
+      const usage = ((event.message as Record<string, unknown> | undefined)?.usage ?? event.usage) as Record<string, number> | undefined;
+      console.log(`[anthropic] ${eventType} usage`, JSON.stringify(usage));
+    }
 
     if (eventType === "content_block_start") {
       const block = event.content_block as Record<string, unknown>;

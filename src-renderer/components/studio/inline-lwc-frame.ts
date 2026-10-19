@@ -21,7 +21,9 @@ export type FrameMessage =
   | { __studio: "toast"; toast: { title?: string; message?: string; variant?: string } }
   | { __studio: "navigate"; pageReference: { type?: string; attributes?: Record<string, unknown>; state?: Record<string, unknown> } }
   | { __studio: "error"; message: string; mounted: boolean }
-  | { __studio: "warn"; message: string };
+  | { __studio: "warn"; message: string }
+  /** A quick action dispatched CloseActionScreenEvent. */
+  | { __studio: "close" };
 
 /** The host's message setting the frame's zoom (see LiveInlineLwc). */
 export interface ZoomMessage {

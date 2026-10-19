@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `117`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `125`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -70,6 +70,14 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "set_target_org",
   "simulate_initial_sync",
   "studio_access_options",
+  "studio_app_check",
+  "studio_app_deploy_plan",
+  "studio_app_describe",
+  "studio_app_guide",
+  "studio_app_list",
+  "studio_app_sample",
+  "studio_app_source",
+  "studio_app_tab_options",
   "studio_component_catalog",
   "studio_component_props",
   "studio_connected_org",
@@ -1737,6 +1745,111 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
       "simulations": {
         "optional": true,
         "type": "ZodArray",
+      },
+    },
+  },
+  {
+    "name": "studio_app_guide",
+    "params": {},
+  },
+  {
+    "name": "studio_app_check",
+    "params": {
+      "files": {
+        "optional": false,
+        "type": "ZodArray",
+      },
+      "name": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "objectApiName": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "profile": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "tab": {
+        "optional": true,
+        "type": "ZodObject",
+      },
+      "target": {
+        "optional": false,
+        "type": "ZodEnum",
+      },
+      "userId": {
+        "optional": true,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_app_describe",
+    "params": {
+      "mobileLogin": {
+        "optional": true,
+        "type": "ZodObject",
+      },
+      "objects": {
+        "optional": false,
+        "type": "ZodArray",
+      },
+    },
+  },
+  {
+    "name": "studio_app_sample",
+    "params": {
+      "mobileLogin": {
+        "optional": true,
+        "type": "ZodObject",
+      },
+      "soql": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_app_list",
+    "params": {},
+  },
+  {
+    "name": "studio_app_source",
+    "params": {
+      "name": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_app_tab_options",
+    "params": {},
+  },
+  {
+    "name": "studio_app_deploy_plan",
+    "params": {
+      "files": {
+        "optional": false,
+        "type": "ZodArray",
+      },
+      "name": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "objectApiName": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "tab": {
+        "optional": true,
+        "type": "ZodObject",
+      },
+      "target": {
+        "optional": false,
+        "type": "ZodEnum",
       },
     },
   },

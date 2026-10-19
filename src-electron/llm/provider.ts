@@ -34,6 +34,8 @@ export interface LLMProviderConfig {
   model?: string;
   maxTokens?: number;
   temperature?: number;
+  /** Ask the endpoint to cache the system prompt, tools and conversation so far (Anthropic only; others ignore it). */
+  cache?: boolean;
 }
 
 export interface LLMProvider {

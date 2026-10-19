@@ -7,7 +7,7 @@ import { SeverityChips } from "./SeverityChips";
 import FeatureGrid from "./FeatureGrid";
 import LensChecklist from "./LensChecklist";
 import PublishedIpadPreview, { type PublishedState } from "./PublishedIpadPreview";
-import { usePreviewEdit } from "./usePreviewEdit";
+import { usePreviewEdit, type InsertIntent, type InsertIntentResult } from "./usePreviewEdit";
 import type { PublishedResult } from "./published-types";
 import Inspector from "./Inspector";
 import ReviewDialog from "./ReviewDialog";
@@ -33,6 +33,7 @@ import {
   Pencil,
   Redo2,
   RefreshCw,
+  Sparkles,
   Tablet,
   Undo2,
   UserRound,
@@ -47,7 +48,11 @@ import { buildOrgAhead, revealPlan, type Reveal, type UnpublishedItem } from "./
 import StateView from "../ui/StateView";
 import FeatureLoading from "./FeatureLoading";
 import Spinner from "../ui/Spinner";
+import StatusIcon from "../ui/StatusIcon";
 import "./studio.css";
+import AppsView from "./builder/AppsView";
+import { parentBundle, suggestProfile } from "./builder/logic";
+import type { AppProject } from "./builder/types";
 
 interface StudioViewProps {
   onAskClaude: (prompt: string) => void;
@@ -64,25 +69,34 @@ type MapState =
   | ({ status: "ready"; map: FeatureMap } & Revalidating);
 
 /** What the main pane shows: the iPad preview, a Setup page or feature, or a Testing page. */
-type Section = "preview" | "overview" | "user-check" | "drift" | "setup" | SyncPage | "test-users";
+type Section = "preview" | "apps" | "overview" | "user-check" | "drift" | "setup" | SyncPage | "test-users";
 
 export default function StudioView({ onAskClaude }: StudioViewProps) {
   const [features, setFeatures] = useState<FeatureSummary[]>([]);
   // The rail folds to icons; remembered across restarts. Option+Cmd+Backslash toggles it.
   const [railCollapsed, setRailCollapsed] = usePersistedFlag("roz.studio.railCollapsed");
+  // An open LSC app wants the width: the rail folds to icons there (not remembered) and comes back on leaving.
+  const [section, setSection] = useState<Section>("overview");
+  const [appOpen, setAppOpen] = useState(false);
+  const [railPeek, setRailPeek] = useState(false);
+  const autoFolded = section === "apps" && appOpen;
+  useEffect(() => {
+    if (!autoFolded) setRailPeek(false);
+  }, [autoFolded]);
+  const railFolded = autoFolded ? !railPeek : railCollapsed;
+  const toggleRail = useCallback(() => (autoFolded ? setRailPeek(!railPeek) : setRailCollapsed(!railCollapsed)), [autoFolded, railPeek, railCollapsed, setRailCollapsed]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code !== "Backslash" || !e.metaKey || !e.altKey || e.ctrlKey || e.shiftKey) return;
       e.preventDefault();
-      setRailCollapsed(!railCollapsed);
+      toggleRail();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [railCollapsed, setRailCollapsed]);
+  }, [toggleRail]);
   const [featureId, setFeatureId] = useState("visit");
   /** Feature "Check a user" opens with, when reached from a feature's page. */
   const [traceFeature, setTraceFeature] = useState<string | undefined>();
-  const [section, setSection] = useState<Section>("overview");
   // A feature opens on its readiness checks; "board" is every configuration surface.
   const [featureView, setFeatureView] = useState<"readiness" | "board">("readiness");
   const [readiness, setReadiness] = useState<Record<string, ReadinessState>>({});
@@ -119,6 +133,10 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   const [previewMode, setPreviewMode] = useState<"published" | "draft" | "split">("published");
   // Edit mode: select blocks in the published preview to see what they are and change them.
   const [editOn, setEditOn] = useState(false);
+  // LSC apps (Build) — stays mounted once opened so a build keeps streaming. "Add to iPad" hands a deployed bundle to the preview.
+  const [appsOpened, setAppsOpened] = useState(false);
+  const [insertIntent, setInsertIntent] = useState<InsertIntent | null>(null);
+  const [intentResult, setIntentResult] = useState<InsertIntentResult | null>(null);
   const [published, setPublished] = useState<Record<string, PublishedState>>({});
   // Item the inspector opens, e.g. a block clicked in the preview.
   const [focusItem, setFocusItem] = useState<string | null>(null);
@@ -247,6 +265,30 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     setSection("preview");
     setPreviewOpened(true);
   };
+  const openApps = () => {
+    setSection("apps");
+    setAppsOpened(true);
+  };
+  const addAppToIpad = (project: AppProject) => {
+    setIntentResult(null);
+    if (project.target === "tab") {
+      // The deploy already put the tab on the chosen profiles; all that is left is to publish them and look.
+      const chosen = project.tab?.profiles?.length ? project.tab.profiles : project.runAs?.profile ? [project.runAs.profile] : [];
+      const known = chosen.filter((n) => profiles.some((p) => p.name === n));
+      if (known[0]) setLens({ profile: known[0] });
+      setPreviewMode("published");
+      openPreview();
+      setPublishing(known.length ? known : null);
+      return;
+    }
+    const files = (project.versions.find((v) => v.id === project.currentVersionId) ?? project.versions[project.versions.length - 1])?.files ?? [];
+    setInsertIntent({ nonce: Date.now(), bundle: parentBundle(files, project.name), target: project.target, object: project.objectApiName, label: project.label });
+    // Open on the profile the rep would have: the run-as user's, else the largest rep-like profile.
+    setLens((l) => l ?? (suggestProfile(profiles, project.runAs?.profile) ? { profile: suggestProfile(profiles, project.runAs?.profile)! } : null));
+    setPreviewMode((m) => (m === "published" ? "draft" : m));
+    setEditOn(true);
+    openPreview();
+  };
   const openSetup = (id: string, surface: SurfaceId | null = null, item: string | null = null) => {
     setSection("setup");
     // Opening a surface or item means the board; otherwise the feature opens on its readiness.
@@ -367,6 +409,8 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     onOpenStudio: (id, surface, item) => openSetup(id, surface, item),
     writeVersion,
     orgAhead,
+    insertIntent,
+    onIntentResult: setIntentResult,
   });
 
   // "Show" on a change: Draft with edit on, the tab (and record) open, the block selected.
@@ -519,17 +563,17 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
 
   return (
     <div className="studio">
-      <nav className={`studio-rail${railCollapsed ? " collapsed" : ""}`} aria-label="Studio">
+      <nav className={`studio-rail${railFolded ? " collapsed" : ""}`} aria-label="Studio">
         <div className="studio-rail-head">
           <span className="studio-rail-head-label">Studio</span>
           <button
             className="ui-icon-btn"
-            onClick={() => setRailCollapsed(!railCollapsed)}
-            title={`${railCollapsed ? "Show" : "Hide"} Studio menu (⌥⌘\\)`}
-            aria-label={railCollapsed ? "Show Studio menu" : "Hide Studio menu"}
+            onClick={toggleRail}
+            title={`${railFolded ? "Show" : "Hide"} Studio menu (⌥⌘\\)`}
+            aria-label={railFolded ? "Show Studio menu" : "Hide Studio menu"}
             aria-keyshortcuts="Alt+Meta+Backslash"
           >
-            {railCollapsed ? <PanelLeftOpen size={16} strokeWidth={1.75} aria-hidden="true" /> : <PanelLeftClose size={16} strokeWidth={1.75} aria-hidden="true" />}
+            {railFolded ? <PanelLeftOpen size={16} strokeWidth={1.75} aria-hidden="true" /> : <PanelLeftClose size={16} strokeWidth={1.75} aria-hidden="true" />}
           </button>
         </div>
         <div className="studio-rail-title">iPad</div>
@@ -556,6 +600,8 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           () => setSection("drift"),
           History
         )}
+        <div className="studio-rail-title studio-rail-section">Build</div>
+        {railItem("apps", "LSC apps", "Describe an app for reps, watch Roz build it, and put it on the iPad", openApps, Sparkles)}
         <div className="studio-rail-title studio-rail-section">Testing</div>
         {railItem("sync", "Sync health", "How reps' iPads are syncing, and who is struggling", () => openSyncPage("sync"), Activity)}
         {railItem(
@@ -624,6 +670,20 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               {readyOrg && publishButton}
             </div>
           </header>
+          {insertIntent && intentResult && (
+            <div className={`bld-addnote ui-enter ${intentResult.state}`} role="status">
+              <span className="bld-addnote-icon">
+                <StatusIcon tone={intentResult.state === "waiting" ? "info" : intentResult.state === "queued" ? "pass" : "warning"} size={18} />
+              </span>
+              <span className="bld-addnote-text">
+                <strong>{insertIntent.label ?? insertIntent.bundle}</strong>: {intentResult.message}
+                {intentResult.state === "queued" && " Next: review the change in the tray, apply it, then Publish to iPad so reps get it."}
+              </span>
+              <button className="studio-btn sm" onClick={() => (setInsertIntent(null), setIntentResult(null))}>
+                {intentResult.state === "queued" ? "Got it" : "Dismiss"}
+              </button>
+            </div>
+          )}
           <div className="studio-subbar">
             <Segmented
               aria-label="Preview mode"
@@ -682,6 +742,20 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           </div>
 
           {trayBar}
+        </section>
+      )}
+
+      {appsOpened && (
+        <section className="studio-main ui-enter" hidden={section !== "apps"}>
+          {!appOpen && (
+            <header className="studio-header">
+              <div className="studio-heading">
+                <h1 className="studio-title">LSC apps</h1>
+                <div className="studio-subtitle">Describe an app for your reps, build it with Roz, and put it on the iPad</div>
+              </div>
+            </header>
+          )}
+          <AppsView onAddToIpad={addAppToIpad} onWorkspace={setAppOpen} />
         </section>
       )}
 

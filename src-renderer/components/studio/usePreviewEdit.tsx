@@ -5,7 +5,8 @@ import { componentNote, type ComponentProps } from "./component-props";
 import type { PublishedIpad, PublishedListView, PublishedResult } from "./published-types";
 import type { PreviewEdit } from "./PublishedIpadPreview";
 import type { EditDrop } from "./EditLayer";
-import { changeKey, commitFrom, createAffects, queueChange, queuedCopy, queuedFlexiPageOps, queuedLayoutOps, viewFor, type PendingChange } from "./changes";
+import { apiNameFor } from "./templates";
+import { changeKey, commitFrom, createAffects, layoutOpsChange, queueChange, queuedCopy, queuedFlexiPageOps, queuedLayoutOps, viewFor, type PendingChange } from "./changes";
 import { flexiPageCopyName, layoutCopyName } from "./copy-names";
 import { actionVerbs, draftHomeMenu, draftTabs, moveActionTo, moveTabTo, tabVerbs, type DraftTab, type Verb } from "./edit-draft";
 import { openSetupLink, resolveSetupPath, type SetupLink } from "./setup-link";
@@ -38,6 +39,7 @@ import {
   alignFlexiPage,
   alignFlexiPagePartial,
   componentVerbs,
+  insertComponent,
   insertVerb,
   locateItem,
   modelOf as pageModelOf,
@@ -85,6 +87,27 @@ interface PreviewEditOptions {
   writeVersion?: number;
   /** Documents changed in the org after the profile's cache was generated, so the inspector can say so. */
   orgAhead?: OrgAheadIndex;
+  /** "Add to iPad" from the app builder: queue this deployed bundle onto the profile's Home or record page. */
+  insertIntent?: InsertIntent | null;
+  onIntentResult?: (result: InsertIntentResult) => void;
+}
+
+export interface InsertIntent {
+  nonce: number;
+  /** The deployed bundle, lscMobileInline_Xxx. */
+  bundle: string;
+  target: "home" | "record" | "action" | "tab";
+  object?: string;
+  /** The project's label, for the nav tab. */
+  label?: string;
+}
+
+export interface InsertIntentResult {
+  nonce: number;
+  state: "waiting" | "queued" | "failed";
+  message: string;
+  /** The Lightning page the component went onto. */
+  page?: string;
 }
 
 /**
@@ -106,6 +129,8 @@ export function usePreviewEdit({
   onOpenStudio,
   writeVersion = 0,
   orgAhead,
+  insertIntent,
+  onIntentResult,
 }: PreviewEditOptions): { edit: PreviewEdit | undefined; panel: React.ReactNode } {
   // The tray as this profile's draft sees it: a copy made just for the profile stands in for the shared
   // document, and edits to it go back into the copy (changes.ts, viewFor / commitFrom).
@@ -131,13 +156,20 @@ export function usePreviewEdit({
   // Page layouts as they are in the org now, read when one of their blocks is selected
   // (and for layouts with queued edits): the preview shows the last publish.
   const [liveLayouts, setLiveLayouts] = useState<Record<string, LiveState>>({});
+  // "Add to iPad" for a quick action: the layouts this profile gets for the object (its record types' layouts).
+  const intentLayouts = useMemo(() => {
+    if (insertIntent?.target !== "action" || !snapshot) return [];
+    const obj = snapshot.objects[insertIntent.object ?? ""];
+    return [...new Set((obj?.recordTypes ?? []).flatMap((r) => (r.layout ? [r.layout] : [])))].slice(0, 4);
+  }, [insertIntent, snapshot]);
   useEffect(() => setLiveLayouts({}), [org]);
   const wanted = useMemo(() => {
     const names = new Set(pending.flatMap((p) => (p.fix.kind === "editMetadata" && p.fix.doc.type === "Layout" ? [p.fix.doc.fullName] : [])));
     const layout = selected && "layout" in selected ? selected.layout : undefined;
     if (on && layout) names.add(layout);
+    for (const n of intentLayouts) names.add(n);
     return [...names].sort();
-  }, [pending, selected, on]);
+  }, [pending, selected, on, intentLayouts]);
   const fetchLayout = useCallback((name: string) => {
     setLiveLayouts((m) => ({ ...m, [name]: { status: "loading" } }));
     window.lscApi.studioMetadataDoc("Layout", name).then(
@@ -200,11 +232,22 @@ export function usePreviewEdit({
   const [livePages, setLivePages] = useState<Record<string, LivePageState>>({});
   useEffect(() => setLivePages({}), [org]);
   const selectedPage = selected?.kind === "component" || selected?.kind === "recordTab" ? selected.page : undefined;
+  // Pages "Add to iPad" may put its bundle on: the Home page, or the profile's record pages for the object.
+  const intentPages = useMemo(() => {
+    if (!insertIntent || !snapshot) return [];
+    if (insertIntent.target === "action" || insertIntent.target === "tab") return [];
+    if (insertIntent.target === "home") return snapshot.home ? [snapshot.home.name] : [];
+    const object = (insertIntent.object ?? "").toLowerCase();
+    const records = Object.values(snapshot.pages).filter((p) => /record/i.test(p.type));
+    const named = records.filter((p) => p.name.toLowerCase().includes(object));
+    return (named.length ? named : records).slice(0, 12).map((p) => p.name);
+  }, [insertIntent, snapshot]);
   const wantedPages = useMemo(() => {
     const names = new Set(pending.flatMap((p) => (p.fix.kind === "editMetadata" && p.fix.doc.type === "FlexiPage" ? [p.fix.doc.fullName] : [])));
     if (on && selectedPage) names.add(selectedPage);
+    for (const n of intentPages) names.add(n);
     return [...names].sort();
-  }, [pending, selectedPage, on]);
+  }, [pending, selectedPage, on, intentPages]);
   const fetchPage = useCallback((name: string) => {
     setLivePages((m) => ({ ...m, [name]: { status: "loading" } }));
     window.lscApi.studioMetadataDoc("FlexiPage", name).then(
@@ -323,6 +366,106 @@ export function usePreviewEdit({
   }, [on, draft, catalogKey, pageDraft, catalogs]);
   const catalogState = catalogKey ? catalogs[catalogKey] : undefined;
   const catalog = catalogState && catalogState !== "loading" && !("error" in catalogState) ? catalogState : null;
+
+  // "Add to iPad": once the page and the component library are read, put the bundle at the end of the page's main region.
+  const handledIntent = useRef(0);
+  const intentPage = useMemo(() => {
+    if (!insertIntent) return undefined;
+    for (const name of intentPages) {
+      const e = pages[name];
+      if (e?.status !== "ready") continue;
+      const d = e.draft;
+      if (insertIntent.target === "home" ? d.live.pageType === "HomePage" : d.live.pageType === "RecordPage" && d.live.sobjectType === insertIntent.object) return d;
+    }
+    return undefined;
+  }, [insertIntent, intentPages, pages]);
+  const intentKey = intentPage ? `${intentPage.live.pageType}:${intentPage.live.sobjectType ?? ""}` : undefined;
+  useEffect(() => {
+    if (!insertIntent || !intentKey || !intentPage || catalogs[intentKey]) return;
+    setCatalogs((m) => ({ ...m, [intentKey]: "loading" }));
+    window.lscApi.studioComponentCatalog(intentPage.live.pageType as "HomePage" | "RecordPage", intentPage.live.sobjectType).then(
+      (res) => {
+        const error = res.error ?? res.data?.error;
+        setCatalogs((m) => ({ ...m, [intentKey]: error ? { error } : (res.data as ComponentCatalog) }));
+      },
+      (e: unknown) => setCatalogs((m) => ({ ...m, [intentKey]: { error: String(e) } }))
+    );
+  }, [insertIntent, intentKey, intentPage, catalogs]);
+  useEffect(() => {
+    if (insertIntent?.target !== "action" || handledIntent.current === insertIntent.nonce || !onIntentResult) return;
+    const done = (state: InsertIntentResult["state"], message: string) => {
+      if (state !== "waiting") handledIntent.current = insertIntent.nonce;
+      onIntentResult({ nonce: insertIntent.nonce, state, message });
+    };
+    if (!profile || !snapshot) return done("waiting", "Pick a profile in the preview and the action is added to its layout.");
+    if (intentLayouts.length === 0) return done("failed", `This profile's ${insertIntent.object} layout isn't in its last publish. Publish to iPad first, or add the action in Setup.`);
+    const lives = intentLayouts.map((n) => liveLayouts[n]);
+    if (lives.some((l) => !l || l.status === "loading")) return done("waiting", "Reading the page layout…");
+    const failed = lives.find((l) => l?.status === "error");
+    if (failed && failed.status === "error") return done("failed", `Couldn't read the layout: ${failed.error}`);
+    const action = `${insertIntent.object}.${insertIntent.bundle}`;
+    let next = pending;
+    for (const [i, name] of intentLayouts.entries()) {
+      const live = (lives[i] as { status: "ready"; live: LiveLayout }).live;
+      const queued = queuedLayoutOps(next, name);
+      if (queued.some((o) => o.op === "addAction" && o.action === action)) continue;
+      next = queueChange(next, {
+        fix: layoutOpsChange(name, name.replace(/^[^-]*-/, ""), [...queued, { op: "addAction", action, before: null }]),
+        ...(live.profiles ? { affects: live.profiles } : {}),
+      });
+    }
+    if (next !== pending) onPendingChange(next);
+    done("queued", `Added to the ${insertIntent.object} page layout's actions in the pending changes.`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [insertIntent, profile, snapshot, intentLayouts, liveLayouts]);
+  // "Add to iPad" for a nav tab: open the new-tab form prefilled (the user reviews it, then it queues).
+  useEffect(() => {
+    if (insertIntent?.target !== "tab" || handledIntent.current === insertIntent.nonce || !onIntentResult) return;
+    if (!profile || !snapshot) return onIntentResult({ nonce: insertIntent.nonce, state: "waiting", message: "Pick a profile in the preview and the tab is added for it." });
+    handledIntent.current = insertIntent.nonce;
+    const label = insertIntent.label ?? insertIntent.bundle;
+    setCreating({
+      kind: "createConfigRecord",
+      label: `Add navigation tab ${label}`,
+      category: "UISchema",
+      developerName: apiNameFor(label, "NavTab_"),
+      recordLabel: label,
+      fields: [
+        { name: "TabName", value: insertIntent.bundle },
+        { name: "TabOrder", value: snapshot.tabs.length + 1 },
+      ],
+      profiles: [profile],
+      active: true,
+    });
+    onIntentResult({ nonce: insertIntent.nonce, state: "queued", message: "Review the new tab, then add it to the pending changes." });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [insertIntent, profile, snapshot]);
+  useEffect(() => {
+    if (!insertIntent || insertIntent.target === "action" || insertIntent.target === "tab" || handledIntent.current === insertIntent.nonce || !onIntentResult) return;
+    const done = (state: InsertIntentResult["state"], message: string, page?: string) => {
+      if (state !== "waiting") handledIntent.current = insertIntent.nonce;
+      onIntentResult({ nonce: insertIntent.nonce, state, message, page });
+    };
+    if (!profile || !snapshot) return done("waiting", "Pick a profile in the preview and the app is added to its page.");
+    const loading = intentPages.length === 0 ? false : intentPages.some((n) => !pages[n] || pages[n].status === "loading");
+    if (!intentPage) {
+      if (loading) return done("waiting", "Reading the page…");
+      const where = insertIntent.target === "home" ? "Home page" : `${insertIntent.object} record page`;
+      return done("failed", `This profile's ${where} isn't in its last publish, so Studio can't edit it. Publish to iPad first, or add the component in Lightning App Builder.`);
+    }
+    const state = intentKey ? catalogs[intentKey] : undefined;
+    if (!state || state === "loading") return done("waiting", "Reading the component library…");
+    if ("error" in state) return done("failed", `Couldn't read the component library: ${state.error}`);
+    const entry = state.entries.find((e) => e.insertable && e.group === "Inline LWC" && (e.component === insertIntent.bundle || e.component.endsWith(`:${insertIntent.bundle}`)));
+    if (!entry) return done("failed", `${insertIntent.bundle} isn't in the org's component library yet. Deploy it, then try again.`);
+    if (intentPage.target.regions.some((r) => r.items.some((i) => i.component === entry.component))) return done("failed", `It's already on ${intentPage.label}.`, intentPage.fullName);
+    const regions = intentPage.target.regions;
+    const region = regions.find((r) => r.name === "main") ?? [...regions].sort((a, b) => b.items.length - a.items.length)[0];
+    if (!region) return done("failed", "That page has no region to put it in.");
+    onPendingChange(insertComponent(intentPage, region.name, null, entry.component, entry.properties, pending));
+    done("queued", `Added to ${intentPage.label} in the pending changes.`, intentPage.fullName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [insertIntent, profile, snapshot, intentPage, intentPages, pages, catalogs, intentKey]);
 
   // The org item a selected component or tab is, and the keys drawn beside it (published or inserted in Draft).
   const pageItem = useMemo(() => {

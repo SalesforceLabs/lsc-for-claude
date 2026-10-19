@@ -38,7 +38,7 @@ function compiled(name: string, generation: string): Promise<Compiled> {
 }
 
 /** SLDS with the touch overrides, loaded the first time a live component is shown. */
-function sldsCss(): Promise<string> {
+export function sldsCss(): Promise<string> {
   css ??= Promise.all([
     import("@salesforce-ux/design-system/assets/styles/salesforce-lightning-design-system.min.css?raw"),
     import("@salesforce-ux/design-system/assets/styles/salesforce-lightning-design-system_touch.min.css?raw"),
@@ -104,15 +104,7 @@ export function LiveInlineLwc({
       if (!m || typeof m !== "object") return;
       switch (m.__studio) {
         case "request": {
-          const as = repLoginRef.current;
-          const r = as
-            ? await window.lscApi.studioLwcRequestAs(as, m.method, m.path, m.body)
-            : await window.lscApi.studioLwcRequest(m.method, m.path, m.body);
-          const data = r.data as { ok?: boolean; data?: unknown; error?: string } | undefined;
-          const reply = data?.ok
-            ? { __studio: "response", id: m.id, ok: true, data: data.data }
-            : { __studio: "response", id: m.id, ok: false, error: data && "status" in data ? data : { status: 500, statusText: "Error", ok: false, body: { message: r.error ?? data?.error ?? "Request failed" } } };
-          win.postMessage(reply, "*");
+          win.postMessage(await answerFrameRequest(m, repLoginRef.current), "*");
           break;
         }
         case "toast":
@@ -203,7 +195,16 @@ export function LiveInlineLwc({
   );
 }
 
-function describePage(ref: { type?: string; attributes?: Record<string, unknown> }): string {
+/** Answers a data request a live component made, as the previewed rep when Studio holds their login, else as the sf CLI connection. */
+export async function answerFrameRequest(m: Extract<FrameMessage, { __studio: "request" }>, as?: string | null) {
+  const r = as ? await window.lscApi.studioLwcRequestAs(as, m.method, m.path, m.body) : await window.lscApi.studioLwcRequest(m.method, m.path, m.body);
+  const data = r.data as { ok?: boolean; data?: unknown; error?: string } | undefined;
+  return data?.ok
+    ? { __studio: "response", id: m.id, ok: true, data: data.data }
+    : { __studio: "response", id: m.id, ok: false, error: data && "status" in data ? data : { status: 500, statusText: "Error", ok: false, body: { message: r.error ?? data?.error ?? "Request failed" } } };
+}
+
+export function describePage(ref: { type?: string; attributes?: Record<string, unknown> }): string {
   const a = ref.attributes ?? {};
   const name = (k: string) => (typeof a[k] === "string" ? (a[k] as string) : "");
   switch (ref.type) {

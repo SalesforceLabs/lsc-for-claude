@@ -102,7 +102,10 @@ export type LayoutOp =
   | { op: "setSectionHeading"; section: SectionRef; from: boolean; to: boolean }
   | { op: "moveRelatedList"; relatedList: string; before: string | null }
   | { op: "removeRelatedList"; relatedList: string }
-  | { op: "addRelatedList"; relatedList: string; before: string | null; xml?: string; object?: string };
+  | { op: "addRelatedList"; relatedList: string; before: string | null; xml?: string; object?: string }
+  // Mobile & Lightning Actions: the Draft model doesn't draw these, they pass through to the server untouched.
+  | { op: "addAction"; action: string; before: string | null; actionType?: string }
+  | { op: "removeAction"; action: string; dropList?: boolean };
 
 /** One edit to a compact layout's fields (the record header). `before` is the field it goes in front of, or null for the end. */
 export type CompactOp =

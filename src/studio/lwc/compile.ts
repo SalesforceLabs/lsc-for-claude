@@ -28,7 +28,7 @@ export interface CompiledInlineLwc {
 
 const ROOT = path.join(tmpdir(), "lsc-studio-lwc");
 /** Bump when the shims or the build change, so cached scripts are rebuilt. */
-const BUILD_VERSION = 4;
+const BUILD_VERSION = 5;
 const cache = new Map<string, Promise<CompiledInlineLwc>>();
 
 function str(v: unknown): string {
@@ -66,7 +66,7 @@ async function baseComponents(): Promise<Set<string>> {
   return baseNames;
 }
 
-async function loadBundles(org: string, bundles: string[]): Promise<LwcFile[]> {
+export async function loadBundles(org: string, bundles: string[]): Promise<LwcFile[]> {
   const valid = bundles.filter((b) => /^\w+$/.test(b));
   if (!valid.length) return [];
   const rows = await query(`SELECT LightningComponentBundle.DeveloperName, FilePath, Source FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName IN (${inList(valid)})`, org, true);
@@ -171,33 +171,34 @@ document.getElementById("root").appendChild(el);
     },
   };
 
-  const bundle = await rollup({
-    input: entry,
-    shimMissingExports: true,
-    onwarn: () => {},
-    plugins: [
-      salesforce(false),
-      lwc({
-        rootDir: path.join(dir, "org"),
-        modules: [{ dir: path.join(dir, "shims") }, { dir: path.join(dir, "org") }, ...packageModules("lightning-base-components")],
-        defaultModules: [...packageModules("@lwc/engine-dom"), ...packageModules("@lwc/synthetic-shadow")],
-        enableDynamicComponents: true,
-        experimentalDynamicDirective: true,
-        // The platform accepts ternaries and the like in templates (complex template expressions).
-        experimentalComplexExpressions: true,
-        // Org components were written for Lightning Locker / LWS, not this build's strict checks.
-        apiVersion: 66,
-      } as Parameters<typeof lwc>[0]),
-      salesforce(true),
-      missingLightning,
-      importMeta,
-    ],
-  });
+  let bundle: Awaited<ReturnType<typeof rollup>> | undefined;
   try {
+    bundle = await rollup({
+      input: entry,
+      shimMissingExports: true,
+      onwarn: () => {},
+      plugins: [
+        salesforce(false),
+        lwc({
+          rootDir: path.join(dir, "org"),
+          modules: [{ dir: path.join(dir, "shims") }, { dir: path.join(dir, "org") }, ...packageModules("lightning-base-components")],
+          defaultModules: [...packageModules("@lwc/engine-dom"), ...packageModules("@lwc/synthetic-shadow")],
+          enableDynamicComponents: true,
+          experimentalDynamicDirective: true,
+          // The platform accepts ternaries and the like in templates (complex template expressions).
+          experimentalComplexExpressions: true,
+          // Org components were written for Lightning Locker / LWS, not this build's strict checks.
+          apiVersion: 66,
+        } as Parameters<typeof lwc>[0]),
+        salesforce(true),
+        missingLightning,
+        importMeta,
+      ],
+    });
     const { output } = await bundle.generate({ format: "iife", banner: `var process = { env: { NODE_ENV: "production" } };`, inlineDynamicImports: true });
     return { script: output[0].code, placeholders };
   } finally {
-    await bundle.close();
+    await bundle?.close();
     await rm(dir, { recursive: true, force: true });
   }
 }
