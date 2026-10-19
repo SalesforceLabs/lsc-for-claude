@@ -296,7 +296,7 @@ export function planFixSteps(fix: StudioFix, phase: "preview" | "apply"): Planne
           ? []
           : [{ key: "reach", label: type === "CompactLayout" ? `Finding the record types ${label} reaches` : type === "CustomApplication" ? `Finding the profiles that can open ${label}` : `Finding the profiles ${label} reaches` }]),
         ...(apply ? [] : [{ key: "production", label: "Checking whether this is a production org" }]),
-        ...((type === "Layout" || type === "CustomApplication") && !apply ? [{ key: "validate", label: `Asking the org whether it would accept the change` }] : []),
+        ...((type === "Layout" || type === "CustomApplication") && !apply ? [{ key: "validate", label: "Validating the change" }] : []),
         ...(apply ? [{ key: "deploy", label: `Deploying ${label}` }] : []),
       ];
     }
