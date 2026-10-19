@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
+  ChevronDown,
   ChevronRight,
   CircleAlert,
   CircleCheck,
@@ -31,7 +32,7 @@ import {
   type UnpublishedKind,
   type UnpublishedState,
 } from "./org-ahead";
-import { describeSummary } from "./org-ahead-summary";
+import { describeSummary, ROW_LINES } from "./org-ahead-summary";
 import { useChangeSummaries, type ChangeSummary } from "./useChangeSummaries";
 import type { PublishedIpad } from "./published-types";
 import "./org-ahead.css";
@@ -55,7 +56,11 @@ const NO_ITEMS: UnpublishedItem[] = [];
 function whatChanged(item: UnpublishedItem, s: ChangeSummary | undefined) {
   if (item.summary?.length) return describeSummary(item.summary);
   if (s?.status === "loading") return "loading" as const;
-  if (s?.status === "ready" && s.lines) return describeSummary(s.lines);
+  if (s?.status === "ready" && s.lines) {
+    // Read and compared, and a rep would see nothing different: say so rather than leave the row bare.
+    if (s.lines.length === 0) return { text: "Nothing reps would see has changed", all: [], none: true as const };
+    return describeSummary(s.lines);
+  }
   return null;
 }
 
@@ -75,6 +80,7 @@ interface Props {
  */
 export default function UnpublishedIndicator({ profile, state, snapshot, onRetry, onShow, onPublish }: Props) {
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const root = useRef<HTMLDivElement>(null);
   const ind = indicatorFor(state);
   const result = state?.status === "ready" ? state.result : undefined;
@@ -184,13 +190,14 @@ export default function UnpublishedIndicator({ profile, state, snapshot, onRetry
                   {g.items.map((item) => {
                     const Icon = KIND_ICON[item.kind];
                     const what = whatChanged(item, summaries[item.id]);
+                    const more = !!what && what !== "loading" && (what.all.length > ROW_LINES || what.all.some((l) => l.length > 48));
+                    const isOpen = expanded.has(item.id);
                     return (
-                      <li key={item.id}>
+                      <li key={item.id} className="org-ahead-item">
                         <button
                           type="button"
                           className="org-ahead-row"
                           aria-label={`Show ${item.label}`}
-                          title={what && what !== "loading" && what.all.length > 1 ? what.all.join("\n") : undefined}
                           onClick={() => {
                             setOpen(false);
                             onShow(item);
@@ -202,13 +209,41 @@ export default function UnpublishedIndicator({ profile, state, snapshot, onRetry
                               {item.label}
                             </span>
                             {what === "loading" && <span className="org-ahead-skeleton" aria-hidden="true" />}
-                            {what && what !== "loading" && what.text && <span className="org-ahead-row-what">{what.text}</span>}
+                            {what && what !== "loading" && what.text && (
+                              <span className={"org-ahead-row-what" + ("none" in what ? " none" : "")} title={what.all.length > 1 ? what.all.join("\n") : undefined}>
+                                {what.text}
+                              </span>
+                            )}
                             <span className="org-ahead-row-meta">
                               {kindLabel(item.kind)} · {whoWhen(item)}
                             </span>
                           </span>
                           <ChevronRight size={14} aria-hidden className="org-ahead-chev" />
                         </button>
+                        {more && (
+                          <button
+                            type="button"
+                            className="org-ahead-more"
+                            aria-expanded={isOpen}
+                            aria-label={`${isOpen ? "Hide" : "Show"} all ${what.all.length} changes to ${item.label}`}
+                            onClick={() =>
+                              setExpanded((cur) => {
+                                const next = new Set(cur);
+                                if (!next.delete(item.id)) next.add(item.id);
+                                return next;
+                              })
+                            }
+                          >
+                            <ChevronDown size={14} aria-hidden />
+                          </button>
+                        )}
+                        {more && isOpen && (
+                          <ul className="org-ahead-changes">
+                            {what.all.map((line) => (
+                              <li key={line}>{line}</li>
+                            ))}
+                          </ul>
+                        )}
                       </li>
                     );
                   })}

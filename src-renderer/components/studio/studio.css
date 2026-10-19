@@ -197,10 +197,11 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 12px;
+  gap: 6px 12px;
   min-height: 44px;
-  padding: 0 16px 0 20px;
+  padding: 4px 16px 4px 20px;
   border-bottom: 1px solid var(--border);
 }
 

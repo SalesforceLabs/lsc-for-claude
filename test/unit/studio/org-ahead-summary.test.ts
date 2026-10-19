@@ -45,10 +45,10 @@ describe("prettyName", () => {
 });
 
 describe("describeSummary", () => {
-  it("joins up to three lines, counts more", () => {
+  it("names the first two lines and counts the rest", () => {
     expect(describeSummary(["Added A", "Removed B"]).text).toBe("Added A; Removed B");
     const many = describeSummary(["a", "b", "c", "d"]);
-    expect(many.text).toBe("4 changes");
+    expect(many.text).toBe("a; b; +2 more");
     expect(many.all).toHaveLength(4);
   });
   it("is empty with no lines and drops duplicates", () => {
@@ -70,7 +70,7 @@ describe("summarizeLayout", () => {
   });
   it("notices a reorder and moves between sections", () => {
     const pub = pubLayout([{ label: "Info", fields: ["Name", "Phone", "Fax"] }]);
-    expect(summarizeLayout(pub, liveLayout([{ label: "Info", fields: ["Phone", "Name", "Fax"] }]))).toEqual(["Rearranged fields in a section"]);
+    expect(summarizeLayout(pub, liveLayout([{ label: "Info", fields: ["Phone", "Name", "Fax"] }]))).toEqual(["Moved Account Name above Fax"]);
     const two = pubLayout([
       { label: "Info", fields: ["Name", "Phone"] },
       { label: "More", fields: ["Fax"] },
@@ -118,7 +118,9 @@ describe("summarizeCompact", () => {
   it("describes header fields", () => {
     expect(summarizeCompact(["Name"], live(["Name", "Phone"]))).toEqual(["Added Phone to the record header"]);
     expect(summarizeCompact(["Name", "Phone"], live(["Name"]))).toEqual(["Removed Phone from the record header"]);
-    expect(summarizeCompact(["Name", "Phone"], live(["Phone", "Name"]))).toEqual(["Reordered the record header fields"]);
+    // The record's title field is not a header field the rep sees move.
+    expect(summarizeCompact(["Name", "Phone"], live(["Phone", "Name"]))).toEqual([]);
+    expect(summarizeCompact(["Phone", "Fax"], live(["Fax", "Phone"]))).toEqual(["Moved Phone to the end in the record header"]);
     expect(summarizeCompact(undefined, live([]))).toBeNull();
   });
 });
@@ -144,7 +146,7 @@ describe("summarizeListView", () => {
     expect(summarizeListView(pub, live({ filterScope: "Everything" }))).toEqual(["List view scope: Mine → Everything"]);
     expect(summarizeListView(pub, live({ columns: ["Name", "Fax"] }))).toEqual(["Added the Fax column", "Removed the Phone column"]);
     expect(summarizeListView(pub, live({ filters: [{ field: "Fax", operation: "equals", value: "1" }], booleanFilter: "1" }))).toEqual(["Added a filter on Fax", "Changed the filter logic"]);
-    expect(summarizeListView(pub, live({ columns: ["Phone", "Name"] }))).toEqual(["Reordered the columns"]);
+    expect(summarizeListView(pub, live({ columns: ["Phone", "Name"] }))).toEqual(["Moved Name to the end in the list"]);
   });
   it("is null without a source", () => {
     expect(summarizeListView({ name: "All", label: "All", columns: [] }, live({}))).toBeNull();
@@ -219,5 +221,70 @@ describe("configSummary", () => {
       "Record settings changed (such as Active)",
     ]);
     expect(configSummary(e)).toEqual([]);
+  });
+});
+
+describe("false positives from real org documents", () => {
+  it("pairs a layout's raw related list names with the iPad's Object.Field names", () => {
+    const pub = pubLayout([{ label: "Info", fields: ["Name"] }]);
+    pub.relatedLists = [
+      { name: "ContactPointAddress.ParentId", label: "Addresses" },
+      { name: "CaseHistory.CaseId", label: "Case History" },
+    ] as never;
+    const live = liveLayout([{ label: "Info", fields: ["Name"] }], ["ContactPointAddresses", "RelatedEntityHistoryList"]);
+    expect(summarizeLayout(pub, live)).toEqual([]);
+  });
+  it("still reports a related list that really is new", () => {
+    const pub = pubLayout([{ label: "Info", fields: ["Name"] }]);
+    pub.relatedLists = [{ name: "ContactPointAddress.ParentId", label: "Addresses" }] as never;
+    const live = liveLayout([{ label: "Info", fields: ["Name"] }], ["ContactPointAddresses", "Visits__r"]);
+    expect(summarizeLayout(pub, live)?.join("|")).toMatch(/Visits/);
+  });
+  it("sees a section renamed in Setup as a rename, not a removal plus an addition", () => {
+    const pub = pubLayout([{ label: "Address", fields: ["Name", "Phone", "Fax"] }]);
+    const live = liveLayout([{ label: "Additional Information", fields: ["Name", "Phone", "Fax"] }]);
+    const out = summarizeLayout(pub, live) ?? [];
+    expect(out.join("|")).not.toMatch(/Added the section|Removed the section/);
+  });
+});
+
+describe("summarizeFlexiPage regions and properties", () => {
+  const page = (props: Record<string, string>): PublishedPage =>
+    ({
+      name: "Home",
+      label: "Home",
+      type: "HomePage",
+      template: "t",
+      regions: [
+        {
+          name: "top",
+          components: [
+            { name: "lsc4ce:lsAgentforceWelcome", label: "Agentforce welcome", supported: true, halfWidth: false, visibility: "shown", properties: props, source: { region: "top", path: [{ component: "lsc4ce:lsAgentforceWelcome", identifier: "w", index: 0 }] } },
+          ],
+        },
+      ],
+    }) as unknown as PublishedPage;
+  const live = (props: Record<string, string>, sidebar = false): LiveFlexiPage =>
+    ({
+      type: "FlexiPage",
+      fullName: "Home",
+      label: "Home",
+      pageType: "HomePage",
+      template: "t",
+      sobjectType: null,
+      regions: [
+        { name: "top", facet: false, items: [{ component: "lsc4ce:lsAgentforceWelcome", identifier: "w", properties: props, facets: [] }] },
+        ...(sidebar ? [{ name: "sidebar", facet: false, items: [{ component: "flexipage:recentItems", identifier: "r", properties: {}, facets: [] }] }] : []),
+      ],
+      profiles: null,
+    }) as unknown as LiveFlexiPage;
+  it("ignores components in a region the iPad does not draw", () => {
+    expect(summarizeFlexiPage(page({ a: "1" }), live({ a: "1" }, true))).toEqual([]);
+  });
+  it("names an edited property", () => {
+    expect(summarizeFlexiPage(page({ welcomeMessage: "Hi" }), live({ welcomeMessage: "Hello" }))).toEqual(["Agentforce welcome: welcome message changed"]);
+  });
+  it("ignores properties the iPad does not carry", () => {
+    expect(summarizeFlexiPage(page({ a: "1" }), live({ a: "1", hideOnError: "true" }))).toEqual([]);
   });
 });

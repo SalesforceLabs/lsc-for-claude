@@ -113,26 +113,31 @@ export async function fetchConfigEdits(org: string, since: number): Promise<Conf
 }
 
 /** The Tooling FlexiPage has no LastModifiedBy relationship, so read LastModifiedById and look the names up; without it the editor stays unknown. */
+/**
+ * Lightning pages: Tooling `FlexiPage` has no `LastModifiedBy` (the column doesn't exist), so the
+ * author is read from the Setup Audit Trail, which logs "Changed Lightning Page: <label>". Pages
+ * saved some other way (a deploy that left no trail) simply have no author.
+ */
 async function flexiPageRows(since: string, org: string): Promise<Row[]> {
-  const cols = "Id, DeveloperName, MasterLabel, LastModifiedDate";
-  let rows: Row[];
+  const rows = await query(`SELECT Id, DeveloperName, MasterLabel, LastModifiedDate FROM FlexiPage WHERE ${since}`, org, true);
+  if (rows.length === 0) return rows;
+  const earliest = rows.map((r) => text(r.LastModifiedDate)).sort()[0];
+  const who = new Map<string, string>();
   try {
-    rows = await query(`SELECT ${cols}, LastModifiedById FROM FlexiPage WHERE ${since}`, org, true);
-  } catch {
-    return query(`SELECT ${cols} FROM FlexiPage WHERE ${since}`, org, true);
-  }
-  const ids = [...new Set(rows.map((r) => text(r.LastModifiedById)).filter(Boolean))];
-  if (ids.length === 0) return rows;
-  const names = new Map<string, string>();
-  try {
-    for (const chunk of chunkIds(ids, 200)) {
-      for (const u of await query(`SELECT Id, Name FROM User WHERE Id IN (${inList(chunk)})`, org)) names.set(text(u.Id), text(u.Name));
+    const trail = await query(
+      `SELECT Display, CreatedDate, CreatedBy.Name FROM SetupAuditTrail WHERE Action IN ('changedFlexiPage','createdFlexiPage') AND CreatedDate >= ${soqlTime(Date.parse(earliest))} ORDER BY CreatedDate DESC LIMIT 2000`,
+      org
+    );
+    for (const t of trail) {
+      const label = text(t.Display).replace(/^[^:]*:\s*/, "").trim().toLowerCase();
+      const name = text((t.CreatedBy as { Name?: unknown } | null)?.Name);
+      if (label && name && !who.has(label)) who.set(label, name);
     }
   } catch {
     return rows;
   }
   return rows.map((r) => {
-    const name = names.get(text(r.LastModifiedById));
+    const name = who.get(text(r.MasterLabel).trim().toLowerCase()) ?? who.get(text(r.DeveloperName).trim().toLowerCase());
     return name ? { ...r, LastModifiedBy: { Name: name } } : r;
   });
 }

@@ -23,7 +23,7 @@ export function summaryFor(item: UnpublishedItem, snap: PublishedIpad, doc: unkn
     case "layout":
       return summarizeLayout(find(snap.layouts, item.name), doc as LiveLayout);
     case "compactLayout":
-      return summarizeCompact(find(snap.compactLayouts, item.name), doc as LiveCompactLayout);
+      return summarizeCompact(find(snap.compactSources, item.name)?.fields, doc as LiveCompactLayout);
     case "flexiPage":
       return summarizeFlexiPage(find(snap.pages, item.name) ?? (snap.home && norm(snap.home.name) === norm(item.name) ? snap.home : undefined), doc as LiveFlexiPage);
     case "listView": {
