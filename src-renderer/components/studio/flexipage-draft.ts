@@ -1,5 +1,5 @@
 import type { FlexiSource, PublishedComponent, PublishedPage } from "./published-types";
-import { checkProp, DYNAMIC_COMPONENTS, IPAD_READS, normalizeProp, untypedDef, type ComponentPropDef, type ComponentProps } from "./component-props";
+import { checkProp, DYNAMIC_COMPONENTS, IPAD_READS, normalizeProp, untypedDef, type ComponentPropDef, type ComponentProps, type Unlisted } from "./component-props";
 import type { ComponentCatalog, FlexiItemRef, FlexiPageEditFix, FlexiPageOp, FlexiPageProperty, LiveFlexiPage } from "./types";
 import { flexiPageOpsChange, pendingFor, queueChange, type PendingChange } from "./changes";
 import type { DraftState, Verb } from "./edit-draft";
@@ -315,6 +315,24 @@ export function alignFlexiPage(page: PublishedPage, live: FlexiModel): Map<strin
   return out;
 }
 
+/**
+ * The published blocks that still line up with the org's page, for a page Setup
+ * has changed since the last publish (when `alignFlexiPage` says no). Blocks the
+ * org no longer has are left out and counted in `gone`.
+ */
+export function alignFlexiPagePartial(page: PublishedPage, live: FlexiModel): { aligned: Map<string, string>; gone: number } {
+  const aligned = new Map<string, string>();
+  let gone = 0;
+  for (const list of publishedLists(page)) {
+    for (const s of list) {
+      const hit = s && resolve(live, s);
+      if (hit) aligned.set(sourceKey(s), hit.item.key);
+      else gone++;
+    }
+  }
+  return { aligned, gone };
+}
+
 // --- Drawing -----------------------------------------------------------------------
 
 /** One Lightning page in Draft: the org's version, the arranged one, and how published blocks map onto it. */
@@ -325,6 +343,8 @@ export interface PageDraft {
   base: FlexiModel;
   target: FlexiModel;
   aligned: Map<string, string>;
+  /** Set when the org's page differs from the published one: components Setup added are drawn marked, and `gone` published blocks the org no longer has aren't. */
+  ahead?: { gone: number };
 }
 
 /** The org item a published block is. */
@@ -334,6 +354,9 @@ export const keyOf = (d: PageDraft, source: FlexiSource | undefined) => (source 
 export function containerOf(d: PageDraft, key: string): string | undefined {
   return (locateItem(d.target, key) ?? locateItem(d.base, key))?.region.name;
 }
+
+/** The record details component (drawn from the layout), recognised by name: Draft draws copies of published blocks, so identity can't be used. */
+export const isDetailsBlock = (c: PublishedComponent) => c.visibility !== "hidden" && /^(multiEntityRecordView|detailPanel)$/.test(c.name.replace(/^.*:/, ""));
 
 /** A readable name for a component Draft inserted, which has no published block. */
 export function insertedLabel(component: string, properties: Record<string, string>): string {
@@ -371,6 +394,8 @@ export interface DrawnBlock<T> {
   /** The org item, or the inserted one. */
   key: string;
   state: DraftState;
+  /** In the org's page and not on iPads yet (drawn as a placeholder with `state: "added"`). */
+  ahead?: boolean;
 }
 
 /**
@@ -399,6 +424,10 @@ function draftList<T>(d: PageDraft, published: T[], sourceOf: (t: T) => FlexiSou
     if (!liveKeys.includes(key)) {
       const made = item && make(item);
       return made ? [{ value: made, key, state: "added" }] : [];
+    }
+    if (!known && item && d.ahead) {
+      const made = make(item);
+      return made ? [{ value: made, key, state: "added", ahead: true }] : [];
     }
     if (!known || !item) return [];
     const liveItem = regionOf(d.base, container)!.items.find((i) => i.key === key)!;
@@ -600,12 +629,12 @@ export function propertyEdits(d: PageDraft, key: string, loaded?: ComponentProps
   const props = at.item.properties;
   const orgProps = locateItem(d.base, key)?.item.properties ?? {};
   const pointers = new Set(Object.entries({ ...orgProps, ...props }).filter(([, v]) => d.target.regions.some((r) => r.facet && r.name === v)).map(([k]) => k));
-  const dynamic = !!loaded?.dynamic || DYNAMIC_COMPONENTS.includes(name);
+  const unlisted: Unlisted | undefined = loaded?.unlisted ?? (DYNAMIC_COMPONENTS.includes(name) ? "used" : undefined);
   const defs = new Map<string, ComponentPropDef>();
   for (const def of loaded?.properties ?? []) defs.set(def.name, def);
   for (const def of fallbackDefs(at.item.component, name, props)) if (!defs.has(def.name)) defs.set(def.name, def);
   for (const k of Object.keys({ ...orgProps, ...props })) {
-    if (!defs.has(k) && !pointers.has(k) && k !== "active") defs.set(k, untypedDef(k, dynamic));
+    if (!defs.has(k) && !pointers.has(k) && k !== "active") defs.set(k, untypedDef(k, unlisted));
   }
   const result = [...defs.values()]
     .filter((def) => !pointers.has(def.name) && def.name !== "active")

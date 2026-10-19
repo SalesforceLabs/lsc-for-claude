@@ -29,6 +29,7 @@ import {
 import { applyCreate, applyDelete, previewCreate, previewDelete, resolveNames } from "./create.js";
 import { applyEdit, isEditFix, previewEdit } from "./edits.js";
 import { inList, query, splitList, type Row } from "./helpers.js";
+import { step, type FixTracker } from "./fix-progress.js";
 import type { FixPreview, FixResult, RecordRef, StudioFix } from "./types.js";
 
 // --- Permission set licenses -------------------------------------------------
@@ -49,7 +50,11 @@ async function pslAssignment(userId: string, pslId: string, org: string): Promis
   return row;
 }
 
-async function previewAssignPsl(fix: Extract<StudioFix, { kind: "assignPsl" }>, org: string): Promise<FixPreview> {
+async function previewAssignPsl(fix: Extract<StudioFix, { kind: "assignPsl" }>, org: string, progress?: FixTracker): Promise<FixPreview> {
+  return step(progress, "read", () => previewAssignPslNow(fix, org));
+}
+
+async function previewAssignPslNow(fix: Extract<StudioFix, { kind: "assignPsl" }>, org: string): Promise<FixPreview> {
   assertId(fix.userId);
   assertId(fix.pslId);
   const preview: FixPreview = {
@@ -73,7 +78,11 @@ async function previewAssignPsl(fix: Extract<StudioFix, { kind: "assignPsl" }>, 
   return preview;
 }
 
-async function previewRemovePsl(fix: Extract<StudioFix, { kind: "removePsl" }>, org: string): Promise<FixPreview> {
+async function previewRemovePsl(fix: Extract<StudioFix, { kind: "removePsl" }>, org: string, progress?: FixTracker): Promise<FixPreview> {
+  return step(progress, "read", () => previewRemovePslNow(fix, org));
+}
+
+async function previewRemovePslNow(fix: Extract<StudioFix, { kind: "removePsl" }>, org: string): Promise<FixPreview> {
   assertId(fix.assignmentId);
   const preview: FixPreview = {
     org,
@@ -109,7 +118,8 @@ const sameValue = (a: unknown, b: unknown) => String(a ?? "") === String(b ?? ""
 
 async function previewSetConfigField(
   fix: Extract<StudioFix, { kind: "setConfigField" }>,
-  org: string
+  org: string,
+  progress?: FixTracker
 ): Promise<FixPreview & { target?: FieldTarget }> {
   const preview: FixPreview = {
     org,
@@ -117,22 +127,27 @@ async function previewSetConfigField(
     changes: [{ target: fix.recordLabel, field: fix.field, before: display(fix.from), after: display(fix.to) }],
     warnings: [],
   };
-  const target = await findField(fix.category, fix.developerName, fix.field, org);
+  const target = await step(progress, "read", () => findField(fix.category, fix.developerName, fix.field, org));
   if (!target) return { ...preview, blocked: `${fix.recordLabel} no longer has a ${fix.field} value.` };
-  if (sameValue(target.current, fix.to)) return { ...preview, blocked: "Already applied. Refresh the map." };
+  // When the org no longer matches, show what it holds now so the row doesn't contradict the reason.
+  const live = [{ ...preview.changes[0], before: display(target.current) }];
+  if (sameValue(target.current, fix.to)) return { ...preview, changes: live, blocked: "Already applied. Refresh the map." };
   if (!sameValue(target.current, fix.from)) {
     return {
       ...preview,
+      changes: live,
       blocked: `${fix.field} changed since the map was loaded (now ${display(target.current)}). Refresh the map and try again.`,
     };
   }
   if (fix.field === "Profiles") {
-    const to = splitList(fix.to);
-    preview.warnings.push(...(await audienceWarnings(splitList(fix.from), to, org)));
-    if (to.length === 0) preview.warnings.push("With no profiles listed, every profile sees this action.");
-    // A misspelled profile would silently match nobody (create.ts says the same for a new record).
-    const unknown = await resolveNames("Profile", to.filter((n) => !splitList(fix.from).some((f) => f.toLowerCase() === n.toLowerCase())), org);
-    if (unknown.missing.length) preview.warnings.push(`Not a profile in this org: ${unknown.missing.join(", ")}.`);
+    await step(progress, "reach", async () => {
+      const to = splitList(fix.to);
+      preview.warnings.push(...(await audienceWarnings(splitList(fix.from), to, org)));
+      if (to.length === 0) preview.warnings.push("With no profiles listed, every profile sees this action.");
+      // A misspelled profile would silently match nobody (create.ts says the same for a new record).
+      const unknown = await resolveNames("Profile", to.filter((n) => !splitList(fix.from).some((f) => f.toLowerCase() === n.toLowerCase())), org);
+      if (unknown.missing.length) preview.warnings.push(`Not a profile in this org: ${unknown.missing.join(", ")}.`);
+    });
   }
   if (MOBILE_CATEGORIES.has(fix.category)) preview.warnings.push(PUBLISH_WARNING);
   return { ...preview, target };
@@ -175,7 +190,8 @@ function activeWarnings(record: SwitchRecord, to: boolean): string[] {
 
 async function previewSetActive(
   fix: Extract<StudioFix, { kind: "setActive" }> & { record: SwitchRecord },
-  org: string
+  org: string,
+  progress?: FixTracker
 ): Promise<FixPreview & { targetId?: string }> {
   const onOff = (v: boolean) => (v ? "Active" : "Inactive");
   const preview: FixPreview = {
@@ -184,9 +200,16 @@ async function previewSetActive(
     changes: [{ target: fix.record.label, field: "Status", before: onOff(fix.from), after: onOff(fix.to) }],
     warnings: activeWarnings(fix.record, fix.to),
   };
-  const target = await findActiveTarget(fix.record, org);
+  const target = await step(progress, "read", () => findActiveTarget(fix.record, org));
   if (!target) return { ...preview, blocked: `${fix.record.label} no longer exists.` };
-  if (target.active === fix.to) return { ...preview, blocked: `Already ${onOff(fix.to).toLowerCase()}. Refresh the map.` };
+  if (target.active === fix.to) {
+    // Show the live state, so the row agrees with "Already active".
+    return {
+      ...preview,
+      changes: [{ ...preview.changes[0], before: onOff(target.active) }],
+      blocked: `Already ${onOff(fix.to).toLowerCase()}. Refresh the map.`,
+    };
+  }
   return { ...preview, targetId: target.id };
 }
 
@@ -204,7 +227,8 @@ interface AssignmentTarget {
 
 async function previewSetProfileAssignments(
   fix: Extract<StudioFix, { kind: "setProfileAssignments" }>,
-  org: string
+  org: string,
+  progress?: FixTracker
 ): Promise<FixPreview & { target?: AssignmentTarget }> {
   const preview: FixPreview = {
     org,
@@ -214,15 +238,15 @@ async function previewSetProfileAssignments(
     ],
     warnings: [],
   };
-  const record = await findConfigRecord(fix.category, fix.developerName, org);
+  const record = await step(progress, "read", () => findConfigRecord(fix.category, fix.developerName, org));
   if (!record) return { ...preview, blocked: `${fix.recordLabel} no longer exists.` };
   const recordId = String(record.Id);
 
-  const rows = await query(
+  const rows = await step(progress, "read", () => query(
     `SELECT Id, AssignedToId FROM LifeSciConfigAssignment WHERE LifeSciConfigRecordId = '${recordId}' AND AssignmentLevel = 'Profile'`,
     org,
     true
-  );
+  ));
   const ids = [...new Set(rows.map((r) => String(r.AssignedToId)))];
   const names = new Map(
     ids.length ? (await query(`SELECT Id, Name FROM Profile WHERE Id IN (${inList(ids)})`, org)).map((p) => [String(p.Id), String(p.Name)]) : []
@@ -238,10 +262,12 @@ async function previewSetProfileAssignments(
 
   const key = (l: string[]) => l.map((n) => n.toLowerCase()).sort().join("|");
   const now = [...current.values()].map((c) => c.name);
-  if (key(now) === key(fix.to)) return { ...preview, blocked: "Already applied. Refresh the map." };
+  const live = [{ ...preview.changes[0], before: display(now.join(";")) }];
+  if (key(now) === key(fix.to)) return { ...preview, changes: live, blocked: "Already applied. Refresh the map." };
   if (key(now) !== key(fix.from)) {
     return {
       ...preview,
+      changes: live,
       blocked: `Profile assignments changed since the map was loaded (now ${now.join(", ") || "none"}). Refresh the map and try again.`,
     };
   }
@@ -256,14 +282,18 @@ async function previewSetProfileAssignments(
   const missing = add.filter((n) => !addIds.has(n.toLowerCase()));
   if (missing.length) return { ...preview, blocked: `Profile not found: ${missing.join(", ")}.` };
 
-  preview.warnings.push(...(await audienceWarnings(fix.from, fix.to, org)));
+  preview.warnings.push(...(await step(progress, "reach", () => audienceWarnings(fix.from, fix.to, org))));
   if (fix.to.length === 0) preview.warnings.push("No profile will see this until it's assigned again.");
   if (MOBILE_CATEGORIES.has(fix.category)) preview.warnings.push(PUBLISH_WARNING);
   return { ...preview, target: { recordId, current, addIds, add, remove } };
 }
 
 /** Add then remove assignments; if a step fails, undo the steps already done so nothing is left half-applied. */
-async function applyAssignments(target: AssignmentTarget, org: string): Promise<string | null> {
+async function applyAssignments(target: AssignmentTarget, org: string, progress?: FixTracker): Promise<string | null> {
+  const total = target.add.length + target.remove.length;
+  let done = 0;
+  const count = () => progress?.detail("write", `${done} of ${total} profile ${total === 1 ? "assignment" : "assignments"}`);
+  count();
   const created: string[] = [];
   const deleted: { name: string }[] = [];
   const rollback = async () => {
@@ -290,6 +320,8 @@ async function applyAssignments(target: AssignmentTarget, org: string): Promise<
       return `Couldn't assign ${name}: ${res.error || "unknown error"}. Nothing was changed.`;
     }
     created.push(res.data.id);
+    done++;
+    count();
   }
   for (const name of target.remove) {
     const res = await deleteToolingRecord("LifeSciConfigAssignment", target.current.get(name.toLowerCase())!.id, org);
@@ -298,56 +330,61 @@ async function applyAssignments(target: AssignmentTarget, org: string): Promise<
       return `Couldn't unassign ${name}: ${res.error || "unknown error"}. Nothing was changed.`;
     }
     deleted.push({ name });
+    done++;
+    count();
   }
   return null;
 }
 
 // --- Public API --------------------------------------------------------------
 
-export async function previewFix(fix: StudioFix, org: string): Promise<FixPreview> {
+/** `progress` is optional everywhere: with one, each step the change takes reports to it (studio_fix_progress). */
+export async function previewFix(fix: StudioFix, org: string, progress?: FixTracker): Promise<FixPreview> {
   switch (fix.kind) {
     case "assignPsl":
-      return previewAssignPsl(fix, org);
+      return previewAssignPsl(fix, org, progress);
     case "removePsl":
-      return previewRemovePsl(fix, org);
+      return previewRemovePsl(fix, org, progress);
     case "setConfigField": {
-      const { target: _target, ...preview } = await previewSetConfigField(fix, org);
+      const { target: _target, ...preview } = await previewSetConfigField(fix, org, progress);
       return preview;
     }
     case "setActive": {
-      if (isEditFix(fix)) return previewEdit(fix, org);
-      const { targetId: _id, ...preview } = await previewSetActive(fix as SwitchFix, org);
+      if (isEditFix(fix)) return previewEdit(fix, org, progress);
+      const { targetId: _id, ...preview } = await previewSetActive(fix as SwitchFix, org, progress);
       return preview;
     }
     case "setProfileAssignments": {
-      const { target: _target, ...preview } = await previewSetProfileAssignments(fix, org);
+      const { target: _target, ...preview } = await previewSetProfileAssignments(fix, org, progress);
       return preview;
     }
     case "createConfigRecord": {
-      const { plan: _plan, ...preview } = await previewCreate(fix, org);
+      const { plan: _plan, ...preview } = await previewCreate(fix, org, progress);
       return preview;
     }
     case "deleteConfigRecord": {
-      const { snapshot: _snapshot, ...preview } = await previewDelete(fix, org);
+      const { snapshot: _snapshot, ...preview } = await previewDelete(fix, org, progress);
       return preview;
     }
     case "assignAccess":
     case "removeAccess":
-      return previewAccess(fix, org);
+      return previewAccess(fix, org, progress);
     case "setCustomScriptCode":
     case "setLayoutRelatedList":
     case "editMetadata":
     case "copyForProfile":
-      return previewEdit(fix, org);
+      return previewEdit(fix, org, progress);
   }
 }
 
-export async function applyFix(fix: StudioFix, org: string): Promise<FixResult> {
+export async function applyFix(fix: StudioFix, org: string, progress?: FixTracker): Promise<FixResult> {
   switch (fix.kind) {
     case "assignPsl": {
-      const preview = await previewAssignPsl(fix, org);
+      const preview = await previewAssignPsl(fix, org, progress);
       if (preview.blocked) return { ok: false, message: preview.blocked };
-      const res = await createRecord("PermissionSetLicenseAssign", { AssigneeId: fix.userId, PermissionSetLicenseId: fix.pslId }, org);
+      const res = await step(progress, "write", () =>
+        createRecord("PermissionSetLicenseAssign", { AssigneeId: fix.userId, PermissionSetLicenseId: fix.pslId }, org)
+      );
       if (!res.success || !res.data?.id) return { ok: false, message: res.error || "Couldn't create the assignment." };
       return {
         ok: true,
@@ -364,9 +401,9 @@ export async function applyFix(fix: StudioFix, org: string): Promise<FixResult> 
       };
     }
     case "removePsl": {
-      const preview = await previewRemovePsl(fix, org);
+      const preview = await previewRemovePsl(fix, org, progress);
       if (preview.blocked) return { ok: false, message: preview.blocked };
-      const res = await deleteRecord("PermissionSetLicenseAssign", fix.assignmentId, org);
+      const res = await step(progress, "write", () => deleteRecord("PermissionSetLicenseAssign", fix.assignmentId, org));
       if (!res.success) return { ok: false, message: res.error || "Couldn't remove the assignment." };
       return {
         ok: true,
@@ -382,14 +419,11 @@ export async function applyFix(fix: StudioFix, org: string): Promise<FixResult> 
       };
     }
     case "setConfigField": {
-      const preview = await previewSetConfigField(fix, org);
+      const preview = await previewSetConfigField(fix, org, progress);
       if (preview.blocked || !preview.target) return { ok: false, message: preview.blocked || "Nothing to update." };
       const { fieldValueId, dataType } = preview.target;
-      const res = await updateToolingRecord(
-        "LifeSciConfigFieldValue",
-        fieldValueId,
-        { [getValueColumn(dataType)]: fix.to },
-        org
+      const res = await step(progress, "write", () =>
+        updateToolingRecord("LifeSciConfigFieldValue", fieldValueId, { [getValueColumn(dataType)]: fix.to }, org)
       );
       if (!res.success) return { ok: false, message: res.error || "Couldn't update the field." };
       return {
@@ -404,11 +438,12 @@ export async function applyFix(fix: StudioFix, org: string): Promise<FixResult> 
       };
     }
     case "setActive": {
-      if (isEditFix(fix)) return applyEdit(fix, org);
-      const preview = await previewSetActive(fix as SwitchFix, org);
+      if (isEditFix(fix)) return applyEdit(fix, org, progress);
+      const preview = await previewSetActive(fix as SwitchFix, org, progress);
       if (preview.blocked || !preview.targetId) return { ok: false, message: preview.blocked || "Nothing to update." };
       const sobject = fix.record.type === "config" ? "LifeSciConfigRecord" : "LifeScienceTriggerHandler";
-      const res = await updateToolingRecord(sobject, preview.targetId, { IsActive: fix.to }, org);
+      const targetId = preview.targetId;
+      const res = await step(progress, "write", () => updateToolingRecord(sobject, targetId, { IsActive: fix.to }, org));
       if (!res.success) return { ok: false, message: res.error || "Couldn't update the record." };
       return {
         ok: true,
@@ -417,9 +452,10 @@ export async function applyFix(fix: StudioFix, org: string): Promise<FixResult> 
       };
     }
     case "setProfileAssignments": {
-      const preview = await previewSetProfileAssignments(fix, org);
+      const preview = await previewSetProfileAssignments(fix, org, progress);
       if (preview.blocked || !preview.target) return { ok: false, message: preview.blocked || "Nothing to update." };
-      const error = await applyAssignments(preview.target, org);
+      const target = preview.target;
+      const error = await step(progress, "write", () => applyAssignments(target, org, progress));
       if (error) return { ok: false, message: error };
       return {
         ok: true,
@@ -428,16 +464,16 @@ export async function applyFix(fix: StudioFix, org: string): Promise<FixResult> 
       };
     }
     case "createConfigRecord":
-      return applyCreate(fix, org);
+      return applyCreate(fix, org, progress);
     case "deleteConfigRecord":
-      return applyDelete(fix, org);
+      return applyDelete(fix, org, progress);
     case "assignAccess":
     case "removeAccess":
-      return applyAccess(fix, org);
+      return applyAccess(fix, org, progress);
     case "setCustomScriptCode":
     case "setLayoutRelatedList":
     case "editMetadata":
     case "copyForProfile":
-      return applyEdit(fix, org);
+      return applyEdit(fix, org, progress);
   }
 }

@@ -1438,6 +1438,11 @@
   pointer-events: none;
 }
 
+/* Blocks the org removed but iPads still have say so (the Draft drawers set data-org-ahead). */
+.draft-org-ahead[data-org-ahead]::after {
+  content: attr(data-org-ahead);
+}
+
 /* A published block whose document changed in the org: a quiet dot, not an outline. */
 .studio-ipad-pill.org-changed::before {
   content: "";

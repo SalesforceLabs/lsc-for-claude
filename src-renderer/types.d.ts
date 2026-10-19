@@ -125,6 +125,8 @@ interface LscApi {
   studioPageReach(fullName: string): Promise<StudioResponse>;
   studioComponentCatalog(pageType: "HomePage" | "RecordPage", sobject: string | null): Promise<StudioResponse>;
   studioComponentProps(component: string, pageType?: "HomePage" | "RecordPage"): Promise<StudioResponse>;
+  /** The deepest Setup pages for references (see `SetupRef`), in order; `exact` false = the list page. */
+  studioSetupLinks(refs: unknown[]): Promise<StudioResponse>;
   studioListProfiles(): Promise<StudioResponse>;
   studioUserAccess(userId: string): Promise<StudioResponse>;
   studioAccessOptions(search?: string): Promise<StudioResponse>;
@@ -136,8 +138,9 @@ interface LscApi {
   studioIpadPublishedUsers(profile: string, search: string): Promise<StudioResponse>;
   studioIpadPublishedProgress(profile: string): Promise<StudioResponse>;
   studioUnpublished(profile: string, known?: Record<string, string[]>, refresh?: boolean): Promise<StudioResponse>;
-  studioPreviewFix(fix: unknown): Promise<StudioResponse>;
-  studioApplyFix(fix: unknown, expectedOrg: string): Promise<StudioResponse>;
+  studioPreviewFix(fix: unknown, progress?: { id: string; index: number; total: number }): Promise<StudioResponse>;
+  studioApplyFix(fix: unknown, expectedOrg: string, progress?: { id: string; index: number; total: number }): Promise<StudioResponse>;
+  studioFixProgress(id: string): Promise<StudioResponse>;
   studioPublishMobile(profiles: string[], expectedOrg: string): Promise<StudioResponse>;
   studioPublishStatus(parentId: string): Promise<StudioResponse>;
   studioPerfUsers(search?: string, profile?: string, days?: number): Promise<StudioResponse>;

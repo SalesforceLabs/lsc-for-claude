@@ -17,8 +17,8 @@ import "./record.css";
 import { LiveInlineLwc } from "./LiveInlineLwc";
 import { CustomIcon, FileIcon, PersonAccountIcon } from "./assets/icons";
 import type { DraftState } from "./edit-draft";
-import { addedRelated, draftRelated } from "./layout-draft";
-import { draftComponents, draftRecordTabs, sourceKey, type DrawnBlock, type PageDraft } from "./flexipage-draft";
+import { addedRelated, draftRelated, ORG_AHEAD_GONE, ORG_AHEAD_TAG } from "./layout-draft";
+import { draftComponents, draftRecordTabs, isDetailsBlock, sourceKey, type DrawnBlock, type PageDraft } from "./flexipage-draft";
 import type { CompactEntry, LayoutEntry, ListViewEntry, PageEntry } from "./usePreviewEdit";
 
 /** Edit mode's page layouts, compact layouts and Lightning pages, read from the org: Draft draws them as the tray would leave them. */
@@ -53,6 +53,11 @@ export const blockIdentity = (c: PublishedComponent, d: DrawnBlock<PublishedComp
   d.state === "added" ? { item: d.key, added: true } : c.source ? { source: sourceKey(c.source) } : {};
 
 export const draftClass = (state: DraftState | undefined) => (state === "removed" ? " ghost" : state === "added" || state === "moved" ? " pending" : "");
+
+/** Blocks in the org that iPads don't have yet (or still have after Setup removed them): the org-ahead style, and a title saying so. */
+export const aheadClass = (ahead: "added" | "removed" | undefined) => (ahead ? " draft-org-ahead" : "");
+export const aheadAttrs = (ahead: "added" | "removed" | undefined): Record<string, string> =>
+  ahead ? { title: ahead === "added" ? ORG_AHEAD_TAG : ORG_AHEAD_GONE, "data-org-ahead": ahead === "added" ? ORG_AHEAD_TAG : ORG_AHEAD_GONE } : {};
 
 /** Highlights/segment/tab metrics, measured on LSC Mobile (pt). */
 const SCREEN_W = 1210;
@@ -253,7 +258,8 @@ function TabContent({
   region: string;
   layout?: string;
 }) {
-  const details = components.filter((c) => c.visibility !== "hidden" && /^(multiEntityRecordView|detailPanel)$/.test(bare(c.name)));
+  // By name, not identity: Draft hands back copies of the published blocks (edit() builds a new object even when nothing changed).
+  const isDetails = isDetailsBlock;
   // In Draft the tray's arrangement, with removed blocks as ghosts and inserted ones drawn as placeholders.
   const pd = usePageDraft(page?.name);
   const drawn = (pd ? draftComponents(pd, components) : asDrawn(components)).filter((d) => d.state === "added" || renderable(d.value, snapshot, rec));
@@ -280,11 +286,11 @@ function TabContent({
     };
     // In Draft the blocks drag within their region or tab; the parts-marked ones still hold their place in the order.
     const drag = pd ? { family: `page:${page.name}`, list: region, id: d.key, ghost: d.state === "removed" } : undefined;
-    if (d.state !== "added" && (details.includes(c) || name === "relatedListContainer"))
+    if (d.state !== "added" && (isDetails(c) || name === "relatedListContainer"))
       return drag ? <Anchor target={target} drag={drag}>{node}</Anchor> : node;
     return (
       <Mark target={target} drag={drag}>
-        {d.state === "same" ? node : <div className={`studio-ipad-draft-block${draftClass(d.state)}`}>{node}</div>}
+        {d.state === "same" ? node : <div className={`studio-ipad-draft-block${d.ahead ? aheadClass("added") : draftClass(d.state)}`} {...aheadAttrs(d.ahead ? "added" : undefined)}>{node}</div>}
       </Mark>
     );
   };
@@ -293,6 +299,14 @@ function TabContent({
   const lists = entry?.status === "ready" ? entry.draft : null;
   const related = (r: PublishedRelated, key: React.Key, state?: DraftState, mark = true) => {
     if (!mark) return <RelatedCard key={key} snapshot={snapshot} related={r} editable={rec.editable} draft={state} />;
+    // A related list Setup removed since the last publish is still on iPads: shown as a ghost that can't be selected.
+    if (lists && edits?.draft && lists.ahead?.goneRelated.includes(r.api))
+      return (
+        <div key={key} className="draft-org-ahead ghost" {...aheadAttrs("removed")}>
+          <RelatedCard snapshot={snapshot} related={r} editable={rec.editable} />
+        </div>
+      );
+    const ahead = lists && edits?.draft && lists.ahead?.related.has(r.api) ? ("added" as const) : undefined;
     const listed = !!lists && (lists.base.relatedLists.includes(r.api) || lists.target.relatedLists.includes(r.api));
     return (
       <Mark
@@ -307,7 +321,13 @@ function TabContent({
         }}
         drag={listed && state !== undefined ? { family: `related:${layout}`, id: r.api, ghost: state === "removed" } : undefined}
       >
-        <RelatedCard snapshot={snapshot} related={r} editable={rec.editable} draft={state} />
+        {ahead ? (
+          <div className={aheadClass(ahead).trim()} {...aheadAttrs(ahead)}>
+            <RelatedCard snapshot={snapshot} related={r} editable={rec.editable} draft={state} />
+          </div>
+        ) : (
+          <RelatedCard snapshot={snapshot} related={r} editable={rec.editable} draft={state} />
+        )}
       </Mark>
     );
   };
@@ -347,7 +367,7 @@ function TabContent({
 
   function card(c: PublishedComponent, k: number): React.ReactNode {
     const name = bare(c.name);
-    if (details.includes(c)) return <DetailsCard key={k} snapshot={snapshot} rec={rec} />;
+    if (isDetails(c)) return <DetailsCard key={k} snapshot={snapshot} rec={rec} />;
     if (name === "AccountTerritoryFields") return null;
     if (name === "ExpensesListView") return <ExpensesCard rec={rec} />;
     if (/^lscMobileInline_/.test(name)) return <InlineSlot snapshot={snapshot} rec={rec} name={name} height={Number(c.properties.mobileHeight) || 400} />;
@@ -389,11 +409,12 @@ function Header({ snapshot, rec, object, compact }: { snapshot: PublishedIpad; r
   const specs = (fullName ? snapshot.compactFields?.[fullName] : undefined) ?? [];
   // Draft draws the header as the tray leaves it: removed fields as ghosts, added ones pending.
   const drags = !!edits?.draft && entry?.status === "ready";
-  const drafted = drags && entry ? entry.fields : specs.map((spec) => ({ spec, state: "same" as DraftState }));
+  const drafted: { spec: RecordFieldSpec; state: DraftState; ahead?: "added" | "removed" }[] =
+    drags && entry ? entry.fields : specs.map((spec) => ({ spec, state: "same" as DraftState }));
   const cells = drafted
     .map((d) => ({ ...d, meta: metaOf(snapshot, rec.object, d.spec) }))
     .filter((c) => !c.meta.hidden)
-    .map((c) => ({ spec: c.spec, state: c.state, label: c.spec.label, value: valueOf(rec, rec.object, c.spec) }))
+    .map((c) => ({ spec: c.spec, state: c.state, ahead: c.ahead, label: c.spec.label, value: valueOf(rec, rec.object, c.spec) }))
     // SFComponentHighlightPanelView.filterCompactLayoutFields: outside Account, a field showing the title isn't repeated.
     .filter((c) => rec.object === "Account" || !c.value || c.value !== rec.title);
   const widths = useMemo(() => highlightWidths(cells.map((c) => ({ label: c.label, value: c.value }))), [cells]);
@@ -421,12 +442,12 @@ function Header({ snapshot, rec, object, compact }: { snapshot: PublishedIpad; r
         <div className="studio-ipad-rec-hl">
           {cells.map((c, k) => {
             const cell = (
-              <div className={`studio-ipad-rec-hl-cell${draftClass(c.state)}`} style={{ width: widths[k] }}>
+              <div className={`studio-ipad-rec-hl-cell${draftClass(c.state)}${aheadClass(c.ahead)}`} style={{ width: widths[k] }} {...aheadAttrs(c.ahead)}>
                 <div className="studio-ipad-rec-hl-label">{c.label}</div>
                 <div className={`studio-ipad-rec-hl-value${c.value && (LOOKUP.has(c.spec.type) || c.spec.type === "masterdetail") ? " link" : ""}`}>{c.value}</div>
               </div>
             );
-            return fullName ? (
+            return fullName && c.ahead !== "removed" ? (
               <Mark
                 key={c.spec.name}
                 target={{
@@ -577,7 +598,9 @@ interface DrawnSection {
   /** Org columns with nothing to draw, which a dragged field can still be dropped in (Draft). */
   emptyColumns?: number[];
   /** `col`: the field's column in the org's layout section, in Draft (drawn columns skip empty ones). */
-  columns: { spec: RecordFieldSpec; item?: string; required?: boolean; readOnly?: boolean; state?: DraftState; col?: number }[][];
+  columns: { spec: RecordFieldSpec; item?: string; required?: boolean; readOnly?: boolean; state?: DraftState; col?: number; ahead?: "added" | "removed" }[][];
+  /** In the org, not on iPads yet (Draft). */
+  ahead?: "added";
 }
 
 function drawnSections(snapshot: PublishedIpad, layout: PublishedLayout, entry: LayoutEntry | undefined, draft: boolean): DrawnSection[] {
@@ -592,12 +615,13 @@ function drawnSections(snapshot: PublishedIpad, layout: PublishedLayout, entry: 
         label: d.label,
         orgKey: d.key,
         state: d.state,
+        ...(d.ahead ? { ahead: d.ahead } : {}),
         emptyColumns: d.emptyColumns,
         columns: d.columns
           .map((col) =>
             col
               .filter((f) => shown(f.spec))
-              .map((f) => ({ spec: f.spec, item: f.item, required: f.behavior === "Required", readOnly: f.behavior === "Readonly", state: f.state, col: f.col }))
+              .map((f) => ({ spec: f.spec, item: f.item, required: f.behavior === "Required", readOnly: f.behavior === "Readonly", state: f.state, col: f.col, ...(f.ahead ? { ahead: f.ahead } : {}) }))
           )
           .filter((c) => c.length),
       }))
@@ -651,7 +675,7 @@ function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: Publishe
               target={{ kind: "section", layout: layout.name, index: s.index, count: sections.length, label: s.label, ...(s.orgKey !== undefined ? { key: s.orgKey } : {}) }}
               drag={draggable ? { family: `sections:${layout.name}`, id: String(s.orgKey), ghost: s.state === "removed" } : undefined}
             >
-            <div className={`studio-ipad-rec-section${first ? " first" : ""}${cls}${first && s.label ? " labeled" : ""}${draftClass(s.state)}`}>
+            <div className={`studio-ipad-rec-section${first ? " first" : ""}${cls}${first && s.label ? " labeled" : ""}${draftClass(s.state)}${aheadClass(s.ahead)}`} {...aheadAttrs(s.ahead)}>
               {s.label && (
                 <div className="studio-ipad-rec-section-head">
                   <div className="studio-ipad-rec-section-title">{s.label}</div>
@@ -665,9 +689,17 @@ function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: Publishe
                     className={`studio-ipad-rec-col${col.length ? "" : " empty"}`}
                     {...slotAttrs(draggable && s.state !== "removed", { family: fieldFamily, list: { section: s.orgKey, column: orgColumn } })}
                   >
-                    {col.map(({ spec: f, item, required, readOnly, state, col: column }, fi) => {
+                    {col.map(({ spec: f, item, required, readOnly, state, col: column, ahead }, fi) => {
                       const v = valueOf(rec, object, f);
                       const meta = metaOf(snapshot, object, f);
+                      // Removed in the org but still on iPads: shown for what it is, not something to select.
+                      if (ahead === "removed")
+                        return (
+                          <div key={`${f.name}.${fi}`} className={`studio-ipad-rec-field${f.type === "textarea" ? " tall" : ""}${draftClass(state)}${aheadClass(ahead)}`} {...aheadAttrs(ahead)}>
+                            <div className="studio-ipad-rec-label">{meta.label}</div>
+                            <div className="studio-ipad-rec-value">{v}</div>
+                          </div>
+                        );
                       return (
                         <Mark
                           key={`${f.name}.${fi}`}
@@ -678,7 +710,7 @@ function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: Publishe
                               : undefined
                           }
                         >
-                          <div className={`studio-ipad-rec-field${f.type === "textarea" ? " tall" : ""}${draftClass(state)}`}>
+                          <div className={`studio-ipad-rec-field${f.type === "textarea" ? " tall" : ""}${draftClass(state)}${aheadClass(ahead)}`} {...aheadAttrs(ahead)}>
                             <div className="studio-ipad-rec-label">
                               {meta.label}
                               {meta.help && <span className="studio-ipad-rec-help" aria-hidden="true">i</span>}

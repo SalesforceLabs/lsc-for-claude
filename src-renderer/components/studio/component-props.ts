@@ -21,11 +21,19 @@ export interface ComponentPropDef {
   ipadNote?: string;
 }
 
+/** How a page property that no definition lists is treated. */
+export type Unlisted = "used" | "unused" | "unknown";
+
 export interface ComponentProps {
   component: string;
   source: "bundle" | "curated" | "none";
   properties: ComponentPropDef[];
   dynamic?: string;
+  /** Whether the iPad draws the component at all; `no` means none of its properties is used. */
+  renders: "yes" | "no";
+  /** Said once for the component (not drawn, only an inline LWC's height passed, not traced). */
+  rendersNote?: string;
+  unlisted: Unlisted;
   note?: string;
 }
 
@@ -48,8 +56,8 @@ export const IPAD_READS: string[] = [
   "totalCards",
 ];
 
-/** Components whose every property the iPad reads, whatever its name (published.ts `keepAll`). */
-export const DYNAMIC_COMPONENTS = ["lsAgentforceWelcome", "Ratings"];
+/** Components whose every property the iPad reads, whatever its name (AgentforceWelcomeViewModel.swift:70-88). */
+export const DYNAMIC_COMPONENTS = ["lsAgentforceWelcome"];
 
 /** The longest value a property can have; the page's live read leaves longer ones out. */
 export const VALUE_MAX = 1000;
@@ -87,14 +95,43 @@ export function normalizeProp(def: ComponentPropDef, value: string): string | nu
   return def.type === "Integer" ? String(Number(value)) : value;
 }
 
-/** An untyped definition for a property already on the page that no definition covers. */
-export function untypedDef(name: string, dynamic: boolean): ComponentPropDef {
-  const reads = dynamic || IPAD_READS.includes(name);
-  return {
-    name,
-    label: name,
-    type: "String",
-    ipad: reads ? "used" : "unknown",
-    ipadNote: reads ? undefined : "Studio doesn't know whether the iPad reads this.",
-  };
+/**
+ * An untyped definition for a property already on the page that no definition
+ * covers. `unlisted` is the component's answer from `studio_component_props`
+ * (which lists what lifesciences-ios reads); every component reads `title` as
+ * its header (SFComponentViewController.swift:119, 395). Until the answer
+ * arrives (`undefined`) the preview's own list stands in and nothing is claimed
+ * about the rest.
+ */
+export function untypedDef(name: string, unlisted?: Unlisted): ComponentPropDef {
+  const base = { name, label: name, type: "String" as const };
+  if (name === "title" || unlisted === "used") return { ...base, ipad: "used" };
+  if (unlisted === "unused") return { ...base, ipad: "unused" };
+  if (unlisted === undefined && IPAD_READS.includes(name)) return { ...base, ipad: "used" };
+  return { ...base, ipad: "unknown" };
+}
+
+/**
+ * The line shown once under the sheet's heading, or null: a component the iPad
+ * doesn't draw says so for all its properties, an inline LWC says what it is
+ * passed, an untraced one says Studio hasn't traced it.
+ */
+export function componentNote(loaded: ComponentProps | null | undefined): string | null {
+  if (!loaded) return null;
+  if (loaded.renders === "no") return loaded.rendersNote ?? "The iPad doesn't draw this component, so none of its properties are used.";
+  return loaded.rendersNote ?? null;
+}
+
+/**
+ * The line under one field about the iPad, or null. A property the iPad doesn't
+ * read says "Not used on the iPad", except when the component isn't drawn at
+ * all (`notDrawn`) and says that once for every property. "Doesn't know" is
+ * never said per field.
+ */
+export function fieldIpadNote(def: ComponentPropDef, notDrawn: boolean): string | null {
+  if (def.ipad === "unused") {
+    if (notDrawn) return null;
+    return `Not used on the iPad${def.ipadNote && def.ipadNote !== "The iPad ignores this." ? ` — ${def.ipadNote}` : ""}`;
+  }
+  return def.ipad === "used" && def.ipadNote ? def.ipadNote : null;
 }

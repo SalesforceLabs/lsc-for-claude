@@ -4,6 +4,7 @@
  * what can be given, for the inspector's access panel and "Give same access as…".
  */
 
+import { step, type FixTracker } from "./fix-progress.js";
 import { createRecord, deleteRecord } from "../salesforce/cli.js";
 import { assertId } from "./change-helpers.js";
 import { count, query, type Row } from "./helpers.js";
@@ -142,7 +143,11 @@ async function findAssignment(userId: string, access: AccessRef, org: string): P
   return row ? String(row.Id) : null;
 }
 
-export async function previewAccess(fix: AccessFix, org: string): Promise<FixPreview> {
+export async function previewAccess(fix: AccessFix, org: string, progress?: FixTracker): Promise<FixPreview> {
+  return step(progress, "read", () => previewAccessNow(fix, org));
+}
+
+async function previewAccessNow(fix: AccessFix, org: string): Promise<FixPreview> {
   assertId(fix.userId);
   assertId(fix.access.id);
   const adding = fix.kind === "assignAccess";
@@ -191,13 +196,13 @@ export async function previewAccess(fix: AccessFix, org: string): Promise<FixPre
   return preview;
 }
 
-export async function applyAccess(fix: AccessFix, org: string): Promise<FixResult> {
-  const preview = await previewAccess(fix, org);
+export async function applyAccess(fix: AccessFix, org: string, progress?: FixTracker): Promise<FixResult> {
+  const preview = await previewAccess(fix, org, progress);
   if (preview.blocked) return { ok: false, message: preview.blocked };
   const k = KINDS[fix.access.type];
 
   if (fix.kind === "assignAccess") {
-    const res = await createRecord(k.sobject, { [k.user]: fix.userId, [k.target]: fix.access.id }, org);
+    const res = await step(progress, "write", () => createRecord(k.sobject, { [k.user]: fix.userId, [k.target]: fix.access.id }, org));
     if (!res.success || !res.data?.id) return { ok: false, message: res.error || `Couldn't give ${fix.access.label} to ${fix.userName}.` };
     return {
       ok: true,
@@ -214,8 +219,10 @@ export async function applyAccess(fix: AccessFix, org: string): Promise<FixResul
   }
 
   // Delete what's there now — the assignment may have been recreated since the map was loaded.
-  const assignmentId = (await findAssignment(fix.userId, fix.access, org))!;
-  const res = await deleteRecord(k.sobject, assignmentId, org);
+  const res = await step(progress, "write", async () => {
+    const assignmentId = (await findAssignment(fix.userId, fix.access, org))!;
+    return deleteRecord(k.sobject, assignmentId, org);
+  });
   if (!res.success) return { ok: false, message: res.error || `Couldn't remove ${fix.access.label} from ${fix.userName}.` };
   return {
     ok: true,

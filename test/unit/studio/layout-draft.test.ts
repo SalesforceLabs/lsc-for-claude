@@ -355,3 +355,33 @@ describe("layout drops", () => {
     expect(moveRelatedTo(d, "Nope", null, P)).toBeNull();
   });
 });
+
+describe("sections that share a label", () => {
+  const section = (n: number) =>
+    `    <layoutSections>\n        <detailHeading>false</detailHeading>\n        <editHeading>true</editHeading>\n        <label>Information</label>\n        <layoutColumns>\n            <layoutItems>\n                <behavior>Edit</behavior>\n                <field>F${n}</field>\n            </layoutItems>\n        </layoutColumns>\n        <style>OneColumn</style>\n    </layoutSections>\n`;
+  const dupXml = `<?xml version="1.0" encoding="UTF-8"?>\n<Layout xmlns="http://soap.sforce.com/2006/04/metadata">\n${[1, 2, 3, 4].map(section).join("")}</Layout>\n`;
+  const dupRoot = parseXml(dupXml);
+  const dupBase = modelOf(liveOf(dupRoot));
+  const order = (m: LayoutModel) => m.sections.map((s) => s.columns[0][0].field);
+
+  it("names the neighbour as the layout reads once the moved section is lifted out", () => {
+    const keys = dupBase.sections.map((s) => s.key);
+    // Move the second section up: [F2, F1, F3, F4].
+    const target: LayoutModel = { ...dupBase, sections: [1, 0, 2, 3].map((i) => dupBase.sections[i]) };
+    const ops = diffOps(dupBase, target);
+    expect(keys).toEqual([0, 1, 2, 3]);
+    expect(order(applyOps(dupBase, ops))).toEqual(["F2", "F1", "F3", "F4"]);
+    expect(order(modelOf(liveOf(applyLayoutOps(dupRoot, ops).root)))).toEqual(["F2", "F1", "F3", "F4"]);
+  });
+
+  it("gets every permutation of four same-label sections right", () => {
+    const perms = (a: number[]): number[][] => (a.length < 2 ? [a] : a.flatMap((x, i) => perms([...a.slice(0, i), ...a.slice(i + 1)]).map((p) => [x, ...p])));
+    for (const p of perms([0, 1, 2, 3])) {
+      const target: LayoutModel = { ...dupBase, sections: p.map((i) => dupBase.sections[i]) };
+      const ops = diffOps(dupBase, target);
+      const want = p.map((i) => `F${i + 1}`);
+      expect(order(applyOps(dupBase, ops))).toEqual(want);
+      expect(order(modelOf(liveOf(applyLayoutOps(dupRoot, ops).root)))).toEqual(want);
+    }
+  });
+});

@@ -106,7 +106,7 @@ export interface FieldSlot {
 export type LayoutOp =
   | { op: "moveField"; field: string; to: FieldSlot }
   | { op: "removeField"; field: string }
-  | { op: "addField"; field: string; behavior: FieldBehavior; to: FieldSlot; xml?: string }
+  | { op: "addField"; field: string; behavior: FieldBehavior; to: FieldSlot; xml?: string; relatedObject?: boolean }
   | { op: "setFieldBehavior"; field: string; from: FieldBehavior; to: FieldBehavior }
   | { op: "moveSection"; section: SectionRef; before: SectionRef | null }
   | { op: "removeSection"; section: SectionRef }
@@ -114,7 +114,7 @@ export type LayoutOp =
   | { op: "setSectionHeading"; section: SectionRef; from: boolean; to: boolean }
   | { op: "moveRelatedList"; relatedList: string; before: string | null }
   | { op: "removeRelatedList"; relatedList: string }
-  | { op: "addRelatedList"; relatedList: string; before: string | null; xml?: string; object?: string };
+  | { op: "addRelatedList"; relatedList: string; before: string | null; xml?: string; object?: string; nameField?: string };
 
 /** One edit to a compact layout's fields (the record header). `before` is the field it goes in front of, or null for the end. */
 export type CompactOp =
@@ -237,6 +237,8 @@ export interface LiveLayout {
   available: LayoutFieldOption[] | null;
   /** Related lists the layout could show but doesn't: the object's child relationships; null when the object couldn't be described. */
   availableRelated: RelatedListOption[] | null;
+  /** The fields the layout does show, from the describe (label and type), so Draft can draw what was added in Setup since the last publish; null when the object couldn't be described. */
+  placed?: LayoutFieldOption[] | null;
 }
 
 export interface LayoutFieldOption {

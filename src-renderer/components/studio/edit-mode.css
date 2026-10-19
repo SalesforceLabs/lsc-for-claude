@@ -90,6 +90,12 @@
   animation: ui-pop-in var(--transition-fast) var(--ease-out);
 }
 
+.studio-edit-toolbar.compact {
+  flex-wrap: wrap;
+  width: max-content;
+  max-width: calc(100% - 8px);
+}
+
 .studio-edit-toolbar.below {
   translate: none;
 }

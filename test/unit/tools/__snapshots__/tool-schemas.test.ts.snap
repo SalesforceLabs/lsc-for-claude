@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `112`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `113`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -95,6 +95,7 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_perf_territories",
   "studio_perf_users",
   "studio_readiness",
+  "studio_setup_links",
   "studio_setup_overview",
   "studio_signoff_report",
   "studio_sim_active",
@@ -1239,6 +1240,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
         "optional": false,
         "type": "ZodString",
       },
+      "refresh": {
+        "optional": true,
+        "type": "ZodBoolean",
+      },
     },
   },
   {
@@ -1248,11 +1253,20 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
         "optional": false,
         "type": "ZodString",
       },
+      "refresh": {
+        "optional": true,
+        "type": "ZodBoolean",
+      },
     },
   },
   {
     "name": "studio_setup_overview",
-    "params": {},
+    "params": {
+      "refresh": {
+        "optional": true,
+        "type": "ZodBoolean",
+      },
+    },
   },
   {
     "name": "studio_user_trace",
@@ -1260,6 +1274,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
       "featureId": {
         "optional": true,
         "type": "ZodString",
+      },
+      "refresh": {
+        "optional": true,
+        "type": "ZodBoolean",
       },
       "userId": {
         "optional": false,
@@ -1285,6 +1303,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
       "label": {
         "optional": true,
         "type": "ZodString",
+      },
+      "refresh": {
+        "optional": true,
+        "type": "ZodBoolean",
       },
     },
   },
@@ -1352,6 +1374,15 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
   {
     "name": "studio_list_profiles",
     "params": {},
+  },
+  {
+    "name": "studio_setup_links",
+    "params": {
+      "refs": {
+        "optional": false,
+        "type": "ZodArray",
+      },
+    },
   },
   {
     "name": "studio_user_access",

@@ -135,6 +135,8 @@ export interface DraftListColumn {
   state: DraftState;
   /** The column's place in the published rows' cells; null for one added in Draft (nothing to show yet). */
   orig: number | null;
+  /** In the org but not on iPads yet, or on iPads but removed in the org (a ghost that can't be selected). */
+  ahead?: "added" | "removed";
 }
 
 /** Old-style ids (`ACCOUNT.NAME`, `FULL_NAME`) the Metadata API keeps for standard objects' views. */
@@ -156,11 +158,20 @@ export function draftListColumns(published: PublishedListView, live: LiveListVie
   const ids = published.source?.columns ?? base;
   const common = base.filter((c) => target.includes(c));
   const commonTarget = target.filter((c) => base.includes(c));
-  return withGhosts(base, target).map(({ key, ghost }) => {
+  // Columns the cache has that Setup took out since: still on iPads, so they stay as ghosts that can't be selected.
+  const goneIds = published.source ? ids.filter((c) => !base.some((b) => sameColumn(c, b))) : [];
+  const tray = withGhosts(base, target);
+  const order: { key: string; ghost: boolean; orgGone?: boolean }[] = goneIds.length
+    ? withGhosts(ids, tray.map((o) => o.key), (k) => goneIds.includes(k)).map(({ key, ghost }) => (ghost ? { key, ghost: true, orgGone: true } : tray.find((o) => o.key === key)!))
+    : tray;
+  return order.map(({ key, ghost, orgGone }) => {
     const orig = columnIndex(ids, key);
+    if (orgGone) return { id: key, label: published.columns[orig] ?? labelFor(key, live), state: "removed" as DraftState, orig, ahead: "removed" as const };
     const added = !base.includes(key);
     const state: DraftState = ghost ? "removed" : added ? "added" : common.indexOf(key) !== commonTarget.indexOf(key) ? "moved" : "same";
-    return { id: key, label: orig >= 0 && published.columns[orig] ? published.columns[orig] : labelFor(key, live), state, orig: orig >= 0 ? orig : null };
+    // In the org's view and not in the cache's: nothing to show in its cells yet.
+    const orgNew = !added && !ghost && !!published.source && orig < 0;
+    return { id: key, label: orig >= 0 && published.columns[orig] ? published.columns[orig] : labelFor(key, live), state, orig: orig >= 0 ? orig : null, ...(orgNew ? { ahead: "added" as const } : {}) };
   });
 }
 

@@ -15,7 +15,7 @@ import IpadScreen from "./IpadScreen";
 import TestUserChip from "./TestUserChip";
 import { RepLoginContext, useMobileLogins } from "../../hooks/useMobileLogins";
 import { testUserFor } from "../../test-users";
-import RecordScreen, { asDrawn, blockIdentity, draftClass, LayoutEdits, RecordTabs, usePageDraft } from "./IpadRecord";
+import RecordScreen, { aheadAttrs, aheadClass, asDrawn, blockIdentity, draftClass, LayoutEdits, RecordTabs, usePageDraft } from "./IpadRecord";
 import IpadFabs from "./IpadFabs";
 import { Dashboard } from "./IpadDashboard";
 import { ReportsTree } from "./IpadReports";
@@ -636,7 +636,7 @@ function Region({
         target={target(c)}
         drag={pd ? { family: `page:${page.name}`, list: region, id: d.key, ghost: state === "removed" } : undefined}
       >
-        {state === "same" ? node : <div className={`studio-ipad-draft-block${draftClass(state)}`}>{node}</div>}
+        {state === "same" ? node : <div className={`studio-ipad-draft-block${d.ahead ? aheadClass("added") : draftClass(state)}`} {...aheadAttrs(d.ahead ? "added" : undefined)}>{node}</div>}
       </Mark>
     );
   };
@@ -907,8 +907,10 @@ function ListView({
           // A column is selectable once the view says which field it is (its source); Draft lays the tray's column edits over it.
           const fullName = view.source?.fullName;
           const entry = fullName && edits?.draft ? edits.listViews?.[fullName] : undefined;
-          const spec = (id: string, label: string, state?: DraftState): TableCol["attrs"] =>
-            editing && fullName && id
+          const spec = (id: string, label: string, state?: DraftState, ahead?: "added" | "removed"): TableCol["attrs"] =>
+            ahead === "removed"
+              ? aheadAttrs(ahead)
+              : editing && fullName && id
               ? editAttrs(
                   true,
                   { kind: "listColumn", object: object.name, listView: fullName, viewLabel: view.label, column: id, label, added: state === "added" },
@@ -918,7 +920,7 @@ function ListView({
               : undefined;
           const cols: TableCol[] =
             entry?.status === "ready"
-              ? entry.columns.map((c) => ({ label: columnLabel(c.label), orig: c.orig, state: c.state, attrs: spec(c.id, columnLabel(c.label), c.state) }))
+              ? entry.columns.map((c) => ({ label: columnLabel(c.label), orig: c.orig, state: c.state, ahead: c.ahead, attrs: { ...spec(c.id, columnLabel(c.label), c.state, c.ahead), ...(c.ahead === "added" ? aheadAttrs("added") : {}) } }))
               : view.columns.map((c, i) => ({ label: columnLabel(c), orig: i, attrs: spec(view.source?.columns[i] ?? "", columnLabel(c)) }));
           const unread = !data ? listErrors?.[`${object.name}.${view.name}`] : undefined;
           return (
@@ -950,6 +952,7 @@ interface TableCol {
   label: string;
   orig: number | null;
   state?: DraftState;
+  ahead?: "added" | "removed";
   attrs?: Record<string, string>;
 }
 
@@ -959,7 +962,7 @@ function DataTable({ columns, data, onOpenRecord }: { columns: TableCol[]; data?
     <div className="studio-ipad-table">
       <div className="studio-ipad-table-row head">
         {columns.map((c, i) => (
-          <span key={i} className={`studio-ipad-table-cell${i === 0 ? " sorted" : ""}${draftClass(c.state)}`} style={{ width, flex: "none" }} {...c.attrs}>
+          <span key={i} className={`studio-ipad-table-cell${i === 0 ? " sorted" : ""}${draftClass(c.state)}${aheadClass(c.ahead)}`} style={{ width, flex: "none" }} {...c.attrs}>
             {c.label}
             {i === 0 && <span className="studio-ipad-sort" aria-label="Sorted ascending">↑</span>}
           </span>
@@ -968,7 +971,7 @@ function DataTable({ columns, data, onOpenRecord }: { columns: TableCol[]; data?
       {data?.rows.map((row) => (
         <button key={row.id} type="button" className="studio-ipad-table-row" onClick={() => onOpenRecord(row.id)}>
           {columns.map((c, i) => (
-            <span key={i} className={`studio-ipad-table-cell value${draftClass(c.state)}`} style={{ width, flex: "none" }}>
+            <span key={i} className={`studio-ipad-table-cell value${draftClass(c.state)}${aheadClass(c.ahead)}`} style={{ width, flex: "none" }}>
               {c.orig === null ? null : row.cells[c.orig]}
             </span>
           ))}

@@ -3,7 +3,7 @@ import { ArrowRight, ChevronRight, X } from "lucide-react";
 import type { FixChange, FixPreview, FixResult } from "./types";
 import { isMobileChange, publishProfiles, type PendingChange } from "./changes";
 import { touchesDbSchema } from "./sync-impact-util";
-import StateView from "../ui/StateView";
+import ReviewProgress from "./ReviewProgress";
 import Spinner from "../ui/Spinner";
 import StatusIcon from "../ui/StatusIcon";
 import "./sync-impact.css";
@@ -18,6 +18,8 @@ interface ReviewDialogProps {
    */
   onClose: (applied: PendingChange[], remaining: PendingChange[]) => void;
   onPublish: (profiles: string[] | null) => void;
+  /** Changes just written to the org, as soon as they are — they must leave the tray now, not when the dialog closes. */
+  onApplied?: (done: PendingChange[]) => void;
 }
 
 type Outcome = { state: "ok"; result: FixResult } | { state: "failed"; message: string } | { state: "skipped"; message: string };
@@ -41,7 +43,7 @@ const ready = (p: FixPreview | string | undefined): p is FixPreview => typeof p 
  * button, which names the org. Applied changes can be undone together, which
  * goes through the same review.
  */
-export default function ReviewDialog({ changes: initial, org, onClose, onPublish }: ReviewDialogProps) {
+export default function ReviewDialog({ changes: initial, org, onClose, onPublish, onApplied }: ReviewDialogProps) {
   const [changes, setChanges] = useState(initial);
   const [phase, setPhase] = useState<Phase>({ step: "previewing" });
   // Everything applied across this dialog's lifetime (including undos), for the refresh + publish.
@@ -49,13 +51,17 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
   // Reviewing an Undo batch — cancelling it leaves nothing pending (the originals are already applied).
   const [undoing, setUndoing] = useState(false);
   const [productionOk, setProductionOk] = useState(false);
+  // Names this run of previews or applies, so ReviewProgress can ask the server which step each is on.
+  const [batch, setBatch] = useState(() => crypto.randomUUID());
 
   useEffect(() => {
     let cancelled = false;
     setPhase({ step: "previewing" });
+    const id = crypto.randomUUID();
+    setBatch(id);
     Promise.all(
-      changes.map((c) =>
-        window.lscApi.studioPreviewFix(c.fix).then((res) => responseError(res) ?? (res.data as FixPreview))
+      changes.map((c, i) =>
+        window.lscApi.studioPreviewFix(c.fix, { id, index: i, total: changes.length }).then((res) => responseError(res) ?? (res.data as FixPreview))
       )
     ).then((previews) => {
       if (!cancelled) setPhase({ step: "review", previews });
@@ -67,6 +73,8 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
 
   const applyAll = async (previews: (FixPreview | string)[]) => {
     const outcomes: (Outcome | null)[] = changes.map(() => null);
+    const id = crypto.randomUUID();
+    setBatch(id);
     setPhase({ step: "applying", previews, outcomes: [...outcomes] });
     const done: PendingChange[] = [];
     for (let i = 0; i < changes.length; i++) {
@@ -74,7 +82,7 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
       if (!ready(p)) {
         outcomes[i] = { state: "skipped", message: typeof p === "string" ? p : (p as FixPreview).blocked! };
       } else {
-        const res = await window.lscApi.studioApplyFix(changes[i].fix, org);
+        const res = await window.lscApi.studioApplyFix(changes[i].fix, org, { id, index: i, total: changes.length });
         const error = responseError(res);
         const result = res.data as FixResult | undefined;
         if (error || !result?.ok) outcomes[i] = { state: "failed", message: error || result?.message || "Failed" };
@@ -86,6 +94,7 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
       setPhase({ step: "applying", previews, outcomes: [...outcomes] });
     }
     setApplied((a) => [...a, ...done]);
+    if (done.length > 0) onApplied?.(done);
     setPhase({ step: "done", previews, outcomes: outcomes as Outcome[] });
   };
 
@@ -155,7 +164,10 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
 
         <div className="studio-review-body">
 
-        {phase.step === "previewing" && <StateView kind="loading" title="Checking the org…" layout="inline" className="studio-modal-state" />}
+        {phase.step === "previewing" && <ReviewProgress key={batch} id={batch} phase="preview" labels={changes.map((c) => c.fix.label)} />}
+        {phase.step === "applying" && (
+          <ReviewProgress key={batch} id={batch} phase="apply" labels={changes.map((c) => c.fix.label)} finished={outcomes.map((o) => !!o)} />
+        )}
 
         {phase.step !== "previewing" && (
           <ol className="studio-review-list">

@@ -12,6 +12,10 @@ import type { EditTarget } from "./edit-targets";
 export const ORG_AHEAD_CLASS = "draft-org-ahead";
 /** The small tag on such a block; record.css draws the same text, and a test keeps the two equal. */
 export const ORG_AHEAD_TAG = "Not on iPads yet";
+/** The tag on a block the org removed that iPads still have. */
+export const ORG_AHEAD_GONE = "Removed in the org";
+export const ORG_AHEAD_NOTE = "This is in the org but not on iPads yet. Publish to iPad so reps get it.";
+export const ORG_AHEAD_GONE_NOTE = "This was removed in the org but is still on iPads. Publish to iPad so reps lose it.";
 export const ORG_AHEAD_LEGEND = {
   published: "On iPads",
   org: "In the org, not published",

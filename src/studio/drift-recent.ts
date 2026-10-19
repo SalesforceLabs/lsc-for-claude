@@ -3,6 +3,7 @@
  * and the last editor of records that differ from a snapshot. Cheap queries only.
  */
 
+import { recordTriggeredFlows } from "./flows.js";
 import { FEATURES } from "./features.js";
 import { featureForObject, featureForRecord, featureTitle } from "./drift-diff.js";
 import { inList, query, type Row } from "./helpers.js";
@@ -128,10 +129,19 @@ async function recentLayouts(since: string, org: string, full: string[]): Promis
 }
 
 async function recentFlows(since: string, org: string, full: string[]): Promise<RecentChange[]> {
-  const rows = await newest(
-    `SELECT ApiName, Label, TriggerObjectOrEventLabel, LastModifiedDate FROM FlowDefinitionView WHERE LastModifiedDate >= ${since} AND TriggerType IN ('RecordBeforeSave', 'RecordAfterSave', 'RecordBeforeDelete') ORDER BY LastModifiedDate DESC`,
-    100, org, false, "Flows", full
-  );
+  // The maps' shared flow list, cut to the window and ordered as the query it replaces was.
+  const limit = 100;
+  const sinceMs = Date.parse(since);
+  const inWindow = (await recordTriggeredFlows(org))
+    .filter((r) => Date.parse(String(r.LastModifiedDate)) >= sinceMs)
+    .sort((a, b) => Date.parse(String(b.LastModifiedDate)) - Date.parse(String(a.LastModifiedDate)));
+  if (inWindow.length > limit) full.push("Flows");
+  const rows = inWindow.slice(0, limit).map((r) => ({
+    ApiName: r.ApiName,
+    Label: r.Label,
+    TriggerObjectOrEventLabel: r.TriggerObjectOrEventLabel,
+    LastModifiedDate: r.LastModifiedDate,
+  }));
   // The trigger object comes as a label ("Visit"); match it against feature objects loosely.
   return rows.map((r) => {
     const object = r.TriggerObjectOrEventLabel as string | undefined;

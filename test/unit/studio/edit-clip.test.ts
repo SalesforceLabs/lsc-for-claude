@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { visibleBox } from "../../../src-renderer/components/studio/EditLayer";
+import { isCompactToolbar, visibleBox } from "../../../src-renderer/components/studio/EditLayer";
 
 // Node has no DOMRect; the clipping maths only reads left/top/right/bottom/x/y/width/height.
 class Rect {
@@ -31,5 +31,13 @@ describe("visibleBox", () => {
   it("hides a block that is entirely outside", () => {
     expect(visibleBox({ box: r(10, 420, 100, 50), clip })).toBeNull();
     expect(visibleBox({ box: r(10, 20, 100, 50), clip })).toBeNull();
+  });
+});
+
+describe("toolbar on a narrow surface", () => {
+  it("goes icon-only on Side by side's half-size iPad, not on the full one", () => {
+    expect(isCompactToolbar(360)).toBe(true);
+    expect(isCompactToolbar(760)).toBe(false);
+    expect(isCompactToolbar(0)).toBe(false);
   });
 });

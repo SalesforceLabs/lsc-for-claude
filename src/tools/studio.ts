@@ -1,9 +1,11 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { refreshSharedReads, withSharedReads } from "../config/read-cache.js";
 import { z } from "zod";
 import { validateOrgConnection } from "../salesforce/auth.js";
 import { getFeature, listFeatures } from "../studio/features.js";
 import { collectFeatureMap, collectItemDetail, collectProfileOptions } from "../studio/collect.js";
 import { flexiPageReach, readLiveCompactLayout, readLiveFlexiPage, readLiveLayout, readLiveListView } from "../studio/metadata/live.js";
+import { resolveSetupLinks, type SetupRef } from "../studio/setup-links.js";
 import { collectCatalog } from "../studio/component-catalog.js";
 import { collectComponentProps } from "../studio/component-props.js";
 import { accessOptions, userAccess } from "../studio/access.js";
@@ -16,6 +18,7 @@ import { publishStatus, startPublish } from "../studio/publish.js";
 import { loadPublishedIpad, searchProfileUsers } from "../studio/published.js";
 import { loadProgress } from "../studio/published-progress.js";
 import { collectUnpublished } from "../studio/unpublished.js";
+import { fixProgress, startFixChange } from "../studio/fix-progress.js";
 import { compileInlineLwc } from "../studio/lwc/compile.js";
 import { lwcRequest } from "../studio/lwc/request.js";
 import type { StudioFix } from "../studio/types.js";
@@ -66,7 +69,7 @@ const behavior = z.enum(["Edit", "Required", "Readonly"]);
 const layoutOpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("moveField"), field: z.string(), to: fieldSlot }),
   z.object({ op: z.literal("removeField"), field: z.string() }),
-  z.object({ op: z.literal("addField"), field: z.string(), behavior, to: fieldSlot, xml: z.string().optional() }),
+  z.object({ op: z.literal("addField"), field: z.string(), behavior, to: fieldSlot, xml: z.string().optional(), relatedObject: z.boolean().optional() }),
   z.object({ op: z.literal("setFieldBehavior"), field: z.string(), from: behavior, to: behavior }),
   z.object({ op: z.literal("moveSection"), section: sectionRef, before: sectionRef.nullable() }),
   z.object({ op: z.literal("removeSection"), section: sectionRef }),
@@ -80,6 +83,7 @@ const layoutOpSchema = z.discriminatedUnion("op", [
     before: z.string().nullable(),
     xml: z.string().optional(),
     object: z.string().optional(),
+    nameField: z.string().optional(),
   }),
 ]);
 const flexiItemRef = z.object({ component: z.string().max(255), identifier: z.string().max(255).nullable(), index: z.number().int().min(0) });
@@ -275,8 +279,9 @@ export function register(server: McpServer) {
     "LSC Studio (GUI data): collect every configuration surface for one LSC feature (objects, record types, layouts, custom scripts, validation rules, Apex triggers, flows, trigger handlers, DB Schema, actions, Admin Console settings, compliance) with health findings. Read-only. Returns JSON.",
     {
       featureId: z.string().describe("Feature id from studio_list_features, e.g. 'visit'"),
+      refresh: z.boolean().optional().describe("Read the org again instead of reusing reads shared in the last minute"),
     },
-    async ({ featureId }) => {
+    async ({ featureId, refresh }) => {
       const feature = getFeature(featureId);
       if (!feature) return jsonError(`Unknown feature: ${featureId}`);
       if (!feature.available) return jsonError(`${feature.title} isn't available in Studio yet.`);
@@ -285,7 +290,9 @@ export function register(server: McpServer) {
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
-      return json(await collectFeatureMap(feature, connection.targetOrg));
+      const org = connection.targetOrg;
+      if (refresh) refreshSharedReads(org);
+      return json(await withSharedReads(() => collectFeatureMap(feature, org)));
     }
   );
 
@@ -294,29 +301,34 @@ export function register(server: McpServer) {
     "LSC Studio (GUI data): is one LSC feature ready for the field? Runs the feature's validation rules and Studio's checks (switched on, access, data, settings, iPad), each pass/fail/unknown with how to fix it. Read-only. Returns JSON.",
     {
       featureId: z.string().describe("Feature id from studio_list_features, e.g. 'visit'"),
+      refresh: z.boolean().optional().describe("Read the org again instead of reusing reads shared in the last minute"),
     },
-    async ({ featureId }) => {
+    async ({ featureId, refresh }) => {
       const feature = getFeature(featureId);
       if (!feature) return jsonError(`Unknown feature: ${featureId}`);
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
-      return json(await collectReadiness(feature, connection.targetOrg));
+      const org = connection.targetOrg;
+      if (refresh) refreshSharedReads(org);
+      return json(await withSharedReads(() => collectReadiness(feature, org)));
     }
   );
 
   server.tool(
     "studio_setup_overview",
     "LSC Studio (GUI data): org-wide setup signals no single feature owns — license capacity, metadata cache freshness, changes not yet published to the iPad, territory model. Read-only. Returns JSON.",
-    {},
-    async () => {
+    { refresh: z.boolean().optional().describe("Read the org again instead of reusing reads shared in the last minute"), },
+    async ({ refresh }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await collectSetupOverview(connection.targetOrg));
+        const org = connection.targetOrg;
+        if (refresh) refreshSharedReads(org);
+        return json(await withSharedReads(() => collectSetupOverview(org)));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -329,15 +341,18 @@ export function register(server: McpServer) {
     {
       userId: id,
       featureId: z.string().optional().describe("Feature id to narrow the check to, e.g. 'samples'"),
+      refresh: z.boolean().optional().describe("Read the org again instead of reusing reads shared in the last minute"),
     },
-    async ({ userId, featureId }) => {
+    async ({ userId, featureId, refresh }) => {
       if (featureId && !getFeature(featureId)) return jsonError(`Unknown feature: ${featureId}`);
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await traceUser(userId, featureId ?? null, connection.targetOrg));
+        const org = connection.targetOrg;
+        if (refresh) refreshSharedReads(org);
+        return json(await withSharedReads(() => traceUser(userId, featureId ?? null, org)));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -352,8 +367,9 @@ export function register(server: McpServer) {
       id: z.string().optional().describe("Snapshot id, for diff and delete"),
       label: z.string().optional().describe("Label for a new snapshot"),
       days: z.number().int().min(1).max(365).optional().describe("For list: how many days of recent changes (default 14)"),
+      refresh: z.boolean().optional().describe("Read the org again instead of reusing reads shared in the last minute"),
     },
-    async ({ action, id: snapshotId, label, days }) => {
+    async ({ action, id: snapshotId, label, days, refresh }) => {
       if ((action === "diff" || action === "delete") && !snapshotId) return jsonError(`${action} needs a snapshot id`);
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
@@ -362,7 +378,10 @@ export function register(server: McpServer) {
       const input =
         action === "list" ? { action, days } : action === "save" ? { action, label } : { action, id: snapshotId! };
       try {
-        return json(await drift(input, connection.targetOrg));
+        const org = connection.targetOrg;
+        if (refresh) refreshSharedReads(org);
+        // Only the list reads recent changes where a minute-old answer is fine; save and diff see the org as it is.
+        return json(await (input.action === "list" ? withSharedReads(() => drift(input, org)) : drift(input, org)));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -382,7 +401,8 @@ export function register(server: McpServer) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await collectItemDetail(kind, id, connection.targetOrg));
+        const org = connection.targetOrg;
+        return json(await withSharedReads(() => collectItemDetail(kind, id, org)));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -484,6 +504,44 @@ export function register(server: McpServer) {
   );
 
   server.tool(
+    "studio_setup_links",
+    "LSC Studio (GUI data): the deepest Salesforce Setup page for each reference (page layout, field, compact layout, Lightning page, list view, record type, validation rule, Apex trigger, flow, user, profile, permission set, territory, record), as org-relative paths for `sf org open --path`; `exact` is false when the item's Id couldn't be found and the path is its list page. Read-only, cached per org. Returns JSON.",
+    {
+      refs: z
+        .array(
+          z.discriminatedUnion("type", [
+            z.object({ type: z.literal("layout"), object: z.string().max(80), name: z.string().max(255) }),
+            z.object({ type: z.literal("field"), object: z.string().max(80), field: z.string().max(80) }),
+            z.object({ type: z.literal("compactLayout"), object: z.string().max(80), name: z.string().max(255) }),
+            z.object({ type: z.literal("flexiPage"), name: z.string().max(255) }),
+            z.object({ type: z.literal("listView"), object: z.string().max(80), name: z.string().max(255) }),
+            z.object({ type: z.literal("recordType"), object: z.string().max(80), name: z.string().max(255) }),
+            z.object({ type: z.literal("validationRule"), object: z.string().max(80), id: z.string().max(18) }),
+            z.object({ type: z.literal("apexTrigger"), id: z.string().max(18) }),
+            z.object({ type: z.literal("flow"), id: z.string().max(18) }),
+            z.object({ type: z.literal("user"), id: z.string().max(18) }),
+            z.object({ type: z.literal("profile"), id: z.string().max(18) }),
+            z.object({ type: z.literal("permissionSet"), id: z.string().max(18) }),
+            z.object({ type: z.literal("territory"), id: z.string().max(18) }),
+            z.object({ type: z.literal("record"), sobject: z.string().max(80), id: z.string().max(18) }),
+          ])
+        )
+        .max(10),
+    },
+    async ({ refs }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json({ links: await resolveSetupLinks(refs as SetupRef[], connection.targetOrg) });
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
     "studio_user_access",
     "LSC Studio (GUI data): a user's permission set licenses, permission sets, permission set groups, and territories. Read-only. Returns JSON.",
     { userId: id },
@@ -493,7 +551,8 @@ export function register(server: McpServer) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await userAccess(userId, connection.targetOrg));
+        const org = connection.targetOrg;
+        return json(await withSharedReads(() => userAccess(userId, org)));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -1001,20 +1060,37 @@ function registerSyncHealthTools(server: McpServer) {
   );
 }
 
+/** Names a batch of previews or applies so studio_fix_progress can report on it; one entry per change. */
+const progressSchema = z.object({
+  id: z.string().min(1).max(80),
+  index: z.number().int().min(0).max(999),
+  total: z.number().int().min(1).max(1000),
+});
+
 function registerFixTools(server: McpServer) {
   server.tool(
+    "studio_fix_progress",
+    "LSC Studio (GUI only): the steps each change of a running studio_preview_fix / studio_apply_fix batch is on (waiting / running / done / failed, with times and counts), keyed by the `progress.id` those calls were given; null once it has expired. Read-only; makes no org calls. Returns JSON { progress }.",
+    { id: z.string().min(1).max(80) },
+    async ({ id }) => json({ progress: fixProgress(id) })
+  );
+
+  server.tool(
     "studio_preview_fix",
-    "LSC Studio (GUI only): preview a Studio fix against the live org — the exact changes, warnings, and whether it can be applied. Read-only. Returns JSON.",
-    { fix: fixSchema },
-    async ({ fix }) => {
+    "LSC Studio (GUI only): preview a Studio fix against the live org — the exact changes, warnings, and whether it can be applied. Read-only. With `progress` ({ id, index, total }), the steps it takes can be read with studio_fix_progress while it runs. Returns JSON.",
+    { fix: fixSchema, progress: progressSchema.optional() },
+    async ({ fix, progress }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
+      const tracker = progress ? startFixChange(progress, fix as StudioFix, "preview") : undefined;
       try {
-        return json(await previewFix(fix as StudioFix, connection.targetOrg));
+        return json(await previewFix(fix as StudioFix, connection.targetOrg, tracker));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
+      } finally {
+        tracker?.finish();
       }
     }
   );
@@ -1025,8 +1101,9 @@ function registerFixTools(server: McpServer) {
     {
       fix: fixSchema,
       expectedOrg: z.string().describe("The org the user confirmed — the fix is refused if the target org differs"),
+      progress: progressSchema.optional(),
     },
-    async ({ fix, expectedOrg }) => {
+    async ({ fix, expectedOrg, progress }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
@@ -1034,10 +1111,13 @@ function registerFixTools(server: McpServer) {
       if (connection.targetOrg !== expectedOrg) {
         return jsonError(`Target org is ${connection.targetOrg}, not ${expectedOrg}. Nothing was changed.`);
       }
+      const tracker = progress ? startFixChange(progress, fix as StudioFix, "apply") : undefined;
       try {
-        return json(await applyFix(fix as StudioFix, connection.targetOrg));
+        return json(await applyFix(fix as StudioFix, connection.targetOrg, tracker));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
+      } finally {
+        tracker?.finish();
       }
     }
   );

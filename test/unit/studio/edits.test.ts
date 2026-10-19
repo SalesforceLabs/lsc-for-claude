@@ -47,9 +47,10 @@ const describeCodeText = (updateable: boolean) =>
     data: { name: "LifeScienceCustomScript", label: "Script", fields: [{ name: "CodeText", label: "Code", type: "textarea", required: false, updateable, createable: updateable }] },
   });
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
   org = {};
+  (await import("../../../src/studio/metadata/live.js")).forgetLiveOrg("org");
   vi.mocked(cli.runSoqlQuery).mockImplementation(respond as never);
   vi.mocked(cli.runToolingQuery).mockImplementation(respond as never);
   vi.mocked(cli.apiRequest).mockResolvedValue({ success: true });
@@ -403,11 +404,47 @@ describe("editMetadata (page layouts)", () => {
     expect((await previewFix(visit, "org")).blocked).toMatch(/would have 19 related lists/);
   });
 
+  it("lets an undo put back a related list on a Visit layout that is already over the cap", async () => {
+    const undo: StudioFix = {
+      ...fix,
+      doc: { ...doc, fullName: "Visit-Visit Layout" },
+      ops: [{ op: "addRelatedList", relatedList: "Gadgets__r", before: null, xml: "<relatedLists>\n    <fields>NAME</fields>\n    <relatedList>Gadgets__r</relatedList>\n</relatedLists>\n" }],
+    };
+    expect((await previewFix(undo, "org")).blocked).toBeUndefined();
+  });
+
   it("reports a failed deploy without claiming success", async () => {
     vi.mocked(cli.deployMetadata).mockResolvedValue({ success: false, error: "INVALID_FIELD" });
     const result = await applyFix(fix, "org");
     expect(result).toMatchObject({ ok: false });
     expect(result.message).toMatch(/INVALID_FIELD.*Nothing was changed/);
+  });
+
+  it("asks the org to check a layout change in the preview and blocks what it would refuse", async () => {
+    vi.mocked(cli.deployMetadata).mockImplementation(async (_source, _org, _onStatus, checkOnly) =>
+      checkOnly ? { success: false, rejected: true, error: "Field:Type must be Readonly" } : { success: true }
+    );
+    const preview = await previewFix(fix, "org");
+    expect(preview.blocked).toBe("The org would refuse this change: Field:Type must be Readonly");
+    expect(cli.deployMetadata).toHaveBeenCalledWith(expect.stringMatching(/layout-meta\.xml$/), "org", undefined, true);
+  });
+
+  it("gives a new related list the child's record-name field, not the legacy NAME token", async () => {
+    vi.mocked(cli.cachedDescribeSObject).mockResolvedValue({
+      success: true,
+      data: { name: "Gadget__c", label: "Gadget", fields: [{ name: "Id" }, { name: "Name", nameField: true }] },
+    } as never);
+    const add: StudioFix = { ...fix, ops: [{ op: "addRelatedList", relatedList: "Gadgets__r", before: null, object: "Gadget__c" }] };
+    expect((await applyFix(add, "org")).ok).toBe(true);
+    expect(deployed).toContain("<fields>Name</fields>\n        <relatedList>Gadgets__r</relatedList>");
+    expect(deployed).not.toContain("MassDeleteAll");
+  });
+
+  it("still previews when the check itself couldn't run", async () => {
+    vi.mocked(cli.deployMetadata).mockImplementation(async (_source, _org, _onStatus, checkOnly) =>
+      checkOnly ? { success: false, error: "network down" } : { success: true }
+    );
+    expect((await previewFix(fix, "org")).blocked).toBeUndefined();
   });
 });
 

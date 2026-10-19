@@ -1,0 +1,93 @@
+/* The review dialog's checking / applying state: heading, bar and each change's steps. */
+.studio-review-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.studio-review-progress-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--font-base);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.studio-review-progress-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--fill-active);
+  overflow: hidden;
+}
+
+.studio-review-progress-bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease-out;
+}
+
+.studio-review-progress-summary {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.studio-review-progress-changes,
+.studio-review-progress-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.studio-review-progress-steps {
+  margin-top: 8px;
+  padding-left: 22px;
+}
+
+.studio-review-progress-change,
+.studio-review-progress-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.studio-review-progress-changes > li.waiting,
+.studio-review-progress-steps li.waiting {
+  color: var(--text-muted);
+}
+
+.studio-review-progress-changes > li.running,
+.studio-review-progress-steps li.running {
+  color: var(--text-primary);
+}
+
+.studio-review-progress-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+li.done > .studio-review-progress-change .studio-review-progress-mark,
+.studio-review-progress-steps li.done .studio-review-progress-mark {
+  color: var(--success);
+}
+
+li.failed > .studio-review-progress-change .studio-review-progress-mark,
+.studio-review-progress-steps li.failed .studio-review-progress-mark {
+  color: var(--error);
+}
+
+.studio-review-progress-detail {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}

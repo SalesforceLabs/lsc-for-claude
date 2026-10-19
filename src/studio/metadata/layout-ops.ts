@@ -191,11 +191,11 @@ function placeRelated(root: XmlNode, rl: XmlNode, before: string | null): void {
 
 const relatedPosition = (root: XmlNode, rl: XmlNode) => `${relatedLists(root).indexOf(rl) + 1} of ${relatedLists(root).length}`;
 
-/** The block a new related list gets: its Name column, without the New and Mass Delete buttons. */
-export function newRelatedList(name: string): XmlNode {
+/** The block a new related list gets: its name column (`nameField`; the legacy NAME token only suits some objects), without the New button (not every child object takes MassDeleteAll, and the org refuses a layout that excludes an action the list lacks). */
+export function newRelatedList(name: string, nameField = "NAME"): XmlNode {
   return {
     tag: "relatedLists",
-    children: [leaf("excludeButtons", "New"), leaf("excludeButtons", "MassDeleteAll"), leaf("fields", "NAME"), leaf("relatedList", name)],
+    children: [leaf("excludeButtons", "New"), leaf("fields", nameField), leaf("relatedList", name)],
   };
 }
 
@@ -204,6 +204,8 @@ function parseFragment(xml: string, tag: string): XmlNode {
   if (node.tag !== tag) throw new Error(`Expected a ${tag} element.`);
   return node;
 }
+
+const hasRelatedObject = (root: XmlNode, field: string) => childrenNamed(root, "relatedObjects").some((n) => n.text === field);
 
 // --- Ops ---------------------------------------------------------------------------
 
@@ -229,8 +231,11 @@ export function applyLayoutOp(root: XmlNode, op: LayoutOp): { inverse: LayoutOp;
         behavior: behaviorOf(from.item),
         to: slotOf(root, from),
         xml: serializeNode(from.item),
+        // The org drops a lookup's <relatedObjects> entry when its field leaves the layout (so the preview shows it going too); undo puts it back.
+        ...(hasRelatedObject(root, op.field) ? { relatedObject: true } : {}),
       };
       detach(from.column, from.item);
+      for (const ro of childrenNamed(root, "relatedObjects").filter((n) => n.text === op.field)) detach(root, ro);
       return { inverse, change: { field: `Field ${op.field}`, before: was, after: "(removed)" } };
     }
     case "addField": {
@@ -242,6 +247,7 @@ export function applyLayoutOp(root: XmlNode, op: LayoutOp): { inverse: LayoutOp;
         : { tag: "layoutItems", children: [leaf("behavior", op.behavior), leaf("field", op.field)] };
       if (fieldOf(item) !== op.field) throw new Error("The field doesn't match its layout item.");
       const to = placeField(root, item, op.to);
+      if (op.relatedObject && !hasRelatedObject(root, op.field)) insertInOrder(root, leaf("relatedObjects", op.field), LAYOUT_ORDER);
       return {
         inverse: { op: "removeField", field: op.field },
         change: { field: `Field ${op.field}`, before: "(not on the layout)", after: `${where(root, to)} · ${BEHAVIOR_WORDS[op.behavior]}` },
@@ -332,7 +338,7 @@ export function applyLayoutOp(root: XmlNode, op: LayoutOp): { inverse: LayoutOp;
       if (relatedLists(root).some((r) => relatedName(r) === op.relatedList)) {
         throw new StaleLayoutError(`The related list ${op.relatedList} is already on the layout.`);
       }
-      const rl = op.xml ? parseFragment(op.xml, "relatedLists") : newRelatedList(op.relatedList);
+      const rl = op.xml ? parseFragment(op.xml, "relatedLists") : newRelatedList(op.relatedList, op.nameField);
       if (relatedName(rl) !== op.relatedList) throw new Error("The related list doesn't match its XML.");
       placeRelated(root, rl, op.before);
       return {

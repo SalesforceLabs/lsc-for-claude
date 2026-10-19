@@ -11,7 +11,7 @@ import type { PublishedResult } from "./published-types";
 import Inspector from "./Inspector";
 import ReviewDialog from "./ReviewDialog";
 import PublishDialog from "./PublishDialog";
-import { useTrayHistory } from "./tray-history";
+import { useTrayHistory, withoutApplied } from "./tray-history";
 import { fixAffectsPublished, isRevalidating, markAllStale, needsLoad, type Revalidating } from "./fix-effects";
 import TestingPages, { SYNC_PAGES, type SyncPage } from "./TestingPages";
 import ReadinessView from "./ReadinessView";
@@ -903,6 +903,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             if (applied.length > 0) markStale(applied.some((c) => fixAffectsPublished(c.fix)));
           }}
           onPublish={(preselect) => setPublishing(preselect)}
+          onApplied={(done) => tray.reset(withoutApplied(pending, done))}
         />
       )}
       {readyOrg && publishing !== undefined && (

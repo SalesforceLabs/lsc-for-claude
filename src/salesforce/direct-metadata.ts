@@ -76,7 +76,7 @@ function manifest(members: Member[], version: string): string {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const POLL_MS = [200, 200, 300, 300, 500, 500, 750];
-const pollDelay = (n: number) => POLL_MS[n] ?? 1000;
+const pollDelay = (n: number) => POLL_MS[n] ?? 750;
 
 type Result = Record<string, unknown>;
 
@@ -93,6 +93,21 @@ function resultOf(envelope: string, op: string): DirectOutcome<Result> {
   return { ok: false, error: `Salesforce returned an unreadable ${op} response` };
 }
 
+/** What a polled retrieve or deploy says about itself, for callers that show progress. */
+export interface MetadataStatus {
+  operation: "retrieve" | "deploy";
+  /** Salesforce's own status ("Pending", "InProgress", "Succeeded", ...); absent before the first poll. */
+  status?: string;
+  /** Salesforce's `stateDetail` while a deploy runs ("Processing Type: Layout"). */
+  stateDetail?: string;
+  /** Deploy components processed so far, and in all. */
+  componentsDone?: number;
+  componentsTotal?: number;
+}
+export type StatusHook = (status: MetadataStatus) => void;
+
+const numOf = (v: unknown): number | undefined => (v === undefined || v === "" || Number.isNaN(Number(v)) ? undefined : Number(v));
+
 /** Start an async operation and poll its status until done. */
 async function runAsync(
   org: string,
@@ -101,7 +116,8 @@ async function runAsync(
   check: (id: string) => string,
   startOp: string,
   checkOp: string,
-  timeoutMs: number
+  timeoutMs: number,
+  onStatus?: StatusHook
 ): Promise<DirectOutcome<Result> | null> {
   const began = Date.now();
   const started = await directMetadataSoap(org, start, fetcher);
@@ -119,6 +135,17 @@ async function runAsync(
     if (!res.ok) return res;
     const status = resultOf(res.data, checkOp);
     if (!status.ok) return status;
+    try {
+      onStatus?.({
+        operation: startOp === "deploy" ? "deploy" : "retrieve",
+        status: status.data.status === undefined ? undefined : String(status.data.status),
+        stateDetail: status.data.stateDetail ? String(status.data.stateDetail) : undefined,
+        componentsDone: numOf(status.data.numberComponentsDeployed),
+        componentsTotal: numOf(status.data.numberComponentsTotal),
+      });
+    } catch {
+      // Progress is advisory; a failing hook never fails the operation.
+    }
     if (status.data.done === "true") return status;
   }
 }
@@ -169,14 +196,15 @@ export async function directRetrieve(
   org: string,
   outputDir: string,
   fetcher: CredentialFetcher,
-  timeoutMs = DEFAULT_TIMEOUT_MS
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+  onStatus?: StatusHook
 ): Promise<DirectOutcome<void> | null> {
   const members = parseMetadataSpecs(specs);
   if (!members || !directEnabled(org)) return null;
   const version = await directApiVersion(org, fetcher);
   const start = `<retrieve><retrieveRequest><apiVersion>${version}</apiVersion><singlePackage>true</singlePackage><unpackaged>${manifest(members, version)}</unpackaged></retrieveRequest></retrieve>`;
   const check = (id: string) => `<checkRetrieveStatus><asyncProcessId>${id}</asyncProcessId><includeZip>true</includeZip></checkRetrieveStatus>`;
-  const res = await runAsync(org, fetcher, start, check, "retrieve", "checkRetrieveStatus", timeoutMs);
+  const res = await runAsync(org, fetcher, start, check, "retrieve", "checkRetrieveStatus", timeoutMs, onStatus);
   if (!res || !res.ok) return res;
   if (res.data.status !== "Succeeded") {
     return { ok: false, error: String(res.data.errorMessage ?? `Retrieve ${String(res.data.status ?? "failed")}`) };
@@ -327,6 +355,32 @@ function deployError(result: Result): string {
 }
 
 /**
+ * Delete one component, as a post-destructive deploy of an otherwise empty package does through the CLI.
+ * `null` = the transport is unusable: use the CLI.
+ */
+export async function directDelete(
+  type: string,
+  fullName: string,
+  org: string,
+  fetcher: CredentialFetcher,
+  timeoutMs = DEFAULT_TIMEOUT_MS
+): Promise<DirectOutcome<void> | null> {
+  if (!directEnabled(org)) return null;
+  const version = await directApiVersion(org, fetcher);
+  const head = `<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="${MD_NS}">`;
+  const zip = zipFiles([
+    { name: "package.xml", data: Buffer.from(`${head}<version>${version}</version></Package>\n`, "utf-8") },
+    { name: "destructiveChangesPost.xml", data: Buffer.from(`${head}${manifest([{ type, fullName }], version)}</Package>\n`, "utf-8") },
+  ]);
+  const start = `<deploy><ZipFile>${zip.toString("base64")}</ZipFile><DeployOptions><rollbackOnError>true</rollbackOnError><singlePackage>true</singlePackage></DeployOptions></deploy>`;
+  const check = (id: string) => `<checkDeployStatus><asyncProcessId>${id}</asyncProcessId><includeDetails>true</includeDetails></checkDeployStatus>`;
+  const res = await runAsync(org, fetcher, start, check, "deploy", "checkDeployStatus", timeoutMs);
+  if (!res || !res.ok) return res;
+  if (res.data.success !== "true" || res.data.status !== "Succeeded") return { ok: false, error: deployError(res.data) };
+  return { ok: true, data: undefined };
+}
+
+/**
  * Deploy source-format files (one file or a folder of them) as
  * `sf project deploy start --source-dir` would, rolling back on any error.
  * `null` = not something this path does, or the transport is unusable: use the CLI.
@@ -335,7 +389,10 @@ export async function directDeploy(
   sourcePath: string,
   org: string,
   fetcher: CredentialFetcher,
-  timeoutMs = DEFAULT_TIMEOUT_MS
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+  onStatus?: StatusHook,
+  /** Validate only: the org checks the deploy and changes nothing. */
+  checkOnly = false
 ): Promise<DirectOutcome<void> | null> {
   if (!directEnabled(org)) return null;
   const version = await directApiVersion(org, fetcher);
@@ -346,10 +403,13 @@ export async function directDeploy(
     return null;
   }
   if (!built) return null;
-  const start = `<deploy><ZipFile>${built.zip.toString("base64")}</ZipFile><DeployOptions><rollbackOnError>true</rollbackOnError><singlePackage>true</singlePackage></DeployOptions></deploy>`;
+  const start = `<deploy><ZipFile>${built.zip.toString("base64")}</ZipFile><DeployOptions>${checkOnly ? "<checkOnly>true</checkOnly>" : ""}<rollbackOnError>true</rollbackOnError><singlePackage>true</singlePackage></DeployOptions></deploy>`;
   const check = (id: string) => `<checkDeployStatus><asyncProcessId>${id}</asyncProcessId><includeDetails>true</includeDetails></checkDeployStatus>`;
-  const res = await runAsync(org, fetcher, start, check, "deploy", "checkDeployStatus", timeoutMs);
+  const res = await runAsync(org, fetcher, start, check, "deploy", "checkDeployStatus", timeoutMs, onStatus);
   if (!res || !res.ok) return res;
-  if (res.data.success !== "true" || res.data.status !== "Succeeded") return { ok: false, error: deployError(res.data) };
+  if (res.data.success !== "true" || res.data.status !== "Succeeded") {
+    const failures = (res.data.details as Result | undefined)?.componentFailures as Result[] | undefined;
+    return { ok: false, error: deployError(res.data), rejected: Boolean(failures?.length) };
+  }
   return { ok: true, data: undefined };
 }

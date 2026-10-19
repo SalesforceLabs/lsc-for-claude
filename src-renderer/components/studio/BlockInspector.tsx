@@ -1,4 +1,5 @@
 import React from "react";
+import type { SetupLink } from "./setup-link";
 import {
   Asterisk,
   CircleMinus,
@@ -84,6 +85,8 @@ export default function BlockInspector({
   propertiesLoading,
   propertiesNote,
   propertiesDynamic,
+  propertiesComponentNote,
+  propertiesNotDrawn,
   extra,
   sync,
   onSync,
@@ -114,12 +117,16 @@ export default function BlockInspector({
   propertiesLoading?: boolean;
   propertiesNote?: string;
   propertiesDynamic?: string;
+  /** Said once for the whole component: not drawn on the iPad, what an inline LWC is passed, or not traced. */
+  propertiesComponentNote?: string;
+  /** The iPad doesn't draw the component, so its fields don't each repeat "Not used on the iPad". */
+  propertiesNotDrawn?: boolean;
   /** Editors only this kind of block has (a list view's filters). */
   extra?: React.ReactNode;
   /** Shown when the block's records aren't synced to this profile's iPad. */
   sync: SyncAction | null;
   onSync: () => void;
-  onSetup?: () => void;
+  onSetup?: (link: SetupLink) => void;
   onStudio?: () => void;
   onClose: () => void;
   /** "3 fields" when several blocks are selected: the inspector explains the last one clicked, its changes apply to all. */
@@ -264,7 +271,7 @@ export default function BlockInspector({
             </div>
           )}
           {properties && onProperty && onPropertyReset && (
-            <PropertiesSheet properties={properties} draft={draft} loading={!!propertiesLoading} note={propertiesNote} dynamic={propertiesDynamic} onSet={onProperty} onReset={onPropertyReset} />
+            <PropertiesSheet properties={properties} draft={draft} loading={!!propertiesLoading} note={propertiesNote} dynamic={propertiesDynamic} componentNote={propertiesComponentNote} notDrawn={propertiesNotDrawn} onSet={onProperty} onReset={onPropertyReset} />
           )}
           {extra}
           {(layout?.profiles || layout?.reach || info.reach) && (
@@ -310,13 +317,26 @@ export default function BlockInspector({
               <button
                 type="button"
                 className="studio-btn sm"
-                onClick={onSetup}
+                onClick={() => onSetup(info.setup!)}
                 title={`Open ${info.setup.label} in Salesforce`}
               >
                 <ExternalLink size={14} aria-hidden />
                 Open in Setup
               </button>
             )}
+            {onSetup &&
+              info.setupMore?.map((l) => (
+                <button
+                  key={l.label}
+                  type="button"
+                  className="studio-btn ghost sm"
+                  onClick={() => onSetup(l)}
+                  title={`Open ${l.label} in Salesforce`}
+                >
+                  <ExternalLink size={14} aria-hidden />
+                  Open {l.label}
+                </button>
+              ))}
             {info.studio && onStudio && (
               <button
                 type="button"

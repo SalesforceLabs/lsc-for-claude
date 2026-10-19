@@ -47,6 +47,18 @@ export const TEXT_GEN_FLOW = /^(stories__)?GenDailyBriefingsText$/;
 export const SCHEDULE_FLOW = /^(stories__)?SchdDlyBriefingsOfPrvdAcct$/;
 export const SUMMARY_FLOW_LABEL = "Generate Provider Account Territory Summary";
 
+/**
+ * The Briefings flow searches, in the order they were asked: ApiName contains "Briefing", Label contains
+ * "Briefing", then (optionally) the summary flow by label. FlowDefinitionView is slow on the server (12-24 s
+ * per distinct query), so the collector and readiness ask for the same columns, and inside a Studio read scope (withSharedReads) each is read once.
+ */
+export function briefingFlowGroups(org: string, withSummary = true): Promise<Row[][]> {
+  const select = "SELECT Label, ApiName, ActiveVersionId, ProcessType FROM FlowDefinitionView WHERE";
+  const asks = [`${select} ApiName LIKE '%Briefing%'`, `${select} Label LIKE '%Briefing%'`];
+  if (withSummary) asks.push(`${select} Label = '${SUMMARY_FLOW_LABEL}'`);
+  return Promise.all(asks.map((soql) => query(soql, org)));
+}
+
 /** Briefings content older than this many days means the scheduled flow has stopped producing it. */
 export const STALE_DAYS = 3;
 export const DAY_MS = 24 * 60 * 60 * 1000;
@@ -109,11 +121,7 @@ export const collectBriefings: CustomCollector = async (org) => {
   );
   // Flows: the managed ones plus anything else with "Briefing" in its name (clones of the schedule).
   const flows = settle(
-    Promise.all([
-      query(`SELECT Label, ApiName, ActiveVersionId, ProcessType FROM FlowDefinitionView WHERE ApiName LIKE '%Briefing%'`, org),
-      query(`SELECT Label, ApiName, ActiveVersionId, ProcessType FROM FlowDefinitionView WHERE Label LIKE '%Briefing%'`, org),
-      query(`SELECT Label, ApiName, ActiveVersionId, ProcessType FROM FlowDefinitionView WHERE Label = '${SUMMARY_FLOW_LABEL}'`, org),
-    ]).then((groups) => {
+    briefingFlowGroups(org).then((groups) => {
       const seen = new Map<string, Row>();
       for (const r of groups.flat()) seen.set(String(r.ApiName), r);
       return [...seen.values()];

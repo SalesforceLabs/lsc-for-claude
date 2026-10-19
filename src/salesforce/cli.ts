@@ -12,8 +12,8 @@ import * as os from "os";
 import { cacheGet, cacheSet, queryCacheKey, describeCacheKey } from "../cache.js";
 import { sfLimiter } from "./limiter.js";
 import { directApiVersion, directDownload, directEnabled, directGet, directPostRead, directQuery, type DirectCredentials } from "./direct.js";
-import { directDeploy, directRetrieve } from "./direct-metadata.js";
-import { invalidateSharedReads } from "../config/read-cache.js";
+import { directDelete, directDeploy, directRetrieve, type StatusHook } from "./direct-metadata.js";
+import { invalidateSharedReads, sharedRead, sharedReadsActive } from "../config/read-cache.js";
 
 const execAsync = promisify(exec);
 
@@ -24,6 +24,8 @@ export interface CliResult<T = unknown> {
   rawOutput?: string;
   /** The call was stopped at its time limit (the error says so). */
   timedOut?: boolean;
+  /** A deploy the org refused (as opposed to one that couldn't run); `error` has the org's reasons. */
+  rejected?: boolean;
 }
 
 export interface SfOrg {
@@ -86,6 +88,8 @@ export interface SObjectDescribeResult {
     deprecatedAndHidden?: boolean;
     /** Whether the field can be used in a list view filter. */
     filterable?: boolean;
+    /** The object's record-name field. */
+    nameField?: boolean;
   }>;
   childRelationships?: Array<{
     childSObject: string;
@@ -341,7 +345,33 @@ export async function getOrgDisplay(targetOrg: string): Promise<CliResult<SfOrg>
 /**
  * Run a SOQL query
  */
+/** Carries a result that must not be kept (a failure, or one cut short) out of the shared read. */
+class Uncacheable {
+  constructor(readonly result: CliResult<SoqlQueryResult>) {}
+}
+
 export async function runSoqlQuery(
+  query: string,
+  targetOrg: string,
+  options: { useToolingApi?: boolean; maxRows?: number } = {}
+): Promise<CliResult<SoqlQueryResult>> {
+  // Inside a Studio read scope, identical queries share one read (see withSharedReads).
+  if (!sharedReadsActive()) return runSoqlQueryUncached(query, targetOrg, options);
+  const key = `soql:${options.useToolingApi ? "t" : "d"}:${options.maxRows ?? ""}:${query}`;
+  try {
+    const hit = await sharedRead(targetOrg, key, async () => {
+      const r = await runSoqlQueryUncached(query, targetOrg, options);
+      if (!r.success || !r.data || r.data.truncated) throw new Uncacheable(r);
+      return r;
+    });
+    return structuredClone(hit);
+  } catch (e) {
+    if (e instanceof Uncacheable) return structuredClone(e.result);
+    throw e;
+  }
+}
+
+async function runSoqlQueryUncached(
   query: string,
   targetOrg: string,
   options: { useToolingApi?: boolean; maxRows?: number } = {}
@@ -624,16 +654,52 @@ export async function deleteRecord(
  */
 export async function deployMetadata(
   sourcePath: string,
-  targetOrg: string
+  targetOrg: string,
+  onStatus?: StatusHook,
+  /** Validate only: the org checks the deploy and changes nothing. */
+  checkOnly = false
 ): Promise<CliResult<unknown>> {
   const cwd = ensureTmpSfdxProject();
-  const direct = await asWrite(targetOrg, () => directDeploy(sourcePath, targetOrg, directCredentials));
-  if (direct) return direct.ok ? { success: true, data: {} } : { success: false, error: direct.error, timedOut: direct.timedOut };
-  return execSfCommand("project", ["deploy", "start", "--source-dir", sourcePath], {
-    targetOrg,
-    timeout: 300000,
-    cwd,
-  });
+  const direct = await (checkOnly
+    ? directDeploy(sourcePath, targetOrg, directCredentials, undefined, onStatus, true)
+    : asWrite(targetOrg, () => directDeploy(sourcePath, targetOrg, directCredentials, undefined, onStatus)));
+  if (direct) return direct.ok ? { success: true, data: {} } : { success: false, error: direct.error, timedOut: direct.timedOut, rejected: direct.rejected };
+  return deployOutcome(
+    await execSfCommand("project", ["deploy", "start", "--source-dir", sourcePath, ...(checkOnly ? ["--dry-run"] : [])], {
+      targetOrg,
+      timeout: 300000,
+      cwd,
+    })
+  );
+}
+
+/**
+ * `sf project deploy start --json` can answer with a parsed result whose deploy
+ * failed (status "Failed", component failures, a non-zero status inside the JSON).
+ * Turn that into a failed CliResult naming the problems, so no caller mistakes it for success.
+ */
+export function deployOutcome(res: CliResult<unknown>): CliResult<unknown> {
+  const d = res.data as
+    | {
+        success?: boolean;
+        status?: string;
+        details?: { componentFailures?: unknown; runTestResult?: { failures?: unknown } };
+      }
+    | undefined;
+  if (!d || typeof d !== "object") return res;
+  const asList = (v: unknown): { problem?: string; fullName?: string; componentType?: string }[] =>
+    Array.isArray(v) ? v : v && typeof v === "object" ? [v] : [];
+  const failures = asList(d.details?.componentFailures);
+  const failed = d.success === false || d.status === "Failed" || d.status === "Canceled" || failures.length > 0;
+  if (!failed) return res;
+  if (!res.success && !failures.length) return res;
+  const problems = failures.map((f) => [f.problem, f.fullName && `(${f.fullName})`].filter(Boolean).join(" ")).filter(Boolean);
+  return {
+    ...res,
+    success: false,
+    rejected: failures.length > 0,
+    error: problems.length ? problems.join("; ") : `The deploy ${String(d.status ?? "failed").toLowerCase()}.`,
+  };
 }
 
 /**
@@ -641,6 +707,8 @@ export async function deployMetadata(
  * The component must not be in use (a layout still assigned, a page still activated).
  */
 export async function deleteMetadata(type: string, fullName: string, targetOrg: string): Promise<CliResult<unknown>> {
+  const direct = await asWrite(targetOrg, () => directDelete(type, fullName, targetOrg, directCredentials));
+  if (direct) return direct.ok ? { success: true, data: {} } : { success: false, error: direct.error, timedOut: direct.timedOut };
   const cwd = ensureTmpSfdxProject();
   const dir = path.join(cwd, "destructive", `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
   fs.mkdirSync(dir, { recursive: true });
@@ -653,10 +721,12 @@ export async function deleteMetadata(type: string, fullName: string, targetOrg: 
     xml(`    <types>\n        <members>${escaped}</members>\n        <name>${type}</name>\n    </types>\n`)
   );
   try {
-    return await execSfCommand(
-      "project",
-      ["deploy", "start", "--manifest", path.join(dir, "package.xml"), "--post-destructive-changes", path.join(dir, "destructiveChanges.xml")],
-      { targetOrg, timeout: 300000, cwd }
+    return deployOutcome(
+      await execSfCommand(
+        "project",
+        ["deploy", "start", "--manifest", path.join(dir, "package.xml"), "--post-destructive-changes", path.join(dir, "destructiveChanges.xml")],
+        { targetOrg, timeout: 300000, cwd }
+      )
     );
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
@@ -671,14 +741,15 @@ export async function deleteMetadata(type: string, fullName: string, targetOrg: 
 export async function retrieveMetadata(
   _targetPath: string,
   metadata: string | string[],
-  targetOrg: string
+  targetOrg: string,
+  onStatus?: StatusHook
 ): Promise<CliResult<{ outputDir: string }>> {
   const projectDir = ensureTmpSfdxProject();
   const relativeOutput = path.join("retrieve-output", `${Date.now()}-${crypto.randomBytes(3).toString("hex")}`);
   const absoluteOutput = path.join(projectDir, relativeOutput);
   fs.mkdirSync(absoluteOutput, { recursive: true });
 
-  const direct = await directRetrieve([metadata].flat(), targetOrg, absoluteOutput, directCredentials);
+  const direct = await directRetrieve([metadata].flat(), targetOrg, absoluteOutput, directCredentials, undefined, onStatus);
   if (direct) return direct.ok ? { success: true, data: { outputDir: absoluteOutput } } : { success: false, error: direct.error, timedOut: direct.timedOut };
 
   const result = await execSfCommand(
