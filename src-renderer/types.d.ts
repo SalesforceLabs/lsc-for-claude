@@ -250,6 +250,8 @@ interface LscApi {
   // Chat events — all include nonce + convId to identify which stream they belong to
   onTextDelta(callback: (text: string, nonce: number, convId: string) => void): () => void;
   onToolStart(callback: (data: { id: string; name: string; nonce: number; convId: string }) => void): () => void;
+  /** A tool's input is complete and it starts running (tools run one at a time). */
+  onToolRun(callback: (data: { id: string; input: Record<string, unknown>; nonce: number; convId: string }) => void): () => void;
   onToolResult(
     callback: (data: { id: string; result: string; isError: boolean; nonce: number; convId: string }) => void
   ): () => void;

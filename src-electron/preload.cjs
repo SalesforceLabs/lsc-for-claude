@@ -30,6 +30,11 @@ contextBridge.exposeInMainWorld("lscApi", {
     ipcRenderer.on("chat:tool-start", handler);
     return () => ipcRenderer.removeListener("chat:tool-start", handler);
   },
+  onToolRun: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on("chat:tool-run", handler);
+    return () => ipcRenderer.removeListener("chat:tool-run", handler);
+  },
   onToolResult: (callback) => {
     const handler = (_event, data) => callback(data);
     ipcRenderer.on("chat:tool-result", handler);

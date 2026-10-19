@@ -467,7 +467,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     let accumulatedText = "";
     // Text that resumes after a tool call is a new paragraph; without a break the saved message runs rounds together.
     let toolSinceText = false;
-    const accumulatedTools: Array<{ id: string; name: string; result?: string; isError?: boolean; status: string }> = [];
+    const accumulatedTools: Array<{ id: string; name: string; input?: Record<string, unknown>; result?: string; isError?: boolean; status: string }> = [];
 
     // ALL events are always sent — tagged with convId so the renderer decides what to display.
     // No nonce filtering on the main process side.
@@ -485,6 +485,11 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         toolSinceText = true;
         accumulatedTools.push({ id, name, status: "running" });
         mainWindow.webContents.send("chat:tool-start", { id, name, nonce, convId });
+      },
+      onToolRun: (id, input) => {
+        const tool = accumulatedTools.find((t) => t.id === id);
+        if (tool) tool.input = input;
+        mainWindow.webContents.send("chat:tool-run", { id, input, nonce, convId });
       },
       onToolResult: (id, result, isError) => {
         const tool = accumulatedTools.find((t) => t.id === id);
@@ -515,7 +520,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
           "assistant",
           accumulatedText,
           accumulatedTools.length > 0
-            ? accumulatedTools.map((tc) => ({ id: tc.id, name: tc.name, result: tc.result, isError: tc.isError, status: tc.status }))
+            ? accumulatedTools.map((tc) => ({ id: tc.id, name: tc.name, input: tc.input, result: tc.result, isError: tc.isError, status: tc.status }))
             : undefined
         );
       }

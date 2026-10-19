@@ -1297,9 +1297,32 @@ body {
 .tool-call-header .tool-name {
   color: var(--text-primary);
   font-weight: 500;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tool-call-header .tool-detail {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.tool-call-section-label {
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  margin-bottom: var(--space-1);
+}
+
+.tool-call-input {
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .tool-chevron {
@@ -1327,8 +1350,9 @@ body {
   font-weight: 500;
 }
 
-.tool-status.running { color: var(--text-secondary); }
-.tool-status.success { color: var(--success); }
+.tool-status.running,
+.tool-status.pending { color: var(--text-muted); }
+.tool-status.success { color: var(--text-muted); }
 .tool-status.error { color: var(--error); }
 
 .tool-call-body-wrapper {
@@ -2128,54 +2152,59 @@ body {
   color: var(--text-primary);
 }
 
-/* ─── Thinking Indicator (before text arrives) ─── */
+/* ─── Reply activity (what a streaming reply is doing now) ─── */
 
-.thinking-indicator {
+.reply-activity {
   display: flex;
   align-items: center;
-  padding: 8px 0;
-  min-height: 32px;
+  gap: var(--space-2);
+  min-height: var(--control-sm);
+  max-width: 100%;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  animation: reply-activity-in 0.2s var(--ease-out);
 }
 
-.thinking-dot {
-  display: block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--accent);
-  animation: thinking-pulse 1.6s ease-in-out infinite;
+.reply-activity .ui-spinner {
+  flex-shrink: 0;
 }
 
-@keyframes thinking-pulse {
-  0%, 100% {
-    opacity: 0.25;
-    transform: scale(0.85);
-    box-shadow: 0 0 0 0 transparent;
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.1);
-    box-shadow: 0 0 12px 4px color-mix(in srgb, var(--accent) 30%, transparent);
-  }
+.reply-activity-label {
+  flex-shrink: 0;
+  background: linear-gradient(90deg, var(--text-secondary) 40%, var(--text-primary) 50%, var(--text-secondary) 60%);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: reply-activity-shimmer 2.4s linear infinite;
 }
 
-/* ─── Streaming Cursor (while text is flowing) ─── */
-
-.streaming-cursor::after {
-  content: "";
-  display: inline-block;
-  width: 7px;
-  height: 18px;
-  background: var(--accent);
-  border-radius: 2px;
-  margin-left: 2px;
-  vertical-align: text-bottom;
-  animation: cursor-fade 0.8s ease-in-out infinite;
+.reply-activity-detail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
 }
 
-@keyframes cursor-fade {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.25; }
+.reply-activity-time {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes reply-activity-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes reply-activity-shimmer {
+  from { background-position: 100% 0; }
+  to   { background-position: 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reply-activity-label { animation: none; color: var(--text-secondary); background: none; }
 }
 
 /* Smooth content appearance during streaming */
