@@ -285,11 +285,8 @@ export function alignLayout(published: PublishedLayout, live: LayoutModel): numb
 
 // --- What the org has that the last publish doesn't ------------------------------
 
-/** Words for blocks that are in the org but not in the published cache (the org-ahead style, `draft-org-ahead`). */
-export const ORG_AHEAD_TAG = "Not on iPads yet";
-export const ORG_AHEAD_GONE = "Removed in the org";
-export const ORG_AHEAD_NOTE = "This is in the org but not on iPads yet. Publish to iPad so reps get it.";
-export const ORG_AHEAD_GONE_NOTE = "This was removed in the org but is still on iPads. Publish to iPad so reps lose it.";
+/** Words for blocks that are in the org but not in the published cache (the org-ahead style, `draft-org-ahead`); defined in org-ahead.ts. */
+export { ORG_AHEAD_TAG, ORG_AHEAD_GONE, ORG_AHEAD_NOTE, ORG_AHEAD_GONE_NOTE } from "./org-ahead";
 
 /** A layout item the cache has and the org's layout no longer does, with where it was. */
 export interface GoneField {

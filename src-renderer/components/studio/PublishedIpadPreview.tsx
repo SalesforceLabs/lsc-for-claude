@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { CloudOff, RotateCw } from "lucide-react";
+import { CircleDot, CloudOff, RotateCw } from "lucide-react";
 import StateView from "../ui/StateView";
 import type {
   PublishedComponent,
@@ -36,6 +36,8 @@ import type { DraftAction, DraftState, DraftTab } from "./edit-draft";
 import type { CompactEntry, LayoutEntry, ListViewEntry, PageEntry } from "./usePreviewEdit";
 import { draftComponents, draftRecordTabs, sourceKey } from "./flexipage-draft";
 import type { Revalidating } from "./fix-effects";
+import { orgAheadCompact, orgAheadLayout, orgAheadPage, orgAheadTab, type Reveal } from "./org-ahead";
+import { OrgAheadContext } from "./useUnpublished";
 import {
   ActivityPlanProgress,
   HomeEditVisitContext,
@@ -80,6 +82,8 @@ interface PublishedIpadPreviewProps {
   edit?: PreviewEdit;
   /** Before / after: the published iPad beside the Draft one (Draft only). */
   split?: boolean;
+  /** "Show" from the unpublished-changes list: open this tab (and a record) once. */
+  reveal?: Reveal | null;
 }
 
 /**
@@ -87,7 +91,7 @@ interface PublishedIpadPreviewProps {
  * components, and record pages read from the profile's metadata cache, laid
  * out the way LSC Mobile builds them. Record data is placeholder.
  */
-function PublishedIpadPreviewImpl({ profile, state, onRefresh, onPickUser, onSearchUsers, edit, split }: PublishedIpadPreviewProps) {
+function PublishedIpadPreviewImpl({ profile, state, onRefresh, onPickUser, onSearchUsers, edit, split, reveal }: PublishedIpadPreviewProps) {
   if (!state || state.status === "loading") {
     return <PublishedLoading profile={profile} />;
   }
@@ -116,7 +120,7 @@ function PublishedIpadPreviewImpl({ profile, state, onRefresh, onPickUser, onSea
       />
     );
   }
-  return <Device key={result.viewer?.userId ?? ""} snapshot={result} onRefresh={() => onRefresh(result.viewer?.userId)} onPickUser={onPickUser} onSearchUsers={onSearchUsers} edit={edit} split={split && !!edit?.draft} />;
+  return <Device key={result.viewer?.userId ?? ""} snapshot={result} onRefresh={() => onRefresh(result.viewer?.userId)} onPickUser={onPickUser} onSearchUsers={onSearchUsers} edit={edit} split={split && !!edit?.draft} reveal={reveal} />;
 }
 
 /** Redrawn only when its state, the edit description or the mode change — not for every Studio state update. */
@@ -129,6 +133,7 @@ function Device({
   onSearchUsers,
   edit,
   split,
+  reveal,
 }: {
   snapshot: PublishedIpad;
   onRefresh: () => void;
@@ -136,6 +141,7 @@ function Device({
   onSearchUsers?: (text: string) => Promise<{ id: string; name: string }[]>;
   edit?: PreviewEdit;
   split?: boolean;
+  reveal?: Reveal | null;
 }) {
   // Draft adds the tabs the tray would add (drawn as "coming soon" until published).
   const allTabs = useMemo(() => (edit?.draft ? edit.tabs.map((d) => d.tab) : snapshot.tabs), [edit?.draft, edit?.tabs, snapshot.tabs]);
@@ -152,6 +158,18 @@ function Device({
     setCurrent(t.fullName);
     setRecord(null);
   };
+  const orgAhead = useContext(OrgAheadContext);
+  const lastReveal = useRef(0);
+  useEffect(() => {
+    if (!reveal || reveal.nonce === lastReveal.current) return;
+    lastReveal.current = reveal.nonce;
+    const dest = snapshot.tabs.find((t) => t.fullName === reveal.tab);
+    if (dest) {
+      setCurrent(dest.fullName);
+      const first = reveal.record ? Object.values(snapshot.records?.byId ?? {}).find((r) => r.object === dest.sobject) : undefined;
+      setRecord(first ? first.id : null);
+    }
+  }, [reveal, snapshot]);
   const note = (label: string, text: string) => setSheet({ kind: "note", label, text });
   // NotificationLinkOpener: deep links go to DeepLinkService (which dismisses the sheet first), web links to the in-app browser or Safari.
   const followLink = (url: string, target: string) => {
@@ -195,7 +213,7 @@ function Device({
           key: t.fullName,
           label: t.label,
           title: t.fullName,
-          className: state === "removed" ? " ghost" : state === "added" || state === "moved" ? " pending" : "",
+          className: (state === "removed" ? " ghost" : state === "added" || state === "moved" ? " pending" : "") + (orgAheadTab(orgAhead, t.fullName) ? " org-changed" : ""),
           attrs: editAttrs(
             editing,
             { kind: "tab", fullName: t.fullName, label: t.label, index },
@@ -204,15 +222,15 @@ function Device({
           ),
         };
       });
-  }, [allTabs, edit?.draft, edit?.tabs, editing]);
+  }, [allTabs, edit?.draft, edit?.tabs, editing, orgAhead]);
   const layoutEdits = useMemo(
     () => (edit?.on ? { draft: edit.draft, layouts: edit.layouts, compacts: edit.compacts, listViews: edit.listViews, pages: edit.pages } : null),
     [edit?.on, edit?.draft, edit?.layouts, edit?.compacts, edit?.listViews, edit?.pages]
   );
   // Before / after: the published side follows the Draft side's tab, record and scrolling, and isn't selectable.
   const publishedTabs = useMemo<ChromeTab[]>(
-    () => snapshot.tabs.filter((t) => t.kind !== "recent").map((t) => ({ key: t.fullName, label: t.label, title: t.fullName, className: "", attrs: {} })),
-    [snapshot.tabs]
+    () => snapshot.tabs.filter((t) => t.kind !== "recent").map((t) => ({ key: t.fullName, label: t.label, title: t.fullName, className: orgAheadTab(orgAhead, t.fullName) ? " org-changed" : "", attrs: {} })),
+    [snapshot.tabs, orgAhead]
   );
   const pages = useRef<[HTMLDivElement | null, HTMLDivElement | null]>([null, null]);
   const mirror = (side: 0 | 1) => (e: React.UIEvent) => mirrorScroll(e.target as Element, pages.current[side], pages.current[side ? 0 : 1]);
@@ -1023,9 +1041,16 @@ function RecordView({ object, snapshot }: { object: PublishedObject; snapshot: P
     () => (compactName ? (snapshot.compactLayouts[`${object.name}.${compactName}`] ?? []) : []),
     [snapshot, object.name, compactName]
   );
+  const orgAhead = useContext(OrgAheadContext);
+  const changed = orgAheadLayout(orgAhead, rt?.layout) ?? orgAheadPage(orgAhead, rt?.flexiPage) ?? orgAheadCompact(orgAhead, object.name, compactName);
   return (
     <>
       <Head eyebrow={object.label} title={`Sample ${object.label.toLowerCase()}`} theme={object.theme}>
+        {changed && (
+          <span className="studio-ipad-orgahead" title="This record's layout changed in the org after the last publish. Open the changes list to see what.">
+            <CircleDot size={12} aria-hidden /> Changed in the org
+          </span>
+        )}
         {object.recordTypes.length > 1 && (
           <label className="studio-ipad-hint">
             Record type{" "}

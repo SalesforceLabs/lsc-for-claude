@@ -62,6 +62,7 @@ import {
 import ListViewEditor from "./ListViewEditor";
 import BlockInspector, { compactReach, listViewReach, pageReach, type CopyAction } from "./BlockInspector";
 import CreateDialog from "./CreateDialog";
+import { orgAheadFor, type OrgAheadIndex } from "./org-ahead";
 import SearchPicker from "../ui/SearchPicker";
 import { extendSelection, groupVerbs, selectionNoun } from "./multi-select";
 
@@ -82,6 +83,8 @@ interface PreviewEditOptions {
   onOpenStudio: (featureId: string, surface: string, itemId: string) => void;
   /** Moves when something is written to the org: the documents read live are read again. */
   writeVersion?: number;
+  /** Documents changed in the org after the profile's cache was generated, so the inspector can say so. */
+  orgAhead?: OrgAheadIndex;
 }
 
 /**
@@ -102,6 +105,7 @@ export function usePreviewEdit({
   profiles,
   onOpenStudio,
   writeVersion = 0,
+  orgAhead,
 }: PreviewEditOptions): { edit: PreviewEdit | undefined; panel: React.ReactNode } {
   // The tray as this profile's draft sees it: a copy made just for the profile stands in for the shared
   // document, and edits to it go back into the copy (changes.ts, viewFor / commitFrom).
@@ -566,6 +570,7 @@ export function usePreviewEdit({
         <BlockInspector
           key={JSON.stringify(selected) + selection.length}
           info={info}
+          orgAhead={orgAhead && selected ? orgAheadFor(orgAhead, selected) : undefined}
           profile={profile}
           verbs={verbs}
           draft={draft}

@@ -1410,3 +1410,60 @@
 .studio-ipad-table-cell.pending {
   box-shadow: inset 0 0 0 2.5px #9050e9;
 }
+
+/*
+ * In the org but not on iPads yet (org-ahead.ts): a dotted amber outline and a small tag, apart from the solid purple
+ * of the tray's own changes. The Draft drawers set the class on blocks the org has and the published cache doesn't.
+ */
+.draft-org-ahead {
+  position: relative;
+  border-radius: 6px;
+  outline: 2px dotted var(--warning);
+  outline-offset: -2px;
+}
+
+.draft-org-ahead::after {
+  content: "Not on iPads yet";
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--warning-subtle);
+  color: var(--warning);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Blocks the org removed but iPads still have say so (the Draft drawers set data-org-ahead). */
+.draft-org-ahead[data-org-ahead]::after {
+  content: attr(data-org-ahead);
+}
+
+/* A published block whose document changed in the org: a quiet dot, not an outline. */
+.studio-ipad-pill.org-changed::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--warning);
+  vertical-align: middle;
+}
+
+.studio-ipad-orgahead {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--warning-subtle);
+  color: var(--warning);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+}

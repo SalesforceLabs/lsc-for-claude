@@ -17,6 +17,7 @@ import { applyFix, previewFix } from "../studio/fixes.js";
 import { publishStatus, startPublish } from "../studio/publish.js";
 import { loadPublishedIpad, searchProfileUsers } from "../studio/published.js";
 import { loadProgress } from "../studio/published-progress.js";
+import { collectUnpublished } from "../studio/unpublished.js";
 import { fixProgress, startFixChange } from "../studio/fix-progress.js";
 import { compileInlineLwc } from "../studio/lwc/compile.js";
 import { lwcRequest } from "../studio/lwc/request.js";
@@ -587,6 +588,35 @@ export function register(server: McpServer) {
       }
       try {
         return json(await loadPublishedIpad(profile, connection.targetOrg, userId, mobileLogins ?? []));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_unpublished",
+    "LSC Studio (GUI data): what changed in the org after a profile's live metadata cache was generated, so the iPad preview can say what iPads don't have yet. Layouts, compact layouts, Lightning pages, record types, tabs and Admin Console records (DB Schema, tabs, actions, settings) that reach the profile, each with who changed it and when; list views are marked live (the iPad reads them from the org). `known` limits document changes to the ones the profile's snapshot references. Kinds that couldn't be read come back in `errors`, never as \"no changes\". Read-only. Returns JSON.",
+    {
+      profile: z.string().min(1).max(255),
+      known: z
+        .object({
+          layouts: z.array(z.string().max(255)).max(5000).optional(),
+          compactLayouts: z.array(z.string().max(255)).max(5000).optional(),
+          flexiPages: z.array(z.string().max(255)).max(5000).optional(),
+          recordTypes: z.array(z.string().max(255)).max(5000).optional(),
+          listViews: z.array(z.string().max(255)).max(5000).optional(),
+          tabs: z.array(z.string().max(255)).max(5000).optional(),
+        })
+        .optional(),
+    },
+    async ({ profile, known }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await collectUnpublished(profile, connection.targetOrg, known));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

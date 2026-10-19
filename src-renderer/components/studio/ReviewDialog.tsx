@@ -193,9 +193,9 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
 
         {phase.step === "done" && mobileApplied.length > 0 && (
           <div className="studio-finding info">
-            <div className="studio-finding-title">Reps won't see this on the iPad yet</div>
+            <div className="studio-finding-title">Applied to the org. Reps get it after you publish.</div>
             <div className="studio-finding-detail">
-              Publish to iPad regenerates the mobile metadata cache for the affected profiles.
+              Publish to iPad regenerates the mobile metadata cache for the affected profiles. The preview lists these changes as not on iPads yet until then.
             </div>
           </div>
         )}

@@ -39,6 +39,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Segmented from "../ui/Segmented";
+import UnpublishedIndicator from "./UnpublishedIndicator";
+import { OrgAheadContext, useUnpublished } from "./useUnpublished";
+import { buildOrgAhead, revealPlan, type Reveal, type UnpublishedItem } from "./org-ahead";
 import StateView from "../ui/StateView";
 import Spinner from "../ui/Spinner";
 import "./studio.css";
@@ -324,6 +327,12 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     seenOrg ??
     connectedOrg;
   const publishedState = publishedProfile ? published[publishedProfile] : undefined;
+  const publishedSnapshot = publishedState?.status === "ready" && !("missing" in publishedState.result) ? publishedState.result : null;
+  const unpublished = useUnpublished(publishedProfile, publishedSnapshot, writeVersion);
+  const orgAhead = useMemo(
+    () => buildOrgAhead(unpublished.state?.status === "ready" ? unpublished.state.result.items : []),
+    [unpublished.state]
+  );
   const { edit: previewEdit, panel: editPanel } = usePreviewEdit({
     on: editOn && previewShown,
     draft: previewMode !== "published",
@@ -337,7 +346,34 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     profiles,
     onOpenStudio: (id, surface, item) => openSetup(id, surface, item),
     writeVersion,
+    orgAhead,
   });
+
+  // "Show" on a change: Draft with edit on, the tab (and record) open, the block selected.
+  const [reveal, setReveal] = useState<(Reveal & { select: import("./edit-targets").EditTarget | null }) | null>(null);
+  const revealed = useRef(0);
+  useEffect(() => {
+    if (!reveal || reveal.nonce === revealed.current || !previewEdit?.on) return;
+    revealed.current = reveal.nonce;
+    if (reveal.select) previewEdit.onSelect(reveal.select);
+  }, [reveal, previewEdit]);
+  const showUnpublished = useCallback(
+    (item: UnpublishedItem) => {
+      const snap = publishedSnapshot;
+      if (!snap) return;
+      const plan = revealPlan(item, snap);
+      if (!plan) return;
+      if (plan.kind === "setup") {
+        openSetup(plan.feature, plan.surface as SurfaceId | null, plan.item);
+        return;
+      }
+      setPreviewMode((m) => (m === "published" ? "draft" : m));
+      setEditOn(true);
+      setReveal({ nonce: Date.now(), tab: plan.tab, record: plan.record, select: plan.select });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [publishedSnapshot]
+  );
 
   const previewSubtitle =
     previewMode === "published"
@@ -575,6 +611,15 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
                 { value: "split", label: "Side by side", title: "Published and Draft next to each other; select blocks on the Draft side" },
               ]}
             />
+            {publishedProfile && publishedSnapshot && (
+              <UnpublishedIndicator
+                profile={publishedProfile}
+                state={unpublished.state}
+                onRetry={unpublished.retry}
+                onShow={showUnpublished}
+                onPublish={() => setPublishing([publishedProfile])}
+              />
+            )}
             <div className="studio-subbar-group">
               {lensPicker(
                 lens ? "Previewing as" : "Preview as",
@@ -588,6 +633,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           <div className="studio-stage">
             <div className="studio-canvas">
               {publishedProfile ? (
+                <OrgAheadContext.Provider value={orgAhead}>
                 <PublishedIpadPreview
                   profile={publishedProfile}
                   state={publishedState}
@@ -596,7 +642,9 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
                   edit={previewEdit}
                   split={previewMode === "split"}
                   onSearchUsers={searchPublishedUsers}
+                  reveal={reveal}
                 />
+                </OrgAheadContext.Provider>
               ) : (
                 <StateView
                   kind="empty"
