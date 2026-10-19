@@ -11,6 +11,7 @@ import {
   LayoutTemplate,
   List,
   PanelBottom,
+  PanelsTopLeft,
   RotateCw,
   Rows3,
   Settings,
@@ -48,6 +49,7 @@ const KIND_ICON: Record<UnpublishedKind, LucideIcon> = {
   uiSetting: SlidersHorizontal,
   action: Zap,
   appSetting: Settings,
+  app: PanelsTopLeft,
 };
 
 const NO_ITEMS: UnpublishedItem[] = [];
