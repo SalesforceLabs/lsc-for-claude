@@ -281,6 +281,84 @@ export function alignLayout(published: PublishedLayout, live: LayoutModel): numb
   return out;
 }
 
+// --- What the org has that the last publish doesn't ------------------------------
+
+/** Words for blocks that are in the org but not in the published cache (the org-ahead style, `draft-org-ahead`). */
+export const ORG_AHEAD_TAG = "Not on iPads yet";
+export const ORG_AHEAD_GONE = "Removed in the org";
+export const ORG_AHEAD_NOTE = "This is in the org but not on iPads yet. Publish to iPad so reps get it.";
+export const ORG_AHEAD_GONE_NOTE = "This was removed in the org but is still on iPads. Publish to iPad so reps lose it.";
+
+/** A layout item the cache has and the org's layout no longer does, with where it was. */
+export interface GoneField {
+  item: string;
+  section: { label: string; nth: number };
+  /** The org layout's XML column it was in. */
+  column: number;
+  /** The cache's items in that column (compound repeats collapsed), for placing the ghost among the ones still there. */
+  items: string[];
+}
+
+/**
+ * How the org's layout differs from the published one: the layout as Setup has
+ * it now against what the iPads last downloaded. Draft draws the org's layout;
+ * this says which of it iPads don't have yet.
+ */
+export interface LayoutAhead {
+  /** Layout items on the org's layout the cache's lacks. */
+  fields: Set<string>;
+  /** Org sections with no counterpart in the cache. */
+  sections: Set<number>;
+  /** Related lists on the org's layout the cache's lacks. */
+  related: Set<string>;
+  /** Items the cache has that the org's layout no longer does. */
+  gone: GoneField[];
+  /** Related lists the cache has that the org's layout no longer does. */
+  goneRelated: string[];
+  /** Items removed from sections the org's layout no longer has (not drawn). */
+  goneElsewhere: number;
+}
+
+export const noAhead = (): LayoutAhead => ({ fields: new Set(), sections: new Set(), related: new Set(), gone: [], goneRelated: [], goneElsewhere: 0 });
+
+export const isAhead = (a: LayoutAhead | null | undefined): boolean =>
+  !!a && (a.fields.size > 0 || a.sections.size > 0 || a.related.size > 0 || a.gone.length > 0 || a.goneRelated.length > 0 || a.goneElsewhere > 0);
+
+/**
+ * What the org's layout has that the published one doesn't, and the reverse.
+ * Null when the published layout can't say (a snapshot from before sections
+ * carried their source), so nothing is marked.
+ */
+export function aheadOf(published: PublishedLayout | undefined, base: LayoutModel): LayoutAhead | null {
+  if (!published || published.sections.some((s) => !s.source)) return null;
+  const out = noAhead();
+  const pubItems = new Set(published.sections.flatMap((s) => s.source!.fields.flat()));
+  const orgItems = new Set(base.sections.flatMap((s) => s.columns.flat().map((i) => i.field)));
+  for (const f of orgItems) if (!pubItems.has(f)) out.fields.add(f);
+  for (const sec of base.sections) {
+    const ref = refOf(base, sec);
+    const has = published.sections.some((p) => p.source!.label === ref.label && p.source!.nth === ref.nth);
+    if (!has && sec.columns.some((c) => c.length)) out.sections.add(sec.key);
+  }
+  for (const p of published.sections) {
+    const src = p.source!;
+    const sec = base.sections.find((l) => l.label === src.label && refOf(base, l).nth === src.nth);
+    src.fields.forEach((col, ci) => {
+      const items = col.filter((f, i) => f !== col[i - 1]);
+      for (const item of items) {
+        if (orgItems.has(item)) continue;
+        if (sec && sec.columns[src.columns[ci]]) out.gone.push({ item, section: { label: src.label, nth: src.nth }, column: src.columns[ci], items });
+        else out.goneElsewhere++;
+      }
+    });
+  }
+  const org = new Set(base.relatedLists);
+  const pubRelated = new Set(published.relatedLists.map((r) => r.name));
+  for (const r of org) if (!pubRelated.has(r)) out.related.add(r);
+  for (const r of pubRelated) if (!org.has(r)) out.goneRelated.push(r);
+  return out;
+}
+
 export interface DraftField {
   spec: RecordFieldSpec;
   /** The layout item it belongs to (a compound field's name for its parts). */
@@ -289,6 +367,8 @@ export interface DraftField {
   state: DraftState;
   /** Its column in the layout section (drawn columns skip empty ones). */
   col: number;
+  /** In the org but not on iPads yet, or on iPads but removed in the org (drawn as a ghost that can't be selected). */
+  ahead?: "added" | "removed";
 }
 
 export interface DraftSection {
@@ -301,6 +381,8 @@ export interface DraftSection {
   heading: boolean;
   state: DraftState;
   columns: DraftField[][];
+  /** The section is in the org but not on iPads yet. */
+  ahead?: "added";
   /** Indices (in the org's layout) of the columns left with nothing to draw; a field can still be dropped in them. */
   emptyColumns: number[];
 }
@@ -329,12 +411,21 @@ export function draftSections(
   live: LayoutModel,
   target: LayoutModel,
   aligned: number[],
-  available: LayoutFieldOption[] | null = null
+  available: LayoutFieldOption[] | null = null,
+  extra: { placed?: LayoutFieldOption[] | null; ahead?: LayoutAhead | null } = {}
 ): DraftSection[] {
   const specs = specsByItem(published);
-  // A field added in Draft was never published: it's drawn from the object's describe.
-  for (const f of available ?? []) if (!specs.has(f.field)) specs.set(f.field, [{ name: f.field, label: f.label, type: f.type }]);
+  // A field the cache never drew (added in Draft, or in Setup since the publish) is drawn from the object's describe.
+  for (const f of [...(extra.placed ?? []), ...(available ?? [])]) if (!specs.has(f.field)) specs.set(f.field, [{ name: f.field, label: f.label, type: f.type }]);
+  const ahead = extra.ahead ?? null;
   const pubByKey = new Map(aligned.map((key, i) => [key, published.sections[i]]));
+  // Without an alignment (the org's layout changed since the publish) a section is the published one with its label and place among that label.
+  for (const sec of live.sections) {
+    if (pubByKey.has(sec.key)) continue;
+    const ref = refOf(live, sec);
+    const hit = published.sections.find((p) => p.source?.label === ref.label && p.source.nth === ref.nth);
+    if (hit) pubByKey.set(sec.key, hit);
+  }
   const where = (m: LayoutModel, field: string) => {
     const at = locate(m, field);
     return at && { key: at.sec.key, col: at.col };
@@ -353,8 +444,17 @@ export function draftSections(
     const all = sec.columns
       .map((col, ci) => {
         const liveCol = (liveSec.columns[ci] ?? []).map((i) => i.field);
-        const order = ghost ? liveCol.map((key) => ({ key, ghost: true })) : withGhosts(liveCol, col.map((i) => i.field), removedField);
-        return order.flatMap(({ key: field, ghost: gone }) => {
+        const tray = ghost ? liveCol.map((key) => ({ key, ghost: true })) : withGhosts(liveCol, col.map((i) => i.field), removedField);
+        // Items the cache has in this column that the org's layout no longer does stay as ghosts where they were.
+        const goneHere = ghost ? [] : (ahead?.gone ?? []).filter((g) => g.section.label === liveSec.label && g.section.nth === refOf(live, liveSec).nth && g.column === ci);
+        const goneItems = new Set(goneHere.map((g) => g.item));
+        const order: { key: string; ghost: boolean; orgGone?: boolean }[] = goneHere.length
+          ? withGhosts(goneHere[0].items, tray.map((o) => o.key), (k) => goneItems.has(k)).map(({ key, ghost: g }) =>
+              g ? { key, ghost: true, orgGone: true } : tray.find((o) => o.key === key)!
+            )
+          : tray;
+        return order.flatMap(({ key: field, ghost: gone, orgGone }) => {
+          if (orgGone) return (specs.get(field) ?? []).map((spec): DraftField => ({ spec, item: field, behavior: "Edit", state: "removed", col: ci, ahead: "removed" }));
           const item = (ghost ? liveSec : sec).columns[ci].find((i) => i.field === field) ?? liveSec.columns[ci].find((i) => i.field === field)!;
           const before = where(live, field);
           const liveItem = before && sectionByKey(live, before.key)!.columns[before.col].find((i) => i.field === field);
@@ -364,7 +464,8 @@ export function draftSections(
             before.col !== ci ||
             liveCol.filter((f) => col.some((i) => i.field === f)).indexOf(field) !== col.map((i) => i.field).filter((f) => liveCol.includes(f)).indexOf(field);
           const state: DraftState = gone || ghost ? "removed" : !before ? "added" : moved || liveItem?.behavior !== item.behavior ? "moved" : "same";
-          return (specs.get(field) ?? []).map((spec) => ({ spec, item: field, behavior: item.behavior, state, col: ci }));
+          const aheadField = !gone && !ghost && ahead?.fields.has(field);
+          return (specs.get(field) ?? []).map((spec): DraftField => ({ spec, item: field, behavior: item.behavior, state, col: ci, ...(aheadField ? { ahead: "added" as const } : {}) }));
         });
       });
     const columns = all.filter((c) => c.length);
@@ -381,6 +482,7 @@ export function draftSections(
         name,
         heading: sec.heading,
         state: ghost ? "removed" : moved || sec.heading !== liveSec.heading ? "moved" : "same",
+        ...(!ghost && ahead?.sections.has(key) ? { ahead: "added" as const } : {}),
         columns,
         emptyColumns,
       },
@@ -394,7 +496,9 @@ export function draftSections(
  */
 export function addedRelated(d: LayoutDraft, related: PublishedRelated[], labelOf: (object: string) => string): PublishedRelated[] {
   return d.target.relatedLists.flatMap((name) => {
-    if (d.base.relatedLists.includes(name) || related.some((r) => r.api === name)) return [];
+    // A list the iPads' cache has no card for is drawn empty: one added in Draft, or in Setup since the publish.
+    if (related.some((r) => r.api === name)) return [];
+    if (d.base.relatedLists.includes(name) && !d.ahead?.related.has(name)) return [];
     const object = relatedObject(d, name);
     return [{ key: `added:${name}`, api: name, label: labelOf(object), object, count: 0, columns: [], rows: [] }];
   });
@@ -437,6 +541,8 @@ export interface LayoutDraft {
   /** Sections and related lists drawn on the iPad, in Draft order: verbs move past these only. */
   shownSections: number[];
   shownRelated: string[];
+  /** What the org has that the last publish doesn't (null when the cache can't say). */
+  ahead?: LayoutAhead | null;
 }
 
 export function layoutFix(fullName: string, label: string, ops: LayoutOp[]): LayoutEditFix {

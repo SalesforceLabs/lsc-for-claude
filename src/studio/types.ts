@@ -237,6 +237,8 @@ export interface LiveLayout {
   available: LayoutFieldOption[] | null;
   /** Related lists the layout could show but doesn't: the object's child relationships; null when the object couldn't be described. */
   availableRelated: RelatedListOption[] | null;
+  /** The fields the layout does show, from the describe (label and type), so Draft can draw what was added in Setup since the last publish; null when the object couldn't be described. */
+  placed?: LayoutFieldOption[] | null;
 }
 
 export interface LayoutFieldOption {
