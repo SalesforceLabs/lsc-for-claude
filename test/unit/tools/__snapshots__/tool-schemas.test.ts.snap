@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `125`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `126`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -75,6 +75,7 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_app_describe",
   "studio_app_guide",
   "studio_app_list",
+  "studio_app_nav",
   "studio_app_sample",
   "studio_app_source",
   "studio_app_tab_options",
@@ -1358,6 +1359,19 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
       "type": {
         "optional": false,
         "type": "ZodEnum",
+      },
+    },
+  },
+  {
+    "name": "studio_app_nav",
+    "params": {
+      "profile": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "tabs": {
+        "optional": false,
+        "type": "ZodArray",
       },
     },
   },

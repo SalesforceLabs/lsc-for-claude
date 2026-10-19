@@ -4,6 +4,7 @@ import { z } from "zod";
 import { validateOrgConnection } from "../salesforce/auth.js";
 import { getFeature, listFeatures } from "../studio/features.js";
 import { collectFeatureMap, collectItemDetail, collectProfileOptions } from "../studio/collect.js";
+import { findProfileApp, readLiveApp } from "../studio/metadata/live-app.js";
 import { flexiPageReach, readLiveCompactLayout, readLiveFlexiPage, readLiveLayout, readLiveListView } from "../studio/metadata/live.js";
 import { resolveSetupLinks, type SetupRef } from "../studio/setup-links.js";
 import { collectCatalog } from "../studio/component-catalog.js";
@@ -124,6 +125,13 @@ const flexiPageOpSchema = z.discriminatedUnion("op", [
   }),
 ]);
 const flexiPageName = z.string().regex(/^\w+$/).max(255);
+
+const appName = z.string().regex(/^[\w]+$/).max(255);
+const appOpSchema = z.discriminatedUnion("op", [
+  z.object({ op: z.literal("moveAppTab"), tab: z.string().max(255), before: z.string().max(255).nullable() }),
+  z.object({ op: z.literal("removeAppTab"), tab: z.string().max(255) }),
+  z.object({ op: z.literal("addAppTab"), tab: z.string().max(255), before: z.string().max(255).nullable() }),
+]);
 
 const compactOpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("moveCompactField"), field: z.string(), before: z.string().nullable() }),
@@ -249,8 +257,9 @@ const fixSchema = z.discriminatedUnion("kind", [
       z.object({ type: z.literal("CompactLayout"), fullName: compactLayoutName, label: z.string() }),
       z.object({ type: z.literal("FlexiPage"), fullName: flexiPageName, label: z.string() }),
       z.object({ type: z.literal("ListView"), fullName: listViewName, label: z.string() }),
+      z.object({ type: z.literal("CustomApplication"), fullName: appName, label: z.string() }),
     ]),
-    ops: z.array(z.union([layoutOpSchema, compactOpSchema, flexiPageOpSchema, listViewOpSchema])).max(200),
+    ops: z.array(z.union([layoutOpSchema, compactOpSchema, flexiPageOpSchema, listViewOpSchema, appOpSchema])).max(200),
   }),
   z.object({
     kind: z.literal("copyForProfile"),
@@ -432,10 +441,10 @@ export function register(server: McpServer) {
 
   server.tool(
     "studio_metadata_doc",
-    "LSC Studio (GUI data): a page layout, compact layout, Lightning page or list view as it is in the org now — a layout's sections, fields, related lists and the profiles using it; a compact layout's fields, the fields it could take and the record types using it; a Lightning page's regions, facets and components, the profiles and apps it's assigned in and whether it's managed; a list view's columns, filters, filter scope, who it's shared with and the object's fields — and whether the org is production, for editing it in the iPad preview. Read-only. Returns JSON.",
-    { type: z.enum(["Layout", "CompactLayout", "FlexiPage", "ListView"]), fullName: z.string().max(255) },
+    "LSC Studio (GUI data): a page layout, compact layout, Lightning page or list view as it is in the org now — a layout's sections, fields, related lists and the profiles using it; a compact layout's fields, the fields it could take and the record types using it; a Lightning page's regions, facets and components, the profiles and apps it's assigned in and whether it's managed; a list view's columns, filters, filter scope, who it's shared with and the object's fields; a Lightning app's tab bar (the tabs that can be arranged, the package's fixed ones, the tabs it could take and the profiles that open it) — and whether the org is production, for editing it in the iPad preview. Read-only. Returns JSON.",
+    { type: z.enum(["Layout", "CompactLayout", "FlexiPage", "ListView", "CustomApplication"]), fullName: z.string().max(255) },
     async ({ type, fullName }) => {
-      const name = (type === "Layout" ? layoutName : type === "CompactLayout" ? compactLayoutName : type === "ListView" ? listViewName : flexiPageName).safeParse(fullName);
+      const name = (type === "Layout" ? layoutName : type === "CompactLayout" ? compactLayoutName : type === "ListView" ? listViewName : type === "CustomApplication" ? appName : flexiPageName).safeParse(fullName);
       if (!name.success) return jsonError(`Invalid ${type} name: ${fullName}`);
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
@@ -450,8 +459,27 @@ export function register(server: McpServer) {
               ? await readLiveCompactLayout(fullName, org)
               : type === "ListView"
                 ? await readLiveListView(fullName, org)
-                : await readLiveFlexiPage(fullName, org)
+                : type === "CustomApplication"
+                  ? await readLiveApp(fullName, org)
+                  : await readLiveFlexiPage(fullName, org)
         );
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_app_nav",
+    "LSC Studio (GUI data): which Lightning app a profile's published iPad tab bar comes from, found by lining the tabs the profile's last publish knew of up with the tabs of the apps the profile can open. Returns JSON: `{ app: { fullName, label, installed } }`, or `{ app: null, reason }` when it can't be told (nothing fits, or two fit equally). Read-only.",
+    { profile: z.string().max(255), tabs: z.array(z.string().max(255)).max(500) },
+    async ({ profile, tabs }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await findProfileApp(profile, tabs, connection.targetOrg));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

@@ -122,7 +122,8 @@ interface LscApi {
   ): Promise<StudioResponse>;
   studioItemDetail(kind: string, id: string): Promise<StudioResponse>;
   /** The layout as it is in the org now (sections, fields, related lists, profiles using it, production) — never cached. */
-  studioMetadataDoc(type: "Layout" | "CompactLayout" | "FlexiPage" | "ListView", fullName: string): Promise<StudioResponse>;
+  studioMetadataDoc(type: "Layout" | "CompactLayout" | "FlexiPage" | "ListView" | "CustomApplication", fullName: string): Promise<StudioResponse>;
+  studioAppNav(profile: string, tabs: string[]): Promise<StudioResponse>;
   studioPageReach(fullName: string): Promise<StudioResponse>;
   studioComponentCatalog(pageType: "HomePage" | "RecordPage", sobject: string | null): Promise<StudioResponse>;
   studioComponentProps(component: string, pageType?: "HomePage" | "RecordPage"): Promise<StudioResponse>;

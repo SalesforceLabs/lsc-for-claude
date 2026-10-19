@@ -26,6 +26,7 @@ export type UnpublishedKind =
   | "layout"
   | "compactLayout"
   | "flexiPage"
+  | "app"
   | "recordType"
   | "tab"
   | "listView"
@@ -44,6 +45,8 @@ export interface UnpublishedItem {
   target: string;
   /** Already live on iPads without a publish. */
   live?: boolean;
+  /** What changed, when the server can say (Admin Console records). */
+  summary?: string[];
 }
 
 export interface UnpublishedResult {
@@ -131,7 +134,7 @@ export interface ItemGroup {
 
 const GROUPS: { id: string; title: string; kinds: UnpublishedKind[]; note?: string }[] = [
   { id: "pages", title: "Pages and layouts", kinds: ["layout", "compactLayout", "flexiPage", "recordType"] },
-  { id: "tabs", title: "Tabs", kinds: ["tab", "uiSetting"] },
+  { id: "tabs", title: "Tabs", kinds: ["tab", "uiSetting", "app"] },
   { id: "actions", title: "Actions", kinds: ["action"] },
   { id: "sync", title: "iPad sync", kinds: ["dbSchema"] },
   { id: "settings", title: "App settings", kinds: ["appSetting"] },
@@ -153,6 +156,8 @@ export function kindLabel(kind: UnpublishedKind): string {
       return "Record header";
     case "flexiPage":
       return "Lightning page";
+    case "app":
+      return "App tab bar";
     case "recordType":
       return "Record type";
     case "tab":
@@ -216,6 +221,8 @@ export interface OrgAheadIndex {
   layouts: Map<string, UnpublishedItem>;
   compacts: Map<string, UnpublishedItem>;
   pages: Map<string, UnpublishedItem>;
+  /** Lightning apps by full name, which mark the tab bar. */
+  apps: Map<string, UnpublishedItem>;
   listViews: Map<string, UnpublishedItem>;
   /** Record types by object, which mark the object's record view. */
   recordTypes: Map<string, UnpublishedItem[]>;
@@ -231,6 +238,7 @@ export function buildOrgAhead(items: UnpublishedItem[], tabItemIds: Map<string, 
     layouts: new Map(),
     compacts: new Map(),
     pages: new Map(),
+    apps: new Map(),
     listViews: new Map(),
     recordTypes: new Map(),
     config: new Map(),
@@ -252,6 +260,9 @@ export function buildOrgAhead(items: UnpublishedItem[], tabItemIds: Map<string, 
         break;
       case "listView":
         idx.listViews.set(key, i);
+        break;
+      case "app":
+        idx.apps.set(key, i);
         break;
       case "recordType": {
         const object = i.name.split(".")[0];
@@ -275,6 +286,7 @@ export const orgAheadLayout = (idx: OrgAheadIndex, name: string | null | undefin
 export const orgAheadCompact = (idx: OrgAheadIndex, object: string, name: string | null | undefined) => (name ? idx.compacts.get(norm(`${object}.${name}`)) : undefined);
 export const orgAheadPage = (idx: OrgAheadIndex, name: string | null | undefined) => (name ? idx.pages.get(norm(name)) : undefined);
 export const orgAheadTab = (idx: OrgAheadIndex, fullName: string) => idx.tabs.get(norm(fullName));
+export const orgAheadApp = (idx: OrgAheadIndex, fullName: string | null | undefined) => (fullName ? idx.apps.get(norm(fullName)) : undefined);
 export const orgAheadListView = (idx: OrgAheadIndex, object: string, name: string) => idx.listViews.get(norm(`${object}.${name}`));
 
 /** The changed item behind a selected block, if its document changed in the org. */
@@ -328,6 +340,8 @@ const objectOfLayout = (name: string): string => name.split("-")[0];
 
 export function revealPlan(item: UnpublishedItem, s: PublishedIpad): RevealPlan {
   switch (item.kind) {
+    case "app":
+      return { kind: "preview", tab: s.tabs[0]?.fullName ?? null, record: false, select: null };
     case "tab": {
       const tab = s.tabs.find((t) => norm(t.fullName) === norm(item.name));
       return tab ? { kind: "preview", tab: tab.fullName, record: false, select: { kind: "tab", fullName: tab.fullName, label: tab.label, index: s.tabs.indexOf(tab) } } : null;
