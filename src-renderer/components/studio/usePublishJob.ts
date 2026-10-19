@@ -3,8 +3,10 @@ import type { PublishStatus } from "./types";
 
 const POLL_MS = 5000;
 
-function responseError(res: { data?: unknown; error?: string }): string | undefined {
-  return res.error || (res.data as { error?: string } | undefined)?.error;
+/** The call's own error — not a job's: a failed job carries its `error` beside its `state`. */
+export function responseError(res: { data?: unknown; error?: string }): string | undefined {
+  const data = res.data as { error?: string; state?: string } | undefined;
+  return res.error || (data?.state ? undefined : data?.error);
 }
 
 /** The last publish that finished, kept after the job is cleared so the release bar can say "Published 2 min ago". */

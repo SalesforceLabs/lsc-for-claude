@@ -8,6 +8,7 @@ import {
   profileOrgStep,
   sessionOrgStep,
 } from "../../../src-renderer/components/studio/release-bar-logic.js";
+import { responseError } from "../../../src-renderer/components/studio/usePublishJob.js";
 import type { PendingChange } from "../../../src-renderer/components/studio/changes.js";
 import type { UnpublishedItem, UnpublishedState } from "../../../src-renderer/components/studio/org-ahead.js";
 import type { PublishStatus, StudioFix } from "../../../src-renderer/components/studio/types.js";
@@ -165,5 +166,14 @@ describe("release bar", () => {
     expect(barVisible({ ...none, lastApply: true })).toBe(true);
     expect(barVisible({ ...none, awaiting: 1 })).toBe(true);
     expect(barVisible({ ...none, job: true })).toBe(true);
+  });
+});
+
+describe("publish job", () => {
+  it("tells a failed poll from a failed job", () => {
+    expect(responseError({ error: "Engine not started" })).toBe("Engine not started");
+    expect(responseError({ data: { error: "No access" } })).toBe("No access");
+    // The job failed in Salesforce: that's its state, not a reason to keep polling.
+    expect(responseError({ data: { parentId: "x", state: "failed", status: "Inactive", profiles: [], error: "Unable to read SObject" } })).toBeUndefined();
   });
 });

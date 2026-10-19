@@ -293,7 +293,9 @@ export default function ReleaseBar({
         ) : (
           <Tablet size={14} aria-hidden="true" />
         )}
-        <span className="release-step-label">{ipad.text}</span>
+        <span className="release-step-label" aria-live="polite">
+          {ipad.text}
+        </span>
       </button>
       {ipad.tone === "failed" && job.lastStart && (
         <button type="button" className="studio-btn ghost sm" onClick={() => job.start(job.lastStart!.profiles, job.lastStart!.org)} disabled={job.starting}>
@@ -340,13 +342,26 @@ export default function ReleaseBar({
           <Redo2 size={14} aria-hidden="true" />
         </button>
         {onUndoLastApply && (
-          <button className="studio-btn ghost collapsible" onClick={onUndoLastApply} title="Undo last apply — review the changes that take it back">
+          <button
+            className="studio-btn ghost collapsible"
+            onClick={() => {
+              setOpen(null);
+              onUndoLastApply();
+            }}
+            title="Undo last apply — review the changes that take it back">
             <RotateCcw aria-hidden="true" />
             <span className="studio-btn-label">Undo last apply</span>
           </button>
         )}
         {primary.kind === "review" && (
-          <button className="studio-btn primary" onClick={onReview} disabled={!canReview}>
+          <button
+            className="studio-btn primary"
+            onClick={() => {
+              setOpen(null);
+              onReview();
+            }}
+            disabled={!canReview}
+          >
             Review & apply…
           </button>
         )}
@@ -359,12 +374,7 @@ export default function ReleaseBar({
             </button>
           </>
         )}
-        {primary.kind === "publishing" && (
-          <span className="release-calm" role="status">
-            <Spinner size={12} />
-            <span className="release-step-label">Publishing…</span>
-          </span>
-        )}
+        {/* While publishing, the "On iPads" step says so; there's nothing to offer until it's done. */}
         {primary.kind === "calm" && (
           <span className="release-calm" role="status" title={primary.title}>
             <CircleCheck size={14} aria-hidden="true" />
