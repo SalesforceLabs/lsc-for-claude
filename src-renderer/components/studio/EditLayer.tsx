@@ -116,12 +116,12 @@ export function Anchor({ target, drag, children }: { target: EditTarget; drag: D
   );
 }
 
-/** A selectable block. Lays out as its children (display: contents). */
-export function Mark({ target, drag, children }: { target: EditTarget; drag?: DragSpec; children: React.ReactNode }) {
+/** A selectable block. Lays out as its children (display: contents). `pass` lets the click through as well, so a tab opens as it's selected. */
+export function Mark({ target, drag, pass = false, children }: { target: EditTarget; drag?: DragSpec; pass?: boolean; children: React.ReactNode }) {
   const on = useContext(EditContext);
   if (!on) return <>{children}</>;
   return (
-    <div className="studio-edit-mark" {...editAttrs(true, target, false, drag)}>
+    <div className="studio-edit-mark" {...editAttrs(true, target, pass, drag)}>
       {children}
     </div>
   );

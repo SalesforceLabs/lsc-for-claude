@@ -214,6 +214,7 @@ function RecordBody({ recordId, snapshot, rec }: { recordId: string; snapshot: P
                   ...(t.source ? { source: sourceKey(t.source) } : {}),
                 }}
                 drag={pd ? { family: `recordTabs:${page.name}`, list: "tabs", id: key, ghost: state === "removed", horizontal: true } : undefined}
+                pass
               >
                 {button}
               </Mark>
