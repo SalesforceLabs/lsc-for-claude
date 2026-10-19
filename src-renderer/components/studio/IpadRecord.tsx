@@ -18,7 +18,7 @@ import { LiveInlineLwc } from "./LiveInlineLwc";
 import { CustomIcon, FileIcon, PersonAccountIcon } from "./assets/icons";
 import type { DraftState } from "./edit-draft";
 import { addedRelated, draftRelated } from "./layout-draft";
-import { draftComponents, draftRecordTabs, sourceKey, type DrawnBlock, type PageDraft } from "./flexipage-draft";
+import { draftComponents, draftRecordTabs, isDetailsBlock, sourceKey, type DrawnBlock, type PageDraft } from "./flexipage-draft";
 import type { CompactEntry, LayoutEntry, ListViewEntry, PageEntry } from "./usePreviewEdit";
 
 /** Edit mode's page layouts, compact layouts and Lightning pages, read from the org: Draft draws them as the tray would leave them. */
@@ -253,7 +253,8 @@ function TabContent({
   region: string;
   layout?: string;
 }) {
-  const details = components.filter((c) => c.visibility !== "hidden" && /^(multiEntityRecordView|detailPanel)$/.test(bare(c.name)));
+  // By name, not identity: Draft hands back copies of the published blocks (edit() builds a new object even when nothing changed).
+  const isDetails = isDetailsBlock;
   // In Draft the tray's arrangement, with removed blocks as ghosts and inserted ones drawn as placeholders.
   const pd = usePageDraft(page?.name);
   const drawn = (pd ? draftComponents(pd, components) : asDrawn(components)).filter((d) => d.state === "added" || renderable(d.value, snapshot, rec));
@@ -280,7 +281,7 @@ function TabContent({
     };
     // In Draft the blocks drag within their region or tab; the parts-marked ones still hold their place in the order.
     const drag = pd ? { family: `page:${page.name}`, list: region, id: d.key, ghost: d.state === "removed" } : undefined;
-    if (d.state !== "added" && (details.includes(c) || name === "relatedListContainer"))
+    if (d.state !== "added" && (isDetails(c) || name === "relatedListContainer"))
       return drag ? <Anchor target={target} drag={drag}>{node}</Anchor> : node;
     return (
       <Mark target={target} drag={drag}>
@@ -347,7 +348,7 @@ function TabContent({
 
   function card(c: PublishedComponent, k: number): React.ReactNode {
     const name = bare(c.name);
-    if (details.includes(c)) return <DetailsCard key={k} snapshot={snapshot} rec={rec} />;
+    if (isDetails(c)) return <DetailsCard key={k} snapshot={snapshot} rec={rec} />;
     if (name === "AccountTerritoryFields") return null;
     if (name === "ExpensesListView") return <ExpensesCard rec={rec} />;
     if (/^lscMobileInline_/.test(name)) return <InlineSlot snapshot={snapshot} rec={rec} name={name} height={Number(c.properties.mobileHeight) || 400} />;

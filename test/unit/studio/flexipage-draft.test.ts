@@ -12,6 +12,7 @@ import {
   draftRecordTabs,
   insertComponent,
   insertVerb,
+  isDetailsBlock,
   locateItem,
   modelOf,
   moveComponentTo,
@@ -107,6 +108,31 @@ describe("flexipage-draft", () => {
   it("reads the org's page and diffs nothing when nothing changed", () => {
     expect(base.regions.find((r) => r.name === "main")!.items.map((i) => i.component)).toEqual(["flexipage:tabset"]);
     expect(diffOps(base, targetOf(FULL_NAME, base, []))).toEqual([]);
+  });
+
+  it("with an empty tray Draft draws every block as Published does, and still recognises the details block", () => {
+    const d = draftOf();
+    const lists: PublishedComponent[][] = [];
+    const walk = (cs: PublishedComponent[]) => {
+      lists.push(cs);
+      for (const c of cs) for (const t of c.tabs ?? []) walk(t.components);
+    };
+    walk(published.regions[0].components);
+    let details = 0;
+    for (const list of lists) {
+      const drawn = draftComponents(d, list);
+      expect(drawn.map((b) => b.state)).toEqual(list.map(() => "same"));
+      expect(drawn.map((b) => b.value.name)).toEqual(list.map((c) => c.name));
+      // Draft hands back copies, so the details block can't be found by identity.
+      for (const [i, b] of drawn.entries()) {
+        expect(isDetailsBlock(b.value)).toBe(isDetailsBlock(list[i]));
+        if (isDetailsBlock(list[i])) {
+          details++;
+          expect(b.value).not.toBe(list[i]);
+        }
+      }
+    }
+    expect(details).toBeGreaterThan(0);
   });
 
   it("lines every published block up with the org's page", () => {
