@@ -740,6 +740,10 @@ const rectStyle = (r: DOMRect): React.CSSProperties => ({
   height: r.height,
 });
 
+/** Surfaces narrower than this (Side by side's half-size iPad) get an icon-only toolbar, so it fits on the device. */
+export const COMPACT_TOOLBAR_BELOW = 560;
+export const isCompactToolbar = (surfaceWidth: number): boolean => surfaceWidth > 0 && surfaceWidth < COMPACT_TOOLBAR_BELOW;
+
 /** The floating toolbar above the selection (below it when there's no room). */
 function Toolbar({
   box,
@@ -768,6 +772,7 @@ function Toolbar({
   horizontal?: boolean;
 }) {
   const TOOLBAR_H = 44;
+  const compact = isCompactToolbar(width);
   const above = box.y - clip.y >= TOOLBAR_H + 8;
   const roomBelow = clip.bottom - box.bottom >= TOOLBAR_H + 8;
   // Above the block, else below it, else tucked inside the viewport's top edge.
@@ -775,17 +780,18 @@ function Toolbar({
   const top = above ? box.y - 8 : roomBelow ? box.bottom + 8 : clip.y + 8;
   const right = width > 0 && box.x + box.width / 2 > width / 2;
   const style: React.CSSProperties = {
-    ...(right ? { right: Math.max(4, width - box.right) } : { left: Math.max(4, box.x) }),
+    // A compact toolbar is no wider than the device, wrapping if it must, so it sits at the surface's left edge.
+    ...(compact ? { left: 4 } : right ? { right: Math.max(4, width - box.right) } : { left: Math.max(4, box.x) }),
     top,
   };
   return (
     <div
-      className={`studio-edit-toolbar${below ? " below" : ""}`}
+      className={`studio-edit-toolbar${below ? " below" : ""}${compact ? " compact" : ""}`}
       style={style}
       role="toolbar"
       aria-label={`Edit ${name ?? targetTag(target)}`}
     >
-      <span className="studio-edit-toolbar-name">{name ?? targetTag(target)}</span>
+      {!compact && <span className="studio-edit-toolbar-name">{name ?? targetTag(target)}</span>}
       {verbs.map((v) => {
         const Icon =
           horizontal && v.id === "up"
@@ -793,7 +799,7 @@ function Toolbar({
             : horizontal && v.id === "down"
               ? ArrowRight
               : VERB_ICONS[v.id];
-        const iconOnly = ICON_ONLY.has(v.id);
+        const iconOnly = compact || ICON_ONLY.has(v.id);
         return (
           <button
             key={v.id}
@@ -812,12 +818,13 @@ function Toolbar({
       {setup && onSetup && (
         <button
           type="button"
-          className="studio-btn ghost sm"
+          className={compact ? "ui-icon-btn" : "studio-btn ghost sm"}
           onClick={onSetup}
           title={`Open ${setup.label} in Salesforce Setup`}
+          aria-label="Open in Setup"
         >
           <ExternalLink size={14} aria-hidden />
-          Open in Setup
+          {!compact && "Open in Setup"}
         </button>
       )}
     </div>
