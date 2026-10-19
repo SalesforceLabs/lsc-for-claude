@@ -116,6 +116,20 @@ function probe(fresh: boolean): Promise<CliProbe> {
   return promise;
 }
 
+/**
+ * Keep an `sf org list` that was just run (to validate an org) as the setup probe, so the next tool call doesn't
+ * run it again. Does nothing if it found no orgs.
+ */
+export function primeSetupStatus(orgs: SfOrg[]): void {
+  if (!orgs.length) return;
+  const promise = getSfCliVersion().then((v): CliProbe => ({ cliInstalled: true, cliVersion: v.success ? v.data : undefined, orgs }));
+  const entry = { at: Date.now(), promise };
+  cachedProbe = entry;
+  promise.catch(() => {
+    if (cachedProbe === entry) cachedProbe = undefined;
+  });
+}
+
 /** Forget the cached CLI/org probe so the next check runs `sf org list` again. */
 export function invalidateSetupStatus(): void {
   cachedProbe = undefined;

@@ -47,9 +47,10 @@ const describeCodeText = (updateable: boolean) =>
     data: { name: "LifeScienceCustomScript", label: "Script", fields: [{ name: "CodeText", label: "Code", type: "textarea", required: false, updateable, createable: updateable }] },
   });
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
   org = {};
+  (await import("../../../src/studio/metadata/live.js")).forgetLiveOrg("org");
   vi.mocked(cli.runSoqlQuery).mockImplementation(respond as never);
   vi.mocked(cli.runToolingQuery).mockImplementation(respond as never);
   vi.mocked(cli.apiRequest).mockResolvedValue({ success: true });

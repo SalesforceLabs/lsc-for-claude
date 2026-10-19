@@ -23,6 +23,8 @@ let org: Record<string, Row[]>;
 
 function respond(query: string) {
   const from = /FROM\s+(\w+)/i.exec(query)?.[1] ?? "";
+  // Apps are read over Tooling per app in the org; these tests serve them through the Metadata API retrieve instead.
+  if (from === "CustomApplication") return Promise.resolve({ success: false, error: "not served here" });
   const rows = org[from] ?? [];
   return Promise.resolve({ success: true, data: { totalSize: rows.length, done: true, records: rows } });
 }

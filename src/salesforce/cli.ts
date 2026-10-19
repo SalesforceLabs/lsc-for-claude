@@ -12,7 +12,7 @@ import * as os from "os";
 import { cacheGet, cacheSet, queryCacheKey, describeCacheKey } from "../cache.js";
 import { sfLimiter } from "./limiter.js";
 import { directApiVersion, directEnabled, directGet, directQuery, type DirectCredentials } from "./direct.js";
-import { directDeploy, directRetrieve } from "./direct-metadata.js";
+import { directDelete, directDeploy, directRetrieve } from "./direct-metadata.js";
 import { invalidateSharedReads } from "../config/read-cache.js";
 
 const execAsync = promisify(exec);
@@ -641,6 +641,8 @@ export async function deployMetadata(
  * The component must not be in use (a layout still assigned, a page still activated).
  */
 export async function deleteMetadata(type: string, fullName: string, targetOrg: string): Promise<CliResult<unknown>> {
+  const direct = await asWrite(targetOrg, () => directDelete(type, fullName, targetOrg, directCredentials));
+  if (direct) return direct.ok ? { success: true, data: {} } : { success: false, error: direct.error, timedOut: direct.timedOut };
   const cwd = ensureTmpSfdxProject();
   const dir = path.join(cwd, "destructive", `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
   fs.mkdirSync(dir, { recursive: true });
