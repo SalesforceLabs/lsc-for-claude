@@ -1384,6 +1384,39 @@
   border-radius: var(--radius-xs);
 }
 
+.studio-review-next {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.studio-review-next ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.studio-review-next li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.studio-review-next li svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--text-muted);
+}
+
+.studio-review-body > .studio-review-next {
+  margin-top: var(--space-4);
+}
+
 .studio-review-production-text {
   flex: 1 1 auto;
   min-width: 0;

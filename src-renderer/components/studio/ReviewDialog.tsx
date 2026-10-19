@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { ArrowRight, ChevronRight, X } from "lucide-react";
+import { ArrowRight, ChevronRight, Monitor, RefreshCw, Tablet, X, Zap, type LucideIcon } from "lucide-react";
 import type { FixChange, FixPreview, FixResult } from "./types";
-import { isMobileChange, publishProfiles, type PendingChange } from "./changes";
+import { publishProfiles, type PendingChange } from "./changes";
+import { isPublishWarning, reachFor, whatHappensNext, type NextKind, type NextLine } from "./what-next";
 import { touchesDbSchema } from "./sync-impact-util";
 import ReviewProgress from "./ReviewProgress";
 import { pageReach } from "./BlockInspector";
@@ -139,7 +140,15 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
   const applicable = previews.filter(ready).length;
   // Metadata deploys to a production org take an extra, explicit confirmation.
   const production = previews.some((p) => ready(p) && !!p.production);
-  const mobileApplied = applied.filter((c) => isMobileChange(c.fix));
+  // The footer and the post-apply banner read the same reach, so they never disagree.
+  const reachOf = (c: PendingChange) => {
+    const i = changes.indexOf(c);
+    return reachFor(c, i >= 0 && ready(previews[i]) ? previews[i] : undefined);
+  };
+  const next = whatHappensNext(changes.filter((_, i) => ready(previews[i])).map(reachOf));
+  // This batch only: after an Undo all, the original and its undo aren't two changes reps will get.
+  const nextApplied = whatHappensNext(changes.filter((_, i) => outcomes[i]?.state === "ok").map(reachOf), { done: true });
+  const mobileApplied = applied.filter((c) => reachOf(c).ipad === "publish");
 
   return (
     <div className="studio-modal-backdrop" onClick={close}>
@@ -194,24 +203,18 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
           />
         )}
 
-        {phase.step === "done" && mobileApplied.length > 0 && (
-          <div className="studio-finding info">
-            <div className="studio-finding-title">Applied to the org. Reps get it after you publish.</div>
-            <div className="studio-finding-detail">
-              Publish to iPad regenerates the mobile metadata cache for the affected profiles. The preview lists these changes as not on iPads yet until then.
-            </div>
-          </div>
-        )}
+        {phase.step === "done" && nextApplied.length > 0 && <WhatNext title="Applied to the org" lines={nextApplied} />}
 
         </div>
 
         <div className="studio-review-foot">
+        {phase.step === "review" && next.length > 0 && <WhatNext title="What happens next" lines={next} />}
         {phase.step === "review" && production && (
           <div className="studio-review-production">
             <StatusIcon tone="warning" size={20} />
             <div className="studio-review-production-text">
               <div className="studio-finding-title">This is a production org</div>
-              <div className="studio-finding-detail">These changes are written to the org right away and reach every rep they apply to.</div>
+              <div className="studio-finding-detail">Applying writes to the org at once; real users get each change as listed above.</div>
             </div>
             <label className="ui-check">
               <input type="checkbox" checked={productionOk} onChange={(e) => setProductionOk(e.target.checked)} />
@@ -259,6 +262,28 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
         </div>
       </div>
     </div>
+  );
+}
+
+const NEXT_ICONS: Record<NextKind, LucideIcon> = { desktop: Monitor, publish: Tablet, live: Zap, nextSync: RefreshCw };
+
+/** When each kind of user gets the changes: the review footer, and in past tense the banner after applying. */
+function WhatNext({ title, lines }: { title: string; lines: NextLine[] }) {
+  return (
+    <section className="studio-review-next" aria-label={title}>
+      <h3 className="ui-section-title">{title}</h3>
+      <ul>
+        {lines.map((l) => {
+          const Icon = NEXT_ICONS[l.kind];
+          return (
+            <li key={l.kind}>
+              <Icon size={16} aria-hidden />
+              <span>{l.text}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
@@ -452,8 +477,9 @@ function ChangeCard({
       {!outcome &&
         typeof preview === "object" &&
         preview.warnings.map((w, i) =>
-          // The first warning is the page's reach; when the server didn't work it out, it can be looked up here.
-          i === 0 && preview.reachPage ? (
+          // "Publish afterwards" is said once for every change, in the footer's What happens next.
+          isPublishWarning(w) ? null : i === 0 && preview.reachPage ? (
+            // The first warning is the page's reach; when the server didn't work it out, it can be looked up here.
             <PageReachCheck key={w} fullName={preview.reachPage} warning={w} />
           ) : (
             <div key={w} className="studio-review-warning">
