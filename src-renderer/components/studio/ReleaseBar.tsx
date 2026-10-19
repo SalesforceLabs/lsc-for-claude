@@ -368,7 +368,7 @@ export default function ReleaseBar({
         {primary.kind === "publish" && (
           <>
             {wide && <span className="release-note">· {wide}</span>}
-            <button className="studio-btn primary collapsible" onClick={() => publish(primary.profiles)} title={primary.title}>
+            <button className="studio-btn primary collapsible" onClick={() => publish(primary.profiles)} title={wide ? `${primary.title} (${wide} wait for a publish)` : primary.title}>
               <CloudUpload aria-hidden="true" />
               <span className="studio-btn-label">{primary.label}</span>
             </button>

@@ -179,6 +179,13 @@
   font-size: var(--font-xs);
 }
 
+/* Beside the inspector the steps' words go before anything else: the org-wide note moves into Publish's tooltip. */
+@container (max-width: 1040px) {
+  .release-note {
+    display: none;
+  }
+}
+
 /* Narrow panes: the steps keep their icon and count, buttons with an icon keep only it (label in the tooltip). */
 @container (max-width: 760px) {
   .release-step .release-step-label,
