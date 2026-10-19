@@ -364,15 +364,20 @@ const GENERIC_WORDS = new Set(["related", "list", "account", "object", "id", "re
 
 const singular = (w: string): string => (w.endsWith("ies") ? `${w.slice(0, -3)}y` : w.endsWith("sses") ? w.slice(0, -2) : w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w);
 
+/** Short forms in standard related list names: "RelatedHCPSpecialtyPaList" is HealthcareProviderSpecialty on a person account ("Pa"). */
+const ABBREVIATIONS: Record<string, string[]> = { hcp: ["healthcare", "provider"], pa: [] };
+
 /** "CommSubscriptionConsents" → {comm, subscription, consent}; custom "Inquiry.Account__c" → {inquiry}. */
 function relatedWords(name: string): Set<string> {
   const base = name.replace(/__[a-z]+/gi, "");
   return new Set(
     base
       .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+      .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
       .replace(/[._]/g, " ")
       .toLowerCase()
       .split(/\s+/)
+      .flatMap((w) => ABBREVIATIONS[w] ?? [w])
       .map(singular)
       .filter((w) => w && !GENERIC_WORDS.has(w))
   );

@@ -234,6 +234,15 @@ describe("false positives from real org documents", () => {
     const live = liveLayout([{ label: "Info", fields: ["Name"] }], ["ContactPointAddresses", "RelatedEntityHistoryList"]);
     expect(summarizeLayout(pub, live)).toEqual([]);
   });
+  it("pairs person-account short names (RelatedHCPSpecialtyPaList) with the iPad's object", () => {
+    const pub = pubLayout([{ label: "Info", fields: ["Name"] }]);
+    pub.relatedLists = [
+      { name: "HealthcareProviderSpecialty.AccountId", label: "Healthcare Provider Specialties" },
+      { name: "BusinessLicense.AccountId", label: "Business Licenses" },
+    ] as never;
+    const live = liveLayout([{ label: "Info", fields: ["Name"] }], ["RelatedHCPSpecialtyPaList", "RelatedBusinessLicensePaList"]);
+    expect(summarizeLayout(pub, live)).toEqual([]);
+  });
   it("still reports a related list that really is new", () => {
     const pub = pubLayout([{ label: "Info", fields: ["Name"] }]);
     pub.relatedLists = [{ name: "ContactPointAddress.ParentId", label: "Addresses" }] as never;
