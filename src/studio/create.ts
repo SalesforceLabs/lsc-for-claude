@@ -8,6 +8,7 @@
  * fails, everything created so far is deleted.
  */
 
+import type { FixTracker } from "./fix-progress.js";
 import { createToolingRecord, deleteToolingRecord, updateToolingRecord } from "../salesforce/cli.js";
 import { extractFieldValue, getValueColumn, queryFieldValues } from "../tools/helpers.js";
 import { assertNames, audienceWarnings, display, findConfigRecord, MOBILE_CATEGORIES, PUBLISH_WARNING } from "./change-helpers.js";
@@ -187,7 +188,8 @@ async function contextWarnings(fix: CreateConfigFix, fields: Map<string, Field>,
   return warnings;
 }
 
-export async function previewCreate(fix: CreateConfigFix, org: string): Promise<FixPreview & { plan?: CreatePlan }> {
+export async function previewCreate(fix: CreateConfigFix, org: string, progress?: FixTracker): Promise<FixPreview & { plan?: CreatePlan }> {
+  progress?.begin("read");
   assertNames(fix.category);
   const preview: FixPreview = { org, title: fix.label, changes: [], warnings: [] };
   const block = (blocked: string) => ({ ...preview, blocked });
@@ -246,6 +248,8 @@ export async function previewCreate(fix: CreateConfigFix, org: string): Promise<
   const sets = await resolveNames("PermissionSet", permissionSets ?? [], org);
   if (sets.missing.length) return block(`Permission set not found: ${sets.missing.join(", ")}.`);
 
+  progress?.end("read");
+  progress?.begin("reach");
   const audience = [...new Map([...fix.profiles, ...fieldProfiles].map((n) => [n.toLowerCase(), n])).values()];
   if (!fix.active) {
     preview.warnings.push("Created switched off — nobody sees it until it's activated.");
@@ -269,10 +273,15 @@ export async function previewCreate(fix: CreateConfigFix, org: string): Promise<
   };
 }
 
-export async function applyCreate(fix: CreateConfigFix, org: string): Promise<FixResult> {
-  const preview = await previewCreate(fix, org);
+export async function applyCreate(fix: CreateConfigFix, org: string, progress?: FixTracker): Promise<FixResult> {
+  const preview = await previewCreate(fix, org, progress);
   if (preview.blocked || !preview.plan) return { ok: false, message: preview.blocked || "Nothing to create." };
   const { plan } = preview;
+  progress?.end("reach");
+  progress?.begin("write");
+  const totalWrites = 1 + plan.fields.length + plan.profiles.length + plan.permissionSets.length + (fix.active ? 1 : 0);
+  let writes = 0;
+  const wrote = () => progress?.detail("write", `${++writes} of ${totalWrites} records`);
 
   const created = await createToolingRecord(
     "LifeSciConfigRecord",
@@ -289,10 +298,12 @@ export async function applyCreate(fix: CreateConfigFix, org: string): Promise<Fi
     return { ok: false, message: `Couldn't create ${fix.recordLabel}: ${created.error || "unknown error"}.` };
   }
   const recordId = created.data.id;
+  wrote();
   const children: { sobject: string; id: string }[] = [];
   const fail = async (step: string, error?: string): Promise<FixResult> => {
     for (const c of children.reverse()) await deleteToolingRecord(c.sobject, c.id, org);
     await deleteToolingRecord("LifeSciConfigRecord", recordId, org);
+    progress?.fail("write");
     return { ok: false, message: `Couldn't ${step}: ${error || "unknown error"}. Nothing was created.` };
   };
 
@@ -304,6 +315,7 @@ export async function applyCreate(fix: CreateConfigFix, org: string): Promise<Fi
     );
     if (!res.success || !res.data?.id) return fail(`set ${f.name}`, res.error);
     children.push({ sobject: "LifeSciConfigFieldValue", id: res.data.id });
+    wrote();
   }
   const assignees = [
     ...plan.profiles.map((a) => ({ ...a, level: "Profile" })),
@@ -317,11 +329,14 @@ export async function applyCreate(fix: CreateConfigFix, org: string): Promise<Fi
     );
     if (!res.success || !res.data?.id) return fail(`assign ${a.name}`, res.error);
     children.push({ sobject: "LifeSciConfigAssignment", id: res.data.id });
+    wrote();
   }
   if (fix.active) {
     const res = await updateToolingRecord("LifeSciConfigRecord", recordId, { IsActive: true }, org);
     if (!res.success) return fail("activate it", res.error);
+    wrote();
   }
+  progress?.end("write");
 
   return {
     ok: true,
@@ -338,7 +353,8 @@ export async function applyCreate(fix: CreateConfigFix, org: string): Promise<Fi
 
 // --- Delete (the undo of a create) ---------------------------------------------
 
-export async function previewDelete(fix: DeleteFix, org: string): Promise<FixPreview & { snapshot?: Snapshot }> {
+export async function previewDelete(fix: DeleteFix, org: string, progress?: FixTracker): Promise<FixPreview & { snapshot?: Snapshot }> {
+  progress?.begin("read");
   const preview: FixPreview = {
     org,
     title: fix.label,
@@ -349,7 +365,9 @@ export async function previewDelete(fix: DeleteFix, org: string): Promise<FixPre
   if (!rec) return { ...preview, blocked: "Already deleted. Refresh the map." };
   if (rec.IsOrgLevel) return { ...preview, blocked: "Org-level defaults can't be deleted from Studio." };
   const snap = await snapshot(rec, org);
+  progress?.end("read");
   if (snap.active) {
+    progress?.begin("reach");
     const fieldProfiles = splitList(snap.fields.find((f) => f.name === "Profiles")?.value);
     preview.warnings.push(...(await audienceWarnings([...snap.profiles, ...fieldProfiles], [], org)));
     if (MOBILE_CATEGORIES.has(fix.category)) preview.warnings.push(PUBLISH_WARNING);
@@ -357,10 +375,12 @@ export async function previewDelete(fix: DeleteFix, org: string): Promise<FixPre
   return { ...preview, snapshot: snap };
 }
 
-export async function applyDelete(fix: DeleteFix, org: string): Promise<FixResult> {
-  const preview = await previewDelete(fix, org);
+export async function applyDelete(fix: DeleteFix, org: string, progress?: FixTracker): Promise<FixResult> {
+  const preview = await previewDelete(fix, org, progress);
   if (preview.blocked || !preview.snapshot) return { ok: false, message: preview.blocked || "Nothing to delete." };
   const snap = preview.snapshot;
+  progress?.end("reach");
+  progress?.begin("write");
   const steps = [
     ...snap.fieldValueIds.map((id) => ({ sobject: "LifeSciConfigFieldValue", id })),
     ...snap.assignmentIds.map((id) => ({ sobject: "LifeSciConfigAssignment", id })),
@@ -374,8 +394,10 @@ export async function applyDelete(fix: DeleteFix, org: string): Promise<FixResul
     }
   }
   for (const [i, step] of steps.entries()) {
+    progress?.detail("write", `${i} of ${steps.length} records`);
     const res = await deleteToolingRecord(step.sobject, step.id, org);
     if (!res.success) {
+      progress?.fail("write");
       // Nothing deleted yet: put it back on, as it was.
       if (!i && snap.active) await updateToolingRecord("LifeSciConfigRecord", snap.recordId, { IsActive: true }, org);
       return {
@@ -384,6 +406,7 @@ export async function applyDelete(fix: DeleteFix, org: string): Promise<FixResul
       };
     }
   }
+  progress?.end("write");
   return {
     ok: true,
     message: `Deleted ${fix.recordLabel}.`,

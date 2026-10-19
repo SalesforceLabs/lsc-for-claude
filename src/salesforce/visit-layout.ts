@@ -7,6 +7,7 @@
  * deploying it back.
  */
 
+import type { StatusHook } from "./direct-metadata.js";
 import * as fs from "fs";
 import * as path from "path";
 import { retrieveMetadata } from "./cli.js";
@@ -19,8 +20,8 @@ export type RetrievedLayout =
   | { ok: false; reason: "retrieve" | "noDir" | "noFile"; error?: string };
 
 /** Retrieve a layout's XML into the session's temp SFDX project. */
-export async function retrieveLayoutXml(fullLayoutName: string, org: string): Promise<RetrievedLayout> {
-  const retrieveResult = await retrieveMetadata("", `Layout:${fullLayoutName}`, org);
+export async function retrieveLayoutXml(fullLayoutName: string, org: string, onStatus?: StatusHook): Promise<RetrievedLayout> {
+  const retrieveResult = await retrieveMetadata("", `Layout:${fullLayoutName}`, org, onStatus);
   if (!retrieveResult.success) return { ok: false, reason: "retrieve", error: retrieveResult.error };
 
   const outputDir = (retrieveResult.data as { outputDir: string }).outputDir;

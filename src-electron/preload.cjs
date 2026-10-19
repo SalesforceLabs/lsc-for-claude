@@ -101,9 +101,11 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioIpadPublishedUsers: (profile, search) => ipcRenderer.invoke("studio:call", "studio_ipad_published_users", { profile, search }),
   studioIpadPublishedProgress: (profile) => ipcRenderer.invoke("studio:call", "studio_ipad_published_progress", { profile }),
   // Studio fixes — previewed, then applied only after the user confirms in the UI
-  studioPreviewFix: (fix) => ipcRenderer.invoke("studio:call", "studio_preview_fix", { fix }),
-  studioApplyFix: (fix, expectedOrg) =>
-    ipcRenderer.invoke("studio:call", "studio_apply_fix", { fix, expectedOrg }),
+  studioPreviewFix: (fix, progress) => ipcRenderer.invoke("studio:call", "studio_preview_fix", { fix, ...(progress ? { progress } : {}) }),
+  studioApplyFix: (fix, expectedOrg, progress) =>
+    ipcRenderer.invoke("studio:call", "studio_apply_fix", { fix, expectedOrg, ...(progress ? { progress } : {}) }),
+  // Which step each change of a running preview or apply is on (no org calls, never cached)
+  studioFixProgress: (id) => ipcRenderer.invoke("studio:call", "studio_fix_progress", { id }),
   studioPublishMobile: (profiles, expectedOrg) =>
     ipcRenderer.invoke("studio:call", "studio_publish_mobile", { profiles, expectedOrg }),
   studioPublishStatus: (parentId) => ipcRenderer.invoke("studio:call", "studio_publish_status", { parentId }),

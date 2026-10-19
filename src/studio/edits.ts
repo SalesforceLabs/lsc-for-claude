@@ -32,6 +32,7 @@ import { serializeXml, type XmlNode } from "./metadata/xml.js";
 import { scriptCodeFindings } from "./collect.js";
 import { lineCount, lineDiff } from "./diff.js";
 import { query, type Row } from "./helpers.js";
+import { step, type FixTracker } from "./fix-progress.js";
 import type { CompactLayoutEditFix, CompactOp, FixPreview, FixResult, FlexiPageEditFix, FlexiPageOp, LayoutOp, ListViewOp, StudioFix } from "./types.js";
 
 type ScriptFix = Extract<StudioFix, { kind: "setCustomScriptCode" }>;
@@ -44,7 +45,7 @@ type CopyFix = Extract<StudioFix, { kind: "copyForProfile" }>;
 
 const sizeOf = (code: string) => `${lineCount(code)} lines, ${code.length} characters`;
 
-async function previewSetCustomScriptCode(fix: ScriptFix, org: string): Promise<FixPreview> {
+async function previewSetCustomScriptCode(fix: ScriptFix, org: string, progress?: FixTracker): Promise<FixPreview> {
   assertId(fix.scriptId);
   const preview: FixPreview = {
     org,
@@ -54,7 +55,7 @@ async function previewSetCustomScriptCode(fix: ScriptFix, org: string): Promise<
     ],
     warnings: [],
   };
-  const [row] = await query(`SELECT Id, CodeText FROM LifeScienceCustomScript WHERE Id = '${fix.scriptId}'`, org);
+  const [row] = await step(progress, "read", () => query(`SELECT Id, CodeText FROM LifeScienceCustomScript WHERE Id = '${fix.scriptId}'`, org));
   if (!row) return { ...preview, blocked: `${fix.scriptName} no longer exists.` };
 
   const current = String(row.CodeText ?? "");
@@ -64,7 +65,7 @@ async function previewSetCustomScriptCode(fix: ScriptFix, org: string): Promise<
   }
 
   // The platform can refuse writes to CodeText (it's normally filled by Refresh in the Admin Console).
-  const described = await describeSObject("LifeScienceCustomScript", org);
+  const described = await step(progress, "describe", () => describeSObject("LifeScienceCustomScript", org));
   const field = described.success ? described.data?.fields.find((f) => f.name === "CodeText") : undefined;
   if (field && !field.updateable) {
     return {
@@ -79,15 +80,12 @@ async function previewSetCustomScriptCode(fix: ScriptFix, org: string): Promise<
   return preview;
 }
 
-async function applySetCustomScriptCode(fix: ScriptFix, org: string): Promise<FixResult> {
-  const preview = await previewSetCustomScriptCode(fix, org);
+async function applySetCustomScriptCode(fix: ScriptFix, org: string, progress?: FixTracker): Promise<FixResult> {
+  const preview = await previewSetCustomScriptCode(fix, org, progress);
   if (preview.blocked) return { ok: false, message: preview.blocked };
   // Raw API call: the code can be large and multi-line, which `sf data update record --values` can't carry.
-  const res = await apiRequest<void>(
-    `/services/data/v66.0/sobjects/LifeScienceCustomScript/${fix.scriptId}`,
-    "PATCH",
-    { CodeText: fix.to },
-    org
+  const res = await step(progress, "write", () =>
+    apiRequest<void>(`/services/data/v66.0/sobjects/LifeScienceCustomScript/${fix.scriptId}`, "PATCH", { CodeText: fix.to }, org)
   );
   if (!res.success) return { ok: false, message: res.error || "Couldn't update the script." };
   return {
@@ -113,7 +111,8 @@ export const isRuleFix = (fix: Extract<StudioFix, { kind: "setActive" }>): fix i
 
 export async function previewRuleActive(
   fix: RuleFix,
-  org: string
+  org: string,
+  progress?: FixTracker
 ): Promise<FixPreview & { metadata?: Record<string, unknown>; id?: string }> {
   const onOff = (v: boolean) => (v ? "Active" : "Inactive");
   const preview: FixPreview = {
@@ -122,7 +121,7 @@ export async function previewRuleActive(
     changes: [{ target: fix.record.label, field: "Status", before: onOff(fix.from), after: onOff(fix.to) }],
     warnings: [],
   };
-  const row = await findRule(fix.record.id, org);
+  const row = await step(progress, "read", () => findRule(fix.record.id, org));
   if (!row) return { ...preview, blocked: `${fix.record.label} no longer exists.` };
   if (!!row.Active === fix.to) return { ...preview, blocked: `Already ${onOff(fix.to).toLowerCase()}. Refresh the map.` };
 
@@ -137,12 +136,13 @@ export async function previewRuleActive(
   return { ...preview, metadata: (row.Metadata ?? {}) as Record<string, unknown>, id: String(row.Id) };
 }
 
-export async function applyRuleActive(fix: RuleFix, org: string): Promise<FixResult> {
-  const preview = await previewRuleActive(fix, org);
+export async function applyRuleActive(fix: RuleFix, org: string, progress?: FixTracker): Promise<FixResult> {
+  const preview = await previewRuleActive(fix, org, progress);
   if (preview.blocked || !preview.metadata || !preview.id) return { ok: false, message: preview.blocked || "Nothing to update." };
   // A Tooling API update must carry the rule's whole Metadata, so send what was just read with `active` changed.
   const metadata = Object.fromEntries(Object.entries({ ...preview.metadata, active: fix.to }).filter(([, v]) => v !== null));
-  const res = await updateToolingRecord("ValidationRule", preview.id, { Metadata: metadata }, org);
+  const ruleId = preview.id;
+  const res = await step(progress, "write", () => updateToolingRecord("ValidationRule", ruleId, { Metadata: metadata }, org));
   if (!res.success) return { ok: false, message: res.error || "Couldn't update the validation rule." };
   return {
     ok: true,
@@ -172,12 +172,14 @@ async function dbSchemaWarning(objectName: string, org: string): Promise<string 
 
 async function previewSetLayoutRelatedList(
   fix: LayoutFix,
-  org: string
+  org: string,
+  progress?: FixTracker
 ): Promise<FixPreview & { layout?: Extract<RetrievedLayout, { ok: true }> }> {
   assertNames(fix.relationshipName, fix.objectName);
   const preview: FixPreview = { org, title: fix.label, changes: [], warnings: [] };
 
-  const layout = await retrieveLayoutXml(fix.layoutName, org);
+  const layout = await step(progress, "retrieve", () => retrieveLayoutXml(fix.layoutName, org, progress?.statusHook("retrieve")));
+  progress?.begin("diff");
   if (!layout.ok) {
     return { ...preview, blocked: `Couldn't retrieve ${fix.layoutLabel}${layout.error ? `: ${layout.error}` : ". It may no longer exist."}` };
   }
@@ -219,15 +221,16 @@ async function previewSetLayoutRelatedList(
     if (dbWarning) preview.warnings.push(dbWarning);
   }
   preview.warnings.push(PUBLISH_WARNING);
+  progress?.end("diff");
   return { ...preview, layout };
 }
 
-async function applySetLayoutRelatedList(fix: LayoutFix, org: string): Promise<FixResult> {
-  const preview = await previewSetLayoutRelatedList(fix, org);
+async function applySetLayoutRelatedList(fix: LayoutFix, org: string, progress?: FixTracker): Promise<FixResult> {
+  const preview = await previewSetLayoutRelatedList(fix, org, progress);
   if (preview.blocked || !preview.layout) return { ok: false, message: preview.blocked || "Nothing to update." };
   const { layout } = preview;
   writeLayoutXml(layout, fix.add ? insertRelatedList(layout.xml, fix.relationshipName) : removeRelatedList(layout.xml, fix.relationshipName));
-  const deployed = await deployMetadata(layoutDeployPath(layout), org);
+  const deployed = await step(progress, "deploy", () => deployMetadata(layoutDeployPath(layout), org, progress?.statusHook("deploy")));
   if (!deployed.success) {
     return { ok: false, message: `Deploying ${fix.layoutLabel} failed: ${deployed.error || "unknown error"}. Nothing was changed.` };
   }
@@ -287,12 +290,13 @@ interface MetadataPlan {
 
 const FLEXIPAGE_OPS = new Set(["moveComponent", "removeComponent", "addComponent", "setComponentProperty"]);
 
-async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string): Promise<MetadataPlan> {
+async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string, progress?: FixTracker): Promise<MetadataPlan> {
+  progress?.begin("diff");
   if (fix.ops.some((op) => FLEXIPAGE_OPS.has(op.op) !== (fix.doc.type === "FlexiPage") || LISTVIEW_OPS.has(op.op) !== (fix.doc.type === "ListView"))) {
     throw new Error(`These changes aren't ${fix.doc.type} edits.`);
   }
-  if (fix.doc.type === "ListView") return planEditListView(fix, doc, org);
-  if (fix.doc.type === "FlexiPage") return planEditFlexiPage(fix, doc, org);
+  if (fix.doc.type === "ListView") return planEditListView(fix, doc, org, progress);
+  if (fix.doc.type === "FlexiPage") return planEditFlexiPage(fix, doc, org, progress);
   const preview: FixPreview = { org, title: fix.label, changes: [], warnings: [] };
   if (!fix.ops.length) return { preview: { ...preview, blocked: "Nothing to change." } };
   let result: ReturnType<typeof applyFixOps>;
@@ -307,6 +311,7 @@ async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string)
   if (!diff.length) return { preview: { ...preview, blocked: `${fix.doc.label} already looks like this. Refresh the preview.` } };
   preview.changes = result.changes.map((c) => ({ target: fix.doc.label, ...c }));
   preview.changes[preview.changes.length - 1].diff = diff;
+  progress?.end("diff");
 
   if (fix.doc.type === "Layout" && fix.doc.fullName.startsWith("Visit-")) {
     const [before, now] = [relatedListCount(doc.root), relatedListCount(result.root)];
@@ -321,8 +326,8 @@ async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string)
   }
 
   const [reach, production, ...dbWarnings] = await Promise.all([
-    isCompactFix(fix) ? compactReach(fix, org) : layoutReach(fix, org),
-    isProductionOrg(org),
+    step(progress, "reach", () => (isCompactFix(fix) ? compactReach(fix, org) : layoutReach(fix, org))),
+    step(progress, "production", () => isProductionOrg(org)),
     ...(fix.ops as (LayoutOp | CompactOp)[]).flatMap((op) =>
       op.op === "addRelatedList" && op.object && !op.xml ? [dbSchemaWarning(op.object, org)] : []
     ),
@@ -350,7 +355,7 @@ async function flexiPageReachWarning(fix: MetadataFix, org: string): Promise<str
   return `Deploys ${fix.doc.label} to the org — it's ${parts.join(" and ")}, and everyone who gets it gets the change.`;
 }
 
-async function planEditFlexiPage(fix: MetadataFix, doc: MetadataDoc, org: string): Promise<MetadataPlan> {
+async function planEditFlexiPage(fix: MetadataFix, doc: MetadataDoc, org: string, progress?: FixTracker): Promise<MetadataPlan> {
   const preview: FixPreview = { org, title: fix.label, changes: [], warnings: [] };
   if (!fix.ops.length) return { preview: { ...preview, blocked: "Nothing to change." } };
   const ops = fix.ops as FlexiPageOp[];
@@ -365,11 +370,12 @@ async function planEditFlexiPage(fix: MetadataFix, doc: MetadataDoc, org: string
   if (!diff.length) return { preview: { ...preview, blocked: `${fix.doc.label} already looks like this. Refresh the preview.` } };
   preview.changes = result.changes.map((c) => ({ target: fix.doc.label, ...c }));
   preview.changes[preview.changes.length - 1].diff = diff;
+  progress?.end("diff");
 
   const [managed, reach, production] = await Promise.all([
     isManagedFlexiPage(fix.doc.fullName, org),
-    flexiPageReachWarning(fix, org),
-    isProductionOrg(org),
+    step(progress, "reach", () => flexiPageReachWarning(fix, org)),
+    step(progress, "production", () => isProductionOrg(org)),
   ]);
   if (managed) {
     return {
@@ -408,7 +414,7 @@ function listViewReach(label: string, sharedTo: { kind: string; name: string }[]
   return `Deploys ${label} to the org - it's shared with ${shown.join(", ")}${more}, and everyone it's shared with gets the change.`;
 }
 
-async function planEditListView(fix: MetadataFix, doc: MetadataDoc, org: string): Promise<MetadataPlan> {
+async function planEditListView(fix: MetadataFix, doc: MetadataDoc, org: string, progress?: FixTracker): Promise<MetadataPlan> {
   const preview: FixPreview = { org, title: fix.label, changes: [], warnings: [] };
   if (!fix.ops.length) return { preview: { ...preview, blocked: "Nothing to change." } };
   const live = liveListViewOf(fix.doc.fullName, doc.root);
@@ -428,33 +434,47 @@ async function planEditListView(fix: MetadataFix, doc: MetadataDoc, org: string)
   if (!diff.length) return { preview: { ...preview, blocked: `${fix.doc.label} already looks like this. Refresh the preview.` } };
   preview.changes = result.changes.map((c) => ({ target: fix.doc.label, ...c }));
   preview.changes[preview.changes.length - 1].diff = diff;
+  progress?.end("diff");
   preview.warnings.push(listViewReach(fix.doc.label, live.sharedTo));
   // The iPad lists an object's views live, so reps see a deployed change without a metadata cache publish.
   preview.warnings.push("The iPad reads list views from the org when a rep opens the list, so no publish to iPad is needed.");
-  if (await isProductionOrg(org)) preview.production = true;
+  if (await step(progress, "production", () => isProductionOrg(org))) preview.production = true;
   return { preview, root: result.root, inverse: result.inverse };
 }
 
-async function previewEditMetadata(fix: MetadataFix, org: string): Promise<FixPreview> {
+async function previewEditMetadata(fix: MetadataFix, org: string, progress?: FixTracker): Promise<FixPreview> {
   const title = fix.label;
   try {
     if (isCompactFix(fix)) splitCompactName(fix.doc.fullName);
     if (fix.doc.type === "ListView") splitListViewName(fix.doc.fullName);
-    return await withDoc(fix.doc.type, fix.doc.fullName, org, async (doc) => (await planEditMetadata(fix, doc, org)).preview);
+    progress?.begin("retrieve");
+    return await withDoc(
+      fix.doc.type,
+      fix.doc.fullName,
+      org,
+      async (doc) => {
+        progress?.end("retrieve");
+        return (await planEditMetadata(fix, doc, org, progress)).preview;
+      },
+      progress?.statusHook("retrieve")
+    );
   } catch (e) {
+    progress?.fail("retrieve");
     return { org, title, changes: [], warnings: [], blocked: e instanceof Error ? e.message : String(e) };
   }
 }
 
-async function applyEditMetadata(fix: MetadataFix, org: string): Promise<FixResult> {
+async function applyEditMetadata(fix: MetadataFix, org: string, progress?: FixTracker): Promise<FixResult> {
   try {
     if (isCompactFix(fix)) splitCompactName(fix.doc.fullName);
     if (fix.doc.type === "ListView") splitListViewName(fix.doc.fullName);
+    progress?.begin("retrieve");
     return await withDoc(fix.doc.type, fix.doc.fullName, org, async (doc) => {
-      const { preview, root, inverse } = await planEditMetadata(fix, doc, org);
+      progress?.end("retrieve");
+      const { preview, root, inverse } = await planEditMetadata(fix, doc, org, progress);
       if (preview.blocked || !root || !inverse) return { ok: false, message: preview.blocked || "Nothing to update." };
       try {
-        await deployDoc(doc, root, org);
+        await step(progress, "deploy", () => deployDoc(doc, root, org, progress?.statusHook("deploy")));
       } catch (e) {
         return { ok: false, message: `${e instanceof Error ? e.message : String(e)}. Nothing was changed.` };
       }
@@ -463,8 +483,9 @@ async function applyEditMetadata(fix: MetadataFix, org: string): Promise<FixResu
         message: `Updated ${fix.doc.label}.`,
         undo: { kind: "editMetadata", label: `Undo: ${fix.label}`, doc: fix.doc, ops: inverse } as MetadataFix,
       };
-    });
+    }, progress?.statusHook("retrieve"));
   } catch (e) {
+    progress?.fail("retrieve");
     return { ok: false, message: e instanceof Error ? e.message : String(e) };
   }
 }
@@ -483,36 +504,36 @@ export function isEditFix(fix: StudioFix): fix is EditFix {
   );
 }
 
-export async function previewEdit(fix: EditFix, org: string): Promise<FixPreview> {
+export async function previewEdit(fix: EditFix, org: string, progress?: FixTracker): Promise<FixPreview> {
   switch (fix.kind) {
     case "setCustomScriptCode":
-      return previewSetCustomScriptCode(fix, org);
+      return previewSetCustomScriptCode(fix, org, progress);
     case "setLayoutRelatedList": {
-      const { layout: _layout, ...preview } = await previewSetLayoutRelatedList(fix, org);
+      const { layout: _layout, ...preview } = await previewSetLayoutRelatedList(fix, org, progress);
       return preview;
     }
     case "setActive": {
-      const { metadata: _metadata, id: _id, ...preview } = await previewRuleActive(fix, org);
+      const { metadata: _metadata, id: _id, ...preview } = await previewRuleActive(fix, org, progress);
       return preview;
     }
     case "editMetadata":
-      return previewEditMetadata(fix, org);
+      return previewEditMetadata(fix, org, progress);
     case "copyForProfile":
-      return previewCopy(fix, org);
+      return previewCopy(fix, org, progress);
   }
 }
 
-export async function applyEdit(fix: EditFix, org: string): Promise<FixResult> {
+export async function applyEdit(fix: EditFix, org: string, progress?: FixTracker): Promise<FixResult> {
   switch (fix.kind) {
     case "setCustomScriptCode":
-      return applySetCustomScriptCode(fix, org);
+      return applySetCustomScriptCode(fix, org, progress);
     case "setLayoutRelatedList":
-      return applySetLayoutRelatedList(fix, org);
+      return applySetLayoutRelatedList(fix, org, progress);
     case "setActive":
-      return applyRuleActive(fix, org);
+      return applyRuleActive(fix, org, progress);
     case "editMetadata":
-      return applyEditMetadata(fix, org);
+      return applyEditMetadata(fix, org, progress);
     case "copyForProfile":
-      return applyCopy(fix, org);
+      return applyCopy(fix, org, progress);
   }
 }

@@ -101,6 +101,32 @@ export class FixTracker {
     }
   }
 
+  /** For a stretch of code with early returns: mark a step running now, and done with `end`. Safe to call twice. */
+  begin(key: string): void {
+    const step = this.find(key);
+    if (step && step.state === "waiting") {
+      step.state = "running";
+      step.startedAt = Date.now();
+    }
+  }
+
+  end(key: string): void {
+    const step = this.find(key);
+    if (step && step.state === "running") {
+      step.state = "done";
+      step.endedAt = Date.now();
+    }
+  }
+
+  /** Mark a step failed (for code that used `begin`). */
+  fail(key: string): void {
+    const step = this.find(key);
+    if (step && step.state === "running") {
+      step.state = "failed";
+      step.endedAt = Date.now();
+    }
+  }
+
   /** Say how far a step is ("2 of 3 profiles"). */
   detail(key: string, text: string | undefined): void {
     const step = this.find(key);
@@ -115,6 +141,8 @@ export class FixTracker {
   /** The change returned: steps it skipped drop out, and the batch ends with its last change. */
   finish(): void {
     const c = this.change;
+    // A step left running by an early return ended with the change.
+    for (const s of c.steps) if (s.state === "running") this.end(s.key);
     c.steps = c.steps.filter((s) => s.state !== "waiting");
     c.finishedAt = Date.now();
     const all = this.batch.changes;

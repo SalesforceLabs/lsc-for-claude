@@ -7,6 +7,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { deployMetadata, retrieveMetadata } from "../../salesforce/cli.js";
+import type { StatusHook } from "../../salesforce/direct-metadata.js";
 import { parseXml, serializeXml, type XmlNode } from "./xml.js";
 
 export type MetadataDocType = "Layout" | "CompactLayout" | "FlexiPage" | "Profile" | "ListView";
@@ -42,8 +43,8 @@ function findFile(dir: string, suffix: string): string | undefined {
 }
 
 /** Retrieve one document. Throws with the CLI's message when it can't. */
-export async function retrieveDoc(type: MetadataDocType, fullName: string, org: string): Promise<MetadataDoc> {
-  const result = await retrieveMetadata("", `${type}:${fullName}`, org);
+export async function retrieveDoc(type: MetadataDocType, fullName: string, org: string, onStatus?: StatusHook): Promise<MetadataDoc> {
+  const result = await retrieveMetadata("", `${type}:${fullName}`, org, onStatus);
   if (!result.success || !result.data) throw new Error(`Couldn't retrieve ${fullName}: ${result.error ?? "unknown error"}`);
   const { outputDir } = result.data;
   // A compact layout comes with its object's file; only the compact layout is ours.
@@ -60,11 +61,12 @@ export async function retrieveDoc(type: MetadataDocType, fullName: string, org: 
  * Retrieve several documents of different types in one call (one of each type); they share one retrieve folder (removed by `discardDoc` on any of them).
  * A profile comes with its layout assignments only for the layouts retrieved beside it.
  */
-export async function retrieveDocs(entries: { type: MetadataDocType; fullName: string }[], org: string): Promise<MetadataDoc[]> {
+export async function retrieveDocs(entries: { type: MetadataDocType; fullName: string }[], org: string, onStatus?: StatusHook): Promise<MetadataDoc[]> {
   const result = await retrieveMetadata(
     "",
     entries.map((e) => `${e.type}:${e.fullName}`),
-    org
+    org,
+    onStatus
   );
   if (!result.success || !result.data) throw new Error(`Couldn't retrieve ${entries.map((e) => e.fullName).join(", ")}: ${result.error ?? "unknown error"}`);
   const { outputDir } = result.data;
@@ -82,9 +84,9 @@ export async function retrieveDocs(entries: { type: MetadataDocType; fullName: s
 }
 
 /** Write `root` over the retrieved file and deploy that file alone. */
-export async function deployDoc(doc: MetadataDoc, root: XmlNode, org: string): Promise<void> {
+export async function deployDoc(doc: MetadataDoc, root: XmlNode, org: string, onStatus?: StatusHook): Promise<void> {
   fs.writeFileSync(doc.filePath, serializeXml(root), "utf-8");
-  const result = await deployMetadata(doc.filePath, org);
+  const result = await deployMetadata(doc.filePath, org, onStatus);
   if (!result.success) throw new Error(`Couldn't deploy ${doc.fullName}: ${result.error ?? "unknown error"}`);
 }
 
@@ -105,9 +107,10 @@ export async function withDoc<T>(
   type: MetadataDocType,
   fullName: string,
   org: string,
-  fn: (doc: MetadataDoc) => Promise<T>
+  fn: (doc: MetadataDoc) => Promise<T>,
+  onStatus?: StatusHook
 ): Promise<T> {
-  const doc = await retrieveDoc(type, fullName, org);
+  const doc = await retrieveDoc(type, fullName, org, onStatus);
   try {
     return await fn(doc);
   } finally {

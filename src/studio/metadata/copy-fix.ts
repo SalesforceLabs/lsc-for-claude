@@ -19,6 +19,7 @@ import { lineDiff } from "../diff.js";
 import { query } from "../helpers.js";
 import type { CopyForProfileFix, CopyMove, FixPreview, FixResult, FlexiPageOp, LayoutOp } from "../types.js";
 import { discardDoc, retrieveDocs, withDoc, type MetadataDoc } from "./doc.js";
+import type { FixTracker } from "../fix-progress.js";
 import {
   isFlexiPageName,
   layoutAssignmentFile,
@@ -52,8 +53,9 @@ function appFiles(dir: string): string[] {
 }
 
 /** Every CustomApplication of the org, retrieved into a folder that is removed afterwards. */
-async function withApps<T>(org: string, fn: (apps: AppFile[]) => Promise<T>): Promise<T> {
-  const result = await retrieveMetadata("", "CustomApplication", org);
+async function withApps<T>(org: string, fn: (apps: AppFile[]) => Promise<T>, progress?: FixTracker): Promise<T> {
+  progress?.begin("apps");
+  const result = await retrieveMetadata("", "CustomApplication", org, progress?.statusHook("apps"));
   if (!result.success || !result.data) throw new Error(`Couldn't retrieve the apps: ${result.error ?? "unknown error"}`);
   const { outputDir } = result.data;
   try {
@@ -61,6 +63,7 @@ async function withApps<T>(org: string, fn: (apps: AppFile[]) => Promise<T>): Pr
       const xml = fs.readFileSync(filePath, "utf-8");
       return { name: path.basename(filePath).replace(/\.app-meta\.xml$/, ""), filePath, xml, root: parseXml(xml) };
     });
+    progress?.end("apps");
     return await fn(apps);
   } finally {
     fs.rmSync(outputDir, { recursive: true, force: true });
@@ -178,15 +181,18 @@ async function planLayoutRevert(fix: CopyForProfileFix, org: string, profile: Me
   };
 }
 
-async function withLayoutDocs<T>(fix: CopyForProfileFix, org: string, fn: (layout: MetadataDoc, profile: MetadataDoc) => Promise<T>): Promise<T> {
+async function withLayoutDocs<T>(fix: CopyForProfileFix, org: string, fn: (layout: MetadataDoc, profile: MetadataDoc) => Promise<T>, progress?: FixTracker): Promise<T> {
+  progress?.begin("retrieve");
   const layoutName = fix.revert ? fix.copy.fullName : fix.doc.fullName;
   const [layout, profile] = await retrieveDocs(
     [
       { type: "Layout", fullName: layoutName },
       { type: "Profile", fullName: profileFullName(fix.profile) },
     ],
-    org
+    org,
+    progress?.statusHook("retrieve")
   );
+  progress?.end("retrieve");
   try {
     return await fn(layout, profile);
   } finally {
@@ -275,20 +281,42 @@ async function planPage(fix: CopyForProfileFix, org: string, page: MetadataDoc |
 
 // --- Preview and apply ------------------------------------------------------------------------------
 
-async function plan(fix: CopyForProfileFix, org: string): Promise<Plan> {
+/** Plan one step of "diff" bookkeeping around a planner. */
+async function planning<T>(progress: FixTracker | undefined, fn: () => Promise<T>): Promise<T> {
+  progress?.begin("diff");
+  const result = await fn();
+  progress?.end("diff");
+  return result;
+}
+
+async function plan(fix: CopyForProfileFix, org: string, progress?: FixTracker): Promise<Plan> {
   const invalid = validate(fix);
   if (invalid) return blocked(base(fix, org), invalid);
   if (fix.doc.type === "Layout") {
-    return withLayoutDocs(fix, org, (layout, profile) => (fix.revert ? planLayoutRevert(fix, org, profile) : planLayoutCreate(fix, org, layout, profile)));
+    return withLayoutDocs(
+      fix,
+      org,
+      (layout, profile) => planning(progress, () => (fix.revert ? planLayoutRevert(fix, org, profile) : planLayoutCreate(fix, org, layout, profile))),
+      progress
+    );
   }
-  return fix.revert
-    ? withApps(org, (apps) => planPage(fix, org, null, apps))
-    : withDoc("FlexiPage", fix.doc.fullName, org, (page) => withApps(org, (apps) => planPage(fix, org, page, apps)));
+  if (fix.revert) return withApps(org, (apps) => planning(progress, () => planPage(fix, org, null, apps)), progress);
+  progress?.begin("retrieve");
+  return withDoc(
+    "FlexiPage",
+    fix.doc.fullName,
+    org,
+    (page) => {
+      progress?.end("retrieve");
+      return withApps(org, (apps) => planning(progress, () => planPage(fix, org, page, apps)), progress);
+    },
+    progress?.statusHook("retrieve")
+  );
 }
 
-export async function previewCopy(fix: CopyForProfileFix, org: string): Promise<FixPreview> {
+export async function previewCopy(fix: CopyForProfileFix, org: string, progress?: FixTracker): Promise<FixPreview> {
   try {
-    return (await plan(fix, org)).preview;
+    return (await plan(fix, org, progress)).preview;
   } catch (e) {
     return { ...base(fix, org), blocked: e instanceof Error ? e.message : String(e) };
   }
@@ -297,23 +325,40 @@ export async function previewCopy(fix: CopyForProfileFix, org: string): Promise<
 const errorOf = (r: { error?: string }) => r.error || "unknown error";
 
 /** Create the copy and point the profile at it (or, for an undo, the reverse). Plans inside the retrieve, so the files it deploys are still there. */
-export async function applyCopy(fix: CopyForProfileFix, org: string): Promise<FixResult> {
+export async function applyCopy(fix: CopyForProfileFix, org: string, progress?: FixTracker): Promise<FixResult> {
   try {
     const invalid = validate(fix);
     if (invalid) return { ok: false, message: invalid };
     const run = async (p: Plan): Promise<FixResult> => {
       if (p.preview.blocked || !p.moves) return { ok: false, message: p.preview.blocked || "Nothing to update." };
-      const result = fix.revert ? await revert(fix, p, org) : await create(fix, p, org);
+      progress?.begin("deploy");
+      const result = fix.revert ? await revert(fix, p, org, progress) : await create(fix, p, org, progress);
+      if (result.ok) progress?.end("deploy");
+      else progress?.fail("deploy");
       assignmentsCache.delete(org);
       return result;
     };
     if (fix.doc.type === "Layout") {
-      return await withLayoutDocs(fix, org, async (layout, profile) =>
-        run(fix.revert ? await planLayoutRevert(fix, org, profile) : await planLayoutCreate(fix, org, layout, profile))
+      return await withLayoutDocs(
+        fix,
+        org,
+        async (layout, profile) =>
+          run(await planning(progress, () => (fix.revert ? planLayoutRevert(fix, org, profile) : planLayoutCreate(fix, org, layout, profile)))),
+        progress
       );
     }
-    if (fix.revert) return await withApps(org, async (apps) => run(await planPage(fix, org, null, apps)));
-    return await withDoc("FlexiPage", fix.doc.fullName, org, (page) => withApps(org, async (apps) => run(await planPage(fix, org, page, apps))));
+    if (fix.revert) return await withApps(org, async (apps) => run(await planning(progress, () => planPage(fix, org, null, apps))), progress);
+    progress?.begin("retrieve");
+    return await withDoc(
+      "FlexiPage",
+      fix.doc.fullName,
+      org,
+      (page) => {
+        progress?.end("retrieve");
+        return withApps(org, async (apps) => run(await planning(progress, () => planPage(fix, org, page, apps))), progress);
+      },
+      progress?.statusHook("retrieve")
+    );
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : String(e) };
   }
@@ -329,14 +374,15 @@ async function deleteCopy(fix: CopyForProfileFix, org: string): Promise<string |
   return res.success ? null : errorOf(res);
 }
 
-async function create(fix: CopyForProfileFix, p: Plan, org: string): Promise<FixResult> {
+async function create(fix: CopyForProfileFix, p: Plan, org: string, progress?: FixTracker): Promise<FixResult> {
+  const onStatus = progress?.statusHook("deploy");
   const moves = p.moves!;
   if (p.layout) {
     fs.writeFileSync(p.layout.copyPath, p.layout.copyXml, "utf-8");
-    const made = await deployMetadata(p.layout.copyPath, org);
+    const made = await deployMetadata(p.layout.copyPath, org, onStatus);
     if (!made.success) return { ok: false, message: `Couldn't create ${fix.copy.label}: ${errorOf(made)}. Nothing was changed.` };
     fs.writeFileSync(p.layout.profilePath, p.layout.profileXml, "utf-8");
-    const moved = await deployMetadata(p.layout.profilePath, org);
+    const moved = await deployMetadata(p.layout.profilePath, org, onStatus);
     if (!moved.success) {
       const left = await deleteCopy(fix, org);
       return {
@@ -347,12 +393,12 @@ async function create(fix: CopyForProfileFix, p: Plan, org: string): Promise<Fix
   } else {
     const page = p.page!;
     fs.writeFileSync(page.copyPath, page.copyXml, "utf-8");
-    const made = await deployMetadata(page.copyPath, org);
+    const made = await deployMetadata(page.copyPath, org, onStatus);
     if (!made.success) return { ok: false, message: `Couldn't create ${fix.copy.label}: ${errorOf(made)}. Nothing was changed.` };
     const done: { file: AppFile; xml: string }[] = [];
     for (const app of page.apps) {
       fs.writeFileSync(app.file.filePath, app.xml, "utf-8");
-      const moved = await deployMetadata(app.file.filePath, org);
+      const moved = await deployMetadata(app.file.filePath, org, onStatus);
       if (moved.success) {
         done.push(app);
         continue;
@@ -361,7 +407,7 @@ async function create(fix: CopyForProfileFix, p: Plan, org: string): Promise<Fix
       const stuck: string[] = [];
       for (const d of done) {
         fs.writeFileSync(d.file.filePath, d.file.xml, "utf-8");
-        if (!(await deployMetadata(d.file.filePath, org)).success) stuck.push(d.file.name);
+        if (!(await deployMetadata(d.file.filePath, org, onStatus)).success) stuck.push(d.file.name);
       }
       const left = stuck.length ? "still points at the copy in " + stuck.join(", ") : await deleteCopy(fix, org);
       return {
@@ -377,16 +423,17 @@ async function create(fix: CopyForProfileFix, p: Plan, org: string): Promise<Fix
   };
 }
 
-async function revert(fix: CopyForProfileFix, p: Plan, org: string): Promise<FixResult> {
+async function revert(fix: CopyForProfileFix, p: Plan, org: string, progress?: FixTracker): Promise<FixResult> {
+  const onStatus = progress?.statusHook("deploy");
   const moves = p.moves!;
   if (p.layout) {
     fs.writeFileSync(p.layout.profilePath, p.layout.profileXml, "utf-8");
-    const moved = await deployMetadata(p.layout.profilePath, org);
+    const moved = await deployMetadata(p.layout.profilePath, org, onStatus);
     if (!moved.success) return { ok: false, message: `Couldn't point ${fix.profile} back at ${fix.doc.label}: ${errorOf(moved)}. The copy was left in place.` };
   } else {
     for (const app of p.page!.apps) {
       fs.writeFileSync(app.file.filePath, app.xml, "utf-8");
-      const moved = await deployMetadata(app.file.filePath, org);
+      const moved = await deployMetadata(app.file.filePath, org, onStatus);
       if (!moved.success) return { ok: false, message: `Couldn't change ${app.file.name}: ${errorOf(moved)}. The copy was left in place.` };
     }
   }
