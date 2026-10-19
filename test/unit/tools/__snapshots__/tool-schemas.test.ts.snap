@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `131`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `133`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -78,6 +78,8 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_app_nav",
   "studio_app_sample",
   "studio_app_source",
+  "studio_app_starter_source",
+  "studio_app_starters",
   "studio_app_tab_options",
   "studio_component_catalog",
   "studio_component_props",
@@ -1922,6 +1924,19 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
     "name": "studio_app_source",
     "params": {
       "name": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_app_starters",
+    "params": {},
+  },
+  {
+    "name": "studio_app_starter_source",
+    "params": {
+      "id": {
         "optional": false,
         "type": "ZodString",
       },

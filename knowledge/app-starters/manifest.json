@@ -1,0 +1,86 @@
+{
+  "starters": [
+    {
+      "id": "hcp-engagement",
+      "label": "HCP engagement",
+      "description": "The HCP's recent visits on the Account page as a timeline above a list, built from two reusable components that query their own related list with GraphQL.",
+      "repo": "afls-ideas/lsc-mobile-inline-composable-lwc",
+      "sha": "b3d111e88ead03e3c41a0da0df01103b861ae4d0",
+      "name": "lscMobileInline_hcpEngagement",
+      "target": "record",
+      "objectApiName": "Account",
+      "bundles": [
+        "lscMobileInline_hcpEngagement",
+        "lscMobileInline_relatedList",
+        "lscMobileInline_timeline",
+        "lscMobileInlineGraphqlUtils"
+      ],
+      "objects": [
+        "Visit"
+      ],
+      "tryNext": [
+        "Show only visits from the last 90 days",
+        "Color the status badges: green for completed, amber for planned",
+        "Add the products discussed under each visit"
+      ]
+    },
+    {
+      "id": "hcp-inquiries",
+      "label": "HCP inquiries",
+      "description": "The HCP's medical inquiries (Cases) on the Account page as a timeline and a list, with a banner when any are escalated. Reuses the same two components as HCP engagement.",
+      "repo": "afls-ideas/lsc-mobile-inline-composable-lwc",
+      "sha": "b3d111e88ead03e3c41a0da0df01103b861ae4d0",
+      "name": "lscMobileInline_inquiries",
+      "target": "record",
+      "objectApiName": "Account",
+      "bundles": [
+        "lscMobileInline_inquiries",
+        "lscMobileInline_relatedList",
+        "lscMobileInline_timeline",
+        "lscMobileInlineGraphqlUtils"
+      ],
+      "objects": [
+        "Case"
+      ],
+      "tryNext": [
+        "Put escalated inquiries first",
+        "Show how many days each inquiry has been open",
+        "Hide closed inquiries older than a year"
+      ]
+    },
+    {
+      "id": "hcp-analyzer",
+      "label": "HCP Analyzer",
+      "description": "A navigation tab listing accounts with GraphQL; tapping one opens its record in the app through an lsc:// deep link.",
+      "repo": "afls-ideas/HCP-Analyzer",
+      "sha": "af726859a9ec5440c55751f014209a14580cf765",
+      "name": "lscMobileInline_hcpAnalyzer",
+      "target": "tab",
+      "bundles": [
+        "lscMobileInline_hcpAnalyzer"
+      ],
+      "tryNext": [
+        "Add a search box that filters the list by name",
+        "Show each account's specialty and city under its name",
+        "Only list accounts in my territories"
+      ]
+    },
+    {
+      "id": "patient-journey",
+      "label": "Patient journey simulator",
+      "description": "A full-screen navigation tab that walks a patient cohort from diagnosis to adherence, shows the biggest drop-off and lets the rep try what-if interventions. Uses made-up data, so it always draws.",
+      "repo": "afls-ideas/LWC-as-standalone-tab",
+      "sha": "27d991e65ee97749968180ffc311768466b08f0e",
+      "name": "lscMobileInline_patientSimulator",
+      "target": "tab",
+      "bundles": [
+        "lscMobileInline_patientSimulator"
+      ],
+      "tryNext": [
+        "Rename the brand to our product",
+        "Add a stage between Prescribed and Filled",
+        "Let the rep reset the what-if sliders with one tap"
+      ]
+    }
+  ]
+}

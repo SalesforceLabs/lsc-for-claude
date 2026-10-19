@@ -90,7 +90,7 @@ export interface AppTurn {
 export interface AppVersion {
   id: string;
   at: string;
-  source: "ai" | "manual" | "org";
+  source: "ai" | "manual" | "org" | "starter";
   files: AppFile[];
   check: Omit<AppCheckResult, "script">;
   turnId?: string;
@@ -114,11 +114,35 @@ export interface AppProject {
   currentVersionId: string | null;
   deployed?: { versionId: string; at: string; deployed: string[] };
   importedFrom?: string;
+  /** The starter app the project began from. */
+  starter?: AppStarterRef;
   /** Build for (and read data as) a Studio test user. */
   runAs?: AppRunAs;
   /** Tab apps: profiles that get the tab and the app it joins. */
   tab?: AppTabSettings;
 }
+
+/** A starter app (`studio_app_starters`): a working LSC app from the afls-ideas GitHub account, copied at a pinned commit. */
+export interface AppStarter {
+  id: string;
+  label: string;
+  description: string;
+  /** "owner/repo" on GitHub. */
+  repo: string;
+  sha: string;
+  /** The repo at that commit. */
+  url: string;
+  name: string;
+  target: AppTarget;
+  objectApiName?: string;
+  /** Objects the source reads. */
+  objects: string[];
+  /** Follow-up prompts worth trying on it. */
+  tryNext: string[];
+}
+
+/** What a project keeps of the starter it began from. */
+export type AppStarterRef = Pick<AppStarter, "id" | "label" | "description" | "repo" | "sha" | "url" | "tryNext">;
 
 export interface AppTabSettings {
   profiles: string[];

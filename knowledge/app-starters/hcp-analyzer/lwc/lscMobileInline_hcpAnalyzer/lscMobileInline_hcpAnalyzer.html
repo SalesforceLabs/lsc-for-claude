@@ -1,0 +1,65 @@
+<template>
+    <div class="pjs-root" style={rootStyle}>
+        <!-- ================= HEADER ================= -->
+        <header class="pjs-header">
+            <div class="pjs-header-title">
+                <div class="pjs-brand-dot"></div>
+                <div>
+                    <h1 class="pjs-h1">Accounts</h1>
+                    <p class="pjs-subtitle">Tap an account to open it via <code>lsc://</code> deeplink</p>
+                </div>
+            </div>
+            <div class="pjs-header-metrics">
+                <div class="pjs-metric">
+                    <span class="pjs-metric-label">Loaded</span>
+                    <span class="pjs-metric-value">{count}</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- ================= BODY ================= -->
+        <section class="pjs-funnel-panel">
+            <div class="pjs-panel-head">
+                <h2 class="pjs-h2">All Accounts</h2>
+                <span class="pjs-hint">sorted by name</span>
+            </div>
+
+            <template if:true={isLoading}>
+                <p class="dl-status">Loading accounts…</p>
+            </template>
+
+            <template if:true={error}>
+                <div class="dl-error">⚠ {error}</div>
+            </template>
+
+            <template if:true={hasAccounts}>
+                <div class="dl-list">
+                    <template for:each={accounts} for:item="acct">
+                        <div
+                            key={acct.id}
+                            class="dl-row"
+                            data-id={acct.id}
+                            role="button"
+                            tabindex="0"
+                            onclick={handleOpen}
+                        >
+                            <div class="dl-avatar">{acct.initial}</div>
+                            <div class="dl-row-text">
+                                <span class="dl-row-name">{acct.name}</span>
+                                <span class="dl-row-sub">{acct.id}</span>
+                            </div>
+                            <span class="dl-chevron">›</span>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <template if:true={lastDeeplink}>
+                <div class="dl-fired">
+                    <span class="dl-fired-label">Deeplink fired</span>
+                    <code class="dl-fired-url">{lastDeeplink}</code>
+                </div>
+            </template>
+        </section>
+    </div>
+</template>

@@ -1,0 +1,35 @@
+<template>
+    <!-- Reuse #1a: timeline brick on top, configured to plot Visits -->
+    <c-lsc-mobile-inline_timeline
+        title="Engagement Timeline"
+        icon-name="standard:event"
+        parent-record-id={recordId}
+        parent-object-api-name="Account"
+        related-list-id="Visits"
+        title-field="Visit.Name"
+        date-field="Visit.PlannedVisitStartTime"
+        badge-field="Visit.Status"
+        page-size="15"
+        onnodeselect={handleRecordSelect}
+    ></c-lsc-mobile-inline_timeline>
+
+    <!-- Reuse #1b: same data, listed underneath via the related list brick -->
+    <c-lsc-mobile-inline_related-list
+        title="HCP Engagement"
+        icon-name="standard:event"
+        parent-record-id={recordId}
+        parent-object-api-name="Account"
+        related-list-id="Visits"
+        title-field="Visit.Name"
+        subtitle-field="Visit.PlannedVisitStartTime"
+        badge-field="Visit.Status"
+        page-size="10"
+        ondataloaded={handleDataLoaded}
+        onrecordselect={handleRecordSelect}
+    >
+        <!-- Injected via <slot>: a rep-friendly summary line -->
+        <p class="slds-text-body_small slds-m-bottom_x-small slds-text-color_weak">
+            {summaryText}
+        </p>
+    </c-lsc-mobile-inline_related-list>
+</template>

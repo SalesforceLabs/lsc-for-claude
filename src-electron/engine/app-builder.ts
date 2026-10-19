@@ -8,6 +8,7 @@ import type {
   AppIssue,
   AppProject,
   AppRunAs,
+  AppStarter,
   AppTabSettings,
   AppStep,
   AppTarget,
@@ -116,6 +117,12 @@ export function uniqueName(name: string, taken: Iterable<string>): string {
   for (let n = 2; ; n++) {
     if (!used.has(`${name}${n}`.toLowerCase())) return `${name}${n}`;
   }
+}
+
+/** Files with the bundle `from` renamed to `to`, in paths and wherever the whole name appears in sources. */
+export function renameBundle(files: AppFile[], from: string, to: string): AppFile[] {
+  const re = new RegExp(`\\b${from}\\b`, "g");
+  return files.map((f) => (f.bundle === from ? { bundle: to, path: f.path.replace(re, to), source: f.source.replace(re, to) } : { ...f, source: f.source.replace(re, to) }));
 }
 
 const BUNDLE_RE = /^[A-Za-z][A-Za-z0-9_]*$/;
@@ -447,6 +454,53 @@ export class AppBuilder {
     return { project };
   }
 
+  /**
+   * Start a project from a starter app (`studio_app_starter_source`): its files are the first ("starter") version.
+   * An untouched project from the same starter is reopened; otherwise the bundle is renamed if the org or another
+   * project already uses its name.
+   */
+  async fromStarter(org: string, id: string, runAs?: AppRunAs): Promise<{ project?: AppProject; error?: string }> {
+    const untouched = this.deps.store.list(org).find((p) => p.starter?.id === id && !p.turns.length && !p.deployed && p.versions.length === 1);
+    if (untouched) return { project: this.get(untouched.id) ?? untouched };
+    let source: { name: string; target: AppTarget; objectApiName?: string; files: AppFile[]; starter: AppStarter };
+    try {
+      source = (await this.deps.call("studio_app_starter_source", { id }, 60_000)) as typeof source;
+    } catch (error) {
+      return { error: message(error) };
+    }
+    if (!source.files?.length || !TARGETS.includes(source.target)) return { error: `The starter ${id} can't be opened.` };
+    const at = nowIso();
+    const { starter } = source;
+    const project: AppProject = {
+      id: randomUUID(),
+      org: org.toLowerCase(),
+      name: source.name,
+      label: starter.label,
+      target: source.target,
+      ...(source.objectApiName ? { objectApiName: source.objectApiName } : {}),
+      createdAt: at,
+      updatedAt: at,
+      turns: [],
+      versions: [],
+      currentVersionId: null,
+      starter: { id: starter.id, label: starter.label, description: starter.description, repo: starter.repo, sha: starter.sha, url: starter.url, tryNext: starter.tryNext ?? [] },
+      ...(runAs ? { runAs } : {}),
+    };
+    project.name = await this.availableName(project, source.name);
+    const files = project.name === source.name ? source.files : renameBundle(source.files, source.name, project.name);
+    let check: AppCheckResult;
+    try {
+      check = await this.runCheck(project, files);
+    } catch (error) {
+      return { error: `Couldn't check ${starter.label}: ${message(error)}` };
+    }
+    const version: AppVersion = { id: randomUUID(), at, source: "starter", files, check: stripScript(check), note: `Started from ${starter.repo}` };
+    this.rememberScript(version.id, check);
+    this.addVersion(project, version, true);
+    this.deps.store.save(project);
+    return { project };
+  }
+
   private async orgAppLabel(name: string): Promise<string> {
     try {
       const data = (await this.deps.call("studio_app_list", {}, 60_000)) as { apps?: OrgApp[] };
@@ -747,6 +801,9 @@ export class AppBuilder {
         `Target: ${TARGET_RULES[project.target](project)}`,
         project.runAs ? `Building for ${project.runAs.username}${project.runAs.profile ? ` (profile ${project.runAs.profile})` : ""}: describe_objects and sample_records show what they can see. Build for what they have access to.` : "",
         project.objectApiName ? `objectApiName: ${project.objectApiName}` : "",
+        project.starter
+          ? `Started from the starter app "${project.starter.label}" (github.com/${project.starter.repo})${project.starter.description ? `: ${project.starter.description}` : ""}. Keep its structure and its helper bundles' names unless the request asks otherwise.`
+          : "",
         "</app>",
       ]
         .filter(Boolean)
@@ -868,7 +925,9 @@ export class AppBuilder {
       const parsed = parseAppPath(path)!;
       if (typeof file.source !== "string") return reject(`${file.path} has no source.`);
       if (file.source.length > MAX_SOURCE_CHARS) return reject(`${file.path} is too large.`);
-      if ((parsed.bundle.startsWith(NAME_PREFIX) || parsed.bundle.startsWith(ACTION_PREFIX)) && parsed.bundle !== target) {
+      // A prefixed helper the app already has (a starter's or an imported app's) may be changed; a new one may not.
+      const known = [...working.values()].some((w) => w.bundle === parsed.bundle);
+      if ((parsed.bundle.startsWith(NAME_PREFIX) || parsed.bundle.startsWith(ACTION_PREFIX)) && parsed.bundle !== target && !known) {
         return reject(`the app's bundle is ${first ? placeholder : target}; ${parsed.bundle} isn't allowed. Helper components must not start with ${NAME_PREFIX} or ${ACTION_PREFIX}.`);
       }
       incoming.push({ bundle: parsed.bundle, path, source: rename(file.source) });

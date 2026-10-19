@@ -1,4 +1,4 @@
-import type { AppBuilderEvent, AppCheckResult, AppDeployPlan, AppDeployResult, AppRunAs, AppTabSettings, AppObjectInfo, AppProject, AppTarget, AppVersion, OrgApp } from "./types";
+import type { AppBuilderEvent, AppCheckResult, AppDeployPlan, AppDeployResult, AppRunAs, AppTabSettings, AppObjectInfo, AppProject, AppStarter, AppTarget, AppVersion, OrgApp } from "./types";
 
 /** The builder's part of `window.lscApi` (preload.cjs; shapes in docs/design/lsc-app-builder.md). */
 export interface BuilderApi {
@@ -19,6 +19,8 @@ export interface BuilderApi {
   appDeploy(id: string): Promise<{ result?: AppDeployResult; error?: string }>;
   appImport(name: string): Promise<{ project?: AppProject; error?: string }>;
   appOrgApps(): Promise<{ apps?: OrgApp[]; error?: string }>;
+  appStarters(): Promise<{ starters?: AppStarter[]; error?: string }>;
+  appFromStarter(id: string, runAs?: AppRunAs): Promise<{ project?: AppProject; error?: string }>;
   appDescribe(objects: string[], projectId?: string): Promise<{ objects?: AppObjectInfo[]; error?: string }>;
   onAppEvent(cb: (e: { projectId: string; event: AppBuilderEvent }) => void): () => void;
 }

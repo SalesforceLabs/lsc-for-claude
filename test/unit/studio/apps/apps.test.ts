@@ -38,6 +38,17 @@ describe("lintApp", () => {
     expect(rules(lintApp(homeApp({ meta })))).toContain("meta.mobile-height");
   });
 
+  it("takes a JS-only service module as a helper bundle, but not a component without a template", () => {
+    const helper = (source: string) => ({ bundle: "graphqlUtils", path: "lwc/graphqlUtils/graphqlUtils.js", source });
+    const meta = { bundle: "graphqlUtils", path: "lwc/graphqlUtils/graphqlUtils.js-meta.xml", source: `<?xml version="1.0" encoding="UTF-8"?>\n<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">\n    <apiVersion>62.0</apiVersion>\n    <isExposed>false</isExposed>\n</LightningComponentBundle>\n` };
+    const base = homeApp();
+    const service = lintApp({ ...base, files: [...base.files, helper("export function edges(r) { return r?.edges ?? []; }\n"), meta] });
+    expect(rules(service)).not.toEqual(expect.arrayContaining(["files.missing-html"]));
+    expect(rules(service)).not.toContain("js.default-export");
+    const component = lintApp({ ...base, files: [...base.files, helper("import { LightningElement } from 'lwc';\nexport default class X extends LightningElement {}\n"), meta] });
+    expect(rules(component)).toContain("files.missing-html");
+  });
+
   it("flags template expressions, missing keys and Apex", () => {
     const r = lintApp(
       homeApp({

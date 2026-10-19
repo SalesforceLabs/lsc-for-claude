@@ -1,0 +1,39 @@
+<template>
+    <!-- Reuse #2a: same timeline brick, configured to plot Cases -->
+    <c-lsc-mobile-inline_timeline
+        title="Inquiry Timeline"
+        icon-name="standard:question_feed"
+        parent-record-id={recordId}
+        parent-object-api-name="Account"
+        related-list-id="Cases"
+        title-field="Case.Subject"
+        date-field="Case.CreatedDate"
+        badge-field="Case.Status"
+        page-size="15"
+        onnodeselect={handleRecordSelect}
+    ></c-lsc-mobile-inline_timeline>
+
+    <!-- Reuse #2b: same data, listed underneath via the related list brick -->
+    <c-lsc-mobile-inline_related-list
+        title="Medical Inquiries"
+        icon-name="standard:question_feed"
+        parent-record-id={recordId}
+        parent-object-api-name="Account"
+        related-list-id="Cases"
+        title-field="Case.Subject"
+        subtitle-field="Case.CaseNumber"
+        badge-field="Case.Status"
+        page-size="15"
+        ondataloaded={handleDataLoaded}
+        onrecordselect={handleRecordSelect}
+    >
+        <!-- Injected via <slot>: an escalation alert this parent owns -->
+        <template if:true={hasEscalations}>
+            <div class="slds-box slds-box_x-small slds-theme_warning slds-m-bottom_small">
+                <lightning-icon icon-name="utility:warning" size="x-small"
+                    class="slds-m-right_x-small"></lightning-icon>
+                {alertText}
+            </div>
+        </template>
+    </c-lsc-mobile-inline_related-list>
+</template>

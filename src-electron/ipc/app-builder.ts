@@ -3,7 +3,7 @@ import type { LLMProvider } from "../llm/provider.js";
 import type { McpClient } from "../mcp/client.js";
 import { AppBuilder, parseStudioResult, type StudioCall } from "../engine/app-builder.js";
 import { sqliteAppStore, type AppStore } from "../engine/app-store.js";
-import type { AppBuilderEvent, AppDeployPlan, AppDeployResult, AppObjectInfo, AppProject, AppRunAs, AppTabSettings, AppTarget, OrgApp } from "../engine/app-types.js";
+import type { AppBuilderEvent, AppDeployPlan, AppDeployResult, AppObjectInfo, AppProject, AppRunAs, AppStarter, AppTabSettings, AppTarget, OrgApp } from "../engine/app-types.js";
 import { INVALIDATED_BY_APP_DEPLOY } from "../engine/studio-invalidation.js";
 
 export interface AppBuilderDeps {
@@ -70,6 +70,21 @@ export function registerAppBuilderHandlers(deps: AppBuilderDeps): void {
     const o = await org();
     if (!o) return { error: "Select an org first." };
     return builder.import(o, name);
+  });
+
+  ipcMain.handle("appBuilder:fromStarter", async (_e, id: string, runAs?: AppRunAs) => {
+    const o = await org();
+    if (!o) return { error: "Select an org first." };
+    return builder.fromStarter(o, id, runAs);
+  });
+
+  ipcMain.handle("appBuilder:starters", async (): Promise<{ starters?: AppStarter[]; error?: string }> => {
+    try {
+      const data = (await call("studio_app_starters", {}, 60_000)) as { starters?: AppStarter[] };
+      return { starters: data.starters ?? [] };
+    } catch (error) {
+      return { error: errorText(error) };
+    }
   });
 
   ipcMain.handle("appBuilder:orgApps", async (): Promise<{ apps?: OrgApp[]; error?: string }> => {

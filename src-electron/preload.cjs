@@ -218,6 +218,8 @@ contextBridge.exposeInMainWorld("lscApi", {
   appDeploy: (id) => ipcRenderer.invoke("appBuilder:deploy", id),
   appImport: (name) => ipcRenderer.invoke("appBuilder:import", name),
   appOrgApps: () => ipcRenderer.invoke("appBuilder:orgApps"),
+  appStarters: () => ipcRenderer.invoke("appBuilder:starters"),
+  appFromStarter: (id, runAs) => ipcRenderer.invoke("appBuilder:fromStarter", id, runAs),
   appDescribe: (objects, projectId) => ipcRenderer.invoke("appBuilder:describe", objects, projectId),
   onAppEvent: (cb) => {
     const handler = (_event, payload) => cb(payload);
