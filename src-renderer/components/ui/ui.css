@@ -142,6 +142,8 @@
 .studio-filter,
 .ui-field {
   height: var(--control);
+  /* In a scrolling flex column a long list would otherwise squash the field below its height. */
+  flex-shrink: 0;
   padding: 0 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-xs);
