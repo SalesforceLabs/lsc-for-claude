@@ -21,6 +21,7 @@ import {
   groupItems,
   indicatorFor,
   kindLabel,
+  NOT_LISTED,
   ORG_AHEAD_LEGEND,
   timeAgo,
   whoWhen,
@@ -181,7 +182,7 @@ export function UnpublishedList({ profile, state, snapshot, onRetry, onShow, onP
         </li>
       </ul>
       <div className="org-ahead-foot">
-        <span className="org-ahead-muted org-ahead-text">{publishedAt ? `Last published ${timeAgo(publishedAt)}` : "Not published yet"}</span>
+        <span className="org-ahead-muted org-ahead-text" title={NOT_LISTED}>{publishedAt ? `Last published ${timeAgo(publishedAt)}` : "Not published yet"}</span>
         {onPublish && (
           <button
             type="button"

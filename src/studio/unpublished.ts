@@ -58,7 +58,15 @@ async function liveCache(profile: string, org: string): Promise<{ profileId: str
   return { profileId, cache: { profileId, generatedAt, startedAt: Number.isFinite(startedAt) ? Math.min(startedAt, generatedAt) : generatedAt } };
 }
 
-/** Admin Console records, their value rows or their assignments edited after `since`, with the editor of the latest edit. */
+/**
+ * Admin Console records, their value rows or their assignments edited after `since`, with the editor of the latest edit.
+ *
+ * A record taken away from a profile can't be seen here: deleting its `LifeSciConfigAssignment` leaves the record's
+ * LastModifiedDate and SystemModstamp alone (checked on a 260 org), the Tooling API has no queryAll for deleted rows,
+ * and the entity isn't in the REST API at all. Removals made in Studio still wait for a publish in the release bar,
+ * because their change names the removed profile (`affects`); removals made in Admin Console are only caught when
+ * something else on the record changes. The list says so (`NOT_LISTED` in the renderer's org-ahead.ts).
+ */
 export async function fetchConfigEdits(org: string, since: number): Promise<ConfigEdit[]> {
   const iso = soqlTime(since);
   const [edited, valued, reassigned] = await Promise.all([

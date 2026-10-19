@@ -58,6 +58,10 @@ export const ORG_AHEAD_LEGEND = {
   tray: "In your tray",
 } as const;
 
+/** What the org-ahead check can't see (src/studio/unpublished.ts `fetchConfigEdits`), said where its list is. */
+export const NOT_LISTED =
+  "Admin Console records taken away from this profile outside Studio aren't listed: the org keeps no trace of a removed assignment. Publish if you've made one.";
+
 export type UnpublishedKind =
   | "layout"
   | "compactLayout"
