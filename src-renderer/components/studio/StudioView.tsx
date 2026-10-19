@@ -12,6 +12,11 @@ import type { PublishedResult } from "./published-types";
 import Inspector from "./Inspector";
 import ReviewDialog from "./ReviewDialog";
 import PublishDialog from "./PublishDialog";
+import ReleaseBar from "./ReleaseBar";
+import { usePublishJob } from "./usePublishJob";
+import { reachOfChange, stillAwaiting } from "./reach";
+import { barVisible } from "./release-bar-logic";
+import type { PendingChange } from "./changes";
 import { useTrayHistory, withoutApplied } from "./tray-history";
 import { fixAffectsPublished, isRevalidating, markAllStale, needsLoad, type Revalidating } from "./fix-effects";
 import TestingPages, { SYNC_PAGES, type SyncPage } from "./TestingPages";
@@ -25,24 +30,20 @@ import {
   Activity,
   ClipboardCheck,
   CloudDownload,
-  CloudUpload,
   History,
   LayoutDashboard,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
-  Redo2,
   RefreshCw,
   Sparkles,
   Tablet,
-  Undo2,
   UserRound,
   UserRoundSearch,
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
 import Segmented from "../ui/Segmented";
-import UnpublishedIndicator from "./UnpublishedIndicator";
 import { OrgAheadContext, useUnpublished } from "./useUnpublished";
 import { buildOrgAhead, revealPlan, type Reveal, type UnpublishedItem } from "./org-ahead";
 import StateView from "../ui/StateView";
@@ -118,12 +119,17 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   // Maps are kept per feature so switching back doesn't re-query the org.
   const [maps, setMaps] = useState<Record<string, MapState>>({});
   const [selectedSurface, setSelectedSurface] = useState<SurfaceId | null>(null);
-  const [reviewing, setReviewing] = useState(false);
+  // "tray" reviews the pending changes; "undo" reviews the undo of the last apply.
+  const [reviewing, setReviewing] = useState<false | "tray" | "undo">(false);
   // Edits queued in the tray, applied together from the review dialog; ⌘Z / ⇧⌘Z step through them (not while reviewing).
-  const tray = useTrayHistory(reviewing);
+  const tray = useTrayHistory(!!reviewing);
   const { pending, setPending } = tray;
   // Profiles to preselect in "Publish to iPad"; undefined = closed, null = none preselected.
   const [publishing, setPublishing] = useState<string[] | null | undefined>(undefined);
+  // The undo of the last apply, offered as "Undo last apply" until the next apply or an org switch.
+  const [lastApply, setLastApply] = useState<PendingChange[] | null>(null);
+  // Applied this session and waiting for Publish to iPad; a finished publish drops what it covered.
+  const [awaiting, setAwaiting] = useState<PendingChange[]>([]);
   // "View as" — kept across features so switching features keeps the same point of view.
   const [lens, setLens] = useState<Lens>(null);
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
@@ -214,6 +220,8 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         for (const id of Object.keys(mapRequests.current)) mapRequests.current[id] += 1;
         setMaps({});
         resetReadiness();
+        setLastApply(null);
+        setAwaiting([]);
       }),
     [resetReadiness]
   );
@@ -257,6 +265,16 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     if (alsoPublished) setPublished((p) => markAllStale(p));
     setWriteVersion((v) => v + 1);
   }, []);
+  // Publishing runs on after its dialog closes; when it's done what Studio shows of the published iPad is old.
+  const publishJob = usePublishJob(
+    useCallback(
+      (done: string[]) => {
+        setAwaiting((a) => stillAwaiting(a, done));
+        markStale(true);
+      },
+      [markStale]
+    )
+  );
   const readyMap = (id: string) => {
     const m = maps[id];
     return m?.status === "ready" ? m.map : null;
@@ -344,7 +362,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     if (!previewShown) return;
     const onKey = (e: KeyboardEvent) => {
       const el = document.activeElement as HTMLElement | null;
-      if (e.key !== "e" || e.metaKey || e.ctrlKey || e.altKey || reviewing || publishing !== undefined) return;
+      if (e.key !== "e" || e.metaKey || e.ctrlKey || e.altKey || !!reviewing || publishing !== undefined) return;
       if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
       e.preventDefault();
       toggleEdit();
@@ -484,82 +502,40 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     </button>
   );
 
-  const publishButton = (
-    <button
-      className="studio-btn collapsible"
-      onClick={() => setPublishing(null)}
-      title="Publish to iPad — regenerate the mobile metadata cache"
-    >
-      <CloudUpload aria-hidden="true" />
-      <span className="studio-btn-label">Publish to iPad</span>
-    </button>
-  );
-
   const refreshButton = (busy: boolean, onClick: () => void, title: string) => (
     <button className="ui-icon-btn" onClick={onClick} disabled={busy} title={title} aria-label={title}>
       {busy ? <Spinner size={14} /> : <RefreshCw size={15} strokeWidth={2} aria-hidden="true" />}
     </button>
   );
 
-  const isMac = /Mac/.test(navigator.userAgent);
-  const undoKeys = isMac ? "⌘Z" : "Ctrl+Z";
-  const redoKeys = isMac ? "⇧⌘Z" : "Ctrl+Shift+Z";
-  const historyButtons = (
-    <>
-      <button
-        className="ui-icon-btn"
-        onClick={tray.undo}
-        disabled={!tray.undoLabel}
-        aria-label="Undo"
-        title={tray.undoLabel ? `Undo ${tray.undoLabel} (${undoKeys})` : `Nothing to undo (${undoKeys})`}
-      >
-        <Undo2 size={14} aria-hidden="true" />
-      </button>
-      <button
-        className="ui-icon-btn"
-        onClick={tray.redo}
-        disabled={!tray.redoLabel}
-        aria-label="Redo"
-        title={tray.redoLabel ? `Redo ${tray.redoLabel} (${redoKeys})` : `Nothing to redo (${redoKeys})`}
-      >
-        <Redo2 size={14} aria-hidden="true" />
-      </button>
-    </>
-  );
-  // Stays up while the tray is empty but a step can be undone or redone, so it can be put back.
-  const trayBar = pending.length > 0 ? (
-    <div className="studio-tray">
-      <span className="studio-tray-count">
-        <span className="studio-tray-badge">{pending.length}</span>
-        pending {pending.length === 1 ? "change" : "changes"}
-      </span>
-      <span className="studio-tray-list">{pending.map((p) => p.fix.label).join(" · ")}</span>
-      {historyButtons}
-      <button className="studio-btn ghost" onClick={() => setPending([])}>
-        Discard all
-      </button>
-      <button className="studio-btn primary" onClick={() => setReviewing(true)} disabled={!readyOrg}>
-        Review & apply…
-      </button>
-    </div>
-  ) : tray.undoLabel || tray.redoLabel ? (
-    <div className="studio-tray">
-      <span className="studio-tray-count">No pending changes</span>
-      <span className="studio-tray-list" />
-      {tray.undoLabel && (
-        <button className="studio-btn ghost" onClick={tray.undo} title={`Undo ${tray.undoLabel} (${undoKeys})`}>
-          <Undo2 size={14} aria-hidden="true" />
-          Undo
-        </button>
-      )}
-      {tray.redoLabel && (
-        <button className="studio-btn ghost" onClick={tray.redo} title={`Redo ${tray.redoLabel} (${redoKeys})`}>
-          <Redo2 size={14} aria-hidden="true" />
-          Redo
-        </button>
-      )}
-    </div>
-  ) : null;
+  /** The release bar: Your changes → In the org → On iPads. `always` where it replaced the Publish button. */
+  const releaseBar = (always: boolean, inPreview = false) =>
+    barVisible({
+      always,
+      pending: pending.length,
+      canUndo: !!tray.undoLabel,
+      canRedo: !!tray.redoLabel,
+      lastApply: !!lastApply,
+      awaiting: awaiting.length,
+      job: !!publishJob.status || !!publishJob.error,
+    }) ? (
+      <ReleaseBar
+        pending={pending}
+        onPendingChange={setPending}
+        onReview={() => setReviewing("tray")}
+        canReview={!!readyOrg}
+        history={tray}
+        scope={
+          inPreview && publishedProfile && publishedSnapshot
+            ? { profile: publishedProfile, state: unpublished.state, snapshot: publishedSnapshot, onRetry: unpublished.retry, onShow: showUnpublished }
+            : null
+        }
+        awaiting={awaiting}
+        job={publishJob}
+        onPublish={(preselect) => readyOrg && setPublishing(preselect)}
+        onUndoLastApply={lastApply && readyOrg ? () => setReviewing("undo") : undefined}
+      />
+    ) : null;
 
   return (
     <div className="studio">
@@ -667,7 +643,6 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
                   <Spinner size={12} /> Refreshing…
                 </span>
               )}
-              {readyOrg && publishButton}
             </div>
           </header>
           {insertIntent && intentResult && (
@@ -695,16 +670,6 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
                 { value: "split", label: "Side by side", title: "Published and Draft next to each other; select blocks on the Draft side" },
               ]}
             />
-            {publishedProfile && publishedSnapshot && (
-              <UnpublishedIndicator
-                profile={publishedProfile}
-                state={unpublished.state}
-                snapshot={publishedSnapshot}
-                onRetry={unpublished.retry}
-                onShow={showUnpublished}
-                onPublish={() => setPublishing([publishedProfile])}
-              />
-            )}
             <div className="studio-subbar-group">
               {lensPicker(
                 lens ? "Previewing as" : "Preview as",
@@ -742,7 +707,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             {editPanel}
           </div>
 
-          {trayBar}
+          {releaseBar(true, true)}
         </section>
       )}
 
@@ -771,7 +736,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           onOpenSetup={(id, surface = null, item = null) => openSetup(id, surface, item)}
           pending={pending}
           onPendingChange={setPending}
-          tray={trayBar}
+          tray={releaseBar(false)}
         />
       )}
 
@@ -796,7 +761,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               onAskClaude={onAskClaude}
             />
           </div>
-          {trayBar}
+          {releaseBar(false)}
         </section>
       )}
 
@@ -816,7 +781,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               onOpenSyncRep={openSyncRep}
             />
           </div>
-          {trayBar}
+          {releaseBar(false)}
         </section>
       )}
 
@@ -862,7 +827,6 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
                 <span className="studio-btn-label">Preview on iPad</span>
               </button>
             )}
-            {map && publishButton}
             {refreshButton(
               featureBusy,
               () => {
@@ -986,24 +950,34 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           )}
         </div>
 
-        {trayBar}
+        {releaseBar(!!map)}
       </section>
 
       {readyOrg && reviewing && (
         <ReviewDialog
-          changes={pending}
+          changes={reviewing === "undo" ? (lastApply ?? []) : pending}
+          undo={reviewing === "undo"}
           org={readyOrg}
           onClose={(applied, remaining) => {
             setReviewing(false);
-            // Applied changes can't be taken back from the tray; their undo is in the review dialog.
-            if (applied.length > 0) tray.reset(remaining);
-            else setPending(remaining);
+            // Undoing the last apply leaves the tray as it was; otherwise applied changes can't be taken back
+            // from the tray — their undo is in the review dialog, and "Undo last apply" on the bar.
+            if (reviewing === "tray") {
+              if (applied.length > 0) tray.reset(remaining);
+              else setPending(remaining);
+            }
             // Any feature's map and readiness may have changed; the main process dropped them from its cache. What's
             // on screen stays, marked refreshing, and reloads when its page is showing — nothing is blanked.
             if (applied.length > 0) markStale(applied.some((c) => fixAffectsPublished(c.fix)));
           }}
           onPublish={(preselect) => setPublishing(preselect)}
-          onApplied={(done) => tray.reset(withoutApplied(pending, done))}
+          onApplied={(done, undos, wasUndo) => {
+            if (reviewing === "tray" && !wasUndo) tray.reset(withoutApplied(pending, done));
+            // An undo takes the last apply back; anything else becomes the apply to undo.
+            setLastApply(wasUndo ? null : undos.length ? undos : null);
+            const toPublish = done.filter((c) => reachOfChange(c).ipad === "publish");
+            if (toPublish.length) setAwaiting((a) => [...a, ...toPublish]);
+          }}
         />
       )}
       {readyOrg && publishing !== undefined && (
@@ -1012,7 +986,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           profiles={profiles}
           preselected={publishing}
           onClose={() => setPublishing(undefined)}
-          onPublished={() => markStale(true)}
+          job={publishJob}
         />
       )}
     </div>

@@ -10,7 +10,7 @@ export interface PendingChange {
   affects?: string[];
 }
 
-const MOBILE_CATEGORIES = new Set(["QuickAction", "CustomAction", "UISchema", "DbSchema"]);
+export const MOBILE_CATEGORIES = new Set(["QuickAction", "CustomAction", "UISchema", "DbSchema"]);
 
 /** Changes that write the same setting share a key, so a newer edit replaces an older one. */
 export function changeKey(fix: StudioFix): string {

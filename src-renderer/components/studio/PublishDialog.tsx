@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
-import type { ProfileOption, PublishStatus } from "./types";
+import type { ProfileOption } from "./types";
+import type { PublishJob } from "./usePublishJob";
 
 interface PublishDialogProps {
   org: string;
@@ -8,26 +9,24 @@ interface PublishDialogProps {
   /** Profiles to preselect (the ones recent changes affect); null = let the admin choose. */
   preselected: string[] | null;
   onClose: () => void;
-  /** The metadata cache finished regenerating, so what Studio shows of the published iPad is out of date. */
-  onPublished?: () => void;
-}
-
-const POLL_MS = 5000;
-
-function responseError(res: { data?: unknown; error?: string }): string | undefined {
-  return res.error || (res.data as { error?: string } | undefined)?.error;
+  /** Studio's publish job: it keeps polling after this dialog closes, and the release bar shows its progress. */
+  job: PublishJob;
 }
 
 /**
  * "Publish to iPad" — regenerate the mobile metadata cache for chosen profiles
- * so reps' devices pick up configuration changes on their next sync.
+ * so reps' devices pick up configuration changes on their next sync. The job
+ * belongs to Studio (`usePublishJob`), so closing this dialog doesn't stop it.
  */
-export default function PublishDialog({ org, profiles, preselected, onClose, onPublished }: PublishDialogProps) {
+export default function PublishDialog({ org, profiles, preselected, onClose, job }: PublishDialogProps) {
   const [selected, setSelected] = useState<Set<string>>(() => new Set((preselected ?? []).map((p) => p.toLowerCase())));
   const [filter, setFilter] = useState("");
-  const [status, setStatus] = useState<PublishStatus | null>(null);
-  const [starting, setStarting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { status, error, starting } = job;
+  // Opening the dialog starts a new publish unless one is still running; a finished one is forgotten.
+  useEffect(() => {
+    job.clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Only profiles with users matter for the iPad; keep preselected ones even if they have none.
   const options = useMemo(() => {
@@ -38,23 +37,6 @@ export default function PublishDialog({ org, profiles, preselected, onClose, onP
       .sort((a, b) => Number(selected.has(b.name.toLowerCase())) - Number(selected.has(a.name.toLowerCase())) || a.name.localeCompare(b.name));
   }, [profiles, filter, selected]);
 
-  const state = status?.state;
-  useEffect(() => {
-    if (state === "done") onPublished?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state]);
-
-  useEffect(() => {
-    if (status?.state !== "running") return;
-    const timer = setTimeout(async () => {
-      const res = await window.lscApi.studioPublishStatus(status.parentId);
-      const err = responseError(res);
-      if (err) setError(err);
-      else setStatus(res.data as PublishStatus);
-    }, POLL_MS);
-    return () => clearTimeout(timer);
-  }, [status]);
-
   const toggle = (name: string) =>
     setSelected((s) => {
       const next = new Set(s);
@@ -64,16 +46,7 @@ export default function PublishDialog({ org, profiles, preselected, onClose, onP
       return next;
     });
 
-  const start = async () => {
-    const names = profiles.filter((p) => selected.has(p.name.toLowerCase())).map((p) => p.name);
-    setStarting(true);
-    setError(null);
-    const res = await window.lscApi.studioPublishMobile(names, org);
-    setStarting(false);
-    const err = responseError(res);
-    if (err) setError(err);
-    else setStatus(res.data as PublishStatus);
-  };
+  const start = () => job.start(profiles.filter((p) => selected.has(p.name.toLowerCase())).map((p) => p.name), org);
 
   const count = selected.size;
 
@@ -130,7 +103,7 @@ export default function PublishDialog({ org, profiles, preselected, onClose, onP
               {status.state === "failed" && "Publish failed"}
             </div>
             <div className="studio-finding-detail">
-              {status.state === "running" && `Status: ${status.status}. You can close this — generation continues in Salesforce.`}
+              {status.state === "running" && `Status: ${status.status}. You can close this — generation continues in Salesforce, and the bar at the bottom shows when it's done.`}
               {status.state === "done" && `Reps on ${status.profiles.join(", ")} get the changes on their next sync.`}
               {status.state === "failed" && status.error}
             </div>

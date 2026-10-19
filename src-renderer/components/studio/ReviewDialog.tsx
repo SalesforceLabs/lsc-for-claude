@@ -19,8 +19,13 @@ interface ReviewDialogProps {
    */
   onClose: (applied: PendingChange[], remaining: PendingChange[]) => void;
   onPublish: (profiles: string[] | null) => void;
-  /** Changes just written to the org, as soon as they are — they must leave the tray now, not when the dialog closes. */
-  onApplied?: (done: PendingChange[]) => void;
+  /**
+   * Changes just written to the org, as soon as they are — they must leave the tray now, not when the dialog closes.
+   * `undos` take them back (newest first); `wasUndo` is set when this batch was itself an undo.
+   */
+  onApplied?: (done: PendingChange[], undos: PendingChange[], wasUndo: boolean) => void;
+  /** `changes` are the undo of an earlier apply: cancelling leaves nothing in the tray. */
+  undo?: boolean;
 }
 
 type Outcome = { state: "ok"; result: FixResult } | { state: "failed"; message: string } | { state: "skipped"; message: string };
@@ -44,13 +49,13 @@ const ready = (p: FixPreview | string | undefined): p is FixPreview => typeof p 
  * button, which names the org. Applied changes can be undone together, which
  * goes through the same review.
  */
-export default function ReviewDialog({ changes: initial, org, onClose, onPublish, onApplied }: ReviewDialogProps) {
+export default function ReviewDialog({ changes: initial, org, onClose, onPublish, onApplied, undo = false }: ReviewDialogProps) {
   const [changes, setChanges] = useState(initial);
   const [phase, setPhase] = useState<Phase>({ step: "previewing" });
   // Everything applied across this dialog's lifetime (including undos), for the refresh + publish.
   const [applied, setApplied] = useState<PendingChange[]>([]);
   // Reviewing an Undo batch — cancelling it leaves nothing pending (the originals are already applied).
-  const [undoing, setUndoing] = useState(false);
+  const [undoing, setUndoing] = useState(undo);
   const [productionOk, setProductionOk] = useState(false);
   // Names this run of previews or applies, so ReviewProgress can ask the server which step each is on.
   const [batch, setBatch] = useState(() => crypto.randomUUID());
@@ -78,6 +83,7 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
     setBatch(id);
     setPhase({ step: "applying", previews, outcomes: [...outcomes] });
     const done: PendingChange[] = [];
+    const undos: PendingChange[] = [];
     for (let i = 0; i < changes.length; i++) {
       const p = previews[i];
       if (!ready(p)) {
@@ -90,12 +96,13 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
         else {
           outcomes[i] = { state: "ok", result };
           done.push(changes[i]);
+          if (result.undo) undos.unshift({ fix: result.undo, affects: changes[i].affects });
         }
       }
       setPhase({ step: "applying", previews, outcomes: [...outcomes] });
     }
     setApplied((a) => [...a, ...done]);
-    if (done.length > 0) onApplied?.(done);
+    if (done.length > 0) onApplied?.(done, undos, undoing);
     setPhase({ step: "done", previews, outcomes: outcomes as Outcome[] });
   };
 

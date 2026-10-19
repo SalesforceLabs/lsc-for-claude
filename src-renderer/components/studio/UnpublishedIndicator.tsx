@@ -66,6 +66,145 @@ function whatChanged(item: UnpublishedItem, s: ChangeSummary | undefined) {
   return null;
 }
 
+interface ListProps {
+  profile: string;
+  state: UnpublishedState | undefined;
+  snapshot: PublishedIpad | null;
+  onRetry: () => void;
+  onShow: (item: UnpublishedItem) => void;
+  /** The foot's Publish button; left out where the bar around the list already offers it. */
+  onPublish?: () => void;
+  /** A row or Publish was chosen: close whatever holds the list. */
+  onClose?: () => void;
+}
+
+/**
+ * What one profile's org has that its iPads don't: the changes by group (with what changed, read when shown),
+ * the outline legend and when it was last published. Shown in the release bar's "In the org" popover.
+ */
+export function UnpublishedList({ profile, state, snapshot, onRetry, onShow, onPublish, onClose }: ListProps) {
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
+  const ind = indicatorFor(state);
+  const result = state?.status === "ready" ? state.result : undefined;
+  const summaries = useChangeSummaries(true, result?.items ?? NO_ITEMS, snapshot);
+  const groups = result ? groupItems(result.items) : [];
+  const publishedAt = ind.kind === "changes" || ind.kind === "upToDate" ? ind.publishedAt : null;
+  return (
+    <>
+      <div className="org-ahead-scroll">
+        {ind.kind === "changes" && ind.incomplete && (
+          <p className="org-ahead-warn" role="status">
+            <CircleAlert size={14} aria-hidden />
+            <span>
+              Some changes may be missing: couldn't read {result?.errors.map((e) => e.kind.toLowerCase()).join(", ")}.{" "}
+              <button type="button" className="studio-btn ghost sm" onClick={onRetry}>
+                Retry
+              </button>
+            </span>
+          </p>
+        )}
+        {groups.map((g) => (
+          <section key={g.id} className="org-ahead-group">
+            <h3 className="ui-section-title">
+              {g.title}<span className="count">· {g.items.length}</span>
+            </h3>
+            {g.note && <p className="org-ahead-note">{g.note}</p>}
+            <ul>
+              {g.items.map((item) => {
+                const Icon = KIND_ICON[item.kind];
+                const what = whatChanged(item, summaries[item.id]);
+                const more = !!what && what !== "loading" && (what.all.length > ROW_LINES || what.all.some((l) => l.length > 48));
+                const isOpen = expanded.has(item.id);
+                return (
+                  <li key={item.id} className="org-ahead-item">
+                    <button
+                      type="button"
+                      className="org-ahead-row"
+                      aria-label={`Show ${item.label}`}
+                      onClick={() => {
+                        onClose?.();
+                        onShow(item);
+                      }}
+                    >
+                      <Icon size={16} aria-hidden />
+                      <span className="org-ahead-row-main">
+                        <span className="org-ahead-row-name" title={item.name}>
+                          {item.label}
+                        </span>
+                        {what === "loading" && <span className="org-ahead-skeleton" aria-hidden="true" />}
+                        {what && what !== "loading" && what.text && (
+                          <span className={"org-ahead-row-what" + ("none" in what ? " none" : "")} title={what.all.length > 1 ? what.all.join("\n") : undefined}>
+                            {what.text}
+                          </span>
+                        )}
+                        <span className="org-ahead-row-meta">
+                          {kindLabel(item.kind)} · {whoWhen(item)}
+                        </span>
+                      </span>
+                      <ChevronRight size={14} aria-hidden className="org-ahead-chev" />
+                    </button>
+                    {more && (
+                      <button
+                        type="button"
+                        className="org-ahead-more"
+                        aria-expanded={isOpen}
+                        aria-label={`${isOpen ? "Hide" : "Show"} all ${what.all.length} changes to ${item.label}`}
+                        onClick={() =>
+                          setExpanded((cur) => {
+                            const next = new Set(cur);
+                            if (!next.delete(item.id)) next.add(item.id);
+                            return next;
+                          })
+                        }
+                      >
+                        <ChevronDown size={14} aria-hidden />
+                      </button>
+                    )}
+                    {more && isOpen && (
+                      <ul className="org-ahead-changes">
+                        {what.all.map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ))}
+      </div>
+      <ul className="org-ahead-legend" aria-label="What the outlines mean">
+        <li>
+          <span className="org-ahead-swatch published" aria-hidden="true" /> {ORG_AHEAD_LEGEND.published}
+        </li>
+        <li>
+          <span className="org-ahead-swatch org" aria-hidden="true" /> {ORG_AHEAD_LEGEND.org}
+        </li>
+        <li>
+          <span className="org-ahead-swatch tray" aria-hidden="true" /> {ORG_AHEAD_LEGEND.tray}
+        </li>
+      </ul>
+      <div className="org-ahead-foot">
+        <span className="org-ahead-muted org-ahead-text">{publishedAt ? `Last published ${timeAgo(publishedAt)}` : "Not published yet"}</span>
+        {onPublish && (
+          <button
+            type="button"
+            className="studio-btn primary"
+            title={`Publish to iPad for ${profile}`}
+            onClick={() => {
+              onClose?.();
+              onPublish();
+            }}
+          >
+            <CloudUpload aria-hidden="true" /> Publish to iPad
+          </button>
+        )}
+      </div>
+    </>
+  );
+}
+
 interface Props {
   profile: string;
   state: UnpublishedState | undefined;
@@ -82,11 +221,8 @@ interface Props {
  */
 export default function UnpublishedIndicator({ profile, state, snapshot, onRetry, onShow, onPublish }: Props) {
   const [open, setOpen] = useState(false);
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const root = useRef<HTMLDivElement>(null);
   const ind = indicatorFor(state);
-  const result = state?.status === "ready" ? state.result : undefined;
-  const summaries = useChangeSummaries(open, result?.items ?? NO_ITEMS, snapshot);
   const popover = useRef<HTMLDivElement>(null);
   // Keep the popover inside the window: slide it left by however far it would run off the right edge.
   useLayoutEffect(() => {
@@ -154,7 +290,6 @@ export default function UnpublishedIndicator({ profile, state, snapshot, onRetry
   }
 
   // Changes waiting. `state` is ready here.
-  const groups = result ? groupItems(result.items) : [];
   return (
     <div className="org-ahead-root" ref={root}>
       <button
@@ -170,114 +305,15 @@ export default function UnpublishedIndicator({ profile, state, snapshot, onRetry
       </button>
       {open && (
         <div className="org-ahead-popover" ref={popover} role="dialog" aria-label="Changes not on iPads yet">
-          <div className="org-ahead-scroll">
-            {ind.incomplete && (
-              <p className="org-ahead-warn" role="status">
-                <CircleAlert size={14} aria-hidden />
-                <span>
-                  Some changes may be missing: couldn't read {result?.errors.map((e) => e.kind.toLowerCase()).join(", ")}.{" "}
-                  <button type="button" className="studio-btn ghost sm" onClick={onRetry}>
-                    Retry
-                  </button>
-                </span>
-              </p>
-            )}
-            {groups.map((g) => (
-              <section key={g.id} className="org-ahead-group">
-                <h3 className="ui-section-title">
-                  {g.title}<span className="count">· {g.items.length}</span>
-                </h3>
-                {g.note && <p className="org-ahead-note">{g.note}</p>}
-                <ul>
-                  {g.items.map((item) => {
-                    const Icon = KIND_ICON[item.kind];
-                    const what = whatChanged(item, summaries[item.id]);
-                    const more = !!what && what !== "loading" && (what.all.length > ROW_LINES || what.all.some((l) => l.length > 48));
-                    const isOpen = expanded.has(item.id);
-                    return (
-                      <li key={item.id} className="org-ahead-item">
-                        <button
-                          type="button"
-                          className="org-ahead-row"
-                          aria-label={`Show ${item.label}`}
-                          onClick={() => {
-                            setOpen(false);
-                            onShow(item);
-                          }}
-                        >
-                          <Icon size={16} aria-hidden />
-                          <span className="org-ahead-row-main">
-                            <span className="org-ahead-row-name" title={item.name}>
-                              {item.label}
-                            </span>
-                            {what === "loading" && <span className="org-ahead-skeleton" aria-hidden="true" />}
-                            {what && what !== "loading" && what.text && (
-                              <span className={"org-ahead-row-what" + ("none" in what ? " none" : "")} title={what.all.length > 1 ? what.all.join("\n") : undefined}>
-                                {what.text}
-                              </span>
-                            )}
-                            <span className="org-ahead-row-meta">
-                              {kindLabel(item.kind)} · {whoWhen(item)}
-                            </span>
-                          </span>
-                          <ChevronRight size={14} aria-hidden className="org-ahead-chev" />
-                        </button>
-                        {more && (
-                          <button
-                            type="button"
-                            className="org-ahead-more"
-                            aria-expanded={isOpen}
-                            aria-label={`${isOpen ? "Hide" : "Show"} all ${what.all.length} changes to ${item.label}`}
-                            onClick={() =>
-                              setExpanded((cur) => {
-                                const next = new Set(cur);
-                                if (!next.delete(item.id)) next.add(item.id);
-                                return next;
-                              })
-                            }
-                          >
-                            <ChevronDown size={14} aria-hidden />
-                          </button>
-                        )}
-                        {more && isOpen && (
-                          <ul className="org-ahead-changes">
-                            {what.all.map((line) => (
-                              <li key={line}>{line}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            ))}
-          </div>
-          <ul className="org-ahead-legend" aria-label="What the outlines mean">
-            <li>
-              <span className="org-ahead-swatch published" aria-hidden="true" /> {ORG_AHEAD_LEGEND.published}
-            </li>
-            <li>
-              <span className="org-ahead-swatch org" aria-hidden="true" /> {ORG_AHEAD_LEGEND.org}
-            </li>
-            <li>
-              <span className="org-ahead-swatch tray" aria-hidden="true" /> {ORG_AHEAD_LEGEND.tray}
-            </li>
-          </ul>
-          <div className="org-ahead-foot">
-            <span className="org-ahead-muted org-ahead-text">{ind.publishedAt ? `Last published ${timeAgo(ind.publishedAt)}` : "Not published yet"}</span>
-            <button
-              type="button"
-              className="studio-btn primary"
-              title={`Publish to iPad for ${profile}`}
-              onClick={() => {
-                setOpen(false);
-                onPublish();
-              }}
-            >
-              <CloudUpload aria-hidden="true" /> Publish to iPad
-            </button>
-          </div>
+          <UnpublishedList
+            profile={profile}
+            state={state}
+            snapshot={snapshot}
+            onRetry={onRetry}
+            onShow={onShow}
+            onPublish={onPublish}
+            onClose={() => setOpen(false)}
+          />
         </div>
       )}
     </div>
