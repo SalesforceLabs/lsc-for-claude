@@ -6,6 +6,7 @@ import {
   Columns2,
   Heading,
   Lock,
+  Pencil,
   Undo2,
   ArrowDown,
   ArrowLeft,
@@ -76,6 +77,7 @@ export default function BlockInspector({
   profile,
   verbs,
   draft,
+  onEditInDraft,
   onRun,
   horizontal,
   layout,
@@ -101,8 +103,10 @@ export default function BlockInspector({
   info: TargetInfo;
   profile: string;
   verbs: Verb[];
-  /** Verbs only run in Draft; Published explains. */
+  /** Verbs only run in Next publish; On iPads now explains. */
   draft: boolean;
+  /** On iPads now: switch to Next publish with this block still selected. */
+  onEditInDraft?: () => void;
   onRun: (verb: Verb) => void;
   /** Moves go left / right (tabs, header fields). */
   horizontal?: boolean;
@@ -149,7 +153,7 @@ export default function BlockInspector({
       </div>
       <div className="studio-inspector-body">
         <h2 className="studio-inspector-title">{info.title}</h2>
-        {info.draftOnly && <span className="ui-pill info">In Draft only</span>}
+        {info.draftOnly && <span className="ui-pill info" title="Added by a pending change; reps get it after you apply and publish">Not applied yet</span>}
         {selection && (
           <span className="ui-pill info" title="Changes below apply to every selected block; ⌘- or ⇧-click a block to add or drop it">
             {selection} selected
@@ -198,7 +202,7 @@ export default function BlockInspector({
                   className="studio-btn sm"
                   onClick={onSync}
                   disabled={!draft}
-                  title={draft ? undefined : "Switch to Draft to queue changes"}
+                  title={draft ? undefined : "Switch to Next publish to change it"}
                 >
                   {sync.label}
                 </button>
@@ -209,6 +213,12 @@ export default function BlockInspector({
 
         <section className="studio-block-section">
           <h3 className="ui-section-title">How to change it</h3>
+          {!draft && onEditInDraft && (
+            <button type="button" className="studio-btn sm primary" onClick={onEditInDraft} title="Show what reps get after you apply and publish, with this selected, and change it there">
+              <Pencil size={14} aria-hidden />
+              Edit in Next publish
+            </button>
+          )}
           {layout?.loading && (
             <p className="studio-block-reach" role="status">
               <Spinner size={14} />
@@ -252,7 +262,7 @@ export default function BlockInspector({
                       ? ArrowRight
                       : ICONS[v.id];
                 const why = !draft
-                  ? "Switch to Draft to queue changes"
+                  ? "Switch to Next publish to change it"
                   : v.run || v.pick
                     ? v.title
                     : v.reason;
@@ -295,7 +305,7 @@ export default function BlockInspector({
                   type="button"
                   className="studio-btn sm"
                   disabled={!draft}
-                  title={draft ? `Copy this ${layout?.noun ?? "layout"} and point only ${profile} at the copy` : "Switch to Draft to queue changes"}
+                  title={draft ? `Copy this ${layout?.noun ?? "layout"} and point only ${profile} at the copy` : "Switch to Next publish to change it"}
                   onClick={copy.onCopy}
                 >
                   <Copy size={14} aria-hidden />

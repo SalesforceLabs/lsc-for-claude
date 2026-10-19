@@ -2,6 +2,7 @@ import type { PublishedLayout, PublishedRelated, RecordFieldSpec } from "./publi
 import type { FieldBehavior, LayoutEditFix, LayoutFieldOption, LayoutOp, LiveLayout, SectionRef } from "./types";
 import { layoutOpsChange, pendingFor, queuedLayoutOps, queueChange, type PendingChange } from "./changes";
 import type { DraftState, Verb } from "./edit-draft";
+import { movedKeys, type OrgAheadMark } from "./org-ahead";
 
 /**
  * Page layouts in Draft. The tray holds one `editMetadata` change per layout
@@ -101,7 +102,7 @@ function applyOp(m: LayoutModel, op: LayoutOp): void {
       return;
     }
     case "addSection":
-      throw new StaleDraftError("A new section can't be drawn in Draft.");
+      throw new StaleDraftError("A new section can't be drawn in Next publish.");
     case "setSectionHeading": {
       const sec = findSection(m, op.section);
       if (sec.heading !== op.from) throw new StaleDraftError(`The section "${op.section.label}" changed on the layout.`);
@@ -167,7 +168,7 @@ export function diffOps(base: LayoutModel, target: LayoutModel): LayoutOp[] {
   const wanted = new Map<string, LayoutItem>();
   for (const s of target.sections) for (const c of s.columns) for (const i of c) wanted.set(i.field, i);
   const kept = new Set(target.sections.map((s) => s.key));
-  for (const s of target.sections) if (!sectionByKey(base, s.key)) throw new StaleDraftError("A new section can't be drawn in Draft.");
+  for (const s of target.sections) if (!sectionByKey(base, s.key)) throw new StaleDraftError("A new section can't be drawn in Next publish.");
 
   // Fields that leave the layout; a removed section takes its own along when it goes.
   for (const s of base.sections) {
@@ -289,7 +290,7 @@ export function alignLayout(published: PublishedLayout, live: LayoutModel): numb
 // --- What the org has that the last publish doesn't ------------------------------
 
 /** Words for blocks that are in the org but not in the published cache (the org-ahead style, `draft-org-ahead`); defined in org-ahead.ts. */
-export { ORG_AHEAD_TAG, ORG_AHEAD_GONE, ORG_AHEAD_NOTE, ORG_AHEAD_GONE_NOTE } from "./org-ahead";
+export { ORG_AHEAD_TAG, ORG_AHEAD_GONE, ORG_AHEAD_MOVED } from "./org-ahead";
 
 /** A layout item the cache has and the org's layout no longer does, with where it was. */
 export interface GoneField {
@@ -319,12 +320,35 @@ export interface LayoutAhead {
   goneRelated: string[];
   /** Items removed from sections the org's layout no longer has (not drawn). */
   goneElsewhere: number;
+  /** Layout items both have, in another section, column or order in the org's layout. */
+  moved: Set<string>;
+  /** Org sections (by key) both have, in another order in the org's layout. */
+  movedSections: Set<number>;
+  /** Related lists both have, in another order in the org's layout: the org's name → the cache's. */
+  movedRelated: Map<string, string>;
 }
 
-export const noAhead = (): LayoutAhead => ({ fields: new Set(), sections: new Set(), related: new Set(), gone: [], goneRelated: [], goneElsewhere: 0 });
+export const noAhead = (): LayoutAhead => ({
+  fields: new Set(),
+  sections: new Set(),
+  related: new Set(),
+  gone: [],
+  goneRelated: [],
+  goneElsewhere: 0,
+  moved: new Set(),
+  movedSections: new Set(),
+  movedRelated: new Map(),
+});
+
+/** How many blocks Setup moved since the publish. */
+export const movedCount = (a: LayoutAhead): number => a.moved.size + a.movedSections.size + a.movedRelated.size;
+
+/** Whether Setup moved this related list (named as the layout or the cache names it). */
+export const relatedMoved = (a: LayoutAhead | null | undefined, name: string): boolean => !!a && (a.movedRelated.has(name) || [...a.movedRelated.values()].includes(name));
 
 export const isAhead = (a: LayoutAhead | null | undefined): boolean =>
-  !!a && (a.fields.size > 0 || a.sections.size > 0 || a.related.size > 0 || a.gone.length > 0 || a.goneRelated.length > 0 || a.goneElsewhere > 0);
+  !!a &&
+  (a.fields.size > 0 || a.sections.size > 0 || a.related.size > 0 || a.gone.length > 0 || a.goneRelated.length > 0 || a.goneElsewhere > 0 || a.moved.size > 0 || a.movedSections.size > 0 || a.movedRelated.size > 0);
 
 /**
  * What the org's layout has that the published one doesn't, and the reverse.
@@ -357,6 +381,47 @@ export function aheadOf(published: PublishedLayout | undefined, base: LayoutMode
   const match = matchRelatedLists(base.relatedLists, published.relatedLists);
   for (const r of match.added) out.related.add(r);
   out.goneRelated.push(...match.removed);
+
+  // Moves: where each item both have sits, section by section and column by column, against the cache.
+  const sectionId = (label: string, nth: number) => `${nth}:${label}`;
+  const pubSections = published.sections.map((p) => sectionId(p.source!.label, p.source!.nth));
+  const orgSections = base.sections.map((sec) => {
+    const ref = refOf(base, sec);
+    return sectionId(ref.label, ref.nth);
+  });
+  const sectionMoves = movedKeys(pubSections, orgSections.filter((id) => pubSections.includes(id)));
+  base.sections.forEach((sec, i) => {
+    if (sectionMoves.has(orgSections[i])) out.movedSections.add(sec.key);
+  });
+  const pubPlace = new Map<string, string>();
+  const pubColumns = new Map<string, string[]>();
+  for (const p of published.sections) {
+    const src = p.source!;
+    src.fields.forEach((col, ci) => {
+      const place = `${sectionId(src.label, src.nth)}#${src.columns[ci]}`;
+      const list = items(col);
+      pubColumns.set(place, [...(pubColumns.get(place) ?? []), ...list]);
+      for (const item of list) pubPlace.set(item, place);
+    });
+  }
+  base.sections.forEach((sec, i) => {
+    sec.columns.forEach((col, ci) => {
+      const place = `${orgSections[i]}#${ci}`;
+      const here = col.map((it) => it.field).filter((f) => pubPlace.has(f));
+      for (const f of here) if (pubPlace.get(f) !== place) out.moved.add(f);
+      const stayed = here.filter((f) => pubPlace.get(f) === place);
+      for (const f of movedKeys(pubColumns.get(place) ?? [], stayed)) out.moved.add(f);
+    });
+  });
+  const pairedPub = base.relatedLists.filter((r) => match.pairs.has(r)).map((r) => match.pairs.get(r)!);
+  const relatedMoves = movedKeys(
+    published.relatedLists.map((r) => r.name),
+    pairedPub
+  );
+  for (const r of base.relatedLists) {
+    const pub = match.pairs.get(r);
+    if (pub && relatedMoves.has(pub)) out.movedRelated.set(r, pub);
+  }
   return out;
 }
 
@@ -434,8 +499,8 @@ export interface DraftField {
   state: DraftState;
   /** Its column in the layout section (drawn columns skip empty ones). */
   col: number;
-  /** In the org but not on iPads yet, or on iPads but removed in the org (drawn as a ghost that can't be selected). */
-  ahead?: "added" | "removed";
+  /** In the org but not on iPads yet, on iPads but removed in the org (drawn as a ghost that can't be selected), or moved in the org. */
+  ahead?: OrgAheadMark;
 }
 
 export interface DraftSection {
@@ -448,8 +513,8 @@ export interface DraftSection {
   heading: boolean;
   state: DraftState;
   columns: DraftField[][];
-  /** The section is in the org but not on iPads yet. */
-  ahead?: "added";
+  /** The section is in the org but not on iPads yet, or in another place there. */
+  ahead?: "added" | "moved";
   /** Indices (in the org's layout) of the columns left with nothing to draw; a field can still be dropped in them. */
   emptyColumns: number[];
 }
@@ -531,8 +596,8 @@ export function draftSections(
             before.col !== ci ||
             liveCol.filter((f) => col.some((i) => i.field === f)).indexOf(field) !== col.map((i) => i.field).filter((f) => liveCol.includes(f)).indexOf(field);
           const state: DraftState = gone || ghost ? "removed" : !before ? "added" : moved || liveItem?.behavior !== item.behavior ? "moved" : "same";
-          const aheadField = !gone && !ghost && ahead?.fields.has(field);
-          return (specs.get(field) ?? []).map((spec): DraftField => ({ spec, item: field, behavior: item.behavior, state, col: ci, ...(aheadField ? { ahead: "added" as const } : {}) }));
+          const aheadField = gone || ghost ? undefined : ahead?.fields.has(field) ? ("added" as const) : ahead?.moved.has(field) ? ("moved" as const) : undefined;
+          return (specs.get(field) ?? []).map((spec): DraftField => ({ spec, item: field, behavior: item.behavior, state, col: ci, ...(aheadField ? { ahead: aheadField } : {}) }));
         });
       });
     const columns = all.filter((c) => c.length);
@@ -549,7 +614,7 @@ export function draftSections(
         name,
         heading: sec.heading,
         state: ghost ? "removed" : moved || sec.heading !== liveSec.heading ? "moved" : "same",
-        ...(!ghost && ahead?.sections.has(key) ? { ahead: "added" as const } : {}),
+        ...(!ghost && ahead?.sections.has(key) ? { ahead: "added" as const } : !ghost && ahead?.movedSections.has(key) ? { ahead: "moved" as const } : {}),
         columns,
         emptyColumns,
       },

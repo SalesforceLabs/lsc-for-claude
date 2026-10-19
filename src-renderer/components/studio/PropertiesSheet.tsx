@@ -64,7 +64,7 @@ function PropertyField({ edit, draft, notDrawn, onSet, onReset }: { edit: Proper
   useEffect(() => setValue(edit.value), [edit.value]);
   const { problem, warning } = edit.check(value);
   const off = !draft || edit.readOnly;
-  const why = !draft ? "Switch to Draft to queue changes" : edit.readOnly ? "This identifies the component" : undefined;
+  const why = !draft ? "Switch to Next publish to change it" : edit.readOnly ? "This identifies the component" : undefined;
   const commit = () => {
     if (value !== edit.value && !problem) onSet(value);
   };

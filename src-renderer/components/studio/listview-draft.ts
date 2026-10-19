@@ -3,6 +3,7 @@ import type { ListViewEditFix, ListViewFilter, ListViewOp, LiveListView } from "
 import { listViewOpsChange, pendingFor, queueChange, type PendingChange } from "./changes";
 import type { DraftState, Verb } from "./edit-draft";
 import { StaleDraftError, withGhosts } from "./layout-draft";
+import { movedKeys, type OrgAheadMark } from "./org-ahead";
 
 /**
  * List views in Draft. Like compact layouts, the tray holds one `editMetadata`
@@ -135,8 +136,8 @@ export interface DraftListColumn {
   state: DraftState;
   /** The column's place in the published rows' cells; null for one added in Draft (nothing to show yet). */
   orig: number | null;
-  /** In the org but not on iPads yet, or on iPads but removed in the org (a ghost that can't be selected). */
-  ahead?: "added" | "removed";
+  /** In the org but not on iPads yet, on iPads but removed in the org (a ghost that can't be selected), or moved in the org. */
+  ahead?: OrgAheadMark;
 }
 
 /** Old-style ids (`ACCOUNT.NAME`, `FULL_NAME`) the Metadata API keeps for standard objects' views. */
@@ -164,6 +165,8 @@ export function draftListColumns(published: PublishedListView, live: LiveListVie
   const order: { key: string; ghost: boolean; orgGone?: boolean }[] = goneIds.length
     ? withGhosts(ids, tray.map((o) => o.key), (k) => goneIds.includes(k)).map(({ key, ghost }) => (ghost ? { key, ghost: true, orgGone: true } : tray.find((o) => o.key === key)!))
     : tray;
+  // Columns Setup moved since the publish, by their place among the cache's columns.
+  const orgMoved = published.source ? movedKeys(ids, base, sameColumn) : new Set<string>();
   return order.map(({ key, ghost, orgGone }) => {
     const orig = columnIndex(ids, key);
     if (orgGone) return { id: key, label: published.columns[orig] ?? labelFor(key, live), state: "removed" as DraftState, orig, ahead: "removed" as const };
@@ -171,7 +174,8 @@ export function draftListColumns(published: PublishedListView, live: LiveListVie
     const state: DraftState = ghost ? "removed" : added ? "added" : common.indexOf(key) !== commonTarget.indexOf(key) ? "moved" : "same";
     // In the org's view and not in the cache's: nothing to show in its cells yet.
     const orgNew = !added && !ghost && !!published.source && orig < 0;
-    return { id: key, label: orig >= 0 && published.columns[orig] ? published.columns[orig] : labelFor(key, live), state, orig: orig >= 0 ? orig : null, ...(orgNew ? { ahead: "added" as const } : {}) };
+    const mark = orgNew ? ("added" as const) : !added && !ghost && orgMoved.has(key) ? ("moved" as const) : undefined;
+    return { id: key, label: orig >= 0 && published.columns[orig] ? published.columns[orig] : labelFor(key, live), state, orig: orig >= 0 ? orig : null, ...(mark ? { ahead: mark } : {}) };
   });
 }
 

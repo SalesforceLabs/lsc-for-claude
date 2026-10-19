@@ -14,8 +14,44 @@ export const ORG_AHEAD_CLASS = "draft-org-ahead";
 export const ORG_AHEAD_TAG = "Not on iPads yet";
 /** The tag on a block the org removed that iPads still have. */
 export const ORG_AHEAD_GONE = "Removed in the org";
-export const ORG_AHEAD_NOTE = "This is in the org but not on iPads yet. Publish to iPad so reps get it.";
-export const ORG_AHEAD_GONE_NOTE = "This was removed in the org but is still on iPads. Publish to iPad so reps lose it.";
+/** The tag on a block the org moved: it is in a different place on iPads. */
+export const ORG_AHEAD_MOVED = "Moved in the org";
+/** How a block in Next publish differs from iPads: added in the org, removed there (a ghost), or moved there. */
+export type OrgAheadMark = "added" | "removed" | "moved";
+/** The tag words for a mark. */
+export const orgAheadTag = (mark: OrgAheadMark): string => (mark === "added" ? ORG_AHEAD_TAG : mark === "removed" ? ORG_AHEAD_GONE : ORG_AHEAD_MOVED);
+
+/**
+ * The items of `org` that are also in `published` but out of order: everything outside the longest run the two
+ * lists share in the same order, so one item moved to the end marks that item, not everything it passed.
+ * `same` pairs items (each published item pairs once).
+ */
+export function movedKeys<T>(published: readonly T[], org: readonly T[], same: (a: T, b: T) => boolean = (a, b) => a === b): Set<T> {
+  const taken = new Set<number>();
+  const pairs: { item: T; at: number }[] = [];
+  for (const item of org) {
+    const at = published.findIndex((p, i) => !taken.has(i) && same(p, item));
+    if (at < 0) continue;
+    taken.add(at);
+    pairs.push({ item, at });
+  }
+  // Longest increasing run of published positions, in org order (O(n²); lists here are short).
+  const len = pairs.map(() => 1);
+  const prev = pairs.map(() => -1);
+  for (let i = 0; i < pairs.length; i++)
+    for (let j = 0; j < i; j++)
+      if (pairs[j].at < pairs[i].at && len[j] + 1 > len[i]) {
+        len[i] = len[j] + 1;
+        prev[i] = j;
+      }
+  const keep = new Set<number>();
+  let k = len.length ? len.indexOf(Math.max(...len)) : -1;
+  while (k >= 0) {
+    keep.add(k);
+    k = prev[k];
+  }
+  return new Set(pairs.filter((_, i) => !keep.has(i)).map((p) => p.item));
+}
 export const ORG_AHEAD_LEGEND = {
   published: "On iPads",
   org: "In the org, not published",
@@ -289,6 +325,26 @@ export const orgAheadTab = (idx: OrgAheadIndex, fullName: string) => idx.tabs.ge
 export const orgAheadApp = (idx: OrgAheadIndex, fullName: string | null | undefined) => (fullName ? idx.apps.get(norm(fullName)) : undefined);
 export const orgAheadListView = (idx: OrgAheadIndex, object: string, name: string) => idx.listViews.get(norm(`${object}.${name}`));
 
+/** At most this many documents of each kind are read for Next publish before one of their blocks is selected. */
+export const AHEAD_DOCS_CAP = 12;
+
+/**
+ * The snapshot's documents that changed in the org, by kind and named as the snapshot names them, so Next publish
+ * can read them and draw the org's version without waiting for a click. Capped per kind; the rest are read on selection.
+ */
+export function aheadDocuments(idx: OrgAheadIndex, s: PublishedIpad, cap = AHEAD_DOCS_CAP): { layouts: string[]; compacts: string[]; listViews: string[]; pages: string[] } {
+  const take = (names: string[], hit: (n: string) => unknown) => names.filter(hit).sort().slice(0, cap);
+  return {
+    layouts: take(Object.keys(s.layouts), (n) => orgAheadLayout(idx, n)),
+    compacts: take(Object.keys(s.compactLayouts), (n) => idx.compacts.get(norm(n))),
+    listViews: take(
+      Object.values(s.objects).flatMap((o) => o.listViews.map((v) => `${o.name}.${v.name}`)),
+      (n) => idx.listViews.get(norm(n))
+    ),
+    pages: take(Object.keys(s.pages), (n) => orgAheadPage(idx, n)),
+  };
+}
+
 /** The changed item behind a selected block, if its document changed in the org. */
 export function orgAheadFor(idx: OrgAheadIndex, t: EditTarget): UnpublishedItem | undefined {
   switch (t.kind) {
@@ -324,7 +380,7 @@ export interface Reveal {
 
 /** Where "Show" takes the admin. */
 export type RevealPlan =
-  /** Switch to Draft, open the tab (and a record when `record`), and select `select` when there is one. */
+  /** Switch to Next publish, open the tab (and a record when `record`), and select `select` when there is one. */
   | { kind: "preview"; tab: string | null; record: boolean; select: EditTarget | null }
   /** The change is an Admin Console record: open it in its Setup page. */
   | { kind: "setup"; feature: string; surface: string | null; item: string }

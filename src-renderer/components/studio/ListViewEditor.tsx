@@ -34,7 +34,7 @@ export default function ListViewEditor({
 }) {
   const { scope, filters, logic } = draft.target;
   const fields = filterableFields(draft);
-  const title = editable ? undefined : "Switch to Draft to queue changes";
+  const title = editable ? undefined : "Switch to Next publish to change it";
   const scopes = scope && !(IPAD_SCOPES as readonly string[]).includes(scope) ? [...IPAD_SCOPES, scope] : [...IPAD_SCOPES];
   const [logicText, setLogicText] = useState(logic ?? "");
   useEffect(() => setLogicText(logic ?? ""), [logic]);

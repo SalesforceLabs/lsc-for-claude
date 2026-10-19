@@ -4,6 +4,7 @@ import type { ComponentCatalog, FlexiItemRef, FlexiPageEditFix, FlexiPageOp, Fle
 import { flexiPageOpsChange, pendingFor, queueChange, type PendingChange } from "./changes";
 import type { DraftState, Verb } from "./edit-draft";
 import { StaleDraftError, withGhosts } from "./layout-draft";
+import { movedKeys } from "./org-ahead";
 
 /**
  * Lightning pages in Draft, the way layout-draft.ts does page layouts: the tray
@@ -150,7 +151,7 @@ function applyOp(m: FlexiModel, op: FlexiPageOp): void {
     }
     case "addComponent": {
       const region = findRegion(m, op.region);
-      if (op.xml) throw new StaleDraftError("A component put back from its XML can't be drawn in Draft.");
+      if (op.xml) throw new StaleDraftError("A component put back from its XML can't be drawn in Next publish.");
       if (!op.identifier) throw new StaleDraftError("A new component needs an identifier.");
       if (identifiers(m).has(op.identifier)) throw new StaleDraftError(`${op.identifier} is already on the page.`);
       const target = op.before ? findItem(region, op.before) : null;
@@ -226,7 +227,7 @@ export function diffOps(base: FlexiModel, target: FlexiModel): FlexiPageOp[] {
         if ((after?.key ?? null) === (next?.key ?? null)) continue;
         push({ op: "moveComponent", component: { region: tr.name, item: itemRef(cr, cr.items[at]) }, before });
       } else {
-        if (item.facets.length) throw new StaleDraftError("A new component with facets can't be drawn in Draft.");
+        if (item.facets.length) throw new StaleDraftError("A new component with facets can't be drawn in Next publish.");
         const properties = Object.entries(item.properties).map(([name, value]) => ({ name, value }));
         push({ op: "addComponent", region: tr.name, before, component: item.component, identifier: item.identifier, ...(properties.length ? { properties } : {}) });
       }
@@ -394,8 +395,8 @@ export interface DrawnBlock<T> {
   /** The org item, or the inserted one. */
   key: string;
   state: DraftState;
-  /** In the org's page and not on iPads yet (drawn as a placeholder with `state: "added"`). */
-  ahead?: boolean;
+  /** In the org's page and not on iPads yet (drawn as a placeholder with `state: "added"`), or in another place there. */
+  ahead?: "added" | "moved";
 }
 
 /**
@@ -417,6 +418,8 @@ function draftList<T>(d: PageDraft, published: T[], sourceOf: (t: T) => FlexiSou
   const targetKeys = targetRegion?.items.map((i) => i.key) ?? [];
   const common = liveKeys.filter((k) => targetKeys.includes(k) && pub.has(k));
   const commonTarget = targetKeys.filter((k) => liveKeys.includes(k) && pub.has(k));
+  // Blocks Setup moved since the publish: the org's order against the order iPads draw them in.
+  const orgMoved = d.ahead ? movedKeys([...pub.keys()], liveKeys.filter((k) => pub.has(k))) : new Set<string>();
   return withGhosts(liveKeys, targetKeys).flatMap(({ key, ghost }): DrawnBlock<T>[] => {
     const item = targetRegion?.items.find((i) => i.key === key);
     const known = pub.get(key);
@@ -427,13 +430,13 @@ function draftList<T>(d: PageDraft, published: T[], sourceOf: (t: T) => FlexiSou
     }
     if (!known && item && d.ahead) {
       const made = make(item);
-      return made ? [{ value: made, key, state: "added", ahead: true }] : [];
+      return made ? [{ value: made, key, state: "added", ahead: "added" }] : [];
     }
     if (!known || !item) return [];
     const liveItem = regionOf(d.base, container)!.items.find((i) => i.key === key)!;
     const edited = propertyKeys(liveItem.properties, item.properties).some((p) => (liveItem.properties[p] ?? null) !== (item.properties[p] ?? null));
     const moved = common.indexOf(key) !== commonTarget.indexOf(key);
-    return [{ value: edit(known, item), key, state: moved || edited ? "moved" : "same" }];
+    return [{ value: edit(known, item), key, state: moved || edited ? "moved" : "same", ...(orgMoved.has(key) ? { ahead: "moved" as const } : {}) }];
   });
 }
 
@@ -741,7 +744,7 @@ export function insertVerb(d: PageDraft, key: string, catalog: ComponentCatalog 
   const entries = catalog.entries.filter((e) => e.insertable && !(e.group === "Related list" && placed.has(e.properties.find((p) => p.name === "relatedListApiName")?.value ?? "")));
   const removed = removedItems(d).filter((r) => r.region === point.region);
   const options = [
-    ...removed.map((r) => ({ value: `back:${r.key}`, label: insertedLabel(r.component, r.properties), detail: "Removed in Draft — put it back here" })),
+    ...removed.map((r) => ({ value: `back:${r.key}`, label: insertedLabel(r.component, r.properties), detail: "Removed by a pending change — put it back here" })),
     ...entries.map((e) => ({ value: `new:${e.key}`, label: e.label, detail: e.group === "Related list" && e.object ? `Related list · ${e.object}` : e.group })),
   ];
   const later = catalog.entries.filter((e) => !e.insertable).map((e) => e.label);

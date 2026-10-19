@@ -17,7 +17,9 @@ import {
   alignLayout,
   aheadOf,
   isAhead,
+  movedCount,
   ORG_AHEAD_GONE,
+  ORG_AHEAD_MOVED,
   ORG_AHEAD_TAG,
   type LayoutAhead,
   draftSections,
@@ -65,15 +67,17 @@ import {
 import ListViewEditor from "./ListViewEditor";
 import BlockInspector, { compactReach, listViewReach, pageReach, type CopyAction } from "./BlockInspector";
 import CreateDialog from "./CreateDialog";
-import { orgAheadApp, orgAheadFor, type OrgAheadIndex } from "./org-ahead";
+import { aheadDocuments, orgAheadApp, orgAheadFor, type OrgAheadIndex } from "./org-ahead";
 import SearchPicker from "../ui/SearchPicker";
 import { extendSelection, groupVerbs, selectionNoun } from "./multi-select";
 
 interface PreviewEditOptions {
-  /** Edit mode is on: blocks can be selected. */
+  /** The preview is showing: blocks can be selected (to explain them, and in Next publish to change them). */
   on: boolean;
-  /** Draft: the tray is laid over the published iPad and verbs queue changes. */
+  /** Next publish: the org and the tray are drawn over the published iPad and verbs queue changes. */
   draft: boolean;
+  /** "Edit in Next publish" from On iPads now: switch modes, keeping the selection. */
+  onEditInDraft?: () => void;
   profile: string | null;
   result: PublishedResult | undefined;
   actionsMap: FeatureMap | null;
@@ -119,6 +123,7 @@ export interface InsertIntentResult {
 export function usePreviewEdit({
   on,
   draft,
+  onEditInDraft,
   profile,
   result,
   actionsMap,
@@ -164,13 +169,15 @@ export function usePreviewEdit({
     return [...new Set((obj?.recordTypes ?? []).flatMap((r) => (r.layout ? [r.layout] : [])))].slice(0, 4);
   }, [insertIntent, snapshot]);
   useEffect(() => setLiveLayouts({}), [org]);
+  // Next publish draws the org: documents that changed there since the publish are read without waiting for a click.
+  const ahead = useMemo(() => (draft && orgAhead && snapshot ? aheadDocuments(orgAhead, snapshot) : null), [draft, orgAhead, snapshot]);
   const wanted = useMemo(() => {
     const names = new Set(pending.flatMap((p) => (p.fix.kind === "editMetadata" && p.fix.doc.type === "Layout" ? [p.fix.doc.fullName] : [])));
     const layout = selected && "layout" in selected ? selected.layout : undefined;
     if (on && layout) names.add(layout);
-    for (const n of intentLayouts) names.add(n);
+    for (const n of [...intentLayouts, ...(ahead?.layouts ?? [])]) names.add(n);
     return [...names].sort();
-  }, [pending, selected, on, intentLayouts]);
+  }, [pending, selected, on, intentLayouts, ahead]);
   const fetchLayout = useCallback((name: string) => {
     setLiveLayouts((m) => ({ ...m, [name]: { status: "loading" } }));
     window.lscApi.studioMetadataDoc("Layout", name).then(
@@ -191,8 +198,9 @@ export function usePreviewEdit({
   const wantedCompacts = useMemo(() => {
     const names = new Set(pending.flatMap((p) => (p.fix.kind === "editMetadata" && p.fix.doc.type === "CompactLayout" ? [p.fix.doc.fullName] : [])));
     if (on && selected?.kind === "headerField") names.add(selected.compactLayout);
+    for (const n of ahead?.compacts ?? []) names.add(n);
     return [...names].sort();
-  }, [pending, selected, on]);
+  }, [pending, selected, on, ahead]);
   const fetchCompact = useCallback((name: string) => {
     setLiveCompacts((m) => ({ ...m, [name]: { status: "loading" } }));
     window.lscApi.studioMetadataDoc("CompactLayout", name).then(
@@ -213,8 +221,9 @@ export function usePreviewEdit({
   const wantedListViews = useMemo(() => {
     const names = new Set(pending.flatMap((p) => (p.fix.kind === "editMetadata" && p.fix.doc.type === "ListView" ? [p.fix.doc.fullName] : [])));
     if (on && (selected?.kind === "listView" || selected?.kind === "listColumn")) names.add(listViewNameOf(selected));
+    for (const n of ahead?.listViews ?? []) names.add(n);
     return [...names].sort();
-  }, [pending, selected, on]);
+  }, [pending, selected, on, ahead]);
   const fetchListView = useCallback((name: string) => {
     setLiveListViews((m) => ({ ...m, [name]: { status: "loading" } }));
     window.lscApi.studioMetadataDoc("ListView", name).then(
@@ -246,9 +255,9 @@ export function usePreviewEdit({
   const wantedPages = useMemo(() => {
     const names = new Set(pending.flatMap((p) => (p.fix.kind === "editMetadata" && p.fix.doc.type === "FlexiPage" ? [p.fix.doc.fullName] : [])));
     if (on && selectedPage) names.add(selectedPage);
-    for (const n of intentPages) names.add(n);
+    for (const n of [...intentPages, ...(ahead?.pages ?? [])]) names.add(n);
     return [...names].sort();
-  }, [pending, selectedPage, on, intentPages]);
+  }, [pending, selectedPage, on, intentPages, ahead]);
   const fetchPage = useCallback((name: string) => {
     setLivePages((m) => ({ ...m, [name]: { status: "loading" } }));
     window.lscApi.studioMetadataDoc("FlexiPage", name).then(
@@ -806,6 +815,7 @@ export function usePreviewEdit({
           profile={profile}
           verbs={verbs}
           draft={draft}
+          onEditInDraft={onEditInDraft}
           onRun={run}
           horizontal={edit.horizontal}
           layout={layoutStatus}
@@ -1124,6 +1134,8 @@ export type PageEntry =
 const PAGE_NOT_PUBLISHED =
   "This profile's last publish doesn't have this Lightning page (it was assigned or created in Setup afterwards), so there is nothing to draw it from yet. Publish to iPad to edit it here.";
 
+const AHEAD_MOVED = (n: number) =>
+  `${n} ${n === 1 ? "thing" : "things"} here ${n === 1 ? "was" : "were"} moved in the org and ${n === 1 ? "is" : "are"} still in the old place on iPads (marked "${ORG_AHEAD_MOVED}"). Publish to iPad so reps get the new order.`;
 const AHEAD_SOME = (n: number) => `${n} ${n === 1 ? "thing" : "things"} here ${n === 1 ? "is" : "are"} in the org but not on iPads yet (marked "${ORG_AHEAD_TAG}"). Publish to iPad so reps get ${n === 1 ? "it" : "them"}.`;
 
 const MANAGED =
@@ -1190,7 +1202,12 @@ function aheadNote(a: LayoutAhead | null | undefined): { note: string } | {} {
   if (!isAhead(a)) return {};
   const n = a!.fields.size + a!.related.size + a!.sections.size;
   const gone = a!.gone.length + a!.goneRelated.length + a!.goneElsewhere;
-  const parts = [n ? AHEAD_SOME(n) : "", gone ? `${gone} ${gone === 1 ? "item was" : "items were"} removed in the org but ${gone === 1 ? "is" : "are"} still on iPads (marked "${ORG_AHEAD_GONE}").` : ""].filter(Boolean);
+  const moved = movedCount(a!);
+  const parts = [
+    n ? AHEAD_SOME(n) : "",
+    gone ? `${gone} ${gone === 1 ? "item was" : "items were"} removed in the org but ${gone === 1 ? "is" : "are"} still on iPads (marked "${ORG_AHEAD_GONE}").` : "",
+    moved ? AHEAD_MOVED(moved) : "",
+  ].filter(Boolean);
   return { note: parts.join(" ") };
 }
 
@@ -1208,7 +1225,14 @@ function compactStatusOf(entry: CompactEntry | undefined): LayoutStatus | undefi
       const crowded = crowdedNote(entry.draft);
       const n = entry.fields.filter((f) => f.ahead === "added").length;
       const gone = entry.fields.filter((f) => f.ahead === "removed").length;
-      const ahead = [n ? AHEAD_SOME(n) : "", gone ? `${gone} ${gone === 1 ? "field was" : "fields were"} removed in the org but ${gone === 1 ? "is" : "are"} still on iPads (marked "${ORG_AHEAD_GONE}").` : ""].filter(Boolean).join(" ");
+      const moved = entry.fields.filter((f) => f.ahead === "moved").length;
+      const ahead = [
+        n ? AHEAD_SOME(n) : "",
+        gone ? `${gone} ${gone === 1 ? "field was" : "fields were"} removed in the org but ${gone === 1 ? "is" : "are"} still on iPads (marked "${ORG_AHEAD_GONE}").` : "",
+        moved ? AHEAD_MOVED(moved) : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
       const note = [crowded, ahead].filter(Boolean).join(" ");
       return { ...reach(entry.draft.live), ...(note ? { note } : {}), production: entry.draft.live.production };
     }
@@ -1233,8 +1257,10 @@ function listViewStatusOf(entry: ListViewEntry | undefined, _published?: Publish
         ...(() => {
           const n = entry.columns.filter((c) => c.ahead === "added").length;
           const gone = entry.columns.filter((c) => c.ahead === "removed").length;
+          const moved = entry.columns.filter((c) => c.ahead === "moved").length;
           const parts = [
             n ? AHEAD_SOME(n) : "",
+            moved ? `${moved} ${moved === 1 ? "column was" : "columns were"} moved in the org (marked "${ORG_AHEAD_MOVED}").` : "",
             gone ? `${gone} ${gone === 1 ? "column was" : "columns were"} removed in the org but ${gone === 1 ? "is" : "are"} still on iPads (marked "${ORG_AHEAD_GONE}").` : "",
             entry.filtersChanged ? "The filters or scope changed in Setup and aren't on iPads yet, so the rows drawn here are the ones iPads show now." : "",
           ].filter(Boolean);

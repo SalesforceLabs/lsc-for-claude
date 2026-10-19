@@ -3,6 +3,7 @@ import type { CompactLayoutEditFix, CompactOp, LiveCompactLayout } from "./types
 import { compactOpsChange, pendingFor, queueChange, type PendingChange } from "./changes";
 import type { DraftState, Verb } from "./edit-draft";
 import { StaleDraftError, withGhosts } from "./layout-draft";
+import { movedKeys, type OrgAheadMark } from "./org-ahead";
 
 /**
  * Compact layouts (the record header) in Draft. Like page layouts, the tray
@@ -77,8 +78,8 @@ const isTitle = (field: string) => field.toLowerCase() === "name";
 export interface DraftHeaderField {
   spec: RecordFieldSpec;
   state: DraftState;
-  /** In the org but not on iPads yet, or on iPads but removed in the org (a ghost that can't be selected). */
-  ahead?: "added" | "removed";
+  /** In the org but not on iPads yet, on iPads but removed in the org (a ghost that can't be selected), or moved in the org. */
+  ahead?: OrgAheadMark;
 }
 
 /**
@@ -95,6 +96,7 @@ export function draftHeader(published: RecordFieldSpec[], live: LiveCompactLayou
   const commonTarget = target.filter((f) => base.includes(f));
   const pub = source ? new Set(source) : null;
   const gone = new Set((source ?? []).filter((f) => !base.includes(f) && !isTitle(f)));
+  const orgMoved = source ? movedKeys(source, base.filter((f) => pub!.has(f))) : new Set<string>();
   const tray = withGhosts(base, target);
   const order: { key: string; ghost: boolean; orgGone?: boolean }[] = gone.size
     ? withGhosts(source!, tray.map((o) => o.key), (k) => gone.has(k)).map(({ key, ghost }) => (ghost ? { key, ghost: true, orgGone: true } : tray.find((o) => o.key === key)!))
@@ -112,7 +114,7 @@ export function draftHeader(published: RecordFieldSpec[], live: LiveCompactLayou
     const spec = specs.get(key) ?? ((added || orgNew) && known ? { name: key, label: known.label, type: known.type } : undefined);
     if (!spec) return [];
     const state: DraftState = ghost ? "removed" : added ? "added" : common.indexOf(key) !== commonTarget.indexOf(key) ? "moved" : "same";
-    return [{ spec, state, ...(orgNew && !ghost ? { ahead: "added" as const } : {}) }];
+    return [{ spec, state, ...(orgNew && !ghost ? { ahead: "added" as const } : !ghost && orgMoved.has(key) ? { ahead: "moved" as const } : {}) }];
   });
 }
 

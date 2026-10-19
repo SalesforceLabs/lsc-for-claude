@@ -742,7 +742,7 @@ const rectStyle = (r: DOMRect): React.CSSProperties => ({
   height: r.height,
 });
 
-/** Surfaces narrower than this (Side by side's half-size iPad) get an icon-only toolbar, so it fits on the device. */
+/** Surfaces narrower than this (Compare's half-size iPad) get an icon-only toolbar, so it fits on the device. */
 export const COMPACT_TOOLBAR_BELOW = 560;
 export const isCompactToolbar = (surfaceWidth: number): boolean => surfaceWidth > 0 && surfaceWidth < COMPACT_TOOLBAR_BELOW;
 
