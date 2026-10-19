@@ -107,7 +107,7 @@ const tabOrder = (item: StudioItem, pending: PendingChange[]) => {
   return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
 };
 
-function addedTab(fullName: string, label: string): PublishedTab {
+export function addedTab(fullName: string, label: string): PublishedTab {
   return {
     fullName,
     label,
@@ -404,7 +404,8 @@ export type VerbId =
   | "addField"
   | "addRelated"
   | "default"
-  | "insertComponent";
+  | "insertComponent"
+  | "addTab";
 
 /** A verb that asks which one first ("Add field…"): a search picker over `options`, and picking one runs it. */
 export interface VerbPick {

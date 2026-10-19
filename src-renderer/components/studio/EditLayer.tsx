@@ -27,6 +27,7 @@ import {
   Trash2,
   ListPlus,
   TextCursorInput,
+  PanelTopOpen,
   SquarePlus,
   Star,
   type LucideIcon,
@@ -310,10 +311,11 @@ const VERB_ICONS: Record<VerbId, LucideIcon> = {
   addRelated: ListPlus,
   default: Star,
   insertComponent: SquarePlus,
+  addTab: PanelTopOpen,
 };
 
 /** Toolbar words; the full sentence ("Hide for LS Rep") is the button's tooltip and stays in the inspector. */
-const TOOLBAR_LABELS: Partial<Record<VerbId, string>> = { hide: "Hide", show: "Show", addField: "Add field", addRelated: "Add list", insertComponent: "Insert" };
+const TOOLBAR_LABELS: Partial<Record<VerbId, string>> = { hide: "Hide", show: "Show", addField: "Add field", addRelated: "Add list", insertComponent: "Insert", addTab: "Add tab" };
 /** Verbs the toolbar draws as an icon alone; their tooltip says what they do. */
 const ICON_ONLY = new Set<VerbId>(["up", "down", "column", "heading", "required", "readonly"]);
 

@@ -10,6 +10,7 @@ export type UnpublishedKind =
   | "layout"
   | "compactLayout"
   | "flexiPage"
+  | "app"
   | "recordType"
   | "tab"
   | "listView"
@@ -157,6 +158,21 @@ export function flexiPageItems(rows: Row[], scope: Scope): UnpublishedItem[] {
     if (!dev) continue;
     const name = resolveName(scope, dev);
     if (name !== null) out.push(build("flexiPage", name, str(r.MasterLabel) || dev, r, "FlexiPage"));
+  }
+  return out;
+}
+
+/** The Lightning app behind the profile's tab bar, when it changed after the cache. `app` is its full name (`ns__Name` for installed apps). */
+export function appItems(rows: Row[], app: string | null): UnpublishedItem[] {
+  if (!app) return [];
+  const out: UnpublishedItem[] = [];
+  for (const r of rows) {
+    const dev = str(r.DeveloperName);
+    if (!dev) continue;
+    const ns = str(r.NamespacePrefix);
+    const fullName = ns ? `${ns}__${dev}` : dev;
+    if (fullName !== app) continue;
+    out.push(build("app", fullName, str(r.Label) || dev, r, "CustomApplication"));
   }
   return out;
 }

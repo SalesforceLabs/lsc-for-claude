@@ -213,12 +213,26 @@ export interface TargetInfo {
   draftOnly?: boolean;
 }
 
+/** What Draft knows of the Lightning app behind the tab bar, for the inspector of a tab that comes from it. */
+export interface AppNavInfo {
+  /** The app, when it could be told which one the profile's bar comes from. */
+  app: { fullName: string; label: string; installed: boolean } | null;
+  /** The tab can be moved, removed or added around here. */
+  editable: boolean;
+  /** The tab is one of the app's package: it stays, tabs can be added after it. */
+  packaged: boolean;
+  /** Why the bar can't be edited here, or that it is still being read. */
+  note?: string;
+}
+
 export interface DescribeContext {
   snapshot: PublishedIpad;
   profile: string;
   pending: PendingChange[];
   tabs: DraftTab[];
   homeMenu: DraftAction[];
+  /** The profile's Lightning app, as far as Draft read it. */
+  app?: AppNavInfo;
 }
 
 const PUBLISH = "Publish to iPad so reps get the change.";
@@ -281,6 +295,29 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
           studio: { featureId: "actions-home", surface: "navigationTabs", itemId: item.id },
         };
       }
+      const app = ctx.app;
+      if (app?.app && (app.editable || app.packaged || d?.state === "added")) {
+        const where = app.app.installed
+          ? "The tab is one of the navigation items you can arrange in the installed app. Its own package tabs (such as Home) stay first."
+          : "The tab is a navigation item of the app.";
+        return {
+          ...base,
+          draftOnly: d?.state === "added",
+          what: ["Lightning app navigation", `${app.app.label} (${app.app.fullName})`, t.fullName],
+          why: [
+            d?.state === "added" ? "Added to the app in Draft." : app.packaged ? "A tab of the app's package: the iPad draws it first, in the package's order." : where,
+            "The profile's tab visibility for it isn't Hidden, so the iPad keeps it.",
+          ],
+          how: [
+            app.packaged
+              ? "It can't be moved or removed, but Add tab… puts a new tab right after the package's tabs."
+              : "Move, remove or add tabs from the toolbar. Editing the app changes the tab bar for every profile that uses it.",
+            PUBLISH,
+          ],
+          reach: "The app's navigation reaches every profile that uses the app.",
+          setup: SETUP.appManager,
+        };
+      }
       return {
         ...base,
         what: ["Lightning app navigation", t.fullName],
@@ -291,6 +328,7 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
           "The profile's tab visibility for it isn't Hidden, so the iPad keeps it.",
         ],
         how: [
+          ...(app?.note ? [app.note] : []),
           "In Setup › App Manager, edit the LSC app › Navigation Items to add, remove or reorder its tabs.",
           "To hide it from one profile only, set the tab to Hidden in that profile's Tab Settings.",
           PUBLISH,

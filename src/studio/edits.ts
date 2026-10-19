@@ -26,6 +26,9 @@ import { deployDoc, validateDoc, withDoc, type MetadataDoc } from "./metadata/do
 import { applyCompactOps, StaleCompactError } from "./metadata/compact-ops.js";
 import { applyLayoutOps, relatedListCount, StaleLayoutError, type LayoutChange } from "./metadata/layout-ops.js";
 import { applyListViewOps, StaleListViewError } from "./metadata/listview-ops.js";
+import { applyAppOps, StaleAppError } from "./metadata/app-ops.js";
+import { appTabWarnings } from "./metadata/app-tab-rules.js";
+import { appProfiles, forgetLiveApps } from "./metadata/live-app.js";
 import { applyFlexiPageOps, flexiPageWarnings, StaleFlexiPageError } from "./metadata/flexipage-ops.js";
 import { compactLayoutRecordTypes, isManagedFlexiPage, knownFlexiPageReach, isProductionOrg, layoutProfiles, liveListViewOf, splitCompactName, splitListViewName } from "./metadata/live.js";
 import { applyCopy, previewCopy } from "./metadata/copy-fix.js";
@@ -34,7 +37,7 @@ import { scriptCodeFindings } from "./collect.js";
 import { lineCount, lineDiff } from "./diff.js";
 import { query, type Row } from "./helpers.js";
 import { step, type FixTracker } from "./fix-progress.js";
-import type { CompactLayoutEditFix, CompactOp, FixPreview, FixResult, FlexiPageEditFix, FlexiPageOp, LayoutOp, ListViewOp, StudioFix } from "./types.js";
+import type { AppOp, CompactLayoutEditFix, CompactOp, FixPreview, FixResult, FlexiPageEditFix, FlexiPageOp, LayoutOp, ListViewOp, StudioFix } from "./types.js";
 
 type ScriptFix = Extract<StudioFix, { kind: "setCustomScriptCode" }>;
 type LayoutFix = Extract<StudioFix, { kind: "setLayoutRelatedList" }>;
@@ -297,19 +300,28 @@ async function withNameFields(ops: LayoutOp[], org: string): Promise<LayoutOp[]>
 interface MetadataPlan {
   preview: FixPreview;
   root?: XmlNode;
-  inverse?: (LayoutOp | CompactOp | FlexiPageOp | ListViewOp)[];
+  inverse?: (LayoutOp | CompactOp | FlexiPageOp | ListViewOp | AppOp)[];
 }
 
+const APP_OPS = new Set<string>(["moveAppTab", "removeAppTab", "addAppTab"]);
 const FLEXIPAGE_OPS = new Set(["moveComponent", "removeComponent", "addComponent", "setComponentProperty"]);
 
 /** `forApply` leaves out what only the review dialog shows (who is reached, production), keeping every check that can block. */
 async function planEditMetadata(fix: MetadataFix, doc: MetadataDoc, org: string, progress?: FixTracker, forApply = false): Promise<MetadataPlan> {
   progress?.begin("diff");
-  if (fix.ops.some((op) => FLEXIPAGE_OPS.has(op.op) !== (fix.doc.type === "FlexiPage") || LISTVIEW_OPS.has(op.op) !== (fix.doc.type === "ListView"))) {
+  if (
+    fix.ops.some(
+      (op) =>
+        FLEXIPAGE_OPS.has(op.op) !== (fix.doc.type === "FlexiPage") ||
+        LISTVIEW_OPS.has(op.op) !== (fix.doc.type === "ListView") ||
+        APP_OPS.has(op.op) !== (fix.doc.type === "CustomApplication")
+    )
+  ) {
     throw new Error(`These changes aren't ${fix.doc.type} edits.`);
   }
   if (fix.doc.type === "ListView") return planEditListView(fix, doc, org, progress, forApply);
   if (fix.doc.type === "FlexiPage") return planEditFlexiPage(fix, doc, org, progress, forApply);
+  if (fix.doc.type === "CustomApplication") return planEditApp(fix, doc, org, progress, forApply);
   const preview: FixPreview = { org, title: fix.label, changes: [], warnings: [] };
   if (!fix.ops.length) return { preview: { ...preview, blocked: "Nothing to change." } };
   let result: ReturnType<typeof applyFixOps>;
@@ -412,6 +424,45 @@ async function planEditFlexiPage(fix: MetadataFix, doc: MetadataDoc, org: string
   return { preview, root: result.root, inverse: result.inverse };
 }
 
+// --- Lightning app tab bars edited in the iPad preview ------------------------------
+
+/** "…the app for 3 profiles (A, B, C)" — everyone who can open the app gets the tab bar. */
+function appReachWarning(label: string, profiles: string[] | null): string {
+  if (!profiles) return `Deploys ${label} to the org — every profile that can open this app gets the change.`;
+  if (!profiles.length) return `Deploys ${label} to the org. No profile can open this app.`;
+  const shown = profiles.length > 4 ? `${profiles.slice(0, 4).join(", ")} and ${profiles.length - 4} more` : profiles.join(", ");
+  return profiles.length === 1
+    ? `Deploys ${label} to the org — it's the app for ${shown}, who get the change.`
+    : `Deploys ${label} to the org — ${profiles.length} profiles can open it (${shown}), and they all get the change.`;
+}
+
+async function planEditApp(fix: MetadataFix, doc: MetadataDoc, org: string, progress?: FixTracker, forApply = false): Promise<MetadataPlan> {
+  const preview: FixPreview = { org, title: fix.label, changes: [], warnings: [] };
+  if (!fix.ops.length) return { preview: { ...preview, blocked: "Nothing to change." } };
+  const ops = fix.ops as AppOp[];
+  let result: ReturnType<typeof applyAppOps>;
+  try {
+    result = applyAppOps(doc.root, fix.doc.fullName, ops);
+  } catch (e) {
+    if (!(e instanceof StaleAppError)) throw e;
+    return { preview: { ...preview, blocked: `${fix.doc.label} changed since the preview was loaded: ${e.message} Refresh the preview.` } };
+  }
+  const diff = lineDiff(doc.xml, serializeXml(result.root));
+  if (!diff.length) return { preview: { ...preview, blocked: `${fix.doc.label} already looks like this. Refresh the preview.` } };
+  preview.changes = result.changes.map((c) => ({ target: fix.doc.label, field: c.tab, before: c.before, after: c.after }));
+  preview.changes[preview.changes.length - 1].diff = diff;
+  progress?.end("diff");
+
+  const [profiles, production] = await Promise.all([
+    forApply ? null : step(progress, "reach", () => appProfiles(fix.doc.fullName, org)),
+    forApply ? false : step(progress, "production", () => isProductionOrg(org)),
+  ]);
+  if (!forApply) preview.warnings.push(appReachWarning(fix.doc.label, profiles));
+  preview.warnings.push(...appTabWarnings(ops), PUBLISH_WARNING);
+  if (production) preview.production = true;
+  return { preview, root: result.root, inverse: result.inverse };
+}
+
 // --- List views edited in the iPad preview ------------------------------------------
 
 const LISTVIEW_OPS = new Set<string>(["moveListColumn", "removeListColumn", "addListColumn", "setListFilterScope", "setListFilters"]);
@@ -478,7 +529,7 @@ async function previewEditMetadata(fix: MetadataFix, org: string, progress?: Fix
         progress?.end("retrieve");
         const { preview, root } = await planEditMetadata(fix, doc, org, progress);
         // Layout rules the XML can't show (required fields, read-only system fields, related lists the object doesn't offer): ask the org.
-        if (!preview.blocked && root && fix.doc.type === "Layout") {
+        if (!preview.blocked && root && (fix.doc.type === "Layout" || fix.doc.type === "CustomApplication")) {
           const refused = await step(progress, "validate", () => validateDoc(doc, root, org)).catch(() => null);
           if (refused) return { ...preview, blocked: `The org would refuse this change: ${refused}` };
         }
@@ -506,6 +557,7 @@ async function applyEditMetadata(fix: MetadataFix, org: string, progress?: FixTr
       } catch (e) {
         return { ok: false, message: `${e instanceof Error ? e.message : String(e)}. Nothing was changed.` };
       }
+      if (fix.doc.type === "CustomApplication") forgetLiveApps(org);
       return {
         ok: true,
         message: `Updated ${fix.doc.label}.`,

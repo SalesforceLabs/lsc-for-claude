@@ -7,10 +7,12 @@
 
 import { chunkIds } from "../tools/helpers.js";
 import { inList, query, type Row } from "./helpers.js";
+import { findProfileApp } from "./metadata/live-app.js";
 import {
   MOBILE_CATEGORIES,
   compactLayoutItems,
   configItems,
+  appItems,
   flexiPageItems,
   isAfter,
   layoutItems,
@@ -144,6 +146,16 @@ export async function collectUnpublished(profile: string, org: string, known?: K
       // The Tooling FlexiPage has no LastModifiedBy: the editor stays unknown.
       kind: "Lightning pages",
       read: async () => flexiPageItems(recent(await query(`SELECT Id, DeveloperName, MasterLabel, LastModifiedDate FROM FlexiPage WHERE ${since}`, org, true)), scopes.flexiPages),
+    },
+    {
+      // Only the app the profile's tab bar comes from, found by the tabs the snapshot knows (not guessed when two fit).
+      kind: "Apps",
+      read: async () => {
+        if (!known?.tabs?.length) return [];
+        const match = await findProfileApp(profile, known.tabs, org);
+        if (!match.app) return [];
+        return appItems(recent(await query(`SELECT Id, DeveloperName, NamespacePrefix, Label, LastModifiedDate, LastModifiedBy.Name FROM CustomApplication WHERE ${since}`, org, true)), match.app.fullName);
+      },
     },
     {
       kind: "Record types",
