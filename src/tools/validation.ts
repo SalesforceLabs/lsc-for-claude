@@ -354,7 +354,7 @@ export function register(server: McpServer) {
 
   // Helper: normalize DbSchema name — accepts "Visit" or "DbSchema_Visit"
   function normalizeDbSchemaName(name: string): string {
-    return name.startsWith("DbSchema_") ? name : `DbSchema_${name}`;
+    return /^dbschema_/i.test(name) ? name : `DbSchema_${name}`;
   }
 
   // All 12 value columns on LifeSciConfigFieldValue (per the Life Sciences Developer Guide)

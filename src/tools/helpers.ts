@@ -221,7 +221,7 @@ export function extractFieldValue(f: Record<string, unknown>): unknown {
  * Normalize DbSchema name — accepts "Visit" or "DbSchema_Visit".
  */
 export function normalizeDbSchemaName(name: string): string {
-  return name.startsWith("DbSchema_") ? name : `DbSchema_${name}`;
+  return /^dbschema_/i.test(name) ? name : `DbSchema_${name}`;
 }
 
 /**
