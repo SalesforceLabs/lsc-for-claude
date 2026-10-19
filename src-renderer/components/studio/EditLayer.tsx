@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { targetKey, targetTag, type EditTarget } from "./edit-targets";
 import type { Verb, VerbId } from "./edit-draft";
+import Menu, { type MenuItem } from "../ui/Menu";
 import "./edit-mode.css";
 
 /**
@@ -746,6 +747,19 @@ const rectStyle = (r: DOMRect): React.CSSProperties => ({
 export const COMPACT_TOOLBAR_BELOW = 560;
 export const isCompactToolbar = (surfaceWidth: number): boolean => surfaceWidth > 0 && surfaceWidth < COMPACT_TOOLBAR_BELOW;
 
+/** A compact toolbar's icon button and the space around a row of them (28 px control, 4 px gap, padding and border). */
+const COMPACT_BUTTON = 32;
+const COMPACT_CHROME = 18;
+
+/**
+ * How many of a compact toolbar's `count` buttons fit in one row on a surface `surfaceWidth` wide;
+ * the rest go under a More menu (which takes a slot itself), so the toolbar never wraps over the iPad.
+ */
+export function compactInline(count: number, surfaceWidth: number): number {
+  const slots = Math.max(1, Math.floor((surfaceWidth - 8 - COMPACT_CHROME) / COMPACT_BUTTON));
+  return count <= slots ? count : Math.max(0, slots - 1);
+}
+
 /** The floating toolbar above the selection (below it when there's no room). */
 function Toolbar({
   box,
@@ -781,8 +795,22 @@ function Toolbar({
   const below = !above;
   const top = above ? box.y - 8 : roomBelow ? box.bottom + 8 : clip.y + 8;
   const right = width > 0 && box.x + box.width / 2 > width / 2;
+  const iconOf = (v: Verb): LucideIcon =>
+    horizontal && v.id === "up" ? ArrowLeft : horizontal && v.id === "down" ? ArrowRight : VERB_ICONS[v.id];
+  // Compact: one row of icons; what doesn't fit (runnable verbs, then Open in Setup) goes under More.
+  const hasSetup = !!(setup && onSetup);
+  const fit = compact ? compactInline(verbs.length + (hasSetup ? 1 : 0), width) : Infinity;
+  const inline = verbs.slice(0, fit);
+  const setupButton = hasSetup && verbs.length < fit;
+  const more: MenuItem[] = [
+    ...verbs
+      .slice(fit)
+      .filter((v) => v.run || v.pick)
+      .map((v) => ({ label: TOOLBAR_LABELS[v.id] ?? v.label, icon: iconOf(v), danger: v.id === "remove", onSelect: () => onRun(v) })),
+    ...(hasSetup && !setupButton ? [{ label: "Open in Setup", icon: ExternalLink, onSelect: () => onSetup!() }] : []),
+  ];
   const style: React.CSSProperties = {
-    // A compact toolbar is no wider than the device, wrapping if it must, so it sits at the surface's left edge.
+    // A compact toolbar is one row no wider than the device, so it sits at the surface's left edge.
     ...(compact ? { left: 4 } : right ? { right: Math.max(4, width - box.right) } : { left: Math.max(4, box.x) }),
     top,
   };
@@ -794,13 +822,8 @@ function Toolbar({
       aria-label={`Edit ${name ?? targetTag(target)}`}
     >
       {!compact && <span className="studio-edit-toolbar-name">{name ?? targetTag(target)}</span>}
-      {verbs.map((v) => {
-        const Icon =
-          horizontal && v.id === "up"
-            ? ArrowLeft
-            : horizontal && v.id === "down"
-              ? ArrowRight
-              : VERB_ICONS[v.id];
+      {inline.map((v) => {
+        const Icon = iconOf(v);
         const iconOnly = compact || ICON_ONLY.has(v.id);
         return (
           <button
@@ -817,7 +840,7 @@ function Toolbar({
           </button>
         );
       })}
-      {setup && onSetup && (
+      {setupButton && setup && onSetup && (
         <button
           type="button"
           className={compact ? "ui-icon-btn" : "studio-btn ghost sm"}
@@ -829,6 +852,7 @@ function Toolbar({
           {!compact && "Open in Setup"}
         </button>
       )}
+      {more.length > 0 && <Menu label="More edits" className="studio-edit-toolbar-more" items={more} />}
     </div>
   );
 }

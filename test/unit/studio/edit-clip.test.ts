@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isCompactToolbar, visibleBox } from "../../../src-renderer/components/studio/EditLayer";
+import { compactInline, isCompactToolbar, visibleBox } from "../../../src-renderer/components/studio/EditLayer";
 
 // Node has no DOMRect; the clipping maths only reads left/top/right/bottom/x/y/width/height.
 class Rect {
@@ -39,5 +39,13 @@ describe("toolbar on a narrow surface", () => {
     expect(isCompactToolbar(360)).toBe(true);
     expect(isCompactToolbar(760)).toBe(false);
     expect(isCompactToolbar(0)).toBe(false);
+  });
+
+  it("keeps one row and puts what doesn't fit under More", () => {
+    expect(compactInline(4, 360)).toBe(4);
+    // 190 px fits 5 buttons: 4 inline plus More.
+    expect(compactInline(9, 190)).toBe(4);
+    expect(compactInline(5, 190)).toBe(5);
+    expect(compactInline(3, 20)).toBe(0);
   });
 });

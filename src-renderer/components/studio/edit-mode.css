@@ -91,9 +91,14 @@
 }
 
 .studio-edit-toolbar.compact {
-  flex-wrap: wrap;
   width: max-content;
   max-width: calc(100% - 8px);
+}
+
+/* The toolbar sits at the surface's left edge when compact, so More opens rightwards onto the device. */
+.studio-edit-toolbar-more .ui-menu-list {
+  left: 0;
+  right: auto;
 }
 
 .studio-edit-toolbar.below {
