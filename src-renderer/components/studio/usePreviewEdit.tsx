@@ -8,6 +8,7 @@ import type { EditDrop } from "./EditLayer";
 import { changeKey, commitFrom, createAffects, queueChange, queuedCopy, queuedFlexiPageOps, queuedLayoutOps, viewFor, type PendingChange } from "./changes";
 import { flexiPageCopyName, layoutCopyName } from "./copy-names";
 import { actionVerbs, draftHomeMenu, draftTabs, moveActionTo, moveTabTo, tabVerbs, type DraftTab, type Verb } from "./edit-draft";
+import { openSetupLink, resolveSetupPath, type SetupLink } from "./setup-link";
 import { describeTarget, syncAction, syncFilter, type EditTarget } from "./edit-targets";
 import {
   addRelatedVerb,
@@ -509,8 +510,17 @@ export function usePreviewEdit({
     },
     [snapshot, profile, tabItems, actionItems, compacts, layouts, pages, listViews, pending, onPendingChange]
   );
-  const openSetup = useCallback(() => {
-    if (org && info?.setup) window.lscApi.openSfOrg(org, info.setup.path);
+  const openSetup = useCallback(
+    (link?: SetupLink) => {
+      const target = link ?? info?.setup;
+      if (org && target) void openSetupLink(org, target);
+    },
+    [org, info]
+  );
+  // Look the exact pages up as soon as a block is selected, so the click doesn't wait on the org.
+  useEffect(() => {
+    if (!org || !info) return;
+    for (const l of [info.setup, ...(info.setupMore ?? [])]) if (l) void resolveSetupPath(org, l);
   }, [org, info]);
 
   // Stable while nothing it describes changed, so the memoized preview below it isn't redrawn for unrelated state.

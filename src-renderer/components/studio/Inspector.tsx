@@ -28,6 +28,9 @@ import {
   type PendingChange,
 } from "./changes";
 import StateView from "../ui/StateView";
+import { useOrgs } from "../../hooks/useOrgs";
+import { orgKey } from "../../orgs";
+import { itemSetupLink, openSetupLink } from "./setup-link";
 import { Limited } from "../ui/Limited";
 import { AssistantName } from "../../hooks/useAssistantName";
 
@@ -290,6 +293,8 @@ function ItemView({
   profiles: ProfileOption[];
   queue: Queue;
 }) {
+  const { current: currentOrg } = useOrgs();
+  const setupLink = useMemo(() => itemSetupLink(item), [item]);
   const [detail, setDetail] = useState<ItemDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -327,6 +332,11 @@ function ItemView({
         <h2 className="studio-inspector-title">{item.label}</h2>
       </div>
       {item.sublabel && <p className="studio-inspector-desc">{item.sublabel}</p>}
+      {setupLink && currentOrg && (
+        <button className="studio-link-btn" onClick={() => void openSetupLink(orgKey(currentOrg), setupLink)}>
+          Open in Salesforce <ExternalLink size={12} aria-hidden />
+        </button>
+      )}
       {item.active !== undefined && !item.edit && (
         <span className={`ui-pill ${item.active ? "pass" : ""}`}>
           {item.active ? "Active" : "Inactive"}

@@ -125,6 +125,8 @@ interface LscApi {
   studioPageReach(fullName: string): Promise<StudioResponse>;
   studioComponentCatalog(pageType: "HomePage" | "RecordPage", sobject: string | null): Promise<StudioResponse>;
   studioComponentProps(component: string, pageType?: "HomePage" | "RecordPage"): Promise<StudioResponse>;
+  /** The deepest Setup pages for references (see `SetupRef`), in order; `exact` false = the list page. */
+  studioSetupLinks(refs: unknown[]): Promise<StudioResponse>;
   studioListProfiles(): Promise<StudioResponse>;
   studioUserAccess(userId: string): Promise<StudioResponse>;
   studioAccessOptions(search?: string): Promise<StudioResponse>;

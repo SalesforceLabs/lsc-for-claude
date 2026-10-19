@@ -7,6 +7,7 @@ import {
   profileChange,
   type PendingChange,
 } from "./changes";
+import type { SetupLink } from "./setup-link";
 import { effectiveField, type DraftAction, type DraftTab } from "./edit-draft";
 
 /**
@@ -151,23 +152,35 @@ export function layoutObject(layout: string): string {
 
 /** Salesforce Setup pages "Open in Setup" goes to (paths for `sf org open --path`). */
 export const SETUP = {
-  appManager: { label: "App Manager", path: "/lightning/setup/NavigationMenus/home" },
-  flexiPages: { label: "Lightning App Builder", path: "/lightning/setup/FlexiPageList/home" },
-  pageLayouts: (object: string) => ({
-    label: `${object} page layouts`,
+  appManager: { label: "App Manager", path: "/lightning/setup/NavigationMenus/home" } as SetupLink,
+  /** `page`: the Lightning page's API name; without it the list of pages. */
+  flexiPages: (page?: string): SetupLink => ({
+    label: page ? `Lightning page ${page}` : "Lightning App Builder",
+    path: "/lightning/setup/FlexiPageList/home",
+    ...(page ? { ref: { type: "flexiPage", name: page } } : {}),
+  }),
+  /** `layout`: the layout's full name ("Visit-LSDO PH FSR Visit Layout"); without it the object's list. */
+  pageLayouts: (object: string, layout?: string): SetupLink => ({
+    label: layout ? `${layout} page layout` : `${object} page layouts`,
     path: `/lightning/setup/ObjectManager/${encodeURIComponent(object)}/PageLayouts/view`,
+    ...(layout ? { ref: { type: "layout", object, name: layout } } : {}),
   }),
-  compactLayouts: (object: string) => ({
-    label: `${object} compact layouts`,
+  /** `compactLayout`: its name, with or without the "Object." prefix. */
+  compactLayouts: (object: string, compactLayout?: string | null): SetupLink => ({
+    label: compactLayout ? `${compactLayout.slice(compactLayout.indexOf(".") + 1)} compact layout` : `${object} compact layouts`,
     path: `/lightning/setup/ObjectManager/${encodeURIComponent(object)}/CompactLayouts/view`,
+    ...(compactLayout ? { ref: { type: "compactLayout", object, name: compactLayout } } : {}),
   }),
-  fields: (object: string) => ({
-    label: `${object} fields`,
+  /** `field`: the field's API name; without it the object's fields. */
+  fields: (object: string, field?: string): SetupLink => ({
+    label: field ? `${field} field` : `${object} fields`,
     path: `/lightning/setup/ObjectManager/${encodeURIComponent(object)}/FieldsAndRelationships/view`,
+    ...(field ? { ref: { type: "field", object, field } } : {}),
   }),
-  listView: (object: string, name: string) => ({
+  listView: (object: string, name: string): SetupLink => ({
     label: `${object} list view`,
     path: `/lightning/o/${encodeURIComponent(object)}/list?filterName=${encodeURIComponent(name)}`,
+    ref: { type: "listView", object, name },
   }),
 };
 
@@ -189,7 +202,9 @@ export interface TargetInfo {
   how: string[];
   /** Who a change reaches. */
   reach?: string;
-  setup?: { label: string; path: string };
+  setup?: SetupLink;
+  /** More pages worth opening (a layout field's own Setup page). */
+  setupMore?: SetupLink[];
   /** The Studio board item behind it, for "Open in Studio". */
   studio?: { featureId: string; surface: string; itemId: string };
   /** The object the block shows records of, when the iPad has to sync them. */
@@ -299,7 +314,7 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
             PUBLISH,
           ],
           reach: "Every app, profile and record type the page is activated for.",
-          setup: SETUP.flexiPages,
+          setup: SETUP.flexiPages(t.page),
         };
       }
       const notes =
@@ -329,7 +344,7 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
           PUBLISH,
         ],
         reach: "Every app, profile and record type the page is activated for.",
-        setup: SETUP.flexiPages,
+        setup: SETUP.flexiPages(t.page),
       };
     }
     case "recordTab":
@@ -347,7 +362,7 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
           PUBLISH,
         ],
         reach: "Every app, profile and record type the page is activated for.",
-        setup: SETUP.flexiPages,
+        setup: SETUP.flexiPages(t.page),
       };
     case "section": {
       const object = layoutObject(t.layout);
@@ -364,7 +379,7 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
           PUBLISH,
         ],
         reach: "Every profile and record type assigned this layout.",
-        setup: SETUP.pageLayouts(object),
+        setup: SETUP.pageLayouts(object, t.layout),
       };
     }
     case "field": {
@@ -392,7 +407,8 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
           PUBLISH,
         ],
         reach: "Every profile and record type assigned this layout.",
-        setup: SETUP.pageLayouts(object),
+        setup: SETUP.pageLayouts(object, t.layout),
+        setupMore: [SETUP.fields(object, t.field.split(".")[0])],
       };
     }
     case "related": {
@@ -414,7 +430,7 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
           PUBLISH,
         ],
         reach: "Every profile and record type assigned this layout.",
-        setup: SETUP.pageLayouts(object),
+        setup: SETUP.pageLayouts(object, t.layout),
         syncObject: t.object,
       };
     }
@@ -437,7 +453,7 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
           PUBLISH,
         ],
         reach: "Every record type assigned this compact layout, for every profile.",
-        setup: SETUP.compactLayouts(t.object),
+        setup: SETUP.compactLayouts(t.object, t.compactLayout),
       };
     case "headerField": {
       const name = t.compactLayout.slice(t.compactLayout.indexOf(".") + 1);
@@ -455,7 +471,7 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
           PUBLISH,
         ],
         reach: "Every record type assigned this compact layout, for every profile.",
-        setup: SETUP.compactLayouts(t.object),
+        setup: SETUP.compactLayouts(t.object, t.compactLayout),
       };
     }
     case "action": {

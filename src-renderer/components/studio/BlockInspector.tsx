@@ -1,4 +1,5 @@
 import React from "react";
+import type { SetupLink } from "./setup-link";
 import {
   Asterisk,
   CircleMinus,
@@ -114,7 +115,7 @@ export default function BlockInspector({
   /** Shown when the block's records aren't synced to this profile's iPad. */
   sync: SyncAction | null;
   onSync: () => void;
-  onSetup?: () => void;
+  onSetup?: (link: SetupLink) => void;
   onStudio?: () => void;
   onClose: () => void;
   /** "3 fields" when several blocks are selected: the inspector explains the last one clicked, its changes apply to all. */
@@ -298,13 +299,26 @@ export default function BlockInspector({
               <button
                 type="button"
                 className="studio-btn sm"
-                onClick={onSetup}
+                onClick={() => onSetup(info.setup!)}
                 title={`Open ${info.setup.label} in Salesforce`}
               >
                 <ExternalLink size={14} aria-hidden />
                 Open in Setup
               </button>
             )}
+            {onSetup &&
+              info.setupMore?.map((l) => (
+                <button
+                  key={l.label}
+                  type="button"
+                  className="studio-btn ghost sm"
+                  onClick={() => onSetup(l)}
+                  title={`Open ${l.label} in Salesforce`}
+                >
+                  <ExternalLink size={14} aria-hidden />
+                  Open {l.label}
+                </button>
+              ))}
             {info.studio && onStudio && (
               <button
                 type="button"
