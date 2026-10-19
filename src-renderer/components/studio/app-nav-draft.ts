@@ -2,6 +2,7 @@ import type { AppEditFix, AppOp, LiveApp } from "./types";
 import { appOpsChange, pendingFor, queuedAppOps, queueChange, type PendingChange } from "./changes";
 import { addedTab, type DraftState, type DraftTab, type Verb } from "./edit-draft";
 import { StaleDraftError, withGhosts } from "./layout-draft";
+import { movedKeys } from "./org-ahead";
 
 /**
  * The iPad's tab bar when it comes from the profile's Lightning app (a CustomApplication), in Draft.
@@ -71,6 +72,13 @@ export function alignAppNav(bar: DraftTab[], live: LiveApp): boolean {
   return k === drawn.length;
 }
 
+/** Whether the bar only lines up with the org's app in another order: Setup moved tabs but removed none the bar draws. */
+export function reorderedAppNav(bar: DraftTab[], live: LiveApp): boolean {
+  const drawn = bar.filter((d) => !d.item && !d.create && d.tab.kind !== "recent").map((d) => d.tab.fullName);
+  const order = new Set(orgOrder(live));
+  return drawn.length > 0 && drawn.every((t) => order.has(t)) && !alignAppNav(bar, live);
+}
+
 export interface AppDraft {
   fullName: string;
   label: string;
@@ -109,6 +117,8 @@ export function draftAppBar(bar: DraftTab[], live: LiveApp, base: string[], targ
   const there = new Set(slots.map((i) => bar[i].tab.fullName));
   const drawnAlready = new Set(bar.map((d) => d.tab.fullName));
   const orgNew = new Set(base.filter((t) => !drawnAlready.has(t) && !hidden.has(t)));
+  // Tabs Setup moved since the publish: the org's order against the bar's.
+  const orgMoved = movedKeys(slots.map((i) => bar[i].tab.fullName), base.filter((t) => there.has(t)));
   const common = base.filter((t) => there.has(t) && target.includes(t));
   const commonTarget = target.filter((t) => there.has(t) && base.includes(t));
   const labelOf = (name: string) => live.available.find((a) => a.name === name)?.label ?? name;
@@ -123,7 +133,7 @@ export function draftAppBar(bar: DraftTab[], live: LiveApp, base: string[], targ
     }
     const was = bar[slots.find((i) => bar[i].tab.fullName === o.key)!];
     const state: DraftState = o.ghost ? "removed" : common.indexOf(o.key) !== commonTarget.indexOf(o.key) ? "moved" : "same";
-    return { ...was, state };
+    return { ...was, state, ...(!o.ghost && orgMoved.has(o.key) ? { ahead: "moved" as const } : {}) };
   };
   const out: DraftTab[] = [];
   if (!slots.length) {
@@ -188,7 +198,8 @@ export function buildAppBar(bar: DraftTab[], match: AppMatchState, liveApps: Rec
   if (!state || state.status === "loading") return { bar, entry: { status: "loading" } };
   if (state.status === "error") return { bar, entry: { status: "error", error: state.error, fullName } };
   const live = state.live;
-  if (!alignAppNav(bar, live)) return { bar, entry: { status: "stale", note: APP_CHANGED, live } };
+  // Tabs Setup only moved are drawn in the org's order and marked; a bar missing tabs the org removed stays explain-only.
+  if (!alignAppNav(bar, live) && !reorderedAppNav(bar, live)) return { bar, entry: { status: "stale", note: APP_CHANGED, live } };
   try {
     const target = appTargetOf(fullName, live, overlay);
     const drawn = draftAppBar(bar, live, live.tabs, target, hidden);

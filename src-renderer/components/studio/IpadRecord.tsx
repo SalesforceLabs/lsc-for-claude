@@ -17,7 +17,8 @@ import "./record.css";
 import { LiveInlineLwc } from "./LiveInlineLwc";
 import { CustomIcon, FileIcon, PersonAccountIcon } from "./assets/icons";
 import type { DraftState } from "./edit-draft";
-import { addedRelated, draftRelated, ORG_AHEAD_GONE, ORG_AHEAD_TAG } from "./layout-draft";
+import { addedRelated, draftRelated, relatedMoved } from "./layout-draft";
+import { orgAheadTag, type OrgAheadMark } from "./org-ahead";
 import { draftComponents, draftRecordTabs, isDetailsBlock, sourceKey, type DrawnBlock, type PageDraft } from "./flexipage-draft";
 import type { CompactEntry, LayoutEntry, ListViewEntry, PageEntry } from "./usePreviewEdit";
 
@@ -55,9 +56,8 @@ export const blockIdentity = (c: PublishedComponent, d: DrawnBlock<PublishedComp
 export const draftClass = (state: DraftState | undefined) => (state === "removed" ? " ghost" : state === "added" || state === "moved" ? " pending" : "");
 
 /** Blocks in the org that iPads don't have yet (or still have after Setup removed them): the org-ahead style, and a title saying so. */
-export const aheadClass = (ahead: "added" | "removed" | undefined) => (ahead ? " draft-org-ahead" : "");
-export const aheadAttrs = (ahead: "added" | "removed" | undefined): Record<string, string> =>
-  ahead ? { title: ahead === "added" ? ORG_AHEAD_TAG : ORG_AHEAD_GONE, "data-org-ahead": ahead === "added" ? ORG_AHEAD_TAG : ORG_AHEAD_GONE } : {};
+export const aheadClass = (ahead: OrgAheadMark | undefined) => (ahead ? " draft-org-ahead" : "");
+export const aheadAttrs = (ahead: OrgAheadMark | undefined): Record<string, string> => (ahead ? { title: orgAheadTag(ahead), "data-org-ahead": orgAheadTag(ahead) } : {});
 
 /** Highlights/segment/tab metrics, measured on LSC Mobile (pt). */
 const SCREEN_W = 1210;
@@ -290,7 +290,7 @@ function TabContent({
       return drag ? <Anchor target={target} drag={drag}>{node}</Anchor> : node;
     return (
       <Mark target={target} drag={drag}>
-        {d.state === "same" ? node : <div className={`studio-ipad-draft-block${d.ahead ? aheadClass("added") : draftClass(d.state)}`} {...aheadAttrs(d.ahead ? "added" : undefined)}>{node}</div>}
+        {d.state === "same" && !d.ahead ? node : <div className={`studio-ipad-draft-block${d.ahead === "added" ? aheadClass("added") : `${draftClass(d.state)}${aheadClass(d.ahead)}`}`} {...aheadAttrs(d.ahead)}>{node}</div>}
       </Mark>
     );
   };
@@ -306,7 +306,7 @@ function TabContent({
           <RelatedCard snapshot={snapshot} related={r} editable={rec.editable} />
         </div>
       );
-    const ahead = lists && edits?.draft && lists.ahead?.related.has(r.api) ? ("added" as const) : undefined;
+    const ahead = !lists || !edits?.draft ? undefined : lists.ahead?.related.has(r.api) ? ("added" as const) : relatedMoved(lists.ahead, r.api) ? ("moved" as const) : undefined;
     const listed = !!lists && (lists.base.relatedLists.includes(r.api) || lists.target.relatedLists.includes(r.api));
     return (
       <Mark
@@ -409,7 +409,7 @@ function Header({ snapshot, rec, object, compact }: { snapshot: PublishedIpad; r
   const specs = (fullName ? snapshot.compactFields?.[fullName] : undefined) ?? [];
   // Draft draws the header as the tray leaves it: removed fields as ghosts, added ones pending.
   const drags = !!edits?.draft && entry?.status === "ready";
-  const drafted: { spec: RecordFieldSpec; state: DraftState; ahead?: "added" | "removed" }[] =
+  const drafted: { spec: RecordFieldSpec; state: DraftState; ahead?: OrgAheadMark }[] =
     drags && entry ? entry.fields : specs.map((spec) => ({ spec, state: "same" as DraftState }));
   const cells = drafted
     .map((d) => ({ ...d, meta: metaOf(snapshot, rec.object, d.spec) }))
@@ -598,9 +598,9 @@ interface DrawnSection {
   /** Org columns with nothing to draw, which a dragged field can still be dropped in (Draft). */
   emptyColumns?: number[];
   /** `col`: the field's column in the org's layout section, in Draft (drawn columns skip empty ones). */
-  columns: { spec: RecordFieldSpec; item?: string; required?: boolean; readOnly?: boolean; state?: DraftState; col?: number; ahead?: "added" | "removed" }[][];
-  /** In the org, not on iPads yet (Draft). */
-  ahead?: "added";
+  columns: { spec: RecordFieldSpec; item?: string; required?: boolean; readOnly?: boolean; state?: DraftState; col?: number; ahead?: OrgAheadMark }[][];
+  /** In the org, not on iPads yet, or moved there (Next publish). */
+  ahead?: "added" | "moved";
 }
 
 function drawnSections(snapshot: PublishedIpad, layout: PublishedLayout, entry: LayoutEntry | undefined, draft: boolean): DrawnSection[] {

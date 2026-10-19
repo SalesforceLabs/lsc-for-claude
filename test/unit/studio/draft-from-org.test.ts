@@ -92,6 +92,16 @@ describe("a layout the cache is behind", () => {
     expect(names(drawn).every((n) => n.endsWith(":same:-"))).toBe(true);
   });
 
+  it("marks a field Setup moved, not the ones it passed", () => {
+    const moved: PublishedLayout = {
+      ...same,
+      sections: [{ ...same.sections[0], source: { ...same.sections[0].source!, fields: [["Type", "Name", "Name"], ["PersonBirthdate"]] } }],
+    };
+    const a = aheadOf(moved, base)!;
+    expect([...a.moved]).toEqual(["Type"]);
+    for (const f of ["Name", "Type", "PersonBirthdate"]) expect(a.fields.has(f)).toBe(false);
+  });
+
   it("draws the org's layout, with what Setup added marked and what it removed as a ghost", () => {
     const ahead = aheadOf(behind, base)!;
     expect(alignLayout(behind, base)).toBeNull();

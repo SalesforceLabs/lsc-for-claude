@@ -14,6 +14,7 @@ import {
   draftAppBar,
   isAppTab,
   moveAppTabTo,
+  reorderedAppNav,
   type AppDraft,
   type AppMatchState,
   type LiveAppState,
@@ -178,10 +179,21 @@ describe("buildAppBar", () => {
   });
 
   it("is stale when the org's app no longer lines up, and when queued edits no longer fit", () => {
-    expect(buildAppBar(bar, match, { [FULL_NAME]: { status: "ready", live: { ...live, tabs: [...base].reverse() } } }, [], hidden).entry.status).toBe("stale");
+    const dropped = { ...live, tabs: base.filter((t) => t !== "standard-Order") };
+    expect(buildAppBar(bar, match, { [FULL_NAME]: { status: "ready", live: dropped } }, [], hidden).entry.status).toBe("stale");
     const queued = run(draftOf([]), "standard-Visit", "remove", []);
     const changed = { ...live, tabs: base.filter((t) => t !== "standard-Visit") };
     expect(buildAppBar(bar, match, { [FULL_NAME]: { status: "ready", live: changed } }, queued, hidden).entry.status).toBe("stale");
+  });
+
+  it("draws a bar Setup only reordered in the org's order, marking the tabs that moved", () => {
+    const tabs = ["standard-Order", ...base.filter((t) => t !== "standard-Order")];
+    const reordered = { ...live, tabs };
+    expect(reorderedAppNav(bar, reordered)).toBe(true);
+    expect(reorderedAppNav(bar, live)).toBe(false);
+    const { bar: drawn, entry } = buildAppBar(bar, match, { [FULL_NAME]: { status: "ready", live: reordered } }, [], hidden);
+    expect(entry.status).toBe("ready");
+    expect(drawn.filter((d) => d.ahead === "moved").map((d) => d.tab.fullName)).toEqual(["standard-Order"]);
   });
 
   it("draws the tray over the bar when ready", () => {

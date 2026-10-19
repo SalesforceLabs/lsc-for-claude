@@ -153,6 +153,8 @@ export function isMobileChange(fix: StudioFix): boolean {
     case "deleteConfigRecord":
       return MOBILE_CATEGORIES.has(fix.category);
     case "editMetadata":
+      // List views are read from the org when a rep opens one; nothing to publish.
+      return fix.doc.type !== "ListView";
     case "copyForProfile":
     case "setLayoutRelatedList":
       // The layout feeds the iPad's visit engagement sidebar; it applies to every profile using it.

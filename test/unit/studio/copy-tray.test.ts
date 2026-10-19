@@ -59,6 +59,9 @@ describe("a copy in the tray", () => {
     expect(changeKey(copy("LS Rep").fix)).toBe(`copy:Layout:${LAYOUT}:ls rep`);
     expect(changeKey(copy("LS Rep").fix)).not.toBe(changeKey(copy("LS Phone").fix));
     expect(isMobileChange(copy("LS Rep").fix)).toBe(true);
+    // List views reach the iPad live, with no publish.
+    expect(isMobileChange({ kind: "editMetadata", doc: { type: "ListView", fullName: "Account.Mine", label: "Mine" }, ops: [] } as unknown as StudioFix)).toBe(false);
+    expect(isMobileChange({ kind: "editMetadata", doc, ops: [] } as unknown as StudioFix)).toBe(true);
     // Queuing it twice leaves one.
     expect(queueChange(queueChange([], copy("LS Rep")), copy("LS Rep"))).toHaveLength(1);
     expect(queuedCopy([copy("LS Rep")], doc, "ls rep")).toBeDefined();

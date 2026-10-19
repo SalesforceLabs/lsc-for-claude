@@ -305,7 +305,7 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
           draftOnly: d?.state === "added",
           what: ["Lightning app navigation", `${app.app.label} (${app.app.fullName})`, t.fullName],
           why: [
-            d?.state === "added" ? "Added to the app in Draft." : app.packaged ? "A tab of the app's package: the iPad draws it first, in the package's order." : where,
+            d?.state === "added" ? "Added to the app by a pending change." : app.packaged ? "A tab of the app's package: the iPad draws it first, in the package's order." : where,
             "The profile's tab visibility for it isn't Hidden, so the iPad keeps it.",
           ],
           how: [
@@ -344,7 +344,7 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
           ...base,
           draftOnly: true,
           what: [`Lightning page "${t.pageLabel}"`, `${t.region} region`, "New component (pending)"],
-          why: ["Draft inserts it here; the page's XML gets it when the tray is applied."],
+          why: ["A pending change inserts it here; the page's XML gets it when you apply the change."],
           how: [
             related
               ? "Its records reach the iPad only if the profile syncs the child object (DB Schema)."
@@ -595,7 +595,7 @@ export function describeTarget(t: EditTarget, ctx: DescribeContext): TargetInfo 
         ],
         how: [
           `Open ${t.object} in Salesforce, choose the list view, then the gear: Edit List Filters, Select Fields to Display, or Sharing Settings.`,
-          "Change its columns, filters and filter scope here in Draft. The iPad reads list views from the org when a rep opens them, so there is nothing to publish.",
+          "Change its columns, filters and filter scope here in Next publish. The iPad reads list views from the org when a rep opens them, so there is nothing to publish.",
         ],
         reach: "Everyone the list view is shared with.",
         setup: SETUP.listView(t.object, t.name),
@@ -655,8 +655,17 @@ export function syncAction(
     const profiles = edit.profiles ? effectiveProfiles(edit, pending) : null;
     const assigned = !profiles || profiles.some((p) => p.toLowerCase() === profile.toLowerCase());
     const active = effectiveActive(edit, pending);
-    if (active && assigned)
-      return { kind: "queued", label: `${item.label} syncs ${object} for ${profile} once applied` };
+    if (active && assigned) {
+      // Already so in the org (applied, not yet published) or only once the tray is applied.
+      const orgProfiles = edit.profiles ? effectiveProfiles(edit, []) : null;
+      const inOrg = edit.active !== false && (!orgProfiles || orgProfiles.some((p) => p.toLowerCase() === profile.toLowerCase()));
+      return {
+        kind: "queued",
+        label: inOrg
+          ? `${item.label} syncs ${object} for ${profile} in the org; Publish to iPad so reps get it`
+          : `${item.label} syncs ${object} for ${profile} once you apply the pending changes`,
+      };
+    }
     if (assigned && !active) {
       const fix = activeChange(edit, true);
       if (fix)

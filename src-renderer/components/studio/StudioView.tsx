@@ -32,7 +32,6 @@ import {
   LayoutDashboard,
   PanelLeftClose,
   PanelLeftOpen,
-  Pencil,
   Redo2,
   RefreshCw,
   Sparkles,
@@ -46,6 +45,7 @@ import {
 import Segmented from "../ui/Segmented";
 import UnpublishedIndicator from "./UnpublishedIndicator";
 import { OrgAheadContext, useUnpublished } from "./useUnpublished";
+import { tabItemFor } from "./edit-draft";
 import { buildOrgAhead, revealPlan, type Reveal, type UnpublishedItem } from "./org-ahead";
 import StateView from "../ui/StateView";
 import FeatureLoading from "./FeatureLoading";
@@ -139,10 +139,9 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
   // iPad preview — stays mounted once opened so its screen survives switching sections.
   const [previewOpened, setPreviewOpened] = useState(false);
-  // "published" reads the profile's last metadata cache; "draft" lays the tray over it.
+  // "On iPads now" ("published") reads the profile's last metadata cache; "Next publish" ("draft") draws the org
+  // with the tray on top; "Compare" ("split") shows both. Selecting a block in Next publish edits it.
   const [previewMode, setPreviewMode] = useState<"published" | "draft" | "split">("published");
-  // Edit mode: select blocks in the published preview to see what they are and change them.
-  const [editOn, setEditOn] = useState(false);
   // LSC apps (Build) — stays mounted once opened so a build keeps streaming. "Add to iPad" hands a deployed bundle to the preview.
   const [appsOpened, setAppsOpened] = useState(false);
   const [insertIntent, setInsertIntent] = useState<InsertIntent | null>(null);
@@ -296,7 +295,6 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     // Open on the profile the rep would have: the run-as user's, else the largest rep-like profile.
     setLens((l) => l ?? (suggestProfile(profiles, project.runAs?.profile) ? { profile: suggestProfile(profiles, project.runAs?.profile)! } : null));
     setPreviewMode((m) => (m === "published" ? "draft" : m));
-    setEditOn(true);
     openPreview();
   };
   const openSetup = (id: string, surface: SurfaceId | null = null, item: string | null = null) => {
@@ -321,13 +319,6 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   };
 
   const publishedProfile = previewOpened ? (lens?.profile ?? null) : null;
-  const toggleEdit = useCallback(() => {
-    setEditOn((on) => {
-      // Edits are made in Draft; Published stays selectable to explain what reps have today.
-      if (!on) setPreviewMode("draft");
-      return !on;
-    });
-  }, []);
   const previewShown = section === "preview" && !!publishedProfile;
   // Stable between renders so the memoized preview isn't redrawn for unrelated Studio state.
   const refreshPublished = useCallback(
@@ -350,18 +341,6 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     },
     [publishedProfile]
   );
-  useEffect(() => {
-    if (!previewShown) return;
-    const onKey = (e: KeyboardEvent) => {
-      const el = document.activeElement as HTMLElement | null;
-      if (e.key !== "e" || e.metaKey || e.ctrlKey || e.altKey || reviewing || publishing !== undefined) return;
-      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
-      e.preventDefault();
-      toggleEdit();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [previewShown, toggleEdit, reviewing, publishing]);
   useEffect(() => {
     if (!publishedProfile) return;
     const state = published[publishedProfile];
@@ -401,13 +380,21 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   const publishedState = publishedProfile ? published[publishedProfile] : undefined;
   const publishedSnapshot = publishedState?.status === "ready" && !("missing" in publishedState.result) ? publishedState.result : null;
   const unpublished = useUnpublished(publishedProfile, publishedSnapshot, writeVersion);
-  const orgAhead = useMemo(
-    () => buildOrgAhead(unpublished.state?.status === "ready" ? unpublished.state.result.items : []),
-    [unpublished.state]
-  );
+  const tabItems = readyMap("actions-home")?.surfaces.find((x) => x.id === "navigationTabs")?.items;
+  const orgAhead = useMemo(() => {
+    // A changed UI Settings record marks the tab it draws.
+    const tabItemIds = new Map<string, string>();
+    if (publishedSnapshot && publishedProfile && tabItems)
+      for (const t of publishedSnapshot.tabs) {
+        const item = tabItemFor(t, tabItems, publishedProfile);
+        if (item) tabItemIds.set(t.fullName, item.id);
+      }
+    return buildOrgAhead(unpublished.state?.status === "ready" ? unpublished.state.result.items : [], tabItemIds);
+  }, [unpublished.state, publishedSnapshot, publishedProfile, tabItems]);
   const { edit: previewEdit, panel: editPanel } = usePreviewEdit({
-    on: editOn && previewShown,
+    on: previewShown,
     draft: previewMode !== "published",
+    onEditInDraft: () => setPreviewMode("draft"),
     profile: publishedProfile,
     result: publishedState?.status === "ready" ? publishedState.result : undefined,
     actionsMap: readyMap("actions-home"),
@@ -423,7 +410,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     onIntentResult: setIntentResult,
   });
 
-  // "Show" on a change: Draft with edit on, the tab (and record) open, the block selected.
+  // "Show" on a change: Next publish, the tab (and record) open, the block selected.
   const [reveal, setReveal] = useState<(Reveal & { select: import("./edit-targets").EditTarget | null }) | null>(null);
   const revealed = useRef(0);
   useEffect(() => {
@@ -442,7 +429,6 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         return;
       }
       setPreviewMode((m) => (m === "published" ? "draft" : m));
-      setEditOn(true);
       setReveal({ nonce: Date.now(), tab: plan.tab, record: plan.record, select: plan.select });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -451,10 +437,10 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
 
   const previewSubtitle =
     previewMode === "published"
-      ? `Exactly as ${lens ? `${lens.profile}'s` : "a profile's"} users last downloaded it, from the profile's metadata cache`
+      ? `Exactly as ${lens ? `${lens.profile}'s` : "a profile's"} users last downloaded it, from the profile's metadata cache — select anything to see where it comes from`
       : previewMode === "split"
-        ? `Published on the left, Draft on the right with ${pending.length === 1 ? "the pending change" : `${pending.length || "no"} pending changes`} — select blocks on the Draft side`
-        : `As published, with ${pending.length === 1 ? "the pending change" : `${pending.length || "no"} pending changes`} laid on top — tabs, Home actions, DB Schema and page layouts`;
+        ? "On iPads now on the left, Next publish on the right — select blocks on the right to change them"
+        : "What reps get after you apply and publish: the org now, plus your changes";
 
   const featureBusy =
     state?.status === "loading" ||
@@ -668,17 +654,6 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               </div>
             </div>
             <div className="studio-header-actions">
-              {publishedProfile && (
-                <button
-                  className={`studio-btn collapsible${editOn ? " active" : ""}`}
-                  aria-pressed={editOn}
-                  onClick={toggleEdit}
-                  title="Edit — select anything on the iPad to see where it comes from and change it (E)"
-                >
-                  <Pencil aria-hidden="true" />
-                  <span className="studio-btn-label">Edit</span>
-                </button>
-              )}
               {publishedState?.status === "ready" && isRevalidating(publishedState) && (
                 <span className="ui-updated" role="status">
                   <Spinner size={12} /> Refreshing…
@@ -707,9 +682,9 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               value={previewMode}
               onChange={setPreviewMode}
               options={[
-                { value: "published", label: "Published", title: "What reps have today, from the metadata cache" },
-                { value: "draft", label: "Draft", title: "Published, with the pending changes laid on top" },
-                { value: "split", label: "Side by side", title: "Published and Draft next to each other; select blocks on the Draft side" },
+                { value: "published", label: "On iPads now", title: "What reps have today, from the profile's metadata cache" },
+                { value: "draft", label: "Next publish", title: "What reps get after you apply and publish: the org now, plus your changes" },
+                { value: "split", label: "Compare", title: "On iPads now and Next publish side by side" },
               ]}
             />
             {publishedProfile && publishedSnapshot && (
@@ -885,7 +860,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               <button
                 className="studio-btn collapsible"
                 onClick={() => openPreview()}
-                title="Preview on iPad — what LSC Mobile shows a profile, as last published or with pending changes in Draft"
+                title="Preview on iPad — what LSC Mobile shows a profile, as on iPads now or as the next publish will make it"
               >
                 <Tablet aria-hidden="true" />
                 <span className="studio-btn-label">Preview on iPad</span>

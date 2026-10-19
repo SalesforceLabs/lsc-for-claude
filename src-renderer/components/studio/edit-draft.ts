@@ -90,6 +90,8 @@ export interface DraftTab {
   item?: StudioItem;
   /** A pending new record this tab comes from. */
   create?: PendingChange;
+  /** Setup moved the tab in the profile's app since the publish (Next publish). */
+  ahead?: "moved";
 }
 
 /** The UI Settings tab record for a published tab: same TabName, preferring one that reaches the profile. */
@@ -112,7 +114,7 @@ export function addedTab(fullName: string, label: string): PublishedTab {
     fullName,
     label,
     kind: "empty",
-    emptyReason: "Added in Draft. The iPad draws this tab after you apply the change and publish.",
+    emptyReason: "Added by a pending change. The iPad draws this tab after you apply the change and publish.",
   };
 }
 

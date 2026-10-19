@@ -36,7 +36,7 @@ import type { DraftAction, DraftState, DraftTab } from "./edit-draft";
 import type { CompactEntry, LayoutEntry, ListViewEntry, PageEntry } from "./usePreviewEdit";
 import { draftComponents, draftRecordTabs, sourceKey } from "./flexipage-draft";
 import type { Revalidating } from "./fix-effects";
-import { orgAheadCompact, orgAheadLayout, orgAheadPage, orgAheadTab, type Reveal } from "./org-ahead";
+import { ORG_AHEAD_MOVED, orgAheadCompact, orgAheadLayout, orgAheadPage, orgAheadTab, type OrgAheadMark, type Reveal } from "./org-ahead";
 import { OrgAheadContext } from "./useUnpublished";
 import {
   ActivityPlanProgress,
@@ -80,7 +80,7 @@ interface PublishedIpadPreviewProps {
   onSearchUsers?: (text: string) => Promise<{ id: string; name: string }[]>;
   /** Edit mode; computed by the caller from the snapshot this preview reports through `state`. */
   edit?: PreviewEdit;
-  /** Before / after: the published iPad beside the Draft one (Draft only). */
+  /** Compare: On iPads now beside Next publish. */
   split?: boolean;
   /** "Show" from the unpublished-changes list: open this tab (and a record) once. */
   reveal?: Reveal | null;
@@ -120,7 +120,7 @@ function PublishedIpadPreviewImpl({ profile, state, onRefresh, onPickUser, onSea
       />
     );
   }
-  return <Device key={result.viewer?.userId ?? ""} snapshot={result} onRefresh={() => onRefresh(result.viewer?.userId)} onPickUser={onPickUser} onSearchUsers={onSearchUsers} edit={edit} split={split && !!edit?.draft} reveal={reveal} />;
+  return <Device key={result.viewer?.userId ?? ""} snapshot={result} onRefresh={() => onRefresh(result.viewer?.userId)} onPickUser={onPickUser} onSearchUsers={onSearchUsers} edit={edit} split={split} reveal={reveal} />;
 }
 
 /** Redrawn only when its state, the edit description or the mode change — not for every Studio state update. */
@@ -204,6 +204,7 @@ function Device({
   const editing = !!edit?.on;
   const chromeTabs = useMemo<ChromeTab[]>(() => {
     const states = new Map(edit?.draft ? edit.tabs.map((d) => [d.tab.fullName, d.state]) : []);
+    const moved = new Set(edit?.draft ? edit.tabs.filter((d) => d.ahead === "moved").map((d) => d.tab.fullName) : []);
     return allTabs
       .map((t, index) => ({ t, index }))
       .filter(({ t }) => t.kind !== "recent")
@@ -212,14 +213,19 @@ function Device({
         return {
           key: t.fullName,
           label: t.label,
-          title: t.fullName,
-          className: (state === "removed" ? " ghost" : state === "added" || state === "moved" ? " pending" : "") + (orgAheadTab(orgAhead, t.fullName) ? " org-changed" : ""),
-          attrs: editAttrs(
-            editing,
-            { kind: "tab", fullName: t.fullName, label: t.label, index },
-            true,
-            edit?.draft ? { family: "tabs", id: t.fullName, ghost: state === "removed", horizontal: true } : undefined
-          ),
+          title: moved.has(t.fullName) ? `${t.fullName} · ${ORG_AHEAD_MOVED}` : t.fullName,
+          className:
+            (state === "removed" ? " ghost" : state === "added" || state === "moved" ? " pending" : "") +
+            (moved.has(t.fullName) ? aheadClass("moved") : orgAheadTab(orgAhead, t.fullName) ? " org-changed" : ""),
+          attrs: {
+            ...editAttrs(
+              editing,
+              { kind: "tab", fullName: t.fullName, label: t.label, index },
+              true,
+              edit?.draft ? { family: "tabs", id: t.fullName, ghost: state === "removed", horizontal: true } : undefined
+            ),
+            ...(moved.has(t.fullName) ? { "data-org-ahead": ORG_AHEAD_MOVED } : {}),
+          },
         };
       });
   }, [allTabs, edit?.draft, edit?.tabs, editing, orgAhead]);
@@ -254,7 +260,7 @@ function Device({
     const home = shown?.kind === "home" && !!snapshot.home && record === null;
     const side = published ? 0 : 1;
     return (
-      <IpadScreen label={!published && edit?.draft ? "iPad preview (draft)" : "iPad preview (published)"}>
+      <IpadScreen label={!published && edit?.draft ? "iPad preview (next publish)" : "iPad preview (on iPads now)"}>
         <IpadStatusBar />
         <IpadTopBar
           tabs={published ? publishedTabs : chromeTabs}
@@ -368,11 +374,11 @@ function Device({
       {split ? (
         <div className="studio-ipad-split">
           <div className="studio-ipad-side">
-            <div className="studio-ipad-side-label">Published</div>
+            <div className="studio-ipad-side-label">On iPads now</div>
             <RecordTabs.Provider value={sharedTabs}>{screen(true)}</RecordTabs.Provider>
           </div>
           <div className="studio-ipad-side">
-            <div className="studio-ipad-side-label">Draft</div>
+            <div className="studio-ipad-side-label">Next publish</div>
             {draftSide}
           </div>
         </div>
@@ -659,7 +665,7 @@ function Region({
         target={target(c)}
         drag={pd ? { family: `page:${page.name}`, list: region, id: d.key, ghost: state === "removed" } : undefined}
       >
-        {state === "same" ? node : <div className={`studio-ipad-draft-block${d.ahead ? aheadClass("added") : draftClass(state)}`} {...aheadAttrs(d.ahead ? "added" : undefined)}>{node}</div>}
+        {state === "same" && !d.ahead ? node : <div className={`studio-ipad-draft-block${d.ahead === "added" ? aheadClass("added") : `${draftClass(state)}${aheadClass(d.ahead)}`}`} {...aheadAttrs(d.ahead)}>{node}</div>}
       </Mark>
     );
   };
@@ -930,7 +936,7 @@ function ListView({
           // A column is selectable once the view says which field it is (its source); Draft lays the tray's column edits over it.
           const fullName = view.source?.fullName;
           const entry = fullName && edits?.draft ? edits.listViews?.[fullName] : undefined;
-          const spec = (id: string, label: string, state?: DraftState, ahead?: "added" | "removed"): TableCol["attrs"] =>
+          const spec = (id: string, label: string, state?: DraftState, ahead?: OrgAheadMark): TableCol["attrs"] =>
             ahead === "removed"
               ? aheadAttrs(ahead)
               : editing && fullName && id
@@ -943,7 +949,7 @@ function ListView({
               : undefined;
           const cols: TableCol[] =
             entry?.status === "ready"
-              ? entry.columns.map((c) => ({ label: columnLabel(c.label), orig: c.orig, state: c.state, ahead: c.ahead, attrs: { ...spec(c.id, columnLabel(c.label), c.state, c.ahead), ...(c.ahead === "added" ? aheadAttrs("added") : {}) } }))
+              ? entry.columns.map((c) => ({ label: columnLabel(c.label), orig: c.orig, state: c.state, ahead: c.ahead, attrs: { ...spec(c.id, columnLabel(c.label), c.state, c.ahead), ...(c.ahead === "added" || c.ahead === "moved" ? aheadAttrs(c.ahead) : {}) } }))
               : view.columns.map((c, i) => ({ label: columnLabel(c), orig: i, attrs: spec(view.source?.columns[i] ?? "", columnLabel(c)) }));
           const unread = !data ? listErrors?.[`${object.name}.${view.name}`] : undefined;
           return (
@@ -975,7 +981,7 @@ interface TableCol {
   label: string;
   orig: number | null;
   state?: DraftState;
-  ahead?: "added" | "removed";
+  ahead?: OrgAheadMark;
   attrs?: Record<string, string>;
 }
 
