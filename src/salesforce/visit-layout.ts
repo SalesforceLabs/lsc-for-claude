@@ -10,7 +10,7 @@
 import type { StatusHook } from "./direct-metadata.js";
 import * as fs from "fs";
 import * as path from "path";
-import { retrieveMetadata } from "./cli.js";
+import { cachedDescribeSObject, retrieveMetadata } from "./cli.js";
 
 /** The visit engagement sidebar holds 8 OOB + 2 custom related lists. */
 export const MAX_SIDEBAR_RELATED_LISTS = 10;
@@ -57,20 +57,40 @@ export function relatedListNames(xml: string): string[] {
   return [...xml.matchAll(/<relatedList>([^<]+)<\/relatedList>/g)].map((m) => m[1]);
 }
 
-/** The related list block inserted for a sidebar item. */
-export function relatedListBlock(relationshipName: string): string {
+/**
+ * The child object's record-name field (`nameField: true` in its describe), or
+ * undefined when it can't be read. A new related list shows it: the legacy
+ * `NAME` token is refused by the org for many objects.
+ */
+export async function recordNameField(object: string, org: string): Promise<string | undefined> {
+  try {
+    const described = await cachedDescribeSObject(object, org);
+    return described.success ? described.data?.fields.find((f) => f.nameField)?.name : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The related list block inserted for a sidebar item: the child's name column
+ * (`nameField`, from `recordNameField`) and no New button. MassDeleteAll isn't
+ * excluded — not every child object has it, and the org refuses a layout that
+ * excludes an action the list lacks. Same shape as Studio's `newRelatedList`.
+ */
+export function relatedListBlock(relationshipName: string, nameField = "NAME"): string {
+  assertRelationship(relationshipName);
+  if (!RELATED_LIST_NAME.test(nameField)) throw new Error(`Invalid field name: ${nameField}`);
   return `    <relatedLists>
-        <relatedList>${relationshipName}</relatedList>
-        <fields>NAME</fields>
         <excludeButtons>New</excludeButtons>
-        <excludeButtons>MassDeleteAll</excludeButtons>
+        <fields>${nameField}</fields>
+        <relatedList>${relationshipName}</relatedList>
     </relatedLists>
 `;
 }
 
 /** Insert the related list before </Layout>. */
-export function insertRelatedList(xml: string, relationshipName: string): string {
-  return xml.replace("</Layout>", `${relatedListBlock(relationshipName)}</Layout>`);
+export function insertRelatedList(xml: string, relationshipName: string, nameField?: string): string {
+  return xml.replace("</Layout>", `${relatedListBlock(relationshipName, nameField)}</Layout>`);
 }
 
 /** Remove the related list's block; the XML is returned unchanged when it isn't there. */

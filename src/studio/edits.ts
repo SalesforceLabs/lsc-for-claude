@@ -15,6 +15,7 @@ import {
   hasRelatedList,
   insertRelatedList,
   layoutDeployPath,
+  recordNameField,
   removeRelatedList,
   retrieveLayoutXml,
   writeLayoutXml,
@@ -187,6 +188,7 @@ async function previewSetLayoutRelatedList(
   const count = countRelatedLists(layout.xml);
   const present = hasRelatedList(layout.xml, fix.relationshipName);
   const entry = `${fix.relationshipName} (${fix.objectName})`;
+  const nameField = fix.add ? await recordNameField(fix.objectName, org) : undefined;
   preview.changes.push(
     fix.add
       ? {
@@ -196,10 +198,9 @@ async function previewSetLayoutRelatedList(
           after: `${count + 1} of ${MAX_SIDEBAR_RELATED_LISTS}`,
           diff: [
             "+ <relatedLists>",
-            `+     <relatedList>${fix.relationshipName}</relatedList>`,
-            "+     <fields>NAME</fields>",
             "+     <excludeButtons>New</excludeButtons>",
-            "+     <excludeButtons>MassDeleteAll</excludeButtons>",
+            `+     <fields>${nameField ?? "NAME"}</fields>`,
+            `+     <relatedList>${fix.relationshipName}</relatedList>`,
             "+ </relatedLists>",
           ],
         }
@@ -229,7 +230,7 @@ async function applySetLayoutRelatedList(fix: LayoutFix, org: string, progress?:
   const preview = await previewSetLayoutRelatedList(fix, org, progress);
   if (preview.blocked || !preview.layout) return { ok: false, message: preview.blocked || "Nothing to update." };
   const { layout } = preview;
-  writeLayoutXml(layout, fix.add ? insertRelatedList(layout.xml, fix.relationshipName) : removeRelatedList(layout.xml, fix.relationshipName));
+  writeLayoutXml(layout, fix.add ? insertRelatedList(layout.xml, fix.relationshipName, await recordNameField(fix.objectName, org)) : removeRelatedList(layout.xml, fix.relationshipName));
   const deployed = await step(progress, "deploy", () => (progress ? deployMetadata(layoutDeployPath(layout), org, progress.statusHook("deploy")) : deployMetadata(layoutDeployPath(layout), org)));
   if (!deployed.success) {
     return { ok: false, message: `Deploying ${fix.layoutLabel} failed: ${deployed.error || "unknown error"}. Nothing was changed.` };
@@ -287,13 +288,8 @@ async function withNameFields(ops: LayoutOp[], org: string): Promise<LayoutOp[]>
   return Promise.all(
     ops.map(async (op) => {
       if (op.op !== "addRelatedList" || op.xml || op.nameField || !op.object) return op;
-      try {
-        const described = await cachedDescribeSObject(op.object, org);
-        const nameField = described.success ? described.data?.fields.find((f) => f.nameField)?.name : undefined;
-        return nameField ? { ...op, nameField } : op;
-      } catch {
-        return op;
-      }
+      const nameField = await recordNameField(op.object, org);
+      return nameField ? { ...op, nameField } : op;
     })
   );
 }

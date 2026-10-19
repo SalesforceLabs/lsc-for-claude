@@ -59,4 +59,12 @@ describe("live layout options", () => {
     expect(options.map((o) => o.relatedList)).toEqual(["Sample_Request__c.Account__c", "Opportunities"]);
     expect(options[0]).toMatchObject({ object: "Sample_Request__c", relationshipName: "Sample_Requests__r" });
   });
+
+  it("keeps only relationships in the org's layoutable list when it gives one", () => {
+    const layoutable = new Set(["Contacts", "Sample_Requests__r"]);
+    expect(relatedListOptions(account, [], layoutable).map((o) => o.relatedList)).toEqual(["Sample_Request__c.Account__c", "Contacts"]);
+    // No list from the org: the describe's own.
+    expect(relatedListOptions(account, [], null)).toHaveLength(4);
+    expect(relatedListOptions(account, [], undefined)).toHaveLength(4);
+  });
 });

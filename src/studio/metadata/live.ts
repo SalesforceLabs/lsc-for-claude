@@ -124,16 +124,44 @@ export function placedFields(described: SObjectDescribeResult, onLayout: Set<str
 const NOT_RELATED_LIST = /(Share|Feed|History|ChangeEvent|__hd|__e)$/;
 
 /**
+ * The related lists a layout of `object` can hold, by relationship name — the
+ * org's own list (Tooling `RelatedListDefinition`, `IsLayoutable`). A describe
+ * lists far more child relationships than that (activities, notes, files,
+ * approvals, system objects), which a layout deploy refuses. Null when the org
+ * won't say, so the caller shows the describe's list instead.
+ */
+export async function layoutableRelatedLists(object: string, org: string): Promise<Set<string> | null> {
+  try {
+    if (!/^[A-Za-z0-9_]+$/.test(object)) return null;
+    const rows = await query(
+      `SELECT RelatedListName FROM RelatedListDefinition WHERE ParentEntityDefinitionId = '${object}' AND IsLayoutable = true`,
+      org,
+      true
+    );
+    return rows.length ? new Set(rows.map((r) => String(r.RelatedListName))) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * The object's child relationships not already on the layout, by the name the
  * layout XML uses: custom children and custom lookups are Child.Field, the rest
- * their relationship name. Custom objects first, then by object.
+ * their relationship name. Custom objects first, then by object. With
+ * `layoutable` (from `layoutableRelatedLists`) only relationships the org lets a
+ * layout hold are offered.
  */
-export function relatedListOptions(described: SObjectDescribeResult, onLayout: string[]): (RelatedListOption & { relationshipName: string })[] {
+export function relatedListOptions(
+  described: SObjectDescribeResult,
+  onLayout: string[],
+  layoutable?: Set<string> | null
+): (RelatedListOption & { relationshipName: string })[] {
   const placed = new Set(onLayout);
   const seen = new Set<string>();
   return (described.childRelationships ?? [])
     .flatMap((c) => {
       if (!c.relationshipName || c.deprecatedAndHidden || NOT_RELATED_LIST.test(c.childSObject)) return [];
+      if (layoutable && !layoutable.has(c.relationshipName)) return [];
       const dotted = `${c.childSObject}.${c.field}`;
       const relatedList = c.childSObject.endsWith("__c") || c.field.endsWith("__c") ? dotted : c.relationshipName;
       if (placed.has(relatedList) || placed.has(dotted) || placed.has(c.relationshipName) || seen.has(relatedList)) return [];
@@ -144,7 +172,7 @@ export function relatedListOptions(described: SObjectDescribeResult, onLayout: s
 }
 
 export async function readLiveLayout(fullName: string, org: string): Promise<LiveLayout> {
-  const [structure, profiles, production, described] = await Promise.all([
+  const [structure, profiles, production, described, layoutable] = await Promise.all([
     withDoc("Layout", fullName, org, async ({ root }) => {
       const seen = new Map<string, number>();
       const sections = childrenNamed(root, "layoutSections").map((s) => {
@@ -169,6 +197,7 @@ export async function readLiveLayout(fullName: string, org: string): Promise<Liv
     layoutProfiles(fullName, org),
     isProductionOrg(org),
     cachedDescribeSObject(layoutObject(fullName), org).catch(() => null),
+    layoutableRelatedLists(layoutObject(fullName), org),
   ]);
   const desc = described?.success ? described.data : undefined;
   const placed = new Set(structure.sections.flatMap((s) => s.columns.flat().map((i) => i.field)));
@@ -180,7 +209,7 @@ export async function readLiveLayout(fullName: string, org: string): Promise<Liv
     production,
     available: desc ? availableFields(fullName, desc, placed) : null,
     placed: desc ? placedFields(desc, placed) : null,
-    availableRelated: desc ? relatedListOptions(desc, structure.relatedLists).map(({ relatedList, object }) => ({ relatedList, object })) : null,
+    availableRelated: desc ? relatedListOptions(desc, structure.relatedLists, layoutable).map(({ relatedList, object }) => ({ relatedList, object })) : null,
   } as LiveLayout;
 }
 
