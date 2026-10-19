@@ -175,6 +175,8 @@ Renderer props (stream C embeds stream D's panel):
 />
 ```
 
+Implementation notes (stream D): the preload exposes one `onScriptAssistEvent(cb)` (kinds `delta` / `tool` / `done` / `error`, all carrying `requestId`) beside `studioScriptAssist(requestId, request)` and `studioScriptAssistAbort(requestId)`; `ScriptAssistRequest` is duplicated in `script-assist.ts` and structurally mirrored in `script-assist-logic.ts`; conversations live in `script-assist-store.ts` (module level, per `scriptKey`). The panel default-exports `ScriptAssistPanel` and exports `FOCUS_ASSIST_EVENT` (`roz:focus-assist`); it also handles Cmd-K itself. It calls `onPropose` itself when a reply finishes with a script, and "View in editor" calls it again.
+
 Stream C exposes `ScriptTestPanel` props from stream B as: `<ScriptTestPanel script={...} code={string} onResult={(r) => void} onAskRoz={(r) => void} />`.
 
 ## Quality bar

@@ -1,0 +1,279 @@
+/* Ask Roz panel for the custom script editor. Tokens only; see the roz-ui skill. */
+.assist {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.assist-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--toolbar-height);
+  padding: 0 var(--space-3) 0 var(--space-4);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.assist-head-icon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.assist-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--font-base);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assist-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+.assist-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.assist-empty-lead {
+  margin: 0;
+  font-size: var(--font-base);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.assist-starters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.assist-starter {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  font-size: var(--font-sm);
+  line-height: 1.4;
+  color: var(--text-primary);
+  background: var(--fill-subtle, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.assist-starter:hover {
+  background: var(--fill-hover, var(--fill-subtle));
+}
+.assist-starter:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.assist-thread {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.assist-msg.user {
+  display: flex;
+  justify-content: flex-end;
+}
+.assist-user {
+  max-width: 90%;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-base);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--fill-subtle, var(--bg-tertiary));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.assist-reply {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.assist-prose {
+  font-size: var(--font-base);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.assist-prose > :first-child {
+  margin-top: 0;
+}
+.assist-prose > :last-child {
+  margin-bottom: 0;
+}
+
+.assist-tools {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.assist-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+.assist-tool.error {
+  color: var(--warning);
+}
+
+.assist-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+  border-radius: var(--radius);
+}
+.assist-card.writing {
+  gap: var(--space-2);
+  color: var(--text-secondary);
+}
+.assist-card-icon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.assist-card-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.assist-card-title {
+  font-size: var(--font-sm);
+  font-weight: 600;
+}
+.assist-card-meta {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.assist-thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.assist-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-sm);
+  color: var(--error);
+  background: var(--error-subtle);
+  border: 1px solid color-mix(in srgb, var(--error) 30%, transparent);
+  border-radius: var(--radius);
+}
+.assist-error-text {
+  flex: 1 1 160px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.assist-foot {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.assist-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.assist-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--control-sm);
+  padding: 0 var(--space-3);
+  font: inherit;
+  font-size: var(--font-sm);
+  color: var(--warning);
+  background: var(--warning-subtle);
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.assist-chip:hover {
+  background: color-mix(in srgb, var(--warning) 20%, transparent);
+}
+.assist-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.assist-hint {
+  margin: 0;
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+.assist-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.assist-composer:focus-within {
+  border-color: var(--accent);
+}
+.assist-input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--control);
+  max-height: 160px;
+  padding: 5px var(--space-2);
+  font: inherit;
+  font-size: var(--font-base);
+  line-height: 1.4;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+}
+.assist-input::placeholder {
+  color: var(--text-secondary);
+}
+.assist-send {
+  flex-shrink: 0;
+  color: #fff;
+  background: var(--accent);
+}
+.assist-send:disabled {
+  color: var(--text-secondary);
+  background: var(--fill-subtle, transparent);
+}
+.assist-send.stop {
+  background: var(--fill-hover, var(--fill-subtle));
+  color: var(--text-primary);
+}

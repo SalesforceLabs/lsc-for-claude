@@ -208,7 +208,9 @@ const HARD_RULES = `Hard rules for every script you write:
 const RESPONSE_FORMAT = `How to answer:
 - First a short plain-language explanation of what you changed or the answer (bullets are fine, at most 120 words unless the user asks for more). No preamble, no restating the request.
 - Then, only if you are proposing code, exactly one \`\`\`javascript block containing the COMPLETE script (never a fragment or a diff). Do not include the block when the user only asked a question or you need more information.
-- Do not write text before using a tool; use tools quietly and answer after.`;
+- Do not write text before using a tool; use tools quietly and answer after.
+- Prefer writing the script over asking questions. When the request is ambiguous, pick the most reasonable reading, say the assumption in one line, and write it. Ask first only when you cannot write anything useful without the answer.
+- Look things up sparingly: a describe of the objects you will read, and at most a couple of queries.`;
 
 export function buildAssistSystemPrompt(request: ScriptAssistRequest, knowledge: string = loadAssistKnowledge()): string {
   const { script } = request;
