@@ -125,9 +125,43 @@ describe("cachesByProfile", () => {
 });
 
 describe("unpublishedChanges", () => {
+  const edit = (over: Record<string, unknown> = {}) => ({
+    recordId: "r",
+    category: "DbSchema",
+    developerName: "dbSchema_Visit",
+    at: Date.now(),
+    by: null,
+    allProfiles: true,
+    profileIds: [],
+    recordEdited: true,
+    ...over,
+  });
+
   it("applies org-level changes to every live profile", () => {
     const caches = cachesByProfile([{ Status: "Active", ProfileId: "a", LastModifiedDate: iso(5) }]);
-    const out = unpublishedChanges(caches, [{ label: "x", at: Date.now(), profileIds: [], allProfiles: true }]);
+    const out = unpublishedChanges(caches, [edit()]);
     expect(out).toHaveLength(1);
+    expect(out[0].items[0].reach?.ipad).toBe("publish");
+  });
+
+  it("counts from when the generation started, as studio_unpublished does", () => {
+    // Generated 5 days ago after starting 6 days ago: an edit 5.5 days ago may not be in the cache.
+    const caches = cachesByProfile([{ Status: "Active", ProfileId: "a", CreatedDate: iso(6), LastModifiedDate: iso(5) }]);
+    expect(caches.get("a")?.activeStartedAt).toBe(Date.parse(iso(6)));
+    expect(unpublishedChanges(caches, [edit({ at: Date.now() - 5.5 * DAY })])).toHaveLength(1);
+  });
+
+  it("leaves out categories that never reach the iPad and edits older than the generation", () => {
+    const caches = cachesByProfile([{ Status: "Active", ProfileId: "a", LastModifiedDate: iso(5) }]);
+    expect(unpublishedChanges(caches, [edit({ category: "TerritoryAlignment" }), edit({ at: Date.now() - 6 * DAY })])).toEqual([]);
+  });
+
+  it("counts a profile's own assignments only for that profile", () => {
+    const caches = cachesByProfile([
+      { Status: "Active", ProfileId: "a", LastModifiedDate: iso(5) },
+      { Status: "Active", ProfileId: "b", LastModifiedDate: iso(5) },
+    ]);
+    const out = unpublishedChanges(caches, [edit({ allProfiles: false, profileIds: ["b"] })]);
+    expect(out.map((u) => u.profileId)).toEqual(["b"]);
   });
 });

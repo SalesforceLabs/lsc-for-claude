@@ -37,6 +37,7 @@ import { scriptCodeFindings } from "./collect.js";
 import { lineCount, lineDiff } from "./diff.js";
 import { query, type Row } from "./helpers.js";
 import { step, type FixTracker } from "./fix-progress.js";
+import { reachOfFix } from "./reach.js";
 import type { AppOp, CompactLayoutEditFix, CompactOp, FixPreview, FixResult, FlexiPageEditFix, FlexiPageOp, LayoutOp, ListViewOp, StudioFix } from "./types.js";
 
 type ScriptFix = Extract<StudioFix, { kind: "setCustomScriptCode" }>;
@@ -423,6 +424,11 @@ async function planEditFlexiPage(fix: MetadataFix, doc: MetadataDoc, org: string
     const reach = flexiPageReachWarning(fix, org);
     preview.warnings.push(reach.warning);
     if (!reach.known) preview.reachPage = fix.doc.fullName;
+    else {
+      // An app default reaches everyone who opens that app, so the profile list is only the whole answer without one.
+      const known = knownFlexiPageReach(fix.doc.fullName, org);
+      preview.reach = reachOfFix(fix, known && !known.appDefaults.length ? known.profiles : undefined);
+    }
   }
   preview.warnings.push(...flexiPageWarnings(ops, result.root), PUBLISH_WARNING);
   if (production) preview.production = true;
@@ -463,6 +469,7 @@ async function planEditApp(fix: MetadataFix, doc: MetadataDoc, org: string, prog
     forApply ? false : step(progress, "production", () => isProductionOrg(org)),
   ]);
   if (!forApply) preview.warnings.push(appReachWarning(fix.doc.label, profiles));
+  if (profiles) preview.reach = reachOfFix(fix, profiles);
   preview.warnings.push(...appTabWarnings(ops), PUBLISH_WARNING);
   if (production) preview.production = true;
   return { preview, root: result.root, inverse: result.inverse };

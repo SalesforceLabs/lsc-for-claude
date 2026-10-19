@@ -47,6 +47,7 @@ export interface UnpublishedItem {
   live?: boolean;
   /** What changed, when the server can say (Admin Console records). */
   summary?: string[];
+  reach?: { desktop: "now" | "none"; ipad: "publish" | "live" | "nextSync" | "none"; profiles?: string[] };
 }
 
 export interface UnpublishedResult {

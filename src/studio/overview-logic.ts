@@ -4,11 +4,14 @@
  */
 
 import type { Row } from "./helpers.js";
+import { configItems, type ConfigEdit, type UnpublishedItem } from "./unpublished-logic.js";
 
 export interface ProfileCache {
   profileId: string;
   /** Newest Active cache record's LastModifiedDate (ms), if any. */
   activeAt?: number;
+  /** When that record's generation started (its CreatedDate, if earlier): changes after this may not be in it, as `studio_unpublished` counts. */
+  activeStartedAt?: number;
   /** The newest record overall failed to generate and is newer than the newest Active one. */
   failed?: { at: number; message: string };
 }
@@ -35,7 +38,11 @@ export function cachesByProfile(rows: Row[]): Map<string, ProfileCache> {
     const entry = out.get(profileId) ?? { profileId };
     out.set(profileId, entry);
     if (r.Status === "Active") {
-      if (entry.activeAt === undefined || at > entry.activeAt) entry.activeAt = at;
+      if (entry.activeAt === undefined || at > entry.activeAt) {
+        entry.activeAt = at;
+        const created = Date.parse(text(r.CreatedDate));
+        entry.activeStartedAt = Number.isFinite(created) ? Math.min(created, at) : at;
+      }
     } else {
       const message = cacheError(r);
       if (message && (!entry.failed || at > entry.failed.at)) entry.failed = { at, message };
@@ -48,28 +55,22 @@ export function cachesByProfile(rows: Row[]): Map<string, ProfileCache> {
   return out;
 }
 
-/** An Admin Console record edited (or whose assignments were edited) at `at`. */
-export interface ConfigChange {
-  label: string;
-  at: number;
-  /** Profile ids it's assigned to. */
-  profileIds: string[];
-  /** Applies to every profile: org-level, or assigned through something other than a profile. */
-  allProfiles: boolean;
-}
-
 export interface Unpublished {
   profileId: string;
-  changes: ConfigChange[];
+  /** Admin Console changes that reach the profile's iPads only after a publish. */
+  items: UnpublishedItem[];
 }
 
-/** For each profile with a live cache, the changes made after it was generated. */
-export function unpublishedChanges(caches: Map<string, ProfileCache>, changes: ConfigChange[]): Unpublished[] {
+/**
+ * For each profile with a live cache, the Admin Console edits made after its generation started that
+ * still need a publish — the same rules and boundary as `studio_unpublished` (`configItems`).
+ */
+export function unpublishedChanges(caches: Map<string, ProfileCache>, edits: ConfigEdit[]): Unpublished[] {
   const out: Unpublished[] = [];
   for (const cache of caches.values()) {
     if (cache.activeAt === undefined) continue;
-    const mine = changes.filter((c) => c.at > cache.activeAt! && (c.allProfiles || c.profileIds.includes(cache.profileId)));
-    if (mine.length) out.push({ profileId: cache.profileId, changes: mine });
+    const items = configItems(edits, cache.profileId, cache.activeStartedAt ?? cache.activeAt).filter((i) => i.reach?.ipad === "publish");
+    if (items.length) out.push({ profileId: cache.profileId, items });
   }
   return out;
 }

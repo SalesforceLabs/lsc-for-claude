@@ -5,6 +5,7 @@
  */
 
 import type { Row } from "./helpers.js";
+import type { ChangeReach } from "./types.js";
 
 export type UnpublishedKind =
   | "layout"
@@ -37,6 +38,8 @@ export interface UnpublishedItem {
   live?: boolean;
   /** What changed, in plain words, when the server can say (Admin Console records: which values were edited). Documents are summarised by the renderer. */
   summary?: string[];
+  /** Where it shows up: documents on desktop now and on iPads after a publish, list views live, Admin Console records on iPads only. */
+  reach?: ChangeReach;
 }
 
 /** The documents the profile's snapshot references, so changes to other profiles' documents aren't counted. */
@@ -123,6 +126,7 @@ function build(kind: UnpublishedKind, name: string, label: string, r: Row, type:
     lastModifiedBy: modifiedBy(r),
     target: `metadata:${type}:${name}`,
     ...(live ? { live: true } : {}),
+    reach: { desktop: "now", ipad: live ? "live" : "publish" },
   };
 }
 
@@ -263,6 +267,7 @@ export function configItems(edits: ConfigEdit[], profileId: string, boundaryMs: 
     if (!kind || e.at <= boundaryMs) continue;
     if (!e.allProfiles && !e.profileIds.includes(profileId)) continue;
     const name = `${e.category}:${e.developerName}`;
+    const summary = configSummary(e);
     out.push({
       id: `${kind}:${name}`,
       kind,
@@ -271,7 +276,9 @@ export function configItems(edits: ConfigEdit[], profileId: string, boundaryMs: 
       lastModifiedAt: new Date(e.at).toISOString(),
       lastModifiedBy: e.by,
       target: `config:${name}`,
-      ...(configSummary(e).length ? { summary: configSummary(e) } : {}),
+      ...(summary.length ? { summary } : {}),
+      // Every touch counts (a value row may not say which field it holds); whether a rep would see a difference is the renderer's call against the snapshot.
+      reach: { desktop: "none", ipad: "publish" },
     });
   }
   return out;

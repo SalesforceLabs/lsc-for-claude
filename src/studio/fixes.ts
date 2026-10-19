@@ -31,6 +31,7 @@ import { applyCreate, applyDelete, previewCreate, previewDelete, resolveNames } 
 import { applyEdit, isEditFix, previewEdit } from "./edits.js";
 import { inList, query, splitList, type Row } from "./helpers.js";
 import { step, type FixTracker } from "./fix-progress.js";
+import { withReach } from "./reach.js";
 import type { FixPreview, FixResult, RecordRef, StudioFix } from "./types.js";
 
 // --- Permission set licenses -------------------------------------------------
@@ -341,6 +342,10 @@ async function applyAssignments(target: AssignmentTarget, org: string, progress?
 
 /** `progress` is optional everywhere: with one, each step the change takes reports to it (studio_fix_progress). */
 export async function previewFix(fix: StudioFix, org: string, progress?: FixTracker): Promise<FixPreview> {
+  return withReach(await previewByKind(fix, org, progress), fix);
+}
+
+async function previewByKind(fix: StudioFix, org: string, progress?: FixTracker): Promise<FixPreview> {
   switch (fix.kind) {
     case "assignPsl":
       return previewAssignPsl(fix, org, progress);
