@@ -230,7 +230,7 @@ async function applySetLayoutRelatedList(fix: LayoutFix, org: string, progress?:
   if (preview.blocked || !preview.layout) return { ok: false, message: preview.blocked || "Nothing to update." };
   const { layout } = preview;
   writeLayoutXml(layout, fix.add ? insertRelatedList(layout.xml, fix.relationshipName) : removeRelatedList(layout.xml, fix.relationshipName));
-  const deployed = await step(progress, "deploy", () => deployMetadata(layoutDeployPath(layout), org, progress?.statusHook("deploy")));
+  const deployed = await step(progress, "deploy", () => (progress ? deployMetadata(layoutDeployPath(layout), org, progress.statusHook("deploy")) : deployMetadata(layoutDeployPath(layout), org)));
   if (!deployed.success) {
     return { ok: false, message: `Deploying ${fix.layoutLabel} failed: ${deployed.error || "unknown error"}. Nothing was changed.` };
   }

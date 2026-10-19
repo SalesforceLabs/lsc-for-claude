@@ -86,7 +86,7 @@ export async function retrieveDocs(entries: { type: MetadataDocType; fullName: s
 /** Write `root` over the retrieved file and deploy that file alone. */
 export async function deployDoc(doc: MetadataDoc, root: XmlNode, org: string, onStatus?: StatusHook): Promise<void> {
   fs.writeFileSync(doc.filePath, serializeXml(root), "utf-8");
-  const result = await deployMetadata(doc.filePath, org, onStatus);
+  const result = await (onStatus ? deployMetadata(doc.filePath, org, onStatus) : deployMetadata(doc.filePath, org));
   if (!result.success) throw new Error(`Couldn't deploy ${doc.fullName}: ${result.error ?? "unknown error"}`);
 }
 
