@@ -12,6 +12,7 @@
 
 .studio-rail {
   width: 208px;
+  transition: width var(--transition-panel);
   flex-shrink: 0;
   padding: 0 8px 16px;
   border-right: 1px solid var(--border);
@@ -20,6 +21,7 @@
   flex-direction: column;
   gap: 1px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Lines up with the pane headers beside it and drags the window, like the app sidebar's header. */
@@ -32,12 +34,61 @@
   align-items: center;
   height: var(--toolbar-height);
   margin: 0 -8px 4px;
-  padding: 0 18px;
+  justify-content: space-between;
+  padding: 0 10px 0 18px;
   background: var(--bg-secondary);
   font-size: var(--font-md);
   font-weight: 600;
   color: var(--text-primary);
   -webkit-app-region: drag;
+}
+
+.studio-rail-head .ui-icon-btn {
+  -webkit-app-region: no-drag;
+}
+
+.studio-rail-head-label {
+  white-space: nowrap;
+  transition: opacity var(--transition-panel);
+}
+
+/* Folded to an icon strip: the same items, labels clipped, sections as hairlines, the long
+   feature list left to the Overview. */
+.studio-rail.collapsed {
+  width: 52px;
+}
+
+.studio-rail.collapsed .studio-rail-head {
+  justify-content: center;
+  padding: 0;
+}
+
+.studio-rail.collapsed .studio-rail-head-label,
+.studio-rail.collapsed .studio-rail-label {
+  opacity: 0;
+}
+
+.studio-rail.collapsed .studio-rail-head-label {
+  width: 0;
+  overflow: hidden;
+}
+
+.studio-rail-label {
+  transition: opacity var(--transition-panel);
+}
+
+.studio-rail.collapsed .studio-rail-feature {
+  display: none;
+}
+
+.studio-rail.collapsed .studio-rail-title {
+  width: 24px;
+  height: 1px;
+  margin: 8px auto 6px;
+  padding: 0;
+  font-size: 0;
+  background: var(--border);
+  overflow: hidden;
 }
 
 .studio-rail-title {
