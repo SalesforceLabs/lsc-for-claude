@@ -15,6 +15,9 @@
  * Tokens are only ever sent to the org's own https instance URL.
  */
 
+import { createWriteStream, renameSync, rmSync } from "node:fs";
+import { Readable, Transform } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { sfLimiter } from "./limiter.js";
 
 export interface DirectCredentials {
@@ -110,7 +113,8 @@ async function getOnce(
   org: string,
   pathAndQuery: string,
   fetcher: CredentialFetcher,
-  timeoutMs: number
+  timeoutMs: number,
+  request?: { method: "POST"; body: unknown }
 ): Promise<RawResponse | { timedOut: true } | null> {
   let creds = await getCredentials(org, fetcher);
   if (!creds) return null;
@@ -121,7 +125,12 @@ async function getOnce(
     try {
       res = await sfLimiter.run(() =>
         fetch(url, {
-          headers: { Authorization: `Bearer ${creds!.accessToken}`, Accept: "application/json" },
+          ...(request ? { method: request.method, body: JSON.stringify(request.body) } : {}),
+          headers: {
+            Authorization: `Bearer ${creds!.accessToken}`,
+            Accept: "application/json",
+            ...(request ? { "Content-Type": "application/json" } : {}),
+          },
           signal: AbortSignal.timeout(timeoutMs),
         })
       );
@@ -281,4 +290,84 @@ export async function directMetadataSoap(
 /** The API version the direct path talks to an org with (the sf CLI's), for package manifests. */
 export async function directApiVersion(org: string, fetcher: CredentialFetcher): Promise<string> {
   return apiVersion(org, fetcher);
+}
+
+/**
+ * A read-only REST POST (a query posted as a body, e.g. Data Cloud `ssot/query-sql`). Same contract as
+ * `directGet`; only for endpoints that don't write — it is retried on a 5xx and on an expired token.
+ */
+export async function directPostRead<T>(
+  endpoint: string,
+  body: unknown,
+  org: string,
+  fetcher: CredentialFetcher,
+  timeoutMs = DEFAULT_TIMEOUT_MS
+): Promise<DirectOutcome<T> | null> {
+  if (!directEnabled(org) || !endpoint.startsWith("/")) return null;
+  const res = await getOnce(org, endpoint, fetcher, timeoutMs, { method: "POST", body });
+  if (!res) return null;
+  if ("timedOut" in res) return { ok: false, timedOut: true, error: `Request timed out after ${Math.round(timeoutMs / 1000)}s` };
+  if (res.status >= 400) return { ok: false, status: res.status, error: errorText(res.status, res.body) };
+  try {
+    return { ok: true, data: JSON.parse(res.body) as T };
+  } catch {
+    return { ok: true, data: res.body as unknown as T };
+  }
+}
+
+/**
+ * Stream a REST GET's body to a file (a ContentVersion's VersionData). `null` = fall back to the CLI
+ * (no token, network trouble, expired token). Nothing is left at `dest` unless the whole body arrived.
+ */
+export async function directDownload(
+  endpoint: string,
+  dest: string,
+  org: string,
+  fetcher: CredentialFetcher,
+  timeoutMs = DEFAULT_TIMEOUT_MS
+): Promise<DirectOutcome<{ bytes: number }> | null> {
+  if (!directEnabled(org) || !endpoint.startsWith("/")) return null;
+  let creds = await getCredentials(org, fetcher);
+  if (!creds) return null;
+  const partial = `${dest}.part`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const url = `${creds.instanceUrl.replace(/\/$/, "")}${endpoint}`;
+    try {
+      const res = await sfLimiter.run(async () => {
+        const r = await fetch(url, { headers: { Authorization: `Bearer ${creds!.accessToken}` }, signal: AbortSignal.timeout(timeoutMs) });
+        if (r.status !== 200 || !r.body) return { status: r.status, text: await r.text(), bytes: 0 };
+        let bytes = 0;
+        const counter = new Transform({
+          transform(chunk, _enc, cb) {
+            bytes += chunk.length;
+            cb(null, chunk);
+          },
+        });
+        await pipeline(Readable.fromWeb(r.body as never), counter, createWriteStream(partial));
+        return { status: 200, text: "", bytes };
+      });
+      if (res.status === 401 && attempt === 0) {
+        const next = await getCredentials(org, fetcher, true);
+        if (!next || next.accessToken === creds.accessToken) return null;
+        creds = next;
+        continue;
+      }
+      if (res.status === 401) return null;
+      if (res.status >= 500 && attempt < 2) {
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+        continue;
+      }
+      if (res.status >= 400) return { ok: false, status: res.status, error: errorText(res.status, res.text) };
+      renameSync(partial, dest);
+      return { ok: true, data: { bytes: res.bytes } };
+    } catch (err) {
+      rmSync(partial, { force: true });
+      const name = err instanceof Error ? err.name : "";
+      if (name === "TimeoutError" || name === "AbortError") return { ok: false, timedOut: true, error: `Download timed out after ${Math.round(timeoutMs / 1000)}s` };
+      // Anything else (DNS, proxy, TLS, a dropped connection): let the CLI try.
+      if (err instanceof TypeError) disabledOrgs.add(org);
+      return null;
+    }
+  }
+  return null;
 }

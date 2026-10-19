@@ -185,22 +185,21 @@ export function register(server: McpServer) {
       org: z.string().describe("The org alias or username to use as the target for operations"),
     },
     async ({ org }) => {
-      // Validate the org exists
-      invalidateSetupStatus();
-      const result = await listOrgs();
+      // Validate the org exists. A fresh probe, so the next tool call's connection check reuses this `sf org list`.
+      const status = await checkSetupStatus({ fresh: true });
 
-      if (!result.success) {
+      if (!status.cliInstalled || !status.hasAuthenticatedOrgs) {
         return {
           content: [
             {
               type: "text",
-              text: `Failed to verify org: ${result.error}`,
+              text: `Failed to verify org: ${status.cliInstalled ? "no authenticated orgs found" : "Salesforce CLI is not installed"}`,
             },
           ],
         };
       }
 
-      const allOrgs = [...(result.data?.nonScratchOrgs || []), ...(result.data?.scratchOrgs || [])];
+      const allOrgs = status.orgs;
 
       const matchedOrg = allOrgs.find((o) => o.alias === org || o.username === org);
 
