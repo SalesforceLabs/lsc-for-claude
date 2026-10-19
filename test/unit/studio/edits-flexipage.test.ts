@@ -110,7 +110,28 @@ describe("editMetadata (Lightning pages)", () => {
   });
   afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
 
-  it("previews the move with the diff and who gets the page, then deploys it and returns the undo", async () => {
+  it("doesn't read every app to preview, but names who gets the page once that's known", async () => {
+    const first = await previewFix(fix, target);
+    expect(first.blocked).toBeUndefined();
+    expect(first.warnings[0]).toBe(
+      "Deploys Account HCP page to the org — other profiles and apps may use it too, and everyone who gets it gets the change."
+    );
+    expect(first.reachPage).toBe(PAGE);
+    expect(vi.mocked(cli.retrieveMetadata).mock.calls.some(([, type]) => type === "CustomApplication")).toBe(false);
+    expect(vi.mocked(cli.runToolingQuery).mock.calls.some(([q]) => /CustomApplication/.test(String(q)))).toBe(false);
+
+    const { flexiPageReach } = await import("../../../src/studio/metadata/live.js");
+    await flexiPageReach(PAGE, target);
+    const again = await previewFix(fix, target);
+    expect(again.reachPage).toBeUndefined();
+    expect(again.warnings[0]).toBe(
+      "Deploys Account HCP page to the org — it's the page for 2 profiles (LS Rep, System Administrator) and the default in LSC Field Sales, and everyone who gets it gets the change."
+    );
+  });
+
+  it("previews the move with the diff, then deploys it and returns the undo", async () => {
+    const { flexiPageReach } = await import("../../../src/studio/metadata/live.js");
+    await flexiPageReach(PAGE, target);
     const preview = await previewFix(fix, target);
     expect(preview.blocked).toBeUndefined();
     expect(preview.changes.map((c) => [c.field, c.before, c.after])).toEqual([

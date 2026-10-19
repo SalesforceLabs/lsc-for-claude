@@ -254,19 +254,10 @@ export function planFixSteps(fix: StudioFix, phase: "preview" | "apply"): Planne
       return [
         { key: "retrieve", label: `${apply ? "Re-reading" : "Reading"} ${label} from the org${apply ? " to check nothing changed" : ""}` },
         { key: "diff", label: `Building the diff for ${label}` },
-        ...(type === "ListView" || apply
+        // A Lightning page's reach is only read on request from the review dialog: it means reading every app.
+        ...(type === "ListView" || type === "FlexiPage" || apply
           ? []
-          : [
-              {
-                key: "reach",
-                label:
-                  type === "FlexiPage"
-                    ? `Finding the profiles and apps ${label} reaches (can take a minute)`
-                    : type === "CompactLayout"
-                      ? `Finding the record types ${label} reaches`
-                      : `Finding the profiles ${label} reaches`,
-              },
-            ]),
+          : [{ key: "reach", label: type === "CompactLayout" ? `Finding the record types ${label} reaches` : `Finding the profiles ${label} reaches` }]),
         ...(apply ? [] : [{ key: "production", label: "Checking whether this is a production org" }]),
         ...(type === "Layout" && !apply ? [{ key: "validate", label: `Asking the org whether it would accept the change` }] : []),
         ...(apply ? [{ key: "deploy", label: `Deploying ${label}` }] : []),

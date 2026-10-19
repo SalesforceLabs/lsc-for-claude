@@ -250,7 +250,7 @@ interface PageAssignments {
 }
 
 const ASSIGNMENTS_TTL_MS = 30_000;
-export const assignmentsCache = new Map<string, { at: number; value: Promise<PageAssignments | null> }>();
+export const assignmentsCache = new Map<string, { at: number; value: Promise<PageAssignments | null>; settled?: PageAssignments }>();
 
 /** One app's page overrides, however they were read: only what the reach needs. */
 export interface AppOverrides {
@@ -402,9 +402,11 @@ async function pageAssignments(org: string): Promise<PageAssignments | null> {
     const apps = (await appOverridesViaTooling(org)) ?? (await appOverridesViaRetrieve(org));
     return apps ? assignmentsOf(apps) : null;
   })();
-  assignmentsCache.set(org, { at: Date.now(), value });
+  const entry: { at: number; value: Promise<PageAssignments | null>; settled?: PageAssignments } = { at: Date.now(), value };
+  assignmentsCache.set(org, entry);
   value.then((v) => {
-    if (!v && assignmentsCache.get(org)?.value === value) assignmentsCache.delete(org);
+    if (v) entry.settled = v;
+    else if (assignmentsCache.get(org)?.value === value) assignmentsCache.delete(org);
   });
   return value;
 }
@@ -433,6 +435,13 @@ export async function flexiPageReach(fullName: string, org: string): Promise<{ p
   } catch {
     return null;
   }
+}
+
+/** A page's reach if every app was read lately (e.g. by the inspector), without reading them now; undefined when not known yet. */
+export function knownFlexiPageReach(fullName: string, org: string): { profiles: string[]; appDefaults: string[] } | undefined {
+  const hit = assignmentsCache.get(org);
+  if (!hit?.settled || Date.now() - hit.at >= ASSIGNMENTS_TTL_MS) return undefined;
+  return { profiles: [...(hit.settled.profiles.get(fullName) ?? [])].sort(), appDefaults: [...(hit.settled.appDefaults.get(fullName) ?? [])].sort() };
 }
 
 /** True when the page was installed from a managed package and can't be deployed. */
