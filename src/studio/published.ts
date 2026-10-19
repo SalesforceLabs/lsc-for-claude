@@ -8,14 +8,14 @@
  * ContentVersion download.
  */
 
-import { execFile, spawn } from "child_process";
+import { execFile } from "child_process";
 import { createHash } from "crypto";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { promisify } from "util";
 import { resolveScalarTags } from "../perf/sync-volume.js";
-import { apiRequest } from "../salesforce/cli.js";
+import { apiRequest, downloadToFile } from "../salesforce/cli.js";
 import { count, ID_PATTERN, inList, query, queryResult, type Row } from "./helpers.js";
 import { collectScreens, type PublishedScreens, type ScreenContext } from "./screens/index.js";
 import { isScaleError, withTimeout } from "./screens/context.js";
@@ -1409,26 +1409,15 @@ export function downloadTimeoutMs(sizeBytes: number | null): number {
   return Math.min(1_800_000, Math.max(base, base + Math.ceil(sizeBytes / 1_000_000) * 2000));
 }
 
-function download(contentVersionId: string, dest: string, org: string, sizeBytes: number | null = null): Promise<void> {
+async function download(contentVersionId: string, dest: string, org: string, sizeBytes: number | null = null): Promise<void> {
   const timeout = downloadTimeoutMs(sizeBytes);
-  return new Promise((resolve, reject) => {
-    const child = spawn(
-      "sf",
-      ["api", "request", "rest", `/services/data/v62.0/sobjects/ContentVersion/${contentVersionId}/VersionData`, "--stream-to-file", dest, "--target-org", org],
-      { stdio: "pipe", timeout }
-    );
-    let stderr = "";
-    child.stderr?.on("data", (d) => (stderr += d.toString()));
-    child.on("error", reject);
-    child.on("close", (code, signal) => {
-      if (code === 0) return resolve();
-      if (signal) {
-        const size = sizeBytes ? ` (${(sizeBytes / 1_048_576).toFixed(0)} MB)` : "";
-        return reject(new Error(`Downloading the metadata cache${size} timed out after ${Math.round(timeout / 60_000)} minutes. The connection to the org is too slow or the file is too large; try again, or on a faster network.`));
-      }
-      reject(new Error(stderr.trim() || `Download failed (exit ${code})`));
-    });
-  });
+  const res = await downloadToFile(`/services/data/v62.0/sobjects/ContentVersion/${contentVersionId}/VersionData`, dest, org, timeout);
+  if (res.success) return;
+  if (res.timedOut) {
+    const size = sizeBytes ? ` (${(sizeBytes / 1_048_576).toFixed(0)} MB)` : "";
+    throw new Error(`Downloading the metadata cache${size} timed out after ${Math.round(timeout / 60_000)} minutes. The connection to the org is too slow or the file is too large; try again, or on a faster network.`);
+  }
+  throw new Error(res.error || "Download failed");
 }
 
 /**
@@ -1832,47 +1821,56 @@ async function viewerScreens(
   const note = (message: string) => {
     if (!notes.includes(message)) notes.push(message);
   };
-  const [reports, listResult, screens] = await Promise.all([
-    track.run("reports", () =>
-      withTimeout(viewerReportsTab(core, userId, org, note), REPORTS_TIMEOUT_MS, "Reading the Reports tab").catch((err) => {
-        note(`Reports tab not shown with data: ${reason(err)}`);
-        return {};
+  // The records step needs only the lists and the screens, so it starts as soon as they are in rather than after the slow Reports tab.
+  // Its own notes are added after the others, as they were when it ran last.
+  const recordNotes: string[] = [];
+  const recordNote = (message: string) => {
+    if (!recordNotes.includes(message)) recordNotes.push(message);
+  };
+  const reportsRun = track.run("reports", () =>
+    withTimeout(viewerReportsTab(core, userId, org, note), REPORTS_TIMEOUT_MS, "Reading the Reports tab").catch((err) => {
+      note(`Reports tab not shown with data: ${reason(err)}`);
+      return {};
+    })
+  );
+  const listsRun = track.run("lists", () => viewerLists(core, userId, org, track));
+  const screensRun = track.run("screens", () =>
+    viewerContext(core, userId, org, note)
+      .then(collectScreens)
+      .catch((err) => {
+        if (isScaleError(err)) note(`Native screens not shown with data: ${reason(err)}`);
+        return {} as PublishedScreens;
       })
-    ),
-    track.run("lists", () => viewerLists(core, userId, org, track)),
-    track.run("screens", () =>
-      viewerContext(core, userId, org, note)
-        .then(collectScreens)
-        .catch((err) => {
-          if (isScaleError(err)) note(`Native screens not shown with data: ${reason(err)}`);
-          return {} as PublishedScreens;
-        })
-    ),
-  ]);
-  const lists = listResult?.data;
-  const listErrors = listResult && Object.keys(listResult.errors).length ? listResult.errors : undefined;
-  const home = (screens as PublishedScreens).home;
-  // Records other screens open: the Accounts cards, the Home NBC cards (account) and Visits To Submit rows (visit editor).
-  const cards = [...new Set([...((screens as PublishedScreens).accounts?.cards.map((c) => c.id) ?? []), ...(home?.nbc?.cards.map((c) => c.accountId) ?? [])])];
-  // ...and the Calendar's visit tiles, which open the Visit record.
-  // collectRecords keeps the first 30 per object: the rows go first, then the tiles nearest today fill the rest.
-  const cal = (screens as PublishedScreens).calendar;
-  const today = cal ? Math.max(0, cal.days.findIndex((d) => d.today)) : 0;
-  const calVisits = (cal?.segments.filter((s) => s.kind === "visit") ?? []).sort((a, b) => Math.abs(a.day - today) - Math.abs(b.day - today)).map((s) => s.id);
-  const visits = [...new Set([...(home?.visits?.items.map((v) => v.id) ?? []), ...calVisits])];
-  const records =
-    lists || cards.length || visits.length
+  );
+  // Settle the three in the original order of failure: a rejection from any of them rejects the whole load.
+  const recordsRun = Promise.all([listsRun, screensRun]).then(async ([listResult, screens]) => {
+    const lists = listResult?.data;
+    const home = (screens as PublishedScreens).home;
+    // Records other screens open: the Accounts cards, the Home NBC cards (account) and Visits To Submit rows (visit editor).
+    const cards = [...new Set([...((screens as PublishedScreens).accounts?.cards.map((c) => c.id) ?? []), ...(home?.nbc?.cards.map((c) => c.accountId) ?? [])])];
+    // ...and the Calendar's visit tiles, which open the Visit record.
+    // collectRecords keeps the first 30 per object: the rows go first, then the tiles nearest today fill the rest.
+    const cal = (screens as PublishedScreens).calendar;
+    const today = cal ? Math.max(0, cal.days.findIndex((d) => d.today)) : 0;
+    const calVisits = (cal?.segments.filter((s) => s.kind === "visit") ?? []).sort((a, b) => Math.abs(a.day - today) - Math.abs(b.day - today)).map((s) => s.id);
+    const visits = [...new Set([...(home?.visits?.items.map((v) => v.id) ?? []), ...calVisits])];
+    return lists || cards.length || visits.length
       ? await track.run("records", () =>
           withTimeout(
-            viewerContext(core, userId, org, note).then((ctx) => collectRecords(ctx, lists ?? {}, { Account: cards, Visit: visits })),
+            viewerContext(core, userId, org, recordNote).then((ctx) => collectRecords(ctx, lists ?? {}, { Account: cards, Visit: visits })),
             RECORDS_TIMEOUT_MS,
             "Reading the records list views and cards open"
           ).catch((err) => {
-            if (isScaleError(err)) note(`Record pages not shown with data: ${reason(err)}`);
+            if (isScaleError(err)) recordNote(`Record pages not shown with data: ${reason(err)}`);
             return undefined;
           })
         )
       : undefined;
+  });
+  const [reports, listResult, screens, records] = await Promise.all([reportsRun, listsRun, screensRun, recordsRun]);
+  for (const message of recordNotes) note(message);
+  const lists = listResult?.data;
+  const listErrors = listResult && Object.keys(listResult.errors).length ? listResult.errors : undefined;
   return {
     ...reports,
     ...(lists ? { lists } : {}),

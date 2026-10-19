@@ -11,7 +11,7 @@ import * as crypto from "crypto";
 import * as os from "os";
 import { cacheGet, cacheSet, queryCacheKey, describeCacheKey } from "../cache.js";
 import { sfLimiter } from "./limiter.js";
-import { directApiVersion, directEnabled, directGet, directQuery, type DirectCredentials } from "./direct.js";
+import { directApiVersion, directDownload, directEnabled, directGet, directPostRead, directQuery, type DirectCredentials } from "./direct.js";
 import { directDeploy, directRetrieve } from "./direct-metadata.js";
 import { invalidateSharedReads } from "../config/read-cache.js";
 
@@ -786,6 +786,41 @@ export async function apiRequest<T>(
   }
   const run = () => sfLimiter.run(() => spawnApiRequest<T>(endpoint, method, body, targetOrg));
   return method === "GET" ? run() : asWrite(targetOrg, run);
+}
+
+/**
+ * A POST that only reads (a query sent as a body, e.g. Data Cloud `ssot/query-sql`): direct REST first,
+ * the CLI otherwise. Not for anything that writes — use `apiRequest`, which is serialized as a write.
+ */
+export async function apiReadPost<T>(endpoint: string, body: unknown, targetOrg: string): Promise<CliResult<T>> {
+  const direct = await directPostRead<T>(endpoint, body, targetOrg, directCredentials);
+  if (direct) {
+    return direct.ok
+      ? { success: true, data: direct.data }
+      : { success: false, error: direct.error, timedOut: direct.timedOut };
+  }
+  return sfLimiter.run(() => spawnApiRequest<T>(endpoint, "POST", body, targetOrg));
+}
+
+/** Download a REST body (a ContentVersion's VersionData) to a file: direct first, `sf api request rest --stream-to-file` otherwise. */
+export async function downloadToFile(endpoint: string, dest: string, targetOrg: string, timeoutMs: number): Promise<CliResult<void>> {
+  const direct = await directDownload(endpoint, dest, targetOrg, directCredentials, timeoutMs);
+  if (direct) return direct.ok ? { success: true } : { success: false, error: direct.error, timedOut: direct.timedOut };
+  return sfLimiter.run(
+    () =>
+      new Promise<CliResult<void>>((resolve) => {
+        const child = spawn("sf", ["api", "request", "rest", endpoint, "--stream-to-file", dest, "--target-org", targetOrg], { stdio: "pipe", timeout: timeoutMs });
+        const started = Date.now();
+        let stderr = "";
+        child.stderr?.on("data", (d) => (stderr += d.toString()));
+        child.on("error", (e) => resolve({ success: false, error: e.message }));
+        child.on("close", (code, signal) => {
+          if (code === 0) return resolve({ success: true });
+          if (signal && Date.now() - started >= timeoutMs - 50) return resolve({ success: false, timedOut: true, error: timeoutMessage(timeoutMs) });
+          resolve({ success: false, error: stderr.trim() || `Download failed (exit ${code})` });
+        });
+      })
+  );
 }
 
 function spawnApiRequest<T>(

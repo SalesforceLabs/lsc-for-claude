@@ -309,14 +309,30 @@ export function isFieldReadable(field: Row, perms: Map<string, boolean> | null |
   return field.permissionable === false;
 }
 
+const PERMISSION_SOQL = (types: string[], userId: string) =>
+  `SELECT Field, PermissionsRead FROM FieldPermissions WHERE SobjectType IN (${types.map((t) => `'${t}'`).join(", ")})
+       AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE AssigneeId = '${userId}')`;
+
+/** The SobjectTypes whose FieldPermissions make up an object's: a person account's fields are the Contact's too. */
+const permissionTypes = (object: string) => (object === "Account" ? ["Account", "Contact"] : [object]);
+
+/**
+ * One FieldPermissions read for every object the records step shows, rather than one per object: the server scans the
+ * table once and the slow reads no longer run side by side. Null when it can't be read whole (an error, or more rows than
+ * a query returns), and each object then reads its own as it always did.
+ */
+function fieldPermissionRows(ctx: ScreenContext, objects: string[]): Promise<Row[] | null> {
+  const types = [...new Set(objects.flatMap(permissionTypes))];
+  if (!types.length) return Promise.resolve(null);
+  return query(PERMISSION_SOQL(types, ctx.userId), ctx.org).catch(() => null);
+}
+
 /** The viewer's merged field read permissions for an object (profile, permission sets and groups); null when the org won't say. */
-async function fieldReadPermissions(ctx: ScreenContext, object: string): Promise<Map<string, boolean> | null> {
+async function fieldReadPermissions(ctx: ScreenContext, object: string, shared?: Promise<Row[] | null>): Promise<Map<string, boolean> | null> {
   try {
-    const rows = await query(
-      `SELECT Field, PermissionsRead FROM FieldPermissions WHERE SobjectType IN (${object === "Account" ? "'Account', 'Contact'" : `'${object}'`})
-       AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE AssigneeId = '${ctx.userId}')`,
-      ctx.org
-    );
+    const together = shared ? await shared : null;
+    const types = new Set(permissionTypes(object).map((t) => t.toLowerCase()));
+    const rows = together ? together.filter((r) => types.has(str(r.Field).split(".")[0].toLowerCase())) : await query(PERMISSION_SOQL(permissionTypes(object), ctx.userId), ctx.org);
     const out = new Map<string, boolean>();
     const set = (name: string, read: boolean) => out.set(name, out.get(name) === true || read);
     for (const r of rows) {
@@ -645,6 +661,11 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
   const viewerProfile = await query(`SELECT Profile.Name FROM User WHERE Id = '${ctx.userId}'`, ctx.org)
     .then((r) => str(obj(r[0]?.Profile).Name) || null)
     .catch(() => null);
+  // Started now, while the rows and describes load: the object chains below only wait for it when they need it.
+  const permissions = fieldPermissionRows(
+    ctx,
+    objects.flatMap((o) => (MULTI_ENTITY[o] && ctx.core.objects[o]?.recordTypes.some((r) => r.multiEntity) ? [o, MULTI_ENTITY[o].with] : [o]))
+  );
   const inlineFor = (o: string) => [...new Set(Object.values(inline).filter((c) => c.object === o).flatMap((c) => c.cells.map((x) => x.field)))];
 
   await Promise.all(
@@ -664,7 +685,7 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
         linkField = str(arr([...(pd?.fields.values() ?? [])]).find((f) => arr(f.referenceTo).map(str).includes(object) && f.nameField !== true)?.name);
         if (pd && linkField) linkedFetch = await fetchRows(ctx, partner, `${linkField} IN (${inList(ids)})`, [linkField, "Status"].filter((p) => p !== "Status" || pd.fields.has("status")), inlineFor(partner));
       }
-      const [mainPerms, partnerPerms] = await Promise.all([fieldReadPermissions(ctx, object), linkedFetch ? fieldReadPermissions(ctx, partner) : null]);
+      const [mainPerms, partnerPerms] = await Promise.all([fieldReadPermissions(ctx, object, permissions), linkedFetch ? fieldReadPermissions(ctx, partner, permissions) : null]);
       fields[object] = { ...fields[object], ...fieldMeta(main, mainPerms) };
       if (linkedFetch) fields[partner] = { ...fields[partner], ...fieldMeta(linkedFetch, partnerPerms) };
       const unsynced = await unsyncedIds(ctx, linkedFetch ? [main, linkedFetch] : [main]);
