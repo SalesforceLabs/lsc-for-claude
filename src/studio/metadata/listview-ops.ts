@@ -35,6 +35,8 @@ export const FILTER_OPERATIONS = [
   "within",
 ] as const;
 
+/** A standard-object column named the old way (ACCOUNT.NAME). */
+const LEGACY_ID = /^[A-Z][A-Z0-9_]*(\.[A-Z0-9_]+)+$/;
 export const FILTER_SCOPES = ["Everything", "Mine", "Queue", "Delegated", "MyTerritory", "MyTeamTerritory", "Team"] as const;
 
 export class StaleListViewError extends Error {}
@@ -174,6 +176,9 @@ export function applyListViewOp(root: XmlNode, op: ListViewOp): { inverse: ListV
     }
     case "addListColumn": {
       assertName(op.column);
+      if (columnNodes(root).some((c) => LEGACY_ID.test(unwrap(c))) && !LEGACY_ID.test(op.column) && !op.column.endsWith("__c")) {
+        throw new Error(`${op.column} can't be added here: this view names its standard columns the old way (ACCOUNT.NAME), so only custom fields can be added to it.`);
+      }
       if (columnNodes(root).some((c) => unwrap(c) === op.column)) throw new StaleListViewError(`${op.column} is already a column of the list view.`);
       if (columnNodes(root).length >= MAX_LIST_COLUMNS) throw new StaleListViewError(`A list view holds at most ${MAX_LIST_COLUMNS} columns here. Remove one first.`);
       const node = leaf("columns", op.column);

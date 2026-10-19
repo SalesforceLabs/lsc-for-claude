@@ -419,14 +419,13 @@ export function curatedFor(component: string): Curated | undefined {
   return SUFFIX_CURATED.find(([suffix]) => trimmed.endsWith(suffix))?.[1];
 }
 
-/** An LWC's own properties: `mobileHeight` on an inline LWC is read; nothing else is passed to it (LMRModule.swift:110). */
+/** An LWC's own properties: `mobileHeight` on an inline LWC is read; nothing else is passed to it (LMRModule.swift:110). It's offered only when the bundle declares it — the org rejects a property its js-meta.xml doesn't. */
 function markBundleProps(component: string, defs: ComponentPropDef[]): ComponentPropDef[] {
   const inline = isInline(component);
   const mapped = defs.map((d): ComponentPropDef => {
     if (inline && d.name === "mobileHeight") return { ...d, min: d.min ?? 1, ipad: "used", ipadNote: MOBILE_HEIGHT.ipadNote };
     return { ...d, ipad: "unused", ipadNote: "The iPad ignores this." };
   });
-  if (inline && !mapped.some((d) => d.name === "mobileHeight")) mapped.unshift(MOBILE_HEIGHT);
   return mapped;
 }
 
