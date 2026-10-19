@@ -5,6 +5,7 @@ import { validateOrgConnection } from "../salesforce/auth.js";
 import { getFeature, listFeatures } from "../studio/features.js";
 import { collectFeatureMap, collectItemDetail, collectProfileOptions } from "../studio/collect.js";
 import { flexiPageReach, readLiveCompactLayout, readLiveFlexiPage, readLiveLayout, readLiveListView } from "../studio/metadata/live.js";
+import { resolveSetupLinks, type SetupRef } from "../studio/setup-links.js";
 import { collectCatalog } from "../studio/component-catalog.js";
 import { collectComponentProps } from "../studio/component-props.js";
 import { accessOptions, userAccess } from "../studio/access.js";
@@ -495,6 +496,44 @@ export function register(server: McpServer) {
       }
       try {
         return json(await collectProfileOptions(connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_setup_links",
+    "LSC Studio (GUI data): the deepest Salesforce Setup page for each reference (page layout, field, compact layout, Lightning page, list view, record type, validation rule, Apex trigger, flow, user, profile, permission set, territory, record), as org-relative paths for `sf org open --path`; `exact` is false when the item's Id couldn't be found and the path is its list page. Read-only, cached per org. Returns JSON.",
+    {
+      refs: z
+        .array(
+          z.discriminatedUnion("type", [
+            z.object({ type: z.literal("layout"), object: z.string().max(80), name: z.string().max(255) }),
+            z.object({ type: z.literal("field"), object: z.string().max(80), field: z.string().max(80) }),
+            z.object({ type: z.literal("compactLayout"), object: z.string().max(80), name: z.string().max(255) }),
+            z.object({ type: z.literal("flexiPage"), name: z.string().max(255) }),
+            z.object({ type: z.literal("listView"), object: z.string().max(80), name: z.string().max(255) }),
+            z.object({ type: z.literal("recordType"), object: z.string().max(80), name: z.string().max(255) }),
+            z.object({ type: z.literal("validationRule"), object: z.string().max(80), id: z.string().max(18) }),
+            z.object({ type: z.literal("apexTrigger"), id: z.string().max(18) }),
+            z.object({ type: z.literal("flow"), id: z.string().max(18) }),
+            z.object({ type: z.literal("user"), id: z.string().max(18) }),
+            z.object({ type: z.literal("profile"), id: z.string().max(18) }),
+            z.object({ type: z.literal("permissionSet"), id: z.string().max(18) }),
+            z.object({ type: z.literal("territory"), id: z.string().max(18) }),
+            z.object({ type: z.literal("record"), sobject: z.string().max(80), id: z.string().max(18) }),
+          ])
+        )
+        .max(10),
+    },
+    async ({ refs }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json({ links: await resolveSetupLinks(refs as SetupRef[], connection.targetOrg) });
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
