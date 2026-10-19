@@ -31,7 +31,6 @@ const LABELS = {
   access: "Checking object access",
   build: "Building the iPad for each permission set combination",
   sharing: "Reading the user's roles, territories and groups",
-  reports: "Reading reports",
   lists: "Running list views",
   screens: "Collecting Home, Accounts, Calendar and other screens",
   records: "Reading the records screens open",

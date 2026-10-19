@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attachReportData, buildReportData } from "../../../../src/studio/screens/report-data.js";
+import { buildReportData } from "../../../../src/studio/screens/report-data.js";
 
 const summary = {
   reportMetadata: {
@@ -55,10 +55,5 @@ describe("report viewer model", () => {
     const data = buildReportData({ reportMetadata: { reportFormat: "TABULAR", detailColumns: ["A"] }, reportExtendedMetadata: { detailColumnInfo: { A: { label: "A", dataType: "string" } } }, factMap: { "T!T": { rows } } });
     expect(data?.entries.length).toBe(150);
     expect(data?.truncated).toBe(true);
-  });
-  it("only runs native reports that have an Id", async () => {
-    const items = [{ kind: "section" as const, children: [{ kind: "report" as const, native: false, id: "00Oxx0000000001", children: [] }, { kind: "report" as const, native: true, children: [] }] }];
-    await attachReportData(items, "no-such-org");
-    expect(items[0].children.every((c) => !("ran" in c))).toBe(true);
   });
 });

@@ -2,12 +2,28 @@ import React, { useRef, useState } from "react";
 import type { PublishedReportItem } from "./published-types";
 import { IpadSearchField } from "./IpadChrome";
 import { ReportViewer } from "./ReportViewer";
+import { IpadFail, IpadWait } from "./IpadLazyState";
+import { useLazyStudio } from "./useLazyStudio";
+import type { IpadReportsTab } from "./published-types";
+
+/**
+ * The Reports tab. Its folders and reports are read when the tab first opens (`studio_ipad_reports`), not with the
+ * preview, so a big org's reports never hold up the rest of the iPad.
+ */
+export function ReportsTab({ userId, renderNative }: { userId: string; renderNative: (text: string) => React.ReactNode }) {
+  const { state, retry } = useLazyStudio(userId, () => window.lscApi.studioIpadReports(userId), (answer) => answer as IpadReportsTab);
+  if (state.status === "loading") return <IpadWait label="Loading reports…" />;
+  if (state.status === "error") return <IpadFail title="Couldn't load the Reports tab" message={state.message} onRetry={retry} />;
+  const { reports, settings } = state.data;
+  if (reports) return <ReportsTree items={reports} userId={userId} />;
+  return <div className="studio-ipad-reports-fallback">{renderNative(settings?.reports.salesforceReports === false ? "Sales Chart (native screen)" : "Reports (native screen)")}</div>;
+}
 
 /**
  * MultiReportsViewController: a 64pt header (search bar, "Collapse All") over
  * an RATreeView of MultiReportsTableViewCell rows — all collapsed at first.
  */
-export function ReportsTree({ items }: { items: PublishedReportItem[] }) {
+export function ReportsTree({ items, userId }: { items: PublishedReportItem[]; userId?: string }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
   const [viewing, setViewing] = useState<PublishedReportItem | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -46,7 +62,7 @@ export function ReportsTree({ items }: { items: PublishedReportItem[] }) {
         </button>
       </div>
       {rows}
-      {viewing && <ReportViewer item={viewing} host={root.current?.closest(".studio-ipad-screen") ?? null} onClose={() => setViewing(null)} />}
+      {viewing && <ReportViewer item={viewing} userId={userId} host={root.current?.closest(".studio-ipad-screen") ?? null} onClose={() => setViewing(null)} />}
     </div>
   );
 }
