@@ -73,6 +73,16 @@
   border-radius: 0 0 var(--radius-xs) 0;
 }
 
+.studio-edit-tag.beside {
+  left: auto;
+  right: calc(100% + var(--space-1));
+  bottom: auto;
+  top: 50%;
+  translate: 0 -50%;
+  max-width: 200px;
+  border-radius: var(--radius-xs);
+}
+
 .studio-edit-toolbar {
   position: absolute;
   display: flex;

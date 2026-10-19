@@ -675,7 +675,13 @@ export function EditSurface({
         {on && (
           <div className="studio-edit-overlay" aria-hidden={!selected}>
             {boxes.hover && hoverTarget && !drag && (
-              <Clipped seen={boxes.hover} className="studio-edit-hover" tag={targetTag(hoverTarget)} />
+              <Clipped
+                seen={boxes.hover}
+                className="studio-edit-hover"
+                tag={targetTag(hoverTarget)}
+                // The action menu's capsules sit a few points apart: a label above one would cover the one before it.
+                beside={hoverTarget.kind === "action"}
+              />
             )}
             {boxes.selected && selected && (
               <>
@@ -721,20 +727,25 @@ const sameBox = (a: DOMRect | null, b: DOMRect | null) =>
 const sameSeen = (a: Seen | null, b: Seen | null) => (a && b ? sameBox(a.box, b.box) && sameBox(a.clip, b.clip) : a === b);
 
 /** An outline drawn inside a box that clips it to the scroll viewport it belongs to; nothing when it is scrolled fully out of view. */
-function Clipped({ seen, className, tag }: { seen: Seen; className: string; tag?: string }) {
+function Clipped({ seen, className, tag, beside }: { seen: Seen; className: string; tag?: string; beside?: boolean }) {
   const shown = visibleBox(seen);
   if (!shown) return null;
   const { box, clip } = seen;
+  // `beside` puts the label to the block's left when there's room for it there.
+  const left = beside && box.x - clip.x >= BESIDE_ROOM;
   // A label above the block would be cut off at the viewport's top: tuck it inside instead.
-  const inside = box.y - clip.y < 18;
+  const inside = !left && box.y - clip.y < 18;
   return (
     <div className="studio-edit-clip" style={rectStyle(clip)}>
       <div className={className} style={rectStyle(new DOMRect(box.x - clip.x, box.y - clip.y, box.width, box.height))}>
-        {tag && <span className={`studio-edit-tag${inside ? " inside" : ""}`}>{tag}</span>}
+        {tag && <span className={`studio-edit-tag${left ? " beside" : inside ? " inside" : ""}`}>{tag}</span>}
       </div>
     </div>
   );
 }
+
+/** How much space a label beside a block needs on its left. */
+const BESIDE_ROOM = 160;
 
 const rectStyle = (r: DOMRect): React.CSSProperties => ({
   left: r.x,
