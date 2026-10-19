@@ -223,7 +223,7 @@ export class OpenAIProvider implements LLMProvider {
     if (tools.length > 0) body.tools = toOpenAITools(tools);
     if (config?.temperature !== undefined) body.temperature = config.temperature;
 
-    const res = await apiFetch(this.options, "openai", "/chat/completions", { method: "POST", body }, model);
+    const res = await apiFetch(this.options, "openai", "/chat/completions", { method: "POST", body, signal: config?.signal }, model);
     const assembler = new OpenAIStreamAssembler(onChunk);
     for await (const data of sseData(res)) {
       if (!data || data === "[DONE]") continue;

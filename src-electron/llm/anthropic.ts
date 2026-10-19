@@ -87,11 +87,11 @@ export class AnthropicProvider implements LLMProvider {
       body.temperature = config.temperature;
     }
 
-    return processAnthropicStream(await this.post(body, model), onChunk);
+    return processAnthropicStream(await this.post(body, model, config?.signal), onChunk);
   }
 
-  private post(body: Record<string, unknown>, model: string): Promise<Response> {
-    return apiFetch(this.options, "anthropic", "/v1/messages", { method: "POST", body, headers: VERSION_HEADER }, model);
+  private post(body: Record<string, unknown>, model: string, signal?: AbortSignal): Promise<Response> {
+    return apiFetch(this.options, "anthropic", "/v1/messages", { method: "POST", body, headers: VERSION_HEADER, signal }, model);
   }
 }
 

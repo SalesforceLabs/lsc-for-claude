@@ -34,6 +34,8 @@ export interface LLMProviderConfig {
   model?: string;
   maxTokens?: number;
   temperature?: number;
+  /** Aborts the request and its stream. */
+  signal?: AbortSignal;
 }
 
 export interface LLMProvider {

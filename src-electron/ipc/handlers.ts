@@ -26,6 +26,7 @@ import {
   startMobileLogin,
 } from "../mobile-login.js";
 import { PromptBuilder } from "../engine/prompt-builder.js";
+import { runScriptAssist, type ScriptAssistHost, type ScriptAssistRequest } from "../engine/script-assist.js";
 import { LLMProvider } from "../llm/provider.js";
 import { detectClaudeCodeGateway } from "../llm/claude-code-config.js";
 import { apiStyle, Connection, CONNECTION_KINDS, connectionLabel } from "../llm/connection.js";
@@ -654,6 +655,48 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   ipcMain.handle("library:search", async (_event, query: string, scope: "org" | "all" = "org") => {
     return searchLibraryItems(query, { orgUsername: await libraryOrg(scope) });
+  });
+
+  // --- custom scripts: assist ---
+  const assistRuns = new Map<string, AbortController>();
+
+  ipcMain.handle("studio:scriptAssist", async (_event, requestId: string, request: ScriptAssistRequest) => {
+    if (!llm) return { ok: false, error: "Connect a model in Settings to use Ask Roz." };
+    const client = await readyMcpClient();
+    if (!client) return { ok: false, error: "Engine not started" };
+
+    const controller = new AbortController();
+    assistRuns.set(requestId, controller);
+    const send = (kind: string, data: Record<string, unknown>) => {
+      if (!mainWindow.isDestroyed()) mainWindow.webContents.send(`studio:scriptAssist-${kind}`, { requestId, ...data });
+    };
+    const host: ScriptAssistHost = {
+      callTool: async (name, args, options) => {
+        const result = await client.callTool(name, args, options);
+        return { text: result.content.map((c) => c.text).join("\n"), isError: result.isError ?? false };
+      },
+    };
+    // Runs on after the invoke returns; the outcome arrives as events.
+    void runScriptAssist(llm, host, request, {
+      signal: controller.signal,
+      model: request.model || llmConnection?.model,
+      onDelta: (text) => send("delta", { text }),
+      onTool: (name, status, detail) => send("tool", { name, status, detail }),
+    })
+      .then((message) => send("done", { message }))
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        // An abort is the user's own doing; the panel already knows.
+        if (message !== "aborted") send("error", { error: message });
+      })
+      .finally(() => assistRuns.delete(requestId));
+    return { ok: true };
+  });
+
+  ipcMain.handle("studio:scriptAssistAbort", async (_event, requestId: string) => {
+    assistRuns.get(requestId)?.abort();
+    assistRuns.delete(requestId);
+    return { ok: true };
   });
 
   // --- Studio (direct MCP calls, no LLM) ---

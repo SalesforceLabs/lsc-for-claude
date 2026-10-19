@@ -77,6 +77,19 @@ contextBridge.exposeInMainWorld("lscApi", {
   openSfOrg: (org, path) => ipcRenderer.invoke("sfOrg:open", org, path),
   studioBrowserOpen: (guestId, url, auth) => ipcRenderer.invoke("studioBrowser:open", guestId, url, auth),
 
+  // --- custom scripts: assist ---
+  studioScriptAssist: (requestId, request) => ipcRenderer.invoke("studio:scriptAssist", requestId, request),
+  studioScriptAssistAbort: (requestId) => ipcRenderer.invoke("studio:scriptAssistAbort", requestId),
+  onScriptAssistEvent: (callback) => {
+    const channels = ["delta", "tool", "done", "error"];
+    const handlers = channels.map((kind) => {
+      const handler = (_event, data) => callback({ kind, ...data });
+      ipcRenderer.on(`studio:scriptAssist-${kind}`, handler);
+      return [kind, handler];
+    });
+    return () => handlers.forEach(([kind, handler]) => ipcRenderer.removeListener(`studio:scriptAssist-${kind}`, handler));
+  },
+
   // Studio — read-only feature maps served by the studio_* MCP tools
   studioListFeatures: () => ipcRenderer.invoke("studio:call", "studio_list_features"),
   // Results are cached per org in the main process; `refresh` bypasses the cache.
