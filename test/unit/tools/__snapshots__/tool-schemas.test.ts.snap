@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `126`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `130`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -82,6 +82,8 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_component_catalog",
   "studio_component_props",
   "studio_connected_org",
+  "studio_custom_script",
+  "studio_custom_scripts",
   "studio_drift",
   "studio_feature_map",
   "studio_feature_map_progress",
@@ -107,6 +109,8 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_perf_users",
   "studio_readiness",
   "studio_report_data",
+  "studio_script_test",
+  "studio_script_test_records",
   "studio_setup_links",
   "studio_setup_overview",
   "studio_signoff_report",
@@ -1463,6 +1467,19 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
     },
   },
   {
+    "name": "studio_custom_scripts",
+    "params": {},
+  },
+  {
+    "name": "studio_custom_script",
+    "params": {
+      "id": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
     "name": "studio_ipad_published_users",
     "params": {
       "profile": {
@@ -1540,6 +1557,60 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
     "name": "studio_access_options",
     "params": {
       "search": {
+        "optional": true,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_script_test_records",
+    "params": {
+      "objectName": {
+        "optional": true,
+        "type": "ZodNullable",
+      },
+      "search": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "type": {
+        "optional": false,
+        "type": "ZodEnum",
+      },
+    },
+  },
+  {
+    "name": "studio_script_test",
+    "params": {
+      "code": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "env": {
+        "optional": true,
+        "type": "ZodObject",
+      },
+      "objectName": {
+        "optional": true,
+        "type": "ZodNullable",
+      },
+      "operationEventType": {
+        "optional": true,
+        "type": "ZodNullable",
+      },
+      "platform": {
+        "optional": false,
+        "type": "ZodEnum",
+      },
+      "recordId": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "type": {
+        "optional": false,
+        "type": "ZodEnum",
+      },
+      "userId": {
         "optional": true,
         "type": "ZodString",
       },

@@ -125,12 +125,12 @@ describe("collectFeatureMap — custom scripts", () => {
   it("runs static checks on CodeText", async () => {
     org.LifeScienceCustomScript = [
       vav("a01", "Empty", { CodeText: "" }),
-      { ...vav("a02", "Workflow", { Type: "Validation", ObjectName: "Visit" }), CodeText: "return [check()];" },
+      { ...vav("a02", "Workflow", { Type: "Validation", ObjectName: "Visit" }), CodeText: "[check()];" },
     ];
     const s = (await visitMap()).surfaces.find((x) => x.id === "customScripts")!;
     const [empty, workflow] = s.items;
-    expect(empty.findings.map((f) => f.title)).toContain("CodeText is empty");
-    expect(workflow.findings.map((f) => f.title)).toEqual(["Results aren't unwrapped", "Not wrapped in an IIFE"]);
+    expect(empty.findings.map((f) => f.title)).toContain("The script is empty.");
+    expect(workflow.findings.map((f) => f.title)).toEqual(["The script isn't wrapped in an IIFE.", "Results aren't unwrapped with JSON.parse(JSON.stringify(...))."]);
   });
 
   it("only includes scripts for the feature's objects", async () => {

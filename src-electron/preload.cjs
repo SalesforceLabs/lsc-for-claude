@@ -77,6 +77,19 @@ contextBridge.exposeInMainWorld("lscApi", {
   openSfOrg: (org, path) => ipcRenderer.invoke("sfOrg:open", org, path),
   studioBrowserOpen: (guestId, url, auth) => ipcRenderer.invoke("studioBrowser:open", guestId, url, auth),
 
+  // --- custom scripts: assist ---
+  studioScriptAssist: (requestId, request) => ipcRenderer.invoke("studio:scriptAssist", requestId, request),
+  studioScriptAssistAbort: (requestId) => ipcRenderer.invoke("studio:scriptAssistAbort", requestId),
+  onScriptAssistEvent: (callback) => {
+    const channels = ["delta", "tool", "done", "error"];
+    const handlers = channels.map((kind) => {
+      const handler = (_event, data) => callback({ kind, ...data });
+      ipcRenderer.on(`studio:scriptAssist-${kind}`, handler);
+      return [kind, handler];
+    });
+    return () => handlers.forEach(([kind, handler]) => ipcRenderer.removeListener(`studio:scriptAssist-${kind}`, handler));
+  },
+
   // Studio — read-only feature maps served by the studio_* MCP tools
   studioListFeatures: () => ipcRenderer.invoke("studio:call", "studio_list_features"),
   // Results are cached per org in the main process; `refresh` bypasses the cache.
@@ -112,6 +125,14 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioIpadReports: (userId) => ipcRenderer.invoke("studio:call", "studio_ipad_reports", { userId }),
   studioReportData: (reportId, userId) => ipcRenderer.invoke("studio:call", "studio_report_data", userId ? { reportId, userId } : { reportId }),
   studioIpadPublishedProgress: (profile) => ipcRenderer.invoke("studio:call", "studio_ipad_published_progress", { profile }),
+  // --- custom scripts: editor ---
+  // The library is cached in the main process; `refresh` bypasses the cache. A single script is never cached.
+  studioCustomScripts: (refresh = false) => ipcRenderer.invoke("studio:call", "studio_custom_scripts", {}, refresh),
+  studioCustomScript: (id) => ipcRenderer.invoke("studio:call", "studio_custom_script", { id }),
+  // --- custom scripts: runner ---
+  // Read-only: records to test against, and a simulated run of the editor's code against one of them. Never cached.
+  studioScriptTestRecords: (args) => ipcRenderer.invoke("studio:call", "studio_script_test_records", args, false),
+  studioScriptTest: (args) => ipcRenderer.invoke("studio:call", "studio_script_test", args, false),
   // Studio fixes — previewed, then applied only after the user confirms in the UI
   studioPreviewFix: (fix, progress) => ipcRenderer.invoke("studio:call", "studio_preview_fix", { fix, ...(progress ? { progress } : {}) }),
   studioApplyFix: (fix, expectedOrg, progress) =>

@@ -3,7 +3,7 @@
 //
 //   node scripts/ui-shots.mjs [tour] [outDir]   fixed tour of every main screen (default /tmp/roz-shots)
 //   node scripts/ui-shots.mjs repl [outDir]     commands on stdin, one per line:
-//       ss NAME | click TEXT | nav SELECTOR::TEXT | eval JS | size W H | wait MS | quit
+//       ss NAME | click TEXT | nav SELECTOR::TEXT | eval JS | size W H | wait MS | type TEXT | press KEY | quit
 //       down SELECTOR [FRAC] | move SELECTOR [FRAC] | up   (press, drag to, release; FRAC = how far down the element)
 //
 // Build first (npm run electron:build). The app starts with its saved connection and target org,
@@ -38,6 +38,11 @@ if (userData) {
   launchArgs.push(`--user-data-dir=${userData}`);
 }
 const app = await _electron.launch({ executablePath: electronBin, args: launchArgs, cwd: ROOT, timeout: 60_000 });
+// ROZ_SHOTS_MAIN_LOG=1 echoes the main process's output, e.g. to see why the app quit mid-run.
+if (process.env.ROZ_SHOTS_MAIN_LOG) {
+  app.process().stdout?.on("data", (d) => process.stderr.write(`[main] ${d}`));
+  app.process().stderr?.on("data", (d) => process.stderr.write(`[main] ${d}`));
+}
 const page = await app.firstWindow();
 const errors = [];
 page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
@@ -85,6 +90,11 @@ if (mode === "tour") {
   });
   await step("06-check-a-user", () => nav(".studio-rail-item", "Check a user"));
   await step("07-what-changed", () => nav(".studio-rail-item", "What changed"));
+  await step("07b-custom-scripts", () => nav(".studio-rail-item", "Custom scripts"));
+  await step("07c-script-details", () => nav(".ui-segmented button", "Details"));
+  // The library's button, or the empty state's when the org has no scripts (Details is skipped then).
+  await step("07d-new-script", () => nav(".scripts-page:not([hidden]) button", "New script"));
+  await page.keyboard.press("Escape");
   await step("08-sync-health", () => nav(".studio-rail-item", "Sync health"));
   await step("09-rep-sync", async () => {
     // The first "Investigate" in Sync health's list, when the org has telemetry.
@@ -103,6 +113,7 @@ if (mode === "tour") {
     await size(960, 640);
     await nav(".studio-rail-item", "Overview");
   });
+  await step("13b-narrow-scripts", () => nav(".studio-rail-item", "Custom scripts"));
   await size(1440, 900);
   console.log(errors.length ? `renderer errors:\n  ${[...new Set(errors)].join("\n  ")}` : "no renderer errors");
   await app.close();
@@ -120,6 +131,8 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
     else if (cmd === "eval") console.log(JSON.stringify(await page.evaluate(arg))?.slice(0, 4000));
     else if (cmd === "size") await size(+rest[0], +rest[1]);
     else if (cmd === "wait") await page.waitForTimeout(+arg);
+    else if (cmd === "type") await page.keyboard.type(arg);
+    else if (cmd === "press") await page.keyboard.press(arg);
     else if (cmd === "errors") console.log(JSON.stringify(errors));
     else if (cmd === "down" || cmd === "move") {
       // down SELECTOR / move SELECTOR [fraction of its height]: press on, or drag to, an element.

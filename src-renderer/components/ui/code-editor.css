@@ -1,0 +1,91 @@
+/* Code editor (CodeEditor.tsx). Colours and type come from the theme in code-editor-theme.ts; this is structure. */
+.code-editor {
+  position: relative;
+  min-height: 0;
+  height: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-field);
+  overflow: hidden;
+}
+.code-editor:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+.code-editor .cm-editor {
+  height: 100%;
+}
+.code-editor .cm-scroller {
+  overflow: auto;
+}
+.code-editor-doc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.code-editor-doc code {
+  font-family: var(--font-mono);
+  font-size: var(--font-code);
+  color: var(--syn-function);
+}
+.code-editor-doc p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  line-height: 1.45;
+}
+.code-editor-diag-message {
+  color: var(--text-primary);
+  font-size: var(--font-sm);
+}
+.code-editor-diag-detail {
+  margin-top: var(--space-1);
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+  line-height: 1.45;
+}
+/* Proposal diff: added lines and removed lines in the success / error tints, no coloured stripes. */
+.code-editor .cm-changedLine {
+  background: var(--success-subtle);
+}
+.code-editor .cm-deletedChunk {
+  background: var(--error-subtle);
+  padding-left: var(--space-1);
+}
+.code-editor .cm-insertedLine,
+.code-editor .cm-deletedLine {
+  background: transparent;
+}
+.code-editor .cm-changedText,
+.code-editor .cm-insertedLine .cm-changedText {
+  background: color-mix(in srgb, var(--success) 28%, transparent);
+}
+.code-editor .cm-deletedChunk .cm-changedText {
+  background: color-mix(in srgb, var(--error) 28%, transparent);
+}
+.code-editor .cm-changedLineGutter,
+.code-editor .cm-deletedLineGutter {
+  background: transparent;
+}
+/* The line a jump landed on lights up, then fades (CodeEditor removes it after FLASH_MS). */
+.code-editor .code-editor-flash {
+  animation: code-editor-flash 1.5s var(--ease-out) forwards;
+}
+@keyframes code-editor-flash {
+  from {
+    background: color-mix(in srgb, var(--accent) 32%, transparent);
+  }
+  to {
+    background: color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .code-editor .code-editor-flash {
+    animation: none;
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+}
+.code-editor .cm-lint-marker {
+  width: 0.9em;
+  height: 0.9em;
+}

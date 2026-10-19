@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, ChevronRight, ExternalLink, Plus, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronRight, ExternalLink, FileCode2, Plus, Sparkles, X } from "lucide-react";
 import type { CreateConfigFix, FeatureMap, FlowOutline, ItemDetail, ItemEdit, LayoutSidebar, ProfileOption, StudioFinding, StudioFix, StudioItem, StudioSurface, SurfaceId } from "./types";
 import { worstSeverity } from "./findings";
 import ProfilePicker from "./ProfilePicker";
@@ -50,6 +50,8 @@ interface InspectorProps {
   onPendingChange: (pending: PendingChange[]) => void;
   /** Item to open, e.g. a block clicked in the iPad preview. */
   focusItem?: string | null;
+  /** Opens a custom script in Studio's script editor. */
+  onOpenScript?: (id: string) => void;
 }
 
 /** Queue/unqueue callbacks shared by finding buttons and the edit panel. */
@@ -81,6 +83,7 @@ export default function Inspector({
   pending,
   onPendingChange,
   focusItem,
+  onOpenScript,
 }: InspectorProps) {
   const [creating, setCreating] = useState<Creating | null>(null);
   const queue: Queue = {
@@ -180,6 +183,7 @@ export default function Inspector({
           onCheckProfile={onCheckProfile}
           profiles={profiles}
           queue={queue}
+          onOpenScript={onOpenScript}
         />
       ) : (
         <div className="studio-inspector-body">
@@ -283,6 +287,7 @@ function ItemView({
   onCheckProfile,
   profiles,
   queue,
+  onOpenScript,
 }: {
   map: FeatureMap;
   surface: StudioSurface;
@@ -292,6 +297,7 @@ function ItemView({
   onCheckProfile?: (profile: string) => void;
   profiles: ProfileOption[];
   queue: Queue;
+  onOpenScript?: (id: string) => void;
 }) {
   const { current: currentOrg } = useOrgs();
   const setupLink = useMemo(() => itemSetupLink(item), [item]);
@@ -383,6 +389,12 @@ function ItemView({
       {detail?.findings && <FindingList findings={detail.findings} queue={queue} />}
       {detail?.sidebar && <SidebarPanel layoutLabel={item.label} sidebar={detail.sidebar} queue={queue} />}
       {detail?.flow && <FlowPanel flow={detail.flow} />}
+      {item.detailKind === "customScript" && onOpenScript && (
+        <button className="studio-btn" onClick={() => onOpenScript(item.id)}>
+          <FileCode2 size={14} aria-hidden="true" />
+          Open in editor
+        </button>
+      )}
       {item.detailKind === "customScript" && item.code ? (
         <ScriptEditor item={item} original={item.code.text} queued={scriptFix?.fix} queue={queue} />
       ) : (

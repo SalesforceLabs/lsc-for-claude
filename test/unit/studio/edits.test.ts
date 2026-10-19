@@ -59,55 +59,71 @@ beforeEach(async () => {
 });
 
 describe("setCustomScriptCode", () => {
+  const BUNDLE = "0Rb000000000001";
+  const RESOURCE = "0Rc000000000001";
+
   beforeEach(() => {
-    org.LifeScienceCustomScript = [{ Id: SCRIPT, CodeText: CODE_OLD }];
+    org.LifeScienceCustomScript = [{ Id: SCRIPT, Name: "Sign Check", ComponentName: "signCheck", Type: "Validation", ObjectName: null, OperationEventType: null, CodeText: CODE_OLD }];
+    org.LightningComponentBundle = [{ Id: BUNDLE, DeveloperName: "signCheck", NamespacePrefix: null, ManageableState: "unmanaged", LastModifiedDate: "2026-01-01T00:00:00.000+0000" }];
+    org.LightningComponentResource = [{ Id: RESOURCE, FilePath: "lwc/signCheck/signCheck.js", Source: CODE_OLD }];
     describeCodeText(true);
+    // The platform copies the component's .js into CodeText when the script record is written.
+    vi.mocked(cli.updateToolingRecord).mockImplementation((async (_type: string, _id: string, body: Row) => {
+      org.LightningComponentResource[0].Source = body.Source;
+      return { success: true };
+    }) as never);
+    vi.mocked(cli.apiRequest).mockImplementation((async (_path: string, method: string) => {
+      if (method === "PATCH") org.LifeScienceCustomScript[0].CodeText = org.LightningComponentResource[0].Source;
+      return { success: true };
+    }) as never);
   });
 
-  it("previews a diff with the static checks as warnings, and applies with an undo", async () => {
+  it("previews a diff, and applies through the component with an undo", async () => {
     const preview = await previewFix(scriptFix, "org");
     expect(preview.blocked).toBeUndefined();
     expect(preview.changes[0].diff).toEqual(["  (() => {", "-   return JSON.parse(JSON.stringify({ ok: true }));", "+   return { ok: true };", "  })();"]);
-    expect(preview.warnings.some((w) => w.startsWith("Results aren't unwrapped"))).toBe(true);
-    expect(preview.warnings.some((w) => w.includes("overwrites CodeText"))).toBe(true);
 
     const result = await applyFix(scriptFix, "org");
-    expect(cli.apiRequest).toHaveBeenCalledWith(
-      `/services/data/v66.0/sobjects/LifeScienceCustomScript/${SCRIPT}`,
-      "PATCH",
-      { CodeText: CODE_NEW },
-      "org"
-    );
+    expect(result.ok).toBe(true);
+    expect(cli.updateToolingRecord).toHaveBeenCalledWith("LightningComponentResource", RESOURCE, { Source: CODE_NEW }, "org");
+    expect(org.LifeScienceCustomScript[0].CodeText).toBe(CODE_NEW);
     expect(result.undo).toMatchObject({ kind: "setCustomScriptCode", from: CODE_NEW, to: CODE_OLD, label: "Restore code of Sign Check" });
   });
 
-  it("flags empty code and code that isn't an IIFE", async () => {
-    const empty = await previewFix({ ...scriptFix, to: "" } as StudioFix, "org");
-    expect(empty.warnings[0]).toContain("CodeText is empty");
+  it("warns about code that isn't an IIFE", async () => {
     const bare = await previewFix({ ...scriptFix, to: "JSON.parse(JSON.stringify(1))" } as StudioFix, "org");
-    expect(bare.warnings[0]).toContain("Not wrapped in an IIFE");
+    expect(bare.warnings.join(" ")).toContain("isn't wrapped in an IIFE");
   });
 
   it("refuses when the code changed since the map was loaded", async () => {
-    org.LifeScienceCustomScript = [{ Id: SCRIPT, CodeText: "// edited by someone else" }];
-    expect((await previewFix(scriptFix, "org")).blocked).toContain("changed since the map was loaded");
+    org.LifeScienceCustomScript[0].CodeText = "// edited by someone else";
+    expect((await previewFix(scriptFix, "org")).blocked).toContain("changed in the org since you opened it");
     expect((await applyFix(scriptFix, "org")).ok).toBe(false);
-    expect(cli.apiRequest).not.toHaveBeenCalled();
+    expect(cli.updateToolingRecord).not.toHaveBeenCalled();
   });
 
   it("refuses when already applied or gone", async () => {
-    org.LifeScienceCustomScript = [{ Id: SCRIPT, CodeText: CODE_NEW }];
+    org.LifeScienceCustomScript[0].CodeText = CODE_NEW;
     expect((await previewFix(scriptFix, "org")).blocked).toContain("Already applied");
     org.LifeScienceCustomScript = [];
     expect((await previewFix(scriptFix, "org")).blocked).toContain("no longer exists");
   });
 
-  it("is blocked, with the Refresh workaround, when the org doesn't let the API write CodeText", async () => {
+  it("rolls the component back when the stored code doesn't match", async () => {
+    vi.mocked(cli.apiRequest).mockResolvedValue({ success: true });
+    const result = await applyFix(scriptFix, "org");
+    expect(result.ok).toBe(false);
+    expect(org.LightningComponentResource[0].Source).toBe(CODE_OLD);
+  });
+
+  it("is blocked when the component belongs to a package and the API can't write CodeText", async () => {
     describeCodeText(false);
+    org.LightningComponentBundle[0].ManageableState = "installed";
+    org.LightningComponentBundle[0].NamespacePrefix = "lsc4ce";
     const preview = await previewFix(scriptFix, "org");
-    expect(preview.blocked).toContain("Refresh");
+    expect(preview.blocked).toBeTruthy();
     expect((await applyFix(scriptFix, "org")).ok).toBe(false);
-    expect(cli.apiRequest).not.toHaveBeenCalled();
+    expect(cli.updateToolingRecord).not.toHaveBeenCalled();
   });
 
   it("rejects malformed Ids", async () => {

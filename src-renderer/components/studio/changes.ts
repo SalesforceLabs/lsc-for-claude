@@ -1,3 +1,4 @@
+import type { ScriptDetail, ScriptFields, ScriptRole, ScriptSummary, StageObjectRow, CreateCustomScriptFix } from "./scripts/script-types";
 import type { AppOp, CompactOp, CopyForProfileFix, CreateConfigFix, FlexiPageOp, ItemEdit, LayoutOp, ListViewOp, StudioFix, StudioItem } from "./types";
 
 /**
@@ -34,7 +35,14 @@ export function changeKey(fix: StudioFix): string {
     case "removeAccess":
       return `access:${fix.userId}:${fix.access.type}:${fix.access.id}`;
     case "setCustomScriptCode":
+    case "saveCustomScript":
       return `script:${fix.scriptId}`;
+    case "createCustomScript":
+      return `script-new:${fix.componentName}`;
+    case "deleteCustomScript":
+      return `script-delete:${fix.scriptId}`;
+    case "assignCustomScript":
+      return `stage:${fix.stageObjectId}:${fix.role}`;
     case "setLayoutRelatedList":
       return `layout:${fix.layoutName}:${fix.relationshipName}`;
     case "editMetadata":
@@ -58,6 +66,10 @@ function isNoop(fix: StudioFix): boolean {
       return listKey(fix.from) === listKey(fix.to);
     case "setCustomScriptCode":
       return fix.from === fix.to;
+    case "saveCustomScript":
+      return trimScriptTo(fix).noop;
+    case "assignCustomScript":
+      return (fix.from ?? null) === (fix.to ?? null);
     case "editMetadata":
       return fix.ops.length === 0;
     default:
@@ -65,9 +77,28 @@ function isNoop(fix: StudioFix): boolean {
   }
 }
 
+type SaveFix = Extract<StudioFix, { kind: "saveCustomScript" }>;
+
+/** A save's `to` without the parts that equal what the org had (`from`), and whether nothing is left. */
+function trimScriptTo(fix: SaveFix): { to: SaveFix["to"]; noop: boolean } {
+  const to: SaveFix["to"] = {};
+  if (fix.to.code !== undefined && fix.to.code.trim() !== fix.from.code.trim()) to.code = fix.to.code;
+  const fields: Partial<ScriptFields> = {};
+  for (const [k, v] of Object.entries(fix.to.fields ?? {})) {
+    if ((v ?? null) !== (fix.from.fields[k as keyof ScriptFields] ?? null)) (fields as Record<string, unknown>)[k] = v;
+  }
+  if (Object.keys(fields).length) to.fields = fields;
+  return { to, noop: to.code === undefined && !to.fields };
+}
+
 /** Queue a change. A change to an already-queued setting keeps the original `from`, and is dropped if it undoes the edit. */
 export function queueChange(pending: PendingChange[], change: PendingChange): PendingChange[] {
   const key = changeKey(change.fix);
+  // Deleting a script makes its queued edits pointless.
+  if (change.fix.kind === "deleteCustomScript") {
+    const scriptId = change.fix.scriptId;
+    pending = pending.filter((p) => !((p.fix.kind === "saveCustomScript" || p.fix.kind === "setCustomScriptCode") && p.fix.scriptId === scriptId));
+  }
   const idx = pending.findIndex((p) => changeKey(p.fix) === key);
   if (idx < 0) return isNoop(change.fix) ? pending : [...pending, change];
   const prev = pending[idx].fix;
@@ -78,6 +109,17 @@ export function queueChange(pending: PendingChange[], change: PendingChange): Pe
   // Adding a related list and then taking it out again (or the reverse) is no change at all.
   if (prev.kind === "setLayoutRelatedList" && change.fix.kind === "setLayoutRelatedList" && prev.add !== change.fix.add) {
     return pending.filter((_, i) => i !== idx);
+  }
+  // Repeated saves of one script are one pending change: the original `from`, the newest code, fields merged.
+  if (prev.kind === "saveCustomScript" && change.fix.kind === "saveCustomScript") {
+    const to = { ...prev.to, ...change.fix.to };
+    if (prev.to.fields || change.fix.to.fields) to.fields = { ...prev.to.fields, ...change.fix.to.fields };
+    const mergedSave: SaveFix = { ...change.fix, from: prev.from, to };
+    const trimmed = trimScriptTo(mergedSave);
+    if (trimmed.noop) return pending.filter((_, i) => i !== idx);
+    const next = [...pending];
+    next[idx] = { ...change, fix: { ...mergedSave, to: trimmed.to } };
+    return next;
   }
   const merged = (
     "from" in prev && "from" in change.fix ? { ...change.fix, from: prev.from } : change.fix
@@ -254,6 +296,51 @@ export function itemAffects(item: StudioItem, extra: string[] = []): string[] | 
 /** A change setting a custom script's CodeText from `from` (what the map saw) to `to`. */
 export function scriptChange(item: StudioItem, from: string, to: string): StudioFix {
   return { kind: "setCustomScriptCode", label: `Edit code of ${item.label}`, scriptId: item.id, scriptName: item.label, from, to };
+}
+
+const fieldsOfSummary = (s: ScriptSummary): ScriptFields => ({
+  name: s.name,
+  componentName: s.componentName,
+  type: s.type,
+  objectName: s.objectName,
+  operationEventType: s.operationEventType,
+});
+
+/** Save a script's code and/or fields (`to` holds only what changes). Repeated saves merge, keeping the first `from`. */
+export function scriptSaveChange(detail: ScriptDetail, to: { code?: string; fields?: Partial<ScriptFields> }): StudioFix {
+  return {
+    kind: "saveCustomScript",
+    label: `Save ${detail.name}`,
+    scriptId: detail.id,
+    scriptName: detail.name,
+    from: { code: detail.code, fields: fieldsOfSummary(detail) },
+    to,
+  };
+}
+
+/** Create a script (and its component), optionally assigning it to stage objects. */
+export function scriptCreateChange(draft: Omit<CreateCustomScriptFix, "kind" | "label"> & { label?: string }): StudioFix {
+  const { label, ...rest } = draft;
+  return { kind: "createCustomScript", label: label ?? `Create script ${draft.name}`, ...rest };
+}
+
+/** Delete a script; its component goes with it when it is one Studio can delete (customer-made, not a package's). */
+export function scriptDeleteChange(summary: Pick<ScriptSummary, "id" | "name" | "lwc">, deleteBundle = summary.lwc.exists && summary.lwc.editable): StudioFix {
+  return { kind: "deleteCustomScript", label: `Delete script ${summary.name}`, scriptId: summary.id, scriptName: summary.name, deleteBundle };
+}
+
+/** Point a stage object's validation or checklist script at `to` (null clears it). */
+export function scriptAssignChange(stage: StageObjectRow, role: ScriptRole, to: string | null): StudioFix {
+  const from = role === "validation" ? stage.validationScriptId : stage.checklistScriptId;
+  return {
+    kind: "assignCustomScript",
+    label: `${to ? "Set" : "Clear"} the ${role} script of ${stage.name}`,
+    stageObjectId: stage.id,
+    stageObjectName: stage.name,
+    role,
+    from,
+    to,
+  };
 }
 
 /** The layout ops queued for a page layout. */

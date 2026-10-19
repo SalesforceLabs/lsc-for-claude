@@ -20,12 +20,14 @@ import SetupOverview from "./SetupOverview";
 import UserTraceView from "./UserTraceView";
 import DriftView from "./DriftView";
 import TestUsersView from "./TestUsersView";
+import CustomScriptsView from "./scripts/CustomScriptsView";
 import type { ReadinessState } from "./readiness";
 import {
   Activity,
   ClipboardCheck,
   CloudDownload,
   CloudUpload,
+  FileCode2,
   History,
   LayoutDashboard,
   PanelLeftClose,
@@ -69,7 +71,7 @@ type MapState =
   | ({ status: "ready"; map: FeatureMap } & Revalidating);
 
 /** What the main pane shows: the iPad preview, a Setup page or feature, or a Testing page. */
-type Section = "preview" | "apps" | "overview" | "user-check" | "drift" | "setup" | SyncPage | "test-users";
+type Section = "preview" | "apps" | "overview" | "user-check" | "drift" | "setup" | SyncPage | "test-users" | "custom-scripts";
 
 export default function StudioView({ onAskClaude }: StudioViewProps) {
   const [features, setFeatures] = useState<FeatureSummary[]>([]);
@@ -104,6 +106,14 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   const [seenOrg, setSeenOrg] = useState<string | undefined>(undefined);
   // The sync pages stay mounted once one is opened so a run keeps polling while another page is shown.
   const [syncOpened, setSyncOpened] = useState(false);
+  // The script editor keeps its drafts while another page is shown, so it stays mounted once opened.
+  const [scriptsOpened, setScriptsOpened] = useState(false);
+  const [scriptRequest, setScriptRequest] = useState<{ id: string; nonce: number } | null>(null);
+  const openScripts = (id?: string) => {
+    setSection("custom-scripts");
+    setScriptsOpened(true);
+    if (id) setScriptRequest((r) => ({ id, nonce: (r?.nonce ?? 0) + 1 }));
+  };
   const syncPage = (SYNC_PAGES as string[]).includes(section) ? (section as SyncPage) : null;
   const openSyncPage = (page: SyncPage) => {
     setSection(page);
@@ -374,12 +384,12 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   // Sync health reads telemetry before any map is loaded; its changes go to the org the MCP server is connected to.
   const [connectedOrg, setConnectedOrg] = useState<string | undefined>(undefined);
   useEffect(() => {
-    if (!syncOpened || connectedOrg) return;
+    if (!(syncOpened || scriptsOpened) || connectedOrg) return;
     window.lscApi.studioConnectedOrg().then((res) => {
       const org = (res.data as { org?: string } | undefined)?.org;
       if (org) setConnectedOrg(org);
     });
-  }, [syncOpened, connectedOrg]);
+  }, [syncOpened, scriptsOpened, connectedOrg]);
 
   // Changes are applied against the org Studio last read — from a map, or from readiness checks on the Setup pages.
   const readyOrg =
@@ -600,6 +610,13 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           () => setSection("drift"),
           History
         )}
+        {railItem(
+          "custom-scripts",
+          "Custom scripts",
+          "Read, write and test the scripts that check visits, workflow stages and checklists",
+          () => openScripts(),
+          FileCode2
+        )}
         <div className="studio-rail-title studio-rail-section">Build</div>
         {railItem("apps", "LSC apps", "Describe an app for reps, watch Roz build it, and put it on the iPad", openApps, Sparkles)}
         <div className="studio-rail-title studio-rail-section">Testing</div>
@@ -758,6 +775,18 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           )}
           <AppsView onAddToIpad={addAppToIpad} onWorkspace={setAppOpen} />
         </section>
+      )}
+
+      {scriptsOpened && (
+        <CustomScriptsView
+          pending={pending}
+          onPendingChange={setPending}
+          onReview={() => setReviewing(true)}
+          writeVersion={writeVersion}
+          active={section === "custom-scripts"}
+          openRequest={scriptRequest}
+          tray={trayBar}
+        />
       )}
 
       {syncOpened && (
@@ -982,6 +1011,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               pending={pending}
               onPendingChange={setPending}
               focusItem={focusItem}
+              onOpenScript={openScripts}
             />
           )}
         </div>

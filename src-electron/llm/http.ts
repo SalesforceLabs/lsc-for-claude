@@ -25,7 +25,7 @@ export async function apiFetch(
   options: HttpOptions,
   style: ApiStyle,
   path: string,
-  init: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
+  init: { method?: string; body?: unknown; headers?: Record<string, string>; signal?: AbortSignal } = {},
   model?: string
 ): Promise<Response> {
   const url = `${options.baseUrl}${path}`;
@@ -42,11 +42,13 @@ export async function apiFetch(
           ...(init.body !== undefined ? { "content-type": "application/json" } : {}),
         },
         body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+        ...(init.signal ? { signal: init.signal } : {}),
       })
     );
   } catch (error) {
     // The token command's own failure is already readable.
     if (error instanceof Error && error.message.startsWith("The token command")) throw error;
+    if (init.signal?.aborted) throw error;
     throw describeNetworkError(error, url);
   }
   if (!res.ok) {

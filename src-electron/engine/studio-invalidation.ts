@@ -7,7 +7,7 @@
  * publish changes), the profile list and the permission options.
  */
 
-const MAPS = ["studio_feature_map", "studio_item_detail", "studio_readiness", "studio_setup_overview", "studio_unpublished"];
+const MAPS = ["studio_feature_map", "studio_item_detail", "studio_readiness", "studio_setup_overview", "studio_unpublished", "studio_custom_scripts"];
 /** Sync volume depends on DB Schema, who has which access and territories — not on layouts or script code. */
 const SYNC = ["studio_sync_user", "studio_sync_overview"];
 const PUBLISHED = "studio_ipad_published";
@@ -18,7 +18,16 @@ interface FixLike {
 }
 
 /** Kinds that only edit metadata documents and scripts; they can't change what a rep syncs. */
-const NO_SYNC_EFFECT = new Set(["editMetadata", "setCustomScriptCode", "setLayoutRelatedList", "copyForProfile"]);
+const NO_SYNC_EFFECT = new Set([
+  "editMetadata",
+  "setCustomScriptCode",
+  "setLayoutRelatedList",
+  "copyForProfile",
+  "createCustomScript",
+  "saveCustomScript",
+  "deleteCustomScript",
+  "assignCustomScript",
+]);
 
 /** Whether the published iPad preview reads something this fix changes (list views are read live from the org). */
 export function fixAffectsPublished(fix: unknown): boolean {

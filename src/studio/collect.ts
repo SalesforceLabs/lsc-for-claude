@@ -37,6 +37,7 @@ import { collectBriefings } from "./collectors/briefings.js";
 import { actionAudience, newDbSchema, profilesOf } from "./collectors/shared.js";
 import { mapKey, trackMap } from "./map-progress.js";
 import { describeFlow, outlineText } from "./flow-outline.js";
+import { analyzeScript, type ScriptCheckContext, type ScriptType } from "./scripts/checks.js";
 
 /** An org-wide feature's own collector — returns everything but the envelope. */
 export type CustomCollector = (org: string) => Promise<Pick<FeatureMap, "summary" | "lanes" | "surfaces" | "checklist" | "checkTitle">>;
@@ -241,34 +242,16 @@ function collectLayouts(objects: string[], org: string): Promise<StudioSurface> 
   });
 }
 
-/** Static checks against a custom script's CodeText. */
-export function scriptCodeFindings(code: string): StudioFinding[] {
-  const findings: StudioFinding[] = [];
-  if (!code.trim()) {
-    findings.push({
-      severity: "warning",
-      title: "CodeText is empty",
-      detail:
-        "The platform runs CodeText, not the deployed LWC. Click Refresh in Admin Console > Workflow Configuration > Custom Scripts after deploying.",
-    });
-    return findings;
-  }
-  if (!code.includes("JSON.parse(JSON.stringify")) {
-    findings.push({
-      severity: "warning",
-      title: "Results aren't unwrapped",
-      detail:
-        "Return values should pass through JSON.parse(JSON.stringify(...)) so Locker Service proxies (web) and JavaScriptCore bridge objects (iPad) come back as plain data.",
-    });
-  }
-  if (!/^\s*\(\s*(\(\s*\)\s*=>|async\s*\(|function)/.test(code)) {
-    findings.push({
-      severity: "info",
-      title: "Not wrapped in an IIFE",
-      detail: "Custom scripts are expected to follow the (() => { ... })(); pattern.",
-    });
-  }
-  return findings;
+/** Static checks against a custom script's code, as board findings (the same rules the script editor shows live). */
+export function scriptCodeFindings(code: string, ctx: ScriptCheckContext = { type: "Validation" }): StudioFinding[] {
+  return (
+    analyzeScript(code, ctx)
+      // The Visit Action Validation setup problems are reported by the collector itself, with the running script in mind.
+      .filter((d) => !d.id.startsWith("vav-"))
+      // The board lists what needs attention; the editor shows the hints too.
+      .filter((d) => d.severity !== "info")
+      .map((d) => ({ severity: d.severity, title: d.message, ...(d.detail ? { detail: d.detail } : {}) }))
+  );
 }
 
 function collectCustomScripts(feature: FeatureDefinition, org: string): Promise<StudioSurface> {
@@ -302,7 +285,11 @@ function collectCustomScripts(feature: FeatureDefinition, org: string): Promise<
 
     const items = relevant.map((r) => {
       const code = String(r.CodeText || "");
-      const findings = scriptCodeFindings(code);
+      const findings = scriptCodeFindings(code, {
+        type: r.Type as ScriptType,
+        objectName: (r.ObjectName as string | null) ?? null,
+        operationEventType: (r.OperationEventType as string | null) ?? null,
+      });
       if (isVav(r)) {
         if (r.Id !== runningVavId) {
           findings.unshift({

@@ -237,10 +237,47 @@ export function planFixSteps(fix: StudioFix, phase: "preview" | "apply"): Planne
         ...write(`${fix.kind === "assignAccess" ? "Giving" : "Removing"} access for ${fix.userName}`),
       ];
     case "setCustomScriptCode":
+    case "saveCustomScript": {
+      const name = fix.scriptName;
+      return [
+        read(name),
+        { key: "describe", label: "Checking how the org lets the script's code be written" },
+        ...(apply
+          ? [
+              { key: "lwc", label: `Writing ${name}'s component` },
+              { key: "record", label: `Updating ${name}` },
+              { key: "verify", label: `Checking the stored code of ${name}` },
+            ]
+          : []),
+      ];
+    }
+    case "createCustomScript":
+      return [
+        { key: "read", label: `${apply ? "Re-checking" : "Checking"} ${fix.name} against the org` },
+        ...(apply
+          ? [
+              { key: "lwc", label: `Creating the component ${fix.componentName}` },
+              { key: "record", label: `Creating ${fix.name}` },
+              { key: "verify", label: `Checking the stored code of ${fix.name}` },
+              ...(fix.assign?.length ? [{ key: "assign", label: "Assigning it to the stage object" }] : []),
+            ]
+          : []),
+      ];
+    case "deleteCustomScript":
       return [
         read(fix.scriptName),
-        { key: "describe", label: "Checking the org lets the API write the script's code" },
-        ...write(`Saving the code of ${fix.scriptName}`),
+        ...(apply
+          ? [
+              { key: "unassign", label: "Removing it from the stage objects that use it" },
+              { key: "record", label: `Deleting ${fix.scriptName}` },
+              ...(fix.deleteBundle ? [{ key: "lwc", label: "Deleting its component" }] : []),
+            ]
+          : []),
+      ];
+    case "assignCustomScript":
+      return [
+        read(fix.stageObjectName),
+        ...write(`${fix.to ? "Setting" : "Clearing"} the ${fix.role} script of ${fix.stageObjectName}`),
       ];
     case "setLayoutRelatedList":
       return [

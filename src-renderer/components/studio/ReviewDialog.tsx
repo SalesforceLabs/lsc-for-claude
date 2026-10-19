@@ -58,6 +58,8 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
   useEffect(() => {
     let cancelled = false;
     setPhase({ step: "previewing" });
+    // Each batch (an Undo too) asks again before writing to production.
+    setProductionOk(false);
     const id = crypto.randomUUID();
     setBatch(id);
     Promise.all(
@@ -209,7 +211,7 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
             <StatusIcon tone="warning" size={20} />
             <div className="studio-review-production-text">
               <div className="studio-finding-title">This is a production org</div>
-              <div className="studio-finding-detail">Layout and page changes deploy right away and reach every rep on the profiles listed.</div>
+              <div className="studio-finding-detail">These changes are written to the org right away and reach every rep they apply to.</div>
             </div>
             <label className="ui-check">
               <input type="checkbox" checked={productionOk} onChange={(e) => setProductionOk(e.target.checked)} />

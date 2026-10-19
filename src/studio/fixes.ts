@@ -371,6 +371,10 @@ export async function previewFix(fix: StudioFix, org: string, progress?: FixTrac
     case "removeAccess":
       return previewAccess(fix, org, progress);
     case "setCustomScriptCode":
+    case "createCustomScript":
+    case "saveCustomScript":
+    case "deleteCustomScript":
+    case "assignCustomScript":
     case "setLayoutRelatedList":
     case "editMetadata":
     case "copyForProfile":
@@ -477,6 +481,10 @@ async function applyFixNow(fix: StudioFix, org: string, progress?: FixTracker): 
     case "removeAccess":
       return applyAccess(fix, org, progress);
     case "setCustomScriptCode":
+    case "createCustomScript":
+    case "saveCustomScript":
+    case "deleteCustomScript":
+    case "assignCustomScript":
     case "setLayoutRelatedList":
     case "editMetadata":
     case "copyForProfile":

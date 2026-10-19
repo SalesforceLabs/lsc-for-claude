@@ -11,6 +11,8 @@
  * `src-renderer/components/studio/types.ts` — keep the two in sync.
  */
 
+import type { AssignCustomScriptFix, CreateCustomScriptFix, DeleteCustomScriptFix, SaveCustomScriptFix } from "./scripts/types.js";
+
 export type Severity = "error" | "warning" | "info";
 
 export interface StudioFinding {
@@ -61,6 +63,10 @@ export type StudioFix =
   | { kind: "deleteConfigRecord"; label: string; category: string; developerName: string; recordLabel: string }
   | { kind: "assignAccess"; label: string; userId: string; userName: string; access: AccessRef }
   | { kind: "removeAccess"; label: string; userId: string; userName: string; access: AccessRef; assignmentId: string }
+  | CreateCustomScriptFix
+  | SaveCustomScriptFix
+  | DeleteCustomScriptFix
+  | AssignCustomScriptFix
   | {
       kind: "setCustomScriptCode";
       label: string;

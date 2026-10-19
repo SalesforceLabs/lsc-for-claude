@@ -36,6 +36,8 @@ export interface LLMProviderConfig {
   temperature?: number;
   /** Ask the endpoint to cache the system prompt, tools and conversation so far (Anthropic only; others ignore it). */
   cache?: boolean;
+  /** Aborts the request and its stream. */
+  signal?: AbortSignal;
 }
 
 export interface LLMProvider {

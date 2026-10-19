@@ -45,6 +45,15 @@
   --glow-indigo: #6366f1;
   --glow-purple: #a855f7;
   --glow-violet: #8b5cf6;
+  /* Code editor syntax colours. */
+  --syn-keyword: #c4a1f5;
+  --syn-string: #86d9a8;
+  --syn-number: #f0b07a;
+  --syn-comment: #6b7a90;
+  --syn-function: #7cb7ff;
+  --syn-property: #9fd0e8;
+  --syn-type: #f2cf7a;
+  --syn-operator: #94a3b8;
   /* Mermaid diagrams (mermaid.ts reads these; it can't use var()). */
   --diagram-node: #3b82f6;
   --diagram-node-text: #f1f5f9;
@@ -136,6 +145,14 @@
     --diagram-secondary: #f1f5f9;
     --diagram-tertiary: #f8fafc;
     --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.3);
+    --syn-keyword: #7c3aed;
+    --syn-string: #0f7a45;
+    --syn-number: #b45309;
+    --syn-comment: #6b7686;
+    --syn-function: #1d4ed8;
+    --syn-property: #0e6f8f;
+    --syn-type: #946200;
+    --syn-operator: #475569;
     --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08);
     --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.1);
     --shadow-lg: 0 8px 32px rgba(15, 23, 42, 0.14);
