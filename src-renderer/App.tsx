@@ -13,6 +13,7 @@ import { modelOptionsFor } from "./models";
 import StudioView from "./components/studio/StudioView";
 import StatusBar from "./components/StatusBar";
 import { useOrgs, useSelectedOrgId } from "./hooks/useOrgs";
+import { useSidebarLayout } from "./hooks/useSidebarLayout";
 import { orgKey, orgLabel, sameUsername, sessionOrgView, toOrgRef, type OrgRef } from "./orgs";
 import type { LibraryItem, OrgScope } from "./types";
 
@@ -39,7 +40,7 @@ export default function App() {
     Array<{ name: string; description: string }>
   >([]);
   const [defaultModel, setDefaultModel] = useState<string | undefined>();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const sidebar = useSidebarLayout();
 
   useEffect(() => {
     window.lscApi?.listCommands().then(setCommands).catch(() => {});
@@ -253,8 +254,11 @@ export default function App() {
         orgName={orgs.current ? orgKey(orgs.current) : orgs.chosen || undefined}
         runningOrgs={runningOrgs}
         libraryCount={library.items.length}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
+        collapsed={sidebar.collapsed}
+        onToggleCollapse={sidebar.toggle}
+        width={sidebar.width}
+        onResize={sidebar.setWidth}
+        onResetWidth={sidebar.resetWidth}
         onCommandClick={(name) => { chat.clear(); setStudioOpen(false); setLibraryPanelOpen(false); setPrefillInput(`/lsc:${name} `); }}
         onNewChat={() => { setStudioOpen(false); setLibraryPanelOpen(false); chat.clear(); }}
         onLoadConversation={openSession}

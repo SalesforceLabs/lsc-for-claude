@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import {
   Building2,
   ChevronRight,
   Ellipsis,
   LayoutGrid,
   Library,
-  PanelLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
   Pencil,
   Pin,
   PinOff,
@@ -18,10 +19,12 @@ import {
 } from "lucide-react";
 import { rozTileSrc, useAppIcon } from "../app-icon";
 import OrgSwitcher from "./OrgSwitcher";
+import ResizeHandle from "./ui/ResizeHandle";
 import Segmented from "./ui/Segmented";
 import Spinner from "./ui/Spinner";
 import StateView from "./ui/StateView";
 import { useOrgs } from "../hooks/useOrgs";
+import { SIDEBAR_WIDTH } from "../hooks/useSidebarLayout";
 import { orgLabel, sameUsername } from "../orgs";
 import type { Conversation, OrgScope } from "../types";
 
@@ -44,6 +47,10 @@ interface SidebarProps {
   libraryCount: number;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  /** Width when expanded, and how the user changes it by dragging the edge. */
+  width: number;
+  onResize: (width: number) => void;
+  onResetWidth: () => void;
   onCommandClick: (name: string) => void;
   onNewChat: () => void;
   onLoadConversation: (id: string) => void;
@@ -72,6 +79,9 @@ export default function Sidebar({
   onLoadConversation,
   collapsed,
   onToggleCollapse,
+  width,
+  onResize,
+  onResetWidth,
   onDeleteConversations,
   onSessionsMoved,
   onRenameConversation,
@@ -82,6 +92,46 @@ export default function Sidebar({
   onOpenStudio,
 }: SidebarProps) {
   const appIcon = useAppIcon();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const fullToggleRef = useRef<HTMLButtonElement>(null);
+  const railToggleRef = useRef<HTMLButtonElement>(null);
+  const refocusToggle = useRef(false);
+  const [dragging, setDragging] = useState(false);
+  // While the width animates, anything wider than the sidebar is clipped; at rest the org menu may overhang.
+  const [animating, setAnimating] = useState(false);
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    setAnimating(true);
+    const t = window.setTimeout(() => setAnimating(false), 300);
+    return () => window.clearTimeout(t);
+  }, [collapsed]);
+
+  // Toggling from inside the sidebar keeps the keyboard there: the layer that holds focus goes
+  // inert, so focus follows to the same toggle on the other layer instead of falling to the page.
+  const toggle = useCallback(() => {
+    refocusToggle.current = !!rootRef.current?.contains(document.activeElement);
+    onToggleCollapse();
+  }, [onToggleCollapse]);
+  useLayoutEffect(() => {
+    if (!refocusToggle.current) return;
+    refocusToggle.current = false;
+    (collapsed ? railToggleRef : fullToggleRef).current?.focus();
+  }, [collapsed]);
+
+  // Cmd+Backslash shows and hides the sidebar, the way Xcode's navigator and Notes' folder list do.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== "Backslash" || !e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+      e.preventDefault();
+      toggle();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toggle]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [showCommands, setShowCommands] = useState(false);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
@@ -271,12 +321,13 @@ export default function Sidebar({
     </div>
   );
 
-  if (collapsed) {
-    return (
-      <div className="sidebar collapsed">
+  const toggleTitle = `${collapsed ? "Show" : "Hide"} sidebar (⌘\\)`;
+
+  const rail = (
+    <>
         <div className="sidebar-collapsed-head" />
-        <button className="sidebar-collapsed-btn" onClick={onToggleCollapse} title="Show sidebar" aria-label="Show sidebar">
-          <PanelLeft size={17} strokeWidth={1.75} />
+        <button ref={railToggleRef} className="sidebar-collapsed-btn" onClick={toggle} title={toggleTitle} aria-label="Show sidebar" aria-keyshortcuts="Meta+Backslash">
+          <PanelLeftOpen size={17} strokeWidth={1.75} aria-hidden="true" />
         </button>
         <div className="sidebar-collapsed-sep" />
         <OrgSwitcher runningOrgs={runningOrgs} compact />
@@ -292,10 +343,8 @@ export default function Sidebar({
         <button className="sidebar-collapsed-btn" onClick={() => setShowCommands(true)} title="Commands" aria-label="Commands">
           <Terminal size={17} strokeWidth={1.75} />
         </button>
-        {showCommands && renderCommands()}
-      </div>
-    );
-  }
+    </>
+  );
 
   const pinned = conversations.filter((c) => c.pinned);
   const recent = conversations.filter((c) => !c.pinned && c.org);
@@ -382,15 +431,15 @@ export default function Sidebar({
     </div>
   );
 
-  return (
-    <div className="sidebar">
+  const full = (
+    <>
       <div className="sidebar-header">
         <div className="sidebar-brand">
           <img src={rozTileSrc(appIcon)} alt="" className="sidebar-logo" />
           <h1>Roz</h1>
         </div>
-        <button className="ui-icon-btn" onClick={onToggleCollapse} title="Hide sidebar" aria-label="Hide sidebar">
-          <PanelLeft size={17} strokeWidth={1.75} />
+        <button ref={fullToggleRef} className="ui-icon-btn" onClick={toggle} title={toggleTitle} aria-label="Hide sidebar" aria-keyshortcuts="Meta+Backslash">
+          <PanelLeftClose size={17} strokeWidth={1.75} aria-hidden="true" />
         </button>
       </div>
 
@@ -554,7 +603,35 @@ export default function Sidebar({
           </>
         )}
       </div>
+    </>
+  );
 
+  // Both layers are always mounted so the width can animate between them; the one that isn't
+  // showing is inert (no focus, not read out) and fades out.
+  const inertAttr = (off: boolean) => ({ inert: off ? "" : undefined } as Record<string, string | undefined>);
+  return (
+    <div
+      ref={rootRef}
+      className={`sidebar${collapsed ? " collapsed" : ""}${dragging ? " resizing" : ""}${animating ? " animating" : ""}`}
+      style={{ "--sidebar-width": `${width}px` } as React.CSSProperties}
+    >
+      <div className="sidebar-layer sidebar-full" aria-hidden={collapsed} {...inertAttr(collapsed)}>
+        {full}
+      </div>
+      <div className="sidebar-layer sidebar-rail" aria-hidden={!collapsed} {...inertAttr(!collapsed)}>
+        {rail}
+      </div>
+      {!collapsed && (
+        <ResizeHandle
+          value={width}
+          min={SIDEBAR_WIDTH.min}
+          max={SIDEBAR_WIDTH.max}
+          onChange={onResize}
+          onReset={onResetWidth}
+          onDragging={setDragging}
+          label="Resize sidebar"
+        />
+      )}
       {showCommands && renderCommands()}
     </div>
   );

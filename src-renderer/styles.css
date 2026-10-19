@@ -87,6 +87,8 @@
   --toolbar-height: 52px;
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  /* A side panel opening or closing */
+  --transition-panel: 0.22s var(--ease-out);
   --transition-base: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -600,12 +602,64 @@ body {
 /* ─── Sidebar ─── */
 
 .sidebar {
-  width: 248px;
+  position: relative;
+  width: var(--sidebar-width, 248px);
   background: var(--bg-secondary);
   border-right: 1px solid var(--border);
+  flex-shrink: 0;
+  transition: width var(--transition-panel);
+}
+
+.sidebar.collapsed {
+  width: 76px;
+}
+
+.sidebar.animating {
+  overflow: hidden;
+}
+
+/* While the edge is dragged the width follows the pointer with no easing. */
+.sidebar.resizing,
+.sidebar.resizing .sidebar-layer {
+  transition: none;
+}
+
+/* The expanded sidebar and the icon rail share the same box. The expanded layer keeps its full
+   width while the box animates, so its text never reflows or wraps mid-slide; it is clipped and faded. */
+.sidebar-layer {
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
+  transition: opacity var(--transition-panel), visibility 0s linear var(--panel-dur, 0.22s);
+}
+
+.sidebar-full {
+  width: var(--sidebar-width, 248px);
+  height: 100%;
+}
+
+.sidebar-rail {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 76px;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.sidebar.collapsed .sidebar-full {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.sidebar.collapsed .sidebar-rail {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--transition-panel) 0.06s, visibility 0s;
+}
+
+.sidebar:not(.collapsed) .sidebar-full {
+  transition: opacity var(--transition-panel) 0.06s, visibility 0s;
 }
 
 /* Header: traffic lights on the left (drawn by macOS at x 18–70), brand, then the sidebar toggle. */
@@ -642,12 +696,6 @@ body {
   font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.01em;
-}
-
-.sidebar.collapsed {
-  width: 76px;
-  align-items: center;
-  gap: 2px;
 }
 
 .sidebar-collapsed-head {

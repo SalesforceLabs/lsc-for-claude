@@ -1,3 +1,4 @@
+import { usePersistedFlag } from "../../hooks/usePersistedState";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FeatureMap, FeatureReadiness, FeatureSummary, ProfileOption, SurfaceId } from "./types";
 import { countBySeverity, mapFindings } from "./findings";
@@ -27,6 +28,8 @@ import {
   CloudUpload,
   History,
   LayoutDashboard,
+  PanelLeftClose,
+  PanelLeftOpen,
   Pencil,
   Redo2,
   RefreshCw,
@@ -65,6 +68,17 @@ type Section = "preview" | "overview" | "user-check" | "drift" | "setup" | SyncP
 
 export default function StudioView({ onAskClaude }: StudioViewProps) {
   const [features, setFeatures] = useState<FeatureSummary[]>([]);
+  // The rail folds to icons; remembered across restarts. Option+Cmd+Backslash toggles it.
+  const [railCollapsed, setRailCollapsed] = usePersistedFlag("roz.studio.railCollapsed");
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== "Backslash" || !e.metaKey || !e.altKey || e.ctrlKey || e.shiftKey) return;
+      e.preventDefault();
+      setRailCollapsed(!railCollapsed);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [railCollapsed, setRailCollapsed]);
   const [featureId, setFeatureId] = useState("visit");
   /** Feature "Check a user" opens with, when reached from a feature's page. */
   const [traceFeature, setTraceFeature] = useState<string | undefined>();
@@ -499,8 +513,19 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
 
   return (
     <div className="studio">
-      <nav className="studio-rail" aria-label="Studio">
-        <div className="studio-rail-head">Studio</div>
+      <nav className={`studio-rail${railCollapsed ? " collapsed" : ""}`} aria-label="Studio">
+        <div className="studio-rail-head">
+          <span className="studio-rail-head-label">Studio</span>
+          <button
+            className="ui-icon-btn"
+            onClick={() => setRailCollapsed(!railCollapsed)}
+            title={`${railCollapsed ? "Show" : "Hide"} Studio menu (⌥⌘\\)`}
+            aria-label={railCollapsed ? "Show Studio menu" : "Hide Studio menu"}
+            aria-keyshortcuts="Alt+Meta+Backslash"
+          >
+            {railCollapsed ? <PanelLeftOpen size={16} strokeWidth={1.75} aria-hidden="true" /> : <PanelLeftClose size={16} strokeWidth={1.75} aria-hidden="true" />}
+          </button>
+        </div>
         <div className="studio-rail-title">iPad</div>
         {railItem(
           "preview",
@@ -555,11 +580,11 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           () => setSection("test-users"),
           UsersRound
         )}
-        <div className="studio-rail-title studio-rail-section">Features</div>
+        <div className="studio-rail-title studio-rail-section studio-rail-feature">Features</div>
         {features.map((f) => (
           <button
             key={f.id}
-            className={`studio-rail-item${section === "setup" && f.id === featureId ? " active" : ""}`}
+            className={`studio-rail-item studio-rail-feature${section === "setup" && f.id === featureId ? " active" : ""}`}
             aria-current={section === "setup" && f.id === featureId ? "page" : undefined}
             disabled={!f.available}
             title={`${f.title} — ${f.description}`}
