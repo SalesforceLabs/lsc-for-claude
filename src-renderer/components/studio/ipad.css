@@ -2414,3 +2414,45 @@ button.studio-ipad-chip {
   position: absolute;
   inset: 82px 0 0 0;
 }
+
+/* Compare in a short window: the iPads are as wide as the pane allows, so give them the height. */
+@media (max-height: 760px) {
+  .studio-preview-section.compare > .studio-header .studio-subtitle {
+    display: none;
+  }
+  .studio-preview-section.compare > .studio-header {
+    min-height: 0;
+    padding-block: 8px;
+  }
+  .studio-preview-section.compare .studio-subbar {
+    min-height: 36px;
+    padding-block: 2px;
+  }
+  .studio-preview-section.compare .studio-ipad-wrap {
+    gap: 6px;
+    padding: 8px 12px;
+  }
+  .studio-preview-section.compare .studio-ipad-meta {
+    flex-wrap: nowrap;
+    align-self: stretch;
+    max-width: none;
+    overflow: hidden;
+    white-space: nowrap;
+    min-height: 0;
+  }
+  .studio-preview-section.compare .studio-ipad-meta .studio-ipad-muted {
+    display: none;
+  }
+  .studio-preview-section.compare .studio-ipad-meta strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .studio-preview-section.compare .studio-ipad-meta .studio-ipad-reload {
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .studio-preview-section.compare .studio-ipad-split {
+    gap: var(--space-2);
+  }
+}
