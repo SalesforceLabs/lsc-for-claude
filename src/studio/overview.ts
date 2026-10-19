@@ -9,8 +9,9 @@
 import { chunkIds } from "../tools/helpers.js";
 import { count, inList, plural, query, type Row } from "./helpers.js";
 import { runCheck } from "./readiness/index.js";
-import { cachesByProfile, daysSince, unpublishedChanges, type ConfigChange } from "./overview-logic.js";
+import { cachesByProfile, daysSince, unpublishedChanges } from "./overview-logic.js";
 import type { ReadinessCheck } from "./types.js";
+import { fetchConfigEdits } from "./unpublished.js";
 
 export interface SetupOverview {
   org: string;
@@ -20,10 +21,9 @@ export interface SetupOverview {
   unpublishedProfiles: string[];
   /** How many configuration changes are not on iPads yet (distinct records). */
   unpublishedChanges: number;
+  /** Per profile, how many of those reach it — the Admin Console part of that profile's `studio_unpublished`. Most first. */
+  unpublishedByProfile: { profile: string; changes: number }[];
 }
-
-/** Admin Console categories whose records end up in a profile's mobile metadata cache. */
-const MOBILE_CATEGORIES = ["DbSchema", "UISchema", "QuickAction", "CustomAction", "ApplicationSettings", "ProfileBasedAppSettings"];
 /** A live cache older than this is worth a nudge even with no recorded changes. */
 const OLD_CACHE_DAYS = 90;
 /** How far back unpublished changes are looked for; a cache older than this is compared against what this window holds. */
@@ -51,10 +51,14 @@ export async function collectSetupOverview(org: string): Promise<SetupOverview> 
     const names = new Map(profiles.map((p) => [p.id, p.name]));
     const live = [...byProfile.values()].filter((c) => c.activeAt !== undefined && names.has(c.profileId));
     const floor = Date.now() - CHANGES_LOOKBACK_DAYS * 86_400_000;
-    const oldest = Math.min(...live.map((c) => c.activeAt!));
+    const oldest = Math.min(...live.map((c) => c.activeStartedAt ?? c.activeAt!));
     const capped = live.length > 0 && oldest < floor;
-    const changes = await fetchChanges(org, Math.max(oldest, floor), live.length === 0);
-    const list = unpublishedChanges(byProfile, changes).filter((u) => names.has(u.profileId)).map((u) => ({ ...u, name: names.get(u.profileId)! }));
+    // The same edits, rules and boundary (generation start) as the iPad preview's "not on iPads yet".
+    const edits = live.length ? await fetchConfigEdits(org, Math.max(oldest, floor)) : [];
+    const list = unpublishedChanges(byProfile, edits)
+      .filter((u) => names.has(u.profileId))
+      .map((u) => ({ ...u, name: names.get(u.profileId)! }))
+      .sort((a, b) => b.items.length - a.items.length || a.name.localeCompare(b.name));
     return Object.assign(list, { cappedAtDays: capped ? CHANGES_LOOKBACK_DAYS : undefined });
   });
   const psls = memo(() => fetchPsls(org));
@@ -201,7 +205,7 @@ export async function collectSetupOverview(org: string): Promise<SetupOverview> 
       },
       async () => {
         const list = await unpublished();
-        const distinct = new Set(list.flatMap((u) => u.changes.map((c) => c.label)));
+        const distinct = new Set(list.flatMap((u) => u.items.map((i) => i.id)));
         return {
           pass: list.length === 0,
           detail:
@@ -211,7 +215,7 @@ export async function collectSetupOverview(org: string): Promise<SetupOverview> 
             ]
               .filter(Boolean)
               .join(" · ") || undefined,
-          examples: list.map((u) => u.name),
+          examples: list.map((u) => `${u.name} (${plural(u.items.length, "change")})`),
         };
       }
     ),
@@ -247,7 +251,8 @@ export async function collectSetupOverview(org: string): Promise<SetupOverview> 
     collectedAt: new Date().toISOString(),
     checks,
     unpublishedProfiles: affected.map((u) => u.name),
-    unpublishedChanges: new Set(affected.flatMap((u) => u.changes.map((c) => c.label))).size,
+    unpublishedChanges: new Set(affected.flatMap((u) => u.items.map((i) => i.id))).size,
+    unpublishedByProfile: affected.map((u) => ({ profile: u.name, changes: u.items.length })),
   };
 }
 
@@ -284,56 +289,10 @@ async function fetchCacheRows(org: string, profileIds: string[]): Promise<Row[]>
   const groups = await Promise.all(
     chunkIds(profileIds).map((chunk) =>
       query(
-        `SELECT Id, Status, IntegrationStatus, IntegrationErrorCode, IntegrationErrorMessage, LastModifiedDate, ProfileId FROM LifeSciMobileMetadataRecord WHERE ProfileId IN (${inList(chunk)}) ORDER BY LastModifiedDate DESC`,
+        `SELECT Id, Status, IntegrationStatus, IntegrationErrorCode, IntegrationErrorMessage, CreatedDate, LastModifiedDate, ProfileId FROM LifeSciMobileMetadataRecord WHERE ProfileId IN (${inList(chunk)}) ORDER BY LastModifiedDate DESC`,
         org
       )
     )
   );
   return groups.flat();
-}
-
-/** Mobile-relevant Admin Console records (or their assignments) edited after `since`. */
-async function fetchChanges(org: string, since: number, none: boolean): Promise<ConfigChange[]> {
-  if (none || !Number.isFinite(since)) return [];
-  const iso = new Date(since).toISOString();
-  // Editing a setting's value touches only its field value row, not the record.
-  const [edited, valued, reassigned] = await Promise.all([
-    query(`SELECT Id FROM LifeSciConfigRecord WHERE LastModifiedDate > ${iso}`, org, true),
-    query(`SELECT LifeSciConfigRecordId, LastModifiedDate FROM LifeSciConfigFieldValue WHERE LastModifiedDate > ${iso}`, org, true),
-    query(`SELECT LifeSciConfigRecordId FROM LifeSciConfigAssignment WHERE LastModifiedDate > ${iso}`, org, true),
-  ]);
-  const valueAt = new Map<string, number>();
-  for (const v of valued) {
-    const id = String(v.LifeSciConfigRecordId);
-    valueAt.set(id, Math.max(valueAt.get(id) ?? 0, Date.parse(String(v.LastModifiedDate))));
-  }
-  const ids = [...new Set([...edited.map((r) => String(r.Id)), ...valueAt.keys(), ...reassigned.map((r) => String(r.LifeSciConfigRecordId))])];
-  const out: ConfigChange[] = [];
-  await Promise.all(chunkIds(ids, 150).map(async (chunk) => {
-    const [records, assignments] = await Promise.all([
-      query(
-        `SELECT Id, DeveloperName, IsOrgLevel, LastModifiedDate, LifeSciConfigCategory.Category FROM LifeSciConfigRecord WHERE Id IN (${inList(chunk)})`,
-        org,
-        true
-      ),
-      query(
-        `SELECT LifeSciConfigRecordId, AssignedToId, AssignmentLevel, LastModifiedDate FROM LifeSciConfigAssignment WHERE LifeSciConfigRecordId IN (${inList(chunk)})`,
-        org,
-        true
-      ),
-    ]);
-    for (const r of records) {
-      const category = (r.LifeSciConfigCategory as Row | null)?.Category;
-      if (!MOBILE_CATEGORIES.includes(String(category))) continue;
-      const mine = assignments.filter((a) => a.LifeSciConfigRecordId === r.Id);
-      const at = Math.max(Date.parse(String(r.LastModifiedDate)), valueAt.get(String(r.Id)) ?? 0, ...mine.map((a) => Date.parse(String(a.LastModifiedDate))));
-      out.push({
-        label: `${category}: ${r.DeveloperName}`,
-        at,
-        profileIds: mine.filter((a) => a.AssignmentLevel === "Profile").map((a) => String(a.AssignedToId)),
-        allProfiles: r.IsOrgLevel === true || mine.some((a) => a.AssignmentLevel !== "Profile"),
-      });
-    }
-  }));
-  return out;
 }

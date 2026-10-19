@@ -112,7 +112,7 @@ describe("collectUnpublished", () => {
     };
     const r = await collectUnpublished("Rep", "o");
     expect(r.items).toEqual([
-      { id: "dbSchema:DbSchema:DbSchema_Visit", kind: "dbSchema", name: "DbSchema:DbSchema_Visit", label: "DbSchema_Visit", lastModifiedAt: AFTER, lastModifiedBy: "Cy", target: "config:DbSchema:DbSchema_Visit" },
+      { id: "dbSchema:DbSchema:DbSchema_Visit", kind: "dbSchema", name: "DbSchema:DbSchema_Visit", label: "DbSchema_Visit", lastModifiedAt: AFTER, lastModifiedBy: "Cy", target: "config:DbSchema:DbSchema_Visit", reach: { desktop: "none", ipad: "publish" } },
     ]);
   });
 

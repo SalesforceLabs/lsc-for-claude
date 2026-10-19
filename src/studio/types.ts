@@ -493,6 +493,16 @@ export interface FixChange {
   diff?: string[];
 }
 
+/** Where an applied change shows up: on desktop/web, and on iPads (after a publish, live, on the next sync, or never). */
+export interface ChangeReach {
+  /** Desktop/web users see it as soon as it's applied ("now") or never ("none"). */
+  desktop: "now" | "none";
+  /** iPads: after Publish to iPad, live (read from the org when opened, e.g. list views, LWC data), on the rep's next sync (data like PSL/permission set/territory assignments), or never. */
+  ipad: "publish" | "live" | "nextSync" | "none";
+  /** Profile names whose iPads it reaches; omitted when unknown or everyone. */
+  profiles?: string[];
+}
+
 export interface FixPreview {
   org: string;
   title: string;
@@ -504,6 +514,8 @@ export interface FixPreview {
   production?: boolean;
   /** A Lightning page whose reach wasn't worked out (every app has to be read); the review dialog offers `studio_page_reach` on request. */
   reachPage?: string;
+  /** Where the change shows up once applied (`reachOfFix`). */
+  reach?: ChangeReach;
 }
 
 export interface FixResult {

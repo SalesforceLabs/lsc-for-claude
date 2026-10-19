@@ -18,6 +18,7 @@ describe("an app changed after the cache", () => {
         lastModifiedAt: "2026-10-17T10:00:00.000Z",
         lastModifiedBy: "Ann",
         target: "metadata:CustomApplication:lsc4ce__lifeSciencesCommercial",
+        reach: { desktop: "now", ipad: "publish" },
       },
     ]);
     expect(appItems(rows, null)).toEqual([]);
