@@ -45,6 +45,7 @@ import { syncOverview, syncOverviewInput } from "../studio/sync-overview.js";
 import { syncUserDetail, syncUserInput, syncUserProgress } from "../studio/sync-user.js";
 import { syncImpact, syncImpactInput } from "../studio/sync-impact.js";
 import { renderSignoffReport, signoffReportInput } from "../studio/signoff-report.js";
+import { exportSource, SOURCE_TYPES } from "../studio/source-export.js";
 import { checkApp } from "../studio/apps/check.js";
 import { describeForApp, MAX_DESCRIBE_OBJECTS } from "../studio/apps/describe.js";
 import { sampleRecords } from "../studio/apps/sample.js";
@@ -1455,6 +1456,35 @@ function registerSyncHealthTools(server: McpServer) {
       }
       try {
         return json(await syncImpact(connection.targetOrg, input));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_export_source",
+    "LSC Studio (GUI data): save the org's current version of applied Studio changes (or named metadata items) as sfdx source files in a local folder (force-app/main/default, or the project's default package), plus manifest/studio-package.xml. Read-only against the org — it only retrieves. Returns JSON { folder, packageDir, manifest, files, toRemove, orgOnly (changes with no source file, with why), missing, notes }.",
+    {
+      folder: z.string().min(1).max(1024),
+      changes: z.array(fixSchema).max(200).optional(),
+      items: z
+        .array(z.object({ type: z.enum(SOURCE_TYPES as [string, ...string[]]), fullName: z.string().min(1).max(255) }))
+        .max(200)
+        .optional(),
+    },
+    async ({ folder, changes, items }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(
+          await exportSource(
+            { folder, changes: changes as StudioFix[] | undefined, items: items as Parameters<typeof exportSource>[0]["items"] },
+            connection.targetOrg
+          )
+        );
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

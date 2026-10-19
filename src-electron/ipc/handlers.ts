@@ -33,6 +33,7 @@ import { apiStyle, Connection, CONNECTION_KINDS, connectionLabel } from "../llm/
 import { chatModels, cleanConnection, createProvider, testConnection } from "../llm/create.js";
 import { loadSettings, migrateSettings, saveSettings, Settings } from "../settings.js";
 import { applyAppIcon } from "../app-icon.js";
+import { sourceControlFor, withSourceControl } from "../source-control.js";
 import { applyTheme } from "../theme.js";
 import { getSecret, hasSecret, setSecret } from "../secrets.js";
 import {
@@ -711,6 +712,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       if (!toolName.startsWith(STUDIO_TOOL_PREFIX)) {
         return { error: `Not a Studio tool: ${toolName}` };
       }
+      // Writes local files: only into a folder the user picked (studio:exportSource).
+      if (toolName === "studio_export_source") return { error: "Use studio:exportSource." };
       // Live progress of a running preview/apply: no cache and no shared in-flight call (each poll
       // must see the state as it is now), and it makes no org calls so it never queues behind the work.
       if (toolName === "studio_fix_progress" || toolName === "studio_sync_user_progress" || toolName === "studio_feature_map_progress") {
@@ -891,6 +894,46 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       return { canceled: false, path: res.filePath };
     }
   );
+
+  // --- Source control: orgs deployed from Git get reminded to save Studio's changes as source files ---
+
+  ipcMain.handle("sourceControl:get", async () => {
+    const { ref } = await selectedOrg();
+    return { org: ref?.username ?? null, ...sourceControlFor(loadSettings(), ref?.username) };
+  });
+
+  ipcMain.handle("sourceControl:set", async (_event, deployed: boolean) => {
+    const { ref } = await selectedOrg();
+    if (!ref?.username) return { ok: false, error: "No Salesforce org selected." };
+    saveSettings(withSourceControl(loadSettings(), ref.username, { deployed: deployed === true }));
+    return { ok: true };
+  });
+
+  // Pick the project folder (opening on the one last used for this org), then retrieve the changes' documents into it.
+  ipcMain.handle("studio:exportSource", async (_event, changes: unknown[] = [], items: unknown[] = []) => {
+    const { ref } = await selectedOrg();
+    if (!ref?.username) return { error: "No Salesforce org selected." };
+    const last = sourceControlFor(loadSettings(), ref.username).folder;
+    const res = await dialog.showOpenDialog(mainWindow, {
+      title: "Save as source files",
+      message: "Choose your sfdx project folder. Files go in its default package (force-app/main/default).",
+      buttonLabel: "Save Here",
+      defaultPath: last ?? app.getPath("home"),
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (res.canceled || res.filePaths.length === 0) return { canceled: true };
+    const folder = res.filePaths[0];
+    saveSettings(withSourceControl(loadSettings(), ref.username, { folder }));
+    const client = await readyMcpClient();
+    if (!client) return { error: "Engine not started" };
+    try {
+      const result = await client.callTool("studio_export_source", { folder, changes, items }, { timeoutMs: 5 * 60_000 });
+      const data = JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}");
+      return data?.error ? { error: String(data.error) } : { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) };
+    }
+  });
 
   // --- Salesforce Org Management ---
 

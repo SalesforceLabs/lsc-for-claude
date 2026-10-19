@@ -13,6 +13,8 @@ export interface Settings {
   mobileClientId?: string;
   /** Which Roz icon the Dock or window shows (app-icon.ts). */
   appIcon?: string;
+  /** Per org (lowercased username): deployed from source control, and the folder source files were last saved to. */
+  sourceControl?: Record<string, { deployed: boolean; folder?: string }>;
 }
 
 const DEFAULT_SETTINGS: Settings = {

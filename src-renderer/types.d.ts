@@ -1,6 +1,7 @@
 import type { LlmConnection, LlmConnectionKind, LlmConnectionTest } from "./connection";
 import type { AppTheme } from "./theme";
 import type { OrgRef, OrgRole, SfOrg } from "./orgs";
+import type { SourceExportResult } from "./components/studio/source-control";
 import type { AppBuilderEvent, AppCheckResult, AppDeployPlan, AppDeployResult, AppObjectInfo, AppProject, AppRunAs, AppTabSettings, AppTarget, AppVersion, OrgApp } from "./components/studio/builder/types";
 
 /** A chat session; `org` is the org it works in, null for sessions from before orgs were recorded. */
@@ -250,6 +251,15 @@ interface LscApi {
   perfSaveSim(input: Omit<PerfSimRecord, "id"> & { result: unknown }): Promise<PerfSimRecord>;
   perfDeleteSim(id: string): Promise<{ ok: boolean }>;
   perfOpenFile(): Promise<{ canceled: boolean; text?: string }>;
+
+  // Source control — per org (the selected one): deployed from Git, and saving Studio's changes as source files
+  sourceControlGet(): Promise<{ org: string | null; deployed: boolean; folder?: string }>;
+  sourceControlSet(deployed: boolean): Promise<{ ok: boolean; error?: string }>;
+  /** Asks for the project folder (opening on the org's last one), then writes the changes' org versions there. */
+  studioExportSource(
+    changes: unknown[],
+    items?: { type: string; fullName: string }[]
+  ): Promise<{ canceled?: boolean; data?: SourceExportResult; error?: string }>;
   perfSaveFile(defaultName: string, text: string, kind: "yaml" | "json" | "md"): Promise<{ canceled: boolean; path?: string }>;
 
   // Library

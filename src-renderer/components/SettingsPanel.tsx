@@ -5,8 +5,9 @@ import { pickModel, type ModelOption } from "../models";
 import { ROZ_ICONS, rozIcon, rozTileSrc, setAppIcon, type RozIcon } from "../app-icon";
 import { APP_THEMES, appTheme, type AppTheme } from "../theme";
 import { useOrgs } from "../hooks/useOrgs";
+import { useSourceControl } from "../hooks/useSourceControl";
+import { SOURCE_CONTROL_HINT } from "./studio/source-control";
 import { hostOf, KIND_LABEL, orgKey } from "../orgs";
-
 const THEME_ICONS: Record<AppTheme, LucideIcon> = { system: Monitor, light: Sun, dark: Moon };
 
 interface SettingsPanelProps {
@@ -32,6 +33,10 @@ export default function SettingsPanel({
   const [savedTheme, setSavedTheme] = useState<AppTheme>("system");
 
   const { current, chosen, loading: orgsLoading } = useOrgs();
+  const sourceControl = useSourceControl();
+  // Null until changed here; saved with the rest on Save.
+  const [deployedFromSource, setDeployedFromSource] = useState<boolean | null>(null);
+  const deployed = deployedFromSource ?? sourceControl.deployed;
 
   useEffect(() => {
     window.lscApi.getSettings().then((s) => {
@@ -65,6 +70,9 @@ export default function SettingsPanel({
       theme,
     });
     setAppIcon(appIcon);
+    if (deployedFromSource !== null && deployedFromSource !== sourceControl.deployed) {
+      await sourceControl.setDeployed(deployedFromSource);
+    }
     onClose();
   };
 
@@ -123,6 +131,19 @@ export default function SettingsPanel({
             <div className="settings-hint">
               Switch orgs or log in to another from the menu at the top of the sidebar. Each session stays in the org it started in.
             </div>
+            {(current || chosen) && (
+              <>
+                <label className="ui-check settings-check">
+                  <input
+                    type="checkbox"
+                    checked={deployed}
+                    disabled={sourceControl.loading}
+                    onChange={(e) => setDeployedFromSource(e.target.checked)}
+                  />
+                  Deployed from source control
+                </label>
+                <div className="settings-hint">{SOURCE_CONTROL_HINT}</div>              </>
+            )}
           </section>
 
           <section className="settings-group">
