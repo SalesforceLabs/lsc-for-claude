@@ -351,11 +351,76 @@ export function aheadOf(published: PublishedLayout | undefined, base: LayoutMode
       }
     });
   }
-  const org = new Set(base.relatedLists);
-  const pubRelated = new Set(published.relatedLists.map((r) => r.name));
-  for (const r of org) if (!pubRelated.has(r)) out.related.add(r);
-  for (const r of pubRelated) if (!org.has(r)) out.goneRelated.push(r);
+  const match = matchRelatedLists(base.relatedLists, published.relatedLists);
+  for (const r of match.added) out.related.add(r);
+  out.goneRelated.push(...match.removed);
   return out;
+}
+
+// --- Related list names -------------------------------------------------------------
+
+/** Words that say nothing about which child object a related list is. */
+const GENERIC_WORDS = new Set(["related", "list", "account", "object", "id", "record", "all", "entity"]);
+
+const singular = (w: string): string => (w.endsWith("ies") ? `${w.slice(0, -3)}y` : w.endsWith("sses") ? w.slice(0, -2) : w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w);
+
+/** Short forms in standard related list names: "RelatedHCPSpecialtyPaList" is HealthcareProviderSpecialty on a person account ("Pa"). */
+const ABBREVIATIONS: Record<string, string[]> = { hcp: ["healthcare", "provider"], pa: [] };
+
+/** "CommSubscriptionConsents" → {comm, subscription, consent}; custom "Inquiry.Account__c" → {inquiry}. */
+function relatedWords(name: string): Set<string> {
+  const base = name.replace(/__[a-z]+/gi, "");
+  return new Set(
+    base
+      .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+      .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+      .replace(/[._]/g, " ")
+      .toLowerCase()
+      .split(/\s+/)
+      .flatMap((w) => ABBREVIATIONS[w] ?? [w])
+      .map(singular)
+      .filter((w) => w && !GENERIC_WORDS.has(w))
+  );
+}
+
+/**
+ * Pairs the related lists a layout names with the ones the cache drew. The layout XML names a
+ * standard related list by its relationship ("ContactPointAddresses", "RelatedCaseList") but the
+ * cache by child object and field ("ContactPointAddress.ParentId"), so names are compared
+ * exactly first, then by the words of the layout's name against the cache's object name and label.
+ * Lists that pair with nothing are the ones that really differ.
+ */
+export function matchRelatedLists(live: string[], published: { name: string; label: string }[]): { added: string[]; removed: string[]; pairs: Map<string, string> } {
+  const pairs = new Map<string, string>();
+  const taken = new Set<string>();
+  for (const l of live) {
+    if (published.some((p) => p.name === l)) {
+      pairs.set(l, l);
+      taken.add(l);
+    }
+  }
+  const pubWords = published.map((p) => ({ p, object: relatedWords(p.name.split(".")[0]), all: new Set([...relatedWords(p.name.split(".")[0]), ...relatedWords(p.label)]) }));
+  for (const strict of [true, false]) {
+    for (const l of live) {
+      if (pairs.has(l)) continue;
+      const words = relatedWords(l);
+      if (words.size === 0) continue;
+      const hit = pubWords.find(({ p, object, all }) => {
+        if (taken.has(p.name)) return false;
+        if (strict) return object.size === words.size && [...words].every((w) => object.has(w));
+        return [...words].every((w) => all.has(w)) || [...object].every((w) => words.has(w));
+      });
+      if (hit) {
+        pairs.set(l, hit.p.name);
+        taken.add(hit.p.name);
+      }
+    }
+  }
+  return {
+    added: live.filter((l) => !pairs.has(l)),
+    removed: published.map((p) => p.name).filter((n) => !taken.has(n)),
+    pairs,
+  };
 }
 
 export interface DraftField {

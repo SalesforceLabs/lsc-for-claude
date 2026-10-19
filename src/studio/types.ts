@@ -149,7 +149,7 @@ export type ListViewOp =
   | { op: "setListFilters"; from: ListViewFilter[]; to: ListViewFilter[]; fromLogic: string | null; toLogic: string | null };
 
 export interface MetadataDocRef {
-  type: "Layout" | "CompactLayout" | "FlexiPage" | "ListView";
+  type: "Layout" | "CompactLayout" | "FlexiPage" | "ListView" | "CustomApplication";
   /** Metadata API name, e.g. "Account-Account Layout", "Account.LSC_Account_Compact" or a Lightning page's developer name. */
   fullName: string;
   label: string;
@@ -198,7 +198,17 @@ export type FlexiPageOp =
     }
   | { op: "setComponentProperty"; component: FlexiComponentRef; property: FlexiPageProperty; from: string | null; to: string | null };
 
-export type MetadataOp = LayoutOp | CompactOp | FlexiPageOp | ListViewOp;
+/**
+ * One edit to the tab bar of a Lightning app (a CustomApplication's `<tabs>`; for an app installed from a
+ * package its `<subscriberTabs>`, the part the subscriber may change). Tabs are found by name
+ * (`standard-Account`, `lsc4ce__Planner`, `Foo__c`). `before` is the tab it goes in front of, or null for the end.
+ */
+export type AppOp =
+  | { op: "moveAppTab"; tab: string; before: string | null }
+  | { op: "removeAppTab"; tab: string }
+  | { op: "addAppTab"; tab: string; before: string | null };
+
+export type MetadataOp = LayoutOp | CompactOp | FlexiPageOp | ListViewOp | AppOp;
 
 /** A Lightning page item as it is in the org now. */
 export interface LiveFlexiItem {
@@ -265,7 +275,7 @@ export interface RelatedListOption {
  * Edits to one metadata document, deployed together. Each op is checked against
  * the document as retrieved; undo is the reversed inverse ops.
  */
-export type EditMetadataFix = LayoutEditFix | CompactLayoutEditFix | FlexiPageEditFix | ListViewEditFix;
+export type EditMetadataFix = LayoutEditFix | CompactLayoutEditFix | FlexiPageEditFix | ListViewEditFix | AppEditFix;
 
 /**
  * "Make a copy just for this profile": clone a page layout or Lightning page under a new
@@ -309,6 +319,39 @@ export interface FlexiPageEditFix {
   label: string;
   doc: MetadataDocRef & { type: "FlexiPage" };
   ops: FlexiPageOp[];
+}
+
+export interface AppEditFix {
+  kind: "editMetadata";
+  label: string;
+  doc: MetadataDocRef & { type: "CustomApplication" };
+  ops: AppOp[];
+}
+
+/** A tab the app could take: from the org's tab describe. */
+export interface AppTabOption {
+  name: string;
+  label: string;
+  /** "object" (a standard or custom object's tab) or "page" (Lightning page, Visualforce, web, Aura), for the picker's detail line. */
+  kind: "object" | "page";
+}
+
+/** A Lightning app's tab bar as it is in the org now, for lining the published tab bar up before editing. */
+export interface LiveApp {
+  type: "CustomApplication";
+  fullName: string;
+  label: string;
+  /** Installed from a package: the package's own tabs are fixed and only `subscriberTabs` can change. */
+  installed: boolean;
+  /** The tabs that can be arranged, in order. */
+  tabs: string[];
+  /** The package's own tabs, which stay where they are (installed apps only). */
+  fixedTabs: string[];
+  /** Tabs that could be added, from the org's tab describe; empty when it couldn't be read. */
+  available: AppTabOption[];
+  /** Profiles that can open the app; null when that couldn't be read. */
+  profiles: string[] | null;
+  production: boolean;
 }
 
 export interface ListViewEditFix {

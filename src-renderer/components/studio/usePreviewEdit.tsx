@@ -1,15 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ListPlus, SquarePlus, TextCursorInput } from "lucide-react";
-import type { ComponentCatalog, CreateConfigFix, FeatureMap, StudioFix, LiveCompactLayout, LiveFlexiPage, LiveLayout, LiveListView, ProfileOption } from "./types";
+import { ListPlus, PanelTopOpen, SquarePlus, TextCursorInput } from "lucide-react";
+import type { ComponentCatalog, CreateConfigFix, FeatureMap, StudioFix, LiveApp, LiveCompactLayout, LiveFlexiPage, LiveLayout, LiveListView, ProfileOption } from "./types";
 import { componentNote, type ComponentProps } from "./component-props";
 import type { PublishedIpad, PublishedListView, PublishedResult } from "./published-types";
 import type { PreviewEdit } from "./PublishedIpadPreview";
 import type { EditDrop } from "./EditLayer";
 import { changeKey, commitFrom, createAffects, queueChange, queuedCopy, queuedFlexiPageOps, queuedLayoutOps, viewFor, type PendingChange } from "./changes";
 import { flexiPageCopyName, layoutCopyName } from "./copy-names";
-import { actionVerbs, draftHomeMenu, draftTabs, moveActionTo, moveTabTo, tabVerbs, type DraftTab, type Verb } from "./edit-draft";
+import { actionVerbs, draftHomeMenu, draftTabs, moveActionTo, moveTabTo, tabItemFor, tabVerbs, type DraftTab, type Verb } from "./edit-draft";
+import { appFixedTabVerbs, appTabVerbs, buildAppBar, isAppTab, moveAppTabTo, type AppEntry, type AppMatchState, type LiveAppState } from "./app-nav-draft";
 import { openSetupLink, resolveSetupPath, type SetupLink } from "./setup-link";
-import { describeTarget, syncAction, syncFilter, type EditTarget } from "./edit-targets";
+import { describeTarget, syncAction, syncFilter, type AppNavInfo, type EditTarget } from "./edit-targets";
 import {
   addRelatedVerb,
   alignLayout,
@@ -62,7 +63,7 @@ import {
 import ListViewEditor from "./ListViewEditor";
 import BlockInspector, { compactReach, listViewReach, pageReach, type CopyAction } from "./BlockInspector";
 import CreateDialog from "./CreateDialog";
-import { orgAheadFor, type OrgAheadIndex } from "./org-ahead";
+import { orgAheadApp, orgAheadFor, type OrgAheadIndex } from "./org-ahead";
 import SearchPicker from "../ui/SearchPicker";
 import { extendSelection, groupVerbs, selectionNoun } from "./multi-select";
 
@@ -254,10 +255,68 @@ export function usePreviewEdit({
   const synced = surface(syncMap, "syncedObjects");
   const overlay = draft ? pending : NONE;
 
-  const tabs = useMemo(
+  const bar0 = useMemo(
     () => (snapshot && profile ? draftTabs(snapshot.tabs, tabItems ?? [], overlay, profile) : []),
     [snapshot, tabItems, overlay, profile]
   );
+
+  // The Lightning app behind the tab bar: first which app the profile's bar comes from (found by its tabs),
+  // then its tabs as the org has them now. The tabs the UI Settings own (UISchema) are not the app's.
+  const hiddenTabs = useMemo(() => new Set((snapshot?.hiddenTabs ?? []).map((t) => t.fullName)), [snapshot]);
+  const appNames = useMemo(
+    () =>
+      snapshot && profile
+        ? [...snapshot.tabs.filter((t) => t.kind !== "recent" && !tabItemFor(t, tabItems ?? [], profile)).map((t) => t.fullName), ...hiddenTabs].sort()
+        : [],
+    [snapshot, tabItems, profile, hiddenTabs]
+  );
+  const appKey = `${org ?? ""}\u0000${profile ?? ""}\u0000${appNames.join("|")}`;
+  const [appMatch, setAppMatch] = useState<{ key: string; state: AppMatchState }>({ key: "", state: { status: "idle" } });
+  const [liveApps, setLiveApps] = useState<Record<string, LiveAppState>>({});
+  useEffect(() => {
+    setLiveApps({});
+    setAppMatch({ key: "", state: { status: "idle" } });
+  }, [org]);
+  useEffect(() => {
+    if (!on || !profile || !appNames.length || appMatch.key === appKey) return;
+    setAppMatch({ key: appKey, state: { status: "loading" } });
+    const settle = (state: AppMatchState) => setAppMatch((cur) => (cur.key === appKey ? { key: appKey, state } : cur));
+    window.lscApi.studioAppNav(profile, appNames).then(
+      (res) => {
+        const error = res.error ?? res.data?.error;
+        const data = res.data as { app: { fullName: string; label: string; installed: boolean } | null; reason?: string };
+        settle(error ? { status: "error", error: String(error) } : { status: "ready", app: data.app, reason: data.reason });
+      },
+      (e: unknown) => settle({ status: "error", error: String(e) })
+    );
+  }, [on, profile, appNames, appKey, appMatch.key]);
+  const fetchApp = useCallback((name: string) => {
+    setLiveApps((m) => ({ ...m, [name]: { status: "loading" } }));
+    window.lscApi.studioMetadataDoc("CustomApplication", name).then(
+      (res) => {
+        const error = res.error ?? res.data?.error;
+        setLiveApps((m) => ({ ...m, [name]: error ? { status: "error", error: String(error) } : { status: "ready", live: res.data as LiveApp } }));
+      },
+      (e: unknown) => setLiveApps((m) => ({ ...m, [name]: { status: "error", error: String(e) } }))
+    );
+  }, []);
+  const matchedApp = appMatch.key === appKey && appMatch.state.status === "ready" ? appMatch.state.app : null;
+  useEffect(() => {
+    if (on && matchedApp && !liveApps[matchedApp.fullName]) fetchApp(matchedApp.fullName);
+  }, [on, matchedApp, liveApps, fetchApp]);
+  // A write changed the app: read it again (blanked meanwhile, so a draft isn't diffed against the old tabs).
+  const seenAppWrite = useRef(writeVersion);
+  useEffect(() => {
+    if (writeVersion === seenAppWrite.current) return;
+    seenAppWrite.current = writeVersion;
+    for (const name of Object.keys(liveApps)) fetchApp(name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [writeVersion]);
+  const matchState: AppMatchState = appMatch.key === appKey ? appMatch.state : { status: on && appNames.length ? "loading" : "idle" };
+  const appBar = useMemo(() => buildAppBar(bar0, matchState, liveApps, overlay, hiddenTabs), [bar0, matchState, liveApps, overlay, hiddenTabs]);
+  const app = appBar.entry;
+  // Published shows the bar as the cache drew it; Draft lays the app's edits (and what Setup added since) over it.
+  const tabs = draft ? appBar.bar : bar0;
   const homeMenu = useMemo(
     () =>
       snapshot && profile
@@ -346,12 +405,15 @@ export function usePreviewEdit({
         const moves = componentVerbs(pageDraft, pageItem.key, tab ? selected.title : selected.label, pageItem.shown, tab);
         return tab ? moves : [...moves, insertVerb(pageDraft, pageItem.key, catalog)];
       }
-      return blockVerbs(selected, { tabs, homeMenu, pending, profile, layouts, compacts, listViews, snapshot });
+      return blockVerbs(selected, { tabs, homeMenu, pending, profile, layouts, compacts, listViews, snapshot, app });
     }
     // A group verb runs block by block, each against the tray the last one left, so the drafts are rebuilt from it.
-    const at = (t: EditTarget, p: PendingChange[]) =>
-      blockVerbs(t, {
-        tabs: snapshot ? draftTabs(snapshot.tabs, tabItems ?? [], p, profile) : [],
+    const at = (t: EditTarget, p: PendingChange[]) => {
+      const bar = snapshot ? draftTabs(snapshot.tabs, tabItems ?? [], p, profile) : [];
+      const withApp = buildAppBar(bar, matchState, liveApps, p, hiddenTabs);
+      return blockVerbs(t, {
+        app: withApp.entry,
+        tabs: withApp.bar,
         homeMenu: snapshot ? draftHomeMenu(snapshot.screens?.fabs?.home ?? [], actionItems ?? [], p, profile) : [],
         pending: p,
         profile,
@@ -360,8 +422,9 @@ export function usePreviewEdit({
         listViews: buildListViews(liveListViews, snapshot, p),
         snapshot,
       });
+    };
     return groupVerbs(selection, pending, at, selectionNoun(selected, selection.length));
-  }, [selected, selection, tabs, homeMenu, pending, profile, layouts, compacts, listViews, snapshot, tabItems, actionItems, liveLayouts, liveCompacts, liveListViews, pageDraft, pageItem, catalog]);
+  }, [selected, selection, tabs, homeMenu, pending, profile, layouts, compacts, listViews, snapshot, tabItems, actionItems, liveLayouts, liveCompacts, liveListViews, pageDraft, pageItem, catalog, app, matchState, liveApps, hiddenTabs]);
   const groupName = selected && selection.length > 1 ? `${selection.length} ${selectionNoun(selected, selection.length)}` : undefined;
   // The selected component's property definitions: its js-meta.xml or the curated table, read once per component.
   const [propDefs, setPropDefs] = useState<Record<string, ComponentProps | "loading" | { error: string }>>({});
@@ -384,16 +447,39 @@ export function usePreviewEdit({
   const loadedProps = propState && propState !== "loading" && !("error" in propState) ? propState : null;
   const properties = useMemo(() => (pageDraft && pageItem ? propertyEdits(pageDraft, pageItem.key, loadedProps) : []), [pageDraft, pageItem, loadedProps]);
 
+  // The selected tab, when it comes from the Lightning app (it has no UI Settings record behind it).
+  const selectedBar = selected?.kind === "tab" ? tabs.find((d) => d.tab.fullName === selected.fullName) : undefined;
+  const fromApp = !!selectedBar && !selectedBar.item && !selectedBar.create && selectedBar.tab.kind !== "recent";
+  const appInfo = useMemo((): AppNavInfo | undefined => {
+    if (!fromApp || !selectedBar) return undefined;
+    const name = selectedBar.tab.fullName;
+    if (app.status === "ready") {
+      const d = app.draft;
+      return { app: { fullName: d.fullName, label: d.label, installed: d.live.installed }, editable: isAppTab(d, name), packaged: d.live.fixedTabs.includes(name) };
+    }
+    const known = matchState.status === "ready" ? matchState.app : null;
+    const note =
+      app.status === "stale"
+        ? app.note
+        : app.status === "error"
+          ? `Couldn't read the app from the org: ${app.error}`
+          : app.status === "loading"
+            ? "Reading the app from the org…"
+            : undefined;
+    return { app: known, editable: false, packaged: false, note };
+  }, [fromApp, selectedBar, app, matchState]);
   const info = useMemo(
     () =>
       selected && snapshot && profile
-        ? describeTarget(selected, { snapshot, profile, pending: overlay, tabs, homeMenu })
+        ? describeTarget(selected, { snapshot, profile, pending: overlay, tabs, homeMenu, app: appInfo })
         : null,
-    [selected, snapshot, profile, overlay, tabs, homeMenu]
+    [selected, snapshot, profile, overlay, tabs, homeMenu, appInfo]
   );
   const layoutEntry = selected && "layout" in selected && selected.layout ? layouts[selected.layout] : undefined;
   const baseStatus =
-    selected?.kind === "headerField"
+    fromApp
+      ? appStatusOf(app)
+      : selected?.kind === "headerField"
       ? compactStatusOf(compacts[selected.compactLayout])
       : selected?.kind === "listView" || selected?.kind === "listColumn"
         ? listViewStatusOf(listViews[listViewNameOf(selected)], snapshot?.objects[selected.object]?.listViews)
@@ -405,6 +491,7 @@ export function usePreviewEdit({
   const copyAction = useMemo((): CopyAction | undefined => {
     if (!profile || !selected) return undefined;
     if (selected.kind === "headerField") return { kind: "explain", text: COMPACT_COPY_NOTE(profile) };
+    if (fromApp && app.status === "ready") return { kind: "explain", text: APP_COPY_NOTE };
     const here = (name: string) => name.toLowerCase() === profile.toLowerCase();
     const target = pageDraft
       ? {
@@ -443,7 +530,7 @@ export function usePreviewEdit({
         onPendingChange(queueChange(pending, { fix, affects: [profile] }));
       },
     };
-  }, [profile, selected, selectedPage, pageDraft, layoutEntry, pending, onPendingChange]);
+  }, [profile, selected, selectedPage, pageDraft, layoutEntry, pending, onPendingChange, fromApp, app]);
   const layoutStatus =
     copyAction?.kind === "queued" && baseStatus && !baseStatus.loading
       ? { ...baseStatus, profiles: undefined, reach: `Only ${profile}. A copy made for them: changes here reach no other profile.` }
@@ -476,6 +563,8 @@ export function usePreviewEdit({
     (t: EditTarget, { list, before }: EditDrop): boolean => {
       if (!snapshot || !profile) return false;
       const moved = ((): PendingChange[] | null => {
+        if (t.kind === "tab" && app.status === "ready" && isAppTab(app.draft, t.fullName))
+          return moveAppTabTo(app.draft, t.fullName, before?.kind === "tab" ? before.fullName : null, tabs.filter((d) => d.state !== "removed").map((d) => d.tab.fullName), pending);
         if (t.kind === "tab")
           return moveTabTo(snapshot.tabs, tabItems ?? [], profile, t.fullName, before?.kind === "tab" ? before.fullName : null, pending);
         if (t.kind === "action" && t.place === "home")
@@ -517,7 +606,7 @@ export function usePreviewEdit({
       onPendingChange(moved);
       return true;
     },
-    [snapshot, profile, tabItems, actionItems, compacts, layouts, pages, listViews, pending, onPendingChange]
+    [snapshot, profile, tabItems, actionItems, compacts, layouts, pages, listViews, pending, onPendingChange, app, tabs]
   );
   const openSetup = useCallback(
     (link?: SetupLink) => {
@@ -570,7 +659,7 @@ export function usePreviewEdit({
         <BlockInspector
           key={JSON.stringify(selected) + selection.length}
           info={info}
-          orgAhead={orgAhead && selected ? orgAheadFor(orgAhead, selected) : undefined}
+          orgAhead={orgAhead && selected ? (orgAheadFor(orgAhead, selected) ?? (fromApp && matchedApp ? orgAheadApp(orgAhead, matchedApp.fullName) : undefined)) : undefined}
           profile={profile}
           verbs={verbs}
           draft={draft}
@@ -579,7 +668,9 @@ export function usePreviewEdit({
           layout={layoutStatus}
           copy={copyAction}
           onRetryLayout={
-            selected?.kind === "headerField"
+            fromApp && matchedApp
+              ? () => fetchApp(matchedApp.fullName)
+              : selected?.kind === "headerField"
               ? () => fetchCompact(selected.compactLayout)
               : selected?.kind === "listView" || selected?.kind === "listColumn"
                 ? () => fetchListView(listViewNameOf(selected))
@@ -624,7 +715,9 @@ export function usePreviewEdit({
           <SearchPicker
             title={picking.pick.title}
             eyebrow={
-              selected?.kind === "headerField"
+              fromApp && app.status === "ready"
+                ? `Lightning app · ${app.draft.label}`
+                : selected?.kind === "headerField"
                 ? "Compact layout · record header"
                 : selected?.kind === "listView" || selected?.kind === "listColumn"
                   ? `List view · ${selected.kind === "listView" ? selected.label : selected.viewLabel}`
@@ -638,7 +731,7 @@ export function usePreviewEdit({
             options={picking.pick.options}
             placeholder={picking.pick.placeholder}
             emptyTitle={picking.pick.empty}
-            emptyIcon={picking.id === "addField" ? TextCursorInput : picking.id === "insertComponent" ? SquarePlus : ListPlus}
+            emptyIcon={picking.id === "addField" ? TextCursorInput : picking.id === "insertComponent" ? SquarePlus : picking.id === "addTab" ? PanelTopOpen : ListPlus}
             onPick={pick}
             onCancel={() => setPicking(null)}
           />
@@ -807,14 +900,21 @@ export interface VerbContext {
   compacts: Record<string, CompactEntry>;
   listViews: Record<string, ListViewEntry>;
   snapshot: PublishedIpad | null;
+  /** The profile's Lightning app: the tabs it owns are arranged by its own change. */
+  app: AppEntry;
 }
 
 /** The verbs for one block. Blocks are found again by name: a move changes their index. */
-export function blockVerbs(selected: EditTarget, { tabs, homeMenu, pending, profile, layouts, compacts, listViews, snapshot }: VerbContext): Verb[] {
+export function blockVerbs(selected: EditTarget, { tabs, homeMenu, pending, profile, layouts, compacts, listViews, snapshot, app }: VerbContext): Verb[] {
   if (!profile) return [];
   if (selected.kind === "tab") {
     const i = tabs.findIndex((d) => d.tab.fullName === selected.fullName);
-    return i < 0 ? [] : tabVerbs(tabs, i, pending, profile);
+    if (i < 0) return [];
+    if (app.status === "ready" && !tabs[i].item && !tabs[i].create) {
+      if (isAppTab(app.draft, selected.fullName)) return appTabVerbs(app.draft, selected.fullName, tabs[i].tab.label);
+      if (app.draft.live.fixedTabs.includes(selected.fullName)) return appFixedTabVerbs(app.draft);
+    }
+    return tabVerbs(tabs, i, pending, profile);
   }
   if (selected.kind === "action" && selected.place === "home") {
     const i = homeMenu.findIndex((d) => d.value.name === selected.name);
@@ -891,6 +991,26 @@ const COMPACT_NOT_PUBLISHED =
 
 const LAYOUT_NOT_PUBLISHED =
   "This profile's last publish doesn't have this page layout (it was assigned or created in Setup afterwards), so there is nothing to draw it on yet. Publish to iPad to edit it here.";
+
+const APP_COPY_NOTE =
+  "An app's navigation can't be copied for one profile from here: every profile that opens the app shares it. To give one profile its own tab bar, make a copy of the app in App Manager and assign it to that profile.";
+
+/** What the inspector says about a tab that comes from the Lightning app. */
+function appStatusOf(entry: AppEntry): LayoutStatus | undefined {
+  const noun = "app";
+  switch (entry.status) {
+    case "none":
+      return undefined;
+    case "loading":
+      return { loading: true, noun };
+    case "error":
+      return { problem: `Couldn't read the app from the org: ${entry.error}`, canRetry: true, noun };
+    case "stale":
+      return { problem: entry.note, profiles: entry.live?.profiles, production: entry.live?.production, noun };
+    case "ready":
+      return { profiles: entry.draft.live.profiles, production: entry.draft.live.production, noun };
+  }
+}
 
 /** What the inspector says about the selected block's layout. */
 export interface LayoutStatus {

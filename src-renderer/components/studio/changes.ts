@@ -1,5 +1,5 @@
 import type { ScriptDetail, ScriptFields, ScriptRole, ScriptSummary, StageObjectRow, CreateCustomScriptFix } from "./scripts/script-types";
-import type { CompactOp, CopyForProfileFix, CreateConfigFix, FlexiPageOp, ItemEdit, LayoutOp, ListViewOp, StudioFix, StudioItem } from "./types";
+import type { AppOp, CompactOp, CopyForProfileFix, CreateConfigFix, FlexiPageOp, ItemEdit, LayoutOp, ListViewOp, StudioFix, StudioItem } from "./types";
 
 /**
  * Pending changes — edits queued in Studio's tray until the admin reviews and
@@ -374,6 +374,17 @@ export function queuedCompactOps(pending: PendingChange[], fullName: string): Co
 /** A compact layout change with these ops — what's queued for the compact layout is replaced by it. */
 export function compactOpsChange(fullName: string, label: string, ops: CompactOp[]): StudioFix {
   return { kind: "editMetadata", label: `Edit compact layout ${label}`, doc: { type: "CompactLayout", fullName, label }, ops };
+}
+
+/** The tab ops queued for a Lightning app. */
+export function queuedAppOps(pending: PendingChange[], fullName: string): AppOp[] {
+  const queued = pending.find((p) => p.fix.kind === "editMetadata" && p.fix.doc.type === "CustomApplication" && p.fix.doc.fullName === fullName)?.fix;
+  return queued?.kind === "editMetadata" && queued.doc.type === "CustomApplication" ? (queued.ops as AppOp[]) : [];
+}
+
+/** A Lightning app change with these ops: what is queued for the app is replaced by it. */
+export function appOpsChange(fullName: string, label: string, ops: AppOp[]): StudioFix {
+  return { kind: "editMetadata", label: `Edit app ${label}`, doc: { type: "CustomApplication", fullName, label }, ops };
 }
 
 /** The list view ops queued for a list view ("Object.Name"). */

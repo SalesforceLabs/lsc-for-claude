@@ -104,6 +104,7 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioItemDetail: (kind, id) =>
     ipcRenderer.invoke("studio:call", "studio_item_detail", { kind, id }),
   studioMetadataDoc: (type, fullName) => ipcRenderer.invoke("studio:call", "studio_metadata_doc", { type, fullName }),
+  studioAppNav: (profile, tabs) => ipcRenderer.invoke("studio:call", "studio_app_nav", { profile, tabs }),
   studioPageReach: (fullName) => ipcRenderer.invoke("studio:call", "studio_page_reach", { fullName }),
   studioComponentCatalog: (pageType, sobject) => ipcRenderer.invoke("studio:call", "studio_component_catalog", { pageType, sobject }),
   studioComponentProps: (component, pageType) => ipcRenderer.invoke("studio:call", "studio_component_props", { component, pageType }),
