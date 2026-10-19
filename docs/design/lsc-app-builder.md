@@ -1,0 +1,216 @@
+# LSC App Builder ("vibe code an LSC App") — design & contracts
+
+Studio → **Build → LSC apps**. A user describes an app in plain words ("show the rep a list of
+recommended actions from Next Best Action as a stylized to-do list; tapping one shows its
+details"). Roz's model (the app's saved connection) plans it against the org's real schema, writes
+an LSC App (an `lscMobileInline_*` LWC bundle, plus nested `c/` children), Studio compiles and
+checks it, the model repairs what fails, and the user sees it **running live in an iPad frame
+before anything is deployed**. Follow-ups iterate ("make the cards denser", "add a filter by
+priority"). **Deploy** writes the bundle (and, for record pages, the LWC quick action) to the org;
+**Add to iPad** places it on the Home page or a record page tab through the existing pending-changes
+tray (FlexiPage `addComponent` op), then **Publish to iPad**.
+
+## LSC App rules (from Salesforce Help, release 264)
+
+Sources: `ind.lsc_custom_lwc_apps`, `..._create_and_add_lwc_to_home_page`,
+`..._create_and_add_lwc_as_inline_component_on_record_page`, `lsc_custom_lwc_apps_offline_*`,
+and `knowledge/modules/lsc-apps/release-264-offline-and-nested-components.md`.
+
+- API name of the **parent** bundle starts with `lscMobileInline_`. Children (nested components)
+  have no prefix and no targets requirement; they can be reused across apps.
+- **Home page**: `.js-meta.xml` has `isExposed=true`, targets `lightning__HomePage` **and**
+  `lightning__UrlAddressable` (both required or it doesn't render on mobile), and the
+  `lightning__HomePage` targetConfig has `<property name="mobileHeight" type="Integer" .../>`.
+- **Record page tab**: targets `lightning__RecordPage` and `lightning__RecordAction`; the
+  `lightning__RecordPage` targetConfig has the Integer `mobileHeight` property. The component
+  takes `@api recordId` and `@api objectApiName`. On iPad it also needs a Quick Action of type
+  LightningWebComponent on the object whose **Name equals the component name** (hidden from the
+  action menu because of the prefix). Studio deploys that quick action with the bundle.
+- Only one LSC app per page (Home or record page) is recommended.
+- Users need access to every object/field used.
+- Offline (Admin Console > Mobile > Application Settings > "Use Mobile Apps offline"): supported
+  adapters are `lightning/uiRecordApi` (getRecord, createRecord, updateRecord, deleteRecord,
+  getRecordCreateDefaults, getLayout, getRecordUi, getLookupRecords), `getRelatedListRecords`
+  (`lightning/uiRelatedListApi`), `getObjectInfo(s)`, `getPicklistValues(ByRecordType)`
+  (`lightning/uiObjectInfoApi`), and `graphql` from **`lightning/uiGraphQLApi`** (Winter '27; not
+  `lightning/graphql`; no aggregates, no mutations, pagination on top-level only, no dynamic query
+  construction). Apex, Connect API, Apex REST, REST SOQL, `fetch`, `lightning-map`,
+  `lightning-file-upload` need the network. Only data in the synced DB Schema exists offline.
+- OmniStudio is not available on the iPad.
+
+The builder's default: **offline-first** — GraphQL via `lightning/uiGraphQLApi` (static query
+string in a `gql` template literal, `$`-variables for reactivity) or uiRecordApi; never Apex
+unless the user insists (then a warning).
+
+## Contracts
+
+### Files
+
+```ts
+// same shape as LwcFile in src/studio/screens/inline-lwc.ts
+interface AppFile { bundle: string; path: string; source: string } // path: "lwc/<bundle>/<file>"
+type AppTarget = "home" | "record";
+```
+
+### MCP tools (src/tools/studio.ts → src/studio/apps/*). `studio_` prefix = hidden from chat.
+
+Read-only (always registered):
+
+| Tool | Input | Output |
+|---|---|---|
+| `studio_app_check` | `{ name, target, objectApiName?, files: AppFile[] }` | `AppCheckResult` (no org needed for compile; uses the org only for the DB-Schema sync check when connected) |
+| `studio_app_describe` | `{ objects: string[] }` (≤ 8) | `{ objects: AppObjectInfo[] }` |
+| `studio_app_sample` | `{ soql }` (SELECT only, LIMIT forced ≤ 5) | `{ records: Row[], totalSize }` |
+| `studio_app_list` | `{}` | `{ apps: OrgApp[] }` — the org's `lscMobileInline_*` bundles |
+| `studio_app_guide` | `{}` | `{ guide: string }` — the builder's system prompt |
+| `studio_app_source` | `{ name }` | `{ name, target, objectApiName?, files: AppFile[] }` (parent + `c/` children it uses) |
+
+Write (registered only with `LSC_STUDIO_FIXES=1`; refused from chat like every studio_ tool):
+
+| Tool | Input | Output |
+|---|---|---|
+| `studio_app_deploy` | `{ name, target, objectApiName?, files, expectedOrg }` | `AppDeployResult` |
+
+```ts
+interface AppIssue {
+  severity: "error" | "warning" | "info";
+  /** Stable id, e.g. "meta.missing-urladdressable", "compile", "offline.apex". */
+  rule: string;
+  message: string;            // plain words, for the user and the model
+  path?: string;              // file it's in
+  line?: number;
+  fix?: string;               // what to do, for the model's repair round
+}
+interface AppCheckResult {
+  ok: boolean;                // no "error" issues and it compiled
+  issues: AppIssue[];
+  offline: InlineLwcCheck;    // from checkInlineLwc
+  /** Compiled IIFE for the live frame (same as studio_lwc_bundle's script); absent when it didn't compile. */
+  script?: string;
+  placeholders: string[];
+  /** mobileHeight default read from the meta file. */
+  mobileHeight?: number;
+  /** Objects the source reads (GraphQL / uiRecordApi fields), and whether DB Schema syncs them to the iPad. */
+  objects?: { name: string; synced: boolean | null }[];
+}
+interface AppObjectInfo {
+  name: string; label: string; exists: boolean;
+  synced: boolean | null;     // an active DB Schema record exists for it (null = couldn't check)
+  recordCount?: number;       // COUNT(), capped/omitted when slow
+  fields: { name: string; label: string; type: string; referenceTo?: string[]; picklist?: string[] }[]; // ≤ 120, no system noise
+  childRelationships?: { name: string; object: string; field: string }[]; // ≤ 30
+}
+interface OrgApp {
+  name: string; label: string; target: AppTarget | null; objectApiNames?: string[];
+  lastModifiedDate?: string; lastModifiedBy?: string; description?: string;
+}
+interface AppDeployResult {
+  ok: boolean;
+  deployed: string[];         // "LightningComponentBundle:lscMobileInline_X", "QuickAction:Account.lscMobileInline_X"
+  error?: string;
+  warnings: string[];
+  production: boolean;
+}
+```
+
+### Electron main (src-electron/engine/app-builder*.ts, src-electron/ipc/app-builder.ts)
+
+Projects are stored per org (connection username) in the app's SQLite (like perf-store).
+
+```ts
+interface AppProject {
+  id: string; org: string;     // org username, lowercased
+  name: string;                // bundle API name, lscMobileInline_Xxx
+  label: string;               // "Next best actions"
+  target: AppTarget; objectApiName?: string;
+  createdAt: string; updatedAt: string;
+  turns: AppTurn[];
+  versions: AppVersion[];      // newest last
+  currentVersionId: string | null;
+  deployed?: { versionId: string; at: string; deployed: string[] };
+  importedFrom?: string;       // an org app it started from
+}
+interface AppTurn {
+  id: string; prompt: string; at: string;
+  status: "running" | "done" | "failed" | "stopped";
+  steps: AppStep[];            // the visible timeline
+  reply: string;               // the model's narrative (markdown), streamed
+  versionId?: string;          // the version this turn produced
+  error?: string;
+}
+interface AppStep {
+  id: string;
+  kind: "plan" | "describe" | "sample" | "write" | "check" | "repair" | "note";
+  label: string;               // "Looking at RecommendedAction fields", "Writing todoList.html"
+  status: "running" | "done" | "failed";
+  detail?: string;             // e.g. "3 errors: …"
+  startedAt: string; endedAt?: string;
+}
+interface AppVersion {
+  id: string; at: string; source: "ai" | "manual" | "org";
+  files: AppFile[];
+  check: Omit<AppCheckResult, "script">;
+  turnId?: string; note?: string;
+}
+type AppBuilderEvent =
+  | { type: "turn"; turn: AppTurn }                         // turn created / status changed
+  | { type: "step"; turnId: string; step: AppStep }          // added or updated (by id)
+  | { type: "reply-delta"; turnId: string; text: string }
+  | { type: "writing"; turnId: string; path: string; chars: number } // live file-writing progress
+  | { type: "version"; version: AppVersion }
+  | { type: "project"; project: AppProject };               // full refresh (rare)
+```
+
+`window.lscApi` additions (preload.cjs, types in src-renderer/types.d.ts):
+
+```ts
+appList(): Promise<AppProject[]>                       // selected org's projects, newest first (turns/versions included)
+appGet(id): Promise<AppProject | null>
+appCreate(input: { prompt: string; target: AppTarget; objectApiName?: string }): Promise<{ project?: AppProject; error?: string }> // starts turn 1
+appSend(id, prompt): Promise<{ ok: boolean; error?: string }>  // starts a follow-up turn
+appStop(id): Promise<void>
+appDelete(id): Promise<void>
+appRename(id, label): Promise<void>
+appRestore(id, versionId): Promise<{ version?: AppVersion; error?: string }> // copies an old version as the new current one
+appEditFile(id, path, source): Promise<{ version?: AppVersion; error?: string }> // manual edit → new checked version
+appPreview(id, versionId?): Promise<{ script?: string; placeholders: string[]; check?: AppCheckResult; error?: string }>
+appDeploy(id): Promise<{ result?: AppDeployResult; error?: string }>
+appImport(name): Promise<{ project?: AppProject; error?: string }> // from studio_app_source
+appOrgApps(): Promise<{ apps?: OrgApp[]; error?: string }>
+appDescribe(objects: string[]): Promise<{ objects?: AppObjectInfo[]; error?: string }>
+onAppEvent(cb: (e: { projectId: string; event: AppBuilderEvent }) => void): () => void
+```
+
+### Builder loop (main process)
+
+System prompt = `src/studio/apps/guide.ts` `APP_BUILDER_GUIDE`. Electron main doesn't import
+`src/`, so the server exposes it as the read-only tool `studio_app_guide` → `{ guide: string }`,
+read once per turn. The model gets tools with
+**builder-local names** (not MCP names):
+
+- `describe_objects({ objects })` → studio_app_describe
+- `sample_records({ soql })` → studio_app_sample
+- `write_app({ label?, files, notes? })` → full file set for every bundle it changes (unchanged files may be omitted; deletions via `delete: string[]`); main merges, runs studio_app_check, and returns the issues as the tool result. A version is recorded for each write; the turn's version is the last that compiled.
+- `finish({ summary })` — ends the turn.
+
+Up to 12 rounds; at most 4 repair rounds after failing checks. Streams `reply-delta` from text,
+`writing` from the `write_app` input JSON as it streams.
+
+### Renderer (src-renderer/components/studio/builder/)
+
+Rail: new section **Build** (above Testing) with **LSC apps** (`Sparkles`). Views:
+
+1. **Gallery**: hero composer ("Describe an app for your reps…", target picker Home / Record page
+   + object), 4–6 example prompts as chips, the selected org's projects as cards (label, target,
+   status: Draft / Deployed / Changed since deploy), and "Start from an app in this org"
+   (studio_app_list → appImport).
+2. **Workspace**: two panes. Left: the conversation (prompts, step timeline with live Spinner /
+   StatusIcon, streamed reply, version chips "v3 · compiled", composer at the bottom with ⌘↵).
+   Right: header (label, target pill, version picker, **Deploy** primary, **Add to iPad**),
+   `Segmented` Preview / Code / Checks. Preview = iPad-sized frame (Home card or record tab
+   chrome) running the compiled script live (reuse `inlineLwcFrame`, `studio_lwc_request`),
+   record picker for record targets, mobileHeight readout; Code = file tree + highlighted source,
+   editable (save = appEditFile); Checks = issues grouped by severity + offline/DB-Schema notes.
+3. **Add to iPad**: after deploy, Home → opens the iPad preview in Draft and queues an
+   `addComponent` on the profile's Home page (or opens Insert component… preselected); Record →
+   the object's record page tab.
