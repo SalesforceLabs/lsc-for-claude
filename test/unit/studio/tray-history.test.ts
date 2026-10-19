@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { describeStep, emptyHistory, HISTORY_LIMIT, record, redo, undo } from "../../../src-renderer/components/studio/tray-history.js";
+import { describeStep, emptyHistory, HISTORY_LIMIT, record, redo, undo, withoutApplied } from "../../../src-renderer/components/studio/tray-history.js";
 import type { PendingChange } from "../../../src-renderer/components/studio/changes.js";
 
 const change = (id: string, label = `Change ${id}`): PendingChange =>
@@ -44,5 +44,20 @@ describe("tray history", () => {
     // A layout's change replaced by its next arrangement is that change.
     const a2 = change("a", "Edit layout");
     expect(describeStep([a], [a2])).toBe("Edit layout");
+  });
+});
+
+describe("tray after apply", () => {
+  it("drops the applied changes at once and keeps blocked or failed ones", () => {
+    const [a, b, c] = [change("a"), change("b"), change("c")];
+    expect(withoutApplied([a, b, c], [a, c])).toEqual([b]);
+    expect(withoutApplied([a], [a])).toEqual([]);
+    expect(withoutApplied([a, b], [])).toEqual([a, b]);
+  });
+
+  it("matches by change, so a re-review can't send an applied change again", () => {
+    const a = change("a");
+    const sameChangeRebuilt = change("a");
+    expect(withoutApplied([sameChangeRebuilt], [a])).toEqual([]);
   });
 });

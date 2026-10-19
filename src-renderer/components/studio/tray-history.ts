@@ -33,6 +33,12 @@ export function redo(h: TrayHistory): TrayHistory {
   return { past: [...h.past, h.present], present: h.future[0], future: h.future.slice(1) };
 }
 
+/** The tray once `done` have been written to the org: they are no longer pending, whatever the dialog shows. */
+export function withoutApplied(pending: PendingChange[], done: PendingChange[]): PendingChange[] {
+  const keys = new Set(done.map((c) => changeKey(c.fix)));
+  return pending.filter((c) => !keys.has(changeKey(c.fix)));
+}
+
 /** What stepping from `from` to `to` does, for the button's tooltip: "Edit page layout Account Layout". */
 export function describeStep(from: PendingChange[], to: PendingChange[]): string {
   const keyed = (l: PendingChange[]) => new Map(l.map((p) => [changeKey(p.fix), p]));

@@ -18,6 +18,8 @@ interface ReviewDialogProps {
    */
   onClose: (applied: PendingChange[], remaining: PendingChange[]) => void;
   onPublish: (profiles: string[] | null) => void;
+  /** Changes just written to the org, as soon as they are — they must leave the tray now, not when the dialog closes. */
+  onApplied?: (done: PendingChange[]) => void;
 }
 
 type Outcome = { state: "ok"; result: FixResult } | { state: "failed"; message: string } | { state: "skipped"; message: string };
@@ -41,7 +43,7 @@ const ready = (p: FixPreview | string | undefined): p is FixPreview => typeof p 
  * button, which names the org. Applied changes can be undone together, which
  * goes through the same review.
  */
-export default function ReviewDialog({ changes: initial, org, onClose, onPublish }: ReviewDialogProps) {
+export default function ReviewDialog({ changes: initial, org, onClose, onPublish, onApplied }: ReviewDialogProps) {
   const [changes, setChanges] = useState(initial);
   const [phase, setPhase] = useState<Phase>({ step: "previewing" });
   // Everything applied across this dialog's lifetime (including undos), for the refresh + publish.
@@ -86,6 +88,7 @@ export default function ReviewDialog({ changes: initial, org, onClose, onPublish
       setPhase({ step: "applying", previews, outcomes: [...outcomes] });
     }
     setApplied((a) => [...a, ...done]);
+    if (done.length > 0) onApplied?.(done);
     setPhase({ step: "done", previews, outcomes: outcomes as Outcome[] });
   };
 

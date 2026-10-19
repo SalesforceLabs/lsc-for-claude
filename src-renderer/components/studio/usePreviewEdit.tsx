@@ -128,9 +128,8 @@ export function usePreviewEdit({
     if (on && layout) names.add(layout);
     return [...names].sort();
   }, [pending, selected, on]);
-  const fetchLayout = useCallback((name: string, keep = false) => {
-    // After a write the document on screen stays (and is replaced when the new one arrives).
-    setLiveLayouts((m) => (keep && m[name]?.status === "ready" ? m : { ...m, [name]: { status: "loading" } }));
+  const fetchLayout = useCallback((name: string) => {
+    setLiveLayouts((m) => ({ ...m, [name]: { status: "loading" } }));
     window.lscApi.studioMetadataDoc("Layout", name).then(
       (res) => {
         const error = res.error ?? res.data?.error;
@@ -151,9 +150,8 @@ export function usePreviewEdit({
     if (on && selected?.kind === "headerField") names.add(selected.compactLayout);
     return [...names].sort();
   }, [pending, selected, on]);
-  const fetchCompact = useCallback((name: string, keep = false) => {
-    // After a write the document on screen stays (and is replaced when the new one arrives).
-    setLiveCompacts((m) => (keep && m[name]?.status === "ready" ? m : { ...m, [name]: { status: "loading" } }));
+  const fetchCompact = useCallback((name: string) => {
+    setLiveCompacts((m) => ({ ...m, [name]: { status: "loading" } }));
     window.lscApi.studioMetadataDoc("CompactLayout", name).then(
       (res) => {
         const error = res.error ?? res.data?.error;
@@ -174,9 +172,8 @@ export function usePreviewEdit({
     if (on && (selected?.kind === "listView" || selected?.kind === "listColumn")) names.add(listViewNameOf(selected));
     return [...names].sort();
   }, [pending, selected, on]);
-  const fetchListView = useCallback((name: string, keep = false) => {
-    // After a write the document on screen stays (and is replaced when the new one arrives).
-    setLiveListViews((m) => (keep && m[name]?.status === "ready" ? m : { ...m, [name]: { status: "loading" } }));
+  const fetchListView = useCallback((name: string) => {
+    setLiveListViews((m) => ({ ...m, [name]: { status: "loading" } }));
     window.lscApi.studioMetadataDoc("ListView", name).then(
       (res) => {
         const error = res.error ?? res.data?.error;
@@ -198,9 +195,8 @@ export function usePreviewEdit({
     if (on && selectedPage) names.add(selectedPage);
     return [...names].sort();
   }, [pending, selectedPage, on]);
-  const fetchPage = useCallback((name: string, keep = false) => {
-    // After a write the document on screen stays (and is replaced when the new one arrives).
-    setLivePages((m) => (keep && m[name]?.status === "ready" ? m : { ...m, [name]: { status: "loading" } }));
+  const fetchPage = useCallback((name: string) => {
+    setLivePages((m) => ({ ...m, [name]: { status: "loading" } }));
     window.lscApi.studioMetadataDoc("FlexiPage", name).then(
       (res) => {
         const error = res.error ?? res.data?.error;
@@ -225,15 +221,16 @@ export function usePreviewEdit({
     for (const name of wantedPages) if (!livePages[name]) fetchPage(name);
   }, [wantedPages, livePages, fetchPage]);
 
-  // A write changed documents we hold: read the ones in use again, without blanking them.
+  // A write changed documents we hold. They are blanked while read again: a draft diffed against the
+  // pre-write document would re-send ops that are already in the org.
   const seenWrite = useRef(writeVersion);
   useEffect(() => {
     if (writeVersion === seenWrite.current) return;
     seenWrite.current = writeVersion;
-    for (const name of Object.keys(liveLayouts)) fetchLayout(name, true);
-    for (const name of Object.keys(liveCompacts)) fetchCompact(name, true);
-    for (const name of Object.keys(liveListViews)) fetchListView(name, true);
-    for (const name of Object.keys(livePages)) fetchPage(name, true);
+    for (const name of Object.keys(liveLayouts)) fetchLayout(name);
+    for (const name of Object.keys(liveCompacts)) fetchCompact(name);
+    for (const name of Object.keys(liveListViews)) fetchListView(name);
+    for (const name of Object.keys(livePages)) fetchPage(name);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [writeVersion]);
 
