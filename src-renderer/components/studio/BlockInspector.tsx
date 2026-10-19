@@ -25,6 +25,7 @@ import {
   X,
   ListPlus,
   TextCursorInput,
+  PanelTopOpen,
   SquarePlus,
   Star,
   type LucideIcon,
@@ -56,6 +57,7 @@ const ICONS: Record<VerbId, LucideIcon> = {
   addRelated: ListPlus,
   default: Star,
   insertComponent: SquarePlus,
+  addTab: PanelTopOpen,
 };
 
 /**

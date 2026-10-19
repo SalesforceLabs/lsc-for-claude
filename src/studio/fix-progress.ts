@@ -257,9 +257,9 @@ export function planFixSteps(fix: StudioFix, phase: "preview" | "apply"): Planne
         // A Lightning page's reach is only read on request from the review dialog: it means reading every app.
         ...(type === "ListView" || type === "FlexiPage" || apply
           ? []
-          : [{ key: "reach", label: type === "CompactLayout" ? `Finding the record types ${label} reaches` : `Finding the profiles ${label} reaches` }]),
+          : [{ key: "reach", label: type === "CompactLayout" ? `Finding the record types ${label} reaches` : type === "CustomApplication" ? `Finding the profiles that can open ${label}` : `Finding the profiles ${label} reaches` }]),
         ...(apply ? [] : [{ key: "production", label: "Checking whether this is a production org" }]),
-        ...(type === "Layout" && !apply ? [{ key: "validate", label: `Asking the org whether it would accept the change` }] : []),
+        ...((type === "Layout" || type === "CustomApplication") && !apply ? [{ key: "validate", label: `Asking the org whether it would accept the change` }] : []),
         ...(apply ? [{ key: "deploy", label: `Deploying ${label}` }] : []),
       ];
     }
