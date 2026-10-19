@@ -48,6 +48,8 @@ function transient(v: unknown, field: "error" | "detail" | "dataNote" | "note"):
  * the next open retries instead.
  */
 export function isCacheable(toolName: string, data: unknown): boolean {
+  // Live progress is only true now.
+  if (toolName.endsWith("_progress")) return false;
   if (!isObj(data) || marked(data)) return false;
   // A layout whose XML couldn't be retrieved.
   if (isObj(data.sidebar) && data.sidebar.relatedLists === null) return false;

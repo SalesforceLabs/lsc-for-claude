@@ -17,6 +17,7 @@ import { applyFix, previewFix } from "../studio/fixes.js";
 import { publishStatus, startPublish } from "../studio/publish.js";
 import { loadPublishedIpad, searchProfileUsers } from "../studio/published.js";
 import { loadProgress } from "../studio/published-progress.js";
+import { mapProgress, mapKey, readinessKey } from "../studio/map-progress.js";
 import { collectUnpublished } from "../studio/unpublished.js";
 import { fixProgress, startFixChange } from "../studio/fix-progress.js";
 import { compileInlineLwc } from "../studio/lwc/compile.js";
@@ -294,6 +295,13 @@ export function register(server: McpServer) {
       if (refresh) refreshSharedReads(org);
       return json(await withSharedReads(() => collectFeatureMap(feature, org)));
     }
+  );
+
+  server.tool(
+    "studio_feature_map_progress",
+    "LSC Studio (GUI data): which surface a running studio_feature_map (or, with `readiness`, studio_readiness) load for a feature is on — steps waiting / running / done / failed, with start and finish times and counts like \"12 layouts\" — or null when none has run. Read-only; makes no org calls. Returns JSON.",
+    { featureId: z.string().min(1).max(80), readiness: z.boolean().optional() },
+    async ({ featureId, readiness }) => json({ progress: mapProgress(readiness ? readinessKey(featureId) : mapKey(featureId)), now: Date.now() })
   );
 
   server.tool(

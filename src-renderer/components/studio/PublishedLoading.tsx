@@ -6,7 +6,7 @@ import { loadFraction, type LoadProgress, type LoadStep } from "./published-load
 
 const POLL_MS = 500;
 
-function stepTime(s: LoadStep, now: number): string {
+export function stepTime(s: LoadStep, now: number): string {
   if (!s.startedAt) return "";
   const ms = (s.endedAt ?? now) - s.startedAt;
   return ms < 950 ? `${Math.max(1, Math.round(ms / 10) * 10)} ms` : `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`;
@@ -68,7 +68,7 @@ export default function PublishedLoading({ profile }: { profile: string }) {
   );
 }
 
-function StepMark({ state }: { state: LoadStep["state"] }) {
+export function StepMark({ state }: { state: LoadStep["state"] }) {
   if (state === "running")
     return (
       <span className="studio-ipad-loading-mark" aria-label="Running">

@@ -8,6 +8,7 @@ import FixButtons from "./FixButtons";
 import { askPrompt, byStage, sortForAttention, summarize, verdictText, verdictTone, type ReadinessState } from "./readiness";
 import { isRevalidating } from "./fix-effects";
 import "./readiness.css";
+import FeatureLoading from "./FeatureLoading";
 import { AssistantName } from "../../hooks/useAssistantName";
 
 const STATUS_TEXT: Record<ReadinessCheck["status"], string> = {
@@ -18,6 +19,7 @@ const STATUS_TEXT: Record<ReadinessCheck["status"], string> = {
 };
 
 interface ReadinessViewProps {
+  featureId: string;
   title: string;
   state: ReadinessState | undefined;
   /** Objects offered in new records' forms. */
@@ -33,6 +35,7 @@ interface ReadinessViewProps {
 
 /** Is this feature ready for the field? A verdict, then every check by stage, failing first. */
 export default function ReadinessView({
+  featureId,
   title,
   state,
   objects,
@@ -51,11 +54,7 @@ export default function ReadinessView({
 
   if (!state || state.status === "loading") {
     return (
-      <StateView
-        kind="loading"
-        title={`Checking ${title}…`}
-        detail="Running its readiness checks against your org. Every query is read-only."
-      />
+      <FeatureLoading featureId={featureId} title={title} kind="readiness" />
     );
   }
   if (state.status === "error") {

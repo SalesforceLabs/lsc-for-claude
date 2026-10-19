@@ -30,7 +30,8 @@ describe("queryFieldValues", () => {
     expect(queryError).toBeUndefined();
     expect(vi.mocked(runToolingQuery)).toHaveBeenCalledTimes(3);
     expect(fieldValuesByRecord.size).toBe(ids.length);
-    expect(fieldValuesByRecord.get("a150")?.[0].Id).toBe("va150");
+    const last = ids[ids.length - 2];
+    expect(fieldValuesByRecord.get(last)?.[0].Id).toBe(`v${last}`);
   });
 });
 

@@ -141,6 +141,7 @@ interface LscApi {
   studioPreviewFix(fix: unknown, progress?: { id: string; index: number; total: number }): Promise<StudioResponse>;
   studioApplyFix(fix: unknown, expectedOrg: string, progress?: { id: string; index: number; total: number }): Promise<StudioResponse>;
   studioFixProgress(id: string): Promise<StudioResponse>;
+  studioFeatureMapProgress(featureId: string, readiness?: boolean): Promise<StudioResponse>;
   studioPublishMobile(profiles: string[], expectedOrg: string): Promise<StudioResponse>;
   studioPublishStatus(parentId: string): Promise<StudioResponse>;
   studioPerfUsers(search?: string, profile?: string, days?: number): Promise<StudioResponse>;
