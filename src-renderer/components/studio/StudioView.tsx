@@ -633,7 +633,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
       </nav>
 
       {previewOpened && (
-        <section className="studio-main ui-enter" hidden={section !== "preview"}>
+        <section className={`studio-main studio-preview-section ui-enter${previewMode === "split" ? " compare" : ""}`} hidden={section !== "preview"}>
           <header className="studio-header">
             <div className="studio-heading">
               <h1 className="studio-title">iPad preview</h1>

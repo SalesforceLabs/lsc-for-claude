@@ -1420,22 +1420,37 @@
   border-radius: 6px;
   outline: 2px dotted var(--warning);
   outline-offset: -2px;
+  /* Room for the tag above the content, so it never sits on a label. */
+  --org-tag-size: min(40px, max(12px, calc(9px / var(--ipad-scale, 1))));
+  padding-top: calc(var(--org-tag-size) * 1.4 + 6px);
 }
 
 .draft-org-ahead::after {
   content: "Not on iPads yet";
   position: absolute;
-  top: 2px;
-  right: 4px;
+  top: calc(var(--org-tag-size) * 0.2);
+  left: calc(var(--org-tag-size) * 0.5);
+  max-width: calc(100% - var(--org-tag-size));
+  overflow: hidden;
+  text-overflow: ellipsis;
   padding: 0 6px;
   border-radius: 999px;
   background: var(--warning-subtle);
   color: var(--warning);
-  font-size: 10px;
+  font-size: var(--org-tag-size);
   font-weight: 600;
-  line-height: 16px;
+  line-height: 1.4;
   white-space: nowrap;
   pointer-events: none;
+}
+
+/* Tab pills are too small for a tag: they keep the dotted outline (the inspector says what it means). */
+.studio-ipad-pill.draft-org-ahead {
+  padding-top: 0;
+}
+
+.studio-ipad-pill.draft-org-ahead::after {
+  display: none;
 }
 
 /* Blocks the org removed but iPads still have say so (the Draft drawers set data-org-ahead). */

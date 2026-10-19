@@ -27,7 +27,7 @@ export default function IpadScreen({ label, children }: { label: string; childre
   return (
     <div className="studio-ipad" role="region" aria-label={label}>
       <div ref={fit} className="studio-ipad-fit" style={{ height: IPAD_HEIGHT * scale }}>
-        <div className="studio-ipad-screen" style={{ transform: `scale(${scale})` }}>
+        <div className="studio-ipad-screen" style={{ transform: `scale(${scale})`, "--ipad-scale": scale } as React.CSSProperties}>
           <IpadScaleContext.Provider value={scale}>{children}</IpadScaleContext.Provider>
         </div>
       </div>

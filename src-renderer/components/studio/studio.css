@@ -521,7 +521,10 @@
 
 .studio-inspector-body {
   flex: 1;
+  min-width: 0;
+  overflow-x: hidden;
   overflow-y: auto;
+  overflow-wrap: anywhere;
   padding: var(--space-4);
   display: flex;
   flex-direction: column;
@@ -530,6 +533,17 @@
 
 .studio-inspector-state.ui-state.inline {
   min-height: 120px;
+}
+
+.studio-inspector-body > *,
+.studio-inspector-body pre,
+.studio-inspector-body code {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.studio-inspector-body pre {
+  white-space: pre-wrap;
 }
 
 .studio-inspector-title {
