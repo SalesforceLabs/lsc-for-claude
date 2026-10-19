@@ -36,10 +36,6 @@
 .studio-ipad-chrome-recent-empty { font-size: 16px; color: #5c5c5c; }
 
 /* Flexipage tabs whose only content is inline LWC: the app draws the web view edge to edge, no native header. */
-.studio-ipad-page.lwc-full { padding: 0; gap: 0; background: linear-gradient(180deg, #0a2147, #0d1b3d 40%, #12122e); color: #fff; }
-.studio-ipad-lwc-full { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 8px; text-align: center; }
-.studio-ipad-lwc-full-name { font-size: 28px; font-weight: 700; }
-.studio-ipad-lwc-full-note { max-width: 520px; font-size: 15px; line-height: 20px; opacity: 0.75; }
 
 .studio-ipad-searchfield input.studio-ipad-searchfield-text { min-width: 0; border: none; outline: none; background: none; font-family: inherit; color: inherit; }
 .studio-ipad-chrome-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }

@@ -15,7 +15,7 @@ import IpadScreen from "./IpadScreen";
 import TestUserChip from "./TestUserChip";
 import { RepLoginContext, useMobileLogins } from "../../hooks/useMobileLogins";
 import { testUserFor } from "../../test-users";
-import RecordScreen, { aheadAttrs, aheadClass, asDrawn, blockIdentity, draftClass, LayoutEdits, RecordTabs, usePageDraft } from "./IpadRecord";
+import RecordScreen, { aheadAttrs, aheadClass, asDrawn, blockIdentity, draftClass, LayoutEdits, PageInlineSlot, RecordTabs, usePageDraft } from "./IpadRecord";
 import IpadFabs from "./IpadFabs";
 import { Dashboard } from "./IpadDashboard";
 import { ReportsTab } from "./IpadReports";
@@ -295,7 +295,7 @@ function Device({
         <div
           ref={split ? (el) => void (pages.current[side] = el) : undefined}
           onScrollCapture={split ? mirror(side) : undefined}
-          className={`studio-ipad-page${shown?.kind === "empty" ? " blank" : ""}${home ? " home" : ""}${shown?.kind === "reports" && snapshot.viewer ? " flush" : ""}${record === null && hasNativeScreen(shown, snapshot) ? " native" : ""}${record === null && isLwcOnly(shown, snapshot) ? " lwc-full" : ""}${record && snapshot.records?.byId[record] ? " record" : ""}`}
+          className={`studio-ipad-page${shown?.kind === "empty" ? " blank" : ""}${home ? " home" : ""}${shown?.kind === "reports" && snapshot.viewer ? " flush" : ""}${record === null && hasNativeScreen(shown, snapshot) ? " native" : ""}${record && snapshot.records?.byId[record] ? " record" : ""}`}
         >
           {shown && <Screen key={shown.fullName} tab={shown} snapshot={snapshot} record={record} onOpenRecord={setRecord} onNew={(label, objectName) => setNewSheet(newPresentation(label, objectName))} onNote={note} onAction={(item) => setNewSheet(presentationFor(item, { onRecord: true }))} onEditVisit={(id) => setNewSheet({ kind: "visit", edit: id })} />}
         </div>
@@ -475,7 +475,6 @@ function Screen({
       );
     case "flexiPage": {
       const page = tab.flexiPage ? snapshot.pages[tab.flexiPage] : undefined;
-      if (record === null && isLwcOnly(tab, snapshot)) return <LwcFull name={tab.label} />;
       return page ? <PageView page={page} snapshot={snapshot} title={tab.label} /> : <Native title={tab.label} text="Lightning page" />;
     }
     case "object":
@@ -523,25 +522,6 @@ function ComingSoon({ reason }: { reason?: string }) {
       <div className="studio-ipad-coming-soon">Coming soon</div>
       {reason && <div className="studio-ipad-warn studio-ipad-coming-soon-reason">{reason}</div>}
     </>
-  );
-}
-
-/** A flexipage tab whose regions hold only inline LWC (no native components): the app shows the web view full bleed. */
-function isLwcOnly(tab: PublishedTab, snapshot: PublishedIpad): boolean {
-  if (tab.kind !== "flexiPage" || !tab.flexiPage) return false;
-  const page = snapshot.pages[tab.flexiPage];
-  if (!page) return false;
-  const all = page.regions.flatMap((r) => r.components);
-  return all.length > 0 && all.every((c) => /^lscmobileinline_/i.test(c.name));
-}
-
-/** Pat Sim and similar: the LWC runs in the app's web view, which Studio cannot execute. */
-function LwcFull({ name }: { name: string }) {
-  return (
-    <div className="studio-ipad-lwc-full">
-      <div className="studio-ipad-lwc-full-name">{name}</div>
-      <div className="studio-ipad-lwc-full-note">This page is a Lightning web component that runs inside the app. Studio cannot run it, so its content is not shown.</div>
-    </div>
   );
 }
 
@@ -765,6 +745,7 @@ function ComponentCard({
   if (name === "lsAgentforceWelcome") return <AgentforceWelcome prompts={Object.values(p).filter(Boolean)} viewerName={snapshot.viewer?.name} />;
   if (name === "lscHomeAnnouncements") return <Announcements />;
   if (name === "richText") return <RichText html={p.richTextValue ?? ""} />;
+  if (/^lscMobileInline_/.test(name)) return <PageInlineSlot snapshot={snapshot} name={name} height={Number(p.mobileHeight) || 400} />;
   if (name === "UpNextMapDisplay") return <UpNextMap />;
   if (name === "embeddedDashboard") return <Dashboard dashboard={snapshot.dashboards[p.dashboardName ?? ""]} />;
   if (name === "ActivityPlanByProduct") return <ActivityPlanProgress enhanced={p.showEnhActivityPlanOnMobileHomepage === "true"} plan={snapshot.screens?.home?.plan} />;

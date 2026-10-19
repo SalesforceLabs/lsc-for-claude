@@ -46,7 +46,7 @@ export function sldsCss(): Promise<string> {
   return css;
 }
 
-type State = { kind: "loading" } | { kind: "ready"; html: string; placeholders: string[] } | { kind: "failed"; message: string };
+type State = { kind: "loading" } | { kind: "ready"; html: string; placeholders: string[]; check: InlineLwcCheck } | { kind: "failed"; message: string };
 
 export function LiveInlineLwc({
   name,
@@ -62,8 +62,8 @@ export function LiveInlineLwc({
   /** Changes when the snapshot is reloaded, so the component is recompiled from the org. */
   generation: string;
   fallback: (reason: string) => React.ReactNode;
-  /** Drawn under the caption (Studio's offline note). */
-  footer?: React.ReactNode;
+  /** Drawn under the caption (Studio's offline note); a function gets the check compiled with the bundle. */
+  footer?: React.ReactNode | ((check: InlineLwcCheck) => React.ReactNode);
 }) {
   const [state, setState] = useState<State>({ kind: "loading" });
   const [notes, setNotes] = useState<string[]>([]);
@@ -84,7 +84,7 @@ export function LiveInlineLwc({
     setState({ kind: "loading" });
     setNotes([]);
     Promise.all([compiled(name, generation), sldsCss()]).then(
-      ([c, styles]) => live && setState({ kind: "ready", html: inlineLwcFrame(c.script, styles, { ...context, componentName: name }, scaleRef.current), placeholders: c.placeholders }),
+      ([c, styles]) => live && setState({ kind: "ready", html: inlineLwcFrame(c.script, styles, { ...context, componentName: name }, scaleRef.current), placeholders: c.placeholders, check: c.check }),
       (e: unknown) => live && setState({ kind: "failed", message: e instanceof Error ? e.message : String(e) })
     );
     return () => {
@@ -190,7 +190,7 @@ export function LiveInlineLwc({
       <div className="studio-ipad-rec-live-caption">
         Live preview (approximate): data as your Salesforce connection sees it, not the iPad's offline copy.{caption}
       </div>
-      {footer}
+      {typeof footer === "function" ? state.kind === "ready" && footer(state.check) : footer}
     </div>
   );
 }

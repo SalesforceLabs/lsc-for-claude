@@ -927,6 +927,24 @@ function InlineSlot({ snapshot, rec, name, height }: { snapshot: PublishedIpad; 
   );
 }
 
+/**
+ * An org inline LWC on a Home or nav tab page: the same web view as on a record
+ * page (SFComponentInlineLWC, `mobileHeight` tall), with no record in context.
+ */
+export function PageInlineSlot({ snapshot, name, height }: { snapshot: PublishedIpad; name: string; height: number }) {
+  const { timeZone, locale } = Intl.DateTimeFormat().resolvedOptions();
+  return (
+    <LiveInlineLwc
+      name={name}
+      context={{ userId: snapshot.viewer?.userId, locale, timeZone }}
+      height={height}
+      generation={generationOf(snapshot)}
+      fallback={(reason) => <PlaceholderCard title={PLACEHOLDER_TITLES[name] ?? name.replace(/^lscMobileInline_/, "")} reason={reason} />}
+      footer={(check) => <OfflineNote check={check} />}
+    />
+  );
+}
+
 /** An org-defined inline LWC (lscMobileInline_*) read from its template. */
 function InlineCard({ snapshot, rec, name, reason }: { snapshot: PublishedIpad; rec: PublishedRecordData; name: string; reason?: string }) {
   const card = snapshot.records?.inline[name];
