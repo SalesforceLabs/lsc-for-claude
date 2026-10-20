@@ -73,6 +73,11 @@ contextBridge.exposeInMainWorld("lscApi", {
     return () => ipcRenderer.removeListener("sfOrg:roles", handler);
   },
   setSfOrg: (org) => ipcRenderer.invoke("sfOrg:set", org),
+  onSfOrgListed: (callback) => {
+    const handler = (_event, list) => callback(list);
+    ipcRenderer.on("sfOrg:listed", handler);
+    return () => ipcRenderer.removeListener("sfOrg:listed", handler);
+  },
   onSfOrgChanged: (callback) => {
     const handler = (_event, data) => callback(data.org);
     ipcRenderer.on("sfOrg:changed", handler);

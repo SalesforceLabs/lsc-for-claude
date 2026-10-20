@@ -112,17 +112,25 @@ let running: Promise<OrgList> | undefined;
  * The sf CLI's connections, cached briefly — resolving a session's org shouldn't spawn sf every
  * time. Once the cache is old, callers get it at once while sf runs again in the background
  * (`sf org list` takes seconds, and every session list, search and Library lookup asks);
- * `fresh` waits for a new listing.
+ * `fresh` waits for a new listing. Before the first full listing there's no cache, so callers
+ * get a quick one without connection status while the full one runs (`pendingOrgList`).
  */
 export function listSfOrgs(options: { fresh?: boolean } = {}): Promise<OrgList> {
   if (!options.fresh && cached && Date.now() - cached.at < LIST_TTL_MS) return Promise.resolve(cached.list);
   const listing = running ?? runOrgList();
-  return !options.fresh && cached ? Promise.resolve(cached.list) : listing;
+  if (options.fresh) return listing;
+  return cached ? Promise.resolve(cached.list) : quickOrgList();
 }
 
-function runOrgList(): Promise<OrgList> {
-  const promise = new Promise<OrgList>((resolve) => {
-    execFile("sf", ["org", "list", "--json"], { timeout: 15000 }, (error, stdout) => {
+/** The full listing in progress, if any — for telling the renderer when it lands. */
+export function pendingOrgList(): Promise<OrgList> | undefined {
+  return running;
+}
+
+/** One listing in flight at a time; only one that worked is kept. */
+function spawnOrgList(args: string[]): Promise<OrgList> {
+  return new Promise<OrgList>((resolve) => {
+    execFile("sf", ["org", "list", "--json", ...args], { timeout: 15000 }, (error, stdout) => {
       if (error && !stdout) {
         resolve({ orgs: [], error: error.message });
         return;
@@ -134,6 +142,10 @@ function runOrgList(): Promise<OrgList> {
       }
     });
   });
+}
+
+function runOrgList(): Promise<OrgList> {
+  const promise = spawnOrgList([]);
   running = promise;
   promise.then((list) => {
     if (running === promise) running = undefined;
@@ -141,6 +153,24 @@ function runOrgList(): Promise<OrgList> {
     if (!list.error) cached = { at: Date.now(), list };
   });
   return promise;
+}
+
+let quick: Promise<OrgList> | undefined;
+
+/**
+ * The connections without checking each login, which is what makes `sf org list` slow (about 9 s
+ * with a dozen orgs, under 1 s without): every connection reads as connected until the full
+ * listing says otherwise. Run once, at startup.
+ */
+function quickOrgList(): Promise<OrgList> {
+  if (!quick) {
+    const promise = spawnOrgList(["--skip-connection-status"]);
+    quick = promise;
+    promise.then((list) => {
+      if (list.error && quick === promise) quick = undefined;
+    });
+  }
+  return quick;
 }
 
 /**

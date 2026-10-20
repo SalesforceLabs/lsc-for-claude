@@ -15,7 +15,7 @@ import { EngineCache } from "../engine/engine-cache.js";
 import { McpClient, STUDIO_TOOL_PREFIX } from "../mcp/client.js";
 import { McpPool, type PoolOrg } from "../mcp/pool.js";
 import { cacheArgsWithRepLogins, repLoginsFor, type RepLoginRef } from "../engine/rep-logins.js";
-import { listSfOrgs, orgKey, pickOrg, resolveOrg, sameOrgId, toOrgRef, type OrgKind, type OrgRef } from "../orgs.js";
+import { listSfOrgs, orgKey, pendingOrgList, pickOrg, resolveOrg, sameOrgId, toOrgRef, type OrgKind, type OrgRef } from "../orgs.js";
 import { OrgRoles } from "../org-roles.js";
 import type { SessionOrg } from "../engine/session-org.js";
 import {
@@ -1012,10 +1012,21 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     if (!mainWindow.isDestroyed()) mainWindow.webContents.send("sfOrg:roles", roles);
   });
 
-  ipcMain.handle("sfOrg:list", async (_event, options?: { recheckRoles?: boolean }) => {
-    const list = await listSfOrgs({ fresh: true });
+  const withRoles = (list: Awaited<ReturnType<typeof listSfOrgs>>) => ({
+    ...list,
+    orgs: list.orgs.map((o) => ({ ...o, role: orgRoles.get(o.username) })),
+  });
+
+  // `quick` answers at once (startup), then sends the full listing — with expired logins — when it lands.
+  ipcMain.handle("sfOrg:list", async (_event, options?: { recheckRoles?: boolean; quick?: boolean }) => {
+    const list = await listSfOrgs({ fresh: !options?.quick });
     orgRoles.check(list.orgs, { force: options?.recheckRoles });
-    return { ...list, orgs: list.orgs.map((o) => ({ ...o, role: orgRoles.get(o.username) })) };
+    if (options?.quick) {
+      pendingOrgList()?.then((full) => {
+        if (!full.error && !mainWindow.isDestroyed()) mainWindow.webContents.send("sfOrg:listed", withRoles(full));
+      });
+    }
+    return withRoles(list);
   });
 
   // Studio and new sessions follow the selected org; sessions already running stay in theirs.

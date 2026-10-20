@@ -302,8 +302,13 @@ interface LscApi {
   searchLibraryItems(query: string, scope?: OrgScope): Promise<LibraryItem[]>;
 
   // Salesforce Org
-  /** `recheckRoles` checks again which connections are LSC admins (otherwise once a day). */
-  listSfOrgs(options?: { recheckRoles?: boolean }): Promise<{ orgs: SfOrg[]; error?: string }>;
+  /**
+   * `recheckRoles` checks again which connections are LSC admins (otherwise once a day). `quick` answers
+   * at once before the first full listing, without expired logins; the full one follows on `onSfOrgListed`.
+   */
+  listSfOrgs(options?: { recheckRoles?: boolean; quick?: boolean }): Promise<{ orgs: SfOrg[]; error?: string }>;
+  /** The full listing after a `quick` one; returns an unsubscribe function. */
+  onSfOrgListed(callback: (list: { orgs: SfOrg[]; error?: string }) => void): () => void;
   /** Roles by lowercased username, sent as background checks finish. */
   onSfOrgRoles(callback: (roles: Record<string, OrgRole>) => void): () => void;
   /** Select the org for Studio, Library and new sessions; returns the key it was stored as. */

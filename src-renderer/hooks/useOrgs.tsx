@@ -45,7 +45,7 @@ export function OrgsProvider({ children }: { children: React.ReactNode }) {
   // Roles arrive after the list, as each connection's check finishes.
   const [roles, setRoles] = useState<Record<string, OrgRole>>({});
 
-  const refresh = useCallback(async (options?: { recheckRoles?: boolean }): Promise<SfOrg[]> => {
+  const refresh = useCallback(async (options?: { recheckRoles?: boolean; quick?: boolean }): Promise<SfOrg[]> => {
     setLoading(true);
     try {
       const result = await window.lscApi.listSfOrgs(options);
@@ -63,10 +63,15 @@ export function OrgsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!window.lscApi) return;
     window.lscApi.getSettings().then((s) => setChosen(s.sfTargetOrg || "")).catch(() => {});
-    refresh();
+    // The first listing skips checking each login (seconds per dozen orgs); the full one follows.
+    refresh({ quick: true });
+    const offListed = window.lscApi.onSfOrgListed((list) => {
+      if (!list.error) setOrgs(list.orgs);
+    });
     const offRoles = window.lscApi.onSfOrgRoles(setRoles);
     const offChanged = window.lscApi.onSfOrgChanged((org) => setChosen(org));
     return () => {
+      offListed();
       offRoles();
       offChanged();
     };
