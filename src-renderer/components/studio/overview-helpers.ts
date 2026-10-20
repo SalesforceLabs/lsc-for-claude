@@ -30,7 +30,7 @@ export const GROUP_TITLES: Record<CardGroupId, string> = {
   attention: "Needs attention",
   loading: "Checking…",
   unchecked: "Couldn't be checked",
-  ready: "Ready",
+  ready: "Healthy",
 };
 
 /**
@@ -127,14 +127,14 @@ export function orgVerdictText(v: OrgVerdict): string {
   const progress = v.featuresChecked < v.features ? ` (${v.featuresChecked} of ${v.features} features checked so far)` : "";
   switch (v.verdict) {
     case "blocked":
-      return `Not ready for go-live: ${v.blocking} blocking issue${v.blocking === 1 ? "" : "s"}${v.toFix ? `, ${v.toFix} more to fix` : ""}${progress}`;
+      return `${v.blocking} problem${v.blocking === 1 ? "" : "s"} to fix now${v.toFix ? `, ${v.toFix} more worth fixing` : ""}${progress}`;
     case "issues":
-      return `Nearly there: ${v.toFix} issue${v.toFix === 1 ? "" : "s"} to fix${progress}`;
+      return `Nothing urgent, ${v.toFix} issue${v.toFix === 1 ? "" : "s"} worth fixing${progress}`;
     case "ready":
       if (v.featuresChecked < v.features) return `No problems found yet${progress}`;
       return v.featuresUnverified
         ? `No problems found, but ${v.featuresUnverified} feature${v.featuresUnverified === 1 ? "" : "s"} couldn't be verified`
-        : `Ready for go-live: ${v.featuresReady} of ${v.features} features ready, no org-wide issues`;
+        : `Healthy: ${v.featuresReady} of ${v.features} features pass every check, no org-wide issues`;
     case "unknown":
       return v.featuresChecked < v.features ? "Checking your org…" : "Couldn't check your org";
   }
@@ -167,12 +167,12 @@ export function nextSteps(
   return steps.slice(0, max);
 }
 
-// ─── Go-live report ─────────────────────────────────────────────────────────
+// ─── Health check report ────────────────────────────────────────────────────
 
 const MARK: Record<ReadinessCheck["status"], string> = { pass: "PASS", fail: "FAIL", unknown: "UNKNOWN", skipped: "SKIPPED" };
 
 function severityWord(c: ReadinessCheck): string {
-  return c.status !== "fail" ? "" : c.severity === "error" ? " (blocking)" : c.severity === "warning" ? " (to fix)" : " (suggestion)";
+  return c.status !== "fail" ? "" : c.severity === "error" ? " (fix now)" : c.severity === "warning" ? " (worth fixing)" : " (suggestion)";
 }
 
 function checkLines(checks: ReadinessCheck[]): string[] {
@@ -192,7 +192,7 @@ function checkLines(checks: ReadinessCheck[]): string[] {
   return lines;
 }
 
-/** Markdown go-live readiness report: org verdict, org-wide checks, then every feature (problems in full, passing ones counted). */
+/** Markdown health check report: org verdict, org-wide checks, then every feature (problems in full, passing ones counted). */
 export function buildReport(
   overview: SetupOverviewData,
   features: FeatureSummary[],
@@ -201,7 +201,7 @@ export function buildReport(
 ): string {
   const v = orgVerdict(overview.checks, features, readiness);
   const out: string[] = [
-    `# Go-live readiness: ${overview.org}`,
+    `# LSC health check: ${overview.org}`,
     "",
     `Generated ${now.toLocaleString()}. Read-only checks against the org.`,
     "",
@@ -214,7 +214,7 @@ export function buildReport(
   out.push(`${verdictText(org)} (${org.passed} of ${org.ran} checks passing).`, "");
   out.push(...checkLines(overview.checks));
 
-  out.push("## Features", "", "| Feature | Verdict | Blocking | To fix | Passing |", "| --- | --- | --- | --- | --- |");
+  out.push("## Features", "", "| Feature | Verdict | Fix now | Worth fixing | Passing |", "| --- | --- | --- | --- | --- |");
   const rows = features.filter((f) => f.available);
   const details: string[] = [];
   for (const f of rows) {
@@ -225,7 +225,7 @@ export function buildReport(
       continue;
     }
     const s = summarize(state.readiness.checks);
-    const label = { ready: "Ready", issues: "Issues", blocked: "Not ready", unknown: "Couldn't check" }[s.verdict];
+    const label = { ready: "Healthy", issues: "Worth fixing", blocked: "Fix now", unknown: "Couldn't check" }[s.verdict];
     out.push(`| ${f.title} | ${label} | ${s.blocking.length} | ${s.toFix.length} | ${s.passed}/${s.ran} |`);
     if (s.verdict !== "ready") details.push(`### ${f.title}`, "", ...checkLines(state.readiness.checks));
   }
@@ -234,5 +234,5 @@ export function buildReport(
 }
 
 export function reportFileName(org: string, now = new Date()): string {
-  return `go-live-readiness-${org.replace(/[^\w.-]+/g, "_")}-${now.toISOString().slice(0, 10)}.md`;
+  return `lsc-health-check-${org.replace(/[^\w.-]+/g, "_")}-${now.toISOString().slice(0, 10)}.md`;
 }

@@ -49,7 +49,7 @@ function detailOf(item: DiagnosisItem, connected: boolean): string {
   }
 }
 
-/** One diagnosis item as a check row. A cause that's present is a "Fix", never "Blocking". */
+/** One diagnosis item as a check row. A cause that's present is "Worth fixing", never "Fix now". */
 export function toCheck(item: DiagnosisItem, connected: boolean): ReadinessCheck {
   const status: ReadinessCheck["status"] = item.byDesign
     ? "skipped"

@@ -8,10 +8,15 @@ vi.mock("../../../src/salesforce/cli.js", () => ({
 vi.mock("../../../src/config/collect.js", () => ({
   collectCategoryRecords: vi.fn(),
 }));
+vi.mock("../../../src/studio/published.js", async (importActual) => ({
+  ...(await importActual<typeof import("../../../src/studio/published.js")>()),
+  loadPublishedCore: vi.fn(),
+}));
 
 const { runSoqlQuery } = await import("../../../src/salesforce/cli.js");
 const { collectCategoryRecords } = await import("../../../src/config/collect.js");
 const { traceUser } = await import("../../../src/studio/user-trace.js");
+const { loadPublishedCore, TAB_FILTER_REASONS } = await import("../../../src/studio/published.js");
 const { firstProblem, traceHeadline } = await import("../../../src-renderer/components/studio/user-trace-state.js");
 
 type Row = Record<string, unknown>;
@@ -19,6 +24,8 @@ const USER = "005000000000001AAA";
 
 let org: Record<string, Row[] | Error>;
 let config: ConfigRecord[];
+type Tab = { fullName: string; label: string; kind: string; sobject?: string };
+let published: { tabs: Tab[]; hiddenTabs: { fullName: string; label: string; reason: string }[] } | null;
 
 function respond(q: string) {
   let outer = q;
@@ -68,6 +75,9 @@ beforeEach(() => {
     return Promise.resolve({ success: true, data: { totalSize: rows.length, done: true, records: rows } });
   }) as never);
   vi.mocked(collectCategoryRecords).mockImplementation((async () => config) as never);
+  published = { tabs: [{ fullName: "standard-Account", label: "Accounts", kind: "object", sobject: "Account" }], hiddenTabs: [] };
+  vi.mocked(loadPublishedCore).mockImplementation((async (profile: string) =>
+    published ? { ...published, profile, cache: { generatedAt: "2026-10-01T00:00:00Z" } } : { profile, missing: true }) as never);
 });
 
 const byId = (checks: { id: string }[], id: string) => checks.find((c) => c.id === id) as { status: string; detail?: string; fixes?: unknown[]; examples?: string[] };
@@ -194,6 +204,44 @@ describe("traceUser", () => {
     org.DeviceSyncSummary = new Error("No such column");
     const t = await traceUser(USER, null, "o");
     expect(byId(t.checks, "user.mobile.last-sync").status).toBe("unknown");
+  });
+
+  describe("iPad tabs", () => {
+    it("lists the published tabs and the ones left off when no feature is named", async () => {
+      published!.hiddenTabs = [{ fullName: "Orders", label: "Orders", reason: TAB_FILTER_REASONS.notVisible }];
+      const c = byId((await traceUser(USER, null, "o")).checks, "user.mobile.tabs");
+      expect(c.status).toBe("pass");
+      expect(c.detail).toContain("1 tab as published on 2026-10-01: Accounts.");
+      expect(c.detail).toContain("Left off: Orders (Tab is hidden or default-off");
+      expect(vi.mocked(loadPublishedCore)).toHaveBeenCalledWith("Rep", "o", USER);
+    });
+
+    it("passes when the feature's tab is on the bar", async () => {
+      published!.tabs.push({ fullName: "standard-ProductDisbursement", label: "Samples", kind: "object", sobject: "ProductDisbursement" });
+      const c = byId((await traceUser(USER, "samples", "o")).checks, "user.mobile.tabs");
+      expect(c).toMatchObject({ status: "pass", detail: "On the tab bar: Samples (published 2026-10-01)." });
+    });
+
+    it("says why the feature's tab is left off, and where samples are given instead", async () => {
+      published!.hiddenTabs = [{ fullName: "LSC_Samples_Management", label: "Sample Management", reason: TAB_FILTER_REASONS.samples }];
+      const c = byId((await traceUser(USER, "samples", "o")).checks, "user.mobile.tabs");
+      expect(c.status).toBe("fail");
+      expect(c.detail).toContain("Sample Management (Samples Management tabs never show on the iPad)");
+      expect(c.detail).toContain("Reps give samples from the visit");
+      expect(c.examples).toEqual(["Sample Management"]);
+    });
+
+    it("skips when the profile has no tab for the feature at all", async () => {
+      const c = byId((await traceUser(USER, "samples", "o")).checks, "user.mobile.tabs");
+      expect(c.status).toBe("skipped");
+      expect(c.detail).toContain("has no Sample Management tab. Its tabs: Accounts.");
+    });
+
+    it("fails when the profile has nothing published", async () => {
+      published = null;
+      const c = byId((await traceUser(USER, null, "o")).checks, "user.mobile.tabs");
+      expect(c).toMatchObject({ status: "fail", detail: expect.stringContaining("Rep has no published metadata") });
+    });
   });
 
   describe("account reach", () => {

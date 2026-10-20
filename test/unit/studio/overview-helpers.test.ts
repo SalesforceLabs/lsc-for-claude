@@ -112,11 +112,11 @@ describe("buildReport", () => {
       c: { status: "error", error: "boom" },
     };
     const md = buildReport(overview, features, readiness, new Date("2026-01-02T00:00:00Z"));
-    expect(md).toContain("# Go-live readiness: my-org");
-    expect(md).toContain("FAIL (to fix): Title overview.mobile.unpublished — 3 changes");
+    expect(md).toContain("# LSC health check: my-org");
+    expect(md).toContain("FAIL (worth fixing): Title overview.mobile.unpublished — 3 changes");
     expect(md).toContain("Examples: P1");
-    expect(md).toContain("| A | Not ready | 1 | 0 | 1/2 |");
-    expect(md).toContain("| B | Ready | 0 | 0 | 1/1 |");
+    expect(md).toContain("| A | Fix now | 1 | 0 | 1/2 |");
+    expect(md).toContain("| B | Healthy | 0 | 0 | 1/1 |");
     expect(md).toContain("| C | Couldn't check |");
     expect(md).toContain("### A");
     expect(md).not.toContain("### B");

@@ -208,6 +208,8 @@
 
 .composer-tray-action { flex-shrink: 0; color: var(--accent); font-weight: 600; }
 
+.chat-card-fold { margin: 0 var(--space-3) var(--space-3); }
+
 .chat-card-note {
   margin: 0;
   padding: 0 var(--space-3) var(--space-3);

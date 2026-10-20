@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { UserRoundSearch, ExternalLink, UserRound } from "lucide-react";
+import { UserRoundSearch, ExternalLink, UserRound, ChevronDown, ChevronRight } from "lucide-react";
 import StatusIcon from "../ui/StatusIcon";
 import { CheckRow } from "../studio/ReadinessView";
 import { STAGES } from "../studio/readiness";
@@ -46,6 +46,10 @@ export function UserCheckCard({ trace }: { trace: UserCheckTrace }) {
     };
   }, [needsProfiles]);
   const stageTitle = (id: string) => STAGES.find((s) => s.id === id)?.title ?? id;
+  // Passing checks fold away so a card shows what's wrong, and several reps' cards stay short.
+  const [showPassed, setShowPassed] = useState(false);
+  const passed = checks.filter((c) => c.status === "pass").length;
+  const shown = showPassed ? checks : checks.filter((c) => c.status !== "pass");
 
   return (
     <section className="chat-card" aria-label={`Access check for ${trace.userName}`}>
@@ -70,23 +74,31 @@ export function UserCheckCard({ trace }: { trace: UserCheckTrace }) {
           </div>
         )}
       </header>
-      <ol className="studio-checklist-rows chat-card-rows">
-        {checks.map((check, i) => (
-          <React.Fragment key={check.id}>
-            {(i === 0 || checks[i - 1].stage !== check.stage) && (
-              <li className="ui-section-title chat-card-stage" aria-hidden="true">
-                {stageTitle(check.stage)}
-              </li>
-            )}
-            <CheckRow
-              check={check}
-              expanded={open === check.id}
-              onToggle={() => setOpen(open === check.id ? null : check.id)}
-              fixProps={{ pending, onPendingChange, profiles, affects: trace.profile ? [trace.profile] : undefined }}
-            />
-          </React.Fragment>
-        ))}
-      </ol>
+      {shown.length > 0 && (
+        <ol className="studio-checklist-rows chat-card-rows">
+          {shown.map((check, i) => (
+            <React.Fragment key={check.id}>
+              {(i === 0 || shown[i - 1].stage !== check.stage) && (
+                <li className="ui-section-title chat-card-stage" aria-hidden="true">
+                  {stageTitle(check.stage)}
+                </li>
+              )}
+              <CheckRow
+                check={check}
+                expanded={open === check.id}
+                onToggle={() => setOpen(open === check.id ? null : check.id)}
+                fixProps={{ pending, onPendingChange, profiles, affects: trace.profile ? [trace.profile] : undefined }}
+              />
+            </React.Fragment>
+          ))}
+        </ol>
+      )}
+      {passed > 0 && (
+        <button type="button" className="studio-link-btn chat-card-fold" aria-expanded={showPassed} onClick={() => setShowPassed(!showPassed)}>
+          {showPassed ? <ChevronDown size={12} aria-hidden="true" /> : <ChevronRight size={12} aria-hidden="true" />}
+          {showPassed ? "Hide passed checks" : `${passed} check${passed === 1 ? "" : "s"} passed`}
+        </button>
+      )}
       {createsHidden && <p className="chat-card-note">Switch to {org?.label ?? "this session's org"} to create the missing records from here.</p>}
     </section>
   );

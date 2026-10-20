@@ -48,7 +48,9 @@ export async function diagnose(
 ): Promise<Diagnosis> {
   const causes = deps.causes ?? getKnownCauses();
   const rules = deps.rules ?? getAllRules();
-  const run = deps.run ?? executeCheck;
+  const exec = deps.run ?? executeCheck;
+  // Checks that look for something the user named (a tab) read it from the symptom.
+  const run = (check: Parameters<typeof executeCheck>[0], org: string) => exec(check, org, { symptom });
 
   // A rule linked from a matched cause is checked as part of that cause, not listed again.
   const matches = matchSymptom(symptom, causes, rules);

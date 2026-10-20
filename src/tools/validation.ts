@@ -158,7 +158,7 @@ export function register(server: McpServer) {
   // Tool: Check a user's access (the chat form of Studio's user trace)
   server.tool(
     "check_user_access",
-    "Check one rep's setup end to end and find the first broken link: active user, license, LSC permission set license, permission sets, territory, the accounts that reach them, what DB Schema syncs to their iPad, actions, metadata cache and last sync. Use it for \"why can't <rep> see/do X\" questions. Read-only. Returns JSON (the user trace plus resolvedUser); when several users match it returns { matches } and nothing is traced, so ask which one.",
+    "Check one rep's setup end to end and find the first broken link: active user, license, LSC permission set license, permission sets, territory, the accounts that reach them, what DB Schema syncs to their iPad, actions, metadata cache and last sync. Use it for \"why can't <rep> see/do X\" about one named rep. It is a full trace (many queries), so never loop it over users: for \"reps can't see X\" check what reps share (the profile's navigation tabs, DB Schema, permission sets, metadata cache) and check at most one or two reps, asking the user which. It does not check navigation tabs. Read-only. Returns JSON (the user trace plus resolvedUser); when several users match it returns { matches } and nothing is traced, so ask which one.",
     {
       user: z.string().min(2).max(255).describe("The rep's name, username, email or user Id"),
       feature: z

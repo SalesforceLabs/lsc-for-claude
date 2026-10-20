@@ -915,6 +915,78 @@ causes:
       expect: "none"
     check_scope: "Reads the org's own Home pages and record pages of synced objects, the 40 changed most recently, whether or not reps get them on the iPad. It doesn't check the Edit button or the Map."
 
+  - id: ipad-tab-not-set-up
+    title: The tab isn't set up so the iPad can show it
+    module: ipad-tabs
+    symptoms:
+      - "Reps can't see the Samples tab on the iPad"
+      - "Tab missing on the iPad"
+      - "Tab shows on the web but not on the iPad"
+      - "Samples tab not showing on iPad"
+      - "Can't find the tab in the iPad app"
+    keywords: [navigation tab, tab bar, UI Settings, UISchema, Samples Management, samples_management, tab visibility]
+    cause: |
+      The iPad builds its tab bar from the profile's published metadata.
+      It leaves out any tab whose API name contains samples_management,
+      whatever its visibility, so a Samples Management tab never shows; reps
+      give samples from the visit. A UI Settings (Admin Console) tab shows
+      only when it is active and assigned to the rep's profile.
+    fix:
+      - "For samples, reps work from the visit. For a list of their inventory or disbursements, add an object tab (ProductItem, InventoryOperation or ProductDisbursement) whose API name doesn't contain samples_management."
+      - "Activate the UI Settings tab and assign it to the reps' profiles (list_navigation_tabs)."
+      - "Publish to iPad for those profiles, then have reps log out and in."
+      - "To see why one rep's iPad leaves the tab off, check that rep (check_user_access with feature samples for the Samples tab)."
+    ui_path: "Admin Console > Mobile > UI Settings, and Setup > Tabs"
+    check:
+      type: builtin
+      name: named-tab
+      expect: "none"
+    check_scope: "Looks the tab up by the name in the question across the org. Whether a profile shows it (tab visibility, the profile's Lightning app, the last publish) differs per profile: check one rep for that."
+
+  - id: ipad-tab-object-not-synced
+    title: The tab's object doesn't sync to the iPad
+    module: ipad-tabs
+    symptoms:
+      - "Reps can't see the Samples tab on the iPad"
+      - "Object tab missing on the iPad"
+      - "Tab missing on the iPad"
+    keywords: [navigation tab, object tab, DB Schema, availableFields, ProductDisbursement, ProductItem, InventoryOperation]
+    cause: |
+      An object tab shows on the iPad only when its object is one of the
+      rep's synced tables: an active DB Schema record for the object
+      assigned to their profile or permission set, on an object they can
+      read. Otherwise the app leaves the tab off.
+    fix:
+      - "Activate or create the object's DB Schema record and assign it to the reps' profiles."
+      - "Give the reps read access to the object."
+      - "Publish to iPad for those profiles."
+    ui_path: "Admin Console > Mobile > Object Metadata Cache Configuration"
+    check:
+      type: builtin
+      name: named-tab-object
+      expect: "none"
+    check_scope: "Checks that some active DB Schema record syncs the object, not that it is assigned to these reps' profiles."
+
+  - id: ipad-tab-hidden-on-profile
+    title: The tab is hidden on the profile or missing from its Lightning app
+    module: ipad-tabs
+    symptoms:
+      - "Reps can't see the Samples tab on the iPad"
+      - "Tab missing on the iPad"
+      - "Tab shows for some reps but not others"
+    keywords: [tab visibility, Default On, Default Off, Hidden, Lightning app, App Manager, permission set]
+    cause: |
+      The iPad shows a tab only when the rep's profile or one of their
+      permission sets makes it Default On or Visible, and the tab is in the
+      Lightning app the profile opens. Default Off counts as hidden on the
+      iPad.
+    fix:
+      - "Set the tab to Default On in the profile, or in a permission set the reps have."
+      - "Add the tab to the profile's Lightning app in App Manager."
+      - "Publish to iPad for the profile, then have reps log out and in."
+      - "Check one rep (check_user_access) to see the published tab bar and why the tab is left off."
+    ui_path: "Setup > Profiles > Object Settings, and Setup > App Manager"
+
   - id: related-list-lsc-component
     title: Related List - Life Sciences component misconfigured
     module: ipad-pages
@@ -1032,6 +1104,7 @@ causes:
       - "Field present on web but missing on iPad"
       - "iPad doesn't show recent changes"
       - "Translations not on the iPad"
+      - "New tab doesn't show on the iPad"
     keywords: [regenerate, publish, stale, translation, log out]
     cause: |
       Layouts, pages, record types, field access and Admin Console mobile

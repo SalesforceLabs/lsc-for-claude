@@ -34,7 +34,7 @@ interface TestingPagesProps {
 
 const HEADINGS: Record<SyncPage, { title: string; subtitle: string }> = {
   sync: { title: "Sync health", subtitle: "How reps' iPads are syncing, from field telemetry" },
-  "test-plans": { title: "Test plans", subtitle: "Check the customer's sync targets with real reps, then export a go-live report" },
+  "test-plans": { title: "Test plans", subtitle: "Check the customer's sync targets with real reps, then export a sign-off report" },
   "first-sync": { title: "First sync", subtitle: "Download what a rep's iPad would on its first sync, and time it" },
 };
 

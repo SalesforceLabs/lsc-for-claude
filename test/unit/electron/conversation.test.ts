@@ -140,3 +140,26 @@ describe("ConversationEngine preflight", () => {
     expectValidHistory(seen[0]);
   });
 });
+
+describe("ConversationEngine per-message tool limits", () => {
+  const checks = (...ids: string[]): Message => ({
+    role: "assistant",
+    content: ids.map((id) => ({ type: "tool_use", id, name: "check_user_access", input: { user: id } }) as ContentBlock),
+  });
+
+  it("refuses a third rep check in one message and allows checks again on the next", async () => {
+    const { llm, seen } = fakeLlm([checks("a", "b", "c"), text("done"), checks("d"), text("done")]);
+    const mcp = { getTools: () => [], callTool: vi.fn(async () => ({ content: [{ type: "text", text: "{}" }] })) };
+    const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder);
+    engine.initialize();
+
+    await engine.sendMessage("reps can't see the Samples tab", callbacks());
+    expect(mcp.callTool).toHaveBeenCalledTimes(2);
+    const results = seen[1].at(-1)!.content as ContentBlock[];
+    expect(results.find((b) => b.tool_use_id === "c")).toMatchObject({ is_error: true, content: expect.stringMatching(/Already checked 2 reps/) });
+    expectValidHistory(seen[1]);
+
+    await engine.sendMessage("check Carmen", callbacks());
+    expect(mcp.callTool).toHaveBeenCalledTimes(3);
+  });
+});

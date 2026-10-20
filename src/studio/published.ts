@@ -463,7 +463,7 @@ function emptyReason(tab: Row, nav: Record<string, Row>, visible: Set<string>): 
   return `The app has no screen for ${type ? `"${type}" tabs` : "this tab"} (${fullName}).`;
 }
 
-const TAB_FILTER_REASONS = {
+export const TAB_FILTER_REASONS = {
   notVisible: "Tab is hidden or default-off on the profile and the user's permission sets",
   noTable: "Its object isn't synced to the iPad",
   notAvailable: "Its object isn't in an active DB Schema record the user can read",
@@ -2292,9 +2292,29 @@ export function loadPublishedIpad(
   return load;
 }
 
+/**
+ * The published iPad's snapshot for one user of a profile (tabs, pages, layouts — no live screens
+ * or dashboards), for checks that only need what the cache sets up, like a rep's tab bar.
+ */
+export async function loadPublishedCore(profile: string, org: string, userId: string): Promise<SnapshotCore | { profile: string; missing: true }> {
+  const loaded = await loadCore(profile, org, userId, new LoadTracker(profile), false);
+  return "missing" in loaded ? loaded : loaded.core;
+}
+
 async function loadWithProgress(profile: string, org: string, userId: string | undefined, track: LoadTracker, mobileLogins: TokenLogin[] = []): Promise<PublishedIpad | { profile: string; missing: true }> {
+  const loaded = await loadCore(profile, org, userId, track, true);
+  if ("missing" in loaded) return loaded;
+  const { core, cache, user, viewer, userInfo, userNotes, sharing } = loaded;
+  const withNotes = <T extends { notes: string[] }>(c: T): T => (userNotes.length ? { ...c, notes: [...c.notes, ...userNotes] } : c);
+  const shared = applyListViewSharing(core, await sharing);
+  const [dashboards, screens] = await Promise.all([track.run("dashboards", () => withDashboardData(core.dashboards ?? {}, org, track)), viewerScreens(shared, user?.id, org, track, repLoginFor(mobileLogins, user?.id))]);
+  return { ...withNotes(shared), ...screens, dashboards, profile, cache, viewer, ...userInfo };
+}
+
+/** The cache, the user it's read for and their snapshot; `withSharing` reads the user's list view sharing alongside. */
+async function loadCore(profile: string, org: string, userId: string | undefined, track: LoadTracker, withSharing: boolean) {
   const [cache, listed] = await track.run("cache", () => Promise.all([latestCache(profile, org), profileUsers(profile, org)]));
-  if (!cache) return { profile, missing: true };
+  if (!cache) return { profile, missing: true as const };
   if (!ID_PATTERN.test(cache.contentVersionId)) throw new Error("The metadata cache record has no downloadable file.");
 
   const { users, total: usersTotal, truncated: usersTruncated } = listed;
@@ -2310,11 +2330,12 @@ async function loadWithProgress(profile: string, org: string, userId: string | u
         `This profile has ${usersTotal.toLocaleString("en-US")} active users; the ${users.length.toLocaleString("en-US")} most recently active are listed${userId ? "" : " and the default viewer is picked from them"}. Search by name to preview another.`,
       ]
     : [];
-  const withNotes = <T extends { notes: string[] }>(core: T): T => (userNotes.length ? { ...core, notes: [...core.notes, ...userNotes] } : core);
 
   const language = user?.language ?? DEFAULT_LANGUAGE;
 
-  const sharing = user ? track.run("sharing", () => viewerSharing(user.id, org)) : Promise.resolve(null);
+  const sharing = user && withSharing ? track.run("sharing", () => viewerSharing(user.id, org)) : Promise.resolve(null);
+  // Awaited by the caller after the snapshot; a failure before then must not go unhandled.
+  sharing.catch(() => undefined);
   const dir = path.join(CACHE_ROOT, cache.contentVersionId);
   const snapshotPath = (sets: string[], lang: string) => path.join(dir, `snapshot-v${SNAPSHOT_VERSION}-${lang}-${comboKey(sets)}.json`);
   const readSaved = (): SnapshotCore | null => {
@@ -2325,11 +2346,7 @@ async function loadWithProgress(profile: string, org: string, userId: string | u
     fs.utimes(dir, now, now, () => undefined);
     return JSON.parse(fs.readFileSync(file, "utf8")) as SnapshotCore;
   };
-  const finish = async (core: SnapshotCore): Promise<PublishedIpad> => {
-    const shared = applyListViewSharing(core, await sharing);
-    const [dashboards, screens] = await Promise.all([track.run("dashboards", () => withDashboardData(core.dashboards ?? {}, org, track)), viewerScreens(shared, user?.id, org, track, repLoginFor(mobileLogins, user?.id))]);
-    return { ...withNotes(shared), ...screens, dashboards, profile, cache, viewer, ...userInfo };
-  };
+  const finish = (core: SnapshotCore) => ({ core, cache, user, viewer, userInfo, userNotes, sharing });
 
   let saved = readSaved();
   if (!saved) {

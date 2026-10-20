@@ -18,6 +18,8 @@ export interface FeatureDefinition extends FeatureSummary {
   adminCategoryKeywords: string[];
   /** Matched against action labels and field values. */
   actionKeywords: string[];
+  /** Matched against the iPad's tab names, labels and objects; set for features reps open from their own tab. */
+  tabKeywords?: string[];
   /** Include Visit Action Validation custom scripts regardless of ObjectName. */
   includeVisitActionValidation?: boolean;
   /** ComplianceStatementDef.ModuleType to collect, if any. */
@@ -65,6 +67,7 @@ export const FEATURES: FeatureDefinition[] = [
     handlerKeywords: ["Sample", "Inventory", "Disbursement", "ProductItem", "ProductRequest"],
     adminCategoryKeywords: ["Sample", "Inventory"],
     actionKeywords: ["Sample", "Inventory"],
+    tabKeywords: ["Sample", "ProductDisbursement", "ProductItem", "InventoryOperation", "ProductTransfer"],
   },
   {
     id: "accounts",

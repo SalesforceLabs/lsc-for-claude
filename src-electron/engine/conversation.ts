@@ -3,6 +3,7 @@ import { STUDIO_TOOL_PREFIX } from "../mcp/client.js";
 import type { ToolHost } from "../mcp/pool.js";
 import { PromptBuilder } from "./prompt-builder.js";
 import type { StoredMessage } from "./history.js";
+import { spendToolBudget } from "./tool-budget.js";
 import { ORG_SWITCH_TOOLS, orgPromptSection, orgSwitchRefusal, type SessionOrg } from "./session-org.js";
 
 export interface ConversationCallbacks {
@@ -31,6 +32,8 @@ export interface ConversationHooks {
 interface AbortToken {
   aborted: boolean;
   controller: AbortController;
+  /** Calls made this user message to tools with a per-message limit (`tool-budget.ts`). */
+  budget: Map<string, number>;
 }
 
 function stopRun(token: AbortToken): void {
@@ -171,7 +174,7 @@ export class ConversationEngine {
     // Abort any previous run
     if (this.currentAbort) stopRun(this.currentAbort);
 
-    const abort: AbortToken = { aborted: false, controller: new AbortController() };
+    const abort: AbortToken = { aborted: false, controller: new AbortController(), budget: new Map() };
     this.currentAbort = abort;
 
     // A stopped run never writes to the history again, so answer the calls it left open first.
@@ -311,6 +314,8 @@ export class ConversationEngine {
           if (ORG_SWITCH_TOOLS.has(toolCall.name!)) {
             throw new Error(orgSwitchRefusal(this.org));
           }
+          const overBudget = spendToolBudget(toolCall.name!, abort.budget);
+          if (overBudget) throw new Error(overBudget);
           const gated = await this.hooks.gateTool?.({
             id: toolCall.id!,
             name: toolCall.name!,

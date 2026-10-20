@@ -80,7 +80,8 @@ describe("known-causes.yaml", () => {
   it("uses expectations the executor can evaluate", async () => {
     for (const c of causes) {
       for (const check of [c.check, c.applies_if].filter(Boolean) as RuleCheck[]) {
-        const outcome = await executeCheck(check, "test-org");
+        // A diagnosis always has the pasted text, which checks of a named thing (a tab) read.
+        const outcome = await executeCheck(check, "test-org", { symptom: c.symptoms[0] });
         expect(outcome.unavailable, `${c.id}: ${outcome.message}`).toBeFalsy();
       }
     }

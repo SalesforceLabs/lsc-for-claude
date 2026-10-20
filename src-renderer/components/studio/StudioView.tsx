@@ -697,7 +697,7 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
         {railItem(
           "test-plans",
           "Test plans",
-          "Check the customer's sync targets with real reps, and export a go-live report",
+          "Check the customer's sync targets with real reps, and export a sign-off report",
           () => openSyncPage("test-plans"),
           ClipboardCheck
         )}

@@ -50,7 +50,7 @@ const readiness: ReadinessModule = {
           stage: "data",
           title: "Reps have created visits in the last 30 days",
           severity: "info",
-          why: "A feature nobody has used lately is the first thing to look at before go-live: either reps aren't on it yet or something blocks them.",
+          why: "A feature nobody has used lately is the first thing to look at: either reps aren't on it yet or something blocks them.",
           steps: ["Ask a pilot rep to create and complete a visit on the iPad", "Check the rep's profile has the Visit permission sets"],
           uiPath: "Visits tab",
         },

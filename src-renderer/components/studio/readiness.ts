@@ -71,11 +71,11 @@ export function verdictTone(v: Verdict): StatusTone {
 export function verdictText(s: ReadinessSummary): string {
   switch (s.verdict) {
     case "blocked":
-      return `Not ready: ${plural(s.blocking.length, "blocking issue")}${s.toFix.length ? `, ${s.toFix.length} more to fix` : ""}`;
+      return `${plural(s.blocking.length, "problem")} to fix now${s.toFix.length ? `, ${s.toFix.length} more worth fixing` : ""}`;
     case "issues":
-      return `Works, with ${plural(s.toFix.length, "issue")} to fix`;
+      return `Nothing urgent, ${plural(s.toFix.length, "issue")} worth fixing`;
     case "ready":
-      return `Ready: all ${s.ran} checks pass`;
+      return `Healthy: all ${s.ran} checks pass`;
     case "unknown":
       return s.ran ? `Not verified: ${plural(s.unknown, "check")} couldn't run` : "Couldn't check this feature";
   }

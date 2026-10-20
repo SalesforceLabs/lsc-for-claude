@@ -88,7 +88,7 @@ export async function collectSetupOverview(org: string): Promise<SetupOverview> 
         stage: "access",
         title: "LSC licenses are below 90% used",
         severity: "warning",
-        why: "Running close to the license limit leaves little room to onboard users before go-live.",
+        why: "Running close to the license limit leaves little room to add users.",
         uiPath: "Setup > Company Information > Permission Set Licenses",
       },
       async () => {

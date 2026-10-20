@@ -23,7 +23,12 @@ export interface CheckOutcome {
   unavailable?: boolean;
 }
 
-export async function executeCheck(check: RuleCheck, targetOrg: string): Promise<CheckOutcome> {
+/** What a check may read beyond the org: the text a diagnosis was asked about. */
+export interface CheckContext {
+  symptom?: string;
+}
+
+export async function executeCheck(check: RuleCheck, targetOrg: string, context: CheckContext = {}): Promise<CheckOutcome> {
   try {
     switch (check.type) {
       case "soql":
@@ -39,11 +44,11 @@ export async function executeCheck(check: RuleCheck, targetOrg: string): Promise
         return await executeSoqlCountCheck(check, targetOrg, true);
 
       case "composite":
-        return await executeCompositeCheck(check, targetOrg);
+        return await executeCompositeCheck(check, targetOrg, context);
 
       case "builtin": {
         const { runBuiltinCheck } = await import("./builtin-checks.js");
-        return await runBuiltinCheck(check.name, targetOrg);
+        return await runBuiltinCheck(check.name, targetOrg, context);
       }
 
       case "metadata":
@@ -214,7 +219,8 @@ async function executeSoqlCountCheck(
  */
 async function executeCompositeCheck(
   check: RuleCheck,
-  targetOrg: string
+  targetOrg: string,
+  context: CheckContext
 ): Promise<CheckOutcome> {
   if (!check.checks || check.checks.length === 0) {
     return { passed: false, message: "No sub-checks specified for composite check", unavailable: true };
@@ -223,7 +229,7 @@ async function executeCompositeCheck(
   const subResults: CheckOutcome[] = [];
 
   for (const subCheck of check.checks) {
-    const subResult = await executeCheck(subCheck, targetOrg);
+    const subResult = await executeCheck(subCheck, targetOrg, context);
     subResults.push(subResult);
   }
 

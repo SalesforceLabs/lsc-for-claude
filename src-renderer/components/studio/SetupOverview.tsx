@@ -174,7 +174,7 @@ export default function SetupOverview({
       <header className="studio-page-head">
         <div>
           <h2>Setup overview</h2>
-          <p>Is {data.org} ready for go-live?</p>
+          <p>How healthy is {data.org}'s LSC setup?</p>
         </div>
         <div className="studio-page-actions">
           <button className="studio-btn" onClick={onCheckUser}>
@@ -276,7 +276,7 @@ export default function SetupOverview({
   );
 }
 
-const CARD_LABELS = { ready: "Ready", issues: "Issues", blocked: "Not ready", unknown: "Unknown" } as const;
+const CARD_LABELS = { ready: "Healthy", issues: "Worth fixing", blocked: "Fix now", unknown: "Unknown" } as const;
 
 function FeatureCard({ card, onOpen, onRetry }: { card: FeatureCardModel; onOpen: () => void; onRetry: () => void }) {
   const { feature, state, summary } = card;

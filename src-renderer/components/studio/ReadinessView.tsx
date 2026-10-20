@@ -200,7 +200,7 @@ export function CheckRow({ check, expanded, onToggle, onShowSurface, onAsk, fixP
         </span>
         {check.status === "fail" && (
           <span className={`ui-pill ${check.severity}`}>
-            {check.severity === "error" ? "Blocking" : check.severity === "warning" ? "Fix" : "Suggestion"}
+            {check.severity === "error" ? "Fix now" : check.severity === "warning" ? "Worth fixing" : "Suggestion"}
           </span>
         )}
         <ChevronRight className="studio-check-chevron" size={14} aria-hidden="true" />

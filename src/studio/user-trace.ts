@@ -14,6 +14,7 @@ import { getFeature, type FeatureDefinition } from "./features.js";
 import { audienceOf, count, inList, matchesAny, plural, query, type Row } from "./helpers.js";
 import { runCheck } from "./readiness/index.js";
 import { assertId } from "./change-helpers.js";
+import { loadPublishedCore, TAB_FILTER_REASONS, type SnapshotCore } from "./published.js";
 import type { Audience, ReadinessCheck, StudioFix } from "./types.js";
 
 export interface UserTrace {
@@ -60,7 +61,12 @@ interface Facts {
   objects: Promise<FeatureObjects>;
   /** Null when the rep has no territory in the active model. */
   accountReach: Promise<AccountReach | null>;
+  /** The rep's published iPad (tab bar and why tabs are left off), null when the profile has never been published. */
+  published: Promise<SnapshotCore | null>;
 }
+
+/** How long the tab check waits for the profile's metadata cache to be read (it's kept on disk once read). */
+export const PUBLISHED_TIMEOUT_MS = 60_000;
 
 interface FeatureObjects {
   present: string[];
@@ -90,7 +96,7 @@ export async function traceUser(userId: string, featureId: string | null, org: s
   };
 
   const base = gather(user, feature, org);
-  const facts: Facts = { ...base, accountReach: accountReach(user, base, org) };
+  const facts: Facts = { ...base, accountReach: accountReach(user, base, org), published: publishedFor(user, org) };
   // Rejections are consumed by the checks that await them; this keeps unused ones from surfacing as unhandled.
   for (const p of Object.values(facts)) p.catch(() => undefined);
 
@@ -104,6 +110,7 @@ export async function traceUser(userId: string, featureId: string | null, org: s
     checkAccountsMatch(facts),
     checkDbSchema(user, feature, facts),
     ...(feature ? [checkActions(user, feature, facts)] : []),
+    checkTabs(user, feature, facts),
     checkCache(user, facts),
     checkLastSync(user, facts),
   ]);
@@ -119,7 +126,7 @@ export async function traceUser(userId: string, featureId: string | null, org: s
   };
 }
 
-function gather(user: UserInfo, feature: FeatureDefinition | undefined, org: string): Omit<Facts, "accountReach"> {
+function gather(user: UserInfo, feature: FeatureDefinition | undefined, org: string): Omit<Facts, "accountReach" | "published"> {
   const id = user.id;
   const objects = featureObjects(feature);
   return {
@@ -569,6 +576,75 @@ function checkActions(user: UserInfo, feature: FeatureDefinition, facts: Facts):
         pass: visible.length > 0,
         detail: `${visible.length} of ${plural(related.length, "action")} show for ${user.profile ?? "this user"}.`,
         examples: hidden.map((r) => r.label || r.developerName),
+      };
+    }
+  );
+}
+
+function publishedFor(user: UserInfo, org: string): Promise<SnapshotCore | null> {
+  if (!user.profile) return Promise.resolve(null);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error("Reading the profile's published metadata took too long. Check again in a minute; it's quicker once read.")),
+      PUBLISHED_TIMEOUT_MS
+    );
+  });
+  const load = loadPublishedCore(user.profile, org, user.id).then((r) => ("missing" in r ? null : r));
+  return Promise.race([load, timeout]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * The tab bar the rep's iPad builds from the published cache, the way the app filters it: a tab
+ * is left off when it's hidden on the profile and permission sets, when its object isn't synced
+ * for the rep, or when the app has no screen for it. A tab added after the publish isn't there.
+ */
+function checkTabs(user: UserInfo, feature: FeatureDefinition | undefined, facts: Facts): Promise<ReadinessCheck> {
+  const keywords = feature?.tabKeywords;
+  return runCheck(
+    {
+      id: "user.mobile.tabs",
+      stage: "mobile",
+      title: keywords ? `${feature!.title} tab is on the iPad` : "Tabs on the iPad",
+      severity: "warning",
+      why: "The iPad's tab bar comes from the profile's published metadata: the tabs of its Lightning app and UI Settings, minus tabs hidden on the profile, tabs whose object doesn't sync to the rep, and tabs the app has no screen for.",
+      steps: [
+        "Make the tab Default On in the profile (or a permission set the rep has) and add it to the profile's Lightning app.",
+        "For an object tab, sync the object to the rep in DB Schema.",
+        "Publish to iPad for the profile, then have the rep log out and in.",
+      ],
+      uiPath: "Setup > Profiles > Object Settings, App Manager, and Admin Console > Mobile",
+    },
+    async () => {
+      const published = await facts.published;
+      if (!published) return { pass: false, detail: `${user.profile ?? "The user's profile"} has no published metadata, so the iPad has no tabs to show.` };
+      const shown = published.tabs.filter((t) => t.kind !== "recent");
+      const names = (tabs: { label: string }[]) => tabs.map((t) => t.label).join(", ");
+      const date = published.cache.generatedAt.slice(0, 10);
+      if (!keywords) {
+        const hiddenNote = published.hiddenTabs.length ? ` Left off: ${published.hiddenTabs.map((t) => `${t.label} (${t.reason})`).join("; ")}.` : "";
+        return { pass: shown.length > 0, detail: `${plural(shown.length, "tab")} as published on ${date}: ${names(shown) || "none"}.${hiddenNote}` };
+      }
+      const about = (t: { fullName: string; label: string; sobject?: string }) => matchesAny(`${t.fullName} ${t.label} ${t.sobject ?? ""}`, keywords);
+      const mine = shown.filter(about);
+      if (mine.length) return { pass: true, detail: `On the tab bar: ${names(mine)} (published ${date}).` };
+      const hidden = published.hiddenTabs.filter(about);
+      if (hidden.length) {
+        // ProcessMetadataOperation.parseNavigation drops these by name, whatever their visibility.
+        const samplesNote = hidden.some((t) => t.reason === TAB_FILTER_REASONS.samples)
+          ? " Reps give samples from the visit; for a list of their inventory, add an object tab for ProductItem or InventoryOperation instead."
+          : "";
+        return {
+          pass: false,
+          detail: `Left off the tab bar: ${hidden.map((t) => `${t.label} (${t.reason})`).join("; ")}.${samplesNote}`,
+          examples: hidden.map((t) => t.label),
+        };
+      }
+      // Not every feature needs its own tab (samples are given from the visit), so having none isn't a failure.
+      return {
+        pass: true,
+        skip: true,
+        detail: `The cache published on ${date} has no ${feature!.title} tab. Its tabs: ${names(shown) || "none"}. To give reps one, add it to the profile's Lightning app, or publish again if it was added after ${date}.`,
       };
     }
   );
