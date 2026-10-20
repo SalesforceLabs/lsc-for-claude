@@ -40,18 +40,3 @@ export function traceHeadline(trace: UserTrace, featureTitle?: string): { ok: bo
 export function needsPublish(check: ReadinessCheck): boolean {
   return check.status === "fail" && check.id.startsWith("user.mobile.");
 }
-
-/** A prompt for "Ask Claude" about the user's first problem. */
-export function traceAskPrompt(trace: UserTrace, featureTitle?: string): string {
-  const problem = firstProblem(trace.checks);
-  const lines = [
-    `In my LSC org, ${trace.userName}${trace.profile ? ` (${trace.profile})` : ""} can't ${featureTitle ? `use ${featureTitle}` : "use the iPad app"} as expected.`,
-  ];
-  if (problem) {
-    lines.push(`Studio's user check found the first broken link: "${problem.title}" (${problem.id}).`);
-    if (problem.detail) lines.push(`Detail: ${problem.detail}`);
-    if (problem.why) lines.push(`Why it matters: ${problem.why}`);
-  }
-  lines.push("Explain what's wrong and walk me through fixing it.");
-  return lines.join("\n");
-}

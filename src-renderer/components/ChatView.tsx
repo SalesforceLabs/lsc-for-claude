@@ -14,6 +14,12 @@ import { useMermaidSvg } from "../mermaid";
 import { useSmoothText } from "../hooks/useSmoothText";
 import { openMermaidFence, replyActivity, summarizeTools, toolDetail, toolLabel, type Activity } from "../chat-activity";
 import { hostOf, KIND_LABEL, type SessionOrgView } from "../orgs";
+import type { StudioRequest } from "../studio-request";
+import { useApprovals } from "../hooks/useApprovals";
+import { ChatCardsProvider, type ChatCardsEnv } from "./chat-cards/ChatCardsContext";
+import ToolCards from "./chat-cards/ToolCards";
+import ComposerTrayPill from "./chat-cards/ComposerTrayPill";
+import { cardFor, cardHidesStep } from "./chat-cards/card-logic";
 
 /** Lucide defaults for icons in chat chrome. */
 const ICON = { size: 14, strokeWidth: 1.9, "aria-hidden": true } as const;
@@ -739,6 +745,8 @@ interface ChatViewProps {
   /** Log in to the session's org again, when its login has expired. */
   onOrgLogin?: () => void;
   waitingLogin?: boolean;
+  /** Open Studio, optionally at a place (review the tray, a rep's sync…). */
+  onOpenStudio?: (request?: StudioRequest) => void;
 }
 
 /** Persistent scroll positions keyed by conversationId. Lives outside the component. */
@@ -792,8 +800,10 @@ export default function ChatView({
   org,
   onOrgLogin,
   waitingLogin,
+  onOpenStudio,
 }: ChatViewProps) {
   const appIcon = useAppIcon();
+  const { approvals, respond } = useApprovals();
   const [input, setInput] = useState(prefillInput || "");
 
   // Consume prefilled input when it arrives
@@ -1291,6 +1301,7 @@ export default function ChatView({
                 {org.kind === "production" && <span className="ui-pill warning">{KIND_LABEL.production}</span>}
               </span>
             )}
+            {org && <ComposerTrayPill org={org.ref.username} onOpenStudio={onOpenStudio} />}
           </div>
           <div className="input-toolbar-right">
             <ModelPicker value={model} options={modelOptions} onChange={setModel} />
@@ -1320,6 +1331,11 @@ export default function ChatView({
     </div>
   );
 
+  const cardsEnv = useMemo<ChatCardsEnv>(
+    () => ({ convId: conversationId, org: org ?? null, isStreaming, approvals, respond, onSend, onOpenStudio }),
+    [conversationId, org, isStreaming, approvals, respond, onSend, onOpenStudio]
+  );
+
   if (messages.length === 0) {
     return (
       <div className="main-area">
@@ -1343,6 +1359,7 @@ export default function ChatView({
 
   return (
     <div className={`main-area${hasPanel ? " with-panel" : ""}`}>
+      <ChatCardsProvider value={cardsEnv}>
       <div className="main-area-chat">
       <div className="pane-toolbar bordered drag-region" />
       <div className="chat-messages" ref={chatContainerRef}>
@@ -1373,11 +1390,12 @@ export default function ChatView({
                       env={replyEnv}
                     />
                   ) : group.tools.length === 1 ? (
-                    <ToolCallBlock
-                      key={group.tools[0].id}
-                      tool={group.tools[0]}
-                      onToggle={() => onToggleTool(msg.id, group.tools[0].id)}
-                    />
+                    <React.Fragment key={group.tools[0].id}>
+                      {!cardHidesStep(cardFor(group.tools[0])) && (
+                        <ToolCallBlock tool={group.tools[0]} onToggle={() => onToggleTool(msg.id, group.tools[0].id)} />
+                      )}
+                      <ToolCards tool={group.tools[0]} />
+                    </React.Fragment>
                   ) : (
                     <ToolGroup
                       key={`tg-${gi}`}
@@ -1430,6 +1448,7 @@ export default function ChatView({
       </div>
       {inputArea}
       </div>
+      </ChatCardsProvider>
       {diagramChart && !docPanel && (
         <MermaidViewerPanel chart={diagramChart} onClose={() => setDiagramChart(null)} />
       )}
@@ -1572,6 +1591,7 @@ function ToolGroup({
   const statusLabel = working ? `${finished} of ${tools.length}` : failed ? `${failed} failed` : undefined;
 
   return (
+    <>
     <div className="tool-group">
       <button
         type="button"
@@ -1599,6 +1619,11 @@ function ToolGroup({
         </div>
       )}
     </div>
+    {/* Results that matter stay visible with the group collapsed. */}
+    {tools.map((tool) => (
+      <ToolCards key={tool.id} tool={tool} />
+    ))}
+    </>
   );
 }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { diagnosisPrompt, diagnosisVerdict, toCheck, type DiagnosisItem, type DiagnosisResult } from "../../../src-renderer/components/studio/diagnose-logic.js";
+import { diagnosisVerdict, toCheck, type DiagnosisItem, type DiagnosisResult } from "../../../src-renderer/components/studio/diagnose-logic.js";
 import { failedPublishPrompt } from "../../../src-renderer/components/studio/metadata-cache-types.js";
 
 const item = (over: Partial<DiagnosisItem>): DiagnosisItem => ({
@@ -58,15 +58,8 @@ describe("diagnosisVerdict()", () => {
   });
 });
 
-describe("prompts", () => {
+describe("failed publish prompt", () => {
   const result: DiagnosisResult = { items: [item({ records: ["DbSchema_Topic"] }), item({ id: "c2", title: "Other", status: "not-found" })], checkedOrg: "demo" };
-
-  it("quotes the error and lists what was checked", () => {
-    const p = diagnosisPrompt("Bad filter on Topic", result);
-    expect(p).toContain("```\nBad filter on Topic\n```");
-    expect(p).toContain("- Topic sync record has a bad filter (known cause c1): Found in your org: 1 record to fix. Records: DbSchema_Topic.");
-    expect(diagnosisPrompt("x", result, result.items[1])).toContain("Help me fix this one.");
-  });
 
   it("adds known causes found to a failed publish prompt", () => {
     const p = failedPublishPrompt({ profiles: ["Rep"], startedAt: "2026-10-20T10:00:00Z", startedBy: null, error: "Bad filter", logs: [], causes: result });

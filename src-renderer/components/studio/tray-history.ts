@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useState } from "react";
 import { changeKey, type PendingChange } from "./changes";
 
 /**
@@ -53,44 +52,7 @@ export function describeStep(from: PendingChange[], to: PendingChange[]): string
 }
 
 /** True for keys typed into a field, which keep their own undo. */
-function typing(target: EventTarget | null): boolean {
+export function typing(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   return !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
-}
-
-/**
- * The tray with its history: `setPending` records a step, `reset` starts over
- * (after changes are applied). ⌘Z / ⇧⌘Z (Ctrl on Windows and Linux) work
- * anywhere except in a text field, and not while `paused` (a dialog is open).
- */
-export function useTrayHistory(paused = false) {
-  const [history, setHistory] = useState<TrayHistory>(() => emptyHistory());
-  const setPending = useCallback((next: PendingChange[]) => setHistory((h) => record(h, next)), []);
-  const reset = useCallback((next: PendingChange[]) => setHistory(emptyHistory(next)), []);
-  const stepBack = useCallback(() => setHistory(undo), []);
-  const stepForward = useCallback(() => setHistory(redo), []);
-
-  useEffect(() => {
-    if (paused) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.key.toLowerCase() !== "z" || typing(e.target)) return;
-      e.preventDefault();
-      setHistory(e.shiftKey ? redo : undo);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [paused]);
-
-  const { past, present, future } = history;
-  return {
-    pending: present,
-    setPending,
-    reset,
-    undo: stepBack,
-    redo: stepForward,
-    /** What ⌘Z would take back, or null when there's nothing to undo. */
-    undoLabel: past.length ? describeStep(past[past.length - 1], present) : null,
-    /** What ⇧⌘Z would put back, or null. */
-    redoLabel: future.length ? describeStep(present, future[0]) : null,
-  };
 }

@@ -18,17 +18,17 @@ import ReleaseBar from "./ReleaseBar";
 import SourceStep from "./SourceStep";
 import { sourceDocs, withoutUndone } from "./source-control";
 import { useSourceControl } from "../../hooks/useSourceControl";
-import { usePublishJob } from "./usePublishJob";
-import { reachOfChange, stillAwaiting } from "./reach";
+import { useStudioTray, useTrayKeys } from "../../hooks/useStudioTray";
+import type { StudioRequest } from "../../studio-request";
+import { reachOfChange } from "./reach";
 import { barVisible } from "./release-bar-logic";
 import { pendingForProfile, viewFor, type PendingChange } from "./changes";
-import { useTrayHistory, withoutApplied } from "./tray-history";
+import { emptyHistory, record } from "./tray-history";
+import { afterApply, afterReview } from "./tray-state";
 import { fixAffectsPublished, isRevalidating, markAllStale, needsLoad, type Revalidating } from "./fix-effects";
 import TestingPages, { SYNC_PAGES, type SyncPage } from "./TestingPages";
 import ReadinessView from "./ReadinessView";
 import SetupOverview from "./SetupOverview";
-import UserTraceView from "./UserTraceView";
-import DiagnoseView from "./DiagnoseView";
 import DriftView from "./DriftView";
 import TestUsersView from "./TestUsersView";
 import MetadataCacheView from "./MetadataCacheView";
@@ -44,7 +44,6 @@ import {
   FileCode2,
   History,
   LayoutDashboard,
-  MessageSquareWarning,
   PanelLeftClose,
   PanelLeftOpen,
   RefreshCw,
@@ -70,6 +69,11 @@ import type { AppProject } from "./builder/types";
 
 interface StudioViewProps {
   onAskClaude: (prompt: string) => void;
+  /** Where to land on open (from chat); acted on whenever `requestNonce` changes. */
+  request?: StudioRequest;
+  requestNonce?: number;
+  /** Called once a request has been acted on, so opening Studio later doesn't replay it. */
+  onRequestHandled?: () => void;
 }
 
 /** Features the iPad preview's edit mode reads (tabs, Home actions, DB Schema), loaded when it opens. */
@@ -83,9 +87,9 @@ type MapState =
   | ({ status: "ready"; map: FeatureMap } & Revalidating);
 
 /** What the main pane shows: the iPad preview, a Setup page or feature, or a Testing page. */
-type Section = "preview" | "apps" | "overview" | "user-check" | "diagnose" | "drift" | "setup" | SyncPage | "test-users" | "custom-scripts" | "metadata-cache" | "object-sync";
+type Section = "preview" | "apps" | "overview" | "drift" | "setup" | SyncPage | "test-users" | "custom-scripts" | "metadata-cache" | "object-sync";
 
-export default function StudioView({ onAskClaude }: StudioViewProps) {
+export default function StudioView({ onAskClaude, request, requestNonce, onRequestHandled }: StudioViewProps) {
   const [features, setFeatures] = useState<FeatureSummary[]>([]);
   // The rail folds to icons; remembered across restarts. Option+Cmd+Backslash toggles it.
   const [railCollapsed, setRailCollapsed] = usePersistedFlag("roz.studio.railCollapsed");
@@ -109,13 +113,13 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [toggleRail]);
   const [featureId, setFeatureId] = useState("visit");
-  /** Feature "Check a user" opens with, when reached from a feature's page. */
-  const [traceFeature, setTraceFeature] = useState<string | undefined>();
   // A feature opens on its readiness checks; "board" is every configuration surface.
   const [featureView, setFeatureView] = useState<"readiness" | "board">("readiness");
-  const [readiness, setReadiness] = useState<Record<string, ReadinessState>>({});
-  // The org a user check last read, for applying its changes before any map is loaded.
+  // The org a page (Object sync) last read, for applying its changes before any map is loaded.
   const [seenOrg, setSeenOrg] = useState<string | undefined>(undefined);
+  // Sync health reads telemetry before any map is loaded; its changes go to the org the MCP server is connected to.
+  const [connectedOrg, setConnectedOrg] = useState<string | undefined>(undefined);
+  const [readiness, setReadiness] = useState<Record<string, ReadinessState>>({});
   // The sync pages stay mounted once one is opened so a run keeps polling while another page is shown.
   const [syncOpened, setSyncOpened] = useState(false);
   // The script editor keeps its drafts while another page is shown, so it stays mounted once opened.
@@ -140,19 +144,19 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   // Maps are kept per feature so switching back doesn't re-query the org.
   const [maps, setMaps] = useState<Record<string, MapState>>({});
   const [selectedSurface, setSelectedSurface] = useState<SurfaceId | null>(null);
-  // "tray" reviews the pending changes; "undo" reviews the undo of the last apply.
-  const [reviewing, setReviewing] = useState<false | "tray" | "undo">(false);
-  // Edits queued in the tray, applied together from the review dialog; ⌘Z / ⇧⌘Z step through them (not while reviewing).
-  const tray = useTrayHistory(!!reviewing);
-  const { pending, setPending } = tray;
+  // Edits queued in the tray, applied together from the review dialog. The tray is app-wide per org (`useStudioTray`),
+  // so it outlives this view; ⌘Z / ⇧⌘Z step through it while Studio is showing (not while reviewing).
+  const tray = useStudioTray();
+  // The open review: "tray" reviews the pending changes, "undo" the undo of the last apply. It keeps the tray it
+  // was opened on and what it was given, so an org switch or a change queued from chat meanwhile isn't lost.
+  const [review, setReview] = useState<{ mode: "tray" | "undo"; key: string; opened: PendingChange[]; org?: string } | null>(null);
+  const reviewing = review?.mode ?? false;
+  const openReview = (mode: "tray" | "undo") =>
+    setReview({ mode, key: tray.org, opened: mode === "undo" ? (tray.lastApply ?? []) : tray.pending });
+  useTrayKeys(!!reviewing);
+  const { pending, setPending, lastApply, awaiting, appliedFixes, publishJob } = tray;
   // Profiles to preselect in "Publish to iPad"; undefined = closed, null = none preselected.
   const [publishing, setPublishing] = useState<string[] | null | undefined>(undefined);
-  // The undo of the last apply, offered as "Undo last apply" until the next apply or an org switch.
-  const [lastApply, setLastApply] = useState<PendingChange[] | null>(null);
-  // Applied this session and waiting for Publish to iPad; a finished publish drops what it covered.
-  const [awaiting, setAwaiting] = useState<PendingChange[]>([]);
-  // Everything applied this session (undos too), for the source-control step: the org's versions are what get saved.
-  const [appliedFixes, setAppliedFixes] = useState<StudioFix[]>([]);
   const sourceControl = useSourceControl();
   // "View as" — kept across features so switching features keeps the same point of view.
   const [lens, setLens] = useState<Lens>(null);
@@ -268,9 +272,9 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         publishedUsers.current = {};
         setPublished({});
         resetReadiness();
-        setLastApply(null);
-        setAwaiting([]);
-        setAppliedFixes([]);
+        // Neither may stand in for the new org while it loads.
+        setSeenOrg(undefined);
+        setConnectedOrg(undefined);
       }),
     [resetReadiness]
   );
@@ -316,15 +320,14 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     setWriteVersion((v) => v + 1);
   }, []);
   // Publishing runs on after its dialog closes; when it's done what Studio shows of the published iPad is old.
-  const publishJob = usePublishJob(
-    useCallback(
-      (done: string[]) => {
-        setAwaiting((a) => stillAwaiting(a, done));
-        markStale(true);
-      },
-      [markStale]
-    )
-  );
+  // The job itself lives in the tray provider (it polls while Studio is closed); a finish while open lands here.
+  // Counted per org: switching orgs moves the count without anything being published.
+  const seenPublishes = useRef({ org: tray.org, version: tray.publishDoneVersion });
+  useEffect(() => {
+    const seen = seenPublishes.current;
+    seenPublishes.current = { org: tray.org, version: tray.publishDoneVersion };
+    if (seen.org === tray.org && seen.version !== tray.publishDoneVersion) markStale(true);
+  }, [tray.org, tray.publishDoneVersion, markStale]);
   const readyMap = (id: string) => {
     const m = maps[id];
     return m?.status === "ready" ? m.map : null;
@@ -364,6 +367,36 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     setSelectedSurface(surface);
     setFocusItem(item);
   };
+
+  // A request from outside (chat's cards) lands here on open and whenever its nonce moves.
+  const handledRequest = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (!request || requestNonce === undefined || handledRequest.current === requestNonce) return;
+    handledRequest.current = requestNonce;
+    onRequestHandled?.();
+    switch (request.kind) {
+      case "review":
+        openReview("tray");
+        break;
+      case "setup":
+        openSetup(request.featureId, (request.surface as SurfaceId | undefined) ?? null, request.item ?? null);
+        break;
+      case "sync-rep":
+        openSyncRep(request.userId);
+        break;
+      case "overview":
+        setSection("overview");
+        break;
+      case "section":
+        if (request.section === "preview") openPreview();
+        else if (request.section === "apps") openApps();
+        else if (request.section === "custom-scripts") openScripts();
+        else if ((SYNC_PAGES as string[]).includes(request.section)) openSyncPage(request.section as SyncPage);
+        else setSection(request.section as Section);
+        break;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request, requestNonce]);
 
   const state = maps[featureId];
   const feature = features.find((f) => f.id === featureId);
@@ -434,15 +467,13 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     return [...options.values()].sort((a, b) => a.name.localeCompare(b.name));
   }, [profiles, maps]);
 
-  // Sync health reads telemetry before any map is loaded; its changes go to the org the MCP server is connected to.
-  const [connectedOrg, setConnectedOrg] = useState<string | undefined>(undefined);
   useEffect(() => {
-    if (!(syncOpened || scriptsOpened) || connectedOrg) return;
+    if (!(syncOpened || scriptsOpened || reviewing) || connectedOrg) return;
     window.lscApi.studioConnectedOrg().then((res) => {
       const org = (res.data as { org?: string } | undefined)?.org;
       if (org) setConnectedOrg(org);
     });
-  }, [syncOpened, scriptsOpened, connectedOrg]);
+  }, [syncOpened, scriptsOpened, reviewing, connectedOrg]);
 
   // Changes are applied against the org Studio last read — from a map, or from readiness checks on the Setup pages.
   const readyOrg =
@@ -451,6 +482,13 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     Object.values(readiness).find((r) => r.status === "ready")?.readiness.org ??
     seenOrg ??
     connectedOrg;
+  // A review names its org once, when it is known, and keeps it to the end.
+  useEffect(() => {
+    if (!review || review.org) return;
+    // The org was switched before the review could open: it belonged to the other org's tray.
+    if (review.key !== tray.org) setReview(null);
+    else if (readyOrg) setReview({ ...review, org: readyOrg });
+  }, [review, readyOrg, tray.org]);
   const publishedState = publishedProfile ? published[publishedProfile] : undefined;
   const publishedSnapshot = publishedState?.status === "ready" && !("missing" in publishedState.result) ? publishedState.result : null;
   const unpublished = useUnpublished(publishedProfile, publishedSnapshot, writeVersion);
@@ -583,7 +621,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
       <ReleaseBar
         pending={pending}
         onPendingChange={setPending}
-        onReview={() => setReviewing("tray")}
+        onReview={() => openReview("tray")}
         canReview={!!readyOrg}
         history={tray}
         scope={
@@ -594,7 +632,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         awaiting={awaiting}
         job={publishJob}
         onPublish={(preselect) => readyOrg && setPublishing(preselect)}
-        onUndoLastApply={lastApply && readyOrg ? () => setReviewing("undo") : undefined}
+        onUndoLastApply={lastApply && readyOrg ? () => openReview("undo") : undefined}
         extraStep={sourceControl.deployed && sourceDocs(appliedFixes).length > 0 ? <SourceStep changes={appliedFixes} /> : undefined}
       />
     ) : null;
@@ -616,20 +654,6 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         </div>
         <div className="studio-rail-title">Setup</div>
         {railItem("overview", "Overview", "Readiness for every feature, and org-wide blockers", () => setSection("overview"), LayoutDashboard)}
-        {railItem(
-          "user-check",
-          "Check a user",
-          "Find out why a rep can't do something",
-          () => setSection("user-check"),
-          UserRoundSearch
-        )}
-        {railItem(
-          "diagnose",
-          "Paste an error",
-          "Match an error against known setup mistakes and check which are in this org",
-          () => setSection("diagnose"),
-          MessageSquareWarning
-        )}
         {railItem(
           "drift",
           "What changed",
@@ -809,7 +833,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         <CustomScriptsView
           pending={pending}
           onPendingChange={setPending}
-          onReview={() => setReviewing("tray")}
+          onReview={() => openReview("tray")}
           writeVersion={writeVersion}
           active={section === "custom-scripts"}
           openRequest={scriptRequest}
@@ -842,45 +866,13 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               readiness={readiness}
               loadReadiness={loadReadiness}
               onOpenFeature={(id) => openSetup(id)}
-              onCheckUser={() => {
-                setTraceFeature(undefined);
-                setSection("user-check");
-              }}
+              onCheckUser={() => onAskClaude("Check why a rep can't use LSC on their iPad: ")}
               onPublish={(preselect) => setPublishing(preselect)}
               profiles={profiles}
               pending={pending}
               onPendingChange={setPending}
               onAskClaude={onAskClaude}
             />
-          </div>
-          {releaseBar(false)}
-        </section>
-      )}
-
-      {section === "user-check" && (
-        <section className="studio-main ui-enter">
-          <div className="studio-scroll">
-            <UserTraceView
-              features={features}
-              initialFeatureId={traceFeature}
-              profiles={profiles}
-              pending={pending}
-              onPendingChange={setPending}
-              onAskClaude={onAskClaude}
-              onOpenFeature={(id) => openSetup(id)}
-              onPublish={(preselect) => setPublishing(preselect)}
-              onOrgSeen={setSeenOrg}
-              onOpenSyncRep={openSyncRep}
-            />
-          </div>
-          {releaseBar(false)}
-        </section>
-      )}
-
-      {section === "diagnose" && (
-        <section className="studio-main ui-enter">
-          <div className="studio-scroll">
-            <DiagnoseView profiles={profiles} pending={pending} onPendingChange={setPending} onAskClaude={onAskClaude} />
           </div>
           {releaseBar(false)}
         </section>
@@ -995,11 +987,8 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             {!activeLens && featureView === "readiness" && (
               <button
                 className="studio-btn"
-                onClick={() => {
-                  setTraceFeature(featureId);
-                  setSection("user-check");
-                }}
-                title="Check one rep's setup for this feature"
+                onClick={() => onAskClaude(`Check why a rep can't use ${feature?.title ?? "this feature"}: `)}
+                title="Ask Roz to check one rep's setup for this feature"
               >
                 <UserRoundSearch aria-hidden="true" />
                 Check a user…
@@ -1088,34 +1077,37 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         {releaseBar(!!map)}
       </section>
 
-      {readyOrg && reviewing && (
+      {review?.org && (
         <ReviewDialog
-          changes={reviewing === "undo" ? (lastApply ?? []) : pending}
-          undo={reviewing === "undo"}
-          org={readyOrg}
+          changes={review.opened}
+          undo={review.mode === "undo"}
+          org={review.org}
           onClose={(applied, remaining) => {
-            setReviewing(false);
+            setReview(null);
             // Undoing the last apply leaves the tray as it was; otherwise applied changes can't be taken back
-            // from the tray — their undo is in the review dialog, and "Undo last apply" on the bar.
-            if (reviewing === "tray") {
-              if (applied.length > 0) tray.reset(remaining);
-              else setPending(remaining);
-            }
+            // from the tray — their undo is in the review dialog, and "Undo last apply" on the bar. Only what the
+            // dialog was given is touched: anything queued while it was open stays.
+            if (review.mode === "tray")
+              tray.editTray(review.key, (t) => {
+                const next = afterReview(t.history.present, review.opened, remaining);
+                if (next === t.history.present) return t;
+                return { ...t, history: applied.length > 0 ? emptyHistory(next) : record(t.history, next) };
+              });
             // Any feature's map and readiness may have changed; the main process dropped them from its cache. What's
             // on screen stays, marked refreshing, and reloads when its page is showing — nothing is blanked.
             if (applied.length > 0) markStale(applied.some((c) => fixAffectsPublished(c.fix)));
           }}
           onPublish={(preselect) => setPublishing(preselect)}
           onApplied={(done, undos, wasUndo) => {
-            if (reviewing === "tray" && !wasUndo) tray.reset(withoutApplied(pending, done));
-            // An undo takes the last apply back; anything else becomes the apply to undo.
-            setLastApply(wasUndo ? null : undos.length ? undos : null);
             const toPublish = done.filter((c) => reachOfChange(c).ipad === "publish");
-            if (toPublish.length) setAwaiting((a) => [...a, ...toPublish]);
-            if (done.length) {
-              const fixes = done.map((c) => c.fix);
-              setAppliedFixes((a) => (wasUndo ? withoutUndone(a, fixes) : [...a, ...fixes]));
-            }
+            const fixes = done.map((c) => c.fix);
+            tray.editTray(review.key, (t) => ({
+              ...(review.mode === "tray" && !wasUndo ? afterApply(t, done) : t),
+              // An undo takes the last apply back; anything else becomes the apply to undo.
+              lastApply: wasUndo ? null : undos.length ? undos : null,
+              awaiting: toPublish.length ? [...t.awaiting, ...toPublish] : t.awaiting,
+              appliedFixes: !done.length ? t.appliedFixes : wasUndo ? withoutUndone(t.appliedFixes, fixes) : [...t.appliedFixes, ...fixes],
+            }));
           }}
         />
       )}

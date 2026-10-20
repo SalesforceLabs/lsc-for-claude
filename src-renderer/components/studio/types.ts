@@ -701,7 +701,7 @@ export interface ReadinessCheck {
   fixes?: StudioFix[];
   /** A few of the records that failed, labelled for people. */
   examples?: string[];
-  /** "rule" = knowledge/validation-rules YAML, "studio" = a TypeScript check, "cause" = a known cause (Paste an error). */
+  /** "rule" = knowledge/validation-rules YAML, "studio" = a TypeScript check, "cause" = a known cause. */
   source: "rule" | "studio" | "cause";
 }
 

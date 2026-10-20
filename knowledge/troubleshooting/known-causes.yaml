@@ -437,7 +437,7 @@ causes:
     fix:
       - "Compare the clone's system permissions with the standard LSC set it came from."
       - "Add what's missing, or assign the standard set alongside the clone."
-      - "Test as a rep user, not an admin. Studio's Check a user shows the rep's permission sets."
+      - "Test as a rep user, not an admin. Ask Roz to check the rep (check_user_access) to see their permission sets."
 
   - id: perm-fls-missing
     title: The rep can't read a field LSC reads
@@ -755,7 +755,7 @@ causes:
       IsAvailableOffline = true and has a preferred address. On the iPad
       territory visibility comes from PATI, not AccountShare.
     fix:
-      - "Check the account against each condition (Studio's Check a user follows the chain for one rep)."
+      - "Check the account against each condition (ask Roz to check the rep; check_user_access follows the chain for one rep)."
       - "Fix the data, then run Align Account to Territory so PATI is created."
       - "Have the rep sync."
     rules: [territory-001, territory-003, territory-006]

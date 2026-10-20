@@ -14,10 +14,21 @@ import StudioView from "./components/studio/StudioView";
 import StatusBar from "./components/StatusBar";
 import { useOrgs, useSelectedOrgId } from "./hooks/useOrgs";
 import { useSidebarLayout } from "./hooks/useSidebarLayout";
+import { StudioTrayProvider } from "./hooks/useStudioTray";
+import type { StudioRequest } from "./studio-request";
 import { orgKey, orgLabel, sameUsername, sessionOrgView, toOrgRef, type OrgRef } from "./orgs";
 import type { LibraryItem, OrgScope } from "./types";
 
+/** The tray is held here, above Studio and chat, so it survives leaving Studio and can take changes queued from chat. */
 export default function App() {
+  return (
+    <StudioTrayProvider>
+      <AppShell />
+    </StudioTrayProvider>
+  );
+}
+
+function AppShell() {
   const chat = useChat();
   const engine = useEngine();
   const orgs = useOrgs();
@@ -27,6 +38,8 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [libraryPanelOpen, setLibraryPanelOpen] = useState(false);
   const [studioOpen, setStudioOpen] = useState(false);
+  // Chat asks Studio to open somewhere; the nonce makes the same request count again.
+  const [studioRequest, setStudioRequest] = useState<{ request?: StudioRequest; nonce: number }>({ nonce: 0 });
   // What the setup screen can offer without asking, and the saved connection to start from
   const [detected, setDetected] = useState<DetectedProviders>({ env: { anthropic: false, openai: false }, savedSecrets: [] });
   const [savedConnection, setSavedConnection] = useState<LlmConnection | undefined>();
@@ -199,6 +212,14 @@ export default function App() {
     setPrefillInput(prompt);
   }, [chat]);
 
+  // Studio acts on a request once; cleared so opening Studio again later doesn't replay it.
+  const clearStudioRequest = useCallback(() => setStudioRequest((r) => (r.request ? { nonce: r.nonce } : r)), []);
+  const openStudio = useCallback((request?: StudioRequest) => {
+    setLibraryPanelOpen(false);
+    setStudioOpen(true);
+    if (request) setStudioRequest((r) => ({ request, nonce: r.nonce + 1 }));
+  }, []);
+
   const handleOpenLibrary = useCallback((itemId?: string) => {
     setStudioOpen(false);
     setLibraryPanelOpen(true);
@@ -281,7 +302,12 @@ export default function App() {
       />
       <div key={studioOpen ? "studio" : libraryPanelOpen ? "library" : "chat"} className="view-pane ui-enter">
       {studioOpen ? (
-        <StudioView onAskClaude={handleAskClaude} />
+        <StudioView
+          onAskClaude={handleAskClaude}
+          request={studioRequest.request}
+          requestNonce={studioRequest.nonce}
+          onRequestHandled={clearStudioRequest}
+        />
       ) : libraryPanelOpen ? (
         <LibraryPanel
           items={library.items}
@@ -313,6 +339,7 @@ export default function App() {
           onToggleTool={chat.toggleToolCollapse}
           onSaveToLibrary={handleSaveToLibrary}
           savedDiagramContents={savedDiagramContents}
+          onOpenStudio={openStudio}
           prefillInput={prefillInput}
           onPrefillConsumed={() => setPrefillInput(undefined)}
           org={composerOrg}

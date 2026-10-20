@@ -74,8 +74,9 @@ describe("session org prompt", () => {
     expect(text).not.toContain("production org");
   });
 
-  it("asks for confirmation before writes in production", () => {
-    expect(orgPromptSection({ ref, kind: "production" })).toContain("get the user's confirmation");
+  it("says writes are reviewed, and calls out production", () => {
+    expect(orgPromptSection({ ref, kind: "sandbox" })).toContain("Writes are reviewed by the user");
+    expect(orgPromptSection({ ref, kind: "production" })).toContain("This is a production org");
   });
 
   it("says when there's no org, and refuses org switches", () => {

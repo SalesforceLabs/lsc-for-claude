@@ -76,7 +76,7 @@ const DETAIL_KEYS = [
 ];
 
 /** Strips an MCP server prefix (`mcp__salesforce-docs__salesforce_docs_search`). */
-function bareName(name: string): string {
+export function bareName(name: string): string {
   const parts = name.split("__");
   return parts[parts.length - 1];
 }

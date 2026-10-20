@@ -363,6 +363,19 @@ interface LscApi {
     callback: (data: { id: string; result: string; isError: boolean; nonce: number; convId: string }) => void
   ): () => void;
   onToolEnd(callback: (data: { id: string; nonce: number; convId: string }) => void): () => void;
+  /**
+   * A write the model asked for that Studio can make was queued for review instead of run.
+   * `org` is the session's org username, lowercased; `changes` are tray entries
+   * (`PendingChange` in components/studio/changes.ts). `toolId` is the chat tool call it answers.
+   */
+  onTrayQueue(callback: (data: TrayQueueEvent) => void): () => void;
+  /** A write with no Studio equivalent waits for Allow / Deny on its tool call (`toolId`). */
+  onApprovalRequest(callback: (data: ApprovalRequest) => void): () => void;
+  /** An approval was answered, or dropped because its run was aborted. */
+  onApprovalSettled(callback: (data: { requestId: string; convId: string; toolId: string; allowed: boolean }) => void): () => void;
+  respondApproval(requestId: string, allow: boolean): Promise<{ ok: boolean }>;
+  /** Approvals still waiting (e.g. after the window reloads, or in a session opened later). */
+  listApprovals(): Promise<ApprovalRequest[]>;
   onComplete(callback: (nonce: number, convId: string) => void): () => void;
   onError(callback: (error: string, nonce: number, convId: string) => void): () => void;
 
@@ -431,3 +444,25 @@ declare global {
 }
 
 export {};
+
+/** `tray:queue` — see `onTrayQueue`. */
+export interface TrayQueueEvent {
+  convId: string;
+  toolId: string;
+  org: string;
+  changes: Array<{ fix: { kind: string; label: string; [key: string]: unknown }; affects?: string[] }>;
+}
+
+/** `chat:approval-request` — see `onApprovalRequest`. */
+export interface ApprovalRequest {
+  requestId: string;
+  convId: string;
+  toolId: string;
+  /** Tool name, e.g. "update_record". */
+  name: string;
+  input: Record<string, unknown>;
+  /** One plain sentence: what it will change, e.g. "Update Account 001… (Name, Phone)". */
+  summary: string;
+  /** The session's org is production. */
+  production: boolean;
+}

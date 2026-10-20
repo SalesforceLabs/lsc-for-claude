@@ -206,7 +206,7 @@ export function formatDiagnosis(diagnosis: Diagnosis): string {
 // JSON (Studio)
 // ============================================================================
 
-/** One finding as plain data, for Studio's "Paste an error" page and failed publishes. */
+/** One finding as plain data, for the chat diagnosis card and failed publishes. */
 export interface DiagnosisItem {
   id: string;
   kind: "cause" | "rule";

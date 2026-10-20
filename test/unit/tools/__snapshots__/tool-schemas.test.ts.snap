@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `142`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `144`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -19,6 +19,7 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "check_mobile_cache_status",
   "check_sample_config",
   "check_territory_config",
+  "check_user_access",
   "check_user_config",
   "check_visit_config",
   "create_admin_setting",
@@ -92,6 +93,7 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_export_source",
   "studio_feature_map",
   "studio_feature_map_progress",
+  "studio_fix_for_tool",
   "studio_ipad_published",
   "studio_ipad_published_progress",
   "studio_ipad_published_users",
@@ -734,7 +736,24 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
         "optional": true,
         "type": "ZodBoolean",
       },
+      "format": {
+        "optional": true,
+        "type": "ZodEnum",
+      },
       "symptom": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "check_user_access",
+    "params": {
+      "feature": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "user": {
         "optional": false,
         "type": "ZodString",
       },
@@ -1744,6 +1763,19 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
   {
     "name": "studio_connected_org",
     "params": {},
+  },
+  {
+    "name": "studio_fix_for_tool",
+    "params": {
+      "input": {
+        "optional": false,
+        "type": "ZodRecord",
+      },
+      "name": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
   },
   {
     "name": "studio_api_version",

@@ -9,6 +9,10 @@ import {
 } from "../validation/index.js";
 import { runToolingQuery } from "../salesforce/cli.js";
 import { validateOrgConnection } from "../salesforce/auth.js";
+import { withSharedReads } from "../config/read-cache.js";
+import { traceUser } from "../studio/user-trace.js";
+import { findUserInOrg, resolveFeatureId } from "../studio/user-lookup.js";
+import { diagnosePayload } from "./diagnose-shared.js";
 
 export function register(server: McpServer) {
   server.tool(
@@ -124,8 +128,19 @@ export function register(server: McpServer) {
         .boolean()
         .optional()
         .describe("Run the checks against the connected org (default true). Read-only."),
+      format: z
+        .enum(["markdown", "json"])
+        .optional()
+        .describe("markdown (default) for a readable report; json for { items, checkedOrg, orgNote? }, the form the app renders as a card"),
     },
-    async ({ symptom, checkOrg }) => {
+    async ({ symptom, checkOrg, format }) => {
+      if (format === "json") {
+        try {
+          return { content: [{ type: "text", text: JSON.stringify(await diagnosePayload(symptom, checkOrg)) }] };
+        } catch (error) {
+          return { content: [{ type: "text", text: JSON.stringify({ error: error instanceof Error ? error.message : String(error) }) }], isError: true };
+        }
+      }
       let targetOrg: string | undefined;
       let orgNote = "";
       if (checkOrg !== false) {
@@ -137,6 +152,43 @@ export function register(server: McpServer) {
       return {
         content: [{ type: "text", text: formatDiagnosis(diagnosis) + orgNote }],
       };
+    }
+  );
+
+  // Tool: Check a user's access (the chat form of Studio's user trace)
+  server.tool(
+    "check_user_access",
+    "Check one rep's setup end to end and find the first broken link: active user, license, LSC permission set license, permission sets, territory, the accounts that reach them, what DB Schema syncs to their iPad, actions, metadata cache and last sync. Use it for \"why can't <rep> see/do X\" questions. Read-only. Returns JSON (the user trace plus resolvedUser); when several users match it returns { matches } and nothing is traced, so ask which one.",
+    {
+      user: z.string().min(2).max(255).describe("The rep's name, username, email or user Id"),
+      feature: z
+        .string()
+        .optional()
+        .describe("Narrow the check to one feature by id or title, e.g. 'samples' or 'Sample Management'"),
+    },
+    async ({ user, feature }) => {
+      const text = (data: unknown, isError = false) => ({ content: [{ type: "text" as const, text: JSON.stringify(data) }], ...(isError ? { isError: true } : {}) });
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) return text({ error: connection.error || "No Salesforce org connected." }, true);
+      const org = connection.targetOrg;
+      let featureId: string | null = null;
+      if (feature?.trim()) {
+        featureId = resolveFeatureId(feature);
+        if (!featureId) return text({ error: `No single feature matches "${feature}". Omit feature to check the user overall.` }, true);
+      }
+      try {
+        return await withSharedReads(async () => {
+          const found = await findUserInOrg(user, org);
+          if (found.kind === "none") return text({ error: `No user found for "${user}".` }, true);
+          if (found.kind === "many") {
+            return text({ matches: found.matches, message: `Several users match "${user}". Ask which one is meant, then call again with the username or Id.` });
+          }
+          const trace = await traceUser(found.user.id, featureId, org);
+          return text({ resolvedUser: { id: found.user.id, name: found.user.name, username: found.user.username }, ...trace });
+        });
+      } catch (error) {
+        return text({ error: error instanceof Error ? error.message : String(error) }, true);
+      }
     }
   );
 

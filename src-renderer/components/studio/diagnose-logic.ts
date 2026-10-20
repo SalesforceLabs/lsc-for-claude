@@ -1,6 +1,6 @@
 /**
- * "Paste an error": `studio_diagnose` items shown as check rows, the verdict, and what's
- * sent to Roz. Mirrors `DiagnosisItem` in src/validation/diagnose.ts.
+ * `diagnose_lsc_issue` items (chat's diagnosis card) shown as check rows, and the verdict.
+ * Mirrors `DiagnosisItem` in src/validation/diagnose.ts.
  */
 
 import type { ReadinessCheck } from "./types";
@@ -92,28 +92,4 @@ export function diagnosisVerdict(result: DiagnosisResult): DiagnosisVerdict {
   return open > 0
     ? { tone: "unknown", title: `None of the checked causes are in ${checkedOrg}. ${open} ${open === 1 ? "needs" : "need"} a look by hand.` }
     : { tone: "pass", title: `None of the ${causes} are in ${checkedOrg}` };
-}
-
-/** What Roz gets: the error, what was checked, and the one item the user asked about (or all). */
-export function diagnosisPrompt(text: string, result: DiagnosisResult, only?: DiagnosisItem): string {
-  const items = only ? [only] : result.items;
-  const lines = items.map((i) => {
-    const records = i.records.length ? ` Records: ${i.records.map((r) => r.replace(/\.$/, "")).join("; ")}.` : "";
-    return `- ${i.title} (${i.kind === "rule" ? "rule" : "known cause"} ${i.id}): ${detailOf(i, Boolean(result.checkedOrg))}.${records}`;
-  });
-  const quoted = text.length > 4000 ? `${text.slice(0, 4000)}…` : text;
-  return [
-    "An admin pasted this LSC error into Studio's Paste an error page:",
-    "",
-    "```",
-    quoted,
-    "```",
-    "",
-    result.checkedOrg ? `Studio checked these known causes against ${result.checkedOrg}:` : "Studio matched these known causes (no org checked):",
-    ...lines,
-    "",
-    only
-      ? "Help me fix this one. Confirm it in the org first, then walk me through the fix."
-      : "Help me find which one it is and fix it. Use diagnose_lsc_issue if you need the full details.",
-  ].join("\n");
 }

@@ -178,8 +178,10 @@ interface CheckRowProps {
   check: ReadinessCheck;
   expanded: boolean;
   onToggle: () => void;
-  onShowSurface: (id: SurfaceId) => void;
-  onAsk: () => void;
+  /** Without it a check offers no "Show on board" (chat has no board). */
+  onShowSurface?: (id: SurfaceId) => void;
+  /** Without it a check offers no "Ask … how to fix" (chat is already the conversation). */
+  onAsk?: () => void;
   fixProps: Omit<React.ComponentProps<typeof FixButtons>, "fixes">;
 }
 
@@ -236,12 +238,12 @@ export function CheckRow({ check, expanded, onToggle, onShowSurface, onAsk, fixP
             </div>
           )}
           <div className="studio-rcheck-actions">
-            {check.surface && (
+            {check.surface && onShowSurface && (
               <button type="button" className="studio-link-btn" onClick={() => onShowSurface(check.surface!)}>
                 <ExternalLink size={12} aria-hidden="true" /> Show on board
               </button>
             )}
-            {check.status !== "pass" && check.status !== "skipped" && (
+            {onAsk && check.status !== "pass" && check.status !== "skipped" && (
               <button type="button" className="studio-link-btn" onClick={onAsk}>
                 <Sparkles size={12} aria-hidden="true" /> Ask <AssistantName /> how to fix
               </button>

@@ -50,6 +50,25 @@ contextBridge.exposeInMainWorld("lscApi", {
     ipcRenderer.on("chat:tool-end", handler);
     return () => ipcRenderer.removeListener("chat:tool-end", handler);
   },
+  // A chat write queued for review in Studio's tray instead of run
+  onTrayQueue: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on("tray:queue", handler);
+    return () => ipcRenderer.removeListener("tray:queue", handler);
+  },
+  // A chat write with no Studio change waits for the user to allow or deny it
+  onApprovalRequest: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on("chat:approval-request", handler);
+    return () => ipcRenderer.removeListener("chat:approval-request", handler);
+  },
+  onApprovalSettled: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on("chat:approval-settled", handler);
+    return () => ipcRenderer.removeListener("chat:approval-settled", handler);
+  },
+  respondApproval: (requestId, allow) => ipcRenderer.invoke("chat:approval-respond", requestId, allow),
+  listApprovals: () => ipcRenderer.invoke("chat:approval-list"),
   onComplete: (callback) => {
     const handler = (_event, data) => callback(data.nonce, data.convId);
     ipcRenderer.on("chat:complete", handler);

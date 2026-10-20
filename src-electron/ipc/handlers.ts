@@ -12,6 +12,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { ConversationEngine } from "../engine/conversation.js";
 import { EngineCache } from "../engine/engine-cache.js";
+import { diagnosePreflight } from "../engine/diagnose-first.js";
+import { ApprovalBroker, createWriteGate } from "../engine/write-gate.js";
 import { McpClient, STUDIO_TOOL_PREFIX } from "../mcp/client.js";
 import { McpPool, type PoolOrg } from "../mcp/pool.js";
 import { cacheArgsWithRepLogins, repLoginsFor, type RepLoginRef } from "../engine/rep-logins.js";
@@ -225,6 +227,19 @@ function engineState() {
   };
 }
 
+/** The window chat events go to; set when the handlers are registered. */
+let chatWindow: BrowserWindow | null = null;
+
+/** False when the window is gone, so a gate never waits for an answer nobody can give. */
+function sendToWindow(channel: string, payload: unknown): boolean {
+  if (!chatWindow || chatWindow.isDestroyed()) return false;
+  chatWindow.webContents.send(channel, payload);
+  return true;
+}
+
+/** Chat writes waiting for Allow / Deny (see engine/write-gate.ts). */
+const approvals = new ApprovalBroker(sendToWindow);
+
 /**
  * Get or create an engine for a conversation, working in the conversation's org.
  * Restores messages from DB on first access.
@@ -240,7 +255,12 @@ async function getOrCreateEngine(convId: string, ref: OrgRef | null): Promise<Co
   const { org, pool } = await sessionOrg(ref);
   // Until a server has started there are no tools to offer the model; this throws if it can't start.
   if (mcpPool.getTools().length === 0) await mcpPool.get(pool);
-  const engine = new ConversationEngine(llm, mcpPool.host(pool), promptBuilder, org);
+  const diagnosed = new Set<string>();
+  const host = mcpPool.host(pool);
+  const engine = new ConversationEngine(llm, host, promptBuilder, org, {
+    preflight: async (text) => diagnosePreflight(text, diagnosed),
+    gateTool: createWriteGate({ convId, org, host, broker: approvals, send: sendToWindow }),
+  });
   engine.initialize();
 
   // Restore message history from DB so the LLM has full conversation context
@@ -317,6 +337,7 @@ function watchMcpServer(): void {
 }
 
 export function registerIpcHandlers(mainWindow: BrowserWindow): void {
+  chatWindow = mainWindow;
   if (process.env.LSC_RENDERER_URL) watchMcpServer();
 
   // --- Settings ---
@@ -556,6 +577,12 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     engines.get(convId)?.abort();
     return { ok: true };
   });
+
+  ipcMain.handle("chat:approval-respond", async (_event, requestId: string, allow: boolean) => ({
+    ok: approvals.respond(String(requestId), allow === true),
+  }));
+
+  ipcMain.handle("chat:approval-list", async () => approvals.list());
 
   ipcMain.handle("chat:clear", async () => {
     // No-op — per-session engines don't need clearing.

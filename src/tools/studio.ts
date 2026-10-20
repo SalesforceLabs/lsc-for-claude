@@ -13,9 +13,10 @@ import { accessOptions, userAccess } from "../studio/access.js";
 import { collectReadiness } from "../studio/readiness/index.js";
 import { collectSetupOverview } from "../studio/overview.js";
 import { traceUser } from "../studio/user-trace.js";
-import { diagnose, diagnosisItems } from "../validation/diagnose.js";
+import { diagnosePayload } from "./diagnose-shared.js";
 import { drift } from "../studio/drift.js";
 import { applyFix, previewFix } from "../studio/fixes.js";
+import { fixesForToolCall } from "../studio/fix-for-tool.js";
 import { publishStatus, startPublish } from "../studio/publish.js";
 import { loadIpadReports, loadPublishedIpad, searchProfileUsers } from "../studio/published.js";
 import { runReport } from "../studio/screens/report-data.js";
@@ -432,16 +433,8 @@ export function register(server: McpServer) {
       checkOrg: z.boolean().optional().describe("Run the matched checks against the connected org (default true)"),
     },
     async ({ text, checkOrg }) => {
-      let org: string | undefined;
-      let orgNote: string | undefined;
-      if (checkOrg !== false) {
-        const connection = await validateOrgConnection();
-        if (connection.valid && connection.targetOrg) org = connection.targetOrg;
-        else orgNote = connection.error || "No Salesforce org connected.";
-      }
       try {
-        const diagnosis = await (org ? withSharedReads(() => diagnose(text, org)) : diagnose(text));
-        return json({ items: diagnosisItems(diagnosis), checkedOrg: org ?? null, ...(orgNote ? { orgNote } : {}) });
+        return json(await diagnosePayload(text, checkOrg));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -1355,6 +1348,26 @@ function registerPerfTools(server: McpServer) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       return json({ org: connection.targetOrg });
+    }
+  );
+
+  server.tool(
+    "studio_fix_for_tool",
+    "LSC Studio (chat write gate, read-only): the Studio changes a chat write tool call would make, built from the org as it is now, for the pending-changes tray. Returns JSON { changes: [{ fix, affects? }], note? } or { unsupported: reason } when Studio can't express the call exactly. Nothing is written.",
+    {
+      name: z.string().describe("The write tool's name, e.g. update_db_schema"),
+      input: z.record(z.unknown()).describe("The arguments the model passed to it"),
+    },
+    async ({ name, input }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      const named = typeof input.targetOrg === "string" ? input.targetOrg.trim().toLowerCase() : "";
+      if (named && named !== connection.targetOrg.toLowerCase()) {
+        return json({ unsupported: `The call names another org (${input.targetOrg}) than the session's.` });
+      }
+      return json(await fixesForToolCall(name, input, connection.targetOrg));
     }
   );
 

@@ -7,6 +7,10 @@ export interface SessionOrg {
   kind?: OrgKind;
 }
 
+/** What the model is told about reviewed writes (the write gate, `write-gate.ts`). */
+export const WRITE_REVIEW_PROMPT =
+  "Writes are reviewed by the user: a change Studio can make is queued in Studio's tray (\"Review & apply\"), anything else waits for the user to Allow or Deny it in the conversation. When the user asks for a change, make the tool call instead of asking for confirmation in text first. If the result says \"queued\", tell the user the change is waiting in Studio and that nothing has been written yet; if it says the user declined, don't retry and ask what they'd like instead. Never say a change was made unless the tool actually ran and succeeded.";
+
 /** Tools that would point the session's server at another org. */
 export const ORG_SWITCH_TOOLS = new Set(["set_target_org"]);
 
@@ -35,10 +39,9 @@ export function orgPromptSection(org: SessionOrg | null): string {
     `This session works in the org "${ref.label}" (${where})${kind ? `, ${KIND_LABEL[kind]}` : ""}. Every Salesforce tool already runs against it.`,
     "Never call set_target_org, never ask which org to use, and don't list orgs to choose one. If the user wants to work in another org, tell them to switch orgs from the org menu at the top of the sidebar — that opens that org's sessions — and ask there.",
   ];
+  lines.push(WRITE_REVIEW_PROMPT);
   if (kind === "production") {
-    lines.push(
-      "This is a production org: before any tool creates, updates, or deletes records, metadata, settings, or permissions, say exactly what will change and get the user's confirmation in this conversation first."
-    );
+    lines.push("This is a production org: say plainly what a change will do to production when you ask for it, and report exactly what was queued, approved or declined.");
   }
   return lines.join("\n");
 }

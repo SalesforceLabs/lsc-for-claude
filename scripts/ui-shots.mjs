@@ -4,6 +4,7 @@
 //   node scripts/ui-shots.mjs [tour] [outDir]   fixed tour of every main screen (default /tmp/roz-shots)
 //   node scripts/ui-shots.mjs repl [outDir]     commands on stdin, one per line:
 //       ss NAME | click TEXT | nav SELECTOR::TEXT | eval JS | size W H | wait MS | type TEXT | press KEY | quit
+//       main JS   (runs JS in the main process as (electron) => …; e.g. send an IPC event to the window)
 //       down SELECTOR [FRAC] | move SELECTOR [FRAC] | up   (press, drag to, release; FRAC = how far down the element)
 //
 // Build first (npm run electron:build). The app starts with its saved connection and target org,
@@ -129,6 +130,7 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
     else if (cmd === "click") await page.getByText(arg).first().click({ timeout: 8000 });
     else if (cmd === "nav") await nav(...arg.split("::"));
     else if (cmd === "eval") console.log(JSON.stringify(await page.evaluate(arg))?.slice(0, 4000));
+    else if (cmd === "main") console.log(JSON.stringify(await app.evaluate(new Function("electron", `return (${arg})(electron)`)))?.slice(0, 4000));
     else if (cmd === "size") await size(+rest[0], +rest[1]);
     else if (cmd === "wait") await page.waitForTimeout(+arg);
     else if (cmd === "type") await page.keyboard.type(arg);
@@ -147,7 +149,7 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
       } else await page.mouse.move(box.x + box.width / 2, y, { steps: 12 });
     } else if (cmd === "up") await page.mouse.up();
     else if (cmd === "quit") break;
-    if (cmd && cmd !== "eval" && cmd !== "errors") console.log("ok", line);
+    if (cmd && cmd !== "eval" && cmd !== "main" && cmd !== "errors") console.log("ok", line);
   } catch (e) {
     console.log("ERR", line, "—", e.message.split("\n")[0]);
   }

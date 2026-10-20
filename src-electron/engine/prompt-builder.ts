@@ -26,6 +26,9 @@ export class PromptBuilder {
     parts.push(
       "You help consultants, developers, and administrators with LSC configuration, troubleshooting, and best practices."
     );
+    parts.push(
+      "When the user reports an error or a symptom, the app may already have run `diagnose_lsc_issue` and its result is in the conversation: start from it, say which known causes were found in the org and the fix for each, and only if none fit investigate further with the org tools. For \"why can't <rep> see or do X\", call `check_user_access` with the rep and, when it is clear, the feature, and report the first broken link."
+    );
     parts.push("");
 
     // Load CLAUDE.md project instructions
