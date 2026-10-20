@@ -41,6 +41,11 @@ export async function executeCheck(check: RuleCheck, targetOrg: string): Promise
       case "composite":
         return await executeCompositeCheck(check, targetOrg);
 
+      case "builtin": {
+        const { runBuiltinCheck } = await import("./builtin-checks.js");
+        return await runBuiltinCheck(check.name, targetOrg);
+      }
+
       case "metadata":
       case "api":
       case "cli":
@@ -112,13 +117,16 @@ async function executeSoqlCheck(
     return { passed: false, message: `Can't evaluate condition: ${check.expect}`, unavailable: true };
   }
   const passed = evaluated;
+  // For an every(...) check, the records to show are the ones that broke it.
+  const fieldTest = parseFieldTest(check.expect);
+  const offending = fieldTest?.fn === "every" ? records.filter((r) => !fieldTest.test(r)) : records;
 
   return {
     passed,
     message: passed
       ? `Check passed (${records.length} records)`
-      : `Check failed: found ${records.length} records that don't meet criteria`,
-    details: passed ? undefined : { count: records.length, records: records.slice(0, 10) }, // Limit detail records
+      : `Check failed: found ${offending.length} records that don't meet criteria`,
+    details: passed ? undefined : { count: offending.length, records: offending.slice(0, 10) }, // Limit detail records
   };
 }
 
@@ -236,6 +244,22 @@ async function executeCompositeCheck(
 }
 
 /**
+ * records.some / records.every with one field compared to null or a quoted literal, e.g.
+ * "records.every(r => r.InternalSharingModel != 'Private')". Parsed, never evaluated as code.
+ */
+function parseFieldTest(expect: string): { fn: "some" | "every"; test: (r: unknown) => boolean } | null {
+  const m = expect.match(/^records\.(some|every)\(\s*(\w+)\s*=>\s*\2\.(\w+)\s*(==|!=)\s*(null|'[^']*')\s*\)$/);
+  if (!m) return null;
+  const [, fn, , field, op, literal] = m;
+  const want = literal === "null" ? null : literal.slice(1, -1);
+  const test = (r: unknown) => {
+    const value = (r as Record<string, unknown>)[field] ?? null;
+    return op === "==" ? value === want : value !== want;
+  };
+  return { fn: fn as "some" | "every", test };
+}
+
+/**
  * Evaluate an expect condition against context data
  *
  * Supports conditions like:
@@ -316,10 +340,10 @@ function evaluateExpectCondition(
     }
 
     // Complex expressions with records.some() or records.every()
-    if (/^records\.(some|every)\(\s*(\w+)\s*=>\s*\2\.ActiveVersionId\s*!=\s*null\s*\)$/.test(expect)) {
-      // For safety, only this known pattern: any / every record has a non-null ActiveVersionId
-      const hasVersion = (r: unknown) => (r as Record<string, unknown>).ActiveVersionId != null;
-      return expect.startsWith("records.some(") ? (records?.some(hasVersion) ?? false) : (records?.every(hasVersion) ?? true);
+    const fieldTest = parseFieldTest(expect);
+    if (fieldTest) {
+      const { fn, test } = fieldTest;
+      return fn === "some" ? (records?.some(test) ?? false) : (records?.every(test) ?? true);
     }
 
     // If we can't parse the condition, log it and return false for safety

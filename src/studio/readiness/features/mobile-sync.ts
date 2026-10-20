@@ -9,6 +9,7 @@ import {
   substituteIdTag,
   type OrgQuerier,
 } from "../../../perf/sync-volume.js";
+import type { ConfigRecord } from "../../../config/types.js";
 import { runSoqlQuery, runToolingQuery } from "../../../salesforce/cli.js";
 import { dbSchemaLabel, fetchCache, findDuplicates, isLiveCache, noAppSettings, noNavTabs, SETTINGS_CATEGORIES } from "../../collectors/mobile-sync.js";
 import { byCategory, fetchCategories, isNavTab, profilesOf } from "../../collectors/shared.js";
@@ -16,7 +17,7 @@ import { count, inList, plural, query, recordCounts } from "../../helpers.js";
 import type { StudioFix } from "../../types.js";
 import { runCheck, type ReadinessModule } from "../index.js";
 import { cacheFreshResult, lscProfiles, profilesWithApps } from "./_mobile-sync-shared.js";
-import { once } from "./_visit-shared.js";
+import { once, syncResult } from "./_visit-shared.js";
 
 /** Standard objects that grow without bound; synced unfiltered they swamp the first sync. */
 const HIGH_VOLUME = ["Task", "Event", "EmailMessage", "Attachment", "ContentDocumentLink", "Case", "ProviderVisit"];
@@ -35,6 +36,53 @@ function probeSoql(sobject: string, where: string): string {
     w = substituteIdTag(w, tag, ["000000000000000"]);
   }
   return `SELECT Id FROM ${sobject} WHERE ${w} LIMIT 1`;
+}
+
+/** Objects reps create or edit on the iPad; with one-way sync their changes never upload. */
+const REP_WRITTEN = ["ProviderAcctTerritoryInfo", "SurveyResponseOffline", "SurveyQstnResponseOffline", "ProviderVisit", "Visit"];
+/** Data the rep works with; as Configuration they download once with the metadata and hold no rows. */
+const ALWAYS_DATA = ["Account", "Contact"];
+const DSTR = "DeviceSyncTransactionRecord";
+
+const sobjectOf = (r: ConfigRecord) => String(r.fields.SObject ?? "");
+const isObject = (r: ConfigRecord, names: string[]) => names.some((n) => n.toLowerCase() === sobjectOf(r).toLowerCase());
+const isTrue = (v: unknown) => v === true || String(v).toLowerCase() === "true";
+
+function fieldFix(r: ConfigRecord, field: string, from: string | boolean, to: string | boolean, label: string): StudioFix {
+  return { kind: "setConfigField", label, category: "DbSchema", developerName: r.developerName, recordLabel: dbSchemaLabel(r), field, from, to };
+}
+
+/** Which of `fields` each object has (both lower-cased), read from FieldDefinition 40 objects at a time; objects the org doesn't have are absent. */
+async function fieldsOf(org: string, objects: string[], fields: string[]): Promise<Map<string, Set<string>>> {
+  const out = new Map<string, Set<string>>();
+  for (let i = 0; i < objects.length; i += 40) {
+    const rows = await query(
+      `SELECT EntityDefinition.QualifiedApiName, QualifiedApiName FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName IN (${inList(objects.slice(i, i + 40))}) AND QualifiedApiName IN (${inList(fields)})`,
+      org,
+      true
+    );
+    for (const r of rows) {
+      const obj = String((r.EntityDefinition as Record<string, unknown> | undefined)?.QualifiedApiName ?? "").toLowerCase();
+      out.set(obj, (out.get(obj) ?? new Set<string>()).add(String(r.QualifiedApiName).toLowerCase()));
+    }
+  }
+  return out;
+}
+
+/**
+ * A territory tag compared with the wrong kind of field, or null. {USER.TERRITORY} is replaced
+ * with territory names, so it never equals an Id field (Territory2Id, TerritoryList), and
+ * {USER.TERRITORYID} never equals a Name.
+ */
+export function territoryTagMismatch(where: string): string | null {
+  const compared = (tag: string) => new RegExp(`([\\w.]+)\\s*(?:=|!=|\\bIN\\b|\\bINCLUDES\\b)\\s*\\(?\\s*'?\\{${tag}\\}`, "gi");
+  for (const m of where.matchAll(compared("USER\\.TERRITORY"))) {
+    if (/Territory2?Id$|TerritoryList$|Territory2?\.Id$/i.test(m[1])) return `${m[1]} holds Ids but {USER.TERRITORY} is the territory name`;
+  }
+  for (const m of where.matchAll(compared("USER\\.TERRITORYID"))) {
+    if (/(^|\.)Name$/i.test(m[1])) return `${m[1]} is a name but {USER.TERRITORYID} is the territory Id`;
+  }
+  return null;
 }
 
 const readiness: ReadinessModule = {
@@ -225,6 +273,201 @@ const readiness: ReadinessModule = {
           return big.length
             ? { pass: false, detail: `${plural(big.length, "object")} with over ${HIGH_VOLUME_ROWS.toLocaleString("en-US")} rows sync without a filter.`, examples: big }
             : { pass: true, detail: `${unfiltered.map((r) => String(r.fields.SObject)).join(", ")} sync without a filter but are small.` };
+        }
+      ),
+      runCheck(
+        {
+          id: "mobile-sync.config.recordtype-synced",
+          stage: "config",
+          title: "Record types sync to the iPad",
+          severity: "error",
+          why: "The iPad reads record types from its own RecordType table. Without a DB Schema record for it, screens that sort or filter by record type fail with \"no such table: recordtype\".",
+          steps: ["Open Admin Console > Mobile > DB Schema", "Create an active RecordType record assigned to the rep profiles (or org level)", "Publish to iPad, then have the reps log out and in"],
+          uiPath: "Admin Console > Mobile > DB Schema",
+          surface: "syncedObjects",
+        },
+        async () => syncResult(org, await schema(), ["RecordType"])
+      ),
+      runCheck(
+        {
+          id: "mobile-sync.config.upload-table",
+          stage: "config",
+          title: "Device sync transactions sync as data",
+          severity: "error",
+          why: "Everything a rep creates or edits on the iPad uploads through DeviceSyncTransactionRecord. Its DB Schema record has to be active and of Type DATA; as Configuration, switched off or missing, iPad changes never reach the org.",
+          steps: ["Open the DeviceSyncTransactionRecord record in Admin Console > Mobile > DB Schema", "Set Type to DATA, switch it on and assign it to every rep profile", "Publish to iPad, then have the reps log out and in"],
+          uiPath: "Admin Console > Mobile > DB Schema",
+          surface: "syncedObjects",
+        },
+        async () => {
+          if (!(await dataRecords()).some((r) => r.isActive)) return { pass: true, skip: true, detail: "No object syncs yet." };
+          const records = (await schema()).filter((r) => isObject(r, [DSTR]));
+          const isConfig = (r: ConfigRecord) => String(r.fields.Type ?? "").toUpperCase() === "CONFIGURATION";
+          if (records.some((r) => r.isActive && !isConfig(r))) return { pass: true, detail: `${DSTR} syncs as data.` };
+          const config = records.filter((r) => r.isActive && isConfig(r));
+          if (config.length) {
+            return {
+              pass: false,
+              detail: `${DSTR} is set to Type ${String(config[0].fields.Type)}, so iPad changes don't upload.`,
+              examples: config.map(dbSchemaLabel),
+              fixes: config.length === 1 ? [fieldFix(config[0], "Type", String(config[0].fields.Type), "DATA", `Sync ${DSTR} as data`)] : [],
+            };
+          }
+          if (records.length) {
+            const off = records.filter((r) => !isConfig(r));
+            return {
+              pass: false,
+              detail: `The ${DSTR} record is switched off, so iPad changes don't upload.`,
+              examples: records.map(dbSchemaLabel),
+              fixes: off.length === 1 && records.length === 1
+                ? [{ kind: "setActive", label: `Switch on ${DSTR} sync`, record: { type: "config", category: "DbSchema", developerName: off[0].developerName, label: dbSchemaLabel(off[0]) }, from: false, to: true }]
+                : [],
+            };
+          }
+          return { pass: false, detail: `No DB Schema record for ${DSTR}, so iPad changes don't upload.`, examples: [DSTR] };
+        }
+      ),
+      runCheck(
+        {
+          id: "mobile-sync.config.accounts-are-data",
+          stage: "config",
+          title: "Accounts and contacts sync as data",
+          severity: "error",
+          why: "Configuration tables download once with the metadata and are not synced as data. Account or Contact set to Configuration leaves the rep's HCP and HCO tabs at 0 accounts.",
+          steps: ["Open the Account and Contact records in Admin Console > Mobile > DB Schema", "Set Type to DATA", "Publish to iPad, then have the reps log out and in"],
+          uiPath: "Admin Console > Mobile > DB Schema",
+          surface: "syncedObjects",
+        },
+        async () => {
+          const bad = (await schema()).filter((r) => r.isActive && isObject(r, ALWAYS_DATA) && String(r.fields.Type ?? "").toUpperCase() === "CONFIGURATION");
+          return bad.length
+            ? {
+                pass: false,
+                detail: `${bad.map(sobjectOf).join(" and ")} set to Type Configuration.`,
+                examples: bad.map(dbSchemaLabel),
+                fixes: bad.map((r) => fieldFix(r, "Type", String(r.fields.Type), "DATA", `Sync ${sobjectOf(r)} as data`)),
+              }
+            : { pass: true, detail: "Account and Contact sync as data." };
+        }
+      ),
+      runCheck(
+        {
+          id: "mobile-sync.config.two-way-for-rep-written",
+          stage: "config",
+          title: "Objects reps write on the iPad sync both ways",
+          severity: "error",
+          why: "One Way Sync downloads a table and never uploads it, and the iPad builds the table without the columns offline edits need. Territory info, survey responses and visits reps create on the iPad then never reach the org.",
+          steps: ["Open the record in Admin Console > Mobile > DB Schema", "Turn One Way Sync off", "Publish to iPad, then have the reps log out and in (a delta sync doesn't rebuild the table)"],
+          uiPath: "Admin Console > Mobile > DB Schema",
+          surface: "syncedObjects",
+        },
+        async () => {
+          const bad = (await schema()).filter((r) => r.isActive && isObject(r, REP_WRITTEN) && isTrue(r.fields.OneWaySync));
+          return bad.length
+            ? {
+                pass: false,
+                detail: `${plural(bad.length, "object")} reps write on the iPad sync one way: ${[...new Set(bad.map(sobjectOf))].join(", ")}.`,
+                examples: bad.map(dbSchemaLabel),
+                fixes: bad.map((r) => fieldFix(r, "OneWaySync", true, false, `Sync ${sobjectOf(r)} both ways`)),
+              }
+            : { pass: true, detail: "Objects reps write on the iPad sync both ways." };
+        }
+      ),
+      runCheck(
+        {
+          id: "mobile-sync.config.delta-field-exists",
+          stage: "config",
+          title: "Every delta date field exists on its object",
+          severity: "warning",
+          why: "Delta sync asks for rows changed since the last sync by the record's Delta Date Field. ContentDocumentLink, Topic, TopicAssignment and GroupMember have no LastModifiedDate, so with it set the query fails, and with Enhanced Mobile Sync the whole sync stops with HTTP 400.",
+          steps: ["Open the record in Admin Console > Mobile > DB Schema", "Set Delta Date Field to a field the object has, usually SystemModstamp", "Publish to iPad"],
+          uiPath: "Admin Console > Mobile > DB Schema",
+          surface: "syncedObjects",
+        },
+        async () => {
+          const withDelta = (await schema()).filter((r) => r.isActive && sobjectOf(r) && r.fields.DeltaDateField);
+          if (!withDelta.length) return { pass: true, skip: true, detail: "No active record sets a delta date field." };
+          // Id is on every object, so an object missing from the answer doesn't exist here.
+          const fields = [...new Set(["Id", "SystemModstamp", ...withDelta.map((r) => String(r.fields.DeltaDateField))])];
+          const has = await fieldsOf(org, [...new Set(withDelta.map(sobjectOf))], fields);
+          const bad = withDelta.filter((r) => {
+            const f = has.get(sobjectOf(r).toLowerCase());
+            return f && !f.has(String(r.fields.DeltaDateField).toLowerCase());
+          });
+          if (!bad.length) return { pass: true, detail: `${plural(withDelta.length, "delta date field")} checked; all exist.` };
+          return {
+            pass: false,
+            detail: `${plural(bad.length, "record")} use a delta date field their object doesn't have.`,
+            examples: bad.map((r) => `${dbSchemaLabel(r)}: no ${String(r.fields.DeltaDateField)} on ${sobjectOf(r)}`),
+            fixes: bad
+              .filter((r) => has.get(sobjectOf(r).toLowerCase())?.has("systemmodstamp"))
+              .map((r) => fieldFix(r, "DeltaDateField", String(r.fields.DeltaDateField), "SystemModstamp", `Use SystemModstamp for ${sobjectOf(r)}`)),
+          };
+        }
+      ),
+      runCheck(
+        {
+          id: "mobile-sync.config.account-filter",
+          stage: "config",
+          title: "Accounts sync with a territory filter",
+          severity: "warning",
+          why: "With no filter on Account every account in the org downloads. None counts as out of territory, so the Align action is hidden, and first sync grows with the org.",
+          steps: [
+            "Open the Account record in Admin Console > Mobile > DB Schema",
+            "Add a filter on the rep's territories, for example Id IN (SELECT AccountId FROM ProviderAcctTerritoryInfo WHERE IsAvailableOffline = true AND IsActive = true AND Territory2.Name = '{USER.TERRITORY}')",
+            "Publish to iPad",
+          ],
+          uiPath: "Admin Console > Mobile > DB Schema",
+          surface: "syncedObjects",
+        },
+        async () => {
+          const accounts = (await dataRecords()).filter((r) => r.isActive && isObject(r, ["Account"]));
+          if (!accounts.length) return { pass: true, skip: true, detail: "Account doesn't sync." };
+          const bare = accounts.filter((r) => !String(r.fields.WhereSoql ?? "").trim());
+          return bare.length
+            ? { pass: false, detail: "Account syncs without a filter, so every account downloads.", examples: bare.map(dbSchemaLabel) }
+            : { pass: true, detail: "Account syncs with a filter." };
+        }
+      ),
+      runCheck(
+        {
+          id: "mobile-sync.config.territory-info-filter",
+          stage: "config",
+          title: "Territory info syncs for the rep's own territories",
+          severity: "warning",
+          why: "Without a territory condition the iPad downloads ProviderAcctTerritoryInfo rows from other territories and picks one per account, so next-visit badges, preferred addresses and alignment come and go.",
+          steps: ["Open the ProviderAcctTerritoryInfo record in Admin Console > Mobile > DB Schema", "Add Territory2.Name = '{USER.TERRITORY}' AND IsActive = true to its filter", "Publish to iPad"],
+          uiPath: "Admin Console > Mobile > DB Schema",
+          surface: "syncedObjects",
+        },
+        async () => {
+          const pati = (await dataRecords()).filter((r) => r.isActive && isObject(r, ["ProviderAcctTerritoryInfo"]));
+          if (!pati.length) return { pass: true, skip: true, detail: "ProviderAcctTerritoryInfo doesn't sync." };
+          const bad = pati.filter((r) => !/\{USER\.TERRITORY(ID)?\}|Territory2/i.test(String(r.fields.WhereSoql ?? "")));
+          return bad.length
+            ? { pass: false, detail: "The ProviderAcctTerritoryInfo filter doesn't limit rows to the rep's territories.", examples: bad.map((r) => `${dbSchemaLabel(r)}: ${String(r.fields.WhereSoql ?? "no filter")}`) }
+            : { pass: true, detail: "ProviderAcctTerritoryInfo is filtered by territory." };
+        }
+      ),
+      runCheck(
+        {
+          id: "mobile-sync.config.territory-tags",
+          stage: "config",
+          title: "Territory tags are compared with the right fields",
+          severity: "warning",
+          why: "{USER.TERRITORY} becomes the rep's territory names and {USER.TERRITORYID} their Ids. A filter that compares a name tag with an Id field (Territory2Id, TerritoryList) matches nothing, so the table stays empty on the iPad while the web shows the records.",
+          steps: ["Open the record in Admin Console > Mobile > DB Schema", "Compare names with names (Territory2.Name = '{USER.TERRITORY}') or use {USER.TERRITORYID} for Id fields", "Run Check filters on the Object sync page, then Publish to iPad"],
+          uiPath: "Admin Console > Mobile > DB Schema",
+          surface: "syncedObjects",
+        },
+        async () => {
+          const bad = (await schema()).flatMap((r) => {
+            const why = r.isActive ? territoryTagMismatch(String(r.fields.WhereSoql ?? "")) : null;
+            return why ? [`${dbSchemaLabel(r)}: ${why}`] : [];
+          });
+          return bad.length
+            ? { pass: false, detail: `${plural(bad.length, "filter")} compare a territory tag with the wrong kind of field.`, examples: bad }
+            : { pass: true, detail: "Territory tags are compared with matching fields." };
         }
       ),
       runCheck(

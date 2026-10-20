@@ -27,3 +27,11 @@ export {
   runAudit,
   formatAuditResults,
 } from "./rules-executor.js";
+
+export { executeCheck, type CheckOutcome } from "./rules-executor.js";
+
+export { type KnownCause, getKnownCauses, getKnownCauseById } from "./known-causes.js";
+
+export { matchSymptom, normalizeText, type SymptomMatch } from "./symptom-match.js";
+
+export { diagnose, diagnosisItems, formatDiagnosis, type Diagnosis, type CauseFinding, type DiagnosisItem } from "./diagnose.js";

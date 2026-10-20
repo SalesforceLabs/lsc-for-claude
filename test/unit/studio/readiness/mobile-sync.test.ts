@@ -11,7 +11,7 @@ vi.mock("../../../../src/config/collect.js", () => ({ collectCategoryRecords: vi
 
 const { apiRequest, runSoqlQuery, runToolingQuery } = await import("../../../../src/salesforce/cli.js");
 const { collectCategoryRecords } = await import("../../../../src/config/collect.js");
-const { default: mod } = await import("../../../../src/studio/readiness/features/mobile-sync.js");
+const { default: mod, territoryTagMismatch } = await import("../../../../src/studio/readiness/features/mobile-sync.js");
 
 type Row = Record<string, unknown>;
 /** Rows (and optional COUNT override) returned per outer FROM-object; an Error makes that query fail. */
@@ -162,5 +162,78 @@ describe("mobile-sync readiness", () => {
     expect(String(vi.mocked(apiRequest).mock.calls[0][0])).toContain("/limits/recordCount?sObjects=Task%2CEvent");
     const counts = vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0])).filter((q) => q.startsWith("SELECT COUNT() FROM"));
     expect(counts).toEqual(["SELECT COUNT() FROM Event"]);
+  });
+});
+
+describe("mobile-sync DB Schema settings", () => {
+  const rec = (sobject: string, fields: Record<string, unknown>, isActive = true) => dataRec(sobject, isActive, { fields: { SObject: sobject, Type: "DATA", ...fields } });
+  const fieldRows = (obj: string, ...names: string[]) => names.map((n) => ({ EntityDefinition: { QualifiedApiName: obj }, QualifiedApiName: n }));
+
+  it("offers SystemModstamp for a delta date field the object doesn't have", async () => {
+    schema = [rec("TopicAssignment", { DeltaDateField: "LastModifiedDate" }), rec("Account", { DeltaDateField: "LastModifiedDate" })];
+    org.FieldDefinition = [...fieldRows("TopicAssignment", "Id", "SystemModstamp"), ...fieldRows("Account", "Id", "SystemModstamp", "LastModifiedDate")];
+    const c = (await run())["mobile-sync.config.delta-field-exists"];
+    expect(c.status).toBe("fail");
+    expect(c.examples).toEqual(["TopicAssignment: no LastModifiedDate on TopicAssignment"]);
+    expect(c.fixes).toEqual([expect.objectContaining({ kind: "setConfigField", developerName: "db_TopicAssignment", field: "DeltaDateField", from: "LastModifiedDate", to: "SystemModstamp" })]);
+  });
+
+  it("leaves objects the org doesn't have to other checks", async () => {
+    schema = [rec("Gone__c", { DeltaDateField: "LastModifiedDate" })];
+    expect((await run())["mobile-sync.config.delta-field-exists"].status).toBe("pass");
+  });
+
+  it("switches DeviceSyncTransactionRecord from Configuration to data", async () => {
+    schema = [rec("Account", {}), rec("DeviceSyncTransactionRecord", { Type: "CONFIGURATION" })];
+    const c = (await run())["mobile-sync.config.upload-table"];
+    expect(c.status).toBe("fail");
+    expect(c.fixes).toEqual([expect.objectContaining({ field: "Type", from: "CONFIGURATION", to: "DATA" })]);
+  });
+
+  it("switches on a DeviceSyncTransactionRecord record that is off, and fails with none", async () => {
+    schema = [rec("Account", {}), rec("DeviceSyncTransactionRecord", {}, false)];
+    expect((await run())["mobile-sync.config.upload-table"].fixes).toEqual([expect.objectContaining({ kind: "setActive", to: true })]);
+    schema = [rec("Account", {})];
+    const c = (await run())["mobile-sync.config.upload-table"];
+    expect(c.status).toBe("fail");
+    expect(c.fixes ?? []).toEqual([]);
+  });
+
+  it("flags Account set to Configuration and one-way sync on objects reps write", async () => {
+    schema = [rec("Account", { Type: "CONFIGURATION" }), rec("ProviderAcctTerritoryInfo", { OneWaySync: true, WhereSoql: "Territory2.Name = '{USER.TERRITORY}'" }), rec("Product2", { OneWaySync: true })];
+    const r = await run();
+    expect(r["mobile-sync.config.accounts-are-data"].fixes).toEqual([expect.objectContaining({ field: "Type", to: "DATA" })]);
+    const oneWay = r["mobile-sync.config.two-way-for-rep-written"];
+    expect(oneWay.examples).toEqual(["ProviderAcctTerritoryInfo"]);
+    expect(oneWay.fixes).toEqual([expect.objectContaining({ field: "OneWaySync", from: true, to: false })]);
+  });
+
+  it("warns about unfiltered Account and territory info", async () => {
+    schema = [rec("Account", {}), rec("ProviderAcctTerritoryInfo", { WhereSoql: "IsActive = true" })];
+    const r = await run();
+    expect(r["mobile-sync.config.account-filter"].status).toBe("fail");
+    expect(r["mobile-sync.config.territory-info-filter"].status).toBe("fail");
+    schema = [rec("Account", { WhereSoql: "Id IN ({ACCOUNT.IDS})" }), rec("ProviderAcctTerritoryInfo", { WhereSoql: "Territory2.Name = '{USER.TERRITORY}'" })];
+    const ok = await run();
+    expect(ok["mobile-sync.config.account-filter"].status).toBe("pass");
+    expect(ok["mobile-sync.config.territory-info-filter"].status).toBe("pass");
+  });
+
+  it("flags a territory name tag compared with an Id field", async () => {
+    schema = [rec("ActivityPlan", { WhereSoql: "TerritoryList INCLUDES ('{USER.TERRITORY}')" })];
+    expect((await run())["mobile-sync.config.territory-tags"].examples?.[0]).toContain("TerritoryList");
+  });
+});
+
+describe("territoryTagMismatch()", () => {
+  it("accepts names with names and Ids with Ids", () => {
+    expect(territoryTagMismatch("Territory2.Name = '{USER.TERRITORY}'")).toBeNull();
+    expect(territoryTagMismatch("Territory2Id IN ('{USER.TERRITORYID}')")).toBeNull();
+  });
+
+  it("names the field compared with the wrong tag", () => {
+    expect(territoryTagMismatch("Territory2Id = '{USER.TERRITORY}'")).toContain("Territory2Id");
+    expect(territoryTagMismatch("Territory2.Id IN ('{USER.TERRITORY}')")).toContain("Territory2.Id");
+    expect(territoryTagMismatch("Territory2.Name = '{USER.TERRITORYID}'")).toContain("Territory2.Name");
   });
 });

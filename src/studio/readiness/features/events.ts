@@ -251,6 +251,23 @@ const readiness: ReadinessModule = {
       ),
       runCheck(
         {
+          id: "events.mobile.business-hours",
+          stage: "mobile",
+          title: "Business hours sync when events are checked against them",
+          severity: "error",
+          why: "With MngEventBusinessHoursHandler on, the iPad checks each event against the org's business hours. If BusinessHours doesn't sync, there are no hours to check against and saving the event fails with \"Unable to validate mngevent\".",
+          steps: ["Open Admin Console > Mobile > DB Schema", "Add an active BusinessHours record assigned to the rep profiles, or switch the handler off", "Publish to iPad"],
+          uiPath: "Admin Console > Mobile > DB Schema",
+          surface: "dbSchema",
+        },
+        gate(async () => {
+          const on = (await handlers()).some((h) => h.active && h.developerName.toLowerCase() === "mngeventbusinesshourshandler");
+          if (!on) return { pass: true, skip: true, detail: "MngEventBusinessHoursHandler is off, so business hours aren't checked." };
+          return syncResult(org, await dbSchema(), ["BusinessHours"]);
+        })
+      ),
+      runCheck(
+        {
           id: "events.mobile.no-server-only-objects",
           stage: "mobile",
           title: "Server-only budget objects are not synced",

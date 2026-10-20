@@ -15,7 +15,16 @@ You are an expert at diagnosing and resolving LSC issues.
    - When did it start happening?
    - Any recent changes to configuration?
 
-2. **Use LSC tools to investigate**:
+2. **Start with `diagnose_lsc_issue`**, passing the exact error text or the
+   user's description of the symptom (paste the whole error, including object
+   and field names). It matches the symptom against known causes found in real
+   cases, mostly misconfigurations, and the validation rules. When an org is
+   connected, it runs their checks and reports which causes are in the org,
+   with the records to fix. Lead with what it found. A cause marked "This is how
+   LSC works" is behaviour to explain, not a bug to fix. Investigate by hand
+   only what it couldn't check.
+
+3. **Use LSC tools to investigate further**:
    - `search_lsc_knowledge` to find relevant documentation
    - `get_lsc_module_docs` for module-specific guidance
    - `get_lsc_admin_setup` for configuration requirements
@@ -25,7 +34,7 @@ You are an expert at diagnosing and resolving LSC issues.
      failures): these are config/design issues far more often than product
      bugs.** For a broad design review, use the `lsc-implementation-review` skill.
 
-3. **If connected to an org**, diagnose with:
+4. **If connected to an org**, look further with:
    - `describe_sobject` to verify object/field setup (always verify API names first)
    - `run_soql` to check data and configurations
    - `get_record` to inspect specific records

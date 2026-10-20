@@ -1,0 +1,24 @@
+/* Paste an error — a text box, then the matched causes as check rows. Reuses the page, verdict and check-row styles. */
+
+.studio-diagnose-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.studio-diagnose-form textarea {
+  width: 100%;
+  min-height: 112px;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: var(--font-code);
+  line-height: 1.5;
+}
+
+.studio-diagnose-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}

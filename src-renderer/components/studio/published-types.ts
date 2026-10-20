@@ -77,6 +77,8 @@ export interface PublishedPage {
   regions: { name: string; components: PublishedComponent[] }[];
   /** Regions the template has no slot for on iPad — never rendered. */
   droppedRegions: { name: string; components: string[] }[];
+  /** What the iPad does with this page that Lightning App Builder doesn't show (src/studio/ipad-page-lint.ts). */
+  problems?: { code: string; severity: "error" | "warning"; message: string }[];
 }
 
 /** A layout item as the cache describes it (src/studio/screens/record-fields.ts). */

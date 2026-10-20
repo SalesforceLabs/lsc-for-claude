@@ -1428,7 +1428,7 @@ export function register(server: McpServer) {
 
         // 3. Check ObjectTerritory2Association (explicit assignments)
         message += "## Explicit Account-to-Territory Assignments (ObjectTerritory2Association)\n\n";
-        const assocQuery = `SELECT Id, SobjectId, Territory2Id, Territory2.Name, AssociationType FROM ObjectTerritory2Association WHERE SobjectType = 'Account' ORDER BY Territory2.Name LIMIT 50`;
+        const assocQuery = `SELECT Id, ObjectId, Territory2Id, Territory2.Name, AssociationCause FROM ObjectTerritory2Association WHERE SobjectType = 'Account' ORDER BY Territory2.Name LIMIT 50`;
         const assocResult = await runSoqlQuery(assocQuery, effectiveOrg);
 
         if (assocResult.success && assocResult.data?.records) {
@@ -1447,7 +1447,7 @@ export function register(server: McpServer) {
               const rec = record as Record<string, unknown>;
               const t2 = rec.Territory2 as Record<string, unknown> | null;
               if (t2?.Name) territories.add(String(t2.Name));
-              message += `| ${rec.SobjectId} | ${t2?.Name || rec.Territory2Id} | ${rec.AssociationType || "-"} |\n`;
+              message += `| ${rec.ObjectId} | ${t2?.Name || rec.Territory2Id} | ${rec.AssociationCause || "-"} |\n`;
             }
             message += `\n**Total:** ${records.length} explicit assignment(s) across ${territories.size} territory(ies)\n\n`;
           }

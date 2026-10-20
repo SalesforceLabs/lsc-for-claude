@@ -236,7 +236,7 @@ export function CheckRow({ check, expanded, onToggle, onShowSurface, onAsk, fixP
               </button>
             )}
             <span className="studio-rcheck-id">
-              {check.source === "rule" ? "Rule" : "Studio check"} {check.id}
+              {check.source === "rule" ? "Rule" : check.source === "cause" ? "Known cause" : "Studio check"} {check.id}
             </span>
           </div>
         </div>

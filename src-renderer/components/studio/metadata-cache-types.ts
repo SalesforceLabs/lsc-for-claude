@@ -4,6 +4,7 @@
  */
 
 import type { StatusTone } from "../ui/StatusIcon";
+import type { DiagnosisItem, DiagnosisResult } from "./diagnose-logic";
 
 export interface CacheRecordInfo {
   id: string;
@@ -182,6 +183,8 @@ export function failedPublishPrompt(p: {
   startedBy: string | null;
   error: string | null;
   logs: { profile: string | null; log: string }[];
+  /** `studio_diagnose` on the error and logs, when it ran. */
+  causes?: DiagnosisResult;
 }): string {
   const who = p.profiles.length ? p.profiles.join(", ") : "an unknown profile";
   const lines = [
@@ -198,8 +201,32 @@ export function failedPublishPrompt(p: {
     lines.push(`Log${l.profile ? ` for ${l.profile}` : ""}:`, "```", text, "```");
   }
   if (!p.logs.length) lines.push("The publish logged nothing beyond that error.");
+  if (p.causes) lines.push("", ...knownCauseLines(p.causes));
   lines.push(
     "What caused this, and what should I change in the org so the next Publish to iPad works?"
   );
   return lines.join("\n");
+}
+
+/** Studio's known-cause matches for the error and log, for the prompt. */
+function knownCauseLines(causes: DiagnosisResult): string[] {
+  const shown = causes.items.filter((i) => !i.byDesign && i.status !== "not-found");
+  if (shown.length === 0) {
+    return [
+      causes.items.length
+        ? `Studio checked ${causes.items.length} known setup mistakes that match this${causes.checkedOrg ? ` against ${causes.checkedOrg}` : ""}; none are in the org.`
+        : "None of Studio's known setup mistakes match this error.",
+    ];
+  }
+  const label = (i: DiagnosisItem) =>
+    i.status === "found"
+      ? `found in the org${i.records.length ? ` (${i.records.join(", ")})` : i.message ? ` (${i.message})` : ""}`
+      : i.status === "unchecked"
+        ? "couldn't be checked"
+        : "has no automatic check";
+  return [
+    "Studio matched these known setup mistakes (diagnose_lsc_issue has the details):",
+    ...shown.map((i) => `- ${i.title} (${i.id}): ${label(i)}`),
+    "Start with the ones found in the org.",
+  ];
 }

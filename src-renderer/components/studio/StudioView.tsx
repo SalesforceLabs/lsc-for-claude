@@ -28,6 +28,7 @@ import TestingPages, { SYNC_PAGES, type SyncPage } from "./TestingPages";
 import ReadinessView from "./ReadinessView";
 import SetupOverview from "./SetupOverview";
 import UserTraceView from "./UserTraceView";
+import DiagnoseView from "./DiagnoseView";
 import DriftView from "./DriftView";
 import TestUsersView from "./TestUsersView";
 import MetadataCacheView from "./MetadataCacheView";
@@ -43,6 +44,7 @@ import {
   FileCode2,
   History,
   LayoutDashboard,
+  MessageSquareWarning,
   PanelLeftClose,
   PanelLeftOpen,
   RefreshCw,
@@ -81,7 +83,7 @@ type MapState =
   | ({ status: "ready"; map: FeatureMap } & Revalidating);
 
 /** What the main pane shows: the iPad preview, a Setup page or feature, or a Testing page. */
-type Section = "preview" | "apps" | "overview" | "user-check" | "drift" | "setup" | SyncPage | "test-users" | "custom-scripts" | "metadata-cache" | "object-sync";
+type Section = "preview" | "apps" | "overview" | "user-check" | "diagnose" | "drift" | "setup" | SyncPage | "test-users" | "custom-scripts" | "metadata-cache" | "object-sync";
 
 export default function StudioView({ onAskClaude }: StudioViewProps) {
   const [features, setFeatures] = useState<FeatureSummary[]>([]);
@@ -622,6 +624,13 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           UserRoundSearch
         )}
         {railItem(
+          "diagnose",
+          "Paste an error",
+          "Match an error against known setup mistakes and check which are in this org",
+          () => setSection("diagnose"),
+          MessageSquareWarning
+        )}
+        {railItem(
           "drift",
           "What changed",
           "What changed in the org's LSC configuration since a saved snapshot",
@@ -863,6 +872,15 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               onOrgSeen={setSeenOrg}
               onOpenSyncRep={openSyncRep}
             />
+          </div>
+          {releaseBar(false)}
+        </section>
+      )}
+
+      {section === "diagnose" && (
+        <section className="studio-main ui-enter">
+          <div className="studio-scroll">
+            <DiagnoseView profiles={profiles} pending={pending} onPendingChange={setPending} onAskClaude={onAskClaude} />
           </div>
           {releaseBar(false)}
         </section>

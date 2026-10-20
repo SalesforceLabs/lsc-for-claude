@@ -1,0 +1,1482 @@
+# Known causes of LSC errors
+# ==========================
+# Errors and symptoms that support investigations traced back to org
+# configuration (not product defects), with the cause and the fix. Read by
+# diagnose_lsc_issue (src/validation/known-causes.ts), which matches a pasted
+# error or description against `symptoms` and `keywords` and runs `check`
+# against the org when one is connected.
+#
+# Fields:
+#   id         kebab-case, unique
+#   title      one line, what is wrong
+#   module     area slug (mobile-sync, metadata-cache, permissions, ...)
+#   symptoms   exact error text or short descriptions users report
+#   keywords   other words that point at this cause (object names, setting names)
+#   cause      why it happens
+#   fix        steps, in order
+#   ui_path    where to make the fix (optional)
+#   by_design  true when the behavior is intended and the answer is an explanation
+#   check      optional, same shape as a validation rule check. It PASSES when the
+#              cause is not present in the org and FAILS when it is. Records it
+#              returns are the ones to fix.
+#   applies_if optional check that must pass for the cause to apply at all (a feature in
+#              use, a handler on). When it fails, the cause is reported as not present.
+#   check_scope  optional, what a passing check does not cover
+#   rules      optional, validation rule ids worth running as well
+#
+# Keep text plain. No customer names, people or work item numbers.
+
+schema_version: "1.0"
+
+causes:
+  # ===========================================================================
+  # DB Schema (Admin Console > Mobile > Object Metadata Cache Configuration)
+  # ===========================================================================
+
+  - id: dbschema-delta-field-no-column
+    title: DB Schema delta date field is LastModifiedDate on an object that doesn't have it
+    module: mobile-sync
+    symptoms:
+      - "No such column 'LastModifiedDate' on entity 'ContentDocumentLink'"
+      - "No such column 'LastModifiedDate' on entity 'TopicAssignment'"
+      - "No such column 'LastModifiedDate' on entity 'Topic'"
+      - "No such column 'LastModifiedDate' on entity 'GroupMember'"
+      - "INVALID_FIELD No such column 'LastModifiedDate'"
+      - "Users can't log in, HTTP 400 during sync"
+    keywords: [DeltaDateField, SystemModstamp, Enhanced Mobile Sync, delta sync]
+    cause: |
+      ContentDocumentLink, Topic, TopicAssignment and GroupMember have no
+      LastModifiedDate column. With Enhanced Mobile Sync on, the delta query
+      for that table fails and the whole sync stops with HTTP 400.
+    fix:
+      - "Open the DB Schema record for the object named in the error."
+      - "Set Delta Date Field to SystemModstamp (Topic, TopicAssignment, GroupMember). For ContentDocumentLink clear it or use SystemModstamp."
+      - "Regenerate the metadata cache for the affected profiles."
+      - "Have the reps sync again."
+    ui_path: "Admin Console > Mobile > Object Metadata Cache Configuration"
+    check:
+      type: tooling_soql
+      query: >
+        SELECT Id, DeveloperName FROM LifeSciConfigRecord
+        WHERE IsActive = true
+        AND Id IN (SELECT LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE FieldName = 'SObject' AND ObjectValue IN ('ContentDocumentLink', 'Topic', 'TopicAssignment', 'GroupMember'))
+        AND Id IN (SELECT LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE FieldName = 'DeltaDateField' AND FieldValue = 'LastModifiedDate')
+      expect: "records.length == 0"
+
+  - id: dbschema-dstr-wrong-type
+    title: DeviceSyncTransactionRecord DB Schema record has Type Configuration
+    module: mobile-sync
+    symptoms:
+      - "Device sync transaction record was not found"
+      - "iPad changes never reach the web"
+      - "Records created on the iPad don't upload"
+    keywords: [DeviceSyncTransactionRecord, DSTR, upload, Type, DATA]
+    cause: |
+      Uploads from the iPad go through DeviceSyncTransactionRecord. Its DB
+      Schema record must be Type DATA. As Configuration (or missing, or
+      inactive) the app can't find the transaction table.
+    fix:
+      - "Open the DeviceSyncTransactionRecord DB Schema record."
+      - "Set Type to DATA, make it active and assign it to every rep profile."
+      - "Regenerate the metadata cache and have the reps log out and in."
+    ui_path: "Admin Console > Mobile > Object Metadata Cache Configuration"
+    check:
+      type: composite
+      expect: "true"
+      checks:
+        - type: tooling_soql_count
+          query: >
+            SELECT COUNT() FROM LifeSciConfigFieldValue
+            WHERE FieldName = 'SObject' AND ObjectValue = 'DeviceSyncTransactionRecord'
+            AND LifeSciConfigRecord.IsActive = true
+            AND LifeSciConfigRecord.LifeSciConfigCategory.Category = 'DbSchema'
+          expect: "count > 0"
+        - type: tooling_soql
+          query: >
+            SELECT Id, DeveloperName FROM LifeSciConfigRecord
+            WHERE Id IN (SELECT LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE FieldName = 'SObject' AND ObjectValue = 'DeviceSyncTransactionRecord')
+            AND Id IN (SELECT LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE FieldName = 'Type' AND PicklistValue = 'CONFIGURATION')
+          expect: "records.length == 0"
+    check_scope: "Looks for an active record of Type DATA. It doesn't check which profiles it's assigned to."
+    rules: [mobile-001, sync-003]
+
+  - id: dbschema-account-contact-configuration
+    title: Account or Contact DB Schema record has Type Configuration
+    module: mobile-sync
+    symptoms:
+      - "HCP and HCO tabs show 0 accounts"
+      - "No accounts on the iPad"
+      - "Accounts tab empty after sync"
+    keywords: [Account, Contact, Type, CONFIGURATION, DATA]
+    cause: |
+      Configuration tables are downloaded once with the metadata, not synced
+      as data. Account or Contact as Configuration leaves the rep with no
+      account rows.
+    fix:
+      - "Set Type to DATA on the Account and Contact DB Schema records."
+      - "Regenerate the metadata cache and have the reps log out and in."
+    ui_path: "Admin Console > Mobile > Object Metadata Cache Configuration"
+    check:
+      type: tooling_soql
+      query: >
+        SELECT Id, DeveloperName FROM LifeSciConfigRecord
+        WHERE IsActive = true
+        AND Id IN (SELECT LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE FieldName = 'SObject' AND ObjectValue IN ('Account', 'Contact'))
+        AND Id IN (SELECT LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE FieldName = 'Type' AND PicklistValue = 'CONFIGURATION')
+      expect: "records.length == 0"
+
+  - id: dbschema-one-way-on-rep-written
+    title: Web-to-mobile (one-way) sync is on for an object reps write on the iPad
+    module: mobile-sync
+    symptoms:
+      - "Survey responses never reach the web"
+      - "PATI created on the iPad never uploads"
+      - "iPad edits don't show on the web"
+    keywords: [OneWaySync, Web to Mobile Sync, one way, ProviderAcctTerritoryInfo, SurveyResponseOffline, SurveyQstnResponseOffline]
+    cause: |
+      One-way sync downloads the table but never uploads it, and the local
+      table is built without the columns offline edits need. Objects reps
+      create on the iPad (ProviderAcctTerritoryInfo, SurveyResponseOffline,
+      SurveyQstnResponseOffline) must sync both ways.
+    fix:
+      - "Turn One Way Sync off on the DB Schema record."
+      - "Regenerate the metadata cache."
+      - "Have the reps log out and in so the local table is rebuilt. A delta sync isn't enough."
+    ui_path: "Admin Console > Mobile > Object Metadata Cache Configuration"
+    check:
+      type: tooling_soql
+      query: >
+        SELECT Id, DeveloperName FROM LifeSciConfigRecord
+        WHERE IsActive = true
+        AND Id IN (SELECT LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE FieldName = 'SObject' AND ObjectValue IN ('ProviderAcctTerritoryInfo', 'SurveyResponseOffline', 'SurveyQstnResponseOffline', 'ProviderVisit', 'Visit'))
+        AND Id IN (SELECT LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE FieldName = 'OneWaySync' AND HasBooleanValue = true)
+      expect: "records.length == 0"
+
+  - id: dbschema-email-snapshot-attachments
+    title: LifeSciEmailTmplSnapshot doesn't download its attachments to the cache
+    module: field-email
+    symptoms:
+      - "Template cannot be downloaded"
+      - "Email templates not loading on iPad"
+      - "Email template preview blank on iPad"
+    keywords: [LifeSciEmailTmplSnapshot, AttachmentsSupport, Attachment Download Method, Cache]
+    cause: |
+      The email template body is an attachment on its snapshot record. The
+      snapshot's DB Schema record must download attachments with the Cache
+      method, or the template can't be opened offline.
+    fix:
+      - "Open the LifeSciEmailTmplSnapshot DB Schema record."
+      - "Set Attachments Support (Attachment Download Method) to Cache."
+      - "Regenerate the metadata cache and sync."
+    ui_path: "Admin Console > Mobile > Object Metadata Cache Configuration"
+    check:
+      type: tooling_soql
+      query: >
+        SELECT Id, DeveloperName FROM LifeSciConfigRecord
+        WHERE IsActive = true
+        AND Id IN (SELECT LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE FieldName = 'SObject' AND ObjectValue = 'LifeSciEmailTmplSnapshot')
+        AND Id NOT IN (SELECT LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE FieldName = 'AttachmentsSupport' AND PicklistValue = 'CACHE')
+      expect: "records.length == 0"
+    rules: [field-email-001, field-email-008]
+
+  - id: dbschema-account-no-filter
+    title: Account DB Schema record has no filter
+    module: mobile-sync
+    symptoms:
+      - "'Align' button missing on accounts"
+      - "Every account downloads to the iPad"
+      - "Initial sync takes a very long time"
+      - "Accounts outside my territory show on the iPad"
+    keywords: [WhereSoql, Account, filter, out of territory]
+    cause: |
+      With no WhereSoql on Account every account in the org downloads, so
+      none counts as out of territory (the Align action is hidden) and sync
+      volume grows with the org.
+    fix:
+      - "Give the Account record a filter on the rep's territories, for example: Id IN (SELECT AccountId FROM ProviderAcctTerritoryInfo WHERE IsAvailableOffline = true AND IsActive = true AND Territory2.Name = '{USER.TERRITORY}')"
+      - "Check the filter with Studio's Object sync page (Check filters) or profile_sync_volume."
+      - "Regenerate the metadata cache."
+    ui_path: "Admin Console > Mobile > Object Metadata Cache Configuration"
+
+  - id: dbschema-territory-tag-mismatch
+    title: DB Schema filter compares a territory Id field with the territory name tag
+    module: mobile-sync
+    symptoms:
+      - "Approved Activity Plan adjustments vanish from the iPad after sync"
+      - "Affiliations blank on the iPad"
+      - "Records missing on the iPad but visible on the web"
+    keywords: ["{USER.TERRITORY}", TerritoryList, Territory2Id, WhereSoql, tag]
+    cause: |
+      {USER.TERRITORY} is replaced with territory names. A filter that
+      compares it with an Id field (Territory2Id, TerritoryList on
+      ActivityPlan) matches nothing. A filter through a lookup that can be
+      null drops those rows too.
+    fix:
+      - "Compare names with names: Territory2.Name = '{USER.TERRITORY}', or use the territory Id tag for Id fields."
+      - "Run the filter with Studio's Object sync page (Check filters) to see it return rows."
+      - "Regenerate the metadata cache."
+    ui_path: "Admin Console > Mobile > Object Metadata Cache Configuration"
+
+  - id: dbschema-pati-filter-no-territory
+    title: ProviderAcctTerritoryInfo filter doesn't limit to the rep's territory
+    module: mobile-sync
+    symptoms:
+      - "'Next Visit in x Days' shows intermittently on account lists"
+      - "Account list shows the primary address instead of the preferred one"
+      - "Wrong territory info on the iPad"
+    keywords: [ProviderAcctTerritoryInfo, PATI, Territory2.Name, WhereSoql]
+    cause: |
+      Without Territory2.Name = '{USER.TERRITORY}' the iPad downloads PATI
+      rows from other territories and picks one of them per account.
+    fix:
+      - "Add Territory2.Name = '{USER.TERRITORY}' and IsActive = true to the ProviderAcctTerritoryInfo filter."
+      - "Regenerate the metadata cache."
+
+  - id: dbschema-timeperiod-filter
+    title: TimePeriod filter leaves out the period an allocation or plan uses
+    module: mobile-sync
+    symptoms:
+      - "Territory Product Quantity Allocation not found on mobile"
+      - "TPQA allocation error on visit submit"
+      - "Sample allocation missing on the iPad"
+    keywords: [TimePeriod, TerritoryProdtQtyAllocation, TPQA, WhereSoql]
+    cause: |
+      A TimePeriod filter that only fetches periods linked to Activity Plans
+      drops the period a TerritoryProdtQtyAllocation points at, so the
+      allocation has no period on the iPad.
+    fix:
+      - "Widen the TimePeriod filter to include periods used by TerritoryProdtQtyAllocation."
+      - "Regenerate the metadata cache."
+
+  - id: dbschema-missing-object
+    title: An active DB Schema record points at an object the org or profile can't read
+    module: mobile-sync
+    symptoms:
+      - "DB Schema records stuck in Checking"
+      - "Metadata cache validation fails"
+      - "App loops on opening after an object permission was removed"
+      - "sObject type is not supported"
+    keywords: [DB Schema Status, Checking, custom object, object permission]
+    cause: |
+      A config deploy can activate records for custom objects that don't
+      exist in the target org, and removing object access from a profile
+      leaves its record active. Only active records are validated, so
+      inactive ones stay in Checking.
+    fix:
+      - "Run Studio's Object sync page with Problems only, or list_db_schema, to find records whose object is missing or unreadable."
+      - "Deactivate or delete them, or give the profile read access again."
+      - "Regenerate the metadata cache."
+
+  - id: dbschema-unbounded-volume
+    title: Large tables sync with no filter or with attachments they don't need
+    module: mobile-sync
+    symptoms:
+      - "OPERATION_TOO_LARGE: exceeded 100000 distinct ids"
+      - "REQUEST_LIMIT_EXCEEDED"
+      - "Initial sync takes 12 minutes or more"
+      - "Org hits its API request limit"
+    keywords: [sync volume, attachments, WhereSoql, API limits, slow sync]
+    cause: |
+      DB Schema records with no filter on big objects, attachments turned on
+      where nobody opens them, or objects synced that aren't used offline.
+    fix:
+      - "Run profile_sync_volume (or Studio's Sync health) for a heavy rep to see which tables are large."
+      - "Add filters, turn attachments off, and deactivate tables not used offline."
+      - "Regenerate the metadata cache."
+
+  # ===========================================================================
+  # Object the iPad needs has no DB Schema record
+  # ===========================================================================
+
+  - id: dbschema-no-providervisit
+    title: ProviderVisit has no DB Schema record
+    module: visits
+    symptoms:
+      - "Failed to execute 'json' on 'Response': Unexpected end of JSON input"
+      - "Can't create a visit on the iPad"
+    keywords: [ProviderVisit, recordTypes, Master.json]
+    cause: |
+      Creating a visit reads ProviderVisit's record types from the metadata
+      cache. With no ProviderVisit DB Schema record that file is empty and
+      the create fails.
+    fix:
+      - "Create a ProviderVisit DB Schema record (Type DATA) and assign it to the rep profiles."
+      - "Regenerate the metadata cache and have the reps log out and in."
+    check:
+      type: tooling_soql_count
+      query: >
+        SELECT COUNT() FROM LifeSciConfigFieldValue
+        WHERE FieldName = 'SObject' AND ObjectValue = 'ProviderVisit'
+        AND LifeSciConfigRecord.IsActive = true
+        AND LifeSciConfigRecord.LifeSciConfigCategory.Category = 'DbSchema'
+      expect: "count > 0"
+    check_scope: "Finds an active record anywhere in the org. It doesn't check which profiles it's assigned to."
+    rules: [visit-005]
+
+  - id: dbschema-no-recordtype
+    title: RecordType or HealthcareProviderSpecialty has no DB Schema record
+    module: mobile-sync
+    symptoms:
+      - "DB Error: 1 no such table: recordtype"
+      - "no such table: healthcareproviderspecialty"
+      - "no such table"
+      - "Sort shows 'No records to display'"
+    keywords: [RecordType, HealthcareProviderSpecialty, SQLite, table]
+    cause: |
+      The iPad reads a table it never downloaded. RecordType is always
+      needed; HealthcareProviderSpecialty when HCP tabs or sort use it.
+      The table name in the error is the object to add.
+    fix:
+      - "Create the DB Schema record for the object in the error, active, and assign it to the rep profiles (or org level)."
+      - "Regenerate the metadata cache and have the reps log out and in."
+    check:
+      type: tooling_soql_count
+      query: >
+        SELECT COUNT() FROM LifeSciConfigFieldValue
+        WHERE FieldName = 'SObject' AND ObjectValue = 'RecordType'
+        AND LifeSciConfigRecord.IsActive = true
+        AND LifeSciConfigRecord.LifeSciConfigCategory.Category = 'DbSchema'
+      expect: "count > 0"
+    check_scope: "Checks RecordType only. For another table in the error, look it up with list_db_schema."
+
+  - id: dbschema-no-sample-limits
+    title: Sample limit objects have no DB Schema record
+    module: samples
+    symptoms:
+      - "There are no limitations for this product"
+      - "Sample limits not enforced on the iPad"
+      - "Wrong sample limit shown in popover"
+    keywords: [ProviderSampleLimit, ProviderSampleLimitTemplate, ProviderSmplLmtTmplAssignment]
+    cause: |
+      The sample limit popover reads ProviderSampleLimit,
+      ProviderSampleLimitTemplate and ProviderSmplLmtTmplAssignment on the
+      device. Any of them missing from DB Schema shows no limits.
+    fix:
+      - "Create active DB Schema records for the three objects and assign them to the rep profiles."
+      - "Regenerate the metadata cache."
+    check:
+      type: tooling_soql_count
+      query: >
+        SELECT COUNT() FROM LifeSciConfigFieldValue
+        WHERE FieldName = 'SObject' AND ObjectValue = 'ProviderSampleLimit'
+        AND LifeSciConfigRecord.IsActive = true
+        AND LifeSciConfigRecord.LifeSciConfigCategory.Category = 'DbSchema'
+      expect: "count > 0"
+    check_scope: "Checks ProviderSampleLimit only, anywhere in the org."
+    rules: [sample-007, sample-008]
+
+  - id: dbschema-no-businesshours
+    title: Managed Event business hours handler is on but BusinessHours doesn't sync
+    module: events
+    symptoms:
+      - "Unable to validate mngevent"
+      - "Can't save a Managed Event on the iPad"
+    keywords: [MngEventBusinessHoursHandler, BusinessHours, Managed Event]
+    cause: |
+      MngEventBusinessHoursHandler checks events against business hours. If
+      BusinessHours has no DB Schema record for the rep, there are no hours
+      to check against.
+    fix:
+      - "Add an active BusinessHours DB Schema record assigned to the rep profiles, or turn the handler off."
+      - "Regenerate the metadata cache."
+    check:
+      type: tooling_soql_count
+      query: >
+        SELECT COUNT() FROM LifeSciConfigFieldValue
+        WHERE FieldName = 'SObject' AND ObjectValue = 'BusinessHours'
+        AND LifeSciConfigRecord.IsActive = true
+        AND LifeSciConfigRecord.LifeSciConfigCategory.Category = 'DbSchema'
+      expect: "count > 0"
+    applies_if:
+      type: tooling_soql_count
+      query: "SELECT COUNT() FROM LifeScienceTriggerHandler WHERE DeveloperName = 'MngEventBusinessHoursHandler' AND IsActive = true"
+      expect: "count > 0"
+
+  - id: dbschema-related-object-missing
+    title: A related list or lookup on the iPad reads an object that doesn't sync
+    module: mobile-sync
+    symptoms:
+      - "Related list empty on the iPad but fine on the web"
+      - "Contact Point Email related list blank"
+      - "Visit Address column missing"
+      - "Subject Assignment picker empty"
+      - "Calendar events missing on the iPad"
+      - "Custom script never loads on the iPad"
+      - "We couldn't perform this action because the metadata is out of date"
+    keywords: [ContactPointConsent, Address, AccountPlan, UserAdditionalInfo, ProductBatchItem, CurrencyType, Event, ProviderVisitMarketingItem, LifeScienceCustomScript, User, ContentDocument, related list]
+    cause: |
+      Anything shown on the iPad needs an active DB Schema record assigned
+      to the rep's profile. Objects seen missing: ContactPointConsent,
+      Address, AccountPlan, UserAdditionalInfo, ProductBatchItem, CurrencyType,
+      Event, ProviderVisitMarketingItem, LifeScienceCustomScript, User,
+      ContentDocument and Attachment for field email.
+    fix:
+      - "Find the object behind the empty list or lookup (the related list's child object, or the lookup's target)."
+      - "Create or activate its DB Schema record and assign it to the profile. In Studio's iPad preview, select the related list and use Add to iPad sync."
+      - "Check the profile can read the object and its fields."
+      - "Regenerate the metadata cache and do a full sync."
+
+  # ===========================================================================
+  # Permissions
+  # ===========================================================================
+
+  - id: perm-cloned-rep-set
+    title: A cloned LSC permission set lost a system permission
+    module: permissions
+    symptoms:
+      - "Account Affiliations component empty"
+      - "My Team component broken"
+      - "Consent component shows no data"
+      - "Feature works for admins but not reps"
+      - "Can't create a medical inquiry"
+    keywords: [cloned permission set, Gives users access to Customer Engagement features, system permission, clone]
+    cause: |
+      Cloning a packaged LSC permission set (Sales Rep, Field Medical) can
+      drop system permissions such as "Gives users access to Customer
+      Engagement features" or Inquiry Feature Management.
+    fix:
+      - "Compare the clone's system permissions with the standard LSC set it came from."
+      - "Add what's missing, or assign the standard set alongside the clone."
+      - "Test as a rep user, not an admin. Studio's Check a user shows the rep's permission sets."
+
+  - id: perm-fls-missing
+    title: The rep can't read a field LSC reads
+    module: permissions
+    symptoms:
+      - "No such column 'SubType_CORE_LSC__c' on entity 'Account'"
+      - "secure query included inaccessible field"
+      - "Insufficient permissions: secure query included inaccessible field"
+      - "UNKNOWN_EXCEPTION couldn't get the activities"
+      - "Picklist values missing on the iPad"
+      - "Next Visit Objective not shown"
+    keywords: [FLS, field-level security, FieldPermissions, Event.Description, Event.Location, No such column]
+    cause: |
+      A layout, filter, script or LSC server code reads a field the rep (or
+      the admin who generates the cache) has no read access to. "No such
+      column" in a rep's error usually means the field exists but isn't
+      visible to them.
+    fix:
+      - "Find the field in the error and grant Read in the rep's permission set."
+      - "Grant the same field to the admin who generates the metadata cache."
+      - "Regenerate the metadata cache."
+
+  - id: perm-api-viewsetup
+    title: Rep profile lacks API Enabled, View Setup or View DeveloperName
+    module: permissions
+    symptoms:
+      - "User can't log in to the iPad app"
+      - "Initial sync never finishes"
+      - "No such column 'Tier' on entity 'Account'"
+      - "Unknown Error error 400"
+      - "SQLiteDBConnectorError"
+    keywords: [API Enabled, View Setup and Configuration, View DeveloperName, PermissionsApiEnabled, PermissionsViewSetup]
+    cause: |
+      The app reads config DeveloperNames and metadata as the rep. Without
+      API Enabled, View Setup and Configuration (or View DeveloperName) those
+      reads fail.
+    fix:
+      - "Give rep profiles API Enabled and View Setup and Configuration, or View DeveloperName."
+      - "Regenerate the metadata cache and log in again."
+    rules: [config-002]
+
+  - id: perm-admin-on-ipad
+    title: An admin profile is used to sign in to the iPad
+    module: permissions
+    symptoms:
+      - "Admin users can't sign in to the app"
+      - "Admin can't edit visits on the iPad"
+      - "App redirects to the browser after login"
+    keywords: [System Administrator, admin profile, test user]
+    cause: |
+      The iPad app supports rep profiles that have a metadata cache. System
+      Administrator and other admin profiles aren't supported.
+    fix:
+      - "Test with a Field Sales Rep user. In Studio, Test users signs in a rep for testing."
+
+  - id: perm-query-non-vetoed-files
+    title: '"Query Non Vetoed Files" hides the metadata cache file'
+    module: metadata-cache
+    symptoms:
+      - "Metadata cache stuck in Published"
+      - "Cache file not found on login"
+    keywords: [Query Non Vetoed Files, Data Cloud, Files ingested]
+    cause: |
+      With "Enable Files to be ingested into Data Cloud", the Query Non
+      Vetoed Files permission filters the cache file link out of the rep's
+      query.
+    fix:
+      - "Remove Query Non Vetoed Files from the rep's permission sets."
+    check:
+      type: soql_count
+      query: >
+        SELECT COUNT() FROM PermissionSetAssignment
+        WHERE PermissionSet.PermissionsQueryNonVetoedFiles = true AND Assignee.IsActive = true
+      expect: "count == 0"
+
+  - id: perm-lock-session-ip
+    title: Sessions locked to IP break Agentforce on the iPad
+    module: agentforce
+    symptoms:
+      - "Agentforce 'Something went wrong' on iPad"
+    keywords: [Lock sessions to the IP address, session settings, Agentforce]
+    cause: |
+      "Lock sessions to the IP address from which they originated" rejects
+      the iPad's calls once the device's address changes.
+    fix:
+      - "Turn the setting off in Session Settings, or exempt the mobile users."
+    ui_path: "Setup > Session Settings"
+
+  - id: perm-password-alphanumeric
+    title: App password policy forces a new password at every login
+    module: mobile-sync
+    symptoms:
+      - "'Enter your new password' every login"
+    keywords: [PasswordPolicy, Password Type, Alpha Numeric, Numeric, Application Settings]
+    cause: |
+      Application Settings Password Type set to Alpha Numeric makes the app
+      ask for a new passcode each time.
+    fix:
+      - "Set Password Type back to Numeric in Application Settings."
+    ui_path: "Admin Console > Mobile > Application Settings"
+    check:
+      type: tooling_soql_count
+      query: >
+        SELECT COUNT() FROM LifeSciConfigFieldValue
+        WHERE FieldName = 'PasswordPolicy' AND PicklistValue != 'Numeric' AND PicklistValue != null
+        AND LifeSciConfigRecord.IsActive = true
+      expect: "count == 0"
+
+  # ===========================================================================
+  # Admin Console settings
+  # ===========================================================================
+
+  - id: admin-override-profile-level
+    title: A profile or user level setting overrides the org value
+    module: admin-console
+    symptoms:
+      - "Setting changed at org level has no effect"
+      - "Sample Inventory Validation Mode set to Warning still blocks submit"
+      - "Visit Conflict Validation shows a blocking error"
+      - "Works for one user but not another"
+      - "Cannot leave samples for HCO accounts"
+    keywords: [precedence, profile level, user level, org level, override]
+    cause: |
+      Admin Console settings resolve user, then profile, then org. A profile
+      or user record left over from earlier setup wins over the org value,
+      and the page doesn't show it.
+    fix:
+      - "List every record of the setting's category with list_admin_settings and look for profile or user level ones."
+      - "Delete the stray records or set them to the same value."
+      - "Regenerate the metadata cache for mobile settings."
+
+  - id: admin-duplicate-records
+    title: Duplicate Admin Console records after copying config between orgs
+    module: admin-console
+    symptoms:
+      - "MISSING_ARGUMENT, SourceSystemIdentifier not specified"
+      - "Field Set Mapping edit doesn't save"
+      - "Wrong field set shown on the iPad"
+    keywords: [duplicate, FieldSetMapping, LifeSciStageObject, migration, assignment]
+    cause: |
+      Config copied between orgs twice leaves two records (or two
+      assignments) for the same key, and the app picks one.
+    fix:
+      - "Find the duplicates (same object, record type and profile) and delete one."
+      - "Regenerate the metadata cache."
+    check:
+      type: tooling_soql
+      query: >
+        SELECT LifeSciConfigRecordId, AssignedToId, COUNT(Id) n FROM LifeSciConfigAssignment
+        GROUP BY LifeSciConfigRecordId, AssignedToId HAVING COUNT(Id) > 1
+      expect: "records.length == 0"
+    check_scope: "Finds records assigned twice to the same profile. Duplicate records with different names need a look in the Admin Console."
+
+  - id: admin-empty-record
+    title: Admin Console record has no field values
+    module: admin-console
+    symptoms:
+      - "Attempt to de-reference a null object"
+      - "Planner tab not visible"
+      - "Product Discussion settings error when selecting a brand"
+    keywords: [PlannerAdministration, CallDiscussionRecordType, field values, incomplete]
+    cause: |
+      A record created without its field values (for example
+      PlannerAdministration for a profile) makes the server code read null.
+    fix:
+      - "Open the record and fill in its settings, or delete it and create it again from the Admin Console page."
+      - "Load missing defaults with LSStarterConfig if the org never had them."
+
+  - id: admin-org-in-maintenance
+    title: Profile app settings have Org In Maintenance on
+    module: admin-console
+    symptoms:
+      - "App stuck in maintenance"
+      - "The app says the org is under maintenance"
+    keywords: [IsOrgInMaintenance, ProfileBasedAppSettings, maintenance]
+    cause: "IsOrgInMaintenance is on in a Profile Based App Settings record."
+    fix:
+      - "Turn Is Org In Maintenance off and regenerate the metadata cache."
+    ui_path: "Admin Console > Mobile > Profile Based App Settings"
+    check:
+      type: tooling_soql
+      query: >
+        SELECT Id, DeveloperName FROM LifeSciConfigRecord
+        WHERE IsActive = true
+        AND Id IN (SELECT LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE FieldName = 'IsOrgInMaintenance' AND HasBooleanValue = true)
+      expect: "records.length == 0"
+
+  - id: admin-no-mobile-app-name
+    title: Profile Based App Settings missing, inactive or without a Mobile App Name
+    module: metadata-cache
+    symptoms:
+      - "Default MobileAppName is not configured in the org"
+      - "No Home page on the iPad"
+      - "Coming Soon on Home"
+    keywords: [MobileAppName, ProfileBasedAppSettings, app assignment]
+    cause: |
+      The cache is built for the app named in the profile's Profile Based App
+      Settings. With no active record, or no Mobile App Name, generation
+      fails or there's no Home page.
+    fix:
+      - "Create or activate Profile Based App Settings for the profile and pick its Mobile App Name."
+      - "Make sure the app is assigned to the profile."
+      - "Regenerate the metadata cache."
+    ui_path: "Admin Console > Mobile > Profile Based App Settings"
+    check:
+      type: tooling_soql_count
+      query: >
+        SELECT COUNT() FROM LifeSciConfigFieldValue
+        WHERE FieldName = 'MobileAppName' AND PicklistValue != null
+        AND LifeSciConfigRecord.IsActive = true
+        AND LifeSciConfigRecord.LifeSciConfigCategory.Category = 'ProfileBasedAppSettings'
+      expect: "count > 0"
+    check_scope: "Checks that at least one profile has one, not every profile."
+
+  - id: admin-uischema-tab-no-handler
+    title: UI Settings tab without a mobile handler
+    module: ipad-pages
+    symptoms:
+      - "Coming Soon"
+      - "Extra tabs with 'Coming Soon' on the iPad"
+      - "Standardtab.candidatedetails"
+    keywords: [UISchema, TAB, mobileHandler, navigation tab, Insight, Tableau, CmsContent]
+    cause: |
+      A UI Settings (UISchema) tab with no valid mobile handler, or a
+      standard tab the iPad doesn't implement in the app's navigation, shows
+      as Coming Soon.
+    fix:
+      - "Remove the tab or give it a supported handler (list_navigation_tabs)."
+      - "Use the Intelligent Content tab, not the standard CmsContent tab."
+      - "Regenerate the metadata cache."
+
+  - id: admin-email-retention-blank
+    title: Email Retention Duration left blank before loading historical emails
+    module: field-email
+    symptoms:
+      - "Migrated LifeScienceEmail records deleted after 30 days"
+      - "Old emails disappeared"
+    keywords: [Email Retention Duration, LifeScienceEmail, retention, migration]
+    cause: "A blank Email Retention Duration means 30 days, so older emails are hard-deleted."
+    fix:
+      - "Set Email Retention Duration before loading historical emails."
+
+  - id: admin-customer-filter-default
+    title: Customer Filter By Default holds a non-Id value
+    module: accounts
+    symptoms:
+      - "invalid ID field: false"
+    keywords: [Customer Filter By Default, account search]
+    cause: "The setting expects a filter Id. A value like false ends up in an Id comparison."
+    fix:
+      - "Clear the setting or set it to a valid filter."
+
+  - id: admin-related-record-retrieve-off
+    title: Sync doesn't fetch lookup names
+    module: mobile-sync
+    symptoms:
+      - "Lookup fields show blank on the iPad while the web shows the name"
+      - "Account on Account Plan blank on iPad"
+    keywords: [IsRelatedRecordRetrieve, SyncTransactionConfig, lookup name]
+    cause: "SyncTransactionConfig IsRelatedRecordRetrieve off leaves lookup display names out of the sync."
+    fix:
+      - "Turn Is Related Record Retrieve on if the extra volume is acceptable."
+    check:
+      type: tooling_soql
+      query: >
+        SELECT Id, DeveloperName FROM LifeSciConfigRecord
+        WHERE IsActive = true
+        AND Id IN (SELECT LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE FieldName = 'IsRelatedRecordRetrieve' AND HasBooleanValue = false)
+      expect: "records.length == 0"
+
+  - id: admin-account-filter-static-type
+    title: Account list columns set only for the Default list type
+    module: lists
+    symptoms:
+      - "Custom columns and sort fields only on the 'All' list"
+      - "List column customization applies on web only"
+    keywords: [AccountFilterConfig, AccountColumnConfig, Static, Dynamic, list type]
+    cause: |
+      The iPad resolves columns and sort per list type (Default, Static,
+      Dynamic) and falls back to built-in defaults when a type has no record.
+    fix:
+      - "Create a record for each list type you use (Static, Dynamic), org-wide or for the profile."
+      - "Regenerate the metadata cache."
+
+  - id: admin-onekey-inactive
+    title: External search config record inactive
+    module: accounts
+    symptoms:
+      - "'Search in External System' button missing"
+      - "'Search Online' button missing"
+    keywords: [OneKey, external system, Search Before Create, Search Online]
+    cause: "The external system config record (for example OneKey) is inactive or was never loaded."
+    fix:
+      - "Activate the external system record, or load it with LSStarterConfig."
+
+  # ===========================================================================
+  # Account reach and territory
+  # ===========================================================================
+
+  - id: account-reach-chain
+    title: Account doesn't meet what alignment and the iPad filter need
+    module: territory
+    symptoms:
+      - "Account added to a territory on the web but not on the iPad"
+      - "Account list view or filter returns nothing"
+      - "Align Account to Territory job updates 0 accounts"
+      - "Accounts missing from advanced search"
+      - "Account missing on the iPad"
+    keywords: [IsActive, IsPrimaryProvider, ObjectTerritory2Association, Territory2Manual, ProviderAcctTerritoryInfo, IsAvailableOffline, preferred address, PATI, OT2A]
+    cause: |
+      An account reaches a rep only if all of these hold: Account.IsActive is
+      true; a HealthcareProvider with IsPrimaryProvider = true; an
+      ObjectTerritory2Association with AssociationCause Territory2Manual in
+      the active model; a ProviderAcctTerritoryInfo row that is active,
+      IsAvailableOffline = true and has a preferred address. On the iPad
+      territory visibility comes from PATI, not AccountShare.
+    fix:
+      - "Check the account against each condition (Studio's Check a user follows the chain for one rep)."
+      - "Fix the data, then run Align Account to Territory so PATI is created."
+      - "Have the rep sync."
+    rules: [territory-001, territory-003, territory-006]
+
+  - id: account-geo-code-mismatch
+    title: Address postal code doesn't exactly match the geo rule
+    module: territory
+    symptoms:
+      - "Align Zip Code to Territory finishes with 0 accounts"
+      - "Zip-to-Territory creates no PATI"
+      - "Geo Group job updates few accounts"
+    keywords: [TerritoryGeoAssignmentRule, GeoCode, PostalCode, GeoGroup1Code, ZipToTerritory]
+    cause: |
+      ContactPointAddress.PostalCode (or GeoGroup1Code) must equal the rule's
+      GeoCode exactly, case and spacing included, with GeoCodeType
+      ZipToTerritory or GeoGroup1, and IsTerrAssignmentExcluded not true.
+    fix:
+      - "Compare the address codes with the rule codes and correct either side."
+      - "Run the alignment job again."
+    rules: [territory-004]
+
+  - id: user-no-territory
+    title: Rep has no territory in the active model
+    module: territory
+    symptoms:
+      - "REQUIRED_FIELD_MISSING: [User/Group]"
+      - "Search Before Create fails"
+    keywords: [UserTerritory2Association, territory, active model]
+    cause: "The rep has no UserTerritory2Association in the active Territory2Model."
+    fix:
+      - "Assign the rep to a territory in the active model (list_users with users without territories)."
+    rules: [next-best-001]
+
+  - id: affiliation-rule-direction
+    title: Affiliation alignment rule only fires in one direction
+    module: territory
+    by_design: true
+    symptoms:
+      - "Affiliated HCPs not aligned"
+      - "Affiliation rule does nothing"
+    keywords: [TerritoryProviderAffiliationAlignmentRule, HCO to HCP, record type]
+    cause: |
+      Affiliation alignment rules are record-type specific. A rule written
+      for person accounts doesn't fire from HCO to HCP.
+    fix:
+      - "Add a rule for the other direction."
+
+  - id: parent-territory-rollup
+    title: Parent territory doesn't include its children's accounts
+    module: territory
+    by_design: true
+    symptoms:
+      - "Manager doesn't see the team's accounts"
+      - "Parent territory shows no accounts"
+    keywords: [territory hierarchy, parent territory, roll up, territory switcher]
+    cause: "On the iPad a parent territory doesn't roll up the accounts of its child territories."
+    fix:
+      - "Align the accounts to the parent territory too, or have managers switch to the child territory."
+
+  # ===========================================================================
+  # Lists, filters and actions (by design)
+  # ===========================================================================
+
+  - id: lists-by-design
+    title: List and filter behavior that's intended
+    module: lists
+    by_design: true
+    symptoms:
+      - "Static list created by admin not visible to reps"
+      - "Filter OR logic not supported"
+      - "List view not visible"
+      - "All Accounts list unavailable"
+    keywords: [static list, AND, OR, filter logic, shared, list view]
+    cause: |
+      Filters combine conditions with AND only. A static list owned by an
+      admin isn't shared to reps. List views need to be shared with the rep.
+      "All Accounts" needs "Let users view all accounts".
+    fix:
+      - "Share the list or view with the reps, or have reps create their own."
+      - "Split OR conditions into separate filters."
+
+  - id: actions-ipad-supported
+    title: Action isn't one the iPad supports, or comes from the wrong place
+    module: actions
+    symptoms:
+      - "Quick action visible on web, not on iPad"
+      - "Deactivated action still on the action bar"
+      - "Action missing on some Visits on the iPad"
+      - "Custom action does nothing"
+    keywords: [quick action, custom action, EnableDynamicActions, Highlights Panel, Action Target, Log a Call]
+    cause: |
+      The iPad runs a fixed set of standard actions (not Log a Call, New Task
+      or Edit, for example). With EnableDynamicActions on, actions come from
+      the record page's Highlights Panel, not the page layout. A custom
+      action needs an App Action Target. The Home page shows a fixed list of
+      standard quick actions.
+    fix:
+      - "Use a supported action, or a custom action with an App Action Target."
+      - "With dynamic actions on, add the action to the Highlights Panel of each record type's page."
+      - "Regenerate the metadata cache."
+    rules: [quickaction-002, customaction-001]
+
+  - id: inline-lwc-quick-action
+    title: Inline LWC has no matching quick action, or the wrong prefix
+    module: ipad-pages
+    symptoms:
+      - "Recursive module loading failed!"
+      - "Custom LWC invisible on iPad"
+      - "LWC shows on web but not iPad"
+    keywords: [lscMobileInline_, lscMobileQuickAction_, LightningWebComponent quick action, lightning__RecordAction]
+    cause: |
+      An inline LWC on a record page (lscMobileInline_*) needs a
+      LightningWebComponent quick action named exactly like it, on the
+      object, with the lightning__RecordAction target. Quick action LWCs use
+      the lscMobileQuickAction_ prefix; the iPad hides lscMobileInline_ ones
+      as actions.
+    fix:
+      - "Create the quick action with the component's API name, or rename the component."
+      - "Studio's LSC apps builder sets this up when it deploys an app."
+      - "Regenerate the metadata cache."
+
+  - id: ipad-page-template
+    title: Lightning page uses a template or layout the iPad doesn't draw
+    module: ipad-pages
+    symptoms:
+      - "Blank Home screen"
+      - "Blank screen on record detail"
+      - "Record page warped or compressed on the iPad"
+      - "Invalid or blank config. Please check page properties in Lightning App Builder"
+      - "Account Map component not visible"
+      - "Edit button missing on Details page"
+    keywords: [FlexiPage, page template, Header and One Region, Header and Right Sidebar, Standard Home Page, tabs, Highlights Panel, Header region, Generic Related List, Dynamic Actions]
+    cause: |
+      The iPad draws only some page templates, and draws them its own way.
+      On another template the iPad uses a single region that shows only the
+      last component, and a Home page on it is blank. On Home pages the
+      iPad shows nothing in regions it doesn't scroll (the Header of the
+      Standard Home Page, every region of the two-column template), and on
+      record pages the Header shows only its last component. Regions the
+      template doesn't have, such as a Home page's bottom regions, are left
+      out. A tab set fills the screen, so components after it are below the
+      fold. A Generic Related List with no object or field set shows
+      "Invalid or blank config". The Map is a fixed 325 points tall, so it
+      can look missing in a narrow or crowded region. With Dynamic Actions
+      on, Edit shows only when it is in the Highlights Panel's actions (or,
+      without those, the layout's Salesforce Mobile actions).
+    fix:
+      - "Open the page in Studio's iPad preview (On iPads now) to see what the iPad draws and why."
+      - "Use Header and One Region or Header and Right Sidebar for record pages, and the Standard Home Page template with components in its top region for Home."
+      - "Keep only the Highlights Panel in a record page's Header, and put components that follow a tab set inside a tab."
+      - "Fill in the Object and Field set of every Generic Related List."
+      - "With Dynamic Actions on, add Edit to the Highlights Panel's actions."
+      - "Regenerate the metadata cache."
+    check:
+      type: builtin
+      name: ipad-pages
+      expect: "none"
+    check_scope: "Reads the org's own Home pages and record pages of synced objects, the 40 changed most recently, whether or not reps get them on the iPad. It doesn't check the Edit button or the Map."
+
+  - id: related-list-lsc-component
+    title: Related List - Life Sciences component misconfigured
+    module: ipad-pages
+    symptoms:
+      - "Related list fails when WHERE clause is configured"
+      - "Related list blank or shows fewer columns"
+    keywords: [Related List - Life Sciences, field set, WHERE clause, curly quotes, cross-object]
+    cause: |
+      Wrong field set API name; curly quotes copied into the WHERE clause
+      (‘{recordId}’ instead of '{recordId}'); cross-object fields in the
+      field set, which aren't supported; fields the rep can't read are
+      dropped.
+    fix:
+      - "Use the exact field set API name and straight quotes."
+      - "Replace cross-object fields with formula fields."
+      - "Grant read access to the field set's fields."
+
+  - id: field-set-not-mapped
+    title: Fields don't show in search or Account Team because they're not in the mapped field set
+    module: accounts
+    symptoms:
+      - "Fields added to FieldSetMapping don't appear in Advanced Search"
+      - "State/Province missing in HCP Advanced Search"
+      - "Account Team component empty"
+      - "The field set is empty or you don't have access to these fields"
+      - "Sort by a field shows 'No records to display'"
+    keywords: [FieldSetMapping, field set, Sort_Columns, Account Team, Advanced Search]
+    cause: |
+      Search, results, sort and Account Team show only the fields in the
+      field sets they're mapped to. Sort field sets can't hold lookup or
+      cross-object fields. Use State/Province code fields, not the text ones.
+    fix:
+      - "Add the fields to the mapped field set, for the right record type."
+      - "For Account Team, create a User field set and name it in the component's properties."
+      - "Regenerate the metadata cache."
+
+  - id: visit-child-lookup-name
+    title: Custom visit child object isn't saved because its lookup isn't named Visit__c
+    module: visits
+    symptoms:
+      - "Custom object rows not saved with the visit"
+      - "Related custom object never created when the visit is submitted"
+    keywords: [Visit__c, custom child object, lookup, visit sidebar]
+    cause: |
+      The visit save only processes custom child records whose lookup to
+      Visit has an API name containing Visit__c. Names like Visit_ID__c
+      are skipped without an error.
+    fix:
+      - "Add or rename the lookup so its API name ends with Visit__c."
+
+  - id: visit-required-parent-on-layout
+    title: Required parent field placed on a visit child layout
+    module: visits
+    symptoms:
+      - "Lookup search opens when entering visit notes"
+      - "Unexpected required field on product discussion"
+    keywords: [ProviderVisitProdDetailing, ProviderVisitProductDtlId, master-detail, layout]
+    cause: "The master-detail parent field is required on the layout, so reps must pick it. The app sets it on save."
+    fix:
+      - "Remove the parent field from the layout."
+
+  # ===========================================================================
+  # Metadata cache
+  # ===========================================================================
+
+  - id: cache-flexipage-missing-reference
+    title: Lightning page component points at something that doesn't exist
+    module: metadata-cache
+    symptoms:
+      - "Insufficient access rights on cross-reference"
+      - "Metadata cache generation fails"
+    keywords: [dashboard, report, FlexiPage component, cross-reference]
+    cause: "A component on an assigned Lightning page references a dashboard or report that was deleted or can't be read."
+    fix:
+      - "Open the publish log (Studio's Metadata cache page, Ask Roz why) to find the page."
+      - "Remove or fix the component and publish again."
+
+  - id: cache-related-list-admin-layout
+    title: Related list is on the profile's layout but not the admin's
+    module: metadata-cache
+    symptoms:
+      - "Related-list field metadata missing for a new profile"
+      - "Related list fields missing on iPad"
+    keywords: [related list, System Administrator layout, ui.json]
+    cause: "Related-list field metadata is read with the generating admin's layout, so a list only on the rep layout has no fields."
+    fix:
+      - "Add the related list to the generating admin's layout too, then publish again."
+
+  - id: cache-chatter-action
+    title: An unsupported Chatter action on a layout stalls cache generation
+    module: metadata-cache
+    symptoms:
+      - "Cache stuck in Processing then Inactive"
+    keywords: [FeedItem.RypplePost, publisher layout, Chatter]
+    cause: "FeedItem.RypplePost on a layout or the global publisher layout stops generation."
+    fix:
+      - "Remove the action from the layout and publish again."
+    rules: [cache-002, cache-003]
+
+  - id: cache-data-cloud-access
+    title: Data Cloud on without OrgHasObjectAccessLevel
+    module: metadata-cache
+    symptoms:
+      - "Cache fails when Data Cloud is enabled"
+    keywords: [Data Cloud, OrgHasObjectAccessLevel, CDPAdmin]
+    cause: "With Data Cloud on, generation reads the CDPAdmin permission set, which needs OrgHasObjectAccessLevel."
+    fix:
+      - "Enable OrgHasObjectAccessLevel, then publish again."
+
+  - id: cache-stale
+    title: Change made after the last publish
+    module: metadata-cache
+    by_design: true
+    symptoms:
+      - "Field present on web but missing on iPad"
+      - "iPad doesn't show recent changes"
+      - "Translations not on the iPad"
+    keywords: [regenerate, publish, stale, translation, log out]
+    cause: |
+      Layouts, pages, record types, field access and Admin Console mobile
+      settings reach the iPad only through a new metadata cache, and reps
+      pick it up when they log in again.
+    fix:
+      - "Publish to iPad (Studio) or regenerate the cache for the profile."
+      - "For translations, regenerate the Standard Label Translations document too."
+      - "Have reps log out and in."
+    rules: [mobile-001, cache-002, cache-003]
+
+  # ===========================================================================
+  # Module prerequisites
+  # ===========================================================================
+
+  - id: inquiry-queue-missing
+    title: Medical inquiry queue doesn't exist
+    module: medical-inquiry
+    symptoms:
+      - "lsc4ce.CaseTrigger: execution of BeforeUpdate caused by: System.ListException: List index out of bounds: 0"
+      - "List index out of bounds: 0"
+      - "We couldn't save the signature"
+      - "Inquiries not routed to MSL queue"
+    keywords: [Inquiry Queue, CaseMSLQueueHandler, queue, Case]
+    cause: "The inquiry handlers expect a queue named Inquiry Queue (Case as a supported object)."
+    fix:
+      - "Create the queue with Case as a supported object."
+      - "Check CaseMSLQueueHandler is active."
+    check:
+      type: soql_count
+      query: "SELECT COUNT() FROM Group WHERE Type = 'Queue' AND Name = 'Inquiry Queue'"
+      expect: "count > 0"
+    applies_if:
+      type: tooling_soql_count
+      query: "SELECT COUNT() FROM LifeScienceTriggerHandler WHERE DeveloperName = 'CaseMSLQueueHandler' AND IsActive = true"
+      expect: "count > 0"
+    rules: [medinq-001, medinq-002]
+
+  - id: email-template-territory
+    title: Email templates not active or not assigned to the territory
+    module: field-email
+    symptoms:
+      - "No email templates available"
+      - "No Available Communication Subscriptions"
+      - "Cancellation email not sent"
+      - "Emails stuck"
+    keywords: [LifeSciEmailTemplate, territory, EmailTemplateTerritorySharingHandler, EmailQueueSendBatchable, communication subscription]
+    cause: |
+      Templates must be active, assigned to the rep's territory (shared by
+      EmailTemplateTerritorySharingHandler), linked to a communication
+      subscription, and owned by an active user. A stuck
+      EmailQueueSendBatchable stops sending.
+    fix:
+      - "Activate the templates and assign them to the territory."
+      - "Link each template to a communication subscription."
+      - "Reactivate the owner if needed and abort a stuck send job."
+    rules: [field-email-001, field-email-002, field-email-003, field-email-009, field-email-010]
+
+  - id: handler-inactive
+    title: An LSC trigger handler the feature depends on is off
+    module: admin-console
+    symptoms:
+      - "Email templates not shared to territories"
+      - "Activity Plan widget empty"
+      - "Product Batch Items not shared to the rep"
+      - "Feature doesn't work until a handler is turned on"
+    keywords: [LifeScienceTriggerHandler, AccountTerritoryFieldsHandler, ProductBatchItemOwnershipHandler, EmailTemplateTerritorySharingHandler, CaseMSLQueueHandler]
+    cause: |
+      Many features run in trigger handlers that ship inactive or were
+      turned off: AccountTerritoryFieldsHandler (activity plans),
+      ProductBatchItemOwnershipHandler (sample inventory),
+      EmailTemplateTerritorySharingHandler (field email), CaseMSLQueueHandler
+      (inquiries).
+    fix:
+      - "Run list_trigger_handlers and turn on the handler for the feature."
+      - "Re-save or re-run what it acts on (for example re-run template sharing)."
+    check:
+      type: tooling_soql
+      query: >
+        SELECT DeveloperName FROM LifeScienceTriggerHandler
+        WHERE IsActive = false
+        AND DeveloperName IN ('AccountTerritoryFieldsHandler', 'ProductBatchItemOwnershipHandler', 'EmailTemplateTerritorySharingHandler', 'CaseMSLQueueHandler')
+      expect: "records.length == 0"
+    check_scope: "Checks four commonly needed handlers. A feature you don't use may not need its handler."
+    rules: [visit-006]
+
+  - id: activity-plan-batch-in-progress
+    title: Activity Plan calculation left marked In Progress
+    module: activity-plan
+    symptoms:
+      - "Wrong component configuration, an instance of Activity Plan Calculation Batch is already in progress"
+      - "An Instance of Activity Plan Calculation Batch is already in progress"
+      - "Activity plan status not updating"
+    keywords: [ActivityPlanJob_OrgLevel, JobStatus, batch]
+    cause: "A failed calculation leaves the job's status at In Progress, so no new run can start."
+    fix:
+      - "Fix the configuration that made it fail (often the measure type, see below)."
+      - "Set the job's status back to Completed and run it again."
+
+  - id: activity-plan-measure-type
+    title: Provider Activity Measure Type doesn't fit the goal
+    module: activity-plan
+    symptoms:
+      - "Incomplete ActivityPlan Configuration: ProviderVisitPhone"
+      - "Product-level attainment empty"
+      - "Completed visits not counted in Provider Activity Goal"
+    keywords: [ProviderActivityMeasureType, ProviderActivityGoalMeasure, Level 1 Related Account Object, product goal]
+    cause: |
+      Product goals need a measure type with product fields. Visit measure
+      types must not have Level 1 Related Account Object or Account Field On
+      Account Object set. A new Channel value needs its own measure type.
+    fix:
+      - "Correct the measure type, or create one with product fields and select it on the goal measure."
+      - "Run Calculate Provider Activity Goal Measures again."
+    rules: [actplan-004, actplan-005]
+
+  - id: activity-plan-territory-list
+    title: ActivityPlan territory list holds names, or a rep is in a territory and its parent
+    module: activity-plan
+    symptoms:
+      - "Review grid shows No Records"
+      - "Employee is Manager on this territory"
+    keywords: [TerritoryList, ActivityPlanTerritory, parent territory]
+    cause: |
+      ActivityPlan.TerritoryList must hold territory Ids. A user who is an
+      active member of both a plan territory and its direct parent is
+      treated as the manager.
+    fix:
+      - "Re-save the ActivityPlanTerritory records so TerritoryList holds Ids."
+      - "Remove the double membership."
+    rules: [actplan-003]
+
+  - id: samples-allocation-type
+    title: Territory allocation uses AllocationType Drop
+    module: samples
+    symptoms:
+      - "TPQA remaining quantity never debited"
+      - "Sample limit not enforced"
+    keywords: [TerritoryProdtQtyAllocation, AllocationType, Drop, Ship, CalculateTPQADebitedQuantityHandler]
+    cause: "The debit and validation handlers read allocations of type Ship only."
+    fix:
+      - "Set AllocationType to Ship, or set a Max Disbursement Limit Quantity on Drop records."
+    check:
+      type: soql_count
+      query: "SELECT COUNT() FROM TerritoryProdtQtyAllocation WHERE AllocationType = 'Drop'"
+      expect: "count == 0"
+
+  - id: samples-no-parent-brand
+    title: Marketable product has no parent brand
+    module: samples
+    symptoms:
+      - "No products under Samples, Marketing Items or Disbursements tabs"
+      - "Marketing item not in Visit sidebar"
+      - "Product Discussion settings error when selecting a brand"
+    keywords: [LifeSciMarketableProduct, ParentBrandProductId, brand]
+    cause: "Brand-to-product lookups return nothing for products with no ParentBrandProductId."
+    fix:
+      - "Set ParentBrandProductId on each LifeSciMarketableProduct of Type Product."
+    check:
+      type: soql_count
+      query: "SELECT COUNT() FROM LifeSciMarketableProduct WHERE Type = 'Product' AND ParentBrandProductId = null"
+      expect: "count == 0"
+    rules: [product-007]
+
+  - id: samples-serialized-product-item
+    title: Serialized ProductItem breaks inventory transfers
+    module: samples
+    symptoms:
+      - "Duplicate Product Batch Items on transfer"
+      - "invalid cross reference id"
+      - "Inventory transfer fails"
+    keywords: [ProductItem, SerialNumber, transfer, inventory]
+    cause: "Sample transfers assume non-serialized ProductItems. Any with a SerialNumber break the logic."
+    fix:
+      - "Remove the serial numbers or the serialized ProductItems used for samples."
+    check:
+      type: soql_count
+      query: "SELECT COUNT() FROM ProductItem WHERE SerialNumber != null"
+      expect: "count == 0"
+
+  - id: samples-sharing
+    title: Sample inventory records shared too widely or not to the rep
+    module: samples
+    symptoms:
+      - "insufficient access rights on cross-reference id"
+      - "Rep sees other reps' Product Batch Items"
+      - "Initial inventory count fails"
+      - "Attempt to de-reference a null object in InventoryCountController"
+    keywords: [ProductBatchItem, sharing rule, manual share, All Operations, Health Cloud Starter]
+    cause: |
+      A sharing rule giving all users access to ProductBatchItem, "All
+      Operations" record access, a rep who doesn't own the records, or a
+      missing Health Cloud Starter permission set.
+    fix:
+      - "Remove broad sharing rules on ProductBatchItem and turn on ProductBatchItemOwnershipHandler."
+      - "Turn on the own-records filter in Samples Inventory Management settings."
+      - "Assign the Health Cloud Starter permission set."
+    rules: [sample-006]
+
+  - id: sample-limit-template-priority
+    title: Sample limit templates share a priority number
+    module: samples
+    symptoms:
+      - "Wrong sample limit shown in popover"
+      - "Sample limits not initialized for new accounts"
+    keywords: [ProviderSampleLimitTemplate, PriorityNumber, NewAccountSampleLimitInitHandler]
+    cause: |
+      Templates for the same product with equal PriorityNumber pick one
+      arbitrarily. Custom or cloned templates are skipped by
+      NewAccountSampleLimitInitHandler.
+    fix:
+      - "Give each template a distinct PriorityNumber and use the supported template types."
+
+  - id: workflow-stage-sharing
+    title: Workflow stage objects are Private
+    module: workflow
+    symptoms:
+      - "We couldn't load the workflow path for this record"
+      - "You don't have permission to create X records at this stage of the workflow"
+      - "Inquiry is locked and cannot be created"
+      - "sObject type 'LifeSciStageObject' is not supported"
+    keywords: [LifeSciStageObject, LifeSciStageAction, LifeScienceCustomScript, OWD, sharing, stage path, StagePathPermissionsHandler]
+    cause: |
+      The workflow engine reads LifeSciStageObject, LifeSciStageAction and
+      LifeScienceCustomScript as the user. With a Private default and no
+      shares, users other than the owner can't load the path.
+    fix:
+      - "Set the org-wide default of the three objects to Public Read Only."
+      - "Check the object's workflow is active and matches the profile's default record type."
+      - "Turn StagePathPermissionsHandler off where users have no LSC permission set."
+    ui_path: "Setup > Sharing Settings"
+    check:
+      # InternalSharingModel can't be filtered on (the query returns nothing), so read and compare.
+      type: tooling_soql
+      query: >
+        SELECT QualifiedApiName, InternalSharingModel FROM EntityDefinition
+        WHERE QualifiedApiName IN ('LifeSciStageObject', 'LifeSciStageAction', 'LifeScienceCustomScript')
+      expect: "records.every(r => r.InternalSharingModel != 'Private')"
+    applies_if:
+      type: soql_count
+      query: "SELECT COUNT() FROM LifeSciStageObject"
+      expect: "count > 0"
+
+  - id: dcr-requires-approval
+    title: Requires Approval for Creation blocks data loads
+    module: accounts
+    symptoms:
+      - "You cannot create this account record type here. Navigate to the custom accounts page"
+      - "FIELD_CUSTOM_VALIDATION_EXCEPTION"
+      - "DCR not created"
+    keywords: [Data Change Request, DCR, Requires Approval for Creation, validation type]
+    cause: |
+      With Requires Approval for Creation on for a record type, accounts of
+      that type can only be created through the DCR flow, which blocks
+      integration loads.
+    fix:
+      - "Turn it off for record types you load, or load with the DCR handler off."
+      - "Check validation types (Internal or External) match between record type and managed field config."
+
+  - id: available-countries-format
+    title: Available countries hold names instead of ISO codes, or are empty
+    module: accounts
+    symptoms:
+      - "Country dropdown empty"
+      - "Country/State dropdown empty"
+      - "SyntaxError: Unexpected token 'U'. \"US\" is not valid JSON"
+    keywords: [UserAdditionalInfo, AvailableCountries, RestrictToUserAvailableCountry, ISO]
+    cause: |
+      With "Restrict search to countries available to the user" on,
+      UserAdditionalInfo.AvailableCountries must hold ISO 3166 two-letter
+      codes (DE, not Germany). Empty means no countries.
+    fix:
+      - "Load the values as two-letter codes, or turn the restriction off."
+
+  - id: tot-duplicate-rules
+    title: Duplicate Time Off Territory rules
+    module: calendar
+    symptoms:
+      - "TOT saves on a holiday on the iPad but fails later"
+      - "Visit schedulable over a restricted TOT"
+    keywords: [TimeOffTerritoryRule, holiday, DownTimeCategory]
+    cause: "Several active TOT rules for the same rule set and type disagree. Old TOTs have no DownTimeCategory."
+    fix:
+      - "Keep one active rule per set and type, and recreate old TOTs."
+
+  - id: remote-engagement-csp
+    title: Twilio trusted sites aren't allowed on every page type
+    module: remote-engagement
+    symptoms:
+      - "Start Remote Session errors"
+      - "Remote Visit UI unresponsive for attendees"
+      - "Attendees see a black screen"
+    keywords: [CspTrustedSite, Twilio, Context, Digital Experience]
+    cause: |
+      The Twilio trusted URLs need context All (or separate entries for
+      Lightning and Digital Experience pages). A firewall blocking Twilio's
+      ports gives the same symptom.
+    fix:
+      - "Set each Twilio trusted URL's context to All."
+      - "Check enableremotevisitsignature in video call settings if signatures are missing."
+    ui_path: "Setup > Trusted URLs"
+    check:
+      type: tooling_soql
+      query: "SELECT DeveloperName, EndpointUrl, Context FROM CspTrustedSite WHERE EndpointUrl LIKE '%twilio%' AND Context != 'All'"
+      expect: "records.length == 0"
+
+  - id: topics-not-enabled
+    title: Topics aren't enabled on Presentation
+    module: intelligent-content
+    symptoms:
+      - "Failed to assign topic to"
+      - "Please ensure you have permissions to assign topics for this record"
+      - "Topic filter doesn't save"
+    keywords: [Topics for Objects, Presentation, topic]
+    cause: "Topics for Objects must be turned on for Presentation (and email templates for template topics)."
+    fix:
+      - "Turn on Topics for Objects for Presentation."
+    ui_path: "Setup > Topics for Objects"
+
+  - id: presentation-package
+    title: Presentation or template package built the wrong way
+    module: intelligent-content
+    symptoms:
+      - "BLOB is not a valid UTF-8 string"
+      - "Content Could Not Load"
+      - "Presentation uploads but is blank in the player"
+      - "Thumbnail not rendering"
+      - "Pages fail to appear"
+    keywords: [zip, 01_, thumbnail, curly quotes, presentation upload]
+    cause: |
+      The zip has a parent or hidden folder; page files don't start at 01_;
+      curly quotes in HTML; template parameters not lowercase; duplicate
+      page names; or the presentation was created with platform APIs
+      instead of the LSC content APIs.
+    fix:
+      - "Zip the contents only, number pages from 01_, use straight quotes and unique names."
+      - "Upload through the Admin Console or upload_presentation, which checks the zip."
+
+  - id: surveys-offline-type
+    title: Survey isn't the Offline Mobile type
+    module: surveys
+    by_design: true
+    symptoms:
+      - "Survey not visible on Account or Visit"
+      - "Survey not on the iPad"
+      - "Can't activate survey"
+    keywords: [Offline Mobile Survey, survey type, SurveySubject, SurveyInvitation]
+    cause: |
+      LSC shows only Offline Mobile surveys, and a survey needs questions
+      before it can be activated. One invitation shared across accounts
+      shows one status for all of them.
+    fix:
+      - "Create the survey as Offline Mobile and add questions."
+      - "Create an invitation and subject per account or territory."
+    rules: [survey-001, survey-003]
+
+  - id: customer-automation
+    title: Customer validation rule, trigger or flow interferes with LSC
+    module: admin-console
+    symptoms:
+      - "Device Sync Transaction fails and records never reach web"
+      - "DCR not generated on insert"
+      - "Life Science Email usage type reverts"
+      - "suppressed@noreply.invalid"
+      - "Visit won't submit on the iPad"
+    keywords: [validation rule, trigger, flow, custom automation, FIELD_CUSTOM_VALIDATION_EXCEPTION]
+    cause: |
+      Validation rules, triggers and record-triggered flows on LSC objects
+      run during sync uploads and LSC's own processing. Their failures show
+      only in the sync transaction's error log.
+    fix:
+      - "Look at the error on the DeviceSyncTransactionRecord for the rep."
+      - "Narrow or turn off the custom logic for the LSC process."
+    check:
+      type: tooling_soql
+      query: >
+        SELECT ValidationName, EntityDefinition.QualifiedApiName FROM ValidationRule
+        WHERE Active = true
+        AND EntityDefinition.QualifiedApiName IN ('Visit', 'ProviderVisit', 'ActivityPlan', 'PresentationClickStreamEntry', 'ProviderVisitProdDetailing', 'ProductDisbursement', 'DeviceSyncTransactionRecord')
+      expect: "records.length == 0"
+    check_scope: "Lists active validation rules on visit, activity plan and sample objects. Triggers and flows aren't checked."
+
+  - id: custom-script-ipad
+    title: Custom script uses something the iPad runtime doesn't support
+    module: custom-scripts
+    symptoms:
+      - "Script works on web but not iPad"
+      - "Validation silently passes on the iPad"
+      - "Validations not firing"
+    keywords: [Promise.all, lower-case field names, uid, db query, LifeScienceCustomScript, CodeText]
+    cause: |
+      On the iPad field names arrive lower case (contextData.visit,
+      item.productid), Promise.all and != in db queries aren't supported,
+      only synced objects can be queried, and unsynced records have a uid
+      instead of an Id. Users also need read access to LifeScienceCustomScript.
+    fix:
+      - "Open the script in Studio's Custom scripts editor; its checks flag these patterns."
+      - "Run it with Test as iPad against a real record."
+
+  - id: sync-direction-timing
+    title: Server-side changes reach the iPad on the next sync
+    module: mobile-sync
+    by_design: true
+    symptoms:
+      - "Server-computed values not on iPad"
+      - "Web edits not on iPad"
+    keywords: [delta sync, trigger results, upload only, sync timing]
+    cause: |
+      Values computed on the server after an upload (triggers, flows,
+      batches) come down on the next delta sync. Objects with one-way sync
+      never upload.
+    fix:
+      - "Sync again. Check One Way Sync on the object if iPad edits never reach the web."
+
+  - id: record-type-parity
+    title: Record type names or visibility don't line up across paired objects
+    module: visits
+    symptoms:
+      - "Record type selection screen shown to a single-record-type user"
+      - "iPad shows a record type that was removed"
+      - "HCP created with wrong HealthcareProvider record type"
+    keywords: [RecordType, DeveloperName, Visit, ProviderVisit, HealthcareProvider, Case, Inquiry]
+    cause: |
+      Visit and ProviderVisit have separate record type visibility, from the
+      profile and permission sets together. HealthcareProvider record types
+      must share DeveloperNames with the Account ones, and Case with Inquiry.
+    fix:
+      - "Line up record type visibility for both objects across profile and permission sets."
+      - "Match DeveloperNames, then regenerate the metadata cache."
+    rules: [visit-001, visit-002]
+
+  - id: translations-not-applied
+    title: Translations not on the iPad
+    module: metadata-cache
+    symptoms:
+      - "Mobile labels stay English"
+      - "Please setup and add languages in translation settings"
+      - "Sample not rendering for English (Ireland, Euro) locale"
+    keywords: [Translation Workbench, Standard Label Translations, locale, custom label]
+    cause: |
+      The language isn't active in Translation Workbench, the admin isn't a
+      translator for it, or the Standard Label Translations document wasn't
+      regenerated. Legacy JDK locales such as English (Ireland, Euro) don't
+      parse.
+    fix:
+      - "Activate the language and add the admin as a translator."
+      - "Regenerate the label translations and the metadata cache."
+      - "Move users to an ICU locale."

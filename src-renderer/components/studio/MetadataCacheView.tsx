@@ -34,8 +34,12 @@ import {
   type MetadataCacheOverview,
   type ProfileCacheRow,
 } from "./metadata-cache-types";
+import type { DiagnosisResult } from "./diagnose-logic";
 import "./readiness.css";
 import "./metadata-cache.css";
+
+/** Error and log text checked against known causes (`studio_diagnose` takes 20,000). */
+const DIAGNOSE_CHARS = 20_000;
 
 interface Props {
   /** Bumped after every apply and finished publish, to read the caches again. */
@@ -89,15 +93,19 @@ export default function MetadataCacheView({
   const [asking, setAsking] = useState<string | null>(null);
   const ticket = useRef(0);
 
-  // Roz gets the whole log, not just the one-line error; without it, the error alone.
+  // Roz gets the whole log, not just the one-line error; without it, the error alone. The error
+  // and log are also checked against known setup mistakes, so Roz starts from what's in the org.
   const askWhy: AskWhy = async (f) => {
     setAsking(f.id);
     const res = await window.lscApi.studioMetadataCacheLog(f.id);
-    setAsking(null);
     const logs = res.error
       ? []
       : ((res.data as { logs?: { profile: string | null; log: string }[] } | null)?.logs ?? []);
-    onAskClaude(failedPublishPrompt({ ...f, logs }));
+    const symptom = [f.error ?? "", ...logs.map((l) => l.log)].join("\n").trim().slice(0, DIAGNOSE_CHARS);
+    const diag = symptom ? await window.lscApi.studioDiagnose(symptom) : null;
+    setAsking(null);
+    const causes = diag && !diag.error && !diag.data?.error ? (diag.data as DiagnosisResult) : undefined;
+    onAskClaude(failedPublishPrompt({ ...f, logs, causes }));
   };
 
   const fetchOverview = useCallback(async () => {

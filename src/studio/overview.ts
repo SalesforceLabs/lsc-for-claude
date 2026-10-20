@@ -6,7 +6,21 @@
  * single feature owns.
  */
 
+import { collectCategoryRecords } from "../config/collect.js";
+import { describeSObject } from "../salesforce/cli.js";
 import { chunkIds } from "../tools/helpers.js";
+import {
+  cloneGaps,
+  duplicateLine,
+  duplicateSettings,
+  emptySettings,
+  isLscPermission,
+  overrideLine,
+  permLabel,
+  settingOverrides,
+  type CloneGap,
+  type PermSet,
+} from "./admin-console-checks.js";
 import { count, inList, plural, query, type Row } from "./helpers.js";
 import { runCheck } from "./readiness/index.js";
 import { cachesByProfile, daysSince, unpublishedChanges, type ProfileCache } from "./overview-logic.js";
@@ -51,6 +65,7 @@ export async function collectSetupOverview(org: string): Promise<SetupOverview> 
     return profilesBehind(org, byProfile, new Map(profiles.map((p) => [p.id, p.name])));
   });
   const psls = memo(() => fetchPsls(org));
+  const settings = memo(() => fetchSettings(org));
 
   const checks = await Promise.all([
     runCheck(
@@ -100,6 +115,85 @@ export async function collectSetupOverview(org: string): Promise<SetupOverview> 
         if (!r || !(allowed > 0)) return { pass: true, skip: true, detail: "Unlimited or no package license found." };
         const used = Number(r.UsedLicenses ?? 0);
         return { pass: used < allowed, detail: `${used} of ${allowed} seats used` };
+      }
+    ),
+    runCheck(
+      {
+        id: "overview.access.cloned-permission-sets",
+        stage: "access",
+        title: "Copies of the standard LSC permission sets have their LSC permissions",
+        severity: "warning",
+        why: "A permission set cloned from a standard LSC one keeps only what the standard set had on the day it was copied. Permissions Salesforce adds to the standard set later, or that were left off the copy, never reach the users who hold the copy, and the features behind them stay hidden or fail for them.",
+        steps: ["Open each permission set listed", "Switch on the system permissions it lacks, or assign the standard set alongside it"],
+        uiPath: "Setup > Permission Sets > System Permissions",
+      },
+      async () => {
+        const gaps = await fetchCloneGaps(org);
+        if (gaps === null) return { pass: true, skip: true, detail: "No custom permission sets on the LSC license." };
+        return {
+          pass: gaps.length === 0,
+          detail: gaps.length ? `${plural(gaps.length, "copied permission set")} leave active users without LSC permissions the standard set gives` : "Every copy has the standard set's LSC permissions, or its users get them elsewhere.",
+          examples: gaps.map(
+            (g) => `${g.clone.label} (like ${g.source.label}, ${plural(g.users, "user")}): lacks ${g.missing.slice(0, 4).map(permLabel).join(", ")}${g.missing.length > 4 ? ` and ${g.missing.length - 4} more` : ""}`
+          ),
+        };
+      }
+    ),
+    runCheck(
+      {
+        id: "overview.config.setting-overrides",
+        stage: "config",
+        title: "Profile and user settings that differ from the org-level setting",
+        severity: "info",
+        why: "When an Admin Console setting has a record for a profile or user, the app reads that record and ignores the org-level one. A change made on the org-level record then doesn't reach those users, which looks like the setting doesn't work.",
+        steps: ["If a change you made isn't showing for some users, check the records listed here", "Change the value on the profile or user record too, or delete it so the org-level record applies"],
+        uiPath: "Admin Console > Settings",
+      },
+      async () => {
+        const list = settingOverrides(await settings());
+        return {
+          pass: list.length === 0,
+          detail: list.length ? `${plural(list.length, "profile or user record")} override the org-level setting` : undefined,
+          examples: list.map(overrideLine),
+        };
+      }
+    ),
+    runCheck(
+      {
+        id: "overview.config.duplicate-settings",
+        stage: "config",
+        title: "Each Admin Console setting has one record per profile or user",
+        severity: "warning",
+        why: "Two active records of the same setting for one profile, one user or the org level compete. Which one the app reads depends on order, so a change can seem to work for some users and not others.",
+        steps: ["Open the setting in Admin Console", "Keep one record for each profile or user listed; switch off or delete the others"],
+        uiPath: "Admin Console > Settings",
+      },
+      async () => {
+        const list = duplicateSettings(await settings());
+        return {
+          pass: list.length === 0,
+          detail: list.length ? `${plural(list.length, "setting")} with competing records` : undefined,
+          examples: list.map(duplicateLine),
+        };
+      }
+    ),
+    runCheck(
+      {
+        id: "overview.config.empty-settings",
+        stage: "config",
+        title: "No active Admin Console record is missing its values",
+        severity: "warning",
+        why: "A record saved without values still counts as the setting for whoever it's assigned to, so they get nothing where others get the configured behavior (an empty planner or call discussion setting, for example).",
+        steps: ["Open each record listed in Admin Console", "Fill in its values, or switch it off"],
+        uiPath: "Admin Console > Settings",
+      },
+      async () => {
+        const list = emptySettings(await settings());
+        return {
+          pass: list.length === 0,
+          detail: list.length ? `${plural(list.length, "record")} with no values` : undefined,
+          examples: list.map((r) => `${r.category} › ${r.label ?? r.developerName}`),
+        };
       }
     ),
     runCheck(
@@ -289,6 +383,69 @@ export async function fetchLscProfiles(org: string): Promise<LscProfile[]> {
     org
   );
   return rows.filter((r) => r.pid).map((r) => ({ id: String(r.pid), name: String(r.pn), users: Number(r.cnt ?? r.expr0 ?? 0) }));
+}
+
+/** Every Admin Console record outside DB Schema and UI Settings (those have their own checks); a failed read throws. */
+function fetchSettings(org: string) {
+  return collectCategoryRecords(
+    org,
+    `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category NOT IN ('DbSchema', 'UISchema') ORDER BY Category`,
+    { strict: true, cache: true }
+  );
+}
+
+/** The standard LSC permission sets clones are compared with. */
+const STANDARD_LSC_SETS = ["LifeSciencesCommercialAdmin", "LifeSciencesFieldMedical", "LifeSciencesFieldSalesRepresentative", "LifeSciencesKeyAccountManager"];
+/** Clone assignees looked at per copy; enough to tell whether anyone is short. */
+const MAX_CLONE_USERS = 2000;
+
+/**
+ * Custom permission sets on the standard LSC sets' license (or with the LSC user permission) that lack
+ * LSC permissions their closest standard set has, with how many active holders get those permissions
+ * from no other assignment (profile, set or group). Null when there is no such custom set.
+ */
+async function fetchCloneGaps(org: string): Promise<(CloneGap & { users: number })[] | null> {
+  const described = await describeSObject("PermissionSet", org);
+  if (!described.success || !described.data) throw new Error(described.error ?? "Couldn't describe PermissionSet.");
+  const perms = described.data.fields.map((f) => f.name).filter(isLscPermission);
+  if (perms.length === 0) return null;
+  const toSet = (r: Row): PermSet => ({ id: String(r.Id), name: String(r.Name), label: String(r.Label ?? r.Name), perms: new Set(perms.filter((p) => r[p] === true)) });
+  const cols = `Id, Name, Label, LicenseId, ${perms.join(", ")}`;
+  const standardRows = await query(`SELECT ${cols} FROM PermissionSet WHERE Name IN (${inList(STANDARD_LSC_SETS)}) AND IsCustom = false`, org);
+  if (standardRows.length === 0) return null;
+  const licenses = [...new Set(standardRows.map((r) => r.LicenseId).filter(Boolean).map(String))];
+  const licensed = licenses.length ? `LicenseId IN (${inList(licenses)}) OR ` : "";
+  const cloneRows = await query(
+    `SELECT ${cols} FROM PermissionSet WHERE IsCustom = true AND IsOwnedByProfile = false AND Type = 'Regular' AND (${licensed}PermissionsIndustriesLSC4CEUser = true)`,
+    org
+  );
+  if (cloneRows.length === 0) return null;
+  const gaps = cloneGaps(standardRows.map(toSet), cloneRows.map(toSet));
+
+  const out: (CloneGap & { users: number })[] = [];
+  for (const g of gaps) {
+    const holders = await query(
+      `SELECT AssigneeId FROM PermissionSetAssignment WHERE PermissionSetId = '${g.clone.id}' AND Assignee.IsActive = true LIMIT ${MAX_CLONE_USERS}`,
+      org
+    );
+    const users = [...new Set(holders.map((h) => String(h.AssigneeId)))];
+    if (users.length === 0) continue;
+    // A holder is short when some missing permission comes from none of their assignments.
+    const short = new Set<string>();
+    const missing: string[] = [];
+    for (const p of g.missing) {
+      const covered = new Set<string>();
+      for (const chunk of chunkIds(users)) {
+        const rows = await query(`SELECT AssigneeId FROM PermissionSetAssignment WHERE AssigneeId IN (${inList(chunk)}) AND PermissionSet.${p} = true`, org);
+        for (const r of rows) covered.add(String(r.AssigneeId));
+      }
+      const lacking = users.filter((u) => !covered.has(u));
+      if (lacking.length) missing.push(p);
+      for (const u of lacking) short.add(u);
+    }
+    if (short.size) out.push({ ...g, missing, users: short.size });
+  }
+  return out;
 }
 
 /** Every cache record of the given profiles (no row cap; a read cut off by the size limit throws). */

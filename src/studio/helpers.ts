@@ -147,7 +147,8 @@ export function scalar(v: unknown): string | number | boolean | null {
 }
 
 export function plural(n: number, noun: string): string {
-  return `${n} ${noun}${n === 1 ? "" : "s"}`;
+  if (n === 1) return `${n} ${noun}`;
+  return `${n} ${/[^aeiou]y$/i.test(noun) ? `${noun.slice(0, -1)}ies` : `${noun}s`}`;
 }
 
 export function matchesAny(text: string, keywords: string[]): boolean {

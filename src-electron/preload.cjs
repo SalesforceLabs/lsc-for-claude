@@ -111,6 +111,7 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioUserTrace: (userId, featureId) =>
     ipcRenderer.invoke("studio:call", "studio_user_trace", featureId ? { userId, featureId } : { userId }),
   studioDrift: (input) => ipcRenderer.invoke("studio:call", "studio_drift", input),
+  studioDiagnose: (text, checkOrg = true) => ipcRenderer.invoke("studio:call", "studio_diagnose", { text, checkOrg }),
   studioItemDetail: (kind, id) =>
     ipcRenderer.invoke("studio:call", "studio_item_detail", { kind, id }),
   studioMetadataDoc: (type, fullName) => ipcRenderer.invoke("studio:call", "studio_metadata_doc", { type, fullName }),

@@ -55,16 +55,56 @@ beforeEach(() => {
     PermissionSetAssignment: [{ PermissionSetId: "0PS000000000001", PermissionSet: { Label: "Visit PS", Name: "Visit_PS" } }],
     PermissionSet: [{ Id: "0PS000000000002" }],
     UserEntityAccess: [readable("Visit")],
-    UserTerritory2Association: [{ Territory2: { Name: "T1", Territory2Model: { State: "Active" } } }],
+    UserTerritory2Association: [{ Territory2Id: "0MI000000000001", Territory2: { Name: "T1", Territory2Model: { State: "Active" } } }],
     LifeSciMobileMetadataRecord: [{ Status: "Active", LastModifiedDate: "2026-01-01T00:00:00Z" }],
     DeviceSyncSummary: [{ DownloadEnd: new Date().toISOString(), CreatedDate: new Date().toISOString() }],
   };
-  config = [dbSchema("Visit", ["Rep"])];
-  vi.mocked(runSoqlQuery).mockImplementation(((q: string) => respond(q)) as never);
+  config = [dbSchema("Visit", ["Rep"]), dbSchema("Account", ["Rep"])];
+  reach = { aligned: 3, noInfo: 0, hidden: 0, offline: 3, unaligned: 0, inactive: 0, account: 3 };
+  vi.mocked(runSoqlQuery).mockImplementation(((q: string) => {
+    const rows = reachRows(q);
+    if (rows === undefined) return respond(q);
+    if (rows instanceof Error) return Promise.resolve({ success: false, error: rows.message });
+    return Promise.resolve({ success: true, data: { totalSize: rows.length, done: true, records: rows } });
+  }) as never);
   vi.mocked(collectCategoryRecords).mockImplementation((async () => config) as never);
 });
 
-const byId = (checks: { id: string }[], id: string) => checks.find((c) => c.id === id) as { status: string; detail?: string; fixes?: unknown[] };
+const byId = (checks: { id: string }[], id: string) => checks.find((c) => c.id === id) as { status: string; detail?: string; fixes?: unknown[]; examples?: string[] };
+
+/** Rows per question the account reach checks ask; an Error makes that query fail. */
+interface Reach {
+  aligned: number;
+  noInfo: number;
+  hidden: number;
+  offline: number;
+  unaligned: number;
+  inactive: number | Error;
+  account: number;
+}
+let reach: Reach;
+
+function reachRows(q: string): Row[] | Error | undefined {
+  let outer = q;
+  while (/\([^()]*\)/.test(outer)) outer = outer.replace(/\([^()]*\)/g, "");
+  const from = /FROM\s+(\w+)/i.exec(outer)?.[1];
+  const pick = (key: keyof Reach) => {
+    const n = reach[key];
+    return n instanceof Error ? n : Array.from({ length: n }, (_, i) => ({ Object: { Name: `${key} ${i}` }, Account: { Name: `${key} ${i}` } }));
+  };
+  if (from === "ObjectTerritory2Association") {
+    if (q.includes("NOT IN (SELECT AccountId")) return pick("noInfo");
+    if (q.includes("IsActive = false")) return pick("inactive");
+    return pick("aligned");
+  }
+  if (from === "ProviderAcctTerritoryInfo") {
+    if (q.includes("IsAvailableOffline = false")) return pick("hidden");
+    if (q.includes("NOT IN (SELECT ObjectId")) return pick("unaligned");
+    return pick("offline");
+  }
+  if (from === "Account") return pick("account");
+  return undefined;
+}
 
 describe("traceUser", () => {
   it("passes every link for a fully set up rep", async () => {
@@ -154,6 +194,60 @@ describe("traceUser", () => {
     org.DeviceSyncSummary = new Error("No such column");
     const t = await traceUser(USER, null, "o");
     expect(byId(t.checks, "user.mobile.last-sync").status).toBe("unknown");
+  });
+
+  describe("account reach", () => {
+    it("says how many accounts the Account filter downloads in the rep's territory", async () => {
+      const t = await traceUser(USER, null, "o");
+      const c = byId(t.checks, "user.data.accounts");
+      expect(c.status).toBe("pass");
+      expect(c.detail).toBe("The Account filter (DbSchema_Account) downloads 3 accounts in T1. 3 accounts aligned to T1, 3 with territory info available offline.");
+      expect(byId(t.checks, "user.data.accounts-match").status).toBe("pass");
+    });
+
+    it("fails when aligned accounts have no territory info available offline", async () => {
+      reach = { ...reach, offline: 0, noInfo: 3, account: 0 };
+      const t = await traceUser(USER, null, "o");
+      expect(byId(t.checks, "user.data.accounts")).toMatchObject({ status: "fail", detail: "3 accounts aligned to T1, 0 with territory info available offline. Run Align Account to Territory." });
+      const m = byId(t.checks, "user.data.accounts-match");
+      expect(m.status).toBe("fail");
+      expect(m.examples?.[0]).toBe("noInfo 0 (no territory info)");
+    });
+
+    it("fails when no Account DB Schema record reaches the rep", async () => {
+      config = [dbSchema("Visit", ["Rep"]), dbSchema("Account", ["Other"])];
+      const t = await traceUser(USER, null, "o");
+      expect(byId(t.checks, "user.data.accounts").detail).toMatch(/^No active Account DB Schema record reaches Rep/);
+    });
+
+    it("fails when the Account filter returns nothing in a territory", async () => {
+      reach = { ...reach, account: 0 };
+      const t = await traceUser(USER, null, "o");
+      const c = byId(t.checks, "user.data.accounts");
+      expect(c.status).toBe("fail");
+      expect(c.examples).toEqual(["No accounts in T1"]);
+    });
+
+    it("flags accounts that show without being aligned, and inactive aligned accounts", async () => {
+      reach = { ...reach, unaligned: 2, inactive: 1 };
+      const t = await traceUser(USER, null, "o");
+      expect(byId(t.checks, "user.data.accounts-match").detail).toBe(
+        "2 territory info rows for accounts not aligned to the territory, which still show on the iPad; 1 aligned account inactive."
+      );
+    });
+
+    it("doesn't count inactive accounts when the org's Account has no IsActive", async () => {
+      reach = { ...reach, inactive: new Error("No such column 'IsActive' on entity 'Account'") };
+      const t = await traceUser(USER, null, "o");
+      expect(byId(t.checks, "user.data.accounts-match").status).toBe("pass");
+    });
+
+    it("skips both checks for a rep with no territory in the active model", async () => {
+      org.UserTerritory2Association = [];
+      const t = await traceUser(USER, null, "o");
+      expect(byId(t.checks, "user.data.accounts").status).toBe("skipped");
+      expect(byId(t.checks, "user.data.accounts-match").status).toBe("skipped");
+    });
   });
 
   it("reports an inactive user first", async () => {

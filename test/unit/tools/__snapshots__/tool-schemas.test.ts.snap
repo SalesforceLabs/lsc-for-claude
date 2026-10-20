@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `141`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `142`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -87,6 +87,7 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_connected_org",
   "studio_custom_script",
   "studio_custom_scripts",
+  "studio_diagnose",
   "studio_drift",
   "studio_export_source",
   "studio_feature_map",
@@ -729,6 +730,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
   {
     "name": "diagnose_lsc_issue",
     "params": {
+      "checkOrg": {
+        "optional": true,
+        "type": "ZodBoolean",
+      },
       "symptom": {
         "optional": false,
         "type": "ZodString",
@@ -1306,6 +1311,19 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
       "refresh": {
         "optional": true,
         "type": "ZodBoolean",
+      },
+    },
+  },
+  {
+    "name": "studio_diagnose",
+    "params": {
+      "checkOrg": {
+        "optional": true,
+        "type": "ZodBoolean",
+      },
+      "text": {
+        "optional": false,
+        "type": "ZodString",
       },
     },
   },

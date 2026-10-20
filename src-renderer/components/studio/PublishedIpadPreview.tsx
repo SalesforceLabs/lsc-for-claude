@@ -606,6 +606,12 @@ function PageView({
           <Region key={r.name} page={page} region={r.name} components={r.components} home={home} snapshot={snapshot} object={object} layout={layout} multi={multi} />
         ))
       )}
+      {/* Dropped regions are already in the "Not shown on iPad" line below. */}
+      {page.problems?.filter((p) => p.code !== "region-dropped").map((p) => (
+        <div key={p.code + p.message} className="studio-ipad-hint warn">
+          {p.message}
+        </div>
+      ))}
       {(notShown.length > 0 || dropped.length > 0) && (
         <div className="studio-ipad-hint" title={[...notShown, ...dropped].join("\n")}>
           Not shown on iPad: {[...notShown, ...dropped].join(", ")}

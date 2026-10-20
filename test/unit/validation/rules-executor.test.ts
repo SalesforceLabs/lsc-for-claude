@@ -93,6 +93,33 @@ describe("rules-executor.ts", () => {
     });
   });
 
+  describe("records.some / records.every field tests", () => {
+    const rows = [
+      { QualifiedApiName: "LifeSciStageObject", InternalSharingModel: "Private" },
+      { QualifiedApiName: "LifeSciStageAction", InternalSharingModel: "Read" },
+    ];
+    const check = (expect: string) => ({ type: "tooling_soql" as const, query: "SELECT QualifiedApiName FROM EntityDefinition", expect });
+
+    it("lists only the records that break an every() test", async () => {
+      vi.mocked(runToolingQuery).mockResolvedValue({ success: true, data: { totalSize: 2, done: true, records: rows } });
+      const outcome = await executeCheck(check("records.every(r => r.InternalSharingModel != 'Private')"), "my-org");
+      expect(outcome.passed).toBe(false);
+      expect(outcome.details).toEqual({ count: 1, records: [rows[0]] });
+    });
+
+    it("evaluates some() and null comparisons", async () => {
+      vi.mocked(runToolingQuery).mockResolvedValue({ success: true, data: { totalSize: 2, done: true, records: rows } });
+      expect((await executeCheck(check("records.some(r => r.InternalSharingModel == 'Read')"), "my-org")).passed).toBe(true);
+      expect((await executeCheck(check("records.every(r => r.InternalSharingModel != null)"), "my-org")).passed).toBe(true);
+    });
+
+    it("reports a condition it can't parse as unavailable", async () => {
+      vi.mocked(runToolingQuery).mockResolvedValue({ success: true, data: { totalSize: 2, done: true, records: rows } });
+      const outcome = await executeCheck(check("records.every(r => r.Name.startsWith('x'))"), "my-org");
+      expect(outcome.unavailable).toBe(true);
+    });
+  });
+
   describe("runAudit() with soql_count check", () => {
     it("passes when count > 0 condition is met", async () => {
       const rule = {

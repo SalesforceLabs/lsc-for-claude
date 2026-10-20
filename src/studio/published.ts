@@ -24,6 +24,7 @@ import { isScaleError, withTimeout } from "./screens/context.js";
 import { collectRecords, type PublishedRecords } from "./screens/record.js";
 import { recordFieldSpec, type RecordFieldSpec } from "./screens/record-fields.js";
 import { LoadTracker } from "./published-progress.js";
+import { lintPage, resolveTemplate, type PageProblem } from "./ipad-page-lint.js";
 
 export { withTimeout };
 
@@ -111,6 +112,8 @@ export interface PublishedPage {
   regions: { name: string; components: PublishedComponent[] }[];
   /** Regions the template has no slot for on iPad — never rendered. */
   droppedRegions: { name: string; components: string[] }[];
+  /** What the iPad does with this page that Lightning App Builder doesn't show (ipad-page-lint.ts). */
+  problems: PageProblem[];
 }
 
 /** Where a published section sits in the layout's XML, for edits made in the preview. */
@@ -783,15 +786,19 @@ export const TEMPLATE_REGIONS: Record<string, string[]> = {
 /** A Lightning page as SFFlexiPageView builds it: only the template's region slots render. */
 export function buildPage(name: string, page: Row): PublishedPage {
   const regions = arr(page.flexiPageRegions).filter((r) => str(r.type) !== "Facet");
-  const templateName = str(obj(page.template).name);
-  let template = templateName.includes(":") ? templateName.split(":")[1] : templateName;
   // shouldDisplayDefaultFlexiPage, plus the unknown-template fallback.
-  const onlyMain = regions.length === 1 && str(regions[0].name) === "main";
-  const emptyPair = str(page.type) === "RecordPage" && regions.length === 2 && regions.some((r) => arr(r.itemInstances).length === 0);
-  if (onlyMain || emptyPair || !TEMPLATE_REGIONS[template]) template = "defaultFlexiPage";
+  const { template } = resolveTemplate(page);
   const slots = TEMPLATE_REGIONS[template];
 
-  const result: PublishedPage = { name, label: str(page.masterLabel) || name, type: str(page.type), template, regions: [], droppedRegions: [] };
+  const result: PublishedPage = {
+    name,
+    label: str(page.masterLabel) || name,
+    type: str(page.type),
+    template,
+    regions: [],
+    droppedRegions: [],
+    problems: lintPage(page),
+  };
   for (const slot of slots) {
     const region = regions.find((r) => str(r.name) === slot);
     if (!region) continue;
@@ -1108,7 +1115,7 @@ export function buildSnapshot(
   const homeTab = tabs.find((t) => t.kind === "home");
   let home: PublishedPage | null = null;
   if (homeTab?.flexiPage && flexiPages[homeTab.flexiPage]) home = buildPage(homeTab.flexiPage, obj(flexiPages[homeTab.flexiPage]));
-  else if (homeTab) home = { name: "", label: "Home", type: "HomePage", template: "desktopTemplate", regions: [{ name: "top", components: [] }], droppedRegions: [] };
+  else if (homeTab) home = { name: "", label: "Home", type: "HomePage", template: "desktopTemplate", regions: [{ name: "top", components: [] }], droppedRegions: [], problems: [] };
 
   const objects: Record<string, PublishedObject> = {};
   const layouts: Record<string, PublishedLayout> = {};
@@ -1366,7 +1373,7 @@ export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing |
 const FILES = ["nav", "ui", "permissions", "db", "sobjects", "reporting"] as const;
 const CACHE_ROOT = path.join(os.tmpdir(), "lsc-studio-published");
 /** Bump when the snapshot's shape changes — and bump the app's `CACHE_VERSION` (src-electron/engine/studio-cache.ts) too, or it keeps serving the old shape for a day. */
-const SNAPSHOT_VERSION = 41;
+const SNAPSHOT_VERSION = 42;
 /** UserService.defaultLanguage — the translation file used when the user's is missing. */
 const DEFAULT_LANGUAGE = "en_US";
 /** Distinct permission-set combinations pre-built per download. */

@@ -13,6 +13,7 @@ import { accessOptions, userAccess } from "../studio/access.js";
 import { collectReadiness } from "../studio/readiness/index.js";
 import { collectSetupOverview } from "../studio/overview.js";
 import { traceUser } from "../studio/user-trace.js";
+import { diagnose, diagnosisItems } from "../validation/diagnose.js";
 import { drift } from "../studio/drift.js";
 import { applyFix, previewFix } from "../studio/fixes.js";
 import { publishStatus, startPublish } from "../studio/publish.js";
@@ -417,6 +418,30 @@ export function register(server: McpServer) {
         const org = connection.targetOrg;
         if (refresh) refreshSharedReads(org);
         return json(await withSharedReads(() => collectSetupOverview(org)));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_diagnose",
+    "LSC Studio (GUI data): match a pasted error or symptom against known causes and validation rules and, with `checkOrg`, run their checks against the connected org — the data behind diagnose_lsc_issue. Read-only. Returns JSON { items, checkedOrg, orgNote? }.",
+    {
+      text: z.string().min(1).max(20_000).describe("The error message or symptom"),
+      checkOrg: z.boolean().optional().describe("Run the matched checks against the connected org (default true)"),
+    },
+    async ({ text, checkOrg }) => {
+      let org: string | undefined;
+      let orgNote: string | undefined;
+      if (checkOrg !== false) {
+        const connection = await validateOrgConnection();
+        if (connection.valid && connection.targetOrg) org = connection.targetOrg;
+        else orgNote = connection.error || "No Salesforce org connected.";
+      }
+      try {
+        const diagnosis = await (org ? withSharedReads(() => diagnose(text, org)) : diagnose(text));
+        return json({ items: diagnosisItems(diagnosis), checkedOrg: org ?? null, ...(orgNote ? { orgNote } : {}) });
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

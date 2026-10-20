@@ -6,10 +6,12 @@
  */
 
 import type { ConfigRecord } from "../config/types.js";
+import { DEFAULT_PROFILE_OPTIONS, profileTerritory, type ApplicableTable, type OrgQuerier, type UserContext } from "../perf/sync-volume.js";
+import { runSoqlQuery, runToolingQuery } from "../salesforce/cli.js";
 import { actionAudience, fetchCategories } from "./collectors/shared.js";
 import { LSC_PSL } from "./collectors/territory-users.js";
 import { getFeature, type FeatureDefinition } from "./features.js";
-import { audienceOf, inList, matchesAny, plural, query, type Row } from "./helpers.js";
+import { audienceOf, count, inList, matchesAny, plural, query, type Row } from "./helpers.js";
 import { runCheck } from "./readiness/index.js";
 import { assertId } from "./change-helpers.js";
 import type { Audience, ReadinessCheck, StudioFix } from "./types.js";
@@ -56,6 +58,8 @@ interface Facts {
   syncs: Promise<Row[]>;
   /** The feature's objects split by whether the org has them; an object the org doesn't have is no one's access problem. */
   objects: Promise<FeatureObjects>;
+  /** Null when the rep has no territory in the active model. */
+  accountReach: Promise<AccountReach | null>;
 }
 
 interface FeatureObjects {
@@ -85,7 +89,8 @@ export async function traceUser(userId: string, featureId: string | null, org: s
     role: str(rel(u, "UserRole.Name")) || null,
   };
 
-  const facts = gather(user, feature, org);
+  const base = gather(user, feature, org);
+  const facts: Facts = { ...base, accountReach: accountReach(user, base, org) };
   // Rejections are consumed by the checks that await them; this keeps unused ones from surfacing as unhandled.
   for (const p of Object.values(facts)) p.catch(() => undefined);
 
@@ -95,6 +100,8 @@ export async function traceUser(userId: string, featureId: string | null, org: s
     checkLscPsl(user, facts, org),
     checkPermissions(user, feature, facts, org),
     checkTerritory(user, facts),
+    checkAccounts(user, facts),
+    checkAccountsMatch(facts),
     checkDbSchema(user, feature, facts),
     ...(feature ? [checkActions(user, feature, facts)] : []),
     checkCache(user, facts),
@@ -112,7 +119,7 @@ export async function traceUser(userId: string, featureId: string | null, org: s
   };
 }
 
-function gather(user: UserInfo, feature: FeatureDefinition | undefined, org: string): Facts {
+function gather(user: UserInfo, feature: FeatureDefinition | undefined, org: string): Omit<Facts, "accountReach"> {
   const id = user.id;
   const objects = featureObjects(feature);
   return {
@@ -313,6 +320,189 @@ function checkTerritory(user: UserInfo, facts: Facts): Promise<ReadinessCheck> {
         pass: false,
         detail: rows.length ? `Only in territories of inactive models (${rows.length}).` : "Not assigned to any territory.",
       };
+    }
+  );
+}
+
+// ─── Data ───────────────────────────────────────────────────────────────────
+
+/** Territories the iPad's Account filter is counted in, by name; the alignment counts cover all of them. */
+const MAX_FILTER_TERRITORIES = 5;
+/** Territories in one IN list for the alignment counts. */
+const MAX_REACH_TERRITORIES = 200;
+
+interface AccountReach {
+  territories: { id: string; name: string }[];
+  aligned: number;
+  /** Aligned accounts with no provider territory info in any of the rep's territories. */
+  noInfo: number;
+  noInfoNames: string[];
+  /** Info rows not available offline, which the standard Account filter leaves out. */
+  hidden: number;
+  hiddenNames: string[];
+  offline: number;
+  /** Info rows available offline for accounts not aligned to the territory: they still show on the iPad. */
+  unaligned: number;
+  unalignedNames: string[];
+  /** Aligned accounts that are inactive; null when the org's Account has no IsActive. */
+  inactive: number | null;
+  /** The Account DB Schema record that reaches the rep, if any. */
+  accountRecord: string | null;
+  /** What the Account filter downloads per counted territory, or why it couldn't be counted. */
+  filter: { territory: string; records: number | null; note?: string }[];
+}
+
+/** The DB Schema record the iPad uses for an object: profile matches before permission sets, then by DeveloperName. */
+function tableFor(records: ConfigRecord[], sobject: string, user: UserInfo, setNames: string[]): ApplicableTable | null {
+  const candidates = records
+    .filter((r) => r.isActive && r.fields.Type !== "CONFIGURATION" && ieq(str(r.fields.SObject), sobject) && reaches(audienceOf(r), user, setNames))
+    .sort((a, b) => a.developerName.localeCompare(b.developerName));
+  const byProfile = candidates.find((r) => { const a = audienceOf(r); return !a || (user.profile !== null && a.profiles.some((p) => ieq(p, user.profile!))); });
+  const r = byProfile ?? candidates[0];
+  if (!r) return null;
+  return {
+    entry: { developerName: r.developerName, sobject, type: str(r.fields.Type), whereSoql: str(r.fields.WhereSoql).trim() || null, profileIds: new Set(), profileNames: new Set(), permissionSets: new Set() },
+    matchedBy: byProfile ? "profile" : "permissionSet",
+  };
+}
+
+async function accountReach(user: UserInfo, facts: Pick<Facts, "territories" | "dbSchema" | "assignments">, org: string): Promise<AccountReach | null> {
+  const [rows, records, assignments] = await Promise.all([facts.territories, facts.dbSchema, facts.assignments]);
+  const territories = rows
+    .filter((r) => str(rel(r, "Territory2.Territory2Model.State")) === "Active")
+    .map((r) => ({ id: str(r.Territory2Id), name: str(rel(r, "Territory2.Name")) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  if (!territories.length) return null;
+  const list = inList(territories.slice(0, MAX_REACH_TERRITORIES).map((t) => t.id));
+  const ot2a = `FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2Id IN (${list})`;
+  const noInfo = `ObjectId NOT IN (SELECT AccountId FROM ProviderAcctTerritoryInfo WHERE Territory2Id IN (${list}))`;
+  const pati = `FROM ProviderAcctTerritoryInfo WHERE Territory2Id IN (${list})`;
+  const hidden = `${pati} AND IsAvailableOffline = false`;
+  const unaligned = `AccountId NOT IN (SELECT ObjectId ${ot2a})`;
+
+  const setNames = assignments.flatMap((a) => [str(rel(a, "PermissionSet.Label")), str(rel(a, "PermissionSet.Name"))]).filter(Boolean);
+  const accountTable = tableFor(records, "Account", user, setNames);
+  const ot2aTable = tableFor(records, "ObjectTerritory2Association", user, setNames);
+  const querier: OrgQuerier = { soql: (q, options) => runSoqlQuery(q, org, options), tooling: (q) => runToolingQuery(q, org) };
+  const context: UserContext = { id: user.id, username: user.username, name: user.name, profileId: user.profileId ?? "", profileName: user.profile ?? "", permissionSets: new Set(setNames), territories };
+  const options = { ...DEFAULT_PROFILE_OPTIONS, idCache: new Map() };
+  const filterIn = async (t: { id: string; name: string }) => {
+    if (!accountTable) return { territory: t.name, records: null };
+    const vol = await profileTerritory(querier, context, t, ot2aTable ? [ot2aTable, accountTable] : [accountTable], options);
+    const acc = vol.tables.find((v) => v.sobject === "Account");
+    return acc?.status === "counted" && !acc.lowerBound
+      ? { territory: t.name, records: acc.records }
+      : { territory: t.name, records: null, note: acc?.note ?? "not counted" };
+  };
+
+  // Names are only examples: a failed read leaves them out, never the counts.
+  const names = (soql: string, field: string) =>
+    query(soql, org).then((rows) => [...new Set(rows.map((r) => str(rel(r, field))).filter(Boolean))], () => []);
+  const [aligned, noInfoCount, noInfoNames, hiddenCount, hiddenNames, offline, unalignedCount, unalignedNames, inactive, filter] = await Promise.all([
+    count(`SELECT COUNT() ${ot2a}`, org),
+    count(`SELECT COUNT() ${ot2a} AND ${noInfo}`, org),
+    names(`SELECT Object.Name ${ot2a} AND ${noInfo} ORDER BY Object.Name LIMIT 5`, "Object.Name"),
+    count(`SELECT COUNT() ${hidden}`, org),
+    names(`SELECT Account.Name ${hidden} ORDER BY Account.Name LIMIT 5`, "Account.Name"),
+    count(`SELECT COUNT() ${pati} AND IsAvailableOffline = true`, org),
+    count(`SELECT COUNT() ${pati} AND IsAvailableOffline = true AND ${unaligned}`, org),
+    names(`SELECT Account.Name ${pati} AND IsAvailableOffline = true AND ${unaligned} ORDER BY Account.Name LIMIT 5`, "Account.Name"),
+    // Account.IsActive comes with LSC's account model; an org without it has no inactive accounts to hide.
+    count(`SELECT COUNT() ${ot2a} AND ObjectId IN (SELECT Id FROM Account WHERE IsActive = false)`, org).catch(() => null),
+    Promise.all(territories.slice(0, MAX_FILTER_TERRITORIES).map(filterIn)),
+  ]);
+  return {
+    territories,
+    aligned,
+    noInfo: noInfoCount,
+    noInfoNames,
+    hidden: hiddenCount,
+    hiddenNames,
+    offline,
+    unaligned: unalignedCount,
+    unalignedNames,
+    inactive,
+    accountRecord: accountTable?.entry.developerName ?? null,
+    filter,
+  };
+}
+
+const NO_TERRITORY = "No territory in the active model, so no accounts are aligned to them. See the territory check.";
+
+function checkAccounts(user: UserInfo, facts: Facts): Promise<ReadinessCheck> {
+  return runCheck(
+    {
+      id: "user.data.accounts",
+      stage: "data",
+      title: "Accounts reach their iPad",
+      severity: "error",
+      why: "The iPad lists the accounts the Account DB Schema filter returns for the rep's territory. The standard filter reads the territory's provider account territory info (PATI) rows that are available offline, so accounts aligned on the web with no such row never reach the iPad.",
+      steps: [
+        "Align accounts to the rep's territory (Setup > Territories, or the alignment rules).",
+        "Run Align Account to Territory (Admin Console > Territory Management Jobs) so each aligned account gets its territory info row.",
+        "Check the Account DB Schema record's filter in Admin Console > Mobile > DB Schema.",
+      ],
+      uiPath: "Admin Console > Territory Management Jobs",
+    },
+    async () => {
+      const r = await facts.accountReach;
+      if (!r) return { pass: true, skip: true, detail: NO_TERRITORY };
+      const where = r.territories.length === 1 ? r.territories[0].name : `their ${plural(r.territories.length, "territory")}`;
+      const counts = `${plural(r.aligned, "account")} aligned to ${where}, ${r.offline} with territory info available offline.`;
+      if (r.aligned === 0 && r.offline === 0) return { pass: false, detail: `No accounts are aligned to ${where}.` };
+      if (r.offline === 0) return { pass: false, detail: `${counts} Run Align Account to Territory.` };
+      if (!r.accountRecord) return { pass: false, detail: `No active Account DB Schema record reaches ${user.profile ?? "them"}, so no accounts sync. ${counts}` };
+      const counted = r.filter.filter((f) => f.records !== null);
+      const uncounted = r.filter.filter((f) => f.records === null);
+      const empty = counted.filter((f) => f.records === 0);
+      const filterLine = counted.length
+        ? `The Account filter (${r.accountRecord}) downloads ${counted.map((f) => `${plural(f.records ?? 0, "account")} in ${f.territory}`).join(", ")}. `
+        : "";
+      const more = r.territories.length > r.filter.length ? ` The filter was counted in the first ${r.filter.length} territories by name.` : "";
+      const note = uncounted.length ? ` Couldn't count the filter in ${uncounted.map((f) => f.territory).join(", ")}: ${uncounted[0].note}.` : "";
+      return {
+        pass: empty.length === 0,
+        detail: `${filterLine}${counts}${more}${note}`,
+        examples: empty.map((f) => `No accounts in ${f.territory}`),
+      };
+    }
+  );
+}
+
+function checkAccountsMatch(facts: Facts): Promise<ReadinessCheck> {
+  return runCheck(
+    {
+      id: "user.data.accounts-match",
+      stage: "data",
+      title: "Their iPad accounts match the alignment",
+      severity: "warning",
+      why: "An aligned account shows on the iPad only when it has a territory info row available offline in the rep's territory, and a row left behind after an account is unaligned keeps it showing. Inactive accounts stay aligned but reps can't work them.",
+      steps: [
+        "Run Align Account to Territory (Admin Console > Territory Management Jobs) to create missing territory info rows and clear old ones.",
+        "Set Is Available Offline on the territory info rows that should show on the iPad.",
+        "Reactivate accounts that should still be called on, or remove their alignment.",
+      ],
+      uiPath: "Admin Console > Territory Management Jobs",
+    },
+    async () => {
+      const r = await facts.accountReach;
+      if (!r) return { pass: true, skip: true, detail: NO_TERRITORY };
+      if (r.aligned === 0 && r.offline === 0) return { pass: true, skip: true, detail: "No accounts are aligned to them yet." };
+      const territory = r.territories.length === 1 ? "the territory" : "their territories";
+      const parts = [
+        r.noInfo ? `${plural(r.noInfo, "aligned account")} with no territory info` : "",
+        r.hidden ? `${plural(r.hidden, "territory info row")} not available offline` : "",
+        r.unaligned ? `${plural(r.unaligned, "territory info row")} for accounts not aligned to ${territory}, which still show on the iPad` : "",
+        r.inactive ? `${plural(r.inactive, "aligned account")} inactive` : "",
+      ].filter(Boolean);
+      const examples = [
+        ...r.noInfoNames.map((n) => `${n} (no territory info)`),
+        ...r.hiddenNames.map((n) => `${n} (not available offline)`),
+        ...r.unalignedNames.map((n) => `${n} (not aligned)`),
+      ];
+      return parts.length
+        ? { pass: false, detail: `${parts.join("; ")}.`, examples }
+        : { pass: true, detail: `All ${plural(r.aligned, "aligned account")} have territory info available offline.` };
     }
   );
 }

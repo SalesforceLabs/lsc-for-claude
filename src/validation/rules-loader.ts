@@ -8,6 +8,7 @@ import { readFileSync, readdirSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { parse as parseYaml } from "yaml";
+import { matchSymptom } from "./symptom-match.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -27,7 +28,8 @@ export type CheckType =
   | "metadata"
   | "api"
   | "cli"
-  | "composite";
+  | "composite"
+  | "builtin";
 export type Severity = "error" | "warning" | "info";
 export type Category =
   | "mobile-login"
@@ -45,6 +47,8 @@ export interface RuleCheck {
   endpoint?: string;
   command?: string;
   checks?: RuleCheck[];
+  /** For `builtin`: which check in src/validation/builtin-checks.ts. */
+  name?: string;
   expect: string;
   error_detail_query?: string;
 }
@@ -230,12 +234,7 @@ export function getRuleById(ruleId: string): ValidationRule | undefined {
  * Find rules that match a symptom (for diagnostic purposes)
  */
 export function findRulesBySymptom(symptom: string): ValidationRule[] {
-  const allRules = getAllRules();
-  const lowerSymptom = symptom.toLowerCase();
-
-  return allRules.filter((rule) =>
-    rule.symptoms.some((s) => s.toLowerCase().includes(lowerSymptom))
-  );
+  return matchSymptom(symptom, [], getAllRules()).map((m) => m.item as ValidationRule);
 }
 
 /**

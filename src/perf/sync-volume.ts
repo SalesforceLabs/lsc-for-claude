@@ -821,7 +821,7 @@ export async function territoryAccountCounts(org: OrgQuerier, territories: Array
   await mapWithConcurrency(chunks, DEFAULT_PROFILE_OPTIONS.concurrency, async (chunk) => {
     const list = chunk.map((t) => `'${soqlString(t.id)}'`).join(",");
     const result = await org.soql(
-      `SELECT Territory2Id, COUNT(Id) cnt FROM ObjectTerritory2Association WHERE ObjectType = 'Account' AND Territory2Id IN (${list}) GROUP BY Territory2Id`
+      `SELECT Territory2Id, COUNT(Id) cnt FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2Id IN (${list}) GROUP BY Territory2Id`
     );
     if (!result.success) throw new Error(result.error || "territory size query failed");
     for (const r of result.data?.records ?? []) sizes.set(String(r.Territory2Id).slice(0, 15), Number(r.cnt ?? r.expr0 ?? 0));

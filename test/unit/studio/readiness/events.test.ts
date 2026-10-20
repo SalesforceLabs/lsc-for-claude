@@ -186,4 +186,17 @@ describe("events readiness", () => {
     expect(c.status).toBe("skipped");
     expect(c.detail).toBe("No participant roles exist yet, so there is nothing to map.");
   });
+
+  it("needs BusinessHours synced only while the business hours handler is on", async () => {
+    org.MngEvent = [{ Id: "1" }];
+    org.EntityDefinition = [{ QualifiedApiName: "BusinessHours" }];
+    schema = [schemaRec("MngEvent")];
+    expect((await run())["events.mobile.business-hours"].status).toBe("skipped");
+    handlers = [handler("MngEventBusinessHoursHandler", true)];
+    const c = (await run())["events.mobile.business-hours"];
+    expect(c.status).toBe("fail");
+    expect(c.examples).toEqual(["BusinessHours"]);
+    schema = [schemaRec("MngEvent"), schemaRec("BusinessHours")];
+    expect((await run())["events.mobile.business-hours"].status).toBe("pass");
+  });
 });

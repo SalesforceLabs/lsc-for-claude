@@ -66,6 +66,7 @@ fields:
           - api               # Call a REST API endpoint
           - cli               # Run SF CLI command
           - composite         # Multiple checks combined
+          - builtin           # A named check in src/validation/builtin-checks.ts
         description: Type of check to perform
 
       query:
@@ -87,6 +88,12 @@ fields:
       checks:
         type: array
         description: Array of sub-checks (for composite type)
+
+      name:
+        type: string
+        description: |
+          Which built-in check to run (for builtin type). ipad-pages: lints the org's own
+          Home and record pages against what the iPad draws (src/studio/ipad-page-lint.ts).
 
       expect:
         type: string

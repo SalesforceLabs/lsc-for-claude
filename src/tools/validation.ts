@@ -4,8 +4,8 @@ import {
   runAudit,
   formatAuditResults,
   getValidationGroups,
-  getAllRules,
-  findRulesBySymptom,
+  diagnose,
+  formatDiagnosis,
 } from "../validation/index.js";
 import { runToolingQuery } from "../salesforce/cli.js";
 import { validateOrgConnection } from "../salesforce/auth.js";
@@ -113,84 +113,29 @@ export function register(server: McpServer) {
   // Tool: Diagnose Issue by Symptom
   server.tool(
     "diagnose_lsc_issue",
-    "Diagnose an LSC issue based on an error message or symptom. Finds relevant validation rules and suggests checks to run.",
+    "Diagnose an LSC error or symptom. Matches it against known causes (misconfigurations found in support investigations) and validation rules, then runs their checks against the connected org and reports which causes are present, with the fix for each. Paste the exact error text when there is one.",
     {
       symptom: z
         .string()
         .describe(
-          "The error message or symptom the user is experiencing (e.g., 'Device sync transaction record was not found', '403 error', 'metadata cache stuck')"
+          "The error message or symptom, ideally the exact text (e.g., \"No such column 'LastModifiedDate' on entity 'ContentDocumentLink'\", 'Coming Soon tab on the iPad', 'accounts missing on the iPad')"
         ),
+      checkOrg: z
+        .boolean()
+        .optional()
+        .describe("Run the checks against the connected org (default true). Read-only."),
     },
-    async ({ symptom }) => {
-      const matchingRules = findRulesBySymptom(symptom);
-
-      if (matchingRules.length === 0) {
-        // Try a more general search
-        const allRules = getAllRules();
-
-        // Search in rule names and descriptions
-        const keywordMatches = allRules.filter(
-          (r) =>
-            r.name.toLowerCase().includes(symptom.toLowerCase()) ||
-            r.description.toLowerCase().includes(symptom.toLowerCase())
-        );
-
-        if (keywordMatches.length === 0) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `# No Matching Rules Found\n\nNo validation rules match the symptom: "${symptom}"\n\n## Suggestions\n\n1. Try running a full audit: \`audit_mobile_config({ group: 'full-mobile-audit' })\`\n2. Check the common issues documentation\n3. Try different keywords from the error message`,
-              },
-            ],
-          };
-        }
-
-        // Use keyword matches instead
-        matchingRules.push(...keywordMatches);
+    async ({ symptom, checkOrg }) => {
+      let targetOrg: string | undefined;
+      let orgNote = "";
+      if (checkOrg !== false) {
+        const validation = await validateOrgConnection();
+        if (validation.valid) targetOrg = validation.targetOrg;
+        else orgNote = `\n_No org checked: ${validation.error ?? "no org connected"}_\n`;
       }
-
-      let message = `# Diagnosis for: "${symptom}"\n\n`;
-      message += `Found ${matchingRules.length} potentially related issue(s):\n\n`;
-
-      for (const rule of matchingRules) {
-        message += `## ${rule.id}: ${rule.name}\n\n`;
-        message += `**Severity:** ${rule.severity}\n`;
-        message += `**Category:** ${rule.category}\n\n`;
-        message += `**Description:** ${rule.description.trim()}\n\n`;
-
-        if (rule.symptoms && rule.symptoms.length > 0) {
-          message += `**Related error messages:**\n`;
-          for (const s of rule.symptoms) {
-            message += `- "${s}"\n`;
-          }
-          message += `\n`;
-        }
-
-        message += `**Resolution:**\n`;
-        for (let i = 0; i < rule.resolution.steps.length; i++) {
-          message += `${i + 1}. ${rule.resolution.steps[i]}\n`;
-        }
-
-        if (rule.resolution.ui_path) {
-          message += `\n**Navigate to:** ${rule.resolution.ui_path}\n`;
-        }
-
-        if (rule.issue_ref) {
-          message += `\n**Reference:** Issue ${rule.issue_ref} in common_issues.md\n`;
-        }
-
-        message += `\n---\n\n`;
-      }
-
-      message += `## Next Steps\n\n`;
-      message += `Run the audit to check your org:\n`;
-      message += "```\n";
-      message += `audit_mobile_config({ group: 'mobile-login-check' })\n`;
-      message += "```\n";
-
+      const diagnosis = await diagnose(symptom, targetOrg);
       return {
-        content: [{ type: "text", text: message }],
+        content: [{ type: "text", text: formatDiagnosis(diagnosis) + orgNote }],
       };
     }
   );

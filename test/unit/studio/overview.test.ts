@@ -3,9 +3,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("../../../src/salesforce/cli.js", () => ({
   runSoqlQuery: vi.fn(),
   runToolingQuery: vi.fn(),
+  describeSObject: vi.fn(),
 }));
 
-const { runSoqlQuery, runToolingQuery } = await import("../../../src/salesforce/cli.js");
+const { runSoqlQuery, runToolingQuery, describeSObject } = await import("../../../src/salesforce/cli.js");
 const { collectSetupOverview } = await import("../../../src/studio/overview.js");
 const { cachesByProfile, unpublishedChanges } = await import("../../../src/studio/overview-logic.js");
 
@@ -21,6 +22,8 @@ const reply = (rows: Row[] | Error) =>
 /** Which fixture a query hits: its FROM object, with the profile-user grouping told apart. */
 function key(q: string): string {
   const from = /FROM\s+(\w+)/i.exec(q)?.[1] ?? "";
+  if (from === "PermissionSet" && /IsCustom = true/.test(q)) return "Clones";
+  if (from === "PermissionSetAssignment" && /AssigneeId IN/.test(q)) return "Covered";
   return from === "User" && /GROUP BY/i.test(q) ? "UserGroups" : from;
 }
 
@@ -45,6 +48,7 @@ beforeEach(() => {
   };
   vi.mocked(runSoqlQuery).mockImplementation(((q: string) => reply(soql[key(q)] ?? [])) as never);
   vi.mocked(runToolingQuery).mockImplementation(((q: string) => reply(tooling[key(q)] ?? [])) as never);
+  vi.mocked(describeSObject).mockResolvedValue({ success: true, data: { fields: [{ name: "PermissionsIndustriesLSC4CEUser" }, { name: "PermissionsUseLifeSciSampleLimits" }, { name: "PermissionsApiEnabled" }] } } as never);
 });
 
 describe("collectSetupOverview", () => {
@@ -107,6 +111,21 @@ describe("collectSetupOverview", () => {
     expect(o.checks.find((c) => c.id === "overview.mobile.unpublished")?.detail).toContain("Looked back 180 days only");
     const since = vi.mocked(runToolingQuery).mock.calls.map((c) => String(c[0])).find((x) => x.includes("FROM LifeSciConfigRecord WHERE LastModifiedDate >"))!;
     expect(Date.parse(/> (\S+)/.exec(since)![1])).toBeGreaterThan(Date.now() - 181 * DAY);
+  });
+
+  it("flags a copied LSC permission set only for holders who don't get the missing permission elsewhere", async () => {
+    soql.PermissionSet = [{ Id: "ps1", Name: "LifeSciencesFieldSalesRepresentative", Label: "Field Sales", LicenseId: "lic", PermissionsIndustriesLSC4CEUser: true, PermissionsUseLifeSciSampleLimits: true }];
+    soql.Clones = [{ Id: "c1", Name: "Rep_Copy", Label: "Rep copy", PermissionsIndustriesLSC4CEUser: true, PermissionsUseLifeSciSampleLimits: false }];
+    soql.PermissionSetAssignment = [{ AssigneeId: "u1" }, { AssigneeId: "u2" }];
+    soql.Covered = [{ AssigneeId: "u1" }];
+    const check = async () => (await collectSetupOverview("org")).checks.find((c) => c.id === "overview.access.cloned-permission-sets")!;
+    const c = await check();
+    expect(c.status).toBe("fail");
+    expect(c.examples).toEqual(["Rep copy (like Field Sales, 1 user): lacks UseLifeSciSampleLimits"]);
+    soql.Covered = [{ AssigneeId: "u1" }, { AssigneeId: "u2" }];
+    expect((await check()).status).toBe("pass");
+    soql.Clones = [];
+    expect((await check()).status).toBe("skipped");
   });
 });
 

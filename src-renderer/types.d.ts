@@ -143,6 +143,8 @@ interface LscApi {
   studioDrift(
     input: { action: "list"; days?: number } | { action: "save"; label?: string } | { action: "diff"; id: string } | { action: "delete"; id: string }
   ): Promise<StudioResponse>;
+  /** Known causes and validation rules matching an error or symptom, checked against the org unless `checkOrg` is false — never cached. */
+  studioDiagnose(text: string, checkOrg?: boolean): Promise<StudioResponse>;
   studioItemDetail(kind: string, id: string): Promise<StudioResponse>;
   /** The layout as it is in the org now (sections, fields, related lists, profiles using it, production) — never cached. */
   studioMetadataDoc(type: "Layout" | "CompactLayout" | "FlexiPage" | "ListView" | "CustomApplication", fullName: string): Promise<StudioResponse>;
