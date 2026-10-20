@@ -29,6 +29,7 @@ export interface CompiledInlineLwc {
 const ROOT = path.join(tmpdir(), "lsc-studio-lwc");
 /** Bump when the shims or the build change, so cached scripts are rebuilt. */
 const BUILD_VERSION = 5;
+const MAX_CACHED = 30;
 const cache = new Map<string, Promise<CompiledInlineLwc>>();
 
 function str(v: unknown): string {
@@ -120,13 +121,15 @@ export async function buildInlineLwc(name: string, files: LwcFile[], labels: Rec
   }
   const entry = path.join(dir, "entry.js");
   await rm(dir, { recursive: true, force: true });
-  await writeTree(path.join(dir, "shims"), shimFiles);
-  await writeTree(path.join(dir, "org"), orgFiles);
-  // The LWC module resolver looks upward from each importer for a package root.
-  await writeFile(path.join(dir, "package.json"), JSON.stringify({ name: "studio-inline-lwc", private: true, lwc: { modules: [] } }));
-  await writeFile(
-    entry,
-    `import "@lwc/synthetic-shadow";
+  // A failed write would otherwise leave a half-written folder behind (the finally below comes later).
+  try {
+    await writeTree(path.join(dir, "shims"), shimFiles);
+    await writeTree(path.join(dir, "org"), orgFiles);
+    // The LWC module resolver looks upward from each importer for a package root.
+    await writeFile(path.join(dir, "package.json"), JSON.stringify({ name: "studio-inline-lwc", private: true, lwc: { modules: [] } }));
+    await writeFile(
+      entry,
+      `import "@lwc/synthetic-shadow";
 import { createElement } from "lwc";
 import { context } from "lightning/studioBridge";
 import Component from "c/${name}";
@@ -137,7 +140,11 @@ if (ctx.recordId) el.recordId = ctx.recordId;
 if (ctx.objectApiName) el.objectApiName = ctx.objectApiName;
 document.getElementById("root").appendChild(el);
 `
-  );
+    );
+  } catch (e) {
+    await rm(dir, { recursive: true, force: true });
+    throw e;
+  }
 
   const salesforce = (fallback: boolean) => ({
     name: fallback ? "studio-salesforce-fallback" : "studio-salesforce",
@@ -217,9 +224,14 @@ export async function compileInlineLwc(org: string, name: string): Promise<Compi
   const labels = await loadLabels(org, read);
   const key = createHash("sha256").update(JSON.stringify([org, name, read, labels])).digest("hex");
   let job = cache.get(key);
-  if (!job) {
+  if (job) {
+    // Most recently used goes last, so the oldest is the one evicted.
+    cache.delete(key);
+    cache.set(key, job);
+  } else {
     job = buildInlineLwc(name, read, labels).then(({ script, placeholders }) => ({ name, script, bundles: check.bundles, placeholders, check }));
     cache.set(key, job);
+    while (cache.size > MAX_CACHED) cache.delete(cache.keys().next().value as string);
     job.catch(() => cache.delete(key));
   }
   return job;

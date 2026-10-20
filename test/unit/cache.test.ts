@@ -4,6 +4,7 @@ import {
   cacheSet,
   cacheClear,
   cacheSize,
+  cachePrune,
   cacheInvalidateOrg,
   queryCacheKey,
   describeCacheKey,
@@ -111,6 +112,29 @@ describe("cache", () => {
   describe("describeCacheKey", () => {
     it("returns a prefixed key", () => {
       expect(describeCacheKey("Account")).toBe("describe:Account");
+    });
+  });
+
+  describe("size bound and pruning", () => {
+    it("evicts the oldest entries past the cap", () => {
+      for (let i = 0; i < 520; i++) cacheSet("org", `k${i}`, i);
+      expect(cacheSize()).toBe(500);
+      expect(cacheGet("org", "k0")).toBeUndefined();
+      expect(cacheGet("org", "k519")).toBe(519);
+    });
+    it("a re-set moves the entry to the newest position", () => {
+      for (let i = 0; i < 500; i++) cacheSet("org", `k${i}`, i);
+      cacheSet("org", "k0", "again");
+      cacheSet("org", "new", 1);
+      expect(cacheGet("org", "k0")).toBe("again");
+      expect(cacheGet("org", "k1")).toBeUndefined();
+    });
+    it("cachePrune drops only expired entries", () => {
+      cacheSet("org", "short", 1, 10);
+      cacheSet("org", "long", 2, 100_000);
+      cachePrune(Date.now() + 1000);
+      expect(cacheSize()).toBe(1);
+      expect(cacheGet("org", "long")).toBe(2);
     });
   });
 });

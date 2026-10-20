@@ -525,7 +525,8 @@ export async function cachedSoqlQuery(
 
   const result = await runSoqlQuery(query, targetOrg, { useToolingApi: isTooling });
   if (result.success) {
-    cacheSet(targetOrg, key, result, options.ttlMs);
+    // The raw stdout duplicates the parsed data; don't keep both.
+    cacheSet(targetOrg, key, { ...result, rawOutput: undefined }, options.ttlMs);
   }
   return result;
 }
@@ -555,7 +556,7 @@ export async function cachedDescribeSObject(
 
   const result = await describeSObject(objectName, targetOrg);
   if (result.success) {
-    cacheSet(targetOrg, key, result, ttlMs);
+    cacheSet(targetOrg, key, { ...result, rawOutput: undefined }, ttlMs);
   }
   return result;
 }

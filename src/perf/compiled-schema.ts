@@ -203,7 +203,7 @@ export async function loadObjectAccess(org: OrgQuerier, userId: string, sobjects
  * for the life of the process and the zip on disk across processes: a profile's archive is downloaded
  * once, not on every run. A cached zip is re-hashed against the org's checksum before it is trusted.
  */
-const MAX_CACHED_ARCHIVES = 4;
+const MAX_CACHED_ARCHIVES = 2;
 const memoryCache = new Map<string, MetadataFiles>();
 
 function diskCacheDir(): string {

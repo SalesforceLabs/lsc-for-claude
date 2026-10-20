@@ -5,6 +5,7 @@
 import type { SfOrg } from "./cli.js";
 import { isSfCliInstalled, getSfCliVersion, listOrgs, SfOrgListResult } from "./cli.js";
 import { cacheInvalidateOrg } from "../cache.js";
+import { clearReportCacheForOrg } from "../studio/screens/report-data.js";
 
 export interface SetupStatus {
   cliInstalled: boolean;
@@ -44,6 +45,7 @@ export function getTargetOrg(): string | undefined {
 export function setTargetOrg(orgAliasOrUsername: string): void {
   if (currentTargetOrg && currentTargetOrg !== orgAliasOrUsername) {
     cacheInvalidateOrg(currentTargetOrg);
+    clearReportCacheForOrg(currentTargetOrg);
   }
   currentTargetOrg = orgAliasOrUsername;
 }

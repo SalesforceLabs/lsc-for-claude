@@ -165,13 +165,21 @@ export function buildReportData(run: Row): PublishedReportData | undefined {
  * last result however old. Kept in memory only: these are customer records, not configuration.
  */
 const REPORT_TTL_MS = 6 * 60 * 60 * 1000;
-const MAX_CACHED_REPORTS = 500;
+const MAX_CACHED_REPORTS = 50;
+/** Stale results kept as the failure fallback only this long past their TTL. */
+const REPORT_STALE_MS = 24 * 60 * 60 * 1000;
 const reportCache = new Map<string, { at: number; data: PublishedReportData }>();
 const reportRuns = new Map<string, Promise<PublishedReportData | undefined>>();
 
 export function clearReportCache(): void {
   reportCache.clear();
   reportRuns.clear();
+}
+
+/** Drop one org's results (the target org changed). */
+export function clearReportCacheForOrg(org: string): void {
+  const prefix = `${org}|`;
+  for (const key of reportCache.keys()) if (key.startsWith(prefix)) reportCache.delete(key);
 }
 
 async function fetchReport(id: string, org: string): Promise<PublishedReportData | undefined> {
@@ -197,6 +205,7 @@ export async function runReport(id: string, org: string, now = Date.now()): Prom
   if (!data) return hit?.data;
   reportCache.delete(key);
   reportCache.set(key, { at: now, data });
+  for (const [k, v] of reportCache) if (now - v.at > REPORT_STALE_MS) reportCache.delete(k);
   while (reportCache.size > MAX_CACHED_REPORTS) reportCache.delete(reportCache.keys().next().value as string);
   return data;
 }
