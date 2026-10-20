@@ -157,6 +157,11 @@ export interface Seen {
   box: DOMRect;
   /** The nearest clipping rect (the scroll viewport), in the surface's coordinates. */
   clip: DOMRect;
+  /**
+   * The outermost clipping rect (the iPad's screen): what the toolbar is placed against. A sideways
+   * scroller (the record tabs) clips to its own height, too short to hold a toolbar above or below.
+   */
+  screen: DOMRect;
 }
 
 /** `box` cut to what the scroll containers around `el` show, or null when none of it is on screen. */
@@ -167,10 +172,12 @@ export function seenOf(el: Element, root: Element, origin: DOMRect): Seen | null
   let top = -Infinity;
   let right = Infinity;
   let bottom = Infinity;
+  let outer: DOMRect | null = null;
   for (let n = el.parentElement; n && n !== root; n = n.parentElement) {
     const st = getComputedStyle(n);
     if (st.display === "contents" || (st.overflowX === "visible" && st.overflowY === "visible")) continue;
     const r = n.getBoundingClientRect();
+    outer = r;
     if (st.overflowX !== "visible") {
       left = Math.max(left, r.left - origin.left);
       right = Math.min(right, r.right - origin.left);
@@ -186,7 +193,10 @@ export function seenOf(el: Element, root: Element, origin: DOMRect): Seen | null
     (Number.isFinite(right) ? right : box.right) - (Number.isFinite(left) ? left : box.left),
     (Number.isFinite(bottom) ? bottom : box.bottom) - (Number.isFinite(top) ? top : box.top)
   );
-  return { box, clip };
+  const screen = outer
+    ? new DOMRect(outer.left - origin.left, outer.top - origin.top, outer.width, outer.height)
+    : new DOMRect(0, 0, origin.width, origin.height);
+  return { box, clip, screen };
 }
 
 /** The part of `seen.box` inside its clip, or null when it is entirely outside. */
@@ -408,6 +418,11 @@ export function EditSurface({
     selected: null,
   });
   const [alsoBoxes, setAlsoBoxes] = useState<Seen[]>([]);
+  const [toolbarBox, setToolbarBoxRaw] = useState<DOMRect | null>(null);
+  const setToolbarBox = useCallback(
+    (b: DOMRect | null) => setToolbarBoxRaw((prev) => (sameBox(prev, b) ? prev : b)),
+    []
+  );
   const selectedKey = selected ? targetKey(selected) : null;
   const alsoKeys = (also ?? []).map(targetKey).join("\n");
 
@@ -646,9 +661,12 @@ export function EditSurface({
     }
     if ((e.target as Element).closest(".studio-edit-toolbar")) return;
     const el = keyAt(e.target);
-    if (!el) return;
     const t = targetOf(el);
-    if (!t) return;
+    // A click on nothing selectable clears the selection (and its toolbar), and still does what it does on the iPad.
+    if (!el || !t) {
+      if (selected && !e.metaKey && !e.shiftKey) onSelect(null);
+      return;
+    }
     const extend = e.metaKey || e.shiftKey;
     onSelect(t, extend);
     if (extend || !el.hasAttribute("data-edit-pass")) {
@@ -681,6 +699,10 @@ export function EditSurface({
                 tag={targetTag(hoverTarget)}
                 // The action menu's capsules sit a few points apart: a label above one would cover the one before it.
                 beside={hoverTarget.kind === "action"}
+                avoid={[
+                  ...(toolbarBox ? [toolbarBox] : []),
+                  ...(boxes.selected && visibleBox(boxes.selected) ? [visibleBox(boxes.selected)!] : []),
+                ]}
               />
             )}
             {boxes.selected && selected && (
@@ -690,7 +712,8 @@ export function EditSurface({
                 {!drag && visibleBox(boxes.selected) && (
                   <Toolbar
                     box={visibleBox(boxes.selected)!}
-                    clip={boxes.selected.clip}
+                    screen={boxes.selected.screen}
+                    onBox={setToolbarBox}
                     width={root.current?.clientWidth ?? 0}
                     target={selected}
                     name={name}
@@ -727,18 +750,28 @@ const sameBox = (a: DOMRect | null, b: DOMRect | null) =>
 const sameSeen = (a: Seen | null, b: Seen | null) => (a && b ? sameBox(a.box, b.box) && sameBox(a.clip, b.clip) : a === b);
 
 /** An outline drawn inside a box that clips it to the scroll viewport it belongs to; nothing when it is scrolled fully out of view. */
-function Clipped({ seen, className, tag, beside }: { seen: Seen; className: string; tag?: string; beside?: boolean }) {
+function Clipped({
+  seen,
+  className,
+  tag,
+  beside,
+  avoid = [],
+}: {
+  seen: Seen;
+  className: string;
+  tag?: string;
+  beside?: boolean;
+  /** Boxes the label mustn't cover (the toolbar, the selection): it moves, or isn't drawn. */
+  avoid?: DOMRect[];
+}) {
   const shown = visibleBox(seen);
   if (!shown) return null;
   const { box, clip } = seen;
-  // `beside` puts the label to the block's left when there's room for it there.
-  const left = beside && box.x - clip.x >= BESIDE_ROOM;
-  // A label above the block would be cut off at the viewport's top: tuck it inside instead.
-  const inside = !left && box.y - clip.y < 18;
+  const spot = tag ? tagSpot(box, clip, tagWidth(tag, beside), avoid, beside) : null;
   return (
     <div className="studio-edit-clip" style={rectStyle(clip)}>
       <div className={className} style={rectStyle(new DOMRect(box.x - clip.x, box.y - clip.y, box.width, box.height))}>
-        {tag && <span className={`studio-edit-tag${left ? " beside" : inside ? " inside" : ""}`}>{tag}</span>}
+        {spot && <span className={`studio-edit-tag${spot === "above" ? "" : ` ${spot}`}`}>{tag}</span>}
       </div>
     </div>
   );
@@ -746,6 +779,33 @@ function Clipped({ seen, className, tag, beside }: { seen: Seen; className: stri
 
 /** How much space a label beside a block needs on its left. */
 const BESIDE_ROOM = 160;
+
+/** A label's height, and roughly its width: 11 px text at about 6.5 px a character plus padding, capped like the CSS. */
+const TAG_H = 18;
+const tagWidth = (text: string, beside?: boolean) => Math.min(beside ? 200 : 280, Math.ceil(text.length * 6.5) + 16);
+
+const overlaps = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+
+/**
+ * Where a hover label goes: beside the block when asked and there's room (action capsules sit a few
+ * points apart), else above it, else inside its top edge — skipping any spot cut off by the viewport
+ * or covering a box in `avoid`. Null when none is free: the outline alone says what's hovered.
+ */
+export function tagSpot(
+  box: DOMRect,
+  clip: DOMRect,
+  width: number,
+  avoid: DOMRect[],
+  beside?: boolean
+): "beside" | "above" | "inside" | null {
+  const spots: ["beside" | "above" | "inside", DOMRect, boolean][] = [
+    ["beside", new DOMRect(box.x - 4 - width, box.y + box.height / 2 - TAG_H / 2, width, TAG_H), !!beside && box.x - clip.x >= BESIDE_ROOM],
+    ["above", new DOMRect(box.x, box.y - TAG_H, width, TAG_H), box.y - clip.y >= TAG_H],
+    ["inside", new DOMRect(box.x, box.y, width, TAG_H), true],
+  ];
+  const free = spots.find(([, r, fits]) => fits && !avoid.some((a) => overlaps(r, a)));
+  return free ? free[0] : null;
+}
 
 const rectStyle = (r: DOMRect): React.CSSProperties => ({
   left: r.x,
@@ -774,10 +834,31 @@ export function compactInline(count: number, surfaceWidth: number): number {
   return count <= slots ? count : Math.max(0, slots - 1);
 }
 
+/** The toolbar's height, and the gap between it and the selection. */
+const TOOLBAR_H = 44;
+const TOOLBAR_GAP = 8;
+
+/**
+ * Where the toolbar goes for a selection whose visible part is `box`: above it, else below it, measured
+ * against the iPad's screen rather than the scroller the block is in, so it never sits on the selection.
+ * Only a block with no room on either side (taller than the screen, near enough) gets it pinned to the
+ * screen's top edge. `top` is the toolbar's bottom edge when above (it's translated up by its height).
+ */
+export function placeToolbar(box: DOMRect, screen: DOMRect): { top: number; below: boolean } {
+  const room = TOOLBAR_H + TOOLBAR_GAP;
+  if (box.top - screen.top >= room) return { top: box.top - TOOLBAR_GAP, below: false };
+  if (screen.bottom - box.bottom >= room) return { top: box.bottom + TOOLBAR_GAP, below: true };
+  return { top: screen.top + TOOLBAR_GAP, below: true };
+}
+
+/** A toolbar `w` wide wanting its left edge at `x`, slid as little as it must to stay 4 px inside the screen. */
+export const shiftOnto = (x: number, w: number, screen: DOMRect): number =>
+  Math.max(screen.left + 4, Math.min(x, screen.right - 4 - w));
+
 /** The floating toolbar above the selection (below it when there's no room). */
 function Toolbar({
   box,
-  clip,
+  screen,
   width,
   target,
   name,
@@ -786,12 +867,13 @@ function Toolbar({
   setup,
   onSetup,
   horizontal,
+  onBox,
 }: {
   /** The part of the selection that is on screen. */
   box: DOMRect;
-  /** The scroll viewport the selection is in: the toolbar stays inside it. */
-  clip: DOMRect;
-  /** The surface's width: a block in its right half anchors the toolbar to its right edge so it stays on the device. */
+  /** The iPad's screen: the toolbar stays on it. */
+  screen: DOMRect;
+  /** The surface's width, for anchoring the toolbar to a block's right edge (a block in the screen's right half) and going icon-only. */
   width: number;
   target: EditTarget;
   name?: string;
@@ -800,15 +882,25 @@ function Toolbar({
   setup?: { label: string } | null;
   onSetup?: () => void;
   horizontal?: boolean;
+  /** Where the toolbar ended up, in the surface's coordinates, so hover labels can keep off it. */
+  onBox: (box: DOMRect | null) => void;
 }) {
-  const TOOLBAR_H = 44;
+  const ref = useRef<HTMLDivElement>(null);
+  // Its own width, so a toolbar anchored to a block's right edge can be slid back onto the screen.
+  const [ownWidth, setOwnWidth] = useState(0);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const parent = el?.parentElement;
+    if (!el || !parent) return;
+    setOwnWidth(el.offsetWidth);
+    const r = el.getBoundingClientRect();
+    const o = parent.getBoundingClientRect();
+    onBox(new DOMRect(r.left - o.left, r.top - o.top, r.width, r.height));
+  });
+  useEffect(() => () => onBox(null), [onBox]);
   const compact = isCompactToolbar(width);
-  const above = box.y - clip.y >= TOOLBAR_H + 8;
-  const roomBelow = clip.bottom - box.bottom >= TOOLBAR_H + 8;
-  // Above the block, else below it, else tucked inside the viewport's top edge.
-  const below = !above;
-  const top = above ? box.y - 8 : roomBelow ? box.bottom + 8 : clip.y + 8;
-  const right = width > 0 && box.x + box.width / 2 > width / 2;
+  const { top, below } = placeToolbar(box, screen);
+  const right = box.x + box.width / 2 > screen.x + screen.width / 2;
   const iconOf = (v: Verb): LucideIcon =>
     horizontal && v.id === "up" ? ArrowLeft : horizontal && v.id === "down" ? ArrowRight : VERB_ICONS[v.id];
   // Compact: one row of icons; what doesn't fit (runnable verbs, then Open in Setup) goes under More.
@@ -825,15 +917,15 @@ function Toolbar({
   ];
   const style: React.CSSProperties = {
     // A compact toolbar is one row no wider than the device: at the block's left edge, slid left as far as it must to stay on it.
-    ...(compact
-      ? { left: Math.max(4, Math.min(box.x, width - 4 - compactWidth(inline.length + (setupButton ? 1 : 0) + (more.length ? 1 : 0)))) }
-      : right
-        ? { right: Math.max(4, width - box.right) }
-        : { left: Math.max(4, box.x) }),
+    left: compact
+      ? shiftOnto(box.x, compactWidth(inline.length + (setupButton ? 1 : 0) + (more.length ? 1 : 0)), screen)
+      : shiftOnto(right ? box.right - ownWidth : box.x, ownWidth, screen),
     top,
+    maxWidth: screen.width - 8,
   };
   return (
     <div
+      ref={ref}
       className={`studio-edit-toolbar${below ? " below" : ""}${compact ? " compact" : ""}`}
       style={style}
       role="toolbar"

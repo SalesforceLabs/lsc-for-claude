@@ -23,7 +23,9 @@ export type FrameMessage =
   | { __studio: "error"; message: string; mounted: boolean }
   | { __studio: "warn"; message: string }
   /** A quick action dispatched CloseActionScreenEvent. */
-  | { __studio: "close" };
+  | { __studio: "close" }
+  /** The component was clicked: clicks inside a frame never reach the host page, so it can't be selected without this. */
+  | { __studio: "click"; metaKey: boolean; shiftKey: boolean };
 
 /** The host's message setting the frame's zoom (see LiveInlineLwc). */
 export interface ZoomMessage {
@@ -51,7 +53,8 @@ export function inlineLwcFrame(script: string, css: string, context: InlineLwcCo
 window.addEventListener("message", (e) => {
   const m = e.data;
   if (e.source === window.parent && m && m.__studio === "zoom" && m.zoom > 0) document.documentElement.style.zoom = String(m.zoom);
-});</script>
+});
+window.addEventListener("click", (e) => window.parent.postMessage({ __studio: "click", metaKey: e.metaKey, shiftKey: e.shiftKey }, "*"), true);</script>
 </head><body class="slds-scope"><div id="root"></div>
 <script>${inlineScript(script)}</script>
 </body></html>`;

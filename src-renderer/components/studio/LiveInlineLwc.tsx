@@ -113,6 +113,10 @@ export function LiveInlineLwc({
         case "navigate":
           note(`Opens ${describePage(m.pageReference)} on the iPad`);
           break;
+        case "click":
+          // Replay it on the frame so the edit surface around it selects the component, as a click on any other block does.
+          frame.current?.dispatchEvent(new MouseEvent("click", { bubbles: true, metaKey: m.metaKey, shiftKey: m.shiftKey }));
+          break;
         case "error":
           if (m.mounted) note(`Script error: ${m.message}`);
           else setState({ kind: "failed", message: m.message });
