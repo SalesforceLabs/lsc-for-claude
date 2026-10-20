@@ -1,11 +1,11 @@
 /** Territory & Users readiness: the territory model, alignment, field users and their licenses. */
 
 import { activeTerritories, fieldProfiles, LSC_PSL } from "../../collectors/territory-users.js";
-import { count, countGroupedBy, inList, plural, query, type Row } from "../../helpers.js";
+import { count, countGroupedBy, inList, plural, query, queryByIds, type Row } from "../../helpers.js";
+import { chunkIds } from "../../../tools/helpers.js";
 import type { StudioFix } from "../../types.js";
 import { runCheck, type ReadinessModule } from "../index.js";
 import {
-  countOf,
   dbSchemaCheck,
   failedJobs,
   handlersCheck,
@@ -19,8 +19,26 @@ import {
 const MAX_FIXES = 10;
 /** Example rows listed in a check's detail. */
 const MAX_EXAMPLES = 25;
-/** Up to this many territory info rows and alignments, they're compared pair by pair (account and territory); past it, by account only. */
-const PAIR_ROWS = 20_000;
+/*
+ * Alignments (ObjectTerritory2Association) and territory info (ProviderAcctTerritoryInfo) run to
+ * millions of rows in large orgs, so the data checks never count or anti-join them whole: that scans
+ * every row when the org is healthy and times out. They read a fixed number of rows by territory id
+ * across the active model and look the other side up by account id, both of which use indexes, and
+ * say when what they read is a sample.
+ */
+const SAMPLE_ROWS = 500;
+/** Territories with no user of their own whose alignments are counted (the ones with no user above first). */
+const MAX_OWNLESS = 2000;
+
+/** "1 territory" / "3 territories" for nouns `plural` can't spell. */
+const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : more}`;
+
+/** At most `max` items, taken evenly across the list rather than from its start. */
+function spread<T>(items: T[], max: number): T[] {
+  if (max <= 0) return [];
+  const step = Math.max(1, Math.ceil(items.length / max));
+  return items.filter((_, i) => i % step === 0).slice(0, max);
+}
 
 const readiness: ReadinessModule = {
   ruleFiles: ["territory-alignment-config.yaml"],
@@ -160,13 +178,11 @@ const readiness: ReadinessModule = {
           surface: "territories",
         },
         async () => {
-          // Counted per chunk of the active model's territories: one grouped query stops at 2,000 groups.
+          // Users are counted per territory (a few per territory); alignments only for the territories
+          // with no user of their own, since a staffed territory passes whatever it holds.
           const { rows: territories } = await activeTerritories(org);
           const ids = territories.map((t) => String(t.Id));
-          const [accounts, users] = await Promise.all([
-            countGroupedBy("ObjectTerritory2Association", "Territory2Id", ids, org, "SobjectType = 'Account'"),
-            countGroupedBy("UserTerritory2Association", "Territory2Id", ids, org),
-          ]);
+          const users = await countGroupedBy("UserTerritory2Association", "Territory2Id", ids, org);
           const byId = new Map(territories.map((t) => [String(t.Id), t]));
           const nameOf = (id: string) => String(byId.get(id)?.Name ?? id);
           /** The nearest territory above `id` that has a user, if any. */
@@ -178,23 +194,33 @@ const readiness: ReadinessModule = {
             }
             return undefined;
           };
-          const withAccounts = [...accounts.entries()].filter(([, n]) => n > 0);
-          const ownless = withAccounts.filter(([id]) => !users.get(id)).sort((a, b) => b[1] - a[1]);
-          const covered = ownless.filter(([id]) => coveredBy(id));
-          const bare = ownless.filter(([id]) => !coveredBy(id));
+          const ownless = ids.filter((id) => !users.get(id));
+          if (!ownless.length) return { pass: true, detail: `Every one of the ${many(ids.length, "territory", "territories")} in the active model has a user of its own.` };
+          // The ones with no user above them either are what fails, so they're read first.
+          const bareIds = spread(ownless.filter((id) => !coveredBy(id)), MAX_OWNLESS);
+          const coveredIds = spread(ownless.filter((id) => coveredBy(id)), MAX_OWNLESS - bareIds.length);
+          const checked = bareIds.length + coveredIds.length;
+          const accounts = await countGroupedBy("ObjectTerritory2Association", "Territory2Id", [...bareIds, ...coveredIds], org, "SobjectType = 'Account'");
+          const withAccounts = (list: string[]) => list.filter((id) => accounts.get(id)).map((id): [string, number] => [id, accounts.get(id)!]).sort((a, b) => b[1] - a[1]);
+          const bare = withAccounts(bareIds);
+          const covered = withAccounts(coveredIds);
           const coveredNote = covered.length
-            ? ` ${covered.length} of them have no user of their own but are covered by a territory above them (${covered
+            ? ` ${many(covered.length, "territory", "territories")} with accounts ${covered.length === 1 ? "has" : "have"} no user of ${covered.length === 1 ? "its" : "their"} own but ${covered.length === 1 ? "is" : "are"} covered by a territory above (${covered
                 .slice(0, 3)
                 .map(([id]) => `${nameOf(id)} by ${nameOf(coveredBy(id)!)}`)
                 .join("; ")}${covered.length > 3 ? "…" : ""}).`
             : "";
+          const scope =
+            checked === ownless.length
+              ? `Checked the accounts of all ${many(checked, "territory", "territories")} with no user of their own.`
+              : `Checked the accounts of ${checked} of the ${ownless.length} territories with no user of their own, not every one in the model.`;
           return bare.length
             ? {
                 pass: false,
-                detail: `${bare.length} of ${withAccounts.length} territories with accounts have no user on them or above them.${coveredNote}${bare.length > MAX_EXAMPLES ? ` Showing the ${MAX_EXAMPLES} with the most accounts.` : ""}`,
+                detail: `${many(bare.length, "territory", "territories")} with accounts ${bare.length === 1 ? "has" : "have"} no user on ${bare.length === 1 ? "it" : "them"} or above ${bare.length === 1 ? "it" : "them"}.${coveredNote}${bare.length > MAX_EXAMPLES ? ` Showing the ${MAX_EXAMPLES} with the most accounts.` : ""} ${scope}`,
                 examples: bare.slice(0, MAX_EXAMPLES).map(([id, n]) => `${nameOf(id)} (${plural(n, "account")})`),
               }
-            : { pass: true, detail: `All ${withAccounts.length} territories with accounts have a user on them or above them.${coveredNote}` };
+            : { pass: true, detail: `Every territory with accounts has a user on it or above it.${coveredNote} ${scope}` };
         }
       ),
 
@@ -211,49 +237,54 @@ const readiness: ReadinessModule = {
         },
         async () => {
           // Active model only: planning or archived models keep their own info rows.
-          const infoWhere = `Territory2.Territory2Model.State = 'Active'`;
-          const alignedWhere = `SobjectType = 'Account' AND Territory2.Territory2Model.State = 'Active'`;
-          const [infoRows, aligned] = await Promise.all([
-            countOf(`SELECT COUNT() FROM ProviderAcctTerritoryInfo WHERE ${infoWhere}`, org),
-            countOf(`SELECT COUNT() FROM ObjectTerritory2Association WHERE ${alignedWhere}`, org),
+          const { rows: territories, model } = await activeTerritories(org);
+          if (!model || !territories.length) return { pass: true, skip: true, detail: "No account alignment yet." };
+          // One query per IN-list chunk of the model's territories, each reading its share of the sample,
+          // so the rows come from across the model rather than from its first territories.
+          const chunks = chunkIds(territories.map((t) => String(t.Id)));
+          const share = Math.ceil(SAMPLE_ROWS / chunks.length);
+          let complete = true;
+          const sample = async (soql: (ids: string) => string) =>
+            (
+              await Promise.all(
+                chunks.map(async (ids) => {
+                  const rows = await query(`${soql(inList(ids))} LIMIT ${share}`, org);
+                  if (rows.length >= share) complete = false;
+                  return rows;
+                })
+              )
+            ).flat();
+          const [info, alignments] = await Promise.all([
+            sample((ids) => `SELECT AccountId, Account.Name, Territory2Id, Territory2.Name FROM ProviderAcctTerritoryInfo WHERE Territory2Id IN (${ids})`),
+            sample((ids) => `SELECT ObjectId, Object.Name, Territory2Id, Territory2.Name FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2Id IN (${ids})`),
           ]);
-          if (aligned === 0 && infoRows === 0) return { pass: true, skip: true, detail: "No account alignment yet." };
-
-          if (infoRows <= PAIR_ROWS && aligned <= PAIR_ROWS) {
-            // Each info row belongs to one account in one territory, so the pair is what has to match.
-            const [info, alignments] = await Promise.all([
-              query(`SELECT AccountId, Account.Name, Territory2Id, Territory2.Name FROM ProviderAcctTerritoryInfo WHERE ${infoWhere}`, org, false, { maxRows: PAIR_ROWS }),
-              query(`SELECT ObjectId, Object.Name, Territory2Id, Territory2.Name FROM ObjectTerritory2Association WHERE ${alignedWhere}`, org, false, { maxRows: PAIR_ROWS }),
-            ]);
-            const key = (account: unknown, territory: unknown) => `${String(account).slice(0, 15)}|${String(territory).slice(0, 15)}`;
-            const name = (r: Row, rel: string) => String((r[rel] as { Name?: string } | null)?.Name ?? "");
-            const infoKeys = new Set(info.map((r) => key(r.AccountId, r.Territory2Id)));
-            const alignedKeys = new Set(alignments.map((r) => key(r.ObjectId, r.Territory2Id)));
-            const orphans = info.filter((r) => !alignedKeys.has(key(r.AccountId, r.Territory2Id)));
-            const missing = alignments.filter((r) => !infoKeys.has(key(r.ObjectId, r.Territory2Id)));
-            const parts = [
-              orphans.length ? `${plural(orphans.length, "territory info row")} for an account no longer aligned to that territory` : "",
-              missing.length ? `${plural(missing.length, "aligned account")} with no territory info for that territory` : "",
-            ].filter(Boolean);
-            if (!parts.length) return { pass: true, detail: `In step: ${plural(aligned, "alignment")} checked against their territory info.` };
-            const examples = [
-              ...orphans.map((r) => `${name(r, "Account") || r.AccountId} in ${name(r, "Territory2") || r.Territory2Id}: info row, not aligned`),
-              ...missing.map((r) => `${name(r, "Object") || r.ObjectId} in ${name(r, "Territory2") || r.Territory2Id}: aligned, no info row`),
-            ];
-            return { pass: false, detail: `${parts.join("; ")}.`, examples: examples.slice(0, MAX_EXAMPLES) };
-          }
-
-          // Too many rows to pair up: compare by account, which misses an account aligned to one territory with info for another.
-          const [orphans, missing] = await Promise.all([
-            countOf(`SELECT COUNT() FROM ProviderAcctTerritoryInfo WHERE ${infoWhere} AND AccountId NOT IN (SELECT ObjectId FROM ObjectTerritory2Association WHERE ${alignedWhere})`, org),
-            countOf(`SELECT COUNT() FROM ObjectTerritory2Association WHERE ${alignedWhere} AND ObjectId NOT IN (SELECT AccountId FROM ProviderAcctTerritoryInfo WHERE ${infoWhere})`, org),
+          if (!info.length && !alignments.length) return { pass: true, skip: true, detail: "No account alignment yet." };
+          // The other side of each sampled row, looked up by account id.
+          const [infoOfAligned, alignmentsOfInfo] = await Promise.all([
+            queryByIds("AccountId, Territory2Id", "ProviderAcctTerritoryInfo", "AccountId", [...new Set(alignments.map((r) => String(r.ObjectId)))], org),
+            queryByIds("ObjectId, Territory2Id", "ObjectTerritory2Association", "ObjectId", [...new Set(info.map((r) => String(r.AccountId)))], org, "SobjectType = 'Account'"),
           ]);
-          const byAccount = ` Compared by account only (over ${PAIR_ROWS.toLocaleString("en-US")} rows), so an account with info for a different territory than it's aligned to isn't caught.`;
+          // Each info row belongs to one account in one territory, so the pair is what has to match.
+          const key = (account: unknown, territory: unknown) => `${String(account).slice(0, 15)}|${String(territory).slice(0, 15)}`;
+          const name = (r: Row, rel: string) => String((r[rel] as { Name?: string } | null)?.Name ?? "");
+          const infoKeys = new Set(infoOfAligned.map((r) => key(r.AccountId, r.Territory2Id)));
+          const alignedKeys = new Set(alignmentsOfInfo.map((r) => key(r.ObjectId, r.Territory2Id)));
+          const orphans = info.filter((r) => !alignedKeys.has(key(r.AccountId, r.Territory2Id)));
+          const missing = alignments.filter((r) => !infoKeys.has(key(r.ObjectId, r.Territory2Id)));
+          const read = `${many(alignments.length, "alignment", "alignments")} and ${many(info.length, "territory info row", "territory info rows")}`;
+          const scope = complete
+            ? `Checked all ${read} in the active model.`
+            : `Checked a sample of ${read} from across the active model, not every one in it.`;
           const parts = [
-            orphans ? `${plural(orphans, "account")} with territory info but no alignment` : "",
-            missing ? `${plural(missing, "aligned account")} with no territory info` : "",
+            orphans.length ? `${plural(orphans.length, "territory info row")} for an account no longer aligned to that territory` : "",
+            missing.length ? `${plural(missing.length, "aligned account")} with no territory info for that territory` : "",
           ].filter(Boolean);
-          return parts.length ? { pass: false, detail: `${parts.join("; ")}.${byAccount}` } : { pass: true, detail: `In step.${byAccount}` };
+          if (!parts.length) return { pass: true, detail: `In step. ${scope}` };
+          const examples = [
+            ...orphans.map((r) => `${name(r, "Account") || r.AccountId} in ${name(r, "Territory2") || r.Territory2Id}: info row, not aligned`),
+            ...missing.map((r) => `${name(r, "Object") || r.ObjectId} in ${name(r, "Territory2") || r.Territory2Id}: aligned, no info row`),
+          ];
+          return { pass: false, detail: `${parts.join("; ")}. ${scope}`, examples: examples.slice(0, MAX_EXAMPLES) };
         }
       ),
 

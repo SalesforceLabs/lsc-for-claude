@@ -1,7 +1,7 @@
 /** Visit Management readiness: its validation rules plus Studio's own checks. */
 
 import { scriptCodeFindings } from "../../collect.js";
-import { count, plural, query } from "../../helpers.js";
+import { count, plural, query, queryByIds } from "../../helpers.js";
 import { runCheck, type ReadinessModule } from "../index.js";
 import { handlersResult, loadDbSchema, loadHandlers, once, syncResult } from "./_visit-shared.js";
 
@@ -21,6 +21,20 @@ const GUARDRAIL_HANDLERS = [
   "ProviderVisitProdDiscussionLockHandler",
   "ProviderVisitRqstSampleLockHandler",
 ];
+
+/*
+ * Visit and ProviderAcctTerritoryInfo hold millions of rows in a large org, and Status, the visit
+ * end time and the last visit date aren't indexed. Every visit query is limited to a window on
+ * CreatedDate or LastModifiedDate, which are, so its cost follows recent activity rather than the
+ * size of the table.
+ */
+/** Only visits created this recently are looked at for being stuck In Progress. */
+const STUCK_WINDOW_DAYS = 90;
+/** Completed visits whose accounts the rollup check looks up. */
+const SAMPLE_ROWS = 500;
+
+/** "1 account" / "3 accounts". */
+const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : more}`;
 
 const readiness: ReadinessModule = {
   ruleFiles: ["visit-management-config.yaml"],
@@ -56,14 +70,14 @@ const readiness: ReadinessModule = {
           uiPath: "Visits tab > list view filtered on Status = In Progress",
         },
         async () => {
-          const rows = await query(
-            `SELECT Id, Name, Account.Name, CreatedDate FROM Visit WHERE Status = 'InProgress' AND CreatedDate < LAST_N_DAYS:14 ORDER BY CreatedDate LIMIT 6`,
-            org
-          );
-          const n = rows.length === 6 ? await count(`SELECT COUNT() FROM Visit WHERE Status = 'InProgress' AND CreatedDate < LAST_N_DAYS:14`, org) : rows.length;
+          const where = `Status = 'InProgress' AND CreatedDate = LAST_N_DAYS:${STUCK_WINDOW_DAYS} AND CreatedDate < LAST_N_DAYS:14`;
+          const rows = await query(`SELECT Id, Name, Account.Name, CreatedDate FROM Visit WHERE ${where} ORDER BY CreatedDate LIMIT 6`, org);
+          const n = rows.length === 6 ? await count(`SELECT COUNT() FROM Visit WHERE ${where}`, org) : rows.length;
           return {
             pass: n === 0,
-            detail: n ? `${plural(n, "visit")} In Progress for more than 14 days.` : "No visits have been In Progress for more than 14 days.",
+            detail: n
+              ? `${plural(n, "visit")} from the last ${STUCK_WINDOW_DAYS} days In Progress for more than 14 days.`
+              : `No visit from the last ${STUCK_WINDOW_DAYS} days has been In Progress for more than 14 days.`,
             examples: rows.map((r) => String(r.Name)),
           };
         }
@@ -84,12 +98,23 @@ const readiness: ReadinessModule = {
           surface: "triggerHandlers",
         },
         async () => {
-          const recent = await count(`SELECT COUNT() FROM Visit WHERE Status = 'Completed' AND ActualVisitEndTime = LAST_N_DAYS:30`, org);
-          if (!recent) return { pass: true, skip: true, detail: "No visits were completed in the last 30 days." };
-          const updated = await count(`SELECT COUNT() FROM ProviderAcctTerritoryInfo WHERE LastProviderVisitDate = LAST_N_DAYS:30`, org);
+          // Completing a visit modifies it, so the LastModifiedDate window loses none of them and
+          // lets the query use an index; the end time alone would mean reading every visit.
+          const visits = await query(
+            `SELECT AccountId FROM Visit WHERE LastModifiedDate = LAST_N_DAYS:30 AND Status = 'Completed' AND ActualVisitEndTime = LAST_N_DAYS:30 AND AccountId != null LIMIT ${SAMPLE_ROWS}`,
+            org
+          );
+          if (!visits.length) return { pass: true, skip: true, detail: "No visits were completed in the last 30 days." };
+          const accounts = [...new Set(visits.map((v) => String(v.AccountId)))];
+          const info = await queryByIds("AccountId", "ProviderAcctTerritoryInfo", "AccountId", accounts, org, "LastProviderVisitDate = LAST_N_DAYS:30");
+          const updated = new Set(info.map((r) => String(r.AccountId))).size;
+          const scope =
+            visits.length < SAMPLE_ROWS
+              ? `Checked the accounts of all ${many(visits.length, "visit", "visits")} completed in the last 30 days.`
+              : `Checked the accounts of a sample of ${SAMPLE_ROWS} visits completed in the last 30 days, not every one in the org.`;
           return {
             pass: updated > 0,
-            detail: `${plural(recent, "visit")} completed in the last 30 days; ${plural(updated, "territory info record")} show a last visit date in that window.`,
+            detail: `${updated} of ${many(accounts.length, "visited account", "visited accounts")} ${updated === 1 ? "has" : "have"} territory info showing a last visit date in the last 30 days. ${scope}`,
           };
         }
       ),

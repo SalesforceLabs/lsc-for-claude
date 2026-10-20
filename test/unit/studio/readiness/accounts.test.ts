@@ -10,8 +10,8 @@ const { invalidateSharedReads } = await import("../../../../src/config/read-cach
 const { default: accounts } = await import("../../../../src/studio/readiness/features/accounts.js");
 
 type Row = Record<string, unknown>;
-/** Rows (and optional COUNT override) returned per outer FROM-object. */
-let org: Record<string, Row[] | number>;
+/** Rows (and optional COUNT override) returned per outer FROM-object, or a function of the query. */
+let org: Record<string, Row[] | number | ((soql: string) => Row[] | number)>;
 let handlers: Row[];
 let schema: ConfigRecord[];
 
@@ -19,7 +19,8 @@ function respond(soql: string) {
   let outer = soql;
   while (/\([^()]*\)/.test(outer)) outer = outer.replace(/\([^()]*\)/g, "");
   const from = /FROM\s+(\w+)/i.exec(outer)?.[1] ?? "";
-  const v = org[from] ?? [];
+  const entry = org[from] ?? [];
+  const v = typeof entry === "function" ? entry(soql) : entry;
   const rows = typeof v === "number" ? [] : v;
   const total = typeof v === "number" ? v : rows.length;
   return Promise.resolve({ success: true, data: { totalSize: total, done: true, records: rows } });
@@ -39,6 +40,12 @@ beforeEach(() => {
 });
 
 const run = async () => Object.fromEntries((await accounts.checks!("test-org")).map((c) => [c.id, c]));
+const pati = (AccountId: string, Name: string, IsPersonAccount: boolean, PreferredAddressId: string | null = null) => ({
+  AccountId,
+  Account: { Name, IsPersonAccount },
+  Territory2Id: "T1",
+  PreferredAddressId,
+});
 const handler = (developerName: string, IsActive: boolean) => ({ DeveloperName: developerName, MasterLabel: developerName, IsActive });
 
 describe("accounts readiness", () => {
@@ -48,79 +55,92 @@ describe("accounts readiness", () => {
     expect(r["accounts.data.dcr-not-stuck"].status).toBe("skipped");
   });
 
-  it("fails when person accounts have no address", async () => {
-    org.Account = [{ Name: "Dr A" }];
+  it("skips the account checks when no account has territory info", async () => {
+    const r = await run();
+    for (const id of ["preferred-address", "hcps-have-address", "primary-address", "hcps-have-provider-record"])
+      expect(r[`accounts.data.${id}`].status).toBe("skipped");
+  });
+
+  it("reads a fixed-size sample of territory info and looks up related records by id, never with an anti-join", async () => {
+    org.ProviderAcctTerritoryInfo = [pati("A1", "Dr A", true)];
+    await run();
+    const queries = vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0]));
+    expect(queries.some((q) => q.includes("NOT IN"))).toBe(false);
+    expect(queries.find((q) => q.includes("FROM ProviderAcctTerritoryInfo WHERE IsActive = true"))).toMatch(/LIMIT 500$/);
+    expect(queries.find((q) => q.includes("FROM ContactPointAddress"))).toContain("ParentId IN ('A1')");
+    expect(queries.find((q) => q.includes("FROM HealthcareProvider"))).toContain("AccountId IN ('A1')");
+  });
+
+  it("fails when an HCP in a territory has no address", async () => {
+    org.ProviderAcctTerritoryInfo = [pati("A1", "Dr A", true), pati("A2", "Dr B", true)];
+    org.HealthcareProvider = [{ AccountId: "A1", cnt: 1 }, { AccountId: "A2", cnt: 1 }];
+    org.ContactPointAddress = [{ ParentId: "A2", cnt: 1 }];
     const c = (await run())["accounts.data.hcps-have-address"];
     expect(c.status).toBe("fail");
+    expect(c.detail).toBe("1 of 2 has no address. Checked all 2 HCPs in territories.");
     expect(c.examples).toEqual(["Dr A"]);
   });
 
-  it("looks for HCPs among person accounts with a provider record or territory info, not every person account", async () => {
-    org.Account = [{ Name: "Dr A" }];
-    await run();
-    const queries = vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0]));
-    const address = queries.find((q) => q.includes("NOT IN (SELECT ParentId FROM ContactPointAddress)"));
-    expect(address).toContain("Id IN (SELECT AccountId FROM HealthcareProvider)");
-    const provider = queries.find((q) => q.includes("NOT IN (SELECT AccountId FROM HealthcareProvider)"));
-    expect(provider).toContain("Id IN (SELECT AccountId FROM ProviderAcctTerritoryInfo WHERE IsActive = true)");
-    expect((await run())["accounts.data.hcps-have-address"].detail).toContain("with a Healthcare Provider record");
+  it("says the result covers a sample when there are more territory info records than it reads", async () => {
+    org.ProviderAcctTerritoryInfo = Array.from({ length: 500 }, (_, i) => pati(`A${i}`, `Dr ${i}`, true));
+    org.HealthcareProvider = org.ProviderAcctTerritoryInfo.map((r) => ({ AccountId: r.AccountId, cnt: 1 }));
+    org.ContactPointAddress = org.HealthcareProvider.map((r) => ({ ParentId: r.AccountId, cnt: 1 }));
+    const c = (await run())["accounts.data.hcps-have-address"];
+    expect(c.status).toBe("pass");
+    expect(c.detail).toContain("among a sample of 500 territory info records, not every one in the org");
   });
 
   it("splits missing preferred addresses into accounts with no address and ones with none preferred", async () => {
-    vi.mocked(runSoqlQuery).mockImplementation(((q: string) => {
-      if (/FROM ProviderAcctTerritoryInfo/.test(q)) {
-        const n = q.includes("IN (SELECT ParentId FROM ContactPointAddress)") ? 3 : q.includes("PreferredAddressId = null") ? 21 : 400;
-        return Promise.resolve({ success: true, data: { totalSize: n, done: true, records: [] } });
-      }
-      return respond(q);
-    }) as never);
+    org.ProviderAcctTerritoryInfo = [pati("A1", "Dr A", true, "ADDR"), pati("A2", "Dr B", true), pati("A3", "Dr C", true), pati("A4", "Dr D", false)];
+    org.ContactPointAddress = [{ ParentId: "A2", cnt: 2 }];
     const c = (await run())["accounts.data.preferred-address"];
     expect(c.status).toBe("fail");
-    expect(c.detail).toBe("21 of 400 have no preferred address: 3 are for accounts with addresses but none preferred, 18 are for accounts with no address at all.");
+    expect(c.detail).toBe(
+      "3 of 4 territory info records have no preferred address: 1 is for accounts with addresses but none preferred, 2 are for accounts with no address at all. Checked all 4."
+    );
   });
 
-  it("samples anti-join accounts instead of counting them", async () => {
-    org.Account = [{ Name: "A" }, { Name: "B" }, { Name: "C" }, { Name: "D" }, { Name: "E" }];
-    await run();
-    const queries = vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0]));
-    const antiJoins = queries.filter((q) => q.includes("NOT IN (SELECT"));
-    expect(antiJoins).toHaveLength(3);
-    for (const q of antiJoins) {
-      expect(q).toMatch(/^SELECT Name FROM Account/);
-      expect(q).toMatch(/LIMIT 5$/);
-    }
-    const c = (await run())["accounts.data.hcps-have-address"];
-    expect(c.detail).toContain("5 or more");
-    expect(c.detail).toContain("not a full count");
-  });
-
-  it("shows a timed-out check as couldn't check, not failed", async () => {
+  it("shows a timed-out lookup as couldn't check, not failed", async () => {
+    org.ProviderAcctTerritoryInfo = [pati("A1", "Dr A", true)];
+    org.HealthcareProvider = [{ AccountId: "A1", cnt: 1 }];
     vi.mocked(runSoqlQuery).mockImplementation(((q: string) =>
-      q.includes("NOT IN (SELECT ParentId FROM ContactPointAddress)")
-        ? Promise.resolve({ success: false, error: "Query timed out after 120s" })
-        : respond(q)) as never);
-    org.Account = [{ Name: "Dr A" }];
+      q.includes("FROM ContactPointAddress") ? Promise.resolve({ success: false, error: "Query timed out after 120s" }) : respond(q)) as never);
     const c = (await run())["accounts.data.hcps-have-address"];
     expect(c.status).toBe("unknown");
     expect(c.detail).toContain("timed out");
   });
 
-  it("counts aligned accounts per territory of the active model, not with a model join", async () => {
+  it("matches sampled alignments to territory info by account and territory, telling inactive records from missing ones", async () => {
     org.Territory2Model = [{ Id: "0MA1", Name: "Live", State: "Active" }];
     org.Territory2 = [{ Id: "T1", Name: "North" }];
-    org.ObjectTerritory2Association = [{ Territory2Id: "T1", cnt: 10 }];
-    org.ProviderAcctTerritoryInfo = 10;
-    const r = await run();
-    expect(r["accounts.data.territory-info-coverage"].status).toBe("pass");
+    org.ObjectTerritory2Association = [
+      { ObjectId: "A1", Territory2Id: "T1" },
+      { ObjectId: "A2", Territory2Id: "T1" },
+      { ObjectId: "A3", Territory2Id: "T1" },
+    ];
+    org.ProviderAcctTerritoryInfo = (q) =>
+      q.includes("AccountId IN")
+        ? [
+            { AccountId: "A1", Territory2Id: "T1", IsActive: true },
+            { AccountId: "A2", Territory2Id: "T1", IsActive: false },
+            { AccountId: "A3", Territory2Id: "T9", IsActive: true },
+          ]
+        : [];
+    const c = (await run())["accounts.data.territory-info-coverage"];
+    expect(c.status).toBe("fail");
+    expect(c.detail).toBe("2 of 3 alignments have no active territory info: 1 has only inactive territory info, 1 has none. Checked all 3 account alignments.");
     const queries = vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0]));
-    expect(queries.some((q) => q.includes("FROM ObjectTerritory2Association") && q.includes("Territory2Model.State"))).toBe(false);
+    expect(queries.find((q) => q.includes("FROM ObjectTerritory2Association"))).toContain("Territory2Id IN ('T1')");
   });
 
-  it("flags expired active licenses", async () => {
-    org.BusinessLicense = [{ Name: "DEA", LicenseNumber: "X1", PeriodEnd: "2026-01-01" }];
+  it("flags expired active licenses of the sampled accounts", async () => {
+    org.ProviderAcctTerritoryInfo = [pati("A1", "Dr A", true)];
+    org.BusinessLicense = [{ Name: "DEA", LicenseNumber: "X1", PeriodEnd: "2026-01-01", AccountId: "A1" }];
     const c = (await run())["accounts.data.licenses-current"];
     expect(c.status).toBe("fail");
     expect(c.examples![0]).toContain("2026-01-01");
+    const queries = vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0]));
+    expect(queries.find((q) => q.includes("PeriodEnd < TODAY"))).toContain("AccountId IN ('A1')");
   });
 
   it("fails when the address formula field is not set", async () => {

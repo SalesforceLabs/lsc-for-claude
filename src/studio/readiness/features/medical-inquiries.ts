@@ -16,6 +16,19 @@ const QUEUES = ["Medical_Affairs", "Pharmacovigilance"];
 /** Drafts older than this were started and never submitted. */
 const DRAFT_DAYS = 30;
 
+/*
+ * Inquiry grows with every question a rep raises, and its Status has no index, so a count filtered on
+ * it reads the whole table. The Case check reads a fixed number of submitted inquiries (a plain filter
+ * with no ORDER BY, so the query stops early) and looks at them here; the drafts check counts inside a
+ * CreatedDate window, which uses the index.
+ */
+const SAMPLE_ROWS = 500;
+/** Only drafts created this recently are counted, so the count uses the CreatedDate index. */
+const DRAFT_WINDOW_DAYS = 365;
+
+/** "1 inquiry" / "3 inquiries". */
+const inquiries = (n: number, adjective = "") => `${n} ${adjective}${n === 1 ? "inquiry" : "inquiries"}`;
+
 const OFF: StudioCheckResult = { pass: true, skip: true, detail: "Medical Inquiries isn't available in this org." };
 
 const readiness: ReadinessModule = {
@@ -23,7 +36,8 @@ const readiness: ReadinessModule = {
   checks: async (org) => {
     const available = once(async () => {
       try {
-        await count(`SELECT COUNT() FROM Inquiry`, org);
+        // One row read tells whether the object exists; a count would scan every inquiry.
+        await query(`SELECT Id FROM Inquiry LIMIT 1`, org);
         return true;
       } catch (err) {
         if (isMissingObject(err)) return false;
@@ -92,7 +106,7 @@ const readiness: ReadinessModule = {
         {
           id: "medical-inquiries.data.case-linked",
           stage: "data",
-          title: "Every inquiry has its Case",
+          title: "Submitted inquiries have their Case",
           severity: "warning",
           why: "Medical affairs works the inquiry through its Case. An inquiry without one is never routed or answered.",
           steps: ["Check the Case routing handlers are on", "Re-save the inquiries listed, or create their Cases"],
@@ -100,10 +114,14 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         gate(async () => {
-          const total = await count(`SELECT COUNT() FROM Inquiry WHERE Status != 'Draft'`, org);
-          if (!total) return { pass: true, skip: true, detail: "No submitted inquiries yet." };
-          const n = await count(`SELECT COUNT() FROM Inquiry WHERE Status != 'Draft' AND CaseId = null`, org);
-          return n ? { pass: false, detail: `${n} of ${total} submitted inquiries have no Case.` } : { pass: true, detail: `${total} submitted ${total === 1 ? "inquiry" : "inquiries"}; all have a Case.` };
+          const rows = await query(`SELECT Name, CaseId FROM Inquiry WHERE Status != 'Draft' LIMIT ${SAMPLE_ROWS}`, org);
+          if (!rows.length) return { pass: true, skip: true, detail: "No submitted inquiries yet." };
+          const bare = rows.filter((r) => !r.CaseId);
+          const scope =
+            rows.length < SAMPLE_ROWS ? `Checked all ${inquiries(rows.length, "submitted ")}.` : `Checked a sample of ${SAMPLE_ROWS} submitted inquiries, not every one in the org.`;
+          return bare.length
+            ? { pass: false, detail: `${bare.length} of ${rows.length} ${bare.length === 1 ? "has" : "have"} no Case. ${scope}`, examples: bare.slice(0, 5).map((r) => String(r.Name)) }
+            : { pass: true, detail: `Every one has a Case. ${scope}` };
         })
       ),
       runCheck(
@@ -118,8 +136,13 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         gate(async () => {
-          const n = await count(`SELECT COUNT() FROM Inquiry WHERE Status = 'Draft' AND CreatedDate < LAST_N_DAYS:${DRAFT_DAYS}`, org);
-          return n ? { pass: false, detail: `${`${n} draft ${n === 1 ? "inquiry" : "inquiries"}`} older than ${DRAFT_DAYS} days.` } : { pass: true, detail: "No stale drafts." };
+          const n = await count(
+            `SELECT COUNT() FROM Inquiry WHERE Status = 'Draft' AND CreatedDate = LAST_N_DAYS:${DRAFT_WINDOW_DAYS} AND CreatedDate < LAST_N_DAYS:${DRAFT_DAYS}`,
+            org
+          );
+          return n
+            ? { pass: false, detail: `${inquiries(n, "draft ")} created ${DRAFT_DAYS} to ${DRAFT_WINDOW_DAYS} days ago ${n === 1 ? "is" : "are"} still unsubmitted. Drafts created earlier weren't counted.` }
+            : { pass: true, detail: `No draft created ${DRAFT_DAYS} to ${DRAFT_WINDOW_DAYS} days ago is still unsubmitted. Drafts created earlier weren't counted.` };
         })
       ),
       runCheck(

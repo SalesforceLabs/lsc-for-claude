@@ -9,8 +9,8 @@ const { collectCategoryRecords } = await import("../../../../src/config/collect.
 const { default: feature } = await import("../../../../src/studio/readiness/features/surveys.js");
 
 type Row = Record<string, unknown>;
-/** Rows (or a COUNT override) returned per outer FROM-object. */
-let org: Record<string, Row[] | number>;
+/** Rows (or a COUNT override) returned per outer FROM-object, or a function of the query. */
+let org: Record<string, Row[] | number | ((soql: string) => Row[] | number)>;
 let handlers: Row[];
 let schema: ConfigRecord[];
 
@@ -18,7 +18,8 @@ function respond(soql: string) {
   let outer = soql;
   while (/\([^()]*\)/.test(outer)) outer = outer.replace(/\([^()]*\)/g, "");
   const from = /FROM\s+(\w+)/i.exec(outer)?.[1] ?? "";
-  const v = org[from] ?? [];
+  const entry = org[from] ?? [];
+  const v = typeof entry === "function" ? entry(soql) : entry;
   const rows = typeof v === "number" ? [] : v;
   const total = typeof v === "number" ? v : rows.length;
   return Promise.resolve({ success: true, data: { totalSize: total, done: true, records: rows } });
@@ -32,12 +33,14 @@ beforeEach(() => {
   org = {};
   handlers = [];
   schema = [];
+  vi.mocked(runSoqlQuery).mockClear();
   vi.mocked(runSoqlQuery).mockImplementation(((q: string) => respond(q)) as never);
   vi.mocked(runToolingQuery).mockImplementation(((q: string) => (/FROM\s+LifeScienceTriggerHandler/i.test(q) ? Promise.resolve({ success: true, data: { totalSize: handlers.length, done: true, records: handlers } }) : respond(q))) as never);
   vi.mocked(collectCategoryRecords).mockImplementation((async () => schema) as never);
 });
 
 const run = async () => Object.fromEntries((await feature.checks!("test-org")).map((c) => [c.id, c]));
+const queries = () => vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0]));
 
 describe("surveys readiness", () => {
   it("fails mobile surveys without an active version", async () => {
@@ -55,8 +58,8 @@ describe("surveys readiness", () => {
   });
 
   it("offers to switch on the colleague sharing handler when managed events have survey invitations", async () => {
-    org.MngEvent = 1;
-    org.SurveyInvitation = 2;
+    org.MngEvent = [{ Id: "e1" }];
+    org.SurveyInvitation = [{ Id: "i1" }];
     handlers = [handler("ColleagueSurveySharingHandler", false)];
     const c = (await run())["surveys.enabled.colleague-sharing"];
     expect(c.status).toBe("fail");
@@ -64,7 +67,7 @@ describe("surveys readiness", () => {
   });
 
   it("skips the colleague sharing handler without managed event surveys", async () => {
-    org.SurveyInvitation = 2;
+    org.SurveyInvitation = [{ Id: "i1" }];
     handlers = [handler("ColleagueSurveySharingHandler", false)];
     expect((await run())["surveys.enabled.colleague-sharing"].status).toBe("skipped");
   });
@@ -86,9 +89,25 @@ describe("surveys readiness", () => {
   });
 
   it("flags offline responses that were never processed", async () => {
-    org.SurveyResponseOffline = 3;
+    org.SurveyResponseOffline = (q) => (q.includes("COUNT()") ? 3 : [{ Id: "r1" }]);
     const c = (await run())["surveys.data.unmigrated"];
     expect(c.status).toBe("fail");
+    expect(c.detail).toBe("3 offline responses from the last 90 days have waited over 2 days to be processed.");
+  });
+
+  it("checks for managed events and responses by reading one row, and counts only recent responses", async () => {
+    org.SurveyResponseOffline = (q) => (q.includes("COUNT()") ? 0 : [{ Id: "r1" }]);
+    const c = (await run())["surveys.data.unmigrated"];
+    expect(c.status).toBe("pass");
+    expect(c.detail).toBe("No offline response from the last 90 days has waited over 2 days.");
+    const q = queries();
+    expect(q).toContain("SELECT Id FROM MngEvent LIMIT 1");
+    expect(q).toContain("SELECT Id FROM SurveyInvitation LIMIT 1");
+    expect(q).toContain("SELECT Id FROM SurveyResponseOffline LIMIT 1");
+    const counts = q.filter((x) => x.includes("COUNT() FROM SurveyResponseOffline WHERE"));
+    expect(counts).toHaveLength(1);
+    expect(counts[0]).toContain("CreatedDate = LAST_N_DAYS:90");
+    expect(q.some((x) => /COUNT\(\) FROM MngEvent/.test(x))).toBe(false);
   });
 
   it("names the profile missing the response objects", async () => {

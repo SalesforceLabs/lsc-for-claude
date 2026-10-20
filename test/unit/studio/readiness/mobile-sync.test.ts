@@ -1,10 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ConfigRecord } from "../../../../src/config/types.js";
 
-vi.mock("../../../../src/salesforce/cli.js", () => ({ runSoqlQuery: vi.fn(), runToolingQuery: vi.fn() }));
+vi.mock("../../../../src/salesforce/cli.js", () => ({
+  runSoqlQuery: vi.fn(),
+  runToolingQuery: vi.fn(),
+  apiRequest: vi.fn(),
+  dataPath: vi.fn(async (_org: string, rest: string) => `/services/data/v67.0${rest}`),
+}));
 vi.mock("../../../../src/config/collect.js", () => ({ collectCategoryRecords: vi.fn() }));
 
-const { runSoqlQuery, runToolingQuery } = await import("../../../../src/salesforce/cli.js");
+const { apiRequest, runSoqlQuery, runToolingQuery } = await import("../../../../src/salesforce/cli.js");
 const { collectCategoryRecords } = await import("../../../../src/config/collect.js");
 const { default: mod } = await import("../../../../src/studio/readiness/features/mobile-sync.js");
 
@@ -36,6 +41,7 @@ beforeEach(() => {
   vi.mocked(runSoqlQuery).mockImplementation(((q: string) => respond(q)) as never);
   vi.mocked(runToolingQuery).mockImplementation(((q: string) => (/FROM\s+LifeScienceTriggerHandler/i.test(q) ? Promise.resolve({ success: true, data: { totalSize: handlers.length, done: true, records: handlers } }) : respond(q))) as never);
   vi.mocked(collectCategoryRecords).mockImplementation((async () => schema) as never);
+  vi.mocked(apiRequest).mockResolvedValue({ success: true, data: { sObjects: [] } } as never);
 });
 
 const run = async () => Object.fromEntries((await mod.checks!("test-org")).map((c) => [c.id, c]));
@@ -144,5 +150,17 @@ describe("mobile-sync readiness", () => {
     org.LifeSciConfigRecord = [{ n: "db_Account", m: ago(2) }];
     schema = [dataRec("Account", true)];
     expect((await run())["mobile-sync.mobile.cache-fresh"].status).toBe("pass");
+  });
+
+  it("sizes unfiltered high-volume objects from the org's record counts, counting only what they leave out", async () => {
+    schema = [dataRec("Task", true), dataRec("Event", true)];
+    vi.mocked(apiRequest).mockResolvedValue({ success: true, data: { sObjects: [{ name: "Task", count: 80_000 }] } } as never);
+    org.Event = 10;
+    const c = (await run())["mobile-sync.config.unfiltered-high-volume"];
+    expect(c.status).toBe("fail");
+    expect(c.examples).toEqual(["Task (80,000 rows)"]);
+    expect(String(vi.mocked(apiRequest).mock.calls[0][0])).toContain("/limits/recordCount?sObjects=Task%2CEvent");
+    const counts = vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0])).filter((q) => q.startsWith("SELECT COUNT() FROM"));
+    expect(counts).toEqual(["SELECT COUNT() FROM Event"]);
   });
 });

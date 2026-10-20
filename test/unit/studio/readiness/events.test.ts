@@ -43,7 +43,65 @@ const run = async () => Object.fromEntries((await mod.checks!("test-org")).map((
 const DAY = 24 * 60 * 60 * 1000;
 const ago = (days: number) => new Date(Date.now() - days * DAY).toISOString();
 
+const queries = () => vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0]));
+
 describe("events readiness", () => {
+  it("tells whether Managed Event exists from one row, not a count", async () => {
+    org.MngEvent = [{ Id: "1" }];
+    await run();
+    expect(queries()).toContain("SELECT Id FROM MngEvent LIMIT 1");
+    expect(queries().some((q) => q.includes("COUNT() FROM MngEvent"))).toBe(false);
+  });
+
+  it("checks event dates on a sample read with LIMIT and no ORDER BY, and says how much it read", async () => {
+    org.MngEvent = (q) =>
+      q.includes("EndDateTime")
+        ? [
+            { Name: "Good", StartDateTime: "2026-05-01T09:00:00Z", EndDateTime: "2026-05-01T10:00:00Z" },
+            { Name: "Backwards", StartDateTime: "2026-05-01T10:00:00Z", EndDateTime: "2026-05-01T09:00:00Z" },
+          ]
+        : [{ Id: "1" }];
+    const c = (await run())["events.data.event-dates"];
+    expect(c.status).toBe("fail");
+    expect(c.detail).toBe("1 of 2 ends before it starts. Checked all 2 events with an end date.");
+    expect(c.examples).toEqual(["Backwards"]);
+    const q = queries().find((q) => q.includes("EndDateTime != null"))!;
+    expect(q).toMatch(/LIMIT 500$/);
+    expect(q).not.toContain("ORDER BY");
+  });
+
+  it("says the event dates check covers a sample when there are more events than it reads", async () => {
+    const row = { Name: "E", StartDateTime: "2026-05-01T09:00:00Z", EndDateTime: "2026-05-01T10:00:00Z" };
+    org.MngEvent = (q) => (q.includes("EndDateTime") ? Array.from({ length: 500 }, () => row) : [{ Id: "1" }]);
+    const c = (await run())["events.data.event-dates"];
+    expect(c.status).toBe("pass");
+    expect(c.detail).toBe("Every one ends after it starts. Checked a sample of 500 events with an end date, not every one in the org.");
+  });
+
+  it("finds events carrying compliance statements from a sample, ignoring empty lists", async () => {
+    org.MngEvent = (q) =>
+      q.includes("ComplianceStatements")
+        ? [
+            { Name: "Empty", ComplianceStatements: "[]" },
+            { Name: "Blank", ComplianceStatements: null },
+            { Name: "Has one", ComplianceStatements: '[{"id":"x"}]' },
+          ]
+        : [{ Id: "1" }];
+    const c = (await run())["events.config.compliance"];
+    expect(c.status).toBe("fail");
+    expect(c.detail).toBe("1 of 3 events carries compliance statements but no definition exists. Checked all 3 events.");
+    expect(c.examples).toEqual(["Has one"]);
+    expect(queries().some((q) => q.includes("ComplianceStatements != null"))).toBe(false);
+    expect(queries().find((q) => q.includes("SELECT Name, ComplianceStatements FROM MngEvent"))).toMatch(/LIMIT 500$/);
+  });
+
+  it("passes the compliance check on definitions alone, without reading events", async () => {
+    org.MngEvent = [{ Id: "1" }];
+    org.ComplianceStatementDef = 2;
+    expect((await run())["events.config.compliance"].status).toBe("pass");
+    expect(queries().some((q) => q.includes("ComplianceStatements FROM MngEvent"))).toBe(false);
+  });
+
   it("skips everything when Managed Event is not in the org", async () => {
     org.MngEvent = new Error("sObject type 'MngEvent' is not supported");
     const r = await run();

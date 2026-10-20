@@ -1,7 +1,7 @@
 /** Activity Plan readiness: its validation rules plus Studio's own checks. */
 
 import { activeTerritories } from "../../collectors/territory-users.js";
-import { countGroupedBy, plural, query } from "../../helpers.js";
+import { countGroupedBy, plural, query, queryByIds, type Row } from "../../helpers.js";
 import { runCheck, type ReadinessModule } from "../index.js";
 import {
   countOf,
@@ -17,6 +17,36 @@ import {
 
 const CURRENT = `TimePeriod.StartDate <= TODAY AND TimePeriod.EndDate >= TODAY`;
 
+/*
+ * Goals and measures are big tables (one goal per account per plan), so the goal checks never ask
+ * "is any goal in the org missing X?" — with no match that scans every goal and times out in large
+ * orgs. Instead each active plan's first few goals are read by plan id (an index), and their
+ * measures are looked up by goal id. Plans and plan territories are small and read whole.
+ */
+/** Goals read in all, spread over the active plans. */
+const SAMPLE_GOALS = 500;
+/** Goals read per plan, at least. */
+const MIN_GOALS_PER_PLAN = 5;
+/** Active plans whose goals are read, one query each. */
+const MAX_PLANS = 200;
+
+/** "1 goal" / "3 goals", spelled out for nouns that don't just take an "s". */
+const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : more}`;
+const hasHave = (n: number) => (n === 1 ? "has" : "have");
+
+interface GoalSample {
+  /** Active plans, by name (at most MAX_PLANS were read for goals). */
+  plans: Row[];
+  /** Active plans in the org. */
+  totalPlans: number;
+  /** Goals read per plan id. */
+  goals: Map<string, Row[]>;
+  /** Goals read per plan. */
+  perPlan: number;
+  /** Every goal of every active plan was read. */
+  complete: boolean;
+}
+
 const readiness: ReadinessModule = {
   ruleFiles: ["activity-plan-config.yaml"],
   checks: async (org) => {
@@ -29,6 +59,32 @@ const readiness: ReadinessModule = {
       const users = await countGroupedBy("UserTerritory2Association", "Territory2Id", rows.map((t) => String(t.Id)), org, "IsActive = true");
       return rows.filter((t) => users.get(String(t.Id))).map((t) => ({ Territory2Id: String(t.Id), tname: String(t.Name), cnt: users.get(String(t.Id)) }));
     });
+
+    const activePlans = lazy(() => query(`SELECT Id, Name FROM ActivityPlan WHERE IsActive = true ORDER BY Name`, org));
+    const goalSample = lazy(async (): Promise<GoalSample> => {
+      const all = await activePlans();
+      const plans = all.slice(0, MAX_PLANS);
+      const perPlan = Math.max(MIN_GOALS_PER_PLAN, Math.ceil(SAMPLE_GOALS / Math.max(1, plans.length)));
+      const goals = new Map<string, Row[]>();
+      await Promise.all(
+        plans.map(async (p) => {
+          const rows = await query(`SELECT Id, Name FROM ProviderActivityGoal WHERE ActivityPlanId = '${p.Id}' LIMIT ${perPlan}`, org);
+          goals.set(String(p.Id), rows);
+        })
+      );
+      const complete = plans.length === all.length && [...goals.values()].every((g) => g.length < perPlan);
+      return { plans, totalPlans: all.length, goals, perPlan, complete };
+    });
+    // Measures of the sampled goals, looked up by goal id.
+    const measures = lazy(async () => {
+      const ids = [...(await goalSample()).goals.values()].flat().map((g) => String(g.Id));
+      return queryByIds("ProviderActivityGoalId, Type, ActivityWeightValue", "ProviderActivityGoalMeasure", "ProviderActivityGoalId", ids, org);
+    });
+    /** What the goal checks looked at, so a pass is never read as "every goal in the org". */
+    const goalScope = (s: GoalSample, goals: number) =>
+      s.complete
+        ? `Checked all ${many(goals, "goal", "goals")} on active plans.`
+        : `Checked ${many(goals, "goal", "goals")} across ${many(s.plans.length, "active plan", "active plans")} (up to ${s.perPlan} per plan), not every goal in the org.`;
 
     // Field profiles of users in a territory that has a plan — they need plans offline.
     const planUsers = lazy(() =>
@@ -134,12 +190,12 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const rows = await query(
-            `SELECT Name FROM ActivityPlan WHERE IsActive = true AND Id NOT IN (SELECT ActivityPlanId FROM ActivityPlanTerritory) LIMIT 50`,
-            org
-          );
+          const plans = await activePlans();
+          if (!plans.length) return { pass: true, detail: "No active plans." };
+          const linked = await countGroupedBy("ActivityPlanTerritory", "ActivityPlanId", plans.map((p) => String(p.Id)), org);
+          const rows = plans.filter((p) => !linked.has(String(p.Id)));
           return rows.length
-            ? { pass: false, detail: `${plural(rows.length, "active plan")} with no territory.`, examples: labels(rows) }
+            ? { pass: false, detail: `${plural(rows.length, "active plan")} with no territory.`, examples: labels(rows.slice(0, 50)) }
             : { pass: true, detail: "All linked." };
         }
       ),
@@ -180,12 +236,10 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const [people, covered] = await Promise.all([
-            staffed(),
-            query(`SELECT TerritoryId FROM ActivityPlanTerritory WHERE ActivityPlan.IsActive = true`, org),
-          ]);
+          const people = await staffed();
           if (people.length === 0) return { pass: true, skip: true, detail: "No users are assigned to the active model's territories." };
-          const have = new Set(covered.map((r) => String(r.TerritoryId)));
+          // Looked up by territory id, so the cost follows the staffed territories, not every plan link.
+          const have = await countGroupedBy("ActivityPlanTerritory", "TerritoryId", people.map((r) => r.Territory2Id), org, "ActivityPlan.IsActive = true");
           const bare = people.filter((r) => !have.has(String(r.Territory2Id)));
           return bare.length
             ? {
@@ -209,13 +263,16 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const rows = await query(
-            `SELECT Name FROM ActivityPlan WHERE IsActive = true AND Id NOT IN (SELECT ActivityPlanId FROM ProviderActivityGoal) LIMIT 50`,
-            org
-          );
+          const s = await goalSample();
+          if (!s.plans.length) return { pass: true, detail: "No active plans." };
+          const rows = s.plans.filter((p) => !s.goals.get(String(p.Id))?.length);
+          const scope =
+            s.plans.length === s.totalPlans
+              ? `Checked all ${many(s.totalPlans, "active plan", "active plans")}.`
+              : `Checked ${s.plans.length} of ${s.totalPlans} active plans, not every one in the org.`;
           return rows.length
-            ? { pass: false, detail: `${plural(rows.length, "active plan")} with no goals.`, examples: labels(rows) }
-            : { pass: true, detail: "All have goals." };
+            ? { pass: false, detail: `${plural(rows.length, "active plan")} with no goals. ${scope}`, examples: labels(rows.slice(0, 50)) }
+            : { pass: true, detail: `All have goals. ${scope}` };
         }
       ),
 
@@ -223,7 +280,7 @@ const readiness: ReadinessModule = {
         {
           id: "activity-plan.data.goal-measures",
           stage: "data",
-          title: "Every goal on an active plan has measures",
+          title: "Goals on active plans have measures",
           severity: "warning",
           why: "Measures carry the actual targets (e.g. 7 face-to-face visits). A goal with none shows 0 of 0 and can't attain.",
           steps: ["Add Provider Activity Goal Measure records for the goals, one per activity type."],
@@ -231,11 +288,16 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const n = await countOf(
-            `SELECT COUNT() FROM ProviderActivityGoal WHERE ActivityPlan.IsActive = true AND Id NOT IN (SELECT ProviderActivityGoalId FROM ProviderActivityGoalMeasure)`,
-            org
-          );
-          return n ? { pass: false, detail: `${plural(n, "goal")} on active plans with no measures.` } : { pass: true, detail: "All goals have measures." };
+          const s = await goalSample();
+          const names = new Map([...s.plans].map((p) => [String(p.Id), String(p.Name ?? p.Id)]));
+          const goals = [...s.goals].flatMap(([plan, rows]) => rows.map((g) => ({ id: String(g.Id), label: `${g.Name ?? g.Id} (${names.get(plan)})` })));
+          if (!goals.length) return { pass: true, skip: true, detail: "No goals on active plans." };
+          const measured = new Set((await measures()).map((m) => String(m.ProviderActivityGoalId)));
+          const none = goals.filter((g) => !measured.has(g.id));
+          const scope = goalScope(s, goals.length);
+          return none.length
+            ? { pass: false, detail: `${none.length} of ${goals.length} ${hasHave(none.length)} no measures. ${scope}`, examples: none.slice(0, 5).map((g) => g.label) }
+            : { pass: true, detail: `Every goal checked has measures. ${scope}` };
         }
       ),
 
@@ -290,13 +352,18 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const n = await countOf(
-            `SELECT COUNT() FROM ProviderActivityGoalMeasure WHERE Type LIKE '%Weighted%' AND ActivityWeightValue = null`,
-            org
-          );
-          const weighted = await countOf(`SELECT COUNT() FROM ProviderActivityGoalMeasure WHERE Type LIKE '%Weighted%'`, org);
-          if (weighted === 0) return { pass: true, skip: true, detail: "No weighted measures." };
-          return n ? { pass: false, detail: `${n} of ${weighted} weighted measures have no weight.` } : { pass: true, detail: `${weighted} weighted measures all weighted.` };
+          // Measures of the sampled goals on active plans: Type and the weight aren't indexed, so asking
+          // the whole measure table would scan it.
+          const s = await goalSample();
+          const goals = [...s.goals.values()].reduce((a, g) => a + g.length, 0);
+          const weighted = (await measures()).filter((m) => /weighted/i.test(String(m.Type ?? "")));
+          if (weighted.length === 0)
+            return { pass: true, skip: true, detail: s.complete ? "No weighted measures." : `No weighted measures on the ${many(goals, "goal", "goals")} checked.` };
+          const n = weighted.filter((m) => m.ActivityWeightValue === null || m.ActivityWeightValue === undefined).length;
+          const scope = goalScope(s, goals);
+          return n
+            ? { pass: false, detail: `${n} of ${weighted.length} weighted measures ${hasHave(n)} no weight. ${scope}` }
+            : { pass: true, detail: `${many(weighted.length, "weighted measure", "weighted measures")}, all weighted. ${scope}` };
         }
       ),
 

@@ -7,6 +7,11 @@ import { runCheck, type ReadinessModule } from "../index.js";
 import { countOf, dbSchemaCheck, handlersCheck, lazy, loadDbSchema, loadHandlers } from "./_activity-plan-shared.js";
 
 const ID_PATTERN = /^[a-zA-Z0-9]{15,18}$/;
+/**
+ * Events and visits run to millions of rows and their start time isn't a field a count can use
+ * cheaply, so the calendar check reads at most this many ids of each and stops there.
+ */
+const SAMPLE_ROWS = 500;
 
 const readiness: ReadinessModule = {
   ruleFiles: ["calendar-tot-routine-config.yaml"],
@@ -158,13 +163,17 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
+          // Up to SAMPLE_ROWS ids each: enough to tell a live calendar from an empty one without counting it.
+          const read = async (soql: string) => (await query(`${soql} LIMIT ${SAMPLE_ROWS}`, org)).length;
           const [events, visits] = await Promise.all([
-            countOf(`SELECT COUNT() FROM Event WHERE StartDateTime >= LAST_N_DAYS:30`, org),
-            countOf(`SELECT COUNT() FROM Visit WHERE PlannedVisitStartTime >= LAST_N_DAYS:30`, org).catch(() => 0),
+            read(`SELECT Id FROM Event WHERE StartDateTime >= LAST_N_DAYS:30`),
+            read(`SELECT Id FROM Visit WHERE PlannedVisitStartTime >= LAST_N_DAYS:30`).catch(() => 0),
           ]);
           if (!events && !visits) return { pass: false, detail: "No events or visits in the last 30 days or ahead." };
-          const parts = [events ? plural(events, "event") : "", visits ? plural(visits, "visit") : ""].filter(Boolean);
-          return { pass: true, detail: `${parts.join(" and ")} in the window.` };
+          const counted = (n: number, noun: string) => (n >= SAMPLE_ROWS ? `${SAMPLE_ROWS} or more ${noun}s` : plural(n, noun));
+          const parts = [events ? counted(events, "event") : "", visits ? counted(visits, "visit") : ""].filter(Boolean);
+          const stopped = events >= SAMPLE_ROWS || visits >= SAMPLE_ROWS ? ` Stopped counting at ${SAMPLE_ROWS} of each.` : "";
+          return { pass: true, detail: `${parts.join(" and ")} in the window.${stopped}` };
         }
       ),
 

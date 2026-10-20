@@ -33,6 +33,17 @@ const MAIN = "LifeScienceEmail";
 /** Above this share of sent emails bouncing, the addresses need a look. */
 const BOUNCE_RATE = 0.05;
 
+/*
+ * LifeScienceEmail keeps every email ever queued, and Status and IsBounced aren't indexed. The
+ * data checks count only emails created in a recent window on CreatedDate, which is, so their
+ * cost follows recent sending rather than the size of the queue's history.
+ */
+const WINDOW_DAYS = 90;
+const RECENT = `CreatedDate = LAST_N_DAYS:${WINDOW_DAYS}`;
+const STUCK = "Status IN ('New', 'Retry')";
+/** Emails from before the window read to find an old backlog. */
+const OLDER_ROWS = 500;
+
 const ACTIVE_JOB_STATES = "'WAITING', 'ACQUIRED', 'EXECUTING'";
 
 const readiness: ReadinessModule = {
@@ -177,14 +188,24 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const [stuck, jobOn] = await Promise.all([
-            count(`SELECT COUNT() FROM LifeScienceEmail WHERE Status IN ('New', 'Retry') AND CreatedDate < LAST_N_DAYS:1`, org),
+          // A count over the window, plus the newest emails before it read down the CreatedDate
+          // index, so a backlog left in an org that stopped sending still shows.
+          const [recent, older, jobOn] = await Promise.all([
+            count(`SELECT COUNT() FROM LifeScienceEmail WHERE ${STUCK} AND ${RECENT} AND CreatedDate < LAST_N_DAYS:1`, org),
+            query(`SELECT Status FROM LifeScienceEmail WHERE CreatedDate < LAST_N_DAYS:${WINDOW_DAYS} ORDER BY CreatedDate DESC LIMIT ${OLDER_ROWS}`, org),
             scheduled("EmailQueueSendSchedulable"),
           ]);
-          if (!stuck) return { pass: true, detail: "Nothing is stuck." };
+          const old = older.filter((r) => r.Status === "New" || r.Status === "Retry").length;
+          const scope = !older.length
+            ? "Checked every email in the queue."
+            : older.length < OLDER_ROWS
+              ? `Checked every email from the last ${WINDOW_DAYS} days and all ${older.length} older ones.`
+              : `Checked every email from the last ${WINDOW_DAYS} days and the newest ${OLDER_ROWS} before that, not every one in the org.`;
+          if (!recent && !old) return { pass: true, detail: `Nothing is stuck. ${scope}` };
+          const parts = [recent ? `${recent} from the last ${WINDOW_DAYS} days` : "", old ? `${old} older` : ""].filter(Boolean).join(", ");
           return {
             pass: false,
-            detail: `${plural(stuck, "email")} waiting more than a day${jobOn ? "" : "; the Send Email job isn't scheduled"}.`,
+            detail: `${plural(recent + old, "email")} waiting more than a day (${parts})${jobOn ? "" : "; the Send Email job isn't scheduled"}. ${scope}`,
           };
         }
       ),
@@ -193,7 +214,7 @@ const readiness: ReadinessModule = {
         {
           id: "field-email.data.bounced",
           stage: "data",
-          title: "Fewer than 5% of sent emails have bounced",
+          title: `Fewer than 5% of emails sent in the last ${WINDOW_DAYS} days bounced`,
           severity: "info",
           why: "Bounces point at wrong or retired addresses. Each one is an HCP who thinks they've been contacted and wasn't, so clean up the contact point.",
           steps: ["Report on Emails with Bounced checked", "Correct or remove the address on the HCP's Contact Point Email"],
@@ -202,16 +223,16 @@ const readiness: ReadinessModule = {
         },
         async () => {
           const [bounced, sent] = await Promise.all([
-            count(`SELECT COUNT() FROM LifeScienceEmail WHERE IsBounced = true`, org),
-            count(`SELECT COUNT() FROM LifeScienceEmail WHERE Status = 'Success'`, org),
+            count(`SELECT COUNT() FROM LifeScienceEmail WHERE IsBounced = true AND ${RECENT}`, org),
+            count(`SELECT COUNT() FROM LifeScienceEmail WHERE Status = 'Success' AND ${RECENT}`, org),
           ]);
-          if (!sent && !bounced) return { pass: true, skip: true, detail: "No emails have been sent yet." };
-          if (!bounced) return { pass: true, detail: `None of ${plural(sent, "sent email")} bounced.` };
+          if (!sent && !bounced) return { pass: true, skip: true, detail: `No emails were sent in the last ${WINDOW_DAYS} days.` };
+          const window = `in the last ${WINDOW_DAYS} days`;
+          if (!bounced) return { pass: true, detail: `None of ${plural(sent, "email")} sent ${window} bounced.` };
           const total = Math.max(sent, bounced);
           const pct = Math.round((bounced / total) * 100);
-          return bounced / total > BOUNCE_RATE
-            ? { pass: false, detail: `${bounced} of ${plural(total, "sent email")} bounced (${pct}%).` }
-            : { pass: true, detail: `${bounced} of ${plural(total, "sent email")} bounced (${pct}%).` };
+          const detail = `${bounced} of ${plural(total, "email")} sent ${window} bounced (${pct}%).`;
+          return { pass: bounced / total <= BOUNCE_RATE, detail };
         }
       ),
 

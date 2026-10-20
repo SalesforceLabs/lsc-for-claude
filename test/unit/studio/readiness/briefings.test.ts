@@ -52,15 +52,50 @@ describe("briefings readiness", () => {
   });
 
   it("fails when briefings are older than the stale window", async () => {
-    org.PresentationContent = [{ latest: ago(30), cnt: 5 }];
+    org.PresentationContent = [{ Id: "p1", CreatedDate: ago(30) }];
     const c = (await run())["briefings.data.briefings-current"];
     expect(c.status).toBe("fail");
     expect(c.detail).toContain("30 days ago");
   });
 
   it("passes when briefings are recent", async () => {
-    org.PresentationContent = [{ latest: ago(1), cnt: 5 }];
+    org.PresentationContent = [{ Id: "p1", CreatedDate: ago(1) }];
     expect((await run())["briefings.data.briefings-current"].status).toBe("pass");
+  });
+
+  const queries = () => vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0]));
+
+  it("reads the newest briefing and summary by an indexed field, without counting either table", async () => {
+    org.PresentationContent = [{ Id: "p1", CreatedDate: ago(2) }];
+    org.PrvdAccountTerritorySummary = [{ SystemModstamp: ago(3) }];
+    const r = await run();
+    expect(r["briefings.data.briefings-current"].detail).toBe("The newest briefing was created 2 days ago.");
+    expect(r["briefings.data.summaries-current"].detail).toBe("The newest account summary was updated 3 days ago.");
+    const q = queries();
+    expect(q).toContain("SELECT CreatedDate FROM PresentationContent ORDER BY CreatedDate DESC LIMIT 1");
+    expect(q).toContain("SELECT SystemModstamp FROM PrvdAccountTerritorySummary ORDER BY SystemModstamp DESC LIMIT 1");
+    expect(q.some((s) => /COUNT\(|MAX\(/.test(s) && /PresentationContent|PrvdAccountTerritorySummary/.test(s))).toBe(false);
+  });
+
+  it("fails summaries when none exist", async () => {
+    org.PresentationContent = [{ Id: "p1" }];
+    expect((await run())["briefings.data.summaries-current"].status).toBe("fail");
+  });
+
+  it("looks up each receiving profile's briefings by its users' ids", async () => {
+    org.PrstCntntDefAssignment = [{ IsActive: true, AssignedTo: { Name: "Rep" } }, { IsActive: true, AssignedTo: { Name: "Manager" } }];
+    org.PermissionSetAssignment = (q) => (q.includes("Profile.Name = 'Rep'") && !q.includes("GROUP BY") ? [{ AssigneeId: "U1" }, { AssigneeId: "U1" }, { AssigneeId: "U2" }] : []);
+    org.User = (q) => (q.includes("Profile.Name = 'Manager'") ? [{ Id: "M1" }] : []);
+    org.PresentationContent = (q) => (q.includes("TargetUserId IN ('U1','U2')") ? [{ Id: "p1" }] : q.includes("TargetUserId") ? [] : [{ Id: "p0" }]);
+    const c = (await run())["briefings.data.profiles-have-content"];
+    expect(c.status).toBe("fail");
+    expect(c.examples).toEqual(["Manager"]);
+    expect(c.detail).toBe(
+      "1 profile with no briefings yet: Manager. Checked all 3 users with Use Briefings in these profiles (every active user where none has it)."
+    );
+    const q = queries();
+    expect(q).toContain("SELECT Id FROM PresentationContent WHERE TargetUserId IN ('M1') LIMIT 1");
+    expect(q.some((s) => s.includes("GROUP BY TargetUser.Profile.Name"))).toBe(false);
   });
 
   it("fails licenses that are missing from the org", async () => {

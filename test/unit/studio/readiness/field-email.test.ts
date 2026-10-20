@@ -94,14 +94,38 @@ describe("field email readiness", () => {
     emails(1, 40);
     const c = (await run())["field-email.data.bounced"];
     expect(c.status).toBe("pass");
-    expect(c.detail).toBe("1 of 40 sent emails bounced (3%).");
+    expect(c.detail).toBe("1 of 40 emails sent in the last 90 days bounced (3%).");
   });
 
   it("fails a bounce rate over 5%", async () => {
     emails(3, 20);
     const c = (await run())["field-email.data.bounced"];
     expect(c.status).toBe("fail");
-    expect(c.detail).toBe("3 of 20 sent emails bounced (15%).");
+    expect(c.detail).toBe("3 of 20 emails sent in the last 90 days bounced (15%).");
+  });
+
+  it("counts only emails created in the last 90 days", async () => {
+    emails(0, 0);
+    const r = await run();
+    expect(r["field-email.data.bounced"].status).toBe("skipped");
+    expect(r["field-email.data.bounced"].title).toBe("Fewer than 5% of emails sent in the last 90 days bounced");
+    expect(r["field-email.data.queue-stuck"].detail).toBe("Nothing is stuck. Checked every email in the queue.");
+    const all = vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0]));
+    const q = all.filter((s) => s.includes("COUNT() FROM LifeScienceEmail WHERE"));
+    expect(q).toHaveLength(3);
+    for (const s of q) expect(s).toContain("CreatedDate = LAST_N_DAYS:90");
+    expect(all).toContain("SELECT Status FROM LifeScienceEmail WHERE CreatedDate < LAST_N_DAYS:90 ORDER BY CreatedDate DESC LIMIT 500");
+  });
+
+  it("still finds a backlog left from before the window, among the newest older emails", async () => {
+    org.AsyncApexJob = 1;
+    vi.mocked(runSoqlQuery).mockImplementation(((q: string) =>
+      q.startsWith("SELECT Status FROM LifeScienceEmail")
+        ? Promise.resolve({ success: true, data: { totalSize: 500, done: true, records: [{ Status: "Retry" }, { Status: "New" }, ...Array.from({ length: 498 }, () => ({ Status: "Success" }))] } })
+        : respond(q)) as never);
+    const c = (await run())["field-email.data.queue-stuck"];
+    expect(c.status).toBe("fail");
+    expect(c.detail).toBe("2 emails waiting more than a day (2 older). Checked every email from the last 90 days and the newest 500 before that, not every one in the org.");
   });
 
   it("reads which profiles send email from LifeScienceEmail, not shared consent objects", async () => {

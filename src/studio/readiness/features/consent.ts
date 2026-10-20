@@ -22,6 +22,18 @@ const REFERENCE_OBJECTS = ["CommSubscription", "CommSubscriptionChannelType", "E
 /** What capturing consent writes and reads on the iPad. */
 const CAPTURE_OBJECTS = ["CommSubscriptionConsent", "CommSubConsentCmplSnpsht", "ContactPointEmail", "ContactPointPhone", "DigitalSignature"];
 
+/*
+ * CommSubscriptionConsent holds a row per HCP, subscription and channel, so in a large org it has
+ * millions. Its status and end date fields have no index: a count filtered on them alone reads every
+ * row, and is slowest when nothing matches. The data checks either count inside a CreatedDate window
+ * (indexed) or read a fixed number of Opt In consents and look at their end dates here.
+ */
+const SAMPLE_ROWS = 500;
+/** A pending consent older than this hasn't been confirmed. */
+const PENDING_DAYS = 30;
+/** Only consents created this recently are counted, so the count uses the CreatedDate index. */
+const PENDING_WINDOW_DAYS = 365;
+
 const readiness: ReadinessModule = {
   ruleFiles: ["consent-management-config.yaml"],
   checks: async (org) => {
@@ -183,10 +195,12 @@ const readiness: ReadinessModule = {
         },
         async () => {
           const n = await count(
-            `SELECT COUNT() FROM CommSubscriptionConsent WHERE PrivacyConsentStatus IN ('OptInPending','OptOutPending') AND CreatedDate < LAST_N_DAYS:30`,
+            `SELECT COUNT() FROM CommSubscriptionConsent WHERE PrivacyConsentStatus IN ('OptInPending','OptOutPending') AND CreatedDate = LAST_N_DAYS:${PENDING_WINDOW_DAYS} AND CreatedDate < LAST_N_DAYS:${PENDING_DAYS}`,
             org
           );
-          return n ? { pass: false, detail: `${plural(n, "consent")} pending for more than 30 days.` } : { pass: true, detail: "No stale pending consents." };
+          return n
+            ? { pass: false, detail: `${plural(n, "consent")} created ${PENDING_DAYS} to ${PENDING_WINDOW_DAYS} days ago ${n === 1 ? "is" : "are"} still pending. Consents created earlier weren't counted.` }
+            : { pass: true, detail: `No consent created ${PENDING_DAYS} to ${PENDING_WINDOW_DAYS} days ago is still pending. Consents created earlier weren't counted.` };
         }
       ),
 
@@ -202,8 +216,22 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const n = await count(`SELECT COUNT() FROM CommSubscriptionConsent WHERE PrivacyConsentStatus = 'OptIn' AND EffectiveToDate < TODAY`, org);
-          return n ? { pass: false, detail: `${plural(n, "Opt In consent")} past the end date.` } : { pass: true, detail: "None past their end date." };
+          // Opt In is most consents, so this filter fills the sample quickly; the end date is checked here.
+          const rows = await query(`SELECT Name, EffectiveToDate FROM CommSubscriptionConsent WHERE PrivacyConsentStatus = 'OptIn' LIMIT ${SAMPLE_ROWS}`, org);
+          if (!rows.length) return { pass: true, skip: true, detail: "No Opt In consents." };
+          const today = new Date().toLocaleDateString("en-CA");
+          const expired = rows.filter((r) => r.EffectiveToDate && String(r.EffectiveToDate).slice(0, 10) < today);
+          const scope =
+            rows.length < SAMPLE_ROWS
+              ? `Checked all ${plural(rows.length, "Opt In consent")}.`
+              : `Checked a sample of ${SAMPLE_ROWS} Opt In consents, not every one in the org.`;
+          return expired.length
+            ? {
+                pass: false,
+                detail: `${expired.length} of ${rows.length} ${expired.length === 1 ? "is" : "are"} past the end date. ${scope}`,
+                examples: expired.slice(0, 5).map((r) => `${r.Name} (ended ${String(r.EffectiveToDate).slice(0, 10)})`),
+              }
+            : { pass: true, detail: `None is past its end date. ${scope}` };
         }
       ),
 

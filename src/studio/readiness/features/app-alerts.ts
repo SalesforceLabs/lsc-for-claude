@@ -1,7 +1,7 @@
 /** App Alerts readiness: its validation rules plus Studio's own checks. */
 
 import { fieldProfiles } from "../../collectors/territory-users.js";
-import { count, plural, query } from "../../helpers.js";
+import { count, countGroupedBy, plural, query, queryByIds } from "../../helpers.js";
 import { runCheck, type ReadinessModule } from "../index.js";
 import { handlersResult, loadDbSchema, nameList, syncResult } from "./_consent-sync.js";
 
@@ -15,8 +15,21 @@ const HANDLERS = ["NotificationTerritorySharingHandler"];
  */
 const ALERT_OBJECTS = ["AppAlert", "AppAlertUserResponse"];
 
-/** How many untargeted alerts are read to sort out the personal ones. */
-const UNTARGETED_LIMIT = 2000;
+/*
+ * Personal notifications make AppAlert grow with the number of reps, so the checks below read a
+ * fixed number of alerts and look up their territories and sharing by alert id, instead of asking
+ * the whole table with an anti-join (which reads every alert and share row when the answer is
+ * "none"). When the org has fewer alerts than the sample size, the sample is all of them.
+ */
+const SAMPLE_ROWS = 500;
+
+/** "1 alert" / "the only alert" / "all 7 alerts". */
+const allOf = (n: number, one: string, more: string) => (n === 1 ? `the only ${one}` : `all ${n} ${more}`);
+
+/** The sentence saying what was looked at, so a pass is never read as "the whole org is clean". */
+function checkedNote(rows: Record<string, unknown>[], one: string, more: string): string {
+  return rows.length < SAMPLE_ROWS ? `Checked ${allOf(rows.length, one, more)}.` : `Checked a sample of ${SAMPLE_ROWS} ${more}, not every one in the org.`;
+}
 
 /** Alerts whose dates say they are showing today. */
 const LIVE = `FROM AppAlert WHERE EffectiveDate <= TODAY AND (ValidUntilDate = null OR ValidUntilDate >= TODAY)`;
@@ -44,7 +57,7 @@ const readiness: ReadinessModule = {
         {
           id: "app-alerts.access.targeted",
           stage: "access",
-          title: "Every alert in effect is targeted to a territory",
+          title: "Alerts in effect are targeted to a territory",
           severity: "warning",
           why: "Alerts reach reps through their territories. One with no territory, owned by someone who isn't a rep and shared with nobody else, never appears in anyone's notification pane or Home Office Announcements widget. Alerts owned by a rep (personal notifications) reach their owner, so they aren't counted.",
           steps: ["Open the alert in App Launcher > App Alerts", "Add an App Alert Territory for each territory that should see it"],
@@ -52,26 +65,26 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const total = await count(`SELECT COUNT() ${LIVE}`, org);
-          if (!total) return { pass: true, skip: true, detail: "No alerts are in effect." };
-          const [untargeted, field] = await Promise.all([
-            query(
-              `SELECT Id, Subject, Owner.Profile.Name ${LIVE} AND Id NOT IN (SELECT AlertReferenceRecordId FROM AppAlertTerritory) AND Id NOT IN (SELECT ParentId FROM AppAlertShare WHERE RowCause != 'Owner') LIMIT ${UNTARGETED_LIMIT}`,
-              org
-            ),
+          const live = await query(`SELECT Id, Subject, Owner.Profile.Name ${LIVE} LIMIT ${SAMPLE_ROWS}`, org);
+          if (!live.length) return { pass: true, skip: true, detail: "No alerts are in effect." };
+          const ids = live.map((r) => String(r.Id));
+          const [territories, shares, field] = await Promise.all([
+            countGroupedBy("AppAlertTerritory", "AlertReferenceRecordId", ids, org),
+            countGroupedBy("AppAlertShare", "ParentId", ids, org, "RowCause != 'Owner'"),
             fieldProfiles(org).catch(() => [] as string[]),
           ]);
           // An alert owned by a rep is a personal notification: it reaches its owner.
           const reps = new Set(field.map((p) => p.toLowerCase()));
           const ownerProfile = (r: Record<string, unknown>) => String((r.Owner as { Profile?: { Name?: string } } | null)?.Profile?.Name ?? "").toLowerCase();
-          const rows = untargeted.filter((r) => !reps.has(ownerProfile(r)));
+          const rows = live.filter((r) => !territories.has(String(r.Id)) && !shares.has(String(r.Id)) && !reps.has(ownerProfile(r)));
+          const scope = checkedNote(live, "alert in effect", "alerts in effect");
           return rows.length
             ? {
                 pass: false,
-                detail: `${rows.length}${untargeted.length === UNTARGETED_LIMIT ? "+" : ""} of ${plural(total, "alert")} in effect have no territory and reach nobody but their owner.`,
+                detail: `${rows.length} of ${live.length} have no territory and reach nobody but their owner. ${scope}`,
                 examples: nameList(rows.slice(0, 20), "Subject"),
               }
-            : { pass: true, detail: `All ${plural(total, "alert")} in effect are targeted.` };
+            : { pass: true, detail: `Every one is targeted. ${scope}` };
         }
       ),
 
@@ -157,7 +170,7 @@ const readiness: ReadinessModule = {
         {
           id: "app-alerts.data.expired",
           stage: "data",
-          title: "Fewer than half of all alerts have expired",
+          title: "Fewer than half of the alerts have expired",
           severity: "info",
           why: "Expired alerts are hidden but still counted and synced to some devices. A large pile of them slows lists and hides what's current.",
           steps: ["Report on App Alerts with Valid Until in the past", "Delete the ones you no longer need"],
@@ -165,14 +178,13 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const [expired, total] = await Promise.all([
-            count(`SELECT COUNT() FROM AppAlert WHERE ValidUntilDate < TODAY`, org),
-            count(`SELECT COUNT() FROM AppAlert`, org),
-          ]);
-          if (!total) return { pass: true, skip: true, detail: "No alerts yet." };
-          return expired * 2 > total
-            ? { pass: false, detail: `${expired} of ${plural(total, "alert")} have expired.` }
-            : { pass: true, detail: `${expired} of ${plural(total, "alert")} have expired.` };
+          // A share, so a sample answers it; counting every alert doesn't scale with personal notifications.
+          const rows = await query(`SELECT Id FROM AppAlert LIMIT ${SAMPLE_ROWS}`, org);
+          if (!rows.length) return { pass: true, skip: true, detail: "No alerts yet." };
+          // TODAY in SOQL is the org's day, not this machine's.
+          const expired = (await queryByIds("Id", "AppAlert", "Id", rows.map((r) => String(r.Id)), org, "ValidUntilDate < TODAY")).length;
+          const detail = `${expired} of ${rows.length} have expired. ${checkedNote(rows, "alert", "alerts")}`;
+          return { pass: expired * 2 <= rows.length, detail };
         }
       ),
 

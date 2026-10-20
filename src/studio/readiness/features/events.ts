@@ -37,12 +37,43 @@ const NEVER_SYNC = ["BudgetMngEventType", "EstimatedExpensePtcpAlloc"];
 
 const OFF: StudioCheckResult = { pass: true, skip: true, detail: "Events Management isn't available in this org." };
 
+/*
+ * The checks on events read a fixed number of them with a plain filter and no ORDER BY, so the query
+ * stops early whatever the size of the table; the rest is worked out here. SOQL can't compare two
+ * fields, and ComplianceStatements is a long text field it can't filter on, so both checks read rows
+ * anyway. When the org has fewer events than the sample size, the sample is all of them.
+ */
+const SAMPLE_ROWS = 500;
+
+/** "1 event" / "3 events", spelled out for nouns `plural` can't handle. */
+const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : more}`;
+
+/** The sentence saying what was looked at, so a pass is never read as "every event in the org". */
+function checkedNote(n: number, one: string, more: string): string {
+  return n < SAMPLE_ROWS ? `Checked all ${many(n, one, more)}.` : `Checked a sample of ${SAMPLE_ROWS} ${more}, not every one in the org.`;
+}
+
+/** ComplianceStatements holds a JSON list; an event with none has "[]" (or nothing). */
+function hasStatements(value: unknown): boolean {
+  const text = String(value ?? "").trim();
+  if (!text) return false;
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (Array.isArray(parsed)) return parsed.length > 0;
+    if (parsed && typeof parsed === "object") return Object.keys(parsed).length > 0;
+    return Boolean(parsed);
+  } catch {
+    return true;
+  }
+}
+
 const readiness: ReadinessModule = {
   ruleFiles: ["events-management-config.yaml"],
   checks: async (org) => {
     const available = once(async () => {
       try {
-        await count(`SELECT COUNT() FROM MngEvent`, org);
+        // One row read tells whether the object exists; a count would scan every event.
+        await query(`SELECT Id FROM MngEvent LIMIT 1`, org);
         return true;
       } catch (err) {
         if (isMissingObject(err)) return false;
@@ -146,11 +177,13 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         gate(async () => {
-          const rows = await query(`SELECT Name, StartDateTime, EndDateTime FROM MngEvent WHERE EndDateTime != null LIMIT 200`, org);
+          const rows = await query(`SELECT Name, StartDateTime, EndDateTime FROM MngEvent WHERE EndDateTime != null LIMIT ${SAMPLE_ROWS}`, org);
+          if (!rows.length) return { pass: true, skip: true, detail: "No event has an end date yet." };
           const bad = rows.filter((r) => Date.parse(String(r.EndDateTime)) < Date.parse(String(r.StartDateTime)));
+          const scope = checkedNote(rows.length, "event with an end date", "events with an end date");
           return bad.length
-            ? { pass: false, detail: `${plural(bad.length, "event")} end before they start.`, examples: bad.map((r) => String(r.Name)) }
-            : { pass: true, detail: `${plural(rows.length, "event")} with an end date checked; all end after they start.` };
+            ? { pass: false, detail: `${bad.length} of ${rows.length} ${bad.length === 1 ? "ends" : "end"} before ${bad.length === 1 ? "it starts" : "they start"}. ${scope}`, examples: bad.slice(0, 5).map((r) => String(r.Name)) }
+            : { pass: true, detail: `Every one ends after it starts. ${scope}` };
         })
       ),
       runCheck(
@@ -188,12 +221,19 @@ const readiness: ReadinessModule = {
           surface: "compliance",
         },
         gate(async () => {
-          const withStatements = await count(`SELECT COUNT() FROM MngEvent WHERE ComplianceStatements != null`, org).catch(() => 0);
           const defs = await count(`SELECT COUNT() FROM ComplianceStatementDef WHERE ModuleType = 'ManagedEvent'`, org);
-          if (!withStatements && !defs) return { pass: true, skip: true, detail: "No compliance statements for events, and none defined." };
-          return defs
-            ? { pass: true, detail: `${plural(defs, "event compliance statement")} defined.` }
-            : { pass: false, detail: `${plural(withStatements, "event")} carry compliance statements but no definition exists.` };
+          if (defs) return { pass: true, detail: `${plural(defs, "event compliance statement")} defined.` };
+          // ComplianceStatements is a long text field, so SOQL can't filter on it; read a sample and look.
+          const rows = await query(`SELECT Name, ComplianceStatements FROM MngEvent LIMIT ${SAMPLE_ROWS}`, org);
+          const withStatements = rows.filter((r) => hasStatements(r.ComplianceStatements));
+          const scope = checkedNote(rows.length, "event", "events");
+          if (!withStatements.length)
+            return { pass: true, skip: true, detail: rows.length ? `No event carries compliance statements, and none are defined. ${scope}` : "No events, and no compliance statements defined for them." };
+          return {
+            pass: false,
+            detail: `${withStatements.length} of ${rows.length} events ${withStatements.length === 1 ? "carries" : "carry"} compliance statements but no definition exists. ${scope}`,
+            examples: withStatements.slice(0, 5).map((r) => String(r.Name)),
+          };
         })
       ),
       runCheck(

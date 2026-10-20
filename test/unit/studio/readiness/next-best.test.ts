@@ -34,6 +34,7 @@ beforeEach(() => {
   org = {};
   handlers = [];
   schema = [];
+  vi.mocked(runSoqlQuery).mockClear();
   vi.mocked(runSoqlQuery).mockImplementation(((q: string) => respond(q)) as never);
   vi.mocked(runToolingQuery).mockImplementation(((q: string) => (/FROM\s+LifeScienceTriggerHandler/i.test(q) ? Promise.resolve({ success: true, data: { totalSize: handlers.length, done: true, records: handlers } }) : respond(q))) as never);
   vi.mocked(collectCategoryRecords).mockImplementation((async () => schema) as never);
@@ -42,6 +43,8 @@ beforeEach(() => {
 const run = async () => Object.fromEntries((await mod.checks!("test-org")).map((c) => [c.id, c]));
 const DAY = 24 * 60 * 60 * 1000;
 const ago = (days: number) => new Date(Date.now() - days * DAY).toISOString();
+const score = (Id: string, extra: Row = {}): Row => ({ Id, Name: Id, Account: { Name: "Dr " + Id }, LastModifiedDate: ago(1), TotalScore: 10, Rank: 1, TerritoryId: "T1", ...extra });
+const queries = () => vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0]));
 
 describe("next-best readiness", () => {
   it("skips the data checks when no scores exist", async () => {
@@ -51,15 +54,42 @@ describe("next-best readiness", () => {
   });
 
   it("fails when the newest score is old", async () => {
-    org.TerritoryAccountScore = [{ latest: ago(60), cnt: 3 }];
+    org.TerritoryAccountScore = [score("a", { LastModifiedDate: ago(90) }), score("b", { LastModifiedDate: ago(60) })];
     const c = (await run())["next-best.data.scores-current"];
     expect(c.status).toBe("fail");
     expect(c.detail).toContain("60 days ago");
   });
 
   it("passes when scores are recent", async () => {
-    org.TerritoryAccountScore = [{ latest: ago(2), cnt: 3 }];
+    org.TerritoryAccountScore = [score("a", { LastModifiedDate: ago(2) })];
     expect((await run())["next-best.data.scores-current"].status).toBe("pass");
+  });
+
+  it("reads scores newest first by the indexed SystemModstamp, with a LIMIT, never counting the whole table", async () => {
+    org.TerritoryAccountScore = [score("a")];
+    await run();
+    const q = queries();
+    // The access check's anti-join on permission set assignments is shared and bounded by field users.
+    expect(q.some((x) => x.includes("NOT IN (SELECT") && !x.includes("PermissionSetAssignment"))).toBe(false);
+    expect(q.some((x) => /COUNT\(|MAX\(/.test(x) && x.includes("FROM TerritoryAccountScore"))).toBe(false);
+    expect(q.find((x) => x.includes("TotalScore"))).toMatch(/FROM TerritoryAccountScore ORDER BY SystemModstamp DESC LIMIT 500$/);
+    expect(q).toContain("SELECT Id FROM TerritoryAccountScore LIMIT 1");
+  });
+
+  it("names the scores in the sample with no total, rank or territory, and says it checked all of them", async () => {
+    org.TerritoryAccountScore = [score("a", { Rank: null }), score("b", { TerritoryId: null }), score("c")];
+    const r = await run();
+    expect(r["next-best.data.scores-complete"].status).toBe("fail");
+    expect(r["next-best.data.scores-complete"].detail).toBe("0 scores without a total and 1 score without a rank. Checked all 3 scores.");
+    expect(r["next-best.data.scores-complete"].examples).toEqual(["a (Dr a)"]);
+    expect(r["next-best.data.scores-territory"].detail).toBe("1 of 3 scores has no territory. Checked all 3 scores.");
+  });
+
+  it("says a full sample of scores is a sample", async () => {
+    org.TerritoryAccountScore = Array.from({ length: 500 }, (_, i) => score("s" + i));
+    const c = (await run())["next-best.data.scores-territory"];
+    expect(c.status).toBe("pass");
+    expect(c.detail).toBe("Every score checked has a territory. Checked the 500 most recently written scores, not every one in the org.");
   });
 
   it("fails on explanations that are not JSON and ignores valid ones", async () => {
@@ -73,9 +103,43 @@ describe("next-best readiness", () => {
   });
 
   it("flags upcoming actions past their due date", async () => {
-    org.TerritoryAccountScore = [{ latest: ago(1), cnt: 1 }];
-    org.TerritoryAcctRcmdAction = 4;
-    expect((await run())["next-best.data.actions-not-overdue"].status).toBe("fail");
+    org.TerritoryAccountScore = [score("a")];
+    org.TerritoryAcctRcmdAction = [
+      { Id: "r1", Name: "TARA-1", Status: "Upcoming", DueDate: ago(5).slice(0, 10), Account: { Name: "Dr A" } },
+      { Id: "r2", Name: "TARA-2", Status: "Upcoming", DueDate: ago(-5).slice(0, 10) },
+      { Id: "r3", Name: "TARA-3", Status: "Completed", DueDate: ago(5).slice(0, 10) },
+    ];
+    const c = (await run())["next-best.data.actions-not-overdue"];
+    expect(c.status).toBe("fail");
+    expect(c.detail).toBe("1 of 3 is still Upcoming past the due date. Checked all 3 recommended actions.");
+    expect(c.examples).toEqual([`TARA-1 (Dr A, due ${ago(5).slice(0, 10)})`]);
+    const q = queries().find((x) => x.includes("FROM TerritoryAcctRcmdAction"))!;
+    expect(q).toMatch(/LIMIT 500$/);
+    expect(q).not.toMatch(/ORDER BY|COUNT|WHERE/);
+  });
+
+  it("says a full sample of actions is a sample", async () => {
+    org.TerritoryAccountScore = [score("a")];
+    org.TerritoryAcctRcmdAction = Array.from({ length: 500 }, (_, i) => ({ Id: "r" + i, Status: "Completed" }));
+    expect((await run())["next-best.data.actions-not-overdue"].detail).toBe("None is Upcoming past its due date. Checked a sample of 500 recommended actions, not every one in the org.");
+  });
+
+  it("counts message scores of inactive guidance by guidance id, not with a join over every score", async () => {
+    org.TerritoryAccountScore = [score("a")];
+    org.ProductGuidance = [{ Id: "G1", Name: "Old message" }];
+    org.TerritoryAcctProdMsgScore = (q) => (q.includes("GROUP BY") ? [{ ProductGuidanceId: "G1", cnt: 4 }] : [{ Id: "m1" }]);
+    const c = (await run())["next-best.data.messages-active"];
+    expect(c.status).toBe("fail");
+    expect(c.detail).toBe("4 message scores point at inactive guidance. Checked every message score against the 1 inactive guidance record.");
+    expect(c.examples).toEqual(["Old message: 4 scores"]);
+    expect(queries().find((x) => x.includes("GROUP BY"))).toContain("ProductGuidanceId IN ('G1')");
+    expect(queries().some((x) => x.includes("ProductGuidance.IsActive"))).toBe(false);
+  });
+
+  it("passes message scores when no guidance is inactive", async () => {
+    org.TerritoryAccountScore = [score("a")];
+    org.TerritoryAcctProdMsgScore = [{ Id: "m1" }];
+    expect((await run())["next-best.data.messages-active"].status).toBe("pass");
   });
 
   it("fails when some field users can't read Territory Account Score, counted by profile", async () => {

@@ -9,7 +9,8 @@ const { collectCategoryRecords } = await import("../../../../src/config/collect.
 const { default: calendarTot } = await import("../../../../src/studio/readiness/features/calendar-tot.js");
 
 type Row = Record<string, unknown>;
-let org: Record<string, Row[] | number>;
+/** Rows (or a COUNT) returned per outer FROM-object, or a function of the query. */
+let org: Record<string, Row[] | number | ((soql: string) => Row[] | number)>;
 let handlers: Row[];
 let schema: ConfigRecord[];
 
@@ -17,7 +18,8 @@ function respond(soql: string) {
   let outer = soql;
   while (/\([^()]*\)/.test(outer)) outer = outer.replace(/\([^()]*\)/g, "");
   const from = /FROM\s+(\w+)/i.exec(outer)?.[1] ?? "";
-  const v = org[from] ?? [];
+  const entry = org[from] ?? [];
+  const v = typeof entry === "function" ? entry(soql) : entry;
   const rows = typeof v === "number" ? [] : v;
   const total = typeof v === "number" ? v : rows.length;
   return Promise.resolve({ success: true, data: { totalSize: total, done: true, records: rows } });
@@ -55,14 +57,26 @@ describe("calendar-tot readiness", () => {
     expect((await run())["calendar-tot.data.holidays-ahead"].status).toBe("fail");
   });
 
+  const ids = (n: number) => Array.from({ length: n }, (_, i) => ({ Id: `X${i}` }));
+
   it("counts visits as calendar activity when there are no events", async () => {
-    org.Event = 0;
-    org.Visit = 24;
+    org.Visit = ids(24);
     const c = (await run())["calendar-tot.data.recent-events"];
     expect(c.status).toBe("pass");
     expect(c.detail).toBe("24 visits in the window.");
-    org.Visit = 0;
+    org.Visit = [];
     expect((await run())["calendar-tot.data.recent-events"].status).toBe("fail");
+  });
+
+  it("reads at most 500 event and visit ids instead of counting them, and says when it stopped", async () => {
+    org.Event = ids(500);
+    org.Visit = ids(3);
+    const c = (await run())["calendar-tot.data.recent-events"];
+    expect(c.detail).toBe("500 or more events and 3 visits in the window. Stopped counting at 500 of each.");
+    const q = vi.mocked(runSoqlQuery).mock.calls.map((x) => String(x[0]));
+    expect(q.find((s) => s.includes("FROM Event"))).toBe("SELECT Id FROM Event WHERE StartDateTime >= LAST_N_DAYS:30 LIMIT 500");
+    expect(q.find((s) => s.includes("FROM Visit"))).toBe("SELECT Id FROM Visit WHERE PlannedVisitStartTime >= LAST_N_DAYS:30 LIMIT 500");
+    expect(q.some((s) => /COUNT\(\)\s+FROM\s+(Event|Visit)/.test(s))).toBe(false);
   });
 
   it("points working-day settings at their own Admin Console category", async () => {

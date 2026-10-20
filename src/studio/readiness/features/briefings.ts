@@ -17,19 +17,51 @@ import {
 } from "../../collectors/briefings.js";
 import { fetchCache, isLiveCache } from "../../collectors/mobile-sync.js";
 import { fetchCategories } from "../../collectors/shared.js";
+import { chunkIds } from "../../../tools/helpers.js";
 import { count, inList, plural, query, type Row } from "../../helpers.js";
 import { runCheck, type ReadinessModule, type StudioCheckResult } from "../index.js";
 import { cacheFreshResult, daysSince, profileSyncResult } from "./_mobile-sync-shared.js";
 import { once } from "./_visit-shared.js";
 
+/*
+ * PresentationContent gets rows for every rep every day and PrvdAccountTerritorySummary one per
+ * account and territory, so the data checks never count or aggregate either table. The newest
+ * record is read by an indexed audit field, and "does this profile have briefings" looks up a
+ * fixed number of the profile's users by TargetUserId.
+ */
+/** Users per receiving profile whose briefings are looked up. */
+const SAMPLE_USERS = 500;
+
+/** "1 user" / "3 users". */
+const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : more}`;
+
 const OFF: StudioCheckResult = { pass: true, skip: true, detail: "Briefings is not turned on in this org." };
+
+/**
+ * Whether any briefing targets a user of `profile`, looked up by TargetUserId for up to
+ * SAMPLE_USERS of its active users — the ones holding Use Briefings first, since briefings are
+ * meant for them, else any. One row read per chunk, so it stops at the first briefing found.
+ */
+async function profileHasContent(profile: string, org: string): Promise<{ found: boolean; users: number }> {
+  const name = inList([profile]);
+  const holders = await query(
+    `SELECT AssigneeId FROM PermissionSetAssignment WHERE PermissionSet.PermissionsStoriesUser = true AND Assignee.IsActive = true AND Assignee.Profile.Name = ${name} LIMIT ${SAMPLE_USERS}`,
+    org
+  );
+  let ids = [...new Set(holders.map((r) => String(r.AssigneeId)))];
+  if (!ids.length) ids = (await query(`SELECT Id FROM User WHERE IsActive = true AND Profile.Name = ${name} LIMIT ${SAMPLE_USERS}`, org)).map((r) => String(r.Id));
+  for (const chunk of chunkIds(ids)) {
+    if ((await query(`SELECT Id FROM PresentationContent WHERE TargetUserId IN (${inList(chunk)}) LIMIT 1`, org)).length) return { found: true, users: ids.length };
+  }
+  return { found: false, users: ids.length };
+}
 
 const readiness: ReadinessModule = {
   ruleFiles: ["briefings-config.yaml"],
   checks: async (org) => {
     // false = the Briefings objects don't exist, i.e. the toggle is off.
     const enabled = once(() =>
-      count(`SELECT COUNT() FROM PresentationContent`, org).then(
+      query(`SELECT Id FROM PresentationContent LIMIT 1`, org).then(
         () => true,
         (err) => {
           if (isMissingObject(err)) return false;
@@ -158,12 +190,11 @@ const readiness: ReadinessModule = {
           surface: "accountSummarization",
         },
         gate(async () => {
-          const rows = await optionalQuery(`SELECT MAX(LastModifiedDate) latest, COUNT(Id) cnt FROM PrvdAccountTerritorySummary`, org);
+          const rows = await optionalQuery(`SELECT SystemModstamp FROM PrvdAccountTerritorySummary ORDER BY SystemModstamp DESC LIMIT 1`, org);
           if (rows === null) return { pass: true, skip: true, detail: "Account Summarization isn't set up in this org." };
-          const n = Number(rows[0]?.cnt ?? 0);
-          if (!n) return { pass: false, detail: "No account summaries exist, so Account Summarization has never run." };
-          const age = daysSince(rows[0].latest) ?? 0;
-          return { pass: age <= STALE_DAYS, detail: `${n.toLocaleString("en-US")} summary records; the newest was updated ${plural(age, "day")} ago.` };
+          if (!rows.length) return { pass: false, detail: "No account summaries exist, so Account Summarization has never run." };
+          const age = daysSince(rows[0].SystemModstamp) ?? 0;
+          return { pass: age <= STALE_DAYS, detail: `The newest account summary was updated ${plural(age, "day")} ago.` };
         })
       ),
       runCheck(
@@ -181,12 +212,11 @@ const readiness: ReadinessModule = {
           surface: "generated",
         },
         gate(async () => {
-          const rows = await optionalQuery(`SELECT MAX(CreatedDate) latest, COUNT(Id) cnt FROM PresentationContent`, org);
+          const rows = await optionalQuery(`SELECT CreatedDate FROM PresentationContent ORDER BY CreatedDate DESC LIMIT 1`, org);
           if (rows === null) return OFF;
-          const n = Number(rows[0]?.cnt ?? 0);
-          if (!n) return { pass: false, detail: "No briefings have been generated." };
-          const age = daysSince(rows[0].latest) ?? 0;
-          return { pass: age <= STALE_DAYS, detail: `${plural(n, "briefing")} exist; the newest was created ${plural(age, "day")} ago.` };
+          if (!rows.length) return { pass: false, detail: "No briefings have been generated." };
+          const age = daysSince(rows[0].CreatedDate) ?? 0;
+          return { pass: age <= STALE_DAYS, detail: `The newest briefing was created ${plural(age, "day")} ago.` };
         })
       ),
       runCheck(
@@ -203,11 +233,16 @@ const readiness: ReadinessModule = {
         gate(async () => {
           const assigned = await profiles();
           if (!assigned.length) return { pass: true, skip: true, detail: "No profile is assigned a content definition yet." };
-          const rows = await countBy(`SELECT TargetUser.Profile.Name pn, COUNT(Id) cnt FROM PresentationContent GROUP BY TargetUser.Profile.Name`, "pn", org);
-          const none = assigned.filter((p) => !rows.get(p));
+          const checked = await Promise.all(assigned.map((p) => profileHasContent(p, org)));
+          const none = assigned.filter((_, i) => !checked[i].found);
+          const users = checked.reduce((n, c) => n + c.users, 0);
+          const sampled = checked.some((c) => c.users >= SAMPLE_USERS);
+          const scope = sampled
+            ? `Checked up to ${SAMPLE_USERS} users per profile, those with Use Briefings first, not every user in the org.`
+            : `Checked all ${many(users, "user", "users")} with Use Briefings in these profiles (every active user where none has it).`;
           return none.length
-            ? { pass: false, detail: `${plural(none.length, "profile")} with no briefings yet: ${none.join(", ")}.`, examples: none }
-            : { pass: true, detail: `All ${plural(assigned.length, "profile")} have briefings.` };
+            ? { pass: false, detail: `${plural(none.length, "profile")} with no briefings yet: ${none.join(", ")}. ${scope}`, examples: none }
+            : { pass: true, detail: `All ${plural(assigned.length, "profile")} have briefings. ${scope}` };
         })
       ),
       runCheck(

@@ -8,7 +8,7 @@
 import type { ConfigRecord } from "../../../config/types.js";
 import { addProfileFix, fetchCategories, newDbSchema, profilesOf } from "../../collectors/shared.js";
 import { fieldProfiles } from "../../collectors/territory-users.js";
-import { count, inList, plural, query } from "../../helpers.js";
+import { inList, plural, query } from "../../helpers.js";
 import type { StudioFix } from "../../types.js";
 import type { StudioCheckResult } from "../index.js";
 
@@ -22,7 +22,7 @@ const sobject = (r: ConfigRecord) => String(r.fields.SObject ?? "").toLowerCase(
 /** Whether `object` exists in the org — a COUNT that the org answers. */
 async function objectExists(org: string, object: string): Promise<boolean> {
   try {
-    await count(`SELECT COUNT() FROM ${object}`, org);
+    await query(`SELECT Id FROM ${object} LIMIT 1`, org);
     return true;
   } catch {
     return false;

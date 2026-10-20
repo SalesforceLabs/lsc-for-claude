@@ -2,7 +2,7 @@
 
 import { fetchCache } from "../../collectors/mobile-sync.js";
 import { isMissingObject } from "../../collectors/briefings.js";
-import { count, plural, query } from "../../helpers.js";
+import { countGroupedBy, plural, query, type Row } from "../../helpers.js";
 import { runCheck, type ReadinessModule, type StudioCheckResult } from "../index.js";
 import { fieldUsersReadResult } from "./_field-access.js";
 import { cacheFreshResult, daysSince } from "./_mobile-sync-shared.js";
@@ -13,6 +13,37 @@ const STALE_DAYS = 14;
 const SYNC_OBJECTS = ["TerritoryAccountScore", "TerritoryAcctRcmdAction", "TerritoryAcctProdMsgScore", "ProductGuidance"];
 const EXPLAIN_SAMPLE = 200;
 
+/*
+ * Score, action and message tables hold a row per account and territory, so in a large org they run
+ * to millions. The data checks read a fixed number of rows (the most recently written scores, a plain
+ * sample of actions) or look rows up by id, instead of counting over the whole table: a count with a
+ * filter on an unindexed field scans everything, and is slowest when the answer is "none".
+ */
+const SAMPLE_ROWS = 500;
+/** Inactive guidance records looked up; the guidance library is small, so this is all of them in practice. */
+const GUIDANCE_CAP = 2000;
+
+/** "1 score" / "3 scores" with the plural spelled out. */
+const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : more}`;
+const isAre = (n: number) => (n === 1 ? "is" : "are");
+const hasHave = (n: number) => (n === 1 ? "has" : "have");
+
+/** Whether any row exists — one row read instead of a count over the whole table. */
+async function exists(object: string, org: string): Promise<boolean> {
+  return (await query(`SELECT Id FROM ${object} LIMIT 1`, org)).length > 0;
+}
+
+/** The sentence saying which scores were looked at, so a pass is never read as "every score is fine". */
+function scoresNote(n: number, limit: number, what = "scores"): string {
+  return n < limit ? `Checked all ${many(n, "score", "scores")}.` : `Checked the ${limit} most recently written ${what}, not every one in the org.`;
+}
+
+/** Today as YYYY-MM-DD, to compare with date fields the way SOQL's TODAY does. */
+function today(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 const OFF: StudioCheckResult = { pass: true, skip: true, detail: "Next Best isn't set up in this org: no score records exist." };
 
 const readiness: ReadinessModule = {
@@ -21,7 +52,7 @@ const readiness: ReadinessModule = {
     // false = no scores at all, so nothing downstream can be judged.
     const scored = once(async () => {
       try {
-        return (await count(`SELECT COUNT() FROM TerritoryAccountScore`, org)) > 0;
+        return await exists("TerritoryAccountScore", org);
       } catch (err) {
         if (isMissingObject(err)) return false;
         throw err;
@@ -29,6 +60,10 @@ const readiness: ReadinessModule = {
     });
     const dbSchema = once(() => loadDbSchema(org));
     const caches = once(() => fetchCache(org));
+    // SystemModstamp is indexed, so ordering by it with a LIMIT reads only the newest rows.
+    const scores = once(() =>
+      query(`SELECT Id, Name, Account.Name, LastModifiedDate, TotalScore, Rank, TerritoryId FROM TerritoryAccountScore ORDER BY SystemModstamp DESC LIMIT ${SAMPLE_ROWS}`, org)
+    );
     const gate = (fn: () => Promise<StudioCheckResult>) => async () => ((await scored()) ? fn() : OFF);
 
     return Promise.all([
@@ -61,16 +96,17 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         gate(async () => {
-          const rows = await query(`SELECT MAX(LastModifiedDate) latest, COUNT(Id) cnt FROM TerritoryAccountScore`, org);
-          const age = daysSince(rows[0]?.latest) ?? 0;
-          return { pass: age <= STALE_DAYS, detail: `${Number(rows[0]?.cnt ?? 0).toLocaleString("en-US")} scores; the newest was written ${plural(age, "day")} ago.` };
+          const rows = await scores();
+          const latest = rows.map((r) => String(r.LastModifiedDate ?? "")).sort().pop();
+          const age = daysSince(latest) ?? 0;
+          return { pass: age <= STALE_DAYS, detail: `The newest score was written ${plural(age, "day")} ago.` };
         })
       ),
       runCheck(
         {
           id: "next-best.data.scores-complete",
           stage: "data",
-          title: "Every score has a total and a rank",
+          title: "Scores have a total and a rank",
           severity: "warning",
           why: "The Next Best list sorts by Rank. A score with no Rank or TotalScore sorts unpredictably or is dropped, so a priority account may never show.",
           steps: ["Open the scoring job's output mapping", "Make sure TotalScore and Rank are written for every row, then reload the scores"],
@@ -78,13 +114,18 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         gate(async () => {
-          const [noTotal, noRank] = await Promise.all([
-            count(`SELECT COUNT() FROM TerritoryAccountScore WHERE TotalScore = null`, org),
-            count(`SELECT COUNT() FROM TerritoryAccountScore WHERE Rank = null`, org),
-          ]);
-          return noTotal + noRank
-            ? { pass: false, detail: `${plural(noTotal, "score")} without a total and ${plural(noRank, "score")} without a rank.` }
-            : { pass: true, detail: "Every score has a total and a rank." };
+          const rows = await scores();
+          const scope = scoresNote(rows.length, SAMPLE_ROWS);
+          const noTotal = rows.filter((r) => r.TotalScore == null);
+          const noRank = rows.filter((r) => r.Rank == null);
+          const bad = rows.filter((r) => r.TotalScore == null || r.Rank == null);
+          return bad.length
+            ? {
+                pass: false,
+                detail: `${many(noTotal.length, "score", "scores")} without a total and ${many(noRank.length, "score", "scores")} without a rank. ${scope}`,
+                examples: bad.slice(0, 5).map((r) => label(r)),
+              }
+            : { pass: true, detail: `Every score checked has a total and a rank. ${scope}` };
         })
       ),
       runCheck(
@@ -99,8 +140,12 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         gate(async () => {
-          const n = await count(`SELECT COUNT() FROM TerritoryAccountScore WHERE TerritoryId = null`, org);
-          return n ? { pass: false, detail: `${plural(n, "score")} have no territory.` } : { pass: true, detail: "Every score has a territory." };
+          const rows = await scores();
+          const scope = scoresNote(rows.length, SAMPLE_ROWS);
+          const none = rows.filter((r) => !r.TerritoryId);
+          return none.length
+            ? { pass: false, detail: `${none.length} of ${many(rows.length, "score", "scores")} ${hasHave(none.length)} no territory. ${scope}`, examples: none.slice(0, 5).map((r) => label(r)) }
+            : { pass: true, detail: `Every score checked has a territory. ${scope}` };
         })
       ),
       runCheck(
@@ -115,9 +160,10 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         gate(async () => {
-          const rows = await query(`SELECT Id, ScoreExplainabilityInfo FROM TerritoryAccountScore ORDER BY LastModifiedDate DESC LIMIT ${EXPLAIN_SAMPLE}`, org);
+          const rows = await query(`SELECT Id, ScoreExplainabilityInfo FROM TerritoryAccountScore ORDER BY SystemModstamp DESC LIMIT ${EXPLAIN_SAMPLE}`, org);
+          const scope = scoresNote(rows.length, EXPLAIN_SAMPLE, "scores' explanations");
           const filled = rows.filter((r) => r.ScoreExplainabilityInfo);
-          if (!filled.length) return { pass: true, skip: true, detail: "No score carries an explanation." };
+          if (!filled.length) return { pass: true, skip: true, detail: `No score checked carries an explanation. ${scope}` };
           const bad = filled.filter((r) => {
             try {
               JSON.parse(String(r.ScoreExplainabilityInfo));
@@ -127,8 +173,8 @@ const readiness: ReadinessModule = {
             }
           });
           return bad.length
-            ? { pass: false, detail: `${bad.length} of ${filled.length} sampled explanations aren't valid JSON.`, examples: bad.map((r) => String(r.Id)) }
-            : { pass: true, detail: `${plural(filled.length, "sampled explanation")} all parse.` };
+            ? { pass: false, detail: `${bad.length} of ${many(filled.length, "explanation", "explanations")} ${isAre(bad.length)}n't valid JSON. ${scope}`, examples: bad.slice(0, 5).map((r) => String(r.Id)) }
+            : { pass: true, detail: `${filled.length === 1 ? "The 1 explanation parses" : `All ${filled.length} explanations parse`}. ${scope}` };
         })
       ),
       runCheck(
@@ -143,12 +189,22 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         gate(async () => {
-          const total = await count(`SELECT COUNT() FROM TerritoryAcctRcmdAction`, org);
-          if (!total) return { pass: true, skip: true, detail: "No recommended actions exist (Next Best Action not in use)." };
-          const n = await count(`SELECT COUNT() FROM TerritoryAcctRcmdAction WHERE DueDate < TODAY AND Status = 'Upcoming'`, org);
-          return n
-            ? { pass: false, detail: `${n} of ${total} recommended actions are still Upcoming past their due date.` }
-            : { pass: true, detail: `${plural(total, "recommended action")}; none overdue.` };
+          // A plain sample with no ORDER BY stops after 500 rows; DueDate and Status aren't indexed.
+          const rows = await query(`SELECT Id, Name, DueDate, Status, Account.Name FROM TerritoryAcctRcmdAction LIMIT ${SAMPLE_ROWS}`, org);
+          if (!rows.length) return { pass: true, skip: true, detail: "No recommended actions exist (Next Best Action not in use)." };
+          const day = today();
+          const overdue = rows.filter((r) => r.Status === "Upcoming" && r.DueDate && String(r.DueDate).slice(0, 10) < day);
+          const scope =
+            rows.length < SAMPLE_ROWS
+              ? `Checked all ${many(rows.length, "recommended action", "recommended actions")}.`
+              : `Checked a sample of ${SAMPLE_ROWS} recommended actions, not every one in the org.`;
+          return overdue.length
+            ? {
+                pass: false,
+                detail: `${overdue.length} of ${rows.length} ${isAre(overdue.length)} still Upcoming past the due date. ${scope}`,
+                examples: overdue.slice(0, 5).map((r) => label(r, `due ${String(r.DueDate).slice(0, 10)}`)),
+              }
+            : { pass: true, detail: `None is Upcoming past its due date. ${scope}` };
         })
       ),
       runCheck(
@@ -163,10 +219,25 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         gate(async () => {
-          const total = await count(`SELECT COUNT() FROM TerritoryAcctProdMsgScore`, org);
-          if (!total) return { pass: true, skip: true, detail: "No message scores exist (Next Best Message not in use)." };
-          const n = await count(`SELECT COUNT() FROM TerritoryAcctProdMsgScore WHERE ProductGuidance.IsActive = false`, org);
-          return n ? { pass: false, detail: `${n} of ${total} message scores point at inactive guidance.` } : { pass: true, detail: `${plural(total, "message score")} all point at active guidance.` };
+          if (!(await exists("TerritoryAcctProdMsgScore", org))) return { pass: true, skip: true, detail: "No message scores exist (Next Best Message not in use)." };
+          // Start from the guidance library (small), then count the scores of inactive guidance by its id,
+          // which uses the lookup's index instead of joining every message score to its guidance.
+          const inactive = await query(`SELECT Id, Name FROM ProductGuidance WHERE IsActive = false LIMIT ${GUIDANCE_CAP}`, org);
+          const capped = inactive.length >= GUIDANCE_CAP;
+          const names = new Map(inactive.map((r) => [String(r.Id), String(r.Name ?? r.Id)]));
+          const scope = capped
+            ? `Checked the scores of ${GUIDANCE_CAP} inactive guidance records, not every one in the org.`
+            : `Checked every message score against the ${many(inactive.length, "inactive guidance record", "inactive guidance records")}.`;
+          if (!inactive.length) return { pass: true, detail: "No product guidance is inactive, so every message score points at active guidance." };
+          const used = await countGroupedBy("TerritoryAcctProdMsgScore", "ProductGuidanceId", [...names.keys()], org);
+          const n = [...used.values()].reduce((a, b) => a + b, 0);
+          return n
+            ? {
+                pass: false,
+                detail: `${many(n, "message score points", "message scores point")} at inactive guidance. ${scope}`,
+                examples: [...used].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, c]) => `${names.get(id) ?? id}: ${many(c, "score", "scores")}`),
+              }
+            : { pass: true, detail: `No message score points at inactive guidance. ${scope}` };
         })
       ),
       runCheck(
@@ -183,7 +254,7 @@ const readiness: ReadinessModule = {
         gate(async () => {
           const schema = await dbSchema();
           const used = await Promise.all(
-            SYNC_OBJECTS.map(async (o) => ((await count(`SELECT COUNT() FROM ${o}`, org).catch(() => 0)) > 0 ? o : null))
+            SYNC_OBJECTS.map(async (o) => ((await exists(o, org).catch(() => false)) ? o : null))
           );
           const objects = used.filter((o): o is string => o !== null);
           return objects.length ? syncResult(org, schema, objects) : { pass: true, skip: true, detail: "No Next Best data to sync." };
@@ -208,5 +279,11 @@ const readiness: ReadinessModule = {
     ]);
   },
 };
+
+/** A score or action's name, with its account (when there is one) and any other note in brackets. */
+function label(r: Row, extra?: string): string {
+  const notes = [(r.Account as Row | null | undefined)?.Name, extra].filter(Boolean);
+  return notes.length ? `${r.Name ?? r.Id} (${notes.join(", ")})` : String(r.Name ?? r.Id);
+}
 
 export default readiness;

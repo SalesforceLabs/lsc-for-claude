@@ -74,7 +74,45 @@ describe("app alerts readiness", () => {
     const c = (await run())["app-alerts.access.targeted"];
     expect(c.status).toBe("fail");
     expect(c.examples).toEqual(["Quarterly survey"]);
-    expect(c.detail).toContain("1 of 2 alerts");
+    expect(c.detail).toBe("1 of 2 have no territory and reach nobody but their owner. Checked all 2 alerts in effect.");
+  });
+
+  it("looks up territories and sharing by alert id instead of an anti-join", async () => {
+    org.AppAlert = [
+      { Id: "a1", Subject: "Targeted" },
+      { Id: "a2", Subject: "Shared" },
+      { Id: "a3", Subject: "Nobody" },
+    ];
+    org.AppAlertTerritory = [{ AlertReferenceRecordId: "a1", cnt: 2 }];
+    org.AppAlertShare = [{ ParentId: "a2", cnt: 1 }];
+    const c = (await run())["app-alerts.access.targeted"];
+    expect(c).toMatchObject({ status: "fail", examples: ["Nobody"] });
+    const qs = vi.mocked(runSoqlQuery).mock.calls.map((x) => String(x[0]));
+    expect(qs.some((q) => q.includes("NOT IN"))).toBe(false);
+    expect(qs.find((q) => q.includes("Owner.Profile.Name FROM AppAlert"))).toMatch(/LIMIT 500$/);
+    expect(qs.find((q) => q.includes("FROM AppAlertTerritory") && q.includes("GROUP BY"))).toContain("AlertReferenceRecordId IN ('a1','a2','a3')");
+    expect(qs.find((q) => q.includes("FROM AppAlertShare"))).toContain("ParentId IN ('a1','a2','a3') AND RowCause != 'Owner'");
+  });
+
+  it("says targeting was checked on a sample when more alerts are in effect than the sample size", async () => {
+    org.AppAlert = Array.from({ length: 500 }, (_, i) => ({ Id: `a${i}`, Subject: `Alert ${i}` }));
+    org.AppAlertTerritory = org.AppAlert.map((r) => ({ AlertReferenceRecordId: r.Id, cnt: 1 }));
+    const c = (await run())["app-alerts.access.targeted"];
+    expect(c).toMatchObject({ status: "pass", detail: "Every one is targeted. Checked a sample of 500 alerts in effect, not every one in the org." });
+  });
+
+  it("judges expired alerts on a sample read by id, without counting the whole table", async () => {
+    vi.mocked(runSoqlQuery).mockImplementation(((q: string) => {
+      if (q === "SELECT Id FROM AppAlert LIMIT 500") return respond("SELECT Id FROM Sample");
+      if (q.includes("FROM AppAlert WHERE Id IN") && q.includes("ValidUntilDate < TODAY")) return respond("SELECT Id FROM Expired");
+      return respond(q);
+    }) as never);
+    org.Sample = [{ Id: "a1" }, { Id: "a2" }, { Id: "a3" }];
+    org.Expired = [{ Id: "a1" }, { Id: "a2" }];
+    const c = (await run())["app-alerts.data.expired"];
+    expect(c).toMatchObject({ status: "fail", detail: "2 of 3 have expired. Checked all 3 alerts." });
+    const counts = vi.mocked(runSoqlQuery).mock.calls.map((x) => String(x[0])).filter((q) => /^SELECT COUNT\(\) FROM AppAlert WHERE ValidUntilDate/.test(q));
+    expect(counts).toEqual([]);
   });
 
   it("passes when every untargeted alert is a rep's own", async () => {

@@ -10,7 +10,7 @@ const { default: mod } = await import("../../../../src/studio/readiness/features
 
 type Row = Record<string, unknown>;
 /** Rows (and optional COUNT override) returned per outer FROM-object; an Error makes that query fail, a function answers by the SOQL. */
-let org: Record<string, Row[] | number | Error | ((soql: string) => Row[])>;
+let org: Record<string, Row[] | number | Error | ((soql: string) => Row[] | number)>;
 let handlers: Row[];
 let schema: ConfigRecord[];
 
@@ -43,7 +43,42 @@ const run = async () => Object.fromEntries((await mod.checks!("test-org")).map((
 const DAY = 24 * 60 * 60 * 1000;
 const ago = (days: number) => new Date(Date.now() - days * DAY).toISOString();
 
+const queries = () => vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0]));
+
 describe("medical-inquiries readiness", () => {
+  it("tells whether Inquiry exists from one row, not a count", async () => {
+    org.Inquiry = [{ Id: "1" }];
+    await run();
+    expect(queries()).toContain("SELECT Id FROM Inquiry LIMIT 1");
+    expect(queries().some((q) => q.includes("COUNT() FROM Inquiry WHERE Status != 'Draft'"))).toBe(false);
+  });
+
+  it("checks submitted inquiries for their Case on a sample read with LIMIT", async () => {
+    org.Inquiry = (q) => (q.includes("CaseId") ? [{ Name: "INQ-1", CaseId: "500A" }, { Name: "INQ-2", CaseId: null }] : [{ Id: "1" }]);
+    const c = (await run())["medical-inquiries.data.case-linked"];
+    expect(c.status).toBe("fail");
+    expect(c.detail).toBe("1 of 2 has no Case. Checked all 2 submitted inquiries.");
+    expect(c.examples).toEqual(["INQ-2"]);
+    const q = queries().find((q) => q.includes("CaseId FROM Inquiry"))!;
+    expect(q).toMatch(/LIMIT 500$/);
+    expect(q).not.toContain("ORDER BY");
+  });
+
+  it("says the Case check covers a sample when there are more submitted inquiries than it reads", async () => {
+    org.Inquiry = (q) => (q.includes("CaseId") ? Array.from({ length: 500 }, (_, i) => ({ Name: `INQ-${i}`, CaseId: "500A" })) : [{ Id: "1" }]);
+    const c = (await run())["medical-inquiries.data.case-linked"];
+    expect(c.status).toBe("pass");
+    expect(c.detail).toBe("Every one has a Case. Checked a sample of 500 submitted inquiries, not every one in the org.");
+  });
+
+  it("counts stale drafts inside a CreatedDate window and says older ones weren't counted", async () => {
+    org.Inquiry = (q) => (q.includes("COUNT()") ? 3 : [{ Id: "1" }]);
+    const c = (await run())["medical-inquiries.data.stale-drafts"];
+    expect(c.status).toBe("fail");
+    expect(c.detail).toBe("3 draft inquiries created 30 to 365 days ago are still unsubmitted. Drafts created earlier weren't counted.");
+    expect(queries().find((q) => q.includes("Status = 'Draft'"))).toContain("CreatedDate = LAST_N_DAYS:365 AND CreatedDate < LAST_N_DAYS:30");
+  });
+
   it("skips everything when Inquiry is not in the org", async () => {
     org.Inquiry = new Error("sObject type 'Inquiry' is not supported");
     expect((await run())["medical-inquiries.data.record-types-match"].status).toBe("skipped");

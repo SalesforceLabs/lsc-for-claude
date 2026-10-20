@@ -82,6 +82,18 @@ export async function countGroupedBy(
   return out;
 }
 
+/**
+ * Rows of `object` whose `key` is one of the given ids, read in IN-list chunks.
+ * Lookups by id use the field's index, so the cost follows the number of ids,
+ * not the size of the table.
+ */
+export async function queryByIds(fields: string, object: string, key: string, ids: string[], org: string, where?: string): Promise<Row[]> {
+  const chunks = await Promise.all(
+    chunkIds(ids).map((chunk) => query(`SELECT ${fields} FROM ${object} WHERE ${key} IN (${inList(chunk)})${where ? ` AND ${where}` : ""}`, org))
+  );
+  return chunks.flat();
+}
+
 /** An info finding saying a list was cut short — never leave a cap unannounced. */
 export function showingNote(shown: number, total: number, noun: string, order?: string): StudioFinding {
   const n = (v: number) => v.toLocaleString("en-US");

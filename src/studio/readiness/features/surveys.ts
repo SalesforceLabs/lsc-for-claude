@@ -15,6 +15,16 @@ const RESPONSE_OBJECTS = ["SurveyResponseOffline", "SurveyQstnResponseOffline"];
 /** Surveys built for the iPad are the OfflineMobile type. */
 const MOBILE = `FROM Survey WHERE SurveyType = 'OfflineMobile'`;
 
+/** Responses left Completed for longer than this haven't been processed. */
+const STALE_DAYS = 2;
+/** Only responses created this recently are counted, so the count uses the CreatedDate index. */
+const WINDOW_DAYS = 90;
+
+/** Whether any row exists — one row read instead of a count over the whole table. */
+async function exists(object: string, org: string): Promise<boolean> {
+  return (await query(`SELECT Id FROM ${object} LIMIT 1`, org)).length > 0;
+}
+
 const readiness: ReadinessModule = {
   ruleFiles: ["surveys-config.yaml"],
   checks: async (org) => {
@@ -48,8 +58,8 @@ const readiness: ReadinessModule = {
         async () => {
           // Only orgs with both managed events and survey invitations can need it.
           const [events, invitations] = await Promise.all([
-            count(`SELECT COUNT() FROM MngEvent`, org).catch(() => 0),
-            count(`SELECT COUNT() FROM SurveyInvitation`, org).catch(() => 0),
+            exists("MngEvent", org).catch(() => false),
+            exists("SurveyInvitation", org).catch(() => false),
           ]);
           if (!events || !invitations) return { pass: true, skip: true, detail: "No survey invitations on managed events to share." };
           return handlersResult(org, ["ColleagueSurveySharingHandler"]);
@@ -166,14 +176,15 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const [stale, total] = await Promise.all([
-            count(`SELECT COUNT() FROM SurveyResponseOffline WHERE Status IN ('Completed', 'PartiallyCompleted') AND CreatedDate < LAST_N_DAYS:2`, org),
-            count(`SELECT COUNT() FROM SurveyResponseOffline`, org),
-          ]);
-          if (!total) return { pass: true, skip: true, detail: "No offline responses yet." };
+          if (!(await exists("SurveyResponseOffline", org))) return { pass: true, skip: true, detail: "No offline responses yet." };
+          // Status isn't indexed; the CreatedDate window keeps the count to recent responses in a large org.
+          const stale = await count(
+            `SELECT COUNT() FROM SurveyResponseOffline WHERE Status IN ('Completed', 'PartiallyCompleted') AND CreatedDate = LAST_N_DAYS:${WINDOW_DAYS} AND CreatedDate < LAST_N_DAYS:${STALE_DAYS}`,
+            org
+          );
           return stale
-            ? { pass: false, detail: `${stale} of ${plural(total, "offline response")} have waited over 2 days.` }
-            : { pass: true, detail: `${plural(total, "offline response")}; none waiting.` };
+            ? { pass: false, detail: `${plural(stale, "offline response")} from the last ${WINDOW_DAYS} days ${stale === 1 ? "has" : "have"} waited over ${STALE_DAYS} days to be processed.` }
+            : { pass: true, detail: `No offline response from the last ${WINDOW_DAYS} days has waited over ${STALE_DAYS} days.` };
         }
       ),
 

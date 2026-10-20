@@ -39,7 +39,40 @@ beforeEach(() => {
 
 const run = async () => Object.fromEntries((await feature.checks!("test-org")).map((c) => [c.id, c]));
 
+const queries = () => vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0]));
+
 describe("consent readiness", () => {
+  it("counts stale pending consents inside a CreatedDate window and says older ones weren't counted", async () => {
+    org.CommSubscriptionConsent = 2;
+    const c = (await run())["consent.data.pending-stale"];
+    expect(c.status).toBe("fail");
+    expect(c.detail).toBe("2 consents created 30 to 365 days ago are still pending. Consents created earlier weren't counted.");
+    expect(queries().find((q) => q.includes("OptInPending"))).toContain("CreatedDate = LAST_N_DAYS:365 AND CreatedDate < LAST_N_DAYS:30");
+  });
+
+  it("checks Opt In end dates on a sample read with LIMIT, comparing the dates here", async () => {
+    org.CommSubscriptionConsent = [
+      { Name: "Lapsed", EffectiveToDate: "2020-01-31" },
+      { Name: "Open", EffectiveToDate: null },
+      { Name: "Future", EffectiveToDate: "2999-01-01" },
+    ];
+    const c = (await run())["consent.data.opt-in-expired"];
+    expect(c.status).toBe("fail");
+    expect(c.detail).toBe("1 of 3 is past the end date. Checked all 3 Opt In consents.");
+    expect(c.examples).toEqual(["Lapsed (ended 2020-01-31)"]);
+    const q = queries().find((q) => q.includes("PrivacyConsentStatus = 'OptIn'"))!;
+    expect(q).toMatch(/LIMIT 500$/);
+    expect(q).not.toContain("EffectiveToDate <");
+    expect(q).not.toContain("ORDER BY");
+  });
+
+  it("says the Opt In check covers a sample when there are more consents than it reads", async () => {
+    org.CommSubscriptionConsent = Array.from({ length: 500 }, (_, i) => ({ Name: `C${i}`, EffectiveToDate: null }));
+    const c = (await run())["consent.data.opt-in-expired"];
+    expect(c.status).toBe("pass");
+    expect(c.detail).toBe("None is past its end date. Checked a sample of 500 Opt In consents, not every one in the org.");
+  });
+
   it("offers to switch on an inactive consent handler", async () => {
     handlers = [handler("ConsentSharingHandler", false), handler("ConsentUniqueRecordHandler", true)];
     const c = (await run())["consent.enabled.handlers"];

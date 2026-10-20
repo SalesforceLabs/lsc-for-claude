@@ -9,7 +9,7 @@ import {
   substituteIdTag,
   type OrgQuerier,
 } from "../../../perf/sync-volume.js";
-import { runSoqlQuery, runToolingQuery } from "../../../salesforce/cli.js";
+import { apiRequest, dataPath, runSoqlQuery, runToolingQuery } from "../../../salesforce/cli.js";
 import { dbSchemaLabel, fetchCache, findDuplicates, isLiveCache, noAppSettings, noNavTabs, SETTINGS_CATEGORIES } from "../../collectors/mobile-sync.js";
 import { byCategory, fetchCategories, isNavTab, profilesOf } from "../../collectors/shared.js";
 import { count, inList, plural, query } from "../../helpers.js";
@@ -35,6 +35,23 @@ function probeSoql(sobject: string, where: string): string {
     w = substituteIdTag(w, tag, ["000000000000000"]);
   }
   return `SELECT Id FROM ${sobject} WHERE ${w} LIMIT 1`;
+}
+
+/**
+ * Row counts from the org's storage statistics (`/limits/recordCount`), which Salesforce keeps
+ * without scanning the table — close enough to tell a big table from a small one. Objects it
+ * doesn't report are absent; the caller counts those itself.
+ */
+async function recordCounts(objects: string[], org: string): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  const res = await apiRequest<{ sObjects?: Array<{ name: string; count: number }> }>(
+    await dataPath(org, `/limits/recordCount?sObjects=${encodeURIComponent([...new Set(objects)].join(","))}`),
+    "GET",
+    undefined,
+    org
+  );
+  for (const o of (res.success && res.data?.sObjects) || []) out.set(o.name.toLowerCase(), o.count);
+  return out;
 }
 
 const readiness: ReadinessModule = {
@@ -215,8 +232,9 @@ const readiness: ReadinessModule = {
           if (!unfiltered.length) return { pass: true, detail: "None of the usual high-volume objects sync without a filter." };
           const big: string[] = [];
           const uncounted: string[] = [];
+          const counts = await recordCounts(unfiltered.map((r) => String(r.fields.SObject)), org);
           for (const r of unfiltered) {
-            const n = await count(`SELECT COUNT() FROM ${String(r.fields.SObject)}`, org).catch(() => null);
+            const n = counts.get(String(r.fields.SObject).toLowerCase()) ?? (await count(`SELECT COUNT() FROM ${String(r.fields.SObject)}`, org).catch(() => null));
             if (n === null) uncounted.push(String(r.fields.SObject));
             else if (n > HIGH_VOLUME_ROWS) big.push(`${String(r.fields.SObject)} (${n.toLocaleString("en-US")} rows)`);
           }

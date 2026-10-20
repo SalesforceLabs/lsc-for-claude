@@ -1,14 +1,44 @@
 /** Key Account Management readiness: its validation rules plus Studio's own checks. */
 
-import { plural } from "../../helpers.js";
+import { countGroupedBy, plural, query, type Row } from "../../helpers.js";
 import { runCheck, type ReadinessModule } from "../index.js";
 import { countOf, dbSchemaCheck, fieldProfilesUsing, handlersCheck, lazy, loadDbSchema, loadHandlers } from "./_activity-plan-shared.js";
+
+/*
+ * The "has children" checks read a fixed number of plans or objectives and look their children up by
+ * id. An anti-join (`Id NOT IN (SELECT ...)`) has to read every child row when nothing is missing,
+ * and ActionPlan is shared with other features, so it can be large even when KAM is small. Orgs with
+ * fewer plans than the sample size get every one checked.
+ */
+const SAMPLE_ROWS = 500;
+
+/** "1 plan" / "3 plans" with the plural spelled out. */
+const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : more}`;
+const hasHave = (n: number) => (n === 1 ? "has" : "have");
+
+/** The sentence saying what was looked at, so a pass is never read as "the whole org is clean". */
+function checkedNote(n: number, one: string, more: string): string {
+  return n < SAMPLE_ROWS ? `Checked all ${many(n, one, more)}.` : `Checked a sample of ${SAMPLE_ROWS} ${more}, not every one in the org.`;
+}
+
+/** Rows of the sample with no children in `children`, as "N of M have no X. Checked ..." */
+function missingResult(rows: Row[], children: Map<string, number>, one: string, more: string, what: string) {
+  const bare = rows.filter((r) => !children.has(String(r.Id)));
+  const scope = checkedNote(rows.length, one, more);
+  return bare.length
+    ? { pass: false, detail: `${bare.length} of ${many(rows.length, one, more)} ${hasHave(bare.length)} no ${what}. ${scope}`, examples: bare.slice(0, 5).map((r) => String(r.Name ?? r.Id)) }
+    : { pass: true, detail: `Every one has ${what === "action plan" ? "an action plan" : what}. ${scope}` };
+}
 
 const readiness: ReadinessModule = {
   ruleFiles: ["kam-config.yaml"],
   checks: async (org) => {
     const handlers = loadHandlers(org);
     const schema = loadDbSchema(org);
+    // A plain LIMIT with no ORDER BY stops after the sample is read.
+    const plans = lazy(() => query(`SELECT Id, Name FROM AccountPlan LIMIT ${SAMPLE_ROWS}`, org));
+    const objectives = lazy(() => query(`SELECT Id, Name FROM AccountPlanObjective LIMIT ${SAMPLE_ROWS}`, org));
+    const planIds = async () => (await plans()).map((r) => String(r.Id));
     // Field profiles of the people who own or take part in account plans — they need plans offline.
     const planUsers = lazy(() =>
       fieldProfilesUsing(org, [
@@ -102,7 +132,7 @@ const readiness: ReadinessModule = {
         {
           id: "kam.data.plans-have-objectives",
           stage: "data",
-          title: "Every account plan has objectives",
+          title: "Account plans have objectives",
           severity: "warning",
           why: "A plan with no objectives has nothing to track, and its progress never moves. It usually means the template import was skipped or failed.",
           steps: ["Open the plan, then Account Plan Objectives > Import Template or New."],
@@ -110,10 +140,10 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const total = await countOf(`SELECT COUNT() FROM AccountPlan`, org);
-          if (!total) return { pass: true, skip: true, detail: "No account plans yet." };
-          const bare = await countOf(`SELECT COUNT() FROM AccountPlan WHERE Id NOT IN (SELECT AccountPlanId FROM AccountPlanObjective)`, org);
-          return bare ? { pass: false, detail: `${bare} of ${total} account plans have no objectives.` } : { pass: true, detail: `All ${total} plans have objectives.` };
+          const rows = await plans();
+          if (!rows.length) return { pass: true, skip: true, detail: "No account plans yet." };
+          const children = await countGroupedBy("AccountPlanObjective", "AccountPlanId", await planIds(), org);
+          return missingResult(rows, children, "account plan", "account plans", "objectives");
         }
       ),
 
@@ -121,7 +151,7 @@ const readiness: ReadinessModule = {
         {
           id: "kam.data.plans-have-participants",
           stage: "data",
-          title: "Every account plan has participants",
+          title: "Account plans have participants",
           severity: "warning",
           why: "Participants are the people who get access to a plan. A plan with none is visible only to its owner, so the team working the account can't see or update it.",
           steps: ["Open the plan, then Account Plan Participants > New, and add the team."],
@@ -129,10 +159,10 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const total = await countOf(`SELECT COUNT() FROM AccountPlan`, org);
-          if (!total) return { pass: true, skip: true, detail: "No account plans yet." };
-          const bare = await countOf(`SELECT COUNT() FROM AccountPlan WHERE Id NOT IN (SELECT AccountPlanId FROM AccountPlanParticipant)`, org);
-          return bare ? { pass: false, detail: `${bare} of ${total} account plans have no participants.` } : { pass: true, detail: `All ${total} plans have participants.` };
+          const rows = await plans();
+          if (!rows.length) return { pass: true, skip: true, detail: "No account plans yet." };
+          const children = await countGroupedBy("AccountPlanParticipant", "AccountPlanId", await planIds(), org);
+          return missingResult(rows, children, "account plan", "account plans", "participants");
         }
       ),
 
@@ -140,7 +170,7 @@ const readiness: ReadinessModule = {
         {
           id: "kam.data.objectives-have-action-plans",
           stage: "data",
-          title: "Every objective has an action plan",
+          title: "Objectives have an action plan",
           severity: "info",
           why: "Action plans hold the tactics and tasks that move an objective forward. An objective without one can't show progress.",
           steps: ["Open the objective, then Action Plans > Import Template or New."],
@@ -148,10 +178,11 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const total = await countOf(`SELECT COUNT() FROM AccountPlanObjective`, org);
-          if (!total) return { pass: true, skip: true, detail: "No objectives yet." };
-          const bare = await countOf(`SELECT COUNT() FROM AccountPlanObjective WHERE Id NOT IN (SELECT TargetId FROM ActionPlan WHERE ActionPlanType = 'KAM')`, org);
-          return bare ? { pass: false, detail: `${bare} of ${total} objectives have no action plan.` } : { pass: true, detail: `All ${total} objectives have an action plan.` };
+          const rows = await objectives();
+          if (!rows.length) return { pass: true, skip: true, detail: "No objectives yet." };
+          const ids = rows.map((r) => String(r.Id));
+          const children = await countGroupedBy("ActionPlan", "TargetId", ids, org, "ActionPlanType = 'KAM'");
+          return missingResult(rows, children, "objective", "objectives", "action plan");
         }
       ),
 

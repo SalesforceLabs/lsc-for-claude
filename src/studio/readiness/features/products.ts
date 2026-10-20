@@ -1,7 +1,7 @@
 /** Product Management readiness: its validation rules plus Studio's own checks. */
 
 import { collectCategoryRecords } from "../../../config/collect.js";
-import { count, plural, query } from "../../helpers.js";
+import { count, countGroupedBy, plural, query } from "../../helpers.js";
 import { runCheck, type ReadinessModule } from "../index.js";
 import { handlersResult, loadDbSchema, loadHandlers, once, syncResult } from "./_visit-shared.js";
 
@@ -16,12 +16,17 @@ const PRODUCT_HANDLERS = [
 /** What reps need offline to pick products and see their messages. */
 const SYNCED_OBJECTS = ["LifeSciMarketableProduct", "Product2", "ProductGuidance", "ProductTerritoryAvailability", "ProductTerrDtlAvailability", "ProviderAcctProductInfo"];
 
+/** "1 restriction" / "3 restrictions" — `plural` only appends "s". */
+const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : more}`;
+
 const readiness: ReadinessModule = {
   ruleFiles: ["product-management-config.yaml"],
   checks: async (org) => {
     const handlers = once(() => loadHandlers(org));
     const schema = once(() => loadDbSchema(org));
-    const restrictions = once(() => count(`SELECT COUNT() FROM LifeSciProductAcctRstrc`, org));
+    // Account restrictions are per account, product and territory, so the table can be large: ask
+    // whether there are any (one row) instead of counting them.
+    const restrictions = once(async () => (await query(`SELECT Id FROM LifeSciProductAcctRstrc LIMIT 1`, org)).length > 0);
 
     return Promise.all([
       runCheck(
@@ -107,10 +112,18 @@ const readiness: ReadinessModule = {
           uiPath: "Product Account Restrictions",
         },
         async () => {
-          const total = await restrictions();
-          if (!total) return { pass: true, skip: true, detail: "No account restrictions — optional." };
-          const n = await count(`SELECT COUNT() FROM LifeSciProductAcctRstrc WHERE ProductId IN (SELECT Id FROM LifeSciMarketableProduct WHERE IsActive = false)`, org);
-          return { pass: n === 0, detail: n ? `${n} of ${total} restrictions are on inactive products.` : `All ${total} restrictions are on active products.` };
+          if (!(await restrictions())) return { pass: true, skip: true, detail: "No account restrictions — optional." };
+          // Start from the inactive products (a short list) and count their restrictions by product id,
+          // which uses the lookup's index instead of reading every restriction.
+          const inactive = (await query(`SELECT Id FROM LifeSciMarketableProduct WHERE IsActive = false`, org)).map((r) => String(r.Id));
+          const byProduct = await countGroupedBy("LifeSciProductAcctRstrc", "ProductId", inactive, org);
+          const n = [...byProduct.values()].reduce((a, b) => a + b, 0);
+          return {
+            pass: n === 0,
+            detail: n
+              ? `${many(n, "restriction is", "restrictions are")} on ${many(byProduct.size, "inactive product", "inactive products")}.`
+              : "No restriction is on an inactive product.",
+          };
         }
       ),
       runCheck(

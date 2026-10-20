@@ -1,8 +1,33 @@
 /** Lists & Filters readiness: its validation rules plus Studio's own checks. */
 
-import { inList, plural, query } from "../../helpers.js";
+import { countGroupedBy, inList, plural, query, type Row } from "../../helpers.js";
 import { runCheck, type ReadinessModule } from "../index.js";
-import { countOf, dbSchemaCheck, labels, loadDbSchema } from "./_activity-plan-shared.js";
+import { dbSchemaCheck, labels, loadDbSchema } from "./_activity-plan-shared.js";
+
+/*
+ * Member tables (LifeSciAccountListMember) grow with every account a rep adds, so the data checks
+ * never ask "is any list in the org missing members?" with an anti-join: when the answer is no,
+ * that scans every member row. They read a fixed number of lists and look their members up by
+ * list id instead. When the org has fewer lists than the sample size, the sample is all of them.
+ */
+const SAMPLE_ROWS = 500;
+/** Inactive users whose lists are looked up; an org with more is checked for these only. */
+const INACTIVE_USERS = 2000;
+
+/** "1 static list" / "3 static lists" for nouns `plural` can't spell. */
+const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : more}`;
+
+/** The sentence saying what was looked at, so a pass is never read as "every list in the org". */
+const checkedNote = (rows: Row[], one: string, more: string) =>
+  rows.length < SAMPLE_ROWS ? `Checked all ${many(rows.length, one, more)}.` : `Checked a sample of ${SAMPLE_ROWS} ${more}, not every one in the org.`;
+
+/** Lists matching `where` (up to the sample size) that have no member rows, looked up by list id. */
+async function emptyLists(where: string, org: string): Promise<{ sampled: Row[]; empty: Row[] }> {
+  const sampled = await query(`SELECT Id, Name FROM LifeScienceAccountList WHERE ${where} LIMIT ${SAMPLE_ROWS}`, org);
+  if (!sampled.length) return { sampled, empty: [] };
+  const members = await countGroupedBy("LifeSciAccountListMember", "LifeScienceAccountListId", sampled.map((r) => String(r.Id)), org);
+  return { sampled, empty: sampled.filter((r) => !members.has(String(r.Id))) };
+}
 
 const readiness: ReadinessModule = {
   ruleFiles: ["lists-filters-config.yaml"],
@@ -40,8 +65,10 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const n = await countOf(`SELECT COUNT() FROM LifeScienceAccountList`, org);
-          return n ? { pass: true, detail: `${plural(n, "list")}.` } : { pass: false, detail: "No account lists." };
+          // Reading up to the sample size says "some" without counting the whole table.
+          const n = (await query(`SELECT Id FROM LifeScienceAccountList LIMIT ${SAMPLE_ROWS}`, org)).length;
+          if (!n) return { pass: false, detail: "No account lists." };
+          return { pass: true, detail: n < SAMPLE_ROWS ? `${plural(n, "list")}.` : `At least ${SAMPLE_ROWS} lists.` };
         }
       ),
 
@@ -57,13 +84,12 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const rows = await query(
-            `SELECT Id, Name FROM LifeScienceAccountList WHERE Type = 'List' AND IsRoute = false AND Id NOT IN (SELECT LifeScienceAccountListId FROM LifeSciAccountListMember) LIMIT 20`,
-            org
-          );
-          return rows.length
-            ? { pass: false, detail: `${plural(rows.length, "static list")} with no members.`, examples: labels(rows) }
-            : { pass: true, detail: "Every static list has members." };
+          const { sampled, empty } = await emptyLists("Type = 'List' AND IsRoute = false", org);
+          if (!sampled.length) return { pass: true, detail: "There are no static lists." };
+          const scope = checkedNote(sampled, "static list", "static lists");
+          return empty.length
+            ? { pass: false, detail: `${empty.length} of ${many(sampled.length, "static list", "static lists")} ${empty.length === 1 ? "has" : "have"} no members. ${scope}`, examples: labels(empty.slice(0, 20)) }
+            : { pass: true, detail: `Every static list checked has members. ${scope}` };
         }
       ),
 
@@ -79,13 +105,12 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const rows = await query(
-            `SELECT Id, Name FROM LifeScienceAccountList WHERE IsRoute = true AND Id NOT IN (SELECT LifeScienceAccountListId FROM LifeSciAccountListMember) LIMIT 20`,
-            org
-          );
-          return rows.length
-            ? { pass: false, detail: `${plural(rows.length, "route")} with no stops.`, examples: labels(rows) }
-            : { pass: true, detail: "Every route has stops (or there are none)." };
+          const { sampled, empty } = await emptyLists("IsRoute = true", org);
+          if (!sampled.length) return { pass: true, detail: "There are no routes." };
+          const scope = checkedNote(sampled, "route", "routes");
+          return empty.length
+            ? { pass: false, detail: `${empty.length} of ${many(sampled.length, "route", "routes")} ${empty.length === 1 ? "has" : "have"} no stops. ${scope}`, examples: labels(empty.slice(0, 20)) }
+            : { pass: true, detail: `Every route checked has stops. ${scope}` };
         }
       ),
 
@@ -101,10 +126,19 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const rows = await query(`SELECT Id, Name FROM LifeScienceAccountList WHERE Owner.IsActive = false LIMIT 20`, org);
-          return rows.length
-            ? { pass: false, detail: `${plural(rows.length, "list")} owned by an inactive user.`, examples: labels(rows) }
-            : { pass: true, detail: "All list owners are active." };
+          // The User table is small next to the lists, so start from the inactive users and look
+          // their lists up by owner, rather than filter every list on its owner's status.
+          const users = await query(`SELECT Id FROM User WHERE IsActive = false LIMIT ${INACTIVE_USERS}`, org);
+          const scope =
+            users.length < INACTIVE_USERS
+              ? `Checked the lists of all ${many(users.length, "inactive user", "inactive users")}.`
+              : `Checked the lists of ${INACTIVE_USERS} inactive users, not every one in the org.`;
+          if (!users.length) return { pass: true, detail: "All list owners are active. The org has no inactive users." };
+          const owners = await countGroupedBy("LifeScienceAccountList", "OwnerId", users.map((u) => String(u.Id)), org);
+          if (!owners.size) return { pass: true, detail: `All list owners are active. ${scope}` };
+          const n = [...owners.values()].reduce((a, b) => a + b, 0);
+          const rows = await query(`SELECT Id, Name FROM LifeScienceAccountList WHERE OwnerId IN (${inList([...owners.keys()].slice(0, 200))}) LIMIT 20`, org);
+          return { pass: false, detail: `${plural(n, "list")} owned by ${many(owners.size, "inactive user", "inactive users")}. ${scope}`, examples: labels(rows) };
         }
       ),
 

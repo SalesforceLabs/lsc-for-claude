@@ -64,6 +64,17 @@ describe("products readiness", () => {
     expect((await run())["products.data.restrictions-on-active-products"].status).toBe("skipped");
   });
 
+  it("counts restrictions on inactive products by product id, without a semi-join or a full count", async () => {
+    org.LifeSciProductAcctRstrc = [{ Id: "R1", ProductId: "M1", cnt: 3 }];
+    org.LifeSciMarketableProduct = [{ Id: "M1" }];
+    const c = (await run())["products.data.restrictions-on-active-products"];
+    expect(c).toMatchObject({ status: "fail", detail: "3 restrictions are on 1 inactive product." });
+    const qs = vi.mocked(runSoqlQuery).mock.calls.map((x) => String(x[0])).filter((q) => q.includes("FROM LifeSciProductAcctRstrc"));
+    expect(qs).toContain("SELECT Id FROM LifeSciProductAcctRstrc LIMIT 1");
+    expect(qs.find((q) => q.includes("GROUP BY"))).toContain("ProductId IN ('M1')");
+    expect(qs.some((q) => q.includes("COUNT()") || q.includes("IN (SELECT"))).toBe(false);
+  });
+
   it("fails the admin settings check when no record exists, passes when one does", async () => {
     expect((await run())["products.config.admin-settings"].status).toBe("fail");
     schema = [{ category: "ProductAdminSettings", developerName: "p", isActive: true, fields: {}, fieldTypes: {}, assignments: [] } as unknown as ConfigRecord];

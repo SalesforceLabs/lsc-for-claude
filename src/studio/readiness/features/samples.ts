@@ -1,6 +1,7 @@
 /** Sample Management readiness: its validation rules plus Studio's own checks. */
 
-import { count, plural, query } from "../../helpers.js";
+import { chunkIds } from "../../../tools/helpers.js";
+import { count, countGroupedBy, inList, plural, query, queryByIds, type Row } from "../../helpers.js";
 import { runCheck, type ReadinessModule } from "../index.js";
 import { handlersResult, loadDbSchema, loadHandlers, once, syncResult } from "./_visit-shared.js";
 
@@ -36,8 +37,68 @@ const INVENTORY_OBJECTS = ["ProductItem", "ProductBatchItem", "ProductionBatch",
 const LIMIT_OBJECTS = ["ProviderSampleLimit", "ProviderSampleLimitTemplate", "ProviderSmplLmtTmplAssignment"];
 
 const USER_LOCATION = `LocationType = 'User Inventory'`;
-/** A location with at least one inventory line that has quantity on hand. */
-const STOCKED_LOCATION = `Id IN (SELECT LocationId FROM ProductItem WHERE QuantityOnHand > 0)`;
+
+/*
+ * The data checks don't ask "does any row in the org match?" of the inventory tables: when the
+ * answer is no, the database has to read every ProductItem or ProductBatchItem to say so, which
+ * times out in large orgs. Instead they read a fixed number of locations and look up those
+ * locations' inventory by id, or start from the lots (ProductionBatch, a small table) and look
+ * up their batch items by id. When the org has fewer locations than the sample size, the sample
+ * is all of them.
+ */
+const SAMPLE_ROWS = 500;
+/** Only disbursements created this recently are counted, so the count uses the CreatedDate index. */
+const DISBURSEMENT_WINDOW_DAYS = 90;
+
+/** "1 location" / "3 batch items" — `plural` only appends "s". */
+const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : more}`;
+
+interface LocationSample {
+  rows: Row[];
+  /** Every location matching the filter was read. */
+  complete: boolean;
+}
+
+async function sampleLocations(where: string, org: string): Promise<LocationSample> {
+  const rows = await query(`SELECT Id, Name, PrimaryUserId FROM Location WHERE ${where} LIMIT ${SAMPLE_ROWS}`, org);
+  return { rows, complete: rows.length < SAMPLE_ROWS };
+}
+
+/** "all 7 locations" / "the only location". */
+const allOf = (n: number, one: string, more: string) => (n === 1 ? `the only ${one}` : `all ${n} ${more}`);
+
+/** The sentence saying which locations were looked at, so a pass is never read as "the whole org is clean". */
+function checkedNote(s: LocationSample, one: string, more: string): string {
+  return s.complete ? `Checked ${allOf(s.rows.length, one, more)}.` : `Checked a sample of ${SAMPLE_ROWS} ${more}, not every one in the org.`;
+}
+
+/** Whether any row exists — one row read instead of a count over the whole table. */
+async function exists(object: string, org: string): Promise<boolean> {
+  return (await query(`SELECT Id FROM ${object} LIMIT 1`, org)).length > 0;
+}
+
+/** Inventory lines per Product2 across the given locations, read by location id. */
+async function productsAt(locationIds: string[], org: string): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  const chunks = await Promise.all(
+    chunkIds(locationIds).map((chunk) => query(`SELECT Product2Id, COUNT(Id) cnt FROM ProductItem WHERE LocationId IN (${inList(chunk)}) GROUP BY Product2Id`, org))
+  );
+  for (const r of chunks.flat()) out.set(String(r.Product2Id), (out.get(String(r.Product2Id)) ?? 0) + Number(r.cnt ?? r.expr0 ?? 0));
+  return out;
+}
+
+/**
+ * Batch items of the given lots that match `where`: counts per lot, read by lot id, plus up to five
+ * examples. Every matching batch item is counted, not a sample.
+ */
+async function batchItemsOf(lotIds: string[], where: string, fields: string, org: string): Promise<{ n: number; examples: Row[] }> {
+  if (!lotIds.length) return { n: 0, examples: [] };
+  const counts = await countGroupedBy("ProductBatchItem", "ProductionBatchId", lotIds, org, where);
+  const n = [...counts.values()].reduce((a, b) => a + b, 0);
+  const hit = [...counts.keys()].slice(0, 200);
+  const examples = n ? await query(`SELECT ${fields} FROM ProductBatchItem WHERE ProductionBatchId IN (${inList(hit)}) AND ${where} LIMIT 5`, org) : [];
+  return { n, examples };
+}
 
 const readiness: ReadinessModule = {
   ruleFiles: ["sample-management-config.yaml"],
@@ -45,6 +106,15 @@ const readiness: ReadinessModule = {
     const handlers = once(() => loadHandlers(org));
     const schema = once(() => loadDbSchema(org));
     const userLocations = once(() => count(`SELECT COUNT() FROM Location WHERE ${USER_LOCATION}`, org));
+    const limits = once(() => exists("ProviderSampleLimit", org));
+    // User Inventory locations with no Primary User, and which of them hold stock.
+    const unassigned = once(() => sampleLocations(`${USER_LOCATION} AND PrimaryUserId = null`, org));
+    const unassignedStock = once(async () => countGroupedBy("ProductItem", "LocationId", (await unassigned()).rows.map((r) => String(r.Id)), org, "QuantityOnHand > 0"));
+    const repLocations = once(() => sampleLocations(USER_LOCATION, org));
+    // Product items can only be created in inventory locations, so these hold all the stock.
+    const inventoryLocations = once(() => sampleLocations("IsInventoryLocation = true", org));
+    const inactiveProducts = once(async () => (await query(`SELECT Id FROM LifeSciMarketableProduct WHERE IsActive = false`, org)).map((r) => String(r.Id)));
+    const NO_USER_LOCATIONS = { pass: true, skip: true, detail: "No User Inventory locations yet." };
 
     return Promise.all([
       runCheck(
@@ -59,16 +129,17 @@ const readiness: ReadinessModule = {
         },
         async () => {
           const total = await userLocations();
-          if (!total) return { pass: true, skip: true, detail: "No User Inventory locations yet." };
-          const where = `${USER_LOCATION} AND PrimaryUserId = null AND ${STOCKED_LOCATION}`;
-          const rows = await query(`SELECT Id, Name FROM Location WHERE ${where} LIMIT 5`, org);
-          const n = rows.length < 5 ? rows.length : await count(`SELECT COUNT() FROM Location WHERE ${where}`, org);
+          if (!total) return NO_USER_LOCATIONS;
+          const s = await unassigned();
+          const stock = await unassignedStock();
+          const rows = s.rows.filter((r) => stock.has(String(r.Id)));
+          const scope = s.complete ? "" : ` Checked a sample of ${SAMPLE_ROWS} User Inventory locations with no Primary User, not every one in the org.`;
           return {
-            pass: n === 0,
-            detail: n
-              ? `${n} of ${total} User Inventory locations hold stock but have no Primary User.`
-              : `No User Inventory location holds stock without a Primary User.`,
-            examples: rows.map((r) => String(r.Name)),
+            pass: rows.length === 0,
+            detail: rows.length
+              ? `${rows.length} of ${total} User Inventory locations hold stock but have no Primary User.${scope}`
+              : `No User Inventory location holds stock without a Primary User.${scope}`,
+            examples: rows.slice(0, 5).map((r) => String(r.Name)),
           };
         }
       ),
@@ -84,14 +155,15 @@ const readiness: ReadinessModule = {
         },
         async () => {
           const total = await userLocations();
-          if (!total) return { pass: true, skip: true, detail: "No User Inventory locations yet." };
-          const where = `${USER_LOCATION} AND PrimaryUserId = null AND Id NOT IN (SELECT LocationId FROM ProductItem WHERE QuantityOnHand > 0)`;
-          const rows = await query(`SELECT Id, Name FROM Location WHERE ${where} LIMIT 5`, org);
-          const n = rows.length < 5 ? rows.length : await count(`SELECT COUNT() FROM Location WHERE ${where}`, org);
+          if (!total) return NO_USER_LOCATIONS;
+          const s = await unassigned();
+          const stock = await unassignedStock();
+          const rows = s.rows.filter((r) => !stock.has(String(r.Id)));
+          const scope = s.complete ? "" : ` Checked a sample of ${SAMPLE_ROWS} User Inventory locations with no Primary User, not every one in the org.`;
           return {
-            pass: n === 0,
-            detail: n ? `${n} of ${total} User Inventory locations have no Primary User and no stock.` : "Every empty User Inventory location has a Primary User.",
-            examples: rows.map((r) => String(r.Name)),
+            pass: rows.length === 0,
+            detail: rows.length ? `${rows.length} of ${total} User Inventory locations have no Primary User and no stock.${scope}` : `Every empty User Inventory location has a Primary User.${scope}`,
+            examples: rows.slice(0, 5).map((r) => String(r.Name)),
           };
         }
       ),
@@ -129,9 +201,16 @@ const readiness: ReadinessModule = {
           uiPath: "Inventory Operations tab",
         },
         async () => {
-          if (!(await userLocations())) return { pass: true, skip: true, detail: "No User Inventory locations yet." };
-          const stocked = await count(`SELECT COUNT() FROM ProductItem WHERE Location.${USER_LOCATION} AND QuantityOnHand > 0`, org);
-          return { pass: stocked > 0, detail: stocked ? `${plural(stocked, "rep inventory line")} with stock.` : "No rep location has any quantity on hand." };
+          if (!(await userLocations())) return NO_USER_LOCATIONS;
+          const s = await repLocations();
+          const stocked = await countGroupedBy("ProductItem", "LocationId", s.rows.map((r) => String(r.Id)), org, "QuantityOnHand > 0");
+          const scope = checkedNote(s, "User Inventory location", "User Inventory locations");
+          return {
+            pass: stocked.size > 0,
+            detail: stocked.size
+              ? `${stocked.size} of ${s.rows.length} User Inventory locations hold stock. ${scope}`
+              : `None of the User Inventory locations checked has any quantity on hand. ${scope}`,
+          };
         }
       ),
       runCheck(
@@ -145,15 +224,21 @@ const readiness: ReadinessModule = {
           uiPath: "Product Items tab",
         },
         async () => {
+          const s = await inventoryLocations();
+          if (!s.rows.length) return { pass: true, skip: true, detail: "No inventory locations yet." };
+          const ids = s.rows.map((r) => String(r.Id));
           const [items, batches] = await Promise.all([
-            count(`SELECT COUNT() FROM ProductItem WHERE QuantityOnHand < 0`, org),
-            count(`SELECT COUNT() FROM ProductBatchItem WHERE RemainingQuantity < 0`, org),
+            queryByIds("ProductItemNumber", "ProductItem", "LocationId", ids, org, "QuantityOnHand < 0"),
+            countGroupedBy("ProductBatchItem", "LocationId", ids, org, "RemainingQuantity < 0"),
           ]);
-          const rows = items ? await query(`SELECT ProductItemNumber FROM ProductItem WHERE QuantityOnHand < 0 LIMIT 5`, org) : [];
+          const nBatches = [...batches.values()].reduce((a, b) => a + b, 0);
+          const scope = checkedNote(s, "inventory location", "inventory locations");
           return {
-            pass: items + batches === 0,
-            detail: items + batches ? `${plural(items, "product item")} and ${plural(batches, "batch item")} below zero.` : "No negative quantities.",
-            examples: rows.map((r) => String(r.ProductItemNumber)),
+            pass: items.length + nBatches === 0,
+            detail: items.length + nBatches
+              ? `${many(items.length, "product item", "product items")} and ${many(nBatches, "batch item", "batch items")} below zero. ${scope}`
+              : `No negative quantities. ${scope}`,
+            examples: items.slice(0, 5).map((r) => String(r.ProductItemNumber)),
           };
         }
       ),
@@ -168,13 +253,13 @@ const readiness: ReadinessModule = {
           uiPath: "Product Batch Items tab",
         },
         async () => {
-          const where = `IsActive = true AND ExpirationDate < TODAY AND RemainingQuantity > 0`;
-          const rows = await query(`SELECT Id, Name, ExpirationDate, RemainingQuantity FROM ProductBatchItem WHERE ${where} ORDER BY ExpirationDate LIMIT 5`, org);
-          const n = rows.length < 5 ? rows.length : await count(`SELECT COUNT() FROM ProductBatchItem WHERE ${where}`, org);
+          // Start from the expired lots, then count their batch items by lot id.
+          const lots = (await query(`SELECT Id FROM ProductionBatch WHERE ExpirationDate < TODAY`, org)).map((r) => String(r.Id));
+          const { n, examples } = await batchItemsOf(lots, `IsActive = true AND ExpirationDate < TODAY AND RemainingQuantity > 0`, "Name, ExpirationDate", org);
           return {
             pass: n === 0,
-            detail: n ? `${plural(n, "batch item")} past expiry with stock left.` : "No active batch item is past its expiry date with stock.",
-            examples: rows.map((r) => `${r.Name} (expired ${r.ExpirationDate})`),
+            detail: n ? `${many(n, "batch item", "batch items")} past expiry with stock left.` : "No active batch item is past its expiry date with stock.",
+            examples: examples.map((r) => `${r.Name} (expired ${String(r.ExpirationDate).slice(0, 10)})`),
           };
         }
       ),
@@ -189,13 +274,12 @@ const readiness: ReadinessModule = {
           uiPath: "Production Batches tab",
         },
         async () => {
-          const where = `IsActive = true AND IsProductionBatchActive = false AND RemainingQuantity > 0`;
-          const n = await count(`SELECT COUNT() FROM ProductBatchItem WHERE ${where}`, org);
-          const rows = n ? await query(`SELECT Name, ProductionBatch.Name FROM ProductBatchItem WHERE ${where} LIMIT 5`, org) : [];
+          const lots = (await query(`SELECT Id FROM ProductionBatch WHERE IsActive = false`, org)).map((r) => String(r.Id));
+          const { n, examples } = await batchItemsOf(lots, `IsActive = true AND IsProductionBatchActive = false AND RemainingQuantity > 0`, "Name", org);
           return {
             pass: n === 0,
-            detail: n ? `${plural(n, "batch item")} hold stock under an inactive batch.` : "All stocked batch items belong to active batches.",
-            examples: rows.map((r) => String(r.Name)),
+            detail: n ? `${many(n, "batch item", "batch items")} hold stock under an inactive batch.` : "All stocked batch items belong to active batches.",
+            examples: examples.map((r) => String(r.Name)),
           };
         }
       ),
@@ -203,7 +287,7 @@ const readiness: ReadinessModule = {
         {
           id: "samples.data.inventory-products-marketable",
           stage: "data",
-          title: "Every product in rep inventory has a marketable product",
+          title: "Products in rep inventory have a marketable product",
           severity: "warning",
           why: "Sample drops, limits and the product picker work from Marketable Products. Stock in a rep's location for a Product2 with no marketable product can't be selected on the iPad.",
           steps: ["Create a Marketable Product for the Product2, or move the stock to the right product"],
@@ -212,16 +296,24 @@ const readiness: ReadinessModule = {
         async () => {
           // The iPad reads stock only from the rep's own location (Primary User = the rep), so warehouse, site
           // and van stock with no marketable product never reaches the product picker.
-          if (!(await userLocations())) return { pass: true, skip: true, detail: "No User Inventory locations yet." };
-          const where = `Location.${USER_LOCATION} AND Location.PrimaryUserId != null AND Product2Id NOT IN (SELECT ProductId FROM LifeSciMarketableProduct WHERE ProductId != null)`;
-          const n = await count(`SELECT COUNT() FROM ProductItem WHERE ${where}`, org);
-          const rows = n ? await query(`SELECT Product2.Name, Location.Name FROM ProductItem WHERE ${where} LIMIT 5`, org) : [];
+          if (!(await userLocations())) return NO_USER_LOCATIONS;
+          const s = await repLocations();
+          const owned = s.rows.filter((r) => r.PrimaryUserId).map((r) => String(r.Id));
+          if (!owned.length) return { pass: true, skip: true, detail: "No User Inventory location has a Primary User." };
+          const lines = await productsAt(owned, org);
+          const marketable = new Set((await queryByIds("ProductId", "LifeSciMarketableProduct", "ProductId", [...lines.keys()], org)).map((r) => String(r.ProductId)));
+          const missing = [...lines.keys()].filter((id) => !marketable.has(id));
+          const n = missing.reduce((a, id) => a + (lines.get(id) ?? 0), 0);
+          const names = missing.length ? await queryByIds("Id, Name", "Product2", "Id", missing.slice(0, 5), org) : [];
+          const scope = s.complete
+            ? `Checked ${allOf(owned.length, "User Inventory location", "User Inventory locations")} with a Primary User.`
+            : `Checked the ${many(owned.length, "location", "locations")} with a Primary User among a sample of ${SAMPLE_ROWS} User Inventory locations, not every one in the org.`;
           return {
             pass: n === 0,
             detail: n
-              ? `${plural(n, "inventory line")} in reps' User Inventory locations for products with no marketable product.`
-              : "Every inventory line in reps' User Inventory locations has a marketable product.",
-            examples: rows.map((r) => String((r.Product2 as { Name?: string } | null)?.Name ?? r.Product2)),
+              ? `${many(n, "inventory line", "inventory lines")} in reps' User Inventory locations for products with no marketable product. ${scope}`
+              : `Every inventory line in reps' User Inventory locations has a marketable product. ${scope}`,
+            examples: names.map((r) => String(r.Name)),
           };
         }
       ),
@@ -229,20 +321,25 @@ const readiness: ReadinessModule = {
         {
           id: "samples.data.disbursements-resolved",
           stage: "data",
-          title: "No disbursement is waiting on a resolution",
+          title: "No recent disbursement is waiting on a resolution",
           severity: "warning",
           why: "A disbursement flagged as needing resolution broke a rule (limit, license or stock). Until someone resolves it the rep's inventory and the limit usage stay out of step.",
           steps: ["Open the disbursement and follow its violation message", "Resolve or correct it, then re-submit"],
           uiPath: "Product Disbursements tab",
         },
         async () => {
-          const total = await count(`SELECT COUNT() FROM ProductDisbursement`, org);
-          if (!total) return { pass: true, skip: true, detail: "No sample disbursements recorded yet." };
-          const rows = await query(`SELECT Name, ViolationMessage FROM ProductDisbursement WHERE IsResolutionRequired = true LIMIT 5`, org);
-          const n = rows.length < 5 ? rows.length : await count(`SELECT COUNT() FROM ProductDisbursement WHERE IsResolutionRequired = true`, org);
+          if (!(await exists("ProductDisbursement", org))) return { pass: true, skip: true, detail: "No sample disbursements recorded yet." };
+          const window = `CreatedDate = LAST_N_DAYS:${DISBURSEMENT_WINDOW_DAYS}`;
+          const [total, n] = await Promise.all([
+            count(`SELECT COUNT() FROM ProductDisbursement WHERE ${window}`, org),
+            count(`SELECT COUNT() FROM ProductDisbursement WHERE ${window} AND IsResolutionRequired = true`, org),
+          ]);
+          if (!total) return { pass: true, skip: true, detail: `No sample disbursements in the last ${DISBURSEMENT_WINDOW_DAYS} days.` };
+          const rows = n ? await query(`SELECT Name FROM ProductDisbursement WHERE ${window} AND IsResolutionRequired = true LIMIT 5`, org) : [];
+          const scope = `Checked the ${many(total, "disbursement", "disbursements")} from the last ${DISBURSEMENT_WINDOW_DAYS} days.`;
           return {
             pass: n === 0,
-            detail: n ? `${n} of ${total} disbursements need resolution.` : `None of ${total} disbursements need resolution.`,
+            detail: n ? `${n} of ${total} need resolution. ${scope}` : `None needs resolution. ${scope}`,
             examples: rows.map((r) => String(r.Name)),
           };
         }
@@ -258,10 +355,16 @@ const readiness: ReadinessModule = {
           uiPath: "Admin Console > Sample Limits",
         },
         async () => {
-          const total = await count(`SELECT COUNT() FROM ProviderSampleLimit`, org);
-          if (!total) return { pass: true, skip: true, detail: "No sample limits — optional." };
-          const n = await count(`SELECT COUNT() FROM ProviderSampleLimit WHERE ProductId IN (SELECT Id FROM LifeSciMarketableProduct WHERE IsActive = false)`, org);
-          return { pass: n === 0, detail: n ? `${n} of ${total} limits are on inactive products.` : `All ${total} limits are on active products.` };
+          if (!(await limits())) return { pass: true, skip: true, detail: "No sample limits — optional." };
+          // Start from the inactive products (a short list) and count their limits by product id.
+          const byProduct = await countGroupedBy("ProviderSampleLimit", "ProductId", await inactiveProducts(), org);
+          const n = [...byProduct.values()].reduce((a, b) => a + b, 0);
+          return {
+            pass: n === 0,
+            detail: n
+              ? `${many(n, "limit is", "limits are")} on ${many(byProduct.size, "inactive product", "inactive products")}.`
+              : "No limit is on an inactive product.",
+          };
         }
       ),
       runCheck(
@@ -315,7 +418,7 @@ const readiness: ReadinessModule = {
           surface: "dbSchema",
         },
         async () => {
-          if (!(await count(`SELECT COUNT() FROM ProviderSampleLimit`, org))) return { pass: true, skip: true, detail: "No sample limits — optional." };
+          if (!(await limits())) return { pass: true, skip: true, detail: "No sample limits — optional." };
           return syncResult(org, await schema(), LIMIT_OBJECTS);
         }
       ),

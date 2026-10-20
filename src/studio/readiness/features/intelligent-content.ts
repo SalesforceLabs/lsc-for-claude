@@ -1,8 +1,9 @@
 /** Intelligent Content readiness: its validation rules plus Studio's own checks. */
 
-import { count, plural, query } from "../../helpers.js";
+import { count, countGroupedBy, plural, query, queryByIds, type Row } from "../../helpers.js";
 import { runCheck, type ReadinessModule } from "../index.js";
 import { handlersResult, loadDbSchema, nameList, syncResult } from "./_consent-sync.js";
+import { once } from "./_visit-shared.js";
 
 /** Handlers that share presentations and their pages with territories and keep topics valid. */
 const HANDLERS = ["PresentationSharingHandler", "PresentationLinkedPageSharingHandler", "PresentationForumLockHandler", "TopicValidationHandler"];
@@ -14,10 +15,39 @@ const TRACKING_OBJECTS = ["PresentationClickStrmEntry"];
 
 const ACTIVE = `FROM Presentation WHERE Status = 'Active'`;
 
+/*
+ * The checks on active presentations read a fixed number of them, then look up their shares and
+ * pages by presentation id. An anti-join ("Id NOT IN (SELECT ... FROM PresentationShare)") has to read
+ * the whole share table when every presentation is distributed, which is the healthy case; a lookup
+ * by id costs the same whatever the size of the org. When the org has fewer active presentations than
+ * the sample size, the sample is all of them.
+ */
+const SAMPLE_ROWS = 500;
+
+interface Sample {
+  rows: Row[];
+  ids: string[];
+  /** Every active presentation was read. */
+  complete: boolean;
+}
+
+async function loadActive(org: string): Promise<Sample> {
+  const rows = await query(`SELECT Id, Name ${ACTIVE} LIMIT ${SAMPLE_ROWS}`, org);
+  return { rows, ids: rows.map((r) => String(r.Id)), complete: rows.length < SAMPLE_ROWS };
+}
+
+/** The sentence saying what was looked at, so a pass is never read as "every presentation in the org". */
+function checkedNote(s: Sample): string {
+  return s.complete ? `Checked all ${plural(s.rows.length, "active presentation")}.` : `Checked a sample of ${SAMPLE_ROWS} active presentations, not every one in the org.`;
+}
+
+const NO_ACTIVE = { pass: true, skip: true, detail: "No active presentations." };
+
 const readiness: ReadinessModule = {
   ruleFiles: ["intelligent-content-config.yaml"],
   checks: async (org) => {
     const schema = loadDbSchema(org);
+    const active = once(() => loadActive(org));
     return Promise.all([
       runCheck(
         {
@@ -37,7 +67,7 @@ const readiness: ReadinessModule = {
         {
           id: "intelligent-content.access.shared",
           stage: "access",
-          title: "Every active presentation is distributed to a territory",
+          title: "Active presentations are distributed to a territory",
           severity: "error",
           why: "A presentation reaches reps only through a share. One with just its owner on the sharing list is invisible on every iPad.",
           steps: ["Open Admin Console > Content Management", "Select the presentation and use Distribute to pick its territories"],
@@ -45,15 +75,14 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const total = await count(`SELECT COUNT() ${ACTIVE}`, org);
-          if (!total) return { pass: true, skip: true, detail: "No active presentations." };
-          const rows = await query(
-            `SELECT Id, Name ${ACTIVE} AND Id NOT IN (SELECT ParentId FROM PresentationShare WHERE RowCause != 'Owner') LIMIT 20`,
-            org
-          );
+          const s = await active();
+          if (!s.rows.length) return NO_ACTIVE;
+          const shared = await countGroupedBy("PresentationShare", "ParentId", s.ids, org, "RowCause != 'Owner'");
+          const rows = s.rows.filter((r) => !shared.has(String(r.Id)));
+          const scope = checkedNote(s);
           return rows.length
-            ? { pass: false, detail: `${rows.length} of ${plural(total, "active presentation")} aren't distributed.`, examples: nameList(rows) }
-            : { pass: true, detail: `All ${plural(total, "active presentation")} are distributed.` };
+            ? { pass: false, detail: `${rows.length} of ${s.rows.length} ${rows.length === 1 ? "isn't" : "aren't"} distributed. ${scope}`, examples: nameList(rows.slice(0, 20)) }
+            : { pass: true, detail: `Every one is distributed. ${scope}` };
         }
       ),
 
@@ -61,7 +90,7 @@ const readiness: ReadinessModule = {
         {
           id: "intelligent-content.data.empty",
           stage: "data",
-          title: "Every active presentation has at least one page",
+          title: "Active presentations have at least one page",
           severity: "error",
           why: "A presentation with no pages opens as an empty viewer. It usually means the upload or conversion didn't finish.",
           steps: ["Open Admin Console > Content Management", "Re-upload the presentation, or deactivate it"],
@@ -69,12 +98,14 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const total = await count(`SELECT COUNT() ${ACTIVE}`, org);
-          if (!total) return { pass: true, skip: true, detail: "No active presentations." };
-          const rows = await query(`SELECT Id, Name ${ACTIVE} AND Id NOT IN (SELECT PresentationId FROM PresentationLinkedPage) LIMIT 20`, org);
+          const s = await active();
+          if (!s.rows.length) return NO_ACTIVE;
+          const paged = await countGroupedBy("PresentationLinkedPage", "PresentationId", s.ids, org);
+          const rows = s.rows.filter((r) => !paged.has(String(r.Id)));
+          const scope = checkedNote(s);
           return rows.length
-            ? { pass: false, detail: `${rows.length} of ${plural(total, "active presentation")} have no pages.`, examples: nameList(rows) }
-            : { pass: true, detail: `All ${plural(total, "active presentation")} have pages.` };
+            ? { pass: false, detail: `${rows.length} of ${s.rows.length} ${rows.length === 1 ? "has" : "have"} no pages. ${scope}`, examples: nameList(rows.slice(0, 20)) }
+            : { pass: true, detail: `Every one has pages. ${scope}` };
         }
       ),
 
@@ -90,15 +121,15 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const rows = await query(
-            `SELECT Presentation.Name, PresentationPage.Name FROM PresentationLinkedPage WHERE Presentation.Status = 'Active' AND PresentationPage.Status != 'Active' LIMIT 20`,
-            org
-          );
+          const s = await active();
+          if (!s.rows.length) return NO_ACTIVE;
+          const rows = await queryByIds("Presentation.Name, PresentationPage.Name", "PresentationLinkedPage", "PresentationId", s.ids, org, "PresentationPage.Status != 'Active'");
           const label = (r: Record<string, unknown>) =>
             `${(r.Presentation as { Name?: string } | null)?.Name ?? "?"} → ${(r.PresentationPage as { Name?: string } | null)?.Name ?? "?"}`;
+          const scope = checkedNote(s);
           return rows.length
-            ? { pass: false, detail: `${plural(rows.length, "inactive page")} in active presentations.`, examples: rows.map(label) }
-            : { pass: true, detail: "None." };
+            ? { pass: false, detail: `${plural(rows.length, "inactive page")} in active presentations. ${scope}`, examples: rows.slice(0, 20).map(label) }
+            : { pass: true, detail: `No active presentation includes an inactive page. ${scope}` };
         }
       ),
 
@@ -116,7 +147,7 @@ const readiness: ReadinessModule = {
         async () => {
           const rows = await query(`SELECT Id, Name, ActivationDate, DeactivationDate ${ACTIVE} AND (DeactivationDate < TODAY OR ActivationDate > TODAY) LIMIT 20`, org);
           return rows.length
-            ? { pass: false, detail: `${plural(rows.length, "active presentation")} outside the dates.`, examples: nameList(rows) }
+            ? { pass: false, detail: `${plural(rows.length, "active presentation")} outside the dates.`, examples: nameList(rows.slice(0, 20)) }
             : { pass: true, detail: "All within their dates." };
         }
       ),
