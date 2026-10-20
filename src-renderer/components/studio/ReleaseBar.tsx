@@ -281,7 +281,7 @@ export default function ReleaseBar({
             ? `${job.status?.profiles.join(", ")} — ${job.status?.status ?? "generating"}${job.error ? ` (couldn't check: ${job.error})` : ""}`
             : ipad.tone === "failed"
               ? (job.status?.error ?? job.error ?? "Publish failed")
-              : "Publish to iPad — regenerate the mobile metadata cache"
+              : "Regenerate the mobile metadata cache"
         }
       >
         {ipad.tone === "running" ? (
@@ -348,7 +348,7 @@ export default function ReleaseBar({
               setOpen(null);
               onUndoLastApply();
             }}
-            title="Undo last apply — review the changes that take it back">
+            title="Review and undo the last apply">
             <RotateCcw aria-hidden="true" />
             <span className="studio-btn-label">Undo last apply</span>
           </button>

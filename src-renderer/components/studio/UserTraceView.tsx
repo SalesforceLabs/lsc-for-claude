@@ -96,7 +96,7 @@ export default function UserTraceView({
       <header className="studio-page-head">
         <div>
           <h2>Check a user</h2>
-          <p>Why can't this rep see a feature or sync? Walks the chain from licenses and permissions to their last sync.</p>
+          <p>Checks one rep's licenses, permissions, territory and last sync to find what's blocking them.</p>
         </div>
       </header>
 

@@ -426,8 +426,7 @@ function Device({
         </div>
       )}
       <p className="studio-ipad-note">
-        Read from the metadata cache {snapshot.profile} downloads — tabs, page components, layouts, and list views are
-        what the app renders; record data is placeholder. {snapshot.notes.join(" ")}
+        From {snapshot.profile}'s metadata cache. Record data is sample data. {snapshot.notes.join(" ")}
       </p>
     </div>
     </RepLoginContext.Provider>

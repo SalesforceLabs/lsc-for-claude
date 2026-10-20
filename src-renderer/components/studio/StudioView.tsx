@@ -518,10 +518,10 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
 
   const previewSubtitle =
     previewMode === "published"
-      ? `Exactly as ${lens ? `${lens.profile}'s` : "a profile's"} users last downloaded it, from the profile's metadata cache — select anything to see where it comes from`
+      ? `What ${lens ? lens.profile : "a profile's"} users have now, from the last publish. Select anything to inspect it.`
       : previewMode === "split"
-        ? "On iPads now on the left, Next publish on the right — select blocks on the right to change them"
-        : "What reps get after you apply and publish: the org now, plus your changes";
+        ? "Left: on iPads now. Right: next publish, where you can edit."
+        : "What reps get after you apply and publish";
 
   const featureBusy =
     state?.status === "loading" ||
@@ -530,7 +530,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     isRevalidating(readiness[featureId] as Revalidating | undefined);
   const featureSubtitle = map
     ? `${map.summary} · ${map.org} · ${isRevalidating(state as Revalidating | undefined) ? "refreshing…" : `mapped ${new Date(map.collectedAt).toLocaleString()}`}${
-        activeLens ? ` · checking ${activeLens.profile} — permission sets and record sharing aren't evaluated` : ""
+        activeLens ? ` · checking as ${activeLens.profile} (permission sets and sharing not included)` : ""
       }`
     : undefined;
 
@@ -616,30 +616,30 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         {railItem(
           "preview",
           "Preview",
-          "What LSC Mobile shows a profile — as last published, or with pending changes laid on top",
+          "A profile's iPad as published, or with your changes",
           () => openPreview(),
           Tablet
         )}
         {railItem(
           "metadata-cache",
           "Metadata cache",
-          "What each profile's iPads download, the publishes that built it, and what's inside",
+          "Each profile's published cache and publish history",
           () => setSection("metadata-cache"),
           Archive
         )}
         {railItem(
           "object-sync",
           "Object sync",
-          "Which objects and records LSC Mobile syncs, for whom — the DB Schema records",
+          "DB Schema records: what syncs to iPads, and for whom",
           () => setSection("object-sync"),
           Database
         )}
         <div className="studio-rail-title studio-rail-section">Setup</div>
-        {railItem("overview", "Overview", "Every feature's readiness at a glance, and what blocks them all", () => setSection("overview"), LayoutDashboard)}
+        {railItem("overview", "Overview", "Readiness for every feature, and org-wide blockers", () => setSection("overview"), LayoutDashboard)}
         {railItem(
           "user-check",
           "Check a user",
-          "Why can't a rep do something? Check one user's setup end to end",
+          "Find out why a rep can't do something",
           () => setSection("user-check"),
           UserRoundSearch
         )}
@@ -654,11 +654,11 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
         {railItem(
           "custom-scripts",
           "Custom scripts",
-          "Read, write and test the scripts that check visits, workflow stages and checklists",
+          "Edit and test visit, workflow and checklist scripts",
           () => openScripts(),
           FileCode2
         )}
-        {railItem("apps", "LSC apps", "Describe an app for reps, watch Roz build it, and put it on the iPad", openApps, Sparkles)}
+        {railItem("apps", "LSC apps", "Build an iPad app with Roz", openApps, Sparkles)}
         <div className="studio-rail-title studio-rail-section">Testing</div>
         {railItem("sync", "Sync health", "How reps' iPads are syncing, and who is struggling", () => openSyncPage("sync"), Activity)}
         {railItem(
@@ -736,7 +736,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               onChange={setPreviewMode}
               options={[
                 { value: "published", label: "On iPads now", title: "What reps have today, from the profile's metadata cache" },
-                { value: "draft", label: "Next publish", title: "What reps get after you apply and publish: the org now, plus your changes" },
+                { value: "draft", label: "Next publish", title: "What reps get after you apply and publish" },
                 { value: "split", label: "Compare", title: "On iPads now and Next publish side by side" },
               ]}
             />
@@ -771,7 +771,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
                   kind="empty"
                   icon={Tablet}
                   title="Choose a profile"
-                  detail="Pick one in “Preview as” to see the iPad exactly as that profile's users last downloaded it."
+                  detail="Pick a profile in “Preview as” to see its iPad."
                 />
               )}
             </div>
@@ -926,7 +926,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
                 {activeLens && (
                   <span className="studio-lens-note">
                     {" "}
-                    · checking {activeLens.profile} — permission sets and record sharing aren't evaluated
+                    · checking as {activeLens.profile} (permission sets and sharing not included)
                   </span>
                 )}
               </div>
@@ -937,7 +937,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
               <button
                 className="studio-btn collapsible"
                 onClick={() => openPreview()}
-                title="Preview on iPad — what LSC Mobile shows a profile, as on iPads now or as the next publish will make it"
+                title="Open the iPad preview"
               >
                 <Tablet aria-hidden="true" />
                 <span className="studio-btn-label">Preview on iPad</span>

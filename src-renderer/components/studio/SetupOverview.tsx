@@ -174,7 +174,7 @@ export default function SetupOverview({
       <header className="studio-page-head">
         <div>
           <h2>Setup overview</h2>
-          <p>Is {data.org} ready for the field? Every feature's readiness and the org-wide checks, in one place.</p>
+          <p>Is {data.org} ready for go-live?</p>
         </div>
         <div className="studio-page-actions">
           <button className="studio-btn" onClick={onCheckUser}>

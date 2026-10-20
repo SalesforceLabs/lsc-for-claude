@@ -108,7 +108,7 @@ export default function Gallery({ store, onOpen }: GalleryProps) {
           <Sparkles size={20} strokeWidth={1.75} />
         </span>
         <h2 className="bld-hero-title">What should your reps' iPads show?</h2>
-        <p className="bld-hero-sub">Describe an app in plain words. Roz reads your org's real fields, builds it, and runs it here before anything is deployed.</p>
+        <p className="bld-hero-sub">Describe the app. Roz builds it from your org's fields, and you can try it here before you deploy.</p>
         <div className={`bld-composer${starting ? " busy" : ""}`}>
           <textarea
             ref={box}

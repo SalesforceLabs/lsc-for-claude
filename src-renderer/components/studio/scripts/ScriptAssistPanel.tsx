@@ -176,7 +176,7 @@ export default function ScriptAssistPanel({ scriptKey, script, diagnostics, last
       >
         {empty ? (
           <div className="assist-empty ui-enter">
-            <p className="assist-empty-lead">Describe what the script should check, or ask about it. I'll write it and show the change before anything is saved.</p>
+            <p className="assist-empty-lead">Describe what the script should check, or ask about it. You'll see the change before it's saved.</p>
             <div className="assist-starters" role="list">
               {starterPrompts(script.type, script.objectName).map((prompt) => (
                 <button
