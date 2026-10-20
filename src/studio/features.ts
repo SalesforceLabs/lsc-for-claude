@@ -277,7 +277,7 @@ export const FEATURES: FeatureDefinition[] = [
     title: "App Alerts",
     description: "In-app alerts and notifications, territory targeting, and user responses.",
     available: true,
-    objects: ["AppAlert", "AppAlertTerritory", "AppAlertUserResponse", "NotificationMember"],
+    objects: ["AppAlert", "AppAlertTerritory", "AppAlertUserResponse"],
     handlerKeywords: ["NotificationTerritory", "AppAlert"],
     adminCategoryKeywords: [],
     actionKeywords: ["AppAlert", "App Alert"],

@@ -54,6 +54,13 @@ interface Facts {
   actions: Promise<ConfigRecord[]>;
   caches: Promise<Row[]>;
   syncs: Promise<Row[]>;
+  /** The feature's objects split by whether the org has them; an object the org doesn't have is no one's access problem. */
+  objects: Promise<FeatureObjects>;
+}
+
+interface FeatureObjects {
+  present: string[];
+  absent: string[];
 }
 
 export async function traceUser(userId: string, featureId: string | null, org: string): Promise<UserTrace> {
@@ -78,7 +85,7 @@ export async function traceUser(userId: string, featureId: string | null, org: s
     role: str(rel(u, "UserRole.Name")) || null,
   };
 
-  const facts = gather(user, org);
+  const facts = gather(user, feature, org);
   // Rejections are consumed by the checks that await them; this keeps unused ones from surfacing as unhandled.
   for (const p of Object.values(facts)) p.catch(() => undefined);
 
@@ -105,8 +112,9 @@ export async function traceUser(userId: string, featureId: string | null, org: s
   };
 }
 
-function gather(user: UserInfo, org: string): Facts {
+function gather(user: UserInfo, feature: FeatureDefinition | undefined, org: string): Facts {
   const id = user.id;
+  const objects = featureObjects(feature);
   return {
     psls: Promise.all([
       query(
@@ -138,7 +146,22 @@ function gather(user: UserInfo, org: string): Facts {
       `SELECT Id, Type, DownloadStart, DownloadEnd, CreatedDate FROM DeviceSyncSummary WHERE CreatedById = '${id}' AND Type != 'clm' ORDER BY CreatedDate DESC LIMIT 20`,
       org
     ),
+    objects: objects.length
+      ? query(`SELECT QualifiedApiName FROM EntityDefinition WHERE QualifiedApiName IN (${inList(objects)})`, org).then(
+          (rows) => {
+            const have = new Set(rows.map((r) => str(r.QualifiedApiName).toLowerCase()));
+            return { present: objects.filter((o) => have.has(o.toLowerCase())), absent: objects.filter((o) => !have.has(o.toLowerCase())) };
+          },
+          // Not knowing which objects exist shouldn't hide an access problem: judge them all.
+          () => ({ present: objects, absent: [] })
+        )
+      : Promise.resolve({ present: [], absent: [] }),
   };
+}
+
+/** "Not in this org: X." for objects the feature lists that the org doesn't have (not enabled or licensed). */
+function absentNote(absent: string[]): string {
+  return absent.length ? ` Not in this org: ${absent.join(", ")}.` : "";
 }
 
 // ─── Switched on ────────────────────────────────────────────────────────────
@@ -222,7 +245,6 @@ function featureObjects(feature: FeatureDefinition | undefined): string[] {
 }
 
 function checkPermissions(user: UserInfo, feature: FeatureDefinition | undefined, facts: Facts, org: string): Promise<ReadinessCheck> {
-  const objects = featureObjects(feature);
   return runCheck(
     {
       id: "user.access.permissions",
@@ -236,11 +258,12 @@ function checkPermissions(user: UserInfo, feature: FeatureDefinition | undefined
       uiPath: "Setup > Users > Users > Permission Set Assignments",
     },
     async () => {
-      const assignments = await facts.assignments;
+      const [assignments, { present: objects, absent }] = await Promise.all([facts.assignments, facts.objects]);
       const setNames = [...new Set(assignments.map((a) => str(rel(a, "PermissionSet.Label"))).filter(Boolean))];
-      if (!objects.length) {
+      if (!feature?.objects.length) {
         return { pass: setNames.length > 0, detail: setNames.length ? `${plural(setNames.length, "permission set")}: ${setNames.slice(0, 6).join(", ")}` : "No permission sets or groups assigned." };
       }
+      if (!objects.length) return { pass: true, skip: true, detail: `None of ${feature.title}'s objects are in this org (${absent.join(", ")}). The feature may not be enabled or licensed.` };
       const parentIds = new Set(assignments.map((a) => str(a.PermissionSetId)).filter(Boolean));
       // A group's own permission set holds its combined permissions only once the group has
       // recalculated, so the member permission sets are read as well.
@@ -260,7 +283,9 @@ function checkPermissions(user: UserInfo, feature: FeatureDefinition | undefined
       if (!parentIds.size) return { pass: false, detail: "No permission sets or profile permissions found.", fixes: [] };
       // View All Data / Modify All Data read every object without any object permission rows.
       const sets = await query(`SELECT Id, PermissionsViewAllData, PermissionsModifyAllData FROM PermissionSet WHERE Id IN (${inList([...parentIds])})`, org);
-      if (sets.some((r) => r.PermissionsViewAllData === true || r.PermissionsModifyAllData === true)) return { pass: true, detail: `Reads all ${objects.length} objects through View All Data or Modify All Data.` };
+      if (sets.some((r) => r.PermissionsViewAllData === true || r.PermissionsModifyAllData === true)) {
+        return { pass: true, detail: `Reads all ${objects.length} objects through View All Data or Modify All Data.${absentNote(absent)}` };
+      }
       const perms = await query(
         `SELECT SobjectType, PermissionsRead FROM ObjectPermissions WHERE SobjectType IN (${inList(objects)}) AND ParentId IN (${inList([...parentIds])})`,
         org
@@ -270,8 +295,8 @@ function checkPermissions(user: UserInfo, feature: FeatureDefinition | undefined
       return {
         pass: missing.length === 0,
         detail: missing.length
-          ? `No read access to ${missing.join(", ")}. Permission sets: ${setNames.slice(0, 5).join(", ") || "none"}.`
-          : `Reads all ${objects.length} objects through ${plural(setNames.length, "permission set")} and the profile.`,
+          ? `No read access to ${missing.join(", ")}. Permission sets: ${setNames.slice(0, 5).join(", ") || "none"}.${absentNote(absent)}`
+          : `Reads all ${objects.length} objects through ${plural(setNames.length, "permission set")} and the profile.${absentNote(absent)}`,
         examples: missing,
       };
     }
@@ -311,7 +336,6 @@ function reaches(audience: Audience | undefined, user: UserInfo, setNames: strin
 }
 
 function checkDbSchema(user: UserInfo, feature: FeatureDefinition | undefined, facts: Facts): Promise<ReadinessCheck> {
-  const objects = featureObjects(feature);
   return runCheck(
     {
       id: "user.mobile.db-schema",
@@ -323,17 +347,18 @@ function checkDbSchema(user: UserInfo, feature: FeatureDefinition | undefined, f
       uiPath: "Admin Console > Mobile > DB Schema",
     },
     async () => {
-      const [records, assignments] = await Promise.all([facts.dbSchema, facts.assignments]);
+      const [records, assignments, { present: objects, absent }] = await Promise.all([facts.dbSchema, facts.assignments, facts.objects]);
       const setNames = assignments.flatMap((a) => [str(rel(a, "PermissionSet.Label")), str(rel(a, "PermissionSet.Name"))]).filter(Boolean);
       const mine = records.filter((r) => r.isActive && r.fields.Type !== "CONFIGURATION" && reaches(audienceOf(r), user, setNames));
-      if (!objects.length) return { pass: mine.length > 0, detail: `${plural(mine.length, "active DB Schema object")} sync for ${user.profile ?? "this user"}.` };
+      if (!feature?.objects.length) return { pass: mine.length > 0, detail: `${plural(mine.length, "active DB Schema object")} sync for ${user.profile ?? "this user"}.` };
+      if (!objects.length) return { pass: true, skip: true, detail: `None of ${feature.title}'s objects are in this org (${absent.join(", ")}).` };
       const synced = new Set(mine.map((r) => str(r.fields.SObject).toLowerCase()));
       const missing = objects.filter((o) => !synced.has(o.toLowerCase()));
-      // Only the primary object is required to sync; secondary objects are reported but don't fail the chain alone.
+      // Only the primary object (the first the org has) is required to sync; secondary objects are reported but don't fail the chain alone.
       const primaryMissing = missing.includes(objects[0]);
       return {
         pass: !primaryMissing && missing.length < objects.length,
-        detail: missing.length ? `Not synced: ${missing.join(", ")}.` : `All ${objects.length} objects sync.`,
+        detail: (missing.length ? `Not synced: ${missing.join(", ")}.` : `All ${objects.length} objects sync.`) + absentNote(absent),
         examples: missing,
       };
     }

@@ -24,7 +24,11 @@ function respond(q: string) {
   let outer = q;
   while (/\([^()]*\)/.test(outer)) outer = outer.replace(/\([^()]*\)/g, "");
   const from = /FROM\s+(\w+)/i.exec(outer)?.[1] ?? "";
-  const rows = org[from] ?? [];
+  // Every object asked about exists unless a test lists the ones that do.
+  const rows =
+    from === "EntityDefinition" && !org.EntityDefinition
+      ? [...q.matchAll(/'(\w+)'/g)].map((m) => ({ QualifiedApiName: m[1] }))
+      : (org[from] ?? []);
   if (rows instanceof Error) return Promise.resolve({ success: false, error: rows.message });
   return Promise.resolve({ success: true, data: { totalSize: rows.length, done: true, records: rows } });
 }
@@ -114,6 +118,33 @@ describe("traceUser", () => {
     expect(byId(t.checks, "user.access.permissions").status).toBe("pass");
     const asked = vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0]));
     expect(asked.some((q) => q.includes("FROM PermissionSetGroupComponent WHERE PermissionSetGroupId IN ('0PG000000000001')"))).toBe(true);
+  });
+
+  it("leaves objects the org doesn't have out of the access and DB Schema checks", async () => {
+    org.EntityDefinition = [{ QualifiedApiName: "AppAlert" }];
+    org.ObjectPermissions = [{ SobjectType: "AppAlert", PermissionsRead: true }];
+    config = [dbSchema("AppAlert", ["Rep"])];
+    const t = await traceUser(USER, "app-alerts", "o");
+    const access = byId(t.checks, "user.access.permissions");
+    expect(access.status).toBe("pass");
+    expect(access.detail).toContain("Not in this org: AppAlertTerritory, AppAlertUserResponse.");
+    const sync = byId(t.checks, "user.mobile.db-schema");
+    expect(sync.status).toBe("pass");
+    expect(sync.detail).not.toContain("Not synced");
+  });
+
+  it("skips the object checks when none of the feature's objects are in the org", async () => {
+    org.EntityDefinition = [];
+    const t = await traceUser(USER, "app-alerts", "o");
+    expect(byId(t.checks, "user.access.permissions").status).toBe("skipped");
+    expect(byId(t.checks, "user.mobile.db-schema").status).toBe("skipped");
+  });
+
+  it("judges every object when the org's object list can't be read", async () => {
+    org.EntityDefinition = new Error("boom");
+    org.ObjectPermissions = [];
+    const t = await traceUser(USER, "app-alerts", "o");
+    expect(byId(t.checks, "user.access.permissions").status).toBe("fail");
   });
 
   it("fails DB Schema when the primary object isn't assigned to the profile", async () => {
