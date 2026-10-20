@@ -4,6 +4,7 @@ import { cssToken, useColorScheme, type ColorScheme } from "./theme";
 
 /** Rendered SVGs by palette and source, so re-mounts don't flash "Generating…". */
 const svgCache = new Map<string, string>();
+const SVG_CACHE_MAX = 100;
 const cacheKey = (scheme: ColorScheme, chart: string) => `${scheme}\n${chart}`;
 
 let renderId = 0;
@@ -56,6 +57,8 @@ export function renderMermaid(chart: string, scheme: ColorScheme): Promise<strin
     try {
       const { svg } = await mermaid.render(id, chart, offscreenContainer());
       svgCache.set(key, svg);
+      // Oldest out (Map keeps insertion order).
+      if (svgCache.size > SVG_CACHE_MAX) svgCache.delete(svgCache.keys().next().value as string);
       return svg;
     } catch (err) {
       document.getElementById(`d${id}`)?.remove();

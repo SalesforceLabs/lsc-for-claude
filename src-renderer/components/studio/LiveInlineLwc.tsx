@@ -20,18 +20,25 @@ interface Compiled {
 }
 
 const bundles = new Map<string, Promise<Compiled>>();
+// Every snapshot reload is a new generation; Compare shows two at once, so keep a few rather than only the latest.
+const BUNDLES_MAX = 20;
 let css: Promise<string> | undefined;
 
 function compiled(name: string, generation: string): Promise<Compiled> {
   const key = `${generation}|${name}`;
   let p = bundles.get(key);
-  if (!p) {
+  if (p) {
+    // Refresh recency.
+    bundles.delete(key);
+    bundles.set(key, p);
+  } else {
     p = window.lscApi.studioLwcBundle(name).then((r) => {
       const data = r.data as (Compiled & { error?: string }) | undefined;
       if (r.error || !data || data.error) throw new Error(r.error ?? data?.error ?? "No component returned.");
       return data;
     });
     bundles.set(key, p);
+    if (bundles.size > BUNDLES_MAX) bundles.delete(bundles.keys().next().value as string);
     p.catch(() => bundles.delete(key));
   }
   return p;

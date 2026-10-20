@@ -394,18 +394,22 @@ export default function RepSyncDetail({ userId, orgTypical, onBack, backLabel = 
     const skipCache = refreshNext.current;
     refreshNext.current = false;
     const requestedAt = Date.now();
+    let timer: ReturnType<typeof setInterval> | undefined;
     window.lscApi
       .studioSyncUser(userId, WINDOW_DAYS, skipCache)
       .then((res) => {
+        clearInterval(timer);
         if (stale) return;
         const error = errorOf(res);
         setLoad(error ? { status: "error", error } : { status: "ready", detail: res.data as SyncUserDetail, cachedAt: res.cachedAt });
       })
       .catch((e) => {
+        clearInterval(timer);
         if (!stale) setLoad({ status: "error", error: e instanceof Error ? e.message : String(e) });
       });
     // The server counts table by table and can say where it is; a cached answer returns before the first poll.
-    const timer = setInterval(async () => {
+    // Polling stops when the load settles (this view stays mounted, hidden, inside Sync health).
+    timer = setInterval(async () => {
       try {
         const res = await window.lscApi.studioSyncUserProgress(userId);
         const p = (res.data as { progress?: Progress | null } | undefined)?.progress;

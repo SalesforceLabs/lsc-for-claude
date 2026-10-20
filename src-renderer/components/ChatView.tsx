@@ -743,6 +743,14 @@ interface ChatViewProps {
 
 /** Persistent scroll positions keyed by conversationId. Lives outside the component. */
 const scrollPositions = new Map<string, number>();
+const CHAT_STATE_MAX = 20;
+
+/** Sets a Map entry as the newest, dropping the oldest past `CHAT_STATE_MAX` (deleted chats never clean up after themselves). */
+function setCapped<V>(map: Map<string, V>, key: string, value: V): void {
+  map.delete(key);
+  map.set(key, value);
+  if (map.size > CHAT_STATE_MAX) map.delete(map.keys().next().value as string);
+}
 
 /** Persistent doc panel state keyed by conversationId. */
 type DocPanelState = {
@@ -758,6 +766,12 @@ type DocPanelState = {
   endPage?: number;
 };
 const docPanelStates = new Map<string, DocPanelState>();
+
+/** Memoized so the base64 data URL isn't rebuilt on every streamed token. */
+const UserImage = React.memo(function UserImage({ mediaType, data }: { mediaType: string; data: string }) {
+  const src = useMemo(() => `data:${mediaType};base64,${data}`, [mediaType, data]);
+  return <img src={src} alt="attachment" className="user-image-thumb" />;
+});
 
 export default function ChatView({
   messages,
@@ -938,7 +952,7 @@ export default function ChatView({
       // Persist current position for this session
       const cid = convIdRef.current;
       if (cid) {
-        scrollPositions.set(cid, scrollTop);
+        setCapped(scrollPositions, cid, scrollTop);
       }
       // "Near bottom" = within 120px of the bottom edge
       const atBottom = container.scrollHeight - scrollTop - container.clientHeight < 120;
@@ -996,7 +1010,7 @@ export default function ChatView({
     const prevId = prevConvForPanelRef.current;
     if (prevId) {
       if (docPanel) {
-        docPanelStates.set(prevId, docPanel);
+        setCapped(docPanelStates, prevId, docPanel);
       } else {
         docPanelStates.delete(prevId);
       }
@@ -1012,7 +1026,7 @@ export default function ChatView({
   useEffect(() => {
     if (!conversationId) return;
     if (docPanel) {
-      docPanelStates.set(conversationId, docPanel);
+      setCapped(docPanelStates, conversationId, docPanel);
     } else {
       docPanelStates.delete(conversationId);
     }
@@ -1339,12 +1353,7 @@ export default function ChatView({
                 {msg.images && msg.images.length > 0 && (
                   <div className="user-images">
                     {msg.images.map((img) => (
-                      <img
-                        key={img.id}
-                        src={`data:${img.mediaType};base64,${img.data}`}
-                        alt="attachment"
-                        className="user-image-thumb"
-                      />
+                      <UserImage key={img.id} mediaType={img.mediaType} data={img.data} />
                     ))}
                   </div>
                 )}

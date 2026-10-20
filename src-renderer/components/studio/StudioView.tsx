@@ -238,6 +238,10 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
       window.lscApi.onSfOrgChanged(() => {
         for (const id of Object.keys(mapRequests.current)) mapRequests.current[id] += 1;
         setMaps({});
+        // Old org's iPad snapshots, and any load for them still in flight.
+        for (const id of Object.keys(publishedRequests.current)) publishedRequests.current[id] += 1;
+        publishedUsers.current = {};
+        setPublished({});
         resetReadiness();
         setLastApply(null);
         setAwaiting([]);
