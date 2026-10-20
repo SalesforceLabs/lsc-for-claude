@@ -1,15 +1,20 @@
 import { describe, it, expect } from "vitest";
-import { headerLead, nextPublishBasis } from "../../../src-renderer/components/studio/PublishedIpadPreview";
+import { headerLead, nextPublishBasis, shortDate } from "../../../src-renderer/components/studio/PublishedIpadPreview";
 import { reviewTitle } from "../../../src-renderer/components/studio/ReviewDialog";
 import { pendingForProfile, type PendingChange } from "../../../src-renderer/components/studio/changes";
 
 const change = (affects?: string[]): PendingChange => ({ fix: { kind: "assignPsl", label: "x" } as never, ...(affects ? { affects } : {}) });
 
 describe("iPad preview header", () => {
-  it("names the mode it draws", () => {
-    expect(headerLead("published")).toBe("Published for");
-    expect(headerLead("draft")).toBe("Next publish for");
-    expect(headerLead("split")).toBe("On iPads now and next publish for");
+  it("leaves the mode and profile to the controls above", () => {
+    expect(headerLead(true)).toBe("As");
+    expect(headerLead(false)).toBe("No active users, so no permission sets are merged in");
+  });
+
+  it("dates the publish briefly", () => {
+    expect(shortDate(undefined)).toBe("unknown");
+    expect(shortDate("not a date")).toBe("unknown");
+    expect(shortDate("2026-10-19T19:21:08")).not.toMatch(/2026/);
   });
 
   it("says what Next publish is made of", () => {

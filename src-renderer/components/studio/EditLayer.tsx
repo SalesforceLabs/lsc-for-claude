@@ -132,13 +132,18 @@ const targetOf = (el: Element | null): EditTarget | undefined => {
   return raw ? (JSON.parse(raw) as EditTarget) : undefined;
 };
 
+/** The boxes an element draws: its own, or for a `display: contents` wrapper (a mark, an inline LWC's seat) its children's. */
+function rectsOf(el: Element): DOMRect[] {
+  const r = el.getBoundingClientRect();
+  if (r.width || r.height) return [r];
+  return getComputedStyle(el).display === "contents" ? [...el.children].flatMap(rectsOf) : [];
+}
+
 /** A block's box in the surface's coordinates; a `display: contents` mark is the union of its children. */
 function boxOf(el: Element, origin: DOMRect): DOMRect | null {
   let r = el.getBoundingClientRect();
   if (!r.width && !r.height) {
-    const rects = [...el.children]
-      .map((c) => c.getBoundingClientRect())
-      .filter((c) => c.width || c.height);
+    const rects = [...el.children].flatMap(rectsOf);
     if (!rects.length) return null;
     const left = Math.min(...rects.map((c) => c.left));
     const top = Math.min(...rects.map((c) => c.top));

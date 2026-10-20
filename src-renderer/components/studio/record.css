@@ -1482,3 +1482,28 @@
   font-weight: 600;
   line-height: 18px;
 }
+
+/* An inline LWC slot: counted for the iPad's one web view (IpadInlineSeats), no box of its own. */
+.studio-ipad-inline-seat {
+  display: contents;
+}
+
+/* Its children are the page's flex items now (Home is a column that scrolls): keep them from shrinking to nothing. */
+.studio-ipad-inline-seat > * {
+  flex-shrink: 0;
+}
+
+/* Another inline LWC on the screen has the web view: the iPad leaves this one blank.
+   Studio still draws it, dimmed, under the note saying so. */
+.studio-ipad-inline-blank {
+  margin: 6px 0;
+}
+
+.studio-ipad-inline-dimmed {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+
+.studio-ipad-inline-owner {
+  margin: 6px 0 0;
+}

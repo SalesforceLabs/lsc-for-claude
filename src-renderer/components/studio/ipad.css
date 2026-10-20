@@ -5,8 +5,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 16px;
+  gap: 8px;
+  padding: 8px 16px 16px;
 }
 
 .studio-ipad-meta {
@@ -29,7 +29,7 @@
 }
 
 .studio-ipad-meta .studio-ipad-reload {
-  margin-left: 4px;
+  margin-left: 2px;
 }
 
 .studio-ipad-meta .studio-ipad-cache {

@@ -15,6 +15,7 @@ import IpadScreen from "./IpadScreen";
 import TestUserChip from "./TestUserChip";
 import { RepLoginContext, useMobileLogins } from "../../hooks/useMobileLogins";
 import { testUserFor } from "../../test-users";
+import { InlineSeatsProvider } from "./IpadInlineSeats";
 import RecordScreen, { aheadAttrs, aheadClass, asDrawn, blockIdentity, draftClass, LayoutEdits, PageInlineSlot, RecordTabs, usePageDraft } from "./IpadRecord";
 import IpadFabs from "./IpadFabs";
 import { Dashboard } from "./IpadDashboard";
@@ -88,9 +89,16 @@ interface PublishedIpadPreviewProps {
   reveal?: Reveal | null;
 }
 
-/** The header's opening words for each mode. */
-export function headerLead(mode: "published" | "draft" | "split"): string {
-  return mode === "draft" ? "Next publish for" : mode === "split" ? "On iPads now and next publish for" : "Published for";
+/** The header's opening words: the mode switch and the profile picker above already say the rest. */
+export function headerLead(hasViewer: boolean): string {
+  return hasViewer ? "As" : "No active users, so no permission sets are merged in";
+}
+
+/** When the cache was generated, short enough for the header line: "Oct 19, 7:21 PM". */
+export function shortDate(iso: string | undefined): string {
+  if (!iso) return "unknown";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "unknown" : d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 /** What Next publish draws: the org as it is now, plus the tray's changes that reach this profile. */
@@ -258,7 +266,7 @@ function Device({
   // The app gates Agentforce on the user-info "Agentforce" feature flag, which the CLI can't read; a Home welcome component stands in for it.
   const homeHasAgentforce = !!snapshot.home?.regions.some((r) => r.components.some((c) => c.supported && /lsAgentforceWelcome$/.test(c.name)));
   const dashboardNotes = Object.values(snapshot.dashboards ?? {}).flatMap((d) => (d.dataNote ? [`${d.title} — ${d.dataNote}`] : []));
-  const generated = snapshot.cache.generatedAt ? new Date(snapshot.cache.generatedAt).toLocaleString() : "unknown";
+  const generated = shortDate(snapshot.cache.generatedAt);
   const mobile = useMobileLogins();
   const repLogin = testUserFor(mobile.logins, snapshot.viewer?.userId);
   // Signing in as the rep after the data was read as the admin: read it again, now as them.
@@ -297,7 +305,11 @@ function Device({
           onScrollCapture={split ? mirror(side) : undefined}
           className={`studio-ipad-page${shown?.kind === "empty" ? " blank" : ""}${home ? " home" : ""}${shown?.kind === "reports" && snapshot.viewer ? " flush" : ""}${record === null && hasNativeScreen(shown, snapshot) ? " native" : ""}${record && snapshot.records?.byId[record] ? " record" : ""}`}
         >
-          {shown && <Screen key={shown.fullName} tab={shown} snapshot={snapshot} record={record} onOpenRecord={setRecord} onNew={(label, objectName) => setNewSheet(newPresentation(label, objectName))} onNote={note} onAction={(item) => setNewSheet(presentationFor(item, { onRecord: true }))} onEditVisit={(id) => setNewSheet({ kind: "visit", edit: id })} />}
+          {shown && (
+            <InlineSeatsProvider key={shown.fullName}>
+              <Screen tab={shown} snapshot={snapshot} record={record} onOpenRecord={setRecord} onNew={(label, objectName) => setNewSheet(newPresentation(label, objectName))} onNote={note} onAction={(item) => setNewSheet(presentationFor(item, { onRecord: true }))} onEditVisit={(id) => setNewSheet({ kind: "visit", edit: id })} />
+            </InlineSeatsProvider>
+          )}
         </div>
         {/* Sheets open on the Draft side only. */}
         {!published && <ChromeSheets sheet={sheet} snapshot={snapshot} onClose={() => setSheet(null)} onLink={followLink} />}
@@ -319,16 +331,15 @@ function Device({
     <RepLoginContext.Provider value={repLogin?.status === "signedIn" ? repLogin.id : undefined}>
     <div className="studio-ipad-wrap">
       <div className="studio-ipad-meta">
-        {headerLead(mode)} <strong>{snapshot.profile}</strong>
         {snapshot.viewer ? (
           <>
-            {" "}
-            as{" "}
+            {headerLead(true)}
             <select
               className="studio-select studio-ipad-viewer"
               value={snapshot.viewer.userId}
               onChange={(e) => onPickUser(e.target.value)}
-              title={`Permission sets merged in: ${snapshot.viewer.permissionSets.join(", ") || "none"}`}
+              aria-label={`User of ${snapshot.profile} to preview as`}
+              title={`${snapshot.profile} as ${snapshot.viewer.name}, with ${snapshot.viewer.permissionSets.length} permission sets merged in: ${snapshot.viewer.permissionSets.join(", ") || "none"}`}
             >
               {[...snapshot.users].sort((a, b) => a.name.localeCompare(b.name)).map((u) => (
                 <option key={u.id} value={u.id}>
@@ -336,7 +347,6 @@ function Device({
                 </option>
               ))}
             </select>
-            <span className="studio-ipad-muted"> ({snapshot.viewer.permissionSets.length} permission sets)</span>{" "}
             <TestUserChip
               logins={mobile.logins}
               userId={snapshot.viewer.userId}
@@ -353,11 +363,10 @@ function Device({
             )}
           </>
         ) : (
-          <span className="studio-ipad-muted"> · no active users, so no permission sets are merged in</span>
+          <span className="studio-ipad-muted">{headerLead(false)}</span>
         )}
-        <span className="studio-ipad-muted">
-          {" "}
-          · {mode === "draft" ? nextPublishBasis(nextChanges ?? 0) : `${snapshot.cache.name}, generated ${generated}`}
+        <span className="studio-ipad-muted" title={mode === "draft" ? undefined : `Metadata cache ${snapshot.cache.name}, generated ${generated}`}>
+          · {mode === "draft" ? nextPublishBasis(nextChanges ?? 0) : `Published ${generated}`}
         </span>
         {(snapshot.dataNotes?.length ?? 0) > 0 && (
           <span className="studio-ipad-muted" title={snapshot.dataNotes!.join("\n")}>
@@ -368,7 +377,7 @@ function Device({
         {dashboardNotes.length > 0 && (
           <span className="studio-ipad-muted" title={dashboardNotes.join("\n")}>
             {" "}
-            · {dashboardNotes.length} dashboards without results
+            · {dashboardNotes.length} {dashboardNotes.length === 1 ? "dashboard" : "dashboards"} without results
           </span>
         )}
         {snapshot.hiddenTabs.length > 0 && (
@@ -377,12 +386,11 @@ function Device({
             title={snapshot.hiddenTabs.map((h) => `${h.label} — ${h.reason}`).join("\n")}
           >
             {" "}
-            · {snapshot.hiddenTabs.length} tabs not shown
+            · {snapshot.hiddenTabs.length} {snapshot.hiddenTabs.length === 1 ? "tab" : "tabs"} not shown
           </span>
         )}
-        <button type="button" className="studio-btn ghost sm studio-ipad-reload" onClick={onRefresh}>
-          <RotateCw aria-hidden="true" />
-          Reload
+        <button type="button" className="ui-icon-btn studio-ipad-reload" onClick={onRefresh} aria-label="Reload from the org" title="Reload from the org">
+          <RotateCw size={14} aria-hidden="true" />
         </button>
       </div>
 

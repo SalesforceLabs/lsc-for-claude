@@ -15,6 +15,7 @@ import { EmptyArt } from "./IpadHome";
 import { ActivityHistoryCard, MapCard, NextBestActionsCard, OverviewCard, SummaryCard } from "./DashboardCards";
 import "./record.css";
 import { LiveInlineLwc } from "./LiveInlineLwc";
+import { InlineSeat } from "./IpadInlineSeats";
 import { CustomIcon, FileIcon, PersonAccountIcon } from "./assets/icons";
 import type { DraftState } from "./edit-draft";
 import { addedRelated, draftRelated, relatedMoved } from "./layout-draft";
@@ -908,7 +909,15 @@ function generationOf(snapshot: PublishedIpad): string {
  * bundles read), otherwise — or when it can't run here — the card read from
  * its template, or a placeholder.
  */
-function InlineSlot({ snapshot, rec, name, height }: { snapshot: PublishedIpad; rec: PublishedRecordData; name: string; height: number }) {
+function InlineSlot(props: { snapshot: PublishedIpad; rec: PublishedRecordData; name: string; height: number }) {
+  return (
+    <InlineSeat name={props.name} height={props.height}>
+      <RecordInline {...props} />
+    </InlineSeat>
+  );
+}
+
+function RecordInline({ snapshot, rec, name, height }: { snapshot: PublishedIpad; rec: PublishedRecordData; name: string; height: number }) {
   const check = snapshot.records?.inlineChecks?.[name];
   const offline = (reason?: string) =>
     snapshot.records?.inline[name] ? <InlineCard snapshot={snapshot} rec={rec} name={name} reason={reason} /> : <PlaceholderCard title={PLACEHOLDER_TITLES[name] ?? name.replace(/^lscMobileInline_/, "")} check={check} reason={reason} />;
@@ -934,14 +943,16 @@ function InlineSlot({ snapshot, rec, name, height }: { snapshot: PublishedIpad; 
 export function PageInlineSlot({ snapshot, name, height }: { snapshot: PublishedIpad; name: string; height: number }) {
   const { timeZone, locale } = Intl.DateTimeFormat().resolvedOptions();
   return (
-    <LiveInlineLwc
-      name={name}
-      context={{ userId: snapshot.viewer?.userId, locale, timeZone }}
-      height={height}
-      generation={generationOf(snapshot)}
-      fallback={(reason) => <PlaceholderCard title={PLACEHOLDER_TITLES[name] ?? name.replace(/^lscMobileInline_/, "")} reason={reason} />}
-      footer={(check) => <OfflineNote check={check} />}
-    />
+    <InlineSeat name={name} height={height}>
+      <LiveInlineLwc
+        name={name}
+        context={{ userId: snapshot.viewer?.userId, locale, timeZone }}
+        height={height}
+        generation={generationOf(snapshot)}
+        fallback={(reason) => <PlaceholderCard title={PLACEHOLDER_TITLES[name] ?? name.replace(/^lscMobileInline_/, "")} reason={reason} />}
+        footer={(check) => <OfflineNote check={check} />}
+      />
+    </InlineSeat>
   );
 }
 
