@@ -75,3 +75,69 @@ export const RECENT_KIND_LABEL: Record<RecentChange["kind"], string> = {
   flow: "Flow",
   layout: "Page layout",
 };
+
+/** What a recent change is, for its row: the Admin Console category for settings, else the kind. */
+export function recentType(c: RecentChange): string {
+  if (c.kind !== "config" || !c.detail) return RECENT_KIND_LABEL[c.kind];
+  return c.detail === "DbSchema" ? "DB Schema" : c.detail.replace(/([a-z])([A-Z])/g, "$1 $2");
+}
+
+/** Context shown after a recent change's name: the object or category, when the type column doesn't already say it. */
+export function recentContext(c: RecentChange): string | undefined {
+  return c.kind === "config" ? undefined : c.detail;
+}
+
+export type RecentRow =
+  | { kind: "one"; key: string; change: RecentChange }
+  | { kind: "batch"; key: string; by?: string; at: string; changes: RecentChange[] };
+
+/** The smallest run of changes made together that is folded into one row. */
+export const BATCH_MIN = 5;
+
+/**
+ * Folds runs of changes by the same person in the same minute (an import, a Starter Config run, a deploy) into one
+ * row. Items arrive newest first, so a run is consecutive.
+ */
+export function batchRecent(items: RecentChange[], min = BATCH_MIN): RecentRow[] {
+  const rows: RecentRow[] = [];
+  let run: RecentChange[] = [];
+  const minute = (c: RecentChange) => `${c.modifiedBy ?? ""}|${c.modifiedAt.slice(0, 16)}`;
+  const flush = () => {
+    if (run.length >= min) {
+      rows.push({ kind: "batch", key: `batch-${minute(run[0])}-${rows.length}`, by: run[0].modifiedBy, at: run[0].modifiedAt, changes: run });
+    } else {
+      for (const c of run) rows.push({ kind: "one", key: `${c.kind}-${c.name}-${rows.length}`, change: c });
+    }
+    run = [];
+  };
+  for (const c of items) {
+    if (run.length && minute(run[0]) !== minute(c)) flush();
+    run.push(c);
+  }
+  flush();
+  return rows;
+}
+
+/** The type column of a batch: the one type its changes share, else how many kinds. */
+export function batchType(changes: RecentChange[]): string {
+  const types = [...new Set(changes.map(recentType))];
+  return types.length === 1 ? types[0] : `${types.length} kinds`;
+}
+
+export function askAboutBatch(changes: RecentChange[], featureTitle: string): string {
+  const first = changes[0];
+  const names = changes.slice(0, 30).map((c) => `- ${c.name} (${recentType(c)})`);
+  if (changes.length > 30) names.push(`- …and ${changes.length - 30} more`);
+  return [
+    `${changes.length} ${featureTitle} items were modified together${first.modifiedBy ? ` by ${first.modifiedBy}` : ""} on ${when(first.modifiedAt)}:`,
+    ...names,
+    "",
+    "What was this likely (an import, a Starter Config run, a deploy)? What might it affect for LSC users, especially on the iPad?",
+  ].join("\n");
+}
+
+/** Sources whose list was cut at its cap, kept apart from real read failures. */
+export function splitRecentErrors(errors: string[], limited: string[] | undefined): { failed: string[]; limited: string[] } {
+  const cut = limited ?? [];
+  return { failed: errors.filter((e) => !cut.some((s) => e.startsWith(`${s}: more changed`))), limited: cut };
+}

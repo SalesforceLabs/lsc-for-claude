@@ -26,15 +26,17 @@ interface NewScriptDialogProps {
   onCreate: (init: NewScriptInit) => void;
   onCancel: () => void;
   onOpenScript: (id: string) => void;
+  /** The type picked when the dialog opens. */
+  initialType?: ScriptType;
 }
 
 type Step = "type" | "name" | "start";
 
 /** Choose a type, name the script, then say how to start. Nothing is created until the draft is saved. */
-export default function NewScriptDialog({ scripts, takenComponentNames, onCreate, onCancel, onOpenScript }: NewScriptDialogProps) {
+export default function NewScriptDialog({ scripts, takenComponentNames, onCreate, onCancel, onOpenScript, initialType }: NewScriptDialogProps) {
   const assistant = useAssistantName();
   const [step, setStep] = useState<Step>("type");
-  const [type, setType] = useState<ScriptType>("Validation");
+  const [type, setType] = useState<ScriptType>(initialType ?? "Validation");
   const [name, setName] = useState("");
   const [componentName, setComponentName] = useState("");
   const [componentEdited, setComponentEdited] = useState(false);

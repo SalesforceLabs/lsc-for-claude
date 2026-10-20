@@ -691,3 +691,343 @@
 .scripts-confirm {
   width: 420px;
 }
+
+/* --- About custom scripts (the empty state, and "How custom scripts work" from the list) --- */
+
+.scripts-library-foot {
+  flex-shrink: 0;
+  padding: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.scripts-library-foot .scripts-row {
+  min-height: 30px;
+  color: var(--text-secondary);
+}
+
+.scripts-about {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  container-type: inline-size;
+}
+
+.scripts-about-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6) var(--space-10);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.scripts-about section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.scripts-about-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.scripts-about-logo {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border: 1px solid var(--border);
+}
+
+.scripts-about-intro {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.scripts-about-intro h1 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--font-2xl);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.scripts-about-intro p {
+  margin: 0;
+  max-width: 62ch;
+  font-size: var(--font-md);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.scripts-about-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.scripts-about code {
+  font-family: var(--font-mono);
+  font-size: var(--font-code);
+  color: var(--text-primary);
+}
+
+/* Flow diagram: nodes joined by arrows, the last column fanning out to outcomes. */
+.scripts-about-flow {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.scripts-about-node {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+}
+
+.scripts-about-node-icon {
+  flex-shrink: 0;
+  width: var(--control);
+  height: var(--control);
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.scripts-about-node-title {
+  font-size: var(--font-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.scripts-about-node-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--font-sm);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.scripts-about-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.scripts-about-code {
+  align-self: flex-start;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-xs);
+  background: var(--fill-control);
+}
+
+.scripts-about-arrow {
+  flex-shrink: 0;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+}
+
+.scripts-about-outcomes {
+  flex: 1.2 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.scripts-about-outcome {
+  --tone: var(--accent);
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--tone) 28%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--tone) 10%, transparent);
+  font-size: var(--font-sm);
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.scripts-about-outcome > svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--tone);
+}
+
+.scripts-about-outcome > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scripts-about-outcome code {
+  color: var(--tone);
+  font-weight: 600;
+}
+
+.scripts-about-outcome.error { --tone: var(--error); }
+.scripts-about-outcome.warning { --tone: var(--warning); }
+.scripts-about-outcome.pass { --tone: var(--success); }
+
+.scripts-about-flow.compact .scripts-about-node {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-2);
+}
+
+.scripts-about-flow.compact .scripts-about-node-body {
+  flex-basis: 100%;
+}
+
+/* The three kinds. */
+.scripts-about-kinds {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.scripts-about-kind {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
+}
+
+.scripts-about-kind-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.scripts-about-kind h3 {
+  margin: 0;
+  font-size: var(--font-md);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.scripts-about-kind dl {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-sm);
+  line-height: 1.45;
+}
+
+.scripts-about-kind dt {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.scripts-about-kind dd {
+  margin: 0 0 var(--space-2);
+  color: var(--text-secondary);
+}
+
+.scripts-about-kind-note {
+  flex: 1;
+  margin: 0;
+  font-size: var(--font-sm);
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.scripts-about-kind .studio-btn {
+  align-self: flex-start;
+}
+
+/* When to use one: a ladder from simplest to heaviest, the custom script step tinted. */
+.scripts-about-ladder {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.scripts-about-ladder li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-sm);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.scripts-about-ladder li + li {
+  border-top: 1px solid var(--border);
+}
+
+.scripts-about-ladder li.current {
+  background: var(--accent-subtle);
+}
+
+.scripts-about-ladder li:not(.current) .scripts-about-node-icon {
+  color: var(--text-secondary);
+  background: var(--fill-control);
+}
+
+.scripts-about-ladder-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scripts-about-ladder-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-base);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.scripts-about-foot {
+  margin: 0;
+  max-width: 72ch;
+  font-size: var(--font-sm);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+@container (max-width: 760px) {
+  .scripts-about-flow {
+    flex-direction: column;
+  }
+  .scripts-about-arrow {
+    transform: rotate(90deg);
+  }
+  .scripts-about-kinds {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

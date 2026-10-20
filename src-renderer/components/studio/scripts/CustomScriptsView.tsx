@@ -7,11 +7,12 @@ import StateView from "../../ui/StateView";
 import type { CodeEditorHandle } from "../../ui/CodeEditor";
 import type { PendingChange } from "../changes";
 import { useLazyStudio } from "../useLazyStudio";
-import { scriptChangeKey, scriptFix, scriptDeleteChange, type ScriptDetail, type ScriptDiagnostic, type ScriptLibrary as Library, type ScriptTestResult } from "./script-model";
+import { scriptChangeKey, scriptFix, scriptDeleteChange, type ScriptDetail, type ScriptDiagnostic, type ScriptLibrary as Library, type ScriptTestResult, type ScriptType } from "./script-model";
 import NewScriptDialog, { type NewScriptInit } from "./NewScriptDialog";
 import ScriptAssistPanel, { FOCUS_ASSIST_EVENT } from "./ScriptAssistPanel";
 import ScriptEditorPane, { type EditorTab, type Proposal } from "./ScriptEditorPane";
 import ScriptLibrary from "./ScriptLibrary";
+import ScriptsAbout from "./ScriptsAbout";
 import {
   deleteQueued as isDeleteQueued,
   draftChanges,
@@ -82,6 +83,8 @@ export default function CustomScriptsView({ pending, onPendingChange, onReview, 
   const [tests, setTests] = useState<Record<string, { result: ScriptTestResult; code: string } | undefined>>({});
   const [diags, setDiags] = useState<Record<string, ScriptDiagnostic[]>>({});
   const [newOpen, setNewOpen] = useState(false);
+  const [newType, setNewType] = useState<ScriptType | undefined>(undefined);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [askOpen, setAskOpen] = usePersistedFlag("roz.scripts.ask", true);
   const [askWidth, setAskWidth] = usePersistedState("roz.scripts.askWidth", 380, number, String);
@@ -214,6 +217,7 @@ export default function CustomScriptsView({ pending, onPendingChange, onReview, 
     openId.current = openRequest.nonce;
     setSelectedKey(openRequest.id);
     setQuery("");
+    setAboutOpen(false);
   }, [openRequest]);
 
   const draft = selectedKey ? (drafts[selectedKey] ?? null) : null;
@@ -246,6 +250,7 @@ export default function CustomScriptsView({ pending, onPendingChange, onReview, 
     setSelectedKey(d.key);
     setQuery("");
     setNewOpen(false);
+    setAboutOpen(false);
     if (init.describe) {
       setAskOpen(true);
       void sendAssistMessage(d.key, init.describe, assistContext(d));
@@ -359,8 +364,16 @@ export default function CustomScriptsView({ pending, onPendingChange, onReview, 
   // --- Render -----------------------------------------------------------------------------------
 
   const missingObjects = library?.unavailable || (state.status === "error" && MISSING_OBJECTS.test(state.message));
+  const startNew = (type?: ScriptType) => {
+    setNewType(type);
+    setNewOpen(true);
+  };
+  const select = (key: string) => {
+    setSelectedKey(key);
+    setAboutOpen(false);
+  };
   const newButton = (
-    <button className="studio-btn primary" onClick={() => setNewOpen(true)}>
+    <button className="studio-btn primary" onClick={() => startNew()}>
       <Plus size={14} aria-hidden="true" />
       New script
     </button>
@@ -395,24 +408,27 @@ export default function CustomScriptsView({ pending, onPendingChange, onReview, 
       />
     );
   } else if (rows.length === 0) {
-    body = (
-      <StateView
-        kind="empty"
-        icon={FileCode2}
-        title="No custom scripts yet"
-        detail={`Scripts add checks to visits, workflow stages and checklists. Describe what you want and ${assistant} writes the first version, or start from a template.`}
-        actions={newButton}
-      />
-    );
+    body = <ScriptsAbout onNew={startNew} />;
   } else {
     body = (
-      <div className={`scripts-shell${dragging ? " dragging" : ""}${askOpen && draft ? " asking" : ""}`}>
+      <div className={`scripts-shell${dragging ? " dragging" : ""}${askOpen && draft && !aboutOpen ? " asking" : ""}`}>
         <div className="scripts-library-col" style={{ width: libWidth }}>
-          <ScriptLibrary rows={rows} selectedKey={selectedKey} onSelect={setSelectedKey} onNew={() => setNewOpen(true)} query={query} onQuery={setQuery} />
+          <ScriptLibrary
+            rows={rows}
+            selectedKey={aboutOpen ? null : selectedKey}
+            onSelect={select}
+            onNew={() => startNew()}
+            query={query}
+            onQuery={setQuery}
+            aboutOpen={aboutOpen}
+            onAbout={() => setAboutOpen(true)}
+          />
           <ResizeHandle value={libWidth} min={216} max={400} onChange={setLibWidth} onReset={() => setLibWidth(264)} onDragging={setDragging} label="Resize the script list" />
         </div>
         <div className="scripts-center">
-          {draft ? (
+          {aboutOpen ? (
+            <ScriptsAbout onNew={startNew} onClose={() => setAboutOpen(false)} />
+          ) : draft ? (
             <ScriptEditorPane
               key={draft.key}
               draft={draft}
@@ -460,7 +476,7 @@ export default function CustomScriptsView({ pending, onPendingChange, onReview, 
             <StateView kind="empty" icon={FileCode2} title="Pick a script" detail="Choose one from the list, or start a new one." actions={newButton} />
           )}
         </div>
-        {askOpen && draft && (
+        {askOpen && draft && !aboutOpen && (
           <aside className="scripts-ask" style={{ width: askWidth }} aria-label={`Ask ${assistant}`}>
             <ResizeHandle edge="left" value={askWidth} min={300} max={600} onChange={setAskWidth} onReset={() => setAskWidth(380)} onDragging={setDragging} label={`Resize ${assistant}`} />
             <ScriptAssistPanel
@@ -492,7 +508,7 @@ export default function CustomScriptsView({ pending, onPendingChange, onReview, 
       {body}
       {tray}
       {newOpen && library && (
-        <NewScriptDialog scripts={library.scripts} takenComponentNames={allComponentNames} onCreate={create} onCancel={() => setNewOpen(false)} onOpenScript={(id) => { setNewOpen(false); setSelectedKey(id); }} />
+        <NewScriptDialog initialType={newType} scripts={library.scripts} takenComponentNames={allComponentNames} onCreate={create} onCancel={() => setNewOpen(false)} onOpenScript={(id) => { setNewOpen(false); select(id); }} />
       )}
       {discarding && draft && (
         <div className="studio-modal-backdrop" onClick={() => setDiscarding(false)} onKeyDown={(e) => e.key === "Escape" && setDiscarding(false)}>

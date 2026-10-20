@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Plus, Search } from "lucide-react";
+import { CircleQuestionMark, Plus, Search } from "lucide-react";
 import StatusIcon from "../../ui/StatusIcon";
 import { countLabel, groupRows, type LibraryRow } from "./script-library-logic";
 
@@ -10,10 +10,13 @@ interface ScriptLibraryProps {
   onNew: () => void;
   query: string;
   onQuery: (query: string) => void;
+  /** The "How custom scripts work" page is open. */
+  aboutOpen: boolean;
+  onAbout: () => void;
 }
 
 /** The scripts in the org, by type, with a search and a way to start a new one. */
-export default function ScriptLibrary({ rows, selectedKey, onSelect, onNew, query, onQuery }: ScriptLibraryProps) {
+export default function ScriptLibrary({ rows, selectedKey, onSelect, onNew, query, onQuery, aboutOpen, onAbout }: ScriptLibraryProps) {
   const groups = useMemo(() => groupRows(rows, query), [rows, query]);
   const shown = groups.reduce((n, g) => n + g.rows.length, 0);
 
@@ -72,6 +75,12 @@ export default function ScriptLibrary({ rows, selectedKey, onSelect, onNew, quer
           </section>
         ))}
         {query && shown === 0 && <p className="scripts-library-none">No script matches “{query}”.</p>}
+      </div>
+      <div className="scripts-library-foot">
+        <button className={`scripts-row${aboutOpen ? " selected" : ""}`} aria-current={aboutOpen ? "page" : undefined} onClick={onAbout}>
+          <CircleQuestionMark size={16} aria-hidden="true" />
+          <span className="scripts-row-name">How custom scripts work</span>
+        </button>
       </div>
     </aside>
   );
