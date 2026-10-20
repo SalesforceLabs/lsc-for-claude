@@ -9,8 +9,8 @@ const { collectCategoryRecords } = await import("../../../../src/config/collect.
 const { default: mod } = await import("../../../../src/studio/readiness/features/next-best.js");
 
 type Row = Record<string, unknown>;
-/** Rows (and optional COUNT override) returned per outer FROM-object; an Error makes that query fail. */
-let org: Record<string, Row[] | number | Error>;
+/** Rows (and optional COUNT override) returned per outer FROM-object; an Error makes that query fail, a function answers by the SOQL. */
+let org: Record<string, Row[] | number | Error | ((soql: string) => Row[])>;
 let handlers: Row[];
 let schema: ConfigRecord[];
 
@@ -18,7 +18,8 @@ function respond(soql: string) {
   let outer = soql;
   while (/\([^()]*\)/.test(outer)) outer = outer.replace(/\([^()]*\)/g, "");
   const from = /FROM\s+(\w+)/i.exec(outer)?.[1] ?? "";
-  const v = org[from] ?? [];
+  const entry = org[from] ?? [];
+  const v = typeof entry === "function" ? entry(soql) : entry;
   if (v instanceof Error) return Promise.resolve({ success: false, error: v.message });
   const rows = typeof v === "number" ? [] : v;
   const total = typeof v === "number" ? v : rows.length;
@@ -75,5 +76,39 @@ describe("next-best readiness", () => {
     org.TerritoryAccountScore = [{ latest: ago(1), cnt: 1 }];
     org.TerritoryAcctRcmdAction = 4;
     expect((await run())["next-best.data.actions-not-overdue"].status).toBe("fail");
+  });
+
+  it("fails when some field users can't read Territory Account Score, counted by profile", async () => {
+    org.TerritoryAccountScore = [{ latest: ago(1), cnt: 1 }];
+    org.Profile = [{ Name: "Rep" }];
+    org.ObjectPermissions = [{ ParentId: "0PS1" }];
+    let anti = "";
+    org.User = (q) => {
+      if (!q.includes("NOT IN")) return [{ pn: "Rep", cnt: 5 }];
+      anti = q;
+      return [{ pn: "Rep", cnt: 2 }];
+    };
+    const c = (await run())["next-best.access.score-read"];
+    expect(c.status).toBe("fail");
+    expect(c.detail).toBe("2 of 5 active field users can't read Territory Account Score.");
+    expect(c.examples).toEqual(["Rep: 2 users"]);
+    expect(anti).toContain("PermissionSetId IN ('0PS1')");
+  });
+
+  it("passes next-best.access.score-read only when every field user can read it", async () => {
+    org.TerritoryAccountScore = [{ latest: ago(1), cnt: 1 }];
+    org.Profile = [{ Name: "Rep" }];
+    org.ObjectPermissions = [{ ParentId: "0PS1" }];
+    org.User = (q) => (q.includes("NOT IN") ? [] : [{ pn: "Rep", cnt: 5 }]);
+    expect((await run())["next-best.access.score-read"].status).toBe("pass");
+  });
+
+  it("fails next-best.access.score-read when nothing grants Read, even with no anti-join", async () => {
+    org.TerritoryAccountScore = [{ latest: ago(1), cnt: 1 }];
+    org.Profile = [{ Name: "Rep" }];
+    org.User = [{ pn: "Rep", cnt: 3 }];
+    const c = (await run())["next-best.access.score-read"];
+    expect(c.status).toBe("fail");
+    expect(c.examples).toEqual(["Rep: 3 users"]);
   });
 });

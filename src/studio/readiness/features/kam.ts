@@ -2,14 +2,20 @@
 
 import { plural } from "../../helpers.js";
 import { runCheck, type ReadinessModule } from "../index.js";
-import { countOf, dbSchemaCheck, handlersCheck, loadDbSchema, loadHandlers } from "./_activity-plan-shared.js";
-
+import { countOf, dbSchemaCheck, fieldProfilesUsing, handlersCheck, lazy, loadDbSchema, loadHandlers } from "./_activity-plan-shared.js";
 
 const readiness: ReadinessModule = {
   ruleFiles: ["kam-config.yaml"],
   checks: async (org) => {
     const handlers = loadHandlers(org);
     const schema = loadDbSchema(org);
+    // Field profiles of the people who own or take part in account plans — they need plans offline.
+    const planUsers = lazy(() =>
+      fieldProfilesUsing(org, [
+        `SELECT Profile.Name pn, COUNT(Id) cnt FROM User WHERE IsActive = true AND Id IN (SELECT OwnerId FROM AccountPlan) GROUP BY Profile.Name`,
+        `SELECT Profile.Name pn, COUNT(Id) cnt FROM User WHERE IsActive = true AND Id IN (SELECT ParticipantId FROM AccountPlanParticipant) GROUP BY Profile.Name`,
+      ])
+    );
 
     return Promise.all([
       handlersCheck(
@@ -191,8 +197,8 @@ const readiness: ReadinessModule = {
           stage: "mobile",
           title: "Account plan objects sync to the iPad",
           severity: "error",
-          why: "Account plans, objectives, participants, stakeholders, action plans, tasks and templates are read offline on the iPad. A missing object leaves a hole in the plan or an empty import dialog.",
-          steps: ["Admin Console > Mobile > DB Schema: add or switch on a record for each object listed, for the KAM profiles.", "Publish to iPad."],
+          why: "Account plans, objectives, participants, stakeholders, action plans, tasks and templates are read offline on the iPad. A missing object leaves a hole in the plan or an empty import dialog. Studio checks them against the field profiles of users who own or take part in an account plan.",
+          steps: ["Admin Console > Mobile > DB Schema: add or switch on a record for each object listed, and give it to each profile named.", "Publish to iPad."],
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },
@@ -208,7 +214,8 @@ const readiness: ReadinessModule = {
           "ActionPlanTemplateAssignment",
           "GoalDefinition",
           "AssessmentTask",
-        ]
+        ],
+        planUsers
       ),
     ]);
   },

@@ -32,28 +32,47 @@ const RECORD_LOCATIONS: { location: string; id: string; title: string }[] = [
 ];
 const OPTIONAL_SURFACES = new Set([...RECORD_LOCATIONS.map((l) => l.id), "otherQuickActions", "stagePathActions"]);
 
+/** A record type as an action names it: its object and whether it's active. */
+export interface KnownRecordType {
+  name: string;
+  sobject: string;
+  active: boolean;
+}
+
 /** Names an org knows about (lower-cased → as written), for checking the Profiles / PermissionSets / RecordTypes an action targets. */
 export interface Known {
   profiles: Map<string, string>;
   permissionSets: Map<string, string>;
-  recordTypes: Map<string, string>;
+  /** Record types by lower-cased developer name — one entry per object that has a record type of that name. */
+  recordTypes: Map<string, KnownRecordType[]>;
 }
 
 export async function fetchKnown(org: string): Promise<Known> {
   const [profiles, permissionSets, recordTypes] = await Promise.all([
     query(`SELECT Name FROM Profile`, org),
     query(`SELECT Name, NamespacePrefix FROM PermissionSet WHERE IsOwnedByProfile = false`, org),
-    query(`SELECT DeveloperName, Name, SobjectType FROM RecordType`, org),
+    query(`SELECT DeveloperName, SobjectType, IsActive FROM RecordType`, org),
   ]);
   const index = (names: unknown[]) =>
     new Map(names.filter(Boolean).map((n) => [String(n).toLowerCase(), String(n)] as [string, string]));
+  const types = new Map<string, KnownRecordType[]>();
+  for (const r of recordTypes.filter((r) => r.DeveloperName)) {
+    const key = String(r.DeveloperName).toLowerCase();
+    types.set(key, [...(types.get(key) ?? []), { name: String(r.DeveloperName), sobject: String(r.SobjectType ?? ""), active: r.IsActive !== false }]);
+  }
   return {
     profiles: index(profiles.map((r) => r.Name)),
     permissionSets: index(
       permissionSets.flatMap((r) => [r.Name, r.NamespacePrefix ? `${r.NamespacePrefix}__${r.Name}` : null])
     ),
-    recordTypes: index(recordTypes.map((r) => r.DeveloperName)),
+    recordTypes: types,
   };
+}
+
+/** The object an action's record types belong to: a quick action's SObject, or a custom action's EntityName on SObject actions. */
+function actionObject(r: ConfigRecord): string {
+  if (r.fields.SObject) return String(r.fields.SObject);
+  return r.fields.EntityType === "SObject" && r.fields.EntityName ? String(r.fields.EntityName) : "";
 }
 
 function editDistance(a: string, b: string): number {
@@ -89,6 +108,27 @@ const FIELD_KINDS: { field: string; kind: string; key: keyof Known }[] = [
   { field: "RecordTypes", kind: "Record type", key: "recordTypes" },
 ];
 
+/**
+ * Why `name` in an action's `key` list matches nothing usable (title and detail), or null when it's fine,
+ * plus the names it could have meant. Record types count only on the action's object, and only when active.
+ */
+function unknownName(r: ConfigRecord, key: keyof Known, kind: string, name: string, known: Known): { title: string; detail: string; candidates: string[] } | null {
+  const missing = { title: `${kind} "${name}" not found`, detail: `No ${kind.toLowerCase()} with this name exists in the org, so the action won't show for it.` };
+  if (key !== "recordTypes") return known[key].has(name.toLowerCase()) ? null : { ...missing, candidates: [...known[key].values()] };
+  const object = actionObject(r);
+  const onObject = (t: KnownRecordType) => !object || t.sobject.toLowerCase() === object.toLowerCase();
+  const all = known.recordTypes.get(name.toLowerCase()) ?? [];
+  const mine = all.filter(onObject);
+  if (mine.some((t) => t.active)) return null;
+  const candidates = [...known.recordTypes.values()].flat().filter((t) => t.active && onObject(t)).map((t) => t.name);
+  if (!all.length) return { ...missing, candidates };
+  if (!mine.length) {
+    const objects = [...new Set(all.map((t) => t.sobject))].join(", ");
+    return { title: `Record type "${name}" isn't on ${object}`, detail: `"${name}" is a record type of ${objects}, not of ${object}, so the action won't show for it.`, candidates };
+  }
+  return { title: `Record type "${name}" is inactive`, detail: `The ${object ? `${object} ` : ""}record type "${name}" is inactive, so the action won't show for it.`, candidates };
+}
+
 /** Rewrite one entry of a "A;B;C" config list, keeping its separator. */
 function rewriteList(raw: string, from: string, to: string | null): string {
   const sep = raw.includes(";") ? ";" : ",";
@@ -104,38 +144,37 @@ export function actionFindings(r: ConfigRecord, known: Known | null): StudioFind
     .find(Boolean);
   if (url) {
     findings.push({
-      severity: "warning",
+      severity: "info",
       title: "Hardcoded org URL",
-      detail: `References ${url}. The action breaks when the config is migrated to another org or the sandbox is refreshed — use a relative path.`,
+      detail: `References ${url}. It works in this org, but after a sandbox refresh or a migration to another org it still points here.`,
     });
   }
   if (known) {
     for (const { field, kind, key } of FIELD_KINDS) {
       const raw = r.fields[field];
       const values = splitList(raw);
-      for (const name of values.filter((v) => !known[key].has(v.toLowerCase()))) {
-        const label = r.label || r.developerName;
+      for (const name of values) {
+        const problem = unknownName(r, key, kind, name, known);
+        if (!problem) continue;
         const setTo = (to: string, fixLabel: string): StudioFix => ({
           kind: "setConfigField",
           label: fixLabel,
           category: r.category,
           developerName: r.developerName,
-          recordLabel: label,
+          recordLabel: r.label || r.developerName,
           field,
           from: String(raw),
           to,
         });
-        const suggestion = closestName(name, known[key].values());
+        const suggestion = closestName(name, new Set(problem.candidates.filter((c) => c.toLowerCase() !== name.toLowerCase())));
         const fixes: StudioFix[] = [];
         if (suggestion) fixes.push(setTo(rewriteList(String(raw), name, suggestion), `Replace with "${suggestion}"`));
         // Removing the last entry would empty the list, which can widen who sees the action.
         if (values.length > 1) fixes.push(setTo(rewriteList(String(raw), name, null), `Remove "${name}"`));
         findings.push({
           severity: "warning",
-          title: `${kind} "${name}" not found`,
-          detail: `No ${kind.toLowerCase()} with this name exists in the org, so the action won't show for it.${
-            suggestion ? ` Did you mean "${suggestion}"?` : ""
-          }`,
+          title: problem.title,
+          detail: `${problem.detail}${suggestion ? ` Did you mean "${suggestion}"?` : ""}`,
           fixes: fixes.length ? fixes : undefined,
         });
       }
@@ -157,20 +196,54 @@ export function actionItem(r: ConfigRecord, known: Known | null): StudioItem {
   return it;
 }
 
-/** Info findings for quick actions sharing a SortOrder on the same location + object. */
+/** Whether two actions can show to the same user: either shows to everyone, or they share a profile or permission set. */
+function sameAudience(a: ConfigRecord, b: ConfigRecord): boolean {
+  const x = actionAudience(a);
+  const y = actionAudience(b);
+  if (!x || !y) return true;
+  const shares = (p: string[], q: string[]) => p.some((n) => q.some((m) => m.toLowerCase() === n.toLowerCase()));
+  return shares(x.profiles, y.profiles) || shares(x.permissionSets, y.permissionSets);
+}
+
+/** Whether two record actions can show on the same record: either lists no record types, or they share one. */
+function sameRecordTypes(a: ConfigRecord, b: ConfigRecord): boolean {
+  const x = splitList(a.fields.RecordTypes).map((n) => n.toLowerCase());
+  const y = splitList(b.fields.RecordTypes).map((n) => n.toLowerCase());
+  return !x.length || !y.length || x.some((n) => y.includes(n));
+}
+
+/**
+ * Info findings for quick actions that share a SortOrder where a rep sees them together: the same
+ * location and object (the home page button holds every HomePage action, whatever its object), for
+ * overlapping profiles or permission sets and — on records — overlapping record types.
+ */
 export function sortCollisions(records: ConfigRecord[]): StudioFinding[] {
   const groups = new Map<string, ConfigRecord[]>();
   for (const r of records.filter((r) => r.isActive && r.fields.SortOrder != null && r.fields.SortOrder !== "")) {
-    const key = `${r.fields.Location}|${r.fields.SObject ?? ""}|${r.fields.SortOrder}`;
+    const home = r.fields.Location === "HomePage";
+    const key = home ? `HomePage|${r.fields.SortOrder}` : `${r.fields.Location}|${r.fields.SObject ?? ""}|${r.fields.SortOrder}`;
     groups.set(key, [...(groups.get(key) ?? []), r]);
   }
-  return [...groups.values()]
-    .filter((g) => g.length > 1)
-    .map((g) => ({
-      severity: "info" as const,
-      title: `Same sort order: ${g.map((r) => r.label ?? r.developerName).join(", ")}`,
-      detail: `All are position ${g[0].fields.SortOrder}, so their order is unpredictable.`,
-    }));
+  const clashes: ConfigRecord[][] = [];
+  for (const group of groups.values()) {
+    // Actions that clash with each other, joined into clusters (A–B and B–C is one cluster).
+    const cluster = group.map((_, i) => i);
+    const root = (i: number): number => (cluster[i] === i ? i : (cluster[i] = root(cluster[i])));
+    for (let i = 0; i < group.length; i++) {
+      for (let j = i + 1; j < group.length; j++) {
+        const [a, b] = [group[i], group[j]];
+        if (sameAudience(a, b) && (a.fields.Location === "HomePage" || sameRecordTypes(a, b))) cluster[root(j)] = root(i);
+      }
+    }
+    const byRoot = new Map<number, ConfigRecord[]>();
+    group.forEach((r, i) => byRoot.set(root(i), [...(byRoot.get(root(i)) ?? []), r]));
+    clashes.push(...[...byRoot.values()].filter((c) => c.length > 1));
+  }
+  return clashes.map((g) => ({
+    severity: "info" as const,
+    title: `Same sort order: ${g.map((r) => r.label ?? r.developerName).join(", ")}`,
+    detail: `All are position ${g[0].fields.SortOrder} and show to the same reps, so their order is unpredictable.`,
+  }));
 }
 
 /**

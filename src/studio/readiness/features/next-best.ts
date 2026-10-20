@@ -4,6 +4,7 @@ import { fetchCache } from "../../collectors/mobile-sync.js";
 import { isMissingObject } from "../../collectors/briefings.js";
 import { count, plural, query } from "../../helpers.js";
 import { runCheck, type ReadinessModule, type StudioCheckResult } from "../index.js";
+import { fieldUsersReadResult } from "./_field-access.js";
 import { cacheFreshResult, daysSince } from "./_mobile-sync-shared.js";
 import { loadDbSchema, once, syncResult } from "./_visit-shared.js";
 
@@ -35,17 +36,18 @@ const readiness: ReadinessModule = {
         {
           id: "next-best.access.score-read",
           stage: "access",
-          title: "Reps' permission sets can read Next Best scores",
+          title: "Field users can read Next Best scores",
           severity: "error",
-          why: "Next Best cards come from TerritoryAccountScore. A rep whose permission sets don't grant Read on it sees an empty Next Best list even though scores exist.",
-          steps: ["Open Setup > Permission Sets for the field rep permission sets", "Grant Read on Territory Account Score, Territory Account Recommended Action and Territory Account Product Message Score"],
+          why: "Next Best cards come from TerritoryAccountScore. A rep whose profile and permission sets don't grant Read on it sees an empty Next Best list even though scores exist.",
+          steps: [
+            "Open Setup > Permission Sets and pick a set the field users on the profiles listed hold, or create one",
+            "Grant Read on Territory Account Score, Territory Account Recommended Action and Territory Account Product Message Score",
+            "Assign the set to any of those users who don't hold it",
+          ],
           uiPath: "Setup > Permission Sets > Object Settings",
           surface: "objects",
         },
-        gate(async () => {
-          const n = await count(`SELECT COUNT() FROM ObjectPermissions WHERE SobjectType = 'TerritoryAccountScore' AND PermissionsRead = true`, org);
-          return { pass: n > 0, detail: n ? `${plural(n, "permission set")} grant Read on Territory Account Score.` : "No permission set grants Read on Territory Account Score." };
-        })
+        gate(() => fieldUsersReadResult(org, "TerritoryAccountScore", "Territory Account Score"))
       ),
       runCheck(
         {

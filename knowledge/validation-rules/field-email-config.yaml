@@ -235,8 +235,8 @@ rules:
     name: Email fragments exist
     description: |
       Checks whether LifeSciEmailTmplFragment records exist. Fragments are reusable
-      HTML components (paragraphs, images, queries) that can be inserted into
-      email templates during composition. Fragments enable consistent branding,
+      HTML content blocks, such as an approved product blurb, that reps insert into
+      an email template while composing. Fragments enable consistent branding,
       legal disclaimers, and dynamic content across multiple templates. While
       not required, fragments are a best practice for managing shared content.
     category: configuration
@@ -256,14 +256,11 @@ rules:
       - "Fragment insertion option not available"
     resolution:
       steps:
-        - "Navigate to Admin Console > Email > Fragments"
-        - "Create new fragment"
-        - "Define fragment content (text, image, or query)"
-        - "Set FragmentType (text, image, query)"
-        - "Mark as Active"
-        - "Link fragment to templates"
-        - "Run Fragment job to propagate changes"
-      ui_path: "Admin Console > Email > Fragments"
+        - "Add a Fragments folder of HTML files to the template's ZIP and upload it in Admin Console > Email > Email Templates; LSC creates the fragment records"
+        - "Or create Life Science Email Template Fragment records by hand or with Data Loader, named like the files in the ZIP without the extension"
+        - "Share them with reps: open the template and click Update Fragments Sharing"
+        - "Or run or schedule a job in Admin Console > Email > Email Fragment Jobs to share fragments for every template"
+      ui_path: "Admin Console > Email > Email Templates"
     tags: [field-email, configuration, fragments]
 
   # ===========================================================================
@@ -324,11 +321,11 @@ rules:
   - id: field-email-009
     name: The Send Email job is scheduled
     description: |
-      Checks whether email jobs are scheduled and active. Field Email requires
-      three jobs: Send Email job (sends queued emails), Fetch Status job
-      (retrieves delivery/open statuses), and Fragment job (syncs reusable HTML
-      fragments). Without scheduled jobs, emails will remain in queue indefinitely
-      and will not be delivered. Jobs must be scheduled in Admin Console > Email > Jobs.
+      Checks whether the Send Email job is scheduled. Field Email has two email
+      jobs: Send Email sends the emails in the queue, and Track Email Status
+      records when emails are sent, delivered, opened or bounced. Without a
+      scheduled Send Email job, queued emails stay in the queue and are never
+      delivered. Both are scheduled in Admin Console > Email > Email Jobs.
     category: configuration
     severity: error
     stage: config
@@ -345,23 +342,17 @@ rules:
     symptoms:
       - "Emails stuck in queue / not sending"
       - "Email status not updating"
-      - "Fragment changes not appearing in templates"
       - "Scheduled emails not sending at specified time"
       - "Delivery status always shows 'New' or 'In Progress'"
     resolution:
       steps:
-        - "Navigate to Admin Console > Email > Jobs"
-        - "Schedule Send Email job:"
-        - "  - Frequency: Hourly, daily, or weekly"
-        - "  - Batch size: Max emails per run (e.g., 20)"
-        - "  - Retry attempts: How many times to retry failed sends (e.g., 3)"
-        - "Schedule Fetch Status job:"
-        - "  - Frequency: Same as Send Email job"
-        - "Schedule Fragment job:"
-        - "  - Run after fragment changes to propagate updates"
-        - "Verify jobs are active and scheduled"
-        - "Monitor email queue for processing"
-      ui_path: "Admin Console > Email > Jobs"
+        - "From the App Launcher, open Admin Console, select Email, then Email Jobs"
+        - "Click Schedule for the Send Email job and choose one time or a regular schedule"
+        - "Each job type has three slots, so you can stagger them (for example hourly at :00, :20 and :40 to send every 20 minutes)"
+        - "Schedule the Track Email Status job the same way"
+        - "Save"
+        - "Email Batch Size and Retry Attempts are set separately, in Admin Console > Email > Email Settings under Email Limits"
+      ui_path: "Admin Console > Email > Email Jobs"
     issue_ref: "9.1"
     tags: [field-email, configuration, jobs]
 

@@ -149,7 +149,7 @@ const readiness: ReadinessModule = {
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },
-        async () => syncResult(org, await schema, CONTENT_OBJECTS)
+        async () => syncResult(org, await schema, CONTENT_OBJECTS, "Presentation")
       ),
 
       runCheck(
@@ -163,7 +163,7 @@ const readiness: ReadinessModule = {
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },
-        async () => syncResult(org, await schema, TRACKING_OBJECTS)
+        async () => syncResult(org, await schema, TRACKING_OBJECTS, "Presentation")
       ),
     ]);
   },

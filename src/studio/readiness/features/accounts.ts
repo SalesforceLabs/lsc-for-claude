@@ -43,6 +43,14 @@ async function sampleAccounts(where: string, org: string): Promise<{ some: boole
   return { some: rows.length > 0, atLeast: rows.length >= SAMPLE ? `${SAMPLE} or more` : String(rows.length), names: rows.map((r) => String(r.Name)) };
 }
 
+/*
+ * Orgs often hold person accounts that aren't HCPs (patients, consumers, demo records), so the HCP
+ * checks don't look at every person account. An HCP is one with a Healthcare Provider record; for
+ * that record's own check, the person accounts reps work with are the ones with active territory info.
+ */
+const PROVIDER_ACCOUNT = `IsPersonAccount = true AND Id IN (SELECT AccountId FROM HealthcareProvider)`;
+const ALIGNED_PERSON = `IsPersonAccount = true AND Id IN (SELECT AccountId FROM ProviderAcctTerritoryInfo WHERE IsActive = true)`;
+
 const readiness: ReadinessModule = {
   ruleFiles: ["account-management-config.yaml"],
   checks: async (org) => {
@@ -89,14 +97,27 @@ const readiness: ReadinessModule = {
           title: "Territory info records point at a preferred address",
           severity: "info",
           why: "The preferred address is the one shown on the account card and used for route planning in that territory. Without it reps see the account with no location.",
-          steps: ["Mark a primary address on the account", "Make sure ATFPreferredAddressHandler is active, then re-save or re-run the territory field job"],
+          steps: [
+            "For an account with no address, add a Contact Point Address first",
+            "For an account with addresses, mark one as primary",
+            "Make sure ATFPreferredAddressHandler is active, then re-save or re-run the territory field job",
+          ],
           uiPath: "Admin Console > Account Management > Address Administration & Setup",
         },
         async () => {
           const total = await count(`SELECT COUNT() FROM ProviderAcctTerritoryInfo WHERE IsActive = true`, org);
           if (!total) return { pass: true, skip: true, detail: "No active territory info records." };
-          const n = await count(`SELECT COUNT() FROM ProviderAcctTerritoryInfo WHERE IsActive = true AND PreferredAddressId = null`, org);
-          return { pass: n === 0, detail: n ? `${n} of ${total} have no preferred address.` : `All ${total} have a preferred address.` };
+          const missing = `IsActive = true AND PreferredAddressId = null`;
+          const n = await count(`SELECT COUNT() FROM ProviderAcctTerritoryInfo WHERE ${missing}`, org);
+          if (!n) return { pass: true, detail: `All ${total} have a preferred address.` };
+          // Marking a primary address only helps where the account has one; the rest need an address first.
+          const withAddress = await count(`SELECT COUNT() FROM ProviderAcctTerritoryInfo WHERE ${missing} AND AccountId IN (SELECT ParentId FROM ContactPointAddress)`, org);
+          const noAddress = n - withAddress;
+          const parts = [
+            withAddress ? `${withAddress} are for accounts with addresses but none preferred` : "",
+            noAddress ? `${noAddress} are for accounts with no address at all` : "",
+          ].filter(Boolean);
+          return { pass: false, detail: `${n} of ${total} have no preferred address: ${parts.join(", ")}.` };
         }
       ),
       runCheck(
@@ -110,12 +131,14 @@ const readiness: ReadinessModule = {
           uiPath: "Account > Addresses",
         },
         async () => {
-          const any = await query(`SELECT Id FROM Account WHERE IsPersonAccount = true LIMIT 1`, org);
-          if (!any.length) return { pass: true, skip: true, detail: "No person accounts." };
-          const found = await sampleAccounts(`IsPersonAccount = true AND Id NOT IN (SELECT ParentId FROM ContactPointAddress)`, org);
+          const any = await query(`SELECT Id FROM Account WHERE ${PROVIDER_ACCOUNT} LIMIT 1`, org);
+          if (!any.length) return { pass: true, skip: true, detail: "No person account has a Healthcare Provider record." };
+          const found = await sampleAccounts(`${PROVIDER_ACCOUNT} AND Id NOT IN (SELECT ParentId FROM ContactPointAddress)`, org);
           return {
             pass: !found.some,
-            detail: found.some ? `${found.atLeast} person accounts have no address (first matches shown; not a full count).` : "No person account was found without an address.",
+            detail: found.some
+              ? `${found.atLeast} person accounts with a Healthcare Provider record have no address (first matches shown; not a full count).`
+              : "No person account with a Healthcare Provider record was found without an address.",
             examples: found.names,
           };
         }
@@ -144,19 +167,21 @@ const readiness: ReadinessModule = {
         {
           id: "accounts.data.hcps-have-provider-record",
           stage: "data",
-          title: "Every person account has a Healthcare Provider record",
+          title: "Every person account in a territory has a Healthcare Provider record",
           severity: "warning",
           why: "Specialty, NPI, title and status live on HealthcareProvider. A person account without one has no professional details on the Provider Card and can't be found by specialty.",
           steps: ["Create a Healthcare Provider record linked to the account", "Load HealthcareProvider alongside person accounts in the migration"],
           uiPath: "Healthcare Providers tab",
         },
         async () => {
-          const found = await sampleAccounts(`IsPersonAccount = true AND Id NOT IN (SELECT AccountId FROM HealthcareProvider)`, org);
+          const any = await query(`SELECT Id FROM Account WHERE ${ALIGNED_PERSON} LIMIT 1`, org);
+          if (!any.length) return { pass: true, skip: true, detail: "No person account has active territory info." };
+          const found = await sampleAccounts(`${ALIGNED_PERSON} AND Id NOT IN (SELECT AccountId FROM HealthcareProvider)`, org);
           return {
             pass: !found.some,
             detail: found.some
-              ? `${found.atLeast} person accounts have no Healthcare Provider record (first matches shown; not a full count).`
-              : "No person account was found without a Healthcare Provider record.",
+              ? `${found.atLeast} person accounts with active territory info have no Healthcare Provider record (first matches shown; not a full count).`
+              : "No person account with active territory info was found without a Healthcare Provider record.",
             examples: found.names,
           };
         }

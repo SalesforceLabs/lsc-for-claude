@@ -47,36 +47,10 @@ rules:
   # SECTION 2: Account Summarization
   # ===========================================================================
 
-  - id: briefings-002
-    name: Account Summarization flow is active
-    description: |
-      The "Generate Provider Account Territory Summary" flow must be active.
-      Account Summarization is the data source for Briefings — without it,
-      no podcast text is generated. Orgs that renamed the flow will not match
-      by label; the "summaries are current" check in Studio is the reliable
-      signal that summarization is running.
-    category: configuration
-    severity: warning
-    stage: data
-    studio_surface: accountSummarization
-    check:
-      type: soql_count
-      query: >
-        SELECT COUNT()
-        FROM FlowDefinitionView
-        WHERE Label = 'Generate Provider Account Territory Summary'
-        AND ActiveVersionId != null
-      expect: "count > 0"
-    symptoms:
-      - "No briefings generated"
-      - "PresentationContent records empty"
-    resolution:
-      steps:
-        - "Navigate to Setup → Life Sciences for Customer Engagement Setup"
-        - "Go to Configure Account Summarization"
-        - "Enable the toggle and complete configuration"
-      ui_path: "Setup > Life Sciences for Customer Engagement Setup > Configure Account Summarization"
-    tags: [briefings, account-summarization, flow]
+  # The "Generate Provider Account Territory Summary" flow isn't checked by label:
+  # orgs with current summaries can have no flow by that label, so a missing
+  # label said nothing. briefings-003 and Studio's "summaries are current" check look at the
+  # summary records instead.
 
   - id: briefings-003
     name: Account summary records exist

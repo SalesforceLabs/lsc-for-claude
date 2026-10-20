@@ -9,8 +9,8 @@ const { collectCategoryRecords } = await import("../../../../src/config/collect.
 const { default: mod } = await import("../../../../src/studio/readiness/features/medical-inquiries.js");
 
 type Row = Record<string, unknown>;
-/** Rows (and optional COUNT override) returned per outer FROM-object; an Error makes that query fail. */
-let org: Record<string, Row[] | number | Error>;
+/** Rows (and optional COUNT override) returned per outer FROM-object; an Error makes that query fail, a function answers by the SOQL. */
+let org: Record<string, Row[] | number | Error | ((soql: string) => Row[])>;
 let handlers: Row[];
 let schema: ConfigRecord[];
 
@@ -18,7 +18,8 @@ function respond(soql: string) {
   let outer = soql;
   while (/\([^()]*\)/.test(outer)) outer = outer.replace(/\([^()]*\)/g, "");
   const from = /FROM\s+(\w+)/i.exec(outer)?.[1] ?? "";
-  const v = org[from] ?? [];
+  const entry = org[from] ?? [];
+  const v = typeof entry === "function" ? entry(soql) : entry;
   if (v instanceof Error) return Promise.resolve({ success: false, error: v.message });
   const rows = typeof v === "number" ? [] : v;
   const total = typeof v === "number" ? v : rows.length;
@@ -81,5 +82,47 @@ describe("medical-inquiries readiness", () => {
     org.Inquiry = [{ Id: "1" }];
     org.LifeSciStagePath = [{ Name: "Inquiry", Status: "Inactive" }];
     expect((await run())["medical-inquiries.config.stage-path"].status).toBe("fail");
+  });
+
+  it("fails when some field users can't read Inquiry, counted by profile", async () => {
+    org.Inquiry = [{ Id: "1" }];
+    org.Profile = [{ Name: "Rep" }];
+    org.ObjectPermissions = [{ ParentId: "0PS1" }];
+    let anti = "";
+    org.User = (q) => {
+      if (!q.includes("NOT IN")) return [{ pn: "Rep", cnt: 5 }];
+      anti = q;
+      return [{ pn: "Rep", cnt: 2 }];
+    };
+    const c = (await run())["medical-inquiries.access.inquiry-read"];
+    expect(c.status).toBe("fail");
+    expect(c.detail).toBe("2 of 5 active field users can't read Inquiry.");
+    expect(c.examples).toEqual(["Rep: 2 users"]);
+    expect(anti).toContain("PermissionSetId IN ('0PS1')");
+  });
+
+  it("passes medical-inquiries.access.inquiry-read only when every field user can read it", async () => {
+    org.Inquiry = [{ Id: "1" }];
+    org.Profile = [{ Name: "Rep" }];
+    org.ObjectPermissions = [{ ParentId: "0PS1" }];
+    org.User = (q) => (q.includes("NOT IN") ? [] : [{ pn: "Rep", cnt: 5 }]);
+    expect((await run())["medical-inquiries.access.inquiry-read"].status).toBe("pass");
+  });
+
+  it("fails medical-inquiries.access.inquiry-read when nothing grants Read, even with no anti-join", async () => {
+    org.Inquiry = [{ Id: "1" }];
+    org.Profile = [{ Name: "Rep" }];
+    org.User = [{ pn: "Rep", cnt: 3 }];
+    const c = (await run())["medical-inquiries.access.inquiry-read"];
+    expect(c.status).toBe("fail");
+    expect(c.examples).toEqual(["Rep: 3 users"]);
+  });
+
+  it("describes old drafts as unsent and a record type mismatch as the support doc does", async () => {
+    org.Inquiry = [{ Id: "1" }];
+    const r = await run();
+    expect(r["medical-inquiries.data.stale-drafts"].why).toContain("never submitted, so medical affairs never saw it");
+    expect(r["medical-inquiries.data.stale-drafts"].why).not.toContain("waiting");
+    expect(r["medical-inquiries.data.record-types-match"].why).toContain("fail without an error or leave orphaned records");
   });
 });

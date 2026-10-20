@@ -64,8 +64,10 @@ rules:
     name: Active announcements exist
     description: |
       Checks for active Home Office Announcements (AppAlert records with
-      Type='Announcement'). Announcements keep sales reps informed about
-      product launches, compliance reminders, and territory changes.
+      Type='Announcement' whose EffectiveDate has been reached and whose
+      ValidUntilDate is empty, meaning no expiry, or not yet passed).
+      Announcements keep sales reps informed about product launches,
+      compliance reminders, and territory changes.
     category: configuration
     severity: warning
     stage: data
@@ -75,7 +77,8 @@ rules:
         SELECT Id, Name, EffectiveDate, ValidUntilDate
         FROM AppAlert
         WHERE Type = 'Announcement'
-        AND ValidUntilDate >= TODAY
+        AND (EffectiveDate = null OR EffectiveDate <= TODAY)
+        AND (ValidUntilDate = null OR ValidUntilDate >= TODAY)
         ORDER BY EffectiveDate DESC
         LIMIT 10
       expect: "records.length > 0"

@@ -6,7 +6,8 @@
 
 import { collectCategoryRecords } from "../../../config/collect.js";
 import type { ConfigRecord } from "../../../config/types.js";
-import { newDbSchema } from "../../collectors/shared.js";
+import { addProfileFix, newDbSchema } from "../../collectors/shared.js";
+import { fieldProfiles } from "../../collectors/territory-users.js";
 import { count, plural, query, type Row } from "../../helpers.js";
 import type { ReadinessCheck, StudioFix } from "../../types.js";
 import { rowLabel, runCheck, type StudioCheckResult } from "../index.js";
@@ -87,30 +88,55 @@ const sobjectOf = (r: ConfigRecord) => String(r.fields.SObject || "").toLowerCas
 const profileNames = (r: ConfigRecord) => r.assignments.filter((a) => a.level === "Profile").map((a) => a.name);
 
 /**
+ * Field profiles (those with LSC Mobile app settings) of the active users the
+ * grouped `soqls` find — each selects a profile name as `pn`, e.g. owners of a
+ * feature's records. These are the profiles that need its objects on the iPad.
+ */
+export async function fieldProfilesUsing(org: string, soqls: string[]): Promise<string[]> {
+  const [field, ...groups] = await Promise.all([fieldProfiles(org), ...soqls.map((q) => query(q, org))]);
+  const used = new Set(groups.flat().map((r) => String(r.pn ?? "")));
+  return field.filter((p) => used.has(p)).sort();
+}
+
+/**
  * Each object needs an active DB Schema record that reaches at least one
  * profile, or the iPad never downloads its records. A switched-off record gets
  * a switch-on fix; a missing one gets an "Add to iPad sync" create for the
  * profiles that already sync the other objects of this check.
+ *
+ * With `audience` (the profiles whose users work with the feature), every
+ * object must also reach each of those profiles; the ones it doesn't are
+ * named, with an add-profile fix when the object has a single active record.
  */
 export function dbSchemaCheck(
   meta: CheckMeta,
   schema: () => Promise<ConfigRecord[]>,
-  objects: string[]
+  objects: string[],
+  audience?: () => Promise<string[]>
 ): Promise<ReadinessCheck> {
   return runCheck(meta, async (): Promise<StudioCheckResult> => {
-    const all = await schema();
+    const [all, needs] = await Promise.all([schema(), audience ? audience() : Promise.resolve([])]);
     const wanted = new Set(objects.map((o) => o.toLowerCase()));
     const mine = all.filter((r) => wanted.has(sobjectOf(r)));
     const profiles = [...new Set(mine.filter((r) => r.isActive).flatMap(profileNames))].sort();
     const missing: string[] = [];
     const off: string[] = [];
     const unassigned: string[] = [];
+    const gaps = new Map<string, string[]>();
     const fixes: StudioFix[] = [];
     for (const object of objects) {
       const recs = mine.filter((r) => sobjectOf(r) === object.toLowerCase());
       const live = recs.filter((r) => r.isActive);
       if (live.length) {
         if (!live.some((r) => r.isOrgLevel || r.assignments.length > 0)) unassigned.push(object);
+        else if (!live.some((r) => r.isOrgLevel)) {
+          const covered = new Set(live.flatMap(profileNames));
+          for (const p of needs.filter((n) => !covered.has(n))) {
+            gaps.set(p, [...(gaps.get(p) ?? []), object]);
+            const fix = live.length === 1 ? addProfileFix(live[0], p, `Sync ${object} to ${p}`) : null;
+            if (fix) fixes.push(fix);
+          }
+        }
         continue;
       }
       if (recs.length) {
@@ -126,16 +152,22 @@ export function dbSchemaCheck(
         });
       } else {
         missing.push(object);
-        if (profiles.length) fixes.push(newDbSchema(object, all, profiles));
+        const to = [...new Set([...profiles, ...needs])].sort();
+        if (to.length) fixes.push(newDbSchema(object, all, to));
       }
     }
+    const notReaching = [...gaps].map(([p, objs]) => `${p} doesn't sync ${objs.join(", ")}`);
     const problems = [
       missing.length ? `not synced: ${missing.join(", ")}` : "",
       off.length ? `switched off: ${off.join(", ")}` : "",
       unassigned.length ? `active but given to no profile: ${unassigned.join(", ")}` : "",
+      ...notReaching,
     ].filter(Boolean);
-    if (problems.length === 0) return { pass: true, detail: `All ${objects.length} objects sync to the iPad.` };
-    return { pass: false, detail: `${problems.join("; ")}.`, examples: [...missing, ...off, ...unassigned], fixes };
+    if (problems.length === 0) {
+      const to = needs.length ? ` for ${plural(needs.length, "profile")} whose users work with them` : "";
+      return { pass: true, detail: `All ${objects.length} objects sync to the iPad${to}.` };
+    }
+    return { pass: false, detail: `${problems.join("; ")}.`, examples: [...missing, ...off, ...unassigned, ...gaps.keys()], fixes: fixes.slice(0, 12) };
   });
 }
 

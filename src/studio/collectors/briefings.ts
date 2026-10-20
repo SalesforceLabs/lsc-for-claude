@@ -28,8 +28,17 @@ import {
 import { fetchCache, isLiveCache, type CacheRecord } from "./mobile-sync.js";
 import { fetchCategories, newDbSchema, profilesOf } from "./shared.js";
 
-/** Licenses Briefings depends on (Field Insights text generation runs on Einstein / Agentforce). */
-export const REQUIRED_PSLS = ["Life Science Commercial", "Health Cloud Starter", "Agentforce for LSC Feature Access", "Einstein Prompt Templates"];
+/**
+ * Licenses Briefings depends on (Field Insights text generation runs on Einstein / Agentforce), matched by
+ * DeveloperName, since an org's labels don't always match the names the docs use. `label` is only shown
+ * when the license isn't in the org.
+ */
+export const REQUIRED_PSLS = [
+  { name: "IndustriesLSC4CEPsl", label: "Life Science Commercial" },
+  { name: "HealthCloudStarter", label: "Health Cloud Starter" },
+  { name: "SiteMgmtSiteSelAssistanceAgentPsl", label: "Agentforce for Life Sciences Cloud Feature Access" },
+  { name: "EinsteinGPTPromptTemplatesPsl", label: "Einstein Prompt Templates" },
+];
 
 /** Standard permission sets that must be assigned to someone. */
 export const STANDARD_PERMISSION_SETS = [
@@ -92,6 +101,21 @@ export const syncs = (r: ConfigRecord, object: string) =>
 
 export { fetchCache, isLiveCache, type CacheRecord };
 
+/**
+ * Direct assignments per standard permission set Name. Ids are looked up first: grouping by a PermissionSet
+ * field while filtering on PermissionSet.Name returns no rows at all in some orgs.
+ */
+export async function standardSetAssignments(org: string): Promise<Map<string, number>> {
+  const sets = await query(`SELECT Id, Name FROM PermissionSet WHERE Name IN (${inList(STANDARD_PERMISSION_SETS.map((p) => p.name))})`, org);
+  if (!sets.length) return new Map();
+  const counts = await countBy(
+    `SELECT PermissionSetId psid, COUNT(Id) cnt FROM PermissionSetAssignment WHERE PermissionSetId IN (${inList(sets.map((r) => String(r.Id)))}) GROUP BY PermissionSetId`,
+    "psid",
+    org
+  );
+  return new Map(sets.map((r) => [String(r.Name), counts.get(String(r.Id)) ?? 0]));
+}
+
 /** Profile → number, from an aggregate query with a text column `key`. */
 export async function countBy(soql: string, key: string, org: string): Promise<Map<string, number>> {
   const rows = await query(soql, org);
@@ -110,7 +134,7 @@ export const collectBriefings: CustomCollector = async (org) => {
     )
   );
   const psls = settle(
-    query(`SELECT Id, DeveloperName, MasterLabel, TotalLicenses, UsedLicenses FROM PermissionSetLicense WHERE MasterLabel IN (${inList(REQUIRED_PSLS)})`, org)
+    query(`SELECT Id, DeveloperName, MasterLabel, TotalLicenses, UsedLicenses FROM PermissionSetLicense WHERE DeveloperName IN (${inList(REQUIRED_PSLS.map((p) => p.name))})`, org)
   );
   const definitions = settle(optionalQuery(`SELECT Id, DeveloperName, MasterLabel, IsActive, ContentType FROM PrstContentDefinition ORDER BY MasterLabel`, org));
   const assignments = settle(
@@ -146,13 +170,7 @@ export const collectBriefings: CustomCollector = async (org) => {
       org
     )
   );
-  const standardAssignments = settle(
-    countBy(
-      `SELECT PermissionSet.Name nm, COUNT(Id) cnt FROM PermissionSetAssignment WHERE PermissionSet.Name IN (${inList(STANDARD_PERMISSION_SETS.map((p) => p.name))}) GROUP BY PermissionSet.Name`,
-      "nm",
-      org
-    )
-  );
+  const standardAssignments = settle(standardSetAssignments(org));
   const readAccess = settle(optionalQuery(`SELECT ParentId FROM ObjectPermissions WHERE SobjectType = 'PresentationContent' AND PermissionsRead = true`, org));
   // Active users per profile holding "Use Briefings" through any permission set.
   const briefingUsers = settle(
@@ -190,7 +208,7 @@ export const collectBriefings: CustomCollector = async (org) => {
       { id: "licenses", title: "Licenses", lane: "setup", description: "Permission set licenses Briefings and its text generation depend on." },
       async () => {
         const rows = await unwrap(psls);
-        const found = new Set(rows.map((r) => String(r.MasterLabel)));
+        const found = new Set(rows.map((r) => String(r.DeveloperName)));
         const items = rows.map((r) => {
           const total = Number(r.TotalLicenses ?? 0);
           const used = Number(r.UsedLicenses ?? 0);
@@ -204,7 +222,7 @@ export const collectBriefings: CustomCollector = async (org) => {
             findings,
           });
         });
-        const missing = REQUIRED_PSLS.filter((l) => !found.has(l));
+        const missing = REQUIRED_PSLS.filter((p) => !found.has(p.name)).map((p) => p.label);
         return {
           items,
           findings: missing.length

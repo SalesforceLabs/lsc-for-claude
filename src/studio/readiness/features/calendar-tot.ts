@@ -94,8 +94,8 @@ const readiness: ReadinessModule = {
           title: "Working-day sources point at fields that exist",
           severity: "warning",
           why: "Working-day calculations (activity plan prorating, goal pacing) read business hours, holidays and time off from the objects and fields named here. A field that doesn't exist, often left over from a copied or test setting, makes the calculation fail or skip that source.",
-          steps: ["Open Admin Console > Planner Administration > Working Days.", "Correct or delete the setting listed."],
-          uiPath: "Admin Console > Planner Administration",
+          steps: ["Open Admin Console and find the WorkingDaysConfig category (its own category, not part of Planner Administration).", "Correct or delete the setting listed."],
+          uiPath: "Admin Console > WorkingDaysConfig",
           surface: "adminSettings",
         },
         async () => {
@@ -150,16 +150,21 @@ const readiness: ReadinessModule = {
         {
           id: "calendar-tot.data.recent-events",
           stage: "data",
-          title: "The calendar has events from the last 30 days or ahead",
+          title: "The calendar has events or visits from the last 30 days or ahead",
           severity: "info",
           why: "Reps' calendars are built from Events and Visits. None in the sync window usually means a data load was never refreshed, or event ownership no longer matches the field users.",
-          steps: ["Check that field users own current events, and that data loads set the right owner."],
+          steps: ["Check that field users own current events and visits, and that data loads set the right owner."],
           uiPath: "App Launcher > Events",
           surface: "objects",
         },
         async () => {
-          const n = await countOf(`SELECT COUNT() FROM Event WHERE StartDateTime >= LAST_N_DAYS:30`, org);
-          return n ? { pass: true, detail: `${plural(n, "event")} in the window.` } : { pass: false, detail: "No events in the last 30 days or ahead." };
+          const [events, visits] = await Promise.all([
+            countOf(`SELECT COUNT() FROM Event WHERE StartDateTime >= LAST_N_DAYS:30`, org),
+            countOf(`SELECT COUNT() FROM Visit WHERE PlannedVisitStartTime >= LAST_N_DAYS:30`, org).catch(() => 0),
+          ]);
+          if (!events && !visits) return { pass: false, detail: "No events or visits in the last 30 days or ahead." };
+          const parts = [events ? plural(events, "event") : "", visits ? plural(visits, "visit") : ""].filter(Boolean);
+          return { pass: true, detail: `${parts.join(" and ")} in the window.` };
         }
       ),
 

@@ -36,6 +36,8 @@ const INVENTORY_OBJECTS = ["ProductItem", "ProductBatchItem", "ProductionBatch",
 const LIMIT_OBJECTS = ["ProviderSampleLimit", "ProviderSampleLimitTemplate", "ProviderSmplLmtTmplAssignment"];
 
 const USER_LOCATION = `LocationType = 'User Inventory'`;
+/** A location with at least one inventory line that has quantity on hand. */
+const STOCKED_LOCATION = `Id IN (SELECT LocationId FROM ProductItem WHERE QuantityOnHand > 0)`;
 
 const readiness: ReadinessModule = {
   ruleFiles: ["sample-management-config.yaml"],
@@ -49,20 +51,46 @@ const readiness: ReadinessModule = {
         {
           id: "samples.access.locations-have-a-rep",
           stage: "access",
-          title: "Every User Inventory location belongs to a rep",
+          title: "Every stocked User Inventory location belongs to a rep",
           severity: "warning",
-          why: "A rep sees and spends stock only from the location where they are the Primary User. A location with no Primary User holds stock nobody can use.",
-          steps: ["Open the Location", "Set Primary User to the rep who carries this stock, or delete the unused location"],
+          why: "A rep sees and spends stock only from the location where they are the Primary User. Stock in a location with no Primary User can't be given out by anyone.",
+          steps: ["Open the Location", "Set Primary User to the rep who carries this stock, or transfer the stock to a rep's location"],
           uiPath: "Locations tab",
         },
         async () => {
           const total = await userLocations();
           if (!total) return { pass: true, skip: true, detail: "No User Inventory locations yet." };
-          const rows = await query(`SELECT Id, Name FROM Location WHERE ${USER_LOCATION} AND PrimaryUserId = null LIMIT 5`, org);
-          const n = rows.length < 5 ? rows.length : await count(`SELECT COUNT() FROM Location WHERE ${USER_LOCATION} AND PrimaryUserId = null`, org);
+          const where = `${USER_LOCATION} AND PrimaryUserId = null AND ${STOCKED_LOCATION}`;
+          const rows = await query(`SELECT Id, Name FROM Location WHERE ${where} LIMIT 5`, org);
+          const n = rows.length < 5 ? rows.length : await count(`SELECT COUNT() FROM Location WHERE ${where}`, org);
           return {
             pass: n === 0,
-            detail: n ? `${n} of ${total} User Inventory locations have no Primary User.` : `All ${total} User Inventory locations have a Primary User.`,
+            detail: n
+              ? `${n} of ${total} User Inventory locations hold stock but have no Primary User.`
+              : `No User Inventory location holds stock without a Primary User.`,
+            examples: rows.map((r) => String(r.Name)),
+          };
+        }
+      ),
+      runCheck(
+        {
+          id: "samples.access.empty-locations-unassigned",
+          stage: "access",
+          title: "Empty User Inventory locations have a rep",
+          severity: "info",
+          why: "A User Inventory location with no Primary User and no stock does no harm, but it's either waiting for a rep or left over.",
+          steps: ["Set Primary User to the rep it was made for, or delete the location"],
+          uiPath: "Locations tab",
+        },
+        async () => {
+          const total = await userLocations();
+          if (!total) return { pass: true, skip: true, detail: "No User Inventory locations yet." };
+          const where = `${USER_LOCATION} AND PrimaryUserId = null AND Id NOT IN (SELECT LocationId FROM ProductItem WHERE QuantityOnHand > 0)`;
+          const rows = await query(`SELECT Id, Name FROM Location WHERE ${where} LIMIT 5`, org);
+          const n = rows.length < 5 ? rows.length : await count(`SELECT COUNT() FROM Location WHERE ${where}`, org);
+          return {
+            pass: n === 0,
+            detail: n ? `${n} of ${total} User Inventory locations have no Primary User and no stock.` : "Every empty User Inventory location has a Primary User.",
             examples: rows.map((r) => String(r.Name)),
           };
         }
@@ -175,19 +203,24 @@ const readiness: ReadinessModule = {
         {
           id: "samples.data.inventory-products-marketable",
           stage: "data",
-          title: "Every product in inventory has a marketable product",
+          title: "Every product in rep inventory has a marketable product",
           severity: "warning",
-          why: "Sample drops, limits and the product picker work from Marketable Products. Stock for a Product2 with no marketable product can't be selected on the iPad.",
+          why: "Sample drops, limits and the product picker work from Marketable Products. Stock in a rep's location for a Product2 with no marketable product can't be selected on the iPad.",
           steps: ["Create a Marketable Product for the Product2, or move the stock to the right product"],
           uiPath: "Marketable Products tab",
         },
         async () => {
-          const where = `Product2Id NOT IN (SELECT ProductId FROM LifeSciMarketableProduct WHERE ProductId != null)`;
+          // The iPad reads stock only from the rep's own location (Primary User = the rep), so warehouse, site
+          // and van stock with no marketable product never reaches the product picker.
+          if (!(await userLocations())) return { pass: true, skip: true, detail: "No User Inventory locations yet." };
+          const where = `Location.${USER_LOCATION} AND Location.PrimaryUserId != null AND Product2Id NOT IN (SELECT ProductId FROM LifeSciMarketableProduct WHERE ProductId != null)`;
           const n = await count(`SELECT COUNT() FROM ProductItem WHERE ${where}`, org);
           const rows = n ? await query(`SELECT Product2.Name, Location.Name FROM ProductItem WHERE ${where} LIMIT 5`, org) : [];
           return {
             pass: n === 0,
-            detail: n ? `${plural(n, "inventory line")} for products with no marketable product.` : "Every inventory line has a marketable product.",
+            detail: n
+              ? `${plural(n, "inventory line")} in reps' User Inventory locations for products with no marketable product.`
+              : "Every inventory line in reps' User Inventory locations has a marketable product.",
             examples: rows.map((r) => String((r.Product2 as { Name?: string } | null)?.Name ?? r.Product2)),
           };
         }

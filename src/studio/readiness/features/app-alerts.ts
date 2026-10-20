@@ -1,5 +1,6 @@
 /** App Alerts readiness: its validation rules plus Studio's own checks. */
 
+import { fieldProfiles } from "../../collectors/territory-users.js";
 import { count, plural, query } from "../../helpers.js";
 import { runCheck, type ReadinessModule } from "../index.js";
 import { handlersResult, loadDbSchema, nameList, syncResult } from "./_consent-sync.js";
@@ -7,8 +8,15 @@ import { handlersResult, loadDbSchema, nameList, syncResult } from "./_consent-s
 /** The handler that shares each alert with the territories it's targeted at. */
 const HANDLERS = ["NotificationTerritorySharingHandler"];
 
-/** What the iPad reads to show alerts, and writes when a rep reads or dismisses one. */
-const ALERT_OBJECTS = ["AppAlert", "AppAlertTerritory", "AppAlertUserResponse"];
+/**
+ * What the iPad reads to show alerts, and writes when a rep reads or dismisses
+ * one. AppAlertTerritory isn't here: the app never reads it — the alert's
+ * sharing decides who gets it.
+ */
+const ALERT_OBJECTS = ["AppAlert", "AppAlertUserResponse"];
+
+/** How many untargeted alerts are read to sort out the personal ones. */
+const UNTARGETED_LIMIT = 2000;
 
 /** Alerts whose dates say they are showing today. */
 const LIVE = `FROM AppAlert WHERE EffectiveDate <= TODAY AND (ValidUntilDate = null OR ValidUntilDate >= TODAY)`;
@@ -38,7 +46,7 @@ const readiness: ReadinessModule = {
           stage: "access",
           title: "Every alert in effect is targeted to a territory",
           severity: "warning",
-          why: "Alerts reach reps through their territories. One with no territory is shared with nobody, so it never appears in the notification pane or the Home Office Announcements widget.",
+          why: "Alerts reach reps through their territories. One with no territory, owned by someone who isn't a rep and shared with nobody else, never appears in anyone's notification pane or Home Office Announcements widget. Alerts owned by a rep (personal notifications) reach their owner, so they aren't counted.",
           steps: ["Open the alert in App Launcher > App Alerts", "Add an App Alert Territory for each territory that should see it"],
           uiPath: "App Launcher > App Alerts > Territories",
           surface: "objects",
@@ -46,9 +54,23 @@ const readiness: ReadinessModule = {
         async () => {
           const total = await count(`SELECT COUNT() ${LIVE}`, org);
           if (!total) return { pass: true, skip: true, detail: "No alerts are in effect." };
-          const rows = await query(`SELECT Id, Subject ${LIVE} AND Id NOT IN (SELECT AlertReferenceRecordId FROM AppAlertTerritory) LIMIT 20`, org);
+          const [untargeted, field] = await Promise.all([
+            query(
+              `SELECT Id, Subject, Owner.Profile.Name ${LIVE} AND Id NOT IN (SELECT AlertReferenceRecordId FROM AppAlertTerritory) AND Id NOT IN (SELECT ParentId FROM AppAlertShare WHERE RowCause != 'Owner') LIMIT ${UNTARGETED_LIMIT}`,
+              org
+            ),
+            fieldProfiles(org).catch(() => [] as string[]),
+          ]);
+          // An alert owned by a rep is a personal notification: it reaches its owner.
+          const reps = new Set(field.map((p) => p.toLowerCase()));
+          const ownerProfile = (r: Record<string, unknown>) => String((r.Owner as { Profile?: { Name?: string } } | null)?.Profile?.Name ?? "").toLowerCase();
+          const rows = untargeted.filter((r) => !reps.has(ownerProfile(r)));
           return rows.length
-            ? { pass: false, detail: `${rows.length} of ${plural(total, "alert")} in effect have no territory.`, examples: nameList(rows, "Subject") }
+            ? {
+                pass: false,
+                detail: `${rows.length}${untargeted.length === UNTARGETED_LIMIT ? "+" : ""} of ${plural(total, "alert")} in effect have no territory and reach nobody but their owner.`,
+                examples: nameList(rows.slice(0, 20), "Subject"),
+              }
             : { pass: true, detail: `All ${plural(total, "alert")} in effect are targeted.` };
         }
       ),
@@ -158,14 +180,14 @@ const readiness: ReadinessModule = {
         {
           id: "app-alerts.mobile.alert-objects",
           stage: "mobile",
-          title: "Alerts, their territories and user responses sync to the iPad",
+          title: "Alerts and their user responses sync to the iPad",
           severity: "error",
           why: "The bell and the Home Office Announcements widget read from the device's copy. A missing object means no alerts, or reads and dismissals that never come back to the org.",
           steps: ["Open Admin Console > Mobile > DB Schema", "Add or switch on each object listed below for every profile that gets alerts", "Publish to iPad"],
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },
-        async () => syncResult(org, await schema, ALERT_OBJECTS)
+        async () => syncResult(org, await schema, ALERT_OBJECTS, "AppAlert")
       ),
     ]);
   },

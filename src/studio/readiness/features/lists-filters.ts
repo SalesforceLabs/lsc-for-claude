@@ -9,14 +9,20 @@ const readiness: ReadinessModule = {
   checks: async (org) => {
     const schema = loadDbSchema(org);
 
-    /** Lists (matching `where`) that have an object row but none of `child` hanging off it. Two queries: SOQL won't nest semi-joins. */
+    /**
+     * Lists (matching `where`) that have object rows but none of `child` on any of them. A list
+     * with several object rows keeps its criteria or columns on some of them only (the join
+     * objects usually have none), so a list counts as covered when any row has one.
+     * Two queries: SOQL won't nest semi-joins.
+     */
     const listsMissing = async (child: string, where: string) => {
       const objects = await query(`SELECT Id, LifeScienceAccountListId FROM LifeScienceAccountListObject WHERE LifeScienceAccountList.${where} LIMIT 2000`, org);
       if (objects.length === 0) return [];
       const withChild = new Set(
         (await query(`SELECT LifeSciAccountListObjectId FROM ${child} WHERE LifeSciAccountListObjectId IN (${inList(objects.map((o) => String(o.Id)))}) GROUP BY LifeSciAccountListObjectId`, org)).map((r) => String(r.LifeSciAccountListObjectId))
       );
-      const bare = [...new Set(objects.filter((o) => !withChild.has(String(o.Id))).map((o) => String(o.LifeScienceAccountListId)))];
+      const covered = new Set(objects.filter((o) => withChild.has(String(o.Id))).map((o) => String(o.LifeScienceAccountListId)));
+      const bare = [...new Set(objects.map((o) => String(o.LifeScienceAccountListId)))].filter((id) => !covered.has(id));
       if (bare.length === 0) return [];
       return query(`SELECT Id, Name FROM LifeScienceAccountList WHERE Id IN (${inList(bare)}) LIMIT 20`, org);
     };
@@ -106,21 +112,21 @@ const readiness: ReadinessModule = {
         {
           id: "lists-filters.config.lists-have-objects",
           stage: "config",
-          title: "Every list says which object it shows",
+          title: "Every filter says which object it filters",
           severity: "warning",
-          why: "The list object row holds the object, columns and filter criteria. A list without one has nothing to display, so the app may show it empty or refuse to open it. Lists loaded by script often miss this row.",
-          steps: ["Open the list in the Accounts tab and save its object, columns and criteria, or recreate it."],
+          why: "A filter's object rows hold the objects, columns and criteria it is built from. A filter without any has nothing to evaluate, so the app may show it empty or refuse to open it. Static lists keep their accounts as members instead, and advanced filters built on a report use the report, so neither is checked here.",
+          steps: ["Open the filter in the Accounts tab and save its object, columns and criteria, or recreate it."],
           uiPath: "LSC4CE App > Accounts > Lists",
           surface: "objects",
         },
         async () => {
           const rows = await query(
-            `SELECT Id, Name FROM LifeScienceAccountList WHERE Id NOT IN (SELECT LifeScienceAccountListId FROM LifeScienceAccountListObject) LIMIT 20`,
+            `SELECT Id, Name FROM LifeScienceAccountList WHERE (Type = 'Filter' OR (Type = 'AdvancedFilter' AND ReportIdentifier = null)) AND Id NOT IN (SELECT LifeScienceAccountListId FROM LifeScienceAccountListObject) LIMIT 20`,
             org
           );
           return rows.length
-            ? { pass: false, detail: `${plural(rows.length, "list")} with no object.`, examples: labels(rows) }
-            : { pass: true, detail: "Every list has an object." };
+            ? { pass: false, detail: `${plural(rows.length, "filter")} with no object.`, examples: labels(rows) }
+            : { pass: true, detail: "Every filter has an object." };
         }
       ),
 

@@ -1329,7 +1329,7 @@ export function register(server: McpServer) {
   );
   server.tool(
     "check_territory_config",
-    "Check LSC Territory Alignment configuration. Queries Territory2 model, ObjectTerritory2Association (explicit assignments), TerritoryGeoAssignmentRule (zip/brick rules), TerritoryProviderAffiliationAlignmentRule (affiliation rules), and ProviderAcctTerritoryInfo records. CORRECT object names: Territory2, ObjectTerritory2Association, TerritoryGeoAssignmentRule, TerritoryProviderAffiliationAlignmentRule, ProviderAcctTerritoryInfo. WRONG names (DO NOT USE): AccountTerritory__c, TerritoryAssignment__c, TerritoryInfo__c, AffiliationAlignmentRule__c.",
+    "Check LSC Territory Alignment configuration. Queries Territory2 model, ObjectTerritory2Association (explicit assignments), TerrGeoAssignmentRule (zip/brick rules), TerrProvAffilAssignRule (affiliation rules), and ProviderAcctTerritoryInfo records. CORRECT object names: Territory2, ObjectTerritory2Association, TerrGeoAssignmentRule, TerrProvAffilAssignRule, ProviderAcctTerritoryInfo. WRONG names (DO NOT USE): AccountTerritory__c, TerritoryAssignment__c, TerritoryInfo__c, AffiliationAlignmentRule__c.",
     {
       targetOrg: z
         .string()
@@ -1455,21 +1455,24 @@ export function register(server: McpServer) {
           message += `Error querying account-territory associations: ${assocResult.error}\n\n`;
         }
 
-        // 4. Check TerritoryGeoAssignmentRule
+        // 4. Check TerrGeoAssignmentRule
         message += "## Geo Assignment Rules (Zip/Brick)\n\n";
-        const geoQuery = `SELECT Id, Name, Territory2Id, Territory2.Name, UsageType, IsActive FROM TerritoryGeoAssignmentRule ORDER BY UsageType, Territory2.Name LIMIT 50`;
+        const geoQuery = `SELECT Id, Name, Territory2Id, Territory2.Name, UsageType, GeoCode, EffectiveStartDate, EffectiveEndDate FROM TerrGeoAssignmentRule ORDER BY UsageType, Territory2.Name LIMIT 50`;
         const geoResult = await runSoqlQuery(geoQuery, effectiveOrg);
 
         if (geoResult.success && geoResult.data?.records) {
           const records = geoResult.data.records;
           if (records.length === 0) {
-            message += "**No TerritoryGeoAssignmentRule records found.**\n\n";
+            message += "**No TerrGeoAssignmentRule records found.**\n\n";
             message +=
               "Geo rules are optional — only needed if using zip-to-territory or brick-to-territory alignment.\n\n";
           } else {
-            const activeCount = records.filter(
-              (r) => (r as Record<string, unknown>).IsActive === true
-            ).length;
+            // Geo rules have no active flag; a rule applies between its effective dates.
+            const today = new Date().toISOString().slice(0, 10);
+            const inEffect = (r: Record<string, unknown>) =>
+              (!r.EffectiveStartDate || String(r.EffectiveStartDate) <= today) &&
+              (!r.EffectiveEndDate || String(r.EffectiveEndDate) >= today);
+            const activeCount = records.filter((r) => inEffect(r as Record<string, unknown>)).length;
             const zipCount = records.filter(
               (r) => (r as Record<string, unknown>).UsageType === "ZipToTerritory"
             ).length;
@@ -1477,17 +1480,17 @@ export function register(server: McpServer) {
               (r) => (r as Record<string, unknown>).UsageType === "BrickToTerritory"
             ).length;
 
-            message += `| Name | Territory | Usage Type | Active |\n|------|-----------|-----------|--------|\n`;
+            message += `| Name | Territory | Geo Code | Usage Type | In Effect |\n|------|-----------|----------|-----------|-----------|\n`;
             for (const record of records) {
               const rec = record as Record<string, unknown>;
               const t2 = rec.Territory2 as Record<string, unknown> | null;
-              message += `| ${rec.Name} | ${t2?.Name || "-"} | ${rec.UsageType || "-"} | ${rec.IsActive ? "Yes" : "No"} |\n`;
+              message += `| ${rec.Name} | ${t2?.Name || "-"} | ${rec.GeoCode || "-"} | ${rec.UsageType || "-"} | ${inEffect(rec) ? "Yes" : "No"} |\n`;
             }
-            message += `\n**Total:** ${records.length} geo rule(s) (${zipCount} zip, ${brickCount} brick, ${activeCount} active)\n\n`;
+            message += `\n**Total:** ${records.length} geo rule(s) (${zipCount} zip, ${brickCount} brick, ${activeCount} in effect today)\n\n`;
 
             if (activeCount < records.length) {
               recommendations.push(
-                `${records.length - activeCount} geo rule(s) are inactive — activate them if they should be used in alignment`
+                `${records.length - activeCount} geo rule(s) are outside their effective dates — extend the dates if they should still align accounts`
               );
             }
           }
@@ -1496,31 +1499,28 @@ export function register(server: McpServer) {
           message += "This object may not be available in the org.\n\n";
         }
 
-        // 5. Check TerritoryProviderAffiliationAlignmentRule
+        // 5. Check TerrProvAffilAssignRule
         message += "## Affiliation Alignment Rules\n\n";
-        const affRuleQuery = `SELECT Id, Name, Territory2Id, Territory2.Name, AccountType, AffiliationRole, IsActive FROM TerritoryProviderAffiliationAlignmentRule ORDER BY Territory2.Name LIMIT 50`;
+        const affRuleQuery = `SELECT Id, Name, Territory2Id, Territory2.Name, AccountType, AffiliationRole FROM TerrProvAffilAssignRule ORDER BY Territory2.Name LIMIT 50`;
         const affRuleResult = await runSoqlQuery(affRuleQuery, effectiveOrg);
 
         if (affRuleResult.success && affRuleResult.data?.records) {
           const records = affRuleResult.data.records;
           if (records.length === 0) {
-            message += "**No TerritoryProviderAffiliationAlignmentRule records found.**\n\n";
+            message += "**No TerrProvAffilAssignRule records found.**\n\n";
             message +=
               "Affiliation rules are optional — only needed if aligning affiliated accounts (HCPs at HCOs) based on provider affiliations.\n\n";
           } else {
-            const activeCount = records.filter(
-              (r) => (r as Record<string, unknown>).IsActive === true
-            ).length;
             const roles = new Set<string>();
 
-            message += `| Territory | Account Type | Affiliation Role | Active |\n|-----------|-------------|-----------------|--------|\n`;
+            message += `| Territory | Account Type | Affiliation Role |\n|-----------|-------------|-----------------|\n`;
             for (const record of records) {
               const rec = record as Record<string, unknown>;
               const t2 = rec.Territory2 as Record<string, unknown> | null;
               if (rec.AffiliationRole) roles.add(String(rec.AffiliationRole));
-              message += `| ${t2?.Name || "-"} | ${rec.AccountType || "-"} | ${rec.AffiliationRole || "-"} | ${rec.IsActive ? "Yes" : "No"} |\n`;
+              message += `| ${t2?.Name || "-"} | ${rec.AccountType || "-"} | ${rec.AffiliationRole || "-"} |\n`;
             }
-            message += `\n**Total:** ${records.length} affiliation rule(s) (${activeCount} active)\n`;
+            message += `\n**Total:** ${records.length} affiliation rule(s)\n`;
             if (roles.size > 0) {
               message += `**Roles used:** ${Array.from(roles).join(", ")}\n`;
             }

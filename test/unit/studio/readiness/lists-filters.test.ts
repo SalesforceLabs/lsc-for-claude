@@ -50,4 +50,24 @@ describe("lists-filters readiness", () => {
     schema = ["LifeScienceAccountList", "LifeSciAccountListMember", "LifeScienceAccountListObject", "LifeSciAccountListColumn", "LifeSciAcctListFilterCrit"].map((o) => schemaRec(o));
     expect((await run())["lists-filters.mobile.db-schema"].status).toBe("pass");
   });
+
+  it("counts a list as having criteria when any of its object rows has some", async () => {
+    // Target Accounts: criteria on the territory info row only; the join rows have none.
+    org.LifeScienceAccountListObject = [
+      { Id: "o1", LifeScienceAccountListId: "L1" },
+      { Id: "o2", LifeScienceAccountListId: "L1" },
+    ];
+    org.LifeSciAcctListFilterCrit = [{ LifeSciAccountListObjectId: "o2" }];
+    org.LifeScienceAccountList = [{ Id: "L1", Name: "Target Accounts" }];
+    const r = await run();
+    expect(r["lists-filters.config.filters-have-criteria"].status).toBe("pass");
+    expect(r["lists-filters.config.lists-have-columns"].status).toBe("fail");
+  });
+
+  it("checks only filters, not static lists, for an object row", async () => {
+    await run();
+    const q = vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0])).find((s) => /NOT IN \(SELECT LifeScienceAccountListId FROM LifeScienceAccountListObject\)/.test(s));
+    expect(q).toContain("Type = 'Filter'");
+    expect(q).toContain("ReportIdentifier = null");
+  });
 });

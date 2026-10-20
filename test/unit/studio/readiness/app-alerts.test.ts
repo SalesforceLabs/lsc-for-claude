@@ -64,10 +64,34 @@ describe("app alerts readiness", () => {
     expect((await run())["app-alerts.enabled.handlers"].fixes).toHaveLength(1);
   });
 
-  it("fails when the alert territories aren't synced", async () => {
+  it("doesn't count personal alerts owned by a rep", async () => {
+    // fieldProfiles reads ProfileBasedAppSettings through the same mock: "Rep" is a field profile.
+    schema = [schemaRec("AppAlert", "Rep")];
+    org.AppAlert = [
+      { Id: "a1", Subject: "Sample order request", Owner: { Profile: { Name: "Rep" } } },
+      { Id: "a2", Subject: "Quarterly survey", Owner: { Profile: { Name: "System Administrator" } } },
+    ];
+    const c = (await run())["app-alerts.access.targeted"];
+    expect(c.status).toBe("fail");
+    expect(c.examples).toEqual(["Quarterly survey"]);
+    expect(c.detail).toContain("1 of 2 alerts");
+  });
+
+  it("passes when every untargeted alert is a rep's own", async () => {
+    schema = [schemaRec("AppAlert", "Rep")];
+    org.AppAlert = [{ Id: "a1", Subject: "Sample order request", Owner: { Profile: { Name: "Rep" } } }];
+    expect((await run())["app-alerts.access.targeted"].status).toBe("pass");
+  });
+
+  it("doesn't need alert territories on the iPad", async () => {
     schema = [schemaRec("AppAlert"), schemaRec("AppAlertUserResponse")];
+    expect((await run())["app-alerts.mobile.alert-objects"].status).toBe("pass");
+  });
+
+  it("names the profile missing user responses", async () => {
+    schema = [schemaRec("AppAlert"), schemaRec("AppAlertUserResponse", "Other")];
     const c = (await run())["app-alerts.mobile.alert-objects"];
     expect(c.status).toBe("fail");
-    expect(c.examples).toContain("AppAlertTerritory: not synced");
+    expect(c.examples).toEqual(["AppAlertUserResponse: missing for Rep"]);
   });
 });

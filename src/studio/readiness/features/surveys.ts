@@ -40,12 +40,20 @@ const readiness: ReadinessModule = {
           stage: "enabled",
           title: "The colleague survey sharing handler is switched on",
           severity: "info",
-          why: "Needed only if reps fill in surveys about colleagues. It shares those responses with the right manager, so leave it off if you don't use them.",
-          steps: ["Open Admin Console > Trigger Handlers", "Switch on ColleagueSurveySharingHandler if you use colleague surveys"],
+          why: "This handler shares survey invitations with colleagues on a managed event. It's needed only if you run surveys on managed events; otherwise it can stay off.",
+          steps: ["Open Admin Console > Trigger Handlers", "Switch on ColleagueSurveySharingHandler if you use surveys on managed events"],
           uiPath: "Admin Console > Trigger Handlers",
           surface: "triggerHandlers",
         },
-        () => handlersResult(org, ["ColleagueSurveySharingHandler"])
+        async () => {
+          // Only orgs with both managed events and survey invitations can need it.
+          const [events, invitations] = await Promise.all([
+            count(`SELECT COUNT() FROM MngEvent`, org).catch(() => 0),
+            count(`SELECT COUNT() FROM SurveyInvitation`, org).catch(() => 0),
+          ]);
+          if (!events || !invitations) return { pass: true, skip: true, detail: "No survey invitations on managed events to share." };
+          return handlersResult(org, ["ColleagueSurveySharingHandler"]);
+        }
       ),
 
       runCheck(
@@ -53,18 +61,26 @@ const readiness: ReadinessModule = {
           id: "surveys.access.shared",
           stage: "access",
           title: "Mobile surveys are shared beyond their owner",
-          severity: "info",
-          why: "Reps see only surveys they can read. If your org's sharing for surveys is private, a survey with only its owner on the sharing list is invisible on the iPad. If surveys are public read, this is fine.",
-          steps: ["Open the survey and use Sharing", "Share it with the groups or territories whose reps should fill it in"],
+          severity: "error",
+          why: "Reps see only surveys they can read. When the org-wide default for surveys is Private, a survey with only its owner on the sharing list doesn't appear on the iPad.",
+          steps: ["Open the survey and use Sharing", "Share it with the groups or territories whose reps should fill it in", "Or set the org-wide default for Survey to Public Read Only in Setup > Sharing Settings"],
           uiPath: "App Launcher > Surveys > Sharing",
           surface: "objects",
         },
         async () => {
           const total = await count(`SELECT COUNT() ${MOBILE}`, org);
           if (!total) return { pass: true, skip: true, detail: "No mobile surveys." };
+          const owd = await query(`SELECT InternalSharingModel FROM EntityDefinition WHERE QualifiedApiName = 'Survey'`, org)
+            .then((r) => r[0]?.InternalSharingModel as string | undefined)
+            .catch(() => undefined);
+          if (owd && owd !== "Private") return { pass: true, detail: `Survey's org-wide default is ${owd}, so reps can read all ${plural(total, "mobile survey")}.` };
           const rows = await query(`SELECT Id, Name ${MOBILE} AND Id NOT IN (SELECT ParentId FROM SurveyShare WHERE RowCause != 'Owner') LIMIT 20`, org);
           return rows.length
-            ? { pass: false, detail: `${rows.length} of ${plural(total, "mobile survey")} have no sharing beyond the owner.`, examples: nameList(rows) }
+            ? {
+                pass: false,
+                detail: `${owd ? "Survey's org-wide default is Private and " : ""}${rows.length} of ${plural(total, "mobile survey")} aren't shared with anyone but the owner.`,
+                examples: nameList(rows),
+              }
             : { pass: true, detail: `All ${plural(total, "mobile survey")} are shared.` };
         }
       ),
@@ -172,7 +188,7 @@ const readiness: ReadinessModule = {
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },
-        async () => syncResult(org, await schema, DEFINITION_OBJECTS)
+        async () => syncResult(org, await schema, DEFINITION_OBJECTS, "Survey")
       ),
 
       runCheck(
@@ -186,7 +202,7 @@ const readiness: ReadinessModule = {
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },
-        async () => syncResult(org, await schema, RESPONSE_OBJECTS)
+        async () => syncResult(org, await schema, RESPONSE_OBJECTS, "Survey")
       ),
     ]);
   },

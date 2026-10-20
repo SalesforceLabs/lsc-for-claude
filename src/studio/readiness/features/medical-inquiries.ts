@@ -1,6 +1,7 @@
 /** Medical Inquiries readiness: its validation rules plus Studio's own checks. */
 
 import { isMissingObject } from "../../collectors/briefings.js";
+import { fieldUsersReadResult } from "./_field-access.js";
 import { fetchCache } from "../../collectors/mobile-sync.js";
 import { count, inList, plural, query } from "../../helpers.js";
 import { runCheck, type ReadinessModule, type StudioCheckResult } from "../index.js";
@@ -52,17 +53,18 @@ const readiness: ReadinessModule = {
         {
           id: "medical-inquiries.access.inquiry-read",
           stage: "access",
-          title: "Reps' permission sets can read Inquiries",
+          title: "Field users can read Inquiries",
           severity: "error",
-          why: "Without Read on Inquiry, reps can't see the inquiries they raised, or the answers medical sends back.",
-          steps: ["Open Setup > Permission Sets for the field rep sets", "Grant Read and Create on Inquiry, Inquiry Question and Inquiry Question Answer"],
+          why: "Without Read on Inquiry through their profile or a permission set, reps can't see the inquiries they raised, or the answers medical sends back.",
+          steps: [
+            "Open Setup > Permission Sets and pick a set the field users on the profiles listed hold, or create one",
+            "Grant Read and Create on Inquiry, Inquiry Question and Inquiry Question Answer",
+            "Assign the set to any of those users who don't hold it",
+          ],
           uiPath: "Setup > Permission Sets > Object Settings",
           surface: "objects",
         },
-        gate(async () => {
-          const n = await count(`SELECT COUNT() FROM ObjectPermissions WHERE SobjectType = 'Inquiry' AND PermissionsRead = true`, org);
-          return { pass: n > 0, detail: n ? `${plural(n, "permission set")} grant Read on Inquiry.` : "No permission set grants Read on Inquiry." };
-        })
+        gate(() => fieldUsersReadResult(org, "Inquiry", "Inquiry"))
       ),
       runCheck(
         {
@@ -70,7 +72,7 @@ const readiness: ReadinessModule = {
           stage: "data",
           title: "Every Inquiry record type has a Case record type of the same name",
           severity: "error",
-          why: "Creating an inquiry creates a Case with the matching record type, found by name. If no Case record type has the same name, the Case can't be created and the inquiry fails to save.",
+          why: "Creating an inquiry creates a Case with the matching record type, found by name. If no Case record type has the same name, creating the inquiry can fail without an error or leave orphaned records.",
           steps: ["Open Setup > Object Manager > Case > Record Types", "Create a record type with the exact name of each one listed, and make it available to the same profiles"],
           uiPath: "Setup > Object Manager > Case > Record Types",
           surface: "recordTypes",
@@ -110,7 +112,7 @@ const readiness: ReadinessModule = {
           stage: "data",
           title: `No drafts are older than ${DRAFT_DAYS} days`,
           severity: "info",
-          why: "A draft is an inquiry the rep started and never submitted. Old ones mean the customer is still waiting for an answer nobody knows to give.",
+          why: "A draft is an inquiry the rep started and never submitted, so medical affairs never saw it. Old drafts are usually abandoned and clutter the rep's inquiry list; check none of them was meant to be sent.",
           steps: ["Ask reps to submit or delete the drafts", "Review the Draft list view on Inquiries"],
           uiPath: "App Launcher > Inquiries",
           surface: "objects",

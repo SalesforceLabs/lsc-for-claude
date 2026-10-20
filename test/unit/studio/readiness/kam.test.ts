@@ -62,4 +62,25 @@ describe("kam readiness", () => {
     expect(c.status).toBe("fail");
     expect(c.fixes!.some((f) => f.kind === "createConfigRecord")).toBe(true);
   });
+
+  it("names the field profiles of plan owners that don't sync the plan objects", async () => {
+    const objects = ["AccountPlan", "AccountPlanObjective", "AccountPlanParticipant", "AccountPlanStakeholder", "ActionPlan", "ActionPlanItem", "ActionPlanTemplate", "ActionPlanTemplateAssignment", "GoalDefinition", "AssessmentTask"];
+    const kamOnly = (o: string) => ({ ...schemaRec(o), assignments: [{ name: "KAM", level: "Profile" }] }) as ConfigRecord;
+    // Field profiles come from the mobile app settings; both KAM and Rep are field profiles.
+    const appSettings = { ...schemaRec(""), category: "ProfileBasedAppSettings", fields: {}, assignments: [{ name: "KAM", level: "Profile" }, { name: "Rep", level: "Profile" }] } as ConfigRecord;
+    schema = [...objects.map(kamOnly), appSettings];
+    org.User = [{ pn: "Rep", cnt: 3 }];
+    const c = (await run())["kam.mobile.db-schema"];
+    expect(c.status).toBe("fail");
+    expect(c.detail).toContain("Rep doesn't sync AccountPlan");
+    expect(c.examples).toEqual(["Rep"]);
+    expect(c.fixes!.every((f) => f.kind === "setProfileAssignments")).toBe(true);
+  });
+
+  it("passes DB Schema when the KAM profile is the only one that uses plans", async () => {
+    const objects = ["AccountPlan", "AccountPlanObjective", "AccountPlanParticipant", "AccountPlanStakeholder", "ActionPlan", "ActionPlanItem", "ActionPlanTemplate", "ActionPlanTemplateAssignment", "GoalDefinition", "AssessmentTask"];
+    schema = objects.map((o) => ({ ...schemaRec(o), assignments: [{ name: "KAM", level: "Profile" }] }) as ConfigRecord);
+    org.User = [{ pn: "KAM", cnt: 1 }];
+    expect((await run())["kam.mobile.db-schema"].status).toBe("pass");
+  });
 });

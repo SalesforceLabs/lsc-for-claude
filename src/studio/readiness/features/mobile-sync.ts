@@ -15,7 +15,7 @@ import { byCategory, fetchCategories, isNavTab, profilesOf } from "../../collect
 import { count, inList, plural, query } from "../../helpers.js";
 import type { StudioFix } from "../../types.js";
 import { runCheck, type ReadinessModule } from "../index.js";
-import { cacheFreshResult } from "./_mobile-sync-shared.js";
+import { cacheFreshResult, lscProfiles, profilesWithApps } from "./_mobile-sync-shared.js";
 import { once } from "./_visit-shared.js";
 
 /** Standard objects that grow without bound; synced unfiltered they swamp the first sync. */
@@ -45,8 +45,20 @@ const readiness: ReadinessModule = {
     const settings = once(() => fetchCategories(org, SETTINGS_CATEGORIES, true));
     const caches = once(() => fetchCache(org));
     const dataRecords = async () => (await schema()).filter((r) => r.fields.Type !== "CONFIGURATION");
-    /** Profile names the active DB Schema records are assigned to. */
-    const syncedProfiles = async () => [...new Set((await dataRecords()).filter((r) => r.isActive).flatMap(profilesOf))].sort();
+    const users = once(() => lscProfiles(org).catch(() => new Map<string, string>()));
+    /**
+     * Profiles that sync data: those the active DB Schema records are assigned to, plus every
+     * LSC-licensed profile when a record is org-level. Profiles with no LSC-licensed active user
+     * are left out (integration users, empty profiles) — unless the org has none at all, when the
+     * license is named differently here and nothing is dropped.
+     */
+    const syncedProfiles = once(async () => {
+      const active = (await dataRecords()).filter((r) => r.isActive);
+      const lsc = await users();
+      const names = new Map(active.flatMap(profilesOf).map((p) => [p.toLowerCase(), p]));
+      if (active.some((r) => r.isOrgLevel)) for (const [k, p] of lsc) names.set(k, p);
+      return [...names].filter(([k]) => !lsc.size || lsc.has(k)).map(([, p]) => p).sort();
+    });
 
     return Promise.all([
       runCheck(
@@ -220,7 +232,7 @@ const readiness: ReadinessModule = {
           stage: "config",
           title: "Each synced profile has its own app settings",
           severity: "info",
-          why: "Profile app settings carry the sync interval, search and notification options. A profile without them runs on org defaults, which is usually not what a pilot group was told to expect.",
+          why: "Profile app settings carry the sync interval, search and notification options. A profile without a record of its own uses the org-level record; with neither, it runs on org defaults, which is usually not what a pilot group was told to expect.",
           steps: ["Open Admin Console > Mobile > Application Settings", "Add a profile-based settings record for the profile, or copy another profile's"],
           uiPath: "Admin Console > Mobile > Application Settings",
           surface: "appSettings",
@@ -230,6 +242,13 @@ const readiness: ReadinessModule = {
           const have = new Set(byCategory(all, "ProfileBasedAppSettings").filter((r) => r.isActive).flatMap(profilesOf).map((p) => p.toLowerCase()));
           const missing = profiles.filter((p) => !have.has(p.toLowerCase()));
           if (!missing.length) return { pass: true, detail: `${plural(profiles.length, "synced profile")} all have app settings.` };
+          const orgLevel = byCategory(all, "ProfileBasedAppSettings").find((r) => r.isActive && r.isOrgLevel);
+          if (orgLevel) {
+            return {
+              pass: true,
+              detail: `No record of their own, so the org-level one (${orgLevel.label || orgLevel.developerName}) applies: ${missing.join(", ")}.`,
+            };
+          }
           const ids = new Map(
             (await query(`SELECT Id, Name FROM Profile WHERE Name IN (${inList(missing)})`, org)).map((p) => [String(p.Name), String(p.Id)])
           );
@@ -279,20 +298,22 @@ const readiness: ReadinessModule = {
         {
           id: "mobile-sync.mobile.nav-tabs",
           stage: "mobile",
-          title: "Each synced profile has navigation tabs",
+          title: "Each synced profile has a tab bar",
           severity: "info",
-          why: "Navigation tabs are the iPad's main menu. A profile with none falls back to default navigation, so Accounts, Visits or Calendar may be missing from the bar.",
-          steps: ["Open Admin Console > Mobile > UI Settings", "Add tabs for the profile, or assign existing tabs to it"],
-          uiPath: "Admin Console > Mobile > UI Settings",
+          why: "The iPad's tab bar comes from the profile's Lightning app; UI Settings tabs are added to it. A profile that can open no Lightning app and has no UI Settings tabs has nothing to build the bar from.",
+          steps: ["Give the profile access to the Lightning app its reps use (Setup > Profiles > Assigned Apps)", "Or add tabs for it in Admin Console > Mobile > UI Settings"],
+          uiPath: "Setup > Profiles > Assigned Apps",
           surface: "navigationTabs",
         },
         async () => {
           const [profiles, ui] = await Promise.all([syncedProfiles(), uiSchema()]);
           const tabs = ui.filter((r) => isNavTab(r) && r.isActive);
-          const missing = profiles.filter((p) => !tabs.some((t) => profilesOf(t).some((n) => n.toLowerCase() === p.toLowerCase())));
-          if (!missing.length) return { pass: true, detail: `${plural(profiles.length, "synced profile")} all have navigation tabs.` };
+          const noTabs = profiles.filter((p) => !tabs.some((t) => profilesOf(t).some((n) => n.toLowerCase() === p.toLowerCase())));
+          const apps = await profilesWithApps(noTabs, org);
+          const missing = noTabs.filter((p) => !apps.has(p.toLowerCase()));
+          if (!missing.length) return { pass: true, detail: `${plural(profiles.length, "synced profile")} checked; each can open a Lightning app or has UI Settings tabs.` };
           const fixes: StudioFix[] = missing.flatMap((p) => noNavTabs(p, tabs).fixes ?? []);
-          return { pass: false, detail: `${plural(missing.length, "synced profile")} without tabs: ${missing.join(", ")}.`, examples: missing, fixes };
+          return { pass: false, detail: `${plural(missing.length, "synced profile")} with no Lightning app and no UI Settings tabs: ${missing.join(", ")}.`, examples: missing, fixes };
         }
       ),
     ]);

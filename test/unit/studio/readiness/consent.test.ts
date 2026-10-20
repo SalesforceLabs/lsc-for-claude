@@ -77,4 +77,11 @@ describe("consent readiness", () => {
     expect(c.status).toBe("fail");
     expect(c.examples![0]).toContain("DigitalSignature");
   });
+
+  it("explains the data use purpose as the subscription's product link", async () => {
+    org.CommSubscription = [{ Id: "1", Name: "Marketing" }];
+    const c = (await run())["consent.config.subscription-purpose"];
+    expect(c.why).toContain("marketable product");
+    expect(c.why).not.toMatch(/audit|Field Email/);
+  });
 });

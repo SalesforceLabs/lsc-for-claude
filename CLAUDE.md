@@ -311,7 +311,7 @@ The plugin includes an MCP server that provides these tools:
 |------|-------------|
 | `check_territory_config` | Check Territory Alignment configuration (territory model, territories, explicit assignments, geo rules, affiliation rules, ProviderAcctTerritoryInfo) |
 
-**CORRECT object names:** `Territory2`, `Territory2Model`, `ObjectTerritory2Association`, `TerritoryGeoAssignmentRule`, `TerritoryProviderAffiliationAlignmentRule`, `ProviderAcctTerritoryInfo`.
+**CORRECT object names:** `Territory2`, `Territory2Model`, `ObjectTerritory2Association`, `TerrGeoAssignmentRule`, `TerrProvAffilAssignRule`, `ProviderAcctTerritoryInfo`.
 **WRONG names (DO NOT USE):** `AccountTerritory__c`, `TerritoryAssignment__c`, `TerritoryInfo__c`, `AffiliationAlignmentRule__c`, `ZipTerritory__c`.
 
 #### User Management Tools

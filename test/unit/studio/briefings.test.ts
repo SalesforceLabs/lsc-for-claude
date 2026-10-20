@@ -41,13 +41,18 @@ function dbRec(object: string, active = true, profiles = ["Rep"]): ConfigRecord 
 
 const NOT_SUPPORTED = new Error("sObject type 'PresentationContent' is not supported.");
 
+const STANDARD = ["HealthCloudStarter", "EinsteinGPTPromptTemplateManager", "EinsteinGPTPromptTemplateUser", "AccsAgtfrceForLifeSciCustEngmt"];
+
 /** A healthy org: toggle on, one definition assigned to "Rep", content, flows, permissions, sync, cache. */
 function healthy(): [string, Row[] | Error][] {
   return [
     ["FROM PermissionSetLicense", [
-      ...["Life Science Commercial", "Health Cloud Starter", "Agentforce for LSC Feature Access", "Einstein Prompt Templates"].map((l, i) => ({
-        Id: `0PL${i}`, DeveloperName: l.replace(/ /g, ""), MasterLabel: l, TotalLicenses: 10, UsedLicenses: 2,
-      })),
+      ...[
+        ["IndustriesLSC4CEPsl", "Life Science Commercial"],
+        ["HealthCloudStarter", "Health Cloud Starter"],
+        ["SiteMgmtSiteSelAssistanceAgentPsl", "Agentforce for Life Sciences Cloud Feature Access"],
+        ["EinsteinGPTPromptTemplatesPsl", "Einstein Prompt Templates"],
+      ].map(([DeveloperName, MasterLabel], i) => ({ Id: `0PL${i}`, DeveloperName, MasterLabel, TotalLicenses: 10, UsedLicenses: 2 })),
     ]],
     ["FROM PrstContentDefinition", [{ Id: "1fa1", DeveloperName: "Def", MasterLabel: "Daily", IsActive: true, ContentType: "Podcast" }]],
     ["FROM PrstCntntDefAssignment", [{ Id: "1fb1", IsActive: true, AssignedToId: "00e1", AssignedTo: { Name: "Rep" }, PrstContentDefinition: { MasterLabel: "Daily" } }]],
@@ -64,7 +69,8 @@ function healthy(): [string, Row[] | Error][] {
       { Id: "0PS2", Label: "Manage Briefings", Name: "ManB", PermissionsStoriesAdmin: true, PermissionsStoriesUser: false },
     ]],
     ["GROUP BY PermissionSet.Label", [{ lbl: "Use Briefings", cnt: 3 }, { lbl: "Manage Briefings", cnt: 1 }]],
-    ["GROUP BY PermissionSet.Name", ["HealthCloudStarter", "EinsteinGPTPromptTemplateManager", "EinsteinGPTPromptTemplateUser", "AccsAgtfrceForLifeSciCustEngmt"].map((nm) => ({ nm, cnt: 1 }))],
+    ["FROM PermissionSet WHERE Name IN", STANDARD.map((Name, i) => ({ Id: `0PSS${i}`, Name }))],
+    ["GROUP BY PermissionSetId", STANDARD.map((_, i) => ({ psid: `0PSS${i}`, cnt: 1 }))],
     ["FROM ObjectPermissions", [{ ParentId: "0PS1" }]],
     ["GROUP BY Assignee.Profile.Name", [{ pn: "Rep", cnt: 3 }]],
     ["FROM LifeSciMobileMetadataRecord", [{ Id: "m1", Name: "Cache", Status: "Active", IntegrationStatus: "Success", LastModifiedDate: "2026-06-01", ProfileId: "00e1" }]],
@@ -128,13 +134,32 @@ describe("collectBriefings", () => {
   });
 
   it("flags missing license, no definition, and no assignments", async () => {
-    set("FROM PermissionSetLicense", [{ Id: "0PL1", DeveloperName: "X", MasterLabel: "Life Science Commercial", TotalLicenses: 0, UsedLicenses: 0 }]);
+    set("FROM PermissionSetLicense", [{ Id: "0PL1", DeveloperName: "IndustriesLSC4CEPsl", MasterLabel: "Life Science Commercial", TotalLicenses: 0, UsedLicenses: 0 }]);
     set("FROM PrstContentDefinition", []);
     set("FROM PrstCntntDefAssignment", []);
     const r = await collectBriefings("org");
     expect(titles(surface(r, "licenses"))).toEqual(expect.arrayContaining(["No licenses provisioned", "3 licenses not found"]));
     expect(surface(r, "definitions").findings[0].title).toBe("No active content definition");
     expect(surface(r, "assignments").findings[0].title).toBe("No active content definition assignments");
+  });
+
+  it("matches licenses by developer name, whatever their label", async () => {
+    let soql = "";
+    vi.mocked(runSoqlQuery).mockImplementation(((q: string) => {
+      if (q.includes("FROM PermissionSetLicense")) soql = q;
+      return respond(q);
+    }) as never);
+    const s = surface(await collectBriefings("org"), "licenses");
+    expect(soql).toContain("DeveloperName IN ('IndustriesLSC4CEPsl','HealthCloudStarter','SiteMgmtSiteSelAssistanceAgentPsl','EinsteinGPTPromptTemplatesPsl')");
+    expect(titles(s)).toEqual([]);
+    expect(s.items.map((i) => i.label)).toContain("Agentforce for Life Sciences Cloud Feature Access");
+  });
+
+  it("counts standard permission set assignments by permission set id", async () => {
+    set("GROUP BY PermissionSetId", [{ psid: "0PSS0", cnt: 8 }]);
+    const items = surface(await collectBriefings("org"), "permissionSets").items;
+    expect(items.find((i) => i.id === "standard:HealthCloudStarter")!.properties.Assignments).toBe(8);
+    expect(items.find((i) => i.id === "standard:EinsteinGPTPromptTemplateUser")!.findings[0].title).toBe("No direct assignments");
   });
 
   it("flags missing Use / Manage Briefings permission sets", async () => {

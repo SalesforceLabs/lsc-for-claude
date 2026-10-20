@@ -133,7 +133,7 @@ const readiness: ReadinessModule = {
           stage: "config",
           title: "Every communication subscription has a data use purpose",
           severity: "warning",
-          why: "The data use purpose is the legal basis recorded with each consent. A subscription without one produces consent records that can't be tied to a purpose in an audit, and Field Email can't resolve its consent rules.",
+          why: "The data use purpose is the reason a subscription exists, and usually points at the marketable product it is about. A subscription without one, and the consents captured for it, aren't tied to a product or purpose.",
           steps: ["Open each subscription listed below", "Set Data Use Purpose, then save"],
           uiPath: "App Launcher > Communication Subscriptions",
           surface: "objects",
@@ -241,7 +241,7 @@ const readiness: ReadinessModule = {
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },
-        async () => syncResult(org, await schema, REFERENCE_OBJECTS)
+        async () => syncResult(org, await schema, REFERENCE_OBJECTS, "CommSubscriptionConsent")
       ),
 
       runCheck(

@@ -33,6 +33,8 @@ function respond(q: string) {
   return Promise.resolve({ success: true, data: { totalSize: rows.length, done: true, records: rows } });
 }
 
+const readable = (name: string, isReadable = true): Row => ({ EntityDefinition: { QualifiedApiName: name }, IsReadable: isReadable });
+
 function dbSchema(sobject: string, profiles: string[], isActive = true): ConfigRecord {
   return {
     category: "DbSchema",
@@ -52,7 +54,7 @@ beforeEach(() => {
     PermissionSetLicense: [],
     PermissionSetAssignment: [{ PermissionSetId: "0PS000000000001", PermissionSet: { Label: "Visit PS", Name: "Visit_PS" } }],
     PermissionSet: [{ Id: "0PS000000000002" }],
-    ObjectPermissions: [{ SobjectType: "Visit", PermissionsRead: true }],
+    UserEntityAccess: [readable("Visit")],
     UserTerritory2Association: [{ Territory2: { Name: "T1", Territory2Model: { State: "Active" } } }],
     LifeSciMobileMetadataRecord: [{ Status: "Active", LastModifiedDate: "2026-01-01T00:00:00Z" }],
     DeviceSyncSummary: [{ DownloadEnd: new Date().toISOString(), CreatedDate: new Date().toISOString() }],
@@ -88,41 +90,29 @@ describe("traceUser", () => {
     expect(c.detail).toContain("ProviderVisit");
   });
 
-  it("passes object access for View All Data without object permission rows", async () => {
-    org.PermissionSet = [{ Id: "0PS000000000001", PermissionsViewAllData: true }];
-    org.ObjectPermissions = [];
-    const t = await traceUser(USER, "visit", "o");
+  it("takes object access from UserEntityAccess, including objects with no object permission rows", async () => {
+    org.UserEntityAccess = [readable("Event"), readable("Holiday"), readable("TimeSlot", false)];
+    const t = await traceUser(USER, "calendar-tot", "o");
     const c = byId(t.checks, "user.access.permissions");
-    expect(c.status).toBe("pass");
-    expect(c.detail).toContain("View All Data");
+    expect(c.status).toBe("fail");
+    expect(c.detail).toContain("TimeSlot");
+    expect(c.detail).not.toMatch(/\bEvent\b|Holiday/);
+    const asked = vi.mocked(runSoqlQuery).mock.calls.map((q) => String(q[0]));
+    expect(asked.some((q) => q.includes(`FROM UserEntityAccess WHERE UserId = '${USER}'`))).toBe(true);
   });
 
-  it("reads object access through the member permission sets of an assigned group", async () => {
-    org.PermissionSetAssignment = [{ PermissionSetId: "0PS000000000009", PermissionSetGroupId: "0PG000000000001", PermissionSet: { Label: "Rep Group", Name: "Rep_Group" } }];
-    org.PermissionSetGroupComponent = [{ PermissionSetId: "0PS000000000077" }];
-    vi.mocked(runSoqlQuery).mockImplementation(((q: string) =>
-      q.includes("FROM ObjectPermissions")
-        ? Promise.resolve({
-            success: true,
-            data: {
-              totalSize: 1,
-              done: true,
-              // Only the group's member set grants read, on every object asked about.
-              records: q.includes("'0PS000000000077'")
-                ? [...(/SobjectType IN \(([^)]*)\)/.exec(q)?.[1].matchAll(/'(\w+)'/g) ?? [])].map((m) => ({ SobjectType: m[1], PermissionsRead: true }))
-                : [],
-            },
-          })
-        : respond(q)) as never);
+  it("lists LSC permission sets first in the detail", async () => {
+    org.PermissionSetAssignment = ["Data Cloud", "Tableau", "Messaging", "Agentforce", "Remote", "Life Sciences Field Sales Representative"].map((Label, i) => ({
+      PermissionSetId: `0PS00000000000${i}`,
+      PermissionSet: { Label, Name: Label.replace(/ /g, "_") },
+    }));
     const t = await traceUser(USER, "visit", "o");
-    expect(byId(t.checks, "user.access.permissions").status).toBe("pass");
-    const asked = vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0]));
-    expect(asked.some((q) => q.includes("FROM PermissionSetGroupComponent WHERE PermissionSetGroupId IN ('0PG000000000001')"))).toBe(true);
+    expect(byId(t.checks, "user.access.permissions").detail).toContain("Permission sets: Life Sciences Field Sales Representative, Data Cloud, Tableau, Messaging, Agentforce and 1 more.");
   });
 
   it("leaves objects the org doesn't have out of the access and DB Schema checks", async () => {
     org.EntityDefinition = [{ QualifiedApiName: "AppAlert" }];
-    org.ObjectPermissions = [{ SobjectType: "AppAlert", PermissionsRead: true }];
+    org.UserEntityAccess = [readable("AppAlert")];
     config = [dbSchema("AppAlert", ["Rep"])];
     const t = await traceUser(USER, "app-alerts", "o");
     const access = byId(t.checks, "user.access.permissions");
@@ -142,7 +132,7 @@ describe("traceUser", () => {
 
   it("judges every object when the org's object list can't be read", async () => {
     org.EntityDefinition = new Error("boom");
-    org.ObjectPermissions = [];
+    org.UserEntityAccess = [];
     const t = await traceUser(USER, "app-alerts", "o");
     expect(byId(t.checks, "user.access.permissions").status).toBe("fail");
   });

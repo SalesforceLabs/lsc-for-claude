@@ -72,4 +72,17 @@ describe("intelligent content readiness", () => {
     schema = ["Presentation", "PresentationPage", "PresentationLinkedPage", "PresentationPageProduct", "Topic", "TopicAssignment"].map((o) => schemaRec(o));
     expect((await run())["intelligent-content.mobile.content-objects"].status).toBe("pass");
   });
+
+  it("holds profiles that sync presentations to the click stream, even with one object to check", async () => {
+    schema = [schemaRec("Presentation"), { ...schemaRec("Presentation", "Manager"), developerName: "db_p2" }, schemaRec("PresentationClickStrmEntry")];
+    const c = (await run())["intelligent-content.mobile.tracking-objects"];
+    expect(c.status).toBe("fail");
+    expect(c.examples).toEqual(["PresentationClickStrmEntry: missing for Manager"]);
+  });
+
+  it("doesn't hold a profile to content objects when it doesn't sync presentations", async () => {
+    // "Other" syncs Topic for another feature only.
+    schema = [...["Presentation", "PresentationPage", "PresentationLinkedPage", "PresentationPageProduct", "Topic", "TopicAssignment"].map((o) => schemaRec(o)), { ...schemaRec("Topic", "Other"), developerName: "db_t2" }];
+    expect((await run())["intelligent-content.mobile.content-objects"].status).toBe("pass");
+  });
 });

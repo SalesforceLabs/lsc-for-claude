@@ -55,6 +55,30 @@ describe("accounts readiness", () => {
     expect(c.examples).toEqual(["Dr A"]);
   });
 
+  it("looks for HCPs among person accounts with a provider record or territory info, not every person account", async () => {
+    org.Account = [{ Name: "Dr A" }];
+    await run();
+    const queries = vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0]));
+    const address = queries.find((q) => q.includes("NOT IN (SELECT ParentId FROM ContactPointAddress)"));
+    expect(address).toContain("Id IN (SELECT AccountId FROM HealthcareProvider)");
+    const provider = queries.find((q) => q.includes("NOT IN (SELECT AccountId FROM HealthcareProvider)"));
+    expect(provider).toContain("Id IN (SELECT AccountId FROM ProviderAcctTerritoryInfo WHERE IsActive = true)");
+    expect((await run())["accounts.data.hcps-have-address"].detail).toContain("with a Healthcare Provider record");
+  });
+
+  it("splits missing preferred addresses into accounts with no address and ones with none preferred", async () => {
+    vi.mocked(runSoqlQuery).mockImplementation(((q: string) => {
+      if (/FROM ProviderAcctTerritoryInfo/.test(q)) {
+        const n = q.includes("IN (SELECT ParentId FROM ContactPointAddress)") ? 3 : q.includes("PreferredAddressId = null") ? 21 : 400;
+        return Promise.resolve({ success: true, data: { totalSize: n, done: true, records: [] } });
+      }
+      return respond(q);
+    }) as never);
+    const c = (await run())["accounts.data.preferred-address"];
+    expect(c.status).toBe("fail");
+    expect(c.detail).toBe("21 of 400 have no preferred address: 3 are for accounts with addresses but none preferred, 18 are for accounts with no address at all.");
+  });
+
   it("samples anti-join accounts instead of counting them", async () => {
     org.Account = [{ Name: "A" }, { Name: "B" }, { Name: "C" }, { Name: "D" }, { Name: "E" }];
     await run();

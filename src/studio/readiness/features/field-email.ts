@@ -26,7 +26,12 @@ const COMPOSE_OBJECTS = [
   "DataUsePurpose",
 ];
 /** The send queue the iPad writes to and reads statuses from. */
-const QUEUE_OBJECTS = ["LifeScienceEmail", "LifeScienceEmailFragment"];
+const QUEUE_OBJECTS = ["LifeScienceEmail"];
+/** The feature's own object: profiles that sync it are the ones that send email. */
+const MAIN = "LifeScienceEmail";
+
+/** Above this share of sent emails bouncing, the addresses need a look. */
+const BOUNCE_RATE = 0.05;
 
 const ACTIVE_JOB_STATES = "'WAITING', 'ACQUIRED', 'EXECUTING'";
 
@@ -62,16 +67,16 @@ const readiness: ReadinessModule = {
         {
           id: "field-email.enabled.status-job",
           stage: "enabled",
-          title: "The Fetch Status job is scheduled",
+          title: "The Track Email Status job is scheduled",
           severity: "warning",
           why: "This job reads delivery, open and bounce statuses back from the email provider. Without it every sent email stays at its first status and bounces are never recorded against the HCP.",
-          steps: ["Open Admin Console > Email > Jobs", "Schedule the Fetch Status job, at the same frequency as the Send Email job"],
-          uiPath: "Admin Console > Email > Jobs",
+          steps: ["Open Admin Console > Email > Email Jobs", "Click Schedule and pick a schedule for the Track Email Status job", "Save"],
+          uiPath: "Admin Console > Email > Email Jobs",
           surface: "adminSettings",
         },
         async () => {
           const n = await scheduled("EmailAttemptStatusSchedulable");
-          return n ? { pass: true, detail: "Scheduled." } : { pass: false, detail: "No Fetch Status job is scheduled." };
+          return n ? { pass: true, detail: "Scheduled." } : { pass: false, detail: "No Track Email Status job is scheduled." };
         }
       ),
 
@@ -188,7 +193,7 @@ const readiness: ReadinessModule = {
         {
           id: "field-email.data.bounced",
           stage: "data",
-          title: "Few sent emails have bounced",
+          title: "Fewer than 5% of sent emails have bounced",
           severity: "info",
           why: "Bounces point at wrong or retired addresses. Each one is an HCP who thinks they've been contacted and wasn't, so clean up the contact point.",
           steps: ["Report on Emails with Bounced checked", "Correct or remove the address on the HCP's Contact Point Email"],
@@ -201,7 +206,12 @@ const readiness: ReadinessModule = {
             count(`SELECT COUNT() FROM LifeScienceEmail WHERE Status = 'Success'`, org),
           ]);
           if (!sent && !bounced) return { pass: true, skip: true, detail: "No emails have been sent yet." };
-          return bounced ? { pass: false, detail: `${bounced} bounced of ${plural(sent, "sent email")}.` } : { pass: true, detail: `None of ${plural(sent, "sent email")} bounced.` };
+          if (!bounced) return { pass: true, detail: `None of ${plural(sent, "sent email")} bounced.` };
+          const total = Math.max(sent, bounced);
+          const pct = Math.round((bounced / total) * 100);
+          return bounced / total > BOUNCE_RATE
+            ? { pass: false, detail: `${bounced} of ${plural(total, "sent email")} bounced (${pct}%).` }
+            : { pass: true, detail: `${bounced} of ${plural(total, "sent email")} bounced (${pct}%).` };
         }
       ),
 
@@ -216,7 +226,7 @@ const readiness: ReadinessModule = {
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },
-        async () => syncResult(org, await schema, COMPOSE_OBJECTS)
+        async () => syncResult(org, await schema, COMPOSE_OBJECTS, MAIN)
       ),
 
       runCheck(
@@ -230,7 +240,21 @@ const readiness: ReadinessModule = {
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },
-        async () => syncResult(org, await schema, QUEUE_OBJECTS)
+        async () => syncResult(org, await schema, QUEUE_OBJECTS, MAIN)
+      ),
+
+      runCheck(
+        {
+          id: "field-email.mobile.fragment-usage",
+          stage: "mobile",
+          title: "Fragment usage syncs from the iPad",
+          severity: "info",
+          why: "When Track email fragment usage is on (Admin Console > Email > Email Settings > Tracking Settings), the iPad records which fragments a rep picked as LifeScienceEmailFragment records. Without a DB Schema record for it those choices aren't uploaded. Emails still send. If tracking is off, ignore this.",
+          steps: ["Open Admin Console > Mobile > DB Schema", "Add or switch on LifeScienceEmailFragment for every profile that sends email", "Publish to iPad"],
+          uiPath: "Admin Console > Mobile > DB Schema",
+          surface: "dbSchema",
+        },
+        async () => syncResult(org, await schema, ["LifeScienceEmailFragment"], MAIN)
       ),
     ]);
   },

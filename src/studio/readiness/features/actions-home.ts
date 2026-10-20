@@ -6,7 +6,7 @@ import { actionProfiles, byCategory, fetchCategories, isNavTab, profilesOf } fro
 import { plural } from "../../helpers.js";
 import type { StudioFix } from "../../types.js";
 import { runCheck, type ReadinessModule } from "../index.js";
-import { cacheFreshResult } from "./_mobile-sync-shared.js";
+import { cacheFreshResult, profilesWithApps, withLscUsers } from "./_mobile-sync-shared.js";
 import { once } from "./_visit-shared.js";
 
 const readiness: ReadinessModule = {
@@ -20,11 +20,11 @@ const readiness: ReadinessModule = {
     const active = async () => (await actions()).filter((r) => r.isActive);
     const quick = async () => byCategory(await active(), "QuickAction");
     const custom = async () => byCategory(await active(), "CustomAction");
-    /** Profiles that already have actions or tabs set up for them — the ones with field users. */
-    const profiles = async () => {
+    /** Profiles that already have actions or tabs set up for them, less those with no LSC-licensed active user. */
+    const profiles = once(async () => {
       const tabs = (await uiSchema()).filter((r) => isNavTab(r) && r.isActive);
-      return [...new Set([...(await quick()).flatMap(actionProfiles), ...tabs.flatMap(profilesOf)])].sort();
-    };
+      return withLscUsers([...new Set([...(await quick()).flatMap(actionProfiles), ...tabs.flatMap(profilesOf)])].sort(), org);
+    });
     const label = (r: { label?: string; developerName: string }) => r.label || r.developerName;
 
     return Promise.all([
@@ -55,7 +55,7 @@ const readiness: ReadinessModule = {
           stage: "config",
           title: "Actions only name profiles, permission sets and record types that exist",
           severity: "warning",
-          why: "An action restricted to a profile, permission set or record type that doesn't exist (a typo, or something renamed after the action was built) silently shows for nobody on that line.",
+          why: "An action restricted to a profile, permission set or record type that doesn't exist (a typo, or something renamed after the action was built) silently shows for nobody on that line. A record type counts only if it's active and belongs to the action's object.",
           steps: ["Open the action in Admin Console > Mobile > Quick Actions or Custom Actions", "Correct or remove the unknown name"],
           uiPath: "Admin Console > Mobile > Quick Actions",
           surface: "actions",
@@ -66,7 +66,7 @@ const readiness: ReadinessModule = {
           return bad.length
             ? {
                 pass: false,
-                detail: `${plural(bad.length, "name")} in ${plural(new Set(bad.map((b) => b.r.developerName)).size, "action")} match nothing in the org.`,
+                detail: `${plural(bad.length, "name")} in ${plural(new Set(bad.map((b) => b.r.developerName)).size, "action")} match nothing usable in the org.`,
                 examples: bad.map((b) => `${label(b.r)}: ${b.f.title}`),
                 fixes: bad.flatMap((b) => b.f.fixes ?? []),
               }
@@ -78,16 +78,16 @@ const readiness: ReadinessModule = {
           id: "actions-home.config.hardcoded-urls",
           stage: "config",
           title: "No action points at a hardcoded org URL",
-          severity: "warning",
-          why: "A full lightning.force.com or my.salesforce.com address ties the action to one org. It breaks after a sandbox refresh or when the configuration is migrated.",
-          steps: ["Open the action in Admin Console", "Replace the address with a relative path such as /lightning/n/<tab>"],
+          severity: "info",
+          why: "A full lightning.force.com or my.salesforce.com address ties the action to one org. It works here, but after a sandbox refresh or when the configuration is moved to another org it still points at this one.",
+          steps: ["Open the action in Admin Console", "After a refresh or migration, update the address to the new org's domain"],
           uiPath: "Admin Console > Mobile > Custom Actions",
           surface: "actions",
         },
         async () => {
           const hits = (await active()).filter((r) => actionFindings(r, null).some((f) => f.title.startsWith("Hardcoded")));
           return hits.length
-            ? { pass: false, detail: `${plural(hits.length, "action")} contain an org-specific URL.`, examples: hits.map(label) }
+            ? { pass: false, detail: `${plural(hits.length, "action")} contain an org-specific URL. Check them after a sandbox refresh or migration.`, examples: hits.map(label) }
             : { pass: true, detail: "No active action contains an org-specific URL." };
         }
       ),
@@ -137,7 +137,7 @@ const readiness: ReadinessModule = {
           stage: "config",
           title: "Actions at one place have distinct sort orders",
           severity: "info",
-          why: "Two actions with the same sort order on the same location and object appear in an unpredictable order, so the button a rep expects first may move.",
+          why: "Two actions with the same sort order that a rep sees together — on the same record (same location, object and record type) or both on the home page button — appear in an unpredictable order, so the button a rep expects first may move.",
           steps: ["Open each action in Admin Console > Mobile > Quick Actions", "Give each a different Sort Order"],
           uiPath: "Admin Console > Mobile > Quick Actions",
           surface: "actions",
@@ -153,19 +153,26 @@ const readiness: ReadinessModule = {
         {
           id: "actions-home.mobile.profile-tabs",
           stage: "mobile",
-          title: "Each profile with actions has navigation tabs",
+          title: "Each profile with actions has a tab bar",
           severity: "info",
-          why: "Navigation tabs are the iPad's main menu. A profile with none falls back to default navigation, so the pages the home page actions lead to may have no tab.",
-          steps: ["Open Admin Console > Mobile > UI Settings", "Add tabs for the profile, or assign existing tabs to it"],
-          uiPath: "Admin Console > Mobile > UI Settings",
+          why: "The iPad's tab bar comes from the profile's Lightning app; UI Settings tabs are added to it. A profile that can open no Lightning app and has no UI Settings tabs has nothing to build the bar from.",
+          steps: ["Give the profile access to the Lightning app its reps use (Setup > Profiles > Assigned Apps)", "Or add tabs for it in Admin Console > Mobile > UI Settings"],
+          uiPath: "Setup > Profiles > Assigned Apps",
           surface: "navigationTabs",
         },
         async () => {
           const [names, ui, k] = await Promise.all([profiles(), uiSchema(), known()]);
           const tabs = ui.filter((r) => isNavTab(r) && r.isActive);
-          const bare = names.filter((p) => k.profiles.has(p.toLowerCase()) && !tabs.some((t) => profilesOf(t).some((n) => n.toLowerCase() === p.toLowerCase())));
-          if (!bare.length) return { pass: true, detail: `${plural(names.length, "profile")} checked; each has tabs.` };
-          return { pass: false, detail: `${plural(bare.length, "profile")} without tabs: ${bare.join(", ")}.`, examples: bare, fixes: bare.flatMap((p) => noNavTabs(p, tabs).fixes ?? []) };
+          const noTabs = names.filter((p) => k.profiles.has(p.toLowerCase()) && !tabs.some((t) => profilesOf(t).some((n) => n.toLowerCase() === p.toLowerCase())));
+          const apps = await profilesWithApps(noTabs, org);
+          const bare = noTabs.filter((p) => !apps.has(p.toLowerCase()));
+          if (!bare.length) return { pass: true, detail: `${plural(names.length, "profile")} checked; each can open a Lightning app or has UI Settings tabs.` };
+          return {
+            pass: false,
+            detail: `${plural(bare.length, "profile")} with no Lightning app and no UI Settings tabs: ${bare.join(", ")}.`,
+            examples: bare,
+            fixes: bare.flatMap((p) => noNavTabs(p, tabs).fixes ?? []),
+          };
         }
       ),
       runCheck(

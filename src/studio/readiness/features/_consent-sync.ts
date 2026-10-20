@@ -7,6 +7,7 @@
 
 import type { ConfigRecord } from "../../../config/types.js";
 import { addProfileFix, fetchCategories, newDbSchema, profilesOf } from "../../collectors/shared.js";
+import { fieldProfiles } from "../../collectors/territory-users.js";
 import { count, inList, plural, query } from "../../helpers.js";
 import type { StudioFix } from "../../types.js";
 import type { StudioCheckResult } from "../index.js";
@@ -30,12 +31,15 @@ async function objectExists(org: string, object: string): Promise<boolean> {
 
 /**
  * Pass when every one of `objects` that exists in the org has an active DB
- * Schema record for each profile that already syncs most of them. The profiles
- * that use the feature are read off the records themselves — Studio doesn't
- * guess who should have it — so a profile that syncs 5 of 6 objects is flagged
- * for the sixth, while an object nobody syncs is flagged with no profile named.
+ * Schema record for each field profile that syncs `main`, the feature's own
+ * object (the first of `objects` unless the caller names another). The
+ * profiles that use the feature are read off `main`'s records — Studio doesn't
+ * guess who should have it, and objects shared with other features (consent,
+ * contact points) don't pull their profiles in. Profiles without LSC Mobile app
+ * settings (admins) are left out. An object nobody syncs is flagged with no
+ * profile named.
  */
-export async function syncResult(org: string, schema: ConfigRecord[], objects: string[]): Promise<StudioCheckResult> {
+export async function syncResult(org: string, schema: ConfigRecord[], objects: string[], main = objects[0]): Promise<StudioCheckResult> {
   const present: string[] = [];
   await Promise.all(
     objects.map(async (o) => {
@@ -46,13 +50,13 @@ export async function syncResult(org: string, schema: ConfigRecord[], objects: s
   if (!present.length) return { pass: true, skip: true, detail: "None of these objects exist in the org." };
 
   const activeFor = (o: string) => schema.filter((r) => r.isActive && sobject(r) === o.toLowerCase());
-  // Profiles that sync at least half of the objects (an org-level record counts for everyone).
-  const tally = new Map<string, number>();
-  for (const o of present) {
-    for (const p of new Set(activeFor(o).flatMap(profilesOf))) tally.set(p, (tally.get(p) ?? 0) + 1);
-  }
-  const profiles = [...tally].filter(([, n]) => n >= Math.ceil(present.length / 2)).map(([p]) => p).sort();
-  const groupProfiles = [...new Set(present.flatMap((o) => activeFor(o).flatMap(profilesOf)))].sort();
+  // Field profiles, when the org says which they are; otherwise every profile counts.
+  const field = await fieldProfiles(org).catch(() => [] as string[]);
+  const isField = (p: string) => !field.length || field.some((f) => f.toLowerCase() === p.toLowerCase());
+  const mainActive = activeFor(main);
+  const profiles = (mainActive.some((r) => r.isOrgLevel) ? field : [...new Set(mainActive.flatMap(profilesOf))].filter(isField)).sort();
+  // Who a new record is for: the feature's profiles, else whoever syncs any of these objects.
+  const groupProfiles = profiles.length ? profiles : [...new Set(present.flatMap((o) => activeFor(o).flatMap(profilesOf)))].filter(isField).sort();
 
   const gaps: string[] = [];
   const fixes: StudioFix[] = [];

@@ -54,4 +54,18 @@ describe("calendar-tot readiness", () => {
     org.Holiday = 0;
     expect((await run())["calendar-tot.data.holidays-ahead"].status).toBe("fail");
   });
+
+  it("counts visits as calendar activity when there are no events", async () => {
+    org.Event = 0;
+    org.Visit = 24;
+    const c = (await run())["calendar-tot.data.recent-events"];
+    expect(c.status).toBe("pass");
+    expect(c.detail).toBe("24 visits in the window.");
+    org.Visit = 0;
+    expect((await run())["calendar-tot.data.recent-events"].status).toBe("fail");
+  });
+
+  it("points working-day settings at their own Admin Console category", async () => {
+    expect((await run())["calendar-tot.config.working-days"].uiPath).toBe("Admin Console > WorkingDaysConfig");
+  });
 });

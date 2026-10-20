@@ -29,9 +29,15 @@ const readiness: ReadinessModule = {
           id: "products.data.guidance-not-expired",
           stage: "data",
           title: "No active message has passed its end date",
-          severity: "warning",
-          why: "Reps pick from active messages during detailing. One that ended but is still marked active keeps showing, so reps may use an out-of-date claim.",
-          steps: ["Deactivate the message or extend its end date", "Keep ProductGuidanceDeactivationHandler on so ended messages are switched off automatically"],
+          severity: "info",
+          // LSC Mobile's message picker already leaves out messages past EffectiveEndDate (lifesciences-ios
+          // RealProductProvider.allProductMessages), so this is housekeeping, not a wrong claim in front of an HCP.
+          why: "The iPad leaves a message out of the picker once its end date passes, but the record stays active until someone deactivates it. Until then it keeps syncing to every device and stays shared with reps.",
+          steps: [
+            "Deactivate ended messages by hand, or with a scheduled job that deactivates them after their end date",
+            "Or extend the end date if the message is still approved",
+            "Keep ProductGuidanceDeactivationHandler on so a deactivated message's sharing is removed",
+          ],
           uiPath: "Product Guidance tab",
         },
         async () => {

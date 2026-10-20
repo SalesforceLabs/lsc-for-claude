@@ -228,41 +228,49 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
       }
     ),
     buildSurface(
-      { id: "geoRules", title: "Geo Rules", lane: "alignment", description: "TerritoryGeoAssignmentRule — postal-code / geography based alignment." },
+      { id: "geoRules", title: "Geo Rules", lane: "alignment", description: "TerrGeoAssignmentRule — postal-code / geography based alignment." },
       async () => {
         const rows = await optionalQuery(
-          `SELECT Id, Name, Territory2Id, Territory2.Name, UsageType, IsActive FROM TerritoryGeoAssignmentRule ORDER BY UsageType, Territory2.Name LIMIT 500`,
+          `SELECT Id, Name, Territory2Id, Territory2.Name, UsageType, GeoCodeType, GeoCode, EffectiveStartDate, EffectiveEndDate FROM TerrGeoAssignmentRule ORDER BY UsageType, Territory2.Name LIMIT 500`,
           org
         );
         if (!rows) return { items: [], findings: [NOT_AVAILABLE] };
-        const total = rows.length === RULE_LIMIT ? await count(`SELECT COUNT() FROM TerritoryGeoAssignmentRule`, org) : rows.length;
+        const total = rows.length === RULE_LIMIT ? await count(`SELECT COUNT() FROM TerrGeoAssignmentRule`, org) : rows.length;
+        const today = new Date().toISOString().slice(0, 10);
         return {
           findings: total > rows.length ? [showingNote(rows.length, total, "geo rules")] : [],
           items: rows.map((r) =>
             item(String(r.Id), String(r.Name), {
-              sublabel: [rel(r, "Territory2.Name"), r.UsageType].filter(Boolean).join(" · "),
-              active: r.IsActive as boolean,
-              properties: { Territory: scalar(rel(r, "Territory2.Name")), Usage: scalar(r.UsageType) },
+              sublabel: [rel(r, "Territory2.Name"), r.GeoCode, r.UsageType].filter(Boolean).join(" · "),
+              // Geo rules have no active flag; a rule applies between its effective dates.
+              active: (!r.EffectiveStartDate || String(r.EffectiveStartDate) <= today) && (!r.EffectiveEndDate || String(r.EffectiveEndDate) >= today),
+              properties: {
+                Territory: scalar(rel(r, "Territory2.Name")),
+                "Geo code": scalar(r.GeoCode),
+                "Code type": scalar(r.GeoCodeType),
+                Usage: scalar(r.UsageType),
+                From: scalar(r.EffectiveStartDate),
+                To: scalar(r.EffectiveEndDate),
+              },
             })
           ),
         };
       }
     ),
     buildSurface(
-      { id: "affiliationRules", title: "Affiliation Rules", lane: "alignment", description: "TerritoryProviderAffiliationAlignmentRule — align providers through their affiliations." },
+      { id: "affiliationRules", title: "Affiliation Rules", lane: "alignment", description: "TerrProvAffilAssignRule — align providers through their affiliations." },
       async () => {
         const rows = await optionalQuery(
-          `SELECT Id, Name, Territory2Id, Territory2.Name, AccountType, AffiliationRole, IsActive FROM TerritoryProviderAffiliationAlignmentRule ORDER BY Territory2.Name LIMIT 500`,
+          `SELECT Id, Name, Territory2Id, Territory2.Name, AccountType, AffiliationRole FROM TerrProvAffilAssignRule ORDER BY Territory2.Name LIMIT 500`,
           org
         );
         if (!rows) return { items: [], findings: [NOT_AVAILABLE] };
-        const total = rows.length === RULE_LIMIT ? await count(`SELECT COUNT() FROM TerritoryProviderAffiliationAlignmentRule`, org) : rows.length;
+        const total = rows.length === RULE_LIMIT ? await count(`SELECT COUNT() FROM TerrProvAffilAssignRule`, org) : rows.length;
         return {
           findings: total > rows.length ? [showingNote(rows.length, total, "affiliation rules")] : [],
           items: rows.map((r) =>
             item(String(r.Id), String(r.Name), {
               sublabel: [rel(r, "Territory2.Name"), r.AffiliationRole].filter(Boolean).join(" · "),
-              active: r.IsActive as boolean,
               properties: { Territory: scalar(rel(r, "Territory2.Name")), "Account type": scalar(r.AccountType), Role: scalar(r.AffiliationRole) },
             })
           ),

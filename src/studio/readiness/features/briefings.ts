@@ -6,6 +6,7 @@ import {
   SCHEDULE_FLOW,
   STALE_DAYS,
   STANDARD_PERMISSION_SETS,
+  standardSetAssignments,
   SUMMARY_FLOW_LABEL,
   TEXT_GEN_FLOW,
   briefingFlowGroups,
@@ -56,17 +57,21 @@ const readiness: ReadinessModule = {
           stage: "access",
           title: "The licenses Briefings runs on are provisioned",
           severity: "error",
-          why: "Briefing text is written by Einstein prompt templates, which need the Life Science Commercial, Health Cloud Starter, Agentforce for LSC and Prompt Template licenses. Without them the text flow fails and no briefing is produced.",
+          why: "Briefing text is written by Einstein prompt templates, which need the Life Science Commercial, Health Cloud Starter, Agentforce for Life Sciences Cloud Feature Access and Einstein Prompt Templates licenses. Without them the text flow fails and no briefing is produced.",
           steps: ["Open Setup > Company Information > Permission Set License Assignments", "Ask your Salesforce account team to provision any license listed as missing"],
           uiPath: "Setup > Company Information",
           surface: "licenses",
         },
         gate(async () => {
-          const rows = await query(`SELECT MasterLabel, TotalLicenses, UsedLicenses FROM PermissionSetLicense WHERE MasterLabel IN (${inList(REQUIRED_PSLS)})`, org);
-          const found = new Map(rows.map((r) => [String(r.MasterLabel), r]));
-          const problems = REQUIRED_PSLS.flatMap((label) => {
-            const r = found.get(label);
-            if (!r) return [`${label}: not in this org`];
+          const rows = await query(
+            `SELECT DeveloperName, MasterLabel, TotalLicenses, UsedLicenses FROM PermissionSetLicense WHERE DeveloperName IN (${inList(REQUIRED_PSLS.map((p) => p.name))})`,
+            org
+          );
+          const found = new Map(rows.map((r) => [String(r.DeveloperName), r]));
+          const problems = REQUIRED_PSLS.flatMap((p) => {
+            const r = found.get(p.name);
+            if (!r) return [`${p.label}: not in this org`];
+            const label = String(r.MasterLabel ?? p.label);
             const total = Number(r.TotalLicenses ?? 0);
             if (total === 0) return [`${label}: none provisioned`];
             return Number(r.UsedLicenses ?? 0) >= total ? [`${label}: all ${total} in use`] : [];
@@ -131,11 +136,7 @@ const readiness: ReadinessModule = {
           surface: "permissionSets",
         },
         gate(async () => {
-          const rows = await countBy(
-            `SELECT PermissionSet.Name nm, COUNT(Id) cnt FROM PermissionSetAssignment WHERE PermissionSet.Name IN (${inList(STANDARD_PERMISSION_SETS.map((p) => p.name))}) GROUP BY PermissionSet.Name`,
-            "nm",
-            org
-          );
+          const rows = await standardSetAssignments(org);
           const missing = STANDARD_PERMISSION_SETS.filter((p) => !rows.get(p.name)).map((p) => p.label);
           return missing.length
             ? { pass: false, detail: `${plural(missing.length, "permission set")} not assigned to anyone: ${missing.join(", ")}.`, examples: missing }

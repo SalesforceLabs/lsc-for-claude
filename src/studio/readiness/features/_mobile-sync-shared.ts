@@ -27,37 +27,69 @@ export function liveCacheDates(caches: CacheRecord[]): Map<string, number> {
   return out;
 }
 
-/** Admin Console records of `categories` changed after `since`: developer name → newest change (record, field value or assignment). */
+/** The LSC license, matched like `LSC_PSL` in overview.ts. */
+const LSC_PSL = "(PermissionSetLicense.DeveloperName LIKE '%LSC4CE%' OR PermissionSetLicense.DeveloperName LIKE '%LifeScienceCommercial%')";
+
+/**
+ * Profiles with at least one active user holding an LSC permission set license —
+ * the profiles whose users can sign in to the iPad — lower-cased name → name. The
+ * same query as `fetchLscProfiles` in overview.ts, which can't be imported here
+ * (overview imports the readiness runner).
+ */
+export async function lscProfiles(org: string): Promise<Map<string, string>> {
+  const rows = await query(
+    `SELECT Profile.Name pn, COUNT(Id) cnt FROM User WHERE IsActive = true AND UserType = 'Standard' ` +
+      `AND Id IN (SELECT AssigneeId FROM PermissionSetLicenseAssign WHERE ${LSC_PSL}) GROUP BY Profile.Name`,
+    org
+  );
+  return new Map(rows.filter((r) => r.pn).map((r) => [String(r.pn).toLowerCase(), String(r.pn)]));
+}
+
+/**
+ * `profiles` minus those with no LSC-licensed active user. When the org has no
+ * such users at all (or they can't be read), the license is named differently
+ * here, so nothing is dropped.
+ */
+export async function withLscUsers(profiles: string[], org: string): Promise<string[]> {
+  const users = await lscProfiles(org).catch(() => new Map<string, string>());
+  return users.size ? profiles.filter((p) => users.has(p.toLowerCase())) : profiles;
+}
+
+/**
+ * Lower-cased names of the `profiles` that can open at least one Lightning app (a
+ * profile-owned permission set grants it). The iPad's tab bar comes from that app.
+ */
+export async function profilesWithApps(profiles: string[], org: string): Promise<Set<string>> {
+  if (!profiles.length) return new Set();
+  const rows = await query(
+    `SELECT Parent.Profile.Name pn, COUNT(Id) cnt FROM SetupEntityAccess WHERE SetupEntityType = 'TabSet' AND Parent.IsOwnedByProfile = true AND Parent.Profile.Name IN (${inList(profiles)}) GROUP BY Parent.Profile.Name`,
+    org
+  );
+  return new Set(rows.map((r) => String(r.pn ?? "").toLowerCase()));
+}
+
+/**
+ * Admin Console records of `categories` changed after `since`: developer name → newest change (record, field value or assignment).
+ * Grouped per record, so the answer is complete however many values changed; a category with more than
+ * 2,000 changed records makes the grouped query fail (the check can't run) rather than cut the list short.
+ */
 export async function changedConfig(org: string, categories: string[], since: number): Promise<Map<string, number>> {
   const after = new Date(since).toISOString();
   const cats = inList(categories);
+  const newest = (from: string, name: string, category: string) =>
+    `SELECT ${name} n, MAX(LastModifiedDate) m FROM ${from} WHERE ${category} IN (${cats}) AND LastModifiedDate > ${after} GROUP BY ${name}`;
   const [records, values, assignments] = await Promise.all([
-    query(
-      `SELECT DeveloperName, LastModifiedDate FROM LifeSciConfigRecord WHERE LifeSciConfigCategory.Category IN (${cats}) AND LastModifiedDate > ${after} ORDER BY LastModifiedDate DESC LIMIT 500`,
-      org,
-      true
-    ),
-    query(
-      `SELECT LifeSciConfigRecord.DeveloperName, LastModifiedDate FROM LifeSciConfigFieldValue WHERE LifeSciConfigRecord.LifeSciConfigCategory.Category IN (${cats}) AND LastModifiedDate > ${after} ORDER BY LastModifiedDate DESC LIMIT 500`,
-      org,
-      true
-    ),
+    query(newest("LifeSciConfigRecord", "DeveloperName", "LifeSciConfigCategory.Category"), org, true),
+    query(newest("LifeSciConfigFieldValue", "LifeSciConfigRecord.DeveloperName", "LifeSciConfigRecord.LifeSciConfigCategory.Category"), org, true),
     // Assignment changes are a nicety; an org that won't answer shouldn't hide the rest.
-    query(
-      `SELECT LifeSciConfigRecord.DeveloperName, LastModifiedDate FROM LifeSciConfigAssignment WHERE LifeSciConfigRecord.LifeSciConfigCategory.Category IN (${cats}) AND LastModifiedDate > ${after} ORDER BY LastModifiedDate DESC LIMIT 500`,
-      org,
-      true
-    ).catch(() => []),
+    query(newest("LifeSciConfigAssignment", "LifeSciConfigRecord.DeveloperName", "LifeSciConfigRecord.LifeSciConfigCategory.Category"), org, true).catch(() => []),
   ]);
   const out = new Map<string, number>();
   const note = (name: unknown, date: unknown) => {
     const at = Date.parse(String(date));
     if (typeof name === "string" && Number.isFinite(at) && at > (out.get(name) ?? 0)) out.set(name, at);
   };
-  for (const r of records) note(r.DeveloperName, r.LastModifiedDate);
-  for (const r of [...values, ...assignments]) {
-    note((r.LifeSciConfigRecord as { DeveloperName?: string } | null)?.DeveloperName, r.LastModifiedDate);
-  }
+  for (const r of [...records, ...values, ...assignments]) note(r.n, r.m);
   return out;
 }
 
@@ -65,6 +97,7 @@ export async function changedConfig(org: string, categories: string[], since: nu
  * Pass when nothing in `categories` changed since the iPad's metadata cache for
  * the profiles in `forProfiles` (or everyone, when empty) was last generated.
  * `records` are the category's records, used to tell which profile a change reaches.
+ * Profiles with no LSC-licensed active user are left out: nobody downloads their cache.
  * With `onlyRecords`, only changes to those records count (not the whole category).
  * There is no fix: publishing is its own step.
  */
@@ -76,7 +109,7 @@ export async function cacheFreshResult(org: string, caches: CacheRecord[], categ
   if (!changed.size) return { pass: true, detail: "Nothing has changed since the last publish." };
 
   const byName = new Map(records.map((r) => [r.developerName, r]));
-  const profiles = forProfiles.length ? forProfiles : [...dates.keys()];
+  const profiles = await withLscUsers(forProfiles.length ? forProfiles : [...dates.keys()], org);
   // Profile names in assignments and on the cache needn't agree on case.
   const dateOf = new Map([...dates].map(([p, at]) => [p.toLowerCase(), at]));
   const stale: string[] = [];

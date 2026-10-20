@@ -62,7 +62,9 @@ describe("actions-home readiness", () => {
 
   it("flags hardcoded org URLs", async () => {
     schema = [action("CustomAction", "Hard", { ActionType: "URL", ActionTarget: "https://acme.lightning.force.com/lightning/n/Tab" })];
-    expect((await run())["actions-home.config.hardcoded-urls"].status).toBe("fail");
+    const c = (await run())["actions-home.config.hardcoded-urls"];
+    expect(c.status).toBe("fail");
+    expect(c.severity).toBe("info");
   });
 
   it("flags quick actions on objects that do not sync", async () => {
@@ -80,5 +82,63 @@ describe("actions-home readiness", () => {
       action("QuickAction", "B", { SObject: "Account", Location: "HomePage", SortOrder: 1 }),
     ];
     expect((await run())["actions-home.config.sort-order"].status).toBe("fail");
+  });
+
+  it("flags a record type that is on another object or inactive", async () => {
+    org.RecordType = [
+      { DeveloperName: "HCP", SobjectType: "Contact", IsActive: true },
+      { DeveloperName: "Old", SobjectType: "Account", IsActive: false },
+      { DeveloperName: "Hospital", SobjectType: "Account", IsActive: true },
+    ];
+    schema = [action("QuickAction", "Email", { SObject: "Account", Location: "Record", RecordTypes: "HCP;Old;Hospital" })];
+    const c = (await run())["actions-home.config.targets-exist"];
+    expect(c.status).toBe("fail");
+    expect(c.examples).toEqual(['Email: Record type "HCP" isn\'t on Account', 'Email: Record type "Old" is inactive']);
+  });
+
+  it("passes an active record type on the action's object", async () => {
+    org.RecordType = [{ DeveloperName: "Hospital", SobjectType: "Account", IsActive: true }];
+    schema = [action("QuickAction", "Email", { SObject: "Account", Location: "Record", RecordTypes: "Hospital" })];
+    expect((await run())["actions-home.config.targets-exist"].status).toBe("pass");
+  });
+
+  it("flags home page actions sharing a sort order whatever their object", async () => {
+    schema = [
+      action("QuickAction", "A", { SObject: "Account", Location: "HomePage", SortOrder: 2 }),
+      action("QuickAction", "B", { SObject: "Visit", Location: "HomePage", SortOrder: 2 }),
+    ];
+    expect((await run())["actions-home.config.sort-order"].status).toBe("fail");
+  });
+
+  it("doesn't flag a shared sort order when the actions never show together", async () => {
+    schema = [
+      action("QuickAction", "ByProfile", { SObject: "Account", Location: "Record", SortOrder: 1, Profiles: "Rep" }),
+      action("QuickAction", "OtherProfile", { SObject: "Account", Location: "Record", SortOrder: 1, Profiles: "Manager" }),
+      action("QuickAction", "TypeA", { SObject: "Contact", Location: "Record", SortOrder: 1, RecordTypes: "A" }),
+      action("QuickAction", "TypeB", { SObject: "Contact", Location: "Record", SortOrder: 1, RecordTypes: "B" }),
+    ];
+    expect((await run())["actions-home.config.sort-order"].status).toBe("pass");
+  });
+
+  it("passes the tab bar check when a profile without UI Settings tabs can open a Lightning app", async () => {
+    org.Profile = [{ Name: "Rep" }];
+    schema = [action("QuickAction", "A", { SObject: "Account", Location: "Record", Profiles: "Rep" })];
+    org.SetupEntityAccess = [{ pn: "Rep", cnt: 1 }];
+    expect((await run())["actions-home.mobile.profile-tabs"].status).toBe("pass");
+    org.SetupEntityAccess = [];
+    const c = (await run())["actions-home.mobile.profile-tabs"];
+    expect(c.status).toBe("fail");
+    expect(c.examples).toEqual(["Rep"]);
+  });
+
+  it("leaves out profiles with no LSC-licensed user", async () => {
+    org.Profile = [{ Name: "Rep" }, { Name: "Integration" }];
+    org.User = [{ pn: "Rep", cnt: 4 }];
+    org.SetupEntityAccess = [];
+    schema = [
+      action("QuickAction", "A", { SObject: "Account", Location: "Record", Profiles: "Rep" }),
+      action("QuickAction", "B", { SObject: "Account", Location: "Record", Profiles: "Integration" }),
+    ];
+    expect((await run())["actions-home.mobile.profile-tabs"].examples).toEqual(["Rep"]);
   });
 });

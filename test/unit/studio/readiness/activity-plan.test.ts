@@ -50,4 +50,14 @@ describe("activity-plan readiness", () => {
     expect(c.status).toBe("fail");
     expect(c.fixes!.length).toBeGreaterThan(0);
   });
+
+  it("names a profile with users in plan territories that doesn't sync the plan objects", async () => {
+    const objects = ["ActivityPlan", "ActivityPlanTerritory", "TimePeriod", "ProviderActivityGoal", "ProviderActivityGoalMeasure"];
+    const appSettings = { ...schemaRec(""), category: "ProfileBasedAppSettings", fields: {}, assignments: [{ name: "Rep", level: "Profile" }, { name: "Medical", level: "Profile" }] } as ConfigRecord;
+    schema = [...objects.map((o) => schemaRec(o)), appSettings];
+    org.UserTerritory2Association = [{ pn: "Medical", cnt: 2 }];
+    const c = (await run())["activity-plan.mobile.db-schema"];
+    expect(c.status).toBe("fail");
+    expect(c.detail).toContain("Medical doesn't sync ActivityPlan");
+  });
 });

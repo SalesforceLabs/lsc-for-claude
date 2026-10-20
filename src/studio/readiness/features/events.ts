@@ -1,6 +1,7 @@
 /** Events Management readiness: its validation rules plus Studio's own checks. */
 
 import { isMissingObject } from "../../collectors/briefings.js";
+import { fieldUsersReadResult } from "./_field-access.js";
 import { fetchCache } from "../../collectors/mobile-sync.js";
 import { count, plural, query } from "../../helpers.js";
 import { runCheck, type ReadinessModule, type StudioCheckResult } from "../index.js";
@@ -71,17 +72,18 @@ const readiness: ReadinessModule = {
         {
           id: "events.access.event-read",
           stage: "access",
-          title: "Reps' permission sets can read Managed Events",
+          title: "Field users can read Managed Events",
           severity: "error",
-          why: "Without Read on Managed Event, the Events tab and the event cards on the iPad stay empty for the users who should run events.",
-          steps: ["Open Setup > Permission Sets for the field rep sets", "Grant Read (and Create, Edit for organisers) on Managed Event and its child objects"],
+          why: "Without Read on Managed Event through their profile or a permission set, the Events tab and the event cards on the iPad stay empty for the users who should run events.",
+          steps: [
+            "Open Setup > Permission Sets and pick a set the field users on the profiles listed hold, or create one",
+            "Grant Read (and Create, Edit for organisers) on Managed Event and its child objects",
+            "Assign the set to any of those users who don't hold it",
+          ],
           uiPath: "Setup > Permission Sets > Object Settings",
           surface: "objects",
         },
-        gate(async () => {
-          const n = await count(`SELECT COUNT() FROM ObjectPermissions WHERE SobjectType = 'MngEvent' AND PermissionsRead = true`, org);
-          return { pass: n > 0, detail: n ? `${plural(n, "permission set")} grant Read on Managed Event.` : "No permission set grants Read on Managed Event." };
-        })
+        gate(() => fieldUsersReadResult(org, "MngEvent", "Managed Event"))
       ),
       runCheck(
         {
@@ -115,8 +117,15 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         gate(async () => {
-          const types = await query(`SELECT Id, Name FROM MngEventType`, org);
+          const [types, ptcpTypes, roles] = await Promise.all([
+            query(`SELECT Id, Name FROM MngEventType`, org),
+            count(`SELECT COUNT() FROM EventMgmtParticipantType`, org),
+            count(`SELECT COUNT() FROM EventMgmtParticipantRole`, org),
+          ]);
           if (!types.length) return { pass: true, skip: true, detail: "No event types exist yet." };
+          // Nothing to map until both exist; the participant type and role checks already say so.
+          const none = [!ptcpTypes && "participant types", !roles && "participant roles"].filter(Boolean);
+          if (none.length) return { pass: true, skip: true, detail: `No ${none.join(" or ")} exist yet, so there is nothing to map.` };
           const maps = await query(`SELECT MngEventTypeId FROM EventMgmtPtcpTypeRoleMap WHERE IsActive = true`, org);
           const mapped = new Set(maps.map((m) => String(m.MngEventTypeId)));
           const bare = types.filter((t) => !mapped.has(String(t.Id)));

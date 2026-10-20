@@ -45,6 +45,9 @@ describe("products readiness", () => {
     const c = (await run())["products.data.guidance-not-expired"];
     expect(c.status).toBe("fail");
     expect(c.examples![0]).toContain("Old claim");
+    // The iPad already hides ended messages, and the handler only removes sharing — not a warning, no auto-off claim.
+    expect(c.severity).toBe("info");
+    expect(c.steps.join(" ")).not.toMatch(/switched off automatically/);
   });
 
   it("flags an active product under an inactive parent", async () => {

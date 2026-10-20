@@ -159,6 +159,16 @@ function gather(user: UserInfo, feature: FeatureDefinition | undefined, org: str
   };
 }
 
+/** The user's permission sets for a detail line, LSC ones first since those are what an admin looks for. */
+function setsNote(assignments: Row[]): string {
+  const labels = [...new Set(assignments.map((a) => str(rel(a, "PermissionSet.Label"))).filter(Boolean))];
+  if (!labels.length) return "No permission sets assigned.";
+  const lsc = (l: string) => /life ?sci|\blsc\b/i.test(l);
+  const sorted = [...labels.filter(lsc), ...labels.filter((l) => !lsc(l))];
+  const more = sorted.length > 5 ? ` and ${sorted.length - 5} more` : "";
+  return `Permission sets: ${sorted.slice(0, 5).join(", ")}${more}.`;
+}
+
 /** "Not in this org: X." for objects the feature lists that the org doesn't have (not enabled or licensed). */
 function absentNote(absent: string[]): string {
   return absent.length ? ` Not in this org: ${absent.join(", ")}.` : "";
@@ -264,39 +274,19 @@ function checkPermissions(user: UserInfo, feature: FeatureDefinition | undefined
         return { pass: setNames.length > 0, detail: setNames.length ? `${plural(setNames.length, "permission set")}: ${setNames.slice(0, 6).join(", ")}` : "No permission sets or groups assigned." };
       }
       if (!objects.length) return { pass: true, skip: true, detail: `None of ${feature.title}'s objects are in this org (${absent.join(", ")}). The feature may not be enabled or licensed.` };
-      const parentIds = new Set(assignments.map((a) => str(a.PermissionSetId)).filter(Boolean));
-      // A group's own permission set holds its combined permissions only once the group has
-      // recalculated, so the member permission sets are read as well.
-      const groupIds = [...new Set(assignments.map((a) => str(a.PermissionSetGroupId)).filter(Boolean))];
-      if (groupIds.length) {
-        // A muting set's Read takes access away, so it isn't a source of access.
-        const members = await query(
-          `SELECT PermissionSetId FROM PermissionSetGroupComponent WHERE PermissionSetGroupId IN (${inList(groupIds)}) AND PermissionSet.Type != 'Muting'`,
-          org
-        );
-        for (const m of members) parentIds.add(str(m.PermissionSetId));
-      }
-      if (user.profileId) {
-        const own = await query(`SELECT Id FROM PermissionSet WHERE ProfileId = '${user.profileId}'`, org);
-        for (const r of own) parentIds.add(str(r.Id));
-      }
-      if (!parentIds.size) return { pass: false, detail: "No permission sets or profile permissions found.", fixes: [] };
-      // View All Data / Modify All Data read every object without any object permission rows.
-      const sets = await query(`SELECT Id, PermissionsViewAllData, PermissionsModifyAllData FROM PermissionSet WHERE Id IN (${inList([...parentIds])})`, org);
-      if (sets.some((r) => r.PermissionsViewAllData === true || r.PermissionsModifyAllData === true)) {
-        return { pass: true, detail: `Reads all ${objects.length} objects through View All Data or Modify All Data.${absentNote(absent)}` };
-      }
-      const perms = await query(
-        `SELECT SobjectType, PermissionsRead FROM ObjectPermissions WHERE SobjectType IN (${inList(objects)}) AND ParentId IN (${inList([...parentIds])})`,
+      // Salesforce's own answer for what the user can read: object permissions, but also access that
+      // has no object permission row (Event, Holiday, EmailTemplate, Topic, surveys, detail objects).
+      const rows = await query(
+        `SELECT EntityDefinition.QualifiedApiName, IsReadable FROM UserEntityAccess WHERE UserId = '${user.id}' AND EntityDefinition.QualifiedApiName IN (${inList(objects)})`,
         org
       );
-      const readable = new Set(perms.filter((p) => p.PermissionsRead === true).map((p) => str(p.SobjectType)));
-      const missing = objects.filter((o) => !readable.has(o));
+      const readable = new Set(rows.filter((r) => r.IsReadable === true).map((r) => str(rel(r, "EntityDefinition.QualifiedApiName")).toLowerCase()));
+      const missing = objects.filter((o) => !readable.has(o.toLowerCase()));
       return {
         pass: missing.length === 0,
         detail: missing.length
-          ? `No read access to ${missing.join(", ")}. Permission sets: ${setNames.slice(0, 5).join(", ") || "none"}.${absentNote(absent)}`
-          : `Reads all ${objects.length} objects through ${plural(setNames.length, "permission set")} and the profile.${absentNote(absent)}`,
+          ? `No read access to ${missing.join(", ")}. ${setsNote(assignments)}${absentNote(absent)}`
+          : `Reads all ${objects.length} objects.${absentNote(absent)}`,
         examples: missing,
       };
     }

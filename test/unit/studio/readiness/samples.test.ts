@@ -46,11 +46,34 @@ describe("samples readiness", () => {
     expect(r["samples.data.rep-stock"].status).toBe("skipped");
   });
 
-  it("fails when a rep location has no primary user", async () => {
-    org.Location = [{ Id: "1", Name: "Bob Inventory" }];
-    const c = (await run())["samples.access.locations-have-a-rep"];
+  it("warns only about unassigned rep locations that hold stock; empty ones are info", async () => {
+    // Stocked: the semi-join on ProductItem; empty: the anti-join.
+    vi.mocked(runSoqlQuery).mockImplementation(((q: string) => {
+      if (/FROM Location WHERE .*PrimaryUserId = null AND Id IN \(SELECT LocationId FROM ProductItem/.test(q)) return respond(q.replace(/FROM Location/, "FROM StockedLocation"));
+      if (/FROM Location WHERE .*PrimaryUserId = null AND Id NOT IN \(SELECT LocationId FROM ProductItem/.test(q)) return respond(q.replace(/FROM Location/, "FROM EmptyLocation"));
+      return respond(q);
+    }) as never);
+    org.Location = 4;
+    org.StockedLocation = [];
+    org.EmptyLocation = [{ Id: "2", Name: "Luke MSR2" }];
+    let r = await run();
+    expect(r["samples.access.locations-have-a-rep"].status).toBe("pass");
+    expect(r["samples.access.empty-locations-unassigned"]).toMatchObject({ status: "fail", severity: "info", examples: ["Luke MSR2"] });
+
+    org.StockedLocation = [{ Id: "1", Name: "Bob Inventory" }];
+    r = await run();
+    expect(r["samples.access.locations-have-a-rep"]).toMatchObject({ status: "fail", severity: "warning", examples: ["Bob Inventory"] });
+    expect(r["samples.access.locations-have-a-rep"].detail).toContain("hold stock");
+  });
+
+  it("checks marketable products only for stock in reps' own locations", async () => {
+    org.Location = 1;
+    org.ProductItem = [{ Product2: { Name: "Orphan" }, Location: { Name: "Bob Inventory" } }];
+    const c = (await run())["samples.data.inventory-products-marketable"];
     expect(c.status).toBe("fail");
-    expect(c.examples).toEqual(["Bob Inventory"]);
+    const q = vi.mocked(runSoqlQuery).mock.calls.map((x) => String(x[0])).find((x) => x.includes("FROM ProductItem") && x.includes("LifeSciMarketableProduct"));
+    expect(q).toContain("Location.LocationType = 'User Inventory'");
+    expect(q).toContain("Location.PrimaryUserId != null");
   });
 
   it("fails on negative stock", async () => {

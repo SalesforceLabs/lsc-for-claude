@@ -9,7 +9,7 @@
 #   - Territory2 (standard Salesforce)
 #   - ObjectTerritory2Association (standard Salesforce)
 #   - TerrGeoAssignmentRule (standard)
-#   - TerritoryProviderAffiliationAlignmentRule (standard)
+#   - TerrProvAffilAssignRule (standard)
 #   - ProviderAcctTerritoryInfo (standard)
 #   - LifeSciMobileMetadataRecord (standard)
 
@@ -155,15 +155,15 @@ rules:
   # ===========================================================================
 
   - id: territory-004
-    name: Geo-based alignment rules configured (if using geo alignment)
+    name: Geo-based alignment rules (if using geo alignment)
     description: |
-      Checks whether TerrGeoAssignmentRule records exist for geo-based
-      alignment. These rules enable automatic account-to-territory assignment
-      based on zip codes or brick codes from ContactPointAddress records.
-      If your implementation uses geographic territory alignment (common in
-      pharma sales), these rules should exist. Missing rules means geo-based
-      alignment cannot be processed by the Align Zip to Territory or Align
-      Brick to Territory batch jobs.
+      Reports how many TerrGeoAssignmentRule records are in effect today (no
+      start date or one already reached, and no end date or one not yet passed).
+      These rules assign accounts to territories by the zip or brick code on
+      their ContactPointAddress records, through the Align Zip to Territory and
+      Align Brick to Territory batch jobs. Geo alignment is optional, so having
+      none is not a failure; if your implementation aligns by geography and the
+      count is 0, those jobs have nothing to process.
     category: configuration
     stage: config
     studio_surface: geoRules
@@ -173,11 +173,9 @@ rules:
       query: >
         SELECT COUNT()
         FROM TerrGeoAssignmentRule
-      expect: "count > 0"
-      error_detail_query: >
-        SELECT Id, Name, Territory2.Name, GeoCodeType, GeoCode
-        FROM TerrGeoAssignmentRule
-        LIMIT 10
+        WHERE (EffectiveStartDate = null OR EffectiveStartDate <= TODAY)
+        AND (EffectiveEndDate = null OR EffectiveEndDate >= TODAY)
+      expect: "count >= 0"
     symptoms:
       - "Zip code alignment not working"
       - "Brick code alignment not working"
@@ -199,9 +197,10 @@ rules:
   # ===========================================================================
 
   - id: territory-005
-    name: Affiliation alignment rules configured (if using affiliation alignment)
+    name: Affiliation alignment rules (if using affiliation alignment)
     description: |
-      Checks whether TerrProvAffilAssignRule (affiliation alignment rule) records exist.
+      Reports how many TerrProvAffilAssignRule (affiliation alignment rule) records exist.
+      Having none is not a failure.
       These rules enable automatic territory assignment for affiliated accounts
       based on ProviderAffiliation records (e.g., HCP working at an HCO).
       Affiliation alignment is optional but common in complex territory models
@@ -213,13 +212,11 @@ rules:
     studio_surface: affiliationRules
     severity: info
     check:
-      type: soql
+      type: soql_count
       query: >
-        SELECT Id, Name, Territory2Id, Territory2.Name, AccountType, AffiliationRole
+        SELECT COUNT()
         FROM TerrProvAffilAssignRule
-        ORDER BY Territory2.Name
-        LIMIT 20
-      expect: "records.length > 0"
+      expect: "count >= 0"
     symptoms:
       - "Affiliated HCPs not assigned to territory"
       - "HCP territory doesn't match HCO territory"
@@ -228,7 +225,7 @@ rules:
       steps:
         - "Determine if your implementation uses affiliation-based alignment"
         - "If yes, verify affiliation role picklist values match between objects"
-        - "Navigate to Setup > Object Manager > TerritoryProviderAffiliationAlignmentRule > Fields > AffiliationRole"
+        - "Navigate to Setup > Object Manager > TerrProvAffilAssignRule > Fields > AffiliationRole"
         - "Add picklist values matching ProviderAffiliation.Role values"
         - "Navigate to Admin Console > Territories > Affiliation Rules"
         - "Create rules selecting territory, account types, and affiliation roles"

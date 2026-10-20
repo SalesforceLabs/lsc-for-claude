@@ -325,22 +325,18 @@ rules:
         FROM TopicAssignment
         WHERE EntityType = 'Presentation'
       expect: "count > 0"
-      error_detail_query: >
-        SELECT Id, Name
-        FROM Topic
-        LIMIT 10
     symptoms:
       - "Content Library shows flat list of presentations"
       - "Cannot filter presentations by category"
       - "Difficult to find specific content"
     resolution:
       steps:
-        - "Navigate to Setup > Topics"
-        - "Create topics for organizing presentations (e.g., Cardiology, Oncology, Campaign Q1)"
-        - "Navigate to Admin Console > Intelligent Content > Presentations tab"
-        - "Edit presentations and assign relevant topics"
-        - "Verify topic assignments in Content Library on mobile device"
-      ui_path: "Setup > Topics"
+        - "In Setup > Topics for Objects, turn on topics for Presentation and Presentation Page"
+        - "Open Admin Console > Intelligent Content > Presentations"
+        - "Open a presentation and click Edit"
+        - "In Presentation Settings, add topics (for example a therapeutic area or campaign) and save"
+        - "Check that the content library on the iPad can filter by them after the next sync"
+      ui_path: "Admin Console > Intelligent Content > Presentations"
     tags: [content, configuration, topics, organization]
 
   # ===========================================================================

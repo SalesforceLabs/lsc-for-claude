@@ -9,8 +9,8 @@ const { collectCategoryRecords } = await import("../../../../src/config/collect.
 const { default: mod } = await import("../../../../src/studio/readiness/features/briefings.js");
 
 type Row = Record<string, unknown>;
-/** Rows (and optional COUNT override) returned per outer FROM-object; an Error makes that query fail. */
-let org: Record<string, Row[] | number | Error>;
+/** Rows (and optional COUNT override) returned per outer FROM-object; an Error makes that query fail, a function answers by the SOQL. */
+let org: Record<string, Row[] | number | Error | ((soql: string) => Row[])>;
 let handlers: Row[];
 let schema: ConfigRecord[];
 
@@ -18,7 +18,8 @@ function respond(soql: string) {
   let outer = soql;
   while (/\([^()]*\)/.test(outer)) outer = outer.replace(/\([^()]*\)/g, "");
   const from = /FROM\s+(\w+)/i.exec(outer)?.[1] ?? "";
-  const v = org[from] ?? [];
+  const entry = org[from] ?? [];
+  const v = typeof entry === "function" ? entry(soql) : entry;
   if (v instanceof Error) return Promise.resolve({ success: false, error: v.message });
   const rows = typeof v === "number" ? [] : v;
   const total = typeof v === "number" ? v : rows.length;
@@ -73,5 +74,26 @@ describe("briefings readiness", () => {
     org.PresentationContent = [{ cnt: 1 }];
     org.FlowDefinitionView = [{ Label: "Briefings: Schedule Daily Briefings of Provider Accounts", ApiName: "ScheduleDailyBriefings", ActiveVersionId: null }];
     expect((await run())["briefings.config.scheduled-flow"].status).toBe("fail");
+  });
+
+  it("matches licenses by developer name, not label", async () => {
+    org.PresentationContent = [{ cnt: 1 }];
+    org.PermissionSetLicense = [
+      ["IndustriesLSC4CEPsl", "Life Science Commercial"],
+      ["HealthCloudStarter", "Health Cloud Starter"],
+      ["SiteMgmtSiteSelAssistanceAgentPsl", "Agentforce for Life Sciences Cloud Feature Access"],
+      ["EinsteinGPTPromptTemplatesPsl", "Einstein Prompt Templates"],
+    ].map(([DeveloperName, MasterLabel]) => ({ DeveloperName, MasterLabel, TotalLicenses: 10, UsedLicenses: 2 }));
+    expect((await run())["briefings.access.licenses"].status).toBe("pass");
+  });
+
+  it("counts standard permission set assignments by permission set id", async () => {
+    org.PresentationContent = [{ cnt: 1 }];
+    const names = ["HealthCloudStarter", "EinsteinGPTPromptTemplateManager", "EinsteinGPTPromptTemplateUser", "AccsAgtfrceForLifeSciCustEngmt"];
+    org.PermissionSet = names.map((Name, i) => ({ Id: `0PS${i}`, Name }));
+    org.PermissionSetAssignment = (q) => (/GROUP BY PermissionSetId/.test(q) ? [{ psid: "0PS0", cnt: 8 }, { psid: "0PS1", cnt: 1 }, { psid: "0PS2", cnt: 9 }] : []);
+    const c = (await run())["briefings.access.standard-permission-sets"];
+    expect(c.status).toBe("fail");
+    expect(c.examples).toEqual(["Access LSC CE Agentforce"]);
   });
 });

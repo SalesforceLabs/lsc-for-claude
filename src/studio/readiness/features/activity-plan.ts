@@ -7,6 +7,7 @@ import {
   countOf,
   dbSchemaCheck,
   failedJobs,
+  fieldProfilesUsing,
   handlersCheck,
   labels,
   lazy,
@@ -28,6 +29,13 @@ const readiness: ReadinessModule = {
       const users = await countGroupedBy("UserTerritory2Association", "Territory2Id", rows.map((t) => String(t.Id)), org, "IsActive = true");
       return rows.filter((t) => users.get(String(t.Id))).map((t) => ({ Territory2Id: String(t.Id), tname: String(t.Name), cnt: users.get(String(t.Id)) }));
     });
+
+    // Field profiles of users in a territory that has a plan — they need plans offline.
+    const planUsers = lazy(() =>
+      fieldProfilesUsing(org, [
+        `SELECT User.Profile.Name pn, COUNT(Id) cnt FROM UserTerritory2Association WHERE IsActive = true AND User.IsActive = true AND Territory2Id IN (SELECT TerritoryId FROM ActivityPlanTerritory) GROUP BY User.Profile.Name`,
+      ])
+    );
 
     return Promise.all([
       handlersCheck(
@@ -319,12 +327,13 @@ const readiness: ReadinessModule = {
           title: "Activity Plan objects sync to the iPad",
           severity: "error",
           why: "Plans, territories, goals and measures are read offline. An object missing from DB Schema leaves the plan widgets blank on the iPad.",
-          steps: ["Admin Console > Mobile > DB Schema: add or switch on a record for each object listed, for the field profiles.", "Publish to iPad."],
+          steps: ["Admin Console > Mobile > DB Schema: add or switch on a record for each object listed, and give it to each profile named.", "Publish to iPad."],
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },
         schema,
-        ["ActivityPlan", "ActivityPlanTerritory", "TimePeriod", "ProviderActivityGoal", "ProviderActivityGoalMeasure"]
+        ["ActivityPlan", "ActivityPlanTerritory", "TimePeriod", "ProviderActivityGoal", "ProviderActivityGoalMeasure"],
+        planUsers
       ),
     ]);
   },

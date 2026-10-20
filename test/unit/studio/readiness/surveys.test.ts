@@ -54,11 +54,35 @@ describe("surveys readiness", () => {
     expect(r["surveys.config.mobile-type"].status).toBe("skipped");
   });
 
-  it("offers to switch on the colleague sharing handler", async () => {
+  it("offers to switch on the colleague sharing handler when managed events have survey invitations", async () => {
+    org.MngEvent = 1;
+    org.SurveyInvitation = 2;
     handlers = [handler("ColleagueSurveySharingHandler", false)];
     const c = (await run())["surveys.enabled.colleague-sharing"];
     expect(c.status).toBe("fail");
     expect(c.fixes).toHaveLength(1);
+  });
+
+  it("skips the colleague sharing handler without managed event surveys", async () => {
+    org.SurveyInvitation = 2;
+    handlers = [handler("ColleagueSurveySharingHandler", false)];
+    expect((await run())["surveys.enabled.colleague-sharing"].status).toBe("skipped");
+  });
+
+  it("fails unshared mobile surveys when the org-wide default is Private", async () => {
+    org.Survey = [{ Id: "s1", Name: "Immunexis Access" }];
+    org.EntityDefinition = [{ InternalSharingModel: "Private" }];
+    const c = (await run())["surveys.access.shared"];
+    expect(c.status).toBe("fail");
+    expect(c.severity).toBe("error");
+    expect(c.detail).toContain("Private");
+    expect(c.examples).toEqual(["Immunexis Access"]);
+  });
+
+  it("passes unshared mobile surveys when reps can read every survey", async () => {
+    org.Survey = [{ Id: "s1", Name: "Immunexis Access" }];
+    org.EntityDefinition = [{ InternalSharingModel: "Read" }];
+    expect((await run())["surveys.access.shared"].status).toBe("pass");
   });
 
   it("flags offline responses that were never processed", async () => {
@@ -68,7 +92,15 @@ describe("surveys readiness", () => {
   });
 
   it("names the profile missing the response objects", async () => {
-    schema = [schemaRec("SurveyResponseOffline"), schemaRec("SurveyQstnResponseOffline"), schemaRec("SurveyResponseOffline", "Admin")];
-    expect((await run())["surveys.mobile.response-objects"].status).toBe("fail");
+    schema = [schemaRec("Survey"), schemaRec("Survey", "Admin"), schemaRec("SurveyResponseOffline"), schemaRec("SurveyQstnResponseOffline"), schemaRec("SurveyResponseOffline", "Admin")];
+    const c = (await run())["surveys.mobile.response-objects"];
+    expect(c.status).toBe("fail");
+    expect(c.examples).toEqual(["SurveyQstnResponseOffline: missing for Admin"]);
+  });
+
+  it("only holds profiles that sync surveys to the response objects", async () => {
+    // "Admin" syncs responses but not Survey itself, so it isn't one of the profiles that fill in surveys.
+    schema = [schemaRec("Survey"), schemaRec("SurveyResponseOffline"), schemaRec("SurveyQstnResponseOffline"), schemaRec("SurveyResponseOffline", "Admin")];
+    expect((await run())["surveys.mobile.response-objects"].status).toBe("pass");
   });
 });

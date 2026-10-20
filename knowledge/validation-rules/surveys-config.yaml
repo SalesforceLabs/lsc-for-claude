@@ -1,8 +1,10 @@
 # LSC Surveys Configuration Validation Rules
 # ===========================================
 # Rules to validate Surveys configuration including
-# survey records, versions, questions, invitations, responses,
-# and mobile metadata cache.
+# survey records, versions, questions and mobile metadata cache.
+# Invitation and response counts are left out on purpose: none just means
+# no data yet. Stuck offline responses are checked in Studio
+# (surveys.data.unmigrated).
 #
 # Verified object names:
 #   - Survey (standard)
@@ -150,91 +152,7 @@ rules:
     tags: [survey, configuration, questions]
 
   # ===========================================================================
-  # SECTION 4: Survey Invitations
-  # ===========================================================================
-
-  - id: survey-004
-    name: SurveyInvitation records exist
-    description: |
-      Checks whether SurveyInvitation records exist. Survey invitations are
-      created when surveys are sent to respondents via email or other channels.
-      For LSC mobile surveys launched during visits, invitations may not be
-      required as surveys are launched directly. However, for email-based
-      surveys or external respondents, invitations track who was sent a survey.
-      This is informational only and does not block survey functionality.
-    category: configuration
-    severity: info
-    stage: data
-    studio_surface: objects
-    check:
-      type: soql_count
-      query: >
-        SELECT COUNT()
-        FROM SurveyInvitation
-      expect: "count > 0"
-      error_detail_query: >
-        SELECT Id, Name, SurveyId, Survey.Name, ResponseStatus
-        FROM SurveyInvitation
-        LIMIT 10
-    symptoms:
-      - "Cannot track who was sent surveys"
-      - "Survey invitation links not generated"
-      - "External survey respondents cannot access survey"
-    resolution:
-      steps:
-        - "For email-based surveys, send survey invitations via Survey Builder"
-        - "For mobile-launched surveys, invitations are not required"
-        - "Check SurveyInvitation records to track sent invitations"
-        - "Verify invitation links are accessible to recipients"
-      ui_path: "Survey Builder > Send Survey"
-    tags: [survey, invitations, tracking]
-
-  # ===========================================================================
-  # SECTION 5: Survey Responses
-  # ===========================================================================
-
-  - id: survey-005
-    name: Survey responses have been captured
-    description: |
-      Checks whether Survey responses have been captured. Survey responses are created
-      when a survey is completed and submitted. If no responses exist, either
-      surveys have not been launched yet, or there are configuration issues
-      preventing response creation. For new implementations, this is expected.
-      For existing implementations, lack of responses may indicate permission
-      issues, mobile cache problems, or survey sharing configuration errors.
-    category: configuration
-    severity: info
-    stage: data
-    studio_surface: objects
-    check:
-      type: soql_count
-      query: >
-        SELECT COUNT()
-        FROM SurveyResponseOffline
-      expect: "count > 0"
-      error_detail_query: >
-        SELECT Id, Name, SurveyName, Status, CompletionDateTime
-        FROM SurveyResponseOffline
-        ORDER BY CompletionDateTime DESC
-        LIMIT 10
-    symptoms:
-      - "No survey data being captured"
-      - "Completed surveys not creating records"
-      - "Cannot view survey responses"
-      - "Analytics showing zero responses"
-    resolution:
-      steps:
-        - "Verify surveys are active and shared correctly"
-        - "Check the DB Schema includes SurveyResponseOffline"
-        - "Verify users have Create permission on SurveyResponseOffline"
-        - "Test survey completion on desktop and mobile"
-        - "Check debug logs for trigger errors on SurveyResponseOffline"
-        - "For mobile, ensure device has synced after survey completion"
-      ui_path: "Survey > View Responses"
-    tags: [survey, responses, data]
-
-  # ===========================================================================
-  # SECTION 6: Mobile Metadata Cache
+  # SECTION 4: Mobile Metadata Cache
   # ===========================================================================
 
   - id: survey-006
@@ -287,13 +205,11 @@ rules:
 groups:
   surveys-config-check:
     name: "Surveys Configuration Check"
-    description: "Full surveys configuration check - survey records, versions, questions, invitations, responses, and mobile cache"
+    description: "Full surveys configuration check - survey records, versions, questions, and mobile cache"
     rules:
       - survey-001
       - survey-002
       - survey-003
-      - survey-004
-      - survey-005
       - survey-006
 
   surveys-core:
@@ -303,13 +219,6 @@ groups:
       - survey-001
       - survey-002
       - survey-003
-
-  surveys-responses:
-    name: "Survey Responses Check"
-    description: "Check survey response data collection"
-    rules:
-      - survey-004
-      - survey-005
 
   surveys-mobile:
     name: "Surveys Mobile Check"

@@ -309,7 +309,7 @@ describe("collectFeatureMap — Mobile Sync", () => {
 describe("collectFeatureMap — Territory & Users", () => {
   it("errors when no territory model is active and reports unavailable rule objects", async () => {
     org.Territory2Model = [{ Id: "0MA1", Name: "Draft model", State: "Planning" }];
-    org.TerritoryGeoAssignmentRule = new Error("sObject type 'TerritoryGeoAssignmentRule' is not supported.");
+    org.TerrGeoAssignmentRule = new Error("sObject type 'TerrGeoAssignmentRule' is not supported.");
     const map = await orgMap("territory-users");
     expect(map.surfaces.find((s) => s.id === "territoryModels")!.findings[0]).toMatchObject({
       severity: "error",
@@ -401,7 +401,7 @@ describe("collectFeatureMap — Actions & Home Page", () => {
     const home = (await orgMap("actions-home")).surfaces.find((s) => s.id === "homeActions")!;
     const [visit, maps] = home.items;
     expect(visit.findings.map((f) => f.title)).toEqual(['Profile "Ghost" not found']);
-    expect(maps.findings[0]).toMatchObject({ severity: "warning", title: "Hardcoded org URL" });
+    expect(maps.findings[0]).toMatchObject({ severity: "info", title: "Hardcoded org URL" });
 
     const coverage = (await orgMap("actions-home")).surfaces.find((s) => s.id === "profileCoverage")!;
     expect(coverage.items.map((i) => [i.label, i.findings.map((f) => f.title)])).toEqual([

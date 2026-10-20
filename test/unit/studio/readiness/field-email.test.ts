@@ -75,4 +75,59 @@ describe("field email readiness", () => {
     expect(c.status).toBe("fail");
     expect(c.examples).toContain("LifeScienceEmail: not synced");
   });
+
+  it("names the Track Email Status job", async () => {
+    org.AsyncApexJob = 0;
+    const c = (await run())["field-email.enabled.status-job"];
+    expect(c.title).toBe("The Track Email Status job is scheduled");
+    expect(c.detail).toBe("No Track Email Status job is scheduled.");
+  });
+
+  /** Answers the bounced and sent COUNTs separately. */
+  const emails = (bounced: number, sent: number) =>
+    vi.mocked(runSoqlQuery).mockImplementation(((q: string) =>
+      /IsBounced = true/.test(q) ? respond(q).then((r) => ({ ...r, data: { ...r.data, totalSize: bounced } }))
+      : /Status = 'Success'/.test(q) ? respond(q).then((r) => ({ ...r, data: { ...r.data, totalSize: sent } }))
+      : respond(q)) as never);
+
+  it("passes a bounce rate under 5%", async () => {
+    emails(1, 40);
+    const c = (await run())["field-email.data.bounced"];
+    expect(c.status).toBe("pass");
+    expect(c.detail).toBe("1 of 40 sent emails bounced (3%).");
+  });
+
+  it("fails a bounce rate over 5%", async () => {
+    emails(3, 20);
+    const c = (await run())["field-email.data.bounced"];
+    expect(c.status).toBe("fail");
+    expect(c.detail).toBe("3 of 20 sent emails bounced (15%).");
+  });
+
+  it("reads which profiles send email from LifeScienceEmail, not shared consent objects", async () => {
+    // "Manager" syncs the consent objects for another feature but never LifeScienceEmail.
+    schema = [
+      schemaRec("LifeScienceEmail"),
+      ...["LifeSciEmailTemplate", "LifeSciEmailTmplFragment", "LifeSciEmailTmplRelaFrgmt", "CommSubscription", "CommSubscriptionConsent", "ContactPointEmail", "DataUsePurpose"].map((o) => schemaRec(o)),
+      ...["CommSubscription", "CommSubscriptionConsent", "ContactPointEmail", "DataUsePurpose"].map((o) => ({ ...schemaRec(o, "Manager"), developerName: `db_${o}_mgr` })),
+    ];
+    expect((await run())["field-email.mobile.compose-objects"].status).toBe("pass");
+  });
+
+  it("leaves out profiles without LSC Mobile app settings", async () => {
+    const appSettings = [{ ...schemaRec("x"), category: "ProfileBasedAppSettings", fields: {} } as ConfigRecord];
+    vi.mocked(collectCategoryRecords).mockImplementation((async (_org: string, soql: string) => (/ProfileBasedAppSettings/.test(soql) ? appSettings : schema)) as never);
+    // "System Administrator" syncs LifeScienceEmail but has no app settings, so missing templates for it isn't flagged.
+    schema = [schemaRec("LifeScienceEmail"), { ...schemaRec("LifeScienceEmail", "System Administrator"), developerName: "db_lse_admin" }, schemaRec("LifeSciEmailTemplate")];
+    const c = (await run())["field-email.mobile.compose-objects"];
+    expect(c.examples ?? []).not.toContain("LifeSciEmailTemplate: missing for System Administrator");
+  });
+
+  it("only asks for fragment usage sync as information", async () => {
+    schema = [schemaRec("LifeScienceEmail")];
+    const r = await run();
+    expect(r["field-email.mobile.queue-objects"].status).toBe("pass");
+    expect(r["field-email.mobile.fragment-usage"].severity).toBe("info");
+    expect(r["field-email.mobile.fragment-usage"].examples).toEqual(["LifeScienceEmailFragment: not synced"]);
+  });
 });
