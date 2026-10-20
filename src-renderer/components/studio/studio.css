@@ -2511,3 +2511,8 @@ textarea.studio-input {
   gap: 4px 10px;
   margin-bottom: 4px;
 }
+
+/* The iPad preview fits its canvas (IpadScreen); what's under it — notes, a device too small to shrink further — scrolls. */
+.studio-preview-section .studio-canvas {
+  overflow-y: auto;
+}
