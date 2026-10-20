@@ -207,7 +207,7 @@ export default function UserTraceView({
       {trace && headline && (
         <>
           <VerdictCard
-            tone={headline.ok ? "pass" : "error"}
+            tone={headline.tone}
             title={`${trace.userName}: ${headline.text}`}
             meta={`${trace.profile ?? "No profile"} · checked ${new Date(trace.collectedAt).toLocaleTimeString()}`}
           >

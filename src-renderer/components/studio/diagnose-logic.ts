@@ -98,7 +98,7 @@ export function diagnosisVerdict(result: DiagnosisResult): DiagnosisVerdict {
 export function diagnosisPrompt(text: string, result: DiagnosisResult, only?: DiagnosisItem): string {
   const items = only ? [only] : result.items;
   const lines = items.map((i) => {
-    const records = i.records.length ? ` Records: ${i.records.join(", ")}.` : "";
+    const records = i.records.length ? ` Records: ${i.records.map((r) => r.replace(/\.$/, "")).join("; ")}.` : "";
     return `- ${i.title} (${i.kind === "rule" ? "rule" : "known cause"} ${i.id}): ${detailOf(i, Boolean(result.checkedOrg))}.${records}`;
   });
   const quoted = text.length > 4000 ? `${text.slice(0, 4000)}…` : text;

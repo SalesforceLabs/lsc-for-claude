@@ -255,4 +255,10 @@ describe("traceUser", () => {
     const t = await traceUser(USER, null, "o");
     expect(traceHeadline(t, undefined).text).toBe("First problem: User is active");
   });
+
+  it("makes the headline amber, not red, when only warnings fail", async () => {
+    reach = { ...reach, unaligned: 2 };
+    const t = await traceUser(USER, null, "o");
+    expect(traceHeadline(t, undefined)).toMatchObject({ ok: false, tone: "warning", text: "First problem: Their iPad accounts match the alignment" });
+  });
 });

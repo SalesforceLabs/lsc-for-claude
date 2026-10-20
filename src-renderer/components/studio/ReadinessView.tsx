@@ -207,11 +207,22 @@ export function CheckRow({ check, expanded, onToggle, onShowSurface, onAsk, fixP
       {expanded && (
         <div className="studio-rcheck-body">
           {check.why && <p>{check.why}</p>}
-          {check.examples && check.examples.length > 0 && (
-            <div>
-              <strong>Records:</strong> {check.examples.join(", ")}
-            </div>
-          )}
+          {check.examples && check.examples.length > 0 &&
+            // Names read fine on one line; sentences (a page and what's wrong with it) get a line each.
+            (check.examples.some((e) => e.length > 60) ? (
+              <div>
+                <strong>Records:</strong>
+                <ul className="studio-rcheck-steps">
+                  {check.examples.map((e, i) => (
+                    <li key={i}>{e}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div>
+                <strong>Records:</strong> {check.examples.join(", ")}
+              </div>
+            ))}
           {check.steps && check.steps.length > 0 && check.status !== "pass" && (
             <ol className="studio-rcheck-steps">
               {check.steps.map((s, i) => (
