@@ -14,11 +14,11 @@ import {
   audienceOf,
   buildSurface,
   configItem,
-  count,
   inList,
   item,
   plural,
   profileAudience,
+  approxCount,
   query,
   scalar,
   settle,
@@ -67,6 +67,9 @@ export function briefingFlowGroups(org: string, withSummary = true): Promise<Row
   if (withSummary) asks.push(`${select} Label = '${SUMMARY_FLOW_LABEL}'`);
   return Promise.all(asks.map((soql) => query(soql, org)));
 }
+
+/** The board counts briefings generated in this many days; older ones aren't counted. */
+const CONTENT_WINDOW_DAYS = 30;
 
 /** Briefings content older than this many days means the scheduled flow has stopped producing it. */
 export const STALE_DAYS = 3;
@@ -125,7 +128,7 @@ export async function countBy(soql: string, key: string, org: string): Promise<M
 export const collectBriefings: CustomCollector = async (org) => {
   // false = the toggle is off; a thrown error means we couldn't tell.
   const enabled = settle(
-    count(`SELECT COUNT() FROM PresentationContent`, org).then(
+    query(`SELECT Id FROM PresentationContent LIMIT 1`, org).then(
       () => true,
       (err) => {
         if (isMissingObject(err)) return false;
@@ -140,9 +143,15 @@ export const collectBriefings: CustomCollector = async (org) => {
   const assignments = settle(
     optionalQuery(`SELECT Id, IsActive, AssignedToId, AssignedTo.Name, PrstContentDefinition.MasterLabel FROM PrstCntntDefAssignment ORDER BY AssignedTo.Name`, org)
   );
+  // Briefings pile up per rep per day, so the board counts the recent ones (CreatedDate is indexed)
+  // and reads the newest one on its own.
   const content = settle(
-    optionalQuery(`SELECT TargetUser.Profile.Name pn, COUNT(Id) cnt, MAX(CreatedDate) latest FROM PresentationContent GROUP BY TargetUser.Profile.Name`, org)
+    optionalQuery(
+      `SELECT TargetUser.Profile.Name pn, COUNT(Id) cnt, MAX(CreatedDate) latest FROM PresentationContent WHERE CreatedDate = LAST_N_DAYS:${CONTENT_WINDOW_DAYS} GROUP BY TargetUser.Profile.Name`,
+      org
+    )
   );
+  const newestContent = settle(optionalQuery(`SELECT CreatedDate FROM PresentationContent ORDER BY CreatedDate DESC LIMIT 1`, org));
   // Flows: the managed ones plus anything else with "Briefing" in its name (clones of the schedule).
   const flows = settle(
     briefingFlowGroups(org).then((groups) => {
@@ -152,7 +161,7 @@ export const collectBriefings: CustomCollector = async (org) => {
     })
   );
   const summaries = settle(
-    count(`SELECT COUNT() FROM PrvdAccountTerritorySummary`, org).catch((err): number | null => {
+    approxCount("PrvdAccountTerritorySummary", org).catch((err): number | null => {
       if (isMissingObject(err)) return null;
       throw err;
     })
@@ -171,7 +180,7 @@ export const collectBriefings: CustomCollector = async (org) => {
     )
   );
   const standardAssignments = settle(standardSetAssignments(org));
-  const readAccess = settle(optionalQuery(`SELECT ParentId FROM ObjectPermissions WHERE SobjectType = 'PresentationContent' AND PermissionsRead = true`, org));
+  const readAccess = settle(optionalQuery(`SELECT ParentId FROM ObjectPermissions WHERE SobjectType = 'PresentationContent' AND PermissionsRead = true LIMIT 1`, org));
   // Active users per profile holding "Use Briefings" through any permission set.
   const briefingUsers = settle(
     countBy(
@@ -257,9 +266,9 @@ export const collectBriefings: CustomCollector = async (org) => {
         }
         if (total !== null) {
           items.push(
-            item("summaryRecords", `${total} summary records`, {
+            item("summaryRecords", total === "some" ? "Summary records" : total === 0 ? "No summary records" : `About ${total.toLocaleString("en-US")} summary records`, {
               sublabel: "PrvdAccountTerritorySummary",
-              properties: { "PrvdAccountTerritorySummary records": total },
+              properties: { "PrvdAccountTerritorySummary records": total === "some" ? "Some (not counted)" : total },
               findings:
                 total === 0
                   ? [{ severity: "error", title: "No summary records", detail: "Account Summarization hasn't run — no podcast text can be generated. Verify it is configured and the flow has run." }]
@@ -274,7 +283,7 @@ export const collectBriefings: CustomCollector = async (org) => {
     buildSurface(
       { id: "flows", title: "Briefings Flows", lane: "pipeline", description: "Flows that generate the briefing text and schedule it daily. Clone the schedule template rather than activating it." },
       async () => {
-        const [rows, on, generated] = await Promise.all([unwrap(flows), unwrap(enabled), unwrap(content)]);
+        const [rows, on, generated] = await Promise.all([unwrap(flows), unwrap(enabled), unwrap(newestContent)]);
         const briefingFlows = rows.filter((f) => f.Label !== SUMMARY_FLOW_LABEL);
         const template = briefingFlows.find((f) => SCHEDULE_FLOW.test(String(f.ApiName)));
         const textGen = briefingFlows.find((f) => TEXT_GEN_FLOW.test(String(f.ApiName)));
@@ -383,7 +392,7 @@ export const collectBriefings: CustomCollector = async (org) => {
               });
             }
             if (!withContent.has(profile)) {
-              findings.push({ severity: "info", title: "No briefing content yet", detail: "No PresentationContent has been generated for this profile's users." });
+              findings.push({ severity: "info", title: `No briefings in the last ${CONTENT_WINDOW_DAYS} days`, detail: `No PresentationContent was generated for this profile's users in the last ${CONTENT_WINDOW_DAYS} days.` });
             }
             if (!syncing(profile)) {
               findings.push({ severity: "warning", title: "Briefings objects don't sync to this profile", detail: "None of the Briefings DB Schema records are assigned to this profile." });
@@ -426,12 +435,12 @@ export const collectBriefings: CustomCollector = async (org) => {
       }
     ),
     buildSurface(
-      { id: "generated", title: "Generated Briefings", lane: "content", description: "PresentationContent — the briefings produced so far, by profile." },
+      { id: "generated", title: "Generated Briefings", lane: "content", description: "PresentationContent — the briefings produced in the last 30 days, by profile." },
       async () => {
-        const [rows, on] = await Promise.all([unwrap(content), unwrap(enabled)]);
+        const [rows, on, newestRows] = await Promise.all([unwrap(content), unwrap(enabled), unwrap(newestContent)]);
         if (rows === null) return { items: [], findings: [NOT_ENABLED] };
         const byProfile = new Map<string, { total: number; latest: string }>();
-        let newest = "";
+        const newest = String(newestRows?.[0]?.CreatedDate ?? "");
         for (const r of rows) {
           const profile = r.pn ? String(r.pn) : "Unknown profile";
           const latest = String(r.latest ?? "");
@@ -439,19 +448,18 @@ export const collectBriefings: CustomCollector = async (org) => {
           cur.total += Number(r.cnt ?? 0);
           if (latest > cur.latest) cur.latest = latest;
           byProfile.set(profile, cur);
-          if (latest > newest) newest = latest;
         }
         const items = [...byProfile.entries()]
           .sort((a, b) => a[0].localeCompare(b[0]))
           .map(([profile, s]) =>
             item(`content:${profile}`, profile, {
-              sublabel: plural(s.total, "briefing"),
-              properties: { Briefings: s.total, "Latest generated": s.latest },
+              sublabel: `${plural(s.total, "briefing")} in the last ${CONTENT_WINDOW_DAYS} days`,
+              properties: { [`Briefings (last ${CONTENT_WINDOW_DAYS} days)`]: s.total, "Latest generated": s.latest },
               audience: profileAudience(profile),
             })
           );
         const findings: StudioFinding[] = [];
-        if (rows.length === 0 && on) {
+        if (!newest && on) {
           findings.push({
             severity: "warning",
             title: "No briefings generated yet",

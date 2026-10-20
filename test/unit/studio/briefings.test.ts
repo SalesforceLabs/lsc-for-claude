@@ -75,8 +75,9 @@ function healthy(): [string, Row[] | Error][] {
     ["GROUP BY Assignee.Profile.Name", [{ pn: "Rep", cnt: 3 }]],
     ["FROM LifeSciMobileMetadataRecord", [{ Id: "m1", Name: "Cache", Status: "Active", IntegrationStatus: "Success", LastModifiedDate: "2026-06-01", ProfileId: "00e1" }]],
     ["FROM Profile WHERE Id IN", [{ Id: "00e1", Name: "Rep" }]],
-    // COUNT() against PresentationContent (the toggle probe)
-    ["SELECT COUNT() FROM PresentationContent", [{ expr0: 5 }]],
+    ["ORDER BY CreatedDate DESC LIMIT 1", [{ CreatedDate: new Date().toISOString() }]],
+    // One row of PresentationContent (the toggle probe)
+    ["SELECT Id FROM PresentationContent LIMIT 1", [{ Id: "0pc1" }]],
   ];
 }
 
@@ -111,6 +112,14 @@ describe("collectBriefings", () => {
     expect(r.checklist!.every((c) => surfaceIds.has(c.surface))).toBe(true);
   });
 
+  it("never counts or aggregates the whole PresentationContent table", async () => {
+    await collectBriefings("org");
+    const content = vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0])).filter((q) => q.includes("FROM PresentationContent"));
+    expect(content.some((q) => q.includes("COUNT()"))).toBe(false);
+    for (const q of content.filter((q) => q.includes("GROUP BY"))) expect(q).toContain("CreatedDate = LAST_N_DAYS:30");
+    expect(content.filter((q) => !q.includes("GROUP BY")).every((q) => /LIMIT 1$/.test(q))).toBe(true);
+  });
+
   it("makes assigned profiles checkable with an audience", async () => {
     const r = await collectBriefings("org");
     const rep = surface(r, "assignments").items[0];
@@ -122,7 +131,7 @@ describe("collectBriefings", () => {
   });
 
   it("reports the toggle off and skips the dependent surfaces gracefully", async () => {
-    for (const needle of ["SELECT COUNT() FROM PresentationContent", "FROM PrstContentDefinition", "FROM PrstCntntDefAssignment", "MAX(CreatedDate)", "FROM PrvdAccountTerritorySummary", "FROM ObjectPermissions"]) {
+    for (const needle of ["SELECT Id FROM PresentationContent LIMIT 1", "FROM PrstContentDefinition", "FROM PrstCntntDefAssignment", "MAX(CreatedDate)", "ORDER BY CreatedDate DESC LIMIT 1", "FROM PrvdAccountTerritorySummary", "FROM ObjectPermissions"]) {
       set(needle, NOT_SUPPORTED);
     }
     const r = await collectBriefings("org");
@@ -195,7 +204,8 @@ describe("collectBriefings", () => {
 
   it("flags empty account summarization and stale content", async () => {
     set("FROM PrvdAccountTerritorySummary", []);
-    set("MAX(CreatedDate)", [{ pn: "Rep", cnt: 5, latest: "2026-01-01T00:00:00.000+0000" }]);
+    set("MAX(CreatedDate)", []);
+    set("ORDER BY CreatedDate DESC LIMIT 1", [{ CreatedDate: "2026-01-01T00:00:00.000+0000" }]);
     const r = await collectBriefings("org");
     expect(titles(surface(r, "accountSummarization"))).toContain("No summary records");
     expect(titles(surface(r, "generated"))).toContain("No new briefings in 3+ days");

@@ -8,6 +8,7 @@ import type { StudioFinding, StudioItem } from "../types.js";
 import { sharedRead } from "../../config/read-cache.js";
 import { chunkIds } from "../../tools/helpers.js";
 import {
+  approxCount,
   buildSurface,
   configItem,
   count,
@@ -17,6 +18,7 @@ import {
   profileAudience,
   query,
   queryResult,
+  recordCounts,
   scalar,
   settle,
   showingNote,
@@ -31,6 +33,11 @@ const USER_LIMIT = 500;
 const RULE_LIMIT = 500;
 /** Territories and explicit-assignment rows sent to the app; counts and findings always cover all of them. */
 const TERRITORY_DISPLAY_LIMIT = 500;
+/**
+ * Above this many ObjectTerritory2Association rows (from storage statistics) accounts aren't counted
+ * per territory: the grouped count reads every row and runs past the timeout in big orgs.
+ */
+const OT2A_COUNT_LIMIT = 1_000_000;
 /** Rows read when there is no active model to scope the territory list. */
 const UNSCOPED_TERRITORY_LIMIT = 2000;
 /** The Life Sciences Commercial PSL every LSC user needs. */
@@ -54,6 +61,19 @@ const NOT_AVAILABLE: StudioFinding = {
 
 function rel(r: Row, path: string): unknown {
   return path.split(".").reduce<unknown>((v, k) => (v as Row | undefined)?.[k], r);
+}
+
+class TooManyAssignments extends Error {
+  constructor(readonly rows: number) {
+    super(`About ${rows.toLocaleString("en-US")} territory assignments — too many to count by territory here.`);
+  }
+}
+
+/** Why accounts per territory weren't counted, as an info finding. */
+function uncountedAccounts(err: unknown): StudioFinding {
+  return err instanceof TooManyAssignments
+    ? { severity: "info", title: "Accounts not counted per territory", detail: `${err.message} Users per territory are still shown.` }
+    : { severity: "info", title: "Couldn't count accounts per territory", detail: err instanceof Error ? err.message : String(err) };
 }
 
 /** COUNT(Id) grouped by `key` → Map. */
@@ -103,8 +123,12 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
   const usersPerTerritory = settle(
     territoryIds().then((ids) => countGroupedBy("UserTerritory2Association", "Territory2Id", ids, org))
   );
+  const ot2aRows = recordCounts(["ObjectTerritory2Association"], org).then((m) => m.get("objectterritory2association"));
   const accountsPerTerritory = settle(
-    territoryIds().then((ids) => countGroupedBy("ObjectTerritory2Association", "Territory2Id", ids, org, "SobjectType = 'Account'"))
+    Promise.all([territoryIds(), ot2aRows]).then(([ids, rows]) => {
+      if (rows && rows > OT2A_COUNT_LIMIT) throw new TooManyAssignments(rows);
+      return countGroupedBy("ObjectTerritory2Association", "Territory2Id", ids, org, "SobjectType = 'Account'");
+    })
   );
   const profiles = settle(fieldProfiles(org));
   const fieldUsers = settle(
@@ -172,17 +196,19 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
     buildSurface(
       { id: "territories", title: "Territories", lane: "model", description: "Territories in the active model, with assigned users and accounts." },
       async () => {
-        const [{ rows: inModel, capped }, users, accounts] = await Promise.all([
+        const [{ rows: inModel, capped }, users, accountsResult] = await Promise.all([
           unwrap(territories),
           unwrap(usersPerTerritory),
-          unwrap(accountsPerTerritory),
+          accountsPerTerritory,
         ]);
+        // Users per territory are worth showing even when accounts couldn't be counted.
+        const accounts = accountsResult.ok ? accountsResult.value : undefined;
         const parents = new Set(inModel.map((t) => t.ParentTerritory2Id).filter(Boolean));
         let emptyLeaves = 0;
         const all = inModel.map((t) => {
           const id = String(t.Id);
           const u = users.get(id) ?? 0;
-          const a = accounts.get(id) ?? 0;
+          const a = accounts?.get(id) ?? 0;
           if (u === 0 && !parents.has(t.Id)) emptyLeaves++;
           return { t, id, u, a };
         });
@@ -198,16 +224,16 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
               Type: scalar(rel(t, "Territory2Type.MasterLabel")),
               Parent: scalar(rel(t, "ParentTerritory2.Name")),
               Users: u,
-              "Explicit accounts": a,
+              ...(accounts ? { "Explicit accounts": a } : {}),
             },
           })
         );
         territoryTotal = all.length;
-        const findings: StudioFinding[] = [];
+        const findings: StudioFinding[] = accountsResult.ok ? [] : [uncountedAccounts(accountsResult.error)];
         if (emptyLeaves) {
           findings.push({ severity: "info", title: `${emptyLeaves} leaf territories have no users`, detail: "Accounts aligned to them aren't covered by a rep — check for vacancies or leftover territories." });
         }
-        if (shown.length < all.length) findings.push(showingNote(shown.length, all.length, "territories", "Those with the most users and accounts first"));
+        if (shown.length < all.length) findings.push(showingNote(shown.length, all.length, "territories", accounts ? "Those with the most users and accounts first" : "Those with the most users first"));
         if (capped) findings.push({ severity: "info", title: `Showing the first ${UNSCOPED_TERRITORY_LIMIT.toLocaleString("en-US")} territories`, detail: "No territory model is active, so territories from every model are listed." });
         return { items, findings };
       }
@@ -215,7 +241,9 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
     buildSurface(
       { id: "explicitAssignments", title: "Explicit Assignments", lane: "alignment", description: "ObjectTerritory2Association — accounts assigned to territories, by territory." },
       async () => {
-        const [{ rows }, accounts] = await Promise.all([unwrap(territories), unwrap(accountsPerTerritory)]);
+        const [{ rows }, accountsResult] = await Promise.all([unwrap(territories), accountsPerTerritory]);
+        if (!accountsResult.ok) return { items: [], findings: [uncountedAccounts(accountsResult.error)] };
+        const accounts = accountsResult.value;
         const names = new Map(rows.map((t) => [String(t.Id), String(t.Name)]));
         const sorted = [...accounts.entries()].filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
         const items = sorted
@@ -280,21 +308,25 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
     buildSurface(
       { id: "providerTerritoryInfo", title: "Provider Territory Info", lane: "alignment", description: "ProviderAcctTerritoryInfo — per-territory provider records that LSC alignment jobs maintain." },
       async () => {
-        const [pati, accounts] = await Promise.all([count(`SELECT COUNT() FROM ProviderAcctTerritoryInfo`, org), unwrap(accountsPerTerritory)]);
-        const aligned = [...accounts.values()].reduce((a, b) => a + b, 0);
+        // Storage statistics, not COUNT(): both tables run to millions of rows in big orgs.
+        const [pati, aligned] = await Promise.all([approxCount("ProviderAcctTerritoryInfo", org), approxCount("ObjectTerritory2Association", org)]);
+        const about = (n: number | "some") => (n === "some" ? "Some" : n === 0 ? "No" : `About ${n.toLocaleString("en-US")}`);
         const findings: StudioFinding[] = [];
-        if (pati === 0 && aligned > 0) {
+        if (pati === 0 && aligned !== 0) {
           findings.push({
             severity: "warning",
             title: "Not populated",
-            detail: `${aligned} accounts are aligned but there are no ProviderAcctTerritoryInfo records. Run the territory alignment batch jobs.`,
+            detail: "Accounts are assigned to territories but there are no ProviderAcctTerritoryInfo records. Run the territory alignment batch jobs.",
           });
         }
         return {
           items: [
-            item("pati", `${pati} records`, {
-              sublabel: `${aligned} explicit account assignments`,
-              properties: { "ProviderAcctTerritoryInfo records": pati, "Explicit account assignments": aligned },
+            item("pati", `${about(pati)} records`, {
+              sublabel: `${about(aligned)} territory assignments`,
+              properties: {
+                "ProviderAcctTerritoryInfo records": pati === "some" ? "Some (not counted)" : pati,
+                "Territory assignments": aligned === "some" ? "Some (not counted)" : aligned,
+              },
             }),
           ],
           findings,

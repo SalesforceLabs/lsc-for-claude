@@ -9,10 +9,10 @@ import {
   substituteIdTag,
   type OrgQuerier,
 } from "../../../perf/sync-volume.js";
-import { apiRequest, dataPath, runSoqlQuery, runToolingQuery } from "../../../salesforce/cli.js";
+import { runSoqlQuery, runToolingQuery } from "../../../salesforce/cli.js";
 import { dbSchemaLabel, fetchCache, findDuplicates, isLiveCache, noAppSettings, noNavTabs, SETTINGS_CATEGORIES } from "../../collectors/mobile-sync.js";
 import { byCategory, fetchCategories, isNavTab, profilesOf } from "../../collectors/shared.js";
-import { count, inList, plural, query } from "../../helpers.js";
+import { count, inList, plural, query, recordCounts } from "../../helpers.js";
 import type { StudioFix } from "../../types.js";
 import { runCheck, type ReadinessModule } from "../index.js";
 import { cacheFreshResult, lscProfiles, profilesWithApps } from "./_mobile-sync-shared.js";
@@ -35,23 +35,6 @@ function probeSoql(sobject: string, where: string): string {
     w = substituteIdTag(w, tag, ["000000000000000"]);
   }
   return `SELECT Id FROM ${sobject} WHERE ${w} LIMIT 1`;
-}
-
-/**
- * Row counts from the org's storage statistics (`/limits/recordCount`), which Salesforce keeps
- * without scanning the table — close enough to tell a big table from a small one. Objects it
- * doesn't report are absent; the caller counts those itself.
- */
-async function recordCounts(objects: string[], org: string): Promise<Map<string, number>> {
-  const out = new Map<string, number>();
-  const res = await apiRequest<{ sObjects?: Array<{ name: string; count: number }> }>(
-    await dataPath(org, `/limits/recordCount?sObjects=${encodeURIComponent([...new Set(objects)].join(","))}`),
-    "GET",
-    undefined,
-    org
-  );
-  for (const o of (res.success && res.data?.sObjects) || []) out.set(o.name.toLowerCase(), o.count);
-  return out;
 }
 
 const readiness: ReadinessModule = {

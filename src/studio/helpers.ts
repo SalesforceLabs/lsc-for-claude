@@ -3,7 +3,7 @@
  * surface constructors, and Admin Console record mapping.
  */
 
-import { QueryTruncatedError, runSoqlQuery, runToolingQuery, type SoqlQueryResult } from "../salesforce/cli.js";
+import { apiRequest, dataPath, QueryTruncatedError, runSoqlQuery, runToolingQuery, type SoqlQueryResult } from "../salesforce/cli.js";
 import type { ConfigRecord } from "../config/types.js";
 import { chunkIds } from "../tools/helpers.js";
 import { currentMapTracker } from "./map-progress.js";
@@ -92,6 +92,38 @@ export async function queryByIds(fields: string, object: string, key: string, id
     chunkIds(ids).map((chunk) => query(`SELECT ${fields} FROM ${object} WHERE ${key} IN (${inList(chunk)})${where ? ` AND ${where}` : ""}`, org))
   );
   return chunks.flat();
+}
+
+/**
+ * Row counts from the org's storage statistics (`/limits/recordCount`), which Salesforce keeps
+ * without scanning the table — approximate, but enough to tell a big table from a small one.
+ * Objects it doesn't report (often empty ones) are absent, and so is everything when the call fails.
+ */
+export async function recordCounts(objects: string[], org: string): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  try {
+    const res = await apiRequest<{ sObjects?: Array<{ name: string; count: number }> }>(
+      await dataPath(org, `/limits/recordCount?sObjects=${encodeURIComponent([...new Set(objects)].join(","))}`),
+      "GET",
+      undefined,
+      org
+    );
+    for (const o of (res.success && res.data?.sObjects) || []) out.set(o.name.toLowerCase(), o.count);
+  } catch {
+    // No statistics; callers fall back to their own check.
+  }
+  return out;
+}
+
+/**
+ * About how many rows `object` has, from the org's storage statistics, without counting the table.
+ * The statistics lag behind new data, so a missing or zero figure is checked by reading one row:
+ * 0 when there is none, "some" when there is.
+ */
+export async function approxCount(object: string, org: string): Promise<number | "some"> {
+  const n = (await recordCounts([object], org)).get(object.toLowerCase());
+  if (n) return n;
+  return (await query(`SELECT Id FROM ${object} LIMIT 1`, org)).length ? "some" : 0;
 }
 
 /** An info finding saying a list was cut short — never leave a cap unannounced. */

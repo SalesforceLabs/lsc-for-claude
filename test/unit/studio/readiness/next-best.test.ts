@@ -145,7 +145,8 @@ describe("next-best readiness", () => {
   it("fails when some field users can't read Territory Account Score, counted by profile", async () => {
     org.TerritoryAccountScore = [{ latest: ago(1), cnt: 1 }];
     org.Profile = [{ Name: "Rep" }];
-    org.ObjectPermissions = [{ ParentId: "0PS1" }];
+    org.PermissionSetAssignment = [{ PermissionSetId: "0PS1" }];
+    org.ObjectPermissions = (q) => (q.includes("ParentId IN ('0PS1')") ? [{ ParentId: "0PS1" }] : []);
     let anti = "";
     org.User = (q) => {
       if (!q.includes("NOT IN")) return [{ pn: "Rep", cnt: 5 }];
@@ -162,7 +163,8 @@ describe("next-best readiness", () => {
   it("passes next-best.access.score-read only when every field user can read it", async () => {
     org.TerritoryAccountScore = [{ latest: ago(1), cnt: 1 }];
     org.Profile = [{ Name: "Rep" }];
-    org.ObjectPermissions = [{ ParentId: "0PS1" }];
+    org.PermissionSetAssignment = [{ PermissionSetId: "0PS1" }];
+    org.ObjectPermissions = (q) => (q.includes("ParentId IN ('0PS1')") ? [{ ParentId: "0PS1" }] : []);
     org.User = (q) => (q.includes("NOT IN") ? [] : [{ pn: "Rep", cnt: 5 }]);
     expect((await run())["next-best.access.score-read"].status).toBe("pass");
   });

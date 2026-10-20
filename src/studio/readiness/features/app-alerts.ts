@@ -117,12 +117,15 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          // SOQL can't compare two fields, so read the dated alerts back.
-          const rows = await query(`SELECT Id, Subject, EffectiveDate, ValidUntilDate FROM AppAlert WHERE ValidUntilDate != null LIMIT 2000`, org);
+          // SOQL can't compare two fields, so read the dated alerts back. Only those that haven't ended:
+          // an alert already past its end date is gone either way, and the rest stay few as alerts pile up.
+          const rows = await query(`SELECT Id, Subject, EffectiveDate, ValidUntilDate FROM AppAlert WHERE ValidUntilDate >= TODAY LIMIT ${SAMPLE_ROWS}`, org);
+          if (!rows.length) return { pass: true, skip: true, detail: "No alert has an end date still to come." };
           const bad = rows.filter((r) => String(r.ValidUntilDate) < String(r.EffectiveDate));
+          const note = checkedNote(rows, "alert with an end date to come", "alerts with an end date to come");
           return bad.length
-            ? { pass: false, detail: `${plural(bad.length, "alert")} end before they start.`, examples: nameList(bad.slice(0, 20), "Subject") }
-            : { pass: true, detail: "All date ranges are valid." };
+            ? { pass: false, detail: `${plural(bad.length, "alert")} end before they start. ${note}`, examples: nameList(bad.slice(0, 20), "Subject") }
+            : { pass: true, detail: `All date ranges are valid. ${note}` };
         }
       ),
 
