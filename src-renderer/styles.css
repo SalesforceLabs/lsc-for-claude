@@ -1081,11 +1081,35 @@ body {
   text-overflow: ellipsis;
 }
 
-.sidebar-sessions-empty {
-  padding: 24px 10px;
-  font-size: var(--font-sm);
+.ui-state.inline.sidebar-sessions-empty {
+  min-height: 0;
+  padding: var(--space-6) var(--space-3);
+}
+
+.sidebar-sessions-empty-orgs {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  width: 100%;
+  max-width: 220px;
+}
+
+.sidebar-sessions-empty-orgs .studio-btn {
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.sidebar-sessions-empty-org {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-sessions-empty-orgs .count {
   color: var(--text-muted);
-  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .history-item {

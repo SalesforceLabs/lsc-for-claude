@@ -5,6 +5,7 @@ import {
   Ellipsis,
   LayoutGrid,
   Library,
+  MessagesSquare,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
@@ -25,7 +26,7 @@ import Spinner from "./ui/Spinner";
 import StateView from "./ui/StateView";
 import { useOrgs } from "../hooks/useOrgs";
 import { SIDEBAR_WIDTH } from "../hooks/useSidebarLayout";
-import { orgLabel, sameUsername } from "../orgs";
+import { orgLabel, sameUsername, sessionsElsewhere, type OrgSessions } from "../orgs";
 import type { Conversation, OrgScope } from "../types";
 
 /** Remembers whether "Not linked to an org" is expanded; it starts collapsed. */
@@ -139,7 +140,7 @@ export default function Sidebar({
   const [renameValue, setRenameValue] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
-  const { orgs } = useOrgs();
+  const { orgs, select: selectOrg } = useOrgs();
   const [unlinkedOpen, setUnlinkedOpen] = useState(() => localStorage.getItem(UNLINKED_OPEN_KEY) === "1");
 
   // Search finds a session in this org or any other; opening one from another org switches to it.
@@ -152,10 +153,16 @@ export default function Sidebar({
   const searching = query.trim().length > 0;
 
   // The selected org's sessions, plus those from before sessions were tied to an org.
+  // When the org has none of its own, every org's, so the empty state can say where they are.
+  const [loaded, setLoaded] = useState(false);
+  const [allSessions, setAllSessions] = useState<Conversation[]>([]);
   const refreshHistory = useCallback(async () => {
     if (!window.lscApi || orgId === undefined) return;
     const list = await window.lscApi.listConversations("org");
+    const own = list.some((c) => c.org);
+    setAllSessions(own ? [] : await window.lscApi.listConversations("all"));
     setConversations(list);
+    setLoaded(true);
   }, [orgId]);
 
   useEffect(() => {
@@ -550,10 +557,13 @@ export default function Sidebar({
                 {recent.map(renderItem)}
               </>
             )}
-            {recent.length === 0 && pinned.length === 0 && (
-              <div className="sidebar-sessions-empty">
-                {orgName ? `Sessions in ${orgName} will appear here.` : "Your sessions will appear here."}
-              </div>
+            {loaded && recent.length === 0 && pinned.length === 0 && (
+              <SessionsEmpty
+                hasOrg={!!orgName}
+                elsewhere={sessionsElsewhere(allSessions, orgId, orgs)}
+                unlinked={unlinked.length}
+                onSwitch={(key) => selectOrg(key)}
+              />
             )}
             {unlinked.length > 0 && (
               <>
@@ -634,5 +644,53 @@ export default function Sidebar({
       )}
       {showCommands && renderCommands()}
     </div>
+  );
+}
+
+/** The org has no sessions of its own: say where the user's sessions are, and offer to go there. */
+function SessionsEmpty({
+  hasOrg,
+  elsewhere,
+  unlinked,
+  onSwitch,
+}: {
+  hasOrg: boolean;
+  elsewhere: { total: number; orgs: OrgSessions[] };
+  unlinked: number;
+  onSwitch: (key: string) => void;
+}) {
+  const shown = elsewhere.orgs.slice(0, 3);
+  const parts: string[] = [];
+  if (elsewhere.total > 0) {
+    parts.push(elsewhere.total === 1 ? "You have 1 session in another org." : `You have ${elsewhere.total} in other orgs.`);
+  }
+  if (unlinked > 0) parts.push(unlinked === 1 ? "An older one, not linked to an org, is below." : "Older ones not linked to an org are below.");
+  if (!parts.length) parts.push(hasOrg ? "Ask Roz something about this org to start one." : "Ask Roz something to start one.");
+  return (
+    <StateView
+      kind="empty"
+      layout="inline"
+      className="sidebar-sessions-empty"
+      icon={MessagesSquare}
+      title={hasOrg ? "No sessions in this org yet" : "No sessions yet"}
+      detail={parts.join(" ")}
+      actions={
+        shown.length > 0 ? (
+          <div className="sidebar-sessions-empty-orgs">
+            {shown.map((o) => (
+              <button
+                key={o.key}
+                className="studio-btn sm"
+                onClick={() => onSwitch(o.key)}
+                title={`Switch to ${o.key} (${o.count === 1 ? "1 session" : `${o.count} sessions`})`}
+              >
+                <span className="sidebar-sessions-empty-org">Go to {o.key}</span>
+                <span className="count">{o.count}</span>
+              </button>
+            ))}
+          </div>
+        ) : undefined
+      }
+    />
   );
 }

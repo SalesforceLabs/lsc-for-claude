@@ -96,3 +96,36 @@ export function sessionOrgView(ref: OrgRef, orgs: SfOrg[], loading: boolean): Se
   const alias = ref.label && !sameUsername(ref.label, ref.username) ? ref.label : undefined;
   return { ref, label: ref.label, state: loading ? "ok" : "missing", loginAlias: alias };
 }
+
+/** Another org's sessions, for the sidebar's empty state: where to switch to find them. */
+export interface OrgSessions {
+  /** What `select` takes: the connection's alias, else its username. */
+  key: string;
+  count: number;
+}
+
+/**
+ * Sessions tied to orgs other than `current`, grouped by org, most sessions first (then most recent).
+ * `total` counts them all; `orgs` lists only connections still in `sf org list`, so each can be switched to.
+ */
+export function sessionsElsewhere(
+  sessions: Array<{ org: OrgRef | null; updatedAt: string }>,
+  current: string | undefined,
+  orgs: SfOrg[]
+): { total: number; orgs: OrgSessions[] } {
+  let total = 0;
+  const byOrg = new Map<string, { key: string; count: number; latest: string }>();
+  for (const s of sessions) {
+    if (!s.org || sameUsername(s.org.username, current)) continue;
+    total++;
+    const live = orgs.find((o) => sameUsername(o.username, s.org!.username));
+    if (!live) continue;
+    const id = live.username.toLowerCase();
+    const entry = byOrg.get(id) ?? { key: orgKey(live), count: 0, latest: "" };
+    entry.count++;
+    if (s.updatedAt > entry.latest) entry.latest = s.updatedAt;
+    byOrg.set(id, entry);
+  }
+  const ranked = [...byOrg.values()].sort((a, b) => b.count - a.count || b.latest.localeCompare(a.latest));
+  return { total, orgs: ranked.map(({ key, count }) => ({ key, count })) };
+}

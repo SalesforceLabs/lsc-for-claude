@@ -5,7 +5,7 @@ import { orgKind, parseOrgList, pickOrg, type SfOrg } from "../../src-electron/o
 import { orgPromptSection, orgSwitchRefusal, ORG_SWITCH_TOOLS } from "../../src-electron/engine/session-org.js";
 import { McpPool } from "../../src-electron/mcp/pool.js";
 import type { McpClient } from "../../src-electron/mcp/client.js";
-import { KIND_LABEL, orgLabel, orgMonogram, sessionOrgView } from "../../src-renderer/orgs.js";
+import { KIND_LABEL, orgLabel, orgMonogram, sessionOrgView, sessionsElsewhere } from "../../src-renderer/orgs.js";
 
 const org = (o: Partial<SfOrg> & { username: string }): SfOrg => ({
   orgId: "00D",
@@ -171,5 +171,39 @@ describe("renderer org helpers", () => {
     expect(sessionOrgView({ username: "gone@acme.com", label: "gone@acme.com" }, orgs, false).loginAlias).toBeUndefined();
     // Not "missing" while the list is still loading.
     expect(sessionOrgView({ username: "gone@acme.com", label: "gone" }, [], true).state).toBe("ok");
+  });
+});
+
+describe("sessionsElsewhere", () => {
+  const live = (username: string, alias?: string) =>
+    ({ username, alias, orgId: "", instanceUrl: "", kind: "sandbox", connected: true }) as const;
+  const at = (username: string | null, updatedAt: string) => ({
+    org: username ? { username, label: username } : null,
+    updatedAt,
+  });
+
+  it("groups other orgs' sessions, most first, leaving out this org, unlinked ones and gone connections", () => {
+    const sessions = [
+      at("me@x.com", "2026-10-01"),
+      at("a@x.com", "2026-09-01"),
+      at("B@x.com", "2026-10-02"),
+      at("b@x.com", "2026-08-01"),
+      at("gone@x.com", "2026-10-03"),
+      at(null, "2026-10-04"),
+    ];
+    const result = sessionsElsewhere(sessions, "ME@x.com", [live("me@x.com"), live("a@x.com"), live("b@x.com", "beta")]);
+    expect(result.total).toBe(4);
+    expect(result.orgs).toEqual([
+      { key: "beta", count: 2 },
+      { key: "a@x.com", count: 1 },
+    ]);
+  });
+
+  it("breaks a tie by the most recent session", () => {
+    const sessions = [at("a@x.com", "2026-09-01"), at("b@x.com", "2026-10-01")];
+    expect(sessionsElsewhere(sessions, undefined, [live("a@x.com"), live("b@x.com")]).orgs.map((o) => o.key)).toEqual([
+      "b@x.com",
+      "a@x.com",
+    ]);
   });
 });
