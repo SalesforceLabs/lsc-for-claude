@@ -31,6 +31,8 @@ export class ConversationEngine {
   private messages: Message[] = [];
   private systemPrompt: string = "";
   private currentAbort: AbortToken | null = null;
+  /** Runs started and not yet finished (an aborted one stays until it unwinds). */
+  private activeRuns = 0;
   private model?: string;
 
   constructor(llm: LLMProvider, mcp: ToolHost, promptBuilder: PromptBuilder, org: SessionOrg | null = null) {
@@ -47,6 +49,10 @@ export class ConversationEngine {
 
   getMessages(): Message[] {
     return [...this.messages];
+  }
+
+  isRunning(): boolean {
+    return this.activeRuns > 0;
   }
 
   /** Abort the current run. Fire-and-forget — the run will stop at the next checkpoint. */
@@ -156,7 +162,11 @@ export class ConversationEngine {
 
     const tools = this.mcp.getTools();
 
+    this.activeRuns++;
     return this.runToolLoop(tools, callbacks, this.messages, abort)
+      .finally(() => {
+        this.activeRuns--;
+      })
       .catch((error) => {
         const msg = error instanceof Error ? error.message : String(error);
         if (msg !== "aborted") {

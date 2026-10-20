@@ -1,4 +1,4 @@
-import { BrowserWindow, WebContentsView, type WebContents } from "electron";
+import { BrowserWindow, WebContentsView, session, type WebContents } from "electron";
 
 /**
  * A window for signing in to Salesforce: a thin toolbar (Back, Forward, Reload, the page's host, Cancel)
@@ -130,6 +130,12 @@ export function openLoginWindow({ parent, title, partition }: { parent?: Browser
 
   win.on("closed", () => {
     if (!page.isDestroyed()) page.close();
+    // The partition is in-memory but stays registered for the app's life; empty it so each login leaves nothing behind.
+    for (const name of [partition, `${partition}-toolbar`]) {
+      const s = session.fromPartition(name);
+      s.clearStorageData().catch(() => {});
+      s.clearCache().catch(() => {});
+    }
   });
   return { win, page };
 }

@@ -11,6 +11,7 @@ const STUDIO_REFRESHABLE = new Set(["studio_feature_map", "studio_readiness", "s
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { ConversationEngine } from "../engine/conversation.js";
+import { EngineCache } from "../engine/engine-cache.js";
 import { McpClient, STUDIO_TOOL_PREFIX } from "../mcp/client.js";
 import { McpPool, type PoolOrg } from "../mcp/pool.js";
 import { cacheArgsWithRepLogins, repLoginsFor, type RepLoginRef } from "../engine/rep-logins.js";
@@ -190,8 +191,10 @@ async function readyMcpClient(timeoutMs = 60_000): Promise<McpClient | null> {
 /** How long a server for an org nobody's looking at stays up after its last call. */
 const POOL_IDLE_MS = 10 * 60_000;
 
-// Per-session engines
-const engines = new Map<string, ConversationEngine>();
+// Per-session engines. Each holds its whole history, tool results included, so idle ones past
+// the limit are dropped and rebuilt from saved messages when the session is next used.
+const MAX_IDLE_ENGINES = 8;
+const engines = new EngineCache<ConversationEngine>(MAX_IDLE_ENGINES);
 
 // Sessions with a run in flight, and the connection each runs as — their servers stay up.
 const runningConvs = new Map<string, string>();
@@ -529,6 +532,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     // Persist when the run finishes — whether it completed, errored, or was aborted.
     runPromise.finally(() => {
       runningConvs.delete(convId);
+      engines.trim();
       if (convId && (accumulatedText || accumulatedTools.length > 0)) {
         addMessage(
           convId,
