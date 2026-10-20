@@ -75,6 +75,12 @@ describe("auth.ts", () => {
       expect(listOrgs).toHaveBeenCalledTimes(1);
     });
 
+    it("lists orgs without checking each one's connection", async () => {
+      mockCli(MOCK_ORG_LIST_RESULT);
+      await checkSetupStatus({ fresh: true });
+      expect(listOrgs).toHaveBeenCalledWith({ connectionStatus: false });
+    });
+
     it("shares one sf org list between concurrent checks", async () => {
       mockCli(MOCK_ORG_LIST_RESULT);
       await Promise.all([checkSetupStatus(), checkSetupStatus(), validateOrgConnection()]);

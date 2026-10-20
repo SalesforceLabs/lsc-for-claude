@@ -339,6 +339,8 @@ interface LscApi {
     error?: string;
   }>;
   stopEngine(): Promise<{ ok: boolean }>;
+  /** The tool count once the org's MCP server has started (it starts after the engine, in the background). */
+  onEngineTools(callback: (toolCount: number) => void): () => void;
 
   // Chat
   sendMessage(message: string | unknown[], nonce: number, convId: string, model?: string): Promise<{ ok: boolean; error?: string }>;

@@ -48,7 +48,12 @@ export function register(server: McpServer) {
       // Org Status
       message += `## Authenticated Orgs\n`;
       if (status.hasAuthenticatedOrgs) {
-        message += formatOrgList(status.orgs);
+        // The setup probe skips connection status; show it here, where an expired login matters.
+        const listed = await listOrgs();
+        const orgs = listed.success && listed.data
+          ? [...(listed.data.nonScratchOrgs || []), ...(listed.data.scratchOrgs || [])]
+          : status.orgs;
+        message += formatOrgList(orgs);
         message += "\n\n";
         if (getTargetOrg()) {
           message += `**Current Target Org:** ${getTargetOrg()}\n`;

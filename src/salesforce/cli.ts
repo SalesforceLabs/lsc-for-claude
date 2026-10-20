@@ -341,10 +341,11 @@ function spawnSfJson<T>(
 }
 
 /**
- * List all authenticated orgs
+ * List all authenticated orgs. Checking each org's connection status takes about half a
+ * second per org; `connectionStatus: false` skips it when only which orgs exist matters.
  */
-export async function listOrgs(): Promise<CliResult<SfOrgListResult>> {
-  return execSfCommand<SfOrgListResult>("org", ["list"]);
+export async function listOrgs(options: { connectionStatus?: boolean } = {}): Promise<CliResult<SfOrgListResult>> {
+  return execSfCommand<SfOrgListResult>("org", options.connectionStatus === false ? ["list", "--skip-connection-status"] : ["list"]);
 }
 
 /**

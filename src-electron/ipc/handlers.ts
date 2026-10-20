@@ -125,7 +125,6 @@ let llmModels: string[] | null = null;
 let mcpPool: McpPool | null = null;
 let poolSweep: NodeJS.Timeout | null = null;
 let promptBuilder: PromptBuilder | null = null;
-let engineStarting: Promise<unknown> | null = null;
 
 // Studio opens before the engine starts and asks for data right away; it waits on this.
 let mcpStarted = false;
@@ -239,6 +238,8 @@ async function getOrCreateEngine(convId: string, ref: OrgRef | null): Promise<Co
   }
 
   const { org, pool } = await sessionOrg(ref);
+  // Until a server has started there are no tools to offer the model; this throws if it can't start.
+  if (mcpPool.getTools().length === 0) await mcpPool.get(pool);
   const engine = new ConversationEngine(llm, mcpPool.host(pool), promptBuilder, org);
   engine.initialize();
 
@@ -380,31 +381,33 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
    */
   ipcMain.handle("engine:start", async (_event, connection: Connection, secret?: string) => {
     try {
-      if (engineStarting) await engineStarting.catch(() => {});
       const clean = cleanConnection(connection);
       const provider = providerFor(clean, secret);
       const models = chatModels(apiStyle(clean.kind), (await provider.listModels?.()) ?? null);
 
       if (!mcpPool || !promptBuilder) {
-        const doStart = async () => {
-          const pool = new McpPool(createOrgClient);
-          await pool.get((await selectedOrg()).pool);
-          mcpPool = pool;
-          promptBuilder = new PromptBuilder();
+        const pool = new McpPool(createOrgClient);
+        mcpPool = pool;
+        promptBuilder = new PromptBuilder();
+        // The selected org's server starts in the background (it waits on `sf org list` for several
+        // seconds), so the app opens once the model answers. Studio waits on `mcpReady`; a chat's first
+        // message waits on its own server in getOrCreateEngine. A failed start is retried on the next call.
+        void (async () => {
+          try {
+            await pool.get((await selectedOrg()).pool);
+          } catch {
+            // Reported by the next call that needs the server.
+          }
+          if (mcpPool !== pool) return; // Stopped meanwhile.
           mcpStarted = true;
           resolveMcpReady();
-          // Servers for orgs nobody is looking at are stopped once idle; a Studio job or a run keeps one up.
-          poolSweep = setInterval(async () => {
-            const keep = [(await selectedOrg()).pool.username, ...runningConvs.values()];
-            await pool.sweep(keep, POOL_IDLE_MS, longJobRunning).catch(() => {});
-          }, 60_000);
-        };
-        engineStarting = doStart();
-        try {
-          await engineStarting;
-        } finally {
-          engineStarting = null;
-        }
+          if (!mainWindow.isDestroyed()) mainWindow.webContents.send("engine:tools", { toolCount: pool.getTools().length });
+        })();
+        // Servers for orgs nobody is looking at are stopped once idle; a Studio job or a run keeps one up.
+        poolSweep = setInterval(async () => {
+          const keep = [(await selectedOrg()).pool.username, ...runningConvs.values()];
+          await pool.sweep(keep, POOL_IDLE_MS, longJobRunning).catch(() => {});
+        }, 60_000);
       }
 
       // Sessions hold the provider they were made with; they're rebuilt from history on next use.

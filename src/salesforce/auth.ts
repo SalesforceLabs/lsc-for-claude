@@ -73,8 +73,13 @@ const PROBE_TTL_MS = 5 * 60 * 1000;
 let cachedProbe: { at: number; promise: Promise<CliProbe> } | undefined;
 
 async function probeCli(): Promise<CliProbe> {
-  // Three CLI spawns of a few seconds each: run them together rather than one after another.
-  const [installed, versionResult, orgsResult] = await Promise.all([isSfCliInstalled(), getSfCliVersion(), listOrgs()]);
+  // Three CLI spawns: run them together rather than one after another. Validating a target only needs
+  // which orgs exist, so the list skips the per-org connection check (~9 s with a dozen orgs, under 1 s without).
+  const [installed, versionResult, orgsResult] = await Promise.all([
+    isSfCliInstalled(),
+    getSfCliVersion(),
+    listOrgs({ connectionStatus: false }),
+  ]);
   if (!installed) return { cliInstalled: false };
   return {
     cliInstalled: true,

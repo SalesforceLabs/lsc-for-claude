@@ -185,6 +185,18 @@ describe("cli.ts", () => {
       );
       expect(result.success).toBe(true);
     });
+
+    it("skips the per-org connection check when asked", async () => {
+      const promise = listOrgs({ connectionStatus: false });
+      simulateSfSuccess(mockProc, { nonScratchOrgs: [], scratchOrgs: [] });
+      await promise;
+
+      expect(mockSpawn).toHaveBeenCalledWith(
+        "sf",
+        expect.arrayContaining(["org", "list", "--skip-connection-status"]),
+        expect.any(Object)
+      );
+    });
   });
 
   // ==========================================================================

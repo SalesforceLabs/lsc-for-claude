@@ -17,7 +17,7 @@ export default function StatusBar({ toolCount, onSettingsClick }: StatusBarProps
       <button className="status-bar-settings" onClick={onSettingsClick} title="Settings">
         <Settings size={13} strokeWidth={1.9} aria-hidden="true" />
         <span>Settings</span>
-        <span className="status-bar-meta">{toolCount} tools</span>
+        {toolCount > 0 && <span className="status-bar-meta">{toolCount} tools</span>}
       </button>
       <ApiVersionMenu />
     </div>

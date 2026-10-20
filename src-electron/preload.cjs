@@ -13,6 +13,11 @@ contextBridge.exposeInMainWorld("lscApi", {
   // Engine
   startEngine: (connection, secret) => ipcRenderer.invoke("engine:start", connection, secret),
   stopEngine: () => ipcRenderer.invoke("engine:stop"),
+  onEngineTools: (callback) => {
+    const handler = (_event, data) => callback(data.toolCount);
+    ipcRenderer.on("engine:tools", handler);
+    return () => ipcRenderer.removeListener("engine:tools", handler);
+  },
 
   // Chat — nonce is passed to tag stream events, convId for server-side persistence
   sendMessage: (message, nonce, convId, model) => ipcRenderer.invoke("chat:send", message, nonce, convId, model),

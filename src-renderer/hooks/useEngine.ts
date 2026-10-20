@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { LlmApiStyle, LlmConnection, LlmConnectionKind } from "../connection";
 
 interface EngineState {
@@ -25,6 +25,12 @@ const DISCONNECTED: EngineState = {
 
 export function useEngine() {
   const [state, setState] = useState<EngineState>(DISCONNECTED);
+
+  // The org's MCP server starts after the engine connects, so the tool count arrives later.
+  useEffect(
+    () => window.lscApi?.onEngineTools((toolCount) => setState((prev) => (prev.connected ? { ...prev, toolCount } : prev))),
+    []
+  );
 
   /** Connect; a `secret` entered on the setup screen is saved to the keychain by the main process. */
   const start = useCallback(async (connection: LlmConnection, secret?: string) => {
