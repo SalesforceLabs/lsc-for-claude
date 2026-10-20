@@ -1,4 +1,6 @@
 import { usePersistedFlag } from "../../hooks/usePersistedState";
+import { useSelectedOrgId } from "../../hooks/useOrgs";
+import { recallPreview, rememberPreview } from "./preview-memory";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FeatureMap, FeatureReadiness, FeatureSummary, ProfileOption, StudioFix, SurfaceId } from "./types";
 import { countBySeverity, mapFindings } from "./findings";
@@ -153,6 +155,11 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   // "View as" — kept across features so switching features keeps the same point of view.
   const [lens, setLens] = useState<Lens>(null);
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
+  // Which org `profiles` was read from, so a remembered preview is only matched against that org's list.
+  const [profilesOrg, setProfilesOrg] = useState<string | undefined>(undefined);
+  const orgId = useSelectedOrgId();
+  const orgRef = useRef(orgId);
+  orgRef.current = orgId;
   // iPad preview — stays mounted once opened so its screen survives switching sections.
   const [previewOpened, setPreviewOpened] = useState(false);
   // "On iPads now" ("published") reads the profile's last metadata cache; "Next publish" ("draft") draws the org
@@ -171,8 +178,13 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   };
 
   const loadProfiles = useCallback(() => {
+    const org = orgRef.current;
     window.lscApi.studioListProfiles().then((res) => {
-      if (res.data && Array.isArray(res.data)) setProfiles(res.data as ProfileOption[]);
+      if (org !== orgRef.current) return;
+      if (res.data && Array.isArray(res.data)) {
+        setProfiles(res.data as ProfileOption[]);
+        setProfilesOrg(org);
+      }
     });
   }, []);
 
@@ -181,8 +193,19 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
       if (res.data && Array.isArray(res.data))
         setFeatures([...(res.data as FeatureSummary[])].sort((a, b) => a.title.localeCompare(b.title)));
     });
+  }, []);
+  // Each org has its own profiles; the old org's (and the profile being viewed) mean nothing in another.
+  const profilesFor = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (orgId === undefined) return;
+    if (profilesFor.current !== undefined && profilesFor.current.toLowerCase() !== orgId.toLowerCase()) {
+      setLens(null);
+      setProfiles([]);
+      setProfilesOrg(undefined);
+    }
+    profilesFor.current = orgId;
     loadProfiles();
-  }, [loadProfiles]);
+  }, [orgId, loadProfiles]);
 
   // Maps are persisted per org by the main process; `refresh` re-queries the org. A map already on screen stays
   // there, marked refreshing, while the new one loads; a request older than the latest is ignored.
@@ -268,6 +291,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     const ticket = (publishedRequests.current[profile] ?? 0) + 1;
     publishedRequests.current[profile] = ticket;
     publishedUsers.current[profile] = userId;
+    if (orgRef.current) rememberPreview(orgRef.current, { profile, userId });
     // After a write the old preview stays up (marked refreshing); a refresh or another rep shows the loading screen.
     setPublished((p) => {
       const prev = p[profile];
@@ -351,6 +375,17 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
     selectSurface(null);
   };
 
+  // Opening the preview with no profile chosen brings back the one last previewed in this org, with the same rep.
+  const restoredFor = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!previewOpened || !orgId || profilesOrg !== orgId || restoredFor.current === orgId) return;
+    restoredFor.current = orgId;
+    const saved = recallPreview(orgId);
+    if (lens || !saved || !profiles.some((p) => p.name === saved.profile)) return;
+    publishedUsers.current[saved.profile] = saved.userId;
+    setLens({ profile: saved.profile });
+  }, [previewOpened, orgId, profilesOrg, profiles, lens]);
+
   const publishedProfile = previewOpened ? (lens?.profile ?? null) : null;
   const nextChanges = useMemo(
     () => (publishedProfile ? pendingForProfile(viewFor(pending, publishedProfile), publishedProfile).length : 0),
@@ -381,7 +416,7 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
   useEffect(() => {
     if (!publishedProfile) return;
     const state = published[publishedProfile];
-    if (!state) loadPublished(publishedProfile);
+    if (!state) loadPublished(publishedProfile, false, publishedUsers.current[publishedProfile]);
     else if (needsLoad(state)) loadPublished(publishedProfile, false, publishedUsers.current[publishedProfile], true);
   }, [publishedProfile, published, loadPublished]);
 
