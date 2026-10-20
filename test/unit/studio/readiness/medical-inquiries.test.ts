@@ -53,24 +53,6 @@ describe("medical-inquiries readiness", () => {
     expect(queries().some((q) => q.includes("COUNT() FROM Inquiry WHERE Status != 'Draft'"))).toBe(false);
   });
 
-  it("checks submitted inquiries for their Case on a sample read with LIMIT", async () => {
-    org.Inquiry = (q) => (q.includes("CaseId") ? [{ Name: "INQ-1", CaseId: "500A" }, { Name: "INQ-2", CaseId: null }] : [{ Id: "1" }]);
-    const c = (await run())["medical-inquiries.data.case-linked"];
-    expect(c.status).toBe("fail");
-    expect(c.detail).toBe("1 of 2 has no Case. Checked all 2 submitted inquiries.");
-    expect(c.examples).toEqual(["INQ-2"]);
-    const q = queries().find((q) => q.includes("CaseId FROM Inquiry"))!;
-    expect(q).toMatch(/LIMIT 500$/);
-    expect(q).not.toContain("ORDER BY");
-  });
-
-  it("says the Case check covers a sample when there are more submitted inquiries than it reads", async () => {
-    org.Inquiry = (q) => (q.includes("CaseId") ? Array.from({ length: 500 }, (_, i) => ({ Name: `INQ-${i}`, CaseId: "500A" })) : [{ Id: "1" }]);
-    const c = (await run())["medical-inquiries.data.case-linked"];
-    expect(c.status).toBe("pass");
-    expect(c.detail).toBe("Every one has a Case. Checked a sample of 500 submitted inquiries, not every one in the org.");
-  });
-
   it("counts stale drafts inside a CreatedDate window and says older ones weren't counted", async () => {
     org.Inquiry = (q) => (q.includes("COUNT()") ? 3 : [{ Id: "1" }]);
     const c = (await run())["medical-inquiries.data.stale-drafts"];

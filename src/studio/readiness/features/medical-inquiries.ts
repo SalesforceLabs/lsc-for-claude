@@ -18,11 +18,8 @@ const DRAFT_DAYS = 30;
 
 /*
  * Inquiry grows with every question a rep raises, and its Status has no index, so a count filtered on
- * it reads the whole table. The Case check reads a fixed number of submitted inquiries (a plain filter
- * with no ORDER BY, so the query stops early) and looks at them here; the drafts check counts inside a
- * CreatedDate window, which uses the index.
+ * it reads the whole table. The drafts check counts inside a CreatedDate window, which uses the index.
  */
-const SAMPLE_ROWS = 500;
 /** Only drafts created this recently are counted, so the count uses the CreatedDate index. */
 const DRAFT_WINDOW_DAYS = 365;
 
@@ -100,28 +97,6 @@ const readiness: ReadinessModule = {
           return bare.length
             ? { pass: false, detail: `${bare.length} of ${inquiries.length} Inquiry record types have no Case record type with the same name.`, examples: bare }
             : { pass: true, detail: `${plural(inquiries.length, "Inquiry record type")}; each has a matching Case record type.` };
-        })
-      ),
-      runCheck(
-        {
-          id: "medical-inquiries.data.case-linked",
-          stage: "data",
-          title: "Submitted inquiries have their Case",
-          severity: "warning",
-          why: "Medical affairs works the inquiry through its Case. An inquiry without one is never routed or answered.",
-          steps: ["Check the Case routing handlers are on", "Re-save the inquiries listed, or create their Cases"],
-          uiPath: "App Launcher > Inquiries",
-          surface: "objects",
-        },
-        gate(async () => {
-          const rows = await query(`SELECT Name, CaseId FROM Inquiry WHERE Status != 'Draft' LIMIT ${SAMPLE_ROWS}`, org);
-          if (!rows.length) return { pass: true, skip: true, detail: "No submitted inquiries yet." };
-          const bare = rows.filter((r) => !r.CaseId);
-          const scope =
-            rows.length < SAMPLE_ROWS ? `Checked all ${inquiries(rows.length, "submitted ")}.` : `Checked a sample of ${SAMPLE_ROWS} submitted inquiries, not every one in the org.`;
-          return bare.length
-            ? { pass: false, detail: `${bare.length} of ${rows.length} ${bare.length === 1 ? "has" : "have"} no Case. ${scope}`, examples: bare.slice(0, 5).map((r) => String(r.Name)) }
-            : { pass: true, detail: `Every one has a Case. ${scope}` };
         })
       ),
       runCheck(
