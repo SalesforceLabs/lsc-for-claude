@@ -3,9 +3,11 @@ import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import {
-  ArrowUp, Bookmark, Building2, BookmarkCheck, Check, ChevronDown, ChevronRight, Circle, CircleAlert, Copy, ExternalLink, FileText,
-  Maximize2, Minimize2, Minus, Paperclip, Plus, RotateCcw, Scan, Square, TriangleAlert, Workflow, Wrench, X,
+  ArrowUp, BookOpen, Bookmark, Building2, BookmarkCheck, Check, ChevronDown, ChevronRight, Circle, CircleAlert, Copy, ExternalLink, FileText,
+  HeartPulse, Maximize2, Minimize2, Minus, Paperclip, Plus, RefreshCw, RotateCcw, Scan, Sparkles, Square, TriangleAlert, UserSearch,
+  Workflow, Wrench, X, type LucideIcon,
 } from "lucide-react";
+import { welcomePrompts, type WelcomeIcon, type WelcomePrompt } from "../welcome-prompts";
 import { ChatMessage, ContentBlock, ToolCall, ImageAttachment } from "../hooks/useChat";
 import { pickModel, type ModelOption } from "../models";
 import { rozTileSrc, useAppIcon } from "../app-icon";
@@ -749,6 +751,15 @@ interface ChatViewProps {
   onOpenStudio?: (request?: StudioRequest) => void;
 }
 
+const WELCOME_ICONS: Record<WelcomeIcon, LucideIcon> = {
+  health: HeartPulse,
+  rep: UserSearch,
+  sync: RefreshCw,
+  error: CircleAlert,
+  learn: BookOpen,
+  whatsNew: Sparkles,
+};
+
 /** Persistent scroll positions keyed by conversationId. Lives outside the component. */
 const scrollPositions = new Map<string, number>();
 const CHAT_STATE_MAX = 20;
@@ -1130,6 +1141,24 @@ export default function ChatView({
     }
   }, [input, isStreaming, onSend, model, images]);
 
+  const pickWelcomePrompt = useCallback(
+    (p: WelcomePrompt) => {
+      if (isStreaming) return;
+      if (p.prefill) {
+        setInput(p.text);
+        // After the value lands, so the caret goes to its end.
+        requestAnimationFrame(() => {
+          const el = textareaRef.current;
+          el?.focus();
+          el?.setSelectionRange(p.text.length, p.text.length);
+        });
+        return;
+      }
+      onSend(p.text, model);
+    },
+    [isStreaming, onSend, model]
+  );
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Autocomplete navigation
     if (autocomplete.length > 0) {
@@ -1349,6 +1378,24 @@ export default function ChatView({
             Ask how a feature works, review your org's setup, or get help
             configuring something new. Type <strong>/</strong> for commands.
           </p>
+          <div className="welcome-prompts" role="list" aria-label="Things to ask Roz">
+            {welcomePrompts(!!org).map((p) => {
+              const Icon = WELCOME_ICONS[p.icon];
+              return (
+                <button
+                  key={p.label}
+                  type="button"
+                  role="listitem"
+                  className="welcome-prompt"
+                  onClick={() => pickWelcomePrompt(p)}
+                  title={p.prefill ? `${p.text}…` : p.text}
+                >
+                  <Icon size={16} aria-hidden="true" />
+                  <span>{p.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
         {inputArea}
       </div>
