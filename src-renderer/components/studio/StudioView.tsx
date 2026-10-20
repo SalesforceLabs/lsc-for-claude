@@ -612,7 +612,23 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
             {railFolded ? <PanelLeftOpen size={16} strokeWidth={1.75} aria-hidden="true" /> : <PanelLeftClose size={16} strokeWidth={1.75} aria-hidden="true" />}
           </button>
         </div>
-        <div className="studio-rail-title">iPad</div>
+        <div className="studio-rail-title">Setup</div>
+        {railItem("overview", "Overview", "Readiness for every feature, and org-wide blockers", () => setSection("overview"), LayoutDashboard)}
+        {railItem(
+          "user-check",
+          "Check a user",
+          "Find out why a rep can't do something",
+          () => setSection("user-check"),
+          UserRoundSearch
+        )}
+        {railItem(
+          "drift",
+          "What changed",
+          "What changed in the org's LSC configuration since a saved snapshot",
+          () => setSection("drift"),
+          History
+        )}
+        <div className="studio-rail-title studio-rail-section">iPad</div>
         {railItem(
           "preview",
           "Preview",
@@ -633,22 +649,6 @@ export default function StudioView({ onAskClaude }: StudioViewProps) {
           "DB Schema records: what syncs to iPads, and for whom",
           () => setSection("object-sync"),
           Database
-        )}
-        <div className="studio-rail-title studio-rail-section">Setup</div>
-        {railItem("overview", "Overview", "Readiness for every feature, and org-wide blockers", () => setSection("overview"), LayoutDashboard)}
-        {railItem(
-          "user-check",
-          "Check a user",
-          "Find out why a rep can't do something",
-          () => setSection("user-check"),
-          UserRoundSearch
-        )}
-        {railItem(
-          "drift",
-          "What changed",
-          "What changed in the org's LSC configuration since a saved snapshot",
-          () => setSection("drift"),
-          History
         )}
         <div className="studio-rail-title studio-rail-section">Build</div>
         {railItem(
