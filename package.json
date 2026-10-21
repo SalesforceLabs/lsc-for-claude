@@ -6,7 +6,7 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "build": "tsc",
-    "bundle": "esbuild src/index.ts --bundle --platform=node --target=node18 --format=esm --outfile=mcp-server/index.mjs --external:better-sqlite3 --external:rollup --external:@lwc/* --external:lightning-base-components --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\"",
+    "bundle": "esbuild src/index.ts --bundle --platform=node --target=node18 --format=esm --outfile=mcp-server/index.mjs --external:better-sqlite3 --external:rollup --external:@lwc/* --external:lightning-base-components --banner:js=\"import{createRequire as __bundleRequire}from'module';const require=__bundleRequire(import.meta.url);\"",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "lint": "eslint src/",
