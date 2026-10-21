@@ -282,9 +282,21 @@ async function rasterizePdf(
   outputPath: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await run("gs", ["-dNOPAUSE", "-dBATCH", "-dQUIET", "-sDEVICE=pdfimage24", "-r300", `-sOutputFile=${outputPath}`, inputPath], {
-      timeout: 120000,
-    });
+    await run(
+      "gs",
+      [
+        "-dNOPAUSE",
+        "-dBATCH",
+        "-dQUIET",
+        "-sDEVICE=pdfimage24",
+        "-r300",
+        `-sOutputFile=${outputPath}`,
+        inputPath,
+      ],
+      {
+        timeout: 120000,
+      }
+    );
 
     if (!fs.existsSync(outputPath)) {
       return { success: false, error: "Ghostscript produced no output" };
@@ -556,7 +568,11 @@ async function convertPptxViaLibreOfficeHtml(
     let svgContent: string | null = null;
     const expectedSvgPath = path.join(svgDir, `slide_${slideNum}.svg`);
     try {
-      await run(soffice, ["--headless", "--convert-to", "svg", "--outdir", svgDir, pagePdfPaths[i]], { timeout: 60000 });
+      await run(
+        soffice,
+        ["--headless", "--convert-to", "svg", "--outdir", svgDir, pagePdfPaths[i]],
+        { timeout: 60000 }
+      );
       // LibreOffice names the output after the input file
       const actualSvgPath = path.join(svgDir, `slide_${slideNum}.svg`);
       if (fs.existsSync(actualSvgPath)) {
@@ -710,9 +726,25 @@ async function convertPptxViaPandocHtml5(
   // Step 1: Convert PPTX → HTML5 via Pandoc
   const pandocHtmlPath = path.join(outputDir, "pandoc_output.html");
   try {
-    await run("pandoc", ["-f", "pptx", "-t", "html5", "--embed-resources", "--standalone", "--slide-level=1", "-s", pptxPath, "-o", pandocHtmlPath], {
-      timeout: 120000,
-    });
+    await run(
+      "pandoc",
+      [
+        "-f",
+        "pptx",
+        "-t",
+        "html5",
+        "--embed-resources",
+        "--standalone",
+        "--slide-level=1",
+        "-s",
+        pptxPath,
+        "-o",
+        pandocHtmlPath,
+      ],
+      {
+        timeout: 120000,
+      }
+    );
   } catch (error) {
     return {
       success: false,
