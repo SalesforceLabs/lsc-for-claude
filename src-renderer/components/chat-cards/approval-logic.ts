@@ -73,3 +73,30 @@ export function approvalFor(state: ApprovalView[], convId: string | null, toolId
 export function waitingCount(state: ApprovalView[], convId: string | null): number {
   return state.filter((v) => v.request.convId === convId && (v.state === "waiting" || v.state === "answering")).length;
 }
+
+/** Tools whose input is the change itself (code, record values): their details start open. */
+const OPEN_DETAILS = new Set(["run_apex", "create_record", "update_record", "delete_record", "bulk_create_records", "bulk_update_records", "deploy_metadata"]);
+
+export const detailsOpen = (name: string) => OPEN_DETAILS.has(name);
+
+/** Characters shown before the card says how much more there is; nothing is cut without saying so. */
+export const INPUT_SHOWN = 200_000;
+
+export interface InputEntry {
+  key: string;
+  /** Strings as they are (Apex reads as code, not an escaped JSON string); anything else as JSON. */
+  text: string;
+  /** Characters not shown. */
+  hidden: number;
+}
+
+/** A tool call's input, one entry per field, for the approval card. */
+export function inputEntries(input: Record<string, unknown>): InputEntry[] {
+  let budget = INPUT_SHOWN;
+  return Object.entries(input ?? {}).map(([key, value]) => {
+    const full = typeof value === "string" ? value : JSON.stringify(value, null, 2) ?? String(value);
+    const shown = full.slice(0, Math.max(0, budget));
+    budget -= shown.length;
+    return { key, text: shown, hidden: full.length - shown.length };
+  });
+}

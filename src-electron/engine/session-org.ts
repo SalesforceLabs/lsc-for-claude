@@ -37,6 +37,7 @@ export function orgPromptSection(org: SessionOrg | null): string {
     "# Salesforce org for this session",
     "",
     `This session works in the org "${ref.label}" (${where})${kind ? `, ${KIND_LABEL[kind]}` : ""}. Every Salesforce tool already runs against it.`,
+    "A tool call that reads another org (targetOrg, sourceOrg or countAsOrg naming it) or saves a file waits for the user to Allow it, like a write.",
     "Never call set_target_org, never ask which org to use, and don't list orgs to choose one. If the user wants to work in another org, tell them to switch orgs from the org menu at the top of the sidebar — that opens that org's sessions — and ask there.",
   ];
   lines.push(WRITE_REVIEW_PROMPT);

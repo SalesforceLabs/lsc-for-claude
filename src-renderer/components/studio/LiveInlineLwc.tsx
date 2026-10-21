@@ -3,6 +3,7 @@ import type { InlineLwcCheck } from "./published-types";
 import { inlineLwcFrame, type FrameMessage, type InlineLwcContext, type ZoomMessage } from "./inline-lwc-frame";
 import { IpadScaleContext } from "./IpadScreen";
 import { RepLoginContext } from "../../hooks/useMobileLogins";
+import { useFrameUrl } from "../../hooks/useFrameUrl";
 
 /**
  * An org inline LWC (lscMobileInline_*) running live in the iPad preview: the
@@ -134,6 +135,8 @@ export function LiveInlineLwc({
     return () => window.removeEventListener("message", onMessage);
   }, [state.kind]);
 
+  const frameUrl = useFrameUrl(state.kind === "ready" ? state.html : null);
+
   useEffect(() => {
     frame.current?.contentWindow?.postMessage({ __studio: "zoom", zoom: scale } satisfies ZoomMessage, "*");
   }, [scale]);
@@ -142,7 +145,7 @@ export function LiveInlineLwc({
   // whole pixels, again whenever scrolling or resizing moves it.
   useLayoutEffect(() => {
     const el = frame.current;
-    if (state.kind !== "ready" || !el) return;
+    if (!frameUrl || !el) return;
     let shift = { x: 0, y: 0 };
     let queued = 0;
     const snap = () => {
@@ -166,7 +169,7 @@ export function LiveInlineLwc({
       document.removeEventListener("scroll", queue, true);
       window.removeEventListener("resize", queue);
     };
-  }, [state.kind, scale]);
+  }, [frameUrl, scale]);
 
   const caption = useMemo(
     () => (state.kind === "ready" && state.placeholders.length ? ` ${state.placeholders.map((p) => `<lightning-${p.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase())}>`).join(", ")} drawn as a placeholder.` : ""),
@@ -176,7 +179,7 @@ export function LiveInlineLwc({
   if (state.kind === "failed") return <>{fallback(state.message)}</>;
   return (
     <div className="studio-ipad-rec-card live">
-      {state.kind === "loading" ? (
+      {!frameUrl ? (
         <div className="studio-ipad-rec-live-loading" style={{ height }}>
           Loading {name.replace(/^lscMobileInline_/, "")}…
         </div>
@@ -186,7 +189,7 @@ export function LiveInlineLwc({
             ref={frame}
             title={name}
             sandbox="allow-scripts"
-            srcDoc={state.html}
+            src={frameUrl}
             onLoad={() => frame.current?.contentWindow?.postMessage({ __studio: "zoom", zoom: scaleRef.current } satisfies ZoomMessage, "*")}
             style={{ width: `${100 * scale}%`, height: height * scale }}
             className="studio-ipad-rec-live-frame"

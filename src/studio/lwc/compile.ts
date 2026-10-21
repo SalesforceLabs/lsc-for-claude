@@ -9,11 +9,11 @@
 import { createHash } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
-import { tmpdir } from "node:os";
 import path from "node:path";
 import { inList, query, type Row } from "../helpers.js";
 import { checkInlineLwc, type InlineLwcCheck, type LwcFile } from "../screens/inline-lwc.js";
 import { placeholderComponent, salesforceFallback, salesforceModule, SHIM_FILES, SHIMMED_LIGHTNING } from "./shims.js";
+import { privateTmp } from "../../private-tmp.js";
 
 export interface CompiledInlineLwc {
   name: string;
@@ -26,7 +26,6 @@ export interface CompiledInlineLwc {
   check: InlineLwcCheck;
 }
 
-const ROOT = path.join(tmpdir(), "lsc-studio-lwc");
 /** Bump when the shims or the build change, so cached scripts are rebuilt. */
 const BUILD_VERSION = 5;
 const MAX_CACHED = 30;
@@ -106,7 +105,8 @@ export async function buildInlineLwc(name: string, files: LwcFile[], labels: Rec
     .update(JSON.stringify([BUILD_VERSION, name, files, labels]))
     .digest("hex")
     .slice(0, 16);
-  const dir = path.join(ROOT, key);
+  // apps/check.ts finds "lsc-studio-lwc" in compiler messages to hide the build folder.
+  const dir = path.join(privateTmp("lsc-studio-lwc"), key);
   const base = await baseComponents();
   const { modules, tags } = lightningNames(files.map((f) => f.source));
   const missing = [...new Set([...modules, ...tags])].filter((n) => !base.has(n) && !SHIMMED_LIGHTNING.has(n)).sort();

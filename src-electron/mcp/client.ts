@@ -1,7 +1,7 @@
 import path from "path";
 import { fileURLToPath } from "url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { UtilityProcessTransport, type ForkServer } from "./utility-transport.js";
 import { ToolDefinition } from "../llm/provider.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -16,12 +16,12 @@ interface McpToolResult {
 }
 
 /**
- * MCP Client that spawns the existing LSC MCP server as a child process
- * using the official MCP SDK client and stdio transport.
+ * MCP Client that runs the existing LSC MCP server as an Electron utility process
+ * (`utility-transport.ts`) using the official MCP SDK client.
  */
 export class McpClient {
   private client: Client | null = null;
-  private transport: StdioClientTransport | null = null;
+  private transport: UtilityProcessTransport | null = null;
   private tools: ToolDefinition[] = [];
   private serverDir: string;
   /** The (re)connect in flight, so concurrent calls share one respawn. */
@@ -48,12 +48,11 @@ export class McpClient {
   private async connect(): Promise<void> {
     const serverScript = path.join(this.serverDir, "dist", "index.js");
 
-    const transport = new StdioClientTransport({
-      command: "node",
-      args: [serverScript],
-      cwd: this.serverDir,
+    const transport = new UtilityProcessTransport(forkWithElectron, serverScript, {
+      // Inside a packaged app the server folder is app.asar, which can't be a working directory.
+      cwd: isInsideAsar(this.serverDir) ? await userDataDir() : this.serverDir,
       // LSC_STUDIO_FIXES registers the Studio fix tools — applied only from the Studio UI.
-      env: { ...process.env, LSC_STUDIO_FIXES: "1" } as Record<string, string>,
+      env: { ...serverEnv(process.env), LSC_STUDIO_FIXES: "1" },
     });
 
     const client = new Client(
@@ -151,3 +150,30 @@ export class McpClient {
     }));
   }
 }
+
+/** Model credentials (the app's own connection, or one set in the shell) that the org server never needs. */
+const MODEL_SECRET = /^(ANTHROPIC|OPENAI|AZURE_OPENAI|CLAUDE_CODE|LITELLM)_|_API_KEY$|^AWS_(SECRET_ACCESS_KEY|SESSION_TOKEN)$/;
+
+/**
+ * The environment the MCP server starts with: the app's, without model credentials or Electron's own
+ * switches. The sf CLI it runs still gets PATH, HOME, proxies, CA certificates and SF_* settings.
+ */
+export function serverEnv(env: NodeJS.ProcessEnv): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (value === undefined || MODEL_SECRET.test(key) || key.startsWith("ELECTRON_")) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+/** Whether `dir` is in an asar archive, which Electron reads like a folder but nothing can run in. */
+export function isInsideAsar(dir: string): boolean {
+  return path.resolve(dir).split(path.sep).some((part) => part.endsWith(".asar"));
+}
+
+// Electron is imported when a server starts, so tests can load this file without it.
+const userDataDir = async () => (await import("electron")).app.getPath("userData");
+
+const forkWithElectron: ForkServer = async (script, options) =>
+  (await import("electron")).utilityProcess.fork(script, [], { ...options, stdio: "inherit" });

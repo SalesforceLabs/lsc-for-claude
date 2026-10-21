@@ -21,10 +21,20 @@ export interface LwcRequest {
 /** An answer shaped like the platform's fetch errors (status, body.message), or the data. */
 export type LwcResponse = { ok: true; data: unknown } | { ok: false; status: number; statusText: string; body: { message: string; errorCode?: string } };
 
+/**
+ * Whether a path stays under /ui-api once the URL parser has read it. Parsers treat `%2e` as a dot in
+ * `.` and `..` segments, so encoded dots, slashes and backslashes are refused along with plain ones.
+ */
+function staysInUiApi(path: string): boolean {
+  const route = path.split("?")[0];
+  if (/%(2e|2f|5c)/i.test(route) || route.includes("//")) return false;
+  return !route.split("/").some((seg) => seg === "." || seg === "..");
+}
+
 /** Why a request isn't allowed, or null when it is. */
 export function refuseLwcRequest(req: LwcRequest): string | null {
   if (req.method === "GET") {
-    if (!/^\/ui-api\/[\w\-./,%=&?:]+$/.test(req.path) || req.path.includes("..") || req.path.includes("//")) return `Studio's preview doesn't answer ${req.path}.`;
+    if (!/^\/ui-api\/[\w\-./,%=&?:]+$/.test(req.path) || !staysInUiApi(req.path)) return `Studio's preview doesn't answer ${req.path}.`;
     return null;
   }
   if (req.method === "POST" && req.path === "/graphql") {

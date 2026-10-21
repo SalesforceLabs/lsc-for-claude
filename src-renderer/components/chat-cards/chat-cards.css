@@ -161,8 +161,15 @@
   cursor: pointer;
 }
 
+.chat-approval-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
 .chat-approval-input pre {
-  margin: var(--space-2) 0 0;
+  margin: 0;
   padding: var(--space-2) var(--space-3);
   max-height: 240px;
   overflow: auto;

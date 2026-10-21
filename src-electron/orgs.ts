@@ -190,3 +190,22 @@ export function pickOrg(orgs: SfOrg[], key?: string): SfOrg | undefined {
 export async function resolveOrg(key?: string): Promise<SfOrg | undefined> {
   return pickOrg((await listSfOrgs()).orgs, key);
 }
+
+/**
+ * Why `sf org login web` shouldn't start with these, or null. The login page is the user's to choose
+ * (My Domain and custom login hosts included) but must be https, and an alias can't be read as a flag.
+ */
+export function loginArgsProblem(alias: unknown, instanceUrl: unknown): string | null {
+  if (alias !== undefined && alias !== "" && (typeof alias !== "string" || !/^[^\s\p{Cc}-][^\s\p{Cc}]{0,254}$/u.test(alias))) {
+    return "An alias can't contain spaces or start with a dash.";
+  }
+  if (instanceUrl === undefined || instanceUrl === "") return null;
+  if (typeof instanceUrl !== "string") return "The login URL isn't a URL.";
+  try {
+    const u = new URL(instanceUrl);
+    if (u.protocol !== "https:" || u.username || u.password) return "Use an https:// login URL.";
+  } catch {
+    return "The login URL isn't a URL.";
+  }
+  return null;
+}

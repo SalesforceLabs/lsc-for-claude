@@ -19,6 +19,7 @@ import { createHash } from "crypto";
 import type { DbSchemaEntry, ApplicableTable, OrgQuerier, UserContext } from "./sync-volume.js";
 import { downloadArchive, readMetadataFiles, type MetadataDownloadInfo, type MetadataFiles } from "./device/metadata.js";
 import type { DeviceSession } from "./device/session.js";
+import { privateTmp } from "../private-tmp.js";
 
 /** "user-download": the user's own metadata download through a mobile login (exact, including field-level filtering). */
 export type SchemaSource = "compiled" | "db-schema" | "user-download";
@@ -207,7 +208,7 @@ const MAX_CACHED_ARCHIVES = 2;
 const memoryCache = new Map<string, MetadataFiles>();
 
 function diskCacheDir(): string {
-  return path.join(os.tmpdir(), "lsc-perf-md-cache");
+  return privateTmp("lsc-perf-md-cache");
 }
 
 function md5OfFile(file: string): string {

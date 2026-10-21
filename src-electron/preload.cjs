@@ -298,6 +298,10 @@ contextBridge.exposeInMainWorld("lscApi", {
   readFile: (filePath) => ipcRenderer.invoke("file:read", filePath),
   openExternal: (url) => ipcRenderer.invoke("file:open-external", url),
 
+  // Live LWC preview documents, served as lsc-frame:// with their own CSP
+  registerFrame: (html) => ipcRenderer.invoke("frame:register", html),
+  releaseFrame: (url) => ipcRenderer.invoke("frame:release", url),
+
   // Guide section reading
   readGuideSection: (guideSlug, sectionSlug) =>
     ipcRenderer.invoke("file:read-guide-section", guideSlug, sectionSlug),

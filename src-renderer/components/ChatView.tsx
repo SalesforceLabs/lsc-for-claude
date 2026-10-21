@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from "react";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import rehypeRaw from "rehype-raw";
+import { isExternalUrl, isInlineImage, markdownUrl } from "../safe-url";
 import {
   ArrowUp, BookOpen, Bookmark, Building2, BookmarkCheck, Check, ChevronDown, ChevronRight, Circle, CircleAlert, Copy, ExternalLink, FileText,
   HeartPulse, Maximize2, Minimize2, Minus, Paperclip, Plus, RefreshCw, RotateCcw, Scan, Sparkles, Square, TriangleAlert, UserSearch,
@@ -337,10 +337,11 @@ const ReplyMarkdown = React.memo(function ReplyMarkdown({
           </a>
         );
       }
-      if (href?.startsWith("http://") || href?.startsWith("https://")) {
+      if (isExternalUrl(href)) {
         return (
           <a
             {...props}
+            href={href}
             className="doc-link"
             onClick={(e) => { e.preventDefault(); window.lscApi.openExternal(href); }}
           >
@@ -348,13 +349,21 @@ const ReplyMarkdown = React.memo(function ReplyMarkdown({
           </a>
         );
       }
-      return <a href={href} {...props}>{children}</a>;
+      // In-page anchors stay links; anything markdownUrl dropped shows as its text.
+      return href ? <a href={href} {...props}>{children}</a> : <span>{children}</span>;
     },
+    // Remote images would be fetched as soon as the reply renders, so they show as a link instead.
+    img: ({ src, alt, node: _node, ...props }) =>
+      isInlineImage(src) ? <img src={src} alt={alt} {...props} /> : isExternalUrl(src) ? (
+        <a className="doc-link" href={src} onClick={(e) => { e.preventDefault(); window.lscApi.openExternal(src); }}>
+          {alt || "Image"}
+        </a>
+      ) : <span>{alt}</span>,
   }), [env]);
 
   return (
     <div className="message-content">
-      <Markdown remarkPlugins={[remarkGfm]} urlTransform={(url) => url} components={components}>
+      <Markdown remarkPlugins={[remarkGfm]} urlTransform={markdownUrl} components={components}>
         {source}
       </Markdown>
     </div>
@@ -661,7 +670,8 @@ function DocViewerPanel({
         <div className="doc-panel-body" ref={bodyRef}>
           {isMarkdown ? (
             <div className="message-content">
-              <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} urlTransform={(url: string) => url}>
+              {/* No raw HTML: the guides' HTML is examples (email templates, <style> blocks) and shows as text. */}
+              <Markdown remarkPlugins={[remarkGfm]} urlTransform={markdownUrl}>
                 {content}
               </Markdown>
             </div>

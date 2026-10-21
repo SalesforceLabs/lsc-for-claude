@@ -45,9 +45,9 @@ export const WRITE_TOOLS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Tools that only read the org. A few write to this machine, not the org, without review:
- * retrieve_metadata (a local folder), export_config and run_perf_assessment (an output file),
- * open_org (the browser).
+ * Tools that only read the org. retrieve_metadata writes to a temporary project and open_org opens
+ * the browser without review; run_perf_assessment and simulate_initial_sync with an `outputPath`,
+ * and any read naming another org, are asked about (`readApprovalSummary`).
  */
 export const READ_TOOLS: ReadonlySet<string> = new Set([
   "analyze_sync_telemetry",
@@ -264,6 +264,47 @@ export function namesOtherOrg(org: SessionOrg, target: unknown): boolean {
   return t !== org.ref.username.toLowerCase() && t !== (org.ref.label ?? "").toLowerCase();
 }
 
+/** Inputs naming an sf CLI connection a call runs as, besides the session's own. */
+const ORG_INPUTS = ["targetOrg", "sourceOrg", "countAsOrg"];
+
+function orgInputs(name: string, input: Record<string, unknown>): string[] {
+  const keys = name === "simulate_initial_sync" ? [...ORG_INPUTS, "username"] : ORG_INPUTS;
+  return keys.map((k) => input[k]).filter((v): v is string => typeof v === "string" && !!v.trim()).map((v) => v.trim());
+}
+
+/**
+ * The connections a call names that are on another org than the session's. A login on the session's
+ * own org (a rep's, for counting or a first sync) isn't another org; one sf CLI doesn't know is.
+ */
+export async function otherOrgsNamed(
+  org: SessionOrg,
+  name: string,
+  input: Record<string, unknown>,
+  resolveOrgId: (key: string) => Promise<string | undefined>
+): Promise<string[]> {
+  const others: string[] = [];
+  for (const key of orgInputs(name, input)) {
+    if (!namesOtherOrg(org, key) || others.includes(key)) continue;
+    const id = await resolveOrgId(key).catch(() => undefined);
+    const own = org.ref.orgId;
+    if (id && own && id.slice(0, 15) === own.slice(0, 15)) continue;
+    others.push(key);
+  }
+  return others;
+}
+
+/** Read tools that save a file wherever `outputPath` says. */
+const FILE_OUTPUT_TOOLS = new Set(["run_perf_assessment", "simulate_initial_sync"]);
+
+/** Why a read-only call still needs the user's yes, in a sentence, or null. */
+export function readApprovalSummary(name: string, input: Record<string, unknown>, otherOrgs: string[]): string | null {
+  const parts: string[] = [];
+  if (otherOrgs.length) parts.push(`read from ${otherOrgs.length === 1 ? "another org" : "other orgs"}, ${otherOrgs.join(" and ")}`);
+  const out = typeof input.outputPath === "string" ? input.outputPath.trim() : "";
+  if (FILE_OUTPUT_TOOLS.has(name) && out) parts.push(`save its result to ${out} on this computer`);
+  return parts.length ? `Run ${name} and ${parts.join(", and ")}` : null;
+}
+
 interface ToolChangeLike {
   fix: { label?: string };
 }
@@ -281,6 +322,8 @@ export interface WriteGateOptions {
   host: Pick<ToolHost, "callTool">;
   broker: ApprovalBroker;
   send: Send;
+  /** The org Id of an sf CLI alias or username, to tell another login on the session's org from another org. */
+  resolveOrgId?: (key: string) => Promise<string | undefined>;
 }
 
 async function fixesFor(host: WriteGateOptions["host"], name: string, input: Record<string, unknown>): Promise<FixesAnswer | null> {
@@ -296,15 +339,25 @@ async function fixesFor(host: WriteGateOptions["host"], name: string, input: Rec
 /** The `gateTool` hook for one session. */
 export function createWriteGate(opts: WriteGateOptions) {
   const { convId, org, host, broker, send } = opts;
+  const resolveOrgId = opts.resolveOrgId ?? (async () => undefined);
   const orgName = (org?.ref.username ?? "").toLowerCase();
 
   return async (call: { id: string; name: string; input: Record<string, unknown>; signal: AbortSignal }): Promise<GateResult | null> => {
     const { id, name, input, signal } = call;
-    if (!isWrite(name, input)) return null;
+    const production = org?.kind === "production";
+    const otherOrgs = org ? await otherOrgsNamed(org, name, input, resolveOrgId) : [];
+    if (!isWrite(name, input)) {
+      // Reads stay in the session's org too; reaching another org, or saving a file, is the user's call.
+      const summary = readApprovalSummary(name, input, otherOrgs);
+      if (!summary) return null;
+      const allowed = await broker.request({ convId, toolId: id, name, input, summary, production: false }, signal);
+      return allowed ? null : { text: DECLINED_TEXT, isError: true };
+    }
     // A write runs in the session's org only: a per-call targetOrg would reach past it unreviewed.
     if (org && namesOtherOrg(org, input.targetOrg)) return { text: otherOrgRefusal(org), isError: true };
 
-    const answer = await fixesFor(host, name, input);
+    // A write that also reads another org (import_config's sourceOrg) is asked about as a whole.
+    const answer = otherOrgs.length ? null : await fixesFor(host, name, input);
     if (signal.aborted) return { text: DECLINED_TEXT, isError: true };
 
     if (answer && !answer.unsupported && Array.isArray(answer.changes)) {
@@ -331,10 +384,8 @@ export function createWriteGate(opts: WriteGateOptions) {
       return { text: DECLINED_TEXT, isError: true };
     }
 
-    const allowed = await broker.request(
-      { convId, toolId: id, name, input, summary: describeWrite(name, input), production: org?.kind === "production" },
-      signal
-    );
+    const summary = describeWrite(name, input) + (otherOrgs.length ? `, reading ${otherOrgs.join(" and ")}` : "");
+    const allowed = await broker.request({ convId, toolId: id, name, input, summary, production }, signal);
     return allowed ? null : { text: DECLINED_TEXT, isError: true };
   };
 }

@@ -413,6 +413,9 @@ interface LscApi {
   // File reading
   readFile(filePath: string): Promise<{ ok: boolean; content?: string; path?: string; error?: string }>;
   openExternal(url: string): Promise<{ ok: boolean }>;
+  /** Serves a live preview frame's HTML as an lsc-frame:// URL with the frame CSP. */
+  registerFrame(html: string): Promise<string | null>;
+  releaseFrame(url: string): Promise<void>;
 
   // Guide section reading
   readGuideSection(guideSlug: string, sectionSlug: string): Promise<{

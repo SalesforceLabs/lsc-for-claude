@@ -10,6 +10,7 @@
  */
 
 import vm from "node:vm";
+import { types } from "node:util";
 import { PRELUDE_SOURCE } from "./prelude.js";
 import { stripAsync } from "./strip-async.js";
 import { pickFields, plainRow } from "./fields.js";
@@ -88,6 +89,29 @@ async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
     ]);
   } finally {
     if (timer) clearTimeout(timer);
+  }
+}
+
+/**
+ * A string property the value holds itself, read without running script code: what reaches the host
+ * from the sandbox may be a Proxy or carry getters, which would run here with no CPU limit. V8's
+ * `stack` is a data property on errors created by the engine.
+ */
+function ownString(value: unknown, key: string): string | undefined {
+  if (value === null || (typeof value !== "object" && typeof value !== "function") || types.isProxy(value)) return undefined;
+  try {
+    const d = Object.getOwnPropertyDescriptor(value, key);
+    return d && "value" in d && typeof d.value === "string" ? d.value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function parseJson(json: unknown): unknown {
+  try {
+    return typeof json === "string" ? JSON.parse(json) : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -271,7 +295,7 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
         outstanding++;
         let work = inflight.get(key);
         if (!work && !cache.has(key)) {
-          work = fetchMiss(key, { kind: kind as Miss["kind"], args: JSON.parse(argsJson) });
+          work = fetchMiss(key, { kind: kind as Miss["kind"], args: (parseJson(argsJson) ?? {}) as Miss["args"] });
           inflight.set(key, work);
         }
         void (work ?? Promise.resolve()).then(() => {
@@ -282,7 +306,7 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
             cb(cache.get(key) ?? '{"ok":false,"error":"No result."}');
             drain.runInContext(ctx, { timeout: Math.max(50, RUN_LIMITS.cpuMs - cpuUsed) });
           } catch (e) {
-            if ((e as { code?: string }).code === "ERR_SCRIPT_EXECUTION_TIMEOUT") {
+            if (ownString(e, "code") === "ERR_SCRIPT_EXECUTION_TIMEOUT") {
               timedOut = `The script ran past the ${RUN_LIMITS.cpuMs / 1000} s CPU limit and was stopped.`;
             }
           }
@@ -294,20 +318,22 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
         const key = `${kind}|${argsJson}`;
         const hit = cache.get(key);
         if (hit !== undefined) return hit;
-        misses.set(key, { kind: kind as Miss["kind"], args: JSON.parse(argsJson) });
+        misses.set(key, { kind: kind as Miss["kind"], args: (parseJson(argsJson) ?? {}) as Miss["args"] });
         return kind === "describe" ? '{"ok":true,"fields":null,"miss":true}' : '{"ok":true,"rows":[],"miss":true}';
       },
       log: (level: string, text: string) => {
         logs.push({ level: level === "warn" || level === "error" ? level : "log", text: String(text), at: Date.now() - started });
       },
+      // Host functions never throw into the sandbox (see the prelude's host()): bad input is dropped.
       write: (json: string) => {
-        writes.push(JSON.parse(json) as ScriptRecordedWrite);
+        const w = parseJson(json);
+        if (w) writes.push(w as ScriptRecordedWrite);
       },
       note: (label: string) => {
         if (label === "label") usedLabel = true;
       },
       done: (json: string) => {
-        if (!done) done = JSON.parse(json) as DonePayload;
+        if (!done) done = (parseJson(json) as DonePayload | undefined) ?? { error: { message: "The script's result couldn't be read." } } as DonePayload;
         settle();
       },
     };
@@ -340,11 +366,12 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
         passStart = Date.now();
       }
     } catch (e) {
-      const err = e as Error & { code?: string };
-      if (err.code === "ERR_SCRIPT_EXECUTION_TIMEOUT") {
+      const code = ownString(e, "code");
+      if (code === "ERR_SCRIPT_EXECUTION_TIMEOUT") {
         timedOut = `The script ran past the ${RUN_LIMITS.cpuMs / 1000} s CPU limit and was stopped.`;
       } else if (!done) {
-        scriptError = { message: err.message, ...lineOf(err.stack), stack: err.stack };
+        const stack = ownString(e, "stack");
+        scriptError = { message: ownString(e, "message") ?? "The script threw something that isn't an Error.", ...lineOf(stack), stack };
       }
     }
     cpuUsed += Date.now() - passStart;

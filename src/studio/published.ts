@@ -11,7 +11,6 @@
 import { execFile } from "child_process";
 import { createHash } from "crypto";
 import * as fs from "fs";
-import * as os from "os";
 import * as path from "path";
 import { promisify } from "util";
 import { resolveScalarTags } from "../perf/sync-volume.js";
@@ -25,6 +24,7 @@ import { collectRecords, type PublishedRecords } from "./screens/record.js";
 import { recordFieldSpec, type RecordFieldSpec } from "./screens/record-fields.js";
 import { LoadTracker } from "./published-progress.js";
 import { lintPage, resolveTemplate, type PageProblem } from "./ipad-page-lint.js";
+import { privateTmp } from "../private-tmp.js";
 
 export { withTimeout };
 
@@ -1371,7 +1371,7 @@ export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing |
 // ── Org access ────────────────────────────────────────────────────────────────
 
 const FILES = ["nav", "ui", "permissions", "db", "sobjects", "reporting"] as const;
-const CACHE_ROOT = path.join(os.tmpdir(), "lsc-studio-published");
+const cacheRoot = () => privateTmp("lsc-studio-published");
 /** Bump when the snapshot's shape changes — and bump the app's `CACHE_VERSION` (src-electron/engine/studio-cache.ts) too, or it keeps serving the old shape for a day. */
 const SNAPSHOT_VERSION = 42;
 /** UserService.defaultLanguage — the translation file used when the user's is missing. */
@@ -2336,7 +2336,7 @@ async function loadCore(profile: string, org: string, userId: string | undefined
   const sharing = user && withSharing ? track.run("sharing", () => viewerSharing(user.id, org)) : Promise.resolve(null);
   // Awaited by the caller after the snapshot; a failure before then must not go unhandled.
   sharing.catch(() => undefined);
-  const dir = path.join(CACHE_ROOT, cache.contentVersionId);
+  const dir = path.join(cacheRoot(), cache.contentVersionId);
   const snapshotPath = (sets: string[], lang: string) => path.join(dir, `snapshot-v${SNAPSHOT_VERSION}-${lang}-${comboKey(sets)}.json`);
   const readSaved = (): SnapshotCore | null => {
     const file = snapshotPath(permissionSets, language);
@@ -2387,7 +2387,7 @@ async function buildSnapshots(input: BuildInput): Promise<SnapshotCore> {
   const { profile, org, cache, users, permissionSets, language, dir, snapshotPath, track } = input;
   fs.mkdirSync(dir, { recursive: true });
   try {
-    pruneCache(CACHE_ROOT, { keep: CACHE_KEEP, maxBytes: CACHE_MAX_BYTES, protect: [dir] });
+    pruneCache(cacheRoot(), { keep: CACHE_KEEP, maxBytes: CACHE_MAX_BYTES, protect: [dir] });
   } catch {
     // Pruning is housekeeping; never fail a load for it.
   }

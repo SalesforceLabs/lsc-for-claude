@@ -54,7 +54,9 @@ export function saveSettings(settings: Settings): void {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  fs.writeFileSync(filePath, JSON.stringify(settings, null, 2));
+  // Only this user may read it: it names the gateway, its headers and token command.
+  fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), { mode: 0o600 });
+  fs.chmodSync(filePath, 0o600);
 }
 
 /**

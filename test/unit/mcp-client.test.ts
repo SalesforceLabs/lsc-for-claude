@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const spawned = vi.hoisted(() => ({ connects: 0 }));
 
-vi.mock("@modelcontextprotocol/sdk/client/stdio.js", () => ({ StdioClientTransport: class {} }));
+vi.mock("../../src-electron/mcp/utility-transport.js", () => ({ UtilityProcessTransport: class {} }));
 vi.mock("@modelcontextprotocol/sdk/client/index.js", () => ({
   Client: class {
     onclose?: () => void;

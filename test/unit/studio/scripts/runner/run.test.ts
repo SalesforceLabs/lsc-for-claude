@@ -354,3 +354,41 @@ describe("web runs once with real async", () => {
     expect(r.error?.message).toMatch(/CPU limit/);
   });
 });
+
+describe("sandbox boundary", () => {
+  // A host-realm error in script hands would reach Node through its constructor's Function.
+  const escapes = `
+    function tryEscape(e) {
+      try { const P = e.constructor.constructor("return process")(); if (P && P.pid) return true; } catch (e2) { /* this realm: no eval */ }
+      return false;
+    }`;
+
+  it("never lets a host error reach the script through bad host input", async () => {
+    const r = await runScript(input(`(() => {${escapes}
+      const orig = JSON.stringify;
+      JSON.stringify = () => "{not json";
+      let escaped = false;
+      try { record.setValue("Name", "x"); } catch (e) { escaped = tryEscape(e); }
+      JSON.stringify = orig;
+      return [{ title: escaped ? "escaped" : "contained", status: "success" }];
+    })();`));
+    expect(r.results).toEqual([{ title: "contained", status: "success" }]);
+  });
+
+  it("never lets a host stack overflow reach the script", async () => {
+    const r = await runScript(input(`(() => {${escapes}
+      let escaped = false;
+      function r(n) {
+        try { r(n + 1); } catch (e) {
+          for (const f of [() => console.log("x"), () => record.setValue("Name", "y"), () => env.formatCustomLabel("k", "d", [])]) {
+            try { f(); } catch (e2) { escaped = escaped || tryEscape(e2); }
+          }
+          if (n > 0) throw e;
+        }
+      }
+      try { r(0); } catch (e) { /* unwound */ }
+      return [{ title: escaped ? "escaped" : "contained", status: "success" }];
+    })();`));
+    expect(r.results).toEqual([{ title: "contained", status: "success" }]);
+  });
+});

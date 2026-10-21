@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 import * as fs from "fs";
-import * as os from "os";
 import * as path from "path";
 import { createHash } from "crypto";
 import type { CliResult, SoqlQueryResult } from "../../../src/salesforce/cli.js";
 import type { OrgQuerier } from "../../../src/perf/sync-volume.js";
+import { privateTmp } from "../../../src/private-tmp.js";
 
 const BODY = "not really a zip";
 const CHECKSUM = createHash("md5").update(BODY).digest("hex");
@@ -73,7 +73,7 @@ describe("archive cache", () => {
   it("does not trust a cached zip whose hash differs from the org's checksum", async () => {
     await createCompiledSchemaSource({ org: org(CHECKSUM), getSession: async () => ({}) as never }).tablesFor(user);
     clearArchiveCache();
-    const dir = path.join(os.tmpdir(), "lsc-perf-md-cache");
+    const dir = privateTmp("lsc-perf-md-cache");
     fs.writeFileSync(path.join(dir, `${CHECKSUM}.zip`), "tampered");
     const getSession = vi.fn(async () => ({}) as never);
     await createCompiledSchemaSource({ org: org(CHECKSUM), getSession }).tablesFor(user);

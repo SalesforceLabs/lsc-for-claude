@@ -7,7 +7,6 @@
 
 import { execFile, spawn } from "child_process";
 import * as fs from "fs";
-import * as os from "os";
 import * as path from "path";
 import { promisify } from "util";
 import { chunkIds } from "../tools/helpers.js";
@@ -26,6 +25,7 @@ import {
   type CacheJob,
   type MetadataCacheOverview,
 } from "./metadata-cache-logic.js";
+import { privateTmp } from "../private-tmp.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -155,7 +155,7 @@ export async function cacheLog(
 // ── Contents ────────────────────────────────────────────────────────────────
 
 /** Downloaded caches: they hold the org's full metadata, so only the last few are kept. */
-const ZIP_ROOT = path.join(os.tmpdir(), "lsc-studio-cache-zips");
+const zipRoot = () => privateTmp("lsc-studio-cache-zips");
 const ZIPS_KEPT = 3;
 const ZIP_MAX_BYTES = 2 << 30;
 /** Bigger files come back cut short, as text. */
@@ -193,7 +193,7 @@ async function ensureZip(recordId: string, org: string): Promise<Omit<CacheConte
     );
   const version = doc.LatestPublishedVersionId;
   if (!ID_PATTERN.test(version)) throw new Error(`Invalid file Id: ${version}`);
-  const dir = path.join(ZIP_ROOT, version);
+  const dir = path.join(zipRoot(), version);
   const zipPath = path.join(dir, "cache.zip");
   const sizeBytes = typeof doc.ContentSize === "number" ? doc.ContentSize : null;
   if (!fs.existsSync(zipPath)) {
@@ -202,7 +202,7 @@ async function ensureZip(recordId: string, org: string): Promise<Omit<CacheConte
       pending = (async () => {
         fs.mkdirSync(dir, { recursive: true });
         try {
-          pruneCache(ZIP_ROOT, { keep: ZIPS_KEPT, maxBytes: ZIP_MAX_BYTES, protect: [dir] });
+          pruneCache(zipRoot(), { keep: ZIPS_KEPT, maxBytes: ZIP_MAX_BYTES, protect: [dir] });
         } catch {
           // Housekeeping only.
         }

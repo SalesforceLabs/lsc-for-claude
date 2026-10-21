@@ -3,17 +3,15 @@ import { Check, ShieldQuestionMark, X } from "lucide-react";
 import Spinner from "../ui/Spinner";
 import { KIND_LABEL } from "../../orgs";
 import { useChatCards } from "./ChatCardsContext";
-import type { ApprovalView } from "./approval-logic";
+import { detailsOpen, inputEntries, type ApprovalView } from "./approval-logic";
 import "./chat-cards.css";
-
-const INPUT_LIMIT = 2000;
 
 /** A write the model wants to make: what it will change, and Allow or Deny. Answered, it keeps the verdict. */
 export default function ApprovalCard({ view }: { view: ApprovalView }) {
   const { respond } = useChatCards();
   const { request, state } = view;
   const waiting = state === "waiting" || state === "answering";
-  const input = JSON.stringify(request.input, null, 2);
+  const entries = inputEntries(request.input);
   return (
     <section className={`chat-card chat-approval ${state}`} aria-label={waiting ? "Approval needed" : state === "allowed" ? "Allowed" : "Denied"}>
       <div className="chat-approval-main">
@@ -32,10 +30,18 @@ export default function ApprovalCard({ view }: { view: ApprovalView }) {
         </div>
         {request.production && <span className="ui-pill warning">{KIND_LABEL.production}</span>}
       </div>
-      {input && input !== "{}" && (
-        <details className="chat-approval-input">
+      {entries.length > 0 && (
+        <details className="chat-approval-input" open={detailsOpen(request.name)}>
           <summary>Details</summary>
-          <pre>{input.length > INPUT_LIMIT ? `${input.slice(0, INPUT_LIMIT)}\n…(truncated)` : input}</pre>
+          {entries.map((e) => (
+            <div key={e.key} className="chat-approval-field">
+              <span className="chat-card-meta">{e.key}</span>
+              <pre>{e.text}</pre>
+              {e.hidden > 0 && (
+                <span className="chat-card-meta">{e.hidden.toLocaleString()} more characters aren't shown. Deny if you need to see all of it.</span>
+              )}
+            </div>
+          ))}
         </details>
       )}
       {waiting && (

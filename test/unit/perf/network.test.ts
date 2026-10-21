@@ -186,12 +186,20 @@ describe("node transport", () => {
     expect(seen.authorization).toBeUndefined();
   });
 
-  it("still allows relative paths and Salesforce HTTPS URLs", async () => {
+  it("still allows relative paths and the org's own HTTPS hosts", async () => {
     const fetchImpl = vi.fn(async () => new Response("{}"));
     const send = createHttp("https://x.my.salesforce.com", "t", fetchImpl as unknown as typeof fetch);
     await send({ method: "GET", url: "/services/data/v67.0/x" });
-    await send({ method: "GET", url: "https://y.file.force.com/sfc/z" });
+    await send({ method: "GET", url: "https://x.file.force.com/sfc/z" });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("refuses another org's Salesforce hosts, such as its Sites pages", async () => {
+    const fetchImpl = vi.fn(async () => new Response("{}"));
+    const send = createHttp("https://x.my.salesforce.com", "t", fetchImpl as unknown as typeof fetch);
+    await expect(send({ method: "GET", url: "https://y.file.force.com/sfc/z" })).rejects.toThrow(/this org/);
+    await expect(send({ method: "GET", url: "https://attacker.secure.force.com/apex/grab" })).rejects.toThrow(/this org/);
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it("throttles the download of a shaped request", async () => {

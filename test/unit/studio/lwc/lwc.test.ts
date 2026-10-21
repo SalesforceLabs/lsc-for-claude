@@ -18,6 +18,11 @@ describe("refuseLwcRequest", () => {
     expect(refuseLwcRequest({ method: "GET", path: "/sobjects/Account" })).toMatch(/doesn't answer/);
     expect(refuseLwcRequest({ method: "GET", path: "/ui-api/../tooling/query?q=x" })).toMatch(/doesn't answer/);
     expect(refuseLwcRequest({ method: "GET", path: "/ui-api//x" })).toMatch(/doesn't answer/);
+    expect(refuseLwcRequest({ method: "GET", path: "/ui-api/%2e%2e/query?q=SELECT+Id+FROM+User" })).toMatch(/doesn't answer/);
+    expect(refuseLwcRequest({ method: "GET", path: "/ui-api/.%2E/tooling/query?q=x" })).toMatch(/doesn't answer/);
+    expect(refuseLwcRequest({ method: "GET", path: "/ui-api/records%2F..%2Fx" })).toMatch(/doesn't answer/);
+    expect(refuseLwcRequest({ method: "GET", path: "/ui-api/./records/001" })).toMatch(/doesn't answer/);
+    expect(new URL("https://x.my.salesforce.com/services/data/v66.0/ui-api/%2e%2e/query").pathname).toBe("/services/data/v66.0/query");
     expect(refuseLwcRequest({ method: "GET", path: "/ui-api/records/a b" })).toMatch(/doesn't answer/);
     expect(refuseLwcRequest({ method: "POST", path: "/graphql", body: { query: "mutation { uiapi { AccountCreate(input: {}) { Record { Id } } } }" } })).toMatch(/read-only/);
     expect(refuseLwcRequest({ method: "POST", path: "/graphql", body: {} })).toMatch(/without a query/);

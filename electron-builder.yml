@@ -4,6 +4,7 @@ directories:
   output: release
 files:
   - dist-electron/**/*
+  - src-electron/preload.cjs
   - dist-renderer/**/*
   - dist/**/*
   - knowledge/**/*
@@ -12,6 +13,8 @@ files:
   - agents/**/*
   - CLAUDE.md
   - package.json
+# Flips Electron's fuses (no RunAsNode, NODE_OPTIONS or --inspect; asar only, integrity-checked).
+afterPack: build/after-pack.cjs
 mac:
   category: public.app-category.developer-tools
   icon: build/icon.icns

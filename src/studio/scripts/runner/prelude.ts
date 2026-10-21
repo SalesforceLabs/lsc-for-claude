@@ -13,7 +13,19 @@
  */
 export const PRELUDE_SOURCE = String.raw`(function (H) {
   "use strict";
-  var CFG = JSON.parse(H.cfg());
+  // Every host call goes through host(). An exception a host function throws (bad input, or a stack
+  // overflow forced in its frame) comes from the host realm, and its constructor's Function would
+  // reach Node; it's swapped here for this realm's Error with only the message. JSON and Error are
+  // captured before the script can replace them.
+  var JP = JSON.parse, JS = JSON.stringify, SErr = Error;
+  function host(name, a, b, c) {
+    try { return H[name](a, b, c); } catch (e) {
+      var m = "Studio's runner failed.";
+      try { if (e && typeof e.message === "string") m = e.message; } catch (e2) { m = "Studio's runner failed."; }
+      throw new SErr(m);
+    }
+  }
+  var CFG = JP(host("cfg"));
   var WEB = CFG.platform === "web";
   var NSP = WEB ? "" : (CFG.nsPrefix || "");
   var g = globalThis;
@@ -84,15 +96,15 @@ export const PRELUDE_SOURCE = String.raw`(function (H) {
 
   // iPad: synchronous, answered from the replay cache.
   function hostCall(kind, args) {
-    var r = JSON.parse(H.query(kind, JSON.stringify(args)));
+    var r = JP(host("query", kind, JS(args)));
     if (!r.ok) throw new Error(r.error);
     return r;
   }
   // Web: a real Promise the host settles when the query returns.
   function hostCallAsync(kind, args) {
     return new Promise(function (res, rej) {
-      H.queryAsync(kind, JSON.stringify(args), function (s) {
-        var r = JSON.parse(s);
+      host("queryAsync", kind, JS(args), function (s) {
+        var r = JP(s);
         if (r.ok) res(r); else rej(new Error(r.error));
       });
     });
@@ -224,7 +236,7 @@ export const PRELUDE_SOURCE = String.raw`(function (H) {
   g.enableAccessErrors = function () { state.access = true; };
 
   // ---- rows (the objects db.query returns, and record / user) ----
-  function cs(v) { return v === undefined ? undefined : v === null ? null : (typeof v === "object" ? JSON.stringify(v) : String(v)); }
+  function cs(v) { return v === undefined ? undefined : v === null ? null : (typeof v === "object" ? JS(v) : String(v)); }
   function cn(v) { return v == null ? v : Number(v); }
   function cb(v) { return v == null ? v : (v === true || v === "true"); }
   function cd(v) { return v == null ? v : new Date(v); }
@@ -262,12 +274,12 @@ export const PRELUDE_SOURCE = String.raw`(function (H) {
         var k = lc[String(key).toLowerCase()] || String(key);
         fields[k] = value;
         reindex();
-        H.write(JSON.stringify({ target: target, action: "setValue", field: k, value: value === undefined ? null : value }));
+        host("write", JS({ target: target, action: "setValue", field: k, value: value === undefined ? null : value }));
       },
       recordTypeName: function () { return item.rt || null; },
       getRecordType: function () { return item.rt || null; },
       save: function () {
-        H.write(JSON.stringify({ target: target, action: "save" }));
+        host("write", JS({ target: target, action: "save" }));
         return WEB ? Promise.resolve() : undefined;
       }
     };
@@ -355,8 +367,8 @@ export const PRELUDE_SOURCE = String.raw`(function (H) {
   g.env = {
     getOption: function (n) { return opts[n]; },
     setOption: function (n, v) { opts[n] = v; },
-    log: function (m) { H.log("log", String(m)); },
-    formatCustomLabel: function (key, def, args) { H.note("label"); return fmtLabel(key, def, args); }
+    log: function (m) { host("log", "log", String(m)); },
+    formatCustomLabel: function (key, def, args) { host("note", "label"); return fmtLabel(key, def, args); }
   };
   g.db = db;
   var rec = makeRow(CFG.record, CFG.recordObject);
@@ -369,9 +381,9 @@ export const PRELUDE_SOURCE = String.raw`(function (H) {
 
   function show(a) {
     if (typeof a === "string") return a;
-    try { var j = JSON.stringify(a); return j === undefined ? String(a) : j; } catch (e) { return String(a); }
+    try { var j = JS(a); return j === undefined ? String(a) : j; } catch (e) { return String(a); }
   }
-  function logger(level) { return function () { H.log(level, Array.prototype.slice.call(arguments).map(show).join(" ")); }; }
+  function logger(level) { return function () { host("log", level, Array.prototype.slice.call(arguments).map(show).join(" ")); }; }
   g.console = { log: logger("log"), info: logger("log"), debug: logger("log"), warn: logger("warn"), error: logger("error") };
 
   // ---- entry ----
@@ -379,7 +391,7 @@ export const PRELUDE_SOURCE = String.raw`(function (H) {
     var m = e && e.message !== undefined ? String(e.message) : show(e);
     return { message: m, stack: e && e.stack ? String(e.stack) : "" };
   }
-  function fail(e) { H.done(JSON.stringify({ error: errInfo(e) })); }
+  function fail(e) { host("done", JS({ error: errInfo(e) })); }
   function finish(a, raw) {
     var leak = false;
     var seen = new WeakSet();
@@ -390,9 +402,9 @@ export const PRELUDE_SOURCE = String.raw`(function (H) {
       Object.keys(o).forEach(function (k) { scan(o[k], d + 1); });
     })(a, 0);
     var json;
-    try { json = JSON.stringify(a); } catch (e) { return fail(e); }
+    try { json = JS(a); } catch (e) { return fail(e); }
     var elTypes = Array.isArray(a) ? Array.prototype.map.call(a, function (x) { return x === null ? "null" : typeof x; }) : null;
-    H.done(JSON.stringify({ raw: raw, leak: leak, valueType: typeof a, elTypes: elTypes, valueJson: json === undefined ? null : json }));
+    host("done", JS({ raw: raw, leak: leak, valueType: typeof a, elTypes: elTypes, valueJson: json === undefined ? null : json }));
   }
   Object.defineProperty(g, "__lscRun", {
     enumerable: false,

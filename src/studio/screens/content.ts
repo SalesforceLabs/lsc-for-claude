@@ -2,13 +2,14 @@
 
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { ID_PATTERN, inList, query, type Row } from "../helpers.js";
 import { dataPath, downloadToFile } from "../../salesforce/cli.js";
 import type { ScreenContext } from "./context.js";
+import { privateTmp } from "../../private-tmp.js";
 
 const run = promisify(execFile);
 
@@ -227,8 +228,7 @@ async function addThumbnails(cards: PublishedContentCard[], linked: Map<string, 
     return;
   }
   const versionOf = new Map(versions.filter((v) => Number(v.ContentSize) <= THUMBNAIL_MAX_BYTES).map((v) => [s(v.ContentDocumentId), s(v.Id)]));
-  const cache = join(tmpdir(), "lsc-studio-content-thumbs");
-  mkdirSync(cache, { recursive: true });
+  const cache = privateTmp("lsc-studio-content-thumbs");
   await Promise.all(
     cards.map(async (c) => {
       const f = first.get(c.id);
@@ -272,8 +272,7 @@ async function addPageThumbnails(cards: PublishedContentCard[], linked: Map<stri
     return;
   }
   const versionOf = new Map(versions.filter((v) => Number(v.ContentSize) <= THUMBNAIL_MAX_BYTES).map((v) => [s(v.ContentDocumentId), s(v.Id)]));
-  const cache = join(tmpdir(), "lsc-studio-content-thumbs");
-  mkdirSync(cache, { recursive: true });
+  const cache = privateTmp("lsc-studio-content-thumbs");
   await Promise.all(
     cards.map(async (c) => {
       const pages = want.get(c.id);
@@ -313,8 +312,7 @@ function sourceFile(org: string, version: string, type: string): Promise<string>
   const key = `${org}\u0000${version}\u0000${type}`;
   const held = sources.get(key);
   if (held) return held;
-  const dir = join(tmpdir(), "lsc-studio-content-src");
-  mkdirSync(dir, { recursive: true });
+  const dir = privateTmp("lsc-studio-content-src");
   const file = join(dir, `${createHash("sha1").update(key).digest("hex")}.${type === "PDF" ? "pdf" : "zip"}`);
   const fetched = dataPath(org, `/sobjects/ContentVersion/${version}/VersionData`).then((path) => downloadToFile(path, file, org, 120000)).then((res) => {
     if (!res.success) throw new Error(res.error || "Download failed");

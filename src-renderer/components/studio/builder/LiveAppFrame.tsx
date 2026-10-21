@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { inlineLwcFrame, type FrameMessage, type InlineLwcContext } from "../inline-lwc-frame";
 import { answerFrameRequest, describePage, sldsCss } from "../LiveInlineLwc";
+import { useFrameUrl } from "../../../hooks/useFrameUrl";
 
 /** How long the frame may take to start before the preview says so. */
 const STALL_MS = 10000;
@@ -62,6 +63,7 @@ export default function LiveAppFrame({ script, name, context, height, loginId, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [script, styles, name, ctxKey]
   );
+  const frameUrl = useFrameUrl(html || null);
 
   useEffect(() => {
     if (loaded) return;
@@ -115,7 +117,7 @@ export default function LiveAppFrame({ script, name, context, height, loginId, o
           )}
         </div>
       )}
-      {styles !== null && <iframe ref={frame} title={`${name} running`} sandbox="allow-scripts" srcDoc={html} style={{ height }} className="bld-frame" onLoad={() => setLoaded(true)} />}
+      {frameUrl && <iframe ref={frame} title={`${name} running`} sandbox="allow-scripts" src={frameUrl} style={{ height }} className="bld-frame" onLoad={() => setLoaded(true)} />}
     </div>
   );
 }

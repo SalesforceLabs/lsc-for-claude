@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -8,7 +8,7 @@ import {
 import { useDiagramControls, DiagramZoomToolbar, DiagramViewport } from "./ChatView";
 import StateView from "./ui/StateView";
 import Segmented from "./ui/Segmented";
-import { useMermaidSvg } from "../mermaid";
+import { sanitizeSavedSvg, useMermaidSvg } from "../mermaid";
 import type { LibraryItem, OrgScope } from "../types";
 
 interface LibraryPanelProps {
@@ -65,7 +65,8 @@ function formatDate(dateStr: string) {
 
 /** A saved diagram drawn in the current palette; the SVG saved with it shows until that's ready. */
 function useLibrarySvg(item: LibraryItem): string {
-  return useMermaidSvg(item.content).svg ?? item.svg ?? "";
+  const drawn = useMermaidSvg(item.content).svg;
+  return useMemo(() => drawn ?? (item.svg ? sanitizeSavedSvg(item.svg) : ""), [drawn, item.svg]);
 }
 
 function LibraryCardDiagram({ item }: { item: LibraryItem }) {

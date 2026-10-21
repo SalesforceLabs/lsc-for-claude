@@ -2,6 +2,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { electronParentPort, ParentPortServerTransport } from "./parent-port-transport.js";
 import {
   getModuleList,
   getHelpDocList,
@@ -90,9 +91,9 @@ async function main() {
   console.error(`  - ${exercises.length} exercises`);
   console.error(`  - ${troubleshooting.length} troubleshooting docs`);
 
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("LSC for Claude MCP server running on stdio");
+  const port = electronParentPort();
+  await server.connect(port ? new ParentPortServerTransport(port) : new StdioServerTransport());
+  console.error(`LSC for Claude MCP server running on ${port ? "the app's parent port" : "stdio"}`);
 }
 
 main().catch((error) => {

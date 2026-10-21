@@ -1,4 +1,5 @@
 import mermaid from "mermaid";
+import DOMPurify from "dompurify";
 import { useEffect, useState } from "react";
 import { cssToken, useColorScheme, type ColorScheme } from "./theme";
 
@@ -40,7 +41,22 @@ function configure(scheme: ColorScheme): void {
       tertiaryColor: cssToken("--diagram-tertiary"),
     },
     flowchart: { htmlLabels: true, curve: "basis" },
-    securityLevel: "loose",
+    // Diagrams are model output: "strict" escapes HTML in labels and ignores click/href bindings.
+    securityLevel: "strict",
+  });
+}
+
+/**
+ * An SVG kept from an earlier render (a Library item's saved copy), cleaned before it's put in the
+ * page: copies saved before diagrams were drawn in "strict" mode may carry links or handlers.
+ */
+export function sanitizeSavedSvg(svg: string): string {
+  return DOMPurify.sanitize(svg, {
+    USE_PROFILES: { svg: true, svgFilters: true, html: true },
+    // Mermaid draws HTML labels inside <foreignObject>.
+    ADD_TAGS: ["foreignObject"],
+    HTML_INTEGRATION_POINTS: { foreignobject: true },
+    FORBID_TAGS: ["a"],
   });
 }
 

@@ -17,7 +17,7 @@ import { ApprovalBroker, createWriteGate } from "../engine/write-gate.js";
 import { McpClient, STUDIO_TOOL_PREFIX } from "../mcp/client.js";
 import { McpPool, type PoolOrg } from "../mcp/pool.js";
 import { cacheArgsWithRepLogins, repLoginsFor, type RepLoginRef } from "../engine/rep-logins.js";
-import { listSfOrgs, orgKey, pendingOrgList, pickOrg, resolveOrg, sameOrgId, toOrgRef, type OrgKind, type OrgRef } from "../orgs.js";
+import { listSfOrgs, loginArgsProblem, orgKey, pendingOrgList, pickOrg, resolveOrg, sameOrgId, toOrgRef, type OrgKind, type OrgRef } from "../orgs.js";
 import { OrgRoles } from "../org-roles.js";
 import type { SessionOrg } from "../engine/session-org.js";
 import {
@@ -33,14 +33,19 @@ import { PromptBuilder } from "../engine/prompt-builder.js";
 import { runScriptAssist, type ScriptAssistHost, type ScriptAssistRequest } from "../engine/script-assist.js";
 import { LLMProvider } from "../llm/provider.js";
 import { detectClaudeCodeGateway } from "../llm/claude-code-config.js";
-import { apiStyle, Connection, CONNECTION_KINDS, connectionLabel } from "../llm/connection.js";
+import { apiStyle, Connection, CONNECTION_KINDS, connectionLabel, isGateway } from "../llm/connection.js";
 import { chatModels, cleanConnection, createProvider, testConnection } from "../llm/create.js";
 import { loadSettings, migrateSettings, saveSettings, Settings } from "../settings.js";
 import { applyAppIcon } from "../app-icon.js";
 import { sourceControlFor, withSourceControl } from "../source-control.js";
+import { appDocumentPath, documentationPdfPath, guideDirPath, isEngineZipPath } from "../app-files.js";
+import { openExternalSafely } from "../external-url.js";
+import { PreviewedFixes } from "../engine/previewed-fixes.js";
+import { registerFrameDoc, releaseFrameDoc } from "../frame-docs.js";
 import { apiVersionFor, withApiVersion } from "../api-version.js";
 import { applyTheme } from "../theme.js";
-import { getSecret, hasSecret, setSecret } from "../secrets.js";
+import { deleteSecret, getSecret, hasSecret, setSecret } from "../secrets.js";
+import { originOf, savedSecretAllowed, secretOriginName, tokenCommandTrusted } from "../llm/connection-trust.js";
 import {
   listConversations,
   createConversation,
@@ -206,10 +211,52 @@ const secretName = (connection: Connection) => `llm:${connection.kind}`;
 const isOrgPath = (path: unknown): path is string =>
   typeof path === "string" && path.length <= 512 && /^\/(?!\/)[A-Za-z0-9/_\-.~%?=&]*$/.test(path);
 
-/** A provider for `connection`, using `secret` if one was just entered, else the saved one. */
-function providerFor(connection: Connection, secret?: string): LLMProvider {
+/** Studio changes previewed and not yet applied; each preview allows one apply of that exact change. */
+const previewedFixes = new PreviewedFixes();
+
+/** Token commands the user confirmed in this run of the app (connection-trust.ts). */
+const confirmedTokenCommands = new Set<string>();
+
+/** Asks, in a dialog the renderer can't answer, before running a token command that isn't the saved connection's. */
+async function confirmTokenCommand(connection: Connection): Promise<void> {
+  const saved = loadSettings().connection;
+  if (tokenCommandTrusted(connection, saved, confirmedTokenCommands)) return;
+  const command = connection.tokenCommand!.trim();
+  const owner = chatWindow && !chatWindow.isDestroyed() ? chatWindow : undefined;
+  const options = {
+    type: "warning" as const,
+    message: "Run this command to get the gateway token?",
+    detail: `${command}\n\nIt runs on this Mac as you. Only run a command you or your company gave you.`,
+    buttons: ["Run It", "Cancel"],
+    defaultId: 1,
+    cancelId: 1,
+  };
+  const { response } = owner ? await dialog.showMessageBox(owner, options) : await dialog.showMessageBox(options);
+  if (response !== 0) throw new Error("The token command wasn't run.");
+  confirmedTokenCommands.add(command);
+}
+
+/** A provider for `connection`, using `secret` if one was just entered, else the saved one (only for its own gateway). */
+async function providerFor(connection: Connection, secret?: string): Promise<LLMProvider> {
+  await confirmTokenCommand(connection);
+  let key = secret;
+  if (!key) {
+    const name = secretName(connection);
+    const saved = getSecret(name);
+    if (saved && savedSecretAllowed(connection, getSecret(secretOriginName(name)), loadSettings().connection)) key = saved;
+    else if (saved && !connection.tokenCommand) throw new Error("Enter the token again: the saved one belongs to another gateway URL.");
+  }
   // net.fetch goes through Chromium: system certificates (company root CAs) and proxy settings.
-  return createProvider(connection, secret || getSecret(secretName(connection)), (url, init) => net.fetch(url, init));
+  return createProvider(connection, key, (url, init) => net.fetch(url, init));
+}
+
+/** Saves a just-entered key or token, and for a gateway the origin it may be sent to. */
+function saveConnectionSecret(connection: Connection, secret: string): void {
+  const name = secretName(connection);
+  setSecret(name, secret);
+  const origin = isGateway(connection.kind) ? originOf(connection.baseUrl) : null;
+  if (origin) setSecret(secretOriginName(name), origin);
+  else deleteSecret(secretOriginName(name));
 }
 
 /** What the renderer needs about the running connection. */
@@ -259,7 +306,7 @@ async function getOrCreateEngine(convId: string, ref: OrgRef | null): Promise<Co
   const host = mcpPool.host(pool);
   const engine = new ConversationEngine(llm, host, promptBuilder, org, {
     preflight: async (text) => diagnosePreflight(text, diagnosed),
-    gateTool: createWriteGate({ convId, org, host, broker: approvals, send: sendToWindow }),
+    gateTool: createWriteGate({ convId, org, host, broker: approvals, send: sendToWindow, resolveOrgId: async (key) => (await resolveOrg(key))?.orgId }),
   });
   engine.initialize();
 
@@ -354,6 +401,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   });
 
   ipcMain.handle("settings:save", async (_event, settings: Settings) => {
+    // The connection is only saved by engine:start, after it connected (and its token command was confirmed).
+    settings = { ...settings, connection: loadSettings().connection };
     saveSettings(settings);
     applyAppIcon(settings.appIcon, mainWindow);
     applyTheme(settings.theme, mainWindow);
@@ -388,7 +437,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle("provider:test", async (_event, connection: Connection, secret?: string) => {
     try {
       const clean = cleanConnection(connection);
-      return await testConnection(providerFor(clean, secret), clean);
+      return await testConnection(await providerFor(clean, secret), clean);
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
@@ -403,7 +452,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle("engine:start", async (_event, connection: Connection, secret?: string) => {
     try {
       const clean = cleanConnection(connection);
-      const provider = providerFor(clean, secret);
+      const provider = await providerFor(clean, secret);
       const models = chatModels(apiStyle(clean.kind), (await provider.listModels?.()) ?? null);
 
       if (!mcpPool || !promptBuilder) {
@@ -438,7 +487,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       llmConnection = clean;
       llmModels = models;
 
-      if (secret) setSecret(secretName(clean), secret);
+      if (secret) saveConnectionSecret(clean, secret);
       saveSettings({ ...loadSettings(), connection: clean });
       return engineState();
     } catch (error) {
@@ -755,6 +804,12 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       }
       // Writes local files: only into a folder the user picked (studio:exportSource).
       if (toolName === "studio_export_source") return { error: "Use studio:exportSource." };
+      // Deploys go through appBuilder:deploy, which builds the call from the saved project.
+      if (toolName === "studio_app_deploy") return { error: "Use appBuilder:deploy." };
+      // A change is applied only as it was previewed (the review dialog shows each preview before Apply).
+      if (toolName === "studio_apply_fix" && !previewedFixes.take(args.fix)) {
+        return { error: "Review this change again before applying it: it wasn't previewed." };
+      }
       // Live progress of a running preview/apply: no cache and no shared in-flight call (each poll
       // must see the state as it is now), and it makes no org calls so it never queues behind the work.
       if (toolName === "studio_fix_progress" || toolName === "studio_sync_user_progress" || toolName === "studio_feature_map_progress") {
@@ -809,6 +864,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
             setStudioCacheText(org, toolName, argsKey, text);
           }
           // An applied change alters the org: drop what it can affect (not the slow, unaffected published iPad).
+          if (toolName === "studio_preview_fix" && data && !data.blocked) previewedFixes.add(args.fix);
           if (toolName === "studio_apply_fix" && data?.ok) invalidate(org, toolsInvalidatedByApply(args.fix));
           // A finished publish changes the metadata cache surfaces.
           if (toolName === "studio_publish_status" && data?.state === "done") invalidate(org, INVALIDATED_BY_PUBLISH);
@@ -1015,9 +1071,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       const result = await client.callTool("studio_metadata_cache_contents", { recordId }, { timeoutMs: 30 * 60_000 });
       const data = JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}") as { error?: string; zipPath?: string; profile?: string | null; generatedAt?: string };
       if (data.error || !data.zipPath) return { error: data.error || "The cache couldn't be downloaded." };
-      // Only ever copy out of the engine's download folder.
-      const root = path.join(os.tmpdir(), "lsc-studio-cache-zips") + path.sep;
-      if (!path.resolve(data.zipPath).startsWith(root)) return { error: "Unexpected download location." };
+      // Only ever copy out of the engine's download folder (see isEngineZipPath).
+      if (!isEngineZipPath(data.zipPath)) return { error: "Unexpected download location." };
       const base = `${(data.profile || "Org level").replace(/[^\w .-]+/g, "_")} metadata cache ${(data.generatedAt || "").slice(0, 10)}`.trim();
       const res = await dialog.showSaveDialog(mainWindow, {
         title: "Download metadata cache",
@@ -1069,6 +1124,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   });
 
   ipcMain.handle("sfOrg:login", async (_event, alias?: string, instanceUrl?: string) => {
+    const problem = loginArgsProblem(alias, instanceUrl);
+    if (problem) return { ok: false, error: problem };
     return new Promise((resolve) => {
       const args = ["org", "login", "web", "--json"];
       if (alias) args.push("--alias", alias);
@@ -1090,7 +1147,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         try {
           const url = JSON.parse(stdout)?.result?.url;
           if (typeof url === "string" && url.startsWith("https://")) {
-            shell.openExternal(url);
+            openExternalSafely(url);
             resolve({ ok: true });
             return;
           }
@@ -1191,19 +1248,22 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   // --- File Reading ---
 
+  // Only the app's own documents: lsc-file:// links in replies are model output.
   ipcMain.handle("file:read", async (_event, filePath: string) => {
+    const allowed = appDocumentPath(filePath);
+    if (!allowed) return { ok: false, error: "Only the app's own documents can be opened here." };
     try {
-      const content = await readFile(filePath, "utf-8");
+      const content = await readFile(allowed, "utf-8");
       return { ok: true, content, path: filePath };
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
 
-  ipcMain.handle("file:open-external", async (_event, url: string) => {
-    shell.openExternal(url);
-    return { ok: true };
-  });
+  ipcMain.handle("file:open-external", async (_event, url: string) => ({ ok: openExternalSafely(url) }));
+
+  ipcMain.handle("frame:register", async (_event, html: unknown) => registerFrameDoc(html));
+  ipcMain.handle("frame:release", async (_event, url: unknown) => releaseFrameDoc(url));
 
   // --- Guide Section Reading ---
 
@@ -1214,7 +1274,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         const { readFileSync, existsSync } = await import("fs");
 
         // Resolve paths relative to the project root (two levels up from dist-electron/ipc/)
-        const guidesDir = path.join(__dirname, "..", "..", "knowledge", "guides", guideSlug);
+        const guidesDir = guideDirPath(guideSlug);
+        if (!guidesDir) return { ok: false, error: `Guide '${guideSlug}' not found` };
         const manifestPath = path.join(guidesDir, "_manifest.json");
 
         if (!existsSync(manifestPath)) {
@@ -1229,8 +1290,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
           return { ok: false, error: `Section '${sectionSlug}' not found in guide '${guideSlug}'` };
         }
 
-        const sectionPath = path.join(guidesDir, section.file);
-        if (!existsSync(sectionPath)) {
+        const sectionPath = path.join(guidesDir, String(section.file));
+        if (!appDocumentPath(sectionPath) || !existsSync(sectionPath)) {
           return { ok: false, error: `Section file not found: ${section.file}` };
         }
 
@@ -1238,7 +1299,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
         // Build both a lsc-local:// URL and the absolute file path for the PDF
         const pdfUrl = `lsc-local://file/documentation/${encodeURIComponent(manifest.pdfFileName)}`;
-        const pdfPath = path.join(__dirname, "..", "..", "documentation", manifest.pdfFileName);
+        const pdfPath = documentationPdfPath(manifest.pdfFileName) ?? "";
 
         return {
           ok: true,
@@ -1265,8 +1326,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       try {
         const { existsSync } = await import("fs");
 
-        const pdfPath = path.join(__dirname, "..", "..", "documentation", pdfFileName);
-        if (!existsSync(pdfPath)) {
+        const pdfPath = documentationPdfPath(pdfFileName);
+        if (!pdfPath || !existsSync(pdfPath)) {
           return { ok: false, error: `PDF not found: ${pdfFileName}` };
         }
 
@@ -1287,23 +1348,27 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         const { existsSync } = await import("fs");
         const { pathToFileURL } = await import("url");
 
-        const pdfPath = path.join(__dirname, "..", "..", "documentation", pdfFileName);
-        if (!existsSync(pdfPath)) {
+        const pdfPath = documentationPdfPath(pdfFileName);
+        if (!pdfPath || !existsSync(pdfPath)) {
           return { ok: false, error: `PDF not found: ${pdfFileName}` };
         }
+        const page = Number.isInteger(pageNum) && pageNum > 0 ? pageNum : 1;
 
-        const fileUrl = pathToFileURL(pdfPath).toString() + `#page=${pageNum}`;
+        const fileUrl = pathToFileURL(pdfPath).toString() + `#page=${page}`;
 
         const pdfWindow = new BrowserWindow({
           width: 900,
           height: 800,
-          title: `${pdfFileName} — Page ${pageNum}`,
+          title: `${pdfFileName} — Page ${page}`,
           webPreferences: {
             contextIsolation: true,
             nodeIntegration: false,
+            sandbox: true,
             plugins: true,
           },
         });
+        pdfWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+        pdfWindow.webContents.on("will-navigate", (e) => e.preventDefault());
 
         pdfWindow.loadURL(fileUrl);
         return { ok: true };

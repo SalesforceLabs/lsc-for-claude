@@ -8,9 +8,9 @@ import { promisify } from "util";
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
-import * as os from "os";
 import { cacheGet, cacheSet, queryCacheKey, describeCacheKey } from "../cache.js";
 import { sfLimiter } from "./limiter.js";
+import { privateTmp } from "../private-tmp.js";
 import { directDownload, directEnabled, directGet, directPostRead, directQuery, directToolingWrite, type DirectCredentials, type DirectOutcome } from "./direct.js";
 import { directDelete, directDeploy, directRetrieve, type StatusHook } from "./direct-metadata.js";
 import { toolingWriteMetadata } from "./tooling-metadata.js";
@@ -193,14 +193,14 @@ export async function installSfCli(): Promise<CliResult<string>> {
 /**
  * Ensure a minimal SFDX project exists in a temp directory.
  * Commands like `sf project deploy/retrieve` require an sfdx-project.json.
- * A unique directory is created per process (session) using the PID.
+ * One project per process, in its private temp folder.
  */
-const TMP_SFDX_PROJECT_DIR = path.join(os.tmpdir(), `lsc-sfdx-project-${process.pid}`);
 // Newer objects (Inquiry, ...) are rejected by older source API versions, which made their deploys fail.
 // Calls themselves use the org's version (SF_ORG_API_VERSION when pinned); this only names the source format.
 const TMP_PROJECT_API_VERSION = FALLBACK_API_VERSION;
 
 export function ensureTmpSfdxProject(): string {
+  const TMP_SFDX_PROJECT_DIR = privateTmp("sfdx-project");
   const forceAppDir = path.join(TMP_SFDX_PROJECT_DIR, "force-app");
   const projectFile = path.join(TMP_SFDX_PROJECT_DIR, "sfdx-project.json");
   // Always ensure both the project file and force-app dir exist — either may
@@ -848,7 +848,7 @@ export async function runAnonymousApex(
   targetOrg: string
 ): Promise<CliResult<{ compiled: boolean; success: boolean; logs: string }>> {
   // Write code to a temp file since sf apex run requires a file
-  const tmpFile = path.join(os.tmpdir(), `apex-${Date.now()}.apex`);
+  const tmpFile = path.join(privateTmp("apex"), `${crypto.randomUUID()}.apex`);
   fs.writeFileSync(tmpFile, code);
   try {
     const result = await execSfCommand<{ compiled: boolean; success: boolean; logs: string }>(
@@ -1289,10 +1289,37 @@ export async function createBulkPresentation(
  * Open the target org in the browser via `sf org open`.
  * Optional `pagePath` parameter to open a specific page (e.g., "/lightning/setup/SetupOneHome/home").
  */
+/**
+ * Why `pagePath` can't be opened, or null. `sf org open` signs in through frontdoor.jsp and sends the
+ * browser to the path, so it must be a path on the org: no scheme or `//host` (a signed-in hop to
+ * another site), no backslashes or control characters, and not the login pages themselves.
+ */
+export function orgPagePathProblem(pagePath: string): string | null {
+  const p = pagePath.trim();
+  if (!p.startsWith("/")) return "The page path must start with / (for example /lightning/setup/SetupOneHome/home).";
+  if (p.startsWith("//") || /^\/*[a-z][a-z0-9+.-]*:/i.test(p.slice(1)) || /[\\\u0000-\u001f\u007f]/.test(p)) {
+    return "The page path must be a page in the org, not another site.";
+  }
+  let decoded = p;
+  try {
+    decoded = decodeURIComponent(p);
+  } catch {
+    return "The page path isn't a valid URL path.";
+  }
+  if (decoded.startsWith("//") || decoded.includes("\\") || /^\/(secur\/|frontdoor\.jsp)/i.test(decoded)) {
+    return "The page path must be a page in the org, not another site or a login page.";
+  }
+  return null;
+}
+
 export async function openOrg(
   targetOrg: string,
   pagePath?: string
 ): Promise<CliResult<{ url: string; orgId: string; username: string }>> {
+  if (pagePath) {
+    const problem = orgPagePathProblem(pagePath);
+    if (problem) return { success: false, error: problem };
+  }
   const args = ["open"];
   if (pagePath) {
     args.push("--path", pagePath);

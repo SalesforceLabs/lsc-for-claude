@@ -105,6 +105,30 @@ export function isSalesforceUrl(url: string): boolean {
   }
 }
 
+/** The My Domain name of a Salesforce host: "acme--uat" for acme--uat.sandbox.my.salesforce.com. */
+function myDomainOf(host: string): string | null {
+  if (!SALESFORCE_HOST.test(host) || !host.includes(".")) return null;
+  return host.split(".")[0].toLowerCase() || null;
+}
+
+/**
+ * Whether `url` is an HTTPS host of the same org as `instanceUrl` (its My Domain: the instance, its
+ * file and content hosts). Other customers' Sites and Experience Cloud pages are Salesforce hosts too,
+ * so being one isn't enough to be sent a login's token.
+ */
+export function isSameOrgUrl(url: string, instanceUrl: string): boolean {
+  if (!isSalesforceUrl(url)) return false;
+  try {
+    const target = new URL(url);
+    const instance = new URL(instanceUrl);
+    if (target.origin === instance.origin) return true;
+    const mine = myDomainOf(instance.hostname);
+    return !!mine && mine === myDomainOf(target.hostname);
+  } catch {
+    return false;
+  }
+}
+
 /** An OAuth login Studio made itself, through the LSC mobile app's connected app. */
 export interface TokenLogin {
   instanceUrl: string;
@@ -322,9 +346,9 @@ function nodeRequest(
 export function createHttp(instanceUrl: string, accessToken: string, fetchImpl?: typeof fetch): DeviceHttp {
   const base = instanceUrl.replace(/\/+$/, "");
   const send: DeviceHttp = async (req) => {
-    // The bearer token goes only to the instance (relative paths) or an HTTPS Salesforce host.
-    if (req.url.startsWith("//") || (!req.url.startsWith("/") && !isSalesforceUrl(req.url))) {
-      throw new DeviceHttpError("Refusing to send credentials to a URL that is not a relative path or an HTTPS Salesforce host.");
+    // The bearer token goes only to the instance (relative paths) or another HTTPS host of the same org.
+    if (req.url.startsWith("//") || (!req.url.startsWith("/") && !isSameOrgUrl(req.url, base))) {
+      throw new DeviceHttpError("Refusing to send credentials to a URL that is not a relative path or an HTTPS host of this org.");
     }
     const url = req.url.startsWith("/") ? base + req.url : req.url;
     const { body, gzipped } = prepareRequestBody(req);
