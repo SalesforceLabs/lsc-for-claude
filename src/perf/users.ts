@@ -56,7 +56,9 @@ function toPerfUser(u: Row, territories: number): PerfUser {
 }
 
 const byLoad = (a: PerfUser, b: PerfUser) =>
-  (b.accounts ?? 0) - (a.accounts ?? 0) || b.territories - a.territories || a.name.localeCompare(b.name);
+  (b.accounts ?? 0) - (a.accounts ?? 0) ||
+  b.territories - a.territories ||
+  a.name.localeCompare(b.name);
 
 /** Candidates ranked by territory count that are re-ranked by data volume; bounds the volume queries. */
 const CANDIDATE_POOL = 25;
@@ -79,7 +81,9 @@ async function withAccountVolume(org: OrgQuerier, users: PerfUser[]): Promise<Pe
       const key = idKey(String(a.UserId));
       byUser.set(key, [...(byUser.get(key) ?? []), String(a.Territory2Id)]);
     }
-    const territories = [...new Set(assigned.map((a) => String(a.Territory2Id)))].map((id) => ({ id }));
+    const territories = [...new Set(assigned.map((a) => String(a.Territory2Id)))].map((id) => ({
+      id,
+    }));
     const sizes = await territoryAccountCounts(org, territories);
     return users.map((u) => ({
       ...u,
@@ -100,7 +104,11 @@ const syncWindow = (days: number) => `CreatedDate = LAST_N_DAYS:${Math.max(1, Ma
  * rows telemetry skips) and can outnumber real syncs many times over. Orgs whose object has no Type
  * field get the unfiltered query.
  */
-async function dataSyncRows(org: OrgQuerier, build: (window: string) => string, days: number): Promise<Row[]> {
+async function dataSyncRows(
+  org: OrgQuerier,
+  build: (window: string) => string,
+  days: number
+): Promise<Row[]> {
   try {
     return await rows(org, build(`${syncWindow(days)} AND Type != 'clm'`));
   } catch {
@@ -113,13 +121,18 @@ async function dataSyncRows(org: OrgQuerier, build: (window: string) => string, 
  * null when the org's sync telemetry can't be read — callers then say nothing
  * about syncs rather than reporting everyone as idle.
  */
-export async function recentSyncCounts(org: OrgQuerier, userIds: string[], days: number): Promise<Map<string, number> | null> {
+export async function recentSyncCounts(
+  org: OrgQuerier,
+  userIds: string[],
+  days: number
+): Promise<Map<string, number> | null> {
   const out = new Map<string, number>();
   if (userIds.length === 0) return out;
   try {
     const counts = await dataSyncRows(
       org,
-      (window) => `SELECT CreatedById, COUNT(Id) cnt FROM DeviceSyncSummary WHERE CreatedById IN (${inList(userIds)}) AND ${window} GROUP BY CreatedById`,
+      (window) =>
+        `SELECT CreatedById, COUNT(Id) cnt FROM DeviceSyncSummary WHERE CreatedById IN (${inList(userIds)}) AND ${window} GROUP BY CreatedById`,
       days
     );
     for (const r of counts) out.set(idKey(String(r.CreatedById)), territoryCount(r));
@@ -129,26 +142,48 @@ export async function recentSyncCounts(org: OrgQuerier, userIds: string[], days:
   }
 }
 
-async function withSyncs(org: OrgQuerier, users: PerfUser[], days: number | undefined): Promise<PerfUser[]> {
+async function withSyncs(
+  org: OrgQuerier,
+  users: PerfUser[],
+  days: number | undefined
+): Promise<PerfUser[]> {
   if (days === undefined || users.length === 0) return users;
-  const counts = await recentSyncCounts(org, users.map((u) => u.id), days);
+  const counts = await recentSyncCounts(
+    org,
+    users.map((u) => u.id),
+    days
+  );
   return counts ? users.map((u) => ({ ...u, syncs: counts.get(idKey(u.id)) ?? 0 })) : users;
 }
 
 /** A profile's users, most territories first, with users with no territories filling any remaining places. */
-async function heaviestOfProfile(org: OrgQuerier, profile: string, limit: number, exclude: string[]): Promise<PerfUser[]> {
+async function heaviestOfProfile(
+  org: OrgQuerier,
+  profile: string,
+  limit: number,
+  exclude: string[]
+): Promise<PerfUser[]> {
   if (limit <= 0) return [];
   const p = soqlString(profile);
-  const notIn = (field: string, ids: string[]) => (ids.length ? ` AND ${field} NOT IN (${inList(ids)})` : "");
+  const notIn = (field: string, ids: string[]) =>
+    ids.length ? ` AND ${field} NOT IN (${inList(ids)})` : "";
   const ranked = await rows(
     org,
     `SELECT UserId, COUNT(Id) cnt FROM UserTerritory2Association WHERE User.Profile.Name = '${p}' AND User.IsActive = true AND User.UserType = 'Standard' AND ${ACTIVE_MODEL}${notIn("UserId", exclude)} GROUP BY UserId ORDER BY COUNT(Id) DESC LIMIT ${Math.max(limit, CANDIDATE_POOL)}`
   );
   const counts = new Map(ranked.map((r) => [String(r.UserId), territoryCount(r)]));
   const loaded = counts.size
-    ? await rows(org, `SELECT Id, Username, Name, Profile.Name FROM User WHERE Id IN (${inList([...counts.keys()])})`)
+    ? await rows(
+        org,
+        `SELECT Id, Username, Name, Profile.Name FROM User WHERE Id IN (${inList([...counts.keys()])})`
+      )
     : [];
-  const users = (await withAccountVolume(org, loaded.map((u) => toPerfUser(u, counts.get(String(u.Id)) ?? 0))))
+  const users = (
+    await withAccountVolume(
+      org,
+      loaded.map((u) => toPerfUser(u, counts.get(String(u.Id)) ?? 0))
+    )
+  )
     .sort(byLoad)
     .slice(0, limit);
   if (users.length < limit) {
@@ -165,12 +200,18 @@ async function heaviestOfProfile(org: OrgQuerier, profile: string, limit: number
  * A profile's users who synced in the last `days` days, most territories then
  * most syncs first. Empty when the org's sync telemetry can't be read.
  */
-async function syncingOfProfile(org: OrgQuerier, profile: string, limit: number, days: number): Promise<PerfUser[]> {
+async function syncingOfProfile(
+  org: OrgQuerier,
+  profile: string,
+  limit: number,
+  days: number
+): Promise<PerfUser[]> {
   let synced: Row[];
   try {
     synced = await dataSyncRows(
       org,
-      (window) => `SELECT CreatedById, COUNT(Id) cnt FROM DeviceSyncSummary WHERE CreatedBy.Profile.Name = '${soqlString(profile)}' AND CreatedBy.IsActive = true AND CreatedBy.UserType = 'Standard' AND ${window} GROUP BY CreatedById ORDER BY COUNT(Id) DESC LIMIT 200`,
+      (window) =>
+        `SELECT CreatedById, COUNT(Id) cnt FROM DeviceSyncSummary WHERE CreatedBy.Profile.Name = '${soqlString(profile)}' AND CreatedBy.IsActive = true AND CreatedBy.UserType = 'Standard' AND ${window} GROUP BY CreatedById ORDER BY COUNT(Id) DESC LIMIT 200`,
       days
     );
   } catch {
@@ -189,10 +230,19 @@ async function syncingOfProfile(org: OrgQuerier, profile: string, limit: number,
   const territories = new Map(counts.map((r) => [idKey(String(r.UserId)), territoryCount(r)]));
   const withVolume = await withAccountVolume(
     org,
-    loaded.map((u) => ({ ...toPerfUser(u, territories.get(idKey(String(u.Id))) ?? 0), syncs: syncs.get(idKey(String(u.Id))) ?? 0 }))
+    loaded.map((u) => ({
+      ...toPerfUser(u, territories.get(idKey(String(u.Id))) ?? 0),
+      syncs: syncs.get(idKey(String(u.Id))) ?? 0,
+    }))
   );
   return withVolume
-    .sort((a, b) => (b.accounts ?? 0) - (a.accounts ?? 0) || b.territories - a.territories || (b.syncs ?? 0) - (a.syncs ?? 0) || a.name.localeCompare(b.name))
+    .sort(
+      (a, b) =>
+        (b.accounts ?? 0) - (a.accounts ?? 0) ||
+        b.territories - a.territories ||
+        (b.syncs ?? 0) - (a.syncs ?? 0) ||
+        a.name.localeCompare(b.name)
+    )
     .slice(0, limit);
 }
 
@@ -210,16 +260,32 @@ async function syncingOfProfile(org: OrgQuerier, profile: string, limit: number,
  */
 export async function findHeaviestUsers(
   org: OrgQuerier,
-  filters: { search?: string; profile?: string; limit: number; days?: number; preferSynced?: boolean }
+  filters: {
+    search?: string;
+    profile?: string;
+    limit: number;
+    days?: number;
+    preferSynced?: boolean;
+  }
 ): Promise<PerfUser[]> {
   const limit = Math.max(1, Math.floor(filters.limit));
   const search = filters.search?.trim();
 
   if (!search && filters.profile) {
     const days = filters.days ?? DEFAULT_TELEMETRY_DAYS;
-    const first = filters.preferSynced ? await syncingOfProfile(org, filters.profile, limit, days) : [];
-    const rest = await heaviestOfProfile(org, filters.profile, limit - first.length, first.map((u) => u.id));
-    return [...first, ...(await withSyncs(org, rest, filters.days ?? (filters.preferSynced ? days : undefined)))];
+    const first = filters.preferSynced
+      ? await syncingOfProfile(org, filters.profile, limit, days)
+      : [];
+    const rest = await heaviestOfProfile(
+      org,
+      filters.profile,
+      limit - first.length,
+      first.map((u) => u.id)
+    );
+    return [
+      ...first,
+      ...(await withSyncs(org, rest, filters.days ?? (filters.preferSynced ? days : undefined))),
+    ];
   }
 
   const where = ["IsActive = true", "UserType = 'Standard'"];
@@ -239,7 +305,9 @@ export async function findHeaviestUsers(
   );
   const byUser = new Map(counts.map((r) => [String(r.UserId), territoryCount(r)]));
   const byTerritories = users.map((u) => toPerfUser(u, byUser.get(String(u.Id)) ?? 0)).sort(byLoad);
-  const ranked = (await withAccountVolume(org, byTerritories.slice(0, CANDIDATE_POOL))).sort(byLoad).slice(0, limit);
+  const ranked = (await withAccountVolume(org, byTerritories.slice(0, CANDIDATE_POOL)))
+    .sort(byLoad)
+    .slice(0, limit);
   return withSyncs(org, ranked, filters.days);
 }
 
@@ -307,16 +375,26 @@ const isUserId = (ref: string) => /^005[A-Za-z0-9]{12}([A-Za-z0-9]{3})?$/.test(r
  * Look up users by username or id in one query, with their active-model
  * territories in a second and, given `days`, their sync counts in a third.
  */
-export async function lookupUsers(org: OrgQuerier, refs: string[], days?: number): Promise<Map<string, CheckedUser>> {
+export async function lookupUsers(
+  org: OrgQuerier,
+  refs: string[],
+  days?: number
+): Promise<Map<string, CheckedUser>> {
   const unique = [...new Set(refs.map((r) => r.trim()).filter(Boolean))];
   const out = new Map<string, CheckedUser>();
   if (unique.length === 0) return out;
   const ids = unique.filter(isUserId);
   const names = unique.filter((r) => !isUserId(r));
-  const where = [names.length ? `Username IN (${inList(names)})` : "", ids.length ? `Id IN (${inList(ids)})` : ""]
+  const where = [
+    names.length ? `Username IN (${inList(names)})` : "",
+    ids.length ? `Id IN (${inList(ids)})` : "",
+  ]
     .filter(Boolean)
     .join(" OR ");
-  const found = await rows(org, `SELECT Id, Username, Name, IsActive, Profile.Name FROM User WHERE ${where}`);
+  const found = await rows(
+    org,
+    `SELECT Id, Username, Name, IsActive, Profile.Name FROM User WHERE ${where}`
+  );
 
   const territories = new Map<string, Array<{ id: string; name: string }>>();
   // Territories and sync counts both need only the users found, so they are read together.
@@ -327,16 +405,27 @@ export async function lookupUsers(org: OrgQuerier, refs: string[], days?: number
           `SELECT UserId, Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId IN (${inList(found.map((u) => String(u.Id)))}) AND ${ACTIVE_MODEL} ORDER BY Territory2.Name`
         )
       : Promise.resolve([] as Row[]),
-    days !== undefined && found.length ? recentSyncCounts(org, found.map((u) => String(u.Id)), days) : Promise.resolve(null),
+    days !== undefined && found.length
+      ? recentSyncCounts(
+          org,
+          found.map((u) => String(u.Id)),
+          days
+        )
+      : Promise.resolve(null),
   ]);
   for (const a of assignments) {
     const list = territories.get(idKey(String(a.UserId))) ?? [];
-    list.push({ id: String(a.Territory2Id), name: String((a.Territory2 as { Name?: string } | null)?.Name ?? "") });
+    list.push({
+      id: String(a.Territory2Id),
+      name: String((a.Territory2 as { Name?: string } | null)?.Name ?? ""),
+    });
     territories.set(idKey(String(a.UserId)), list);
   }
 
   for (const ref of unique) {
-    const u = found.find((r) => (isUserId(ref) ? idKey(String(r.Id)) === idKey(ref) : sameUser(String(r.Username), ref)));
+    const u = found.find((r) =>
+      isUserId(ref) ? idKey(String(r.Id)) === idKey(ref) : sameUser(String(r.Username), ref)
+    );
     out.set(
       ref.toLowerCase(),
       u
@@ -357,12 +446,18 @@ export async function lookupUsers(org: OrgQuerier, refs: string[], days?: number
 }
 
 /** Problems that would make a plan's run fail or mislead, found before running it. */
-export async function checkPlan(org: OrgQuerier, orgName: string, plan: NfrProfile): Promise<PlanCheck> {
+export async function checkPlan(
+  org: OrgQuerier,
+  orgName: string,
+  plan: NfrProfile
+): Promise<PlanCheck> {
   const issues: PlanIssue[] = [];
   const resolved = [];
   const days = plan.telemetry?.days ?? DEFAULT_TELEMETRY_DAYS;
   // Personas resolve independently; issues are added in persona order below.
-  const picks = await Promise.all(plan.personas.map((persona) => resolvePersonaUsers(org, persona, days)));
+  const picks = await Promise.all(
+    plan.personas.map((persona) => resolvePersonaUsers(org, persona, days))
+  );
   for (const [i, persona] of plan.personas.entries()) {
     const { users, selected } = picks[i];
     if (persona.select && selected.length === 0) {
@@ -375,18 +470,41 @@ export async function checkPlan(org: OrgQuerier, orgName: string, plan: NfrProfi
     resolved.push({ persona, users });
   }
 
-  const lookup = await lookupUsers(org, resolved.flatMap((r) => r.users), days);
+  const lookup = await lookupUsers(
+    org,
+    resolved.flatMap((r) => r.users),
+    days
+  );
   const personas: PlanCheck["personas"] = [];
   for (const { persona, users } of resolved) {
-    const checked = users.map((ref) => lookup.get(ref.trim().toLowerCase()) ?? { ref, found: false, active: false, territories: [] });
+    const checked = users.map(
+      (ref) =>
+        lookup.get(ref.trim().toLowerCase()) ?? {
+          ref,
+          found: false,
+          active: false,
+          territories: [],
+        }
+    );
     for (const u of checked) {
-      if (!u.found) issues.push({ persona: persona.name, level: "error", message: `User not found: ${u.ref}` });
-      else if (!u.active) issues.push({ persona: persona.name, level: "error", message: `User is inactive: ${u.username}` });
+      if (!u.found)
+        issues.push({ persona: persona.name, level: "error", message: `User not found: ${u.ref}` });
+      else if (!u.active)
+        issues.push({
+          persona: persona.name,
+          level: "error",
+          message: `User is inactive: ${u.username}`,
+        });
     }
     if (persona.select) {
       const explicit = new Set((persona.users ?? []).map((u) => u.trim().toLowerCase()));
       for (const u of checked) {
-        if (u.found && explicit.has(u.ref.toLowerCase()) && u.profile && !sameUser(u.profile, persona.select.profile)) {
+        if (
+          u.found &&
+          explicit.has(u.ref.toLowerCase()) &&
+          u.profile &&
+          !sameUser(u.profile, persona.select.profile)
+        ) {
           issues.push({
             persona: persona.name,
             level: "warning",
@@ -402,13 +520,17 @@ export async function checkPlan(org: OrgQuerier, orgName: string, plan: NfrProfi
         level: "warning",
         message:
           `None of this persona's users synced in the last ${days} days, so its field-telemetry metrics will show No data.` +
-          (persona.select && !persona.select.preferSynced ? " Turn on “prefer users who synced” or widen the telemetry window." : " Add a user who syncs or widen the telemetry window."),
+          (persona.select && !persona.select.preferSynced
+            ? " Turn on “prefer users who synced” or widen the telemetry window."
+            : " Add a user who syncs or widen the telemetry window."),
       });
     }
     let territoryMatched: boolean | undefined;
     if (persona.territory) {
       const wanted = persona.territory.toLowerCase();
-      territoryMatched = checked.some((u) => u.territories.some((t) => t.name.toLowerCase() === wanted || t.id === persona.territory));
+      territoryMatched = checked.some((u) =>
+        u.territories.some((t) => t.name.toLowerCase() === wanted || t.id === persona.territory)
+      );
       if (!territoryMatched && checked.some((u) => u.found)) {
         issues.push({
           persona: persona.name,
@@ -417,7 +539,11 @@ export async function checkPlan(org: OrgQuerier, orgName: string, plan: NfrProfi
         });
       }
     }
-    personas.push({ name: persona.name, users: checked, ...(territoryMatched === undefined ? {} : { territoryMatched }) });
+    personas.push({
+      name: persona.name,
+      users: checked,
+      ...(territoryMatched === undefined ? {} : { territoryMatched }),
+    });
   }
   return { org: orgName, issues, personas };
 }
@@ -437,5 +563,7 @@ export async function personaTerritories(
       byId.set(t.id, entry);
     }
   }
-  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+  return [...byId.values()].sort(
+    (a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)
+  );
 }

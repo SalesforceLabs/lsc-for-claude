@@ -75,7 +75,9 @@ export async function queryAssignments(
   for (const assignResult of chunkResults) {
     if (!assignResult.success || assignResult.data?.truncated) {
       if (strict) {
-        throw new Error(`Couldn't read Admin Console assignments: ${assignResult.error ?? "too many assignments to read"}`);
+        throw new Error(
+          `Couldn't read Admin Console assignments: ${assignResult.error ?? "too many assignments to read"}`
+        );
       }
       continue;
     }
@@ -94,7 +96,10 @@ export async function queryAssignments(
     const resolveNames = async (object: string, ids: string[]) => {
       const results = await Promise.all(
         chunkIds(ids).map((chunk) =>
-          cachedToolingQuery(`SELECT Id, Name FROM ${object} WHERE Id IN (${chunk.map((id) => `'${id}'`).join(",")})`, targetOrg)
+          cachedToolingQuery(
+            `SELECT Id, Name FROM ${object} WHERE Id IN (${chunk.map((id) => `'${id}'`).join(",")})`,
+            targetOrg
+          )
         )
       );
       for (const r of results) {

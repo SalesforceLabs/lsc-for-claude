@@ -20,10 +20,16 @@ let generation = 0;
 
 const keyOf = (org: string, key: string) => `${org}\u0000${key}`;
 
-export function sharedRead<T>(org: string, key: string, read: () => Promise<T>, ttlMs = DEFAULT_TTL_MS): Promise<T> {
+export function sharedRead<T>(
+  org: string,
+  key: string,
+  read: () => Promise<T>,
+  ttlMs = DEFAULT_TTL_MS
+): Promise<T> {
   const k = keyOf(org, key);
   const hit = entries.get(k);
-  if (hit && (hit.expiresAt === undefined || hit.expiresAt > Date.now())) return hit.promise as Promise<T>;
+  if (hit && (hit.expiresAt === undefined || hit.expiresAt > Date.now()))
+    return hit.promise as Promise<T>;
 
   prune();
   const started = generation;
@@ -61,7 +67,8 @@ export function sharedReadsActive(): boolean {
 function prune(): void {
   if (entries.size < 500) return;
   const now = Date.now();
-  for (const [k, e] of entries) if (e.expiresAt !== undefined && e.expiresAt <= now) entries.delete(k);
+  for (const [k, e] of entries)
+    if (e.expiresAt !== undefined && e.expiresAt <= now) entries.delete(k);
 }
 
 const lastRefresh = new Map<string, number>();

@@ -18,7 +18,10 @@ import { z } from "zod";
 export const METRICS = {
   predictedRecordsTotal: { label: "Predicted records synced (total)", unit: "records" },
   predictedRecordsPerTable: { label: "Predicted records synced (largest table)", unit: "records" },
-  deviceSoqlRequests: { label: "Estimated device requests (initial sync download)", unit: "requests" },
+  deviceSoqlRequests: {
+    label: "Estimated device requests (initial sync download)",
+    unit: "requests",
+  },
   initialSyncP95Sec: { label: "Initial sync p95", unit: "s" },
   deltaSyncP95Sec: { label: "Delta sync p95", unit: "s" },
   metadataDownloadP95Sec: { label: "Metadata cache download p95", unit: "s" },

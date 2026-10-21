@@ -8,10 +8,19 @@ export type RunAs = TokenLogin;
 export class RunAsError extends Error {}
 
 /** A GET as the login; the token stays inside the session (Salesforce https hosts only) and never appears in an error. */
-export async function userGet(login: RunAs, path: string, http?: DeviceHttp): Promise<{ status: number; data: unknown }> {
+export async function userGet(
+  login: RunAs,
+  path: string,
+  http?: DeviceHttp
+): Promise<{ status: number; data: unknown }> {
   const session = createTokenSession(login);
-  const res = await (http ?? session.http)({ method: "GET", url: `/services/data/${session.apiVersion}${path}`, headers: { Accept: "application/json" } });
-  if (res.status === 401) throw new RunAsError(`${login.username}'s login has expired — sign in again.`);
+  const res = await (http ?? session.http)({
+    method: "GET",
+    url: `/services/data/${session.apiVersion}${path}`,
+    headers: { Accept: "application/json" },
+  });
+  if (res.status === 401)
+    throw new RunAsError(`${login.username}'s login has expired — sign in again.`);
   let data: unknown = null;
   try {
     const text = res.body.toString("utf8");

@@ -11,14 +11,21 @@ export function createOrgReader(org: string): OrgReader {
   const describe = async (object: string): Promise<DescribeInfo | null> => {
     const res = await cachedDescribeSObject(object, org);
     if (!res.success || !res.data) return null;
-    return { name: res.data.name, fields: res.data.fields.map((f) => ({ name: f.name, type: f.type })) };
+    return {
+      name: res.data.name,
+      fields: res.data.fields.map((f) => ({ name: f.name, type: f.type })),
+    };
   };
 
   return {
-    query: (soql) => query(soql, org, false, { allowTruncated: true, maxRows: RUN_LIMITS.rowsPerQuery + 1 }),
+    query: (soql) =>
+      query(soql, org, false, { allowTruncated: true, maxRows: RUN_LIMITS.rowsPerQuery + 1 }),
     describe,
     namespace: () => {
-      namespace ??= query("SELECT NamespacePrefix FROM PackageLicense WHERE NamespacePrefix = 'lsc4ce'", org)
+      namespace ??= query(
+        "SELECT NamespacePrefix FROM PackageLicense WHERE NamespacePrefix = 'lsc4ce'",
+        org
+      )
         .then((rows) => (rows.length ? "lsc4ce" : null))
         .catch(() => null);
       return namespace;

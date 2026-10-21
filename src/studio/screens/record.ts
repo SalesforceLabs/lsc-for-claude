@@ -6,7 +6,13 @@
 
 import { apiRequest, dataPath } from "../../salesforce/cli.js";
 import { ID_PATTERN, inList, query, type Row } from "../helpers.js";
-import { listCell, MULTI_ENTITY, trimNamespace, type PublishedComponent, type PublishedListData } from "../published.js";
+import {
+  listCell,
+  MULTI_ENTITY,
+  trimNamespace,
+  type PublishedComponent,
+  type PublishedListData,
+} from "../published.js";
 import { type ScreenContext, softFail } from "./context.js";
 import { evalProfileFormula, usesProfileName } from "./record-formula.js";
 import { readRatingLayout } from "./record-ratings.js";
@@ -16,7 +22,8 @@ import type { RecordFieldSpec } from "./record-fields.js";
 
 const str = (v: unknown): string => (typeof v === "string" ? v : v == null ? "" : String(v));
 const arr = (v: unknown): Row[] => (Array.isArray(v) ? (v as Row[]) : []);
-const obj = (v: unknown): Row => (v && typeof v === "object" && !Array.isArray(v) ? (v as Row) : {});
+const obj = (v: unknown): Row =>
+  v && typeof v === "object" && !Array.isArray(v) ? (v as Row) : {};
 
 /** Records read per list view (the first page is 20; the preview opens the top of it). */
 const PER_LIST = 10;
@@ -69,7 +76,16 @@ export interface PublishedRecordData {
 
 export interface PublishedRatings {
   layout: string;
-  cards: { tab: "General" | "Product" | "Territory"; title: string; value: string; editable: boolean; updated: string; live: boolean }[] | null;
+  cards:
+    | {
+        tab: "General" | "Product" | "Territory";
+        title: string;
+        value: string;
+        editable: boolean;
+        updated: string;
+        live: boolean;
+      }[]
+    | null;
 }
 
 export interface PublishedRecords {
@@ -114,7 +130,15 @@ export function relatedKey(children: Row[], apiName: string): string | null {
  * MultiEntity / Visit rule: a submitted (Completed) or signed visit, or one the
  * viewer doesn't own, has no Edit; so does a record the viewer can't edit.
  */
-export function isEditable(input: { object: string; status: string; ownerId: string; viewerId: string; hasEditAccess: boolean; updateable: boolean; signed?: boolean }): boolean {
+export function isEditable(input: {
+  object: string;
+  status: string;
+  ownerId: string;
+  viewerId: string;
+  hasEditAccess: boolean;
+  updateable: boolean;
+  signed?: boolean;
+}): boolean {
   if (!input.hasEditAccess || !input.updateable) return false;
   if (input.object === "Visit" || input.object === "ProviderVisit") {
     return input.status !== "Completed" && !input.signed && input.ownerId === input.viewerId;
@@ -124,13 +148,18 @@ export function isEditable(input: { object: string; status: string; ownerId: str
 
 /** The menu's actions: Edit is the section pencil, Unlock is hidden, and ChangeOwner* is unsupported. */
 export function menuActions(actionNames: string[]): string[] {
-  return actionNames.filter((a) => !/^(?:\w+\.)?edit$/i.test(a) && !/unlock$/i.test(a) && !/^ChangeOwner/i.test(a));
+  return actionNames.filter(
+    (a) => !/^(?:\w+\.)?edit$/i.test(a) && !/unlock$/i.test(a) && !/^ChangeOwner/i.test(a)
+  );
 }
 
 /** Action label: `Visit.lsc4ce__Email` → "Email". */
 export function actionLabel(name: string): string {
   const base = name.split(".").pop() ?? name;
-  return base.replace(/^\w+__/, "").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ");
+  return base
+    .replace(/^\w+__/, "")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ");
 }
 
 /** Parses an org-defined inline LWC (card title, then label/value cells) into a card; null when it isn't that shape. */
@@ -144,7 +173,9 @@ export function parseInlineCard(html: string, js: string): PublishedInlineCard |
     object = m[2];
   }
   const cells: PublishedInlineCard["cells"] = [];
-  for (const m of html.matchAll(/slds-size_(\d)-of-(\d)[^"]*"[\s\S]*?<p[^>]*field-label[^>]*>([^<]*)<\/p>\s*<p[^>]*field-value[^>]*>\{\w+\.(\w+)\}<\/p>/g)) {
+  for (const m of html.matchAll(
+    /slds-size_(\d)-of-(\d)[^"]*"[\s\S]*?<p[^>]*field-label[^>]*>([^<]*)<\/p>\s*<p[^>]*field-value[^>]*>\{\w+\.(\w+)\}<\/p>/g
+  )) {
     const field = fieldsByProp.get(m[4]);
     if (field) cells.push({ label: m[3].trim(), field, half: m[1] === "1" && m[2] === "2" });
   }
@@ -152,8 +183,15 @@ export function parseInlineCard(html: string, js: string): PublishedInlineCard |
 }
 
 /** A multi-select picklist value or single one, as its label. */
-function picklistText(value: string, labels: Record<string, string> | undefined, describeField: Row | undefined): string {
-  const lookup = (v: string) => labels?.[v] ?? str(arr(describeField?.picklistValues).find((p) => str(p.value) === v)?.label) ?? v;
+function picklistText(
+  value: string,
+  labels: Record<string, string> | undefined,
+  describeField: Row | undefined
+): string {
+  const lookup = (v: string) =>
+    labels?.[v] ??
+    str(arr(describeField?.picklistValues).find((p) => str(p.value) === v)?.label) ??
+    v;
   return value
     .split(";")
     .map((v) => lookup(v) || v)
@@ -161,7 +199,13 @@ function picklistText(value: string, labels: Record<string, string> | undefined,
 }
 
 function addressText(a: Row): string {
-  const line = [str(a.street), [str(a.city), str(a.state)].filter(Boolean).join(", "), str(a.postalCode)].filter(Boolean).join(" ");
+  const line = [
+    str(a.street),
+    [str(a.city), str(a.state)].filter(Boolean).join(", "),
+    str(a.postalCode),
+  ]
+    .filter(Boolean)
+    .join(" ");
   return [line, str(a.country)].filter(Boolean).join(" ");
 }
 
@@ -178,18 +222,34 @@ export function shortDate(value: unknown, type: string, format: Format): string 
   })();
   if (type === "date") {
     const d = new Date(`${str(value).slice(0, 10)}T00:00:00Z`);
-    return Number.isNaN(d.getTime()) ? str(value) : new Intl.DateTimeFormat(locale, { dateStyle: "short", timeZone: "UTC" }).format(d);
+    return Number.isNaN(d.getTime())
+      ? str(value)
+      : new Intl.DateTimeFormat(locale, { dateStyle: "short", timeZone: "UTC" }).format(d);
   }
   const d = new Date(str(value));
-  return Number.isNaN(d.getTime()) ? str(value) : new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short", timeZone: format.timeZone }).format(d);
+  return Number.isNaN(d.getTime())
+    ? str(value)
+    : new Intl.DateTimeFormat(locale, {
+        dateStyle: "short",
+        timeStyle: "short",
+        timeZone: format.timeZone,
+      }).format(d);
 }
 
 /** One field's value as the record screen prints it. */
-export function formatValue(value: unknown, spec: Pick<RecordFieldSpec, "type" | "picklist">, describeField: Row | undefined, format: Format, short = false): string {
+export function formatValue(
+  value: unknown,
+  spec: Pick<RecordFieldSpec, "type" | "picklist">,
+  describeField: Row | undefined,
+  format: Format,
+  short = false
+): string {
   if (value === null || value === undefined || value === "") return "";
   const type = str(describeField?.type).toLowerCase() || spec.type;
-  if (type === "address" || (typeof value === "object" && !Array.isArray(value))) return addressText(obj(value));
-  if (type === "picklist" || type === "multipicklist") return picklistText(str(value), spec.picklist, describeField);
+  if (type === "address" || (typeof value === "object" && !Array.isArray(value)))
+    return addressText(obj(value));
+  if (type === "picklist" || type === "multipicklist")
+    return picklistText(str(value), spec.picklist, describeField);
   if (type === "boolean") return listCell(value, "boolean", format);
   if (short && (type === "date" || type === "datetime")) return shortDate(value, type, format);
   return listCell(value, type, format);
@@ -205,7 +265,12 @@ function describeOf(ctx: ScreenContext, object: string): Promise<Describe | null
   const hit = cache.get(object);
   if (hit) return hit;
   const p = (async () => {
-    const r = await apiRequest<Row>(await dataPath(ctx.org, `/sobjects/${object}/describe`), "GET", undefined, ctx.org).catch(() => null);
+    const r = await apiRequest<Row>(
+      await dataPath(ctx.org, `/sobjects/${object}/describe`),
+      "GET",
+      undefined,
+      ctx.org
+    ).catch(() => null);
     if (!r?.success || !r.data) return null;
     const d = r.data;
     const fields = new Map(arr(d.fields).map((f) => [str(f.name).toLowerCase(), f]));
@@ -213,7 +278,9 @@ function describeOf(ctx: ScreenContext, object: string): Promise<Describe | null
       name: object,
       fields,
       children: arr(d.childRelationships),
-      recordTypes: new Map(arr(d.recordTypeInfos).map((t) => [str(t.recordTypeId), str(t.developerName)])),
+      recordTypes: new Map(
+        arr(d.recordTypeInfos).map((t) => [str(t.recordTypeId), str(t.developerName)])
+      ),
       nameField: str(arr(d.fields).find((f) => f.nameField === true)?.name) || "Name",
       updateable: d.updateable !== false,
       createable: d.createable !== false,
@@ -236,15 +303,23 @@ function specsFor(ctx: ScreenContext, object: string): RecordFieldSpec[] {
     if (layoutObject(name) !== object) continue;
     for (const s of layout.sections) for (const col of s.fields ?? []) out.push(...col);
   }
-  for (const [name, fields] of Object.entries(ctx.core.compactFields ?? {})) if (name.startsWith(`${object}.`)) out.push(...fields);
+  for (const [name, fields] of Object.entries(ctx.core.compactFields ?? {}))
+    if (name.startsWith(`${object}.`)) out.push(...fields);
   return out;
 }
 
 /** Page components of the object's record types' flexipages, tabs flattened. */
 function pageComponents(ctx: ScreenContext, object: string): PublishedComponent[] {
-  const pages = new Set(ctx.core.objects[object]?.recordTypes.map((r) => r.flexiPage).filter((x): x is string => !!x));
-  const flat = (c: PublishedComponent): PublishedComponent[] => [c, ...(c.tabs ?? []).flatMap((t) => t.components.flatMap(flat))];
-  return [...pages].flatMap((p) => (ctx.core.pages[p]?.regions ?? []).flatMap((r) => r.components.flatMap(flat)));
+  const pages = new Set(
+    ctx.core.objects[object]?.recordTypes.map((r) => r.flexiPage).filter((x): x is string => !!x)
+  );
+  const flat = (c: PublishedComponent): PublishedComponent[] => [
+    c,
+    ...(c.tabs ?? []).flatMap((t) => t.components.flatMap(flat)),
+  ];
+  return [...pages].flatMap((p) =>
+    (ctx.core.pages[p]?.regions ?? []).flatMap((r) => r.components.flatMap(flat))
+  );
 }
 
 interface Fetched {
@@ -258,13 +333,23 @@ interface Fetched {
  * `where`, plus, when the rows are read as the rep, the table's DB Schema filter with the rep's tags filled in
  * (`ctx.scope`), so only rows the iPad's offline database holds come back. The admin reads stay as they were.
  */
-export function syncedWhere(ctx: Pick<ScreenContext, "source" | "scope">, object: string, where: string): string {
+export function syncedWhere(
+  ctx: Pick<ScreenContext, "source" | "scope">,
+  object: string,
+  where: string
+): string {
   const synced = ctx.source === "rep" ? ctx.scope(object) : undefined;
   return synced ? `${where} AND (${synced})` : where;
 }
 
 /** Reads `ids` of `object` (or `where`) with every layout field the describe knows; lookups come as `Rel.Name`. */
-async function fetchRows(ctx: ScreenContext, object: string, where: string, extra: string[], inlineFields: string[] = []): Promise<Fetched | null> {
+async function fetchRows(
+  ctx: ScreenContext,
+  object: string,
+  where: string,
+  extra: string[],
+  inlineFields: string[] = []
+): Promise<Fetched | null> {
   const describe = await describeOf(ctx, object);
   if (!describe) return null;
   const specs = new Map<string, RecordFieldSpec>();
@@ -276,7 +361,12 @@ async function fetchRows(ctx: ScreenContext, object: string, where: string, extr
   // Fields an inline component (lscMobileInline_*) prints that no layout shows.
   for (const name of inlineFields) {
     const f = describe.fields.get(name.toLowerCase());
-    if (f && !specs.has(str(f.name))) specs.set(str(f.name), { name: str(f.name), label: str(f.label), type: str(f.type).toLowerCase() });
+    if (f && !specs.has(str(f.name)))
+      specs.set(str(f.name), {
+        name: str(f.name),
+        label: str(f.label),
+        type: str(f.type).toLowerCase(),
+      });
   }
   const paths = new Set<string>(["Id", describe.nameField, ...extra]);
   if (describe.fields.has("recordtypeid")) paths.add("RecordTypeId");
@@ -284,9 +374,11 @@ async function fetchRows(ctx: ScreenContext, object: string, where: string, extr
   for (const name of specs.keys()) {
     const f = describe.fields.get(name.toLowerCase());
     paths.add(name);
-    if (f && str(f.type) === "reference" && f.relationshipName) paths.add(`${str(f.relationshipName)}.${refNameField(f)}`);
+    if (f && str(f.type) === "reference" && f.relationshipName)
+      paths.add(`${str(f.relationshipName)}.${refNameField(f)}`);
   }
-  const select = (list: string[]) => `SELECT ${list.join(", ")} FROM ${object} WHERE ${syncedWhere(ctx, object, where)}`;
+  const select = (list: string[]) =>
+    `SELECT ${list.join(", ")} FROM ${object} WHERE ${syncedWhere(ctx, object, where)}`;
   try {
     return { rows: await query(select([...paths]), ctx.org), specs, describe };
   } catch {
@@ -300,7 +392,10 @@ async function fetchRows(ctx: ScreenContext, object: string, where: string, extr
   }
 }
 
-const salutationLabel = (d: Describe, salutation: string) => str(arr(d.fields.get("salutation")?.picklistValues).find((p) => str(p.value) === salutation)?.label) || salutation;
+const salutationLabel = (d: Describe, salutation: string) =>
+  str(
+    arr(d.fields.get("salutation")?.picklistValues).find((p) => str(p.value) === salutation)?.label
+  ) || salutation;
 
 /**
  * Whether the viewer can read a field — the app's `readable` layout-item flag, which it
@@ -309,7 +404,10 @@ const salutationLabel = (d: Describe, salutation: string) => str(arr(d.fields.ge
  * readable only when it is not permissionable (Name, Id, system and required fields).
  * Without permissions data nothing is filtered.
  */
-export function isFieldReadable(field: Row, perms: Map<string, boolean> | null | undefined): boolean {
+export function isFieldReadable(
+  field: Row,
+  perms: Map<string, boolean> | null | undefined
+): boolean {
   if (!perms) return true;
   const row = perms.get(str(field.name).toLowerCase());
   if (row !== undefined) return row;
@@ -321,7 +419,8 @@ const PERMISSION_SOQL = (types: string[], userId: string) =>
        AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE AssigneeId = '${userId}')`;
 
 /** The SobjectTypes whose FieldPermissions make up an object's: a person account's fields are the Contact's too. */
-const permissionTypes = (object: string) => (object === "Account" ? ["Account", "Contact"] : [object]);
+const permissionTypes = (object: string) =>
+  object === "Account" ? ["Account", "Contact"] : [object];
 
 /**
  * One FieldPermissions read for every object the records step shows, rather than one per object: the server scans the
@@ -335,11 +434,17 @@ function fieldPermissionRows(ctx: ScreenContext, objects: string[]): Promise<Row
 }
 
 /** The viewer's merged field read permissions for an object (profile, permission sets and groups); null when the org won't say. */
-async function fieldReadPermissions(ctx: ScreenContext, object: string, shared?: Promise<Row[] | null>): Promise<Map<string, boolean> | null> {
+async function fieldReadPermissions(
+  ctx: ScreenContext,
+  object: string,
+  shared?: Promise<Row[] | null>
+): Promise<Map<string, boolean> | null> {
   try {
     const together = shared ? await shared : null;
     const types = new Set(permissionTypes(object).map((t) => t.toLowerCase()));
-    const rows = together ? together.filter((r) => types.has(str(r.Field).split(".")[0].toLowerCase())) : await query(PERMISSION_SOQL(permissionTypes(object), ctx.userId), ctx.adminOrg);
+    const rows = together
+      ? together.filter((r) => types.has(str(r.Field).split(".")[0].toLowerCase()))
+      : await query(PERMISSION_SOQL(permissionTypes(object), ctx.userId), ctx.adminOrg);
     const out = new Map<string, boolean>();
     const set = (name: string, read: boolean) => out.set(name, out.get(name) === true || read);
     for (const r of rows) {
@@ -348,7 +453,12 @@ async function fieldReadPermissions(ctx: ScreenContext, object: string, shared?:
       if (!field) continue;
       if (sobject === "Contact") {
         // A person account's fields are the Contact's, named Person<Field> (custom: __pc).
-        set(field.endsWith("__c") ? `${field.slice(0, -3)}__pc`.toLowerCase() : `person${field}`.toLowerCase(), read);
+        set(
+          field.endsWith("__c")
+            ? `${field.slice(0, -3)}__pc`.toLowerCase()
+            : `person${field}`.toLowerCase(),
+          read
+        );
       } else set(field.toLowerCase(), read);
     }
     return out;
@@ -357,7 +467,10 @@ async function fieldReadPermissions(ctx: ScreenContext, object: string, shared?:
   }
 }
 
-function fieldMeta(fetched: Fetched, perms?: Map<string, boolean> | null): Record<string, PublishedFieldMeta> {
+function fieldMeta(
+  fetched: Fetched,
+  perms?: Map<string, boolean> | null
+): Record<string, PublishedFieldMeta> {
   const out: Record<string, PublishedFieldMeta> = {};
   for (const [name, spec] of fetched.specs) {
     const f = fetched.describe.fields.get(name.toLowerCase());
@@ -365,7 +478,14 @@ function fieldMeta(fetched: Fetched, perms?: Map<string, boolean> | null): Recor
     // The cache labels a lookup by the layout's name ("Owner Name"); the REST describe says "Owner ID".
     const idLabel = str(f.type) === "reference" && /\sID$/.test(str(f.label)) && !!spec.label;
     const meta: PublishedFieldMeta = { label: (idLabel ? spec.label : str(f.label)) || spec.label };
-    if ((f.compoundFieldName && str(f.name) !== str(f.compoundFieldName) && str(f.name) !== fetched.describe.nameField) || str(f.type) === "address" || str(f.type) === "location") meta.hidden = true;
+    if (
+      (f.compoundFieldName &&
+        str(f.name) !== str(f.compoundFieldName) &&
+        str(f.name) !== fetched.describe.nameField) ||
+      str(f.type) === "address" ||
+      str(f.type) === "location"
+    )
+      meta.hidden = true;
     if (!isFieldReadable(f, perms)) meta.hidden = true;
     if (str(f.inlineHelpText)) meta.help = true;
     out[name.toLowerCase()] = meta;
@@ -374,9 +494,16 @@ function fieldMeta(fetched: Fetched, perms?: Map<string, boolean> | null): Recor
 }
 
 /** The field a lookup shows: a Case has no Name, its CaseNumber stands in. */
-const refNameField = (f: Row) => (arr(f.referenceTo).map(str).includes("Case") ? "CaseNumber" : "Name");
+const refNameField = (f: Row) =>
+  arr(f.referenceTo).map(str).includes("Case") ? "CaseNumber" : "Name";
 
-function toValues(ctx: ScreenContext, fetched: Fetched, row: Row, unsynced: Set<string>, profile: string | null = null): Record<string, string> {
+function toValues(
+  ctx: ScreenContext,
+  fetched: Fetched,
+  row: Row,
+  unsynced: Set<string>,
+  profile: string | null = null
+): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [name, spec] of fetched.specs) {
     const f = fetched.describe.fields.get(name.toLowerCase());
@@ -387,11 +514,24 @@ function toValues(ctx: ScreenContext, fetched: Fetched, row: Row, unsynced: Set<
       out[name.toLowerCase()] = shown;
       continue;
     }
-    let text = formatValue(raw, spec, f, ctx.format, !/^(Provider)?Visit$/.test(fetched.describe.name));
+    let text = formatValue(
+      raw,
+      spec,
+      f,
+      ctx.format,
+      !/^(Provider)?Visit$/.test(fetched.describe.name)
+    );
     // A formula on $Profile.Name was computed for the connected admin; the device holds the rep's value.
-    if (profile && f?.calculated === true && usesProfileName(str(f.calculatedFormula))) text = evalProfileFormula(str(f.calculatedFormula), profile) ?? text;
+    if (profile && f?.calculated === true && usesProfileName(str(f.calculatedFormula)))
+      text = evalProfileFormula(str(f.calculatedFormula), profile) ?? text;
     // A person account's Name prints with its salutation (the device joins the compound name).
-    if (text && str(f?.name) === fetched.describe.nameField && fetched.describe.fields.has("salutation") && str(row.Salutation)) text = `${salutationLabel(fetched.describe, str(row.Salutation))} ${text}`;
+    if (
+      text &&
+      str(f?.name) === fetched.describe.nameField &&
+      fetched.describe.fields.has("salutation") &&
+      str(row.Salutation)
+    )
+      text = `${salutationLabel(fetched.describe, str(row.Salutation))} ${text}`;
     out[name.toLowerCase()] = text;
   }
   return out;
@@ -404,7 +544,9 @@ async function unsyncedIds(ctx: ScreenContext, fetched: Fetched[]): Promise<Set<
     for (const name of f.specs.keys()) {
       const field = f.describe.fields.get(name.toLowerCase());
       if (str(field?.type) !== "reference") continue;
-      const targets = arr(field?.referenceTo).length ? (field?.referenceTo as unknown[]).map(str) : [];
+      const targets = arr(field?.referenceTo).length
+        ? (field?.referenceTo as unknown[]).map(str)
+        : [];
       for (const r of f.rows) {
         const id = str(r[name]);
         if (!ID_PATTERN.test(id)) continue;
@@ -415,7 +557,8 @@ async function unsyncedIds(ctx: ScreenContext, fetched: Fetched[]): Promise<Set<
     }
   }
   const idsByTarget = new Map<string, string[]>();
-  for (const [id, targets] of targetsOf) for (const t of targets) idsByTarget.set(t, [...(idsByTarget.get(t) ?? []), id]);
+  for (const [id, targets] of targetsOf)
+    for (const t of targets) idsByTarget.set(t, [...(idsByTarget.get(t) ?? []), id]);
   /** Ids a target's local table holds: "all" when its filter can't be checked or is empty. */
   const held = new Map<string, Set<string> | "all" | "none">();
   await Promise.all(
@@ -423,7 +566,10 @@ async function unsyncedIds(ctx: ScreenContext, fetched: Fetched[]): Promise<Set<
       const condition = ctx.scope(target);
       if (condition === undefined) return void held.set(target, "none");
       if (!condition) return void held.set(target, "all");
-      const found = await query(`SELECT Id FROM ${target} WHERE Id IN (${inList(ids)}) AND (${condition})`, ctx.org).catch(() => null);
+      const found = await query(
+        `SELECT Id FROM ${target} WHERE Id IN (${inList(ids)}) AND (${condition})`,
+        ctx.org
+      ).catch(() => null);
       held.set(target, found ? new Set(found.map((r) => str(r.Id))) : "all");
     })
   );
@@ -439,18 +585,23 @@ async function unsyncedIds(ctx: ScreenContext, fetched: Fetched[]): Promise<Set<
 }
 
 /** First rows per list view, grouped by object. */
-function idsByObject(lists: Record<string, PublishedListData>, extra: Record<string, string[]>): Map<string, string[]> {
+function idsByObject(
+  lists: Record<string, PublishedListData>,
+  extra: Record<string, string[]>
+): Map<string, string[]> {
   const out = new Map<string, string[]>();
   for (const [key, data] of Object.entries(lists)) {
     const object = key.slice(0, key.indexOf("."));
     const ids = out.get(object) ?? [];
-    for (const r of data.rows.slice(0, PER_LIST)) if (ID_PATTERN.test(r.id) && !ids.includes(r.id) && ids.length < PER_OBJECT) ids.push(r.id);
+    for (const r of data.rows.slice(0, PER_LIST))
+      if (ID_PATTERN.test(r.id) && !ids.includes(r.id) && ids.length < PER_OBJECT) ids.push(r.id);
     out.set(object, ids);
   }
   // Records other screens open (the Accounts screen's cards).
   for (const [object, list] of Object.entries(extra)) {
     const ids = out.get(object) ?? [];
-    for (const id of list.slice(0, PER_OBJECT)) if (ID_PATTERN.test(id) && !ids.includes(id)) ids.push(id);
+    for (const id of list.slice(0, PER_OBJECT))
+      if (ID_PATTERN.test(id) && !ids.includes(id)) ids.push(id);
     out.set(object, ids);
   }
   return out;
@@ -465,7 +616,12 @@ const GENERIC_INQUIRY_COLUMNS: RecordFieldSpec[] = [
   { name: "SubmittedDateTime", label: "Submitted Date Time", type: "datetime" },
 ];
 
-async function relatedLists(ctx: ScreenContext, object: string, ids: string[], d: Describe): Promise<Map<string, PublishedRelated[]>> {
+async function relatedLists(
+  ctx: ScreenContext,
+  object: string,
+  ids: string[],
+  d: Describe
+): Promise<Map<string, PublishedRelated[]>> {
   const out = new Map<string, PublishedRelated[]>(ids.map((id) => [id, []]));
   const keys = new Map<string, string>();
   const fixed = new Map<string, { label: string; order: string; specs: RecordFieldSpec[] }>();
@@ -474,13 +630,23 @@ async function relatedLists(ctx: ScreenContext, object: string, ids: string[], d
     const key = api ? relatedKey(d.children, api) : null;
     if (key) keys.set(key, api);
     // LSCGenericRelatedList "Inquiries": an Account's Inquiry records, the columns the app's component shows.
-    if (object === "Account" && trimNamespace(c.name) === "LSCGenericRelatedList" && c.properties.label === "Inquiries" && d.children.some((x) => str(x.childSObject) === "Inquiry" && str(x.field) === "AccountId")) {
+    if (
+      object === "Account" &&
+      trimNamespace(c.name) === "LSCGenericRelatedList" &&
+      c.properties.label === "Inquiries" &&
+      d.children.some((x) => str(x.childSObject) === "Inquiry" && str(x.field) === "AccountId")
+    ) {
       keys.set("Inquiry.AccountId", "LSCGenericRelatedList");
-      fixed.set("Inquiry.AccountId", { label: "Inquiries", order: "Id ASC", specs: GENERIC_INQUIRY_COLUMNS });
+      fixed.set("Inquiry.AccountId", {
+        label: "Inquiries",
+        order: "Id ASC",
+        specs: GENERIC_INQUIRY_COLUMNS,
+      });
     }
   }
   const layouts = Object.entries(ctx.core.layouts).filter(([n]) => layoutObject(n) === object);
-  const layoutList = (key: string) => layouts.flatMap(([, l]) => l.relatedLists).find((r) => r.name === key);
+  const layoutList = (key: string) =>
+    layouts.flatMap(([, l]) => l.relatedLists).find((r) => r.name === key);
   await Promise.all(
     [...keys.keys()].map(async (key) => {
       const [child, field] = key.split(".");
@@ -491,63 +657,114 @@ async function relatedLists(ctx: ScreenContext, object: string, ids: string[], d
       const fx = fixed.get(key);
       const label = fx?.label ?? (layoutRl?.label || child);
       // The app reads one relationship hop at most; deeper paths (Territory2.Territory2Model.Name) are not columns.
-      const specs = fx?.specs ?? (layoutRl?.columns ?? []).filter((s) => s.name && s.name.split(".").length <= 2);
+      const specs =
+        fx?.specs ??
+        (layoutRl?.columns ?? []).filter((s) => s.name && s.name.split(".").length <= 2);
       const columns = await Promise.all(
-        (specs.length ? specs : [{ name: cd.nameField, label: "", type: "string" }]).map(async (s) => {
-          const own = cd.fields.get(s.name.toLowerCase());
-          // A dotted column (MessageRecord.ContentText) is labelled by the related object's own field.
-          let far: Row | undefined;
-          if (!own && s.name.includes(".")) {
-            const [rel, leaf] = s.name.split(".");
-            const via = [...cd.fields.values()].find((f) => str(f.relationshipName).toLowerCase() === rel.toLowerCase());
-            const target = str(arr(via?.referenceTo)[0]);
-            far = target ? (await describeOf(ctx, target))?.fields.get(leaf.toLowerCase()) : undefined;
+        (specs.length ? specs : [{ name: cd.nameField, label: "", type: "string" }]).map(
+          async (s) => {
+            const own = cd.fields.get(s.name.toLowerCase());
+            // A dotted column (MessageRecord.ContentText) is labelled by the related object's own field.
+            let far: Row | undefined;
+            if (!own && s.name.includes(".")) {
+              const [rel, leaf] = s.name.split(".");
+              const via = [...cd.fields.values()].find(
+                (f) => str(f.relationshipName).toLowerCase() === rel.toLowerCase()
+              );
+              const target = str(arr(via?.referenceTo)[0]);
+              far = target
+                ? (await describeOf(ctx, target))?.fields.get(leaf.toLowerCase())
+                : undefined;
+            }
+            const f = own ?? far;
+            return {
+              label: s.label || str(f?.label) || s.name,
+              type: str(f?.type).toLowerCase() || s.type,
+            };
           }
-          const f = own ?? far;
-          return { label: s.label || str(f?.label) || s.name, type: str(f?.type).toLowerCase() || s.type };
-        })
+        )
       );
-      const base: Omit<PublishedRelated, "count" | "rows"> = { canCreate: cd.createable, key, api: keys.get(key) ?? "", label, object: child, columns };
-      const add = (id: string, count: number, rows: PublishedRelated["rows"]) => out.get(id)?.push({ ...base, count, rows });
+      const base: Omit<PublishedRelated, "count" | "rows"> = {
+        canCreate: cd.createable,
+        key,
+        api: keys.get(key) ?? "",
+        label,
+        object: child,
+        columns,
+      };
+      const add = (id: string, count: number, rows: PublishedRelated["rows"]) =>
+        out.get(id)?.push({ ...base, count, rows });
       if (condition === undefined) return ids.forEach((id) => add(id, 0, []));
       const scoped = condition ? ` AND (${condition})` : "";
       // A person account's contact-parented lists (business licenses) hang off its PersonContactId.
-      const viaContact = object === "Account" && arr(cd.fields.get(field.toLowerCase())?.referenceTo).map(str).join() === "Contact" && d.fields.has("personcontactid");
+      const viaContact =
+        object === "Account" &&
+        arr(cd.fields.get(field.toLowerCase())?.referenceTo).map(str).join() === "Contact" &&
+        d.fields.has("personcontactid");
       const owner = new Map<string, string>(ids.map((id) => [id, id]));
       if (viaContact) {
         owner.clear();
-        const contacts = await query(`SELECT Id, PersonContactId FROM Account WHERE Id IN (${inList(ids)})`, ctx.org).catch(softFail(ctx, "Record page", [] as Row[]));
-        for (const c of contacts) if (str(c.PersonContactId)) owner.set(str(c.PersonContactId), str(c.Id));
+        const contacts = await query(
+          `SELECT Id, PersonContactId FROM Account WHERE Id IN (${inList(ids)})`,
+          ctx.org
+        ).catch(softFail(ctx, "Record page", [] as Row[]));
+        for (const c of contacts)
+          if (str(c.PersonContactId)) owner.set(str(c.PersonContactId), str(c.Id));
       }
       const parents = [...owner.keys()];
       if (!parents.length) return ids.forEach((id) => add(id, 0, []));
       const counts = new Map<string, number>();
       try {
-        const grouped = await query(`SELECT ${field} p, COUNT(Id) c FROM ${child} WHERE ${field} IN (${inList(parents)})${scoped} GROUP BY ${field}`, ctx.org);
+        const grouped = await query(
+          `SELECT ${field} p, COUNT(Id) c FROM ${child} WHERE ${field} IN (${inList(parents)})${scoped} GROUP BY ${field}`,
+          ctx.org
+        );
         for (const g of grouped) counts.set(owner.get(str(g.p)) ?? str(g.p), Number(g.c) || 0);
       } catch {
         return;
       }
       const rowsBy = new Map<string, PublishedRelated["rows"]>();
       if ([...counts.values()].some((n) => n > 0)) {
-        const paths = (specs.length ? specs : [{ name: cd.nameField, label: "", type: "string" }]).map((s) => s.name);
+        const paths = (
+          specs.length ? specs : [{ name: cd.nameField, label: "", type: "string" }]
+        ).map((s) => s.name);
         const rel = (name: string) => {
           const f = cd.fields.get(name.toLowerCase());
-          return f && str(f.type) === "reference" && f.relationshipName ? `${str(f.relationshipName)}.Name` : name;
+          return f && str(f.type) === "reference" && f.relationshipName
+            ? `${str(f.relationshipName)}.Name`
+            : name;
         };
         // Objects without a Name field (ObjectTerritory2Association) sort by their first column.
-        const orderBy = fx ? fx.order.split(" ")[0] : cd.fields.has(cd.nameField.toLowerCase()) ? cd.nameField : rel(paths[0] ?? "Id");
+        const orderBy = fx
+          ? fx.order.split(" ")[0]
+          : cd.fields.has(cd.nameField.toLowerCase())
+            ? cd.nameField
+            : rel(paths[0] ?? "Id");
         const dir = fx ? fx.order.split(" ")[1] : "DESC";
-        const select = (p: string[]) => `SELECT Id, ${field}, ${[...new Set(p)].join(", ")} FROM ${child} WHERE ${field} IN (${inList(parents)})${scoped} ORDER BY ${orderBy} ${dir} LIMIT 1000`;
-        const records = await query(select(paths.map(rel)), ctx.org).catch(() => query(select(paths.filter((p) => !p.includes("."))), ctx.org).catch(softFail(ctx, `Record page (${child} related list)`, [] as Row[])));
+        const select = (p: string[]) =>
+          `SELECT Id, ${field}, ${[...new Set(p)].join(", ")} FROM ${child} WHERE ${field} IN (${inList(parents)})${scoped} ORDER BY ${orderBy} ${dir} LIMIT 1000`;
+        const records = await query(select(paths.map(rel)), ctx.org).catch(() =>
+          query(select(paths.filter((p) => !p.includes("."))), ctx.org).catch(
+            softFail(ctx, `Record page (${child} related list)`, [] as Row[])
+          )
+        );
         for (const r of records) {
           const parent = owner.get(str(r[field])) ?? str(r[field]);
           const list = rowsBy.get(parent) ?? [];
           if (list.length >= RELATED_ROWS) continue;
-          const cells = (specs.length ? specs : [{ name: cd.nameField, label: "", type: "string" } as RecordFieldSpec]).map((s) => {
+          const cells = (
+            specs.length
+              ? specs
+              : [{ name: cd.nameField, label: "", type: "string" } as RecordFieldSpec]
+          ).map((s) => {
             const f = cd.fields.get(s.name.toLowerCase());
             if (f && str(f.type) === "reference") return str(obj(r[str(f.relationshipName)]).Name);
-            const raw = s.name.split(".").reduce<unknown>((v, k) => (v && typeof v === "object" ? (v as Row)[k] : undefined), r);
+            const raw = s.name
+              .split(".")
+              .reduce<unknown>(
+                (v, k) => (v && typeof v === "object" ? (v as Row)[k] : undefined),
+                r
+              );
             return formatValue(raw, s, f, ctx.format);
           });
           list.push({ id: str(r.Id), cells });
@@ -557,11 +774,17 @@ async function relatedLists(ctx: ScreenContext, object: string, ids: string[], d
       for (const id of ids) add(id, counts.get(id) ?? 0, rowsBy.get(id) ?? []);
     })
   );
-  if (object === "Account" && pageComponents(ctx, object).some((c) => trimNamespace(c.name) === "AccountAffiliations")) {
+  if (
+    object === "Account" &&
+    pageComponents(ctx, object).some((c) => trimNamespace(c.name) === "AccountAffiliations")
+  ) {
     const lists = await affiliations(ctx, ids).catch(() => new Map<string, PublishedRelated>());
     for (const [id, rel] of lists) out.get(id)?.push(rel);
   }
-  if (object === "Account" && pageComponents(ctx, object).some((c) => trimNamespace(c.name) === "ActivityHistory")) {
+  if (
+    object === "Account" &&
+    pageComponents(ctx, object).some((c) => trimNamespace(c.name) === "ActivityHistory")
+  ) {
     const lists = await activityHistory(ctx, ids).catch(() => new Map<string, PublishedRelated>());
     for (const [id, rel] of lists) out.get(id)?.push(rel);
   }
@@ -572,7 +795,10 @@ async function relatedLists(ctx: ScreenContext, object: string, ids: string[], d
  * The Activity History tab (ActivityHistory): the account's visits, newest first. Each row is
  * [when, month heading, kind]; the month heading groups the timeline.
  */
-async function activityHistory(ctx: ScreenContext, ids: string[]): Promise<Map<string, PublishedRelated>> {
+async function activityHistory(
+  ctx: ScreenContext,
+  ids: string[]
+): Promise<Map<string, PublishedRelated>> {
   const out = new Map<string, PublishedRelated>();
   const cond = ctx.scope("Visit");
   if (cond === undefined) return out;
@@ -580,7 +806,11 @@ async function activityHistory(ctx: ScreenContext, ids: string[]): Promise<Map<s
     `SELECT Id, AccountId, PlannedVisitStartTime FROM Visit WHERE AccountId IN (${inList(ids)}) AND PlannedVisitStartTime != null${cond ? ` AND (${cond})` : ""} ORDER BY PlannedVisitStartTime DESC LIMIT 200`,
     ctx.org
   );
-  const month = new Intl.DateTimeFormat(ctx.format.locale, { month: "long", year: "numeric", timeZone: ctx.format.timeZone });
+  const month = new Intl.DateTimeFormat(ctx.format.locale, {
+    month: "long",
+    year: "numeric",
+    timeZone: ctx.format.timeZone,
+  });
   for (const id of ids) {
     const mine = rows.filter((r) => str(r.AccountId) === id);
     out.set(id, {
@@ -589,15 +819,29 @@ async function activityHistory(ctx: ScreenContext, ids: string[]): Promise<Map<s
       label: "Activity History",
       object: "Visit",
       count: mine.length,
-      columns: [{ label: "When", type: "datetime" }, { label: "Month", type: "string" }, { label: "Kind", type: "string" }],
-      rows: mine.map((r) => ({ id: str(r.Id), cells: [formatValue(r.PlannedVisitStartTime, { type: "datetime" }, undefined, ctx.format), month.format(new Date(str(r.PlannedVisitStartTime))), "Visit"] })),
+      columns: [
+        { label: "When", type: "datetime" },
+        { label: "Month", type: "string" },
+        { label: "Kind", type: "string" },
+      ],
+      rows: mine.map((r) => ({
+        id: str(r.Id),
+        cells: [
+          formatValue(r.PlannedVisitStartTime, { type: "datetime" }, undefined, ctx.format),
+          month.format(new Date(str(r.PlannedVisitStartTime))),
+          "Visit",
+        ],
+      })),
     });
   }
   return out;
 }
 
 /** The Affiliations tab (AccountAffiliations): the other party of each ProviderAffiliation, limited to accounts the device holds. */
-async function affiliations(ctx: ScreenContext, ids: string[]): Promise<Map<string, PublishedRelated>> {
+async function affiliations(
+  ctx: ScreenContext,
+  ids: string[]
+): Promise<Map<string, PublishedRelated>> {
   const out = new Map<string, PublishedRelated>();
   const cond = ctx.scope("ProviderAffiliation");
   const accountCond = ctx.scope("Account");
@@ -607,10 +851,20 @@ async function affiliations(ctx: ScreenContext, ids: string[]): Promise<Map<stri
     `SELECT Id, AccountId, RelatedAccountId, AccountName, AffiliationStrengthType, Role, InfluenceType, Account.Name, RelatedAccount.Name FROM ProviderAffiliation WHERE (AccountId IN (${inIds}) OR RelatedAccountId IN (${inIds}))${cond ? ` AND (${cond})` : ""} ORDER BY Id ASC LIMIT 500`,
     ctx.org
   );
-  const other = (r: Row, id: string) => (str(r.AccountId) === id ? str(r.RelatedAccountId) : str(r.AccountId));
-  const wanted = [...new Set(rows.flatMap((r) => ids.map((id) => other(r, id))))].filter((x) => ID_PATTERN.test(x));
+  const other = (r: Row, id: string) =>
+    str(r.AccountId) === id ? str(r.RelatedAccountId) : str(r.AccountId);
+  const wanted = [...new Set(rows.flatMap((r) => ids.map((id) => other(r, id))))].filter((x) =>
+    ID_PATTERN.test(x)
+  );
   if (!wanted.length) return out;
-  const held = new Set((await query(`SELECT Id FROM Account WHERE Id IN (${inList(wanted)})${accountCond ? ` AND (${accountCond})` : ""}`, ctx.org).catch(softFail(ctx, "Record page (affiliations)", [] as Row[]))).map((a) => str(a.Id)));
+  const held = new Set(
+    (
+      await query(
+        `SELECT Id FROM Account WHERE Id IN (${inList(wanted)})${accountCond ? ` AND (${accountCond})` : ""}`,
+        ctx.org
+      ).catch(softFail(ctx, "Record page (affiliations)", [] as Row[]))
+    ).map((a) => str(a.Id))
+  );
   const columns = [
     { label: "Account", type: "reference" },
     { label: "Account", type: "reference" },
@@ -619,30 +873,71 @@ async function affiliations(ctx: ScreenContext, ids: string[]): Promise<Map<stri
     { label: "Influence Type", type: "picklist" },
   ];
   for (const id of ids) {
-    const mine = rows.filter((r) => (str(r.AccountId) === id || str(r.RelatedAccountId) === id) && held.has(other(r, id)));
-    const cells = (r: Row) => [str(obj(str(r.AccountId) === id ? r.RelatedAccount : r.Account).Name), str(r.AccountName), str(r.AffiliationStrengthType), str(r.Role), str(r.InfluenceType)];
-    out.set(id, { key: "ProviderAffiliation.AccountId", api: "AccountAffiliations", label: "Affiliations", object: "ProviderAffiliation", count: mine.length, columns, rows: mine.slice(0, 25).map((r) => ({ id: str(r.Id), cells: cells(r) })), canCreate: true });
+    const mine = rows.filter(
+      (r) => (str(r.AccountId) === id || str(r.RelatedAccountId) === id) && held.has(other(r, id))
+    );
+    const cells = (r: Row) => [
+      str(obj(str(r.AccountId) === id ? r.RelatedAccount : r.Account).Name),
+      str(r.AccountName),
+      str(r.AffiliationStrengthType),
+      str(r.Role),
+      str(r.InfluenceType),
+    ];
+    out.set(id, {
+      key: "ProviderAffiliation.AccountId",
+      api: "AccountAffiliations",
+      label: "Affiliations",
+      object: "ProviderAffiliation",
+      count: mine.length,
+      columns,
+      rows: mine.slice(0, 25).map((r) => ({ id: str(r.Id), cells: cells(r) })),
+      canCreate: true,
+    });
   }
   return out;
 }
 
-async function themeOf(ctx: ScreenContext, object: string): Promise<{ color: string; iconUrl: string } | null> {
+async function themeOf(
+  ctx: ScreenContext,
+  object: string
+): Promise<{ color: string; iconUrl: string } | null> {
   const fromCore = ctx.core.objects[object]?.theme;
   if (fromCore) return fromCore;
-  const r = await apiRequest<Row>(await dataPath(ctx.org, `/ui-api/object-info/${object}`), "GET", undefined, ctx.org).catch(() => null);
+  const r = await apiRequest<Row>(
+    await dataPath(ctx.org, `/ui-api/object-info/${object}`),
+    "GET",
+    undefined,
+    ctx.org
+  ).catch(() => null);
   const t = obj(r?.success ? r.data?.themeInfo : null);
   return t.color ? { color: `#${str(t.color).replace(/^#/, "")}`, iconUrl: str(t.iconUrl) } : null;
 }
 
-async function inlineCards(ctx: ScreenContext, objects: string[]): Promise<Pick<PublishedRecords, "inline" | "inlineChecks">> {
-  const names = new Set(objects.flatMap((o) => pageComponents(ctx, o)).map((c) => trimNamespace(c.name)).filter((n) => /^lscMobileInline_\w+$/.test(n)));
+async function inlineCards(
+  ctx: ScreenContext,
+  objects: string[]
+): Promise<Pick<PublishedRecords, "inline" | "inlineChecks">> {
+  const names = new Set(
+    objects
+      .flatMap((o) => pageComponents(ctx, o))
+      .map((c) => trimNamespace(c.name))
+      .filter((n) => /^lscMobileInline_\w+$/.test(n))
+  );
   const inline: Record<string, PublishedInlineCard> = {};
   const inlineChecks: Record<string, InlineLwcCheck> = {};
   const load = async (bundles: string[]): Promise<LwcFile[]> => {
     const valid = bundles.filter((b) => /^\w+$/.test(b));
     if (!valid.length) return [];
-    const rows = await query(`SELECT LightningComponentBundle.DeveloperName, FilePath, Source FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName IN (${inList(valid)})`, ctx.adminOrg, true).catch(softFail(ctx, "Record page", [] as Row[]));
-    return rows.map((r) => ({ bundle: str(obj(r.LightningComponentBundle).DeveloperName), path: str(r.FilePath), source: str(r.Source) }));
+    const rows = await query(
+      `SELECT LightningComponentBundle.DeveloperName, FilePath, Source FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName IN (${inList(valid)})`,
+      ctx.adminOrg,
+      true
+    ).catch(softFail(ctx, "Record page", [] as Row[]));
+    return rows.map((r) => ({
+      bundle: str(obj(r.LightningComponentBundle).DeveloperName),
+      path: str(r.FilePath),
+      source: str(r.Source),
+    }));
   };
   await Promise.all(
     [...names].map(async (n) => {
@@ -657,7 +952,11 @@ async function inlineCards(ctx: ScreenContext, objects: string[]): Promise<Pick<
   return { inline, inlineChecks };
 }
 
-export async function collectRecords(ctx: ScreenContext, lists: Record<string, PublishedListData>, extra: Record<string, string[]> = {}): Promise<PublishedRecords | undefined> {
+export async function collectRecords(
+  ctx: ScreenContext,
+  lists: Record<string, PublishedListData>,
+  extra: Record<string, string[]> = {}
+): Promise<PublishedRecords | undefined> {
   const wanted = idsByObject(lists, extra);
   const fields: Record<string, Record<string, PublishedFieldMeta>> = {};
   const byId: Record<string, PublishedRecordData> = {};
@@ -665,23 +964,45 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
   const objects = [...wanted.keys()].filter((o) => ctx.core.objects[o] && wanted.get(o)?.length);
   if (!objects.length) return undefined;
   const { inline, inlineChecks } = await inlineCards(ctx, objects);
-  const viewerProfile = await query(`SELECT Profile.Name FROM User WHERE Id = '${ctx.userId}'`, ctx.org)
+  const viewerProfile = await query(
+    `SELECT Profile.Name FROM User WHERE Id = '${ctx.userId}'`,
+    ctx.org
+  )
     .then((r) => str(obj(r[0]?.Profile).Name) || null)
     .catch(() => null);
   // Started now, while the rows and describes load: the object chains below only wait for it when they need it.
   const permissions = fieldPermissionRows(
     ctx,
-    objects.flatMap((o) => (MULTI_ENTITY[o] && ctx.core.objects[o]?.recordTypes.some((r) => r.multiEntity) ? [o, MULTI_ENTITY[o].with] : [o]))
+    objects.flatMap((o) =>
+      MULTI_ENTITY[o] && ctx.core.objects[o]?.recordTypes.some((r) => r.multiEntity)
+        ? [o, MULTI_ENTITY[o].with]
+        : [o]
+    )
   );
-  const inlineFor = (o: string) => [...new Set(Object.values(inline).filter((c) => c.object === o).flatMap((c) => c.cells.map((x) => x.field)))];
+  const inlineFor = (o: string) => [
+    ...new Set(
+      Object.values(inline)
+        .filter((c) => c.object === o)
+        .flatMap((c) => c.cells.map((x) => x.field))
+    ),
+  ];
 
   await Promise.all(
     objects.map(async (object) => {
       const ids = wanted.get(object) ?? [];
       const partner = MULTI_ENTITY[object]?.with;
       const [main, access] = await Promise.all([
-        fetchRows(ctx, object, `Id IN (${inList(ids)})`, ["Status"].filter(() => object === "Visit"), inlineFor(object)),
-        query(`SELECT RecordId, HasEditAccess FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND RecordId IN (${inList(ids)})`, ctx.org).catch(softFail(ctx, "Record page", [] as Row[])),
+        fetchRows(
+          ctx,
+          object,
+          `Id IN (${inList(ids)})`,
+          ["Status"].filter(() => object === "Visit"),
+          inlineFor(object)
+        ),
+        query(
+          `SELECT RecordId, HasEditAccess FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND RecordId IN (${inList(ids)})`,
+          ctx.org
+        ).catch(softFail(ctx, "Record page", [] as Row[])),
       ]);
       if (!main) return;
       // The partner record is the one whose lookup points back at this record (MultiEntityViewModel.getFetchQuery).
@@ -689,28 +1010,62 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
       let linkField = "";
       if (partner && ctx.core.objects[object]?.recordTypes.some((r) => r.multiEntity)) {
         const pd = await describeOf(ctx, partner);
-        linkField = str(arr([...(pd?.fields.values() ?? [])]).find((f) => arr(f.referenceTo).map(str).includes(object) && f.nameField !== true)?.name);
-        if (pd && linkField) linkedFetch = await fetchRows(ctx, partner, `${linkField} IN (${inList(ids)})`, [linkField, "Status"].filter((p) => p !== "Status" || pd.fields.has("status")), inlineFor(partner));
+        linkField = str(
+          arr([...(pd?.fields.values() ?? [])]).find(
+            (f) => arr(f.referenceTo).map(str).includes(object) && f.nameField !== true
+          )?.name
+        );
+        if (pd && linkField)
+          linkedFetch = await fetchRows(
+            ctx,
+            partner,
+            `${linkField} IN (${inList(ids)})`,
+            [linkField, "Status"].filter((p) => p !== "Status" || pd.fields.has("status")),
+            inlineFor(partner)
+          );
       }
-      const [mainPerms, partnerPerms] = await Promise.all([fieldReadPermissions(ctx, object, permissions), linkedFetch ? fieldReadPermissions(ctx, partner, permissions) : null]);
+      const [mainPerms, partnerPerms] = await Promise.all([
+        fieldReadPermissions(ctx, object, permissions),
+        linkedFetch ? fieldReadPermissions(ctx, partner, permissions) : null,
+      ]);
       fields[object] = { ...fields[object], ...fieldMeta(main, mainPerms) };
-      if (linkedFetch) fields[partner] = { ...fields[partner], ...fieldMeta(linkedFetch, partnerPerms) };
+      if (linkedFetch)
+        fields[partner] = { ...fields[partner], ...fieldMeta(linkedFetch, partnerPerms) };
       const unsynced = await unsyncedIds(ctx, linkedFetch ? [main, linkedFetch] : [main]);
       const rel = await relatedLists(ctx, object, ids, main.describe);
       const edit = new Map(access.map((a) => [str(a.RecordId), a.HasEditAccess === true]));
       const components = pageComponents(ctx, object);
       const expensesOn = components.some((c) => trimNamespace(c.name) === "ExpensesListView");
       const expenses = expensesOn ? await readExpenses(ctx, ids) : undefined;
-      const dashboardOn = components.some((c) => /^(accountSummary|accountManagementDashboard|nextBestActions|accountMapDisplay)$/.test(trimNamespace(c.name)));
-      const dashboards = dashboardOn ? await collectDashboards(ctx, ids).catch(() => new Map<string, PublishedDashboard>()) : new Map<string, PublishedDashboard>();
+      const dashboardOn = components.some((c) =>
+        /^(accountSummary|accountManagementDashboard|nextBestActions|accountMapDisplay)$/.test(
+          trimNamespace(c.name)
+        )
+      );
+      const dashboards = dashboardOn
+        ? await collectDashboards(ctx, ids).catch(() => new Map<string, PublishedDashboard>())
+        : new Map<string, PublishedDashboard>();
 
-      const ratingsComponent = object === "Account" ? components.find((c) => trimNamespace(c.name) === "Ratings") : undefined;
+      const ratingsComponent =
+        object === "Account"
+          ? components.find((c) => trimNamespace(c.name) === "Ratings")
+          : undefined;
       const ratingsLayout = ratingsComponent?.properties.layoutName ?? "";
       const ratingItems = ratingsLayout ? await readRatingLayout(ctx, ratingsLayout) : null;
       const ratingRows = new Map<string, Row>();
       if (ratingItems?.length) {
-        const wanted = [...new Set(ratingItems.filter((i) => i.sobject === "Account").map((i) => i.field).filter((f) => main.describe.fields.has(f.toLowerCase())))];
-        const got = await query(`SELECT Id, LastModifiedDate${wanted.map((f) => `, ${f}`).join("")} FROM Account WHERE Id IN (${inList(ids)})`, ctx.org).catch(softFail(ctx, "Record page", [] as Row[]));
+        const wanted = [
+          ...new Set(
+            ratingItems
+              .filter((i) => i.sobject === "Account")
+              .map((i) => i.field)
+              .filter((f) => main.describe.fields.has(f.toLowerCase()))
+          ),
+        ];
+        const got = await query(
+          `SELECT Id, LastModifiedDate${wanted.map((f) => `, ${f}`).join("")} FROM Account WHERE Id IN (${inList(ids)})`,
+          ctx.org
+        ).catch(softFail(ctx, "Record page", [] as Row[]));
         for (const g of got) ratingRows.set(str(g.Id), g);
       }
       const ratingsOf = (id: string): PublishedRatings | undefined => {
@@ -720,25 +1075,62 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
         return {
           layout: ratingsLayout,
           cards: ratingItems.map((i) => {
-            const tab = i.sobject === "Account" ? "General" : /ProviderAcctTerritoryInfo/i.test(i.sobject) ? "Territory" : "Product";
+            const tab =
+              i.sobject === "Account"
+                ? "General"
+                : /ProviderAcctTerritoryInfo/i.test(i.sobject)
+                  ? "Territory"
+                  : "Product";
             const f = main.describe.fields.get(i.field.toLowerCase());
             const live = tab === "General" && !!f && !!row;
-            const value = live ? formatValue(row?.[str(f?.name)], { type: "", picklist: undefined }, f, ctx.format, true) : "";
-            const updated = live && row?.LastModifiedDate ? new Intl.DateTimeFormat(ctx.format.locale, { dateStyle: "medium", timeZone: ctx.format.timeZone }).format(new Date(str(row.LastModifiedDate))) : "";
-            return { tab, title: i.label, value, editable: live && f?.updateable === true, updated, live } as const;
+            const value = live
+              ? formatValue(
+                  row?.[str(f?.name)],
+                  { type: "", picklist: undefined },
+                  f,
+                  ctx.format,
+                  true
+                )
+              : "";
+            const updated =
+              live && row?.LastModifiedDate
+                ? new Intl.DateTimeFormat(ctx.format.locale, {
+                    dateStyle: "medium",
+                    timeZone: ctx.format.timeZone,
+                  }).format(new Date(str(row.LastModifiedDate)))
+                : "";
+            return {
+              tab,
+              title: i.label,
+              value,
+              editable: live && f?.updateable === true,
+              updated,
+              live,
+            } as const;
           }),
         };
       };
 
-      const stagePathOn = object === "Inquiry" && components.some((c) => trimNamespace(c.name) === "LifeSciStagePathContainer");
+      const stagePathOn =
+        object === "Inquiry" &&
+        components.some((c) => trimNamespace(c.name) === "LifeSciStagePathContainer");
       const statusField = main.describe.fields.get("status");
-      const statusSteps = stagePathOn ? arr(statusField?.picklistValues).filter((p) => p.active !== false).map((p) => str(p.label) || str(p.value)) : [];
+      const statusSteps = stagePathOn
+        ? arr(statusField?.picklistValues)
+            .filter((p) => p.active !== false)
+            .map((p) => str(p.label) || str(p.value))
+        : [];
 
       for (const row of main.rows) {
         const id = str(row.Id);
-        const values: Record<string, Record<string, string>> = { [object]: toValues(ctx, main, row, unsynced, viewerProfile) };
-        const partnerRow = linkedFetch?.rows.find((r) => str(r[linkField]).slice(0, 15) === id.slice(0, 15));
-        if (linkedFetch && partnerRow) values[partner] = toValues(ctx, linkedFetch, partnerRow, unsynced, viewerProfile);
+        const values: Record<string, Record<string, string>> = {
+          [object]: toValues(ctx, main, row, unsynced, viewerProfile),
+        };
+        const partnerRow = linkedFetch?.rows.find(
+          (r) => str(r[linkField]).slice(0, 15) === id.slice(0, 15)
+        );
+        if (linkedFetch && partnerRow)
+          values[partner] = toValues(ctx, linkedFetch, partnerRow, unsynced, viewerProfile);
         const rtName = main.describe.recordTypes.get(str(row.RecordTypeId)) ?? null;
         const status = str(partnerRow?.Status ?? row.Status);
         byId[id] = {
@@ -748,19 +1140,37 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
           title: str(row[main.describe.nameField]),
           values,
           ...(partnerRow && partner ? { linked: { object: partner, id: str(partnerRow.Id) } } : {}),
-          editable: isEditable({ object, status, ownerId: str(row.OwnerId), viewerId: ctx.userId, hasEditAccess: edit.get(id) === true, updateable: main.describe.updateable }),
+          editable: isEditable({
+            object,
+            status,
+            ownerId: str(row.OwnerId),
+            viewerId: ctx.userId,
+            hasEditAccess: edit.get(id) === true,
+            updateable: main.describe.updateable,
+          }),
           related: Object.fromEntries((rel.get(id) ?? []).map((r) => [r.key, r])),
           ...(dashboards.has(id) ? { dashboard: dashboards.get(id) } : {}),
           ...(ratingsOf(id) ? { ratings: ratingsOf(id) } : {}),
-          ...(statusSteps.length ? { stagePath: { steps: statusSteps, current: picklistText(str(row.Status), undefined, statusField) } } : {}),
-          ...(expenses ? { expenses: expenses.get(id) ?? { count: 0, total: `${expenses.currency} 0.00` } } : {}),
+          ...(statusSteps.length
+            ? {
+                stagePath: {
+                  steps: statusSteps,
+                  current: picklistText(str(row.Status), undefined, statusField),
+                },
+              }
+            : {}),
+          ...(expenses
+            ? { expenses: expenses.get(id) ?? { count: 0, total: `${expenses.currency} 0.00` } }
+            : {}),
         };
       }
     })
   );
   if (!Object.keys(byId).length) return undefined;
 
-  const children = [...new Set(Object.values(byId).flatMap((r) => Object.values(r.related).map((x) => x.object)))];
+  const children = [
+    ...new Set(Object.values(byId).flatMap((r) => Object.values(r.related).map((x) => x.object))),
+  ];
   await Promise.all(
     children.map(async (c) => {
       const t = await themeOf(ctx, c);
@@ -771,12 +1181,24 @@ export async function collectRecords(ctx: ScreenContext, lists: Record<string, P
 }
 
 /** Expenses tab: ExpenseOriginId → Visit; the total sums Amount in the org's currency. */
-async function readExpenses(ctx: ScreenContext, ids: string[]): Promise<Map<string, { count: number; total: string }> & { currency: string }> {
-  const out = new Map<string, { count: number; total: string }>() as Map<string, { count: number; total: string }> & { currency: string };
-  const corporate = await query("SELECT IsoCode FROM CurrencyType WHERE IsCorporate = true", ctx.org).catch(softFail(ctx, "Record page", [] as Row[]));
+async function readExpenses(
+  ctx: ScreenContext,
+  ids: string[]
+): Promise<Map<string, { count: number; total: string }> & { currency: string }> {
+  const out = new Map<string, { count: number; total: string }>() as Map<
+    string,
+    { count: number; total: string }
+  > & { currency: string };
+  const corporate = await query(
+    "SELECT IsoCode FROM CurrencyType WHERE IsCorporate = true",
+    ctx.org
+  ).catch(softFail(ctx, "Record page", [] as Row[]));
   const iso = str(corporate[0]?.IsoCode);
   out.currency = /^[A-Z]{3}$/.test(iso) ? iso : "USD";
-  const rows = await query(`SELECT ExpenseOriginId, Amount FROM Expense WHERE ExpenseOriginId IN (${inList(ids)})`, ctx.org).catch(softFail(ctx, "Record page (Expenses tab)", [] as Row[]));
+  const rows = await query(
+    `SELECT ExpenseOriginId, Amount FROM Expense WHERE ExpenseOriginId IN (${inList(ids)})`,
+    ctx.org
+  ).catch(softFail(ctx, "Record page (Expenses tab)", [] as Row[]));
   const sums = new Map<string, { count: number; sum: number }>();
   for (const r of rows) {
     const s = sums.get(str(r.ExpenseOriginId)) ?? { count: 0, sum: 0 };
@@ -784,6 +1206,10 @@ async function readExpenses(ctx: ScreenContext, ids: string[]): Promise<Map<stri
     s.sum += Number(r.Amount) || 0;
     sums.set(str(r.ExpenseOriginId), s);
   }
-  for (const [id, s] of sums) out.set(id, { count: s.count, total: `${out.currency} ${s.sum.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` });
+  for (const [id, s] of sums)
+    out.set(id, {
+      count: s.count,
+      total: `${out.currency} ${s.sum.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    });
   return out;
 }

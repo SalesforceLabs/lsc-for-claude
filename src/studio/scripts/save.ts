@@ -17,7 +17,6 @@ import { createBundle, deleteBundle, readBundle, writeBundleJs } from "./lwc.js"
 import { bundleEditable } from "./library.js";
 import type { ScriptFields, ScriptRole } from "./types.js";
 
-
 export type Outcome<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
 const errorOf = (r: { error?: string }) => r.error || "The org refused the change.";
@@ -34,7 +33,10 @@ function recordBody(fields: Partial<ScriptFields>): Record<string, unknown> {
 }
 
 export async function readCodeText(org: string, scriptId: string): Promise<string | null> {
-  const [row] = await query(`SELECT CodeText FROM LifeScienceCustomScript WHERE Id = '${scriptId}'`, org);
+  const [row] = await query(
+    `SELECT CodeText FROM LifeScienceCustomScript WHERE Id = '${scriptId}'`,
+    org
+  );
   return row ? String(row.CodeText ?? "") : null;
 }
 
@@ -52,7 +54,9 @@ export function fieldsOf(row: Row): ScriptFields {
     componentName: String(row.ComponentName ?? ""),
     type: row.Type as ScriptFields["type"],
     objectName: row.ObjectName ? String(row.ObjectName) : null,
-    operationEventType: (row.OperationEventType ? String(row.OperationEventType) : null) as ScriptFields["operationEventType"],
+    operationEventType: (row.OperationEventType
+      ? String(row.OperationEventType)
+      : null) as ScriptFields["operationEventType"],
   };
 }
 
@@ -74,12 +78,17 @@ export interface SaveHooks {
   onStatus?: StatusHook;
 }
 
-const run = <T>(hooks: SaveHooks, key: string, fn: () => Promise<T>) => (hooks.step ? hooks.step(key, fn) : fn());
+const run = <T>(hooks: SaveHooks, key: string, fn: () => Promise<T>) =>
+  hooks.step ? hooks.step(key, fn) : fn();
 
 /**
  * Save a script's code and fields. Returns the CodeText the org holds afterwards.
  */
-export async function saveScript(org: string, input: SaveInput, hooks: SaveHooks = {}): Promise<Outcome<{ codeText: string; how: string }>> {
+export async function saveScript(
+  org: string,
+  input: SaveInput,
+  hooks: SaveHooks = {}
+): Promise<Outcome<{ codeText: string; how: string }>> {
   const { scriptId, current, next } = input;
   const codeChanged = !sameCode(current.code, next.code);
   const component = next.fields.componentName;
@@ -93,7 +102,13 @@ export async function saveScript(org: string, input: SaveInput, hooks: SaveHooks
     const existing = await readBundle(org, component);
     if (!existing) {
       // No bundle: make one from the code (a script made before components, or a renamed component).
-      const made = await createBundle(org, component, next.fields.name || component, next.code, hooks.onStatus);
+      const made = await createBundle(
+        org,
+        component,
+        next.fields.name || component,
+        next.code,
+        hooks.onStatus
+      );
       if (!made.ok) {
         if (input.codeTextWritable) {
           viaCodeText = true;
@@ -108,7 +123,8 @@ export async function saveScript(org: string, input: SaveInput, hooks: SaveHooks
       how = "a new component";
       return { ok: true };
     }
-    if (!codeChanged && !renamed && existing.js !== null && sameCode(existing.js, next.code)) return { ok: true };
+    if (!codeChanged && !renamed && existing.js !== null && sameCode(existing.js, next.code))
+      return { ok: true };
     if (existing.js !== null && sameCode(existing.js, next.code)) return { ok: true };
     if (!bundleEditable(existing.bundle)) {
       if (input.codeTextWritable) {
@@ -134,11 +150,26 @@ export async function saveScript(org: string, input: SaveInput, hooks: SaveHooks
 
   // 2. The record: fields plus a touch (ComponentName) so the platform re-reads the component into CodeText.
   const undoRecord = async () => {
-    await apiRequest(await dataPath(org, `/sobjects/LifeScienceCustomScript/${scriptId}`), "PATCH", recordBody(current.fields), org);
+    await apiRequest(
+      await dataPath(org, `/sobjects/LifeScienceCustomScript/${scriptId}`),
+      "PATCH",
+      recordBody(current.fields),
+      org
+    );
   };
-  const body: Record<string, unknown> = { ...recordBody({ ...next.fields }), ComponentName: component };
+  const body: Record<string, unknown> = {
+    ...recordBody({ ...next.fields }),
+    ComponentName: component,
+  };
   if (viaCodeText) body.CodeText = next.code;
-  const patched = await run(hooks, "record", async () => apiRequest<void>(await dataPath(org, `/sobjects/LifeScienceCustomScript/${scriptId}`), "PATCH", body, org));
+  const patched = await run(hooks, "record", async () =>
+    apiRequest<void>(
+      await dataPath(org, `/sobjects/LifeScienceCustomScript/${scriptId}`),
+      "PATCH",
+      body,
+      org
+    )
+  );
   if (!patched.success) {
     if (rollbackBundle) await (rollbackBundle as () => Promise<void>)().catch(() => undefined);
     return { ok: false, error: errorOf(patched) };
@@ -151,7 +182,8 @@ export async function saveScript(org: string, input: SaveInput, hooks: SaveHooks
     if (rollbackBundle) await (rollbackBundle as () => Promise<void>)().catch(() => undefined);
     return {
       ok: false,
-      error: "The script's stored code didn't match what was saved, so the change was undone. Check that the component's code is valid and try again.",
+      error:
+        "The script's stored code didn't match what was saved, so the change was undone. Check that the component's code is valid and try again.",
     };
   }
   return { ok: true, codeText, how };
@@ -165,10 +197,23 @@ export interface CreateInput {
   adoptBundle: boolean;
 }
 
-const STAGE_FIELD: Record<ScriptRole, string> = { validation: "ValidationCustomScriptId", checklist: "ChecklistCustomScriptId" };
+const STAGE_FIELD: Record<ScriptRole, string> = {
+  validation: "ValidationCustomScriptId",
+  checklist: "ChecklistCustomScriptId",
+};
 
-export async function assignStage(org: string, stageObjectId: string, role: ScriptRole, scriptId: string | null): Promise<Outcome> {
-  const res = await apiRequest<void>(await dataPath(org, `/sobjects/LifeSciStageObject/${stageObjectId}`), "PATCH", { [STAGE_FIELD[role]]: scriptId }, org);
+export async function assignStage(
+  org: string,
+  stageObjectId: string,
+  role: ScriptRole,
+  scriptId: string | null
+): Promise<Outcome> {
+  const res = await apiRequest<void>(
+    await dataPath(org, `/sobjects/LifeSciStageObject/${stageObjectId}`),
+    "PATCH",
+    { [STAGE_FIELD[role]]: scriptId },
+    org
+  );
   return res.success ? { ok: true } : { ok: false, error: errorOf(res) };
 }
 
@@ -176,17 +221,31 @@ export async function assignStage(org: string, stageObjectId: string, role: Scri
  * Create a script: the component first, then the record (which copies the code), then read CodeText back, then
  * assign. Rolls back in reverse when a step fails.
  */
-export async function createScript(org: string, input: CreateInput, hooks: SaveHooks = {}): Promise<Outcome<{ scriptId: string; createdBundle: boolean }>> {
+export async function createScript(
+  org: string,
+  input: CreateInput,
+  hooks: SaveHooks = {}
+): Promise<Outcome<{ scriptId: string; createdBundle: boolean }>> {
   const { fields, code } = input;
   let createdBundle = false;
 
   const lwc = await run(hooks, "lwc", async (): Promise<Outcome> => {
     const existing = await readBundle(org, fields.componentName);
     if (existing) {
-      if (input.adoptBundle && existing.js !== null && sameCode(existing.js, code)) return { ok: true };
-      return { ok: false, error: `A component named ${fields.componentName} already exists in the org. Pick another name.` };
+      if (input.adoptBundle && existing.js !== null && sameCode(existing.js, code))
+        return { ok: true };
+      return {
+        ok: false,
+        error: `A component named ${fields.componentName} already exists in the org. Pick another name.`,
+      };
     }
-    const made = await createBundle(org, fields.componentName, fields.name || fields.componentName, code, hooks.onStatus);
+    const made = await createBundle(
+      org,
+      fields.componentName,
+      fields.name || fields.componentName,
+      code,
+      hooks.onStatus
+    );
     if (!made.ok) return { ok: false, error: `Couldn't create the component: ${made.error}` };
     createdBundle = true;
     return { ok: true };
@@ -196,28 +255,47 @@ export async function createScript(org: string, input: CreateInput, hooks: SaveH
     if (createdBundle) await deleteBundle(org, fields.componentName).catch(() => undefined);
   };
 
-  const created = await run(hooks, "record", async () => apiRequest<{ id: string }>(await dataPath(org, `/sobjects/LifeScienceCustomScript`), "POST", recordBody(fields), org));
+  const created = await run(hooks, "record", async () =>
+    apiRequest<{ id: string }>(
+      await dataPath(org, `/sobjects/LifeScienceCustomScript`),
+      "POST",
+      recordBody(fields),
+      org
+    )
+  );
   const scriptId = created.success ? created.data?.id : undefined;
   if (!scriptId) {
     await dropBundle();
     return { ok: false, error: errorOf(created) };
   }
   const dropRecord = async () => {
-    await apiRequest(await dataPath(org, `/sobjects/LifeScienceCustomScript/${scriptId}`), "DELETE", undefined, org);
+    await apiRequest(
+      await dataPath(org, `/sobjects/LifeScienceCustomScript/${scriptId}`),
+      "DELETE",
+      undefined,
+      org
+    );
   };
 
   const stored = await run(hooks, "verify", () => readCodeText(org, scriptId));
   if (stored === null || !sameCode(stored, code)) {
     await dropRecord().catch(() => undefined);
     await dropBundle();
-    return { ok: false, error: "The new script's stored code didn't match the component, so it was removed. Try again." };
+    return {
+      ok: false,
+      error:
+        "The new script's stored code didn't match the component, so it was removed. Try again.",
+    };
   }
 
   const done: { stageObjectId: string; role: ScriptRole }[] = [];
   for (const a of input.assign) {
-    const res = await run(hooks, "assign", () => assignStage(org, a.stageObjectId, a.role, scriptId));
+    const res = await run(hooks, "assign", () =>
+      assignStage(org, a.stageObjectId, a.role, scriptId)
+    );
     if (!res.ok) {
-      for (const d of done) await assignStage(org, d.stageObjectId, d.role, null).catch(() => undefined);
+      for (const d of done)
+        await assignStage(org, d.stageObjectId, d.role, null).catch(() => undefined);
       await dropRecord().catch(() => undefined);
       await dropBundle();
       return { ok: false, error: `Couldn't assign the script to the stage object: ${res.error}` };
@@ -228,7 +306,10 @@ export async function createScript(org: string, input: CreateInput, hooks: SaveH
 }
 
 /** Stage objects (id and role) that point at a script. */
-export async function stageReferences(org: string, scriptId: string): Promise<{ stageObjectId: string; stageObjectName: string; role: ScriptRole }[]> {
+export async function stageReferences(
+  org: string,
+  scriptId: string
+): Promise<{ stageObjectId: string; stageObjectName: string; role: ScriptRole }[]> {
   let rows: Row[] = [];
   try {
     rows = await query(
@@ -242,8 +323,16 @@ export async function stageReferences(org: string, scriptId: string): Promise<{ 
   for (const r of rows) {
     const id = String(r.Id);
     const name = String(r.Name ?? "");
-    if (r.ValidationCustomScriptId && String(r.ValidationCustomScriptId).startsWith(scriptId.slice(0, 15))) out.push({ stageObjectId: id, stageObjectName: name, role: "validation" });
-    if (r.ChecklistCustomScriptId && String(r.ChecklistCustomScriptId).startsWith(scriptId.slice(0, 15))) out.push({ stageObjectId: id, stageObjectName: name, role: "checklist" });
+    if (
+      r.ValidationCustomScriptId &&
+      String(r.ValidationCustomScriptId).startsWith(scriptId.slice(0, 15))
+    )
+      out.push({ stageObjectId: id, stageObjectName: name, role: "validation" });
+    if (
+      r.ChecklistCustomScriptId &&
+      String(r.ChecklistCustomScriptId).startsWith(scriptId.slice(0, 15))
+    )
+      out.push({ stageObjectId: id, stageObjectName: name, role: "checklist" });
   }
   return out;
 }
@@ -255,21 +344,38 @@ export async function deleteScript(
   componentName: string,
   withBundle: boolean,
   hooks: SaveHooks = {}
-): Promise<Outcome<{ cleared: { stageObjectId: string; role: ScriptRole }[]; bundleDeleted: boolean; bundleNote?: string }>> {
+): Promise<
+  Outcome<{
+    cleared: { stageObjectId: string; role: ScriptRole }[];
+    bundleDeleted: boolean;
+    bundleNote?: string;
+  }>
+> {
   const refs = await stageReferences(org, scriptId);
   const cleared: { stageObjectId: string; role: ScriptRole }[] = [];
   const restore = async () => {
-    for (const c of cleared) await assignStage(org, c.stageObjectId, c.role, scriptId).catch(() => undefined);
+    for (const c of cleared)
+      await assignStage(org, c.stageObjectId, c.role, scriptId).catch(() => undefined);
   };
   for (const r of refs) {
     const res = await run(hooks, "unassign", () => assignStage(org, r.stageObjectId, r.role, null));
     if (!res.ok) {
       await restore();
-      return { ok: false, error: `Couldn't remove the script from ${r.stageObjectName}: ${res.error}` };
+      return {
+        ok: false,
+        error: `Couldn't remove the script from ${r.stageObjectName}: ${res.error}`,
+      };
     }
     cleared.push({ stageObjectId: r.stageObjectId, role: r.role });
   }
-  const del = await run(hooks, "record", async () => apiRequest<void>(await dataPath(org, `/sobjects/LifeScienceCustomScript/${scriptId}`), "DELETE", undefined, org));
+  const del = await run(hooks, "record", async () =>
+    apiRequest<void>(
+      await dataPath(org, `/sobjects/LifeScienceCustomScript/${scriptId}`),
+      "DELETE",
+      undefined,
+      org
+    )
+  );
   if (!del.success) {
     await restore();
     return { ok: false, error: errorOf(del) };
@@ -279,7 +385,8 @@ export async function deleteScript(
   if (withBundle) {
     const gone = await run(hooks, "lwc", () => deleteBundle(org, componentName));
     if (gone.ok) bundleDeleted = true;
-    else bundleNote = `The script was deleted, but its component ${componentName} couldn't be: ${gone.error}`;
+    else
+      bundleNote = `The script was deleted, but its component ${componentName} couldn't be: ${gone.error}`;
   }
   return { ok: true, cleared, bundleDeleted, bundleNote };
 }

@@ -54,16 +54,23 @@ export function anyApiVersionPinned(): boolean {
 }
 
 /** The version to use for an org whose instance and reported version are known (either may be missing). */
-export function resolveApiVersion(instanceUrl: string | undefined, reported: string | undefined): string {
+export function resolveApiVersion(
+  instanceUrl: string | undefined,
+  reported: string | undefined
+): string {
   const host = instanceUrl ? hostOf(instanceUrl) : null;
   const v = normalizeVersion(reported);
   if (host && v) reportedByHost.set(host, v);
-  return pinnedApiVersion(instanceUrl) ?? v ?? (host && reportedByHost.get(host)) ?? FALLBACK_API_VERSION;
+  return (
+    pinnedApiVersion(instanceUrl) ?? v ?? (host && reportedByHost.get(host)) ?? FALLBACK_API_VERSION
+  );
 }
 
 /** Newest first, from the instance's `/services/data/` list. */
 export function sortVersions(versions: string[]): string[] {
-  return [...new Set(versions.map(normalizeVersion).filter((v): v is string => !!v))].sort((a, b) => parseFloat(b) - parseFloat(a));
+  return [...new Set(versions.map(normalizeVersion).filter((v): v is string => !!v))].sort(
+    (a, b) => parseFloat(b) - parseFloat(a)
+  );
 }
 
 /** For tests. */

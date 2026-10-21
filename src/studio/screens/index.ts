@@ -10,7 +10,15 @@ import { collectHome, type PublishedHome } from "./home.js";
 import { collectTableau, type PublishedTableau } from "./tableau.js";
 
 export type { ScreenContext } from "./context.js";
-export type { PublishedAccounts, PublishedCalendar, PublishedChrome, PublishedContent, PublishedFabs, PublishedHome, PublishedTableau };
+export type {
+  PublishedAccounts,
+  PublishedCalendar,
+  PublishedChrome,
+  PublishedContent,
+  PublishedFabs,
+  PublishedHome,
+  PublishedTableau,
+};
 
 export interface PublishedScreens {
   content?: PublishedContent;
@@ -22,7 +30,12 @@ export interface PublishedScreens {
   chrome?: PublishedChrome;
 }
 
-const COLLECTORS: { [K in keyof PublishedScreens]-?: { kind: string | null; collect: (ctx: ScreenContext) => Promise<PublishedScreens[K]> } } = {
+const COLLECTORS: {
+  [K in keyof PublishedScreens]-?: {
+    kind: string | null;
+    collect: (ctx: ScreenContext) => Promise<PublishedScreens[K]>;
+  };
+} = {
   content: { kind: "content", collect: collectContent },
   accounts: { kind: "accounts", collect: collectAccounts },
   calendar: { kind: "calendar", collect: collectCalendar },
@@ -59,7 +72,11 @@ export async function collectScreens(ctx: ScreenContext): Promise<PublishedScree
     Object.entries(COLLECTORS).map(async ([key, c]) => {
       if (c.kind !== null && !ctx.core.tabs.some((t) => t.kind === c.kind)) return;
       const name = SCREEN_NAMES[key as keyof PublishedScreens];
-      const data = await withTimeout<unknown>(c.collect(ctx), SCREEN_TIMEOUT_MS, `Reading the ${name} screen`).catch((err) => {
+      const data = await withTimeout<unknown>(
+        c.collect(ctx),
+        SCREEN_TIMEOUT_MS,
+        `Reading the ${name} screen`
+      ).catch((err) => {
         if (isScaleError(err)) ctx.note(`${name} screen not shown with data: ${errorText(err)}`);
         return undefined;
       });

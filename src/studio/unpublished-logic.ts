@@ -103,7 +103,8 @@ export function soqlTime(ms: number): string {
 }
 
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
-const nested = (r: Row, key: string): Row => (r[key] && typeof r[key] === "object" ? (r[key] as Row) : {});
+const nested = (r: Row, key: string): Row =>
+  r[key] && typeof r[key] === "object" ? (r[key] as Row) : {};
 
 /** Who a row says last modified it, if it says. */
 export function modifiedBy(r: Row): string | null {
@@ -116,7 +117,14 @@ function isoTime(v: unknown): string {
   return Number.isFinite(at) ? new Date(at).toISOString() : "";
 }
 
-function build(kind: UnpublishedKind, name: string, label: string, r: Row, type: string, live = false): UnpublishedItem {
+function build(
+  kind: UnpublishedKind,
+  name: string,
+  label: string,
+  r: Row,
+  type: string,
+  live = false
+): UnpublishedItem {
   return {
     id: `${kind}:${name}`,
     kind,
@@ -152,7 +160,8 @@ export function compactLayoutItems(rows: Row[], scope: Scope): UnpublishedItem[]
     const dev = str(r.DeveloperName);
     if (!object || !dev) continue;
     const name = resolveName(scope, `${object}.${dev}`);
-    if (name !== null) out.push(build("compactLayout", name, str(r.MasterLabel) || dev, r, "CompactLayout"));
+    if (name !== null)
+      out.push(build("compactLayout", name, str(r.MasterLabel) || dev, r, "CompactLayout"));
   }
   return out;
 }
@@ -163,7 +172,8 @@ export function flexiPageItems(rows: Row[], scope: Scope): UnpublishedItem[] {
     const dev = str(r.DeveloperName);
     if (!dev) continue;
     const name = resolveName(scope, dev);
-    if (name !== null) out.push(build("flexiPage", name, str(r.MasterLabel) || dev, r, "FlexiPage"));
+    if (name !== null)
+      out.push(build("flexiPage", name, str(r.MasterLabel) || dev, r, "FlexiPage"));
   }
   return out;
 }
@@ -260,7 +270,11 @@ const CONFIG_KIND: Record<string, UnpublishedKind> = {
 export const MOBILE_CATEGORIES = Object.keys(CONFIG_KIND);
 
 /** Edits to Admin Console records that reach the profile and came after the cache. */
-export function configItems(edits: ConfigEdit[], profileId: string, boundaryMs: number): UnpublishedItem[] {
+export function configItems(
+  edits: ConfigEdit[],
+  profileId: string,
+  boundaryMs: number
+): UnpublishedItem[] {
   const out: UnpublishedItem[] = [];
   for (const e of edits) {
     const kind = CONFIG_KIND[e.category];
@@ -286,5 +300,8 @@ export function configItems(edits: ConfigEdit[], profileId: string, boundaryMs: 
 
 /** Newest first; ties by name so the order is stable. */
 export function sortItems(items: UnpublishedItem[]): UnpublishedItem[] {
-  return [...items].sort((a, b) => Date.parse(b.lastModifiedAt) - Date.parse(a.lastModifiedAt) || a.id.localeCompare(b.id));
+  return [...items].sort(
+    (a, b) =>
+      Date.parse(b.lastModifiedAt) - Date.parse(a.lastModifiedAt) || a.id.localeCompare(b.id)
+  );
 }

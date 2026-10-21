@@ -12,7 +12,10 @@ export function usesProfileName(formula: string): boolean {
 }
 
 export function evalProfileFormula(formula: string, profileName: string): string | null {
-  const tokens = formula.match(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\$Profile\.Name|<>|!=|=|\(|\)|,|[A-Za-z_][A-Za-z0-9_]*|\S/g) ?? [];
+  const tokens =
+    formula.match(
+      /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\$Profile\.Name|<>|!=|=|\(|\)|,|[A-Za-z_][A-Za-z0-9_]*|\S/g
+    ) ?? [];
   let pos = 0;
   const fail = (): never => {
     throw new Error("unsupported");

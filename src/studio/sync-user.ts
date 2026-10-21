@@ -156,7 +156,12 @@ export interface SyncUserProgress {
   tablesDone: number;
   tablesTotal: number;
   /** One entry per territory being profiled, once they are known. */
-  territories: Array<{ name: string | null; done: number; total: number; state: "waiting" | "running" | "done" }>;
+  territories: Array<{
+    name: string | null;
+    done: number;
+    total: number;
+    state: "waiting" | "running" | "done";
+  }>;
 }
 
 /** How long a finished entry stays readable, so the last poll sees it end. */
@@ -175,15 +180,26 @@ export function syncUserProgress(userId: string): SyncUserProgress | null {
 }
 
 function startProgress(userId: string): SyncUserProgress {
-  for (const [id, p] of progressRuns) if (p.finishedAt && Date.now() - p.finishedAt > KEEP_PROGRESS_MS) progressRuns.delete(id);
-  const p: SyncUserProgress = { userId, startedAt: Date.now(), phase: "reading", tablesDone: 0, tablesTotal: 0, territories: [] };
+  for (const [id, p] of progressRuns)
+    if (p.finishedAt && Date.now() - p.finishedAt > KEEP_PROGRESS_MS) progressRuns.delete(id);
+  const p: SyncUserProgress = {
+    userId,
+    startedAt: Date.now(),
+    phase: "reading",
+    tablesDone: 0,
+    tablesTotal: 0,
+    territories: [],
+  };
   progressRuns.set(userId, p);
   return p;
 }
 
 export interface SyncUserDeps extends PerfDeps {
   /** DB Schema records with ids; defaults to the Admin Console collector plus an id lookup. */
-  dbSchemaRecords?: (org: string, querier: ReturnType<PerfDeps["querier"]>) => Promise<SchemaRecordRef[]>;
+  dbSchemaRecords?: (
+    org: string,
+    querier: ReturnType<PerfDeps["querier"]>
+  ) => Promise<SchemaRecordRef[]>;
 }
 
 const defaultDeps: SyncUserDeps = {
@@ -195,20 +211,29 @@ const defaultDeps: SyncUserDeps = {
     const result = await cachedDescribeSObject("DeviceSyncSummary", org);
     return new Set(result.success ? (result.data?.fields ?? []).map((f) => f.name) : []);
   },
-  compiledSchema: (org, querier) => createCompiledSchemaSource({ org: querier, getSession: () => createDeviceSession(org) }),
+  compiledSchema: (org, querier) =>
+    createCompiledSchemaSource({ org: querier, getSession: () => createDeviceSession(org) }),
 };
 
 const text = (v: unknown) => (typeof v === "string" && v.trim() ? v : null);
 
 /** Every DB Schema record (active or not) as a ref, so a table can be tied back to its record. */
-async function loadSchemaRecords(org: string, querier: ReturnType<PerfDeps["querier"]>): Promise<SchemaRecordRef[]> {
+async function loadSchemaRecords(
+  org: string,
+  querier: ReturnType<PerfDeps["querier"]>
+): Promise<SchemaRecordRef[]> {
   const records = await fetchCategories(org, ["DbSchema"]);
   const ids = new Map<string, string>();
-  const cat = await querier.tooling(`SELECT Id FROM LifeSciConfigCategory WHERE Category = 'DbSchema' LIMIT 1`);
+  const cat = await querier.tooling(
+    `SELECT Id FROM LifeSciConfigCategory WHERE Category = 'DbSchema' LIMIT 1`
+  );
   const categoryId = cat.success ? (cat.data?.records?.[0]?.Id as string | undefined) : undefined;
   if (categoryId) {
-    const rows = await querier.tooling(`SELECT Id, DeveloperName FROM LifeSciConfigRecord WHERE LifeSciConfigCategoryId = '${categoryId}'`);
-    for (const r of rows.success ? (rows.data?.records ?? []) : []) ids.set(String(r.DeveloperName), String(r.Id));
+    const rows = await querier.tooling(
+      `SELECT Id, DeveloperName FROM LifeSciConfigRecord WHERE LifeSciConfigCategoryId = '${categoryId}'`
+    );
+    for (const r of rows.success ? (rows.data?.records ?? []) : [])
+      ids.set(String(r.DeveloperName), String(r.Id));
   }
   return records.map((r) => ({
     category: "DbSchema",
@@ -231,7 +256,10 @@ async function loadSchemaRecords(org: string, querier: ReturnType<PerfDeps["quer
 }
 
 /** Whether a DB Schema record reaches the user, as selectApplicableTables decides. */
-function reaches(r: SchemaRecordRef, user: { profileName: string; permissionSets: Set<string> }): boolean {
+function reaches(
+  r: SchemaRecordRef,
+  user: { profileName: string; permissionSets: Set<string> }
+): boolean {
   return (
     r.profiles.some((p) => p.toLowerCase() === user.profileName.toLowerCase()) ||
     r.permissionSets.some((ps) => user.permissionSets.has(ps))
@@ -257,7 +285,11 @@ export function matchSchemaRecord(
   );
 }
 
-function toSyncTerritory(vol: TerritoryVolume, records: SchemaRecordRef[], user: { profileName: string; permissionSets: Set<string> }): SyncTerritory {
+function toSyncTerritory(
+  vol: TerritoryVolume,
+  records: SchemaRecordRef[],
+  user: { profileName: string; permissionSets: Set<string> }
+): SyncTerritory {
   const tables = vol.tables.map((t): SyncTable => {
     const schema = matchSchemaRecord(t, records, user);
     const over = mayOvercount(t);
@@ -307,7 +339,11 @@ function toSyncTerritory(vol: TerritoryVolume, records: SchemaRecordRef[], user:
   };
 }
 
-export async function syncUserDetail(org: string, input: SyncUserInput, deps: SyncUserDeps = defaultDeps): Promise<SyncUserDetail> {
+export async function syncUserDetail(
+  org: string,
+  input: SyncUserInput,
+  deps: SyncUserDeps = defaultDeps
+): Promise<SyncUserDetail> {
   const progress = startProgress(input.userId);
   try {
     const detail = await syncUserDetailInner(org, input, deps, progress);
@@ -321,7 +357,12 @@ export async function syncUserDetail(org: string, input: SyncUserInput, deps: Sy
   }
 }
 
-async function syncUserDetailInner(org: string, input: SyncUserInput, deps: SyncUserDeps, progress: SyncUserProgress): Promise<SyncUserDetail> {
+async function syncUserDetailInner(
+  org: string,
+  input: SyncUserInput,
+  deps: SyncUserDeps,
+  progress: SyncUserProgress
+): Promise<SyncUserDetail> {
   const days = input.days ?? DEFAULT_TELEMETRY_DAYS;
   const querier = memoizeQuerier(deps.querier(org));
 
@@ -335,9 +376,15 @@ async function syncUserDetailInner(org: string, input: SyncUserInput, deps: Sync
   // Everything below needs only the user: the DB Schema records, the compiled archive (the long pole,
   // a download on a cold cache), the record refs, the territory ranking and the user's telemetry are
   // independent reads, so they run together.
-  const telemetryJob = (async (): Promise<{ telemetry?: SyncUserTelemetry; telemetryError?: string }> => {
+  const telemetryJob = (async (): Promise<{
+    telemetry?: SyncUserTelemetry;
+    telemetryError?: string;
+  }> => {
     try {
-      const { samples, summary } = await loadTelemetry(querier, deps.telemetryFields(org), { days, userIds: [user.id] });
+      const { samples, summary } = await loadTelemetry(querier, deps.telemetryFields(org), {
+        days,
+        userIds: [user.id],
+      });
       return { telemetry: { summary, recent: samples.slice(0, RECENT_SYNCS) } };
     } catch (e) {
       return { telemetryError: e instanceof Error ? e.message : String(e) };
@@ -362,29 +409,42 @@ async function syncUserDetailInner(org: string, input: SyncUserInput, deps: Sync
       schemaSource = found.result.source ?? "compiled";
       schemaNotes.push(...found.result.notes);
     } else {
-      schemaNotes.push(`Used DB Schema records: compiled schema unavailable (${found.fallbackReason}).`);
+      schemaNotes.push(
+        `Used DB Schema records: compiled schema unavailable (${found.fallbackReason}).`
+      );
     }
   }
 
   if (picked.note) schemaNotes.push(picked.note);
-  const targets: Array<{ id: string; name: string } | null> = picked.picked.length ? picked.picked : [null];
+  const targets: Array<{ id: string; name: string } | null> = picked.picked.length
+    ? picked.picked
+    : [null];
   // One id cache for the user: the OT2A and Account id lists are read once, not per table.
   const options = { ...DEFAULT_PROFILE_OPTIONS, idCache: new Map() };
   progress.phase = "counting";
   progress.tablesTotal = tables.length * targets.length;
-  progress.territories = targets.map((t) => ({ name: t?.name ?? null, done: 0, total: tables.length, state: "waiting" as const }));
-  const volumes: TerritoryVolume[] = await mapWithConcurrency(targets, TERRITORY_CONCURRENCY, async (territory) => {
-    const entry = progress.territories[targets.indexOf(territory)];
-    entry.state = "running";
-    const volume = await profileTerritory(querier, user, territory, tables, options, (done) => {
-      entry.done = done;
+  progress.territories = targets.map((t) => ({
+    name: t?.name ?? null,
+    done: 0,
+    total: tables.length,
+    state: "waiting" as const,
+  }));
+  const volumes: TerritoryVolume[] = await mapWithConcurrency(
+    targets,
+    TERRITORY_CONCURRENCY,
+    async (territory) => {
+      const entry = progress.territories[targets.indexOf(territory)];
+      entry.state = "running";
+      const volume = await profileTerritory(querier, user, territory, tables, options, (done) => {
+        entry.done = done;
+        progress.tablesDone = progress.territories.reduce((n, t) => n + t.done, 0);
+      });
+      entry.done = entry.total;
+      entry.state = "done";
       progress.tablesDone = progress.territories.reduce((n, t) => n + t.done, 0);
-    });
-    entry.done = entry.total;
-    entry.state = "done";
-    progress.tablesDone = progress.territories.reduce((n, t) => n + t.done, 0);
-    return volume;
-  });
+      return volume;
+    }
+  );
   progress.phase = "finishing";
   await annotateSharing(querier, volumes);
 

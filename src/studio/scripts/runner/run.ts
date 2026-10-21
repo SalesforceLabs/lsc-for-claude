@@ -69,13 +69,23 @@ function lineOf(stack: string | undefined): { line?: number; column?: number } {
   return { line, column: line === 1 ? Math.max(1, col - WRAP_PREFIX.length) : col };
 }
 
-function syntaxInfo(err: Error): { message: string; line?: number; column?: number; stack?: string } {
+function syntaxInfo(err: Error): {
+  message: string;
+  line?: number;
+  column?: number;
+  stack?: string;
+} {
   const stack = err.stack ?? "";
   const m = /^script\.js:(\d+)\n([^\n]*)\n(\s*)\^/m.exec(stack);
   if (!m) return { message: err.message, stack };
   const line = Number(m[1]);
   const col = m[3].length + 1;
-  return { message: err.message, line, column: line === 1 ? Math.max(1, col - WRAP_PREFIX.length) : col, stack };
+  return {
+    message: err.message,
+    line,
+    column: line === 1 ? Math.max(1, col - WRAP_PREFIX.length) : col,
+    stack,
+  };
 }
 
 async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
@@ -98,7 +108,12 @@ async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
  * `stack` is a data property on errors created by the engine.
  */
 function ownString(value: unknown, key: string): string | undefined {
-  if (value === null || (typeof value !== "object" && typeof value !== "function") || types.isProxy(value)) return undefined;
+  if (
+    value === null ||
+    (typeof value !== "object" && typeof value !== "function") ||
+    types.isProxy(value)
+  )
+    return undefined;
   try {
     const d = Object.getOwnPropertyDescriptor(value, key);
     return d && "value" in d && typeof d.value === "string" ? d.value : undefined;
@@ -126,7 +141,7 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
     }
   };
   addNote(
-    "This is a simulation, run as the connected admin, not as the rep. Sharing, field-level security and territory access aren't applied, and nothing is written to the org.",
+    "This is a simulation, run as the connected admin, not as the rep. Sharing, field-level security and territory access aren't applied, and nothing is written to the org."
   );
   for (const n of input.notes ?? []) addNote(n);
   const queries: ScriptQueryLog[] = [];
@@ -154,11 +169,20 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
   let code = input.code;
   if (input.platform === "ipad") {
     code = stripAsync(code);
-    addNote("iPad: async and await are removed before the script runs, so db calls complete synchronously and selectedFields is ignored.");
-    addNote("iPad: because db calls are synchronous, the simulation replays the script as it learns which queries it needs; the clock reads the time the run started and doesn't advance, and Math.random() is seeded, so every replay builds the same queries.");
-    if (input.nsPrefix) addNote(`iPad: ${input.nsPrefix} is added to custom object and field names unless the _noNs variant is used.`);
+    addNote(
+      "iPad: async and await are removed before the script runs, so db calls complete synchronously and selectedFields is ignored."
+    );
+    addNote(
+      "iPad: because db calls are synchronous, the simulation replays the script as it learns which queries it needs; the clock reads the time the run started and doesn't advance, and Math.random() is seeded, so every replay builds the same queries."
+    );
+    if (input.nsPrefix)
+      addNote(
+        `iPad: ${input.nsPrefix} is added to custom object and field names unless the _noNs variant is used.`
+      );
   } else {
-    addNote("Web: rows are wrapped like Locker Service proxies; unwrap them (JSON.parse(JSON.stringify(...))) before returning them.");
+    addNote(
+      "Web: rows are wrapped like Locker Service proxies; unwrap them (JSON.parse(JSON.stringify(...))) before returning them."
+    );
   }
 
   let compiled: vm.Script;
@@ -187,7 +211,9 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
     if (m) return m;
     m = new Map();
     try {
-      const rows = await input.reader.query(`SELECT Id, Name FROM RecordType WHERE SobjectType = '${entity}'`);
+      const rows = await input.reader.query(
+        `SELECT Id, Name FROM RecordType WHERE SobjectType = '${entity}'`
+      );
       for (const r of rows) m.set(String(r.Id), String(r.Name));
     } catch {
       /* object has no record types */
@@ -199,12 +225,18 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
   const fetchMiss = async (key: string, miss: Miss) => {
     const entity = miss.args.entity;
     if (typeof entity !== "string" || !/^[A-Za-z0-9_]+$/.test(entity)) {
-      cache.set(key, JSON.stringify({ ok: false, error: `Invalid object name: ${String(entity)}` }));
+      cache.set(
+        key,
+        JSON.stringify({ ok: false, error: `Invalid object name: ${String(entity)}` })
+      );
       return;
     }
     const info = await describe(entity);
     if (miss.kind === "describe") {
-      cache.set(key, JSON.stringify({ ok: true, fields: info ? info.fields.map((f) => f.name) : null }));
+      cache.set(
+        key,
+        JSON.stringify({ ok: true, fields: info ? info.fields.map((f) => f.name) : null })
+      );
       return;
     }
     const where = (miss.args.where ?? "").trim();
@@ -212,10 +244,15 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
     const t0 = Date.now();
     try {
       if (queryCount >= RUN_LIMITS.maxQueries) {
-        throw new Error(`Query limit reached: a test run reads at most ${RUN_LIMITS.maxQueries} different queries.`);
+        throw new Error(
+          `Query limit reached: a test run reads at most ${RUN_LIMITS.maxQueries} different queries.`
+        );
       }
       queryCount++;
-      if (!info) throw new Error(`sObject type '${entity}' is not supported or isn't visible to the connected admin.`);
+      if (!info)
+        throw new Error(
+          `sObject type '${entity}' is not supported or isn't visible to the connected admin.`
+        );
       let fields: string[];
       if (miss.args.fields && miss.args.fields.length) {
         const known = new Map(info.fields.map((f) => [f.name.toLowerCase(), f.name]));
@@ -228,7 +265,10 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
       } else {
         const picked = pickFields(info);
         fields = picked.fields;
-        if (picked.capped) addNote(`${entity} has more than ${RUN_LIMITS.maxFields} fields; the simulation reads the first ${RUN_LIMITS.maxFields}.`);
+        if (picked.capped)
+          addNote(
+            `${entity} has more than ${RUN_LIMITS.maxFields} fields; the simulation reads the first ${RUN_LIMITS.maxFields}.`
+          );
       }
       soql = `SELECT ${fields.join(", ")} FROM ${entity}`;
       if (where) soql += ` WHERE ${where}`;
@@ -237,7 +277,9 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
       let used = rows;
       if (rows.length > RUN_LIMITS.rowsPerQuery) {
         used = rows.slice(0, RUN_LIMITS.rowsPerQuery);
-        addNote(`${entity}: the query matched more than ${RUN_LIMITS.rowsPerQuery} rows; the simulation keeps the first ${RUN_LIMITS.rowsPerQuery}.`);
+        addNote(
+          `${entity}: the query matched more than ${RUN_LIMITS.rowsPerQuery} rows; the simulation keeps the first ${RUN_LIMITS.rowsPerQuery}.`
+        );
       }
       let rts: Map<string, string> | null = null;
       if (used.some((r) => r.RecordTypeId)) rts = await recordTypes(entity);
@@ -251,7 +293,13 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
       cache.set(key, JSON.stringify({ ok: true, rows: items }));
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      queries.push({ object: entity, soql: soql || `(${entity}${where ? " WHERE " + where : ""})`, rows: 0, ms: Date.now() - t0, error: msg });
+      queries.push({
+        object: entity,
+        soql: soql || `(${entity}${where ? " WHERE " + where : ""})`,
+        rows: 0,
+        ms: Date.now() - t0,
+        error: msg,
+      });
       cache.set(key, JSON.stringify({ ok: false, error: msg }));
     }
   };
@@ -295,7 +343,10 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
         outstanding++;
         let work = inflight.get(key);
         if (!work && !cache.has(key)) {
-          work = fetchMiss(key, { kind: kind as Miss["kind"], args: (parseJson(argsJson) ?? {}) as Miss["args"] });
+          work = fetchMiss(key, {
+            kind: kind as Miss["kind"],
+            args: (parseJson(argsJson) ?? {}) as Miss["args"],
+          });
           inflight.set(key, work);
         }
         void (work ?? Promise.resolve()).then(() => {
@@ -318,11 +369,20 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
         const key = `${kind}|${argsJson}`;
         const hit = cache.get(key);
         if (hit !== undefined) return hit;
-        misses.set(key, { kind: kind as Miss["kind"], args: (parseJson(argsJson) ?? {}) as Miss["args"] });
-        return kind === "describe" ? '{"ok":true,"fields":null,"miss":true}' : '{"ok":true,"rows":[],"miss":true}';
+        misses.set(key, {
+          kind: kind as Miss["kind"],
+          args: (parseJson(argsJson) ?? {}) as Miss["args"],
+        });
+        return kind === "describe"
+          ? '{"ok":true,"fields":null,"miss":true}'
+          : '{"ok":true,"rows":[],"miss":true}';
       },
       log: (level: string, text: string) => {
-        logs.push({ level: level === "warn" || level === "error" ? level : "log", text: String(text), at: Date.now() - started });
+        logs.push({
+          level: level === "warn" || level === "error" ? level : "log",
+          text: String(text),
+          at: Date.now() - started,
+        });
       },
       // Host functions never throw into the sandbox (see the prelude's host()): bad input is dropped.
       write: (json: string) => {
@@ -333,7 +393,10 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
         if (label === "label") usedLabel = true;
       },
       done: (json: string) => {
-        if (!done) done = (parseJson(json) as DonePayload | undefined) ?? { error: { message: "The script's result couldn't be read." } } as DonePayload;
+        if (!done)
+          done =
+            (parseJson(json) as DonePayload | undefined) ??
+            ({ error: { message: "The script's result couldn't be read." } } as DonePayload);
         settle();
       },
     };
@@ -344,7 +407,9 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
     });
     const remaining = Math.max(50, RUN_LIMITS.cpuMs - cpuUsed);
     try {
-      const init = new vm.Script(PRELUDE_SOURCE, { filename: "prelude.js" }).runInContext(ctx, { timeout: remaining }) as (h: unknown) => void;
+      const init = new vm.Script(PRELUDE_SOURCE, { filename: "prelude.js" }).runInContext(ctx, {
+        timeout: remaining,
+      }) as (h: unknown) => void;
       init(host);
       compiled.runInContext(ctx, { timeout: remaining });
       if (input.platform === "web" && !done && outstanding > 0) {
@@ -371,11 +436,18 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
         timedOut = `The script ran past the ${RUN_LIMITS.cpuMs / 1000} s CPU limit and was stopped.`;
       } else if (!done) {
         const stack = ownString(e, "stack");
-        scriptError = { message: ownString(e, "message") ?? "The script threw something that isn't an Error.", ...lineOf(stack), stack };
+        scriptError = {
+          message: ownString(e, "message") ?? "The script threw something that isn't an Error.",
+          ...lineOf(stack),
+          stack,
+        };
       }
     }
     cpuUsed += Date.now() - passStart;
-    if (usedLabel) addNote("env.formatCustomLabel returns the default text with {n} and %@ filled in; translations aren't looked up.");
+    if (usedLabel)
+      addNote(
+        "env.formatCustomLabel returns the default text with {n} and %@ filled in; translations aren't looked up."
+      );
     if (timedOut) break;
     if (misses.size === 0) break;
     const left = RUN_LIMITS.totalMs - (Date.now() - started);
@@ -387,10 +459,14 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
       // Describes first: queries reuse them.
       const entries = [...misses.entries()];
       await withTimeout(
-        Promise.all(entries.filter(([, m]) => m.kind === "describe").map(([k, m]) => fetchMiss(k, m))).then(() =>
-          Promise.all(entries.filter(([, m]) => m.kind === "query").map(([k, m]) => fetchMiss(k, m))),
+        Promise.all(
+          entries.filter(([, m]) => m.kind === "describe").map(([k, m]) => fetchMiss(k, m))
+        ).then(() =>
+          Promise.all(
+            entries.filter(([, m]) => m.kind === "query").map(([k, m]) => fetchMiss(k, m))
+          )
         ),
-        left,
+        left
       );
     } catch {
       timedOut = `The run took longer than ${RUN_LIMITS.totalMs / 1000} s in total and was stopped.`;
@@ -398,7 +474,9 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
     }
   }
   if (passes >= RUN_LIMITS.maxPasses) {
-    addNote(`The script was replayed ${RUN_LIMITS.maxPasses} times and still asked for new data; the result may be incomplete.`);
+    addNote(
+      `The script was replayed ${RUN_LIMITS.maxPasses} times and still asked for new data; the result may be incomplete.`
+    );
   }
   if (writes.length) addNote("setValue / save calls were recorded, not applied to the org.");
 
@@ -411,16 +489,32 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
       logs,
       recorded: writes,
       durationMs,
-      contract: ["The script never finished: it returned a promise that doesn't resolve (or returned nothing). Return the array of results, or a promise for it."],
+      contract: [
+        "The script never finished: it returned a promise that doesn't resolve (or returned nothing). Return the array of results, or a promise for it.",
+      ],
     });
   }
   if (finalDone.error) {
-    return base({ error: { message: finalDone.error.message, ...lineOf(finalDone.error.stack), stack: finalDone.error.stack }, logs, recorded: writes, durationMs });
+    return base({
+      error: {
+        message: finalDone.error.message,
+        ...lineOf(finalDone.error.stack),
+        stack: finalDone.error.stack,
+      },
+      logs,
+      recorded: writes,
+      durationMs,
+    });
   }
 
   // ---- the output contract ----
   const contract: string[] = [];
-  const raw = finalDone.raw ?? { type: "undefined", isArray: false, thenable: false, elThenable: false };
+  const raw = finalDone.raw ?? {
+    type: "undefined",
+    isArray: false,
+    thenable: false,
+    elThenable: false,
+  };
   let value: unknown = null;
   try {
     value = finalDone.valueJson ? JSON.parse(finalDone.valueJson) : null;
@@ -428,10 +522,14 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
     value = null;
   }
   if (input.platform === "ipad" && raw.thenable) {
-    contract.push("The script returned a Promise. The iPad app removes async/await and doesn't wait for promises, so return the array directly.");
+    contract.push(
+      "The script returned a Promise. The iPad app removes async/await and doesn't wait for promises, so return the array directly."
+    );
   }
   if (input.platform === "ipad" && raw.elThenable) {
-    contract.push("The returned array contains Promises. On iPad they aren't awaited; build plain { title, status } objects.");
+    contract.push(
+      "The returned array contains Promises. On iPad they aren't awaited; build plain { title, status } objects."
+    );
   }
   const results: ScriptTestResult["results"] = [];
   let usable = true;
@@ -440,7 +538,7 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
     contract.push(
       raw.type === "undefined" || finalDone.valueJson == null
         ? "The script returned nothing. It must return an array of { title, status } objects. A comment before the IIFE also makes the script return undefined."
-        : `The script returned ${finalDone.valueType === "object" ? "an object" : `a ${finalDone.valueType}`}, not an array. It must return an array of { title, status } objects.`,
+        : `The script returned ${finalDone.valueType === "object" ? "an object" : `a ${finalDone.valueType}`}, not an array. It must return an array of { title, status } objects.`
     );
   } else {
     // A web script returns [validateVisit()], which resolves to an array of its own: the app flattens one level.
@@ -451,7 +549,9 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
     });
     flat.forEach(({ el, t }, i) => {
       if (t === "function" || t === "undefined") {
-        contract.push(`Result ${i + 1} is ${t === "function" ? "a function" : "undefined"}, not a { title, status } object.`);
+        contract.push(
+          `Result ${i + 1} is ${t === "function" ? "a function" : "undefined"}, not a { title, status } object.`
+        );
         return;
       }
       if (el === null || typeof el !== "object" || Array.isArray(el)) {
@@ -464,13 +564,17 @@ export async function runScript(input: RunInput): Promise<ScriptTestResult> {
         return;
       }
       if (typeof o.status !== "string" || !STATUSES.has(o.status)) {
-        contract.push(`Result ${i + 1} ("${o.title}") has status ${JSON.stringify(o.status)}; use "success", "warning" or "error".`);
+        contract.push(
+          `Result ${i + 1} ("${o.title}") has status ${JSON.stringify(o.status)}; use "success", "warning" or "error".`
+        );
       }
       results.push({ title: o.title, status: typeof o.status === "string" ? o.status : "" });
     });
   }
   if (input.platform === "web" && finalDone.leak) {
-    contract.push("The returned value still contains Locker Service proxies. Copy the data out first (JSON.parse(JSON.stringify(...))) or the app can't read it.");
+    contract.push(
+      "The returned value still contains Locker Service proxies. Copy the data out first (JSON.parse(JSON.stringify(...))) or the app can't read it."
+    );
   }
 
   let outcome: ScriptTestResult["outcome"] = "none";

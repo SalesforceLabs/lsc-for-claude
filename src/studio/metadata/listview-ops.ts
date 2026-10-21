@@ -11,10 +11,30 @@
  */
 
 import type { ListViewFilter, ListViewOp } from "../types.js";
-import { childrenNamed, cloneNode, escapeXml, insertInOrder, leaf, setChildText, unescapeXml, type XmlNode } from "./xml.js";
+import {
+  childrenNamed,
+  cloneNode,
+  escapeXml,
+  insertInOrder,
+  leaf,
+  setChildText,
+  unescapeXml,
+  type XmlNode,
+} from "./xml.js";
 
 /** ListView's top-level elements in Metadata API order. */
-const LISTVIEW_ORDER = ["fullName", "booleanFilter", "columns", "division", "filterScope", "filters", "label", "language", "queue", "sharedTo"];
+const LISTVIEW_ORDER = [
+  "fullName",
+  "booleanFilter",
+  "columns",
+  "division",
+  "filterScope",
+  "filters",
+  "label",
+  "language",
+  "queue",
+  "sharedTo",
+];
 
 /** Rough ceilings that keep the list readable on a tablet; the API itself allows more columns. */
 export const MAX_LIST_COLUMNS = 15;
@@ -37,7 +57,15 @@ export const FILTER_OPERATIONS = [
 
 /** A standard-object column named the old way (ACCOUNT.NAME). */
 const LEGACY_ID = /^[A-Z][A-Z0-9_]*(\.[A-Z0-9_]+)+$/;
-export const FILTER_SCOPES = ["Everything", "Mine", "Queue", "Delegated", "MyTerritory", "MyTeamTerritory", "Team"] as const;
+export const FILTER_SCOPES = [
+  "Everything",
+  "Mine",
+  "Queue",
+  "Delegated",
+  "MyTerritory",
+  "MyTeamTerritory",
+  "Team",
+] as const;
 
 export class StaleListViewError extends Error {}
 
@@ -66,7 +94,11 @@ const textOf = (node: XmlNode, tag: string) => {
 
 /** The list view's filter rows, in order. */
 export const listFilters = (root: XmlNode): ListViewFilter[] =>
-  childrenNamed(root, "filters").map((f) => ({ field: textOf(f, "field") ?? "", operation: textOf(f, "operation") ?? "", value: textOf(f, "value") ?? "" }));
+  childrenNamed(root, "filters").map((f) => ({
+    field: textOf(f, "field") ?? "",
+    operation: textOf(f, "operation") ?? "",
+    value: textOf(f, "value") ?? "",
+  }));
 
 export const listFilterScope = (root: XmlNode): string | null => {
   const n = childrenNamed(root, "filterScope")[0];
@@ -103,15 +135,22 @@ function placeColumn(root: XmlNode, node: XmlNode, before: string | null): void 
   root.children.splice(root.children.indexOf(target), 0, node);
 }
 
-const detach = (root: XmlNode, node: XmlNode) => root.children.splice(root.children.indexOf(node), 1);
-const position = (root: XmlNode, node: XmlNode) => `Position ${columnNodes(root).indexOf(node) + 1} of ${columnNodes(root).length}`;
+const detach = (root: XmlNode, node: XmlNode) =>
+  root.children.splice(root.children.indexOf(node), 1);
+const position = (root: XmlNode, node: XmlNode) =>
+  `Position ${columnNodes(root).indexOf(node) + 1} of ${columnNodes(root).length}`;
 
-const same = (a: ListViewFilter, b: ListViewFilter) => a.field === b.field && a.operation === b.operation && a.value === b.value;
-const sameFilters = (a: ListViewFilter[], b: ListViewFilter[]) => a.length === b.length && a.every((f, i) => same(f, b[i]));
+const same = (a: ListViewFilter, b: ListViewFilter) =>
+  a.field === b.field && a.operation === b.operation && a.value === b.value;
+const sameFilters = (a: ListViewFilter[], b: ListViewFilter[]) =>
+  a.length === b.length && a.every((f, i) => same(f, b[i]));
 
-const describeFilter = (f: ListViewFilter) => `${f.field} ${f.operation}${f.value ? ` ${f.value}` : ""}`;
+const describeFilter = (f: ListViewFilter) =>
+  `${f.field} ${f.operation}${f.value ? ` ${f.value}` : ""}`;
 const describeFilters = (filters: ListViewFilter[], logic: string | null) =>
-  filters.length ? `${filters.map((f, i) => `${i + 1}. ${describeFilter(f)}`).join("; ")}${logic ? ` — ${logic}` : ""}` : "(no filters)";
+  filters.length
+    ? `${filters.map((f, i) => `${i + 1}. ${describeFilter(f)}`).join("; ")}${logic ? ` — ${logic}` : ""}`
+    : "(no filters)";
 
 /** "1 AND (2 OR 3)": each of 1..n used, only AND / OR / NOT and parentheses between, parentheses balanced. */
 export function validBooleanFilter(logic: string, count: number): boolean {
@@ -132,23 +171,38 @@ export function validBooleanFilter(logic: string, count: number): boolean {
 }
 
 function assertFilters(filters: ListViewFilter[], logic: string | null): void {
-  if (filters.length > MAX_LIST_FILTERS) throw new StaleListViewError(`A list view holds at most ${MAX_LIST_FILTERS} filters.`);
+  if (filters.length > MAX_LIST_FILTERS)
+    throw new StaleListViewError(`A list view holds at most ${MAX_LIST_FILTERS} filters.`);
   for (const f of filters) {
     assertName(f.field);
-    if (!(FILTER_OPERATIONS as readonly string[]).includes(f.operation)) throw new Error(`Invalid filter operation: ${f.operation}`);
-    if (f.value.length > 1000 || /[\r\n]/.test(f.value)) throw new Error(`Invalid filter value for ${f.field}.`);
+    if (!(FILTER_OPERATIONS as readonly string[]).includes(f.operation))
+      throw new Error(`Invalid filter operation: ${f.operation}`);
+    if (f.value.length > 1000 || /[\r\n]/.test(f.value))
+      throw new Error(`Invalid filter value for ${f.field}.`);
   }
   if (logic !== null && (filters.length < 2 || !validBooleanFilter(logic, filters.length))) {
-    throw new Error(`The filter logic "${logic}" must use each of 1 to ${filters.length} once, with AND, OR, NOT and parentheses.`);
+    throw new Error(
+      `The filter logic "${logic}" must use each of 1 to ${filters.length} once, with AND, OR, NOT and parentheses.`
+    );
   }
 }
 
 function filterNode(f: ListViewFilter): XmlNode {
-  return { tag: "filters", children: [leaf("field", f.field), leaf("operation", f.operation), ...(f.value ? [leaf("value", f.value)] : [])] };
+  return {
+    tag: "filters",
+    children: [
+      leaf("field", f.field),
+      leaf("operation", f.operation),
+      ...(f.value ? [leaf("value", f.value)] : []),
+    ],
+  };
 }
 
 /** Apply one op to `root` in place; returns its inverse and what changed, in words. */
-export function applyListViewOp(root: XmlNode, op: ListViewOp): { inverse: ListViewOp; change: ListViewChange } {
+export function applyListViewOp(
+  root: XmlNode,
+  op: ListViewOp
+): { inverse: ListViewOp; change: ListViewChange } {
   switch (op.op) {
     case "moveListColumn": {
       assertName(op.column);
@@ -165,7 +219,8 @@ export function applyListViewOp(root: XmlNode, op: ListViewOp): { inverse: ListV
     case "removeListColumn": {
       assertName(op.column);
       const node = findColumn(root, op.column);
-      if (columnNodes(root).length <= 1) throw new StaleListViewError("A list view needs at least one column.");
+      if (columnNodes(root).length <= 1)
+        throw new StaleListViewError("A list view needs at least one column.");
       const was = position(root, node);
       const next = nextColumn(root, node);
       detach(root, node);
@@ -176,25 +231,46 @@ export function applyListViewOp(root: XmlNode, op: ListViewOp): { inverse: ListV
     }
     case "addListColumn": {
       assertName(op.column);
-      if (columnNodes(root).some((c) => LEGACY_ID.test(unwrap(c))) && !LEGACY_ID.test(op.column) && !op.column.endsWith("__c")) {
-        throw new Error(`${op.column} can't be added here: this view names its standard columns the old way (ACCOUNT.NAME), so only custom fields can be added to it.`);
+      if (
+        columnNodes(root).some((c) => LEGACY_ID.test(unwrap(c))) &&
+        !LEGACY_ID.test(op.column) &&
+        !op.column.endsWith("__c")
+      ) {
+        throw new Error(
+          `${op.column} can't be added here: this view names its standard columns the old way (ACCOUNT.NAME), so only custom fields can be added to it.`
+        );
       }
-      if (columnNodes(root).some((c) => unwrap(c) === op.column)) throw new StaleListViewError(`${op.column} is already a column of the list view.`);
-      if (columnNodes(root).length >= MAX_LIST_COLUMNS) throw new StaleListViewError(`A list view holds at most ${MAX_LIST_COLUMNS} columns here. Remove one first.`);
+      if (columnNodes(root).some((c) => unwrap(c) === op.column))
+        throw new StaleListViewError(`${op.column} is already a column of the list view.`);
+      if (columnNodes(root).length >= MAX_LIST_COLUMNS)
+        throw new StaleListViewError(
+          `A list view holds at most ${MAX_LIST_COLUMNS} columns here. Remove one first.`
+        );
       const node = leaf("columns", op.column);
       placeColumn(root, node, op.before);
       return {
         inverse: { op: "removeListColumn", column: op.column },
-        change: { field: `Column ${op.column}`, before: "(not a column)", after: position(root, node) },
+        change: {
+          field: `Column ${op.column}`,
+          before: "(not a column)",
+          after: position(root, node),
+        },
       };
     }
     case "setListFilterScope": {
-      if (!(FILTER_SCOPES as readonly string[]).includes(op.to)) throw new Error(`Invalid filter scope: ${op.to}`);
+      if (!(FILTER_SCOPES as readonly string[]).includes(op.to))
+        throw new Error(`Invalid filter scope: ${op.to}`);
       const now = listFilterScope(root);
-      if (now !== op.from) throw new StaleListViewError(`The filter scope is ${now ?? "not set"}, not ${op.from ?? "not set"}.`);
+      if (now !== op.from)
+        throw new StaleListViewError(
+          `The filter scope is ${now ?? "not set"}, not ${op.from ?? "not set"}.`
+        );
       setChildText(root, "filterScope", op.to, LISTVIEW_ORDER);
       return {
-        inverse: op.from === null ? { op: "setListFilterScope", from: op.to, to: "Everything" } : { op: "setListFilterScope", from: op.to, to: op.from },
+        inverse:
+          op.from === null
+            ? { op: "setListFilterScope", from: op.to, to: "Everything" }
+            : { op: "setListFilterScope", from: op.to, to: op.from },
         change: { field: "Filter scope", before: now ?? "(not set)", after: op.to },
       };
     }
@@ -203,7 +279,9 @@ export function applyListViewOp(root: XmlNode, op: ListViewOp): { inverse: ListV
       const now = listFilters(root);
       const nowLogic = listBooleanFilter(root);
       if (!sameFilters(now, op.from) || nowLogic !== op.fromLogic) {
-        throw new StaleListViewError(`The filters are ${describeFilters(now, nowLogic)}, not what the preview showed.`);
+        throw new StaleListViewError(
+          `The filters are ${describeFilters(now, nowLogic)}, not what the preview showed.`
+        );
       }
       const existing = childrenNamed(root, "filters");
       const free = existing.map((n, i) => ({ n, f: now[i] }));
@@ -225,8 +303,18 @@ export function applyListViewOp(root: XmlNode, op: ListViewOp): { inverse: ListV
         insertInOrder(root, leaf("booleanFilter", op.toLogic), LISTVIEW_ORDER);
       }
       return {
-        inverse: { op: "setListFilters", from: op.to, to: op.from, fromLogic: op.toLogic, toLogic: op.fromLogic },
-        change: { field: "Filters", before: describeFilters(now, nowLogic), after: describeFilters(op.to, op.toLogic) },
+        inverse: {
+          op: "setListFilters",
+          from: op.to,
+          to: op.from,
+          fromLogic: op.toLogic,
+          toLogic: op.fromLogic,
+        },
+        change: {
+          field: "Filters",
+          before: describeFilters(now, nowLogic),
+          after: describeFilters(op.to, op.toLogic),
+        },
       };
     }
     default:
@@ -235,7 +323,10 @@ export function applyListViewOp(root: XmlNode, op: ListViewOp): { inverse: ListV
 }
 
 /** Apply ops in order to a copy of `root`. The inverse ops undo them all, in the order given. */
-export function applyListViewOps(root: XmlNode, ops: ListViewOp[]): { root: XmlNode; inverse: ListViewOp[]; changes: ListViewChange[] } {
+export function applyListViewOps(
+  root: XmlNode,
+  ops: ListViewOp[]
+): { root: XmlNode; inverse: ListViewOp[]; changes: ListViewChange[] } {
   const copy = cloneNode(root);
   const inverse: ListViewOp[] = [];
   const changes: ListViewChange[] = [];

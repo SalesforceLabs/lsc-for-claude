@@ -6,7 +6,13 @@
  */
 
 import type { ConfigRecord } from "../config/types.js";
-import { DEFAULT_PROFILE_OPTIONS, profileTerritory, type ApplicableTable, type OrgQuerier, type UserContext } from "../perf/sync-volume.js";
+import {
+  DEFAULT_PROFILE_OPTIONS,
+  profileTerritory,
+  type ApplicableTable,
+  type OrgQuerier,
+  type UserContext,
+} from "../perf/sync-volume.js";
 import { runSoqlQuery, runToolingQuery } from "../salesforce/cli.js";
 import { actionAudience, fetchCategories } from "./collectors/shared.js";
 import { LSC_PSL } from "./collectors/territory-users.js";
@@ -73,7 +79,11 @@ interface FeatureObjects {
   absent: string[];
 }
 
-export async function traceUser(userId: string, featureId: string | null, org: string): Promise<UserTrace> {
+export async function traceUser(
+  userId: string,
+  featureId: string | null,
+  org: string
+): Promise<UserTrace> {
   assertId(userId);
   const feature = featureId ? getFeature(featureId) : undefined;
   if (featureId && !feature) throw new Error(`Unknown feature: ${featureId}`);
@@ -96,7 +106,11 @@ export async function traceUser(userId: string, featureId: string | null, org: s
   };
 
   const base = gather(user, feature, org);
-  const facts: Facts = { ...base, accountReach: accountReach(user, base, org), published: publishedFor(user, org) };
+  const facts: Facts = {
+    ...base,
+    accountReach: accountReach(user, base, org),
+    published: publishedFor(user, org),
+  };
   // Rejections are consumed by the checks that await them; this keeps unused ones from surfacing as unhandled.
   for (const p of Object.values(facts)) p.catch(() => undefined);
 
@@ -126,7 +140,11 @@ export async function traceUser(userId: string, featureId: string | null, org: s
   };
 }
 
-function gather(user: UserInfo, feature: FeatureDefinition | undefined, org: string): Omit<Facts, "accountReach" | "published"> {
+function gather(
+  user: UserInfo,
+  feature: FeatureDefinition | undefined,
+  org: string
+): Omit<Facts, "accountReach" | "published"> {
   const id = user.id;
   const objects = featureObjects(feature);
   return {
@@ -161,10 +179,16 @@ function gather(user: UserInfo, feature: FeatureDefinition | undefined, org: str
       org
     ),
     objects: objects.length
-      ? query(`SELECT QualifiedApiName FROM EntityDefinition WHERE QualifiedApiName IN (${inList(objects)})`, org).then(
+      ? query(
+          `SELECT QualifiedApiName FROM EntityDefinition WHERE QualifiedApiName IN (${inList(objects)})`,
+          org
+        ).then(
           (rows) => {
             const have = new Set(rows.map((r) => str(r.QualifiedApiName).toLowerCase()));
-            return { present: objects.filter((o) => have.has(o.toLowerCase())), absent: objects.filter((o) => !have.has(o.toLowerCase())) };
+            return {
+              present: objects.filter((o) => have.has(o.toLowerCase())),
+              absent: objects.filter((o) => !have.has(o.toLowerCase())),
+            };
           },
           // Not knowing which objects exist shouldn't hide an access problem: judge them all.
           () => ({ present: objects, absent: [] })
@@ -175,7 +199,9 @@ function gather(user: UserInfo, feature: FeatureDefinition | undefined, org: str
 
 /** The user's permission sets for a detail line, LSC ones first since those are what an admin looks for. */
 function setsNote(assignments: Row[]): string {
-  const labels = [...new Set(assignments.map((a) => str(rel(a, "PermissionSet.Label"))).filter(Boolean))];
+  const labels = [
+    ...new Set(assignments.map((a) => str(rel(a, "PermissionSet.Label"))).filter(Boolean)),
+  ];
   if (!labels.length) return "No permission sets assigned.";
   const lsc = (l: string) => /life ?sci|\blsc\b/i.test(l);
   const sorted = [...labels.filter(lsc), ...labels.filter((l) => !lsc(l))];
@@ -201,7 +227,10 @@ function checkActive(user: UserInfo): Promise<ReadinessCheck> {
       steps: ["Setup > Users > Users, open the user, and re-activate them (or ask an admin to)."],
       uiPath: "Setup > Users > Users",
     },
-    async () => ({ pass: user.active, detail: user.active ? `${user.username} is active.` : `${user.username} is deactivated.` })
+    async () => ({
+      pass: user.active,
+      detail: user.active ? `${user.username} is active.` : `${user.username} is deactivated.`,
+    })
   );
 }
 
@@ -218,7 +247,9 @@ function checkLicense(user: UserInfo): Promise<ReadinessCheck> {
     },
     async () => ({
       pass: Boolean(user.profile),
-      detail: user.profile ? `${user.profile} · ${user.license ?? "unknown license"}${user.role ? ` · role ${user.role}` : " · no role"}` : "The user has no readable profile.",
+      detail: user.profile
+        ? `${user.profile} · ${user.license ?? "unknown license"}${user.role ? ` · role ${user.role}` : " · no role"}`
+        : "The user has no readable profile.",
     })
   );
 }
@@ -233,22 +264,44 @@ function checkLscPsl(user: UserInfo, facts: Facts, _org: string): Promise<Readin
       title: "Life Sciences Commercial license assigned",
       severity: "error",
       why: "Without the Life Sciences Commercial permission set license the user can't be given LSC permission sets, and the iPad app won't let them in.",
-      steps: ["Setup > Users > Users > the user > Permission Set License Assignments > Edit Assignments, and add Life Sciences Commercial."],
+      steps: [
+        "Setup > Users > Users > the user > Permission Set License Assignments > Edit Assignments, and add Life Sciences Commercial.",
+      ],
       uiPath: "Setup > Users > Users > Permission Set License Assignments",
     },
     async () => {
       const { assigned, available } = await facts.psls;
-      const have = assigned.filter((a) => LSC_PSL.test(str(rel(a, "PermissionSetLicense.DeveloperName"))));
-      if (have.length) return { pass: true, detail: have.map((a) => str(rel(a, "PermissionSetLicense.MasterLabel"))).join(", ") };
+      const have = assigned.filter((a) =>
+        LSC_PSL.test(str(rel(a, "PermissionSetLicense.DeveloperName")))
+      );
+      if (have.length)
+        return {
+          pass: true,
+          detail: have.map((a) => str(rel(a, "PermissionSetLicense.MasterLabel"))).join(", "),
+        };
       const lsc = available.filter((p) => LSC_PSL.test(str(p.DeveloperName)));
-      const withSeats = lsc.filter((p) => p.Status === "Active" && Number(p.TotalLicenses) > Number(p.UsedLicenses));
+      const withSeats = lsc.filter(
+        (p) => p.Status === "Active" && Number(p.TotalLicenses) > Number(p.UsedLicenses)
+      );
       // Only one license with seats is an unambiguous fix; with several, which one is the admin's call.
       const open = withSeats.length === 1 ? withSeats[0] : undefined;
       if (withSeats.length > 1) {
-        return { pass: false, detail: `None assigned. ${withSeats.length} LSC licenses have free seats: ${withSeats.map((p) => str(p.MasterLabel)).join(", ")}.` };
+        return {
+          pass: false,
+          detail: `None assigned. ${withSeats.length} LSC licenses have free seats: ${withSeats.map((p) => str(p.MasterLabel)).join(", ")}.`,
+        };
       }
       const fixes: StudioFix[] = open
-        ? [{ kind: "assignPsl", label: `Assign ${str(open.MasterLabel)} to ${user.name}`, userId: user.id, userName: user.name, pslId: str(open.Id), pslLabel: str(open.MasterLabel) }]
+        ? [
+            {
+              kind: "assignPsl",
+              label: `Assign ${str(open.MasterLabel)} to ${user.name}`,
+              userId: user.id,
+              userName: user.name,
+              pslId: str(open.Id),
+              pslLabel: str(open.MasterLabel),
+            },
+          ]
         : [];
       return {
         pass: false,
@@ -268,7 +321,12 @@ function featureObjects(feature: FeatureDefinition | undefined): string[] {
   return feature ? feature.objects : [];
 }
 
-function checkPermissions(user: UserInfo, feature: FeatureDefinition | undefined, facts: Facts, org: string): Promise<ReadinessCheck> {
+function checkPermissions(
+  user: UserInfo,
+  feature: FeatureDefinition | undefined,
+  facts: Facts,
+  org: string
+): Promise<ReadinessCheck> {
   return runCheck(
     {
       id: "user.access.permissions",
@@ -278,23 +336,44 @@ function checkPermissions(user: UserInfo, feature: FeatureDefinition | undefined
       why: feature
         ? "Objects the user can't read are left off their iPad and hidden on the web, whatever the DB Schema says."
         : "LSC features are unlocked by permission sets (or groups); a user with none sees an empty app.",
-      steps: ["Setup > Users > Users > the user > Permission Set Assignments, and add the permission set or group your LSC team uses for this feature."],
+      steps: [
+        "Setup > Users > Users > the user > Permission Set Assignments, and add the permission set or group your LSC team uses for this feature.",
+      ],
       uiPath: "Setup > Users > Users > Permission Set Assignments",
     },
     async () => {
-      const [assignments, { present: objects, absent }] = await Promise.all([facts.assignments, facts.objects]);
-      const setNames = [...new Set(assignments.map((a) => str(rel(a, "PermissionSet.Label"))).filter(Boolean))];
+      const [assignments, { present: objects, absent }] = await Promise.all([
+        facts.assignments,
+        facts.objects,
+      ]);
+      const setNames = [
+        ...new Set(assignments.map((a) => str(rel(a, "PermissionSet.Label"))).filter(Boolean)),
+      ];
       if (!feature?.objects.length) {
-        return { pass: setNames.length > 0, detail: setNames.length ? `${plural(setNames.length, "permission set")}: ${setNames.slice(0, 6).join(", ")}` : "No permission sets or groups assigned." };
+        return {
+          pass: setNames.length > 0,
+          detail: setNames.length
+            ? `${plural(setNames.length, "permission set")}: ${setNames.slice(0, 6).join(", ")}`
+            : "No permission sets or groups assigned.",
+        };
       }
-      if (!objects.length) return { pass: true, skip: true, detail: `None of ${feature.title}'s objects are in this org (${absent.join(", ")}). The feature may not be enabled or licensed.` };
+      if (!objects.length)
+        return {
+          pass: true,
+          skip: true,
+          detail: `None of ${feature.title}'s objects are in this org (${absent.join(", ")}). The feature may not be enabled or licensed.`,
+        };
       // Salesforce's own answer for what the user can read: object permissions, but also access that
       // has no object permission row (Event, Holiday, EmailTemplate, Topic, surveys, detail objects).
       const rows = await query(
         `SELECT EntityDefinition.QualifiedApiName, IsReadable FROM UserEntityAccess WHERE UserId = '${user.id}' AND EntityDefinition.QualifiedApiName IN (${inList(objects)})`,
         org
       );
-      const readable = new Set(rows.filter((r) => r.IsReadable === true).map((r) => str(rel(r, "EntityDefinition.QualifiedApiName")).toLowerCase()));
+      const readable = new Set(
+        rows
+          .filter((r) => r.IsReadable === true)
+          .map((r) => str(rel(r, "EntityDefinition.QualifiedApiName")).toLowerCase())
+      );
       const missing = objects.filter((o) => !readable.has(o.toLowerCase()));
       return {
         pass: missing.length === 0,
@@ -320,12 +399,20 @@ function checkTerritory(user: UserInfo, facts: Facts): Promise<ReadinessCheck> {
     },
     async () => {
       const rows = await facts.territories;
-      const active = rows.filter((r) => str(rel(r, "Territory2.Territory2Model.State")) === "Active");
+      const active = rows.filter(
+        (r) => str(rel(r, "Territory2.Territory2Model.State")) === "Active"
+      );
       const names = active.map((r) => str(rel(r, "Territory2.Name")));
-      if (active.length) return { pass: true, detail: `${plural(active.length, "territory")}: ${names.slice(0, 5).join(", ")}` };
+      if (active.length)
+        return {
+          pass: true,
+          detail: `${plural(active.length, "territory")}: ${names.slice(0, 5).join(", ")}`,
+        };
       return {
         pass: false,
-        detail: rows.length ? `Only in territories of inactive models (${rows.length}).` : "Not assigned to any territory.",
+        detail: rows.length
+          ? `Only in territories of inactive models (${rows.length}).`
+          : "Not assigned to any territory.",
       };
     }
   );
@@ -360,21 +447,51 @@ interface AccountReach {
 }
 
 /** The DB Schema record the iPad uses for an object: profile matches before permission sets, then by DeveloperName. */
-function tableFor(records: ConfigRecord[], sobject: string, user: UserInfo, setNames: string[]): ApplicableTable | null {
+function tableFor(
+  records: ConfigRecord[],
+  sobject: string,
+  user: UserInfo,
+  setNames: string[]
+): ApplicableTable | null {
   const candidates = records
-    .filter((r) => r.isActive && r.fields.Type !== "CONFIGURATION" && ieq(str(r.fields.SObject), sobject) && reaches(audienceOf(r), user, setNames))
+    .filter(
+      (r) =>
+        r.isActive &&
+        r.fields.Type !== "CONFIGURATION" &&
+        ieq(str(r.fields.SObject), sobject) &&
+        reaches(audienceOf(r), user, setNames)
+    )
     .sort((a, b) => a.developerName.localeCompare(b.developerName));
-  const byProfile = candidates.find((r) => { const a = audienceOf(r); return !a || (user.profile !== null && a.profiles.some((p) => ieq(p, user.profile!))); });
+  const byProfile = candidates.find((r) => {
+    const a = audienceOf(r);
+    return !a || (user.profile !== null && a.profiles.some((p) => ieq(p, user.profile!)));
+  });
   const r = byProfile ?? candidates[0];
   if (!r) return null;
   return {
-    entry: { developerName: r.developerName, sobject, type: str(r.fields.Type), whereSoql: str(r.fields.WhereSoql).trim() || null, profileIds: new Set(), profileNames: new Set(), permissionSets: new Set() },
+    entry: {
+      developerName: r.developerName,
+      sobject,
+      type: str(r.fields.Type),
+      whereSoql: str(r.fields.WhereSoql).trim() || null,
+      profileIds: new Set(),
+      profileNames: new Set(),
+      permissionSets: new Set(),
+    },
     matchedBy: byProfile ? "profile" : "permissionSet",
   };
 }
 
-async function accountReach(user: UserInfo, facts: Pick<Facts, "territories" | "dbSchema" | "assignments">, org: string): Promise<AccountReach | null> {
-  const [rows, records, assignments] = await Promise.all([facts.territories, facts.dbSchema, facts.assignments]);
+async function accountReach(
+  user: UserInfo,
+  facts: Pick<Facts, "territories" | "dbSchema" | "assignments">,
+  org: string
+): Promise<AccountReach | null> {
+  const [rows, records, assignments] = await Promise.all([
+    facts.territories,
+    facts.dbSchema,
+    facts.assignments,
+  ]);
   const territories = rows
     .filter((r) => str(rel(r, "Territory2.Territory2Model.State")) === "Active")
     .map((r) => ({ id: str(r.Territory2Id), name: str(rel(r, "Territory2.Name")) }))
@@ -387,15 +504,34 @@ async function accountReach(user: UserInfo, facts: Pick<Facts, "territories" | "
   const hidden = `${pati} AND IsAvailableOffline = false`;
   const unaligned = `AccountId NOT IN (SELECT ObjectId ${ot2a})`;
 
-  const setNames = assignments.flatMap((a) => [str(rel(a, "PermissionSet.Label")), str(rel(a, "PermissionSet.Name"))]).filter(Boolean);
+  const setNames = assignments
+    .flatMap((a) => [str(rel(a, "PermissionSet.Label")), str(rel(a, "PermissionSet.Name"))])
+    .filter(Boolean);
   const accountTable = tableFor(records, "Account", user, setNames);
   const ot2aTable = tableFor(records, "ObjectTerritory2Association", user, setNames);
-  const querier: OrgQuerier = { soql: (q, options) => runSoqlQuery(q, org, options), tooling: (q) => runToolingQuery(q, org) };
-  const context: UserContext = { id: user.id, username: user.username, name: user.name, profileId: user.profileId ?? "", profileName: user.profile ?? "", permissionSets: new Set(setNames), territories };
+  const querier: OrgQuerier = {
+    soql: (q, options) => runSoqlQuery(q, org, options),
+    tooling: (q) => runToolingQuery(q, org),
+  };
+  const context: UserContext = {
+    id: user.id,
+    username: user.username,
+    name: user.name,
+    profileId: user.profileId ?? "",
+    profileName: user.profile ?? "",
+    permissionSets: new Set(setNames),
+    territories,
+  };
   const options = { ...DEFAULT_PROFILE_OPTIONS, idCache: new Map() };
   const filterIn = async (t: { id: string; name: string }) => {
     if (!accountTable) return { territory: t.name, records: null };
-    const vol = await profileTerritory(querier, context, t, ot2aTable ? [ot2aTable, accountTable] : [accountTable], options);
+    const vol = await profileTerritory(
+      querier,
+      context,
+      t,
+      ot2aTable ? [ot2aTable, accountTable] : [accountTable],
+      options
+    );
     const acc = vol.tables.find((v) => v.sobject === "Account");
     return acc?.status === "counted" && !acc.lowerBound
       ? { territory: t.name, records: acc.records }
@@ -404,8 +540,22 @@ async function accountReach(user: UserInfo, facts: Pick<Facts, "territories" | "
 
   // Names are only examples: a failed read leaves them out, never the counts.
   const names = (soql: string, field: string) =>
-    query(soql, org).then((rows) => [...new Set(rows.map((r) => str(rel(r, field))).filter(Boolean))], () => []);
-  const [aligned, noInfoCount, noInfoNames, hiddenCount, hiddenNames, offline, unalignedCount, unalignedNames, inactive, filter] = await Promise.all([
+    query(soql, org).then(
+      (rows) => [...new Set(rows.map((r) => str(rel(r, field))).filter(Boolean))],
+      () => []
+    );
+  const [
+    aligned,
+    noInfoCount,
+    noInfoNames,
+    hiddenCount,
+    hiddenNames,
+    offline,
+    unalignedCount,
+    unalignedNames,
+    inactive,
+    filter,
+  ] = await Promise.all([
     count(`SELECT COUNT() ${ot2a}`, org),
     count(`SELECT COUNT() ${ot2a} AND ${noInfo}`, org),
     names(`SELECT Object.Name ${ot2a} AND ${noInfo} ORDER BY Object.Name LIMIT 5`, "Object.Name"),
@@ -413,9 +563,15 @@ async function accountReach(user: UserInfo, facts: Pick<Facts, "territories" | "
     names(`SELECT Account.Name ${hidden} ORDER BY Account.Name LIMIT 5`, "Account.Name"),
     count(`SELECT COUNT() ${pati} AND IsAvailableOffline = true`, org),
     count(`SELECT COUNT() ${pati} AND IsAvailableOffline = true AND ${unaligned}`, org),
-    names(`SELECT Account.Name ${pati} AND IsAvailableOffline = true AND ${unaligned} ORDER BY Account.Name LIMIT 5`, "Account.Name"),
+    names(
+      `SELECT Account.Name ${pati} AND IsAvailableOffline = true AND ${unaligned} ORDER BY Account.Name LIMIT 5`,
+      "Account.Name"
+    ),
     // Account.IsActive comes with LSC's account model; an org without it has no inactive accounts to hide.
-    count(`SELECT COUNT() ${ot2a} AND ObjectId IN (SELECT Id FROM Account WHERE IsActive = false)`, org).catch(() => null),
+    count(
+      `SELECT COUNT() ${ot2a} AND ObjectId IN (SELECT Id FROM Account WHERE IsActive = false)`,
+      org
+    ).catch(() => null),
     Promise.all(territories.slice(0, MAX_FILTER_TERRITORIES).map(filterIn)),
   ]);
   return {
@@ -434,7 +590,8 @@ async function accountReach(user: UserInfo, facts: Pick<Facts, "territories" | "
   };
 }
 
-const NO_TERRITORY = "No territory in the active model, so no accounts are aligned to them. See the territory check.";
+const NO_TERRITORY =
+  "No territory in the active model, so no accounts are aligned to them. See the territory check.";
 
 function checkAccounts(user: UserInfo, facts: Facts): Promise<ReadinessCheck> {
   return runCheck(
@@ -454,19 +611,33 @@ function checkAccounts(user: UserInfo, facts: Facts): Promise<ReadinessCheck> {
     async () => {
       const r = await facts.accountReach;
       if (!r) return { pass: true, skip: true, detail: NO_TERRITORY };
-      const where = r.territories.length === 1 ? r.territories[0].name : `their ${plural(r.territories.length, "territory")}`;
+      const where =
+        r.territories.length === 1
+          ? r.territories[0].name
+          : `their ${plural(r.territories.length, "territory")}`;
       const counts = `${plural(r.aligned, "account")} aligned to ${where}, ${r.offline} with territory info available offline.`;
-      if (r.aligned === 0 && r.offline === 0) return { pass: false, detail: `No accounts are aligned to ${where}.` };
-      if (r.offline === 0) return { pass: false, detail: `${counts} Run Align Account to Territory.` };
-      if (!r.accountRecord) return { pass: false, detail: `No active Account DB Schema record reaches ${user.profile ?? "them"}, so no accounts sync. ${counts}` };
+      if (r.aligned === 0 && r.offline === 0)
+        return { pass: false, detail: `No accounts are aligned to ${where}.` };
+      if (r.offline === 0)
+        return { pass: false, detail: `${counts} Run Align Account to Territory.` };
+      if (!r.accountRecord)
+        return {
+          pass: false,
+          detail: `No active Account DB Schema record reaches ${user.profile ?? "them"}, so no accounts sync. ${counts}`,
+        };
       const counted = r.filter.filter((f) => f.records !== null);
       const uncounted = r.filter.filter((f) => f.records === null);
       const empty = counted.filter((f) => f.records === 0);
       const filterLine = counted.length
         ? `The Account filter (${r.accountRecord}) downloads ${counted.map((f) => `${plural(f.records ?? 0, "account")} in ${f.territory}`).join(", ")}. `
         : "";
-      const more = r.territories.length > r.filter.length ? ` The filter was counted in the first ${r.filter.length} territories by name.` : "";
-      const note = uncounted.length ? ` Couldn't count the filter in ${uncounted.map((f) => f.territory).join(", ")}: ${uncounted[0].note}.` : "";
+      const more =
+        r.territories.length > r.filter.length
+          ? ` The filter was counted in the first ${r.filter.length} territories by name.`
+          : "";
+      const note = uncounted.length
+        ? ` Couldn't count the filter in ${uncounted.map((f) => f.territory).join(", ")}: ${uncounted[0].note}.`
+        : "";
       return {
         pass: empty.length === 0,
         detail: `${filterLine}${counts}${more}${note}`,
@@ -494,12 +665,15 @@ function checkAccountsMatch(facts: Facts): Promise<ReadinessCheck> {
     async () => {
       const r = await facts.accountReach;
       if (!r) return { pass: true, skip: true, detail: NO_TERRITORY };
-      if (r.aligned === 0 && r.offline === 0) return { pass: true, skip: true, detail: "No accounts are aligned to them yet." };
+      if (r.aligned === 0 && r.offline === 0)
+        return { pass: true, skip: true, detail: "No accounts are aligned to them yet." };
       const territory = r.territories.length === 1 ? "the territory" : "their territories";
       const parts = [
         r.noInfo ? `${plural(r.noInfo, "aligned account")} with no territory info` : "",
         r.hidden ? `${plural(r.hidden, "territory info row")} not available offline` : "",
-        r.unaligned ? `${plural(r.unaligned, "territory info row")} for accounts not aligned to ${territory}, which still show on the iPad` : "",
+        r.unaligned
+          ? `${plural(r.unaligned, "territory info row")} for accounts not aligned to ${territory}, which still show on the iPad`
+          : "",
         r.inactive ? `${plural(r.inactive, "aligned account")} inactive` : "",
       ].filter(Boolean);
       const examples = [
@@ -509,7 +683,10 @@ function checkAccountsMatch(facts: Facts): Promise<ReadinessCheck> {
       ];
       return parts.length
         ? { pass: false, detail: `${parts.join("; ")}.`, examples }
-        : { pass: true, detail: `All ${plural(r.aligned, "aligned account")} have territory info available offline.` };
+        : {
+            pass: true,
+            detail: `All ${plural(r.aligned, "aligned account")} have territory info available offline.`,
+          };
     }
   );
 }
@@ -522,37 +699,70 @@ function reaches(audience: Audience | undefined, user: UserInfo, setNames: strin
   return audience.permissionSets.some((p) => setNames.some((s) => ieq(s, p)));
 }
 
-function checkDbSchema(user: UserInfo, feature: FeatureDefinition | undefined, facts: Facts): Promise<ReadinessCheck> {
+function checkDbSchema(
+  user: UserInfo,
+  feature: FeatureDefinition | undefined,
+  facts: Facts
+): Promise<ReadinessCheck> {
   return runCheck(
     {
       id: "user.mobile.db-schema",
       stage: "mobile",
-      title: feature ? `${feature.title} objects sync to the iPad` : "DB Schema syncs data to the iPad",
+      title: feature
+        ? `${feature.title} objects sync to the iPad`
+        : "DB Schema syncs data to the iPad",
       severity: "error",
       why: "An object only reaches the iPad when an active DB Schema record for it is assigned to the user's profile or one of their permission sets.",
-      steps: ["Admin Console > Mobile > DB Schema: activate or create the object's record and assign it to the user's profile."],
+      steps: [
+        "Admin Console > Mobile > DB Schema: activate or create the object's record and assign it to the user's profile.",
+      ],
       uiPath: "Admin Console > Mobile > DB Schema",
     },
     async () => {
-      const [records, assignments, { present: objects, absent }] = await Promise.all([facts.dbSchema, facts.assignments, facts.objects]);
-      const setNames = assignments.flatMap((a) => [str(rel(a, "PermissionSet.Label")), str(rel(a, "PermissionSet.Name"))]).filter(Boolean);
-      const mine = records.filter((r) => r.isActive && r.fields.Type !== "CONFIGURATION" && reaches(audienceOf(r), user, setNames));
-      if (!feature?.objects.length) return { pass: mine.length > 0, detail: `${plural(mine.length, "active DB Schema object")} sync for ${user.profile ?? "this user"}.` };
-      if (!objects.length) return { pass: true, skip: true, detail: `None of ${feature.title}'s objects are in this org (${absent.join(", ")}).` };
+      const [records, assignments, { present: objects, absent }] = await Promise.all([
+        facts.dbSchema,
+        facts.assignments,
+        facts.objects,
+      ]);
+      const setNames = assignments
+        .flatMap((a) => [str(rel(a, "PermissionSet.Label")), str(rel(a, "PermissionSet.Name"))])
+        .filter(Boolean);
+      const mine = records.filter(
+        (r) =>
+          r.isActive && r.fields.Type !== "CONFIGURATION" && reaches(audienceOf(r), user, setNames)
+      );
+      if (!feature?.objects.length)
+        return {
+          pass: mine.length > 0,
+          detail: `${plural(mine.length, "active DB Schema object")} sync for ${user.profile ?? "this user"}.`,
+        };
+      if (!objects.length)
+        return {
+          pass: true,
+          skip: true,
+          detail: `None of ${feature.title}'s objects are in this org (${absent.join(", ")}).`,
+        };
       const synced = new Set(mine.map((r) => str(r.fields.SObject).toLowerCase()));
       const missing = objects.filter((o) => !synced.has(o.toLowerCase()));
       // Only the primary object (the first the org has) is required to sync; secondary objects are reported but don't fail the chain alone.
       const primaryMissing = missing.includes(objects[0]);
       return {
         pass: !primaryMissing && missing.length < objects.length,
-        detail: (missing.length ? `Not synced: ${missing.join(", ")}.` : `All ${objects.length} objects sync.`) + absentNote(absent),
+        detail:
+          (missing.length
+            ? `Not synced: ${missing.join(", ")}.`
+            : `All ${objects.length} objects sync.`) + absentNote(absent),
         examples: missing,
       };
     }
   );
 }
 
-function checkActions(user: UserInfo, feature: FeatureDefinition, facts: Facts): Promise<ReadinessCheck> {
+function checkActions(
+  user: UserInfo,
+  feature: FeatureDefinition,
+  facts: Facts
+): Promise<ReadinessCheck> {
   return runCheck(
     {
       id: "user.mobile.actions",
@@ -565,11 +775,25 @@ function checkActions(user: UserInfo, feature: FeatureDefinition, facts: Facts):
     },
     async () => {
       const [records, assignments] = await Promise.all([facts.actions, facts.assignments]);
-      const setNames = assignments.flatMap((a) => [str(rel(a, "PermissionSet.Label")), str(rel(a, "PermissionSet.Name"))]).filter(Boolean);
+      const setNames = assignments
+        .flatMap((a) => [str(rel(a, "PermissionSet.Label")), str(rel(a, "PermissionSet.Name"))])
+        .filter(Boolean);
       const related = records.filter(
-        (r) => r.isActive && matchesAny(`${r.developerName} ${r.label ?? ""} ${Object.values(r.fields).filter((v) => typeof v === "string").join(" ")}`, feature.actionKeywords)
+        (r) =>
+          r.isActive &&
+          matchesAny(
+            `${r.developerName} ${r.label ?? ""} ${Object.values(r.fields)
+              .filter((v) => typeof v === "string")
+              .join(" ")}`,
+            feature.actionKeywords
+          )
       );
-      if (!related.length) return { skip: true, pass: true, detail: "The org has no active actions for this feature." };
+      if (!related.length)
+        return {
+          skip: true,
+          pass: true,
+          detail: "The org has no active actions for this feature.",
+        };
       const visible = related.filter((r) => reaches(actionAudience(r), user, setNames));
       const hidden = related.filter((r) => !visible.includes(r));
       return {
@@ -586,11 +810,18 @@ function publishedFor(user: UserInfo, org: string): Promise<SnapshotCore | null>
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(
-      () => reject(new Error("Reading the profile's published metadata took too long. Check again in a minute; it's quicker once read.")),
+      () =>
+        reject(
+          new Error(
+            "Reading the profile's published metadata took too long. Check again in a minute; it's quicker once read."
+          )
+        ),
       PUBLISHED_TIMEOUT_MS
     );
   });
-  const load = loadPublishedCore(user.profile, org, user.id).then((r) => ("missing" in r ? null : r));
+  const load = loadPublishedCore(user.profile, org, user.id).then((r) =>
+    "missing" in r ? null : r
+  );
   return Promise.race([load, timeout]).finally(() => clearTimeout(timer));
 }
 
@@ -599,7 +830,11 @@ function publishedFor(user: UserInfo, org: string): Promise<SnapshotCore | null>
  * is left off when it's hidden on the profile and permission sets, when its object isn't synced
  * for the rep, or when the app has no screen for it. A tab added after the publish isn't there.
  */
-function checkTabs(user: UserInfo, feature: FeatureDefinition | undefined, facts: Facts): Promise<ReadinessCheck> {
+function checkTabs(
+  user: UserInfo,
+  feature: FeatureDefinition | undefined,
+  facts: Facts
+): Promise<ReadinessCheck> {
   const keywords = feature?.tabKeywords;
   return runCheck(
     {
@@ -617,17 +852,28 @@ function checkTabs(user: UserInfo, feature: FeatureDefinition | undefined, facts
     },
     async () => {
       const published = await facts.published;
-      if (!published) return { pass: false, detail: `${user.profile ?? "The user's profile"} has no published metadata, so the iPad has no tabs to show.` };
+      if (!published)
+        return {
+          pass: false,
+          detail: `${user.profile ?? "The user's profile"} has no published metadata, so the iPad has no tabs to show.`,
+        };
       const shown = published.tabs.filter((t) => t.kind !== "recent");
       const names = (tabs: { label: string }[]) => tabs.map((t) => t.label).join(", ");
       const date = published.cache.generatedAt.slice(0, 10);
       if (!keywords) {
-        const hiddenNote = published.hiddenTabs.length ? ` Left off: ${published.hiddenTabs.map((t) => `${t.label} (${t.reason})`).join("; ")}.` : "";
-        return { pass: shown.length > 0, detail: `${plural(shown.length, "tab")} as published on ${date}: ${names(shown) || "none"}.${hiddenNote}` };
+        const hiddenNote = published.hiddenTabs.length
+          ? ` Left off: ${published.hiddenTabs.map((t) => `${t.label} (${t.reason})`).join("; ")}.`
+          : "";
+        return {
+          pass: shown.length > 0,
+          detail: `${plural(shown.length, "tab")} as published on ${date}: ${names(shown) || "none"}.${hiddenNote}`,
+        };
       }
-      const about = (t: { fullName: string; label: string; sobject?: string }) => matchesAny(`${t.fullName} ${t.label} ${t.sobject ?? ""}`, keywords);
+      const about = (t: { fullName: string; label: string; sobject?: string }) =>
+        matchesAny(`${t.fullName} ${t.label} ${t.sobject ?? ""}`, keywords);
       const mine = shown.filter(about);
-      if (mine.length) return { pass: true, detail: `On the tab bar: ${names(mine)} (published ${date}).` };
+      if (mine.length)
+        return { pass: true, detail: `On the tab bar: ${names(mine)} (published ${date}).` };
       const hidden = published.hiddenTabs.filter(about);
       if (hidden.length) {
         // ProcessMetadataOperation.parseNavigation drops these by name, whatever their visibility.
@@ -669,7 +915,9 @@ function checkCache(user: UserInfo, facts: Facts): Promise<ReadinessCheck> {
         const latest = rows[0];
         return {
           pass: false,
-          detail: latest ? `No Active cache for ${user.profile}; the latest is ${str(latest.Status)}${latest.IntegrationErrorMessage ? ` (${str(latest.IntegrationErrorMessage)})` : ""}.` : `${user.profile} has never been published.`,
+          detail: latest
+            ? `No Active cache for ${user.profile}; the latest is ${str(latest.Status)}${latest.IntegrationErrorMessage ? ` (${str(latest.IntegrationErrorMessage)})` : ""}.`
+            : `${user.profile} has never been published.`,
         };
       }
       return { pass: true, detail: `Active since ${str(active.LastModifiedDate).slice(0, 10)}.` };
@@ -685,22 +933,36 @@ function checkLastSync(user: UserInfo, facts: Facts): Promise<ReadinessCheck> {
       title: "Device has synced",
       severity: "warning",
       why: "Sync summaries come from the user's iPad after each sync. None means the app was never opened on a device, or sync never finished.",
-      steps: ["Have the rep log in on the iPad and let the first sync finish; check connectivity if it keeps failing."],
+      steps: [
+        "Have the rep log in on the iPad and let the first sync finish; check connectivity if it keeps failing.",
+      ],
       uiPath: "Reports > Device Sync Summaries",
     },
     async () => {
       const rows = await facts.syncs;
-      if (!rows.length) return { pass: false, detail: "No sync has ever been reported for this user." };
+      if (!rows.length)
+        return { pass: false, detail: "No sync has ever been reported for this user." };
       const done = rows.find((r) => r.DownloadEnd);
       const latest = rows[0];
-      if (!done) return { pass: false, detail: `${plural(rows.length, "sync")} reported, none finished downloading.` };
+      if (!done)
+        return {
+          pass: false,
+          detail: `${plural(rows.length, "sync")} reported, none finished downloading.`,
+        };
       const days = Math.floor((Date.now() - Date.parse(str(done.DownloadEnd))) / 86_400_000);
       const when = str(done.DownloadEnd).slice(0, 10);
-      if (days > STALE_SYNC_DAYS) return { pass: false, detail: `Last finished sync was ${when} (${days} days ago).` };
+      if (days > STALE_SYNC_DAYS)
+        return { pass: false, detail: `Last finished sync was ${when} (${days} days ago).` };
       // An attempt started in the last half hour may still be running.
-      const inProgress = Date.now() - Date.parse(str(latest.DownloadStart || latest.CreatedDate)) < 30 * 60_000;
+      const inProgress =
+        Date.now() - Date.parse(str(latest.DownloadStart || latest.CreatedDate)) < 30 * 60_000;
       const failedSince = latest !== done && !latest.DownloadEnd && !inProgress;
-      return { pass: !failedSince, detail: failedSince ? `Last finished sync ${when}, but the latest attempt (${str(latest.CreatedDate).slice(0, 10)}) didn't finish.` : `Last finished sync ${when}.` };
+      return {
+        pass: !failedSince,
+        detail: failedSince
+          ? `Last finished sync ${when}, but the latest attempt (${str(latest.CreatedDate).slice(0, 10)}) didn't finish.`
+          : `Last finished sync ${when}.`,
+      };
     }
   );
 }

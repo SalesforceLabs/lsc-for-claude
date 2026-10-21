@@ -36,7 +36,10 @@ import { fetchCategories, newDbSchema, profilesOf } from "./shared.js";
 export const REQUIRED_PSLS = [
   { name: "IndustriesLSC4CEPsl", label: "Life Science Commercial" },
   { name: "HealthCloudStarter", label: "Health Cloud Starter" },
-  { name: "SiteMgmtSiteSelAssistanceAgentPsl", label: "Agentforce for Life Sciences Cloud Feature Access" },
+  {
+    name: "SiteMgmtSiteSelAssistanceAgentPsl",
+    label: "Agentforce for Life Sciences Cloud Feature Access",
+  },
   { name: "EinsteinGPTPromptTemplatesPsl", label: "Einstein Prompt Templates" },
 ];
 
@@ -49,7 +52,12 @@ export const STANDARD_PERMISSION_SETS = [
 ];
 
 /** The objects that must be in DB Schema for briefings to reach the iPad. */
-export const REQUIRED_SYNC_OBJECTS = ["PresentationContent", "PrstCntntUsageSummary", "PrstCntntDefAssignment", "PrstContentDefinition"];
+export const REQUIRED_SYNC_OBJECTS = [
+  "PresentationContent",
+  "PrstCntntUsageSummary",
+  "PrstCntntDefAssignment",
+  "PrstContentDefinition",
+];
 
 /** Managed flow API names (with and without the `stories__` namespace prefix). */
 export const TEXT_GEN_FLOW = /^(stories__)?GenDailyBriefingsText$/;
@@ -62,7 +70,8 @@ export const SUMMARY_FLOW_LABEL = "Generate Provider Account Territory Summary";
  * per distinct query), so the collector and readiness ask for the same columns, and inside a Studio read scope (withSharedReads) each is read once.
  */
 export function briefingFlowGroups(org: string, withSummary = true): Promise<Row[][]> {
-  const select = "SELECT Label, ApiName, ActiveVersionId, ProcessType FROM FlowDefinitionView WHERE";
+  const select =
+    "SELECT Label, ApiName, ActiveVersionId, ProcessType FROM FlowDefinitionView WHERE";
   const asks = [`${select} ApiName LIKE '%Briefing%'`, `${select} Label LIKE '%Briefing%'`];
   if (withSummary) asks.push(`${select} Label = '${SUMMARY_FLOW_LABEL}'`);
   return Promise.all(asks.map((soql) => query(soql, org)));
@@ -75,7 +84,10 @@ const CONTENT_WINDOW_DAYS = 30;
 export const STALE_DAYS = 3;
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
-export const isMissingObject = (err: unknown) => /is not supported|INVALID_TYPE|does not exist/i.test(String(err instanceof Error ? err.message : err));
+export const isMissingObject = (err: unknown) =>
+  /is not supported|INVALID_TYPE|does not exist/i.test(
+    String(err instanceof Error ? err.message : err)
+  );
 
 /** Briefings objects only exist once the toggle is on; a missing object resolves to null. */
 export async function optionalQuery(soql: string, org: string): Promise<Row[] | null> {
@@ -94,7 +106,8 @@ export function rel(r: Row, path: string): unknown {
 const NOT_ENABLED: StudioFinding = {
   severity: "info",
   title: "Briefings is turned off",
-  detail: "The Briefings objects don't exist until the toggle is on (Setup > Life Sciences for Customer Engagement Setup > Configure Briefings).",
+  detail:
+    "The Briefings objects don't exist until the toggle is on (Setup > Life Sciences for Customer Engagement Setup > Configure Briefings).",
 };
 
 /** The Briefings DB Schema record syncing `object`, if any. */
@@ -109,7 +122,10 @@ export { fetchCache, isLiveCache, type CacheRecord };
  * field while filtering on PermissionSet.Name returns no rows at all in some orgs.
  */
 export async function standardSetAssignments(org: string): Promise<Map<string, number>> {
-  const sets = await query(`SELECT Id, Name FROM PermissionSet WHERE Name IN (${inList(STANDARD_PERMISSION_SETS.map((p) => p.name))})`, org);
+  const sets = await query(
+    `SELECT Id, Name FROM PermissionSet WHERE Name IN (${inList(STANDARD_PERMISSION_SETS.map((p) => p.name))})`,
+    org
+  );
   if (!sets.length) return new Map();
   const counts = await countBy(
     `SELECT PermissionSetId psid, COUNT(Id) cnt FROM PermissionSetAssignment WHERE PermissionSetId IN (${inList(sets.map((r) => String(r.Id)))}) GROUP BY PermissionSetId`,
@@ -120,9 +136,15 @@ export async function standardSetAssignments(org: string): Promise<Map<string, n
 }
 
 /** Profile → number, from an aggregate query with a text column `key`. */
-export async function countBy(soql: string, key: string, org: string): Promise<Map<string, number>> {
+export async function countBy(
+  soql: string,
+  key: string,
+  org: string
+): Promise<Map<string, number>> {
   const rows = await query(soql, org);
-  return new Map(rows.filter((r) => r[key]).map((r) => [String(r[key]), Number(r.cnt ?? r.expr0 ?? 0)]));
+  return new Map(
+    rows.filter((r) => r[key]).map((r) => [String(r[key]), Number(r.cnt ?? r.expr0 ?? 0)])
+  );
 }
 
 export const collectBriefings: CustomCollector = async (org) => {
@@ -137,11 +159,22 @@ export const collectBriefings: CustomCollector = async (org) => {
     )
   );
   const psls = settle(
-    query(`SELECT Id, DeveloperName, MasterLabel, TotalLicenses, UsedLicenses FROM PermissionSetLicense WHERE DeveloperName IN (${inList(REQUIRED_PSLS.map((p) => p.name))})`, org)
+    query(
+      `SELECT Id, DeveloperName, MasterLabel, TotalLicenses, UsedLicenses FROM PermissionSetLicense WHERE DeveloperName IN (${inList(REQUIRED_PSLS.map((p) => p.name))})`,
+      org
+    )
   );
-  const definitions = settle(optionalQuery(`SELECT Id, DeveloperName, MasterLabel, IsActive, ContentType FROM PrstContentDefinition ORDER BY MasterLabel`, org));
+  const definitions = settle(
+    optionalQuery(
+      `SELECT Id, DeveloperName, MasterLabel, IsActive, ContentType FROM PrstContentDefinition ORDER BY MasterLabel`,
+      org
+    )
+  );
   const assignments = settle(
-    optionalQuery(`SELECT Id, IsActive, AssignedToId, AssignedTo.Name, PrstContentDefinition.MasterLabel FROM PrstCntntDefAssignment ORDER BY AssignedTo.Name`, org)
+    optionalQuery(
+      `SELECT Id, IsActive, AssignedToId, AssignedTo.Name, PrstContentDefinition.MasterLabel FROM PrstCntntDefAssignment ORDER BY AssignedTo.Name`,
+      org
+    )
   );
   // Briefings pile up per rep per day, so the board counts the recent ones (CreatedDate is indexed)
   // and reads the newest one on its own.
@@ -151,7 +184,12 @@ export const collectBriefings: CustomCollector = async (org) => {
       org
     )
   );
-  const newestContent = settle(optionalQuery(`SELECT CreatedDate FROM PresentationContent ORDER BY CreatedDate DESC LIMIT 1`, org));
+  const newestContent = settle(
+    optionalQuery(
+      `SELECT CreatedDate FROM PresentationContent ORDER BY CreatedDate DESC LIMIT 1`,
+      org
+    )
+  );
   // Flows: the managed ones plus anything else with "Briefing" in its name (clones of the schedule).
   const flows = settle(
     briefingFlowGroups(org).then((groups) => {
@@ -180,7 +218,12 @@ export const collectBriefings: CustomCollector = async (org) => {
     )
   );
   const standardAssignments = settle(standardSetAssignments(org));
-  const readAccess = settle(optionalQuery(`SELECT ParentId FROM ObjectPermissions WHERE SobjectType = 'PresentationContent' AND PermissionsRead = true LIMIT 1`, org));
+  const readAccess = settle(
+    optionalQuery(
+      `SELECT ParentId FROM ObjectPermissions WHERE SobjectType = 'PresentationContent' AND PermissionsRead = true LIMIT 1`,
+      org
+    )
+  );
   // Active users per profile holding "Use Briefings" through any permission set.
   const briefingUsers = settle(
     countBy(
@@ -194,11 +237,23 @@ export const collectBriefings: CustomCollector = async (org) => {
 
   /** Profiles that receive briefings, from the active content definition assignments. */
   const assignedProfiles = async () =>
-    [...new Set(((await unwrap(assignments)) ?? []).filter((a) => a.IsActive).map((a) => String(rel(a, "AssignedTo.Name"))))].sort();
+    [
+      ...new Set(
+        ((await unwrap(assignments)) ?? [])
+          .filter((a) => a.IsActive)
+          .map((a) => String(rel(a, "AssignedTo.Name")))
+      ),
+    ].sort();
 
   const surfaces = await Promise.all([
     buildSurface(
-      { id: "toggle", title: "Briefings Toggle", lane: "setup", description: "Configure Briefings must be switched on for the Briefings objects and flows to exist." },
+      {
+        id: "toggle",
+        title: "Briefings Toggle",
+        lane: "setup",
+        description:
+          "Configure Briefings must be switched on for the Briefings objects and flows to exist.",
+      },
       async () => {
         const on = await unwrap(enabled);
         return {
@@ -207,14 +262,27 @@ export const collectBriefings: CustomCollector = async (org) => {
               sublabel: on ? "On" : "Off",
               active: on,
               properties: { Enabled: on, "Checked via": "PresentationContent object" },
-              findings: on ? [] : [{ severity: "error", title: "Briefings toggle is off", detail: NOT_ENABLED.detail }],
+              findings: on
+                ? []
+                : [
+                    {
+                      severity: "error",
+                      title: "Briefings toggle is off",
+                      detail: NOT_ENABLED.detail,
+                    },
+                  ],
             }),
           ],
         };
       }
     ),
     buildSurface(
-      { id: "licenses", title: "Licenses", lane: "setup", description: "Permission set licenses Briefings and its text generation depend on." },
+      {
+        id: "licenses",
+        title: "Licenses",
+        lane: "setup",
+        description: "Permission set licenses Briefings and its text generation depend on.",
+      },
       async () => {
         const rows = await unwrap(psls);
         const found = new Set(rows.map((r) => String(r.DeveloperName)));
@@ -222,12 +290,27 @@ export const collectBriefings: CustomCollector = async (org) => {
           const total = Number(r.TotalLicenses ?? 0);
           const used = Number(r.UsedLicenses ?? 0);
           const findings: StudioFinding[] = [];
-          if (total === 0) findings.push({ severity: "error", title: "No licenses provisioned", detail: "Contact your Salesforce account team." });
-          else if (used >= total) findings.push({ severity: "warning", title: "No licenses left", detail: `${used} of ${total} in use.` });
+          if (total === 0)
+            findings.push({
+              severity: "error",
+              title: "No licenses provisioned",
+              detail: "Contact your Salesforce account team.",
+            });
+          else if (used >= total)
+            findings.push({
+              severity: "warning",
+              title: "No licenses left",
+              detail: `${used} of ${total} in use.`,
+            });
           return item(String(r.Id), String(r.MasterLabel), {
             sublabel: `${used} of ${total} used`,
             active: total > 0,
-            properties: { "Developer name": scalar(r.DeveloperName), Total: total, Used: used, Available: total - used },
+            properties: {
+              "Developer name": scalar(r.DeveloperName),
+              Total: total,
+              Used: used,
+              Available: total - used,
+            },
             findings,
           });
         });
@@ -235,15 +318,31 @@ export const collectBriefings: CustomCollector = async (org) => {
         return {
           items,
           findings: missing.length
-            ? [{ severity: "error", title: `${plural(missing.length, "license")} not found`, detail: `Missing: ${missing.join(", ")}. Contact your Salesforce account team.` }]
+            ? [
+                {
+                  severity: "error",
+                  title: `${plural(missing.length, "license")} not found`,
+                  detail: `Missing: ${missing.join(", ")}. Contact your Salesforce account team.`,
+                },
+              ]
             : [],
         };
       }
     ),
     buildSurface(
-      { id: "accountSummarization", title: "Account Summarization", lane: "pipeline", description: "Summaries of each provider account in each territory — the source Briefings text is generated from." },
+      {
+        id: "accountSummarization",
+        title: "Account Summarization",
+        lane: "pipeline",
+        description:
+          "Summaries of each provider account in each territory — the source Briefings text is generated from.",
+      },
       async () => {
-        const [flowRows, total, on] = await Promise.all([unwrap(flows), unwrap(summaries), unwrap(enabled)]);
+        const [flowRows, total, on] = await Promise.all([
+          unwrap(flows),
+          unwrap(summaries),
+          unwrap(enabled),
+        ]);
         const flow = flowRows.find((f) => f.Label === SUMMARY_FLOW_LABEL);
         const findings: StudioFinding[] = [];
         const items: StudioItem[] = [];
@@ -253,8 +352,19 @@ export const collectBriefings: CustomCollector = async (org) => {
             item(String(flow.ApiName), String(flow.Label), {
               sublabel: active ? "Active" : "Inactive",
               active,
-              properties: { "API name": scalar(flow.ApiName), "Process type": scalar(flow.ProcessType) },
-              findings: active ? [] : [{ severity: "error", title: "Flow isn't active", detail: `Activate the '${SUMMARY_FLOW_LABEL}' flow.` }],
+              properties: {
+                "API name": scalar(flow.ApiName),
+                "Process type": scalar(flow.ProcessType),
+              },
+              findings: active
+                ? []
+                : [
+                    {
+                      severity: "error",
+                      title: "Flow isn't active",
+                      detail: `Activate the '${SUMMARY_FLOW_LABEL}' flow.`,
+                    },
+                  ],
             })
           );
         } else if (on) {
@@ -266,14 +376,32 @@ export const collectBriefings: CustomCollector = async (org) => {
         }
         if (total !== null) {
           items.push(
-            item("summaryRecords", total === "some" ? "Summary records" : total === 0 ? "No summary records" : `About ${total.toLocaleString("en-US")} summary records`, {
-              sublabel: "PrvdAccountTerritorySummary",
-              properties: { "PrvdAccountTerritorySummary records": total === "some" ? "Some (not counted)" : total },
-              findings:
-                total === 0
-                  ? [{ severity: "error", title: "No summary records", detail: "Account Summarization hasn't run — no podcast text can be generated. Verify it is configured and the flow has run." }]
-                  : [],
-            })
+            item(
+              "summaryRecords",
+              total === "some"
+                ? "Summary records"
+                : total === 0
+                  ? "No summary records"
+                  : `About ${total.toLocaleString("en-US")} summary records`,
+              {
+                sublabel: "PrvdAccountTerritorySummary",
+                properties: {
+                  "PrvdAccountTerritorySummary records":
+                    total === "some" ? "Some (not counted)" : total,
+                },
+                findings:
+                  total === 0
+                    ? [
+                        {
+                          severity: "error",
+                          title: "No summary records",
+                          detail:
+                            "Account Summarization hasn't run — no podcast text can be generated. Verify it is configured and the flow has run.",
+                        },
+                      ]
+                    : [],
+              }
+            )
           );
         }
         if (items.length === 0 && !on) findings.push(NOT_ENABLED);
@@ -281,19 +409,35 @@ export const collectBriefings: CustomCollector = async (org) => {
       }
     ),
     buildSurface(
-      { id: "flows", title: "Briefings Flows", lane: "pipeline", description: "Flows that generate the briefing text and schedule it daily. Clone the schedule template rather than activating it." },
+      {
+        id: "flows",
+        title: "Briefings Flows",
+        lane: "pipeline",
+        description:
+          "Flows that generate the briefing text and schedule it daily. Clone the schedule template rather than activating it.",
+      },
       async () => {
-        const [rows, on, generated] = await Promise.all([unwrap(flows), unwrap(enabled), unwrap(newestContent)]);
+        const [rows, on, generated] = await Promise.all([
+          unwrap(flows),
+          unwrap(enabled),
+          unwrap(newestContent),
+        ]);
         const briefingFlows = rows.filter((f) => f.Label !== SUMMARY_FLOW_LABEL);
         const template = briefingFlows.find((f) => SCHEDULE_FLOW.test(String(f.ApiName)));
         const textGen = briefingFlows.find((f) => TEXT_GEN_FLOW.test(String(f.ApiName)));
-        const clones = briefingFlows.filter((f) => f !== template && f !== textGen && f.ActiveVersionId);
+        const clones = briefingFlows.filter(
+          (f) => f !== template && f !== textGen && f.ActiveVersionId
+        );
         const findings: StudioFinding[] = [];
         const flowItem = (f: Row, role: string, extra: StudioFinding[] = []) =>
           item(String(f.ApiName), String(f.Label), {
             sublabel: `${role} · ${f.ActiveVersionId ? "Active" : "Inactive"}`,
             active: !!f.ActiveVersionId,
-            properties: { "API name": scalar(f.ApiName), Role: role, "Process type": scalar(f.ProcessType) },
+            properties: {
+              "API name": scalar(f.ApiName),
+              Role: role,
+              "Process type": scalar(f.ProcessType),
+            },
             findings: extra,
           });
 
@@ -303,11 +447,23 @@ export const collectBriefings: CustomCollector = async (org) => {
             flowItem(
               textGen,
               "Text generation",
-              textGen.ActiveVersionId ? [] : [{ severity: "error", title: "Generate Daily Briefings Text flow isn't active", detail: "Activate GenDailyBriefingsText." }]
+              textGen.ActiveVersionId
+                ? []
+                : [
+                    {
+                      severity: "error",
+                      title: "Generate Daily Briefings Text flow isn't active",
+                      detail: "Activate GenDailyBriefingsText.",
+                    },
+                  ]
             )
           );
         } else if (on) {
-          findings.push({ severity: "error", title: "Generate Daily Briefings Text flow not found", detail: "Verify the Briefings managed package is installed." });
+          findings.push({
+            severity: "error",
+            title: "Generate Daily Briefings Text flow not found",
+            detail: "Verify the Briefings managed package is installed.",
+          });
         }
         if (template) {
           items.push(
@@ -315,12 +471,24 @@ export const collectBriefings: CustomCollector = async (org) => {
               template,
               "Schedule template",
               template.ActiveVersionId
-                ? [{ severity: "warning", title: "Template flow is active", detail: "Best practice is to clone the template, set a Daily frequency, and activate the clone instead." }]
+                ? [
+                    {
+                      severity: "warning",
+                      title: "Template flow is active",
+                      detail:
+                        "Best practice is to clone the template, set a Daily frequency, and activate the clone instead.",
+                    },
+                  ]
                 : []
             )
           );
         } else if (on) {
-          findings.push({ severity: "error", title: "Scheduling flow template not found", detail: "SchdDlyBriefingsOfPrvdAcct is missing — verify the managed package installation." });
+          findings.push({
+            severity: "error",
+            title: "Scheduling flow template not found",
+            detail:
+              "SchdDlyBriefingsOfPrvdAcct is missing — verify the managed package installation.",
+          });
         }
         for (const f of clones) items.push(flowItem(f, "Active clone"));
 
@@ -330,7 +498,8 @@ export const collectBriefings: CustomCollector = async (org) => {
           findings.push({
             severity: hasContent ? "info" : "warning",
             title: "No active scheduled flow",
-            detail: "Clone 'Briefings: Schedule Daily Briefings of Provider Accounts', set a Daily frequency, and activate the clone so briefings are generated.",
+            detail:
+              "Clone 'Briefings: Schedule Daily Briefings of Provider Accounts', set a Daily frequency, and activate the clone so briefings are generated.",
           });
         }
         if (items.length === 0 && !on) findings.push(NOT_ENABLED);
@@ -338,7 +507,12 @@ export const collectBriefings: CustomCollector = async (org) => {
       }
     ),
     buildSurface(
-      { id: "definitions", title: "Content Definitions", lane: "content", description: "PrstContentDefinition — what a briefing is and the content type it produces." },
+      {
+        id: "definitions",
+        title: "Content Definitions",
+        lane: "content",
+        description: "PrstContentDefinition — what a briefing is and the content type it produces.",
+      },
       async () => {
         const rows = await unwrap(definitions);
         if (rows === null) return { items: [], findings: [NOT_ENABLED] };
@@ -347,7 +521,8 @@ export const collectBriefings: CustomCollector = async (org) => {
           findings.push({
             severity: "error",
             title: "No active content definition",
-            detail: "Create one via Configure Briefings > Manage Assignments — without it no briefings are produced.",
+            detail:
+              "Create one via Configure Briefings > Manage Assignments — without it no briefings are produced.",
           });
         }
         return {
@@ -355,7 +530,10 @@ export const collectBriefings: CustomCollector = async (org) => {
             item(String(r.Id), String(r.MasterLabel), {
               sublabel: `${r.ContentType} · ${r.IsActive ? "Active" : "Inactive"}`,
               active: r.IsActive as boolean,
-              properties: { "Developer name": scalar(r.DeveloperName), "Content type": scalar(r.ContentType) },
+              properties: {
+                "Developer name": scalar(r.DeveloperName),
+                "Content type": scalar(r.ContentType),
+              },
             })
           ),
           findings,
@@ -363,7 +541,13 @@ export const collectBriefings: CustomCollector = async (org) => {
       }
     ),
     buildSurface(
-      { id: "assignments", title: "Profile Assignments", lane: "content", description: "PrstCntntDefAssignment — the profiles that receive daily briefings, with their readiness." },
+      {
+        id: "assignments",
+        title: "Profile Assignments",
+        lane: "content",
+        description:
+          "PrstCntntDefAssignment — the profiles that receive daily briefings, with their readiness.",
+      },
       async () => {
         const [rows, userCounts, generated, caches, schema] = await Promise.all([
           unwrap(assignments),
@@ -376,8 +560,12 @@ export const collectBriefings: CustomCollector = async (org) => {
 
         const withContent = new Set<string>();
         for (const r of generated ?? []) if (r.pn) withContent.add(String(r.pn));
-        const syncing = (profile: string) => REQUIRED_SYNC_OBJECTS.some((o) => schema.some((r) => r.isActive && syncs(r, o) && profilesOf(r).includes(profile)));
-        const liveCache = (profile: string) => caches.some((c) => c.profile === profile && isLiveCache(c));
+        const syncing = (profile: string) =>
+          REQUIRED_SYNC_OBJECTS.some((o) =>
+            schema.some((r) => r.isActive && syncs(r, o) && profilesOf(r).includes(profile))
+          );
+        const liveCache = (profile: string) =>
+          caches.some((c) => c.profile === profile && isLiveCache(c));
         const orgCache = caches.some((c) => c.profile === null && isLiveCache(c));
 
         const items = rows.map((a) => {
@@ -392,12 +580,25 @@ export const collectBriefings: CustomCollector = async (org) => {
               });
             }
             if (!withContent.has(profile)) {
-              findings.push({ severity: "info", title: `No briefings in the last ${CONTENT_WINDOW_DAYS} days`, detail: `No PresentationContent was generated for this profile's users in the last ${CONTENT_WINDOW_DAYS} days.` });
+              findings.push({
+                severity: "info",
+                title: `No briefings in the last ${CONTENT_WINDOW_DAYS} days`,
+                detail: `No PresentationContent was generated for this profile's users in the last ${CONTENT_WINDOW_DAYS} days.`,
+              });
             }
             if (!syncing(profile)) {
-              findings.push({ severity: "warning", title: "Briefings objects don't sync to this profile", detail: "None of the Briefings DB Schema records are assigned to this profile." });
+              findings.push({
+                severity: "warning",
+                title: "Briefings objects don't sync to this profile",
+                detail: "None of the Briefings DB Schema records are assigned to this profile.",
+              });
             } else if (!liveCache(profile) && !orgCache) {
-              findings.push({ severity: "warning", title: "No active metadata cache", detail: "Generate the mobile metadata cache for this profile so the iPad downloads the Briefings schema." });
+              findings.push({
+                severity: "warning",
+                title: "No active metadata cache",
+                detail:
+                  "Generate the mobile metadata cache for this profile so the iPad downloads the Briefings schema.",
+              });
             }
           }
           return item(String(a.Id), profile, {
@@ -419,11 +620,14 @@ export const collectBriefings: CustomCollector = async (org) => {
           findings.push({
             severity: "error",
             title: "No active content definition assignments",
-            detail: "Add the user profiles that should receive briefings in Configure Briefings > Manage Assignments.",
+            detail:
+              "Add the user profiles that should receive briefings in Configure Briefings > Manage Assignments.",
           });
         }
         const assigned = new Set(await assignedProfiles());
-        const unassigned = [...userCounts.keys()].filter((p) => !assigned.has(p) && p !== "System Administrator");
+        const unassigned = [...userCounts.keys()].filter(
+          (p) => !assigned.has(p) && p !== "System Administrator"
+        );
         if (unassigned.length && assigned.size) {
           findings.push({
             severity: "info",
@@ -435,9 +639,19 @@ export const collectBriefings: CustomCollector = async (org) => {
       }
     ),
     buildSurface(
-      { id: "generated", title: "Generated Briefings", lane: "content", description: "PresentationContent — the briefings produced in the last 30 days, by profile." },
+      {
+        id: "generated",
+        title: "Generated Briefings",
+        lane: "content",
+        description:
+          "PresentationContent — the briefings produced in the last 30 days, by profile.",
+      },
       async () => {
-        const [rows, on, newestRows] = await Promise.all([unwrap(content), unwrap(enabled), unwrap(newestContent)]);
+        const [rows, on, newestRows] = await Promise.all([
+          unwrap(content),
+          unwrap(enabled),
+          unwrap(newestContent),
+        ]);
         if (rows === null) return { items: [], findings: [NOT_ENABLED] };
         const byProfile = new Map<string, { total: number; latest: string }>();
         const newest = String(newestRows?.[0]?.CreatedDate ?? "");
@@ -454,7 +668,10 @@ export const collectBriefings: CustomCollector = async (org) => {
           .map(([profile, s]) =>
             item(`content:${profile}`, profile, {
               sublabel: `${plural(s.total, "briefing")} in the last ${CONTENT_WINDOW_DAYS} days`,
-              properties: { [`Briefings (last ${CONTENT_WINDOW_DAYS} days)`]: s.total, "Latest generated": s.latest },
+              properties: {
+                [`Briefings (last ${CONTENT_WINDOW_DAYS} days)`]: s.total,
+                "Latest generated": s.latest,
+              },
               audience: profileAudience(profile),
             })
           );
@@ -463,7 +680,8 @@ export const collectBriefings: CustomCollector = async (org) => {
           findings.push({
             severity: "warning",
             title: "No briefings generated yet",
-            detail: "Verify an admin has cloned the scheduling flow, set a Daily frequency, and activated it. If just set up, check after the next scheduled run.",
+            detail:
+              "Verify an admin has cloned the scheduling flow, set a Daily frequency, and activated it. If just set up, check after the next scheduled run.",
           });
         } else if (newest && Date.now() - Date.parse(newest) > STALE_DAYS * DAY_MS) {
           findings.push({
@@ -476,7 +694,13 @@ export const collectBriefings: CustomCollector = async (org) => {
       }
     ),
     buildSurface(
-      { id: "permissionSets", title: "Permission Sets", lane: "access", description: "Custom permission sets with Manage / Use Briefings, and the standard sets the feature relies on." },
+      {
+        id: "permissionSets",
+        title: "Permission Sets",
+        lane: "access",
+        description:
+          "Custom permission sets with Manage / Use Briefings, and the standard sets the feature relies on.",
+      },
       async () => {
         const [sets, assigned, standardCounts, read] = await Promise.all([
           unwrap(briefingPermSets),
@@ -486,7 +710,12 @@ export const collectBriefings: CustomCollector = async (org) => {
         ]);
         const items: StudioItem[] = sets.map((p) => {
           const n = assigned.get(String(p.Label)) ?? 0;
-          const grants = [p.PermissionsStoriesAdmin && "Manage Briefings", p.PermissionsStoriesUser && "Use Briefings"].filter(Boolean).join(" + ");
+          const grants = [
+            p.PermissionsStoriesAdmin && "Manage Briefings",
+            p.PermissionsStoriesUser && "Use Briefings",
+          ]
+            .filter(Boolean)
+            .join(" + ");
           return item(String(p.Id), String(p.Label), {
             sublabel: `${grants} · ${plural(n, "assignment")}`,
             properties: {
@@ -495,7 +724,16 @@ export const collectBriefings: CustomCollector = async (org) => {
               "Use Briefings": !!p.PermissionsStoriesUser,
               Assignments: n,
             },
-            findings: n === 0 ? [{ severity: "warning", title: "Not assigned to any user", detail: "Assign this permission set from Territory & Users." }] : [],
+            findings:
+              n === 0
+                ? [
+                    {
+                      severity: "warning",
+                      title: "Not assigned to any user",
+                      detail: "Assign this permission set from Territory & Users.",
+                    },
+                  ]
+                : [],
           });
         });
         for (const p of STANDARD_PERMISSION_SETS) {
@@ -506,7 +744,13 @@ export const collectBriefings: CustomCollector = async (org) => {
               properties: { "API name": p.name, Assignments: n },
               findings:
                 n === 0
-                  ? [{ severity: "warning", title: "No direct assignments", detail: `${p.label} (${p.name}) isn't assigned to anyone directly — fine if a permission set group grants it.` }]
+                  ? [
+                      {
+                        severity: "warning",
+                        title: "No direct assignments",
+                        detail: `${p.label} (${p.name}) isn't assigned to anyone directly — fine if a permission set group grants it.`,
+                      },
+                    ]
                   : [],
             })
           );
@@ -516,24 +760,35 @@ export const collectBriefings: CustomCollector = async (org) => {
           findings.push({
             severity: "error",
             title: "No permission set grants Use Briefings",
-            detail: "The #1 reason Briefings doesn't show up. Clone 'Life Sciences Field Sales Representative', enable 'Use Briefings', and assign it to end users.",
+            detail:
+              "The #1 reason Briefings doesn't show up. Clone 'Life Sciences Field Sales Representative', enable 'Use Briefings', and assign it to end users.",
           });
         }
         if (!sets.some((p) => p.PermissionsStoriesAdmin)) {
           findings.push({
             severity: "warning",
             title: "No permission set grants Manage Briefings",
-            detail: "Clone 'Life Sciences Commercial Admin', enable 'Manage Briefings', and assign it to admins.",
+            detail:
+              "Clone 'Life Sciences Commercial Admin', enable 'Manage Briefings', and assign it to admins.",
           });
         }
         if (read !== null && read.length === 0) {
-          findings.push({ severity: "warning", title: "No permission set can read PresentationContent", detail: "The Briefings icon won't appear without read access to the object." });
+          findings.push({
+            severity: "warning",
+            title: "No permission set can read PresentationContent",
+            detail: "The Briefings icon won't appear without read access to the object.",
+          });
         }
         return { items, findings };
       }
     ),
     buildSurface(
-      { id: "syncSchema", title: "Briefings DB Schema", lane: "mobile", description: "DB Schema records that sync the Briefings objects to the iPad." },
+      {
+        id: "syncSchema",
+        title: "Briefings DB Schema",
+        lane: "mobile",
+        description: "DB Schema records that sync the Briefings objects to the iPad.",
+      },
       async () => {
         const records = await unwrap(dbSchema);
         const profiles = await assignedProfiles().catch(() => [] as string[]);
@@ -547,19 +802,37 @@ export const collectBriefings: CustomCollector = async (org) => {
             continue;
           }
           for (const r of matches) {
-            const it = configItem(r, object, [r.fields.Type, r.isActive ? "Active" : "Inactive"].filter(Boolean).join(" · "));
+            const it = configItem(
+              r,
+              object,
+              [r.fields.Type, r.isActive ? "Active" : "Inactive"].filter(Boolean).join(" · ")
+            );
             it.audience = audienceOf(r);
             if (!r.isActive) {
               const fix: StudioFix = {
                 kind: "setActive",
                 label: `Enable ${r.developerName}`,
-                record: { type: "config", category: r.category, developerName: r.developerName, label: r.label || r.developerName },
+                record: {
+                  type: "config",
+                  category: r.category,
+                  developerName: r.developerName,
+                  label: r.label || r.developerName,
+                },
                 from: false,
                 to: true,
               };
-              it.findings.push({ severity: "warning", title: "Sync is disabled", detail: `${object} doesn't sync to the iPad while this record is inactive.`, fixes: [fix] });
+              it.findings.push({
+                severity: "warning",
+                title: "Sync is disabled",
+                detail: `${object} doesn't sync to the iPad while this record is inactive.`,
+                fixes: [fix],
+              });
             } else if (r.assignments.length === 0 && !r.isOrgLevel) {
-              it.findings.push({ severity: "warning", title: "Not assigned to any profile", detail: "The record is active but nothing syncs from it." });
+              it.findings.push({
+                severity: "warning",
+                title: "Not assigned to any profile",
+                detail: "The record is active but nothing syncs from it.",
+              });
             }
             items.push(it);
           }
@@ -580,25 +853,48 @@ export const collectBriefings: CustomCollector = async (org) => {
       }
     ),
     buildSurface(
-      { id: "metadataCache", title: "Metadata Cache", lane: "mobile", description: "The generated schema package the iPad downloads. Regenerate it after any Briefings change, then sync the iPad." },
+      {
+        id: "metadataCache",
+        title: "Metadata Cache",
+        lane: "mobile",
+        description:
+          "The generated schema package the iPad downloads. Regenerate it after any Briefings change, then sync the iPad.",
+      },
       async () => {
-        const [caches, profiles] = await Promise.all([unwrap(cache), assignedProfiles().catch(() => [] as string[])]);
+        const [caches, profiles] = await Promise.all([
+          unwrap(cache),
+          assignedProfiles().catch(() => [] as string[]),
+        ]);
         // A cache is generated in parts; show the newest live one per profile (rows are newest first).
         const latest = new Map<string, CacheRecord & { parts: number }>();
-        for (const c of caches.filter((c) => (c.profile === null || profiles.includes(c.profile)) && isLiveCache(c))) {
+        for (const c of caches.filter(
+          (c) => (c.profile === null || profiles.includes(c.profile)) && isLiveCache(c)
+        )) {
           const key = c.profile ?? "";
           const cur = latest.get(key);
           latest.set(key, cur ? { ...cur, parts: cur.parts + 1 } : { ...c, parts: 1 });
         }
         return {
           items: [...latest.values()].map(({ row, profile, parts }) => {
-            const message = row.IntegrationErrorMessage || (/error|fail/i.test(String(row.IntegrationStatus ?? "")) ? `Integration status: ${row.IntegrationStatus}` : "");
+            const message =
+              row.IntegrationErrorMessage ||
+              (/error|fail/i.test(String(row.IntegrationStatus ?? ""))
+                ? `Integration status: ${row.IntegrationStatus}`
+                : "");
             return item(String(row.Id), profile ?? "Org level", {
               sublabel: `${row.Status} · ${scalar(row.LastModifiedDate)}`,
               active: true,
-              properties: { Status: scalar(row.Status), "Integration status": scalar(row.IntegrationStatus), "Last generated": scalar(row.LastModifiedDate), "Active records": parts, Profile: profile ?? "Org level" },
+              properties: {
+                Status: scalar(row.Status),
+                "Integration status": scalar(row.IntegrationStatus),
+                "Last generated": scalar(row.LastModifiedDate),
+                "Active records": parts,
+                Profile: profile ?? "Org level",
+              },
               audience: profile ? profileAudience(profile) : undefined,
-              findings: message ? [{ severity: "error", title: "Cache generation failed", detail: String(message) }] : [],
+              findings: message
+                ? [{ severity: "error", title: "Cache generation failed", detail: String(message) }]
+                : [],
             });
           }),
         };
@@ -622,10 +918,27 @@ export const collectBriefings: CustomCollector = async (org) => {
     // What one profile needs to receive briefings on the iPad, in the order an admin would fix it.
     checkTitle: "Briefings readiness",
     checklist: [
-      { surface: "assignments", label: "Assigned to receive briefings", missing: "Not one of the {total} assigned profiles" },
-      { surface: "generated", label: "Briefings generated", missing: "No briefings generated for this profile yet" },
-      { surface: "syncSchema", label: "Briefings DB Schema", missing: "None of the {total} records are assigned to this profile" },
-      { surface: "metadataCache", label: "Metadata cache", missing: "No active cache for this profile", publish: true },
+      {
+        surface: "assignments",
+        label: "Assigned to receive briefings",
+        missing: "Not one of the {total} assigned profiles",
+      },
+      {
+        surface: "generated",
+        label: "Briefings generated",
+        missing: "No briefings generated for this profile yet",
+      },
+      {
+        surface: "syncSchema",
+        label: "Briefings DB Schema",
+        missing: "None of the {total} records are assigned to this profile",
+      },
+      {
+        surface: "metadataCache",
+        label: "Metadata cache",
+        missing: "No active cache for this profile",
+        publish: true,
+      },
       { surface: "permissionSets", label: "Permission sets" },
       { surface: "flows", label: "Content pipeline" },
     ],

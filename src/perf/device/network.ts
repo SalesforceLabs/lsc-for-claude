@@ -151,7 +151,10 @@ export class TokenBucket {
   async take(bytes: number): Promise<void> {
     if (bytes <= 0) return;
     const t = this.clock.now();
-    this.tokens = Math.min(this.burstBytes, this.tokens + ((t - this.last) / 1000) * this.bytesPerSecond);
+    this.tokens = Math.min(
+      this.burstBytes,
+      this.tokens + ((t - this.last) / 1000) * this.bytesPerSecond
+    );
     this.last = t;
     this.tokens -= bytes;
     if (this.tokens >= 0) return;
@@ -160,7 +163,8 @@ export class TokenBucket {
 
   /** Take `bytes` in slices, so other streams get their turn. */
   async takeSliced(bytes: number): Promise<void> {
-    for (let left = bytes; left > 0; left -= this.sliceBytes) await this.take(Math.min(left, this.sliceBytes));
+    for (let left = bytes; left > 0; left -= this.sliceBytes)
+      await this.take(Math.min(left, this.sliceBytes));
   }
 }
 
@@ -188,7 +192,11 @@ export class NetworkShaper {
  * means this machine's own link was the limit. Needs a transfer long enough to
  * measure.
  */
-export function realLinkNote(settings: NetworkSettings, bytes: number, seconds: number): string | undefined {
+export function realLinkNote(
+  settings: NetworkSettings,
+  bytes: number,
+  seconds: number
+): string | undefined {
   if (bytes < 1024 * 1024 || seconds <= 0) return undefined;
   const measured = (bytes * 8) / 1_000_000 / seconds;
   if (measured >= settings.downMbps * 0.8) return undefined;

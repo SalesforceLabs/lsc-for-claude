@@ -19,13 +19,18 @@ function ops(a: string[], b: string[]): { op: " " | "-" | "+"; line: string }[] 
     endA--;
     endB--;
   }
-  const out: { op: " " | "-" | "+"; line: string }[] = a.slice(0, start).map((line) => ({ op: " ", line }));
+  const out: { op: " " | "-" | "+"; line: string }[] = a
+    .slice(0, start)
+    .map((line) => ({ op: " ", line }));
   const x = a.slice(start, endA);
   const y = b.slice(start, endB);
 
   if (x.length * y.length > MAX_CELLS) {
     // Too big to align — show the middle as replaced.
-    out.push(...x.map((line) => ({ op: "-" as const, line })), ...y.map((line) => ({ op: "+" as const, line })));
+    out.push(
+      ...x.map((line) => ({ op: "-" as const, line })),
+      ...y.map((line) => ({ op: "+" as const, line }))
+    );
   } else {
     const lcs = Array.from({ length: x.length + 1 }, () => new Array<number>(y.length + 1).fill(0));
     for (let i = x.length - 1; i >= 0; i--) {
@@ -60,7 +65,8 @@ export function lineDiff(before: string, after: string): string[] {
   const keep = new Array<boolean>(all.length).fill(false);
   all.forEach((o, i) => {
     if (o.op === " ") return;
-    for (let k = Math.max(0, i - CONTEXT); k <= Math.min(all.length - 1, i + CONTEXT); k++) keep[k] = true;
+    for (let k = Math.max(0, i - CONTEXT); k <= Math.min(all.length - 1, i + CONTEXT); k++)
+      keep[k] = true;
   });
 
   const out: string[] = [];

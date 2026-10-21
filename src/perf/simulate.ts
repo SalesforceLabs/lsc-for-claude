@@ -9,7 +9,13 @@
  * (a read), Range GETs for the archive, and sobject/query or REST queries.
  */
 
-import { ContentCollector, CONTENT_NOTES, downloadContent, type ContentOptions, type ContentResult } from "./content.js";
+import {
+  ContentCollector,
+  CONTENT_NOTES,
+  downloadContent,
+  type ContentOptions,
+  type ContentResult,
+} from "./content.js";
 import { DEFAULT_MAX_LOCAL_IDS, simulateDelta, type DeltaResult } from "./device/delta.js";
 import { chunkBytesForRam, DEFAULT_DEVICE_RAM_GB, downloadMetadata } from "./device/metadata.js";
 import {
@@ -21,7 +27,13 @@ import {
   type NetworkOptions,
   type NetworkSettings,
 } from "./device/network.js";
-import { LocalIdStore, replayInitialSync, schedulingNote, type Flow, type TableResult } from "./device/replay.js";
+import {
+  LocalIdStore,
+  replayInitialSync,
+  schedulingNote,
+  type Flow,
+  type TableResult,
+} from "./device/replay.js";
 import { buildSchema } from "./device/schema.js";
 import { createDeviceSession, shapeHttp, type DeviceSession } from "./device/session.js";
 import {
@@ -114,10 +126,16 @@ export function totalsOf(tables: TableResult[], seconds: number): SimulationTota
   };
 }
 
-export function filterTables<T extends { sobject: string }>(tables: T[], include?: string[], exclude?: string[]): T[] {
+export function filterTables<T extends { sobject: string }>(
+  tables: T[],
+  include?: string[],
+  exclude?: string[]
+): T[] {
   const inc = include?.length ? new Set(include.map((s) => s.toLowerCase())) : undefined;
   const exc = new Set((exclude ?? []).map((s) => s.toLowerCase()));
-  return tables.filter((t) => (!inc || inc.has(t.sobject.toLowerCase())) && !exc.has(t.sobject.toLowerCase()));
+  return tables.filter(
+    (t) => (!inc || inc.has(t.sobject.toLowerCase())) && !exc.has(t.sobject.toLowerCase())
+  );
 }
 
 export const STANDING_NOTES = [
@@ -131,50 +149,82 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
   const startedAt = new Date();
   const now = opts.now ?? (() => performance.now());
   const notes: string[] = [...STANDING_NOTES];
-  const baseSession = opts.session ?? (await createDeviceSession(opts.username, { apiVersion: opts.apiVersion }));
+  const baseSession =
+    opts.session ?? (await createDeviceSession(opts.username, { apiVersion: opts.apiVersion }));
   const network = resolveNetwork(opts.network);
   const shaper = network ? new NetworkShaper(network) : undefined;
-  const session: DeviceSession = shaper ? { ...baseSession, http: shapeHttp(baseSession.http, shaper) } : baseSession;
+  const session: DeviceSession = shaper
+    ? { ...baseSession, http: shapeHttp(baseSession.http, shaper) }
+    : baseSession;
   if (network) notes.push(`Network: ${describeNetwork(network)}.`, NETWORK_LIMITATION);
   const ramGB = opts.deviceRamGB ?? DEFAULT_DEVICE_RAM_GB;
 
   opts.onStep?.("Fetching user info");
-  const info: UserInfo = await fetchUserInfo(session, { userDeviceId: opts.userDeviceId, signal: opts.signal });
-  if (info.isOrgInMaintenance) notes.push("user-info reports the org is in maintenance; a device would not sync.");
+  const info: UserInfo = await fetchUserInfo(session, {
+    userDeviceId: opts.userDeviceId,
+    signal: opts.signal,
+  });
+  if (info.isOrgInMaintenance)
+    notes.push("user-info reports the org is in maintenance; a device would not sync.");
   const entity = info.metadataEntities[0];
-  if (!entity) throw new Error("user-info returned no metadataEntities, so there is no metadata record to download for this user.");
+  if (!entity)
+    throw new Error(
+      "user-info returned no metadataEntities, so there is no metadata record to download for this user."
+    );
   if (info.apiVersion) {
     const v = info.apiVersion.startsWith("v") ? info.apiVersion : `v${info.apiVersion}`;
-    if (v !== session.apiVersion) notes.push(`user-info advertises API ${v}; this run used ${session.apiVersion} (override with apiVersion).`);
+    if (v !== session.apiVersion)
+      notes.push(
+        `user-info advertises API ${v}; this run used ${session.apiVersion} (override with apiVersion).`
+      );
   }
 
   const resolved = resolveFlow(info);
   const flow = opts.forceFlow ?? resolved;
-  if (opts.forceFlow && opts.forceFlow !== resolved) notes.push(`Flow forced to ${flow}; the org's settings select ${resolved}.`);
+  if (opts.forceFlow && opts.forceFlow !== resolved)
+    notes.push(`Flow forced to ${flow}; the org's settings select ${resolved}.`);
 
   opts.onStep?.(`Downloading metadata (${entity.name})`);
-  const md = await downloadMetadata(session, entity.id, { chunkBytes: opts.chunkBytes ?? chunkBytesForRam(ramGB), signal: opts.signal, now });
+  const md = await downloadMetadata(session, entity.id, {
+    chunkBytes: opts.chunkBytes ?? chunkBytesForRam(ramGB),
+    signal: opts.signal,
+    now,
+  });
   if (network) {
     const slow = realLinkNote(network, md.bytes, md.seconds);
     if (slow) notes.push(slow);
   }
-  const schema = buildSchema({ files: md.files, usp: md.info.userSpecificPermissions, assignedPermissionSets: info.permissionSets });
+  const schema = buildSchema({
+    files: md.files,
+    usp: md.info.userSpecificPermissions,
+    assignedPermissionSets: info.permissionSets,
+  });
   notes.push(...schema.notes);
 
   const territory = selectTerritory(info.territories, opts.territory);
-  if (opts.territory && !territory) throw new Error(`Territory "${opts.territory}" is not in the user's territory hierarchy.`);
-  if (!territory) notes.push("The user has no territories; {USER.TERRITORY} and {USER.TERRITORYID} are empty.");
-  else if (!opts.territory) notes.push(`Territory not specified; used "${territory.name}" (first leaf territory).`);
+  if (opts.territory && !territory)
+    throw new Error(`Territory "${opts.territory}" is not in the user's territory hierarchy.`);
+  if (!territory)
+    notes.push("The user has no territories; {USER.TERRITORY} and {USER.TERRITORYID} are empty.");
+  else if (!opts.territory)
+    notes.push(`Territory not specified; used "${territory.name}" (first leaf territory).`);
 
   const tables = filterTables(schema.tables, opts.include, opts.exclude);
-  if (tables.length < schema.tables.length) notes.push(`${schema.tables.length - tables.length} table(s) excluded by include/exclude.`);
+  if (tables.length < schema.tables.length)
+    notes.push(`${schema.tables.length - tables.length} table(s) excluded by include/exclude.`);
 
   const deltaHours = opts.delta?.sinceHours;
   const wantDelta = typeof deltaHours === "number" && Number.isFinite(deltaHours) && deltaHours > 0;
-  const idStore = wantDelta && flow === "enhanced" ? new LocalIdStore(opts.maxDeltaLocalIds ?? DEFAULT_MAX_LOCAL_IDS) : undefined;
+  const idStore =
+    wantDelta && flow === "enhanced"
+      ? new LocalIdStore(opts.maxDeltaLocalIds ?? DEFAULT_MAX_LOCAL_IDS)
+      : undefined;
   const wantContent = !!(opts.content?.attachments || opts.content?.clm);
   const collector = wantContent
-    ? new ContentCollector({ attachments: !!opts.content?.attachments, clm: !!opts.content?.clm }, tables)
+    ? new ContentCollector(
+        { attachments: !!opts.content?.attachments, clm: !!opts.content?.clm },
+        tables
+      )
     : undefined;
 
   const t0 = now();
@@ -188,7 +238,8 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
       userId: info.user.id,
       territoryName: territory?.name ?? "",
       territoryId: territory?.id ?? "",
-      serverHandlesContentInList: info.accessChecks[ACCESS_CHECK_SERVER_HANDLES_CONTENT_IN_LIST] === true,
+      serverHandlesContentInList:
+        info.accessChecks[ACCESS_CHECK_SERVER_HANDLES_CONTENT_IN_LIST] === true,
     },
     syncStart: startedAt,
     concurrency: opts.concurrency,
@@ -213,12 +264,15 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
   });
   const seconds = (now() - t0) / 1000;
   notes.push(schedulingNote(flow, opts.concurrency));
-  if (results.some((t) => t.truncated)) notes.push("Some tables were cut short by a limit; their numbers are lower bounds.");
+  if (results.some((t) => t.truncated))
+    notes.push("Some tables were cut short by a limit; their numbers are lower bounds.");
   if (opts.signal?.aborted) notes.push("The run was cancelled.");
 
   let delta: DeltaResult | undefined;
   if (wantDelta && flow !== "enhanced") {
-    notes.push("Delta sync is simulated for the enhanced (Connect) flow only; the legacy flow's delta was not simulated.");
+    notes.push(
+      "Delta sync is simulated for the enhanced (Connect) flow only; the legacy flow's delta was not simulated."
+    );
   } else if (idStore && !opts.signal?.aborted) {
     opts.onStep?.("Simulating delta sync");
     delta = await simulateDelta({
@@ -230,7 +284,8 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
         userId: info.user.id,
         territoryName: territory?.name ?? "",
         territoryId: territory?.id ?? "",
-        serverHandlesContentInList: info.accessChecks[ACCESS_CHECK_SERVER_HANDLES_CONTENT_IN_LIST] === true,
+        serverHandlesContentInList:
+          info.accessChecks[ACCESS_CHECK_SERVER_HANDLES_CONTENT_IN_LIST] === true,
       },
       sinceHours: deltaHours as number,
       requestTimeoutSeconds: opts.tableTimeoutSeconds,
@@ -246,7 +301,9 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
   if (collector && opts.content && !opts.signal?.aborted) {
     opts.onStep?.("Downloading content (outside the sync window)");
     if (results.some((t) => t.truncated || t.skipped || t.error)) {
-      notes.push("Content downloads use the records the sync fetched; tables that were cut short, skipped or failed may hide files.");
+      notes.push(
+        "Content downloads use the records the sync fetched; tables that were cut short, skipped or failed may hide files."
+      );
     }
     content = await downloadContent(session, collector.plan(session.apiVersion), {
       ...opts.content,
@@ -259,7 +316,12 @@ export async function simulateInitialSync(opts: SimulateOptions): Promise<Simula
   }
 
   return {
-    user: { username: session.username, id: info.user.id, profile: info.user.profileName, territory: territory?.name },
+    user: {
+      username: session.username,
+      id: info.user.id,
+      profile: info.user.profileName,
+      territory: territory?.name,
+    },
     org: { instanceUrl: session.instanceUrl, orgId: session.orgId, apiVersion: session.apiVersion },
     flow,
     ...(network ? { network } : {}),
@@ -299,8 +361,14 @@ function median(values: number[]): number | undefined {
 }
 
 function compare(simulated: number, values: (number | undefined)[]): MetricComparison {
-  const deviceMedian = median(values.filter((v): v is number => typeof v === "number" && Number.isFinite(v)));
-  return { simulated, deviceMedian, ratio: deviceMedian && deviceMedian > 0 && simulated > 0 ? simulated / deviceMedian : undefined };
+  const deviceMedian = median(
+    values.filter((v): v is number => typeof v === "number" && Number.isFinite(v))
+  );
+  return {
+    simulated,
+    deviceMedian,
+    ratio: deviceMedian && deviceMedian > 0 && simulated > 0 ? simulated / deviceMedian : undefined,
+  };
 }
 
 /**
@@ -308,12 +376,24 @@ function compare(simulated: number, values: (number | undefined)[]): MetricCompa
  * initial syncs only): download phase seconds, metadata download seconds and
  * downloaded record counts.
  */
-export function compareToTelemetry(result: Pick<SimulationResult, "metadata" | "totals">, samples: SyncSample[]): TelemetryComparison {
+export function compareToTelemetry(
+  result: Pick<SimulationResult, "metadata" | "totals">,
+  samples: SyncSample[]
+): TelemetryComparison {
   const initial = samples.filter((s) => s.kind === "initial" && !s.failed);
   return {
     sampleCount: initial.length,
-    download: compare(result.totals.seconds, initial.map((s) => s.downloadSec)),
-    metadata: compare(result.metadata.seconds, initial.map((s) => s.metadataSec)),
-    records: compare(result.totals.records, initial.map((s) => s.downloadedRecords)),
+    download: compare(
+      result.totals.seconds,
+      initial.map((s) => s.downloadSec)
+    ),
+    metadata: compare(
+      result.metadata.seconds,
+      initial.map((s) => s.metadataSec)
+    ),
+    records: compare(
+      result.totals.records,
+      initial.map((s) => s.downloadedRecords)
+    ),
   };
 }

@@ -63,21 +63,46 @@ export async function profilesWithApps(profiles: string[], org: string): Promise
  * Grouped per record, so the answer is complete however many values changed; a category with more than
  * 2,000 changed records makes the grouped query fail (the check can't run) rather than cut the list short.
  */
-export async function changedConfig(org: string, categories: string[], since: number): Promise<Map<string, number>> {
+export async function changedConfig(
+  org: string,
+  categories: string[],
+  since: number
+): Promise<Map<string, number>> {
   const after = new Date(since).toISOString();
   const cats = inList(categories);
   const newest = (from: string, name: string, category: string) =>
     `SELECT ${name} n, MAX(LastModifiedDate) m FROM ${from} WHERE ${category} IN (${cats}) AND LastModifiedDate > ${after} GROUP BY ${name}`;
   const [records, values, assignments] = await Promise.all([
-    query(newest("LifeSciConfigRecord", "DeveloperName", "LifeSciConfigCategory.Category"), org, true),
-    query(newest("LifeSciConfigFieldValue", "LifeSciConfigRecord.DeveloperName", "LifeSciConfigRecord.LifeSciConfigCategory.Category"), org, true),
+    query(
+      newest("LifeSciConfigRecord", "DeveloperName", "LifeSciConfigCategory.Category"),
+      org,
+      true
+    ),
+    query(
+      newest(
+        "LifeSciConfigFieldValue",
+        "LifeSciConfigRecord.DeveloperName",
+        "LifeSciConfigRecord.LifeSciConfigCategory.Category"
+      ),
+      org,
+      true
+    ),
     // Assignment changes are a nicety; an org that won't answer shouldn't hide the rest.
-    query(newest("LifeSciConfigAssignment", "LifeSciConfigRecord.DeveloperName", "LifeSciConfigRecord.LifeSciConfigCategory.Category"), org, true).catch(() => []),
+    query(
+      newest(
+        "LifeSciConfigAssignment",
+        "LifeSciConfigRecord.DeveloperName",
+        "LifeSciConfigRecord.LifeSciConfigCategory.Category"
+      ),
+      org,
+      true
+    ).catch(() => []),
   ]);
   const out = new Map<string, number>();
   const note = (name: unknown, date: unknown) => {
     const at = Date.parse(String(date));
-    if (typeof name === "string" && Number.isFinite(at) && at > (out.get(name) ?? 0)) out.set(name, at);
+    if (typeof name === "string" && Number.isFinite(at) && at > (out.get(name) ?? 0))
+      out.set(name, at);
   };
   for (const r of [...records, ...values, ...assignments]) note(r.n, r.m);
   return out;
@@ -91,9 +116,17 @@ export async function changedConfig(org: string, categories: string[], since: nu
  * With `onlyRecords`, only changes to those records count (not the whole category).
  * There is no fix: publishing is its own step.
  */
-export async function cacheFreshResult(org: string, caches: CacheRecord[], categories: string[], records: ConfigRecord[], forProfiles: string[] = [], onlyRecords = false): Promise<StudioCheckResult> {
+export async function cacheFreshResult(
+  org: string,
+  caches: CacheRecord[],
+  categories: string[],
+  records: ConfigRecord[],
+  forProfiles: string[] = [],
+  onlyRecords = false
+): Promise<StudioCheckResult> {
   const dates = liveCacheDates(caches);
-  if (!dates.size) return { pass: true, skip: true, detail: "No mobile metadata cache has been generated yet." };
+  if (!dates.size)
+    return { pass: true, skip: true, detail: "No mobile metadata cache has been generated yet." };
   const oldest = Math.min(...dates.values());
   const changed = await changedConfig(org, categories, oldest);
   if (!changed.size) return { pass: true, detail: "Nothing has changed since the last publish." };
@@ -113,10 +146,17 @@ export async function cacheFreshResult(org: string, caches: CacheRecord[], categ
       // A record we can't see is treated as reaching everyone.
       return !rec || reaches(rec, profile);
     });
-    if (hit.length) stale.push(`${profile} (${plural(hit.length, "change")} since ${new Date(published).toISOString().slice(0, 10)})`);
+    if (hit.length)
+      stale.push(
+        `${profile} (${plural(hit.length, "change")} since ${new Date(published).toISOString().slice(0, 10)})`
+      );
   }
   return stale.length
-    ? { pass: false, detail: `Unpublished changes for ${plural(stale.length, "profile")}: ${stale.slice(0, 3).join("; ")}${stale.length > 3 ? "…" : ""}.`, examples: stale }
+    ? {
+        pass: false,
+        detail: `Unpublished changes for ${plural(stale.length, "profile")}: ${stale.slice(0, 3).join("; ")}${stale.length > 3 ? "…" : ""}.`,
+        examples: stale,
+      }
     : { pass: true, detail: "Nothing has changed since each profile's last publish." };
 }
 
@@ -127,8 +167,15 @@ export async function cacheFreshResult(org: string, caches: CacheRecord[], categ
  * could reach anyone, so they count.
  */
 function reaches(rec: ConfigRecord, profile: string): boolean {
-  const audience = rec.category === "QuickAction" || rec.category === "CustomAction" ? actionAudience(rec) : audienceOf(rec);
-  return !audience || audience.profiles.some((p) => p.toLowerCase() === profile.toLowerCase()) || audience.permissionSets.length > 0;
+  const audience =
+    rec.category === "QuickAction" || rec.category === "CustomAction"
+      ? actionAudience(rec)
+      : audienceOf(rec);
+  return (
+    !audience ||
+    audience.profiles.some((p) => p.toLowerCase() === profile.toLowerCase()) ||
+    audience.permissionSets.length > 0
+  );
 }
 
 export { fetchCache };
@@ -145,10 +192,16 @@ export function daysSince(date: unknown, now = Date.now()): number | null {
  * switch a record on, add the profile to a record, or create one for the profiles.
  */
 /** Whether `rec` is assigned to `profile`, ignoring case. */
-const hasProfile = (rec: ConfigRecord, profile: string) => profilesOf(rec).some((p) => p.toLowerCase() === profile.toLowerCase());
+const hasProfile = (rec: ConfigRecord, profile: string) =>
+  profilesOf(rec).some((p) => p.toLowerCase() === profile.toLowerCase());
 
-export function profileSyncResult(schema: ConfigRecord[], objects: string[], profiles: string[]): StudioCheckResult {
-  if (!profiles.length) return { pass: true, skip: true, detail: "No profile has active users for this feature yet." };
+export function profileSyncResult(
+  schema: ConfigRecord[],
+  objects: string[],
+  profiles: string[]
+): StudioCheckResult {
+  if (!profiles.length)
+    return { pass: true, skip: true, detail: "No profile has active users for this feature yet." };
   const sobject = (r: ConfigRecord) => String(r.fields.SObject ?? "").toLowerCase();
   const gaps: string[] = [];
   const fixes: StudioFix[] = [];
@@ -172,7 +225,12 @@ export function profileSyncResult(schema: ConfigRecord[], objects: string[], pro
       fixes.push({
         kind: "setActive",
         label: `Switch on ${obj} sync`,
-        record: { type: "config", category: "DbSchema", developerName: off.developerName, label: off.label || off.developerName },
+        record: {
+          type: "config",
+          category: "DbSchema",
+          developerName: off.developerName,
+          label: off.label || off.developerName,
+        },
         from: false,
         to: true,
       });
@@ -188,6 +246,14 @@ export function profileSyncResult(schema: ConfigRecord[], objects: string[], pro
     }
   }
   return gaps.length
-    ? { pass: false, detail: `Not synced to some profiles — ${gaps.join("; ")}.`, examples: gaps, fixes }
-    : { pass: true, detail: `${plural(objects.length, "object")} synced to ${plural(profiles.length, "profile")}.` };
+    ? {
+        pass: false,
+        detail: `Not synced to some profiles — ${gaps.join("; ")}.`,
+        examples: gaps,
+        fixes,
+      }
+    : {
+        pass: true,
+        detail: `${plural(objects.length, "object")} synced to ${plural(profiles.length, "profile")}.`,
+      };
 }

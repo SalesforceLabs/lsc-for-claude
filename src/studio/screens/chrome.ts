@@ -92,7 +92,11 @@ export function safeHtml(html: string): string {
 }
 
 function esc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 /** The alert text: the AdditionalMessage JSON's `message`, else the Message field. */
@@ -114,9 +118,14 @@ const narrow = (t: string) => t.replace(/ (AM|PM)$/i, "\u202f$1");
 const dayKey = (d: Date, tz: string) => d.toLocaleDateString("en-CA", { timeZone: tz });
 
 /** NotificationItemViewModel.startTimeValue: Today / Yesterday • time, "EEEE, time" within a week, else "MMM d • time" (user time zone). */
-export function alertWhen(effective: string | null, now: Date, fmt: { timeZone: string; locale: string }): string {
+export function alertWhen(
+  effective: string | null,
+  now: Date,
+  fmt: { timeZone: string; locale: string }
+): string {
   const { timeZone, locale } = fmt;
-  const time = (d: Date) => narrow(d.toLocaleTimeString(locale, { timeZone, hour: "numeric", minute: "2-digit" }));
+  const time = (d: Date) =>
+    narrow(d.toLocaleTimeString(locale, { timeZone, hour: "numeric", minute: "2-digit" }));
   if (!effective) return time(now);
   const d = new Date(effective);
   const days = Math.floor((now.getTime() - d.getTime()) / 86_400_000);
@@ -134,8 +143,15 @@ export function alertWhen(effective: string | null, now: Date, fmt: { timeZone: 
 /** Date.sfString(dateStyle: .medium, timeStyle: .short): "Oct 17, 2026 at 1:04 PM". */
 export function syncedLabel(iso: string, fmt: { timeZone: string; locale: string }): string {
   const d = new Date(iso);
-  const date = d.toLocaleDateString(fmt.locale, { timeZone: fmt.timeZone, month: "short", day: "numeric", year: "numeric" });
-  const time = narrow(d.toLocaleTimeString(fmt.locale, { timeZone: fmt.timeZone, hour: "numeric", minute: "2-digit" }));
+  const date = d.toLocaleDateString(fmt.locale, {
+    timeZone: fmt.timeZone,
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  const time = narrow(
+    d.toLocaleTimeString(fmt.locale, { timeZone: fmt.timeZone, hour: "numeric", minute: "2-digit" })
+  );
   return `${date} at ${time}`;
 }
 
@@ -169,13 +185,24 @@ async function collectAlerts(ctx: ScreenContext, now: Date): Promise<PublishedAl
   const parts: string[][] = [];
   for (let i = 0; i < rows.length; i += 200) parts.push(rows.slice(i, i + 200).map((a) => a.id));
   for (const access of await Promise.all(
-    parts.map((ids) => query(`SELECT RecordId FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND HasReadAccess = true AND RecordId IN (${inList(ids)})`, ctx.org))
+    parts.map((ids) =>
+      query(
+        `SELECT RecordId FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND HasReadAccess = true AND RecordId IN (${inList(ids)})`,
+        ctx.org
+      )
+    )
   )) {
     for (const r of access) readable.add(str(r.RecordId));
   }
   return rows
     .filter((a) => readable.has(a.id))
-    .map((a) => ({ id: a.id, title: a.subject, body: alertBody(a.additional, a.message), when: alertWhen(a.effective, now, ctx.format), pill: alertPill(a.type) as AlertPill }));
+    .map((a) => ({
+      id: a.id,
+      title: a.subject,
+      body: alertBody(a.additional, a.message),
+      when: alertWhen(a.effective, now, ctx.format),
+      pill: alertPill(a.type) as AlertPill,
+    }));
 }
 
 /** The latest sync the viewer's device uploaded a summary for that downloaded data (DownloadStart is the app's last-sync time). */
@@ -202,11 +229,23 @@ interface SearchQuickAction {
  * profile (the permission-set branch needs a setting the CLI can't read, so it is left out), by SortOrder; the card
  * keeps those SFActionFactory builds an action for, titled by OCEDBQuickActionModel.localizedLabel(for: actionName).
  */
-export function searchCardActions(all: SearchQuickAction[], profile: string): PublishedCardAction[] {
+export function searchCardActions(
+  all: SearchQuickAction[],
+  profile: string
+): PublishedCardAction[] {
   return all
-    .filter((a) => a.location.toLowerCase() === "search" && a.profiles.split(";").includes(profile) && supportedAction(a.actionName))
+    .filter(
+      (a) =>
+        a.location.toLowerCase() === "search" &&
+        a.profiles.split(";").includes(profile) &&
+        supportedAction(a.actionName)
+    )
     .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((a) => ({ name: a.actionName, label: actionTitle(a.actionName) ?? a.label, recordTypes: a.recordTypes.split(";").filter(Boolean) }));
+    .map((a) => ({
+      name: a.actionName,
+      label: actionTitle(a.actionName) ?? a.label,
+      recordTypes: a.recordTypes.split(";").filter(Boolean),
+    }));
 }
 
 async function collectCardActions(ctx: ScreenContext): Promise<PublishedCardAction[]> {
@@ -229,7 +268,9 @@ export async function collectChrome(ctx: ScreenContext): Promise<PublishedChrome
   const now = new Date();
   const [alerts, user, sync, cardActions] = await Promise.all([
     collectAlerts(ctx, now).catch(softFail(ctx, "Alerts", [] as PublishedAlert[])),
-    query(`SELECT Username FROM User WHERE Id = '${ctx.userId}'`, ctx.org).catch(softFail(ctx, "Alerts and profile", [] as Row[])),
+    query(`SELECT Username FROM User WHERE Id = '${ctx.userId}'`, ctx.org).catch(
+      softFail(ctx, "Alerts and profile", [] as Row[])
+    ),
     lastSync(ctx).catch(() => null),
     collectCardActions(ctx).catch(softFail(ctx, "Card actions", [] as PublishedCardAction[])),
   ]);

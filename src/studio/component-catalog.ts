@@ -51,26 +51,43 @@ const STANDARD: CatalogEntry[] = [
   ...(
     [
       ["flexipage:recentItems", "Recent items", "the objects it lists", ["HomePage", "RecordPage"]],
-      ["desktopDashboards:embeddedDashboard", "Dashboard", "a dashboard", ["HomePage", "RecordPage"]],
+      [
+        "desktopDashboards:embeddedDashboard",
+        "Dashboard",
+        "a dashboard",
+        ["HomePage", "RecordPage"],
+      ],
       ["flexipage:filterListCard", "List view", "a list view", ["HomePage", "RecordPage"]],
       ["flexipage:reportChart", "Report chart", "a report", ["HomePage", "RecordPage"]],
       ["flexipage:richText", "Rich text", "its text", ["HomePage", "RecordPage"]],
       ["tableau:tableauViz", "Tableau", "a Tableau view", ["HomePage", "RecordPage"]],
-      ["analytics_embedding:dashboard", "CRM Analytics dashboard", "a CRM Analytics dashboard", ["HomePage", "RecordPage"]],
-      ["analytics_embedding:metric", "CRM Analytics metric", "a CRM Analytics metric", ["HomePage", "RecordPage"]],
+      [
+        "analytics_embedding:dashboard",
+        "CRM Analytics dashboard",
+        "a CRM Analytics dashboard",
+        ["HomePage", "RecordPage"],
+      ],
+      [
+        "analytics_embedding:metric",
+        "CRM Analytics metric",
+        "a CRM Analytics metric",
+        ["HomePage", "RecordPage"],
+      ],
       ["flowruntime:interview", "Flow", "a flow", ["HomePage", "RecordPage"]],
       ["flexipage:tabset", "Tabs", "its tabs and what's in them", ["RecordPage"]],
     ] as [string, string, string, CatalogPageType[]][]
-  ).map(([component, label, needs, pages]): CatalogEntry => ({
-    key: component,
-    component,
-    label,
-    group: "Standard",
-    pages,
-    properties: [],
-    insertable: false,
-    needs: `Needs ${needs} — add it in Lightning App Builder`,
-  })),
+  ).map(
+    ([component, label, needs, pages]): CatalogEntry => ({
+      key: component,
+      component,
+      label,
+      group: "Standard",
+      pages,
+      properties: [],
+      insertable: false,
+      needs: `Needs ${needs} — add it in Lightning App Builder`,
+    })
+  ),
 ];
 
 export interface CatalogInput {
@@ -78,7 +95,11 @@ export interface CatalogInput {
   /** The record page's object. */
   sobject: string | null;
   /** The org's inline LWC bundles, as `componentName`s (`lscMobileInline_X`, or `ns:lscMobileInline_X`). */
-  lwcs: { component: string; label: string; /** False when the bundle's js-meta.xml has no mobileHeight, which the org then rejects. */ height?: boolean }[];
+  lwcs: {
+    component: string;
+    label: string;
+    /** False when the bundle's js-meta.xml has no mobileHeight, which the org then rejects. */ height?: boolean;
+  }[];
   /** The object's child relationships. */
   children: { relationshipName: string; childSObject: string }[];
   /** Objects with an active DB Schema record. */
@@ -98,14 +119,17 @@ export function buildCatalog(input: CatalogInput): CatalogEntry[] {
         label: l.label,
         group: "Inline LWC",
         pages: ["HomePage", "RecordPage"],
-        properties: l.height === false ? [] : [{ name: "mobileHeight", value: DEFAULT_MOBILE_HEIGHT }],
+        properties:
+          l.height === false ? [] : [{ name: "mobileHeight", value: DEFAULT_MOBILE_HEIGHT }],
         insertable: true,
       })
     );
   if (pageType !== "RecordPage" || !sobject) return [...standard, ...lwcs];
   const seen = new Set<string>();
   const lists = input.children
-    .filter((c) => c.relationshipName && !seen.has(c.relationshipName) && seen.add(c.relationshipName))
+    .filter(
+      (c) => c.relationshipName && !seen.has(c.relationshipName) && seen.add(c.relationshipName)
+    )
     .sort((a, b) => a.relationshipName.localeCompare(b.relationshipName))
     .map((c): CatalogEntry => {
       const activity = ACTIVITY_CHILDREN.has(c.childSObject);
@@ -125,11 +149,22 @@ export function buildCatalog(input: CatalogInput): CatalogEntry[] {
         ],
         insertable: synced,
         object: c.childSObject,
-        ...(synced ? {} : { needs: activity ? `${c.childSObject} is an activity — the org only takes Open Activities and Activity History as related lists` : `${c.childSObject} doesn't sync to the iPad — add it to iPad sync first` }),
+        ...(synced
+          ? {}
+          : {
+              needs: activity
+                ? `${c.childSObject} is an activity — the org only takes Open Activities and Activity History as related lists`
+                : `${c.childSObject} doesn't sync to the iPad — add it to iPad sync first`,
+            }),
       };
     });
   // Synced lists first: they're the ones that can go in.
-  return [...standard, ...lwcs, ...lists.filter((l) => l.insertable), ...lists.filter((l) => !l.insertable)];
+  return [
+    ...standard,
+    ...lwcs,
+    ...lists.filter((l) => l.insertable),
+    ...lists.filter((l) => !l.insertable),
+  ];
 }
 
 /** Activity children the org refuses as related lists (it offers OpenActivities / ActivityHistories instead). */
@@ -156,7 +191,12 @@ async function inlineLwcs(org: string, pageType: CatalogPageType): Promise<Catal
     const source = str(m.Source);
     if (!source.trim()) continue;
     const ns = str(b.NamespacePrefix);
-    declares.set(`${ns}:${str(b.DeveloperName)}`, parseJsMeta(source, pageType === "HomePage" ? "HomePage" : "RecordPage").some((d) => d.name === "mobileHeight"));
+    declares.set(
+      `${ns}:${str(b.DeveloperName)}`,
+      parseJsMeta(source, pageType === "HomePage" ? "HomePage" : "RecordPage").some(
+        (d) => d.name === "mobileHeight"
+      )
+    );
   }
   return rows
     .filter((r: Row) => /^lscMobileInline_\w+$/i.test(str(r.DeveloperName)))
@@ -164,7 +204,11 @@ async function inlineLwcs(org: string, pageType: CatalogPageType): Promise<Catal
       const name = str(r.DeveloperName);
       const ns = str(r.NamespacePrefix);
       const height = declares.get(`${ns}:${name}`);
-      return { component: ns ? `${ns}:${name}` : name, label: str(r.MasterLabel) || `LWC · ${name.slice(16)}`, ...(height === false ? { height } : {}) };
+      return {
+        component: ns ? `${ns}:${name}` : name,
+        label: str(r.MasterLabel) || `LWC · ${name.slice(16)}`,
+        ...(height === false ? { height } : {}),
+      };
     });
 }
 
@@ -178,8 +222,13 @@ export async function syncedObjects(org: string): Promise<Set<string>> {
   return new Set(rows.map((r) => str(r.ObjectValue) || str(r.TextValue)).filter(Boolean));
 }
 
-export async function collectCatalog(pageType: CatalogPageType, sobject: string | null, org: string): Promise<ComponentCatalog> {
-  if (sobject !== null && !/^\w+$/.test(sobject)) throw new Error(`Invalid object name: ${sobject}`);
+export async function collectCatalog(
+  pageType: CatalogPageType,
+  sobject: string | null,
+  org: string
+): Promise<ComponentCatalog> {
+  if (sobject !== null && !/^\w+$/.test(sobject))
+    throw new Error(`Invalid object name: ${sobject}`);
   const record = pageType === "RecordPage" && sobject;
   const [lwcs, synced, described] = await Promise.all([
     inlineLwcs(org, pageType).catch(() => []),
@@ -187,7 +236,12 @@ export async function collectCatalog(pageType: CatalogPageType, sobject: string 
     record ? cachedDescribeSObject(sobject, org) : Promise.resolve(null),
   ]);
   const children = (described?.data?.childRelationships ?? []).flatMap((c) =>
-    c.relationshipName ? [{ relationshipName: c.relationshipName, childSObject: c.childSObject }] : []
+    c.relationshipName
+      ? [{ relationshipName: c.relationshipName, childSObject: c.childSObject }]
+      : []
   );
-  return { entries: buildCatalog({ pageType, sobject, lwcs, children, synced }), setupPath: SETUP_PATH };
+  return {
+    entries: buildCatalog({ pageType, sobject, lwcs, children, synced }),
+    setupPath: SETUP_PATH,
+  };
 }

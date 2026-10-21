@@ -8,9 +8,27 @@ import type { ApplicableTable, DbSchemaEntry, TableVolume } from "./sync-volume.
 
 /** The slice of a Studio fix that can change DB Schema entries. Other kinds are ignored. */
 export type WhatIfFix =
-  | { kind: "setConfigField"; label?: string; category: string; developerName: string; field: string; to: string | number | null }
-  | { kind: "setActive"; label?: string; record: { type: string; category?: string; developerName: string }; to: boolean }
-  | { kind: "setProfileAssignments"; label?: string; category: string; developerName: string; to: string[] }
+  | {
+      kind: "setConfigField";
+      label?: string;
+      category: string;
+      developerName: string;
+      field: string;
+      to: string | number | null;
+    }
+  | {
+      kind: "setActive";
+      label?: string;
+      record: { type: string; category?: string; developerName: string };
+      to: boolean;
+    }
+  | {
+      kind: "setProfileAssignments";
+      label?: string;
+      category: string;
+      developerName: string;
+      to: string[];
+    }
   | {
       kind: "createConfigRecord";
       label?: string;
@@ -37,7 +55,12 @@ export interface AppliedChanges {
 }
 
 function cloneEntry(e: DbSchemaEntry): DbSchemaEntry {
-  return { ...e, profileIds: new Set(e.profileIds), profileNames: new Set(e.profileNames), permissionSets: new Set(e.permissionSets) };
+  return {
+    ...e,
+    profileIds: new Set(e.profileIds),
+    profileNames: new Set(e.profileNames),
+    permissionSets: new Set(e.permissionSets),
+  };
 }
 
 const text = (v: unknown): string => (v === null || v === undefined ? "" : String(v));
@@ -49,10 +72,14 @@ function splitList(v: unknown): string[] {
     .filter(Boolean);
 }
 
-const labelOf = (f: { label?: string; kind: string; developerName?: string }) => f.label || `${f.kind} ${f.developerName ?? ""}`.trim();
+const labelOf = (f: { label?: string; kind: string; developerName?: string }) =>
+  f.label || `${f.kind} ${f.developerName ?? ""}`.trim();
 
 /** Apply the DbSchema-relevant fixes, in order, to a copy of the entries. */
-export function applyChanges(entries: DbSchemaEntry[], fixes: Array<Record<string, unknown>>): AppliedChanges {
+export function applyChanges(
+  entries: DbSchemaEntry[],
+  fixes: Array<Record<string, unknown>>
+): AppliedChanges {
   const byName = new Map(entries.map((e) => [e.developerName, cloneEntry(e)]));
   const touched = new Set<string>();
   const unmodeled: Unmodeled[] = [];
@@ -64,7 +91,10 @@ export function applyChanges(entries: DbSchemaEntry[], fixes: Array<Record<strin
         if (fix.category !== "DbSchema") break;
         const entry = byName.get(fix.developerName);
         if (!entry) {
-          unmodeled.push({ label: labelOf(fix), reason: `${fix.developerName} is not an active DB Schema record that syncs data` });
+          unmodeled.push({
+            label: labelOf(fix),
+            reason: `${fix.developerName} is not an active DB Schema record that syncs data`,
+          });
           break;
         }
         const key = fix.field.toLowerCase();
@@ -84,7 +114,10 @@ export function applyChanges(entries: DbSchemaEntry[], fixes: Array<Record<strin
           // Configuration records aren't synced as tables.
           if (value.toLowerCase() === "configuration") byName.delete(entry.developerName);
         } else {
-          unmodeled.push({ label: labelOf(fix), reason: `${fix.field} doesn't change how many records are downloaded` });
+          unmodeled.push({
+            label: labelOf(fix),
+            reason: `${fix.field} doesn't change how many records are downloaded`,
+          });
           break;
         }
         touched.add(fix.developerName);
@@ -95,9 +128,16 @@ export function applyChanges(entries: DbSchemaEntry[], fixes: Array<Record<strin
         const name = fix.record.developerName;
         if (!fix.to) {
           if (byName.delete(name)) touched.add(name);
-          else unmodeled.push({ label: labelOf({ ...fix, developerName: name }), reason: `${name} is not an active DB Schema record that syncs data` });
+          else
+            unmodeled.push({
+              label: labelOf({ ...fix, developerName: name }),
+              reason: `${name} is not an active DB Schema record that syncs data`,
+            });
         } else if (!byName.has(name)) {
-          unmodeled.push({ label: labelOf({ ...fix, developerName: name }), reason: `${name} is inactive, so its filter and profiles aren't loaded` });
+          unmodeled.push({
+            label: labelOf({ ...fix, developerName: name }),
+            reason: `${name} is inactive, so its filter and profiles aren't loaded`,
+          });
         }
         break;
       }
@@ -105,7 +145,10 @@ export function applyChanges(entries: DbSchemaEntry[], fixes: Array<Record<strin
         if (fix.category !== "DbSchema") break;
         const entry = byName.get(fix.developerName);
         if (!entry) {
-          unmodeled.push({ label: labelOf(fix), reason: `${fix.developerName} is not an active DB Schema record that syncs data` });
+          unmodeled.push({
+            label: labelOf(fix),
+            reason: `${fix.developerName} is not an active DB Schema record that syncs data`,
+          });
           break;
         }
         // Assigned profiles are matched by name from here on; with none left, the Profiles field names apply.
@@ -117,23 +160,38 @@ export function applyChanges(entries: DbSchemaEntry[], fixes: Array<Record<strin
       case "createConfigRecord": {
         if (fix.category !== "DbSchema") break;
         if (!fix.active) {
-          unmodeled.push({ label: labelOf(fix), reason: "Created inactive, so it doesn't sync yet" });
+          unmodeled.push({
+            label: labelOf(fix),
+            reason: "Created inactive, so it doesn't sync yet",
+          });
           break;
         }
         const source = fix.copyFrom ? byName.get(fix.copyFrom) : undefined;
         if (fix.copyFrom && !source) {
-          unmodeled.push({ label: labelOf(fix), reason: `Copied from ${fix.copyFrom}, which isn't an active DB Schema record that syncs data` });
+          unmodeled.push({
+            label: labelOf(fix),
+            reason: `Copied from ${fix.copyFrom}, which isn't an active DB Schema record that syncs data`,
+          });
           break;
         }
         const entry: DbSchemaEntry = source
           ? cloneEntry(source)
-          : { developerName: "", sobject: "", type: "", whereSoql: null, profileIds: new Set(), profileNames: new Set(), permissionSets: new Set() };
+          : {
+              developerName: "",
+              sobject: "",
+              type: "",
+              whereSoql: null,
+              profileIds: new Set(),
+              profileNames: new Set(),
+              permissionSets: new Set(),
+            };
         entry.developerName = fix.developerName;
         for (const f of fix.fields) {
           if (f.name === "SObject") entry.sobject = text(f.value);
           else if (f.name === "Type") entry.type = text(f.value);
           else if (f.name === "WhereSoql") entry.whereSoql = text(f.value) || null;
-          else if (f.name === "PermissionSets" && !fix.permissionSets) entry.permissionSets = new Set(splitList(f.value));
+          else if (f.name === "PermissionSets" && !fix.permissionSets)
+            entry.permissionSets = new Set(splitList(f.value));
         }
         entry.profileIds = new Set();
         entry.profileNames = new Set(fix.profiles);
@@ -149,7 +207,11 @@ export function applyChanges(entries: DbSchemaEntry[], fixes: Array<Record<strin
       case "deleteConfigRecord": {
         if (fix.category !== "DbSchema") break;
         if (byName.delete(fix.developerName)) touched.add(fix.developerName);
-        else unmodeled.push({ label: labelOf(fix), reason: `${fix.developerName} is not an active DB Schema record that syncs data` });
+        else
+          unmodeled.push({
+            label: labelOf(fix),
+            reason: `${fix.developerName} is not an active DB Schema record that syncs data`,
+          });
         break;
       }
       default:
@@ -157,7 +219,11 @@ export function applyChanges(entries: DbSchemaEntry[], fixes: Array<Record<strin
     }
   }
 
-  return { entries: [...byName.values()].sort((a, b) => a.developerName.localeCompare(b.developerName)), touched: [...touched], unmodeled };
+  return {
+    entries: [...byName.values()].sort((a, b) => a.developerName.localeCompare(b.developerName)),
+    touched: [...touched],
+    unmodeled,
+  };
 }
 
 /** True when the fix is one this module models for DB Schema (even if a given instance isn't). */
@@ -167,8 +233,12 @@ export function touchesDbSchema(fix: Record<string, unknown>): boolean {
     return r?.type === "config" && r.category === "DbSchema";
   }
   return (
-    ["setConfigField", "setProfileAssignments", "createConfigRecord", "deleteConfigRecord"].includes(String(fix.kind)) &&
-    fix.category === "DbSchema"
+    [
+      "setConfigField",
+      "setProfileAssignments",
+      "createConfigRecord",
+      "deleteConfigRecord",
+    ].includes(String(fix.kind)) && fix.category === "DbSchema"
   );
 }
 
@@ -207,7 +277,13 @@ export function changedSobjects(before: ApplicableTable[], after: ApplicableTabl
   for (const k of new Set([...b.keys(), ...a.keys()])) {
     const x = b.get(k);
     const y = a.get(k);
-    if (!x || !y || x.entry.whereSoql !== y.entry.whereSoql || x.entry.developerName !== y.entry.developerName) out.add(k);
+    if (
+      !x ||
+      !y ||
+      x.entry.whereSoql !== y.entry.whereSoql ||
+      x.entry.developerName !== y.entry.developerName
+    )
+      out.add(k);
   }
   return out;
 }
@@ -226,8 +302,15 @@ export function planRecount(after: ApplicableTable[], changed: Set<string>): Rec
   if ([...changed].some((k) => ID_SOURCES.has(k))) return { full: true, after };
   const subset = after.filter((t) => changed.has(key(t)));
   // Changed tables with id tags need the source tables present to resolve them.
-  const needsSources = subset.some((t) => /\{(ACCOUNT\.IDS|OT2A\.OBJ\.IDS)\}/i.test(t.entry.whereSoql ?? ""));
-  return { full: false, after: needsSources ? after.filter((t) => changed.has(key(t)) || ID_SOURCES.has(key(t))) : subset };
+  const needsSources = subset.some((t) =>
+    /\{(ACCOUNT\.IDS|OT2A\.OBJ\.IDS)\}/i.test(t.entry.whereSoql ?? "")
+  );
+  return {
+    full: false,
+    after: needsSources
+      ? after.filter((t) => changed.has(key(t)) || ID_SOURCES.has(key(t)))
+      : subset,
+  };
 }
 
 export interface TableDiff {
@@ -261,7 +344,12 @@ const counted = (t: TableVolume | undefined) => (t && t.status === "counted" ? t
  * side; `afterTables` is either the full after-side count (`full`) or only
  * the recounted tables, in which case the unchanged ones are carried over.
  */
-export function diffVolumes(beforeAll: TableVolume[], afterTables: TableVolume[], changed: Set<string>, full: boolean): VolumeDiff {
+export function diffVolumes(
+  beforeAll: TableVolume[],
+  afterTables: TableVolume[],
+  changed: Set<string>,
+  full: boolean
+): VolumeDiff {
   const lc = (v: TableVolume) => v.sobject.toLowerCase();
   const b = new Map(beforeAll.map((t) => [lc(t), t]));
   const a = new Map(afterTables.map((t) => [lc(t), t]));
@@ -278,7 +366,11 @@ export function diffVolumes(beforeAll: TableVolume[], afterTables: TableVolume[]
   }
 
   const keys = full
-    ? new Set([...b.keys(), ...a.keys()].filter((k) => changed.has(k) || counted(b.get(k)) !== counted(a.get(k))))
+    ? new Set(
+        [...b.keys(), ...a.keys()].filter(
+          (k) => changed.has(k) || counted(b.get(k)) !== counted(a.get(k))
+        )
+      )
     : changed;
   const tables: TableDiff[] = [];
   const failing: FailingFilter[] = [];
@@ -287,15 +379,33 @@ export function diffVolumes(beforeAll: TableVolume[], afterTables: TableVolume[]
     const y = a.get(k);
     const bv = counted(x);
     const av = counted(y);
-    const diff: TableDiff = { sobject: (y ?? x)!.sobject, before: bv, after: av, delta: (av ?? 0) - (bv ?? 0) };
+    const diff: TableDiff = {
+      sobject: (y ?? x)!.sobject,
+      before: bv,
+      after: av,
+      delta: (av ?? 0) - (bv ?? 0),
+    };
     const note = y && y.status !== "counted" ? y.note : undefined;
     if (note) diff.note = note;
     tables.push(diff);
     if (y?.status === "error" && x?.status !== "error") {
-      failing.push({ sobject: y.sobject, developerName: y.developerName, message: y.note ?? "Count query failed" });
+      failing.push({
+        sobject: y.sobject,
+        developerName: y.developerName,
+        message: y.note ?? "Count query failed",
+      });
     }
   }
-  tables.sort((p, q) => Math.abs(q.delta) - Math.abs(p.delta) || p.sobject.localeCompare(q.sobject));
+  tables.sort(
+    (p, q) => Math.abs(q.delta) - Math.abs(p.delta) || p.sobject.localeCompare(q.sobject)
+  );
   const delta = totalAfter - totalBefore;
-  return { totalBefore, totalAfter, delta, pct: totalBefore > 0 ? (delta / totalBefore) * 100 : null, tables, failing };
+  return {
+    totalBefore,
+    totalAfter,
+    delta,
+    pct: totalBefore > 0 ? (delta / totalBefore) * 100 : null,
+    tables,
+    failing,
+  };
 }

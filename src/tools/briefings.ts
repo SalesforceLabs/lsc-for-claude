@@ -111,7 +111,9 @@ export function register(server: McpServer) {
           }
           message += "\n";
 
-          const pslMissing = REQUIRED_PSLS.filter((p) => !foundNames.has(p.name)).map((p) => p.label);
+          const pslMissing = REQUIRED_PSLS.filter((p) => !foundNames.has(p.name)).map(
+            (p) => p.label
+          );
           for (const req of pslMissing) {
             message += `❌ **Missing:** ${req}\n`;
             issues.push(`PSL "${req}" not found — contact Salesforce account team`);
@@ -280,7 +282,8 @@ export function register(server: McpServer) {
         } else {
           // Orgs often run summarization from a renamed or custom flow; the summary record count below
           // is what shows whether it works.
-          message += "⚠️ No flow labelled 'Generate Provider Account Territory Summary' — another flow may produce the summaries (see the record count below)\n";
+          message +=
+            "⚠️ No flow labelled 'Generate Provider Account Territory Summary' — another flow may produce the summaries (see the record count below)\n";
         }
 
         const summRecQuery = `SELECT COUNT(Id) FROM PrvdAccountTerritorySummary`;

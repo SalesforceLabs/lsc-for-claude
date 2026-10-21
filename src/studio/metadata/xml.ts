@@ -51,8 +51,13 @@ export function parseXml(xml: string): XmlNode {
 
 function write(node: XmlNode, depth: number): string {
   const pad = "    ".repeat(depth);
-  const attrs = node.attrs ? Object.entries(node.attrs).map(([k, v]) => ` ${k}="${v}"`).join("") : "";
-  if (node.text !== undefined && node.children.length === 0) return `${pad}<${node.tag}${attrs}>${node.text}</${node.tag}>\n`;
+  const attrs = node.attrs
+    ? Object.entries(node.attrs)
+        .map(([k, v]) => ` ${k}="${v}"`)
+        .join("")
+    : "";
+  if (node.text !== undefined && node.children.length === 0)
+    return `${pad}<${node.tag}${attrs}>${node.text}</${node.tag}>\n`;
   if (node.children.length === 0) return `${pad}<${node.tag}${attrs}/>\n`;
   return `${pad}<${node.tag}${attrs}>\n${node.children.map((c) => write(c, depth + 1)).join("")}${pad}</${node.tag}>\n`;
 }
@@ -64,20 +69,37 @@ export function serializeXml(root: XmlNode): string {
 /** One element on its own, without the declaration — what an undo keeps of something removed. */
 export const serializeNode = (node: XmlNode): string => write(node, 0);
 
-const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" };
-const UNESCAPES: Record<string, string> = Object.fromEntries(Object.entries(ESCAPES).map(([k, v]) => [v, k]));
+const ESCAPES: Record<string, string> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&apos;",
+};
+const UNESCAPES: Record<string, string> = Object.fromEntries(
+  Object.entries(ESCAPES).map(([k, v]) => [v, k])
+);
 
 export const escapeXml = (s: string): string => s.replace(/[&<>"']/g, (c) => ESCAPES[c]);
 export const unescapeXml = (s: string): string =>
   s.replace(/&(amp|lt|gt|quot|apos|#\d+|#x[0-9a-f]+);/gi, (m, e: string) =>
-    e[0] === "#" ? String.fromCodePoint(e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10)) : UNESCAPES[m]
+    e[0] === "#"
+      ? String.fromCodePoint(
+          e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10)
+        )
+      : UNESCAPES[m]
   );
 
 /** A leaf element holding `value` (escaped). */
-export const leaf = (tag: string, value: string): XmlNode => ({ tag, text: escapeXml(value), children: [] });
+export const leaf = (tag: string, value: string): XmlNode => ({
+  tag,
+  text: escapeXml(value),
+  children: [],
+});
 
 /** Direct children named `tag`. */
-export const childrenNamed = (node: XmlNode, tag: string): XmlNode[] => node.children.filter((c) => c.tag === tag);
+export const childrenNamed = (node: XmlNode, tag: string): XmlNode[] =>
+  node.children.filter((c) => c.tag === tag);
 
 /** The unescaped text of the first child named `tag`, or undefined. */
 export function childText(node: XmlNode, tag: string): string | undefined {
@@ -86,7 +108,12 @@ export function childText(node: XmlNode, tag: string): string | undefined {
 }
 
 /** Set (or add, keeping the children in schema order) the leaf child `tag`. */
-export function setChildText(node: XmlNode, tag: string, value: string, order: readonly string[]): void {
+export function setChildText(
+  node: XmlNode,
+  tag: string,
+  value: string,
+  order: readonly string[]
+): void {
   const existing = node.children.find((x) => x.tag === tag);
   if (existing) {
     existing.text = escapeXml(value);

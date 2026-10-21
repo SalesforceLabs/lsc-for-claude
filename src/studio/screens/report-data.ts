@@ -56,7 +56,12 @@ interface Column {
 }
 
 function columnOf(key: string, info: Row): Column {
-  return { key, label: text(info.label), dataType: text(info.dataType), lookup: info.isLookup === true };
+  return {
+    key,
+    label: text(info.label),
+    dataType: text(info.dataType),
+    lookup: info.isLookup === true,
+  };
 }
 
 /** Rebuild the grid ReportDetailsViewModel draws from a report run's JSON. Undefined for formats the app opens on the web. */
@@ -67,10 +72,18 @@ export function buildReportData(run: Row): PublishedReportData | undefined {
   if (format !== "TABULAR" && format !== "SUMMARY") return undefined;
   const hasDetails = meta.hasDetailRows !== false;
   const detailInfo = obj(ext.detailColumnInfo);
-  const detailKeys = Array.isArray(meta.detailColumns) ? (meta.detailColumns as unknown[]).map(text) : [];
-  const detail: Column[] = hasDetails ? detailKeys.filter((k) => detailInfo[k]).map((k) => columnOf(k, obj(detailInfo[k]))) : [];
+  const detailKeys = Array.isArray(meta.detailColumns)
+    ? (meta.detailColumns as unknown[]).map(text)
+    : [];
+  const detail: Column[] = hasDetails
+    ? detailKeys.filter((k) => detailInfo[k]).map((k) => columnOf(k, obj(detailInfo[k])))
+    : [];
   const facts = obj(run.factMap);
-  const out: PublishedReportData = { format: format === "TABULAR" ? "tabular" : "summary", columns: detail.map((c) => c.label), entries: [] };
+  const out: PublishedReportData = {
+    format: format === "TABULAR" ? "tabular" : "summary",
+    columns: detail.map((c) => c.label),
+    entries: [],
+  };
 
   const cellOf = (c: Column, raw: Row): PublishedReportCell => {
     const label = text(raw.label);
@@ -90,7 +103,9 @@ export function buildReportData(run: Row): PublishedReportData | undefined {
         break;
       }
       total++;
-      const cells = asRows(r.dataCells).map((raw, i) => (detail[i] ? cellOf(detail[i], raw) : { label: text(raw.label) }));
+      const cells = asRows(r.dataCells).map((raw, i) =>
+        detail[i] ? cellOf(detail[i], raw) : { label: text(raw.label) }
+      );
       for (let i = 0; i < extra; i++) cells.push({ label: "" });
       entries.push({ kind: "row", cells });
     }
@@ -115,7 +130,10 @@ export function buildReportData(run: Row): PublishedReportData | undefined {
   out.columns = [...detail.map((c) => c.label), ...aggColumns.map((c) => c.label)];
   const groupInfo = obj(ext.groupingColumnInfo);
   out.groupHeader = Object.keys(groupInfo)
-    .sort((a, b) => Number(obj(groupInfo[a]).groupingLevel ?? 0) - Number(obj(groupInfo[b]).groupingLevel ?? 0))
+    .sort(
+      (a, b) =>
+        Number(obj(groupInfo[a]).groupingLevel ?? 0) - Number(obj(groupInfo[b]).groupingLevel ?? 0)
+    )
     .map((k) => text(obj(groupInfo[k]).label))
     .filter(Boolean)
     .join(" / ");
@@ -134,7 +152,10 @@ export function buildReportData(run: Row): PublishedReportData | undefined {
       ...aggColumns.map((c) => at(aggregates.indexOf(c.key))),
     ];
   };
-  const groupTitles = Object.keys(groupInfo).sort((a, b) => Number(obj(groupInfo[a]).groupingLevel ?? 0) - Number(obj(groupInfo[b]).groupingLevel ?? 0));
+  const groupTitles = Object.keys(groupInfo).sort(
+    (a, b) =>
+      Number(obj(groupInfo[a]).groupingLevel ?? 0) - Number(obj(groupInfo[b]).groupingLevel ?? 0)
+  );
   const walk = (groups: Row[], level: number) => {
     for (const g of groups) {
       const key = text(g.key);
@@ -153,7 +174,12 @@ export function buildReportData(run: Row): PublishedReportData | undefined {
     const aggs = asRows(t.aggregates);
     const i = aggregates.indexOf("RowCount");
     const raw = i >= 0 && aggs[i] ? aggs[i].value : undefined;
-    const value = typeof raw === "number" ? (Number.isInteger(raw) ? String(raw) : String(raw)) : text(i >= 0 && aggs[i] ? aggs[i].label : "");
+    const value =
+      typeof raw === "number"
+        ? Number.isInteger(raw)
+          ? String(raw)
+          : String(raw)
+        : text(i >= 0 && aggs[i] ? aggs[i].label : "");
     out.grandTotal = { label: `Grand Total: ${value}`, cells: totalsOf("T!T") ?? [] };
   }
   return out;
@@ -183,13 +209,22 @@ export function clearReportCacheForOrg(org: string): void {
 }
 
 async function fetchReport(id: string, org: string): Promise<PublishedReportData | undefined> {
-  const res = await apiRequest<Row>(await dataPath(org, `/analytics/reports/${id}?includeDetails=true`), "GET", undefined, org);
+  const res = await apiRequest<Row>(
+    await dataPath(org, `/analytics/reports/${id}?includeDetails=true`),
+    "GET",
+    undefined,
+    org
+  );
   if (!res.success || !res.data || typeof res.data !== "object") return undefined;
   return buildReportData(res.data);
 }
 
 /** Run one report read-only. Undefined when it can't be run or isn't a native format. */
-export async function runReport(id: string, org: string, now = Date.now()): Promise<PublishedReportData | undefined> {
+export async function runReport(
+  id: string,
+  org: string,
+  now = Date.now()
+): Promise<PublishedReportData | undefined> {
   if (!/^00O[A-Za-z0-9]{12,15}$/.test(id)) return undefined;
   const key = `${org}|${id}`;
   const hit = reportCache.get(key);
@@ -206,6 +241,7 @@ export async function runReport(id: string, org: string, now = Date.now()): Prom
   reportCache.delete(key);
   reportCache.set(key, { at: now, data });
   for (const [k, v] of reportCache) if (now - v.at > REPORT_STALE_MS) reportCache.delete(k);
-  while (reportCache.size > MAX_CACHED_REPORTS) reportCache.delete(reportCache.keys().next().value as string);
+  while (reportCache.size > MAX_CACHED_REPORTS)
+    reportCache.delete(reportCache.keys().next().value as string);
   return data;
 }

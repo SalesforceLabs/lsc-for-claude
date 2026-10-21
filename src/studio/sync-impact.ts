@@ -81,7 +81,6 @@ const defaultDeps: SyncImpactDeps = {
   }),
 };
 
-
 async function profileNamesById(org: OrgQuerier, ids: string[]): Promise<string[]> {
   if (ids.length === 0) return [];
   const list = ids.filter((i) => /^[A-Za-z0-9]{15,18}$/.test(i)).map((i) => `'${i}'`);
@@ -106,8 +105,17 @@ export async function syncImpact(
   const relevant = input.changes.filter(touchesDbSchema);
   const notes: string[] = [];
   const skipped = input.changes.length - relevant.length;
-  if (skipped > 0) notes.push(`${skipped} pending ${skipped === 1 ? "change doesn't" : "changes don't"} touch DB Schema and aren't part of this estimate.`);
-  if (relevant.length === 0) return { profiles: [], unmodeled: [], notes: [...notes, "No pending DB Schema changes."], queries };
+  if (skipped > 0)
+    notes.push(
+      `${skipped} pending ${skipped === 1 ? "change doesn't" : "changes don't"} touch DB Schema and aren't part of this estimate.`
+    );
+  if (relevant.length === 0)
+    return {
+      profiles: [],
+      unmodeled: [],
+      notes: [...notes, "No pending DB Schema changes."],
+      queries,
+    };
 
   const before: DbSchemaEntry[] = await loadDbSchemaEntries(org);
   const applied = applyChanges(before, relevant);
@@ -122,53 +130,65 @@ export async function syncImpact(
     // Created records and profile edits name profiles directly.
     const named = new Set([...found.names, ...fromIds]);
     for (const f of relevant) {
-      if (f.kind === "setProfileAssignments") [...((f.from as string[]) ?? []), ...((f.to as string[]) ?? [])].forEach((n) => named.add(n));
+      if (f.kind === "setProfileAssignments")
+        [...((f.from as string[]) ?? []), ...((f.to as string[]) ?? [])].forEach((n) =>
+          named.add(n)
+        );
     }
     names = [...named].sort();
   }
   if (names.length > MAX_PROFILES) {
-    notes.push(`Estimated ${MAX_PROFILES} of ${names.length} affected profiles (${names.slice(MAX_PROFILES).join(", ")} not estimated).`);
+    notes.push(
+      `Estimated ${MAX_PROFILES} of ${names.length} affected profiles (${names.slice(MAX_PROFILES).join(", ")} not estimated).`
+    );
     names = names.slice(0, MAX_PROFILES);
   }
-  if (names.length === 0) notes.push("No profile is affected by these changes (permission-set-only records aren't estimated).");
+  if (names.length === 0)
+    notes.push(
+      "No profile is affected by these changes (permission-set-only records aren't estimated)."
+    );
 
   // Profiles are independent: each picks its heaviest user and counts before/after. The memoized org
   // answers an identical query once (the id sources both sides read, a table that did not change).
-  const profiles: ProfileImpact[] = await mapWithConcurrency(names, PROFILE_CONCURRENCY, async (profile): Promise<ProfileImpact> => {
-    try {
-      const users = await findHeaviestUsers(org, { profile, limit: 1 });
-      const user = users[0];
-      if (!user) return emptyImpact(profile, `No active user on ${profile}`);
-      const ctx = await loadUserContext(org, user.id);
-      const { territory, note: territoryNote } = await pickTerritory(org, ctx.territories);
-      const tablesBefore = selectApplicableTables(before, ctx);
-      const tablesAfter = selectApplicableTables(applied.entries, ctx);
-      const changed = changedSobjects(tablesBefore, tablesAfter);
+  const profiles: ProfileImpact[] = await mapWithConcurrency(
+    names,
+    PROFILE_CONCURRENCY,
+    async (profile): Promise<ProfileImpact> => {
+      try {
+        const users = await findHeaviestUsers(org, { profile, limit: 1 });
+        const user = users[0];
+        if (!user) return emptyImpact(profile, `No active user on ${profile}`);
+        const ctx = await loadUserContext(org, user.id);
+        const { territory, note: territoryNote } = await pickTerritory(org, ctx.territories);
+        const tablesBefore = selectApplicableTables(before, ctx);
+        const tablesAfter = selectApplicableTables(applied.entries, ctx);
+        const changed = changedSobjects(tablesBefore, tablesAfter);
 
-      let diff;
-      if (changed.size === 0) {
-        const beforeVol = await profileTerritory(org, ctx, territory, tablesBefore);
-        diff = diffVolumes(beforeVol.tables, [], changed, false);
-      } else {
-        const plan = planRecount(tablesAfter, changed);
-        // The two sides only read, so they run together.
-        const [beforeVol, afterVol] = await Promise.all([
-          profileTerritory(org, ctx, territory, tablesBefore),
-          profileTerritory(org, ctx, territory, plan.after),
-        ]);
-        diff = diffVolumes(beforeVol.tables, afterVol.tables, changed, plan.full);
+        let diff;
+        if (changed.size === 0) {
+          const beforeVol = await profileTerritory(org, ctx, territory, tablesBefore);
+          diff = diffVolumes(beforeVol.tables, [], changed, false);
+        } else {
+          const plan = planRecount(tablesAfter, changed);
+          // The two sides only read, so they run together.
+          const [beforeVol, afterVol] = await Promise.all([
+            profileTerritory(org, ctx, territory, tablesBefore),
+            profileTerritory(org, ctx, territory, plan.after),
+          ]);
+          diff = diffVolumes(beforeVol.tables, afterVol.tables, changed, plan.full);
+        }
+        return {
+          profile,
+          user: { id: user.id, username: ctx.username, name: ctx.name },
+          territory: territory?.name ?? null,
+          ...(territoryNote ? { territoryNote } : {}),
+          ...diff,
+        };
+      } catch (e) {
+        return emptyImpact(profile, e instanceof Error ? e.message : String(e));
       }
-      return {
-        profile,
-        user: { id: user.id, username: ctx.username, name: ctx.name },
-        territory: territory?.name ?? null,
-        ...(territoryNote ? { territoryNote } : {}),
-        ...diff,
-      };
-    } catch (e) {
-      return emptyImpact(profile, e instanceof Error ? e.message : String(e));
     }
-  });
+  );
 
   notes.unshift(
     "Each profile is estimated for its heaviest active user, from DB Schema records (not the compiled metadata archive), counted as the connected admin; org-wide counts may exceed what a rep downloads."
@@ -185,10 +205,13 @@ async function pickTerritory(
   if (territories.length === 1) return { territory: territories[0] };
   const ids = territories.filter((t) => /^[A-Za-z0-9]{15,18}$/.test(t.id)).map((t) => `'${t.id}'`);
   const res = ids.length
-    ? await org.soql(`SELECT Territory2Id, COUNT(Id) cnt FROM ObjectTerritory2Association WHERE Territory2Id IN (${ids.join(",")}) GROUP BY Territory2Id`)
+    ? await org.soql(
+        `SELECT Territory2Id, COUNT(Id) cnt FROM ObjectTerritory2Association WHERE Territory2Id IN (${ids.join(",")}) GROUP BY Territory2Id`
+      )
     : null;
   const sizes = new Map<string, number>();
-  for (const r of res?.success ? (res.data?.records ?? []) : []) sizes.set(String(r.Territory2Id), Number(r.cnt ?? r.expr0 ?? 0));
+  for (const r of res?.success ? (res.data?.records ?? []) : [])
+    sizes.set(String(r.Territory2Id), Number(r.cnt ?? r.expr0 ?? 0));
   let best = territories[0];
   for (const t of territories) if ((sizes.get(t.id) ?? 0) > (sizes.get(best.id) ?? 0)) best = t;
   const count = sizes.get(best.id);
@@ -215,4 +238,3 @@ function emptyImpact(profile: string, error: string): ProfileImpact {
     error,
   };
 }
-

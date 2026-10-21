@@ -64,7 +64,11 @@ function importedNames(clause: string): string[] {
     const name = part.trim().split(/\s+as\s+/)[0];
     if (name) out.push(name);
   }
-  const def = clause.replace(/\{[^}]*\}/, "").replace(/\*\s+as\s+\w+/, "").replace(/,/g, "").trim();
+  const def = clause
+    .replace(/\{[^}]*\}/, "")
+    .replace(/\*\s+as\s+\w+/, "")
+    .replace(/,/g, "")
+    .trim();
   if (def) out.push(def);
   return out;
 }
@@ -75,7 +79,10 @@ function bundleOfTag(tag: string): string {
 }
 
 /** Imports and `<c-*>` tags of one bundle's files: what it uses and the `c/` bundles it pulls in. */
-export function scanBundle(files: { path: string; source: string }[]): { issues: InlineLwcIssue[]; children: string[] } {
+export function scanBundle(files: { path: string; source: string }[]): {
+  issues: InlineLwcIssue[];
+  children: string[];
+} {
   const issues: InlineLwcIssue[] = [];
   const children = new Set<string>();
   const add = (issue: InlineLwcIssue) => {
@@ -86,17 +93,29 @@ export function scanBundle(files: { path: string; source: string }[]): { issues:
       const js = stripJsComments(f.source);
       for (const m of js.matchAll(/\bimport\s+([\s\S]*?)\s+from\s+["']([^"']+)["']/g)) {
         const [, clause, mod] = m;
-        if (mod.startsWith("@salesforce/apex/")) add({ severity: "online", kind: "apex", detail: mod.slice("@salesforce/apex/".length) });
-        else if (mod === "@salesforce/apexContinuation" || mod.startsWith("@salesforce/apexContinuation/")) add({ severity: "online", kind: "apex", detail: "Continuation" });
-        else if (ONLINE_MODULES.has(mod)) for (const n of importedNames(clause)) add({ severity: "online", kind: "adapter", detail: n });
-        else if (GRAPHQL_MODULES.has(mod) && importedNames(clause).includes("graphql")) add({ severity: "gated", kind: "graphql", detail: "graphql" });
+        if (mod.startsWith("@salesforce/apex/"))
+          add({ severity: "online", kind: "apex", detail: mod.slice("@salesforce/apex/".length) });
+        else if (
+          mod === "@salesforce/apexContinuation" ||
+          mod.startsWith("@salesforce/apexContinuation/")
+        )
+          add({ severity: "online", kind: "apex", detail: "Continuation" });
+        else if (ONLINE_MODULES.has(mod))
+          for (const n of importedNames(clause))
+            add({ severity: "online", kind: "adapter", detail: n });
+        else if (GRAPHQL_MODULES.has(mod) && importedNames(clause).includes("graphql"))
+          add({ severity: "gated", kind: "graphql", detail: "graphql" });
         else if (mod.startsWith("c/")) children.add(mod.slice(2));
       }
-      if (/(^|[^\w.$])fetch\s*\(/.test(js)) add({ severity: "online", kind: "network", detail: "fetch" });
-      if (/\bnew\s+XMLHttpRequest\b/.test(js)) add({ severity: "online", kind: "network", detail: "XMLHttpRequest" });
+      if (/(^|[^\w.$])fetch\s*\(/.test(js))
+        add({ severity: "online", kind: "network", detail: "fetch" });
+      if (/\bnew\s+XMLHttpRequest\b/.test(js))
+        add({ severity: "online", kind: "network", detail: "XMLHttpRequest" });
     } else if (f.path.endsWith(".html")) {
       const html = f.source.replace(/<!--[\s\S]*?-->/g, "");
-      for (const tag of ONLINE_COMPONENTS) if (new RegExp(`<${tag}[\\s>/]`).test(html)) add({ severity: "online", kind: "component", detail: tag });
+      for (const tag of ONLINE_COMPONENTS)
+        if (new RegExp(`<${tag}[\\s>/]`).test(html))
+          add({ severity: "online", kind: "component", detail: tag });
       for (const m of html.matchAll(/<(c-[a-z0-9_-]+)[\s>/]/g)) children.add(bundleOfTag(m[1]));
     }
   }
@@ -107,7 +126,11 @@ export function scanBundle(files: { path: string; source: string }[]): { issues:
  * Checks an inline component and the `c/` bundles it uses. `load` returns a
  * set of bundles' files (bundles it can't read are skipped).
  */
-export async function checkInlineLwc(name: string, load: (bundles: string[]) => Promise<LwcFile[]>, first?: LwcFile[]): Promise<InlineLwcCheck> {
+export async function checkInlineLwc(
+  name: string,
+  load: (bundles: string[]) => Promise<LwcFile[]>,
+  first?: LwcFile[]
+): Promise<InlineLwcCheck> {
   const seen = new Set<string>([name]);
   const read = new Set<string>();
   const issues: InlineLwcIssue[] = [];
@@ -121,7 +144,8 @@ export async function checkInlineLwc(name: string, load: (bundles: string[]) => 
       const scan = scanBundle(bundleFiles);
       for (const i of scan.issues) {
         const issue = bundle === name ? i : { ...i, bundle };
-        if (!issues.some((x) => x.kind === issue.kind && x.detail === issue.detail)) issues.push(issue);
+        if (!issues.some((x) => x.kind === issue.kind && x.detail === issue.detail))
+          issues.push(issue);
       }
       for (const c of scan.children) {
         if (!seen.has(c) && seen.size < MAX_BUNDLES) {

@@ -13,7 +13,8 @@ import { isProductionOrg } from "../metadata/live.js";
 import { lintApp, parseMeta } from "./lint.js";
 import type { AppDeployResult, AppInput, AppTabOptions } from "./types.js";
 
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const esc = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /**
  * The quick action a record page app needs on its object. Verified against the demo org's own
@@ -97,7 +98,10 @@ export function addTabToAppXml(xml: string, tab: string): string {
 
 function tabOptions(input: AppInput): Required<Pick<AppTabOptions, "label">> & AppTabOptions {
   const meta = input.files.find((f) => f.path === `lwc/${input.name}/${input.name}.js-meta.xml`);
-  const label = input.tab?.label?.trim() || (meta && parseMeta(meta.source).masterLabel) || input.name.replace(/^lscMobileInline_/, "");
+  const label =
+    input.tab?.label?.trim() ||
+    (meta && parseMeta(meta.source).masterLabel) ||
+    input.name.replace(/^lscMobileInline_/, "");
   return { ...input.tab, label };
 }
 
@@ -115,18 +119,26 @@ export function buildAppTree(input: AppInput): AppTree {
     files[f.path] = f.source.endsWith("\n") ? f.source : f.source + "\n";
     bundles.add(f.bundle);
   }
-  const deployed = [...bundles].sort((a, b) => (a === input.name ? -1 : b === input.name ? 1 : a.localeCompare(b))).map((b) => `LightningComponentBundle:${b}`);
+  const deployed = [...bundles]
+    .sort((a, b) => (a === input.name ? -1 : b === input.name ? 1 : a.localeCompare(b)))
+    .map((b) => `LightningComponentBundle:${b}`);
   if ((input.target === "record" || input.target === "action") && input.objectApiName) {
     const meta = input.files.find((f) => f.path === `lwc/${input.name}/${input.name}.js-meta.xml`);
-    const label = (meta && parseMeta(meta.source).masterLabel) || input.name.replace(/^lscMobileInline_/, "");
-    files[`quickActions/${input.objectApiName}.${input.name}.quickAction-meta.xml`] = quickActionXml(input.name, label);
+    const label =
+      (meta && parseMeta(meta.source).masterLabel) || input.name.replace(/^lscMobileInline_/, "");
+    files[`quickActions/${input.objectApiName}.${input.name}.quickAction-meta.xml`] =
+      quickActionXml(input.name, label);
     deployed.push(`QuickAction:${input.objectApiName}.${input.name}`);
   }
   if (input.target === "tab") {
     const meta = input.files.find((f) => f.path === `lwc/${input.name}/${input.name}.js-meta.xml`);
     const height = (meta && lintApp(input).mobileHeight) || 560;
     const { label } = tabOptions(input);
-    files[`flexipages/${input.name}.flexipage-meta.xml`] = appPageXml(input.name, (meta && parseMeta(meta.source).masterLabel) || label, height);
+    files[`flexipages/${input.name}.flexipage-meta.xml`] = appPageXml(
+      input.name,
+      (meta && parseMeta(meta.source).masterLabel) || label,
+      height
+    );
     files[`tabs/${input.name}.tab-meta.xml`] = customTabXml(input.name, label);
     deployed.push(`FlexiPage:${input.name}`, `CustomTab:${input.name}`);
     for (const profile of input.tab?.profiles ?? []) {
@@ -138,7 +150,10 @@ export function buildAppTree(input: AppInput): AppTree {
 }
 
 /** The retrieved CustomApplication file's text, whatever folder the retrieve put it in. */
-async function readApp(application: string, org: string): Promise<{ xml?: string; error?: string }> {
+async function readApp(
+  application: string,
+  org: string
+): Promise<{ xml?: string; error?: string }> {
   const result = await retrieveMetadata("", `CustomApplication:${application}`, org);
   if (!result.success || !result.data) return { error: result.error ?? "The retrieve failed." };
   const found: string[] = [];
@@ -151,7 +166,9 @@ async function readApp(application: string, org: string): Promise<{ xml?: string
   };
   try {
     walk(result.data.outputDir);
-    return found[0] ? { xml: fs.readFileSync(found[0], "utf-8") } : { error: `The org has no app named ${application}.` };
+    return found[0]
+      ? { xml: fs.readFileSync(found[0], "utf-8") }
+      : { error: `The org has no app named ${application}.` };
   } finally {
     fs.rmSync(result.data.outputDir, { recursive: true, force: true });
   }
@@ -163,20 +180,53 @@ export async function deployApp(input: AppInput, org: string): Promise<AppDeploy
   const errors = lint.issues.filter((i) => i.severity === "error");
   const warnings = lint.issues.filter((i) => i.severity === "warning").map((i) => i.message);
   if (errors.length) {
-    return { ok: false, deployed: [], error: `Not deployed: ${errors.length} error${errors.length === 1 ? "" : "s"} to fix first — ${errors.slice(0, 3).map((e) => e.message).join(" ")}`, warnings, production };
+    return {
+      ok: false,
+      deployed: [],
+      error: `Not deployed: ${errors.length} error${errors.length === 1 ? "" : "s"} to fix first — ${errors
+        .slice(0, 3)
+        .map((e) => e.message)
+        .join(" ")}`,
+      warnings,
+      production,
+    };
   }
   const tree = buildAppTree(input);
   if (input.target === "tab") {
     if (input.tab?.application) {
-      if (!/^[\w]+$/.test(input.tab.application)) return { ok: false, deployed: [], error: `"${input.tab.application}" isn't an app API name.`, warnings, production };
+      if (!/^[\w]+$/.test(input.tab.application))
+        return {
+          ok: false,
+          deployed: [],
+          error: `"${input.tab.application}" isn't an app API name.`,
+          warnings,
+          production,
+        };
       const app = await readApp(input.tab.application, org);
-      if (!app.xml) return { ok: false, deployed: [], error: `Not deployed: couldn't read the app ${input.tab.application} to add the tab — ${app.error}`, warnings, production };
-      tree.files[`applications/${input.tab.application}.app-meta.xml`] = addTabToAppXml(app.xml, input.name);
+      if (!app.xml)
+        return {
+          ok: false,
+          deployed: [],
+          error: `Not deployed: couldn't read the app ${input.tab.application} to add the tab — ${app.error}`,
+          warnings,
+          production,
+        };
+      tree.files[`applications/${input.tab.application}.app-meta.xml`] = addTabToAppXml(
+        app.xml,
+        input.name
+      );
       tree.deployed.push(`CustomApplication:${input.tab.application}`);
     }
-    if (!input.tab?.profiles?.length) warnings.push("No profile was given, so the tab isn't visible to anyone yet (tabs are Hidden by default and the iPad skips tabs a profile hides). Make it Default On for the profiles that should see it, then Publish to iPad.");
+    if (!input.tab?.profiles?.length)
+      warnings.push(
+        "No profile was given, so the tab isn't visible to anyone yet (tabs are Hidden by default and the iPad skips tabs a profile hides). Make it Default On for the profiles that should see it, then Publish to iPad."
+      );
   }
-  const root = path.join(ensureTmpSfdxProject(), "force-app", `app-deploy-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  const root = path.join(
+    ensureTmpSfdxProject(),
+    "force-app",
+    `app-deploy-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  );
   try {
     for (const [rel, content] of Object.entries(tree.files)) {
       const file = path.join(root, rel);
@@ -185,7 +235,14 @@ export async function deployApp(input: AppInput, org: string): Promise<AppDeploy
       fs.writeFileSync(file, content, "utf-8");
     }
     const result = await deployMetadata(root, org);
-    if (!result.success) return { ok: false, deployed: [], error: result.error ?? "The deploy failed.", warnings, production };
+    if (!result.success)
+      return {
+        ok: false,
+        deployed: [],
+        error: result.error ?? "The deploy failed.",
+        warnings,
+        production,
+      };
     return { ok: true, deployed: tree.deployed, warnings, production };
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

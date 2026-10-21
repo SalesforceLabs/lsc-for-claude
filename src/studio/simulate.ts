@@ -18,7 +18,11 @@
 
 import { resolveNetwork } from "../perf/device/network.js";
 import { createTokenSession, type TokenLogin } from "../perf/device/session.js";
-import { simulateInitialSync, type SimulateOptions, type SimulationResult } from "../perf/simulate.js";
+import {
+  simulateInitialSync,
+  type SimulateOptions,
+  type SimulationResult,
+} from "../perf/simulate.js";
 import { aggregateRuns, clampRuns, type MultiRunResult } from "./sim-runs.js";
 
 export type SimJobState = "running" | "done" | "failed" | "cancelled";
@@ -77,7 +81,8 @@ function snapshot(job: SimJob): SimJobStatus {
 
 function pruneFinished() {
   const finished = [...jobs.values()].filter((j) => j.state !== "running");
-  for (const job of finished.slice(0, Math.max(0, finished.length - MAX_FINISHED_JOBS))) jobs.delete(job.jobId);
+  for (const job of finished.slice(0, Math.max(0, finished.length - MAX_FINISHED_JOBS)))
+    jobs.delete(job.jobId);
 }
 
 export function startSimulation(
@@ -138,14 +143,17 @@ export function startSimulation(
         // A later run failing keeps the earlier ones.
         if (completed.length === 0 || job.controller.signal.aborted) throw err;
         const message = err instanceof Error ? err.message : String(err);
-        extraNotes.push(`Run ${i} of ${requested} failed (${message}); the result covers the runs before it.`);
+        extraNotes.push(
+          `Run ${i} of ${requested} failed (${message}); the result covers the runs before it.`
+        );
         break;
       }
     }
     const results = completed.length > 0 ? completed : partial ? [partial] : [];
     if (results.length === 0) return undefined;
     const aggregate = aggregateRuns(results, completed.length > 0 ? requested : 1);
-    if (aggregate.runs && partial) extraNotes.push("The run in progress when cancelled is left out of the medians.");
+    if (aggregate.runs && partial)
+      extraNotes.push("The run in progress when cancelled is left out of the medians.");
     aggregate.notes.push(...extraNotes);
     return aggregate;
   };
@@ -157,11 +165,13 @@ export function startSimulation(
     })
     .catch((err) => {
       job.state = job.controller.signal.aborted ? "cancelled" : "failed";
-      if (!job.controller.signal.aborted) job.error = err instanceof Error ? err.message : String(err);
+      if (!job.controller.signal.aborted)
+        job.error = err instanceof Error ? err.message : String(err);
     })
     .finally(() => {
       job.finishedAt = new Date().toISOString();
-      job.step = job.state === "done" ? "Finished" : job.state === "cancelled" ? "Cancelled" : "Failed";
+      job.step =
+        job.state === "done" ? "Finished" : job.state === "cancelled" ? "Cancelled" : "Failed";
       pruneFinished();
     });
 
@@ -170,7 +180,8 @@ export function startSimulation(
 
 export function simulationStatus(jobId: string): SimJobStatus {
   const job = jobs.get(jobId);
-  if (!job) throw new Error("This simulation is no longer available (the engine may have restarted).");
+  if (!job)
+    throw new Error("This simulation is no longer available (the engine may have restarted).");
   return snapshot(job);
 }
 

@@ -1,7 +1,12 @@
 /** The ••• quick-action menus (FloatingQuickActionButton) — what the viewer's iPad lists on Home and on each record page. */
 
 import { inList, query, type Row } from "../helpers.js";
-import type { PublishedLayout, PublishedPage, PublishedComponent, SnapshotCore } from "../published.js";
+import type {
+  PublishedLayout,
+  PublishedPage,
+  PublishedComponent,
+  SnapshotCore,
+} from "../published.js";
 import { type ScreenContext, softFail } from "./context.js";
 import { accountWhere, CARD_CAP, formatAddress } from "./accounts.js";
 
@@ -147,10 +152,19 @@ export interface HomeCustomAction {
  * then OCEDBCustomActionModel.fetch(forLocation: .home) by MasterLabel (nocase), deduped by action name.
  * CreateMedicalInsight shows only with the insightCaptureFromAccount setting, which the viewer's setup doesn't turn on here.
  */
-export function homeMenu(quick: HomeQuickAction[], custom: HomeCustomAction[], profile: string): PublishedFabItem[] {
+export function homeMenu(
+  quick: HomeQuickAction[],
+  custom: HomeCustomAction[],
+  profile: string
+): PublishedFabItem[] {
   const allowed = new Set(["newvisit", "inquiry", "sharecontent", "email", "createquote"]);
   const q = quick
-    .filter((a) => a.location.toLowerCase() === "homepage" && allowed.has(a.actionName.toLowerCase()) && a.profiles.split(";").includes(profile))
+    .filter(
+      (a) =>
+        a.location.toLowerCase() === "homepage" &&
+        allowed.has(a.actionName.toLowerCase()) &&
+        a.profiles.split(";").includes(profile)
+    )
     .sort((a, b) => a.sortOrder - b.sortOrder)
     .map((a) => ({ name: a.actionName, label: actionTitle(a.actionName) ?? a.masterLabel }));
   const c = custom
@@ -159,7 +173,12 @@ export function homeMenu(quick: HomeQuickAction[], custom: HomeCustomAction[], p
     .map((a) => ({
       name: a.masterLabel,
       label: a.masterLabel,
-      action: { type: a.actionType.toLowerCase(), target: a.actionTarget || undefined, targetType: a.targetType || undefined, hideBrowser: a.hideBrowser || undefined },
+      action: {
+        type: a.actionType.toLowerCase(),
+        target: a.actionTarget || undefined,
+        targetType: a.targetType || undefined,
+        hideBrowser: a.hideBrowser || undefined,
+      },
     }));
   const seen = new Set<string>();
   return [...q, ...c].filter((i) => !seen.has(i.name) && !!seen.add(i.name));
@@ -178,19 +197,37 @@ export interface LayoutActionItem {
  * layout type other than URL / App / LWC / Aura, or a name SFActionType doesn't know, drops the action),
  * titled by the layout item's label else the type's title, deduped by action name.
  */
-export function recordMenu(dynamic: string[] | undefined, items: LayoutActionItem[] | undefined): PublishedFabItem[] {
+export function recordMenu(
+  dynamic: string[] | undefined,
+  items: LayoutActionItem[] | undefined
+): PublishedFabItem[] {
   const layout = items ?? [];
   const source: LayoutActionItem[] = dynamic
-    ? dynamic.map((name) => layout.find((i) => actionKey(i.name) === actionKey(name)) ?? { name, label: "", type: "", sortOrder: "" })
+    ? dynamic.map(
+        (name) =>
+          layout.find((i) => actionKey(i.name) === actionKey(name)) ?? {
+            name,
+            label: "",
+            type: "",
+            sortOrder: "",
+          }
+      )
     : layout;
-  const order = (s: string) => (s === "" || Number.isNaN(Number(s)) ? Number.MAX_SAFE_INTEGER : Number(s));
-  const sorted = dynamic ? source : [...source].sort((a, b) => order(a.sortOrder) - order(b.sortOrder));
+  const order = (s: string) =>
+    s === "" || Number.isNaN(Number(s)) ? Number.MAX_SAFE_INTEGER : Number(s);
+  const sorted = dynamic
+    ? source
+    : [...source].sort((a, b) => order(a.sortOrder) - order(b.sortOrder));
   const seen = new Set<string>();
   return sorted
     .filter((i) => !/Account\.(AttendeeCall|ViewProfile)$/.test(i.name) && !/unlock$/i.test(i.name))
     .filter((i) => supportedAction(i.name) && KEEPS_TYPE.has(i.type.toLowerCase()))
     .filter((i) => !seen.has(actionKey(i.name)) && !!seen.add(actionKey(i.name)))
-    .map((i) => ({ name: i.name, label: i.label || actionTitle(i.name) || i.name, ...(i.type ? { action: { type: i.type.toLowerCase() } } : {}) }));
+    .map((i) => ({
+      name: i.name,
+      label: i.label || actionTitle(i.name) || i.name,
+      ...(i.type ? { action: { type: i.type.toLowerCase() } } : {}),
+    }));
 }
 
 const walk = (cs: PublishedComponent[]): string[] | undefined => {
@@ -207,30 +244,51 @@ function pageActions(page: PublishedPage | undefined): string[] | undefined {
 }
 
 /** Every object's record types → menu, from the snapshot's flexipages and layouts. */
-export function recordMenus(core: Pick<SnapshotCore, "objects" | "pages" | "layouts">): PublishedFabs["records"] {
+export function recordMenus(
+  core: Pick<SnapshotCore, "objects" | "pages" | "layouts">
+): PublishedFabs["records"] {
   const out: PublishedFabs["records"] = {};
   for (const [object, o] of Object.entries(core.objects)) {
     for (const rt of o.recordTypes) {
       const layout: PublishedLayout | undefined = rt.layout ? core.layouts[rt.layout] : undefined;
-      const menu = recordMenu(pageActions(rt.flexiPage ? core.pages[rt.flexiPage] : undefined), layout?.actionItems);
+      const menu = recordMenu(
+        pageActions(rt.flexiPage ? core.pages[rt.flexiPage] : undefined),
+        layout?.actionItems
+      );
       (out[object] ??= {})[rt.name] = menu;
     }
   }
   return out;
 }
 
-const FIELD_COLUMNS = "FieldName, PicklistValue, TextValue, IntegerValue, HasBooleanValue, LongTextValue, UrlValue";
+const FIELD_COLUMNS =
+  "FieldName, PicklistValue, TextValue, IntegerValue, HasBooleanValue, LongTextValue, UrlValue";
 
-export async function configRecords(category: string, org: string): Promise<{ label: string; fields: Row }[]> {
+export async function configRecords(
+  category: string,
+  org: string
+): Promise<{ label: string; fields: Row }[]> {
   const records = await query(
     `SELECT MasterLabel, (SELECT ${FIELD_COLUMNS} FROM LifeSciConfigFieldValues) FROM LifeSciConfigRecord WHERE IsActive = true AND LifeSciConfigCategory.Category IN (${inList([category])})`,
     org,
     true
   );
-  const sub = (r: Row, rel: string): Row[] => ((r[rel] as { records?: Row[] } | null)?.records ?? []) as Row[];
+  const sub = (r: Row, rel: string): Row[] =>
+    ((r[rel] as { records?: Row[] } | null)?.records ?? []) as Row[];
   return records.map((r) => ({
     label: str(r.MasterLabel),
-    fields: Object.fromEntries(sub(r, "LifeSciConfigFieldValues").map((v) => [str(v.FieldName), v.PicklistValue ?? v.TextValue ?? v.LongTextValue ?? v.UrlValue ?? v.IntegerValue ?? v.HasBooleanValue ?? null])),
+    fields: Object.fromEntries(
+      sub(r, "LifeSciConfigFieldValues").map((v) => [
+        str(v.FieldName),
+        v.PicklistValue ??
+          v.TextValue ??
+          v.LongTextValue ??
+          v.UrlValue ??
+          v.IntegerValue ??
+          v.HasBooleanValue ??
+          null,
+      ])
+    ),
   }));
 }
 
@@ -245,22 +303,44 @@ interface PlaceRow {
  * OCEDBAccountModel.preferedContactPointAddress: the territory info's PreferredAddressId when that address is
  * active, else the active primary address (most recently updated), else the most recently updated active one.
  */
-export function defaultPlace<T extends PlaceRow>(addresses: T[], preferredIds: string[]): T | undefined {
-  const recent = (a: T[]) => [...a].sort((x, y) => str(y.LastModifiedDate).localeCompare(str(x.LastModifiedDate)));
-  return addresses.find((a) => preferredIds.includes(a.Id)) ?? recent(addresses.filter((a) => a.IsPrimary === true))[0] ?? recent(addresses)[0];
+export function defaultPlace<T extends PlaceRow>(
+  addresses: T[],
+  preferredIds: string[]
+): T | undefined {
+  const recent = (a: T[]) =>
+    [...a].sort((x, y) => str(y.LastModifiedDate).localeCompare(str(x.LastModifiedDate)));
+  return (
+    addresses.find((a) => preferredIds.includes(a.Id)) ??
+    recent(addresses.filter((a) => a.IsPrimary === true))[0] ??
+    recent(addresses)[0]
+  );
 }
 
 /** LicenseValidator: a badge exists only when its setting is on (SDL: and the state needs it); green when the license is validated, else red. */
-export function licenseBadge(enabled: boolean, license: Row | undefined, field: string): LicenseState | undefined {
+export function licenseBadge(
+  enabled: boolean,
+  license: Row | undefined,
+  field: string
+): LicenseState | undefined {
   if (!enabled) return undefined;
-  return license && (field ? license[field] === true : license.IsLicenseValidated === true) ? "valid" : "invalid";
+  return license && (field ? license[field] === true : license.IsLicenseValidated === true)
+    ? "valid"
+    : "invalid";
 }
 
-const configKey = (row: Row | undefined, key: string): unknown => row?.[Object.keys(row).find((k) => k.toLowerCase() === key.toLowerCase()) ?? key];
+const configKey = (row: Row | undefined, key: string): unknown =>
+  row?.[Object.keys(row).find((k) => k.toLowerCase() === key.toLowerCase()) ?? key];
 
 async function collectVisitCreate(ctx: ScreenContext): Promise<PublishedVisitCreate | undefined> {
   const { org } = ctx;
-  const cfg = await ctx.config(["ProviderVisitSettings", "StateLicenseNumberSettings", "DEASettings", "StateDistributorLicenseSettings"]).catch(() => ({}) as Record<string, Row>);
+  const cfg = await ctx
+    .config([
+      "ProviderVisitSettings",
+      "StateLicenseNumberSettings",
+      "DEASettings",
+      "StateDistributorLicenseSettings",
+    ])
+    .catch(() => ({}) as Record<string, Row>);
   const duration = Number(configKey(cfg.ProviderVisitSettings, "DefaultVisitDuration"));
   const result: PublishedVisitCreate = {
     // The editor shows TerritoryService.selectedTerritory (the territory picked on the device, defaulting to the user's first);
@@ -282,33 +362,93 @@ async function collectVisitCreate(ctx: ScreenContext): Promise<PublishedVisitCre
   const deaField = field(cfg.DEASettings, "DEAValidationFormulaField");
   const sdlOn = configKey(cfg.StateDistributorLicenseSettings, "IsTDDDLicensingEnabled") === true;
   const sdlField = field(cfg.StateDistributorLicenseSettings, "TDDFormulaField");
-  const sdlStates = str(configKey(cfg.StateDistributorLicenseSettings, "TDDDStates")).split(";").filter(Boolean);
+  const sdlStates = str(configKey(cfg.StateDistributorLicenseSettings, "TDDDStates"))
+    .split(";")
+    .filter(Boolean);
 
-  const accounts = await query(`SELECT Id, RecordType.Name, RecordType.IsPersonType FROM Account${accountWhere(scope)} ORDER BY Name ASC NULLS LAST LIMIT ${CARD_CAP}`, org).catch(softFail(ctx, "Floating buttons", [] as Row[]));
+  const accounts = await query(
+    `SELECT Id, RecordType.Name, RecordType.IsPersonType FROM Account${accountWhere(scope)} ORDER BY Name ASC NULLS LAST LIMIT ${CARD_CAP}`,
+    org
+  ).catch(softFail(ctx, "Floating buttons", [] as Row[]));
   const ids = accounts.map((a) => str(a.Id));
   if (!ids.length) return result;
   const parts: string[][] = [];
   for (let i = 0; i < ids.length; i += 150) parts.push(ids.slice(i, i + 150));
-  const run = async (build: (inIds: string) => string): Promise<Row[]> => (await Promise.all(parts.map((p) => query(build(inList(p)), org).catch(softFail(ctx, "Floating buttons", [] as Row[]))))).flat();
+  const run = async (build: (inIds: string) => string): Promise<Row[]> =>
+    (
+      await Promise.all(
+        parts.map((p) =>
+          query(build(inList(p)), org).catch(softFail(ctx, "Floating buttons", [] as Row[]))
+        )
+      )
+    ).flat();
   const territoryIds = ctx.territories.map((t) => t.id);
   const [titles, atis, addresses] = await Promise.all([
-    run((inIds) => `SELECT AccountId, toLabel(ProfessionalTitle) FROM HealthcareProvider WHERE AccountId IN (${inIds})`),
-    territoryIds.length ? run((inIds) => `SELECT AccountId, PreferredAddressId FROM ProviderAcctTerritoryInfo WHERE AccountId IN (${inIds}) AND Territory2Id IN (${inList(territoryIds)})`) : Promise.resolve([] as Row[]),
-    run((inIds) => `SELECT Id, ParentId, Street, PostalCode, City, State, StateCode, Country, IsPrimary, LastModifiedDate FROM ContactPointAddress WHERE ParentId IN (${inIds}) AND IsActive = true`),
+    run(
+      (inIds) =>
+        `SELECT AccountId, toLabel(ProfessionalTitle) FROM HealthcareProvider WHERE AccountId IN (${inIds})`
+    ),
+    territoryIds.length
+      ? run(
+          (inIds) =>
+            `SELECT AccountId, PreferredAddressId FROM ProviderAcctTerritoryInfo WHERE AccountId IN (${inIds}) AND Territory2Id IN (${inList(territoryIds)})`
+        )
+      : Promise.resolve([] as Row[]),
+    run(
+      (inIds) =>
+        `SELECT Id, ParentId, Street, PostalCode, City, State, StateCode, Country, IsPrimary, LastModifiedDate FROM ContactPointAddress WHERE ParentId IN (${inIds}) AND IsActive = true`
+    ),
   ]);
   const places = new Map<string, PlaceRow | undefined>(
-    ids.map((id) => [id, defaultPlace(addresses.filter((x) => str(x.ParentId) === id) as unknown as PlaceRow[], atis.filter((x) => str(x.AccountId) === id).map((x) => str(x.PreferredAddressId)).filter(Boolean))])
+    ids.map((id) => [
+      id,
+      defaultPlace(
+        addresses.filter((x) => str(x.ParentId) === id) as unknown as PlaceRow[],
+        atis
+          .filter((x) => str(x.AccountId) === id)
+          .map((x) => str(x.PreferredAddressId))
+          .filter(Boolean)
+      ),
+    ])
   );
   // State licenses belong to the account; DEA and distributor licenses to the address (no AccountId on them).
-  const columns = [...new Set(["ComplianceScope", "JurisdictionState", "AccountId", "ContactPointAddressId", "IsLicenseValidated", slnField, deaField, sdlField].filter(Boolean))].join(", ");
-  const live = "IsActive = true AND LicenseNumber != null AND PeriodStart <= TODAY AND PeriodEnd >= TODAY ORDER BY PeriodEnd DESC";
+  const columns = [
+    ...new Set(
+      [
+        "ComplianceScope",
+        "JurisdictionState",
+        "AccountId",
+        "ContactPointAddressId",
+        "IsLicenseValidated",
+        slnField,
+        deaField,
+        sdlField,
+      ].filter(Boolean)
+    ),
+  ].join(", ");
+  const live =
+    "IsActive = true AND LicenseNumber != null AND PeriodStart <= TODAY AND PeriodEnd >= TODAY ORDER BY PeriodEnd DESC";
   const placeIds = [...places.values()].filter((x): x is PlaceRow => !!x).map((x) => x.Id);
   const placeParts: string[][] = [];
   for (let i = 0; i < placeIds.length; i += 150) placeParts.push(placeIds.slice(i, i + 150));
   const [byAccount, byPlace] = await Promise.all([
-    slnOn ? run((inIds) => `SELECT ${columns} FROM BusinessLicense WHERE AccountId IN (${inIds}) AND ${live}`) : Promise.resolve([] as Row[]),
+    slnOn
+      ? run(
+          (inIds) =>
+            `SELECT ${columns} FROM BusinessLicense WHERE AccountId IN (${inIds}) AND ${live}`
+        )
+      : Promise.resolve([] as Row[]),
     deaOn || sdlOn
-      ? (await Promise.all(placeParts.map((p) => query(`SELECT ${columns} FROM BusinessLicense WHERE ContactPointAddressId IN (${inList(p)}) AND ${live}`, org).catch(softFail(ctx, "Floating buttons", [] as Row[]))))).flat()
+      ? (
+          await Promise.all(
+            placeParts.map((p) =>
+              query(
+                `SELECT ${columns} FROM BusinessLicense WHERE ContactPointAddressId IN (${inList(p)}) AND ${live}`,
+                org
+              ).catch(softFail(ctx, "Floating buttons", [] as Row[]))
+            )
+          )
+        ).flat()
       : Promise.resolve([] as Row[]),
   ]);
   for (const a of accounts) {
@@ -321,14 +461,41 @@ async function collectVisitCreate(ctx: ScreenContext): Promise<PublishedVisitCre
     if (person && place) {
       const state = str(place.StateCode);
       badges = {
-        state: licenseBadge(slnOn, state ? mine.find((l) => str(l.ComplianceScope) === "JurisdictionState" && str(l.JurisdictionState) === state) : undefined, slnField),
-        dea: licenseBadge(deaOn, byPlace.find((l) => str(l.ComplianceScope) === "Address" && str(l.ContactPointAddressId) === place.Id), deaField),
-        sdl: licenseBadge(sdlOn && sdlStates.includes(state), byPlace.find((l) => str(l.ComplianceScope) === "StateDistributorLicense" && str(l.ContactPointAddressId) === place.Id), sdlField),
+        state: licenseBadge(
+          slnOn,
+          state
+            ? mine.find(
+                (l) =>
+                  str(l.ComplianceScope) === "JurisdictionState" &&
+                  str(l.JurisdictionState) === state
+              )
+            : undefined,
+          slnField
+        ),
+        dea: licenseBadge(
+          deaOn,
+          byPlace.find(
+            (l) => str(l.ComplianceScope) === "Address" && str(l.ContactPointAddressId) === place.Id
+          ),
+          deaField
+        ),
+        sdl: licenseBadge(
+          sdlOn && sdlStates.includes(state),
+          byPlace.find(
+            (l) =>
+              str(l.ComplianceScope) === "StateDistributorLicense" &&
+              str(l.ContactPointAddressId) === place.Id
+          ),
+          sdlField
+        ),
       };
     }
     result.accounts[id] = {
       person,
-      subLabel: (person ? str(titles.find((t) => str(t.AccountId) === id)?.ProfessionalTitle) : str(rt.Name)) || undefined,
+      subLabel:
+        (person
+          ? str(titles.find((t) => str(t.AccountId) === id)?.ProfessionalTitle)
+          : str(rt.Name)) || undefined,
       place: place ? { id: place.Id, text: formatAddress(place) } : undefined,
       licenses: badges,
     };
@@ -340,7 +507,10 @@ async function collectVisitCreate(ctx: ScreenContext): Promise<PublishedVisitCre
  * EmailsService.updateTemplatesModels: the active templates by name, narrowed to the ones assigned to the viewer's
  * selected territory when that territory has any assignment (otherwise every template shows).
  */
-export function emailTemplateList(rows: Row[], assignedToTerritory: string[]): PublishedEmailTemplate[] {
+export function emailTemplateList(
+  rows: Row[],
+  assignedToTerritory: string[]
+): PublishedEmailTemplate[] {
   const assigned = new Set(assignedToTerritory);
   return rows
     .filter((r) => str(r.Name) !== "" && (assigned.size === 0 || assigned.has(str(r.Id))))
@@ -354,10 +524,16 @@ export function emailTemplateList(rows: Row[], assignedToTerritory: string[]): P
 }
 
 async function collectEmailTemplates(ctx: ScreenContext): Promise<PublishedEmailTemplate[]> {
-  const templates = await query("SELECT Id, Name, Description, Product.Name FROM LifeSciEmailTemplate WHERE IsActive = true AND Name != null", ctx.org);
+  const templates = await query(
+    "SELECT Id, Name, Description, Product.Name FROM LifeSciEmailTemplate WHERE IsActive = true AND Name != null",
+    ctx.org
+  );
   const territoryId = ctx.territories[0]?.id;
   const assigned = territoryId
-    ? await query(`SELECT TemplateReferenceRecordId FROM TerritoryContentTmplAsgnt WHERE TerritoryId IN (${inList([territoryId])})`, ctx.org).catch(softFail(ctx, "Floating buttons", [] as Row[]))
+    ? await query(
+        `SELECT TemplateReferenceRecordId FROM TerritoryContentTmplAsgnt WHERE TerritoryId IN (${inList([territoryId])})`,
+        ctx.org
+      ).catch(softFail(ctx, "Floating buttons", [] as Row[]))
     : [];
   return emailTemplateList(
     templates,
@@ -370,7 +546,10 @@ async function collectEmailTemplates(ctx: ScreenContext): Promise<PublishedEmail
  * the org hands every active one to every device (OCEDBCustomActionModel filters by location only).
  */
 export async function collectFabs(ctx: ScreenContext): Promise<PublishedFabs> {
-  const [quick, custom] = await Promise.all([configRecords("QuickAction", ctx.adminOrg), configRecords("CustomAction", ctx.adminOrg)]);
+  const [quick, custom] = await Promise.all([
+    configRecords("QuickAction", ctx.adminOrg),
+    configRecords("CustomAction", ctx.adminOrg),
+  ]);
   return {
     home: homeMenu(
       quick.map((r) => ({

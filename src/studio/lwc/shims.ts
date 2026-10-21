@@ -341,12 +341,40 @@ export const getRelatedListInfoBatch = unavailableAdapter("getRelatedListInfoBat
 );
 
 for (const [name, adapters] of [
-  ["uiListsApi", ["getListUi", "getListInfoByName", "getListInfosByName", "getListRecordsByName", "getListInfosByObjectName", "getListObjectInfo", "getListPreferences"]],
+  [
+    "uiListsApi",
+    [
+      "getListUi",
+      "getListInfoByName",
+      "getListInfosByName",
+      "getListRecordsByName",
+      "getListInfosByObjectName",
+      "getListObjectInfo",
+      "getListPreferences",
+    ],
+  ],
   ["uiListApi", ["getListUi"]],
-  ["uiActionsApi", ["getRecordActions", "getRecordEditActions", "getRelatedListActions", "getRelatedListsActions", "getGlobalActions", "getQuickActionLayout", "getQuickActionDefaults", "getLookupActions", "getObjectCreateActions"]],
+  [
+    "uiActionsApi",
+    [
+      "getRecordActions",
+      "getRecordEditActions",
+      "getRelatedListActions",
+      "getRelatedListsActions",
+      "getGlobalActions",
+      "getQuickActionLayout",
+      "getQuickActionDefaults",
+      "getLookupActions",
+      "getObjectCreateActions",
+    ],
+  ],
   ["uiAppsApi", ["getNavItems", "getAllApps", "getAppDetails", "getSelectedApp"]],
 ] as const) {
-  js(name, `import { unavailableAdapter } from "lightning/studioBridge";\n` + adapters.map((a) => `export const ${a} = unavailableAdapter("${a}");`).join("\n"));
+  js(
+    name,
+    `import { unavailableAdapter } from "lightning/studioBridge";\n` +
+      adapters.map((a) => `export const ${a} = unavailableAdapter("${a}");`).join("\n")
+  );
 }
 
 const GRAPHQL = `
@@ -553,7 +581,10 @@ export function isEmpEnabled() {
 `
 );
 
-js("messages", `import { LightningElement } from "lwc";\nexport default class Messages extends LightningElement {}`);
+js(
+  "messages",
+  `import { LightningElement } from "lwc";\nexport default class Messages extends LightningElement {}`
+);
 SHIM_FILES["lightning/messages/messages.html"] = "<template></template>\n";
 
 // ── Record forms ──────────────────────────────────────────────────────────────
@@ -868,7 +899,11 @@ export default method;
     }
     case "schema": {
       const dot = name.indexOf(".");
-      return value(dot < 0 ? { objectApiName: name } : { objectApiName: name.slice(0, dot), fieldApiName: name.slice(dot + 1) });
+      return value(
+        dot < 0
+          ? { objectApiName: name }
+          : { objectApiName: name.slice(0, dot), fieldApiName: name.slice(dot + 1) }
+      );
     }
     case "label":
       if (name.startsWith("c.")) return value(labels[name.slice(2)] ?? name.slice(2));
@@ -881,8 +916,10 @@ export default method;
     case "customPermission":
       return `export default ((globalThis.__studioContext || {}).permissions || {})[${JSON.stringify(name)}];\n`;
     case "i18n":
-      if (name === "locale" || name === "lang") return `export default (globalThis.__studioContext || {}).locale || "en-US";\n`;
-      if (name === "timeZone") return `export default (globalThis.__studioContext || {}).timeZone || "America/New_York";\n`;
+      if (name === "locale" || name === "lang")
+        return `export default (globalThis.__studioContext || {}).locale || "en-US";\n`;
+      if (name === "timeZone")
+        return `export default (globalThis.__studioContext || {}).timeZone || "America/New_York";\n`;
       return null;
     case "resourceUrl":
       return value(`/resource/${name}`);
@@ -903,7 +940,8 @@ export function salesforceFallback(id: string): string {
   const rest = id.slice("@salesforce/".length);
   const kind = rest.split("/")[0];
   const name = rest.slice(kind.length + 1);
-  if (kind === "label") return `export default ${JSON.stringify(name.slice(name.indexOf(".") + 1))};\n`;
+  if (kind === "label")
+    return `export default ${JSON.stringify(name.slice(name.indexOf(".") + 1))};\n`;
   if (kind === "gate" || kind === "accessCheck") return `export default false;\n`;
   return `export default undefined;\n`;
 }

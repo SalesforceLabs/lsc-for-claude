@@ -2,10 +2,25 @@
 
 import { collectCategoryRecords } from "../../../config/collect.js";
 import { activeTerritories } from "../../collectors/territory-users.js";
-import { count, countGroupedBy, inList, plural, query, queryByIds, type Row } from "../../helpers.js";
+import {
+  count,
+  countGroupedBy,
+  inList,
+  plural,
+  query,
+  queryByIds,
+  type Row,
+} from "../../helpers.js";
 import { focusTerritoryIds, spread } from "../../profile-focus.js";
 import { runCheck, type ReadinessModule, type StudioCheckResult } from "../index.js";
-import { duplicateSyncResult, handlersResult, loadDbSchema, loadHandlers, once, syncResult } from "./_visit-shared.js";
+import {
+  duplicateSyncResult,
+  handlersResult,
+  loadDbSchema,
+  loadHandlers,
+  once,
+  syncResult,
+} from "./_visit-shared.js";
 
 const ADDRESS_HANDLERS = [
   "AccountAddressPrimaryHandler",
@@ -25,10 +40,20 @@ const AFFILIATION_HANDLERS = [
   "AffiliationAccountUpdateHandler",
   "HealthcareProviderAffiliationHandler",
 ];
-const PROVIDER_HANDLERS = ["HealthcareProviderHandler", "HealthcareProviderNpiHandler", "HealthcareProviderSpecialityHandler"];
+const PROVIDER_HANDLERS = [
+  "HealthcareProviderHandler",
+  "HealthcareProviderNpiHandler",
+  "HealthcareProviderSpecialityHandler",
+];
 
 /** What the Provider Card needs offline. */
-const SYNCED_OBJECTS = ["Account", "HealthcareProvider", "ContactPointAddress", "ProviderAffiliation", "ProviderAcctTerritoryInfo"];
+const SYNCED_OBJECTS = [
+  "Account",
+  "HealthcareProvider",
+  "ContactPointAddress",
+  "ProviderAffiliation",
+  "ProviderAcctTerritoryInfo",
+];
 
 /** DCR requests that never reached a final state after this many days are stuck. */
 const DCR_STALE_DAYS = 7;
@@ -62,8 +87,11 @@ interface Sample {
 
 async function loadSample(org: string): Promise<Sample> {
   const focus = await focusTerritoryIds(org);
-  if (focus && !focus.length) return { rows: [], accounts: new Map(), complete: true, focused: true };
-  const inTerritories = focus ? ` AND Territory2Id IN (${inList(spread(focus, SAMPLE_TERRITORIES))})` : "";
+  if (focus && !focus.length)
+    return { rows: [], accounts: new Map(), complete: true, focused: true };
+  const inTerritories = focus
+    ? ` AND Territory2Id IN (${inList(spread(focus, SAMPLE_TERRITORIES))})`
+    : "";
   const rows = await query(
     `SELECT AccountId, Account.Name, Account.IsPersonAccount, Territory2Id, PreferredAddressId FROM ProviderAcctTerritoryInfo WHERE IsActive = true AND AccountId != null${inTerritories} LIMIT ${SAMPLE_ROWS}`,
     org
@@ -71,9 +99,17 @@ async function loadSample(org: string): Promise<Sample> {
   const accounts = new Map<string, SampledAccount>();
   for (const r of rows) {
     const a = (r.Account ?? {}) as Row;
-    accounts.set(String(r.AccountId), { name: String(a.Name ?? r.AccountId), person: a.IsPersonAccount === true });
+    accounts.set(String(r.AccountId), {
+      name: String(a.Name ?? r.AccountId),
+      person: a.IsPersonAccount === true,
+    });
   }
-  return { rows, accounts, complete: rows.length < SAMPLE_ROWS && (!focus || focus.length <= SAMPLE_TERRITORIES), focused: !!focus };
+  return {
+    rows,
+    accounts,
+    complete: rows.length < SAMPLE_ROWS && (!focus || focus.length <= SAMPLE_TERRITORIES),
+    focused: !!focus,
+  };
 }
 
 /** "1 HCP" / "3 HCPs" for nouns `plural` can't spell. */
@@ -85,12 +121,16 @@ const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : m
  */
 function checkedNote(s: Sample, what?: string): string {
   if (s.focused) {
-    if (s.complete) return what ? `Checked all ${what} in this profile's territories.` : `Checked all ${s.rows.length} in this profile's territories.`;
+    if (s.complete)
+      return what
+        ? `Checked all ${what} in this profile's territories.`
+        : `Checked all ${s.rows.length} in this profile's territories.`;
     return what
       ? `Checked the ${what} among a sample of ${SAMPLE_ROWS} territory info records in this profile's territories, not every one.`
       : `Checked a sample of ${SAMPLE_ROWS} in this profile's territories, not every one.`;
   }
-  if (s.complete) return what ? `Checked all ${what} in territories.` : `Checked all ${s.rows.length}.`;
+  if (s.complete)
+    return what ? `Checked all ${what} in territories.` : `Checked all ${s.rows.length}.`;
   return what
     ? `Checked the ${what} among a sample of ${SAMPLE_ROWS} territory info records, not every one in the org.`
     : `Checked a sample of ${SAMPLE_ROWS}, not every one in the org.`;
@@ -123,10 +163,17 @@ const readiness: ReadinessModule = {
     const licenses = once(() => exists("BusinessLicense", org));
     const sample = once(() => loadSample(org));
     const ids = async () => [...(await sample()).accounts.keys()];
-    const addresses = once(async () => countGroupedBy("ContactPointAddress", "ParentId", await ids(), org));
-    const primaries = once(async () => countGroupedBy("ContactPointAddress", "ParentId", await ids(), org, "IsPrimary = true"));
-    const persons = async () => [...(await sample()).accounts].filter(([, a]) => a.person).map(([id]) => id);
-    const providers = once(async () => countGroupedBy("HealthcareProvider", "AccountId", await persons(), org));
+    const addresses = once(async () =>
+      countGroupedBy("ContactPointAddress", "ParentId", await ids(), org)
+    );
+    const primaries = once(async () =>
+      countGroupedBy("ContactPointAddress", "ParentId", await ids(), org, "IsPrimary = true")
+    );
+    const persons = async () =>
+      [...(await sample()).accounts].filter(([, a]) => a.person).map(([id]) => id);
+    const providers = once(async () =>
+      countGroupedBy("HealthcareProvider", "AccountId", await persons(), org)
+    );
 
     return Promise.all([
       runCheck(
@@ -144,27 +191,58 @@ const readiness: ReadinessModule = {
           uiPath: "Admin Console > Territory Alignment",
         },
         async () => {
-          const [{ rows: modelTerritories, model }, focus] = await Promise.all([activeTerritories(org), focusTerritoryIds(org)]);
+          const [{ rows: modelTerritories, model }, focus] = await Promise.all([
+            activeTerritories(org),
+            focusTerritoryIds(org),
+          ]);
           if (!model) return { pass: true, skip: true, detail: "No active territory model." };
           const mine = focus && new Set(focus);
-          const territories = mine ? modelTerritories.filter((t) => mine.has(String(t.Id))) : modelTerritories;
+          const territories = mine
+            ? modelTerritories.filter((t) => mine.has(String(t.Id)))
+            : modelTerritories;
           // Spread the IN list over the model's territories rather than taking the first ones.
-          const picked = spread(territories.map((t) => String(t.Id)), SAMPLE_TERRITORIES);
+          const picked = spread(
+            territories.map((t) => String(t.Id)),
+            SAMPLE_TERRITORIES
+          );
           if (!picked.length) {
-            return { pass: true, skip: true, detail: mine ? "This profile's users have no territory in the active model." : "The active territory model has no territories." };
+            return {
+              pass: true,
+              skip: true,
+              detail: mine
+                ? "This profile's users have no territory in the active model."
+                : "The active territory model has no territories.",
+            };
           }
           const alignments = await query(
             `SELECT ObjectId, Territory2Id FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2Id IN (${inList(picked)}) LIMIT ${SAMPLE_ROWS}`,
             org
           );
-          if (!alignments.length) return { pass: true, skip: true, detail: "No accounts are aligned in the active territory model." };
+          if (!alignments.length)
+            return {
+              pass: true,
+              skip: true,
+              detail: "No accounts are aligned in the active territory model.",
+            };
           const accountIds = [...new Set(alignments.map((r) => String(r.ObjectId)))];
-          const info = await queryByIds("AccountId, Territory2Id, IsActive", "ProviderAcctTerritoryInfo", "AccountId", accountIds, org);
+          const info = await queryByIds(
+            "AccountId, Territory2Id, IsActive",
+            "ProviderAcctTerritoryInfo",
+            "AccountId",
+            accountIds,
+            org
+          );
           const key = (account: unknown, territory: unknown) => `${account}:${territory}`;
-          const active = new Set(info.filter((r) => r.IsActive).map((r) => key(r.AccountId, r.Territory2Id)));
-          const inactive = new Set(info.filter((r) => !r.IsActive).map((r) => key(r.AccountId, r.Territory2Id)));
+          const active = new Set(
+            info.filter((r) => r.IsActive).map((r) => key(r.AccountId, r.Territory2Id))
+          );
+          const inactive = new Set(
+            info.filter((r) => !r.IsActive).map((r) => key(r.AccountId, r.Territory2Id))
+          );
           const missing = alignments.filter((r) => !active.has(key(r.ObjectId, r.Territory2Id)));
-          const deactivated = missing.filter((r) => inactive.has(key(r.ObjectId, r.Territory2Id))).length;
+          const deactivated = missing.filter((r) =>
+            inactive.has(key(r.ObjectId, r.Territory2Id))
+          ).length;
           const why = deactivated
             ? `: ${deactivated} ${hasHave(deactivated)} only inactive territory info, ${missing.length - deactivated} ${hasHave(missing.length - deactivated)} none`
             : "";
@@ -176,7 +254,9 @@ const readiness: ReadinessModule = {
           // Territory info can lag by a batch run; flag only a gap larger than 5%.
           return {
             pass: missing.length <= alignments.length * 0.05,
-            detail: missing.length ? `${missing.length} of ${alignments.length} alignments have no active territory info${why}. ${scope}` : `Every alignment checked has territory info. ${scope}`,
+            detail: missing.length
+              ? `${missing.length} of ${alignments.length} alignments have no active territory info${why}. ${scope}`
+              : `Every alignment checked has territory info. ${scope}`,
           };
         }
       ),
@@ -199,19 +279,26 @@ const readiness: ReadinessModule = {
           if (!s.rows.length) return noSample(s);
           const scope = checkedNote(s);
           const missing = s.rows.filter((r) => !r.PreferredAddressId);
-          if (!missing.length) return { pass: true, detail: `Every one has a preferred address. ${scope}` };
+          if (!missing.length)
+            return { pass: true, detail: `Every one has a preferred address. ${scope}` };
           // Marking a primary address only helps where the account has one; the rest need an address first.
           const withAddresses = await addresses();
           const withAddress = missing.filter((r) => withAddresses.has(String(r.AccountId))).length;
           const noAddress = missing.length - withAddress;
           const parts = [
-            withAddress ? `${withAddress} ${isAre(withAddress)} for accounts with addresses but none preferred` : "",
+            withAddress
+              ? `${withAddress} ${isAre(withAddress)} for accounts with addresses but none preferred`
+              : "",
             noAddress ? `${noAddress} ${isAre(noAddress)} for accounts with no address at all` : "",
           ].filter(Boolean);
           return {
             pass: false,
             detail: `${missing.length} of ${s.rows.length} territory info records have no preferred address: ${parts.join(", ")}. ${scope}`,
-            examples: [...new Set(missing.map((r) => s.accounts.get(String(r.AccountId))?.name ?? String(r.AccountId)))].slice(0, 5),
+            examples: [
+              ...new Set(
+                missing.map((r) => s.accounts.get(String(r.AccountId))?.name ?? String(r.AccountId))
+              ),
+            ].slice(0, 5),
           };
         }
       ),
@@ -222,7 +309,10 @@ const readiness: ReadinessModule = {
           title: "HCPs in territories have at least one address",
           severity: "warning",
           why: "Addresses drive visit planning, maps, territory geo-alignment and license checks. An HCP with none can't be routed or aligned by geography.",
-          steps: ["Load or create a Contact Point Address for each HCP listed", "Check the data load set ParentId to the person account"],
+          steps: [
+            "Load or create a Contact Point Address for each HCP listed",
+            "Check the data load set ParentId to the person account",
+          ],
           uiPath: "Account > Addresses",
         },
         async () => {
@@ -230,13 +320,20 @@ const readiness: ReadinessModule = {
           if (!s.rows.length) return noSample(s);
           const withProvider = await providers();
           const hcps = (await persons()).filter((id) => withProvider.has(id));
-          if (!hcps.length) return { pass: true, skip: true, detail: "No person account with territory info has a Healthcare Provider record." };
+          if (!hcps.length)
+            return {
+              pass: true,
+              skip: true,
+              detail: "No person account with territory info has a Healthcare Provider record.",
+            };
           const withAddresses = await addresses();
           const none = hcps.filter((id) => !withAddresses.has(id));
           const scope = checkedNote(s, many(hcps.length, "HCP", "HCPs"));
           return {
             pass: !none.length,
-            detail: none.length ? `${none.length} of ${hcps.length} ${hasHave(none.length)} no address. ${scope}` : `Every HCP checked has an address. ${scope}`,
+            detail: none.length
+              ? `${none.length} of ${hcps.length} ${hasHave(none.length)} no address. ${scope}`
+              : `Every HCP checked has an address. ${scope}`,
             examples: none.slice(0, 5).map((id) => s.accounts.get(id)!.name),
           };
         }
@@ -248,7 +345,10 @@ const readiness: ReadinessModule = {
           title: "Accounts with addresses have a primary one",
           severity: "warning",
           why: "The primary address is what the account list, map and visit defaults use. With several addresses and none primary, the app picks arbitrarily.",
-          steps: ["Open each account listed and mark one address Primary", "Keep AccountAddressPrimaryHandler active so only one stays primary"],
+          steps: [
+            "Open each account listed and mark one address Primary",
+            "Keep AccountAddressPrimaryHandler active so only one stays primary",
+          ],
           uiPath: "Account > Addresses",
         },
         async () => {
@@ -256,12 +356,22 @@ const readiness: ReadinessModule = {
           if (!s.rows.length) return noSample(s);
           const [withAddresses, withPrimary] = await Promise.all([addresses(), primaries()]);
           const addressed = [...withAddresses.keys()];
-          if (!addressed.length) return { pass: true, skip: true, detail: "None of the accounts checked has an address." };
+          if (!addressed.length)
+            return {
+              pass: true,
+              skip: true,
+              detail: "None of the accounts checked has an address.",
+            };
           const none = addressed.filter((id) => !withPrimary.has(id));
-          const scope = checkedNote(s, many(addressed.length, "account with addresses", "accounts with addresses"));
+          const scope = checkedNote(
+            s,
+            many(addressed.length, "account with addresses", "accounts with addresses")
+          );
           return {
             pass: !none.length,
-            detail: none.length ? `${none.length} of ${addressed.length} ${hasHave(none.length)} no primary address. ${scope}` : `Every one has a primary address. ${scope}`,
+            detail: none.length
+              ? `${none.length} of ${addressed.length} ${hasHave(none.length)} no primary address. ${scope}`
+              : `Every one has a primary address. ${scope}`,
             examples: none.slice(0, 5).map((id) => s.accounts.get(id)?.name ?? id),
           };
         }
@@ -273,20 +383,30 @@ const readiness: ReadinessModule = {
           title: "Person accounts in territories have a Healthcare Provider record",
           severity: "warning",
           why: "Specialty, NPI, title and status live on HealthcareProvider. A person account without one has no professional details on the Provider Card and can't be found by specialty.",
-          steps: ["Create a Healthcare Provider record linked to the account", "Load HealthcareProvider alongside person accounts in the migration"],
+          steps: [
+            "Create a Healthcare Provider record linked to the account",
+            "Load HealthcareProvider alongside person accounts in the migration",
+          ],
           uiPath: "Healthcare Providers tab",
         },
         async () => {
           const s = await sample();
           if (!s.rows.length) return noSample(s);
           const people = await persons();
-          if (!people.length) return { pass: true, skip: true, detail: "None of the accounts with territory info checked is a person account." };
+          if (!people.length)
+            return {
+              pass: true,
+              skip: true,
+              detail: "None of the accounts with territory info checked is a person account.",
+            };
           const withProvider = await providers();
           const none = people.filter((id) => !withProvider.has(id));
           const scope = checkedNote(s, many(people.length, "person account", "person accounts"));
           return {
             pass: !none.length,
-            detail: none.length ? `${none.length} of ${people.length} ${hasHave(none.length)} no Healthcare Provider record. ${scope}` : `Every one has a Healthcare Provider record. ${scope}`,
+            detail: none.length
+              ? `${none.length} of ${people.length} ${hasHave(none.length)} no Healthcare Provider record. ${scope}`
+              : `Every one has a Healthcare Provider record. ${scope}`,
             examples: none.slice(0, 5).map((id) => s.accounts.get(id)!.name),
           };
         }
@@ -298,19 +418,38 @@ const readiness: ReadinessModule = {
           title: "Active business licenses haven't expired",
           severity: "warning",
           why: "License validation blocks sample drops and orders for an HCP whose license has lapsed. An expired license still marked active hides that until a rep is stopped at the visit.",
-          steps: ["Collect the renewed license and update its period end, or mark the license inactive"],
+          steps: [
+            "Collect the renewed license and update its period end, or mark the license inactive",
+          ],
           uiPath: "Account > Business Licenses",
         },
         async () => {
-          if (!(await licenses())) return { pass: true, skip: true, detail: "No business licenses — optional." };
+          if (!(await licenses()))
+            return { pass: true, skip: true, detail: "No business licenses — optional." };
           const s = await sample();
           if (!s.rows.length) return noSample(s);
-          const expired = await queryByIds("Name, LicenseNumber, PeriodEnd, AccountId", "BusinessLicense", "AccountId", await ids(), org, "IsActive = true AND PeriodEnd < TODAY");
+          const expired = await queryByIds(
+            "Name, LicenseNumber, PeriodEnd, AccountId",
+            "BusinessLicense",
+            "AccountId",
+            await ids(),
+            org,
+            "IsActive = true AND PeriodEnd < TODAY"
+          );
           const scope = checkedNote(s, many(s.accounts.size, "account", "accounts"));
           return {
             pass: !expired.length,
-            detail: expired.length ? `${plural(expired.length, "active license")} past the period end date. ${scope}` : `No active license is past its end date. ${scope}`,
-            examples: expired.slice(0, 5).map((r) => `${r.Name} ${r.LicenseNumber ?? ""} (ended ${String(r.PeriodEnd).slice(0, 10)})`.replace("  ", " ")),
+            detail: expired.length
+              ? `${plural(expired.length, "active license")} past the period end date. ${scope}`
+              : `No active license is past its end date. ${scope}`,
+            examples: expired
+              .slice(0, 5)
+              .map((r) =>
+                `${r.Name} ${r.LicenseNumber ?? ""} (ended ${String(r.PeriodEnd).slice(0, 10)})`.replace(
+                  "  ",
+                  " "
+                )
+              ),
           };
         }
       ),
@@ -325,15 +464,24 @@ const readiness: ReadinessModule = {
           uiPath: "Account > Affiliations",
         },
         async () => {
-          if (!(await exists("ProviderAffiliation", org))) return { pass: true, skip: true, detail: "No affiliations." };
+          if (!(await exists("ProviderAffiliation", org)))
+            return { pass: true, skip: true, detail: "No affiliations." };
           const s = await sample();
           if (!s.rows.length) return noSample(s);
-          const ended = await countGroupedBy("ProviderAffiliation", "AccountId", await ids(), org, "IsActive = true AND EffectiveEndDate < TODAY");
+          const ended = await countGroupedBy(
+            "ProviderAffiliation",
+            "AccountId",
+            await ids(),
+            org,
+            "IsActive = true AND EffectiveEndDate < TODAY"
+          );
           const n = [...ended.values()].reduce((a, b) => a + b, 0);
           const scope = checkedNote(s, many(s.accounts.size, "account", "accounts"));
           return {
             pass: n === 0,
-            detail: n ? `${plural(n, "affiliation")} active past their end date. ${scope}` : `No active affiliation is past its end date. ${scope}`,
+            detail: n
+              ? `${plural(n, "affiliation")} active past their end date. ${scope}`
+              : `No active affiliation is past its end date. ${scope}`,
             examples: [...ended.keys()].slice(0, 5).map((id) => s.accounts.get(id)?.name ?? id),
           };
         }
@@ -345,15 +493,30 @@ const readiness: ReadinessModule = {
           title: "Data change requests aren't stuck",
           severity: "warning",
           why: "A request that stays Not Processed, Failed or Retry means the change a rep or MDM submitted never reaches the account.",
-          steps: ["Open the request and read its Failure Reason", "Fix the cause (validation rule, field access, missing target) and set Status to Retry"],
+          steps: [
+            "Open the request and read its Failure Reason",
+            "Fix the cause (validation rule, field access, missing target) and set Status to Retry",
+          ],
           uiPath: "Data Change Requests tab",
         },
         async () => {
-          if (!(await exists("LifeSciDataChgDefMngFld", org)) && !(await exists("LifeSciDataChangeRequest", org)))
-            return { pass: true, skip: true, detail: "Data change requests aren't set up — optional." };
+          if (
+            !(await exists("LifeSciDataChgDefMngFld", org)) &&
+            !(await exists("LifeSciDataChangeRequest", org))
+          )
+            return {
+              pass: true,
+              skip: true,
+              detail: "Data change requests aren't set up — optional.",
+            };
           const where = `Status IN ('NotProcessed', 'Failed', 'Retry') AND CreatedDate = LAST_N_DAYS:${DCR_WINDOW_DAYS} AND CreatedDate < LAST_N_DAYS:${DCR_STALE_DAYS}`;
           const n = await count(`SELECT COUNT() FROM LifeSciDataChangeRequest WHERE ${where}`, org);
-          const rows = n ? await query(`SELECT Name, Status, FailureReason FROM LifeSciDataChangeRequest WHERE ${where} LIMIT 5`, org) : [];
+          const rows = n
+            ? await query(
+                `SELECT Name, Status, FailureReason FROM LifeSciDataChangeRequest WHERE ${where} LIMIT 5`,
+                org
+              )
+            : [];
           return {
             pass: n === 0,
             detail: n
@@ -409,21 +572,39 @@ const readiness: ReadinessModule = {
           title: "The address display formula field exists",
           severity: "warning",
           why: "Admin Console > Address Administration names a formula field on Contact Point Address that the iPad shows as the address line. If it is blank or the field was deleted, addresses show empty.",
-          steps: ["Open Admin Console > Account Management > Address Administration & Setup", "Pick a formula field that exists on Contact Point Address"],
+          steps: [
+            "Open Admin Console > Account Management > Address Administration & Setup",
+            "Pick a formula field that exists on Contact Point Address",
+          ],
           uiPath: "Admin Console > Account Management > Address Administration & Setup",
           surface: "adminSettings",
         },
         async () => {
-          const records = await collectCategoryRecords(org, `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'AddressSettings'`, { strict: true, cache: true });
+          const records = await collectCategoryRecords(
+            org,
+            `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'AddressSettings'`,
+            { strict: true, cache: true }
+          );
           const active = records.find((r) => r.isActive);
-          if (!active) return { pass: true, skip: true, detail: "Address settings aren't configured in this org." };
+          if (!active)
+            return {
+              pass: true,
+              skip: true,
+              detail: "Address settings aren't configured in this org.",
+            };
           const field = String(active.fields.ContactPointAddressFormulaField ?? "").trim();
-          if (!field) return { pass: false, detail: "No address formula field is set in Address settings." };
+          if (!field)
+            return { pass: false, detail: "No address formula field is set in Address settings." };
           const found = await query(
             `SELECT QualifiedApiName FROM FieldDefinition WHERE EntityDefinition.QualifiedApiName = 'ContactPointAddress' AND QualifiedApiName IN (${inList([field])})`,
             org
           );
-          return found.length ? { pass: true, detail: `Using ${field}.` } : { pass: false, detail: `Address settings name ${field}, which isn't a field on Contact Point Address.` };
+          return found.length
+            ? { pass: true, detail: `Using ${field}.` }
+            : {
+                pass: false,
+                detail: `Address settings name ${field}, which isn't a field on Contact Point Address.`,
+              };
         }
       ),
       runCheck(
@@ -433,12 +614,18 @@ const readiness: ReadinessModule = {
           title: "Accounts, providers, addresses and affiliations sync to the iPad",
           severity: "error",
           why: "The Provider Card is built from the device's offline copy. An object with no active DB Schema record is empty on the iPad.",
-          steps: ["Open Admin Console > Mobile > DB Schema", "Add or switch on a record for each object listed, assigned to the reps' profiles", "Publish to the iPad"],
+          steps: [
+            "Open Admin Console > Mobile > DB Schema",
+            "Add or switch on a record for each object listed, assigned to the reps' profiles",
+            "Publish to the iPad",
+          ],
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },
         async () => {
-          const objects = (await licenses()) ? [...SYNCED_OBJECTS, "BusinessLicense"] : SYNCED_OBJECTS;
+          const objects = (await licenses())
+            ? [...SYNCED_OBJECTS, "BusinessLicense"]
+            : SYNCED_OBJECTS;
           return syncResult(org, await schema(), objects);
         }
       ),
@@ -449,7 +636,10 @@ const readiness: ReadinessModule = {
           title: "No object syncs through two active DB Schema records",
           severity: "warning",
           why: "When two active records cover the same object for a profile, the app uses one filter and ignores the other, so a WHERE clause you edited may not be the one in effect.",
-          steps: ["Open Admin Console > Mobile > DB Schema", "Keep one record per object and profile, merging the filters, and deactivate the other"],
+          steps: [
+            "Open Admin Console > Mobile > DB Schema",
+            "Keep one record per object and profile, merging the filters, and deactivate the other",
+          ],
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },

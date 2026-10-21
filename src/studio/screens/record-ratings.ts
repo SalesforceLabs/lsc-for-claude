@@ -24,10 +24,16 @@ export interface RatingItem {
   column: number;
 }
 
-export async function readRatingLayout(ctx: ScreenContext, layoutName: string): Promise<RatingItem[] | null> {
+export async function readRatingLayout(
+  ctx: ScreenContext,
+  layoutName: string
+): Promise<RatingItem[] | null> {
   if (!/^[A-Za-z0-9_]+$/.test(layoutName)) return null;
   try {
-    const layouts = await query(`SELECT Id FROM PrvdClassificationLayout WHERE DeveloperName = '${layoutName}'`, ctx.org);
+    const layouts = await query(
+      `SELECT Id FROM PrvdClassificationLayout WHERE DeveloperName = '${layoutName}'`,
+      ctx.org
+    );
     const id = str(layouts[0]?.Id);
     if (!id) return null;
     const items = await query(
@@ -37,7 +43,12 @@ export async function readRatingLayout(ctx: ScreenContext, layoutName: string): 
     const defIds = [...new Set(items.map((i) => str(i.PrvdClsfnAttrDefinitionId)).filter(Boolean))];
     if (!defIds.length) return [];
     const defs = new Map(
-      (await query(`SELECT Id, ElementLabel, ClassificationType, FieldApiName, DisplayType, IsActive FROM PrvdClsfnAttrDefinition WHERE Id IN (${inList(defIds)})`, ctx.org)).map((d) => [str(d.Id), d] as const)
+      (
+        await query(
+          `SELECT Id, ElementLabel, ClassificationType, FieldApiName, DisplayType, IsActive FROM PrvdClsfnAttrDefinition WHERE Id IN (${inList(defIds)})`,
+          ctx.org
+        )
+      ).map((d) => [str(d.Id), d] as const)
     );
     return items
       .map((i) => ({ item: i, def: obj(defs.get(str(i.PrvdClsfnAttrDefinitionId))) }))

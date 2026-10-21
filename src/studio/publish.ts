@@ -15,34 +15,60 @@ const PREFIX = "lsc4ce";
 
 export async function startPublish(profileNames: string[], org: string): Promise<PublishStatus> {
   if (profileNames.length === 0) throw new Error("Pick at least one profile to publish.");
-  const profiles = await query(`SELECT Id, Name FROM Profile WHERE Name IN (${inList(profileNames)})`, org);
-  const missing = profileNames.filter((n) => !profiles.some((p) => String(p.Name).toLowerCase() === n.toLowerCase()));
+  const profiles = await query(
+    `SELECT Id, Name FROM Profile WHERE Name IN (${inList(profileNames)})`,
+    org
+  );
+  const missing = profileNames.filter(
+    (n) => !profiles.some((p) => String(p.Name).toLowerCase() === n.toLowerCase())
+  );
   if (missing.length) throw new Error(`Profile not found: ${missing.join(", ")}`);
 
-  const parent = await createRecord("LifeSciMobileMetadataRecord", { IntegrationStatus: "New", Status: "New" }, org);
-  if (!parent.success || !parent.data?.id) throw new Error(parent.error || "Couldn't create the metadata cache record.");
+  const parent = await createRecord(
+    "LifeSciMobileMetadataRecord",
+    { IntegrationStatus: "New", Status: "New" },
+    org
+  );
+  if (!parent.success || !parent.data?.id)
+    throw new Error(parent.error || "Couldn't create the metadata cache record.");
   const parentId = parent.data.id;
 
   const childIds: string[] = [];
   for (const p of profiles) {
     const child = await createRecord(
       "LifeSciMobileMetadataRecord",
-      { ParentMobileMetadataRecId: parentId, ProfileId: String(p.Id), IntegrationStatus: "New", Status: "New" },
+      {
+        ParentMobileMetadataRecId: parentId,
+        ProfileId: String(p.Id),
+        IntegrationStatus: "New",
+        Status: "New",
+      },
       org
     );
-    if (!child.success || !child.data?.id) throw new Error(`Couldn't add ${p.Name}: ${child.error || "unknown error"}`);
+    if (!child.success || !child.data?.id)
+      throw new Error(`Couldn't add ${p.Name}: ${child.error || "unknown error"}`);
     childIds.push(child.data.id);
   }
 
   // Parent first, then children — each in its own transaction, as the generate API expects.
   for (const id of [parentId, ...childIds]) {
-    const res = await updateRecord("LifeSciMobileMetadataRecord", id, { Status: "ValidationCompleted" }, org);
+    const res = await updateRecord(
+      "LifeSciMobileMetadataRecord",
+      id,
+      { Status: "ValidationCompleted" },
+      org
+    );
     if (!res.success) throw new Error(res.error || "Couldn't mark the cache records ready.");
   }
 
   // The generate call can report an error even when the async job starts; status polling is the source of truth.
   await generateMobileMetadataCache(parentId, undefined, PREFIX, org);
-  return { parentId, state: "running", status: "Generating", profiles: profiles.map((p) => String(p.Name)) };
+  return {
+    parentId,
+    state: "running",
+    status: "Generating",
+    profiles: profiles.map((p) => String(p.Name)),
+  };
 }
 
 /** The message in a record's ErrorLog (JSON `{"message": ...}` or plain text), if it has one. */
@@ -60,7 +86,10 @@ export function cacheErrorText(log: unknown): string {
  * Where a generation job stands, from its parent record and one child per profile
  * (each row with Status, IntegrationStatus, IntegrationErrorMessage, ErrorLog, MetadataDocumentId).
  */
-export function jobOutcome(parent: Row, children: Row[]): { state: PublishStatus["state"]; error?: string } {
+export function jobOutcome(
+  parent: Row,
+  children: Row[]
+): { state: PublishStatus["state"]; error?: string } {
   const status = String(parent.Status ?? "Unknown");
   // The parent reads "Published" while the profiles' caches are still being built, and the job can end Inactive with only an ErrorLog to say why.
   // A job that ends Active can carry an ErrorLog too ("No StoreCheckFeature developer names found…") — a note, not a failure.
@@ -70,11 +99,21 @@ export function jobOutcome(parent: Row, children: Row[]): { state: PublishStatus
     parent.IntegrationStatus === "Error" ||
     status === "Inactive" ||
     children.some((r) => r.Status === "Error" || r.Status === "Inactive");
-  const built = status === "Active" || (status === "Published" && children.length > 0 && children.every((r) => r.Status === "Active" && r.MetadataDocumentId));
+  const built =
+    status === "Active" ||
+    (status === "Published" &&
+      children.length > 0 &&
+      children.every((r) => r.Status === "Active" && r.MetadataDocumentId));
   if (!failed) return { state: built ? "done" : "running" };
   return {
     state: "failed",
-    error: String(parent.IntegrationErrorMessage || errorLog || (status === "Inactive" ? "Salesforce ended the cache generation without activating it, so reps still get the previous cache. Publish again." : "Cache generation failed.")),
+    error: String(
+      parent.IntegrationErrorMessage ||
+        errorLog ||
+        (status === "Inactive"
+          ? "Salesforce ended the cache generation without activating it, so reps still get the previous cache. Publish again."
+          : "Cache generation failed.")
+    ),
   };
 }
 
@@ -87,7 +126,9 @@ export async function publishStatus(parentId: string, org: string): Promise<Publ
   const parent = rows.find((r) => r.Id === parentId);
   if (!parent) throw new Error("The publish job no longer exists.");
   const children = rows.filter((r) => r.Id !== parentId);
-  const profiles = children.map((r) => String((r.Profile as { Name?: string } | null)?.Name ?? "")).filter(Boolean);
+  const profiles = children
+    .map((r) => String((r.Profile as { Name?: string } | null)?.Name ?? ""))
+    .filter(Boolean);
   const { state, error } = jobOutcome(parent, children);
   return { parentId, state, status: String(parent.Status ?? "Unknown"), profiles, error };
 }

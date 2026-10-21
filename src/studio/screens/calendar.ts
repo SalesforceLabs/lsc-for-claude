@@ -90,15 +90,45 @@ export const EVENT_COLORS = {
 };
 
 /** Local y/m/d/h/m/s and weekday of an instant in `timeZone`. */
-export function zonedParts(ms: number, timeZone: string): { y: number; mo: number; d: number; h: number; mi: number; s: number; wd: number } {
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric", weekday: "short" }).formatToParts(new Date(ms));
+export function zonedParts(
+  ms: number,
+  timeZone: string
+): { y: number; mo: number; d: number; h: number; mi: number; s: number; wd: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    weekday: "short",
+  }).formatToParts(new Date(ms));
   const n = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
-  const wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(parts.find((p) => p.type === "weekday")?.value ?? "Sun");
-  return { y: n("year"), mo: n("month"), d: n("day"), h: n("hour") % 24, mi: n("minute"), s: n("second"), wd };
+  const wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(
+    parts.find((p) => p.type === "weekday")?.value ?? "Sun"
+  );
+  return {
+    y: n("year"),
+    mo: n("month"),
+    d: n("day"),
+    h: n("hour") % 24,
+    mi: n("minute"),
+    s: n("second"),
+    wd,
+  };
 }
 
 /** The instant a wall-clock time occurs in `timeZone`. */
-export function zonedInstant(y: number, mo: number, d: number, timeZone: string, h = 0, mi = 0): number {
+export function zonedInstant(
+  y: number,
+  mo: number,
+  d: number,
+  timeZone: string,
+  h = 0,
+  mi = 0
+): number {
   const wall = Date.UTC(y, mo - 1, d, h, mi);
   let guess = wall;
   for (let i = 0; i < 3; i++) {
@@ -109,7 +139,8 @@ export function zonedInstant(y: number, mo: number, d: number, timeZone: string,
   return guess;
 }
 
-const iso = (y: number, mo: number, d: number) => `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+const iso = (y: number, mo: number, d: number) =>
+  `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
 /** The seven days of the week containing `nowMs`, starting on `firstDay` (FirstDayOfTheWeek; Sunday when unrecognised). */
 export function weekDays(nowMs: number, timeZone: string, firstDay: string): CalendarDay[] {
@@ -122,7 +153,12 @@ export function weekDays(nowMs: number, timeZone: string, firstDay: string): Cal
     const y = dt.getUTCFullYear();
     const mo = dt.getUTCMonth() + 1;
     const d = dt.getUTCDate();
-    return { date: iso(y, mo, d), dayOfMonth: d, weekday: dt.getUTCDay(), today: y === now.y && mo === now.mo && d === now.d };
+    return {
+      date: iso(y, mo, d),
+      dayOfMonth: d,
+      weekday: dt.getUTCDay(),
+      today: y === now.y && mo === now.mo && d === now.d,
+    };
   });
 }
 
@@ -140,7 +176,12 @@ export function windowDays(nowMs: number, timeZone: string, firstDay: string): C
     const y = dt.getUTCFullYear();
     const mo = dt.getUTCMonth() + 1;
     const d = dt.getUTCDate();
-    out.push({ date: iso(y, mo, d), dayOfMonth: d, weekday: dt.getUTCDay(), today: y === now.y && mo === now.mo && d === now.d });
+    out.push({
+      date: iso(y, mo, d),
+      dayOfMonth: d,
+      weekday: dt.getUTCDay(),
+      today: y === now.y && mo === now.mo && d === now.d,
+    });
   }
   return out;
 }
@@ -149,11 +190,20 @@ export function windowDays(nowMs: number, timeZone: string, firstDay: string): C
 function dayBounds(day: CalendarDay, timeZone: string): [number, number] {
   const [y, m, d] = day.date.split("-").map(Number);
   const next = new Date(Date.UTC(y, m - 1, d + 1));
-  return [zonedInstant(y, m, d, timeZone), zonedInstant(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate(), timeZone)];
+  return [
+    zonedInstant(y, m, d, timeZone),
+    zonedInstant(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate(), timeZone),
+  ];
 }
 
 /** Clip [startMs, endMs) to each day it touches; times are minutes since local midnight. */
-export function clipToDays(startMs: number, endMs: number, days: CalendarDay[], timeZone: string, bounds?: [number, number][]): { day: number; startMin: number; endMin: number }[] {
+export function clipToDays(
+  startMs: number,
+  endMs: number,
+  days: CalendarDay[],
+  timeZone: string,
+  bounds?: [number, number][]
+): { day: number; startMin: number; endMin: number }[] {
   const end = Math.max(endMs, startMs);
   const out: { day: number; startMin: number; endMin: number }[] = [];
   days.forEach((day, i) => {
@@ -161,7 +211,11 @@ export function clipToDays(startMs: number, endMs: number, days: CalendarDay[], 
     if (end < from || (end === from && startMs < end) || startMs >= to) return;
     const s = Math.max(startMs, from);
     const e = Math.min(end, to);
-    out.push({ day: i, startMin: Math.round((s - from) / 60000), endMin: Math.round((e - from) / 60000) });
+    out.push({
+      day: i,
+      startMin: Math.round((s - from) / 60000),
+      endMin: Math.round((e - from) / 60000),
+    });
   });
   return out;
 }
@@ -170,7 +224,15 @@ export function clipToDays(startMs: number, endMs: number, days: CalendarDay[], 
 /** CalendarCallIconSymbol.callIcon(for:): mail, phone, remote screen and fax have their own; everything else is a handshake. */
 function channelIcon(channel: string): CalendarIcon {
   const c = channel.toLowerCase();
-  return c === "email" ? "mailbox" : c === "phone" ? "phone" : c === "remote" ? "screen" : c === "fax" ? "fax" : "handshake";
+  return c === "email"
+    ? "mailbox"
+    : c === "phone"
+      ? "phone"
+      : c === "remote"
+        ? "screen"
+        : c === "fax"
+          ? "fax"
+          : "handshake";
 }
 
 export function textColorFor(background: string): string {
@@ -182,9 +244,11 @@ export function textColorFor(background: string): string {
 /** AssessmentTask.Status picklist API value to its label ("NotStarted" becomes "Not Started"), as Filter Events lists them. */
 export const statusLabel = (v: string): string => v.replace(/([a-z])([A-Z])/g, "$1 $2");
 
-const hex = (v: unknown): string | undefined => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v.trim()) ? v.trim().toLowerCase() : undefined);
+const hex = (v: unknown): string | undefined =>
+  typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v.trim()) ? v.trim().toLowerCase() : undefined;
 const text = (v: unknown): string => (typeof v === "string" ? v : v == null ? "" : String(v));
-const chunks = <T,>(xs: T[], n: number): T[][] => Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => xs.slice(i * n, i * n + n));
+const chunks = <T>(xs: T[], n: number): T[][] =>
+  Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => xs.slice(i * n, i * n + n));
 const soqlTime = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
 
 /** Short date as DateFormatter(.short) — "8/6/26" in en-US. */
@@ -223,7 +287,15 @@ export async function collectCalendar(ctx: ScreenContext): Promise<PublishedCale
   };
   const [accounts, segments] = await Promise.all([
     collectAccounts(ctx, planner.PlannerShowLastCallDate !== false),
-    collectSegments(ctx, { days, bounds, weekFrom, weekTo, territories, colors, callConfirmation: planner.CallConfirmation === true }),
+    collectSegments(ctx, {
+      days,
+      bounds,
+      weekFrom,
+      weekTo,
+      territories,
+      colors,
+      callConfirmation: planner.CallConfirmation === true,
+    }),
   ]);
   return {
     settings: {
@@ -231,7 +303,8 @@ export async function collectCalendar(ctx: ScreenContext): Promise<PublishedCale
       dayDuration: Number(planner.DayDuration) > 0 ? Number(planner.DayDuration) : 9,
       timeFormat: text(planner.TimeFormat) || "h:mm a",
       firstDay,
-      showLastVisit: planner.PlannerShowLastCallDate !== false,    },
+      showLastVisit: planner.PlannerShowLastCallDate !== false,
+    },
     timeZone: format.timeZone,
     locale: format.locale,
     now: new Date(nowMs).toISOString(),
@@ -246,31 +319,46 @@ export async function collectCalendar(ctx: ScreenContext): Promise<PublishedCale
 export const CALENDAR_ACCOUNTS = 2000;
 
 /** The accounts pane: the viewer's synced accounts by name (ICU order), with Last Visit from their territory's ProviderAcctTerritoryInfo. */
-async function collectAccounts(ctx: ScreenContext, showLastVisit: boolean): Promise<CalendarAccount[]> {
+async function collectAccounts(
+  ctx: ScreenContext,
+  showLastVisit: boolean
+): Promise<CalendarAccount[]> {
   const scope = ctx.scope("Account");
   if (scope === undefined || scope === null) return [];
-  const result = await queryResult(`SELECT Id, Name, IsPersonAccount FROM Account ${scope ? `WHERE ${scope} ` : ""}ORDER BY Name ASC NULLS LAST`, ctx.org, false, {
-    allowTruncated: true,
-    maxRows: CALENDAR_ACCOUNTS,
-  }).catch(softFail(ctx, "Calendar accounts pane", null));
+  const result = await queryResult(
+    `SELECT Id, Name, IsPersonAccount FROM Account ${scope ? `WHERE ${scope} ` : ""}ORDER BY Name ASC NULLS LAST`,
+    ctx.org,
+    false,
+    {
+      allowTruncated: true,
+      maxRows: CALENDAR_ACCOUNTS,
+    }
+  ).catch(softFail(ctx, "Calendar accounts pane", null));
   const rows = (result?.records ?? []) as Row[];
   if (result?.truncated) {
-    ctx.note(`Calendar accounts pane: showing the first ${rows.length.toLocaleString("en-US")} of ${result.totalSize.toLocaleString("en-US")} accounts by name.`);
+    ctx.note(
+      `Calendar accounts pane: showing the first ${rows.length.toLocaleString("en-US")} of ${result.totalSize.toLocaleString("en-US")} accounts by name.`
+    );
   }
   const last = new Map<string, string>();
   const terrs = ctx.territories.map((t) => t.id);
   if (showLastVisit && terrs.length) {
-    const parts = chunks(rows.map((r) => text(r.Id)), 200);
+    const parts = chunks(
+      rows.map((r) => text(r.Id)),
+      200
+    );
     const batches: Row[][] = [];
     for (let i = 0; i < parts.length; i += 4) {
       batches.push(
         ...(await Promise.all(
-          parts.slice(i, i + 4).map((ids) =>
-            query(
-              `SELECT AccountId, LastProviderVisitDate FROM ProviderAcctTerritoryInfo WHERE Territory2Id IN (${inList(terrs)}) AND AccountId IN (${inList(ids)}) AND LastProviderVisitDate != null`,
-              ctx.org
-            ).catch(softFail(ctx, "Calendar accounts pane (Last Visit)", [] as Row[]))
-          )
+          parts
+            .slice(i, i + 4)
+            .map((ids) =>
+              query(
+                `SELECT AccountId, LastProviderVisitDate FROM ProviderAcctTerritoryInfo WHERE Territory2Id IN (${inList(terrs)}) AND AccountId IN (${inList(ids)}) AND LastProviderVisitDate != null`,
+                ctx.org
+              ).catch(softFail(ctx, "Calendar accounts pane (Last Visit)", [] as Row[]))
+            )
         ))
       );
     }
@@ -284,7 +372,14 @@ async function collectAccounts(ctx: ScreenContext, showLastVisit: boolean): Prom
   }
   const collator = new Intl.Collator(ctx.format.locale.replace(/_/g, "-"));
   return rows
-    .map((r) => ({ id: text(r.Id), name: text(r.Name), person: r.IsPersonAccount === true, lastVisit: last.has(text(r.Id)) ? shortDate(last.get(text(r.Id)) ?? "", ctx.format.locale) : "" }))
+    .map((r) => ({
+      id: text(r.Id),
+      name: text(r.Name),
+      person: r.IsPersonAccount === true,
+      lastVisit: last.has(text(r.Id))
+        ? shortDate(last.get(text(r.Id)) ?? "", ctx.format.locale)
+        : "",
+    }))
     .sort((a, b) => collator.compare(a.name, b.name));
 }
 
@@ -296,7 +391,15 @@ interface WeekArgs {
   territories: string[];
   /** The admin's "call confirmation" switch: only then does a confirmed call draw in the confirmed colour (CalendarEventsColorSchema.getPlannedCallBackgroundColor). */
   callConfirmation: boolean;
-  colors: { planned: string; confirmed: string; completed: string; general: string; tot: string; holiday: string; todo: string };
+  colors: {
+    planned: string;
+    confirmed: string;
+    completed: string;
+    general: string;
+    tot: string;
+    holiday: string;
+    todo: string;
+  };
 }
 
 /** The window's events within each table's sync scope (CalendarEventsDefaultQueryComposer), clipped per day. */
@@ -305,9 +408,27 @@ async function collectSegments(ctx: ScreenContext, a: WeekArgs): Promise<Calenda
   const from = soqlTime(a.weekFrom);
   const to = soqlTime(a.weekTo);
   const out: CalendarSegment[] = [];
-  const add = (id: string, kind: CalendarEventKind, title: string, startMs: number, endMs: number, allDay: boolean, background: string, extra: { done?: boolean; confirmed?: boolean; status?: string; icon?: CalendarIcon } = {}) => {
+  const add = (
+    id: string,
+    kind: CalendarEventKind,
+    title: string,
+    startMs: number,
+    endMs: number,
+    allDay: boolean,
+    background: string,
+    extra: { done?: boolean; confirmed?: boolean; status?: string; icon?: CalendarIcon } = {}
+  ) => {
     for (const c of clipToDays(startMs, endMs, a.days, format.timeZone, a.bounds)) {
-      out.push({ id, kind, title, allDay, background, text: textColorFor(background), ...extra, ...c });
+      out.push({
+        id,
+        kind,
+        title,
+        allDay,
+        background,
+        text: textColorFor(background),
+        ...extra,
+        ...c,
+      });
     }
   };
   const scoped = (table: string): string | null => {
@@ -315,20 +436,34 @@ async function collectSegments(ctx: ScreenContext, a: WeekArgs): Promise<Calenda
     return s === undefined || s === null ? null : s ? ` AND (${s})` : "";
   };
   // Chunks of ids run four at a time.
-  const inBatches = async (ids: string[], run: (part: string[]) => Promise<Row[]>): Promise<Row[]> => {
+  const inBatches = async (
+    ids: string[],
+    run: (part: string[]) => Promise<Row[]>
+  ): Promise<Row[]> => {
     const parts = chunks(ids, 200);
     const rows: Row[] = [];
-    for (let i = 0; i < parts.length; i += 4) rows.push(...(await Promise.all(parts.slice(i, i + 4).map(run))).flat());
+    for (let i = 0; i < parts.length; i += 4)
+      rows.push(...(await Promise.all(parts.slice(i, i + 4).map(run))).flat());
     return rows;
   };
   // Records the viewer can't read aren't on their device.
   const readable = async (ids: string[]): Promise<Set<string>> => {
-    const rows = await inBatches(ids, (part) => query(`SELECT RecordId, HasReadAccess FROM UserRecordAccess WHERE UserId = '${userId}' AND RecordId IN (${inList(part)})`, org).catch(softFail(ctx, "Calendar", [] as Row[])));
+    const rows = await inBatches(ids, (part) =>
+      query(
+        `SELECT RecordId, HasReadAccess FROM UserRecordAccess WHERE UserId = '${userId}' AND RecordId IN (${inList(part)})`,
+        org
+      ).catch(softFail(ctx, "Calendar", [] as Row[]))
+    );
     return new Set(rows.filter((r) => r.HasReadAccess === true).map((r) => text(r.RecordId)));
   };
   // CalendarEventsColorSchema inputs: the call's own record says whether it was submitted, and by which channel.
   const providerVisits = async (ids: string[]): Promise<Map<string, Row>> => {
-    const rows = await inBatches(ids, (part) => query(`SELECT VisitId, Status, VisitSubmitDateTime, Channel, IsConfirmed FROM ProviderVisit WHERE VisitId IN (${inList(part)})`, org).catch(softFail(ctx, "Calendar", [] as Row[])));
+    const rows = await inBatches(ids, (part) =>
+      query(
+        `SELECT VisitId, Status, VisitSubmitDateTime, Channel, IsConfirmed FROM ProviderVisit WHERE VisitId IN (${inList(part)})`,
+        org
+      ).catch(softFail(ctx, "Calendar", [] as Row[]))
+    );
     return new Map(rows.map((r) => [text(r.VisitId), r]));
   };
 
@@ -346,10 +481,26 @@ async function collectSegments(ctx: ScreenContext, a: WeekArgs): Promise<Calenda
       const [ok, pvs] = await Promise.all([readable(ids), providerVisits(ids)]);
       for (const r of rows.filter((r) => ok.has(text(r.Id)))) {
         const pv = pvs.get(text(r.Id));
-        const done = Boolean(pv?.VisitSubmitDateTime) || text(pv?.Status).toLowerCase() === "completed" || text(r.Status).toLowerCase() === "completed";
+        const done =
+          Boolean(pv?.VisitSubmitDateTime) ||
+          text(pv?.Status).toLowerCase() === "completed" ||
+          text(r.Status).toLowerCase() === "completed";
         const title = text((r.Account as Row | null)?.Name) || text(r.Name);
         const confirmed = !done && pv?.IsConfirmed === true;
-        add(text(r.Id), "visit", title, Date.parse(text(r.PlannedVisitStartTime)), Date.parse(text(r.PlannedVisitEndTime)), false, done ? a.colors.completed : confirmed && a.callConfirmation ? a.colors.confirmed : a.colors.planned, { done, ...(confirmed ? { confirmed } : {}), icon: channelIcon(text(pv?.Channel)) });
+        add(
+          text(r.Id),
+          "visit",
+          title,
+          Date.parse(text(r.PlannedVisitStartTime)),
+          Date.parse(text(r.PlannedVisitEndTime)),
+          false,
+          done
+            ? a.colors.completed
+            : confirmed && a.callConfirmation
+              ? a.colors.confirmed
+              : a.colors.planned,
+          { done, ...(confirmed ? { confirmed } : {}), icon: channelIcon(text(pv?.Channel)) }
+        );
       }
     })(),
     (async () => {
@@ -362,7 +513,16 @@ async function collectSegments(ctx: ScreenContext, a: WeekArgs): Promise<Calenda
       ).catch(softFail(ctx, "Calendar", [] as Row[]));
       const ok = await readable(rows.map((r) => text(r.Id)));
       for (const r of rows.filter((r) => ok.has(text(r.Id)))) {
-        add(text(r.Id), "event", text(r.Subject), Date.parse(text(r.StartDateTime)), Date.parse(text(r.EndDateTime)), r.IsAllDayEvent === true, a.colors.general, { icon: "clipboard" });
+        add(
+          text(r.Id),
+          "event",
+          text(r.Subject),
+          Date.parse(text(r.StartDateTime)),
+          Date.parse(text(r.EndDateTime)),
+          r.IsAllDayEvent === true,
+          a.colors.general,
+          { icon: "clipboard" }
+        );
       }
     })(),
     (async () => {
@@ -373,7 +533,17 @@ async function collectSegments(ctx: ScreenContext, a: WeekArgs): Promise<Calenda
          WHERE TerritoryId IN (${inList(a.territories)}) AND StartDate < ${to} AND EndDate > ${from}${w} LIMIT 4000`,
         org
       ).catch(softFail(ctx, "Calendar", [] as Row[]));
-      for (const r of rows) add(text(r.Id), "tot", text(r.Name), Date.parse(text(r.StartDate)), Date.parse(text(r.EndDate)), false, a.colors.tot, { icon: "clipboard" });
+      for (const r of rows)
+        add(
+          text(r.Id),
+          "tot",
+          text(r.Name),
+          Date.parse(text(r.StartDate)),
+          Date.parse(text(r.EndDate)),
+          false,
+          a.colors.tot,
+          { icon: "clipboard" }
+        );
     })(),
     (async () => {
       // selectStatementForToDoEvent: AssessmentTask with DueDate in range and IsVisibleInPlanner, drawn all-day on the due date.
@@ -389,7 +559,10 @@ async function collectSegments(ctx: ScreenContext, a: WeekArgs): Promise<Calenda
         const [y, m, d] = text(r.DueDate).slice(0, 10).split("-").map(Number);
         if (!y) continue;
         const start = zonedInstant(y, m, d, format.timeZone);
-        add(text(r.Id), "todo", text(r.Name), start, start + 1000, true, a.colors.todo, { status: statusLabel(text(r.Status)), icon: "clipboard" });
+        add(text(r.Id), "todo", text(r.Name), start, start + 1000, true, a.colors.todo, {
+          status: statusLabel(text(r.Status)),
+          icon: "clipboard",
+        });
       }
     })(),
     (async () => {

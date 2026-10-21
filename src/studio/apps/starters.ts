@@ -11,7 +11,14 @@ import { fileURLToPath } from "node:url";
 import { objectsRead } from "./objects.js";
 import type { AppFile, AppInput, AppTarget } from "./types.js";
 
-const STARTERS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "knowledge", "app-starters");
+const STARTERS_DIR = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "..",
+  "knowledge",
+  "app-starters"
+);
 
 interface ManifestEntry {
   id: string;
@@ -56,7 +63,9 @@ export interface AppStarterSource extends AppInput {
 const ID_RE = /^[a-z0-9-]{1,60}$/;
 
 function readManifest(dir: string): ManifestEntry[] {
-  const data = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8")) as { starters?: ManifestEntry[] };
+  const data = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8")) as {
+    starters?: ManifestEntry[];
+  };
   return data.starters ?? [];
 }
 
@@ -64,7 +73,11 @@ function readFiles(dir: string, entry: ManifestEntry): AppFile[] {
   const files: AppFile[] = [];
   for (const bundle of entry.bundles) {
     for (const file of readdirSync(join(dir, entry.id, "lwc", bundle)).sort()) {
-      files.push({ bundle, path: `lwc/${bundle}/${file}`, source: readFileSync(join(dir, entry.id, "lwc", bundle, file), "utf8") });
+      files.push({
+        bundle,
+        path: `lwc/${bundle}/${file}`,
+        source: readFileSync(join(dir, entry.id, "lwc", bundle, file), "utf8"),
+      });
     }
   }
   return files;
@@ -81,7 +94,12 @@ function describeStarter(entry: ManifestEntry, files: AppFile[]): AppStarter {
     name: entry.name,
     target: entry.target,
     ...(entry.objectApiName ? { objectApiName: entry.objectApiName } : {}),
-    objects: [...new Set([...objectsRead(files, entry.target === "record" ? entry.objectApiName : undefined), ...(entry.objects ?? [])])],
+    objects: [
+      ...new Set([
+        ...objectsRead(files, entry.target === "record" ? entry.objectApiName : undefined),
+        ...(entry.objects ?? []),
+      ]),
+    ],
     tryNext: entry.tryNext ?? [],
   };
 }

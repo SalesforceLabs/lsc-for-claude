@@ -28,7 +28,11 @@ export interface CheckContext {
   symptom?: string;
 }
 
-export async function executeCheck(check: RuleCheck, targetOrg: string, context: CheckContext = {}): Promise<CheckOutcome> {
+export async function executeCheck(
+  check: RuleCheck,
+  targetOrg: string,
+  context: CheckContext = {}
+): Promise<CheckOutcome> {
   try {
     switch (check.type) {
       case "soql":
@@ -119,7 +123,11 @@ async function executeSoqlCheck(
     count: records.length,
   });
   if (evaluated === null) {
-    return { passed: false, message: `Can't evaluate condition: ${check.expect}`, unavailable: true };
+    return {
+      passed: false,
+      message: `Can't evaluate condition: ${check.expect}`,
+      unavailable: true,
+    };
   }
   const passed = evaluated;
   // For an every(...) check, the records to show are the ones that broke it.
@@ -166,7 +174,9 @@ async function executeSoqlCountCheck(
 
   const exists = existenceQuery(check);
   const sql = exists ?? check.query;
-  const result = useToolingApi ? await runToolingQuery(sql, targetOrg) : await runSoqlQuery(sql, targetOrg);
+  const result = useToolingApi
+    ? await runToolingQuery(sql, targetOrg)
+    : await runSoqlQuery(sql, targetOrg);
 
   if (!result.success) {
     // Check if it's an object not found error
@@ -188,19 +198,27 @@ async function executeSoqlCountCheck(
 
   // For COUNT() queries, the result is in totalSize
   // (An existence query reads at most one row, so its count is 0 or 1.)
-  const count = exists ? Math.min(1, result.data?.totalSize || result.data?.records?.length || 0) : result.data?.totalSize || 0;
+  const count = exists
+    ? Math.min(1, result.data?.totalSize || result.data?.records?.length || 0)
+    : result.data?.totalSize || 0;
 
   // Evaluate the expect condition
   const evaluated = evaluateExpectCondition(check.expect, { count });
   if (evaluated === null) {
-    return { passed: false, message: `Can't evaluate condition: ${check.expect}`, unavailable: true };
+    return {
+      passed: false,
+      message: `Can't evaluate condition: ${check.expect}`,
+      unavailable: true,
+    };
   }
   const passed = evaluated;
 
   if (exists) {
     return {
       passed,
-      message: passed ? `Check passed (${count ? "found a matching record" : "no matching record"})` : `Check failed: ${count ? "a matching record exists" : "no matching record"}, expected ${check.expect}`,
+      message: passed
+        ? `Check passed (${count ? "found a matching record" : "no matching record"})`
+        : `Check failed: ${count ? "a matching record exists" : "no matching record"}, expected ${check.expect}`,
       details: { exists: count > 0 },
     };
   }
@@ -223,7 +241,11 @@ async function executeCompositeCheck(
   context: CheckContext
 ): Promise<CheckOutcome> {
   if (!check.checks || check.checks.length === 0) {
-    return { passed: false, message: "No sub-checks specified for composite check", unavailable: true };
+    return {
+      passed: false,
+      message: "No sub-checks specified for composite check",
+      unavailable: true,
+    };
   }
 
   const subResults: CheckOutcome[] = [];
@@ -253,8 +275,12 @@ async function executeCompositeCheck(
  * records.some / records.every with one field compared to null or a quoted literal, e.g.
  * "records.every(r => r.InternalSharingModel != 'Private')". Parsed, never evaluated as code.
  */
-function parseFieldTest(expect: string): { fn: "some" | "every"; test: (r: unknown) => boolean } | null {
-  const m = expect.match(/^records\.(some|every)\(\s*(\w+)\s*=>\s*\2\.(\w+)\s*(==|!=)\s*(null|'[^']*')\s*\)$/);
+function parseFieldTest(
+  expect: string
+): { fn: "some" | "every"; test: (r: unknown) => boolean } | null {
+  const m = expect.match(
+    /^records\.(some|every)\(\s*(\w+)\s*=>\s*\2\.(\w+)\s*(==|!=)\s*(null|'[^']*')\s*\)$/
+  );
   if (!m) return null;
   const [, fn, , field, op, literal] = m;
   const want = literal === "null" ? null : literal.slice(1, -1);

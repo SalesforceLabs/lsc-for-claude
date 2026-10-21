@@ -10,7 +10,13 @@ import { deployMetadata, retrieveMetadata } from "../../salesforce/cli.js";
 import type { StatusHook } from "../../salesforce/direct-metadata.js";
 import { parseXml, serializeXml, type XmlNode } from "./xml.js";
 
-export type MetadataDocType = "Layout" | "CompactLayout" | "FlexiPage" | "Profile" | "ListView" | "CustomApplication";
+export type MetadataDocType =
+  | "Layout"
+  | "CompactLayout"
+  | "FlexiPage"
+  | "Profile"
+  | "ListView"
+  | "CustomApplication";
 
 const SUFFIX: Record<MetadataDocType, string> = {
   Layout: ".layout-meta.xml",
@@ -44,9 +50,15 @@ function findFile(dir: string, suffix: string): string | undefined {
 }
 
 /** Retrieve one document. Throws with the CLI's message when it can't. */
-export async function retrieveDoc(type: MetadataDocType, fullName: string, org: string, onStatus?: StatusHook): Promise<MetadataDoc> {
+export async function retrieveDoc(
+  type: MetadataDocType,
+  fullName: string,
+  org: string,
+  onStatus?: StatusHook
+): Promise<MetadataDoc> {
   const result = await retrieveMetadata("", `${type}:${fullName}`, org, onStatus);
-  if (!result.success || !result.data) throw new Error(`Couldn't retrieve ${fullName}: ${result.error ?? "unknown error"}`);
+  if (!result.success || !result.data)
+    throw new Error(`Couldn't retrieve ${fullName}: ${result.error ?? "unknown error"}`);
   const { outputDir } = result.data;
   // A compact layout comes with its object's file; only the compact layout is ours.
   const filePath = fs.existsSync(outputDir) ? findFile(outputDir, SUFFIX[type]) : undefined;
@@ -62,19 +74,29 @@ export async function retrieveDoc(type: MetadataDocType, fullName: string, org: 
  * Retrieve several documents of different types in one call (one of each type); they share one retrieve folder (removed by `discardDoc` on any of them).
  * A profile comes with its layout assignments only for the layouts retrieved beside it.
  */
-export async function retrieveDocs(entries: { type: MetadataDocType; fullName: string }[], org: string, onStatus?: StatusHook): Promise<MetadataDoc[]> {
+export async function retrieveDocs(
+  entries: { type: MetadataDocType; fullName: string }[],
+  org: string,
+  onStatus?: StatusHook
+): Promise<MetadataDoc[]> {
   const result = await retrieveMetadata(
     "",
     entries.map((e) => `${e.type}:${e.fullName}`),
     org,
     onStatus
   );
-  if (!result.success || !result.data) throw new Error(`Couldn't retrieve ${entries.map((e) => e.fullName).join(", ")}: ${result.error ?? "unknown error"}`);
+  if (!result.success || !result.data)
+    throw new Error(
+      `Couldn't retrieve ${entries.map((e) => e.fullName).join(", ")}: ${result.error ?? "unknown error"}`
+    );
   const { outputDir } = result.data;
   try {
     return entries.map(({ type, fullName }) => {
       const filePath = fs.existsSync(outputDir) ? findFile(outputDir, SUFFIX[type]) : undefined;
-      if (!filePath) throw new Error(`${fullName} wasn't found in the org. It may have been renamed or deleted.`);
+      if (!filePath)
+        throw new Error(
+          `${fullName} wasn't found in the org. It may have been renamed or deleted.`
+        );
       const xml = fs.readFileSync(filePath, "utf-8");
       return { type, fullName, xml, root: parseXml(xml), filePath, outputDir };
     });
@@ -85,17 +107,29 @@ export async function retrieveDocs(entries: { type: MetadataDocType; fullName: s
 }
 
 /** Write `root` over the retrieved file and deploy that file alone. */
-export async function deployDoc(doc: MetadataDoc, root: XmlNode, org: string, onStatus?: StatusHook): Promise<void> {
+export async function deployDoc(
+  doc: MetadataDoc,
+  root: XmlNode,
+  org: string,
+  onStatus?: StatusHook
+): Promise<void> {
   fs.writeFileSync(doc.filePath, serializeXml(root), "utf-8");
-  const result = await (onStatus ? deployMetadata(doc.filePath, org, onStatus) : deployMetadata(doc.filePath, org));
-  if (!result.success) throw new Error(`Couldn't deploy ${doc.fullName}: ${result.error ?? "unknown error"}`);
+  const result = await (onStatus
+    ? deployMetadata(doc.filePath, org, onStatus)
+    : deployMetadata(doc.filePath, org));
+  if (!result.success)
+    throw new Error(`Couldn't deploy ${doc.fullName}: ${result.error ?? "unknown error"}`);
 }
 
 /**
  * Ask the org whether it would accept `root` without deploying it (a check-only deploy).
  * Returns the org's reasons when it would refuse, null when it would accept or the check couldn't run.
  */
-export async function validateDoc(doc: MetadataDoc, root: XmlNode, org: string): Promise<string | null> {
+export async function validateDoc(
+  doc: MetadataDoc,
+  root: XmlNode,
+  org: string
+): Promise<string | null> {
   fs.writeFileSync(doc.filePath, serializeXml(root), "utf-8");
   const result = await deployMetadata(doc.filePath, org, undefined, true);
   return result.rejected ? (result.error ?? "the org refused it") : null;

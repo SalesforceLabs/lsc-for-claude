@@ -3,7 +3,14 @@
  * surface constructors, and Admin Console record mapping.
  */
 
-import { apiRequest, dataPath, QueryTruncatedError, runSoqlQuery, runToolingQuery, type SoqlQueryResult } from "../salesforce/cli.js";
+import {
+  apiRequest,
+  dataPath,
+  QueryTruncatedError,
+  runSoqlQuery,
+  runToolingQuery,
+  type SoqlQueryResult,
+} from "../salesforce/cli.js";
 import type { ConfigRecord } from "../config/types.js";
 import { chunkIds } from "../tools/helpers.js";
 import { currentMapTracker } from "./map-progress.js";
@@ -29,7 +36,12 @@ export interface QueryOptions {
  * Rows for a query. Throws `QueryTruncatedError` when more rows matched than
  * could be read, unless `allowTruncated` — then use `queryResult` to tell.
  */
-export async function query(soql: string, org: string, tooling = false, options: QueryOptions = {}): Promise<Row[]> {
+export async function query(
+  soql: string,
+  org: string,
+  tooling = false,
+  options: QueryOptions = {}
+): Promise<Row[]> {
   return (await queryResult(soql, org, tooling, options)).records as Row[];
 }
 
@@ -44,10 +56,12 @@ export async function queryResult(
   const result = tooling
     ? await runToolingQuery(soql, org, { maxRows: options.maxRows })
     : await runSoqlQuery(soql, org, { maxRows: options.maxRows });
-  if (TRACE) console.error(`[query ${Date.now() - t0}ms${tooling ? " tooling" : ""}] ${soql.slice(0, 110)}`);
+  if (TRACE)
+    console.error(`[query ${Date.now() - t0}ms${tooling ? " tooling" : ""}] ${soql.slice(0, 110)}`);
   if (!result.success) throw new Error(result.error || "Query failed");
   const data = result.data ?? { totalSize: 0, done: true, records: [] };
-  if (data.truncated && !options.allowTruncated) throw new QueryTruncatedError(data.records.length, data.totalSize);
+  if (data.truncated && !options.allowTruncated)
+    throw new QueryTruncatedError(data.records.length, data.totalSize);
   return { ...data, records: data.records ?? [] };
 }
 
@@ -87,9 +101,21 @@ export async function countGroupedBy(
  * Lookups by id use the field's index, so the cost follows the number of ids,
  * not the size of the table.
  */
-export async function queryByIds(fields: string, object: string, key: string, ids: string[], org: string, where?: string): Promise<Row[]> {
+export async function queryByIds(
+  fields: string,
+  object: string,
+  key: string,
+  ids: string[],
+  org: string,
+  where?: string
+): Promise<Row[]> {
   const chunks = await Promise.all(
-    chunkIds(ids).map((chunk) => query(`SELECT ${fields} FROM ${object} WHERE ${key} IN (${inList(chunk)})${where ? ` AND ${where}` : ""}`, org))
+    chunkIds(ids).map((chunk) =>
+      query(
+        `SELECT ${fields} FROM ${object} WHERE ${key} IN (${inList(chunk)})${where ? ` AND ${where}` : ""}`,
+        org
+      )
+    )
   );
   return chunks.flat();
 }
@@ -103,12 +129,16 @@ export async function recordCounts(objects: string[], org: string): Promise<Map<
   const out = new Map<string, number>();
   try {
     const res = await apiRequest<{ sObjects?: Array<{ name: string; count: number }> }>(
-      await dataPath(org, `/limits/recordCount?sObjects=${encodeURIComponent([...new Set(objects)].join(","))}`),
+      await dataPath(
+        org,
+        `/limits/recordCount?sObjects=${encodeURIComponent([...new Set(objects)].join(","))}`
+      ),
       "GET",
       undefined,
       org
     );
-    for (const o of (res.success && res.data?.sObjects) || []) out.set(o.name.toLowerCase(), o.count);
+    for (const o of (res.success && res.data?.sObjects) || [])
+      out.set(o.name.toLowerCase(), o.count);
   } catch {
     // No statistics; callers fall back to their own check.
   }
@@ -127,7 +157,12 @@ export async function approxCount(object: string, org: string): Promise<number |
 }
 
 /** An info finding saying a list was cut short — never leave a cap unannounced. */
-export function showingNote(shown: number, total: number, noun: string, order?: string): StudioFinding {
+export function showingNote(
+  shown: number,
+  total: number,
+  noun: string,
+  order?: string
+): StudioFinding {
   const n = (v: number) => v.toLocaleString("en-US");
   return {
     severity: "info",
@@ -187,7 +222,11 @@ const SURFACE_NOUNS: Record<string, string> = {
 
 export async function buildSurface(
   meta: SurfaceMeta,
-  collect: () => Promise<{ items: StudioItem[]; findings?: StudioFinding[]; creates?: StudioSurface["creates"] }>
+  collect: () => Promise<{
+    items: StudioItem[];
+    findings?: StudioFinding[];
+    creates?: StudioSurface["creates"];
+  }>
 ): Promise<StudioSurface> {
   const tracker = currentMapTracker();
   tracker?.start(meta.id, meta.title);
@@ -202,7 +241,11 @@ export async function buildSurface(
   }
 }
 
-export function configItem(rec: ConfigRecord, label: string | undefined, sublabel: string): StudioItem {
+export function configItem(
+  rec: ConfigRecord,
+  label: string | undefined,
+  sublabel: string
+): StudioItem {
   const properties: Props = {};
   for (const [k, v] of Object.entries(rec.fields)) properties[k] = scalar(v);
   const assigned = assignedTo(rec);
@@ -224,7 +267,12 @@ function isEditableConfig(rec: ConfigRecord): boolean {
 export function configEdit(rec: ConfigRecord): ItemEdit | undefined {
   if (!isEditableConfig(rec)) return undefined;
   const edit: ItemEdit = {
-    record: { type: "config", category: rec.category, developerName: rec.developerName, label: rec.label || rec.developerName },
+    record: {
+      type: "config",
+      category: rec.category,
+      developerName: rec.developerName,
+      label: rec.label || rec.developerName,
+    },
     active: !!rec.isActive,
   };
   // Org-level records apply to everyone; there's no profile list to edit.
@@ -234,7 +282,9 @@ export function configEdit(rec: ConfigRecord): ItemEdit | undefined {
   const raw = typeof rec.fields.Profiles === "string" ? rec.fields.Profiles : "";
   const hasField = "Profiles" in rec.fields || "Profiles" in rec.fieldTypes;
   edit.profiles =
-    hasField && (raw.trim() || assigned.length === 0) ? { source: "field", raw } : { source: "assignments", names: assigned };
+    hasField && (raw.trim() || assigned.length === 0)
+      ? { source: "field", raw }
+      : { source: "assignments", names: assigned };
   return edit;
 }
 
@@ -250,7 +300,8 @@ export function assignedTo(rec: ConfigRecord): string | null {
  */
 export function audienceOf(rec: ConfigRecord): Audience | undefined {
   if (rec.isOrgLevel) return undefined;
-  const names = (level: string) => rec.assignments.filter((a) => a.level === level).map((a) => a.name);
+  const names = (level: string) =>
+    rec.assignments.filter((a) => a.level === level).map((a) => a.name);
   return { profiles: names("Profile"), permissionSets: names("PermissionSet") };
 }
 

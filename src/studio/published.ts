@@ -80,7 +80,12 @@ export interface PublishedComponent {
   /** force:highlightsPanel's `actionNames` (the record's dynamic actions), in order. */
   actions?: string[];
   /** flexipage:tabset children. */
-  tabs?: { title: string; active: boolean; components: PublishedComponent[]; source?: FlexiSource }[];
+  tabs?: {
+    title: string;
+    active: boolean;
+    components: PublishedComponent[];
+    source?: FlexiSource;
+  }[];
   /** Where the component sits in its Lightning page's XML, for edits made in the preview. */
   source?: FlexiSource;
 }
@@ -133,7 +138,12 @@ export interface LayoutSectionSource {
 export interface PublishedLayout {
   name: string;
   /** `fields` are the columns' items as the cache describes them (API name, type, lookup targets, picklist labels), parallel to `columns`. */
-  sections: { label: string | null; columns: string[][]; fields?: RecordFieldSpec[][]; source?: LayoutSectionSource }[];
+  sections: {
+    label: string | null;
+    columns: string[][];
+    fields?: RecordFieldSpec[][];
+    source?: LayoutSectionSource;
+  }[];
   relatedLists: { name: string; label: string; columns?: RecordFieldSpec[] }[];
   actions: string[];
   /** Each platform action as the cache lists it, for the ••• menu (MetadataActionItem). */
@@ -179,7 +189,13 @@ export interface PublishedListView {
    * The view as the cache stores it, for lining it up against the org's before editing:
    * the metadata name (`Object.Name`), the column ids, the filter scope, filters and logic.
    */
-  source?: { fullName: string; columns: string[]; filterScope: string | null; filters: { field: string; operation: string; value: string }[]; booleanFilter: string | null };
+  source?: {
+    fullName: string;
+    columns: string[];
+    filterScope: string | null;
+    filters: { field: string; operation: string; value: string }[];
+    booleanFilter: string | null;
+  };
 }
 
 /** A list view column's SOQL path; a reference also names the record it points at, which shows only if it synced. */
@@ -197,7 +213,13 @@ export interface PublishedListData {
 
 export interface PublishedIpad {
   profile: string;
-  cache: { recordId: string; name: string; contentVersionId: string; generatedAt: string; sizeBytes: number | null };
+  cache: {
+    recordId: string;
+    name: string;
+    contentVersionId: string;
+    generatedAt: string;
+    sizeBytes: number | null;
+  };
   tabs: PublishedTab[];
   hiddenTabs: HiddenTab[];
   home: PublishedPage | null;
@@ -341,7 +363,8 @@ const NAMESPACE = "lsc4ce";
 const ns = (name: string) => `${NAMESPACE}__${name}`;
 const str = (v: unknown): string => (typeof v === "string" ? v : v == null ? "" : String(v));
 const arr = (v: unknown): Row[] => (Array.isArray(v) ? (v as Row[]) : []);
-const obj = (v: unknown): Row => (v && typeof v === "object" && !Array.isArray(v) ? (v as Row) : {});
+const obj = (v: unknown): Row =>
+  v && typeof v === "object" && !Array.isArray(v) ? (v as Row) : {};
 const ieq = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
 /** SFComponentsFactory.trimNamespace — drops a `ns:` prefix the app namespace contains. */
@@ -372,7 +395,8 @@ export function effectiveProfile(permissions: Row, permissionSets: string[]): Ro
       const v = str(t.visibility);
       const current = tabs.get(str(t.tab));
       if (!current) tabs.set(str(t.tab), t);
-      else if (v === "DefaultOn" || v === "Visible") tabs.set(str(t.tab), { ...current, visibility: v });
+      else if (v === "DefaultOn" || v === "Visible")
+        tabs.set(str(t.tab), { ...current, visibility: v });
     }
     for (const r of arr(ps.recordTypeVisibilities)) {
       const current = rts.get(str(r.recordType));
@@ -381,7 +405,11 @@ export function effectiveProfile(permissions: Row, permissionSets: string[]): Ro
       else if (visible) rts.set(str(r.recordType), { ...current, visible: true });
     }
   }
-  return { ...profile, tabVisibilities: [...tabs.values()], recordTypeVisibilities: [...rts.values()] };
+  return {
+    ...profile,
+    tabVisibilities: [...tabs.values()],
+    recordTypeVisibilities: [...rts.values()],
+  };
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
@@ -398,7 +426,11 @@ export function tabKind(
 ): TabKind | null {
   const fullName = str(tab.fullName);
   if (fullName === ns("Planner")) return "calendar";
-  if (["Accounts", "Customers"].map(ns).includes(fullName) || fullName === "AccountFilter" || fullName === ns("AccountFilter"))
+  if (
+    ["Accounts", "Customers"].map(ns).includes(fullName) ||
+    fullName === "AccountFilter" ||
+    fullName === ns("AccountFilter")
+  )
     return "accounts";
   if (fullName === ns("IntelligentContent") || fullName === "IntelligentContent") return "content";
   if (fullName === ns("MyTeamTab")) return "myTeam";
@@ -408,7 +440,8 @@ export function tabKind(
   if (ieq(fullName, ns("SalesData"))) return "salesData";
   if (fullName === "standard-Dashboard") return hasTable("Dashboard") ? "dashboards" : null;
   if (fullName === "Tableau" || fullName === "Tableau_Tab") return "tableau";
-  if (fullName === "standard-MedicalInsight" || fullName === "standard-MedicalInsightFeed") return "insights";
+  if (fullName === "standard-MedicalInsight" || fullName === "standard-MedicalInsightFeed")
+    return "insights";
 
   switch (str(tab.type).toLowerCase()) {
     case "sobject":
@@ -447,17 +480,25 @@ function emptyReason(tab: Row, nav: Record<string, Row>, visible: Set<string>): 
     return `${str(tab.sobjectName)} isn't in this profile's published objects, so the tab shows "Coming soon". Add it to the profile's DB Schema and publish again.`;
   }
   if (type === "mobile") {
-    const key = fullName.replace(/^lsc4ce__/i, "").replace(/[\s_]/g, "").toLowerCase();
+    const key = fullName
+      .replace(/^lsc4ce__/i, "")
+      .replace(/[\s_]/g, "")
+      .toLowerCase();
     const native = NATIVE_TAB_NAMES[key];
     const where = `the UI Settings navigation tab's Tab Name "${fullName}"`;
-    if (native && native !== fullName) return `The app doesn't recognize ${where}. Use "${native}" to open the native screen.`;
+    if (native && native !== fullName)
+      return `The app doesn't recognize ${where}. Use "${native}" to open the native screen.`;
     // A same-labelled object or Lightning page tab is what the admin probably meant.
     const twin = Object.values(nav).find(
-      (t) => str(t.type).toLowerCase() !== "mobile" && ieq(str(t.label), fullName) && (t.sobjectName || t.flexiPage)
+      (t) =>
+        str(t.type).toLowerCase() !== "mobile" &&
+        ieq(str(t.label), fullName) &&
+        (t.sobjectName || t.flexiPage)
     );
     if (twin && visible.has(str(twin.fullName)))
       return `The app doesn't recognize ${where}, so this tab is empty. "${str(twin.label)}" already shows as its own tab (${str(twin.fullName)}).`;
-    if (twin) return `The app doesn't recognize ${where}. UI Settings tabs only open the app's native screens — to show "${str(twin.label)}", make the ${str(twin.fullName)} tab visible instead.`;
+    if (twin)
+      return `The app doesn't recognize ${where}. UI Settings tabs only open the app's native screens — to show "${str(twin.label)}", make the ${str(twin.fullName)} tab visible instead.`;
     return `The app doesn't recognize ${where}. UI Settings tabs only open the app's native screens (Accounts, Planner, Intelligent Content, My Team, Reports, Sales Data, Tableau).`;
   }
   return `The app has no screen for ${type ? `"${type}" tabs` : "this tab"} (${fullName}).`;
@@ -480,14 +521,19 @@ export const TAB_FILTER_REASONS = {
  * object in the org the user can read. Without it, fall back to the profile's
  * own synced tables.
  */
-export function buildTabs(files: MetadataFiles, availableTables?: Set<string>): { tabs: PublishedTab[]; hidden: HiddenTab[] } {
+export function buildTabs(
+  files: MetadataFiles,
+  availableTables?: Set<string>
+): { tabs: PublishedTab[]; hidden: HiddenTab[] } {
   const profile = obj(files.permissions.profile);
   const visible = new Set(
     arr(profile.tabVisibilities)
       .filter((t) => t.visibility && t.visibility !== "Hidden" && t.visibility !== "DefaultOff")
       .map((t) => str(t.tab))
   );
-  const hasTable = (s: string) => Object.keys(files.db).some((k) => ieq(k, s)) && Object.keys(files.sobjects).some((k) => ieq(k, s));
+  const hasTable = (s: string) =>
+    Object.keys(files.db).some((k) => ieq(k, s)) &&
+    Object.keys(files.sobjects).some((k) => ieq(k, s));
   const isAvailable = (s: string) => (availableTables ? availableTables.has(s) : hasTable(s));
   const translated = obj(files.translations?.tabs);
 
@@ -514,7 +560,9 @@ export function buildTabs(files: MetadataFiles, availableTables?: Set<string>): 
     if (fullName.toLowerCase().includes("order") && fullName.toLowerCase().includes("dashboard")) {
       t = { ...t, sobjectName: "Order__c", type: "sobject" };
     }
-    const kind = tabKind(t, hasTable, (s) => Object.prototype.hasOwnProperty.call(files.sobjects, s));
+    const kind = tabKind(t, hasTable, (s) =>
+      Object.prototype.hasOwnProperty.call(files.sobjects, s)
+    );
     if (!kind) {
       hide(TAB_FILTER_REASONS.noCoordinator);
       continue;
@@ -630,10 +678,21 @@ const SUFFIX_COMPONENTS: [string, string, boolean?][] = [
 ];
 
 const MEETING_COMPONENTS = [
-  "MeetingAttendees", "MeetingAttendeesNew", "meetingAttendeesLwc", "MeetingSpeakers", "MeetingSpeakersNew",
-  "meetingSpeakersLwc", "MeetingColleagues", "MeetingColleaguesNew", "meetingColleaguesLwc",
-  "MeetingNonProfiledAttendees", "MeetingNonProfiledAttendeesNew", "MeetingPath", "EventExpensesLwc",
-  "MeetingHistory", "mngEventPresentationLayout",
+  "MeetingAttendees",
+  "MeetingAttendeesNew",
+  "meetingAttendeesLwc",
+  "MeetingSpeakers",
+  "MeetingSpeakersNew",
+  "meetingSpeakersLwc",
+  "MeetingColleagues",
+  "MeetingColleaguesNew",
+  "meetingColleaguesLwc",
+  "MeetingNonProfiledAttendees",
+  "MeetingNonProfiledAttendeesNew",
+  "MeetingPath",
+  "EventExpensesLwc",
+  "MeetingHistory",
+  "mngEventPresentationLayout",
 ];
 
 /** Readable fallback for components the iPad can't render: `c:myCard` → "myCard". */
@@ -646,27 +705,45 @@ export function componentInfo(name: string): { label: string; supported: boolean
   const trimmed = trimNamespace(name);
   if (EXACT_COMPONENTS[trimmed]) return { label: EXACT_COMPONENTS[trimmed], supported: true };
   if (EXACT_COMPONENTS[name]) return { label: EXACT_COMPONENTS[name], supported: true };
-  if (trimmed === "runtime_industries_actionplan:listCard") return { label: "Action plans", supported: true };
+  if (trimmed === "runtime_industries_actionplan:listCard")
+    return { label: "Action plans", supported: true };
   // LMRModule — inline LWCs render through the Lightning Mobile Runtime.
-  if (trimmed.toLowerCase().startsWith("lscmobileinline_")) return { label: `LWC · ${trimmed.slice(16)}`, supported: true };
-  if (name.toLowerCase() === "industries_ls_commercial:lscmobileinline_offlineassessmentselectionwrapper")
+  if (trimmed.toLowerCase().startsWith("lscmobileinline_"))
+    return { label: `LWC · ${trimmed.slice(16)}`, supported: true };
+  if (
+    name.toLowerCase() ===
+    "industries_ls_commercial:lscmobileinline_offlineassessmentselectionwrapper"
+  )
     return { label: "Offline assessment", supported: true };
-  if (trimmed.toLowerCase().includes("lsstorecheckvisit")) return { label: "Store check", supported: true };
+  if (trimmed.toLowerCase().includes("lsstorecheckvisit"))
+    return { label: "Store check", supported: true };
   // MeetingsModule.getComponent: GenericRelatedList's `~=` is a case-insensitive contains of "LSCGenericRelatedList"
   // (GenericRelatedList.swift:45) and "LSCVideoCallRecordingList" is matched exactly (MeetingsModule.swift:294).
-  if (trimmed.toLowerCase().includes("lscgenericrelatedlist")) return { label: "Generic related list", supported: true };
-  if (trimmed === "LSCVideoCallRecordingList") return { label: "Video call recordings", supported: true };
-  if (MEETING_COMPONENTS.some((m) => trimmed === m || trimmed.endsWith(m))) return { label: "Meeting component", supported: true };
+  if (trimmed.toLowerCase().includes("lscgenericrelatedlist"))
+    return { label: "Generic related list", supported: true };
+  if (trimmed === "LSCVideoCallRecordingList")
+    return { label: "Video call recordings", supported: true };
+  if (MEETING_COMPONENTS.some((m) => trimmed === m || trimmed.endsWith(m)))
+    return { label: "Meeting component", supported: true };
   for (const [suffix, label, ignoreCase] of SUFFIX_COMPONENTS) {
-    if (ignoreCase ? trimmed.toLowerCase().endsWith(suffix.toLowerCase()) : trimmed.endsWith(suffix)) return { label, supported: true };
+    if (
+      ignoreCase ? trimmed.toLowerCase().endsWith(suffix.toLowerCase()) : trimmed.endsWith(suffix)
+    )
+      return { label, supported: true };
   }
   return { label: rawLabel(name), supported: false };
 }
 
 /** halfWidthMode overrides — these pair two per row on the iPad Home. */
 function isHalfWidth(trimmed: string, props: Record<string, string>): boolean {
-  if (trimmed.endsWith("UpcomingAgenda") || trimmed.endsWith("NbcLeaderBoard") || trimmed.endsWith("UnsubmittedVisits")) return true;
-  if (trimmed === "ActivityPlanByProduct") return props.showEnhActivityPlanOnMobileHomepage !== "true";
+  if (
+    trimmed.endsWith("UpcomingAgenda") ||
+    trimmed.endsWith("NbcLeaderBoard") ||
+    trimmed.endsWith("UnsubmittedVisits")
+  )
+    return true;
+  if (trimmed === "ActivityPlanByProduct")
+    return props.showEnhActivityPlanOnMobileHomepage !== "true";
   return trimmed.endsWith("ActivityPlan");
 }
 
@@ -674,26 +751,44 @@ function isHalfWidth(trimmed: string, props: Record<string, string>): boolean {
  * VisibilityRuleValidator — `$Client` is always true, `$Permission` and
  * record/user rules depend on the user, anything else is false.
  */
-export function visibilityOf(rule: unknown): Pick<PublishedComponent, "visibility" | "visibilityNote"> {
+export function visibilityOf(
+  rule: unknown
+): Pick<PublishedComponent, "visibility" | "visibilityNote"> {
   if (!rule || typeof rule !== "object") return { visibility: "shown" };
   const r = rule as Row;
-  const criteria = Array.isArray(r.criteria) ? (r.criteria as Row[]) : r.criteria ? [obj(r.criteria)] : [];
+  const criteria = Array.isArray(r.criteria)
+    ? (r.criteria as Row[])
+    : r.criteria
+      ? [obj(r.criteria)]
+      : [];
   const results = criteria.map((c): boolean | "conditional" => {
     const left = str(c.leftValue).replace(/[{}]/g, "");
     if (left.includes("!$Client")) return true;
-    if (left.includes("!$Permission") || left.includes("!Record.") || left.includes("!$User.")) return "conditional";
+    if (left.includes("!$Permission") || left.includes("!Record.") || left.includes("!$User."))
+      return "conditional";
     return false;
   });
   if (results.length === 0) return { visibility: "shown" };
-  const decided = r.booleanFilter ? (results.every((x) => x === true) ? true : results.every((x) => x === false) ? false : "conditional") : results[0];
+  const decided = r.booleanFilter
+    ? results.every((x) => x === true)
+      ? true
+      : results.every((x) => x === false)
+        ? false
+        : "conditional"
+    : results[0];
   if (decided === true) return { visibility: "shown" };
-  if (decided === false) return { visibility: "hidden", visibilityNote: "Its visibility rule never passes on the iPad" };
-  return { visibility: "conditional", visibilityNote: "Shown only when its visibility rule passes for the user or record" };
+  if (decided === false)
+    return { visibility: "hidden", visibilityNote: "Its visibility rule never passes on the iPad" };
+  return {
+    visibility: "conditional",
+    visibilityNote: "Shown only when its visibility rule passes for the user or record",
+  };
 }
 
 function propsOf(ci: Row): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const p of arr(ci.componentInstanceProperties)) if (p.name && p.value != null) out[str(p.name)] = str(p.value);
+  for (const p of arr(ci.componentInstanceProperties))
+    if (p.name && p.value != null) out[str(p.name)] = str(p.value);
   return out;
 }
 
@@ -724,8 +819,10 @@ function toComponent(item: Row, at?: FlexiSource): PublishedComponent | null {
   const all = propsOf(ci);
   const properties: Record<string, string> = {};
   // AgentforceWelcomeViewModel: every non-empty property is a prompt chip, whatever its name.
-  const keepAll = trimNamespace(name) === "lsAgentforceWelcome" || trimNamespace(name) === "Ratings";
-  for (const [k, v] of Object.entries(all)) if (keepAll || PROP_KEEP.has(k)) properties[k] = k === "richTextValue" ? v.slice(0, 4000) : v;
+  const keepAll =
+    trimNamespace(name) === "lsAgentforceWelcome" || trimNamespace(name) === "Ratings";
+  for (const [k, v] of Object.entries(all))
+    if (keepAll || PROP_KEEP.has(k)) properties[k] = k === "richTextValue" ? v.slice(0, 4000) : v;
   const { label, supported } = componentInfo(name);
   const c: PublishedComponent = {
     name,
@@ -739,7 +836,13 @@ function toComponent(item: Row, at?: FlexiSource): PublishedComponent | null {
   if (trimNamespace(name) === "force:highlightsPanel") {
     const prop = arr(ci.componentInstanceProperties).find((p) => p.name === "actionNames");
     const items = arr(obj(prop?.valueList).valueListItems);
-    const names = items.map((i) => (typeof i.value === "string" ? i.value : str(obj(i.value).actionName || obj(i.value).fullName))).filter(Boolean);
+    const names = items
+      .map((i) =>
+        typeof i.value === "string"
+          ? i.value
+          : str(obj(i.value).actionName || obj(i.value).fullName)
+      )
+      .filter(Boolean);
     if (names.length) c.actions = names;
   }
   if (trimNamespace(name) === "flexipage:tabset") {
@@ -754,7 +857,9 @@ function toComponent(item: Row, at?: FlexiSource): PublishedComponent | null {
           title: tabTitle(tp.title ?? ""),
           active: tp.active === "true",
           components: arr(child.itemInstances)
-            .map((x, i) => toComponent(x, tabAt && { region: tabAt.region, path: [...tabAt.path, stepOf(x, i)] }))
+            .map((x, i) =>
+              toComponent(x, tabAt && { region: tabAt.region, path: [...tabAt.path, stepOf(x, i)] })
+            )
             .filter((x): x is PublishedComponent => !!x),
           ...(tabAt ? { source: tabAt } : {}),
         },
@@ -767,7 +872,18 @@ function toComponent(item: Row, at?: FlexiSource): PublishedComponent | null {
 /** `Standard.Tab.detail` / `{!$Label.ns__Dashboard}` → a readable title. */
 function tabTitle(raw: string): string {
   const std = /^Standard\.Tab\.(\w+)$/.exec(raw);
-  if (std) return ({ detail: "Details", relatedLists: "Related", activity: "Activity", feed: "Chatter", news: "News" } as Record<string, string>)[std[1]] ?? std[1];
+  if (std)
+    return (
+      (
+        {
+          detail: "Details",
+          relatedLists: "Related",
+          activity: "Activity",
+          feed: "Chatter",
+          news: "News",
+        } as Record<string, string>
+      )[std[1]] ?? std[1]
+    );
   const label = /^\{!\$Label\.(?:\w+__)?(\w+)\}$/.exec(raw);
   if (label) return label[1].replace(/_/g, " ");
   return raw;
@@ -802,13 +918,24 @@ export function buildPage(name: string, page: Row): PublishedPage {
   for (const slot of slots) {
     const region = regions.find((r) => str(r.name) === slot);
     if (!region) continue;
-    const components = arr(region.itemInstances).map((item, i) => toComponent(item, { region: slot, path: [stepOf(item, i)] }));
-    result.regions.push({ name: slot, components: components.filter((x): x is PublishedComponent => !!x) });
+    const components = arr(region.itemInstances).map((item, i) =>
+      toComponent(item, { region: slot, path: [stepOf(item, i)] })
+    );
+    result.regions.push({
+      name: slot,
+      components: components.filter((x): x is PublishedComponent => !!x),
+    });
   }
   for (const r of regions) {
     if (slots.includes(str(r.name))) continue;
-    const comps = arr(r.itemInstances).map((i) => str(obj(i.componentInstance).componentName)).filter(Boolean);
-    if (comps.length) result.droppedRegions.push({ name: str(r.name), components: comps.map((c) => componentInfo(c).label) });
+    const comps = arr(r.itemInstances)
+      .map((i) => str(obj(i.componentInstance).componentName))
+      .filter(Boolean);
+    if (comps.length)
+      result.droppedRegions.push({
+        name: str(r.name),
+        components: comps.map((c) => componentInfo(c).label),
+      });
   }
   return result;
 }
@@ -824,7 +951,12 @@ export function separatedWithSpaces(s: string): string {
 function sectionLabel(s: Row, translated: string | undefined): string {
   const raw = str(s.label);
   const label = translated || raw;
-  return label === raw && str(s.customLabel) !== "true" && s.customLabel !== true && !raw.includes(" ") ? separatedWithSpaces(raw) : label;
+  return label === raw &&
+    str(s.customLabel) !== "true" &&
+    s.customLabel !== true &&
+    !raw.includes(" ")
+    ? separatedWithSpaces(raw)
+    : label;
 }
 
 /**
@@ -839,14 +971,22 @@ export function fieldLabel(files: MetadataFiles, sobject: string, item: Row): st
   const t = obj(obj(files.translations?.fields)[sobject]);
   if (name === "Name" && str(t.nameFieldLabel)) return str(t.nameFieldLabel);
   if (name === "Type" && sobject.toLowerCase() !== "account") return "Type";
-  const described = arr(files.sobjects[sobject]?.fields).find((f) => str(f.fullName).toLowerCase() === name.toLowerCase());
+  const described = arr(files.sobjects[sobject]?.fields).find(
+    (f) => str(f.fullName).toLowerCase() === name.toLowerCase()
+  );
   return str(obj(t.labels)[name]) || str(described?.label) || str(item.label) || name;
 }
 
 /** Layout full names are `<Object>-<Layout Name>`. */
-const layoutObject = (layoutName: string) => layoutName.slice(0, Math.max(0, layoutName.indexOf("-")));
+const layoutObject = (layoutName: string) =>
+  layoutName.slice(0, Math.max(0, layoutName.indexOf("-")));
 
-function buildLayout(name: string, layout: Row, translation: Row = {}, itemLabel: (item: Row) => string = (f) => str(f.label) || str(f.fullName)): PublishedLayout {
+function buildLayout(
+  name: string,
+  layout: Row,
+  translation: Row = {},
+  itemLabel: (item: Row) => string = (f) => str(f.label) || str(f.fullName)
+): PublishedLayout {
   const sectionLabels = obj(translation.sections);
   const relatedListLabels = obj(translation.relatedLists);
   const seen = new Map<string, number>();
@@ -871,8 +1011,16 @@ function buildLayout(name: string, layout: Row, translation: Row = {}, itemLabel
     const detailHeading = s.detailHeading === true || str(s.detailHeading) === "true";
     const heading = detailHeading && label.trim() ? label : null;
     // A compound field (Name, BillingAddress) is one layout item the cache lists with each of its parts.
-    const layoutFields = specs.map((c) => c.items.map((x) => str(x.item.compoundFieldName) || str(x.item.fullName) || str(x.item.field)));
-    const source = { label: str(s.label), nth, columns: specs.map((c) => c.index), fields: layoutFields, heading: detailHeading };
+    const layoutFields = specs.map((c) =>
+      c.items.map((x) => str(x.item.compoundFieldName) || str(x.item.fullName) || str(x.item.field))
+    );
+    const source = {
+      label: str(s.label),
+      nth,
+      columns: specs.map((c) => c.index),
+      fields: layoutFields,
+      heading: detailHeading,
+    };
     return [{ label: heading, columns, fields, source }];
   });
   const relatedLists = arr(layout.relatedLists).map((r) => {
@@ -881,12 +1029,23 @@ function buildLayout(name: string, layout: Row, translation: Row = {}, itemLabel
     const columns = arr(r.fields)
       .filter((f) => typeof f === "object" && f && str(f.fullName))
       .map((f) => recordFieldSpec(f, str(f.label)));
-    return { name: rl, label: label || rl.replace(/^RelatedList$/, "").replace(/__r$|__c$/g, "") || rl, columns };
+    return {
+      name: rl,
+      label: label || rl.replace(/^RelatedList$/, "").replace(/__r$|__c$/g, "") || rl,
+      columns,
+    };
   });
-  const items = arr(layout.platformActionList).flatMap((pal) => arr(obj(pal).platformActionListItems ?? []));
+  const items = arr(layout.platformActionList).flatMap((pal) =>
+    arr(obj(pal).platformActionListItems ?? [])
+  );
   const actions = items.map((a) => str(a.label) || str(a.actionName) || str(a.fullName));
   // MetadataActionItem: actionName, type (its actionType), sortOrder, label — the ••• menu's input.
-  const actionItems = items.map((a) => ({ name: str(a.actionName) || str(a.fullName), label: str(a.label), type: str(a.type), sortOrder: str(a.sortOrder) }));
+  const actionItems = items.map((a) => ({
+    name: str(a.actionName) || str(a.fullName),
+    label: str(a.label),
+    type: str(a.type),
+    sortOrder: str(a.sortOrder),
+  }));
   return { name, sections, relatedLists, actions: actions.filter(Boolean), actionItems };
 }
 
@@ -907,16 +1066,25 @@ export function listViewField(column: Row, fields: Map<string, Row>): ListViewFi
     const to = str(arr(field.referenceTo)[0] ?? "");
     const display = str(obj(field.referenceDisplayFields)[to]) || "Name";
     // Polymorphic lookups (Owner → User or Group) can't be checked against one table.
-    const ref = arr(field.referenceTo).length === 1 ? { ref: { object: to, idPath: str(field.fullName) } } : {};
+    const ref =
+      arr(field.referenceTo).length === 1
+        ? { ref: { object: to, idPath: str(field.fullName) } }
+        : {};
     return { path: `${str(field.relationshipName)}.${display}`, type, ...ref };
   }
-  if (type === "picklist" || type === "multiselectpicklist") return { path: `toLabel(${str(field.fullName)})`, type };
+  if (type === "picklist" || type === "multiselectpicklist")
+    return { path: `toLabel(${str(field.fullName)})`, type };
   return { path: str(field.fullName), type };
 }
 
 const NUMERIC_TYPES = new Set(["number", "currency", "percent", "double", "int"]);
 const LIST_OPERATORS: Record<string, string> = {
-  equals: "=", notEqual: "!=", lessThan: "<", greaterThan: ">", lessOrEqual: "<=", greaterOrEqual: ">=",
+  equals: "=",
+  notEqual: "!=",
+  lessThan: "<",
+  greaterThan: ">",
+  lessOrEqual: "<=",
+  greaterOrEqual: ">=",
 };
 
 /**
@@ -924,28 +1092,40 @@ const LIST_OPERATORS: Record<string, string> = {
  * what the app falls back to when the REST list view describe is missing.
  * Comma-separated values match any of them, as in Salesforce list views.
  */
-export function listViewWhere(filters: Row[], booleanFilter: string | null, fields: Map<string, Row>): string | null {
+export function listViewWhere(
+  filters: Row[],
+  booleanFilter: string | null,
+  fields: Map<string, Row>
+): string | null {
   const clauses = filters.map((f) => {
     let name = str(f.field);
     const op = str(f.operation);
-    let values = str(f.value).split(",").map((v) => v.trim());
+    let values = str(f.value)
+      .split(",")
+      .map((v) => v.trim());
     if (name === "RECORDTYPE") {
       name = "RecordType.DeveloperName";
       values = values.map((v) => v.split(".").pop() ?? v);
     }
     const type = str(fields.get(name.toLowerCase())?.type).toLowerCase();
     const literal = (v: string) => {
-      if (type === "checkbox" || type === "boolean") return v === "1" || v.toLowerCase() === "true" ? "true" : "false";
+      if (type === "checkbox" || type === "boolean")
+        return v === "1" || v.toLowerCase() === "true" ? "true" : "false";
       if (NUMERIC_TYPES.has(type) && v !== "" && !Number.isNaN(Number(v))) return v;
-      if ((type === "date" || type === "datetime") && /^[A-Z_]+(:\d+)?$|^\d{4}-\d\d-\d\d/.test(v)) return v;
+      if ((type === "date" || type === "datetime") && /^[A-Z_]+(:\d+)?$|^\d{4}-\d\d-\d\d/.test(v))
+        return v;
       return v === "" ? "null" : `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
     };
     const any = (cond: (v: string) => string, join: string) => `(${values.map(cond).join(join)})`;
     switch (op) {
       case "equals":
-        return values.length > 1 ? `${name} IN (${values.map(literal).join(", ")})` : `${name} = ${literal(values[0])}`;
+        return values.length > 1
+          ? `${name} IN (${values.map(literal).join(", ")})`
+          : `${name} = ${literal(values[0])}`;
       case "notEqual":
-        return values.length > 1 ? `${name} NOT IN (${values.map(literal).join(", ")})` : `${name} != ${literal(values[0])}`;
+        return values.length > 1
+          ? `${name} NOT IN (${values.map(literal).join(", ")})`
+          : `${name} != ${literal(values[0])}`;
       case "contains":
         return any((v) => `${name} LIKE ${literal(`%${v}%`)}`, " OR ");
       case "notContain":
@@ -977,7 +1157,10 @@ function picklistDefaults(rt: Row): { picklistDefaults?: Record<string, string> 
 
 function buildObject(name: string, sobject: Row, ui: Row, profile: Row): PublishedObject {
   const visibleRts = new Map(
-    arr(profile.recordTypeVisibilities).map((v) => [str(v.recordType), v.visible === true || v.visible === "true"])
+    arr(profile.recordTypeVisibilities).map((v) => [
+      str(v.recordType),
+      v.visible === true || v.visible === "true",
+    ])
   );
   const recordTypes = arr(sobject.recordTypes)
     .filter((rt) => rt.active !== false && visibleRts.get(`${name}.${str(rt.fullName)}`) !== false)
@@ -988,7 +1171,11 @@ function buildObject(name: string, sobject: Row, ui: Row, profile: Row): Publish
       label: str(rt.label) || str(rt.fullName),
       layout: rt.layout ? str(rt.layout) : null,
       flexiPage: rt.flexiPage ? str(rt.flexiPage) : null,
-      compactLayout: rt.compactLayoutAssignment ? str(rt.compactLayoutAssignment) : sobject.compactLayoutAssignment ? str(sobject.compactLayoutAssignment) : null,
+      compactLayout: rt.compactLayoutAssignment
+        ? str(rt.compactLayoutAssignment)
+        : sobject.compactLayoutAssignment
+          ? str(sobject.compactLayoutAssignment)
+          : null,
       ...picklistDefaults(rt),
     }));
   const fields = new Map(arr(sobject.fields).map((f) => [str(f.fullName).toLowerCase(), f]));
@@ -1001,7 +1188,15 @@ function buildObject(name: string, sobject: Row, ui: Row, profile: Row): Publish
       const lv = obj(v);
       const sharedTo = Object.fromEntries(
         Object.entries(obj(lv.sharedTo))
-          .map(([k, names]) => [k, (Array.isArray(names) ? names : [names]).filter((n): n is string => typeof n === "string" && !!n)] as const)
+          .map(
+            ([k, names]) =>
+              [
+                k,
+                (Array.isArray(names) ? names : [names]).filter(
+                  (n): n is string => typeof n === "string" && !!n
+                ),
+              ] as const
+          )
           .filter(([, names]) => names.length > 0)
       );
       return {
@@ -1013,12 +1208,20 @@ function buildObject(name: string, sobject: Row, ui: Row, profile: Row): Publish
           fullName: key,
           columns: arr(lv.columns).map((c) => str(c.fullName)),
           filterScope: lv.filterScope ? str(lv.filterScope) : null,
-          filters: arr(lv.filters).map((f) => ({ field: str(f.field), operation: str(f.operation), value: str(f.value) })),
+          filters: arr(lv.filters).map((f) => ({
+            field: str(f.field),
+            operation: str(f.operation),
+            value: str(f.value),
+          })),
           booleanFilter: lv.booleanFilter ? str(lv.booleanFilter) : null,
         },
         query: {
           fields: arr(lv.columns).map((c) => listViewField(c, fields)),
-          where: listViewWhere(arr(lv.filters), lv.booleanFilter ? str(lv.booleanFilter) : null, fields),
+          where: listViewWhere(
+            arr(lv.filters),
+            lv.booleanFilter ? str(lv.booleanFilter) : null,
+            fields
+          ),
           mine: str(lv.filterScope).toLowerCase() === "mine",
         },
       };
@@ -1030,17 +1233,24 @@ function buildObject(name: string, sobject: Row, ui: Row, profile: Row): Publish
     label: str(sobject.label) || name,
     labelPlural: str(sobject.labelPlural) || name,
     recordTypes,
-    defaultCompactLayout: sobject.compactLayoutAssignment ? str(sobject.compactLayoutAssignment) : null,
+    defaultCompactLayout: sobject.compactLayoutAssignment
+      ? str(sobject.compactLayoutAssignment)
+      : null,
     listViews,
     defaultListView: defaultListView(listViews),
-    ...(theme.color && /^https:\/\//.test(str(theme.iconUrl)) ? { theme: { color: `#${str(theme.color).replace(/^#/, "")}`, iconUrl: str(theme.iconUrl) } } : {}),
+    ...(theme.color && /^https:\/\//.test(str(theme.iconUrl))
+      ? { theme: { color: `#${str(theme.color).replace(/^#/, "")}`, iconUrl: str(theme.iconUrl) } }
+      : {}),
   };
 }
 
 /** SObjectsCoordinator.didSelect(nil): a name containing ".All", then one ending "All", then the first. */
 function defaultListView(views: { name: string }[]): string | null {
   const all = (n: string) => n.startsWith("All") || n.startsWith("lsc4ce__All");
-  return (views.find((l) => all(l.name)) ?? views.find((l) => l.name.endsWith("All")) ?? views[0])?.name ?? null;
+  return (
+    (views.find((l) => all(l.name)) ?? views.find((l) => l.name.endsWith("All")) ?? views[0])
+      ?.name ?? null
+  );
 }
 
 /**
@@ -1073,18 +1283,28 @@ function multiEntityFor(
   const other = files.sobjects[cfg.with];
   const otherRts = arr(other?.recordTypes);
   const isDefault = (r: Row) =>
-    arr(profile.recordTypeVisibilities).some((v) => str(v.recordType) === `${cfg.with}.${str(r.fullName)}` && (v.default === true || v.isDefault === true || str(v.default) === "true"));
+    arr(profile.recordTypeVisibilities).some(
+      (v) =>
+        str(v.recordType) === `${cfg.with}.${str(r.fullName)}` &&
+        (v.default === true || v.isDefault === true || str(v.default) === "true")
+    );
   const match = otherRts.find((r) => str(r.fullName) === rt.name);
-  const pick = match ?? otherRts.find(isDefault) ?? otherRts.find((r) => str(r.fullName) === "Master");
+  const pick =
+    match ?? otherRts.find(isDefault) ?? otherRts.find((r) => str(r.fullName) === "Master");
   const layout = pick?.layout ? str(pick.layout) : "";
   // A linked object the user can't read, or without a layout, makes the whole component an error.
   if (!other || (available && !available.has(cfg.with)) || !layout || !rt.layout) {
-    return { layouts: [], error: `MultiEntityRecordView configuration error. No access to the following entities: ${!rt.layout ? name : cfg.with}` };
+    return {
+      layouts: [],
+      error: `MultiEntityRecordView configuration error. No access to the following entities: ${!rt.layout ? name : cfg.with}`,
+    };
   }
   const label = str(pick?.label) || str(pick?.fullName);
   return {
     layouts: cfg.withFirst ? [layout, rt.layout] : [rt.layout, layout],
-    note: match ? undefined : `${str(other.label) || cfg.with} sections use its ${label} record type; the app uses the linked record's own record type.`,
+    note: match
+      ? undefined
+      : `${str(other.label) || cfg.with} sections use its ${label} record type; the app uses the linked record's own record type.`,
   };
 }
 
@@ -1099,9 +1319,20 @@ export type SnapshotCore = Omit<PublishedIpad, "viewer" | "users" | "records">;
 
 export function buildSnapshot(
   raw: MetadataFiles,
-  meta: { profile: string; cache: PublishedIpad["cache"]; permissionSets?: string[]; availableTables?: Set<string> }
+  meta: {
+    profile: string;
+    cache: PublishedIpad["cache"];
+    permissionSets?: string[];
+    availableTables?: Set<string>;
+  }
 ): SnapshotCore {
-  const files: MetadataFiles = { ...raw, permissions: { ...raw.permissions, profile: effectiveProfile(raw.permissions, meta.permissionSets ?? []) } };
+  const files: MetadataFiles = {
+    ...raw,
+    permissions: {
+      ...raw.permissions,
+      profile: effectiveProfile(raw.permissions, meta.permissionSets ?? []),
+    },
+  };
   const { tabs, hidden } = buildTabs(files, meta.availableTables);
   const flexiPages = obj(files.ui.flexiPages);
   const pageLayouts = obj(files.ui.pageLayouts);
@@ -1114,8 +1345,18 @@ export function buildSnapshot(
 
   const homeTab = tabs.find((t) => t.kind === "home");
   let home: PublishedPage | null = null;
-  if (homeTab?.flexiPage && flexiPages[homeTab.flexiPage]) home = buildPage(homeTab.flexiPage, obj(flexiPages[homeTab.flexiPage]));
-  else if (homeTab) home = { name: "", label: "Home", type: "HomePage", template: "desktopTemplate", regions: [{ name: "top", components: [] }], droppedRegions: [], problems: [] };
+  if (homeTab?.flexiPage && flexiPages[homeTab.flexiPage])
+    home = buildPage(homeTab.flexiPage, obj(flexiPages[homeTab.flexiPage]));
+  else if (homeTab)
+    home = {
+      name: "",
+      label: "Home",
+      type: "HomePage",
+      template: "desktopTemplate",
+      regions: [{ name: "top", components: [] }],
+      droppedRegions: [],
+      problems: [],
+    };
 
   const objects: Record<string, PublishedObject> = {};
   const layouts: Record<string, PublishedLayout> = {};
@@ -1126,15 +1367,26 @@ export function buildSnapshot(
   for (const name of previewObjects(tabs, files)) {
     const o = buildObject(name, obj(files.sobjects[name]), files.ui, profile);
     objects[name] = o;
-    const compactNames = new Set([o.defaultCompactLayout, ...o.recordTypes.map((r) => r.compactLayout)].filter((x): x is string => !!x));
+    const compactNames = new Set(
+      [o.defaultCompactLayout, ...o.recordTypes.map((r) => r.compactLayout)].filter(
+        (x): x is string => !!x
+      )
+    );
     for (const c of compactNames) {
       const cl = obj(compact[`${name}.${c}`] ?? compact[c]);
       // SFComponentHighlightPanelView.filterCompactLayoutFields: the record name is the title, so its field isn't repeated
       // (an Account's Name by API name; elsewhere any field whose value is the title, which the record screen drops).
       const shown = arr(cl.fields).filter((f) => str(f.fullName).toLowerCase() !== "name");
       compactLayouts[`${name}.${c}`] = shown.map((f) => fieldLabel(files, name, f));
-      compactFields[`${name}.${c}`] = shown.map((f) => recordFieldSpec(f, fieldLabel(files, name, f)));
-      compactSources[`${name}.${c}`] = { fullName: `${name}.${c}`, fields: arr(cl.fields).map((f) => str(f.fullName)).filter((f) => f) };
+      compactFields[`${name}.${c}`] = shown.map((f) =>
+        recordFieldSpec(f, fieldLabel(files, name, f))
+      );
+      compactSources[`${name}.${c}`] = {
+        fullName: `${name}.${c}`,
+        fields: arr(cl.fields)
+          .map((f) => str(f.fullName))
+          .filter((f) => f),
+      };
     }
     for (const rt of o.recordTypes) {
       const page = rt.flexiPage ? obj(flexiPages[rt.flexiPage]) : {};
@@ -1143,23 +1395,49 @@ export function buildSnapshot(
         if (multiEntity) rt.multiEntity = multiEntity;
       }
       for (const l of [rt.layout, ...(rt.multiEntity?.layouts ?? [])]) {
-        if (l && !layouts[l] && pageLayouts[l]) layouts[l] = buildLayout(l, obj(pageLayouts[l]), obj(obj(files.translations?.layouts)[l]), (f) => fieldLabel(files, layoutObject(l), f));
+        if (l && !layouts[l] && pageLayouts[l])
+          layouts[l] = buildLayout(
+            l,
+            obj(pageLayouts[l]),
+            obj(obj(files.translations?.layouts)[l]),
+            (f) => fieldLabel(files, layoutObject(l), f)
+          );
       }
-      if (rt.flexiPage && !pages[rt.flexiPage] && flexiPages[rt.flexiPage]) pages[rt.flexiPage] = buildPage(rt.flexiPage, obj(flexiPages[rt.flexiPage]));
+      if (rt.flexiPage && !pages[rt.flexiPage] && flexiPages[rt.flexiPage])
+        pages[rt.flexiPage] = buildPage(rt.flexiPage, obj(flexiPages[rt.flexiPage]));
     }
   }
   for (const t of tabs) {
-    if (t.kind === "flexiPage" && t.flexiPage && flexiPages[t.flexiPage] && !pages[t.flexiPage]) pages[t.flexiPage] = buildPage(t.flexiPage, obj(flexiPages[t.flexiPage]));
+    if (t.kind === "flexiPage" && t.flexiPage && flexiPages[t.flexiPage] && !pages[t.flexiPage])
+      pages[t.flexiPage] = buildPage(t.flexiPage, obj(flexiPages[t.flexiPage]));
   }
 
   // SFComponentDashboardVC: looked up by dashboardName in the cache's dashboards; a missing one renders nothing.
   const describes = obj(files.reporting?.dashboards);
   const dashboards: Record<string, PublishedDashboard> = {};
-  for (const n of dashboardNames({ home, pages })) if (describes[n]) dashboards[n] = dashboardFromDescribe(obj(describes[n]));
+  for (const n of dashboardNames({ home, pages }))
+    if (describes[n]) dashboards[n] = dashboardFromDescribe(obj(describes[n]));
 
-  const sync = Object.fromEntries(Object.entries(files.db).map(([table, entry]) => [table, str(obj(entry).WhereSoql).trim()]));
+  const sync = Object.fromEntries(
+    Object.entries(files.db).map(([table, entry]) => [table, str(obj(entry).WhereSoql).trim()])
+  );
 
-  return { profile: meta.profile, cache: meta.cache, tabs, hiddenTabs: hidden, home, objects, layouts, pages, compactLayouts, compactFields, compactSources, dashboards, notes, sync };
+  return {
+    profile: meta.profile,
+    cache: meta.cache,
+    tabs,
+    hiddenTabs: hidden,
+    home,
+    objects,
+    layouts,
+    pages,
+    compactLayouts,
+    compactFields,
+    compactSources,
+    dashboards,
+    notes,
+    sync,
+  };
 }
 
 /**
@@ -1168,18 +1446,32 @@ export function buildSnapshot(
  * "Private Reports" / "Public Reports" pseudo-folders — each level sorted by
  * title. Reports join folders by folder name, as the app does.
  */
-export function buildReportTree(folders: Row[], reports: Row[], salesChart: boolean): PublishedReportItem[] {
-  const byTitle = (a: PublishedReportItem, b: PublishedReportItem) => (a.title < b.title ? -1 : a.title > b.title ? 1 : 0);
+export function buildReportTree(
+  folders: Row[],
+  reports: Row[],
+  salesChart: boolean
+): PublishedReportItem[] {
+  const byTitle = (a: PublishedReportItem, b: PublishedReportItem) =>
+    a.title < b.title ? -1 : a.title > b.title ? 1 : 0;
   const report = (r: Row): PublishedReportItem => {
     const format = str(r.Format).toLowerCase();
-    return { kind: "report", title: str(r.Name), description: str(r.Description) || undefined, native: format.includes("summary") || format.includes("tabular"), ...(str(r.Id) ? { id: str(r.Id), format: str(r.Format) } : {}), children: [] };
+    return {
+      kind: "report",
+      title: str(r.Name),
+      description: str(r.Description) || undefined,
+      native: format.includes("summary") || format.includes("tabular"),
+      ...(str(r.Id) ? { id: str(r.Id), format: str(r.Format) } : {}),
+      children: [],
+    };
   };
   const build = (f: Row, kind: "section" | "folder"): PublishedReportItem => ({
     kind,
     title: str(f.Name),
     children: [
       ...reports.filter((r) => str(r.FolderName) === str(f.Name)).map(report),
-      ...folders.filter((c) => str(c.ParentId) && str(c.ParentId) === str(f.Id)).map((c) => build(c, "folder")),
+      ...folders
+        .filter((c) => str(c.ParentId) && str(c.ParentId) === str(f.Id))
+        .map((c) => build(c, "folder")),
     ].sort(byTitle),
   });
   const sections: PublishedReportItem[] = [
@@ -1191,7 +1483,12 @@ export function buildReportTree(folders: Row[], reports: Row[], salesChart: bool
     if (children.length) sections.push({ kind: "section", title: name, children });
   }
   const out = sections.sort(byTitle);
-  if (salesChart) out.unshift({ kind: "section", title: "LSC Reports", children: [{ kind: "report", title: "Sales Chart", native: true, children: [] }] });
+  if (salesChart)
+    out.unshift({
+      kind: "section",
+      title: "LSC Reports",
+      children: [{ kind: "report", title: "Sales Chart", native: true, children: [] }],
+    });
   return out;
 }
 
@@ -1200,11 +1497,13 @@ export function dashboardNames(core: Pick<SnapshotCore, "home" | "pages">): stri
   const names = new Set<string>();
   const walk = (cs: PublishedComponent[]) => {
     for (const c of cs) {
-      if (c.name.endsWith(":embeddedDashboard") && c.properties.dashboardName) names.add(c.properties.dashboardName);
+      if (c.name.endsWith(":embeddedDashboard") && c.properties.dashboardName)
+        names.add(c.properties.dashboardName);
       c.tabs?.forEach((t) => walk(t.components));
     }
   };
-  for (const page of [core.home, ...Object.values(core.pages)]) page?.regions.forEach((r) => walk(r.components));
+  for (const page of [core.home, ...Object.values(core.pages)])
+    page?.regions.forEach((r) => walk(r.components));
   return [...names];
 }
 
@@ -1255,7 +1554,9 @@ export function dashboardData(result: Row): DashboardData {
   if (!nested) {
     const series = measures.map((label, i) => ({
       label,
-      values: outer.map((g) => (typeof fact(str(g.key), i).value === "number" ? (fact(str(g.key), i).value as number) : null)),
+      values: outer.map((g) =>
+        typeof fact(str(g.key), i).value === "number" ? (fact(str(g.key), i).value as number) : null
+      ),
       labels: outer.map((g) => str(fact(str(g.key), i).label)),
     }));
     return { measures, categories, grouped: false, series, total };
@@ -1265,7 +1566,12 @@ export function dashboardData(result: Row): DashboardData {
   outer.forEach((g, i) => {
     for (const inner of arr(g.groupings)) {
       const label = str(inner.label);
-      if (!byLabel.has(label)) byLabel.set(label, { label, values: categories.map(() => null), labels: categories.map(() => "") });
+      if (!byLabel.has(label))
+        byLabel.set(label, {
+          label,
+          values: categories.map(() => null),
+          labels: categories.map(() => ""),
+        });
       const f = fact(str(inner.key), 0);
       const s = byLabel.get(label)!;
       s.values[i] = typeof f.value === "number" ? f.value : null;
@@ -1281,13 +1587,28 @@ export function dashboardData(result: Row): DashboardData {
  * those show every viewer the same results, so reading them as the admin is
  * what the iPad shows. Kept out of the saved snapshot so they stay current.
  */
-async function withDashboardData(dashboards: Record<string, PublishedDashboard>, org: string, track?: LoadTracker): Promise<Record<string, PublishedDashboard>> {
+async function withDashboardData(
+  dashboards: Record<string, PublishedDashboard>,
+  org: string,
+  track?: LoadTracker
+): Promise<Record<string, PublishedDashboard>> {
   const out: Record<string, PublishedDashboard> = { ...dashboards };
-  const shared = Object.entries(dashboards).filter(([, d]) => d.sharedResults && ID_PATTERN.test(d.id));
+  const shared = Object.entries(dashboards).filter(
+    ([, d]) => d.sharedResults && ID_PATTERN.test(d.id)
+  );
   let finished = 0;
   await runPool(shared.slice(0, DASHBOARDS_READ), LIST_CONCURRENCY, async ([name, d]) => {
     try {
-      const res = await withTimeout(apiRequest<Row>(await dataPath(org, `/analytics/dashboards/${d.id}`), "GET", undefined, org), LIST_VIEW_TIMEOUT_MS, "Reading this dashboard");
+      const res = await withTimeout(
+        apiRequest<Row>(
+          await dataPath(org, `/analytics/dashboards/${d.id}`),
+          "GET",
+          undefined,
+          org
+        ),
+        LIST_VIEW_TIMEOUT_MS,
+        "Reading this dashboard"
+      );
       if (!res.success || !res.data) throw new Error(res.error || "no data returned");
       const data = new Map(arr(res.data.componentData).map((c) => [str(c.componentId), c]));
       let refreshedAt: string | undefined;
@@ -1302,9 +1623,16 @@ async function withDashboardData(dashboards: Record<string, PublishedDashboard>,
     } catch (err) {
       out[name] = { ...d, dataNote: `Couldn't read the dashboard's results: ${reason(err)}` };
     }
-    track?.detail("dashboards", `${++finished} of ${Math.min(shared.length, DASHBOARDS_READ)} dashboards`);
+    track?.detail(
+      "dashboards",
+      `${++finished} of ${Math.min(shared.length, DASHBOARDS_READ)} dashboards`
+    );
   });
-  for (const [name, d] of shared.slice(DASHBOARDS_READ)) out[name] = { ...d, dataNote: `Results not read: only the first ${DASHBOARDS_READ} dashboards are loaded.` };
+  for (const [name, d] of shared.slice(DASHBOARDS_READ))
+    out[name] = {
+      ...d,
+      dataNote: `Results not read: only the first ${DASHBOARDS_READ} dashboards are loaded.`,
+    };
   return out;
 }
 
@@ -1339,9 +1667,17 @@ const SHARE_MATCH: Record<string, (v: ViewerSharing, n: string) => boolean> = {
 };
 
 const SHARE_NOUN: Record<string, string> = {
-  role: "role", roles: "role", roleAndSubordinates: "role and subordinates", roleAndSubordinatesInternal: "role and subordinates",
-  rolesAndSubordinates: "role and subordinates", group: "group", groups: "group", territory: "territory", territories: "territory",
-  territoryAndSubordinates: "territory and subordinates", territoriesAndSubordinates: "territory and subordinates",
+  role: "role",
+  roles: "role",
+  roleAndSubordinates: "role and subordinates",
+  roleAndSubordinatesInternal: "role and subordinates",
+  rolesAndSubordinates: "role and subordinates",
+  group: "group",
+  groups: "group",
+  territory: "territory",
+  territories: "territory",
+  territoryAndSubordinates: "territory and subordinates",
+  territoriesAndSubordinates: "territory and subordinates",
 };
 
 /**
@@ -1350,7 +1686,10 @@ const SHARE_NOUN: Record<string, string> = {
  * ignored — MetadataCore decodes them as []), so a view shared only with
  * roles, groups, or territories the user isn't in never shows.
  */
-export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing | null): SnapshotCore {
+export function applyListViewSharing(
+  core: SnapshotCore,
+  viewer: ViewerSharing | null
+): SnapshotCore {
   if (!viewer) return core;
   const objects: Record<string, PublishedObject> = {};
   for (const [name, o] of Object.entries(core.objects)) {
@@ -1359,11 +1698,18 @@ export function applyListViewSharing(core: SnapshotCore, viewer: ViewerSharing |
       if (!l.sharedTo) return true;
       const entries = Object.entries(l.sharedTo);
       if (entries.some(([k, names]) => names.some((n) => SHARE_MATCH[k]?.(viewer, n)))) return true;
-      const to = entries.map(([k, names]) => `${SHARE_NOUN[k] ?? k} ${names.join(", ")}`).join("; ");
+      const to = entries
+        .map(([k, names]) => `${SHARE_NOUN[k] ?? k} ${names.join(", ")}`)
+        .join("; ");
       hiddenListViews.push({ label: l.label, reason: `Shared only with ${to}` });
       return false;
     });
-    objects[name] = { ...o, listViews, defaultListView: defaultListView(listViews), ...(hiddenListViews.length ? { hiddenListViews } : {}) };
+    objects[name] = {
+      ...o,
+      listViews,
+      defaultListView: defaultListView(listViews),
+      ...(hiddenListViews.length ? { hiddenListViews } : {}),
+    };
   }
   return { ...core, objects };
 }
@@ -1422,13 +1768,25 @@ export function downloadTimeoutMs(sizeBytes: number | null): number {
   return Math.min(1_800_000, Math.max(base, base + Math.ceil(sizeBytes / 1_000_000) * 2000));
 }
 
-export async function download(contentVersionId: string, dest: string, org: string, sizeBytes: number | null = null): Promise<void> {
+export async function download(
+  contentVersionId: string,
+  dest: string,
+  org: string,
+  sizeBytes: number | null = null
+): Promise<void> {
   const timeout = downloadTimeoutMs(sizeBytes);
-  const res = await downloadToFile(await dataPath(org, `/sobjects/ContentVersion/${contentVersionId}/VersionData`), dest, org, timeout);
+  const res = await downloadToFile(
+    await dataPath(org, `/sobjects/ContentVersion/${contentVersionId}/VersionData`),
+    dest,
+    org,
+    timeout
+  );
   if (res.success) return;
   if (res.timedOut) {
     const size = sizeBytes ? ` (${(sizeBytes / 1_048_576).toFixed(0)} MB)` : "";
-    throw new Error(`Downloading the metadata cache${size} timed out after ${Math.round(timeout / 60_000)} minutes. The connection to the org is too slow or the file is too large; try again, or on a faster network.`);
+    throw new Error(
+      `Downloading the metadata cache${size} timed out after ${Math.round(timeout / 60_000)} minutes. The connection to the org is too slow or the file is too large; try again, or on a faster network.`
+    );
   }
   throw new Error(res.error || "Download failed");
 }
@@ -1438,14 +1796,26 @@ export async function download(contentVersionId: string, dest: string, org: stri
  * (all translations together are most of the ZIP). Returns the files and each
  * found language's tab and layout translations.
  */
-async function extract(zip: string, dir: string, languages: string[]): Promise<{ files: MetadataFiles; tabTranslations: Map<string, Row> }> {
-  const patterns = [...FILES.map((f) => `*/metadata/${f}.json`), ...languages.map((l) => `*/translations/${l}.json`)];
+async function extract(
+  zip: string,
+  dir: string,
+  languages: string[]
+): Promise<{ files: MetadataFiles; tabTranslations: Map<string, Row> }> {
+  const patterns = [
+    ...FILES.map((f) => `*/metadata/${f}.json`),
+    ...languages.map((l) => `*/translations/${l}.json`),
+  ];
   try {
-    await execFileAsync("unzip", ["-o", "-q", "-j", zip, ...patterns, "-d", dir], { maxBuffer: 1 << 20 });
+    await execFileAsync("unzip", ["-o", "-q", "-j", zip, ...patterns, "-d", dir], {
+      maxBuffer: 1 << 20,
+    });
   } catch (err) {
     // Exit 11 = some patterns had no match; anything else is a real failure.
     const code = (err as { code?: number }).code;
-    if (code !== 11) throw new Error(`Couldn't unpack the metadata cache (${err instanceof Error ? err.message : String(err)}). Studio needs the unzip command.`);
+    if (code !== 11)
+      throw new Error(
+        `Couldn't unpack the metadata cache (${err instanceof Error ? err.message : String(err)}). Studio needs the unzip command.`
+      );
   }
   // Parsing is synchronous and the files can be tens of MB: let progress polls through between them.
   const read = async (f: string): Promise<Row> => {
@@ -1457,7 +1827,11 @@ async function extract(zip: string, dir: string, languages: string[]): Promise<{
   for (const l of languages) {
     if (fs.existsSync(path.join(dir, `${l}.json`))) {
       const t = await read(l);
-      tabTranslations.set(l, { tabs: obj(t.tabs), layouts: layoutTranslations(obj(t.objects)), fields: fieldTranslations(obj(t.objects)) });
+      tabTranslations.set(l, {
+        tabs: obj(t.tabs),
+        layouts: layoutTranslations(obj(t.objects)),
+        fields: fieldTranslations(obj(t.objects)),
+      });
     }
   }
   return {
@@ -1476,13 +1850,26 @@ async function extract(zip: string, dir: string, languages: string[]): Promise<{
 const yieldToEventLoop = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 /** TranslatedObject.layouts, keyed by layoutName: non-empty section and related list labels. */
-function layoutTranslations(objects: Row): Record<string, { sections: Record<string, string>; relatedLists: Record<string, string> }> {
-  const out: Record<string, { sections: Record<string, string>; relatedLists: Record<string, string> }> = {};
+function layoutTranslations(
+  objects: Row
+): Record<string, { sections: Record<string, string>; relatedLists: Record<string, string> }> {
+  const out: Record<
+    string,
+    { sections: Record<string, string>; relatedLists: Record<string, string> }
+  > = {};
   for (const o of Object.values(objects)) {
     for (const l of arr(obj(o).layouts)) {
       if (!str(l.layoutName)) continue;
-      const sections = Object.fromEntries(arr(l.sections).filter((x) => str(x.section) && str(x.label)).map((x) => [str(x.section), str(x.label)]));
-      const relatedLists = Object.fromEntries(arr(l.relatedLists).filter((x) => str(x.relatedList) && str(x.relatedListLabel)).map((x) => [str(x.relatedList), str(x.relatedListLabel)]));
+      const sections = Object.fromEntries(
+        arr(l.sections)
+          .filter((x) => str(x.section) && str(x.label))
+          .map((x) => [str(x.section), str(x.label)])
+      );
+      const relatedLists = Object.fromEntries(
+        arr(l.relatedLists)
+          .filter((x) => str(x.relatedList) && str(x.relatedListLabel))
+          .map((x) => [str(x.relatedList), str(x.relatedListLabel)])
+      );
       out[str(l.layoutName)] = { sections, relatedLists };
     }
   }
@@ -1490,11 +1877,20 @@ function layoutTranslations(objects: Row): Record<string, { sections: Record<str
 }
 
 /** TranslatedObject.fields (keyed by exact name) and nameFieldLabel, per object: non-empty labels only. */
-function fieldTranslations(objects: Row): Record<string, { labels: Record<string, string>; nameFieldLabel?: string }> {
+function fieldTranslations(
+  objects: Row
+): Record<string, { labels: Record<string, string>; nameFieldLabel?: string }> {
   const out: Record<string, { labels: Record<string, string>; nameFieldLabel?: string }> = {};
   for (const [name, o] of Object.entries(objects)) {
-    const labels = Object.fromEntries(arr(obj(o).fields).filter((f) => str(f.name) && str(f.label)).map((f) => [str(f.name), str(f.label)]));
-    out[str(obj(o).object) || name] = { labels, ...(str(obj(o).nameFieldLabel) ? { nameFieldLabel: str(obj(o).nameFieldLabel) } : {}) };
+    const labels = Object.fromEntries(
+      arr(obj(o).fields)
+        .filter((f) => str(f.name) && str(f.label))
+        .map((f) => [str(f.name), str(f.label)])
+    );
+    out[str(obj(o).object) || name] = {
+      labels,
+      ...(str(obj(o).nameFieldLabel) ? { nameFieldLabel: str(obj(o).nameFieldLabel) } : {}),
+    };
   }
   return out;
 }
@@ -1573,12 +1969,19 @@ async function profileUsers(profile: string, org: string): Promise<ProfileUsers>
   );
   const rows = result.records as Row[];
   const total = Math.max(result.totalSize ?? rows.length, rows.length);
-  const sets = await assignedSets(rows.map((u) => str(u.Id)), org);
+  const sets = await assignedSets(
+    rows.map((u) => str(u.Id)),
+    org
+  );
   return { users: rows.map((u) => toProfileUser(u, sets)), total, truncated: total > rows.length };
 }
 
 /** One active user of the profile, for a pick outside the listed users. */
-async function profileUserById(profile: string, id: string, org: string): Promise<ProfileUser | undefined> {
+async function profileUserById(
+  profile: string,
+  id: string,
+  org: string
+): Promise<ProfileUser | undefined> {
   if (!ID_PATTERN.test(id)) return undefined;
   const rows = await query(
     `SELECT Id, Name, LastLoginDate, LanguageLocaleKey FROM User WHERE Id = '${id}' AND IsActive = true AND Profile.Name = ${soqlString(profile)}`,
@@ -1588,7 +1991,12 @@ async function profileUserById(profile: string, id: string, org: string): Promis
 }
 
 /** Active users of the profile whose name contains `text`, for the picker when the profile has more users than it lists. */
-export async function searchProfileUsers(profile: string, text: string, org: string, limit = 50): Promise<{ id: string; name: string }[]> {
+export async function searchProfileUsers(
+  profile: string,
+  text: string,
+  org: string,
+  limit = 50
+): Promise<{ id: string; name: string }[]> {
   const term = text.trim();
   if (!term) return [];
   const rows = await query(
@@ -1600,16 +2008,18 @@ export async function searchProfileUsers(profile: string, text: string, org: str
   return rows.map((u) => ({ id: str(u.Id), name: str(u.Name) }));
 }
 
-const comboKey = (sets: string[]) => createHash("sha1").update(sets.join("\n")).digest("hex").slice(0, 12);
+const comboKey = (sets: string[]) =>
+  createHash("sha1").update(sets.join("\n")).digest("hex").slice(0, 12);
 
 /** The default viewer: a user with the profile's most common permission-set combination, most recent login first. */
 function defaultUser(users: ProfileUser[]): ProfileUser | undefined {
   const counts = new Map<string, number>();
-  for (const u of users) counts.set(comboKey(u.permissionSets), (counts.get(comboKey(u.permissionSets)) ?? 0) + 1);
+  for (const u of users)
+    counts.set(comboKey(u.permissionSets), (counts.get(comboKey(u.permissionSets)) ?? 0) + 1);
   return [...users].sort(
     (a, b) =>
-      (counts.get(comboKey(b.permissionSets)) ?? 0) - (counts.get(comboKey(a.permissionSets)) ?? 0) ||
-      b.lastLogin.localeCompare(a.lastLogin)
+      (counts.get(comboKey(b.permissionSets)) ?? 0) -
+        (counts.get(comboKey(a.permissionSets)) ?? 0) || b.lastLogin.localeCompare(a.lastLogin)
   )[0];
 }
 
@@ -1657,12 +2067,17 @@ async function availableTablesFor(
       const ps = obj(r.Parent);
       if (ps.IsOwnedByProfile === true) fromProfile.add(str(r.SobjectType));
       else {
-        const name = str(ps.NamespacePrefix) ? `${str(ps.NamespacePrefix)}__${str(ps.Name)}` : str(ps.Name);
+        const name = str(ps.NamespacePrefix)
+          ? `${str(ps.NamespacePrefix)}__${str(ps.Name)}`
+          : str(ps.Name);
         fromSet.set(name, (fromSet.get(name) ?? new Set()).add(str(r.SobjectType)));
       }
     }
     return (permissionSets) => {
-      const readable = new Set([...fromProfile, ...permissionSets.flatMap((ps) => [...(fromSet.get(ps) ?? [])])]);
+      const readable = new Set([
+        ...fromProfile,
+        ...permissionSets.flatMap((ps) => [...(fromSet.get(ps) ?? [])]),
+      ]);
       return new Set(candidates.filter((s) => readable.has(s) || !hasPermissions.has(s)));
     };
   } catch (err) {
@@ -1673,13 +2088,24 @@ async function availableTablesFor(
 }
 
 /** Walk a parent field up from `ids`, returning every row reached (the starting rows included). */
-async function ancestors(sobject: string, parentField: string, fields: string, ids: string[], org: string): Promise<Row[]> {
+async function ancestors(
+  sobject: string,
+  parentField: string,
+  fields: string,
+  ids: string[],
+  org: string
+): Promise<Row[]> {
   const seen = new Map<string, Row>();
   let frontier = ids.filter((id) => ID_PATTERN.test(id));
   for (let depth = 0; frontier.length && depth < 20; depth++) {
-    const rows = await query(`SELECT Id, ${parentField}, ${fields} FROM ${sobject} WHERE Id IN (${inList(frontier)})`, org);
+    const rows = await query(
+      `SELECT Id, ${parentField}, ${fields} FROM ${sobject} WHERE Id IN (${inList(frontier)})`,
+      org
+    );
     for (const r of rows) seen.set(str(r.Id), r);
-    frontier = [...new Set(rows.map((r) => str(r[parentField])).filter((id) => id && !seen.has(id)))];
+    frontier = [
+      ...new Set(rows.map((r) => str(r[parentField])).filter((id) => id && !seen.has(id))),
+    ];
   }
   return [...seen.values()];
 }
@@ -1689,24 +2115,50 @@ async function ancestors(sobject: string, parentField: string, fields: string, i
  * filter, so the user's sharing decides): report folders they can read, the
  * reports in them, the org's unfiled public reports, and their own private ones.
  */
-async function viewerReports(userId: string, salesChart: boolean, org: string, note: (message: string) => void): Promise<PublishedReportItem[] | undefined> {
+async function viewerReports(
+  userId: string,
+  salesChart: boolean,
+  org: string,
+  note: (message: string) => void
+): Promise<PublishedReportItem[] | undefined> {
   if (!ID_PATTERN.test(userId)) return undefined;
   {
     const [folderResult, reportResult] = await Promise.all([
-      queryResult(`SELECT Id, Name, ParentId FROM Folder WHERE Type = 'Report' ORDER BY Name`, org, false, { allowTruncated: true, maxRows: REPORT_ROWS }),
-      queryResult(`SELECT Id, Name, Description, Format, FolderName, OwnerId FROM Report ORDER BY Name`, org, false, { allowTruncated: true, maxRows: REPORT_ROWS }),
+      queryResult(
+        `SELECT Id, Name, ParentId FROM Folder WHERE Type = 'Report' ORDER BY Name`,
+        org,
+        false,
+        { allowTruncated: true, maxRows: REPORT_ROWS }
+      ),
+      queryResult(
+        `SELECT Id, Name, Description, Format, FolderName, OwnerId FROM Report ORDER BY Name`,
+        org,
+        false,
+        { allowTruncated: true, maxRows: REPORT_ROWS }
+      ),
     ]);
     const folders = folderResult.records as Row[];
     const reports = reportResult.records as Row[];
-    for (const [result, noun] of [[folderResult, "report folders"], [reportResult, "reports"]] as const) {
-      if (result.truncated) note(`Reports tab: read the first ${result.records.length.toLocaleString("en-US")} of ${result.totalSize.toLocaleString("en-US")} ${noun} by name; the rest aren't shown.`);
+    for (const [result, noun] of [
+      [folderResult, "report folders"],
+      [reportResult, "reports"],
+    ] as const) {
+      if (result.truncated)
+        note(
+          `Reports tab: read the first ${result.records.length.toLocaleString("en-US")} of ${result.totalSize.toLocaleString("en-US")} ${noun} by name; the rest aren't shown.`
+        );
     }
     const readable = new Set<string>();
     const ids = folders.map((f) => str(f.Id)).filter((id) => ID_PATTERN.test(id));
     const chunks: string[][] = [];
     for (let i = 0; i < ids.length; i += 200) chunks.push(ids.slice(i, i + 200)); // UserRecordAccess takes 200 ids at a time
     for (const rows of await Promise.all(
-      chunks.map((c) => query(`SELECT RecordId, HasReadAccess FROM UserRecordAccess WHERE UserId = '${userId}' AND RecordId IN (${inList(c)})`, org))
+      chunks.map((c) =>
+        query(
+          `SELECT RecordId, HasReadAccess FROM UserRecordAccess WHERE UserId = '${userId}' AND RecordId IN (${inList(c)})`,
+          org
+        )
+      )
     )) {
       for (const r of rows) if (r.HasReadAccess === true) readable.add(str(r.RecordId));
     }
@@ -1728,29 +2180,48 @@ async function viewerSharing(userId: string, org: string): Promise<ViewerSharing
   try {
     const [users, assignments] = await Promise.all([
       query(`SELECT UserRoleId, UserRole.DeveloperName FROM User WHERE Id = '${userId}'`, org),
-      query(`SELECT Territory2Id FROM UserTerritory2Association WHERE UserId = '${userId}' AND IsActive = true`, org),
+      query(
+        `SELECT Territory2Id FROM UserTerritory2Association WHERE UserId = '${userId}' AND IsActive = true`,
+        org
+      ),
     ]);
     const roleId = str(users[0]?.UserRoleId);
-    const roles = roleId ? await ancestors("UserRole", "ParentRoleId", "DeveloperName", [roleId], org) : [];
+    const roles = roleId
+      ? await ancestors("UserRole", "ParentRoleId", "DeveloperName", [roleId], org)
+      : [];
     const ownTerritories = assignments.map((a) => str(a.Territory2Id));
-    const territories = await ancestors("Territory2", "ParentTerritory2Id", "DeveloperName, Territory2Model.DeveloperName", ownTerritories, org);
-    const territoryName = (t: Row) => `${str(obj(t.Territory2Model).DeveloperName)}.${str(t.DeveloperName)}`;
+    const territories = await ancestors(
+      "Territory2",
+      "ParentTerritory2Id",
+      "DeveloperName, Territory2Model.DeveloperName",
+      ownTerritories,
+      org
+    );
+    const territoryName = (t: Row) =>
+      `${str(obj(t.Territory2Model).DeveloperName)}.${str(t.DeveloperName)}`;
 
     // Start from the user and the role/territory groups they belong to, then follow group nesting.
     const roleIds = roles.map((r) => str(r.Id));
     const territoryIds = territories.map((t) => str(t.Id));
     const clauses = [
       roleId && `(Type = 'Role' AND RelatedId = '${roleId}')`,
-      roleIds.length && `(Type IN ('RoleAndSubordinates','RoleAndSubordinatesInternal') AND RelatedId IN (${inList(roleIds)}))`,
+      roleIds.length &&
+        `(Type IN ('RoleAndSubordinates','RoleAndSubordinatesInternal') AND RelatedId IN (${inList(roleIds)}))`,
       ownTerritories.length && `(Type = 'Territory' AND RelatedId IN (${inList(ownTerritories)}))`,
-      territoryIds.length && `(Type = 'TerritoryAndSubordinates' AND RelatedId IN (${inList(territoryIds)}))`,
+      territoryIds.length &&
+        `(Type = 'TerritoryAndSubordinates' AND RelatedId IN (${inList(territoryIds)}))`,
     ].filter(Boolean);
-    const implicit = clauses.length ? await query(`SELECT Id FROM Group WHERE ${clauses.join(" OR ")}`, org) : [];
+    const implicit = clauses.length
+      ? await query(`SELECT Id FROM Group WHERE ${clauses.join(" OR ")}`, org)
+      : [];
     const groups = new Set<string>();
     const seen = new Set<string>([userId, ...implicit.map((g) => str(g.Id))]);
     let frontier = [...seen];
     for (let depth = 0; frontier.length && depth < 10; depth++) {
-      const rows = await query(`SELECT GroupId, Group.DeveloperName, Group.Type FROM GroupMember WHERE UserOrGroupId IN (${inList(frontier)})`, org);
+      const rows = await query(
+        `SELECT GroupId, Group.DeveloperName, Group.Type FROM GroupMember WHERE UserOrGroupId IN (${inList(frontier)})`,
+        org
+      );
       frontier = [];
       for (const m of rows) {
         const g = obj(m.Group);
@@ -1765,7 +2236,9 @@ async function viewerSharing(userId: string, org: string): Promise<ViewerSharing
       role: str(obj(users[0]?.UserRole).DeveloperName) || null,
       roleAndAbove: new Set(roles.map((r) => str(r.DeveloperName))),
       groups,
-      territories: new Set(territories.filter((t) => ownTerritories.includes(str(t.Id))).map(territoryName)),
+      territories: new Set(
+        territories.filter((t) => ownTerritories.includes(str(t.Id))).map(territoryName)
+      ),
       territoryAndAbove: new Set(territories.map(territoryName)),
     };
   } catch {
@@ -1779,7 +2252,11 @@ async function viewerSharing(userId: string, org: string): Promise<ViewerSharing
  * signed-in user: per category, the active record assigned to the user, else
  * to their profile, else the org default. Field name → value.
  */
-export async function viewerConfig(categories: string[], userId: string, org: string): Promise<Record<string, Row>> {
+export async function viewerConfig(
+  categories: string[],
+  userId: string,
+  org: string
+): Promise<Record<string, Row>> {
   const out: Record<string, Row> = {};
   if (!ID_PATTERN.test(userId) || !categories.length) return out;
   const [records, users] = await Promise.all([
@@ -1794,27 +2271,52 @@ export async function viewerConfig(categories: string[], userId: string, org: st
   if (!records.length) return out;
   const ids = inList(records.map((r) => str(r.Id)));
   const [values, assignments] = await Promise.all([
-    query(`SELECT LifeSciConfigRecordId, FieldName, DataType, ${FV_COLUMNS.join(", ")} FROM LifeSciConfigFieldValue WHERE LifeSciConfigRecordId IN (${ids})`, org, true),
-    query(`SELECT LifeSciConfigRecordId, AssignedToId FROM LifeSciConfigAssignment WHERE LifeSciConfigRecordId IN (${ids})`, org, true),
+    query(
+      `SELECT LifeSciConfigRecordId, FieldName, DataType, ${FV_COLUMNS.join(", ")} FROM LifeSciConfigFieldValue WHERE LifeSciConfigRecordId IN (${ids})`,
+      org,
+      true
+    ),
+    query(
+      `SELECT LifeSciConfigRecordId, AssignedToId FROM LifeSciConfigAssignment WHERE LifeSciConfigRecordId IN (${ids})`,
+      org,
+      true
+    ),
   ]);
   const owners = [userId, str(users[0]?.ProfileId)].filter(Boolean);
-  const assignedTo = (id: string) => assignments.filter((a) => str(a.LifeSciConfigRecordId) === id).map((a) => str(a.AssignedToId));
+  const assignedTo = (id: string) =>
+    assignments.filter((a) => str(a.LifeSciConfigRecordId) === id).map((a) => str(a.AssignedToId));
   for (const category of categories) {
     const mine = records.filter((r) => str(obj(r.LifeSciConfigCategory).Category) === category);
     const pick =
-      owners.map((o) => mine.find((r) => assignedTo(str(r.Id)).some((a) => a.startsWith(o.slice(0, 15))))).find(Boolean) ??
-      mine.find((r) => r.IsOrgLevel === true);
+      owners
+        .map((o) =>
+          mine.find((r) => assignedTo(str(r.Id)).some((a) => a.startsWith(o.slice(0, 15))))
+        )
+        .find(Boolean) ?? mine.find((r) => r.IsOrgLevel === true);
     if (!pick) continue;
     const fields: Row = {};
     for (const v of values.filter((x) => str(x.LifeSciConfigRecordId) === str(pick.Id))) {
-      fields[str(v.FieldName)] = str(v.DataType).toUpperCase() === "BOOLEAN" ? v.HasBooleanValue === true : (FV_COLUMNS.filter((c) => c !== "HasBooleanValue").map((c) => v[c]).find((x) => x != null) ?? null);
+      fields[str(v.FieldName)] =
+        str(v.DataType).toUpperCase() === "BOOLEAN"
+          ? v.HasBooleanValue === true
+          : (FV_COLUMNS.filter((c) => c !== "HasBooleanValue")
+              .map((c) => v[c])
+              .find((x) => x != null) ?? null);
     }
     out[category] = fields;
   }
   return out;
 }
 
-const FV_COLUMNS = ["TextValue", "IntegerValue", "PicklistValue", "HasBooleanValue", "LongTextValue", "NumberValue", "UrlValue"];
+const FV_COLUMNS = [
+  "TextValue",
+  "IntegerValue",
+  "PicklistValue",
+  "HasBooleanValue",
+  "LongTextValue",
+  "NumberValue",
+  "UrlValue",
+];
 
 /** What the viewer's native screens and lists show, read live (never saved with the snapshot). */
 async function viewerScreens(
@@ -1823,7 +2325,9 @@ async function viewerScreens(
   org: string,
   track: LoadTracker,
   repLogin?: TokenLogin
-): Promise<Pick<PublishedIpad, "lists" | "listErrors" | "screens" | "records" | "dataNotes" | "dataSource">> {
+): Promise<
+  Pick<PublishedIpad, "lists" | "listErrors" | "screens" | "records" | "dataNotes" | "dataSource">
+> {
   if (!userId) return {};
   track.plan(["lists", "screens", "records"]);
   const notes: string[] = [];
@@ -1854,17 +2358,31 @@ async function viewerScreens(
     const lists = listResult?.data;
     const home = (screens as PublishedScreens).home;
     // Records other screens open: the Accounts cards, the Home NBC cards (account) and Visits To Submit rows (visit editor).
-    const cards = [...new Set([...((screens as PublishedScreens).accounts?.cards.map((c) => c.id) ?? []), ...(home?.nbc?.cards.map((c) => c.accountId) ?? [])])];
+    const cards = [
+      ...new Set([
+        ...((screens as PublishedScreens).accounts?.cards.map((c) => c.id) ?? []),
+        ...(home?.nbc?.cards.map((c) => c.accountId) ?? []),
+      ]),
+    ];
     // ...and the Calendar's visit tiles, which open the Visit record.
     // collectRecords keeps the first 30 per object: the rows go first, then the tiles nearest today fill the rest.
     const cal = (screens as PublishedScreens).calendar;
-    const today = cal ? Math.max(0, cal.days.findIndex((d) => d.today)) : 0;
-    const calVisits = (cal?.segments.filter((s) => s.kind === "visit") ?? []).sort((a, b) => Math.abs(a.day - today) - Math.abs(b.day - today)).map((s) => s.id);
+    const today = cal
+      ? Math.max(
+          0,
+          cal.days.findIndex((d) => d.today)
+        )
+      : 0;
+    const calVisits = (cal?.segments.filter((s) => s.kind === "visit") ?? [])
+      .sort((a, b) => Math.abs(a.day - today) - Math.abs(b.day - today))
+      .map((s) => s.id);
     const visits = [...new Set([...(home?.visits?.items.map((v) => v.id) ?? []), ...calVisits])];
     return lists || cards.length || visits.length
       ? await track.run("records", () =>
           withTimeout(
-            viewerContext(core, userId, org, recordNote, readOrg).then((ctx) => collectRecords(ctx, lists ?? {}, { Account: cards, Visit: visits })),
+            viewerContext(core, userId, org, recordNote, readOrg).then((ctx) =>
+              collectRecords(ctx, lists ?? {}, { Account: cards, Visit: visits })
+            ),
             RECORDS_TIMEOUT_MS,
             "Reading the records list views and cards open"
           ).catch((err) => {
@@ -1878,7 +2396,8 @@ async function viewerScreens(
   for (const message of recordNotes) note(message);
   if (rep) forgetTokenOrg(rep.org);
   const lists = listResult?.data;
-  const listErrors = listResult && Object.keys(listResult.errors).length ? listResult.errors : undefined;
+  const listErrors =
+    listResult && Object.keys(listResult.errors).length ? listResult.errors : undefined;
   return {
     ...(lists ? { lists } : {}),
     ...(listErrors ? { listErrors } : {}),
@@ -1893,7 +2412,11 @@ async function viewerScreens(
  * Puts the rep's login to use for reads: registers it as a token org and checks the org accepts it
  * as that user. Undefined (with a note) when it doesn't, so the load falls back to the admin reads.
  */
-export async function openRepReads(login: TokenLogin, userId: string, note: (message: string) => void): Promise<{ org: string } | undefined> {
+export async function openRepReads(
+  login: TokenLogin,
+  userId: string,
+  note: (message: string) => void
+): Promise<{ org: string } | undefined> {
   let tokenOrg: string;
   try {
     tokenOrg = registerTokenOrg(login, await latestApiVersion(login.instanceUrl));
@@ -1913,18 +2436,30 @@ export async function openRepReads(login: TokenLogin, userId: string, note: (mes
 }
 
 /** The viewer's territories, locale, and sync scope, for the native screens' collectors. */
-async function viewerContext(core: SnapshotCore, userId: string, org: string, note: (message: string) => void, readOrg: string = org): Promise<ScreenContext> {
+async function viewerContext(
+  core: SnapshotCore,
+  userId: string,
+  org: string,
+  note: (message: string) => void,
+  readOrg: string = org
+): Promise<ScreenContext> {
   const soft = (what: string) => (err: unknown) => {
     if (isScaleError(err)) note(`${what}: ${reason(err)}`);
     return [] as Row[];
   };
   const [users, assignments] = await Promise.all([
-    query(`SELECT TimeZoneSidKey, LocaleSidKey FROM User WHERE Id = '${userId}'`, org).catch(soft("The rep's time zone and locale (UTC and en-US used)")),
-    query(`SELECT Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId = '${userId}' AND Territory2.Territory2Model.State = 'Active'`, org).catch(
-      soft("The rep's territories (screens read as if they had none)")
+    query(`SELECT TimeZoneSidKey, LocaleSidKey FROM User WHERE Id = '${userId}'`, org).catch(
+      soft("The rep's time zone and locale (UTC and en-US used)")
     ),
+    query(
+      `SELECT Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId = '${userId}' AND Territory2.Territory2Model.State = 'Active'`,
+      org
+    ).catch(soft("The rep's territories (screens read as if they had none)")),
   ]);
-  const territories = assignments.map((a) => ({ id: str(a.Territory2Id), name: str(obj(a.Territory2).Name) }));
+  const territories = assignments.map((a) => ({
+    id: str(a.Territory2Id),
+    name: str(obj(a.Territory2).Name),
+  }));
   return {
     core,
     userId,
@@ -1932,7 +2467,10 @@ async function viewerContext(core: SnapshotCore, userId: string, org: string, no
     adminOrg: org,
     source: readOrg === org ? "admin" : "rep",
     territories,
-    format: { timeZone: str(users[0]?.TimeZoneSidKey) || "UTC", locale: (str(users[0]?.LocaleSidKey) || "en_US").replace(/_/g, "-") },
+    format: {
+      timeZone: str(users[0]?.TimeZoneSidKey) || "UTC",
+      locale: (str(users[0]?.LocaleSidKey) || "en_US").replace(/_/g, "-"),
+    },
     scope: syncScope(core, userId, territories),
     config: (categories) => viewerConfig(categories, userId, org),
     note,
@@ -1940,7 +2478,11 @@ async function viewerContext(core: SnapshotCore, userId: string, org: string, no
 }
 
 /** The app lists what it downloaded: undefined = a table it doesn't sync, null = a filter we can't reproduce. */
-function syncScope(core: SnapshotCore, userId: string, territories: { id: string; name: string }[]): (table: string) => string | null | undefined {
+function syncScope(
+  core: SnapshotCore,
+  userId: string,
+  territories: { id: string; name: string }[]
+): (table: string) => string | null | undefined {
   return (table) => {
     if (!core.sync) return null;
     const key = Object.keys(core.sync).find((k) => ieq(k, table));
@@ -1966,9 +2508,20 @@ export async function loadIpadReports(userId: string, org: string): Promise<Ipad
   const notes: string[] = [];
   const config = await viewerConfig(["ReportsAndDashboardsSync"], userId, org);
   const r = config.ReportsAndDashboardsSync ?? {};
-  const settings: PublishedSettings = { reports: { salesChart: r.ShowSalesChart === true, salesforceReports: r.ShowSalesforceReports === true } };
-  const reports = settings.reports.salesforceReports ? await viewerReports(userId, settings.reports.salesChart, org, (m) => notes.push(m)) : undefined;
-  return { settings, ...(reports ? { reports } : {}), ...(notes.length ? { dataNotes: notes } : {}) };
+  const settings: PublishedSettings = {
+    reports: {
+      salesChart: r.ShowSalesChart === true,
+      salesforceReports: r.ShowSalesforceReports === true,
+    },
+  };
+  const reports = settings.reports.salesforceReports
+    ? await viewerReports(userId, settings.reports.salesChart, org, (m) => notes.push(m))
+    : undefined;
+  return {
+    settings,
+    ...(reports ? { reports } : {}),
+    ...(notes.length ? { dataNotes: notes } : {}),
+  };
 }
 
 /** DataTableView pages: AllSObjectsDataService.rowsPerPage. */
@@ -1982,9 +2535,12 @@ const LIST_CONCURRENCY = 4;
 /** Longest the records step (the pages list views and cards open) is waited on. */
 const RECORDS_TIMEOUT_MS = 60_000;
 
-
 /** Run `fn` over `items` with at most `concurrency` in flight, in order. */
-export async function runPool<T>(items: T[], concurrency: number, fn: (item: T) => Promise<void>): Promise<void> {
+export async function runPool<T>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<void>
+): Promise<void> {
   let next = 0;
   await Promise.all(
     Array.from({ length: Math.min(concurrency, items.length) }, async () => {
@@ -1993,19 +2549,28 @@ export async function runPool<T>(items: T[], concurrency: number, fn: (item: T) 
   );
 }
 
-const reason = (err: unknown) => (err instanceof Error ? err.message : String(err)).replace(/\s+/g, " ").slice(0, 200);
+const reason = (err: unknown) =>
+  (err instanceof Error ? err.message : String(err)).replace(/\s+/g, " ").slice(0, 200);
 
 /**
  * The list views to read, in priority order: every object tab's default view
  * first (tabs in order), then the others, at most `LIST_VIEWS_PER_OBJECT` per
  * object. `skipped` are the ones past that cap.
  */
-export function planListViews(core: SnapshotCore, objects: string[]): { tasks: { object: string; view: PublishedListView }[]; skipped: { object: string; view: PublishedListView }[] } {
+export function planListViews(
+  core: SnapshotCore,
+  objects: string[]
+): {
+  tasks: { object: string; view: PublishedListView }[];
+  skipped: { object: string; view: PublishedListView }[];
+} {
   const ranked: { object: string; view: PublishedListView; rank: number; order: number }[] = [];
   const skipped: { object: string; view: PublishedListView }[] = [];
   objects.forEach((object, order) => {
     const o = core.objects[object];
-    const views = [...o.listViews].sort((a, b) => Number(b.name === o.defaultListView) - Number(a.name === o.defaultListView));
+    const views = [...o.listViews].sort(
+      (a, b) => Number(b.name === o.defaultListView) - Number(a.name === o.defaultListView)
+    );
     views.forEach((view, i) => {
       if (i < LIST_VIEWS_PER_OBJECT) ranked.push({ object, view, rank: i === 0 ? 0 : 1, order });
       else skipped.push({ object, view });
@@ -2029,29 +2594,56 @@ async function viewerLists(
   org: string,
   track?: LoadTracker,
   readOrg: string = org
-): Promise<{ data: Record<string, PublishedListData>; errors: Record<string, string> } | undefined> {
-  const objects = [...new Set(core.tabs.filter((t) => t.kind === "object" && t.sobject).map((t) => t.sobject as string))].filter((o) => core.objects[o]);
+): Promise<
+  { data: Record<string, PublishedListData>; errors: Record<string, string> } | undefined
+> {
+  const objects = [
+    ...new Set(
+      core.tabs.filter((t) => t.kind === "object" && t.sobject).map((t) => t.sobject as string)
+    ),
+  ].filter((o) => core.objects[o]);
   if (objects.length === 0) return undefined;
   const [users, assignments] = await Promise.all([
-    query(`SELECT TimeZoneSidKey, LocaleSidKey FROM User WHERE Id = '${userId}'`, org).catch(() => [] as Row[]),
-    query(`SELECT Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId = '${userId}' AND Territory2.Territory2Model.State = 'Active'`, org).catch(() => [] as Row[]),
+    query(`SELECT TimeZoneSidKey, LocaleSidKey FROM User WHERE Id = '${userId}'`, org).catch(
+      () => [] as Row[]
+    ),
+    query(
+      `SELECT Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId = '${userId}' AND Territory2.Territory2Model.State = 'Active'`,
+      org
+    ).catch(() => [] as Row[]),
   ]);
-  const format = { timeZone: str(users[0]?.TimeZoneSidKey) || "UTC", locale: (str(users[0]?.LocaleSidKey) || "en_US").replace(/_/g, "-") };
-  const territories = assignments.map((a) => ({ id: str(a.Territory2Id), name: str(obj(a.Territory2).Name) }));
+  const format = {
+    timeZone: str(users[0]?.TimeZoneSidKey) || "UTC",
+    locale: (str(users[0]?.LocaleSidKey) || "en_US").replace(/_/g, "-"),
+  };
+  const territories = assignments.map((a) => ({
+    id: str(a.Territory2Id),
+    name: str(obj(a.Territory2).Name),
+  }));
   const scope = syncScope(core, userId, territories);
   const out: Record<string, PublishedListData> = {};
   const errors: Record<string, string> = {};
   const { tasks, skipped } = planListViews(core, objects);
-  for (const { object, view } of skipped) errors[`${object}.${view.name}`] = `Not read: only the first ${LIST_VIEWS_PER_OBJECT} list views of each object are loaded.`;
+  for (const { object, view } of skipped)
+    errors[`${object}.${view.name}`] =
+      `Not read: only the first ${LIST_VIEWS_PER_OBJECT} list views of each object are loaded.`;
 
   const describeUrls = new Map<string, Promise<Map<string, string>>>();
   const urlsFor = (name: string) => {
     let p = describeUrls.get(name);
     if (!p) {
-      p = dataPath(readOrg, `/sobjects/${name}/listviews`).then((path) => apiRequest<Row>(path, "GET", undefined, readOrg)).then(
-        (res) => new Map(arr(res.success ? res.data?.listviews : []).map((l) => [str(l.developerName), str(l.describeUrl)])),
-        () => new Map<string, string>()
-      );
+      p = dataPath(readOrg, `/sobjects/${name}/listviews`)
+        .then((path) => apiRequest<Row>(path, "GET", undefined, readOrg))
+        .then(
+          (res) =>
+            new Map(
+              arr(res.success ? res.data?.listviews : []).map((l) => [
+                str(l.developerName),
+                str(l.describeUrl),
+              ])
+            ),
+          () => new Map<string, string>()
+        );
       describeUrls.set(name, p);
     }
     return p;
@@ -2073,7 +2665,9 @@ async function viewerLists(
       const d = await apiRequest<Row>(url, "GET", undefined, readOrg);
       const soql = d.success ? str(d.data?.query) : "";
       if (soql) {
-        const m = /\sWHERE\s([\s\S]*?)(?:\sORDER BY\s([\s\S]*))?$/i.exec(soql.replace(/\sUSING SCOPE \w+/i, ""));
+        const m = /\sWHERE\s([\s\S]*?)(?:\sORDER BY\s([\s\S]*))?$/i.exec(
+          soql.replace(/\sUSING SCOPE \w+/i, "")
+        );
         const o = /\sORDER BY\s([\s\S]*)$/i.exec(soql);
         where = m?.[1]?.trim() ?? "";
         orderBy = o?.[1]?.trim() ?? "";
@@ -2085,14 +2679,21 @@ async function viewerLists(
       return;
     }
     const synced = scope(name);
-    const conditions = [mine ? `OwnerId = '${userId}'` : "", where ? `(${where})` : "", synced ? `(${synced})` : ""].filter(Boolean);
+    const conditions = [
+      mine ? `OwnerId = '${userId}'` : "",
+      where ? `(${where})` : "",
+      synced ? `(${synced})` : "",
+    ].filter(Boolean);
     const filter = conditions.length ? ` WHERE ${conditions.join(" AND ")}` : "";
     const first = q.fields.find((f) => f && !f.path.startsWith("toLabel("))?.path ?? "Id";
     const fields = q.fields.filter((f): f is ListViewField => !!f);
     const paths = [...new Set(fields.flatMap((f) => (f.ref ? [f.path, f.ref.idPath] : [f.path])))];
     const [total, records] = await Promise.all([
       count(`SELECT COUNT() FROM ${name}${filter}`, readOrg),
-      query(`SELECT Id${paths.length ? `, ${paths.join(", ")}` : ""} FROM ${name}${filter} ORDER BY ${orderBy || `${first} ASC NULLS FIRST, Id ASC NULLS FIRST`} LIMIT ${LIST_PAGE}`, readOrg),
+      query(
+        `SELECT Id${paths.length ? `, ${paths.join(", ")}` : ""} FROM ${name}${filter} ORDER BY ${orderBy || `${first} ASC NULLS FIRST, Id ASC NULLS FIRST`} LIMIT ${LIST_PAGE}`,
+        readOrg
+      ),
     ]);
     const unsynced = await unsyncedReferences(records, fields, scope, readOrg);
     const cell = (r: Row, f: ListViewField | null) => {
@@ -2101,16 +2702,24 @@ async function viewerLists(
       if (f.ref && unsynced.has(str(pathValue(r, f.ref.idPath)))) return "";
       return listCell(pathValue(r, f.path), f.type, format);
     };
-    out[key] = { count: total, rows: records.map((r) => ({ id: str(r.Id), cells: q.fields.map((f) => cell(r, f)) })) };
+    out[key] = {
+      count: total,
+      rows: records.map((r) => ({ id: str(r.Id), cells: q.fields.map((f) => cell(r, f)) })),
+    };
   };
 
   await runPool(tasks, LIST_CONCURRENCY, async ({ object, view }) => {
     const key = `${object}.${view.name}`;
     if (Date.now() > deadline) {
-      errors[key] = `Not read: the ${Math.round(LIST_BUDGET_MS / 60_000)}-minute time budget for list views ran out. Reload to try again.`;
+      errors[key] =
+        `Not read: the ${Math.round(LIST_BUDGET_MS / 60_000)}-minute time budget for list views ran out. Reload to try again.`;
     } else {
       try {
-        await withTimeout(readView(object, view, key), LIST_VIEW_TIMEOUT_MS, "Reading this list view");
+        await withTimeout(
+          readView(object, view, key),
+          LIST_VIEW_TIMEOUT_MS,
+          "Reading this list view"
+        );
       } catch (err) {
         // A filter SOQL can't express, a field the admin can't read, or a timeout — the list keeps its placeholder rows and says why.
         errors[key] = `Couldn't read: ${reason(err)}`;
@@ -2126,17 +2735,32 @@ async function viewerLists(
  * parseConditional does, once per territory (the app downloads the union).
  * Null when it uses an id-list tag the app fills from other tables.
  */
-export function syncCondition(whereSoql: string, userId: string, territories: { id: string; name: string }[]): string | null {
+export function syncCondition(
+  whereSoql: string,
+  userId: string,
+  territories: { id: string; name: string }[]
+): string | null {
   if (!whereSoql) return "";
   const perTerritory = /\{USER\.TERRITORY(ID)?\}/i.test(whereSoql);
   const values = perTerritory && territories.length ? territories : [{ id: "", name: "" }];
-  const resolved = values.map((t) => resolveScalarTags(whereSoql, { userId, territoryName: t.name.replace(/'/g, "\\'"), territoryId: t.id }));
+  const resolved = values.map((t) =>
+    resolveScalarTags(whereSoql, {
+      userId,
+      territoryName: t.name.replace(/'/g, "\\'"),
+      territoryId: t.id,
+    })
+  );
   if (resolved.some((w) => /\{[A-Z0-9_.]+\}/i.test(w))) return null;
   return resolved.length === 1 ? resolved[0] : resolved.map((w) => `(${w})`).join(" OR ");
 }
 
 /** Ids in reference columns whose record the app wouldn't have downloaded. */
-async function unsyncedReferences(records: Row[], fields: ListViewField[], scope: (table: string) => string | null | undefined, org: string): Promise<Set<string>> {
+async function unsyncedReferences(
+  records: Row[],
+  fields: ListViewField[],
+  scope: (table: string) => string | null | undefined,
+  org: string
+): Promise<Set<string>> {
   const byObject = new Map<string, Set<string>>();
   for (const f of fields) {
     if (!f.ref) continue;
@@ -2154,7 +2778,10 @@ async function unsyncedReferences(records: Row[], fields: ListViewField[], scope
       const condition = scope(object);
       if (condition === undefined) return ids.forEach((id) => unsynced.add(id));
       if (!condition) return;
-      const found = await query(`SELECT Id FROM ${object} WHERE Id IN (${inList([...ids])}) AND (${condition})`, org).catch(() => null);
+      const found = await query(
+        `SELECT Id FROM ${object} WHERE Id IN (${inList([...ids])}) AND (${condition})`,
+        org
+      ).catch(() => null);
       if (!found) return;
       const kept = new Set(found.map((r) => str(r.Id)));
       for (const id of ids) if (!kept.has(id)) unsynced.add(id);
@@ -2165,11 +2792,17 @@ async function unsyncedReferences(records: Row[], fields: ListViewField[], scope
 
 function pathValue(record: Row, path: string): unknown {
   const field = /^toLabel\((.+)\)$/.exec(path)?.[1] ?? path;
-  return field.split(".").reduce<unknown>((v, k) => (v && typeof v === "object" ? (v as Row)[k] : undefined), record);
+  return field
+    .split(".")
+    .reduce<unknown>((v, k) => (v && typeof v === "object" ? (v as Row)[k] : undefined), record);
 }
 
 /** OCEDBObject.formatData: medium date + short time in the user's zone, dates in GMT, Yes/No for checkboxes. */
-export function listCell(value: unknown, type: string, format: { timeZone: string; locale: string }): string {
+export function listCell(
+  value: unknown,
+  type: string,
+  format: { timeZone: string; locale: string }
+): string {
   if (value === null || value === undefined || value === "") return "";
   const locale = (() => {
     try {
@@ -2185,23 +2818,35 @@ export function listCell(value: unknown, type: string, format: { timeZone: strin
     case "datetime": {
       const d = new Date(str(value));
       if (Number.isNaN(d.getTime())) return str(value);
-      const date = new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: format.timeZone }).format(d);
-      const time = new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone: format.timeZone }).format(d);
+      const date = new Intl.DateTimeFormat(locale, {
+        dateStyle: "medium",
+        timeZone: format.timeZone,
+      }).format(d);
+      const time = new Intl.DateTimeFormat(locale, {
+        timeStyle: "short",
+        timeZone: format.timeZone,
+      }).format(d);
       // DateFormatter's medium + short joins with " at " in English.
       return locale.startsWith("en") ? `${date} at ${time}` : `${date}, ${time}`;
     }
     case "date": {
       const d = new Date(`${str(value).slice(0, 10)}T00:00:00Z`);
-      return Number.isNaN(d.getTime()) ? str(value) : new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(d);
+      return Number.isNaN(d.getTime())
+        ? str(value)
+        : new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(d);
     }
     case "time": {
       const d = new Date(`1970-01-01T${str(value).replace(/Z$/, "")}Z`);
-      return Number.isNaN(d.getTime()) ? str(value) : new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone: "UTC" }).format(d);
+      return Number.isNaN(d.getTime())
+        ? str(value)
+        : new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone: "UTC" }).format(d);
     }
     case "percent":
       return typeof value === "number" ? `${value.toLocaleString(locale)}%` : str(value);
     case "currency":
-      return typeof value === "number" ? value.toLocaleString(locale, { style: "currency", currency: "USD" }) : str(value);
+      return typeof value === "number"
+        ? value.toLocaleString(locale, { style: "currency", currency: "USD" })
+        : str(value);
     default:
       return typeof value === "number" ? value.toLocaleString(locale) : str(value);
   }
@@ -2217,7 +2862,9 @@ function dirSize(dir: string): number {
   let total = 0;
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     try {
-      total += e.isDirectory() ? dirSize(path.join(dir, e.name)) : fs.statSync(path.join(dir, e.name)).size;
+      total += e.isDirectory()
+        ? dirSize(path.join(dir, e.name))
+        : fs.statSync(path.join(dir, e.name)).size;
     } catch {
       // Removed while counting.
     }
@@ -2230,7 +2877,10 @@ function dirSize(dir: string): number {
  * (newest first wins). `protect`ed directories are always kept. Returns the
  * directories removed.
  */
-export function pruneCache(root: string, options: { keep: number; maxBytes: number; protect?: string[] }): string[] {
+export function pruneCache(
+  root: string,
+  options: { keep: number; maxBytes: number; protect?: string[] }
+): string[] {
   if (!fs.existsSync(root)) return [];
   const dirs = fs
     .readdirSync(root, { withFileTypes: true })
@@ -2240,7 +2890,11 @@ export function pruneCache(root: string, options: { keep: number; maxBytes: numb
       return { full, mtime: fs.statSync(full).mtimeMs, size: dirSize(full) };
     })
     // Protected directories first so they count against the limits, then newest first.
-    .sort((a, b) => Number(options.protect?.includes(b.full) ?? false) - Number(options.protect?.includes(a.full) ?? false) || b.mtime - a.mtime);
+    .sort(
+      (a, b) =>
+        Number(options.protect?.includes(b.full) ?? false) -
+          Number(options.protect?.includes(a.full) ?? false) || b.mtime - a.mtime
+    );
   const removed: string[] = [];
   let kept = 0;
   let bytes = 0;
@@ -2260,7 +2914,10 @@ export function pruneCache(root: string, options: { keep: number; maxBytes: numb
 /** Loads running now, by org / profile / user, so a repeat call (a retry after the 5-minute call timeout, a double click) joins instead of starting another. */
 const inflight = new Map<string, Promise<PublishedIpad | { profile: string; missing: true }>>();
 /** The login of the previewed rep among the ones Studio holds, matched by user id (15-character form). */
-export function repLoginFor(logins: TokenLogin[], userId: string | undefined): TokenLogin | undefined {
+export function repLoginFor(
+  logins: TokenLogin[],
+  userId: string | undefined
+): TokenLogin | undefined {
   if (!userId) return undefined;
   return logins.find((l) => l.userId && l.userId.slice(0, 15) === userId.slice(0, 15));
 }
@@ -2280,7 +2937,15 @@ export function loadPublishedIpad(
   mobileLogins: TokenLogin[] = []
 ): Promise<PublishedIpad | { profile: string; missing: true }> {
   // Loads read with different logins stay apart: one key per set of rep logins offered.
-  const key = [org, profile, userId ?? "", mobileLogins.map((l) => `${l.userId ?? l.username}`).sort().join(",")].join("\u0000");
+  const key = [
+    org,
+    profile,
+    userId ?? "",
+    mobileLogins
+      .map((l) => `${l.userId ?? l.username}`)
+      .sort()
+      .join(","),
+  ].join("\u0000");
   const running = inflight.get(key);
   if (running) return running;
   const track = new LoadTracker(profile);
@@ -2296,34 +2961,63 @@ export function loadPublishedIpad(
  * The published iPad's snapshot for one user of a profile (tabs, pages, layouts — no live screens
  * or dashboards), for checks that only need what the cache sets up, like a rep's tab bar.
  */
-export async function loadPublishedCore(profile: string, org: string, userId: string): Promise<SnapshotCore | { profile: string; missing: true }> {
+export async function loadPublishedCore(
+  profile: string,
+  org: string,
+  userId: string
+): Promise<SnapshotCore | { profile: string; missing: true }> {
   const loaded = await loadCore(profile, org, userId, new LoadTracker(profile), false);
   return "missing" in loaded ? loaded : loaded.core;
 }
 
-async function loadWithProgress(profile: string, org: string, userId: string | undefined, track: LoadTracker, mobileLogins: TokenLogin[] = []): Promise<PublishedIpad | { profile: string; missing: true }> {
+async function loadWithProgress(
+  profile: string,
+  org: string,
+  userId: string | undefined,
+  track: LoadTracker,
+  mobileLogins: TokenLogin[] = []
+): Promise<PublishedIpad | { profile: string; missing: true }> {
   const loaded = await loadCore(profile, org, userId, track, true);
   if ("missing" in loaded) return loaded;
   const { core, cache, user, viewer, userInfo, userNotes, sharing } = loaded;
-  const withNotes = <T extends { notes: string[] }>(c: T): T => (userNotes.length ? { ...c, notes: [...c.notes, ...userNotes] } : c);
+  const withNotes = <T extends { notes: string[] }>(c: T): T =>
+    userNotes.length ? { ...c, notes: [...c.notes, ...userNotes] } : c;
   const shared = applyListViewSharing(core, await sharing);
-  const [dashboards, screens] = await Promise.all([track.run("dashboards", () => withDashboardData(core.dashboards ?? {}, org, track)), viewerScreens(shared, user?.id, org, track, repLoginFor(mobileLogins, user?.id))]);
+  const [dashboards, screens] = await Promise.all([
+    track.run("dashboards", () => withDashboardData(core.dashboards ?? {}, org, track)),
+    viewerScreens(shared, user?.id, org, track, repLoginFor(mobileLogins, user?.id)),
+  ]);
   return { ...withNotes(shared), ...screens, dashboards, profile, cache, viewer, ...userInfo };
 }
 
 /** The cache, the user it's read for and their snapshot; `withSharing` reads the user's list view sharing alongside. */
-async function loadCore(profile: string, org: string, userId: string | undefined, track: LoadTracker, withSharing: boolean) {
-  const [cache, listed] = await track.run("cache", () => Promise.all([latestCache(profile, org), profileUsers(profile, org)]));
+async function loadCore(
+  profile: string,
+  org: string,
+  userId: string | undefined,
+  track: LoadTracker,
+  withSharing: boolean
+) {
+  const [cache, listed] = await track.run("cache", () =>
+    Promise.all([latestCache(profile, org), profileUsers(profile, org)])
+  );
   if (!cache) return { profile, missing: true as const };
-  if (!ID_PATTERN.test(cache.contentVersionId)) throw new Error("The metadata cache record has no downloadable file.");
+  if (!ID_PATTERN.test(cache.contentVersionId))
+    throw new Error("The metadata cache record has no downloadable file.");
 
   const { users, total: usersTotal, truncated: usersTruncated } = listed;
   // A pick outside the listed users (found by name) is read on its own.
-  const picked = userId ? (users.find((u) => u.id === userId) ?? (await profileUserById(profile, userId, org))) : undefined;
+  const picked = userId
+    ? (users.find((u) => u.id === userId) ?? (await profileUserById(profile, userId, org)))
+    : undefined;
   const user = picked || defaultUser(users);
   const permissionSets = user?.permissionSets ?? [];
-  const viewer: PublishedViewer | null = user ? { userId: user.id, name: user.name, permissionSets } : null;
-  const userList = (user && !users.some((u) => u.id === user.id) ? [...users, user] : users).map((u) => ({ id: u.id, name: u.name }));
+  const viewer: PublishedViewer | null = user
+    ? { userId: user.id, name: user.name, permissionSets }
+    : null;
+  const userList = (user && !users.some((u) => u.id === user.id) ? [...users, user] : users).map(
+    (u) => ({ id: u.id, name: u.name })
+  );
   const userInfo = { users: userList, usersTotal, ...(usersTruncated ? { usersTruncated } : {}) };
   const userNotes = usersTruncated
     ? [
@@ -2333,11 +3027,15 @@ async function loadCore(profile: string, org: string, userId: string | undefined
 
   const language = user?.language ?? DEFAULT_LANGUAGE;
 
-  const sharing = user && withSharing ? track.run("sharing", () => viewerSharing(user.id, org)) : Promise.resolve(null);
+  const sharing =
+    user && withSharing
+      ? track.run("sharing", () => viewerSharing(user.id, org))
+      : Promise.resolve(null);
   // Awaited by the caller after the snapshot; a failure before then must not go unhandled.
   sharing.catch(() => undefined);
   const dir = path.join(cacheRoot(), cache.contentVersionId);
-  const snapshotPath = (sets: string[], lang: string) => path.join(dir, `snapshot-v${SNAPSHOT_VERSION}-${lang}-${comboKey(sets)}.json`);
+  const snapshotPath = (sets: string[], lang: string) =>
+    path.join(dir, `snapshot-v${SNAPSHOT_VERSION}-${lang}-${comboKey(sets)}.json`);
   const readSaved = (): SnapshotCore | null => {
     const file = snapshotPath(permissionSets, language);
     if (!fs.existsSync(file)) return null;
@@ -2346,7 +3044,15 @@ async function loadCore(profile: string, org: string, userId: string | undefined
     fs.utimes(dir, now, now, () => undefined);
     return JSON.parse(fs.readFileSync(file, "utf8")) as SnapshotCore;
   };
-  const finish = (core: SnapshotCore) => ({ core, cache, user, viewer, userInfo, userNotes, sharing });
+  const finish = (core: SnapshotCore) => ({
+    core,
+    cache,
+    user,
+    viewer,
+    userInfo,
+    userNotes,
+    sharing,
+  });
 
   let saved = readSaved();
   if (!saved) {
@@ -2359,8 +3065,22 @@ async function loadCore(profile: string, org: string, userId: string | undefined
   }
   if (saved) return finish(saved);
 
-  const build = buildSnapshots({ profile, org, cache, users, user, permissionSets, language, dir, snapshotPath, track });
-  const marker = build.then(() => undefined, () => undefined);
+  const build = buildSnapshots({
+    profile,
+    org,
+    cache,
+    users,
+    user,
+    permissionSets,
+    language,
+    dir,
+    snapshotPath,
+    track,
+  });
+  const marker = build.then(
+    () => undefined,
+    () => undefined
+  );
   builds.set(cache.contentVersionId, marker);
   try {
     return await finish(await build);
@@ -2397,15 +3117,25 @@ async function buildSnapshots(input: BuildInput): Promise<SnapshotCore> {
   try {
     await track.run("download", () => download(cache.contentVersionId, zip, org, cache.sizeBytes));
     // The requested combination first, then the profile's others so switching users doesn't re-download.
-    const combos = new Map<string, { sets: string[]; language: string }>([[`${language} ${comboKey(permissionSets)}`, { sets: permissionSets, language }]]);
+    const combos = new Map<string, { sets: string[]; language: string }>([
+      [`${language} ${comboKey(permissionSets)}`, { sets: permissionSets, language }],
+    ]);
     for (const u of users) {
       const key = `${u.language} ${comboKey(u.permissionSets)}`;
-      if (combos.size < MAX_COMBOS && !combos.has(key)) combos.set(key, { sets: u.permissionSets, language: u.language });
+      if (combos.size < MAX_COMBOS && !combos.has(key))
+        combos.set(key, { sets: u.permissionSets, language: u.language });
     }
     languages = [...new Set([...[...combos.values()].map((c) => c.language), DEFAULT_LANGUAGE])];
-    const { files, tabTranslations } = await track.run("unpack", () => extract(zip, dir, languages));
+    const { files, tabTranslations } = await track.run("unpack", () =>
+      extract(zip, dir, languages)
+    );
     const tabObjects = [
-      ...new Set([...Object.values(files.nav).map((t) => str(t.sobjectName)).filter(Boolean), ...Object.values(MULTI_ENTITY).map((m) => m.with)]),
+      ...new Set([
+        ...Object.values(files.nav)
+          .map((t) => str(t.sobjectName))
+          .filter(Boolean),
+        ...Object.values(MULTI_ENTITY).map((m) => m.with),
+      ]),
     ];
     const available = await track.run("access", () => availableTablesFor(profile, tabObjects, org));
     return await track.run("build", async () => {
@@ -2417,8 +3147,12 @@ async function buildSnapshots(input: BuildInput): Promise<SnapshotCore> {
         // Past the time budget the other combinations are skipped; they build when first picked.
         if (!requested && result && Date.now() - started > EXTRA_COMBO_BUDGET_MS) break;
         // OfflineUserService.getCurrentLocalizationFile: the user's language, else en_US.
-        const translations = tabTranslations.get(c.language) ?? tabTranslations.get(DEFAULT_LANGUAGE);
-        const snapshot = buildSnapshot({ ...files, translations }, { profile, cache, permissionSets: c.sets, availableTables: available?.(c.sets) });
+        const translations =
+          tabTranslations.get(c.language) ?? tabTranslations.get(DEFAULT_LANGUAGE);
+        const snapshot = buildSnapshot(
+          { ...files, translations },
+          { profile, cache, permissionSets: c.sets, availableTables: available?.(c.sets) }
+        );
         await fs.promises.writeFile(snapshotPath(c.sets, c.language), JSON.stringify(snapshot));
         if (requested) result = snapshot;
         track.detail("build", `${++built} of ${combos.size} combinations`);
@@ -2429,6 +3163,11 @@ async function buildSnapshots(input: BuildInput): Promise<SnapshotCore> {
     });
   } finally {
     // Keep only the snapshots — the raw files hold the org's full metadata.
-    for (const f of ["cache.zip", ...FILES.map((x) => `${x}.json`), ...languages.map((l) => `${l}.json`)]) fs.rmSync(path.join(dir, f), { force: true });
+    for (const f of [
+      "cache.zip",
+      ...FILES.map((x) => `${x}.json`),
+      ...languages.map((l) => `${l}.json`),
+    ])
+      fs.rmSync(path.join(dir, f), { force: true });
   }
 }

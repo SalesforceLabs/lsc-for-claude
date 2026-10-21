@@ -14,7 +14,13 @@ import type { OrgQuerier } from "../perf/sync-volume.js";
 import { createCompiledSchemaSource, type CompiledSchemaSource } from "../perf/compiled-schema.js";
 import { createDeviceSession, type TokenLogin } from "../perf/device/session.js";
 import { createUserSchemaSource } from "../perf/user-schema.js";
-import { checkPlan, findHeaviestUsers, personaTerritories, type PerfUser, type PlanCheck } from "../perf/users.js";
+import {
+  checkPlan,
+  findHeaviestUsers,
+  personaTerritories,
+  type PerfUser,
+  type PlanCheck,
+} from "../perf/users.js";
 
 export type { PerfUser, PlanCheck } from "../perf/users.js";
 
@@ -52,7 +58,8 @@ const defaultDeps: PerfDeps = {
     const result = await cachedDescribeSObject("DeviceSyncSummary", org);
     return new Set(result.success ? (result.data?.fields ?? []).map((f) => f.name) : []);
   },
-  compiledSchema: (org, querier) => createCompiledSchemaSource({ org: querier, getSession: () => createDeviceSession(org) }),
+  compiledSchema: (org, querier) =>
+    createCompiledSchemaSource({ org: querier, getSession: () => createDeviceSession(org) }),
 };
 
 interface PerfJob extends PerfJobStatus {
@@ -76,7 +83,8 @@ function snapshot(job: PerfJob): PerfJobStatus {
 
 function pruneFinished() {
   const finished = [...jobs.values()].filter((j) => j.state !== "running");
-  for (const job of finished.slice(0, Math.max(0, finished.length - MAX_FINISHED_JOBS))) jobs.delete(job.jobId);
+  for (const job of finished.slice(0, Math.max(0, finished.length - MAX_FINISHED_JOBS)))
+    jobs.delete(job.jobId);
 }
 
 /** Wrap a querier so the job counts queries and stops issuing them once cancelled. */
@@ -93,7 +101,10 @@ function tracked(inner: OrgQuerier, job: PerfJob): OrgQuerier {
       guard();
       return result;
     };
-  return { soql: wrap((q, options) => inner.soql(q, options)), tooling: wrap((q) => inner.tooling(q)) };
+  return {
+    soql: wrap((q, options) => inner.soql(q, options)),
+    tooling: wrap((q) => inner.tooling(q)),
+  };
 }
 
 export function startPerfRun(
@@ -142,7 +153,8 @@ export function startPerfRun(
     })
     .finally(() => {
       job.finishedAt = new Date().toISOString();
-      job.step = job.state === "done" ? "Finished" : job.state === "cancelled" ? "Cancelled" : "Failed";
+      job.step =
+        job.state === "done" ? "Finished" : job.state === "cancelled" ? "Cancelled" : "Failed";
       pruneFinished();
     });
 
@@ -154,13 +166,17 @@ export function startPerfRun(
  * metadata download; everyone else (and any failure) uses `base`. The tokens
  * stay inside the returned source and never reach the job status or result.
  */
-function withMobileLogins(base: CompiledSchemaSource | undefined, logins: TokenLogin[]): CompiledSchemaSource | undefined {
+function withMobileLogins(
+  base: CompiledSchemaSource | undefined,
+  logins: TokenLogin[]
+): CompiledSchemaSource | undefined {
   return logins.length ? createUserSchemaSource({ logins, base }) : base;
 }
 
 export function perfRunStatus(jobId: string): PerfJobStatus {
   const job = jobs.get(jobId);
-  if (!job) throw new Error("This performance run is no longer available (the engine may have restarted).");
+  if (!job)
+    throw new Error("This performance run is no longer available (the engine may have restarted).");
   return snapshot(job);
 }
 
@@ -194,11 +210,19 @@ export async function searchPerfUsers(
   org: string,
   deps: PerfDeps = defaultDeps
 ): Promise<PerfUser[]> {
-  return findHeaviestUsers(deps.querier(org), { ...filters, days: filters.days ?? DEFAULT_TELEMETRY_DAYS, limit: 50 });
+  return findHeaviestUsers(deps.querier(org), {
+    ...filters,
+    days: filters.days ?? DEFAULT_TELEMETRY_DAYS,
+    limit: 50,
+  });
 }
 
 /** Pre-flight check of a plan's users, selections, and territories. */
-export async function checkPerfPlan(profile: NfrProfile, org: string, deps: PerfDeps = defaultDeps): Promise<PlanCheck> {
+export async function checkPerfPlan(
+  profile: NfrProfile,
+  org: string,
+  deps: PerfDeps = defaultDeps
+): Promise<PlanCheck> {
   return checkPlan(deps.querier(org), org, profile);
 }
 

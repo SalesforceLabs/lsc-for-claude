@@ -8,7 +8,14 @@ import { step, type FixTracker } from "./fix-progress.js";
 import { createRecord, deleteRecord } from "../salesforce/cli.js";
 import { assertId } from "./change-helpers.js";
 import { count, query, type Row } from "./helpers.js";
-import type { AccessOptions, AccessRef, FixPreview, FixResult, StudioFix, UserAccess } from "./types.js";
+import type {
+  AccessOptions,
+  AccessRef,
+  FixPreview,
+  FixResult,
+  StudioFix,
+  UserAccess,
+} from "./types.js";
 
 type AccessFix = Extract<StudioFix, { kind: "assignAccess" | "removeAccess" }>;
 
@@ -16,9 +23,24 @@ const OPTION_LIMIT = 2000;
 
 /** Where each kind of access is stored, and how it's described. */
 const KINDS = {
-  permissionSet: { sobject: "PermissionSetAssignment", user: "AssigneeId", target: "PermissionSetId", noun: "Permission sets" },
-  permissionSetGroup: { sobject: "PermissionSetAssignment", user: "AssigneeId", target: "PermissionSetGroupId", noun: "Permission set groups" },
-  territory: { sobject: "UserTerritory2Association", user: "UserId", target: "Territory2Id", noun: "Territories" },
+  permissionSet: {
+    sobject: "PermissionSetAssignment",
+    user: "AssigneeId",
+    target: "PermissionSetId",
+    noun: "Permission sets",
+  },
+  permissionSetGroup: {
+    sobject: "PermissionSetAssignment",
+    user: "AssigneeId",
+    target: "PermissionSetGroupId",
+    noun: "Permission set groups",
+  },
+  territory: {
+    sobject: "UserTerritory2Association",
+    user: "UserId",
+    target: "Territory2Id",
+    noun: "Territories",
+  },
 } as const;
 
 function rel(r: Row, path: string): unknown {
@@ -38,7 +60,10 @@ export async function userAccess(userId: string, org: string): Promise<UserAcces
       `SELECT Id, PermissionSetId, PermissionSet.Label, PermissionSetGroupId, PermissionSetGroup.MasterLabel FROM PermissionSetAssignment WHERE AssigneeId = '${userId}' AND PermissionSet.IsOwnedByProfile = false`,
       org
     ),
-    query(`SELECT Id, Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId = '${userId}'`, org),
+    query(
+      `SELECT Id, Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId = '${userId}'`,
+      org
+    ),
   ]);
   return {
     userId,
@@ -51,8 +76,18 @@ export async function userAccess(userId: string, org: string): Promise<UserAcces
       // A group assignment shows up against the group's aggregate permission set — report the group.
       ...assignments.map((r) =>
         r.PermissionSetGroupId
-          ? { type: "permissionSetGroup" as const, id: String(r.PermissionSetGroupId), label: String(rel(r, "PermissionSetGroup.MasterLabel")), assignmentId: String(r.Id) }
-          : { type: "permissionSet" as const, id: String(r.PermissionSetId), label: String(rel(r, "PermissionSet.Label")), assignmentId: String(r.Id) }
+          ? {
+              type: "permissionSetGroup" as const,
+              id: String(r.PermissionSetGroupId),
+              label: String(rel(r, "PermissionSetGroup.MasterLabel")),
+              assignmentId: String(r.Id),
+            }
+          : {
+              type: "permissionSet" as const,
+              id: String(r.PermissionSetId),
+              label: String(rel(r, "PermissionSet.Label")),
+              assignmentId: String(r.Id),
+            }
       ),
       ...territories.map((r) => ({
         type: "territory" as const,
@@ -72,7 +107,9 @@ export interface OptionsCutOff {
 
 /** `AccessOptions`, plus which lists were cut at the limit (absent when nothing was). */
 export type AccessOptionsResult = AccessOptions & {
-  truncated?: Partial<Record<"permissionSets" | "permissionSetGroups" | "territories", OptionsCutOff>>;
+  truncated?: Partial<
+    Record<"permissionSets" | "permissionSetGroups" | "territories", OptionsCutOff>
+  >;
 };
 
 /** A `LIKE` pattern matching `term` anywhere, with its wildcards and quotes escaped. */
@@ -91,14 +128,26 @@ export async function accessOptions(org: string, search?: string): Promise<Acces
   const groupWhere = term ? `WHERE MasterLabel LIKE ${likeTerm(term)}` : "";
   const terrWhere = term ? `WHERE Name LIKE ${likeTerm(term)}` : "";
   const [sets, groups, territories] = await Promise.all([
-    query(`SELECT Id, Label FROM PermissionSet WHERE ${setWhere} ORDER BY Label LIMIT ${OPTION_LIMIT + 1}`, org),
-    query(`SELECT Id, MasterLabel FROM PermissionSetGroup ${groupWhere} ORDER BY MasterLabel LIMIT ${OPTION_LIMIT + 1}`, org),
-    query(`SELECT Id, Name, Territory2Model.Name, Territory2Model.State FROM Territory2 ${terrWhere} ORDER BY Name LIMIT ${OPTION_LIMIT + 1}`, org),
+    query(
+      `SELECT Id, Label FROM PermissionSet WHERE ${setWhere} ORDER BY Label LIMIT ${OPTION_LIMIT + 1}`,
+      org
+    ),
+    query(
+      `SELECT Id, MasterLabel FROM PermissionSetGroup ${groupWhere} ORDER BY MasterLabel LIMIT ${OPTION_LIMIT + 1}`,
+      org
+    ),
+    query(
+      `SELECT Id, Name, Territory2Model.Name, Territory2Model.State FROM Territory2 ${terrWhere} ORDER BY Name LIMIT ${OPTION_LIMIT + 1}`,
+      org
+    ),
   ]);
   const truncated: NonNullable<AccessOptionsResult["truncated"]> = {};
   const cut = async (key: keyof typeof truncated, rows: Row[], totalQuery: string) => {
     if (rows.length <= OPTION_LIMIT) return rows;
-    truncated[key] = { listed: OPTION_LIMIT, total: await count(totalQuery, org).catch(() => rows.length) };
+    truncated[key] = {
+      listed: OPTION_LIMIT,
+      total: await count(totalQuery, org).catch(() => rows.length),
+    };
     return rows.slice(0, OPTION_LIMIT);
   };
   const [setRows, groupRows, territoryRows] = await Promise.all([
@@ -107,8 +156,16 @@ export async function accessOptions(org: string, search?: string): Promise<Acces
     cut("territories", territories, `SELECT COUNT() FROM Territory2 ${terrWhere}`),
   ]);
   return {
-    permissionSets: setRows.map((r) => ({ type: "permissionSet", id: String(r.Id), label: String(r.Label) })),
-    permissionSetGroups: groupRows.map((r) => ({ type: "permissionSetGroup", id: String(r.Id), label: String(r.MasterLabel) })),
+    permissionSets: setRows.map((r) => ({
+      type: "permissionSet",
+      id: String(r.Id),
+      label: String(r.Label),
+    })),
+    permissionSetGroups: groupRows.map((r) => ({
+      type: "permissionSetGroup",
+      id: String(r.Id),
+      label: String(r.MasterLabel),
+    })),
     territories: territoryRows.map((r) => ({
       type: "territory",
       id: String(r.Id),
@@ -126,24 +183,44 @@ export async function accessOptions(org: string, search?: string): Promise<Acces
 async function findTarget(access: AccessRef, org: string): Promise<{ planning?: string } | null> {
   switch (access.type) {
     case "permissionSet":
-      return (await query(`SELECT Id FROM PermissionSet WHERE Id = '${access.id}'`, org))[0] ? {} : null;
+      return (await query(`SELECT Id FROM PermissionSet WHERE Id = '${access.id}'`, org))[0]
+        ? {}
+        : null;
     case "permissionSetGroup":
-      return (await query(`SELECT Id FROM PermissionSetGroup WHERE Id = '${access.id}'`, org))[0] ? {} : null;
+      return (await query(`SELECT Id FROM PermissionSetGroup WHERE Id = '${access.id}'`, org))[0]
+        ? {}
+        : null;
     case "territory": {
-      const [t] = await query(`SELECT Id, Territory2Model.Name, Territory2Model.State FROM Territory2 WHERE Id = '${access.id}'`, org);
+      const [t] = await query(
+        `SELECT Id, Territory2Model.Name, Territory2Model.State FROM Territory2 WHERE Id = '${access.id}'`,
+        org
+      );
       if (!t) return null;
-      return rel(t, "Territory2Model.State") === "Active" ? {} : { planning: String(rel(t, "Territory2Model.Name")) };
+      return rel(t, "Territory2Model.State") === "Active"
+        ? {}
+        : { planning: String(rel(t, "Territory2Model.Name")) };
     }
   }
 }
 
-async function findAssignment(userId: string, access: AccessRef, org: string): Promise<string | null> {
+async function findAssignment(
+  userId: string,
+  access: AccessRef,
+  org: string
+): Promise<string | null> {
   const k = KINDS[access.type];
-  const [row] = await query(`SELECT Id FROM ${k.sobject} WHERE ${k.user} = '${userId}' AND ${k.target} = '${access.id}'`, org);
+  const [row] = await query(
+    `SELECT Id FROM ${k.sobject} WHERE ${k.user} = '${userId}' AND ${k.target} = '${access.id}'`,
+    org
+  );
   return row ? String(row.Id) : null;
 }
 
-export async function previewAccess(fix: AccessFix, org: string, progress?: FixTracker): Promise<FixPreview> {
+export async function previewAccess(
+  fix: AccessFix,
+  org: string,
+  progress?: FixTracker
+): Promise<FixPreview> {
   return step(progress, "read", () => previewAccessNow(fix, org));
 }
 
@@ -170,7 +247,8 @@ async function previewAccessNow(fix: AccessFix, org: string): Promise<FixPreview
     const [user] = await query(`SELECT Id, IsActive FROM User WHERE Id = '${fix.userId}'`, org);
     if (!user) return block("The user no longer exists.");
     if (!user.IsActive) return block("The user is inactive.");
-    if (await findAssignment(fix.userId, fix.access, org)) return block(`${fix.userName} already has ${fix.access.label}. Refresh the map.`);
+    if (await findAssignment(fix.userId, fix.access, org))
+      return block(`${fix.userName} already has ${fix.access.label}. Refresh the map.`);
     const target = await findTarget(fix.access, org);
     if (!target) return block(`${fix.access.label} no longer exists.`);
     if (fix.access.type === "territory") {
@@ -180,7 +258,9 @@ async function previewAccessNow(fix: AccessFix, org: string): Promise<FixPreview
           : "The user gets the territory's aligned accounts on their next sync."
       );
     } else {
-      preview.warnings.push("Salesforce refuses this if the user is missing a license the permission set needs.");
+      preview.warnings.push(
+        "Salesforce refuses this if the user is missing a license the permission set needs."
+      );
     }
     return preview;
   }
@@ -196,14 +276,24 @@ async function previewAccessNow(fix: AccessFix, org: string): Promise<FixPreview
   return preview;
 }
 
-export async function applyAccess(fix: AccessFix, org: string, progress?: FixTracker): Promise<FixResult> {
+export async function applyAccess(
+  fix: AccessFix,
+  org: string,
+  progress?: FixTracker
+): Promise<FixResult> {
   const preview = await previewAccess(fix, org, progress);
   if (preview.blocked) return { ok: false, message: preview.blocked };
   const k = KINDS[fix.access.type];
 
   if (fix.kind === "assignAccess") {
-    const res = await step(progress, "write", () => createRecord(k.sobject, { [k.user]: fix.userId, [k.target]: fix.access.id }, org));
-    if (!res.success || !res.data?.id) return { ok: false, message: res.error || `Couldn't give ${fix.access.label} to ${fix.userName}.` };
+    const res = await step(progress, "write", () =>
+      createRecord(k.sobject, { [k.user]: fix.userId, [k.target]: fix.access.id }, org)
+    );
+    if (!res.success || !res.data?.id)
+      return {
+        ok: false,
+        message: res.error || `Couldn't give ${fix.access.label} to ${fix.userName}.`,
+      };
     return {
       ok: true,
       message: `Gave ${fix.access.label} to ${fix.userName}.`,
@@ -223,7 +313,11 @@ export async function applyAccess(fix: AccessFix, org: string, progress?: FixTra
     const assignmentId = (await findAssignment(fix.userId, fix.access, org))!;
     return deleteRecord(k.sobject, assignmentId, org);
   });
-  if (!res.success) return { ok: false, message: res.error || `Couldn't remove ${fix.access.label} from ${fix.userName}.` };
+  if (!res.success)
+    return {
+      ok: false,
+      message: res.error || `Couldn't remove ${fix.access.label} from ${fix.userName}.`,
+    };
   return {
     ok: true,
     message: `Removed ${fix.access.label} from ${fix.userName}.`,

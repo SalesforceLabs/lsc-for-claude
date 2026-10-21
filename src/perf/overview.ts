@@ -4,7 +4,12 @@
  * DB Schema settings worth a look. No org access here.
  */
 
-import { DEFAULT_THRESHOLDS, evaluateMetric, type MetricEvaluation, type Thresholds } from "./nfr.js";
+import {
+  DEFAULT_THRESHOLDS,
+  evaluateMetric,
+  type MetricEvaluation,
+  type Thresholds,
+} from "./nfr.js";
 import { distribution, percentile, type SyncSample, type TelemetrySummary } from "./telemetry.js";
 import type { DbSchemaEntry } from "./sync-volume.js";
 
@@ -31,11 +36,18 @@ const STRUGGLING_SHARE = 0.1;
 /** A score at or above this marks a rep as needing attention. */
 export const ATTENTION_SCORE = 20;
 
-export function evaluateOrg(summary: TelemetrySummary, thresholds: Thresholds = OVERVIEW_THRESHOLDS): MetricEvaluation[] {
+export function evaluateOrg(
+  summary: TelemetrySummary,
+  thresholds: Thresholds = OVERVIEW_THRESHOLDS
+): MetricEvaluation[] {
   return [
     evaluateMetric("deltaSyncP95Sec", summary.delta.total.p95, thresholds.deltaSyncP95Sec),
     evaluateMetric("initialSyncP95Sec", summary.initial.total.p95, thresholds.initialSyncP95Sec),
-    evaluateMetric("metadataDownloadP95Sec", summary.metadataDownload.p95, thresholds.metadataDownloadP95Sec),
+    evaluateMetric(
+      "metadataDownloadP95Sec",
+      summary.metadataDownload.p95,
+      thresholds.metadataDownloadP95Sec
+    ),
     evaluateMetric("syncFailureRatePct", summary.failureRatePct, thresholds.syncFailureRatePct),
     evaluateMetric("dbSizeP95Gb", summary.dbSizeGb.p95, thresholds.dbSizeP95Gb),
   ];
@@ -50,20 +62,32 @@ const HEADLINE_NAME: Partial<Record<string, string>> = {
 };
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-export function orgVerdict(summary: TelemetrySummary, reps: number, needAttention: number): OverviewVerdict {
+export function orgVerdict(
+  summary: TelemetrySummary,
+  reps: number,
+  needAttention: number
+): OverviewVerdict {
   const evaluations = evaluateOrg(summary);
-  if (summary.samples === 0) return { status: "no-data", headline: "No sync data yet", evaluations };
+  if (summary.samples === 0)
+    return { status: "no-data", headline: "No sync data yet", evaluations };
   const named = (status: "fail" | "warn") =>
     evaluations
       .filter((e) => e.status === status)
       .map((e) => HEADLINE_NAME[e.metric] ?? e.metric)
       .join(" and ");
   const failing = named("fail");
-  if (failing) return { status: "failing", headline: `${capitalize(failing)} beyond the limit`, evaluations };
+  if (failing)
+    return { status: "failing", headline: `${capitalize(failing)} beyond the limit`, evaluations };
   const share = reps > 0 ? needAttention / reps : 0;
   const warning = named("warn");
-  if (warning) return { status: "struggling", headline: `${capitalize(warning)} close to the limit`, evaluations };
-  if (share >= STRUGGLING_SHARE) return { status: "struggling", headline: "Some reps are struggling", evaluations };
+  if (warning)
+    return {
+      status: "struggling",
+      headline: `${capitalize(warning)} close to the limit`,
+      evaluations,
+    };
+  if (share >= STRUGGLING_SHARE)
+    return { status: "struggling", headline: "Some reps are struggling", evaluations };
   return { status: "healthy", headline: "Sync looks healthy", evaluations };
 }
 
@@ -104,10 +128,16 @@ export interface DayAggregate {
 }
 
 /** Org-wide counts over the whole window, from GROUP BY day and status rows. */
-export function totalsFromAggregates(aggs: DayAggregate[]): { syncs: number; failed: number; failureRatePct: number | undefined } {
+export function totalsFromAggregates(aggs: DayAggregate[]): {
+  syncs: number;
+  failed: number;
+  failureRatePct: number | undefined;
+} {
   const syncs = aggs.reduce((n, a) => n + a.count, 0);
   const failed = aggs.filter((a) => a.status === "Failed").reduce((n, a) => n + a.count, 0);
-  const decided = aggs.filter((a) => a.status === "Finished" || a.status === "Failed").reduce((n, a) => n + a.count, 0);
+  const decided = aggs
+    .filter((a) => a.status === "Finished" || a.status === "Failed")
+    .reduce((n, a) => n + a.count, 0);
   return { syncs, failed, failureRatePct: decided ? (failed / decided) * 100 : undefined };
 }
 
@@ -211,9 +241,15 @@ export function scoreUser(username: string, samples: SyncSample[], base: OrgBase
     reasons.push(`${failed} of ${decided.length} syncs failed`);
   }
 
-  const records = samples.map((s) => s.downloadedRecords).filter((v): v is number => v !== undefined);
+  const records = samples
+    .map((s) => s.downloadedRecords)
+    .filter((v): v is number => v !== undefined);
   const maxRecords = records.length ? Math.max(...records) : undefined;
-  if (maxRecords !== undefined && base.recordsMedian && maxRecords / base.recordsMedian >= SLOW_RATIO) {
+  if (
+    maxRecords !== undefined &&
+    base.recordsMedian &&
+    maxRecords / base.recordsMedian >= SLOW_RATIO
+  ) {
     const ratio = maxRecords / base.recordsMedian;
     score += Math.min(10, 5 * (ratio - 1));
     reasons.push(`Downloads ${times(ratio)} the usual number of records`);
@@ -252,8 +288,13 @@ export function rankUsersAtRisk(
     byUser.set(s.user, [...(byUser.get(s.user) ?? []), s]);
   }
   const base = orgBaseline(summary);
-  const scored = [...byUser].map(([user, list]) => scoreUser(user, list, base)).filter((u) => u.score > 0);
-  scored.sort((a, b) => b.score - a.score || b.failedSyncs - a.failedSyncs || a.username.localeCompare(b.username));
+  const scored = [...byUser]
+    .map(([user, list]) => scoreUser(user, list, base))
+    .filter((u) => u.score > 0);
+  scored.sort(
+    (a, b) =>
+      b.score - a.score || b.failedSyncs - a.failedSyncs || a.username.localeCompare(b.username)
+  );
   return {
     ranked: scored.slice(0, limit),
     reps: byUser.size,
@@ -283,16 +324,24 @@ export interface SchemaRisk {
  * Filter-less rules are limited to data objects; `attachmentRecords` holds the
  * developer names that have attachments turned on.
  */
-export function schemaRisks(entries: DbSchemaEntry[], attachmentRecords: Set<string> = new Set()): SchemaRisk[] {
+export function schemaRisks(
+  entries: DbSchemaEntry[],
+  attachmentRecords: Set<string> = new Set()
+): SchemaRisk[] {
   const risks: SchemaRisk[] = [];
   for (const e of entries) {
-    const base = { developerName: e.developerName, sobject: e.sobject, itemId: `DbSchema:${e.developerName}` };
+    const base = {
+      developerName: e.developerName,
+      sobject: e.sobject,
+      itemId: `DbSchema:${e.developerName}`,
+    };
     if (!e.whereSoql) {
       risks.push({
         ...base,
         severity: "info",
         title: `${e.sobject} syncs with no filter`,
-        detail: "Every record the rep can access is downloaded. A filter on high-volume objects keeps syncs short.",
+        detail:
+          "Every record the rep can access is downloaded. A filter on high-volume objects keeps syncs short.",
       });
     }
     if (attachmentRecords.has(e.developerName)) {
@@ -300,12 +349,15 @@ export function schemaRisks(entries: DbSchemaEntry[], attachmentRecords: Set<str
         ...base,
         severity: "warning",
         title: `${e.sobject} syncs attachments`,
-        detail: "File bodies are downloaded to the iPad along with the records, which can add a lot to sync time and device size.",
+        detail:
+          "File bodies are downloaded to the iPad along with the records, which can add a lot to sync time and device size.",
       });
     }
   }
   // Attachments first, then unfiltered objects, each alphabetical.
   return risks.sort(
-    (a, b) => Number(a.severity === "info") - Number(b.severity === "info") || a.sobject.localeCompare(b.sobject)
+    (a, b) =>
+      Number(a.severity === "info") - Number(b.severity === "info") ||
+      a.sobject.localeCompare(b.sobject)
   );
 }

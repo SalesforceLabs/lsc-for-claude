@@ -79,7 +79,9 @@ export function describeTimeRange(range: Row | null | undefined): string {
   const type = String(range?.timeRangeType ?? range?.operator ?? "");
   if (!type || type === "Undefined") return ALL_TIME;
   const n = range?.value ?? range?.n;
-  const m = /^(This|Current|Previous|Last|Next)(Day|Week|Month|Quarter|Year)(ToDate)?s?$/.exec(type);
+  const m = /^(This|Current|Previous|Last|Next)(Day|Week|Month|Quarter|Year)(ToDate)?s?$/.exec(
+    type
+  );
   if (m) {
     const [, which, unit, toDate] = m;
     const u = UNITS[unit];
@@ -95,7 +97,12 @@ export function describeTimeRange(range: Row | null | undefined): string {
 export function formatShort(raw: number): string {
   const abs = Math.abs(raw);
   if (abs < 1000) return fixed(raw);
-  const steps: [number, string][] = [[1e12, "T"], [1e9, "B"], [1e6, "M"], [1e3, "K"]];
+  const steps: [number, string][] = [
+    [1e12, "T"],
+    [1e9, "B"],
+    [1e6, "M"],
+    [1e3, "K"],
+  ];
   for (const [v, s] of steps) if (abs >= v) return `${trim(raw / v)}${s}`;
   return fixed(raw);
 }
@@ -157,20 +164,33 @@ export function formatAxisValue(v: number, percent: boolean): string {
 
 /** Days from `from` to `to` (both ISO dates). */
 function dayDiff(from: string, to: string): number {
-  return Math.round((Date.parse(`${to.slice(0, 10)}T00:00:00Z`) - Date.parse(`${from.slice(0, 10)}T00:00:00Z`)) / 86400000);
+  return Math.round(
+    (Date.parse(`${to.slice(0, 10)}T00:00:00Z`) - Date.parse(`${from.slice(0, 10)}T00:00:00Z`)) /
+      86400000
+  );
 }
 
 function addDays(iso: string, days: number): string {
-  return new Date(Date.parse(`${iso.slice(0, 10)}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
+  return new Date(Date.parse(`${iso.slice(0, 10)}T00:00:00Z`) + days * 86400000)
+    .toISOString()
+    .slice(0, 10);
 }
 
 /** The first of the current month in `timeZone`, as ISO (DATETRUNC('month', TODAY())). */
 export function firstOfThisMonth(now: Date, timeZone: string): string {
   let parts: Intl.DateTimeFormatPart[];
   try {
-    parts = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "2-digit" }).formatToParts(now);
+    parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+    }).formatToParts(now);
   } catch {
-    parts = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", year: "numeric", month: "2-digit" }).formatToParts(now);
+    parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "2-digit",
+    }).formatToParts(now);
   }
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "01";
   return `${get("year")}-${get("month")}-01`;
@@ -180,8 +200,14 @@ export function firstOfThisMonth(now: Date, timeZone: string): string {
  * Activity Date: `DATEADD('day', DATEDIFF('day', {MAX(date)}, DATETRUNC('month', TODAY())), date)` — the latest day moves to the
  * first of this month. Sorted oldest first; points sharing a shifted day are not merged (the rows are already grouped by day).
  */
-export function shiftSeries(rows: [string, number][], firstOfMonth: string | null): [string, number][] {
-  const sorted = rows.filter(([d, v]) => /^\d{4}-\d{2}-\d{2}/.test(d) && Number.isFinite(v)).map(([d, v]) => [d.slice(0, 10), v] as [string, number]).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+export function shiftSeries(
+  rows: [string, number][],
+  firstOfMonth: string | null
+): [string, number][] {
+  const sorted = rows
+    .filter(([d, v]) => /^\d{4}-\d{2}-\d{2}/.test(d) && Number.isFinite(v))
+    .map(([d, v]) => [d.slice(0, 10), v] as [string, number])
+    .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   if (!sorted.length || !firstOfMonth) return sorted;
   const shift = dayDiff(sorted[sorted.length - 1][0], firstOfMonth);
   return sorted.map(([d, v]) => [addDays(d, shift), v]);
@@ -198,14 +224,23 @@ export function seriesGranularity(series: [string, number][]): "day" | "month" {
  * measured on five metrics: start at 0 (or the minimum when negative), reach 1.25x the highest value, three steps of
  * 1/2/5 x 10^n, plus 7 for small whole-number counts (0/7/14); the bottom is padded 4.2% so the axis sits under the 0 tick.
  */
-export function chartTicks(min: number, max: number, percent: boolean, countLike = false): { ticks: PublishedTableauTick[]; domain: [number, number] } {
+export function chartTicks(
+  min: number,
+  max: number,
+  percent: boolean,
+  countLike = false
+): { ticks: PublishedTableauTick[]; domain: [number, number] } {
   const lo = Math.min(0, min);
   let hi = max * 1.25;
   if (!(hi > lo)) hi = lo + 1;
   const raw = (hi - lo) / 3;
   const pow = 10 ** Math.floor(Math.log10(raw));
-  const candidates = (countLike && pow === 1 ? [1, 2, 5, 7, 10] : [1, 2, 5, 10]).map((m) => m * pow);
-  const step = candidates.reduce((best, c) => (Math.abs(Math.log(c / raw)) < Math.abs(Math.log(best / raw)) ? c : best));
+  const candidates = (countLike && pow === 1 ? [1, 2, 5, 7, 10] : [1, 2, 5, 10]).map(
+    (m) => m * pow
+  );
+  const step = candidates.reduce((best, c) =>
+    Math.abs(Math.log(c / raw)) < Math.abs(Math.log(best / raw)) ? c : best
+  );
   const ticks: PublishedTableauTick[] = [];
   for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) {
     const value = Math.round(v / step) * step;
@@ -215,10 +250,19 @@ export function chartTicks(min: number, max: number, percent: boolean, countLike
 }
 
 /** The chart for a series of plotted values. */
-export function buildDetail(series: [string, number][], percent: boolean, granularity: "day" | "month" = seriesGranularity(series)): PublishedTableauDetail | undefined {
+export function buildDetail(
+  series: [string, number][],
+  percent: boolean,
+  granularity: "day" | "month" = seriesGranularity(series)
+): PublishedTableauDetail | undefined {
   if (series.length < 2) return undefined;
   const values = series.map((p) => p[1]);
-  const { ticks, domain } = chartTicks(Math.min(...values), Math.max(...values), percent, !percent && values.every(Number.isInteger) && Math.max(...values) < 100);
+  const { ticks, domain } = chartTicks(
+    Math.min(...values),
+    Math.max(...values),
+    percent,
+    !percent && values.every(Number.isInteger) && Math.max(...values) < 100
+  );
   return {
     granularity,
     series,
@@ -246,14 +290,17 @@ export function parsePopc(bundle: Row | undefined, allTime: boolean): PublishedT
   const diff = facts.difference as Row | undefined;
   const cmp = facts.comparison_period_value as Row | undefined;
   const target = facts.target_period_value as Row | undefined;
-  if (!diff || !cmp || !target || cmp.is_nan === true || target.is_nan === true) return { comparison: empty };
+  if (!diff || !cmp || !target || cmp.is_nan === true || target.is_nan === true)
+    return { comparison: empty };
   const absolute = (diff.absolute as Row | undefined)?.formatted;
   const relative = (diff.relative as Row | undefined)?.formatted;
   if (typeof absolute !== "string" || typeof relative !== "string") return { comparison: empty };
   const direction = String(diff.direction ?? "").toLowerCase();
   const up = direction === "up" || direction === "increase";
   const down = direction === "down" || direction === "decrease";
-  const period = String(facts.comparison_period_label ?? facts.comparison_type_label ?? "prior period").toLowerCase();
+  const period = String(
+    facts.comparison_period_label ?? facts.comparison_type_label ?? "prior period"
+  ).toLowerCase();
   return {
     relative: up && !relative.startsWith("+") ? `+${relative}` : relative,
     tone: up ? "positive" : down ? "negative" : "neutral",
@@ -275,7 +322,13 @@ async function get(org: string, path: string): Promise<Row | undefined> {
 
 /** The viewer's followed sub-metrics. The `followed-assets` endpoint honors the user id; `followed-asset-refs` returns the caller's own follows. */
 async function loadFollows(ctx: ScreenContext): Promise<Follow[]> {
-  const data = await get(ctx.adminOrg, await dataPath(ctx.adminOrg, `/tableau/follow/followers/${ctx.userId}/followed-assets?followedAssetType=SemanticSubMetric`));
+  const data = await get(
+    ctx.adminOrg,
+    await dataPath(
+      ctx.adminOrg,
+      `/tableau/follow/followers/${ctx.userId}/followed-assets?followedAssetType=SemanticSubMetric`
+    )
+  );
   const rows = (data?.followedAssets ?? []) as Row[];
   return rows.map((r) => ({
     id: String(r.id),
@@ -290,7 +343,10 @@ async function loadFollows(ctx: ScreenContext): Promise<Follow[]> {
  * (AnalyticsNetworkClient / InsightsRestApi); this does the same, with the token in memory only. The org runs the
  * query as the connected (admin) user, so values are computed with admin data access, not the viewer's.
  */
-async function fetchBundle(jwt: { jwt: string; baseUri: string }, body: Row): Promise<Row | undefined> {
+async function fetchBundle(
+  jwt: { jwt: string; baseUri: string },
+  body: Row
+): Promise<Row | undefined> {
   if (!/^https:\/\/[\w.-]+(:\d+)?(\/|$)/.test(jwt.baseUri)) return undefined; // the token only goes over https
   try {
     const r = await fetch(`${jwt.baseUri.replace(/\/$/, "")}/analytics/insights/v2/bundle`, {
@@ -320,7 +376,13 @@ interface SemanticObject {
   semanticMeasurements?: Row[];
 }
 
-const AGG: Record<string, string> = { Sum: "SUM", Average: "AVG", Min: "MIN", Max: "MAX", Count: "COUNT" };
+const AGG: Record<string, string> = {
+  Sum: "SUM",
+  Average: "AVG",
+  Min: "MIN",
+  Max: "MAX",
+  Count: "COUNT",
+};
 
 /** Split `a, b, c` on top-level commas (outside parens and string literals). */
 function splitArgs(s: string): string[] {
@@ -349,8 +411,15 @@ function splitArgs(s: string): string[] {
  * A semantic calculated measure's row expression as Data Cloud SQL: `[Obj].[Field]` becomes the data object's column,
  * "text" a SQL literal, `IIF(c, a, b)` a CASE. Only single-object expressions of plain comparisons; anything else is undefined.
  */
-export function expressionToSql(expr: string, objects: SemanticObject[]): { sql: string; table: string } | undefined {
-  const text = expr.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&").trim();
+export function expressionToSql(
+  expr: string,
+  objects: SemanticObject[]
+): { sql: string; table: string } | undefined {
+  const text = expr
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .trim();
   const tables = new Set<string>();
   let ok = true;
   const walk = (e: string): string => {
@@ -367,7 +436,10 @@ export function expressionToSql(expr: string, objects: SemanticObject[]): { sql:
       .replace(/"([^"]*)"/g, (_m, lit: string) => `'${lit.replace(/'/g, "''")}'`)
       .replace(/\[([^\]]+)\]\.\[([^\]]+)\]/g, (_m, o: string, f: string) => {
         const obj = objects.find((x) => x.apiName === o);
-        const field = [...(obj?.semanticDimensions ?? []), ...(obj?.semanticMeasurements ?? [])].find((x) => x.apiName === f);
+        const field = [
+          ...(obj?.semanticDimensions ?? []),
+          ...(obj?.semanticMeasurements ?? []),
+        ].find((x) => x.apiName === f);
         if (!obj || typeof field?.dataObjectFieldName !== "string") {
           ok = false;
           return "";
@@ -385,50 +457,85 @@ export function expressionToSql(expr: string, objects: SemanticObject[]): { sql:
  * All-time BAN for an unfiltered followed sub-metric, computed in Data Cloud (`ssot/query-sql`): the aggregate the insights
  * service evaluates for the "All" range, run with the connected user's access rather than the viewer's. Undefined when the metric isn't that simple.
  */
-async function computeAllTimeBan(org: string, sub: Row, model: Row | undefined): Promise<string | undefined> {
+async function computeAllTimeBan(
+  org: string,
+  sub: Row,
+  model: Row | undefined
+): Promise<string | undefined> {
   const metric = sub.semanticMetric as Row | undefined;
   const ref = (metric?.measurementReference as Row | undefined)?.calculatedFieldApiName;
   const agg = AGG[String(metric?.aggregationType)];
   if (!model || !agg || typeof ref !== "string") return undefined;
   const some = (arr: unknown) => Array.isArray(arr) && arr.length > 0;
-  if (some(sub.filters) || some(metric?.filters) || some(model.semanticModelFilters)) return undefined;
-  const calc = ((model.semanticCalculatedMeasurements ?? []) as Row[]).find((c) => c.apiName === ref);
+  if (some(sub.filters) || some(metric?.filters) || some(model.semanticModelFilters))
+    return undefined;
+  const calc = ((model.semanticCalculatedMeasurements ?? []) as Row[]).find(
+    (c) => c.apiName === ref
+  );
   const objects = (model.semanticDataObjects ?? []) as SemanticObject[];
-  if (!calc || typeof calc.expression !== "string" || some(calc.filters) || objects.some((o) => some(o.filters))) return undefined;
+  if (
+    !calc ||
+    typeof calc.expression !== "string" ||
+    some(calc.filters) ||
+    objects.some((o) => some(o.filters))
+  )
+    return undefined;
   const e = expressionToSql(calc.expression, objects);
   if (!e) return undefined;
-  const res = await apiReadPost<Row>(await dataPath(org, "/ssot/query-sql"), { sql: `SELECT ${agg}(${e.sql}) AS v FROM "${e.table}"` }, org);
+  const res = await apiReadPost<Row>(
+    await dataPath(org, "/ssot/query-sql"),
+    { sql: `SELECT ${agg}(${e.sql}) AS v FROM "${e.table}"` },
+    org
+  );
   const v = (res.data?.data as unknown[][] | undefined)?.[0]?.[0];
   const n = typeof v === "number" ? v : typeof v === "string" && v !== "" ? Number(v) : NaN;
   if (!res.success || !Number.isFinite(n)) return undefined;
-  return formatBanValue(n, typeof calc.dataType === "string" ? calc.dataType : undefined, typeof calc.decimalPlace === "number" ? calc.decimalPlace : undefined);
+  return formatBanValue(
+    n,
+    typeof calc.dataType === "string" ? calc.dataType : undefined,
+    typeof calc.decimalPlace === "number" ? calc.decimalPlace : undefined
+  );
 }
 
 /**
  * The data object column behind a metric's time dimension and whether the Activity Date shift applies: the semantic model's
  * calculated date is either a plain `[Obj].[Date]` or the shifted `DATEADD('day', DATEDIFF('day', {MAX(date)}, DATETRUNC('month', TODAY())), date)`.
  */
-export function timeColumn(ref: Row | undefined, model: Row | undefined): { table: string; column: string; shifted: boolean } | undefined {
+export function timeColumn(
+  ref: Row | undefined,
+  model: Row | undefined
+): { table: string; column: string; shifted: boolean } | undefined {
   const objects = (model?.semanticDataObjects ?? []) as SemanticObject[];
   const column = (o: string, f: string): { table: string; column: string } | undefined => {
     const obj = objects.find((x) => x.apiName === o);
     const field = (obj?.semanticDimensions ?? []).find((x) => x.apiName === f);
-    return obj && typeof field?.dataObjectFieldName === "string" ? { table: obj.dataObjectName, column: field.dataObjectFieldName } : undefined;
+    return obj && typeof field?.dataObjectFieldName === "string"
+      ? { table: obj.dataObjectName, column: field.dataObjectFieldName }
+      : undefined;
   };
   const tf = ref?.tableFieldReference as Row | undefined;
   if (tf) {
     const c = column(String(tf.tableApiName), String(tf.fieldApiName));
     return c && { ...c, shifted: false };
   }
-  const calc = ((model?.semanticCalculatedDimensions ?? []) as Row[]).find((d) => d.apiName === ref?.calculatedFieldApiName);
+  const calc = ((model?.semanticCalculatedDimensions ?? []) as Row[]).find(
+    (d) => d.apiName === ref?.calculatedFieldApiName
+  );
   if (typeof calc?.expression !== "string") return undefined;
-  const text = calc.expression.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&").trim();
+  const text = calc.expression
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .trim();
   const plain = /^\[([^\]]+)\]\.\[([^\]]+)\]$/.exec(text);
   if (plain) {
     const c = column(plain[1], plain[2]);
     return c && { ...c, shifted: false };
   }
-  const shifted = /^DATEADD\('day',\s*DATEDIFF\('day',\s*\{MAX\(\[([^\]]+)\]\.\[([^\]]+)\]\)\},\s*DATETRUNC\('month',\s*TODAY\(\)\)\),\s*\[([^\]]+)\]\.\[([^\]]+)\]\)$/.exec(text);
+  const shifted =
+    /^DATEADD\('day',\s*DATEDIFF\('day',\s*\{MAX\(\[([^\]]+)\]\.\[([^\]]+)\]\)\},\s*DATETRUNC\('month',\s*TODAY\(\)\)\),\s*\[([^\]]+)\]\.\[([^\]]+)\]\)$/.exec(
+      text
+    );
   if (shifted && shifted[1] === shifted[3] && shifted[2] === shifted[4]) {
     const c = column(shifted[1], shifted[2]);
     return c && { ...c, shifted: true };
@@ -440,36 +547,75 @@ export function timeColumn(ref: Row | undefined, model: Row | undefined): { tabl
  * The detail chart's series for an unfiltered, all-time followed metric: the metric's aggregate per day of its time dimension,
  * from Data Cloud (`ssot/query-sql`, read-only, the connected user's access), then shifted like Activity Date.
  */
-async function computeDetail(org: string, sub: Row, model: Row | undefined, timeZone: string): Promise<PublishedTableauDetail | undefined> {
+async function computeDetail(
+  org: string,
+  sub: Row,
+  model: Row | undefined,
+  timeZone: string
+): Promise<PublishedTableauDetail | undefined> {
   const metric = sub.semanticMetric as Row | undefined;
   const ref = (metric?.measurementReference as Row | undefined)?.calculatedFieldApiName;
   const agg = AGG[String(metric?.aggregationType)];
   if (!model || !agg || typeof ref !== "string") return undefined;
   const some = (arr: unknown) => Array.isArray(arr) && arr.length > 0;
-  if (some(sub.filters) || some(metric?.filters) || some(model.semanticModelFilters)) return undefined;
-  const calc = ((model.semanticCalculatedMeasurements ?? []) as Row[]).find((c) => c.apiName === ref);
+  if (some(sub.filters) || some(metric?.filters) || some(model.semanticModelFilters))
+    return undefined;
+  const calc = ((model.semanticCalculatedMeasurements ?? []) as Row[]).find(
+    (c) => c.apiName === ref
+  );
   const objects = (model.semanticDataObjects ?? []) as SemanticObject[];
-  if (!calc || typeof calc.expression !== "string" || some(calc.filters) || objects.some((o) => some(o.filters))) return undefined;
+  if (
+    !calc ||
+    typeof calc.expression !== "string" ||
+    some(calc.filters) ||
+    objects.some((o) => some(o.filters))
+  )
+    return undefined;
   const e = expressionToSql(calc.expression, objects);
   const time = timeColumn(metric?.timeDimensionReference as Row | undefined, model);
   if (!e || !time || time.table !== e.table || !/^\w+$/.test(time.column)) return undefined;
-  const res = await apiReadPost<Row>(await dataPath(org, "/ssot/query-sql"), { sql: `SELECT "${time.column}" AS d, ${agg}(${e.sql}) AS v FROM "${e.table}" GROUP BY "${time.column}"` }, org);
+  const res = await apiReadPost<Row>(
+    await dataPath(org, "/ssot/query-sql"),
+    {
+      sql: `SELECT "${time.column}" AS d, ${agg}(${e.sql}) AS v FROM "${e.table}" GROUP BY "${time.column}"`,
+    },
+    org
+  );
   const rows = res.data?.data as unknown[][] | undefined;
   if (!res.success || !Array.isArray(rows)) return undefined;
   const percent = calc.dataType === "Percentage";
   const points = rows.flatMap((r): [string, number][] => {
-    const n = typeof r[1] === "number" ? r[1] : typeof r[1] === "string" && r[1] !== "" ? Number(r[1]) : NaN;
-    return typeof r[0] === "string" && Number.isFinite(n) ? [[r[0], percent ? Number((n * 100).toPrecision(12)) : n]] : [];
+    const n =
+      typeof r[1] === "number"
+        ? r[1]
+        : typeof r[1] === "string" && r[1] !== ""
+          ? Number(r[1])
+          : NaN;
+    return typeof r[0] === "string" && Number.isFinite(n)
+      ? [[r[0], percent ? Number((n * 100).toPrecision(12)) : n]]
+      : [];
   });
   // Monthly data stays monthly after the day shift, so the dot-or-line choice is made on the stored dates.
-  return buildDetail(shiftSeries(points, time.shifted ? firstOfThisMonth(new Date(), timeZone) : null), percent, seriesGranularity(shiftSeries(points, null)));
+  return buildDetail(
+    shiftSeries(points, time.shifted ? firstOfThisMonth(new Date(), timeZone) : null),
+    percent,
+    seriesGranularity(shiftSeries(points, null))
+  );
 }
 
 export async function collectTableau(ctx: ScreenContext): Promise<PublishedTableau | undefined> {
   const follows = await loadFollows(ctx);
   if (!follows.length) return { metrics: [], valuesLoaded: true };
 
-  const subs = ((await get(ctx.adminOrg, await dataPath(ctx.adminOrg, `/ssot/semantic/sub-metrics/${follows.map((f) => f.id).join(",")}`)))?.items ?? []) as Row[];
+  const subs = ((
+    await get(
+      ctx.adminOrg,
+      await dataPath(
+        ctx.adminOrg,
+        `/ssot/semantic/sub-metrics/${follows.map((f) => f.id).join(",")}`
+      )
+    )
+  )?.items ?? []) as Row[];
   const subById = new Map(subs.map((s) => [String(s.id), s]));
 
   const models = new Map<string, Row>();
@@ -479,7 +625,10 @@ export async function collectTableau(ctx: ScreenContext): Promise<PublishedTable
   }
 
   const jwt = await get(ctx.adminOrg, await dataPath(ctx.adminOrg, "/sfap/lightning-jwt-service"));
-  const token = typeof jwt?.jwt === "string" && typeof jwt.baseUri === "string" ? { jwt: jwt.jwt, baseUri: jwt.baseUri } : undefined;
+  const token =
+    typeof jwt?.jwt === "string" && typeof jwt.baseUri === "string"
+      ? { jwt: jwt.jwt, baseUri: jwt.baseUri }
+      : undefined;
 
   const metrics: PublishedTableauMetric[] = [];
   let loaded = true;
@@ -488,7 +637,14 @@ export async function collectTableau(ctx: ScreenContext): Promise<PublishedTable
     const sub = subById.get(f.id);
     const metric = sub?.semanticMetric as Row | undefined;
     if (!sub || !metric) {
-      metrics.push({ id: f.id, name: f.label, ban: "-", popc: { comparison: NO_VALUE }, description: ALL_TIME, unavailable: true });
+      metrics.push({
+        id: f.id,
+        name: f.label,
+        ban: "-",
+        popc: { comparison: NO_VALUE },
+        description: ALL_TIME,
+        unavailable: true,
+      });
       continue;
     }
     const allTime = describeTimeRange(f.followedTimeRange) === ALL_TIME;
@@ -520,18 +676,27 @@ export async function collectTableau(ctx: ScreenContext): Promise<PublishedTable
       }
     }
     if (ban === "-") loaded = false;
-    const detail = allTime && !bundle ? await computeDetail(ctx.adminOrg, sub, model, ctx.format.timeZone).catch(() => undefined) : undefined;
+    const detail =
+      allTime && !bundle
+        ? await computeDetail(ctx.adminOrg, sub, model, ctx.format.timeZone).catch(() => undefined)
+        : undefined;
     metrics.push({
       id: f.id,
       name: String(metric.label ?? f.label),
       ban,
-      popc: bundle ? parsePopc(bundle, allTime) : { comparison: allTime ? EMPTY_ALL_TIME_COMPARISON : NO_VALUE },
+      popc: bundle
+        ? parsePopc(bundle, allTime)
+        : { comparison: allTime ? EMPTY_ALL_TIME_COMPARISON : NO_VALUE },
       description: describeTimeRange(f.followedTimeRange),
       ...(detail ? { detail } : {}),
     });
   }
   // Device order is alphabetical by metric name (observed; the SDK view models don't sort).
   metrics.sort((a, b) => a.name.localeCompare(b.name));
-  const valuesSource = sources.has("insights") ? "insights" : sources.has("data-cloud") ? "data-cloud" : "none";
+  const valuesSource = sources.has("insights")
+    ? "insights"
+    : sources.has("data-cloud")
+      ? "data-cloud"
+      : "none";
   return { metrics, valuesLoaded: loaded, valuesSource };
 }

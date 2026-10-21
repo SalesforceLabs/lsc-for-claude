@@ -1472,7 +1472,9 @@ export function register(server: McpServer) {
             const inEffect = (r: Record<string, unknown>) =>
               (!r.EffectiveStartDate || String(r.EffectiveStartDate) <= today) &&
               (!r.EffectiveEndDate || String(r.EffectiveEndDate) >= today);
-            const activeCount = records.filter((r) => inEffect(r as Record<string, unknown>)).length;
+            const activeCount = records.filter((r) =>
+              inEffect(r as Record<string, unknown>)
+            ).length;
             const zipCount = records.filter(
               (r) => (r as Record<string, unknown>).UsageType === "ZipToTerritory"
             ).length;

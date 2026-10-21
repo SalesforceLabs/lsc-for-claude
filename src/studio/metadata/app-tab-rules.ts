@@ -33,7 +33,9 @@ const bare = (tab: string) => tab.replace(/^[A-Za-z0-9]+__/, "").toLowerCase();
 /** The screen that tab is the iPad's route to, or null for an ordinary tab. */
 export function routedScreen(tab: string): string | null {
   const name = bare(tab);
-  return RULES.find((r) => r.names.includes(name) || r.names.includes(tab.toLowerCase()))?.screen ?? null;
+  return (
+    RULES.find((r) => r.names.includes(name) || r.names.includes(tab.toLowerCase()))?.screen ?? null
+  );
 }
 
 /** Warnings for the tabs the ops take out of the bar (and not put back again). */
@@ -47,12 +49,18 @@ export function appTabWarnings(ops: AppOp[]): string[] {
   for (const tab of removed) {
     const screen = routedScreen(tab);
     if (screen) {
-      out.push(`${tab} is how the iPad gets to ${screen}: links, notifications and in-app buttons that open ${screen} stop working once reps get the new tab bar.`);
+      out.push(
+        `${tab} is how the iPad gets to ${screen}: links, notifications and in-app buttons that open ${screen} stop working once reps get the new tab bar.`
+      );
     } else if (tab.startsWith("standard-")) {
       const object = tab.slice("standard-".length);
-      out.push(`${tab} is the ${object} tab: links that open ${object} records in the app (lightningObject deep links) have no tab to land on once reps get the new tab bar.`);
+      out.push(
+        `${tab} is the ${object} tab: links that open ${object} records in the app (lightningObject deep links) have no tab to land on once reps get the new tab bar.`
+      );
     } else if (tab.endsWith("__c")) {
-      out.push(`${tab} is an object's tab: links that open its records in the app have no tab to land on once reps get the new tab bar.`);
+      out.push(
+        `${tab} is an object's tab: links that open its records in the app have no tab to land on once reps get the new tab bar.`
+      );
     }
   }
   return out;

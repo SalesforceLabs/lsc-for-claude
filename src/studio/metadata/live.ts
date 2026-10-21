@@ -11,14 +11,35 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { apiRequest, cachedDescribeSObject, dataPath, retrieveMetadata, type SObjectDescribeResult } from "../../salesforce/cli.js";
+import {
+  apiRequest,
+  cachedDescribeSObject,
+  dataPath,
+  retrieveMetadata,
+  type SObjectDescribeResult,
+} from "../../salesforce/cli.js";
 import { assertId } from "../change-helpers.js";
 import { query, type Row } from "../helpers.js";
-import type { LayoutFieldOption, LiveCompactLayout, LiveFlexiPage, LiveLayout, LiveListView, RelatedListOption } from "../types.js";
+import type {
+  LayoutFieldOption,
+  LiveCompactLayout,
+  LiveFlexiPage,
+  LiveLayout,
+  LiveListView,
+  RelatedListOption,
+} from "../types.js";
 import { listBooleanFilter, listColumns, listFilters, listFilterScope } from "./listview-ops.js";
 import { compactFields } from "./compact-ops.js";
 import { withDoc } from "./doc.js";
-import { componentOf, facetsOf, identifierOf, itemsOf, propertiesOf, regionName, regionsOf } from "./flexipage-ops.js";
+import {
+  componentOf,
+  facetsOf,
+  identifierOf,
+  itemsOf,
+  propertiesOf,
+  regionName,
+  regionsOf,
+} from "./flexipage-ops.js";
 import { childText, childrenNamed, parseXml, unescapeXml, type XmlNode } from "./xml.js";
 
 const soqlString = (v: string) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
@@ -29,10 +50,16 @@ export async function isProductionOrg(org: string): Promise<boolean> {
   const known = productionOrgs.get(org);
   if (known !== undefined) return known;
   try {
-    const [rec] = await query("SELECT IsSandbox, TrialExpirationDate, OrganizationType FROM Organization LIMIT 1", org);
+    const [rec] = await query(
+      "SELECT IsSandbox, TrialExpirationDate, OrganizationType FROM Organization LIMIT 1",
+      org
+    );
     if (!rec) return false;
     // A trial or Developer Edition org is not a sandbox, but nothing in it is real data either (the renderer's OrgKind agrees).
-    const production = rec.IsSandbox === false && rec.TrialExpirationDate == null && rec.OrganizationType !== "Developer Edition";
+    const production =
+      rec.IsSandbox === false &&
+      rec.TrialExpirationDate == null &&
+      rec.OrganizationType !== "Developer Edition";
     productionOrgs.set(org, production);
     return production;
   } catch {
@@ -53,13 +80,28 @@ export async function layoutProfiles(fullName: string, org: string): Promise<str
     const dash = fullName.indexOf("-");
     const object = fullName.slice(0, dash);
     const name = decodeURIComponent(fullName.slice(dash + 1));
-    const layouts = await query(`SELECT Id, TableEnumOrId FROM Layout WHERE Name = ${soqlString(name)}`, org, true);
+    const layouts = await query(
+      `SELECT Id, TableEnumOrId FROM Layout WHERE Name = ${soqlString(name)}`,
+      org,
+      true
+    );
     const table = object === "PersonAccount" ? "Account" : object;
-    const layout = layouts.length === 1 ? layouts[0] : layouts.find((l) => l.TableEnumOrId === table);
+    const layout =
+      layouts.length === 1 ? layouts[0] : layouts.find((l) => l.TableEnumOrId === table);
     if (!layout) return null;
     assertId(String(layout.Id));
-    const rows = await query(`SELECT Profile.Name FROM ProfileLayout WHERE LayoutId = '${layout.Id}'`, org, true);
-    return [...new Set(rows.map((r) => (r.Profile as Row | null)?.Name).filter((n): n is string => typeof n === "string" && !!n))].sort();
+    const rows = await query(
+      `SELECT Profile.Name FROM ProfileLayout WHERE LayoutId = '${layout.Id}'`,
+      org,
+      true
+    );
+    return [
+      ...new Set(
+        rows
+          .map((r) => (r.Profile as Row | null)?.Name)
+          .filter((n): n is string => typeof n === "string" && !!n)
+      ),
+    ].sort();
   } catch {
     return null;
   }
@@ -100,7 +142,11 @@ export function layoutObject(fullName: string): string {
  * (the layout names the compound), and on a business account layout no
  * person-account fields. Sorted by label.
  */
-export function availableFields(fullName: string, described: SObjectDescribeResult, onLayout: Set<string>): LayoutFieldOption[] {
+export function availableFields(
+  fullName: string,
+  described: SObjectDescribeResult,
+  onLayout: Set<string>
+): LayoutFieldOption[] {
   const business = fullName.startsWith("Account-");
   return described.fields
     .filter(
@@ -117,8 +163,13 @@ export function availableFields(fullName: string, described: SObjectDescribeResu
 }
 
 /** The fields on the layout, with the describe's label and type (an item the describe doesn't list, such as a custom component, is left out). */
-export function placedFields(described: SObjectDescribeResult, onLayout: Set<string>): LayoutFieldOption[] {
-  return described.fields.filter((f) => onLayout.has(f.name)).map((f) => ({ field: f.name, label: f.label, type: f.type }));
+export function placedFields(
+  described: SObjectDescribeResult,
+  onLayout: Set<string>
+): LayoutFieldOption[] {
+  return described.fields
+    .filter((f) => onLayout.has(f.name))
+    .map((f) => ({ field: f.name, label: f.label, type: f.type }));
 }
 
 /** Child objects that are never a layout's related list. */
@@ -131,7 +182,10 @@ const NOT_RELATED_LIST = /(Share|Feed|History|ChangeEvent|__hd|__e)$/;
  * approvals, system objects), which a layout deploy refuses. Null when the org
  * won't say, so the caller shows the describe's list instead.
  */
-export async function layoutableRelatedLists(object: string, org: string): Promise<Set<string> | null> {
+export async function layoutableRelatedLists(
+  object: string,
+  org: string
+): Promise<Set<string> | null> {
   try {
     if (!/^[A-Za-z0-9_]+$/.test(object)) return null;
     const rows = await query(
@@ -161,15 +215,28 @@ export function relatedListOptions(
   const seen = new Set<string>();
   return (described.childRelationships ?? [])
     .flatMap((c) => {
-      if (!c.relationshipName || c.deprecatedAndHidden || NOT_RELATED_LIST.test(c.childSObject)) return [];
+      if (!c.relationshipName || c.deprecatedAndHidden || NOT_RELATED_LIST.test(c.childSObject))
+        return [];
       if (layoutable && !layoutable.has(c.relationshipName)) return [];
       const dotted = `${c.childSObject}.${c.field}`;
-      const relatedList = c.childSObject.endsWith("__c") || c.field.endsWith("__c") ? dotted : c.relationshipName;
-      if (placed.has(relatedList) || placed.has(dotted) || placed.has(c.relationshipName) || seen.has(relatedList)) return [];
+      const relatedList =
+        c.childSObject.endsWith("__c") || c.field.endsWith("__c") ? dotted : c.relationshipName;
+      if (
+        placed.has(relatedList) ||
+        placed.has(dotted) ||
+        placed.has(c.relationshipName) ||
+        seen.has(relatedList)
+      )
+        return [];
       seen.add(relatedList);
       return [{ relatedList, object: c.childSObject, relationshipName: c.relationshipName }];
     })
-    .sort((a, b) => Number(b.object.endsWith("__c")) - Number(a.object.endsWith("__c")) || a.object.localeCompare(b.object) || a.relatedList.localeCompare(b.relatedList));
+    .sort(
+      (a, b) =>
+        Number(b.object.endsWith("__c")) - Number(a.object.endsWith("__c")) ||
+        a.object.localeCompare(b.object) ||
+        a.relatedList.localeCompare(b.relatedList)
+    );
 }
 
 export async function readLiveLayout(fullName: string, org: string): Promise<LiveLayout> {
@@ -192,7 +259,9 @@ export async function readLiveLayout(fullName: string, org: string): Promise<Liv
           ),
         };
       });
-      const relatedLists = childrenNamed(root, "relatedLists").map((r) => childText(r, "relatedList") ?? "");
+      const relatedLists = childrenNamed(root, "relatedLists").map(
+        (r) => childText(r, "relatedList") ?? ""
+      );
       return { sections, relatedLists };
     }),
     layoutProfiles(fullName, org),
@@ -210,7 +279,11 @@ export async function readLiveLayout(fullName: string, org: string): Promise<Liv
     production,
     available: desc ? availableFields(fullName, desc, placed) : null,
     placed: desc ? placedFields(desc, placed) : null,
-    availableRelated: desc ? relatedListOptions(desc, structure.relatedLists, layoutable).map(({ relatedList, object }) => ({ relatedList, object })) : null,
+    availableRelated: desc
+      ? relatedListOptions(desc, structure.relatedLists, layoutable).map(
+          ({ relatedList, object }) => ({ relatedList, object })
+        )
+      : null,
   } as LiveLayout;
 }
 
@@ -225,15 +298,15 @@ export function splitCompactName(fullName: string): [string, string] {
 }
 
 /** Record types assigned the compact layout ("Master" for the object's default), sorted; null when that can't be read. */
-export async function compactLayoutRecordTypes(fullName: string, org: string): Promise<string[] | null> {
+export async function compactLayoutRecordTypes(
+  fullName: string,
+  org: string
+): Promise<string[] | null> {
   try {
     const [object, name] = splitCompactName(fullName);
-    const res = await apiRequest<{ recordTypeCompactLayoutMappings?: { compactLayoutName?: string; recordTypeName?: string }[] }>(
-      await dataPath(org, `/sobjects/${object}/describe/compactLayouts`),
-      "GET",
-      undefined,
-      org
-    );
+    const res = await apiRequest<{
+      recordTypeCompactLayoutMappings?: { compactLayoutName?: string; recordTypeName?: string }[];
+    }>(await dataPath(org, `/sobjects/${object}/describe/compactLayouts`), "GET", undefined, org);
     if (!res.success || !res.data) return null;
     const names = (res.data.recordTypeCompactLayoutMappings ?? []).flatMap((m) =>
       m.compactLayoutName === name && m.recordTypeName ? [m.recordTypeName] : []
@@ -244,12 +317,23 @@ export async function compactLayoutRecordTypes(fullName: string, org: string): P
   }
 }
 
-export async function readLiveCompactLayout(fullName: string, org: string): Promise<LiveCompactLayout> {
+export async function readLiveCompactLayout(
+  fullName: string,
+  org: string
+): Promise<LiveCompactLayout> {
   const [object] = splitCompactName(fullName);
   const [doc, available, recordTypes, production] = await Promise.all([
-    withDoc("CompactLayout", fullName, org, async ({ root }) => ({ label: childText(root, "label") ?? fullName, fields: compactFields(root) })),
+    withDoc("CompactLayout", fullName, org, async ({ root }) => ({
+      label: childText(root, "label") ?? fullName,
+      fields: compactFields(root),
+    })),
     cachedDescribeSObject(object, org).then(
-      (r) => (r.success && r.data ? r.data.fields.filter((f) => !NOT_COMPACT.has(f.type)).map((f) => ({ name: f.name, label: f.label, type: f.type })) : []),
+      (r) =>
+        r.success && r.data
+          ? r.data.fields
+              .filter((f) => !NOT_COMPACT.has(f.type))
+              .map((f) => ({ name: f.name, label: f.label, type: f.type }))
+          : [],
       () => []
     ),
     compactLayoutRecordTypes(fullName, org),
@@ -270,7 +354,8 @@ const STANDARD_PROFILES: Record<string, string> = {
   ContractManager: "Contract Manager",
   StandardAul: "Standard Platform User",
 };
-export const profileName = (metadataName: string) => STANDARD_PROFILES[metadataName] ?? decodeURIComponent(metadataName);
+export const profileName = (metadataName: string) =>
+  STANDARD_PROFILES[metadataName] ?? decodeURIComponent(metadataName);
 
 interface PageAssignments {
   /** Page name → profiles it's assigned to in some app. */
@@ -280,7 +365,10 @@ interface PageAssignments {
 }
 
 const ASSIGNMENTS_TTL_MS = 30_000;
-export const assignmentsCache = new Map<string, { at: number; value: Promise<PageAssignments | null>; settled?: PageAssignments }>();
+export const assignmentsCache = new Map<
+  string,
+  { at: number; value: Promise<PageAssignments | null>; settled?: PageAssignments }
+>();
 
 /** One app's page overrides, however they were read: only what the reach needs. */
 export interface AppOverrides {
@@ -294,7 +382,8 @@ export interface AppOverrides {
 /** Fold apps' overrides into the page → profiles / apps maps (large form factors only). */
 function assignmentsOf(apps: AppOverrides[]): PageAssignments {
   const out: PageAssignments = { profiles: new Map(), appDefaults: new Map() };
-  const add = (m: Map<string, Set<string>>, page: string, v: string) => m.set(page, (m.get(page) ?? new Set()).add(v));
+  const add = (m: Map<string, Set<string>>, page: string, v: string) =>
+    m.set(page, (m.get(page) ?? new Set()).add(v));
   const large = (o: { formFactor?: string }) => (o.formFactor ?? "Large") === "Large";
   for (const app of apps) {
     for (const o of app.profileActionOverrides) {
@@ -338,7 +427,13 @@ async function loadAppsViaTooling(org: string): Promise<AppOverrides[] | null> {
     rows.forEach((r, i) => {
       const hit = cache.get(String(r.Id));
       const modified = String(r.LastModifiedDate ?? "");
-      if (hit && modified && hit.modified === modified && hit.readAt > Date.parse(modified) + APP_SETTLE_MS) apps[i] = hit.app;
+      if (
+        hit &&
+        modified &&
+        hit.modified === modified &&
+        hit.readAt > Date.parse(modified) + APP_SETTLE_MS
+      )
+        apps[i] = hit.app;
       else stale.push(i);
     });
     let next = 0;
@@ -348,18 +443,30 @@ async function loadAppsViaTooling(org: string): Promise<AppOverrides[] | null> {
         const id = String(rows[i].Id);
         assertId(id);
         const readAt = Date.now();
-        const [row] = await query(`SELECT Label, DeveloperName, NamespacePrefix, Metadata FROM CustomApplication WHERE Id = '${id}'`, org, true);
+        const [row] = await query(
+          `SELECT Label, DeveloperName, NamespacePrefix, Metadata FROM CustomApplication WHERE Id = '${id}'`,
+          org,
+          true
+        );
         const m = row?.Metadata as Row | null | undefined;
         if (!m) throw new Error(`No metadata for app ${id}`);
         const rowsOf = (v: unknown) => (Array.isArray(v) ? (v as Row[]) : []);
         const str = (v: unknown) => (typeof v === "string" ? v : undefined);
         const dev = String(row.DeveloperName ?? "");
-        const ns = typeof row.NamespacePrefix === "string" && row.NamespacePrefix ? row.NamespacePrefix : "";
+        const ns =
+          typeof row.NamespacePrefix === "string" && row.NamespacePrefix ? row.NamespacePrefix : "";
         const app: AppOverrides = {
           fullName: ns ? `${ns}__${dev}` : dev,
           label: str(m.label) || dev,
-          profileActionOverrides: rowsOf(m.profileActionOverrides).map((o) => ({ content: str(o.content), profile: str(o.profile), formFactor: str(o.formFactor) })),
-          actionOverrides: rowsOf(m.actionOverrides).map((o) => ({ content: str(o.content), formFactor: str(o.formFactor) })),
+          profileActionOverrides: rowsOf(m.profileActionOverrides).map((o) => ({
+            content: str(o.content),
+            profile: str(o.profile),
+            formFactor: str(o.formFactor),
+          })),
+          actionOverrides: rowsOf(m.actionOverrides).map((o) => ({
+            content: str(o.content),
+            formFactor: str(o.formFactor),
+          })),
         };
         apps[i] = app;
         cache.set(id, { modified: String(rows[i].LastModifiedDate ?? ""), readAt, app });
@@ -404,7 +511,10 @@ export async function appOverridesViaRetrieve(org: string): Promise<AppOverrides
           profile: childText(o, "profile"),
           formFactor: childText(o, "formFactor"),
         })),
-        actionOverrides: childrenNamed(root, "actionOverrides").map((o) => ({ content: childText(o, "content"), formFactor: childText(o, "formFactor") })),
+        actionOverrides: childrenNamed(root, "actionOverrides").map((o) => ({
+          content: childText(o, "content"),
+          formFactor: childText(o, "formFactor"),
+        })),
       };
     });
   } catch {
@@ -421,7 +531,13 @@ export async function appOverridesViaRetrieve(org: string): Promise<AppOverrides
 export async function appsReferencingPage(page: string, org: string): Promise<string[] | null> {
   const apps = await appOverridesViaTooling(org);
   if (!apps) return null;
-  return apps.filter((a) => a.profileActionOverrides.some((o) => o.content === page) || a.actionOverrides.some((o) => o.content === page)).map((a) => a.fullName);
+  return apps
+    .filter(
+      (a) =>
+        a.profileActionOverrides.some((o) => o.content === page) ||
+        a.actionOverrides.some((o) => o.content === page)
+    )
+    .map((a) => a.fullName);
 }
 
 /** Every app's Lightning page assignments (profile overrides and app defaults) on large form factors. */
@@ -432,7 +548,10 @@ async function pageAssignments(org: string): Promise<PageAssignments | null> {
     const apps = (await appOverridesViaTooling(org)) ?? (await appOverridesViaRetrieve(org));
     return apps ? assignmentsOf(apps) : null;
   })();
-  const entry: { at: number; value: Promise<PageAssignments | null>; settled?: PageAssignments } = { at: Date.now(), value };
+  const entry: { at: number; value: Promise<PageAssignments | null>; settled?: PageAssignments } = {
+    at: Date.now(),
+    value,
+  };
   assignmentsCache.set(org, entry);
   value.then((v) => {
     if (v) entry.settled = v;
@@ -442,9 +561,15 @@ async function pageAssignments(org: string): Promise<PageAssignments | null> {
 }
 
 /** Page assignments from the given apps as sorted arrays, for checking one source against the other. */
-export function pageAssignmentsOf(apps: AppOverrides[]): { profiles: [string, string[]][]; appDefaults: [string, string[]][] } {
+export function pageAssignmentsOf(apps: AppOverrides[]): {
+  profiles: [string, string[]][];
+  appDefaults: [string, string[]][];
+} {
   const all = assignmentsOf(apps);
-  const flat = (m: Map<string, Set<string>>) => [...m].map(([k, v]): [string, string[]] => [k, [...v].sort()]).sort((a, b) => a[0].localeCompare(b[0]));
+  const flat = (m: Map<string, Set<string>>) =>
+    [...m]
+      .map(([k, v]): [string, string[]] => [k, [...v].sort()])
+      .sort((a, b) => a[0].localeCompare(b[0]));
   return { profiles: flat(all.profiles), appDefaults: flat(all.appDefaults) };
 }
 
@@ -457,21 +582,33 @@ function appFiles(dir: string): string[] {
 }
 
 /** Who gets a Lightning page: the profiles it's assigned to and the apps it's the default of; null when the apps couldn't be read. */
-export async function flexiPageReach(fullName: string, org: string): Promise<{ profiles: string[]; appDefaults: string[] } | null> {
+export async function flexiPageReach(
+  fullName: string,
+  org: string
+): Promise<{ profiles: string[]; appDefaults: string[] } | null> {
   try {
     const all = await pageAssignments(org);
     if (!all) return null;
-    return { profiles: [...(all.profiles.get(fullName) ?? [])].sort(), appDefaults: [...(all.appDefaults.get(fullName) ?? [])].sort() };
+    return {
+      profiles: [...(all.profiles.get(fullName) ?? [])].sort(),
+      appDefaults: [...(all.appDefaults.get(fullName) ?? [])].sort(),
+    };
   } catch {
     return null;
   }
 }
 
 /** A page's reach if every app was read lately (e.g. by the inspector), without reading them now; undefined when not known yet. */
-export function knownFlexiPageReach(fullName: string, org: string): { profiles: string[]; appDefaults: string[] } | undefined {
+export function knownFlexiPageReach(
+  fullName: string,
+  org: string
+): { profiles: string[]; appDefaults: string[] } | undefined {
   const hit = assignmentsCache.get(org);
   if (!hit?.settled || Date.now() - hit.at >= ASSIGNMENTS_TTL_MS) return undefined;
-  return { profiles: [...(hit.settled.profiles.get(fullName) ?? [])].sort(), appDefaults: [...(hit.settled.appDefaults.get(fullName) ?? [])].sort() };
+  return {
+    profiles: [...(hit.settled.profiles.get(fullName) ?? [])].sort(),
+    appDefaults: [...(hit.settled.appDefaults.get(fullName) ?? [])].sort(),
+  };
 }
 
 /** True when the page was installed from a managed package and can't be deployed. */
@@ -490,8 +627,13 @@ export async function isManagedFlexiPage(fullName: string, org: string): Promise
   }
 }
 
-export function liveFlexiPageOf(fullName: string, root: XmlNode): Omit<LiveFlexiPage, "profiles" | "appDefaults" | "managed" | "production"> {
-  const templateName = childText(childrenNamed(root, "template")[0] ?? { tag: "template", children: [] }, "name") ?? "";
+export function liveFlexiPageOf(
+  fullName: string,
+  root: XmlNode
+): Omit<LiveFlexiPage, "profiles" | "appDefaults" | "managed" | "production"> {
+  const templateName =
+    childText(childrenNamed(root, "template")[0] ?? { tag: "template", children: [] }, "name") ??
+    "";
   return {
     type: "FlexiPage",
     fullName,
@@ -505,7 +647,9 @@ export function liveFlexiPageOf(fullName: string, root: XmlNode): Omit<LiveFlexi
       items: itemsOf(r).map((item) => ({
         component: componentOf(item),
         identifier: identifierOf(item),
-        properties: Object.fromEntries(Object.entries(propertiesOf(item)).filter(([, v]) => v.length <= 1000)),
+        properties: Object.fromEntries(
+          Object.entries(propertiesOf(item)).filter(([, v]) => v.length <= 1000)
+        ),
         facets: facetsOf(root, item),
       })),
     })),
@@ -515,17 +659,38 @@ export function liveFlexiPageOf(fullName: string, root: XmlNode): Omit<LiveFlexi
 /** How long a page read waits for its reach before answering without it (it keeps loading, shared through the assignments cache). */
 const REACH_WAIT_MS = 4000;
 
-export async function readLiveFlexiPage(fullName: string, org: string, reachWaitMs = REACH_WAIT_MS): Promise<LiveFlexiPage> {
+export async function readLiveFlexiPage(
+  fullName: string,
+  org: string,
+  reachWaitMs = REACH_WAIT_MS
+): Promise<LiveFlexiPage> {
   const pending = Symbol("pending");
   const reachRead = flexiPageReach(fullName, org);
   const [structure, reach, managed, production] = await Promise.all([
     withDoc("FlexiPage", fullName, org, async ({ root }) => liveFlexiPageOf(fullName, root)),
-    Promise.race([reachRead, new Promise<typeof pending>((r) => setTimeout(() => r(pending), reachWaitMs).unref?.())]),
+    Promise.race([
+      reachRead,
+      new Promise<typeof pending>((r) => setTimeout(() => r(pending), reachWaitMs).unref?.()),
+    ]),
     isManagedFlexiPage(fullName, org),
     isProductionOrg(org),
   ]);
-  if (reach === pending) return { ...structure, profiles: null, appDefaults: null, reachPending: true, managed, production };
-  return { ...structure, profiles: reach?.profiles ?? null, appDefaults: reach?.appDefaults ?? null, managed, production };
+  if (reach === pending)
+    return {
+      ...structure,
+      profiles: null,
+      appDefaults: null,
+      reachPending: true,
+      managed,
+      production,
+    };
+  return {
+    ...structure,
+    profiles: reach?.profiles ?? null,
+    appDefaults: reach?.appDefaults ?? null,
+    managed,
+    production,
+  };
 }
 
 // --- List views ------------------------------------------------------------------------
@@ -538,9 +703,13 @@ export function splitListViewName(fullName: string): [string, string] {
 }
 
 /** A view installed from a managed package carries its namespace ("FSL__All"), which a view of the org's own never does. */
-export const isManagedListView = (fullName: string): boolean => /^[A-Za-z][A-Za-z0-9]*__\w+$/.test(splitListViewName(fullName)[1]);
+export const isManagedListView = (fullName: string): boolean =>
+  /^[A-Za-z][A-Za-z0-9]*__\w+$/.test(splitListViewName(fullName)[1]);
 
-export function liveListViewOf(fullName: string, root: XmlNode): Omit<LiveListView, "available" | "production"> {
+export function liveListViewOf(
+  fullName: string,
+  root: XmlNode
+): Omit<LiveListView, "available" | "production"> {
   const shared = childrenNamed(root, "sharedTo")[0];
   return {
     type: "ListView",
@@ -550,7 +719,9 @@ export function liveListViewOf(fullName: string, root: XmlNode): Omit<LiveListVi
     filterScope: listFilterScope(root),
     filters: listFilters(root),
     booleanFilter: listBooleanFilter(root),
-    sharedTo: shared ? shared.children.map((c) => ({ kind: c.tag, name: unescapeXml(c.text ?? "") })) : null,
+    sharedTo: shared
+      ? shared.children.map((c) => ({ kind: c.tag, name: unescapeXml(c.text ?? "") }))
+      : null,
     managed: isManagedListView(fullName),
   };
 }
@@ -562,7 +733,14 @@ export async function readLiveListView(fullName: string, org: string): Promise<L
     cachedDescribeSObject(object, org).then(
       (r) =>
         r.success && r.data
-          ? r.data.fields.filter((f) => f.type !== "base64").map((f) => ({ name: f.name, label: f.label, type: f.type, filterable: f.filterable !== false }))
+          ? r.data.fields
+              .filter((f) => f.type !== "base64")
+              .map((f) => ({
+                name: f.name,
+                label: f.label,
+                type: f.type,
+                filterable: f.filterable !== false,
+              }))
           : [],
       () => []
     ),

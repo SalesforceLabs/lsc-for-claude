@@ -19,13 +19,23 @@ const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : m
 
 /** The sentence saying what was looked at, so a pass is never read as "every list in the org". */
 const checkedNote = (rows: Row[], one: string, more: string) =>
-  rows.length < SAMPLE_ROWS ? `Checked all ${many(rows.length, one, more)}.` : `Checked a sample of ${SAMPLE_ROWS} ${more}, not every one in the org.`;
+  rows.length < SAMPLE_ROWS
+    ? `Checked all ${many(rows.length, one, more)}.`
+    : `Checked a sample of ${SAMPLE_ROWS} ${more}, not every one in the org.`;
 
 /** Lists matching `where` (up to the sample size) that have no member rows, looked up by list id. */
 async function emptyLists(where: string, org: string): Promise<{ sampled: Row[]; empty: Row[] }> {
-  const sampled = await query(`SELECT Id, Name FROM LifeScienceAccountList WHERE ${where} LIMIT ${SAMPLE_ROWS}`, org);
+  const sampled = await query(
+    `SELECT Id, Name FROM LifeScienceAccountList WHERE ${where} LIMIT ${SAMPLE_ROWS}`,
+    org
+  );
   if (!sampled.length) return { sampled, empty: [] };
-  const members = await countGroupedBy("LifeSciAccountListMember", "LifeScienceAccountListId", sampled.map((r) => String(r.Id)), org);
+  const members = await countGroupedBy(
+    "LifeSciAccountListMember",
+    "LifeScienceAccountListId",
+    sampled.map((r) => String(r.Id)),
+    org
+  );
   return { sampled, empty: sampled.filter((r) => !members.has(String(r.Id))) };
 }
 
@@ -41,15 +51,32 @@ const readiness: ReadinessModule = {
      * Two queries: SOQL won't nest semi-joins.
      */
     const listsMissing = async (child: string, where: string) => {
-      const objects = await query(`SELECT Id, LifeScienceAccountListId FROM LifeScienceAccountListObject WHERE LifeScienceAccountList.${where} LIMIT 2000`, org);
+      const objects = await query(
+        `SELECT Id, LifeScienceAccountListId FROM LifeScienceAccountListObject WHERE LifeScienceAccountList.${where} LIMIT 2000`,
+        org
+      );
       if (objects.length === 0) return [];
       const withChild = new Set(
-        (await query(`SELECT LifeSciAccountListObjectId FROM ${child} WHERE LifeSciAccountListObjectId IN (${inList(objects.map((o) => String(o.Id)))}) GROUP BY LifeSciAccountListObjectId`, org)).map((r) => String(r.LifeSciAccountListObjectId))
+        (
+          await query(
+            `SELECT LifeSciAccountListObjectId FROM ${child} WHERE LifeSciAccountListObjectId IN (${inList(objects.map((o) => String(o.Id)))}) GROUP BY LifeSciAccountListObjectId`,
+            org
+          )
+        ).map((r) => String(r.LifeSciAccountListObjectId))
       );
-      const covered = new Set(objects.filter((o) => withChild.has(String(o.Id))).map((o) => String(o.LifeScienceAccountListId)));
-      const bare = [...new Set(objects.map((o) => String(o.LifeScienceAccountListId)))].filter((id) => !covered.has(id));
+      const covered = new Set(
+        objects
+          .filter((o) => withChild.has(String(o.Id)))
+          .map((o) => String(o.LifeScienceAccountListId))
+      );
+      const bare = [...new Set(objects.map((o) => String(o.LifeScienceAccountListId)))].filter(
+        (id) => !covered.has(id)
+      );
       if (bare.length === 0) return [];
-      return query(`SELECT Id, Name FROM LifeScienceAccountList WHERE Id IN (${inList(bare)}) LIMIT 20`, org);
+      return query(
+        `SELECT Id, Name FROM LifeScienceAccountList WHERE Id IN (${inList(bare)}) LIMIT 20`,
+        org
+      );
     };
 
     return Promise.all([
@@ -60,15 +87,21 @@ const readiness: ReadinessModule = {
           title: "Account lists exist",
           severity: "info",
           why: "Lists, filters and routes are what reps open first on the Accounts tab. With none, reps start from the full account list.",
-          steps: ["Create a list, filter or advanced filter in the Accounts tab, or load shared ones for each territory."],
+          steps: [
+            "Create a list, filter or advanced filter in the Accounts tab, or load shared ones for each territory.",
+          ],
           uiPath: "LSC4CE App > Accounts > Lists",
           surface: "objects",
         },
         async () => {
           // Reading up to the sample size says "some" without counting the whole table.
-          const n = (await query(`SELECT Id FROM LifeScienceAccountList LIMIT ${SAMPLE_ROWS}`, org)).length;
+          const n = (await query(`SELECT Id FROM LifeScienceAccountList LIMIT ${SAMPLE_ROWS}`, org))
+            .length;
           if (!n) return { pass: false, detail: "No account lists." };
-          return { pass: true, detail: n < SAMPLE_ROWS ? `${plural(n, "list")}.` : `At least ${SAMPLE_ROWS} lists.` };
+          return {
+            pass: true,
+            detail: n < SAMPLE_ROWS ? `${plural(n, "list")}.` : `At least ${SAMPLE_ROWS} lists.`,
+          };
         }
       ),
 
@@ -88,7 +121,11 @@ const readiness: ReadinessModule = {
           if (!sampled.length) return { pass: true, detail: "There are no static lists." };
           const scope = checkedNote(sampled, "static list", "static lists");
           return empty.length
-            ? { pass: false, detail: `${empty.length} of ${many(sampled.length, "static list", "static lists")} ${empty.length === 1 ? "has" : "have"} no members. ${scope}`, examples: labels(empty.slice(0, 20)) }
+            ? {
+                pass: false,
+                detail: `${empty.length} of ${many(sampled.length, "static list", "static lists")} ${empty.length === 1 ? "has" : "have"} no members. ${scope}`,
+                examples: labels(empty.slice(0, 20)),
+              }
             : { pass: true, detail: `Every static list checked has members. ${scope}` };
         }
       ),
@@ -109,7 +146,11 @@ const readiness: ReadinessModule = {
           if (!sampled.length) return { pass: true, detail: "There are no routes." };
           const scope = checkedNote(sampled, "route", "routes");
           return empty.length
-            ? { pass: false, detail: `${empty.length} of ${many(sampled.length, "route", "routes")} ${empty.length === 1 ? "has" : "have"} no stops. ${scope}`, examples: labels(empty.slice(0, 20)) }
+            ? {
+                pass: false,
+                detail: `${empty.length} of ${many(sampled.length, "route", "routes")} ${empty.length === 1 ? "has" : "have"} no stops. ${scope}`,
+                examples: labels(empty.slice(0, 20)),
+              }
             : { pass: true, detail: `Every route checked has stops. ${scope}` };
         }
       ),
@@ -128,17 +169,36 @@ const readiness: ReadinessModule = {
         async () => {
           // The User table is small next to the lists, so start from the inactive users and look
           // their lists up by owner, rather than filter every list on its owner's status.
-          const users = await query(`SELECT Id FROM User WHERE IsActive = false LIMIT ${INACTIVE_USERS}`, org);
+          const users = await query(
+            `SELECT Id FROM User WHERE IsActive = false LIMIT ${INACTIVE_USERS}`,
+            org
+          );
           const scope =
             users.length < INACTIVE_USERS
               ? `Checked the lists of all ${many(users.length, "inactive user", "inactive users")}.`
               : `Checked the lists of ${INACTIVE_USERS} inactive users, not every one in the org.`;
-          if (!users.length) return { pass: true, detail: "All list owners are active. The org has no inactive users." };
-          const owners = await countGroupedBy("LifeScienceAccountList", "OwnerId", users.map((u) => String(u.Id)), org);
+          if (!users.length)
+            return {
+              pass: true,
+              detail: "All list owners are active. The org has no inactive users.",
+            };
+          const owners = await countGroupedBy(
+            "LifeScienceAccountList",
+            "OwnerId",
+            users.map((u) => String(u.Id)),
+            org
+          );
           if (!owners.size) return { pass: true, detail: `All list owners are active. ${scope}` };
           const n = [...owners.values()].reduce((a, b) => a + b, 0);
-          const rows = await query(`SELECT Id, Name FROM LifeScienceAccountList WHERE OwnerId IN (${inList([...owners.keys()].slice(0, 200))}) LIMIT 20`, org);
-          return { pass: false, detail: `${plural(n, "list")} owned by ${many(owners.size, "inactive user", "inactive users")}. ${scope}`, examples: labels(rows) };
+          const rows = await query(
+            `SELECT Id, Name FROM LifeScienceAccountList WHERE OwnerId IN (${inList([...owners.keys()].slice(0, 200))}) LIMIT 20`,
+            org
+          );
+          return {
+            pass: false,
+            detail: `${plural(n, "list")} owned by ${many(owners.size, "inactive user", "inactive users")}. ${scope}`,
+            examples: labels(rows),
+          };
         }
       ),
 
@@ -149,7 +209,9 @@ const readiness: ReadinessModule = {
           title: "Every filter says which object it filters",
           severity: "warning",
           why: "A filter's object rows hold the objects, columns and criteria it is built from. A filter without any has nothing to evaluate, so the app may show it empty or refuse to open it. Static lists keep their accounts as members instead, and advanced filters built on a report use the report, so neither is checked here.",
-          steps: ["Open the filter in the Accounts tab and save its object, columns and criteria, or recreate it."],
+          steps: [
+            "Open the filter in the Accounts tab and save its object, columns and criteria, or recreate it.",
+          ],
           uiPath: "LSC4CE App > Accounts > Lists",
           surface: "objects",
         },
@@ -159,7 +221,11 @@ const readiness: ReadinessModule = {
             org
           );
           return rows.length
-            ? { pass: false, detail: `${plural(rows.length, "filter")} with no object.`, examples: labels(rows) }
+            ? {
+                pass: false,
+                detail: `${plural(rows.length, "filter")} with no object.`,
+                examples: labels(rows),
+              }
             : { pass: true, detail: "Every filter has an object." };
         }
       ),
@@ -176,9 +242,16 @@ const readiness: ReadinessModule = {
           surface: "objects",
         },
         async () => {
-          const rows = await listsMissing("LifeSciAcctListFilterCrit", "Type IN ('Filter', 'AdvancedFilter')");
+          const rows = await listsMissing(
+            "LifeSciAcctListFilterCrit",
+            "Type IN ('Filter', 'AdvancedFilter')"
+          );
           return rows.length
-            ? { pass: false, detail: `${plural(rows.length, "filter")} with no criteria.`, examples: labels(rows) }
+            ? {
+                pass: false,
+                detail: `${plural(rows.length, "filter")} with no criteria.`,
+                examples: labels(rows),
+              }
             : { pass: true, detail: "Every filter has criteria." };
         }
       ),
@@ -197,7 +270,11 @@ const readiness: ReadinessModule = {
         async () => {
           const rows = await listsMissing("LifeSciAccountListColumn", "Id != null");
           return rows.length
-            ? { pass: false, detail: `${plural(rows.length, "list")} with no columns.`, examples: labels(rows) }
+            ? {
+                pass: false,
+                detail: `${plural(rows.length, "list")} with no columns.`,
+                examples: labels(rows),
+              }
             : { pass: true, detail: "Every list has columns." };
         }
       ),
@@ -209,12 +286,21 @@ const readiness: ReadinessModule = {
           title: "List objects sync to the iPad",
           severity: "error",
           why: "Lists, their members, columns and filter criteria are evaluated on the device. A missing object makes lists vanish or filters return everything.",
-          steps: ["Admin Console > Mobile > DB Schema: add or switch on a record for each object listed.", "Publish to iPad."],
+          steps: [
+            "Admin Console > Mobile > DB Schema: add or switch on a record for each object listed.",
+            "Publish to iPad.",
+          ],
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },
         schema,
-        ["LifeScienceAccountList", "LifeSciAccountListMember", "LifeScienceAccountListObject", "LifeSciAccountListColumn", "LifeSciAcctListFilterCrit"]
+        [
+          "LifeScienceAccountList",
+          "LifeSciAccountListMember",
+          "LifeScienceAccountListObject",
+          "LifeSciAccountListColumn",
+          "LifeSciAcctListFilterCrit",
+        ]
       ),
     ]);
   },

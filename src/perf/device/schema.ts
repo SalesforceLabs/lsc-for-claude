@@ -45,7 +45,11 @@ function isEmptyRecord(v: unknown): boolean {
 
 /** Throws the same condition that fails a device sync with a MetadataDownload error. */
 export function assertUserSpecificPermissions(usp: UserSpecificPermissions): void {
-  if (isEmptyRecord(usp.availableFields) || !usp.fieldPermissions?.length || !usp.objectPermissions?.length) {
+  if (
+    isEmptyRecord(usp.availableFields) ||
+    !usp.fieldPermissions?.length ||
+    !usp.objectPermissions?.length
+  ) {
     throw new Error(
       "The metadata download response has no userSpecificPermissions (availableFields, fieldPermissions and objectPermissions are all required); a device would fail this sync with a MetadataDownload error."
     );
@@ -62,7 +66,9 @@ export function filterAvailableFields(usp: UserSpecificPermissions): Record<stri
   const out: Record<string, string[]> = {};
   for (const [table, fields] of Object.entries(usp.availableFields ?? {})) {
     const kept = fields.filter(
-      (f) => f.toLowerCase().startsWith("userrecordaccess.") || readable.has(`${table}.${f}`.toLowerCase())
+      (f) =>
+        f.toLowerCase().startsWith("userrecordaccess.") ||
+        readable.has(`${table}.${f}`.toLowerCase())
     );
     if (kept.length > 0) out[table] = kept;
   }
@@ -70,11 +76,37 @@ export function filterAvailableFields(usp: UserSpecificPermissions): Record<stri
 }
 
 const WEIGHT_ONE = new Set([
-  "boolean", "autonumber", "date", "datetime", "time", "number", "percent", "currency", "int", "double", "summary",
-  "lookup", "masterdetail", "metadatarelationship", "hierarchy", "reference", "externallookup", "indirectlookup",
-  "system", "formula", "undefined",
+  "boolean",
+  "autonumber",
+  "date",
+  "datetime",
+  "time",
+  "number",
+  "percent",
+  "currency",
+  "int",
+  "double",
+  "summary",
+  "lookup",
+  "masterdetail",
+  "metadatarelationship",
+  "hierarchy",
+  "reference",
+  "externallookup",
+  "indirectlookup",
+  "system",
+  "formula",
+  "undefined",
 ]);
-const WEIGHT_THREE = new Set(["text", "email", "phone", "url", "picklist", "encryptedtext", "string"]);
+const WEIGHT_THREE = new Set([
+  "text",
+  "email",
+  "phone",
+  "url",
+  "picklist",
+  "encryptedtext",
+  "string",
+]);
 const WEIGHT_TEN = new Set(["textarea", "multiselectpicklist", "customdatatype"]);
 const WEIGHT_FIVE = new Set(["address", "geolocation", "location"]);
 
@@ -83,7 +115,8 @@ export function fieldWeight(type: string | undefined, length: number | undefined
   if (WEIGHT_ONE.has(t)) return 1;
   if (WEIGHT_THREE.has(t)) return 3;
   if (WEIGHT_TEN.has(t)) return 10;
-  if (t === "longtextarea" || t === "html") return Math.min(100, Math.max(20, (length || 32768) / 1000));
+  if (t === "longtextarea" || t === "html")
+    return Math.min(100, Math.max(20, (length || 32768) / 1000));
   if (WEIGHT_FIVE.has(t)) return 5;
   if (t === "file") return 50;
   return 1;
@@ -150,7 +183,9 @@ export function buildUserAccessEntities(
   const profile = obj(permissions.profile);
   add(str(profile.fullName));
   customPermissionNames(profile).forEach(add);
-  const assigned = assignedPermissionSets?.length ? new Set(assignedPermissionSets.map((n) => n.toLowerCase())) : undefined;
+  const assigned = assignedPermissionSets?.length
+    ? new Set(assignedPermissionSets.map((n) => n.toLowerCase()))
+    : undefined;
   for (const raw of Array.isArray(permissions.permissionSets) ? permissions.permissionSets : []) {
     const ps = obj(raw);
     const name = str(ps.fullName);
@@ -163,7 +198,12 @@ export function buildUserAccessEntities(
 
 function splitList(v: unknown): string[] {
   if (Array.isArray(v)) return v.filter((x): x is string => typeof x === "string");
-  return typeof v === "string" ? v.split(/[;,]/).map((s) => s.trim()).filter(Boolean) : [];
+  return typeof v === "string"
+    ? v
+        .split(/[;,]/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
 }
 
 interface Candidate {
@@ -189,9 +229,14 @@ export function buildSchema(input: BuildSchemaInput): SchemaResult {
   const available = filterAvailableFields(usp);
   const lowerAvailable = new Map(Object.keys(available).map((k) => [k.toLowerCase(), k]));
   const excluded = new Set(Object.keys(files.config).map((k) => k.toLowerCase()));
-  const userAccessEntities = buildUserAccessEntities(files.permissions, input.assignedPermissionSets);
+  const userAccessEntities = buildUserAccessEntities(
+    files.permissions,
+    input.assignedPermissionSets
+  );
   if (!input.assignedPermissionSets?.length && Array.isArray(files.permissions.permissionSets)) {
-    notes.push("user-info listed no permission sets, so every permission set in permissions.json was used for {USER.ACCESS.ENTITIES}.");
+    notes.push(
+      "user-info listed no permission sets, so every permission set in permissions.json was used for {USER.ACCESS.ENTITIES}."
+    );
   }
 
   const candidates: Candidate[] = [];
@@ -201,40 +246,64 @@ export function buildSchema(input: BuildSchemaInput): SchemaResult {
     const availKey = lowerAvailable.get(sobject.toLowerCase());
     if (!availKey || excluded.has(sobject.toLowerCase())) continue;
     if (e.IsActive === false) continue;
-    candidates.push({ sobject, developerName: str(e.DeveloperName) ?? key, raw: e, fromPermissionSet: false, fields: available[availKey] ?? [] });
+    candidates.push({
+      sobject,
+      developerName: str(e.DeveloperName) ?? key,
+      raw: e,
+      fromPermissionSet: false,
+      fields: available[availKey] ?? [],
+    });
   }
 
   // Permission-set variants. Only the profile receives injected availableFields, so a
   // permission-set entry contributes only when it carries its own availableFields.
   const assigned = new Set((input.assignedPermissionSets ?? []).map((n) => n.toLowerCase()));
   const psAvailable = new Map<string, Record<string, string[]>>();
-  for (const raw of Array.isArray(files.permissions.permissionSets) ? files.permissions.permissionSets : []) {
+  for (const raw of Array.isArray(files.permissions.permissionSets)
+    ? files.permissions.permissionSets
+    : []) {
     const ps = obj(raw);
     const name = str(ps.fullName);
     const af = obj(ps.availableFields);
     if (!name || Object.keys(af).length === 0) continue;
     const m: Record<string, string[]> = {};
-    for (const [t, fields] of Object.entries(af)) if (Array.isArray(fields)) m[t.toLowerCase()] = fields.filter((f): f is string => typeof f === "string");
+    for (const [t, fields] of Object.entries(af))
+      if (Array.isArray(fields))
+        m[t.toLowerCase()] = fields.filter((f): f is string => typeof f === "string");
     psAvailable.set(name.toLowerCase(), m);
   }
   let psSkipped = 0;
   for (const [key, raw] of Object.entries(files.dbPs)) {
     const e = obj(raw);
     const sobject = str(e.SObject) ?? key.replace(/__c$/, "");
-    const sets = splitList(e.PermissionSets).filter((n) => assigned.size === 0 || assigned.has(n.toLowerCase()));
-    const fieldsFromPs = sets.map((n) => psAvailable.get(n.toLowerCase())?.[sobject.toLowerCase()]).find((f) => f !== undefined);
+    const sets = splitList(e.PermissionSets).filter(
+      (n) => assigned.size === 0 || assigned.has(n.toLowerCase())
+    );
+    const fieldsFromPs = sets
+      .map((n) => psAvailable.get(n.toLowerCase())?.[sobject.toLowerCase()])
+      .find((f) => f !== undefined);
     if (!fieldsFromPs || excluded.has(sobject.toLowerCase())) {
       psSkipped++;
       continue;
     }
-    candidates.push({ sobject, developerName: str(e.DeveloperName) ?? key, raw: e, fromPermissionSet: true, fields: fieldsFromPs });
+    candidates.push({
+      sobject,
+      developerName: str(e.DeveloperName) ?? key,
+      raw: e,
+      fromPermissionSet: true,
+      fields: fieldsFromPs,
+    });
   }
-  if (psSkipped > 0) notes.push(`${psSkipped} permission-set table definition(s) were skipped (no per-permission-set availableFields).`);
+  if (psSkipped > 0)
+    notes.push(
+      `${psSkipped} permission-set table definition(s) were skipped (no per-permission-set availableFields).`
+    );
 
   // Merge by table: sorted by name, lowest DeveloperName wins.
   candidates.sort((a, b) => a.developerName.localeCompare(b.developerName));
   const winners = new Map<string, Candidate>();
-  for (const c of candidates) if (!winners.has(c.sobject.toLowerCase())) winners.set(c.sobject.toLowerCase(), c);
+  for (const c of candidates)
+    if (!winners.has(c.sobject.toLowerCase())) winners.set(c.sobject.toLowerCase(), c);
 
   const tables: SchemaTable[] = [];
   for (const c of winners.values()) {
@@ -251,7 +320,9 @@ export function buildSchema(input: BuildSchemaInput): SchemaResult {
       }
       const f = byName.get(name.toLowerCase());
       if (!f) continue;
-      fields.push(translated && f.dataTranslationEnabled ? `toLabel(${f.fullName}) ${f.fullName}` : f.fullName);
+      fields.push(
+        translated && f.dataTranslationEnabled ? `toLabel(${f.fullName}) ${f.fullName}` : f.fullName
+      );
       weights.push(fieldWeight(f.type, f.length));
     }
     if (fields.length === 0) continue;

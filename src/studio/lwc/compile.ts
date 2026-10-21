@@ -12,7 +12,13 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { inList, query, type Row } from "../helpers.js";
 import { checkInlineLwc, type InlineLwcCheck, type LwcFile } from "../screens/inline-lwc.js";
-import { placeholderComponent, salesforceFallback, salesforceModule, SHIM_FILES, SHIMMED_LIGHTNING } from "./shims.js";
+import {
+  placeholderComponent,
+  salesforceFallback,
+  salesforceModule,
+  SHIM_FILES,
+  SHIMMED_LIGHTNING,
+} from "./shims.js";
 import { privateTmp } from "../../private-tmp.js";
 
 export interface CompiledInlineLwc {
@@ -41,7 +47,8 @@ function lightningNames(sources: string[]): { modules: Set<string>; tags: Set<st
   const tags = new Set<string>();
   for (const s of sources) {
     for (const m of s.matchAll(/["']lightning\/(\w+)["']/g)) modules.add(m[1]);
-    for (const m of s.matchAll(/<lightning-([a-z0-9-]+)[\s>/]/g)) tags.add(m[1].replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase()));
+    for (const m of s.matchAll(/<lightning-([a-z0-9-]+)[\s>/]/g))
+      tags.add(m[1].replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase()));
   }
   return { modules, tags };
 }
@@ -54,14 +61,18 @@ function packageModules(pkg: string): ModuleRecord[] {
   const pkgJson = require.resolve(`${pkg}/package.json`);
   const root = path.dirname(pkgJson);
   const modules = (require(pkgJson) as { lwc?: { modules?: ModuleRecord[] } }).lwc?.modules ?? [];
-  return modules.map((m) => ("dir" in m ? { dir: path.join(root, m.dir) } : { name: m.name, path: path.join(root, m.path) }));
+  return modules.map((m) =>
+    "dir" in m ? { dir: path.join(root, m.dir) } : { name: m.name, path: path.join(root, m.path) }
+  );
 }
 
 let baseNames: Set<string> | undefined;
 async function baseComponents(): Promise<Set<string>> {
   if (baseNames) return baseNames;
   const { readdir } = await import("node:fs/promises");
-  const src = packageModules("lightning-base-components").find((m): m is { dir: string } => "dir" in m);
+  const src = packageModules("lightning-base-components").find(
+    (m): m is { dir: string } => "dir" in m
+  );
   baseNames = new Set(src ? await readdir(path.join(src.dir, "lightning")) : []);
   return baseNames;
 }
@@ -69,16 +80,29 @@ async function baseComponents(): Promise<Set<string>> {
 export async function loadBundles(org: string, bundles: string[]): Promise<LwcFile[]> {
   const valid = bundles.filter((b) => /^\w+$/.test(b));
   if (!valid.length) return [];
-  const rows = await query(`SELECT LightningComponentBundle.DeveloperName, FilePath, Source FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName IN (${inList(valid)})`, org, true);
-  return rows.map((r: Row) => ({ bundle: str((r.LightningComponentBundle as Row | undefined)?.DeveloperName), path: str(r.FilePath), source: str(r.Source) }));
+  const rows = await query(
+    `SELECT LightningComponentBundle.DeveloperName, FilePath, Source FROM LightningComponentResource WHERE LightningComponentBundle.DeveloperName IN (${inList(valid)})`,
+    org,
+    true
+  );
+  return rows.map((r: Row) => ({
+    bundle: str((r.LightningComponentBundle as Row | undefined)?.DeveloperName),
+    path: str(r.FilePath),
+    source: str(r.Source),
+  }));
 }
 
 /** Custom labels the sources import (`@salesforce/label/c.X`), from the org's ExternalString. */
 async function loadLabels(org: string, files: LwcFile[]): Promise<Record<string, string>> {
   const names = new Set<string>();
-  for (const f of files) for (const m of f.source.matchAll(/["']@salesforce\/label\/c\.(\w+)["']/g)) names.add(m[1]);
+  for (const f of files)
+    for (const m of f.source.matchAll(/["']@salesforce\/label\/c\.(\w+)["']/g)) names.add(m[1]);
   if (!names.size) return {};
-  const rows = await query(`SELECT Name, Value FROM ExternalString WHERE Name IN (${inList([...names])})`, org, true).catch(() => [] as Row[]);
+  const rows = await query(
+    `SELECT Name, Value FROM ExternalString WHERE Name IN (${inList([...names])})`,
+    org,
+    true
+  ).catch(() => [] as Row[]);
   return Object.fromEntries(rows.map((r) => [str(r.Name), str(r.Value)]));
 }
 
@@ -86,7 +110,12 @@ async function loadLabels(org: string, files: LwcFile[]): Promise<Record<string,
 function orgFilePath(f: LwcFile): string | null {
   const rel = f.path.replace(/^lwc\//, "");
   const parts = rel.split("/");
-  if (parts[0] !== f.bundle || parts.some((p) => !p || p === "." || p === "..") || !/^[\w.-]+$/.test(parts[parts.length - 1])) return null;
+  if (
+    parts[0] !== f.bundle ||
+    parts.some((p) => !p || p === "." || p === "..") ||
+    !/^[\w.-]+$/.test(parts[parts.length - 1])
+  )
+    return null;
   return path.join("c", ...parts);
 }
 
@@ -99,8 +128,15 @@ async function writeTree(dir: string, files: Record<string, string>): Promise<vo
 }
 
 /** Builds the script from bundle files already read (exported for tests). */
-export async function buildInlineLwc(name: string, files: LwcFile[], labels: Record<string, string> = {}): Promise<{ script: string; placeholders: string[] }> {
-  const [{ rollup }, { default: lwc }] = await Promise.all([import("rollup"), import("@lwc/rollup-plugin")]);
+export async function buildInlineLwc(
+  name: string,
+  files: LwcFile[],
+  labels: Record<string, string> = {}
+): Promise<{ script: string; placeholders: string[] }> {
+  const [{ rollup }, { default: lwc }] = await Promise.all([
+    import("rollup"),
+    import("@lwc/rollup-plugin"),
+  ]);
   const key = createHash("sha256")
     .update(JSON.stringify([BUILD_VERSION, name, files, labels]))
     .digest("hex")
@@ -109,7 +145,9 @@ export async function buildInlineLwc(name: string, files: LwcFile[], labels: Rec
   const dir = path.join(privateTmp("lsc-studio-lwc"), key);
   const base = await baseComponents();
   const { modules, tags } = lightningNames(files.map((f) => f.source));
-  const missing = [...new Set([...modules, ...tags])].filter((n) => !base.has(n) && !SHIMMED_LIGHTNING.has(n)).sort();
+  const missing = [...new Set([...modules, ...tags])]
+    .filter((n) => !base.has(n) && !SHIMMED_LIGHTNING.has(n))
+    .sort();
   const placeholders = missing.filter((n) => tags.has(n));
 
   const shimFiles: Record<string, string> = { ...SHIM_FILES };
@@ -126,7 +164,10 @@ export async function buildInlineLwc(name: string, files: LwcFile[], labels: Rec
     await writeTree(path.join(dir, "shims"), shimFiles);
     await writeTree(path.join(dir, "org"), orgFiles);
     // The LWC module resolver looks upward from each importer for a package root.
-    await writeFile(path.join(dir, "package.json"), JSON.stringify({ name: "studio-inline-lwc", private: true, lwc: { modules: [] } }));
+    await writeFile(
+      path.join(dir, "package.json"),
+      JSON.stringify({ name: "studio-inline-lwc", private: true, lwc: { modules: [] } })
+    );
     await writeFile(
       entry,
       `import "@lwc/synthetic-shadow";
@@ -174,7 +215,11 @@ document.getElementById("root").appendChild(el);
   const importMeta = {
     name: "studio-import-meta",
     resolveImportMeta(property: string | null) {
-      return property === "env" ? `{ SSR: false, NODE_ENV: "production" }` : property === null ? `{ env: { SSR: false } }` : "undefined";
+      return property === "env"
+        ? `{ SSR: false, NODE_ENV: "production" }`
+        : property === null
+          ? `{ env: { SSR: false } }`
+          : "undefined";
     },
   };
 
@@ -188,8 +233,15 @@ document.getElementById("root").appendChild(el);
         salesforce(false),
         lwc({
           rootDir: path.join(dir, "org"),
-          modules: [{ dir: path.join(dir, "shims") }, { dir: path.join(dir, "org") }, ...packageModules("lightning-base-components")],
-          defaultModules: [...packageModules("@lwc/engine-dom"), ...packageModules("@lwc/synthetic-shadow")],
+          modules: [
+            { dir: path.join(dir, "shims") },
+            { dir: path.join(dir, "org") },
+            ...packageModules("lightning-base-components"),
+          ],
+          defaultModules: [
+            ...packageModules("@lwc/engine-dom"),
+            ...packageModules("@lwc/synthetic-shadow"),
+          ],
           enableDynamicComponents: true,
           experimentalDynamicDirective: true,
           // The platform accepts ternaries and the like in templates (complex template expressions).
@@ -202,7 +254,11 @@ document.getElementById("root").appendChild(el);
         importMeta,
       ],
     });
-    const { output } = await bundle.generate({ format: "iife", banner: `var process = { env: { NODE_ENV: "production" } };`, inlineDynamicImports: true });
+    const { output } = await bundle.generate({
+      format: "iife",
+      banner: `var process = { env: { NODE_ENV: "production" } };`,
+      inlineDynamicImports: true,
+    });
     return { script: output[0].code, placeholders };
   } finally {
     await bundle?.close();
@@ -220,16 +276,25 @@ export async function compileInlineLwc(org: string, name: string): Promise<Compi
     return files;
   };
   const check = await checkInlineLwc(name, load);
-  if (!check.bundles.includes(name)) throw new Error(`The org has no Lightning web component named ${name}.`);
+  if (!check.bundles.includes(name))
+    throw new Error(`The org has no Lightning web component named ${name}.`);
   const labels = await loadLabels(org, read);
-  const key = createHash("sha256").update(JSON.stringify([org, name, read, labels])).digest("hex");
+  const key = createHash("sha256")
+    .update(JSON.stringify([org, name, read, labels]))
+    .digest("hex");
   let job = cache.get(key);
   if (job) {
     // Most recently used goes last, so the oldest is the one evicted.
     cache.delete(key);
     cache.set(key, job);
   } else {
-    job = buildInlineLwc(name, read, labels).then(({ script, placeholders }) => ({ name, script, bundles: check.bundles, placeholders, check }));
+    job = buildInlineLwc(name, read, labels).then(({ script, placeholders }) => ({
+      name,
+      script,
+      bundles: check.bundles,
+      placeholders,
+      check,
+    }));
     cache.set(key, job);
     while (cache.size > MAX_CACHED) cache.delete(cache.keys().next().value as string);
     job.catch(() => cache.delete(key));

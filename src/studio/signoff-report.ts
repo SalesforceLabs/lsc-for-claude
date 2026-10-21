@@ -32,18 +32,22 @@ const TOP_RISKS = 6;
 const SLOWEST_TABLES = 5;
 const MAX_APPENDIX_SIMS = 5;
 
-const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+const isObject = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null && !Array.isArray(v);
 
 // ---- validation -----------------------------------------------------------
 
 function checkAssessment(value: unknown, what: string): AssessmentResult {
   if (!isObject(value)) throw new Error(`${what} must be an object.`);
-  if (!Array.isArray(value.personas)) throw new Error(`${what} is not a performance run result (no personas).`);
+  if (!Array.isArray(value.personas))
+    throw new Error(`${what} is not a performance run result (no personas).`);
   if (typeof value.profile !== "string") throw new Error(`${what} has no plan name (profile).`);
   value.personas.forEach((p, i) => {
     const at = `${what} persona ${i + 1}`;
-    if (!isObject(p) || !isObject(p.persona) || typeof p.persona.name !== "string") throw new Error(`${at} has no name.`);
-    if (!Array.isArray(p.evaluations)) throw new Error(`${at} (${p.persona.name}) has no evaluations.`);
+    if (!isObject(p) || !isObject(p.persona) || typeof p.persona.name !== "string")
+      throw new Error(`${at} has no name.`);
+    if (!Array.isArray(p.evaluations))
+      throw new Error(`${at} (${p.persona.name}) has no evaluations.`);
     if (!Array.isArray(p.volumes)) throw new Error(`${at} (${p.persona.name}) has no volumes.`);
     for (const e of p.evaluations) {
       if (!isObject(e) || typeof e.metric !== "string" || typeof e.status !== "string") {
@@ -57,13 +61,20 @@ function checkAssessment(value: unknown, what: string): AssessmentResult {
 function checkSimulation(value: unknown, i: number): Sim {
   const at = `Simulation ${i + 1}`;
   if (!isObject(value)) throw new Error(`${at} must be an object.`);
-  if (!isObject(value.user) || typeof value.user.username !== "string") throw new Error(`${at} is not a first-sync result (no user).`);
-  if (!isObject(value.metadata) || typeof value.metadata.seconds !== "number") throw new Error(`${at} has no metadata timing.`);
-  if (!isObject(value.totals) || typeof value.totals.seconds !== "number" || typeof value.totals.records !== "number") {
+  if (!isObject(value.user) || typeof value.user.username !== "string")
+    throw new Error(`${at} is not a first-sync result (no user).`);
+  if (!isObject(value.metadata) || typeof value.metadata.seconds !== "number")
+    throw new Error(`${at} has no metadata timing.`);
+  if (
+    !isObject(value.totals) ||
+    typeof value.totals.seconds !== "number" ||
+    typeof value.totals.records !== "number"
+  ) {
     throw new Error(`${at} has no totals.`);
   }
   if (!Array.isArray(value.tables)) throw new Error(`${at} has no tables.`);
-  if (!isObject(value.org) || !Array.isArray(value.notes)) throw new Error(`${at} is missing its org or notes.`);
+  if (!isObject(value.org) || !Array.isArray(value.notes))
+    throw new Error(`${at} is missing its org or notes.`);
   return value as unknown as Sim;
 }
 
@@ -89,8 +100,10 @@ function plainValue(metric: string, v: number): string {
 }
 
 /** A measure with a target that couldn't be measured is still a target: unproven, not absent. */
-const isUnmeasured = (e: MetricEvaluation) => (e.status === "no-data" || e.status === "incomplete") && !!e.threshold;
-const isTarget = (e: MetricEvaluation) => e.status === "pass" || e.status === "warn" || e.status === "fail" || isUnmeasured(e);
+const isUnmeasured = (e: MetricEvaluation) =>
+  (e.status === "no-data" || e.status === "incomplete") && !!e.threshold;
+const isTarget = (e: MetricEvaluation) =>
+  e.status === "pass" || e.status === "warn" || e.status === "fail" || isUnmeasured(e);
 
 /** "Delta sync p95 is 2.3 min against a 2 min target" for an evaluation that didn't pass. */
 function overLimit(e: MetricEvaluation): string {
@@ -98,7 +111,9 @@ function overLimit(e: MetricEvaluation): string {
   const limit = e.status === "fail" ? e.threshold?.fail : e.threshold?.warn;
   const word = e.status === "fail" ? "limit" : "target";
   const label = metricLabel(e.metric);
-  return limit === undefined ? `${label} is ${value}` : `${label} is ${value} against a ${plainValue(e.metric, limit)} ${word}`;
+  return limit === undefined
+    ? `${label} is ${value}`
+    : `${label} is ${value} against a ${plainValue(e.metric, limit)} ${word}`;
 }
 
 const cell = (s: string) => s.replace(/\|/g, "\\|").replace(/\s+/g, " ").trim();
@@ -130,9 +145,13 @@ function verdict(a: AssessmentResult): string {
   if (c.total === 0) {
     return "**No verdict yet.** No customer targets were set for this plan, so nothing could be met or missed. Add the customer's targets and run again.";
   }
-  const notMeasured = c.unmeasured ? ` ${c.unmeasured} could not be measured, so they are unproven.` : "";
+  const notMeasured = c.unmeasured
+    ? ` ${c.unmeasured} could not be measured, so they are unproven.`
+    : "";
   if (c.missed > 0) {
-    const failing = a.personas.filter((p) => p.evaluations.some((e) => e.status === "fail")).map((p) => p.persona.name);
+    const failing = a.personas
+      .filter((p) => p.evaluations.some((e) => e.status === "fail"))
+      .map((p) => p.persona.name);
     return `**Not ready for sign-off.** ${c.missed} of ${c.total} targets were missed across ${personas} (${failing.join(", ")}). ${c.met} were met${c.close ? ` and ${c.close} ${c.close === 1 ? "is" : "are"} close to ${c.close === 1 ? "its limit" : "their limits"}` : ""}.${notMeasured}`;
   }
   if (c.unmeasured > 0) {
@@ -162,25 +181,69 @@ function risksOf(a: AssessmentResult, sims: Sim[]): string[] {
   for (const p of a.personas) {
     const name = p.persona.name;
     for (const e of p.evaluations) {
-      if (e.status === "fail") risks.push({ rank: 1000 + overshoot(e), text: `${name}: ${overLimit(e)}.${e.detail ? ` Driven by ${e.detail}.` : ""}` });
-      else if (e.status === "warn") risks.push({ rank: 500 + overshoot(e), text: `${name}: ${overLimit(e)}. This is close to the limit.` });
+      if (e.status === "fail")
+        risks.push({
+          rank: 1000 + overshoot(e),
+          text: `${name}: ${overLimit(e)}.${e.detail ? ` Driven by ${e.detail}.` : ""}`,
+        });
+      else if (e.status === "warn")
+        risks.push({
+          rank: 500 + overshoot(e),
+          text: `${name}: ${overLimit(e)}. This is close to the limit.`,
+        });
       else if (e.status === "no-data" && e.threshold) {
-        risks.push({ rank: 700, text: `${name}: ${metricLabel(e.metric)} has a target but could not be measured, so it is unproven.` });
+        risks.push({
+          rank: 700,
+          text: `${name}: ${metricLabel(e.metric)} has a target but could not be measured, so it is unproven.`,
+        });
       }
     }
-    if (p.telemetryError) risks.push({ rank: 90, text: `${name}: real-device sync history was not available (${p.telemetryError}), so sync times were not checked against real use.` });
-    else if (p.telemetry && p.telemetry.samples === 0) risks.push({ rank: 90, text: `${name}: no syncs were recorded for these reps in the telemetry window, so sync times were not checked against real use.` });
+    if (p.telemetryError)
+      risks.push({
+        rank: 90,
+        text: `${name}: real-device sync history was not available (${p.telemetryError}), so sync times were not checked against real use.`,
+      });
+    else if (p.telemetry && p.telemetry.samples === 0)
+      risks.push({
+        rank: 90,
+        text: `${name}: no syncs were recorded for these reps in the telemetry window, so sync times were not checked against real use.`,
+      });
     for (const v of p.volumes) {
-      if (v.error) risks.push({ rank: 300, text: `${name}: ${v.user.username || v.user.profileName || "a rep"} could not be assessed (${v.error}).` });
+      if (v.error)
+        risks.push({
+          rank: 300,
+          text: `${name}: ${v.user.username || v.user.profileName || "a rep"} could not be assessed (${v.error}).`,
+        });
     }
-    const broken = new Set(p.volumes.flatMap((v) => v.territories.flatMap((t) => t.tables.filter((x) => x.status === "error").map((x) => x.sobject))));
-    if (broken.size) risks.push({ rank: 200, text: `${name}: the sync filters for ${[...broken].join(", ")} failed to run, so the record counts are incomplete.` });
+    const broken = new Set(
+      p.volumes.flatMap((v) =>
+        v.territories.flatMap((t) =>
+          t.tables.filter((x) => x.status === "error").map((x) => x.sobject)
+        )
+      )
+    );
+    if (broken.size)
+      risks.push({
+        rank: 200,
+        text: `${name}: the sync filters for ${[...broken].join(", ")} failed to run, so the record counts are incomplete.`,
+      });
   }
   for (const s of sims) {
     const bad = s.tables.filter((t) => t.error);
-    if (bad.length) risks.push({ rank: 400, text: `First sync for ${s.user.username}: ${bad.length} table${bad.length === 1 ? "" : "s"} failed to download (${bad.slice(0, 3).map((t) => t.sobject).join(", ")}${bad.length > 3 ? ", …" : ""}).` });
+    if (bad.length)
+      risks.push({
+        rank: 400,
+        text: `First sync for ${s.user.username}: ${bad.length} table${bad.length === 1 ? "" : "s"} failed to download (${bad
+          .slice(0, 3)
+          .map((t) => t.sobject)
+          .join(", ")}${bad.length > 3 ? ", …" : ""}).`,
+      });
     const cut = s.tables.filter((t) => t.truncated);
-    if (cut.length) risks.push({ rank: 150, text: `First sync for ${s.user.username}: ${cut.length} table${cut.length === 1 ? " was" : "s were"} cut short by a limit, so the totals understate a real sync.` });
+    if (cut.length)
+      risks.push({
+        rank: 150,
+        text: `First sync for ${s.user.username}: ${cut.length} table${cut.length === 1 ? " was" : "s were"} cut short by a limit, so the totals understate a real sync.`,
+      });
   }
   return risks.sort((x, y) => y.rank - x.rank).map((r) => r.text);
 }
@@ -192,7 +255,16 @@ function targetsSection(a: AssessmentResult): string {
   out += `| Persona | Reps tested | Result | Targets met | Close to limit | Missed | Not measured |\n|---|---|---|---|---|---|---|\n`;
   for (const p of a.personas) {
     const c = counts([p]);
-    const result = c.total === 0 ? "No targets" : c.missed ? "Not ready" : c.unmeasured ? "Not proven" : c.close ? "Ready, watch" : "Ready";
+    const result =
+      c.total === 0
+        ? "No targets"
+        : c.missed
+          ? "Not ready"
+          : c.unmeasured
+            ? "Not proven"
+            : c.close
+              ? "Ready, watch"
+              : "Ready";
     const users = (p.users ?? []).length || p.volumes.filter((v) => !v.error).length;
     out += `| ${cell(p.persona.name)} | ${users} | ${result} | ${c.met} of ${c.total} | ${c.close} | ${c.missed} | ${c.unmeasured} |\n`;
   }
@@ -213,7 +285,11 @@ function targetsSection(a: AssessmentResult): string {
 function risksSection(risks: string[]): string {
   let out = `## Top risks\n\n`;
   if (!risks.length) return out + `No risks found. Every target with data was met.\n`;
-  out += risks.slice(0, TOP_RISKS).map((r) => `- ${r}`).join("\n") + "\n";
+  out +=
+    risks
+      .slice(0, TOP_RISKS)
+      .map((r) => `- ${r}`)
+      .join("\n") + "\n";
   if (risks.length > TOP_RISKS) out += `\n${risks.length - TOP_RISKS} more in the appendix.\n`;
   return out;
 }
@@ -225,14 +301,21 @@ function simsSection(sims: Sim[]): string {
   out += `| Rep | Total time | Metadata | Records | Tables | Data downloaded |\n|---|---|---|---|---|---|\n`;
   for (const s of sims) {
     const total = s.metadata.seconds + s.totals.seconds;
-    const spread = s.runs && s.runs.count > 1 ? ` (${plainSeconds(s.runs.total.min)} to ${plainSeconds(s.runs.total.max)} over ${s.runs.count} runs)` : "";
+    const spread =
+      s.runs && s.runs.count > 1
+        ? ` (${plainSeconds(s.runs.total.min)} to ${plainSeconds(s.runs.total.max)} over ${s.runs.count} runs)`
+        : "";
     out += `| ${cell(s.user.username)}${s.user.territory ? ` (${cell(s.user.territory)})` : ""} | ${plainSeconds(total)}${spread} | ${plainSeconds(s.metadata.seconds)} | ${num(s.totals.records)} | ${s.totals.tablesDownloaded} | ${mbOf(s.totals.bytes + s.metadata.bytes)} |\n`;
   }
   for (const s of sims) {
-    const slow = [...s.tables].filter((t) => !t.skipped).sort((x, y) => y.seconds - x.seconds || y.records - x.records).slice(0, SLOWEST_TABLES);
+    const slow = [...s.tables]
+      .filter((t) => !t.skipped)
+      .sort((x, y) => y.seconds - x.seconds || y.records - x.records)
+      .slice(0, SLOWEST_TABLES);
     if (!slow.length) continue;
     out += `\nSlowest tables for ${s.user.username}: ${slow.map((t) => `${t.sobject} (${plainSeconds(t.seconds)}, ${num(t.records)} records)`).join("; ")}.\n`;
-    if (s.delta) out += `Delta sync after ${s.delta.sinceHours} h away: ${plainSeconds(s.delta.totals.seconds)}.\n`;
+    if (s.delta)
+      out += `Delta sync after ${s.delta.sinceHours} h away: ${plainSeconds(s.delta.totals.seconds)}.\n`;
   }
   return out;
 }
@@ -247,13 +330,22 @@ function changesSection(now: AssessmentResult, base: AssessmentResult): string {
       const old = before.evaluations.find((x) => x.metric === e.metric);
       if (!old || e.value === undefined || old.value === undefined) continue;
       const diff = e.value - old.value;
-      const change = diff === 0 ? "no change" : `${diff > 0 ? "worse by" : "better by"} ${plainValue(e.metric, Math.abs(diff))}`;
-      const outcome = old.status === e.status ? STATUS_WORD[e.status] : `${STATUS_WORD[old.status]} to ${STATUS_WORD[e.status]}`;
-      rows.push(`| ${cell(p.persona.name)} | ${cell(metricLabel(e.metric))} | ${plainValue(e.metric, old.value)} | ${plainValue(e.metric, e.value)} | ${change} | ${outcome} |`);
+      const change =
+        diff === 0
+          ? "no change"
+          : `${diff > 0 ? "worse by" : "better by"} ${plainValue(e.metric, Math.abs(diff))}`;
+      const outcome =
+        old.status === e.status
+          ? STATUS_WORD[e.status]
+          : `${STATUS_WORD[old.status]} to ${STATUS_WORD[e.status]}`;
+      rows.push(
+        `| ${cell(p.persona.name)} | ${cell(metricLabel(e.metric))} | ${plainValue(e.metric, old.value)} | ${plainValue(e.metric, e.value)} | ${change} | ${outcome} |`
+      );
     }
   }
   let out = `## Changes since the baseline\n\nCompared with the run of ${base.generatedAt}.\n\n`;
-  if (!rows.length) return out + `No measure appears in both runs, so there is nothing to compare.\n`;
+  if (!rows.length)
+    return out + `No measure appears in both runs, so there is nothing to compare.\n`;
   out += `| Persona | Measure | Baseline | Now | Change | Outcome |\n|---|---|---|---|---|---|\n${rows.join("\n")}\n`;
   return out;
 }
@@ -270,20 +362,26 @@ function appendix(a: AssessmentResult, sims: Sim[], days: number): string {
     const runs = renderRunsSection(s);
     if (runs) out += `\n${demote(runs)}`;
   });
-  if (sims.length > MAX_APPENDIX_SIMS) out += `\n\n${sims.length - MAX_APPENDIX_SIMS} more first-sync result(s) are summarised above but not detailed here.\n`;
+  if (sims.length > MAX_APPENDIX_SIMS)
+    out += `\n\n${sims.length - MAX_APPENDIX_SIMS} more first-sync result(s) are summarised above but not detailed here.\n`;
   return out;
 }
 
 export function renderSignoffReport(input: SignoffReportInput): string {
   if (!isObject(input)) throw new Error("Sign-off input must be an object.");
   const a = checkAssessment(input.assessment, "The assessment");
-  const baseline = input.baseline === undefined ? undefined : checkAssessment(input.baseline, "The baseline");
-  if (input.simulations !== undefined && !Array.isArray(input.simulations)) throw new Error("Simulations must be a list.");
+  const baseline =
+    input.baseline === undefined ? undefined : checkAssessment(input.baseline, "The baseline");
+  if (input.simulations !== undefined && !Array.isArray(input.simulations))
+    throw new Error("Simulations must be a list.");
   const sims = (input.simulations ?? []).map(checkSimulation);
   const days = input.days ?? DEFAULT_DAYS;
-  if (!Number.isInteger(days) || days < 1) throw new Error("Days must be a whole number of at least 1.");
+  if (!Number.isInteger(days) || days < 1)
+    throw new Error("Days must be a whole number of at least 1.");
 
-  const date = Number.isNaN(Date.parse(a.generatedAt)) ? a.generatedAt : new Date(a.generatedAt).toISOString().slice(0, 10);
+  const date = Number.isNaN(Date.parse(a.generatedAt))
+    ? a.generatedAt
+    : new Date(a.generatedAt).toISOString().slice(0, 10);
   let out = `# Go-live sign-off: ${a.profile}\n\n`;
   out += `**Date:** ${date}  \n`;
   if (a.org) out += `**Org:** ${a.org}  \n`;

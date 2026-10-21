@@ -21,13 +21,23 @@ export interface RecordFieldSpec {
 const str = (v: unknown): string => (typeof v === "string" ? v : v == null ? "" : String(v));
 
 export function recordFieldSpec(item: Row, label: string): RecordFieldSpec {
-  const spec: RecordFieldSpec = { name: str(item.fullName) || str(item.field), label, type: str(item.type).toLowerCase() };
+  const spec: RecordFieldSpec = {
+    name: str(item.fullName) || str(item.field),
+    label,
+    type: str(item.type).toLowerCase(),
+  };
   const behavior = str(item.behavior).toLowerCase();
   if (behavior === "required") spec.required = true;
   if (behavior === "readonly") spec.readOnly = true;
-  if (Array.isArray(item.referenceTo) && item.referenceTo.length) spec.ref = item.referenceTo.map(str);
-  const labels = (Array.isArray(item.picklistValues) ? item.picklistValues : []).filter((p): p is Row => !!p && typeof p === "object");
+  if (Array.isArray(item.referenceTo) && item.referenceTo.length)
+    spec.ref = item.referenceTo.map(str);
+  const labels = (Array.isArray(item.picklistValues) ? item.picklistValues : []).filter(
+    (p): p is Row => !!p && typeof p === "object"
+  );
   const differing = labels.filter((p) => str(p.label) && str(p.label) !== str(p.value));
-  if (differing.length) spec.picklist = Object.fromEntries(labels.map((p) => [str(p.value), str(p.label) || str(p.value)]));
+  if (differing.length)
+    spec.picklist = Object.fromEntries(
+      labels.map((p) => [str(p.value), str(p.label) || str(p.value)])
+    );
   return spec;
 }

@@ -17,7 +17,12 @@ import * as os from "os";
 import * as path from "path";
 import { createHash } from "crypto";
 import type { DbSchemaEntry, ApplicableTable, OrgQuerier, UserContext } from "./sync-volume.js";
-import { downloadArchive, readMetadataFiles, type MetadataDownloadInfo, type MetadataFiles } from "./device/metadata.js";
+import {
+  downloadArchive,
+  readMetadataFiles,
+  type MetadataDownloadInfo,
+  type MetadataFiles,
+} from "./device/metadata.js";
 import type { DeviceSession } from "./device/session.js";
 import { privateTmp } from "../private-tmp.js";
 
@@ -34,7 +39,9 @@ export interface CompiledSchemaTables {
 export interface CompiledSchemaSource {
   /** Tables the user's device would sync per the profile's archive, or null (with a reason) to fall back. */
   tablesFor(
-    user: Pick<UserContext, "id" | "profileId" | "profileName" | "permissionSets"> & { username?: string }
+    user: Pick<UserContext, "id" | "profileId" | "profileName" | "permissionSets"> & {
+      username?: string;
+    }
   ): Promise<{ result: CompiledSchemaTables } | { fallbackReason: string }>;
 }
 
@@ -48,7 +55,12 @@ function str(v: unknown): string | undefined {
 
 function splitList(v: unknown): string[] {
   if (Array.isArray(v)) return v.filter((x): x is string => typeof x === "string");
-  return typeof v === "string" ? v.split(/[;,]/).map((s) => s.trim()).filter(Boolean) : [];
+  return typeof v === "string"
+    ? v
+        .split(/[;,]/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
 }
 
 function soqlString(value: string): string {
@@ -101,7 +113,10 @@ export function tablesFromArchive(
     const existing = winners.get(lower);
     if (!existing) {
       winners.set(lower, { entry, matchedBy });
-    } else if (existing.matchedBy === matchedBy && entry.developerName.localeCompare(existing.entry.developerName) < 0) {
+    } else if (
+      existing.matchedBy === matchedBy &&
+      entry.developerName.localeCompare(existing.entry.developerName) < 0
+    ) {
       winners.set(lower, { entry, matchedBy });
     } else if (existing.matchedBy === "permissionSet" && matchedBy === "profile") {
       winners.set(lower, { entry, matchedBy });
@@ -117,7 +132,10 @@ export function tablesFromArchive(
  * Tables whose WhereSoql differs between the compiled schema and the DB Schema
  * path (compared after collapsing whitespace), plus tables present on only one side.
  */
-export function diffTables(compiled: ApplicableTable[], dbSchema: ApplicableTable[]): { differing: string[]; onlyCompiled: string[]; onlyDbSchema: string[] } {
+export function diffTables(
+  compiled: ApplicableTable[],
+  dbSchema: ApplicableTable[]
+): { differing: string[]; onlyCompiled: string[]; onlyDbSchema: string[] } {
   const norm = (s: string | null) => (s ?? "").replace(/\s+/g, " ").trim();
   const left = new Map(compiled.map((t) => [t.entry.sobject.toLowerCase(), t]));
   const right = new Map(dbSchema.map((t) => [t.entry.sobject.toLowerCase(), t]));
@@ -127,7 +145,8 @@ export function diffTables(compiled: ApplicableTable[], dbSchema: ApplicableTabl
   for (const [k, t] of left) {
     const other = right.get(k);
     if (!other) onlyCompiled.push(t.entry.sobject);
-    else if (norm(t.entry.whereSoql) !== norm(other.entry.whereSoql)) differing.push(t.entry.sobject);
+    else if (norm(t.entry.whereSoql) !== norm(other.entry.whereSoql))
+      differing.push(t.entry.sobject);
   }
   for (const [k, t] of right) if (!left.has(k)) onlyDbSchema.push(t.entry.sobject);
   return { differing, onlyCompiled, onlyDbSchema };
@@ -145,7 +164,10 @@ interface ArchiveRef {
 }
 
 /** The newest Active LifeSciMobileMetadataRecord for the profile that has a document. */
-export async function findProfileArchive(org: OrgQuerier, profileId: string): Promise<ArchiveRef | null> {
+export async function findProfileArchive(
+  org: OrgQuerier,
+  profileId: string
+): Promise<ArchiveRef | null> {
   const rec = await org.soql(
     `SELECT Id, MetadataDocumentId FROM LifeSciMobileMetadataRecord WHERE Status = 'Active' AND ProfileId = '${soqlString(profileId)}' AND MetadataDocumentId != null ORDER BY LastModifiedDate DESC LIMIT 1`
   );
@@ -180,22 +202,35 @@ export interface ObjectAccess {
 }
 
 function sobjectTypes(records: Array<Record<string, unknown>> | undefined): Set<string> {
-  return new Set((records ?? []).flatMap((r) => (typeof r.SobjectType === "string" ? [r.SobjectType.toLowerCase()] : [])));
+  return new Set(
+    (records ?? []).flatMap((r) =>
+      typeof r.SobjectType === "string" ? [r.SobjectType.toLowerCase()] : []
+    )
+  );
 }
 
 /** Null when either lookup fails or returns nothing, so callers skip the filter rather than drop every table. */
-export async function loadObjectAccess(org: OrgQuerier, userId: string, sobjects: string[]): Promise<ObjectAccess | null> {
+export async function loadObjectAccess(
+  org: OrgQuerier,
+  userId: string,
+  sobjects: string[]
+): Promise<ObjectAccess | null> {
   if (sobjects.length === 0) return null;
   const names = sobjects.map((n) => `'${soqlString(n)}'`).join(",");
   // Aggregate queries can't page, so the lookup is scoped to the archive's tables.
   const [governed, readable] = await Promise.all([
-    org.soql(`SELECT SobjectType FROM ObjectPermissions WHERE SobjectType IN (${names}) GROUP BY SobjectType`),
+    org.soql(
+      `SELECT SobjectType FROM ObjectPermissions WHERE SobjectType IN (${names}) GROUP BY SobjectType`
+    ),
     org.soql(
       `SELECT SobjectType FROM ObjectPermissions WHERE PermissionsRead = true AND SobjectType IN (${names}) AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE AssigneeId = '${soqlString(userId)}') GROUP BY SobjectType`
     ),
   ]);
   if (!governed.success || !readable.success) return null;
-  const access = { governed: sobjectTypes(governed.data?.records), readable: sobjectTypes(readable.data?.records) };
+  const access = {
+    governed: sobjectTypes(governed.data?.records),
+    readable: sobjectTypes(readable.data?.records),
+  };
   return access.governed.size > 0 && access.readable.size > 0 ? access : null;
 }
 
@@ -218,7 +253,8 @@ function md5OfFile(file: string): string {
 function remember(key: string, files: MetadataFiles): void {
   memoryCache.delete(key);
   memoryCache.set(key, files);
-  while (memoryCache.size > MAX_CACHED_ARCHIVES) memoryCache.delete(memoryCache.keys().next().value as string);
+  while (memoryCache.size > MAX_CACHED_ARCHIVES)
+    memoryCache.delete(memoryCache.keys().next().value as string);
 }
 
 /** The archive's files from memory or disk, or null when it has to be downloaded. */
@@ -258,7 +294,10 @@ function storeArchive(ref: ArchiveRef, zip: string, files: MetadataFiles): void 
   }
 }
 
-async function downloadProfileFiles(session: DeviceSession, ref: ArchiveRef): Promise<{ files: MetadataFiles; bytes: number }> {
+async function downloadProfileFiles(
+  session: DeviceSession,
+  ref: ArchiveRef
+): Promise<{ files: MetadataFiles; bytes: number }> {
   const info: MetadataDownloadInfo = {
     contentVersionId: ref.contentVersionId,
     checksum: ref.checksum,
@@ -290,7 +329,10 @@ export interface CompiledSchemaSourceDeps {
 
 /** Archive downloads are cached by profile id for the lifetime of the returned source (one run). */
 export function createCompiledSchemaSource(deps: CompiledSchemaSourceDeps): CompiledSchemaSource {
-  const cache = new Map<string, Promise<{ files: MetadataFiles; bytes: number; recordId: string } | { reason: string }>>();
+  const cache = new Map<
+    string,
+    Promise<{ files: MetadataFiles; bytes: number; recordId: string } | { reason: string }>
+  >();
 
   const loadFiles = (profileId: string) => {
     let pending = cache.get(profileId);
@@ -302,7 +344,8 @@ export function createCompiledSchemaSource(deps: CompiledSchemaSourceDeps): Comp
         const { files, bytes } = cachedHit
           ? { files: cachedHit, bytes: ref.contentSize }
           : await downloadProfileFiles(await deps.getSession(), ref);
-        if (Object.keys(files.db).length === 0) return { reason: `archive ${ref.recordId} has no db.json tables` };
+        if (Object.keys(files.db).length === 0)
+          return { reason: `archive ${ref.recordId} has no db.json tables` };
         return { files, bytes, recordId: ref.recordId };
       })().catch((e): { reason: string } => ({ reason: errorMessage(e) }));
       cache.set(profileId, pending);
@@ -325,7 +368,8 @@ export function createCompiledSchemaSource(deps: CompiledSchemaSourceDeps): Comp
           ? `Table list approximated from archive ${loaded.recordId} db.json/db_ps.json for ${user.profileName} minus permission-controlled objects the user cannot read (ObjectPermissions); the device uses its own userSpecificPermissions, so field-level filtering is not applied.`
           : `Table list taken from archive ${loaded.recordId} db.json/db_ps.json for ${user.profileName} without a readable-object filter (ObjectPermissions lookup returned nothing); tables the user cannot read may be included.`
       );
-      if (Object.keys(loaded.files.dbPs).length === 0) notes.push("The archive has no db_ps.json, so permission-set tables are not included.");
+      if (Object.keys(loaded.files.dbPs).length === 0)
+        notes.push("The archive has no db_ps.json, so permission-set tables are not included.");
       return { result: { tables, notes } };
     },
   };

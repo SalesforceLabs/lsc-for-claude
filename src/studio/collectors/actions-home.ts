@@ -6,7 +6,19 @@
 import type { ConfigRecord } from "../../config/types.js";
 import type { CustomCollector } from "../collect.js";
 import type { StudioFinding, StudioFix, StudioItem } from "../types.js";
-import { buildSurface, configItem, item, plural, profileAudience, query, scalar, settle, splitList, unwrap, type SurfaceMeta } from "../helpers.js";
+import {
+  buildSurface,
+  configItem,
+  item,
+  plural,
+  profileAudience,
+  query,
+  scalar,
+  settle,
+  splitList,
+  unwrap,
+  type SurfaceMeta,
+} from "../helpers.js";
 import {
   actionAudience,
   actionProfiles,
@@ -30,7 +42,11 @@ const RECORD_LOCATIONS: { location: string; id: string; title: string }[] = [
   { location: "IntelligentContent", id: "contentActions", title: "Intelligent Content Actions" },
   { location: "NextBestCustomer", id: "nbcActions", title: "Next Best Customer Actions" },
 ];
-const OPTIONAL_SURFACES = new Set([...RECORD_LOCATIONS.map((l) => l.id), "otherQuickActions", "stagePathActions"]);
+const OPTIONAL_SURFACES = new Set([
+  ...RECORD_LOCATIONS.map((l) => l.id),
+  "otherQuickActions",
+  "stagePathActions",
+]);
 
 /** A record type as an action names it: its object and whether it's active. */
 export interface KnownRecordType {
@@ -54,16 +70,28 @@ export async function fetchKnown(org: string): Promise<Known> {
     query(`SELECT DeveloperName, SobjectType, IsActive FROM RecordType`, org),
   ]);
   const index = (names: unknown[]) =>
-    new Map(names.filter(Boolean).map((n) => [String(n).toLowerCase(), String(n)] as [string, string]));
+    new Map(
+      names.filter(Boolean).map((n) => [String(n).toLowerCase(), String(n)] as [string, string])
+    );
   const types = new Map<string, KnownRecordType[]>();
   for (const r of recordTypes.filter((r) => r.DeveloperName)) {
     const key = String(r.DeveloperName).toLowerCase();
-    types.set(key, [...(types.get(key) ?? []), { name: String(r.DeveloperName), sobject: String(r.SobjectType ?? ""), active: r.IsActive !== false }]);
+    types.set(key, [
+      ...(types.get(key) ?? []),
+      {
+        name: String(r.DeveloperName),
+        sobject: String(r.SobjectType ?? ""),
+        active: r.IsActive !== false,
+      },
+    ]);
   }
   return {
     profiles: index(profiles.map((r) => r.Name)),
     permissionSets: index(
-      permissionSets.flatMap((r) => [r.Name, r.NamespacePrefix ? `${r.NamespacePrefix}__${r.Name}` : null])
+      permissionSets.flatMap((r) => [
+        r.Name,
+        r.NamespacePrefix ? `${r.NamespacePrefix}__${r.Name}` : null,
+      ])
     ),
     recordTypes: types,
   };
@@ -72,7 +100,9 @@ export async function fetchKnown(org: string): Promise<Known> {
 /** The object an action's record types belong to: a quick action's SObject, or a custom action's EntityName on SObject actions. */
 function actionObject(r: ConfigRecord): string {
   if (r.fields.SObject) return String(r.fields.SObject);
-  return r.fields.EntityType === "SObject" && r.fields.EntityName ? String(r.fields.EntityName) : "";
+  return r.fields.EntityType === "SObject" && r.fields.EntityName
+    ? String(r.fields.EntityName)
+    : "";
 }
 
 function editDistance(a: string, b: string): number {
@@ -112,21 +142,45 @@ const FIELD_KINDS: { field: string; kind: string; key: keyof Known }[] = [
  * Why `name` in an action's `key` list matches nothing usable (title and detail), or null when it's fine,
  * plus the names it could have meant. Record types count only on the action's object, and only when active.
  */
-function unknownName(r: ConfigRecord, key: keyof Known, kind: string, name: string, known: Known): { title: string; detail: string; candidates: string[] } | null {
-  const missing = { title: `${kind} "${name}" not found`, detail: `No ${kind.toLowerCase()} with this name exists in the org, so the action won't show for it.` };
-  if (key !== "recordTypes") return known[key].has(name.toLowerCase()) ? null : { ...missing, candidates: [...known[key].values()] };
+function unknownName(
+  r: ConfigRecord,
+  key: keyof Known,
+  kind: string,
+  name: string,
+  known: Known
+): { title: string; detail: string; candidates: string[] } | null {
+  const missing = {
+    title: `${kind} "${name}" not found`,
+    detail: `No ${kind.toLowerCase()} with this name exists in the org, so the action won't show for it.`,
+  };
+  if (key !== "recordTypes")
+    return known[key].has(name.toLowerCase())
+      ? null
+      : { ...missing, candidates: [...known[key].values()] };
   const object = actionObject(r);
-  const onObject = (t: KnownRecordType) => !object || t.sobject.toLowerCase() === object.toLowerCase();
+  const onObject = (t: KnownRecordType) =>
+    !object || t.sobject.toLowerCase() === object.toLowerCase();
   const all = known.recordTypes.get(name.toLowerCase()) ?? [];
   const mine = all.filter(onObject);
   if (mine.some((t) => t.active)) return null;
-  const candidates = [...known.recordTypes.values()].flat().filter((t) => t.active && onObject(t)).map((t) => t.name);
+  const candidates = [...known.recordTypes.values()]
+    .flat()
+    .filter((t) => t.active && onObject(t))
+    .map((t) => t.name);
   if (!all.length) return { ...missing, candidates };
   if (!mine.length) {
     const objects = [...new Set(all.map((t) => t.sobject))].join(", ");
-    return { title: `Record type "${name}" isn't on ${object}`, detail: `"${name}" is a record type of ${objects}, not of ${object}, so the action won't show for it.`, candidates };
+    return {
+      title: `Record type "${name}" isn't on ${object}`,
+      detail: `"${name}" is a record type of ${objects}, not of ${object}, so the action won't show for it.`,
+      candidates,
+    };
   }
-  return { title: `Record type "${name}" is inactive`, detail: `The ${object ? `${object} ` : ""}record type "${name}" is inactive, so the action won't show for it.`, candidates };
+  return {
+    title: `Record type "${name}" is inactive`,
+    detail: `The ${object ? `${object} ` : ""}record type "${name}" is inactive, so the action won't show for it.`,
+    candidates,
+  };
 }
 
 /** Rewrite one entry of a "A;B;C" config list, keeping its separator. */
@@ -166,11 +220,18 @@ export function actionFindings(r: ConfigRecord, known: Known | null): StudioFind
           from: String(raw),
           to,
         });
-        const suggestion = closestName(name, new Set(problem.candidates.filter((c) => c.toLowerCase() !== name.toLowerCase())));
+        const suggestion = closestName(
+          name,
+          new Set(problem.candidates.filter((c) => c.toLowerCase() !== name.toLowerCase()))
+        );
         const fixes: StudioFix[] = [];
-        if (suggestion) fixes.push(setTo(rewriteList(String(raw), name, suggestion), `Replace with "${suggestion}"`));
+        if (suggestion)
+          fixes.push(
+            setTo(rewriteList(String(raw), name, suggestion), `Replace with "${suggestion}"`)
+          );
         // Removing the last entry would empty the list, which can widen who sees the action.
-        if (values.length > 1) fixes.push(setTo(rewriteList(String(raw), name, null), `Remove "${name}"`));
+        if (values.length > 1)
+          fixes.push(setTo(rewriteList(String(raw), name, null), `Remove "${name}"`));
         findings.push({
           severity: "warning",
           title: problem.title,
@@ -201,7 +262,8 @@ function sameAudience(a: ConfigRecord, b: ConfigRecord): boolean {
   const x = actionAudience(a);
   const y = actionAudience(b);
   if (!x || !y) return true;
-  const shares = (p: string[], q: string[]) => p.some((n) => q.some((m) => m.toLowerCase() === n.toLowerCase()));
+  const shares = (p: string[], q: string[]) =>
+    p.some((n) => q.some((m) => m.toLowerCase() === n.toLowerCase()));
   return shares(x.profiles, y.profiles) || shares(x.permissionSets, y.permissionSets);
 }
 
@@ -219,9 +281,13 @@ function sameRecordTypes(a: ConfigRecord, b: ConfigRecord): boolean {
  */
 export function sortCollisions(records: ConfigRecord[]): StudioFinding[] {
   const groups = new Map<string, ConfigRecord[]>();
-  for (const r of records.filter((r) => r.isActive && r.fields.SortOrder != null && r.fields.SortOrder !== "")) {
+  for (const r of records.filter(
+    (r) => r.isActive && r.fields.SortOrder != null && r.fields.SortOrder !== ""
+  )) {
     const home = r.fields.Location === "HomePage";
-    const key = home ? `HomePage|${r.fields.SortOrder}` : `${r.fields.Location}|${r.fields.SObject ?? ""}|${r.fields.SortOrder}`;
+    const key = home
+      ? `HomePage|${r.fields.SortOrder}`
+      : `${r.fields.Location}|${r.fields.SObject ?? ""}|${r.fields.SortOrder}`;
     groups.set(key, [...(groups.get(key) ?? []), r]);
   }
   const clashes: ConfigRecord[][] = [];
@@ -232,7 +298,8 @@ export function sortCollisions(records: ConfigRecord[]): StudioFinding[] {
     for (let i = 0; i < group.length; i++) {
       for (let j = i + 1; j < group.length; j++) {
         const [a, b] = [group[i], group[j]];
-        if (sameAudience(a, b) && (a.fields.Location === "HomePage" || sameRecordTypes(a, b))) cluster[root(j)] = root(i);
+        if (sameAudience(a, b) && (a.fields.Location === "HomePage" || sameRecordTypes(a, b)))
+          cluster[root(j)] = root(i);
       }
     }
     const byRoot = new Map<number, ConfigRecord[]>();
@@ -250,7 +317,11 @@ export function sortCollisions(records: ConfigRecord[]): StudioFinding[] {
  * "No home page actions", suggesting the home page actions of the profile that
  * has the most — an existing setup to copy rather than a made-up default.
  */
-export function noHomeActions(profile: string, activeQuick: ConfigRecord[], profileExists: boolean): StudioFinding {
+export function noHomeActions(
+  profile: string,
+  activeQuick: ConfigRecord[],
+  profileExists: boolean
+): StudioFinding {
   const finding: StudioFinding = {
     severity: "info",
     title: "No home page actions",
@@ -265,7 +336,11 @@ export function noHomeActions(profile: string, activeQuick: ConfigRecord[], prof
     .map((r) => addProfileFix(r, profile, `Show ${r.label ?? r.developerName} to ${profile}`))
     .filter((f): f is StudioFix => f !== null);
   if (!fixes.length) return finding;
-  return { ...finding, detail: `${finding.detail} ${ref} has ${plural(fixes.length, "home page action")} you can give it too.`, fixes };
+  return {
+    ...finding,
+    detail: `${finding.detail} ${ref} has ${plural(fixes.length, "home page action")} you can give it too.`,
+    fixes,
+  };
 }
 
 export const collectActionsHome: CustomCollector = async (org) => {
@@ -301,7 +376,8 @@ export const collectActionsHome: CustomCollector = async (org) => {
         id: "homeActions",
         title: "Home Page Actions",
         lane: "home",
-        description: "Quick actions (Location = HomePage) and custom actions on the LSC Mobile home page.",
+        description:
+          "Quick actions (Location = HomePage) and custom actions on the LSC Mobile home page.",
       },
       async () => [
         ...(await quick()).filter((r) => r.fields.Location === "HomePage"),
@@ -314,7 +390,8 @@ export const collectActionsHome: CustomCollector = async (org) => {
         id: "profileCoverage",
         title: "Profile Coverage",
         lane: "home",
-        description: "What each profile sees — home page actions, record actions, and navigation tabs.",
+        description:
+          "What each profile sees — home page actions, record actions, and navigation tabs.",
       },
       async () => {
         const [qa, ui, k] = await Promise.all([quick(), unwrap(uiSchema), unwrap(known)]);
@@ -324,7 +401,10 @@ export const collectActionsHome: CustomCollector = async (org) => {
         const everyone = active.filter((r) => actionProfiles(r).length === 0);
         return {
           items: [...names].sort().map((profile) => {
-            const mine = [...everyone, ...active.filter((r) => actionProfiles(r).includes(profile))];
+            const mine = [
+              ...everyone,
+              ...active.filter((r) => actionProfiles(r).includes(profile)),
+            ];
             const home = mine.filter((r) => r.fields.Location === "HomePage");
             const myTabs = tabs.filter((t) => profilesOf(t).includes(profile));
             const findings: StudioFinding[] = [];
@@ -332,17 +412,24 @@ export const collectActionsHome: CustomCollector = async (org) => {
               findings.push({
                 severity: "warning",
                 title: "Profile doesn't exist",
-                detail: "Actions target this profile name, but no profile has it — check for a typo or a profile renamed after the actions were configured.",
+                detail:
+                  "Actions target this profile name, but no profile has it — check for a typo or a profile renamed after the actions were configured.",
               });
             }
             if (home.length === 0) {
-              findings.push(noHomeActions(profile, active, !k || k.profiles.has(profile.toLowerCase())));
+              findings.push(
+                noHomeActions(profile, active, !k || k.profiles.has(profile.toLowerCase()))
+              );
             }
             return item(`profile:${profile}`, profile, {
               sublabel: `${home.length} home · ${plural(mine.length - home.length, "record action")} · ${plural(myTabs.length, "tab")}`,
               properties: {
                 "Home page actions": home.map((r) => r.label ?? r.developerName).join(", ") || null,
-                "Record actions": mine.filter((r) => r.fields.Location !== "HomePage").map((r) => `${r.label ?? r.developerName} (${r.fields.Location})`).join(", ") || null,
+                "Record actions":
+                  mine
+                    .filter((r) => r.fields.Location !== "HomePage")
+                    .map((r) => `${r.label ?? r.developerName} (${r.fields.Location})`)
+                    .join(", ") || null,
                 "Navigation tabs": myTabs.map((t) => t.label ?? t.developerName).join(", ") || null,
               },
               audience: profileAudience(profile),
@@ -369,7 +456,9 @@ export const collectActionsHome: CustomCollector = async (org) => {
       },
       async () =>
         (await quick()).filter(
-          (r) => r.fields.Location !== "HomePage" && !RECORD_LOCATIONS.some((l) => l.location === r.fields.Location)
+          (r) =>
+            r.fields.Location !== "HomePage" &&
+            !RECORD_LOCATIONS.some((l) => l.location === r.fields.Location)
         ),
       { quick: "Account" }
     ),
@@ -380,7 +469,10 @@ export const collectActionsHome: CustomCollector = async (org) => {
         lane: "record",
         description: "Custom actions (URL, app, utterance) on record pages.",
       },
-      async () => (await custom()).filter((r) => r.fields.EntityType !== "HomePage" && r.fields.EntityType !== "StagePath"),
+      async () =>
+        (await custom()).filter(
+          (r) => r.fields.EntityType !== "HomePage" && r.fields.EntityType !== "StagePath"
+        ),
       { custom: "SObject" }
     ),
     actionSurface(
@@ -418,7 +510,9 @@ export const collectActionsHome: CustomCollector = async (org) => {
         return {
           items: rows.map((r) =>
             item(String(r.Id), String(r.MasterLabel), {
-              sublabel: r.NamespacePrefix ? `${r.DeveloperName} · ${r.NamespacePrefix}` : String(r.DeveloperName),
+              sublabel: r.NamespacePrefix
+                ? `${r.DeveloperName} · ${r.NamespacePrefix}`
+                : String(r.DeveloperName),
               properties: {
                 "Developer name": scalar(r.DeveloperName),
                 Namespace: scalar(r.NamespacePrefix),

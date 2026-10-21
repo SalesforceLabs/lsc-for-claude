@@ -8,7 +8,14 @@
 import type { ConfigRecord } from "../config/types.js";
 
 /** Fields every record has that say nothing about the setting itself. */
-const IGNORED_FIELDS = new Set(["Profiles", "PermissionSets", "DeveloperName", "MasterLabel", "Status", "Errors"]);
+const IGNORED_FIELDS = new Set([
+  "Profiles",
+  "PermissionSets",
+  "DeveloperName",
+  "MasterLabel",
+  "Status",
+  "Errors",
+]);
 /** Categories that hold one settings record per target (org, profile or user), not a list of entries. */
 const ONE_PER_TARGET = /(Settings|Administration|Configuration)$/;
 /** Categories whose records are useless without values, even when they are the only one. */
@@ -19,7 +26,8 @@ const MAX_FIELDS = 3;
 const target = (a: { name: string; level: string }) => `${a.level} ${a.name}`;
 const value = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 const shown = (v: unknown) => (value(v) === "" ? "(empty)" : value(v));
-const settingFields = (r: ConfigRecord) => Object.keys(r.fields).filter((f) => !IGNORED_FIELDS.has(f));
+const settingFields = (r: ConfigRecord) =>
+  Object.keys(r.fields).filter((f) => !IGNORED_FIELDS.has(f));
 
 function byCategory(records: ConfigRecord[]): Map<string, ConfigRecord[]> {
   const out = new Map<string, ConfigRecord[]>();
@@ -52,14 +60,21 @@ export function settingOverrides(records: ConfigRecord[]): Override[] {
       const differences = settingFields(r)
         .filter((f) => f in base.fields && value(base.fields[f]) !== value(r.fields[f]))
         .map((f) => `${f}: ${shown(base.fields[f])} → ${shown(r.fields[f])}`);
-      if (differences.length) out.push({ category, record: r.label ?? r.developerName, targets: r.assignments.map(target), differences });
+      if (differences.length)
+        out.push({
+          category,
+          record: r.label ?? r.developerName,
+          targets: r.assignments.map(target),
+          differences,
+        });
     }
   }
   return out;
 }
 
 export const overrideLine = (o: Override) => {
-  const more = o.differences.length > MAX_FIELDS ? ` and ${o.differences.length - MAX_FIELDS} more` : "";
+  const more =
+    o.differences.length > MAX_FIELDS ? ` and ${o.differences.length - MAX_FIELDS} more` : "";
   return `${o.category} › ${o.record} (${o.targets.join(", ")}): ${o.differences.slice(0, MAX_FIELDS).join("; ")}${more}`;
 };
 
@@ -90,7 +105,8 @@ export function duplicateSettings(records: ConfigRecord[]): Duplicate[] {
         seen.add(k);
       }
     }
-    for (const [k, names] of holders) if (names.length > 1) out.push({ category, target: k, records: names });
+    for (const [k, names] of holders)
+      if (names.length > 1) out.push({ category, target: k, records: names });
   }
   return out;
 }
@@ -132,7 +148,8 @@ export interface CloneGap {
 }
 
 /** The PermissionSet fields that are LSC system permissions, from a describe's field names. */
-export const isLscPermission = (field: string) => /^Permissions/.test(field) && /LifeSci|LSC4CE|IndustriesVisit/i.test(field);
+export const isLscPermission = (field: string) =>
+  /^Permissions/.test(field) && /LifeSci|LSC4CE|IndustriesVisit/i.test(field);
 
 /**
  * Each custom set compared with the standard LSC set it most resembles (most LSC permissions in
@@ -147,7 +164,10 @@ export function cloneGaps(standard: PermSet[], clones: PermSet[]): CloneGap[] {
     let bestShared = 0;
     for (const s of standard) {
       const shared = [...s.perms].filter((p) => clone.perms.has(p)).length;
-      if (shared > bestShared || (shared === bestShared && best && s.perms.size < best.perms.size)) {
+      if (
+        shared > bestShared ||
+        (shared === bestShared && best && s.perms.size < best.perms.size)
+      ) {
         best = s;
         bestShared = shared;
       }

@@ -177,7 +177,12 @@ export interface TelemetrySummary {
   metadataDownload: Distribution;
   dbSizeGb: Distribution;
   byNetwork: Array<{ key: string; n: number; deltaP95: number | undefined }>;
-  byAppVersion: Array<{ key: string; n: number; deltaP95: number | undefined; failureRatePct: number }>;
+  byAppVersion: Array<{
+    key: string;
+    n: number;
+    deltaP95: number | undefined;
+    failureRatePct: number;
+  }>;
   slowest: SyncSample[];
   /** How much of the window the samples cover; set by loadTelemetry. */
   coverage?: TelemetryCoverage;
@@ -212,12 +217,18 @@ export function summarize(samples: SyncSample[]): TelemetrySummary {
   const ok = samples.filter((s) => s.outcome === "completed");
   const initial = ok.filter((s) => s.kind === "initial");
   const delta = ok.filter((s) => s.kind === "delta");
-  const decided = (list: SyncSample[]) => list.filter((s) => s.outcome === "completed" || s.outcome === "failed");
+  const decided = (list: SyncSample[]) =>
+    list.filter((s) => s.outcome === "completed" || s.outcome === "failed");
   const failureRate = (list: SyncSample[]) => {
     const d = decided(list);
     return d.length ? (d.filter((s) => s.failed).length / d.length) * 100 : 0;
   };
-  const outcomes: Record<SyncOutcome, number> = { completed: 0, failed: 0, cancelled: 0, "stopped-early": 0 };
+  const outcomes: Record<SyncOutcome, number> = {
+    completed: 0,
+    failed: 0,
+    cancelled: 0,
+    "stopped-early": 0,
+  };
   for (const s of samples) outcomes[s.outcome]++;
 
   return {
@@ -240,7 +251,9 @@ export function summarize(samples: SyncSample[]): TelemetrySummary {
       key,
       n: list.length,
       deltaP95: percentile(
-        list.filter((s) => s.kind === "delta" && s.totalSec !== undefined).map((s) => s.totalSec as number),
+        list
+          .filter((s) => s.kind === "delta" && s.totalSec !== undefined)
+          .map((s) => s.totalSec as number),
         95
       ),
     })),
@@ -249,7 +262,9 @@ export function summarize(samples: SyncSample[]): TelemetrySummary {
       n: list.length,
       deltaP95: percentile(
         list
-          .filter((s) => s.outcome === "completed" && s.kind === "delta" && s.totalSec !== undefined)
+          .filter(
+            (s) => s.outcome === "completed" && s.kind === "delta" && s.totalSec !== undefined
+          )
           .map((s) => s.totalSec as number),
         95
       ),
@@ -281,7 +296,10 @@ export interface TelemetryFilters {
 }
 
 /** Build the DeviceSyncSummary query, selecting only fields the org exposes. */
-export function buildTelemetryQuery(availableFields: Set<string>, filters: TelemetryFilters): string {
+export function buildTelemetryQuery(
+  availableFields: Set<string>,
+  filters: TelemetryFilters
+): string {
   const lower = new Set([...availableFields].map((f) => f.toLowerCase()));
   const fields = TELEMETRY_FIELDS.filter((f) => lower.has(f.toLowerCase()));
   const where = [

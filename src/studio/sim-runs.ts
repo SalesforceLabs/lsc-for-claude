@@ -65,7 +65,10 @@ const timesOf = (r: SimulationResult): SimRunTimes => ({
  * Records, requests and bytes are expected to match across runs; a note says so
  * when they don't.
  */
-export function aggregateRuns(results: SimulationResult[], requested = results.length): MultiRunResult {
+export function aggregateRuns(
+  results: SimulationResult[],
+  requested = results.length
+): MultiRunResult {
   if (results.length === 0) throw new Error("No completed runs to aggregate.");
   if (results.length === 1 && requested <= 1) return results[0];
 
@@ -75,29 +78,46 @@ export function aggregateRuns(results: SimulationResult[], requested = results.l
   const data = spread(perRun.map((r) => r.dataSeconds));
 
   // The run closest to the median total (the lower one when two tie) supplies everything that isn't a time.
-  const order = perRun.map((r, i) => i).sort((a, b) => perRun[a].totalSeconds - perRun[b].totalSeconds);
+  const order = perRun
+    .map((r, i) => i)
+    .sort((a, b) => perRun[a].totalSeconds - perRun[b].totalSeconds);
   const rep = results[order[Math.floor((order.length - 1) / 2)]];
 
   const tables = rep.tables.map((t) => {
-    const seconds = results.flatMap((r) => r.tables.filter((x) => x.sobject === t.sobject && x.developerName === t.developerName).map((x) => x.seconds));
+    const seconds = results.flatMap((r) =>
+      r.tables
+        .filter((x) => x.sobject === t.sobject && x.developerName === t.developerName)
+        .map((x) => x.seconds)
+    );
     return { ...t, seconds: median(seconds) };
   });
 
   const notes = [...rep.notes];
   const sig = (r: SimulationResult) => `${r.totals.records}/${r.totals.requests}/${r.totals.bytes}`;
   if (new Set(results.map(sig)).size > 1) {
-    const counts = results.map((r) => `${r.totals.records.toLocaleString("en-US")} records / ${r.totals.requests} requests`).join("; ");
-    notes.push(`Records, requests or bytes differed between runs (${counts}); the org's data changed or a limit applied unevenly. Table counts shown are from the run closest to the median.`);
+    const counts = results
+      .map(
+        (r) => `${r.totals.records.toLocaleString("en-US")} records / ${r.totals.requests} requests`
+      )
+      .join("; ");
+    notes.push(
+      `Records, requests or bytes differed between runs (${counts}); the org's data changed or a limit applied unevenly. Table counts shown are from the run closest to the median.`
+    );
   }
   let delta = rep.delta;
   if (delta) {
     // Counts come from the representative run; only the seconds are medians over the runs that simulated delta.
-    const withDelta = results.map((r) => r.delta).filter((d): d is NonNullable<typeof d> => d !== undefined);
-    const med = (pick: (d: NonNullable<typeof delta>) => number | undefined) => median(withDelta.map(pick).filter((v): v is number => v !== undefined));
+    const withDelta = results
+      .map((r) => r.delta)
+      .filter((d): d is NonNullable<typeof d> => d !== undefined);
+    const med = (pick: (d: NonNullable<typeof delta>) => number | undefined) =>
+      median(withDelta.map(pick).filter((v): v is number => v !== undefined));
     delta = {
       ...delta,
       tables: delta.tables.map((t) => {
-        const same = withDelta.flatMap((d) => d.tables.filter((x) => x.sobject === t.sobject && x.developerName === t.developerName));
+        const same = withDelta.flatMap((d) =>
+          d.tables.filter((x) => x.sobject === t.sobject && x.developerName === t.developerName)
+        );
         return {
           ...t,
           visibilitySeconds: median(same.map((x) => x.visibilitySeconds)),
@@ -112,7 +132,10 @@ export function aggregateRuns(results: SimulationResult[], requested = results.l
         seconds: med((d) => d.totals.seconds),
       },
     };
-    if (withDelta.length > 1) notes.push(`Delta seconds are medians of ${withDelta.length} runs; delta counts are from the run closest to the median initial-sync total.`);
+    if (withDelta.length > 1)
+      notes.push(
+        `Delta seconds are medians of ${withDelta.length} runs; delta counts are from the run closest to the median initial-sync total.`
+      );
   }
   notes.push(
     results.length < requested
@@ -121,7 +144,10 @@ export function aggregateRuns(results: SimulationResult[], requested = results.l
   );
 
   const content = [...results].reverse().find((r) => r.content)?.content;
-  if (content) notes.push("Content downloads ran once, in the last run only; they are not part of the medians.");
+  if (content)
+    notes.push(
+      "Content downloads ran once, in the last run only; they are not part of the medians."
+    );
 
   return {
     ...rep,
@@ -144,7 +170,8 @@ const sec = (s: number) => `${s.toFixed(1)}`;
 export function renderRunsSection(result: { runs?: SimRunsSummary }): string {
   const runs = result.runs;
   if (!runs || runs.count < 2) return "";
-  const row = (label: string, s: SimSpread) => `| ${label} | ${sec(s.median)} | ${sec(s.min)} – ${sec(s.max)} |\n`;
+  const row = (label: string, s: SimSpread) =>
+    `| ${label} | ${sec(s.median)} | ${sec(s.min)} – ${sec(s.max)} |\n`;
   let out = `## Runs (${runs.count}${runs.requested > runs.count ? ` of ${runs.requested} requested` : ""})\n\n`;
   out += `| Seconds | Median | Min – max |\n|---|---|---|\n`;
   out += row("Total", runs.total) + row("Metadata", runs.metadata) + row("Data", runs.data);

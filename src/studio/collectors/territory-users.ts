@@ -50,7 +50,8 @@ async function optionalQuery(soql: string, org: string): Promise<Row[] | null> {
   try {
     return await query(soql, org);
   } catch (err) {
-    if (/is not supported|INVALID_TYPE/i.test(String(err instanceof Error ? err.message : err))) return null;
+    if (/is not supported|INVALID_TYPE/i.test(String(err instanceof Error ? err.message : err)))
+      return null;
     throw err;
   }
 }
@@ -67,15 +68,25 @@ function rel(r: Row, path: string): unknown {
 
 class TooManyAssignments extends Error {
   constructor(readonly rows: number) {
-    super(`About ${rows.toLocaleString("en-US")} territory assignments — too many to count by territory here.`);
+    super(
+      `About ${rows.toLocaleString("en-US")} territory assignments — too many to count by territory here.`
+    );
   }
 }
 
 /** Why accounts per territory weren't counted, as an info finding. */
 function uncountedAccounts(err: unknown): StudioFinding {
   return err instanceof TooManyAssignments
-    ? { severity: "info", title: "Accounts not counted per territory", detail: `${err.message} Users per territory are still shown.` }
-    : { severity: "info", title: "Couldn't count accounts per territory", detail: err instanceof Error ? err.message : String(err) };
+    ? {
+        severity: "info",
+        title: "Accounts not counted per territory",
+        detail: `${err.message} Users per territory are still shown.`,
+      }
+    : {
+        severity: "info",
+        title: "Couldn't count accounts per territory",
+        detail: err instanceof Error ? err.message : String(err),
+      };
 }
 
 /** COUNT(Id) grouped by `key` → Map. */
@@ -88,17 +99,34 @@ async function countBy(soql: string, key: string, org: string): Promise<Map<stri
  * Territories of the active model (all models when none is active, capped).
  * Shared for a minute: the map, readiness checks and counts all start here.
  */
-export function activeTerritories(org: string): Promise<{ rows: Row[]; model: Row | undefined; capped: boolean }> {
+export function activeTerritories(
+  org: string
+): Promise<{ rows: Row[]; model: Row | undefined; capped: boolean }> {
   return sharedRead(org, "studio:territories", async () => {
-    const models = await query(`SELECT Id, Name, DeveloperName, State, ActivatedDate FROM Territory2Model ORDER BY Name`, org);
+    const models = await query(
+      `SELECT Id, Name, DeveloperName, State, ActivatedDate FROM Territory2Model ORDER BY Name`,
+      org
+    );
     const model = models.find((m) => m.State === "Active");
     const fields = `Id, Name, DeveloperName, Territory2ModelId, Territory2Model.State, Territory2Type.MasterLabel, ParentTerritory2Id, ParentTerritory2.Name`;
     if (model) {
-      const rows = await query(`SELECT ${fields} FROM Territory2 WHERE Territory2ModelId = '${model.Id}' ORDER BY Name`, org);
+      const rows = await query(
+        `SELECT ${fields} FROM Territory2 WHERE Territory2ModelId = '${model.Id}' ORDER BY Name`,
+        org
+      );
       return { rows, model, capped: false };
     }
-    const r = await queryResult(`SELECT ${fields} FROM Territory2 ORDER BY Name LIMIT ${UNSCOPED_TERRITORY_LIMIT}`, org, false, { allowTruncated: true });
-    return { rows: r.records as Row[], model, capped: r.records.length === UNSCOPED_TERRITORY_LIMIT };
+    const r = await queryResult(
+      `SELECT ${fields} FROM Territory2 ORDER BY Name LIMIT ${UNSCOPED_TERRITORY_LIMIT}`,
+      org,
+      false,
+      { allowTruncated: true }
+    );
+    return {
+      rows: r.records as Row[],
+      model,
+      capped: r.records.length === UNSCOPED_TERRITORY_LIMIT,
+    };
   });
 }
 
@@ -130,23 +158,39 @@ export async function fieldProfiles(org: string): Promise<string[]> {
 }
 
 export const collectTerritoryUsers: CustomCollector = async (org) => {
-  const models = settle(query(`SELECT Id, Name, DeveloperName, State, ActivatedDate FROM Territory2Model ORDER BY Name`, org));
+  const models = settle(
+    query(
+      `SELECT Id, Name, DeveloperName, State, ActivatedDate FROM Territory2Model ORDER BY Name`,
+      org
+    )
+  );
   const territories = settle(activeTerritories(org));
   const territoryIds = async () => (await unwrap(territories)).rows.map((t) => String(t.Id));
   const usersPerTerritory = settle(
-    territoryIds().then((ids) => countGroupedBy("UserTerritory2Association", "Territory2Id", ids, org))
+    territoryIds().then((ids) =>
+      countGroupedBy("UserTerritory2Association", "Territory2Id", ids, org)
+    )
   );
-  const ot2aRows = recordCounts(["ObjectTerritory2Association"], org).then((m) => m.get("objectterritory2association"));
+  const ot2aRows = recordCounts(["ObjectTerritory2Association"], org).then((m) =>
+    m.get("objectterritory2association")
+  );
   const accountsPerTerritory = settle(
     Promise.all([territoryIds(), ot2aRows]).then(([ids, rows]) => {
       if (rows && rows > OT2A_COUNT_LIMIT) throw new TooManyAssignments(rows);
-      return countGroupedBy("ObjectTerritory2Association", "Territory2Id", ids, org, "SobjectType = 'Account'");
+      return countGroupedBy(
+        "ObjectTerritory2Association",
+        "Territory2Id",
+        ids,
+        org,
+        "SobjectType = 'Account'"
+      );
     })
   );
   const profiles = settle(fieldProfiles(org));
   const fieldUsers = settle(
     unwrap(profiles).then(async (names) => {
-      if (names.length === 0) return { total: 0, users: [] as Row[], territoriesByUser: new Map<string, string[]>() };
+      if (names.length === 0)
+        return { total: 0, users: [] as Row[], territoriesByUser: new Map<string, string[]>() };
       const where = `IsActive = true AND Profile.Name IN (${inList(names)})`;
       const [total, users] = await Promise.all([
         count(`SELECT COUNT() FROM User WHERE ${where}`, org),
@@ -159,7 +203,10 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
       const territoriesByUser = new Map<string, string[]>();
       const assoc = await Promise.all(
         chunkIds(users.map((u) => String(u.Id))).map((ids) =>
-          query(`SELECT UserId, Territory2.Name FROM UserTerritory2Association WHERE UserId IN (${inList(ids)})`, org)
+          query(
+            `SELECT UserId, Territory2.Name FROM UserTerritory2Association WHERE UserId IN (${inList(ids)})`,
+            org
+          )
         )
       );
       for (const a of assoc.flat()) {
@@ -183,7 +230,12 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
 
   const surfaces = await Promise.all([
     buildSurface(
-      { id: "territoryModels", title: "Territory Models", lane: "model", description: "Enterprise Territory Management models. Only one can be active." },
+      {
+        id: "territoryModels",
+        title: "Territory Models",
+        lane: "model",
+        description: "Enterprise Territory Management models. Only one can be active.",
+      },
       async () => {
         const rows = await unwrap(models);
         const findings: StudioFinding[] = [];
@@ -191,7 +243,8 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
           findings.push({
             severity: "error",
             title: "No active territory model",
-            detail: "LSC account access, alignment jobs, and Provider Account Territory Info all depend on an active model.",
+            detail:
+              "LSC account access, alignment jobs, and Provider Account Territory Info all depend on an active model.",
           });
         }
         return {
@@ -199,7 +252,11 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
             item(String(m.Id), String(m.Name), {
               sublabel: String(m.State),
               active: m.State === "Active",
-              properties: { "Developer name": scalar(m.DeveloperName), State: scalar(m.State), Activated: scalar(m.ActivatedDate) },
+              properties: {
+                "Developer name": scalar(m.DeveloperName),
+                State: scalar(m.State),
+                Activated: scalar(m.ActivatedDate),
+              },
             })
           ),
           findings,
@@ -207,7 +264,12 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
       }
     ),
     buildSurface(
-      { id: "territories", title: "Territories", lane: "model", description: "Territories in the active model, with assigned users and accounts." },
+      {
+        id: "territories",
+        title: "Territories",
+        lane: "model",
+        description: "Territories in the active model, with assigned users and accounts.",
+      },
       async () => {
         const [{ rows: inModel, capped }, users, accountsResult] = await Promise.all([
           unwrap(territories),
@@ -226,10 +288,16 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
           return { t, id, u, a };
         });
         // Thousands of territories are too many to send to the app: the busiest come first.
-        const shown = all.length > TERRITORY_DISPLAY_LIMIT ? [...all].sort((x, y) => y.u + y.a - (x.u + x.a)).slice(0, TERRITORY_DISPLAY_LIMIT) : all;
+        const shown =
+          all.length > TERRITORY_DISPLAY_LIMIT
+            ? [...all].sort((x, y) => y.u + y.a - (x.u + x.a)).slice(0, TERRITORY_DISPLAY_LIMIT)
+            : all;
         const items: StudioItem[] = shown.map(({ t, id, u, a }) =>
           item(id, String(t.Name), {
-            sublabel: [rel(t, "Territory2Type.MasterLabel"), rel(t, "ParentTerritory2.Name") && `in ${rel(t, "ParentTerritory2.Name")}`]
+            sublabel: [
+              rel(t, "Territory2Type.MasterLabel"),
+              rel(t, "ParentTerritory2.Name") && `in ${rel(t, "ParentTerritory2.Name")}`,
+            ]
               .filter(Boolean)
               .join(" · "),
             properties: {
@@ -242,49 +310,104 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
           })
         );
         territoryTotal = all.length;
-        const findings: StudioFinding[] = accountsResult.ok ? [] : [uncountedAccounts(accountsResult.error)];
+        const findings: StudioFinding[] = accountsResult.ok
+          ? []
+          : [uncountedAccounts(accountsResult.error)];
         if (emptyLeaves) {
-          findings.push({ severity: "info", title: `${emptyLeaves} leaf territories have no users`, detail: "Accounts aligned to them aren't covered by a rep — check for vacancies or leftover territories." });
+          findings.push({
+            severity: "info",
+            title: `${emptyLeaves} leaf territories have no users`,
+            detail:
+              "Accounts aligned to them aren't covered by a rep — check for vacancies or leftover territories.",
+          });
         }
-        if (shown.length < all.length) findings.push(showingNote(shown.length, all.length, "territories", accounts ? "Those with the most users and accounts first" : "Those with the most users first"));
-        if (capped) findings.push({ severity: "info", title: `Showing the first ${UNSCOPED_TERRITORY_LIMIT.toLocaleString("en-US")} territories`, detail: "No territory model is active, so territories from every model are listed." });
+        if (shown.length < all.length)
+          findings.push(
+            showingNote(
+              shown.length,
+              all.length,
+              "territories",
+              accounts
+                ? "Those with the most users and accounts first"
+                : "Those with the most users first"
+            )
+          );
+        if (capped)
+          findings.push({
+            severity: "info",
+            title: `Showing the first ${UNSCOPED_TERRITORY_LIMIT.toLocaleString("en-US")} territories`,
+            detail: "No territory model is active, so territories from every model are listed.",
+          });
         return { items, findings };
       }
     ),
     buildSurface(
-      { id: "explicitAssignments", title: "Explicit Assignments", lane: "alignment", description: "ObjectTerritory2Association — accounts assigned to territories, by territory." },
+      {
+        id: "explicitAssignments",
+        title: "Explicit Assignments",
+        lane: "alignment",
+        description:
+          "ObjectTerritory2Association — accounts assigned to territories, by territory.",
+      },
       async () => {
-        const [{ rows }, accountsResult] = await Promise.all([unwrap(territories), accountsPerTerritory]);
-        if (!accountsResult.ok) return { items: [], findings: [uncountedAccounts(accountsResult.error)] };
+        const [{ rows }, accountsResult] = await Promise.all([
+          unwrap(territories),
+          accountsPerTerritory,
+        ]);
+        if (!accountsResult.ok)
+          return { items: [], findings: [uncountedAccounts(accountsResult.error)] };
         const accounts = accountsResult.value;
         const names = new Map(rows.map((t) => [String(t.Id), String(t.Name)]));
         const sorted = [...accounts.entries()].filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
-        const items = sorted
-          .slice(0, TERRITORY_DISPLAY_LIMIT)
-          .map(([id, n]) =>
-            item(`ota:${id}`, names.get(id) ?? id, { sublabel: `${n} accounts`, properties: { Territory: names.get(id) ?? id, Accounts: n } })
-          );
-        const findings = sorted.length > items.length ? [showingNote(items.length, sorted.length, "territories with assigned accounts", "Most accounts first")] : [];
+        const items = sorted.slice(0, TERRITORY_DISPLAY_LIMIT).map(([id, n]) =>
+          item(`ota:${id}`, names.get(id) ?? id, {
+            sublabel: `${n} accounts`,
+            properties: { Territory: names.get(id) ?? id, Accounts: n },
+          })
+        );
+        const findings =
+          sorted.length > items.length
+            ? [
+                showingNote(
+                  items.length,
+                  sorted.length,
+                  "territories with assigned accounts",
+                  "Most accounts first"
+                ),
+              ]
+            : [];
         return { items, findings };
       }
     ),
     buildSurface(
-      { id: "geoRules", title: "Geo Rules", lane: "alignment", description: "TerrGeoAssignmentRule — postal-code / geography based alignment." },
+      {
+        id: "geoRules",
+        title: "Geo Rules",
+        lane: "alignment",
+        description: "TerrGeoAssignmentRule — postal-code / geography based alignment.",
+      },
       async () => {
         const rows = await optionalQuery(
           `SELECT Id, Name, Territory2Id, Territory2.Name, UsageType, GeoCodeType, GeoCode, EffectiveStartDate, EffectiveEndDate FROM TerrGeoAssignmentRule ORDER BY UsageType, Territory2.Name LIMIT 500`,
           org
         );
         if (!rows) return { items: [], findings: [NOT_AVAILABLE] };
-        const total = rows.length === RULE_LIMIT ? await count(`SELECT COUNT() FROM TerrGeoAssignmentRule`, org) : rows.length;
+        const total =
+          rows.length === RULE_LIMIT
+            ? await count(`SELECT COUNT() FROM TerrGeoAssignmentRule`, org)
+            : rows.length;
         const today = new Date().toISOString().slice(0, 10);
         return {
           findings: total > rows.length ? [showingNote(rows.length, total, "geo rules")] : [],
           items: rows.map((r) =>
             item(String(r.Id), String(r.Name), {
-              sublabel: [rel(r, "Territory2.Name"), r.GeoCode, r.UsageType].filter(Boolean).join(" · "),
+              sublabel: [rel(r, "Territory2.Name"), r.GeoCode, r.UsageType]
+                .filter(Boolean)
+                .join(" · "),
               // Geo rules have no active flag; a rule applies between its effective dates.
-              active: (!r.EffectiveStartDate || String(r.EffectiveStartDate) <= today) && (!r.EffectiveEndDate || String(r.EffectiveEndDate) >= today),
+              active:
+                (!r.EffectiveStartDate || String(r.EffectiveStartDate) <= today) &&
+                (!r.EffectiveEndDate || String(r.EffectiveEndDate) >= today),
               properties: {
                 Territory: scalar(rel(r, "Territory2.Name")),
                 "Geo code": scalar(r.GeoCode),
@@ -299,37 +422,61 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
       }
     ),
     buildSurface(
-      { id: "affiliationRules", title: "Affiliation Rules", lane: "alignment", description: "TerrProvAffilAssignRule — align providers through their affiliations." },
+      {
+        id: "affiliationRules",
+        title: "Affiliation Rules",
+        lane: "alignment",
+        description: "TerrProvAffilAssignRule — align providers through their affiliations.",
+      },
       async () => {
         const rows = await optionalQuery(
           `SELECT Id, Name, Territory2Id, Territory2.Name, AccountType, AffiliationRole FROM TerrProvAffilAssignRule ORDER BY Territory2.Name LIMIT 500`,
           org
         );
         if (!rows) return { items: [], findings: [NOT_AVAILABLE] };
-        const total = rows.length === RULE_LIMIT ? await count(`SELECT COUNT() FROM TerrProvAffilAssignRule`, org) : rows.length;
+        const total =
+          rows.length === RULE_LIMIT
+            ? await count(`SELECT COUNT() FROM TerrProvAffilAssignRule`, org)
+            : rows.length;
         return {
-          findings: total > rows.length ? [showingNote(rows.length, total, "affiliation rules")] : [],
+          findings:
+            total > rows.length ? [showingNote(rows.length, total, "affiliation rules")] : [],
           items: rows.map((r) =>
             item(String(r.Id), String(r.Name), {
               sublabel: [rel(r, "Territory2.Name"), r.AffiliationRole].filter(Boolean).join(" · "),
-              properties: { Territory: scalar(rel(r, "Territory2.Name")), "Account type": scalar(r.AccountType), Role: scalar(r.AffiliationRole) },
+              properties: {
+                Territory: scalar(rel(r, "Territory2.Name")),
+                "Account type": scalar(r.AccountType),
+                Role: scalar(r.AffiliationRole),
+              },
             })
           ),
         };
       }
     ),
     buildSurface(
-      { id: "providerTerritoryInfo", title: "Provider Territory Info", lane: "alignment", description: "ProviderAcctTerritoryInfo — per-territory provider records that LSC alignment jobs maintain." },
+      {
+        id: "providerTerritoryInfo",
+        title: "Provider Territory Info",
+        lane: "alignment",
+        description:
+          "ProviderAcctTerritoryInfo — per-territory provider records that LSC alignment jobs maintain.",
+      },
       async () => {
         // Storage statistics, not COUNT(): both tables run to millions of rows in big orgs.
-        const [pati, aligned] = await Promise.all([approxCount("ProviderAcctTerritoryInfo", org), approxCount("ObjectTerritory2Association", org)]);
-        const about = (n: number | "some") => (n === "some" ? "Some" : n === 0 ? "No" : `About ${n.toLocaleString("en-US")}`);
+        const [pati, aligned] = await Promise.all([
+          approxCount("ProviderAcctTerritoryInfo", org),
+          approxCount("ObjectTerritory2Association", org),
+        ]);
+        const about = (n: number | "some") =>
+          n === "some" ? "Some" : n === 0 ? "No" : `About ${n.toLocaleString("en-US")}`;
         const findings: StudioFinding[] = [];
         if (pati === 0 && aligned !== 0) {
           findings.push({
             severity: "warning",
             title: "Not populated",
-            detail: "Accounts are assigned to territories but there are no ProviderAcctTerritoryInfo records. Run the territory alignment batch jobs.",
+            detail:
+              "Accounts are assigned to territories but there are no ProviderAcctTerritoryInfo records. Run the territory alignment batch jobs.",
           });
         }
         return {
@@ -347,23 +494,37 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
       }
     ),
     buildSurface(
-      { id: "fieldUsers", title: "Field Users", lane: "people", description: "Active users on LSC field profiles, with their territories and licenses." },
+      {
+        id: "fieldUsers",
+        title: "Field Users",
+        lane: "people",
+        description: "Active users on LSC field profiles, with their territories and licenses.",
+      },
       async () => {
         const { total, users: rows, territoriesByUser } = await unwrap(fieldUsers);
         // The license fix needs the PSL's Id; without it the finding stands alone.
-        const lscPsl = (await psls).ok ? (await unwrap(psls)).find((p) => LSC_PSL.test(String(p.DeveloperName))) : undefined;
+        const lscPsl = (await psls).ok
+          ? (await unwrap(psls)).find((p) => LSC_PSL.test(String(p.DeveloperName)))
+          : undefined;
         let noTerritory = 0;
         let noPsl = 0;
         const items = rows.map((u) => {
           const terrs = territoriesByUser.get(String(u.Id)) ?? [];
-          const pslRows = (rel(u, "PermissionSetLicenseAssignments.records") as Row[] | undefined) ?? [];
+          const pslRows =
+            (rel(u, "PermissionSetLicenseAssignments.records") as Row[] | undefined) ?? [];
           const psls = pslRows.map((a) => String(rel(a, "PermissionSetLicense.MasterLabel")));
           const findings: StudioFinding[] = [];
           if (terrs.length === 0) {
             noTerritory++;
-            findings.push({ severity: "warning", title: "No territory", detail: "The user sees no aligned accounts in LSC." });
+            findings.push({
+              severity: "warning",
+              title: "No territory",
+              detail: "The user sees no aligned accounts in LSC.",
+            });
           }
-          if (!pslRows.some((a) => LSC_PSL.test(String(rel(a, "PermissionSetLicense.DeveloperName"))))) {
+          if (
+            !pslRows.some((a) => LSC_PSL.test(String(rel(a, "PermissionSetLicense.DeveloperName"))))
+          ) {
             noPsl++;
             findings.push({
               severity: "warning",
@@ -400,16 +561,31 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
         });
         const findings: StudioFinding[] = [];
         // The counts cover only the users read; the title says so when there are more.
-        const partial = total > rows.length ? ` (of the first ${rows.length.toLocaleString("en-US")})` : "";
-        if (noTerritory) findings.push({ severity: "warning", title: `${noTerritory} users have no territory${partial}` });
-        if (noPsl) findings.push({ severity: "warning", title: `${noPsl} users have no Life Science Commercial license${partial}` });
-        if (total > rows.length) findings.push(showingNote(rows.length, total, "field users", "In name order"));
+        const partial =
+          total > rows.length ? ` (of the first ${rows.length.toLocaleString("en-US")})` : "";
+        if (noTerritory)
+          findings.push({
+            severity: "warning",
+            title: `${noTerritory} users have no territory${partial}`,
+          });
+        if (noPsl)
+          findings.push({
+            severity: "warning",
+            title: `${noPsl} users have no Life Science Commercial license${partial}`,
+          });
+        if (total > rows.length)
+          findings.push(showingNote(rows.length, total, "field users", "In name order"));
         fieldUserTotal = total;
         return { items, findings };
       }
     ),
     buildSurface(
-      { id: "usersByProfile", title: "Users by Profile", lane: "people", description: "Active users per profile." },
+      {
+        id: "usersByProfile",
+        title: "Users by Profile",
+        lane: "people",
+        description: "Active users per profile.",
+      },
       async () => {
         const counts = await countBy(
           `SELECT Profile.Name pn, COUNT(Id) cnt FROM User WHERE IsActive = true AND UserType = 'Standard' GROUP BY Profile.Name ORDER BY COUNT(Id) DESC`,
@@ -430,7 +606,12 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
       }
     ),
     buildSurface(
-      { id: "psls", title: "Permission Set Licenses", lane: "access", description: "LSC-related permission set licenses and capacity." },
+      {
+        id: "psls",
+        title: "Permission Set Licenses",
+        lane: "access",
+        description: "LSC-related permission set licenses and capacity.",
+      },
       async () => {
         const rows = await unwrap(psls);
         return {
@@ -439,14 +620,27 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
             const total = Number(r.TotalLicenses ?? 0);
             const findings: StudioFinding[] = [];
             if (total > 0 && used >= total) {
-              findings.push({ severity: "error", title: "No licenses left", detail: `${used} of ${total} used — new users can't be provisioned.` });
+              findings.push({
+                severity: "error",
+                title: "No licenses left",
+                detail: `${used} of ${total} used — new users can't be provisioned.`,
+              });
             } else if (total > 0 && used / total >= 0.9) {
-              findings.push({ severity: "warning", title: "Nearly full", detail: `${used} of ${total} used.` });
+              findings.push({
+                severity: "warning",
+                title: "Nearly full",
+                detail: `${used} of ${total} used.`,
+              });
             }
             return item(String(r.Id), String(r.MasterLabel), {
               sublabel: `${used} / ${total} used`,
               active: r.Status ? r.Status === "Active" : undefined,
-              properties: { "Developer name": scalar(r.DeveloperName), Used: used, Total: total, Status: scalar(r.Status) },
+              properties: {
+                "Developer name": scalar(r.DeveloperName),
+                Used: used,
+                Total: total,
+                Status: scalar(r.Status),
+              },
               findings,
             });
           }),
@@ -454,30 +648,55 @@ export const collectTerritoryUsers: CustomCollector = async (org) => {
       }
     ),
     buildSurface(
-      { id: "permissionSets", title: "LSC Permission Sets", lane: "access", description: "LSC permission sets and how many users have each." },
+      {
+        id: "permissionSets",
+        title: "LSC Permission Sets",
+        lane: "access",
+        description: "LSC permission sets and how many users have each.",
+      },
       async () => {
-        const rows = await query(`SELECT Id, Name, Label, NamespacePrefix FROM PermissionSet WHERE ${LSC_PS_FILTER} ORDER BY Label`, org);
-        const counts = await countGroupedBy("PermissionSetAssignment", "PermissionSetId", rows.map((r) => String(r.Id)), org);
+        const rows = await query(
+          `SELECT Id, Name, Label, NamespacePrefix FROM PermissionSet WHERE ${LSC_PS_FILTER} ORDER BY Label`,
+          org
+        );
+        const counts = await countGroupedBy(
+          "PermissionSetAssignment",
+          "PermissionSetId",
+          rows.map((r) => String(r.Id)),
+          org
+        );
         return {
           items: rows.map((r) => {
             const n = counts.get(String(r.Id)) ?? 0;
             return item(String(r.Id), String(r.Label), {
               sublabel: `${n} users${r.NamespacePrefix ? ` · ${r.NamespacePrefix}` : ""}`,
-              properties: { "API name": scalar(r.Name), Namespace: scalar(r.NamespacePrefix), "Assigned users": n },
+              properties: {
+                "API name": scalar(r.Name),
+                Namespace: scalar(r.NamespacePrefix),
+                "Assigned users": n,
+              },
             });
           }),
         };
       }
     ),
     buildSurface(
-      { id: "territorySettings", title: "Territory Settings", lane: "access", description: "Admin Console territory management settings." },
+      {
+        id: "territorySettings",
+        title: "Territory Settings",
+        lane: "access",
+        description: "Admin Console territory management settings.",
+      },
       async () => ({
-        items: (await fetchCategories(org, ["TerritoryManagement"])).map((r) => configItem(r, r.isOrgLevel ? "Org defaults" : r.label, r.category)),
+        items: (await fetchCategories(org, ["TerritoryManagement"])).map((r) =>
+          configItem(r, r.isOrgLevel ? "Org defaults" : r.label, r.category)
+        ),
       })
     ),
   ]);
 
-  const territoryCount = territoryTotal || surfaces.find((s) => s.id === "territories")!.items.length;
+  const territoryCount =
+    territoryTotal || surfaces.find((s) => s.id === "territories")!.items.length;
   const userCount = fieldUserTotal || surfaces.find((s) => s.id === "fieldUsers")!.items.length;
   return {
     summary: `${territoryCount} territories · ${userCount} field users`,

@@ -49,7 +49,13 @@ export interface DriftDiff {
   counts: { added: number; removed: number; changed: number };
 }
 
-export type RecentKind = "config" | "triggerHandler" | "validationRule" | "apexTrigger" | "flow" | "layout";
+export type RecentKind =
+  | "config"
+  | "triggerHandler"
+  | "validationRule"
+  | "apexTrigger"
+  | "flow"
+  | "layout";
 
 export interface RecentChange {
   kind: RecentKind;

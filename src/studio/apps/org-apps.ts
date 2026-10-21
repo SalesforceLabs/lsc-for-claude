@@ -4,7 +4,14 @@ import { checkInlineLwc, type LwcFile } from "../screens/inline-lwc.js";
 import { loadBundles } from "../lwc/compile.js";
 import { query, type Row } from "../helpers.js";
 import { parseMeta } from "./lint.js";
-import { APP_PREFIX, QUICK_ACTION_PREFIX, type AppFile, type AppInput, type AppTarget, type OrgApp } from "./types.js";
+import {
+  APP_PREFIX,
+  QUICK_ACTION_PREFIX,
+  type AppFile,
+  type AppInput,
+  type AppTarget,
+  type OrgApp,
+} from "./types.js";
 
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 
@@ -44,7 +51,11 @@ export async function listOrgApps(org: string): Promise<OrgApp[]> {
       org,
       true
     ),
-    query("SELECT LightningComponentBundle.DeveloperName, Source FROM LightningComponentResource WHERE FilePath LIKE '%.js-meta.xml' AND LightningComponentBundle.DeveloperName LIKE 'lscMobile%'", org, true).catch(() => [] as Row[]),
+    query(
+      "SELECT LightningComponentBundle.DeveloperName, Source FROM LightningComponentResource WHERE FilePath LIKE '%.js-meta.xml' AND LightningComponentBundle.DeveloperName LIKE 'lscMobile%'",
+      org,
+      true
+    ).catch(() => [] as Row[]),
     quickActionObjects(org),
   ]);
   const targets = new Map<string, string[]>();
@@ -84,9 +95,22 @@ export async function appSource(name: string, org: string): Promise<AppInput> {
   };
   const check = await checkInlineLwc(name, load);
   if (!check.bundles.includes(name)) throw new Error(`The org has no LSC app named ${name}.`);
-  const files: AppFile[] = [...new Map(read.filter((f) => f.path).map((f) => [f.path, { bundle: f.bundle, path: f.path, source: f.source }] as const)).values()];
+  const files: AppFile[] = [
+    ...new Map(
+      read
+        .filter((f) => f.path)
+        .map((f) => [f.path, { bundle: f.bundle, path: f.path, source: f.source }] as const)
+    ).values(),
+  ];
   const parentMeta = files.find((f) => f.path === `lwc/${name}/${name}.js-meta.xml`);
   const target = targetOf(parentMeta ? parseMeta(parentMeta.source).targets : [], name) ?? "home";
   const objects = (await quickActionObjects(org)).get(name);
-  return { name, target, ...((target === "record" || target === "action") && objects?.[0] ? { objectApiName: objects[0] } : {}), files };
+  return {
+    name,
+    target,
+    ...((target === "record" || target === "action") && objects?.[0]
+      ? { objectApiName: objects[0] }
+      : {}),
+    files,
+  };
 }

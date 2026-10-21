@@ -81,13 +81,19 @@ const readiness: ReadinessModule = {
           title: "The Track Email Status job is scheduled",
           severity: "warning",
           why: "This job reads delivery, open and bounce statuses back from the email provider. Without it every sent email stays at its first status and bounces are never recorded against the HCP.",
-          steps: ["Open Admin Console > Email > Email Jobs", "Click Schedule and pick a schedule for the Track Email Status job", "Save"],
+          steps: [
+            "Open Admin Console > Email > Email Jobs",
+            "Click Schedule and pick a schedule for the Track Email Status job",
+            "Save",
+          ],
           uiPath: "Admin Console > Email > Email Jobs",
           surface: "adminSettings",
         },
         async () => {
           const n = await scheduled("EmailAttemptStatusSchedulable");
-          return n ? { pass: true, detail: "Scheduled." } : { pass: false, detail: "No Track Email Status job is scheduled." };
+          return n
+            ? { pass: true, detail: "Scheduled." }
+            : { pass: false, detail: "No Track Email Status job is scheduled." };
         }
       ),
 
@@ -98,7 +104,11 @@ const readiness: ReadinessModule = {
           title: "Active email templates are shared with territories",
           severity: "error",
           why: "Reps only see templates that are shared with their territory. A template with only its owner on the sharing list is invisible to every rep, however well it's configured.",
-          steps: ["Open the template in Admin Console > Email", "Assign it to the territories whose reps should use it", "Check the Email Template Territory Sharing handler is on"],
+          steps: [
+            "Open the template in Admin Console > Email",
+            "Assign it to the territories whose reps should use it",
+            "Check the Email Template Territory Sharing handler is on",
+          ],
           uiPath: "Admin Console > Email > Template > Territories",
           surface: "objects",
         },
@@ -110,7 +120,11 @@ const readiness: ReadinessModule = {
             org
           );
           return rows.length
-            ? { pass: false, detail: `${rows.length} of ${plural(total, "active template")} aren't shared with anyone.`, examples: nameList(rows) }
+            ? {
+                pass: false,
+                detail: `${rows.length} of ${plural(total, "active template")} aren't shared with anyone.`,
+                examples: nameList(rows),
+              }
             : { pass: true, detail: `All ${plural(total, "active template")} are shared.` };
         }
       ),
@@ -122,17 +136,31 @@ const readiness: ReadinessModule = {
           title: "Active templates are tied to a communication subscription",
           severity: "warning",
           why: "The subscription is what the consent check is run against. A template with none (and not set to ignore consent) can't be checked, so the app can't tell whether the HCP agreed to receive it.",
-          steps: ["Open the template in Admin Console > Email", "Pick its Communication Subscription, or tick Ignore consent if no consent applies", "Save"],
+          steps: [
+            "Open the template in Admin Console > Email",
+            "Pick its Communication Subscription, or tick Ignore consent if no consent applies",
+            "Save",
+          ],
           uiPath: "Admin Console > Email > Template",
           surface: "objects",
         },
         async () => {
           const total = await count(`SELECT COUNT() ${activeTemplates}`, org);
           if (!total) return { pass: true, skip: true, detail: "No active email templates." };
-          const rows = await query(`SELECT Id, Name ${activeTemplates} AND CommunicationSubscriptionId = null AND ShouldIgnoreEmailConsent = false LIMIT 20`, org);
+          const rows = await query(
+            `SELECT Id, Name ${activeTemplates} AND CommunicationSubscriptionId = null AND ShouldIgnoreEmailConsent = false LIMIT 20`,
+            org
+          );
           return rows.length
-            ? { pass: false, detail: `${rows.length} of ${plural(total, "active template")} have no subscription and still require consent.`, examples: nameList(rows) }
-            : { pass: true, detail: `All ${plural(total, "active template")} have a subscription or ignore consent.` };
+            ? {
+                pass: false,
+                detail: `${rows.length} of ${plural(total, "active template")} have no subscription and still require consent.`,
+                examples: nameList(rows),
+              }
+            : {
+                pass: true,
+                detail: `All ${plural(total, "active template")} have a subscription or ignore consent.`,
+              };
         }
       ),
 
@@ -143,14 +171,24 @@ const readiness: ReadinessModule = {
           title: "No active template is past its end date",
           severity: "warning",
           why: "A template is only offered between its start and end dates. One that's still marked active but has ended has quietly disappeared from the rep's list.",
-          steps: ["Open the template in Admin Console > Email", "Extend the end date, or deactivate the template"],
+          steps: [
+            "Open the template in Admin Console > Email",
+            "Extend the end date, or deactivate the template",
+          ],
           uiPath: "Admin Console > Email > Template",
           surface: "objects",
         },
         async () => {
-          const rows = await query(`SELECT Id, Name, EffectiveEndDate ${activeTemplates} AND EffectiveEndDate < TODAY LIMIT 20`, org);
+          const rows = await query(
+            `SELECT Id, Name, EffectiveEndDate ${activeTemplates} AND EffectiveEndDate < TODAY LIMIT 20`,
+            org
+          );
           return rows.length
-            ? { pass: false, detail: `${plural(rows.length, "active template")} past the end date.`, examples: rows.map((r) => `${r.Name} (ended ${r.EffectiveEndDate})`) }
+            ? {
+                pass: false,
+                detail: `${plural(rows.length, "active template")} past the end date.`,
+                examples: rows.map((r) => `${r.Name} (ended ${r.EffectiveEndDate})`),
+              }
             : { pass: true, detail: "None have ended." };
         }
       ),
@@ -162,16 +200,27 @@ const readiness: ReadinessModule = {
           title: "Active templates are linked to a product",
           severity: "info",
           why: "The product link ties a sent email to what was promoted, so it shows up in product reporting and can be filtered by the rep's products. Without it the template still sends.",
-          steps: ["Open the template in Admin Console > Email", "Pick the marketable product", "Save"],
+          steps: [
+            "Open the template in Admin Console > Email",
+            "Pick the marketable product",
+            "Save",
+          ],
           uiPath: "Admin Console > Email > Template",
           surface: "objects",
         },
         async () => {
           const total = await count(`SELECT COUNT() ${activeTemplates}`, org);
           if (!total) return { pass: true, skip: true, detail: "No active email templates." };
-          const rows = await query(`SELECT Id, Name ${activeTemplates} AND ProductId = null LIMIT 20`, org);
+          const rows = await query(
+            `SELECT Id, Name ${activeTemplates} AND ProductId = null LIMIT 20`,
+            org
+          );
           return rows.length
-            ? { pass: false, detail: `${rows.length} of ${plural(total, "active template")} have no product.`, examples: nameList(rows) }
+            ? {
+                pass: false,
+                detail: `${rows.length} of ${plural(total, "active template")} have no product.`,
+                examples: nameList(rows),
+              }
             : { pass: true, detail: `All ${plural(total, "active template")} have a product.` };
         }
       ),
@@ -183,7 +232,11 @@ const readiness: ReadinessModule = {
           title: "No email has been waiting in the queue for over a day",
           severity: "error",
           why: "Emails in New or Retry should leave the queue within one run of the Send Email job. Ones that don't mean the job isn't running, the sending limit was hit, or the same error keeps repeating.",
-          steps: ["Check the Send Email job is scheduled", "Open Admin Console > Email > Queue and read the error on the Retry emails", "Raise the sending limit or fix the cause, then resend"],
+          steps: [
+            "Check the Send Email job is scheduled",
+            "Open Admin Console > Email > Queue and read the error on the Retry emails",
+            "Raise the sending limit or fix the cause, then resend",
+          ],
           uiPath: "Admin Console > Email > Queue",
           surface: "objects",
         },
@@ -191,8 +244,14 @@ const readiness: ReadinessModule = {
           // A count over the window, plus the newest emails before it read down the CreatedDate
           // index, so a backlog left in an org that stopped sending still shows.
           const [recent, older, jobOn] = await Promise.all([
-            count(`SELECT COUNT() FROM LifeScienceEmail WHERE ${STUCK} AND ${RECENT} AND CreatedDate < LAST_N_DAYS:1`, org),
-            query(`SELECT Status FROM LifeScienceEmail WHERE CreatedDate < LAST_N_DAYS:${WINDOW_DAYS} ORDER BY CreatedDate DESC LIMIT ${OLDER_ROWS}`, org),
+            count(
+              `SELECT COUNT() FROM LifeScienceEmail WHERE ${STUCK} AND ${RECENT} AND CreatedDate < LAST_N_DAYS:1`,
+              org
+            ),
+            query(
+              `SELECT Status FROM LifeScienceEmail WHERE CreatedDate < LAST_N_DAYS:${WINDOW_DAYS} ORDER BY CreatedDate DESC LIMIT ${OLDER_ROWS}`,
+              org
+            ),
             scheduled("EmailQueueSendSchedulable"),
           ]);
           const old = older.filter((r) => r.Status === "New" || r.Status === "Retry").length;
@@ -202,7 +261,12 @@ const readiness: ReadinessModule = {
               ? `Checked every email from the last ${WINDOW_DAYS} days and all ${older.length} older ones.`
               : `Checked every email from the last ${WINDOW_DAYS} days and the newest ${OLDER_ROWS} before that, not every one in the org.`;
           if (!recent && !old) return { pass: true, detail: `Nothing is stuck. ${scope}` };
-          const parts = [recent ? `${recent} from the last ${WINDOW_DAYS} days` : "", old ? `${old} older` : ""].filter(Boolean).join(", ");
+          const parts = [
+            recent ? `${recent} from the last ${WINDOW_DAYS} days` : "",
+            old ? `${old} older` : "",
+          ]
+            .filter(Boolean)
+            .join(", ");
           return {
             pass: false,
             detail: `${plural(recent + old, "email")} waiting more than a day (${parts})${jobOn ? "" : "; the Send Email job isn't scheduled"}. ${scope}`,
@@ -217,18 +281,33 @@ const readiness: ReadinessModule = {
           title: `Fewer than 5% of emails sent in the last ${WINDOW_DAYS} days bounced`,
           severity: "info",
           why: "Bounces point at wrong or retired addresses. Each one is an HCP who thinks they've been contacted and wasn't, so clean up the contact point.",
-          steps: ["Report on Emails with Bounced checked", "Correct or remove the address on the HCP's Contact Point Email"],
+          steps: [
+            "Report on Emails with Bounced checked",
+            "Correct or remove the address on the HCP's Contact Point Email",
+          ],
           uiPath: "App Launcher > Emails",
           surface: "objects",
         },
         async () => {
           const [bounced, sent] = await Promise.all([
             count(`SELECT COUNT() FROM LifeScienceEmail WHERE IsBounced = true AND ${RECENT}`, org),
-            count(`SELECT COUNT() FROM LifeScienceEmail WHERE Status = 'Success' AND ${RECENT}`, org),
+            count(
+              `SELECT COUNT() FROM LifeScienceEmail WHERE Status = 'Success' AND ${RECENT}`,
+              org
+            ),
           ]);
-          if (!sent && !bounced) return { pass: true, skip: true, detail: `No emails were sent in the last ${WINDOW_DAYS} days.` };
+          if (!sent && !bounced)
+            return {
+              pass: true,
+              skip: true,
+              detail: `No emails were sent in the last ${WINDOW_DAYS} days.`,
+            };
           const window = `in the last ${WINDOW_DAYS} days`;
-          if (!bounced) return { pass: true, detail: `None of ${plural(sent, "email")} sent ${window} bounced.` };
+          if (!bounced)
+            return {
+              pass: true,
+              detail: `None of ${plural(sent, "email")} sent ${window} bounced.`,
+            };
           const total = Math.max(sent, bounced);
           const pct = Math.round((bounced / total) * 100);
           const detail = `${bounced} of ${plural(total, "email")} sent ${window} bounced (${pct}%).`;
@@ -240,10 +319,15 @@ const readiness: ReadinessModule = {
         {
           id: "field-email.mobile.compose-objects",
           stage: "mobile",
-          title: "Templates, fragments, subscriptions, consent and email addresses sync to the iPad",
+          title:
+            "Templates, fragments, subscriptions, consent and email addresses sync to the iPad",
           severity: "error",
           why: "Reps compose offline, so the templates, fragments, consent and contact points have to be on the device. A missing one means no template list or a consent check that can't be done.",
-          steps: ["Open Admin Console > Mobile > DB Schema", "Add or switch on each object listed below for every profile that sends email", "Publish to iPad"],
+          steps: [
+            "Open Admin Console > Mobile > DB Schema",
+            "Add or switch on each object listed below for every profile that sends email",
+            "Publish to iPad",
+          ],
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },
@@ -257,7 +341,11 @@ const readiness: ReadinessModule = {
           title: "The email queue syncs to and from the iPad",
           severity: "error",
           why: "A composed email is a LifeScienceEmail record created on the device and uploaded at sync. If it isn't in the DB Schema the email never reaches the org's send queue.",
-          steps: ["Open Admin Console > Mobile > DB Schema", "Add or switch on each object listed below for every profile that sends email", "Publish to iPad"],
+          steps: [
+            "Open Admin Console > Mobile > DB Schema",
+            "Add or switch on each object listed below for every profile that sends email",
+            "Publish to iPad",
+          ],
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },
@@ -271,7 +359,11 @@ const readiness: ReadinessModule = {
           title: "Fragment usage syncs from the iPad",
           severity: "info",
           why: "When Track email fragment usage is on (Admin Console > Email > Email Settings > Tracking Settings), the iPad records which fragments a rep picked as LifeScienceEmailFragment records. Without a DB Schema record for it those choices aren't uploaded. Emails still send. If tracking is off, ignore this.",
-          steps: ["Open Admin Console > Mobile > DB Schema", "Add or switch on LifeScienceEmailFragment for every profile that sends email", "Publish to iPad"],
+          steps: [
+            "Open Admin Console > Mobile > DB Schema",
+            "Add or switch on LifeScienceEmailFragment for every profile that sends email",
+            "Publish to iPad",
+          ],
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },

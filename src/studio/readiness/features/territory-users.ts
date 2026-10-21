@@ -2,7 +2,15 @@
 
 import { activeTerritories, fieldProfiles, LSC_PSL } from "../../collectors/territory-users.js";
 import { focusTerritoryIds } from "../../profile-focus.js";
-import { count, countGroupedBy, inList, plural, query, queryByIds, type Row } from "../../helpers.js";
+import {
+  count,
+  countGroupedBy,
+  inList,
+  plural,
+  query,
+  queryByIds,
+  type Row,
+} from "../../helpers.js";
 import { chunkIds } from "../../../tools/helpers.js";
 import type { StudioFix } from "../../types.js";
 import { runCheck, type ReadinessModule } from "../index.js";
@@ -54,7 +62,8 @@ const readiness: ReadinessModule = {
       );
       return rows.filter((r) => LSC_PSL.test(String(r.DeveloperName)));
     });
-    const free = (p: Row) => p.Status === "Active" && Number(p.TotalLicenses) > Number(p.UsedLicenses);
+    const free = (p: Row) =>
+      p.Status === "Active" && Number(p.TotalLicenses) > Number(p.UsedLicenses);
     /** Active field users, optionally limited by extra SOQL conditions: the true total plus a sample. */
     const fieldUsers = async (extra: string) => {
       const names = await profiles();
@@ -80,7 +89,12 @@ const readiness: ReadinessModule = {
           surface: "territorySettings",
         },
         handlers,
-        ["Territory2Handler", "AccountTerritoryFieldsHandler", "PVChangedEventUpdateAccountTerrInfo", "PATIRejectionHandler"]
+        [
+          "Territory2Handler",
+          "AccountTerritoryFieldsHandler",
+          "PVChangedEventUpdateAccountTerrInfo",
+          "PATIRejectionHandler",
+        ]
       ),
 
       runCheck(
@@ -90,13 +104,21 @@ const readiness: ReadinessModule = {
           title: "Every field user has the Life Science Commercial license",
           severity: "error",
           why: "Without the Life Science Commercial permission set license, a rep can't be given the LSC permission sets and the iPad app refuses to sync for them.",
-          steps: ["Setup > Users: open the user and assign the Life Science Commercial permission set license.", "Then assign the LSC permission sets."],
+          steps: [
+            "Setup > Users: open the user and assign the Life Science Commercial permission set license.",
+            "Then assign the LSC permission sets.",
+          ],
           uiPath: "Setup > Users > Permission Set License Assignments",
           surface: "fieldUsers",
         },
         async () => {
           const psls = await lscPsl();
-          if (!psls.length) return { pass: true, skip: true, detail: "No Life Science Commercial license in this org." };
+          if (!psls.length)
+            return {
+              pass: true,
+              skip: true,
+              detail: "No Life Science Commercial license in this org.",
+            };
           // Licensed means holding any of the org's LSC licenses.
           const found = await fieldUsers(
             `AND Id NOT IN (SELECT AssigneeId FROM PermissionSetLicenseAssign WHERE PermissionSetLicenseId IN (${inList(psls.map((p) => String(p.Id)))}))`
@@ -107,7 +129,12 @@ const readiness: ReadinessModule = {
           // Only one license with seats is an unambiguous fix; with several, which one is the admin's call.
           const open = psls.filter(free);
           const psl = open.length === 1 ? open[0] : undefined;
-          if (!psl) return { pass: false, detail: `${plural(total, "field user")} without it.`, examples: labels(rows) };
+          if (!psl)
+            return {
+              pass: false,
+              detail: `${plural(total, "field user")} without it.`,
+              examples: labels(rows),
+            };
           const fixes: StudioFix[] = rows.slice(0, MAX_FIXES).map((u) => ({
             kind: "assignPsl",
             label: `Assign ${psl.MasterLabel} to ${u.Name}`,
@@ -116,7 +143,12 @@ const readiness: ReadinessModule = {
             pslId: String(psl.Id),
             pslLabel: String(psl.MasterLabel),
           }));
-          return { pass: false, detail: `${plural(total, "field user")} without it.`, examples: labels(rows), fixes };
+          return {
+            pass: false,
+            detail: `${plural(total, "field user")} without it.`,
+            examples: labels(rows),
+            fixes,
+          };
         }
       ),
 
@@ -127,21 +159,36 @@ const readiness: ReadinessModule = {
           title: "The Life Science Commercial license has room to spare",
           severity: "warning",
           why: "Once every license is used, new reps can't be provisioned. Running at 90% or more is when onboarding starts to stall.",
-          steps: ["Free licenses from deactivated users (remove their assignment), or ask Salesforce for more."],
+          steps: [
+            "Free licenses from deactivated users (remove their assignment), or ask Salesforce for more.",
+          ],
           uiPath: "Setup > Company Information > Permission Set Licenses",
           surface: "psls",
         },
         async () => {
           const psls = await lscPsl();
-          if (!psls.length) return { pass: true, skip: true, detail: "No Life Science Commercial license in this org." };
+          if (!psls.length)
+            return {
+              pass: true,
+              skip: true,
+              detail: "No Life Science Commercial license in this org.",
+            };
           const parts = psls.map((psl) => {
             const used = Number(psl.UsedLicenses);
             const total = Number(psl.TotalLicenses);
             const pct = total ? Math.round((used / total) * 100) : 100;
-            return { ok: total > 0 && pct < 90, text: total ? `${psl.MasterLabel}: ${used} of ${total} used (${pct}%)` : `${psl.MasterLabel}: no licenses (${psl.Status})` };
+            return {
+              ok: total > 0 && pct < 90,
+              text: total
+                ? `${psl.MasterLabel}: ${used} of ${total} used (${pct}%)`
+                : `${psl.MasterLabel}: no licenses (${psl.Status})`,
+            };
           });
           // Room on any one LSC license is room to provision.
-          return { pass: parts.some((p) => p.ok), detail: `${parts.map((p) => p.text).join("; ")}.` };
+          return {
+            pass: parts.some((p) => p.ok),
+            detail: `${parts.map((p) => p.text).join("; ")}.`,
+          };
         }
       ),
 
@@ -162,7 +209,11 @@ const readiness: ReadinessModule = {
           );
           if (!found) return { pass: true, skip: true, detail: "No iPad profiles found." };
           return found.total
-            ? { pass: false, detail: `${plural(found.total, "field user")} in no active-model territory.`, examples: labels(found.rows) }
+            ? {
+                pass: false,
+                detail: `${plural(found.total, "field user")} in no active-model territory.`,
+                examples: labels(found.rows),
+              }
             : { pass: true, detail: "Every field user has a territory." };
         }
       ),
@@ -189,20 +240,44 @@ const readiness: ReadinessModule = {
           /** The nearest territory above `id` that has a user, if any. */
           const coveredBy = (id: string): string | undefined => {
             const seen = new Set<string>();
-            for (let up = byId.get(id)?.ParentTerritory2Id; up && !seen.has(String(up)); up = byId.get(String(up))?.ParentTerritory2Id) {
+            for (
+              let up = byId.get(id)?.ParentTerritory2Id;
+              up && !seen.has(String(up));
+              up = byId.get(String(up))?.ParentTerritory2Id
+            ) {
               seen.add(String(up));
               if (users.get(String(up))) return String(up);
             }
             return undefined;
           };
           const ownless = ids.filter((id) => !users.get(id));
-          if (!ownless.length) return { pass: true, detail: `Every one of the ${many(ids.length, "territory", "territories")} in the active model has a user of its own.` };
+          if (!ownless.length)
+            return {
+              pass: true,
+              detail: `Every one of the ${many(ids.length, "territory", "territories")} in the active model has a user of its own.`,
+            };
           // The ones with no user above them either are what fails, so they're read first.
-          const bareIds = spread(ownless.filter((id) => !coveredBy(id)), MAX_OWNLESS);
-          const coveredIds = spread(ownless.filter((id) => coveredBy(id)), MAX_OWNLESS - bareIds.length);
+          const bareIds = spread(
+            ownless.filter((id) => !coveredBy(id)),
+            MAX_OWNLESS
+          );
+          const coveredIds = spread(
+            ownless.filter((id) => coveredBy(id)),
+            MAX_OWNLESS - bareIds.length
+          );
           const checked = bareIds.length + coveredIds.length;
-          const accounts = await countGroupedBy("ObjectTerritory2Association", "Territory2Id", [...bareIds, ...coveredIds], org, "SobjectType = 'Account'");
-          const withAccounts = (list: string[]) => list.filter((id) => accounts.get(id)).map((id): [string, number] => [id, accounts.get(id)!]).sort((a, b) => b[1] - a[1]);
+          const accounts = await countGroupedBy(
+            "ObjectTerritory2Association",
+            "Territory2Id",
+            [...bareIds, ...coveredIds],
+            org,
+            "SobjectType = 'Account'"
+          );
+          const withAccounts = (list: string[]) =>
+            list
+              .filter((id) => accounts.get(id))
+              .map((id): [string, number] => [id, accounts.get(id)!])
+              .sort((a, b) => b[1] - a[1]);
           const bare = withAccounts(bareIds);
           const covered = withAccounts(coveredIds);
           const coveredNote = covered.length
@@ -219,9 +294,14 @@ const readiness: ReadinessModule = {
             ? {
                 pass: false,
                 detail: `${many(bare.length, "territory", "territories")} with accounts ${bare.length === 1 ? "has" : "have"} no user on ${bare.length === 1 ? "it" : "them"} or above ${bare.length === 1 ? "it" : "them"}.${coveredNote}${bare.length > MAX_EXAMPLES ? ` Showing the ${MAX_EXAMPLES} with the most accounts.` : ""} ${scope}`,
-                examples: bare.slice(0, MAX_EXAMPLES).map(([id, n]) => `${nameOf(id)} (${plural(n, "account")})`),
+                examples: bare
+                  .slice(0, MAX_EXAMPLES)
+                  .map(([id, n]) => `${nameOf(id)} (${plural(n, "account")})`),
               }
-            : { pass: true, detail: `Every territory with accounts has a user on it or above it.${coveredNote} ${scope}` };
+            : {
+                pass: true,
+                detail: `Every territory with accounts has a user on it or above it.${coveredNote} ${scope}`,
+              };
         }
       ),
 
@@ -232,17 +312,31 @@ const readiness: ReadinessModule = {
           title: "Provider territory info matches the account alignment",
           severity: "warning",
           why: "Provider Account Territory Info holds an account's details for one territory (visit counts, last visit), which Activity Plans, Next Best Customer and territory reports read. A row for an account no longer aligned to that territory is stale; an aligned account without one has no territory details there.",
-          steps: ["Run the territory alignment jobs (Admin Console > Territory Management Jobs).", "Delete leftover info rows for accounts no longer in the territory."],
+          steps: [
+            "Run the territory alignment jobs (Admin Console > Territory Management Jobs).",
+            "Delete leftover info rows for accounts no longer in the territory.",
+          ],
           uiPath: "Admin Console > Territory Management Jobs",
           surface: "providerTerritoryInfo",
         },
         async () => {
           // Active model only: planning or archived models keep their own info rows.
-          const [{ rows: modelTerritories, model }, focus] = await Promise.all([activeTerritories(org), focusTerritoryIds(org)]);
+          const [{ rows: modelTerritories, model }, focus] = await Promise.all([
+            activeTerritories(org),
+            focusTerritoryIds(org),
+          ]);
           const mine = focus && new Set(focus);
-          const territories = mine ? modelTerritories.filter((t) => mine.has(String(t.Id))) : modelTerritories;
-          if (mine && model && !territories.length) return { pass: true, skip: true, detail: "This profile's users have no territory in the active model." };
-          if (!model || !territories.length) return { pass: true, skip: true, detail: "No account alignment yet." };
+          const territories = mine
+            ? modelTerritories.filter((t) => mine.has(String(t.Id)))
+            : modelTerritories;
+          if (mine && model && !territories.length)
+            return {
+              pass: true,
+              skip: true,
+              detail: "This profile's users have no territory in the active model.",
+            };
+          if (!model || !territories.length)
+            return { pass: true, skip: true, detail: "No account alignment yet." };
           // One query per IN-list chunk of the model's territories, each reading its share of the sample,
           // so the rows come from across the model rather than from its first territories.
           const chunks = chunkIds(territories.map((t) => String(t.Id)));
@@ -259,18 +353,40 @@ const readiness: ReadinessModule = {
               )
             ).flat();
           const [info, alignments] = await Promise.all([
-            sample((ids) => `SELECT AccountId, Account.Name, Territory2Id, Territory2.Name FROM ProviderAcctTerritoryInfo WHERE Territory2Id IN (${ids})`),
-            sample((ids) => `SELECT ObjectId, Object.Name, Territory2Id, Territory2.Name FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2Id IN (${ids})`),
+            sample(
+              (ids) =>
+                `SELECT AccountId, Account.Name, Territory2Id, Territory2.Name FROM ProviderAcctTerritoryInfo WHERE Territory2Id IN (${ids})`
+            ),
+            sample(
+              (ids) =>
+                `SELECT ObjectId, Object.Name, Territory2Id, Territory2.Name FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2Id IN (${ids})`
+            ),
           ]);
-          if (!info.length && !alignments.length) return { pass: true, skip: true, detail: "No account alignment yet." };
+          if (!info.length && !alignments.length)
+            return { pass: true, skip: true, detail: "No account alignment yet." };
           // The other side of each sampled row, looked up by account id.
           const [infoOfAligned, alignmentsOfInfo] = await Promise.all([
-            queryByIds("AccountId, Territory2Id", "ProviderAcctTerritoryInfo", "AccountId", [...new Set(alignments.map((r) => String(r.ObjectId)))], org),
-            queryByIds("ObjectId, Territory2Id", "ObjectTerritory2Association", "ObjectId", [...new Set(info.map((r) => String(r.AccountId)))], org, "SobjectType = 'Account'"),
+            queryByIds(
+              "AccountId, Territory2Id",
+              "ProviderAcctTerritoryInfo",
+              "AccountId",
+              [...new Set(alignments.map((r) => String(r.ObjectId)))],
+              org
+            ),
+            queryByIds(
+              "ObjectId, Territory2Id",
+              "ObjectTerritory2Association",
+              "ObjectId",
+              [...new Set(info.map((r) => String(r.AccountId)))],
+              org,
+              "SobjectType = 'Account'"
+            ),
           ]);
           // Each info row belongs to one account in one territory, so the pair is what has to match.
-          const key = (account: unknown, territory: unknown) => `${String(account).slice(0, 15)}|${String(territory).slice(0, 15)}`;
-          const name = (r: Row, rel: string) => String((r[rel] as { Name?: string } | null)?.Name ?? "");
+          const key = (account: unknown, territory: unknown) =>
+            `${String(account).slice(0, 15)}|${String(territory).slice(0, 15)}`;
+          const name = (r: Row, rel: string) =>
+            String((r[rel] as { Name?: string } | null)?.Name ?? "");
           const infoKeys = new Set(infoOfAligned.map((r) => key(r.AccountId, r.Territory2Id)));
           const alignedKeys = new Set(alignmentsOfInfo.map((r) => key(r.ObjectId, r.Territory2Id)));
           const orphans = info.filter((r) => !alignedKeys.has(key(r.AccountId, r.Territory2Id)));
@@ -284,15 +400,29 @@ const readiness: ReadinessModule = {
               ? `Checked all ${read} in the active model.`
               : `Checked a sample of ${read} from across the active model, not every one in it.`;
           const parts = [
-            orphans.length ? `${plural(orphans.length, "territory info row")} for an account no longer aligned to that territory` : "",
-            missing.length ? `${plural(missing.length, "aligned account")} with no territory info for that territory` : "",
+            orphans.length
+              ? `${plural(orphans.length, "territory info row")} for an account no longer aligned to that territory`
+              : "",
+            missing.length
+              ? `${plural(missing.length, "aligned account")} with no territory info for that territory`
+              : "",
           ].filter(Boolean);
           if (!parts.length) return { pass: true, detail: `In step. ${scope}` };
           const examples = [
-            ...orphans.map((r) => `${name(r, "Account") || r.AccountId} in ${name(r, "Territory2") || r.Territory2Id}: info row, not aligned`),
-            ...missing.map((r) => `${name(r, "Object") || r.ObjectId} in ${name(r, "Territory2") || r.Territory2Id}: aligned, no info row`),
+            ...orphans.map(
+              (r) =>
+                `${name(r, "Account") || r.AccountId} in ${name(r, "Territory2") || r.Territory2Id}: info row, not aligned`
+            ),
+            ...missing.map(
+              (r) =>
+                `${name(r, "Object") || r.ObjectId} in ${name(r, "Territory2") || r.Territory2Id}: aligned, no info row`
+            ),
           ];
-          return { pass: false, detail: `${parts.join("; ")}. ${scope}`, examples: examples.slice(0, MAX_EXAMPLES) };
+          return {
+            pass: false,
+            detail: `${parts.join("; ")}. ${scope}`,
+            examples: examples.slice(0, MAX_EXAMPLES),
+          };
         }
       ),
 
@@ -303,15 +433,27 @@ const readiness: ReadinessModule = {
           title: "The territory alignment jobs haven't failed recently",
           severity: "warning",
           why: "The alignment batches (accounts, zip, brick, affiliation) turn rules into assignments. A failed run leaves new accounts and moved rules unaligned.",
-          steps: ["Open Admin Console > Territory Management Jobs, re-run the failed job, and check Apex Jobs for the error."],
+          steps: [
+            "Open Admin Console > Territory Management Jobs, re-run the failed job, and check Apex Jobs for the error.",
+          ],
           uiPath: "Admin Console > Territory Management Jobs",
         },
         async () => {
-          const rows = await failedJobs(org, ["%Territor%Align%", "%Align%Territor%", "%ZipToTerritory%", "%BrickToTerritory%", "%Affiliation%Align%"]);
+          const rows = await failedJobs(org, [
+            "%Territor%Align%",
+            "%Align%Territor%",
+            "%ZipToTerritory%",
+            "%BrickToTerritory%",
+            "%Affiliation%Align%",
+          ]);
           const label = (r: Record<string, unknown>) =>
             `${(r.ApexClass as { Name?: string } | undefined)?.Name}: ${String(r.ExtendedStatus ?? r.Status).slice(0, 80)}`;
           return rows.length
-            ? { pass: false, detail: `${plural(rows.length, "failed run")} in the last 14 days.`, examples: rows.map(label) }
+            ? {
+                pass: false,
+                detail: `${plural(rows.length, "failed run")} in the last 14 days.`,
+                examples: rows.map(label),
+              }
             : { pass: true, detail: "No failed runs in the last 14 days." };
         }
       ),
@@ -323,12 +465,20 @@ const readiness: ReadinessModule = {
           title: "Territory objects sync to the iPad",
           severity: "error",
           why: "The iPad filters accounts by the rep's territories. Without these objects offline, the account list and territory picker are empty.",
-          steps: ["Admin Console > Mobile > DB Schema: add or switch on a record for each object listed, for the field profiles.", "Publish to iPad."],
+          steps: [
+            "Admin Console > Mobile > DB Schema: add or switch on a record for each object listed, for the field profiles.",
+            "Publish to iPad.",
+          ],
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "territorySettings",
         },
         schema,
-        ["Territory2", "UserTerritory2Association", "ObjectTerritory2Association", "ProviderAcctTerritoryInfo"]
+        [
+          "Territory2",
+          "UserTerritory2Association",
+          "ObjectTerritory2Association",
+          "ProviderAcctTerritoryInfo",
+        ]
       ),
     ]);
   },

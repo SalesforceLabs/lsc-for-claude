@@ -16,36 +16,118 @@ export type SymptomMatch =
 
 // Words too common in LSC errors and descriptions to tell causes apart.
 const STOP_WORDS = new Set([
-  "a", "an", "the", "and", "or", "of", "to", "in", "on", "for", "is", "are", "was", "be", "it",
-  "not", "no", "but", "with", "as", "at", "by", "from", "this", "that", "my", "our", "i", "we",
-  "can", "can't", "cant", "cannot", "don't", "dont", "doesn't", "doesnt", "won't", "wont", "isn't",
-  "after", "when", "while", "all", "any", "some", "only", "get", "got", "shows", "show", "showing",
-  "error", "errors", "issue", "problem", "fails", "failed", "fail", "failing", "working", "work",
-  "works", "missing", "lsc", "ipad", "mobile", "app", "user", "users", "rep", "reps", "record",
-  "records", "please", "there", "you", "your", "have", "has", "had", "does", "do", "did", "x",
+  "a",
+  "an",
+  "the",
+  "and",
+  "or",
+  "of",
+  "to",
+  "in",
+  "on",
+  "for",
+  "is",
+  "are",
+  "was",
+  "be",
+  "it",
+  "not",
+  "no",
+  "but",
+  "with",
+  "as",
+  "at",
+  "by",
+  "from",
+  "this",
+  "that",
+  "my",
+  "our",
+  "i",
+  "we",
+  "can",
+  "can't",
+  "cant",
+  "cannot",
+  "don't",
+  "dont",
+  "doesn't",
+  "doesnt",
+  "won't",
+  "wont",
+  "isn't",
+  "after",
+  "when",
+  "while",
+  "all",
+  "any",
+  "some",
+  "only",
+  "get",
+  "got",
+  "shows",
+  "show",
+  "showing",
+  "error",
+  "errors",
+  "issue",
+  "problem",
+  "fails",
+  "failed",
+  "fail",
+  "failing",
+  "working",
+  "work",
+  "works",
+  "missing",
+  "lsc",
+  "ipad",
+  "mobile",
+  "app",
+  "user",
+  "users",
+  "rep",
+  "reps",
+  "record",
+  "records",
+  "please",
+  "there",
+  "you",
+  "your",
+  "have",
+  "has",
+  "had",
+  "does",
+  "do",
+  "did",
+  "x",
 ]);
 
 /** Lower case, straight quotes, Salesforce ids and numbers removed, whitespace collapsed. */
 export function normalizeText(text: string): string {
-  return text
-    // Errors pasted from JSON keep their escapes ("...Column:42\nNo such column").
-    .replace(/\\[nrt]/g, " ")
-    .toLowerCase()
-    .replace(/[‘’‚‛]/g, "'")
-    .replace(/[“”„‟]/g, '"')
-    .replace(/\b[a-z0-9]{3}[a-z0-9]{12}(?:[a-z0-9]{3})?\b/g, (m) => (/\d/.test(m) ? " " : m))
-    .replace(/\d+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return (
+    text
+      // Errors pasted from JSON keep their escapes ("...Column:42\nNo such column").
+      .replace(/\\[nrt]/g, " ")
+      .toLowerCase()
+      .replace(/[‘’‚‛]/g, "'")
+      .replace(/[“”„‟]/g, '"')
+      .replace(/\b[a-z0-9]{3}[a-z0-9]{12}(?:[a-z0-9]{3})?\b/g, (m) => (/\d/.test(m) ? " " : m))
+      .replace(/\d+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 }
 
 export function tokens(text: string): string[] {
-  return normalizeText(text)
-    .split(/[^a-z0-9_'.]+/)
-    .map((t) => t.replace(/^[.']+|[.']+$/g, ""))
-    .filter((t) => t.length > 2 && !STOP_WORDS.has(t))
-    // Plurals match their singular ("accounts" / "account").
-    .map((t) => (t.length > 4 && t.endsWith("s") && !t.endsWith("ss") ? t.slice(0, -1) : t));
+  return (
+    normalizeText(text)
+      .split(/[^a-z0-9_'.]+/)
+      .map((t) => t.replace(/^[.']+|[.']+$/g, ""))
+      .filter((t) => t.length > 2 && !STOP_WORDS.has(t))
+      // Plurals match their singular ("accounts" / "account").
+      .map((t) => (t.length > 4 && t.endsWith("s") && !t.endsWith("ss") ? t.slice(0, -1) : t))
+  );
 }
 
 /** `phrase` appears in `text` as whole words. Both already normalized. */
@@ -96,7 +178,10 @@ function scoreCause(query: string, cause: KnownCause): { score: number; matched:
   const top = [bySymptom, byKeyword, byTitle].reduce((a, b) => (b.score > a.score ? b : a));
   // Several keywords named in one query (object and field, say) point at the cause more surely.
   const keywordHits = (cause.keywords ?? []).filter((k) => phraseScore(query, k) >= 0.8).length;
-  return { score: Math.min(1, top.score + 0.1 * Math.max(0, keywordHits - 1)), matched: top.matched };
+  return {
+    score: Math.min(1, top.score + 0.1 * Math.max(0, keywordHits - 1)),
+    matched: top.matched,
+  };
 }
 
 function scoreRule(query: string, rule: ValidationRule): { score: number; matched: string } {
@@ -127,7 +212,9 @@ export function matchSymptom(
     if (score >= minScore) matches.push({ kind: "rule", item: rule, score, matched });
   }
   // Ties go to causes: they say why and how to fix it, not only what to check.
-  matches.sort((a, b) => b.score - a.score || (a.kind === b.kind ? 0 : a.kind === "cause" ? -1 : 1));
+  matches.sort(
+    (a, b) => b.score - a.score || (a.kind === b.kind ? 0 : a.kind === "cause" ? -1 : 1)
+  );
   // Next to an exact match, loose word overlaps are noise.
   const floor = (matches[0]?.score ?? 0) * RELATIVE_FLOOR;
   return matches.filter((m) => m.score >= floor);

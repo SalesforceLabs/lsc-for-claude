@@ -16,22 +16,50 @@ export type DriftInput =
   | { action: "diff"; id: string }
   | { action: "delete"; id: string };
 
-export async function drift(input: DriftInput & { action: "list" }, org: string): Promise<DriftList>;
-export async function drift(input: DriftInput & { action: "save" }, org: string): Promise<DriftSaved>;
-export async function drift(input: DriftInput & { action: "diff" }, org: string): Promise<DriftDiff>;
-export async function drift(input: DriftInput & { action: "delete" }, org: string): Promise<DriftDeleted>;
-export async function drift(input: DriftInput, org: string): Promise<DriftList | DriftSaved | DriftDiff | DriftDeleted>;
+export async function drift(
+  input: DriftInput & { action: "list" },
+  org: string
+): Promise<DriftList>;
+export async function drift(
+  input: DriftInput & { action: "save" },
+  org: string
+): Promise<DriftSaved>;
+export async function drift(
+  input: DriftInput & { action: "diff" },
+  org: string
+): Promise<DriftDiff>;
+export async function drift(
+  input: DriftInput & { action: "delete" },
+  org: string
+): Promise<DriftDeleted>;
+export async function drift(
+  input: DriftInput,
+  org: string
+): Promise<DriftList | DriftSaved | DriftDiff | DriftDeleted>;
 export async function drift(input: DriftInput, org: string) {
   switch (input.action) {
     case "list": {
-      const [snapshots, recent] = await Promise.all([listSnapshots(org), recentChanges(org, input.days ?? DEFAULT_DAYS)]);
+      const [snapshots, recent] = await Promise.all([
+        listSnapshots(org),
+        recentChanges(org, input.days ?? DEFAULT_DAYS),
+      ]);
       return { org, snapshots, recent };
     }
     case "save":
-      return { snapshot: await saveSnapshot(org, await collectConfig(org, undefined, { strict: true }), input.label) };
+      return {
+        snapshot: await saveSnapshot(
+          org,
+          await collectConfig(org, undefined, { strict: true }),
+          input.label
+        ),
+      };
     case "diff": {
       const stored = await loadSnapshot(org, input.id);
-      const diff = diffSnapshots(stored.config, await collectConfig(org, undefined, { strict: true }), stored.meta);
+      const diff = diffSnapshots(
+        stored.config,
+        await collectConfig(org, undefined, { strict: true }),
+        stored.meta
+      );
       await attachModifiers(diff.changes, org);
       return diff;
     }

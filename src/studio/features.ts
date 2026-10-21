@@ -67,12 +67,19 @@ export const FEATURES: FeatureDefinition[] = [
     handlerKeywords: ["Sample", "Inventory", "Disbursement", "ProductItem", "ProductRequest"],
     adminCategoryKeywords: ["Sample", "Inventory"],
     actionKeywords: ["Sample", "Inventory"],
-    tabKeywords: ["Sample", "ProductDisbursement", "ProductItem", "InventoryOperation", "ProductTransfer"],
+    tabKeywords: [
+      "Sample",
+      "ProductDisbursement",
+      "ProductItem",
+      "InventoryOperation",
+      "ProductTransfer",
+    ],
   },
   {
     id: "accounts",
     title: "Account Management",
-    description: "HCP/HCO accounts, addresses, affiliations, licenses, data change requests, and account search.",
+    description:
+      "HCP/HCO accounts, addresses, affiliations, licenses, data change requests, and account search.",
     available: true,
     objects: [
       "Account",
@@ -87,14 +94,29 @@ export const FEATURES: FeatureDefinition[] = [
       "LifeSciDataChgDefMngFld",
       "UserAdditionalInfo",
     ],
-    handlerKeywords: ["Affiliation", "HealthcareProvider", "ContactPoint", "AccountAddress", "AccountTerritoryFields", "ATFPreferred"],
-    adminCategoryKeywords: ["Address", "Affiliation", "AccountSearch", "DEASettings", "License", "FieldSetMapping"],
+    handlerKeywords: [
+      "Affiliation",
+      "HealthcareProvider",
+      "ContactPoint",
+      "AccountAddress",
+      "AccountTerritoryFields",
+      "ATFPreferred",
+    ],
+    adminCategoryKeywords: [
+      "Address",
+      "Affiliation",
+      "AccountSearch",
+      "DEASettings",
+      "License",
+      "FieldSetMapping",
+    ],
     actionKeywords: ["Affiliation", "BusinessLicense", "DataChange"],
   },
   {
     id: "activity-plan",
     title: "Activity Plan",
-    description: "Activity plans, time periods, account and product goals, and territory plan assignments.",
+    description:
+      "Activity plans, time periods, account and product goals, and territory plan assignments.",
     available: true,
     objects: [
       "ActivityPlan",
@@ -109,14 +131,23 @@ export const FEATURES: FeatureDefinition[] = [
       "GoalDefinition",
       "GoalAssignment",
     ],
-    handlerKeywords: ["ActivityPlan", "ProviderActivityGoal", "TerritoryBusinessPlan", "TerritoryBusPlan", "TerrBusPlan", "GoalAsgmt", "GoalAssignment"],
+    handlerKeywords: [
+      "ActivityPlan",
+      "ProviderActivityGoal",
+      "TerritoryBusinessPlan",
+      "TerritoryBusPlan",
+      "TerrBusPlan",
+      "GoalAsgmt",
+      "GoalAssignment",
+    ],
     adminCategoryKeywords: ["ActivityPlan"],
     actionKeywords: ["ActivityPlan", "Activity Plan", "ProviderActivityGoal"],
   },
   {
     id: "products",
     title: "Product Management",
-    description: "Products, marketable products, territory availability, account restrictions, and product info.",
+    description:
+      "Products, marketable products, territory availability, account restrictions, and product info.",
     available: true,
     objects: [
       "Product2",
@@ -127,14 +158,20 @@ export const FEATURES: FeatureDefinition[] = [
       "ProductCatalog",
       "ProductCategory",
     ],
-    handlerKeywords: ["ProductGuidance", "ProductTerr", "ProviderAcctProductInfo", "LifeSciMarketableProduct"],
+    handlerKeywords: [
+      "ProductGuidance",
+      "ProductTerr",
+      "ProviderAcctProductInfo",
+      "LifeSciMarketableProduct",
+    ],
     adminCategoryKeywords: ["Product"],
     actionKeywords: ["LifeSciMarketableProduct", "ProductCatalog"],
   },
   {
     id: "kam",
     title: "Key Account Management",
-    description: "Account plans, objectives, stakeholders, participants, and action plan templates.",
+    description:
+      "Account plans, objectives, stakeholders, participants, and action plan templates.",
     available: true,
     objects: [
       "AccountPlan",
@@ -159,11 +196,18 @@ export const FEATURES: FeatureDefinition[] = [
   {
     id: "calendar-tot",
     title: "Calendar & Time Off Territory",
-    description: "Calendar events, Time Off Territory, routines, holidays, working days, and planner settings.",
+    description:
+      "Calendar events, Time Off Territory, routines, holidays, working days, and planner settings.",
     available: true,
     objects: ["Event", "Holiday", "TimeSlot"],
     handlerKeywords: ["TUD", "TimeOff"],
-    adminCategoryKeywords: ["TimeOffTerritory", "PlannerAdministration", "CalendarEvent", "WorkingDays", "BestTime"],
+    adminCategoryKeywords: [
+      "TimeOffTerritory",
+      "PlannerAdministration",
+      "CalendarEvent",
+      "WorkingDays",
+      "BestTime",
+    ],
     actionKeywords: ["TimeOff", "Time Off", "Routine"],
   },
   {
@@ -209,7 +253,8 @@ export const FEATURES: FeatureDefinition[] = [
   {
     id: "intelligent-content",
     title: "Intelligent Content",
-    description: "Presentations, pages, product links, sharing to territories, and click-stream tracking.",
+    description:
+      "Presentations, pages, product links, sharing to territories, and click-stream tracking.",
     available: true,
     objects: [
       "Presentation",
@@ -286,7 +331,12 @@ export const FEATURES: FeatureDefinition[] = [
     title: "Next Best (NBC / NBA / NBM)",
     description: "Next Best Customer scores, recommended actions, and product message scores.",
     available: true,
-    objects: ["TerritoryAccountScore", "TerritoryAcctRcmdAction", "TerritoryAcctProdMsgScore", "ProductGuidance"],
+    objects: [
+      "TerritoryAccountScore",
+      "TerritoryAcctRcmdAction",
+      "TerritoryAcctProdMsgScore",
+      "ProductGuidance",
+    ],
     handlerKeywords: ["TerrAccRcm", "TerrAcctRcm", "ProductGuidance", "NextBest"],
     adminCategoryKeywords: ["NextBest"],
     actionKeywords: ["NextBest", "TerritoryAcctRcmdAction"],
@@ -294,7 +344,8 @@ export const FEATURES: FeatureDefinition[] = [
   {
     id: "events",
     title: "Events Management",
-    description: "Managed events, participants, sessions, resources, budgets, estimated expenses, and stage paths.",
+    description:
+      "Managed events, participants, sessions, resources, budgets, estimated expenses, and stage paths.",
     available: true,
     objects: [
       "MngEvent",
@@ -319,7 +370,17 @@ export const FEATURES: FeatureDefinition[] = [
       "Expert",
       "ExpertSubject",
     ],
-    handlerKeywords: ["MngEvent", "MngEvt", "EventMgmt", "EstimatedExp", "EstExp", "Expense", "Attendee", "Expert", "EventBusinessHours"],
+    handlerKeywords: [
+      "MngEvent",
+      "MngEvt",
+      "EventMgmt",
+      "EstimatedExp",
+      "EstExp",
+      "Expense",
+      "Attendee",
+      "Expert",
+      "EventBusinessHours",
+    ],
     adminCategoryKeywords: [],
     actionKeywords: ["MngEvent", "Managed Event"],
     complianceModuleType: "ManagedEvent",
@@ -327,7 +388,8 @@ export const FEATURES: FeatureDefinition[] = [
   {
     id: "medical-inquiries",
     title: "Medical Inquiries",
-    description: "Medical information requests, inquiry questions and answers, the linked Case, queue routing, and disclaimers.",
+    description:
+      "Medical information requests, inquiry questions and answers, the linked Case, queue routing, and disclaimers.",
     available: true,
     objects: ["Inquiry", "InquiryQuestion", "InquiryQuestionAnswer", "Case"],
     handlerKeywords: ["Case", "Inquiry"],
@@ -339,7 +401,8 @@ export const FEATURES: FeatureDefinition[] = [
   {
     id: "briefings",
     title: "Briefings",
-    description: "Daily Podcasts — toggle, licenses, content pipeline, profile assignments, permissions, and iPad sync.",
+    description:
+      "Daily Podcasts — toggle, licenses, content pipeline, profile assignments, permissions, and iPad sync.",
     available: true,
     objects: [],
     handlerKeywords: [],

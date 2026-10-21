@@ -13,7 +13,10 @@ export interface UserMatch {
   profile: string | null;
 }
 
-export type UserLookup = { kind: "one"; user: UserMatch } | { kind: "many"; matches: UserMatch[] } | { kind: "none" };
+export type UserLookup =
+  | { kind: "one"; user: UserMatch }
+  | { kind: "many"; matches: UserMatch[] }
+  | { kind: "none" };
 
 type Querier = (soql: string) => Promise<Row[]>;
 
@@ -21,7 +24,12 @@ const MAX_MATCHES = 10;
 
 function toMatch(r: Row): UserMatch {
   const profile = (r.Profile as { Name?: unknown } | null | undefined)?.Name;
-  return { id: String(r.Id), name: String(r.Name ?? ""), username: String(r.Username ?? ""), profile: profile ? String(profile) : null };
+  return {
+    id: String(r.Id),
+    name: String(r.Name ?? ""),
+    username: String(r.Username ?? ""),
+    profile: profile ? String(profile) : null,
+  };
 }
 
 /** Decides among candidate rows: an exact username/email/name match wins over a partial one. */
@@ -32,7 +40,12 @@ export function chooseUser(term: string, rows: Row[]): UserLookup {
   const t = term.trim().toLowerCase();
   const exact = rows.filter((r, i) => {
     const m = matches[i];
-    return m.id.toLowerCase() === t || m.username.toLowerCase() === t || String(r.Email ?? "").toLowerCase() === t || m.name.toLowerCase() === t;
+    return (
+      m.id.toLowerCase() === t ||
+      m.username.toLowerCase() === t ||
+      String(r.Email ?? "").toLowerCase() === t ||
+      m.name.toLowerCase() === t
+    );
   });
   if (exact.length === 1) return { kind: "one", user: toMatch(exact[0]) };
   // Active users come first in the query; when exactly one of the candidates is active it is the one meant.
@@ -69,6 +82,11 @@ export function resolveFeatureId(text: string): string | null {
   const features = listFeatures();
   const exact = features.find((f) => f.id.toLowerCase() === t || f.title.toLowerCase() === t);
   if (exact) return exact.id;
-  const partial = features.filter((f) => f.id.toLowerCase().includes(t) || f.title.toLowerCase().includes(t) || t.includes(f.id.toLowerCase()));
+  const partial = features.filter(
+    (f) =>
+      f.id.toLowerCase().includes(t) ||
+      f.title.toLowerCase().includes(t) ||
+      t.includes(f.id.toLowerCase())
+  );
   return partial.length === 1 ? partial[0].id : null;
 }

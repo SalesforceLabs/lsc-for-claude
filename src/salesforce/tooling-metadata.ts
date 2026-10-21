@@ -17,7 +17,15 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { directApiVersion, directEnabled, directGet, directQuery, directToolingPatch, type CredentialFetcher, type DirectOutcome } from "./direct.js";
+import {
+  directApiVersion,
+  directEnabled,
+  directGet,
+  directQuery,
+  directToolingPatch,
+  type CredentialFetcher,
+  type DirectOutcome,
+} from "./direct.js";
 import type { StatusHook } from "./direct-metadata.js";
 import { parseXml, unescapeXml, type XmlNode } from "../studio/metadata/xml.js";
 
@@ -35,8 +43,16 @@ type Shape = "s" | "b" | "n" | [Shape] | { [tag: string]: Shape };
 
 class Unsupported extends Error {}
 
-const RULE: Shape = { booleanFilter: "s", criteria: [{ leftValue: "s", operator: "s", rightValue: "s" }] };
-const PROPERTY: Shape = { name: "s", type: "s", value: "s", valueList: { valueListItems: [{ value: "s", visibilityRule: RULE }] } };
+const RULE: Shape = {
+  booleanFilter: "s",
+  criteria: [{ leftValue: "s", operator: "s", rightValue: "s" }],
+};
+const PROPERTY: Shape = {
+  name: "s",
+  type: "s",
+  value: "s",
+  valueList: { valueListItems: [{ value: "s", visibilityRule: RULE }] },
+};
 
 const SHAPES: Record<ToolingType, { [tag: string]: Shape }> = {
   FlexiPage: {
@@ -46,8 +62,18 @@ const SHAPES: Record<ToolingType, { [tag: string]: Shape }> = {
         appendable: "s",
         itemInstances: [
           {
-            componentInstance: { componentInstanceProperties: [PROPERTY], componentName: "s", identifier: "s", visibilityRule: RULE },
-            fieldInstance: { fieldInstanceProperties: [{ name: "s", value: "s" }], fieldItem: "s", identifier: "s", visibilityRule: RULE },
+            componentInstance: {
+              componentInstanceProperties: [PROPERTY],
+              componentName: "s",
+              identifier: "s",
+              visibilityRule: RULE,
+            },
+            fieldInstance: {
+              fieldInstanceProperties: [{ name: "s", value: "s" }],
+              fieldItem: "s",
+              identifier: "s",
+              visibilityRule: RULE,
+            },
           },
         ],
         mode: "s",
@@ -65,7 +91,17 @@ const SHAPES: Record<ToolingType, { [tag: string]: Shape }> = {
   },
   CompactLayout: { fields: ["s" as Shape], label: "s" },
   CustomApplication: {
-    actionOverrides: [{ actionName: "s", comment: "s", content: "s", formFactor: "s", pageOrSobjectType: "s", skipRecordTypeSelect: "b", type: "s" }],
+    actionOverrides: [
+      {
+        actionName: "s",
+        comment: "s",
+        content: "s",
+        formFactor: "s",
+        pageOrSobjectType: "s",
+        skipRecordTypeSelect: "b",
+        type: "s",
+      },
+    ],
     brand: { headerColor: "s", logo: "s", logoVersion: "n", shouldOverrideOrgTheme: "b" },
     defaultLandingTab: "s",
     description: "s",
@@ -76,7 +112,17 @@ const SHAPES: Record<ToolingType, { [tag: string]: Shape }> = {
     isOmniPinnedViewEnabled: "b",
     label: "s",
     navType: "s",
-    profileActionOverrides: [{ actionName: "s", content: "s", formFactor: "s", pageOrSobjectType: "s", profile: "s", recordType: "s", type: "s" }],
+    profileActionOverrides: [
+      {
+        actionName: "s",
+        content: "s",
+        formFactor: "s",
+        pageOrSobjectType: "s",
+        profile: "s",
+        recordType: "s",
+        type: "s",
+      },
+    ],
     setupExperience: "s",
     tabs: ["s" as Shape],
     uiType: "s",
@@ -86,12 +132,14 @@ const SHAPES: Record<ToolingType, { [tag: string]: Shape }> = {
 };
 
 function scalar(node: XmlNode, kind: "s" | "b" | "n"): string | boolean | number {
-  if (node.children.length) throw new Unsupported(`<${node.tag}> has elements where text was expected`);
+  if (node.children.length)
+    throw new Unsupported(`<${node.tag}> has elements where text was expected`);
   const text = node.text === undefined ? "" : unescapeXml(node.text);
   // `{[devName:asset]}` file-asset references are expanded to URLs by Tooling: leave them to the deploy.
   if (text.includes("{[")) throw new Unsupported(`<${node.tag}> holds a file-asset reference`);
   if (kind === "b") {
-    if (text !== "true" && text !== "false") throw new Unsupported(`<${node.tag}> is not a boolean`);
+    if (text !== "true" && text !== "false")
+      throw new Unsupported(`<${node.tag}> is not a boolean`);
     return text === "true";
   }
   if (kind === "n") {
@@ -103,11 +151,13 @@ function scalar(node: XmlNode, kind: "s" | "b" | "n"): string | boolean | number
 }
 
 function convertObject(node: XmlNode, shape: { [tag: string]: Shape }): Record<string, unknown> {
-  if (node.text !== undefined) throw new Unsupported(`<${node.tag}> has text where elements were expected`);
+  if (node.text !== undefined)
+    throw new Unsupported(`<${node.tag}> has text where elements were expected`);
   const out: Record<string, unknown> = {};
   for (const child of node.children) {
     const spec = shape[child.tag];
-    if (spec === undefined) throw new Unsupported(`<${child.tag}> in <${node.tag}> has no Tooling mapping`);
+    if (spec === undefined)
+      throw new Unsupported(`<${child.tag}> in <${node.tag}> has no Tooling mapping`);
     if (Array.isArray(spec)) {
       const list = (out[child.tag] ??= []) as unknown[];
       list.push(convertValue(child, spec[0]));
@@ -131,11 +181,25 @@ function convertValue(node: XmlNode, shape: Shape): unknown {
  */
 function qualifyComponentNames(metadata: Record<string, unknown>): void {
   const template = metadata.template as { name?: string } | undefined;
-  if (template && typeof template.name === "string" && template.name !== "" && !template.name.includes(":")) template.name = `c:${template.name}`;
-  for (const region of (metadata.flexiPageRegions as { itemInstances?: { componentInstance?: { componentName?: string } }[] }[] | undefined) ?? []) {
+  if (
+    template &&
+    typeof template.name === "string" &&
+    template.name !== "" &&
+    !template.name.includes(":")
+  )
+    template.name = `c:${template.name}`;
+  for (const region of (metadata.flexiPageRegions as
+    | { itemInstances?: { componentInstance?: { componentName?: string } }[] }[]
+    | undefined) ?? []) {
     for (const item of region.itemInstances ?? []) {
       const ci = item.componentInstance;
-      if (ci && typeof ci.componentName === "string" && ci.componentName !== "" && !ci.componentName.includes(":")) ci.componentName = `c:${ci.componentName}`;
+      if (
+        ci &&
+        typeof ci.componentName === "string" &&
+        ci.componentName !== "" &&
+        !ci.componentName.includes(":")
+      )
+        ci.componentName = `c:${ci.componentName}`;
     }
   }
 }
@@ -147,7 +211,10 @@ const PADDED_TEXT = /(>\s+[^<\s])|([^>\s]\s+<\/)/;
  * The Tooling `Metadata` JSON for a source-format file's XML, or null when anything in it is
  * outside the mapped schema. Exported for tests.
  */
-export function xmlToToolingMetadata(type: ToolingType, xml: string): Record<string, unknown> | null {
+export function xmlToToolingMetadata(
+  type: ToolingType,
+  xml: string
+): Record<string, unknown> | null {
   try {
     if (PADDED_TEXT.test(xml.replace(/^<\?xml[^>]*\?>/, ""))) return null;
     const root = parseXml(xml);
@@ -180,7 +247,9 @@ const SUFFIXES: { type: ToolingType; suffix: string }[] = [
 ];
 
 function walk(dir: string): string[] {
-  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
+  return fs
+    .readdirSync(dir, { withFileTypes: true })
+    .flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 }
 
 const SAFE_NAME = /^[A-Za-z0-9_]+$/;
@@ -209,7 +278,13 @@ export function toolingTargetOf(sourcePath: string): ToolingTarget | null {
     if (type !== "CompactLayout") return { type, developerName: name, file };
     const parts = file.split(path.sep);
     const sobject = parts.at(-3);
-    if (parts.at(-2) !== "compactLayouts" || parts.at(-4) !== "objects" || !sobject || !SAFE_NAME.test(sobject)) return null;
+    if (
+      parts.at(-2) !== "compactLayouts" ||
+      parts.at(-4) !== "objects" ||
+      !sobject ||
+      !SAFE_NAME.test(sobject)
+    )
+      return null;
     return { type, developerName: name, sobject, file };
   }
   return null;
@@ -227,10 +302,18 @@ const disposable = new Map<string, boolean>();
 async function isDisposableOrg(org: string, fetcher: CredentialFetcher): Promise<boolean> {
   const known = disposable.get(org);
   if (known !== undefined) return known;
-  const res = await directQuery("SELECT IsSandbox, TrialExpirationDate, OrganizationType FROM Organization LIMIT 1", org, fetcher, { maxRows: 1 });
+  const res = await directQuery(
+    "SELECT IsSandbox, TrialExpirationDate, OrganizationType FROM Organization LIMIT 1",
+    org,
+    fetcher,
+    { maxRows: 1 }
+  );
   if (!res || !res.ok || !res.data.records.length) return false;
   const rec = res.data.records[0];
-  const answer = rec.IsSandbox === true || Boolean(rec.TrialExpirationDate) || rec.OrganizationType === "Developer Edition";
+  const answer =
+    rec.IsSandbox === true ||
+    Boolean(rec.TrialExpirationDate) ||
+    rec.OrganizationType === "Developer Edition";
   disposable.set(org, answer);
   return answer;
 }
@@ -243,16 +326,26 @@ export function forgetToolingOrg(org?: string): void {
 
 const soql = (v: string) => `'${v}'`;
 
-async function resolveId(target: ToolingTarget, org: string, fetcher: CredentialFetcher): Promise<string | null> {
+async function resolveId(
+  target: ToolingTarget,
+  org: string,
+  fetcher: CredentialFetcher
+): Promise<string | null> {
   const where =
     target.type === "CompactLayout"
       ? `DeveloperName = ${soql(target.developerName)} AND SobjectType = ${soql(target.sobject!)}`
       : `DeveloperName = ${soql(target.developerName)}`;
-  const res = await directQuery(`SELECT Id, NamespacePrefix, ManageableState FROM ${target.type} WHERE ${where}`, org, fetcher, { tooling: true, maxRows: 2 });
+  const res = await directQuery(
+    `SELECT Id, NamespacePrefix, ManageableState FROM ${target.type} WHERE ${where}`,
+    org,
+    fetcher,
+    { tooling: true, maxRows: 2 }
+  );
   if (!res || !res.ok || res.data.records.length !== 1) return null;
   const rec = res.data.records[0];
   // Managed, installed or standard items are not ours to rewrite this way.
-  if (rec.NamespacePrefix || (rec.ManageableState && rec.ManageableState !== "unmanaged")) return null;
+  if (rec.NamespacePrefix || (rec.ManageableState && rec.ManageableState !== "unmanaged"))
+    return null;
   return typeof rec.Id === "string" ? rec.Id : null;
 }
 
@@ -327,7 +420,11 @@ export async function toolingWriteMetadata(
     if (!patched || !patched.ok) return null;
     say(onStatus, "Checking what was saved");
     const version = await directApiVersion(org, fetcher);
-    const read = await directGet<{ Metadata?: unknown }>(`/services/data/v${version}/tooling/sobjects/${target.type}/${id}`, org, fetcher);
+    const read = await directGet<{ Metadata?: unknown }>(
+      `/services/data/v${version}/tooling/sobjects/${target.type}/${id}`,
+      org,
+      fetcher
+    );
     if (!read || !read.ok || !sameMetadata(metadata, read.data.Metadata)) return null;
     return { ok: true, data: undefined };
   } catch {

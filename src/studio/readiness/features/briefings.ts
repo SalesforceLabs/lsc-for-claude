@@ -35,23 +35,44 @@ const SAMPLE_USERS = 500;
 /** "1 user" / "3 users". */
 const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : more}`;
 
-const OFF: StudioCheckResult = { pass: true, skip: true, detail: "Briefings is not turned on in this org." };
+const OFF: StudioCheckResult = {
+  pass: true,
+  skip: true,
+  detail: "Briefings is not turned on in this org.",
+};
 
 /**
  * Whether any briefing targets a user of `profile`, looked up by TargetUserId for up to
  * SAMPLE_USERS of its active users — the ones holding Use Briefings first, since briefings are
  * meant for them, else any. One row read per chunk, so it stops at the first briefing found.
  */
-async function profileHasContent(profile: string, org: string): Promise<{ found: boolean; users: number }> {
+async function profileHasContent(
+  profile: string,
+  org: string
+): Promise<{ found: boolean; users: number }> {
   const name = inList([profile]);
   const holders = await query(
     `SELECT AssigneeId FROM PermissionSetAssignment WHERE PermissionSet.PermissionsStoriesUser = true AND Assignee.IsActive = true AND Assignee.Profile.Name = ${name} LIMIT ${SAMPLE_USERS}`,
     org
   );
   let ids = [...new Set(holders.map((r) => String(r.AssigneeId)))];
-  if (!ids.length) ids = (await query(`SELECT Id FROM User WHERE IsActive = true AND Profile.Name = ${name} LIMIT ${SAMPLE_USERS}`, org)).map((r) => String(r.Id));
+  if (!ids.length)
+    ids = (
+      await query(
+        `SELECT Id FROM User WHERE IsActive = true AND Profile.Name = ${name} LIMIT ${SAMPLE_USERS}`,
+        org
+      )
+    ).map((r) => String(r.Id));
   for (const chunk of chunkIds(ids)) {
-    if ((await query(`SELECT Id FROM PresentationContent WHERE TargetUserId IN (${inList(chunk)}) LIMIT 1`, org)).length) return { found: true, users: ids.length };
+    if (
+      (
+        await query(
+          `SELECT Id FROM PresentationContent WHERE TargetUserId IN (${inList(chunk)}) LIMIT 1`,
+          org
+        )
+      ).length
+    )
+      return { found: true, users: ids.length };
   }
   return { found: false, users: ids.length };
 }
@@ -70,17 +91,26 @@ const readiness: ReadinessModule = {
       )
     );
     const assignments = once(async () =>
-      ((await optionalQuery(`SELECT IsActive, AssignedTo.Name FROM PrstCntntDefAssignment`, org)) ?? []).filter((a) => a.IsActive)
+      (
+        (await optionalQuery(
+          `SELECT IsActive, AssignedTo.Name FROM PrstCntntDefAssignment`,
+          org
+        )) ?? []
+      ).filter((a) => a.IsActive)
     );
     /** Profiles that receive briefings, from the active content definition assignments. */
-    const profiles = async () => [...new Set((await assignments()).map((a) => String(rel(a, "AssignedTo.Name"))))].sort();
+    const profiles = async () =>
+      [...new Set((await assignments()).map((a) => String(rel(a, "AssignedTo.Name"))))].sort();
     const flows = once(async () => {
       const groups = await briefingFlowGroups(org, false);
-      return [...new Map(groups.flat().map((r) => [String(r.ApiName), r] as [string, Row])).values()];
+      return [
+        ...new Map(groups.flat().map((r) => [String(r.ApiName), r] as [string, Row])).values(),
+      ];
     });
     const dbSchema = once(() => fetchCategories(org, ["DbSchema"], true));
     const caches = once(() => fetchCache(org));
-    const gate = (fn: () => Promise<StudioCheckResult>) => async () => ((await enabled()) ? fn() : OFF);
+    const gate = (fn: () => Promise<StudioCheckResult>) => async () =>
+      (await enabled()) ? fn() : OFF;
 
     return Promise.all([
       runCheck(
@@ -90,7 +120,10 @@ const readiness: ReadinessModule = {
           title: "The licenses Briefings runs on are provisioned",
           severity: "error",
           why: "Briefing text is written by Einstein prompt templates, which need the Life Science Commercial, Health Cloud Starter, Agentforce for Life Sciences Cloud Feature Access and Einstein Prompt Templates licenses. Without them the text flow fails and no briefing is produced.",
-          steps: ["Open Setup > Company Information > Permission Set License Assignments", "Ask your Salesforce account team to provision any license listed as missing"],
+          steps: [
+            "Open Setup > Company Information > Permission Set License Assignments",
+            "Ask your Salesforce account team to provision any license listed as missing",
+          ],
           uiPath: "Setup > Company Information",
           surface: "licenses",
         },
@@ -109,8 +142,15 @@ const readiness: ReadinessModule = {
             return Number(r.UsedLicenses ?? 0) >= total ? [`${label}: all ${total} in use`] : [];
           });
           return problems.length
-            ? { pass: false, detail: `${plural(problems.length, "license")} missing or exhausted.`, examples: problems }
-            : { pass: true, detail: `All ${REQUIRED_PSLS.length} licenses provisioned with seats free.` };
+            ? {
+                pass: false,
+                detail: `${plural(problems.length, "license")} missing or exhausted.`,
+                examples: problems,
+              }
+            : {
+                pass: true,
+                detail: `All ${REQUIRED_PSLS.length} licenses provisioned with seats free.`,
+              };
         })
       ),
       runCheck(
@@ -120,15 +160,30 @@ const readiness: ReadinessModule = {
           title: "Someone has a permission set with Use Briefings",
           severity: "error",
           why: "The Briefings icon only shows for users whose permission set grants Use Briefings (PermissionsStoriesUser). No assignee means no rep can open a briefing, whatever else is configured.",
-          steps: ["Open Setup > Permission Sets and find or create a set with Use Briefings", "Assign it to the reps who should get briefings"],
+          steps: [
+            "Open Setup > Permission Sets and find or create a set with Use Briefings",
+            "Assign it to the reps who should get briefings",
+          ],
           uiPath: "Setup > Permission Sets",
           surface: "permissionSets",
         },
         gate(async () => {
-          const sets = await query(`SELECT Id, Label FROM PermissionSet WHERE PermissionsStoriesUser = true`, org);
-          if (!sets.length) return { pass: false, detail: "No permission set grants Use Briefings." };
-          const n = await count(`SELECT COUNT() FROM PermissionSetAssignment WHERE PermissionSet.PermissionsStoriesUser = true AND Assignee.IsActive = true`, org);
-          return { pass: n > 0, detail: n ? `${plural(n, "active assignment")} of Use Briefings.` : `${plural(sets.length, "permission set")} grant Use Briefings but none is assigned to an active user.` };
+          const sets = await query(
+            `SELECT Id, Label FROM PermissionSet WHERE PermissionsStoriesUser = true`,
+            org
+          );
+          if (!sets.length)
+            return { pass: false, detail: "No permission set grants Use Briefings." };
+          const n = await count(
+            `SELECT COUNT() FROM PermissionSetAssignment WHERE PermissionSet.PermissionsStoriesUser = true AND Assignee.IsActive = true`,
+            org
+          );
+          return {
+            pass: n > 0,
+            detail: n
+              ? `${plural(n, "active assignment")} of Use Briefings.`
+              : `${plural(sets.length, "permission set")} grant Use Briefings but none is assigned to an active user.`,
+          };
         })
       ),
       runCheck(
@@ -138,13 +193,21 @@ const readiness: ReadinessModule = {
           title: "Each profile that receives briefings has users with Use Briefings",
           severity: "warning",
           why: "A profile can be assigned content yet have no user with Use Briefings, so briefings are generated for people who can't see the icon.",
-          steps: ["Open Setup > Permission Sets", "Assign a set with Use Briefings to the users of each profile listed"],
+          steps: [
+            "Open Setup > Permission Sets",
+            "Assign a set with Use Briefings to the users of each profile listed",
+          ],
           uiPath: "Setup > Permission Sets",
           surface: "assignments",
         },
         gate(async () => {
           const assigned = await profiles();
-          if (!assigned.length) return { pass: true, skip: true, detail: "No profile is assigned a content definition yet." };
+          if (!assigned.length)
+            return {
+              pass: true,
+              skip: true,
+              detail: "No profile is assigned a content definition yet.",
+            };
           const users = await countBy(
             `SELECT Assignee.Profile.Name pn, COUNT(Id) cnt FROM PermissionSetAssignment WHERE PermissionSet.PermissionsStoriesUser = true AND Assignee.IsActive = true GROUP BY Assignee.Profile.Name`,
             "pn",
@@ -152,8 +215,15 @@ const readiness: ReadinessModule = {
           );
           const none = assigned.filter((p) => !users.get(p));
           return none.length
-            ? { pass: false, detail: `${plural(none.length, "profile")} receiving briefings with no Use Briefings user: ${none.join(", ")}.`, examples: none }
-            : { pass: true, detail: `All ${plural(assigned.length, "profile")} receiving briefings have Use Briefings users.` };
+            ? {
+                pass: false,
+                detail: `${plural(none.length, "profile")} receiving briefings with no Use Briefings user: ${none.join(", ")}.`,
+                examples: none,
+              }
+            : {
+                pass: true,
+                detail: `All ${plural(assigned.length, "profile")} receiving briefings have Use Briefings users.`,
+              };
         })
       ),
       runCheck(
@@ -163,15 +233,24 @@ const readiness: ReadinessModule = {
           title: "The Einstein and Health Cloud permission sets are assigned",
           severity: "warning",
           why: "Generating text needs the prompt template, Health Cloud and Agentforce permission sets assigned to the user the flows run as. Missing assignments show up as flow errors, not as a clear message.",
-          steps: ["Open Setup > Permission Sets", "Assign each set listed to the integration or admin user the Briefings flows run as"],
+          steps: [
+            "Open Setup > Permission Sets",
+            "Assign each set listed to the integration or admin user the Briefings flows run as",
+          ],
           uiPath: "Setup > Permission Sets",
           surface: "permissionSets",
         },
         gate(async () => {
           const rows = await standardSetAssignments(org);
-          const missing = STANDARD_PERMISSION_SETS.filter((p) => !rows.get(p.name)).map((p) => p.label);
+          const missing = STANDARD_PERMISSION_SETS.filter((p) => !rows.get(p.name)).map(
+            (p) => p.label
+          );
           return missing.length
-            ? { pass: false, detail: `${plural(missing.length, "permission set")} not assigned to anyone: ${missing.join(", ")}.`, examples: missing }
+            ? {
+                pass: false,
+                detail: `${plural(missing.length, "permission set")} not assigned to anyone: ${missing.join(", ")}.`,
+                examples: missing,
+              }
             : { pass: true, detail: "All four standard permission sets are assigned." };
         })
       ),
@@ -186,15 +265,31 @@ const readiness: ReadinessModule = {
             "Open Setup > Flows and check the Account Summarization flow is active and its schedule is running",
             "Open Setup > Paused and Failed Flow Interviews for errors",
           ],
-          uiPath: "Setup > Life Sciences for Customer Engagement Setup > Configure Account Summarization",
+          uiPath:
+            "Setup > Life Sciences for Customer Engagement Setup > Configure Account Summarization",
           surface: "accountSummarization",
         },
         gate(async () => {
-          const rows = await optionalQuery(`SELECT SystemModstamp FROM PrvdAccountTerritorySummary ORDER BY SystemModstamp DESC LIMIT 1`, org);
-          if (rows === null) return { pass: true, skip: true, detail: "Account Summarization isn't set up in this org." };
-          if (!rows.length) return { pass: false, detail: "No account summaries exist, so Account Summarization has never run." };
+          const rows = await optionalQuery(
+            `SELECT SystemModstamp FROM PrvdAccountTerritorySummary ORDER BY SystemModstamp DESC LIMIT 1`,
+            org
+          );
+          if (rows === null)
+            return {
+              pass: true,
+              skip: true,
+              detail: "Account Summarization isn't set up in this org.",
+            };
+          if (!rows.length)
+            return {
+              pass: false,
+              detail: "No account summaries exist, so Account Summarization has never run.",
+            };
           const age = daysSince(rows[0].SystemModstamp) ?? 0;
-          return { pass: age <= STALE_DAYS, detail: `The newest account summary was updated ${plural(age, "day")} ago.` };
+          return {
+            pass: age <= STALE_DAYS,
+            detail: `The newest account summary was updated ${plural(age, "day")} ago.`,
+          };
         })
       ),
       runCheck(
@@ -212,11 +307,17 @@ const readiness: ReadinessModule = {
           surface: "generated",
         },
         gate(async () => {
-          const rows = await optionalQuery(`SELECT CreatedDate FROM PresentationContent ORDER BY CreatedDate DESC LIMIT 1`, org);
+          const rows = await optionalQuery(
+            `SELECT CreatedDate FROM PresentationContent ORDER BY CreatedDate DESC LIMIT 1`,
+            org
+          );
           if (rows === null) return OFF;
           if (!rows.length) return { pass: false, detail: "No briefings have been generated." };
           const age = daysSince(rows[0].CreatedDate) ?? 0;
-          return { pass: age <= STALE_DAYS, detail: `The newest briefing was created ${plural(age, "day")} ago.` };
+          return {
+            pass: age <= STALE_DAYS,
+            detail: `The newest briefing was created ${plural(age, "day")} ago.`,
+          };
         })
       ),
       runCheck(
@@ -226,13 +327,21 @@ const readiness: ReadinessModule = {
           title: "Each profile that receives briefings has content",
           severity: "info",
           why: "A profile can be assigned and licensed yet receive nothing, for example when its users have no territory accounts to summarize.",
-          steps: ["Check the profile's users are in territories with aligned accounts", "Run the scheduled flow once and re-check"],
+          steps: [
+            "Check the profile's users are in territories with aligned accounts",
+            "Run the scheduled flow once and re-check",
+          ],
           uiPath: "Setup > Flows",
           surface: "assignments",
         },
         gate(async () => {
           const assigned = await profiles();
-          if (!assigned.length) return { pass: true, skip: true, detail: "No profile is assigned a content definition yet." };
+          if (!assigned.length)
+            return {
+              pass: true,
+              skip: true,
+              detail: "No profile is assigned a content definition yet.",
+            };
           const checked = await Promise.all(assigned.map((p) => profileHasContent(p, org)));
           const none = assigned.filter((_, i) => !checked[i].found);
           const users = checked.reduce((n, c) => n + c.users, 0);
@@ -241,8 +350,15 @@ const readiness: ReadinessModule = {
             ? `Checked up to ${SAMPLE_USERS} users per profile, those with Use Briefings first, not every user in the org.`
             : `Checked all ${many(users, "user", "users")} with Use Briefings in these profiles (every active user where none has it).`;
           return none.length
-            ? { pass: false, detail: `${plural(none.length, "profile")} with no briefings yet: ${none.join(", ")}. ${scope}`, examples: none }
-            : { pass: true, detail: `All ${plural(assigned.length, "profile")} have briefings. ${scope}` };
+            ? {
+                pass: false,
+                detail: `${plural(none.length, "profile")} with no briefings yet: ${none.join(", ")}. ${scope}`,
+                examples: none,
+              }
+            : {
+                pass: true,
+                detail: `All ${plural(assigned.length, "profile")} have briefings. ${scope}`,
+              };
         })
       ),
       runCheck(
@@ -261,9 +377,17 @@ const readiness: ReadinessModule = {
           surface: "flows",
         },
         gate(async () => {
-          const rows = (await flows()).filter((f) => f.Label !== SUMMARY_FLOW_LABEL && !TEXT_GEN_FLOW.test(String(f.ApiName)));
+          const rows = (await flows()).filter(
+            (f) => f.Label !== SUMMARY_FLOW_LABEL && !TEXT_GEN_FLOW.test(String(f.ApiName))
+          );
           const active = rows.filter((f) => f.ActiveVersionId);
-          if (!active.length) return { pass: false, detail: rows.length ? `${plural(rows.length, "schedule flow")} found, none active.` : "No schedule flow found." };
+          if (!active.length)
+            return {
+              pass: false,
+              detail: rows.length
+                ? `${plural(rows.length, "schedule flow")} found, none active.`
+                : "No schedule flow found.",
+            };
           const template = active.some((f) => SCHEDULE_FLOW.test(String(f.ApiName)));
           return {
             pass: true,
@@ -280,11 +404,17 @@ const readiness: ReadinessModule = {
           title: "Briefings objects sync to every profile that receives briefings",
           severity: "error",
           why: "The four Briefings objects must be in DB Schema for each receiving profile. If one is missing for a profile, its reps get no briefing or no definitions, and the Briefings icon stays empty.",
-          steps: ["Open Admin Console > Mobile > DB Schema", "Add or switch on a record for each object listed, assigned to the receiving profiles", "Publish to iPad"],
+          steps: [
+            "Open Admin Console > Mobile > DB Schema",
+            "Add or switch on a record for each object listed, assigned to the receiving profiles",
+            "Publish to iPad",
+          ],
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "syncSchema",
         },
-        gate(async () => profileSyncResult(await dbSchema(), REQUIRED_SYNC_OBJECTS, await profiles()))
+        gate(async () =>
+          profileSyncResult(await dbSchema(), REQUIRED_SYNC_OBJECTS, await profiles())
+        )
       ),
       runCheck(
         {
@@ -293,18 +423,35 @@ const readiness: ReadinessModule = {
           title: "Receiving profiles have a published metadata cache",
           severity: "warning",
           why: "The iPad only learns about the Briefings objects from the published metadata cache. A profile with none never downloads them.",
-          steps: ["Open Admin Console > Mobile > Object Metadata Cache Configuration", "Generate the cache for the profiles listed (or /lsc:generate-metadata-cache)"],
+          steps: [
+            "Open Admin Console > Mobile > Object Metadata Cache Configuration",
+            "Generate the cache for the profiles listed (or /lsc:generate-metadata-cache)",
+          ],
           uiPath: "Admin Console > Mobile > Object Metadata Cache Configuration",
           surface: "metadataCache",
         },
         gate(async () => {
           const assigned = await profiles();
-          if (!assigned.length) return { pass: true, skip: true, detail: "No profile is assigned a content definition yet." };
+          if (!assigned.length)
+            return {
+              pass: true,
+              skip: true,
+              detail: "No profile is assigned a content definition yet.",
+            };
           const live = (await caches()).filter(isLiveCache);
-          const none = assigned.filter((p) => !live.some((c) => c.profile?.toLowerCase() === p.toLowerCase()));
+          const none = assigned.filter(
+            (p) => !live.some((c) => c.profile?.toLowerCase() === p.toLowerCase())
+          );
           return none.length
-            ? { pass: false, detail: `${plural(none.length, "profile")} without a published cache: ${none.join(", ")}.`, examples: none }
-            : { pass: true, detail: `All ${plural(assigned.length, "profile")} have a published cache.` };
+            ? {
+                pass: false,
+                detail: `${plural(none.length, "profile")} without a published cache: ${none.join(", ")}.`,
+                examples: none,
+              }
+            : {
+                pass: true,
+                detail: `All ${plural(assigned.length, "profile")} have a published cache.`,
+              };
         })
       ),
       runCheck(
@@ -314,13 +461,19 @@ const readiness: ReadinessModule = {
           title: "The published cache includes the latest DB Schema changes",
           severity: "warning",
           why: "If the Briefings DB Schema records were added or edited after the last publish, the iPad still runs the old schema and the changes don't take effect.",
-          steps: ["Regenerate the cache for the profiles listed (Publish to iPad in Studio, or /lsc:generate-metadata-cache)"],
+          steps: [
+            "Regenerate the cache for the profiles listed (Publish to iPad in Studio, or /lsc:generate-metadata-cache)",
+          ],
           uiPath: "Admin Console > Mobile > Object Metadata Cache Configuration",
           surface: "metadataCache",
         },
         gate(async () => {
           const schema = await dbSchema();
-          const mine = schema.filter((r) => REQUIRED_SYNC_OBJECTS.some((o) => String(r.fields.SObject ?? "").toLowerCase() === o.toLowerCase()));
+          const mine = schema.filter((r) =>
+            REQUIRED_SYNC_OBJECTS.some(
+              (o) => String(r.fields.SObject ?? "").toLowerCase() === o.toLowerCase()
+            )
+          );
           return cacheFreshResult(org, await caches(), ["DbSchema"], mine, await profiles(), true);
         })
       ),

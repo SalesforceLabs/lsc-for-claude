@@ -51,7 +51,8 @@ export class LoadTracker {
 
   /** Add steps that will run, so the bar knows the total before they start. */
   plan(keys: LoadStepKey[]): void {
-    for (const key of keys) if (!this.find(key)) this.progress.steps.push({ key, label: LABELS[key], state: "waiting" });
+    for (const key of keys)
+      if (!this.find(key)) this.progress.steps.push({ key, label: LABELS[key], state: "waiting" });
   }
 
   /** Run one step, marking it running, then done or failed. */

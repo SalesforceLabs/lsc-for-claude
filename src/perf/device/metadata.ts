@@ -60,14 +60,19 @@ export function parseDownloadInfo(json: unknown): MetadataDownloadInfo {
   const contentVersionId = typeof info.contentVersionId === "string" ? info.contentVersionId : "";
   const checksum = typeof info.checksum === "string" ? info.checksum : "";
   if (!contentVersionId || !checksum) {
-    throw new DeviceHttpError("Metadata download response is missing metadataContentVersionInfo (contentVersionId/checksum)");
+    throw new DeviceHttpError(
+      "Metadata download response is missing metadataContentVersionInfo (contentVersionId/checksum)"
+    );
   }
   const usp = obj(o.userSpecificPermissions);
   const availableFields: Record<string, string[]> = {};
   for (const [table, fields] of Object.entries(obj(usp.availableFields))) {
-    if (Array.isArray(fields)) availableFields[table] = fields.filter((f): f is string => typeof f === "string");
+    if (Array.isArray(fields))
+      availableFields[table] = fields.filter((f): f is string => typeof f === "string");
   }
-  const fieldPermissions = (Array.isArray(usp.fieldPermissions) ? usp.fieldPermissions : []).flatMap((raw) => {
+  const fieldPermissions = (
+    Array.isArray(usp.fieldPermissions) ? usp.fieldPermissions : []
+  ).flatMap((raw) => {
     const p = obj(raw);
     return typeof p.field === "string"
       ? [{ field: p.field, readable: p.readable === true, editable: p.editable === true }]
@@ -76,8 +81,12 @@ export function parseDownloadInfo(json: unknown): MetadataDownloadInfo {
   return {
     contentVersionId,
     checksum: checksum.toLowerCase(),
-    contentSize: typeof info.contentSize === "number" ? info.contentSize : Number(info.contentSize) || 0,
-    versionDataURL: typeof info.versionDataURL === "string" && info.versionDataURL ? info.versionDataURL : undefined,
+    contentSize:
+      typeof info.contentSize === "number" ? info.contentSize : Number(info.contentSize) || 0,
+    versionDataURL:
+      typeof info.versionDataURL === "string" && info.versionDataURL
+        ? info.versionDataURL
+        : undefined,
     userSpecificPermissions: {
       availableFields,
       fieldPermissions,
@@ -126,7 +135,8 @@ export async function downloadArchive(
 ): Promise<ArchiveDownload> {
   const now = opts.now ?? (() => performance.now());
   const chunk = Math.max(1, opts.chunkBytes ?? DEFAULT_CHUNK_BYTES);
-  const url = info.versionDataURL ?? `/sfc/servlet.shepherd/version/download/${info.contentVersionId}`;
+  const url =
+    info.versionDataURL ?? `/sfc/servlet.shepherd/version/download/${info.contentVersionId}`;
   const file = path.join(dir, "metadata.zip");
   const hash = createHash("md5");
   const fd = fs.openSync(file, "w");
@@ -146,10 +156,15 @@ export async function downloadArchive(
       });
       requests++;
       if (res.status !== 200 && res.status !== 206) {
-        throw new DeviceHttpError(`Metadata archive download failed (HTTP ${res.status}) at byte ${received}`, res.status);
+        throw new DeviceHttpError(
+          `Metadata archive download failed (HTTP ${res.status}) at byte ${received}`,
+          res.status
+        );
       }
       if (res.status === 200 && received > 0) {
-        throw new DeviceHttpError("Server ignored the Range header mid-download (got HTTP 200 for a later chunk)");
+        throw new DeviceHttpError(
+          "Server ignored the Range header mid-download (got HTTP 200 for a later chunk)"
+        );
       }
       total = contentRangeTotal(res.headers["content-range"]) ?? total;
       fs.writeSync(fd, res.body);
@@ -166,7 +181,9 @@ export async function downloadArchive(
   const md5 = hash.digest("hex");
   const seconds = (now() - start) / 1000;
   if (md5 !== info.checksum) {
-    throw new DeviceHttpError(`Metadata archive MD5 mismatch: expected ${info.checksum}, got ${md5}`);
+    throw new DeviceHttpError(
+      `Metadata archive MD5 mismatch: expected ${info.checksum}, got ${md5}`
+    );
   }
   return { file, bytes: received, seconds, requests, md5 };
 }

@@ -19,18 +19,27 @@ import type {
   StageObjectRow,
 } from "./types.js";
 
-const TYPE_ORDER: Record<string, number> = { VisitActionValidation: 0, Validation: 1, Checklist: 2 };
+const TYPE_ORDER: Record<string, number> = {
+  VisitActionValidation: 0,
+  Validation: 1,
+  Checklist: 2,
+};
 
 const day = (iso: unknown) => {
   const d = new Date(String(iso ?? ""));
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
 };
 
-const str = (v: unknown): string | null => (v === null || v === undefined || v === "" ? null : String(v));
+const str = (v: unknown): string | null =>
+  v === null || v === undefined || v === "" ? null : String(v);
 
 /** An org without the custom script objects answers with INVALID_TYPE / "not supported"; that's not an error here. */
 export function isMissingObject(e: unknown): boolean {
-  return /INVALID_TYPE|sObject type .* is not supported|doesn't exist|does not exist|No such column|NOT_FOUND/i.test(String((e as Error)?.message ?? e));
+  return /INVALID_TYPE|sObject type .* is not supported|doesn't exist|does not exist|No such column|NOT_FOUND/i.test(
+    String((e as Error)?.message ?? e)
+  );
 }
 
 export interface BundleInfo {
@@ -65,7 +74,8 @@ async function readBundles(org: string, names: string[]): Promise<Map<string, Bu
 }
 
 /** Whether a bundle's code can be written: customer-created (no namespace) and not installed from a package. */
-export const bundleEditable = (b: BundleInfo | undefined) => !!b && !b.namespace && (!b.manageableState || b.manageableState === "unmanaged");
+export const bundleEditable = (b: BundleInfo | undefined) =>
+  !!b && !b.namespace && (!b.manageableState || b.manageableState === "unmanaged");
 
 async function codeTextWritable(org: string): Promise<boolean> {
   try {
@@ -112,7 +122,8 @@ function statusOf(r: Row, s: Statusing, diag: { error: number; warning: number }
       return {
         tone: "error",
         label: "Won't run",
-        detail: "A visit action validation runs only with the object ProviderVisit and the event OnUpdate.",
+        detail:
+          "A visit action validation runs only with the object ProviderVisit and the event OnUpdate.",
       };
     }
     if (first && first.Id !== r.Id) {
@@ -122,7 +133,11 @@ function statusOf(r: Row, s: Statusing, diag: { error: number; warning: number }
         detail: `Only the first visit action validation script runs — ${String(first.Name)} (created ${day(first.CreatedDate)}) does.`,
       };
     }
-    return { tone: diag.error ? "error" : "pass", label: "Runs at Save, Sign and Submit", detail: "This is the visit action validation script the app runs." };
+    return {
+      tone: diag.error ? "error" : "pass",
+      label: "Runs at Save, Sign and Submit",
+      detail: "This is the visit action validation script the app runs.",
+    };
   }
   const where = s.stageByScript.get(String(r.Id)) ?? [];
   if (where.length === 0) {
@@ -140,7 +155,11 @@ function statusOf(r: Row, s: Statusing, diag: { error: number; warning: number }
       detail: `${noPath.map((w) => w.objectName).join(", ")} has no stage path, so this script has no stage to run in.`,
     };
   }
-  return { tone: "pass", label: `Runs on ${[...new Set(where.map((w) => w.objectName))].join(", ")}`, detail: "A stage object with a stage path uses this script." };
+  return {
+    tone: "pass",
+    label: `Runs on ${[...new Set(where.map((w) => w.objectName))].join(", ")}`,
+    detail: "A stage object with a stage path uses this script.",
+  };
 }
 
 function summaryFrom(r: Row, bundle: BundleInfo | undefined, s: Statusing): ScriptSummary {
@@ -181,7 +200,9 @@ function summaryFrom(r: Row, bundle: BundleInfo | undefined, s: Statusing): Scri
 const SCRIPT_FIELDS =
   "Id, Name, ComponentName, Type, ObjectName, OperationEventType, CodeText, CreatedDate, LastModifiedDate, LastModifiedBy.Name";
 
-async function readStageObjects(org: string): Promise<{ stageObjects: StageObjectRow[]; pathObjects: Set<string>; note?: string }> {
+async function readStageObjects(
+  org: string
+): Promise<{ stageObjects: StageObjectRow[]; pathObjects: Set<string>; note?: string }> {
   let rows: Row[] = [];
   let note: string | undefined;
   try {
@@ -190,14 +211,21 @@ async function readStageObjects(org: string): Promise<{ stageObjects: StageObjec
       org
     );
   } catch (e) {
-    if (!isMissingObject(e)) note = "The stage objects couldn't be read, so which scripts are assigned isn't shown.";
+    if (!isMissingObject(e))
+      note = "The stage objects couldn't be read, so which scripts are assigned isn't shown.";
   }
   const pathObjects = new Set<string>();
   if (rows.length) {
     try {
-      for (const p of await query("SELECT StageObjectId FROM LifeSciStagePath GROUP BY StageObjectId", org)) pathObjects.add(String(p.StageObjectId));
+      for (const p of await query(
+        "SELECT StageObjectId FROM LifeSciStagePath GROUP BY StageObjectId",
+        org
+      ))
+        pathObjects.add(String(p.StageObjectId));
     } catch (e) {
-      if (!isMissingObject(e)) note = "The stage paths couldn't be read, so whether assigned scripts can run isn't checked.";
+      if (!isMissingObject(e))
+        note =
+          "The stage paths couldn't be read, so whether assigned scripts can run isn't checked.";
       // Don't claim "no stage path" when we couldn't look.
       for (const r of rows) pathObjects.add(String(r.Id));
     }
@@ -216,7 +244,11 @@ async function readStageObjects(org: string): Promise<{ stageObjects: StageObjec
   };
 }
 
-function statusing(scripts: Row[], stageObjects: StageObjectRow[], pathObjects: Set<string>): Statusing {
+function statusing(
+  scripts: Row[],
+  stageObjects: StageObjectRow[],
+  pathObjects: Set<string>
+): Statusing {
   const stageByScript = new Map<string, ScriptAssignment[]>();
   const add = (scriptId: string | null, so: StageObjectRow, role: ScriptAssignment["role"]) => {
     if (!scriptId) return;
@@ -250,16 +282,25 @@ export async function collectScriptLibrary(org: string): Promise<ScriptLibrary> 
 
   let rows: Row[];
   try {
-    rows = await query(`SELECT ${SCRIPT_FIELDS} FROM LifeScienceCustomScript ORDER BY CreatedDate, Id`, org);
+    rows = await query(
+      `SELECT ${SCRIPT_FIELDS} FROM LifeScienceCustomScript ORDER BY CreatedDate, Id`,
+      org
+    );
   } catch (e) {
-    if (isMissingObject(e)) return empty("This org has no custom script objects, so there are no custom scripts to show.");
+    if (isMissingObject(e))
+      return empty(
+        "This org has no custom script objects, so there are no custom scripts to show."
+      );
     throw e;
   }
 
   const notes: string[] = [];
   const [stage, bundles, sharing, writable] = await Promise.all([
     readStageObjects(org),
-    readBundles(org, rows.map((r) => String(r.ComponentName ?? ""))).catch(() => {
+    readBundles(
+      org,
+      rows.map((r) => String(r.ComponentName ?? ""))
+    ).catch(() => {
       notes.push("The LWC bundles couldn't be read, so whether each script has one isn't shown.");
       return new Map<string, BundleInfo>();
     }),
@@ -289,8 +330,16 @@ export async function collectScriptLibrary(org: string): Promise<ScriptLibrary> 
 }
 
 /** The bundle's .js and the names of its other files. */
-export async function readBundleFiles(org: string, bundleId: string, componentName: string): Promise<{ js: string | null; others: string[] }> {
-  const files = await query(`SELECT FilePath, Source FROM LightningComponentResource WHERE LightningComponentBundleId = '${bundleId}'`, org, true);
+export async function readBundleFiles(
+  org: string,
+  bundleId: string,
+  componentName: string
+): Promise<{ js: string | null; others: string[] }> {
+  const files = await query(
+    `SELECT FilePath, Source FROM LightningComponentResource WHERE LightningComponentBundleId = '${bundleId}'`,
+    org,
+    true
+  );
   const jsPath = `lwc/${componentName}/${componentName}.js`.toLowerCase();
   let js: string | null = null;
   const others: string[] = [];
@@ -306,13 +355,18 @@ export async function collectScriptDetail(id: string, org: string): Promise<Scri
   if (!ID_PATTERN.test(id)) throw new Error("That isn't a script id.");
   const [found, vavs, stage] = await Promise.all([
     query(`SELECT ${SCRIPT_FIELDS} FROM LifeScienceCustomScript WHERE Id = '${id}'`, org),
-    query("SELECT Id, Name, Type, CreatedDate FROM LifeScienceCustomScript WHERE Type = 'VisitActionValidation' ORDER BY CreatedDate, Id", org),
+    query(
+      "SELECT Id, Name, Type, CreatedDate FROM LifeScienceCustomScript WHERE Type = 'VisitActionValidation' ORDER BY CreatedDate, Id",
+      org
+    ),
     readStageObjects(org),
   ]);
   const r = found[0];
   if (!r) throw new Error("That script no longer exists.");
   const componentName = String(r.ComponentName ?? "");
-  const bundles = await readBundles(org, [componentName]).catch(() => new Map<string, BundleInfo>());
+  const bundles = await readBundles(org, [componentName]).catch(
+    () => new Map<string, BundleInfo>()
+  );
   const bundle = bundles.get(componentName.toLowerCase());
   const s = statusing([...vavs, r], stage.stageObjects, stage.pathObjects);
   const summary = summaryFrom(r, bundle, s);
@@ -329,6 +383,10 @@ export async function collectScriptDetail(id: string, org: string): Promise<Scri
     }
   }
   const code = String(r.CodeText ?? "");
-  const drift: ScriptDetail["drift"] = !bundle ? "no-lwc" : lwcCode !== null && lwcCode.trim() !== code.trim() ? "lwc-ahead" : "none";
+  const drift: ScriptDetail["drift"] = !bundle
+    ? "no-lwc"
+    : lwcCode !== null && lwcCode.trim() !== code.trim()
+      ? "lwc-ahead"
+      : "none";
   return { ...summary, code, lwcCode, lwcOtherFiles, drift };
 }

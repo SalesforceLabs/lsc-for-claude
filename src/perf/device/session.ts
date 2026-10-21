@@ -69,7 +69,9 @@ export function normalizeApiVersion(v: string | undefined): string {
   if (!v) return DEFAULT_API_VERSION;
   const trimmed = v.trim();
   const bare = trimmed.startsWith("v") ? trimmed.slice(1) : trimmed;
-  return /^\d+(\.\d+)?$/.test(bare) ? `v${bare.includes(".") ? bare : `${bare}.0`}` : DEFAULT_API_VERSION;
+  return /^\d+(\.\d+)?$/.test(bare)
+    ? `v${bare.includes(".") ? bare : `${bare}.0`}`
+    : DEFAULT_API_VERSION;
 }
 
 export function connectPath(session: Pick<DeviceSession, "apiVersion">, rest: string): string {
@@ -94,7 +96,8 @@ export class DeviceHttpError extends Error {
 }
 
 /** Salesforce-hosted HTTPS origins; a token is only ever sent to one of these. */
-const SALESFORCE_HOST = /(^|\.)(salesforce\.com|force\.com|salesforce\.mil|crmforce\.mil|sfcrmproducts\.cn)$/i;
+const SALESFORCE_HOST =
+  /(^|\.)(salesforce\.com|force\.com|salesforce\.mil|crmforce\.mil|sfcrmproducts\.cn)$/i;
 
 export function isSalesforceUrl(url: string): boolean {
   try {
@@ -145,12 +148,15 @@ export interface TokenLogin {
  * that connected app, so sf CLI logins get 404 from them.
  */
 export function createTokenSession(login: TokenLogin, opts: SessionOptions = {}): DeviceSession {
-  if (!isSalesforceUrl(login.instanceUrl)) throw new Error(`"${login.instanceUrl}" is not a Salesforce HTTPS URL.`);
+  if (!isSalesforceUrl(login.instanceUrl))
+    throw new Error(`"${login.instanceUrl}" is not a Salesforce HTTPS URL.`);
   return {
     username: login.username,
     orgId: login.orgId,
     instanceUrl: login.instanceUrl,
-    apiVersion: opts.apiVersion ? normalizeApiVersion(opts.apiVersion) : `v${resolveApiVersion(login.instanceUrl, undefined)}`,
+    apiVersion: opts.apiVersion
+      ? normalizeApiVersion(opts.apiVersion)
+      : `v${resolveApiVersion(login.instanceUrl, undefined)}`,
     http: createHttp(login.instanceUrl, login.accessToken, opts.fetchImpl),
   };
 }
@@ -167,9 +173,10 @@ const MAX_REDIRECTS = 5;
  * sets `gzip` is compressed when the body is at least 4096 bytes and
  * the compressed form is smaller; otherwise it goes out plain and the header is dropped.
  */
-export function prepareRequestBody(
-  req: Pick<DeviceRequest, "url" | "body" | "gzip">
-): { body: Buffer | undefined; gzipped: boolean } {
+export function prepareRequestBody(req: Pick<DeviceRequest, "url" | "body" | "gzip">): {
+  body: Buffer | undefined;
+  gzipped: boolean;
+} {
   if (req.body === undefined) return { body: undefined, gzipped: false };
   const raw = Buffer.from(req.body, "utf8");
   if (req.gzip && req.url.includes("/connect/") && raw.length >= GZIP_REQUEST_THRESHOLD) {
@@ -236,7 +243,8 @@ export class BodyCounter {
       this.bytes += chunk.length;
       return;
     }
-    if (!this.decoder.write(chunk)) await new Promise<void>((resolve) => this.decoder?.once("drain", resolve));
+    if (!this.decoder.write(chunk))
+      await new Promise<void>((resolve) => this.decoder?.once("drain", resolve));
   }
 
   async end(): Promise<number> {
@@ -248,7 +256,12 @@ export class BodyCounter {
   }
 }
 
-function requestHeaders(token: string, req: DeviceRequest, gzipped: boolean, body: Buffer | undefined): Record<string, string> {
+function requestHeaders(
+  token: string,
+  req: DeviceRequest,
+  gzipped: boolean,
+  body: Buffer | undefined
+): Record<string, string> {
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
     Accept: "application/json",
@@ -264,7 +277,11 @@ function requestHeaders(token: string, req: DeviceRequest, gzipped: boolean, bod
 }
 
 /** Send `body` in slices through the uplink bucket (or all at once without a shaper). */
-async function writeBody(out: http.ClientRequest, body: Buffer | undefined, shaper: NetworkShaper | undefined): Promise<void> {
+async function writeBody(
+  out: http.ClientRequest,
+  body: Buffer | undefined,
+  shaper: NetworkShaper | undefined
+): Promise<void> {
   if (body === undefined) return;
   const step = shaper ? shaper.up.sliceBytes : body.length || 1;
   for (let off = 0; off < body.length; off += step) {
@@ -286,7 +303,14 @@ function nodeRequest(
     const lib = url.protocol === "http:" ? http : https;
     const out = lib.request(
       url,
-      { method, headers: { ...headers, ...(body !== undefined ? { "Content-Length": String(body.length) } : {}) }, signal: req.signal },
+      {
+        method,
+        headers: {
+          ...headers,
+          ...(body !== undefined ? { "Content-Length": String(body.length) } : {}),
+        },
+        signal: req.signal,
+      },
       (res) => {
         const status = res.statusCode ?? 0;
         const location = res.headers.location;
@@ -295,12 +319,20 @@ function nodeRequest(
           const next = new URL(location, url);
           const keepBody = status === 307 || status === 308;
           const nextHeaders = { ...headers };
-          if (next.origin !== url.origin || !isSalesforceUrl(next.toString())) delete nextHeaders.Authorization;
+          if (next.origin !== url.origin || !isSalesforceUrl(next.toString()))
+            delete nextHeaders.Authorization;
           if (!keepBody) {
             delete nextHeaders["Content-Type"];
             delete nextHeaders["Content-Encoding"];
           }
-          nodeRequest(next, keepBody ? method : "GET", nextHeaders, keepBody ? body : undefined, req, redirectsLeft - 1).then(resolve, reject);
+          nodeRequest(
+            next,
+            keepBody ? method : "GET",
+            nextHeaders,
+            keepBody ? body : undefined,
+            req,
+            redirectsLeft - 1
+          ).then(resolve, reject);
           return;
         }
         const shaper = req.shaper;
@@ -308,9 +340,12 @@ function nodeRequest(
         let wire = 0;
         const responseHeaders: Record<string, string> = {};
         for (const [k, v] of Object.entries(res.headers)) {
-          if (v !== undefined) responseHeaders[k.toLowerCase()] = Array.isArray(v) ? v.join(", ") : v;
+          if (v !== undefined)
+            responseHeaders[k.toLowerCase()] = Array.isArray(v) ? v.join(", ") : v;
         }
-        const counter = req.discardBody ? new BodyCounter(responseHeaders["content-encoding"]) : undefined;
+        const counter = req.discardBody
+          ? new BodyCounter(responseHeaders["content-encoding"])
+          : undefined;
         (async () => {
           // Taking from the bucket between reads leaves the socket unread, so TCP backs the real download off.
           for await (const chunk of res as AsyncIterable<Buffer>) {
@@ -322,19 +357,35 @@ function nodeRequest(
           const shapedFlag = shaper ? { shaped: true } : {};
           if (counter) {
             const bodyBytes = await counter.end();
-            resolve({ status, headers: responseHeaders, body: Buffer.alloc(0), bodyBytes, wireBytes: wire, ...shapedFlag });
+            resolve({
+              status,
+              headers: responseHeaders,
+              body: Buffer.alloc(0),
+              bodyBytes,
+              wireBytes: wire,
+              ...shapedFlag,
+            });
             return;
           }
           const decoded = decodeBody(Buffer.concat(chunks), responseHeaders["content-encoding"]);
-          resolve({ status, headers: responseHeaders, body: decoded, wireBytes: wire, ...shapedFlag });
+          resolve({
+            status,
+            headers: responseHeaders,
+            body: decoded,
+            wireBytes: wire,
+            ...shapedFlag,
+          });
         })().catch(reject);
       }
     );
     out.on("error", reject);
-    writeBody(out, body, req.shaper).then(() => out.end(), (e) => {
-      out.destroy();
-      reject(e);
-    });
+    writeBody(out, body, req.shaper).then(
+      () => out.end(),
+      (e) => {
+        out.destroy();
+        reject(e);
+      }
+    );
   });
 }
 
@@ -343,12 +394,18 @@ function nodeRequest(
  * wire bytes and shape the link as it reads; `fetchImpl` swaps in another transport (tests), whose
  * wire size is taken from Content-Length when the response was compressed.
  */
-export function createHttp(instanceUrl: string, accessToken: string, fetchImpl?: typeof fetch): DeviceHttp {
+export function createHttp(
+  instanceUrl: string,
+  accessToken: string,
+  fetchImpl?: typeof fetch
+): DeviceHttp {
   const base = instanceUrl.replace(/\/+$/, "");
   const send: DeviceHttp = async (req) => {
     // The bearer token goes only to the instance (relative paths) or another HTTPS host of the same org.
     if (req.url.startsWith("//") || (!req.url.startsWith("/") && !isSameOrgUrl(req.url, base))) {
-      throw new DeviceHttpError("Refusing to send credentials to a URL that is not a relative path or an HTTPS host of this org.");
+      throw new DeviceHttpError(
+        "Refusing to send credentials to a URL that is not a relative path or an HTTPS host of this org."
+      );
     }
     const url = req.url.startsWith("/") ? base + req.url : req.url;
     const { body, gzipped } = prepareRequestBody(req);
@@ -362,7 +419,10 @@ export function createHttp(instanceUrl: string, accessToken: string, fetchImpl?:
     });
     const decoded = Buffer.from(await res.arrayBuffer());
     const declared = Number(responseHeaders["content-length"]);
-    const wireBytes = responseHeaders["content-encoding"] && Number.isFinite(declared) && declared > 0 ? declared : decoded.length;
+    const wireBytes =
+      responseHeaders["content-encoding"] && Number.isFinite(declared) && declared > 0
+        ? declared
+        : decoded.length;
     return { status: res.status, headers: responseHeaders, body: decoded, wireBytes };
   };
   if (!fetchImpl) send.streamsShaping = true;
@@ -383,7 +443,8 @@ export function shapeHttp(inner: DeviceHttp, shaper: NetworkShaper | undefined):
   const shaped: DeviceHttp = async (req) => {
     await shaper.halfRtt();
     aborted(req.signal);
-    if (!inner.streamsShaping && req.body !== undefined) await shaper.up.takeSliced(Buffer.byteLength(req.body));
+    if (!inner.streamsShaping && req.body !== undefined)
+      await shaper.up.takeSliced(Buffer.byteLength(req.body));
     aborted(req.signal);
     const res = await inner({ ...req, shaper });
     aborted(req.signal);
@@ -419,7 +480,10 @@ export function jsonOrThrow(res: DeviceResponse, what: string): unknown {
       res.status === 401
         ? " The access token was rejected; refresh it with `sf org display` or re-authenticate."
         : "";
-    throw new DeviceHttpError(`${what} failed (HTTP ${res.status}): ${errorMessage(res.body)}.${hint}`, res.status);
+    throw new DeviceHttpError(
+      `${what} failed (HTTP ${res.status}): ${errorMessage(res.body)}.${hint}`,
+      res.status
+    );
   }
   try {
     return JSON.parse(res.body.toString("utf8")) as unknown;
@@ -438,10 +502,15 @@ interface SessionOptions {
  * `sf org display` redacts the token in recent CLI versions, so the token is
  * read with `sf org auth show-access-token` when the display value is redacted.
  */
-export async function createDeviceSession(targetOrg: string, opts: SessionOptions = {}): Promise<DeviceSession> {
+export async function createDeviceSession(
+  targetOrg: string,
+  opts: SessionOptions = {}
+): Promise<DeviceSession> {
   const display = await execSfCommand<Record<string, unknown>>("org", ["display"], { targetOrg });
   if (!display.success || !display.data) {
-    throw new Error(`Could not read credentials for "${targetOrg}": ${display.error ?? "unknown error"}. ${AUTH_HELP}`);
+    throw new Error(
+      `Could not read credentials for "${targetOrg}": ${display.error ?? "unknown error"}. ${AUTH_HELP}`
+    );
   }
   const instanceUrl = display.data.instanceUrl as string | undefined;
   const username = (display.data.username as string | undefined) ?? targetOrg;
@@ -449,9 +518,13 @@ export async function createDeviceSession(targetOrg: string, opts: SessionOption
 
   let token = display.data.accessToken as string | undefined;
   if (!token || token.startsWith("[REDACTED]")) {
-    const shown = await execSfCommand<Record<string, unknown>>("org", ["auth", "show-access-token", "-p"], {
-      targetOrg,
-    });
+    const shown = await execSfCommand<Record<string, unknown>>(
+      "org",
+      ["auth", "show-access-token", "-p"],
+      {
+        targetOrg,
+      }
+    );
     token = shown.success ? (shown.data?.accessToken as string | undefined) : undefined;
   }
   if (!token) throw new Error(`No access token available for "${targetOrg}". ${AUTH_HELP}`);

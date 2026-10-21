@@ -40,7 +40,8 @@ type ConfigFix = Extract<StudioFix, { kind: "setConfigField" }>;
 type Scalar = ConfigFix["to"];
 
 const unsupported = (why: string): { unsupported: string } => ({ unsupported: why });
-const isUnsupported = (v: unknown): v is { unsupported: string } => typeof v === "object" && v !== null && "unsupported" in v;
+const isUnsupported = (v: unknown): v is { unsupported: string } =>
+  typeof v === "object" && v !== null && "unsupported" in v;
 
 const sameValue = (a: unknown, b: unknown) => String(a ?? "") === String(b ?? "");
 
@@ -48,10 +49,18 @@ function isScalar(v: unknown): v is Scalar {
   return v === null || ["string", "number", "boolean"].includes(typeof v);
 }
 
-const str = (v: unknown): string | undefined => (typeof v === "string" && v.trim() ? v.trim() : undefined);
-const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => x.trim()) : []);
+const str = (v: unknown): string | undefined =>
+  typeof v === "string" && v.trim() ? v.trim() : undefined;
+const strings = (v: unknown): string[] =>
+  Array.isArray(v)
+    ? v.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => x.trim())
+    : [];
 
-export async function fixesForToolCall(name: string, input: Input, org: string): Promise<ToolFixes> {
+export async function fixesForToolCall(
+  name: string,
+  input: Input,
+  org: string
+): Promise<ToolFixes> {
   try {
     switch (name) {
       case "update_admin_setting":
@@ -69,7 +78,9 @@ export async function fixesForToolCall(name: string, input: Input, org: string):
         return unsupported(`Studio has no equivalent for ${name}.`);
     }
   } catch (error) {
-    return unsupported(`Couldn't read the org to build the change: ${error instanceof Error ? error.message : String(error)}`);
+    return unsupported(
+      `Couldn't read the org to build the change: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }
 
@@ -111,14 +122,27 @@ async function profilesOf(target: ConfigTarget, org: string): Promise<string[] |
   );
   const ids = [...new Set(rows.map((r) => String(r.AssignedToId)))];
   if (!ids.length) return undefined;
-  const names = (await query(`SELECT Name FROM Profile WHERE Id IN (${inList(ids)})`, org)).map((p) => String(p.Name));
+  const names = (await query(`SELECT Name FROM Profile WHERE Id IN (${inList(ids)})`, org)).map(
+    (p) => String(p.Name)
+  );
   return names.length ? names : undefined;
 }
 
-const configRef = (t: ConfigTarget): RecordRef => ({ type: "config", category: t.category, developerName: t.developerName, label: t.label });
+const configRef = (t: ConfigTarget): RecordRef => ({
+  type: "config",
+  category: t.category,
+  developerName: t.developerName,
+  label: t.label,
+});
 
 function activeFix(t: ConfigTarget, to: boolean): StudioFix {
-  return { kind: "setActive", label: `${to ? "Activate" : "Deactivate"} ${t.label}`, record: configRef(t), from: t.active, to };
+  return {
+    kind: "setActive",
+    label: `${to ? "Activate" : "Deactivate"} ${t.label}`,
+    record: configRef(t),
+    from: t.active,
+    to,
+  };
 }
 
 interface FieldUpdate {
@@ -127,11 +151,17 @@ interface FieldUpdate {
 }
 
 /** One `setConfigField` per update; every field must already have a value on the record, as the tray's edits do. */
-async function fieldFixes(target: ConfigTarget, updates: FieldUpdate[], org: string): Promise<StudioFix[] | { unsupported: string }> {
+async function fieldFixes(
+  target: ConfigTarget,
+  updates: FieldUpdate[],
+  org: string
+): Promise<StudioFix[] | { unsupported: string }> {
   if (!updates.length) return [];
   const { fieldValuesByRecord, queryError } = await queryFieldValues([target.id], org);
   if (queryError) return unsupported(queryError);
-  const existing = new Map((fieldValuesByRecord.get(target.id) ?? []).map((f) => [String(f.FieldName), f]));
+  const existing = new Map(
+    (fieldValuesByRecord.get(target.id) ?? []).map((f) => [String(f.FieldName), f])
+  );
   const fixes: StudioFix[] = [];
   for (const { field, value } of updates) {
     try {
@@ -140,8 +170,12 @@ async function fieldFixes(target: ConfigTarget, updates: FieldUpdate[], org: str
       return unsupported(`"${field}" isn't a valid field name.`);
     }
     const current = existing.get(field);
-    if (!current) return unsupported(`${target.label} has no ${field} value yet; Studio edits values that exist, it doesn't add them.`);
-    if (!isScalar(value)) return unsupported(`The new ${field} value isn't a plain text, number or true/false value.`);
+    if (!current)
+      return unsupported(
+        `${target.label} has no ${field} value yet; Studio edits values that exist, it doesn't add them.`
+      );
+    if (!isScalar(value))
+      return unsupported(`The new ${field} value isn't a plain text, number or true/false value.`);
     const from = extractFieldValue(current);
     if (sameValue(from, value)) continue;
     fixes.push({
@@ -158,7 +192,11 @@ async function fieldFixes(target: ConfigTarget, updates: FieldUpdate[], org: str
   return fixes;
 }
 
-async function withAffects(target: ConfigTarget, fixes: StudioFix[], org: string): Promise<ToolChange[]> {
+async function withAffects(
+  target: ConfigTarget,
+  fixes: StudioFix[],
+  org: string
+): Promise<ToolChange[]> {
   const affects = fixes.length ? await profilesOf(target, org) : undefined;
   return fixes.map((fix) => (affects ? { fix, affects } : { fix }));
 }
@@ -170,32 +208,50 @@ async function updateAdminSetting(input: Input, org: string): Promise<ToolFixes>
   const target = await configRecordBy(`Id = '${recordId}'`, org);
   if (!target) return unsupported("That Admin Console record wasn't found.");
 
-  if (input.fields !== undefined && (input.fields === null || typeof input.fields !== "object" || Array.isArray(input.fields))) {
+  if (
+    input.fields !== undefined &&
+    (input.fields === null || typeof input.fields !== "object" || Array.isArray(input.fields))
+  ) {
     return unsupported("fields isn't an object.");
   }
-  if (input.fieldValues !== undefined && !Array.isArray(input.fieldValues)) return unsupported("fieldValues isn't a list.");
+  if (input.fieldValues !== undefined && !Array.isArray(input.fieldValues))
+    return unsupported("fieldValues isn't a list.");
   const fields = (input.fields ?? {}) as Input;
   const other = Object.keys(fields).filter((k) => k !== "IsActive");
-  if (other.length) return unsupported(`Studio only changes a record's Active switch and field values, not ${other.join(", ")}.`);
+  if (other.length)
+    return unsupported(
+      `Studio only changes a record's Active switch and field values, not ${other.join(", ")}.`
+    );
   const fixes: StudioFix[] = [];
   if (fields.IsActive !== undefined) {
     if (typeof fields.IsActive !== "boolean") return unsupported("IsActive isn't true or false.");
     if (fields.IsActive !== target.active) fixes.push(activeFix(target, fields.IsActive));
   }
   const values = (input.fieldValues ?? []) as Input[];
-  if (values.some((v) => !v || typeof v !== "object")) return unsupported("A fieldValues entry isn't an object.");
-  const set = await fieldFixes(target, values.map((v) => ({ field: String(v.fieldName ?? ""), value: v.value })), org);
+  if (values.some((v) => !v || typeof v !== "object"))
+    return unsupported("A fieldValues entry isn't an object.");
+  const set = await fieldFixes(
+    target,
+    values.map((v) => ({ field: String(v.fieldName ?? ""), value: v.value })),
+    org
+  );
   if (isUnsupported(set)) return set;
   fixes.push(...set);
   return result(await withAffects(target, fixes, org), `${target.label} already has these values.`);
 }
 
-async function dbSchemaTarget(name: unknown, org: string): Promise<ConfigTarget | { unsupported: string }> {
+async function dbSchemaTarget(
+  name: unknown,
+  org: string
+): Promise<ConfigTarget | { unsupported: string }> {
   const given = str(name);
   if (!given) return unsupported("No DB Schema record name.");
   const fullName = normalizeDbSchemaName(given);
   assertNames(fullName);
-  const target = await configRecordBy(`DeveloperName = '${fullName}' AND LifeSciConfigCategory.Category = 'DbSchema'`, org);
+  const target = await configRecordBy(
+    `DeveloperName = '${fullName}' AND LifeSciConfigCategory.Category = 'DbSchema'`,
+    org
+  );
   return target ?? unsupported(`No DB Schema record named ${fullName}.`);
 }
 
@@ -203,14 +259,18 @@ async function updateDbSchema(input: Input, org: string): Promise<ToolFixes> {
   const target = await dbSchemaTarget(input.name, org);
   if (isUnsupported(target)) return target;
   const updates: FieldUpdate[] = [];
-  const add = (field: string, value: unknown) => value !== undefined && updates.push({ field, value });
+  const add = (field: string, value: unknown) =>
+    value !== undefined && updates.push({ field, value });
   add("WhereSoql", input.whereSoql);
   add("OneWaySync", input.oneWaySync);
   add("AttachmentsSupport", input.attachmentsSupport);
   add("MandatoryFields", input.mandatoryFields);
   add("DeltaDateField", input.deltaDateField);
   // update_db_schema joins permission set names with "; ".
-  add("PermissionSets", Array.isArray(input.permissionSets) ? strings(input.permissionSets).join("; ") : undefined);
+  add(
+    "PermissionSets",
+    Array.isArray(input.permissionSets) ? strings(input.permissionSets).join("; ") : undefined
+  );
 
   const fixes: StudioFix[] = [];
   if (input.isActive !== undefined) {
@@ -228,7 +288,10 @@ async function toggleDbSchema(input: Input, org: string): Promise<ToolFixes> {
   if (isUnsupported(target)) return target;
   if (typeof input.active !== "boolean") return unsupported("active isn't true or false.");
   const fixes = input.active === target.active ? [] : [activeFix(target, input.active)];
-  return result(await withAffects(target, fixes, org), `${target.label} is already ${target.active ? "active" : "inactive"}.`);
+  return result(
+    await withAffects(target, fixes, org),
+    `${target.label} is already ${target.active ? "active" : "inactive"}.`
+  );
 }
 
 async function toggleTriggerHandler(input: Input, org: string): Promise<ToolFixes> {
@@ -244,7 +307,8 @@ async function toggleTriggerHandler(input: Input, org: string): Promise<ToolFixe
   if (!row) return unsupported(`No trigger handler named ${developerName}.`);
   const label = String(row.MasterLabel ?? developerName);
   const from = !!row.IsActive;
-  if (from === input.active) return { changes: [], note: `${label} is already ${from ? "active" : "inactive"}.` };
+  if (from === input.active)
+    return { changes: [], note: `${label} is already ${from ? "active" : "inactive"}.` };
   return {
     changes: [
       {
@@ -266,7 +330,11 @@ function result(changes: ToolChange[], nothingToDo: string): ToolFixes {
 
 // --- Permission sets -------------------------------------------------------------
 
-async function permissionSetAccess(assigning: boolean, input: Input, org: string): Promise<ToolFixes> {
+async function permissionSetAccess(
+  assigning: boolean,
+  input: Input,
+  org: string
+): Promise<ToolFixes> {
   const wanted = str(input.permissionSetName);
   if (!wanted) return unsupported("No permissionSetName.");
   const esc = (s: string) => s.replace(/[\\']/g, (c) => `\\${c}`);
@@ -275,19 +343,35 @@ async function permissionSetAccess(assigning: boolean, input: Input, org: string
     org
   );
   if (sets.length !== 1) {
-    return unsupported(sets.length ? `"${wanted}" matches more than one permission set.` : `No permission set is named exactly "${wanted}" (the tool matches by partial name).`);
+    return unsupported(
+      sets.length
+        ? `"${wanted}" matches more than one permission set.`
+        : `No permission set is named exactly "${wanted}" (the tool matches by partial name).`
+    );
   }
-  const access = { type: "permissionSet" as const, id: String(sets[0].Id), label: String(sets[0].Label) };
+  const access = {
+    type: "permissionSet" as const,
+    id: String(sets[0].Id),
+    label: String(sets[0].Label),
+  };
 
   const ids = strings(input.userIds);
   const usernames = strings(input.usernames);
   if (!ids.length && !usernames.length) return unsupported("No users given.");
   for (const id of ids) assertId(id);
-  const clauses = [ids.length ? `Id IN (${inList(ids)})` : "", usernames.length ? `Username IN (${inList(usernames)})` : ""].filter(Boolean);
-  const users = await query(`SELECT Id, Name, Username, IsActive FROM User WHERE (${clauses.join(" OR ")})`, org);
+  const clauses = [
+    ids.length ? `Id IN (${inList(ids)})` : "",
+    usernames.length ? `Username IN (${inList(usernames)})` : "",
+  ].filter(Boolean);
+  const users = await query(
+    `SELECT Id, Name, Username, IsActive FROM User WHERE (${clauses.join(" OR ")})`,
+    org
+  );
   const missing = [
     ...ids.filter((id) => !users.some((u) => String(u.Id).slice(0, 15) === id.slice(0, 15))),
-    ...usernames.filter((n) => !users.some((u) => String(u.Username).toLowerCase() === n.toLowerCase())),
+    ...usernames.filter(
+      (n) => !users.some((u) => String(u.Username).toLowerCase() === n.toLowerCase())
+    ),
   ];
   if (missing.length) return unsupported(`Users not found: ${missing.join(", ")}.`);
 
@@ -306,11 +390,32 @@ async function permissionSetAccess(assigning: boolean, input: Input, org: string
     if (assigning) {
       if (has) skipped.push(userName);
       else if (!u.IsActive) return unsupported(`${userName} is inactive.`);
-      else changes.push({ fix: { kind: "assignAccess", label: `Give ${access.label} to ${userName}`, userId, userName, access } });
+      else
+        changes.push({
+          fix: {
+            kind: "assignAccess",
+            label: `Give ${access.label} to ${userName}`,
+            userId,
+            userName,
+            access,
+          },
+        });
     } else if (!has) skipped.push(userName);
-    else changes.push({ fix: { kind: "removeAccess", label: `Remove ${access.label} from ${userName}`, userId, userName, access, assignmentId: has } });
+    else
+      changes.push({
+        fix: {
+          kind: "removeAccess",
+          label: `Remove ${access.label} from ${userName}`,
+          userId,
+          userName,
+          access,
+          assignmentId: has,
+        },
+      });
   }
-  const note = skipped.length ? `${skipped.join(", ")} ${assigning ? "already have" : "don't have"} ${access.label}.` : undefined;
+  const note = skipped.length
+    ? `${skipped.join(", ")} ${assigning ? "already have" : "don't have"} ${access.label}.`
+    : undefined;
   if (!changes.length) return { changes: [], note: note ?? "Nothing to change." };
   return { changes, ...(note ? { note } : {}) };
 }

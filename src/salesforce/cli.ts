@@ -11,12 +11,27 @@ import * as crypto from "crypto";
 import { cacheGet, cacheSet, queryCacheKey, describeCacheKey } from "../cache.js";
 import { sfLimiter } from "./limiter.js";
 import { privateTmp } from "../private-tmp.js";
-import { directDownload, directEnabled, directGet, directPostRead, directQuery, directToolingWrite, type DirectCredentials, type DirectOutcome } from "./direct.js";
+import {
+  directDownload,
+  directEnabled,
+  directGet,
+  directPostRead,
+  directQuery,
+  directToolingWrite,
+  type DirectCredentials,
+  type DirectOutcome,
+} from "./direct.js";
 import { directDelete, directDeploy, directRetrieve, type StatusHook } from "./direct-metadata.js";
 import { toolingWriteMetadata } from "./tooling-metadata.js";
 import { invalidateSharedReads, sharedRead, sharedReadsActive } from "../config/read-cache.js";
 import { isTokenOrg, tokenOrgCredentials, TOKEN_ORG_NO_CLI } from "./token-org.js";
-import { anyApiVersionPinned, FALLBACK_API_VERSION, normalizeVersion, pinnedApiVersion, resolveApiVersion } from "./api-version.js";
+import {
+  anyApiVersionPinned,
+  FALLBACK_API_VERSION,
+  normalizeVersion,
+  pinnedApiVersion,
+  resolveApiVersion,
+} from "./api-version.js";
 
 const execAsync = promisify(exec);
 
@@ -234,7 +249,10 @@ export async function execSfCommand<T>(
   if (isTokenOrg(options.targetOrg)) return { success: false, error: TOKEN_ORG_NO_CLI };
   // A version pinned for the org applies to the CLI too. `sf org` commands are how the login (and so the org's instance) is read.
   if (options.targetOrg && command !== "org" && anyApiVersionPinned()) {
-    options = { ...options, env: { SF_ORG_API_VERSION: await orgApiVersion(options.targetOrg), ...options.env } };
+    options = {
+      ...options,
+      env: { SF_ORG_API_VERSION: await orgApiVersion(options.targetOrg), ...options.env },
+    };
   }
   const run = () => sfLimiter.run(() => spawnSfJson<T>(command, args, options));
   return writesToOrg(command, args) ? asWrite(options.targetOrg, run) : run();
@@ -298,7 +316,12 @@ function spawnSfJson<T>(
     child.on("close", (code, signal) => {
       // Killed by the spawn timeout: stdout is partial, so say what happened.
       if (code === null && signal && Date.now() - started >= timeout - 50) {
-        resolve({ success: false, timedOut: true, error: timeoutMessage(timeout), rawOutput: stdout || stderr });
+        resolve({
+          success: false,
+          timedOut: true,
+          error: timeoutMessage(timeout),
+          rawOutput: stdout || stderr,
+        });
         return;
       }
       try {
@@ -344,8 +367,13 @@ function spawnSfJson<T>(
  * List all authenticated orgs. Checking each org's connection status takes about half a
  * second per org; `connectionStatus: false` skips it when only which orgs exist matters.
  */
-export async function listOrgs(options: { connectionStatus?: boolean } = {}): Promise<CliResult<SfOrgListResult>> {
-  return execSfCommand<SfOrgListResult>("org", options.connectionStatus === false ? ["list", "--skip-connection-status"] : ["list"]);
+export async function listOrgs(
+  options: { connectionStatus?: boolean } = {}
+): Promise<CliResult<SfOrgListResult>> {
+  return execSfCommand<SfOrgListResult>(
+    "org",
+    options.connectionStatus === false ? ["list", "--skip-connection-status"] : ["list"]
+  );
 }
 
 /**
@@ -391,9 +419,15 @@ async function runSoqlQueryUncached(
 ): Promise<CliResult<SoqlQueryResult>> {
   // LSC_SF_MAX_QUERY_ROWS lowers the cap to rehearse a large org's truncation on a small one.
   const rehearsal = Number(process.env.LSC_SF_MAX_QUERY_ROWS);
-  const cap = Number.isFinite(rehearsal) && rehearsal >= 1 ? Math.min(rehearsal, options.maxRows ?? Infinity) : undefined;
+  const cap =
+    Number.isFinite(rehearsal) && rehearsal >= 1
+      ? Math.min(rehearsal, options.maxRows ?? Infinity)
+      : undefined;
   const maxRows = Math.max(1, cap ?? options.maxRows ?? DEFAULT_MAX_QUERY_ROWS);
-  const direct = await directQuery(query, targetOrg, directCredentials, { tooling: options.useToolingApi, maxRows });
+  const direct = await directQuery(query, targetOrg, directCredentials, {
+    tooling: options.useToolingApi,
+    maxRows,
+  });
   if (direct) {
     if (!direct.ok) return { success: false, error: direct.error, timedOut: direct.timedOut };
     return { success: true, data: markTruncated(query, direct.data) };
@@ -404,7 +438,9 @@ async function runSoqlQueryUncached(
   }
   const result = await execSfCommand<SoqlQueryResult>("data", args, {
     targetOrg,
-    ...(maxRows !== DEFAULT_MAX_QUERY_ROWS ? { env: { SF_ORG_MAX_QUERY_LIMIT: String(maxRows) } } : {}),
+    ...(maxRows !== DEFAULT_MAX_QUERY_ROWS
+      ? { env: { SF_ORG_MAX_QUERY_LIMIT: String(maxRows) } }
+      : {}),
   });
   if (result.success && result.data) result.data = markTruncated(query, result.data);
   return result;
@@ -439,9 +475,12 @@ export async function orgApiVersion(org: string): Promise<string> {
 const orgVersionInfo = new Map<string, Promise<DirectCredentials | null>>();
 
 /** What the org's version is made of: its instance (pins are keyed by it), the newest version it reports, and the pin. */
-export async function orgApiVersionDetails(
-  org: string
-): Promise<{ instanceUrl: string | null; reported: string | null; pinned: string | null; version: string }> {
+export async function orgApiVersionDetails(org: string): Promise<{
+  instanceUrl: string | null;
+  reported: string | null;
+  pinned: string | null;
+  version: string;
+}> {
   const version = await orgApiVersion(org);
   const creds = await orgVersionInfo.get(org);
   return {
@@ -464,7 +503,8 @@ async function directCredentials(org: string): Promise<DirectCredentials | null>
   return login.success ? login.data! : null;
 }
 
-const usableToken = (v: unknown): string => (typeof v === "string" && v && !/redacted/i.test(v) ? v : "");
+const usableToken = (v: unknown): string =>
+  typeof v === "string" && v && !/redacted/i.test(v) ? v : "";
 
 /**
  * The sf CLI's access token, instance URL and API version for an org. Recent
@@ -475,13 +515,16 @@ const usableToken = (v: unknown): string => (typeof v === "string" && v && !/red
 async function readOrgLogin(org: string): Promise<CliResult<DirectCredentials>> {
   const [display, shown] = await Promise.all([
     execSfCommand<Record<string, unknown>>("org", ["display"], { targetOrg: org }),
-    execSfCommand<Record<string, unknown>>("org", ["auth", "show-access-token"], { targetOrg: org }),
+    execSfCommand<Record<string, unknown>>("org", ["auth", "show-access-token"], {
+      targetOrg: org,
+    }),
   ]);
   if (!display.success || !display.data) {
     return { success: false, error: display.error || "Failed to get org credentials" };
   }
   const instanceUrl = typeof display.data.instanceUrl === "string" ? display.data.instanceUrl : "";
-  const apiVersion = typeof display.data.apiVersion === "string" ? display.data.apiVersion : undefined;
+  const apiVersion =
+    typeof display.data.apiVersion === "string" ? display.data.apiVersion : undefined;
   let accessToken = usableToken(shown.data?.accessToken) || usableToken(display.data.accessToken);
   if (!accessToken && !shown.success) {
     const revealed = await execSfCommand<Record<string, unknown>>("org", ["display"], {
@@ -493,7 +536,8 @@ async function readOrgLogin(org: string): Promise<CliResult<DirectCredentials>> 
   if (!accessToken || !instanceUrl) {
     return {
       success: false,
-      error: "Org credentials missing accessToken or instanceUrl. Re-authenticate with: sf org login web",
+      error:
+        "Org credentials missing accessToken or instanceUrl. Re-authenticate with: sf org login web",
     };
   }
   return { success: true, data: { accessToken, instanceUrl, apiVersion } };
@@ -570,7 +614,9 @@ export async function createToolingRecord(
   data: Record<string, unknown>,
   targetOrg: string
 ): Promise<CliResult<{ id: string }>> {
-  const direct = await asWrite(targetOrg, () => directToolingWrite<{ id: string }>("POST", objectName, null, data, targetOrg, directCredentials));
+  const direct = await asWrite(targetOrg, () =>
+    directToolingWrite<{ id: string }>("POST", objectName, null, data, targetOrg, directCredentials)
+  );
   if (direct) return fromDirect(direct);
   const endpoint = await dataPath(targetOrg, `/tooling/sobjects/${objectName}`);
   return apiRequest<{ id: string }>(endpoint, "POST", data, targetOrg);
@@ -585,7 +631,9 @@ export async function updateToolingRecord(
   data: Record<string, unknown>,
   targetOrg: string
 ): Promise<CliResult<void>> {
-  const direct = await asWrite(targetOrg, () => directToolingWrite<void>("PATCH", objectName, recordId, data, targetOrg, directCredentials));
+  const direct = await asWrite(targetOrg, () =>
+    directToolingWrite<void>("PATCH", objectName, recordId, data, targetOrg, directCredentials)
+  );
   if (direct) return fromDirect(direct);
   const endpoint = await dataPath(targetOrg, `/tooling/sobjects/${objectName}/${recordId}`);
   return apiRequest<void>(endpoint, "PATCH", data, targetOrg);
@@ -599,7 +647,16 @@ export async function deleteToolingRecord(
   recordId: string,
   targetOrg: string
 ): Promise<CliResult<void>> {
-  const direct = await asWrite(targetOrg, () => directToolingWrite<void>("DELETE", objectName, recordId, undefined, targetOrg, directCredentials));
+  const direct = await asWrite(targetOrg, () =>
+    directToolingWrite<void>(
+      "DELETE",
+      objectName,
+      recordId,
+      undefined,
+      targetOrg,
+      directCredentials
+    )
+  );
   if (direct) return fromDirect(direct);
   const endpoint = await dataPath(targetOrg, `/tooling/sobjects/${objectName}/${recordId}`);
   return apiRequest<void>(endpoint, "DELETE", undefined, targetOrg);
@@ -607,7 +664,9 @@ export async function deleteToolingRecord(
 
 /** A direct REST answer as the CLI wrapper's result. */
 function fromDirect<T>(direct: DirectOutcome<T>): CliResult<T> {
-  return direct.ok ? { success: true, data: direct.data } : { success: false, error: direct.error, timedOut: direct.timedOut };
+  return direct.ok
+    ? { success: true, data: direct.data }
+    : { success: false, error: direct.error, timedOut: direct.timedOut };
 }
 
 /**
@@ -618,9 +677,14 @@ export async function describeSObject(
   targetOrg: string
 ): Promise<CliResult<SObjectDescribeResult>> {
   if (directEnabled(targetOrg) && /^\w+$/.test(objectName)) {
-    const direct = await directGet<SObjectDescribeResult>(await dataPath(targetOrg, `/sobjects/${objectName}/describe`), targetOrg, directCredentials);
+    const direct = await directGet<SObjectDescribeResult>(
+      await dataPath(targetOrg, `/sobjects/${objectName}/describe`),
+      targetOrg,
+      directCredentials
+    );
     if (direct?.ok && typeof direct.data === "object") return { success: true, data: direct.data };
-    if (direct && !direct.ok) return { success: false, error: direct.error, timedOut: direct.timedOut };
+    if (direct && !direct.ok)
+      return { success: false, error: direct.error, timedOut: direct.timedOut };
   }
   return execSfCommand<SObjectDescribeResult>("sobject", ["describe", "--sobject", objectName], {
     targetOrg,
@@ -723,16 +787,32 @@ export async function deployMetadata(
   const direct = await (checkOnly
     ? directDeploy(sourcePath, targetOrg, directCredentials, undefined, onStatus, true)
     : asWrite(targetOrg, async () => {
-        const viaTooling = isTokenOrg(targetOrg) ? null : await toolingWriteMetadata(sourcePath, targetOrg, directCredentials, onStatus);
-        return viaTooling ?? directDeploy(sourcePath, targetOrg, directCredentials, undefined, onStatus);
+        const viaTooling = isTokenOrg(targetOrg)
+          ? null
+          : await toolingWriteMetadata(sourcePath, targetOrg, directCredentials, onStatus);
+        return (
+          viaTooling ?? directDeploy(sourcePath, targetOrg, directCredentials, undefined, onStatus)
+        );
       }));
-  if (direct) return direct.ok ? { success: true, data: {} } : { success: false, error: direct.error, timedOut: direct.timedOut, rejected: direct.rejected };
+  if (direct)
+    return direct.ok
+      ? { success: true, data: {} }
+      : {
+          success: false,
+          error: direct.error,
+          timedOut: direct.timedOut,
+          rejected: direct.rejected,
+        };
   return deployOutcome(
-    await execSfCommand("project", ["deploy", "start", "--source-dir", sourcePath, ...(checkOnly ? ["--dry-run"] : [])], {
-      targetOrg,
-      timeout: 300000,
-      cwd,
-    })
+    await execSfCommand(
+      "project",
+      ["deploy", "start", "--source-dir", sourcePath, ...(checkOnly ? ["--dry-run"] : [])],
+      {
+        targetOrg,
+        timeout: 300000,
+        cwd,
+      }
+    )
   );
 }
 
@@ -743,11 +823,20 @@ export async function deployMetadata(
  */
 export function deployOutcome<T>(result: CliResult<T>): CliResult<T> {
   const data = result.data as
-    | { success?: boolean; status?: string; numberComponentErrors?: number; details?: { componentFailures?: unknown } }
+    | {
+        success?: boolean;
+        status?: string;
+        numberComponentErrors?: number;
+        details?: { componentFailures?: unknown };
+      }
     | undefined;
   if (!data || typeof data !== "object") return result;
   const raw = data.details?.componentFailures;
-  const failures = (Array.isArray(raw) ? raw : raw ? [raw] : []) as { fullName?: string; problem?: string; lineNumber?: number }[];
+  const failures = (Array.isArray(raw) ? raw : raw ? [raw] : []) as {
+    fullName?: string;
+    problem?: string;
+    lineNumber?: number;
+  }[];
   const failed =
     data.success === false ||
     (typeof data.status === "string" && /^(Failed|Canceled|Canceling)/i.test(data.status)) ||
@@ -756,19 +845,42 @@ export function deployOutcome<T>(result: CliResult<T>): CliResult<T> {
   if (!failed) return result;
   // A failure the CLI already flagged keeps its own message unless the JSON names the components.
   if (!result.success && !failures.length) return result;
-  const reasons = failures.map((f) => `${f.fullName ? `${f.fullName}: ` : ""}${f.problem ?? "failed"}${f.lineNumber ? ` (line ${f.lineNumber})` : ""}`);
-  return { ...result, success: false, rejected: failures.length > 0, error: reasons.length ? reasons.join("; ") : `The deploy ${String(data.status ?? "failed").toLowerCase()}.` };
+  const reasons = failures.map(
+    (f) =>
+      `${f.fullName ? `${f.fullName}: ` : ""}${f.problem ?? "failed"}${f.lineNumber ? ` (line ${f.lineNumber})` : ""}`
+  );
+  return {
+    ...result,
+    success: false,
+    rejected: failures.length > 0,
+    error: reasons.length
+      ? reasons.join("; ")
+      : `The deploy ${String(data.status ?? "failed").toLowerCase()}.`,
+  };
 }
 
 /**
  * Delete one metadata component (a destructive-changes deploy of an otherwise empty package).
  * The component must not be in use (a layout still assigned, a page still activated).
  */
-export async function deleteMetadata(type: string, fullName: string, targetOrg: string): Promise<CliResult<unknown>> {
-  const direct = await asWrite(targetOrg, () => directDelete(type, fullName, targetOrg, directCredentials));
-  if (direct) return direct.ok ? { success: true, data: {} } : { success: false, error: direct.error, timedOut: direct.timedOut };
+export async function deleteMetadata(
+  type: string,
+  fullName: string,
+  targetOrg: string
+): Promise<CliResult<unknown>> {
+  const direct = await asWrite(targetOrg, () =>
+    directDelete(type, fullName, targetOrg, directCredentials)
+  );
+  if (direct)
+    return direct.ok
+      ? { success: true, data: {} }
+      : { success: false, error: direct.error, timedOut: direct.timedOut };
   const cwd = ensureTmpSfdxProject();
-  const dir = path.join(cwd, "destructive", `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+  const dir = path.join(
+    cwd,
+    "destructive",
+    `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  );
   fs.mkdirSync(dir, { recursive: true });
   const version = await orgApiVersion(targetOrg);
   const xml = (body: string) =>
@@ -777,13 +889,22 @@ export async function deleteMetadata(type: string, fullName: string, targetOrg: 
   fs.writeFileSync(path.join(dir, "package.xml"), xml(""));
   fs.writeFileSync(
     path.join(dir, "destructiveChanges.xml"),
-    xml(`    <types>\n        <members>${escaped}</members>\n        <name>${type}</name>\n    </types>\n`)
+    xml(
+      `    <types>\n        <members>${escaped}</members>\n        <name>${type}</name>\n    </types>\n`
+    )
   );
   try {
     return deployOutcome(
       await execSfCommand(
         "project",
-        ["deploy", "start", "--manifest", path.join(dir, "package.xml"), "--post-destructive-changes", path.join(dir, "destructiveChanges.xml")],
+        [
+          "deploy",
+          "start",
+          "--manifest",
+          path.join(dir, "package.xml"),
+          "--post-destructive-changes",
+          path.join(dir, "destructiveChanges.xml"),
+        ],
         { targetOrg, timeout: 300000, cwd }
       )
     );
@@ -805,16 +926,35 @@ export async function retrieveMetadata(
 ): Promise<CliResult<{ outputDir: string }>> {
   const projectDir = ensureTmpSfdxProject();
   // Unique per call: two retrieves started in the same millisecond must not share a folder.
-  const relativeOutput = path.join("retrieve-output", `${Date.now()}-${crypto.randomBytes(3).toString("hex")}`);
+  const relativeOutput = path.join(
+    "retrieve-output",
+    `${Date.now()}-${crypto.randomBytes(3).toString("hex")}`
+  );
   const absoluteOutput = path.join(projectDir, relativeOutput);
   fs.mkdirSync(absoluteOutput, { recursive: true });
 
-  const direct = await directRetrieve([metadata].flat(), targetOrg, absoluteOutput, directCredentials, undefined, onStatus);
-  if (direct) return direct.ok ? { success: true, data: { outputDir: absoluteOutput } } : { success: false, error: direct.error, timedOut: direct.timedOut };
+  const direct = await directRetrieve(
+    [metadata].flat(),
+    targetOrg,
+    absoluteOutput,
+    directCredentials,
+    undefined,
+    onStatus
+  );
+  if (direct)
+    return direct.ok
+      ? { success: true, data: { outputDir: absoluteOutput } }
+      : { success: false, error: direct.error, timedOut: direct.timedOut };
 
   const result = await execSfCommand(
     "project",
-    ["retrieve", "start", ...[metadata].flat().flatMap((m) => ["--metadata", m]), "--output-dir", relativeOutput],
+    [
+      "retrieve",
+      "start",
+      ...[metadata].flat().flatMap((m) => ["--metadata", m]),
+      "--output-dir",
+      relativeOutput,
+    ],
     { targetOrg, timeout: 300000, cwd: projectDir }
   );
 
@@ -923,7 +1063,11 @@ export async function apiRequest<T>(
  * A POST that only reads (a query sent as a body, e.g. Data Cloud `ssot/query-sql`): direct REST first,
  * the CLI otherwise. Not for anything that writes — use `apiRequest`, which is serialized as a write.
  */
-export async function apiReadPost<T>(endpoint: string, body: unknown, targetOrg: string): Promise<CliResult<T>> {
+export async function apiReadPost<T>(
+  endpoint: string,
+  body: unknown,
+  targetOrg: string
+): Promise<CliResult<T>> {
   const direct = await directPostRead<T>(endpoint, body, targetOrg, directCredentials);
   if (direct) {
     return direct.ok
@@ -934,21 +1078,34 @@ export async function apiReadPost<T>(endpoint: string, body: unknown, targetOrg:
 }
 
 /** Download a REST body (a ContentVersion's VersionData) to a file: direct first, `sf api request rest --stream-to-file` otherwise. */
-export async function downloadToFile(endpoint: string, dest: string, targetOrg: string, timeoutMs: number): Promise<CliResult<void>> {
+export async function downloadToFile(
+  endpoint: string,
+  dest: string,
+  targetOrg: string,
+  timeoutMs: number
+): Promise<CliResult<void>> {
   const direct = await directDownload(endpoint, dest, targetOrg, directCredentials, timeoutMs);
-  if (direct) return direct.ok ? { success: true } : { success: false, error: direct.error, timedOut: direct.timedOut };
+  if (direct)
+    return direct.ok
+      ? { success: true }
+      : { success: false, error: direct.error, timedOut: direct.timedOut };
   if (isTokenOrg(targetOrg)) return { success: false, error: TOKEN_ORG_NO_CLI };
   return sfLimiter.run(
     () =>
       new Promise<CliResult<void>>((resolve) => {
-        const child = spawn("sf", ["api", "request", "rest", endpoint, "--stream-to-file", dest, "--target-org", targetOrg], { stdio: "pipe", timeout: timeoutMs });
+        const child = spawn(
+          "sf",
+          ["api", "request", "rest", endpoint, "--stream-to-file", dest, "--target-org", targetOrg],
+          { stdio: "pipe", timeout: timeoutMs }
+        );
         const started = Date.now();
         let stderr = "";
         child.stderr?.on("data", (d) => (stderr += d.toString()));
         child.on("error", (e) => resolve({ success: false, error: e.message }));
         child.on("close", (code, signal) => {
           if (code === 0) return resolve({ success: true });
-          if (signal && Date.now() - started >= timeoutMs - 50) return resolve({ success: false, timedOut: true, error: timeoutMessage(timeoutMs) });
+          if (signal && Date.now() - started >= timeoutMs - 50)
+            return resolve({ success: false, timedOut: true, error: timeoutMessage(timeoutMs) });
           resolve({ success: false, error: stderr.trim() || `Download failed (exit ${code})` });
         });
       })
@@ -994,7 +1151,12 @@ function spawnApiRequest<T>(
 
     child.on("close", (code, signal) => {
       if (code === null && signal && Date.now() - started >= timeout - 50) {
-        resolve({ success: false, timedOut: true, error: timeoutMessage(timeout), rawOutput: stdout || stderr });
+        resolve({
+          success: false,
+          timedOut: true,
+          error: timeoutMessage(timeout),
+          rawOutput: stdout || stderr,
+        });
         return;
       }
       if (code === 0) {
@@ -1089,7 +1251,10 @@ export interface OrgCredentials {
 export async function getOrgCredentials(targetOrg: string): Promise<CliResult<OrgCredentials>> {
   const login = await readOrgLogin(targetOrg);
   if (!login.success) return { success: false, error: login.error };
-  return { success: true, data: { accessToken: login.data!.accessToken, instanceUrl: login.data!.instanceUrl } };
+  return {
+    success: true,
+    data: { accessToken: login.data!.accessToken, instanceUrl: login.data!.instanceUrl },
+  };
 }
 
 export interface ContentVersionUploadResult {
@@ -1296,8 +1461,13 @@ export async function createBulkPresentation(
  */
 export function orgPagePathProblem(pagePath: string): string | null {
   const p = pagePath.trim();
-  if (!p.startsWith("/")) return "The page path must start with / (for example /lightning/setup/SetupOneHome/home).";
-  if (p.startsWith("//") || /^\/*[a-z][a-z0-9+.-]*:/i.test(p.slice(1)) || /[\\\u0000-\u001f\u007f]/.test(p)) {
+  if (!p.startsWith("/"))
+    return "The page path must start with / (for example /lightning/setup/SetupOneHome/home).";
+  if (
+    p.startsWith("//") ||
+    /^\/*[a-z][a-z0-9+.-]*:/i.test(p.slice(1)) ||
+    /[\\\u0000-\u001f\u007f]/.test(p)
+  ) {
     return "The page path must be a page in the org, not another site.";
   }
   let decoded = p;
@@ -1306,7 +1476,11 @@ export function orgPagePathProblem(pagePath: string): string | null {
   } catch {
     return "The page path isn't a valid URL path.";
   }
-  if (decoded.startsWith("//") || decoded.includes("\\") || /^\/(secur\/|frontdoor\.jsp)/i.test(decoded)) {
+  if (
+    decoded.startsWith("//") ||
+    decoded.includes("\\") ||
+    /^\/(secur\/|frontdoor\.jsp)/i.test(decoded)
+  ) {
     return "The page path must be a page in the org, not another site or a login page.";
   }
   return null;

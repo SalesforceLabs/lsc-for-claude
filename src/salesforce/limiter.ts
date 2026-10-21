@@ -50,11 +50,15 @@ export class Limiter {
 
   /** Calls running and waiting, for tests and diagnostics. */
   stats(): { active: number; waiting: number } {
-    return { active: this.active + this.extra, waiting: this.waiters.length + this.urgentWaiters.length };
+    return {
+      active: this.active + this.extra,
+      waiting: this.waiters.length + this.urgentWaiters.length,
+    };
   }
 
   private async runUrgent<T>(fn: () => Promise<T>): Promise<T> {
-    if (this.extra >= URGENT_RESERVE) await new Promise<void>((resolve) => this.urgentWaiters.push(resolve));
+    if (this.extra >= URGENT_RESERVE)
+      await new Promise<void>((resolve) => this.urgentWaiters.push(resolve));
     else this.extra++;
     try {
       return await fn();

@@ -65,7 +65,9 @@ const runs = new Map<string, FixProgress>();
 
 function prune(now = Date.now()): void {
   for (const [id, p] of runs) {
-    const stale = p.finishedAt ? now - p.finishedAt > KEEP_FINISHED_MS : now - p.startedAt > KEEP_STALE_MS;
+    const stale = p.finishedAt
+      ? now - p.finishedAt > KEEP_FINISHED_MS
+      : now - p.startedAt > KEEP_STALE_MS;
     if (stale) runs.delete(id);
   }
   // Oldest first (Map keeps insertion order).
@@ -80,7 +82,9 @@ export class FixTracker {
 
   /** Add steps that may run, so the bar knows the total before they start. */
   plan(steps: PlannedStep[]): void {
-    for (const s of steps) if (!this.find(s.key)) this.change.steps.push({ key: s.key, label: s.label, state: "waiting" });
+    for (const s of steps)
+      if (!this.find(s.key))
+        this.change.steps.push({ key: s.key, label: s.label, state: "waiting" });
   }
 
   /** Run one step, marking it running, then done or failed. A key that wasn't planned just runs. */
@@ -146,7 +150,8 @@ export class FixTracker {
     c.steps = c.steps.filter((s) => s.state !== "waiting");
     c.finishedAt = Date.now();
     const all = this.batch.changes;
-    this.batch.finishedAt = all.length >= c.total && all.every((x) => x.finishedAt) ? c.finishedAt : undefined;
+    this.batch.finishedAt =
+      all.length >= c.total && all.every((x) => x.finishedAt) ? c.finishedAt : undefined;
   }
 
   private find(key: string): FixStep | undefined {
@@ -155,21 +160,31 @@ export class FixTracker {
 }
 
 /** Run a step when there is a tracker; otherwise just run it. */
-export function step<T>(progress: FixTracker | undefined, key: string, fn: () => Promise<T>): Promise<T> {
+export function step<T>(
+  progress: FixTracker | undefined,
+  key: string,
+  fn: () => Promise<T>
+): Promise<T> {
   return progress ? progress.run(key, fn) : fn();
 }
 
 /** "2 of 5 components" plus what Salesforce says it is doing. */
 export function statusDetail(s: MetadataStatus): string {
   const parts: string[] = [];
-  if (s.componentsTotal && s.componentsTotal > 0) parts.push(`${s.componentsDone ?? 0} of ${s.componentsTotal} components`);
-  if (s.status) parts.push(`Salesforce: ${s.status.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase()}`);
+  if (s.componentsTotal && s.componentsTotal > 0)
+    parts.push(`${s.componentsDone ?? 0} of ${s.componentsTotal} components`);
+  if (s.status)
+    parts.push(`Salesforce: ${s.status.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase()}`);
   if (s.stateDetail) parts.push(s.stateDetail);
   return parts.join(" · ");
 }
 
 /** Begin tracking one change of a batch; replaces an earlier entry for the same index (a retry). */
-export function startFixChange(arg: ProgressArg, fix: StudioFix, phase: "preview" | "apply"): FixTracker {
+export function startFixChange(
+  arg: ProgressArg,
+  fix: StudioFix,
+  phase: "preview" | "apply"
+): FixTracker {
   prune();
   let batch = runs.get(arg.id);
   if (!batch) {
@@ -177,8 +192,17 @@ export function startFixChange(arg: ProgressArg, fix: StudioFix, phase: "preview
     runs.set(arg.id, batch);
   }
   batch.finishedAt = undefined;
-  const change: ChangeProgress = { index: arg.index, total: arg.total, label: fix.label, phase, startedAt: Date.now(), steps: [] };
-  batch.changes = [...batch.changes.filter((c) => c.index !== arg.index), change].sort((a, b) => a.index - b.index);
+  const change: ChangeProgress = {
+    index: arg.index,
+    total: arg.total,
+    label: fix.label,
+    phase,
+    startedAt: Date.now(),
+    steps: [],
+  };
+  batch.changes = [...batch.changes.filter((c) => c.index !== arg.index), change].sort(
+    (a, b) => a.index - b.index
+  );
   const tracker = new FixTracker(batch, change);
   tracker.plan(planFixSteps(fix, phase));
   return tracker;
@@ -198,12 +222,27 @@ export function fixProgress(id: string): FixProgress | null {
 export function planFixSteps(fix: StudioFix, phase: "preview" | "apply"): PlannedStep[] {
   const apply = phase === "apply";
   const write = (label: string): PlannedStep[] => (apply ? [{ key: "write", label }] : []);
-  const read = (what: string): PlannedStep => ({ key: "read", label: apply ? `Re-checking ${what} hasn't changed` : `Reading ${what}` });
+  const read = (what: string): PlannedStep => ({
+    key: "read",
+    label: apply ? `Re-checking ${what} hasn't changed` : `Reading ${what}`,
+  });
   switch (fix.kind) {
     case "assignPsl":
-      return [{ key: "read", label: `${apply ? "Re-checking" : "Checking"} ${fix.userName}'s licenses and ${fix.pslLabel} capacity` }, ...write(`Assigning ${fix.pslLabel} to ${fix.userName}`)];
+      return [
+        {
+          key: "read",
+          label: `${apply ? "Re-checking" : "Checking"} ${fix.userName}'s licenses and ${fix.pslLabel} capacity`,
+        },
+        ...write(`Assigning ${fix.pslLabel} to ${fix.userName}`),
+      ];
     case "removePsl":
-      return [{ key: "read", label: `${apply ? "Re-checking" : "Checking"} ${fix.userName}'s ${fix.pslLabel} assignment` }, ...write(`Removing ${fix.pslLabel} from ${fix.userName}`)];
+      return [
+        {
+          key: "read",
+          label: `${apply ? "Re-checking" : "Checking"} ${fix.userName}'s ${fix.pslLabel} assignment`,
+        },
+        ...write(`Removing ${fix.pslLabel} from ${fix.userName}`),
+      ];
     case "setConfigField":
       return [
         read(`${fix.field} on ${fix.recordLabel}`),
@@ -217,10 +256,16 @@ export function planFixSteps(fix: StudioFix, phase: "preview" | "apply"): Planne
         ...write(`Updating ${fix.recordLabel}'s profile assignments`),
       ];
     case "setActive":
-      return [read(fix.record.label), ...write(`Switching ${fix.record.label} ${fix.to ? "on" : "off"}`)];
+      return [
+        read(fix.record.label),
+        ...write(`Switching ${fix.record.label} ${fix.to ? "on" : "off"}`),
+      ];
     case "createConfigRecord":
       return [
-        { key: "read", label: `${apply ? "Re-checking" : "Checking"} ${fix.recordLabel} against the org` },
+        {
+          key: "read",
+          label: `${apply ? "Re-checking" : "Checking"} ${fix.recordLabel} against the org`,
+        },
         { key: "reach", label: `Working out who will see ${fix.recordLabel}` },
         ...write(`Creating ${fix.recordLabel}`),
       ];
@@ -234,7 +279,9 @@ export function planFixSteps(fix: StudioFix, phase: "preview" | "apply"): Planne
     case "removeAccess":
       return [
         { key: "read", label: `${apply ? "Re-checking" : "Checking"} ${fix.userName}'s access` },
-        ...write(`${fix.kind === "assignAccess" ? "Giving" : "Removing"} access for ${fix.userName}`),
+        ...write(
+          `${fix.kind === "assignAccess" ? "Giving" : "Removing"} access for ${fix.userName}`
+        ),
       ];
     case "setCustomScriptCode":
     case "saveCustomScript": {
@@ -259,7 +306,9 @@ export function planFixSteps(fix: StudioFix, phase: "preview" | "apply"): Planne
               { key: "lwc", label: `Creating the component ${fix.componentName}` },
               { key: "record", label: `Creating ${fix.name}` },
               { key: "verify", label: `Checking the stored code of ${fix.name}` },
-              ...(fix.assign?.length ? [{ key: "assign", label: "Assigning it to the stage object" }] : []),
+              ...(fix.assign?.length
+                ? [{ key: "assign", label: "Assigning it to the stage object" }]
+                : []),
             ]
           : []),
       ];
@@ -277,11 +326,16 @@ export function planFixSteps(fix: StudioFix, phase: "preview" | "apply"): Planne
     case "assignCustomScript":
       return [
         read(fix.stageObjectName),
-        ...write(`${fix.to ? "Setting" : "Clearing"} the ${fix.role} script of ${fix.stageObjectName}`),
+        ...write(
+          `${fix.to ? "Setting" : "Clearing"} the ${fix.role} script of ${fix.stageObjectName}`
+        ),
       ];
     case "setLayoutRelatedList":
       return [
-        { key: "retrieve", label: `${apply ? "Re-reading" : "Reading"} ${fix.layoutLabel} from the org` },
+        {
+          key: "retrieve",
+          label: `${apply ? "Re-reading" : "Reading"} ${fix.layoutLabel} from the org`,
+        },
         { key: "diff", label: `Building the change to ${fix.layoutLabel}` },
         ...(apply ? [{ key: "deploy", label: `Deploying ${fix.layoutLabel}` }] : []),
       ];
@@ -289,24 +343,53 @@ export function planFixSteps(fix: StudioFix, phase: "preview" | "apply"): Planne
       const label = fix.doc.label;
       const type = fix.doc.type;
       return [
-        { key: "retrieve", label: `${apply ? "Re-reading" : "Reading"} ${label} from the org${apply ? " to check nothing changed" : ""}` },
+        {
+          key: "retrieve",
+          label: `${apply ? "Re-reading" : "Reading"} ${label} from the org${apply ? " to check nothing changed" : ""}`,
+        },
         { key: "diff", label: `Building the diff for ${label}` },
         // A Lightning page's reach is only read on request from the review dialog: it means reading every app.
         ...(type === "ListView" || type === "FlexiPage" || apply
           ? []
-          : [{ key: "reach", label: type === "CompactLayout" ? `Finding the record types ${label} reaches` : type === "CustomApplication" ? `Finding the profiles that can open ${label}` : `Finding the profiles ${label} reaches` }]),
-        ...(apply ? [] : [{ key: "production", label: "Checking whether this is a production org" }]),
-        ...((type === "Layout" || type === "CustomApplication") && !apply ? [{ key: "validate", label: "Validating the change" }] : []),
+          : [
+              {
+                key: "reach",
+                label:
+                  type === "CompactLayout"
+                    ? `Finding the record types ${label} reaches`
+                    : type === "CustomApplication"
+                      ? `Finding the profiles that can open ${label}`
+                      : `Finding the profiles ${label} reaches`,
+              },
+            ]),
+        ...(apply
+          ? []
+          : [{ key: "production", label: "Checking whether this is a production org" }]),
+        ...((type === "Layout" || type === "CustomApplication") && !apply
+          ? [{ key: "validate", label: "Validating the change" }]
+          : []),
         ...(apply ? [{ key: "deploy", label: `Deploying ${label}` }] : []),
       ];
     }
     case "copyForProfile": {
       const label = fix.doc.label;
       return [
-        { key: "retrieve", label: `${apply ? "Re-reading" : "Reading"} ${label}${fix.doc.type === "Layout" ? " and the profile" : ""} from the org` },
-        ...(fix.doc.type === "FlexiPage" ? [{ key: "apps", label: "Reading the apps that use it" }] : []),
+        {
+          key: "retrieve",
+          label: `${apply ? "Re-reading" : "Reading"} ${label}${fix.doc.type === "Layout" ? " and the profile" : ""} from the org`,
+        },
+        ...(fix.doc.type === "FlexiPage"
+          ? [{ key: "apps", label: "Reading the apps that use it" }]
+          : []),
         { key: "diff", label: `Planning the ${fix.revert ? "move back" : "copy"} for ${label}` },
-        ...(apply ? [{ key: "deploy", label: `Deploying ${fix.revert ? "the change" : "the copy and the assignment"}` }] : []),
+        ...(apply
+          ? [
+              {
+                key: "deploy",
+                label: `Deploying ${fix.revert ? "the change" : "the copy and the assignment"}`,
+              },
+            ]
+          : []),
       ];
     }
   }

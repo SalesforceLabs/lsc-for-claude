@@ -6,7 +6,10 @@ import { RUN_LIMITS, type DescribeInfo, type Row } from "./types.js";
 const SKIPPED_TYPES = new Set(["address", "location", "base64", "anyType", "complexvalue"]);
 
 /** Id first, then Name, then the rest, up to `cap` fields. */
-export function pickFields(info: DescribeInfo, cap: number = RUN_LIMITS.maxFields): { fields: string[]; capped: boolean } {
+export function pickFields(
+  info: DescribeInfo,
+  cap: number = RUN_LIMITS.maxFields
+): { fields: string[]; capped: boolean } {
   const usable = info.fields.filter((f) => !SKIPPED_TYPES.has(f.type)).map((f) => f.name);
   const first = ["Id", "Name"].filter((n) => usable.includes(n));
   const rest = usable.filter((n) => !first.includes(n));

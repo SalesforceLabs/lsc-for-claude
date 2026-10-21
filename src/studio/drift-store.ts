@@ -38,7 +38,11 @@ export function countsOf(config: ConfigSnapshot): SnapshotCounts {
   };
 }
 
-export async function saveSnapshot(org: string, config: ConfigSnapshot, label?: string): Promise<SnapshotMeta> {
+export async function saveSnapshot(
+  org: string,
+  config: ConfigSnapshot,
+  label?: string
+): Promise<SnapshotMeta> {
   const createdAt = new Date().toISOString();
   const id = createdAt.replace(/[:.]/g, "-");
   const meta: SnapshotMeta = {

@@ -16,9 +16,21 @@ import * as fs from "fs";
 import * as path from "path";
 import { deflateRawSync } from "zlib";
 import { XMLParser } from "fast-xml-parser";
-import { directApiVersion, directEnabled, directMetadataSoap, type CredentialFetcher, type DirectOutcome } from "./direct.js";
+import {
+  directApiVersion,
+  directEnabled,
+  directMetadataSoap,
+  type CredentialFetcher,
+  type DirectOutcome,
+} from "./direct.js";
 import { ZipReader } from "../perf/device/zip.js";
-import { childText, escapeXml, parseXml, serializeXml, type XmlNode } from "../studio/metadata/xml.js";
+import {
+  childText,
+  escapeXml,
+  parseXml,
+  serializeXml,
+  type XmlNode,
+} from "../studio/metadata/xml.js";
 
 /** Types stored as one file each: Metadata API folder and file suffix. */
 const FILE_TYPES: Record<string, { dir: string; suffix: string }> = {
@@ -69,7 +81,10 @@ function manifest(members: Member[], version: string): string {
   const byType = new Map<string, string[]>();
   for (const m of members) byType.set(m.type, [...(byType.get(m.type) ?? []), m.fullName ?? "*"]);
   const types = [...byType]
-    .map(([name, list]) => `<types>${list.map((n) => `<members>${escapeXml(n)}</members>`).join("")}<name>${name}</name></types>`)
+    .map(
+      ([name, list]) =>
+        `<types>${list.map((n) => `<members>${escapeXml(n)}</members>`).join("")}<name>${name}</name></types>`
+    )
     .join("");
   return `${types}<version>${version}</version>`;
 }
@@ -106,7 +121,8 @@ export interface MetadataStatus {
 }
 export type StatusHook = (status: MetadataStatus) => void;
 
-const numOf = (v: unknown): number | undefined => (v === undefined || v === "" || Number.isNaN(Number(v)) ? undefined : Number(v));
+const numOf = (v: unknown): number | undefined =>
+  v === undefined || v === "" || Number.isNaN(Number(v)) ? undefined : Number(v);
 
 /** Start an async operation and poll its status until done. */
 async function runAsync(
@@ -133,11 +149,20 @@ async function runAsync(
     // Progress is advisory.
   }
   for (let n = 0; ; n++) {
-    if (Date.now() - began > timeoutMs) return { ok: false, timedOut: true, error: `The ${startOp} didn't finish in ${Math.round(timeoutMs / 1000)}s` };
+    if (Date.now() - began > timeoutMs)
+      return {
+        ok: false,
+        timedOut: true,
+        error: `The ${startOp} didn't finish in ${Math.round(timeoutMs / 1000)}s`,
+      };
     await sleep(pollDelay(n));
     const res = await directMetadataSoap(org, check(id), fetcher);
     // Started but lost: say so rather than let the CLI run it a second time.
-    if (!res) return { ok: false, error: `Lost the connection to Salesforce while waiting for the ${startOp} to finish` };
+    if (!res)
+      return {
+        ok: false,
+        error: `Lost the connection to Salesforce while waiting for the ${startOp} to finish`,
+      };
     if (!res.ok) return res;
     const status = resultOf(res.data, checkOp);
     if (!status.ok) return status;
@@ -178,7 +203,16 @@ function unpack(zip: Buffer, outputDir: string): void {
             const fullName = childText(node, "fullName");
             if (!fullName) continue;
             const file: XmlNode = { tag: type, attrs: { xmlns: MD_NS }, children: node.children };
-            mkdirWrite(path.join(outputDir, "objects", objectFile[1], child.dir, `${fullName}.${child.suffix}-meta.xml`), serializeXml(file));
+            mkdirWrite(
+              path.join(
+                outputDir,
+                "objects",
+                objectFile[1],
+                child.dir,
+                `${fullName}.${child.suffix}-meta.xml`
+              ),
+              serializeXml(file)
+            );
           }
         }
         continue;
@@ -209,28 +243,48 @@ export async function directRetrieve(
   if (!members || !directEnabled(org)) return null;
   const version = await directApiVersion(org, fetcher);
   const start = `<retrieve><retrieveRequest><apiVersion>${version}</apiVersion><singlePackage>true</singlePackage><unpackaged>${manifest(members, version)}</unpackaged></retrieveRequest></retrieve>`;
-  const check = (id: string) => `<checkRetrieveStatus><asyncProcessId>${id}</asyncProcessId><includeZip>true</includeZip></checkRetrieveStatus>`;
-  const res = await runAsync(org, fetcher, start, check, "retrieve", "checkRetrieveStatus", timeoutMs, onStatus);
+  const check = (id: string) =>
+    `<checkRetrieveStatus><asyncProcessId>${id}</asyncProcessId><includeZip>true</includeZip></checkRetrieveStatus>`;
+  const res = await runAsync(
+    org,
+    fetcher,
+    start,
+    check,
+    "retrieve",
+    "checkRetrieveStatus",
+    timeoutMs,
+    onStatus
+  );
   if (!res || !res.ok) return res;
   if (res.data.status !== "Succeeded") {
-    return { ok: false, error: String(res.data.errorMessage ?? `Retrieve ${String(res.data.status ?? "failed")}`) };
+    return {
+      ok: false,
+      error: String(res.data.errorMessage ?? `Retrieve ${String(res.data.status ?? "failed")}`),
+    };
   }
   const zip = typeof res.data.zipFile === "string" ? Buffer.from(res.data.zipFile, "base64") : null;
   if (!zip) return { ok: false, error: "Salesforce returned no files" };
   try {
     unpack(zip, outputDir);
   } catch (e) {
-    return { ok: false, error: `Couldn't read the retrieved files: ${e instanceof Error ? e.message : String(e)}` };
+    return {
+      ok: false,
+      error: `Couldn't read the retrieved files: ${e instanceof Error ? e.message : String(e)}`,
+    };
   }
   return { ok: true, data: undefined };
 }
 
 function walk(dir: string): string[] {
-  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
+  return fs
+    .readdirSync(dir, { withFileTypes: true })
+    .flatMap((e) => (e.isDirectory() ? walk(path.join(dir, e.name)) : [path.join(dir, e.name)]));
 }
 
 /** A source-format file's Metadata API component, or null if this path doesn't handle it. */
-function componentOf(file: string): { type: string; fullName: string; zipName?: string; object?: string } | null {
+function componentOf(
+  file: string
+): { type: string; fullName: string; zipName?: string; object?: string } | null {
   const base = path.basename(file);
   for (const [type, t] of Object.entries(FILE_TYPES)) {
     const suffix = `.${t.suffix}-meta.xml`;
@@ -317,7 +371,10 @@ export function zipFiles(files: { name: string; data: Buffer }[]): Buffer {
 }
 
 /** The zip a deploy of these source-format files sends, or null if one isn't handled here. */
-export function buildDeployZip(sourcePath: string, version: string): { zip: Buffer; members: Member[] } | null {
+export function buildDeployZip(
+  sourcePath: string,
+  version: string
+): { zip: Buffer; members: Member[] } | null {
   if (!fs.existsSync(sourcePath)) return null;
   const files = fs.statSync(sourcePath).isDirectory() ? walk(sourcePath) : [sourcePath];
   if (!files.length) return null;
@@ -335,11 +392,22 @@ export function buildDeployZip(sourcePath: string, version: string): { zip: Buff
     const child = CHILD_TYPES[c.type];
     const root = parseXml(fs.readFileSync(file, "utf-8"));
     const children = [...root.children];
-    if (!children.some((n) => n.tag === "fullName")) children.unshift({ tag: "fullName", text: escapeXml(c.fullName.slice(c.object!.length + 1)), children: [] });
+    if (!children.some((n) => n.tag === "fullName"))
+      children.unshift({
+        tag: "fullName",
+        text: escapeXml(c.fullName.slice(c.object!.length + 1)),
+        children: [],
+      });
     objects.set(c.object!, [...(objects.get(c.object!) ?? []), { tag: child.tag, children }]);
   }
   for (const [object, children] of objects) {
-    entries.push({ name: `objects/${object}.object`, data: Buffer.from(serializeXml({ tag: "CustomObject", attrs: { xmlns: MD_NS }, children }), "utf-8") });
+    entries.push({
+      name: `objects/${object}.object`,
+      data: Buffer.from(
+        serializeXml({ tag: "CustomObject", attrs: { xmlns: MD_NS }, children }),
+        "utf-8"
+      ),
+    });
   }
   const pkg = `<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="${MD_NS}">${manifest(members, version)}</Package>\n`;
   entries.push({ name: "package.xml", data: Buffer.from(pkg, "utf-8") });
@@ -375,14 +443,22 @@ export async function directDelete(
   const version = await directApiVersion(org, fetcher);
   const head = `<?xml version="1.0" encoding="UTF-8"?>\n<Package xmlns="${MD_NS}">`;
   const zip = zipFiles([
-    { name: "package.xml", data: Buffer.from(`${head}<version>${version}</version></Package>\n`, "utf-8") },
-    { name: "destructiveChangesPost.xml", data: Buffer.from(`${head}${manifest([{ type, fullName }], version)}</Package>\n`, "utf-8") },
+    {
+      name: "package.xml",
+      data: Buffer.from(`${head}<version>${version}</version></Package>\n`, "utf-8"),
+    },
+    {
+      name: "destructiveChangesPost.xml",
+      data: Buffer.from(`${head}${manifest([{ type, fullName }], version)}</Package>\n`, "utf-8"),
+    },
   ]);
   const start = `<deploy><ZipFile>${zip.toString("base64")}</ZipFile><DeployOptions><rollbackOnError>true</rollbackOnError><singlePackage>true</singlePackage></DeployOptions></deploy>`;
-  const check = (id: string) => `<checkDeployStatus><asyncProcessId>${id}</asyncProcessId><includeDetails>true</includeDetails></checkDeployStatus>`;
+  const check = (id: string) =>
+    `<checkDeployStatus><asyncProcessId>${id}</asyncProcessId><includeDetails>true</includeDetails></checkDeployStatus>`;
   const res = await runAsync(org, fetcher, start, check, "deploy", "checkDeployStatus", timeoutMs);
   if (!res || !res.ok) return res;
-  if (res.data.success !== "true" || res.data.status !== "Succeeded") return { ok: false, error: deployError(res.data) };
+  if (res.data.success !== "true" || res.data.status !== "Succeeded")
+    return { ok: false, error: deployError(res.data) };
   return { ok: true, data: undefined };
 }
 
@@ -410,11 +486,23 @@ export async function directDeploy(
   }
   if (!built) return null;
   const start = `<deploy><ZipFile>${built.zip.toString("base64")}</ZipFile><DeployOptions>${checkOnly ? "<checkOnly>true</checkOnly>" : ""}<rollbackOnError>true</rollbackOnError><singlePackage>true</singlePackage></DeployOptions></deploy>`;
-  const check = (id: string) => `<checkDeployStatus><asyncProcessId>${id}</asyncProcessId><includeDetails>true</includeDetails></checkDeployStatus>`;
-  const res = await runAsync(org, fetcher, start, check, "deploy", "checkDeployStatus", timeoutMs, onStatus);
+  const check = (id: string) =>
+    `<checkDeployStatus><asyncProcessId>${id}</asyncProcessId><includeDetails>true</includeDetails></checkDeployStatus>`;
+  const res = await runAsync(
+    org,
+    fetcher,
+    start,
+    check,
+    "deploy",
+    "checkDeployStatus",
+    timeoutMs,
+    onStatus
+  );
   if (!res || !res.ok) return res;
   if (res.data.success !== "true" || res.data.status !== "Succeeded") {
-    const failures = (res.data.details as Result | undefined)?.componentFailures as Result[] | undefined;
+    const failures = (res.data.details as Result | undefined)?.componentFailures as
+      | Result[]
+      | undefined;
     return { ok: false, error: deployError(res.data), rejected: Boolean(failures?.length) };
   }
   return { ok: true, data: undefined };

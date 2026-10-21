@@ -93,7 +93,9 @@ function withSuggestion(
   detail: string
 ): { detail: string; suggestion?: HintSuggestion } {
   if (schema?.editable && !schema.editable.includes(suggestion.field)) {
-    return { detail: `${detail} The record has no ${suggestion.field} value to change from here, so set it in Setup.` };
+    return {
+      detail: `${detail} The record has no ${suggestion.field} value to change from here, so set it in Setup.`,
+    };
   }
   return { detail, suggestion };
 }
@@ -161,7 +163,12 @@ export function explainTable(t: ExplainInput): TableHint[] {
       ...(activity
         ? withSuggestion(
             schema,
-            { field: "WhereSoql", from: null, to: ACTIVITY_WINDOW_FILTER, label: `Only sync the last year of ${t.sobject} records` },
+            {
+              field: "WhereSoql",
+              from: null,
+              to: ACTIVITY_WINDOW_FILTER,
+              label: `Only sync the last year of ${t.sobject} records`,
+            },
             detail
           )
         : { detail }),
@@ -194,20 +201,35 @@ export function explainTable(t: ExplainInput): TableHint[] {
       // The picklist's off value is empty, as the app and the DB Schema tools treat it.
       ...withSuggestion(
         schema,
-        { field: "AttachmentsSupport", from: schema.attachmentsSupport ?? null, to: "", label: `Turn off attachments for ${t.sobject}` },
+        {
+          field: "AttachmentsSupport",
+          from: schema.attachmentsSupport ?? null,
+          to: "",
+          label: `Turn off attachments for ${t.sobject}`,
+        },
         `Attachments are on for ${t.sobject}, so each of its ${fmt(t.records)} records can bring files with it. Turning it off stops the files downloading; reps can no longer open them offline.`
       ),
     });
   }
 
-  if (schema && !present(schema.deltaDateField) && t.records >= MIN_RECORDS && (schema.type ?? "").toUpperCase() !== "CONFIGURATION") {
+  if (
+    schema &&
+    !present(schema.deltaDateField) &&
+    t.records >= MIN_RECORDS &&
+    (schema.type ?? "").toUpperCase() !== "CONFIGURATION"
+  ) {
     hints.push({
       id: "no-delta-field",
       severity: "info",
       title: "No date field for delta sync",
       ...withSuggestion(
         schema,
-        { field: "DeltaDateField", from: schema.deltaDateField ?? null, to: "LastModifiedDate", label: `Delta sync ${t.sobject} by LastModifiedDate` },
+        {
+          field: "DeltaDateField",
+          from: schema.deltaDateField ?? null,
+          to: "LastModifiedDate",
+          label: `Delta sync ${t.sobject} by LastModifiedDate`,
+        },
         `Without a delta date field, later syncs can't ask for only what changed, so ${t.sobject} may be re-checked in full each time.`
       ),
     });

@@ -13,7 +13,11 @@
 
 import { sharedReadsActive } from "../../config/read-cache.js";
 import { executeCheck } from "../../validation/rules-executor.js";
-import { getRulesFromFiles, type Category, type ValidationRule } from "../../validation/rules-loader.js";
+import {
+  getRulesFromFiles,
+  type Category,
+  type ValidationRule,
+} from "../../validation/rules-loader.js";
 import type { FeatureDefinition } from "../features.js";
 import { query, type Row } from "../helpers.js";
 import type { FeatureReadiness, ReadinessCheck, ReadinessStage } from "../types.js";
@@ -52,9 +56,16 @@ const CONCURRENCY = 4;
 const MAX_EXAMPLES = 5;
 
 /** One feature's readiness, for every profile or (`profile`, a profile name) for one. */
-export function collectReadiness(feature: FeatureDefinition, org: string, profile?: string): Promise<FeatureReadiness> {
+export function collectReadiness(
+  feature: FeatureDefinition,
+  org: string,
+  profile?: string
+): Promise<FeatureReadiness> {
   return trackMap(readinessKey(feature.id), feature.id, feature.title, () =>
-    withProfileFocus(profile, async () => ({ ...(await gatherReadiness(feature, org)), ...(profile ? { profile } : {}) }))
+    withProfileFocus(profile, async () => ({
+      ...(await gatherReadiness(feature, org)),
+      ...(profile ? { profile } : {}),
+    }))
   );
 }
 
@@ -72,7 +83,9 @@ async function gatherReadiness(feature: FeatureDefinition, org: string): Promise
             tracker?.end("studio-checks", { count: out.length, noun: "check" });
             return out;
           } catch (err: unknown) {
-            tracker?.end("studio-checks", { error: err instanceof Error ? err.message : String(err) });
+            tracker?.end("studio-checks", {
+              error: err instanceof Error ? err.message : String(err),
+            });
             return [crashed(feature.id, err)];
           }
         })()
@@ -80,8 +93,16 @@ async function gatherReadiness(feature: FeatureDefinition, org: string): Promise
   ]);
   const order = new Map(STAGES.map((s, i) => [s.id, i]));
   // Stable sort: within a stage, rules keep their file order, then Studio checks.
-  const checks = [...rules, ...custom].sort((a, b) => (order.get(a.stage) ?? 0) - (order.get(b.stage) ?? 0));
-  return { featureId: feature.id, title: feature.title, org, collectedAt: new Date().toISOString(), checks };
+  const checks = [...rules, ...custom].sort(
+    (a, b) => (order.get(a.stage) ?? 0) - (order.get(b.stage) ?? 0)
+  );
+  return {
+    featureId: feature.id,
+    title: feature.title,
+    org,
+    collectedAt: new Date().toISOString(),
+    checks,
+  };
 }
 
 function crashed(featureId: string, err: unknown): ReadinessCheck {
@@ -114,13 +135,29 @@ export async function runRules(rules: ValidationRule[], org: string): Promise<Re
     const prereqs = (rule.prerequisites ?? []).filter((id) => ids.has(id));
     const loop = prereqs.find((id) => id === rule.id || path.includes(id));
     p = loop
-      ? Promise.resolve({ ...ruleBase(rule), status: "unknown", detail: `Its prerequisites loop back through "${loop}".` })
+      ? Promise.resolve({
+          ...ruleBase(rule),
+          status: "unknown",
+          detail: `Its prerequisites loop back through "${loop}".`,
+        })
       : (async (): Promise<ReadinessCheck> => {
-          const done = await Promise.all(prereqs.map((id) => run(rules.find((r) => r.id === id)!, [...path, rule.id])));
+          const done = await Promise.all(
+            prereqs.map((id) => run(rules.find((r) => r.id === id)!, [...path, rule.id]))
+          );
           const failed = done.find((d) => d.status === "fail" || d.status === "skipped");
-          if (failed) return { ...ruleBase(rule), status: "skipped", detail: `Depends on "${failed.title}", which didn't pass.` };
+          if (failed)
+            return {
+              ...ruleBase(rule),
+              status: "skipped",
+              detail: `Depends on "${failed.title}", which didn't pass.`,
+            };
           const unknown = done.find((d) => d.status !== "pass");
-          if (unknown) return { ...ruleBase(rule), status: "unknown", detail: `Depends on "${unknown.title}", which couldn't be checked.` };
+          if (unknown)
+            return {
+              ...ruleBase(rule),
+              status: "unknown",
+              detail: `Depends on "${unknown.title}", which couldn't be checked.`,
+            };
           return limit(() => checkRule(rule, org));
         })();
     results.set(rule.id, p);
@@ -138,7 +175,8 @@ function warmSlowRules(rules: ValidationRule[], org: string): void {
   if (!sharedReadsActive()) return;
   for (const rule of rules) {
     const q = (rule.check as { query?: unknown }).query;
-    if (typeof q === "string" && /\bFlowDefinitionView\b/i.test(q)) executeCheck(rule.check, org).catch(() => undefined);
+    if (typeof q === "string" && /\bFlowDefinitionView\b/i.test(q))
+      executeCheck(rule.check, org).catch(() => undefined);
   }
 }
 
@@ -164,7 +202,12 @@ async function checkRule(rule: ValidationRule, org: string): Promise<ReadinessCh
   tracker?.start(key, rule.name);
   try {
     const check = await checkRuleNow(rule, org);
-    tracker?.end(key, check.status === "unknown" ? { detail: "Couldn't check" } : { detail: check.status === "pass" ? "Passed" : "Needs attention" });
+    tracker?.end(
+      key,
+      check.status === "unknown"
+        ? { detail: "Couldn't check" }
+        : { detail: check.status === "pass" ? "Passed" : "Needs attention" }
+    );
     return check;
   } catch (err) {
     tracker?.end(key, { error: err instanceof Error ? err.message : String(err) });
@@ -178,7 +221,11 @@ async function checkRuleNow(rule: ValidationRule, org: string): Promise<Readines
   if (outcome.unavailable) return { ...base, status: "unknown", detail: outcome.message };
   const details = (outcome.details ?? {}) as { count?: number; records?: Row[] };
   const found =
-    typeof details.count === "number" ? `Found ${details.count}.` : Array.isArray(details.records) ? `Found ${details.records.length}.` : undefined;
+    typeof details.count === "number"
+      ? `Found ${details.count}.`
+      : Array.isArray(details.records)
+        ? `Found ${details.records.length}.`
+        : undefined;
   if (outcome.passed) return { ...base, status: "pass", ...(found ? { detail: found } : {}) };
 
   let rows = details.records ?? [];
@@ -190,7 +237,12 @@ async function checkRuleNow(rule: ValidationRule, org: string): Promise<Readines
     }
   }
   const examples = rows.slice(0, MAX_EXAMPLES).map(rowLabel);
-  return { ...base, status: "fail", ...(found ? { detail: found } : {}), ...(examples.length ? { examples } : {}) };
+  return {
+    ...base,
+    status: "fail",
+    ...(found ? { detail: found } : {}),
+    ...(examples.length ? { examples } : {}),
+  };
 }
 
 /** A record's name for people: its Name-like field, else its Id. */
@@ -252,6 +304,11 @@ export async function runCheck(
       ...(!r.pass && r.fixes?.length ? { fixes: r.fixes } : {}),
     };
   } catch (err) {
-    return { ...meta, status: "unknown", source: "studio", detail: err instanceof Error ? err.message : String(err) };
+    return {
+      ...meta,
+      status: "unknown",
+      source: "studio",
+      detail: err instanceof Error ? err.message : String(err),
+    };
   }
 }

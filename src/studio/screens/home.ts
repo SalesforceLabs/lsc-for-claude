@@ -57,25 +57,33 @@ type Format = ScreenContext["format"];
 
 const str = (v: unknown) => (typeof v === "string" ? v : "");
 const NNBSP = "\u202f";
-const chunks = <T>(a: T[], n: number): T[][] => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
+const chunks = <T>(a: T[], n: number): T[][] =>
+  Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
 
 function dateOf(iso: unknown): Date | null {
   const d = new Date(str(iso));
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-const fmt = (d: Date, f: Format, o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(f.locale, { timeZone: f.timeZone, ...o }).format(d);
-const dayKey = (d: Date, f: Format) => fmt(d, f, { year: "numeric", month: "numeric", day: "numeric" });
+const fmt = (d: Date, f: Format, o: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat(f.locale, { timeZone: f.timeZone, ...o }).format(d);
+const dayKey = (d: Date, f: Format) =>
+  fmt(d, f, { year: "numeric", month: "numeric", day: "numeric" });
 
 /** NBC "Last Visit": short date and time ("8/6/26, 11:19 AM"), the device putting U+202F before AM/PM. */
 export function lastVisitText(iso: unknown, f: Format): string {
   const d = dateOf(iso);
-  return d ? fmt(d, f, { dateStyle: "short", timeStyle: "short" }).replace(/\s+(AM|PM)$/i, `${NNBSP}$1`) : "";
+  return d
+    ? fmt(d, f, { dateStyle: "short", timeStyle: "short" }).replace(/\s+(AM|PM)$/i, `${NNBSP}$1`)
+    : "";
 }
 
 /** AgendaTableViewCell: "1:38 pm - 2:19 pm" (hours format, lowercased, U+202F before am/pm). */
 export function visitTimeText(start: Date, end: Date, f: Format): string {
-  const t = (d: Date) => fmt(d, f, { hour: "numeric", minute: "2-digit" }).replace(/\s+(AM|PM)$/i, `${NNBSP}$1`).toLowerCase();
+  const t = (d: Date) =>
+    fmt(d, f, { hour: "numeric", minute: "2-digit" })
+      .replace(/\s+(AM|PM)$/i, `${NNBSP}$1`)
+      .toLowerCase();
   return `${t(start)} - ${t(end)}`;
 }
 
@@ -98,19 +106,33 @@ const LAST_REFRESHED_SOURCE =
 /** NextBestCustomersViewModel.lastSyncText. The device reads its own lastSyncDate; the org's copy is the newest completed data sync's DownloadStart (= the row's LastSyncTime). */
 export function lastRefreshedText(sync: Date | null, now: Date, f: Format): string {
   if (!sync) return "Last Refreshed: --";
-  if (dayKey(sync, f) === dayKey(now, f)) return `Last Refreshed: Today, ${fmt(sync, f, { hour: "numeric", minute: "2-digit" }).replace(/\s+(AM|PM)$/i, `${NNBSP}$1`)}`;
+  if (dayKey(sync, f) === dayKey(now, f))
+    return `Last Refreshed: Today, ${fmt(sync, f, { hour: "numeric", minute: "2-digit" }).replace(/\s+(AM|PM)$/i, `${NNBSP}$1`)}`;
   const days = Math.floor((now.getTime() - sync.getTime()) / 86400000);
   return days <= 1 ? "Last Refreshed: 1 day ago" : `Last Refreshed: ${days} days ago`;
 }
 
 /** Score descending, then rank, then account name (compareByScoreRankName); no score at all sorts by rank. */
-export function sortNbc<T extends { score: number | null; rank: number; name: string }>(rows: T[]): T[] {
-  return [...rows].sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || a.rank - b.rank || a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+export function sortNbc<T extends { score: number | null; rank: number; name: string }>(
+  rows: T[]
+): T[] {
+  return [...rows].sort(
+    (a, b) =>
+      (b.score ?? -1) - (a.score ?? -1) ||
+      a.rank - b.rank ||
+      a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+  );
 }
 
 /** ActivityPlanProductsCoordinator.calculateCycleData: whole days from now to the end, never negative. */
 export function cycleText(start: Date, end: Date, now: Date, f: Format): string {
-  const day = (d: Date) => new Intl.DateTimeFormat(f.locale, { timeZone: "UTC", month: "short", day: "numeric", year: "numeric" }).format(d);
+  const day = (d: Date) =>
+    new Intl.DateTimeFormat(f.locale, {
+      timeZone: "UTC",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(d);
   const left = Math.max(0, Math.floor((end.getTime() - now.getTime()) / 86400000));
   return `${left} days left (${day(start)} - ${day(end)})`;
 }
@@ -131,7 +153,15 @@ export interface PaceAxis {
  */
 export function paceAxis(start: Date, end: Date, now: Date, f: Format): PaceAxis {
   const ymd = (d: Date) => {
-    const [y, m, day] = new Intl.DateTimeFormat("en-CA", { timeZone: f.timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(d).split("-").map(Number);
+    const [y, m, day] = new Intl.DateTimeFormat("en-CA", {
+      timeZone: f.timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+      .format(d)
+      .split("-")
+      .map(Number);
     return Date.UTC(y, m - 1, day);
   };
   const s = ymd(start);
@@ -141,18 +171,28 @@ export function paceAxis(start: Date, end: Date, now: Date, f: Format): PaceAxis
   const today = Math.max(0, Math.min(days - 1, Math.round((ymd(now) - s) / 86400000)));
   const first = at(0);
   const last = at(days - 1);
-  const totalMonths = (last.getUTCFullYear() - first.getUTCFullYear()) * 12 + last.getUTCMonth() - first.getUTCMonth() + 1;
+  const totalMonths =
+    (last.getUTCFullYear() - first.getUTCFullYear()) * 12 +
+    last.getUTCMonth() -
+    first.getUTCMonth() +
+    1;
   const step = Math.max(1, Math.ceil(totalMonths / Math.max(2, Math.min(4, totalMonths))));
-  const label = (d: Date) => new Intl.DateTimeFormat(f.locale, { timeZone: "UTC", month: "short" }).format(d);
+  const label = (d: Date) =>
+    new Intl.DateTimeFormat(f.locale, { timeZone: "UTC", month: "short" }).format(d);
   const ticks = new Map<number, string>([[0, label(first)]]);
   for (let i = 0; i < days; i++) {
     const d = at(i);
     if (d.getUTCDate() !== 1) continue;
-    const m = (d.getUTCFullYear() - first.getUTCFullYear()) * 12 + d.getUTCMonth() - first.getUTCMonth();
+    const m =
+      (d.getUTCFullYear() - first.getUTCFullYear()) * 12 + d.getUTCMonth() - first.getUTCMonth();
     if (m % step === 0) ticks.set(i, label(d));
   }
   ticks.set(days - 1, "");
-  return { days, today, ticks: [...ticks].sort((a, b) => a[0] - b[0]).map(([index, l]) => ({ index, label: l })) };
+  return {
+    days,
+    today,
+    ticks: [...ticks].sort((a, b) => a[0] - b[0]).map(([index, l]) => ({ index, label: l })),
+  };
 }
 
 /** The earliest-created sibling first: ties on DisplayOrder fall back to the label. */
@@ -163,14 +203,18 @@ export function firstActivityType(rows: { label: string; order: number }[]): str
 async function inBatches(ids: string[], run: (part: string[]) => Promise<Row[]>): Promise<Row[]> {
   const parts = chunks(ids, 200);
   const rows: Row[] = [];
-  for (let i = 0; i < parts.length; i += 4) rows.push(...(await Promise.all(parts.slice(i, i + 4).map(run))).flat());
+  for (let i = 0; i < parts.length; i += 4)
+    rows.push(...(await Promise.all(parts.slice(i, i + 4).map(run))).flat());
   return rows;
 }
 
 /** Rows the viewer can read (the queries run as the admin): UserRecordAccess, 200 ids per query. */
 async function readable(ids: string[], ctx: ScreenContext): Promise<Set<string>> {
   const rows = await inBatches(ids, (part) =>
-    query(`SELECT RecordId FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND HasReadAccess = true AND RecordId IN (${inList(part)})`, ctx.org).catch(softFail(ctx, "Home", [] as Row[]))
+    query(
+      `SELECT RecordId FROM UserRecordAccess WHERE UserId = '${ctx.userId}' AND HasReadAccess = true AND RecordId IN (${inList(part)})`,
+      ctx.org
+    ).catch(softFail(ctx, "Home", [] as Row[]))
   );
   return new Set(rows.map((r) => str(r.RecordId)));
 }
@@ -185,7 +229,9 @@ interface NbcProps {
 }
 
 function nbcProps(ctx: ScreenContext): NbcProps | null {
-  const comp = ctx.core.home?.regions.flatMap((r) => r.components).find((c) => c.supported && /nbctopcards$/i.test(c.name));
+  const comp = ctx.core.home?.regions
+    .flatMap((r) => r.components)
+    .find((c) => c.supported && /nbctopcards$/i.test(c.name));
   return comp ? { maxCards: Number(comp.properties.totalCards) || 10 } : null;
 }
 
@@ -212,14 +258,23 @@ async function collectNbc(ctx: ScreenContext, now: Date): Promise<PublishedHome[
   for (const r of rows) {
     const id = str(r.AccountId);
     const cur = picked.get(id);
-    if (!cur || (str(r.TerritoryId) === terr[0] && str(cur.TerritoryId) !== terr[0])) picked.set(id, r);
+    if (!cur || (str(r.TerritoryId) === terr[0] && str(cur.TerritoryId) !== terr[0]))
+      picked.set(id, r);
   }
   let candidates = [...picked.values()];
   const ids = candidates.map((r) => str(r.AccountId));
-  if (!ids.length) return { cards: [], lastRefreshed: "Last Refreshed: --", lastRefreshedSource: LAST_REFRESHED_SOURCE };
+  if (!ids.length)
+    return {
+      cards: [],
+      lastRefreshed: "Last Refreshed: --",
+      lastRefreshedSource: LAST_REFRESHED_SOURCE,
+    };
   // The device's last_call join: an account visited (Submitted) after its score was last modified is left out.
   const visits = await inBatches(ids, (part) =>
-    query(`SELECT AccountId, MAX(PlannedStartTime) m FROM ProviderVisit WHERE Status = 'Submitted' AND AccountId IN (${inList(part)}) GROUP BY AccountId`, ctx.org).catch(softFail(ctx, "Home", [] as Row[]))
+    query(
+      `SELECT AccountId, MAX(PlannedStartTime) m FROM ProviderVisit WHERE Status = 'Submitted' AND AccountId IN (${inList(part)}) GROUP BY AccountId`,
+      ctx.org
+    ).catch(softFail(ctx, "Home", [] as Row[]))
   );
   const lastCall = new Map(visits.map((r) => [str(r.AccountId), dateOf(r.m)]));
   candidates = candidates.filter((r) => {
@@ -227,16 +282,37 @@ async function collectNbc(ctx: ScreenContext, now: Date): Promise<PublishedHome[
     const mod = dateOf(r.LastModifiedDate);
     return !c || !mod || c.getTime() <= mod.getTime();
   });
-  const ok = await readable(candidates.map((r) => str(r.AccountId)), ctx);
+  const ok = await readable(
+    candidates.map((r) => str(r.AccountId)),
+    ctx
+  );
   const top = candidates.filter((r) => ok.has(str(r.AccountId))).slice(0, props.maxCards);
   const topIds = top.map((r) => str(r.AccountId));
-  const q = (soql: (list: string) => string) => inBatches(topIds, (part) => query(soql(inList(part)), ctx.org).catch(softFail(ctx, "Home", [] as Row[])));
+  const q = (soql: (list: string) => string) =>
+    inBatches(topIds, (part) =>
+      query(soql(inList(part)), ctx.org).catch(softFail(ctx, "Home", [] as Row[]))
+    );
   const [specs, addrs, patis, goals, sync] = await Promise.all([
-    q((l) => `SELECT AccountId, Name, LastModifiedDate FROM HealthcareProviderSpecialty WHERE AccountId IN (${l}) ORDER BY LastModifiedDate DESC`),
-    q((l) => `SELECT ParentId, FullAddress, Street, PostalCode, City, State, Country, LastModifiedDate FROM ContactPointAddress WHERE ParentId IN (${l}) AND IsActive = true ORDER BY LastModifiedDate DESC`),
-    q((l) => `SELECT AccountId, IsTargetedAccount, LastProviderVisitDate FROM ProviderAcctTerritoryInfo WHERE AccountId IN (${l}) AND Territory2Id = '${terr[0]}' AND IsActive = true ORDER BY LastModifiedDate DESC`),
-    q((l) => `SELECT AccountId, ProratedOverallGoal FROM ProviderActivityGoal WHERE AccountId IN (${l}) ORDER BY LastModifiedDate DESC`),
-    query(`SELECT DownloadStart FROM DeviceSyncSummary WHERE OwnerId = '${ctx.userId}' AND Type = 'data' AND DownloadEnd != null ORDER BY DownloadStart DESC LIMIT 1`, ctx.adminOrg).catch(softFail(ctx, "Home", [] as Row[])),
+    q(
+      (l) =>
+        `SELECT AccountId, Name, LastModifiedDate FROM HealthcareProviderSpecialty WHERE AccountId IN (${l}) ORDER BY LastModifiedDate DESC`
+    ),
+    q(
+      (l) =>
+        `SELECT ParentId, FullAddress, Street, PostalCode, City, State, Country, LastModifiedDate FROM ContactPointAddress WHERE ParentId IN (${l}) AND IsActive = true ORDER BY LastModifiedDate DESC`
+    ),
+    q(
+      (l) =>
+        `SELECT AccountId, IsTargetedAccount, LastProviderVisitDate FROM ProviderAcctTerritoryInfo WHERE AccountId IN (${l}) AND Territory2Id = '${terr[0]}' AND IsActive = true ORDER BY LastModifiedDate DESC`
+    ),
+    q(
+      (l) =>
+        `SELECT AccountId, ProratedOverallGoal FROM ProviderActivityGoal WHERE AccountId IN (${l}) ORDER BY LastModifiedDate DESC`
+    ),
+    query(
+      `SELECT DownloadStart FROM DeviceSyncSummary WHERE OwnerId = '${ctx.userId}' AND Type = 'data' AND DownloadEnd != null ORDER BY DownloadStart DESC LIMIT 1`,
+      ctx.adminOrg
+    ).catch(softFail(ctx, "Home", [] as Row[])),
   ]);
   const first = (rows: Row[], key: string) => {
     const m = new Map<string, Row>();
@@ -248,7 +324,12 @@ async function collectNbc(ctx: ScreenContext, now: Date): Promise<PublishedHome[
   const pati = first(patis, "AccountId");
   const goal = first(goals, "AccountId");
   const sorted = sortNbc(
-    top.map((r) => ({ r, score: str(r.TerritoryId) === terr[0] && r.TotalScore != null ? Number(r.TotalScore) : null, rank: Number(r.Rank ?? 0), name: str((r.Account as Row | undefined)?.Name) }))
+    top.map((r) => ({
+      r,
+      score: str(r.TerritoryId) === terr[0] && r.TotalScore != null ? Number(r.TotalScore) : null,
+      rank: Number(r.Rank ?? 0),
+      name: str((r.Account as Row | undefined)?.Name),
+    }))
   );
   const cards = sorted.map(({ r, score, name }): HomeNbcCard => {
     const id = str(r.AccountId);
@@ -266,7 +347,11 @@ async function collectNbc(ctx: ScreenContext, now: Date): Promise<PublishedHome[
       planProgress: g && g.ProratedOverallGoal != null ? Number(g.ProratedOverallGoal) : null,
     };
   });
-  return { cards, lastRefreshed: lastRefreshedText(dateOf(sync[0]?.DownloadStart), now, ctx.format), lastRefreshedSource: LAST_REFRESHED_SOURCE };
+  return {
+    cards,
+    lastRefreshed: lastRefreshedText(dateOf(sync[0]?.DownloadStart), now, ctx.format),
+    lastRefreshedSource: LAST_REFRESHED_SOURCE,
+  };
 }
 
 /** UnsubmittedCallsDashboardViewModel + AgendaCallModel.Query.unsubmitted: the viewer's past, not-yet-submitted parent visits in the selected territory. */
@@ -282,14 +367,27 @@ async function collectVisits(ctx: ScreenContext, now: Date): Promise<PublishedHo
      AND (CreatedById = '${me}' OR OwnerId = '${me}') AND ParentVisitId = null${w} ORDER BY PlannedVisitStartTime ASC LIMIT 2000`,
     ctx.org
   );
-  const ok = await readable(rows.map((r) => str(r.Id)), ctx);
+  const ok = await readable(
+    rows.map((r) => str(r.Id)),
+    ctx
+  );
   const shown = rows.filter((r) => ok.has(str(r.Id)));
   const places = [...new Set(shown.map((r) => str(r.PlaceId)).filter((p) => p.startsWith("8lW")))];
-  const addrRows = await inBatches(places, (part) => query(`SELECT Id, Street, PostalCode, City, State, Country FROM ContactPointAddress WHERE Id IN (${inList(part)})`, ctx.org).catch(softFail(ctx, "Home", [] as Row[])));
+  const addrRows = await inBatches(places, (part) =>
+    query(
+      `SELECT Id, Street, PostalCode, City, State, Country FROM ContactPointAddress WHERE Id IN (${inList(part)})`,
+      ctx.org
+    ).catch(softFail(ctx, "Home", [] as Row[]))
+  );
   const addr = new Map(addrRows.map((r) => [str(r.Id), formatAddress(r)]));
   const kids = new Map<string, number>();
   const parentIds = shown.map((r) => str(r.Id));
-  for (const r of await inBatches(parentIds, (part) => query(`SELECT ParentVisitId, COUNT(Id) n FROM Visit WHERE ParentVisitId IN (${inList(part)}) GROUP BY ParentVisitId`, ctx.org).catch(softFail(ctx, "Home", [] as Row[]))))
+  for (const r of await inBatches(parentIds, (part) =>
+    query(
+      `SELECT ParentVisitId, COUNT(Id) n FROM Visit WHERE ParentVisitId IN (${inList(part)}) GROUP BY ParentVisitId`,
+      ctx.org
+    ).catch(softFail(ctx, "Home", [] as Row[]))
+  ))
     kids.set(str(r.ParentVisitId), Number(r.n ?? 0));
   const defaultMinutes = 60;
   const starts = shown.map((r) => dateOf(r.PlannedVisitStartTime) ?? now);
@@ -301,7 +399,11 @@ async function collectVisits(ctx: ScreenContext, now: Date): Promise<PublishedHo
     const n = kids.get(str(r.Id)) ?? 0;
     return {
       id: str(r.Id),
-      dateLabel: !dates[i] ? "" : dayKey(start, ctx.format) === today ? "Today" : fmt(start, ctx.format, { month: "long", day: "numeric", year: "numeric" }),
+      dateLabel: !dates[i]
+        ? ""
+        : dayKey(start, ctx.format) === today
+          ? "Today"
+          : fmt(start, ctx.format, { month: "long", day: "numeric", year: "numeric" }),
       time: visitTimeText(start, end, ctx.format),
       account: str((r.Account as Row | undefined)?.Name),
       address: addr.get(str(r.PlaceId)) ?? "--",
@@ -322,7 +424,10 @@ async function collectPlan(ctx: ScreenContext, now: Date): Promise<PublishedHome
        WHERE TerritoryId = '${terr}' AND ActivityPlan.IsActive = true AND ActivityPlan.Type = 'AccountGoal'`,
       ctx.org
     ).catch(softFail(ctx, "Home", [] as Row[])),
-    query("SELECT MasterLabel, DisplayOrder FROM ProviderActivityMeasureType WHERE IsActive = true", ctx.org).catch(softFail(ctx, "Home", [] as Row[])),
+    query(
+      "SELECT MasterLabel, DisplayOrder FROM ProviderActivityMeasureType WHERE IsActive = true",
+      ctx.org
+    ).catch(softFail(ctx, "Home", [] as Row[])),
   ]);
   const out: NonNullable<PublishedHome["plan"]> = {};
   for (const p of plans) {
@@ -335,12 +440,18 @@ async function collectPlan(ctx: ScreenContext, now: Date): Promise<PublishedHome
       break;
     }
   }
-  out.activityType = firstActivityType(types.map((t) => ({ label: str(t.MasterLabel), order: Number(t.DisplayOrder ?? 0) })));
+  out.activityType = firstActivityType(
+    types.map((t) => ({ label: str(t.MasterLabel), order: Number(t.DisplayOrder ?? 0) }))
+  );
   return out;
 }
 
 export async function collectHome(ctx: ScreenContext): Promise<PublishedHome | undefined> {
   const now = new Date();
-  const [nbc, visits, plan] = await Promise.all([collectNbc(ctx, now).catch(() => undefined), collectVisits(ctx, now).catch(() => undefined), collectPlan(ctx, now).catch(() => undefined)]);
+  const [nbc, visits, plan] = await Promise.all([
+    collectNbc(ctx, now).catch(() => undefined),
+    collectVisits(ctx, now).catch(() => undefined),
+    collectPlan(ctx, now).catch(() => undefined),
+  ]);
   return nbc || visits || plan ? { nbc, visits, plan } : undefined;
 }

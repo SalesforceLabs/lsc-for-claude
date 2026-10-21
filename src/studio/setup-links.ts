@@ -39,7 +39,8 @@ const obj = (o: string) => encodeURIComponent(o);
 const om = (o: string, page: string, id?: string) =>
   `/lightning/setup/ObjectManager/${obj(o)}/${page}${id ? `/${encodeURIComponent(id)}/view` : "/view"}`;
 /** A classic detail page wrapped in Lightning Setup. */
-const classic = (setupPage: string, id: string) => `/lightning/setup/${setupPage}/page?address=${encodeURIComponent(`/${id}`)}`;
+const classic = (setupPage: string, id: string) =>
+  `/lightning/setup/${setupPage}/page?address=${encodeURIComponent(`/${id}`)}`;
 
 /** The list page a reference falls back to when its Id can't be resolved. */
 export function fallbackPath(ref: SetupRef): string {
@@ -123,7 +124,8 @@ export function decodeLayoutName(fullName: string, object: string): string {
 }
 
 const lit = (s: string) => `'${s.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
-const first = (rows: Row[], key = "Id") => (rows[0] && typeof rows[0][key] === "string" ? (rows[0][key] as string) : null);
+const first = (rows: Row[], key = "Id") =>
+  rows[0] && typeof rows[0][key] === "string" ? (rows[0][key] as string) : null;
 
 /** The Id (or trailing path part) the reference's page is addressed by, or null when it can't be found. */
 async function lookup(ref: SetupRef, org: string): Promise<string | null> {
@@ -132,7 +134,11 @@ async function lookup(ref: SetupRef, org: string): Promise<string | null> {
       if (!OBJECT.test(ref.object)) return null;
       const name = decodeLayoutName(ref.name, ref.object);
       return first(
-        await query(`SELECT Id FROM Layout WHERE Name = ${lit(name)} AND EntityDefinition.QualifiedApiName = ${lit(ref.object)} LIMIT 1`, org, true)
+        await query(
+          `SELECT Id FROM Layout WHERE Name = ${lit(name)} AND EntityDefinition.QualifiedApiName = ${lit(ref.object)} LIMIT 1`,
+          org,
+          true
+        )
       );
     }
     case "field": {
@@ -154,16 +160,29 @@ async function lookup(ref: SetupRef, org: string): Promise<string | null> {
       if (!OBJECT.test(ref.object)) return null;
       const name = ref.name.includes(".") ? ref.name.slice(ref.name.indexOf(".") + 1) : ref.name;
       return first(
-        await query(`SELECT Id FROM CompactLayout WHERE SobjectType = ${lit(ref.object)} AND DeveloperName = ${lit(name)} LIMIT 1`, org, true)
+        await query(
+          `SELECT Id FROM CompactLayout WHERE SobjectType = ${lit(ref.object)} AND DeveloperName = ${lit(name)} LIMIT 1`,
+          org,
+          true
+        )
       );
     }
     case "flexiPage":
       if (!OBJECT.test(ref.name)) return null;
-      return first(await query(`SELECT Id FROM FlexiPage WHERE DeveloperName = ${lit(ref.name)} LIMIT 1`, org, true));
+      return first(
+        await query(
+          `SELECT Id FROM FlexiPage WHERE DeveloperName = ${lit(ref.name)} LIMIT 1`,
+          org,
+          true
+        )
+      );
     case "recordType": {
       if (!OBJECT.test(ref.object)) return null;
       return first(
-        await query(`SELECT Id FROM RecordType WHERE SobjectType = ${lit(ref.object)} AND DeveloperName = ${lit(ref.name)} LIMIT 1`, org)
+        await query(
+          `SELECT Id FROM RecordType WHERE SobjectType = ${lit(ref.object)} AND DeveloperName = ${lit(ref.name)} LIMIT 1`,
+          org
+        )
       );
     }
     case "listView": {
@@ -171,13 +190,19 @@ async function lookup(ref: SetupRef, org: string): Promise<string | null> {
       if (!OBJECT.test(ref.object)) return null;
       const name = ref.name.includes(".") ? ref.name.slice(ref.name.indexOf(".") + 1) : ref.name;
       return first(
-        await query(`SELECT Id FROM ListView WHERE SobjectType = ${lit(ref.object)} AND DeveloperName = ${lit(name)} LIMIT 1`, org)
+        await query(
+          `SELECT Id FROM ListView WHERE SobjectType = ${lit(ref.object)} AND DeveloperName = ${lit(name)} LIMIT 1`,
+          org
+        )
       );
     }
     case "flow": {
       // `id` is the FlowDefinitionView DurableId (300…); the builder wants a version.
       if (!SF_ID.test(ref.id)) return null;
-      const rows = await query(`SELECT ActiveVersionId, LatestVersionId FROM FlowDefinitionView WHERE DurableId = ${lit(ref.id)} LIMIT 1`, org);
+      const rows = await query(
+        `SELECT ActiveVersionId, LatestVersionId FROM FlowDefinitionView WHERE DurableId = ${lit(ref.id)} LIMIT 1`,
+        org
+      );
       return first(rows, "ActiveVersionId") ?? first(rows, "LatestVersionId");
     }
     case "validationRule":
@@ -201,7 +226,14 @@ async function objectKey(object: string, org: string): Promise<string> {
   const id = await sharedRead(
     org,
     `setup-link:entity:${object}`,
-    async () => first(await query(`SELECT DurableId FROM EntityDefinition WHERE QualifiedApiName = ${lit(object)} LIMIT 1`, org), "DurableId"),
+    async () =>
+      first(
+        await query(
+          `SELECT DurableId FROM EntityDefinition WHERE QualifiedApiName = ${lit(object)} LIMIT 1`,
+          org
+        ),
+        "DurableId"
+      ),
     TTL_MS
   );
   return id && SF_ID.test(id) ? id : object;
@@ -211,9 +243,15 @@ async function objectKey(object: string, org: string): Promise<string> {
 export async function resolveSetupLink(ref: SetupRef, org: string): Promise<SetupLink> {
   const fallback: SetupLink = { path: fallbackPath(ref), exact: false };
   try {
-    const id = await sharedRead(org, `setup-link:${JSON.stringify(ref)}`, () => lookup(ref, org), TTL_MS);
+    const id = await sharedRead(
+      org,
+      `setup-link:${JSON.stringify(ref)}`,
+      () => lookup(ref, org),
+      TTL_MS
+    );
     if (!id) return fallback;
-    const key = "object" in ref && ref.type !== "listView" ? await objectKey(ref.object, org) : null;
+    const key =
+      "object" in ref && ref.type !== "listView" ? await objectKey(ref.object, org) : null;
     return { path: setupPath(key ? ({ ...ref, object: key } as SetupRef) : ref, id), exact: true };
   } catch {
     return fallback;

@@ -43,7 +43,12 @@ export function forgetLiveApps(org?: string): void {
   for (const k of [...matchCache.keys()]) if (k.startsWith(`${org}\u0000`)) matchCache.delete(k);
 }
 
-function cached<T>(map: Map<string, { at: number; value: Promise<T> }>, key: string, ttl: number, load: () => Promise<T>): Promise<T> {
+function cached<T>(
+  map: Map<string, { at: number; value: Promise<T> }>,
+  key: string,
+  ttl: number,
+  load: () => Promise<T>
+): Promise<T> {
   const hit = map.get(key);
   if (hit && Date.now() - hit.at < ttl) return hit.value;
   const value = load();
@@ -55,11 +60,18 @@ function cached<T>(map: Map<string, { at: number; value: Promise<T> }>, key: str
 /** Every Lightning app (AppMenuItem of type TabSet) with the Id access is granted by. */
 function allApps(org: string): Promise<AppEntry[]> {
   return cached(appListCache, org, TTL_MS, async () => {
-    const rows = await query("SELECT ApplicationId, Name, NamespacePrefix, Label FROM AppMenuItem WHERE Type = 'TabSet'", org);
+    const rows = await query(
+      "SELECT ApplicationId, Name, NamespacePrefix, Label FROM AppMenuItem WHERE Type = 'TabSet'",
+      org
+    );
     return rows.map((r) => {
       const ns = String(r.NamespacePrefix ?? "");
       const name = String(r.Name ?? "");
-      return { id: String(r.ApplicationId ?? ""), fullName: ns ? `${ns}__${name}` : name, label: String(r.Label ?? name) };
+      return {
+        id: String(r.ApplicationId ?? ""),
+        fullName: ns ? `${ns}__${name}` : name,
+        label: String(r.Label ?? name),
+      };
     });
   });
 }
@@ -86,17 +98,27 @@ function appFiles(dir: string): string[] {
 }
 
 /** Every tab (editable and the package's) of each app, by retrieving them together. */
-async function tabsOfApps(apps: AppEntry[], org: string): Promise<Map<string, { tabs: string[]; root: XmlNode }>> {
+async function tabsOfApps(
+  apps: AppEntry[],
+  org: string
+): Promise<Map<string, { tabs: string[]; root: XmlNode }>> {
   const out = new Map<string, { tabs: string[]; root: XmlNode }>();
   if (!apps.length) return out;
-  const result = await retrieveMetadata("", apps.map((a) => `CustomApplication:${a.fullName}`), org);
+  const result = await retrieveMetadata(
+    "",
+    apps.map((a) => `CustomApplication:${a.fullName}`),
+    org
+  );
   if (!result.success || !result.data) throw new Error(result.error ?? "Couldn't read the apps.");
   const { outputDir } = result.data;
   try {
     for (const file of appFiles(outputDir)) {
       const fullName = path.basename(file).replace(/\.app-meta\.xml$/, "");
       const root = parseXml(fs.readFileSync(file, "utf-8"));
-      out.set(fullName, { tabs: [...appFixedTabs(root, fullName), ...appTabs(root, fullName)], root });
+      out.set(fullName, {
+        tabs: [...appFixedTabs(root, fullName), ...appTabs(root, fullName)],
+        root,
+      });
     }
   } finally {
     fs.rmSync(outputDir, { recursive: true, force: true });
@@ -104,13 +126,18 @@ async function tabsOfApps(apps: AppEntry[], org: string): Promise<Map<string, { 
   return out;
 }
 
-export type AppMatch = { app: { fullName: string; label: string; installed: boolean } } | { app: null; reason: string };
+export type AppMatch =
+  | { app: { fullName: string; label: string; installed: boolean } }
+  | { app: null; reason: string };
 
 /**
  * The app a profile's published tab bar comes from. `names` are every tab the publish knew of for the
  * profile — the bar's and the hidden ones — except the UI Settings tabs, which aren't the app's.
  */
-export function matchApp(apps: { fullName: string; label: string; tabs: string[] }[], names: string[]): AppMatch {
+export function matchApp(
+  apps: { fullName: string; label: string; tabs: string[] }[],
+  names: string[]
+): AppMatch {
   const known = new Set(names);
   const scored = apps
     .map((a) => {
@@ -119,12 +146,26 @@ export function matchApp(apps: { fullName: string; label: string; tabs: string[]
     })
     .filter((s) => s.covered > 0)
     .sort((x, y) => y.covered - x.covered || x.extra - y.extra);
-  if (!scored.length) return { app: null, reason: "None of the apps this profile can open has the tabs the iPad shows, so which app the tab bar comes from isn't known." };
+  if (!scored.length)
+    return {
+      app: null,
+      reason:
+        "None of the apps this profile can open has the tabs the iPad shows, so which app the tab bar comes from isn't known.",
+    };
   const [best, next] = scored;
   if (next && next.covered === best.covered && next.extra === best.extra) {
-    return { app: null, reason: `${best.a.label} and ${next.a.label} both fit this profile's tabs equally, so which one the tab bar comes from isn't known. Change it in App Manager.` };
+    return {
+      app: null,
+      reason: `${best.a.label} and ${next.a.label} both fit this profile's tabs equally, so which one the tab bar comes from isn't known. Change it in App Manager.`,
+    };
   }
-  return { app: { fullName: best.a.fullName, label: best.a.label, installed: isInstalledApp(best.a.fullName) } };
+  return {
+    app: {
+      fullName: best.a.fullName,
+      label: best.a.label,
+      installed: isInstalledApp(best.a.fullName),
+    },
+  };
 }
 
 /** The app a profile's tab bar comes from; null app with the reason when it can't be told. */
@@ -132,10 +173,13 @@ export function findProfileApp(profile: string, names: string[], org: string): P
   const key = `${org}\u0000${profile}\u0000${[...names].sort().join("|")}`;
   return cached(matchCache, key, TTL_MS, async () => {
     const apps = await profileApps(profile, org);
-    if (!apps.length) return { app: null, reason: `${profile} can't open any Lightning app.` } satisfies AppMatch;
+    if (!apps.length)
+      return { app: null, reason: `${profile} can't open any Lightning app.` } satisfies AppMatch;
     const tabs = await tabsOfApps(apps, org);
     return matchApp(
-      apps.flatMap((a) => (tabs.has(a.fullName) ? [{ ...a, tabs: tabs.get(a.fullName)!.tabs }] : [])),
+      apps.flatMap((a) =>
+        tabs.has(a.fullName) ? [{ ...a, tabs: tabs.get(a.fullName)!.tabs }] : []
+      ),
       names
     );
   });
@@ -144,11 +188,17 @@ export function findProfileApp(profile: string, names: string[], org: string): P
 /** Every tab the org has, from the tab describe: names as apps list them. */
 function allTabs(org: string): Promise<AppTabOption[]> {
   return cached(tabListCache, org, 5 * TTL_MS, async () => {
-    const r = await apiRequest<{ name: string; label: string; custom?: boolean; sobjectName?: string | null }[]>(await dataPath(org, "/tabs"), "GET", undefined, org);
+    const r = await apiRequest<
+      { name: string; label: string; custom?: boolean; sobjectName?: string | null }[]
+    >(await dataPath(org, "/tabs"), "GET", undefined, org);
     if (!r.success || !Array.isArray(r.data)) return [];
     return r.data
       .filter((t) => t.name && t.label)
-      .map((t) => ({ name: t.name, label: t.label, kind: t.sobjectName ? ("object" as const) : ("page" as const) }));
+      .map((t) => ({
+        name: t.name,
+        label: t.label,
+        kind: t.sobjectName ? ("object" as const) : ("page" as const),
+      }));
   });
 }
 
@@ -173,7 +223,10 @@ export async function appProfiles(fullName: string, org: string): Promise<string
 }
 
 /** The app's tab bar as it is in the org now (see `LiveApp`); `available` leaves out what the app already has. */
-export function liveAppOf(fullName: string, root: XmlNode): Omit<LiveApp, "available" | "production" | "profiles"> {
+export function liveAppOf(
+  fullName: string,
+  root: XmlNode
+): Omit<LiveApp, "available" | "production" | "profiles"> {
   return {
     type: "CustomApplication",
     fullName,

@@ -49,7 +49,11 @@ export function errorText(err: unknown): string {
  * when the cause is scale (so the empty part isn't mistaken for no data), and
  * stays quiet when the org simply lacks the object or field.
  */
-export function softFail<T>(ctx: Pick<ScreenContext, "note">, what: string, fallback: T): (err: unknown) => T {
+export function softFail<T>(
+  ctx: Pick<ScreenContext, "note">,
+  what: string,
+  fallback: T
+): (err: unknown) => T {
   return (err) => {
     if (isScaleError(err)) ctx.note(`${what}: ${errorText(err)}`);
     return fallback;
@@ -60,7 +64,10 @@ export function softFail<T>(ctx: Pick<ScreenContext, "note">, what: string, fall
 export function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
   let timer: NodeJS.Timeout;
   const limit = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${what} took longer than ${Math.round(ms / 1000)} seconds`)), ms);
+    timer = setTimeout(
+      () => reject(new Error(`${what} took longer than ${Math.round(ms / 1000)} seconds`)),
+      ms
+    );
   });
   return Promise.race([p, limit]).finally(() => clearTimeout(timer));
 }

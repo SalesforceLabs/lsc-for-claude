@@ -24,10 +24,24 @@ import {
   unwrap,
   type Row,
 } from "../helpers.js";
-import { addProfileFix, busiestProfile, byCategory, fetchCategories, isNavTab, navTabsSurface, newDbSchema, profilesOf } from "./shared.js";
+import {
+  addProfileFix,
+  busiestProfile,
+  byCategory,
+  fetchCategories,
+  isNavTab,
+  navTabsSurface,
+  newDbSchema,
+  profilesOf,
+} from "./shared.js";
 
 export const SETTINGS_CATEGORIES = ["ApplicationSettings", "ProfileBasedAppSettings"];
-const SYNC_CATEGORIES = ["SyncTransactionConfig", "SyncProcessorConfiguration", "SyncTransactionAdminView", "LogSettings"];
+const SYNC_CATEGORIES = [
+  "SyncTransactionConfig",
+  "SyncProcessorConfiguration",
+  "SyncTransactionAdminView",
+  "LogSettings",
+];
 
 /** The effective sync query a DB Schema record describes. */
 export function syncSoql(r: ConfigRecord): string | null {
@@ -40,12 +54,17 @@ export function syncSoql(r: ConfigRecord): string | null {
 
 /** CONFIGURATION records sync an Admin Console category rather than a business object. */
 export function dbSchemaLabel(r: ConfigRecord): string {
-  if (r.fields.Type === "CONFIGURATION" && r.fields.Category) return `Admin Console · ${r.fields.Category}`;
+  if (r.fields.Type === "CONFIGURATION" && r.fields.Category)
+    return `Admin Console · ${r.fields.Category}`;
   return String(r.fields.SObject || r.label || r.developerName);
 }
 
 function dbSchemaItem(r: ConfigRecord, duplicates: Map<string, string[]>): StudioItem {
-  const it = configItem(r, dbSchemaLabel(r), [r.fields.Type, assignedTo(r) ?? "Unassigned"].filter(Boolean).join(" · "));
+  const it = configItem(
+    r,
+    dbSchemaLabel(r),
+    [r.fields.Type, assignedTo(r) ?? "Unassigned"].filter(Boolean).join(" · ")
+  );
   // The field list and filter are shown as the sync query instead.
   const fieldCount = splitList(r.fields.MandatoryFields).length;
   delete it.properties.MandatoryFields;
@@ -59,13 +78,18 @@ function dbSchemaItem(r: ConfigRecord, duplicates: Map<string, string[]>): Studi
   if (soql) it.code = { language: "soql", text: soql };
 
   if (r.fields.Errors) {
-    it.findings.push({ severity: "error", title: "DB Schema reports errors", detail: String(r.fields.Errors) });
+    it.findings.push({
+      severity: "error",
+      title: "DB Schema reports errors",
+      detail: String(r.fields.Errors),
+    });
   }
   if (r.isActive && r.assignments.length === 0 && !r.isOrgLevel) {
     it.findings.push({
       severity: "warning",
       title: "Not assigned to any profile",
-      detail: "The record is active but isn't org-level or assigned to a profile, so nothing syncs from it.",
+      detail:
+        "The record is active but isn't org-level or assigned to a profile, so nothing syncs from it.",
     });
   }
   for (const profile of duplicates.get(r.developerName) ?? []) {
@@ -103,7 +127,8 @@ export interface CacheRecord {
 
 /** Recent attempts that aren't live (failed or in progress) kept for the map; each can carry a long ErrorLog. */
 const RECENT_ATTEMPTS = 25;
-const CACHE_COLUMNS = "Id, Name, Status, IntegrationStatus, IntegrationErrorCode, IntegrationErrorMessage, LastModifiedDate, ProfileId";
+const CACHE_COLUMNS =
+  "Id, Name, Status, IntegrationStatus, IntegrationErrorCode, IntegrationErrorMessage, LastModifiedDate, ProfileId";
 
 /**
  * Every live (Active / Published) cache — however old, so a profile published
@@ -112,7 +137,10 @@ const CACHE_COLUMNS = "Id, Name, Status, IntegrationStatus, IntegrationErrorCode
  */
 export async function fetchCache(org: string): Promise<CacheRecord[]> {
   const [live, attempts] = await Promise.all([
-    query(`SELECT ${CACHE_COLUMNS} FROM LifeSciMobileMetadataRecord WHERE Status IN ('Active', 'Published') ORDER BY LastModifiedDate DESC`, org),
+    query(
+      `SELECT ${CACHE_COLUMNS} FROM LifeSciMobileMetadataRecord WHERE Status IN ('Active', 'Published') ORDER BY LastModifiedDate DESC`,
+      org
+    ),
     query(
       `SELECT ${CACHE_COLUMNS}, ErrorLog FROM LifeSciMobileMetadataRecord WHERE Status NOT IN ('Active', 'Published') ORDER BY LastModifiedDate DESC LIMIT ${RECENT_ATTEMPTS}`,
       org
@@ -124,7 +152,11 @@ export async function fetchCache(org: string): Promise<CacheRecord[]> {
     .sort((a, b) => String(b.LastModifiedDate).localeCompare(String(a.LastModifiedDate)));
   const ids = [...new Set(rows.map((r) => r.ProfileId).filter(Boolean) as string[])];
   const names = new Map<string, string>();
-  const profileRows = await Promise.all(chunkIds(ids).map((chunk) => query(`SELECT Id, Name FROM Profile WHERE Id IN (${inList(chunk)})`, org)));
+  const profileRows = await Promise.all(
+    chunkIds(ids).map((chunk) =>
+      query(`SELECT Id, Name FROM Profile WHERE Id IN (${inList(chunk)})`, org)
+    )
+  );
   for (const p of profileRows.flat()) names.set(String(p.Id), String(p.Name));
   return rows.map((row) => ({
     row,
@@ -132,7 +164,8 @@ export async function fetchCache(org: string): Promise<CacheRecord[]> {
   }));
 }
 
-export const isLiveCache = (c: CacheRecord) => c.row.Status === "Active" || c.row.Status === "Published";
+export const isLiveCache = (c: CacheRecord) =>
+  c.row.Status === "Active" || c.row.Status === "Published";
 
 function cacheFindings(r: Row): StudioFinding[] {
   const message = r.IntegrationErrorMessage || r.IntegrationErrorCode;
@@ -149,13 +182,20 @@ function cacheFindings(r: Row): StudioFinding[] {
 }
 
 /** "No profile app settings", suggesting a copy of another profile's settings (never made-up values). */
-export function noAppSettings(profile: string, profileId: string | undefined, profileSettings: ConfigRecord[], all: ConfigRecord[]): StudioFinding {
+export function noAppSettings(
+  profile: string,
+  profileId: string | undefined,
+  profileSettings: ConfigRecord[],
+  all: ConfigRecord[]
+): StudioFinding {
   const finding: StudioFinding = {
     severity: "info",
     title: "No profile app settings",
     detail: "No ProfileBasedAppSettings record — the org defaults apply.",
   };
-  const source = profileSettings.find((r) => r.isActive && !r.isOrgLevel && profilesOf(r).length > 0);
+  const source = profileSettings.find(
+    (r) => r.isActive && !r.isOrgLevel && profilesOf(r).length > 0
+  );
   if (!profileId || !source) return finding;
   const from = profilesOf(source)[0];
   return {
@@ -179,14 +219,26 @@ export function noAppSettings(profile: string, profileId: string | undefined, pr
 
 /** "No navigation tabs", suggesting the tabs of the profile that has the most. */
 export function noNavTabs(profile: string, activeTabs: ConfigRecord[]): StudioFinding {
-  const finding: StudioFinding = { severity: "info", title: "No navigation tabs", detail: "The iPad will show only default navigation." };
+  const finding: StudioFinding = {
+    severity: "info",
+    title: "No navigation tabs",
+    detail: "The iPad will show only default navigation.",
+  };
   const ref = busiestProfile(activeTabs, profilesOf, profile);
   if (!ref) return finding;
   const fixes = activeTabs
     .filter((t) => profilesOf(t).includes(ref))
-    .map((t) => addProfileFix(t, profile, `Show the ${t.label ?? t.developerName} tab to ${profile}`))
+    .map((t) =>
+      addProfileFix(t, profile, `Show the ${t.label ?? t.developerName} tab to ${profile}`)
+    )
     .filter((f): f is StudioFix => f !== null);
-  return fixes.length ? { ...finding, detail: `${finding.detail} ${ref} has ${plural(fixes.length, "tab")} you can give it too.`, fixes } : finding;
+  return fixes.length
+    ? {
+        ...finding,
+        detail: `${finding.detail} ${ref} has ${plural(fixes.length, "tab")} you can give it too.`,
+        fixes,
+      }
+    : finding;
 }
 
 export const collectMobileSync: CustomCollector = async (org) => {
@@ -202,7 +254,8 @@ export const collectMobileSync: CustomCollector = async (org) => {
         id: "syncedObjects",
         title: "Synced Objects",
         lane: "schema",
-        description: "Active DB Schema records — the objects, fields, and filters LSC Mobile syncs to the iPad.",
+        description:
+          "Active DB Schema records — the objects, fields, and filters LSC Mobile syncs to the iPad.",
       },
       async () => {
         const records = await unwrap(dbSchema);
@@ -220,7 +273,8 @@ export const collectMobileSync: CustomCollector = async (org) => {
                 {
                   severity: "info",
                   title: `${unfiltered} objects sync without a filter`,
-                  detail: "Every record the user can access is downloaded. Add a WhereSoql filter to high-volume objects to keep initial sync fast.",
+                  detail:
+                    "Every record the user can access is downloaded. Add a WhereSoql filter to high-volume objects to keep initial sync fast.",
                 },
               ]
             : [],
@@ -249,7 +303,8 @@ export const collectMobileSync: CustomCollector = async (org) => {
         id: "mobileProfiles",
         title: "Mobile Profiles",
         lane: "profiles",
-        description: "Each profile's mobile footprint — DB Schema, navigation tabs, app settings, and metadata cache.",
+        description:
+          "Each profile's mobile footprint — DB Schema, navigation tabs, app settings, and metadata cache.",
       },
       async () => {
         const [schema, ui, appSettings, caches] = await Promise.all([
@@ -269,7 +324,12 @@ export const collectMobileSync: CustomCollector = async (org) => {
         // ProfileBasedAppSettings records are named by profile Id; ids for the copy suggestion.
         const profileIds = new Map(
           names.size
-            ? (await query(`SELECT Id, Name FROM Profile WHERE Name IN (${inList([...names])})`, org)).map((p) => [String(p.Name), String(p.Id)])
+            ? (
+                await query(
+                  `SELECT Id, Name FROM Profile WHERE Name IN (${inList([...names])})`,
+                  org
+                )
+              ).map((p) => [String(p.Name), String(p.Id)])
             : []
         );
         const activeTabs = ui.filter((r) => isNavTab(r) && r.isActive);
@@ -290,7 +350,10 @@ export const collectMobileSync: CustomCollector = async (org) => {
                 : "Generate the mobile metadata cache for this profile (Admin Console or /lsc:generate-metadata-cache) so the iPad picks up its schema.",
             });
           }
-          if (!app) findings.push(noAppSettings(profile, profileIds.get(profile), profileSettings, appSettings));
+          if (!app)
+            findings.push(
+              noAppSettings(profile, profileIds.get(profile), profileSettings, appSettings)
+            );
           if (tabs === 0) findings.push(noNavTabs(profile, activeTabs));
           return item(`profile:${profile}`, profile, {
             sublabel: `${plural(schemaCount, "object")} · ${plural(tabs, "tab")}`,
@@ -323,7 +386,8 @@ export const collectMobileSync: CustomCollector = async (org) => {
         id: "uiResources",
         title: "UI Resources",
         lane: "ui",
-        description: "Other UISchema records — logos, icons, and static resources used by the iPad app.",
+        description:
+          "Other UISchema records — logos, icons, and static resources used by the iPad app.",
       },
       async () => ({
         items: (await unwrap(uiSchema))
@@ -336,7 +400,8 @@ export const collectMobileSync: CustomCollector = async (org) => {
         id: "metadataCache",
         title: "Metadata Cache",
         lane: "ui",
-        description: "LifeSciMobileMetadataRecord — the generated schema package the iPad downloads, per profile.",
+        description:
+          "LifeSciMobileMetadataRecord — the generated schema package the iPad downloads, per profile.",
       },
       async () => ({
         items: (await unwrap(cache)).map(({ row, profile }) =>
@@ -367,8 +432,16 @@ export const collectMobileSync: CustomCollector = async (org) => {
       async () => ({
         items: (await unwrap(settings)).map((r) => {
           const profiles = profilesOf(r);
-          const label = r.isOrgLevel ? "Org defaults" : profiles.length ? profiles.join(", ") : r.label;
-          const it = configItem(r, label, r.category === "ApplicationSettings" ? "Application settings" : "Profile app settings");
+          const label = r.isOrgLevel
+            ? "Org defaults"
+            : profiles.length
+              ? profiles.join(", ")
+              : r.label;
+          const it = configItem(
+            r,
+            label,
+            r.category === "ApplicationSettings" ? "Application settings" : "Profile app settings"
+          );
           if (r.category === "ProfileBasedAppSettings") it.audience = audienceOf(r);
           return it;
         }),
@@ -401,10 +474,27 @@ export const collectMobileSync: CustomCollector = async (org) => {
     // What one profile's iPad gets, in the order an admin would fix it.
     checkTitle: "iPad readiness",
     checklist: [
-      { surface: "mobileProfiles", label: "Mobile access", missing: "Not one of the {total} mobile profiles" },
-      { surface: "syncedObjects", label: "Synced objects", missing: "None of the {total} synced objects are assigned" },
-      { surface: "navigationTabs", label: "Navigation tabs", missing: "None of the {total} tabs are assigned" },
-      { surface: "metadataCache", label: "Metadata cache", missing: "No active cache for this profile", publish: true },
+      {
+        surface: "mobileProfiles",
+        label: "Mobile access",
+        missing: "Not one of the {total} mobile profiles",
+      },
+      {
+        surface: "syncedObjects",
+        label: "Synced objects",
+        missing: "None of the {total} synced objects are assigned",
+      },
+      {
+        surface: "navigationTabs",
+        label: "Navigation tabs",
+        missing: "None of the {total} tabs are assigned",
+      },
+      {
+        surface: "metadataCache",
+        label: "Metadata cache",
+        missing: "No active cache for this profile",
+        publish: true,
+      },
       { surface: "uiResources", label: "UI resources" },
       { surface: "appSettings", label: "App settings" },
       { surface: "syncSettings", label: "Sync & logging" },

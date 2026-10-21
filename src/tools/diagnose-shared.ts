@@ -9,7 +9,10 @@ export interface DiagnosisPayload {
 }
 
 /** Match a symptom and, unless `checkOrg` is false, check the causes against the connected org. Shared by studio_diagnose and diagnose_lsc_issue. */
-export async function diagnosePayload(text: string, checkOrg: boolean | undefined): Promise<DiagnosisPayload> {
+export async function diagnosePayload(
+  text: string,
+  checkOrg: boolean | undefined
+): Promise<DiagnosisPayload> {
   let org: string | undefined;
   let orgNote: string | undefined;
   if (checkOrg !== false) {
@@ -18,5 +21,9 @@ export async function diagnosePayload(text: string, checkOrg: boolean | undefine
     else orgNote = connection.error || "No Salesforce org connected.";
   }
   const diagnosis = await (org ? withSharedReads(() => diagnose(text, org)) : diagnose(text));
-  return { items: diagnosisItems(diagnosis), checkedOrg: org ?? null, ...(orgNote ? { orgNote } : {}) };
+  return {
+    items: diagnosisItems(diagnosis),
+    checkedOrg: org ?? null,
+    ...(orgNote ? { orgNote } : {}),
+  };
 }

@@ -43,7 +43,12 @@ export interface ScriptSummary {
   lastModifiedBy: string | null;
   /** CodeText length. */
   codeSize: number;
-  lwc: { exists: boolean; namespace: string | null; lastModifiedDate: string | null; editable: boolean };
+  lwc: {
+    exists: boolean;
+    namespace: string | null;
+    lastModifiedDate: string | null;
+    editable: boolean;
+  };
   assignedTo: ScriptAssignment[];
   status: ScriptStatus;
   findingCount: { error: number; warning: number };

@@ -135,7 +135,13 @@ export const MAX_CONCURRENT_TABLES: Record<Flow, number> = { enhanced: 4, legacy
 
 // ---------- tags ----------
 
-export const SCALAR_TAGS = ["{USER.ID}", "{USER.TERRITORY}", "{USER.TERRITORYID}", "{USER.TEAMS}", "{USER.ACCESS.ENTITIES}"] as const;
+export const SCALAR_TAGS = [
+  "{USER.ID}",
+  "{USER.TERRITORY}",
+  "{USER.TERRITORYID}",
+  "{USER.TEAMS}",
+  "{USER.ACCESS.ENTITIES}",
+] as const;
 export const ID_TAGS = ["{ACCOUNT.IDS}", "{OT2A.OBJ.IDS}", "{STI.OBJ.IDS}"] as const;
 export const CONTENT_TAGS = ["{RELATED.ENTITIES}", "{CONT.DOCS}"] as const;
 const ALL_TAGS: readonly string[] = [...SCALAR_TAGS, ...ID_TAGS, ...CONTENT_TAGS];
@@ -150,17 +156,29 @@ export interface CollectedIds {
 }
 
 export function emptyIds(): CollectedIds {
-  return { accountIds: new Set(), ot2aObjIds: new Set(), stiObjIds: new Set(), relatedEntities: new Set(), contDocs: new Set() };
+  return {
+    accountIds: new Set(),
+    ot2aObjIds: new Set(),
+    stiObjIds: new Set(),
+    relatedEntities: new Set(),
+    contDocs: new Set(),
+  };
 }
 
 function listFor(tag: string, ids: CollectedIds): string[] {
   switch (tag) {
-    case "{ACCOUNT.IDS}": return [...ids.accountIds];
-    case "{OT2A.OBJ.IDS}": return [...ids.ot2aObjIds];
-    case "{STI.OBJ.IDS}": return [...ids.stiObjIds];
-    case "{RELATED.ENTITIES}": return [...ids.relatedEntities];
-    case "{CONT.DOCS}": return [...ids.contDocs];
-    default: return [];
+    case "{ACCOUNT.IDS}":
+      return [...ids.accountIds];
+    case "{OT2A.OBJ.IDS}":
+      return [...ids.ot2aObjIds];
+    case "{STI.OBJ.IDS}":
+      return [...ids.stiObjIds];
+    case "{RELATED.ENTITIES}":
+      return [...ids.relatedEntities];
+    case "{CONT.DOCS}":
+      return [...ids.contDocs];
+    default:
+      return [];
   }
 }
 
@@ -176,12 +194,18 @@ export function tagsInWhere(where: string | undefined): string[] {
 
 export function scalarTagValue(tag: string, table: SchemaTable, ctx: ReplayContext): string {
   switch (tag) {
-    case "{USER.ID}": return ctx.userId;
-    case "{USER.TERRITORY}": return ctx.territoryName;
-    case "{USER.TERRITORYID}": return ctx.territoryId;
-    case "{USER.TEAMS}": return "";
-    case "{USER.ACCESS.ENTITIES}": return table.userAccessEntities || "'*'";
-    default: return "";
+    case "{USER.ID}":
+      return ctx.userId;
+    case "{USER.TERRITORY}":
+      return ctx.territoryName;
+    case "{USER.TERRITORYID}":
+      return ctx.territoryId;
+    case "{USER.TEAMS}":
+      return "";
+    case "{USER.ACCESS.ENTITIES}":
+      return table.userAccessEntities || "'*'";
+    default:
+      return "";
   }
 }
 
@@ -193,7 +217,11 @@ export interface ResolvedTags {
   emptyLists: string[];
 }
 
-export function resolveTags(table: SchemaTable, ctx: ReplayContext, ids: CollectedIds): ResolvedTags {
+export function resolveTags(
+  table: SchemaTable,
+  ctx: ReplayContext,
+  ids: CollectedIds
+): ResolvedTags {
   const out: ResolvedTags = { scalars: {}, lists: {}, emptyLists: [] };
   for (const tag of tagsInWhere(table.whereSoql)) {
     if ((SCALAR_TAGS as readonly string[]).includes(tag)) {
@@ -214,7 +242,8 @@ export function substituteTag(where: string, tag: string, value: string): string
 }
 
 export function skipReason(table: SchemaTable, tags: ResolvedTags): string | undefined {
-  if (tags.emptyLists.length > 0) return `no ids for ${tags.emptyLists.join(", ")} (a device skips the table)`;
+  if (tags.emptyLists.length > 0)
+    return `no ids for ${tags.emptyLists.join(", ")} (a device skips the table)`;
   return undefined;
 }
 
@@ -233,7 +262,11 @@ const REST_CHARS = 200;
 const ID_LEN = 22;
 
 /** Ids per query for the legacy flow (SyncKit formQuery limits). */
-export function legacyChunkSize(templateLength: number, whereLength: number, tagOccurrences: number): number {
+export function legacyChunkSize(
+  templateLength: number,
+  whereLength: number,
+  tagOccurrences: number
+): number {
   let limit = MAX_QUERY_LEN - (templateLength + REST_CHARS) - REST_CHARS;
   if (whereLength > 0) limit = Math.min(limit, MAX_WHERE_LEN - whereLength - REST_CHARS);
   const perTag = Math.floor(Math.max(0, limit) / ID_LEN) / Math.max(1, tagOccurrences);
@@ -260,10 +293,20 @@ export function maxResponseSizePerBatchMB(ramGB: number): number {
  * 1 to 15 depending on how large a page of the table's responses is (`estimatedResponseMB`, the
  * average decoded size of the first pages in the group); otherwise 15.
  */
-export function legacyBatchSize(opts: { dynamic?: boolean; deviceRamGB?: number; estimatedResponseMB: number }): number {
+export function legacyBatchSize(opts: {
+  dynamic?: boolean;
+  deviceRamGB?: number;
+  estimatedResponseMB: number;
+}): number {
   if (!(opts.dynamic ?? true) || !(opts.estimatedResponseMB > 0)) return LEGACY_PAGE_BATCH;
-  const fit = Math.trunc(maxResponseSizePerBatchMB(opts.deviceRamGB ?? DEFAULT_DEVICE_RAM_GB) / opts.estimatedResponseMB);
-  return clamp(Number.isFinite(fit) ? fit : LEGACY_PAGE_BATCH, LEGACY_MIN_PAGE_BATCH, LEGACY_PAGE_BATCH);
+  const fit = Math.trunc(
+    maxResponseSizePerBatchMB(opts.deviceRamGB ?? DEFAULT_DEVICE_RAM_GB) / opts.estimatedResponseMB
+  );
+  return clamp(
+    Number.isFinite(fit) ? fit : LEGACY_PAGE_BATCH,
+    LEGACY_MIN_PAGE_BATCH,
+    LEGACY_PAGE_BATCH
+  );
 }
 
 // ---------- ordering ----------
@@ -292,7 +335,12 @@ export function orderPhases(tables: SchemaTable[], flow: Flow = "enhanced"): Sch
 
   const others = tables.filter((t) => {
     const n = t.sobject.toLowerCase();
-    return n !== LAST && !POSTPONED.has(n) && !(n === OT2A && ot2aFirst) && !(n === ACCOUNT && accountFirst);
+    return (
+      n !== LAST &&
+      !POSTPONED.has(n) &&
+      !(n === OT2A && ot2aFirst) &&
+      !(n === ACCOUNT && accountFirst)
+    );
   });
   if (flow === "legacy") {
     // Without id tags these two are plain tables, moved behind the others.
@@ -301,10 +349,15 @@ export function orderPhases(tables: SchemaTable[], flow: Flow = "enhanced"): Sch
       if (i >= 0) others.push(others.splice(i, 1)[0]);
     }
   }
-  const optIndex = others.findIndex((t) => (flow === "legacy" ? t.sobject === OPT_LEGACY : t.sobject.toLowerCase().includes(OPT)));
+  const optIndex = others.findIndex((t) =>
+    flow === "legacy" ? t.sobject === OPT_LEGACY : t.sobject.toLowerCase().includes(OPT)
+  );
   if (optIndex >= 0) others.push(others.splice(optIndex, 1)[0]);
 
-  const phases: SchemaTable[][] = [ot2aFirst ? [ot2a] : [], accountFirst ? [account] : []] as SchemaTable[][];
+  const phases: SchemaTable[][] = [
+    ot2aFirst ? [ot2a] : [],
+    accountFirst ? [account] : [],
+  ] as SchemaTable[][];
   phases.push(flow === "enhanced" ? [...others, ...(dstr ? [dstr] : [])] : others);
   if (flow === "legacy" && dstr) phases.push([dstr]);
 
@@ -312,7 +365,8 @@ export function orderPhases(tables: SchemaTable[], flow: Flow = "enhanced"): Sch
   // ContentDocument and DSTR again (ContentVersion/ContentDocument only follow a ContentDocumentLink).
   const attachment = named(ATTACHMENT);
   const cdl = named(CDL);
-  const present = (...ts: (SchemaTable | undefined)[]) => ts.filter((t): t is SchemaTable => t !== undefined);
+  const present = (...ts: (SchemaTable | undefined)[]) =>
+    ts.filter((t): t is SchemaTable => t !== undefined);
   if (cdl) {
     phases.push(present(attachment, cdl));
     if (dstr) phases.push([dstr]);
@@ -394,16 +448,19 @@ export class SmartQueue {
               op.started = true;
               this.running++;
               this.peak = Math.max(this.peak, this.running);
-              task.run().then(
-                (r) => void (results[i] = r),
-                (e) => void (failure ??= { error: e })
-              ).finally(() => {
-                this.ops.splice(this.ops.indexOf(op), 1);
-                this.running--;
-                this.recompute();
-                this.pump();
-                resolve();
-              });
+              task
+                .run()
+                .then(
+                  (r) => void (results[i] = r),
+                  (e) => void (failure ??= { error: e })
+                )
+                .finally(() => {
+                  this.ops.splice(this.ops.indexOf(op), 1);
+                  this.running--;
+                  this.recompute();
+                  this.pump();
+                  resolve();
+                });
             },
           };
           this.ops.push(op);
@@ -428,10 +485,13 @@ export class SmartQueue {
   private recompute(): void {
     if (this.ops.length === 0) return;
     const running = this.ops.filter((o) => o.started).reduce((sum, o) => sum + o.complexity, 0);
-    const next = this.nextReady === "oldestUnfinished" ? this.ops[0] : this.ops.find((o) => !o.started);
+    const next =
+      this.nextReady === "oldestUnfinished" ? this.ops[0] : this.ops.find((o) => !o.started);
     if (!next) return;
     this.desired =
-      running + next.complexity <= this.maxComplexity ? Math.min(this.desired + 1, this.maxConcurrent) : Math.max(this.desired - 1, 1);
+      running + next.complexity <= this.maxComplexity
+        ? Math.min(this.desired + 1, this.maxConcurrent)
+        : Math.max(this.desired - 1, 1);
   }
 }
 
@@ -524,12 +584,21 @@ export function requestFields(table: SchemaTable): string[] {
     : table.fields;
 }
 
-export function buildLegacyQuery(table: SchemaTable, fields: string[], condition: string | undefined, syncStart: Date): string {
+export function buildLegacyQuery(
+  table: SchemaTable,
+  fields: string[],
+  condition: string | undefined,
+  syncStart: Date
+): string {
   let q = `SELECT ${fields.join(",")} FROM ${table.sobject}`;
   const hasCondition = !!condition && condition.trim().length > 0;
   if (hasCondition) q += ` WHERE ${condition}`;
   const delta = table.deltaDateField;
-  if (delta && table.sobject.toLowerCase() !== LAST && fields.some((f) => f.toLowerCase() === delta.toLowerCase())) {
+  if (
+    delta &&
+    table.sobject.toLowerCase() !== LAST &&
+    fields.some((f) => f.toLowerCase() === delta.toLowerCase())
+  ) {
     const end = syncStart.toISOString().replace(/\.\d{3}Z$/, "Z");
     q += ` ${hasCondition ? "AND" : "WHERE"} ${delta} > ${EPOCH_ISO} AND ${delta} <= ${end}`;
   }
@@ -551,7 +620,10 @@ interface Run {
 
 class StopTable extends Error {}
 
-export function timeoutScope(parent: AbortSignal | undefined, ms: number | undefined): { signal: AbortSignal; dispose(): void } {
+export function timeoutScope(
+  parent: AbortSignal | undefined,
+  ms: number | undefined
+): { signal: AbortSignal; dispose(): void } {
   const controller = new AbortController();
   const onAbort = () => controller.abort();
   if (parent?.aborted) controller.abort();
@@ -566,7 +638,12 @@ export function timeoutScope(parent: AbortSignal | undefined, ms: number | undef
   };
 }
 
-function collectIds(table: SchemaTable, records: Record<string, unknown>[], ids: CollectedIds, budget: Run["idBudget"]): void {
+function collectIds(
+  table: SchemaTable,
+  records: Record<string, unknown>[],
+  ids: CollectedIds,
+  budget: Run["idBudget"]
+): void {
   const n = table.sobject.toLowerCase();
   const add = (set: Set<string>, key: string) => {
     for (const r of records) {
@@ -586,7 +663,10 @@ function collectIds(table: SchemaTable, records: Record<string, unknown>[], ids:
   if (table.attachmentsSupport !== "none") add(ids.relatedEntities, "Id");
 }
 
-function recordsOf(json: unknown): { records: Record<string, unknown>[]; o: Record<string, unknown> } {
+function recordsOf(json: unknown): {
+  records: Record<string, unknown>[];
+  o: Record<string, unknown>;
+} {
   const o = json && typeof json === "object" ? (json as Record<string, unknown>) : {};
   const records = Array.isArray(o.records) ? (o.records as Record<string, unknown>[]) : [];
   return { records, o };
@@ -602,7 +682,14 @@ class TableRunner {
     private readonly run: Run,
     private readonly table: SchemaTable
   ) {
-    this.result = { sobject: table.sobject, developerName: table.developerName, records: 0, requests: 0, bytes: 0, seconds: 0 };
+    this.result = {
+      sobject: table.sobject,
+      developerName: table.developerName,
+      records: 0,
+      requests: 0,
+      bytes: 0,
+      seconds: 0,
+    };
   }
 
   private get o() {
@@ -610,7 +697,13 @@ class TableRunner {
   }
 
   /** One HTTP request, counted. */
-  private async call(method: "GET" | "POST", url: string, body?: unknown, headers?: Record<string, string>, gzip?: boolean): Promise<unknown> {
+  private async call(
+    method: "GET" | "POST",
+    url: string,
+    body?: unknown,
+    headers?: Record<string, string>,
+    gzip?: boolean
+  ): Promise<unknown> {
     if (this.signal.aborted) throw new StopTable(this.run.aborted ? "cancelled" : "table timeout");
     this.result.requests++;
     const res = await this.o.session.http({
@@ -662,7 +755,10 @@ class TableRunner {
       this.result.skipped = "no Id field in the requested fields";
       return this.result;
     }
-    const scope = timeoutScope(this.o.signal, this.o.tableTimeoutSeconds ? this.o.tableTimeoutSeconds * 1000 : undefined);
+    const scope = timeoutScope(
+      this.o.signal,
+      this.o.tableTimeoutSeconds ? this.o.tableTimeoutSeconds * 1000 : undefined
+    );
     this.signal = scope.signal;
     const start = this.run.now();
     try {
@@ -686,7 +782,10 @@ class TableRunner {
   // ----- enhanced -----
 
   private enhancedTagSets(tags: ResolvedTags): EnhancedTag[][] {
-    const base: EnhancedTag[] = Object.entries(tags.scalars).map(([tagName, tagValue]) => ({ tagName, tagValue }));
+    const base: EnhancedTag[] = Object.entries(tags.scalars).map(([tagName, tagValue]) => ({
+      tagName,
+      tagValue,
+    }));
     const listTags = Object.entries(tags.lists);
     const idTags: EnhancedTag[] = listTags
       .filter(([t]) => (ID_TAGS as readonly string[]).includes(t))
@@ -698,7 +797,9 @@ class TableRunner {
     // chunked in lockstep by the longest list; the others are sent whole.
     const [primary, ...others] = [...content].sort((a, b) => b[1].length - a[1].length);
     const whole = others.map(([tagName, ids]) => ({ tagName, tagValue: quoteIds(ids) }));
-    const pieces = this.o.context.serverHandlesContentInList ? [primary[1]] : chunk(primary[1], CONTENT_CHUNK);
+    const pieces = this.o.context.serverHandlesContentInList
+      ? [primary[1]]
+      : chunk(primary[1], CONTENT_CHUNK);
     return pieces.map((p) => [...common, ...whole, { tagName: primary[0], tagValue: quoteIds(p) }]);
   }
 
@@ -713,7 +814,14 @@ class TableRunner {
         const json = await this.call(
           "POST",
           url,
-          buildEnhancedBody({ table: this.table, fields, tags: tagSet, batchSize: batch.size, syncStart: this.o.syncStart, queryLocator: locator }),
+          buildEnhancedBody({
+            table: this.table,
+            fields,
+            tags: tagSet,
+            batchSize: batch.size,
+            syncStart: this.o.syncStart,
+            queryLocator: locator,
+          }),
           { "X-Chatter-Entity-Encoding": "false" },
           // The app gzips Connect request bodies (SyncConnectDownloadManager.performDeltaAPICall).
           true
@@ -733,7 +841,8 @@ class TableRunner {
   private async legacy(tags: ResolvedTags): Promise<void> {
     const fields = requestFields(this.table);
     let where = this.table.whereSoql;
-    for (const [tag, value] of Object.entries(tags.scalars)) if (where) where = substituteTag(where, tag, value);
+    for (const [tag, value] of Object.entries(tags.scalars))
+      if (where) where = substituteTag(where, tag, value);
 
     const listTags = Object.entries(tags.lists);
     const [primary, ...others] = [...listTags].sort((a, b) => b[1].length - a[1].length);
@@ -747,7 +856,14 @@ class TableRunner {
       const template = buildLegacyQuery(this.table, fields, where, this.o.syncStart);
       const occurrences = Math.max(1, template.toLowerCase().split(tag.toLowerCase()).length - 1);
       const size = legacyChunkSize(template.length, where.length, occurrences);
-      queries = chunk(ids, size).map((piece) => buildLegacyQuery(this.table, fields, substituteTag(where, tag, quoteIds(piece)), this.o.syncStart));
+      queries = chunk(ids, size).map((piece) =>
+        buildLegacyQuery(
+          this.table,
+          fields,
+          substituteTag(where, tag, quoteIds(piece)),
+          this.o.syncStart
+        )
+      );
     }
     // DownloadManager.getAllNextRequests: the queries go in groups of 7 / 3 = 2; a group's first pages
     // are fetched one after another, then all their later pages go out together in composite batches.
@@ -762,7 +878,10 @@ class TableRunner {
     const pageUrls: string[] = [];
     let firstPagesMB = 0;
     for (const soql of soqls) {
-      const first = await this.call("GET", dataPath(session, `query?q=${encodeURIComponent(soql)}`));
+      const first = await this.call(
+        "GET",
+        dataPath(session, `query?q=${encodeURIComponent(soql)}`)
+      );
       firstPagesMB += this.lastDecodedBytes / (1024 * 1024);
       const { records, o } = recordsOf(first);
       if (!this.accept(records)) return false;
@@ -776,7 +895,8 @@ class TableRunner {
         continue;
       }
       const step = records.length;
-      for (let off = step; off < totalSize; off += step) pageUrls.push(`${session.apiVersion}/query/${locator}-${off}`);
+      for (let off = step; off < totalSize; off += step)
+        pageUrls.push(`${session.apiVersion}/query/${locator}-${off}`);
     }
     if (pageUrls.length === 0) return true;
 
@@ -790,7 +910,9 @@ class TableRunner {
         haltOnError: true,
         batchRequests: group.map((url) => ({ method: "GET", url })),
       });
-      const results = Array.isArray((json as Record<string, unknown>)?.results) ? ((json as Record<string, unknown>).results as Record<string, unknown>[]) : [];
+      const results = Array.isArray((json as Record<string, unknown>)?.results)
+        ? ((json as Record<string, unknown>).results as Record<string, unknown>[])
+        : [];
       for (const r of results) {
         if (typeof r.statusCode === "number" && r.statusCode >= 300) {
           throw new Error(`composite/batch sub-request failed (HTTP ${r.statusCode})`);
@@ -825,7 +947,10 @@ function mergeRuns(into: TableResult, next: TableResult): void {
 }
 
 /** One-line description of the scheduling for the result notes. */
-export function schedulingNote(flow: Flow, maxConcurrent: number = MAX_CONCURRENT_TABLES[flow]): string {
+export function schedulingNote(
+  flow: Flow,
+  maxConcurrent: number = MAX_CONCURRENT_TABLES[flow]
+): string {
   return (
     `Tables scheduled like the iOS app: concurrency ramps from 1 to at most ${maxConcurrent} while the running tables' query complexity ` +
     `(1 + subselects in WHERE) stays within ${MAX_OPEN_QUERY_LOCATORS} open query locators, tables taken first-in-first-out; OT2A, then Account, ` +
@@ -845,11 +970,19 @@ export async function replayInitialSync(opts: ReplayOptions): Promise<TableResul
     aborted: false,
     idBudget: { left: opts.maxCollectedIds ?? DEFAULT_MAX_COLLECTED_IDS, hit: false },
   };
-  const queue = new SmartQueue({ maxConcurrent: opts.concurrency ?? MAX_CONCURRENT_TABLES[opts.flow] });
+  const queue = new SmartQueue({
+    maxConcurrent: opts.concurrency ?? MAX_CONCURRENT_TABLES[opts.flow],
+  });
   const results = new Map<SchemaTable, TableResult>();
 
   const skipped = (table: SchemaTable, why: string): TableResult => ({
-    sobject: table.sobject, developerName: table.developerName, records: 0, requests: 0, bytes: 0, seconds: 0, skipped: why,
+    sobject: table.sobject,
+    developerName: table.developerName,
+    records: 0,
+    requests: 0,
+    bytes: 0,
+    seconds: 0,
+    skipped: why,
   });
 
   const phases = orderPhases(opts.tables, opts.flow);
@@ -863,8 +996,10 @@ export async function replayInitialSync(opts: ReplayOptions): Promise<TableResul
         run: async () => {
           let r: TableResult;
           if (opts.signal?.aborted || run.aborted) r = skipped(table, "cancelled");
-          else if (run.deadline !== undefined && now() >= run.deadline) r = skipped(table, "maxSeconds budget exhausted");
-          else if (opts.maxTotalRecords !== undefined && run.totalRecords >= opts.maxTotalRecords) r = skipped(table, "maxTotalRecords reached");
+          else if (run.deadline !== undefined && now() >= run.deadline)
+            r = skipped(table, "maxSeconds budget exhausted");
+          else if (opts.maxTotalRecords !== undefined && run.totalRecords >= opts.maxTotalRecords)
+            r = skipped(table, "maxTotalRecords reached");
           else r = await new TableRunner(run, table).execute();
           const earlier = results.get(table);
           if (earlier) mergeRuns(earlier, r);
@@ -879,7 +1014,9 @@ export async function replayInitialSync(opts: ReplayOptions): Promise<TableResul
   }
   if (opts.idStore) opts.idStore.collected = run.ids;
   if (run.idBudget.hit) {
-    opts.onNote?.(`The simulator keeps at most ${(opts.maxCollectedIds ?? DEFAULT_MAX_COLLECTED_IDS).toLocaleString("en-US")} ids for the id-list filters of later tables; more were dropped, so those tables' requests and records are lower bounds.`);
+    opts.onNote?.(
+      `The simulator keeps at most ${(opts.maxCollectedIds ?? DEFAULT_MAX_COLLECTED_IDS).toLocaleString("en-US")} ids for the id-list filters of later tables; more were dropped, so those tables' requests and records are lower bounds.`
+    );
   }
   return opts.tables.map((t) => results.get(t) ?? skipped(t, "not scheduled"));
 }

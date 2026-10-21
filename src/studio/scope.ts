@@ -39,7 +39,8 @@ export interface OrgScope {
 }
 
 /** The LSC license, matched like `LSC_PSL` in overview.ts and the user trace. */
-const LSC_PSL = "(PermissionSetLicense.DeveloperName LIKE '%LSC4CE%' OR PermissionSetLicense.DeveloperName LIKE '%LifeScienceCommercial%')";
+const LSC_PSL =
+  "(PermissionSetLicense.DeveloperName LIKE '%LSC4CE%' OR PermissionSetLicense.DeveloperName LIKE '%LifeScienceCommercial%')";
 
 export interface ScopeFacts {
   id: string;
@@ -57,20 +58,37 @@ export interface ScopeFacts {
 
 /** Studio's own grouping of one profile, and why. */
 export function detectGroup(f: ScopeFacts): { group: ScopeGroup; reason: string } {
-  if (f.admin && (f.licensed || f.appSettings || f.dbSchema || f.cache)) return { group: "admin", reason: "Administrator or integration profile" };
+  if (f.admin && (f.licensed || f.appSettings || f.dbSchema || f.cache))
+    return { group: "admin", reason: "Administrator or integration profile" };
   if (f.admin) return { group: "out", reason: "Administrator or integration profile, no LSC" };
   // Two profiles named alike: setup assigned by name counts only for the one whose users are licensed.
   const byName = !f.sharedName || f.licensed > 0;
-  const ipad = [byName && f.appSettings && "LSC Mobile app settings", byName && f.dbSchema && "DB Schema records", f.cache && "an iPad metadata cache"].filter(Boolean);
-  if (ipad.length) return { group: "ipad", reason: `Has ${ipad.join(", ").replace(/, ([^,]*)$/, " and $1")}` };
+  const ipad = [
+    byName && f.appSettings && "LSC Mobile app settings",
+    byName && f.dbSchema && "DB Schema records",
+    f.cache && "an iPad metadata cache",
+  ].filter(Boolean);
+  if (ipad.length)
+    return { group: "ipad", reason: `Has ${ipad.join(", ").replace(/, ([^,]*)$/, " and $1")}` };
   if (f.licensed) return { group: "web", reason: "LSC license, no iPad setup" };
-  if (f.sharedName && (f.appSettings || f.dbSchema)) return { group: "out", reason: "No LSC license. Another profile has the same name; the iPad setup named for it is taken as that one's" };
+  if (f.sharedName && (f.appSettings || f.dbSchema))
+    return {
+      group: "out",
+      reason:
+        "No LSC license. Another profile has the same name; the iPad setup named for it is taken as that one's",
+    };
   return { group: "out", reason: "No LSC license" };
 }
 
 export function groupProfiles(facts: ScopeFacts[]): ScopeProfile[] {
   return facts
-    .map((f) => ({ id: f.id, name: f.name, users: f.users, licensed: f.licensed, ...detectGroup(f) }))
+    .map((f) => ({
+      id: f.id,
+      name: f.name,
+      users: f.users,
+      licensed: f.licensed,
+      ...detectGroup(f),
+    }))
     .sort((a, b) => b.users - a.users || a.name.localeCompare(b.name));
 }
 
@@ -81,7 +99,10 @@ export function lscScope(org: string): Promise<OrgScope> {
 
 async function readFacts(org: string): Promise<ScopeFacts[]> {
   const [all, licensed, settings] = await Promise.all([
-    query(`SELECT ProfileId pid, Profile.Name pn, COUNT(Id) cnt FROM User WHERE IsActive = true AND UserType = 'Standard' GROUP BY ProfileId, Profile.Name`, org),
+    query(
+      `SELECT ProfileId pid, Profile.Name pn, COUNT(Id) cnt FROM User WHERE IsActive = true AND UserType = 'Standard' GROUP BY ProfileId, Profile.Name`,
+      org
+    ),
     query(
       `SELECT ProfileId pid, COUNT(Id) cnt FROM User WHERE IsActive = true AND UserType = 'Standard' ` +
         `AND Id IN (SELECT AssigneeId FROM PermissionSetLicenseAssign WHERE ${LSC_PSL}) GROUP BY ProfileId`,
@@ -92,20 +113,37 @@ async function readFacts(org: string): Promise<ScopeFacts[]> {
   ]);
   const ids = all.map((r) => String(r.pid ?? "")).filter(Boolean);
   const [profiles, caches] = await Promise.all([
-    byIds(ids, (chunk) => query(`SELECT Id, Name, PermissionsModifyAllData, UserLicense.Name FROM Profile WHERE Id IN (${inList(chunk)})`, org)),
     byIds(ids, (chunk) =>
-      query(`SELECT ProfileId pid, COUNT(Id) cnt FROM LifeSciMobileMetadataRecord WHERE ProfileId IN (${inList(chunk)}) AND Status IN ('Active', 'Published') GROUP BY ProfileId`, org)
+      query(
+        `SELECT Id, Name, PermissionsModifyAllData, UserLicense.Name FROM Profile WHERE Id IN (${inList(chunk)})`,
+        org
+      )
+    ),
+    byIds(ids, (chunk) =>
+      query(
+        `SELECT ProfileId pid, COUNT(Id) cnt FROM LifeSciMobileMetadataRecord WHERE ProfileId IN (${inList(chunk)}) AND Status IN ('Active', 'Published') GROUP BY ProfileId`,
+        org
+      )
     ).catch(() => [] as Row[]),
   ]);
   const licensedBy = new Map(licensed.map((r) => [String(r.pid), Number(r.cnt ?? r.expr0 ?? 0)]));
   const profileBy = new Map(profiles.map((r) => [String(r.Id), r]));
   const cached = new Set(caches.map((r) => String(r.pid)));
   const names = (category: string) =>
-    new Set(settings.filter((r) => r.category === category && (category !== "DbSchema" || r.isActive)).flatMap(profilesOf).map((n) => n.toLowerCase()));
+    new Set(
+      settings
+        .filter((r) => r.category === category && (category !== "DbSchema" || r.isActive))
+        .flatMap(profilesOf)
+        .map((n) => n.toLowerCase())
+    );
   const appSettings = names("ProfileBasedAppSettings");
   const dbSchema = names("DbSchema");
   const nameCount = new Map<string, number>();
-  for (const r of all) nameCount.set(String(r.pn ?? "").toLowerCase(), (nameCount.get(String(r.pn ?? "").toLowerCase()) ?? 0) + 1);
+  for (const r of all)
+    nameCount.set(
+      String(r.pn ?? "").toLowerCase(),
+      (nameCount.get(String(r.pn ?? "").toLowerCase()) ?? 0) + 1
+    );
 
   return all
     .filter((r) => r.pid)
@@ -119,7 +157,10 @@ async function readFacts(org: string): Promise<ScopeFacts[]> {
         name,
         users: Number(r.cnt ?? r.expr0 ?? 0),
         licensed: licensedBy.get(id) ?? 0,
-        admin: p?.PermissionsModifyAllData === true || /integration/i.test(license) || /integration/i.test(name),
+        admin:
+          p?.PermissionsModifyAllData === true ||
+          /integration/i.test(license) ||
+          /integration/i.test(name),
         appSettings: appSettings.has(name.toLowerCase()),
         dbSchema: dbSchema.has(name.toLowerCase()),
         cache: cached.has(id),

@@ -7,7 +7,13 @@ import { runCheck, type ReadinessModule } from "../index.js";
 import { handlersResult, loadDbSchema, loadHandlers, once, syncResult } from "./_visit-shared.js";
 
 /** Synced for visits to work offline: the visit, its provider-visit, and what's recorded on it. */
-const SYNCED_OBJECTS = ["ProviderVisit", "ProviderVisitProdDetailing", "ProviderVisitProdDiscussion", "ProviderVisitRqstSample", "ProviderVisitMarketingItem"];
+const SYNCED_OBJECTS = [
+  "ProviderVisit",
+  "ProviderVisitProdDetailing",
+  "ProviderVisitProdDiscussion",
+  "ProviderVisitRqstSample",
+  "ProviderVisitMarketingItem",
+];
 
 /** Validation, locking and conflict handlers — optional ones (holiday, best-time, lock-on-submit variants) are left out. */
 const GUARDRAIL_HANDLERS = [
@@ -42,7 +48,12 @@ const readiness: ReadinessModule = {
   checks: async (org) => {
     const handlers = once(() => loadHandlers(org));
     const schema = once(() => loadDbSchema(org));
-    const completed90 = once(() => count(`SELECT COUNT() FROM Visit WHERE Status = 'Completed' AND CreatedDate = LAST_N_DAYS:90`, org));
+    const completed90 = once(() =>
+      count(
+        `SELECT COUNT() FROM Visit WHERE Status = 'Completed' AND CreatedDate = LAST_N_DAYS:90`,
+        org
+      )
+    );
 
     return Promise.all([
       runCheck(
@@ -52,12 +63,23 @@ const readiness: ReadinessModule = {
           title: "Reps have created visits in the last 30 days",
           severity: "info",
           why: "A feature nobody has used lately is the first thing to look at: either reps aren't on it yet or something blocks them.",
-          steps: ["Ask a pilot rep to create and complete a visit on the iPad", "Check the rep's profile has the Visit permission sets"],
+          steps: [
+            "Ask a pilot rep to create and complete a visit on the iPad",
+            "Check the rep's profile has the Visit permission sets",
+          ],
           uiPath: "Visits tab",
         },
         async () => {
-          const n = await count(`SELECT COUNT() FROM Visit WHERE CreatedDate = LAST_N_DAYS:30`, org);
-          return { pass: n > 0, detail: n ? `${plural(n, "visit")} created in the last 30 days.` : "No visits created in the last 30 days." };
+          const n = await count(
+            `SELECT COUNT() FROM Visit WHERE CreatedDate = LAST_N_DAYS:30`,
+            org
+          );
+          return {
+            pass: n > 0,
+            detail: n
+              ? `${plural(n, "visit")} created in the last 30 days.`
+              : "No visits created in the last 30 days.",
+          };
         }
       ),
       runCheck(
@@ -67,13 +89,22 @@ const readiness: ReadinessModule = {
           title: "No visits are stuck In Progress",
           severity: "warning",
           why: "A visit left In Progress for weeks was started on a device and never submitted — it keeps counting toward conflicts and blocks the rep's calendar.",
-          steps: ["Open each visit and have the rep submit or abandon it", "If the rep's device is gone, set the status to Abandoned from an admin account"],
+          steps: [
+            "Open each visit and have the rep submit or abandon it",
+            "If the rep's device is gone, set the status to Abandoned from an admin account",
+          ],
           uiPath: "Visits tab > list view filtered on Status = In Progress",
         },
         async () => {
           const where = `Status = 'InProgress' AND CreatedDate = LAST_N_DAYS:${STUCK_WINDOW_DAYS} AND CreatedDate < LAST_N_DAYS:14`;
-          const rows = await query(`SELECT Id, Name, Account.Name, CreatedDate FROM Visit WHERE ${where} ORDER BY CreatedDate LIMIT 6`, org);
-          const n = rows.length === 6 ? await count(`SELECT COUNT() FROM Visit WHERE ${where}`, org) : rows.length;
+          const rows = await query(
+            `SELECT Id, Name, Account.Name, CreatedDate FROM Visit WHERE ${where} ORDER BY CreatedDate LIMIT 6`,
+            org
+          );
+          const n =
+            rows.length === 6
+              ? await count(`SELECT COUNT() FROM Visit WHERE ${where}`, org)
+              : rows.length;
           return {
             pass: n === 0,
             detail: n
@@ -102,15 +133,29 @@ const readiness: ReadinessModule = {
           // Completing a visit modifies it, so the LastModifiedDate window loses none of them and
           // lets the query use an index; the end time alone would mean reading every visit.
           const profile = focusedProfile();
-          const owned = profile ? ` AND OwnerId IN (SELECT Id FROM User WHERE Profile.Name = ${inList([profile])})` : "";
+          const owned = profile
+            ? ` AND OwnerId IN (SELECT Id FROM User WHERE Profile.Name = ${inList([profile])})`
+            : "";
           const by = profile ? " by this profile's users" : "";
           const visits = await query(
             `SELECT AccountId FROM Visit WHERE LastModifiedDate = LAST_N_DAYS:30 AND Status = 'Completed' AND ActualVisitEndTime = LAST_N_DAYS:30 AND AccountId != null${owned} LIMIT ${SAMPLE_ROWS}`,
             org
           );
-          if (!visits.length) return { pass: true, skip: true, detail: `No visits were completed${by} in the last 30 days.` };
+          if (!visits.length)
+            return {
+              pass: true,
+              skip: true,
+              detail: `No visits were completed${by} in the last 30 days.`,
+            };
           const accounts = [...new Set(visits.map((v) => String(v.AccountId)))];
-          const info = await queryByIds("AccountId", "ProviderAcctTerritoryInfo", "AccountId", accounts, org, "LastProviderVisitDate = LAST_N_DAYS:30");
+          const info = await queryByIds(
+            "AccountId",
+            "ProviderAcctTerritoryInfo",
+            "AccountId",
+            accounts,
+            org,
+            "LastProviderVisitDate = LAST_N_DAYS:30"
+          );
           const updated = new Set(info.map((r) => String(r.AccountId))).size;
           const scope =
             visits.length < SAMPLE_ROWS
@@ -129,16 +174,29 @@ const readiness: ReadinessModule = {
           title: "Completed visits carry the territory they were made in",
           severity: "warning",
           why: "Territory-level reporting, sharing and the last-visit rollup key off the visit's territory. Visits without one disappear from territory dashboards.",
-          steps: ["Check the visit page layout and mobile defaults populate Territory", "Fix existing visits with a data load"],
+          steps: [
+            "Check the visit page layout and mobile defaults populate Territory",
+            "Fix existing visits with a data load",
+          ],
           uiPath: "Setup > Object Manager > Visit",
         },
         async () => {
           const total = await completed90();
-          if (!total) return { pass: true, skip: true, detail: "No visits were completed in the last 90 days." };
-          const missing = await count(`SELECT COUNT() FROM Visit WHERE Status = 'Completed' AND TerritoryId = null AND CreatedDate = LAST_N_DAYS:90`, org);
+          if (!total)
+            return {
+              pass: true,
+              skip: true,
+              detail: "No visits were completed in the last 90 days.",
+            };
+          const missing = await count(
+            `SELECT COUNT() FROM Visit WHERE Status = 'Completed' AND TerritoryId = null AND CreatedDate = LAST_N_DAYS:90`,
+            org
+          );
           return {
             pass: missing === 0,
-            detail: missing ? `${missing} of ${total} recently completed visits have no territory.` : `All ${total} recently completed visits have a territory.`,
+            detail: missing
+              ? `${missing} of ${total} recently completed visits have no territory.`
+              : `All ${total} recently completed visits have a territory.`,
           };
         }
       ),
@@ -175,16 +233,36 @@ const readiness: ReadinessModule = {
             `SELECT Id, Name, ObjectName, OperationEventType, CodeText FROM LifeScienceCustomScript WHERE Type = 'VisitActionValidation' ORDER BY CreatedDate, Id`,
             org
           );
-          if (!rows.length) return { pass: true, skip: true, detail: "No Visit Action Validation scripts — optional." };
+          if (!rows.length)
+            return {
+              pass: true,
+              skip: true,
+              detail: "No Visit Action Validation scripts — optional.",
+            };
           const problems: string[] = [];
           const [running, ...ignored] = rows;
-          if (ignored.length) problems.push(`${ignored.map((r) => r.Name).join(", ")} will not run — only "${running.Name}" does`);
-          if (running.ObjectName !== "ProviderVisit") problems.push(`"${running.Name}" has Object Name ${running.ObjectName ?? "blank"}, not ProviderVisit`);
-          if (running.OperationEventType !== "OnUpdate") problems.push(`"${running.Name}" has Operation Event Type ${running.OperationEventType ?? "blank"}, not OnUpdate`);
-          for (const f of scriptCodeFindings(String(running.CodeText ?? "")).filter((f) => f.severity === "warning")) problems.push(`"${running.Name}": ${f.title}`);
+          if (ignored.length)
+            problems.push(
+              `${ignored.map((r) => r.Name).join(", ")} will not run — only "${running.Name}" does`
+            );
+          if (running.ObjectName !== "ProviderVisit")
+            problems.push(
+              `"${running.Name}" has Object Name ${running.ObjectName ?? "blank"}, not ProviderVisit`
+            );
+          if (running.OperationEventType !== "OnUpdate")
+            problems.push(
+              `"${running.Name}" has Operation Event Type ${running.OperationEventType ?? "blank"}, not OnUpdate`
+            );
+          for (const f of scriptCodeFindings(String(running.CodeText ?? "")).filter(
+            (f) => f.severity === "warning"
+          ))
+            problems.push(`"${running.Name}": ${f.title}`);
           return problems.length
             ? { pass: false, detail: problems.join("; ") + ".", examples: problems }
-            : { pass: true, detail: `"${running.Name}" is the running script and is set up correctly.` };
+            : {
+                pass: true,
+                detail: `"${running.Name}" is the running script and is set up correctly.`,
+              };
         }
       ),
       runCheck(
@@ -194,7 +272,10 @@ const readiness: ReadinessModule = {
           title: "Visits and what's recorded on them sync to the iPad",
           severity: "error",
           why: "Without DB Schema records for ProviderVisit and its child objects, reps can't see, create or submit visits offline.",
-          steps: ["Open Admin Console > Mobile > DB Schema", "Add or switch on a record for each object listed, assigned to the reps' profiles"],
+          steps: [
+            "Open Admin Console > Mobile > DB Schema",
+            "Add or switch on a record for each object listed, assigned to the reps' profiles",
+          ],
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },

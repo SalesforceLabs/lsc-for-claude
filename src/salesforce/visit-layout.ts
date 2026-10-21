@@ -20,15 +20,21 @@ export type RetrievedLayout =
   | { ok: false; reason: "retrieve" | "noDir" | "noFile"; error?: string };
 
 /** Retrieve a layout's XML into the session's temp SFDX project. */
-export async function retrieveLayoutXml(fullLayoutName: string, org: string, onStatus?: StatusHook): Promise<RetrievedLayout> {
+export async function retrieveLayoutXml(
+  fullLayoutName: string,
+  org: string,
+  onStatus?: StatusHook
+): Promise<RetrievedLayout> {
   const retrieveResult = await retrieveMetadata("", `Layout:${fullLayoutName}`, org, onStatus);
-  if (!retrieveResult.success) return { ok: false, reason: "retrieve", error: retrieveResult.error };
+  if (!retrieveResult.success)
+    return { ok: false, reason: "retrieve", error: retrieveResult.error };
 
   const outputDir = (retrieveResult.data as { outputDir: string }).outputDir;
   // With --output-dir the CLI writes layouts/ straight into the output dir; older versions nested it under force-app.
-  const layoutDir = [path.join(outputDir, "layouts"), path.join(outputDir, "force-app", "main", "default", "layouts")].find((d) =>
-    fs.existsSync(d)
-  );
+  const layoutDir = [
+    path.join(outputDir, "layouts"),
+    path.join(outputDir, "force-app", "main", "default", "layouts"),
+  ].find((d) => fs.existsSync(d));
   if (!layoutDir) return { ok: false, reason: "noDir" };
 
   const layoutFiles = fs.readdirSync(layoutDir).filter((f) => f.endsWith(".layout-meta.xml"));
@@ -41,7 +47,8 @@ export async function retrieveLayoutXml(fullLayoutName: string, org: string, onS
 const RELATED_LIST_NAME = /^\w+$/;
 
 function assertRelationship(relationshipName: string): void {
-  if (!RELATED_LIST_NAME.test(relationshipName)) throw new Error(`Invalid relationship name: ${relationshipName}`);
+  if (!RELATED_LIST_NAME.test(relationshipName))
+    throw new Error(`Invalid relationship name: ${relationshipName}`);
 }
 
 export function hasRelatedList(xml: string, relationshipName: string): boolean {
@@ -89,7 +96,11 @@ export function relatedListBlock(relationshipName: string, nameField = "NAME"): 
 }
 
 /** Insert the related list before </Layout>. */
-export function insertRelatedList(xml: string, relationshipName: string, nameField?: string): string {
+export function insertRelatedList(
+  xml: string,
+  relationshipName: string,
+  nameField?: string
+): string {
   return xml.replace("</Layout>", `${relatedListBlock(relationshipName, nameField)}</Layout>`);
 }
 

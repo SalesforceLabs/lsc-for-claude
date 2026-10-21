@@ -39,7 +39,9 @@ const runs = new Map<string, MapProgress>();
 
 function prune(now = Date.now()): void {
   for (const [k, p] of runs) {
-    const stale = p.finishedAt ? now - p.finishedAt > KEEP_FINISHED_MS : now - p.startedAt > KEEP_STALE_MS;
+    const stale = p.finishedAt
+      ? now - p.finishedAt > KEEP_FINISHED_MS
+      : now - p.startedAt > KEEP_STALE_MS;
     if (stale) runs.delete(k);
   }
   while (runs.size > MAX_ENTRIES) runs.delete(runs.keys().next().value as string);
@@ -50,7 +52,9 @@ export class MapTracker {
 
   /** Steps that will run, so the checklist shows them before they start. */
   plan(steps: { key: string; label: string }[]): void {
-    for (const s of steps) if (!this.find(s.key)) this.progress.steps.push({ key: s.key, label: s.label, state: "waiting" });
+    for (const s of steps)
+      if (!this.find(s.key))
+        this.progress.steps.push({ key: s.key, label: s.label, state: "waiting" });
   }
 
   /** A step began (planned or not). */
@@ -64,7 +68,10 @@ export class MapTracker {
   }
 
   /** A step ended: `count` items found, or `error`. */
-  end(key: string, outcome: { count?: number; noun?: string; error?: string; detail?: string }): void {
+  end(
+    key: string,
+    outcome: { count?: number; noun?: string; error?: string; detail?: string }
+  ): void {
     const step = this.find(key);
     if (!step) return;
     step.endedAt = Date.now();
@@ -113,7 +120,12 @@ export function currentMapTracker(): MapTracker | undefined {
 }
 
 /** Run `fn` as the load `key`, reporting its surfaces to `studio_feature_map_progress`. */
-export async function trackMap<T>(key: string, featureId: string, title: string, fn: (tracker: MapTracker) => Promise<T>): Promise<T> {
+export async function trackMap<T>(
+  key: string,
+  featureId: string,
+  title: string,
+  fn: (tracker: MapTracker) => Promise<T>
+): Promise<T> {
   prune();
   const tracker = new MapTracker({ featureId, title, startedAt: Date.now(), steps: [] });
   runs.set(key, tracker.progress);

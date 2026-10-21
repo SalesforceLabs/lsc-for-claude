@@ -17,7 +17,11 @@ export const once = memoFocus;
 
 /** Every DB Schema record (object sync rows) in the org. */
 export const loadDbSchema = (org: string) =>
-  collectCategoryRecords(org, `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'DbSchema'`, { strict: true, cache: true });
+  collectCategoryRecords(
+    org,
+    `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'DbSchema'`,
+    { strict: true, cache: true }
+  );
 
 export interface HandlerRow {
   developerName: string;
@@ -26,8 +30,16 @@ export interface HandlerRow {
 }
 
 export async function loadHandlers(org: string): Promise<HandlerRow[]> {
-  const rows = await query(`SELECT DeveloperName, MasterLabel, IsActive FROM LifeScienceTriggerHandler`, org, true);
-  return rows.map((r) => ({ developerName: String(r.DeveloperName), label: String(r.MasterLabel ?? r.DeveloperName), active: !!r.IsActive }));
+  const rows = await query(
+    `SELECT DeveloperName, MasterLabel, IsActive FROM LifeScienceTriggerHandler`,
+    org,
+    true
+  );
+  return rows.map((r) => ({
+    developerName: String(r.DeveloperName),
+    label: String(r.MasterLabel ?? r.DeveloperName),
+    active: !!r.IsActive,
+  }));
 }
 
 /**
@@ -37,7 +49,8 @@ export async function loadHandlers(org: string): Promise<HandlerRow[]> {
 export function handlersResult(handlers: HandlerRow[], names: string[]): StudioCheckResult {
   const wanted = new Set(names.map((n) => n.toLowerCase()));
   const present = handlers.filter((h) => wanted.has(h.developerName.toLowerCase()));
-  if (!present.length) return { pass: true, skip: true, detail: "None of these handlers exist in this org." };
+  if (!present.length)
+    return { pass: true, skip: true, detail: "None of these handlers exist in this org." };
   const off = present.filter((h) => !h.active);
   if (!off.length) return { pass: true, detail: `${plural(present.length, "handler")} active.` };
   return {
@@ -63,12 +76,20 @@ const sobjectOf = (r: ConfigRecord) => String(r.fields.SObject ?? "").toLowerCas
  * an "add to sync" fix (to the profiles that already sync the feature), switched-off
  * records a "switch on" fix.
  */
-export async function syncResult(org: string, schema: ConfigRecord[], objects: string[]): Promise<StudioCheckResult> {
+export async function syncResult(
+  org: string,
+  schema: ConfigRecord[],
+  objects: string[]
+): Promise<StudioCheckResult> {
   // Only objects that exist in this org can be synced.
-  const defs = await query(`SELECT QualifiedApiName FROM EntityDefinition WHERE QualifiedApiName IN (${inList(objects)})`, org);
+  const defs = await query(
+    `SELECT QualifiedApiName FROM EntityDefinition WHERE QualifiedApiName IN (${inList(objects)})`,
+    org
+  );
   const exists = new Set(defs.map((d) => String(d.QualifiedApiName).toLowerCase()));
   const present = objects.filter((o) => exists.has(o.toLowerCase()));
-  if (!present.length) return { pass: true, skip: true, detail: "None of these objects exist in this org." };
+  if (!present.length)
+    return { pass: true, skip: true, detail: "None of these objects exist in this org." };
 
   const mine = schema.filter((r) => present.some((o) => o.toLowerCase() === sobjectOf(r)));
   const profiles = [...new Set(mine.filter((r) => r.isActive).flatMap(profilesOf))].sort();
@@ -83,22 +104,35 @@ export async function syncResult(org: string, schema: ConfigRecord[], objects: s
     else missing.push(obj);
     if (records.length > 1) ambiguous.add(records[0].developerName);
   }
-  if (!missing.length && !off.length) return { pass: true, detail: `${plural(present.length, "object")} synced.` };
+  if (!missing.length && !off.length)
+    return { pass: true, detail: `${plural(present.length, "object")} synced.` };
 
-  const fixes: StudioFix[] = off.filter((r) => !ambiguous.has(r.developerName)).map((r) => ({
-    kind: "setActive",
-    label: `Switch on ${String(r.fields.SObject)} sync`,
-    record: { type: "config", category: "DbSchema", developerName: r.developerName, label: r.label || r.developerName },
-    from: false,
-    to: true,
-  }));
+  const fixes: StudioFix[] = off
+    .filter((r) => !ambiguous.has(r.developerName))
+    .map((r) => ({
+      kind: "setActive",
+      label: `Switch on ${String(r.fields.SObject)} sync`,
+      record: {
+        type: "config",
+        category: "DbSchema",
+        developerName: r.developerName,
+        label: r.label || r.developerName,
+      },
+      from: false,
+      to: true,
+    }));
   // New records go to profiles that already sync this feature; with none, there is no value to copy.
   if (profiles.length) fixes.push(...missing.map((o) => newDbSchema(o, schema, profiles)));
   const parts = [
     missing.length ? `no DB Schema record for ${missing.join(", ")}` : "",
     off.length ? `switched off for ${off.map((r) => String(r.fields.SObject)).join(", ")}` : "",
   ].filter(Boolean);
-  return { pass: false, detail: `Not synced to the iPad: ${parts.join("; ")}.`, examples: [...missing, ...off.map((r) => String(r.fields.SObject))], fixes };
+  return {
+    pass: false,
+    detail: `Not synced to the iPad: ${parts.join("; ")}.`,
+    examples: [...missing, ...off.map((r) => String(r.fields.SObject))],
+    fixes,
+  };
 }
 
 /** Pass when no object has two active DB Schema records for the same profile (they fight over the same sync). */
@@ -110,11 +144,16 @@ export function duplicateSyncResult(schema: ConfigRecord[], objects: string[]): 
     for (const p of profilesOf(r).length ? profilesOf(r) : ["(everyone)"]) {
       const key = `${sobjectOf(r)}|${p}`;
       const other = seen.get(key);
-      if (other) dupes.push(`${String(r.fields.SObject)} for ${p}: ${other} and ${r.developerName}`);
+      if (other)
+        dupes.push(`${String(r.fields.SObject)} for ${p}: ${other} and ${r.developerName}`);
       else seen.set(key, r.developerName);
     }
   }
   return dupes.length
-    ? { pass: false, detail: `${plural(dupes.length, "profile")} sync an object through two active records.`, examples: dupes }
+    ? {
+        pass: false,
+        detail: `${plural(dupes.length, "profile")} sync an object through two active records.`,
+        examples: dupes,
+      }
     : { pass: true, detail: "One sync record per object and profile." };
 }

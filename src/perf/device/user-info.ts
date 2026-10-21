@@ -86,7 +86,13 @@ export interface UserInfo {
   /** Permission set API names assigned to the user. */
   permissionSets: string[];
   territories: Territory[];
-  user: { id: string; name?: string; profileId?: string; profileName?: string; isForcedFullSync: boolean };
+  user: {
+    id: string;
+    name?: string;
+    profileId?: string;
+    profileName?: string;
+    isForcedFullSync: boolean;
+  };
   mobileAppVersion?: unknown;
 }
 
@@ -120,22 +126,24 @@ export function parseUserInfo(json: unknown): UserInfo {
   const accessChecks: Record<string, boolean> = {};
   for (const [k, v] of Object.entries(obj(o.accessCheckResults))) accessChecks[k] = v === true;
 
-  const metadataEntities = (Array.isArray(o.metadataEntities) ? o.metadataEntities : []).flatMap((raw) => {
-    const e = obj(raw);
-    const id = str(e.id);
-    const name = str(e.name);
-    if (!id || !name) return [];
-    return [
-      {
-        id,
-        name,
-        appVersionName: str(e.appVersionName),
-        appVersionNumber: str(e.appVersionNumber),
-        status: str(e.status),
-        updateDueDate: str(e.updateDueDate),
-      },
-    ];
-  });
+  const metadataEntities = (Array.isArray(o.metadataEntities) ? o.metadataEntities : []).flatMap(
+    (raw) => {
+      const e = obj(raw);
+      const id = str(e.id);
+      const name = str(e.name);
+      if (!id || !name) return [];
+      return [
+        {
+          id,
+          name,
+          appVersionName: str(e.appVersionName),
+          appVersionNumber: str(e.appVersionNumber),
+          status: str(e.status),
+          updateDueDate: str(e.updateDueDate),
+        },
+      ];
+    }
+  );
 
   const permissionSets = (Array.isArray(o.permissionSets) ? o.permissionSets : [])
     .map((p) => (typeof p === "string" ? p : str(obj(p).name)))
@@ -169,11 +177,19 @@ export function parseUserInfo(json: unknown): UserInfo {
 /** Same percent-encoding the app uses: urlQueryAllowed minus & = + , with "," as the joiner. */
 export function encodeAccessChecks(checks: readonly string[]): string {
   return checks
-    .map((c) => encodeURIComponent(c).replace(/[!'()*]/g, (ch) => `%${ch.charCodeAt(0).toString(16).toUpperCase()}`))
+    .map((c) =>
+      encodeURIComponent(c).replace(
+        /[!'()*]/g,
+        (ch) => `%${ch.charCodeAt(0).toString(16).toUpperCase()}`
+      )
+    )
     .join(",");
 }
 
-export function userInfoPath(session: Pick<DeviceSession, "apiVersion">, opts: { userDeviceId?: string } = {}): string {
+export function userInfoPath(
+  session: Pick<DeviceSession, "apiVersion">,
+  opts: { userDeviceId?: string } = {}
+): string {
   const params = ["configOnly=false", "mdName="];
   if (opts.userDeviceId) params.push(`userDeviceId=${encodeURIComponent(opts.userDeviceId)}`);
   params.push(`accessChecks=${encodeAccessChecks(ACCESS_CHECKS)}`);
@@ -184,7 +200,11 @@ export async function fetchUserInfo(
   session: DeviceSession,
   opts: { userDeviceId?: string; signal?: AbortSignal } = {}
 ): Promise<UserInfo> {
-  const res = await session.http({ method: "GET", url: userInfoPath(session, opts), signal: opts.signal });
+  const res = await session.http({
+    method: "GET",
+    url: userInfoPath(session, opts),
+    signal: opts.signal,
+  });
   try {
     return parseUserInfo(jsonOrThrow(res, "user-info"));
   } catch (e) {
@@ -203,7 +223,9 @@ export type SyncFlow = "enhanced" | "legacy";
 /** Enhanced (Connect) flow: the sync setting AND one of the two org access checks. */
 export function resolveFlow(info: Pick<UserInfo, "syncSettings" | "accessChecks">): SyncFlow {
   const enabled = info.syncSettings.enhancedSyncUsingConnectAPI === true;
-  const gated = info.accessChecks[ACCESS_CHECK_ENHANCED_SYNC] === true || info.accessChecks[ACCESS_CHECK_LSC_OCE] === true;
+  const gated =
+    info.accessChecks[ACCESS_CHECK_ENHANCED_SYNC] === true ||
+    info.accessChecks[ACCESS_CHECK_LSC_OCE] === true;
   return enabled && gated ? "enhanced" : "legacy";
 }
 
@@ -221,7 +243,12 @@ export function selectTerritory(territories: Territory[], wanted?: string): Terr
   const all = flattenTerritories(territories);
   if (wanted) {
     const w = wanted.toLowerCase();
-    return all.find((t) => t.id?.toLowerCase() === w || t.name.toLowerCase() === w || t.developerName?.toLowerCase() === w);
+    return all.find(
+      (t) =>
+        t.id?.toLowerCase() === w ||
+        t.name.toLowerCase() === w ||
+        t.developerName?.toLowerCase() === w
+    );
   }
   return all.find((t) => t.children.length === 0) ?? all[0];
 }

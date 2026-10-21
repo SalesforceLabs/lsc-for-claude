@@ -1,6 +1,11 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { runToolingQuery, describeSObject, deployMetadata, listMetadata } from "../salesforce/cli.js";
+import {
+  runToolingQuery,
+  describeSObject,
+  deployMetadata,
+  listMetadata,
+} from "../salesforce/cli.js";
 import {
   MAX_SIDEBAR_RELATED_LISTS,
   countRelatedLists,
@@ -198,7 +203,14 @@ export function register(server: McpServer) {
           }
 
           // Insert the new related list block before </Layout>
-          writeLayoutXml(layout, insertRelatedList(layout.xml, relationshipName, await recordNameField(matchingRel.childSObject, effectiveOrg)));
+          writeLayoutXml(
+            layout,
+            insertRelatedList(
+              layout.xml,
+              relationshipName,
+              await recordNameField(matchingRel.childSObject, effectiveOrg)
+            )
+          );
 
           // Deploy the modified layout back
           const deployResult = await deployMetadata(layoutDeployPath(layout), effectiveOrg);

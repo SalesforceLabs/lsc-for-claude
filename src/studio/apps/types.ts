@@ -72,7 +72,14 @@ export interface AppObjectInfo {
   /** Plain-words access summary when running as a user, e.g. "Carmen can't read RecommendedAction.Score__c". */
   note?: string;
   recordCount?: number;
-  fields: { name: string; label: string; type: string; referenceTo?: string[]; picklist?: string[]; /** For a lookup: the name GraphQL / getRecord use to reach the parent (`Account` for `AccountId`). */ relationshipName?: string }[];
+  fields: {
+    name: string;
+    label: string;
+    type: string;
+    referenceTo?: string[];
+    picklist?: string[];
+    /** For a lookup: the name GraphQL / getRecord use to reach the parent (`Account` for `AccountId`). */ relationshipName?: string;
+  }[];
   childRelationships?: { name: string; object: string; field: string }[];
 }
 

@@ -177,7 +177,8 @@ function parseVisibility(json: unknown): VisibilityObject[] {
     toDownload: strings(o?.toDownload),
     toDelete: strings(o?.toDelete),
     hasMore: o?.hasMore === true,
-    queryLocator: typeof o?.queryLocator === "string" && o.queryLocator ? o.queryLocator : undefined,
+    queryLocator:
+      typeof o?.queryLocator === "string" && o.queryLocator ? o.queryLocator : undefined,
   }));
 }
 
@@ -220,8 +221,18 @@ class DeltaRun {
 
   private blankRow(t: SchemaTable): DeltaTableResult {
     return {
-      sobject: t.sobject, developerName: t.developerName, localIds: 0, visibilityRequests: 0, toDownload: 0, toDelete: 0,
-      recordsFetched: 0, fetchRequests: 0, bytes: 0, visibilitySeconds: 0, fetchSeconds: 0, seconds: 0,
+      sobject: t.sobject,
+      developerName: t.developerName,
+      localIds: 0,
+      visibilityRequests: 0,
+      toDownload: 0,
+      toDelete: 0,
+      recordsFetched: 0,
+      fetchRequests: 0,
+      bytes: 0,
+      visibilitySeconds: 0,
+      fetchSeconds: 0,
+      seconds: 0,
     };
   }
 
@@ -238,17 +249,24 @@ class DeltaRun {
         row.skipped = why;
         this.all.push({ table, key, ids: [], row });
       };
-      if (key === DSTR) return skip("re-downloaded in full by GenericQuery on delta; not simulated");
+      if (key === DSTR)
+        return skip("re-downloaded in full by GenericQuery on delta; not simulated");
       if (store.overflowed.has(key)) {
         if (!capNoted) {
           capNoted = true;
-          this.notes.push(`The ${store.cap.toLocaleString("en-US")} local-id cap was reached, so delta was skipped for the tables whose ids were not kept.`);
+          this.notes.push(
+            `The ${store.cap.toLocaleString("en-US")} local-id cap was reached, so delta was skipped for the tables whose ids were not kept.`
+          );
         }
         return skip(`local ids not kept (cap of ${store.cap.toLocaleString("en-US")} ids reached)`);
       }
-      if (!first || first.skipped) return skip(`not downloaded in the initial sync (${first?.skipped ?? "not run"})`);
+      if (!first || first.skipped)
+        return skip(`not downloaded in the initial sync (${first?.skipped ?? "not run"})`);
       if (first.error) return skip("the initial download failed, so the local ids are incomplete");
-      if (first.truncated) return skip(`the initial download was cut short (${first.truncated}), so the local ids are incomplete`);
+      if (first.truncated)
+        return skip(
+          `the initial download was cut short (${first.truncated}), so the local ids are incomplete`
+        );
       const ids = store.ids.get(key) ?? [];
       row.localIds = ids.length;
       const item: Item = { table, key, ids, row };
@@ -261,7 +279,12 @@ class DeltaRun {
   // ----- HTTP -----
 
   /** One counted request through the session; the time and bytes are shared between `rows`. */
-  private async post(kind: "visibility" | "fetch", path: string, body: unknown, rows: DeltaTableResult[]): Promise<unknown> {
+  private async post(
+    kind: "visibility" | "fetch",
+    path: string,
+    body: unknown,
+    rows: DeltaTableResult[]
+  ): Promise<unknown> {
     const scope = timeoutScope(this.o.signal, (this.o.requestTimeoutSeconds ?? 300) * 1000);
     const payload = JSON.stringify(body);
     const url = connectPath(this.o.session, path);
@@ -310,7 +333,10 @@ class DeltaRun {
   /** Tags for a visibility request, or undefined when a content id list is empty (the table is skipped). */
   private tagsFor(item: Item, withContent: boolean): EnhancedTag[] | undefined {
     const tags = resolveTags(item.table, this.o.context, this.ids);
-    const out: EnhancedTag[] = Object.entries(tags.scalars).map(([tagName, tagValue]) => ({ tagName, tagValue }));
+    const out: EnhancedTag[] = Object.entries(tags.scalars).map(([tagName, tagValue]) => ({
+      tagName,
+      tagValue,
+    }));
     for (const [tagName, list] of Object.entries(tags.lists)) {
       if ((ID_TAGS as readonly string[]).includes(tagName)) {
         if (list.length > 0) out.push({ tagName, tagValue: quoteIds(list) });
@@ -322,14 +348,25 @@ class DeltaRun {
     return out;
   }
 
-  private requestObject(item: Item, tags: EnhancedTag[], fetchedIds: string[], locator?: string): Record<string, unknown> {
+  private requestObject(
+    item: Item,
+    tags: EnhancedTag[],
+    fetchedIds: string[],
+    locator?: string
+  ): Record<string, unknown> {
     return {
       objectName: item.table.sobject,
       fetchedIds,
       ids: item.ids,
       where: item.table.whereSoql ?? "",
       tags,
-      timeStamp: [{ fieldName: item.table.deltaDateField ?? "SystemModstamp", rangeStartTime: this.rangeStart, rangeEndTime: this.rangeEnd }],
+      timeStamp: [
+        {
+          fieldName: item.table.deltaDateField ?? "SystemModstamp",
+          rangeStartTime: this.rangeStart,
+          rangeEndTime: this.rangeEnd,
+        },
+      ],
       ...(locator ? { queryLocator: locator } : {}),
     };
   }
@@ -351,7 +388,8 @@ class DeltaRun {
     if (this.aborted) return;
     try {
       const contentTag = this.contentTag(item);
-      if (contentTag && !this.o.context.serverHandlesContentInList) return await this.checkContentChunked(item, contentTag);
+      if (contentTag && !this.o.context.serverHandlesContentInList)
+        return await this.checkContentChunked(item, contentTag);
       const tags = this.tagsFor(item, true);
       if (!tags) return this.setChange(item, [], []);
       const { add, del } = await this.pageThrough(item, tags);
@@ -367,7 +405,12 @@ class DeltaRun {
     let locator: string | undefined;
     let fetched: string[] = [];
     for (let page = 0; page < MAX_PAGES; page++) {
-      const json = await this.post("visibility", VISIBILITY_PATH, { objects: [this.requestObject(item, tags, locator ? fetched : [], locator)] }, [item.row]);
+      const json = await this.post(
+        "visibility",
+        VISIBILITY_PATH,
+        { objects: [this.requestObject(item, tags, locator ? fetched : [], locator)] },
+        [item.row]
+      );
       const result = this.find(parseVisibility(json), item);
       if (!result) break;
       add.push(...result.toDownload);
@@ -382,13 +425,18 @@ class DeltaRun {
 
   private contentTag(item: Item): { tagName: string; ids: string[] } | undefined {
     const tags = tagsInWhere(item.table.whereSoql);
-    if (tags.includes("{RELATED.ENTITIES}")) return { tagName: "{RELATED.ENTITIES}", ids: [...this.ids.relatedEntities] };
-    if (tags.includes("{CONT.DOCS}")) return { tagName: "{CONT.DOCS}", ids: [...this.ids.contDocs] };
+    if (tags.includes("{RELATED.ENTITIES}"))
+      return { tagName: "{RELATED.ENTITIES}", ids: [...this.ids.relatedEntities] };
+    if (tags.includes("{CONT.DOCS}"))
+      return { tagName: "{CONT.DOCS}", ids: [...this.ids.contDocs] };
     return undefined;
   }
 
   /** performContentChunkedVisibilityCheck: ids to download are the union over slices, ids to delete the intersection. */
-  private async checkContentChunked(item: Item, content: { tagName: string; ids: string[] }): Promise<void> {
+  private async checkContentChunked(
+    item: Item,
+    content: { tagName: string; ids: string[] }
+  ): Promise<void> {
     if (content.ids.length === 0) return this.setChange(item, [], []);
     const base = this.tagsFor(item, false);
     if (!base) return this.setChange(item, [], []);
@@ -397,10 +445,15 @@ class DeltaRun {
     for (let start = 0; start < content.ids.length; start += CONTENT_CHUNK) {
       if (this.aborted) return;
       const slice = content.ids.slice(start, start + CONTENT_CHUNK);
-      const { add, del } = await this.pageThrough(item, [...base, { tagName: content.tagName, tagValue: quoteIds(slice) }]);
+      const { add, del } = await this.pageThrough(item, [
+        ...base,
+        { tagName: content.tagName, tagValue: quoteIds(slice) },
+      ]);
       for (const id of add) union.add(id);
       const delSet = new Set(del);
-      intersection = intersection ? new Set([...intersection].filter((id) => delSet.has(id))) : delSet;
+      intersection = intersection
+        ? new Set([...intersection].filter((id) => delSet.has(id)))
+        : delSet;
     }
     this.setChange(item, [...union], [...(intersection ?? [])]);
   }
@@ -444,14 +497,24 @@ class DeltaRun {
       const rows = sent.map((s) => s.item.row);
       let results: VisibilityObject[];
       try {
-        results = parseVisibility(await this.post("visibility", VISIBILITY_PATH, { objects }, rows));
+        results = parseVisibility(
+          await this.post("visibility", VISIBILITY_PATH, { objects }, rows)
+        );
       } catch (e) {
         this.fail(rows, e);
         continue;
       }
       for (const s of sent) {
         const result = this.find(results, s.item);
-        const p: Paging = s.paging ?? { item: s.item, tags: s.tags, fetchedIds: [], locator: "", add: [], del: [], pages: 0 };
+        const p: Paging = s.paging ?? {
+          item: s.item,
+          tags: s.tags,
+          fetchedIds: [],
+          locator: "",
+          add: [],
+          del: [],
+          pages: 0,
+        };
         p.pages++;
         if (result) {
           p.add.push(...result.toDownload);
@@ -496,14 +559,19 @@ class DeltaRun {
     const main = items.filter((i) => !first.has(i) && !POSTPONED.has(i.key));
     const heavy = main.filter((i) => i.ids.length > HEAVY_TABLE_IDS);
     const light = main.filter((i) => i.ids.length <= HEAVY_TABLE_IDS);
-    await Promise.all([pool(heavy, VISIBILITY_MAX_IN_FLIGHT, (i) => this.checkSingle(i)), this.rounds(light)]);
+    await Promise.all([
+      pool(heavy, VISIBILITY_MAX_IN_FLIGHT, (i) => this.checkSingle(i)),
+      this.rounds(light),
+    ]);
 
     const attachment = byKey.get(ATTACHMENT);
     if (attachment) await this.checkSingle(attachment);
     const cdl = byKey.get(CDL);
     if (cdl) {
       await this.checkSingle(cdl);
-      const rest = [byKey.get(CONTENT_VERSION), byKey.get(CONTENT_DOCUMENT)].filter((i): i is Item => i !== undefined);
+      const rest = [byKey.get(CONTENT_VERSION), byKey.get(CONTENT_DOCUMENT)].filter(
+        (i): i is Item => i !== undefined
+      );
       await pool(rest, VISIBILITY_MAX_IN_FLIGHT, (i) => this.checkSingle(i));
     }
   }
@@ -522,13 +590,23 @@ class DeltaRun {
         const json = (await this.post(
           "fetch",
           QUERY_PATH,
-          { objectName: item.table.sobject, fields, queryType: "IdSubquery", ...(locator ? { queryLocator: locator } : {}), ids: add, batchSize: batch.size },
+          {
+            objectName: item.table.sobject,
+            fields,
+            queryType: "IdSubquery",
+            ...(locator ? { queryLocator: locator } : {}),
+            ids: add,
+            batchSize: batch.size,
+          },
           [item.row]
         )) as { records?: unknown; hasMore?: unknown; queryLocator?: unknown } | null;
         const count = Array.isArray(json?.records) ? json.records.length : 0;
         item.row.recordsFetched += count;
         batch.update((this.now() - t0) / 1000, item.row.bytes - before, count);
-        locator = json?.hasMore === true && typeof json.queryLocator === "string" && json.queryLocator ? json.queryLocator : undefined;
+        locator =
+          json?.hasMore === true && typeof json.queryLocator === "string" && json.queryLocator
+            ? json.queryLocator
+            : undefined;
         if (!locator || this.aborted) return;
       }
       item.row.truncated = `stopped after ${MAX_PAGES} pages`;
@@ -540,7 +618,10 @@ class DeltaRun {
   private async fetch(items: Item[]): Promise<void> {
     const wanted = items.filter((i) => (this.changes.get(i.key)?.add.length ?? 0) > 0);
     const queue = new SmartQueue({ maxConcurrent: MAX_CONCURRENT_TABLES.enhanced });
-    for (const phase of orderPhases(wanted.map((i) => i.table), "enhanced")) {
+    for (const phase of orderPhases(
+      wanted.map((i) => i.table),
+      "enhanced"
+    )) {
       await queue.run(
         phase.map((table) => ({
           complexity: tableComplexity(table.whereSoql),
@@ -594,8 +675,16 @@ class DeltaRun {
       ...this.notes,
     ];
     if (this.aborted) notes.push("The delta simulation was cancelled.");
-    if (rows.some((r) => r.error)) notes.push("A failed request fails that table only here; the app would fail the whole sync.");
-    return { sinceHours: this.o.sinceHours, rangeStart: this.rangeStart, rangeEnd: this.rangeEnd, tables: rows, totals, notes };
+    if (rows.some((r) => r.error))
+      notes.push("A failed request fails that table only here; the app would fail the whole sync.");
+    return {
+      sinceHours: this.o.sinceHours,
+      rangeStart: this.rangeStart,
+      rangeEnd: this.rangeEnd,
+      tables: rows,
+      totals,
+      notes,
+    };
   }
 }
 

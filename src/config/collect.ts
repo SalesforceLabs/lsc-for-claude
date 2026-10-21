@@ -14,7 +14,13 @@
 
 import { runToolingQuery } from "../salesforce/cli.js";
 import { sharedRead } from "./read-cache.js";
-import { queryFieldValues, queryAssignments, extractFieldValue, chunkIds, FV_VALUE_COLUMNS } from "../tools/helpers.js";
+import {
+  queryFieldValues,
+  queryAssignments,
+  extractFieldValue,
+  chunkIds,
+  FV_VALUE_COLUMNS,
+} from "../tools/helpers.js";
 import type {
   ConfigSnapshot,
   ConfigRecord,
@@ -54,7 +60,8 @@ export async function collectConfig(
   if (want.includes("trigger_handlers")) {
     const query = `SELECT Id, DeveloperName, MasterLabel, IsActive FROM LifeScienceTriggerHandler ORDER BY DeveloperName`;
     const result = await runToolingQuery(query, org);
-    if (!result.success && options.strict) throw new Error(`Couldn't read trigger handlers: ${result.error}`);
+    if (!result.success && options.strict)
+      throw new Error(`Couldn't read trigger handlers: ${result.error}`);
     const handlers: TriggerHandlerRecord[] = [];
     if (result.success && result.data?.records) {
       for (const r of result.data.records as Array<Record<string, unknown>>) {
@@ -116,10 +123,16 @@ export interface CollectOptions {
  * Collect every LifeSciConfigRecord under the categories returned by `catQuery`,
  * tagging each with its category name and capturing fields, fieldTypes, and assignments.
  */
-export async function collectCategoryRecords(org: string, catQuery: string, options: CollectOptions = {}): Promise<ConfigRecord[]> {
+export async function collectCategoryRecords(
+  org: string,
+  catQuery: string,
+  options: CollectOptions = {}
+): Promise<ConfigRecord[]> {
   if (!options.cache) return loadCategoryRecords(org, catQuery, options);
   try {
-    return await sharedRead(org, `config:${catQuery}`, () => loadCategoryRecords(org, catQuery, { strict: true }));
+    return await sharedRead(org, `config:${catQuery}`, () =>
+      loadCategoryRecords(org, catQuery, { strict: true })
+    );
   } catch (err) {
     // A cached read is strict so a failure is never kept; lenient callers fall back to a partial read.
     if (options.strict) throw err;
@@ -134,17 +147,23 @@ interface CategoryRow {
 }
 
 const failer = (options: CollectOptions) => (what: string, error: unknown) => {
-  if (options.strict) throw new Error(`Couldn't read Admin Console ${what}: ${String(error ?? "query failed")}`);
+  if (options.strict)
+    throw new Error(`Couldn't read Admin Console ${what}: ${String(error ?? "query failed")}`);
 };
 
-const categoryName = (cat: Record<string, unknown>) => (cat.Category as string) || (cat.DeveloperName as string);
+const categoryName = (cat: Record<string, unknown>) =>
+  (cat.Category as string) || (cat.DeveloperName as string);
 
 /**
  * The categories `catQuery` selects and their records, without values. Several categories share one
  * record query (it used to be one per category); if that can't answer exactly (it failed or was cut
  * short) each category is read on its own, as before.
  */
-async function loadCategoryRows(org: string, catQuery: string, options: CollectOptions): Promise<CategoryRow[]> {
+async function loadCategoryRows(
+  org: string,
+  catQuery: string,
+  options: CollectOptions
+): Promise<CategoryRow[]> {
   const fail = failer(options);
   const catResult = await runToolingQuery(catQuery, org);
   if (!catResult.success) fail("categories", catResult.error);
@@ -163,16 +182,23 @@ async function loadCategoryRows(org: string, catQuery: string, options: CollectO
       const recQuery = `SELECT Id, DeveloperName, MasterLabel, IsActive, IsOrgLevel FROM LifeSciConfigRecord WHERE LifeSciConfigCategoryId = '${cat.Id as string}' ORDER BY DeveloperName`;
       const recResult = await runToolingQuery(recQuery, org);
       if (!recResult.success) fail(`${catName} records`, recResult.error);
-      if (recResult.success && recResult.data?.truncated) fail(`${catName} records`, "too many records to read");
+      if (recResult.success && recResult.data?.truncated)
+        fail(`${catName} records`, "too many records to read");
       if (!recResult.success || !recResult.data?.records?.length) return [];
-      return (recResult.data.records as Array<Record<string, unknown>>).map((rec) => ({ catName, rec }));
+      return (recResult.data.records as Array<Record<string, unknown>>).map((rec) => ({
+        catName,
+        rec,
+      }));
     })
   );
   return perCategory.flat();
 }
 
 /** Every category's records in one IN-list query per chunk; null when it can't answer exactly. */
-async function readRecordsTogether(org: string, cats: Array<Record<string, unknown>>): Promise<CategoryRow[] | null> {
+async function readRecordsTogether(
+  org: string,
+  cats: Array<Record<string, unknown>>
+): Promise<CategoryRow[] | null> {
   const results = await Promise.all(
     chunkIds(cats.map((c) => c.Id as string)).map((chunk) =>
       runToolingQuery(
@@ -191,18 +217,28 @@ async function readRecordsTogether(org: string, cats: Array<Record<string, unkno
     }
   }
   // Category order first, then DeveloperName within each, as the per-category reads gave.
-  return cats.flatMap((cat) => (byCategory.get(cat.Id as string) ?? []).map((rec) => ({ catName: categoryName(cat), rec })));
+  return cats.flatMap((cat) =>
+    (byCategory.get(cat.Id as string) ?? []).map((rec) => ({ catName: categoryName(cat), rec }))
+  );
 }
 
 /** Read the field values and assignments of `rows` and build their records. */
-async function hydrateRows(org: string, rows: CategoryRow[], options: CollectOptions): Promise<ConfigRecord[]> {
+async function hydrateRows(
+  org: string,
+  rows: CategoryRow[],
+  options: CollectOptions
+): Promise<ConfigRecord[]> {
   if (rows.length === 0) return [];
   const recordIds = rows.map((r) => r.rec.Id as string);
   const [{ fieldValuesByRecord, queryError }, assignmentMap] = await Promise.all([
     queryFieldValues(recordIds, org, true),
     queryAssignments(recordIds, org, options.strict),
   ]);
-  if (queryError) failer(options)([...new Set(rows.map((r) => r.catName))].join(", ") + " field values", queryError);
+  if (queryError)
+    failer(options)(
+      [...new Set(rows.map((r) => r.catName))].join(", ") + " field values",
+      queryError
+    );
 
   return rows.map(({ catName, rec }) => {
     const recId = rec.Id as string;
@@ -224,7 +260,11 @@ async function hydrateRows(org: string, rows: CategoryRow[], options: CollectOpt
   });
 }
 
-async function loadCategoryRecords(org: string, catQuery: string, options: CollectOptions): Promise<ConfigRecord[]> {
+async function loadCategoryRecords(
+  org: string,
+  catQuery: string,
+  options: CollectOptions
+): Promise<ConfigRecord[]> {
   return hydrateRows(org, await loadCategoryRows(org, catQuery, options), options);
 }
 
@@ -246,8 +286,12 @@ export async function collectCategoryRecordsWhere(
   catQuery: string,
   probe: { field: string; keep: (value: unknown) => boolean }
 ): Promise<RecordsWhere> {
-  const rows = await sharedRead(org, `config:rows:${catQuery}`, () => loadCategoryRows(org, catQuery, { strict: true }));
-  const values = await sharedRead(org, `config:probe:${catQuery}:${probe.field}`, () => readFieldOf(org, probe.field, rows));
+  const rows = await sharedRead(org, `config:rows:${catQuery}`, () =>
+    loadCategoryRows(org, catQuery, { strict: true })
+  );
+  const values = await sharedRead(org, `config:probe:${catQuery}:${probe.field}`, () =>
+    readFieldOf(org, probe.field, rows)
+  );
   const matching = rows.filter((r) => probe.keep(values.get(r.rec.Id as string)));
   return {
     developerNames: rows.map((r) => r.rec.DeveloperName as string),
@@ -256,7 +300,11 @@ export async function collectCategoryRecordsWhere(
 }
 
 /** One field's value for every record id, read in IN-list chunks. */
-async function readFieldOf(org: string, field: string, rows: CategoryRow[]): Promise<Map<string, unknown>> {
+async function readFieldOf(
+  org: string,
+  field: string,
+  rows: CategoryRow[]
+): Promise<Map<string, unknown>> {
   const out = new Map<string, unknown>();
   const results = await Promise.all(
     chunkIds(rows.map((r) => r.rec.Id as string)).map((chunk) =>
@@ -267,8 +315,10 @@ async function readFieldOf(org: string, field: string, rows: CategoryRow[]): Pro
     )
   );
   for (const r of results) {
-    if (!r.success) throw new Error(`Couldn't read Admin Console ${field} values: ${r.error ?? "query failed"}`);
-    if (r.data?.truncated) throw new Error(`Couldn't read Admin Console ${field} values: too many to read`);
+    if (!r.success)
+      throw new Error(`Couldn't read Admin Console ${field} values: ${r.error ?? "query failed"}`);
+    if (r.data?.truncated)
+      throw new Error(`Couldn't read Admin Console ${field} values: too many to read`);
     for (const fv of (r.data?.records ?? []) as Array<Record<string, unknown>>) {
       out.set(fv.LifeSciConfigRecordId as string, extractFieldValue(fv));
     }

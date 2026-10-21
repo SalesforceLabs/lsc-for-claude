@@ -13,11 +13,13 @@ const CACHED_CATEGORIES = new Set(MOBILE_CATEGORIES);
 
 const uniq = (names: string[]) => {
   const seen = new Map<string, string>();
-  for (const n of names.map((x) => x.trim()).filter(Boolean)) if (!seen.has(n.toLowerCase())) seen.set(n.toLowerCase(), n);
+  for (const n of names.map((x) => x.trim()).filter(Boolean))
+    if (!seen.has(n.toLowerCase())) seen.set(n.toLowerCase(), n);
   return [...seen.values()];
 };
 
-const splitNames = (v: string | number | boolean | null) => (typeof v === "string" ? v.split(/[,;]/) : []);
+const splitNames = (v: string | number | boolean | null) =>
+  typeof v === "string" ? v.split(/[,;]/) : [];
 
 /** An Admin Console record: mobile categories reach the iPad only through a publish and aren't shown on desktop. */
 function configReach(category: string, profiles?: string[]): ChangeReach {
@@ -44,7 +46,10 @@ export function reachOfFix(fix: StudioFix, profiles?: string[]): ChangeReach {
       return { desktop: "now", ipad: "nextSync" };
     case "setConfigField":
       // An action's Profiles field: everyone listed before or after is reached.
-      return configReach(fix.category, fix.field === "Profiles" ? [...splitNames(fix.from), ...splitNames(fix.to)] : profiles);
+      return configReach(
+        fix.category,
+        fix.field === "Profiles" ? [...splitNames(fix.from), ...splitNames(fix.to)] : profiles
+      );
     case "setProfileAssignments":
       return configReach(fix.category, [...fix.from, ...fix.to]);
     case "createConfigRecord":
@@ -75,6 +80,9 @@ export function reachOfFix(fix: StudioFix, profiles?: string[]): ChangeReach {
 /** Sets the preview's reach (keeping one a preview worked out itself) and drops the publish warning where no publish is needed. */
 export function withReach(preview: FixPreview, fix: StudioFix): FixPreview {
   const reach = preview.reach ?? reachOfFix(fix);
-  const warnings = reach.ipad === "publish" ? preview.warnings : preview.warnings.filter((w) => w !== PUBLISH_WARNING);
+  const warnings =
+    reach.ipad === "publish"
+      ? preview.warnings
+      : preview.warnings.filter((w) => w !== PUBLISH_WARNING);
   return { ...preview, warnings, reach };
 }

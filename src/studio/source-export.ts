@@ -72,8 +72,10 @@ export const PACKAGE_XML_PATH = path.join("manifest", "studio-package.xml");
 
 const ORG_ONLY = {
   psl: "Permission set license assignments are user records in the org, not source files.",
-  access: "Permission set, group and territory assignments are user records in the org, not source files.",
-  script: "Custom scripts are records in the org (LifeScienceCustomScript); they have no source file.",
+  access:
+    "Permission set, group and territory assignments are user records in the org, not source files.",
+  script:
+    "Custom scripts are records in the org (LifeScienceCustomScript); they have no source file.",
   handler: "Trigger handlers are switched on and off in the org; they have no source file.",
 } as const;
 
@@ -152,7 +154,8 @@ export function planSourceExport(fixes: StudioFix[], extra: SourceItem[] = []): 
         remove({ type: "LifeSciConfigRecord", fullName: fix.developerName });
         break;
       case "setActive":
-        if (fix.record.type === "config") add({ type: "LifeSciConfigRecord", fullName: fix.record.developerName });
+        if (fix.record.type === "config")
+          add({ type: "LifeSciConfigRecord", fullName: fix.record.developerName });
         else if (fix.record.type === "validationRule") validationRuleIds.add(fix.record.id);
         break;
     }
@@ -184,7 +187,12 @@ export function sourcePathFor(item: SourceItem): string {
   if (!f.child) return path.posix.join(f.dir, `${item.fullName}.${f.suffix}-meta.xml`);
   const dot = item.fullName.indexOf(".");
   if (dot < 1) throw new Error(`${item.type} ${item.fullName} isn't named Object.Name`);
-  return path.posix.join("objects", item.fullName.slice(0, dot), f.dir, `${item.fullName.slice(dot + 1)}.${f.suffix}-meta.xml`);
+  return path.posix.join(
+    "objects",
+    item.fullName.slice(0, dot),
+    f.dir,
+    `${item.fullName.slice(dot + 1)}.${f.suffix}-meta.xml`
+  );
 }
 
 /** A package.xml naming the items, types and members sorted as the CLI writes them. */
@@ -196,7 +204,9 @@ export function buildPackageXml(items: SourceItem[], version: string): string {
   }
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const types = [...byType.keys()].sort().map((type) => {
-    const members = [...byType.get(type)!].sort().map((m) => `        <members>${esc(m)}</members>`);
+    const members = [...byType.get(type)!]
+      .sort()
+      .map((m) => `        <members>${esc(m)}</members>`);
     return ["    <types>", ...members, `        <name>${type}</name>`, "    </types>"].join("\n");
   });
   return [
@@ -213,7 +223,9 @@ export function buildPackageXml(items: SourceItem[], version: string): string {
 export function packageRoot(folder: string): string {
   let pkg = "force-app";
   try {
-    const project = JSON.parse(fs.readFileSync(path.join(folder, "sfdx-project.json"), "utf-8")) as {
+    const project = JSON.parse(
+      fs.readFileSync(path.join(folder, "sfdx-project.json"), "utf-8")
+    ) as {
       packageDirectories?: { path?: string; default?: boolean }[];
     };
     const dirs = project.packageDirectories ?? [];
@@ -223,7 +235,8 @@ export function packageRoot(folder: string): string {
     // No project file: a plain folder gets the standard layout.
   }
   const root = path.resolve(folder, pkg, "main", "default");
-  if (!root.startsWith(path.resolve(folder) + path.sep)) throw new Error("The project's package folder is outside the chosen folder.");
+  if (!root.startsWith(path.resolve(folder) + path.sep))
+    throw new Error("The project's package folder is outside the chosen folder.");
   return root;
 }
 
@@ -233,20 +246,29 @@ const slotOf = (a: XmlNode): string => {
   return rt ? `rt:${rt}` : `default:${(childText(a, "layout") ?? "").split("-")[0]}`;
 };
 
-const assignmentOrder = (a: XmlNode): string => `${childText(a, "layout") ?? ""}\u0000${childText(a, "recordType") ?? ""}`;
+const assignmentOrder = (a: XmlNode): string =>
+  `${childText(a, "layout") ?? ""}\u0000${childText(a, "recordType") ?? ""}`;
 
 /**
  * Merge a retrieved profile (holding only its assignments to the retrieved layouts)
  * into the project's full profile file. Assignments to those layouts, and to the slots
  * (record types) the retrieved ones fill, are replaced; everything else is left as it was.
  */
-export function mergeProfileAssignments(existingXml: string, retrievedXml: string, layouts: string[]): string {
+export function mergeProfileAssignments(
+  existingXml: string,
+  retrievedXml: string,
+  layouts: string[]
+): string {
   const existing = parseXml(existingXml);
   const fresh = childrenNamed(parseXml(retrievedXml), "layoutAssignments");
   const replaced = new Set(layouts);
   const slots = new Set(fresh.map(slotOf));
-  const stays = (c: XmlNode) => !replaced.has(childText(c, "layout") ?? "") && !slots.has(slotOf(c));
-  const assignments = [...childrenNamed(existing, "layoutAssignments").filter(stays), ...fresh].sort((a, b) =>
+  const stays = (c: XmlNode) =>
+    !replaced.has(childText(c, "layout") ?? "") && !slots.has(slotOf(c));
+  const assignments = [
+    ...childrenNamed(existing, "layoutAssignments").filter(stays),
+    ...fresh,
+  ].sort((a, b) =>
     assignmentOrder(a) < assignmentOrder(b) ? -1 : assignmentOrder(a) > assignmentOrder(b) ? 1 : 0
   );
   // One sorted block, where the old ones were (else in tag order), as the CLI writes it.
@@ -321,11 +343,19 @@ function filesUnder(dir: string): string[] {
  * `recordTypes` ride along with the layouts and profiles (in the CLI's call), since a profile's
  * record-type layout assignments only come back when their record types are retrieved too.
  */
-async function retrieveAll(items: SourceItem[], recordTypes: string[], org: string): Promise<{ dirs: string[]; errors: string[] }> {
+async function retrieveAll(
+  items: SourceItem[],
+  recordTypes: string[],
+  org: string
+): Promise<{ dirs: string[]; errors: string[] }> {
   const specs = items.map((i) => `${i.type}:${i.fullName}`);
-  const withProfile = (s: string) => recordTypes.length > 0 && (s.startsWith("Layout:") || s.startsWith("Profile:"));
+  const withProfile = (s: string) =>
+    recordTypes.length > 0 && (s.startsWith("Layout:") || s.startsWith("Profile:"));
   const direct = specs.filter((s) => !withProfile(s) && parseMetadataSpecs([s]));
-  const other = [...specs.filter((s) => withProfile(s) || !parseMetadataSpecs([s])), ...recordTypes.map((r) => `RecordType:${r}`)];
+  const other = [
+    ...specs.filter((s) => withProfile(s) || !parseMetadataSpecs([s])),
+    ...recordTypes.map((r) => `RecordType:${r}`),
+  ];
   const dirs: string[] = [];
   const errors: string[] = [];
   for (const batch of [direct, other]) {
@@ -356,24 +386,39 @@ const ns = (prefix: unknown) => (typeof prefix === "string" && prefix ? `${prefi
 /** The record types of the layouts' objects ("Account.HCP"), when a profile's assignments are saved. */
 async function layoutRecordTypes(items: SourceItem[], org: string): Promise<string[]> {
   if (!items.some((i) => i.type === "Profile")) return [];
-  const objects = [...new Set(items.filter((i) => i.type === "Layout").map((i) => layoutObject(i.fullName)))];
+  const objects = [
+    ...new Set(items.filter((i) => i.type === "Layout").map((i) => layoutObject(i.fullName))),
+  ];
   if (objects.length === 0) return [];
-  const rows = await query(`SELECT SobjectType, DeveloperName, NamespacePrefix FROM RecordType WHERE SobjectType IN (${inList(objects)})`, org);
+  const rows = await query(
+    `SELECT SobjectType, DeveloperName, NamespacePrefix FROM RecordType WHERE SobjectType IN (${inList(objects)})`,
+    org
+  );
   return rows.map((r) => `${r.SobjectType}.${ns(r.NamespacePrefix)}${r.DeveloperName}`);
 }
 
-export async function exportSource(input: SourceExportInput, org: string): Promise<SourceExportResult> {
+export async function exportSource(
+  input: SourceExportInput,
+  org: string
+): Promise<SourceExportResult> {
   const folder = path.resolve(input.folder);
   if (!path.isAbsolute(input.folder)) throw new Error("Choose a folder by its full path.");
-  if (!fs.existsSync(folder) || !fs.statSync(folder).isDirectory()) throw new Error(`${folder} isn't a folder.`);
+  if (!fs.existsSync(folder) || !fs.statSync(folder).isDirectory())
+    throw new Error(`${folder} isn't a folder.`);
 
   const plan = planSourceExport(input.changes ?? [], input.items ?? []);
   const notes: string[] = [];
   const items = [...plan.items, ...(await lookupValidationRules(plan.validationRuleIds, org))];
   for (const page of plan.pageCopies) {
     const apps = await appsReferencingPage(page, org);
-    if (apps) for (const app of apps) if (!items.some((i) => i.type === "CustomApplication" && i.fullName === app)) items.push({ type: "CustomApplication", fullName: app });
-    if (!apps) notes.push(`Couldn't tell which apps point at ${page}; save the apps that assign it yourself.`);
+    if (apps)
+      for (const app of apps)
+        if (!items.some((i) => i.type === "CustomApplication" && i.fullName === app))
+          items.push({ type: "CustomApplication", fullName: app });
+    if (!apps)
+      notes.push(
+        `Couldn't tell which apps point at ${page}; save the apps that assign it yourself.`
+      );
   }
 
   const root = packageRoot(folder);
@@ -399,14 +444,18 @@ export async function exportSource(input: SourceExportInput, org: string): Promi
 
   // Retrieved files by their source-format path relative to the output folder.
   const retrieved = new Map<string, string>();
-  for (const dir of dirs) for (const file of filesUnder(dir)) retrieved.set(path.relative(dir, file).split(path.sep).join("/"), file);
+  for (const dir of dirs)
+    for (const file of filesUnder(dir))
+      retrieved.set(path.relative(dir, file).split(path.sep).join("/"), file);
 
   const layoutNames = items.filter((i) => i.type === "Layout").map((i) => i.fullName);
   try {
     for (const item of items) {
       // The CLI may percent-encode a name differently from how it was asked for: compare decoded.
       const want = sourcePathFor(item);
-      const sub = retrieved.has(want) ? want : [...retrieved.keys()].find((k) => safeDecode(k) === safeDecode(want));
+      const sub = retrieved.has(want)
+        ? want
+        : [...retrieved.keys()].find((k) => safeDecode(k) === safeDecode(want));
       const from = sub && retrieved.get(sub);
       if (!sub || !from) {
         result.missing.push(item);
@@ -417,12 +466,21 @@ export async function exportSource(input: SourceExportInput, org: string): Promi
       let status: SourceFileWritten["status"] = "written";
       if (item.type === "Profile") {
         if (fs.existsSync(to)) {
-          fs.writeFileSync(to, mergeProfileAssignments(fs.readFileSync(to, "utf-8"), fs.readFileSync(from, "utf-8"), layoutNames));
+          fs.writeFileSync(
+            to,
+            mergeProfileAssignments(
+              fs.readFileSync(to, "utf-8"),
+              fs.readFileSync(from, "utf-8"),
+              layoutNames
+            )
+          );
           status = "merged";
         } else {
           fs.copyFileSync(from, to);
           status = "partial";
-          notes.push(`${rel(to)} holds only this profile's layout assignments; merge it into your full profile file if you keep one elsewhere.`);
+          notes.push(
+            `${rel(to)} holds only this profile's layout assignments; merge it into your full profile file if you keep one elsewhere.`
+          );
         }
       } else fs.copyFileSync(from, to);
       result.files.push({ type: item.type, fullName: item.fullName, path: rel(to), status });

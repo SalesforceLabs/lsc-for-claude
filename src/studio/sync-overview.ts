@@ -9,7 +9,13 @@ import { cachedDescribeSObject, runSoqlQuery, runToolingQuery } from "../salesfo
 import { DEFAULT_TELEMETRY_DAYS } from "../perf/nfr.js";
 import { loadDbSchemaEntries, type OrgQuerier } from "../perf/sync-volume.js";
 import { attachmentsOn } from "../perf/table-hints.js";
-import { buildTelemetryQuery, summarize, toSyncSample, type SyncSample, type TelemetrySummary } from "../perf/telemetry.js";
+import {
+  buildTelemetryQuery,
+  summarize,
+  toSyncSample,
+  type SyncSample,
+  type TelemetrySummary,
+} from "../perf/telemetry.js";
 import {
   dailyTrend,
   mergeDaily,
@@ -104,12 +110,23 @@ async function loadSamples(
 }
 
 /** Syncs per day and outcome over the whole window, so the trend and totals don't depend on the row cap. */
-async function loadAggregates(org: OrgQuerier, fields: Set<string>, days: number): Promise<DayAggregate[] | null> {
+async function loadAggregates(
+  org: OrgQuerier,
+  fields: Set<string>,
+  days: number
+): Promise<DayAggregate[] | null> {
   const has = (f: string) => [...fields].some((x) => x.toLowerCase() === f.toLowerCase());
   const status = has("CompletionStatus");
-  const where = [`CreatedDate = LAST_N_DAYS:${Math.max(1, Math.floor(days))}`, ...(has("Type") ? [`Type != 'clm'`] : [])];
+  const where = [
+    `CreatedDate = LAST_N_DAYS:${Math.max(1, Math.floor(days))}`,
+    ...(has("Type") ? [`Type != 'clm'`] : []),
+  ];
   const select = `SELECT DAY_ONLY(CreatedDate) d${status ? ", CompletionStatus st" : ""}, COUNT(Id) c FROM DeviceSyncSummary WHERE ${where.join(" AND ")} GROUP BY DAY_ONLY(CreatedDate)${status ? ", CompletionStatus" : ""}`;
-  const toAgg = (r: Record<string, unknown>, st: string): DayAggregate => ({ day: String(r.d), status: st, count: Number(r.c ?? r.expr0 ?? 0) });
+  const toAgg = (r: Record<string, unknown>, st: string): DayAggregate => ({
+    day: String(r.d),
+    status: st,
+    count: Number(r.c ?? r.expr0 ?? 0),
+  });
   try {
     const all = await rows(org, select);
     if (status || !has("IsDownloadCompleted") || !has("DownloadStart")) {
@@ -121,7 +138,9 @@ async function loadAggregates(org: OrgQuerier, fields: Set<string>, days: number
       org,
       `SELECT DAY_ONLY(CreatedDate) d, IsDownloadCompleted ok, COUNT(Id) c FROM DeviceSyncSummary WHERE ${where.join(" AND ")} AND DownloadStart != null GROUP BY DAY_ONLY(CreatedDate), IsDownloadCompleted`
     );
-    const out: DayAggregate[] = reached.map((r) => toAgg(r, r.ok === false ? "Failed" : "Finished"));
+    const out: DayAggregate[] = reached.map((r) =>
+      toAgg(r, r.ok === false ? "Failed" : "Finished")
+    );
     const reachedByDay = new Map<string, number>();
     for (const a of out) reachedByDay.set(a.day, (reachedByDay.get(a.day) ?? 0) + a.count);
     for (const r of all) {
@@ -137,7 +156,10 @@ async function loadAggregates(org: OrgQuerier, fields: Set<string>, days: number
 /** Name, profile and active-model territory count for the ranked usernames: two queries however many. */
 async function joinUsers(org: OrgQuerier, ranked: AtRiskUser[]): Promise<SyncOverviewUser[]> {
   if (ranked.length === 0) return [];
-  const users = await rows(org, `SELECT Id, Username, Name, Profile.Name FROM User WHERE Username IN (${inList(ranked.map((u) => u.username))})`);
+  const users = await rows(
+    org,
+    `SELECT Id, Username, Name, Profile.Name FROM User WHERE Username IN (${inList(ranked.map((u) => u.username))})`
+  );
   const byName = new Map(users.map((u) => [String(u.Username).toLowerCase(), u]));
   const ids = users.map((u) => String(u.Id));
   const counts = new Map<string, number>();
@@ -163,15 +185,20 @@ async function joinUsers(org: OrgQuerier, ranked: AtRiskUser[]): Promise<SyncOve
   });
 }
 
-
 /** Developer names of active DB Schema records with attachments turned on. */
 async function attachmentRecords(org: OrgQuerier): Promise<Set<string>> {
-  const category = await org.tooling(`SELECT Id FROM LifeSciConfigCategory WHERE Category = 'DbSchema' LIMIT 1`);
+  const category = await org.tooling(
+    `SELECT Id FROM LifeSciConfigCategory WHERE Category = 'DbSchema' LIMIT 1`
+  );
   const categoryId = category.data?.records?.[0]?.Id as string | undefined;
   if (!category.success || !categoryId) return new Set();
   const [records, values] = await Promise.all([
-    org.tooling(`SELECT Id, DeveloperName FROM LifeSciConfigRecord WHERE LifeSciConfigCategoryId = '${categoryId}' AND IsActive = true`),
-    org.tooling(`SELECT LifeSciConfigRecordId, PicklistValue FROM LifeSciConfigFieldValue WHERE FieldName = 'AttachmentsSupport' AND PicklistValue != null`),
+    org.tooling(
+      `SELECT Id, DeveloperName FROM LifeSciConfigRecord WHERE LifeSciConfigCategoryId = '${categoryId}' AND IsActive = true`
+    ),
+    org.tooling(
+      `SELECT LifeSciConfigRecordId, PicklistValue FROM LifeSciConfigFieldValue WHERE FieldName = 'AttachmentsSupport' AND PicklistValue != null`
+    ),
   ]);
   if (!records.success || !values.success) return new Set();
   const on = new Set(
@@ -179,7 +206,11 @@ async function attachmentRecords(org: OrgQuerier): Promise<Set<string>> {
       .filter((v) => attachmentsOn(v.PicklistValue == null ? null : String(v.PicklistValue)))
       .map((v) => String(v.LifeSciConfigRecordId))
   );
-  return new Set((records.data?.records ?? []).filter((r) => on.has(String(r.Id))).map((r) => String(r.DeveloperName)));
+  return new Set(
+    (records.data?.records ?? [])
+      .filter((r) => on.has(String(r.Id)))
+      .map((r) => String(r.DeveloperName))
+  );
 }
 
 async function loadSchemaRisks(org: OrgQuerier, notes: string[]): Promise<SchemaRisk[]> {
@@ -219,7 +250,9 @@ export async function syncOverview(
   try {
     const fields = await deps.telemetryFields(org)();
     if (fields.size === 0) {
-      notes.push("DeviceSyncSummary isn't available in this org, so there is no field sync data to show.");
+      notes.push(
+        "DeviceSyncSummary isn't available in this org, so there is no field sync data to show."
+      );
     } else {
       const [{ samples, rows: rowCount, truncated }, aggs] = await Promise.all([
         loadSamples(querier, fields, days),
@@ -248,7 +281,13 @@ export async function syncOverview(
         result.usersAtRisk = await joinUsers(querier, ranking.ranked);
       } catch (e) {
         notes.push(`Couldn't look up names and territories: ${(e as Error).message}`);
-        result.usersAtRisk = ranking.ranked.map((u) => ({ ...u, userId: null, name: u.username, profile: "", territories: 0 }));
+        result.usersAtRisk = ranking.ranked.map((u) => ({
+          ...u,
+          userId: null,
+          name: u.username,
+          profile: "",
+          territories: 0,
+        }));
       }
     }
   } catch (e) {

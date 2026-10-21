@@ -36,7 +36,10 @@ export interface OrgQuerier {
  * caller; an in-flight query is shared either way. Meant for one run, never for a long-lived server.
  */
 export function memoizeQuerier(org: OrgQuerier): OrgQuerier {
-  const make = (run: (q: string, options?: QueryOptions) => Promise<CliResult<SoqlQueryResult>>, kind: string) => {
+  const make = (
+    run: (q: string, options?: QueryOptions) => Promise<CliResult<SoqlQueryResult>>,
+    kind: string
+  ) => {
     const cache = new Map<string, Promise<CliResult<SoqlQueryResult>>>();
     return (q: string, options?: QueryOptions) => {
       const key = `${kind}|${options?.maxRows ?? ""}|${q}`;
@@ -100,16 +103,22 @@ export async function loadDbSchemaEntries(org: OrgQuerier): Promise<DbSchemaEntr
   // field name is overwritten exactly as the serial loop did.
   const idChunks: string[][] = [];
   for (let i = 0; i < ids.length; i += 50) idChunks.push(ids.slice(i, i + 50));
-  const chunkResults = await mapWithConcurrency(idChunks, DEFAULT_PROFILE_OPTIONS.concurrency, async (chunk) => {
-    const idList = chunk.map((id) => `'${id}'`).join(",");
-    const [fvResult, asgResult] = await Promise.all([
-      org.tooling(
-        `SELECT LifeSciConfigRecordId, FieldName, DataType, ${FV_VALUE_COLUMNS.join(", ")} FROM LifeSciConfigFieldValue WHERE LifeSciConfigRecordId IN (${idList})`
-      ),
-      org.tooling(`SELECT LifeSciConfigRecordId, AssignedToId, AssignmentLevel FROM LifeSciConfigAssignment WHERE LifeSciConfigRecordId IN (${idList})`),
-    ]);
-    return { fvResult, asgResult };
-  });
+  const chunkResults = await mapWithConcurrency(
+    idChunks,
+    DEFAULT_PROFILE_OPTIONS.concurrency,
+    async (chunk) => {
+      const idList = chunk.map((id) => `'${id}'`).join(",");
+      const [fvResult, asgResult] = await Promise.all([
+        org.tooling(
+          `SELECT LifeSciConfigRecordId, FieldName, DataType, ${FV_VALUE_COLUMNS.join(", ")} FROM LifeSciConfigFieldValue WHERE LifeSciConfigRecordId IN (${idList})`
+        ),
+        org.tooling(
+          `SELECT LifeSciConfigRecordId, AssignedToId, AssignmentLevel FROM LifeSciConfigAssignment WHERE LifeSciConfigRecordId IN (${idList})`
+        ),
+      ]);
+      return { fvResult, asgResult };
+    }
+  );
   for (const { fvResult, asgResult } of chunkResults) {
     if (!fvResult.success) throw new Error(`DbSchema field value query failed: ${fvResult.error}`);
     for (const fv of fvResult.data?.records ?? []) {
@@ -273,7 +282,8 @@ export function estimateDeviceRequests(
   idCount: number
 ): number | null {
   const template = `SELECT id FROM ${table} WHERE ${resolvedConditional}`;
-  let limit = MAX_QUERY_LENGTH - (template.length + REST_REQUEST_CHARACTERS) - REST_REQUEST_CHARACTERS;
+  let limit =
+    MAX_QUERY_LENGTH - (template.length + REST_REQUEST_CHARACTERS) - REST_REQUEST_CHARACTERS;
   limit = Math.min(limit, MAX_WHERE_LENGTH - resolvedConditional.length - REST_REQUEST_CHARACTERS);
   let chunkSize = Math.floor(limit / (ID_LENGTH_WITH_QUOTES + 1));
   const tagCount = countTag(resolvedConditional, tag);
@@ -337,7 +347,12 @@ export interface TableVolume {
 
 /** A table whose number is missing or only a minimum, so totals that include it understate the sync. */
 export function isIncomplete(t: TableVolume): boolean {
-  return t.status === "error" || t.status === "timed-out" || t.lowerBound === true || t.sourceFailed === true;
+  return (
+    t.status === "error" ||
+    t.status === "timed-out" ||
+    t.lowerBound === true ||
+    t.sourceFailed === true
+  );
 }
 
 export function incompleteTables(terr: TerritoryVolume): TableVolume[] {
@@ -407,12 +422,15 @@ export async function mapWithConcurrency<T, R>(
 ): Promise<R[]> {
   const results: R[] = new Array(items.length);
   let next = 0;
-  const workers = Array.from({ length: Math.max(1, Math.min(concurrency, items.length)) }, async () => {
-    while (next < items.length) {
-      const index = next++;
-      results[index] = await fn(items[index]);
+  const workers = Array.from(
+    { length: Math.max(1, Math.min(concurrency, items.length)) },
+    async () => {
+      while (next < items.length) {
+        const index = next++;
+        results[index] = await fn(items[index]);
+      }
     }
-  });
+  );
   await Promise.all(workers);
   return results;
 }
@@ -428,18 +446,27 @@ class QueryFailure extends Error {
 }
 
 async function countQuery(org: OrgQuerier, sobject: string, where: string | null): Promise<number> {
-  const q = where ? `SELECT COUNT() FROM ${sobject} WHERE ${where}` : `SELECT COUNT() FROM ${sobject}`;
+  const q = where
+    ? `SELECT COUNT() FROM ${sobject} WHERE ${where}`
+    : `SELECT COUNT() FROM ${sobject}`;
   const result = await org.soql(q);
-  if (!result.success) throw new QueryFailure(result.error || "COUNT() query failed", result.timedOut === true);
+  if (!result.success)
+    throw new QueryFailure(result.error || "COUNT() query failed", result.timedOut === true);
   return result.data?.totalSize ?? 0;
 }
 
-async function fetchIdsUncached(org: OrgQuerier, sobject: string, idField: string, where: string | null): Promise<IdFetch> {
+async function fetchIdsUncached(
+  org: OrgQuerier,
+  sobject: string,
+  idField: string,
+  where: string | null
+): Promise<IdFetch> {
   const q = where
     ? `SELECT ${idField} FROM ${sobject} WHERE ${where}`
     : `SELECT ${idField} FROM ${sobject}`;
   const result = await org.soql(q, { maxRows: MAX_TAG_IDS });
-  if (!result.success) throw new QueryFailure(result.error || `${sobject} id query failed`, result.timedOut === true);
+  if (!result.success)
+    throw new QueryFailure(result.error || `${sobject} id query failed`, result.timedOut === true);
   const records = result.data?.records ?? [];
   const ids = new Set<string>();
   for (const r of records) {
@@ -450,7 +477,11 @@ async function fetchIdsUncached(org: OrgQuerier, sobject: string, idField: strin
 }
 
 /** Run `fn` once per key; a failure isn't kept, so a retry asks the org again. */
-function memo(cache: Map<string, Promise<IdFetch>> | undefined, key: string, fn: () => Promise<IdFetch>): Promise<IdFetch> {
+function memo(
+  cache: Map<string, Promise<IdFetch>> | undefined,
+  key: string,
+  fn: () => Promise<IdFetch>
+): Promise<IdFetch> {
   if (!cache) return fn();
   let hit = cache.get(key);
   if (!hit) {
@@ -529,12 +560,20 @@ function errorMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-const TIMED_OUT_NOTE = "The count timed out — this table is too large to count in time, so its size is not in the totals.";
+const TIMED_OUT_NOTE =
+  "The count timed out — this table is too large to count in time, so its size is not in the totals.";
 
 /** A failed table: "timed-out" when the org ran out of time, otherwise "error" with the message. */
-function failedVolume(e: unknown): Pick<TableVolume, "status" | "records" | "deviceRequests" | "note"> {
+function failedVolume(
+  e: unknown
+): Pick<TableVolume, "status" | "records" | "deviceRequests" | "note"> {
   const timedOut = e instanceof QueryFailure && e.timedOut;
-  return { status: timedOut ? "timed-out" : "error", records: 0, deviceRequests: null, note: timedOut ? `${TIMED_OUT_NOTE} (${errorMessage(e)})` : errorMessage(e) };
+  return {
+    status: timedOut ? "timed-out" : "error",
+    records: 0,
+    deviceRequests: null,
+    note: timedOut ? `${TIMED_OUT_NOTE} (${errorMessage(e)})` : errorMessage(e),
+  };
 }
 
 /**
@@ -591,7 +630,9 @@ export async function profileTerritory(
     ot2aKey = `OT2A|${resolved(ot2aTable)}`;
     const where = resolved(ot2aTable);
     try {
-      const fetched = await memo(cache, ot2aKey, () => fetchIdsUncached(org, ot2aTable.entry.sobject, "ObjectId", where));
+      const fetched = await memo(cache, ot2aKey, () =>
+        fetchIdsUncached(org, ot2aTable.entry.sobject, "ObjectId", where)
+      );
       ot2aIds = fetched.ids;
       let total = fetched.rows;
       let totalLower = false;
@@ -611,7 +652,11 @@ export async function profileTerritory(
         deviceRequests: initialSyncRequests(1, total),
         scope: ownScope(ot2aTable),
         ...(totalLower ? { lowerBound: true } : {}),
-        ...(fetched.truncated ? { note: `Only the first ${fetched.rows.toLocaleString("en-US")} ids could be read, so tables filtered by {OT2A.OBJ.IDS} are counted as minimums` } : {}),
+        ...(fetched.truncated
+          ? {
+              note: `Only the first ${fetched.rows.toLocaleString("en-US")} ids could be read, so tables filtered by {OT2A.OBJ.IDS} are counted as minimums`,
+            }
+          : {}),
       });
     } catch (e) {
       ot2aFailed = true;
@@ -635,7 +680,15 @@ export async function profileTerritory(
     try {
       if (cond && containsTag(cond, TAG_OT2A_IDS) && ot2aFailed) {
         accountFailed = true;
-        volumes.push({ ...base(accountTable), status: "not-estimated", records: 0, deviceRequests: null, idTag: TAG_OT2A_IDS, sourceFailed: true, note: `${TAG_OT2A_IDS} could not be resolved because its source table query failed` });
+        volumes.push({
+          ...base(accountTable),
+          status: "not-estimated",
+          records: 0,
+          deviceRequests: null,
+          idTag: TAG_OT2A_IDS,
+          sourceFailed: true,
+          note: `${TAG_OT2A_IDS} could not be resolved because its source table query failed`,
+        });
       } else if (cond && containsTag(cond, TAG_OT2A_IDS)) {
         const fetched = await memo(cache, `Account|${cond}|${ot2aKey}`, () =>
           fetchIdsWithIdTag(org, "Account", "Id", cond, TAG_OT2A_IDS, ot2aIds, options)
@@ -643,21 +696,29 @@ export async function profileTerritory(
         accountIds = fetched.ids;
         const sourceLower = ot2aLower;
         let records = accountIds.length;
-        if (fetched.truncated) records = await countWithIdTag(org, "Account", cond, TAG_OT2A_IDS, ot2aIds, options);
+        if (fetched.truncated)
+          records = await countWithIdTag(org, "Account", cond, TAG_OT2A_IDS, ot2aIds, options);
         accountLower = sourceLower || fetched.truncated;
         volumes.push({
           ...base(accountTable),
           status: "counted",
           records,
-          deviceRequests: initialSyncRequests(estimateDeviceRequests("Account", cond, TAG_OT2A_IDS, ot2aIds.length), records),
+          deviceRequests: initialSyncRequests(
+            estimateDeviceRequests("Account", cond, TAG_OT2A_IDS, ot2aIds.length),
+            records
+          ),
           idTag: TAG_OT2A_IDS,
           scope: accountScope,
           ...(sourceLower ? { lowerBound: true } : {}),
         });
       } else {
-        const fetched = await memo(cache, `Account|${cond}`, () => fetchIdsUncached(org, "Account", "Id", cond));
+        const fetched = await memo(cache, `Account|${cond}`, () =>
+          fetchIdsUncached(org, "Account", "Id", cond)
+        );
         accountIds = fetched.ids;
-        const records = fetched.truncated ? await countQuery(org, "Account", cond) : accountIds.length;
+        const records = fetched.truncated
+          ? await countQuery(org, "Account", cond)
+          : accountIds.length;
         accountLower = fetched.truncated;
         volumes.push({
           ...base(accountTable),
@@ -665,7 +726,11 @@ export async function profileTerritory(
           records,
           deviceRequests: initialSyncRequests(1, records),
           scope: accountScope,
-          ...(fetched.truncated ? { note: `Only the first ${fetched.rows.toLocaleString("en-US")} ids could be read, so tables filtered by {ACCOUNT.IDS} are counted as minimums` } : {}),
+          ...(fetched.truncated
+            ? {
+                note: `Only the first ${fetched.rows.toLocaleString("en-US")} ids could be read, so tables filtered by {ACCOUNT.IDS} are counted as minimums`,
+              }
+            : {}),
         });
       }
     } catch (e) {
@@ -678,54 +743,112 @@ export async function profileTerritory(
   const handled = new Set(volumes.map((v) => v.sobject.toLowerCase()));
   const remaining = tables.filter((t) => !handled.has(t.entry.sobject.toLowerCase()));
 
-  const rest = await mapWithConcurrency(remaining, options.concurrency, async (t): Promise<TableVolume> => {
-    const cond = resolved(t);
-    try {
-      if (!cond) {
-        const records = await countQuery(org, t.entry.sobject, null);
-        return { ...base(t), status: "counted", records, deviceRequests: initialSyncRequests(1, records), scope: "org-wide" };
-      }
-      if (CONTENT_TAGS.some((tag) => containsTag(cond, tag))) {
-        return { ...base(t), status: "not-estimated", records: 0, deviceRequests: null, note: "Content/attachment filter is resolved from other tables at sync time" };
-      }
-      if (containsTag(cond, TAG_STI_IDS)) {
-        return { ...base(t), status: "not-estimated", records: 0, deviceRequests: null, note: "{STI.OBJ.IDS} depends on the device's pending sync transactions" };
-      }
-      const hasAccount = containsTag(cond, TAG_ACCOUNT_IDS);
-      const hasOt2a = containsTag(cond, TAG_OT2A_IDS);
-      if (hasAccount && hasOt2a) {
-        return { ...base(t), status: "not-estimated", records: 0, deviceRequests: null, note: "Filter combines {ACCOUNT.IDS} and {OT2A.OBJ.IDS}" };
-      }
-      if (hasAccount || hasOt2a) {
-        const tag = hasAccount ? TAG_ACCOUNT_IDS : TAG_OT2A_IDS;
-        const ids = hasAccount ? accountIds : ot2aIds;
-        const source = hasAccount ? accountTable : ot2aTable;
-        if ((hasAccount && accountFailed) || (hasOt2a && ot2aFailed)) {
-          return { ...base(t), status: "not-estimated", records: 0, deviceRequests: null, idTag: tag, sourceFailed: true, note: `${tag} could not be resolved because its source table query failed` };
+  const rest = await mapWithConcurrency(
+    remaining,
+    options.concurrency,
+    async (t): Promise<TableVolume> => {
+      const cond = resolved(t);
+      try {
+        if (!cond) {
+          const records = await countQuery(org, t.entry.sobject, null);
+          return {
+            ...base(t),
+            status: "counted",
+            records,
+            deviceRequests: initialSyncRequests(1, records),
+            scope: "org-wide",
+          };
         }
-        if (!source) {
-          return { ...base(t), status: "counted", records: 0, deviceRequests: 0, idTag: tag, scope: "user", note: `${tag} is used but its source table is not in this user's DB Schema, so the app has no ids to substitute` };
+        if (CONTENT_TAGS.some((tag) => containsTag(cond, tag))) {
+          return {
+            ...base(t),
+            status: "not-estimated",
+            records: 0,
+            deviceRequests: null,
+            note: "Content/attachment filter is resolved from other tables at sync time",
+          };
         }
-        const records = await countWithIdTag(org, t.entry.sobject, cond, tag, ids, options);
-        const lower = hasAccount ? accountLower : ot2aLower;
+        if (containsTag(cond, TAG_STI_IDS)) {
+          return {
+            ...base(t),
+            status: "not-estimated",
+            records: 0,
+            deviceRequests: null,
+            note: "{STI.OBJ.IDS} depends on the device's pending sync transactions",
+          };
+        }
+        const hasAccount = containsTag(cond, TAG_ACCOUNT_IDS);
+        const hasOt2a = containsTag(cond, TAG_OT2A_IDS);
+        if (hasAccount && hasOt2a) {
+          return {
+            ...base(t),
+            status: "not-estimated",
+            records: 0,
+            deviceRequests: null,
+            note: "Filter combines {ACCOUNT.IDS} and {OT2A.OBJ.IDS}",
+          };
+        }
+        if (hasAccount || hasOt2a) {
+          const tag = hasAccount ? TAG_ACCOUNT_IDS : TAG_OT2A_IDS;
+          const ids = hasAccount ? accountIds : ot2aIds;
+          const source = hasAccount ? accountTable : ot2aTable;
+          if ((hasAccount && accountFailed) || (hasOt2a && ot2aFailed)) {
+            return {
+              ...base(t),
+              status: "not-estimated",
+              records: 0,
+              deviceRequests: null,
+              idTag: tag,
+              sourceFailed: true,
+              note: `${tag} could not be resolved because its source table query failed`,
+            };
+          }
+          if (!source) {
+            return {
+              ...base(t),
+              status: "counted",
+              records: 0,
+              deviceRequests: 0,
+              idTag: tag,
+              scope: "user",
+              note: `${tag} is used but its source table is not in this user's DB Schema, so the app has no ids to substitute`,
+            };
+          }
+          const records = await countWithIdTag(org, t.entry.sobject, cond, tag, ids, options);
+          const lower = hasAccount ? accountLower : ot2aLower;
+          return {
+            ...base(t),
+            status: "counted",
+            records,
+            deviceRequests: initialSyncRequests(
+              estimateDeviceRequests(t.entry.sobject, cond, tag, ids.length),
+              records
+            ),
+            idTag: tag,
+            scope: viaIds(t, hasAccount ? accountScope : ot2aScope),
+            ...(lower
+              ? {
+                  lowerBound: true,
+                  note: `Counted from the first ${ids.length.toLocaleString("en-US")} ${tag} ids only — a minimum`,
+                }
+              : {}),
+          };
+        }
+        const records = await countQuery(org, t.entry.sobject, cond);
         return {
           ...base(t),
           status: "counted",
           records,
-          deviceRequests: initialSyncRequests(estimateDeviceRequests(t.entry.sobject, cond, tag, ids.length), records),
-          idTag: tag,
-          scope: viaIds(t, hasAccount ? accountScope : ot2aScope),
-          ...(lower ? { lowerBound: true, note: `Counted from the first ${ids.length.toLocaleString("en-US")} ${tag} ids only — a minimum` } : {}),
+          deviceRequests: initialSyncRequests(1, records),
+          scope: ownScope(t),
         };
+      } catch (e) {
+        return { ...base(t), ...failedVolume(e) };
+      } finally {
+        tick();
       }
-      const records = await countQuery(org, t.entry.sobject, cond);
-      return { ...base(t), status: "counted", records, deviceRequests: initialSyncRequests(1, records), scope: ownScope(t) };
-    } catch (e) {
-      return { ...base(t), ...failedVolume(e) };
-    } finally {
-      tick();
     }
-  });
+  );
 
   const all = [...volumes, ...rest].sort((a, b) => b.records - a.records);
   const counted = all.filter((v) => v.status === "counted");
@@ -743,8 +866,13 @@ export async function profileTerritory(
  * counts from upper bounds. A failed lookup leaves the model unknown, which
  * mayOvercount() treats as restricted.
  */
-export async function annotateSharing(org: OrgQuerier, territories: TerritoryVolume[]): Promise<void> {
-  const tables = territories.flatMap((t) => t.tables).filter((t) => t.status === "counted" && t.scope === "org-wide");
+export async function annotateSharing(
+  org: OrgQuerier,
+  territories: TerritoryVolume[]
+): Promise<void> {
+  const tables = territories
+    .flatMap((t) => t.tables)
+    .filter((t) => t.status === "counted" && t.scope === "org-wide");
   const names = [...new Set(tables.map((t) => t.sobject))];
   if (names.length === 0) return;
   const result = await org.soql(
@@ -783,7 +911,9 @@ export async function loadUserContext(org: OrgQuerier, userRef: string): Promise
   const profile = (u.Profile as Record<string, unknown> | null) ?? null;
 
   const [psResult, terrResult] = await Promise.all([
-    org.soql(`SELECT PermissionSet.Name FROM PermissionSetAssignment WHERE AssigneeId = '${userId}'`),
+    org.soql(
+      `SELECT PermissionSet.Name FROM PermissionSetAssignment WHERE AssigneeId = '${userId}'`
+    ),
     org.soql(
       `SELECT Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId = '${userId}' AND Territory2.Territory2Model.State = 'Active' ORDER BY Territory2.Name`
     ),
@@ -815,7 +945,10 @@ export async function loadUserContext(org: OrgQuerier, userRef: string): Promise
 const TERRITORY_RANK_CHUNK = 150;
 
 /** Aligned Account rows per territory (keyed by 15-character id), in chunked GROUP BY queries. Throws when one fails. */
-export async function territoryAccountCounts(org: OrgQuerier, territories: Array<{ id: string }>): Promise<Map<string, number>> {
+export async function territoryAccountCounts(
+  org: OrgQuerier,
+  territories: Array<{ id: string }>
+): Promise<Map<string, number>> {
   const sizes = new Map<string, number>();
   const chunks = splitChunks(territories, TERRITORY_RANK_CHUNK);
   await mapWithConcurrency(chunks, DEFAULT_PROFILE_OPTIONS.concurrency, async (chunk) => {
@@ -824,7 +957,8 @@ export async function territoryAccountCounts(org: OrgQuerier, territories: Array
       `SELECT Territory2Id, COUNT(Id) cnt FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2Id IN (${list}) GROUP BY Territory2Id`
     );
     if (!result.success) throw new Error(result.error || "territory size query failed");
-    for (const r of result.data?.records ?? []) sizes.set(String(r.Territory2Id).slice(0, 15), Number(r.cnt ?? r.expr0 ?? 0));
+    for (const r of result.data?.records ?? [])
+      sizes.set(String(r.Territory2Id).slice(0, 15), Number(r.cnt ?? r.expr0 ?? 0));
   });
   return sizes;
 }
@@ -844,8 +978,13 @@ export async function pickLargestTerritories(
   try {
     const sizes = await territoryAccountCounts(org, territories);
     const sizeOf = (t: { id: string }) => sizes.get(t.id.slice(0, 15)) ?? 0;
-    const picked = [...territories].sort((a, b) => sizeOf(b) - sizeOf(a) || a.name.localeCompare(b.name)).slice(0, cap);
-    return { picked, note: `Checked the ${cap} largest of ${territories.length} territories (by aligned accounts); the other ${territories.length - cap} are smaller.` };
+    const picked = [...territories]
+      .sort((a, b) => sizeOf(b) - sizeOf(a) || a.name.localeCompare(b.name))
+      .slice(0, cap);
+    return {
+      picked,
+      note: `Checked the ${cap} largest of ${territories.length} territories (by aligned accounts); the other ${territories.length - cap} are smaller.`,
+    };
   } catch (e) {
     return {
       picked: territories.slice(0, cap),

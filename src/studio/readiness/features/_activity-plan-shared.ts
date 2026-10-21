@@ -34,11 +34,19 @@ export interface Handler {
 
 export const loadHandlers = (org: string) =>
   lazy(async (): Promise<Map<string, Handler>> => {
-    const rows = await query(`SELECT DeveloperName, MasterLabel, IsActive FROM LifeScienceTriggerHandler`, org, true);
+    const rows = await query(
+      `SELECT DeveloperName, MasterLabel, IsActive FROM LifeScienceTriggerHandler`,
+      org,
+      true
+    );
     return new Map(
       rows.map((r) => [
         String(r.DeveloperName),
-        { developerName: String(r.DeveloperName), label: String(r.MasterLabel || r.DeveloperName), active: !!r.IsActive },
+        {
+          developerName: String(r.DeveloperName),
+          label: String(r.MasterLabel || r.DeveloperName),
+          active: !!r.IsActive,
+        },
       ])
     );
   });
@@ -55,7 +63,12 @@ export function handlersCheck(
   return runCheck(meta, async (): Promise<StudioCheckResult> => {
     const all = await handlers();
     const present = names.map((n) => all.get(n)).filter((h): h is Handler => !!h);
-    if (present.length === 0) return { pass: true, skip: true, detail: "None of these trigger handlers exist in this org." };
+    if (present.length === 0)
+      return {
+        pass: true,
+        skip: true,
+        detail: "None of these trigger handlers exist in this org.",
+      };
     const off = present.filter((h) => !h.active);
     if (off.length === 0) return { pass: true, detail: `${plural(present.length, "handler")} on.` };
     return {
@@ -79,11 +92,16 @@ export function handlersCheck(
 
 export const loadDbSchema = (org: string) =>
   lazy(() =>
-    collectCategoryRecords(org, `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'DbSchema'`, { strict: true, cache: true })
+    collectCategoryRecords(
+      org,
+      `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'DbSchema'`,
+      { strict: true, cache: true }
+    )
   );
 
 const sobjectOf = (r: ConfigRecord) => String(r.fields.SObject || "").toLowerCase();
-const profileNames = (r: ConfigRecord) => r.assignments.filter((a) => a.level === "Profile").map((a) => a.name);
+const profileNames = (r: ConfigRecord) =>
+  r.assignments.filter((a) => a.level === "Profile").map((a) => a.name);
 
 /**
  * Field profiles (those with LSC Mobile app settings) of the active users the
@@ -91,7 +109,10 @@ const profileNames = (r: ConfigRecord) => r.assignments.filter((a) => a.level ==
  * feature's records. These are the profiles that need its objects on the iPad.
  */
 export async function fieldProfilesUsing(org: string, soqls: string[]): Promise<string[]> {
-  const [field, ...groups] = await Promise.all([fieldProfiles(org), ...soqls.map((q) => query(q, org))]);
+  const [field, ...groups] = await Promise.all([
+    fieldProfiles(org),
+    ...soqls.map((q) => query(q, org)),
+  ]);
   const used = new Set(groups.flat().map((r) => String(r.pn ?? "")));
   return field.filter((p) => used.has(p)).sort();
 }
@@ -131,7 +152,8 @@ export function dbSchemaCheck(
           const covered = new Set(live.flatMap(profileNames));
           for (const p of needs.filter((n) => !covered.has(n))) {
             gaps.set(p, [...(gaps.get(p) ?? []), object]);
-            const fix = live.length === 1 ? addProfileFix(live[0], p, `Sync ${object} to ${p}`) : null;
+            const fix =
+              live.length === 1 ? addProfileFix(live[0], p, `Sync ${object} to ${p}`) : null;
             if (fix) fixes.push(fix);
           }
         }
@@ -141,13 +163,19 @@ export function dbSchemaCheck(
         off.push(object);
         // Only an unambiguous record gets a fix; with several, which one to change is the admin's call.
         const r = recs[0];
-        if (recs.length === 1) fixes.push({
-          kind: "setActive",
-          label: `Switch on ${object} sync`,
-          record: { type: "config", category: "DbSchema", developerName: r.developerName, label: r.label || r.developerName },
-          from: false,
-          to: true,
-        });
+        if (recs.length === 1)
+          fixes.push({
+            kind: "setActive",
+            label: `Switch on ${object} sync`,
+            record: {
+              type: "config",
+              category: "DbSchema",
+              developerName: r.developerName,
+              label: r.label || r.developerName,
+            },
+            from: false,
+            to: true,
+          });
       } else {
         missing.push(object);
         const to = [...new Set([...profiles, ...needs])].sort();
@@ -162,10 +190,17 @@ export function dbSchemaCheck(
       ...notReaching,
     ].filter(Boolean);
     if (problems.length === 0) {
-      const to = needs.length ? ` for ${plural(needs.length, "profile")} whose users work with them` : "";
+      const to = needs.length
+        ? ` for ${plural(needs.length, "profile")} whose users work with them`
+        : "";
       return { pass: true, detail: `All ${objects.length} objects sync to the iPad${to}.` };
     }
-    return { pass: false, detail: `${problems.join("; ")}.`, examples: [...missing, ...off, ...unassigned, ...gaps.keys()], fixes: fixes.slice(0, 12) };
+    return {
+      pass: false,
+      detail: `${problems.join("; ")}.`,
+      examples: [...missing, ...off, ...unassigned, ...gaps.keys()],
+      fixes: fixes.slice(0, 12),
+    };
   });
 }
 

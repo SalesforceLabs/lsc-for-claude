@@ -37,7 +37,16 @@ export const CODE_SIZE_WARN = 60_000;
 
 type N = acorn.Node & Record<string, any>;
 
-const BROWSER_GLOBALS = new Set(["window", "document", "fetch", "XMLHttpRequest", "localStorage", "sessionStorage", "setTimeout", "setInterval"]);
+const BROWSER_GLOBALS = new Set([
+  "window",
+  "document",
+  "fetch",
+  "XMLHttpRequest",
+  "localStorage",
+  "sessionStorage",
+  "setTimeout",
+  "setInterval",
+]);
 const DB_ASYNC = /^(noNs_)?(query|rowById)$/;
 const FIELD_ACCESSORS = new Set(["stringValue", "numValue", "boolValue", "dateValue"]);
 
@@ -63,7 +72,10 @@ function walk(node: N, visit: (n: N, parent: N | null) => void, parent: N | null
   for (const c of children(node)) walk(c, visit, node);
 }
 
-const isFunction = (n: N) => n.type === "FunctionExpression" || n.type === "ArrowFunctionExpression" || n.type === "FunctionDeclaration";
+const isFunction = (n: N) =>
+  n.type === "FunctionExpression" ||
+  n.type === "ArrowFunctionExpression" ||
+  n.type === "FunctionDeclaration";
 
 function patternNames(p: N | null, into: Set<string>): void {
   if (!p) return;
@@ -72,7 +84,8 @@ function patternNames(p: N | null, into: Set<string>): void {
       into.add(p.name);
       break;
     case "ObjectPattern":
-      for (const prop of p.properties) patternNames(prop.type === "RestElement" ? prop.argument : prop.value, into);
+      for (const prop of p.properties)
+        patternNames(prop.type === "RestElement" ? prop.argument : prop.value, into);
       break;
     case "ArrayPattern":
       for (const el of p.elements) patternNames(el, into);
@@ -102,14 +115,16 @@ function declaredNames(root: N): Set<string> {
 
 /** `a.b` as a pair, when the member isn't computed. */
 function memberOf(n: N | null | undefined): { object: N; property: string; node: N } | null {
-  if (!n || n.type !== "MemberExpression" || n.computed || n.property.type !== "Identifier") return null;
+  if (!n || n.type !== "MemberExpression" || n.computed || n.property.type !== "Identifier")
+    return null;
   return { object: n.object, property: n.property.name, node: n };
 }
 
 function stringArg(call: N): { value: string; node: N } | null {
   const a = call.arguments[0];
   if (a?.type === "Literal" && typeof a.value === "string") return { value: a.value, node: a };
-  if (a?.type === "TemplateLiteral" && a.expressions.length === 0) return { value: a.quasis[0].value.cooked ?? "", node: a };
+  if (a?.type === "TemplateLiteral" && a.expressions.length === 0)
+    return { value: a.quasis[0].value.cooked ?? "", node: a };
   return null;
 }
 
@@ -121,7 +136,8 @@ function iifeOf(stmt: N | undefined): { call: N; fn: N } | null {
   if (e.type === "UnaryExpression") e = e.argument;
   if (e.type !== "CallExpression") return null;
   const callee: N = e.callee;
-  if (callee.type === "FunctionExpression" || callee.type === "ArrowFunctionExpression") return { call: e, fn: callee };
+  if (callee.type === "FunctionExpression" || callee.type === "ArrowFunctionExpression")
+    return { call: e, fn: callee };
   return null;
 }
 
@@ -136,7 +152,8 @@ export function analyzeScript(code: string, ctx: ScriptCheckContext): ScriptDiag
       id: "too-large",
       severity: "error",
       message: `The script is ${code.length.toLocaleString("en-US")} characters, over the ${CODE_TEXT_LIMIT.toLocaleString("en-US")} the platform can store.`,
-      detail: "CodeText holds at most 131,072 characters. Split the checks, or remove what isn't needed.",
+      detail:
+        "CodeText holds at most 131,072 characters. Split the checks, or remove what isn't needed.",
       from: 0,
       to: 0,
     });
@@ -145,7 +162,8 @@ export function analyzeScript(code: string, ctx: ScriptCheckContext): ScriptDiag
       id: "too-large",
       severity: "warning",
       message: `The script is ${code.length.toLocaleString("en-US")} characters, which is large.`,
-      detail: "Big scripts are slow to load on the iPad and close to the 131,072-character limit. Look for repeated code to share.",
+      detail:
+        "Big scripts are slow to load on the iPad and close to the 131,072-character limit. Look for repeated code to share.",
       from: 0,
       to: 0,
     });
@@ -156,7 +174,8 @@ export function analyzeScript(code: string, ctx: ScriptCheckContext): ScriptDiag
       add({
         id: "vav-object-name",
         severity: "error",
-        message: "This script silently won't run: a visit action validation needs the object ProviderVisit.",
+        message:
+          "This script silently won't run: a visit action validation needs the object ProviderVisit.",
         detail: `ObjectName is ${ctx.objectName ? `"${ctx.objectName}"` : "empty"}. Set it to ProviderVisit in Details.`,
         from: 0,
         to: 0,
@@ -166,7 +185,8 @@ export function analyzeScript(code: string, ctx: ScriptCheckContext): ScriptDiag
       add({
         id: "vav-event-type",
         severity: "error",
-        message: "This script silently won't run: a visit action validation needs the event OnUpdate.",
+        message:
+          "This script silently won't run: a visit action validation needs the event OnUpdate.",
         detail: `The operation event is ${ctx.operationEventType ? `"${ctx.operationEventType}"` : "empty"}. Set it to OnUpdate in Details.`,
         from: 0,
         to: 0,
@@ -203,7 +223,8 @@ export function analyzeScript(code: string, ctx: ScriptCheckContext): ScriptDiag
       id: "syntax",
       severity: "error",
       message: (err.message ?? "The code has a syntax error").replace(/\s*\(\d+:\d+\)$/, "") + ".",
-      detail: "The platform can't run code that doesn't parse. Fix this first; the other checks resume once it does.",
+      detail:
+        "The platform can't run code that doesn't parse. Fix this first; the other checks resume once it does.",
       from: pos,
       to: Math.min(pos + 1, code.length),
     });
@@ -233,7 +254,8 @@ export function analyzeScript(code: string, ctx: ScriptCheckContext): ScriptDiag
       id: "not-iife",
       severity: "error",
       message: "The script isn't wrapped in an IIFE.",
-      detail: "Write the whole script as (() => { ... })(); — the platform evaluates that one expression and uses what it returns.",
+      detail:
+        "Write the whole script as (() => { ... })(); — the platform evaluates that one expression and uses what it returns.",
       from: first ? first.start : 0,
       to: first ? first.end : 0,
     });
@@ -242,7 +264,8 @@ export function analyzeScript(code: string, ctx: ScriptCheckContext): ScriptDiag
       id: "not-iife",
       severity: "warning",
       message: "There is code outside the IIFE.",
-      detail: "Only the first expression is evaluated reliably; put everything inside the function.",
+      detail:
+        "Only the first expression is evaluated reliably; put everything inside the function.",
       from: body[1].start,
       to: body[body.length - 1].end,
     });
@@ -264,12 +287,24 @@ export function analyzeScript(code: string, ctx: ScriptCheckContext): ScriptDiag
       // record.stringValue('Field__c') etc.
       if (m && FIELD_ACCESSORS.has(m.property)) {
         const arg = stringArg(n);
-        if (arg && arg.value.endsWith("__c")) add(noNsDiagnostic(m.node, m.property, arg.value, `${m.property}("${arg.value}")`, "field"));
+        if (arg && arg.value.endsWith("__c"))
+          add(
+            noNsDiagnostic(m.node, m.property, arg.value, `${m.property}("${arg.value}")`, "field")
+          );
       }
       // db.rowById('Thing__c', id) / db.query('Thing__c', where)
       if (m && isIdent(m.object, "db") && /^(rowById|query)$/.test(m.property)) {
         const arg = stringArg(n);
-        if (arg && /__(c|mdt)$/.test(arg.value)) add(noNsDiagnostic(m.node, m.property, arg.value, `db.${m.property}("${arg.value}")`, "object"));
+        if (arg && /__(c|mdt)$/.test(arg.value))
+          add(
+            noNsDiagnostic(
+              m.node,
+              m.property,
+              arg.value,
+              `db.${m.property}("${arg.value}")`,
+              "object"
+            )
+          );
       }
       // db.query(...) whose promise is dropped
       if (m && isIdent(m.object, "db") && DB_ASYNC.test(m.property) && !handled(n, parent)) {
@@ -277,7 +312,8 @@ export function analyzeScript(code: string, ctx: ScriptCheckContext): ScriptDiag
           id: "db-without-await",
           severity: "warning",
           message: `db.${m.property}(...) returns a promise, but the result isn't awaited.`,
-          detail: "Without await you get a pending promise, not records. Write await db.query(...) inside an async function.",
+          detail:
+            "Without await you get a pending promise, not records. Write await db.query(...) inside an async function.",
           from: n.start,
           to: n.end,
           fix: { label: "Add await", changes: [{ from: n.start, to: n.start, insert: "await " }] },
@@ -289,10 +325,14 @@ export function analyzeScript(code: string, ctx: ScriptCheckContext): ScriptDiag
           id: "console-log",
           severity: "info",
           message: `Use env.log instead of console.${m.property}.`,
-          detail: "env.log writes where the platform can capture it: the browser console on the web and the device log on the iPad (JavaScriptCore has no console).",
+          detail:
+            "env.log writes where the platform can capture it: the browser console on the web and the device log on the iPad (JavaScriptCore has no console).",
           from: m.node.start,
           to: m.node.end,
-          fix: { label: "Use env.log", changes: [{ from: m.node.start, to: m.node.end, insert: "env.log" }] },
+          fix: {
+            label: "Use env.log",
+            changes: [{ from: m.node.start, to: m.node.end, insert: "env.log" }],
+          },
         });
       }
     }
@@ -314,7 +354,8 @@ export function analyzeScript(code: string, ctx: ScriptCheckContext): ScriptDiag
           id: "group-condition",
           severity: "error",
           message: "GroupCondition isn't available in custom scripts.",
-          detail: "It isn't injected into the script's scope, so using it throws. Use AndCondition or OrCondition instead.",
+          detail:
+            "It isn't injected into the script's scope, so using it throws. Use AndCondition or OrCondition instead.",
           from: n.start,
           to: n.end,
         });
@@ -340,7 +381,8 @@ export function analyzeScript(code: string, ctx: ScriptCheckContext): ScriptDiag
       id: "no-global-guard",
       severity: "info",
       message: "The script doesn't check that record, user, env and db exist before using them.",
-      detail: "A guard such as if (record && user && env && db) keeps the script from throwing when the app runs it without one of them.",
+      detail:
+        "A guard such as if (record && user && env && db) keeps the script from throwing when the app runs it without one of them.",
       from: 0,
       to: 0,
     });
@@ -357,7 +399,9 @@ export function analyzeScript(code: string, ctx: ScriptCheckContext): ScriptDiag
 const isIdent = (n: N, name: string) => n.type === "Identifier" && n.name === name;
 
 function hasGlobalGuard(code: string): boolean {
-  return /\bif\s*\(\s*!\s*(record|user|env|db)\b|\bif\s*\(\s*\(?\s*(record|user|env|db)\s*&&|\btypeof\s+(record|user|env|db)\b|\b(record|user|env|db)\s*&&\s*(record|user|env|db)\b/.test(code);
+  return /\bif\s*\(\s*!\s*(record|user|env|db)\b|\bif\s*\(\s*\(?\s*(record|user|env|db)\s*&&|\btypeof\s+(record|user|env|db)\b|\b(record|user|env|db)\s*&&\s*(record|user|env|db)\b/.test(
+    code
+  );
 }
 
 function sorted(list: ScriptDiagnostic[]): ScriptDiagnostic[] {
@@ -365,7 +409,11 @@ function sorted(list: ScriptDiagnostic[]): ScriptDiagnostic[] {
   return list.sort((a, b) => a.from - b.from || rank[a.severity] - rank[b.severity]);
 }
 
-function addLeadingComment(out: ScriptDiagnostic[], lead: { start: number; end: number }[], firstStart: number): void {
+function addLeadingComment(
+  out: ScriptDiagnostic[],
+  lead: { start: number; end: number }[],
+  firstStart: number
+): void {
   if (lead.length === 0) return;
   out.push({
     id: "comment-before-iife",
@@ -377,12 +425,22 @@ function addLeadingComment(out: ScriptDiagnostic[], lead: { start: number; end: 
     to: lead[lead.length - 1].end,
     fix: {
       label: "Remove the comment",
-      changes: lead.map((c, i) => ({ from: c.start, to: lead[i + 1]?.start ?? firstStart, insert: "" })),
+      changes: lead.map((c, i) => ({
+        from: c.start,
+        to: lead[i + 1]?.start ?? firstStart,
+        insert: "",
+      })),
     },
   });
 }
 
-function noNsDiagnostic(member: N, method: string, name: string, call: string, what: "field" | "object"): ScriptDiagnostic {
+function noNsDiagnostic(
+  member: N,
+  method: string,
+  name: string,
+  call: string,
+  what: "field" | "object"
+): ScriptDiagnostic {
   const prop = member.property as N;
   return {
     id: "custom-field-stringvalue",
@@ -395,7 +453,10 @@ function noNsDiagnostic(member: N, method: string, name: string, call: string, w
       "Methods without noNs_ add the LSC managed-package namespace. That is right for package fields, but fields and objects the customer created (ending __c or __mdt) have no namespace, so the lookup returns null.",
     from: prop.start,
     to: prop.end,
-    fix: { label: `Use noNs_${method}`, changes: [{ from: prop.start, to: prop.end, insert: `noNs_${method}` }] },
+    fix: {
+      label: `Use noNs_${method}`,
+      changes: [{ from: prop.start, to: prop.end, insert: `noNs_${method}` }],
+    },
   };
 }
 
@@ -422,10 +483,21 @@ function handled(call: N, parent: N | null): boolean {
 function isReference(n: N, parent: N | null): boolean {
   if (!parent) return true;
   if (parent.type === "MemberExpression" && parent.property === n && !parent.computed) return false;
-  if ((parent.type === "Property" || parent.type === "PropertyDefinition" || parent.type === "MethodDefinition") && parent.key === n && !parent.computed) {
+  if (
+    (parent.type === "Property" ||
+      parent.type === "PropertyDefinition" ||
+      parent.type === "MethodDefinition") &&
+    parent.key === n &&
+    !parent.computed
+  ) {
     return parent.shorthand === true && parent.value === n;
   }
-  if (parent.type === "LabeledStatement" || parent.type === "BreakStatement" || parent.type === "ContinueStatement") return false;
+  if (
+    parent.type === "LabeledStatement" ||
+    parent.type === "BreakStatement" ||
+    parent.type === "ContinueStatement"
+  )
+    return false;
   return true;
 }
 
@@ -444,7 +516,9 @@ function topLevelReturns(fn: N): N[] {
 }
 
 /** Best effort: the IIFE's return value is expected to be an array of results (or of promises). */
-function returnsFinding(fn: N): { message: string; detail: string; from: number; to: number } | null {
+function returnsFinding(
+  fn: N
+): { message: string; detail: string; from: number; to: number } | null {
   const detail =
     "The app reads the script's value as a list of results — [{ title, status }] — or a list of promises for them. Return an array, even for one result.";
   let arg: N;
@@ -452,17 +526,24 @@ function returnsFinding(fn: N): { message: string; detail: string; from: number;
     arg = fn.body;
   } else {
     const returns = topLevelReturns(fn);
-    if (returns.length === 0) return { message: "The IIFE doesn't return anything.", detail, from: fn.start, to: fn.end };
+    if (returns.length === 0)
+      return { message: "The IIFE doesn't return anything.", detail, from: fn.start, to: fn.end };
     // Only the last return is judged: earlier ones are usually early exits.
     const at = returns[returns.length - 1];
-    if (!at.argument) return { message: "The IIFE returns nothing.", detail, from: at.start, to: at.end };
+    if (!at.argument)
+      return { message: "The IIFE returns nothing.", detail, from: at.start, to: at.end };
     arg = at.argument;
   }
   // JSON.parse(JSON.stringify(x)) → x
   for (;;) {
     const m = arg.type === "CallExpression" ? memberOf(arg.callee) : null;
     const inner: N | undefined = arg.arguments?.[0];
-    if (m && isIdent(m.object, "JSON") && m.property === "parse" && inner?.type === "CallExpression") {
+    if (
+      m &&
+      isIdent(m.object, "JSON") &&
+      m.property === "parse" &&
+      inner?.type === "CallExpression"
+    ) {
       const im = memberOf(inner.callee);
       if (im && isIdent(im.object, "JSON") && im.property === "stringify" && inner.arguments[0]) {
         arg = inner.arguments[0];
@@ -471,16 +552,35 @@ function returnsFinding(fn: N): { message: string; detail: string; from: number;
     }
     break;
   }
-  const nonArray = (n: N) => n.type === "ObjectExpression" || n.type === "Literal" || n.type === "TemplateLiteral";
-  if (nonArray(arg)) return { message: "The IIFE returns a single value instead of an array.", detail, from: arg.start, to: arg.end };
+  const nonArray = (n: N) =>
+    n.type === "ObjectExpression" || n.type === "Literal" || n.type === "TemplateLiteral";
+  if (nonArray(arg))
+    return {
+      message: "The IIFE returns a single value instead of an array.",
+      detail,
+      from: arg.start,
+      to: arg.end,
+    };
   if (arg.type === "Identifier") {
     const name = arg.name;
     let init: N | null = null;
     walk(fn, (n) => {
-      if (n.type === "VariableDeclarator" && n.id.type === "Identifier" && n.id.name === name && n.init) init = n.init;
+      if (
+        n.type === "VariableDeclarator" &&
+        n.id.type === "Identifier" &&
+        n.id.name === name &&
+        n.init
+      )
+        init = n.init;
     });
     const i = init as N | null;
-    if (i && nonArray(i)) return { message: `The IIFE returns ${name}, which isn't an array.`, detail, from: arg.start, to: arg.end };
+    if (i && nonArray(i))
+      return {
+        message: `The IIFE returns ${name}, which isn't an array.`,
+        detail,
+        from: arg.start,
+        to: arg.end,
+      };
   }
   return null;
 }

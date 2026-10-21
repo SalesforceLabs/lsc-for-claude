@@ -39,7 +39,12 @@ function statusOf(outcome: CheckOutcome | undefined): CheckStatus {
   return outcome.passed ? "not-found" : "found";
 }
 
-const STATUS_ORDER: Record<CheckStatus, number> = { found: 0, unchecked: 1, "no-check": 2, "not-found": 3 };
+const STATUS_ORDER: Record<CheckStatus, number> = {
+  found: 0,
+  unchecked: 1,
+  "no-check": 2,
+  "not-found": 3,
+};
 
 export async function diagnose(
   symptom: string,
@@ -50,13 +55,12 @@ export async function diagnose(
   const rules = deps.rules ?? getAllRules();
   const exec = deps.run ?? executeCheck;
   // Checks that look for something the user named (a tab) read it from the symptom.
-  const run = (check: Parameters<typeof executeCheck>[0], org: string) => exec(check, org, { symptom });
+  const run = (check: Parameters<typeof executeCheck>[0], org: string) =>
+    exec(check, org, { symptom });
 
   // A rule linked from a matched cause is checked as part of that cause, not listed again.
   const matches = matchSymptom(symptom, causes, rules);
-  const linked = new Set(
-    matches.flatMap((m) => (m.kind === "cause" ? (m.item.rules ?? []) : []))
-  );
+  const linked = new Set(matches.flatMap((m) => (m.kind === "cause" ? (m.item.rules ?? []) : [])));
   // Several rule files share generic symptoms; a few rules are enough beside the causes.
   let rulesLeft = MAX_RULE_MATCHES;
   const kept = matches
@@ -67,7 +71,8 @@ export async function diagnose(
 
   const findings = await Promise.all(
     kept.map(async (match): Promise<CauseFinding> => {
-      if (!targetOrg) return { match, status: match.item.check ? "unchecked" : "no-check", failedRules: [] };
+      if (!targetOrg)
+        return { match, status: match.item.check ? "unchecked" : "no-check", failedRules: [] };
       if (match.kind === "rule") {
         const outcome = await run(match.item.check, targetOrg);
         return { match, status: statusOf(outcome), outcome, failedRules: [] };
@@ -76,7 +81,13 @@ export async function diagnose(
       if (cause.applies_if && cause.check && !cause.by_design) {
         const applies = await run(cause.applies_if, targetOrg);
         if (!applies.passed && !applies.unavailable) {
-          return { match, status: "not-found", outcome: applies, notApplicable: true, failedRules: [] };
+          return {
+            match,
+            status: "not-found",
+            outcome: applies,
+            notApplicable: true,
+            failedRules: [],
+          };
         }
       }
       const [outcome, ruleOutcomes] = await Promise.all([
@@ -100,7 +111,10 @@ export async function diagnose(
   );
 
   // With an org, what was found comes first; without one, the best match.
-  if (targetOrg) findings.sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || b.match.score - a.match.score);
+  if (targetOrg)
+    findings.sort(
+      (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || b.match.score - a.match.score
+    );
   return { symptom, targetOrg, findings };
 }
 
@@ -114,10 +128,18 @@ export function recordNames(outcome: CheckOutcome | undefined): string[] {
   if (!details?.records) return [];
   return details.records.map((r) => {
     const name =
-      r.DeveloperName ?? r.Name ?? r.QualifiedApiName ?? r.ValidationName ?? r.EndpointUrl ?? r.LifeSciConfigRecordId ?? r.Id;
+      r.DeveloperName ??
+      r.Name ??
+      r.QualifiedApiName ??
+      r.ValidationName ??
+      r.EndpointUrl ??
+      r.LifeSciConfigRecordId ??
+      r.Id;
     const extra = r.InternalSharingModel ?? r.Context;
     const entity = (r.EntityDefinition as Record<string, unknown> | undefined)?.QualifiedApiName;
-    return [entity ? `${entity}.${name}` : String(name), extra ? `(${extra})` : ""].join(" ").trim();
+    return [entity ? `${entity}.${name}` : String(name), extra ? `(${extra})` : ""]
+      .join(" ")
+      .trim();
   });
 }
 
@@ -154,7 +176,10 @@ function formatFinding(finding: CauseFinding, connected: boolean): string {
     out += `${statusLine(finding, connected)}\n\n`;
     const names = recordNames(finding.outcome);
     if (finding.status === "found" && names.length > 0) {
-      out += `Records to fix:\n${names.slice(0, 10).map((n) => `- ${n}`).join("\n")}\n\n`;
+      out += `Records to fix:\n${names
+        .slice(0, 10)
+        .map((n) => `- ${n}`)
+        .join("\n")}\n\n`;
     }
     for (const { rule, outcome } of finding.failedRules) {
       out += `Failed check ${rule.id} (${rule.name}): ${outcome.message}\n\n`;
@@ -163,7 +188,8 @@ function formatFinding(finding: CauseFinding, connected: boolean): string {
     out += `**${cause.by_design ? "What to do" : "Fix"}:**\n`;
     cause.fix.forEach((step, i) => (out += `${i + 1}. ${step}\n`));
     if (cause.ui_path) out += `\n**Where:** ${cause.ui_path}\n`;
-    if (cause.check_scope && finding.status === "not-found") out += `\n_The check doesn't cover everything: ${cause.check_scope}_\n`;
+    if (cause.check_scope && finding.status === "not-found")
+      out += `\n_The check doesn't cover everything: ${cause.check_scope}_\n`;
   } else {
     const rule = match.item;
     out += `## ${rule.name} (${rule.id})\n\n`;
@@ -186,16 +212,18 @@ export function formatDiagnosis(diagnosis: Diagnosis): string {
   if (findings.length === 0) {
     out += "Nothing in the known causes or validation rules matches this.\n\n";
     out += "- Paste the exact error text, including object and field names.\n";
-    out += "- Run `audit_mobile_config({ group: 'full-mobile-audit' })` or `health_check` for a broad check.\n";
+    out +=
+      "- Run `audit_mobile_config({ group: 'full-mobile-audit' })` or `health_check` for a broad check.\n";
     out += "- Search the docs with `search_lsc_knowledge`.\n";
     return out;
   }
 
   const found = findings.filter((f) => f.status === "found").length;
   if (connected) {
-    out += found > 0
-      ? `Checked against ${targetOrg}: ${found} of ${findings.length} possible cause${findings.length === 1 ? "" : "s"} found in the org.\n\n`
-      : `Checked against ${targetOrg}: none of the checkable causes below are present. Work through the others by hand.\n\n`;
+    out +=
+      found > 0
+        ? `Checked against ${targetOrg}: ${found} of ${findings.length} possible cause${findings.length === 1 ? "" : "s"} found in the org.\n\n`
+        : `Checked against ${targetOrg}: none of the checkable causes below are present. Work through the others by hand.\n\n`;
   } else {
     out += `${findings.length} possible cause${findings.length === 1 ? "" : "s"}. Connect an org to check which apply.\n\n`;
   }
@@ -240,7 +268,11 @@ export function diagnosisItems(diagnosis: Diagnosis): DiagnosisItem[] {
       notApplicable: Boolean(notApplicable),
       message: outcome?.message,
       records: status === "found" ? recordNames(outcome).slice(0, 10) : [],
-      failedRules: failedRules.map(({ rule, outcome: o }) => ({ id: rule.id, name: rule.name, message: o.message })),
+      failedRules: failedRules.map(({ rule, outcome: o }) => ({
+        id: rule.id,
+        name: rule.name,
+        message: o.message,
+      })),
       matched: match.matched,
       score: Math.round(match.score * 100) / 100,
     };

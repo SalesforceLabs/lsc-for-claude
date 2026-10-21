@@ -11,7 +11,12 @@
  * `src-renderer/components/studio/types.ts` — keep the two in sync.
  */
 
-import type { AssignCustomScriptFix, CreateCustomScriptFix, DeleteCustomScriptFix, SaveCustomScriptFix } from "./scripts/types.js";
+import type {
+  AssignCustomScriptFix,
+  CreateCustomScriptFix,
+  DeleteCustomScriptFix,
+  SaveCustomScriptFix,
+} from "./scripts/types.js";
 
 export type Severity = "error" | "warning" | "info";
 
@@ -28,7 +33,14 @@ export interface StudioFinding {
  * (`from`), so a fix is refused if the org changed since the map was loaded.
  */
 export type StudioFix =
-  | { kind: "assignPsl"; label: string; userId: string; userName: string; pslId: string; pslLabel: string }
+  | {
+      kind: "assignPsl";
+      label: string;
+      userId: string;
+      userName: string;
+      pslId: string;
+      pslLabel: string;
+    }
   | {
       kind: "removePsl";
       label: string;
@@ -60,9 +72,22 @@ export type StudioFix =
       to: string[];
     }
   | CreateConfigFix
-  | { kind: "deleteConfigRecord"; label: string; category: string; developerName: string; recordLabel: string }
+  | {
+      kind: "deleteConfigRecord";
+      label: string;
+      category: string;
+      developerName: string;
+      recordLabel: string;
+    }
   | { kind: "assignAccess"; label: string; userId: string; userName: string; access: AccessRef }
-  | { kind: "removeAccess"; label: string; userId: string; userName: string; access: AccessRef; assignmentId: string }
+  | {
+      kind: "removeAccess";
+      label: string;
+      userId: string;
+      userName: string;
+      access: AccessRef;
+      assignmentId: string;
+    }
   | CreateCustomScriptFix
   | SaveCustomScriptFix
   | DeleteCustomScriptFix
@@ -112,7 +137,14 @@ export interface FieldSlot {
 export type LayoutOp =
   | { op: "moveField"; field: string; to: FieldSlot }
   | { op: "removeField"; field: string }
-  | { op: "addField"; field: string; behavior: FieldBehavior; to: FieldSlot; xml?: string; relatedObject?: boolean }
+  | {
+      op: "addField";
+      field: string;
+      behavior: FieldBehavior;
+      to: FieldSlot;
+      xml?: string;
+      relatedObject?: boolean;
+    }
   | { op: "setFieldBehavior"; field: string; from: FieldBehavior; to: FieldBehavior }
   | { op: "moveSection"; section: SectionRef; before: SectionRef | null }
   | { op: "removeSection"; section: SectionRef }
@@ -120,10 +152,26 @@ export type LayoutOp =
   | { op: "setSectionHeading"; section: SectionRef; from: boolean; to: boolean }
   | { op: "moveRelatedList"; relatedList: string; before: string | null }
   | { op: "removeRelatedList"; relatedList: string }
-  | { op: "addRelatedList"; relatedList: string; before: string | null; xml?: string; object?: string; nameField?: string }
+  | {
+      op: "addRelatedList";
+      relatedList: string;
+      before: string | null;
+      xml?: string;
+      object?: string;
+      nameField?: string;
+    }
   /** The Record context's Mobile & Lightning Actions (`platformActionList`, the iPad's ••• menu). `action` is the item's `actionName` ("Account.Log_Note"); `before` is the actionName it goes in front of, null for the end. */
-  | { op: "addAction"; action: string; before: string | null; /** The item's `actionType`; QuickAction when absent. */ actionType?: string; }
-  | { op: "removeAction"; action: string; /** Also remove the list itself (the undo of an add that created it). */ dropList?: boolean };
+  | {
+      op: "addAction";
+      action: string;
+      before: string | null;
+      /** The item's `actionType`; QuickAction when absent. */ actionType?: string;
+    }
+  | {
+      op: "removeAction";
+      action: string;
+      /** Also remove the list itself (the undo of an add that created it). */ dropList?: boolean;
+    };
 
 /** One edit to a compact layout's fields (the record header). `before` is the field it goes in front of, or null for the end. */
 export type CompactOp =
@@ -149,7 +197,13 @@ export type ListViewOp =
   | { op: "removeListColumn"; column: string }
   | { op: "addListColumn"; column: string; before: string | null }
   | { op: "setListFilterScope"; from: string | null; to: string }
-  | { op: "setListFilters"; from: ListViewFilter[]; to: ListViewFilter[]; fromLogic: string | null; toLogic: string | null };
+  | {
+      op: "setListFilters";
+      from: ListViewFilter[];
+      to: ListViewFilter[];
+      fromLogic: string | null;
+      toLogic: string | null;
+    };
 
 export interface MetadataDocRef {
   type: "Layout" | "CompactLayout" | "FlexiPage" | "ListView" | "CustomApplication";
@@ -199,7 +253,13 @@ export type FlexiPageOp =
       /** Facet regions the removed item pointed at, with their place among the page's elements. */
       facets?: { xml: string; at: number }[];
     }
-  | { op: "setComponentProperty"; component: FlexiComponentRef; property: FlexiPageProperty; from: string | null; to: string | null };
+  | {
+      op: "setComponentProperty";
+      component: FlexiComponentRef;
+      property: FlexiPageProperty;
+      from: string | null;
+      to: string | null;
+    };
 
 /**
  * One edit to the tab bar of a Lightning app (a CustomApplication's `<tabs>`; for an app installed from a
@@ -247,7 +307,12 @@ export interface LiveFlexiPage {
 export interface LiveLayout {
   type: "Layout";
   fullName: string;
-  sections: { label: string; nth: number; heading: boolean; columns: { field: string; behavior: FieldBehavior }[][] }[];
+  sections: {
+    label: string;
+    nth: number;
+    heading: boolean;
+    columns: { field: string; behavior: FieldBehavior }[][];
+  }[];
   relatedLists: string[];
   /** Profiles assigned the layout; null when that couldn't be read. */
   profiles: string[] | null;
@@ -278,7 +343,12 @@ export interface RelatedListOption {
  * Edits to one metadata document, deployed together. Each op is checked against
  * the document as retrieved; undo is the reversed inverse ops.
  */
-export type EditMetadataFix = LayoutEditFix | CompactLayoutEditFix | FlexiPageEditFix | ListViewEditFix | AppEditFix;
+export type EditMetadataFix =
+  | LayoutEditFix
+  | CompactLayoutEditFix
+  | FlexiPageEditFix
+  | ListViewEditFix
+  | AppEditFix;
 
 /**
  * "Make a copy just for this profile": clone a page layout or Lightning page under a new
@@ -661,7 +731,17 @@ export interface ItemDetail {
 /** One line of a flow's path; `depth` indents decision outcomes, loop bodies, and fault paths. */
 export interface FlowStep {
   depth: number;
-  kind: "decision" | "outcome" | "loop" | "lookup" | "assign" | "change" | "action" | "error" | "goto" | "path";
+  kind:
+    | "decision"
+    | "outcome"
+    | "loop"
+    | "lookup"
+    | "assign"
+    | "change"
+    | "action"
+    | "error"
+    | "goto"
+    | "path";
   text: string;
 }
 

@@ -52,10 +52,12 @@ export interface AppChange {
 }
 
 /** An app installed from a package has its namespace in front of its name. */
-export const isInstalledApp = (fullName: string): boolean => /^[A-Za-z][A-Za-z0-9]*__\w+$/.test(fullName);
+export const isInstalledApp = (fullName: string): boolean =>
+  /^[A-Za-z][A-Za-z0-9]*__\w+$/.test(fullName);
 
 /** The element holding the tabs a subscriber can change. */
-export const editableTabTag = (fullName: string): "tabs" | "subscriberTabs" => (isInstalledApp(fullName) ? "subscriberTabs" : "tabs");
+export const editableTabTag = (fullName: string): "tabs" | "subscriberTabs" =>
+  isInstalledApp(fullName) ? "subscriberTabs" : "tabs";
 
 const NAME = /^[\w.\-]+$/;
 
@@ -66,10 +68,12 @@ function assertName(name: string): void {
 const unwrap = (node: XmlNode) => unescapeXml(node.text ?? "");
 
 /** The tabs that can be arranged, in order. */
-export const appTabs = (root: XmlNode, fullName: string): string[] => childrenNamed(root, editableTabTag(fullName)).map(unwrap);
+export const appTabs = (root: XmlNode, fullName: string): string[] =>
+  childrenNamed(root, editableTabTag(fullName)).map(unwrap);
 
 /** The package's own tabs, which can't be changed (empty for an app of the org's own). */
-export const appFixedTabs = (root: XmlNode, fullName: string): string[] => (isInstalledApp(fullName) ? childrenNamed(root, "tabs").map(unwrap) : []);
+export const appFixedTabs = (root: XmlNode, fullName: string): string[] =>
+  isInstalledApp(fullName) ? childrenNamed(root, "tabs").map(unwrap) : [];
 
 function nodes(root: XmlNode, fullName: string): XmlNode[] {
   return childrenNamed(root, editableTabTag(fullName));
@@ -79,7 +83,11 @@ function findTab(root: XmlNode, fullName: string, tab: string): XmlNode {
   const node = nodes(root, fullName).find((f) => unwrap(f) === tab);
   if (!node) {
     const fixed = appFixedTabs(root, fullName).includes(tab);
-    throw new StaleAppError(fixed ? `${tab} belongs to the app's package, so it can't be changed.` : `${tab} isn't a tab of the app.`);
+    throw new StaleAppError(
+      fixed
+        ? `${tab} belongs to the app's package, so it can't be changed.`
+        : `${tab} isn't a tab of the app.`
+    );
   }
   return node;
 }
@@ -107,10 +115,15 @@ function detach(root: XmlNode, node: XmlNode): void {
   root.children.splice(root.children.indexOf(node), 1);
 }
 
-const position = (root: XmlNode, fullName: string, node: XmlNode) => `Position ${nodes(root, fullName).indexOf(node) + 1} of ${nodes(root, fullName).length}`;
+const position = (root: XmlNode, fullName: string, node: XmlNode) =>
+  `Position ${nodes(root, fullName).indexOf(node) + 1} of ${nodes(root, fullName).length}`;
 
 /** Apply one op to `root` in place; returns its inverse and what changed, in words. */
-export function applyAppOp(root: XmlNode, fullName: string, op: AppOp): { inverse: AppOp; change: AppChange } {
+export function applyAppOp(
+  root: XmlNode,
+  fullName: string,
+  op: AppOp
+): { inverse: AppOp; change: AppChange } {
   switch (op.op) {
     case "moveAppTab": {
       assertName(op.tab);
@@ -138,12 +151,17 @@ export function applyAppOp(root: XmlNode, fullName: string, op: AppOp): { invers
     case "addAppTab": {
       assertName(op.tab);
       const present = [...nodes(root, fullName).map(unwrap), ...appFixedTabs(root, fullName)];
-      if (present.includes(op.tab)) throw new StaleAppError(`${op.tab} is already a tab of the app.`);
+      if (present.includes(op.tab))
+        throw new StaleAppError(`${op.tab} is already a tab of the app.`);
       const node = leaf(editableTabTag(fullName), op.tab);
       placeTab(root, fullName, node, op.before);
       return {
         inverse: { op: "removeAppTab", tab: op.tab },
-        change: { tab: `Tab ${op.tab}`, before: "(not a tab of the app)", after: position(root, fullName, node) },
+        change: {
+          tab: `Tab ${op.tab}`,
+          before: "(not a tab of the app)",
+          after: position(root, fullName, node),
+        },
       };
     }
     default:
@@ -152,7 +170,11 @@ export function applyAppOp(root: XmlNode, fullName: string, op: AppOp): { invers
 }
 
 /** Apply ops in order to a copy of `root`. The inverse ops undo them all, in the order given. */
-export function applyAppOps(root: XmlNode, fullName: string, ops: AppOp[]): { root: XmlNode; inverse: AppOp[]; changes: AppChange[] } {
+export function applyAppOps(
+  root: XmlNode,
+  fullName: string,
+  ops: AppOp[]
+): { root: XmlNode; inverse: AppOp[]; changes: AppChange[] } {
   const copy = cloneNode(root);
   const inverse: AppOp[] = [];
   const changes: AppChange[] = [];

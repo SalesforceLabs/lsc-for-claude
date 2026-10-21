@@ -131,14 +131,30 @@ export function register(server: McpServer) {
       format: z
         .enum(["markdown", "json"])
         .optional()
-        .describe("markdown (default) for a readable report; json for { items, checkedOrg, orgNote? }, the form the app renders as a card"),
+        .describe(
+          "markdown (default) for a readable report; json for { items, checkedOrg, orgNote? }, the form the app renders as a card"
+        ),
     },
     async ({ symptom, checkOrg, format }) => {
       if (format === "json") {
         try {
-          return { content: [{ type: "text", text: JSON.stringify(await diagnosePayload(symptom, checkOrg)) }] };
+          return {
+            content: [
+              { type: "text", text: JSON.stringify(await diagnosePayload(symptom, checkOrg)) },
+            ],
+          };
         } catch (error) {
-          return { content: [{ type: "text", text: JSON.stringify({ error: error instanceof Error ? error.message : String(error) }) }], isError: true };
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  error: error instanceof Error ? error.message : String(error),
+                }),
+              },
+            ],
+            isError: true,
+          };
         }
       }
       let targetOrg: string | undefined;
@@ -164,27 +180,49 @@ export function register(server: McpServer) {
       feature: z
         .string()
         .optional()
-        .describe("Narrow the check to one feature by id or title, e.g. 'samples' or 'Sample Management'"),
+        .describe(
+          "Narrow the check to one feature by id or title, e.g. 'samples' or 'Sample Management'"
+        ),
     },
     async ({ user, feature }) => {
-      const text = (data: unknown, isError = false) => ({ content: [{ type: "text" as const, text: JSON.stringify(data) }], ...(isError ? { isError: true } : {}) });
+      const text = (data: unknown, isError = false) => ({
+        content: [{ type: "text" as const, text: JSON.stringify(data) }],
+        ...(isError ? { isError: true } : {}),
+      });
       const connection = await validateOrgConnection();
-      if (!connection.valid || !connection.targetOrg) return text({ error: connection.error || "No Salesforce org connected." }, true);
+      if (!connection.valid || !connection.targetOrg)
+        return text({ error: connection.error || "No Salesforce org connected." }, true);
       const org = connection.targetOrg;
       let featureId: string | null = null;
       if (feature?.trim()) {
         featureId = resolveFeatureId(feature);
-        if (!featureId) return text({ error: `No single feature matches "${feature}". Omit feature to check the user overall.` }, true);
+        if (!featureId)
+          return text(
+            {
+              error: `No single feature matches "${feature}". Omit feature to check the user overall.`,
+            },
+            true
+          );
       }
       try {
         return await withSharedReads(async () => {
           const found = await findUserInOrg(user, org);
           if (found.kind === "none") return text({ error: `No user found for "${user}".` }, true);
           if (found.kind === "many") {
-            return text({ matches: found.matches, message: `Several users match "${user}". Ask which one is meant, then call again with the username or Id.` });
+            return text({
+              matches: found.matches,
+              message: `Several users match "${user}". Ask which one is meant, then call again with the username or Id.`,
+            });
           }
           const trace = await traceUser(found.user.id, featureId, org);
-          return text({ resolvedUser: { id: found.user.id, name: found.user.name, username: found.user.username }, ...trace });
+          return text({
+            resolvedUser: {
+              id: found.user.id,
+              name: found.user.name,
+              username: found.user.username,
+            },
+            ...trace,
+          });
         });
       } catch (error) {
         return text({ error: error instanceof Error ? error.message : String(error) }, true);

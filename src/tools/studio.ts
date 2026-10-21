@@ -5,7 +5,13 @@ import { validateOrgConnection } from "../salesforce/auth.js";
 import { getFeature, listFeatures } from "../studio/features.js";
 import { collectFeatureMap, collectItemDetail, collectProfileOptions } from "../studio/collect.js";
 import { findProfileApp, readLiveApp } from "../studio/metadata/live-app.js";
-import { flexiPageReach, readLiveCompactLayout, readLiveFlexiPage, readLiveLayout, readLiveListView } from "../studio/metadata/live.js";
+import {
+  flexiPageReach,
+  readLiveCompactLayout,
+  readLiveFlexiPage,
+  readLiveLayout,
+  readLiveListView,
+} from "../studio/metadata/live.js";
 import { resolveSetupLinks, type SetupRef } from "../studio/setup-links.js";
 import { collectCatalog } from "../studio/component-catalog.js";
 import { collectComponentProps } from "../studio/component-props.js";
@@ -23,7 +29,12 @@ import { runReport } from "../studio/screens/report-data.js";
 import { loadProgress } from "../studio/published-progress.js";
 import { mapProgress, mapKey, readinessKey } from "../studio/map-progress.js";
 import { collectUnpublished } from "../studio/unpublished.js";
-import { cacheContents, cacheFile, cacheLog, collectMetadataCache } from "../studio/metadata-cache.js";
+import {
+  cacheContents,
+  cacheFile,
+  cacheLog,
+  collectMetadataCache,
+} from "../studio/metadata-cache.js";
 import { checkObjectSync, collectObjectSync } from "../studio/object-sync.js";
 import { fixProgress, startFixChange } from "../studio/fix-progress.js";
 import { compileInlineLwc } from "../studio/lwc/compile.js";
@@ -43,7 +54,12 @@ import {
 } from "../studio/perf.js";
 import { nfrProfileSchema, parseNfrProfile } from "../perf/nfr.js";
 import { renderAssessment, type AssessmentResult } from "../perf/assessment.js";
-import { activeSimulation, cancelSimulation, simulationStatus, startSimulation } from "../studio/simulate.js";
+import {
+  activeSimulation,
+  cancelSimulation,
+  simulationStatus,
+  startSimulation,
+} from "../studio/simulate.js";
 import { renderSimulation } from "./perf-simulate.js";
 import { MAX_SIM_RUNS, renderRunsSection, type SimRunsSummary } from "../studio/sim-runs.js";
 import type { SimulationResult } from "../perf/simulate.js";
@@ -64,7 +80,11 @@ import { tabOptions } from "../studio/apps/tab-options.js";
 import { APP_BUILDER_GUIDE } from "../studio/apps/guide.js";
 import { MAX_FILES, MAX_FILE_BYTES } from "../studio/apps/lint.js";
 // --- custom scripts: runner ---
-import { createOrgReader, listScriptTestRecords, runScriptTest } from "../studio/scripts/runner/index.js";
+import {
+  createOrgReader,
+  listScriptTestRecords,
+  runScriptTest,
+} from "../studio/scripts/runner/index.js";
 
 /**
  * LSC Studio data tools. These return raw JSON for the Electron app's visual
@@ -111,16 +131,41 @@ const behavior = z.enum(["Edit", "Required", "Readonly"]);
 const layoutOpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("moveField"), field: z.string(), to: fieldSlot }),
   z.object({ op: z.literal("removeField"), field: z.string() }),
-  z.object({ op: z.literal("addField"), field: z.string(), behavior, to: fieldSlot, xml: z.string().optional(), relatedObject: z.boolean().optional() }),
+  z.object({
+    op: z.literal("addField"),
+    field: z.string(),
+    behavior,
+    to: fieldSlot,
+    xml: z.string().optional(),
+    relatedObject: z.boolean().optional(),
+  }),
   z.object({ op: z.literal("setFieldBehavior"), field: z.string(), from: behavior, to: behavior }),
   z.object({ op: z.literal("moveSection"), section: sectionRef, before: sectionRef.nullable() }),
   z.object({ op: z.literal("removeSection"), section: sectionRef }),
   z.object({ op: z.literal("addSection"), xml: z.string(), before: sectionRef.nullable() }),
-  z.object({ op: z.literal("setSectionHeading"), section: sectionRef, from: z.boolean(), to: z.boolean() }),
-  z.object({ op: z.literal("moveRelatedList"), relatedList: z.string(), before: z.string().nullable() }),
+  z.object({
+    op: z.literal("setSectionHeading"),
+    section: sectionRef,
+    from: z.boolean(),
+    to: z.boolean(),
+  }),
+  z.object({
+    op: z.literal("moveRelatedList"),
+    relatedList: z.string(),
+    before: z.string().nullable(),
+  }),
   z.object({ op: z.literal("removeRelatedList"), relatedList: z.string() }),
-  z.object({ op: z.literal("addAction"), action: z.string().max(255), before: z.string().max(255).nullable(), actionType: z.string().max(60).optional() }),
-  z.object({ op: z.literal("removeAction"), action: z.string().max(255), dropList: z.boolean().optional() }),
+  z.object({
+    op: z.literal("addAction"),
+    action: z.string().max(255),
+    before: z.string().max(255).nullable(),
+    actionType: z.string().max(60).optional(),
+  }),
+  z.object({
+    op: z.literal("removeAction"),
+    action: z.string().max(255),
+    dropList: z.boolean().optional(),
+  }),
   z.object({
     op: z.literal("addRelatedList"),
     relatedList: z.string(),
@@ -130,10 +175,18 @@ const layoutOpSchema = z.discriminatedUnion("op", [
     nameField: z.string().optional(),
   }),
 ]);
-const flexiItemRef = z.object({ component: z.string().max(255), identifier: z.string().max(255).nullable(), index: z.number().int().min(0) });
+const flexiItemRef = z.object({
+  component: z.string().max(255),
+  identifier: z.string().max(255).nullable(),
+  index: z.number().int().min(0),
+});
 const flexiComponentRef = z.object({ region: z.string().max(255), item: flexiItemRef });
 const flexiPageOpSchema = z.discriminatedUnion("op", [
-  z.object({ op: z.literal("moveComponent"), component: flexiComponentRef, before: flexiItemRef.nullable() }),
+  z.object({
+    op: z.literal("moveComponent"),
+    component: flexiComponentRef,
+    before: flexiItemRef.nullable(),
+  }),
   z.object({ op: z.literal("removeComponent"), component: flexiComponentRef }),
   z.object({
     op: z.literal("addComponent"),
@@ -141,9 +194,15 @@ const flexiPageOpSchema = z.discriminatedUnion("op", [
     before: flexiItemRef.nullable(),
     component: z.string().max(255),
     identifier: z.string().max(255).nullable(),
-    properties: z.array(z.object({ name: z.string().max(255), value: z.string().max(4000) })).max(50).optional(),
+    properties: z
+      .array(z.object({ name: z.string().max(255), value: z.string().max(4000) }))
+      .max(50)
+      .optional(),
     xml: z.string().max(1_000_000).optional(),
-    facets: z.array(z.object({ xml: z.string().max(1_000_000), at: z.number().int().min(0) })).max(100).optional(),
+    facets: z
+      .array(z.object({ xml: z.string().max(1_000_000), at: z.number().int().min(0) }))
+      .max(100)
+      .optional(),
   }),
   z.object({
     op: z.literal("setComponentProperty"),
@@ -155,11 +214,22 @@ const flexiPageOpSchema = z.discriminatedUnion("op", [
 ]);
 const flexiPageName = z.string().regex(/^\w+$/).max(255);
 
-const appName = z.string().regex(/^[\w]+$/).max(255);
+const appName = z
+  .string()
+  .regex(/^[\w]+$/)
+  .max(255);
 const appOpSchema = z.discriminatedUnion("op", [
-  z.object({ op: z.literal("moveAppTab"), tab: z.string().max(255), before: z.string().max(255).nullable() }),
+  z.object({
+    op: z.literal("moveAppTab"),
+    tab: z.string().max(255),
+    before: z.string().max(255).nullable(),
+  }),
   z.object({ op: z.literal("removeAppTab"), tab: z.string().max(255) }),
-  z.object({ op: z.literal("addAppTab"), tab: z.string().max(255), before: z.string().max(255).nullable() }),
+  z.object({
+    op: z.literal("addAppTab"),
+    tab: z.string().max(255),
+    before: z.string().max(255).nullable(),
+  }),
 ]);
 
 const compactOpSchema = z.discriminatedUnion("op", [
@@ -167,7 +237,11 @@ const compactOpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("removeCompactField"), field: z.string() }),
   z.object({ op: z.literal("addCompactField"), field: z.string(), before: z.string().nullable() }),
 ]);
-const listViewFilterSchema = z.object({ field: z.string().max(255), operation: z.string().max(40), value: z.string().max(1000) });
+const listViewFilterSchema = z.object({
+  field: z.string().max(255),
+  operation: z.string().max(40),
+  value: z.string().max(1000),
+});
 const listViewOpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("moveListColumn"), column: z.string(), before: z.string().nullable() }),
   z.object({ op: z.literal("removeListColumn"), column: z.string() }),
@@ -181,12 +255,25 @@ const listViewOpSchema = z.discriminatedUnion("op", [
     toLogic: z.string().max(255).nullable(),
   }),
 ]);
-const layoutName = z.string().regex(/^[^\r\n:]+-[^\r\n]+$/).max(255);
-const compactLayoutName = z.string().regex(/^\w+\.\w+$/).max(255);
+const layoutName = z
+  .string()
+  .regex(/^[^\r\n:]+-[^\r\n]+$/)
+  .max(255);
+const compactLayoutName = z
+  .string()
+  .regex(/^\w+\.\w+$/)
+  .max(255);
 const listViewName = compactLayoutName;
 
 const fixSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("assignPsl"), label: z.string(), userId: id, userName: z.string(), pslId: id, pslLabel: z.string() }),
+  z.object({
+    kind: z.literal("assignPsl"),
+    label: z.string(),
+    userId: id,
+    userName: z.string(),
+    pslId: id,
+    pslLabel: z.string(),
+  }),
   z.object({
     kind: z.literal("removePsl"),
     label: z.string(),
@@ -210,7 +297,12 @@ const fixSchema = z.discriminatedUnion("kind", [
     kind: z.literal("setActive"),
     label: z.string(),
     record: z.discriminatedUnion("type", [
-      z.object({ type: z.literal("config"), category: z.string(), developerName: z.string(), label: z.string() }),
+      z.object({
+        type: z.literal("config"),
+        category: z.string(),
+        developerName: z.string(),
+        label: z.string(),
+      }),
       z.object({ type: z.literal("triggerHandler"), developerName: z.string(), label: z.string() }),
       z.object({ type: z.literal("validationRule"), id, label: z.string() }),
     ]),
@@ -251,7 +343,13 @@ const fixSchema = z.discriminatedUnion("kind", [
     developerName: z.string(),
     recordLabel: z.string(),
   }),
-  z.object({ kind: z.literal("assignAccess"), label: z.string(), userId: id, userName: z.string(), access: accessSchema }),
+  z.object({
+    kind: z.literal("assignAccess"),
+    label: z.string(),
+    userId: id,
+    userName: z.string(),
+    access: accessSchema,
+  }),
   z.object({
     kind: z.literal("removeAccess"),
     label: z.string(),
@@ -270,7 +368,10 @@ const fixSchema = z.discriminatedUnion("kind", [
     objectName: z.string().max(80).nullable(),
     operationEventType: scriptEventSchema.nullable(),
     code: z.string().max(131072),
-    assign: z.array(z.object({ stageObjectId: id, role: scriptRoleSchema })).max(20).optional(),
+    assign: z
+      .array(z.object({ stageObjectId: id, role: scriptRoleSchema }))
+      .max(20)
+      .optional(),
     adoptBundle: z.boolean().optional(),
   }),
   z.object({
@@ -279,9 +380,18 @@ const fixSchema = z.discriminatedUnion("kind", [
     scriptId: id,
     scriptName: z.string(),
     from: z.object({ code: z.string().max(131072), fields: scriptFieldsSchema }),
-    to: z.object({ code: z.string().max(131072).optional(), fields: scriptFieldsSchema.partial().optional() }),
+    to: z.object({
+      code: z.string().max(131072).optional(),
+      fields: scriptFieldsSchema.partial().optional(),
+    }),
   }),
-  z.object({ kind: z.literal("deleteCustomScript"), label: z.string(), scriptId: id, scriptName: z.string(), deleteBundle: z.boolean() }),
+  z.object({
+    kind: z.literal("deleteCustomScript"),
+    label: z.string(),
+    scriptId: id,
+    scriptName: z.string(),
+    deleteBundle: z.boolean(),
+  }),
   z.object({
     kind: z.literal("assignCustomScript"),
     label: z.string(),
@@ -315,12 +425,20 @@ const fixSchema = z.discriminatedUnion("kind", [
     // Ops are checked against the document's type when the edit is previewed.
     doc: z.discriminatedUnion("type", [
       z.object({ type: z.literal("Layout"), fullName: layoutName, label: z.string() }),
-      z.object({ type: z.literal("CompactLayout"), fullName: compactLayoutName, label: z.string() }),
+      z.object({
+        type: z.literal("CompactLayout"),
+        fullName: compactLayoutName,
+        label: z.string(),
+      }),
       z.object({ type: z.literal("FlexiPage"), fullName: flexiPageName, label: z.string() }),
       z.object({ type: z.literal("ListView"), fullName: listViewName, label: z.string() }),
       z.object({ type: z.literal("CustomApplication"), fullName: appName, label: z.string() }),
     ]),
-    ops: z.array(z.union([layoutOpSchema, compactOpSchema, flexiPageOpSchema, listViewOpSchema, appOpSchema])).max(200),
+    ops: z
+      .array(
+        z.union([layoutOpSchema, compactOpSchema, flexiPageOpSchema, listViewOpSchema, appOpSchema])
+      )
+      .max(200),
   }),
   z.object({
     kind: z.literal("copyForProfile"),
@@ -329,13 +447,28 @@ const fixSchema = z.discriminatedUnion("kind", [
       z.object({ type: z.literal("Layout"), fullName: layoutName, label: z.string() }),
       z.object({ type: z.literal("FlexiPage"), fullName: flexiPageName, label: z.string() }),
     ]),
-    copy: z.object({ fullName: z.string().regex(/^[^\r\n:\\/]+$/).max(255), label: z.string().max(255) }),
+    copy: z.object({
+      fullName: z
+        .string()
+        .regex(/^[^\r\n:\\/]+$/)
+        .max(255),
+      label: z.string().max(255),
+    }),
     profile: z.string().max(255),
-    ops: z.array(z.union([layoutOpSchema, flexiPageOpSchema])).max(200).optional(),
+    ops: z
+      .array(z.union([layoutOpSchema, flexiPageOpSchema]))
+      .max(200)
+      .optional(),
     revert: z
       .object({
         moves: z
-          .array(z.object({ recordType: z.string().nullable().optional(), app: z.string().optional(), added: z.boolean().optional() }))
+          .array(
+            z.object({
+              recordType: z.string().nullable().optional(),
+              app: z.string().optional(),
+              added: z.boolean().optional(),
+            })
+          )
           .max(200),
       })
       .optional(),
@@ -363,7 +496,10 @@ export function register(server: McpServer) {
     "LSC Studio (GUI data): collect every configuration surface for one LSC feature (objects, record types, layouts, custom scripts, validation rules, Apex triggers, flows, trigger handlers, DB Schema, actions, Admin Console settings, compliance) with health findings. Read-only. Returns JSON.",
     {
       featureId: z.string().describe("Feature id from studio_list_features, e.g. 'visit'"),
-      refresh: z.boolean().optional().describe("Read the org again instead of reusing reads shared in the last minute"),
+      refresh: z
+        .boolean()
+        .optional()
+        .describe("Read the org again instead of reusing reads shared in the last minute"),
     },
     async ({ featureId, refresh }) => {
       const feature = getFeature(featureId);
@@ -382,9 +518,13 @@ export function register(server: McpServer) {
 
   server.tool(
     "studio_feature_map_progress",
-    "LSC Studio (GUI data): which surface a running studio_feature_map (or, with `readiness`, studio_readiness) load for a feature is on — steps waiting / running / done / failed, with start and finish times and counts like \"12 layouts\" — or null when none has run. Read-only; makes no org calls. Returns JSON.",
+    'LSC Studio (GUI data): which surface a running studio_feature_map (or, with `readiness`, studio_readiness) load for a feature is on — steps waiting / running / done / failed, with start and finish times and counts like "12 layouts" — or null when none has run. Read-only; makes no org calls. Returns JSON.',
     { featureId: z.string().min(1).max(80), readiness: z.boolean().optional() },
-    async ({ featureId, readiness }) => json({ progress: mapProgress(readiness ? readinessKey(featureId) : mapKey(featureId)), now: Date.now() })
+    async ({ featureId, readiness }) =>
+      json({
+        progress: mapProgress(readiness ? readinessKey(featureId) : mapKey(featureId)),
+        now: Date.now(),
+      })
   );
 
   server.tool(
@@ -392,8 +532,18 @@ export function register(server: McpServer) {
     "LSC Studio (GUI data): is one LSC feature ready for the field? Runs the feature's validation rules and Studio's checks (switched on, access, data, settings, iPad), each pass/fail/unknown with how to fix it. Read-only. Returns JSON.",
     {
       featureId: z.string().describe("Feature id from studio_list_features, e.g. 'visit'"),
-      profile: z.string().min(1).max(255).optional().describe("Check for this profile (its name) only; checks that can't tell profiles apart are marked everyProfile"),
-      refresh: z.boolean().optional().describe("Read the org again instead of reusing reads shared in the last minute"),
+      profile: z
+        .string()
+        .min(1)
+        .max(255)
+        .optional()
+        .describe(
+          "Check for this profile (its name) only; checks that can't tell profiles apart are marked everyProfile"
+        ),
+      refresh: z
+        .boolean()
+        .optional()
+        .describe("Read the org again instead of reusing reads shared in the last minute"),
     },
     async ({ featureId, profile, refresh }) => {
       const feature = getFeature(featureId);
@@ -412,8 +562,18 @@ export function register(server: McpServer) {
     "studio_setup_overview",
     "LSC Studio (GUI data): org-wide setup signals no single feature owns — license capacity, metadata cache freshness, changes not yet published to the iPad, territory model. Read-only. Returns JSON.",
     {
-      profile: z.string().min(1).max(255).optional().describe("Check for this profile (its name) only; checks that can't tell profiles apart are marked everyProfile"),
-      refresh: z.boolean().optional().describe("Read the org again instead of reusing reads shared in the last minute"),
+      profile: z
+        .string()
+        .min(1)
+        .max(255)
+        .optional()
+        .describe(
+          "Check for this profile (its name) only; checks that can't tell profiles apart are marked everyProfile"
+        ),
+      refresh: z
+        .boolean()
+        .optional()
+        .describe("Read the org again instead of reusing reads shared in the last minute"),
     },
     async ({ profile, refresh }) => {
       const connection = await validateOrgConnection();
@@ -435,7 +595,10 @@ export function register(server: McpServer) {
     "LSC Studio (GUI data): match a pasted error or symptom against known causes and validation rules and, with `checkOrg`, run their checks against the connected org — the data behind diagnose_lsc_issue. Read-only. Returns JSON { items, checkedOrg, orgNote? }.",
     {
       text: z.string().min(1).max(20_000).describe("The error message or symptom"),
-      checkOrg: z.boolean().optional().describe("Run the matched checks against the connected org (default true)"),
+      checkOrg: z
+        .boolean()
+        .optional()
+        .describe("Run the matched checks against the connected org (default true)"),
     },
     async ({ text, checkOrg }) => {
       try {
@@ -451,8 +614,14 @@ export function register(server: McpServer) {
     "LSC Studio (GUI data): check one user's setup end to end — licenses, permission sets, territory, what syncs to their iPad, metadata cache, last sync — optionally for one feature, and point at the first broken link. Read-only. Returns JSON.",
     {
       userId: id,
-      featureId: z.string().optional().describe("Feature id to narrow the check to, e.g. 'samples'"),
-      refresh: z.boolean().optional().describe("Read the org again instead of reusing reads shared in the last minute"),
+      featureId: z
+        .string()
+        .optional()
+        .describe("Feature id to narrow the check to, e.g. 'samples'"),
+      refresh: z
+        .boolean()
+        .optional()
+        .describe("Read the org again instead of reusing reads shared in the last minute"),
     },
     async ({ userId, featureId, refresh }) => {
       if (featureId && !getFeature(featureId)) return jsonError(`Unknown feature: ${featureId}`);
@@ -472,27 +641,45 @@ export function register(server: McpServer) {
 
   server.tool(
     "studio_drift",
-    "LSC Studio (GUI data): configuration snapshots for \"What changed\" — list saved snapshots, save one of the org now, diff the org now against one, or delete one. Reads the org; writes only local snapshot files. Returns JSON.",
+    'LSC Studio (GUI data): configuration snapshots for "What changed" — list saved snapshots, save one of the org now, diff the org now against one, or delete one. Reads the org; writes only local snapshot files. Returns JSON.',
     {
       action: z.enum(["list", "save", "diff", "delete"]),
       id: z.string().optional().describe("Snapshot id, for diff and delete"),
       label: z.string().optional().describe("Label for a new snapshot"),
-      days: z.number().int().min(1).max(365).optional().describe("For list: how many days of recent changes (default 14)"),
-      refresh: z.boolean().optional().describe("Read the org again instead of reusing reads shared in the last minute"),
+      days: z
+        .number()
+        .int()
+        .min(1)
+        .max(365)
+        .optional()
+        .describe("For list: how many days of recent changes (default 14)"),
+      refresh: z
+        .boolean()
+        .optional()
+        .describe("Read the org again instead of reusing reads shared in the last minute"),
     },
     async ({ action, id: snapshotId, label, days, refresh }) => {
-      if ((action === "diff" || action === "delete") && !snapshotId) return jsonError(`${action} needs a snapshot id`);
+      if ((action === "diff" || action === "delete") && !snapshotId)
+        return jsonError(`${action} needs a snapshot id`);
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       const input =
-        action === "list" ? { action, days } : action === "save" ? { action, label } : { action, id: snapshotId! };
+        action === "list"
+          ? { action, days }
+          : action === "save"
+            ? { action, label }
+            : { action, id: snapshotId! };
       try {
         const org = connection.targetOrg;
         if (refresh) refreshSharedReads(org);
         // Only the list reads recent changes where a minute-old answer is fine; save and diff see the org as it is.
-        return json(await (input.action === "list" ? withSharedReads(() => drift(input, org)) : drift(input, org)));
+        return json(
+          await (input.action === "list"
+            ? withSharedReads(() => drift(input, org))
+            : drift(input, org))
+        );
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -523,9 +710,22 @@ export function register(server: McpServer) {
   server.tool(
     "studio_metadata_doc",
     "LSC Studio (GUI data): a page layout, compact layout, Lightning page or list view as it is in the org now — a layout's sections, fields, related lists and the profiles using it; a compact layout's fields, the fields it could take and the record types using it; a Lightning page's regions, facets and components, the profiles and apps it's assigned in and whether it's managed; a list view's columns, filters, filter scope, who it's shared with and the object's fields; a Lightning app's tab bar (the tabs that can be arranged, the package's fixed ones, the tabs it could take and the profiles that open it) — and whether the org is production, for editing it in the iPad preview. Read-only. Returns JSON.",
-    { type: z.enum(["Layout", "CompactLayout", "FlexiPage", "ListView", "CustomApplication"]), fullName: z.string().max(255) },
+    {
+      type: z.enum(["Layout", "CompactLayout", "FlexiPage", "ListView", "CustomApplication"]),
+      fullName: z.string().max(255),
+    },
     async ({ type, fullName }) => {
-      const name = (type === "Layout" ? layoutName : type === "CompactLayout" ? compactLayoutName : type === "ListView" ? listViewName : type === "CustomApplication" ? appName : flexiPageName).safeParse(fullName);
+      const name = (
+        type === "Layout"
+          ? layoutName
+          : type === "CompactLayout"
+            ? compactLayoutName
+            : type === "ListView"
+              ? listViewName
+              : type === "CustomApplication"
+                ? appName
+                : flexiPageName
+      ).safeParse(fullName);
       if (!name.success) return jsonError(`Invalid ${type} name: ${fullName}`);
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
@@ -572,7 +772,8 @@ export function register(server: McpServer) {
     "LSC Studio (GUI data): the profiles a Lightning page is assigned to and the apps it's the default page of, for when `studio_metadata_doc` answered before that was worked out (`reachPending`). Read-only. Returns JSON (null fields when it couldn't be read).",
     { fullName: z.string().max(255) },
     async ({ fullName }) => {
-      if (!flexiPageName.safeParse(fullName).success) return jsonError(`Invalid FlexiPage name: ${fullName}`);
+      if (!flexiPageName.safeParse(fullName).success)
+        return jsonError(`Invalid FlexiPage name: ${fullName}`);
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
@@ -584,8 +785,11 @@ export function register(server: McpServer) {
 
   server.tool(
     "studio_component_catalog",
-    "LSC Studio (GUI data): the components \"Insert component…\" offers for a Home or record Lightning page in the iPad preview — Recent items, the org's inline LWCs, related lists of synced child objects, and greyed-out ones that need Lightning App Builder. Read-only. Returns JSON.",
-    { pageType: z.enum(["HomePage", "RecordPage"]), sobject: z.string().regex(/^\w+$/).max(80).nullable().optional() },
+    'LSC Studio (GUI data): the components "Insert component…" offers for a Home or record Lightning page in the iPad preview — Recent items, the org\'s inline LWCs, related lists of synced child objects, and greyed-out ones that need Lightning App Builder. Read-only. Returns JSON.',
+    {
+      pageType: z.enum(["HomePage", "RecordPage"]),
+      sobject: z.string().regex(/^\w+$/).max(80).nullable().optional(),
+    },
     async ({ pageType, sobject }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
@@ -602,7 +806,13 @@ export function register(server: McpServer) {
   server.tool(
     "studio_component_props",
     "LSC Studio (GUI data): the properties of a Home or record Lightning page component for the iPad preview's properties sheet — a custom LWC's from its js-meta.xml targetConfigs, standard and LSC components from a curated table — each with type, range, options, default and whether the iPad reads it. Read-only. Returns JSON.",
-    { component: z.string().regex(/^\w+(:\w+)?$/).max(160), pageType: z.enum(["HomePage", "RecordPage"]).optional() },
+    {
+      component: z
+        .string()
+        .regex(/^\w+(:\w+)?$/)
+        .max(160),
+      pageType: z.enum(["HomePage", "RecordPage"]).optional(),
+    },
     async ({ component, pageType }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
@@ -618,7 +828,7 @@ export function register(server: McpServer) {
 
   server.tool(
     "studio_list_profiles",
-    "LSC Studio (GUI data): list profiles with active users, for Studio's \"View as\" lens. Read-only. Returns JSON.",
+    'LSC Studio (GUI data): list profiles with active users, for Studio\'s "View as" lens. Read-only. Returns JSON.',
     {},
     async () => {
       const connection = await validateOrgConnection();
@@ -640,20 +850,48 @@ export function register(server: McpServer) {
       refs: z
         .array(
           z.discriminatedUnion("type", [
-            z.object({ type: z.literal("layout"), object: z.string().max(80), name: z.string().max(255) }),
-            z.object({ type: z.literal("field"), object: z.string().max(80), field: z.string().max(80) }),
-            z.object({ type: z.literal("compactLayout"), object: z.string().max(80), name: z.string().max(255) }),
+            z.object({
+              type: z.literal("layout"),
+              object: z.string().max(80),
+              name: z.string().max(255),
+            }),
+            z.object({
+              type: z.literal("field"),
+              object: z.string().max(80),
+              field: z.string().max(80),
+            }),
+            z.object({
+              type: z.literal("compactLayout"),
+              object: z.string().max(80),
+              name: z.string().max(255),
+            }),
             z.object({ type: z.literal("flexiPage"), name: z.string().max(255) }),
-            z.object({ type: z.literal("listView"), object: z.string().max(80), name: z.string().max(255) }),
-            z.object({ type: z.literal("recordType"), object: z.string().max(80), name: z.string().max(255) }),
-            z.object({ type: z.literal("validationRule"), object: z.string().max(80), id: z.string().max(18) }),
+            z.object({
+              type: z.literal("listView"),
+              object: z.string().max(80),
+              name: z.string().max(255),
+            }),
+            z.object({
+              type: z.literal("recordType"),
+              object: z.string().max(80),
+              name: z.string().max(255),
+            }),
+            z.object({
+              type: z.literal("validationRule"),
+              object: z.string().max(80),
+              id: z.string().max(18),
+            }),
             z.object({ type: z.literal("apexTrigger"), id: z.string().max(18) }),
             z.object({ type: z.literal("flow"), id: z.string().max(18) }),
             z.object({ type: z.literal("user"), id: z.string().max(18) }),
             z.object({ type: z.literal("profile"), id: z.string().max(18) }),
             z.object({ type: z.literal("permissionSet"), id: z.string().max(18) }),
             z.object({ type: z.literal("territory"), id: z.string().max(18) }),
-            z.object({ type: z.literal("record"), sobject: z.string().max(80), id: z.string().max(18) }),
+            z.object({
+              type: z.literal("record"),
+              sobject: z.string().max(80),
+              id: z.string().max(18),
+            }),
           ])
         )
         .max(10),
@@ -694,7 +932,10 @@ export function register(server: McpServer) {
     "LSC Studio (GUI data): what the iPad actually renders for one user of a profile — tabs, Home page components, record layouts, and list views — read from the profile's published mobile metadata cache with the user's permission sets merged in (the profile's most typical user unless userId is given). Read-only. Returns JSON.",
     {
       profile: z.string().min(1).max(255),
-      userId: z.string().regex(/^[a-zA-Z0-9]{15,18}$/).optional(),
+      userId: z
+        .string()
+        .regex(/^[a-zA-Z0-9]{15,18}$/)
+        .optional(),
       mobileLogins: z
         .array(
           z.object({
@@ -717,7 +958,9 @@ export function register(server: McpServer) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await loadPublishedIpad(profile, connection.targetOrg, userId, mobileLogins ?? []));
+        return json(
+          await loadPublishedIpad(profile, connection.targetOrg, userId, mobileLogins ?? [])
+        );
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -935,7 +1178,13 @@ export function register(server: McpServer) {
   server.tool(
     "studio_report_data",
     "LSC Studio (GUI data): one report's result for the iPad preview's View Report sheet, run read-only as the connected account (Summary and Tabular only; first 150 rows), reused for six hours from memory. Read-only. Returns JSON { id, data } — data is null when the report couldn't be run here. `userId` is the previewed rep; it doesn't change the run.",
-    { reportId: z.string().regex(/^00O[A-Za-z0-9]{12,15}$/), userId: z.string().regex(/^[a-zA-Z0-9]{15,18}$/).optional() },
+    {
+      reportId: z.string().regex(/^00O[A-Za-z0-9]{12,15}$/),
+      userId: z
+        .string()
+        .regex(/^[a-zA-Z0-9]{15,18}$/)
+        .optional(),
+    },
     async ({ reportId }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
@@ -982,7 +1231,9 @@ export function register(server: McpServer) {
           orgId: z.string().max(18).optional(),
         })
         .optional()
-        .describe("The previewed rep's login, made by Studio through the LSC mobile app's connected app; answered as them instead of the sf CLI connection"),
+        .describe(
+          "The previewed rep's login, made by Studio through the LSC mobile app's connected app; answered as them instead of the sf CLI connection"
+        ),
     },
     async ({ method, path, body, mobileLogin }) => {
       const connection = await validateOrgConnection();
@@ -1029,7 +1280,12 @@ export function register(server: McpServer) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await listScriptTestRecords({ type, objectName, search }, createOrgReader(connection.targetOrg)));
+        return json(
+          await listScriptTestRecords(
+            { type, objectName, search },
+            createOrgReader(connection.targetOrg)
+          )
+        );
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -1089,21 +1345,34 @@ const runAsLogin = z
     userId: z.string().max(18).optional(),
   })
   .optional()
-  .describe("A test user's login, made by Studio through the LSC mobile app's connected app; the read is answered as them (their sharing and field access), never as the sf CLI admin. The token is used for this call only and never returned");
+  .describe(
+    "A test user's login, made by Studio through the LSC mobile app's connected app; the read is answered as them (their sharing and field access), never as the sf CLI admin. The token is used for this call only and never returned"
+  );
 
 const appInputShape = {
   name: z.string().regex(/^\w{1,80}$/),
   target: z.enum(["home", "record", "action", "tab"]),
-  objectApiName: z.string().regex(/^\w{1,80}$/).optional(),
+  objectApiName: z
+    .string()
+    .regex(/^\w{1,80}$/)
+    .optional(),
   files: z.array(appFileSchema).max(MAX_FILES),
   tab: z
     .object({
       label: z.string().max(80).optional(),
-      application: z.string().regex(/^\w{1,80}$/).optional(),
-      profiles: z.array(z.string().regex(/^[^/\\]{1,120}$/)).max(50).optional(),
+      application: z
+        .string()
+        .regex(/^\w{1,80}$/)
+        .optional(),
+      profiles: z
+        .array(z.string().regex(/^[^/\\]{1,120}$/))
+        .max(50)
+        .optional(),
     })
     .optional()
-    .describe("tab target only: label, the CustomApplication that gets the tab, and the profiles that see it"),
+    .describe(
+      "tab target only: label, the CustomApplication that gets the tab, and the profiles that see it"
+    ),
 };
 
 /** The LSC App builder's tools (Studio → Build → LSC apps). Read-only; the deploy is in registerFixTools. */
@@ -1120,13 +1389,26 @@ function registerAppTools(server: McpServer) {
     "LSC Studio (GUI only): check an LSC App's files — lint (meta file, targets, mobileHeight, naming), a real compile, the offline scan, and (when an org is connected) whether DB Schema syncs the objects it reads. Needs no org to compile. Read-only. Returns JSON { ok, issues, offline, script?, placeholders, mobileHeight?, objects? }.",
     {
       ...appInputShape,
-      userId: z.string().regex(/^005\w{12}(\w{3})?$/).optional().describe("Judge \"synced\" for this user's profile and permission sets"),
-      profile: z.string().regex(/^[^/\\]{1,120}$/).optional().describe("Judge \"synced\" for this profile (when no userId)"),
+      userId: z
+        .string()
+        .regex(/^005\w{12}(\w{3})?$/)
+        .optional()
+        .describe('Judge "synced" for this user\'s profile and permission sets'),
+      profile: z
+        .string()
+        .regex(/^[^/\\]{1,120}$/)
+        .optional()
+        .describe('Judge "synced" for this profile (when no userId)'),
     },
     async ({ userId, profile, ...input }) => {
       try {
         const connection = await validateOrgConnection();
-        return json(await checkApp(input, connection.valid ? connection.targetOrg : undefined, { userId, profile }));
+        return json(
+          await checkApp(input, connection.valid ? connection.targetOrg : undefined, {
+            userId,
+            profile,
+          })
+        );
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -1136,14 +1418,26 @@ function registerAppTools(server: McpServer) {
   server.tool(
     "studio_app_describe",
     `LSC Studio (GUI only): compact descriptions (real field API names, types, picklist values, whether DB Schema syncs it to the iPad, record count) of up to ${MAX_DESCRIBE_OBJECTS} objects, for the app builder. Read-only. Returns JSON { objects }.`,
-    { objects: z.array(z.string().regex(/^\w{1,80}$/)).min(1).max(MAX_DESCRIBE_OBJECTS), mobileLogin: runAsLogin },
+    {
+      objects: z
+        .array(z.string().regex(/^\w{1,80}$/))
+        .min(1)
+        .max(MAX_DESCRIBE_OBJECTS),
+      mobileLogin: runAsLogin,
+    },
     async ({ objects, mobileLogin }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json({ objects: await describeForApp(objects, connection.targetOrg, mobileLogin as RunAs | undefined) });
+        return json({
+          objects: await describeForApp(
+            objects,
+            connection.targetOrg,
+            mobileLogin as RunAs | undefined
+          ),
+        });
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -1160,7 +1454,9 @@ function registerAppTools(server: McpServer) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await sampleRecords(soql, connection.targetOrg, mobileLogin as RunAs | undefined));
+        return json(
+          await sampleRecords(soql, connection.targetOrg, mobileLogin as RunAs | undefined)
+        );
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -1370,7 +1666,9 @@ function registerPerfTools(server: McpServer) {
       }
       const named = typeof input.targetOrg === "string" ? input.targetOrg.trim().toLowerCase() : "";
       if (named && named !== connection.targetOrg.toLowerCase()) {
-        return json({ unsupported: `The call names another org (${input.targetOrg}) than the session's.` });
+        return json({
+          unsupported: `The call names another org (${input.targetOrg}) than the session's.`,
+        });
       }
       return json(await fixesForToolCall(name, input, connection.targetOrg));
     }
@@ -1408,7 +1706,7 @@ function registerPerfTools(server: McpServer) {
 
   server.tool(
     "studio_scope",
-    "LSC Studio (GUI data): every profile with active users in the connected org, grouped as iPad users, web-only LSC users, admins and integration users, or not LSC, with why and user counts — the Overview's \"Readiness for\" picker lists the first two. Read-only. Returns JSON { profiles }.",
+    'LSC Studio (GUI data): every profile with active users in the connected org, grouped as iPad users, web-only LSC users, admins and integration users, or not LSC, with why and user counts — the Overview\'s "Readiness for" picker lists the first two. Read-only. Returns JSON { profiles }.',
     {},
     async () => {
       const connection = await validateOrgConnection();
@@ -1459,7 +1757,12 @@ function registerPerfTools(server: McpServer) {
     "LSC Studio (GUI data): territories in the active model that a persona's users are in (listed users plus those a profile selection picks), with how many of them are in each. Read-only. Returns JSON { territories }.",
     {
       users: z.array(z.string().max(255)).max(50),
-      select: z.object({ profile: z.string().min(1).max(255), count: z.number().int().min(1).max(10).optional() }).optional(),
+      select: z
+        .object({
+          profile: z.string().min(1).max(255),
+          count: z.number().int().min(1).max(10).optional(),
+        })
+        .optional(),
     },
     async ({ users, select }) => {
       const connection = await validateOrgConnection();
@@ -1467,7 +1770,9 @@ function registerPerfTools(server: McpServer) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json({ territories: await perfTerritories({ users, select }, connection.targetOrg) });
+        return json({
+          territories: await perfTerritories({ users, select }, connection.targetOrg),
+        });
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -1483,7 +1788,9 @@ function registerPerfTools(server: McpServer) {
         return jsonError("Not a performance run result (no personas).");
       }
       try {
-        return json({ markdown: renderAssessment(result as unknown as AssessmentResult, days ?? 30) });
+        return json({
+          markdown: renderAssessment(result as unknown as AssessmentResult, days ?? 30),
+        });
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -1520,7 +1827,11 @@ function registerPerfTools(server: McpServer) {
     "studio_sim_start",
     "LSC Studio (GUI data): start a first-sync simulation (the network part of an iOS initial sync: user-info, metadata archive, every table's data) as a background job, running as the given sf CLI connection — admin or end user — or as a mobileLogin the Studio app made through the LSC mobile app's connected app (the token is used for this job only and never returned). Read-only against the org. Returns JSON status; poll with studio_sim_status.",
     {
-      connection: z.string().min(1).max(255).describe("sf CLI alias or username to run as; the label when mobileLogin is given"),
+      connection: z
+        .string()
+        .min(1)
+        .max(255)
+        .describe("sf CLI alias or username to run as; the label when mobileLogin is given"),
       mobileLogin: z
         .object({
           instanceUrl: z.string().url().max(255),
@@ -1529,7 +1840,9 @@ function registerPerfTools(server: McpServer) {
           orgId: z.string().max(18).optional(),
         })
         .optional()
-        .describe("A login Studio made through the LSC mobile app's connected app; used instead of the sf CLI connection"),
+        .describe(
+          "A login Studio made through the LSC mobile app's connected app; used instead of the sf CLI connection"
+        ),
       options: z
         .object({
           territory: z.string().max(255).optional(),
@@ -1540,19 +1853,34 @@ function registerPerfTools(server: McpServer) {
           maxRecordsPerTable: z.number().int().min(1).optional(),
           maxTotalRecords: z.number().int().min(1).optional(),
           network: networkSchema.optional(),
-          deviceRamGB: z.number().int().min(1).max(32).optional().describe("RAM of the simulated iPad in GB (default 8); sizes metadata chunks and legacy dynamic batches"),
-          dynamicBatchSize: z.boolean().optional().describe("Legacy flow: the app's dynamicBatchRequestSize setting (default true)"),
+          deviceRamGB: z
+            .number()
+            .int()
+            .min(1)
+            .max(32)
+            .optional()
+            .describe(
+              "RAM of the simulated iPad in GB (default 8); sizes metadata chunks and legacy dynamic batches"
+            ),
+          dynamicBatchSize: z
+            .boolean()
+            .optional()
+            .describe("Legacy flow: the app's dynamicBatchRequestSize setting (default true)"),
           runs: z
             .number()
             .int()
             .min(1)
             .max(MAX_SIM_RUNS)
             .optional()
-            .describe("Runs back to back as the same login (default 1); the result reports median and min–max times"),
+            .describe(
+              "Runs back to back as the same login (default 1); the result reports median and min–max times"
+            ),
           delta: z
             .object({ sinceHours: z.number().min(0.01).max(8760) })
             .optional()
-            .describe("After the initial sync, simulate a delta sync as if the device last synced this many hours ago (record-visibility rounds plus IdSubquery downloads of changed records; enhanced flow only)"),
+            .describe(
+              "After the initial sync, simulate a delta sync as if the device last synced this many hours ago (record-visibility rounds plus IdSubquery downloads of changed records; enhanced flow only)"
+            ),
           content: z
             .object({
               attachments: z.boolean().optional(),
@@ -1561,7 +1889,9 @@ function registerPerfTools(server: McpServer) {
               maxBytes: z.number().int().min(1).optional(),
             })
             .optional()
-            .describe("Opt-in file downloads after the sync (GET, bodies counted and discarded): background attachments one at a time, CLM presentations in Range chunks. Outside the sync window; not in the totals. maxFiles and maxBytes are per kind (defaults 200 and 2 GiB); with several runs this happens in the last run only"),
+            .describe(
+              "Opt-in file downloads after the sync (GET, bodies counted and discarded): background attachments one at a time, CLM presentations in Range chunks. Outside the sync window; not in the totals. maxFiles and maxBytes are per kind (defaults 200 and 2 GiB); with several runs this happens in the last run only"
+            ),
         })
         .optional(),
     },
@@ -1618,7 +1948,11 @@ function registerPerfTools(server: McpServer) {
       try {
         const markdown = renderSimulation(result as unknown as SimulationResult);
         const runs = renderRunsSection(result as { runs?: SimRunsSummary });
-        return json({ markdown: runs ? markdown.replace("## Slowest tables", () => `${runs}## Slowest tables`) : markdown });
+        return json({
+          markdown: runs
+            ? markdown.replace("## Slowest tables", () => `${runs}## Slowest tables`)
+            : markdown,
+        });
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -1692,7 +2026,12 @@ function registerSyncHealthTools(server: McpServer) {
       folder: z.string().min(1).max(1024),
       changes: z.array(fixSchema).max(200).optional(),
       items: z
-        .array(z.object({ type: z.enum(SOURCE_TYPES as [string, ...string[]]), fullName: z.string().min(1).max(255) }))
+        .array(
+          z.object({
+            type: z.enum(SOURCE_TYPES as [string, ...string[]]),
+            fullName: z.string().min(1).max(255),
+          })
+        )
         .max(200)
         .optional(),
     },
@@ -1704,7 +2043,11 @@ function registerSyncHealthTools(server: McpServer) {
       try {
         return json(
           await exportSource(
-            { folder, changes: changes as StudioFix[] | undefined, items: items as Parameters<typeof exportSource>[0]["items"] },
+            {
+              folder,
+              changes: changes as StudioFix[] | undefined,
+              items: items as Parameters<typeof exportSource>[0]["items"],
+            },
             connection.targetOrg
           )
         );
@@ -1768,7 +2111,9 @@ function registerFixTools(server: McpServer) {
     "LSC Studio (GUI only): apply a previewed Studio fix. WRITES to the org. Only called from the Studio UI after the user confirms. Refuses if the target org isn't `expectedOrg`. Returns JSON with an undo fix.",
     {
       fix: fixSchema,
-      expectedOrg: z.string().describe("The org the user confirmed — the fix is refused if the target org differs"),
+      expectedOrg: z
+        .string()
+        .describe("The org the user confirmed — the fix is refused if the target org differs"),
       progress: progressSchema.optional(),
     },
     async ({ fix, expectedOrg, progress }) => {
@@ -1777,7 +2122,9 @@ function registerFixTools(server: McpServer) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       if (connection.targetOrg !== expectedOrg) {
-        return jsonError(`Target org is ${connection.targetOrg}, not ${expectedOrg}. Nothing was changed.`);
+        return jsonError(
+          `Target org is ${connection.targetOrg}, not ${expectedOrg}. Nothing was changed.`
+        );
       }
       const tracker = progress ? startFixChange(progress, fix as StudioFix, "apply") : undefined;
       try {
@@ -1793,14 +2140,21 @@ function registerFixTools(server: McpServer) {
   server.tool(
     "studio_app_deploy",
     "LSC Studio (GUI only): deploy an LSC App — its bundles; for a record page or quick action app the LightningWebComponent quick action; for a nav tab app the App page, custom tab, and (when given) the app membership and profile tab visibility. WRITES to the org. Only called from the Studio UI after the user confirms. Refuses if the app has lint errors or the target org isn't `expectedOrg`. Returns JSON { ok, deployed, error?, warnings, production }.",
-    { ...appInputShape, expectedOrg: z.string().describe("The org the user confirmed — the deploy is refused if the target org differs") },
+    {
+      ...appInputShape,
+      expectedOrg: z
+        .string()
+        .describe("The org the user confirmed — the deploy is refused if the target org differs"),
+    },
     async ({ expectedOrg, ...input }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       if (connection.targetOrg !== expectedOrg) {
-        return jsonError(`Target org is ${connection.targetOrg}, not ${expectedOrg}. Nothing was deployed.`);
+        return jsonError(
+          `Target org is ${connection.targetOrg}, not ${expectedOrg}. Nothing was deployed.`
+        );
       }
       try {
         return json(await deployApp(input, connection.targetOrg));
@@ -1812,7 +2166,7 @@ function registerFixTools(server: McpServer) {
 
   server.tool(
     "studio_publish_mobile",
-    "LSC Studio (GUI only): start regenerating the LSC Mobile metadata cache for the given profiles (\"Publish to iPad\"). WRITES to the org. Refuses if the target org isn't `expectedOrg`. Returns JSON status; poll with studio_publish_status.",
+    'LSC Studio (GUI only): start regenerating the LSC Mobile metadata cache for the given profiles ("Publish to iPad"). WRITES to the org. Refuses if the target org isn\'t `expectedOrg`. Returns JSON status; poll with studio_publish_status.',
     {
       profiles: z.array(z.string()).min(1),
       expectedOrg: z.string(),
@@ -1823,7 +2177,9 @@ function registerFixTools(server: McpServer) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       if (connection.targetOrg !== expectedOrg) {
-        return jsonError(`Target org is ${connection.targetOrg}, not ${expectedOrg}. Nothing was published.`);
+        return jsonError(
+          `Target org is ${connection.targetOrg}, not ${expectedOrg}. Nothing was published.`
+        );
       }
       try {
         return json(await startPublish(profiles, connection.targetOrg));
@@ -1835,7 +2191,7 @@ function registerFixTools(server: McpServer) {
 
   server.tool(
     "studio_publish_status",
-    "LSC Studio (GUI only): check a \"Publish to iPad\" metadata cache generation. Read-only. Returns JSON.",
+    'LSC Studio (GUI only): check a "Publish to iPad" metadata cache generation. Read-only. Returns JSON.',
     { parentId: id },
     async ({ parentId }) => {
       const connection = await validateOrgConnection();

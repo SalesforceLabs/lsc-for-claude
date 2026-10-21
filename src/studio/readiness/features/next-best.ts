@@ -10,7 +10,12 @@ import { loadDbSchema, once, syncResult } from "./_visit-shared.js";
 
 /** Scores older than this mean the scoring job (Einstein Studio / Data Cloud) stopped writing. */
 const STALE_DAYS = 14;
-const SYNC_OBJECTS = ["TerritoryAccountScore", "TerritoryAcctRcmdAction", "TerritoryAcctProdMsgScore", "ProductGuidance"];
+const SYNC_OBJECTS = [
+  "TerritoryAccountScore",
+  "TerritoryAcctRcmdAction",
+  "TerritoryAcctProdMsgScore",
+  "ProductGuidance",
+];
 const EXPLAIN_SAMPLE = 200;
 
 /*
@@ -35,7 +40,9 @@ async function exists(object: string, org: string): Promise<boolean> {
 
 /** The sentence saying which scores were looked at, so a pass is never read as "every score is fine". */
 function scoresNote(n: number, limit: number, what = "scores"): string {
-  return n < limit ? `Checked all ${many(n, "score", "scores")}.` : `Checked the ${limit} most recently written ${what}, not every one in the org.`;
+  return n < limit
+    ? `Checked all ${many(n, "score", "scores")}.`
+    : `Checked the ${limit} most recently written ${what}, not every one in the org.`;
 }
 
 /** Today as YYYY-MM-DD, to compare with date fields the way SOQL's TODAY does. */
@@ -44,7 +51,11 @@ function today(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-const OFF: StudioCheckResult = { pass: true, skip: true, detail: "Next Best isn't set up in this org: no score records exist." };
+const OFF: StudioCheckResult = {
+  pass: true,
+  skip: true,
+  detail: "Next Best isn't set up in this org: no score records exist.",
+};
 
 const readiness: ReadinessModule = {
   ruleFiles: ["next-best-config.yaml"],
@@ -62,9 +73,13 @@ const readiness: ReadinessModule = {
     const caches = once(() => fetchCache(org));
     // SystemModstamp is indexed, so ordering by it with a LIMIT reads only the newest rows.
     const scores = once(() =>
-      query(`SELECT Id, Name, Account.Name, LastModifiedDate, TotalScore, Rank, TerritoryId FROM TerritoryAccountScore ORDER BY SystemModstamp DESC LIMIT ${SAMPLE_ROWS}`, org)
+      query(
+        `SELECT Id, Name, Account.Name, LastModifiedDate, TotalScore, Rank, TerritoryId FROM TerritoryAccountScore ORDER BY SystemModstamp DESC LIMIT ${SAMPLE_ROWS}`,
+        org
+      )
     );
-    const gate = (fn: () => Promise<StudioCheckResult>) => async () => ((await scored()) ? fn() : OFF);
+    const gate = (fn: () => Promise<StudioCheckResult>) => async () =>
+      (await scored()) ? fn() : OFF;
 
     return Promise.all([
       runCheck(
@@ -91,15 +106,24 @@ const readiness: ReadinessModule = {
           title: `Scores were refreshed in the last ${STALE_DAYS} days`,
           severity: "warning",
           why: "Next Best Customer ranks accounts from scores written by an external model. If the writing job stopped, reps keep seeing last quarter's priorities.",
-          steps: ["Check the Einstein Studio / Data Cloud job that writes Territory Account Score is running", "Look at the job's last run for errors"],
+          steps: [
+            "Check the Einstein Studio / Data Cloud job that writes Territory Account Score is running",
+            "Look at the job's last run for errors",
+          ],
           uiPath: "Setup > Einstein Studio",
           surface: "objects",
         },
         gate(async () => {
           const rows = await scores();
-          const latest = rows.map((r) => String(r.LastModifiedDate ?? "")).sort().pop();
+          const latest = rows
+            .map((r) => String(r.LastModifiedDate ?? ""))
+            .sort()
+            .pop();
           const age = daysSince(latest) ?? 0;
-          return { pass: age <= STALE_DAYS, detail: `The newest score was written ${plural(age, "day")} ago.` };
+          return {
+            pass: age <= STALE_DAYS,
+            detail: `The newest score was written ${plural(age, "day")} ago.`,
+          };
         })
       ),
       runCheck(
@@ -109,7 +133,10 @@ const readiness: ReadinessModule = {
           title: "Scores have a total and a rank",
           severity: "warning",
           why: "The Next Best list sorts by Rank. A score with no Rank or TotalScore sorts unpredictably or is dropped, so a priority account may never show.",
-          steps: ["Open the scoring job's output mapping", "Make sure TotalScore and Rank are written for every row, then reload the scores"],
+          steps: [
+            "Open the scoring job's output mapping",
+            "Make sure TotalScore and Rank are written for every row, then reload the scores",
+          ],
           uiPath: "Setup > Einstein Studio",
           surface: "objects",
         },
@@ -135,7 +162,9 @@ const readiness: ReadinessModule = {
           title: "Scores are tied to a territory",
           severity: "info",
           why: "Reps see the scores of their own territories. A score with no territory is visible to nobody who filters by territory.",
-          steps: ["Check the scoring job fills TerritoryId from the account's territory assignment"],
+          steps: [
+            "Check the scoring job fills TerritoryId from the account's territory assignment",
+          ],
           uiPath: "Setup > Einstein Studio",
           surface: "objects",
         },
@@ -144,7 +173,11 @@ const readiness: ReadinessModule = {
           const scope = scoresNote(rows.length, SAMPLE_ROWS);
           const none = rows.filter((r) => !r.TerritoryId);
           return none.length
-            ? { pass: false, detail: `${none.length} of ${many(rows.length, "score", "scores")} ${hasHave(none.length)} no territory. ${scope}`, examples: none.slice(0, 5).map((r) => label(r)) }
+            ? {
+                pass: false,
+                detail: `${none.length} of ${many(rows.length, "score", "scores")} ${hasHave(none.length)} no territory. ${scope}`,
+                examples: none.slice(0, 5).map((r) => label(r)),
+              }
             : { pass: true, detail: `Every score checked has a territory. ${scope}` };
         })
       ),
@@ -155,15 +188,26 @@ const readiness: ReadinessModule = {
           title: "Score explanations are valid JSON",
           severity: "warning",
           why: "The 'why this account' panel reads ScoreExplainabilityInfo. Text that isn't valid JSON leaves the panel empty or throws on the iPad.",
-          steps: ["Open a score record and read Score Explainability Info", "Fix the scoring job so it writes the documented JSON structure"],
+          steps: [
+            "Open a score record and read Score Explainability Info",
+            "Fix the scoring job so it writes the documented JSON structure",
+          ],
           uiPath: "Setup > Einstein Studio",
           surface: "objects",
         },
         gate(async () => {
-          const rows = await query(`SELECT Id, ScoreExplainabilityInfo FROM TerritoryAccountScore ORDER BY SystemModstamp DESC LIMIT ${EXPLAIN_SAMPLE}`, org);
+          const rows = await query(
+            `SELECT Id, ScoreExplainabilityInfo FROM TerritoryAccountScore ORDER BY SystemModstamp DESC LIMIT ${EXPLAIN_SAMPLE}`,
+            org
+          );
           const scope = scoresNote(rows.length, EXPLAIN_SAMPLE, "scores' explanations");
           const filled = rows.filter((r) => r.ScoreExplainabilityInfo);
-          if (!filled.length) return { pass: true, skip: true, detail: `No score checked carries an explanation. ${scope}` };
+          if (!filled.length)
+            return {
+              pass: true,
+              skip: true,
+              detail: `No score checked carries an explanation. ${scope}`,
+            };
           const bad = filled.filter((r) => {
             try {
               JSON.parse(String(r.ScoreExplainabilityInfo));
@@ -173,8 +217,15 @@ const readiness: ReadinessModule = {
             }
           });
           return bad.length
-            ? { pass: false, detail: `${bad.length} of ${many(filled.length, "explanation", "explanations")} ${isAre(bad.length)}n't valid JSON. ${scope}`, examples: bad.slice(0, 5).map((r) => String(r.Id)) }
-            : { pass: true, detail: `${filled.length === 1 ? "The 1 explanation parses" : `All ${filled.length} explanations parse`}. ${scope}` };
+            ? {
+                pass: false,
+                detail: `${bad.length} of ${many(filled.length, "explanation", "explanations")} ${isAre(bad.length)}n't valid JSON. ${scope}`,
+                examples: bad.slice(0, 5).map((r) => String(r.Id)),
+              }
+            : {
+                pass: true,
+                detail: `${filled.length === 1 ? "The 1 explanation parses" : `All ${filled.length} explanations parse`}. ${scope}`,
+              };
         })
       ),
       runCheck(
@@ -184,16 +235,29 @@ const readiness: ReadinessModule = {
           title: "No recommended action is overdue",
           severity: "warning",
           why: "Next Best Action cards stay 'Upcoming' until a rep completes or skips them. Overdue ones pile up and bury the current recommendations.",
-          steps: ["Check the recommendation job refreshes or retires past-due actions", "Mark stale actions as skipped or expired"],
+          steps: [
+            "Check the recommendation job refreshes or retires past-due actions",
+            "Mark stale actions as skipped or expired",
+          ],
           uiPath: "Setup > Einstein Studio",
           surface: "objects",
         },
         gate(async () => {
           // A plain sample with no ORDER BY stops after 500 rows; DueDate and Status aren't indexed.
-          const rows = await query(`SELECT Id, Name, DueDate, Status, Account.Name FROM TerritoryAcctRcmdAction LIMIT ${SAMPLE_ROWS}`, org);
-          if (!rows.length) return { pass: true, skip: true, detail: "No recommended actions exist (Next Best Action not in use)." };
+          const rows = await query(
+            `SELECT Id, Name, DueDate, Status, Account.Name FROM TerritoryAcctRcmdAction LIMIT ${SAMPLE_ROWS}`,
+            org
+          );
+          if (!rows.length)
+            return {
+              pass: true,
+              skip: true,
+              detail: "No recommended actions exist (Next Best Action not in use).",
+            };
           const day = today();
-          const overdue = rows.filter((r) => r.Status === "Upcoming" && r.DueDate && String(r.DueDate).slice(0, 10) < day);
+          const overdue = rows.filter(
+            (r) => r.Status === "Upcoming" && r.DueDate && String(r.DueDate).slice(0, 10) < day
+          );
           const scope =
             rows.length < SAMPLE_ROWS
               ? `Checked all ${many(rows.length, "recommended action", "recommended actions")}.`
@@ -202,7 +266,9 @@ const readiness: ReadinessModule = {
             ? {
                 pass: false,
                 detail: `${overdue.length} of ${rows.length} ${isAre(overdue.length)} still Upcoming past the due date. ${scope}`,
-                examples: overdue.slice(0, 5).map((r) => label(r, `due ${String(r.DueDate).slice(0, 10)}`)),
+                examples: overdue
+                  .slice(0, 5)
+                  .map((r) => label(r, `due ${String(r.DueDate).slice(0, 10)}`)),
               }
             : { pass: true, detail: `None is Upcoming past its due date. ${scope}` };
         })
@@ -214,28 +280,51 @@ const readiness: ReadinessModule = {
           title: "Message scores point at active product guidance",
           severity: "warning",
           why: "Next Best Message suggests a message to deliver. If the guidance behind it is inactive, reps are told to say something that no longer exists.",
-          steps: ["Open Product Guidance and reactivate the records listed, or remove their scores"],
+          steps: [
+            "Open Product Guidance and reactivate the records listed, or remove their scores",
+          ],
           uiPath: "App Launcher > Product Guidance",
           surface: "objects",
         },
         gate(async () => {
-          if (!(await exists("TerritoryAcctProdMsgScore", org))) return { pass: true, skip: true, detail: "No message scores exist (Next Best Message not in use)." };
+          if (!(await exists("TerritoryAcctProdMsgScore", org)))
+            return {
+              pass: true,
+              skip: true,
+              detail: "No message scores exist (Next Best Message not in use).",
+            };
           // Start from the guidance library (small), then count the scores of inactive guidance by its id,
           // which uses the lookup's index instead of joining every message score to its guidance.
-          const inactive = await query(`SELECT Id, Name FROM ProductGuidance WHERE IsActive = false LIMIT ${GUIDANCE_CAP}`, org);
+          const inactive = await query(
+            `SELECT Id, Name FROM ProductGuidance WHERE IsActive = false LIMIT ${GUIDANCE_CAP}`,
+            org
+          );
           const capped = inactive.length >= GUIDANCE_CAP;
           const names = new Map(inactive.map((r) => [String(r.Id), String(r.Name ?? r.Id)]));
           const scope = capped
             ? `Checked the scores of ${GUIDANCE_CAP} inactive guidance records, not every one in the org.`
             : `Checked every message score against the ${many(inactive.length, "inactive guidance record", "inactive guidance records")}.`;
-          if (!inactive.length) return { pass: true, detail: "No product guidance is inactive, so every message score points at active guidance." };
-          const used = await countGroupedBy("TerritoryAcctProdMsgScore", "ProductGuidanceId", [...names.keys()], org);
+          if (!inactive.length)
+            return {
+              pass: true,
+              detail:
+                "No product guidance is inactive, so every message score points at active guidance.",
+            };
+          const used = await countGroupedBy(
+            "TerritoryAcctProdMsgScore",
+            "ProductGuidanceId",
+            [...names.keys()],
+            org
+          );
           const n = [...used.values()].reduce((a, b) => a + b, 0);
           return n
             ? {
                 pass: false,
                 detail: `${many(n, "message score points", "message scores point")} at inactive guidance. ${scope}`,
-                examples: [...used].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, c]) => `${names.get(id) ?? id}: ${many(c, "score", "scores")}`),
+                examples: [...used]
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, 5)
+                  .map(([id, c]) => `${names.get(id) ?? id}: ${many(c, "score", "scores")}`),
               }
             : { pass: true, detail: `No message score points at inactive guidance. ${scope}` };
         })
@@ -247,7 +336,11 @@ const readiness: ReadinessModule = {
           title: "Next Best objects sync to the iPad",
           severity: "error",
           why: "Scores, actions, message scores and product guidance are read on the device. An object missing from DB Schema means its cards never appear offline.",
-          steps: ["Open Admin Console > Mobile > DB Schema", "Add or switch on a record for each object listed", "Publish to iPad"],
+          steps: [
+            "Open Admin Console > Mobile > DB Schema",
+            "Add or switch on a record for each object listed",
+            "Publish to iPad",
+          ],
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },
@@ -257,7 +350,9 @@ const readiness: ReadinessModule = {
             SYNC_OBJECTS.map(async (o) => ((await exists(o, org).catch(() => false)) ? o : null))
           );
           const objects = used.filter((o): o is string => o !== null);
-          return objects.length ? syncResult(org, schema, objects) : { pass: true, skip: true, detail: "No Next Best data to sync." };
+          return objects.length
+            ? syncResult(org, schema, objects)
+            : { pass: true, skip: true, detail: "No Next Best data to sync." };
         })
       ),
       runCheck(
@@ -267,12 +362,18 @@ const readiness: ReadinessModule = {
           title: "The published cache includes your latest DB Schema changes",
           severity: "warning",
           why: "If Next Best DB Schema records changed after the last publish, the iPad still runs the old schema.",
-          steps: ["Regenerate the cache for the profiles listed (Publish to iPad in Studio, or /lsc:generate-metadata-cache)"],
+          steps: [
+            "Regenerate the cache for the profiles listed (Publish to iPad in Studio, or /lsc:generate-metadata-cache)",
+          ],
           uiPath: "Admin Console > Mobile > Object Metadata Cache Configuration",
           surface: "metadataCache",
         },
         gate(async () => {
-          const schema = (await dbSchema()).filter((r) => SYNC_OBJECTS.some((o) => o.toLowerCase() === String(r.fields.SObject ?? "").toLowerCase()));
+          const schema = (await dbSchema()).filter((r) =>
+            SYNC_OBJECTS.some(
+              (o) => o.toLowerCase() === String(r.fields.SObject ?? "").toLowerCase()
+            )
+          );
           return cacheFreshResult(org, await caches(), ["DbSchema"], schema, [], true);
         })
       ),

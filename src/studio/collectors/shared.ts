@@ -4,7 +4,13 @@
 
 import { collectCategoryRecords } from "../../config/collect.js";
 import type { ConfigRecord } from "../../config/types.js";
-import type { Audience, CreateConfigFix, StudioFinding, StudioFix, StudioSurface } from "../types.js";
+import type {
+  Audience,
+  CreateConfigFix,
+  StudioFinding,
+  StudioFix,
+  StudioSurface,
+} from "../types.js";
 import {
   audienceOf,
   buildSurface,
@@ -19,7 +25,11 @@ import {
 
 /** All Admin Console records in the given categories. */
 /** `strict` throws when a query fails rather than returning what could be read (see `CollectOptions`). */
-export function fetchCategories(org: string, categories: string[], strict = false): Promise<ConfigRecord[]> {
+export function fetchCategories(
+  org: string,
+  categories: string[],
+  strict = false
+): Promise<ConfigRecord[]> {
   return collectCategoryRecords(
     org,
     `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category IN (${inList(categories)}) ORDER BY Category`,
@@ -49,7 +59,9 @@ export function actionProfiles(r: ConfigRecord): string[] {
 /** Who sees an action. With no profiles or permission sets listed, it shows to everyone. */
 export function actionAudience(r: ConfigRecord): Audience | undefined {
   const profiles = actionProfiles(r);
-  const permissionSets = [...new Set([...splitList(r.fields.PermissionSets), ...(audienceOf(r)?.permissionSets ?? [])])];
+  const permissionSets = [
+    ...new Set([...splitList(r.fields.PermissionSets), ...(audienceOf(r)?.permissionSets ?? [])]),
+  ];
   return profiles.length || permissionSets.length ? { profiles, permissionSets } : undefined;
 }
 
@@ -67,7 +79,10 @@ function nextFreeOrder(tab: ConfigRecord, tabs: ConfigRecord[]): number {
 }
 
 /** LSC Mobile navigation tabs (UISchema TAB records), with tab-order collision checks per profile. */
-export function navTabsSurface(meta: SurfaceMeta, uiSchema: Settled<ConfigRecord[]>): Promise<StudioSurface> {
+export function navTabsSurface(
+  meta: SurfaceMeta,
+  uiSchema: Settled<ConfigRecord[]>
+): Promise<StudioSurface> {
   return buildSurface(meta, async () => {
     const tabs = (await unwrap(uiSchema))
       .filter(isNavTab)
@@ -110,7 +125,11 @@ export function navTabsSurface(meta: SurfaceMeta, uiSchema: Settled<ConfigRecord
     return {
       creates: [newNavTab(await unwrap(uiSchema))],
       items: tabs.map((t) => {
-        const it = configItem(t, t.label, `#${t.fields.TabOrder ?? "?"} · ${t.fields.TabName ?? ""}`);
+        const it = configItem(
+          t,
+          t.label,
+          `#${t.fields.TabOrder ?? "?"} · ${t.fields.TabName ?? ""}`
+        );
         it.audience = audienceOf(t);
         it.findings.push(...(collisions.get(t.developerName) ?? []));
         if (t.isActive && t.assignments.length === 0 && !t.isOrgLevel) {
@@ -147,7 +166,8 @@ export function uniqueName(base: string, records: Pick<ConfigRecord, "developerN
   return `${trimmed}_${n}`;
 }
 
-const nextNumber = (values: unknown[]) => Math.max(0, ...values.map(Number).filter((n) => Number.isFinite(n))) + 1;
+const nextNumber = (values: unknown[]) =>
+  Math.max(0, ...values.map(Number).filter((n) => Number.isFinite(n))) + 1;
 
 /** "+ New quick action" at a location, sorted after the existing ones. */
 export function newQuickAction(location: string, quickActions: ConfigRecord[]): CreateConfigFix {
@@ -172,7 +192,10 @@ export function newQuickAction(location: string, quickActions: ConfigRecord[]): 
 }
 
 /** "+ New custom action" for an entity type (HomePage, SObject, StagePath, Visit). */
-export function newCustomAction(entityType: string, customActions: ConfigRecord[]): CreateConfigFix {
+export function newCustomAction(
+  entityType: string,
+  customActions: ConfigRecord[]
+): CreateConfigFix {
   const developerName = uniqueName(`CustomAction_${entityType}`, customActions);
   return {
     kind: "createConfigRecord",
@@ -212,7 +235,11 @@ export function newNavTab(uiSchema: ConfigRecord[]): CreateConfigFix {
 }
 
 /** A DB Schema record syncing `object` — the defaults create_db_schema uses, with no filter. */
-export function newDbSchema(object: string, dbSchema: Pick<ConfigRecord, "developerName">[], profiles: string[]): CreateConfigFix {
+export function newDbSchema(
+  object: string,
+  dbSchema: Pick<ConfigRecord, "developerName">[],
+  profiles: string[]
+): CreateConfigFix {
   return {
     kind: "createConfigRecord",
     label: object ? `Add ${object} to iPad sync` : "New DB Schema record",
@@ -250,12 +277,28 @@ export function addProfileFix(rec: ConfigRecord, profile: string, label: string)
   // An empty Profiles field means everyone already sees it.
   if (!raw.trim()) return null;
   const sep = raw.includes(",") && !raw.includes(";") ? "," : ";";
-  return { kind: "setConfigField", label, category: rec.category, developerName: rec.developerName, recordLabel, field: "Profiles", from: raw, to: `${raw}${sep}${profile}` };
+  return {
+    kind: "setConfigField",
+    label,
+    category: rec.category,
+    developerName: rec.developerName,
+    recordLabel,
+    field: "Profiles",
+    from: raw,
+    to: `${raw}${sep}${profile}`,
+  };
 }
 
 /** The profile with the most of `records` assigned — the reference to copy from. */
-export function busiestProfile(records: ConfigRecord[], profilesFor: (r: ConfigRecord) => string[], exclude: string): string | null {
+export function busiestProfile(
+  records: ConfigRecord[],
+  profilesFor: (r: ConfigRecord) => string[],
+  exclude: string
+): string | null {
   const counts = new Map<string, number>();
-  for (const r of records) for (const p of profilesFor(r)) if (p !== exclude) counts.set(p, (counts.get(p) ?? 0) + 1);
-  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? null;
+  for (const r of records)
+    for (const p of profilesFor(r)) if (p !== exclude) counts.set(p, (counts.get(p) ?? 0) + 1);
+  return (
+    [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? null
+  );
 }

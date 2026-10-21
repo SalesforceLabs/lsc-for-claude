@@ -5,8 +5,14 @@
  * other endpoint are refused, so a previewed component can't change the org.
  */
 
-import { createDeviceSession, createTokenSession, DEFAULT_API_VERSION, type DeviceHttp, type DeviceSession, type TokenLogin } from "../../perf/device/session.js";
-
+import {
+  createDeviceSession,
+  createTokenSession,
+  DEFAULT_API_VERSION,
+  type DeviceHttp,
+  type DeviceSession,
+  type TokenLogin,
+} from "../../perf/device/session.js";
 
 /** Largest answer relayed to the preview frame (over postMessage); a bigger one is refused with a message saying so. */
 export const MAX_LWC_RESPONSE_BYTES = 5 * 1024 * 1024;
@@ -19,7 +25,14 @@ export interface LwcRequest {
 }
 
 /** An answer shaped like the platform's fetch errors (status, body.message), or the data. */
-export type LwcResponse = { ok: true; data: unknown } | { ok: false; status: number; statusText: string; body: { message: string; errorCode?: string } };
+export type LwcResponse =
+  | { ok: true; data: unknown }
+  | {
+      ok: false;
+      status: number;
+      statusText: string;
+      body: { message: string; errorCode?: string };
+    };
 
 /**
  * Whether a path stays under /ui-api once the URL parser has read it. Parsers treat `%2e` as a dot in
@@ -34,14 +47,16 @@ function staysInUiApi(path: string): boolean {
 /** Why a request isn't allowed, or null when it is. */
 export function refuseLwcRequest(req: LwcRequest): string | null {
   if (req.method === "GET") {
-    if (!/^\/ui-api\/[\w\-./,%=&?:]+$/.test(req.path) || !staysInUiApi(req.path)) return `Studio's preview doesn't answer ${req.path}.`;
+    if (!/^\/ui-api\/[\w\-./,%=&?:]+$/.test(req.path) || !staysInUiApi(req.path))
+      return `Studio's preview doesn't answer ${req.path}.`;
     return null;
   }
   if (req.method === "POST" && req.path === "/graphql") {
     const body = req.body as { query?: unknown } | undefined;
     if (!body || typeof body.query !== "string") return "GraphQL request without a query.";
     // Strings and comments can't hide a mutation from this check: refuse the word anywhere.
-    if (/\bmutation\b/i.test(body.query)) return "Studio's preview is read-only, so GraphQL mutations aren't sent.";
+    if (/\bmutation\b/i.test(body.query))
+      return "Studio's preview is read-only, so GraphQL mutations aren't sent.";
     return null;
   }
   return `Studio's preview doesn't send ${req.method} ${req.path}.`;
@@ -66,7 +81,9 @@ export function resetLwcSessions(): void {
 }
 
 function errorBody(data: unknown, fallback: string): { message: string; errorCode?: string } {
-  const first = (Array.isArray(data) ? data[0] : data) as { message?: unknown; errorCode?: unknown } | undefined;
+  const first = (Array.isArray(data) ? data[0] : data) as
+    | { message?: unknown; errorCode?: unknown }
+    | undefined;
   return {
     message: typeof first?.message === "string" ? first.message : fallback,
     ...(typeof first?.errorCode === "string" ? { errorCode: first.errorCode } : {}),
@@ -77,9 +94,14 @@ function errorBody(data: unknown, fallback: string): { message: string; errorCod
  * As the sf CLI connection `as` names, or as a mobile login (its token is used for this request only and
  * the main process refreshes it). `http` replaces the session (tests).
  */
-export async function lwcRequest(as: string | TokenLogin, req: LwcRequest, http?: DeviceHttp): Promise<LwcResponse> {
+export async function lwcRequest(
+  as: string | TokenLogin,
+  req: LwcRequest,
+  http?: DeviceHttp
+): Promise<LwcResponse> {
   const refused = refuseLwcRequest(req);
-  if (refused) return { ok: false, status: 403, statusText: "Forbidden", body: { message: refused } };
+  if (refused)
+    return { ok: false, status: 403, statusText: "Forbidden", body: { message: refused } };
   const tokenSession = typeof as === "string" || http ? undefined : createTokenSession(as);
   const send = async (fresh: boolean) => {
     const session = http ? undefined : (tokenSession ?? (await orgSession(as as string, fresh)));
@@ -87,7 +109,10 @@ export async function lwcRequest(as: string | TokenLogin, req: LwcRequest, http?
     return (http ?? session!.http)({
       method: req.method,
       url: `/services/data/${version}${req.path}`,
-      headers: { Accept: "application/json", ...(req.method === "POST" ? { "Content-Type": "application/json" } : {}) },
+      headers: {
+        Accept: "application/json",
+        ...(req.method === "POST" ? { "Content-Type": "application/json" } : {}),
+      },
       body: req.method === "POST" ? JSON.stringify(req.body) : undefined,
     });
   };
@@ -99,7 +124,10 @@ export async function lwcRequest(as: string | TokenLogin, req: LwcRequest, http?
       ok: false,
       status: 413,
       statusText: "Payload Too Large",
-      body: { message: `The answer is ${mb} MB; Studio's preview relays at most ${MAX_LWC_RESPONSE_BYTES / 1048576} MB. Ask for fewer records or fields (for example a smaller \`first\` in the GraphQL query).`, errorCode: "STUDIO_RESPONSE_TOO_LARGE" },
+      body: {
+        message: `The answer is ${mb} MB; Studio's preview relays at most ${MAX_LWC_RESPONSE_BYTES / 1048576} MB. Ask for fewer records or fields (for example a smaller \`first\` in the GraphQL query).`,
+        errorCode: "STUDIO_RESPONSE_TOO_LARGE",
+      },
     };
   }
   const text = res.body.toString("utf8");
@@ -109,7 +137,15 @@ export async function lwcRequest(as: string | TokenLogin, req: LwcRequest, http?
   } catch {
     data = text;
   }
-  const statusText = res.status === 401 ? "Unauthorized" : res.status === 403 ? "Forbidden" : res.status === 404 ? "Not Found" : `HTTP ${res.status}`;
-  if (res.status < 200 || res.status >= 300) return { ok: false, status: res.status, statusText, body: errorBody(data, statusText) };
+  const statusText =
+    res.status === 401
+      ? "Unauthorized"
+      : res.status === 403
+        ? "Forbidden"
+        : res.status === 404
+          ? "Not Found"
+          : `HTTP ${res.status}`;
+  if (res.status < 200 || res.status >= 300)
+    return { ok: false, status: res.status, statusText, body: errorBody(data, statusText) };
   return { ok: true, data };
 }

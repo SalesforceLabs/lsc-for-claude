@@ -22,7 +22,8 @@ const text = (v: unknown): string => (typeof v === "string" ? v : "");
 export function cacheError(r: Row): string | null {
   const message = text(r.IntegrationErrorMessage) || text(r.IntegrationErrorCode);
   if (message) return message;
-  if (/error|fail/i.test(text(r.IntegrationStatus))) return `Integration status: ${text(r.IntegrationStatus)}`;
+  if (/error|fail/i.test(text(r.IntegrationStatus)))
+    return `Integration status: ${text(r.IntegrationStatus)}`;
   if (/fail|error/i.test(text(r.Status))) return `Status: ${text(r.Status)}`;
   return null;
 }
@@ -50,7 +51,8 @@ export function cachesByProfile(rows: Row[]): Map<string, ProfileCache> {
   }
   for (const entry of out.values()) {
     // A failure older than the live cache has been superseded.
-    if (entry.failed && entry.activeAt !== undefined && entry.failed.at <= entry.activeAt) delete entry.failed;
+    if (entry.failed && entry.activeAt !== undefined && entry.failed.at <= entry.activeAt)
+      delete entry.failed;
   }
   return out;
 }
@@ -65,11 +67,18 @@ export interface Unpublished {
  * For each profile with a live cache, the Admin Console edits made after its generation started that
  * still need a publish — the same rules and boundary as `studio_unpublished` (`configItems`).
  */
-export function unpublishedChanges(caches: Map<string, ProfileCache>, edits: ConfigEdit[]): Unpublished[] {
+export function unpublishedChanges(
+  caches: Map<string, ProfileCache>,
+  edits: ConfigEdit[]
+): Unpublished[] {
   const out: Unpublished[] = [];
   for (const cache of caches.values()) {
     if (cache.activeAt === undefined) continue;
-    const items = configItems(edits, cache.profileId, cache.activeStartedAt ?? cache.activeAt).filter((i) => i.reach?.ipad === "publish");
+    const items = configItems(
+      edits,
+      cache.profileId,
+      cache.activeStartedAt ?? cache.activeAt
+    ).filter((i) => i.reach?.ipad === "publish");
     if (items.length) out.push({ profileId: cache.profileId, items });
   }
   return out;

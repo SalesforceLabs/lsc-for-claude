@@ -79,8 +79,10 @@ export class ZipReader {
   read(entry: ZipEntry): Buffer {
     const local = Buffer.alloc(30);
     fs.readSync(this.fd, local, 0, 30, entry.localHeaderOffset);
-    if (local.readUInt32LE(0) !== LOC_SIG) throw new Error(`Corrupt zip entry header: ${entry.name}`);
-    const dataStart = entry.localHeaderOffset + 30 + local.readUInt16LE(26) + local.readUInt16LE(28);
+    if (local.readUInt32LE(0) !== LOC_SIG)
+      throw new Error(`Corrupt zip entry header: ${entry.name}`);
+    const dataStart =
+      entry.localHeaderOffset + 30 + local.readUInt16LE(26) + local.readUInt16LE(28);
     const raw = Buffer.alloc(entry.compressedSize);
     fs.readSync(this.fd, raw, 0, entry.compressedSize, dataStart);
     if (entry.method === 0) return raw;

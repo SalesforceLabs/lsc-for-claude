@@ -11,7 +11,13 @@ import { componentInfo, TEMPLATE_REGIONS, trimNamespace, visibilityOf } from "./
 type Row = Record<string, unknown>;
 
 export interface PageProblem {
-  code: "template" | "home-blank" | "region-dropped" | "stacked" | "after-tabset" | "related-list-config";
+  code:
+    | "template"
+    | "home-blank"
+    | "region-dropped"
+    | "stacked"
+    | "after-tabset"
+    | "related-list-config";
   severity: "error" | "warning";
   message: string;
 }
@@ -37,14 +43,24 @@ const REGION_KIND: Record<string, Record<string, "view" | "scroll">> = {
 export type TemplateFallback = "unsupported" | "only-main" | "empty-region";
 
 /** The template the iPad uses: SFFlexiPageViewController's lookup plus shouldDisplayDefaultFlexiPage. */
-export function resolveTemplate(page: Row): { requested: string; template: string; fallback: TemplateFallback | null } {
+export function resolveTemplate(page: Row): {
+  requested: string;
+  template: string;
+  fallback: TemplateFallback | null;
+} {
   const regions = arr(page.flexiPageRegions).filter((r) => str(r.type) !== "Facet");
   const name = str(obj(page.template).name);
   const requested = name.includes(":") ? name.split(":")[1] : name;
-  if (regions.length === 1 && str(regions[0].name) === "main") return { requested, template: "defaultFlexiPage", fallback: "only-main" };
-  if (str(page.type) === "RecordPage" && regions.length === 2 && regions.some((r) => arr(r.itemInstances).length === 0))
+  if (regions.length === 1 && str(regions[0].name) === "main")
+    return { requested, template: "defaultFlexiPage", fallback: "only-main" };
+  if (
+    str(page.type) === "RecordPage" &&
+    regions.length === 2 &&
+    regions.some((r) => arr(r.itemInstances).length === 0)
+  )
     return { requested, template: "defaultFlexiPage", fallback: "empty-region" };
-  if (!TEMPLATE_REGIONS[requested]) return { requested, template: "defaultFlexiPage", fallback: "unsupported" };
+  if (!TEMPLATE_REGIONS[requested])
+    return { requested, template: "defaultFlexiPage", fallback: "unsupported" };
   return { requested, template: requested, fallback: null };
 }
 
@@ -58,12 +74,17 @@ export function homeViewRegion(template: string, region: string): boolean {
  * into the nested shape the metadata cache uses. A nested page comes back unchanged.
  */
 export function nestFacets(page: Row): Row {
-  const facets = new Map(arr(page.flexiPageRegions).filter((r) => str(r.type) === "Facet").map((r) => [str(r.name), arr(r.itemInstances)]));
+  const facets = new Map(
+    arr(page.flexiPageRegions)
+      .filter((r) => str(r.type) === "Facet")
+      .map((r) => [str(r.name), arr(r.itemInstances)])
+  );
   if (facets.size === 0) return page;
   const seen = new Set<string>();
   const nest = (items: Row[]): Row[] =>
     items.map((item) => {
-      if (arr(item.itemInstances).length > 0) return { ...item, itemInstances: nest(arr(item.itemInstances)) };
+      if (arr(item.itemInstances).length > 0)
+        return { ...item, itemInstances: nest(arr(item.itemInstances)) };
       const ci = obj(item.componentInstance);
       const children = arr(ci.componentInstanceProperties).flatMap((p) => {
         const facet = str(p.value);
@@ -100,11 +121,16 @@ function drawn(items: Row[]): Drawn[] {
 }
 
 const regionLabel = (name: string) => (name ? name[0].toUpperCase() + name.slice(1) : name);
-const list = (names: string[]) => (names.length <= 3 ? names.join(", ") : `${names.slice(0, 3).join(", ")} and ${names.length - 3} more`);
+const list = (names: string[]) =>
+  names.length <= 3
+    ? names.join(", ")
+    : `${names.slice(0, 3).join(", ")} and ${names.length - 3} more`;
 const several = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 function prop(ci: Row, key: string): string {
-  const p = arr(ci.componentInstanceProperties).find((x) => str(x.name).toLowerCase() === key.toLowerCase());
+  const p = arr(ci.componentInstanceProperties).find(
+    (x) => str(x.name).toLowerCase() === key.toLowerCase()
+  );
   return str(p?.value).trim();
 }
 
@@ -190,7 +216,10 @@ export function lintPage(input: Row): PageProblem[] {
     const ci = obj(item.componentInstance);
     const name = str(ci.componentName);
     if (!trimNamespace(name).toLowerCase().includes("lscgenericrelatedlist")) continue;
-    const missing = [!prop(ci, "objectName") && "Object", !prop(ci, "fieldSetName") && "Field set"].filter(Boolean) as string[];
+    const missing = [
+      !prop(ci, "objectName") && "Object",
+      !prop(ci, "fieldSetName") && "Field set",
+    ].filter(Boolean) as string[];
     if (missing.length === 0) continue;
     const label = prop(ci, "label");
     problems.push({

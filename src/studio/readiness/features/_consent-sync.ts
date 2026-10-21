@@ -6,7 +6,12 @@
  */
 
 import type { ConfigRecord } from "../../../config/types.js";
-import { addProfileFix, fetchCategories, newDbSchema, profilesOf } from "../../collectors/shared.js";
+import {
+  addProfileFix,
+  fetchCategories,
+  newDbSchema,
+  profilesOf,
+} from "../../collectors/shared.js";
 import { fieldProfiles } from "../../collectors/territory-users.js";
 import { inList, plural, query } from "../../helpers.js";
 import type { StudioFix } from "../../types.js";
@@ -39,24 +44,39 @@ async function objectExists(org: string, object: string): Promise<boolean> {
  * settings (admins) are left out. An object nobody syncs is flagged with no
  * profile named.
  */
-export async function syncResult(org: string, schema: ConfigRecord[], objects: string[], main = objects[0]): Promise<StudioCheckResult> {
+export async function syncResult(
+  org: string,
+  schema: ConfigRecord[],
+  objects: string[],
+  main = objects[0]
+): Promise<StudioCheckResult> {
   const present: string[] = [];
   await Promise.all(
     objects.map(async (o) => {
-      if (schema.some((r) => sobject(r) === o.toLowerCase()) || (await objectExists(org, o))) present.push(o);
+      if (schema.some((r) => sobject(r) === o.toLowerCase()) || (await objectExists(org, o)))
+        present.push(o);
     })
   );
   present.sort((a, b) => objects.indexOf(a) - objects.indexOf(b));
-  if (!present.length) return { pass: true, skip: true, detail: "None of these objects exist in the org." };
+  if (!present.length)
+    return { pass: true, skip: true, detail: "None of these objects exist in the org." };
 
-  const activeFor = (o: string) => schema.filter((r) => r.isActive && sobject(r) === o.toLowerCase());
+  const activeFor = (o: string) =>
+    schema.filter((r) => r.isActive && sobject(r) === o.toLowerCase());
   // Field profiles, when the org says which they are; otherwise every profile counts.
   const field = await fieldProfiles(org).catch(() => [] as string[]);
-  const isField = (p: string) => !field.length || field.some((f) => f.toLowerCase() === p.toLowerCase());
+  const isField = (p: string) =>
+    !field.length || field.some((f) => f.toLowerCase() === p.toLowerCase());
   const mainActive = activeFor(main);
-  const profiles = (mainActive.some((r) => r.isOrgLevel) ? field : [...new Set(mainActive.flatMap(profilesOf))].filter(isField)).sort();
+  const profiles = (
+    mainActive.some((r) => r.isOrgLevel)
+      ? field
+      : [...new Set(mainActive.flatMap(profilesOf))].filter(isField)
+  ).sort();
   // Who a new record is for: the feature's profiles, else whoever syncs any of these objects.
-  const groupProfiles = profiles.length ? profiles : [...new Set(present.flatMap((o) => activeFor(o).flatMap(profilesOf)))].filter(isField).sort();
+  const groupProfiles = profiles.length
+    ? profiles
+    : [...new Set(present.flatMap((o) => activeFor(o).flatMap(profilesOf)))].filter(isField).sort();
 
   const gaps: string[] = [];
   const fixes: StudioFix[] = [];
@@ -74,7 +94,12 @@ export async function syncResult(org: string, schema: ConfigRecord[], objects: s
         fixes.push({
           kind: "setActive",
           label: `Switch on ${o} sync`,
-          record: { type: "config", category: "DbSchema", developerName: off.developerName, label: off.label || off.developerName },
+          record: {
+            type: "config",
+            category: "DbSchema",
+            developerName: off.developerName,
+            label: off.label || off.developerName,
+          },
           from: false,
           to: true,
         });
@@ -94,8 +119,16 @@ export async function syncResult(org: string, schema: ConfigRecord[], objects: s
     }
   }
   return gaps.length
-    ? { pass: false, detail: `Not on the iPad for everyone who needs it — ${gaps.join("; ")}.`, examples: gaps, fixes: fixes.slice(0, 12) }
-    : { pass: true, detail: `${plural(present.length, "object")} synced${profiles.length ? ` to ${plural(profiles.length, "profile")}` : ""}.` };
+    ? {
+        pass: false,
+        detail: `Not on the iPad for everyone who needs it — ${gaps.join("; ")}.`,
+        examples: gaps,
+        fixes: fixes.slice(0, 12),
+      }
+    : {
+        pass: true,
+        detail: `${plural(present.length, "object")} synced${profiles.length ? ` to ${plural(profiles.length, "profile")}` : ""}.`,
+      };
 }
 
 /**
@@ -109,7 +142,12 @@ export async function handlersResult(org: string, names: string[]): Promise<Stud
     org,
     true
   );
-  if (!rows.length) return { pass: true, skip: true, detail: "None of these handlers exist in this org's package version." };
+  if (!rows.length)
+    return {
+      pass: true,
+      skip: true,
+      detail: "None of these handlers exist in this org's package version.",
+    };
   const off = rows.filter((r) => !r.IsActive);
   if (!off.length) return { pass: true, detail: `${plural(rows.length, "handler")} active.` };
   return {
@@ -119,7 +157,11 @@ export async function handlersResult(org: string, names: string[]): Promise<Stud
     fixes: off.map((r) => ({
       kind: "setActive" as const,
       label: `Switch on ${r.DeveloperName}`,
-      record: { type: "triggerHandler" as const, developerName: String(r.DeveloperName), label: String(r.MasterLabel ?? r.DeveloperName) },
+      record: {
+        type: "triggerHandler" as const,
+        developerName: String(r.DeveloperName),
+        label: String(r.MasterLabel ?? r.DeveloperName),
+      },
       from: false,
       to: true,
     })),

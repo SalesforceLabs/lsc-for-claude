@@ -68,10 +68,14 @@ function detach(root: XmlNode, node: XmlNode): void {
   root.children.splice(root.children.indexOf(node), 1);
 }
 
-const position = (root: XmlNode, node: XmlNode) => `Position ${fieldNodes(root).indexOf(node) + 1} of ${fieldNodes(root).length}`;
+const position = (root: XmlNode, node: XmlNode) =>
+  `Position ${fieldNodes(root).indexOf(node) + 1} of ${fieldNodes(root).length}`;
 
 /** Apply one op to `root` in place; returns its inverse and what changed, in words. */
-export function applyCompactOp(root: XmlNode, op: CompactOp): { inverse: CompactOp; change: CompactChange } {
+export function applyCompactOp(
+  root: XmlNode,
+  op: CompactOp
+): { inverse: CompactOp; change: CompactChange } {
   switch (op.op) {
     case "moveCompactField": {
       assertName(op.field);
@@ -98,15 +102,22 @@ export function applyCompactOp(root: XmlNode, op: CompactOp): { inverse: Compact
     }
     case "addCompactField": {
       assertName(op.field);
-      if (fieldNodes(root).some((f) => unwrap(f) === op.field)) throw new StaleCompactError(`${op.field} is already on the compact layout.`);
+      if (fieldNodes(root).some((f) => unwrap(f) === op.field))
+        throw new StaleCompactError(`${op.field} is already on the compact layout.`);
       if (fieldNodes(root).length >= MAX_COMPACT_FIELDS) {
-        throw new StaleCompactError(`A compact layout holds at most ${MAX_COMPACT_FIELDS} fields. Remove one first.`);
+        throw new StaleCompactError(
+          `A compact layout holds at most ${MAX_COMPACT_FIELDS} fields. Remove one first.`
+        );
       }
       const node = leaf("fields", op.field);
       placeField(root, node, op.before);
       return {
         inverse: { op: "removeCompactField", field: op.field },
-        change: { field: `Field ${op.field}`, before: "(not on the compact layout)", after: position(root, node) },
+        change: {
+          field: `Field ${op.field}`,
+          before: "(not on the compact layout)",
+          after: position(root, node),
+        },
       };
     }
     default:
@@ -115,7 +126,10 @@ export function applyCompactOp(root: XmlNode, op: CompactOp): { inverse: Compact
 }
 
 /** Apply ops in order to a copy of `root`. The inverse ops undo them all, in the order given. */
-export function applyCompactOps(root: XmlNode, ops: CompactOp[]): { root: XmlNode; inverse: CompactOp[]; changes: CompactChange[] } {
+export function applyCompactOps(
+  root: XmlNode,
+  ops: CompactOp[]
+): { root: XmlNode; inverse: CompactOp[]; changes: CompactChange[] } {
   const copy = cloneNode(root);
   const inverse: CompactOp[] = [];
   const changes: CompactChange[] = [];

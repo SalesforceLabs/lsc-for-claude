@@ -13,5 +13,7 @@ export const RECORD_TRIGGERED_FLOWS_SQL =
   "SELECT DurableId, ApiName, Label, ProcessType, TriggerType, IsActive, TriggerObjectOrEventLabel, LastModifiedDate FROM FlowDefinitionView WHERE TriggerType IN ('RecordBeforeSave', 'RecordAfterSave', 'RecordBeforeDelete')";
 
 export function recordTriggeredFlows(org: string): Promise<Row[]> {
-  return sharedRead(org, "studio:record-triggered-flows", () => query(RECORD_TRIGGERED_FLOWS_SQL, org));
+  return sharedRead(org, "studio:record-triggered-flows", () =>
+    query(RECORD_TRIGGERED_FLOWS_SQL, org)
+  );
 }

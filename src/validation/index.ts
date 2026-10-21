@@ -34,4 +34,11 @@ export { type KnownCause, getKnownCauses, getKnownCauseById } from "./known-caus
 
 export { matchSymptom, normalizeText, type SymptomMatch } from "./symptom-match.js";
 
-export { diagnose, diagnosisItems, formatDiagnosis, type Diagnosis, type CauseFinding, type DiagnosisItem } from "./diagnose.js";
+export {
+  diagnose,
+  diagnosisItems,
+  formatDiagnosis,
+  type Diagnosis,
+  type CauseFinding,
+  type DiagnosisItem,
+} from "./diagnose.js";

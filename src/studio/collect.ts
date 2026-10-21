@@ -13,11 +13,25 @@ import { collectCategoryRecords, collectCategoryRecordsWhere } from "../config/c
 import { sharedRead } from "../config/read-cache.js";
 import { chunkIds } from "../tools/helpers.js";
 import { cachedDescribeSObject } from "../salesforce/cli.js";
-import { MAX_SIDEBAR_RELATED_LISTS, relatedListNames, retrieveLayoutXml } from "../salesforce/visit-layout.js";
+import {
+  MAX_SIDEBAR_RELATED_LISTS,
+  relatedListNames,
+  retrieveLayoutXml,
+} from "../salesforce/visit-layout.js";
 import { layoutableRelatedLists, relatedListOptions } from "./metadata/live.js";
 import type { ConfigRecord } from "../config/types.js";
 import { FEATURES, type FeatureDefinition } from "./features.js";
-import type { FeatureMap, ItemDetail, DetailKind, LaneDef, ProfileOption, StudioFinding, StudioItem, StudioSurface, Lane } from "./types.js";
+import type {
+  FeatureMap,
+  ItemDetail,
+  DetailKind,
+  LaneDef,
+  ProfileOption,
+  StudioFinding,
+  StudioItem,
+  StudioSurface,
+  Lane,
+} from "./types.js";
 import {
   ID_PATTERN,
   audienceOf,
@@ -40,7 +54,9 @@ import { describeFlow, outlineText } from "./flow-outline.js";
 import { analyzeScript, type ScriptCheckContext, type ScriptType } from "./scripts/checks.js";
 
 /** An org-wide feature's own collector — returns everything but the envelope. */
-export type CustomCollector = (org: string) => Promise<Pick<FeatureMap, "summary" | "lanes" | "surfaces" | "checklist" | "checkTitle">>;
+export type CustomCollector = (
+  org: string
+) => Promise<Pick<FeatureMap, "summary" | "lanes" | "surfaces" | "checklist" | "checkTitle">>;
 
 const CUSTOM_COLLECTORS: Record<string, CustomCollector> = {
   "mobile-sync": collectMobileSync,
@@ -72,17 +88,63 @@ type StandardSurfaceId =
 
 const SURFACES: Record<StandardSurfaceId, { title: string; lane: Lane; description: string }> = {
   objects: { title: "Objects", lane: "data", description: "Objects that make up this feature." },
-  recordTypes: { title: "Record Types", lane: "data", description: "Record types on the feature's objects." },
-  layouts: { title: "Page Layouts", lane: "data", description: "Page layouts on the feature's objects. On Visit, related lists drive the mobile engagement sidebar." },
-  customScripts: { title: "Custom Scripts", lane: "logic", description: "LifeScienceCustomScript records — Visit Action Validation, workflow validations, and checklists. Runs online and offline." },
-  validationRules: { title: "Validation Rules", lane: "logic", description: "Standard validation rules on the feature's objects." },
-  apexTriggers: { title: "Apex Triggers", lane: "logic", description: "Custom Apex triggers. Server-side only — not evaluated offline on the iPad." },
-  flows: { title: "Record-Triggered Flows", lane: "logic", description: "Record-triggered flows on the feature's objects." },
-  triggerHandlers: { title: "LSC Trigger Handlers", lane: "logic", description: "Managed LifeScienceTriggerHandler records. Only active/inactive can be changed." },
-  dbSchema: { title: "Mobile Sync (DB Schema)", lane: "mobile", description: "DB Schema records that control which records sync to LSC Mobile." },
-  actions: { title: "Quick & Custom Actions", lane: "mobile", description: "LSC Quick Actions and Custom Actions related to this feature." },
-  adminSettings: { title: "Admin Console Settings", lane: "settings", description: "Admin Console configuration records for this feature." },
-  compliance: { title: "Compliance Statements", lane: "settings", description: "ComplianceStatementDef records shown during this feature's workflow." },
+  recordTypes: {
+    title: "Record Types",
+    lane: "data",
+    description: "Record types on the feature's objects.",
+  },
+  layouts: {
+    title: "Page Layouts",
+    lane: "data",
+    description:
+      "Page layouts on the feature's objects. On Visit, related lists drive the mobile engagement sidebar.",
+  },
+  customScripts: {
+    title: "Custom Scripts",
+    lane: "logic",
+    description:
+      "LifeScienceCustomScript records — Visit Action Validation, workflow validations, and checklists. Runs online and offline.",
+  },
+  validationRules: {
+    title: "Validation Rules",
+    lane: "logic",
+    description: "Standard validation rules on the feature's objects.",
+  },
+  apexTriggers: {
+    title: "Apex Triggers",
+    lane: "logic",
+    description: "Custom Apex triggers. Server-side only — not evaluated offline on the iPad.",
+  },
+  flows: {
+    title: "Record-Triggered Flows",
+    lane: "logic",
+    description: "Record-triggered flows on the feature's objects.",
+  },
+  triggerHandlers: {
+    title: "LSC Trigger Handlers",
+    lane: "logic",
+    description: "Managed LifeScienceTriggerHandler records. Only active/inactive can be changed.",
+  },
+  dbSchema: {
+    title: "Mobile Sync (DB Schema)",
+    lane: "mobile",
+    description: "DB Schema records that control which records sync to LSC Mobile.",
+  },
+  actions: {
+    title: "Quick & Custom Actions",
+    lane: "mobile",
+    description: "LSC Quick Actions and Custom Actions related to this feature.",
+  },
+  adminSettings: {
+    title: "Admin Console Settings",
+    lane: "settings",
+    description: "Admin Console configuration records for this feature.",
+  },
+  compliance: {
+    title: "Compliance Statements",
+    lane: "settings",
+    description: "ComplianceStatementDef records shown during this feature's workflow.",
+  },
 };
 
 function surface(
@@ -117,8 +179,15 @@ function warmSharedReads(org: string): void {
  * One read of a per-object surface for every feature's objects at once, kept for a minute and shared
  * by all the object features (each used to run its own IN-list query for the same table).
  */
-function unionRows(org: string, kind: string, tooling: boolean, sql: (objects: string) => string): Promise<Row[]> {
-  return sharedRead(org, `studio:union:${kind}`, () => query(sql(inList(ALL_OBJECTS)), org, tooling));
+function unionRows(
+  org: string,
+  kind: string,
+  tooling: boolean,
+  sql: (objects: string) => string
+): Promise<Row[]> {
+  return sharedRead(org, `studio:union:${kind}`, () =>
+    query(sql(inList(ALL_OBJECTS)), org, tooling)
+  );
 }
 
 /**
@@ -150,19 +219,25 @@ async function rowsForObjects(
 
 const recordTypesSql = (list: string) =>
   `SELECT Id, Name, DeveloperName, SobjectType, IsActive, Description FROM RecordType WHERE SobjectType IN (${list}) ORDER BY SobjectType, Name, Id`;
-const layoutsSql = (list: string) => `SELECT Id, Name, TableEnumOrId FROM Layout WHERE TableEnumOrId IN (${list}) ORDER BY Name`;
+const layoutsSql = (list: string) =>
+  `SELECT Id, Name, TableEnumOrId FROM Layout WHERE TableEnumOrId IN (${list}) ORDER BY Name`;
 const validationRulesSql = (list: string) =>
   `SELECT Id, ValidationName, Active, Description, ErrorMessage, ErrorDisplayField, EntityDefinition.QualifiedApiName FROM ValidationRule WHERE EntityDefinition.QualifiedApiName IN (${list}) ORDER BY ValidationName`;
 const apexTriggersSql = (list: string) =>
   `SELECT Id, Name, TableEnumOrId, Status, NamespacePrefix FROM ApexTrigger WHERE TableEnumOrId IN (${list}) ORDER BY Name`;
-const entitiesSql = (list: string) => `SELECT QualifiedApiName, Label, PluralLabel, KeyPrefix FROM EntityDefinition WHERE QualifiedApiName IN (${list})`;
+const entitiesSql = (list: string) =>
+  `SELECT QualifiedApiName, Label, PluralLabel, KeyPrefix FROM EntityDefinition WHERE QualifiedApiName IN (${list})`;
 const customScriptsSql = (list: string) =>
   `SELECT Id, Name, ComponentName, Type, ObjectName, OperationEventType, CodeText, CreatedDate FROM LifeScienceCustomScript WHERE ObjectName IN (${list}) OR Type = 'VisitActionValidation' ORDER BY CreatedDate, Id`;
 
 /** The org's trigger handlers — the same list for every feature, which picks its own by keyword. */
 function triggerHandlerRows(org: string): Promise<Row[]> {
   return sharedRead(org, "studio:trigger-handlers", () =>
-    query(`SELECT Id, DeveloperName, MasterLabel, IsActive, Description FROM LifeScienceTriggerHandler ORDER BY MasterLabel`, org, true)
+    query(
+      `SELECT Id, DeveloperName, MasterLabel, IsActive, Description FROM LifeScienceTriggerHandler ORDER BY MasterLabel`,
+      org,
+      true
+    )
   );
 }
 
@@ -173,10 +248,20 @@ interface ObjectInfo {
   label: string;
 }
 
-async function collectObjects(feature: FeatureDefinition, org: string): Promise<{ surface: StudioSurface; found: ObjectInfo[] }> {
+async function collectObjects(
+  feature: FeatureDefinition,
+  org: string
+): Promise<{ surface: StudioSurface; found: ObjectInfo[] }> {
   const found: ObjectInfo[] = [];
   const s = await surface("objects", async () => {
-    const rows = await rowsForObjects(org, "entities", true, entitiesSql, feature.objects, (r) => r.QualifiedApiName);
+    const rows = await rowsForObjects(
+      org,
+      "entities",
+      true,
+      entitiesSql,
+      feature.objects,
+      (r) => r.QualifiedApiName
+    );
     const byName = new Map(rows.map((r) => [r.QualifiedApiName as string, r]));
     const items: StudioItem[] = [];
     const findings: StudioFinding[] = [];
@@ -194,7 +279,11 @@ async function collectObjects(feature: FeatureDefinition, org: string): Promise<
       items.push(
         item(name, r.Label as string, {
           sublabel: name,
-          properties: { "API name": name, "Plural label": scalar(r.PluralLabel), "Key prefix": scalar(r.KeyPrefix) },
+          properties: {
+            "API name": name,
+            "Plural label": scalar(r.PluralLabel),
+            "Key prefix": scalar(r.KeyPrefix),
+          },
         })
       );
     }
@@ -206,7 +295,14 @@ async function collectObjects(feature: FeatureDefinition, org: string): Promise<
 function collectRecordTypes(objects: string[], org: string): Promise<StudioSurface> {
   return surface("recordTypes", async () => {
     if (objects.length === 0) return { items: [] };
-    const rows = await rowsForObjects(org, "recordTypes", false, recordTypesSql, objects, (r) => r.SobjectType);
+    const rows = await rowsForObjects(
+      org,
+      "recordTypes",
+      false,
+      recordTypesSql,
+      objects,
+      (r) => r.SobjectType
+    );
     return {
       items: rows.map((r) =>
         item(r.Id as string, r.Name as string, {
@@ -228,7 +324,14 @@ const SIDEBAR_OBJECT = "Visit";
 function collectLayouts(objects: string[], org: string): Promise<StudioSurface> {
   return surface("layouts", async () => {
     if (objects.length === 0) return { items: [] };
-    const rows = await rowsForObjects(org, "layouts", true, layoutsSql, objects, (r) => r.TableEnumOrId);
+    const rows = await rowsForObjects(
+      org,
+      "layouts",
+      true,
+      layoutsSql,
+      objects,
+      (r) => r.TableEnumOrId
+    );
     return {
       items: rows.map((r) =>
         item(r.Id as string, r.Name as string, {
@@ -243,14 +346,21 @@ function collectLayouts(objects: string[], org: string): Promise<StudioSurface> 
 }
 
 /** Static checks against a custom script's code, as board findings (the same rules the script editor shows live). */
-export function scriptCodeFindings(code: string, ctx: ScriptCheckContext = { type: "Validation" }): StudioFinding[] {
+export function scriptCodeFindings(
+  code: string,
+  ctx: ScriptCheckContext = { type: "Validation" }
+): StudioFinding[] {
   return (
     analyzeScript(code, ctx)
       // The Visit Action Validation setup problems are reported by the collector itself, with the running script in mind.
       .filter((d) => !d.id.startsWith("vav-"))
       // The board lists what needs attention; the editor shows the hints too.
       .filter((d) => d.severity !== "info")
-      .map((d) => ({ severity: d.severity, title: d.message, ...(d.detail ? { detail: d.detail } : {}) }))
+      .map((d) => ({
+        severity: d.severity,
+        title: d.message,
+        ...(d.detail ? { detail: d.detail } : {}),
+      }))
   );
 }
 
@@ -302,14 +412,16 @@ function collectCustomScripts(feature: FeatureDefinition, org: string): Promise<
           findings.unshift({
             severity: "error",
             title: "ObjectName must be ProviderVisit",
-            detail: "Visit Action Validation scripts without ObjectName = ProviderVisit silently don't execute.",
+            detail:
+              "Visit Action Validation scripts without ObjectName = ProviderVisit silently don't execute.",
           });
         }
         if (r.OperationEventType !== "OnUpdate") {
           findings.unshift({
             severity: "error",
             title: "OperationEventType must be OnUpdate",
-            detail: "Visit Action Validation scripts without OperationEventType = OnUpdate silently don't execute.",
+            detail:
+              "Visit Action Validation scripts without OperationEventType = OnUpdate silently don't execute.",
           });
         }
       }
@@ -358,7 +470,10 @@ function collectValidationRules(objects: string[], org: string): Promise<StudioS
         return item(r.Id as string, r.ValidationName as string, {
           sublabel: obj,
           active: r.Active as boolean,
-          edit: { record: { type: "validationRule", id: String(r.Id), label: String(r.ValidationName) }, active: !!r.Active },
+          edit: {
+            record: { type: "validationRule", id: String(r.Id), label: String(r.ValidationName) },
+            active: !!r.Active,
+          },
           properties: {
             Object: scalar(obj),
             "Error message": scalar(r.ErrorMessage),
@@ -375,7 +490,14 @@ function collectValidationRules(objects: string[], org: string): Promise<StudioS
 function collectApexTriggers(objects: string[], org: string): Promise<StudioSurface> {
   return surface("apexTriggers", async () => {
     if (objects.length === 0) return { items: [] };
-    const rows = await rowsForObjects(org, "apexTriggers", true, apexTriggersSql, objects, (r) => r.TableEnumOrId);
+    const rows = await rowsForObjects(
+      org,
+      "apexTriggers",
+      true,
+      apexTriggersSql,
+      objects,
+      (r) => r.TableEnumOrId
+    );
     const items = rows.map((r) =>
       item(r.Id as string, r.Name as string, {
         sublabel: r.TableEnumOrId as string,
@@ -433,27 +555,47 @@ function collectTriggerHandlers(feature: FeatureDefinition, org: string): Promis
     return {
       items: rows
         .filter((r) =>
-          matchesAny(`${r.DeveloperName} ${r.MasterLabel} ${r.Description || ""}`, feature.handlerKeywords)
+          matchesAny(
+            `${r.DeveloperName} ${r.MasterLabel} ${r.Description || ""}`,
+            feature.handlerKeywords
+          )
         )
         .map((r) =>
           item(r.Id as string, r.MasterLabel as string, {
             sublabel: r.DeveloperName as string,
             active: r.IsActive as boolean,
-            properties: { "Developer name": scalar(r.DeveloperName), Description: scalar(r.Description) },
+            properties: {
+              "Developer name": scalar(r.DeveloperName),
+              Description: scalar(r.Description),
+            },
             edit: {
-              record: { type: "triggerHandler", developerName: String(r.DeveloperName), label: String(r.MasterLabel) },
+              record: {
+                type: "triggerHandler",
+                developerName: String(r.DeveloperName),
+                label: String(r.MasterLabel),
+              },
               active: !!r.IsActive,
             },
             findings: r.IsActive
               ? []
-              : [{ severity: "info", title: "Inactive", detail: "This handler's managed logic is skipped." }],
+              : [
+                  {
+                    severity: "info",
+                    title: "Inactive",
+                    detail: "This handler's managed logic is skipped.",
+                  },
+                ],
           })
         ),
     };
   });
 }
 
-function collectDbSchema(feature: FeatureDefinition, found: ObjectInfo[], org: string): Promise<StudioSurface> {
+function collectDbSchema(
+  feature: FeatureDefinition,
+  found: ObjectInfo[],
+  org: string
+): Promise<StudioSurface> {
   return surface("dbSchema", async () => {
     const catQuery = `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'DbSchema'`;
     const objects = new Set(feature.objects.map((o) => o.toLowerCase()));
@@ -462,7 +604,10 @@ function collectDbSchema(feature: FeatureDefinition, found: ObjectInfo[], org: s
     let records: Pick<ConfigRecord, "developerName">[];
     let mine: ConfigRecord[];
     try {
-      const narrowed = await collectCategoryRecordsWhere(org, catQuery, { field: "SObject", keep: isMine });
+      const narrowed = await collectCategoryRecordsWhere(org, catQuery, {
+        field: "SObject",
+        keep: isMine,
+      });
       mine = narrowed.records;
       records = narrowed.developerNames.map((developerName) => ({ developerName }));
     } catch {
@@ -473,7 +618,10 @@ function collectDbSchema(feature: FeatureDefinition, found: ObjectInfo[], org: s
     // New records go to the profiles that already sync this feature's other objects.
     const profiles = [...new Set(mine.filter((r) => r.isActive).flatMap(profilesOf))].sort();
     return {
-      items: mine.map((r) => ({ ...configItem(r, String(r.fields.SObject), r.developerName), audience: audienceOf(r) })),
+      items: mine.map((r) => ({
+        ...configItem(r, String(r.fields.SObject), r.developerName),
+        audience: audienceOf(r),
+      })),
       findings: mobileSyncFindings(feature, found, mine, records, profiles),
       // Unsynced objects get their own "Add … to iPad sync" on the finding; this is for any other object.
       creates: [newDbSchema("", records, profiles)],
@@ -481,7 +629,8 @@ function collectDbSchema(feature: FeatureDefinition, found: ObjectInfo[], org: s
   });
 }
 
-const isFor = (r: ConfigRecord, obj: ObjectInfo) => String(r.fields.SObject || "").toLowerCase() === obj.name.toLowerCase();
+const isFor = (r: ConfigRecord, obj: ObjectInfo) =>
+  String(r.fields.SObject || "").toLowerCase() === obj.name.toLowerCase();
 
 /** Flag feature objects that exist in the org but have no active DB Schema record. */
 function mobileSyncFindings(
@@ -520,12 +669,20 @@ function collectActions(feature: FeatureDefinition, org: string): Promise<Studio
       items: records
         .filter((r) =>
           matchesAny(
-            [r.developerName, r.label, ...Object.values(r.fields).filter((v) => typeof v === "string")].join(" "),
+            [
+              r.developerName,
+              r.label,
+              ...Object.values(r.fields).filter((v) => typeof v === "string"),
+            ].join(" "),
             feature.actionKeywords
           )
         )
         .map((r) => ({
-          ...configItem(r, r.label || r.developerName, r.category === "QuickAction" ? "Quick Action" : "Custom Action"),
+          ...configItem(
+            r,
+            r.label || r.developerName,
+            r.category === "QuickAction" ? "Quick Action" : "Custom Action"
+          ),
           audience: actionAudience(r),
         })),
     };
@@ -535,7 +692,9 @@ function collectActions(feature: FeatureDefinition, org: string): Promise<Studio
 function collectAdminSettings(feature: FeatureDefinition, org: string): Promise<StudioSurface> {
   return surface("adminSettings", async () => {
     if (feature.adminCategoryKeywords.length === 0) return { items: [] };
-    const like = feature.adminCategoryKeywords.map((k) => `Category LIKE '%${k.replace(/'/g, "\\'")}%'`).join(" OR ");
+    const like = feature.adminCategoryKeywords
+      .map((k) => `Category LIKE '%${k.replace(/'/g, "\\'")}%'`)
+      .join(" OR ");
     const records = await collectCategoryRecords(
       org,
       `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE (${like}) AND Category NOT IN ('DbSchema', 'QuickAction', 'CustomAction') ORDER BY Category`,
@@ -547,12 +706,16 @@ function collectAdminSettings(feature: FeatureDefinition, org: string): Promise<
         const it = configItem(r, r.label || r.developerName, r.category);
         for (const [k, v] of Object.entries(it.properties)) {
           if (typeof v === "string" && splitIds(v).some((id) => names.has(id))) {
-            it.properties[k] = splitIds(v).map((id) => names.get(id) ?? id).join(", ");
+            it.properties[k] = splitIds(v)
+              .map((id) => names.get(id) ?? id)
+              .join(", ");
           }
         }
         // Auto-generated labels (e.g. CDRT_<productId>_<recordTypeId>) — name the record by what it references.
         if (ID_TOKEN.test(it.label)) {
-          const referenced = Object.values(r.fields).flatMap((v) => splitIds(v)).map((id) => names.get(id));
+          const referenced = Object.values(r.fields)
+            .flatMap((v) => splitIds(v))
+            .map((id) => names.get(id));
           if (referenced.every(Boolean) && referenced.length > 0) it.label = referenced.join(" · ");
         }
         return it;
@@ -570,7 +733,9 @@ const ID_LOOKUPS: { prefix: string; soql: string }[] = [
 function splitIds(v: unknown): string[] {
   if (typeof v !== "string") return [];
   const parts = v.split(",").map((s) => s.trim());
-  return parts.every((p) => ID_PATTERN.test(p) && ID_LOOKUPS.some((l) => p.startsWith(l.prefix))) ? parts : [];
+  return parts.every((p) => ID_PATTERN.test(p) && ID_LOOKUPS.some((l) => p.startsWith(l.prefix)))
+    ? parts
+    : [];
 }
 
 /** Best-effort Id → Name for record types and products referenced by config field values. */
@@ -582,7 +747,9 @@ async function resolveIdNames(records: ConfigRecord[], org: string): Promise<Map
       const batch = [...ids].filter((id) => id.startsWith(prefix));
       if (batch.length === 0) return;
       try {
-        const chunks = await Promise.all(chunkIds(batch).map((ids) => query(`${soql} (${inList(ids)})`, org)));
+        const chunks = await Promise.all(
+          chunkIds(batch).map((ids) => query(`${soql} (${inList(ids)})`, org))
+        );
         for (const r of chunks.flat()) {
           const id = String(r.Id);
           names.set(id, String(r.Name));
@@ -619,8 +786,16 @@ function collectCompliance(moduleType: string, org: string): Promise<StudioSurfa
  * Record-triggered flows on objects that sync to LSC Mobile run on the server
  * when the iPad uploads the record, not when the rep taps Save.
  */
-function flagSyncedFlows(flows: StudioSurface, dbSchema: StudioSurface, objects: ObjectInfo[]): void {
-  const synced = new Set(dbSchema.items.filter((i) => i.active).map((i) => String(i.properties.SObject ?? "").toLowerCase()));
+function flagSyncedFlows(
+  flows: StudioSurface,
+  dbSchema: StudioSurface,
+  objects: ObjectInfo[]
+): void {
+  const synced = new Set(
+    dbSchema.items
+      .filter((i) => i.active)
+      .map((i) => String(i.properties.SObject ?? "").toLowerCase())
+  );
   const byLabel = new Map(objects.map((o) => [o.label, o.name]));
   for (const flow of flows.items) {
     const name = byLabel.get(String(flow.properties.Object));
@@ -639,7 +814,9 @@ function flagSyncedFlows(flows: StudioSurface, dbSchema: StudioSurface, objects:
 export function collectFeatureMap(feature: FeatureDefinition, org: string): Promise<FeatureMap> {
   return trackMap(mapKey(feature.id), feature.id, feature.title, (tracker) => {
     if (!CUSTOM_COLLECTORS[feature.id]) {
-      const ids = (Object.keys(SURFACES) as StandardSurfaceId[]).filter((id) => id !== "compliance" || feature.complianceModuleType);
+      const ids = (Object.keys(SURFACES) as StandardSurfaceId[]).filter(
+        (id) => id !== "compliance" || feature.complianceModuleType
+      );
       tracker.plan(ids.map((id) => ({ key: id, label: SURFACES[id].title })));
     }
     return gatherFeatureMap(feature, org);
@@ -660,25 +837,29 @@ async function gatherFeatureMap(feature: FeatureDefinition, org: string): Promis
     collectTriggerHandlers(feature, org),
     collectActions(feature, org),
     collectAdminSettings(feature, org),
-    feature.complianceModuleType ? collectCompliance(feature.complianceModuleType, org) : Promise.resolve(null),
+    feature.complianceModuleType
+      ? collectCompliance(feature.complianceModuleType, org)
+      : Promise.resolve(null),
   ]);
 
   // Later surfaces only query objects that actually exist.
   const { surface: objects, found } = await objectsRead;
   const names = objects.error ? feature.objects : found.map((o) => o.name);
 
-  const [[recordTypes, layouts, validationRules, apexTriggers, flows, dbSchema], [customScripts, triggerHandlers, actions, adminSettings, compliance]] =
-    await Promise.all([
-      Promise.all([
-        collectRecordTypes(names, org),
-        collectLayouts(names, org),
-        collectValidationRules(names, org),
-        collectApexTriggers(names, org),
-        collectFlows(found, org),
-        collectDbSchema(feature, found, org),
-      ]),
-      independent,
-    ]);
+  const [
+    [recordTypes, layouts, validationRules, apexTriggers, flows, dbSchema],
+    [customScripts, triggerHandlers, actions, adminSettings, compliance],
+  ] = await Promise.all([
+    Promise.all([
+      collectRecordTypes(names, org),
+      collectLayouts(names, org),
+      collectValidationRules(names, org),
+      collectApexTriggers(names, org),
+      collectFlows(found, org),
+      collectDbSchema(feature, found, org),
+    ]),
+    independent,
+  ]);
 
   flagSyncedFlows(flows, dbSchema, found);
 
@@ -712,13 +893,20 @@ export async function collectProfileOptions(org: string): Promise<ProfileOption[
     `SELECT Profile.Name pn, COUNT(Id) cnt FROM User WHERE IsActive = true AND UserType = 'Standard' GROUP BY Profile.Name ORDER BY COUNT(Id) DESC`,
     org
   );
-  return rows.filter((r) => r.pn).map((r) => ({ name: String(r.pn), users: Number(r.cnt ?? r.expr0 ?? 0) }));
+  return rows
+    .filter((r) => r.pn)
+    .map((r) => ({ name: String(r.pn), users: Number(r.cnt ?? r.expr0 ?? 0) }));
 }
 
 /** Fetch heavyweight fields (formula, trigger body, script code) for one item. */
-export async function collectItemDetail(kind: DetailKind, id: string, org: string): Promise<ItemDetail> {
+export async function collectItemDetail(
+  kind: DetailKind,
+  id: string,
+  org: string
+): Promise<ItemDetail> {
   // Flows are keyed by FlowDefinitionView.DurableId, which is a developer name for packaged flows.
-  if (!(kind === "flow" ? FLOW_KEY_PATTERN : ID_PATTERN).test(id)) throw new Error(`Invalid record Id: ${id}`);
+  if (!(kind === "flow" ? FLOW_KEY_PATTERN : ID_PATTERN).test(id))
+    throw new Error(`Invalid record Id: ${id}`);
 
   switch (kind) {
     case "flow":
@@ -760,8 +948,13 @@ export async function collectItemDetail(kind: DetailKind, id: string, org: strin
       };
     }
     case "layout": {
-      const [r] = await query(`SELECT Id, Name, NamespacePrefix, TableEnumOrId FROM Layout WHERE Id = '${id}'`, org, true);
-      if (!r || r.TableEnumOrId !== SIDEBAR_OBJECT) throw new Error("Only Visit page layouts have an engagement sidebar");
+      const [r] = await query(
+        `SELECT Id, Name, NamespacePrefix, TableEnumOrId FROM Layout WHERE Id = '${id}'`,
+        org,
+        true
+      );
+      if (!r || r.TableEnumOrId !== SIDEBAR_OBJECT)
+        throw new Error("Only Visit page layouts have an engagement sidebar");
       // Packaged layouts are retrieved as Visit-ns__Name.
       const layoutName = `${SIDEBAR_OBJECT}-${r.NamespacePrefix ? `${r.NamespacePrefix}__` : ""}${r.Name}`;
       // The layout's current related lists need a metadata retrieve; if it fails the candidates still load.
@@ -769,7 +962,11 @@ export async function collectItemDetail(kind: DetailKind, id: string, org: strin
       const relatedLists = layout?.ok ? relatedListNames(layout.xml) : null;
       const described = await cachedDescribeSObject(SIDEBAR_OBJECT, org);
       const candidates = described.data
-        ? relatedListOptions(described.data, relatedLists ?? [], await layoutableRelatedLists(SIDEBAR_OBJECT, org)).map((c) => ({ objectName: c.object, relationshipName: c.relationshipName }))
+        ? relatedListOptions(
+            described.data,
+            relatedLists ?? [],
+            await layoutableRelatedLists(SIDEBAR_OBJECT, org)
+          ).map((c) => ({ objectName: c.object, relationshipName: c.relationshipName }))
         : [];
       return {
         kind,
@@ -808,15 +1005,28 @@ async function collectFlowDetail(durableId: string, org: string): Promise<ItemDe
   const base = { kind: "flow" as const, id: durableId };
   // Packaged flows have no readable versions — their DurableIds aren't record Ids.
   const [r] = ID_PATTERN.test(versionId)
-    ? await query(`SELECT Id, VersionNumber, Metadata FROM Flow WHERE Id = '${versionId}'`, org, true)
+    ? await query(
+        `SELECT Id, VersionNumber, Metadata FROM Flow WHERE Id = '${versionId}'`,
+        org,
+        true
+      )
     : [];
   if (!r?.Metadata) {
-    return { ...base, properties: { Description: scalar(def.Description), Source: "Managed package — its steps aren't readable" } };
+    return {
+      ...base,
+      properties: {
+        Description: scalar(def.Description),
+        Source: "Managed package — its steps aren't readable",
+      },
+    };
   }
   const { outline, findings } = describeFlow(r.Metadata as Row);
   return {
     ...base,
-    properties: { Description: scalar(def.Description), Showing: `${showing} (v${r.VersionNumber})` },
+    properties: {
+      Description: scalar(def.Description),
+      Showing: `${showing} (v${r.VersionNumber})`,
+    },
     flow: outline,
     findings,
     // Not shown as code — it's what "Ask Claude about this" and Copy hand over.

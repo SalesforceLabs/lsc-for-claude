@@ -8,7 +8,14 @@ import { handlersResult, loadDbSchema, nameList, syncResult } from "./_consent-s
 const HANDLERS = ["SurveyInvitationSharingHandler", "VisitSurveyInviteCascadeDeleteHandler"];
 
 /** What the iPad needs to show a survey. */
-const DEFINITION_OBJECTS = ["Survey", "SurveyVersion", "SurveyPage", "SurveyQuestion", "SurveyQuestionChoice", "SurveyInvitation"];
+const DEFINITION_OBJECTS = [
+  "Survey",
+  "SurveyVersion",
+  "SurveyPage",
+  "SurveyQuestion",
+  "SurveyQuestionChoice",
+  "SurveyInvitation",
+];
 /** What the iPad writes when a rep fills one in. */
 const RESPONSE_OBJECTS = ["SurveyResponseOffline", "SurveyQstnResponseOffline"];
 
@@ -51,7 +58,10 @@ const readiness: ReadinessModule = {
           title: "The colleague survey sharing handler is switched on",
           severity: "info",
           why: "This handler shares survey invitations with colleagues on a managed event. It's needed only if you run surveys on managed events; otherwise it can stay off.",
-          steps: ["Open Admin Console > Trigger Handlers", "Switch on ColleagueSurveySharingHandler if you use surveys on managed events"],
+          steps: [
+            "Open Admin Console > Trigger Handlers",
+            "Switch on ColleagueSurveySharingHandler if you use surveys on managed events",
+          ],
           uiPath: "Admin Console > Trigger Handlers",
           surface: "triggerHandlers",
         },
@@ -61,7 +71,12 @@ const readiness: ReadinessModule = {
             exists("MngEvent", org).catch(() => false),
             exists("SurveyInvitation", org).catch(() => false),
           ]);
-          if (!events || !invitations) return { pass: true, skip: true, detail: "No survey invitations on managed events to share." };
+          if (!events || !invitations)
+            return {
+              pass: true,
+              skip: true,
+              detail: "No survey invitations on managed events to share.",
+            };
           return handlersResult(org, ["ColleagueSurveySharingHandler"]);
         }
       ),
@@ -73,18 +88,32 @@ const readiness: ReadinessModule = {
           title: "Mobile surveys are shared beyond their owner",
           severity: "error",
           why: "Reps see only surveys they can read. When the org-wide default for surveys is Private, a survey with only its owner on the sharing list doesn't appear on the iPad.",
-          steps: ["Open the survey and use Sharing", "Share it with the groups or territories whose reps should fill it in", "Or set the org-wide default for Survey to Public Read Only in Setup > Sharing Settings"],
+          steps: [
+            "Open the survey and use Sharing",
+            "Share it with the groups or territories whose reps should fill it in",
+            "Or set the org-wide default for Survey to Public Read Only in Setup > Sharing Settings",
+          ],
           uiPath: "App Launcher > Surveys > Sharing",
           surface: "objects",
         },
         async () => {
           const total = await count(`SELECT COUNT() ${MOBILE}`, org);
           if (!total) return { pass: true, skip: true, detail: "No mobile surveys." };
-          const owd = await query(`SELECT InternalSharingModel FROM EntityDefinition WHERE QualifiedApiName = 'Survey'`, org)
+          const owd = await query(
+            `SELECT InternalSharingModel FROM EntityDefinition WHERE QualifiedApiName = 'Survey'`,
+            org
+          )
             .then((r) => r[0]?.InternalSharingModel as string | undefined)
             .catch(() => undefined);
-          if (owd && owd !== "Private") return { pass: true, detail: `Survey's org-wide default is ${owd}, so reps can read all ${plural(total, "mobile survey")}.` };
-          const rows = await query(`SELECT Id, Name ${MOBILE} AND Id NOT IN (SELECT ParentId FROM SurveyShare WHERE RowCause != 'Owner') LIMIT 20`, org);
+          if (owd && owd !== "Private")
+            return {
+              pass: true,
+              detail: `Survey's org-wide default is ${owd}, so reps can read all ${plural(total, "mobile survey")}.`,
+            };
+          const rows = await query(
+            `SELECT Id, Name ${MOBILE} AND Id NOT IN (SELECT ParentId FROM SurveyShare WHERE RowCause != 'Owner') LIMIT 20`,
+            org
+          );
           return rows.length
             ? {
                 pass: false,
@@ -102,16 +131,25 @@ const readiness: ReadinessModule = {
           title: "At least one survey is built for the iPad",
           severity: "warning",
           why: "Only surveys of type Offline Mobile can be filled in on the iPad. If every survey is another type, reps have nothing to launch.",
-          steps: ["Create a survey with type Offline Mobile in App Launcher > Surveys", "Add its questions and activate a version"],
+          steps: [
+            "Create a survey with type Offline Mobile in App Launcher > Surveys",
+            "Add its questions and activate a version",
+          ],
           uiPath: "App Launcher > Surveys",
           surface: "objects",
         },
         async () => {
-          const [mobile, total] = await Promise.all([count(`SELECT COUNT() ${MOBILE}`, org), count(`SELECT COUNT() FROM Survey`, org)]);
+          const [mobile, total] = await Promise.all([
+            count(`SELECT COUNT() ${MOBILE}`, org),
+            count(`SELECT COUNT() FROM Survey`, org),
+          ]);
           if (!total) return { pass: true, skip: true, detail: "No surveys yet." };
           return mobile
             ? { pass: true, detail: `${plural(mobile, "mobile survey")} of ${total}.` }
-            : { pass: false, detail: `None of the ${plural(total, "survey")} is an Offline Mobile survey.` };
+            : {
+                pass: false,
+                detail: `None of the ${plural(total, "survey")} is an Offline Mobile survey.`,
+              };
         }
       ),
 
@@ -129,9 +167,16 @@ const readiness: ReadinessModule = {
         async () => {
           const total = await count(`SELECT COUNT() ${MOBILE}`, org);
           if (!total) return { pass: true, skip: true, detail: "No mobile surveys." };
-          const rows = await query(`SELECT Id, Name ${MOBILE} AND ActiveVersionId = null LIMIT 20`, org);
+          const rows = await query(
+            `SELECT Id, Name ${MOBILE} AND ActiveVersionId = null LIMIT 20`,
+            org
+          );
           return rows.length
-            ? { pass: false, detail: `${rows.length} of ${plural(total, "mobile survey")} have no active version.`, examples: nameList(rows) }
+            ? {
+                pass: false,
+                detail: `${rows.length} of ${plural(total, "mobile survey")} have no active version.`,
+                examples: nameList(rows),
+              }
             : { pass: true, detail: `All ${plural(total, "mobile survey")} have one.` };
         }
       ),
@@ -143,12 +188,18 @@ const readiness: ReadinessModule = {
           title: "Active survey versions have questions",
           severity: "warning",
           why: "An active version with no questions opens as a blank form that can still be submitted.",
-          steps: ["Open the survey in App Launcher > Surveys", "Add questions to the active version, or activate one that has them"],
+          steps: [
+            "Open the survey in App Launcher > Surveys",
+            "Add questions to the active version, or activate one that has them",
+          ],
           uiPath: "App Launcher > Surveys",
           surface: "objects",
         },
         async () => {
-          const total = await count(`SELECT COUNT() FROM SurveyVersion WHERE SurveyStatus = 'Active'`, org);
+          const total = await count(
+            `SELECT COUNT() FROM SurveyVersion WHERE SurveyStatus = 'Active'`,
+            org
+          );
           if (!total) return { pass: true, skip: true, detail: "No active survey versions." };
           const rows = await query(
             `SELECT Id, Name, Survey.Name FROM SurveyVersion WHERE SurveyStatus = 'Active' AND Id NOT IN (SELECT SurveyVersionId FROM SurveyQuestion) LIMIT 20`,
@@ -158,7 +209,9 @@ const readiness: ReadinessModule = {
             ? {
                 pass: false,
                 detail: `${rows.length} of ${plural(total, "active version")} have no questions.`,
-                examples: rows.map((r) => String((r.Survey as { Name?: string } | null)?.Name ?? r.Name)),
+                examples: rows.map((r) =>
+                  String((r.Survey as { Name?: string } | null)?.Name ?? r.Name)
+                ),
               }
             : { pass: true, detail: `All ${plural(total, "active version")} have questions.` };
         }
@@ -171,20 +224,31 @@ const readiness: ReadinessModule = {
           title: "Completed offline responses are being processed",
           severity: "warning",
           why: "A response uploaded from the iPad stays Completed until it's turned into survey responses (then it's marked Completed and Migrated). Ones left over for days mean reports and analytics miss them.",
-          steps: ["Check the survey response migration job is scheduled", "Check the Survey trigger handlers are on", "Open the oldest Completed response for an error"],
+          steps: [
+            "Check the survey response migration job is scheduled",
+            "Check the Survey trigger handlers are on",
+            "Open the oldest Completed response for an error",
+          ],
           uiPath: "App Launcher > Survey Response Offline",
           surface: "objects",
         },
         async () => {
-          if (!(await exists("SurveyResponseOffline", org))) return { pass: true, skip: true, detail: "No offline responses yet." };
+          if (!(await exists("SurveyResponseOffline", org)))
+            return { pass: true, skip: true, detail: "No offline responses yet." };
           // Status isn't indexed; the CreatedDate window keeps the count to recent responses in a large org.
           const stale = await count(
             `SELECT COUNT() FROM SurveyResponseOffline WHERE Status IN ('Completed', 'PartiallyCompleted') AND CreatedDate = LAST_N_DAYS:${WINDOW_DAYS} AND CreatedDate < LAST_N_DAYS:${STALE_DAYS}`,
             org
           );
           return stale
-            ? { pass: false, detail: `${plural(stale, "offline response")} from the last ${WINDOW_DAYS} days ${stale === 1 ? "has" : "have"} waited over ${STALE_DAYS} days to be processed.` }
-            : { pass: true, detail: `No offline response from the last ${WINDOW_DAYS} days has waited over ${STALE_DAYS} days.` };
+            ? {
+                pass: false,
+                detail: `${plural(stale, "offline response")} from the last ${WINDOW_DAYS} days ${stale === 1 ? "has" : "have"} waited over ${STALE_DAYS} days to be processed.`,
+              }
+            : {
+                pass: true,
+                detail: `No offline response from the last ${WINDOW_DAYS} days has waited over ${STALE_DAYS} days.`,
+              };
         }
       ),
 
@@ -195,7 +259,11 @@ const readiness: ReadinessModule = {
           title: "Surveys, versions, questions and invitations sync to the iPad",
           severity: "error",
           why: "The iPad draws a survey from its offline copy of these objects. A missing one means the survey doesn't appear, or has no questions or choices.",
-          steps: ["Open Admin Console > Mobile > DB Schema", "Add or switch on each object listed below for every profile that fills in surveys", "Publish to iPad"],
+          steps: [
+            "Open Admin Console > Mobile > DB Schema",
+            "Add or switch on each object listed below for every profile that fills in surveys",
+            "Publish to iPad",
+          ],
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },
@@ -209,7 +277,11 @@ const readiness: ReadinessModule = {
           title: "Survey responses sync from the iPad",
           severity: "error",
           why: "Answers are saved to these objects on the device and uploaded at the next sync. If they aren't in the DB Schema, a completed survey never reaches the org.",
-          steps: ["Open Admin Console > Mobile > DB Schema", "Add or switch on each object listed below for every profile that fills in surveys", "Publish to iPad"],
+          steps: [
+            "Open Admin Console > Mobile > DB Schema",
+            "Add or switch on each object listed below for every profile that fills in surveys",
+            "Publish to iPad",
+          ],
           uiPath: "Admin Console > Mobile > DB Schema",
           surface: "dbSchema",
         },

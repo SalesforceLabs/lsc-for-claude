@@ -30,7 +30,8 @@ import {
 
 const soqlString = (v: string) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 const text = (v: unknown): string => (typeof v === "string" ? v : "");
-const nested = (r: Row, key: string): Row => (r[key] && typeof r[key] === "object" ? (r[key] as Row) : {});
+const nested = (r: Row, key: string): Row =>
+  r[key] && typeof r[key] === "object" ? (r[key] as Row) : {};
 
 interface LiveCache {
   profileId: string;
@@ -39,8 +40,14 @@ interface LiveCache {
 }
 
 /** The profile's newest Active cache record, or the profile's id alone when it has none. */
-async function liveCache(profile: string, org: string): Promise<{ profileId: string; cache: LiveCache | null }> {
-  const profiles = await query(`SELECT Id, Name FROM Profile WHERE Name = ${soqlString(profile)}`, org);
+async function liveCache(
+  profile: string,
+  org: string
+): Promise<{ profileId: string; cache: LiveCache | null }> {
+  const profiles = await query(
+    `SELECT Id, Name FROM Profile WHERE Name = ${soqlString(profile)}`,
+    org
+  );
   const found = profiles.find((p) => text(p.Name).toLowerCase() === profile.toLowerCase());
   if (!found) throw new Error(`Profile not found: ${profile}`);
   const profileId = text(found.Id);
@@ -54,8 +61,16 @@ async function liveCache(profile: string, org: string): Promise<{ profileId: str
   if (!r) return { profileId, cache: null };
   const generatedAt = Date.parse(text(r.LastModifiedDate));
   const startedAt = Date.parse(text(r.CreatedDate));
-  if (!Number.isFinite(generatedAt)) throw new Error("The profile's metadata cache has no generation time.");
-  return { profileId, cache: { profileId, generatedAt, startedAt: Number.isFinite(startedAt) ? Math.min(startedAt, generatedAt) : generatedAt } };
+  if (!Number.isFinite(generatedAt))
+    throw new Error("The profile's metadata cache has no generation time.");
+  return {
+    profileId,
+    cache: {
+      profileId,
+      generatedAt,
+      startedAt: Number.isFinite(startedAt) ? Math.min(startedAt, generatedAt) : generatedAt,
+    },
+  };
 }
 
 /**
@@ -70,9 +85,21 @@ async function liveCache(profile: string, org: string): Promise<{ profileId: str
 export async function fetchConfigEdits(org: string, since: number): Promise<ConfigEdit[]> {
   const iso = soqlTime(since);
   const [edited, valued, reassigned] = await Promise.all([
-    query(`SELECT Id, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigRecord WHERE LastModifiedDate > ${iso}`, org, true),
-    query(`SELECT LifeSciConfigRecordId, FieldName, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigFieldValue WHERE LastModifiedDate > ${iso}`, org, true),
-    query(`SELECT LifeSciConfigRecordId, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigAssignment WHERE LastModifiedDate > ${iso}`, org, true),
+    query(
+      `SELECT Id, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigRecord WHERE LastModifiedDate > ${iso}`,
+      org,
+      true
+    ),
+    query(
+      `SELECT LifeSciConfigRecordId, FieldName, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigFieldValue WHERE LastModifiedDate > ${iso}`,
+      org,
+      true
+    ),
+    query(
+      `SELECT LifeSciConfigRecordId, LastModifiedDate, LastModifiedBy.Name FROM LifeSciConfigAssignment WHERE LastModifiedDate > ${iso}`,
+      org,
+      true
+    ),
   ]);
   // The newest touch per record, from any of the three tables.
   const touched = new Map<string, { at: number; by: string | null }>();
@@ -80,13 +107,18 @@ export async function fetchConfigEdits(org: string, since: number): Promise<Conf
     const at = Date.parse(text(row.LastModifiedDate));
     if (!id || !Number.isFinite(at)) return;
     const prev = touched.get(id);
-    if (!prev || at > prev.at) touched.set(id, { at, by: text(nested(row, "LastModifiedBy").Name) || null });
+    if (!prev || at > prev.at)
+      touched.set(id, { at, by: text(nested(row, "LastModifiedBy").Name) || null });
   };
   const fieldsOf = new Map<string, string[]>();
   for (const r of edited) touch(text(r.Id), r);
   for (const r of valued) {
     touch(text(r.LifeSciConfigRecordId), r);
-    if (text(r.FieldName)) fieldsOf.set(text(r.LifeSciConfigRecordId), [...(fieldsOf.get(text(r.LifeSciConfigRecordId)) ?? []), text(r.FieldName)]);
+    if (text(r.FieldName))
+      fieldsOf.set(text(r.LifeSciConfigRecordId), [
+        ...(fieldsOf.get(text(r.LifeSciConfigRecordId)) ?? []),
+        text(r.FieldName),
+      ]);
   }
   for (const r of reassigned) touch(text(r.LifeSciConfigRecordId), r);
   const editedIds = new Set(edited.map((r) => text(r.Id)));
@@ -96,8 +128,16 @@ export async function fetchConfigEdits(org: string, since: number): Promise<Conf
   await Promise.all(
     chunkIds([...touched.keys()], 150).map(async (chunk) => {
       const [records, assignments] = await Promise.all([
-        query(`SELECT Id, DeveloperName, IsOrgLevel, LifeSciConfigCategory.Category FROM LifeSciConfigRecord WHERE Id IN (${inList(chunk)})`, org, true),
-        query(`SELECT LifeSciConfigRecordId, AssignedToId, AssignmentLevel FROM LifeSciConfigAssignment WHERE LifeSciConfigRecordId IN (${inList(chunk)})`, org, true),
+        query(
+          `SELECT Id, DeveloperName, IsOrgLevel, LifeSciConfigCategory.Category FROM LifeSciConfigRecord WHERE Id IN (${inList(chunk)})`,
+          org,
+          true
+        ),
+        query(
+          `SELECT LifeSciConfigRecordId, AssignedToId, AssignmentLevel FROM LifeSciConfigAssignment WHERE LifeSciConfigRecordId IN (${inList(chunk)})`,
+          org,
+          true
+        ),
       ]);
       for (const r of records) {
         const category = text(nested(r, "LifeSciConfigCategory").Category);
@@ -111,7 +151,9 @@ export async function fetchConfigEdits(org: string, since: number): Promise<Conf
           at: t.at,
           by: t.by,
           allProfiles: r.IsOrgLevel === true || mine.some((a) => a.AssignmentLevel !== "Profile"),
-          profileIds: mine.filter((a) => a.AssignmentLevel === "Profile").map((a) => text(a.AssignedToId)),
+          profileIds: mine
+            .filter((a) => a.AssignmentLevel === "Profile")
+            .map((a) => text(a.AssignedToId)),
           changedFields: fieldsOf.get(text(r.Id)) ?? [],
           assignmentsChanged: reassignedIds.has(text(r.Id)),
           recordEdited: editedIds.has(text(r.Id)),
@@ -129,7 +171,11 @@ export async function fetchConfigEdits(org: string, since: number): Promise<Conf
  * saved some other way (a deploy that left no trail) simply have no author.
  */
 async function flexiPageRows(since: string, org: string): Promise<Row[]> {
-  const rows = await query(`SELECT Id, DeveloperName, MasterLabel, LastModifiedDate FROM FlexiPage WHERE ${since}`, org, true);
+  const rows = await query(
+    `SELECT Id, DeveloperName, MasterLabel, LastModifiedDate FROM FlexiPage WHERE ${since}`,
+    org,
+    true
+  );
   if (rows.length === 0) return rows;
   const earliest = rows.map((r) => text(r.LastModifiedDate)).sort()[0];
   const who = new Map<string, string>();
@@ -139,7 +185,10 @@ async function flexiPageRows(since: string, org: string): Promise<Row[]> {
       org
     );
     for (const t of trail) {
-      const label = text(t.Display).replace(/^[^:]*:\s*/, "").trim().toLowerCase();
+      const label = text(t.Display)
+        .replace(/^[^:]*:\s*/, "")
+        .trim()
+        .toLowerCase();
       const name = text((t.CreatedBy as { Name?: unknown } | null)?.Name);
       if (label && name && !who.has(label)) who.set(label, name);
     }
@@ -147,7 +196,9 @@ async function flexiPageRows(since: string, org: string): Promise<Row[]> {
     return rows;
   }
   return rows.map((r) => {
-    const name = who.get(text(r.MasterLabel).trim().toLowerCase()) ?? who.get(text(r.DeveloperName).trim().toLowerCase());
+    const name =
+      who.get(text(r.MasterLabel).trim().toLowerCase()) ??
+      who.get(text(r.DeveloperName).trim().toLowerCase());
     return name ? { ...r, LastModifiedBy: { Name: name } } : r;
   });
 }
@@ -158,7 +209,11 @@ type Reader = { kind: string; read: () => Promise<UnpublishedItem[]> };
  * The changes made in the org after `profile`'s live cache was generated that the iPad would show
  * differently. `known` (the snapshot's own documents) limits document changes to those the profile uses.
  */
-export async function collectUnpublished(profile: string, org: string, known?: KnownDocuments): Promise<UnpublishedResult> {
+export async function collectUnpublished(
+  profile: string,
+  org: string,
+  known?: KnownDocuments
+): Promise<UnpublishedResult> {
   const { profileId, cache } = await liveCache(profile, org);
   const checkedAt = new Date().toISOString();
   const base = { profile, checkedAt, scoped: !!known };
@@ -182,12 +237,30 @@ export async function collectUnpublished(profile: string, org: string, known?: K
     {
       kind: "Page layouts",
       read: async () =>
-        layoutItems(recent(await query(`SELECT Id, Name, TableEnumOrId, EntityDefinition.QualifiedApiName, LastModifiedDate, LastModifiedBy.Name FROM Layout WHERE ${since}`, org, true)), scopes.layouts),
+        layoutItems(
+          recent(
+            await query(
+              `SELECT Id, Name, TableEnumOrId, EntityDefinition.QualifiedApiName, LastModifiedDate, LastModifiedBy.Name FROM Layout WHERE ${since}`,
+              org,
+              true
+            )
+          ),
+          scopes.layouts
+        ),
     },
     {
       kind: "Compact layouts",
       read: async () =>
-        compactLayoutItems(recent(await query(`SELECT Id, DeveloperName, MasterLabel, SobjectType, LastModifiedDate, LastModifiedBy.Name FROM CompactLayout WHERE ${since}`, org, true)), scopes.compactLayouts),
+        compactLayoutItems(
+          recent(
+            await query(
+              `SELECT Id, DeveloperName, MasterLabel, SobjectType, LastModifiedDate, LastModifiedBy.Name FROM CompactLayout WHERE ${since}`,
+              org,
+              true
+            )
+          ),
+          scopes.compactLayouts
+        ),
     },
     {
       kind: "Lightning pages",
@@ -200,22 +273,57 @@ export async function collectUnpublished(profile: string, org: string, known?: K
         if (!known?.tabs?.length) return [];
         const match = await findProfileApp(profile, known.tabs, org);
         if (!match.app) return [];
-        return appItems(recent(await query(`SELECT Id, DeveloperName, NamespacePrefix, Label, LastModifiedDate, LastModifiedBy.Name FROM CustomApplication WHERE ${since}`, org, true)), match.app.fullName);
+        return appItems(
+          recent(
+            await query(
+              `SELECT Id, DeveloperName, NamespacePrefix, Label, LastModifiedDate, LastModifiedBy.Name FROM CustomApplication WHERE ${since}`,
+              org,
+              true
+            )
+          ),
+          match.app.fullName
+        );
       },
     },
     {
       kind: "Record types",
       read: async () =>
-        recordTypeItems(recent(await query(`SELECT Id, DeveloperName, Name, SobjectType, LastModifiedDate, LastModifiedBy.Name FROM RecordType WHERE ${since}`, org)), scopes.recordTypes),
+        recordTypeItems(
+          recent(
+            await query(
+              `SELECT Id, DeveloperName, Name, SobjectType, LastModifiedDate, LastModifiedBy.Name FROM RecordType WHERE ${since}`,
+              org
+            )
+          ),
+          scopes.recordTypes
+        ),
     },
     {
       kind: "List views",
       read: async () =>
-        listViewItems(recent(await query(`SELECT Id, DeveloperName, Name, SobjectType, LastModifiedDate, LastModifiedBy.Name FROM ListView WHERE ${since}`, org)), scopes.listViews),
+        listViewItems(
+          recent(
+            await query(
+              `SELECT Id, DeveloperName, Name, SobjectType, LastModifiedDate, LastModifiedBy.Name FROM ListView WHERE ${since}`,
+              org
+            )
+          ),
+          scopes.listViews
+        ),
     },
     {
       kind: "Tabs",
-      read: async () => tabItems(recent(await query(`SELECT Id, DeveloperName, MasterLabel, LastModifiedDate, LastModifiedBy.Name FROM CustomTab WHERE ${since}`, org, true)), scopes.tabs),
+      read: async () =>
+        tabItems(
+          recent(
+            await query(
+              `SELECT Id, DeveloperName, MasterLabel, LastModifiedDate, LastModifiedBy.Name FROM CustomTab WHERE ${since}`,
+              org,
+              true
+            )
+          ),
+          scopes.tabs
+        ),
     },
     {
       kind: "Admin Console",
