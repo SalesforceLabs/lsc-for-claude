@@ -385,3 +385,52 @@
 .studio-section-head .ui-section-title {
   margin: 0;
 }
+
+/* "Readiness for: [profile ▾]" (ReadinessProfilePicker.tsx), under a page's title. */
+.studio-rprofile {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.studio-rprofile .ui-menu-trigger {
+  height: var(--control);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.studio-rprofile-value {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-rprofile .ui-menu-list {
+  left: 0;
+  right: auto;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+/* A check that reads the same for every profile, when one is picked. */
+.studio-check-every {
+  flex-shrink: 0;
+  font-size: var(--font-xs);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+/* The feature page's "For: [profile ▾]" sits above the verdict (and above its loading and error states). */
+.studio-readiness-for {
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.studio-readiness-for .studio-rprofile {
+  margin-top: 0;
+}

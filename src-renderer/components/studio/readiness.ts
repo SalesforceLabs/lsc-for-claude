@@ -94,9 +94,10 @@ export function sortForAttention(checks: ReadinessCheck[]): ReadinessCheck[] {
 }
 
 /** A prompt for "Ask Claude" about one failing check. */
-export function askPrompt(featureTitle: string, check: ReadinessCheck): string {
+export function askPrompt(featureTitle: string, check: ReadinessCheck, profile?: string | null): string {
   const lines = [
-    `In my LSC org, the ${featureTitle} readiness check "${check.title}" (${check.id}) is ${check.status === "unknown" ? "unable to run" : "failing"}.`,
+    `In my LSC org, the ${featureTitle} readiness check "${check.title}" (${check.id}) is ${check.status === "unknown" ? "unable to run" : "failing"}` +
+      `${profile && !check.everyProfile ? ` for the ${profile} profile` : ""}.`,
   ];
   if (check.detail) lines.push(`Studio found: ${check.detail}`);
   if (check.examples?.length) lines.push(`Examples: ${check.examples.join(", ")}`);

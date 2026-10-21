@@ -8,9 +8,15 @@ vi.mock("../../../../src/salesforce/cli.js", () => ({
   dataPath: vi.fn(async (_org: string, rest: string) => `/services/data/v67.0${rest}`),
 }));
 vi.mock("../../../../src/config/collect.js", () => ({ collectCategoryRecords: vi.fn() }));
+// Who's in scope is its own module (scope.ts); it fails by default, so the older population reads run.
+vi.mock("../../../../src/studio/scope.js", () => ({ ipadProfiles: vi.fn(), territoryProfiles: vi.fn() }));
 
 const { apiRequest, runSoqlQuery, runToolingQuery } = await import("../../../../src/salesforce/cli.js");
 const { collectCategoryRecords } = await import("../../../../src/config/collect.js");
+const scope = await import("../../../../src/studio/scope.js");
+/** The scope's iPad profiles are these. */
+const ipad = (...names: string[]) =>
+  vi.mocked(scope.ipadProfiles).mockResolvedValue(names.map((name, i) => ({ id: `00e${i}`, name, users: 1, licensed: 1, group: "ipad", reason: "", detected: "ipad", overridden: false, territory: true, unsure: false })));
 const { default: mod, territoryTagMismatch } = await import("../../../../src/studio/readiness/features/mobile-sync.js");
 
 type Row = Record<string, unknown>;
@@ -35,6 +41,8 @@ const schemaRec = (sobject: string, isActive = true): ConfigRecord =>
 const handler = (developerName: string, IsActive: boolean) => ({ DeveloperName: developerName, MasterLabel: developerName, IsActive });
 
 beforeEach(() => {
+  vi.mocked(scope.ipadProfiles).mockRejectedValue(new Error("no scope"));
+  vi.mocked(scope.territoryProfiles).mockRejectedValue(new Error("no scope"));
   org = {};
   handlers = [];
   schema = [];
@@ -103,16 +111,16 @@ describe("mobile-sync readiness", () => {
     expect((await run())["mobile-sync.config.profile-app-settings"].status).toBe("fail");
   });
 
-  it("leaves out synced profiles with no LSC-licensed user", async () => {
-    org.User = [{ pn: "Manager", cnt: 3 }];
+  it("leaves out synced profiles that aren't iPad profiles in the scope", async () => {
+    ipad("Manager");
     schema = [dataRec("Account", true)]; // assigned to Rep only
     const c = (await run())["mobile-sync.config.profile-app-settings"];
     expect(c.status).toBe("pass");
     expect(c.detail).toContain("0 synced profiles");
   });
 
-  it("counts every LSC profile as synced when an active record is org-level", async () => {
-    org.User = [{ pn: "Manager", cnt: 3 }];
+  it("counts every iPad profile as synced when an active record is org-level", async () => {
+    ipad("Manager");
     schema = [dataRec("Account", true, { isOrgLevel: true, assignments: [] })];
     const c = (await run())["mobile-sync.mobile.nav-tabs"];
     expect(c.status).toBe("fail");
@@ -143,8 +151,8 @@ describe("mobile-sync readiness", () => {
     expect(c.detail).toContain("Rep (1 change");
   });
 
-  it("ignores a stale cache for a profile with no LSC-licensed user", async () => {
-    org.User = [{ pn: "Manager", cnt: 1 }];
+  it("ignores a stale cache for a profile outside the scope's iPad profiles", async () => {
+    ipad("Manager");
     org.LifeSciMobileMetadataRecord = [{ Id: "c1", Status: "Active", LastModifiedDate: ago(10), ProfileId: "00e1" }];
     org.Profile = [{ Id: "00e1", Name: "Rep" }];
     org.LifeSciConfigRecord = [{ n: "db_Account", m: ago(2) }];

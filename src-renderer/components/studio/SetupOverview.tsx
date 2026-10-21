@@ -21,6 +21,8 @@ import {
   type FeatureCardModel,
   type SetupOverviewData,
 } from "./overview-helpers";
+import ReadinessProfilePicker from "./ReadinessProfilePicker";
+import type { ReadinessProfile } from "./readiness-profile";
 import "./readiness.css";
 import "./setup-overview.css";
 
@@ -29,6 +31,11 @@ export interface SetupOverviewProps {
   /** Readiness per feature id, shared with the feature pages. */
   readiness: Record<string, ReadinessState>;
   loadReadiness: (featureId: string, refresh?: boolean) => void;
+  /** The profile everything on the page is checked for; null is every profile. */
+  readinessFor: string | null;
+  /** What the picker offers; null while it loads. */
+  readinessProfiles: ReadinessProfile[] | null;
+  onReadinessFor: (profile: string | null) => void;
   onOpenFeature: (featureId: string) => void;
   onCheckUser: () => void;
   /** Opens "Publish to iPad" with these profiles preselected. */
@@ -50,6 +57,9 @@ export default function SetupOverview({
   features,
   readiness,
   loadReadiness,
+  readinessFor,
+  readinessProfiles,
+  onReadinessFor,
   onOpenFeature,
   onCheckUser,
   onPublish,
@@ -73,12 +83,12 @@ export default function SetupOverview({
     const ticket = ++overviewTicket.current;
     setOverview((o) => (keep && o.status === "ready" ? o : { status: "loading" }));
     setOverviewRefreshing(true);
-    const res = await window.lscApi.studioSetupOverview(refresh);
+    const res = await window.lscApi.studioSetupOverview(refresh, readinessFor ?? undefined);
     if (overviewTicket.current !== ticket) return;
     setOverviewRefreshing(false);
     const error = res.error || (res.data as { error?: string } | undefined)?.error;
     setOverview(error ? { status: "error", error } : { status: "ready", data: res.data as SetupOverviewData });
-  }, []);
+  }, [readinessFor]);
   useEffect(() => {
     loadOverview();
   }, [loadOverview]);
@@ -144,7 +154,7 @@ export default function SetupOverview({
     return (
       <StateView
         kind="loading"
-        title="Checking your org…"
+        title={readinessFor ? `Checking ${readinessFor}…` : "Checking your org…"}
         detail="Licenses, metadata caches and the territory model. Every query is read-only."
       />
     );
@@ -175,6 +185,7 @@ export default function SetupOverview({
         <div>
           <h2>Setup overview</h2>
           <p>How healthy is {data.org}'s LSC setup?</p>
+          <ReadinessProfilePicker prefix="Readiness for" value={readinessFor} profiles={readinessProfiles} onChange={onReadinessFor} />
         </div>
         <div className="studio-page-actions">
           <button className="studio-btn" onClick={onCheckUser}>
@@ -195,7 +206,7 @@ export default function SetupOverview({
       <VerdictCard
         tone={verdictTone(verdict.verdict)}
         title={orgVerdictText(verdict)}
-        meta={`${data.org} · ${loadedCount} of ${ids.length} features checked`}
+        meta={`${data.org}${readinessFor ? ` · ${readinessFor}` : ""} · ${loadedCount} of ${ids.length} features checked`}
         progress={loading ? { value: loadedCount, max: ids.length, label: "Features checked", neutral: true } : undefined}
       >
         {notice && <div className={`studio-ovw-notice ${notice.kind}`}>{notice.text}</div>}

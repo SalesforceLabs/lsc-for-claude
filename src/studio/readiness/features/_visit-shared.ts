@@ -8,14 +8,12 @@ import { collectCategoryRecords } from "../../../config/collect.js";
 import type { ConfigRecord } from "../../../config/types.js";
 import { newDbSchema, profilesOf } from "../../collectors/shared.js";
 import { inList, plural, query } from "../../helpers.js";
+import { memoFocus } from "../../profile-focus.js";
 import type { StudioFix } from "../../types.js";
 import type { StudioCheckResult } from "../index.js";
 
 /** Run `fn` once and share the promise — checks in one module read the same org data. */
-export function once<T>(fn: () => Promise<T>): () => Promise<T> {
-  let p: Promise<T> | undefined;
-  return () => (p ??= fn());
-}
+export const once = memoFocus;
 
 /** Every DB Schema record (object sync rows) in the org. */
 export const loadDbSchema = (org: string) =>

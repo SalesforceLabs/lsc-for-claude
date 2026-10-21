@@ -719,6 +719,8 @@ export interface ReadinessCheck {
   examples?: string[];
   /** "rule" = knowledge/validation-rules YAML, "studio" = a TypeScript check. */
   source: "rule" | "studio";
+  /** Checked for one profile, but the check can't tell profiles apart: its answer is the same for every one. */
+  everyProfile?: boolean;
 }
 
 /** Every readiness check for one feature, from `studio_readiness`. */
@@ -728,4 +730,6 @@ export interface FeatureReadiness {
   org: string;
   collectedAt: string;
   checks: ReadinessCheck[];
+  /** The profile it was checked for; missing for every profile. */
+  profile?: string;
 }

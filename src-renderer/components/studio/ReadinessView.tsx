@@ -9,6 +9,8 @@ import { askPrompt, byStage, sortForAttention, summarize, verdictText, verdictTo
 import { isRevalidating } from "./fix-effects";
 import "./readiness.css";
 import FeatureLoading from "./FeatureLoading";
+import ReadinessProfilePicker from "./ReadinessProfilePicker";
+import type { ReadinessProfile } from "./readiness-profile";
 import { AssistantName } from "../../hooks/useAssistantName";
 
 const STATUS_TEXT: Record<ReadinessCheck["status"], string> = {
@@ -31,6 +33,10 @@ interface ReadinessViewProps {
   onShowSurface: (id: SurfaceId) => void;
   onAskClaude: (prompt: string) => void;
   onRetry: () => void;
+  /** The profile the checks answer for; null is every profile. Shared with the Overview. */
+  readinessFor: string | null;
+  readinessProfiles: ReadinessProfile[] | null;
+  onReadinessFor: (profile: string | null) => void;
 }
 
 /** Is this feature ready for the field? A verdict, then every check by stage, failing first. */
@@ -45,6 +51,9 @@ export default function ReadinessView({
   onShowSurface,
   onAskClaude,
   onRetry,
+  readinessFor,
+  readinessProfiles,
+  onReadinessFor,
 }: ReadinessViewProps) {
   const [showPassing, setShowPassing] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
@@ -52,14 +61,24 @@ export default function ReadinessView({
   const summary = useMemo(() => summarize(checks), [checks]);
   const groups = useMemo(() => byStage(checks), [checks]);
 
+  const picker = (
+    <div className="studio-readiness-for">
+      <ReadinessProfilePicker prefix="For" value={readinessFor} profiles={readinessProfiles} onChange={onReadinessFor} />
+    </div>
+  );
   if (!state || state.status === "loading") {
     return (
-      <FeatureLoading featureId={featureId} title={title} kind="readiness" />
+      <>
+        {picker}
+        <FeatureLoading featureId={featureId} title={title} kind="readiness" />
+      </>
     );
   }
   if (state.status === "error") {
     return (
-      <StateView
+      <>
+        {picker}
+        <StateView
         kind="error"
         title="Couldn't check this feature"
         detail={state.error}
@@ -68,7 +87,8 @@ export default function ReadinessView({
             <RefreshCw aria-hidden="true" /> Try again
           </button>
         }
-      />
+        />
+      </>
     );
   }
 
@@ -81,6 +101,7 @@ export default function ReadinessView({
   ].filter(Boolean);
   return (
     <div className="studio-page ui-enter">
+      {picker}
       <VerdictCard
         tone={verdictTone(summary.verdict)}
         title={verdictText(summary)}
@@ -117,7 +138,7 @@ export default function ReadinessView({
                     expanded={open === check.id}
                     onToggle={() => setOpen(open === check.id ? null : check.id)}
                     onShowSurface={onShowSurface}
-                    onAsk={() => onAskClaude(askPrompt(title, check))}
+                    onAsk={() => onAskClaude(askPrompt(title, check, readinessFor))}
                     fixProps={{ pending, onPendingChange, profiles, objects }}
                   />
                 ))}
@@ -198,6 +219,11 @@ export function CheckRow({ check, expanded, onToggle, onShowSurface, onAsk, fixP
           </span>
           {check.detail && <span className="studio-check-detail">{check.detail}</span>}
         </span>
+        {check.everyProfile && (
+          <span className="studio-check-every" title="This check doesn't depend on the profile: it reads the same for every one.">
+            Every profile
+          </span>
+        )}
         {check.status === "fail" && (
           <span className={`ui-pill ${check.severity}`}>
             {check.severity === "error" ? "Fix now" : check.severity === "warning" ? "Worth fixing" : "Suggestion"}

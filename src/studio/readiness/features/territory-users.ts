@@ -1,6 +1,7 @@
 /** Territory & Users readiness: the territory model, alignment, field users and their licenses. */
 
 import { activeTerritories, fieldProfiles, LSC_PSL } from "../../collectors/territory-users.js";
+import { focusTerritoryIds } from "../../profile-focus.js";
 import { count, countGroupedBy, inList, plural, query, queryByIds, type Row } from "../../helpers.js";
 import { chunkIds } from "../../../tools/helpers.js";
 import type { StudioFix } from "../../types.js";
@@ -100,7 +101,7 @@ const readiness: ReadinessModule = {
           const found = await fieldUsers(
             `AND Id NOT IN (SELECT AssigneeId FROM PermissionSetLicenseAssign WHERE PermissionSetLicenseId IN (${inList(psls.map((p) => String(p.Id)))}))`
           );
-          if (!found) return { pass: true, skip: true, detail: "No field profiles found (no profile has LSC Mobile app settings)." };
+          if (!found) return { pass: true, skip: true, detail: "No iPad profiles found." };
           const { total, rows } = found;
           if (total === 0) return { pass: true, detail: "Every field user is licensed." };
           // Only one license with seats is an unambiguous fix; with several, which one is the admin's call.
@@ -159,7 +160,7 @@ const readiness: ReadinessModule = {
           const found = await fieldUsers(
             `AND Id NOT IN (SELECT UserId FROM UserTerritory2Association WHERE Territory2.Territory2Model.State = 'Active')`
           );
-          if (!found) return { pass: true, skip: true, detail: "No field profiles found." };
+          if (!found) return { pass: true, skip: true, detail: "No iPad profiles found." };
           return found.total
             ? { pass: false, detail: `${plural(found.total, "field user")} in no active-model territory.`, examples: labels(found.rows) }
             : { pass: true, detail: "Every field user has a territory." };
@@ -237,7 +238,10 @@ const readiness: ReadinessModule = {
         },
         async () => {
           // Active model only: planning or archived models keep their own info rows.
-          const { rows: territories, model } = await activeTerritories(org);
+          const [{ rows: modelTerritories, model }, focus] = await Promise.all([activeTerritories(org), focusTerritoryIds(org)]);
+          const mine = focus && new Set(focus);
+          const territories = mine ? modelTerritories.filter((t) => mine.has(String(t.Id))) : modelTerritories;
+          if (mine && model && !territories.length) return { pass: true, skip: true, detail: "This profile's users have no territory in the active model." };
           if (!model || !territories.length) return { pass: true, skip: true, detail: "No account alignment yet." };
           // One query per IN-list chunk of the model's territories, each reading its share of the sample,
           // so the rows come from across the model rather than from its first territories.
@@ -272,9 +276,13 @@ const readiness: ReadinessModule = {
           const orphans = info.filter((r) => !alignedKeys.has(key(r.AccountId, r.Territory2Id)));
           const missing = alignments.filter((r) => !infoKeys.has(key(r.ObjectId, r.Territory2Id)));
           const read = `${many(alignments.length, "alignment", "alignments")} and ${many(info.length, "territory info row", "territory info rows")}`;
-          const scope = complete
-            ? `Checked all ${read} in the active model.`
-            : `Checked a sample of ${read} from across the active model, not every one in it.`;
+          const scope = mine
+            ? complete
+              ? `Checked all ${read} in this profile's territories.`
+              : `Checked a sample of ${read} from this profile's territories, not every one.`
+            : complete
+              ? `Checked all ${read} in the active model.`
+              : `Checked a sample of ${read} from across the active model, not every one in it.`;
           const parts = [
             orphans.length ? `${plural(orphans.length, "territory info row")} for an account no longer aligned to that territory` : "",
             missing.length ? `${plural(missing.length, "aligned account")} with no territory info for that territory` : "",

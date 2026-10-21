@@ -19,6 +19,7 @@ import { query, type Row } from "../helpers.js";
 import type { FeatureReadiness, ReadinessCheck, ReadinessStage } from "../types.js";
 import { currentMapTracker, readinessKey, trackMap } from "../map-progress.js";
 import { MODULES } from "./modules.js";
+import { hasProfileFocus, trackFocusUse, withProfileFocus } from "../profile-focus.js";
 
 /** What a feature contributes to readiness. */
 export interface ReadinessModule {
@@ -50,8 +51,11 @@ const STAGE_FOR_CATEGORY: Record<Category, ReadinessStage> = {
 const CONCURRENCY = 4;
 const MAX_EXAMPLES = 5;
 
-export function collectReadiness(feature: FeatureDefinition, org: string): Promise<FeatureReadiness> {
-  return trackMap(readinessKey(feature.id), feature.id, feature.title, () => gatherReadiness(feature, org));
+/** One feature's readiness, for every profile or (`profile`, a profile name) for one. */
+export function collectReadiness(feature: FeatureDefinition, org: string, profile?: string): Promise<FeatureReadiness> {
+  return trackMap(readinessKey(feature.id), feature.id, feature.title, () =>
+    withProfileFocus(profile, async () => ({ ...(await gatherReadiness(feature, org)), ...(profile ? { profile } : {}) }))
+  );
 }
 
 async function gatherReadiness(feature: FeatureDefinition, org: string): Promise<FeatureReadiness> {
@@ -148,6 +152,8 @@ function ruleBase(rule: ValidationRule): Omit<ReadinessCheck, "status"> {
     steps: rule.resolution?.steps,
     uiPath: rule.resolution?.ui_path,
     ...(rule.studio_surface ? { surface: rule.studio_surface } : {}),
+    // Rules are org-wide queries; with a profile picked they still answer for everyone.
+    ...(hasProfileFocus() ? { everyProfile: true } : {}),
     source: "rule",
   };
 }
@@ -232,13 +238,15 @@ export async function runCheck(
   meta: Omit<ReadinessCheck, "status" | "source" | "detail" | "examples" | "fixes">,
   fn: () => Promise<StudioCheckResult>
 ): Promise<ReadinessCheck> {
+  const focused = hasProfileFocus();
   try {
-    const r = await fn();
+    const { value: r, used } = await trackFocusUse(fn);
     const status = r.skip ? "skipped" : r.pass ? "pass" : "fail";
     return {
       ...meta,
       status,
       source: "studio",
+      ...(focused && !used ? { everyProfile: true } : {}),
       ...(r.detail ? { detail: r.detail } : {}),
       ...(r.examples?.length ? { examples: r.examples.slice(0, MAX_EXAMPLES) } : {}),
       ...(!r.pass && r.fixes?.length ? { fixes: r.fixes } : {}),

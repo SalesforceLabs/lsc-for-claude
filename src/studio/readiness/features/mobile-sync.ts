@@ -96,9 +96,9 @@ const readiness: ReadinessModule = {
     const users = once(() => lscProfiles(org).catch(() => new Map<string, string>()));
     /**
      * Profiles that sync data: those the active DB Schema records are assigned to, plus every
-     * LSC-licensed profile when a record is org-level. Profiles with no LSC-licensed active user
-     * are left out (integration users, empty profiles) — unless the org has none at all, when the
-     * license is named differently here and nothing is dropped.
+     * iPad profile of the org's scope when a record is org-level. Profiles outside the scope's
+     * iPad profiles are left out (admins, integration users, empty profiles) — unless the scope
+     * has none at all, when nothing is dropped.
      */
     const syncedProfiles = once(async () => {
       const active = (await dataRecords()).filter((r) => r.isActive);

@@ -1,13 +1,14 @@
 /**
  * Building blocks shared by the org-wide and Next Best / Events / Medical
  * Inquiries readiness modules: "is the iPad's published copy out of date", which
- * profiles have field users, and per-profile DB Schema coverage with fixes.
+ * profiles are iPad profiles, and per-profile DB Schema coverage with fixes.
  */
 
 import type { ConfigRecord } from "../../../config/types.js";
 import { fetchCache, isLiveCache, type CacheRecord } from "../../collectors/mobile-sync.js";
 import { actionAudience, addProfileFix, newDbSchema, profilesOf } from "../../collectors/shared.js";
 import { audienceOf, inList, plural, query } from "../../helpers.js";
+import { ipadProfiles } from "../../scope.js";
 import type { StudioFix } from "../../types.js";
 import type { StudioCheckResult } from "../index.js";
 
@@ -27,28 +28,17 @@ export function liveCacheDates(caches: CacheRecord[]): Map<string, number> {
   return out;
 }
 
-/** The LSC license, matched like `LSC_PSL` in overview.ts. */
-const LSC_PSL = "(PermissionSetLicense.DeveloperName LIKE '%LSC4CE%' OR PermissionSetLicense.DeveloperName LIKE '%LifeScienceCommercial%')";
-
 /**
- * Profiles with at least one active user holding an LSC permission set license —
- * the profiles whose users can sign in to the iPad — lower-cased name → name. The
- * same query as `fetchLscProfiles` in overview.ts, which can't be imported here
- * (overview imports the readiness runner).
+ * The iPad profiles of the org's scope (`scope.ts`) — the profiles whose users download a
+ * metadata cache — lower-cased name → name.
  */
 export async function lscProfiles(org: string): Promise<Map<string, string>> {
-  const rows = await query(
-    `SELECT Profile.Name pn, COUNT(Id) cnt FROM User WHERE IsActive = true AND UserType = 'Standard' ` +
-      `AND Id IN (SELECT AssigneeId FROM PermissionSetLicenseAssign WHERE ${LSC_PSL}) GROUP BY Profile.Name`,
-    org
-  );
-  return new Map(rows.filter((r) => r.pn).map((r) => [String(r.pn).toLowerCase(), String(r.pn)]));
+  return new Map((await ipadProfiles(org)).map((p) => [p.name.toLowerCase(), p.name]));
 }
 
 /**
- * `profiles` minus those with no LSC-licensed active user. When the org has no
- * such users at all (or they can't be read), the license is named differently
- * here, so nothing is dropped.
+ * `profiles` minus those that aren't iPad profiles in the org's scope. When the
+ * scope has none at all (or it can't be read), nothing is dropped.
  */
 export async function withLscUsers(profiles: string[], org: string): Promise<string[]> {
   const users = await lscProfiles(org).catch(() => new Map<string, string>());
@@ -97,7 +87,7 @@ export async function changedConfig(org: string, categories: string[], since: nu
  * Pass when nothing in `categories` changed since the iPad's metadata cache for
  * the profiles in `forProfiles` (or everyone, when empty) was last generated.
  * `records` are the category's records, used to tell which profile a change reaches.
- * Profiles with no LSC-licensed active user are left out: nobody downloads their cache.
+ * Profiles outside the scope's iPad profiles are left out: nobody downloads their cache.
  * With `onlyRecords`, only changes to those records count (not the whole category).
  * There is no fix: publishing is its own step.
  */

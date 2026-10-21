@@ -137,8 +137,11 @@ interface LscApi {
   // Studio — `data` is the parsed JSON from the studio_* MCP tool (may itself carry `error`)
   studioListFeatures(): Promise<StudioResponse>;
   studioFeatureMap(featureId: string, refresh?: boolean): Promise<StudioResponse>;
-  studioReadiness(featureId: string, refresh?: boolean): Promise<StudioResponse>;
-  studioSetupOverview(refresh?: boolean): Promise<StudioResponse>;
+  /** `profile` (a profile name) answers each check for that profile's users; none, for every profile. */
+  studioReadiness(featureId: string, refresh?: boolean, profile?: string): Promise<StudioResponse>;
+  studioSetupOverview(refresh?: boolean, profile?: string): Promise<StudioResponse>;
+  /** Every profile with active users and its group (`ScopeProfile[]` in `src/studio/scope.ts`). */
+  studioScope(): Promise<StudioResponse>;
   studioUserTrace(userId: string, featureId?: string): Promise<StudioResponse>;
   studioDrift(
     input: { action: "list"; days?: number } | { action: "save"; label?: string } | { action: "diff"; id: string } | { action: "delete"; id: string }

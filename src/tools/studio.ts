@@ -29,6 +29,7 @@ import { fixProgress, startFixChange } from "../studio/fix-progress.js";
 import { compileInlineLwc } from "../studio/lwc/compile.js";
 import { lwcRequest } from "../studio/lwc/request.js";
 import { apiVersionInfo, setApiVersion } from "../studio/api-version.js";
+import { lscScope } from "../studio/scope.js";
 import type { StudioFix } from "../studio/types.js";
 import { collectScriptDetail, collectScriptLibrary } from "../studio/scripts/library.js";
 import {
@@ -391,9 +392,10 @@ export function register(server: McpServer) {
     "LSC Studio (GUI data): is one LSC feature ready for the field? Runs the feature's validation rules and Studio's checks (switched on, access, data, settings, iPad), each pass/fail/unknown with how to fix it. Read-only. Returns JSON.",
     {
       featureId: z.string().describe("Feature id from studio_list_features, e.g. 'visit'"),
+      profile: z.string().min(1).max(255).optional().describe("Check for this profile (its name) only; checks that can't tell profiles apart are marked everyProfile"),
       refresh: z.boolean().optional().describe("Read the org again instead of reusing reads shared in the last minute"),
     },
-    async ({ featureId, refresh }) => {
+    async ({ featureId, profile, refresh }) => {
       const feature = getFeature(featureId);
       if (!feature) return jsonError(`Unknown feature: ${featureId}`);
       const connection = await validateOrgConnection();
@@ -402,15 +404,18 @@ export function register(server: McpServer) {
       }
       const org = connection.targetOrg;
       if (refresh) refreshSharedReads(org);
-      return json(await withSharedReads(() => collectReadiness(feature, org)));
+      return json(await withSharedReads(() => collectReadiness(feature, org, profile)));
     }
   );
 
   server.tool(
     "studio_setup_overview",
     "LSC Studio (GUI data): org-wide setup signals no single feature owns — license capacity, metadata cache freshness, changes not yet published to the iPad, territory model. Read-only. Returns JSON.",
-    { refresh: z.boolean().optional().describe("Read the org again instead of reusing reads shared in the last minute"), },
-    async ({ refresh }) => {
+    {
+      profile: z.string().min(1).max(255).optional().describe("Check for this profile (its name) only; checks that can't tell profiles apart are marked everyProfile"),
+      refresh: z.boolean().optional().describe("Read the org again instead of reusing reads shared in the last minute"),
+    },
+    async ({ profile, refresh }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
@@ -418,7 +423,7 @@ export function register(server: McpServer) {
       try {
         const org = connection.targetOrg;
         if (refresh) refreshSharedReads(org);
-        return json(await withSharedReads(() => collectSetupOverview(org)));
+        return json(await withSharedReads(() => collectSetupOverview(org, profile)));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -1395,6 +1400,24 @@ function registerPerfTools(server: McpServer) {
       }
       try {
         return json(await setApiVersion(connection.targetOrg, version));
+      } catch (e) {
+        return jsonError(e instanceof Error ? e.message : String(e));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_scope",
+    "LSC Studio (GUI data): every profile with active users in the connected org, grouped as iPad users, web-only LSC users, admins and integration users, or not LSC, with why and user counts — the Overview's \"Readiness for\" picker lists the first two. Read-only. Returns JSON { profiles }.",
+    {},
+    async () => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        const org = connection.targetOrg;
+        return json(await withSharedReads(() => lscScope(org)));
       } catch (e) {
         return jsonError(e instanceof Error ? e.message : String(e));
       }

@@ -3,9 +3,15 @@ import type { ConfigRecord } from "../../../../src/config/types.js";
 
 vi.mock("../../../../src/salesforce/cli.js", () => ({ runSoqlQuery: vi.fn(), runToolingQuery: vi.fn(), cachedDescribeSObject: vi.fn() }));
 vi.mock("../../../../src/config/collect.js", () => ({ collectCategoryRecords: vi.fn() }));
+// Who's in scope is its own module (scope.ts); it fails by default, so the older population reads run.
+vi.mock("../../../../src/studio/scope.js", () => ({ ipadProfiles: vi.fn(), territoryProfiles: vi.fn() }));
 
 const { runSoqlQuery, runToolingQuery } = await import("../../../../src/salesforce/cli.js");
 const { collectCategoryRecords } = await import("../../../../src/config/collect.js");
+const scope = await import("../../../../src/studio/scope.js");
+/** The scope's iPad profiles are these. */
+const ipad = (...names: string[]) =>
+  vi.mocked(scope.ipadProfiles).mockResolvedValue(names.map((name, i) => ({ id: `00e${i}`, name, users: 1, licensed: 1, group: "ipad", reason: "", detected: "ipad", overridden: false, territory: true, unsure: false })));
 const { default: kam } = await import("../../../../src/studio/readiness/features/kam.js");
 
 type Row = Record<string, unknown>;
@@ -29,6 +35,8 @@ const schemaRec = (sobject: string, isActive = true): ConfigRecord =>
 const handler = (developerName: string, IsActive: boolean) => ({ DeveloperName: developerName, MasterLabel: developerName, IsActive });
 
 beforeEach(() => {
+  vi.mocked(scope.ipadProfiles).mockRejectedValue(new Error("no scope"));
+  vi.mocked(scope.territoryProfiles).mockRejectedValue(new Error("no scope"));
   org = {};
   handlers = [];
   schema = [];

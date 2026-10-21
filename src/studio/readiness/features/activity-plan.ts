@@ -2,6 +2,7 @@
 
 import { activeTerritories } from "../../collectors/territory-users.js";
 import { countGroupedBy, plural, query, queryByIds, type Row } from "../../helpers.js";
+import { focusTerritoryIds, hasProfileFocus } from "../../profile-focus.js";
 import { runCheck, type ReadinessModule } from "../index.js";
 import {
   countOf,
@@ -54,8 +55,11 @@ const readiness: ReadinessModule = {
     const schema = loadDbSchema(org);
     // Active-model territories with a field user — the ones that need a plan.
     // Counted per chunk of territory ids: one grouped query stops at 2,000 groups.
+    // With a profile picked, its users' territories.
     const staffed = lazy(async () => {
-      const { rows } = await activeTerritories(org);
+      const [{ rows: all }, focus] = await Promise.all([activeTerritories(org), focusTerritoryIds(org)]);
+      const mine = focus && new Set(focus);
+      const rows = mine ? all.filter((t) => mine.has(String(t.Id))) : all;
       const users = await countGroupedBy("UserTerritory2Association", "Territory2Id", rows.map((t) => String(t.Id)), org, "IsActive = true");
       return rows.filter((t) => users.get(String(t.Id))).map((t) => ({ Territory2Id: String(t.Id), tname: String(t.Name), cnt: users.get(String(t.Id)) }));
     });
@@ -237,17 +241,20 @@ const readiness: ReadinessModule = {
         },
         async () => {
           const people = await staffed();
-          if (people.length === 0) return { pass: true, skip: true, detail: "No users are assigned to the active model's territories." };
+          const mine = hasProfileFocus();
+          if (people.length === 0) {
+            return { pass: true, skip: true, detail: mine ? "This profile's users have no territory in the active model." : "No users are assigned to the active model's territories." };
+          }
           // Looked up by territory id, so the cost follows the staffed territories, not every plan link.
           const have = await countGroupedBy("ActivityPlanTerritory", "TerritoryId", people.map((r) => r.Territory2Id), org, "ActivityPlan.IsActive = true");
           const bare = people.filter((r) => !have.has(String(r.Territory2Id)));
           return bare.length
             ? {
                 pass: false,
-                detail: `${bare.length} of ${people.length} staffed territories have no active plan.${bare.length > 25 ? " Showing the first 25." : ""}`,
+                detail: `${bare.length} of ${mine ? `this profile's ${people.length}` : `${people.length} staffed`} territories have no active plan.${bare.length > 25 ? " Showing the first 25." : ""}`,
                 examples: bare.slice(0, 25).map((r) => String(r.tname)),
               }
-            : { pass: true, detail: `All ${people.length} staffed territories are covered.` };
+            : { pass: true, detail: `All ${people.length} ${mine ? "of this profile's" : "staffed"} territories are covered.` };
         }
       ),
 

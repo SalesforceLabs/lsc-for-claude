@@ -3,7 +3,8 @@
 import { collectCategoryRecords } from "../../../config/collect.js";
 import { activeTerritories } from "../../collectors/territory-users.js";
 import { count, countGroupedBy, inList, plural, query, queryByIds, type Row } from "../../helpers.js";
-import { runCheck, type ReadinessModule } from "../index.js";
+import { focusTerritoryIds, spread } from "../../profile-focus.js";
+import { runCheck, type ReadinessModule, type StudioCheckResult } from "../index.js";
 import { duplicateSyncResult, handlersResult, loadDbSchema, loadHandlers, once, syncResult } from "./_visit-shared.js";
 
 const ADDRESS_HANDLERS = [
@@ -55,11 +56,16 @@ interface Sample {
   accounts: Map<string, SampledAccount>;
   /** Every active territory info row was read. */
   complete: boolean;
+  /** Read only in the picked profile's territories (`profile-focus.ts`). */
+  focused: boolean;
 }
 
 async function loadSample(org: string): Promise<Sample> {
+  const focus = await focusTerritoryIds(org);
+  if (focus && !focus.length) return { rows: [], accounts: new Map(), complete: true, focused: true };
+  const inTerritories = focus ? ` AND Territory2Id IN (${inList(spread(focus, SAMPLE_TERRITORIES))})` : "";
   const rows = await query(
-    `SELECT AccountId, Account.Name, Account.IsPersonAccount, Territory2Id, PreferredAddressId FROM ProviderAcctTerritoryInfo WHERE IsActive = true AND AccountId != null LIMIT ${SAMPLE_ROWS}`,
+    `SELECT AccountId, Account.Name, Account.IsPersonAccount, Territory2Id, PreferredAddressId FROM ProviderAcctTerritoryInfo WHERE IsActive = true AND AccountId != null${inTerritories} LIMIT ${SAMPLE_ROWS}`,
     org
   );
   const accounts = new Map<string, SampledAccount>();
@@ -67,7 +73,7 @@ async function loadSample(org: string): Promise<Sample> {
     const a = (r.Account ?? {}) as Row;
     accounts.set(String(r.AccountId), { name: String(a.Name ?? r.AccountId), person: a.IsPersonAccount === true });
   }
-  return { rows, accounts, complete: rows.length < SAMPLE_ROWS };
+  return { rows, accounts, complete: rows.length < SAMPLE_ROWS && (!focus || focus.length <= SAMPLE_TERRITORIES), focused: !!focus };
 }
 
 /** "1 HCP" / "3 HCPs" for nouns `plural` can't spell. */
@@ -78,10 +84,27 @@ const many = (n: number, one: string, more: string) => `${n} ${n === 1 ? one : m
  * `what` names the accounts drawn from the sample ("310 HCPs"); omit it for the rows themselves.
  */
 function checkedNote(s: Sample, what?: string): string {
+  if (s.focused) {
+    if (s.complete) return what ? `Checked all ${what} in this profile's territories.` : `Checked all ${s.rows.length} in this profile's territories.`;
+    return what
+      ? `Checked the ${what} among a sample of ${SAMPLE_ROWS} territory info records in this profile's territories, not every one.`
+      : `Checked a sample of ${SAMPLE_ROWS} in this profile's territories, not every one.`;
+  }
   if (s.complete) return what ? `Checked all ${what} in territories.` : `Checked all ${s.rows.length}.`;
   return what
     ? `Checked the ${what} among a sample of ${SAMPLE_ROWS} territory info records, not every one in the org.`
     : `Checked a sample of ${SAMPLE_ROWS}, not every one in the org.`;
+}
+
+/** Nothing to check: say why. */
+function noSample(s: Sample): StudioCheckResult {
+  return {
+    pass: true,
+    skip: true,
+    detail: s.focused
+      ? "This profile's users have no territory info records in their territories, so there are no accounts to check."
+      : "No active territory info records, so there are no accounts reps work with to check.",
+  };
 }
 
 const isAre = (n: number) => (n === 1 ? "is" : "are");
@@ -104,7 +127,6 @@ const readiness: ReadinessModule = {
     const primaries = once(async () => countGroupedBy("ContactPointAddress", "ParentId", await ids(), org, "IsPrimary = true"));
     const persons = async () => [...(await sample()).accounts].filter(([, a]) => a.person).map(([id]) => id);
     const providers = once(async () => countGroupedBy("HealthcareProvider", "AccountId", await persons(), org));
-    const NO_SAMPLE = { pass: true, skip: true, detail: "No active territory info records, so there are no accounts reps work with to check." };
 
     return Promise.all([
       runCheck(
@@ -122,12 +144,15 @@ const readiness: ReadinessModule = {
           uiPath: "Admin Console > Territory Alignment",
         },
         async () => {
-          const { rows: territories, model } = await activeTerritories(org);
+          const [{ rows: modelTerritories, model }, focus] = await Promise.all([activeTerritories(org), focusTerritoryIds(org)]);
           if (!model) return { pass: true, skip: true, detail: "No active territory model." };
+          const mine = focus && new Set(focus);
+          const territories = mine ? modelTerritories.filter((t) => mine.has(String(t.Id))) : modelTerritories;
           // Spread the IN list over the model's territories rather than taking the first ones.
-          const step = Math.max(1, Math.ceil(territories.length / SAMPLE_TERRITORIES));
-          const picked = territories.filter((_, i) => i % step === 0).map((t) => String(t.Id));
-          if (!picked.length) return { pass: true, skip: true, detail: "The active territory model has no territories." };
+          const picked = spread(territories.map((t) => String(t.Id)), SAMPLE_TERRITORIES);
+          if (!picked.length) {
+            return { pass: true, skip: true, detail: mine ? "This profile's users have no territory in the active model." : "The active territory model has no territories." };
+          }
           const alignments = await query(
             `SELECT ObjectId, Territory2Id FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2Id IN (${inList(picked)}) LIMIT ${SAMPLE_ROWS}`,
             org
@@ -144,7 +169,10 @@ const readiness: ReadinessModule = {
             ? `: ${deactivated} ${hasHave(deactivated)} only inactive territory info, ${missing.length - deactivated} ${hasHave(missing.length - deactivated)} none`
             : "";
           const complete = alignments.length < SAMPLE_ROWS && picked.length === territories.length;
-          const scope = complete ? `Checked all ${many(alignments.length, "account alignment", "account alignments")}.` : `Checked ${many(alignments.length, "account alignment", "account alignments")} in ${many(picked.length, "territory", "territories")}, not every alignment in the org.`;
+          const where = mine ? " in this profile's territories" : "";
+          const scope = complete
+            ? `Checked all ${many(alignments.length, "account alignment", "account alignments")}${where}.`
+            : `Checked ${many(alignments.length, "account alignment", "account alignments")} in ${many(picked.length, "territory", "territories")}, not every alignment${mine ? " in this profile's territories" : " in the org"}.`;
           // Territory info can lag by a batch run; flag only a gap larger than 5%.
           return {
             pass: missing.length <= alignments.length * 0.05,
@@ -168,7 +196,7 @@ const readiness: ReadinessModule = {
         },
         async () => {
           const s = await sample();
-          if (!s.rows.length) return NO_SAMPLE;
+          if (!s.rows.length) return noSample(s);
           const scope = checkedNote(s);
           const missing = s.rows.filter((r) => !r.PreferredAddressId);
           if (!missing.length) return { pass: true, detail: `Every one has a preferred address. ${scope}` };
@@ -199,7 +227,7 @@ const readiness: ReadinessModule = {
         },
         async () => {
           const s = await sample();
-          if (!s.rows.length) return NO_SAMPLE;
+          if (!s.rows.length) return noSample(s);
           const withProvider = await providers();
           const hcps = (await persons()).filter((id) => withProvider.has(id));
           if (!hcps.length) return { pass: true, skip: true, detail: "No person account with territory info has a Healthcare Provider record." };
@@ -225,7 +253,7 @@ const readiness: ReadinessModule = {
         },
         async () => {
           const s = await sample();
-          if (!s.rows.length) return NO_SAMPLE;
+          if (!s.rows.length) return noSample(s);
           const [withAddresses, withPrimary] = await Promise.all([addresses(), primaries()]);
           const addressed = [...withAddresses.keys()];
           if (!addressed.length) return { pass: true, skip: true, detail: "None of the accounts checked has an address." };
@@ -250,7 +278,7 @@ const readiness: ReadinessModule = {
         },
         async () => {
           const s = await sample();
-          if (!s.rows.length) return NO_SAMPLE;
+          if (!s.rows.length) return noSample(s);
           const people = await persons();
           if (!people.length) return { pass: true, skip: true, detail: "None of the accounts with territory info checked is a person account." };
           const withProvider = await providers();
@@ -276,7 +304,7 @@ const readiness: ReadinessModule = {
         async () => {
           if (!(await licenses())) return { pass: true, skip: true, detail: "No business licenses — optional." };
           const s = await sample();
-          if (!s.rows.length) return NO_SAMPLE;
+          if (!s.rows.length) return noSample(s);
           const expired = await queryByIds("Name, LicenseNumber, PeriodEnd, AccountId", "BusinessLicense", "AccountId", await ids(), org, "IsActive = true AND PeriodEnd < TODAY");
           const scope = checkedNote(s, many(s.accounts.size, "account", "accounts"));
           return {
@@ -299,7 +327,7 @@ const readiness: ReadinessModule = {
         async () => {
           if (!(await exists("ProviderAffiliation", org))) return { pass: true, skip: true, detail: "No affiliations." };
           const s = await sample();
-          if (!s.rows.length) return NO_SAMPLE;
+          if (!s.rows.length) return noSample(s);
           const ended = await countGroupedBy("ProviderAffiliation", "AccountId", await ids(), org, "IsActive = true AND EffectiveEndDate < TODAY");
           const n = [...ended.values()].reduce((a, b) => a + b, 0);
           const scope = checkedNote(s, many(s.accounts.size, "account", "accounts"));

@@ -26,6 +26,8 @@ import { runCheck } from "./readiness/index.js";
 import { cachesByProfile, daysSince, unpublishedChanges, type ProfileCache } from "./overview-logic.js";
 import type { ReadinessCheck } from "./types.js";
 import { fetchConfigEdits } from "./unpublished.js";
+import { memoFocus, withProfileFocus } from "./profile-focus.js";
+import { ipadProfiles } from "./scope.js";
 
 export interface SetupOverview {
   org: string;
@@ -37,12 +39,14 @@ export interface SetupOverview {
   unpublishedChanges: number;
   /** Per profile, how many of those reach it — the Admin Console part of that profile's `studio_unpublished`. Most first. */
   unpublishedByProfile: { profile: string; changes: number }[];
+  /** The profile it was checked for; missing for every profile. */
+  profile?: string;
 }
 /** A live cache older than this is worth a nudge even with no recorded changes. */
 const OLD_CACHE_DAYS = 90;
 /** How far back unpublished changes are looked for; a cache older than this is compared against what this window holds. */
 const CHANGES_LOOKBACK_DAYS = 180;
-/** The LSC license, matched like `LSC_PSL` in collectors/territory-users.ts and the user trace. */
+/** The LSC license, matched like `LSC_PSL` in scope.ts, collectors/territory-users.ts and the user trace. */
 const LSC_PSL = "(PermissionSetLicense.DeveloperName LIKE '%LSC4CE%' OR PermissionSetLicense.DeveloperName LIKE '%LifeScienceCommercial%')";
 
 export interface LscProfile {
@@ -51,13 +55,16 @@ export interface LscProfile {
   users: number;
 }
 
-export async function collectSetupOverview(org: string): Promise<SetupOverview> {
+/** The Overview's checks for every profile or (`profile`, a profile name) for one. */
+export function collectSetupOverview(org: string, profile?: string): Promise<SetupOverview> {
+  return withProfileFocus(profile, async () => ({ ...(await gatherOverview(org)), ...(profile ? { profile } : {}) }));
+}
+
+async function gatherOverview(org: string): Promise<SetupOverview> {
   // Shared by several checks; each check turns a rejection into "unknown".
-  const memo = <T>(fn: () => Promise<T>) => {
-    let p: Promise<T> | undefined;
-    return () => (p ??= fn());
-  };
-  const lscProfiles = memo(() => fetchLscProfiles(org));
+  const memo = memoFocus;
+  // The iPad profiles of the org's scope (or the picked one): the ones whose users download a metadata cache.
+  const lscProfiles = memo(async (): Promise<LscProfile[]> => (await ipadProfiles(org)).map((p) => ({ id: p.id, name: p.name, users: p.users })));
   // Only the LSC profiles' caches are read — an org-wide read would be cut off by a row cap.
   const caches = memo(async () => cachesByProfile(await fetchCacheRows(org, (await lscProfiles()).map((p) => p.id))));
   const unpublished = memo(async () => {
@@ -216,7 +223,7 @@ export async function collectSetupOverview(org: string): Promise<SetupOverview> 
       {
         id: "overview.data.users-without-territory",
         stage: "data",
-        title: "Every LSC field user is in a territory",
+        title: "Every iPad user is in a territory",
         severity: "warning",
         why: "A rep with no territory in the active model sees no accounts and syncs almost nothing.",
         uiPath: "Setup > Territory Models > Active model > Assign Users",
@@ -224,9 +231,10 @@ export async function collectSetupOverview(org: string): Promise<SetupOverview> 
       async () => {
         const [model] = await query(`SELECT Id FROM Territory2Model WHERE State = 'Active' LIMIT 1`, org);
         if (!model) return { pass: true, skip: true, detail: "No active territory model." };
+        const ids = (await lscProfiles()).map((p) => p.id);
+        if (!ids.length) return { pass: true, skip: true, detail: "No iPad profiles found." };
         const where =
-          `FROM User WHERE IsActive = true AND UserType = 'Standard' AND (NOT Profile.Name LIKE '%Admin%') ` +
-          `AND Id IN (SELECT AssigneeId FROM PermissionSetLicenseAssign WHERE ${LSC_PSL}) ` +
+          `FROM User WHERE IsActive = true AND UserType = 'Standard' AND ProfileId IN (${inList(ids)}) ` +
           `AND Id NOT IN (SELECT UserId FROM UserTerritory2Association WHERE Territory2.Territory2ModelId = '${model.Id}')`;
         // The number is a COUNT(); LIMIT only bounds the names listed.
         const [total, rows] = await Promise.all([count(`SELECT COUNT() ${where}`, org), query(`SELECT Id, Name ${where} ORDER BY Name LIMIT 200`, org)]);
@@ -241,7 +249,7 @@ export async function collectSetupOverview(org: string): Promise<SetupOverview> 
       {
         id: "overview.mobile.cache-missing",
         stage: "mobile",
-        title: "Every LSC profile has a published iPad metadata cache",
+        title: "Every iPad profile has a published metadata cache",
         severity: "error",
         why: "Without an Active metadata cache for their profile, reps' iPads have nothing to download.",
         uiPath: "Admin Console > Mobile > Metadata Cache",

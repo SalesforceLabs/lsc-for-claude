@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `144`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `145`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -122,6 +122,7 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_perf_users",
   "studio_readiness",
   "studio_report_data",
+  "studio_scope",
   "studio_script_test",
   "studio_script_test_records",
   "studio_set_api_version",
@@ -1318,6 +1319,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
         "optional": false,
         "type": "ZodString",
       },
+      "profile": {
+        "optional": true,
+        "type": "ZodString",
+      },
       "refresh": {
         "optional": true,
         "type": "ZodBoolean",
@@ -1327,6 +1332,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
   {
     "name": "studio_setup_overview",
     "params": {
+      "profile": {
+        "optional": true,
+        "type": "ZodString",
+      },
       "refresh": {
         "optional": true,
         "type": "ZodBoolean",
@@ -1789,6 +1798,10 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
         "type": "ZodNullable",
       },
     },
+  },
+  {
+    "name": "studio_scope",
+    "params": {},
   },
   {
     "name": "studio_perf_active",

@@ -35,6 +35,7 @@ import MetadataCacheView from "./MetadataCacheView";
 import ObjectSyncView from "./ObjectSyncView";
 import CustomScriptsView from "./scripts/CustomScriptsView";
 import type { ReadinessState } from "./readiness";
+import { pickerProfiles, type ReadinessProfile } from "./readiness-profile";
 import {
   Activity,
   Archive,
@@ -240,14 +241,20 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
   const [configVersion, setConfigVersion] = useState(0);
   /** Bumped when something is written to the org; the Overview reloads in place (keeping what it shows). */
   const [writeVersion, setWriteVersion] = useState(0);
+  /** The profile readiness is shown for (Overview and every feature's Readiness); null is every profile. */
+  const [readinessFor, setReadinessForState] = useState<string | null>(null);
+  const readinessForRef = useRef(readinessFor);
+  readinessForRef.current = readinessFor;
+  const [readinessProfiles, setReadinessProfiles] = useState<ReadinessProfile[] | null>(null);
   const loadReadiness = useCallback(async (id: string, refresh = false) => {
+    const profile = readinessForRef.current ?? undefined;
     const ticket = (readinessRequests.current[id] ?? 0) + 1;
     readinessRequests.current[id] = ticket;
     setReadiness((r) => {
       const prev = r[id];
       return { ...r, [id]: prev?.status === "ready" ? { ...prev, stale: false, refreshing: true } : { status: "loading" } };
     });
-    const res = await window.lscApi.studioReadiness(id, refresh);
+    const res = await window.lscApi.studioReadiness(id, refresh, profile);
     if (readinessRequests.current[id] !== ticket) return;
     const error = res.error || (res.data as { error?: string } | undefined)?.error;
     setReadiness((r) => {
@@ -261,6 +268,28 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
     setReadiness({});
     setConfigVersion((v) => v + 1);
   }, []);
+  /** Pick another profile: what's on screen was for the old one, so every page reads again. */
+  const setReadinessFor = useCallback((profile: string | null) => {
+    if (profile === readinessForRef.current) return;
+    for (const id of Object.keys(readinessRequests.current)) readinessRequests.current[id] += 1;
+    readinessForRef.current = profile;
+    setReadinessForState(profile);
+    setReadiness({});
+  }, []);
+  // The profiles the picker offers, read once per org.
+  useEffect(() => {
+    if (orgId === undefined) return;
+    let live = true;
+    setReadinessProfiles(null);
+    window.lscApi.studioScope().then((res) => {
+      if (!live) return;
+      const list = (res.data as { profiles?: unknown } | undefined)?.profiles;
+      setReadinessProfiles(Array.isArray(list) ? pickerProfiles(list as ReadinessProfile[]) : []);
+    });
+    return () => {
+      live = false;
+    };
+  }, [orgId]);
   // Another org means other configuration: drop what was read from the old one.
   useEffect(
     () =>
@@ -271,6 +300,8 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
         for (const id of Object.keys(publishedRequests.current)) publishedRequests.current[id] += 1;
         publishedUsers.current = {};
         setPublished({});
+        readinessForRef.current = null;
+        setReadinessForState(null);
         resetReadiness();
         // Neither may stand in for the new org while it loads.
         setSeenOrg(undefined);
@@ -865,6 +896,9 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
               features={features}
               readiness={readiness}
               loadReadiness={loadReadiness}
+              readinessFor={readinessFor}
+              readinessProfiles={readinessProfiles}
+              onReadinessFor={setReadinessFor}
               onOpenFeature={(id) => openSetup(id)}
               onCheckUser={() => onAskClaude("Check why a rep can't use LSC on their iPad: ")}
               onPublish={(preselect) => setPublishing(preselect)}
@@ -1021,6 +1055,9 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
                 }}
                 onAskClaude={onAskClaude}
                 onRetry={() => loadReadiness(featureId, true)}
+                readinessFor={readinessFor}
+                readinessProfiles={readinessProfiles}
+                onReadinessFor={setReadinessFor}
               />
             </div>
           )}

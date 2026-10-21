@@ -828,8 +828,13 @@ input[type="radio"]:not(.studio-ipad-screen *):disabled {
   cursor: pointer;
 }
 
-.ui-menu-item:hover {
+.ui-menu-item:hover:not(:disabled) {
   background: var(--fill-hover);
+}
+
+.ui-menu-item:disabled {
+  color: var(--text-tertiary);
+  cursor: default;
 }
 
 .ui-menu-item.danger {

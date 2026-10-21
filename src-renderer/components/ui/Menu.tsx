@@ -7,6 +7,8 @@ export interface MenuItem {
   danger?: boolean;
   /** A choice: shows a check when true (any item given `checked` makes the menu a list of choices). */
   checked?: boolean;
+  /** Shown but not selectable, e.g. "Loading…". */
+  disabled?: boolean;
   onSelect: () => void;
 }
 
@@ -64,6 +66,7 @@ export default function Menu({ items, label, className, trigger, title, above }:
                 role={choice ? "menuitemradio" : "menuitem"}
                 aria-checked={choice ? it.checked === true : undefined}
                 className={`ui-menu-item${it.danger ? " danger" : ""}${choice ? " choice" : ""}`}
+                disabled={it.disabled}
                 onClick={() => {
                   setOpen(false);
                   it.onSelect();

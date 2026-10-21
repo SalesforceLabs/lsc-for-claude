@@ -124,9 +124,11 @@ contextBridge.exposeInMainWorld("lscApi", {
   // Results are cached per org in the main process; `refresh` bypasses the cache.
   studioFeatureMap: (featureId, refresh = false) =>
     ipcRenderer.invoke("studio:call", "studio_feature_map", { featureId }, refresh),
-  studioReadiness: (featureId, refresh = false) =>
-    ipcRenderer.invoke("studio:call", "studio_readiness", { featureId }, refresh),
-  studioSetupOverview: (refresh = false) => ipcRenderer.invoke("studio:call", "studio_setup_overview", {}, refresh),
+  studioReadiness: (featureId, refresh = false, profile) =>
+    ipcRenderer.invoke("studio:call", "studio_readiness", profile ? { featureId, profile } : { featureId }, refresh),
+  studioSetupOverview: (refresh = false, profile) =>
+    ipcRenderer.invoke("studio:call", "studio_setup_overview", profile ? { profile } : {}, refresh),
+  studioScope: () => ipcRenderer.invoke("studio:call", "studio_scope"),
   studioUserTrace: (userId, featureId) =>
     ipcRenderer.invoke("studio:call", "studio_user_trace", featureId ? { userId, featureId } : { userId }),
   studioDrift: (input) => ipcRenderer.invoke("studio:call", "studio_drift", input),

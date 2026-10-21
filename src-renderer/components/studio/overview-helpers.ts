@@ -10,6 +10,8 @@ export interface SetupOverviewData {
   /** Profiles whose iPads are behind the Admin Console. */
   unpublishedProfiles: string[];
   unpublishedChanges: number;
+  /** The profile it was checked for; absent for every profile. */
+  profile?: string;
 }
 
 /** Id of the org-wide check that offers "Publish to iPad". */
@@ -203,7 +205,7 @@ export function buildReport(
   const out: string[] = [
     `# LSC health check: ${overview.org}`,
     "",
-    `Generated ${now.toLocaleString()}. Read-only checks against the org.`,
+    `Generated ${now.toLocaleString()}. Read-only checks against the org${overview.profile ? `, for the ${overview.profile} profile` : ""}.`,
     "",
     `**${orgVerdictText(v)}**`,
     "",

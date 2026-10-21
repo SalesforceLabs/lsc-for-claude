@@ -6,8 +6,17 @@ vi.mock("../../../src/salesforce/cli.js", () => ({
   describeSObject: vi.fn(),
 }));
 
+// Which profiles are iPad profiles is scope.ts's job (its own tests); here it's given.
+vi.mock("../../../src/studio/scope.js", async (orig) => ({
+  ...(await orig<typeof import("../../../src/studio/scope.js")>()),
+  lscScope: vi.fn(),
+  ipadProfiles: vi.fn(),
+}));
+
 const { runSoqlQuery, runToolingQuery, describeSObject } = await import("../../../src/salesforce/cli.js");
+const scope = await import("../../../src/studio/scope.js");
 const { collectSetupOverview } = await import("../../../src/studio/overview.js");
+const { focusedProfile } = await import("../../../src/studio/profile-focus.js");
 const { cachesByProfile, unpublishedChanges } = await import("../../../src/studio/overview-logic.js");
 
 type Row = Record<string, unknown>;
@@ -28,9 +37,22 @@ function key(q: string): string {
 }
 
 const DAY = 86_400_000;
+
+type Profile = Awaited<ReturnType<typeof scope.lscScope>>["profiles"][number];
+const profile = (id: string, name: string, users: number, extra: Partial<Profile> = {}): Profile => ({
+  id, name, users, licensed: users, group: "ipad", reason: "Has LSC Mobile app settings", ...extra,
+});
+let profiles: Profile[];
 const iso = (daysAgo: number) => new Date(Date.now() - daysAgo * DAY).toISOString();
 
 beforeEach(() => {
+  profiles = [profile("p1", "Rep", 3), profile("p2", "Medical", 1)];
+  vi.mocked(scope.lscScope).mockImplementation(async () => ({ profiles }));
+  // Like scope.ts: the picked profile, else the iPad group.
+  vi.mocked(scope.ipadProfiles).mockImplementation(async () => {
+    const picked = focusedProfile();
+    return profiles.filter((p) => (picked ? p.name === picked : p.group === "ipad"));
+  });
   soql = {
     PermissionSetLicense: [{ MasterLabel: "LSC4CE", DeveloperName: "IndustriesLSC4CEPsl", TotalLicenses: 50, UsedLicenses: 50 }],
     PackageLicense: [],
@@ -64,6 +86,28 @@ describe("collectSetupOverview", () => {
     expect(by["overview.mobile.unpublished"].status).toBe("fail");
     expect(o.unpublishedProfiles).toEqual(["Rep"]);
     expect(o.unpublishedChanges).toBe(1);
+  });
+
+  it("checks caches and territories only for the iPad profiles", async () => {
+    profiles = [
+      profile("p1", "Rep", 3),
+      profile("p2", "Medical", 1, { group: "web", reason: "LSC license, no iPad setup" }),
+      profile("p3", "System Administrator", 2, { group: "admin" }),
+    ];
+    const o = await collectSetupOverview("org");
+    const by = Object.fromEntries(o.checks.map((c) => [c.id, c]));
+    expect(by["overview.mobile.cache-missing"].status).toBe("pass");
+    const q = vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0])).find((x) => x.startsWith("SELECT COUNT() FROM User"))!;
+    expect(q).toContain("ProfileId IN ('p1')");
+  });
+
+  it("checks only the picked profile, whatever its group", async () => {
+    profiles = [profile("p1", "Rep", 3), profile("p2", "Medical", 1, { group: "web" })];
+    const o = await collectSetupOverview("org", "Medical");
+    expect(o.profile).toBe("Medical");
+    const q = vi.mocked(runSoqlQuery).mock.calls.map((c) => String(c[0])).find((x) => x.startsWith("SELECT COUNT() FROM User"))!;
+    expect(q).toContain("ProfileId IN ('p2')");
+    expect(o.checks.find((c) => c.id === "overview.mobile.cache-missing")?.examples).toEqual(["Medical (1 user)"]);
   });
 
   it("makes a failing query unknown rather than failing the check", async () => {

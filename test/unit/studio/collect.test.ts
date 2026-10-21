@@ -15,7 +15,11 @@ vi.mock("../../../src/config/collect.js", () => ({
   }),
 }));
 
+// Who's in scope has its own tests; rejecting here keeps fieldProfiles on its fallbacks.
+vi.mock("../../../src/studio/scope.js", () => ({ ipadProfiles: vi.fn() }));
+
 const { runSoqlQuery, runToolingQuery } = await import("../../../src/salesforce/cli.js");
+const { ipadProfiles } = await import("../../../src/studio/scope.js");
 const { collectCategoryRecords } = await import("../../../src/config/collect.js");
 const { invalidateSharedReads } = await import("../../../src/config/read-cache.js");
 const { collectFeatureMap, collectItemDetail } = await import("../../../src/studio/collect.js");
@@ -90,6 +94,7 @@ beforeEach(() => {
   configRecords = {
     DbSchema: [configRec("DbSchema", "DbSchema_Visit", { SObject: "Visit" })],
   };
+  vi.mocked(ipadProfiles).mockRejectedValue(new Error("no scope"));
   vi.mocked(runSoqlQuery).mockImplementation(respond as never);
   vi.mocked(runToolingQuery).mockImplementation(respond as never);
   vi.mocked(collectCategoryRecords).mockImplementation((async (_org: string, q: string) => {

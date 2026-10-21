@@ -25,6 +25,8 @@ import {
   unwrap,
   type Row,
 } from "../helpers.js";
+import { focusedProfile } from "../profile-focus.js";
+import { ipadProfiles } from "../scope.js";
 import { fetchCategories, profilesOf } from "./shared.js";
 
 const LSC_PSL_FILTER = `DeveloperName LIKE '%LSC4CE%' OR DeveloperName LIKE '%LifeScience%' OR DeveloperName LIKE '%HealthCloud%' OR DeveloperName LIKE '%IndustrySales%' OR DeveloperName LIKE '%CLM%' OR DeveloperName LIKE '%SampleManagement%'`;
@@ -100,8 +102,19 @@ export function activeTerritories(org: string): Promise<{ rows: Row[]; model: Ro
   });
 }
 
-/** Field profiles — those with LSC Mobile app settings; falls back to a name heuristic. */
+/**
+ * Field profiles — the iPad profiles of the org's scope (`scope.ts`), or the profile picked for
+ * readiness (`profile-focus.ts`). When the scope can't be read, those with LSC Mobile app
+ * settings, else a name heuristic.
+ */
 export async function fieldProfiles(org: string): Promise<string[]> {
+  const picked = focusedProfile();
+  try {
+    return (await ipadProfiles(org)).map((p) => p.name);
+  } catch {
+    // fall through to the older reads
+  }
+  if (picked) return [picked];
   try {
     const recs = await fetchCategories(org, ["ProfileBasedAppSettings"]);
     const names = [...new Set(recs.flatMap(profilesOf))];

@@ -9,16 +9,14 @@ import type { ConfigRecord } from "../../../config/types.js";
 import { addProfileFix, newDbSchema } from "../../collectors/shared.js";
 import { fieldProfiles } from "../../collectors/territory-users.js";
 import { count, plural, query, type Row } from "../../helpers.js";
+import { memoFocus } from "../../profile-focus.js";
 import type { ReadinessCheck, StudioFix } from "../../types.js";
 import { rowLabel, runCheck, type StudioCheckResult } from "../index.js";
 
 export type CheckMeta = Omit<ReadinessCheck, "status" | "source" | "detail" | "examples" | "fixes">;
 
 /** Compute `fn` once, on first use — checks of one module share their queries. */
-export function lazy<T>(fn: () => Promise<T>): () => Promise<T> {
-  let p: Promise<T> | undefined;
-  return () => (p ??= fn());
-}
+export const lazy = memoFocus;
 
 /** Result of a `SELECT COUNT() FROM …` query. */
 export const countOf = count;
