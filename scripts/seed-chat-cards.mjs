@@ -12,7 +12,13 @@ fs.mkdirSync(path.join(dir, "data"), { recursive: true });
 const dbPath = path.join(dir, "data", "conversations.db");
 fs.rmSync(dbPath, { force: true });
 
-const ORG = { username: "admin@lsdo-260.org", label: "peter-lsc-260-trial", id: "00DHn000007duSEMAY", url: "https://trailsignup-18142fec8660f1.my.salesforce.com" };
+// The org the seeded sessions are bound to. Set these to a logged-in org's values to see the cards in its workspace.
+const ORG = {
+  username: process.env.ROZ_SHOTS_ORG_USERNAME ?? "admin@acme-lsc.demo",
+  label: process.env.ROZ_SHOTS_ORG_LABEL ?? "acme-lsc-demo",
+  id: process.env.ROZ_SHOTS_ORG_ID ?? "00D000000000001AAA",
+  url: process.env.ROZ_SHOTS_ORG_URL ?? "https://acme-lsc.my.salesforce.com",
+};
 const q = (s) => `'${String(s).replaceAll("'", "''")}'`;
 const stmts = [
   `CREATE TABLE conversations (id TEXT PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now')), pinned INTEGER NOT NULL DEFAULT 0, org_username TEXT, org_label TEXT, org_id TEXT, org_instance_url TEXT);`,
