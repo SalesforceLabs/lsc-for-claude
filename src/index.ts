@@ -9,6 +9,7 @@ import {
   getExerciseList,
   getTroubleshootingList,
 } from "./knowledge-loader.js";
+import { SERVER_INSTRUCTIONS } from "./server-instructions.js";
 
 // Import tool modules
 import { register as registerKnowledge } from "./tools/knowledge.js";
@@ -33,10 +34,13 @@ import { register as registerMetadata } from "./tools/metadata.js";
 import { register as registerBriefings } from "./tools/briefings.js";
 
 // Create the MCP server
-const server = new McpServer({
-  name: "LSC-for-Claude",
-  version: "0.1.0",
-});
+const server = new McpServer(
+  {
+    name: "LSC-for-Claude",
+    version: "0.1.0",
+  },
+  { instructions: SERVER_INSTRUCTIONS }
+);
 
 // Register all tool modules
 registerKnowledge(server);

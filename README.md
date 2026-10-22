@@ -5,7 +5,7 @@
 [![Build Desktop App](https://github.com/SalesforceLabs/lsc-for-claude/actions/workflows/build-app.yml/badge.svg)](https://github.com/SalesforceLabs/lsc-for-claude/actions/workflows/build-app.yml)
 [![Release](https://github.com/SalesforceLabs/lsc-for-claude/actions/workflows/release.yml/badge.svg)](https://github.com/SalesforceLabs/lsc-for-claude/actions/workflows/release.yml)
 
-A [Claude Code](https://claude.ai/code) plugin that brings expert LSC knowledge, Salesforce org tools, and implementation guidance directly into your terminal.
+A [Claude Code](https://claude.ai/code) plugin that brings expert LSC knowledge, Salesforce org tools, and implementation guidance directly into your terminal. The MCP server also works on its own with other AI coding tools such as OpenAI Codex and Cursor; see [Use with Codex and other MCP clients](#use-with-codex-and-other-mcp-clients).
 
 <p align="center">
   <img src="docs/media/export-config-demo.gif" alt="Exporting LSC DB Schema configuration from the terminal and generating a browsable HTML report" width="820">
@@ -91,6 +91,42 @@ To check status or enable it, run:
 ```
 
 Select `salesforce-docs` and enable/reconnect it, then restart the session if needed. The server requires no API keys or authentication — if it still won't connect, confirm you're on Claude Code 1.0.33+ (remote MCP support) and that `https://salesforce-docs-76258744c9d7.herokuapp.com/api/mcp` is reachable from your network.
+
+### Use with Codex and other MCP clients
+
+The `lsc` server is a standard [MCP](https://modelcontextprotocol.io/) server over stdio, so any client that can launch a local MCP server can use its tools: OpenAI Codex CLI, Cursor, VS Code agent mode, Windsurf, Cline, Gemini CLI and others. Clone the repo (no build needed; the server is prebuilt in `mcp-server/index.mjs`), install the [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli), and log in to your org with `sf org login web`.
+
+**Codex CLI:**
+
+```bash
+codex mcp add lsc -- node /path/to/lsc-for-claude/mcp-server/index.mjs
+```
+
+Then raise the tool timeout in `~/.codex/config.toml`. Deploys, health checks and performance runs on a large org can take several minutes, longer than Codex's default:
+
+```toml
+[mcp_servers.lsc]
+command = "node"
+args = ["/path/to/lsc-for-claude/mcp-server/index.mjs"]
+tool_timeout_sec = 600
+```
+
+If your company manages Codex with an approved list of MCP servers, `lsc` won't load until an admin adds it to that list.
+
+**Other clients** take the same command and arguments in their own MCP config, for example Cursor's `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "lsc": {
+      "command": "node",
+      "args": ["/path/to/lsc-for-claude/mcp-server/index.mjs"]
+    }
+  }
+}
+```
+
+**What you get outside Claude Code:** every tool, plus the resources and prompts. The server sends its usage rules when the client connects (which tools to use for Admin Console and DB Schema records, correct LSC object names, how to pick an org), and clients that support MCP server instructions pass them to the model. You don't get the `/lsc:` commands, the auto-invoked skills or the agents; those are Claude Code plugin features. The tool descriptions and prompts were written and tested with Claude, so other models may need more direction.
 
 ## Desktop App (LSC Assistant)
 
