@@ -31,7 +31,7 @@ if [[ -z "$RUN_ID" ]]; then
   exit 1
 fi
 
-echo "Waiting for run $RUN_ID…"
+echo "Waiting for run ${RUN_ID}…"
 gh run watch "$RUN_ID" -R "$REPO" --interval 30 >/dev/null || true
 
 # The release step is allowed to fail (the allow list), so check the artifact
