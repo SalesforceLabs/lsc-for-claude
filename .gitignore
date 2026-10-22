@@ -151,3 +151,7 @@ tmp*/
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Local editor settings and scratch scripts
+.vscode/
+.tmp-*

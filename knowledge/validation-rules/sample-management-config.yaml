@@ -33,6 +33,8 @@ rules:
       operations. Without products, no inventory or sample drops
       can be configured.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: error
     check:
       type: soql_count
@@ -66,6 +68,8 @@ rules:
       wrapper records define distribution methods (Drop, Drop and Ship)
       and are required for products to appear in sample management UIs.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: error
     check:
       type: soql_count
@@ -102,6 +106,8 @@ rules:
       Each sales rep needs a User Inventory location to hold their
       sample inventory. Without locations, inventory operations fail.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: error
     check:
       type: soql_count
@@ -128,13 +134,15 @@ rules:
     tags: [sample, inventory, locations]
 
   - id: sample-004
-    name: Active production batches exist
+    name: Active, unexpired production batches exist
     description: |
       Verifies that active, non-expired ProductionBatch records exist.
       Production batches represent lot numbers with expiration dates.
       Expired or missing batches prevent sample drops and inventory
       operations.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: warning
     check:
       type: soql
@@ -142,6 +150,7 @@ rules:
         SELECT Id, Name, ExpirationDate, IsActive
         FROM ProductionBatch
         WHERE IsActive = true
+        AND (ExpirationDate = null OR ExpirationDate >= TODAY)
         ORDER BY ExpirationDate
         LIMIT 20
       expect: "records.length > 0"
@@ -166,6 +175,8 @@ rules:
       has been initialized. ProductItem records track quantity-on-hand
       per product per location. Without them, reps have no inventory.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: error
     check:
       type: soql_count
@@ -198,6 +209,8 @@ rules:
       link production batches to inventory locations and track remaining
       quantities per batch. Without them, batch-level tracking fails.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: warning
     check:
       type: soql_count
@@ -235,6 +248,8 @@ rules:
       enforce PDMA compliance rules. This is informational - limits
       are optional but recommended for regulatory compliance.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: info
     check:
       type: soql_count
@@ -273,6 +288,7 @@ rules:
       objects (ProductItem, ProductBatchItem, InventoryOperation,
       ProductDisbursement, etc.).
     category: metadata-cache
+    stage: mobile
     severity: warning
     check:
       type: soql_count

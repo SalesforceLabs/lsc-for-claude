@@ -35,7 +35,7 @@ const { runSoqlQuery, runToolingQuery } = await import(
 const { getAllRules, getRulesByGroup, getValidationGroups } = await import(
   "../../../src/validation/rules-loader.js"
 );
-const { runAudit, formatAuditResults } = await import(
+const { runAudit, formatAuditResults, executeCheck } = await import(
   "../../../src/validation/rules-executor.js"
 );
 
@@ -51,6 +51,75 @@ describe("rules-executor.ts", () => {
   // ==========================================================================
   // runAudit — SOQL count checks
   // ==========================================================================
+  describe("existence-only count checks", () => {
+    const rule = (query: string, expect: string, type: "soql_count" | "tooling_soql_count" = "soql_count") => ({
+      ...MOCK_VALIDATION_RULE,
+      check: { type, query, expect },
+    });
+
+    it("reads one row instead of counting when the rule only asks for presence", async () => {
+      vi.mocked(getAllRules).mockReturnValue([rule("SELECT COUNT() FROM Account WHERE IsActive = true", "count > 0")]);
+      vi.mocked(runSoqlQuery).mockResolvedValue({ success: true, data: { totalSize: 1, done: true, records: [{ Id: "001" }] } });
+      const audit = await runAudit("my-org");
+      expect(vi.mocked(runSoqlQuery).mock.calls[0][0]).toBe("SELECT Id FROM Account WHERE IsActive = true LIMIT 1");
+      expect(audit.summary.passed).toBe(1);
+    });
+
+    it("applies to count == 0 and to the Tooling API", async () => {
+      vi.mocked(getAllRules).mockReturnValue([rule("SELECT COUNT() FROM Flow", "count == 0", "tooling_soql_count")]);
+      vi.mocked(runToolingQuery).mockResolvedValue({ success: true, data: { totalSize: 1, done: true, records: [{ Id: "301" }] } });
+      const audit = await runAudit("my-org");
+      expect(vi.mocked(runToolingQuery).mock.calls[0][0]).toBe("SELECT Id FROM Flow LIMIT 1");
+      expect(audit.summary.failed).toBe(1);
+    });
+
+    it("keeps the real COUNT() when the number matters or the query is not plain", async () => {
+      vi.mocked(getAllRules).mockReturnValue([rule("SELECT COUNT() FROM Account", "count < 50")]);
+      vi.mocked(runSoqlQuery).mockResolvedValue({ success: true, data: { totalSize: 3, done: true, records: [] } });
+      await runAudit("my-org");
+      expect(vi.mocked(runSoqlQuery).mock.calls[0][0]).toBe("SELECT COUNT() FROM Account");
+
+      vi.mocked(runSoqlQuery).mockClear();
+      vi.mocked(getAllRules).mockReturnValue([rule("SELECT COUNT() FROM Account LIMIT 10", "count > 0")]);
+      await runAudit("my-org");
+      expect(vi.mocked(runSoqlQuery).mock.calls[0][0]).toBe("SELECT COUNT() FROM Account LIMIT 10");
+    });
+
+    it("reports a timed-out check as unavailable, never failed", async () => {
+      vi.mocked(runSoqlQuery).mockResolvedValue({ success: false, error: "Query timed out after 120s" });
+      const outcome = await executeCheck(rule("SELECT COUNT() FROM Account", "count > 0").check, "my-org");
+      expect(outcome.unavailable).toBe(true);
+      expect(outcome.message).toContain("timed out");
+    });
+  });
+
+  describe("records.some / records.every field tests", () => {
+    const rows = [
+      { QualifiedApiName: "LifeSciStageObject", InternalSharingModel: "Private" },
+      { QualifiedApiName: "LifeSciStageAction", InternalSharingModel: "Read" },
+    ];
+    const check = (expect: string) => ({ type: "tooling_soql" as const, query: "SELECT QualifiedApiName FROM EntityDefinition", expect });
+
+    it("lists only the records that break an every() test", async () => {
+      vi.mocked(runToolingQuery).mockResolvedValue({ success: true, data: { totalSize: 2, done: true, records: rows } });
+      const outcome = await executeCheck(check("records.every(r => r.InternalSharingModel != 'Private')"), "my-org");
+      expect(outcome.passed).toBe(false);
+      expect(outcome.details).toEqual({ count: 1, records: [rows[0]] });
+    });
+
+    it("evaluates some() and null comparisons", async () => {
+      vi.mocked(runToolingQuery).mockResolvedValue({ success: true, data: { totalSize: 2, done: true, records: rows } });
+      expect((await executeCheck(check("records.some(r => r.InternalSharingModel == 'Read')"), "my-org")).passed).toBe(true);
+      expect((await executeCheck(check("records.every(r => r.InternalSharingModel != null)"), "my-org")).passed).toBe(true);
+    });
+
+    it("reports a condition it can't parse as unavailable", async () => {
+      vi.mocked(runToolingQuery).mockResolvedValue({ success: true, data: { totalSize: 2, done: true, records: rows } });
+      const outcome = await executeCheck(check("records.every(r => r.Name.startsWith('x'))"), "my-org");
+      expect(outcome.unavailable).toBe(true);
+    });
+  });
+
   describe("runAudit() with soql_count check", () => {
     it("passes when count > 0 condition is met", async () => {
       const rule = {

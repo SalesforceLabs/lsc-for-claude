@@ -5,10 +5,10 @@
 # assessment tasks, and mobile cache.
 #
 # Verified object names:
-#   - KamAccountPlan (standard)
-#   - KamAccountPlanObjective (standard)
-#   - KamAccountPlanStakeholder (standard)
-#   - KamAccountPlanParticipant (standard)
+#   - AccountPlan (standard)
+#   - AccountPlanObjective (standard)
+#   - AccountPlanStakeholder (standard)
+#   - AccountPlanParticipant (standard)
 #   - GoalDefinition (standard)
 #   - ActionPlanTemplate (standard)
 #   - ActionPlanTemplateAssignment (standard)
@@ -32,22 +32,22 @@ rules:
     description: |
       Verifies that at least one GoalDefinition template exists with the correct
       configuration for use in Key Account Management. GoalDefinition templates must have
-      Type='Affiliate', Status='Active', and Category='Library' to be importable into
+      Status='Active' to be importable into
       account plans. Without templates, key account managers cannot import pre-configured
       objectives into account plans, requiring all objectives to be created manually.
     category: configuration
+    stage: config
+    studio_surface: objects
     severity: error
     check:
       type: soql_count
       query: >
         SELECT COUNT()
         FROM GoalDefinition
-        WHERE Type = 'Affiliate'
-        AND Status = 'Active'
-        AND Category = 'Library'
+        WHERE Status = 'Active'
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, Type, Status, Category, Description
+        SELECT Id, Name, Type, ScopeType, Status, Category
         FROM GoalDefinition
         ORDER BY LastModifiedDate DESC
         LIMIT 10
@@ -60,9 +60,7 @@ rules:
       steps:
         - "Navigate to App Launcher > Goal Definitions"
         - "Click New to create a goal definition template"
-        - "Set Type = Affiliate (REQUIRED for KAM templates)"
         - "Set Status = Active"
-        - "Set Category = Library"
         - "Enter descriptive Name and Description"
         - "Optionally link to Products for filtering"
         - "Save the record"
@@ -76,24 +74,28 @@ rules:
   - id: kam-002
     name: ActionPlanTemplate records exist for account plans
     description: |
-      Verifies that at least one ActionPlanTemplate exists with Type='Key Account Management'
-      and TargetObjectiveType='Account Plan Objective'. Action plan templates define the tactics
+      Verifies that at least one ActionPlanTemplate exists with ActionPlanType='KAM' and
+      TargetEntityType='AccountPlanObjective', published (Status='Final'). Action plan templates define the tactics
       and assessment tasks that can be imported into account plan objectives. Without templates,
       key account managers must manually create all action plans and tasks, significantly
       increasing implementation time and reducing standardization.
     category: configuration
+    stage: config
+    studio_surface: objects
     severity: error
     check:
       type: soql_count
       query: >
         SELECT COUNT()
         FROM ActionPlanTemplate
-        WHERE Type = 'Key Account Management'
+        WHERE ActionPlanType = 'KAM'
+        AND TargetEntityType = 'AccountPlanObjective'
+        AND Status = 'Final'
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, Type, TargetObjectiveType, AllowAddingItems
+        SELECT Id, Name, ActionPlanType, TargetEntityType, Status
         FROM ActionPlanTemplate
-        WHERE Type = 'Key Account Management'
+        WHERE ActionPlanType = 'KAM'
         ORDER BY Name
         LIMIT 10
     symptoms:
@@ -105,8 +107,9 @@ rules:
       steps:
         - "Navigate to App Launcher > Action Plan Templates"
         - "Click New to create an action plan template"
-        - "Set Type = Key Account Management (REQUIRED)"
-        - "Set Target Objective = Account Plan Objective (REQUIRED)"
+        - "Set Action Plan Type = KAM (REQUIRED)"
+        - "Set Target Entity Type = Account Plan Objective (REQUIRED)"
+        - "Publish the template (Status = Final)"
         - "Enable 'Allow users to add items' if KAMs should add custom tasks"
         - "Add assessment task templates to the template"
         - "Save the record"
@@ -119,24 +122,26 @@ rules:
   # ===========================================================================
 
   - id: kam-003
-    name: KamAccountPlan records exist
+    name: AccountPlan records exist
     description: |
-      Checks whether KamAccountPlan records exist in the org. This indicates whether
+      Checks whether AccountPlan records exist in the org. This indicates whether
       key account managers have started creating account plans. If no account plans exist,
       this could indicate that KAM is not yet in use, templates are missing, or users
       need training on creating account plans. This is a warning-level check as absence
       of plans may be expected during initial setup or pilot phases.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: warning
     check:
       type: soql_count
       query: >
         SELECT COUNT()
-        FROM KamAccountPlan
+        FROM AccountPlan
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, AccountId, Account.Name, Status, OwnerId, Owner.Name, CreatedDate
-        FROM KamAccountPlan
+        SELECT Id, Name, AccountId, Status, OwnerId, CreatedDate
+        FROM AccountPlan
         ORDER BY CreatedDate DESC
         LIMIT 10
     symptoms:
@@ -159,24 +164,26 @@ rules:
   # ===========================================================================
 
   - id: kam-004
-    name: KamAccountPlanObjective records exist
+    name: AccountPlanObjective records exist
     description: |
-      Checks whether KamAccountPlanObjective records exist. Objectives are the first level
+      Checks whether AccountPlanObjective records exist. Objectives are the first level
       of the KAM hierarchy (Objectives > Action Plans > Tasks). If account plans exist but
       no objectives exist, this indicates that plans may be incomplete or templates have not
       been imported. This is a warning-level check as empty plans may exist during setup.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: warning
     check:
       type: soql_count
       query: >
         SELECT COUNT()
-        FROM KamAccountPlanObjective
+        FROM AccountPlanObjective
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, KamAccountPlanId, KamAccountPlan.Name, Status, CompletionPercentage
-        FROM KamAccountPlanObjective
-        ORDER BY KamAccountPlanId, Name
+        SELECT Id, Name, AccountPlanId, AccountPlan.Name, Status
+        FROM AccountPlanObjective
+        ORDER BY AccountPlanId, Name
         LIMIT 10
     symptoms:
       - "Account plan objectives section is empty"
@@ -184,7 +191,7 @@ rules:
       - "No objectives showing in account plan"
     resolution:
       steps:
-        - "Open an existing KamAccountPlan record"
+        - "Open an existing AccountPlan record"
         - "Navigate to Account Plan Objectives related list"
         - "Click Import Template to import from GoalDefinitions"
         - "Or click New to manually create an objective"
@@ -198,24 +205,26 @@ rules:
   # ===========================================================================
 
   - id: kam-005
-    name: KamAccountPlanStakeholder records exist
+    name: AccountPlanStakeholder records exist
     description: |
-      Checks whether KamAccountPlanStakeholder records exist. Stakeholders represent
+      Checks whether AccountPlanStakeholder records exist. Stakeholders represent
       the key decision-makers, influencers, and contacts at the account. If no stakeholders
       exist, account plans may be incomplete or users may need guidance on stakeholder
       management. This is an info-level check as stakeholder data may take time to populate.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: info
     check:
       type: soql_count
       query: >
         SELECT COUNT()
-        FROM KamAccountPlanStakeholder
+        FROM AccountPlanStakeholder
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, KamAccountPlanId, KamAccountPlan.Name, AccountId, Account.Name, ContactId, Contact.Name, Role, InfluenceLevel
-        FROM KamAccountPlanStakeholder
-        ORDER BY KamAccountPlanId, Account.Name
+        SELECT Id, AccountPlanId, AccountPlan.Name
+        FROM AccountPlanStakeholder
+        ORDER BY AccountPlanId
         LIMIT 10
     symptoms:
       - "No stakeholders showing in account plan"
@@ -223,7 +232,7 @@ rules:
       - "Cannot see key decision-makers in account plan"
     resolution:
       steps:
-        - "Open an existing KamAccountPlan record"
+        - "Open an existing AccountPlan record"
         - "Navigate to Account Plan Stakeholders related list"
         - "Click New to manually add stakeholders"
         - "Search for existing Accounts (HCPs/HCOs) or Contacts"
@@ -246,19 +255,21 @@ rules:
       action plans may be incomplete or templates may not include tasks. This is an info-level check
       as task population may occur gradually during plan execution.
     category: configuration
+    stage: data
+    studio_surface: objects
     severity: info
     check:
       type: soql_count
       query: >
         SELECT COUNT()
         FROM AssessmentTask
-        WHERE ActionPlan.Type = 'Key Account Management'
+        WHERE ReferenceRecordId IN (SELECT Id FROM ActionPlan WHERE ActionPlanType = 'KAM')
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, ActionPlanId, ActionPlan.Name, Status, DueDate, AssignedToId, AssignedTo.Name, VisitId
+        SELECT Id, Name, ReferenceRecordId, Status, DueDate
         FROM AssessmentTask
-        WHERE ActionPlan.Type = 'Key Account Management'
-        ORDER BY DueDate, ActionPlan.Name
+        WHERE ReferenceRecordId IN (SELECT Id FROM ActionPlan WHERE ActionPlanType = 'KAM')
+        ORDER BY DueDate
         LIMIT 10
     symptoms:
       - "No tasks showing in action plans"
@@ -285,11 +296,12 @@ rules:
     name: Mobile metadata cache active for KAM objects
     description: |
       Verifies that mobile metadata cache is active. Key Account Management on mobile
-      requires an active metadata cache that includes KamAccountPlan, KamAccountPlanObjective,
-      KamAccountPlanStakeholder, KamAccountPlanParticipant, GoalDefinition, ActionPlanTemplate,
+      requires an active metadata cache that includes AccountPlan, AccountPlanObjective,
+      AccountPlanStakeholder, AccountPlanParticipant, GoalDefinition, ActionPlanTemplate,
       and AssessmentTask objects. Without active cache, KAM data will not sync to mobile devices
       and key account managers will not be able to manage account plans on iPad.
     category: metadata-cache
+    stage: mobile
     severity: warning
     check:
       type: soql_count
@@ -313,10 +325,10 @@ rules:
       steps:
         - "Navigate to Admin Console > Mobile > Object Metadata Cache Configuration"
         - "Verify the following objects are included in DB Schema:"
-        - "  - KamAccountPlan"
-        - "  - KamAccountPlanObjective"
-        - "  - KamAccountPlanStakeholder"
-        - "  - KamAccountPlanParticipant"
+        - "  - AccountPlan"
+        - "  - AccountPlanObjective"
+        - "  - AccountPlanStakeholder"
+        - "  - AccountPlanParticipant"
         - "  - GoalDefinition"
         - "  - ActionPlanTemplate"
         - "  - AssessmentTask"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# launch-electron-app.sh — build (if needed) and launch the LSC Assistant desktop app.
+# launch-electron-app.sh — build (if needed) and launch the Roz for LSC desktop app.
 #
 # Used by the /lsc:launch-app command. Safe to run repeatedly: it only builds
 # artifacts that are missing, then launches the Electron app detached so the
@@ -76,11 +76,11 @@ if [ "${LSC_SKIP_REBUILD:-0}" != "1" ]; then
 fi
 
 # --- 5. Launch (detached) ----------------------------------------------------
-log "Launching LSC Assistant…"
+log "Launching Roz for LSC…"
 LOG_FILE="${TMPDIR:-/tmp}/lsc-assistant.log"
 # Detach so the app keeps running after this script/command returns.
 nohup npm run electron:start >"${LOG_FILE}" 2>&1 &
 disown || true
 
-ok "LSC Assistant is starting. A window should appear shortly."
+ok "Roz for LSC is starting. A window should appear shortly."
 printf '  Logs: %s\n' "${LOG_FILE}"

@@ -1,0 +1,45 @@
+/* IpadMap: Apple Maps palette sampled from device captures (ocean #0d96ea, land #a7de82, shore glow #3dbbfa). */
+.studio-ipad-map {
+  position: relative;
+  overflow: hidden;
+  background: #0d96ea;
+  font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
+}
+.studio-ipad-map-svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.studio-ipad-map .ocean { fill: #0d96ea; }
+.studio-ipad-map .shore { fill: #3dbbfa; stroke: #3dbbfa; stroke-width: 6px; opacity: 0.9; }
+.studio-ipad-map .land { fill: #a7de82; }
+.studio-ipad-map .lake { fill: #0d96ea; }
+.studio-ipad-map .river { fill: none; stroke: #4ab2f2; stroke-width: 1px; }
+.studio-ipad-map .state { fill: none; stroke: rgba(255, 255, 255, 0.55); stroke-width: 0.8px; stroke-dasharray: 3 2; }
+.studio-ipad-map .border { fill: none; stroke: rgba(150, 120, 170, 0.7); stroke-width: 0.9px; stroke-dasharray: 5 2 1 2; }
+.studio-ipad-map .region-label { font-size: 9.500px; font-weight: 500; fill: #6b7d5c; letter-spacing: 0.4px; }
+.studio-ipad-map .country-label { font-size: 11px; font-weight: 500; fill: #7a8a68; letter-spacing: 3px; }
+.studio-ipad-map .water-label { font-size: 12px; font-style: italic; fill: rgba(255, 255, 255, 0.8); letter-spacing: 1px; }
+.studio-ipad-map .line-label text { font-size: 8px; letter-spacing: 3px; fill: rgba(10, 70, 140, 0.55); }
+.studio-ipad-map .line-label.land text { fill: rgba(60, 80, 50, 0.6); }
+.studio-ipad-map .city circle { fill: #fff; stroke: #333; stroke-width: 1.200px; }
+.studio-ipad-map .city text { font-size: 11px; font-weight: 500; fill: #2c2c2c; paint-order: stroke; stroke: rgba(255, 255, 255, 0.75); stroke-width: 2.500px; }
+.studio-ipad-map .marker .tail { fill: #fff; }
+.studio-ipad-map .marker .halo { fill: #fff; }
+.studio-ipad-map .marker .disc { fill: #2a3ec7; }
+.studio-ipad-map .marker .dot { fill: #fff; }
+.studio-ipad-map .marker .count { font-size: 15px; font-weight: 600; fill: #fff; }
+.studio-ipad-map-mark {
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.25);
+}
+.studio-ipad-map-mark b::before { content: "\F8FF"; font-weight: 500; }
+.studio-ipad-map-mark u { font-size: 10px; font-weight: 400; }

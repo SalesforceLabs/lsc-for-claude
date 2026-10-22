@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>66.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Pat Sim</masterLabel>
+    <description>Full-screen, touch-first patient journey funnel with live what-if intervention modeling for pharma sales reps.</description>
+    <targets>
+        <target>lightning__Tab</target>
+        <target>lightning__AppPage</target>
+        <target>lightning__HomePage</target>
+        <target>lightning__UrlAddressable</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__AppPage">
+            <property name="mobileHeight" type="Integer" default="700" label="Mobile Height" description="Height in pixels for mobile display" />
+        </targetConfig>
+        <targetConfig targets="lightning__HomePage">
+            <property name="mobileHeight" type="Integer" default="700" label="Mobile Height" description="Height in pixels for mobile display" />
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

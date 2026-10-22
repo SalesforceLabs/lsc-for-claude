@@ -13,6 +13,9 @@ export interface CacheEntry<T = unknown> {
 /** Default TTL in milliseconds (2 minutes) */
 const DEFAULT_TTL_MS = 120_000;
 
+/** Most entries kept; past this the oldest go first, so a long session can't grow without bound. */
+const MAX_ENTRIES = 500;
+
 /** Global cache store — keyed by `${orgAlias}:${cacheKey}` */
 const store = new Map<string, CacheEntry>();
 
@@ -47,8 +50,26 @@ export function cacheSet<T>(
   ttlMs: number = DEFAULT_TTL_MS
 ): void {
   const ck = compositeKey(org, key);
+  // Delete first so a re-set moves to the end of the insertion order (newest).
+  store.delete(ck);
   store.set(ck, { value, expiresAt: Date.now() + ttlMs });
+  if (store.size > MAX_ENTRIES) {
+    cachePrune();
+    while (store.size > MAX_ENTRIES) store.delete(store.keys().next().value as string);
+  }
 }
+
+/**
+ * Drop every expired entry (reads only drop the one they hit).
+ */
+export function cachePrune(now: number = Date.now()): void {
+  for (const [key, entry] of store) {
+    if (now > entry.expiresAt) store.delete(key);
+  }
+}
+
+// Sweep in the background too, so idle entries don't sit in memory until the next write.
+setInterval(() => cachePrune(), 60_000).unref();
 
 /**
  * Invalidate all entries for a specific org.

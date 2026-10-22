@@ -15,6 +15,10 @@ troubleshooting documents; load the one that matches the symptom.
 
 ## Fast triage
 
+- **Any error message or symptom** → run `diagnose_lsc_issue({ symptom: "<exact error>" })`
+  first. It checks the org for known causes (DB Schema, permissions, Admin
+  Console, territory, iPad pages, metadata cache, module prerequisites; catalog in
+  `knowledge/troubleshooting/known-causes.yaml`) and names the records to fix.
 - **"It broke right after go-live" / Sev-1** → almost always a **design/config
   anti-pattern**, not a product bug. Start with the implementation-anti-patterns
   doc (sharing model, mobile sync, API sizing).

@@ -39,6 +39,7 @@ rules:
       recommended.
     category: data
     severity: warning
+    stage: data
     check:
       type: soql_count
       query: >
@@ -64,41 +65,6 @@ rules:
       ui_path: "Setup > Object Manager > TerritoryAccountScore"
     tags: [next-best, nbc, data]
 
-  - id: nbc-002
-    name: TerritoryAccountScore records include ScoreExplainabilityInfo
-    description: |
-      Checks whether TerritoryAccountScore records include ScoreExplainabilityInfo
-      data. This field provides transparency into why an account is recommended,
-      showing the factors that contributed to the score. When populated with
-      valid JSON, reps can see score factors in the NBC popup. This builds
-      trust and helps reps understand which accounts to prioritize. The JSON
-      should include three sections: scores, metrics, and customLabels.
-    category: configuration
-    severity: info
-    check:
-      type: soql_count
-      query: >
-        SELECT COUNT()
-        FROM TerritoryAccountScore
-        WHERE ScoreExplainabilityInfo != null
-      expect: "count > 0"
-    symptoms:
-      - "NBC popup shows score but no factors"
-      - "See Why button not showing details"
-      - "Score factors section empty"
-    resolution:
-      steps:
-        - "Update TerritoryAccountScore records with ScoreExplainabilityInfo JSON"
-        - "Use format: {\"scores\": {\"metric1\": 40}, \"metrics\": {\"metric1\": \"Description\"}, \"customLabels\": {\"metric1\": \"Label\"}}"
-        - "Ensure sum of scores values equals TotalScore"
-        - "Validate JSON syntax before saving"
-      ui_path: "Setup > Object Manager > TerritoryAccountScore > Fields"
-    tags: [next-best, nbc, explainability]
-
-  # ===========================================================================
-  # SECTION 2: Next Best Action (NBA) Configuration
-  # ===========================================================================
-
   - id: nba-001
     name: TerritoryAcctRcmdAction records exist for NBA
     description: |
@@ -109,7 +75,8 @@ rules:
       on the Account page will be empty. Each record must include Account,
       Territory2, ActionType (Visit or Email), and DueDate.
     category: data
-    severity: warning
+    severity: info
+    stage: data
     check:
       type: soql_count
       query: >
@@ -150,7 +117,8 @@ rules:
       Account, Territory2, ProductGuidance (type = message), TotalScore, and
       Rank. Records must be shared with users to appear in the UI.
     category: data
-    severity: warning
+    severity: info
+    stage: data
     check:
       type: soql_count
       query: >
@@ -178,22 +146,24 @@ rules:
     tags: [next-best, nbm, data]
 
   - id: nbm-002
-    name: ProductGuidance records exist with Type = message
+    name: Active ProductGuidance messages exist
     description: |
-      Checks whether ProductGuidance records exist with Type = 'message'.
-      ProductGuidance records are required for NBM recommendations. The Type
-      must be 'message' (not 'objective') for NBM to work correctly. Each
-      ProductGuidance record links to a Product2 record, which is auto-populated
-      when ProductGuidance is selected. Without message-type ProductGuidance,
-      TerritoryAcctProdMsgScore records cannot be created correctly.
+      Checks whether active ProductGuidance records of Type = 'Message' exist.
+      NBM recommends messages, not objectives, so TerritoryAcctProdMsgScore
+      records can only point at message-type guidance. Each ProductGuidance
+      record links to a Product2 record, which is auto-populated when the
+      guidance is selected.
     category: configuration
-    severity: warning
+    severity: info
+    stage: data
     check:
       type: soql
       query: >
-        SELECT Id, Name, Type, Description
+        SELECT Id, Name, Type, IsActive
         FROM ProductGuidance
-        WHERE Type = 'message'
+        WHERE Type = 'Message'
+        AND IsActive = true
+        LIMIT 20
       expect: "records.length > 0"
     symptoms:
       - "Cannot create TerritoryAcctProdMsgScore records"
@@ -219,6 +189,7 @@ rules:
       extended by LifeSciMarketableProduct in LSC.
     category: configuration
     severity: info
+    stage: data
     check:
       type: soql_count
       query: >
@@ -253,6 +224,7 @@ rules:
       even if data exists.
     category: configuration
     severity: info
+    stage: data
     check:
       type: soql_count
       query: >
@@ -285,6 +257,7 @@ rules:
       Providers (HCPs) or Business Accounts representing Healthcare Organizations (HCOs).
     category: data
     severity: error
+    stage: data
     check:
       type: soql_count
       query: >
@@ -315,6 +288,7 @@ rules:
       implementations. This check provides awareness of whether HCP data exists.
     category: data
     severity: error
+    stage: data
     check:
       type: soql_count
       query: >
@@ -338,7 +312,7 @@ rules:
   # ===========================================================================
 
   - id: next-best-004
-    name: Mobile metadata cache active for Next Best objects
+    name: A mobile metadata cache is published
     description: |
       Verifies that mobile metadata cache is active. Next Best features on mobile
       require an active metadata cache that includes TerritoryAccountScore,
@@ -348,6 +322,8 @@ rules:
       be regenerated after any Next Best configuration changes.
     category: metadata-cache
     severity: warning
+    stage: mobile
+    studio_surface: metadataCache
     check:
       type: soql_count
       query: >
@@ -391,6 +367,7 @@ rules:
       consistent messaging. This is an informational check.
     category: configuration
     severity: info
+    stage: config
     check:
       type: soql_count
       query: >
@@ -420,7 +397,6 @@ groups:
     description: "Full Next Best configuration check - NBC, NBA, NBM data, territory alignment, ProductGuidance, and mobile cache"
     rules:
       - nbc-001
-      - nbc-002
       - nba-001
       - nbm-001
       - nbm-002
@@ -433,10 +409,9 @@ groups:
 
   nbc-check:
     name: "Next Best Customer Check"
-    description: "NBC-specific checks - TerritoryAccountScore data, explainability, and territory alignment"
+    description: "NBC-specific checks - TerritoryAccountScore data, and territory alignment"
     rules:
       - nbc-001
-      - nbc-002
       - next-best-001
       - next-best-002
       - next-best-003

@@ -1,10 +1,10 @@
 ---
-description: Install (build) and launch the Life Sciences Cloud (LSC) Assistant desktop app
+description: Install (build) and launch Roz for LSC, the Life Sciences Cloud (LSC) desktop app
 ---
 
-# Launch LSC Assistant (Desktop App)
+# Launch Roz for LSC (Desktop App)
 
-Build (on first run) and launch the **LSC Assistant** Electron desktop app — a
+Build (on first run) and launch **Roz for LSC**, the Electron desktop app — a
 standalone chat UI backed by this plugin's knowledge base, skills, and Salesforce
 org tools.
 
@@ -28,7 +28,7 @@ org tools.
    - Launches the app **detached**, so this command returns immediately.
 
 3. Report the outcome to the user:
-   - On success, tell them the **LSC Assistant** window is opening, and that on
+   - On success, tell them the **Roz for LSC** window is opening, and that on
      first launch they'll be asked to choose an **LLM provider** — either an
      **Anthropic API key** or a **Bedrock / custom gateway** (base URL + key).
      If `ANTHROPIC_API_KEY` or `ANTHROPIC_BEDROCK_BASE_URL` are set in their

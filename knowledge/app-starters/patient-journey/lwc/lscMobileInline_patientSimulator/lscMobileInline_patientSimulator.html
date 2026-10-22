@@ -1,0 +1,139 @@
+<template>
+    <div class="pjs-root" style={rootStyle}>
+        <!-- ================= HEADER ================= -->
+        <header class="pjs-header">
+            <div class="pjs-header-title">
+                <div class="pjs-brand-dot"></div>
+                <div>
+                    <h1 class="pjs-h1">Patient Journey Simulator</h1>
+                    <p class="pjs-subtitle">IMMUNEXIS&nbsp;10mg &middot; Specialty Therapy Cohort</p>
+                </div>
+            </div>
+            <div class="pjs-header-metrics">
+                <div class="pjs-metric">
+                    <span class="pjs-metric-label">Starting cohort</span>
+                    <span class="pjs-metric-value">{startingCohortDisplay}</span>
+                </div>
+                <div class="pjs-metric">
+                    <span class="pjs-metric-label">Adherent @ 90d</span>
+                    <span class="pjs-metric-value">{finalCount}&nbsp;<small>({finalPct}%)</small></span>
+                </div>
+                <div class="pjs-metric">
+                    <span class="pjs-metric-label">Impact vs. baseline</span>
+                    <span class={gainClass}>{patientsGainedDisplay}</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- ================= BODY ================= -->
+        <div class="pjs-body">
+            <!-- ---------- FUNNEL ---------- -->
+            <section class="pjs-funnel-panel">
+                <div class="pjs-panel-head">
+                    <h2 class="pjs-h2">Cohort Flow</h2>
+                    <span class="pjs-hint">Tap a stage to see what's driving drop-off</span>
+                </div>
+
+                <div class="pjs-funnel">
+                    <template for:each={computedStages} for:item="stage">
+                        <div key={stage.key} class="pjs-stage-row">
+                            <template if:true={stage.showConnector}>
+                                <div class="pjs-drop-badge">
+                                    <lightning-icon icon-name="utility:chevrondown" size="xx-small"
+                                        variant="inverse" class="pjs-drop-caret"></lightning-icon>
+                                    <span>&minus;{stage.dropDisplay}</span>
+                                </div>
+                            </template>
+
+                            <div class={stage.barClass} data-key={stage.key}
+                                role="button" tabindex="0"
+                                onclick={handleStageClick} onkeydown={handleStageKey}>
+                                <div class="pjs-bar-fill" style={stage.widthStyle}>
+                                    <div class="pjs-bar-inner">
+                                        <lightning-icon icon-name={stage.icon} size="small"
+                                            variant="inverse"></lightning-icon>
+                                        <div class="pjs-bar-text">
+                                            <span class="pjs-bar-label">{stage.label}</span>
+                                            <span class="pjs-bar-sub">{stage.sublabel}</span>
+                                        </div>
+                                    </div>
+                                    <div class="pjs-bar-count">
+                                        <span class="pjs-bar-num">{stage.countDisplay}</span>
+                                        <span class="pjs-bar-pct">{stage.pctOfStart}% of start</span>
+                                    </div>
+                                    <template if:true={stage.boosted}>
+                                        <span class="pjs-boost-chip">boosted</span>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </section>
+
+            <!-- ---------- RIGHT RAIL ---------- -->
+            <aside class="pjs-rail">
+                <!-- Stage detail -->
+                <div class="pjs-card pjs-detail-card">
+                    <div class="pjs-detail-head">
+                        <lightning-icon icon-name={selectedStage.icon} size="small"
+                            variant="inverse"></lightning-icon>
+                        <div>
+                            <span class="pjs-detail-stage">Stage {selectedStage.stageNumber} of 5</span>
+                            <h3 class="pjs-detail-title">{selectedStage.label}</h3>
+                        </div>
+                        <span class="pjs-detail-count">{selectedStage.countDisplay}</span>
+                    </div>
+
+                    <p class="pjs-detail-body">{selectedStage.detail}</p>
+
+                    <template if:true={selectedStage.dropReason}>
+                        <div class="pjs-detail-drop">
+                            <span class="pjs-tag pjs-tag_warn">Primary drop-off</span>
+                            <span class="pjs-detail-reason">{selectedStage.dropReason}</span>
+                        </div>
+                    </template>
+
+                    <template if:true={selectedHasAction}>
+                        <div class="pjs-action-box">
+                            <div class="pjs-action-head">
+                                <lightning-icon icon-name="utility:touch_action" size="xx-small"></lightning-icon>
+                                <span>Recommended rep action</span>
+                            </div>
+                            <p class="pjs-action-text">{selectedStage.repAction}</p>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- What-if levers -->
+                <div class="pjs-card pjs-levers-card">
+                    <div class="pjs-panel-head">
+                        <h3 class="pjs-h3">What-if levers</h3>
+                        <div class="pjs-lever-actions">
+                            <button class="pjs-linkbtn" onclick={handleMaximize}>Max all</button>
+                            <span class="pjs-dot-sep">&middot;</span>
+                            <button class="pjs-linkbtn" onclick={handleReset}>Reset</button>
+                        </div>
+                    </div>
+
+                    <template for:each={displayLevers} for:item="lever">
+                        <div key={lever.key} class={lever.cardClass}>
+                            <div class="pjs-lever-top">
+                                <lightning-icon icon-name={lever.icon} size="x-small"></lightning-icon>
+                                <div class="pjs-lever-meta">
+                                    <span class="pjs-lever-label">{lever.label}</span>
+                                    <span class="pjs-lever-blurb">{lever.blurb}</span>
+                                </div>
+                                <span class="pjs-lever-val">{lever.valueLabel}</span>
+                            </div>
+                            <input type="range" min="0" max="100" step="5"
+                                value={lever.value} data-key={lever.key}
+                                class="pjs-slider" onchange={handleLeverChange}
+                                oninput={handleLeverChange} />
+                        </div>
+                    </template>
+                </div>
+            </aside>
+        </div>
+    </div>
+</template>

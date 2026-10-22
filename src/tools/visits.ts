@@ -1,15 +1,21 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import * as fs from "fs";
-import * as path from "path";
-import * as os from "os";
 import {
   runToolingQuery,
   describeSObject,
-  retrieveMetadata,
   deployMetadata,
   listMetadata,
 } from "../salesforce/cli.js";
+import {
+  MAX_SIDEBAR_RELATED_LISTS,
+  countRelatedLists,
+  hasRelatedList,
+  insertRelatedList,
+  recordNameField,
+  layoutDeployPath,
+  retrieveLayoutXml,
+  writeLayoutXml,
+} from "../salesforce/visit-layout.js";
 import { validateOrgConnection } from "../salesforce/auth.js";
 
 export function register(server: McpServer) {
@@ -136,29 +142,20 @@ export function register(server: McpServer) {
 
         try {
           // Retrieve the layout — retrieveMetadata handles the tmp SFDX project internally
-          const retrieveResult = await retrieveMetadata(
-            "",
-            `Layout:${fullLayoutName}`,
-            effectiveOrg
-          );
+          const layout = await retrieveLayoutXml(fullLayoutName, effectiveOrg);
 
-          if (!retrieveResult.success) {
+          if (!layout.ok && layout.reason === "retrieve") {
             return {
               content: [
                 {
                   type: "text",
-                  text: `# Failed to Retrieve Layout\n\nCould not retrieve \`${fullLayoutName}\`: ${retrieveResult.error}\n\nMake sure the layout name is correct. Use this tool without \`layoutName\` to list available layouts.`,
+                  text: `# Failed to Retrieve Layout\n\nCould not retrieve \`${fullLayoutName}\`: ${layout.error}\n\nMake sure the layout name is correct. Use this tool without \`layoutName\` to list available layouts.`,
                 },
               ],
             };
           }
 
-          const outputDir = (retrieveResult.data as { outputDir: string }).outputDir;
-
-          // Find the retrieved layout XML file — SF CLI nests under force-app/main/default/layouts
-          const layoutDir = path.join(outputDir, "force-app", "main", "default", "layouts");
-
-          if (!fs.existsSync(layoutDir)) {
+          if (!layout.ok && layout.reason === "noDir") {
             return {
               content: [
                 {
@@ -169,10 +166,7 @@ export function register(server: McpServer) {
             };
           }
 
-          const layoutFiles = fs
-            .readdirSync(layoutDir)
-            .filter((f) => f.endsWith(".layout-meta.xml"));
-          if (layoutFiles.length === 0) {
+          if (!layout.ok) {
             return {
               content: [
                 {
@@ -183,11 +177,8 @@ export function register(server: McpServer) {
             };
           }
 
-          const layoutFilePath = path.join(layoutDir, layoutFiles[0]);
-          let layoutXml = fs.readFileSync(layoutFilePath, "utf-8");
-
           // Check if the object is already present as a related list
-          if (layoutXml.includes(`<relatedList>${relationshipName}</relatedList>`)) {
+          if (hasRelatedList(layout.xml, relationshipName)) {
             return {
               content: [
                 {
@@ -199,8 +190,8 @@ export function register(server: McpServer) {
           }
 
           // Count existing related lists
-          const existingRelatedLists = (layoutXml.match(/<relatedLists>/g) || []).length;
-          if (existingRelatedLists >= 10) {
+          const existingRelatedLists = countRelatedLists(layout.xml);
+          if (existingRelatedLists >= MAX_SIDEBAR_RELATED_LISTS) {
             return {
               content: [
                 {
@@ -212,22 +203,17 @@ export function register(server: McpServer) {
           }
 
           // Insert the new related list block before </Layout>
-          const newRelatedList = `    <relatedLists>
-        <relatedList>${relationshipName}</relatedList>
-        <fields>NAME</fields>
-        <excludeButtons>New</excludeButtons>
-        <excludeButtons>MassDeleteAll</excludeButtons>
-    </relatedLists>
-`;
-          layoutXml = layoutXml.replace("</Layout>", `${newRelatedList}</Layout>`);
-
-          fs.writeFileSync(layoutFilePath, layoutXml, "utf-8");
+          writeLayoutXml(
+            layout,
+            insertRelatedList(
+              layout.xml,
+              relationshipName,
+              await recordNameField(matchingRel.childSObject, effectiveOrg)
+            )
+          );
 
           // Deploy the modified layout back
-          const deployResult = await deployMetadata(
-            path.join(outputDir, "force-app"),
-            effectiveOrg
-          );
+          const deployResult = await deployMetadata(layoutDeployPath(layout), effectiveOrg);
 
           if (!deployResult.success) {
             return {

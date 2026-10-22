@@ -13,10 +13,13 @@ import {
   deleteRecord,
   getLoginCommand,
   generateMobileMetadataCache,
+  orgApiVersion,
   openOrg,
 } from "../salesforce/cli.js";
 import {
   checkSetupStatus,
+  invalidateSetupStatus,
+  primeSetupStatus,
   getSetupInstructions,
   formatOrgList,
   validateOrgConnection,
@@ -30,7 +33,7 @@ export function register(server: McpServer) {
     "Check if Salesforce CLI is installed and orgs are authenticated. Run this first to ensure everything is set up correctly.",
     {},
     async () => {
-      const status = await checkSetupStatus();
+      const status = await checkSetupStatus({ fresh: true });
 
       let message = "# LSC Plugin Setup Status\n\n";
 
@@ -45,7 +48,13 @@ export function register(server: McpServer) {
       // Org Status
       message += `## Authenticated Orgs\n`;
       if (status.hasAuthenticatedOrgs) {
-        message += formatOrgList(status.orgs);
+        // The setup probe skips connection status; show it here, where an expired login matters.
+        const listed = await listOrgs();
+        const orgs =
+          listed.success && listed.data
+            ? [...(listed.data.nonScratchOrgs || []), ...(listed.data.scratchOrgs || [])]
+            : status.orgs;
+        message += formatOrgList(orgs);
         message += "\n\n";
         if (getTargetOrg()) {
           message += `**Current Target Org:** ${getTargetOrg()}\n`;
@@ -135,6 +144,7 @@ export function register(server: McpServer) {
       };
     }
 
+    invalidateSetupStatus();
     const result = await listOrgs();
 
     if (!result.success) {
@@ -183,21 +193,21 @@ export function register(server: McpServer) {
       org: z.string().describe("The org alias or username to use as the target for operations"),
     },
     async ({ org }) => {
-      // Validate the org exists
-      const result = await listOrgs();
+      // Validate the org exists. A fresh probe, so the next tool call's connection check reuses this `sf org list`.
+      const status = await checkSetupStatus({ fresh: true });
 
-      if (!result.success) {
+      if (!status.cliInstalled || !status.hasAuthenticatedOrgs) {
         return {
           content: [
             {
               type: "text",
-              text: `Failed to verify org: ${result.error}`,
+              text: `Failed to verify org: ${status.cliInstalled ? "no authenticated orgs found" : "Salesforce CLI is not installed"}`,
             },
           ],
         };
       }
 
-      const allOrgs = [...(result.data?.nonScratchOrgs || []), ...(result.data?.scratchOrgs || [])];
+      const allOrgs = status.orgs;
 
       const matchedOrg = allOrgs.find((o) => o.alias === org || o.username === org);
 
@@ -213,6 +223,7 @@ export function register(server: McpServer) {
       }
 
       setTargetOrg(org);
+      primeSetupStatus(allOrgs);
 
       return {
         content: [
@@ -639,11 +650,14 @@ export function register(server: McpServer) {
         .describe(
           'Array of profile names to generate cache for. ASK THE USER which profiles to use. Examples: ["Field Sales Representative", "Medical Sales Representative", "Key Account Manager"]'
         ),
-      apiVersion: z.string().optional().describe('Salesforce API version (default: "64.0")'),
+      apiVersion: z
+        .string()
+        .optional()
+        .describe("Salesforce API version (default: the org's API version)"),
       prefix: z.string().optional().describe('Namespace prefix (default: "lsc4ce")'),
       targetOrg: z.string().optional().describe("Optional: specific org to use"),
     },
-    async ({ profileNames, apiVersion = "65.0", prefix = "lsc4ce", targetOrg }) => {
+    async ({ profileNames, apiVersion: requestedVersion, prefix = "lsc4ce", targetOrg }) => {
       const validation = await validateOrgConnection();
       const effectiveOrg = targetOrg || validation.targetOrg;
 
@@ -658,6 +672,7 @@ export function register(server: McpServer) {
         };
       }
 
+      const apiVersion = requestedVersion ?? (await orgApiVersion(effectiveOrg));
       let message = "# Mobile Metadata Cache Generation\n\n";
 
       try {

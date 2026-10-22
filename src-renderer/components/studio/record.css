@@ -1,0 +1,1509 @@
+/* Record screen, measured on LSC Mobile (1210×834pt). Offsets are from the top of the page area (y 96 on the device). */
+.studio-ipad-page.record {
+  padding: 0;
+  gap: 0;
+  background: #f3f3f3;
+}
+
+.studio-ipad-rec {
+  position: relative;
+  width: 1210px;
+  padding-bottom: 120px;
+}
+
+/* Header: icon 15,17 (48pt); eyebrow and title at x78. */
+.studio-ipad-rec-head {
+  position: relative;
+  height: 85px;
+}
+
+.studio-ipad-rec-icon {
+  position: absolute;
+  left: 15px;
+  top: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #066afe;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 600;
+  overflow: hidden;
+}
+
+.studio-ipad-rec-icon img,
+.studio-ipad-rec-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.studio-ipad-rec-eyebrow {
+  position: absolute;
+  left: 78px;
+  top: 15px;
+  height: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 24px;
+  color: #5c5c5c;
+}
+
+.studio-ipad-rec-title {
+  position: absolute;
+  left: 78px;
+  top: 39px;
+  height: 24px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 24px;
+  color: #2e2e2e;
+}
+
+/* Highlights panel: 15pt inset, cells sized by calculateCellWidths, text inset 10. */
+.studio-ipad-rec-hl {
+  display: flex;
+  height: 75px;
+  padding-left: 15px;
+}
+
+.studio-ipad-rec-hl-cell {
+  flex: none;
+  box-sizing: border-box;
+  padding: 0 10px;
+  overflow: hidden;
+}
+
+.studio-ipad-rec-hl-label {
+  height: 17px;
+  font-size: 14px;
+  line-height: 17px;
+  color: #5c5c5c;
+  white-space: nowrap;
+}
+
+.studio-ipad-rec-hl-value {
+  margin-top: 8px;
+  height: 19px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 19px;
+  color: #2e2e2e;
+  white-space: nowrap;
+}
+
+.studio-ipad-rec-hl-value.link,
+.studio-ipad-rec-value.link {
+  color: #0250d9;
+}
+
+/* Segments: y 160, 40pt tall, centered group starting at x 378; a strip that overflows scrolls from x 20. */
+.studio-ipad-rec-tabs {
+  display: flex;
+  gap: 8px;
+  height: 40px;
+  padding-left: 378px;
+}
+
+.studio-ipad-rec-tabs.scroll {
+  overflow-x: auto;
+  padding: 0 20px;
+  scrollbar-width: none;
+}
+
+.studio-ipad-rec-tabs.scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.studio-ipad-rec-tabs.scroll .studio-ipad-rec-tab {
+  flex: none;
+  white-space: nowrap;
+}
+
+.studio-ipad-rec-tab {
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 17.6px;
+  border: none;
+  border-radius: 12px;
+  background: #fff;
+  color: #2e2e2e;
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.studio-ipad-rec-tab.current {
+  background: #0250d9;
+  color: #fff;
+}
+
+.studio-ipad-rec-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 12px 21px 0;
+}
+
+.studio-ipad-rec-card {
+  position: relative;
+  box-sizing: border-box;
+  border-radius: 16px;
+  background: #fff;
+}
+
+/* Details: two 545pt columns at x 40 / 625 (card x 21), 75pt rows with a rule 54pt down. */
+.studio-ipad-rec-card.details {
+  padding: 20px 19px 30px;
+}
+
+.studio-ipad-rec-pencil {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  color: #0250d9;
+}
+
+.studio-ipad-rec-section.layout-gap {
+  margin-top: 44px;
+}
+
+.studio-ipad-rec-section.section-gap {
+  margin-top: 15px;
+}
+
+/* A labeled first section starts 14pt below the card top (the pill sits 4pt above the heading). */
+.studio-ipad-rec-section.labeled {
+  margin-top: -6px;
+}
+
+.studio-ipad-rec-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.studio-ipad-rec-section-head {
+  height: 21px;
+}
+
+.studio-ipad-rec-section-head .studio-ipad-rec-section-title {
+  margin-bottom: 0;
+}
+
+.studio-ipad-rec-section-head + .studio-ipad-rec-cols {
+  margin-top: 35px;
+}
+
+.studio-ipad-rec-edit,
+.studio-ipad-rec-new {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 38px;
+  margin-top: -4px;
+  padding: 0 17px;
+  border: 1px solid #5c5c5c;
+  border-radius: 999px;
+  color: #0250d9;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.studio-ipad-rec-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: #747474;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  vertical-align: 1px;
+}
+
+.studio-ipad-rec-section-title {
+  height: 21px;
+  margin-bottom: 35px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 21px;
+  color: #2e2e2e;
+}
+
+.studio-ipad-rec-cols {
+  display: grid;
+  grid-template-columns: 545px 545px;
+  column-gap: 40px;
+  align-items: start;
+}
+
+.studio-ipad-rec-field {
+  position: relative;
+  height: 75px;
+}
+
+.studio-ipad-rec-field.tall {
+  height: 77px;
+}
+
+.studio-ipad-rec-field::after {
+  content: "";
+  position: absolute;
+  top: 54px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #c9c9c9;
+}
+
+.studio-ipad-rec-label {
+  height: 18px;
+  font-size: 14px;
+  line-height: 18px;
+  color: #2e2e2e;
+}
+
+.studio-ipad-rec-value {
+  margin-top: 2px;
+  height: 19px;
+  font-size: 16px;
+  line-height: 19px;
+  color: #2e2e2e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Related-list cards: 72pt with the heading alone; icon at x 36, title at x 76. */
+.studio-ipad-rec-card.related {
+  padding: 16px 16px 16px 15px;
+  overflow: hidden;
+}
+
+.studio-ipad-rec-rl-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+}
+
+.studio-ipad-rec-rl-head .studio-ipad-rec-new {
+  height: 40px;
+  min-width: 67px;
+  padding: 0 12px;
+  margin: 0 0 0 auto;
+}
+
+.studio-ipad-rec-rl-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 600;
+  overflow: hidden;
+}
+
+.studio-ipad-rec-rl-icon img,
+.studio-ipad-rec-rl-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.studio-ipad-rec-rl-title {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 30px;
+  color: #2e2e2e;
+  white-space: nowrap;
+}
+
+/* Edit mode's Draft only: a dashed card standing in for a layout with no related lists. */
+.studio-ipad-rec-card.related.studio-ipad-rec-rl-placeholder {
+  border: 2px dashed #c9c9c9;
+  box-shadow: none;
+  background: transparent;
+}
+
+.studio-ipad-rec-rl-hint {
+  font-size: 15px;
+  line-height: 20px;
+  color: #747474;
+}
+
+/* Table: 44pt header row (37pt button at +7), 44pt rows, text inset 16. */
+.studio-ipad-rec-table {
+  position: relative;
+  margin-top: 15px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.studio-ipad-rec-table-border {
+  position: absolute;
+  inset: 0;
+  border: 1px solid #c9c9c9;
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.studio-ipad-rec-rl-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 73px;
+  border-left: 1px solid #c9c9c9;
+  background: #fff;
+}
+
+.studio-ipad-rec-rl-actions-head {
+  height: 37px;
+  background: #f3f3f3;
+  border-bottom: 1px solid #c9c9c9;
+  box-sizing: border-box;
+}
+
+.studio-ipad-rec-rl-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+}
+
+.studio-ipad-rec-tr {
+  display: flex;
+  height: 44px;
+  align-items: center;
+}
+
+.studio-ipad-rec-tr:not(.head) + .studio-ipad-rec-tr {
+  box-shadow: inset 0 1px #dedede;
+}
+
+.studio-ipad-rec-tr.head {
+  height: 37px;
+  background: #f3f3f3;
+  border-bottom: 1px solid #c9c9c9;
+  box-sizing: border-box;
+}
+
+.studio-ipad-rec-th {
+  flex: none;
+  box-sizing: border-box;
+  position: relative;
+  height: 36px;
+  padding: 0 16px;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 36px;
+  color: #444;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.studio-ipad-rec-sort {
+  position: absolute;
+  top: 11px;
+  right: 15px;
+}
+
+.studio-ipad-rec-td {
+  flex: none;
+  box-sizing: border-box;
+  padding: 0 16px;
+  font-size: 17px;
+  line-height: 20px;
+  color: #2e2e2e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.studio-ipad-rec-td.link {
+  color: #0250d9;
+}
+
+.studio-ipad-rec-card.placeholder {
+  padding: 24px 20px 28px;
+}
+
+.studio-ipad-rec-ph-title {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 24px;
+  color: #2e2e2e;
+}
+
+.studio-ipad-rec-ph-note {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #5c5c5c;
+}
+
+/* Studio's offline note under an inline LWC — not part of the app's card. */
+.studio-ipad-rec-offline {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border: 1px solid #f9c99a;
+  border-radius: 8px;
+  background: #fef1e6;
+  font-size: 13px;
+  line-height: 18px;
+  color: #3e3e3c;
+}
+
+.studio-ipad-rec-offline.gated {
+  border-color: #dddbda;
+  background: #f3f3f3;
+  color: #5c5c5c;
+}
+
+.studio-ipad-rec-offline p {
+  margin: 0;
+}
+
+.studio-ipad-rec-offline p + p {
+  margin-top: 4px;
+}
+
+/* A live inline LWC: the iPad's web view is a fixed-height frame (mobileHeight) that scrolls inside. */
+.studio-ipad-rec-card.live {
+  margin-top: 1px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.studio-ipad-rec-live-fit {
+  overflow: hidden;
+}
+
+/* Sized and scaled inline by LiveInlineLwc to cancel the iPad screen's scale. */
+.studio-ipad-rec-live-frame {
+  display: block;
+  transform-origin: 0 0;
+  border: 0;
+  background: #fff;
+}
+
+.studio-ipad-rec-live-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #706e6b;
+  font-size: 14px;
+}
+
+.studio-ipad-rec-live-note {
+  margin: 6px 12px 0;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: #f3f3f3;
+  color: #3e3e3c;
+  font-size: 12px;
+}
+
+.studio-ipad-rec-live-caption {
+  padding: 6px 12px 8px;
+  border-top: 1px dashed #dddbda;
+  color: #706e6b;
+  font-size: 11px;
+}
+
+.studio-ipad-rec-live-failed {
+  margin-top: 10px;
+  color: #706e6b;
+  font-size: 12px;
+}
+
+.studio-ipad-rec-viewall {
+  margin-top: 32px;
+  height: 14px;
+  font-size: 14px;
+  line-height: 14px;
+  text-align: center;
+  color: #0250d9;
+}
+
+/* Expenses: heading at 40,338; empty art centered; Total at the bottom right. */
+.studio-ipad-rec-card.expenses {
+  height: 425px;
+}
+
+.studio-ipad-rec-exp-title {
+  position: absolute;
+  left: 19px;
+  top: 38px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+  color: #2e2e2e;
+}
+
+.studio-ipad-rec-exp-empty {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 103px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.studio-ipad-rec-exp-none {
+  margin-top: 16px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #2e2e2e;
+}
+
+.studio-ipad-rec-exp-total {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.studio-ipad-rec-exp-total-label {
+  font-size: 18px;
+  font-weight: 600;
+  color: #5c5c5c;
+}
+
+.studio-ipad-rec-exp-total-value {
+  font-size: 21.5px;
+  font-weight: 600;
+  color: #2e2e2e;
+}
+
+/* Inline LWC (lightning-card): label 0.75rem #706e6b, value 0.875rem #181818. */
+.studio-ipad-rec-card.inline {
+  margin-top: 1px;
+  padding: 10px 7px 29px 16px;
+  border-radius: 4px;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, "Salesforce Sans", system-ui, sans-serif;
+}
+
+.studio-ipad-rec-inline-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 28px;
+  color: #181818;
+}
+
+.studio-ipad-rec-inline-body {
+  padding-top: 25px;
+}
+
+.studio-ipad-rec-inline-row {
+  display: flex;
+}
+
+.studio-ipad-rec-inline-cell {
+  flex: 0 0 100%;
+  box-sizing: border-box;
+  padding-bottom: 12px;
+}
+
+.studio-ipad-rec-inline-cell.half {
+  flex: 0 0 580px;
+}
+
+.studio-ipad-rec-inline-cell p {
+  margin: 0;
+}
+
+.studio-ipad-rec-inline-cell .field-label {
+  margin-bottom: 2px;
+  font-size: 12px;
+  line-height: 18px;
+  color: #706e6b;
+}
+
+.studio-ipad-rec-inline-cell .field-value {
+  font-size: 14px;
+  line-height: 21px;
+  color: #181818;
+}
+
+/* Text boxes hug their text so the harness can measure glyph widths. */
+.studio-ipad-rec-label,
+.studio-ipad-rec-value,
+.studio-ipad-rec-section-title {
+  width: fit-content;
+  max-width: 100%;
+}
+
+/* The Accounts screen's cards open their record. */
+.studio-ipad-accounts-card {
+  cursor: pointer;
+}
+
+
+/* Dashboard cards (device: card x 21, inner boxes x 31, 1px #747474 border, radius 16) */
+.studio-ipad-rec-card.dash {
+  padding: 0;
+}
+.studio-ipad-rec-card.dash.summary {
+  padding: 32px 32px 4px;
+  min-height: 469px;
+}
+.studio-ipad-rec-dash-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 24px;
+  color: #181818;
+  margin-bottom: 16px;
+}
+.studio-ipad-rec-dash-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 20px;
+  font-weight: 600;
+  color: #2e2e2e;
+  padding: 16px 0 28px;
+}
+.studio-ipad-rec-dash-empty.tall {
+  padding-top: 8px;
+}
+.studio-ipad-rec-dash-empty img {
+  max-width: 100%;
+  object-fit: contain;
+}
+.studio-ipad-rec-sum-date {
+  font-size: 14px;
+  color: #5c5c5c;
+  margin-bottom: 12px;
+}
+.studio-ipad-rec-sum-title {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 12px 0 4px;
+}
+.studio-ipad-rec-sum ul {
+  margin: 0;
+  padding-left: 22px;
+  font-size: 17px;
+  line-height: 24px;
+}
+.studio-ipad-rec-dash-box {
+  margin: 0 15px;
+  border: 1px solid #747474;
+  border-radius: 16px;
+  box-sizing: border-box;
+}
+.studio-ipad-rec-dash-box.overview {
+  margin: 0 15px;
+  padding: 16px 16px 14px;
+  min-height: 210px;
+}
+.studio-ipad-rec-ov-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #032d60;
+}
+.studio-ipad-rec-ov-label {
+  margin-top: 30px;
+  font-size: 17px;
+  color: #2e2e2e;
+}
+.studio-ipad-rec-ov-none {
+  margin-top: 6px;
+  font-size: 19px;
+  color: #5c5c5c;
+}
+.studio-ipad-rec-ov-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.studio-ipad-rec-ov-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 16px;
+  background: #f3f3f3;
+  font-size: 17px;
+}
+.studio-ipad-rec-ov-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 30px;
+  font-size: 13px;
+  color: #181818;
+}
+.studio-ipad-rec-ov-target {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0250d9;
+}
+.studio-ipad-rec-dash-box.nba {
+  margin-top: 23px;
+}
+.studio-ipad-rec-dash-box.nba .studio-ipad-rec-dash-empty {
+  padding-bottom: 44px;
+}
+.studio-ipad-rec-nba-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 16px;
+  font-size: 19px;
+  border-bottom: 1px solid #c9c9c9;
+}
+.studio-ipad-rec-nba-head .link {
+  color: #0250d9;
+}
+.studio-ipad-rec-nba-list {
+  padding: 8px 16px;
+}
+.studio-ipad-rec-nba-item {
+  padding: 10px 0;
+  border-bottom: 1px solid #e5e5e5;
+}
+.studio-ipad-rec-nba-item .t {
+  font-size: 17px;
+  font-weight: 600;
+}
+.studio-ipad-rec-nba-item .s {
+  font-size: 14px;
+  color: #5c5c5c;
+}
+.studio-ipad-rec-nba-all {
+  border-top: 1px solid #747474;
+  padding: 18px 0;
+  text-align: center;
+  font-size: 19px;
+  font-weight: 600;
+  color: #0250d9;
+}
+.studio-ipad-rec-card.dash.mapcard {
+  padding: 10px 14px 10px;
+}
+.studio-ipad-rec-map {
+  position: relative;
+  height: 305px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #e8eef0 0 60%, #bfe3f7 60% 100%);
+}
+.studio-ipad-rec-map .studio-ipad-rec-map-base {
+  position: absolute;
+  inset: 0;
+}
+.studio-ipad-rec-map-panel {
+  z-index: 1;
+  position: absolute;
+  left: 15px;
+  top: 15px;
+  width: 449px;
+  box-sizing: border-box;
+  padding: 12px 20px 24px;
+  background: #fff;
+  border-radius: 8px;
+}
+.studio-ipad-rec-map-panel .h {
+  font-size: 21px;
+  font-weight: 700;
+  color: #032d60;
+}
+.studio-ipad-rec-map-panel .a {
+  max-width: 260px;
+  margin-top: 5px;
+  font-size: 15px;
+  line-height: 17px;
+  color: #0250d9;
+}
+.studio-ipad-rec-map-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #bdeee6;
+  color: #0b3d38;
+  font-size: 14px;
+}
+.studio-ipad-rec-map-pill.bad {
+  background: #fddde3;
+  color: #8e030f;
+}
+.studio-ipad-rec-map-dir {
+  display: block;
+  width: fit-content;
+  margin-top: 9px;
+  padding: 9px 28px;
+  border: 1px solid #0250d9;
+  border-radius: 20px;
+  font-size: 19px;
+  color: #0250d9;
+}
+.studio-ipad-rec-map-note {
+  z-index: 1;
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  font-size: 12px;
+  color: #5c5c5c;
+}
+
+.studio-ipad-rec-rl-head .studio-ipad-rec-new + .studio-ipad-rec-new {
+  margin-left: 8px;
+}
+
+/* Activity History timeline (device: card x 40, month rule at 60, items 139pt apart) */
+.studio-ipad-rec-card.dash.activity {
+  margin: 0 19px;
+  padding: 22px 20px 20px;
+}
+.studio-ipad-rec-act-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 38px;
+  margin-bottom: 0;
+}
+.studio-ipad-rec-act-bar .today {
+  flex: 1;
+  font-size: 20px;
+  font-weight: 500;
+  color: #0250d9;
+}
+.studio-ipad-rec-act-bar .cap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  border: 1px solid #5c5c5c;
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 500;
+  color: #0250d9;
+}
+.studio-ipad-rec-act-group {
+  margin-top: 30px;
+}
+.studio-ipad-rec-act-month {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #032d60;
+}
+.studio-ipad-rec-act-month::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid #c9c9c9;
+}
+.studio-ipad-rec-act-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  min-height: 72px;
+  margin-top: 9px;
+}
+.studio-ipad-rec-act-item .chev {
+  margin: 4px 14px 0 0;
+}
+.studio-ipad-rec-act-item .dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #f87d6f;
+}
+.studio-ipad-rec-act-item .bar {
+  position: absolute;
+  left: 47px;
+  top: 32px;
+  width: 3px;
+  height: 36px;
+  background: #f87d6f;
+}
+.studio-ipad-rec-act-item .body {
+  flex: 1;
+  margin-left: 24px;
+}
+.studio-ipad-rec-act-item .t {
+  font-size: 17px;
+  font-weight: 700;
+  color: #181818;
+}
+.studio-ipad-rec-act-item .l {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #0250d9;
+}
+.studio-ipad-rec-act-item .when {
+  margin-top: 3px;
+  font-size: 12px;
+  color: #5c5c5c;
+}
+
+/* Edit sheet (device: Cancel / Edit {Name} / Save bar, two columns of label over bordered input) */
+.studio-ipad-rec-sheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 52px;
+  background: rgba(0, 0, 0, 0.4);
+}
+.studio-ipad-rec-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 968px;
+  max-height: 750px;
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+}
+.studio-ipad-rec-sheet-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  padding: 0 16px;
+  border-bottom: 1px solid #c9c9c9;
+}
+.studio-ipad-rec-sheet-bar button {
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 18px;
+  color: #0250d9;
+  cursor: pointer;
+}
+.studio-ipad-rec-sheet-bar button:disabled {
+  color: #9a9a9a;
+  cursor: default;
+}
+.studio-ipad-rec-sheet-bar .title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #2e2e2e;
+}
+.studio-ipad-rec-sheet-note {
+  padding: 6px 20px;
+  background: #fff4d6;
+  font-size: 12px;
+  color: #5c5c5c;
+}
+.studio-ipad-rec-sheet-body {
+  overflow-y: auto;
+  padding: 25px 20px 24px;
+}
+.studio-ipad-rec-sheet-sec-title {
+  margin: 0 0 32px;
+  line-height: 22px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2e2e2e;
+}
+.studio-ipad-rec-sheet-cols {
+  display: grid;
+  grid-template-columns: 444px 444px;
+  column-gap: 40px;
+}
+.studio-ipad-rec-sheet-field {
+  height: 75px;
+}
+.studio-ipad-rec-sheet-field .lbl {
+  font-size: 14px;
+  color: #2e2e2e;
+  margin-bottom: 4px;
+}
+.studio-ipad-rec-sheet-field .inp {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  height: 35px;
+  padding: 0 10px;
+  border: 1px solid #747474;
+  border-radius: 18px;
+  font-size: 16px;
+  color: #2e2e2e;
+}
+.studio-ipad-rec-sheet-field .ic {
+  color: #5c5c5c;
+}
+.studio-ipad-rec-sheet-field .ro {
+  min-height: 40px;
+  font-size: 16px;
+  line-height: 40px;
+  color: #2e2e2e;
+}
+
+.studio-ipad-rec-act-bar + .studio-ipad-rec-act-group {
+  margin-top: 42px;
+}
+
+.studio-ipad-rec-sheet-sec + .studio-ipad-rec-sheet-sec {
+  margin-top: 46px;
+}
+
+.studio-ipad-rec-sheet-field .req {
+  color: #ba0517;
+}
+.studio-ipad-rec-sheet-field .inp .v {
+  flex: 1;
+}
+.studio-ipad-rec-sheet-field .inp .ic.plus {
+  margin-right: 8px;
+  color: #0250d9;
+}
+
+/* Inquiry status path (InquiryProgressComponent): 91pt block, five 220pt columns from x 1, node centre 26pt down, labels centred 71pt down. */
+.studio-ipad-rec-stage {
+  position: relative;
+  height: 91px;
+}
+
+.studio-ipad-rec-stage-row {
+  position: absolute;
+  top: 0;
+  left: 1px;
+  display: flex;
+  width: 1100px;
+}
+
+.studio-ipad-rec-stage-step {
+  position: relative;
+  flex: none;
+  width: 220px;
+  height: 91px;
+  --r: 6px;
+}
+
+.studio-ipad-rec-stage-step.done {
+  --r: 13px;
+}
+
+.studio-ipad-rec-stage-step.current {
+  --r: 15px;
+}
+
+.studio-ipad-rec-stage-step .node {
+  position: absolute;
+  top: calc(26px - var(--r));
+  left: calc(110px - var(--r));
+  box-sizing: border-box;
+  width: calc(var(--r) * 2);
+  height: calc(var(--r) * 2);
+  border-radius: 50%;
+  background: #a6a6a6;
+  color: #fff;
+  font-size: 15px;
+  line-height: calc(var(--r) * 2);
+  text-align: center;
+}
+
+.studio-ipad-rec-stage-step.done .node {
+  background: #0b6b5e;
+}
+
+.studio-ipad-rec-stage-step.current .node {
+  border: 6px solid #0250d9;
+  background: #fff;
+}
+
+.studio-ipad-rec-stage-step .line {
+  position: absolute;
+  top: 24px;
+  height: 4px;
+  background: #a6a6a6;
+}
+
+.studio-ipad-rec-stage-step .line.l {
+  left: 0;
+  width: calc(110px - var(--r) - 9px);
+}
+
+.studio-ipad-rec-stage-step .line.r {
+  left: calc(110px + var(--r) + 9px);
+  width: calc(110px - var(--r) - 9px);
+}
+
+.studio-ipad-rec-stage-step:first-child .line.l,
+.studio-ipad-rec-stage-step:last-child .line.r {
+  display: none;
+}
+
+.studio-ipad-rec-stage-step.done .line.r,
+.studio-ipad-rec-stage-step.done .line.l,
+.studio-ipad-rec-stage-step.current .line.l {
+  background: #0250d9;
+}
+
+.studio-ipad-rec-stage-step .label {
+  position: absolute;
+  top: 61px;
+  width: 100%;
+  font-size: 16px;
+  line-height: 20px;
+  color: #032d60;
+  text-align: center;
+}
+
+.studio-ipad-rec-stage-step.current .label {
+  font-weight: 600;
+}
+
+.studio-ipad-rec-stage-actions {
+  position: absolute;
+  top: 7px;
+  left: 1032px;
+  box-sizing: border-box;
+  width: 100px;
+  height: 33px;
+  border: 1px solid #0250d9;
+  border-radius: 17px;
+  background: #fff;
+  color: #0250d9;
+  font: inherit;
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.studio-ipad-rec-stage-actions::after {
+  content: " \2304";
+}
+
+/* Customer Ratings: 1170pt card, segments 33pt at +33, cards 340x243 on a 356/261pt pitch from x 80, first row at +97. */
+.studio-ipad-rec-card.ratings {
+  position: relative;
+  min-height: 510px;
+  padding: 33px 58px 24px;
+}
+
+.studio-ipad-rec-rt-seg {
+  display: flex;
+  justify-content: center;
+  height: 33px;
+  margin-bottom: 31px;
+}
+
+.studio-ipad-rec-rt-seg button {
+  box-sizing: border-box;
+  height: 33px;
+  padding: 0 11px;
+  border: 1px solid #c9c9c9;
+  background: #e8e8e8;
+  font: inherit;
+  font-size: 16px;
+  color: #2e2e2e;
+  cursor: pointer;
+}
+
+.studio-ipad-rec-rt-seg button:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.studio-ipad-rec-rt-seg button:last-child {
+  border-radius: 0 8px 8px 0;
+}
+
+.studio-ipad-rec-rt-seg button.current {
+  background: #fff;
+  border-radius: 8px;
+}
+
+.studio-ipad-rec-rt-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 340px);
+  gap: 16px 16px;
+}
+
+.studio-ipad-rec-rt-card {
+  position: relative;
+  box-sizing: border-box;
+  height: 245px;
+  padding: 0 15px;
+  border: 1px solid #c9c9c9;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.studio-ipad-rec-rt-head {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  margin-top: 13px;
+}
+
+.studio-ipad-rec-rt-head .title {
+  max-width: 221px;
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 21px;
+  color: #2e2e2e;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-ipad-rec-rt-head .info {
+  flex: none;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: #747474;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.studio-ipad-rec-rt-pill {
+  margin-left: auto;
+  box-sizing: border-box;
+  width: 52px;
+  height: 40px;
+  border: 1px solid #5c5c5c;
+  border-radius: 20px;
+  color: #0250d9;
+  font-size: 16px;
+  line-height: 38px;
+  text-align: center;
+}
+
+.studio-ipad-rec-rt-value {
+  box-sizing: border-box;
+  height: 54px;
+  margin: 41px -4px 0;
+  border-radius: 4px;
+  background: #c4c4c4;
+  font-size: 24px;
+  line-height: 54px;
+  color: #2e2e2e;
+  text-align: center;
+}
+
+.studio-ipad-rec-rt-value.set {
+  background: #00e0c6;
+}
+
+.studio-ipad-rec-rt-cleared {
+  margin-top: 5px;
+  font-size: 13px;
+  line-height: 22px;
+  color: #5c5c5c;
+  text-align: center;
+}
+
+.studio-ipad-rec-rt-foot {
+  position: absolute;
+  right: 15px;
+  bottom: 12px;
+  left: 15px;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2e2e2e;
+}
+
+.studio-ipad-rec-rt-foot .clear {
+  margin-left: auto;
+  font-size: 18px;
+  color: #0250d9;
+}
+
+/* Edit mode's Draft (see ipad.css): ghosts for what the tray takes off the layout, purple for what it adds or moves. */
+.studio-ipad-rec-field.ghost,
+.studio-ipad-rec-hl-cell.ghost,
+.studio-ipad-rec-card.ghost {
+  opacity: 0.45;
+}
+
+.studio-ipad-rec-field.ghost .studio-ipad-rec-label,
+.studio-ipad-rec-hl-cell.ghost .studio-ipad-rec-hl-label,
+.studio-ipad-rec-section.ghost .studio-ipad-rec-section-title,
+.studio-ipad-rec-card.ghost .studio-ipad-rec-rl-title {
+  text-decoration: line-through;
+}
+
+.studio-ipad-rec-section.ghost {
+  opacity: 0.45;
+}
+
+.studio-ipad-rec-section.ghost .studio-ipad-rec-field.ghost {
+  opacity: 1;
+}
+
+.studio-ipad-rec-field.pending,
+.studio-ipad-rec-hl-cell.pending,
+.studio-ipad-rec-section.pending,
+.studio-ipad-rec-card.pending {
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 2.5px #9050e9;
+}
+
+.studio-ipad-rec-section.pending .studio-ipad-rec-field.pending {
+  box-shadow: none;
+}
+
+/* Lightning page components and tabs in Draft: removed ones as ghosts, inserted, moved or edited ones purple. */
+.studio-ipad-draft-block.ghost,
+.studio-ipad-rec-tab.ghost,
+.studio-ipad-chip.ghost {
+  opacity: 0.45;
+}
+
+.studio-ipad-rec-tab.ghost,
+.studio-ipad-chip.ghost {
+  text-decoration: line-through;
+}
+
+.studio-ipad-draft-block.pending,
+.studio-ipad-rec-tab.pending,
+.studio-ipad-chip.pending {
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 2.5px #9050e9;
+}
+
+/* Edit mode's Draft on a list view's table: removed columns are ghosts, added or moved ones are outlined. */
+.studio-ipad-table-cell.ghost {
+  opacity: 0.45;
+}
+
+.studio-ipad-table-row.head .studio-ipad-table-cell.ghost {
+  text-decoration: line-through;
+}
+
+.studio-ipad-table-cell.pending {
+  box-shadow: inset 0 0 0 2.5px #9050e9;
+}
+
+/*
+ * In the org but not on iPads yet (org-ahead.ts): a dotted amber outline and a small tag, apart from the solid purple
+ * of the tray's own changes. The Draft drawers set the class on blocks the org has and the published cache doesn't.
+ */
+.draft-org-ahead {
+  position: relative;
+  border-radius: 6px;
+  outline: 2px dotted var(--warning);
+  outline-offset: -2px;
+  /* Room for the tag above the content, so it never sits on a label. */
+  --org-tag-size: min(40px, max(12px, calc(9px / var(--ipad-scale, 1))));
+  padding-top: calc(var(--org-tag-size) * 1.4 + 6px);
+}
+
+.draft-org-ahead::after {
+  content: "Not on iPads yet";
+  position: absolute;
+  top: calc(var(--org-tag-size) * 0.2);
+  left: calc(var(--org-tag-size) * 0.5);
+  max-width: calc(100% - var(--org-tag-size));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--warning-subtle);
+  color: var(--warning);
+  font-size: var(--org-tag-size);
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Tab pills are too small for a tag: they keep the dotted outline (the inspector says what it means). */
+.studio-ipad-pill.draft-org-ahead {
+  padding-top: 0;
+}
+
+.studio-ipad-pill.draft-org-ahead::after {
+  display: none;
+}
+
+/* Blocks the org removed but iPads still have say so (the Draft drawers set data-org-ahead). */
+.draft-org-ahead[data-org-ahead]::after {
+  content: attr(data-org-ahead);
+}
+
+/* A published block whose document changed in the org: a quiet dot, not an outline. */
+.studio-ipad-pill.org-changed::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--warning);
+  vertical-align: middle;
+}
+
+.studio-ipad-orgahead {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--warning-subtle);
+  color: var(--warning);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+/* An inline LWC slot: counted for the iPad's one web view (IpadInlineSeats), no box of its own. */
+.studio-ipad-inline-seat {
+  display: contents;
+}
+
+/* Its children are the page's flex items now (Home is a column that scrolls): keep them from shrinking to nothing. */
+.studio-ipad-inline-seat > * {
+  flex-shrink: 0;
+}
+
+/* Another inline LWC on the screen has the web view: the iPad leaves this one blank.
+   Studio still draws it, dimmed, under the note saying so. */
+.studio-ipad-inline-blank {
+  margin: 6px 0;
+}
+
+.studio-ipad-inline-dimmed {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+
+.studio-ipad-inline-owner {
+  margin: 6px 0 0;
+}

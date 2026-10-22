@@ -1,6 +1,6 @@
 name: Build Desktop App
 
-# Package the LSC Assistant desktop app and upload the installers as
+# Package the Roz for LSC desktop app and upload the installers as
 # per-run workflow artifacts (downloadable from the run summary page).
 # Runs on pushes to main/feature branches and on-demand via the Actions tab.
 on:
@@ -22,7 +22,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies

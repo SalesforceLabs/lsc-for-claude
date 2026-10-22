@@ -1,229 +1,218 @@
 import React, { useState, useEffect, useCallback } from "react";
-
-interface SfOrg {
-  alias?: string;
-  username: string;
-  orgId: string;
-  instanceUrl: string;
-  isDefault?: boolean;
-}
+import { Monitor, Moon, Sun, X, type LucideIcon } from "lucide-react";
+import Segmented from "./ui/Segmented";
+import { pickModel, type ModelOption } from "../models";
+import { ROZ_ICONS, rozIcon, rozTileSrc, setAppIcon, type RozIcon } from "../app-icon";
+import { APP_THEMES, appTheme, type AppTheme } from "../theme";
+import { useOrgs } from "../hooks/useOrgs";
+import { useSourceControl } from "../hooks/useSourceControl";
+import { SOURCE_CONTROL_HINT } from "./studio/source-control";
+import { hostOf, KIND_LABEL, orgKey } from "../orgs";
+const THEME_ICONS: Record<AppTheme, LucideIcon> = { system: Monitor, light: Sun, dark: Moon };
 
 interface SettingsPanelProps {
+  /** How the running engine reaches the model, e.g. "OpenAI API key". */
+  connectedVia?: string;
+  /** The models the connection offers (see modelOptionsFor). */
+  modelOptions: ModelOption[];
   onClose: () => void;
-  onDisconnect: () => void;
-}
-
-function providerLabel(providerType: string): string {
-  switch (providerType) {
-    case "api-key":
-      return "Anthropic API Key";
-    case "bedrock-gateway":
-      return "Bedrock / custom gateway";
-    case "sf-gateway":
-      return "Salesforce LLM Gateway";
-    default:
-      return "Not connected";
-  }
+  /** Back to the setup screen; the saved connection stays until a new one connects. */
+  onChangeConnection: () => void;
 }
 
 export default function SettingsPanel({
+  connectedVia,
+  modelOptions,
   onClose,
-  onDisconnect,
+  onChangeConnection,
 }: SettingsPanelProps) {
   const [model, setModel] = useState("");
-  const [providerType, setProviderType] = useState("");
+  const [mobileClientId, setMobileClientId] = useState("");
+  const [appIcon, setAppIconChoice] = useState<RozIcon>(ROZ_ICONS[0].id);
+  const [theme, setTheme] = useState<AppTheme>("system");
+  const [savedTheme, setSavedTheme] = useState<AppTheme>("system");
 
-  // Org state
-  const [orgs, setOrgs] = useState<SfOrg[]>([]);
-  const [selectedOrg, setSelectedOrg] = useState("");
-  const [orgsLoading, setOrgsLoading] = useState(false);
-  const [orgsError, setOrgsError] = useState("");
-  const [showLogin, setShowLogin] = useState(false);
-  const [loginAlias, setLoginAlias] = useState("");
-  const [isSandbox, setIsSandbox] = useState(false);
-  const [loginStarted, setLoginStarted] = useState(false);
-
-  const fetchOrgs = useCallback(async () => {
-    setOrgsLoading(true);
-    setOrgsError("");
-    try {
-      const result = await window.lscApi.listSfOrgs();
-      setOrgs(result.orgs || []);
-      if (result.error) setOrgsError(result.error);
-    } catch {
-      setOrgsError("Failed to list orgs");
-    } finally {
-      setOrgsLoading(false);
-    }
-  }, []);
+  const { current, chosen, loading: orgsLoading } = useOrgs();
+  const sourceControl = useSourceControl();
+  // Null until changed here; saved with the rest on Save.
+  const [deployedFromSource, setDeployedFromSource] = useState<boolean | null>(null);
+  const deployed = deployedFromSource ?? sourceControl.deployed;
 
   useEffect(() => {
     window.lscApi.getSettings().then((s) => {
-      if (s.providerType) setProviderType(s.providerType);
-      setModel(s.model || "claude-sonnet-5");
-      if (s.sfTargetOrg) setSelectedOrg(s.sfTargetOrg);
+      setModel(pickModel(s.model, modelOptions));
+      setMobileClientId(s.mobileClientId || "");
+      setAppIconChoice(rozIcon(s.appIcon));
+      setTheme(appTheme(s.theme));
+      setSavedTheme(appTheme(s.theme));
     });
-    fetchOrgs();
-  }, [fetchOrgs]);
+  }, [modelOptions]);
 
-  const handleOrgChange = async (value: string) => {
-    setSelectedOrg(value);
-    if (value) {
-      await window.lscApi.setSfOrg(value);
-    }
+  // A picked appearance shows at once; closing without saving puts the saved one back.
+  const pickTheme = (value: AppTheme) => {
+    setTheme(value);
+    window.lscApi.previewTheme(value);
   };
 
-  const handleLogin = async () => {
-    const instanceUrl = isSandbox ? "https://test.salesforce.com" : undefined;
-    await window.lscApi.loginSfOrg(loginAlias || undefined, instanceUrl);
-    setLoginStarted(true);
-  };
+  const handleCancel = useCallback(() => {
+    if (theme !== savedTheme) window.lscApi.previewTheme(savedTheme);
+    onClose();
+  }, [theme, savedTheme, onClose]);
 
   const handleSave = async () => {
-    await window.lscApi.saveSettings({ model });
+    // settings:save replaces the whole file, so merge into the current settings.
+    const saved = await window.lscApi.getSettings();
+    await window.lscApi.saveSettings({
+      ...saved,
+      model,
+      mobileClientId: mobileClientId.trim() || undefined,
+      appIcon,
+      theme,
+    });
+    setAppIcon(appIcon);
+    if (deployedFromSource !== null && deployedFromSource !== sourceControl.deployed) {
+      await sourceControl.setDeployed(deployedFromSource);
+    }
     onClose();
   };
 
-  const orgLabel = (o: SfOrg) => o.alias ? `${o.alias} (${o.username})` : o.username;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleCancel();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [handleCancel]);
 
   return (
-    <div className="settings-overlay" onClick={onClose}>
-      <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
-        <h2>Settings</h2>
-
-        <div className="form-group">
-          <label>Connected via</label>
-          <input
-            type="text"
-            value={providerLabel(providerType)}
-            readOnly
-            style={{ opacity: 0.7 }}
-          />
+    <div className="settings-overlay" onClick={handleCancel}>
+      <div
+        className="settings-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="settings-header">
+          <h2 id="settings-title">Settings</h2>
+          <button className="ui-icon-btn" onClick={handleCancel} title="Close (Esc)" aria-label="Close settings">
+            <X size={16} strokeWidth={1.9} aria-hidden="true" />
+          </button>
         </div>
 
-        {/* Salesforce Org Section */}
-        <div className="form-group org-section">
-          <label>
-            <span
-              className="status-dot"
-              style={{
-                display: "inline-block",
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                marginRight: 6,
-                background: selectedOrg ? "var(--success)" : "var(--text-muted)",
-                boxShadow: selectedOrg ? "0 0 6px rgba(52, 211, 153, 0.4)" : "none",
-              }}
+        <div className="settings-body">
+          <section className="settings-group">
+            <label className="ui-label" htmlFor="settings-connected">
+              Connected via
+            </label>
+            <div className="settings-row">
+              <input id="settings-connected" className="ui-field" type="text" value={connectedVia || "Not connected"} readOnly />
+              <button className="studio-btn" onClick={onChangeConnection}>
+                Change…
+              </button>
+            </div>
+          </section>
+
+          <section className="settings-group">
+            <label className="ui-label" htmlFor="settings-org">
+              Salesforce org
+            </label>
+            <input
+              id="settings-org"
+              className="ui-field"
+              type="text"
+              readOnly
+              value={
+                current
+                  ? `${orgKey(current)} · ${KIND_LABEL[current.kind]} · ${hostOf(current.instanceUrl)}`
+                  : chosen || (orgsLoading ? "Loading…" : "None")
+              }
             />
-            Salesforce Org
-          </label>
-          <div className="org-row">
-            <select
-              value={selectedOrg}
-              onChange={(e) => handleOrgChange(e.target.value)}
-              disabled={orgsLoading}
-              style={{ flex: 1 }}
-            >
-              <option value="">
-                {orgsLoading ? "Loading..." : orgs.length === 0 ? "No orgs found" : "Select an org..."}
-              </option>
-              {orgs.map((o) => (
-                <option key={o.username} value={o.alias || o.username}>
-                  {orgLabel(o)}
-                </option>
+            <div className="settings-hint">
+              Switch orgs or log in to another from the menu at the top of the sidebar. Each session stays in the org it started in.
+            </div>
+            {(current || chosen) && (
+              <>
+                <label className="ui-check settings-check">
+                  <input
+                    type="checkbox"
+                    checked={deployed}
+                    disabled={sourceControl.loading}
+                    onChange={(e) => setDeployedFromSource(e.target.checked)}
+                  />
+                  Deployed from source control
+                </label>
+                <div className="settings-hint">{SOURCE_CONTROL_HINT}</div>
+              </>
+            )}
+          </section>
+
+          <section className="settings-group">
+            <label className="ui-label" htmlFor="settings-model">
+              Default model
+            </label>
+            <select id="settings-model" className="ui-field" value={model} onChange={(e) => setModel(e.target.value)}>
+              {modelOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
-            <button
-              className="org-refresh-btn"
-              onClick={fetchOrgs}
-              disabled={orgsLoading}
-              title="Refresh org list"
-            >
-              {orgsLoading ? (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "spin 1s linear infinite" }}>
-                  <path d="M21 12a9 9 0 1 1-6.22-8.56" />
-                </svg>
-              ) : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 4v6h6" /><path d="M23 20v-6h-6" />
-                  <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
-                </svg>
-              )}
-            </button>
-          </div>
-          {orgsError && <div className="org-error">{orgsError}</div>}
+          </section>
 
-          {/* Connect New Org */}
-          <button
-            className="org-connect-toggle"
-            onClick={() => { setShowLogin(!showLogin); setLoginStarted(false); }}
-          >
-            {showLogin ? "Cancel" : "Connect New Org"}
-          </button>
-          {showLogin && (
-            <div className="org-login-form">
-              <input
-                type="text"
-                placeholder="Alias (optional)"
-                value={loginAlias}
-                onChange={(e) => setLoginAlias(e.target.value)}
-              />
-              <div className="org-toggle">
+          <section className="settings-group">
+            <div className="ui-label">Appearance</div>
+            <Segmented
+              aria-label="Appearance"
+              value={theme}
+              onChange={pickTheme}
+              options={APP_THEMES.map((t) => ({ value: t.id, label: t.label, icon: THEME_ICONS[t.id] }))}
+            />
+          </section>
+
+          <section className="settings-group">
+            <div className="ui-label" id="app-icon-label">App icon</div>
+            <div className="app-icon-picker" role="radiogroup" aria-labelledby="app-icon-label">
+              {ROZ_ICONS.map((icon) => (
                 <button
-                  className={`org-toggle-btn ${!isSandbox ? "active" : ""}`}
-                  onClick={() => setIsSandbox(false)}
+                  key={icon.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={appIcon === icon.id}
+                  className={`app-icon-option ${appIcon === icon.id ? "active" : ""}`}
+                  onClick={() => setAppIconChoice(icon.id)}
                 >
-                  Production
+                  <img src={rozTileSrc(icon.id)} alt="" />
+                  <span>{icon.label}</span>
                 </button>
-                <button
-                  className={`org-toggle-btn ${isSandbox ? "active" : ""}`}
-                  onClick={() => setIsSandbox(true)}
-                >
-                  Sandbox
-                </button>
-              </div>
-              <button
-                className="btn-primary"
-                onClick={handleLogin}
-                disabled={loginStarted}
-                style={{ width: "100%" }}
-              >
-                {loginStarted ? "Waiting for browser login..." : "Login"}
-              </button>
-              {loginStarted && (
-                <div className="org-login-hint">
-                  Complete login in your browser, then click Refresh above.
-                </div>
-              )}
+              ))}
             </div>
-          )}
+          </section>
+
+          <section className="settings-group">
+            <label className="ui-label" htmlFor="settings-consumer-key">
+              LSC mobile app consumer key
+            </label>
+            <input
+              id="settings-consumer-key"
+              className="ui-field"
+              type="text"
+              value={mobileClientId}
+              onChange={(e) => setMobileClientId(e.target.value)}
+              placeholder="Optional"
+              spellCheck={false}
+              autoComplete="off"
+            />
+            <div className="settings-hint">
+              The remoteAccessConsumerKey from the LSC iOS app's bootconfig.plist. Needed for First sync's “Log in as
+              mobile user”.
+            </div>
+          </section>
         </div>
 
-        <div className="form-group">
-          <label>Model</label>
-          <select value={model} onChange={(e) => setModel(e.target.value)}>
-            <>
-              <option value="claude-opus-5">Claude Opus 5</option>
-              <option value="claude-sonnet-5">Claude Sonnet 5</option>
-              <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5</option>
-              <option value="claude-fable-5-1">Claude Fable 5.1</option>
-            </>
-          </select>
-        </div>
-
-        <div className="form-actions">
-          <button
-            className="btn-secondary"
-            onClick={onDisconnect}
-            style={{ marginRight: "auto", color: "var(--error)" }}
-          >
-            Disconnect
-          </button>
-          <button className="btn-secondary" onClick={onClose}>
+        <div className="settings-footer">
+          <button className="studio-btn lg" onClick={handleCancel}>
             Cancel
           </button>
-          <button className="btn-primary" onClick={handleSave}>
+          <button className="studio-btn primary lg" onClick={handleSave}>
             Save
           </button>
         </div>

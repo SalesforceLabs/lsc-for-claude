@@ -1,27 +1,37 @@
-import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
-import Markdown from "react-markdown";
+import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useMemo } from "react";
+import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import rehypeRaw from "rehype-raw";
-import mermaid from "mermaid";
-import { ChatMessage, ContentBlock, ToolCall, ImageAttachment, getFullText } from "../hooks/useChat";
+import { isExternalUrl, isInlineImage, markdownUrl } from "../safe-url";
+import {
+  ArrowUp, BookOpen, Bookmark, Building2, BookmarkCheck, Check, ChevronDown, ChevronRight, Circle, CircleAlert, Copy, ExternalLink, FileText,
+  HeartPulse, Maximize2, Minimize2, Minus, Paperclip, Plus, RefreshCw, RotateCcw, Scan, Sparkles, Square, TriangleAlert, UserSearch,
+  Workflow, Wrench, X, type LucideIcon,
+} from "lucide-react";
+import { welcomePrompts, type WelcomeIcon, type WelcomePrompt } from "../welcome-prompts";
+import { ChatMessage, ContentBlock, ToolCall, ImageAttachment } from "../hooks/useChat";
+import { pickModel, type ModelOption } from "../models";
+import { rozTileSrc, useAppIcon } from "../app-icon";
+import Spinner from "./ui/Spinner";
+import { useMermaidSvg } from "../mermaid";
+import { useSmoothText } from "../hooks/useSmoothText";
+import { openMermaidFence, replyActivity, summarizeTools, toolDetail, toolLabel, type Activity } from "../chat-activity";
+import { hostOf, KIND_LABEL, type SessionOrgView } from "../orgs";
+import type { StudioRequest } from "../studio-request";
+import { useApprovals } from "../hooks/useApprovals";
+import { ChatCardsProvider, type ChatCardsEnv } from "./chat-cards/ChatCardsContext";
+import ToolCards from "./chat-cards/ToolCards";
+import ComposerTrayPill from "./chat-cards/ComposerTrayPill";
+import { cardFor, cardHidesStep } from "./chat-cards/card-logic";
 
-// Initialize mermaid with dark theme
-mermaid.initialize({
-  startOnLoad: false,
-  theme: "dark",
-  themeVariables: {
-    darkMode: true,
-    background: "#0a0f1a",
-    primaryColor: "#3b82f6",
-    primaryTextColor: "#f1f5f9",
-    primaryBorderColor: "#2563eb",
-    lineColor: "#64748b",
-    secondaryColor: "#1f2937",
-    tertiaryColor: "#111827",
-  },
-  flowchart: { htmlLabels: true, curve: "basis" },
-  securityLevel: "loose",
-});
+/** Lucide defaults for icons in chat chrome. */
+const ICON = { size: 14, strokeWidth: 1.9, "aria-hidden": true } as const;
+
+/** The text of a reply for copying: its text blocks as separate paragraphs. */
+function replyText(msg: ChatMessage): string {
+  return msg.blocks
+    .flatMap((b) => (b.type === "text" && b.text.trim() ? [b.text.trim()] : []))
+    .join("\n\n");
+}
 
 /**
  * Wrap ASCII art / diagram blocks in code fences so the Markdown
@@ -199,64 +209,171 @@ function groupBlocks(blocks: ContentBlock[]): BlockGroup[] {
   return groups;
 }
 
-/** Summarize tool names: "check_lsc_setup, describe_sobject x7, run_soql" */
-function summarizeTools(tools: ToolCall[]): string {
-  const counts = new Map<string, number>();
-  for (const t of tools) counts.set(t.name, (counts.get(t.name) || 0) + 1);
-  return Array.from(counts.entries())
-    .map(([name, count]) => (count > 1 ? `${name} \u00d7${count}` : name))
-    .join(", ");
+/** What a reply's Markdown needs from the chat view; read through a ref so its components never change. */
+interface ReplyEnv {
+  copy: (text: string, id: string) => void;
+  openDiagram: (chart: string) => void;
+  saveDiagram: (svg: string, chart: string) => void;
+  openDocFile: (filePath: string) => void;
+  openGuideSection: (guideSlug: string, sectionSlug: string, page?: number, highlight?: string) => void;
 }
 
-/** Inline mermaid card — renders SVG, calls onOpen when clicked */
-let mermaidIdCounter = 0;
-/** Cache rendered SVGs so re-mounts don't flash "Generating..." */
-const mermaidSvgCache = new Map<string, string>();
-
-/** Offscreen container for mermaid.render() so temp SVGs never flash on screen */
-function getMermaidContainer(): HTMLElement {
-  let el = document.getElementById("mermaid-offscreen");
-  if (!el) {
-    el = document.createElement("div");
-    el.id = "mermaid-offscreen";
-    el.style.cssText = "position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;";
-    document.body.appendChild(el);
-  }
-  return el;
+/** Where a Markdown node starts in its source — a stable key for its copy button. */
+type MdNode = { position?: { start?: { offset?: number } } };
+function nodeOffset(node: unknown): number {
+  return (node as MdNode | undefined)?.position?.start?.offset ?? 0;
 }
 
-function MermaidDiagram({ chart, onOpen, onSave, saved }: { chart: string; onOpen?: (svg: string) => void; onSave?: (svg: string, chart: string) => void; saved?: boolean }) {
-  const [svg, setSvg] = useState<string | null>(() => mermaidSvgCache.get(chart.trim()) ?? null);
-  const [error, setError] = useState<string | null>(null);
-  const renderAttempt = useRef(0);
+/**
+ * One text block of a reply. Its Markdown components are made once, so streaming new text
+ * re-renders the tree instead of remounting it (diagrams and copy buttons keep their state), and
+ * finished blocks don't re-render at all. While `live` the text is revealed at a steady pace, and
+ * a diagram whose fence hasn't closed is shown as being drawn rather than drawn half-written.
+ */
+const ReplyMarkdown = React.memo(function ReplyMarkdown({
+  text,
+  copyKey,
+  live,
+  copiedId,
+  savedDiagrams,
+  env,
+}: {
+  text: string;
+  copyKey: string;
+  live: boolean;
+  copiedId: string | null;
+  savedDiagrams?: Set<string>;
+  env: React.MutableRefObject<ReplyEnv>;
+}) {
+  const shown = useSmoothText(text, live);
+  const source = useMemo(() => preprocessMarkdown(shown), [shown]);
+  const drawingFrom = live || shown.length < text.length ? openMermaidFence(source) : -1;
+  const state = useRef({ copyKey, copiedId, savedDiagrams, drawingFrom });
+  state.current = { copyKey, copiedId, savedDiagrams, drawingFrom };
 
-  useEffect(() => {
-    const trimmed = chart.trim();
-    const cached = mermaidSvgCache.get(trimmed);
-    if (cached) { setSvg(cached); return; }
-
-    const attempt = ++renderAttempt.current;
-    const timer = setTimeout(async () => {
-      if (attempt !== renderAttempt.current) return;
-      const id = `mermaid-${++mermaidIdCounter}-${Date.now()}`;
-      try {
-        const container = getMermaidContainer();
-        const { svg: rendered } = await mermaid.render(id, trimmed, container);
-        if (attempt === renderAttempt.current) {
-          mermaidSvgCache.set(trimmed, rendered);
-          setSvg(rendered);
-          setError(null);
-        }
-      } catch {
-        document.getElementById(`d${id}`)?.remove();
-        getMermaidContainer().innerHTML = "";
-        if (attempt === renderAttempt.current && chart.includes("\n")) {
-          setError("Diagram syntax error");
-        }
+  const components = useMemo<Components>(() => ({
+    table: ({ children, node: _node, ...props }) => (
+      <CopyableTable
+        onCopy={env.current.copy}
+        copyId={`${state.current.copyKey}-table-${nodeOffset(_node)}`}
+        copiedId={state.current.copiedId}
+      >
+        <table {...props}>{children}</table>
+      </CopyableTable>
+    ),
+    pre: ({ children, node: _node, ...props }) => {
+      // Diagrams draw their own card.
+      const child = React.Children.toArray(children)[0];
+      if (React.isValidElement(child) && (child.props as { className?: string })?.className === "language-mermaid") {
+        return <>{children}</>;
       }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [chart]);
+      return (
+        <CopyableCode
+          onCopy={env.current.copy}
+          copyId={`${state.current.copyKey}-code-${nodeOffset(_node)}`}
+          copiedId={state.current.copiedId}
+        >
+          <pre {...props}>{children}</pre>
+        </CopyableCode>
+      );
+    },
+    code: ({ className, children, node: _node, ...props }) => {
+      if (className === "language-mermaid") {
+        const chart = String(children).replace(/\n$/, "");
+        const { drawingFrom: from, savedDiagrams: saved } = state.current;
+        return (
+          <MermaidDiagram
+            chart={chart}
+            drawing={from >= 0 && nodeOffset(_node) >= from}
+            onOpen={env.current.openDiagram}
+            saved={saved?.has(chart)}
+            onSave={env.current.saveDiagram}
+          />
+        );
+      }
+      return <code className={className} {...props}>{children}</code>;
+    },
+    a: ({ href, children, node: _node, ...props }) => {
+      if (href?.startsWith("lsc-file://")) {
+        const filePath = href.slice("lsc-file://".length);
+        return (
+          <a
+            {...props}
+            className="doc-link"
+            onClick={(e) => { e.preventDefault(); env.current.openDocFile(filePath); }}
+          >
+            {children}
+          </a>
+        );
+      }
+      if (href?.startsWith("lsc-section://")) {
+        const url = new URL(href.replace("lsc-section://", "https://placeholder/"));
+        const parts = url.pathname.split("/").filter(Boolean);
+        const guideSlug = parts[0];
+        const sectionSlug = parts[1];
+        const page = url.searchParams.get("page") ? parseInt(url.searchParams.get("page")!) : undefined;
+        const highlight = url.searchParams.get("highlight") || undefined;
+        return (
+          <a
+            className="doc-link"
+            href="#"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); env.current.openGuideSection(guideSlug, sectionSlug, page, highlight); }}
+          >
+            {children}
+          </a>
+        );
+      }
+      if (href?.startsWith("lsc-pdf://")) {
+        const url = new URL(href.replace("lsc-pdf://", "https://placeholder/"));
+        const pdfFileName = url.pathname.replace(/^\//, "");
+        const page = url.searchParams.get("page") ? parseInt(url.searchParams.get("page")!) : 1;
+        return (
+          <a
+            className="doc-link"
+            href="#"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.lscApi.openPdfAtPage(pdfFileName, page); }}
+          >
+            {children}
+          </a>
+        );
+      }
+      if (isExternalUrl(href)) {
+        return (
+          <a
+            {...props}
+            href={href}
+            className="doc-link"
+            onClick={(e) => { e.preventDefault(); window.lscApi.openExternal(href); }}
+          >
+            {children}
+          </a>
+        );
+      }
+      // In-page anchors stay links; anything markdownUrl dropped shows as its text.
+      return href ? <a href={href} {...props}>{children}</a> : <span>{children}</span>;
+    },
+    // Remote images would be fetched as soon as the reply renders, so they show as a link instead.
+    img: ({ src, alt, node: _node, ...props }) =>
+      isInlineImage(src) ? <img src={src} alt={alt} {...props} /> : isExternalUrl(src) ? (
+        <a className="doc-link" href={src} onClick={(e) => { e.preventDefault(); window.lscApi.openExternal(src); }}>
+          {alt || "Image"}
+        </a>
+      ) : <span>{alt}</span>,
+  }), [env]);
+
+  return (
+    <div className="message-content">
+      <Markdown remarkPlugins={[remarkGfm]} urlTransform={markdownUrl} components={components}>
+        {source}
+      </Markdown>
+    </div>
+  );
+});
+
+/** Inline mermaid card — renders SVG, calls onOpen with the chart when clicked */
+function MermaidDiagram({ chart, drawing, onOpen, onSave, saved }: { chart: string; drawing?: boolean; onOpen?: (chart: string) => void; onSave?: (svg: string, chart: string) => void; saved?: boolean }) {
+  // A chart still streaming in is drawn once, when its fence closes.
+  const { svg, error } = useMermaidSvg(drawing ? "" : chart);
 
   if (error) {
     return (
@@ -267,35 +384,43 @@ function MermaidDiagram({ chart, onOpen, onSave, saved }: { chart: string; onOpe
   }
 
   return (
-    <div className="mermaid-card" onClick={() => svg && onOpen?.(svg)}>
-      <div className="mermaid-card-header">
-        <span className="mermaid-card-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" />
-          </svg>
+    <div
+      className={`mermaid-card${svg ? "" : " pending"}`}
+      role="button"
+      tabIndex={svg ? 0 : -1}
+      onClick={() => svg && onOpen?.(chart)}
+      onKeyDown={(e) => {
+        if (svg && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onOpen?.(chart);
+        }
+      }}
+    >
+      <span className="mermaid-card-icon">
+        <Workflow size={16} strokeWidth={1.75} aria-hidden="true" />
+      </span>
+      <div className="mermaid-card-info">
+        <span className="mermaid-card-title">Diagram</span>
+        <span className="mermaid-card-meta">
+          {!svg ? (
+            <><Spinner size={11} /> {drawing ? "Drawing…" : "Rendering…"}</>
+          ) : saved ? (
+            "Saved to Library"
+          ) : (
+            "Click to explore"
+          )}
         </span>
-        <div className="mermaid-card-info">
-          <span className="mermaid-card-title">Diagram</span>
-          <span className="mermaid-card-meta">
-            {!svg ? (
-              <><span className="mermaid-inline-dot" /> Generating...</>
-            ) : saved ? (
-              "Saved to Library"
-            ) : (
-              "Click to explore"
-            )}
-          </span>
-        </div>
-        {svg && onSave && (
-          <button
-            className={`mermaid-save-btn${saved ? " mermaid-save-btn-saved" : ""}`}
-            onClick={(e) => { e.stopPropagation(); if (!saved) onSave(svg, chart); }}
-            title={saved ? "Saved to Library" : "Save to Library"}
-          >
-            {saved ? <IconBookmarkFilled /> : <IconBookmark />}
-          </button>
-        )}
       </div>
+      {svg && onSave && (
+        <button
+          className={`mermaid-save-btn${saved ? " mermaid-save-btn-saved" : ""}`}
+          onClick={(e) => { e.stopPropagation(); if (!saved) onSave(svg, chart); }}
+          title={saved ? "Saved to Library" : "Save to Library"}
+          aria-label={saved ? "Saved to Library" : "Save to Library"}
+        >
+          {saved ? <BookmarkCheck {...ICON} /> : <Bookmark {...ICON} />}
+        </button>
+      )}
     </div>
   );
 }
@@ -354,14 +479,10 @@ export function DiagramZoomToolbar({ controls, extraButtons }: {
   const { zoom, zoomIn, zoomOut, zoomReset, zoomFit } = controls;
   return (
     <div className="mermaid-zoom-controls">
-      <button onClick={zoomOut} title="Zoom out" disabled={zoom <= 0.1}>−</button>
-      <button onClick={zoomReset} title="Reset zoom">{Math.round(zoom * 100)}%</button>
-      <button onClick={zoomIn} title="Zoom in">+</button>
-      <button onClick={zoomFit} title="Fit in window">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M8 3H5a2 2 0 0 0-2 2v3" /><path d="M21 8V5a2 2 0 0 0-2-2h-3" /><path d="M3 16v3a2 2 0 0 0 2 2h3" /><path d="M16 21h3a2 2 0 0 0 2-2v-3" />
-        </svg>
-      </button>
+      <button onClick={zoomOut} title="Zoom out" aria-label="Zoom out" disabled={zoom <= 0.1}><Minus {...ICON} /></button>
+      <button className="zoom-level" onClick={zoomReset} title="Reset zoom">{Math.round(zoom * 100)}%</button>
+      <button onClick={zoomIn} title="Zoom in" aria-label="Zoom in"><Plus {...ICON} /></button>
+      <button onClick={zoomFit} title="Fit in window" aria-label="Fit in window"><Scan {...ICON} /></button>
       {extraButtons}
     </div>
   );
@@ -390,7 +511,8 @@ export function DiagramViewport({ svg, controls }: { svg: string; controls: Retu
 }
 
 /** Side panel viewer for mermaid diagrams — sits alongside the chat area */
-function MermaidViewerPanel({ svg, onClose }: { svg: string; onClose: () => void }) {
+function MermaidViewerPanel({ chart, onClose }: { chart: string; onClose: () => void }) {
+  const { svg } = useMermaidSvg(chart);
   const [panelWidth, setPanelWidth] = useState<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -424,8 +546,12 @@ function MermaidViewerPanel({ svg, onClose }: { svg: string; onClose: () => void
   }, [onClose, isFullscreen]);
 
   const fullscreenBtn = (
-    <button onClick={() => setIsFullscreen((f) => !f)} title={isFullscreen ? "Exit full screen" : "Full screen"}>
-      {isFullscreen ? <IconExitFullscreen /> : <IconFullscreen />}
+    <button
+      onClick={() => setIsFullscreen((f) => !f)}
+      title={isFullscreen ? "Exit full screen" : "Full screen"}
+      aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
+    >
+      {isFullscreen ? <Minimize2 {...ICON} /> : <Maximize2 {...ICON} />}
     </button>
   );
 
@@ -436,21 +562,17 @@ function MermaidViewerPanel({ svg, onClose }: { svg: string; onClose: () => void
       style={!isFullscreen && panelWidth ? { width: panelWidth } : undefined}
     >
       {!isFullscreen && <div className="mermaid-panel-resize" onPointerDown={onResizePointerDown} />}
-      <div className="mermaid-panel-header">
+      <div className="mermaid-panel-header drag-region">
         <span className="mermaid-card-label">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" />
-          </svg>
+          <Workflow size={15} strokeWidth={1.75} aria-hidden="true" />
           Diagram
         </span>
         <DiagramZoomToolbar controls={controls} extraButtons={fullscreenBtn} />
-        <button className="mermaid-close-btn" onClick={onClose} title="Close (Esc)">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+        <button className="ui-icon-btn" onClick={onClose} title="Close (Esc)" aria-label="Close">
+          <X size={16} strokeWidth={1.9} aria-hidden="true" />
         </button>
       </div>
-      <DiagramViewport svg={svg} controls={controls} />
+      <DiagramViewport svg={svg ?? ""} controls={controls} />
     </div>
   );
 }
@@ -503,30 +625,24 @@ function DocViewerPanel({
   return (
     <div className="doc-panel" ref={panelRef} style={panelWidth ? { width: panelWidth } : undefined}>
       <div className="mermaid-panel-resize" onPointerDown={onResizePointerDown} />
-      <div className="doc-panel-header">
+      <div className="doc-panel-header drag-region">
         <div className="doc-panel-title-row">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
-          </svg>
+          <FileText size={16} strokeWidth={1.75} aria-hidden="true" />
           <span className="doc-panel-title">{title}</span>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div className="doc-panel-actions">
           {isGuide && pdfFileName && (
             <button
-              className="doc-panel-pdf-btn"
+              className="studio-btn sm"
               title="Open in Preview"
               onClick={() => window.lscApi.openPdfAtPage(pdfFileName, page || startPage || 1)}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
+              <ExternalLink {...ICON} />
               Open in Preview
             </button>
           )}
-          <button className="mermaid-close-btn" onClick={onClose} title="Close (Esc)">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+          <button className="ui-icon-btn" onClick={onClose} title="Close (Esc)" aria-label="Close">
+            <X size={16} strokeWidth={1.9} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -554,7 +670,8 @@ function DocViewerPanel({
         <div className="doc-panel-body" ref={bodyRef}>
           {isMarkdown ? (
             <div className="message-content">
-              <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} urlTransform={(url: string) => url}>
+              {/* No raw HTML: the guides' HTML is examples (email templates, <style> blocks) and shows as text. */}
+              <Markdown remarkPlugins={[remarkGfm]} urlTransform={markdownUrl}>
                 {content}
               </Markdown>
             </div>
@@ -590,6 +707,22 @@ function tableToText(table: HTMLTableElement): string {
     .join("\n");
 }
 
+/** A compact pill that shows the chosen model; the native select sits invisibly on top so the menu stays native. */
+function ModelPicker({ value, options, onChange }: { value: string; options: ModelOption[]; onChange: (value: string) => void }) {
+  const current = options.find((o) => o.value === value);
+  return (
+    <label className="model-pill" title="Model">
+      <span className="model-pill-label">{current?.label ?? value}</span>
+      <ChevronDown size={12} strokeWidth={2.25} aria-hidden="true" />
+      <select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Model">
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 interface LibraryItem {
   id: string;
   title: string;
@@ -609,7 +742,8 @@ interface ChatViewProps {
   commands: Array<{ name: string; description: string }>;
   conversationId: string | null;
   defaultModel?: string;
-  providerType?: string;
+  /** The models the connection offers (see modelOptionsFor). */
+  modelOptions: ModelOption[];
   onSend: (text: string, model?: string, images?: ImageAttachment[]) => void;
   onAbort: () => void;
   onRerun: (text: string) => void;
@@ -618,10 +752,34 @@ interface ChatViewProps {
   savedDiagramContents?: Set<string>;
   prefillInput?: string;
   onPrefillConsumed?: () => void;
+  /** The org this session works in (a new session: the selected org); null with none. */
+  org?: SessionOrgView | null;
+  /** Log in to the session's org again, when its login has expired. */
+  onOrgLogin?: () => void;
+  waitingLogin?: boolean;
+  /** Open Studio, optionally at a place (review the tray, a rep's sync…). */
+  onOpenStudio?: (request?: StudioRequest) => void;
 }
+
+const WELCOME_ICONS: Record<WelcomeIcon, LucideIcon> = {
+  health: HeartPulse,
+  rep: UserSearch,
+  sync: RefreshCw,
+  error: CircleAlert,
+  learn: BookOpen,
+  whatsNew: Sparkles,
+};
 
 /** Persistent scroll positions keyed by conversationId. Lives outside the component. */
 const scrollPositions = new Map<string, number>();
+const CHAT_STATE_MAX = 20;
+
+/** Sets a Map entry as the newest, dropping the oldest past `CHAT_STATE_MAX` (deleted chats never clean up after themselves). */
+function setCapped<V>(map: Map<string, V>, key: string, value: V): void {
+  map.delete(key);
+  map.set(key, value);
+  if (map.size > CHAT_STATE_MAX) map.delete(map.keys().next().value as string);
+}
 
 /** Persistent doc panel state keyed by conversationId. */
 type DocPanelState = {
@@ -638,28 +796,11 @@ type DocPanelState = {
 };
 const docPanelStates = new Map<string, DocPanelState>();
 
-const CLAUDE_5_MODELS: Array<{ value: string; label: string }> = [
-  { value: "claude-opus-5", label: "Opus 5" },
-  { value: "claude-sonnet-5", label: "Sonnet 5" },
-  { value: "claude-haiku-4-5-20251001", label: "Haiku 4.5" },
-  { value: "claude-fable-5-1", label: "Fable 5.1" },
-];
-
-const MODELS_BY_PROVIDER: Record<string, Array<{ value: string; label: string }>> = {
-  "bedrock-gateway": CLAUDE_5_MODELS,
-  "api-key": CLAUDE_5_MODELS,
-  "sf-gateway": CLAUDE_5_MODELS,
-};
-
-function getModelOptions(providerType?: string) {
-  return MODELS_BY_PROVIDER[providerType || "api-key"] || MODELS_BY_PROVIDER["api-key"];
-}
-
-function getModelLabel(modelId: string, providerType?: string): string {
-  const options = getModelOptions(providerType);
-  const match = options.find((o) => o.value === modelId);
-  return match?.label ?? modelId;
-}
+/** Memoized so the base64 data URL isn't rebuilt on every streamed token. */
+const UserImage = React.memo(function UserImage({ mediaType, data }: { mediaType: string; data: string }) {
+  const src = useMemo(() => `data:${mediaType};base64,${data}`, [mediaType, data]);
+  return <img src={src} alt="attachment" className="user-image-thumb" />;
+});
 
 export default function ChatView({
   messages,
@@ -668,7 +809,7 @@ export default function ChatView({
   commands,
   conversationId,
   defaultModel,
-  providerType,
+  modelOptions,
   onSend,
   onAbort,
   onRerun,
@@ -677,7 +818,13 @@ export default function ChatView({
   savedDiagramContents,
   prefillInput,
   onPrefillConsumed,
+  org,
+  onOrgLogin,
+  waitingLogin,
+  onOpenStudio,
 }: ChatViewProps) {
+  const appIcon = useAppIcon();
+  const { approvals, respond } = useApprovals();
   const [input, setInput] = useState(prefillInput || "");
 
   // Consume prefilled input when it arrives
@@ -691,7 +838,7 @@ export default function ChatView({
   }, [prefillInput]); // eslint-disable-line react-hooks/exhaustive-deps
   const [images, setImages] = useState<ImageAttachment[]>([]);
   const [dragActive, setDragActive] = useState(false);
-  const [diagramSvg, setDiagramSvg] = useState<string | null>(null);
+  const [diagramChart, setDiagramChart] = useState<string | null>(null);
   const [docPanel, setDocPanel] = useState<{
     title: string;
     content: string;
@@ -704,8 +851,11 @@ export default function ChatView({
     startPage?: number;
     endPage?: number;
   } | null>(null);
-  const modelOptions = getModelOptions(providerType);
-  const [model, setModel] = useState(defaultModel || modelOptions[0].value);
+  const [model, setModel] = useState(() => pickModel(defaultModel, modelOptions));
+  // A saved default or earlier pick the provider doesn't serve falls back to one it does.
+  useEffect(() => {
+    setModel((current) => pickModel(current, modelOptions));
+  }, [modelOptions]);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -768,7 +918,7 @@ export default function ChatView({
     if (result.ok && result.content) {
       const name = filePath.split("/").pop() || filePath;
       setDocPanel({ title: name, content: result.content, path: filePath });
-      setDiagramSvg(null);
+      setDiagramChart(null);
     }
   }, []);
 
@@ -788,9 +938,25 @@ export default function ChatView({
         startPage: result.startPage,
         endPage: result.endPage,
       });
-      setDiagramSvg(null);
+      setDiagramChart(null);
     }
   }, []);
+
+  const replyEnv = useRef<ReplyEnv>(null!);
+  replyEnv.current = {
+    copy,
+    openDiagram: setDiagramChart,
+    saveDiagram: (svg, chart) =>
+      onSaveToLibrary({
+        title: deriveDiagramTitle(chart),
+        content: chart,
+        contentType: "diagram",
+        svg,
+        sourceConversationId: conversationId ?? undefined,
+      }),
+    openDocFile,
+    openGuideSection,
+  };
 
   /** Find the user message that precedes a given assistant message */
   const getUserPromptFor = useCallback(
@@ -817,7 +983,7 @@ export default function ChatView({
       // Persist current position for this session
       const cid = convIdRef.current;
       if (cid) {
-        scrollPositions.set(cid, scrollTop);
+        setCapped(scrollPositions, cid, scrollTop);
       }
       // "Near bottom" = within 120px of the bottom edge
       const atBottom = container.scrollHeight - scrollTop - container.clientHeight < 120;
@@ -875,7 +1041,7 @@ export default function ChatView({
     const prevId = prevConvForPanelRef.current;
     if (prevId) {
       if (docPanel) {
-        docPanelStates.set(prevId, docPanel);
+        setCapped(docPanelStates, prevId, docPanel);
       } else {
         docPanelStates.delete(prevId);
       }
@@ -883,7 +1049,7 @@ export default function ChatView({
     // Restore incoming panel state
     const saved = conversationId ? docPanelStates.get(conversationId) : null;
     setDocPanel(saved ?? null);
-    setDiagramSvg(null);
+    setDiagramChart(null);
     prevConvForPanelRef.current = conversationId;
   }, [conversationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -891,7 +1057,7 @@ export default function ChatView({
   useEffect(() => {
     if (!conversationId) return;
     if (docPanel) {
-      docPanelStates.set(conversationId, docPanel);
+      setCapped(docPanelStates, conversationId, docPanel);
     } else {
       docPanelStates.delete(conversationId);
     }
@@ -920,6 +1086,22 @@ export default function ChatView({
       messagesEndRef.current?.scrollIntoView({ behavior: isStreaming ? "instant" : "smooth" });
     }
   }, [messages, isStreaming]);
+
+  // While a reply streams its text grows between renders (it's revealed a frame at a time), so
+  // follow its height rather than the messages: stay pinned to the bottom unless the user scrolled up.
+  useEffect(() => {
+    const container = chatContainerRef.current;
+    if (!container || !isStreaming) return;
+    const follow = () => {
+      if (restoringScrollRef.current || userScrolledRef.current) return;
+      container.style.scrollBehavior = "auto";
+      container.scrollTop = container.scrollHeight;
+      container.style.scrollBehavior = "";
+    };
+    const observer = new ResizeObserver(follow);
+    for (const child of Array.from(container.children)) observer.observe(child);
+    return () => observer.disconnect();
+  }, [isStreaming, messages.length]);
 
   // Compute autocomplete matches
   const autocomplete = useMemo(() => {
@@ -966,11 +1148,26 @@ export default function ChatView({
       setInput("");
       setImages([]);
       historyIdx.current = -1;
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "44px";
-      }
     }
   }, [input, isStreaming, onSend, model, images]);
+
+  const pickWelcomePrompt = useCallback(
+    (p: WelcomePrompt) => {
+      if (isStreaming) return;
+      if (p.prefill) {
+        setInput(p.text);
+        // After the value lands, so the caret goes to its end.
+        requestAnimationFrame(() => {
+          const el = textareaRef.current;
+          el?.focus();
+          el?.setSelectionRange(p.text.length, p.text.length);
+        });
+        return;
+      }
+      onSend(p.text, model);
+    },
+    [isStreaming, onSend, model]
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Autocomplete navigation
@@ -1028,13 +1225,36 @@ export default function ChatView({
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     historyIdx.current = -1;
     setInput(e.target.value);
-    const el = e.target;
+  };
+
+  // Fit the textarea to its text, including text set from code (prefill, history, submit)
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
     el.style.height = "44px";
     el.style.height = Math.min(el.scrollHeight, 200) + "px";
-  };
+  }, [input]);
+
+  const orgNotice = org && org.state !== "ok" && (
+    <div className="composer-notice" role="status">
+      <TriangleAlert {...ICON} />
+      <span className="composer-notice-text">
+        {org.state === "expired"
+          ? `Your login to ${org.label} has expired. Tools that read or change the org will fail until you log in again.`
+          : `${org.label} isn't in your sf CLI connections any more. Log in to it again to use its data in this session.`}
+      </span>
+      {onOrgLogin && (
+        <button className="studio-btn sm" onClick={onOrgLogin} disabled={waitingLogin}>
+          {waitingLogin && <Spinner size={12} />}
+          {waitingLogin ? "Waiting for login…" : "Log in again"}
+        </button>
+      )}
+    </div>
+  );
 
   const inputArea = (
     <div className="input-area">
+      {orgNotice}
       <div
         className={`input-card${dragActive ? " drag-active" : ""}`}
         onDragOver={handleDragOver}
@@ -1042,10 +1262,12 @@ export default function ChatView({
         onDrop={handleDrop}
       >
         {autocomplete.length > 0 && (
-          <div className="autocomplete-popup">
+          <div className="autocomplete-popup" role="listbox" aria-label="Commands">
             {autocomplete.map((cmd, i) => (
               <div
                 key={cmd.name}
+                role="option"
+                aria-selected={i === selectedIdx}
                 ref={(el) => {
                   if (el) autocompleteItemsRef.current.set(i, el);
                   else autocompleteItemsRef.current.delete(i);
@@ -1068,7 +1290,9 @@ export default function ChatView({
             {images.map((img) => (
               <div key={img.id} className="image-preview-thumb">
                 <img src={`data:${img.mediaType};base64,${img.data}`} alt="attachment" />
-                <button className="image-remove-btn" onClick={() => removeImage(img.id)}>&times;</button>
+                <button className="image-remove-btn" onClick={() => removeImage(img.id)} aria-label="Remove image">
+                  <X size={12} strokeWidth={2.25} aria-hidden="true" />
+                </button>
               </div>
             ))}
           </div>
@@ -1080,8 +1304,8 @@ export default function ChatView({
           onKeyDown={handleKeyDown}
           placeholder={
             messages.length === 0
-              ? "Ask about LSC, run a command, or type / to see options..."
-              : "Type a message..."
+              ? "Ask about LSC, run a command, or type / to see options…"
+              : "Reply…"
           }
           rows={1}
         />
@@ -1102,34 +1326,42 @@ export default function ChatView({
               className="toolbar-btn"
               onClick={() => fileInputRef.current?.click()}
               title="Attach image"
+              aria-label="Attach image"
             >
-              <IconPaperclip />
+              <Paperclip size={16} strokeWidth={1.75} aria-hidden="true" />
             </button>
+            {org && (
+              <span
+                className="composer-org"
+                title={`This session works in ${org.label}\n${org.ref.username}${org.ref.instanceUrl ? `\n${hostOf(org.ref.instanceUrl)}` : ""}`}
+              >
+                <Building2 {...ICON} />
+                <span className="composer-org-name">{org.label}</span>
+                {org.kind === "production" && <span className="ui-pill warning">{KIND_LABEL.production}</span>}
+              </span>
+            )}
+            {org && <ComposerTrayPill org={org.ref.username} onOpenStudio={onOpenStudio} />}
           </div>
           <div className="input-toolbar-right">
-            <select
-              className="model-picker"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-            >
-              {modelOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+            <ModelPicker value={model} options={modelOptions} onChange={setModel} />
             {isStreaming ? (
               <button
                 className="toolbar-send stop"
                 onClick={onAbort}
+                title="Stop generating"
+                aria-label="Stop generating"
               >
-                Stop
+                <Square size={11} fill="currentColor" strokeWidth={0} aria-hidden="true" />
               </button>
             ) : (
               <button
                 className="toolbar-send"
                 onClick={handleSubmit}
                 disabled={!input.trim()}
+                title="Send (Enter)"
+                aria-label="Send"
               >
-                <IconSend />
+                <ArrowUp size={16} strokeWidth={2.25} aria-hidden="true" />
               </button>
             )}
           </div>
@@ -1138,24 +1370,41 @@ export default function ChatView({
     </div>
   );
 
+  const cardsEnv = useMemo<ChatCardsEnv>(
+    () => ({ convId: conversationId, org: org ?? null, isStreaming, approvals, respond, onSend, onOpenStudio }),
+    [conversationId, org, isStreaming, approvals, respond, onSend, onOpenStudio]
+  );
+
   if (messages.length === 0) {
     return (
       <div className="main-area">
+        <div className="pane-toolbar drag-region" />
         <div className="welcome">
           <div className="welcome-logo-wrap">
-            <img src="lsc-logo-2026.png" alt="LSC" className="welcome-logo" />
+            <img src={rozTileSrc(appIcon)} alt="" className="welcome-logo" />
           </div>
-          <h2>LSC Assistant</h2>
+          <h2>Roz for LSC</h2>
           <p>
-            Ask questions about LSC, run SOQL queries, configure
-            modules, or type <strong>/</strong> to see available commands.
+            Ask how a feature works, review your org's setup, or get help
+            configuring something new. Type <strong>/</strong> for commands.
           </p>
-          <div className="model-selector">
-            <select value={model} onChange={(e) => setModel(e.target.value)}>
-              {modelOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+          <div className="welcome-prompts" role="list" aria-label="Things to ask Roz">
+            {welcomePrompts(!!org).map((p) => {
+              const Icon = WELCOME_ICONS[p.icon];
+              return (
+                <button
+                  key={p.label}
+                  type="button"
+                  role="listitem"
+                  className="welcome-prompt"
+                  onClick={() => pickWelcomePrompt(p)}
+                  title={p.prefill ? `${p.text}…` : p.text}
+                >
+                  <Icon size={16} aria-hidden="true" />
+                  <span>{p.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
         {inputArea}
@@ -1163,11 +1412,13 @@ export default function ChatView({
     );
   }
 
-  const hasPanel = diagramSvg || docPanel;
+  const hasPanel = diagramChart || docPanel;
 
   return (
     <div className={`main-area${hasPanel ? " with-panel" : ""}`}>
+      <ChatCardsProvider value={cardsEnv}>
       <div className="main-area-chat">
+      <div className="pane-toolbar bordered drag-region" />
       <div className="chat-messages" ref={chatContainerRef}>
         {messages.map((msg) => (
           <div key={msg.id} className={`message ${msg.role}`}>
@@ -1176,12 +1427,7 @@ export default function ChatView({
                 {msg.images && msg.images.length > 0 && (
                   <div className="user-images">
                     {msg.images.map((img) => (
-                      <img
-                        key={img.id}
-                        src={`data:${img.mediaType};base64,${img.data}`}
-                        alt="attachment"
-                        className="user-image-thumb"
-                      />
+                      <UserImage key={img.id} mediaType={img.mediaType} data={img.data} />
                     ))}
                   </div>
                 )}
@@ -1189,133 +1435,24 @@ export default function ChatView({
               </>
             ) : (
               <div className="assistant-blocks">
-                {groupBlocks(msg.blocks).map((group, gi) =>
+                {groupBlocks(msg.blocks).map((group, gi, groups) =>
                   group.type === "text" ? (
-                    <div
+                    <ReplyMarkdown
                       key={gi}
-                      className={`message-content${
-                        msg.isStreaming && gi === groupBlocks(msg.blocks).length - 1
-                          ? " streaming-cursor"
-                          : ""
-                      }`}
-                    >
-                      <Markdown
-                        remarkPlugins={[remarkGfm]}
-                        urlTransform={(url) => url}
-                        components={{
-                          table: ({ children, ...props }) => (
-                            <CopyableTable onCopy={copy} copyId={`${msg.id}-table-${gi}`} copiedId={copiedId}>
-                              <table {...props}>{children}</table>
-                            </CopyableTable>
-                          ),
-                          pre: (() => {
-                            let codeIdx = 0;
-                            return ({ children, ...props }: React.HTMLAttributes<HTMLPreElement>) => {
-                              // Skip pre wrapper for mermaid diagrams
-                              const child = React.Children.toArray(children)[0];
-                              if (React.isValidElement(child)) {
-                                const childProps = child.props as Record<string, unknown>;
-                                if (childProps?.className === "language-mermaid" || child.type === MermaidDiagram) {
-                                  return <>{children}</>;
-                                }
-                              }
-                              return (
-                                <CopyableCode onCopy={copy} copyId={`${msg.id}-code-${gi}-${codeIdx++}`} copiedId={copiedId}>
-                                  <pre {...props}>{children}</pre>
-                                </CopyableCode>
-                              );
-                            };
-                          })(),
-                          code: ({ className, children, ...props }) => {
-                            if (className === "language-mermaid") {
-                              const text = String(children).replace(/\n$/, "");
-                              return (
-                                <MermaidDiagram
-                                  chart={text}
-                                  onOpen={setDiagramSvg}
-                                  saved={savedDiagramContents?.has(text)}
-                                  onSave={(svg, chart) => {
-                                    onSaveToLibrary({
-                                      title: deriveDiagramTitle(chart),
-                                      content: chart,
-                                      contentType: "diagram",
-                                      svg,
-                                      sourceConversationId: conversationId ?? undefined,
-                                    });
-                                  }}
-                                />
-                              );
-                            }
-                            return <code className={className} {...props}>{children}</code>;
-                          },
-                          a: ({ href, children, ...props }) => {
-                            if (href?.startsWith("lsc-file://")) {
-                              const filePath = href.slice("lsc-file://".length);
-                              return (
-                                <a
-                                  {...props}
-                                  className="doc-link"
-                                  onClick={(e) => { e.preventDefault(); openDocFile(filePath); }}
-                                >
-                                  {children}
-                                </a>
-                              );
-                            }
-                            if (href?.startsWith("lsc-section://")) {
-                              const url = new URL(href.replace("lsc-section://", "https://placeholder/"));
-                              const parts = url.pathname.split("/").filter(Boolean);
-                              const guideSlug = parts[0];
-                              const sectionSlug = parts[1];
-                              const page = url.searchParams.get("page") ? parseInt(url.searchParams.get("page")!) : undefined;
-                              const highlight = url.searchParams.get("highlight") || undefined;
-                              return (
-                                <a
-                                  className="doc-link"
-                                  href="#"
-                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); openGuideSection(guideSlug, sectionSlug, page, highlight); }}
-                                >
-                                  {children}
-                                </a>
-                              );
-                            }
-                            if (href?.startsWith("lsc-pdf://")) {
-                              const url = new URL(href.replace("lsc-pdf://", "https://placeholder/"));
-                              const pdfFileName = url.pathname.replace(/^\//, "");
-                              const page = url.searchParams.get("page") ? parseInt(url.searchParams.get("page")!) : 1;
-                              return (
-                                <a
-                                  className="doc-link"
-                                  href="#"
-                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.lscApi.openPdfAtPage(pdfFileName, page); }}
-                                >
-                                  {children}
-                                </a>
-                              );
-                            }
-                            if (href?.startsWith("http://") || href?.startsWith("https://")) {
-                              return (
-                                <a
-                                  {...props}
-                                  className="doc-link"
-                                  onClick={(e) => { e.preventDefault(); window.lscApi.openExternal(href); }}
-                                >
-                                  {children}
-                                </a>
-                              );
-                            }
-                            return <a href={href} {...props}>{children}</a>;
-                          },
-                        }}
-                      >
-                        {preprocessMarkdown(group.text)}
-                      </Markdown>
-                    </div>
-                  ) : group.tools.length === 1 ? (
-                    <ToolCallBlock
-                      key={group.tools[0].id}
-                      tool={group.tools[0]}
-                      onToggle={() => onToggleTool(msg.id, group.tools[0].id)}
+                      text={group.text}
+                      copyKey={`${msg.id}-${gi}`}
+                      live={!!msg.isStreaming && gi === groups.length - 1}
+                      copiedId={copiedId}
+                      savedDiagrams={savedDiagramContents}
+                      env={replyEnv}
                     />
+                  ) : group.tools.length === 1 ? (
+                    <React.Fragment key={group.tools[0].id}>
+                      {!cardHidesStep(cardFor(group.tools[0])) && (
+                        <ToolCallBlock tool={group.tools[0]} onToggle={() => onToggleTool(msg.id, group.tools[0].id)} />
+                      )}
+                      <ToolCards tool={group.tools[0]} />
+                    </React.Fragment>
                   ) : (
                     <ToolGroup
                       key={`tg-${gi}`}
@@ -1324,31 +1461,32 @@ export default function ChatView({
                     />
                   )
                 )}
-                {msg.isStreaming && msg.blocks.length === 0 && (
-                  <div className="thinking-indicator">
-                    <span className="thinking-dot" />
-                  </div>
-                )}
+                {(() => {
+                  const activity = replyActivity(msg);
+                  return activity && <ReplyActivity key={activity.key} activity={activity} />;
+                })()}
                 {/* Action bar */}
                 {!msg.isStreaming && msg.blocks.length > 0 && (
                   <div className="message-actions">
                     <button
                       className="action-btn"
                       title="Copy"
-                      onClick={() => copy(getFullText(msg), msg.id)}
+                      aria-label="Copy reply"
+                      onClick={() => copy(replyText(msg), msg.id)}
                     >
-                      {copiedId === msg.id ? <IconCheck /> : <IconCopy />}
+                      {copiedId === msg.id ? <Check {...ICON} className="copied" /> : <Copy {...ICON} />}
                     </button>
                     {getUserPromptFor(msg.id) && (
                       <button
                         className="action-btn"
                         title="Retry"
+                        aria-label="Retry"
                         onClick={() => {
                           const prompt = getUserPromptFor(msg.id);
                           if (prompt) onRerun(prompt);
                         }}
                       >
-                        <IconRetry />
+                        <RotateCcw {...ICON} />
                       </button>
                     )}
                   </div>
@@ -1358,14 +1496,18 @@ export default function ChatView({
           </div>
         ))}
         {error && (
-          <div className="error-banner">{error}</div>
+          <div className="error-banner" role="alert">
+            <TriangleAlert size={15} strokeWidth={1.9} aria-hidden="true" />
+            <span>{error}</span>
+          </div>
         )}
         <div ref={messagesEndRef} />
       </div>
       {inputArea}
       </div>
-      {diagramSvg && !docPanel && (
-        <MermaidViewerPanel svg={diagramSvg} onClose={() => setDiagramSvg(null)} />
+      </ChatCardsProvider>
+      {diagramChart && !docPanel && (
+        <MermaidViewerPanel chart={diagramChart} onClose={() => setDiagramChart(null)} />
       )}
       {docPanel && (
         <DocViewerPanel
@@ -1383,82 +1525,6 @@ export default function ChatView({
         />
       )}
     </div>
-  );
-}
-
-const iconProps = { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-
-function IconCopy() {
-  return (
-    <svg {...iconProps}>
-      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-    </svg>
-  );
-}
-
-function IconCheck() {
-  return (
-    <svg {...iconProps} stroke="var(--success)">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
-}
-
-function IconRetry() {
-  return (
-    <svg {...iconProps}>
-      <polyline points="1 4 1 10 7 10" />
-      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-    </svg>
-  );
-}
-
-function IconPaperclip() {
-  return (
-    <svg {...iconProps}>
-      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-    </svg>
-  );
-}
-
-function IconBookmark() {
-  return (
-    <svg {...iconProps}>
-      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-    </svg>
-  );
-}
-
-function IconBookmarkFilled() {
-  return (
-    <svg {...iconProps} fill="currentColor">
-      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-    </svg>
-  );
-}
-
-function IconSend() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-      <path d="M3.478 2.405a.75.75 0 0 0-.926.94l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.405Z" />
-    </svg>
-  );
-}
-
-function IconFullscreen() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
-    </svg>
-  );
-}
-
-function IconExitFullscreen() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" />
-    </svg>
   );
 }
 
@@ -1488,8 +1554,9 @@ function CopyableCode({
         className="code-copy-btn"
         onClick={handleCopy}
         title="Copy code"
+        aria-label="Copy code"
       >
-        {copiedId === copyId ? <IconCheck /> : <IconCopy />}
+        {copiedId === copyId ? <Check {...ICON} className="copied" /> : <Copy {...ICON} />}
       </button>
     </div>
   );
@@ -1521,8 +1588,45 @@ function CopyableTable({
         onClick={handleCopy}
         title="Copy table"
       >
+        {copiedId === copyId ? <Check {...ICON} size={12} className="copied" /> : <Copy {...ICON} size={12} />}
         {copiedId === copyId ? "Copied" : "Copy"}
       </button>
+    </div>
+  );
+}
+
+function ToolStatus({ status, label }: { status: ToolCall["status"]; label?: string }) {
+  return (
+    <span className={`tool-status ${status}`}>
+      {status === "running" ? (
+        <Spinner size={11} />
+      ) : status === "pending" ? (
+        <Circle size={11} strokeWidth={2} aria-hidden="true" />
+      ) : status === "error" ? (
+        <CircleAlert size={12} strokeWidth={2} aria-hidden="true" />
+      ) : (
+        <Check size={12} strokeWidth={2.25} aria-hidden="true" />
+      )}
+      {label}
+    </span>
+  );
+}
+
+/** What a streaming reply is doing now — the line under it until it's finished. */
+function ReplyActivity({ activity }: { activity: Activity }) {
+  const [started] = useState(() => Date.now());
+  const [now, setNow] = useState(started);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const seconds = Math.floor((now - started) / 1000);
+  return (
+    <div className="reply-activity" role="status">
+      <Spinner size={12} />
+      <span className="reply-activity-label">{activity.label}</span>
+      {activity.detail && <span className="reply-activity-detail" title={activity.detail}>{activity.detail}</span>}
+      {activity.timed && seconds >= 3 && <span className="reply-activity-time">{seconds}s</span>}
     </div>
   );
 }
@@ -1535,35 +1639,31 @@ function ToolGroup({
   onToggleTool: (toolId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const allDone = tools.every((t) => t.status !== "running");
-  const hasError = tools.some((t) => t.status === "error");
-  const runningCount = tools.filter((t) => t.status === "running").length;
+  const finished = tools.filter((t) => t.status === "success" || t.status === "error").length;
+  const failed = tools.filter((t) => t.status === "error").length;
+  const working = finished < tools.length;
 
-  const statusClass = !allDone ? "running" : hasError ? "error" : "success";
-  const statusLabel = !allDone
-    ? `${runningCount} running`
-    : hasError
-      ? `${tools.filter((t) => t.status === "error").length} failed`
-      : "Done";
+  // No "Done" here: the reply may still be going — its activity line says so.
+  const status: ToolCall["status"] = working ? "running" : failed ? "error" : "success";
+  const statusLabel = working ? `${finished} of ${tools.length}` : failed ? `${failed} failed` : undefined;
 
   return (
+    <>
     <div className="tool-group">
-      <div
+      <button
+        type="button"
         className={`tool-group-header${expanded ? " expanded" : ""}`}
+        aria-expanded={expanded}
         onClick={() => setExpanded(!expanded)}
       >
-        <span className={`tool-chevron${expanded ? " open" : ""}`}>&#9654;</span>
-        <span className="tool-group-icon">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-          </svg>
-        </span>
+        <ChevronRight className={`tool-chevron${expanded ? " open" : ""}`} size={12} strokeWidth={2.25} aria-hidden="true" />
+        <Wrench className="tool-group-icon" size={13} strokeWidth={1.75} aria-hidden="true" />
         <span className="tool-group-summary">
-          Used {tools.length} tools
+          {tools.length} steps
         </span>
         <span className="tool-group-names">{summarizeTools(tools)}</span>
-        <span className={`tool-status ${statusClass}`}>{statusLabel}</span>
-      </div>
+        <ToolStatus status={status} label={statusLabel} />
+      </button>
       {expanded && (
         <div className="tool-group-body">
           {tools.map((tool) => (
@@ -1576,6 +1676,11 @@ function ToolGroup({
         </div>
       )}
     </div>
+    {/* Results that matter stay visible with the group collapsed. */}
+    {tools.map((tool) => (
+      <ToolCards key={tool.id} tool={tool} />
+    ))}
+    </>
   );
 }
 
@@ -1587,28 +1692,29 @@ function ToolCallBlock({
   onToggle: () => void;
 }) {
   const isOpen = !tool.collapsed;
-  const statusLabel =
-    tool.status === "running"
-      ? "Running"
-      : tool.status === "error"
-        ? "Error"
-        : "Done";
+  const detail = toolDetail(tool.input);
+  const input = tool.input && Object.keys(tool.input).length > 0 ? JSON.stringify(tool.input, null, 2) : null;
 
   return (
     <div className="tool-call">
-      <div className="tool-call-header" onClick={onToggle}>
-        <span className={`tool-chevron${isOpen ? " open" : ""}`}>&#9654;</span>
-        <span className="tool-name">{tool.name}</span>
-        <span className={`tool-status ${tool.status}`}>{statusLabel}</span>
-      </div>
+      <button type="button" className="tool-call-header" aria-expanded={isOpen} onClick={onToggle} title={tool.name}>
+        <ChevronRight className={`tool-chevron${isOpen ? " open" : ""}`} size={12} strokeWidth={2.25} aria-hidden="true" />
+        <span className="tool-name">{toolLabel(tool)}</span>
+        {detail && <span className="tool-detail">{detail}</span>}
+        <ToolStatus status={tool.status} label={tool.status === "error" ? "Failed" : undefined} />
+      </button>
       <div className={`tool-call-body-wrapper${isOpen ? " open" : ""}`}>
         <div className="tool-call-body">
           <div className="tool-call-body-inner">
+            <div className="tool-call-section-label">{tool.name}</div>
+            {input && <div className="tool-call-input">{input.length > 2000 ? input.slice(0, 2000) + "\n…(truncated)" : input}</div>}
             {tool.result
               ? tool.result.length > 3000
                 ? tool.result.slice(0, 3000) + "\n...(truncated)"
                 : tool.result
-              : "Waiting for result..."}
+              : tool.status === "pending"
+                ? "Not started yet…"
+                : "Waiting for result…"}
           </div>
         </div>
       </div>

@@ -9,7 +9,7 @@
 **Fix:** Query for duplicates: `SELECT ObjectId, Territory2Id, COUNT(Id) FROM ObjectTerritory2Association GROUP BY ObjectId, Territory2Id HAVING COUNT(Id) > 1`. Remove duplicates.
 
 ## "Affiliation rules not applying"
-**Cause:** Affiliation role picklist values don't match between TerritoryProviderAffiliationAlignmentRule and ProviderAffiliation
+**Cause:** Affiliation role picklist values don't match between TerrProvAffilAssignRule and ProviderAffiliation
 **Fix:** In Setup > Object Manager, ensure affiliation role values exist on both objects with identical names.
 
 ## "Territory model not active"

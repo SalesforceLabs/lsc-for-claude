@@ -9,7 +9,7 @@
 #   - ProviderVisit (standard)
 #   - RecordType (standard Salesforce)
 #   - ProviderAcctTerritoryInfo (standard)
-#   - ComplianceStatementDefinition (standard)
+#   - ComplianceStatementDef (standard)
 #   - LifeSciMobileMetadataRecord (standard)
 
 schema_version: "1.0"
@@ -33,6 +33,8 @@ rules:
       Without record types, all visits use the default Master record type,
       which limits configuration flexibility and engagement page customization.
     category: configuration
+    stage: config
+    studio_surface: recordTypes
     severity: error
     check:
       type: soql_count
@@ -72,6 +74,8 @@ rules:
       The mapping between Visit and ProviderVisit record types is configured in
       Admin Console > Visit Settings > Visit Record Type Mappings.
     category: configuration
+    stage: config
+    studio_surface: recordTypes
     severity: warning
     check:
       type: soql
@@ -102,18 +106,19 @@ rules:
   - id: visit-003
     name: Compliance statements configured for Visit module
     description: |
-      Verifies that ComplianceStatementDefinition records exist for the Visit
-      module. Compliance statements are required for the signature capture page
+      Verifies that ComplianceStatementDef records with ModuleType = Visit exist. Compliance statements are required for the signature capture page
       during visit completion. Without them, the signature page may not display
       correctly or may be missing required disclaimers.
     category: configuration
+    stage: config
+    studio_surface: compliance
     severity: warning
     check:
       type: soql
       query: >
-        SELECT Id, Name, Module, StatementType, IsActive
-        FROM ComplianceStatementDefinition
-        WHERE Module = 'Visit'
+        SELECT Id, Name, ModuleType, StatementType, UsageType
+        FROM ComplianceStatementDef
+        WHERE ModuleType = 'Visit'
       expect: "records.length > 0"
     symptoms:
       - "Signature page not showing"
@@ -121,12 +126,11 @@ rules:
       - "Cannot complete visit - signature required"
     resolution:
       steps:
-        - "Navigate to Setup > Compliance Statement Definitions"
-        - "Create a new ComplianceStatementDefinition record"
-        - "Set Module to 'Visit'"
-        - "Configure statement text and type"
-        - "Mark as Active"
-      ui_path: "Setup > Compliance Statement Definitions"
+        - "Navigate to the Compliance Statement Definitions tab"
+        - "Create a new Compliance Statement Definition record"
+        - "Set Module Type to 'Visit'"
+        - "Configure statement text, type and requirement level"
+      ui_path: "Compliance Statement Definitions"
     tags: [visit, configuration, compliance, signature]
 
   # ===========================================================================
@@ -142,6 +146,7 @@ rules:
       tracking is not active, which affects Activity Plan calculations and
       Next Best Customer scoring.
     category: configuration
+    stage: data
     severity: info
     check:
       type: soql_count
@@ -174,6 +179,7 @@ rules:
       related objects. Without active cache, visit data will not sync to mobile
       devices and visit engagement will not work offline.
     category: metadata-cache
+    stage: mobile
     severity: warning
     check:
       type: soql_count
@@ -205,23 +211,34 @@ rules:
   # ===========================================================================
 
   - id: visit-006
-    name: Visit-related trigger handlers are enabled
+    name: Core visit trigger handlers are enabled
     description: |
-      Checks for visit-related trigger handler configuration. Trigger handlers
-      on Visit, ProviderVisit, and ProviderVisitProdDetailing objects are required
-      for core visit management automation including status updates, rollup
-      calculations, and data synchronization. If trigger handlers are disabled,
-      visit creation and completion may fail or produce incorrect data.
+      Checks that the handlers behind core visit automation are active: child
+      field propagation from Visit and ProviderVisit, end-time population,
+      cascade delete, record locking after submit, and the territory info
+      update that feeds last-visit dates. If one is switched off, visit
+      completion, rollups and locking silently stop working.
     category: configuration
+    stage: config
+    studio_surface: triggerHandlers
     severity: error
     check:
-      type: soql
+      type: tooling_soql_count
       query: >
-        SELECT Id, Name, DeveloperName, IsActive
-        FROM RecordType
-        WHERE SobjectType = 'Visit'
-        LIMIT 1
-      expect: "records.length >= 0"
+        SELECT COUNT()
+        FROM LifeScienceTriggerHandler
+        WHERE IsActive = false
+        AND DeveloperName IN ('VisitUpdateChildFieldsHandler', 'VisitCascadeDeleteHandler',
+        'VisitPopulateEndTimeHandler', 'PVUpdateChildFieldsHandler', 'PVLockHandler',
+        'PVChangedEventUpdateAccountTerrInfo')
+      expect: "count == 0"
+      error_detail_query: >
+        SELECT Id, DeveloperName, MasterLabel, IsActive
+        FROM LifeScienceTriggerHandler
+        WHERE IsActive = false
+        AND DeveloperName IN ('VisitUpdateChildFieldsHandler', 'VisitCascadeDeleteHandler',
+        'VisitPopulateEndTimeHandler', 'PVUpdateChildFieldsHandler', 'PVLockHandler',
+        'PVChangedEventUpdateAccountTerrInfo')
     symptoms:
       - "Visit status not updating automatically"
       - "Visit rollup counts incorrect"
@@ -229,12 +246,10 @@ rules:
       - "Product detailing not saving"
     resolution:
       steps:
-        - "Navigate to Admin Console > Visit Settings > Trigger Handlers"
-        - "Verify VisitTriggerHandler is active"
-        - "Verify ProviderVisitTriggerHandler is active"
-        - "Verify ProviderVisitProdDetailingTriggerHandler is active"
-        - "If handlers are missing, check that LSC package is properly installed"
-      ui_path: "Admin Console > Visit Settings > Trigger Handlers"
+        - "Navigate to Admin Console > Trigger Handlers"
+        - "Switch on each handler listed as failing"
+        - "If a handler is missing entirely, check that the LSC package is fully installed"
+      ui_path: "Admin Console > Trigger Handlers"
     issue_ref: "6.1"
     tags: [visit, configuration, trigger]
 

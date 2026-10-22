@@ -1,0 +1,173 @@
+/* Floating buttons (FloatingQuickActionButton, AnimatedButton) and the ••• menu, in screen points. */
+.studio-ipad-fabs-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* 30pt from the trailing and bottom edges; Agentforce sits 16pt left of •••, centered on it. */
+.studio-ipad-fab-row {
+  position: absolute;
+  right: 30px;
+  bottom: 30px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.studio-ipad-fab-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #0250d9;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.studio-ipad-fab-astro {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 60px;
+  min-width: 60px;
+  padding: 15px;
+  border-radius: 30px;
+  background: #fff;
+  border: none;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.studio-ipad-fab-astro-label {
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 17px;
+  color: #0250d9;
+  width: 0;
+  opacity: 0;
+  animation: studio-ipad-fab-label 4.5s linear both;
+}
+
+/* Collapsed at appear; expands after 1s over 0.7s, holds, then resetValues collapses it over 0.7s. */
+@keyframes studio-ipad-fab-label {
+  0%,
+  22% {
+    width: 0;
+    margin-left: 0;
+    opacity: 0;
+  }
+  38%,
+  84% {
+    width: var(--label-w);
+    margin-left: 8px;
+    opacity: 1;
+  }
+  100% {
+    width: 0;
+    margin-left: 0;
+    opacity: 0;
+  }
+}
+
+/* The menu: black at 0.6 over the whole screen (the buttons stay beneath it). */
+.studio-ipad-fab-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
+}
+
+/* The scroll view: 746pt tall, items right-aligned 30pt from the edge. */
+.studio-ipad-fab-menu {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 746px;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.studio-ipad-fab-item {
+  position: absolute;
+  right: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0 18px;
+  border: 1px solid #c9c9c9;
+  border-radius: 26px;
+  background: #fff;
+  color: #0250d9;
+  font-size: 18px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 0 5.9px rgba(0, 0, 0, 0.25);
+  animation: studio-ipad-fab-rise 0.4s ease-out both;
+}
+
+@keyframes studio-ipad-fab-rise {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The ••• frame, turned white with the accent-colored close icon (rotates in from -45deg). */
+.studio-ipad-fab-close {
+  position: absolute;
+  right: 30px;
+  bottom: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.studio-ipad-fab-close svg {
+  animation: studio-ipad-fab-turn 0.3s ease-out both;
+}
+
+@keyframes studio-ipad-fab-turn {
+  from {
+    transform: rotate(-45deg);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* The visit editor is full screen, but LSC Mobile keeps ••• above it (Agentforce hides). */
+.studio-ipad-fab-row.over { z-index: 30; }
+
+/* Edit mode's Draft (see ipad.css): ghosts for removed actions, purple for added or moved ones. */
+.studio-ipad-fab-item.ghost {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+.studio-ipad-fab-item.pending {
+  box-shadow: inset 0 0 0 2.5px #9050e9, 0 0 5.9px rgba(0, 0, 0, 0.25);
+}

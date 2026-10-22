@@ -1,0 +1,18 @@
+/* Metric detail (MetricDetailView), measured on LSC Mobile at 1210×834pt; offsets are from the top of the page (y 96). */
+.studio-ipad-tableau-detail { position: relative; width: 100%; height: 100%; background: #fff; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; color: #181818; overflow: hidden; }
+.studio-ipad-tableau-detail-band { position: absolute; left: 0; right: 0; top: 0; height: 41px; background: #f3f3f3; text-align: center; font-size: 17px; font-weight: 600; line-height: 26px; color: #000; }
+.studio-ipad-tableau-back { position: absolute; left: 12px; top: 13px; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 40px; padding: 0; border: none; background: none; color: #2e2e2e; cursor: pointer; }
+.studio-ipad-tableau-range { position: absolute; left: 16px; top: 56px; display: flex; align-items: center; gap: 4px; width: 1178px; height: 17px; font-size: 15px; line-height: 17px; color: #666; }
+.studio-ipad-tableau-range-value { color: #0250d9; font-weight: 600; }
+.studio-ipad-tableau-range::after { content: ""; position: absolute; left: 0; right: 0; top: 33px; height: 1px; background: #c9c9c9; }
+.studio-ipad-tableau-detail-ban { position: absolute; left: 16px; top: 103px; font-size: 32px; line-height: 44px; color: #032d60; }
+.studio-ipad-tableau-detail-popc { position: absolute; left: 16px; top: 153px; font-size: 13px; line-height: 16px; color: #181818; }
+.studio-ipad-tableau-chart { position: absolute; left: 0; top: 193px; width: 1210px; height: 180px; }
+.studio-ipad-tableau-svg { display: block; }
+.studio-ipad-tableau-axis { font-size: 13px; fill: #333; }
+.studio-ipad-tableau-note { margin: 70px 16px 0; font-size: 14px; color: #5c5c5c; }
+.studio-ipad-tableau-insight-note { position: absolute; left: 16px; top: 385px; width: 1150px; box-sizing: border-box; padding: 6px 10px; border: 1px dashed #b58105; border-radius: 8px; background: #fff9e6; color: #7a5600; font-size: 13px; line-height: 17px; }
+.studio-ipad-tableau-dims { position: absolute; left: 16px; right: 16px; top: 489px; height: 160px; border-top: 1px solid #c9c9c9; }
+.studio-ipad-tableau-dims-title { position: absolute; left: 374px; top: 15px; font-size: 17px; line-height: 19px; font-weight: 600; color: #2e2e2e; }
+.studio-ipad-tableau-dims-body { position: absolute; left: 374px; top: 55px; font-size: 13px; line-height: 14px; color: #2e2e2e; }
+.studio-ipad-tableau-ask { position: absolute; left: 995px; top: 649px; display: flex; align-items: center; gap: 8px; box-sizing: border-box; width: 185px; height: 58px; padding-left: 14px; border-radius: 29px; background: #fff; box-shadow: 0 0 12px 4px rgba(76, 125, 255, 0.55), 0 0 22px 6px rgba(160, 90, 255, 0.3); color: #0b5cff; font-size: 18px; font-weight: 500; white-space: nowrap; }

@@ -1,0 +1,225 @@
+/* Cards in a chat reply: known causes, a user's access check, a queued write, an approval. Check rows come from readiness.css. */
+
+.chat-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: min(100%, 680px);
+}
+
+.chat-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  font-size: var(--font-base);
+  color: var(--text-primary);
+}
+
+/* A one-line card: icon, text, optional button. */
+.chat-card-line {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+}
+
+.chat-card-line > svg { flex-shrink: 0; }
+.chat-card-line > .studio-btn { flex-shrink: 0; margin-left: auto; }
+
+.chat-card-line.error {
+  background: var(--error-subtle);
+  border-color: color-mix(in srgb, var(--error) 30%, transparent);
+}
+
+.chat-card-line.error > svg { color: var(--error); }
+
+.chat-card-line-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.chat-card-line-text strong { color: var(--text-primary); font-weight: 600; }
+
+.chat-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.chat-card-title {
+  flex: 1 1 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-weight: 600;
+  line-height: 1.4;
+  padding-top: 2px;
+}
+
+.chat-card-meta {
+  font-size: var(--font-sm);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.chat-card-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin-left: auto;
+}
+
+.chat-card-rows { width: 100%; }
+
+.chat-card-stage {
+  list-style: none;
+  margin: var(--space-2) 0 0;
+}
+
+/* Users to pick from when a name matched several. */
+.chat-card-users {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.chat-card-user {
+  width: 100%;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  font: inherit;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.chat-card-user:hover:not(:disabled) { background: var(--fill-hover); }
+.chat-card-user:disabled { opacity: 0.5; cursor: default; }
+
+.chat-card-user > svg { flex-shrink: 0; color: var(--text-muted); }
+
+.chat-card-user-name { font-weight: 500; white-space: nowrap; }
+
+.chat-card-user-sub,
+.chat-card-user-profile {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.chat-card-user-sub { flex: 1; }
+.chat-card-user-profile { flex-shrink: 0; max-width: 40%; }
+
+/* Approval */
+
+.chat-approval-main {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.chat-approval-icon { flex-shrink: 0; margin-top: 2px; color: var(--accent); }
+.chat-approval-icon.allowed { color: var(--success); }
+.chat-approval-icon.denied { color: var(--error); }
+
+.chat-approval-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.chat-approval-summary { font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
+
+.chat-approval-text code { font-size: var(--font-code); }
+
+.chat-approval-input summary {
+  width: fit-content;
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.chat-approval-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.chat-approval-input pre {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  max-height: 240px;
+  overflow: auto;
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  font-size: var(--font-code);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat-approval-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* Composer: changes waiting in Studio, beside the org. */
+.composer-tray {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: var(--control-sm);
+  padding: 0 var(--space-2);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+
+.composer-tray:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.composer-tray > svg { flex-shrink: 0; color: var(--accent); }
+
+.composer-tray-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-tray-action { flex-shrink: 0; color: var(--accent); font-weight: 600; }
+
+.chat-card-fold { margin: 0 var(--space-3) var(--space-3); }
+
+.chat-card-note {
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-3);
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}

@@ -1,8 +1,10 @@
 # LSC Surveys Configuration Validation Rules
 # ===========================================
 # Rules to validate Surveys configuration including
-# survey records, versions, questions, invitations, responses,
-# and mobile metadata cache.
+# survey records, versions, questions and mobile metadata cache.
+# Invitation and response counts are left out on purpose: none just means
+# no data yet. Stuck offline responses are checked in Studio
+# (surveys.data.unmigrated).
 #
 # Verified object names:
 #   - Survey (standard)
@@ -10,10 +12,9 @@
 #   - SurveyPage (standard)
 #   - SurveyQuestion (standard)
 #   - SurveyQuestionChoice (standard)
-#   - SurveyResponse (standard)
-#   - SurveyQuestionResponse (standard)
-#   - SurveySubject (standard)
 #   - SurveyInvitation (standard)
+#   - SurveyResponseOffline, SurveyQstnResponseOffline (what the iPad writes)
+#   - SurveyResponse, SurveyQuestionResponse (standard web responses)
 #   - SurveyShare (standard)
 #   - LifeSciMobileMetadataRecord (standard)
 
@@ -39,6 +40,8 @@ rules:
       feedback or measure customer satisfaction.
     category: configuration
     severity: error
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
@@ -46,7 +49,7 @@ rules:
         FROM Survey
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, Status, ActiveVersionId, Description
+        SELECT Id, Name, SurveyType, ActiveVersionId, Description
         FROM Survey
         ORDER BY Name
         LIMIT 10
@@ -56,12 +59,12 @@ rules:
       - "Cannot capture HCP feedback"
     resolution:
       steps:
-        - "Navigate to Setup > Surveys or App Launcher > Surveys"
+        - "Navigate to App Launcher > Surveys"
         - "Click 'New Survey' to create a survey"
         - "Add survey pages and questions"
         - "Configure question types (text, choice, rating, date, etc.)"
         - "Activate the survey to make it available to users"
-      ui_path: "Setup > Surveys or App Launcher > Surveys"
+      ui_path: "App Launcher > Surveys"
     tags: [survey, configuration]
 
   # ===========================================================================
@@ -71,24 +74,26 @@ rules:
   - id: survey-002
     name: Active SurveyVersion records exist
     description: |
-      Checks that at least one SurveyVersion with Status = 'Active' exists.
+      Checks that at least one SurveyVersion with SurveyStatus = 'Active' exists.
       Survey versions contain the actual survey content (pages, questions, logic).
       A survey must have an active version for reps to launch it. Without an
       active version, the survey will appear in the list but cannot be opened.
       The ActiveVersionId field on the Survey record points to the active version.
     category: configuration
     severity: warning
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
         SELECT COUNT()
         FROM SurveyVersion
-        WHERE Status = 'Active'
+        WHERE SurveyStatus = 'Active'
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, SurveyId, Survey.Name, Status, VersionNumber
+        SELECT Id, Name, SurveyId, Survey.Name, SurveyStatus, VersionNumber
         FROM SurveyVersion
-        ORDER BY Survey.Name, VersionNumber DESC
+        ORDER BY Name
         LIMIT 10
     symptoms:
       - "Survey appears in list but cannot be launched"
@@ -118,6 +123,8 @@ rules:
       Questions should cover the feedback or information needed from HCPs.
     category: configuration
     severity: warning
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
@@ -125,9 +132,8 @@ rules:
         FROM SurveyQuestion
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, QuestionName, DataType, SurveyPageId
+        SELECT Id, Name, QuestionName, QuestionType, SurveyVersionId
         FROM SurveyQuestion
-        ORDER BY Name
         LIMIT 10
     symptoms:
       - "Survey opens but shows no questions"
@@ -146,110 +152,31 @@ rules:
     tags: [survey, configuration, questions]
 
   # ===========================================================================
-  # SECTION 4: Survey Invitations
-  # ===========================================================================
-
-  - id: survey-004
-    name: SurveyInvitation records exist
-    description: |
-      Checks whether SurveyInvitation records exist. Survey invitations are
-      created when surveys are sent to respondents via email or other channels.
-      For LSC mobile surveys launched during visits, invitations may not be
-      required as surveys are launched directly. However, for email-based
-      surveys or external respondents, invitations track who was sent a survey.
-      This is informational only and does not block survey functionality.
-    category: configuration
-    severity: info
-    check:
-      type: soql_count
-      query: >
-        SELECT COUNT()
-        FROM SurveyInvitation
-      expect: "count > 0"
-      error_detail_query: >
-        SELECT Id, Name, SurveyId, Survey.Name, InvitationLink, ParticipantId
-        FROM SurveyInvitation
-        ORDER BY CreatedDate DESC
-        LIMIT 10
-    symptoms:
-      - "Cannot track who was sent surveys"
-      - "Survey invitation links not generated"
-      - "External survey respondents cannot access survey"
-    resolution:
-      steps:
-        - "For email-based surveys, send survey invitations via Survey Builder"
-        - "For mobile-launched surveys, invitations are not required"
-        - "Check SurveyInvitation records to track sent invitations"
-        - "Verify invitation links are accessible to recipients"
-      ui_path: "Survey Builder > Send Survey"
-    tags: [survey, invitations, tracking]
-
-  # ===========================================================================
-  # SECTION 5: Survey Responses
-  # ===========================================================================
-
-  - id: survey-005
-    name: SurveyResponse records exist
-    description: |
-      Checks whether SurveyResponse records exist. Survey responses are created
-      when a survey is completed and submitted. If no responses exist, either
-      surveys have not been launched yet, or there are configuration issues
-      preventing response creation. For new implementations, this is expected.
-      For existing implementations, lack of responses may indicate permission
-      issues, mobile cache problems, or survey sharing configuration errors.
-    category: configuration
-    severity: info
-    check:
-      type: soql_count
-      query: >
-        SELECT COUNT()
-        FROM SurveyResponse
-      expect: "count > 0"
-      error_detail_query: >
-        SELECT Id, Name, SurveyVersionId, SurveyVersion.Name, ParentId, CreatedById, CreatedBy.Name, CreatedDate
-        FROM SurveyResponse
-        ORDER BY CreatedDate DESC
-        LIMIT 10
-    symptoms:
-      - "No survey data being captured"
-      - "Completed surveys not creating records"
-      - "Cannot view survey responses"
-      - "Analytics showing zero responses"
-    resolution:
-      steps:
-        - "Verify surveys are active and shared correctly"
-        - "Check mobile metadata cache includes SurveyResponse object"
-        - "Verify users have Create permission on SurveyResponse"
-        - "Test survey completion on desktop and mobile"
-        - "Check debug logs for trigger errors on SurveyResponse"
-        - "For mobile, ensure device has synced after survey completion"
-      ui_path: "Survey > View Responses"
-    tags: [survey, responses, data]
-
-  # ===========================================================================
-  # SECTION 6: Mobile Metadata Cache
+  # SECTION 4: Mobile Metadata Cache
   # ===========================================================================
 
   - id: survey-006
-    name: Mobile metadata cache active for survey objects
+    name: A mobile metadata cache has been published
     description: |
       Verifies that mobile metadata cache is active. Survey management on mobile
       requires an active metadata cache that includes Survey, SurveyVersion,
-      SurveyPage, SurveyQuestion, SurveyQuestionChoice, SurveyResponse,
-      SurveyQuestionResponse, and SurveySubject objects. Without active cache,
+      SurveyPage, SurveyQuestion, SurveyQuestionChoice, SurveyInvitation,
+      SurveyResponseOffline, and SurveyQstnResponseOffline objects. Without active cache,
       surveys will not be available on mobile devices, offline survey completion
       will not work, and survey data will not sync correctly.
     category: metadata-cache
     severity: warning
+    stage: mobile
+    studio_surface: dbSchema
     check:
       type: soql_count
       query: >
         SELECT COUNT()
         FROM LifeSciMobileMetadataRecord
-        WHERE Status IN ('Active', 'Published')
+        WHERE Status = 'Active'
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, Status, IntegrationStatus, LastModifiedDate
+        SELECT Id, Name, Status, LastModifiedDate
         FROM LifeSciMobileMetadataRecord
         ORDER BY LastModifiedDate DESC
         LIMIT 10
@@ -263,7 +190,7 @@ rules:
       steps:
         - "Navigate to Admin Console > Mobile > Object Metadata Cache Configuration"
         - "Verify Survey, SurveyVersion, SurveyPage, SurveyQuestion, SurveyQuestionChoice are in DB Schema"
-        - "Verify SurveyResponse, SurveyQuestionResponse, SurveySubject are in DB Schema"
+        - "Verify SurveyResponseOffline, SurveyQstnResponseOffline are in DB Schema"
         - "Regenerate metadata cache for affected profiles"
         - "Use generate_mobile_metadata_cache tool with appropriate profile names"
         - "Have users sync their mobile devices after cache regeneration"
@@ -278,13 +205,11 @@ rules:
 groups:
   surveys-config-check:
     name: "Surveys Configuration Check"
-    description: "Full surveys configuration check - survey records, versions, questions, invitations, responses, and mobile cache"
+    description: "Full surveys configuration check - survey records, versions, questions, and mobile cache"
     rules:
       - survey-001
       - survey-002
       - survey-003
-      - survey-004
-      - survey-005
       - survey-006
 
   surveys-core:
@@ -294,13 +219,6 @@ groups:
       - survey-001
       - survey-002
       - survey-003
-
-  surveys-responses:
-    name: "Survey Responses Check"
-    description: "Check survey response data collection"
-    rules:
-      - survey-004
-      - survey-005
 
   surveys-mobile:
     name: "Surveys Mobile Check"

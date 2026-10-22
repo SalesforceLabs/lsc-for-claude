@@ -1,25 +1,22 @@
 # LSC Field Email Configuration Validation Rules
 # ===================================================
 # Rules to validate Field Email configuration including
-# email templates, consent topics, consent records,
-# email addresses, and mobile cache.
+# email templates, consent subscriptions, consent records,
+# email addresses, jobs, queue health and mobile cache.
 #
 # Verified object names:
-#   - LifeSciEmailTemplate (standard)
-#   - CommunicationSubscription (standard)
-#   - CommunicationSubscriptionConsent (standard)
-#   - ContactPointEmail (standard)
-#   - LifeSciEmailFragment (standard)
-#   - LifeSciEmailAttachment (standard)
-#   - LifeSciMobileMetadataRecord (standard)
-#   - DataUsePurpose (standard)
+#   - LifeSciEmailTemplate, LifeSciEmailTmplFragment, LifeSciEmailTmplRelaFrgmt
+#   - LifeScienceEmail (the send queue; Status Preparing/New/Retry/Success/Failed/Cancelled)
+#   - CommSubscription, CommSubscriptionConsent, DataUsePurpose
+#   - ContactPointEmail
+#   - LifeSciMobileMetadataRecord
 
 schema_version: "1.0"
 category_name: "Field Email Configuration"
 description: |
   Validation rules for LSC Field Email configuration.
-  Covers email templates, consent topics, consent records,
-  contact point emails, fragments, attachments, and mobile cache requirements.
+  Covers email templates, consent subscriptions, consent records,
+  contact point emails, fragments, jobs, queue health and mobile cache requirements.
 
 rules:
   # ===========================================================================
@@ -36,6 +33,8 @@ rules:
       cannot send emails from the Send Email button on Account pages or mobile.
     category: configuration
     severity: error
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
@@ -43,7 +42,7 @@ rules:
         FROM LifeSciEmailTemplate
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, Subject, IsActive, CreatedDate, LastModifiedDate
+        SELECT Id, Name, IsActive, EffectiveStartDate, EffectiveEndDate
         FROM LifeSciEmailTemplate
         ORDER BY LastModifiedDate DESC
         LIMIT 10
@@ -58,7 +57,7 @@ rules:
         - "Click 'New template' to upload an email template"
         - "Prepare HTML ZIP file (templates + images + thumbnail)"
         - "Upload ZIP file and configure template settings"
-        - "Link template to CommunicationSubscription (consent topic)"
+        - "Link template to CommSubscription (consent topic)"
         - "Link template to products (LifeSciMarketableProduct)"
         - "Set sender/reply-to types"
         - "Configure start/end dates"
@@ -76,13 +75,20 @@ rules:
       start/end date range to appear in the template selector.
     category: configuration
     severity: warning
+    stage: data
+    studio_surface: objects
     check:
-      type: soql
+      type: soql_count
       query: >
-        SELECT Id, Name, Subject, IsActive, CreatedDate, LastModifiedDate
+        SELECT COUNT()
         FROM LifeSciEmailTemplate
         WHERE IsActive = true
-      expect: "records.length > 0"
+      expect: "count > 0"
+      error_detail_query: >
+        SELECT Id, Name, IsActive, EffectiveStartDate, EffectiveEndDate
+        FROM LifeSciEmailTemplate
+        ORDER BY LastModifiedDate DESC
+        LIMIT 10
     symptoms:
       - "Email template not visible to reps"
       - "Template list empty or missing templates"
@@ -100,26 +106,27 @@ rules:
     tags: [field-email, configuration, templates]
 
   # ===========================================================================
-  # SECTION 2: Consent Topics (CommunicationSubscription)
+  # SECTION 2: Consent Topics (CommSubscription)
   # ===========================================================================
 
   - id: field-email-003
-    name: CommunicationSubscription records exist for consent
+    name: Communication subscriptions exist for consent
     description: |
-      Verifies that CommunicationSubscription records exist. CommunicationSubscriptions
+      Verifies that CommSubscription records exist. CommSubscriptions
       represent consent topics (e.g., "Email Access") that determine whether a rep
       can send emails to an HCP. Each email template must be linked to a
-      CommunicationSubscription. Without consent topics, email templates cannot be
+      CommSubscription. Without consent topics, email templates cannot be
       properly configured and consent cannot be captured.
     category: configuration
     severity: warning
+    stage: config
+    studio_surface: objects
     check:
-      type: soql
+      type: soql_count
       query: >
-        SELECT Id, Name, Status, DataUsePurposeId, DataUsePurpose.Name
-        FROM CommunicationSubscription
-        WHERE Status = 'Active'
-      expect: "records.length > 0"
+        SELECT COUNT()
+        FROM CommSubscription
+      expect: "count > 0"
     symptoms:
       - "Cannot link email template to consent topic"
       - "Consent component not working"
@@ -127,38 +134,39 @@ rules:
       - "Email sent to opted-out recipient"
     resolution:
       steps:
-        - "Navigate to Setup > Object Manager > CommunicationSubscription"
-        - "Create new CommunicationSubscription record (e.g., 'Email Access')"
+        - "Navigate to App Launcher > CommSubscription"
+        - "Create new CommSubscription record (e.g., 'Email Access')"
         - "Set Name to describe the consent topic"
         - "Link to DataUsePurpose (legal basis for data processing)"
         - "Set Status to 'Active'"
         - "Save record"
-        - "Link CommunicationSubscription to email templates in Admin Console"
-      ui_path: "Setup > Object Manager > CommunicationSubscription"
+        - "Link CommSubscription to email templates in Admin Console"
+      ui_path: "App Launcher > CommSubscription"
     tags: [field-email, consent, configuration]
 
   # ===========================================================================
-  # SECTION 3: Consent Records (CommunicationSubscriptionConsent)
+  # SECTION 3: Consent Records (CommSubscriptionConsent)
   # ===========================================================================
 
   - id: field-email-004
-    name: CommunicationSubscriptionConsent records exist
+    name: Consent records exist
     description: |
-      Checks whether CommunicationSubscriptionConsent records exist. These records
-      link accounts to CommunicationSubscription topics and track opt-in/opt-out
+      Checks whether CommSubscriptionConsent records exist. These records
+      link accounts to CommSubscription topics and track opt-in/opt-out
       status. Without consent records, the system cannot verify whether an HCP
       has consented to receive emails, which may block email delivery depending
       on the configured consent model (US opt-out vs. EU opt-in).
     category: configuration
-    severity: warning
+    severity: info
+    stage: data
+    studio_surface: objects
     check:
-      type: soql
+      type: soql_count
       query: >
-        SELECT Id, Name, AccountId, Account.Name, CommunicationSubscriptionId,
-               CommunicationSubscription.Name, Status, EffectiveFrom, EffectiveTo
-        FROM CommunicationSubscriptionConsent
-        WHERE Status = 'Active'
-      expect: "records.length > 0"
+        SELECT COUNT()
+        FROM CommSubscriptionConsent
+        WHERE PrivacyConsentStatus = 'OptIn'
+      expect: "count > 0"
     symptoms:
       - "Emails blocked by consent verification"
       - "Cannot send email to HCP"
@@ -168,10 +176,10 @@ rules:
       steps:
         - "Navigate to Account record page"
         - "Open Consent component (add to page layout if missing)"
-        - "Capture consent for relevant CommunicationSubscription topic"
+        - "Capture consent for relevant CommSubscription topic"
         - "Set consent status (opt-in or opt-out)"
         - "Set EffectiveFrom and EffectiveTo dates"
-        - "Verify CommunicationSubscriptionConsent record created"
+        - "Verify CommSubscriptionConsent record created"
         - "Configure consent model in Admin Console > Email > Settings"
         - "US model: 'Send unless opted out' (default send)"
         - "EU model: 'Require explicit opt-in' (default block)"
@@ -183,7 +191,7 @@ rules:
   # ===========================================================================
 
   - id: field-email-005
-    name: ContactPointEmail records exist on accounts
+    name: Contact point emails exist
     description: |
       Verifies that ContactPointEmail records exist. ContactPointEmail records
       store email addresses associated with accounts (HCPs/HCOs). Without email
@@ -191,14 +199,16 @@ rules:
       configured correctly. Each account must have at least one active
       ContactPointEmail record for email delivery to work.
     category: configuration
-    severity: warning
+    severity: info
+    stage: data
+    studio_surface: objects
     check:
-      type: soql
+      type: soql_count
       query: >
-        SELECT Id, EmailAddress, ParentId, Parent.Name, IsPrimary, IsActive
+        SELECT COUNT()
         FROM ContactPointEmail
-        WHERE IsActive = true
-      expect: "records.length > 0"
+        WHERE EmailAddress != null
+      expect: "count > 0"
     symptoms:
       - "No email address available for recipient"
       - "Email composition fails with missing recipient"
@@ -211,7 +221,7 @@ rules:
         - "Create new ContactPointEmail record"
         - "Enter email address"
         - "Set IsPrimary = true for default email"
-        - "Set IsActive = true"
+        - "Leave Usage Type as Work or Home (Inactive hides it)"
         - "Save record"
         - "Verify email appears in Send Email recipient field"
       ui_path: "Account page > Contact Points > New ContactPointEmail"
@@ -222,22 +232,23 @@ rules:
   # ===========================================================================
 
   - id: field-email-006
-    name: LifeSciEmailFragment records exist
+    name: Email fragments exist
     description: |
-      Checks whether LifeSciEmailFragment records exist. Fragments are reusable
-      HTML components (paragraphs, images, queries) that can be inserted into
-      email templates during composition. Fragments enable consistent branding,
+      Checks whether LifeSciEmailTmplFragment records exist. Fragments are reusable
+      HTML content blocks, such as an approved product blurb, that reps insert into
+      an email template while composing. Fragments enable consistent branding,
       legal disclaimers, and dynamic content across multiple templates. While
       not required, fragments are a best practice for managing shared content.
     category: configuration
     severity: info
+    stage: config
+    studio_surface: objects
     check:
-      type: soql
+      type: soql_count
       query: >
-        SELECT Id, Name, FragmentType, IsActive
-        FROM LifeSciEmailFragment
-        WHERE IsActive = true
-      expect: "records.length > 0"
+        SELECT COUNT()
+        FROM LifeSciEmailTmplFragment
+      expect: "count > 0"
     symptoms:
       - "Reps manually typing repeated disclaimers"
       - "Inconsistent branding across emails"
@@ -245,79 +256,39 @@ rules:
       - "Fragment insertion option not available"
     resolution:
       steps:
-        - "Navigate to Admin Console > Email > Fragments"
-        - "Create new fragment"
-        - "Define fragment content (text, image, or query)"
-        - "Set FragmentType (text, image, query)"
-        - "Mark as Active"
-        - "Link fragment to templates"
-        - "Run Fragment job to propagate changes"
-      ui_path: "Admin Console > Email > Fragments"
+        - "Add a Fragments folder of HTML files to the template's ZIP and upload it in Admin Console > Email > Email Templates; LSC creates the fragment records"
+        - "Or create Life Science Email Template Fragment records by hand or with Data Loader, named like the files in the ZIP without the extension"
+        - "Share them with reps: open the template and click Update Fragments Sharing"
+        - "Or run or schedule a job in Admin Console > Email > Email Fragment Jobs to share fragments for every template"
+      ui_path: "Admin Console > Email > Email Templates"
     tags: [field-email, configuration, fragments]
 
   # ===========================================================================
-  # SECTION 6: Email Attachments
-  # ===========================================================================
-
-  - id: field-email-007
-    name: LifeSciEmailAttachment records exist
-    description: |
-      Checks whether LifeSciEmailAttachment records exist. Attachments are files
-      linked to email templates that reps can include in emails. Some attachments
-      may be marked as mandatory and automatically included. Attachments enable
-      reps to share product information, safety data sheets, or compliance
-      documents with HCPs. While not required, attachments are common in LSC
-      email implementations.
-    category: configuration
-    severity: info
-    check:
-      type: soql
-      query: >
-        SELECT Id, Name, TemplateId, Template.Name, IsMandatory
-        FROM LifeSciEmailAttachment
-        ORDER BY Template.Name
-      expect: "records.length > 0"
-    symptoms:
-      - "Attachments not appearing in sent emails"
-      - "Reps cannot select attachments during composition"
-      - "Attachment list empty"
-      - "Missing product safety data in emails"
-    resolution:
-      steps:
-        - "Navigate to Admin Console > Email"
-        - "Edit the email template that needs attachments"
-        - "Add attachments in the template configuration"
-        - "Set IsMandatory = true if attachment should always be included"
-        - "Verify file size is within org limits (typically 25MB)"
-        - "Save template"
-        - "Test email composition to verify attachments appear"
-      ui_path: "Admin Console > Email > Edit template > Attachments"
-    tags: [field-email, configuration, attachments]
-
-  # ===========================================================================
-  # SECTION 7: Mobile Metadata Cache
+  # SECTION 6: Mobile Metadata Cache
   # ===========================================================================
 
   - id: field-email-008
-    name: Mobile metadata cache active for email objects
+    name: A mobile metadata cache has been published
     description: |
       Verifies that mobile metadata cache is active. Field email on mobile
       requires an active metadata cache that includes LifeSciEmailTemplate,
-      CommunicationSubscription, CommunicationSubscriptionConsent, ContactPointEmail,
-      LifeSciEmailFragment, and LifeSciEmailAttachment objects. Without active
+      CommSubscription, CommSubscriptionConsent, ContactPointEmail,
+      LifeSciEmailTmplFragment, objects. Without active
       cache, email templates will not sync to mobile devices and reps cannot
       send emails from the iPad app.
     category: metadata-cache
     severity: warning
+    stage: mobile
+    studio_surface: dbSchema
     check:
       type: soql_count
       query: >
         SELECT COUNT()
         FROM LifeSciMobileMetadataRecord
-        WHERE Status IN ('Active', 'Published')
+        WHERE Status = 'Active'
       expect: "count > 0"
       error_detail_query: >
-        SELECT Id, Name, Status, IntegrationStatus, LastModifiedDate
+        SELECT Id, Name, Status, LastModifiedDate
         FROM LifeSciMobileMetadataRecord
         ORDER BY LastModifiedDate DESC
         LIMIT 10
@@ -332,11 +303,10 @@ rules:
         - "Navigate to Admin Console > Mobile > Object Metadata Cache Configuration"
         - "Create DB schema records for email objects:"
         - "  - LifeSciEmailTemplate (data type)"
-        - "  - CommunicationSubscription (data type)"
-        - "  - CommunicationSubscriptionConsent (data type)"
+        - "  - CommSubscription (data type)"
+        - "  - CommSubscriptionConsent (data type)"
         - "  - ContactPointEmail (data type)"
-        - "  - LifeSciEmailFragment (data type)"
-        - "  - LifeSciEmailAttachment (data type)"
+        - "  - LifeSciEmailTmplFragment (data type)"
         - "For each schema: Name = db_schema_{ObjectName}, Type = Data, Profile = target profile(s)"
         - "Regenerate mobile metadata cache with generate_mobile_metadata_cache({ profileNames: [...] })"
         - "Verify with check_mobile_cache_status()"
@@ -345,70 +315,76 @@ rules:
     tags: [field-email, mobile, cache]
 
   # ===========================================================================
-  # SECTION 8: Email Jobs
+  # SECTION 7: Email Jobs
   # ===========================================================================
 
   - id: field-email-009
-    name: Email jobs are scheduled and active
+    name: The Send Email job is scheduled
     description: |
-      Checks whether email jobs are scheduled and active. Field Email requires
-      three jobs: Send Email job (sends queued emails), Fetch Status job
-      (retrieves delivery/open statuses), and Fragment job (syncs reusable HTML
-      fragments). Without scheduled jobs, emails will remain in queue indefinitely
-      and will not be delivered. Jobs must be scheduled in Admin Console > Email > Jobs.
+      Checks whether the Send Email job is scheduled. Field Email has two email
+      jobs: Send Email sends the emails in the queue, and Track Email Status
+      records when emails are sent, delivered, opened or bounced. Without a
+      scheduled Send Email job, queued emails stay in the queue and are never
+      delivered. Both are scheduled in Admin Console > Email > Email Jobs.
     category: configuration
     severity: error
+    stage: config
+    studio_surface: adminSettings
     check:
-      type: soql
+      type: soql_count
       query: >
-        SELECT Id, Name, Subject, IsActive, CreatedDate, LastModifiedDate
-        FROM LifeSciEmailTemplate
-        LIMIT 1
-      expect: "records.length >= 0"
+        SELECT COUNT()
+        FROM AsyncApexJob
+        WHERE JobType = 'ScheduledApex'
+        AND ApexClass.Name = 'EmailQueueSendSchedulable'
+        AND CronTriggerId IN (SELECT Id FROM CronTrigger WHERE State IN ('WAITING', 'ACQUIRED', 'EXECUTING'))
+      expect: "count > 0"
     symptoms:
       - "Emails stuck in queue / not sending"
       - "Email status not updating"
-      - "Fragment changes not appearing in templates"
       - "Scheduled emails not sending at specified time"
       - "Delivery status always shows 'New' or 'In Progress'"
     resolution:
       steps:
-        - "Navigate to Admin Console > Email > Jobs"
-        - "Schedule Send Email job:"
-        - "  - Frequency: Hourly, daily, or weekly"
-        - "  - Batch size: Max emails per run (e.g., 20)"
-        - "  - Retry attempts: How many times to retry failed sends (e.g., 3)"
-        - "Schedule Fetch Status job:"
-        - "  - Frequency: Same as Send Email job"
-        - "Schedule Fragment job:"
-        - "  - Run after fragment changes to propagate updates"
-        - "Verify jobs are active and scheduled"
-        - "Monitor email queue for processing"
-      ui_path: "Admin Console > Email > Jobs"
+        - "From the App Launcher, open Admin Console, select Email, then Email Jobs"
+        - "Click Schedule for the Send Email job and choose one time or a regular schedule"
+        - "Each job type has three slots, so you can stagger them (for example hourly at :00, :20 and :40 to send every 20 minutes)"
+        - "Schedule the Track Email Status job the same way"
+        - "Save"
+        - "Email Batch Size and Retry Attempts are set separately, in Admin Console > Email > Email Settings under Email Limits"
+      ui_path: "Admin Console > Email > Email Jobs"
     issue_ref: "9.1"
     tags: [field-email, configuration, jobs]
 
   # ===========================================================================
-  # SECTION 9: Email Queue Health
+  # SECTION 8: Email Queue Health
   # ===========================================================================
 
   - id: field-email-010
-    name: Email queue does not have excessive failed emails
+    name: Few emails have failed to send
     description: |
       Checks whether the email queue has excessive failed emails. Failed emails
       indicate issues with email delivery such as invalid recipient addresses,
       sending limits exceeded, or consent verification failures. A high volume
       of failed emails suggests configuration issues that need investigation.
       Monitor the queue regularly and investigate failure reasons.
-    category: operational
+    category: configuration
     severity: warning
+    stage: data
+    studio_surface: objects
     check:
       type: soql_count
       query: >
         SELECT COUNT()
-        FROM LifeSciEmailQueue
+        FROM LifeScienceEmail
         WHERE Status = 'Failed'
       expect: "count < 50"
+      error_detail_query: >
+        SELECT Id, Name, SentToEmailAddress, FailedAttemptCount, CreatedDate
+        FROM LifeScienceEmail
+        WHERE Status = 'Failed'
+        ORDER BY CreatedDate DESC
+        LIMIT 10
     symptoms:
       - "Emails not reaching recipients"
       - "High failure rate in email queue"
@@ -428,31 +404,32 @@ rules:
         - "Manually trigger send for corrected emails from queue"
         - "Verify Send Email job is running on schedule"
       ui_path: "Admin Console > Email > Email Queue"
-    tags: [field-email, operational, monitoring]
+    tags: [field-email, data, monitoring]
 
   # ===========================================================================
-  # SECTION 10: DataUsePurpose Linking
+  # SECTION 9: DataUsePurpose Linking
   # ===========================================================================
 
   - id: field-email-011
-    name: CommunicationSubscription records linked to DataUsePurpose
+    name: Communication subscriptions have a data use purpose
     description: |
-      Verifies that CommunicationSubscription records are linked to DataUsePurpose
+      Verifies that CommSubscription records are linked to DataUsePurpose
       records. DataUsePurpose represents the legal basis for data processing
       (e.g., "Direct Marketing" or "Consent") and is required for GDPR compliance.
-      Each CommunicationSubscription should have a DataUsePurposeId to ensure
+      Each CommSubscription should have a DataUsePurposeId to ensure
       consent is legally documented. Without this link, consent management may
       not meet regulatory requirements.
     category: configuration
     severity: warning
+    stage: config
+    studio_surface: objects
     check:
-      type: soql
+      type: soql_count
       query: >
-        SELECT Id, Name, Status, DataUsePurposeId, DataUsePurpose.Name
-        FROM CommunicationSubscription
-        WHERE Status = 'Active'
-        AND DataUsePurposeId != null
-      expect: "records.length > 0"
+        SELECT COUNT()
+        FROM CommSubscription
+        WHERE DataUsePurposeId != null
+      expect: "count > 0"
     symptoms:
       - "GDPR compliance issues"
       - "Missing legal basis for consent"
@@ -460,16 +437,16 @@ rules:
       - "Regulatory audit findings"
     resolution:
       steps:
-        - "Navigate to Setup > Object Manager > DataUsePurpose"
+        - "Navigate to App Launcher > DataUsePurpose"
         - "Create DataUsePurpose record (e.g., 'Direct Marketing', 'Consent')"
         - "Set Name to describe the legal basis"
         - "Save record"
-        - "Navigate to Setup > Object Manager > CommunicationSubscription"
-        - "Edit CommunicationSubscription record"
+        - "Navigate to App Launcher > CommSubscription"
+        - "Edit CommSubscription record"
         - "Set DataUsePurposeId to link to DataUsePurpose"
         - "Save record"
-        - "Verify link appears in CommunicationSubscription record"
-      ui_path: "Setup > Object Manager > CommunicationSubscription"
+        - "Verify link appears in CommSubscription record"
+      ui_path: "App Launcher > CommSubscription"
     tags: [field-email, consent, compliance]
 
 # ===========================================================================
@@ -488,7 +465,6 @@ groups:
       - field-email-004
       - field-email-005
       - field-email-006
-      - field-email-007
       - field-email-008
       - field-email-009
       - field-email-010
@@ -501,7 +477,6 @@ groups:
       - field-email-001
       - field-email-002
       - field-email-006
-      - field-email-007
 
   field-email-consent:
     name: "Field Email Consent Check"

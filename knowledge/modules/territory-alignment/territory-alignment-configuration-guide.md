@@ -13,8 +13,8 @@ Territory Alignment in Life Sciences Cloud (LSC) extends Salesforce Enterprise T
 | `Territory2Type` | Types of territories (Region, District, etc.) |
 | `UserTerritory2Association` | Links users (reps) to territories |
 | `ObjectTerritory2Association` | Explicit account-to-territory assignments |
-| `TerritoryGeoAssignmentRule` | Zip/Brick code-based auto-alignment rules |
-| `TerritoryProviderAffiliationAlignmentRule` | Affiliation-based auto-alignment rules |
+| `TerrGeoAssignmentRule` | Zip/Brick code-based auto-alignment rules |
+| `TerrProvAffilAssignRule` | Affiliation-based auto-alignment rules |
 | `ProviderAcctTerritoryInfo` | Territory-specific account info (ratings, last visit, etc.) |
 
 ## Prerequisites
@@ -47,7 +47,7 @@ Direct account-to-territory mapping via `ObjectTerritory2Association` records.
 Automatic alignment based on geographic data in ContactPointAddress records.
 
 **Setup:**
-1. Create `TerritoryGeoAssignmentRule` records:
+1. Create `TerrGeoAssignmentRule` records:
    - **Zip-to-Territory:** Set `UsageType` = "ZipToTerritory", specify zip codes
    - **Brick-to-Territory:** Set `UsageType` = "BrickToTerritory", specify brick codes (common in Europe)
 2. Ensure accounts have ContactPointAddress records with zip/brick values
@@ -60,7 +60,7 @@ Automatic alignment based on geographic data in ContactPointAddress records.
 Automatic alignment of affiliated accounts based on ProviderAffiliation relationships.
 
 **Setup:**
-1. In Object Manager > TerritoryProviderAffiliationAlignmentRule, ensure affiliation role picklist values exist (Attending, Admitting, Consulting, Staff, etc.)
+1. In Object Manager > TerrProvAffilAssignRule, ensure affiliation role picklist values exist (Attending, Admitting, Consulting, Staff, etc.)
 2. Ensure matching roles exist on the ProviderAffiliation object
 3. Create rules in Admin Console > Territories > Affiliation Rules:
    - Select the territory hierarchy node
@@ -79,9 +79,9 @@ Batch jobs are run from the **Territory Management Jobs** tab in the LSC app.
 | Job | Processes | Trigger |
 |-----|-----------|---------|
 | Align Account to Territory | ObjectTerritory2Association records | Manual or scheduled |
-| Align Zip to Territory | TerritoryGeoAssignmentRule (zip type) | Manual or scheduled |
-| Align Brick to Territory | TerritoryGeoAssignmentRule (brick type) | Manual or scheduled |
-| Affiliation Alignment | TerritoryProviderAffiliationAlignmentRule | Auto (after above jobs) |
+| Align Zip to Territory | TerrGeoAssignmentRule (zip type) | Manual or scheduled |
+| Align Brick to Territory | TerrGeoAssignmentRule (brick type) | Manual or scheduled |
+| Affiliation Alignment | TerrProvAffilAssignRule | Auto (after above jobs) |
 
 ### Running Jobs
 
@@ -137,6 +137,6 @@ In Admin Console > Territory Settings:
 
 1. **Accounts not appearing on mobile:** Check if ProviderAcctTerritoryInfo records exist for the account/territory combination. Run alignment batch jobs if missing.
 2. **Alignment job fails:** Check for duplicate ObjectTerritory2Association records or invalid territory IDs.
-3. **Affiliation rules not working:** Ensure affiliation role picklist values match between TerritoryProviderAffiliationAlignmentRule and ProviderAffiliation objects.
+3. **Affiliation rules not working:** Ensure affiliation role picklist values match between TerrProvAffilAssignRule and ProviderAffiliation objects.
 4. **Stale territory data:** Schedule alignment jobs to run daily during off-hours.
-5. **Missing PATI records after data load:** Run all three alignment jobs (Account, Zip, Brick) after loading ObjectTerritory2Association or TerritoryGeoAssignmentRule records.
+5. **Missing PATI records after data load:** Run all three alignment jobs (Account, Zip, Brick) after loading ObjectTerritory2Association or TerrGeoAssignmentRule records.

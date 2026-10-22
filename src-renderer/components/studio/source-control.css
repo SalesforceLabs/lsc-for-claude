@@ -1,0 +1,56 @@
+/* Source control: the release bar's "Save as source files" step and the review dialog's reminder. */
+
+.source-step {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.source-step-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  height: var(--control-sm);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.source-step-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.source-step-done {
+  color: var(--success);
+}
+
+.source-step-failed {
+  color: var(--error);
+}
+
+.source-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--info-subtle);
+  font-size: var(--font-sm);
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.source-warning-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.source-warning-sub {
+  color: var(--text-secondary);
+}

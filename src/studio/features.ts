@@ -1,0 +1,455 @@
+/**
+ * Feature definitions for LSC Studio.
+ *
+ * A feature is described declaratively — the objects it owns plus keywords used
+ * to pick out the trigger handlers, Admin Console categories, and actions that
+ * belong to it. The generic collectors in `collect.ts` do the rest, so adding a
+ * feature is mostly a matter of adding an entry here.
+ */
+
+import type { FeatureSummary } from "./types.js";
+
+export interface FeatureDefinition extends FeatureSummary {
+  /** Objects that make up the feature, primary object first. */
+  objects: string[];
+  /** Matched (case-insensitive substring) against trigger handler names/descriptions. */
+  handlerKeywords: string[];
+  /** Matched against Admin Console category names. */
+  adminCategoryKeywords: string[];
+  /** Matched against action labels and field values. */
+  actionKeywords: string[];
+  /** Matched against the iPad's tab names, labels and objects; set for features reps open from their own tab. */
+  tabKeywords?: string[];
+  /** Include Visit Action Validation custom scripts regardless of ObjectName. */
+  includeVisitActionValidation?: boolean;
+  /** ComplianceStatementDef.ModuleType to collect, if any. */
+  complianceModuleType?: string;
+}
+
+export const FEATURES: FeatureDefinition[] = [
+  {
+    id: "visit",
+    title: "Visit Management",
+    description: "Visits, call reporting, detailing, attendees, and Sign/Submit validation.",
+    available: true,
+    objects: [
+      "Visit",
+      "ProviderVisit",
+      "ProviderVisitProdDetailing",
+      "ProviderVisitProdDiscussion",
+      "ProviderVisitRqstSample",
+      "ProviderVisitMarketingItem",
+      "ProductDisbursement",
+    ],
+    handlerKeywords: ["Visit"],
+    adminCategoryKeywords: ["Visit", "CallDiscussion"],
+    actionKeywords: ["Visit"],
+    includeVisitActionValidation: true,
+    complianceModuleType: "Visit",
+  },
+  {
+    id: "samples",
+    title: "Sample Management",
+    description: "Sample products, lots, inventory, transfers, and sample limits.",
+    available: true,
+    objects: [
+      "ProductDisbursement",
+      "ProductItem",
+      "ProductBatchItem",
+      "ProductionBatch",
+      "InventoryOperation",
+      "ProductRequest",
+      "InventoryCountAssessment",
+      "ProviderSampleLimit",
+      "LifeSciMarketableProduct",
+      "Location",
+    ],
+    handlerKeywords: ["Sample", "Inventory", "Disbursement", "ProductItem", "ProductRequest"],
+    adminCategoryKeywords: ["Sample", "Inventory"],
+    actionKeywords: ["Sample", "Inventory"],
+    tabKeywords: [
+      "Sample",
+      "ProductDisbursement",
+      "ProductItem",
+      "InventoryOperation",
+      "ProductTransfer",
+    ],
+  },
+  {
+    id: "accounts",
+    title: "Account Management",
+    description:
+      "HCP/HCO accounts, addresses, affiliations, licenses, data change requests, and account search.",
+    available: true,
+    objects: [
+      "Account",
+      "HealthcareProvider",
+      "ContactPointAddress",
+      "ContactPointEmail",
+      "ContactPointPhone",
+      "BusinessLicense",
+      "ProviderAffiliation",
+      "ProviderAcctTerritoryInfo",
+      "LifeSciDataChangeRequest",
+      "LifeSciDataChgDefMngFld",
+      "UserAdditionalInfo",
+    ],
+    handlerKeywords: [
+      "Affiliation",
+      "HealthcareProvider",
+      "ContactPoint",
+      "AccountAddress",
+      "AccountTerritoryFields",
+      "ATFPreferred",
+    ],
+    adminCategoryKeywords: [
+      "Address",
+      "Affiliation",
+      "AccountSearch",
+      "DEASettings",
+      "License",
+      "FieldSetMapping",
+    ],
+    actionKeywords: ["Affiliation", "BusinessLicense", "DataChange"],
+  },
+  {
+    id: "activity-plan",
+    title: "Activity Plan",
+    description:
+      "Activity plans, time periods, account and product goals, and territory plan assignments.",
+    available: true,
+    objects: [
+      "ActivityPlan",
+      "ActivityPlanTerritory",
+      "TimePeriod",
+      "ProviderActivityGoal",
+      "ProviderActivityGoalMeasure",
+      "PrvdActvtyGoalMeasureProdt",
+      "ProviderActivityGoalLimit",
+      "ProviderActvtyPlanAdjusment",
+      "PrvdActvtyPlanAdjProdt",
+      "GoalDefinition",
+      "GoalAssignment",
+    ],
+    handlerKeywords: [
+      "ActivityPlan",
+      "ProviderActivityGoal",
+      "TerritoryBusinessPlan",
+      "TerritoryBusPlan",
+      "TerrBusPlan",
+      "GoalAsgmt",
+      "GoalAssignment",
+    ],
+    adminCategoryKeywords: ["ActivityPlan"],
+    actionKeywords: ["ActivityPlan", "Activity Plan", "ProviderActivityGoal"],
+  },
+  {
+    id: "products",
+    title: "Product Management",
+    description:
+      "Products, marketable products, territory availability, account restrictions, and product info.",
+    available: true,
+    objects: [
+      "Product2",
+      "LifeSciMarketableProduct",
+      "ProviderAcctProductInfo",
+      "LifeSciProductAcctRstrc",
+      "LifeSciMktProdtCodeSet",
+      "ProductCatalog",
+      "ProductCategory",
+    ],
+    handlerKeywords: [
+      "ProductGuidance",
+      "ProductTerr",
+      "ProviderAcctProductInfo",
+      "LifeSciMarketableProduct",
+    ],
+    adminCategoryKeywords: ["Product"],
+    actionKeywords: ["LifeSciMarketableProduct", "ProductCatalog"],
+  },
+  {
+    id: "kam",
+    title: "Key Account Management",
+    description:
+      "Account plans, objectives, stakeholders, participants, and action plan templates.",
+    available: true,
+    objects: [
+      "AccountPlan",
+      "AccountPlanObjective",
+      "AccountPlanObjectiveMeasure",
+      "AccountPlanStakeholder",
+      "AccountPlanStkhldrAction",
+      "AccountPlanStkhldrProduct",
+      "AccountPlanParticipant",
+      "AcctPlanPtcpStakeholder",
+      "AccountPlanProduct",
+      "AccountPlanRelationship",
+      "ActionPlan",
+      "ActionPlanItem",
+      "ActionPlanTemplate",
+      "ActionPlanTemplateItem",
+    ],
+    handlerKeywords: ["AccountPlan", "AcctPlan", "AccPlan", "AccObjectPercent", "ActionPlan"],
+    adminCategoryKeywords: [],
+    actionKeywords: ["AccountPlan", "Account Plan", "Stakeholder"],
+  },
+  {
+    id: "calendar-tot",
+    title: "Calendar & Time Off Territory",
+    description:
+      "Calendar events, Time Off Territory, routines, holidays, working days, and planner settings.",
+    available: true,
+    objects: ["Event", "Holiday", "TimeSlot"],
+    handlerKeywords: ["TUD", "TimeOff"],
+    adminCategoryKeywords: [
+      "TimeOffTerritory",
+      "PlannerAdministration",
+      "CalendarEvent",
+      "WorkingDays",
+      "BestTime",
+    ],
+    actionKeywords: ["TimeOff", "Time Off", "Routine"],
+  },
+  {
+    id: "lists-filters",
+    title: "Lists & Filters",
+    description: "Account lists, list members and columns, saved filters, and bulk actions.",
+    available: true,
+    objects: [
+      "LifeScienceAccountList",
+      "LifeSciAccountListMember",
+      "LifeSciAccountListColumn",
+      "LifeSciAcctListFilterCrit",
+      "LifeScienceAccountListObject",
+      "LifeSciAcctGrpAssignment",
+    ],
+    handlerKeywords: ["AccountList"],
+    adminCategoryKeywords: ["BulkUpdateRestrictedEntity"],
+    actionKeywords: ["AccountList", "Account List"],
+  },
+  {
+    id: "consent",
+    title: "Consent Management",
+    description: "Consents, communication subscriptions, channel types, and compliance snapshots.",
+    available: true,
+    // LSC captures consent as CommSubscriptionConsent; Salesforce's authorization form and party
+    // consent objects aren't used by LSC, so a rep without them isn't missing anything.
+    objects: [
+      "CommSubscriptionConsent",
+      "CommSubscription",
+      "CommSubscriptionChannelType",
+      "CommSubConsentCmplSnpsht",
+      "DataUsePurpose",
+      "ContactPointTypeConsent",
+      "ContactPointConsent",
+      "Individual",
+    ],
+    handlerKeywords: ["Consent", "CommSub"],
+    // The Admin Console category for consent is named OptAdministration.
+    adminCategoryKeywords: ["OptAdministration"],
+    actionKeywords: ["Consent"],
+    complianceModuleType: "Consent",
+  },
+  {
+    id: "intelligent-content",
+    title: "Intelligent Content",
+    description:
+      "Presentations, pages, product links, sharing to territories, and click-stream tracking.",
+    available: true,
+    objects: [
+      "Presentation",
+      "PresentationPage",
+      "PresentationContent",
+      "PresentationLinkedPage",
+      "PresentationPageProduct",
+      "PresentationShare",
+      "PresentationPageDependency",
+      "PresentationPartyAccess",
+      "PresentationForum",
+      "PresentationClickStrmEntry",
+      "Topic",
+      "TopicAssignment",
+    ],
+    handlerKeywords: ["Presentation", "TopicValidation"],
+    adminCategoryKeywords: [],
+    actionKeywords: ["Presentation", "IntelligentContent"],
+  },
+  {
+    id: "field-email",
+    title: "Field Email",
+    description: "Approved email templates and fragments, the send queue, and email snapshots.",
+    available: true,
+    objects: [
+      "LifeScienceEmail",
+      "LifeSciEmailTemplate",
+      "LifeSciEmailTmplFragment",
+      "LifeSciEmailTmplRelaFrgmt",
+      "LifeSciEmailTmplSnapshot",
+      "LifeScienceEmailFragment",
+      "StagedInviteeEmail",
+      "EmailTemplate",
+    ],
+    handlerKeywords: ["EmailQueue", "EmailAttachment", "EmailTemplate", "SyncEmailResponse"],
+    adminCategoryKeywords: [],
+    actionKeywords: ["LifeScienceEmail", "Field Email", "SendEmail"],
+  },
+  {
+    id: "surveys",
+    title: "Surveys",
+    description: "Surveys, versions, questions, invitations, subjects, and responses.",
+    available: true,
+    objects: [
+      "Survey",
+      "SurveyVersion",
+      "SurveyPage",
+      "SurveyQuestion",
+      "SurveyQuestionChoice",
+      "SurveyInvitation",
+      "SurveySubject",
+      "SurveyResponse",
+      "SurveyQuestionResponse",
+      "SurveyResponseOffline",
+      "SurveyQstnResponseOffline",
+      "SurveyEngagementContext",
+    ],
+    handlerKeywords: ["Survey"],
+    adminCategoryKeywords: [],
+    actionKeywords: ["Survey"],
+  },
+  {
+    id: "app-alerts",
+    title: "App Alerts",
+    description: "In-app alerts and notifications, territory targeting, and user responses.",
+    available: true,
+    objects: ["AppAlert", "AppAlertTerritory", "AppAlertUserResponse"],
+    handlerKeywords: ["NotificationTerritory", "AppAlert"],
+    adminCategoryKeywords: [],
+    actionKeywords: ["AppAlert", "App Alert"],
+  },
+  {
+    id: "next-best",
+    title: "Next Best (NBC / NBA / NBM)",
+    description: "Next Best Customer scores, recommended actions, and product message scores.",
+    available: true,
+    objects: [
+      "TerritoryAccountScore",
+      "TerritoryAcctRcmdAction",
+      "TerritoryAcctProdMsgScore",
+      "ProductGuidance",
+    ],
+    handlerKeywords: ["TerrAccRcm", "TerrAcctRcm", "ProductGuidance", "NextBest"],
+    adminCategoryKeywords: ["NextBest"],
+    actionKeywords: ["NextBest", "TerritoryAcctRcmdAction"],
+  },
+  {
+    id: "events",
+    title: "Events Management",
+    description:
+      "Managed events, participants, sessions, resources, budgets, estimated expenses, and stage paths.",
+    available: true,
+    objects: [
+      "MngEvent",
+      "MngEventType",
+      "MngEventParticipant",
+      "MngEventSession",
+      "MngEventSessionParticipant",
+      "MngEventResource",
+      "MngEventResourcePreference",
+      "MngEventBudget",
+      "MngEventTerritory",
+      "MngEventProduct",
+      "MngEventPtcpDiscrepancy",
+      "EventMgmtParticipantType",
+      "EventMgmtParticipantRole",
+      "EventMgmtPtcpTypeRoleMap",
+      "EstimatedExpense",
+      "EstimatedExpensePtcpAlloc",
+      "Expense",
+      "ExpenseParticipant",
+      "ExpenseType",
+      "Expert",
+      "ExpertSubject",
+    ],
+    handlerKeywords: [
+      "MngEvent",
+      "MngEvt",
+      "EventMgmt",
+      "EstimatedExp",
+      "EstExp",
+      "Expense",
+      "Attendee",
+      "Expert",
+      "EventBusinessHours",
+    ],
+    adminCategoryKeywords: [],
+    actionKeywords: ["MngEvent", "Managed Event"],
+    complianceModuleType: "ManagedEvent",
+  },
+  {
+    id: "medical-inquiries",
+    title: "Medical Inquiries",
+    description:
+      "Medical information requests, inquiry questions and answers, the linked Case, queue routing, and disclaimers.",
+    available: true,
+    objects: ["Inquiry", "InquiryQuestion", "InquiryQuestionAnswer", "Case"],
+    handlerKeywords: ["Case", "Inquiry"],
+    adminCategoryKeywords: [],
+    actionKeywords: ["Inquiry"],
+    complianceModuleType: "MedicalInquiry",
+  },
+  // Org-wide features — collected by `CUSTOM_COLLECTORS` in collect.ts, not per-object.
+  {
+    id: "briefings",
+    title: "Briefings",
+    description:
+      "Daily Podcasts — toggle, licenses, content pipeline, profile assignments, permissions, and iPad sync.",
+    available: true,
+    objects: [],
+    handlerKeywords: [],
+    adminCategoryKeywords: [],
+    actionKeywords: [],
+  },
+  {
+    id: "mobile-sync",
+    title: "Mobile Sync",
+    description: "Org-wide view of what syncs to the iPad, filters, and profile assignments.",
+    available: true,
+    objects: [],
+    handlerKeywords: [],
+    adminCategoryKeywords: [],
+    actionKeywords: [],
+  },
+  {
+    id: "territory-users",
+    title: "Territory & Users",
+    description: "Territory model, alignments, users, PSLs, and permission set coverage.",
+    available: true,
+    objects: [],
+    handlerKeywords: [],
+    adminCategoryKeywords: [],
+    actionKeywords: [],
+  },
+  {
+    id: "actions-home",
+    title: "Actions & Home Page",
+    description: "Quick and custom actions, navigation tabs, and home page per profile.",
+    available: true,
+    objects: [],
+    handlerKeywords: [],
+    adminCategoryKeywords: [],
+    actionKeywords: [],
+  },
+];
+
+export function getFeature(id: string): FeatureDefinition | undefined {
+  return FEATURES.find((f) => f.id === id);
+}
+
+export function listFeatures(): FeatureSummary[] {
+  return FEATURES.map(({ id, title, description, available }) => ({
+    id,
+    title,
+    description,
+    available,
+  }));
+}

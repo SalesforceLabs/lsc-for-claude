@@ -128,9 +128,9 @@ If your company manages Codex with an approved list of MCP servers, `lsc` won't 
 
 **What you get outside Claude Code:** every tool, plus the resources and prompts. The server sends its usage rules when the client connects (which tools to use for Admin Console and DB Schema records, correct LSC object names, how to pick an org), and clients that support MCP server instructions pass them to the model. You don't get the `/lsc:` commands, the auto-invoked skills or the agents; those are Claude Code plugin features. The tool descriptions and prompts were written and tested with Claude, so other models may need more direction.
 
-## Desktop App (LSC Assistant)
+## Desktop App (Roz for LSC)
 
-The plugin ships an optional **LSC Assistant** desktop app — a standalone chat UI (Electron + React) backed by the same knowledge base, skills, and Salesforce org tools as the plugin. Use it when you want a dedicated window with conversation history, a saved-answer library, and inline Mermaid/PDF rendering, outside of Claude Code.
+The plugin ships an optional desktop app, **Roz for LSC** — a standalone chat UI (Electron + React) backed by the same knowledge base, skills, and Salesforce org tools as the plugin. Use it when you want a dedicated window with conversation history, a saved-answer library, and inline Mermaid/PDF rendering, outside of Claude Code.
 
 ### Launch it
 
@@ -150,6 +150,8 @@ bash scripts/launch-electron-app.sh
 npm run electron:dev
 ```
 
+`electron:dev` reloads each layer on save: the renderer via Vite HMR, the MCP server (`src/` → `dist/`) by respawning it in place, and the Electron main process / preload by restarting the app.
+
 ### Prebuilt downloads (macOS)
 
 CI also packages the app as a `.dmg`/`.zip` — download the installers from a
@@ -164,7 +166,7 @@ one:
 - **Right-click the app → Open**, then confirm (only needed the first time), or
 - strip the download-quarantine flag:
   ```bash
-  xattr -dr com.apple.quarantine "/Applications/LSC Assistant.app"
+  xattr -dr com.apple.quarantine "/Applications/Roz for LSC.app"
   ```
 
 The quarantine flag is only applied to files downloaded via a browser — an app
@@ -227,7 +229,7 @@ If you already have `ANTHROPIC_API_KEY`, or `ANTHROPIC_AUTH_TOKEN` + `ANTHROPIC_
 | `/lsc:import-config` | Import LSC configuration from JSON export |
 | `/lsc:status` | Dashboard view of the connected LSC org |
 | `/lsc:getting-started` | Interactive onboarding and capability discovery |
-| `/lsc:launch-app` | Build and launch the LSC Assistant desktop app |
+| `/lsc:launch-app` | Build and launch the Roz for LSC desktop app |
 
 ## Skills (Auto-Invoked)
 

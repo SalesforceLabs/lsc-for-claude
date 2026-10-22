@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Mock child_process
 vi.mock("child_process", () => ({
   exec: vi.fn(),
+  execFile: vi.fn(),
   spawn: vi.fn(),
 }));
 
@@ -173,6 +174,14 @@ describe("presentation-converter.ts", () => {
   // validateHtmlZip
   // ==========================================================================
   describe("validateHtmlZip()", () => {
+    it("passes the file name as an argument, never through a shell", async () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecAsync.mockResolvedValueOnce({ stdout: "  100  index.html\n  5000  thumbnail.jpg\n" });
+      const name = '/path/x"; touch /tmp/pwned; ".zip';
+      await validateHtmlZip(name);
+      expect(mockExecAsync).toHaveBeenCalledWith("unzip", ["-l", name], expect.anything());
+    });
+
     it("returns valid for correct ZIP structure", async () => {
       mockExistsSync.mockReturnValue(true);
       mockExecAsync.mockResolvedValueOnce({

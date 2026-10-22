@@ -1,0 +1,110 @@
+/* Full width, horizontal scroll; compact vertical footprint so the related
+   list fits beneath it on an iPad. */
+.tl-scroll {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.5rem 0 0.75rem;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* The axis: a horizontal line running behind the row of dots. */
+.tl-track {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+    min-width: min-content;
+    padding: 0 0.25rem;
+}
+
+.tl-track::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0.4375rem; /* aligns with dot centers */
+    height: 2px;
+    background: #dddbda;
+}
+
+.tl-node {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 0 0 auto;
+    width: 9rem;
+    cursor: pointer;
+}
+
+/* Compact card above each dot — capped height keeps the whole strip short. */
+.tl-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    width: 100%;
+    padding: 0.375rem 0.5rem;
+    margin-bottom: 0.375rem;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 0.25rem;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+}
+
+.tl-node:hover .tl-card {
+    border-color: #1b96ff;
+}
+
+.tl-card__title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #080707;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tl-card__date {
+    font-size: 0.6875rem;
+    color: #706e6b;
+}
+
+.tl-card__status {
+    align-self: flex-start;
+    margin-top: 0.125rem;
+    padding: 0 0.375rem;
+    font-size: 0.625rem;
+    font-weight: 700;
+    color: #514f4d;
+    background: #ecebea;
+    border-radius: 0.625rem;
+    white-space: nowrap;
+}
+
+/* Status-colored dot sitting on the axis. */
+.tl-dot {
+    position: relative;
+    z-index: 1;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px #c9c7c5;
+}
+
+.tl-dot_success {
+    background: #2e844a;
+}
+
+.tl-dot_warning {
+    background: #dd7a01;
+}
+
+.tl-dot_critical {
+    background: #ba0517;
+}
+
+.tl-dot_neutral {
+    background: #969492;
+}

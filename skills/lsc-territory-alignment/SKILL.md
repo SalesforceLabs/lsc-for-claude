@@ -1,6 +1,6 @@
 ---
 name: lsc-territory-alignment
-description: Guides Life Sciences Cloud (LSC) Territory Alignment configuration and administration. Use when user asks about territory setup, account-to-territory assignments, zip code alignment, brick code alignment, affiliation alignment rules, territory batch jobs, ObjectTerritory2Association, TerritoryProviderAffiliationAlignmentRule, or ProviderAcctTerritoryInfo objects.
+description: Guides Life Sciences Cloud (LSC) Territory Alignment configuration and administration. Use when user asks about territory setup, account-to-territory assignments, zip code alignment, brick code alignment, affiliation alignment rules, territory batch jobs, ObjectTerritory2Association, TerrProvAffilAssignRule, or ProviderAcctTerritoryInfo objects.
 ---
 
 ## How to Answer Territory Alignment Questions
@@ -65,8 +65,8 @@ Re-run `check_territory_config()` to confirm everything is configured correctly.
 | `Territory2Type` | — |
 | `Territory2Model` | — |
 | `ProviderAcctTerritoryInfo` | `TerritoryInfo__c`, `AccountTerritoryInfo__c` |
-| `TerritoryProviderAffiliationAlignmentRule` | `AffiliationAlignmentRule__c` |
-| `TerritoryGeoAssignmentRule` | `ZipTerritory__c`, `GeoAlignment__c` |
+| `TerrProvAffilAssignRule` | `AffiliationAlignmentRule__c` |
+| `TerrGeoAssignmentRule` | `ZipTerritory__c`, `GeoAlignment__c` |
 | `ProviderAffiliation` | `ProviderAffiliation__c` |
 | `ContactPointAddress` | `ContactPointAddress__c` |
 
@@ -76,8 +76,8 @@ Re-run `check_territory_config()` to confirm everything is configured correctly.
 
 ### Affiliation Alignment Rules Setup
 When the user asks about creating affiliation alignment rules, follow this procedural workflow:
-1. Verify affiliation role picklist values match between `TerritoryProviderAffiliationAlignmentRule.AffiliationRole` and `ProviderAffiliation.Role`
-2. If mismatched, guide user to Setup > Object Manager > TerritoryProviderAffiliationAlignmentRule > Fields > AffiliationRole to add missing values
+1. Verify affiliation role picklist values match between `TerrProvAffilAssignRule.AffiliationRole` and `ProviderAffiliation.Role`
+2. If mismatched, guide user to Setup > Object Manager > TerrProvAffilAssignRule > Fields > AffiliationRole to add missing values
 3. Create rules in Admin Console > Territories > Affiliation Rules
 4. Rules apply to the selected territory **and all child territories** by default (can be unchecked)
 5. After creating rules, run the parent alignment jobs (Account/Zip/Brick) — affiliation alignment runs automatically after those complete

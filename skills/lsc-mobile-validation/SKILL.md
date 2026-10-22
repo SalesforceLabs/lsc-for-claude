@@ -33,7 +33,7 @@ If validation reveals missing features or misconfiguration:
 
 ### Diagnosing Specific Errors
 
-If the user reports a specific error message, use `diagnose_lsc_issue` to find matching validation rules:
+If the user reports a specific error message, use `diagnose_lsc_issue`. It finds matching known causes and validation rules and checks the org for them:
 
 ```
 diagnose_lsc_issue({ symptom: 'Device sync transaction record was not found' })

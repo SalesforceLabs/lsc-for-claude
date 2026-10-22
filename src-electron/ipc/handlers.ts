@@ -1,23 +1,60 @@
-import { ipcMain, BrowserWindow, shell } from "electron";
+import { app, ipcMain, BrowserWindow, dialog, shell, net } from "electron";
 import { execFile, spawn } from "child_process";
-import { readFile } from "fs/promises";
+import { watch } from "fs";
+import { copyFile, readFile, writeFile } from "fs/promises";
 import { fileURLToPath } from "url";
+import os from "os";
 import path from "path";
 
+/** Studio tools that take `refresh` to read the org again rather than reuse its short shared reads. */
+const STUDIO_REFRESHABLE = new Set(["studio_feature_map", "studio_readiness", "studio_setup_overview", "studio_user_trace", "studio_drift"]);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { ConversationEngine } from "../engine/conversation.js";
-import { McpClient } from "../mcp/client.js";
+import { EngineCache } from "../engine/engine-cache.js";
+import { diagnosePreflight } from "../engine/diagnose-first.js";
+import { ApprovalBroker, createWriteGate } from "../engine/write-gate.js";
+import { McpClient, STUDIO_TOOL_PREFIX } from "../mcp/client.js";
+import { McpPool, type PoolOrg } from "../mcp/pool.js";
+import { cacheArgsWithRepLogins, repLoginsFor, type RepLoginRef } from "../engine/rep-logins.js";
+import { listSfOrgs, loginArgsProblem, orgKey, pendingOrgList, pickOrg, resolveOrg, sameOrgId, toOrgRef, type OrgKind, type OrgRef } from "../orgs.js";
+import { OrgRoles } from "../org-roles.js";
+import type { SessionOrg } from "../engine/session-org.js";
+import {
+  checkMobileLogins,
+  listMobileLogins,
+  mobileLoginCredentials,
+  onMobileLoginsChanged,
+  removeMobileLogin,
+  renewMobileLogin,
+  startMobileLogin,
+} from "../mobile-login.js";
 import { PromptBuilder } from "../engine/prompt-builder.js";
+import { runScriptAssist, type ScriptAssistHost, type ScriptAssistRequest } from "../engine/script-assist.js";
 import { LLMProvider } from "../llm/provider.js";
-import { ApiKeyProvider } from "../llm/api-key.js";
-import { SFGatewayProvider } from "../llm/sf-gateway.js";
-import { BedrockGatewayProvider, detectGatewayFromEnv } from "../llm/bedrock-gateway.js";
-import { loadSettings, saveSettings, Settings } from "../settings.js";
+import { detectClaudeCodeGateway } from "../llm/claude-code-config.js";
+import { apiStyle, Connection, CONNECTION_KINDS, connectionLabel, isGateway } from "../llm/connection.js";
+import { chatModels, cleanConnection, createProvider, testConnection } from "../llm/create.js";
+import { loadSettings, migrateSettings, saveSettings, Settings } from "../settings.js";
+import { applyAppIcon } from "../app-icon.js";
+import { sourceControlFor, withSourceControl } from "../source-control.js";
+import { appDocumentPath, documentationPdfPath, guideDirPath, isEngineZipPath } from "../app-files.js";
+import { openExternalSafely } from "../external-url.js";
+import { PreviewedFixes } from "../engine/previewed-fixes.js";
+import { registerFrameDoc, releaseFrameDoc } from "../frame-docs.js";
+import { apiVersionFor, withApiVersion } from "../api-version.js";
+import { applyTheme } from "../theme.js";
+import { deleteSecret, getSecret, hasSecret, setSecret } from "../secrets.js";
+import { originOf, savedSecretAllowed, secretOriginName, tokenCommandTrusted } from "../llm/connection-trust.js";
 import {
   listConversations,
   createConversation,
   deleteConversation,
+  getConversation,
+  bindConversationOrg,
+  bindConversationsOrg,
+  searchConversations,
+  orgUsernameForLabel,
   getMessages,
   addMessage,
   updateConversationTitle,
@@ -29,45 +66,248 @@ import {
   deleteLibraryItem,
   searchLibraryItems,
 } from "../engine/library.js";
+import { getStudioCacheRow, setStudioCacheText, clearStudioCache } from "../engine/studio-cache.js";
+import { isCacheable } from "../engine/studio-cache-policy.js";
+import {
+  INVALIDATED_BY_MAP_REFRESH,
+  INVALIDATED_BY_PUBLISH,
+  bumpGeneration,
+  generationOf,
+  toolsInvalidatedByApply,
+} from "../engine/studio-invalidation.js";
+import { createInFlight } from "../engine/in-flight.js";
+import { registerAppBuilderHandlers } from "./app-builder.js";
+import { pickBuilderModel } from "../engine/app-builder.js";
+import { openInPreviewBrowser, type BrowserAuth } from "../studio-browser.js";
+import {
+  adoptUnassigned,
+  listPerfPlans,
+  savePerfPlan,
+  deletePerfPlan,
+  listPerfRuns,
+  getPerfRun,
+  savePerfRun,
+  deletePerfRun,
+  listPerfSims,
+  getPerfSim,
+  savePerfSim,
+  deletePerfSim,
+  type PerfRunRecord,
+  type PerfSimRecord,
+} from "../engine/perf-store.js";
+
+const studioInFlight = createInFlight<{ data?: unknown; error?: string }>();
+
+/** Drop cached Studio results for an org and make loads already in flight skip the cache. */
+function invalidate(org: string, tools: string[]): void {
+  bumpGeneration(org);
+  for (const tool of tools) clearStudioCache(org, tool);
+}
+
+/** Tools that may download a whole metadata cache first (allowed as long as the download itself, `downloadTimeoutMs`). */
+const CACHE_DOWNLOAD_TOOLS = new Set(["studio_metadata_cache_contents", "studio_metadata_cache_file"]);
+const STUDIO_CACHED_TOOLS = new Set([
+  "studio_feature_map",
+  "studio_item_detail",
+  // --- custom scripts: server ---
+  "studio_custom_scripts",
+  "studio_list_profiles",
+  "studio_access_options",
+  "studio_ipad_published",
+  // The folder and report tree is cheap to keep; report results (customer records) are never stored here.
+  "studio_ipad_reports",
+  "studio_unpublished",
+  "studio_readiness",
+  "studio_setup_overview",
+  "studio_sync_overview",
+  "studio_sync_user",
+]);
 
 // Shared resources (created once at engine:start)
 let llm: LLMProvider | null = null;
-let mcpClient: McpClient | null = null;
+// The running connection and the models it lists, so the picker only offers ones it serves
+let llmConnection: Connection | null = null;
+let llmModels: string[] | null = null;
+// One MCP server per Salesforce connection (see pool.ts); Studio uses the selected org's.
+let mcpPool: McpPool | null = null;
+let poolSweep: NodeJS.Timeout | null = null;
 let promptBuilder: PromptBuilder | null = null;
-let engineStarting: Promise<unknown> | null = null;
 
-// Per-session engines
-const engines = new Map<string, ConversationEngine>();
+// Studio opens before the engine starts and asks for data right away; it waits on this.
+let mcpStarted = false;
+let resolveMcpReady: () => void = () => {};
+let mcpReady = new Promise<void>((resolve) => (resolveMcpReady = resolve));
 
-// Track which session is actively streaming (for abort)
-let activeConvId: string | null = null;
-
-function createProvider(
-  providerType: string,
-  credentials: { apiKey?: string; accessToken?: string; gatewayUrl?: string; authToken?: string; baseUrl?: string }
-): LLMProvider {
-  switch (providerType) {
-    case "api-key":
-      return new ApiKeyProvider(credentials.apiKey!);
-    case "sf-gateway":
-      return new SFGatewayProvider(credentials.accessToken!, credentials.gatewayUrl);
-    case "bedrock-gateway":
-      return new BedrockGatewayProvider(credentials.authToken!, credentials.baseUrl!);
-    default:
-      throw new Error(`Unknown provider: ${providerType}`);
-  }
+/** A server for `org`, pointed at it every time it (re)starts — the target lives in the server's memory. */
+function createOrgClient(org: PoolOrg): McpClient {
+  return new McpClient(undefined, async (client) => {
+    if (!org.target) return;
+    try {
+      await client.callTool("set_target_org", { org: org.target });
+    } catch {
+      // The org may have been logged out; tools report the connection problem themselves.
+      return;
+    }
+    const pinned = apiVersionFor(loadSettings(), org.username);
+    if (pinned) await client.callTool("studio_set_api_version", { version: pinned }).catch(() => {});
+  });
 }
 
-/** Get or create an engine for a conversation. Restores messages from DB on first access. */
-function getOrCreateEngine(convId: string): ConversationEngine {
+interface SelectedOrg {
+  /** Null only when there's no org to work in at all. */
+  ref: OrgRef | null;
+  kind?: OrgKind;
+  pool: PoolOrg;
+}
+
+/** The org selected in the app: the one in Settings, else the sf CLI default (or the only connection). */
+async function selectedOrg(): Promise<SelectedOrg> {
+  const key = loadSettings().sfTargetOrg;
+  const org = await resolveOrg(key);
+  if (org) return { ref: toOrgRef(org), kind: org.kind, pool: { username: org.username, target: orgKey(org) } };
+  if (key) {
+    // Logged out or renamed: keep it by name, so nothing quietly runs in another org.
+    const username = orgUsernameForLabel(key) ?? key;
+    return { ref: { username, label: key }, pool: { username, target: key } };
+  }
+  return { ref: null, pool: { username: "", target: "" } };
+}
+
+/** The server for a session's org; by its username, so a renamed alias still finds it. */
+async function sessionOrg(ref: OrgRef | null): Promise<{ org: SessionOrg | null; pool: PoolOrg }> {
+  if (!ref) return { org: null, pool: { username: "", target: "" } };
+  const live = pickOrg((await listSfOrgs()).orgs, ref.username);
+  return {
+    org: { ref: live ? toOrgRef(live) : ref, kind: live?.kind },
+    pool: { username: ref.username, target: live ? orgKey(live) : ref.username },
+  };
+}
+
+/** The selected org's server, waiting briefly if the engine hasn't started yet. */
+async function readyMcpClient(timeoutMs = 60_000): Promise<McpClient | null> {
+  if (!mcpStarted) {
+    let timer: NodeJS.Timeout | undefined;
+    await Promise.race([mcpReady, new Promise((resolve) => (timer = setTimeout(resolve, timeoutMs)))]);
+    clearTimeout(timer);
+  }
+  if (!mcpStarted || !mcpPool) return null;
+  return mcpPool.get((await selectedOrg()).pool);
+}
+
+/** How long a server for an org nobody's looking at stays up after its last call. */
+const POOL_IDLE_MS = 10 * 60_000;
+
+// Per-session engines. Each holds its whole history, tool results included, so idle ones past
+// the limit are dropped and rebuilt from saved messages when the session is next used.
+const MAX_IDLE_ENGINES = 8;
+const engines = new EngineCache<ConversationEngine>(MAX_IDLE_ENGINES);
+
+// Sessions with a run in flight, and the connection each runs as — their servers stay up.
+const runningConvs = new Map<string, string>();
+
+const secretName = (connection: Connection) => `llm:${connection.kind}`;
+
+/** A path inside the org for `sf org open --path`: org-relative, no scheme or host, URL-safe characters only. */
+const isOrgPath = (path: unknown): path is string =>
+  typeof path === "string" && path.length <= 512 && /^\/(?!\/)[A-Za-z0-9/_\-.~%?=&]*$/.test(path);
+
+/** Studio changes previewed and not yet applied; each preview allows one apply of that exact change. */
+const previewedFixes = new PreviewedFixes();
+
+/** Token commands the user confirmed in this run of the app (connection-trust.ts). */
+const confirmedTokenCommands = new Set<string>();
+
+/** Asks, in a dialog the renderer can't answer, before running a token command that isn't the saved connection's. */
+async function confirmTokenCommand(connection: Connection): Promise<void> {
+  const saved = loadSettings().connection;
+  if (tokenCommandTrusted(connection, saved, confirmedTokenCommands)) return;
+  const command = connection.tokenCommand!.trim();
+  const owner = chatWindow && !chatWindow.isDestroyed() ? chatWindow : undefined;
+  const options = {
+    type: "warning" as const,
+    message: "Run this command to get the gateway token?",
+    detail: `${command}\n\nIt runs on this Mac as you. Only run a command you or your company gave you.`,
+    buttons: ["Run It", "Cancel"],
+    defaultId: 1,
+    cancelId: 1,
+  };
+  const { response } = owner ? await dialog.showMessageBox(owner, options) : await dialog.showMessageBox(options);
+  if (response !== 0) throw new Error("The token command wasn't run.");
+  confirmedTokenCommands.add(command);
+}
+
+/** A provider for `connection`, using `secret` if one was just entered, else the saved one (only for its own gateway). */
+async function providerFor(connection: Connection, secret?: string): Promise<LLMProvider> {
+  await confirmTokenCommand(connection);
+  let key = secret;
+  if (!key) {
+    const name = secretName(connection);
+    const saved = getSecret(name);
+    if (saved && savedSecretAllowed(connection, getSecret(secretOriginName(name)), loadSettings().connection)) key = saved;
+    else if (saved && !connection.tokenCommand) throw new Error("Enter the token again: the saved one belongs to another gateway URL.");
+  }
+  // net.fetch goes through Chromium: system certificates (company root CAs) and proxy settings.
+  return createProvider(connection, key, (url, init) => net.fetch(url, init));
+}
+
+/** Saves a just-entered key or token, and for a gateway the origin it may be sent to. */
+function saveConnectionSecret(connection: Connection, secret: string): void {
+  const name = secretName(connection);
+  setSecret(name, secret);
+  const origin = isGateway(connection.kind) ? originOf(connection.baseUrl) : null;
+  if (origin) setSecret(secretOriginName(name), origin);
+  else deleteSecret(secretOriginName(name));
+}
+
+/** What the renderer needs about the running connection. */
+function engineState() {
+  const tools = mcpPool!.getTools();
+  return {
+    ok: true,
+    providerType: llmConnection!.kind,
+    apiStyle: apiStyle(llmConnection!.kind),
+    label: connectionLabel(llmConnection!.kind),
+    defaultModel: llmConnection!.model,
+    toolCount: tools.length,
+    tools: tools.map((t) => ({ name: t.name, description: t.description })),
+    models: llmModels ?? undefined,
+  };
+}
+
+/** The window chat events go to; set when the handlers are registered. */
+let chatWindow: BrowserWindow | null = null;
+
+/** False when the window is gone, so a gate never waits for an answer nobody can give. */
+function sendToWindow(channel: string, payload: unknown): boolean {
+  if (!chatWindow || chatWindow.isDestroyed()) return false;
+  chatWindow.webContents.send(channel, payload);
+  return true;
+}
+
+/** Chat writes waiting for Allow / Deny (see engine/write-gate.ts). */
+const approvals = new ApprovalBroker(sendToWindow);
+
+/**
+ * Get or create an engine for a conversation, working in the conversation's org.
+ * Restores messages from DB on first access.
+ */
+async function getOrCreateEngine(convId: string, ref: OrgRef | null): Promise<ConversationEngine> {
   const existing = engines.get(convId);
   if (existing) return existing;
 
-  if (!llm || !mcpClient || !promptBuilder) {
+  if (!llm || !mcpPool || !promptBuilder) {
     throw new Error("Engine not started");
   }
 
-  const engine = new ConversationEngine(llm, mcpClient, promptBuilder);
+  const { org, pool } = await sessionOrg(ref);
+  // Until a server has started there are no tools to offer the model; this throws if it can't start.
+  if (mcpPool.getTools().length === 0) await mcpPool.get(pool);
+  const diagnosed = new Set<string>();
+  const host = mcpPool.host(pool);
+  const engine = new ConversationEngine(llm, host, promptBuilder, org, {
+    preflight: async (text) => diagnosePreflight(text, diagnosed),
+    gateTool: createWriteGate({ convId, org, host, broker: approvals, send: sendToWindow, resolveOrgId: async (key) => (await resolveOrg(key))?.orgId }),
+  });
   engine.initialize();
 
   // Restore message history from DB so the LLM has full conversation context
@@ -80,129 +320,183 @@ function getOrCreateEngine(convId: string): ConversationEngine {
   return engine;
 }
 
+/** Studio jobs that live in the server's memory and would be lost by a respawn. */
+const LONG_JOB_TOOLS = ["studio_sim_active", "studio_perf_active"];
+const RELOAD_RETRY_MS = 15_000;
+
+async function longJobRunning(client: McpClient): Promise<boolean> {
+  for (const tool of LONG_JOB_TOOLS) {
+    try {
+      const result = await client.callTool(tool, {});
+      const data = JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}");
+      if (data?.job) return true;
+    } catch {
+      // No org connected, or the server is down — nothing to protect.
+    }
+  }
+  return false;
+}
+
+/**
+ * Dev only (`electron:dev`): respawn the MCP server whenever `tsc --watch`
+ * rewrites dist/, so server and Studio collector changes apply without
+ * restarting the app. Studio's cache is kept so a reload doesn't re-query
+ * the org — hit Refresh in Studio to see a collector change. A reload waits
+ * while a first-sync simulation or performance run is in progress.
+ */
+function watchMcpServer(): void {
+  const distDir = path.resolve(__dirname, "..", "..", "dist");
+  let timer: NodeJS.Timeout | null = null;
+  let reloading: Promise<void> = Promise.resolve();
+  let deferred = false;
+  const schedule = (delayMs: number) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      reloading = reloading.then(async () => {
+        const clients = mcpPool?.running() ?? [];
+        if (clients.length === 0) return;
+        for (const client of clients) {
+          if (!(await longJobRunning(client))) continue;
+          if (!deferred) console.log("[dev] MCP server reload deferred until the running Studio job finishes");
+          deferred = true;
+          schedule(RELOAD_RETRY_MS);
+          return;
+        }
+        deferred = false;
+        try {
+          await Promise.all(clients.map((client) => client.restart()));
+          console.log(`[dev] MCP server reloaded (${clients.length})`);
+        } catch (error) {
+          console.error("[dev] MCP server reload failed:", error);
+        }
+      });
+    }, delayMs);
+  };
+  try {
+    watch(distDir, { recursive: true }, (_event, file) => {
+      if (!file || !file.endsWith(".js")) return;
+      // A deferred reload keeps polling on its own schedule.
+      if (!deferred) schedule(400);
+    });
+  } catch (error) {
+    console.error(`[dev] Can't watch ${distDir}:`, error);
+  }
+}
+
 export function registerIpcHandlers(mainWindow: BrowserWindow): void {
+  chatWindow = mainWindow;
+  if (process.env.LSC_RENDERER_URL) watchMcpServer();
+
   // --- Settings ---
+
+  // Old settings kept keys in plain text; move them to the keychain before anything reads them.
+  try {
+    migrateSettings((connection, secret) => setSecret(secretName(connection), secret));
+  } catch (error) {
+    console.error("Couldn't migrate LLM settings:", error);
+  }
 
   ipcMain.handle("settings:get", async () => {
     return loadSettings();
   });
 
   ipcMain.handle("settings:save", async (_event, settings: Settings) => {
+    // The connection is only saved by engine:start, after it connected (and its token command was confirmed).
+    settings = { ...settings, connection: loadSettings().connection };
     saveSettings(settings);
+    applyAppIcon(settings.appIcon, mainWindow);
+    applyTheme(settings.theme, mainWindow);
     return { ok: true };
   });
 
-  // --- Auto-detect env-based credentials ---
-
-  ipcMain.handle("provider:detect-env", async () => {
-    const gateway = detectGatewayFromEnv();
-    if (gateway) {
-      return {
-        detected: true,
-        providerType: "bedrock-gateway",
-        credentials: gateway,
-        label: "SF AI Model Gateway (Bedrock)",
-      };
-    }
-
-    // Check for plain Anthropic API key in env
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (apiKey) {
-      return {
-        detected: true,
-        providerType: "api-key",
-        credentials: { apiKey },
-        label: "Anthropic API Key (from env)",
-      };
-    }
-
-    return { detected: false };
+  /** Settings shows an appearance as soon as it's picked; Cancel puts the saved one back. */
+  ipcMain.handle("theme:preview", async (_event, theme: unknown) => {
+    applyTheme(theme, mainWindow);
   });
 
-  // --- Provider Management ---
+  // --- Connections ---
 
-  ipcMain.handle(
-    "provider:validate",
-    async (
-      _event,
-      type: string,
-      credentials: { apiKey?: string; accessToken?: string; gatewayUrl?: string }
-    ) => {
+  /** What's available without asking: Claude Code's gateway, env API keys, and saved keys. */
+  ipcMain.handle("provider:detect", async () => {
+    const gateway = detectClaudeCodeGateway();
+    let claudeCode: string | undefined;
+    if (gateway) {
       try {
-        const provider = createProvider(type, credentials);
-        const valid = await provider.validateCredentials();
-        return { valid };
-      } catch (error) {
-        return {
-          valid: false,
-          error: error instanceof Error ? error.message : String(error),
-        };
+        claudeCode = new URL(gateway.baseUrl).host;
+      } catch {
+        claudeCode = gateway.baseUrl;
       }
     }
-  );
+    return {
+      claudeCode,
+      env: { anthropic: !!process.env.ANTHROPIC_API_KEY, openai: !!process.env.OPENAI_API_KEY },
+      savedSecrets: CONNECTION_KINDS.filter((kind) => hasSecret(`llm:${kind}`)),
+    };
+  });
+
+  ipcMain.handle("provider:test", async (_event, connection: Connection, secret?: string) => {
+    try {
+      const clean = cleanConnection(connection);
+      return await testConnection(await providerFor(clean, secret), clean);
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
 
   // --- Engine Lifecycle ---
 
-  ipcMain.handle(
-    "engine:start",
-    async (
-      _event,
-      providerType: string,
-      credentials: Record<string, string | undefined>
-    ) => {
-      // If already running, return existing state
-      if (llm && mcpClient && promptBuilder) {
-        const tools = mcpClient.getTools();
-        return {
-          ok: true,
-          providerType,
-          toolCount: tools.length,
-          tools: tools.map((t) => ({ name: t.name, description: t.description })),
-        };
-      }
+  /**
+   * Connect with `connection` (and a just-entered `secret`, saved to the keychain).
+   * Starts the MCP server the first time; later calls only swap the model connection.
+   */
+  ipcMain.handle("engine:start", async (_event, connection: Connection, secret?: string) => {
+    try {
+      const clean = cleanConnection(connection);
+      const provider = await providerFor(clean, secret);
+      const models = chatModels(apiStyle(clean.kind), (await provider.listModels?.()) ?? null);
 
-      // If a start is already in progress, wait for it
-      if (engineStarting) {
-        await engineStarting;
-        if (llm && mcpClient && promptBuilder) {
-          const tools = mcpClient.getTools();
-          return {
-            ok: true,
-            providerType,
-            toolCount: tools.length,
-            tools: tools.map((t) => ({ name: t.name, description: t.description })),
-          };
-        }
-      }
-
-      const doStart = async () => {
-        llm = createProvider(providerType, credentials);
-        mcpClient = new McpClient();
-        await mcpClient.start();
+      if (!mcpPool || !promptBuilder) {
+        const pool = new McpPool(createOrgClient);
+        mcpPool = pool;
         promptBuilder = new PromptBuilder();
-      };
-
-      try {
-        engineStarting = doStart();
-        await engineStarting;
-        engineStarting = null;
-
-        const tools = mcpClient!.getTools();
-        return {
-          ok: true,
-          providerType,
-          toolCount: tools.length,
-          tools: tools.map((t) => ({ name: t.name, description: t.description })),
-        };
-      } catch (error) {
-        engineStarting = null;
-        return {
-          ok: false,
-          error: error instanceof Error ? error.message : String(error),
-        };
+        // The selected org's server starts in the background (it waits on `sf org list` for several
+        // seconds), so the app opens once the model answers. Studio waits on `mcpReady`; a chat's first
+        // message waits on its own server in getOrCreateEngine. A failed start is retried on the next call.
+        void (async () => {
+          try {
+            await pool.get((await selectedOrg()).pool);
+          } catch {
+            // Reported by the next call that needs the server.
+          }
+          if (mcpPool !== pool) return; // Stopped meanwhile.
+          mcpStarted = true;
+          resolveMcpReady();
+          if (!mainWindow.isDestroyed()) mainWindow.webContents.send("engine:tools", { toolCount: pool.getTools().length });
+        })();
+        // Servers for orgs nobody is looking at are stopped once idle; a Studio job or a run keeps one up.
+        poolSweep = setInterval(async () => {
+          const keep = [(await selectedOrg()).pool.username, ...runningConvs.values()];
+          await pool.sweep(keep, POOL_IDLE_MS, longJobRunning).catch(() => {});
+        }, 60_000);
       }
+
+      // Sessions hold the provider they were made with; they're rebuilt from history on next use.
+      for (const engine of engines.values()) engine.abort();
+      engines.clear();
+      llm = provider;
+      llmConnection = clean;
+      llmModels = models;
+
+      if (secret) saveConnectionSecret(clean, secret);
+      saveSettings({ ...loadSettings(), connection: clean });
+      return engineState();
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
     }
-  );
+  });
 
   ipcMain.handle("engine:stop", async () => {
     // Abort all active engines
@@ -210,30 +504,44 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       engine.abort();
     }
     engines.clear();
-    activeConvId = null;
+    runningConvs.clear();
 
-    await mcpClient?.stop();
+    if (poolSweep) clearInterval(poolSweep);
+    poolSweep = null;
+    await mcpPool?.stopAll();
     llm = null;
-    mcpClient = null;
+    llmConnection = null;
+    llmModels = null;
+    mcpPool = null;
     promptBuilder = null;
+    mcpStarted = false;
+    mcpReady = new Promise<void>((resolve) => (resolveMcpReady = resolve));
     return { ok: true };
   });
 
   // --- Chat ---
 
   ipcMain.handle("chat:send", async (_event, message: string | unknown[], nonce: number, convId: string, model?: string) => {
-    if (!llm || !mcpClient || !promptBuilder) {
+    if (!llm || !mcpPool || !promptBuilder) {
       return { ok: false, error: "Engine not started" };
     }
 
     let engine: ConversationEngine;
+    let username: string;
     try {
-      engine = getOrCreateEngine(convId);
+      // A session from before orgs were recorded joins the selected org with its next message.
+      let org = getConversation(convId)?.org ?? null;
+      if (!org) {
+        org = (await selectedOrg()).ref;
+        if (org) bindConversationOrg(convId, org);
+      }
+      username = org?.username ?? "";
+      engine = await getOrCreateEngine(convId, org);
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
 
-    activeConvId = convId;
+    runningConvs.set(convId, username);
 
     // Extract text for history persistence (images are not stored in history DB)
     let textForHistory: string;
@@ -248,19 +556,31 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
     // Accumulate assistant content for server-side persistence.
     let accumulatedText = "";
-    const accumulatedTools: Array<{ id: string; name: string; result?: string; isError?: boolean; status: string }> = [];
+    // Text that resumes after a tool call is a new paragraph; without a break the saved message runs rounds together.
+    let toolSinceText = false;
+    const accumulatedTools: Array<{ id: string; name: string; input?: Record<string, unknown>; result?: string; isError?: boolean; status: string }> = [];
 
     // ALL events are always sent — tagged with convId so the renderer decides what to display.
     // No nonce filtering on the main process side.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const runPromise = engine.sendMessage(message as any, {
       onTextDelta: (text) => {
+        if (toolSinceText && accumulatedText && !accumulatedText.endsWith("\n\n")) {
+          accumulatedText = accumulatedText.replace(/\n?$/, "\n\n");
+        }
+        toolSinceText = false;
         accumulatedText += text;
         mainWindow.webContents.send("chat:text-delta", { text, nonce, convId });
       },
       onToolStart: (id, name) => {
+        toolSinceText = true;
         accumulatedTools.push({ id, name, status: "running" });
         mainWindow.webContents.send("chat:tool-start", { id, name, nonce, convId });
+      },
+      onToolRun: (id, input) => {
+        const tool = accumulatedTools.find((t) => t.id === id);
+        if (tool) tool.input = input;
+        mainWindow.webContents.send("chat:tool-run", { id, input, nonce, convId });
       },
       onToolResult: (id, result, isError) => {
         const tool = accumulatedTools.find((t) => t.id === id);
@@ -284,16 +604,15 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
     // Persist when the run finishes — whether it completed, errored, or was aborted.
     runPromise.finally(() => {
-      if (activeConvId === convId) {
-        activeConvId = null;
-      }
+      runningConvs.delete(convId);
+      engines.trim();
       if (convId && (accumulatedText || accumulatedTools.length > 0)) {
         addMessage(
           convId,
           "assistant",
           accumulatedText,
           accumulatedTools.length > 0
-            ? accumulatedTools.map((tc) => ({ id: tc.id, name: tc.name, result: tc.result, isError: tc.isError, status: tc.status }))
+            ? accumulatedTools.map((tc) => ({ id: tc.id, name: tc.name, input: tc.input, result: tc.result, isError: tc.isError, status: tc.status }))
             : undefined
         );
       }
@@ -302,12 +621,17 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     return { ok: true };
   });
 
-  ipcMain.handle("chat:abort", async () => {
-    if (activeConvId) {
-      engines.get(activeConvId)?.abort();
-    }
+  // Stops the given session's run — another session (perhaps in another org) may be running too.
+  ipcMain.handle("chat:abort", async (_event, convId: string) => {
+    engines.get(convId)?.abort();
     return { ok: true };
   });
+
+  ipcMain.handle("chat:approval-respond", async (_event, requestId: string, allow: boolean) => ({
+    ok: approvals.respond(String(requestId), allow === true),
+  }));
+
+  ipcMain.handle("chat:approval-list", async () => approvals.list());
 
   ipcMain.handle("chat:clear", async () => {
     // No-op — per-session engines don't need clearing.
@@ -329,15 +653,32 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   // --- Conversation History ---
 
-  ipcMain.handle("history:list", async () => {
-    return listConversations();
+  /** The selected org's sessions (and any not tied to an org); `all` for every org's. */
+  ipcMain.handle("history:list", async (_event, scope: "org" | "all" = "org") => {
+    const { ref } = await selectedOrg();
+    return listConversations({ orgUsername: scope === "all" || !ref ? undefined : ref.username });
   });
 
+  ipcMain.handle("history:search", async (_event, query: string, scope: "org" | "all" = "org") => {
+    const { ref } = await selectedOrg();
+    return searchConversations(query, { orgUsername: scope === "all" || !ref ? undefined : ref.username });
+  });
+
+  ipcMain.handle("history:get", async (_event, id: string) => getConversation(id) ?? null);
+
+  // Sessions with no org join the selected one; sessions already in an org never move.
+  ipcMain.handle("history:move-to-org", async (_event, ids: string[]) => {
+    const { ref } = await selectedOrg();
+    if (!ref) return { ok: false, moved: 0, error: "No org is selected" };
+    return { ok: true, moved: bindConversationsOrg(ids, ref) };
+  });
+
+  // A new session works in the org selected now, for good.
   ipcMain.handle("history:create", async (_event, firstMessage: string) => {
-    return createConversation(firstMessage);
+    return createConversation(firstMessage, (await selectedOrg()).ref);
   });
 
-  ipcMain.handle("history:delete", async (_event, id: string) => {
+  const removeConversation = (id: string) => {
     // Also remove the per-session engine
     const engine = engines.get(id);
     if (engine) {
@@ -345,6 +686,15 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       engines.delete(id);
     }
     deleteConversation(id);
+  };
+
+  ipcMain.handle("history:delete", async (_event, id: string) => {
+    removeConversation(id);
+    return { ok: true };
+  });
+
+  ipcMain.handle("history:delete-many", async (_event, ids: string[]) => {
+    for (const id of ids) removeConversation(id);
     return { ok: true };
   });
 
@@ -377,12 +727,20 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   // --- Library ---
 
-  ipcMain.handle("library:list", async () => {
-    return listLibraryItems();
+  /** Library scope: the selected org's items (and those from no known org), or every org's. */
+  const libraryOrg = async (scope: "org" | "all") => {
+    if (scope === "all") return undefined;
+    return (await selectedOrg()).ref?.username;
+  };
+
+  ipcMain.handle("library:list", async (_event, scope: "org" | "all" = "org") => {
+    return listLibraryItems({ orgUsername: await libraryOrg(scope) });
   });
 
+  // Saved under its session's org; from no session (or one not tied yet), the selected org.
   ipcMain.handle("library:save", async (_event, input) => {
-    return createLibraryItem(input);
+    const fromSession = input.sourceConversationId ? getConversation(input.sourceConversationId)?.org : null;
+    return createLibraryItem({ ...input, org: fromSession ?? (await selectedOrg()).ref });
   });
 
   ipcMain.handle("library:delete", async (_event, id: string) => {
@@ -390,54 +748,384 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     return { ok: true };
   });
 
-  ipcMain.handle("library:search", async (_event, query: string) => {
-    return searchLibraryItems(query);
+  ipcMain.handle("library:search", async (_event, query: string, scope: "org" | "all" = "org") => {
+    return searchLibraryItems(query, { orgUsername: await libraryOrg(scope) });
+  });
+
+  // --- custom scripts: assist ---
+  const assistRuns = new Map<string, AbortController>();
+
+  ipcMain.handle("studio:scriptAssist", async (_event, requestId: string, request: ScriptAssistRequest) => {
+    if (!llm) return { ok: false, error: "Connect a model in Settings to use Ask Roz." };
+    const client = await readyMcpClient();
+    if (!client) return { ok: false, error: "Engine not started" };
+
+    const controller = new AbortController();
+    assistRuns.set(requestId, controller);
+    const send = (kind: string, data: Record<string, unknown>) => {
+      if (!mainWindow.isDestroyed()) mainWindow.webContents.send(`studio:scriptAssist-${kind}`, { requestId, ...data });
+    };
+    const host: ScriptAssistHost = {
+      callTool: async (name, args, options) => {
+        const result = await client.callTool(name, args, options);
+        return { text: result.content.map((c) => c.text).join("\n"), isError: result.isError ?? false };
+      },
+    };
+    // Runs on after the invoke returns; the outcome arrives as events.
+    void runScriptAssist(llm, host, request, {
+      signal: controller.signal,
+      model: request.model || llmConnection?.model,
+      onDelta: (text) => send("delta", { text }),
+      onTool: (name, status, detail) => send("tool", { name, status, detail }),
+    })
+      .then((message) => send("done", { message }))
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        // An abort is the user's own doing; the panel already knows.
+        if (message !== "aborted") send("error", { error: message });
+      })
+      .finally(() => assistRuns.delete(requestId));
+    return { ok: true };
+  });
+
+  ipcMain.handle("studio:scriptAssistAbort", async (_event, requestId: string) => {
+    assistRuns.get(requestId)?.abort();
+    assistRuns.delete(requestId);
+    return { ok: true };
+  });
+
+  // --- Studio (direct MCP calls, no LLM) ---
+
+  ipcMain.handle(
+    "studio:call",
+    async (_event, toolName: string, args: Record<string, unknown> = {}, refresh = false) => {
+      if (!toolName.startsWith(STUDIO_TOOL_PREFIX)) {
+        return { error: `Not a Studio tool: ${toolName}` };
+      }
+      // Writes local files: only into a folder the user picked (studio:exportSource).
+      if (toolName === "studio_export_source") return { error: "Use studio:exportSource." };
+      // Deploys go through appBuilder:deploy, which builds the call from the saved project.
+      if (toolName === "studio_app_deploy") return { error: "Use appBuilder:deploy." };
+      // A change is applied only as it was previewed (the review dialog shows each preview before Apply).
+      if (toolName === "studio_apply_fix" && !previewedFixes.take(args.fix)) {
+        return { error: "Review this change again before applying it: it wasn't previewed." };
+      }
+      // Live progress of a running preview/apply: no cache and no shared in-flight call (each poll
+      // must see the state as it is now), and it makes no org calls so it never queues behind the work.
+      if (toolName === "studio_fix_progress" || toolName === "studio_sync_user_progress" || toolName === "studio_feature_map_progress") {
+        const client = await readyMcpClient();
+        if (!client) return { error: "Engine not started" };
+        try {
+          const result = await client.callTool(toolName, args, { timeoutMs: 15_000 });
+          return { data: JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}") };
+        } catch (error) {
+          return { error: error instanceof Error ? error.message : String(error) };
+        }
+      }
+      // Org-backed results are persisted per org; the feature list is static and cheap.
+      const cacheable = STUDIO_CACHED_TOOLS.has(toolName);
+      const org = loadSettings().sfTargetOrg ?? "";
+      // The published iPad reads as the previewed rep when Studio holds their login (tokens go to the engine for this call only).
+      let offered: RepLoginRef[] = [];
+      if (toolName === "studio_ipad_published") {
+        const orgId = (await resolveOrg(loadSettings().sfTargetOrg))?.orgId;
+        offered = repLoginsFor(
+          listMobileLogins().filter((l) => !orgId || !l.orgId || sameOrgId(l.orgId, orgId)),
+          typeof args.userId === "string" ? args.userId : undefined
+        ).slice(0, 25);
+      }
+      const argsKey = JSON.stringify(cacheArgsWithRepLogins(args, offered));
+      if (cacheable && !refresh) {
+        // `cachedAt` lets a view say how old the answer is ("Updated 12 min ago").
+        const cached = getStudioCacheRow(org, toolName, argsKey);
+        if (cached) return { data: JSON.parse(cached.text), cachedAt: cached.cachedAt };
+      }
+      // Identical concurrent calls share one load (a timed-out one keeps running server-side).
+      // A load that began before a write (generation) neither joins nor feeds the cache after it.
+      const gen = generationOf(org);
+      return studioInFlight(`${org}\u0000${toolName}\u0000${argsKey}\u0000${refresh}\u0000${gen}`, async () => {
+        const client = await readyMcpClient();
+        if (!client) return { error: "Engine not started" };
+        try {
+          // A feature map fans out to many sf CLI queries; allow well over the SDK's 60s default. The published
+          // iPad adds the metadata download to its live reads (list views up to ~4 minutes, then records).
+          const mobileLogins = (await Promise.all(offered.map((l) => mobileLoginCredentials(l.id).catch(() => null)))).filter((l): l is NonNullable<typeof l> => !!l);
+          const callArgs = { ...args, ...(refresh && STUDIO_REFRESHABLE.has(toolName) ? { refresh: true } : {}), ...(mobileLogins.length ? { mobileLogins } : {}) };
+          const result = await client.callTool(toolName, callArgs, { timeoutMs: toolName === "studio_ipad_published" ? 8 * 60_000 : CACHE_DOWNLOAD_TOOLS.has(toolName) ? 30 * 60_000 : 5 * 60_000 });
+          const text = result.content.find((c) => c.type === "text")?.text ?? "{}";
+          const data = JSON.parse(text);
+          const cachedAt = new Date().toISOString();
+          // Partial results (failed surfaces, checks that couldn't run) shouldn't stick — the next open retries.
+          if (cacheable && isCacheable(toolName, data) && generationOf(org) === gen) {
+            // Refreshing a map means the org changed — item details may be stale too.
+            if (refresh && toolName === "studio_feature_map") {
+              for (const tool of INVALIDATED_BY_MAP_REFRESH) clearStudioCache(org, tool);
+            }
+            setStudioCacheText(org, toolName, argsKey, text);
+          }
+          // An applied change alters the org: drop what it can affect (not the slow, unaffected published iPad).
+          if (toolName === "studio_preview_fix" && data && !data.blocked) previewedFixes.add(args.fix);
+          if (toolName === "studio_apply_fix" && data?.ok) invalidate(org, toolsInvalidatedByApply(args.fix));
+          // A finished publish changes the metadata cache surfaces.
+          if (toolName === "studio_publish_status" && data?.state === "done") invalidate(org, INVALIDATED_BY_PUBLISH);
+          return { data, cachedAt };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          // A write that errored or timed out may still have landed.
+          if (toolName === "studio_apply_fix") invalidate(org, toolsInvalidatedByApply(args.fix));
+          if (/time(d)?[ -]?out/i.test(message)) {
+            return {
+              error:
+                "This is taking longer than 5 minutes. It is still loading in the background, so try again in a minute and it should be ready.",
+            };
+          }
+          return { error: message };
+        }
+      });
+    }
+  );
+
+  // --- LSC App Builder (Studio -> Build) ---
+
+  registerAppBuilderHandlers({
+    mobileLogin: (loginId) => mobileLoginCredentials(loginId),
+    mainWindow,
+    llm: () => llm,
+    model: () => pickBuilderModel(llmConnection?.model, llmModels),
+    readyMcpClient,
+    selectedOrg: async () => {
+      const { ref, pool } = await selectedOrg();
+      return ref ? { username: ref.username, target: pool.target } : null;
+    },
+    invalidate: (tools) => invalidate(loadSettings().sfTargetOrg ?? "", tools),
+  });
+
+  // --- Studio performance testing: plans and run history (per org) ---
+
+  // With no org picked in Settings the tools use the sf CLI default, so ask the engine which org
+  // that is; plans and runs must be filed under the same org the runs go against.
+  const currentOrg = async (): Promise<string> => {
+    const chosen = loadSettings().sfTargetOrg;
+    if (chosen) return chosen;
+    const client = await readyMcpClient();
+    if (!client) return "";
+    try {
+      const result = await client.callTool("studio_connected_org", {});
+      const text = result.content.find((c) => c.type === "text")?.text ?? "{}";
+      return (JSON.parse(text) as { org?: string }).org ?? "";
+    } catch {
+      return "";
+    }
+  };
+
+  ipcMain.handle("perf:listPlans", async () => {
+    const org = await currentOrg();
+    adoptUnassigned(org);
+    return listPerfPlans(org);
+  });
+
+  ipcMain.handle(
+    "perf:savePlan",
+    async (_event, input: { id?: string; name: string; plan: unknown }) =>
+      savePerfPlan({ ...input, org: await currentOrg() })
+  );
+
+  ipcMain.handle("perf:deletePlan", async (_event, id: string) => {
+    deletePerfPlan(id);
+    return { ok: true };
+  });
+
+  ipcMain.handle("perf:listRuns", async (_event, planId: string) => listPerfRuns(await currentOrg(), planId));
+
+  ipcMain.handle("perf:getRun", async (_event, id: string) => getPerfRun(id));
+
+  // Filed under the org the run went against, which may not be the one selected now.
+  ipcMain.handle(
+    "perf:saveRun",
+    async (_event, input: Omit<PerfRunRecord, "id" | "org"> & { org?: string; result: unknown }) =>
+      savePerfRun({ ...input, org: input.org || (await currentOrg()) })
+  );
+
+  ipcMain.handle("perf:deleteRun", async (_event, id: string) => {
+    deletePerfRun(id);
+    return { ok: true };
+  });
+
+  ipcMain.handle("perf:listSims", async () => listPerfSims());
+
+  ipcMain.handle("perf:getSim", async (_event, id: string) => getPerfSim(id));
+
+  ipcMain.handle("perf:saveSim", async (_event, input: Omit<PerfSimRecord, "id"> & { result: unknown }) => savePerfSim(input));
+
+  ipcMain.handle("perf:deleteSim", async (_event, id: string) => {
+    deletePerfSim(id);
+    return { ok: true };
+  });
+
+  // Import / export test plans (YAML) and reports (Markdown, JSON) through native file dialogs.
+  ipcMain.handle("perf:openFile", async () => {
+    const res = await dialog.showOpenDialog(mainWindow, {
+      title: "Import test plan",
+      properties: ["openFile"],
+      filters: [{ name: "NFR profile", extensions: ["yaml", "yml"] }],
+    });
+    if (res.canceled || res.filePaths.length === 0) return { canceled: true };
+    return { canceled: false, text: await readFile(res.filePaths[0], "utf-8") };
+  });
+
+  ipcMain.handle(
+    "perf:saveFile",
+    async (_event, defaultName: string, text: string, kind: "yaml" | "json" | "md") => {
+      const filters = {
+        yaml: [{ name: "NFR profile", extensions: ["yaml"] }],
+        json: [{ name: "JSON", extensions: ["json"] }],
+        md: [{ name: "Markdown", extensions: ["md"] }],
+      };
+      const res = await dialog.showSaveDialog(mainWindow, {
+        title: kind === "yaml" ? "Export test plan" : "Export report",
+        defaultPath: defaultName,
+        filters: filters[kind] ?? filters.json,
+      });
+      if (res.canceled || !res.filePath) return { canceled: true };
+      await writeFile(res.filePath, text, "utf-8");
+      return { canceled: false, path: res.filePath };
+    }
+  );
+
+  // --- Source control: orgs deployed from Git get reminded to save Studio's changes as source files ---
+
+  ipcMain.handle("sourceControl:get", async () => {
+    const { ref } = await selectedOrg();
+    return { org: ref?.username ?? null, ...sourceControlFor(loadSettings(), ref?.username) };
+  });
+
+  ipcMain.handle("sourceControl:set", async (_event, deployed: boolean) => {
+    const { ref } = await selectedOrg();
+    if (!ref?.username) return { ok: false, error: "No Salesforce org selected." };
+    saveSettings(withSourceControl(loadSettings(), ref.username, { deployed: deployed === true }));
+    return { ok: true };
+  });
+
+  // --- API version: pinned per org from the status bar; the org's server holds it in memory ---
+
+  const apiVersionCall = async (tool: string, args: Record<string, unknown>) => {
+    const client = await readyMcpClient();
+    if (!client) return { error: "Engine not started" };
+    try {
+      const result = await client.callTool(tool, args);
+      const data = JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}");
+      return data?.error ? { error: String(data.error) } : { data };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : String(e) };
+    }
+  };
+
+  ipcMain.handle("apiVersion:get", async () => {
+    const { ref } = await selectedOrg();
+    if (!ref?.username) return { org: null };
+    return { org: ref.username, ...(await apiVersionCall("studio_api_version", {})) };
+  });
+
+  ipcMain.handle("apiVersion:set", async (_event, version: string | null) => {
+    const { ref } = await selectedOrg();
+    if (!ref?.username) return { org: null, error: "No Salesforce org selected." };
+    const pin = typeof version === "string" && version ? version : null;
+    const res = await apiVersionCall("studio_set_api_version", { version: pin });
+    // Saved only once the org took it, so a refused version isn't pinned on the next start.
+    if (res.data) saveSettings(withApiVersion(loadSettings(), ref.username, pin));
+    return { org: ref.username, ...res };
+  });
+
+  // Pick the project folder (opening on the one last used for this org), then retrieve the changes' documents into it.
+  ipcMain.handle("studio:exportSource", async (_event, changes: unknown[] = [], items: unknown[] = []) => {
+    const { ref } = await selectedOrg();
+    if (!ref?.username) return { error: "No Salesforce org selected." };
+    const last = sourceControlFor(loadSettings(), ref.username).folder;
+    const res = await dialog.showOpenDialog(mainWindow, {
+      title: "Save as source files",
+      message: "Choose your sfdx project folder. Files go in its default package (force-app/main/default).",
+      buttonLabel: "Save Here",
+      defaultPath: last ?? app.getPath("home"),
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (res.canceled || res.filePaths.length === 0) return { canceled: true };
+    const folder = res.filePaths[0];
+    saveSettings(withSourceControl(loadSettings(), ref.username, { folder }));
+    const client = await readyMcpClient();
+    if (!client) return { error: "Engine not started" };
+    try {
+      const result = await client.callTool("studio_export_source", { folder, changes, items }, { timeoutMs: 5 * 60_000 });
+      const data = JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}");
+      return data?.error ? { error: String(data.error) } : { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  // Save a metadata cache's ZIP where the user picks: the engine downloads it (studio_metadata_cache_contents), this copies it.
+  ipcMain.handle("studio:saveMetadataCache", async (_event, recordId: string) => {
+    if (typeof recordId !== "string" || !/^[a-zA-Z0-9]{15,18}$/.test(recordId)) return { error: "Invalid record Id." };
+    const client = await readyMcpClient();
+    if (!client) return { error: "Engine not started" };
+    try {
+      const result = await client.callTool("studio_metadata_cache_contents", { recordId }, { timeoutMs: 30 * 60_000 });
+      const data = JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}") as { error?: string; zipPath?: string; profile?: string | null; generatedAt?: string };
+      if (data.error || !data.zipPath) return { error: data.error || "The cache couldn't be downloaded." };
+      // Only ever copy out of the engine's download folder (see isEngineZipPath).
+      if (!isEngineZipPath(data.zipPath)) return { error: "Unexpected download location." };
+      const base = `${(data.profile || "Org level").replace(/[^\w .-]+/g, "_")} metadata cache ${(data.generatedAt || "").slice(0, 10)}`.trim();
+      const res = await dialog.showSaveDialog(mainWindow, {
+        title: "Download metadata cache",
+        defaultPath: `${base}.zip`,
+        filters: [{ name: "ZIP archive", extensions: ["zip"] }],
+      });
+      if (res.canceled || !res.filePath) return { canceled: true };
+      await copyFile(data.zipPath, res.filePath);
+      return { canceled: false, path: res.filePath };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) };
+    }
   });
 
   // --- Salesforce Org Management ---
 
-  ipcMain.handle("sfOrg:list", async () => {
-    return new Promise((resolve) => {
-      execFile("sf", ["org", "list", "--json"], { timeout: 15000 }, (error, stdout) => {
-        if (error) {
-          resolve({ orgs: [], error: error.message });
-          return;
-        }
-        try {
-          const data = JSON.parse(stdout);
-          const orgs: Array<{ alias?: string; username: string; orgId: string; instanceUrl: string; isDefault?: boolean }> = [];
-          const seen = new Set<string>();
-          for (const category of ["nonScratchOrgs", "scratchOrgs", "sandboxes", "devHubs", "other"]) {
-            const list = data?.result?.[category];
-            if (!Array.isArray(list)) continue;
-            for (const o of list) {
-              const username = o.username || o.userName;
-              if (!username || seen.has(username)) continue;
-              seen.add(username);
-              orgs.push({
-                alias: o.alias || undefined,
-                username,
-                orgId: o.orgId || "",
-                instanceUrl: o.instanceUrl || "",
-                isDefault: o.isDefaultUsername || o.isDefaultDevHub || false,
-              });
-            }
-          }
-          resolve({ orgs });
-        } catch {
-          resolve({ orgs: [], error: "Failed to parse sf org list output" });
-        }
-      });
-    });
+  // Which connections are LSC admins, checked in the background; the renderer hears as roles arrive.
+  const orgRoles = new OrgRoles(path.join(app.getPath("userData"), "org-roles.json"), (roles) => {
+    if (!mainWindow.isDestroyed()) mainWindow.webContents.send("sfOrg:roles", roles);
   });
 
+  const withRoles = (list: Awaited<ReturnType<typeof listSfOrgs>>) => ({
+    ...list,
+    orgs: list.orgs.map((o) => ({ ...o, role: orgRoles.get(o.username) })),
+  });
+
+  // `quick` answers at once (startup), then sends the full listing — with expired logins — when it lands.
+  ipcMain.handle("sfOrg:list", async (_event, options?: { recheckRoles?: boolean; quick?: boolean }) => {
+    const list = await listSfOrgs({ fresh: !options?.quick });
+    orgRoles.check(list.orgs, { force: options?.recheckRoles });
+    if (options?.quick) {
+      pendingOrgList()?.then((full) => {
+        if (!full.error && !mainWindow.isDestroyed()) mainWindow.webContents.send("sfOrg:listed", withRoles(full));
+      });
+    }
+    return withRoles(list);
+  });
+
+  // Studio and new sessions follow the selected org; sessions already running stay in theirs.
   ipcMain.handle("sfOrg:set", async (_event, org: string) => {
-    const settings = loadSettings();
-    saveSettings({ ...settings, sfTargetOrg: org });
-    return { ok: true };
+    // Store the alias when there is one, so per-org stores (Studio cache, test plans) keep one key.
+    const match = pickOrg((await listSfOrgs()).orgs, org);
+    const key = match ? orgKey(match) : org;
+    saveSettings({ ...loadSettings(), sfTargetOrg: key });
+    mainWindow.webContents.send("sfOrg:changed", { org: key });
+    // Start its server now, so Studio's first call doesn't wait on a spawn.
+    if (mcpStarted && mcpPool) mcpPool.get((await selectedOrg()).pool).catch(() => {});
+    return { ok: true, org: key };
   });
 
   ipcMain.handle("sfOrg:login", async (_event, alias?: string, instanceUrl?: string) => {
+    const problem = loginArgsProblem(alias, instanceUrl);
+    if (problem) return { ok: false, error: problem };
     return new Promise((resolve) => {
       const args = ["org", "login", "web", "--json"];
       if (alias) args.push("--alias", alias);
@@ -449,21 +1137,133 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     });
   });
 
+  // Opens the org in the default browser, signed in through the sf CLI connection — optionally on a page
+  // inside it (an org-relative path such as /lightning/setup/FlexiPageList/home).
+  ipcMain.handle("sfOrg:open", async (_event, org: string, path?: string) => {
+    if (path !== undefined && !isOrgPath(path)) return { ok: false, error: "Not a page in the org" };
+    const args = ["org", "open", "--target-org", org, "--url-only", "--json", ...(path ? ["--path", path] : [])];
+    return new Promise((resolve) => {
+      execFile("sf", args, { timeout: 30000 }, (error, stdout) => {
+        try {
+          const url = JSON.parse(stdout)?.result?.url;
+          if (typeof url === "string" && url.startsWith("https://")) {
+            openExternalSafely(url);
+            resolve({ ok: true });
+            return;
+          }
+        } catch {
+          // Fall through to the error below.
+        }
+        resolve({ ok: false, error: error?.message ?? "sf org open returned no URL" });
+      });
+    });
+  });
+
+  // --- Studio's iPad preview browser (the frontdoor link stays in this process) ---
+
+  ipcMain.handle("studioBrowser:open", async (event, guestId: number, url: string, auth: BrowserAuth) => {
+    try {
+      return await openInPreviewBrowser(event.sender, guestId, url, auth);
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  // --- Test users' mobile logins (tokens never leave the main process except to the engine) ---
+
+  onMobileLoginsChanged((logins) => {
+    if (!mainWindow.isDestroyed()) mainWindow.webContents.send("mobileLogin:changed", logins);
+  });
+
+  ipcMain.handle("mobileLogin:start", async (_event, loginUrl: string) => {
+    try {
+      return { login: await startMobileLogin(loginUrl, mainWindow) };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("mobileLogin:list", async () => ({ logins: listMobileLogins() }));
+
+  // Refreshes logins not used lately, so "Signed in" / "Expired" is current.
+  ipcMain.handle("mobileLogin:check", async () => ({ logins: await checkMobileLogins() }));
+
+  ipcMain.handle("mobileLogin:renew", async (_event, id: string) => {
+    try {
+      return { login: await renewMobileLogin(id, mainWindow) };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  // An inline LWC's data request in the iPad preview, answered as the previewed rep's mobile login.
+  ipcMain.handle("studio:lwcRequestAs", async (_event, loginId: string, req: { method: string; path: string; body?: unknown }) => {
+    const client = await readyMcpClient();
+    if (!client) return { error: "Engine not started" };
+    try {
+      const mobileLogin = await mobileLoginCredentials(loginId);
+      const result = await client.callTool("studio_lwc_request", { ...req, mobileLogin });
+      const text = result.content.find((c) => c.type === "text")?.text ?? "{}";
+      return result.isError ? { error: text } : { data: JSON.parse(text) };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  ipcMain.handle("mobileLogin:remove", async (_event, id: string) => {
+    removeMobileLogin(id);
+    return { ok: true };
+  });
+
+  ipcMain.handle("studio:simStartMobile", async (_event, loginId: string, options: Record<string, unknown> = {}) => {
+    const client = await readyMcpClient();
+    if (!client) return { error: "Engine not started" };
+    try {
+      const mobileLogin = await mobileLoginCredentials(loginId);
+      const result = await client.callTool("studio_sim_start", { connection: mobileLogin.username, mobileLogin, options });
+      return { data: JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}") };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
+  // Starts a performance run; personas whose users have a mobile login get their exact table list.
+  // Tokens go to the engine for this job only and never come back in a status or result.
+  ipcMain.handle("studio:perfStartMobile", async (_event, plan: unknown) => {
+    const client = await readyMcpClient();
+    if (!client) return { error: "Engine not started" };
+    try {
+      // Only the selected org's test users, and only those still signed in.
+      const orgId = (await resolveOrg(loadSettings().sfTargetOrg))?.orgId;
+      const usable = listMobileLogins().filter((l) => l.status === "signedIn" && (!orgId || !l.orgId || sameOrgId(l.orgId, orgId)));
+      const mobileLogins = (await Promise.all(usable.map((l) => mobileLoginCredentials(l.id).catch(() => null)))).filter(
+        (l): l is NonNullable<typeof l> => !!l
+      ).slice(0, 25);
+      const result = await client.callTool("studio_perf_start", { plan, ...(mobileLogins.length ? { mobileLogins } : {}) });
+      return { data: JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}") };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) };
+    }
+  });
+
   // --- File Reading ---
 
+  // Only the app's own documents: lsc-file:// links in replies are model output.
   ipcMain.handle("file:read", async (_event, filePath: string) => {
+    const allowed = appDocumentPath(filePath);
+    if (!allowed) return { ok: false, error: "Only the app's own documents can be opened here." };
     try {
-      const content = await readFile(filePath, "utf-8");
+      const content = await readFile(allowed, "utf-8");
       return { ok: true, content, path: filePath };
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   });
 
-  ipcMain.handle("file:open-external", async (_event, url: string) => {
-    shell.openExternal(url);
-    return { ok: true };
-  });
+  ipcMain.handle("file:open-external", async (_event, url: string) => ({ ok: openExternalSafely(url) }));
+
+  ipcMain.handle("frame:register", async (_event, html: unknown) => registerFrameDoc(html));
+  ipcMain.handle("frame:release", async (_event, url: unknown) => releaseFrameDoc(url));
 
   // --- Guide Section Reading ---
 
@@ -474,7 +1274,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         const { readFileSync, existsSync } = await import("fs");
 
         // Resolve paths relative to the project root (two levels up from dist-electron/ipc/)
-        const guidesDir = path.join(__dirname, "..", "..", "knowledge", "guides", guideSlug);
+        const guidesDir = guideDirPath(guideSlug);
+        if (!guidesDir) return { ok: false, error: `Guide '${guideSlug}' not found` };
         const manifestPath = path.join(guidesDir, "_manifest.json");
 
         if (!existsSync(manifestPath)) {
@@ -489,8 +1290,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
           return { ok: false, error: `Section '${sectionSlug}' not found in guide '${guideSlug}'` };
         }
 
-        const sectionPath = path.join(guidesDir, section.file);
-        if (!existsSync(sectionPath)) {
+        const sectionPath = path.join(guidesDir, String(section.file));
+        if (!appDocumentPath(sectionPath) || !existsSync(sectionPath)) {
           return { ok: false, error: `Section file not found: ${section.file}` };
         }
 
@@ -498,7 +1299,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
         // Build both a lsc-local:// URL and the absolute file path for the PDF
         const pdfUrl = `lsc-local://file/documentation/${encodeURIComponent(manifest.pdfFileName)}`;
-        const pdfPath = path.join(__dirname, "..", "..", "documentation", manifest.pdfFileName);
+        const pdfPath = documentationPdfPath(manifest.pdfFileName) ?? "";
 
         return {
           ok: true,
@@ -525,8 +1326,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       try {
         const { existsSync } = await import("fs");
 
-        const pdfPath = path.join(__dirname, "..", "..", "documentation", pdfFileName);
-        if (!existsSync(pdfPath)) {
+        const pdfPath = documentationPdfPath(pdfFileName);
+        if (!pdfPath || !existsSync(pdfPath)) {
           return { ok: false, error: `PDF not found: ${pdfFileName}` };
         }
 
@@ -547,23 +1348,27 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         const { existsSync } = await import("fs");
         const { pathToFileURL } = await import("url");
 
-        const pdfPath = path.join(__dirname, "..", "..", "documentation", pdfFileName);
-        if (!existsSync(pdfPath)) {
+        const pdfPath = documentationPdfPath(pdfFileName);
+        if (!pdfPath || !existsSync(pdfPath)) {
           return { ok: false, error: `PDF not found: ${pdfFileName}` };
         }
+        const page = Number.isInteger(pageNum) && pageNum > 0 ? pageNum : 1;
 
-        const fileUrl = pathToFileURL(pdfPath).toString() + `#page=${pageNum}`;
+        const fileUrl = pathToFileURL(pdfPath).toString() + `#page=${page}`;
 
         const pdfWindow = new BrowserWindow({
           width: 900,
           height: 800,
-          title: `${pdfFileName} — Page ${pageNum}`,
+          title: `${pdfFileName} — Page ${page}`,
           webPreferences: {
             contextIsolation: true,
             nodeIntegration: false,
+            sandbox: true,
             plugins: true,
           },
         });
+        pdfWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+        pdfWindow.webContents.on("will-navigate", (e) => e.preventDefault());
 
         pdfWindow.loadURL(fileUrl);
         return { ok: true };

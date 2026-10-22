@@ -1,0 +1,245 @@
+/* New Presentation builder: full screen at the screen layer (screen coordinates, 1210x834). */
+.studio-ipad-content-new {
+  position: absolute;
+  inset: 26px 0 0 0;
+  z-index: 80;
+  background: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  color: #1c1c1e;
+}
+.studio-ipad-content-new-bar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 38px;
+  border-bottom: 1px solid #d6d6d6;
+  background: #fff;
+}
+.studio-ipad-content-new-bar b {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 4px;
+  text-align: center;
+  font-size: 20px;
+  line-height: 24px;
+  font-weight: 600;
+}
+.studio-ipad-content-new-bar .close {
+  position: absolute;
+  left: 20px;
+  top: -1px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #0250d9;
+  font-size: 19px;
+  cursor: pointer;
+}
+.studio-ipad-content-new-bar .off {
+  position: absolute;
+  top: -1px;
+  height: 34px;
+  line-height: 34px;
+  text-align: center;
+  font-size: 19px;
+  color: #c3c3c7;
+}
+.studio-ipad-content-new-bar .save {
+  left: 1030px;
+  width: 61px;
+}
+.studio-ipad-content-new-bar .saveas {
+  left: 1107px;
+  width: 83px;
+}
+.studio-ipad-content-new-left {
+  position: absolute;
+  left: 0;
+  top: 38px;
+  bottom: 0;
+  width: 390px;
+  box-sizing: border-box;
+  border-right: 1px solid #d6d6d6;
+  background: #fff;
+}
+.studio-ipad-content-new-left .head {
+  height: 51px;
+  box-sizing: border-box;
+  border-bottom: 1px solid #d6d6d6;
+  line-height: 50px;
+  text-align: center;
+  font-size: 21px;
+}
+.studio-ipad-content-new-left .search {
+  position: absolute;
+  left: 16px;
+  top: 65px;
+  width: 357px;
+  height: 36px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  border: 1.500px solid #5c5c5c;
+  border-radius: 7px;
+  background: #fff;
+}
+.studio-ipad-content-new-left .search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 19px;
+}
+.studio-ipad-content-new-left .seg {
+  position: absolute;
+  left: 17px;
+  top: 126px;
+  width: 356px;
+  height: 31px;
+  display: flex;
+  border-radius: 8px;
+  background: #e0e0e0;
+  font-size: 16px;
+}
+.studio-ipad-content-new-left .seg span {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.studio-ipad-content-new-left .seg .on {
+  margin: 2px;
+  border-radius: 7px;
+  background: #fff;
+  font-weight: 500;
+}
+.studio-ipad-content-new-left .list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 173px;
+  bottom: 0;
+  overflow: hidden;
+}
+.studio-ipad-content-new-left .row {
+  position: relative;
+  margin: 0 16px 16px;
+  height: 96px;
+  border-radius: 12px;
+  background: #f5f5f5;
+}
+.studio-ipad-content-new-left .thumb {
+  position: absolute;
+  left: 11px;
+  top: 16px;
+  width: 94px;
+  height: 64px;
+  background: #f1f1f1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+.studio-ipad-content-new-left .thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.studio-ipad-content-new-left .name {
+  position: absolute;
+  left: 115px;
+  top: 12px;
+  width: 215px;
+  max-height: 36px;
+  overflow: hidden;
+  font-size: 15px;
+  line-height: 17px;
+}
+.studio-ipad-content-new-left .meta {
+  position: absolute;
+  left: 115px;
+  top: 51px;
+  font-size: 13px;
+  line-height: 16px;
+  color: #3c3c43;
+}
+.studio-ipad-content-new-left .meta.pages {
+  top: 69px;
+}
+.studio-ipad-content-new-left .chev {
+  position: absolute;
+  left: 335px;
+  top: 40px;
+}
+.studio-ipad-content-new-right {
+  position: absolute;
+  left: 390px;
+  right: 0;
+  top: 38px;
+  bottom: 0;
+  background: #f3f3f3;
+}
+.studio-ipad-content-new-right .head {
+  position: relative;
+  height: 51px;
+  box-sizing: border-box;
+  border-bottom: 1px solid #d6d6d6;
+  background: #fff;
+}
+.studio-ipad-content-new-right .panel {
+  position: absolute;
+  left: 8px;
+  top: 12px;
+}
+.studio-ipad-content-new-right .title {
+  position: absolute;
+  left: 49px;
+  top: 12px;
+  font-size: 24px;
+  line-height: 29px;
+}
+.studio-ipad-content-new-right .pill {
+  position: absolute;
+  top: 9px;
+  height: 33px;
+  box-sizing: border-box;
+  border: 1px solid #c3c3c7;
+  border-radius: 17px;
+  line-height: 31px;
+  text-align: center;
+  font-size: 19px;
+  color: #b4b4b8;
+}
+.studio-ipad-content-new-right .remove {
+  left: 419px;
+  width: 119px;
+}
+.studio-ipad-content-new-right .reorder {
+  left: 550px;
+  width: 119px;
+}
+.studio-ipad-content-new-right .details {
+  left: 682px;
+  width: 122px;
+}
+.studio-ipad-content-new-right .body {
+  position: absolute;
+  inset: 51px 0 0 0;
+}
+.studio-ipad-content-new-right .body .studio-ipad-interact-empty {
+  inset: 0 0 50px 0;
+}
+.studio-ipad-content-new-right .body p {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 24px;
+  margin: 0;
+  text-align: center;
+  font-size: 14px;
+  color: #6d6d6d;
+}

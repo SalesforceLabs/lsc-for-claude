@@ -34,6 +34,10 @@ export interface LLMProviderConfig {
   model?: string;
   maxTokens?: number;
   temperature?: number;
+  /** Ask the endpoint to cache the system prompt, tools and conversation so far (Anthropic only; others ignore it). */
+  cache?: boolean;
+  /** Aborts the request and its stream. */
+  signal?: AbortSignal;
 }
 
 export interface LLMProvider {
@@ -47,6 +51,9 @@ export interface LLMProvider {
     onChunk?: (chunk: StreamChunk) => void
   ): Promise<Message>;
   validateCredentials(): Promise<boolean>;
+  /** Model ids the provider serves, when it can list them. */
+  listModels?(): Promise<string[] | null>;
+  /** Send a tiny message to `model`; throws a readable error when that fails. */
+  probe?(model: string): Promise<void>;
 }
 
-export type ProviderType = "api-key" | "bedrock-gateway" | "sf-gateway";

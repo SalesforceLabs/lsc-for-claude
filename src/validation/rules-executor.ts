@@ -15,10 +15,24 @@ import { getAllRules, getRulesByGroup, getValidationGroups } from "./rules-loade
 /**
  * Execute a single rule check against the org
  */
-async function executeCheck(
+/** A check's outcome. `unavailable` = it couldn't be evaluated (query failed, unsupported type or condition). */
+export interface CheckOutcome {
+  passed: boolean;
+  message: string;
+  details?: unknown;
+  unavailable?: boolean;
+}
+
+/** What a check may read beyond the org: the text a diagnosis was asked about. */
+export interface CheckContext {
+  symptom?: string;
+}
+
+export async function executeCheck(
   check: RuleCheck,
-  targetOrg: string
-): Promise<{ passed: boolean; message: string; details?: unknown }> {
+  targetOrg: string,
+  context: CheckContext = {}
+): Promise<CheckOutcome> {
   try {
     switch (check.type) {
       case "soql":
@@ -34,7 +48,12 @@ async function executeCheck(
         return await executeSoqlCountCheck(check, targetOrg, true);
 
       case "composite":
-        return await executeCompositeCheck(check, targetOrg);
+        return await executeCompositeCheck(check, targetOrg, context);
+
+      case "builtin": {
+        const { runBuiltinCheck } = await import("./builtin-checks.js");
+        return await runBuiltinCheck(check.name, targetOrg, context);
+      }
 
       case "metadata":
       case "api":
@@ -43,18 +62,21 @@ async function executeCheck(
         return {
           passed: true,
           message: `Check type '${check.type}' not yet implemented - skipped`,
+          unavailable: true,
         };
 
       default:
         return {
           passed: false,
           message: `Unknown check type: ${check.type}`,
+          unavailable: true,
         };
     }
   } catch (error) {
     return {
       passed: false,
       message: `Check execution failed: ${error instanceof Error ? error.message : String(error)}`,
+      unavailable: true,
     };
   }
 }
@@ -66,9 +88,9 @@ async function executeSoqlCheck(
   check: RuleCheck,
   targetOrg: string,
   useToolingApi: boolean = false
-): Promise<{ passed: boolean; message: string; details?: unknown }> {
+): Promise<CheckOutcome> {
   if (!check.query) {
-    return { passed: false, message: "No query specified for SOQL check" };
+    return { passed: false, message: "No query specified for SOQL check", unavailable: true };
   }
 
   const result = useToolingApi
@@ -82,30 +104,60 @@ async function executeSoqlCheck(
         passed: false,
         message: `Object not found in org - this feature may not be installed`,
         details: { error: result.error },
+        unavailable: true,
       };
     }
     return {
       passed: false,
       message: `Query failed: ${result.error}`,
       details: { error: result.error },
+      unavailable: true,
     };
   }
 
   const records = result.data?.records || [];
 
   // Evaluate the expect condition
-  const passed = evaluateExpectCondition(check.expect, {
+  const evaluated = evaluateExpectCondition(check.expect, {
     records,
     count: records.length,
   });
+  if (evaluated === null) {
+    return {
+      passed: false,
+      message: `Can't evaluate condition: ${check.expect}`,
+      unavailable: true,
+    };
+  }
+  const passed = evaluated;
+  // For an every(...) check, the records to show are the ones that broke it.
+  const fieldTest = parseFieldTest(check.expect);
+  const offending = fieldTest?.fn === "every" ? records.filter((r) => !fieldTest.test(r)) : records;
 
   return {
     passed,
     message: passed
       ? `Check passed (${records.length} records)`
-      : `Check failed: found ${records.length} records that don't meet criteria`,
-    details: passed ? undefined : { records: records.slice(0, 10) }, // Limit detail records
+      : `Check failed: found ${offending.length} records that don't meet criteria`,
+    details: passed ? undefined : { count: offending.length, records: offending.slice(0, 10) }, // Limit detail records
   };
+}
+
+/** Expectations that only ask whether any row matches. */
+const EXISTENCE_EXPECTS = new Set(["count > 0", "count >= 1", "count == 0"]);
+
+/**
+ * A plain `SELECT COUNT() FROM ...` whose rule only tests for presence is
+ * answered by reading one row: counting every match can time out on a large
+ * table when the answer needs only the first. Null when the query or the
+ * expectation needs the real number.
+ */
+function existenceQuery(check: RuleCheck): string | null {
+  const q = check.query?.trim().replace(/\s+/g, " ");
+  if (!q || !EXISTENCE_EXPECTS.has(check.expect)) return null;
+  const m = /^SELECT COUNT\(\) (FROM .+)$/i.exec(q);
+  if (!m || /\b(GROUP BY|LIMIT|HAVING|OFFSET)\b/i.test(m[1])) return null;
+  return `SELECT Id ${m[1]} LIMIT 1`;
 }
 
 /**
@@ -115,14 +167,16 @@ async function executeSoqlCountCheck(
   check: RuleCheck,
   targetOrg: string,
   useToolingApi: boolean = false
-): Promise<{ passed: boolean; message: string; details?: unknown }> {
+): Promise<CheckOutcome> {
   if (!check.query) {
-    return { passed: false, message: "No query specified for SOQL count check" };
+    return { passed: false, message: "No query specified for SOQL count check", unavailable: true };
   }
 
+  const exists = existenceQuery(check);
+  const sql = exists ?? check.query;
   const result = useToolingApi
-    ? await runToolingQuery(check.query, targetOrg)
-    : await runSoqlQuery(check.query, targetOrg);
+    ? await runToolingQuery(sql, targetOrg)
+    : await runSoqlQuery(sql, targetOrg);
 
   if (!result.success) {
     // Check if it's an object not found error
@@ -131,20 +185,43 @@ async function executeSoqlCountCheck(
         passed: false,
         message: `Object not found in org - this feature may not be installed`,
         details: { error: result.error },
+        unavailable: true,
       };
     }
     return {
       passed: false,
       message: `Query failed: ${result.error}`,
       details: { error: result.error },
+      unavailable: true,
     };
   }
 
   // For COUNT() queries, the result is in totalSize
-  const count = result.data?.totalSize || 0;
+  // (An existence query reads at most one row, so its count is 0 or 1.)
+  const count = exists
+    ? Math.min(1, result.data?.totalSize || result.data?.records?.length || 0)
+    : result.data?.totalSize || 0;
 
   // Evaluate the expect condition
-  const passed = evaluateExpectCondition(check.expect, { count });
+  const evaluated = evaluateExpectCondition(check.expect, { count });
+  if (evaluated === null) {
+    return {
+      passed: false,
+      message: `Can't evaluate condition: ${check.expect}`,
+      unavailable: true,
+    };
+  }
+  const passed = evaluated;
+
+  if (exists) {
+    return {
+      passed,
+      message: passed
+        ? `Check passed (${count ? "found a matching record" : "no matching record"})`
+        : `Check failed: ${count ? "a matching record exists" : "no matching record"}, expected ${check.expect}`,
+      details: { exists: count > 0 },
+    };
+  }
 
   return {
     passed,
@@ -160,33 +237,58 @@ async function executeSoqlCountCheck(
  */
 async function executeCompositeCheck(
   check: RuleCheck,
-  targetOrg: string
-): Promise<{ passed: boolean; message: string; details?: unknown }> {
+  targetOrg: string,
+  context: CheckContext
+): Promise<CheckOutcome> {
   if (!check.checks || check.checks.length === 0) {
-    return { passed: false, message: "No sub-checks specified for composite check" };
+    return {
+      passed: false,
+      message: "No sub-checks specified for composite check",
+      unavailable: true,
+    };
   }
 
-  const subResults: Array<{
-    passed: boolean;
-    message: string;
-    details?: unknown;
-  }> = [];
+  const subResults: CheckOutcome[] = [];
 
   for (const subCheck of check.checks) {
-    const subResult = await executeCheck(subCheck, targetOrg);
+    const subResult = await executeCheck(subCheck, targetOrg, context);
     subResults.push(subResult);
   }
 
   // All sub-checks must pass for composite to pass
   const allPassed = subResults.every((r) => r.passed);
+  // A sub-check that couldn't run (including the not-implemented types, which report passed) leaves the whole
+  // unknown — unless another sub-check definitely failed.
+  const definitelyFailed = subResults.some((r) => !r.passed && !r.unavailable);
 
   return {
     passed: allPassed,
+    unavailable: !definitelyFailed && subResults.some((r) => r.unavailable) ? true : undefined,
     message: allPassed
       ? `All ${subResults.length} sub-checks passed`
       : `${subResults.filter((r) => !r.passed).length} of ${subResults.length} sub-checks failed`,
     details: { subResults },
   };
+}
+
+/**
+ * records.some / records.every with one field compared to null or a quoted literal, e.g.
+ * "records.every(r => r.InternalSharingModel != 'Private')". Parsed, never evaluated as code.
+ */
+function parseFieldTest(
+  expect: string
+): { fn: "some" | "every"; test: (r: unknown) => boolean } | null {
+  const m = expect.match(
+    /^records\.(some|every)\(\s*(\w+)\s*=>\s*\2\.(\w+)\s*(==|!=)\s*(null|'[^']*')\s*\)$/
+  );
+  if (!m) return null;
+  const [, fn, , field, op, literal] = m;
+  const want = literal === "null" ? null : literal.slice(1, -1);
+  const test = (r: unknown) => {
+    const value = (r as Record<string, unknown>)[field] ?? null;
+    return op === "==" ? value === want : value !== want;
+  };
+  return { fn: fn as "some" | "every", test };
 }
 
 /**
@@ -198,11 +300,13 @@ async function executeCompositeCheck(
  * - "records.length > 0"
  * - "records.length == 0"
  * - "true" (always pass)
+ *
+ * Returns null when the condition can't be evaluated.
  */
 function evaluateExpectCondition(
   expect: string,
   context: { records?: unknown[]; count?: number; result?: unknown }
-): boolean {
+): boolean | null {
   try {
     // Handle simple cases first
     if (expect === "true") return true;
@@ -223,31 +327,31 @@ function evaluateExpectCondition(
       if (expect === "count < 5") return actualCount < 5;
 
       // Parse "count <= N" pattern
-      const countLteMatch = expect.match(/count\s*<=\s*(\d+)/);
+      const countLteMatch = expect.match(/^count\s*<=\s*(\d+)$/);
       if (countLteMatch) {
         return actualCount <= parseInt(countLteMatch[1], 10);
       }
 
       // Parse "count >= N" pattern
-      const countGteMatch = expect.match(/count\s*>=\s*(\d+)/);
+      const countGteMatch = expect.match(/^count\s*>=\s*(\d+)$/);
       if (countGteMatch) {
         return actualCount >= parseInt(countGteMatch[1], 10);
       }
 
       // Parse "count < N" pattern
-      const countLtMatch = expect.match(/count\s*<\s*(\d+)/);
+      const countLtMatch = expect.match(/^count\s*<\s*(\d+)$/);
       if (countLtMatch) {
         return actualCount < parseInt(countLtMatch[1], 10);
       }
 
       // Parse "count > N" pattern
-      const countGtMatch = expect.match(/count\s*>\s*(\d+)/);
+      const countGtMatch = expect.match(/^count\s*>\s*(\d+)$/);
       if (countGtMatch) {
         return actualCount > parseInt(countGtMatch[1], 10);
       }
 
       // Parse "count == N" pattern
-      const countEqMatch = expect.match(/count\s*==\s*(\d+)/);
+      const countEqMatch = expect.match(/^count\s*==\s*(\d+)$/);
       if (countEqMatch) {
         return actualCount === parseInt(countEqMatch[1], 10);
       }
@@ -261,29 +365,25 @@ function evaluateExpectCondition(
       if (expect === "records.length == 0") return len === 0;
       if (expect === "records.length >= 0") return len >= 0;
 
-      const lenEqMatch = expect.match(/records\.length\s*==\s*(\d+)/);
+      const lenEqMatch = expect.match(/^records\.length\s*==\s*(\d+)$/);
       if (lenEqMatch) {
         return len === parseInt(lenEqMatch[1], 10);
       }
     }
 
     // Complex expressions with records.some() or records.every()
-    if (expect.includes("records.some(") || expect.includes("records.every(")) {
-      // For safety, we'll handle specific known patterns
-      if (expect.includes("ActiveVersionId != null")) {
-        // Check if any record has a non-null ActiveVersionId
-        return (
-          records?.some((r) => (r as Record<string, unknown>).ActiveVersionId != null) ?? false
-        );
-      }
+    const fieldTest = parseFieldTest(expect);
+    if (fieldTest) {
+      const { fn, test } = fieldTest;
+      return fn === "some" ? (records?.some(test) ?? false) : (records?.every(test) ?? true);
     }
 
     // If we can't parse the condition, log it and return false for safety
     console.error(`Unable to evaluate expect condition: ${expect}`);
-    return false;
+    return null;
   } catch (error) {
     console.error(`Error evaluating expect condition '${expect}':`, error);
-    return false;
+    return null;
   }
 }
 

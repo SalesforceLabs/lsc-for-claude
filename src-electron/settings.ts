@@ -1,41 +1,51 @@
 import fs from "fs";
 import path from "path";
 import { app } from "electron";
+import { Connection, LegacyLlmSettings, migrateLegacyConnection } from "./llm/connection.js";
 
 export interface Settings {
-  providerType: "api-key" | "bedrock-gateway" | "sf-gateway" | "";
-  apiKey?: string;
-  // Bedrock / custom Anthropic-compatible gateway
-  baseUrl?: string;
-  authToken?: string;
-  // Salesforce LLM Gateway (internal; kept for back-compat)
-  gatewayUrl?: string;
-  gatewayToken?: string;
+  /** How the app reaches a model; its key or token is in the keychain (secrets.ts). */
+  connection?: Connection;
   model?: string;
   theme?: "light" | "dark" | "system";
   sfTargetOrg?: string;
+  // LSC mobile app connected-app consumer key, for First sync mobile login
+  mobileClientId?: string;
+  /** Which Roz icon the Dock or window shows (app-icon.ts). */
+  appIcon?: string;
+  /** Per org (lowercased username): deployed from source control, and the folder source files were last saved to. */
+  sourceControl?: Record<string, { deployed: boolean; folder?: string }>;
+  /** Per org (lowercased username): the Salesforce API version pinned from the status bar; none = the org's own. */
+  apiVersions?: Record<string, string>;
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  providerType: "",
   model: "claude-sonnet-5",
   theme: "system",
 };
+
+/** Fields from before connections, holding secrets in plain text — moved out by migrateSettings. */
+const LEGACY_FIELDS = ["providerType", "apiKey", "baseUrl", "authToken", "gatewayUrl", "gatewayToken"] as const;
 
 function getSettingsPath(): string {
   const userDataPath = app.getPath("userData");
   return path.join(userDataPath, "settings.json");
 }
 
-export function loadSettings(): Settings {
+function readRaw(): Record<string, unknown> {
   try {
     const filePath = getSettingsPath();
-    if (!fs.existsSync(filePath)) return { ...DEFAULT_SETTINGS };
-    const raw = fs.readFileSync(filePath, "utf-8");
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    if (!fs.existsSync(filePath)) return {};
+    return JSON.parse(fs.readFileSync(filePath, "utf-8"));
   } catch {
-    return { ...DEFAULT_SETTINGS };
+    return {};
   }
+}
+
+export function loadSettings(): Settings {
+  const raw = readRaw();
+  for (const field of LEGACY_FIELDS) delete raw[field];
+  return { ...DEFAULT_SETTINGS, ...raw } as Settings;
 }
 
 export function saveSettings(settings: Settings): void {
@@ -44,5 +54,21 @@ export function saveSettings(settings: Settings): void {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  fs.writeFileSync(filePath, JSON.stringify(settings, null, 2));
+  // Only this user may read it: it names the gateway, its headers and token command.
+  fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), { mode: 0o600 });
+  fs.chmodSync(filePath, 0o600);
+}
+
+/**
+ * One-time move from the old provider fields to a connection, with the plain-text
+ * key handed to `storeSecret` (the keychain) and removed from settings.json.
+ */
+export function migrateSettings(storeSecret: (connection: Connection, secret: string) => void): void {
+  const raw = readRaw();
+  if (!LEGACY_FIELDS.some((field) => field in raw)) return;
+  const migrated = raw.connection ? null : migrateLegacyConnection(raw as LegacyLlmSettings);
+  if (migrated?.secret) storeSecret(migrated.connection, migrated.secret);
+  for (const field of LEGACY_FIELDS) delete raw[field];
+  if (migrated) raw.connection = migrated.connection;
+  saveSettings(raw as Settings);
 }

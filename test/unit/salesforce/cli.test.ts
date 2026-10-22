@@ -26,6 +26,9 @@ vi.mock("util", async (importOriginal) => {
   };
 });
 
+// These tests cover the sf CLI path; the direct REST fast path has its own (direct.test.ts).
+process.env.LSC_SF_DIRECT = "0";
+
 const { spawn, exec } = await import("child_process");
 const mockSpawn = vi.mocked(spawn);
 
@@ -52,9 +55,26 @@ const {
   updateToolingRecord,
   deleteToolingRecord,
   deployMetadata,
+  deployOutcome,
+  ensureTmpSfdxProject,
   retrieveMetadata,
   listMetadata,
+  orgApiVersion,
 } = await import("../../../src/salesforce/cli.js");
+
+// URLs carry the org's API version, read once per org from `sf org display`; read it for
+// "my-org" up front so each test's spawns are only the calls it makes.
+{
+  const proc = createMockChildProcess();
+  mockSpawn.mockReturnValue(proc);
+  const version = orgApiVersion("my-org");
+  setTimeout(() => {
+    proc.stdout!.emit("data", Buffer.from(JSON.stringify({ status: 0, result: { instanceUrl: "https://my-org.my.salesforce.com", apiVersion: "66.0", accessToken: "token" } })));
+    proc.emit("close", 0);
+  }, 0);
+  await version;
+  mockSpawn.mockClear();
+}
 
 describe("cli.ts", () => {
   let mockProc: ChildProcess;
@@ -164,6 +184,18 @@ describe("cli.ts", () => {
         expect.any(Object)
       );
       expect(result.success).toBe(true);
+    });
+
+    it("skips the per-org connection check when asked", async () => {
+      const promise = listOrgs({ connectionStatus: false });
+      simulateSfSuccess(mockProc, { nonScratchOrgs: [], scratchOrgs: [] });
+      await promise;
+
+      expect(mockSpawn).toHaveBeenCalledWith(
+        "sf",
+        expect.arrayContaining(["org", "list", "--skip-connection-status"]),
+        expect.any(Object)
+      );
     });
   });
 
@@ -646,6 +678,51 @@ describe("cli.ts", () => {
     });
   });
 
+  describe("ensureTmpSfdxProject()", () => {
+    it("uses a source API version new enough for objects like Inquiry", () => {
+      const dir = ensureTmpSfdxProject();
+      const fs = require("fs");
+      const proj = JSON.parse(fs.readFileSync(require("path").join(dir, "sfdx-project.json"), "utf8"));
+      expect(parseFloat(proj.sourceApiVersion)).toBeGreaterThanOrEqual(66);
+    });
+  });
+
+  describe("deployOutcome()", () => {
+    it("turns a deploy the org rejected into a failure with the org's reason", () => {
+      const r = deployOutcome({
+        success: true,
+        data: {
+          status: "Failed",
+          success: false,
+          numberComponentErrors: 1,
+          details: { componentFailures: [{ fullName: "Home_Page", problem: "Invalid component [flexipage:recentItems]: missing required property [entityNames]" }] },
+        },
+      });
+      expect(r.success).toBe(false);
+      expect(r.error).toBe("Home_Page: Invalid component [flexipage:recentItems]: missing required property [entityNames]");
+    });
+
+    it("accepts a single failure object and a bare Failed status", () => {
+      expect(deployOutcome({ success: true, data: { details: { componentFailures: { fullName: "X", problem: "bad", lineNumber: 4 } } } }).error).toBe("X: bad (line 4)");
+      expect(deployOutcome({ success: true, data: { status: "Failed" } }).error).toBe("The deploy failed.");
+    });
+
+    it("leaves a deploy that succeeded, and CLI failures, alone", () => {
+      const ok = { success: true, data: { status: "Succeeded", success: true, numberComponentErrors: 0, details: { componentFailures: [] } } };
+      expect(deployOutcome(ok)).toBe(ok);
+      const bad = { success: false, error: "no org" };
+      expect(deployOutcome(bad)).toBe(bad);
+    });
+
+    it("deployMetadata() reports a rejected deploy as failed", async () => {
+      const promise = deployMetadata("/path/to/source", "my-org");
+      simulateSfSuccess(mockProc, { status: "Failed", success: false, details: { componentFailures: [{ fullName: "P", problem: "nope" }] } });
+      const r = await promise;
+      expect(r.success).toBe(false);
+      expect(r.error).toContain("nope");
+    });
+  });
+
   // ==========================================================================
   // retrieveMetadata
   // ==========================================================================
@@ -671,6 +748,23 @@ describe("cli.ts", () => {
       );
       expect(result.success).toBe(true);
       expect(result.data?.outputDir).toContain("retrieve-output");
+    });
+
+    it("gives retrieves started in the same millisecond their own folders", async () => {
+      // Studio previews fixes side by side; two Lightning pages retrieved into one folder came back as each other's XML.
+      const now = vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
+      try {
+        const first = retrieveMetadata("", "FlexiPage:A", "my-org");
+        simulateSfSuccess(mockProc, {});
+        const a = await first;
+        const second = retrieveMetadata("", "FlexiPage:B", "my-org");
+        simulateSfSuccess(mockProc, {});
+        const b = await second;
+        expect(a.data?.outputDir).toBeTruthy();
+        expect(a.data?.outputDir).not.toBe(b.data?.outputDir);
+      } finally {
+        now.mockRestore();
+      }
     });
   });
 

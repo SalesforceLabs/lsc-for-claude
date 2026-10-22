@@ -1,0 +1,308 @@
+/* What the ••• menu items and the Agentforce button open, in screen points (measured on LSC Mobile, 1210x834). */
+.studio-ipad-act-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
+}
+
+.studio-ipad-act-sheet {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #fff;
+  color: #2e2e2e;
+}
+.studio-ipad-act-sheet.inquiry { left: 121px; top: 52px; width: 968px; height: 750px; }
+.studio-ipad-act-sheet.providers { left: 315px; top: 97px; width: 580px; height: 640px; }
+.studio-ipad-act-sheet.nbc { left: 242px; top: 52px; width: 726px; height: 750px; background: #f3f3f3; }
+.studio-ipad-act-sheet.survey { left: 205px; top: 89px; width: 800px; height: 656px; }
+.studio-ipad-act-sheet.placeholder { left: 321px; top: 202px; width: 568px; height: 380px; }
+
+/* Full screen (status bar stays): fullScreen navigation controllers. */
+.studio-ipad-act-full {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: #f2f2f2;
+  color: #2e2e2e;
+  pointer-events: auto;
+}
+.studio-ipad-act-full > .studio-ipad-statusbar { flex: none; background: #f6f6f6; }
+.studio-ipad-act-full.agent { background: #fff; }
+
+.studio-ipad-act-nav {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  height: 58px;
+  padding: 8px 20px 0;
+  border-bottom: 1px solid #c8c8c8;
+  background: #f6f6f6;
+}
+.studio-ipad-act-nav.plain { height: 56px; padding: 0 16px; background: #fff; border-bottom-color: #ddd; }
+.studio-ipad-act-nav-l, .studio-ipad-act-nav-r { display: flex; align-items: center; gap: 8px; min-width: 120px; }
+.studio-ipad-act-nav-r { justify-content: flex-end; }
+.studio-ipad-act-nav-t { position: absolute; left: 0; right: 0; top: 8px; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 19px; font-weight: 600; pointer-events: none; }
+.studio-ipad-act-nav.plain .studio-ipad-act-nav-t { top: 0; font-size: 18px; }
+
+.studio-ipad-act-link { padding: 0; border: none; background: none; color: #0250d9; font-size: 18px; cursor: pointer; }
+.studio-ipad-act-link:disabled { color: #b8b8b8; cursor: default; }
+.studio-ipad-act-link.back { font-size: 18px; }
+.studio-ipad-act-full.browser .studio-ipad-act-link { color: #666; }
+.studio-ipad-act-survey .studio-ipad-act-link, .studio-ipad-act-sheet.survey .studio-ipad-act-link { color: #666; }
+
+.studio-ipad-act-pill { box-sizing: border-box; display: inline-flex; align-items: center; height: 38px; padding: 0 16px; border: 1px solid #0250d9; border-radius: 20px; background: #fff; color: #0250d9; font-size: 18px; font-weight: 600; }
+.studio-ipad-act-pill.disabled { border-color: #ccc; color: #b0b0b0; }
+.studio-ipad-act-pill.split { padding-right: 0; }
+.studio-ipad-act-split { margin-left: 14px; padding: 0 12px; border-left: 1px solid #0250d9; line-height: 36px; }
+
+.studio-ipad-act-ico { width: 40px; text-align: center; font-size: 26px; color: #444; }
+button.studio-ipad-act-ico { padding: 0; background: none; border: none; font: inherit; font-size: 26px; cursor: pointer; }
+button.studio-ipad-act-ico:disabled { cursor: default; }
+.studio-ipad-act-ico.disabled { color: #bbb; }
+
+.studio-ipad-act-body { flex: 1; overflow: auto; padding: 32px 20px; }
+.studio-ipad-act-body.form { padding: 12px 20px 40px; }
+.studio-ipad-act-body.nbc { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+
+.studio-ipad-act-note { margin: 16px 0 0; padding: 8px 12px; border-radius: 8px; background: #fff8e1; color: #6b5200; font-size: 13px; line-height: 1.4; }
+
+/* Inquiry record type picker */
+.studio-ipad-act-radio { position: relative; display: flex; align-items: center; box-sizing: border-box; height: 88px; margin-bottom: 22px; padding: 0 30px; border: 1px solid #c9c9c9; border-radius: 8px; font-size: 21px; font-weight: 600; cursor: pointer; }
+.studio-ipad-act-radio.on { border-color: #0250d9; }
+.studio-ipad-act-tick { position: absolute; top: 0; right: 0; width: 38px; height: 38px; background: linear-gradient(225deg, #0250d9 50%, transparent 50%); border-top-right-radius: 7px; }
+.studio-ipad-act-tick::after { content: "✓"; position: absolute; top: 2px; right: 6px; color: #fff; font-size: 16px; }
+
+/* Forms */
+.studio-ipad-act-section h3 { margin: 16px 0 12px; font-size: 20px; font-weight: 600; }
+.studio-ipad-act-grid { display: grid; gap: 14px 50px; align-items: start; }
+.studio-ipad-act-grid.two { grid-template-columns: 1fr 1fr; gap: 20px 47px; }
+.studio-ipad-act-field { min-width: 0; }
+.studio-ipad-act-label { margin-bottom: 8px; color: #444; font-size: 15px; }
+.studio-ipad-act-req { margin-right: 6px; color: #c23934; font-weight: 700; }
+.studio-ipad-act-box { box-sizing: border-box; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border: 1px solid #8a8a8a; border-radius: 9px; background: #fff; font-size: 17px; }
+.studio-ipad-act-box > span:first-child { flex: 1; }
+.studio-ipad-act-box.tall { height: 120px; }
+.studio-ipad-act-box.col > span { flex: none; }
+.studio-ipad-act-box.col { flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; padding: 0 20px; }
+.studio-ipad-act-grow { flex: 1; }
+.studio-ipad-act-plus { flex: none !important; color: #0250d9; font-size: 22px; }
+.studio-ipad-act-acct { font-size: 17px; }
+.studio-ipad-act-switch { color: #0250d9; font-size: 16px; }
+.studio-ipad-act-caret { flex: none; }
+.studio-ipad-act-static { min-height: 20px; font-size: 17px; }
+.studio-ipad-act-input { box-sizing: border-box; width: 100%; height: 36px; padding: 0 12px; border: 1px solid #8a8a8a; border-radius: 9px; font: inherit; font-size: 17px; }
+.studio-ipad-act-input.area { height: 100px; padding: 8px 12px; }
+.studio-ipad-act-toggle { display: block; position: relative; width: 52px; height: 32px; border-radius: 16px; background: #8e8e93; }
+.studio-ipad-act-toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 28px; height: 28px; border-radius: 50%; background: #fff; }
+
+/* Visit Engagement */
+.studio-ipad-act-visit { flex: 1; display: flex; min-height: 0; padding-top: 16px; }
+.studio-ipad-act-side { flex: none; width: 339px; margin: 0 16px; }
+.studio-ipad-act-card { display: flex; align-items: center; box-sizing: border-box; min-height: 57px; margin-bottom: 16px; padding: 8px 20px; border-radius: 14px; background: #fff; font-size: 20px; font-weight: 600; }
+.studio-ipad-act-chev { display: inline-block; width: 22px; color: #555; font-size: 26px; font-weight: 400; line-height: 20px; }
+.studio-ipad-act-chev.down { transform: rotate(90deg); margin-right: 4px; }
+.studio-ipad-act-main { flex: 1; overflow: auto; margin-right: 16px; padding: 18px 36px 40px 36px; border-radius: 20px 20px 0 0; background: #fff; }
+.studio-ipad-act-mainhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; font-size: 20px; font-weight: 600; }
+.studio-ipad-act-reqnote { font-size: 15px; font-weight: 400; }
+
+/* Provider picker */
+.studio-ipad-act-search { display: flex; align-items: center; gap: 8px; box-sizing: border-box; height: 34px; margin: 10px 10px 4px; padding: 0 10px; border: 1px solid #8a8a8a; border-radius: 17px; color: #777; }
+.studio-ipad-act-search input { flex: 1; border: none; outline: none; background: none; font-size: 18px; }
+.studio-ipad-act-search.wide { flex: 1; margin: 0; }
+.studio-ipad-act-list { flex: 1; overflow: auto; }
+.studio-ipad-act-prov { display: flex; align-items: center; gap: 10px; box-sizing: border-box; height: 60px; padding: 0 10px; border-bottom: 1px solid #e3e3e3; background-clip: content-box; font-size: 18px; cursor: pointer; }
+.studio-ipad-act-prov.plain { height: auto; padding: 0; border: none; margin-bottom: 14px; cursor: default; }
+.studio-ipad-act-avatar { flex: none; width: 40px; height: 40px; border-radius: 50%; background: #5867e8; }
+.studio-ipad-act-blue { color: #0250d9; font-size: 18px; font-weight: 600; }
+
+/* Email templates */
+.studio-ipad-act-tplbar { display: flex; align-items: center; gap: 16px; padding: 10px 18px; background: #fff; font-size: 17px; }
+.studio-ipad-act-filter b { margin-left: 6px; color: #0250d9; font-weight: 600; }
+.studio-ipad-act-tplhead { margin: 0; padding: 12px 20px 10px; border-bottom: 1px solid #ccc; background: #fff; font-size: 20px; font-weight: 600; }
+
+/* NBC and Survey */
+.studio-ipad-act-grabber { align-self: center; flex: none; width: 36px; height: 5px; margin: 6px 0 -6px; border-radius: 3px; background: #c4c4c4; }
+.studio-ipad-act-white { padding: 22px 16px 16px; border-radius: 14px; background: #fff; box-shadow: 0 0 6px rgba(0, 0, 0, 0.12); }
+.studio-ipad-act-white.empty { display: flex; flex-direction: column; align-items: center; padding: 40px 30px; text-align: center; }
+.studio-ipad-act-addr { margin: 0 0 14px; font-size: 15px; }
+.studio-ipad-act-outline { display: inline-block; padding: 7px 16px; border: 1px solid #555; border-radius: 20px; color: #0250d9; font-size: 18px; font-weight: 600; }
+.studio-ipad-act-emptyt { margin-top: 10px; font-size: 20px; font-weight: 600; }
+.studio-ipad-act-emptyd { margin-top: 8px; color: #444; font-size: 17px; line-height: 1.3; }
+.studio-ipad-act-seg { align-self: center; display: flex; margin: 18px 0 8px; padding: 2px; border-radius: 9px; background: #e3e3e8; font-size: 15px; }
+.studio-ipad-act-seg span { padding: 6px 24px; border-radius: 7px; cursor: pointer; }
+.studio-ipad-act-seg span.on { background: #fff; font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); }
+.studio-ipad-act-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-nav { background: #f3f3f3; }
+
+/* In-app browser and facts sheets */
+.studio-ipad-act-web { position: relative; flex: 1; min-height: 0; display: flex; background: #fff; }
+.studio-ipad-act-webview { flex: 1; width: 100%; height: 100%; border: none; }
+.studio-ipad-act-webstatus { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); max-width: 80%; padding: 6px 12px; border-radius: 14px; background: rgba(0, 0, 0, 0.7); color: #fff; font-size: 13px; display: flex; align-items: center; gap: 10px; }
+.studio-ipad-act-webstatus button { padding: 0; background: none; border: none; color: #8ab4ff; font: inherit; cursor: pointer; }
+.studio-ipad-act-signin { display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 520px; }
+.studio-ipad-act-signint { font-size: 22px; font-weight: 600; }
+.studio-ipad-act-signinbtn { padding: 10px 20px; border: none; border-radius: 10px; background: #0250d9; color: #fff; font: inherit; font-size: 16px; cursor: pointer; }
+.studio-ipad-act-signinbtn:disabled { opacity: 0.6; cursor: default; }
+.studio-ipad-act-signinerr { color: #ba0517; font-size: 14px; }
+.studio-ipad-act-webstatus.error { background: rgba(186, 5, 23, 0.85); }
+.studio-ipad-act-webplaceholder { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #fff; text-align: center; padding: 0 120px; }
+.studio-ipad-act-weburl { max-width: 100%; padding: 10px 16px; border-radius: 10px; background: #f3f3f3; font-size: 16px; word-break: break-all; }
+.studio-ipad-act-webnote { color: #666; font-size: 14px; }
+.studio-ipad-act-facts { display: grid; grid-template-columns: 90px 1fr; gap: 10px 12px; margin: 0; font-size: 16px; }
+.studio-ipad-act-facts dt { color: #666; }
+.studio-ipad-act-facts dd { margin: 0; word-break: break-all; }
+
+/* Agentforce panel */
+.studio-ipad-act-agentnav { position: relative; flex: none; display: flex; align-items: center; justify-content: space-between; height: 64px; padding: 8px 20px 0; border-bottom: 1px solid #ddd; box-sizing: border-box; }
+.studio-ipad-act-agentt { position: absolute; left: 0; right: 0; top: 8px; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 16.5px; font-weight: 500; pointer-events: none; }
+.studio-ipad-act-circle { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: none; border-radius: 50%; background: #efefef; color: #0250d9; font-size: 16px; }
+button.studio-ipad-act-circle { cursor: pointer; }
+.studio-ipad-act-chat { flex: 1; padding: 16px 160px; overflow: auto; }
+.studio-ipad-act-bubble { box-sizing: border-box; width: fit-content; max-width: 60%; margin-left: auto; padding: 11px 12px; border-radius: 18px; background: #e5f2ff; font-size: 16px; }
+.studio-ipad-act-composer { flex: none; box-sizing: border-box; width: 906px; height: 106px; margin: 0 auto; padding: 14px 20px 0; border: 1px solid #c9c9c9; border-radius: 40px; }
+.studio-ipad-act-ask { color: #aaa; font-size: 17px; line-height: 22px; }
+.studio-ipad-act-composer-row { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; }
+.studio-ipad-act-agentpill { display: inline-flex; align-items: center; gap: 8px; box-sizing: border-box; height: 40px; padding: 0 12px 0 12px; border: 1px solid #555; border-radius: 20px; color: #0250d9; font-size: 16px; font-weight: 600; }
+.studio-ipad-act-mic { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: #0250d9; }
+.studio-ipad-act-disclaimer { flex: none; padding: 8px 0 31px; text-align: center; color: #888; font-size: 12px; }
+
+/* New Visit editor: the device's metrics (row pitch 75pt, Account and Place boxes 120pt; 1210x834 points). */
+.studio-ipad-act-card { min-height: 0; padding: 17.75px 20px; font-weight: 500; line-height: 22px; }
+.studio-ipad-act-card .studio-ipad-act-chev { width: 15px; flex: none; }
+.studio-ipad-act-cardl { max-width: 170px; }
+.studio-ipad-act-main:has(.studio-ipad-act-grid.two) { padding-top: 0; }
+.studio-ipad-act-main .studio-ipad-act-mainhead { height: 59px; margin-bottom: 0; }
+.studio-ipad-act-grid.two { gap: 0 40px; }
+.studio-ipad-act-field.vfield { box-sizing: border-box; height: 75px; }
+.studio-ipad-act-field.vfield.tall { height: 160px; }
+.vfield .studio-ipad-act-label { height: 18px; margin-bottom: 2px; font-size: 15px; line-height: 18px; }
+.vfield .studio-ipad-act-box { height: 35px; padding: 0 10px; border-color: #7a7a7a; border-radius: 8px; }
+.vfield .studio-ipad-act-box.tall { height: 120px; }
+.vfield .studio-ipad-act-static { min-height: 19px; line-height: 19px; }
+.vfield .studio-ipad-act-toggle { margin-top: 0; }
+
+.studio-ipad-act-box.acct, .studio-ipad-act-box.place { position: relative; display: block; padding: 0; border-radius: 12px; }
+.studio-ipad-act-acctico { position: absolute; left: 20px; top: 20px; width: 40px; height: 40px; box-sizing: border-box; padding: 9px; border-radius: 50%; }
+.studio-ipad-act-acctname { position: absolute; left: 72px; top: 20px; color: #0250d9; font-size: 19px; line-height: 19px; text-decoration: underline; }
+.studio-ipad-act-acctsub { position: absolute; left: 72px; top: 44px; font-size: 19px; line-height: 19px; }
+.studio-ipad-act-box.acct .studio-ipad-act-switch { position: absolute; left: 72px; top: 71px; font-size: 17px; line-height: 29px; }
+.studio-ipad-act-placetext { position: absolute; left: 16px; right: 44px; top: 27px; font-size: 17px; line-height: 19px; }
+.studio-ipad-act-badges { position: absolute; left: 17px; top: 71px; display: flex; gap: 10px; }
+.studio-ipad-act-badge { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 4px; font-size: 14px; }
+.studio-ipad-act-badge.valid { background: #acf3e4; color: #0b6b5d; }
+.studio-ipad-act-badge.invalid { background: #fddde3; color: #ba0517; }
+.studio-ipad-act-box.place .studio-ipad-act-caret { position: absolute; right: 12px; top: 56px; }
+.studio-ipad-act-pill.disabled { gap: 8px; }
+.studio-ipad-act-split .studio-ipad-act-caret path { fill: #0250d9; }
+.studio-ipad-act-split { display: inline-flex; align-items: center; height: 36px; padding: 0 12px; line-height: normal; }
+.studio-ipad-act-main:has(.studio-ipad-act-grid.two) { padding-right: 34px; }
+.studio-ipad-act-main .studio-ipad-act-mainhead { margin-left: -18px; margin-right: -23px; }
+.studio-ipad-act-mainhead .studio-ipad-act-chev.down { width: 14px; margin-right: 3px; }
+/* New Visit with no account: "None" and Switch Account, no icon; an empty Place is centred. */
+.studio-ipad-act-acctnone { position: absolute; left: 19px; top: 31px; font-size: 17px; line-height: 19px; }
+.studio-ipad-act-box.acct.none .studio-ipad-act-switch { left: 19px; top: 59px; font-size: 14px; }
+.studio-ipad-act-box.place.none .studio-ipad-act-placetext { top: 50px; }
+/* Visit Engagement header, measured against the device: 1px taller, slightly tighter pills. */
+.studio-ipad-act-nav:has(+ .studio-ipad-act-visit) { padding-left: 18px; padding-top: 10px; }
+.studio-ipad-act-nav:has(+ .studio-ipad-act-visit) .studio-ipad-act-pill { padding: 0 13px; }
+.studio-ipad-act-nav:has(+ .studio-ipad-act-visit) .studio-ipad-act-pill.split { padding-right: 0; }
+/* Header pills measured on the device: outer widths 166 / 71 / 126, 37pt tall, 6pt apart, right edge at 1190; the bar is white. */
+.studio-ipad-act-full:has(.studio-ipad-act-visit) > .studio-ipad-statusbar { background: #fff; }
+.studio-ipad-act-nav:has(+ .studio-ipad-act-visit) { background: #fff; padding-right: 19px; height: 59px; border-bottom-color: #d1d1d1; }
+.studio-ipad-act-nav:has(+ .studio-ipad-act-visit) .studio-ipad-act-nav-r { gap: 6px; }
+.studio-ipad-act-nav:has(+ .studio-ipad-act-visit) .studio-ipad-act-pill { height: 37px; padding: 0; justify-content: center; }
+.studio-ipad-act-nav:has(+ .studio-ipad-act-visit) .studio-ipad-act-pill.disabled { width: 166px; }
+.studio-ipad-act-nav:has(+ .studio-ipad-act-visit) .studio-ipad-act-pill:not(.disabled):not(.split) { width: 71px; }
+.studio-ipad-act-nav:has(+ .studio-ipad-act-visit) .studio-ipad-act-pill.split { width: 126px; justify-content: space-between; }
+.studio-ipad-act-nav:has(+ .studio-ipad-act-visit) .studio-ipad-act-pill.split::before { content: ""; width: 40px; }
+.studio-ipad-act-nav:has(+ .studio-ipad-act-visit) .studio-ipad-act-pill.split > .studio-ipad-act-split { margin: 0; width: 40px; height: 35px; padding: 0; justify-content: center; box-sizing: border-box; }
+/* New Inquiry sheet header, measured on the device: divider at y=108, labels about 2pt lower than the generic plain bar. */
+.studio-ipad-act-sheet.inquiry .studio-ipad-act-nav.plain { height: 57px; padding-top: 3px; }
+.studio-ipad-act-sheet.inquiry .studio-ipad-act-nav.plain .studio-ipad-act-nav-t { top: 3px; }
+/* New Inquiry form, measured on the device: headings 21pt tall 14pt below the bar or the last row, rows 75pt apart, columns 444pt wide at x=141 and x=625. */
+.studio-ipad-act-sheet.inquiry .studio-ipad-act-body.form { padding: 0 20px 40px; }
+.studio-ipad-act-body.form .studio-ipad-act-section h3 { height: 21px; margin: 14px 0 35px; font-size: 19px; font-weight: 500; line-height: 21px; }
+.studio-ipad-act-body.form .studio-ipad-act-grid.two { grid-template-columns: 1fr 1fr; gap: 0 40px; }
+.studio-ipad-act-body.form .vfield.wide { grid-column: 1 / -1; }
+.studio-ipad-act-body.form .vfield.padded { height: 105px; }
+.studio-ipad-act-body.form .vfield.area { height: 210px; }
+.studio-ipad-act-body.form .vfield .studio-ipad-act-box.tall { height: 168px; align-items: flex-start; padding-top: 10px; }
+.studio-ipad-act-body.form .vfield .studio-ipad-act-box.tall svg { margin-top: 0; }
+.studio-ipad-act-sheet.inquiry .studio-ipad-act-link.back { display: inline-flex; align-items: center; gap: 8px; margin-left: -4px; }
+.studio-ipad-act-sheet.inquiry .studio-ipad-act-body { scrollbar-width: none; }
+.studio-ipad-act-sheet.inquiry .studio-ipad-act-body::-webkit-scrollbar { display: none; }
+.studio-ipad-act-body.form .studio-ipad-act-section h3 { font-weight: 600; font-size: 18px; }
+/* In-app browser bar, measured on the device: #f3f3f3 with no rule, 15pt Close, 17pt title, 50pt icon slots centred at 1029 / 1079 / 1129 / 1179. */
+.studio-ipad-act-full.browser > .studio-ipad-statusbar, .studio-ipad-act-full.browser .studio-ipad-act-nav { background: #f3f3f3; }
+.studio-ipad-act-full.browser .studio-ipad-act-nav { height: 58px; padding: 8px 5px 0 21px; border-bottom: none; box-shadow: 0 1px 0 #fcfcfc; }
+.studio-ipad-act-full.browser .studio-ipad-act-nav-t { top: 12px; font-size: 17px; }
+.studio-ipad-act-full.browser .studio-ipad-act-link { font-size: 15px; }
+.studio-ipad-act-full.browser .studio-ipad-act-nav-r { gap: 0; }
+.studio-ipad-act-full.browser .studio-ipad-act-ico { display: flex; align-items: center; justify-content: center; width: 50px; height: 50px; color: #555; }
+.studio-ipad-act-full.browser .studio-ipad-act-ico.disabled { color: #c4c4c4; }
+/* Choose provider, measured on the device: rows start 10pt under the search field; the separators run from the name to 16pt short of the right edge. */
+.studio-ipad-act-sheet.providers .studio-ipad-act-search { margin-bottom: 10px; }
+.studio-ipad-act-sheet.providers .studio-ipad-act-prov { position: relative; border-bottom: none; }
+.studio-ipad-act-sheet.providers .studio-ipad-act-prov::after { content: ""; position: absolute; left: 60px; right: 16px; bottom: 0; height: 1px; background: #d9d9d9; }
+.studio-ipad-act-sheet.providers .studio-ipad-act-avatar { box-sizing: border-box; padding: 9px; }
+.studio-ipad-act-sheet.providers .studio-ipad-act-nav.plain { height: 57px; padding-top: 3px; }
+.studio-ipad-act-sheet.providers .studio-ipad-act-nav.plain .studio-ipad-act-nav-t { top: 3px; }
+
+/* Send Email: the template list (SelectTemplateViewController) */
+.studio-ipad-act-tplbar { padding: 24px 18px 8px; gap: 12px; font-size: 18px; padding-right: 15px; }
+.studio-ipad-act-tplbar .studio-ipad-act-search { height: 36px; }
+.studio-ipad-act-tplbar .studio-ipad-act-search.wide { width: 941px; flex: none; }
+.studio-ipad-act-tplhead { padding: 8px 20px 1px; font-size: 19px; }
+.studio-ipad-act-body.tpls { padding: 25px 17px; display: flex; flex-direction: column; gap: 12px; align-items: stretch; background: #fff; }
+.studio-ipad-act-tpl { border: 1px solid #c8c8c8; border-radius: 8px; overflow: hidden; flex: none; }
+.studio-ipad-act-tplrow { position: relative; height: 125px; }
+.studio-ipad-act-tplthumb { position: absolute; left: 23px; top: 21px; width: 68px; }
+.studio-ipad-act-tplimg { display: block; width: 68px; height: 72px; background: linear-gradient(90deg, #f3f3f3 55%, #2b3340 55%); border: 1px solid #e3e3e3; box-sizing: border-box; }
+.studio-ipad-act-tplprev { display: flex; align-items: center; gap: 5px; margin-top: 2px; color: #0b4fd6; font-size: 15.5px; white-space: nowrap; }
+.studio-ipad-act-tplprev svg { width: 15px; height: 15px; }
+.studio-ipad-act-tplprev svg * { stroke: #0b4fd6; }
+.studio-ipad-act-tplcol { position: absolute; top: 21px; font-size: 16px; color: #333; }
+.studio-ipad-act-tplcol label { display: block; margin-bottom: 2px; line-height: 20px; color: #666; font-size: 15.5px; }
+.studio-ipad-act-tplcol.name { left: 109px; }
+.studio-ipad-act-tplcol.product { left: 419px; }
+.studio-ipad-act-tplcol.desc { left: 612px; }
+.studio-ipad-act-tplcol.attach { left: 953px; }
+.studio-ipad-act-tplsel { height: 44px; display: flex; align-items: center; justify-content: center; background: #f2f2f6; color: #0b4fd6; font-size: 18px; }
+
+/* Next Best Customer "Why" sheet and Survey list, measured on the device */
+.studio-ipad-act-sheet.nbc .studio-ipad-act-grabber { position: absolute; top: 7px; left: 50%; margin: 0 0 0 -18px; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-nav.plain { height: 56px; padding: 0 29px 0 16px; box-sizing: border-box; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-nav-t { top: 0; font-size: 18px; }
+.studio-ipad-act-body.nbc { gap: 21px; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-white { padding: 32px 16px 32px; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-prov.plain { align-items: flex-start; margin-bottom: 12px; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-prov.plain .studio-ipad-act-blue { line-height: 19px; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-addr { margin: 0 0 20px; line-height: 17px; font-size: 14.5px; white-space: pre-wrap; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-outline { box-sizing: border-box; height: 38px; padding: 0 15px; line-height: 36px; font-size: 18px; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-white.empty { padding: 36px 30px; }
+.studio-ipad-act-emptyt { margin-top: 22px; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-emptyd { font-size: 16px; line-height: 19px; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-nav { height: 57px; padding-top: 0; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-nav-t { top: 0; font-size: 18px; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-nav-l { padding-left: 0; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-seg { margin: 20px 0 31px; padding: 2px; height: 33px; box-sizing: border-box; font-size: 14px; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-seg span { display: flex; align-items: center; padding: 0 22px; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-search { height: 30px; margin: 0 15px 14px; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-search + .studio-ipad-act-empty { border-top: 1px solid #ccc; margin: 0 20px; }
+.studio-ipad-act-sheet.nbc .studio-ipad-act-avatar { box-sizing: border-box; padding: 9px; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-seg { margin-top: 21px; margin-bottom: 30px; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-seg span { padding: 0 15px; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-search { margin-left: 20px; margin-right: 15px; }
+.studio-ipad-act-sheet.survey .studio-ipad-act-search + .studio-ipad-act-empty { padding-top: 63px; }
+.studio-ipad-act-card.off { background: #ececef; color: #777; white-space: nowrap; }
+.studio-ipad-act-card.off .studio-ipad-act-chev { color: #888; }

@@ -1,0 +1,28 @@
+/* Plan editor: persona cards, the territory picker and the YAML view. */
+.studio-perf-check-label {
+  align-items: center;
+}
+.studio-perf-plan-tabs {
+  align-self: flex-start;
+}
+.studio-perf-yaml-text {
+  margin: 0;
+  padding: 12px 14px;
+  max-width: 980px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+  line-height: 1.55;
+  color: var(--text-primary);
+}
+.studio-perf-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.studio-perf-threshold-input {
+  max-width: 96px;
+}

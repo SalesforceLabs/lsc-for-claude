@@ -32,12 +32,14 @@ rules:
       home page, users will see the default Salesforce home.
     category: configuration
     severity: error
+    stage: enabled
+    studio_surface: webHomePages
     check:
-      type: soql
+      type: tooling_soql
       query: >
-        SELECT Id, MasterLabel, PageType
+        SELECT Id, MasterLabel, Type
         FROM FlexiPage
-        WHERE PageType = 'HomePage'
+        WHERE Type = 'HomePage'
         ORDER BY LastModifiedDate DESC
         LIMIT 10
       expect: "records.length > 0"
@@ -62,17 +64,21 @@ rules:
     name: Active announcements exist
     description: |
       Checks for active Home Office Announcements (AppAlert records with
-      Type='Announcement'). Announcements keep sales reps informed about
-      product launches, compliance reminders, and territory changes.
+      Type='Announcement' whose EffectiveDate has been reached and whose
+      ValidUntilDate is empty, meaning no expiry, or not yet passed).
+      Announcements keep sales reps informed about product launches,
+      compliance reminders, and territory changes.
     category: configuration
     severity: warning
+    stage: data
     check:
       type: soql
       query: >
-        SELECT Id, Name, EffectiveDate, ExpirationDate
+        SELECT Id, Name, EffectiveDate, ValidUntilDate
         FROM AppAlert
         WHERE Type = 'Announcement'
-        AND ExpirationDate >= TODAY
+        AND (EffectiveDate = null OR EffectiveDate <= TODAY)
+        AND (ValidUntilDate = null OR ValidUntilDate >= TODAY)
         ORDER BY EffectiveDate DESC
         LIMIT 10
       expect: "records.length > 0"
@@ -96,22 +102,23 @@ rules:
       reviewed and either updated or removed.
     category: configuration
     severity: info
+    stage: data
     check:
       type: soql
       query: >
-        SELECT Id, Name, ExpirationDate
+        SELECT Id, Name, ValidUntilDate
         FROM AppAlert
         WHERE Type = 'Announcement'
-        AND ExpirationDate < TODAY
-        AND ExpirationDate >= LAST_N_DAYS:30
-        ORDER BY ExpirationDate DESC
+        AND ValidUntilDate < TODAY
+        AND ValidUntilDate >= LAST_N_DAYS:30
+        ORDER BY ValidUntilDate DESC
       expect: "records.length == 0"
       error_detail_query: >
-        SELECT Id, Name, EffectiveDate, ExpirationDate
+        SELECT Id, Name, EffectiveDate, ValidUntilDate
         FROM AppAlert
         WHERE Type = 'Announcement'
-        AND ExpirationDate < TODAY
-        ORDER BY ExpirationDate DESC
+        AND ValidUntilDate < TODAY
+        ORDER BY ValidUntilDate DESC
         LIMIT 10
     symptoms:
       - "Old announcements still visible"
@@ -129,32 +136,34 @@ rules:
   # ===========================================================================
 
   - id: homepage-004
-    name: Quick actions count is optimal for mobile
+    name: Home page quick actions fit the iPad home page
     description: |
-      Verifies that the number of active quick actions is 5 or fewer.
-      Only five quick actions can be displayed on the mobile Home Page
-      floating action button, so having more than 5 means some won't be
-      easily accessible. Uses Tooling API to query LifeSciConfigRecord.
+      Counts active quick actions whose Location is HomePage. The iPad home
+      page shows only five, so more than 5 active Home actions means the rest
+      are not reachable from the floating action button.
     category: configuration
     severity: warning
+    stage: config
+    studio_surface: homeActions
     check:
       type: tooling_soql_count
       query: >
         SELECT COUNT()
-        FROM LifeSciConfigRecord
-        WHERE LifeSciConfigCategoryId IN (
-          SELECT Id FROM LifeSciConfigCategory WHERE Category = 'QuickAction'
-        )
-        AND IsActive = true
+        FROM LifeSciConfigFieldValue
+        WHERE FieldName = 'Location'
+        AND PicklistValue = 'HomePage'
+        AND LifeSciConfigRecord.IsActive = true
+        AND LifeSciConfigRecord.LifeSciConfigCategory.Category = 'QuickAction'
       expect: "count <= 5"
       error_detail_query: >
-        SELECT Id, MasterLabel, IsActive
+        SELECT Id, DeveloperName, MasterLabel
         FROM LifeSciConfigRecord
-        WHERE LifeSciConfigCategoryId IN (
-          SELECT Id FROM LifeSciConfigCategory WHERE Category = 'QuickAction'
+        WHERE IsActive = true
+        AND LifeSciConfigCategory.Category = 'QuickAction'
+        AND Id IN (
+          SELECT LifeSciConfigRecordId FROM LifeSciConfigFieldValue
+          WHERE FieldName = 'Location' AND PicklistValue = 'HomePage'
         )
-        AND IsActive = true
-        ORDER BY MasterLabel
     symptoms:
       - "Not all quick actions visible on mobile home page"
       - "Quick actions missing on iPad floating button"
@@ -181,12 +190,13 @@ rules:
       to engage with based on scoring algorithms.
     category: configuration
     severity: warning
+    stage: data
     check:
       type: soql
       query: >
-        SELECT Id, Score
+        SELECT Id, TotalScore
         FROM TerritoryAccountScore
-        WHERE Score != null
+        WHERE TotalScore != null
         LIMIT 5
       expect: "records.length > 0"
     symptoms:
@@ -215,6 +225,8 @@ rules:
       show outdated data.
     category: metadata-cache
     severity: warning
+    stage: mobile
+    studio_surface: metadataCache
     check:
       type: soql
       query: >
@@ -250,6 +262,7 @@ rules:
       their progress toward activity goals and targets.
     category: configuration
     severity: info
+    stage: data
     check:
       type: soql
       query: >

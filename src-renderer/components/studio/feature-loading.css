@@ -1,0 +1,28 @@
+/* A feature's loading checklist, centred in the pane (reuses the published iPad's card). */
+.studio-feature-loading {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding: var(--space-4);
+}
+
+.studio-feature-loading .studio-ipad-loading {
+  margin-top: min(12vh, 80px);
+}
+
+.studio-ipad-loading-steps li {
+  align-items: flex-start;
+}
+
+.studio-feature-loading-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.studio-feature-loading-time {
+  margin-left: auto;
+  padding-left: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

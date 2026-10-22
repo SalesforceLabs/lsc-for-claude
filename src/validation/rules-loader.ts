@@ -8,6 +8,7 @@ import { readFileSync, readdirSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { parse as parseYaml } from "yaml";
+import { matchSymptom } from "./symptom-match.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -27,7 +28,8 @@ export type CheckType =
   | "metadata"
   | "api"
   | "cli"
-  | "composite";
+  | "composite"
+  | "builtin";
 export type Severity = "error" | "warning" | "info";
 export type Category =
   | "mobile-login"
@@ -45,6 +47,8 @@ export interface RuleCheck {
   endpoint?: string;
   command?: string;
   checks?: RuleCheck[];
+  /** For `builtin`: which check in src/validation/builtin-checks.ts. */
+  name?: string;
   expect: string;
   error_detail_query?: string;
 }
@@ -73,6 +77,10 @@ export interface ValidationRule {
   issue_ref?: string;
   prerequisites?: string[];
   tags?: string[];
+  /** LSC Studio readiness stage; inferred from `category` when left out. */
+  stage?: "enabled" | "access" | "data" | "config" | "mobile";
+  /** LSC Studio board surface that shows the records this rule checks (e.g. "dbSchema"). */
+  studio_surface?: string;
 }
 
 export interface ValidationGroup {
@@ -82,6 +90,8 @@ export interface ValidationGroup {
 }
 
 export interface ValidationRuleFile {
+  /** File name the rules were read from, e.g. "visit-management-config.yaml". */
+  file: string;
   schema_version: string;
   category_name: string;
   description: string;
@@ -136,13 +146,21 @@ export function loadAllRules(): ValidationRuleFile[] {
     try {
       const content = readFileSync(join(RULES_DIR, file), "utf-8");
       const parsed = parseYaml(content) as ValidationRuleFile;
-      ruleFiles.push(parsed);
+      ruleFiles.push({ ...parsed, file });
     } catch (error) {
       console.error(`Failed to parse ${file}:`, error);
     }
   }
 
   return ruleFiles;
+}
+
+/**
+ * Rules from the named files (e.g. "visit-management-config.yaml"), in file order
+ */
+export function getRulesFromFiles(files: string[]): ValidationRule[] {
+  const byFile = new Map(loadAllRules().map((rf) => [rf.file, rf.rules || []]));
+  return files.flatMap((f) => byFile.get(f) ?? []);
 }
 
 /**
@@ -216,12 +234,7 @@ export function getRuleById(ruleId: string): ValidationRule | undefined {
  * Find rules that match a symptom (for diagnostic purposes)
  */
 export function findRulesBySymptom(symptom: string): ValidationRule[] {
-  const allRules = getAllRules();
-  const lowerSymptom = symptom.toLowerCase();
-
-  return allRules.filter((rule) =>
-    rule.symptoms.some((s) => s.toLowerCase().includes(lowerSymptom))
-  );
+  return matchSymptom(symptom, [], getAllRules()).map((m) => m.item as ValidationRule);
 }
 
 /**

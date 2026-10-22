@@ -1,0 +1,43 @@
+.row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    cursor: pointer;
+}
+
+.row:hover {
+    background: #f3f3f3;
+}
+
+.row__main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.row__title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #080707;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.row__subtitle {
+    font-size: 0.75rem;
+    color: #706e6b;
+}
+
+.row__badge {
+    flex-shrink: 0;
+    margin-left: 0.75rem;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: #514f4d;
+    background: #ecebea;
+    border-radius: 0.75rem;
+    white-space: nowrap;
+}

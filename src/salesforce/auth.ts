@@ -5,6 +5,7 @@
 import type { SfOrg } from "./cli.js";
 import { isSfCliInstalled, getSfCliVersion, listOrgs, SfOrgListResult } from "./cli.js";
 import { cacheInvalidateOrg } from "../cache.js";
+import { clearReportCacheForOrg } from "../studio/screens/report-data.js";
 
 export interface SetupStatus {
   cliInstalled: boolean;
@@ -44,6 +45,7 @@ export function getTargetOrg(): string | undefined {
 export function setTargetOrg(orgAliasOrUsername: string): void {
   if (currentTargetOrg && currentTargetOrg !== orgAliasOrUsername) {
     cacheInvalidateOrg(currentTargetOrg);
+    clearReportCacheForOrg(currentTargetOrg);
   }
   currentTargetOrg = orgAliasOrUsername;
 }
@@ -55,10 +57,98 @@ export function clearTargetOrg(): void {
   currentTargetOrg = undefined;
 }
 
+interface CliProbe {
+  cliInstalled: boolean;
+  cliVersion?: string;
+  orgs?: SfOrg[];
+}
+
 /**
- * Check the full setup status
+ * `sf org list` takes several seconds and every tool call validates the
+ * connection, so a probe that found authenticated orgs is reused for a few
+ * minutes. Probes that found no CLI or no orgs aren't kept, so installing the
+ * CLI or logging in takes effect on the next call.
  */
-export async function checkSetupStatus(): Promise<SetupStatus> {
+const PROBE_TTL_MS = 5 * 60 * 1000;
+let cachedProbe: { at: number; promise: Promise<CliProbe> } | undefined;
+
+async function probeCli(): Promise<CliProbe> {
+  // Three CLI spawns: run them together rather than one after another. Validating a target only needs
+  // which orgs exist, so the list skips the per-org connection check (~9 s with a dozen orgs, under 1 s without).
+  const [installed, versionResult, orgsResult] = await Promise.all([
+    isSfCliInstalled(),
+    getSfCliVersion(),
+    listOrgs({ connectionStatus: false }),
+  ]);
+  if (!installed) return { cliInstalled: false };
+  return {
+    cliInstalled: true,
+    cliVersion: versionResult.success ? versionResult.data : undefined,
+    orgs:
+      orgsResult.success && orgsResult.data
+        ? [...(orgsResult.data.nonScratchOrgs || []), ...(orgsResult.data.scratchOrgs || [])]
+        : undefined,
+  };
+}
+
+let refreshing: Promise<unknown> | undefined;
+
+function probe(fresh: boolean): Promise<CliProbe> {
+  if (!fresh && cachedProbe && Date.now() - cachedProbe.at < PROBE_TTL_MS)
+    return cachedProbe.promise;
+  // An old probe that found orgs is served while a new one runs in the background, so no call waits on `sf org list`.
+  if (!fresh && cachedProbe) {
+    if (!refreshing) {
+      const old = cachedProbe;
+      refreshing = probeCli()
+        .then((p) => {
+          if (cachedProbe === old) {
+            if (p.orgs?.length) cachedProbe = { at: Date.now(), promise: Promise.resolve(p) };
+            else cachedProbe = undefined;
+          }
+        })
+        .catch(() => undefined)
+        .finally(() => (refreshing = undefined));
+    }
+    return cachedProbe.promise;
+  }
+  const promise = probeCli();
+  const entry = { at: Date.now(), promise };
+  cachedProbe = entry;
+  const drop = () => {
+    if (cachedProbe === entry) cachedProbe = undefined;
+  };
+  promise.then((p) => {
+    if (!p.orgs?.length) drop();
+  }, drop);
+  return promise;
+}
+
+/**
+ * Keep an `sf org list` that was just run (to validate an org) as the setup probe, so the next tool call doesn't
+ * run it again. Does nothing if it found no orgs.
+ */
+export function primeSetupStatus(orgs: SfOrg[]): void {
+  if (!orgs.length) return;
+  const promise = getSfCliVersion().then(
+    (v): CliProbe => ({ cliInstalled: true, cliVersion: v.success ? v.data : undefined, orgs })
+  );
+  const entry = { at: Date.now(), promise };
+  cachedProbe = entry;
+  promise.catch(() => {
+    if (cachedProbe === entry) cachedProbe = undefined;
+  });
+}
+
+/** Forget the cached CLI/org probe so the next check runs `sf org list` again. */
+export function invalidateSetupStatus(): void {
+  cachedProbe = undefined;
+}
+
+/**
+ * Check the full setup status. Reuses a recent probe unless `fresh` is set.
+ */
+export async function checkSetupStatus(options: { fresh?: boolean } = {}): Promise<SetupStatus> {
   const status: SetupStatus = {
     cliInstalled: false,
     hasAuthenticatedOrgs: false,
@@ -66,28 +156,18 @@ export async function checkSetupStatus(): Promise<SetupStatus> {
     setupComplete: false,
   };
 
-  // Check if CLI is installed
-  status.cliInstalled = await isSfCliInstalled();
+  const cli = await probe(options.fresh ?? false);
+  status.cliInstalled = cli.cliInstalled;
 
   if (!status.cliInstalled) {
     status.nextStep = "install_cli";
     return status;
   }
 
-  // Get CLI version
-  const versionResult = await getSfCliVersion();
-  if (versionResult.success) {
-    status.cliVersion = versionResult.data;
-  }
+  status.cliVersion = cli.cliVersion;
 
-  // Check for authenticated orgs
-  const orgsResult = await listOrgs();
-
-  if (orgsResult.success && orgsResult.data) {
-    const allOrgs = [
-      ...(orgsResult.data.nonScratchOrgs || []),
-      ...(orgsResult.data.scratchOrgs || []),
-    ];
+  if (cli.orgs) {
+    const allOrgs = cli.orgs;
 
     status.orgs = allOrgs;
     status.hasAuthenticatedOrgs = allOrgs.length > 0;

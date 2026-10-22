@@ -1,0 +1,289 @@
+/* Sync health → one rep: summary, recent syncs strip, and the heaviest tables with why and a fix. */
+.rep-sync {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.rep-sync-bar-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-height: var(--control);
+}
+.rep-sync-spacer {
+  flex: 1;
+}
+.rep-sync-crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  flex: 1 1 200px;
+}
+.rep-sync-crumb-current {
+  font-size: var(--font-base);
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rep-sync-muted {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.rep-sync-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.rep-sync-name {
+  margin: 0;
+  font-size: var(--font-xl);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.rep-sync-name .rep-sync-muted {
+  font-size: var(--font-sm);
+  margin-left: var(--space-2);
+}
+.rep-sync-sub {
+  margin: 0;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+.rep-sync-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.rep-sync-section .ui-section-title,
+.rep-sync-section-head .ui-section-title {
+  margin: 0;
+}
+.rep-sync-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+.rep-sync-territory {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.rep-sync-territory .studio-select {
+  max-width: 280px;
+}
+
+/* Loading */
+.rep-sync-loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.rep-sync-territory-progress {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.rep-sync-territory-progress li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 24px;
+  font-size: var(--font-sm);
+}
+.rep-sync-territory-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rep-sync-wait {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+}
+.rep-sync-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.rep-sync-skeleton-row {
+  height: 44px;
+}
+
+/* Recent syncs */
+.rep-sync-strip {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+.rep-sync-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-1);
+  height: 40px;
+}
+.rep-sync-bar {
+  --tone: var(--accent);
+  display: flex;
+  align-items: flex-end;
+  width: 14px;
+  height: 100%;
+}
+.rep-sync-bar.error {
+  --tone: var(--error);
+}
+.rep-sync-bar.warning {
+  --tone: var(--warning);
+}
+.rep-sync-bar span {
+  display: block;
+  width: 100%;
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--tone) 70%, transparent);
+}
+.rep-sync-bar.initial span {
+  background: var(--tone);
+}
+.rep-sync-strip-text {
+  margin: 0;
+  flex: 1 1 200px;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+/* Tables */
+.rep-sync-tables {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.rep-sync-table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+.rep-sync-table .studio-perf-bar {
+  margin-top: 0;
+}
+.rep-sync-table-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px 48px;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.rep-sync-table-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.rep-sync-table-count {
+  text-align: right;
+  font-size: var(--font-base);
+}
+.rep-sync-table-share {
+  text-align: right;
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+.rep-sync-hint {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+.rep-sync-hint .ui-status-icon {
+  margin-top: 1px;
+}
+.rep-sync-hint-text {
+  flex: 1 1 260px;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--font-sm);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+.rep-sync-hint-text strong {
+  color: var(--text-primary);
+}
+.rep-sync-hint .studio-btn {
+  height: auto;
+  min-height: var(--control-sm);
+  text-align: left;
+  white-space: normal;
+}
+.rep-sync-more {
+  align-self: flex-start;
+  margin-top: var(--space-1);
+}
+.rep-sync-chevron {
+  transition: transform var(--transition-fast);
+}
+.rep-sync-chevron.open {
+  transform: rotate(90deg);
+}
+.rep-sync-settings {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+}
+.rep-sync-props {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  font-size: var(--font-sm);
+}
+.rep-sync-props dt {
+  color: var(--text-muted);
+}
+.rep-sync-props dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.rep-sync-details summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+}
+.rep-sync-details summary:hover {
+  color: var(--text-primary);
+}
+.rep-sync-details ul {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+}

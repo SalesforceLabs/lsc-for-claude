@@ -1,0 +1,44 @@
+<template>
+    <lightning-card title={cardTitle} icon-name={iconName}>
+        <div class="slds-p-horizontal_medium">
+            <!-- Parent-injected markup (summary, alert banner, filters, ...) -->
+            <slot></slot>
+
+            <template if:true={error}>
+                <div class="slds-text-color_error slds-p-vertical_small">{error}</div>
+            </template>
+
+            <template if:true={hasRows}>
+                <ul class="slds-has-dividers_bottom-space">
+                    <template for:each={rows} for:item="row">
+                        <li
+                            key={row.id}
+                            class="row slds-item"
+                            data-id={row.id}
+                            role="button"
+                            tabindex="0"
+                            onclick={handleRowSelect}
+                            onkeydown={handleRowSelect}
+                        >
+                            <div class="row__main">
+                                <span class="row__title">{row.title}</span>
+                                <template if:true={row.subtitle}>
+                                    <span class="row__subtitle">{row.subtitle}</span>
+                                </template>
+                            </div>
+                            <template if:true={row.badge}>
+                                <span class="row__badge">{row.badge}</span>
+                            </template>
+                        </li>
+                    </template>
+                </ul>
+            </template>
+
+            <template if:true={isEmpty}>
+                <p class="slds-text-body_small slds-p-vertical_small slds-text-color_weak">
+                    No records found.
+                </p>
+            </template>
+        </div>
+    </lightning-card>
+</template>

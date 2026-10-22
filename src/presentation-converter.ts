@@ -12,14 +12,16 @@
  *   Ghostscript needed for PDF rasterization (brew install ghostscript)
  */
 
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import * as fs from "fs";
 import * as path from "path";
 import { PDFDocument } from "pdf-lib";
 import archiver from "archiver";
+import { privateTmp } from "./private-tmp.js";
 
-const execAsync = promisify(exec);
+// Arguments go to the program as they are, never through a shell: a file name can't run commands.
+const run = promisify(execFile);
 
 // ============================================================================
 // Types
@@ -150,7 +152,7 @@ export async function validateHtmlZip(
   }
 
   try {
-    const { stdout } = await execAsync(`unzip -l "${zipPath}"`, {
+    const { stdout } = await run("unzip", ["-l", zipPath], {
       timeout: 15000,
     });
 
@@ -231,8 +233,7 @@ async function preparePptx(
   presentationName: string,
   conversionEngine: ConversionEngine = "libreoffice"
 ): Promise<PreparationResult> {
-  const os = await import("os");
-  const outputDir = path.join(os.tmpdir(), `lsc-pptx-${Date.now()}`);
+  const outputDir = privateTmp(`pptx-${Date.now()}`);
 
   const result = await convertPptxToSlides(pptxPath, outputDir, conversionEngine);
 
@@ -262,7 +263,7 @@ async function preparePptx(
  */
 export async function checkGhostscriptInstalled(): Promise<boolean> {
   try {
-    await execAsync("gs --version", { timeout: 5000 });
+    await run("gs", ["--version"], { timeout: 5000 });
     return true;
   } catch {
     return false;
@@ -281,9 +282,20 @@ async function rasterizePdf(
   outputPath: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await execAsync(
-      `gs -dNOPAUSE -dBATCH -dQUIET -sDEVICE=pdfimage24 -r300 -sOutputFile="${outputPath}" "${inputPath}"`,
-      { timeout: 120000 }
+    await run(
+      "gs",
+      [
+        "-dNOPAUSE",
+        "-dBATCH",
+        "-dQUIET",
+        "-sDEVICE=pdfimage24",
+        "-r300",
+        `-sOutputFile=${outputPath}`,
+        inputPath,
+      ],
+      {
+        timeout: 120000,
+      }
     );
 
     if (!fs.existsSync(outputPath)) {
@@ -304,8 +316,6 @@ async function rasterizePdf(
  * then upload the image-based PDF.
  */
 async function preparePdf(pdfPath: string): Promise<PreparationResult> {
-  const os = await import("os");
-
   // Check if Ghostscript is available
   const gsInstalled = await checkGhostscriptInstalled();
   if (!gsInstalled) {
@@ -325,8 +335,7 @@ async function preparePdf(pdfPath: string): Promise<PreparationResult> {
   }
 
   // Rasterize the PDF for iPad compatibility
-  const outputDir = path.join(os.tmpdir(), `lsc-pdf-${Date.now()}`);
-  fs.mkdirSync(outputDir, { recursive: true });
+  const outputDir = privateTmp(`pdf-${Date.now()}`);
   const rasterizedPath = path.join(outputDir, path.basename(pdfPath));
 
   const result = await rasterizePdf(pdfPath, rasterizedPath);
@@ -397,7 +406,7 @@ export async function checkLibreOfficeInstalled(): Promise<boolean> {
 
   for (const cmd of candidates) {
     try {
-      await execAsync(`"${cmd}" --version`);
+      await run(cmd, ["--version"]);
       return true;
     } catch {
       // try next candidate
@@ -411,7 +420,7 @@ export async function checkLibreOfficeInstalled(): Promise<boolean> {
  */
 export async function checkPandocInstalled(): Promise<boolean> {
   try {
-    await execAsync("pandoc --version", { timeout: 5000 });
+    await run("pandoc", ["--version"], { timeout: 5000 });
     return true;
   } catch {
     return false;
@@ -427,7 +436,7 @@ export async function checkPandocInstalled(): Promise<boolean> {
  */
 async function getSofficePath(): Promise<string> {
   try {
-    await execAsync("soffice --version");
+    await run("soffice", ["--version"]);
     return "soffice";
   } catch {
     // fall through
@@ -435,7 +444,7 @@ async function getSofficePath(): Promise<string> {
 
   const macPath = "/Applications/LibreOffice.app/Contents/MacOS/soffice";
   try {
-    await execAsync(`"${macPath}" --version`);
+    await run(macPath, ["--version"]);
     return macPath;
   } catch {
     throw new Error("LibreOffice not found. Install it with: brew install --cask libreoffice");
@@ -508,7 +517,7 @@ async function convertPptxViaLibreOfficeHtml(
   // Step 1: PPTX → PDF via LibreOffice
   const pdfPath = path.join(pdfDir, path.basename(pptxPath, ".pptx") + ".pdf");
   try {
-    await execAsync(`"${soffice}" --headless --convert-to pdf --outdir "${pdfDir}" "${pptxPath}"`, {
+    await run(soffice, ["--headless", "--convert-to", "pdf", "--outdir", pdfDir, pptxPath], {
       timeout: 120000,
     });
   } catch (error) {
@@ -559,8 +568,9 @@ async function convertPptxViaLibreOfficeHtml(
     let svgContent: string | null = null;
     const expectedSvgPath = path.join(svgDir, `slide_${slideNum}.svg`);
     try {
-      await execAsync(
-        `"${soffice}" --headless --convert-to svg --outdir "${svgDir}" "${pagePdfPaths[i]}"`,
+      await run(
+        soffice,
+        ["--headless", "--convert-to", "svg", "--outdir", svgDir, pagePdfPaths[i]],
         { timeout: 60000 }
       );
       // LibreOffice names the output after the input file
@@ -582,7 +592,7 @@ async function convertPptxViaLibreOfficeHtml(
       // Fallback: PNG rasterization
       try {
         const pngPath = path.join(slideDir, `temp.png`);
-        await execAsync(`sips -s format png "${pagePdfPaths[i]}" --out "${pngPath}"`, {
+        await run("sips", ["-s", "format", "png", pagePdfPaths[i], "--out", pngPath], {
           timeout: 30000,
         });
         const pngBuffer = fs.readFileSync(pngPath);
@@ -608,10 +618,10 @@ async function convertPptxViaLibreOfficeHtml(
     const thumbPath = path.join(thumbDir, `slide_${slideNum}.jpg`);
     try {
       const tempJpg = path.join(thumbDir, `slide_${slideNum}_temp.jpg`);
-      await execAsync(`sips -s format jpeg "${pagePdfPaths[i]}" --out "${tempJpg}"`, {
+      await run("sips", ["-s", "format", "jpeg", pagePdfPaths[i], "--out", tempJpg], {
         timeout: 15000,
       });
-      await execAsync(`sips -z 280 220 "${tempJpg}" --out "${thumbPath}"`, { timeout: 15000 });
+      await run("sips", ["-z", "280", "220", tempJpg, "--out", thumbPath], { timeout: 15000 });
       if (fs.existsSync(tempJpg) && tempJpg !== thumbPath) {
         fs.unlinkSync(tempJpg);
       }
@@ -716,9 +726,24 @@ async function convertPptxViaPandocHtml5(
   // Step 1: Convert PPTX → HTML5 via Pandoc
   const pandocHtmlPath = path.join(outputDir, "pandoc_output.html");
   try {
-    await execAsync(
-      `pandoc -f pptx -t html5 --embed-resources --standalone --slide-level=1 -s "${pptxPath}" -o "${pandocHtmlPath}"`,
-      { timeout: 120000 }
+    await run(
+      "pandoc",
+      [
+        "-f",
+        "pptx",
+        "-t",
+        "html5",
+        "--embed-resources",
+        "--standalone",
+        "--slide-level=1",
+        "-s",
+        pptxPath,
+        "-o",
+        pandocHtmlPath,
+      ],
+      {
+        timeout: 120000,
+      }
     );
   } catch (error) {
     return {
@@ -898,7 +923,7 @@ async function generateThumbnails(
   // Convert PPTX → PDF
   const pdfPath = path.join(pdfDir, path.basename(pptxPath, ".pptx") + ".pdf");
   try {
-    await execAsync(`"${soffice}" --headless --convert-to pdf --outdir "${pdfDir}" "${pptxPath}"`, {
+    await run(soffice, ["--headless", "--convert-to", "pdf", "--outdir", pdfDir, pptxPath], {
       timeout: 120000,
     });
   } catch {
@@ -927,10 +952,10 @@ async function generateThumbnails(
     const thumbPath = path.join(thumbDir, `slide_${i + 1}.jpg`);
     try {
       const tempJpg = path.join(thumbDir, `slide_${i + 1}_temp.jpg`);
-      await execAsync(`sips -s format jpeg "${pagePdfPath}" --out "${tempJpg}"`, {
+      await run("sips", ["-s", "format", "jpeg", pagePdfPath, "--out", tempJpg], {
         timeout: 15000,
       });
-      await execAsync(`sips -z 280 220 "${tempJpg}" --out "${thumbPath}"`, { timeout: 15000 });
+      await run("sips", ["-z", "280", "220", tempJpg, "--out", thumbPath], { timeout: 15000 });
       if (fs.existsSync(tempJpg) && tempJpg !== thumbPath) {
         fs.unlinkSync(tempJpg);
       }

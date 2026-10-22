@@ -7,10 +7,7 @@
   <true/>
   <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
   <true/>
-  <!-- Allow loading the app's own unsigned/native dylibs (e.g. better-sqlite3). -->
-  <key>com.apple.security.cs.disable-library-validation</key>
-  <true/>
-  <key>com.apple.security.cs.allow-dyld-environment-variables</key>
-  <true/>
+  <!-- No disable-library-validation or allow-dyld-environment-variables: native modules
+       (better-sqlite3) are signed with the app's identity, and DYLD_* injection stays blocked. -->
 </dict>
 </plist>

@@ -1,44 +1,300 @@
-interface LibraryItem {
+import type { LlmConnection, LlmConnectionKind, LlmConnectionTest } from "./connection";
+import type { AppTheme } from "./theme";
+import type { OrgRef, OrgRole, SfOrg } from "./orgs";
+import type { SourceExportResult } from "./components/studio/source-control";
+import type { AppBuilderEvent, AppCheckResult, AppDeployPlan, AppDeployResult, AppObjectInfo, AppProject, AppRunAs, AppTabSettings, AppTarget, AppVersion, OrgApp } from "./components/studio/builder/types";
+
+/** A chat session; `org` is the org it works in, null for sessions from before orgs were recorded. */
+export interface Conversation {
+  id: string;
+  title: string;
+  pinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+  org: OrgRef | null;
+}
+
+/** Sessions and Library items are scoped to the selected org (plus those tied to none), or `all`. */
+export type OrgScope = "org" | "all";
+
+export interface LibraryItem {
   id: string;
   title: string;
   content: string;
   contentType: "response" | "code" | "diagram" | "table";
   svg?: string;
   sourceConversationId?: string;
+  sourceConversationTitle?: string;
+  /** The org the item came from; null if it isn't known. */
+  org: OrgRef | null;
   tags: string[];
   createdAt: string;
   updatedAt: string;
 }
 
+export interface PerfPlanRecord {
+  id: string;
+  org: string;
+  name: string;
+  plan: unknown;
+  updatedAt: string;
+}
+
+export interface PerfRunRecord {
+  id: string;
+  org: string;
+  planId: string;
+  planName: string;
+  status: string;
+  startedAt: string;
+  finishedAt: string;
+  /** A RunSummary (see components/studio/perf-history.ts); null for runs saved before summaries. */
+  summary?: unknown;
+  result?: unknown;
+}
+
+/** A login made through the LSC mobile app's connected app; the token never reaches the renderer. */
+export interface MobileLoginInfo {
+  id: string;
+  username: string;
+  /** The user's Id, so the iPad preview can pick the login for the rep it shows. */
+  userId?: string;
+  displayName?: string;
+  orgId?: string;
+  instanceUrl: string;
+  /** `expired`: Salesforce turned the refresh token down — sign in again. */
+  status: "signedIn" | "expired";
+  /** Kept across restarts (in the keychain); false when it ends when Roz quits. */
+  remembered: boolean;
+}
+
+export interface PerfSimRecord {
+  id: string;
+  /** Instance URL of the org the simulation ran against. */
+  org: string;
+  connection: string;
+  status: "done" | "cancelled";
+  startedAt: string;
+  finishedAt: string;
+  /** A SimSummary (see components/studio/sim-types.ts). */
+  summary: unknown;
+  result?: unknown;
+}
+
+/** studio_api_version's answer (src/studio/api-version.ts). */
+export interface ApiVersionInfo {
+  version: string;
+  pinned: string | null;
+  orgDefault: string;
+  available: string[];
+}
+
+interface StudioResponse {
+  data?: unknown & { error?: string };
+  error?: string;
+  /** When the answer was read from the org (ISO) — earlier than now when it came from the cache. */
+  cachedAt?: string;
+}
+
 interface LscApi {
   // Settings
   getSettings(): Promise<{
-    providerType: string;
-    apiKey?: string;
-    baseUrl?: string;
-    authToken?: string;
-    gatewayUrl?: string;
-    gatewayToken?: string;
+    connection?: LlmConnection;
     model?: string;
-    theme?: string;
+    theme?: AppTheme;
     sfTargetOrg?: string;
+    mobileClientId?: string;
+    appIcon?: string;
   }>;
   saveSettings(settings: Record<string, unknown>): Promise<{ ok: boolean }>;
+  /** Shows an appearance without saving it (Settings' live preview). */
+  previewTheme(theme: AppTheme): Promise<void>;
 
-  // Provider
-  detectEnvProvider(): Promise<{
-    detected: boolean;
-    providerType?: string;
-    credentials?: Record<string, unknown>;
-    label?: string;
+  // Connections
+  /** What's available without asking: Claude Code's gateway host, env API keys, kinds with a saved key. */
+  detectProvider(): Promise<{
+    claudeCode?: string;
+    env: { anthropic: boolean; openai: boolean };
+    savedSecrets: LlmConnectionKind[];
   }>;
-  validateProvider(
-    type: string,
-    credentials: Record<string, unknown>
-  ): Promise<{ valid: boolean; error?: string }>;
+  /** List models and send one tiny message; `secret` overrides the saved key for this test. */
+  testProvider(connection: LlmConnection, secret?: string): Promise<LlmConnectionTest>;
+
+  // --- custom scripts: assist ---
+  /** Ask Roz about a script (request: see ScriptAssistRequest in studio/scripts/script-assist-logic.ts); progress arrives through onScriptAssistEvent. */
+  studioScriptAssist(requestId: string, request: unknown): Promise<{ ok: true } | { ok: false; error: string }>;
+  studioScriptAssistAbort(requestId: string): Promise<{ ok: true }>;
+  onScriptAssistEvent(
+    callback: (
+      event:
+        | { kind: "delta"; requestId: string; text: string }
+        | { kind: "tool"; requestId: string; name: string; status: "running" | "done" | "error"; detail?: string }
+        | { kind: "done"; requestId: string; message: string }
+        | { kind: "error"; requestId: string; error: string }
+    ) => void
+  ): () => void;
+
+  // Studio — `data` is the parsed JSON from the studio_* MCP tool (may itself carry `error`)
+  studioListFeatures(): Promise<StudioResponse>;
+  studioFeatureMap(featureId: string, refresh?: boolean): Promise<StudioResponse>;
+  /** `profile` (a profile name) answers each check for that profile's users; none, for every profile. */
+  studioReadiness(featureId: string, refresh?: boolean, profile?: string): Promise<StudioResponse>;
+  studioSetupOverview(refresh?: boolean, profile?: string): Promise<StudioResponse>;
+  /** Every profile with active users and its group (`ScopeProfile[]` in `src/studio/scope.ts`). */
+  studioScope(): Promise<StudioResponse>;
+  studioUserTrace(userId: string, featureId?: string): Promise<StudioResponse>;
+  studioDrift(
+    input: { action: "list"; days?: number } | { action: "save"; label?: string } | { action: "diff"; id: string } | { action: "delete"; id: string }
+  ): Promise<StudioResponse>;
+  /** Known causes and validation rules matching an error or symptom, checked against the org unless `checkOrg` is false — never cached. */
+  studioDiagnose(text: string, checkOrg?: boolean): Promise<StudioResponse>;
+  studioItemDetail(kind: string, id: string): Promise<StudioResponse>;
+  /** The layout as it is in the org now (sections, fields, related lists, profiles using it, production) — never cached. */
+  studioMetadataDoc(type: "Layout" | "CompactLayout" | "FlexiPage" | "ListView" | "CustomApplication", fullName: string): Promise<StudioResponse>;
+  studioAppNav(profile: string, tabs: string[]): Promise<StudioResponse>;
+  studioPageReach(fullName: string): Promise<StudioResponse>;
+  studioComponentCatalog(pageType: "HomePage" | "RecordPage", sobject: string | null): Promise<StudioResponse>;
+  studioComponentProps(component: string, pageType?: "HomePage" | "RecordPage"): Promise<StudioResponse>;
+  /** The deepest Setup pages for references (see `SetupRef`), in order; `exact` false = the list page. */
+  studioSetupLinks(refs: unknown[]): Promise<StudioResponse>;
+  studioListProfiles(): Promise<StudioResponse>;
+  studioAppTabOptions(): Promise<StudioResponse>;
+  studioUserAccess(userId: string): Promise<StudioResponse>;
+  studioAccessOptions(search?: string): Promise<StudioResponse>;
+  studioLwcBundle(name: string): Promise<StudioResponse>;
+  studioLwcRequest(method: "GET" | "POST", path: string, body?: unknown): Promise<StudioResponse>;
+  /** As the previewed rep's mobile login instead of the sf CLI connection. */
+  studioLwcRequestAs(loginId: string, method: "GET" | "POST", path: string, body?: unknown): Promise<StudioResponse>;
+  studioIpadPublished(profile: string, refresh?: boolean, userId?: string): Promise<StudioResponse>;
+  studioIpadPublishedUsers(profile: string, search: string): Promise<StudioResponse>;
+  studioIpadPublishedProgress(profile: string): Promise<StudioResponse>;
+  /** The Reports tab's settings and folder/report tree for a rep, read when the tab opens. */
+  studioIpadReports(userId: string): Promise<StudioResponse>;
+  /** One report's result for the View Report sheet, run when it is opened. */
+  studioReportData(reportId: string, userId?: string): Promise<StudioResponse>;
+  // --- custom scripts: editor ---
+  /** The custom script library: scripts, stage objects and what runs. */
+  studioCustomScripts(refresh?: boolean): Promise<StudioResponse>;
+  /** One script with its code, as it is in the org now. */
+  studioCustomScript(id: string): Promise<StudioResponse>;
+  // --- custom scripts: runner ---
+  /** Records a script can be tested against (visits for Visit Action Validation), searchable. */
+  studioScriptTestRecords(args: { type: string; objectName?: string | null; search?: string }): Promise<StudioResponse>;
+  /** A simulated run of the given code against one record, read-only. */
+  studioScriptTest(args: {
+    code: string;
+    type: string;
+    recordId: string;
+    objectName?: string | null;
+    operationEventType?: string | null;
+    platform: "web" | "ipad";
+    env?: { actionName?: string; fromStatus?: string; toStatus?: string; fieldName?: string };
+    userId?: string;
+  }): Promise<StudioResponse>;
+  studioUnpublished(profile: string, known?: Record<string, string[]>, refresh?: boolean): Promise<StudioResponse>;
+  studioPreviewFix(fix: unknown, progress?: { id: string; index: number; total: number }): Promise<StudioResponse>;
+  studioApplyFix(fix: unknown, expectedOrg: string, progress?: { id: string; index: number; total: number }): Promise<StudioResponse>;
+  studioFixProgress(id: string): Promise<StudioResponse>;
+  studioFeatureMapProgress(featureId: string, readiness?: boolean): Promise<StudioResponse>;
+  studioPublishMobile(profiles: string[], expectedOrg: string): Promise<StudioResponse>;
+  studioPublishStatus(parentId: string): Promise<StudioResponse>;
+  /** Every profile's metadata cache and the newest generation jobs. */
+  studioMetadataCache(): Promise<StudioResponse>;
+  /** The full ErrorLog of a cache record (and, for a job, of its profiles' records). */
+  studioMetadataCacheLog(recordId: string): Promise<StudioResponse>;
+  /** The files in a cache record's ZIP (downloads it on first use). */
+  studioMetadataCacheContents(recordId: string): Promise<StudioResponse>;
+  /** One file from a cache record's ZIP. */
+  studioMetadataCacheFile(recordId: string, path: string): Promise<StudioResponse>;
+  /** Save a cache record's ZIP through a save dialog. */
+  studioSaveMetadataCache(recordId: string): Promise<{ canceled?: boolean; path?: string; error?: string }>;
+  /** Every DB Schema record, as the Object sync page's rows. */
+  studioObjectSync(): Promise<StudioResponse>;
+  /** Test-run DB Schema records' objects, fields and filters (read-only). */
+  studioObjectSyncCheck(developerNames: string[]): Promise<StudioResponse>;
+  studioPerfUsers(search?: string, profile?: string, days?: number): Promise<StudioResponse>;
+  studioPerfParsePlan(yaml: string): Promise<StudioResponse>;
+  studioPerfStart(plan: unknown): Promise<StudioResponse>;
+  studioPerfStatus(jobId: string): Promise<StudioResponse>;
+  studioPerfCancel(jobId: string): Promise<StudioResponse>;
+  studioPerfActive(): Promise<StudioResponse>;
+  studioPerfCheck(plan: unknown): Promise<StudioResponse>;
+  studioPerfReport(result: unknown, days?: number): Promise<StudioResponse>;
+  studioPerfTerritories(input: { users: string[]; select?: { profile: string; count?: number } }): Promise<StudioResponse>;
+  studioConnectedOrg(): Promise<StudioResponse>;
+  studioSyncOverview(days?: number, refresh?: boolean): Promise<StudioResponse>;
+  studioSyncUser(userId: string, days?: number, refresh?: boolean): Promise<StudioResponse>;
+  studioSyncUserProgress(userId: string): Promise<StudioResponse>;
+  studioSyncImpact(changes: unknown[], profiles?: string[]): Promise<StudioResponse>;
+  studioSignoffReport(input: { assessment: unknown; simulations?: unknown[]; baseline?: unknown; days?: number }): Promise<StudioResponse>;
+
+  // LSC App Builder — projects are stored per org by the main process; turns stream through onAppEvent
+  appList(): Promise<AppProject[]>;
+  appGet(id: string): Promise<AppProject | null>;
+  appCreate(input: { prompt: string; target: AppTarget; objectApiName?: string; runAs?: AppRunAs }): Promise<{ project?: AppProject; error?: string }>;
+  appSend(id: string, prompt: string): Promise<{ ok: boolean; error?: string }>;
+  appStop(id: string): Promise<void>;
+  appDelete(id: string): Promise<void>;
+  appSetRunAs(id: string, runAs: AppRunAs | null): Promise<void>;
+  appSetTabSettings(id: string, tab: AppTabSettings | null): Promise<void>;
+  appDeployPlan(id: string): Promise<{ plan?: AppDeployPlan; error?: string }>;
+  appRename(id: string, label: string): Promise<void>;
+  appRestore(id: string, versionId: string): Promise<{ version?: AppVersion; error?: string }>;
+  appEditFile(id: string, path: string, source: string): Promise<{ version?: AppVersion; error?: string }>;
+  appPreview(id: string, versionId?: string): Promise<{ script?: string; placeholders: string[]; check?: AppCheckResult; error?: string }>;
+  appDeploy(id: string): Promise<{ result?: AppDeployResult; error?: string }>;
+  appImport(name: string): Promise<{ project?: AppProject; error?: string }>;
+  appOrgApps(): Promise<{ apps?: OrgApp[]; error?: string }>;
+  appDescribe(objects: string[], projectId?: string): Promise<{ objects?: AppObjectInfo[]; error?: string }>;
+  onAppEvent(cb: (e: { projectId: string; event: AppBuilderEvent }) => void): () => void;
+
+  // Studio performance testing — plans and run history, stored per org by the main process
+  perfListPlans(): Promise<PerfPlanRecord[]>;
+  perfSavePlan(input: { id?: string; name: string; plan: unknown }): Promise<PerfPlanRecord>;
+  perfDeletePlan(id: string): Promise<{ ok: boolean }>;
+  perfListRuns(planId: string): Promise<PerfRunRecord[]>;
+  perfGetRun(id: string): Promise<PerfRunRecord | null>;
+  perfSaveRun(input: Omit<PerfRunRecord, "id" | "org"> & { org?: string; result: unknown }): Promise<PerfRunRecord>;
+  perfDeleteRun(id: string): Promise<{ ok: boolean }>;
+  studioSimStart(connection: string, options?: unknown): Promise<StudioResponse>;
+  /** Start a simulation as a mobile login; the token stays in the main process. */
+  /** Like studioPerfStart, also handing the engine the held mobile logins so their users get exact table lists. */
+  studioPerfStartMobile(plan: unknown): Promise<StudioResponse>;
+  studioSimStartMobile(loginId: string, options?: unknown): Promise<StudioResponse>;
+  /** Log in through the LSC mobile app's connected app in a Salesforce login window. */
+  mobileLoginStart(loginUrl: string): Promise<{ login?: MobileLoginInfo; error?: string }>;
+  mobileLoginList(): Promise<{ logins: MobileLoginInfo[] }>;
+  mobileLoginRemove(id: string): Promise<{ ok: boolean }>;
+  mobileLoginCheck(): Promise<{ logins: MobileLoginInfo[] }>;
+  mobileLoginRenew(id: string): Promise<{ login?: MobileLoginInfo; error?: string }>;
+  onMobileLoginsChanged(callback: (logins: MobileLoginInfo[]) => void): () => void;
+  studioSimStatus(jobId: string): Promise<StudioResponse>;
+  studioSimCancel(jobId: string): Promise<StudioResponse>;
+  studioSimActive(): Promise<StudioResponse>;
+  studioSimReport(result: unknown): Promise<StudioResponse>;
+  // First-sync simulation history, across every org and connection
+  perfListSims(): Promise<PerfSimRecord[]>;
+  perfGetSim(id: string): Promise<PerfSimRecord | null>;
+  perfSaveSim(input: Omit<PerfSimRecord, "id"> & { result: unknown }): Promise<PerfSimRecord>;
+  perfDeleteSim(id: string): Promise<{ ok: boolean }>;
+  perfOpenFile(): Promise<{ canceled: boolean; text?: string }>;
+
+  // Source control — per org (the selected one): deployed from Git, and saving Studio's changes as source files
+  sourceControlGet(): Promise<{ org: string | null; deployed: boolean; folder?: string }>;
+  sourceControlSet(deployed: boolean): Promise<{ ok: boolean; error?: string }>;
+  /** The selected org's Salesforce API version: in use, pinned (null = the org's own), the org's own, and those it serves. */
+  apiVersionGet(): Promise<{ org: string | null; data?: ApiVersionInfo; error?: string }>;
+  /** Pin a version for the selected org (null: back to the org's own). */
+  apiVersionSet(version: string | null): Promise<{ org: string | null; data?: ApiVersionInfo; error?: string }>;
+  /** Asks for the project folder (opening on the org's last one), then writes the changes' org versions there. */
+  studioExportSource(
+    changes: unknown[],
+    items?: { type: string; fullName: string }[]
+  ): Promise<{ canceled?: boolean; data?: SourceExportResult; error?: string }>;
+  perfSaveFile(defaultName: string, text: string, kind: "yaml" | "json" | "md"): Promise<{ canceled: boolean; path?: string }>;
 
   // Library
-  listLibraryItems(): Promise<LibraryItem[]>;
+  listLibraryItems(scope?: OrgScope): Promise<LibraryItem[]>;
   saveLibraryItem(input: {
     title: string;
     content: string;
@@ -48,40 +304,81 @@ interface LscApi {
     tags?: string[];
   }): Promise<LibraryItem>;
   deleteLibraryItem(id: string): Promise<{ ok: boolean }>;
-  searchLibraryItems(query: string): Promise<LibraryItem[]>;
+  searchLibraryItems(query: string, scope?: OrgScope): Promise<LibraryItem[]>;
 
   // Salesforce Org
-  listSfOrgs(): Promise<{
-    orgs: Array<{ alias?: string; username: string; orgId: string; instanceUrl: string; isDefault?: boolean }>;
-    error?: string;
-  }>;
-  setSfOrg(org: string): Promise<{ ok: boolean }>;
+  /**
+   * `recheckRoles` checks again which connections are LSC admins (otherwise once a day). `quick` answers
+   * at once before the first full listing, without expired logins; the full one follows on `onSfOrgListed`.
+   */
+  listSfOrgs(options?: { recheckRoles?: boolean; quick?: boolean }): Promise<{ orgs: SfOrg[]; error?: string }>;
+  /** The full listing after a `quick` one; returns an unsubscribe function. */
+  onSfOrgListed(callback: (list: { orgs: SfOrg[]; error?: string }) => void): () => void;
+  /** Roles by lowercased username, sent as background checks finish. */
+  onSfOrgRoles(callback: (roles: Record<string, OrgRole>) => void): () => void;
+  /** Select the org for Studio, Library and new sessions; returns the key it was stored as. */
+  setSfOrg(org: string): Promise<{ ok: boolean; org: string }>;
+  /** Called with the new org whenever Settings or the status bar switches it; returns an unsubscribe function. */
+  onSfOrgChanged(callback: (org: string) => void): () => void;
   loginSfOrg(alias?: string, instanceUrl?: string): Promise<{ ok: boolean; error?: string }>;
+  /** Open the org in the default browser through its sf CLI connection. */
+  /** `path`: a page inside the org, e.g. "/lightning/setup/FlexiPageList/home". */
+  openSfOrg(org: string, path?: string): Promise<{ ok: boolean; error?: string }>;
+  /** Load `url` into a Studio preview <webview> in `auth`'s partition, signed in as that user when it's a page of their org. */
+  studioBrowserOpen(
+    guestId: number,
+    url: string,
+    auth: { loginId: string } | { cli: true } | { public: true }
+  ): Promise<{ signedInAs?: string; note?: string; error?: string }>;
 
   // Engine
+  /** Connect; a given `secret` is saved to the keychain on success. */
   startEngine(
-    providerType: string,
-    credentials: Record<string, unknown>
+    connection: LlmConnection,
+    secret?: string
   ): Promise<{
     ok: boolean;
+    providerType?: LlmConnectionKind;
+    apiStyle?: "anthropic" | "openai";
+    label?: string;
+    defaultModel?: string;
     toolCount?: number;
     tools?: Array<{ name: string; description: string }>;
+    /** Model ids the provider serves, when it lists them (gateways). */
+    models?: string[];
     error?: string;
   }>;
   stopEngine(): Promise<{ ok: boolean }>;
+  /** The tool count once the org's MCP server has started (it starts after the engine, in the background). */
+  onEngineTools(callback: (toolCount: number) => void): () => void;
 
   // Chat
   sendMessage(message: string | unknown[], nonce: number, convId: string, model?: string): Promise<{ ok: boolean; error?: string }>;
-  abortChat(): Promise<{ ok: boolean }>;
+  abortChat(convId: string): Promise<{ ok: boolean }>;
   clearChat(): Promise<{ ok: boolean }>;
 
   // Chat events — all include nonce + convId to identify which stream they belong to
   onTextDelta(callback: (text: string, nonce: number, convId: string) => void): () => void;
   onToolStart(callback: (data: { id: string; name: string; nonce: number; convId: string }) => void): () => void;
+  /** A tool's input is complete and it starts running (tools run one at a time). */
+  onToolRun(callback: (data: { id: string; input: Record<string, unknown>; nonce: number; convId: string }) => void): () => void;
   onToolResult(
     callback: (data: { id: string; result: string; isError: boolean; nonce: number; convId: string }) => void
   ): () => void;
   onToolEnd(callback: (data: { id: string; nonce: number; convId: string }) => void): () => void;
+  /**
+   * A write the model asked for that Studio can make was queued for review instead of run.
+   * `org` is the session's org username, lowercased; `changes` are tray entries
+   * (`PendingChange` in components/studio/changes.ts). `toolId` is the chat tool call it answers.
+   */
+  onTrayQueue(callback: (data: TrayQueueEvent) => void): () => void;
+  /** A write with no Studio equivalent waits for Allow / Deny on its tool call (`toolId`). */
+  onApprovalRequest(callback: (data: ApprovalRequest) => void): () => void;
+  /** An approval was answered, or dropped because its run was aborted. */
+  onApprovalSettled(callback: (data: { requestId: string; convId: string; toolId: string; allowed: boolean }) => void): () => void;
+  respondApproval(requestId: string, allow: boolean): Promise<{ ok: boolean }>;
+  /** Approvals still waiting (e.g. after the window reloads, or in a session opened later). */
+  listApprovals(): Promise<ApprovalRequest[]>;
   onComplete(callback: (nonce: number, convId: string) => void): () => void;
   onError(callback: (error: string, nonce: number, convId: string) => void): () => void;
 
@@ -90,12 +387,14 @@ interface LscApi {
   listSkills(): Promise<Array<{ name: string; description: string }>>;
 
   // Conversation History
-  listConversations(): Promise<
-    Array<{ id: string; title: string; pinned: boolean; createdAt: string; updatedAt: string }>
-  >;
-  createConversation(
-    firstMessage: string
-  ): Promise<{ id: string; title: string; pinned: boolean; createdAt: string; updatedAt: string }>;
+  listConversations(scope?: OrgScope): Promise<Conversation[]>;
+  searchConversations(query: string, scope?: OrgScope): Promise<Conversation[]>;
+  getConversation(id: string): Promise<Conversation | null>;
+  /** Ties sessions that have no org yet to the selected org. */
+  moveConversationsToOrg(ids: string[]): Promise<{ ok: boolean; moved: number; error?: string }>;
+  deleteConversations(ids: string[]): Promise<{ ok: boolean }>;
+  /** Creates a session in the org selected now. */
+  createConversation(firstMessage: string): Promise<Conversation>;
   togglePinConversation(id: string): Promise<{ ok: boolean }>;
   deleteConversation(id: string): Promise<{ ok: boolean }>;
   renameConversation(id: string, title: string): Promise<{ ok: boolean }>;
@@ -114,6 +413,9 @@ interface LscApi {
   // File reading
   readFile(filePath: string): Promise<{ ok: boolean; content?: string; path?: string; error?: string }>;
   openExternal(url: string): Promise<{ ok: boolean }>;
+  /** Serves a live preview frame's HTML as an lsc-frame:// URL with the frame CSP. */
+  registerFrame(html: string): Promise<string | null>;
+  releaseFrame(url: string): Promise<void>;
 
   // Guide section reading
   readGuideSection(guideSlug: string, sectionSlug: string): Promise<{
@@ -148,3 +450,25 @@ declare global {
 }
 
 export {};
+
+/** `tray:queue` — see `onTrayQueue`. */
+export interface TrayQueueEvent {
+  convId: string;
+  toolId: string;
+  org: string;
+  changes: Array<{ fix: { kind: string; label: string; [key: string]: unknown }; affects?: string[] }>;
+}
+
+/** `chat:approval-request` — see `onApprovalRequest`. */
+export interface ApprovalRequest {
+  requestId: string;
+  convId: string;
+  toolId: string;
+  /** Tool name, e.g. "update_record". */
+  name: string;
+  input: Record<string, unknown>;
+  /** One plain sentence: what it will change, e.g. "Update Account 001… (Name, Phone)". */
+  summary: string;
+  /** The session's org is production. */
+  production: boolean;
+}

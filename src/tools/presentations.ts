@@ -7,6 +7,7 @@ import {
   createBulkPresentation,
   apiRequest,
   createRecord,
+  dataPath,
 } from "../salesforce/cli.js";
 import { validateOrgConnection } from "../salesforce/auth.js";
 import {
@@ -535,7 +536,7 @@ export function register(server: McpServer) {
       for (const entry of toCreate) {
         // Create Presentation-level share
         const result = await apiRequest(
-          "/services/data/v66.0/sobjects/PresentationShare",
+          await dataPath(effectiveOrg, "/sobjects/PresentationShare"),
           "POST",
           {
             ParentId: resolvedPresentationId,
@@ -557,7 +558,7 @@ export function register(server: McpServer) {
         // Create page-level shares for each PresentationPage
         for (const pageId of pageIds) {
           const pageShareResult = await apiRequest(
-            "/services/data/v66.0/sobjects/PresentationPageShare",
+            await dataPath(effectiveOrg, "/sobjects/PresentationPageShare"),
             "POST",
             {
               ParentId: pageId,

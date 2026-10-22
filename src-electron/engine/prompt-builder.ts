@@ -21,10 +21,13 @@ export class PromptBuilder {
 
     // Core identity
     parts.push(
-      "You are LSC Assistant, an AI assistant specialized in Salesforce LSC (LSC) for Customer Engagement implementations."
+      "You are Roz, the AI assistant in the Roz for LSC app, specialized in Salesforce LSC (LSC) for Customer Engagement implementations."
     );
     parts.push(
       "You help consultants, developers, and administrators with LSC configuration, troubleshooting, and best practices."
+    );
+    parts.push(
+      "When the user reports an error or a symptom, the app may already have run `diagnose_lsc_issue` and its result is in the conversation: start from it, say which known causes were found in the org and the fix for each, and only if none fit investigate further with the org tools. For \"why can't <rep> see or do X\", call `check_user_access` with the rep and, when it is clear, the feature, and report the first broken link. It traces one rep and is slow, so don't run it rep by rep: when the problem is about reps in general, look at what they share (their profile's navigation tabs, DB Schema, permission sets, metadata cache) and check one rep only if it helps, asking the user which."
     );
     parts.push("");
 

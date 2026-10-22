@@ -1,0 +1,1317 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ListPlus, PanelTopOpen, SquarePlus, TextCursorInput } from "lucide-react";
+import type { ComponentCatalog, CreateConfigFix, FeatureMap, StudioFix, LiveApp, LiveCompactLayout, LiveFlexiPage, LiveLayout, LiveListView, ProfileOption } from "./types";
+import { componentNote, type ComponentProps } from "./component-props";
+import type { PublishedIpad, PublishedListView, PublishedResult } from "./published-types";
+import type { PreviewEdit } from "./PublishedIpadPreview";
+import type { EditDrop } from "./EditLayer";
+import { apiNameFor } from "./templates";
+import { changeKey, commitFrom, createAffects, layoutOpsChange, queueChange, queuedCopy, queuedFlexiPageOps, queuedLayoutOps, viewFor, type PendingChange } from "./changes";
+import { flexiPageCopyName, layoutCopyName } from "./copy-names";
+import { actionVerbs, draftHomeMenu, draftTabs, moveActionTo, moveTabTo, tabItemFor, tabVerbs, type DraftTab, type Verb } from "./edit-draft";
+import { appFixedTabVerbs, appTabVerbs, buildAppBar, isAppTab, moveAppTabTo, type AppEntry, type AppMatchState, type LiveAppState } from "./app-nav-draft";
+import { openSetupLink, resolveSetupPath, type SetupLink } from "./setup-link";
+import { describeTarget, syncAction, syncFilter, type AppNavInfo, type EditTarget } from "./edit-targets";
+import {
+  addRelatedVerb,
+  alignLayout,
+  aheadOf,
+  isAhead,
+  movedCount,
+  ORG_AHEAD_GONE,
+  ORG_AHEAD_MOVED,
+  ORG_AHEAD_TAG,
+  type LayoutAhead,
+  draftSections,
+  fieldVerbs,
+  modelOf,
+  moveFieldTo,
+  moveRelatedTo,
+  moveSectionTo,
+  relatedObject,
+  relatedVerbs,
+  sectionVerbs,
+  StaleDraftError,
+  targetOf,
+  type DraftSection,
+  type FieldSlot,
+  type LayoutDraft,
+} from "./layout-draft";
+import { alignCompact, compactTargetOf, compactVerbs, crowdedNote, draftHeader, moveCompactFieldTo, type CompactDraft, type DraftHeaderField } from "./compact-draft";
+import {
+  alignFlexiPage,
+  alignFlexiPagePartial,
+  componentVerbs,
+  insertComponent,
+  insertVerb,
+  locateItem,
+  modelOf as pageModelOf,
+  moveComponentTo,
+  moveRecordTabTo,
+  propertyEdits,
+  targetOf as pageTargetOf,
+  type PageDraft,
+} from "./flexipage-draft";
+import {
+  draftListColumns,
+  filtersChanged,
+  isLegacyId,
+  listColumnVerbs,
+  listViewTargetOf,
+  listViewVerbs,
+  modelOf as listModelOf,
+  moveListColumnTo,
+  type DraftListColumn,
+  type ListViewDraft,
+} from "./listview-draft";
+import ListViewEditor from "./ListViewEditor";
+import BlockInspector, { compactReach, listViewReach, pageReach, type CopyAction } from "./BlockInspector";
+import CreateDialog from "./CreateDialog";
+import { aheadDocuments, orgAheadApp, orgAheadFor, type OrgAheadIndex } from "./org-ahead";
+import { changesTouching, refsOfTarget, whereRows } from "./where-this-is";
+import SearchPicker from "../ui/SearchPicker";
+import { extendSelection, groupVerbs, selectionNoun } from "./multi-select";
+
+interface PreviewEditOptions {
+  /** The preview is showing: blocks can be selected (to explain them, and in Next publish to change them). */
+  on: boolean;
+  /** Next publish: the org and the tray are drawn over the published iPad and verbs queue changes. */
+  draft: boolean;
+  /** "Edit in Next publish" from On iPads now: switch modes, keeping the selection. */
+  onEditInDraft?: () => void;
+  profile: string | null;
+  result: PublishedResult | undefined;
+  actionsMap: FeatureMap | null;
+  syncMap: FeatureMap | null;
+  pending: PendingChange[];
+  onPendingChange: (pending: PendingChange[]) => void;
+  /** The org Setup pages open in. */
+  org: string | undefined;
+  profiles: ProfileOption[];
+  onOpenStudio: (featureId: string, surface: string, itemId: string) => void;
+  /** Moves when something is written to the org: the documents read live are read again. */
+  writeVersion?: number;
+  /** Documents changed in the org after the profile's cache was generated, so the inspector can say so. */
+  orgAhead?: OrgAheadIndex;
+  /** "Add to iPad" from the app builder: queue this deployed bundle onto the profile's Home or record page. */
+  insertIntent?: InsertIntent | null;
+  onIntentResult?: (result: InsertIntentResult) => void;
+}
+
+export interface InsertIntent {
+  nonce: number;
+  /** The deployed bundle, lscMobileInline_Xxx. */
+  bundle: string;
+  target: "home" | "record" | "action" | "tab";
+  object?: string;
+  /** The project's label, for the nav tab. */
+  label?: string;
+}
+
+export interface InsertIntentResult {
+  nonce: number;
+  state: "waiting" | "queued" | "failed";
+  message: string;
+  /** The Lightning page the component went onto. */
+  page?: string;
+}
+
+/**
+ * Edit mode for the published iPad preview: the selected block, the Draft tab bar
+ * and Home menu, the verbs the toolbar offers, and the docked inspector that
+ * explains the block (with the record form for "Add to iPad sync").
+ */
+export function usePreviewEdit({
+  on,
+  draft,
+  onEditInDraft,
+  profile,
+  result,
+  actionsMap,
+  syncMap,
+  pending: tray,
+  onPendingChange: onTrayChange,
+  org,
+  profiles,
+  onOpenStudio,
+  writeVersion = 0,
+  orgAhead,
+  insertIntent,
+  onIntentResult,
+}: PreviewEditOptions): { edit: PreviewEdit | undefined; panel: React.ReactNode } {
+  // The tray as this profile's draft sees it: a copy made just for the profile stands in for the shared
+  // document, and edits to it go back into the copy (changes.ts, viewFor / commitFrom).
+  const pending = useMemo(() => viewFor(tray, profile), [tray, profile]);
+  const onPendingChange = useCallback((next: PendingChange[]) => onTrayChange(commitFrom(tray, profile, next)), [tray, profile, onTrayChange]);
+  // The selected blocks, the last one clicked first: ⌘- or ⇧-click adds blocks like it (multi-select.ts).
+  const [selection, setSelection] = useState<EditTarget[]>([]);
+  const selected = selection[0] ?? null;
+  const setSelected = useCallback((t: EditTarget | null) => setSelection(t ? [t] : []), []);
+  const onSelect = useCallback(
+    (t: EditTarget | null, extend?: boolean) => setSelection((s) => (t ? extendSelection(s, t, !!extend) : [])),
+    []
+  );
+  const [creating, setCreating] = useState<CreateConfigFix | null>(null);
+  // A verb that asks which field or related list first.
+  const [picking, setPicking] = useState<Verb | null>(null);
+  const snapshot: PublishedIpad | null = result && !("missing" in result) ? result : null;
+
+  // Another profile, user or mode is another screen: start without a selection.
+  useEffect(() => setSelected(null), [on, profile, snapshot, setSelected]);
+  useEffect(() => setPicking(null), [selected, draft]);
+
+  // Page layouts as they are in the org now, read when one of their blocks is selected
+  // (and for layouts with queued edits): the preview shows the last publish.
+  const [liveLayouts, setLiveLayouts] = useState<Record<string, LiveState>>({});
+  // "Add to iPad" for a quick action: the layouts this profile gets for the object (its record types' layouts).
+  const intentLayouts = useMemo(() => {
+    if (insertIntent?.target !== "action" || !snapshot) return [];
+    const obj = snapshot.objects[insertIntent.object ?? ""];
+    return [...new Set((obj?.recordTypes ?? []).flatMap((r) => (r.layout ? [r.layout] : [])))].slice(0, 4);
+  }, [insertIntent, snapshot]);
+  useEffect(() => setLiveLayouts({}), [org]);
+  // Next publish draws the org: documents that changed there since the publish are read without waiting for a click.
+  const ahead = useMemo(() => (draft && orgAhead && snapshot ? aheadDocuments(orgAhead, snapshot) : null), [draft, orgAhead, snapshot]);
+  const wanted = useMemo(() => {
+    const names = new Set(pending.flatMap((p) => (p.fix.kind === "editMetadata" && p.fix.doc.type === "Layout" ? [p.fix.doc.fullName] : [])));
+    const layout = selected && "layout" in selected ? selected.layout : undefined;
+    if (on && layout) names.add(layout);
+    for (const n of [...intentLayouts, ...(ahead?.layouts ?? [])]) names.add(n);
+    return [...names].sort();
+  }, [pending, selected, on, intentLayouts, ahead]);
+  const fetchLayout = useCallback((name: string) => {
+    setLiveLayouts((m) => ({ ...m, [name]: { status: "loading" } }));
+    window.lscApi.studioMetadataDoc("Layout", name).then(
+      (res) => {
+        const error = res.error ?? res.data?.error;
+        setLiveLayouts((m) => ({ ...m, [name]: error ? { status: "error", error } : { status: "ready", live: res.data as LiveLayout } }));
+      },
+      (e: unknown) => setLiveLayouts((m) => ({ ...m, [name]: { status: "error", error: String(e) } }))
+    );
+  }, []);
+  useEffect(() => {
+    for (const name of wanted) if (!liveLayouts[name]) fetchLayout(name);
+  }, [wanted, liveLayouts, fetchLayout]);
+
+  // Compact layouts (the record header) the same way, read when a header field is selected.
+  const [liveCompacts, setLiveCompacts] = useState<Record<string, LiveCompactState>>({});
+  useEffect(() => setLiveCompacts({}), [org]);
+  const wantedCompacts = useMemo(() => {
+    const names = new Set(pending.flatMap((p) => (p.fix.kind === "editMetadata" && p.fix.doc.type === "CompactLayout" ? [p.fix.doc.fullName] : [])));
+    if (on && selected?.kind === "headerField") names.add(selected.compactLayout);
+    for (const n of ahead?.compacts ?? []) names.add(n);
+    return [...names].sort();
+  }, [pending, selected, on, ahead]);
+  const fetchCompact = useCallback((name: string) => {
+    setLiveCompacts((m) => ({ ...m, [name]: { status: "loading" } }));
+    window.lscApi.studioMetadataDoc("CompactLayout", name).then(
+      (res) => {
+        const error = res.error ?? res.data?.error;
+        setLiveCompacts((m) => ({ ...m, [name]: error ? { status: "error", error } : { status: "ready", live: res.data as LiveCompactLayout } }));
+      },
+      (e: unknown) => setLiveCompacts((m) => ({ ...m, [name]: { status: "error", error: String(e) } }))
+    );
+  }, []);
+  useEffect(() => {
+    for (const name of wantedCompacts) if (!liveCompacts[name]) fetchCompact(name);
+  }, [wantedCompacts, liveCompacts, fetchCompact]);
+
+  // List views the same way, read when a list view or one of its columns is selected.
+  const [liveListViews, setLiveListViews] = useState<Record<string, LiveListViewState>>({});
+  useEffect(() => setLiveListViews({}), [org]);
+  const wantedListViews = useMemo(() => {
+    const names = new Set(pending.flatMap((p) => (p.fix.kind === "editMetadata" && p.fix.doc.type === "ListView" ? [p.fix.doc.fullName] : [])));
+    if (on && (selected?.kind === "listView" || selected?.kind === "listColumn")) names.add(listViewNameOf(selected));
+    for (const n of ahead?.listViews ?? []) names.add(n);
+    return [...names].sort();
+  }, [pending, selected, on, ahead]);
+  const fetchListView = useCallback((name: string) => {
+    setLiveListViews((m) => ({ ...m, [name]: { status: "loading" } }));
+    window.lscApi.studioMetadataDoc("ListView", name).then(
+      (res) => {
+        const error = res.error ?? res.data?.error;
+        setLiveListViews((m) => ({ ...m, [name]: error ? { status: "error", error } : { status: "ready", live: res.data as LiveListView } }));
+      },
+      (e: unknown) => setLiveListViews((m) => ({ ...m, [name]: { status: "error", error: String(e) } }))
+    );
+  }, []);
+  useEffect(() => {
+    for (const name of wantedListViews) if (!liveListViews[name]) fetchListView(name);
+  }, [wantedListViews, liveListViews, fetchListView]);
+
+  // Lightning pages (Home and record pages) the same way, read when one of their components or tabs is selected.
+  const [livePages, setLivePages] = useState<Record<string, LivePageState>>({});
+  useEffect(() => setLivePages({}), [org]);
+  const selectedPage = selected?.kind === "component" || selected?.kind === "recordTab" ? selected.page : undefined;
+  // Pages "Add to iPad" may put its bundle on: the Home page, or the profile's record pages for the object.
+  const intentPages = useMemo(() => {
+    if (!insertIntent || !snapshot) return [];
+    if (insertIntent.target === "action" || insertIntent.target === "tab") return [];
+    if (insertIntent.target === "home") return snapshot.home ? [snapshot.home.name] : [];
+    const object = (insertIntent.object ?? "").toLowerCase();
+    const records = Object.values(snapshot.pages).filter((p) => /record/i.test(p.type));
+    const named = records.filter((p) => p.name.toLowerCase().includes(object));
+    return (named.length ? named : records).slice(0, 12).map((p) => p.name);
+  }, [insertIntent, snapshot]);
+  const wantedPages = useMemo(() => {
+    const names = new Set(pending.flatMap((p) => (p.fix.kind === "editMetadata" && p.fix.doc.type === "FlexiPage" ? [p.fix.doc.fullName] : [])));
+    if (on && selectedPage) names.add(selectedPage);
+    for (const n of [...intentPages, ...(ahead?.pages ?? [])]) names.add(n);
+    return [...names].sort();
+  }, [pending, selectedPage, on, intentPages, ahead]);
+  const fetchPage = useCallback((name: string) => {
+    setLivePages((m) => ({ ...m, [name]: { status: "loading" } }));
+    window.lscApi.studioMetadataDoc("FlexiPage", name).then(
+      (res) => {
+        const error = res.error ?? res.data?.error;
+        const live = res.data as LiveFlexiPage;
+        setLivePages((m) => ({ ...m, [name]: error ? { status: "error", error } : { status: "ready", live } }));
+        if (error || !live.reachPending) return;
+        // Who gets the page can take a minute in big orgs (every app is read); edit meanwhile, then fill it in.
+        const settle = (reach: Pick<LiveFlexiPage, "profiles" | "appDefaults">) =>
+          setLivePages((m) => {
+            const cur = m[name];
+            return cur?.status === "ready" && cur.live === live ? { ...m, [name]: { status: "ready", live: { ...live, ...reach, reachPending: false } } } : m;
+          });
+        window.lscApi.studioPageReach(name).then(
+          (r) => settle(r.error || r.data?.error ? { profiles: null, appDefaults: null } : (r.data as Pick<LiveFlexiPage, "profiles" | "appDefaults">)),
+          () => settle({ profiles: null, appDefaults: null })
+        );
+      },
+      (e: unknown) => setLivePages((m) => ({ ...m, [name]: { status: "error", error: String(e) } }))
+    );
+  }, []);
+  useEffect(() => {
+    for (const name of wantedPages) if (!livePages[name]) fetchPage(name);
+  }, [wantedPages, livePages, fetchPage]);
+
+  // A write changed documents we hold. They are blanked while read again: a draft diffed against the
+  // pre-write document would re-send ops that are already in the org.
+  const seenWrite = useRef(writeVersion);
+  useEffect(() => {
+    if (writeVersion === seenWrite.current) return;
+    seenWrite.current = writeVersion;
+    for (const name of Object.keys(liveLayouts)) fetchLayout(name);
+    for (const name of Object.keys(liveCompacts)) fetchCompact(name);
+    for (const name of Object.keys(liveListViews)) fetchListView(name);
+    for (const name of Object.keys(livePages)) fetchPage(name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [writeVersion]);
+
+  // What "Insert component…" offers, per page type and object.
+  const [catalogs, setCatalogs] = useState<Record<string, ComponentCatalog | "loading" | { error: string }>>({});
+  useEffect(() => setCatalogs({}), [org]);
+
+  const surface = (map: FeatureMap | null, id: string) => map?.surfaces.find((s) => s.id === id);
+  const tabItems = surface(actionsMap, "navigationTabs")?.items;
+  const actionItems = surface(actionsMap, "homeActions")?.items;
+  const synced = surface(syncMap, "syncedObjects");
+  const overlay = draft ? pending : NONE;
+
+  const bar0 = useMemo(
+    () => (snapshot && profile ? draftTabs(snapshot.tabs, tabItems ?? [], overlay, profile) : []),
+    [snapshot, tabItems, overlay, profile]
+  );
+
+  // The Lightning app behind the tab bar: first which app the profile's bar comes from (found by its tabs),
+  // then its tabs as the org has them now. The tabs the UI Settings own (UISchema) are not the app's.
+  const hiddenTabs = useMemo(() => new Set((snapshot?.hiddenTabs ?? []).map((t) => t.fullName)), [snapshot]);
+  const appNames = useMemo(
+    () =>
+      snapshot && profile
+        ? [...snapshot.tabs.filter((t) => t.kind !== "recent" && !tabItemFor(t, tabItems ?? [], profile)).map((t) => t.fullName), ...hiddenTabs].sort()
+        : [],
+    [snapshot, tabItems, profile, hiddenTabs]
+  );
+  const appKey = `${org ?? ""}\u0000${profile ?? ""}\u0000${appNames.join("|")}`;
+  const [appMatch, setAppMatch] = useState<{ key: string; state: AppMatchState }>({ key: "", state: { status: "idle" } });
+  const [liveApps, setLiveApps] = useState<Record<string, LiveAppState>>({});
+  useEffect(() => {
+    setLiveApps({});
+    setAppMatch({ key: "", state: { status: "idle" } });
+  }, [org]);
+  useEffect(() => {
+    if (!on || !profile || !appNames.length || appMatch.key === appKey) return;
+    setAppMatch({ key: appKey, state: { status: "loading" } });
+    const settle = (state: AppMatchState) => setAppMatch((cur) => (cur.key === appKey ? { key: appKey, state } : cur));
+    window.lscApi.studioAppNav(profile, appNames).then(
+      (res) => {
+        const error = res.error ?? res.data?.error;
+        const data = res.data as { app: { fullName: string; label: string; installed: boolean } | null; reason?: string };
+        settle(error ? { status: "error", error: String(error) } : { status: "ready", app: data.app, reason: data.reason });
+      },
+      (e: unknown) => settle({ status: "error", error: String(e) })
+    );
+  }, [on, profile, appNames, appKey, appMatch.key]);
+  const fetchApp = useCallback((name: string) => {
+    setLiveApps((m) => ({ ...m, [name]: { status: "loading" } }));
+    window.lscApi.studioMetadataDoc("CustomApplication", name).then(
+      (res) => {
+        const error = res.error ?? res.data?.error;
+        setLiveApps((m) => ({ ...m, [name]: error ? { status: "error", error: String(error) } : { status: "ready", live: res.data as LiveApp } }));
+      },
+      (e: unknown) => setLiveApps((m) => ({ ...m, [name]: { status: "error", error: String(e) } }))
+    );
+  }, []);
+  const matchedApp = appMatch.key === appKey && appMatch.state.status === "ready" ? appMatch.state.app : null;
+  useEffect(() => {
+    if (on && matchedApp && !liveApps[matchedApp.fullName]) fetchApp(matchedApp.fullName);
+  }, [on, matchedApp, liveApps, fetchApp]);
+  // A write changed the app: read it again (blanked meanwhile, so a draft isn't diffed against the old tabs).
+  const seenAppWrite = useRef(writeVersion);
+  useEffect(() => {
+    if (writeVersion === seenAppWrite.current) return;
+    seenAppWrite.current = writeVersion;
+    for (const name of Object.keys(liveApps)) fetchApp(name);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [writeVersion]);
+  const matchState: AppMatchState = appMatch.key === appKey ? appMatch.state : { status: on && appNames.length ? "loading" : "idle" };
+  const appBar = useMemo(() => buildAppBar(bar0, matchState, liveApps, overlay, hiddenTabs), [bar0, matchState, liveApps, overlay, hiddenTabs]);
+  const app = appBar.entry;
+  // Published shows the bar as the cache drew it; Draft lays the app's edits (and what Setup added since) over it.
+  const tabs = draft ? appBar.bar : bar0;
+  const homeMenu = useMemo(
+    () =>
+      snapshot && profile
+        ? draftHomeMenu(snapshot.screens?.fabs?.home ?? [], actionItems ?? [], overlay, profile)
+        : [],
+    [snapshot, actionItems, overlay, profile]
+  );
+
+  const layouts = useMemo(() => buildLayouts(liveLayouts, snapshot, overlay), [liveLayouts, snapshot, overlay]);
+
+  const compacts = useMemo(() => buildCompacts(liveCompacts, snapshot, overlay), [liveCompacts, snapshot, overlay]);
+
+  const listViews = useMemo(() => buildListViews(liveListViews, snapshot, overlay), [liveListViews, snapshot, overlay]);
+
+  const pages = useMemo(() => {
+    const out: Record<string, PageEntry> = {};
+    for (const [name, state] of Object.entries(livePages)) {
+      if (state.status !== "ready") {
+        out[name] = state;
+        continue;
+      }
+      const published = snapshot?.pages[name] ?? (snapshot?.home?.name === name ? snapshot.home : undefined);
+      const base = pageModelOf(state.live);
+      if (!published) {
+        out[name] = { status: "stale", live: state.live, note: PAGE_NOT_PUBLISHED };
+        continue;
+      }
+      // Draft draws the org's page: published blocks that still line up, plus what Setup added since, marked.
+      const full = alignFlexiPage(published, base);
+      const partial = full ? null : alignFlexiPagePartial(published, base);
+      const aligned = full ?? partial!.aligned;
+      if (state.live.managed) {
+        out[name] = { status: "stale", live: state.live, note: MANAGED };
+        continue;
+      }
+      try {
+        const target = pageTargetOf(name, base, overlay);
+        out[name] = { status: "ready", draft: { fullName: name, label: state.live.label, live: state.live, base, target, aligned, ...(partial ? { ahead: { gone: partial.gone } } : {}) } };
+      } catch (e) {
+        if (!(e instanceof StaleDraftError)) throw e;
+        out[name] = { status: "stale", live: state.live, note: `The queued edits no longer fit this Lightning page: ${e.message} Take them out of the tray and refresh the preview.` };
+      }
+    }
+    return out;
+  }, [livePages, snapshot, overlay]);
+
+  const pageEntry = selectedPage ? pages[selectedPage] : undefined;
+  const pageDraft = pageEntry?.status === "ready" ? pageEntry.draft : undefined;
+  const catalogKey =
+    pageDraft && (pageDraft.live.pageType === "HomePage" || pageDraft.live.pageType === "RecordPage")
+      ? `${pageDraft.live.pageType}:${pageDraft.live.sobjectType ?? ""}`
+      : undefined;
+  useEffect(() => {
+    if (!on || !draft || !catalogKey || !pageDraft || catalogs[catalogKey]) return;
+    setCatalogs((m) => ({ ...m, [catalogKey]: "loading" }));
+    window.lscApi.studioComponentCatalog(pageDraft.live.pageType as "HomePage" | "RecordPage", pageDraft.live.sobjectType).then(
+      (res) => {
+        const error = res.error ?? res.data?.error;
+        setCatalogs((m) => ({ ...m, [catalogKey]: error ? { error } : (res.data as ComponentCatalog) }));
+      },
+      (e: unknown) => setCatalogs((m) => ({ ...m, [catalogKey]: { error: String(e) } }))
+    );
+  }, [on, draft, catalogKey, pageDraft, catalogs]);
+  const catalogState = catalogKey ? catalogs[catalogKey] : undefined;
+  const catalog = catalogState && catalogState !== "loading" && !("error" in catalogState) ? catalogState : null;
+
+  // "Add to iPad": once the page and the component library are read, put the bundle at the end of the page's main region.
+  const handledIntent = useRef(0);
+  const intentPage = useMemo(() => {
+    if (!insertIntent) return undefined;
+    for (const name of intentPages) {
+      const e = pages[name];
+      if (e?.status !== "ready") continue;
+      const d = e.draft;
+      if (insertIntent.target === "home" ? d.live.pageType === "HomePage" : d.live.pageType === "RecordPage" && d.live.sobjectType === insertIntent.object) return d;
+    }
+    return undefined;
+  }, [insertIntent, intentPages, pages]);
+  const intentKey = intentPage ? `${intentPage.live.pageType}:${intentPage.live.sobjectType ?? ""}` : undefined;
+  useEffect(() => {
+    if (!insertIntent || !intentKey || !intentPage || catalogs[intentKey]) return;
+    setCatalogs((m) => ({ ...m, [intentKey]: "loading" }));
+    window.lscApi.studioComponentCatalog(intentPage.live.pageType as "HomePage" | "RecordPage", intentPage.live.sobjectType).then(
+      (res) => {
+        const error = res.error ?? res.data?.error;
+        setCatalogs((m) => ({ ...m, [intentKey]: error ? { error } : (res.data as ComponentCatalog) }));
+      },
+      (e: unknown) => setCatalogs((m) => ({ ...m, [intentKey]: { error: String(e) } }))
+    );
+  }, [insertIntent, intentKey, intentPage, catalogs]);
+  useEffect(() => {
+    if (insertIntent?.target !== "action" || handledIntent.current === insertIntent.nonce || !onIntentResult) return;
+    const done = (state: InsertIntentResult["state"], message: string) => {
+      if (state !== "waiting") handledIntent.current = insertIntent.nonce;
+      onIntentResult({ nonce: insertIntent.nonce, state, message });
+    };
+    if (!profile || !snapshot) return done("waiting", "Pick a profile in the preview and the action is added to its layout.");
+    if (intentLayouts.length === 0) return done("failed", `This profile's ${insertIntent.object} layout isn't in its last publish. Publish to iPad first, or add the action in Setup.`);
+    const lives = intentLayouts.map((n) => liveLayouts[n]);
+    if (lives.some((l) => !l || l.status === "loading")) return done("waiting", "Reading the page layout…");
+    const failed = lives.find((l) => l?.status === "error");
+    if (failed && failed.status === "error") return done("failed", `Couldn't read the layout: ${failed.error}`);
+    const action = `${insertIntent.object}.${insertIntent.bundle}`;
+    let next = pending;
+    for (const [i, name] of intentLayouts.entries()) {
+      const live = (lives[i] as { status: "ready"; live: LiveLayout }).live;
+      const queued = queuedLayoutOps(next, name);
+      if (queued.some((o) => o.op === "addAction" && o.action === action)) continue;
+      next = queueChange(next, {
+        fix: layoutOpsChange(name, name.replace(/^[^-]*-/, ""), [...queued, { op: "addAction", action, before: null }]),
+        ...(live.profiles ? { affects: live.profiles } : {}),
+      });
+    }
+    if (next !== pending) onPendingChange(next);
+    done("queued", `Added to the ${insertIntent.object} page layout's actions in the pending changes.`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [insertIntent, profile, snapshot, intentLayouts, liveLayouts]);
+  // "Add to iPad" for a nav tab: open the new-tab form prefilled (the user reviews it, then it queues).
+  useEffect(() => {
+    if (insertIntent?.target !== "tab" || handledIntent.current === insertIntent.nonce || !onIntentResult) return;
+    if (!profile || !snapshot) return onIntentResult({ nonce: insertIntent.nonce, state: "waiting", message: "Pick a profile in the preview and the tab is added for it." });
+    handledIntent.current = insertIntent.nonce;
+    const label = insertIntent.label ?? insertIntent.bundle;
+    setCreating({
+      kind: "createConfigRecord",
+      label: `Add navigation tab ${label}`,
+      category: "UISchema",
+      developerName: apiNameFor(label, "NavTab_"),
+      recordLabel: label,
+      fields: [
+        { name: "TabName", value: insertIntent.bundle },
+        { name: "TabOrder", value: snapshot.tabs.length + 1 },
+      ],
+      profiles: [profile],
+      active: true,
+    });
+    onIntentResult({ nonce: insertIntent.nonce, state: "queued", message: "Review the new tab, then add it to the pending changes." });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [insertIntent, profile, snapshot]);
+  useEffect(() => {
+    if (!insertIntent || insertIntent.target === "action" || insertIntent.target === "tab" || handledIntent.current === insertIntent.nonce || !onIntentResult) return;
+    const done = (state: InsertIntentResult["state"], message: string, page?: string) => {
+      if (state !== "waiting") handledIntent.current = insertIntent.nonce;
+      onIntentResult({ nonce: insertIntent.nonce, state, message, page });
+    };
+    if (!profile || !snapshot) return done("waiting", "Pick a profile in the preview and the app is added to its page.");
+    const loading = intentPages.length === 0 ? false : intentPages.some((n) => !pages[n] || pages[n].status === "loading");
+    if (!intentPage) {
+      if (loading) return done("waiting", "Reading the page…");
+      const where = insertIntent.target === "home" ? "Home page" : `${insertIntent.object} record page`;
+      return done("failed", `This profile's ${where} isn't in its last publish, so Studio can't edit it. Publish to iPad first, or add the component in Lightning App Builder.`);
+    }
+    const state = intentKey ? catalogs[intentKey] : undefined;
+    if (!state || state === "loading") return done("waiting", "Reading the component library…");
+    if ("error" in state) return done("failed", `Couldn't read the component library: ${state.error}`);
+    const entry = state.entries.find((e) => e.insertable && e.group === "Inline LWC" && (e.component === insertIntent.bundle || e.component.endsWith(`:${insertIntent.bundle}`)));
+    if (!entry) return done("failed", `${insertIntent.bundle} isn't in the org's component library yet. Deploy it, then try again.`);
+    if (intentPage.target.regions.some((r) => r.items.some((i) => i.component === entry.component))) return done("failed", `It's already on ${intentPage.label}.`, intentPage.fullName);
+    const regions = intentPage.target.regions;
+    const region = regions.find((r) => r.name === "main") ?? [...regions].sort((a, b) => b.items.length - a.items.length)[0];
+    if (!region) return done("failed", "That page has no region to put it in.");
+    onPendingChange(insertComponent(intentPage, region.name, null, entry.component, entry.properties, pending));
+    done("queued", `Added to ${intentPage.label} in the pending changes.`, intentPage.fullName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [insertIntent, profile, snapshot, intentPage, intentPages, pages, catalogs, intentKey]);
+
+  // The org item a selected component or tab is, and the keys drawn beside it (published or inserted in Draft).
+  const pageItem = useMemo(() => {
+    if (!pageDraft || (selected?.kind !== "component" && selected?.kind !== "recordTab")) return undefined;
+    const key = (selected.kind === "component" ? selected.item : undefined) ?? (selected.source ? pageDraft.aligned.get(selected.source) : undefined);
+    if (!key) return undefined;
+    const published = new Set(pageDraft.aligned.values());
+    const at = locateItem(pageDraft.target, key) ?? locateItem(pageDraft.base, key);
+    const region = at && pageDraft.target.regions.find((r) => r.name === at.region.name);
+    const inBase = (k: string) => !!locateItem(pageDraft.base, k);
+    const shown = (region?.items ?? []).map((i) => i.key).filter((k) => published.has(k) || !inBase(k));
+    return { key, shown };
+  }, [pageDraft, selected]);
+
+  const verbs = useMemo((): Verb[] => {
+    if (!selected || !profile) return [];
+    if (selection.length < 2) {
+      if (selected.kind === "component" || selected.kind === "recordTab") {
+        if (!pageDraft || !pageItem) return [];
+        const tab = selected.kind === "recordTab";
+        const moves = componentVerbs(pageDraft, pageItem.key, tab ? selected.title : selected.label, pageItem.shown, tab);
+        return tab ? moves : [...moves, insertVerb(pageDraft, pageItem.key, catalog)];
+      }
+      return blockVerbs(selected, { tabs, homeMenu, pending, profile, layouts, compacts, listViews, snapshot, app });
+    }
+    // A group verb runs block by block, each against the tray the last one left, so the drafts are rebuilt from it.
+    const at = (t: EditTarget, p: PendingChange[]) => {
+      const bar = snapshot ? draftTabs(snapshot.tabs, tabItems ?? [], p, profile) : [];
+      const withApp = buildAppBar(bar, matchState, liveApps, p, hiddenTabs);
+      return blockVerbs(t, {
+        app: withApp.entry,
+        tabs: withApp.bar,
+        homeMenu: snapshot ? draftHomeMenu(snapshot.screens?.fabs?.home ?? [], actionItems ?? [], p, profile) : [],
+        pending: p,
+        profile,
+        layouts: buildLayouts(liveLayouts, snapshot, p),
+        compacts: buildCompacts(liveCompacts, snapshot, p),
+        listViews: buildListViews(liveListViews, snapshot, p),
+        snapshot,
+      });
+    };
+    return groupVerbs(selection, pending, at, selectionNoun(selected, selection.length));
+  }, [selected, selection, tabs, homeMenu, pending, profile, layouts, compacts, listViews, snapshot, tabItems, actionItems, liveLayouts, liveCompacts, liveListViews, pageDraft, pageItem, catalog, app, matchState, liveApps, hiddenTabs]);
+  const groupName = selected && selection.length > 1 ? `${selection.length} ${selectionNoun(selected, selection.length)}` : undefined;
+  // The selected component's property definitions: its js-meta.xml or the curated table, read once per component.
+  const [propDefs, setPropDefs] = useState<Record<string, ComponentProps | "loading" | { error: string }>>({});
+  useEffect(() => setPropDefs({}), [org]);
+  const selectedComponent = pageDraft && pageItem ? locateItem(pageDraft.target, pageItem.key)?.item.component : undefined;
+  const propsKey = selectedComponent && pageDraft ? `${pageDraft.live.pageType}:${selectedComponent}` : undefined;
+  useEffect(() => {
+    if (!on || !draft || !propsKey || !selectedComponent || !pageDraft || propDefs[propsKey]) return;
+    setPropDefs((m) => ({ ...m, [propsKey]: "loading" }));
+    const pageType = pageDraft.live.pageType === "HomePage" || pageDraft.live.pageType === "RecordPage" ? pageDraft.live.pageType : undefined;
+    window.lscApi.studioComponentProps(selectedComponent, pageType).then(
+      (res) => {
+        const error = res.error ?? res.data?.error;
+        setPropDefs((m) => ({ ...m, [propsKey]: error ? { error: String(error) } : (res.data as ComponentProps) }));
+      },
+      (e: unknown) => setPropDefs((m) => ({ ...m, [propsKey]: { error: String(e) } }))
+    );
+  }, [on, draft, propsKey, selectedComponent, pageDraft, propDefs]);
+  const propState = propsKey ? propDefs[propsKey] : undefined;
+  const loadedProps = propState && propState !== "loading" && !("error" in propState) ? propState : null;
+  const properties = useMemo(() => (pageDraft && pageItem ? propertyEdits(pageDraft, pageItem.key, loadedProps) : []), [pageDraft, pageItem, loadedProps]);
+
+  // The selected tab, when it comes from the Lightning app (it has no UI Settings record behind it).
+  const selectedBar = selected?.kind === "tab" ? tabs.find((d) => d.tab.fullName === selected.fullName) : undefined;
+  const fromApp = !!selectedBar && !selectedBar.item && !selectedBar.create && selectedBar.tab.kind !== "recent";
+  const appInfo = useMemo((): AppNavInfo | undefined => {
+    if (!fromApp || !selectedBar) return undefined;
+    const name = selectedBar.tab.fullName;
+    if (app.status === "ready") {
+      const d = app.draft;
+      return { app: { fullName: d.fullName, label: d.label, installed: d.live.installed }, editable: isAppTab(d, name), packaged: d.live.fixedTabs.includes(name) };
+    }
+    const known = matchState.status === "ready" ? matchState.app : null;
+    const note =
+      app.status === "stale"
+        ? app.note
+        : app.status === "error"
+          ? `Couldn't read the app from the org: ${app.error}`
+          : app.status === "loading"
+            ? "Reading the app from the org…"
+            : undefined;
+    return { app: known, editable: false, packaged: false, note };
+  }, [fromApp, selectedBar, app, matchState]);
+  const info = useMemo(
+    () =>
+      selected && snapshot && profile
+        ? describeTarget(selected, { snapshot, profile, pending: overlay, tabs, homeMenu, app: appInfo })
+        : null,
+    [selected, snapshot, profile, overlay, tabs, homeMenu, appInfo]
+  );
+  const layoutEntry = selected && "layout" in selected && selected.layout ? layouts[selected.layout] : undefined;
+  const baseStatus =
+    fromApp
+      ? appStatusOf(app)
+      : selected?.kind === "headerField"
+      ? compactStatusOf(compacts[selected.compactLayout])
+      : selected?.kind === "listView" || selected?.kind === "listColumn"
+        ? listViewStatusOf(listViews[listViewNameOf(selected)], snapshot?.objects[selected.object]?.listViews)
+        : selectedPage
+        ? pageStatusOf(pageEntry)
+        : statusOf(layoutEntry);
+
+  // "Make a copy just for this profile": offered for a layout or page other profiles share, "Only [profile]" once queued.
+  const copyAction = useMemo((): CopyAction | undefined => {
+    if (!profile || !selected) return undefined;
+    if (selected.kind === "headerField") return { kind: "explain", text: COMPACT_COPY_NOTE(profile) };
+    if (fromApp && app.status === "ready") return { kind: "explain", text: APP_COPY_NOTE };
+    const here = (name: string) => name.toLowerCase() === profile.toLowerCase();
+    const target = pageDraft
+      ? {
+          doc: { type: "FlexiPage" as const, fullName: pageDraft.fullName, label: pageDraft.label },
+          shared:
+            !!pageDraft.live.profiles &&
+            !!pageDraft.live.appDefaults &&
+            !pageDraft.live.reachPending &&
+            (pageDraft.live.profiles.some((n) => !here(n)) || pageDraft.live.appDefaults.length > 0),
+        }
+      : !selectedPage && layoutEntry?.status === "ready"
+        ? {
+            doc: { type: "Layout" as const, fullName: layoutEntry.draft.fullName, label: layoutEntry.draft.label },
+            shared: !!layoutEntry.draft.live.profiles?.some((n) => !here(n)),
+          }
+        : null;
+    if (!target) return undefined;
+    const queued = queuedCopy(pending, target.doc, profile);
+    if (queued) return { kind: "queued", onTakeOut: () => onPendingChange(pending.filter((p) => p.fix.kind !== "copyForProfile" || changeKey(p.fix) !== changeKey(queued))) };
+    if (!target.shared) return undefined;
+    const { doc } = target;
+    return {
+      kind: "offer",
+      onCopy: () => {
+        const names = doc.type === "Layout" ? layoutCopyName(doc.fullName, profile) : flexiPageCopyName(doc.fullName, profile, doc.label);
+        // The copy starts from what this draft shows: the edits queued for the shared document come with it.
+        const ops = doc.type === "Layout" ? queuedLayoutOps(pending, doc.fullName) : queuedFlexiPageOps(pending, doc.fullName);
+        const fix: StudioFix = {
+          kind: "copyForProfile",
+          label: `Make a copy of ${doc.label} just for ${profile}`,
+          doc,
+          copy: names,
+          profile,
+          ...(ops.length ? { ops } : {}),
+        };
+        onPendingChange(queueChange(pending, { fix, affects: [profile] }));
+      },
+    };
+  }, [profile, selected, selectedPage, pageDraft, layoutEntry, pending, onPendingChange, fromApp, app]);
+  // "Where this is": the block in your tray, the org and on iPads, from what the preview already holds.
+  const where = useMemo(() => {
+    if (!selected) return undefined;
+    const appName = fromApp ? matchedApp?.fullName : undefined;
+    const ahead = orgAhead ? (orgAheadFor(orgAhead, selected) ?? (appName ? orgAheadApp(orgAhead, appName) : undefined)) : undefined;
+    const mine = changesTouching(pending, refsOfTarget(selected, { tabs, homeMenu, app: appName }));
+    // The draft lined up with the org can see it moved on before the unpublished list says so (or when it can't).
+    const compact = selected.kind === "headerField" ? compacts[selected.compactLayout] : undefined;
+    const list = selected.kind === "listView" || selected.kind === "listColumn" ? listViews[listViewNameOf(selected)] : undefined;
+    const orgDiffers =
+      !!pageDraft?.ahead ||
+      (!selectedPage && layoutEntry?.status === "ready" && isAhead(layoutEntry.draft.ahead)) ||
+      (compact?.status === "ready" && compact.fields.some((f) => !!f.ahead)) ||
+      (list?.status === "ready" && (list.columns.some((c) => !!c.ahead) || !!list.filtersChanged));
+    return whereRows({ mine, orgAhead: ahead, orgDiffers, publishedAt: snapshot?.cache.generatedAt });
+  }, [selected, fromApp, matchedApp, orgAhead, pending, tabs, homeMenu, snapshot, compacts, listViews, pageDraft, selectedPage, layoutEntry]);
+  const layoutStatus =
+    copyAction?.kind === "queued" && baseStatus && !baseStatus.loading
+      ? { ...baseStatus, profiles: undefined, reach: `Only ${profile}. A copy made for them: changes here reach no other profile.` }
+      : baseStatus;
+  const sync =
+    info?.syncObject && snapshot && profile && syncFilter(snapshot, info.syncObject) === null
+      ? syncAction(info.syncObject, synced, profile, pending)
+      : null;
+
+  const run = useCallback(
+    (verb: Verb) => {
+      if (verb.pick) setPicking(verb);
+      else if (verb.run) onPendingChange(verb.run(pending));
+    },
+    [pending, onPendingChange]
+  );
+  const pick = (value: string) => {
+    if (!picking?.pick) return;
+    onPendingChange(picking.pick.run(value, pending));
+    setPicking(null);
+    // Select the new related list, so the inspector can offer to sync its records to the iPad.
+    const entry = selected?.kind === "related" && selected.layout ? layouts[selected.layout] : undefined;
+    if (picking.id === "addRelated" && selected?.kind === "related" && entry?.status === "ready") {
+      const object = relatedObject(entry.draft, value);
+      setSelected({ kind: "related", object, label: snapshot?.objects[object]?.label ?? object, parent: selected.parent, layout: selected.layout, relatedList: value });
+    }
+  };
+  // A drop in Draft queues what the move verbs would: tab and action SortOrders, or the layout's one diffed change.
+  const drop = useCallback(
+    (t: EditTarget, { list, before }: EditDrop): boolean => {
+      if (!snapshot || !profile) return false;
+      const moved = ((): PendingChange[] | null => {
+        if (t.kind === "tab" && app.status === "ready" && isAppTab(app.draft, t.fullName))
+          return moveAppTabTo(app.draft, t.fullName, before?.kind === "tab" ? before.fullName : null, tabs.filter((d) => d.state !== "removed").map((d) => d.tab.fullName), pending);
+        if (t.kind === "tab")
+          return moveTabTo(snapshot.tabs, tabItems ?? [], profile, t.fullName, before?.kind === "tab" ? before.fullName : null, pending);
+        if (t.kind === "action" && t.place === "home")
+          return moveActionTo(snapshot.screens?.fabs?.home ?? [], actionItems ?? [], profile, t.name, before?.kind === "action" ? before.name : null, pending);
+        if (t.kind === "component" || t.kind === "recordTab") {
+          // Within the region or tab set it's drawn in; the org item a block is comes from its source (or Draft's insert).
+          const entry = pages[t.page];
+          if (entry?.status !== "ready" || (t.kind === "component" && list !== t.region)) return null;
+          const d = entry.draft;
+          const keyOf = (x: EditTarget) =>
+            x.kind === "component" || x.kind === "recordTab" ? ((x.kind === "component" ? x.item : undefined) ?? (x.source ? d.aligned.get(x.source) : undefined)) : undefined;
+          const key = keyOf(t);
+          const next = before ? keyOf(before) : null;
+          if (!key || next === undefined) return null;
+          return t.kind === "recordTab" ? moveRecordTabTo(d, key, next, pending) : moveComponentTo(d, key, next, pending);
+        }
+        if (t.kind === "listColumn") {
+          const l = listViews[t.listView];
+          return l?.status === "ready" ? moveListColumnTo(l.draft, t.column, before?.kind === "listColumn" ? before.column : null, pending) : null;
+        }
+        if (t.kind === "headerField") {
+          const c = compacts[t.compactLayout];
+          return c?.status === "ready" ? moveCompactFieldTo(c.draft, t.field, before?.kind === "headerField" ? before.field : null, pending) : null;
+        }
+        const entry = "layout" in t && t.layout ? layouts[t.layout] : undefined;
+        if (entry?.status !== "ready") return null;
+        const d = entry.draft;
+        if (t.kind === "section" && t.key !== undefined)
+          return moveSectionTo(d, t.key, before?.kind === "section" ? (before.key ?? null) : null, pending);
+        if (t.kind === "field" && t.item) {
+          const { section, column } = list as Omit<FieldSlot, "before">;
+          return moveFieldTo(d, t.item, { section, column, before: before?.kind === "field" ? (before.item ?? null) : null }, pending);
+        }
+        if (t.kind === "related" && t.relatedList)
+          return moveRelatedTo(d, t.relatedList, before?.kind === "related" ? (before.relatedList ?? null) : null, pending);
+        return null;
+      })();
+      if (!moved || moved === pending) return false;
+      onPendingChange(moved);
+      return true;
+    },
+    [snapshot, profile, tabItems, actionItems, compacts, layouts, pages, listViews, pending, onPendingChange, app, tabs]
+  );
+  const openSetup = useCallback(
+    (link?: SetupLink) => {
+      const target = link ?? info?.setup;
+      if (org && target) void openSetupLink(org, target);
+    },
+    [org, info]
+  );
+  // Look the exact pages up as soon as a block is selected, so the click doesn't wait on the org.
+  useEffect(() => {
+    if (!org || !info) return;
+    for (const l of [info.setup, ...(info.setupMore ?? [])]) if (l) void resolveSetupPath(org, l);
+  }, [org, info]);
+
+  // Stable while nothing it describes changed, so the memoized preview below it isn't redrawn for unrelated state.
+  const horizontal =
+    selected?.kind === "tab" || selected?.kind === "headerField" || selected?.kind === "recordTab" || selected?.kind === "listColumn";
+  const also = useMemo(() => selection.slice(1), [selection]);
+  const setupInfo = org ? info?.setup : null;
+  const edit: PreviewEdit | undefined = useMemo(
+    () =>
+    on && snapshot
+      ? {
+          on,
+          draft,
+          tabs,
+          homeMenu,
+          layouts,
+          compacts,
+          listViews,
+          pages,
+          selected,
+          onSelect,
+          also,
+          name: groupName,
+          verbs: draft ? verbs : [],
+          onRun: run,
+          onDrop: draft ? drop : undefined,
+          setup: setupInfo,
+          onSetup: openSetup,
+          horizontal,
+        }
+      : undefined,
+    [on, snapshot, draft, tabs, homeMenu, layouts, compacts, listViews, pages, selected, onSelect, also, groupName, verbs, run, drop, setupInfo, openSetup, horizontal]
+  );
+
+  const panel =
+    edit && info && profile ? (
+      <>
+        <BlockInspector
+          key={JSON.stringify(selected) + selection.length}
+          info={info}
+          where={where}
+          profile={profile}
+          verbs={verbs}
+          draft={draft}
+          onEditInDraft={onEditInDraft}
+          onRun={run}
+          horizontal={edit.horizontal}
+          layout={layoutStatus}
+          copy={copyAction}
+          onRetryLayout={
+            fromApp && matchedApp
+              ? () => fetchApp(matchedApp.fullName)
+              : selected?.kind === "headerField"
+              ? () => fetchCompact(selected.compactLayout)
+              : selected?.kind === "listView" || selected?.kind === "listColumn"
+                ? () => fetchListView(listViewNameOf(selected))
+                : selectedPage
+                ? () => fetchPage(selectedPage)
+                : selected && "layout" in selected && selected.layout
+                ? () => fetchLayout(selected.layout!)
+                : undefined
+          }
+          properties={properties}
+          extra={
+            (selected?.kind === "listView" || selected?.kind === "listColumn") && listViews[listViewNameOf(selected)]?.status === "ready" ? (
+              <ListViewEditor
+                draft={(listViews[listViewNameOf(selected)] as Extract<ListViewEntry, { status: "ready" }>).draft}
+                editable={draft}
+                pending={pending}
+                onChange={onPendingChange}
+              />
+            ) : undefined
+          }
+          onProperty={(p, value) => {
+            const next = p.set(value, pending);
+            if (next) onPendingChange(next);
+          }}
+          onPropertyReset={(p) => onPendingChange(p.reset(pending))}
+          propertiesLoading={propState === "loading"}
+          propertiesNote={propState && typeof propState === "object" && "error" in propState ? `Couldn't read the component's property definitions: ${propState.error}` : loadedProps?.note}
+          propertiesDynamic={loadedProps?.dynamic}
+          propertiesComponentNote={componentNote(loadedProps) ?? undefined}
+          propertiesNotDrawn={loadedProps?.renders === "no"}
+          sync={sync}
+          onSync={() => {
+            if (sync?.kind === "change") onPendingChange(queueChange(pending, sync.change));
+            if (sync?.kind === "create") setCreating(sync.draft);
+          }}
+          onSetup={org && info.setup ? openSetup : undefined}
+          onStudio={info.studio ? () => onOpenStudio(info.studio!.featureId, info.studio!.surface, info.studio!.itemId) : undefined}
+          onClose={() => setSelected(null)}
+          selection={groupName}
+        />
+        {picking?.pick && (
+          <SearchPicker
+            title={picking.pick.title}
+            eyebrow={
+              fromApp && app.status === "ready"
+                ? `Lightning app · ${app.draft.label}`
+                : selected?.kind === "headerField"
+                ? "Compact layout · record header"
+                : selected?.kind === "listView" || selected?.kind === "listColumn"
+                  ? `List view · ${selected.kind === "listView" ? selected.label : selected.viewLabel}`
+                  : pageDraft
+                  ? `Lightning page · ${pageDraft.label}`
+                  : layoutEntry?.status === "ready"
+                  ? `Page layout · ${layoutEntry.draft.label}`
+                  : undefined
+            }
+            description={picking.pick.description}
+            options={picking.pick.options}
+            placeholder={picking.pick.placeholder}
+            emptyTitle={picking.pick.empty}
+            emptyIcon={picking.id === "addField" ? TextCursorInput : picking.id === "insertComponent" ? SquarePlus : picking.id === "addTab" ? PanelTopOpen : ListPlus}
+            onPick={pick}
+            onCancel={() => setPicking(null)}
+          />
+        )}
+        {creating && (
+          <CreateDialog
+            draft={creating}
+            objects={syncMap?.objects ?? []}
+            profiles={profiles}
+            onCancel={() => setCreating(null)}
+            onQueue={(fix) => {
+              onPendingChange(queueChange(pending, { fix, affects: createAffects(fix) }));
+              setCreating(null);
+            }}
+          />
+        )}
+      </>
+    ) : null;
+
+  return { edit, panel };
+}
+
+const NONE: PendingChange[] = [];
+
+/** Why a compact layout (the record header) has no "copy just for this profile". */
+const COMPACT_COPY_NOTE = (profile: string) =>
+  `Compact layouts are assigned to record types, not profiles, so a copy can't be limited to ${profile}. Changing the header changes it for every profile that uses the record type.`;
+
+/** Each read page layout as the tray `overlay` leaves it. Pure, so a group verb can rebuild it against any tray. */
+export function buildLayouts(liveLayouts: Record<string, LiveState>, snapshot: PublishedIpad | null, overlay: PendingChange[]): Record<string, LayoutEntry> {
+  const out: Record<string, LayoutEntry> = {};
+  for (const [name, state] of Object.entries(liveLayouts)) {
+    if (state.status !== "ready") {
+      out[name] = state;
+      continue;
+    }
+    const published = snapshot?.layouts[name];
+    if (!published) {
+      out[name] = { status: "stale", live: state.live, note: LAYOUT_NOT_PUBLISHED };
+      continue;
+    }
+    // Draft draws the org's layout. Where the cache has the same field it's drawn from the cache; what Setup added since
+    // is drawn from the describe and marked "not on iPads yet", what it removed stays as a ghost.
+    const base = modelOf(state.live);
+    const aligned = alignLayout(published, base) ?? [];
+    const ahead = aheadOf(published, base);
+    try {
+      const target = targetOf(name, base, overlay);
+      const sections = draftSections(published, base, target, aligned, state.live.available, { placed: state.live.placed, ahead });
+      // Lists added in Draft are drawn too, so moves step past them.
+      const listed = new Set(published.relatedLists.map((r) => r.name));
+      const shownRelated = target.relatedLists.filter((r) => listed.has(r) || !base.relatedLists.includes(r) || !!ahead?.related.has(r));
+      const draft: LayoutDraft = {
+        fullName: name,
+        label: name.slice(name.indexOf("-") + 1),
+        live: state.live,
+        base,
+        target,
+        shownSections: sections.filter((x) => x.state !== "removed").map((x) => x.key),
+        shownRelated: shownRelated.length ? shownRelated : target.relatedLists,
+        ahead,
+      };
+      out[name] = { status: "ready", draft, sections };
+    } catch (e) {
+      if (!(e instanceof StaleDraftError)) throw e;
+      out[name] = { status: "stale", live: state.live, note: `The queued edits no longer fit this layout: ${e.message} Take them out of the tray and refresh the preview.` };
+    }
+  }
+  return out;
+}
+
+/** Each read compact layout as the tray `overlay` leaves it, like `buildLayouts`. */
+export function buildCompacts(liveCompacts: Record<string, LiveCompactState>, snapshot: PublishedIpad | null, overlay: PendingChange[]): Record<string, CompactEntry> {
+  const out: Record<string, CompactEntry> = {};
+  for (const [name, state] of Object.entries(liveCompacts)) {
+    if (state.status !== "ready") {
+      out[name] = state;
+      continue;
+    }
+    const published = snapshot?.compactFields?.[name];
+    const base = state.live.fields;
+    if (!published) {
+      out[name] = { status: "stale", live: state.live, note: COMPACT_NOT_PUBLISHED };
+      continue;
+    }
+    try {
+      const target = compactTargetOf(name, base, overlay);
+      const fields = draftHeader(published, state.live, base, target, snapshot?.compactSources?.[name]?.fields);
+      const object = name.slice(0, name.indexOf("."));
+      const hidden = (f: string) => !!snapshot?.records?.fields[object]?.[f.toLowerCase()]?.hidden;
+      const draft: CompactDraft = {
+        fullName: name,
+        label: state.live.label,
+        live: state.live,
+        base,
+        target,
+        shown: fields.filter((f) => f.state !== "removed" && !hidden(f.spec.name)).map((f) => f.spec.name),
+      };
+      out[name] = { status: "ready", draft, fields };
+    } catch (e) {
+      if (!(e instanceof StaleDraftError)) throw e;
+      out[name] = { status: "stale", live: state.live, note: `The queued edits no longer fit this compact layout: ${e.message} Take them out of the tray and refresh the preview.` };
+    }
+  }
+  return out;
+}
+
+/** The list view's Metadata API name ("Account.MyAccounts") for a list view or column target. */
+export function listViewNameOf(t: Extract<EditTarget, { kind: "listView" | "listColumn" }>): string {
+  return t.kind === "listView" ? `${t.object}.${t.name}` : t.listView;
+}
+
+const LIST_NOT_PUBLISHED =
+  "This profile's last publish doesn't have this list view (or has it from an older version of Studio), so there is nothing to draw its rows from yet. Publish to iPad to edit it here.";
+
+const LIST_MANAGED = "This list view was installed from a managed package, so it can't be changed. Create a copy in Setup and edit that.";
+
+/** Each read list view as the tray `overlay` leaves it, like `buildCompacts`. */
+export function buildListViews(liveListViews: Record<string, LiveListViewState>, snapshot: PublishedIpad | null, overlay: PendingChange[]): Record<string, ListViewEntry> {
+  const out: Record<string, ListViewEntry> = {};
+  for (const [name, state] of Object.entries(liveListViews)) {
+    if (state.status !== "ready") {
+      out[name] = state;
+      continue;
+    }
+    const live = state.live;
+    if (live.managed) {
+      out[name] = { status: "stale", live, note: LIST_MANAGED };
+      continue;
+    }
+    const object = name.slice(0, name.indexOf("."));
+    const published = snapshot?.objects[object]?.listViews.find((l) => l.source?.fullName === name || `${object}.${l.name}` === name);
+    const base = listModelOf(live);
+    if (!published?.source) {
+      out[name] = { status: "stale", live, note: LIST_NOT_PUBLISHED };
+      continue;
+    }
+    try {
+      const target = listViewTargetOf(name, base, overlay);
+      const columns = draftListColumns(published, live, base.columns, target.columns);
+      const draft: ListViewDraft = {
+        fullName: name,
+        label: live.label,
+        live,
+        base,
+        target,
+        shown: columns.filter((c) => c.state !== "removed").map((c) => c.id),
+        legacy: base.columns.some(isLegacyId) || base.filters.some((f) => isLegacyId(f.field)),
+      };
+      out[name] = { status: "ready", draft, columns, published, filtersChanged: filtersChanged(published, live) };
+    } catch (e) {
+      if (!(e instanceof StaleDraftError)) throw e;
+      out[name] = { status: "stale", live, note: `The queued edits no longer fit this list view: ${e.message} Take them out of the tray and refresh the preview.` };
+    }
+  }
+  return out;
+}
+
+/** What a block's verbs are drawn from: the Draft tab bar, Home menu and layouts for one tray. */
+export interface VerbContext {
+  tabs: DraftTab[];
+  homeMenu: ReturnType<typeof draftHomeMenu>;
+  pending: PendingChange[];
+  profile: string;
+  layouts: Record<string, LayoutEntry>;
+  compacts: Record<string, CompactEntry>;
+  listViews: Record<string, ListViewEntry>;
+  snapshot: PublishedIpad | null;
+  /** The profile's Lightning app: the tabs it owns are arranged by its own change. */
+  app: AppEntry;
+}
+
+/** The verbs for one block. Blocks are found again by name: a move changes their index. */
+export function blockVerbs(selected: EditTarget, { tabs, homeMenu, pending, profile, layouts, compacts, listViews, snapshot, app }: VerbContext): Verb[] {
+  if (!profile) return [];
+  if (selected.kind === "tab") {
+    const i = tabs.findIndex((d) => d.tab.fullName === selected.fullName);
+    if (i < 0) return [];
+    if (app.status === "ready" && !tabs[i].item && !tabs[i].create) {
+      if (isAppTab(app.draft, selected.fullName)) return appTabVerbs(app.draft, selected.fullName, tabs[i].tab.label);
+      if (app.draft.live.fixedTabs.includes(selected.fullName)) return appFixedTabVerbs(app.draft);
+    }
+    return tabVerbs(tabs, i, pending, profile);
+  }
+  if (selected.kind === "action" && selected.place === "home") {
+    const i = homeMenu.findIndex((d) => d.value.name === selected.name);
+    return i < 0 ? [] : actionVerbs(homeMenu, i, pending, profile);
+  }
+  if (selected.kind === "headerField") {
+    const c = compacts[selected.compactLayout];
+    return c?.status === "ready" ? compactVerbs(c.draft, selected.field, selected.label) : [];
+  }
+  if (selected.kind === "listView" || selected.kind === "listColumn") {
+    const l = listViews[listViewNameOf(selected)];
+    if (l?.status !== "ready") return [];
+    return selected.kind === "listView" ? listViewVerbs(l.draft) : listColumnVerbs(l.draft, selected.column, selected.label);
+  }
+  const entry = "layout" in selected && selected.layout ? layouts[selected.layout] : undefined;
+  if (entry?.status !== "ready") return [];
+  const d = entry.draft;
+  if (selected.kind === "section" && selected.key !== undefined) return sectionVerbs(d, selected.key);
+  if (selected.kind === "field" && selected.item) {
+    const column = entry.sections.flatMap((x) => x.columns).find((c) => c.some((f) => f.item === selected.item));
+    const shown = [...new Set((column ?? []).filter((f) => f.state !== "removed").map((f) => f.item))];
+    return fieldVerbs(d, selected.item, selected.label, shown);
+  }
+  if (selected.kind === "related") {
+    const notSynced = (object: string) => !!snapshot && syncFilter(snapshot, object) === null;
+    return selected.relatedList ? relatedVerbs(d, selected.relatedList, selected.label, notSynced) : [addRelatedVerb(d, null, notSynced)];
+  }
+  return [];
+}
+
+export type LiveState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; live: LiveLayout };
+export type LiveCompactState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; live: LiveCompactLayout };
+export type LiveListViewState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; live: LiveListView };
+export type LivePageState = { status: "loading" } | { status: "error"; error: string } | { status: "ready"; live: LiveFlexiPage };
+
+/** A page layout in edit mode: still loading, unreadable, out of line with the last publish, or ready to draw and edit. */
+export type LayoutEntry =
+  | { status: "loading" }
+  | { status: "error"; error: string }
+  | { status: "stale"; live: LiveLayout; note: string }
+  | { status: "ready"; draft: LayoutDraft; sections: DraftSection[] };
+
+/** A compact layout in edit mode, like `LayoutEntry`: `fields` is the header as the tray leaves it. */
+export type CompactEntry =
+  | { status: "loading" }
+  | { status: "error"; error: string }
+  | { status: "stale"; live: LiveCompactLayout; note: string }
+  | { status: "ready"; draft: CompactDraft; fields: DraftHeaderField[] };
+
+/** A list view in edit mode, like `CompactEntry`: `columns` is the list as the tray leaves it; a managed view comes back stale, saying why. */
+export type ListViewEntry =
+  | { status: "loading" }
+  | { status: "error"; error: string }
+  | { status: "stale"; live: LiveListView; note: string }
+  | { status: "ready"; draft: ListViewDraft; columns: DraftListColumn[]; published: PublishedListView; filtersChanged: boolean };
+
+/** A Lightning page in edit mode, like `LayoutEntry`; a managed page comes back stale, saying why. */
+export type PageEntry =
+  | { status: "loading" }
+  | { status: "error"; error: string }
+  | { status: "stale"; live: LiveFlexiPage; note: string }
+  | { status: "ready"; draft: PageDraft };
+
+const PAGE_NOT_PUBLISHED =
+  "This profile's last publish doesn't have this Lightning page (it was assigned or created in Setup afterwards), so there is nothing to draw it from yet. Publish to iPad to edit it here.";
+
+const AHEAD_MOVED = (n: number) =>
+  `${n} ${n === 1 ? "thing" : "things"} here ${n === 1 ? "was" : "were"} moved in the org and ${n === 1 ? "is" : "are"} still in the old place on iPads (marked "${ORG_AHEAD_MOVED}"). Publish to iPad so reps get the new order.`;
+const AHEAD_SOME = (n: number) => `${n} ${n === 1 ? "thing" : "things"} here ${n === 1 ? "is" : "are"} in the org but not on iPads yet (marked "${ORG_AHEAD_TAG}"). Publish to iPad so reps get ${n === 1 ? "it" : "them"}.`;
+
+const MANAGED =
+  "This Lightning page was installed from a managed package, so it can't be deployed — change it (or a copy) in Lightning App Builder.";
+
+const COMPACT_NOT_PUBLISHED =
+  "This profile's last publish doesn't have this compact layout (it was assigned or created in Setup afterwards), so there is nothing to draw the record header from yet. Publish to iPad to edit it here.";
+
+const LAYOUT_NOT_PUBLISHED =
+  "This profile's last publish doesn't have this page layout (it was assigned or created in Setup afterwards), so there is nothing to draw it on yet. Publish to iPad to edit it here.";
+
+const APP_COPY_NOTE =
+  "An app's navigation can't be copied for one profile from here: every profile that opens the app shares it. To give one profile its own tab bar, make a copy of the app in App Manager and assign it to that profile.";
+
+/** What the inspector says about a tab that comes from the Lightning app. */
+function appStatusOf(entry: AppEntry): LayoutStatus | undefined {
+  const noun = "app";
+  switch (entry.status) {
+    case "none":
+      return undefined;
+    case "loading":
+      return { loading: true, noun };
+    case "error":
+      return { problem: `Couldn't read the app from the org: ${entry.error}`, canRetry: true, noun };
+    case "stale":
+      return { problem: entry.note, profiles: entry.live?.profiles, production: entry.live?.production, noun };
+    case "ready":
+      return { profiles: entry.draft.live.profiles, production: entry.draft.live.production, noun };
+  }
+}
+
+/** What the inspector says about the selected block's layout. */
+export interface LayoutStatus {
+  loading?: boolean;
+  /** Why it can't be edited here. */
+  problem?: string;
+  canRetry?: boolean;
+  profiles?: string[] | null;
+  /** Who a change reaches, when it isn't a page layout's profiles (a compact layout's record types). */
+  reach?: string;
+  /** A heads-up about the arrangement (a crowded header). */
+  note?: string;
+  production?: boolean;
+  /** What the block comes from, for "Reading the … from the org" (default "layout"). */
+  noun?: string;
+}
+
+function statusOf(entry: LayoutEntry | undefined): LayoutStatus | undefined {
+  if (!entry) return undefined;
+  switch (entry.status) {
+    case "loading":
+      return { loading: true };
+    case "error":
+      return { problem: `Couldn't read the layout from the org: ${entry.error}`, canRetry: true };
+    case "stale":
+      return { problem: entry.note, profiles: entry.live.profiles, production: entry.live.production };
+    case "ready":
+      return { profiles: entry.draft.live.profiles, production: entry.draft.live.production, ...aheadNote(entry.draft.ahead) };
+  }
+}
+
+/** A summary of what the org has that iPads don't (and the reverse) on a layout. */
+function aheadNote(a: LayoutAhead | null | undefined): { note: string } | {} {
+  if (!isAhead(a)) return {};
+  const n = a!.fields.size + a!.related.size + a!.sections.size;
+  const gone = a!.gone.length + a!.goneRelated.length + a!.goneElsewhere;
+  const moved = movedCount(a!);
+  const parts = [
+    n ? AHEAD_SOME(n) : "",
+    gone ? `${gone} ${gone === 1 ? "item was" : "items were"} removed in the org but ${gone === 1 ? "is" : "are"} still on iPads (marked "${ORG_AHEAD_GONE}").` : "",
+    moved ? AHEAD_MOVED(moved) : "",
+  ].filter(Boolean);
+  return { note: parts.join(" ") };
+}
+
+function compactStatusOf(entry: CompactEntry | undefined): LayoutStatus | undefined {
+  if (!entry) return undefined;
+  const reach = (live: LiveCompactLayout) => (live.recordTypes ? { reach: compactReach(live.recordTypes) } : {});
+  switch (entry.status) {
+    case "loading":
+      return { loading: true };
+    case "error":
+      return { problem: `Couldn't read the compact layout from the org: ${entry.error}`, canRetry: true };
+    case "stale":
+      return { problem: entry.note, ...reach(entry.live), production: entry.live.production };
+    case "ready": {
+      const crowded = crowdedNote(entry.draft);
+      const n = entry.fields.filter((f) => f.ahead === "added").length;
+      const gone = entry.fields.filter((f) => f.ahead === "removed").length;
+      const moved = entry.fields.filter((f) => f.ahead === "moved").length;
+      const ahead = [
+        n ? AHEAD_SOME(n) : "",
+        gone ? `${gone} ${gone === 1 ? "field was" : "fields were"} removed in the org but ${gone === 1 ? "is" : "are"} still on iPads (marked "${ORG_AHEAD_GONE}").` : "",
+        moved ? AHEAD_MOVED(moved) : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      const note = [crowded, ahead].filter(Boolean).join(" ");
+      return { ...reach(entry.draft.live), ...(note ? { note } : {}), production: entry.draft.live.production };
+    }
+  }
+}
+
+function listViewStatusOf(entry: ListViewEntry | undefined, _published?: PublishedListView[]): LayoutStatus | undefined {
+  if (!entry) return undefined;
+  const noun = "list view";
+  switch (entry.status) {
+    case "loading":
+      return { loading: true, noun };
+    case "error":
+      return { problem: `Couldn't read the list view from the org: ${entry.error}`, canRetry: true, noun };
+    case "stale":
+      return { problem: entry.note, reach: listViewReach(entry.live.sharedTo), production: entry.live.production, noun };
+    case "ready":
+      return {
+        reach: listViewReach(entry.draft.live.sharedTo),
+        production: entry.draft.live.production,
+        noun,
+        ...(() => {
+          const n = entry.columns.filter((c) => c.ahead === "added").length;
+          const gone = entry.columns.filter((c) => c.ahead === "removed").length;
+          const moved = entry.columns.filter((c) => c.ahead === "moved").length;
+          const parts = [
+            n ? AHEAD_SOME(n) : "",
+            moved ? `${moved} ${moved === 1 ? "column was" : "columns were"} moved in the org (marked "${ORG_AHEAD_MOVED}").` : "",
+            gone ? `${gone} ${gone === 1 ? "column was" : "columns were"} removed in the org but ${gone === 1 ? "is" : "are"} still on iPads (marked "${ORG_AHEAD_GONE}").` : "",
+            entry.filtersChanged ? "The filters or scope changed in Setup and aren't on iPads yet, so the rows drawn here are the ones iPads show now." : "",
+          ].filter(Boolean);
+          return parts.length ? { note: parts.join(" ") } : {};
+        })(),
+      };
+  }
+}
+
+function pageStatusOf(entry: PageEntry | undefined): LayoutStatus | undefined {
+  if (!entry) return undefined;
+  const noun = "Lightning page";
+  const reachOf = (live: LiveFlexiPage) =>
+    live.reachPending
+      ? "Working out which profiles and apps get this page…"
+      : live.profiles && live.appDefaults
+        ? pageReach(live.profiles, live.appDefaults)
+        : "Couldn't read which apps assign this page, so who a change reaches isn't known — check its activations in Lightning App Builder.";
+  const about = (live: LiveFlexiPage) => ({ noun, reach: reachOf(live), production: live.production });
+  switch (entry.status) {
+    case "loading":
+      return { loading: true, noun };
+    case "error":
+      return { problem: `Couldn't read the Lightning page from the org: ${entry.error}`, canRetry: true, noun };
+    case "stale":
+      return { problem: entry.note, ...about(entry.live) };
+    case "ready": {
+      const gone = entry.draft.ahead?.gone ?? 0;
+      return {
+        ...about(entry.draft.live),
+        ...(entry.draft.ahead
+          ? { note: `This page changed in Setup since the last publish. Components added there are drawn as placeholders marked "${ORG_AHEAD_TAG}"${gone ? `; ${gone} ${gone === 1 ? "block" : "blocks"} removed there ${gone === 1 ? "isn't" : "aren't"} drawn` : ""}. Publish to iPad so reps get the page as it is now.` }
+          : {}),
+      };
+    }
+  }
+}

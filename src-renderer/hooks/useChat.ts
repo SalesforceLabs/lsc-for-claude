@@ -3,9 +3,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 export interface ToolCall {
   id: string;
   name: string;
+  /** Known once the tool starts running; sessions saved before inputs were kept have none. */
+  input?: Record<string, unknown>;
   result?: string;
   isError?: boolean;
-  status: "running" | "success" | "error";
+  /** pending: the model is still writing the call, or it waits for the tools before it. */
+  status: "pending" | "running" | "success" | "error";
   collapsed: boolean;
 }
 
@@ -97,6 +100,20 @@ export function useChat() {
     });
   }, []);
 
+  /** Text deltas arrive many times a frame; show them once a frame. Other events sync at once. */
+  const pendingText = useRef<Set<string>>(new Set());
+  const textFrame = useRef<number | null>(null);
+  const syncTextSoon = useCallback((convId: string) => {
+    pendingText.current.add(convId);
+    if (textFrame.current != null) return;
+    textFrame.current = requestAnimationFrame(() => {
+      textFrame.current = null;
+      const ids = [...pendingText.current];
+      pendingText.current.clear();
+      ids.forEach(syncToView);
+    });
+  }, [syncToView]);
+
   useEffect(() => {
     if (!window.lscApi) return;
     const cleanups: Array<() => void> = [];
@@ -113,7 +130,7 @@ export function useChat() {
           blocks.push({ type: "text", text });
         }
         bg.msg = { ...bg.msg, blocks };
-        syncToView(convId);
+        syncTextSoon(convId);
       })
     );
 
@@ -125,8 +142,22 @@ export function useChat() {
           ...bg.msg,
           blocks: [
             ...bg.msg.blocks,
-            { type: "tool" as const, tool: { id, name, status: "running" as const, collapsed: true } },
+            { type: "tool" as const, tool: { id, name, status: "pending" as const, collapsed: true } },
           ],
+        };
+        syncToView(convId);
+      })
+    );
+
+    cleanups.push(
+      window.lscApi.onToolRun(({ id, input, convId }) => {
+        const bg = bgStreams.current.get(convId);
+        if (!bg) return;
+        bg.msg = {
+          ...bg.msg,
+          blocks: bg.msg.blocks.map((b) =>
+            b.type === "tool" && b.tool.id === id ? { ...b, tool: { ...b.tool, input, status: "running" as const } } : b
+          ),
         };
         syncToView(convId);
       })
@@ -185,7 +216,7 @@ export function useChat() {
     );
 
     return () => cleanups.forEach((fn) => fn());
-  }, [syncToView]);
+  }, [syncToView, syncTextSoon]);
 
   const sendMessage = useCallback(
     async (text: string, model?: string, images?: ImageAttachment[]) => {
@@ -244,8 +275,9 @@ export function useChat() {
 
   /** Abort — only called from the explicit "Stop" button */
   const abort = useCallback(async () => {
-    await window.lscApi.abortChat();
+    // Stop the session on screen; others keep running in the background.
     const convId = conversationIdRef.current;
+    if (convId) await window.lscApi.abortChat(convId);
     if (convId) {
       const bg = bgStreams.current.get(convId);
       if (bg) {

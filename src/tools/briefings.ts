@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { runSoqlQuery, runToolingQuery } from "../salesforce/cli.js";
 import { validateOrgConnection } from "../salesforce/auth.js";
+import { REQUIRED_PSLS } from "../studio/collectors/briefings.js";
 
 export function register(server: McpServer) {
   server.tool(
@@ -88,18 +89,12 @@ export function register(server: McpServer) {
 
         // 2. Permission Set Licenses
         message += "## 2. Permission Set Licenses\n\n";
-        const pslQuery = `SELECT DeveloperName, MasterLabel, TotalLicenses, UsedLicenses FROM PermissionSetLicense WHERE MasterLabel IN ('Life Science Commercial','Health Cloud Starter','Agentforce for LSC Feature Access','Einstein Prompt Templates')`;
+        // Matched by DeveloperName: labels differ between releases.
+        const pslQuery = `SELECT DeveloperName, MasterLabel, TotalLicenses, UsedLicenses FROM PermissionSetLicense WHERE DeveloperName IN (${REQUIRED_PSLS.map((p) => `'${p.name}'`).join(",")})`;
         const pslResult = await runSoqlQuery(pslQuery, effectiveOrg);
 
-        const requiredPsls = [
-          "Life Science Commercial",
-          "Health Cloud Starter",
-          "Agentforce for LSC Feature Access",
-          "Einstein Prompt Templates",
-        ];
-
         if (pslResult.success && pslResult.data?.records) {
-          const foundLabels = new Set<string>();
+          const foundNames = new Set<string>();
           message += "| PSL | Total | Used | Status |\n|-----|-------|------|--------|\n";
 
           for (const record of pslResult.data.records) {
@@ -107,7 +102,7 @@ export function register(server: McpServer) {
             const label = r.MasterLabel as string;
             const total = r.TotalLicenses as number;
             const used = r.UsedLicenses as number;
-            foundLabels.add(label);
+            foundNames.add(r.DeveloperName as string);
             const status = total > 0 ? "✅" : "❌";
             message += `| ${label} | ${total} | ${used} | ${status} |\n`;
             if (total === 0) {
@@ -116,14 +111,14 @@ export function register(server: McpServer) {
           }
           message += "\n";
 
-          for (const req of requiredPsls) {
-            if (!foundLabels.has(req)) {
-              message += `❌ **Missing:** ${req}\n`;
-              issues.push(`PSL "${req}" not found — contact Salesforce account team`);
-            }
+          const pslMissing = REQUIRED_PSLS.filter((p) => !foundNames.has(p.name)).map(
+            (p) => p.label
+          );
+          for (const req of pslMissing) {
+            message += `❌ **Missing:** ${req}\n`;
+            issues.push(`PSL "${req}" not found — contact Salesforce account team`);
           }
           message += "\n";
-          const pslMissing = requiredPsls.filter((r) => !foundLabels.has(r));
           if (pslMissing.length === 0) {
             checkResults.push({
               num: 2,
@@ -285,10 +280,10 @@ export function register(server: McpServer) {
             issues.push("Activate the 'Generate Provider Account Territory Summary' flow");
           }
         } else {
-          message += "❌ Account Summarization flow not found\n";
-          issues.push(
-            "Account Summarization not configured → Setup → Life Sciences for Customer Engagement Setup → Configure Account Summarization"
-          );
+          // Orgs often run summarization from a renamed or custom flow; the summary record count below
+          // is what shows whether it works.
+          message +=
+            "⚠️ No flow labelled 'Generate Provider Account Territory Summary' — another flow may produce the summaries (see the record count below)\n";
         }
 
         const summRecQuery = `SELECT COUNT(Id) FROM PrvdAccountTerritorySummary`;
