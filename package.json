@@ -1,6 +1,6 @@
 {
   "name": "LSC-for-Claude",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "MCP server for LSC Customer Engagement",
   "type": "module",
   "main": "dist-electron/main.js",
