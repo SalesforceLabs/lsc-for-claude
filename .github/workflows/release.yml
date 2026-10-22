@@ -43,17 +43,48 @@ jobs:
       - name: Run tests
         run: npx vitest run
 
+      - name: Import signing certificate
+        # A job-scoped keychain holding the Developer ID cert, with codesign
+        # allowed to use the key without a prompt. electron-builder's own
+        # temp-keychain handling can stall on a key ACL prompt nobody can answer.
+        # Skipped when the secrets aren't set, so the build comes out unsigned.
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CSC_LINK:-}" ]; then
+            echo "No signing secrets; building unsigned."
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/roz-signing.keychain-db"
+          KC_PW="$(openssl rand -base64 24)"
+          echo "SIGN_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+
+          security create-keychain -p "$KC_PW" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KC_PW" "$KEYCHAIN"
+
+          # macOS `base64` truncates this long single-line secret, so decode
+          # the .p12 with Node.
+          CERT="$RUNNER_TEMP/cert.p12"
+          node -e 'require("fs").writeFileSync(process.env.RUNNER_TEMP+"/cert.p12", Buffer.from(process.env.CSC_LINK,"base64"))'
+          security import "$CERT" -P "$CSC_KEY_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN" -T /usr/bin/codesign
+          rm -f "$CERT"
+
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KC_PW" "$KEYCHAIN" >/dev/null
+          EXISTING="$(security list-keychains -d user | sed -e 's/^[[:space:]]*//' -e 's/"//g')"
+          security list-keychains -d user -s "$KEYCHAIN" $EXISTING
+
       - name: Package desktop app (macOS)
         # Builds the MCP server + Electron bundles, then electron-builder emits
         # the mac dmg/zip into release/ and rebuilds native modules for Electron.
-        # When the signing/notarization secrets are configured the build is
-        # signed with the Developer ID cert and notarized; when they're empty
-        # electron-builder finds no identity and produces an unsigned build.
+        # Signs with the identity in the job-scoped keychain and notarizes via
+        # notarytool; with no keychain it finds no identity and builds unsigned.
         run: npm run electron:pack
         env:
-          # Developer ID Application cert: base64 .p12 + its export password.
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          CSC_KEYCHAIN: ${{ env.SIGN_KEYCHAIN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ env.SIGN_KEYCHAIN != '' }}
           # Notarization via notarytool (app-specific password route).
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
@@ -63,6 +94,14 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          # latest-mac.yml and the .blockmap files are the update feed: an
+          # installed app reads latest-mac.yml to find the newest version.
           files: |
             release/*.dmg
             release/*.zip
+            release/*.blockmap
+            release/latest-mac.yml
+
+      - name: Clean up signing keychain
+        if: always() && env.SIGN_KEYCHAIN != ''
+        run: security delete-keychain "$SIGN_KEYCHAIN" || true
