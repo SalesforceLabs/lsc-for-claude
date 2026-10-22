@@ -90973,6 +90973,36 @@ function formatCitation(sourceFile2, moduleName) {
   return block;
 }
 
+// src/server-instructions.ts
+var SERVER_INSTRUCTIONS = `Tools for Salesforce Life Sciences Cloud for Customer Engagement (LSC4CE): an LSC knowledge base plus tools that read and change a Salesforce org through the Salesforce CLI (sf).
+
+Choosing an org:
+- If only one org is authenticated, use it without asking.
+- If several are and none is selected, ask the user once, then call set_target_org. Never ask again in the session.
+- Don't call check_lsc_setup or list_sf_orgs before every operation; only when the user asks about setup or a tool reports an authentication error.
+
+Use the dedicated tools, not run_soql / get_record / describe_sobject / create_record, for:
+- Admin Console settings: list_admin_settings, update_admin_setting, create_admin_setting. They are Tooling API records (LifeSciConfigRecord, LifeSciConfigFieldValue, LifeSciConfigCategory) that standard SOQL can't see.
+- DB Schema (mobile sync) records: list_db_schema, get_db_schema, create_db_schema, update_db_schema, toggle_db_schema. Field names are SObject, Type, WhereSoql, DeltaDateField, OneWaySync, AttachmentsSupport, MandatoryFields.
+- Quick and custom actions: list_lsc_actions, create_quick_action, create_custom_action, update_lsc_action, delete_lsc_action.
+- Mobile metadata cache: check_mobile_cache_status, generate_mobile_metadata_cache.
+- Mobile navigation tabs: list_navigation_tabs, add_navigation_tab.
+- Enabling or disabling a feature such as DCR: list_trigger_handlers, then toggle_trigger_handler.
+These objects do not exist, so never query them: LifeSciCustomAction__mdt, CustomAction__c, QuickAction__mdt, LifeSciConfigType__c, MobileMetadataCache__c, MobileApplicationDetail.
+
+LSC objects are standard objects without __c. Use Visit, ProviderVisit, HealthcareProvider, ContactPointAddress, BusinessLicense, ProviderAffiliation, ProviderAcctTerritoryInfo, ActivityPlan, ProviderActivityGoal, TimePeriod, Product2, LifeSciMarketableProduct, ProductItem, ProductBatchItem, ProviderSampleLimit, Territory2, ObjectTerritory2Association. Names like Visit__c, HealthcareProvider__c or SampleLimit__c are wrong. When unsure, call describe_sobject or search_lsc_knowledge.
+
+Presentations (Intelligent Content):
+- "associate / link / tag with X": X is a Topic. Call assign_presentation_content with topicNames; don't search Territory2.
+- "give access to [person]": find their territory in UserTerritory2Association, then call distribute_presentation.
+- "distribute to [territory]": call distribute_presentation.
+
+OmniStudio (FlexCards, OmniScripts, DataRaptors) runs only on the web app. Never suggest it for the LSC Mobile (iPad) app.
+
+After changing mobile configuration (DB Schema, actions, tabs, mobile settings), remind the user to regenerate the mobile metadata cache so iPads get it.
+
+Ask before writing to a production org. For implementation guidance, search the knowledge base (search_lsc_knowledge, get_lsc_module_docs, explain_lsc_concept) and cite the source rather than answering from memory.`;
+
 // src/tools/knowledge.ts
 function getGuideSectionCitations(topic, max = 3) {
   const guideResults = searchGuides(topic);
@@ -92082,7 +92112,7 @@ ${instructions.command}
   );
   server2.tool(
     "run_soql",
-    "Execute a SOQL query against the target Salesforce org",
+    "Execute a SOQL query against the target Salesforce org. Not for Admin Console settings, DB Schema records, LSC actions or the mobile metadata cache: those are Tooling API records with their own tools (list_admin_settings, list_db_schema, list_lsc_actions, check_mobile_cache_status).",
     {
       query: external_exports.string().describe("The SOQL query to execute"),
       targetOrg: external_exports.string().optional().describe("Optional: specific org to query. Uses current target org if not specified.")
@@ -92169,7 +92199,7 @@ ${query2}
   );
   server2.tool(
     "describe_sobject",
-    "Get metadata about a Salesforce object (fields, types, etc.)",
+    "Get metadata about a Salesforce object (fields, types, etc.). LSC objects are standard objects without __c (Visit, ProviderVisit, HealthcareProvider). Not for Admin Console or DB Schema records.",
     {
       objectName: external_exports.string().describe("The API name of the object (e.g., Account, Contact, Visit__c)"),
       targetOrg: external_exports.string().optional().describe("Optional: specific org to query")
@@ -92226,7 +92256,7 @@ ${result2.error}`
   );
   server2.tool(
     "get_record",
-    "Retrieve a specific record by ID from Salesforce",
+    "Retrieve a specific record by ID from Salesforce. Not for Admin Console or DB Schema records: list_admin_settings and get_db_schema already return their full details.",
     {
       objectName: external_exports.string().describe("The API name of the object"),
       recordId: external_exports.string().describe("The 15 or 18 character record ID"),
@@ -146570,10 +146600,13 @@ Full result written to \`${resolved}\`.
 
 // src/index.ts
 delete process.env.FORCE_COLOR;
-var server = new McpServer({
-  name: "LSC-for-Claude",
-  version: "0.1.0"
-});
+var server = new McpServer(
+  {
+    name: "LSC-for-Claude",
+    version: "0.1.0"
+  },
+  { instructions: SERVER_INSTRUCTIONS }
+);
 register(server);
 register2(server);
 register3(server);
