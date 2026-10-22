@@ -1,7 +1,17 @@
 appId: com.salesforce.lsc-assistant
 productName: Roz for LSC
+# Space-free artifact names. GitHub Releases rewrites spaces in asset names,
+# which would desync them from the URLs latest-mac.yml points at.
+artifactName: Roz-for-LSC-${version}-${arch}.${ext}
 directories:
   output: release
+# Update feed. electron-builder writes latest-mac.yml (and .blockmap files)
+# pointing at the GitHub Release assets; `--publish never` in electron:pack
+# still generates them, and the Release workflow attaches them to the release.
+publish:
+  provider: github
+  owner: SalesforceLabs
+  repo: lsc-for-claude
 files:
   - dist-electron/**/*
   - src-electron/preload.cjs
