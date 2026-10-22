@@ -90,7 +90,26 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
+      - name: Upload signed installers
+        # The SalesforceLabs org has an IP allow list that GitHub's hosted
+        # runners aren't on, so the release step below gets a 403. Artifacts go
+        # through a different service and do upload; publish them from an
+        # allowed network with scripts/publish-release.sh <tag>.
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.ref_name }}
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.blockmap
+            release/latest-mac.yml
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Create GitHub Release
+        # Fails while the org's IP allow list blocks the runner (see above);
+        # starts working by itself once the allow list lets Actions through.
+        continue-on-error: true
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true

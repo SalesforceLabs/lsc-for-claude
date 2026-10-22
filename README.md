@@ -156,8 +156,10 @@ CI also packages the app as a `.dmg`/`.zip` — download the installers from a
 tagged **Release**, or from the **Build Desktop App** workflow run (Actions tab →
 run → Artifacts) for any commit.
 
-These builds are currently **unsigned and not notarized**, so macOS Gatekeeper
-blocks them on first open. To open an unsigned build:
+Release builds are signed with a Developer ID certificate and notarized by
+Apple, so they open with no prompt. Builds from the **Build Desktop App**
+workflow are unsigned, and macOS Gatekeeper blocks them on first open. To open
+one:
 
 - **Right-click the app → Open**, then confirm (only needed the first time), or
 - strip the download-quarantine flag:
@@ -166,9 +168,22 @@ blocks them on first open. To open an unsigned build:
   ```
 
 The quarantine flag is only applied to files downloaded via a browser — an app
-built locally with `/lsc:launch-app` isn't affected. Once a Developer ID
-certificate is configured in the repo's CI secrets, Release builds are signed
-and notarized and open with no prompt.
+built locally with `/lsc:launch-app` isn't affected.
+
+### Cutting a release
+
+```bash
+scripts/bump-version.sh 0.2.3     # bump all three manifests, commit, tag v0.2.3
+git push --follow-tags            # the Release workflow builds, signs and notarizes
+scripts/publish-release.sh v0.2.3 # then publish it (see below)
+```
+
+The SalesforceLabs org has an IP allow list that GitHub's hosted runners aren't
+on, so the workflow can't create the GitHub Release itself. It uploads the
+signed installers as a run artifact instead, and `publish-release.sh` waits for
+the run, downloads them and creates the release from your machine (you need to
+be on an allowed network, with `gh` logged in as an account that can write to
+the repo).
 
 ### First-run onboarding
 
