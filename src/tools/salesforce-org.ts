@@ -282,7 +282,7 @@ export function register(server: McpServer) {
   // Tool: Run SOQL Query
   server.tool(
     "run_soql",
-    "Execute a SOQL query against the target Salesforce org",
+    "Execute a SOQL query against the target Salesforce org. Not for Admin Console settings, DB Schema records, LSC actions or the mobile metadata cache: those are Tooling API records with their own tools (list_admin_settings, list_db_schema, list_lsc_actions, check_mobile_cache_status).",
     {
       query: z.string().describe("The SOQL query to execute"),
       targetOrg: z
@@ -361,7 +361,7 @@ export function register(server: McpServer) {
   // Tool: Describe SObject
   server.tool(
     "describe_sobject",
-    "Get metadata about a Salesforce object (fields, types, etc.)",
+    "Get metadata about a Salesforce object (fields, types, etc.). LSC objects are standard objects without __c (Visit, ProviderVisit, HealthcareProvider). Not for Admin Console or DB Schema records.",
     {
       objectName: z
         .string()
@@ -420,7 +420,7 @@ export function register(server: McpServer) {
   // Tool: Get Record
   server.tool(
     "get_record",
-    "Retrieve a specific record by ID from Salesforce",
+    "Retrieve a specific record by ID from Salesforce. Not for Admin Console or DB Schema records: list_admin_settings and get_db_schema already return their full details.",
     {
       objectName: z.string().describe("The API name of the object"),
       recordId: z.string().describe("The 15 or 18 character record ID"),
