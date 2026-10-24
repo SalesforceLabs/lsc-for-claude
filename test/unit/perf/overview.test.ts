@@ -114,6 +114,19 @@ describe("schemaRisks", () => {
     ]);
     expect(risks[0].itemId).toBe("DbSchema:B_Doc");
   });
+
+  it("doesn't warn about attachments on objects that are files by design", () => {
+    const risks = schemaRisks(
+      [
+        entry("A_CV", "ContentVersion", "Id != null"),
+        entry("B_CD", "ContentDocument", "Id != null"),
+        entry("C_Tmpl", "LifeSciEmailTemplate", "Id != null"),
+        entry("D_Acc", "Account", "Id != null"),
+      ],
+      new Set(["A_CV", "B_CD", "C_Tmpl", "D_Acc"])
+    );
+    expect(risks.map((r) => [r.sobject, r.severity])).toEqual([["Account", "warning"]]);
+  });
 });
 
 describe("territoryReason", () => {
