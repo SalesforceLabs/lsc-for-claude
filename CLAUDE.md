@@ -679,7 +679,10 @@ When you first use the plugin:
 npm run dev      # Run with hot reload
 npm run test     # Run tests
 npm run lint     # Lint code
+npm run verify   # Run every CI check locally (lint, prettier, typechecks, tests, bundle sync, smoke test) — run before pushing
 ```
+
+`mcp-server/index.mjs` is a committed build artifact. After changing anything under `src/`, run `npm run bundle` and commit the result, or CI's bundle-sync check fails.
 
 ## Development Guidelines
 

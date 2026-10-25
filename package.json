@@ -12,6 +12,7 @@
     "lint": "eslint src/",
     "format": "prettier --write src/",
     "test": "vitest",
+    "verify": "bash scripts/verify.sh",
     "electron:build": "tsc -p tsconfig.electron.json && vite build --config vite.renderer.config.ts",
     "electron:dev": "concurrently -k -n server,main,vite,electron \"tsc --watch --preserveWatchOutput\" \"tsc -p tsconfig.electron.json --watch --preserveWatchOutput\" \"vite --config vite.renderer.config.ts --strictPort\" \"wait-on tcp:5173 dist/index.js dist-electron/main.js && LSC_RENDERER_URL=http://localhost:5173 node scripts/dev-electron.mjs\"",
     "electron:start": "electron dist-electron/main.js",

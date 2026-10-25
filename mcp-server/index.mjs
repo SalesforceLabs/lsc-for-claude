@@ -139645,6 +139645,22 @@ var MANY_TERRITORIES = 10;
 function territoryReason(count3) {
   return count3 >= MANY_TERRITORIES ? `In ${count3} territories` : void 0;
 }
+var EXPECTED_ATTACHMENT_SOBJECTS = new Set(
+  [
+    "CommSubConsentCmplSnpsht",
+    "ContentDocument",
+    "ContentDocumentLink",
+    "ContentVersion",
+    "DigitalSignature",
+    "LifeSciEmailTemplate",
+    "LifeSciEmailTmplFragment",
+    "LifeSciEmailTmplRelaFrgmt",
+    "LifeSciEmailTmplSnapshot",
+    "LifeScienceEmail",
+    "PresentationPage",
+    "StaticResource"
+  ].map((s2) => s2.toLowerCase())
+);
 function schemaRisks(entries2, attachmentRecords2 = /* @__PURE__ */ new Set()) {
   const risks = [];
   for (const e of entries2) {
@@ -139661,7 +139677,7 @@ function schemaRisks(entries2, attachmentRecords2 = /* @__PURE__ */ new Set()) {
         detail: "Every record the rep can access is downloaded. A filter on high-volume objects keeps syncs short."
       });
     }
-    if (attachmentRecords2.has(e.developerName)) {
+    if (attachmentRecords2.has(e.developerName) && !EXPECTED_ATTACHMENT_SOBJECTS.has(e.sobject.toLowerCase())) {
       risks.push({
         ...base2,
         severity: "warning",
