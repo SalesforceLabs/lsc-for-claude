@@ -1,6 +1,6 @@
 ---
 name: lsc-intelligent-content
-description: Guides Life Sciences Cloud (LSC) Intelligent Content (CLM) configuration. Use when user asks about presentations, content management, CLM, closed loop marketing, content library, presentation settings, HTML presentations, PDF presentations, content API, territory distribution, presentation pages, dynamic content, Presentation object configuration, content player, menu player, or recommended/targeted presentations.
+description: Guides Life Sciences Cloud (LSC) Intelligent Content (CLM) configuration. Use when user asks about presentations, content management, CLM, closed loop marketing, content library, presentation settings, HTML presentations, PDF presentations, content API, territory distribution, presentation pages, dynamic content, Presentation object configuration, content player, menu player, recommended/targeted presentations, or a Visit launch that does not record the Intelligent Content session.
 ---
 
 ## CRITICAL — "ASSOCIATE WITH" MEANS TOPIC, NOT TERRITORY
@@ -35,12 +35,21 @@ Then call: `distribute_presentation({ presentationId: "...", territoryIds: ["<te
 |---------------------|---------------|
 | CLM concepts, content flow, best practices | `get_lsc_module_docs({ module: "intelligent-content" })` |
 | Specific content topic (tracking, dynamic content, etc.) | `search_lsc_knowledge({ query: "<topic>" })` |
+| Visit launch does not record the presentation session, or click stream is missing and the player did open | `search_lsc_knowledge({ query: "Pause tracking when player launches Visit" })` then follow **Pause tracking on launch** below. Do **not** start with metadata cache or a missing bundle. |
 | Admin Console presentation settings | `list_admin_settings({ category: "IntelligentContent" })` |
 | Trigger handler status | `list_trigger_handlers()` |
 | Object fields and relationships | `describe_sobject({ sobject: "Presentation" })` |
 | Presentation data in the org | `run_soql({ query: "SELECT ... FROM Presentation ..." })` |
 | Mobile cache status | `check_mobile_cache_status()` |
 | Validation / audit | `audit_mobile_config({ group: "content-config-check" })` |
+
+Always preserve the citation block (lines starting with > 📖, > 🔗, > 📂) from the tool response verbatim in your answer.
+
+---
+
+## Pause tracking on launch
+
+Load `support-engineering-pause-tracking-on-launch.md`. Call `list_admin_settings({ category: "IntelligentContent" })` and read **Pause tracking when player launches** for that rep (user, then profile, then org). Finish only when the reply states every fact under **Required answer**: the setting is on, the player starts paused, and this is not a metadata-cache gap or a failed sync. Do not leave those as open alternatives.
 
 ---
 

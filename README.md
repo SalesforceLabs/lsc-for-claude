@@ -244,7 +244,7 @@ Claude automatically activates the right skill based on what you're asking about
 | `lsc-mobile-app-settings` | Manages mobile Application Settings (browser, password, search, notifications) |
 | `lsc-home-page-configuration` | Home page setup including Agentforce Welcome Center utterances |
 | `lsc-quick-actions-configuration` | Quick actions and custom actions for web and mobile |
-| `lsc-visit-management` | Visit management configuration for web and mobile |
+| `lsc-visit-management` | Visit management configuration and troubleshooting for web and mobile (Status editable on create, late-submit delay reason, Additional Information on Visit Engagement, iPad child records missing after sync) |
 | `lsc-sample-management` | Sample inventory and sample limits configuration |
 | `lsc-account-management` | Account management (addresses, affiliations, licenses, DCR, search) |
 | `lsc-activity-plan` | Activity plan configuration (goals, weighted plans, measures) |

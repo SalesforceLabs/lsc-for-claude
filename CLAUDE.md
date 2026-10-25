@@ -83,7 +83,7 @@ This is a **Claude Code Plugin** providing an all-in-one LSC solution:
 | `lsc-mobile-validation` | Validates mobile app configuration (DB Schema, sync settings) |
 | `lsc-home-page-configuration` | Guides home page setup for web and mobile apps |
 | `lsc-quick-actions-configuration` | Guides quick actions and custom actions setup for web and mobile |
-| `lsc-visit-management` | Guides visit management configuration for web and mobile |
+| `lsc-visit-management` | Guides visit management configuration and troubleshooting for web and mobile (Status editable on create, late-submit delay reason, Additional Information on Visit Engagement, iPad child records missing after sync) |
 | `lsc-sample-management` | Guides sample inventory and sample limits configuration |
 | `lsc-account-management` | Guides account management configuration (addresses, affiliations, licenses, DCR, search) |
 | `lsc-activity-plan` | Guides activity plan configuration (account goals, weighted goals, shared goals, batch jobs, measures) |

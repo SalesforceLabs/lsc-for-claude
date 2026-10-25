@@ -1,7 +1,27 @@
 ---
 name: lsc-sample-management
-description: Guides Life Sciences Cloud (LSC) Sample Management configuration for inventory, sample limits, and sample limit validation. Use when user asks about sample inventory, sample drops, sample limits, sample limit validation on mobile, PDMA compliance, inventory operations, production batches, product items, inventory counts, signature requirements, or Product2/LifeSciMarketableProduct/ProviderSampleLimit/ProviderSmplLmtTmplAssignment objects.
+description: Guides Life Sciences Cloud (LSC) Sample Management configuration for inventory, sample limits, and sample limit validation. Use when user asks about sample inventory, sample drops, sample limits, sample limit validation on mobile, the sample-limit ellipsis on a visit, PDMA compliance, inventory operations, production batches, product items, inventory counts, signature requirements, Product2/LifeSciMarketableProduct/ProviderSampleLimit/ProviderSmplLmtTmplAssignment objects, **Complete this field: Item** on a sample that already has an item, a ProductDisbursement delete rejected in the same transaction as visit submit, web Samples and Direct to Practitioner that do not render after a product is selected, or iPad Add Another and the side menu staying available after signature.
 ---
+
+## Add Another after signature on iPad
+
+When iPad still offers Add Another or a side-menu sample after the visit is signed, and the Product Item dropdown hides that product, load `knowledge/modules/visit-management/support-engineering-visit-signed-add-another.md`. Finish only when the reply states every fact under **Required answer**. `SamplesPlugin.canInsertForGroup` and `ProductMenuBloc` ignore the signature rule. This is not a web defect.
+
+## Web Samples and DTP after a product is selected
+
+When web Visit Engagement does not render Samples or Direct to Practitioner after a product is selected, and iPad does, load `knowledge/modules/visit-management/support-engineering-visit-sample-dtp-locale.md`. Finish only when the reply states every fact under **Required answer**. `Organization.DefaultLocaleSidKey` is `en_IE_EURO`, the old JDK form of English (Ireland, Euro). Switch the org to the ICU locale. Do not add a Product Disbursements related list.
+
+## Disbursement delete in the same transaction as visit submit
+
+When a `ProductDisbursement` delete is rejected while the visit is submitting, load `knowledge/modules/visit-management/support-engineering-visit-disbursement-delete-lock.md`. Finish only when the reply states every fact under **Required answer**. Query `ApexTrigger` on `ProductDisbursement`. The customer's unmanaged trigger `ProductDisbursementDeleteLock` is the cause. The managed submit lock is ruled out. The customer adds a same-transaction exemption. Do not ask for a package change. Do not use this section when the symptom is an iPad Visit missing on the device and still on the server.
+
+## Sample batch null on save
+
+When iPad shows **Complete this field: Item** and the sample already has a product item, load `knowledge/modules/visit-management/support-engineering-visit-sample-batch-null.md`. Finish only when the reply states every fact under **Required answer**. `checkAvailableQuantities` guards the `ProductionBatch` ID string, not the entity from the bulk load. A missing entry dereferences null. This is not a package 262 access-rights regression. Guard the resolved entity.
+
+## Sample-limit menu missing
+
+When the ellipsis next to a sample product is missing, or sample-limit enforcement does not run, load `knowledge/modules/visit-management/support-engineering-visit-sample-limits-profile.md`. Call `list_admin_settings({ category: "Visit" })` and read `ValidateSampleLimits` on the user's profile record. User overrides profile, and profile overrides org. Finish only when the reply states every fact under **Required answer**. A missing `ProviderSampleLimit` row is the cause only after that profile setting is on and the ellipsis is visible.
 
 ## Critical Knowledge: How Samples Are Resolved During a Visit
 

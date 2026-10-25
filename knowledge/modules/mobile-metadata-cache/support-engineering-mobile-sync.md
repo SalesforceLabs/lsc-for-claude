@@ -121,7 +121,7 @@ Configured in **Admin Console → Object Metadata Cache Configuration → [objec
 Diagnosis path:
 1. **Check the DeviceSyncTransaction record for that user/session.**
    - Was the upload processed successfully? If yes → see step 2.
-   - Was it Failed? Read the `DeviceSyncTransactionLog` for the error (permission, dependency, validation).
+   - Was it Failed? Read the `DeviceSyncTransactionLog` for the error (permission, dependency, validation). Child rows still present on `DeviceSyncTransactionRecord` means the client submitted them — that is not silent data loss. For a Visit submit whose Presentation Forum, click stream, or disbursement is missing on web, follow [support-engineering-visit-sync-not-data-loss.md](../visit-management/support-engineering-visit-sync-not-data-loss.md).
    - Was it Cancelled or Manual? Admin intervention is pending.
 2. **Was it processed but reverted?** Check the object's history — another user or admin may have overwritten the change.
 3. **Is the object subject to Data Change Request?** If the entity requires DCR approval, the change is in pending-approval state, not actually applied. Look in the DCR queue.

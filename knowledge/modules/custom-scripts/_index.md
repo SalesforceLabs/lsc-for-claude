@@ -28,3 +28,4 @@ Every accessor method has **namespace-prefixed** and **`noNs_`** variants — us
 ## Support Engineering Training (LSC4CE Value Chain)
 
 - [Validations using Custom Scripts](./support-engineering-validations-custom-scripts.md) — three script types, execution context, deployment workflow (LWC → Workbench → Admin Console → Refresh), troubleshooting (namespace mismatches, action label mismatches, missed Refresh, access issues)
+- [Visit script passes every institution](../visit-management/support-engineering-visit-script-institution-guard.md) — the customer's Visit Action Validation script inverts the institution check. A missing Save dispatch is a second cause. The customer corrects the script.

@@ -54,6 +54,8 @@ ProviderSampleLimit (links Product + Account, holds Rules JSON with time period 
 **Cause:** Product is assigned to a template, but **no `ProviderSampleLimit` record exists** for this specific Account.
 **Fix:** Either create the `ProviderSampleLimit` for that account-product pair, or remove the product from the template.
 
+Use that only when the ellipsis is already visible. If the sample-limit menu is missing, `ValidateSampleLimits` is off on the user's profile record. See [support-engineering-visit-sample-limits-profile.md](./support-engineering-visit-sample-limits-profile.md).
+
 ## Sample Inventory Validation
 
 Distinct from sample limits — inventory validation checks the **rep's personal lot stock** to enforce sample accountability.
@@ -126,6 +128,78 @@ Two scenarios:
 
 ### "Field not appearing on layout"
 **Fix:** Run the **metadata cache** after ANY layout change for Visit-related fields. This is the single most common reason added fields don't show up.
+
+### "Late Visit submits on Web with no delay reason"
+iPad already requires the reason. `VisitDelayReasonHandler` only clears a reason when the date moves back inside the threshold. If the org is still on Life Sciences package 262.x, the fix is package **264**. See [support-engineering-visit-submit-delay-reason.md](./support-engineering-visit-submit-delay-reason.md).
+
+### "Presentation Forum / click stream / disbursement missing on web after iPad submit"
+Query the Device Sync Transaction before any lock-handler theory. If the child rows are present, there is no data loss. A transaction that failed on a customer validation rule for Presentation Click Stream Entry never commits those web records. See [support-engineering-visit-sync-not-data-loss.md](./support-engineering-visit-sync-not-data-loss.md).
+
+### "Additional Information breaks attendee add or the attendee screen"
+`ProviderVisit.AdditionalInformation` is system-managed JSON, not a comment field. Remove it from the Visit Engagement layout. Do not move it onto ProviderVisit (it is already there) and do not refresh the cache. See [support-engineering-visit-additional-information.md](./support-engineering-visit-additional-information.md).
+
+### "Institution visits pass validation"
+The customer's Visit Action Validation script inverts the institution check, so an institution always passes. Compare a person account and an institution on the same action, then read the script. A Save path that never runs the script is a second cause. See [support-engineering-visit-script-institution-guard.md](./support-engineering-visit-script-institution-guard.md).
+
+### "Sample-limit menu (ellipsis) is missing"
+`ValidateSampleLimits` is off on the profile-level Visit setting. The org value can still be true. Do not start with a missing `ProviderSampleLimit` row. See [support-engineering-visit-sample-limits-profile.md](./support-engineering-visit-sample-limits-profile.md).
+
+### "Add Product order does not follow the territory"
+The picker order matches `LifeSciMarketableProduct.SortOrder`. `ProductTerrDtlAvailability` only decided which products appear. Territory `SortOrder` has to come first. See [support-engineering-visit-add-product-sort.md](./support-engineering-visit-add-product-sort.md).
+
+### "Visit deleted on iPad is still on the server"
+Edit and Delete were shown on a completed, read-only, or out-of-territory Visit. The device row is gone after sync and the server row is still there. The delete upload was rejected and the iPad kept the local delete. Do not change sharing or `VisitLockHandler`. See [support-engineering-visit-ipad-delete-not-applied.md](./support-engineering-visit-ipad-delete-not-applied.md).
+
+### "Dynamic actions do not run on mobile"
+`ApplicationSettings_OrgLevel` is inactive, so it is not synced and the app defaults `EnableDynamicActions` to false. Activate the record. See [support-engineering-visit-dynamic-actions-inactive.md](./support-engineering-visit-dynamic-actions-inactive.md).
+
+### "Add Another and the side menu stay open after signature on iPad"
+The Product Item dropdown applies the signature rule. `SamplesPlugin.canInsertForGroup` and `ProductMenuBloc` do not. Not a web defect. See [support-engineering-visit-signed-add-another.md](./support-engineering-visit-signed-add-another.md).
+
+### "A lookup label ends in ID on Visit Engagement"
+A `ProviderVisitProdDetailing` field on the layout forces a parent pick, so the lookup shows its raw label with an ID suffix. Remove the field. Not a label regression. See [support-engineering-visit-lookup-id-suffix.md](./support-engineering-visit-lookup-id-suffix.md).
+
+### "Desktop shows NextVisitObjectiveLabel on package 264"
+en_US dropped that key from the LSC translations document because another key has the same text. Package 264 does not fall back to REST, so the raw key is shown. See [support-engineering-visit-next-objective-label.md](./support-engineering-visit-next-objective-label.md).
+
+### "Web Samples and DTP do not render after selecting a product"
+The org locale is English (Ireland, Euro) in the old JDK format, `en_IE_EURO`. Switch to the ICU locale. iPad still renders both panels. See [support-engineering-visit-sample-dtp-locale.md](./support-engineering-visit-sample-dtp-locale.md).
+
+### "Visit quick action is missing or will not open on iPad"
+iPad reads the FlexiPage Highlights Panel for the Visit record type. The `SalesforceTesting` packaged page does not include `Cancel_visit`. Add the action or assign another page. See [support-engineering-visit-highlights-action.md](./support-engineering-visit-highlights-action.md).
+
+### "iPad crashes when editing a Presentation Forum"
+On package 262 the edit handler passes the forum id, not the parent Visit id, to `editCoordinator`, and `fatalError` crashes the app. Package 264 passes `ForumReferenceId`. See [support-engineering-visit-forum-edit-crash.md](./support-engineering-visit-forum-edit-crash.md).
+
+### "Provider Visit Information merged fields are empty"
+`ProviderVisitProductDtlId` is on the Provider Visit page layout. Remove it. The merged fields populate again. See [support-engineering-visit-information-dtl-field.md](./support-engineering-visit-information-dtl-field.md).
+
+### "Visit Engagement still shows the old Samples label"
+Rename Tabs and Labels already has the new name. Standard Label Translations were last refreshed before that rename. Re-generate the document. See [support-engineering-visit-renamed-label.md](./support-engineering-visit-renamed-label.md).
+
+### "iPad Provider Visit New or Edit has no section header"
+`BaseLayoutViewModel` flattens every section into one with an empty label and `editHeading` false, and `refresh()` sets `headerEnabled` false. The layout label is still set and web shows it. Working as designed. See [support-engineering-visit-ipad-section-header.md](./support-engineering-visit-ipad-section-header.md).
+
+### "Web HCO picker returns no organizations"
+`AccountPickerService` paginates `HealthcareProvider` `LIMIT 20` by `Account.Name` before `IsPersonAccount = false`. A page of person accounts is dropped, so the picker returns 0 HCOs. Not a metadata override. See [support-engineering-visit-hco-picker-page.md](./support-engineering-visit-hco-picker-page.md).
+
+### "ProductDisbursement delete fails while the visit is submitting"
+The customer's unmanaged trigger `ProductDisbursementDeleteLock` rejects the delete in that same transaction. The managed submit lock is ruled out. The customer adds a same-transaction exemption. See [support-engineering-visit-disbursement-delete-lock.md](./support-engineering-visit-disbursement-delete-lock.md).
+
+### "Complete this field: Item" on a sample that already has an item
+`checkAvailableQuantities` guards the `ProductionBatch` ID string and not the resolved entity. A missing bulk-load entry dereferences null, and the UI shows the Item field error. Not a package 262 regression. Guard the entity. See [support-engineering-visit-sample-batch-null.md](./support-engineering-visit-sample-batch-null.md).
+
+### "iPad and web disagree on a visit conflict"
+`VisitConflictValidationPlugin.findConflictingVisit` queries only the existing visit's `PlannedVisitStartTime`. The end time is never read, so the window is the new start plus or minus N days. Web checks both start and end. See [support-engineering-visit-conflict-end-time.md](./support-engineering-visit-conflict-end-time.md).
+
+### "Custom fields on product detailing are blank after save"
+`LogACallSaveHelper` upserts a cached `ProviderVisitProdDetailing` that was not re-queried after the Visit flow, so fields outside its DTO are blanked. Put the values back with a before-save flow on `ProviderVisitProdDetailing`. See [support-engineering-visit-detailing-stale-cache.md](./support-engineering-visit-detailing-stale-cache.md).
+
+### "iPad says the visit is outside best time"
+`CallMyBestTimeValidator` parses raw `FromTime` and `ToTime` (`08:00:00.000Z`) with a 12-hour format, so `TimePeriod` is always nil and it throws `outsideMyBestTime` for every account. A null `TerritoryId` is not the cause. See [support-engineering-visit-best-time-parse.md](./support-engineering-visit-best-time-parse.md).
+
+### "A read-only Visit field is editable on create"
+`refreshFieldReadOnlyStatus` clears the page-layout or field-level security lock during creation. Not Set Audit Fields. Fixed in package **264.5**. Status then shows every picklist value. Life Sciences uses Planned and Completed. See [support-engineering-visit-status-readonly.md](./support-engineering-visit-status-readonly.md).
 
 ### Record types on Visit
 **Always add to both `Visit` AND `ProviderVisit` objects** — they must mirror each other for the merged layout to resolve correctly.
