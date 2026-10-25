@@ -320,9 +320,32 @@ export interface SchemaRisk {
 }
 
 /**
+ * Objects whose records are files or carry file bodies by design (content,
+ * email templates, signatures, presentations), so syncing attachments for them
+ * is expected and not worth a warning.
+ */
+const EXPECTED_ATTACHMENT_SOBJECTS = new Set(
+  [
+    "CommSubConsentCmplSnpsht",
+    "ContentDocument",
+    "ContentDocumentLink",
+    "ContentVersion",
+    "DigitalSignature",
+    "LifeSciEmailTemplate",
+    "LifeSciEmailTmplFragment",
+    "LifeSciEmailTmplRelaFrgmt",
+    "LifeSciEmailTmplSnapshot",
+    "LifeScienceEmail",
+    "PresentationPage",
+    "StaticResource",
+  ].map((s) => s.toLowerCase())
+);
+
+/**
  * Cheap checks on active DB Schema records: no filter, attachments synced.
  * Filter-less rules are limited to data objects; `attachmentRecords` holds the
- * developer names that have attachments turned on.
+ * developer names that have attachments turned on. Objects in
+ * EXPECTED_ATTACHMENT_SOBJECTS are not warned about for attachments.
  */
 export function schemaRisks(
   entries: DbSchemaEntry[],
@@ -344,7 +367,10 @@ export function schemaRisks(
           "Every record the rep can access is downloaded. A filter on high-volume objects keeps syncs short.",
       });
     }
-    if (attachmentRecords.has(e.developerName)) {
+    if (
+      attachmentRecords.has(e.developerName) &&
+      !EXPECTED_ATTACHMENT_SOBJECTS.has(e.sobject.toLowerCase())
+    ) {
       risks.push({
         ...base,
         severity: "warning",
