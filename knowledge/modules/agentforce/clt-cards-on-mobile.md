@@ -87,7 +87,7 @@ Run a new chat after each deploy. Cards already rendered in an existing chat sta
 
 ## What turned out NOT to be the cause
 
-The Apex, `lightning/navigation` and `lightning-icon` imports do not break the mobile runtime. A working example imports `lightning/navigation` and runs fine. Don't spend a round building display-only cards on that theory.
+`lightning/navigation` and `lightning-icon` imports do not break the mobile runtime. A working example imports `lightning/navigation` and runs fine. Whether `@salesforce/apex` imports cause blank mobile cards is **unconfirmed** (an Apex-free variant was still being tested), so don't rule them out. See [clt-cards-desktop-mobile-and-record-links](./clt-cards-desktop-mobile-and-record-links.md) for the wider write-up (record links, unique action names, topic routing).
 
 ## Troubleshooting order
 
