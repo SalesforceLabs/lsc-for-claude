@@ -105,11 +105,11 @@ describe("schemaRisks", () => {
 
   it("flags missing filters and attachments, attachments first, with the Mobile Sync item id", () => {
     const risks = schemaRisks(
-      [entry("Z_Visit", "Visit", null), entry("A_Acc", "Account", "Id != null"), entry("B_Doc", "ContentVersion", "Id != null")],
+      [entry("Z_Visit", "Visit", null), entry("A_Acc", "Account", "Id != null"), entry("B_Doc", "Attachment", "Id != null")],
       new Set(["B_Doc"])
     );
     expect(risks.map((r) => [r.sobject, r.severity])).toEqual([
-      ["ContentVersion", "warning"],
+      ["Attachment", "warning"],
       ["Visit", "info"],
     ]);
     expect(risks[0].itemId).toBe("DbSchema:B_Doc");
