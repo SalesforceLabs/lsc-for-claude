@@ -17,6 +17,7 @@ description: Guides Agentforce for Life Sciences Cloud (LSC) configuration (Wint
 |---------------------|---------------|
 | Agentforce concepts, setup, best practices | `get_lsc_module_docs({ module: "agentforce" })` |
 | Specific Agentforce topic (topics, actions, Einstein Studio, etc.) | `search_lsc_knowledge({ query: "<topic>" })` |
+| Agentforce custom Lightning type (CLT) card blank or a raw field list on mobile (iPad/iPhone) | `search_lsc_knowledge({ query: "custom Lightning type mobile blank lightningMobileGenAi" })` |
 | Admin Console Agentforce settings | `list_admin_settings({ category: "Agentforce" })` |
 | Trigger handler status | `list_trigger_handlers()` |
 | Agent bot definitions | `run_soql({ query: "SELECT Id, DeveloperName, MasterLabel, IsActive FROM BotDefinition WHERE DeveloperName LIKE '%LifeSciences%'" })` |
