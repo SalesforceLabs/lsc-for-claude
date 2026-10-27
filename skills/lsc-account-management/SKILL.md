@@ -1,6 +1,6 @@
 ---
 name: lsc-account-management
-description: Guides Life Sciences Cloud (LSC) Account Management configuration for web and mobile apps. Use when user asks about provider card, addresses, affiliations, ratings, account search, search before create (SBC), data change requests (DCR), business licenses, multi-object component, ARC graph, ContactPointAddress, HealthcareProvider, ProviderAffiliation, or Admin Console account settings.
+description: Guides Life Sciences Cloud (LSC) Account Management configuration for web and mobile apps. Use when user asks about provider card, addresses, affiliations, ratings, account search, search before create (SBC), data change requests (DCR), business licenses, multi-object component, ARC graph, ContactPointAddress, HealthcareProvider, ProviderAffiliation, Admin Console account settings, or a web HCO picker that returns no organizations.
 ---
 
 ## How to Answer Account Management Questions
@@ -11,6 +11,7 @@ description: Guides Life Sciences Cloud (LSC) Account Management configuration f
 |---------------------|---------------|
 | Account concepts, sub-features, best practices | `get_lsc_module_docs({ module: "account-management" })` |
 | Specific topic (DCR, affiliations, SBC, etc.) | `search_lsc_knowledge({ query: "<topic>" })` |
+| Web HCO picker returns no organizations | `search_lsc_knowledge({ query: "AccountPickerService HealthcareProvider LIMIT 20 IsPersonAccount" })` then follow **HCO picker page** below. Query the first 20 primary providers by name before any metadata override. |
 | Current org account configuration | `check_account_config()` |
 | Admin Console account settings | `list_admin_settings({ category: "AccountManagement" })` |
 | Trigger handler status | `list_trigger_handlers()` |
@@ -77,3 +78,7 @@ Re-run `check_account_config()` to confirm everything is configured correctly.
 - **DO NOT** use `run_soql` for Admin Console settings — use `list_admin_settings` / `check_account_config`
 - **DO NOT** use `run_soql` for mobile cache — use `check_mobile_cache_status()`
 - **DO NOT** suggest OmniStudio/FlexCard/OmniScript for mobile — NOT available on LSC Mobile iPad app
+
+## HCO picker page
+
+Load `knowledge/modules/visit-management/support-engineering-visit-hco-picker-page.md`. Query `HealthcareProvider` with `IsPrimaryProvider = true`, ordered by `Account.Name`, `LIMIT 20`. The reply must say `AccountPickerService` paginates before `Account.IsPersonAccount = false`, so a page of person accounts is dropped and the web HCO picker returns 0 organizations. Cite that page and an HCO that exists past it. Do not call this a Profile or User `LifeSciMetadata` override.

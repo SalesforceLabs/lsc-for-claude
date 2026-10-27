@@ -30,6 +30,8 @@ Source deck was marked WIP before GA; Winter '27 is now released (see `release-n
 - **ZIP cardinal rule** — Select all files inside the folder and zip them. Do NOT zip the parent folder. `index.html` + `thumbnail.jpg` must be at the ZIP root.
 - **TargetingContext** — `None` (all shown) / `Warn` (warn but allow) / `Restrict` (block). Stored on `ProviderAcctTerritoryInfo.TargetedPresentationInfo` as semicolon-delimited Source System Identifiers.
 - **Click-stream tracking** — only saved if presentation is associated with a Visit AND the Visit is saved. Cancel discards metrics by design.
+- **Pause tracking when player launches** — the player starts paused, so a Visit launch records nothing until the rep taps play. Check this before metadata cache. See [support-engineering-pause-tracking-on-launch](./support-engineering-pause-tracking-on-launch.md).
 - **Content Search** requires Data 360 — 7-step setup (data kit → data streams → settings → re-upload → search index → enable).
 
 - [support-engineering-intelligent-content](./support-engineering-intelligent-content.md) — May 19, 2026 session (Conor Fanlo). Data model (7 objects), ZIP packaging, dynamic content (Mustache + SDK functions), targeting + recommendations, 3 search types, Content Search 7-step setup + troubleshooting, Player capabilities, email-link delivery via Experience Cloud + `PresentationPartyAccess`, full Presentation Settings reference (6 categories), 7 troubleshooting patterns.
+- [support-engineering-pause-tracking-on-launch](./support-engineering-pause-tracking-on-launch.md) — Intelligent Content launched from a Visit is not recorded when **Pause tracking when player launches** is on. The session starts paused. Not a metadata-cache or sync failure.

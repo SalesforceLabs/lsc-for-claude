@@ -1,6 +1,6 @@
 ---
 name: lsc-quick-actions-configuration
-description: Guides Life Sciences Cloud (LSC) Quick Actions and Custom Actions configuration for web and mobile apps. Use when user asks about quick actions, custom actions, floating action button, or Admin Console action administration.
+description: Guides Life Sciences Cloud (LSC) Quick Actions and Custom Actions configuration for web and mobile apps. Use when user asks about quick actions, custom actions, floating action button, Admin Console action administration, or a Visit quick action that is missing or will not open on iPad.
 ---
 
 ## How to Answer Quick Actions Questions
@@ -11,6 +11,7 @@ description: Guides Life Sciences Cloud (LSC) Quick Actions and Custom Actions c
 |---------------------|---------------|
 | Action concepts, types, best practices | `search_lsc_knowledge({ query: "quick actions custom actions" })` |
 | Specific action topic (deep links, Agentforce, etc.) | `search_lsc_knowledge({ query: "<topic>" })` |
+| A Visit quick action is missing on iPad, or the button shows and the layout will not open | `search_lsc_knowledge({ query: "FlexiPage Highlights Panel Cancel_visit SalesforceTesting" })` then follow **Visit Highlights Panel action** below. Open the page assigned to the record type before a GoTo or metadata-cache check. |
 | Current org actions | `list_lsc_actions({ actionType: "both" })` |
 | Admin Console action settings | `list_admin_settings({ category: "QuickActions" })` |
 | Trigger handler status | `list_trigger_handlers()` |
@@ -530,6 +531,10 @@ Common permission set API names:
 | Commercial Admin | `force__LifeSciencesCommercialAdmin` |
 
 ---
+
+## Visit Highlights Panel action
+
+Load `knowledge/modules/visit-management/support-engineering-visit-highlights-action.md`. Finish only when the reply states every fact under **Required answer**. iPad builds Visit actions from the FlexiPage Highlights Panel for the record type. The `SalesforceTesting` packaged page does not include `Cancel_visit`. Add the action to that panel, or assign a page that already has it. Do not start with a blank GoTo target or a metadata cache.
 
 ## Record Type Filtering
 

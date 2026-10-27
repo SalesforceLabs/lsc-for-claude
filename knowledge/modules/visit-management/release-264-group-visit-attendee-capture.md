@@ -17,7 +17,7 @@ Permissions: **Customize Application** (page layouts, Lightning pages, Rename Ta
 2. Add the **Child Visits** related list (labeled Attendees; this enables the Attendees sidebar menu on Visit Engagement). Keep the Attendees related list for visibility/reference only.
 3. Setup > **Lightning App Builder** > edit the Visit record page > drag **Related List - Life Sciences** onto the page and configure it to show attendees. Do NOT configure a New button on the Attendees related list component (it can create a generic record not tied to the visit).
 4. Sidebar order follows related list order: Content = Presentation Forums; Product Details = Provider Visit Product Detailings; Samples = Product Disbursements; Direct to Practitioner = Provider Visit Requested Samples; Marketing Items = Provider Visit Marketing Items; Attendees = Child Visits; Custom Objects = any custom object with a lookup to Visit whose lookup field API name must end in `Visit__c` (variants such as `Visit_ID__c` are unsupported and block saves). Only the listed standard objects are supported. Recommendations appear automatically at the top.
-5. Optional: Setup > **Rename Tabs and Labels** to rename related lists (e.g. Product Disbursements to Samples).
+5. Optional: Setup > **Rename Tabs and Labels** to rename related lists (e.g. Product Disbursements to Samples). Visit Engagement reads that name from Standard Label Translations. If the section still shows the old label, the document's Last Refreshed Date is before the rename. Re-generate it. See [support-engineering-visit-renamed-label.md](./support-engineering-visit-renamed-label.md).
 
 ### Focused attendee data entry (existing content, not found in Help)
 

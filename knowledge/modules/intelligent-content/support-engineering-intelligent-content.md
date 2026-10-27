@@ -180,6 +180,7 @@ When a user emails a presentation:
 | `VisualIndicator` | Show visual indicators |
 | `DisablePresenterTracking` | Skip presenter click-stream tracking |
 | `DisableParticipantTracking` | Skip participant click-stream tracking |
+| Pause tracking when player launches | Player starts paused. A Visit launch records nothing until the rep taps play. See [support-engineering-pause-tracking-on-launch.md](./support-engineering-pause-tracking-on-launch.md). |
 | `ContentRatingBottomBar` | Rating in bottom bar |
 | `ContentRatingMainView` | Rating in main view |
 | `EnableDrawing` | Enable drawing tool |

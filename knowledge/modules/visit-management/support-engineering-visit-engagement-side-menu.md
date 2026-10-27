@@ -10,6 +10,10 @@
 The Visit Engagement screen is rendered from a **merged layout** that pulls from BOTH the `Visit` and `ProviderVisit` objects — each contributes different parts. The left sidebar is driven entirely by the `Visit` layout's related lists, filtered through an internal allowed list, with FLS applied. Support escalations cluster around three areas: products not appearing, custom related lists silently ignored, and custom fields rendering unpredictably because they're on the wrong object.
 
 > **The cardinal rule:** Put custom fields on **`ProviderVisit`**, not on `Visit`. Custom fields on `Visit` are ignored on the engagement screen — only a hard-coded set of standard fields is extracted from the Visit layout.
+>
+> **Exception:** `ProviderVisitProductDtlId` does not belong on the Provider Visit layout. With it there, the Provider Visit Information merged fields render empty. Remove the field. See [support-engineering-visit-information-dtl-field.md](./support-engineering-visit-information-dtl-field.md).
+>
+> **Exception:** `ProviderVisit.AdditionalInformation` is system-managed JSON (account/provider snapshot). Do not put it on the Visit Engagement layout, even though it already lives on ProviderVisit. See [support-engineering-visit-additional-information.md](./support-engineering-visit-additional-information.md).
 
 ## The Merged Layout
 

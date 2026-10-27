@@ -1,6 +1,6 @@
 ---
 name: lsc-product-management
-description: Guides Life Sciences Cloud (LSC) Product Management configuration. Use when user asks about product hierarchy, LifeSciMarketableProduct, product territory alignment, product messages, product objectives, product restrictions, product account restrictions, territory product priorities, ProductGuidance, TerritoryProdtQtyAllocation, or Admin Console > Product Hierarchy.
+description: Guides Life Sciences Cloud (LSC) Product Management configuration. Use when user asks about product hierarchy, LifeSciMarketableProduct, product territory alignment, product messages, product objectives, product restrictions, product account restrictions, territory product priorities, ProductGuidance, TerritoryProdtQtyAllocation, Admin Console > Product Hierarchy, or product guidance that appears from a presentation but not when the product is added directly.
 ---
 
 ## How to Answer Product Management Questions
@@ -11,6 +11,7 @@ description: Guides Life Sciences Cloud (LSC) Product Management configuration. 
 |---------------------|---------------|
 | Product concepts, hierarchy, best practices | `get_lsc_module_docs({ module: "product-management" })` |
 | Specific product topic (restrictions, priorities, messages, etc.) | `search_lsc_knowledge({ query: "<topic>" })` |
+| Product guidance appears from a presentation and is hidden when the product is added directly | `search_lsc_knowledge({ query: "presentation ProductGuidance EffectiveEndDate IsActive" })` then follow **Presentation guidance dates** below. Compare both paths before asking for a component name. |
 | Admin Console product settings | `list_admin_settings({ category: "ProductManagement" })` |
 | Trigger handler status | `list_trigger_handlers()` |
 | Object fields and relationships | `describe_sobject({ sobject: "LifeSciMarketableProduct" })` |
@@ -90,10 +91,14 @@ ProductTerrDtlAvailability (PTDA)      ← read-only, cannot insert directly
 - The batch job is NOT callable from anonymous Apex — it must be triggered from the Admin Console UI
 - Brand-level and sample-level marketable products each need their own PTAs
 - **PTAs must use `Territory and Subordinates Inclusion` at a parent territory** (e.g., `GB-COUNTRY`). Using `Territory Inclusion` at a leaf territory does NOT create PTDAs — the batch only generates PTDAs when expanding from parent to child.
-- `SortOrder` on PTDA defaults to null — this does NOT block product display
+- `SortOrder` on PTDA defaults to null — this does NOT block product display. A null value also does not explain Add Product order. That picker sorts by `LifeSciMarketableProduct.SortOrder` and uses PTDA only to decide which products appear. Territory `SortOrder` has to come first. See `knowledge/modules/visit-management/support-engineering-visit-add-product-sort.md`.
 
 ### Brand vs Product Marketable Product Types
 
 - `Type = 'Brand'` — appears in **Product Details** during visits. Requires `ProductId = null`.
 - `Type = 'Product'` — appears in **Samples** panel. Requires `ProductId` pointing to a Product2 record, plus `ParentBrandProductId` pointing to a Brand marketable product, plus `DistributionMethod` set.
 - In multi-country setups, country sub-brands (e.g., "Immunexis GB") need `Type = 'Brand'` for Product Details.
+
+## Presentation guidance dates
+
+Load `knowledge/modules/product-management/support-engineering-presentation-guidance-dates.md`. Query `ProductGuidance` and the `PresentationPageProduct` that points at it. The reply must name `PresentationItemService.isActiveProductGuidance` and its DAO: they filter `IsActive` only and omit `EffectiveStartDate` and `EffectiveEndDate`. The direct product path applies those dates. Cite one guidance that is outside its window, present from the presentation, and absent when the product is added directly. An empty code search is not a reason to stop.

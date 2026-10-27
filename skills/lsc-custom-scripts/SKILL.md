@@ -1,6 +1,6 @@
 ---
 name: lsc-custom-scripts
-description: Guides Life Sciences Cloud (LSC) Custom Script configuration for validation, checklists, and Visit Action Validation. Use when user asks about custom scripts, visit validation scripts, CodeText, LifeScienceCustomScript, IIFE patterns, Locker Service proxy issues, or headless LWC validation components.
+description: Guides Life Sciences Cloud (LSC) Custom Script configuration for validation, checklists, and Visit Action Validation. Use when user asks about custom scripts, visit validation scripts, CodeText, LifeScienceCustomScript, IIFE patterns, Locker Service proxy issues, headless LWC validation components, or a visit script that passes institution accounts.
 ---
 
 ## How to Answer Custom Script Questions
@@ -16,8 +16,13 @@ description: Guides Life Sciences Cloud (LSC) Custom Script configuration for va
 | Object fields and relationships | `describe_sobject({ sobject: "LifeScienceCustomScript" })` |
 | Mobile cache status | `check_mobile_cache_status()` |
 | Visit configuration (related) | `check_visit_config()` |
+| Visit validation passes for institutions, or does not run on Save | `search_lsc_knowledge({ query: "Visit Action Validation institution guard Save" })` then follow **Institution script guard** below. |
 
 Always preserve the citation block (lines starting with > 📖, > 🔗, > 📂) from the tool response verbatim in your answer.
+
+## Institution script guard
+
+Load `knowledge/modules/visit-management/support-engineering-visit-script-institution-guard.md`. Finish only when the reply states every fact under **Required answer**. The primary cause is an inverted institution check in the customer's script. A Save path that does not run the script is a second cause, and only when neither account type runs it on Save.
 
 ---
 

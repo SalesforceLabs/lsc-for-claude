@@ -1,9 +1,11 @@
 ---
 name: lsc-mobile-app-settings
-description: Manages Life Sciences Cloud (LSC) Mobile Application Settings in the Admin Console. Use when user asks about mobile app settings, default browser, password type, dashboard refresh, app download URL, background notifications, advanced search, dynamic actions, platform events, survey branching, or profile-based app settings.
+description: Manages Life Sciences Cloud (LSC) Mobile Application Settings in the Admin Console. Use when user asks about mobile app settings, default browser, password type, dashboard refresh, app download URL, background notifications, advanced search, dynamic actions, platform events, survey branching, profile-based app settings, or dynamic actions that do not run on the mobile app.
 ---
 
 For mobile app settings documentation, call `search_lsc_knowledge({ query: "mobile application settings" })` to get sourced documentation.
+
+When dynamic actions do not run on the mobile app, load `knowledge/modules/visit-management/support-engineering-visit-dynamic-actions-inactive.md` and finish only when the reply states every fact under **Required answer**. Call `list_admin_settings({ category: "ApplicationSettings" })` and read **Active** on `ApplicationSettings_OrgLevel` before `EnableDynamicActions`. An inactive record is not synced, and the app defaults `EnableDynamicActions` to false. Activate the record. Do not treat this as a `User.Profile.Name` limit or as Dynamic Forms on Mobile.
 
 
 # LSC Mobile Application Settings
