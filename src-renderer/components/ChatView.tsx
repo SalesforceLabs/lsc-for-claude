@@ -1082,8 +1082,10 @@ export default function ChatView({
   // (each text delta triggers a re-render — smooth animations pile up and jitter).
   useEffect(() => {
     if (restoringScrollRef.current) return;
-    if (!userScrolledRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: isStreaming ? "instant" : "smooth" });
+    const container = chatContainerRef.current;
+    if (container && !userScrolledRef.current) {
+      // Scroll the chat itself: scrollIntoView also scrolls every ancestor, which slid the whole app up.
+      container.scrollTo({ top: container.scrollHeight, behavior: isStreaming ? "instant" : "smooth" });
     }
   }, [messages, isStreaming]);
 
