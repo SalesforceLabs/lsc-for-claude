@@ -49,6 +49,7 @@
     "archiver": "^7.0.1",
     "better-sqlite3": "^12.11.1",
     "dompurify": "^3.4.17",
+    "electron-updater": "^6.8.11",
     "fast-xml-parser": "^5.11.2",
     "lightning-base-components": "^1.28.19-alpha",
     "lucide-react": "^1.57.0",

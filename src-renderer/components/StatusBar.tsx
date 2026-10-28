@@ -1,11 +1,12 @@
 import React from "react";
-import { Pin, Settings, TriangleAlert } from "lucide-react";
+import { Pin, RefreshCw, Settings, TriangleAlert } from "lucide-react";
 import Menu, { type MenuItem } from "./ui/Menu";
 import Spinner from "./ui/Spinner";
 import { useApiVersion } from "../hooks/useApiVersion";
 import { useOrgs } from "../hooks/useOrgs";
+import { useUpdate } from "../hooks/useUpdate";
 
-/** App-wide bottom bar: Settings and how many tools the assistant has, and the selected org's API version. The org lives at the top of the sidebar. */
+/** App-wide bottom bar: Settings and how many tools the assistant has, Restart to update once an update has downloaded, and the selected org's API version. The org lives at the top of the sidebar. */
 interface StatusBarProps {
   toolCount: number;
   onSettingsClick: () => void;
@@ -19,8 +20,25 @@ export default function StatusBar({ toolCount, onSettingsClick }: StatusBarProps
         <span>Settings</span>
         {toolCount > 0 && <span className="status-bar-meta">{toolCount} tools</span>}
       </button>
+      <UpdateReady />
       <ApiVersionMenu />
     </div>
+  );
+}
+
+/** Shown once a new version has downloaded; it would otherwise install the next time the app quits. */
+function UpdateReady() {
+  const { state, install } = useUpdate();
+  if (state?.status !== "ready") return null;
+  return (
+    <button
+      className="status-bar-update"
+      onClick={install}
+      title={`Roz ${state.next} is downloaded. Restart to finish updating, or it installs the next time you quit.`}
+    >
+      <RefreshCw size={12} strokeWidth={1.9} aria-hidden="true" />
+      <span>Restart to update</span>
+    </button>
   );
 }
 

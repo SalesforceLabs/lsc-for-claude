@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Monitor, Moon, Sun, X, type LucideIcon } from "lucide-react";
 import Segmented from "./ui/Segmented";
+import Spinner from "./ui/Spinner";
+import StatusIcon from "./ui/StatusIcon";
 import { pickModel, type ModelOption } from "../models";
 import { ROZ_ICONS, rozIcon, rozTileSrc, setAppIcon, type RozIcon } from "../app-icon";
 import { APP_THEMES, appTheme, type AppTheme } from "../theme";
 import { useOrgs } from "../hooks/useOrgs";
 import { useSourceControl } from "../hooks/useSourceControl";
+import { useUpdate } from "../hooks/useUpdate";
+import { canCheckForUpdates, updateStatusText } from "../update";
 import { SOURCE_CONTROL_HINT } from "./studio/source-control";
 import { hostOf, KIND_LABEL, orgKey } from "../orgs";
 const THEME_ICONS: Record<AppTheme, LucideIcon> = { system: Monitor, light: Sun, dark: Moon };
@@ -206,6 +210,8 @@ export default function SettingsPanel({
               mobile user”.
             </div>
           </section>
+
+          <UpdatesSection />
         </div>
 
         <div className="settings-footer">
@@ -218,5 +224,39 @@ export default function SettingsPanel({
         </div>
       </div>
     </div>
+  );
+}
+
+/** The app's version and its updates: checked and downloaded on their own, installed on quit or now. */
+function UpdatesSection() {
+  const { state, check, install } = useUpdate();
+  const busy = state?.status === "checking" || state?.status === "downloading";
+  return (
+    <section className="settings-group">
+      <div className="ui-label">Updates</div>
+      <div className="settings-row">
+        <div className="settings-update">
+          <div className="settings-update-version">Roz for LSC {state?.version ?? ""}</div>
+          {state && (
+            <div className="settings-hint settings-update-status" aria-live="polite">
+              {state.status === "error" && <StatusIcon tone="warning" size={16} />}
+              {busy && <Spinner size={12} />}
+              <span>{updateStatusText(state)}</span>
+            </div>
+          )}
+        </div>
+        {state?.status === "ready" ? (
+          <button className="studio-btn primary" onClick={install}>
+            Restart to update
+          </button>
+        ) : (
+          state?.status !== "unsupported" && (
+            <button className="studio-btn" onClick={check} disabled={!state || !canCheckForUpdates(state)}>
+              Check for updates
+            </button>
+          )
+        )}
+      </div>
+    </section>
   );
 }

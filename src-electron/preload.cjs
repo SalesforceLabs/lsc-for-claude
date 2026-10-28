@@ -6,6 +6,16 @@ contextBridge.exposeInMainWorld("lscApi", {
   saveSettings: (settings) => ipcRenderer.invoke("settings:save", settings),
   previewTheme: (theme) => ipcRenderer.invoke("theme:preview", theme),
 
+  // App updates (src-electron/updater.ts)
+  updateGet: () => ipcRenderer.invoke("update:get"),
+  updateCheck: () => ipcRenderer.invoke("update:check"),
+  updateInstall: () => ipcRenderer.invoke("update:install"),
+  onUpdateState: (cb) => {
+    const handler = (_event, state) => cb(state);
+    ipcRenderer.on("update:state", handler);
+    return () => ipcRenderer.removeListener("update:state", handler);
+  },
+
   // Connections — secrets go to the main process (keychain) and never come back
   detectProvider: () => ipcRenderer.invoke("provider:detect"),
   testProvider: (connection, secret) => ipcRenderer.invoke("provider:test", connection, secret),

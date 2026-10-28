@@ -253,6 +253,27 @@ body {
   color: var(--text-muted);
 }
 
+/* Restart to update: the bar's only accent, shown once an update has downloaded. */
+.status-bar-update {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 var(--space-2);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: none;
+  border-radius: var(--radius-xs);
+  color: var(--accent);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.status-bar-update:hover {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
 /* The API version menu sits at the right end; its list opens upward and scrolls (orgs serve dozens of versions). */
 .status-bar-api {
   margin-left: auto;
@@ -1936,6 +1957,25 @@ body {
   line-height: 1.5;
   color: var(--text-muted);
   text-wrap: pretty;
+}
+
+.settings-update {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-update-version {
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-update-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .settings-check {
