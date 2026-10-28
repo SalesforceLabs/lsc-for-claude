@@ -1,5 +1,6 @@
 import type { LlmConnection, LlmConnectionKind, LlmConnectionTest } from "./connection";
 import type { AppTheme } from "./theme";
+import type { UpdateState } from "./update";
 import type { OrgRef, OrgRole, SfOrg } from "./orgs";
 import type { SourceExportResult } from "./components/studio/source-control";
 import type { AppBuilderEvent, AppCheckResult, AppDeployPlan, AppDeployResult, AppObjectInfo, AppProject, AppRunAs, AppTabSettings, AppTarget, AppVersion, OrgApp } from "./components/studio/builder/types";
@@ -109,6 +110,14 @@ interface LscApi {
   saveSettings(settings: Record<string, unknown>): Promise<{ ok: boolean }>;
   /** Shows an appearance without saving it (Settings' live preview). */
   previewTheme(theme: AppTheme): Promise<void>;
+
+  // App updates
+  updateGet(): Promise<UpdateState>;
+  /** Checks now (a no-op while a check or download runs) and answers the state after it. */
+  updateCheck(): Promise<UpdateState>;
+  /** Quits and relaunches into a downloaded update; false when none is ready. */
+  updateInstall(): Promise<boolean>;
+  onUpdateState(callback: (state: UpdateState) => void): () => void;
 
   // Connections
   /** What's available without asking: Claude Code's gateway host, env API keys, kinds with a saved key. */

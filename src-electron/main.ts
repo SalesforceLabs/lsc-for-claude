@@ -11,6 +11,7 @@ import { documentationDir, localProtocolPath } from "./app-files.js";
 import { FRAME_SCHEME, frameDocResponse } from "./frame-docs.js";
 import { answerOnlyFromApp } from "./ipc-guard.js";
 import { fixPathForPackagedApp } from "./shell-path.js";
+import { startUpdater } from "./updater.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -198,6 +199,7 @@ app.whenReady().then(() => {
   watchSystemTheme(() => mainWindow);
   createWindow();
   applyAppIcon(settings.appIcon, mainWindow);
+  startUpdater(() => mainWindow);
 });
 
 app.on("window-all-closed", () => {
