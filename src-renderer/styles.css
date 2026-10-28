@@ -166,6 +166,13 @@
   box-sizing: border-box;
 }
 
+/* The app fills the window; only panes inside it scroll, never the page. */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   font-family: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   font-size: var(--font-md);
