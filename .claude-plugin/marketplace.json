@@ -11,7 +11,7 @@
       "source": ".",
       "displayName": "LSC for Claude",
       "description": "LSC for Customer Engagement - Knowledge, guidance, and Salesforce org tools for LSC implementations",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "author": {
         "name": "Joe Ferraro"
       },
