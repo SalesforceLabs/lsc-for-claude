@@ -1099,7 +1099,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     orgs: list.orgs.map((o) => ({ ...o, role: orgRoles.get(o.username) })),
   });
 
-  // `quick` answers at once (startup), then sends the full listing — with expired logins — when it lands.
+  // `quick` answers at once (startup, opening the org menu), then sends the full listing — with expired logins — when it lands.
   ipcMain.handle("sfOrg:list", async (_event, options?: { recheckRoles?: boolean; quick?: boolean }) => {
     const list = await listSfOrgs({ fresh: !options?.quick });
     orgRoles.check(list.orgs, { force: options?.recheckRoles });

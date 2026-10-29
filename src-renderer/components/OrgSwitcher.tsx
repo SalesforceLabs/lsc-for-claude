@@ -50,7 +50,8 @@ export default function OrgSwitcher({ runningOrgs, compact }: OrgSwitcherProps) 
       setShowOthers(false);
       return;
     }
-    orgs.refresh();
+    // Show the list we have at once; connection statuses follow when sf has checked every login.
+    orgs.refresh({ quick: true });
     const onDown = (e: MouseEvent) => {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
     };
