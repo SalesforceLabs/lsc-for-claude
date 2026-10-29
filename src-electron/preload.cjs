@@ -113,6 +113,11 @@ contextBridge.exposeInMainWorld("lscApi", {
     return () => ipcRenderer.removeListener("sfOrg:changed", handler);
   },
   loginSfOrg: (alias, instanceUrl) => ipcRenderer.invoke("sfOrg:login", alias, instanceUrl),
+  onSfOrgLoginDone: (callback) => {
+    const handler = (_event, result) => callback(result);
+    ipcRenderer.on("sfOrg:loginDone", handler);
+    return () => ipcRenderer.removeListener("sfOrg:loginDone", handler);
+  },
   openSfOrg: (org, path) => ipcRenderer.invoke("sfOrg:open", org, path),
   studioBrowserOpen: (guestId, url, auth) => ipcRenderer.invoke("studioBrowser:open", guestId, url, auth),
 

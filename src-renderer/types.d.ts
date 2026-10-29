@@ -330,6 +330,8 @@ interface LscApi {
   /** Called with the new org whenever Settings or the status bar switches it; returns an unsubscribe function. */
   onSfOrgChanged(callback: (org: string) => void): () => void;
   loginSfOrg(alias?: string, instanceUrl?: string): Promise<{ ok: boolean; error?: string }>;
+  /** How a login started with `loginSfOrg` ended; the listing with the new connection arrives first on `onSfOrgListed`. */
+  onSfOrgLoginDone(callback: (result: { username: string } | { error: string }) => void): () => void;
   /** Open the org in the default browser through its sf CLI connection. */
   /** `path`: a page inside the org, e.g. "/lightning/setup/FlexiPageList/home". */
   openSfOrg(org: string, path?: string): Promise<{ ok: boolean; error?: string }>;

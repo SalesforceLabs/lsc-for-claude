@@ -1,4 +1,4 @@
-import { execFile } from "child_process";
+import { execFile, spawn, type ChildProcess } from "child_process";
 import type { OrgRole } from "./org-roles.js";
 
 /**
@@ -103,6 +103,9 @@ function firstLine(text?: string): string | undefined {
 }
 
 const LIST_TTL_MS = 20_000;
+/** A full listing checks every login, about 9 s with a dozen orgs; many orgs or slow ones take longer. */
+const FULL_LIST_TIMEOUT_MS = 90_000;
+const QUICK_LIST_TIMEOUT_MS = 15_000;
 type OrgList = { orgs: SfOrg[]; error?: string };
 /** The last listing that worked, and when. */
 let cached: { at: number; list: OrgList } | undefined;
@@ -128,9 +131,9 @@ export function pendingOrgList(): Promise<OrgList> | undefined {
 }
 
 /** One listing in flight at a time; only one that worked is kept. */
-function spawnOrgList(args: string[]): Promise<OrgList> {
+function spawnOrgList(args: string[], timeout: number): Promise<OrgList> {
   return new Promise<OrgList>((resolve) => {
-    execFile("sf", ["org", "list", "--json", ...args], { timeout: 15000 }, (error, stdout) => {
+    execFile("sf", ["org", "list", "--json", ...args], { timeout }, (error, stdout) => {
       if (error && !stdout) {
         resolve({ orgs: [], error: error.message });
         return;
@@ -145,7 +148,7 @@ function spawnOrgList(args: string[]): Promise<OrgList> {
 }
 
 function runOrgList(): Promise<OrgList> {
-  const promise = spawnOrgList([]);
+  const promise = spawnOrgList([], FULL_LIST_TIMEOUT_MS);
   running = promise;
   promise.then((list) => {
     if (running === promise) running = undefined;
@@ -164,13 +167,73 @@ let quick: Promise<OrgList> | undefined;
  */
 function quickOrgList(): Promise<OrgList> {
   if (!quick) {
-    const promise = spawnOrgList(["--skip-connection-status"]);
+    const promise = spawnOrgList(["--skip-connection-status"], QUICK_LIST_TIMEOUT_MS);
     quick = promise;
     promise.then((list) => {
       if (list.error && quick === promise) quick = undefined;
     });
   }
   return quick;
+}
+
+/**
+ * The listing right after `username` logged in, without waiting on a full one: a quick listing
+ * with each connection's status carried over from the last full one (new connections and the
+ * one just logged in read as connected). It's cached, and a full listing starts behind it.
+ */
+export async function listAfterLogin(username: string): Promise<OrgList> {
+  const list = await spawnOrgList(["--skip-connection-status"], QUICK_LIST_TIMEOUT_MS);
+  if (list.error) return listSfOrgs({ fresh: true });
+  const merged = { orgs: withKnownStatus(list.orgs, cached?.list.orgs ?? [], username) };
+  cached = { at: Date.now(), list: merged };
+  if (!running) runOrgList();
+  return merged;
+}
+
+/** `quick`'s connections with the statuses `known` has for them, `loggedIn` connected. */
+export function withKnownStatus(quick: SfOrg[], known: SfOrg[], loggedIn: string): SfOrg[] {
+  return quick.map((o) => {
+    if (sameUsername(o.username, loggedIn)) return { ...o, connected: true, status: undefined };
+    const before = known.find((k) => sameUsername(k.username, o.username));
+    return before ? { ...o, connected: before.connected, status: before.status } : o;
+  });
+}
+
+/** What `sf org login web --json` printed: the username it logged in as, or why it didn't. */
+export function parseLoginResult(stdout: string): { username: string } | { error: string } {
+  try {
+    const data = JSON.parse(stdout);
+    const username = data?.result?.username;
+    if (data?.status === 0 && typeof username === "string" && username) return { username };
+    return { error: firstLine(data?.message) ?? "The sf CLI didn't finish the login." };
+  } catch {
+    return { error: firstLine(stdout) ?? "The sf CLI didn't finish the login." };
+  }
+}
+
+let loginChild: ChildProcess | undefined;
+
+/**
+ * Start `sf org login web` and report how it ended. Only one runs at a time: it listens on a
+ * fixed local port for the browser's callback, so a login left waiting would make the next fail.
+ */
+export function startOrgLogin(args: string[], onDone: (result: { username: string } | { error: string }) => void): void {
+  loginChild?.kill();
+  const child = spawn("sf", ["org", "login", "web", "--json", ...args], { stdio: ["ignore", "pipe", "ignore"] });
+  loginChild = child;
+  let stdout = "";
+  let settled = false;
+  const finish = (result: { username: string } | { error: string }) => {
+    if (settled) return;
+    settled = true;
+    if (loginChild === child) loginChild = undefined;
+    // A login replaced by a newer one isn't reported; the newer one will be.
+    if (child.killed && "error" in result) return;
+    onDone(result);
+  };
+  child.stdout?.on("data", (chunk) => (stdout += chunk));
+  child.on("error", (error) => finish({ error: error.message }));
+  child.on("close", () => finish(parseLoginResult(stdout)));
 }
 
 /**
