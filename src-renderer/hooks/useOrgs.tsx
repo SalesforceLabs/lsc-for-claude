@@ -19,8 +19,11 @@ interface OrgsState {
   waitingLogin: boolean;
   /** The last thing that went wrong with an org action, for the menu to show. */
   notice: string;
-  /** Re-read `sf org list`; `recheckRoles` also checks again which connections are LSC admins. */
-  refresh: (options?: { recheckRoles?: boolean }) => Promise<SfOrg[]>;
+  /**
+   * Re-read `sf org list`; `recheckRoles` also checks again which connections are LSC admins.
+   * `quick` answers with the last listing and sends a new one when the sf CLI has checked every login.
+   */
+  refresh: (options?: { recheckRoles?: boolean; quick?: boolean }) => Promise<SfOrg[]>;
   select: (key: string) => Promise<void>;
   /** Log in through the browser; the new connection is selected once it appears. */
   login: (options: { alias?: string; instanceUrl?: string }) => Promise<void>;
