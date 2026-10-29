@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { matchesOrg, orgKey, type OrgRole, type SfOrg } from "../orgs";
 
-/** How long to watch `sf org list` for a browser login to finish. */
+/** How long to wait for a browser login to finish. */
 const LOGIN_WAIT_MS = 5 * 60_000;
 
 interface OrgsState {
@@ -39,7 +39,7 @@ export function OrgsProvider({ children }: { children: React.ReactNode }) {
   const [chosen, setChosen] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [waiting, setWaiting] = useState<{ before: SfOrg[]; since: number } | null>(null);
+  const [waiting, setWaiting] = useState<{ since: number } | null>(null);
   const [notice, setNotice] = useState("");
 
   // Roles arrive after the list, as each connection's check finishes.
@@ -90,37 +90,26 @@ export function OrgsProvider({ children }: { children: React.ReactNode }) {
     if (res?.org) setChosen(res.org);
   }, []);
 
-  // A browser login finishes outside the app; watch for the new connection and switch to it.
+  // A browser login finishes outside the app; the main process says when, with the new connection.
   useEffect(() => {
     if (!waiting) return;
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const poll = async () => {
-      const list = await refresh();
-      if (stopped) return;
-      const known = new Set(waiting.before.map((o) => o.username.toLowerCase()));
-      // A login to a connection that had expired reconnects it rather than adding one.
-      const added =
-        list.find((o) => !known.has(o.username.toLowerCase())) ??
-        list.find((o) => o.connected && waiting.before.some((b) => b.username === o.username && !b.connected));
-      if (added) {
-        setWaiting(null);
-        await select(orgKey(added));
+    const off = window.lscApi.onSfOrgLoginDone(async (result) => {
+      setWaiting(null);
+      if ("error" in result) {
+        setNotice(`The login didn't finish: ${result.error}`);
         return;
       }
-      if (Date.now() - waiting.since > LOGIN_WAIT_MS) {
-        setWaiting(null);
-        setNotice("No new connection appeared. Finish the login in your browser, then refresh.");
-        return;
-      }
-      timer = setTimeout(poll, 3000);
-    };
-    timer = setTimeout(poll, 3000);
+      await select(result.username);
+    });
+    const timer = setTimeout(() => {
+      setWaiting(null);
+      setNotice("No new connection appeared. Finish the login in your browser, then refresh.");
+    }, LOGIN_WAIT_MS - (Date.now() - waiting.since));
     return () => {
-      stopped = true;
+      off();
       clearTimeout(timer);
     };
-  }, [waiting, refresh, select]);
+  }, [waiting, select]);
 
   const login = useCallback(
     async ({ alias, instanceUrl }: { alias?: string; instanceUrl?: string }) => {
@@ -130,9 +119,9 @@ export function OrgsProvider({ children }: { children: React.ReactNode }) {
         setNotice(`Couldn't start the login: ${res.error ?? "unknown error"}`);
         return;
       }
-      setWaiting({ before: orgs, since: Date.now() });
+      setWaiting({ since: Date.now() });
     },
-    [orgs]
+    []
   );
 
   // With no org picked, the tools fall back to the sf CLI default (or the only connection).

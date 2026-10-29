@@ -1,5 +1,5 @@
 import { app, ipcMain, BrowserWindow, dialog, shell, net } from "electron";
-import { execFile, spawn } from "child_process";
+import { execFile } from "child_process";
 import { watch } from "fs";
 import { copyFile, readFile, writeFile } from "fs/promises";
 import { fileURLToPath } from "url";
@@ -17,7 +17,7 @@ import { ApprovalBroker, createWriteGate } from "../engine/write-gate.js";
 import { McpClient, STUDIO_TOOL_PREFIX } from "../mcp/client.js";
 import { McpPool, type PoolOrg } from "../mcp/pool.js";
 import { cacheArgsWithRepLogins, repLoginsFor, type RepLoginRef } from "../engine/rep-logins.js";
-import { listSfOrgs, loginArgsProblem, orgKey, pendingOrgList, pickOrg, resolveOrg, sameOrgId, toOrgRef, type OrgKind, type OrgRef } from "../orgs.js";
+import { listAfterLogin, listSfOrgs, loginArgsProblem, orgKey, pendingOrgList, pickOrg, resolveOrg, sameOrgId, startOrgLogin, toOrgRef, type OrgKind, type OrgRef } from "../orgs.js";
 import { OrgRoles } from "../org-roles.js";
 import type { SessionOrg } from "../engine/session-org.js";
 import {
@@ -1123,18 +1123,23 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     return { ok: true, org: key };
   });
 
+  // Login happens in the browser, so this answers once it has started; `sfOrg:loginDone` says how it
+  // ended, after `sfOrg:listed` has sent a listing with the new connection in it.
   ipcMain.handle("sfOrg:login", async (_event, alias?: string, instanceUrl?: string) => {
     const problem = loginArgsProblem(alias, instanceUrl);
     if (problem) return { ok: false, error: problem };
-    return new Promise((resolve) => {
-      const args = ["org", "login", "web", "--json"];
-      if (alias) args.push("--alias", alias);
-      if (instanceUrl) args.push("--instance-url", instanceUrl);
-      const child = spawn("sf", args, { stdio: "ignore", detached: true });
-      child.unref();
-      // Login happens asynchronously in the browser — resolve immediately
-      resolve({ ok: true });
+    const args: string[] = [];
+    if (alias) args.push("--alias", alias);
+    if (instanceUrl) args.push("--instance-url", instanceUrl);
+    startOrgLogin(args, async (result) => {
+      if ("username" in result) {
+        const list = await listAfterLogin(result.username);
+        orgRoles.check(list.orgs);
+        if (!list.error && !mainWindow.isDestroyed()) mainWindow.webContents.send("sfOrg:listed", withRoles(list));
+      }
+      if (!mainWindow.isDestroyed()) mainWindow.webContents.send("sfOrg:loginDone", result);
     });
+    return { ok: true };
   });
 
   // Opens the org in the default browser, signed in through the sf CLI connection — optionally on a page
