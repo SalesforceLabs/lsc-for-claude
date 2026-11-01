@@ -104,6 +104,7 @@ This is a **Claude Code Plugin** providing an all-in-one LSC solution:
 | `lsc-next-best` | Guides NBC/NBA/NBM configuration — data model, widgets, Einstein Studio integration |
 | `lsc-consent-management` | Guides consent capture, communication subscriptions, channels, and compliance snapshots |
 | `lsc-agentforce` | Guides Agentforce for LSC (Winter '26) — Field Sales Agent, topics, actions, and Einstein Studio |
+| `lsc-provider-engagement-compliance` | Guides Provider Engagement Compliance (Japan EPPV/MID) — Care Programs, compliance action plans and cycles, Account Compliance tab, Report Compliance Activity, cycle reporting |
 | `lsc-events-management` | Guides Events Management configuration — Managed Events, speaker events, participants, resources, budgets, stage paths |
 | `lsc-custom-scripts` | Guides custom script configuration for validation, checklists, and Visit Action Validation (IIFE patterns, CodeText, Locker Service gotchas) |
 | `salesforce-query` | Helps construct and execute SOQL queries |
@@ -309,6 +310,7 @@ The plugin includes an MCP server that provides these tools:
 |------|-------------|
 | `check_activity_plan_config` | Check Activity Plan configuration (time periods, plans, territories, goals, measures, product goals, mobile cache) |
 | `check_briefings_config` | Check Briefings (Daily Podcasts) configuration (toggle, permissions, flows, content definitions, DB Schema, mobile cache) |
+| `check_eppv_config` | Check Account Compliance (EPPV/MID) configuration: Care Programs and products, compliance Action Plans (target HCO, cycles generated), the four cloned flows, the 11 DB Schema records, the `standard-AccountCompliance` tab, the `AssociateCareProgram` quick action, mobile cache; optional `profileName` requires assignment to that profile |
 
 **CORRECT object names:** `ActivityPlan`, `ActivityPlanTerritory`, `TimePeriod`, `ProviderActivityGoal`, `ProviderActivityGoalMeasure`, `PrvdActvtyGoalMeasureProdt`, `ProviderAcctTerritoryInfo`.
 **WRONG names (DO NOT USE):** `ActivityPlan__c`, `ProviderActivityGoal__c`, `AccountGoal__c`, `TimePeriod__c`, `GoalMeasure__c`.

@@ -55,6 +55,7 @@ export const READ_TOOLS: ReadonlySet<string> = new Set([
   "check_account_config",
   "check_activity_plan_config",
   "check_briefings_config",
+  "check_eppv_config",
   "check_lsc_setup",
   "check_mobile_cache_status",
   "check_sample_config",
