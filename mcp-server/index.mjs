@@ -6845,9 +6845,9 @@ function cacheInvalidateOrg(org) {
     }
   }
 }
-function queryCacheKey(query2, tooling = false) {
+function queryCacheKey(query2, tooling2 = false) {
   const normalised = query2.replace(/\s+/g, " ").trim();
-  return `${tooling ? "tooling" : "soql"}:${normalised}`;
+  return `${tooling2 ? "tooling" : "soql"}:${normalised}`;
 }
 function describeCacheKey(objectName) {
   return `describe:${objectName}`;
@@ -21716,22 +21716,22 @@ var init_map_progress = __esm({
 });
 
 // src/studio/helpers.ts
-async function query(soql4, org, tooling = false, options = {}) {
-  return (await queryResult(soql4, org, tooling, options)).records;
+async function query(soql5, org, tooling2 = false, options = {}) {
+  return (await queryResult(soql5, org, tooling2, options)).records;
 }
-async function queryResult(soql4, org, tooling = false, options = {}) {
+async function queryResult(soql5, org, tooling2 = false, options = {}) {
   const t0 = TRACE ? Date.now() : 0;
-  const result2 = tooling ? await runToolingQuery(soql4, org, { maxRows: options.maxRows }) : await runSoqlQuery(soql4, org, { maxRows: options.maxRows });
+  const result2 = tooling2 ? await runToolingQuery(soql5, org, { maxRows: options.maxRows }) : await runSoqlQuery(soql5, org, { maxRows: options.maxRows });
   if (TRACE)
-    console.error(`[query ${Date.now() - t0}ms${tooling ? " tooling" : ""}] ${soql4.slice(0, 110)}`);
+    console.error(`[query ${Date.now() - t0}ms${tooling2 ? " tooling" : ""}] ${soql5.slice(0, 110)}`);
   if (!result2.success) throw new Error(result2.error || "Query failed");
   const data2 = result2.data ?? { totalSize: 0, done: true, records: [] };
   if (data2.truncated && !options.allowTruncated)
     throw new QueryTruncatedError(data2.records.length, data2.totalSize);
   return { ...data2, records: data2.records ?? [] };
 }
-async function count(soql4, org) {
-  const result2 = await runSoqlQuery(soql4, org);
+async function count(soql5, org) {
+  const result2 = await runSoqlQuery(soql5, org);
   if (!result2.success) throw new Error(result2.error || "Query failed");
   return result2.data?.totalSize ?? 0;
 }
@@ -22137,11 +22137,11 @@ var init_shared = __esm({
 function memoizeQuerier(org) {
   const make = (run4, kind) => {
     const cache3 = /* @__PURE__ */ new Map();
-    return (q, options) => {
-      const key3 = `${kind}|${options?.maxRows ?? ""}|${q}`;
+    return (q2, options) => {
+      const key3 = `${kind}|${options?.maxRows ?? ""}|${q2}`;
       let hit = cache3.get(key3);
       if (!hit) {
-        hit = run4(q, options);
+        hit = run4(q2, options);
         cache3.set(key3, hit);
         const forget = () => cache3.delete(key3);
         hit.then((r) => r.success || forget(), forget);
@@ -22149,7 +22149,7 @@ function memoizeQuerier(org) {
       return hit;
     };
   };
-  return { soql: make((q, o) => org.soql(q, o), "s"), tooling: make((q) => org.tooling(q), "t") };
+  return { soql: make((q2, o) => org.soql(q2, o), "s"), tooling: make((q2) => org.tooling(q2), "t") };
 }
 function splitList2(value4) {
   if (typeof value4 !== "string") return [];
@@ -22320,15 +22320,15 @@ async function mapWithConcurrency(items, concurrency, fn) {
   return results;
 }
 async function countQuery(org, sobject2, where3) {
-  const q = where3 ? `SELECT COUNT() FROM ${sobject2} WHERE ${where3}` : `SELECT COUNT() FROM ${sobject2}`;
-  const result2 = await org.soql(q);
+  const q2 = where3 ? `SELECT COUNT() FROM ${sobject2} WHERE ${where3}` : `SELECT COUNT() FROM ${sobject2}`;
+  const result2 = await org.soql(q2);
   if (!result2.success)
     throw new QueryFailure(result2.error || "COUNT() query failed", result2.timedOut === true);
   return result2.data?.totalSize ?? 0;
 }
 async function fetchIdsUncached(org, sobject2, idField, where3) {
-  const q = where3 ? `SELECT ${idField} FROM ${sobject2} WHERE ${where3}` : `SELECT ${idField} FROM ${sobject2}`;
-  const result2 = await org.soql(q, { maxRows: MAX_TAG_IDS });
+  const q2 = where3 ? `SELECT ${idField} FROM ${sobject2} WHERE ${where3}` : `SELECT ${idField} FROM ${sobject2}`;
+  const result2 = await org.soql(q2, { maxRows: MAX_TAG_IDS });
   if (!result2.success)
     throw new QueryFailure(result2.error || `${sobject2} id query failed`, result2.timedOut === true);
   const records = result2.data?.records ?? [];
@@ -23607,7 +23607,7 @@ function actionKey(name) {
 }
 function homeMenu(quick, custom3, profile) {
   const allowed = /* @__PURE__ */ new Set(["newvisit", "inquiry", "sharecontent", "email", "createquote"]);
-  const q = quick.filter(
+  const q2 = quick.filter(
     (a) => a.location.toLowerCase() === "homepage" && allowed.has(a.actionName.toLowerCase()) && a.profiles.split(";").includes(profile)
   ).sort((a, b) => a.sortOrder - b.sortOrder).map((a) => ({ name: a.actionName, label: actionTitle(a.actionName) ?? a.masterLabel }));
   const c = custom3.filter((a) => a.entityType === "HomePage" && /^(url|utterance|app)$/i.test(a.actionType)).sort((a, b) => a.masterLabel.toLowerCase().localeCompare(b.masterLabel.toLowerCase())).map((a) => ({
@@ -23621,7 +23621,7 @@ function homeMenu(quick, custom3, profile) {
     }
   }));
   const seen = /* @__PURE__ */ new Set();
-  return [...q, ...c].filter((i) => !seen.has(i.name) && !!seen.add(i.name));
+  return [...q2, ...c].filter((i) => !seen.has(i.name) && !!seen.add(i.name));
 }
 function recordMenu(dynamic, items) {
   const layout = items ?? [];
@@ -24619,21 +24619,21 @@ async function collectNbc(ctx, now) {
   );
   const top = candidates.filter((r) => ok.has(str4(r.AccountId))).slice(0, props.maxCards);
   const topIds = top.map((r) => str4(r.AccountId));
-  const q = (soql4) => inBatches(
+  const q2 = (soql5) => inBatches(
     topIds,
-    (part) => query(soql4(inList(part)), ctx.org).catch(softFail(ctx, "Home", []))
+    (part) => query(soql5(inList(part)), ctx.org).catch(softFail(ctx, "Home", []))
   );
   const [specs, addrs, patis, goals, sync] = await Promise.all([
-    q(
+    q2(
       (l) => `SELECT AccountId, Name, LastModifiedDate FROM HealthcareProviderSpecialty WHERE AccountId IN (${l}) ORDER BY LastModifiedDate DESC`
     ),
-    q(
+    q2(
       (l) => `SELECT ParentId, FullAddress, Street, PostalCode, City, State, Country, LastModifiedDate FROM ContactPointAddress WHERE ParentId IN (${l}) AND IsActive = true ORDER BY LastModifiedDate DESC`
     ),
-    q(
+    q2(
       (l) => `SELECT AccountId, IsTargetedAccount, LastProviderVisitDate FROM ProviderAcctTerritoryInfo WHERE AccountId IN (${l}) AND Territory2Id = '${terr[0]}' AND IsActive = true ORDER BY LastModifiedDate DESC`
     ),
-    q(
+    q2(
       (l) => `SELECT AccountId, ProratedOverallGoal FROM ProviderActivityGoal WHERE AccountId IN (${l}) ORDER BY LastModifiedDate DESC`
     ),
     query(
@@ -25602,7 +25602,7 @@ async function collectDashboards(ctx, ids) {
   const licensesOn = cfg.StateLicenseNumberSettings?.IsEnabledOnLightningPages === true;
   const slnField = /^\w+$/.test(str6(cfg.StateLicenseNumberSettings?.SlnValFormulaField)) ? str6(cfg.StateLicenseNumberSettings?.SlnValFormulaField) : "";
   const synced = (table) => ctx.scope(table) !== void 0;
-  const run4 = (table, soql4) => synced(table) ? query(soql4, ctx.org).catch(() => none) : Promise.resolve(none);
+  const run4 = (table, soql5) => synced(table) ? query(soql5, ctx.org).catch(() => none) : Promise.resolve(none);
   const [summaries, specialties, atis, addresses, nba, licenses] = await Promise.all([
     territoryIds.length ? run4(
       "PrvdAccountTerritorySummary",
@@ -28062,23 +28062,23 @@ async function viewerLists(core, userId, org, track, readOrg = org) {
   const deadline = Date.now() + LIST_BUDGET_MS;
   let finished = 0;
   const readView = async (name, lv, key3) => {
-    const q = lv.query;
-    if (!q) {
+    const q2 = lv.query;
+    if (!q2) {
       errors[key3] = "The cache has no filter for this list view.";
       return;
     }
-    let where3 = q.where;
-    let mine = q.mine;
+    let where3 = q2.where;
+    let mine = q2.mine;
     let orderBy = "";
     const url = (await urlsFor(name)).get(lv.name);
     if (url?.startsWith("/services/data/")) {
       const d = await apiRequest(url, "GET", void 0, readOrg);
-      const soql4 = d.success ? str9(d.data?.query) : "";
-      if (soql4) {
+      const soql5 = d.success ? str9(d.data?.query) : "";
+      if (soql5) {
         const m = /\sWHERE\s([\s\S]*?)(?:\sORDER BY\s([\s\S]*))?$/i.exec(
-          soql4.replace(/\sUSING SCOPE \w+/i, "")
+          soql5.replace(/\sUSING SCOPE \w+/i, "")
         );
-        const o = /\sORDER BY\s([\s\S]*)$/i.exec(soql4);
+        const o = /\sORDER BY\s([\s\S]*)$/i.exec(soql5);
         where3 = m?.[1]?.trim() ?? "";
         orderBy = o?.[1]?.trim() ?? "";
         mine = str9(d.data?.scope).toLowerCase() === "mine";
@@ -28095,8 +28095,8 @@ async function viewerLists(core, userId, org, track, readOrg = org) {
       synced ? `(${synced})` : ""
     ].filter(Boolean);
     const filter = conditions.length ? ` WHERE ${conditions.join(" AND ")}` : "";
-    const first2 = q.fields.find((f) => f && !f.path.startsWith("toLabel("))?.path ?? "Id";
-    const fields = q.fields.filter((f) => !!f);
+    const first2 = q2.fields.find((f) => f && !f.path.startsWith("toLabel("))?.path ?? "Id";
+    const fields = q2.fields.filter((f) => !!f);
     const paths = [...new Set(fields.flatMap((f) => f.ref ? [f.path, f.ref.idPath] : [f.path]))];
     const [total, records] = await Promise.all([
       count(`SELECT COUNT() FROM ${name}${filter}`, readOrg),
@@ -28113,7 +28113,7 @@ async function viewerLists(core, userId, org, track, readOrg = org) {
     };
     out[key3] = {
       count: total,
-      rows: records.map((r) => ({ id: str9(r.Id), cells: q.fields.map((f) => cell3(r, f)) }))
+      rows: records.map((r) => ({ id: str9(r.Id), cells: q2.fields.map((f) => cell3(r, f)) }))
     };
   };
   await runPool(tasks, LIST_CONCURRENCY, async ({ object: object3, view }) => {
@@ -29287,14 +29287,14 @@ function __await(v) {
 }
 function __asyncGenerator(thisArg, _arguments, generator) {
   if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-  var g = generator.apply(thisArg, _arguments || []), i, q = [];
+  var g = generator.apply(thisArg, _arguments || []), i, q2 = [];
   return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function() {
     return this;
   }, i;
   function verb(n) {
     if (g[n]) i[n] = function(v) {
       return new Promise(function(a, b) {
-        q.push([n, v, a, b]) > 1 || resume(n, v);
+        q2.push([n, v, a, b]) > 1 || resume(n, v);
       });
     };
   }
@@ -29302,11 +29302,11 @@ function __asyncGenerator(thisArg, _arguments, generator) {
     try {
       step2(g[n](v));
     } catch (e) {
-      settle2(q[0][3], e);
+      settle2(q2[0][3], e);
     }
   }
   function step2(r) {
-    r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle2(q[0][2], r);
+    r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle2(q2[0][2], r);
   }
   function fulfill(value4) {
     resume("next", value4);
@@ -29315,7 +29315,7 @@ function __asyncGenerator(thisArg, _arguments, generator) {
     resume("throw", value4);
   }
   function settle2(f, v) {
-    if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]);
+    if (f(v), q2.shift(), q2.length) resume(q2[0][0], q2[0][1]);
   }
 }
 function __asyncDelegator(o) {
@@ -31847,10 +31847,10 @@ var require_strings2 = __commonJS({
       STR_APPLY_UIA_OK = false;
     }
     var _utf8len = new utils.Buf8(256);
-    for (q = 0; q < 256; q++) {
-      _utf8len[q] = q >= 252 ? 6 : q >= 248 ? 5 : q >= 240 ? 4 : q >= 224 ? 3 : q >= 192 ? 2 : 1;
+    for (q2 = 0; q2 < 256; q2++) {
+      _utf8len[q2] = q2 >= 252 ? 6 : q2 >= 248 ? 5 : q2 >= 240 ? 4 : q2 >= 224 ? 3 : q2 >= 192 ? 2 : 1;
     }
-    var q;
+    var q2;
     _utf8len[254] = _utf8len[254] = 1;
     exports2.string2buf = function(str24) {
       var buf, c, c2, m_pos, i, str_len = str24.length, buf_len = 0;
@@ -32758,8 +32758,8 @@ var require_inflate = __commonJS({
     var ENOUGH_DISTS = 592;
     var MAX_WBITS = 15;
     var DEF_WBITS = MAX_WBITS;
-    function zswap32(q) {
-      return (q >>> 24 & 255) + (q >>> 8 & 65280) + ((q & 65280) << 8) + ((q & 255) << 24);
+    function zswap32(q2) {
+      return (q2 >>> 24 & 255) + (q2 >>> 8 & 65280) + ((q2 & 65280) << 8) + ((q2 & 255) << 24);
     }
     function InflateState() {
       this.mode = 0;
@@ -38999,11 +38999,11 @@ var require_UPNG = __commonJS({
           d += 3;
           if (m == 0) {
             if ((d & 7) != 0) d += 8 - (d & 7);
-            var D = (d >>> 3) + 4, q = N[D - 4] | N[D - 3] << 8;
-            if (Z) W = H.H.W(W, w + q);
-            W.set(new R(N.buffer, N.byteOffset + D, q), w);
-            d = D + q << 3;
-            w += q;
+            var D = (d >>> 3) + 4, q2 = N[D - 4] | N[D - 3] << 8;
+            if (Z) W = H.H.W(W, w + q2);
+            W.set(new R(N.buffer, N.byteOffset + D, q2), w);
+            d = D + q2 << 3;
+            w += q2;
             continue;
           }
           if (Z) W = H.H.W(W, w + (1 << 17));
@@ -40058,8 +40058,8 @@ var require_UPNG = __commonJS({
       var e = est.e;
       return e[0] * r + e[1] * g + e[2] * b + e[3] * a - est.eMq;
     };
-    UPNG.quantize.dist = function(q, r, g, b, a) {
-      var d0 = r - q[0], d1 = g - q[1], d2 = b - q[2], d3 = a - q[3];
+    UPNG.quantize.dist = function(q2, r, g, b, a) {
+      var d0 = r - q2[0], d1 = g - q2[1], d2 = b - q2[2], d3 = a - q2[3];
       return d0 * d0 + d1 * d1 + d2 * d2 + d3 * d3;
     };
     UPNG.quantize.splitPixels = function(nimg, nimg32, i0, i1, e, eMq) {
@@ -40128,16 +40128,16 @@ var require_UPNG = __commonJS({
         if (Math.abs(tmi - mi) < 1e-9) break;
         mi = tmi;
       }
-      var q = [m0 * iN, m1 * iN, m2 * iN, m3 * iN];
-      var eMq255 = M.dot(M.sml(255, q), b);
+      var q2 = [m0 * iN, m1 * iN, m2 * iN, m3 * iN];
+      var eMq255 = M.dot(M.sml(255, q2), b);
       return {
         Cov: Rj,
-        q,
+        q: q2,
         e: b,
         L: mi,
         eMq255,
-        eMq: M.dot(b, q),
-        rgba: (Math.round(255 * q[3]) << 24 | Math.round(255 * q[2]) << 16 | Math.round(255 * q[1]) << 8 | Math.round(255 * q[0]) << 0) >>> 0
+        eMq: M.dot(b, q2),
+        rgba: (Math.round(255 * q2[3]) << 24 | Math.round(255 * q2[2]) << 16 | Math.round(255 * q2[1]) << 8 | Math.round(255 * q2[0]) << 0) >>> 0
       };
     };
     UPNG.M4 = {
@@ -41652,7 +41652,7 @@ var require_LZWStream = __commonJS({
           var decodedSizeDelta = blockSize;
           var i;
           var j;
-          var q;
+          var q2;
           var lzwState = this.lzwState;
           if (!lzwState) {
             return;
@@ -41678,9 +41678,9 @@ var require_LZWStream = __commonJS({
             } else if (code >= 258) {
               if (code < nextCode) {
                 currentSequenceLength = dictionaryLengths[code];
-                for (j = currentSequenceLength - 1, q = code; j >= 0; j--) {
-                  currentSequence[j] = dictionaryValues[q];
-                  q = dictionaryPrevCodes[q];
+                for (j = currentSequenceLength - 1, q2 = code; j >= 0; j--) {
+                  currentSequence[j] = dictionaryValues[q2];
+                  q2 = dictionaryPrevCodes[q2];
                 }
               } else {
                 currentSequence[currentSequenceLength++] = currentSequence[0];
@@ -43282,9 +43282,9 @@ var require_PDFAcroText = __commonJS({
           return void 0;
         };
         PDFAcroText2.prototype.Q = function() {
-          var q = this.dict.lookup(PDFName_1.default.of("Q"));
-          if (q instanceof PDFNumber_1.default)
-            return q;
+          var q2 = this.dict.lookup(PDFName_1.default.of("Q"));
+          if (q2 instanceof PDFNumber_1.default)
+            return q2;
           return void 0;
         };
         PDFAcroText2.prototype.setMaxLength = function(maxLength) {
@@ -52696,27 +52696,27 @@ var require_async2 = __commonJS({
           if (callback != null && typeof callback !== "function") {
             throw new Error("task callback must be a function");
           }
-          q.started = true;
+          q2.started = true;
           var res, rej;
           function promiseCallback2(err, ...args) {
             if (err) return rejectOnError ? rej(err) : res();
             if (args.length <= 1) return res(args[0]);
             res(args);
           }
-          var item2 = q._createTaskItem(
+          var item2 = q2._createTaskItem(
             data2,
             rejectOnError ? promiseCallback2 : callback || promiseCallback2
           );
           if (insertAtFront) {
-            q._tasks.unshift(item2);
+            q2._tasks.unshift(item2);
           } else {
-            q._tasks.push(item2);
+            q2._tasks.push(item2);
           }
           if (!processingScheduled) {
             processingScheduled = true;
             setImmediate$1(() => {
               processingScheduled = false;
-              q.process();
+              q2.process();
             });
           }
           if (rejectOnError || !callback) {
@@ -52742,17 +52742,17 @@ var require_async2 = __commonJS({
                 trigger("error", err, task.data);
               }
             }
-            if (numRunning <= q.concurrency - q.buffer) {
+            if (numRunning <= q2.concurrency - q2.buffer) {
               trigger("unsaturated");
             }
-            if (q.idle()) {
+            if (q2.idle()) {
               trigger("drain");
             }
-            q.process();
+            q2.process();
           };
         }
         function _maybeDrain(data2) {
-          if (data2.length === 0 && q.idle()) {
+          if (data2.length === 0 && q2.idle()) {
             setImmediate$1(() => trigger("drain"));
             return true;
           }
@@ -52771,7 +52771,7 @@ var require_async2 = __commonJS({
           on(name, handler);
         };
         var isProcessing = false;
-        var q = {
+        var q2 = {
           _tasks: new DLL(),
           _createTaskItem(data2, callback) {
             return {
@@ -52780,7 +52780,7 @@ var require_async2 = __commonJS({
             };
           },
           *[Symbol.iterator]() {
-            yield* q._tasks[Symbol.iterator]();
+            yield* q2._tasks[Symbol.iterator]();
           },
           concurrency,
           payload,
@@ -52803,7 +52803,7 @@ var require_async2 = __commonJS({
           },
           kill() {
             off();
-            q._tasks.empty();
+            q2._tasks.empty();
           },
           unshift(data2, callback) {
             if (Array.isArray(data2)) {
@@ -52820,28 +52820,28 @@ var require_async2 = __commonJS({
             return _insert(data2, true, true, callback);
           },
           remove(testFn) {
-            q._tasks.remove(testFn);
+            q2._tasks.remove(testFn);
           },
           process() {
             if (isProcessing) {
               return;
             }
             isProcessing = true;
-            while (!q.paused && numRunning < q.concurrency && q._tasks.length) {
+            while (!q2.paused && numRunning < q2.concurrency && q2._tasks.length) {
               var tasks = [], data2 = [];
-              var l = q._tasks.length;
-              if (q.payload) l = Math.min(l, q.payload);
+              var l = q2._tasks.length;
+              if (q2.payload) l = Math.min(l, q2.payload);
               for (var i = 0; i < l; i++) {
-                var node = q._tasks.shift();
+                var node = q2._tasks.shift();
                 tasks.push(node);
                 workersList.push(node);
                 data2.push(node.data);
               }
               numRunning += 1;
-              if (q._tasks.length === 0) {
+              if (q2._tasks.length === 0) {
                 trigger("empty");
               }
-              if (numRunning === q.concurrency) {
+              if (numRunning === q2.concurrency) {
                 trigger("saturated");
               }
               var cb = onlyOnce(_createCB(tasks));
@@ -52850,7 +52850,7 @@ var require_async2 = __commonJS({
             isProcessing = false;
           },
           length() {
-            return q._tasks.length;
+            return q2._tasks.length;
           },
           running() {
             return numRunning;
@@ -52859,20 +52859,20 @@ var require_async2 = __commonJS({
             return workersList;
           },
           idle() {
-            return q._tasks.length + numRunning === 0;
+            return q2._tasks.length + numRunning === 0;
           },
           pause() {
-            q.paused = true;
+            q2.paused = true;
           },
           resume() {
-            if (q.paused === false) {
+            if (q2.paused === false) {
               return;
             }
-            q.paused = false;
-            setImmediate$1(q.process);
+            q2.paused = false;
+            setImmediate$1(q2.process);
           }
         };
-        Object.defineProperties(q, {
+        Object.defineProperties(q2, {
           saturated: {
             writable: false,
             value: eventMethod("saturated")
@@ -52894,7 +52894,7 @@ var require_async2 = __commonJS({
             value: eventMethod("error")
           }
         });
-        return q;
+        return q2;
       }
       function cargo$1(worker, payload) {
         return queue$1(worker, 1, payload);
@@ -53217,10 +53217,10 @@ var require_async2 = __commonJS({
               if (!err) {
                 memo2[key3] = resultArgs;
               }
-              var q = queues[key3];
+              var q2 = queues[key3];
               delete queues[key3];
-              for (var i = 0, l = q.length; i < l; i++) {
-                q[i](err, ...resultArgs);
+              for (var i = 0, l = q2.length; i < l; i++) {
+                q2[i](err, ...resultArgs);
               }
             });
           }
@@ -53350,13 +53350,13 @@ var require_async2 = __commonJS({
         }
       }
       function priorityQueue(worker, concurrency) {
-        var q = queue(worker, concurrency);
+        var q2 = queue(worker, concurrency);
         var {
           push,
           pushAsync
-        } = q;
-        q._tasks = new Heap();
-        q._createTaskItem = ({ data: data2, priority }, callback) => {
+        } = q2;
+        q2._tasks = new Heap();
+        q2._createTaskItem = ({ data: data2, priority }, callback) => {
           return {
             data: data2,
             priority,
@@ -53371,15 +53371,15 @@ var require_async2 = __commonJS({
             return { data: data2, priority };
           });
         }
-        q.push = function(data2, priority = 0, callback) {
+        q2.push = function(data2, priority = 0, callback) {
           return push(createDataItems(data2, priority), callback);
         };
-        q.pushAsync = function(data2, priority = 0, callback) {
+        q2.pushAsync = function(data2, priority = 0, callback) {
           return pushAsync(createDataItems(data2, priority), callback);
         };
-        delete q.unshift;
-        delete q.unshiftAsync;
-        return q;
+        delete q2.unshift;
+        delete q2.unshiftAsync;
+        return q2;
       }
       function race(tasks, callback) {
         callback = once2(callback);
@@ -96911,11 +96911,11 @@ function containsWords(text11, phrase) {
   return new RegExp(`(^|[^a-z0-9_])${escaped}($|[^a-z0-9_])`).test(text11);
 }
 function phraseScore(query2, phrase) {
-  const q = normalizeText(query2);
+  const q2 = normalizeText(query2);
   const p = normalizeText(phrase);
-  if (!q || !p) return 0;
-  if (p.length >= 8 && containsWords(q, p)) return 1;
-  if (q.length >= 8 && containsWords(p, q)) return 0.9;
+  if (!q2 || !p) return 0;
+  if (p.length >= 8 && containsWords(q2, p)) return 1;
+  if (q2.length >= 8 && containsWords(p, q2)) return 0.9;
   const pTokens = new Set(tokens(phrase));
   if (pTokens.size === 0) return 0;
   const qTokens = new Set(tokens(query2));
@@ -97120,9 +97120,9 @@ async function executeSoqlCheck(check2, targetOrg, useToolingApi = false) {
 }
 var EXISTENCE_EXPECTS = /* @__PURE__ */ new Set(["count > 0", "count >= 1", "count == 0"]);
 function existenceQuery(check2) {
-  const q = check2.query?.trim().replace(/\s+/g, " ");
-  if (!q || !EXISTENCE_EXPECTS.has(check2.expect)) return null;
-  const m = /^SELECT COUNT\(\) (FROM .+)$/i.exec(q);
+  const q2 = check2.query?.trim().replace(/\s+/g, " ");
+  if (!q2 || !EXISTENCE_EXPECTS.has(check2.expect)) return null;
+  const m = /^SELECT COUNT\(\) (FROM .+)$/i.exec(q2);
   if (!m || /\b(GROUP BY|LIMIT|HAVING|OFFSET)\b/i.test(m[1])) return null;
   return `SELECT Id ${m[1]} LIMIT 1`;
 }
@@ -97945,9 +97945,9 @@ var TERRITORY_DISPLAY_LIMIT = 500;
 var OT2A_COUNT_LIMIT = 1e6;
 var UNSCOPED_TERRITORY_LIMIT = 2e3;
 var LSC_PSL2 = /LSC4CE|LifeScienceCommercial/i;
-async function optionalQuery(soql4, org) {
+async function optionalQuery(soql5, org) {
   try {
-    return await query(soql4, org);
+    return await query(soql5, org);
   } catch (err) {
     if (/is not supported|INVALID_TYPE/i.test(String(err instanceof Error ? err.message : err)))
       return null;
@@ -97981,8 +97981,8 @@ function uncountedAccounts(err) {
     detail: err instanceof Error ? err.message : String(err)
   };
 }
-async function countBy(soql4, key3, org) {
-  const rows3 = await query(soql4, org);
+async function countBy(soql5, key3, org) {
+  const rows3 = await query(soql5, org);
   return new Map(rows3.map((r) => [String(r[key3]), Number(r.cnt ?? r.expr0 ?? 0)]));
 }
 function activeTerritories(org) {
@@ -100414,8 +100414,8 @@ function dbSchemaItem(r, duplicates) {
   it.audience = audienceOf(r);
   if (fieldCount) it.properties["Synced fields"] = fieldCount;
   it.properties.Filter = r.fields.WhereSoql ? "Yes" : "None \u2014 all accessible records";
-  const soql4 = syncSoql(r);
-  if (soql4) it.code = { language: "soql", text: soql4 };
+  const soql5 = syncSoql(r);
+  if (soql5) it.code = { language: "soql", text: soql5 };
   if (r.fields.Errors) {
     it.findings.push({
       severity: "error",
@@ -100946,7 +100946,7 @@ function sameAudience(a, b) {
   const x = actionAudience(a);
   const y = actionAudience(b);
   if (!x || !y) return true;
-  const shares = (p, q) => p.some((n) => q.some((m) => m.toLowerCase() === n.toLowerCase()));
+  const shares = (p, q2) => p.some((n) => q2.some((m) => m.toLowerCase() === n.toLowerCase()));
   return shares(x.profiles, y.profiles) || shares(x.permissionSets, y.permissionSets);
 }
 function sameRecordTypes(a, b) {
@@ -101207,7 +101207,7 @@ function briefingFlowGroups(org, withSummary = true) {
   const select = "SELECT Label, ApiName, ActiveVersionId, ProcessType FROM FlowDefinitionView WHERE";
   const asks = [`${select} ApiName LIKE '%Briefing%'`, `${select} Label LIKE '%Briefing%'`];
   if (withSummary) asks.push(`${select} Label = '${SUMMARY_FLOW_LABEL}'`);
-  return Promise.all(asks.map((soql4) => query(soql4, org)));
+  return Promise.all(asks.map((soql5) => query(soql5, org)));
 }
 var CONTENT_WINDOW_DAYS = 30;
 var STALE_DAYS = 3;
@@ -101215,9 +101215,9 @@ var DAY_MS = 24 * 60 * 60 * 1e3;
 var isMissingObject = (err) => /is not supported|INVALID_TYPE|does not exist/i.test(
   String(err instanceof Error ? err.message : err)
 );
-async function optionalQuery2(soql4, org) {
+async function optionalQuery2(soql5, org) {
   try {
-    return await query(soql4, org);
+    return await query(soql5, org);
   } catch (err) {
     if (isMissingObject(err)) return null;
     throw err;
@@ -101245,8 +101245,8 @@ async function standardSetAssignments(org) {
   );
   return new Map(sets.map((r) => [String(r.Name), counts2.get(String(r.Id)) ?? 0]));
 }
-async function countBy2(soql4, key3, org) {
-  const rows3 = await query(soql4, org);
+async function countBy2(soql5, key3, org) {
+  const rows3 = await query(soql5, org);
   return new Map(
     rows3.filter((r) => r[key3]).map((r) => [String(r[key3]), Number(r.cnt ?? r.expr0 ?? 0)])
   );
@@ -108590,19 +108590,19 @@ function warmSharedReads(org) {
     warm().catch(() => void 0);
   }
 }
-function unionRows(org, kind, tooling, sql) {
+function unionRows(org, kind, tooling2, sql) {
   return sharedRead(
     org,
     `studio:union:${kind}`,
-    () => query(sql(inList(ALL_OBJECTS)), org, tooling)
+    () => query(sql(inList(ALL_OBJECTS)), org, tooling2)
   );
 }
-async function rowsForObjects(org, kind, tooling, sql, objects, keyOf2) {
-  const own = () => query(sql(inList(objects)), org, tooling);
+async function rowsForObjects(org, kind, tooling2, sql, objects, keyOf2) {
+  const own = () => query(sql(inList(objects)), org, tooling2);
   if (objects.some((o) => !ALL_OBJECTS_LOWER.has(o.toLowerCase()))) return own();
   let all;
   try {
-    all = await unionRows(org, kind, tooling, sql);
+    all = await unionRows(org, kind, tooling2, sql);
   } catch {
     return own();
   }
@@ -109043,12 +109043,12 @@ async function resolveIdNames(records, org) {
   const ids = new Set(records.flatMap((r) => Object.values(r.fields).flatMap(splitIds)));
   const names4 = /* @__PURE__ */ new Map();
   await Promise.all(
-    ID_LOOKUPS.map(async ({ prefix, soql: soql4 }) => {
+    ID_LOOKUPS.map(async ({ prefix, soql: soql5 }) => {
       const batch = [...ids].filter((id2) => id2.startsWith(prefix));
       if (batch.length === 0) return;
       try {
         const chunks5 = await Promise.all(
-          chunkIds(batch).map((ids2) => query(`${soql4} (${inList(ids2)})`, org))
+          chunkIds(batch).map((ids2) => query(`${soql5} (${inList(ids2)})`, org))
         );
         for (const r of chunks5.flat()) {
           const id2 = String(r.Id);
@@ -110753,7 +110753,7 @@ var profileNames = (r) => r.assignments.filter((a) => a.level === "Profile").map
 async function fieldProfilesUsing(org, soqls) {
   const [field, ...groups] = await Promise.all([
     fieldProfiles(org),
-    ...soqls.map((q) => query(q, org))
+    ...soqls.map((q2) => query(q2, org))
   ]);
   const used2 = new Set(groups.flat().map((r) => String(r.pn ?? "")));
   return field.filter((p) => used2.has(p)).sort();
@@ -111965,7 +111965,7 @@ var readiness7 = {
           surface: "objects"
         },
         async () => {
-          const read2 = async (soql4) => (await query(`${soql4} LIMIT ${SAMPLE_ROWS5}`, org)).length;
+          const read2 = async (soql5) => (await query(`${soql5} LIMIT ${SAMPLE_ROWS5}`, org)).length;
           const [events, visits] = await Promise.all([
             read2(`SELECT Id FROM Event WHERE StartDateTime >= LAST_N_DAYS:30`),
             read2(`SELECT Id FROM Visit WHERE PlannedVisitStartTime >= LAST_N_DAYS:30`).catch(
@@ -114860,7 +114860,7 @@ var readiness16 = {
             org
           );
           const have = new Set(rows3.map((r) => String(r.DeveloperName)));
-          const missing = QUEUES.filter((q) => !have.has(q));
+          const missing = QUEUES.filter((q2) => !have.has(q2));
           return missing.length ? { pass: false, detail: `Missing queue: ${missing.join(", ")}.`, examples: missing } : { pass: true, detail: "Both queues exist." };
         })
       ),
@@ -115579,8 +115579,8 @@ var readiness18 = {
         },
         async () => {
           const querier2 = {
-            soql: (q) => runSoqlQuery(q, org),
-            tooling: (q) => runToolingQuery(q, org)
+            soql: (q2) => runSoqlQuery(q2, org),
+            tooling: (q2) => runToolingQuery(q2, org)
           };
           const filtered = (await loadDbSchemaEntries(querier2)).filter((e) => e.whereSoql);
           if (!filtered.length)
@@ -116347,9 +116347,9 @@ var readiness19 = {
           const chunks5 = chunkIds(territories.map((t) => String(t.Id)));
           const share = Math.ceil(SAMPLE_ROWS12 / chunks5.length);
           let complete = true;
-          const sample = async (soql4) => (await Promise.all(
+          const sample = async (soql5) => (await Promise.all(
             chunks5.map(async (ids) => {
-              const rows3 = await query(`${soql4(inList(ids))} LIMIT ${share}`, org);
+              const rows3 = await query(`${soql5(inList(ids))} LIMIT ${share}`, org);
               if (rows3.length >= share) complete = false;
               return rows3;
             })
@@ -116860,8 +116860,8 @@ async function runRules(rules, org) {
 function warmSlowRules(rules, org) {
   if (!sharedReadsActive()) return;
   for (const rule of rules) {
-    const q = rule.check.query;
-    if (typeof q === "string" && /\bFlowDefinitionView\b/i.test(q))
+    const q2 = rule.check.query;
+    if (typeof q2 === "string" && /\bFlowDefinitionView\b/i.test(q2))
       executeCheck(rule.check, org).catch(() => void 0);
   }
 }
@@ -117294,8 +117294,8 @@ async function accountReach(user, facts, org) {
   const accountTable = tableFor(records, "Account", user, setNames);
   const ot2aTable = tableFor(records, "ObjectTerritory2Association", user, setNames);
   const querier2 = {
-    soql: (q, options2) => runSoqlQuery(q, org, options2),
-    tooling: (q) => runToolingQuery(q, org)
+    soql: (q2, options2) => runSoqlQuery(q2, org, options2),
+    tooling: (q2) => runToolingQuery(q2, org)
   };
   const context = {
     id: user.id,
@@ -117319,7 +117319,7 @@ async function accountReach(user, facts, org) {
     const acc = vol.tables.find((v) => v.sobject === "Account");
     return acc?.status === "counted" && !acc.lowerBound ? { territory: t.name, records: acc.records } : { territory: t.name, records: null, note: acc?.note ?? "not counted" };
   };
-  const names4 = (soql4, field) => query(soql4, org).then(
+  const names4 = (soql5, field) => query(soql5, org).then(
     (rows4) => [...new Set(rows4.map((r) => str11(rel3(r, field))).filter(Boolean))],
     () => []
   );
@@ -117716,7 +117716,7 @@ async function findUser(term, run4) {
   return chooseUser(t, inactive);
 }
 function findUserInOrg(term, org) {
-  return findUser(term, (soql4) => query(soql4, org));
+  return findUser(term, (soql5) => query(soql5, org));
 }
 function resolveFeatureId(text11) {
   const t = text11.trim().toLowerCase();
@@ -122657,16 +122657,16 @@ async function applyConfig(opts) {
   const categoryIdCache = /* @__PURE__ */ new Map();
   const resolveCategoryId = async (name) => {
     if (categoryIdCache.has(name)) return categoryIdCache.get(name);
-    const q = `SELECT Id FROM LifeSciConfigCategory WHERE Category = '${sqlEscape(name)}' OR DeveloperName = '${sqlEscape(name)}' LIMIT 1`;
-    const res = await cachedToolingQuery(q, targetOrg);
+    const q2 = `SELECT Id FROM LifeSciConfigCategory WHERE Category = '${sqlEscape(name)}' OR DeveloperName = '${sqlEscape(name)}' LIMIT 1`;
+    const res = await cachedToolingQuery(q2, targetOrg);
     const id2 = res.success && res.data?.records?.length ? res.data.records[0].Id : null;
     categoryIdCache.set(name, id2);
     return id2;
   };
   const resolveAssigneeId = async (a) => {
     if ((a.level || "Profile") === "PermissionSet") {
-      const q = `SELECT Id FROM PermissionSet WHERE Name = '${sqlEscape(a.name)}' LIMIT 1`;
-      const res = await cachedToolingQuery(q, targetOrg);
+      const q2 = `SELECT Id FROM PermissionSet WHERE Name = '${sqlEscape(a.name)}' LIMIT 1`;
+      const res = await cachedToolingQuery(q2, targetOrg);
       if (res.success && res.data?.records?.length) {
         return res.data.records[0].Id;
       }
@@ -122746,8 +122746,8 @@ async function applyConfig(opts) {
 }
 async function applyTriggerHandler(targetOrg, rd) {
   const desired = rd.activeChange?.to;
-  const q = `SELECT Id, IsActive FROM LifeScienceTriggerHandler WHERE DeveloperName = '${sqlEscape(rd.developerName)}' LIMIT 1`;
-  const res = await runToolingQuery(q, targetOrg);
+  const q2 = `SELECT Id, IsActive FROM LifeScienceTriggerHandler WHERE DeveloperName = '${sqlEscape(rd.developerName)}' LIMIT 1`;
+  const res = await runToolingQuery(q2, targetOrg);
   if (!res.success || !res.data?.records?.length) {
     return {
       key: rd.key,
@@ -124852,6 +124852,426 @@ ${instructions.command}
 `;
       }
       return { content: [{ type: "text", text: message }] };
+    }
+  );
+}
+
+// src/tools/eppv-config.ts
+init_cli();
+init_helpers();
+var EPPV_DB_SCHEMA_OBJECTS = [
+  "CareProgram",
+  "CareProgramProduct",
+  "ActionPlan",
+  "ActionPlanItem",
+  "ActionPlanTemplate",
+  "ActionPlanTemplateVersion",
+  "ActionPlanTemplateAssignment",
+  "ActionPlanTemplateItem",
+  "ActionPlanTemplateItemValue",
+  "PrvdEngmtComplianceCycle",
+  "AssessmentTask"
+];
+var EPPV_FLOWS = [
+  { prefix: "Schedule_Action_Plan_Sharing", role: "visibility: Action Plans to territories" },
+  { prefix: "Schedule_Care_Program_Sharing", role: "visibility: Care Programs to territories" },
+  { prefix: "Schedule_Assessment_Task_Update", role: "scheduled assessment task and cycle update" },
+  {
+    prefix: "Update_Assessment_Task_On_Visit_Completion",
+    role: "completes a cycle when the visit is Completed"
+  }
+];
+var EPPV_TAB_NAME = "standard-AccountCompliance";
+var EPPV_QUICK_ACTION = "AssociateCareProgram";
+var EPPV_PLAN_TYPE = "PrvdEngmtCompliance";
+var EPPV_CATEGORY = "ProviderEngagementCompliance";
+var q = (s2) => `'${s2.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+var inList2 = (ids) => ids.map(q).join(",");
+function plansWithoutCycles(plans, cycleCountByPlan) {
+  return plans.filter((p) => p.ActionPlanState === "In Progress" && !(cycleCountByPlan.get(p.Id) ?? 0)).map((p) => p.Id);
+}
+function duplicatePlans(plans) {
+  const groups = /* @__PURE__ */ new Map();
+  for (const p of plans) {
+    if (!p.TargetId) continue;
+    const key3 = `${p.TargetId}|${p.TargetReferenceRecordId ?? ""}`;
+    groups.set(key3, [...groups.get(key3) ?? [], p.Id]);
+  }
+  return [...groups.values()].filter((g) => g.length > 1);
+}
+function missingFlows(flows) {
+  const out = [];
+  for (const exp of EPPV_FLOWS) {
+    const matches = flows.filter(
+      (f) => !f.NamespacePrefix && String(f.ApiName ?? "").startsWith(exp.prefix)
+    );
+    if (matches.length === 0) out.push({ ...exp, state: "not found (not cloned)" });
+    else if (!matches.some((f) => f.IsActive === true))
+      out.push({ ...exp, state: "found but not active" });
+  }
+  return out;
+}
+async function tooling(query2, org) {
+  const r = await runToolingQuery(query2, org);
+  if (!r.success) return { rows: [], error: r.error || "query failed" };
+  if (r.data?.truncated)
+    return { rows: r.data.records ?? [], error: "result truncated" };
+  return { rows: r.data?.records ?? [] };
+}
+async function soql2(query2, org) {
+  const r = await runSoqlQuery(query2, org);
+  if (!r.success) return { rows: [], error: r.error || "query failed" };
+  if (r.data?.truncated)
+    return { rows: r.data.records ?? [], error: "result truncated" };
+  return { rows: r.data?.records ?? [] };
+}
+async function collectEppvChecks(org, profileName3) {
+  const checks = [];
+  const add = (c) => checks.push(c);
+  const couldNot = (id2, title, err) => ({
+    id: id2,
+    title,
+    status: "skip",
+    detail: `Couldn't check: ${err}`
+  });
+  const programs = await soql2(
+    `SELECT Id, Name, Status, StartDate, EndDate FROM CareProgram WHERE Category = ${q(EPPV_CATEGORY)} ORDER BY Name LIMIT 200`,
+    org
+  );
+  if (programs.error && programs.rows.length === 0) {
+    add(couldNot("care-programs", "Care Programs", programs.error));
+  } else if (programs.rows.length === 0) {
+    add({
+      id: "care-programs",
+      title: "Care Programs",
+      status: "fail",
+      detail: `No Care Program with Category ${EPPV_CATEGORY}.`,
+      fix: "Create a Care Program with Category ProviderEngagementCompliance. Announce Date must be today or later; Start >= Pre-cycle Start >= Announce."
+    });
+  } else {
+    add({
+      id: "care-programs",
+      title: "Care Programs",
+      status: "pass",
+      detail: `${programs.rows.length} program(s): ${programs.rows.map((p) => `${p.Name} (${p.Status})`).join(", ")}.`
+    });
+  }
+  const programIds = programs.rows.map((p) => p.Id);
+  if (programIds.length > 0) {
+    const withProduct = /* @__PURE__ */ new Set();
+    let err;
+    for (const chunk2 of chunkIds(programIds)) {
+      const r = await soql2(
+        `SELECT CareProgramId FROM CareProgramProduct WHERE CareProgramId IN (${inList2(chunk2)})`,
+        org
+      );
+      err ??= r.error;
+      for (const row of r.rows) withProduct.add(row.CareProgramId);
+    }
+    const bare2 = programs.rows.filter((p) => !withProduct.has(p.Id));
+    if (err) add(couldNot("program-products", "Care Program Products", err));
+    else
+      add({
+        id: "program-products",
+        title: "Care Program Products",
+        status: bare2.length ? "warn" : "pass",
+        detail: bare2.length ? `No product on: ${bare2.map((p) => p.Name).join(", ")}.` : "Every program has at least one product.",
+        fix: bare2.length ? "A product can't be added once the announce date is today or earlier. Insert the program with dates at today+2, add the product, then set the dates to today." : void 0
+      });
+  }
+  const plans = await soql2(
+    `SELECT Id, Name, ActionPlanState, TargetId, TargetReferenceRecordId, ActionPlanTemplateVersionId FROM ActionPlan WHERE ActionPlanType = ${q(EPPV_PLAN_TYPE)} LIMIT 2000`,
+    org
+  );
+  const planRows = plans.rows;
+  if (plans.error && planRows.length === 0) {
+    add(couldNot("action-plans", "Action Plans", plans.error));
+  } else if (planRows.length === 0) {
+    add({
+      id: "action-plans",
+      title: "Action Plans",
+      status: "warn",
+      detail: `No Action Plan of type ${EPPV_PLAN_TYPE}. Reps have nothing in Account Compliance.`,
+      fix: "Create an Action Plan per target HCO (TargetId = account, TargetReferenceRecordId = Care Program), then press Start Compliance Action Plan."
+    });
+  } else {
+    const byState = /* @__PURE__ */ new Map();
+    for (const p of planRows)
+      byState.set(String(p.ActionPlanState), (byState.get(String(p.ActionPlanState)) ?? 0) + 1);
+    add({
+      id: "action-plans",
+      title: "Action Plans",
+      status: "pass",
+      detail: `${planRows.length} plan(s): ${[...byState].map(([s2, n]) => `${n} ${s2}`).join(", ")}.${plans.error ? " (list cut short)" : ""}`
+    });
+    const noTarget = planRows.filter((p) => !p.TargetId);
+    add({
+      id: "plan-target",
+      title: "Plans have a target HCO",
+      status: noTarget.length ? "fail" : "pass",
+      detail: noTarget.length ? `${noTarget.length} plan(s) have no TargetId: ${noTarget.slice(0, 5).map((p) => p.Name).join(
+        ", "
+      )}. The iPad shows "Unknown Account" and visit save fails with "Account and Place cannot be empty".` : "Every plan has a TargetId.",
+      fix: noTarget.length ? "Set TargetId to the HCO account (it can't be edited after Start; recreate the plan)." : void 0
+    });
+    const noProgram = planRows.filter((p) => !p.TargetReferenceRecordId);
+    if (noProgram.length)
+      add({
+        id: "plan-program",
+        title: "Plans point at a Care Program",
+        status: "fail",
+        detail: `${noProgram.length} plan(s) have no TargetReferenceRecordId (Care Program).`
+      });
+    const dups = duplicatePlans(planRows);
+    if (dups.length)
+      add({
+        id: "plan-duplicates",
+        title: "Duplicate plans",
+        status: "warn",
+        detail: `${dups.length} HCO/Care Program pair(s) have more than one plan, which shows duplicate hospitals on the iPad.`,
+        fix: "Delete or stop the old plans."
+      });
+    const started = planRows.filter((p) => p.ActionPlanState === "In Progress").map((p) => p.Id);
+    if (started.length) {
+      const counts2 = /* @__PURE__ */ new Map();
+      let err;
+      for (const chunk2 of chunkIds(started)) {
+        const r = await soql2(
+          `SELECT ActionPlanId, COUNT(Id) c FROM PrvdEngmtComplianceCycle WHERE ActionPlanId IN (${inList2(chunk2)}) GROUP BY ActionPlanId`,
+          org
+        );
+        err ??= r.error;
+        for (const row of r.rows) counts2.set(row.ActionPlanId, Number(row.c));
+      }
+      const empty2 = plansWithoutCycles(planRows, counts2);
+      if (err) add(couldNot("plan-cycles", "In Progress plans have cycles", err));
+      else
+        add({
+          id: "plan-cycles",
+          title: "In Progress plans have cycles",
+          status: empty2.length ? "fail" : "pass",
+          detail: empty2.length ? `${empty2.length} In Progress plan(s) have no cycles (set to In Progress without the Start button?).` : `All ${started.length} In Progress plan(s) have cycles.`,
+          fix: empty2.length ? "Only the Start Compliance Action Plan button generates cycles. Recreate the plan and start it with the button." : void 0
+        });
+    }
+    const done = await runSoqlQuery(
+      `SELECT COUNT() FROM PrvdEngmtComplianceCycle WHERE Status = 'Completed' AND CompletionAssessmentTaskId = NULL`,
+      org
+    );
+    if (done.success) {
+      const n = done.data?.totalSize ?? 0;
+      add({
+        id: "cycle-completion-task",
+        title: "Completed cycles have a completion task",
+        status: n ? "warn" : "pass",
+        detail: n ? `${n} Completed cycle(s) have no CompletionAssessmentTaskId (completed by hand rather than by a visit's compliance activity).` : "Every Completed cycle links to its AssessmentTask."
+      });
+    }
+  }
+  const flows = await soql2(
+    `SELECT ApiName, Label, ProcessType, TriggerType, IsActive, NamespacePrefix FROM FlowDefinitionView WHERE ${EPPV_FLOWS.map((f) => `ApiName LIKE '${f.prefix}%'`).join(" OR ")}`,
+    org
+  );
+  if (flows.error && flows.rows.length === 0) {
+    add(couldNot("flows", "Cloned flows", flows.error));
+  } else {
+    const missing = missingFlows(flows.rows);
+    add({
+      id: "flows",
+      title: "Cloned flows active",
+      status: missing.length ? "fail" : "pass",
+      detail: missing.length ? missing.map((m) => `${m.prefix}* (${m.role}): ${m.state}`).join("; ") : "All four flows are cloned and active.",
+      fix: missing.length ? "Clone each missing flow, schedule the scheduled ones, then activate. Update_Assessment_Task_On_Visit_Completion_Clone is what completes a cycle." : void 0
+    });
+  }
+  const names4 = EPPV_DB_SCHEMA_OBJECTS.map((o) => `DbSchema_${o}`);
+  const db = await tooling(
+    `SELECT Id, DeveloperName, IsActive FROM LifeSciConfigRecord WHERE DeveloperName IN (${inList2(names4)})`,
+    org
+  );
+  if (db.error && db.rows.length === 0) {
+    add(couldNot("db-schema", "DB Schema records", db.error));
+  } else {
+    const byName = new Map(db.rows.map((r) => [r.DeveloperName, r]));
+    const missing = names4.filter((n) => !byName.has(n));
+    const inactive = names4.filter((n) => byName.has(n) && byName.get(n).IsActive !== true);
+    const ids = db.rows.map((r) => r.Id);
+    const [assign, fv] = await Promise.all([
+      queryAssignments(ids, org).catch(() => /* @__PURE__ */ new Map()),
+      queryFieldValues(ids, org, true)
+    ]);
+    const unassigned = names4.filter((n) => {
+      const r = byName.get(n);
+      if (!r) return false;
+      const a = assign.get(r.Id) ?? [];
+      return profileName3 ? !a.some((x) => x.name === profileName3) : a.length === 0;
+    });
+    const filtered = names4.filter((n) => {
+      const r = byName.get(n);
+      if (!r) return false;
+      const w = (fv.fieldValuesByRecord.get(r.Id) ?? []).find(
+        (f) => f.FieldName === "WhereSoql"
+      );
+      return !!w && !!extractFieldValue(w);
+    });
+    const problems = [
+      missing.length ? `missing: ${missing.map((n) => n.replace("DbSchema_", "")).join(", ")}` : "",
+      inactive.length ? `inactive: ${inactive.map((n) => n.replace("DbSchema_", "")).join(", ")}` : "",
+      unassigned.length ? `not assigned${profileName3 ? ` to ${profileName3}` : " to any profile"}: ${unassigned.map((n) => n.replace("DbSchema_", "")).join(", ")}` : ""
+    ].filter(Boolean);
+    add({
+      id: "db-schema",
+      title: "DB Schema records (11)",
+      status: missing.length || inactive.length || unassigned.length ? "fail" : "pass",
+      detail: problems.length ? problems.join("; ") + "." : "All 11 exist, are active and assigned.",
+      fix: problems.length ? "create_db_schema / toggle_db_schema for each, assigned to the rep profile, then regenerate the cache." : void 0
+    });
+    if (filtered.length)
+      add({
+        id: "db-schema-filters",
+        title: "DB Schema records have no field filters",
+        status: "warn",
+        detail: `WhereSoql set on: ${filtered.map((n) => n.replace("DbSchema_", "")).join(", ")}. The working setup has no filters on these.`
+      });
+  }
+  const ui = await tooling(
+    `SELECT Id, DeveloperName, IsActive, (SELECT FieldName, TextValue FROM LifeSciConfigFieldValues) FROM LifeSciConfigRecord WHERE LifeSciConfigCategoryId IN (SELECT Id FROM LifeSciConfigCategory WHERE Category = 'UISchema')`,
+    org
+  );
+  const hasField = (r, field, value4) => (r.LifeSciConfigFieldValues?.records ?? []).some(
+    (f) => f.FieldName === field && f.TextValue === value4
+  );
+  if (ui.error && ui.rows.length === 0) add(couldNot("tab", "Account Compliance tab", ui.error));
+  else {
+    const tab = ui.rows.filter((r) => hasField(r, "TabName", EPPV_TAB_NAME));
+    const active2 = tab.filter((r) => r.IsActive === true);
+    const profs = active2.length ? await queryAssignments(
+      active2.map((r) => r.Id),
+      org
+    ).catch(() => /* @__PURE__ */ new Map()) : /* @__PURE__ */ new Map();
+    const assigned = active2.some((r) => {
+      const a = profs.get(r.Id) ?? [];
+      return profileName3 ? a.some((x) => x.name === profileName3) : a.length > 0;
+    });
+    add({
+      id: "tab",
+      title: "Account Compliance tab",
+      status: active2.length && assigned ? "pass" : "fail",
+      detail: !tab.length ? `No navigation tab with TabName ${EPPV_TAB_NAME}.` : !active2.length ? "The tab exists but is inactive." : assigned ? "Active and assigned." : `Active but not assigned${profileName3 ? ` to ${profileName3}` : " to any profile"}.`,
+      fix: active2.length && assigned ? void 0 : "add_navigation_tab with tabName standard-AccountCompliance, enabled for the rep profile."
+    });
+  }
+  const qa = await tooling(
+    `SELECT Id, DeveloperName, IsActive, (SELECT FieldName, TextValue, PicklistValue FROM LifeSciConfigFieldValues) FROM LifeSciConfigRecord WHERE LifeSciConfigCategoryId IN (SELECT Id FROM LifeSciConfigCategory WHERE Category = 'QuickAction')`,
+    org
+  );
+  if (qa.error && qa.rows.length === 0)
+    add(couldNot("quick-action", "Report Compliance Activity", qa.error));
+  else {
+    const hit = qa.rows.filter(
+      (r) => (r.LifeSciConfigFieldValues?.records ?? []).some(
+        (f) => f.FieldName === "ActionName" && f.PicklistValue === EPPV_QUICK_ACTION
+      ) && r.IsActive === true
+    );
+    const assigned = hit.some((r) => {
+      const names5 = (r.LifeSciConfigFieldValues?.records ?? []).find(
+        (f) => f.FieldName === "Profiles"
+      )?.TextValue?.split(";").map((n) => n.trim()).filter(Boolean) ?? [];
+      return profileName3 ? names5.includes(profileName3) : names5.length > 0;
+    });
+    add({
+      id: "quick-action",
+      title: "Capture Compliance Activity quick action",
+      status: hit.length && assigned ? "pass" : "fail",
+      detail: !hit.length ? `No active quick action of type ${EPPV_QUICK_ACTION}.` : assigned ? "Active and assigned (labelled Report Compliance Activity on the iPad)." : `Active but not assigned${profileName3 ? ` to ${profileName3}` : " to any profile"}.`,
+      fix: hit.length && assigned ? void 0 : `create_quick_action with action type ${EPPV_QUICK_ACTION}, location Visit, assigned to the rep profile.`
+    });
+  }
+  const cache3 = await soql2(
+    `SELECT Id, Status, LastModifiedDate FROM LifeSciMobileMetadataRecord WHERE Status = 'Active' ORDER BY LastModifiedDate DESC LIMIT 5`,
+    org
+  );
+  add(
+    cache3.error && cache3.rows.length === 0 ? couldNot("cache", "Mobile metadata cache", cache3.error) : {
+      id: "cache",
+      title: "Mobile metadata cache",
+      status: cache3.rows.length ? "pass" : "fail",
+      detail: cache3.rows.length ? `Newest active cache ${String(cache3.rows[0].LastModifiedDate).slice(0, 10)}. Regenerate it after any DB Schema, tab or action change.` : "No active metadata cache.",
+      fix: cache3.rows.length ? void 0 : "generate_mobile_metadata_cache for one profile at a time (many at once hit REQUEST_LIMIT_EXCEEDED)."
+    }
+  );
+  return checks;
+}
+function renderEppvReport(org, checks) {
+  const icon = {
+    pass: "PASS",
+    warn: "WARN",
+    fail: "FAIL",
+    skip: "SKIP"
+  };
+  let out = `# Account Compliance (EPPV) Configuration Report
+
+**Org:** ${org}
+
+| Check | Result | Detail |
+|---|---|---|
+`;
+  for (const c of checks)
+    out += `| ${c.title} | ${icon[c.status]} | ${c.detail.replace(/\|/g, "\\|")} |
+`;
+  const bad = checks.filter((c) => c.status === "fail" || c.status === "warn");
+  out += `
+## Overall: ${checks.some((c) => c.status === "fail") ? "NEEDS ATTENTION" : bad.length ? "READY WITH WARNINGS" : "READY"}
+
+`;
+  const fixes = bad.filter((c) => c.fix);
+  if (fixes.length) {
+    out += "### Fixes\n\n";
+    fixes.forEach((c, i) => out += `${i + 1}. **${c.title}:** ${c.fix}
+`);
+  }
+  if (checks.some((c) => c.status === "skip"))
+    out += "\nChecks marked SKIP couldn't run; they are not passes.\n";
+  out += "\nNot checked here: Action Plan State picklist and Admin Console status mappings, Action Plan page layout actions list, Action Plan Status field-level security, template and care program page layouts, sharing rules. See the module doc `support-engineering-eppv-setup-and-troubleshooting`.\n";
+  return out;
+}
+function register21(server2) {
+  server2.tool(
+    "check_eppv_config",
+    "Check Account Compliance (Japan EPPV/MID, Provider Engagement Compliance) configuration: Care Programs and products, compliance Action Plans (target HCO, cycles generated), the four cloned flows, the 11 DB Schema records, the Account Compliance tab, the Capture Compliance Activity quick action and the mobile cache. CORRECT object names: CareProgram, CareProgramProduct, ActionPlan, ActionPlanTemplate, ActionPlanTemplateVersion, ActionPlanTemplateAssignment, PrvdEngmtComplianceCycle, AssessmentTask. WRONG names (DO NOT USE): EPPV__c, ComplianceCycle__c, AccountCompliance__c.",
+    {
+      targetOrg: external_exports.string().optional().describe("Optional: specific org to check. Uses current target org if not specified."),
+      profileName: external_exports.string().optional().describe(
+        "Optional: rep profile name. When given, DB Schema, tab and quick action must be assigned to this profile."
+      )
+    },
+    async ({ targetOrg, profileName: profileName3 }) => {
+      const validation = await validateOrgConnection();
+      const effectiveOrg = targetOrg || validation.targetOrg;
+      if (!effectiveOrg) {
+        return {
+          content: [
+            { type: "text", text: `# Cannot Check Account Compliance
+
+${validation.error}` }
+          ]
+        };
+      }
+      try {
+        const checks = await collectEppvChecks(effectiveOrg, profileName3);
+        return { content: [{ type: "text", text: renderEppvReport(effectiveOrg, checks) }] };
+      } catch (error2) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `# Failed to Check Account Compliance
+
+${error2 instanceof Error ? error2.message : String(error2)}`
+            }
+          ]
+        };
+      }
     }
   );
 }
@@ -127870,8 +128290,8 @@ function recent(kind, name, featureId, r, detail) {
     modifiedBy: nameOf(r)
   };
 }
-async function newest(soql4, limit, org, tooling, source, full) {
-  const rows3 = await query(`${soql4} LIMIT ${limit + 1}`, org, tooling);
+async function newest(soql5, limit, org, tooling2, source, full) {
+  const rows3 = await query(`${soql5} LIMIT ${limit + 1}`, org, tooling2);
   if (rows3.length <= limit) return rows3;
   full.push(source);
   return rows3.slice(0, limit);
@@ -133232,13 +133652,13 @@ var SAMPLE_TERRITORY_ID = "0MI000000000000AAA";
 function sampleFilter(where3) {
   const tags = [...new Set((where3.match(/\{[A-Za-z0-9_.]+\}/g) ?? []).map((t) => t.toUpperCase()))];
   where3 = where3.split(/\r?\n/).join(" ");
-  let soql4 = resolveScalarTags(where3, {
+  let soql5 = resolveScalarTags(where3, {
     userId: SAMPLE_USER_ID,
     territoryName: "Sample",
     territoryId: SAMPLE_TERRITORY_ID
   });
-  soql4 = soql4.replace(/'\{[A-Za-z0-9_.]+\}'/g, SAMPLE_ID).replace(/\{[A-Za-z0-9_.]+\}/g, SAMPLE_ID);
-  return { soql: soql4, tags };
+  soql5 = soql5.replace(/'\{[A-Za-z0-9_.]+\}'/g, SAMPLE_ID).replace(/\{[A-Za-z0-9_.]+\}/g, SAMPLE_ID);
+  return { soql: soql5, tags };
 }
 var worst = (parts) => parts.some((p) => p.state === "fail") ? "fail" : parts.some((p) => p.state === "warn") ? "warn" : parts.every((p) => p.state === "skipped") ? "skipped" : "pass";
 function errorText3(err) {
@@ -133326,15 +133746,15 @@ async function checkRecord(r, org) {
     });
     return done();
   }
-  const { soql: soql4, tags } = sampleFilter(where3);
-  if (soql4.length > MAX_WHERE_LENGTH2)
+  const { soql: soql5, tags } = sampleFilter(where3);
+  if (soql5.length > MAX_WHERE_LENGTH2)
     parts.push({
       name: "Filter length",
       state: "warn",
-      detail: `${soql4.length.toLocaleString()} characters; the app splits or drops filters over ${MAX_WHERE_LENGTH2.toLocaleString()}.`
+      detail: `${soql5.length.toLocaleString()} characters; the app splits or drops filters over ${MAX_WHERE_LENGTH2.toLocaleString()}.`
     });
   try {
-    await query(`SELECT Id FROM ${sobject2} WHERE ${soql4} LIMIT 1`, org, false, {
+    await query(`SELECT Id FROM ${sobject2} WHERE ${soql5} LIMIT 1`, org, false, {
       maxRows: 1,
       allowTruncated: true
     });
@@ -134930,12 +135350,12 @@ function soqlString8(value4) {
 function likeValue(text11) {
   return soqlString8(text11).replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
-async function rows(org, soql4) {
-  const result2 = await org.soql(soql4);
+async function rows(org, soql5) {
+  const result2 = await org.soql(soql5);
   if (!result2.success) throw new Error(result2.error || "Query failed");
   return result2.data?.records ?? [];
 }
-var inList2 = (values) => values.map((v) => `'${soqlString8(v)}'`).join(",");
+var inList3 = (values) => values.map((v) => `'${soqlString8(v)}'`).join(",");
 var profileName2 = (u) => String(u.Profile?.Name ?? "");
 var territoryCount = (r) => Number(r.cnt ?? r.expr0 ?? 0);
 function toPerfUser(u, territories) {
@@ -134954,7 +135374,7 @@ async function withAccountVolume(org, users) {
   try {
     const assigned = await rows(
       org,
-      `SELECT UserId, Territory2Id FROM UserTerritory2Association WHERE UserId IN (${inList2(users.map((u) => u.id))}) AND ${ACTIVE_MODEL}`
+      `SELECT UserId, Territory2Id FROM UserTerritory2Association WHERE UserId IN (${inList3(users.map((u) => u.id))}) AND ${ACTIVE_MODEL}`
     );
     const byUser = /* @__PURE__ */ new Map();
     for (const a of assigned) {
@@ -134988,7 +135408,7 @@ async function recentSyncCounts(org, userIds, days) {
   try {
     const counts2 = await dataSyncRows(
       org,
-      (window2) => `SELECT CreatedById, COUNT(Id) cnt FROM DeviceSyncSummary WHERE CreatedById IN (${inList2(userIds)}) AND ${window2} GROUP BY CreatedById`,
+      (window2) => `SELECT CreatedById, COUNT(Id) cnt FROM DeviceSyncSummary WHERE CreatedById IN (${inList3(userIds)}) AND ${window2} GROUP BY CreatedById`,
       days
     );
     for (const r of counts2) out.set(idKey(String(r.CreatedById)), territoryCount(r));
@@ -135009,7 +135429,7 @@ async function withSyncs(org, users, days) {
 async function heaviestOfProfile(org, profile, limit, exclude) {
   if (limit <= 0) return [];
   const p = soqlString8(profile);
-  const notIn = (field, ids) => ids.length ? ` AND ${field} NOT IN (${inList2(ids)})` : "";
+  const notIn = (field, ids) => ids.length ? ` AND ${field} NOT IN (${inList3(ids)})` : "";
   const ranked = await rows(
     org,
     `SELECT UserId, COUNT(Id) cnt FROM UserTerritory2Association WHERE User.Profile.Name = '${p}' AND User.IsActive = true AND User.UserType = 'Standard' AND ${ACTIVE_MODEL}${notIn("UserId", exclude)} GROUP BY UserId ORDER BY COUNT(Id) DESC LIMIT ${Math.max(limit, CANDIDATE_POOL)}`
@@ -135017,7 +135437,7 @@ async function heaviestOfProfile(org, profile, limit, exclude) {
   const counts2 = new Map(ranked.map((r) => [String(r.UserId), territoryCount(r)]));
   const loaded = counts2.size ? await rows(
     org,
-    `SELECT Id, Username, Name, Profile.Name FROM User WHERE Id IN (${inList2([...counts2.keys()])})`
+    `SELECT Id, Username, Name, Profile.Name FROM User WHERE Id IN (${inList3([...counts2.keys()])})`
   ) : [];
   const users = (await withAccountVolume(
     org,
@@ -135047,10 +135467,10 @@ async function syncingOfProfile(org, profile, limit, days) {
   const syncs2 = new Map(synced.map((r) => [idKey(String(r.CreatedById)), territoryCount(r)]));
   const ids = synced.map((r) => String(r.CreatedById));
   const [loaded, counts2] = await Promise.all([
-    rows(org, `SELECT Id, Username, Name, Profile.Name FROM User WHERE Id IN (${inList2(ids)})`),
+    rows(org, `SELECT Id, Username, Name, Profile.Name FROM User WHERE Id IN (${inList3(ids)})`),
     rows(
       org,
-      `SELECT UserId, COUNT(Id) cnt FROM UserTerritory2Association WHERE UserId IN (${inList2(ids)}) AND ${ACTIVE_MODEL} GROUP BY UserId`
+      `SELECT UserId, COUNT(Id) cnt FROM UserTerritory2Association WHERE UserId IN (${inList3(ids)}) AND ${ACTIVE_MODEL} GROUP BY UserId`
     )
   ]);
   const territories = new Map(counts2.map((r) => [idKey(String(r.UserId)), territoryCount(r)]));
@@ -135095,7 +135515,7 @@ async function findHeaviestUsers(org, filters2) {
   if (users.length === 0) return [];
   const counts2 = await rows(
     org,
-    `SELECT UserId, COUNT(Id) cnt FROM UserTerritory2Association WHERE UserId IN (${inList2(users.map((u) => String(u.Id)))}) AND ${ACTIVE_MODEL} GROUP BY UserId`
+    `SELECT UserId, COUNT(Id) cnt FROM UserTerritory2Association WHERE UserId IN (${inList3(users.map((u) => String(u.Id)))}) AND ${ACTIVE_MODEL} GROUP BY UserId`
   );
   const byUser = new Map(counts2.map((r) => [String(r.UserId), territoryCount(r)]));
   const byTerritories = users.map((u) => toPerfUser(u, byUser.get(String(u.Id)) ?? 0)).sort(byLoad);
@@ -135130,8 +135550,8 @@ async function lookupUsers(org, refs, days) {
   const ids = unique.filter(isUserId);
   const names4 = unique.filter((r) => !isUserId(r));
   const where3 = [
-    names4.length ? `Username IN (${inList2(names4)})` : "",
-    ids.length ? `Id IN (${inList2(ids)})` : ""
+    names4.length ? `Username IN (${inList3(names4)})` : "",
+    ids.length ? `Id IN (${inList3(ids)})` : ""
   ].filter(Boolean).join(" OR ");
   const found = await rows(
     org,
@@ -135141,7 +135561,7 @@ async function lookupUsers(org, refs, days) {
   const [assignments, syncs2] = await Promise.all([
     found.length ? rows(
       org,
-      `SELECT UserId, Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId IN (${inList2(found.map((u) => String(u.Id)))}) AND ${ACTIVE_MODEL} ORDER BY Territory2.Name`
+      `SELECT UserId, Territory2Id, Territory2.Name FROM UserTerritory2Association WHERE UserId IN (${inList3(found.map((u) => String(u.Id)))}) AND ${ACTIVE_MODEL} ORDER BY Territory2.Name`
     ) : Promise.resolve([]),
     days !== void 0 && found.length ? recentSyncCounts(
       org,
@@ -136768,8 +137188,8 @@ function createUserSchemaSource(deps) {
 // src/studio/perf.ts
 var defaultDeps = {
   querier: (org) => ({
-    soql: (q, options) => runSoqlQuery(q, org, options),
-    tooling: (q) => runToolingQuery(q, org)
+    soql: (q2, options) => runSoqlQuery(q2, org, options),
+    tooling: (q2) => runToolingQuery(q2, org)
   }),
   telemetryFields: (org) => async () => {
     const result2 = await cachedDescribeSObject("DeviceSyncSummary", org);
@@ -136797,16 +137217,16 @@ function tracked(inner, job) {
   const guard = () => {
     if (job.cancelled) throw new CancelledError();
   };
-  const wrap = (fn) => async (q, options) => {
+  const wrap = (fn) => async (q2, options) => {
     guard();
     job.queries++;
-    const result2 = await fn(q, options);
+    const result2 = await fn(q2, options);
     guard();
     return result2;
   };
   return {
-    soql: wrap((q, options) => inner.soql(q, options)),
-    tooling: wrap((q) => inner.tooling(q))
+    soql: wrap((q2, options) => inner.soql(q2, options)),
+    tooling: wrap((q2) => inner.tooling(q2))
   };
 }
 function startPerfRun(profile, org, deps = defaultDeps, mobileLogins = []) {
@@ -137791,15 +138211,15 @@ function requestFields(table) {
   return table.sobject.toLowerCase() === "contentversion" ? table.fields.filter((f) => f.toLowerCase() !== "versiondata") : table.fields;
 }
 function buildLegacyQuery(table, fields, condition2, syncStart) {
-  let q = `SELECT ${fields.join(",")} FROM ${table.sobject}`;
+  let q2 = `SELECT ${fields.join(",")} FROM ${table.sobject}`;
   const hasCondition = !!condition2 && condition2.trim().length > 0;
-  if (hasCondition) q += ` WHERE ${condition2}`;
+  if (hasCondition) q2 += ` WHERE ${condition2}`;
   const delta = table.deltaDateField;
   if (delta && table.sobject.toLowerCase() !== LAST && fields.some((f) => f.toLowerCase() === delta.toLowerCase())) {
     const end = syncStart.toISOString().replace(/\.\d{3}Z$/, "Z");
-    q += ` ${hasCondition ? "AND" : "WHERE"} ${delta} > ${EPOCH_ISO} AND ${delta} <= ${end}`;
+    q2 += ` ${hasCondition ? "AND" : "WHERE"} ${delta} > ${EPOCH_ISO} AND ${delta} <= ${end}`;
   }
-  return q;
+  return q2;
 }
 var StopTable = class extends Error {
 };
@@ -138018,10 +138438,10 @@ var TableRunner = class {
     const session = this.o.session;
     const pageUrls = [];
     let firstPagesMB = 0;
-    for (const soql4 of soqls) {
+    for (const soql5 of soqls) {
       const first2 = await this.call(
         "GET",
-        dataPath(session, `query?q=${encodeURIComponent(soql4)}`)
+        dataPath(session, `query?q=${encodeURIComponent(soql5)}`)
       );
       firstPagesMB += this.lastDecodedBytes / (1024 * 1024);
       const { records, o } = recordsOf(first2);
@@ -139178,7 +139598,7 @@ ${r.notes.map((n) => `- ${n}`).join("\n")}
 `;
   return out;
 }
-function register21(server2) {
+function register22(server2) {
   server2.tool(
     "simulate_initial_sync",
     "Simulate the network part of an LSC iOS app INITIAL sync for one end user, from Node. Authenticates as that user through the sf CLI, calls user-info, downloads and verifies the metadata archive (MD5), builds the table list and WHERE tags exactly as the app does, then downloads every table in the app's order (enhanced Connect flow or legacy REST flow, chosen from the org's settings). Reports per-table records, requests, bytes and seconds, plus metadata download time, so it can be compared with DeviceSyncSummary rows. Network time only (no SQLCipher writes, indexes or file binaries). Read-only against the org: it creates no records and registers no device. The username must already be authenticated in the sf CLI as the end user (not an admin) for device-accurate numbers.",
@@ -139697,8 +140117,8 @@ var syncOverviewInput = {
 };
 var defaultDeps3 = {
   querier: (org) => ({
-    soql: (q, options) => runSoqlQuery(q, org, options),
-    tooling: (q) => runToolingQuery(q, org)
+    soql: (q2, options) => runSoqlQuery(q2, org, options),
+    tooling: (q2) => runToolingQuery(q2, org)
   }),
   telemetryFields: (org) => async () => {
     const result2 = await cachedDescribeSObject("DeviceSyncSummary", org);
@@ -139708,10 +140128,10 @@ var defaultDeps3 = {
 var TELEMETRY_LIMIT = 1e4;
 var MAX_AT_RISK = 25;
 var soqlString10 = (v) => v.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-var inList3 = (values) => values.map((v) => `'${soqlString10(v)}'`).join(",");
+var inList4 = (values) => values.map((v) => `'${soqlString10(v)}'`).join(",");
 var idKey2 = (id2) => id2.slice(0, 15);
-async function rows2(org, soql4) {
-  const result2 = await org.soql(soql4);
+async function rows2(org, soql5) {
+  const result2 = await org.soql(soql5);
   if (!result2.success) throw new Error(result2.error || "Query failed");
   return result2.data?.records ?? [];
 }
@@ -139765,7 +140185,7 @@ async function joinUsers(org, ranked) {
   if (ranked.length === 0) return [];
   const users = await rows2(
     org,
-    `SELECT Id, Username, Name, Profile.Name FROM User WHERE Username IN (${inList3(ranked.map((u) => u.username))})`
+    `SELECT Id, Username, Name, Profile.Name FROM User WHERE Username IN (${inList4(ranked.map((u) => u.username))})`
   );
   const byName = new Map(users.map((u) => [String(u.Username).toLowerCase(), u]));
   const ids = users.map((u) => String(u.Id));
@@ -139773,7 +140193,7 @@ async function joinUsers(org, ranked) {
   if (ids.length) {
     const grouped = await rows2(
       org,
-      `SELECT UserId, COUNT(Id) cnt FROM UserTerritory2Association WHERE UserId IN (${inList3(ids)}) AND Territory2.Territory2Model.State = 'Active' GROUP BY UserId`
+      `SELECT UserId, COUNT(Id) cnt FROM UserTerritory2Association WHERE UserId IN (${inList4(ids)}) AND Territory2.Territory2Model.State = 'Active' GROUP BY UserId`
     );
     for (const r of grouped) counts2.set(idKey2(String(r.UserId)), Number(r.cnt ?? r.expr0 ?? 0));
   }
@@ -139932,8 +140352,8 @@ function startProgress(userId) {
 }
 var defaultDeps4 = {
   querier: (org) => ({
-    soql: (q, options) => runSoqlQuery(q, org, options),
-    tooling: (q) => runToolingQuery(q, org)
+    soql: (q2, options) => runSoqlQuery(q2, org, options),
+    tooling: (q2) => runToolingQuery(q2, org)
   }),
   telemetryFields: (org) => async () => {
     const result2 = await cachedDescribeSObject("DeviceSyncSummary", org);
@@ -140387,7 +140807,7 @@ function diffVolumes(beforeAll, afterTables, changed, full) {
     }
   }
   tables.sort(
-    (p, q) => Math.abs(q.delta) - Math.abs(p.delta) || p.sobject.localeCompare(q.sobject)
+    (p, q2) => Math.abs(q2.delta) - Math.abs(p.delta) || p.sobject.localeCompare(q2.sobject)
   );
   const delta = totalAfter - totalBefore;
   return {
@@ -140409,8 +140829,8 @@ var PROFILE_CONCURRENCY = 3;
 var MAX_PROFILES = 5;
 var defaultDeps5 = {
   querier: (org) => ({
-    soql: (q, options) => runSoqlQuery(q, org, options),
-    tooling: (q) => runToolingQuery(q, org)
+    soql: (q2, options) => runSoqlQuery(q2, org, options),
+    tooling: (q2) => runToolingQuery(q2, org)
   })
 };
 async function profileNamesById(org, ids) {
@@ -140425,8 +140845,8 @@ async function syncImpact(orgName, input, deps = defaultDeps5) {
   const raw = deps.querier(orgName);
   let queries = 0;
   const org = memoizeQuerier({
-    soql: (q, options) => (queries++, raw.soql(q, options)),
-    tooling: (q) => (queries++, raw.tooling(q))
+    soql: (q2, options) => (queries++, raw.soql(q2, options)),
+    tooling: (q2) => (queries++, raw.tooling(q2))
   });
   const relevant = input.changes.filter(touchesDbSchema);
   const notes = [];
@@ -141762,9 +142182,9 @@ function lintJs(input, f, parent, service, add) {
       fix: "import { gql, graphql } from 'lightning/uiGraphQLApi';"
     });
   }
-  for (const q of gqlTemplates(js2)) {
-    const line = lineAt(js2, q.index);
-    if (/\$\{/.test(q.text))
+  for (const q2 of gqlTemplates(js2)) {
+    const line = lineAt(js2, q2.index);
+    if (/\$\{/.test(q2.text))
       add({
         severity: "error",
         rule: "graphql.dynamic",
@@ -141773,7 +142193,7 @@ function lintJs(input, f, parent, service, add) {
         message: "Interpolating values into a gql template (${\u2026}) isn't supported; the query has to be static.",
         fix: "Declare `query Name($x: String) { \u2026 }` and pass values through `variables`."
       });
-    if (/\bmutation\b/.test(q.text))
+    if (/\bmutation\b/.test(q2.text))
       add({
         severity: "error",
         rule: "graphql.mutation",
@@ -141782,7 +142202,7 @@ function lintJs(input, f, parent, service, add) {
         message: "GraphQL mutations aren't available offline on the iPad.",
         fix: "Use createRecord / updateRecord / deleteRecord from lightning/uiRecordApi for writes."
       });
-    if (/\b(aggregate|groupBy)\b/.test(q.text))
+    if (/\b(aggregate|groupBy)\b/.test(q2.text))
       add({
         severity: "error",
         rule: "graphql.aggregate",
@@ -141985,7 +142405,7 @@ function objectsRead(files, objectApiName) {
   for (const f of files) {
     if (!f.path.endsWith(".js")) continue;
     const js2 = blankJsComments(f.source);
-    for (const q of gqlTemplates(js2)) for (const o of graphqlRoots(q.text)) names4.add(o);
+    for (const q2 of gqlTemplates(js2)) for (const o of graphqlRoots(q2.text)) names4.add(o);
     for (const m of js2.matchAll(/\buiapi\s*\{\s*query\s*\{\s*(?:\w+\s*:\s*)?(\w+)/g))
       names4.add(m[1]);
     for (const m of js2.matchAll(/["']@salesforce\/schema\/(\w+)(?:\.\w+)?["']/g)) names4.add(m[1]);
@@ -142008,20 +142428,20 @@ function syncedObjectsOf(org) {
   cache2.set(org, { at: Date.now(), value: value4 });
   return value4;
 }
-var soql2 = (v) => v.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+var soql3 = (v) => v.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 async function syncedObjectsFor(org, who) {
   if (!who.userId && !who.profile) return syncedObjectsOf(org);
   try {
     const querier2 = {
-      soql: (q, o) => runSoqlQuery(q, org, o),
-      tooling: (q) => runToolingQuery(q, org)
+      soql: (q2, o) => runSoqlQuery(q2, org, o),
+      tooling: (q2) => runToolingQuery(q2, org)
     };
     let user;
     if (who.userId) {
       user = await loadUserContext(querier2, who.userId);
     } else {
       const res = await querier2.soql(
-        `SELECT Id, Name FROM Profile WHERE Name = '${soql2(who.profile)}' LIMIT 1`
+        `SELECT Id, Name FROM Profile WHERE Name = '${soql3(who.profile)}' LIMIT 1`
       );
       const row = res.success ? res.data?.records?.[0] : void 0;
       if (!row) return null;
@@ -142340,11 +142760,11 @@ async function describeForApp(objects, org, as) {
 // src/studio/apps/sample.ts
 init_cli();
 var MAX_SAMPLE_ROWS = 5;
-function blankStrings(soql4) {
-  return soql4.replace(/'(?:[^'\\]|\\.)*'/g, (m) => "'" + " ".repeat(m.length - 2) + "'");
+function blankStrings(soql5) {
+  return soql5.replace(/'(?:[^'\\]|\\.)*'/g, (m) => "'" + " ".repeat(m.length - 2) + "'");
 }
-function guardSampleQuery(soql4) {
-  const text11 = soql4.trim();
+function guardSampleQuery(soql5) {
+  const text11 = soql5.trim();
   if (!text11) throw new Error("The query is empty.");
   const blank = blankStrings(text11);
   if ((blank.match(/'/g)?.length ?? 0) % 2)
@@ -142390,8 +142810,8 @@ function stripAttributes(row) {
   }
   return out;
 }
-async function sampleRecords(soql4, org, as) {
-  const guarded = guardSampleQuery(soql4);
+async function sampleRecords(soql5, org, as) {
+  const guarded = guardSampleQuery(soql5);
   if (as) {
     const res = await userGet(as, `/query?q=${encodeURIComponent(guarded)}`);
     if (res.status !== 200)
@@ -142768,7 +143188,7 @@ async function deployApp(input, org) {
 
 // src/studio/apps/plan.ts
 init_helpers2();
-var soql3 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+var soql4 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 var names2 = (rows3, field) => new Set(rows3.map((r) => String(r[field] ?? "")));
 async function existingOf(components, org, notes) {
   const ofType = (type) => components.filter((c) => c.startsWith(`${type}:`)).map((c) => c.slice(type.length + 1));
@@ -142788,7 +143208,7 @@ async function existingOf(components, org, notes) {
     if (!wanted.length) return;
     try {
       const rows3 = await query(
-        `SELECT DeveloperName, EntityDefinition.QualifiedApiName FROM QuickActionDefinition WHERE DeveloperName IN (${wanted.map((n) => soql3(n.split(".").pop() ?? n)).join(", ")})`,
+        `SELECT DeveloperName, EntityDefinition.QualifiedApiName FROM QuickActionDefinition WHERE DeveloperName IN (${wanted.map((n) => soql4(n.split(".").pop() ?? n)).join(", ")})`,
         org,
         true
       );
@@ -142802,7 +143222,7 @@ async function existingOf(components, org, notes) {
       notes.push("Couldn't check whether the QuickAction already exists in the org.");
     }
   };
-  const list2 = (values) => values.map(soql3).join(", ");
+  const list2 = (values) => values.map(soql4).join(", ");
   await Promise.all([
     look(
       "LightningComponentBundle",
@@ -143959,7 +144379,7 @@ async function runScript(input) {
       return;
     }
     const where3 = (miss.args.where ?? "").trim();
-    let soql4 = "";
+    let soql5 = "";
     const t0 = Date.now();
     try {
       if (queryCount >= RUN_LIMITS.maxQueries) {
@@ -143989,10 +144409,10 @@ async function runScript(input) {
             `${entity} has more than ${RUN_LIMITS.maxFields} fields; the simulation reads the first ${RUN_LIMITS.maxFields}.`
           );
       }
-      soql4 = `SELECT ${fields.join(", ")} FROM ${entity}`;
-      if (where3) soql4 += ` WHERE ${where3}`;
-      if (!/\blimit\s+\d+/i.test(where3)) soql4 += ` LIMIT ${RUN_LIMITS.rowsPerQuery + 1}`;
-      const rows3 = await input.reader.query(soql4);
+      soql5 = `SELECT ${fields.join(", ")} FROM ${entity}`;
+      if (where3) soql5 += ` WHERE ${where3}`;
+      if (!/\blimit\s+\d+/i.test(where3)) soql5 += ` LIMIT ${RUN_LIMITS.rowsPerQuery + 1}`;
+      const rows3 = await input.reader.query(soql5);
       let used2 = rows3;
       if (rows3.length > RUN_LIMITS.rowsPerQuery) {
         used2 = rows3.slice(0, RUN_LIMITS.rowsPerQuery);
@@ -144008,13 +144428,13 @@ async function runScript(input) {
         if (rt) item2.rt = rt;
         return item2;
       });
-      queries.push({ object: entity, soql: soql4, rows: used2.length, ms: Date.now() - t0 });
+      queries.push({ object: entity, soql: soql5, rows: used2.length, ms: Date.now() - t0 });
       cache3.set(key3, JSON.stringify({ ok: true, rows: items }));
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       queries.push({
         object: entity,
-        soql: soql4 || `(${entity}${where3 ? " WHERE " + where3 : ""})`,
+        soql: soql5 || `(${entity}${where3 ? " WHERE " + where3 : ""})`,
         rows: 0,
         ms: Date.now() - t0,
         error: msg
@@ -144314,7 +144734,7 @@ function createOrgReader(org) {
     };
   };
   return {
-    query: (soql4) => query(soql4, org, false, { allowTruncated: true, maxRows: RUN_LIMITS.rowsPerQuery + 1 }),
+    query: (soql5) => query(soql5, org, false, { allowTruncated: true, maxRows: RUN_LIMITS.rowsPerQuery + 1 }),
     describe,
     namespace: () => {
       namespace ??= query(
@@ -144957,7 +145377,7 @@ function json(data2) {
 function jsonError(error2) {
   return { content: [{ type: "text", text: JSON.stringify({ error: error2 }) }], isError: true };
 }
-function register22(server2) {
+function register23(server2) {
   server2.tool(
     "studio_list_features",
     "LSC Studio (GUI data): list the features Studio can map. Returns JSON.",
@@ -145763,14 +146183,14 @@ function registerAppTools(server2) {
     "studio_app_sample",
     "LSC Studio (GUI only): up to 5 real records from a SELECT-only SOQL query (anything else is refused, LIMIT is forced to 5 or less), so the app builder sees real values. Read-only. Returns JSON { records, totalSize }.",
     { soql: external_exports.string().min(1).max(2e3), mobileLogin: runAsLogin },
-    async ({ soql: soql4, mobileLogin }) => {
+    async ({ soql: soql5, mobileLogin }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
         return json(
-          await sampleRecords(soql4, connection.targetOrg, mobileLogin)
+          await sampleRecords(soql5, connection.targetOrg, mobileLogin)
         );
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
@@ -146441,8 +146861,8 @@ init_cli();
 init_session();
 function querier(targetOrg) {
   return {
-    soql: (q, options) => runSoqlQuery(q, targetOrg, options),
-    tooling: (q) => runToolingQuery(q, targetOrg)
+    soql: (q2, options) => runSoqlQuery(q2, targetOrg, options),
+    tooling: (q2) => runToolingQuery(q2, targetOrg)
   };
 }
 function compiledSchema(targetOrg) {
@@ -146471,7 +146891,7 @@ var targetOrgParam = external_exports.string().optional().describe(
 var countAsOrgParam = external_exports.string().optional().describe(
   "Optional: org alias authenticated AS the persona user, used for the COUNT() queries so record sharing matches the device exactly. Defaults to the target org (the connected user's visibility, typically an admin)."
 );
-function register23(server2) {
+function register24(server2) {
   server2.tool(
     "profile_sync_volume",
     "Predict how much data the LSC mobile app will sync for specific users, before any device is involved. Resolves each user's DB Schema records (profile/permission set), substitutes WhereSoql tags ({USER.ID}, {USER.TERRITORY}, {ACCOUNT.IDS}, {OT2A.OBJ.IDS}, ...) per territory exactly as the app does, and runs COUNT() queries. Returns predicted records per table, estimated device SOQL request counts, and filters that fail to execute. Read-only; safe in production.",
@@ -146643,9 +147063,10 @@ register17(server);
 register18(server);
 register19(server);
 register20(server);
-register22(server);
-register23(server);
 register21(server);
+register23(server);
+register24(server);
+register22(server);
 async function main() {
   const modules = getModuleList();
   const helpDocs = getHelpDocList();

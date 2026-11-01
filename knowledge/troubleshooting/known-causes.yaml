@@ -1553,3 +1553,113 @@ causes:
       - "Activate the language and add the admin as a translator."
       - "Regenerate the label translations and the metadata cache."
       - "Move users to an ICU locale."
+
+  # ===========================================================================
+  # Provider Engagement Compliance (EPPV / MID)
+  # ===========================================================================
+
+  - id: eppv-start-button-missing
+    title: Start Compliance Action Plan button missing, or plan can't be moved to In Progress
+    module: provider-engagement-compliance
+    symptoms:
+      - "Start button doesn't show on the Action Plan"
+      - "Can't set the action plan to In Progress"
+      - "Compliance cycles were not generated"
+    keywords: [ActionPlan, PrvdEngmtCompliance, StartActionPlanForCompliance, EPPV, Account Compliance]
+    cause: |
+      Only the Start Compliance Action Plan button moves a plan to In
+      Progress and generates its cycles; DML, the API and the edit form can't.
+      The button shows only when the Action Plan page layout has an explicit
+      actions list that includes it.
+    fix:
+      - "Edit the Action Plan page layout and define an explicit actions list with the start action, StopActionPlanForCompliance and RestartActionPlanForCompliance."
+      - "Check the plan start date is on or after the Care Program start date and no later than today."
+      - "Open the plan and use Start. Cycles are generated on Start."
+    by_design: true
+
+  - id: eppv-care-program-dates
+    title: Care Program date or product errors (announce date, start date, adding a product)
+    module: provider-engagement-compliance
+    symptoms:
+      - "Announce Date must be today or later"
+      - "Can't add a product to the care program"
+      - "Start Date must be after Pre-cycle Start Date"
+    keywords: [CareProgram, CareProgramProduct, Announce Date, Pre-cycle Start Date, EPPV]
+    cause: |
+      Announce Date must be today or later, and Start Date >= Pre-cycle Start
+      >= Announce Date. Products can't be added once the announce date is
+      today or earlier, and dates can't be back-dated.
+    fix:
+      - "Insert the Care Program with dates at today+2, add the Care Program Products, then update the dates to today."
+      - "A Final template or version is locked: for changes create a new template, Care Program and plans."
+    by_design: true
+
+  - id: eppv-unknown-account-ipad
+    title: Account Compliance shows "Unknown Account", or visit save says "Account and Place cannot be empty"
+    module: provider-engagement-compliance
+    symptoms:
+      - "Unknown Account on Account Compliance"
+      - "Account and Place cannot be empty"
+      - "Duplicate hospitals in the Account Compliance list"
+    keywords: [ActionPlan, TargetId, Account Compliance, EPPV, DB Schema]
+    cause: |
+      The Action Plan has no TargetId, or its HCO account isn't on the device
+      (not covered by the Account DB Schema filter for the rep's territories).
+      Duplicate hospitals are old plans for the same HCO.
+    fix:
+      - "Set TargetId to the HCO account on the plan."
+      - "Check the account is in the rep's territory and passes the Account DB Schema filter."
+      - "Delete or stop old plans for the same HCO, regenerate the metadata cache and sync."
+
+  - id: eppv-cycle-not-completing
+    title: Visit completed but the compliance cycle stays open
+    module: provider-engagement-compliance
+    symptoms:
+      - "Cycle not marked completed after the visit"
+      - "Report Compliance Activity doesn't complete the cycle"
+      - "Cycle completed on web but not on the iPad"
+    keywords: [PrvdEngmtComplianceCycle, AssessmentTask, PrvdEngmtComplianceTask, Update_Assessment_Task_On_Visit_Completion_Clone, EPPV]
+    cause: |
+      A cycle completes only when a Completed Visit has a compliance
+      AssessmentTask (Report Compliance Activity, not plain Create Visit),
+      dated inside the cycle window, and the cloned Update Assessment Task On
+      Visit Completion flow is active and has run. The iPad shows it after the
+      next sync. The prvd_cmpl batch actions do not write plan progress.
+    fix:
+      - "Confirm the visit is Completed and was created through Report Compliance Activity (an AssessmentTask of TaskType PrvdEngmtComplianceTask exists)."
+      - "Confirm the visit date falls inside the cycle's dates."
+      - "Confirm the four cloned flows are scheduled and active, and Update_Assessment_Task_On_Visit_Completion_Clone has no faulted interviews."
+      - "Sync the iPad."
+    ui_path: "Setup > Flows"
+
+  - id: eppv-ipad-cycle-count-off-by-one
+    title: Account Compliance progress shows one fewer cycle than exist (/7 instead of 8)
+    module: provider-engagement-compliance
+    symptoms:
+      - "Progress shows 0 of 7 but there are 8 cycles"
+      - "Pre Delivery cycle not counted"
+    keywords: [IsPreCycleRequired, Pre Delivery, pre-cycle, EPPV]
+    cause: |
+      With Pre-cycle Required on the template the plan gets a Pre Delivery
+      cycle. The iPad drops the first cycle (by start date) from both the
+      completed count and the total.
+    fix:
+      - "No fix needed. Explain that progress excludes the pre-cycle."
+    by_design: true
+
+  - id: eppv-cycle-report-missing-cycles
+    title: Cycle report shows fewer cycles than SOQL, or can't report plan against cycles
+    module: provider-engagement-compliance
+    symptoms:
+      - "Report shows only Cycles 1 to 5"
+      - "Can't report owner or account on compliance cycles"
+      - "Need a matrix of plans by cycle"
+    keywords: [report type, PrvdEngmtComplianceCycle, EPPV Cycle Matrix, EppvCycleMatrixController]
+    cause: |
+      There is no standard report type for cycles; the cycle-to-plan lookup
+      isn't reportable and OwnerId/TargetId aren't reportable columns. A cycle
+      report was seen returning only Cycles 1 to 5 of 8.
+    fix:
+      - "Verify counts with SOQL on PrvdEngmtComplianceCycle."
+      - "Use single-object custom report types, or the EPPV Cycle Matrix LWC for a plan-by-cycle view."
+      - "If the matrix tab says Page doesn't exist, assign the permission set that grants its tab and Apex class. If it throws rows.map is not a function, hard refresh (stale cacheable Apex response)."
