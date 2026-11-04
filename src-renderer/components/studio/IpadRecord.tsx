@@ -157,12 +157,27 @@ const bare = (name: string) => name.replace(/^.*:/, "");
 /** Opens another collected record (a related-list row) in the same preview. */
 const OpenRecord = createContext<((id: string) => void) | undefined>(undefined);
 
-export default function RecordScreen({ snapshot, recordId, onOpenRecord }: { snapshot: PublishedIpad; recordId: string; onOpenRecord?: (id: string) => void }) {
+/** Edit on a Visit opens Visit Engagement, as the Visit module's edit coordinator does on the device, not the layout form. */
+const EditVisit = createContext<((id: string) => void) | undefined>(undefined);
+
+export default function RecordScreen({
+  snapshot,
+  recordId,
+  onOpenRecord,
+  onEditVisit,
+}: {
+  snapshot: PublishedIpad;
+  recordId: string;
+  onOpenRecord?: (id: string) => void;
+  onEditVisit?: (id: string) => void;
+}) {
   const rec = snapshot.records?.byId[recordId];
   if (!rec) return null;
   return (
     <OpenRecord.Provider value={onOpenRecord}>
-      <RecordBody key={recordId} recordId={recordId} snapshot={snapshot} rec={rec} />
+      <EditVisit.Provider value={onEditVisit}>
+        <RecordBody key={recordId} recordId={recordId} snapshot={snapshot} rec={rec} />
+      </EditVisit.Provider>
     </OpenRecord.Provider>
   );
 }
@@ -644,13 +659,16 @@ function drawnSections(snapshot: PublishedIpad, layout: PublishedLayout, entry: 
 
 function DetailsCard({ snapshot, rec }: { snapshot: PublishedIpad; rec: PublishedRecordData }) {
   const layouts = detailLayouts(snapshot, rec);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditingSheet] = useState(false);
+  const editVisit = useContext(EditVisit);
+  const setEditing = (on: boolean) => (on && isVisit(rec) && editVisit ? editVisit(rec.id) : setEditingSheet(on));
   const edits = useContext(LayoutEdits);
   const dragging = useDragFamily();
   return (
     <div className="studio-ipad-rec-card details">
       {editing && <EditSheet snapshot={snapshot} rec={rec} onClose={() => setEditing(false)} />}
-      {rec.editable && isVisit(rec) && (
+      {/* VisitEditorBloc: a Completed visit is not editable, so the pencil is gone. */}
+      {rec.editable && isVisit(rec) && !/^completed$/i.test(rec.values.Visit?.status ?? rec.values.ProviderVisit?.status ?? "") && (
         <span className="studio-ipad-rec-pencil" title="Edit" aria-label="Edit" onClick={() => setEditing(true)}>
           <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
             <path d="M3 19l1-4L15 4l3 3L7 18z M13 6l3 3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
@@ -824,7 +842,7 @@ function RatingsCard({ ratings }: { ratings: NonNullable<PublishedRecordData["ra
       <div className="studio-ipad-rec-card placeholder">
         <div className="studio-ipad-rec-ph-title">Ratings</div>
         <div className="studio-ipad-rec-ph-note">
-          The rating layout &ldquo;{ratings.layout}&rdquo; is synced to the iPad but this org does not expose its entities to the API, so Studio cannot draw its cards.
+          The rating layout &ldquo;{ratings.layout}&rdquo; is synced to the iPad, but Studio couldn&rsquo;t read it from the org, so it can&rsquo;t draw its cards.
         </div>
       </div>
     );

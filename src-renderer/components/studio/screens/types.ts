@@ -6,8 +6,9 @@ import type { PublishedContent } from "./content-types";
 import type { PublishedFabs } from "./fabs-types";
 import type { PublishedHome } from "./home-types";
 import type { PublishedTableau } from "./tableau-types";
+import type { PublishedVisit } from "../visit/visit-types";
 
-export type { PublishedAccounts, PublishedCalendar, PublishedChrome, PublishedContent, PublishedFabs, PublishedHome, PublishedTableau };
+export type { PublishedAccounts, PublishedCalendar, PublishedChrome, PublishedContent, PublishedFabs, PublishedHome, PublishedTableau, PublishedVisit };
 
 /** Structural copy of PublishedScreens in src/studio/screens/index.ts. */
 export interface PublishedScreens {
@@ -18,6 +19,7 @@ export interface PublishedScreens {
   fabs?: PublishedFabs;
   home?: PublishedHome;
   chrome?: PublishedChrome;
+  visit?: PublishedVisit;
 }
 
 export interface ScreenProps {

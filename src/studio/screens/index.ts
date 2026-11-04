@@ -8,6 +8,7 @@ import { errorText, isScaleError, withTimeout, type ScreenContext } from "./cont
 import { collectFabs, type PublishedFabs } from "./fabs.js";
 import { collectHome, type PublishedHome } from "./home.js";
 import { collectTableau, type PublishedTableau } from "./tableau.js";
+import { collectVisit, type PublishedVisit } from "./visit/index.js";
 
 export type { ScreenContext } from "./context.js";
 export type {
@@ -18,6 +19,7 @@ export type {
   PublishedFabs,
   PublishedHome,
   PublishedTableau,
+  PublishedVisit,
 };
 
 export interface PublishedScreens {
@@ -28,6 +30,7 @@ export interface PublishedScreens {
   fabs?: PublishedFabs;
   home?: PublishedHome;
   chrome?: PublishedChrome;
+  visit?: PublishedVisit;
 }
 
 const COLLECTORS: {
@@ -46,6 +49,8 @@ const COLLECTORS: {
   home: { kind: null, collect: collectHome },
   // Alerts and the profile sheet belong to the top bar, not to a tab.
   chrome: { kind: null, collect: collectChrome },
+  // Visit Engagement opens from New Visit and a visit's Edit, not from a tab.
+  visit: { kind: null, collect: collectVisit },
 };
 
 /** Longest one screen's collector is waited on, so a large org's slow reads don't hold up the whole preview. */
@@ -59,6 +64,7 @@ const SCREEN_NAMES: Record<keyof PublishedScreens, string> = {
   fabs: "Floating buttons",
   home: "Home",
   chrome: "Alerts and profile",
+  visit: "Visit Engagement",
 };
 
 /**

@@ -2,8 +2,8 @@
  * The Account Ratings tab's layout, read like CustomerRatings reads it from its local tables
  * (OCEDBRatingLayoutItemModel.fetch): the PrvdClassificationLayout whose DeveloperName is the
  * flexipage's `layoutName`, its active PrvdClsfnLayoutAttribute items, and each item's
- * PrvdClsfnAttrDefinition (label, sobject, field). Read-only SOQL; null when the org does not expose
- * those entities to the API (they are synced to the device through its DB Schema, not always queryable).
+ * PrvdClsfnAttrDefinition (label, sobject, field). These are setup entities: the Tooling API serves
+ * them, standard SOQL answers "sObject type is not supported". Read-only; null when even Tooling can't.
  */
 
 import { inList, query, type Row } from "../helpers.js";
@@ -13,7 +13,7 @@ const str = (v: unknown): string => (typeof v === "string" ? v : v == null ? "" 
 const obj = (v: unknown): Row => (v && typeof v === "object" ? (v as Row) : {});
 
 export interface RatingItem {
-  /** elementlabel of the rating definition. */
+  /** The definition's ElementLabel, else its MasterLabel (ElementLabel is often blank). */
   label: string;
   /** The sobject the rating reads (`Account`, `ProviderAcctTerritoryInfo`, an account-territory product entity…). */
   sobject: string;
@@ -32,21 +32,24 @@ export async function readRatingLayout(
   try {
     const layouts = await query(
       `SELECT Id FROM PrvdClassificationLayout WHERE DeveloperName = '${layoutName}'`,
-      ctx.org
+      ctx.org,
+      true
     );
     const id = str(layouts[0]?.Id);
     if (!id) return null;
     const items = await query(
       `SELECT PrvdClsfnAttrDefinitionId, RowNumber, ColumnNumber FROM PrvdClsfnLayoutAttribute WHERE PrvdClassificationLayoutId = '${id}' AND IsActive = true`,
-      ctx.org
+      ctx.org,
+      true
     );
     const defIds = [...new Set(items.map((i) => str(i.PrvdClsfnAttrDefinitionId)).filter(Boolean))];
     if (!defIds.length) return [];
     const defs = new Map(
       (
         await query(
-          `SELECT Id, ElementLabel, ClassificationType, FieldApiName, DisplayType, IsActive FROM PrvdClsfnAttrDefinition WHERE Id IN (${inList(defIds)})`,
-          ctx.org
+          `SELECT Id, ElementLabel, MasterLabel, ClassificationType, FieldApiName, DisplayType, IsActive FROM PrvdClsfnAttrDefinition WHERE Id IN (${inList(defIds)})`,
+          ctx.org,
+          true
         )
       ).map((d) => [str(d.Id), d] as const)
     );
@@ -54,7 +57,7 @@ export async function readRatingLayout(
       .map((i) => ({ item: i, def: obj(defs.get(str(i.PrvdClsfnAttrDefinitionId))) }))
       .filter(({ def }) => str(def.FieldApiName) && def.IsActive !== false)
       .map(({ item, def }) => ({
-        label: str(def.ElementLabel),
+        label: str(def.ElementLabel) || str(def.MasterLabel),
         sobject: str(def.ClassificationType),
         field: str(def.FieldApiName),
         displayType: str(def.DisplayType),

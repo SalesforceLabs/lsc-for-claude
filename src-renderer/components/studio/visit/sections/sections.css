@@ -1,0 +1,39 @@
+/* Visit Engagement sidebar and related sections (lifesciences-ios module/Visit). Colours copy the iPad's. */
+.studio-ipad-vs-card { cursor: pointer; }
+.studio-ipad-vs-card.open { background: #e8ecff; }
+.studio-ipad-vs-card.off { opacity: 0.6; }
+.studio-ipad-vs-count { margin-left: auto; padding-left: 8px; color: #666; font-size: 16px; font-weight: 400; }
+.studio-ipad-vs-sec { margin-top: 24px; }
+.studio-ipad-vs-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 20px; font-weight: 600; }
+.studio-ipad-vs-actions { display: flex; gap: 8px; }
+.studio-ipad-vs-btn { padding: 6px 14px; border: 1px solid #5867e8; border-radius: 8px; background: #fff; color: #5867e8; font-size: 16px; cursor: pointer; }
+.studio-ipad-vs-btn[disabled] { opacity: 0.4; cursor: default; }
+.studio-ipad-vs-btn.danger { border-color: #c23934; color: #c23934; }
+.studio-ipad-vs-row { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 0; border-bottom: 1px solid #e3e3e6; font-size: 17px; }
+.studio-ipad-vs-row.child { margin-left: 24px; }
+.studio-ipad-vs-title { flex: 1; min-width: 0; }
+.studio-ipad-vs-title b { display: block; font-weight: 500; }
+.studio-ipad-vs-sub { color: #666; font-size: 14px; }
+.studio-ipad-vs-badge { padding: 2px 8px; border-radius: 10px; background: #e8ecff; color: #3a47b8; font-size: 13px; }
+.studio-ipad-vs-badge.warn { background: #fdebd2; color: #8a5300; }
+.studio-ipad-vs-select, .studio-ipad-vs-input { box-sizing: border-box; height: 34px; padding: 0 8px; border: 1px solid #7a7a7a; border-radius: 8px; background: #fff; font-size: 16px; }
+.studio-ipad-vs-input.qty { width: 72px; text-align: right; }
+.studio-ipad-vs-input.wide { flex: 1; }
+.studio-ipad-vs-empty { padding: 14px 0; color: #777; font-size: 16px; }
+.studio-ipad-vs-group { margin-top: 12px; color: #555; font-size: 14px; font-weight: 600; text-transform: none; }
+.studio-ipad-vs-confirm { margin: 8px 0; padding: 12px; border-radius: 10px; background: #f4f4f6; }
+.studio-ipad-vs-confirm b { display: block; margin-bottom: 4px; }
+.studio-ipad-vs-menuwrap { position: relative; }
+.studio-ipad-vs-menu { position: absolute; right: 0; top: 100%; z-index: 5; display: flex; flex-direction: column; min-width: 120px; margin-top: 4px; border-radius: 10px; background: #fff; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); }
+.studio-ipad-vs-menu button { padding: 10px 16px; border: none; background: none; color: #c23934; font-size: 16px; text-align: left; cursor: pointer; }
+.studio-ipad-vs-cardwrap.open { margin-bottom: 8px; }
+.studio-ipad-vs-opts { padding: 4px 8px 8px; background: #f4f6ff; border-radius: 0 0 10px 10px; }
+.studio-ipad-vs-opt { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 6px 4px; border: none; border-bottom: 1px solid #e3e3e6; background: none; color: inherit; font-size: 16px; text-align: left; cursor: pointer; }
+.studio-ipad-vs-opt.on { font-weight: 600; }
+.studio-ipad-vs-optmark { width: 22px; height: 22px; border-radius: 11px; border: 1px solid #5867e8; color: #5867e8; text-align: center; line-height: 20px; flex: none; }
+.studio-ipad-vs-opt.on .studio-ipad-vs-optmark { background: #5867e8; color: #fff; }
+.studio-ipad-vs-optl { display: flex; flex-direction: column; min-width: 0; }
+.studio-ipad-vs-foot { margin-top: 10px; }
+.studio-ipad-vs-collapse { border: none; background: none; padding: 0; color: inherit; font: inherit; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.studio-ipad-vs-chev { display: inline-block; transition: transform 0.15s; }
+.studio-ipad-vs-chev.down { transform: rotate(90deg); }

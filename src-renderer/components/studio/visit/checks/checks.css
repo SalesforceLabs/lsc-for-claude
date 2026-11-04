@@ -1,0 +1,24 @@
+/* Alerts, toasts and the delay reason sheet around Save / Sign / Submit, copying iOS (UIAlertController, toast banner). */
+.studio-ipad-chk-backdrop { position: absolute; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.4); }
+.studio-ipad-chk-alert { width: 270px; max-height: 80%; display: flex; flex-direction: column; border-radius: 14px; background: rgba(246, 246, 246, 0.97); color: #000; overflow: hidden; }
+.studio-ipad-chk-alert-body { padding: 18px 16px 14px; text-align: center; overflow: auto; }
+.studio-ipad-chk-alert-title { font-size: 17px; font-weight: 600; line-height: 22px; }
+.studio-ipad-chk-alert-msg { margin-top: 4px; font-size: 13px; line-height: 18px; white-space: pre-line; text-align: left; }
+.studio-ipad-chk-alert-btns { display: flex; flex: none; border-top: 0.5px solid rgba(60, 60, 67, 0.36); }
+.studio-ipad-chk-alert-btns button { flex: 1; height: 44px; border: none; background: none; color: #007aff; font-size: 17px; cursor: pointer; }
+.studio-ipad-chk-alert-btns button + button { border-left: 0.5px solid rgba(60, 60, 67, 0.36); }
+.studio-ipad-chk-alert-btns button.bold { font-weight: 600; }
+.studio-ipad-chk-alert-btns button:disabled { color: #a8a8ad; cursor: default; }
+.studio-ipad-chk-backdrop.sheet { align-items: flex-end; }
+.studio-ipad-chk-sheet { box-sizing: border-box; width: 100%; max-width: 620px; height: 200px; margin: 0 auto 24px; border-radius: 20px; background: #fff; overflow: hidden; }
+.studio-ipad-chk-sheet-nav { display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 16px; font-size: 17px; font-weight: 600; }
+.studio-ipad-chk-sheet-nav button { border: none; background: none; color: #007aff; font-size: 17px; cursor: pointer; }
+.studio-ipad-chk-sheet-nav button.bold { font-weight: 700; }
+.studio-ipad-chk-sheet-nav button:disabled { color: #a8a8ad; cursor: default; }
+.studio-ipad-chk-sheet-body { display: flex; flex-direction: column; gap: 12px; padding: 4px 16px 0; font-size: 15px; color: #1c1c1e; }
+.studio-ipad-chk-sheet-title { font-size: 22px; font-weight: 700; }
+.studio-ipad-chk-input { box-sizing: border-box; width: 100%; padding: 10px; border: 1px solid #c6c6c8; border-radius: 12px; background: #fff; font: inherit; font-size: 15px; }
+.studio-ipad-chk-toast { position: absolute; z-index: 45; top: 74px; left: 50%; transform: translateX(-50%); max-width: 560px; padding: 12px 20px; border-radius: 12px; background: #2f7d32; color: #fff; font-size: 15px; line-height: 20px; text-align: center; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); }
+.studio-ipad-chk-toast.error { background: #c23934; }
+.studio-ipad-chk-note { position: absolute; z-index: 30; left: 12px; bottom: 12px; display: flex; align-items: flex-start; gap: 8px; max-width: 460px; padding: 6px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.94); color: #5c5c5c; font-size: 11px; line-height: 15px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18); }
+.studio-ipad-chk-note button { border: none; background: none; color: #5c5c5c; font-size: 14px; line-height: 14px; cursor: pointer; }

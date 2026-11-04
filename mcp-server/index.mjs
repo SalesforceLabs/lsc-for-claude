@@ -24,9 +24,9 @@ var __export = (target3, all) => {
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
-    for (let key3 of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key3) && key3 !== except)
-        __defProp(to, key3, { get: () => from[key3], enumerable: !(desc = __getOwnPropDesc(from, key3)) || desc.enumerable });
+    for (let key5 of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key5) && key5 !== except)
+        __defProp(to, key5, { get: () => from[key5], enumerable: !(desc = __getOwnPropDesc(from, key5)) || desc.enumerable });
   }
   return to;
 };
@@ -108,7 +108,7 @@ var require_code = __commonJS({
     }
     exports2._ = _2;
     var plus = new _Code("+");
-    function str24(strs, ...args) {
+    function str26(strs, ...args) {
       const expr = [safeStringify(strs[0])];
       let i = 0;
       while (i < args.length) {
@@ -119,7 +119,7 @@ var require_code = __commonJS({
       optimize(expr);
       return new _Code(expr);
     }
-    exports2.str = str24;
+    exports2.str = str26;
     function addCodeArg(code, arg) {
       if (arg instanceof _Code)
         code.push(...arg._items);
@@ -162,7 +162,7 @@ var require_code = __commonJS({
       return;
     }
     function strConcat(c1, c2) {
-      return c2.emptyStr() ? c1 : c1.emptyStr() ? c2 : str24`${c1}${c2}`;
+      return c2.emptyStr() ? c1 : c1.emptyStr() ? c2 : str26`${c1}${c2}`;
     }
     exports2.strConcat = strConcat;
     function interpolate(x) {
@@ -176,15 +176,15 @@ var require_code = __commonJS({
       return JSON.stringify(x).replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
     }
     exports2.safeStringify = safeStringify;
-    function getProperty(key3) {
-      return typeof key3 == "string" && exports2.IDENTIFIER.test(key3) ? new _Code(`.${key3}`) : _2`[${key3}]`;
+    function getProperty(key5) {
+      return typeof key5 == "string" && exports2.IDENTIFIER.test(key5) ? new _Code(`.${key5}`) : _2`[${key5}]`;
     }
     exports2.getProperty = getProperty;
-    function getEsmExportName(key3) {
-      if (typeof key3 == "string" && exports2.IDENTIFIER.test(key3)) {
-        return new _Code(`${key3}`);
+    function getEsmExportName(key5) {
+      if (typeof key5 == "string" && exports2.IDENTIFIER.test(key5)) {
+        return new _Code(`${key5}`);
       }
-      throw new Error(`CodeGen: invalid export name: ${key3}, use explicit $id name mapping`);
+      throw new Error(`CodeGen: invalid export name: ${key5}, use explicit $id name mapping`);
     }
     exports2.getEsmExportName = getEsmExportName;
     function regexpCode(rx) {
@@ -811,11 +811,11 @@ var require_codegen = __commonJS({
       // returns code for object literal for the passed argument list of key-value pairs
       object(...keyValues) {
         const code = ["{"];
-        for (const [key3, value4] of keyValues) {
+        for (const [key5, value4] of keyValues) {
           if (code.length > 1)
             code.push(",");
-          code.push(key3);
-          if (key3 !== value4 || this.opts.es5) {
+          code.push(key5);
+          if (key5 !== value4 || this.opts.es5) {
             code.push(":");
             (0, code_1.addCodeArg)(code, value4);
           }
@@ -1090,17 +1090,17 @@ var require_util = __commonJS({
       if (typeof schema === "boolean")
         return;
       const rules = self2.RULES.keywords;
-      for (const key3 in schema) {
-        if (!rules[key3])
-          checkStrictMode(it, `unknown keyword: "${key3}"`);
+      for (const key5 in schema) {
+        if (!rules[key5])
+          checkStrictMode(it, `unknown keyword: "${key5}"`);
       }
     }
     exports2.checkUnknownRules = checkUnknownRules;
     function schemaHasRules(schema, rules) {
       if (typeof schema == "boolean")
         return !schema;
-      for (const key3 in schema)
-        if (rules[key3])
+      for (const key5 in schema)
+        if (rules[key5])
           return true;
       return false;
     }
@@ -1108,8 +1108,8 @@ var require_util = __commonJS({
     function schemaHasRulesButRef(schema, RULES2) {
       if (typeof schema == "boolean")
         return !schema;
-      for (const key3 in schema)
-        if (key3 !== "$ref" && RULES2.all[key3])
+      for (const key5 in schema)
+        if (key5 !== "$ref" && RULES2.all[key5])
           return true;
       return false;
     }
@@ -1124,22 +1124,22 @@ var require_util = __commonJS({
       return (0, codegen_1._)`${topSchemaRef}${schemaPath}${(0, codegen_1.getProperty)(keyword)}`;
     }
     exports2.schemaRefOrVal = schemaRefOrVal;
-    function unescapeFragment(str24) {
-      return unescapeJsonPointer(decodeURIComponent(str24));
+    function unescapeFragment(str26) {
+      return unescapeJsonPointer(decodeURIComponent(str26));
     }
     exports2.unescapeFragment = unescapeFragment;
-    function escapeFragment(str24) {
-      return encodeURIComponent(escapeJsonPointer(str24));
+    function escapeFragment(str26) {
+      return encodeURIComponent(escapeJsonPointer(str26));
     }
     exports2.escapeFragment = escapeFragment;
-    function escapeJsonPointer(str24) {
-      if (typeof str24 == "number")
-        return `${str24}`;
-      return str24.replace(/~/g, "~0").replace(/\//g, "~1");
+    function escapeJsonPointer(str26) {
+      if (typeof str26 == "number")
+        return `${str26}`;
+      return str26.replace(/~/g, "~0").replace(/\//g, "~1");
     }
     exports2.escapeJsonPointer = escapeJsonPointer;
-    function unescapeJsonPointer(str24) {
-      return str24.replace(/~1/g, "/").replace(/~0/g, "~");
+    function unescapeJsonPointer(str26) {
+      return str26.replace(/~1/g, "/").replace(/~0/g, "~");
     }
     exports2.unescapeJsonPointer = unescapeJsonPointer;
     function eachItem(xs, f) {
@@ -1687,8 +1687,8 @@ var require_defaults = __commonJS({
     function assignDefaults(it, ty) {
       const { properties, items } = it.schema;
       if (ty === "object" && properties) {
-        for (const key3 in properties) {
-          assignDefault(it, key3, properties[key3].default);
+        for (const key5 in properties) {
+          assignDefault(it, key5, properties[key5].default);
         }
       } else if (ty === "array" && Array.isArray(items)) {
         items.forEach((sch, i) => assignDefault(it, i, sch.default));
@@ -2072,8 +2072,8 @@ var require_fast_deep_equal = __commonJS({
         for (i = length; i-- !== 0; )
           if (!Object.prototype.hasOwnProperty.call(b, keys[i])) return false;
         for (i = length; i-- !== 0; ) {
-          var key3 = keys[i];
-          if (!equal(a[key3], b[key3])) return false;
+          var key5 = keys[i];
+          if (!equal(a[key5], b[key5])) return false;
         }
         return true;
       }
@@ -2145,27 +2145,27 @@ var require_json_schema_traverse = __commonJS({
     function _traverse(opts, pre, post, schema, jsonPtr, rootSchema, parentJsonPtr, parentKeyword, parentSchema, keyIndex) {
       if (schema && typeof schema == "object" && !Array.isArray(schema)) {
         pre(schema, jsonPtr, rootSchema, parentJsonPtr, parentKeyword, parentSchema, keyIndex);
-        for (var key3 in schema) {
-          var sch = schema[key3];
+        for (var key5 in schema) {
+          var sch = schema[key5];
           if (Array.isArray(sch)) {
-            if (key3 in traverse.arrayKeywords) {
+            if (key5 in traverse.arrayKeywords) {
               for (var i = 0; i < sch.length; i++)
-                _traverse(opts, pre, post, sch[i], jsonPtr + "/" + key3 + "/" + i, rootSchema, jsonPtr, key3, schema, i);
+                _traverse(opts, pre, post, sch[i], jsonPtr + "/" + key5 + "/" + i, rootSchema, jsonPtr, key5, schema, i);
             }
-          } else if (key3 in traverse.propsKeywords) {
+          } else if (key5 in traverse.propsKeywords) {
             if (sch && typeof sch == "object") {
               for (var prop2 in sch)
-                _traverse(opts, pre, post, sch[prop2], jsonPtr + "/" + key3 + "/" + escapeJsonPtr(prop2), rootSchema, jsonPtr, key3, schema, prop2);
+                _traverse(opts, pre, post, sch[prop2], jsonPtr + "/" + key5 + "/" + escapeJsonPtr(prop2), rootSchema, jsonPtr, key5, schema, prop2);
             }
-          } else if (key3 in traverse.keywords || opts.allKeys && !(key3 in traverse.skipKeywords)) {
-            _traverse(opts, pre, post, sch, jsonPtr + "/" + key3, rootSchema, jsonPtr, key3, schema);
+          } else if (key5 in traverse.keywords || opts.allKeys && !(key5 in traverse.skipKeywords)) {
+            _traverse(opts, pre, post, sch, jsonPtr + "/" + key5, rootSchema, jsonPtr, key5, schema);
           }
         }
         post(schema, jsonPtr, rootSchema, parentJsonPtr, parentKeyword, parentSchema, keyIndex);
       }
     }
-    function escapeJsonPtr(str24) {
-      return str24.replace(/~/g, "~0").replace(/\//g, "~1");
+    function escapeJsonPtr(str26) {
+      return str26.replace(/~/g, "~0").replace(/\//g, "~1");
     }
   }
 });
@@ -2215,10 +2215,10 @@ var require_resolve = __commonJS({
       "$dynamicAnchor"
     ]);
     function hasRef(schema) {
-      for (const key3 in schema) {
-        if (REF_KEYWORDS.has(key3))
+      for (const key5 in schema) {
+        if (REF_KEYWORDS.has(key5))
           return true;
-        const sch = schema[key3];
+        const sch = schema[key5];
         if (Array.isArray(sch) && sch.some(hasRef))
           return true;
         if (typeof sch == "object" && hasRef(sch))
@@ -2228,14 +2228,14 @@ var require_resolve = __commonJS({
     }
     function countKeys(schema) {
       let count3 = 0;
-      for (const key3 in schema) {
-        if (key3 === "$ref")
+      for (const key5 in schema) {
+        if (key5 === "$ref")
           return Infinity;
         count3++;
-        if (SIMPLE_INLINED.has(key3))
+        if (SIMPLE_INLINED.has(key5))
           continue;
-        if (typeof schema[key3] == "object") {
-          (0, util_1.eachItem)(schema[key3], (sch) => count3 += countKeys(sch));
+        if (typeof schema[key5] == "object") {
+          (0, util_1.eachItem)(schema[key5], (sch) => count3 += countKeys(sch));
         }
         if (count3 === Infinity)
           return Infinity;
@@ -2424,8 +2424,8 @@ var require_validate = __commonJS({
     function schemaCxtHasRules({ schema, self: self2 }) {
       if (typeof schema == "boolean")
         return !schema;
-      for (const key3 in schema)
-        if (self2.RULES.all[key3])
+      for (const key5 in schema)
+        if (self2.RULES.all[key5])
           return true;
       return false;
     }
@@ -3226,10 +3226,10 @@ var require_utils = __commonJS({
         return { host, isIPV6: false };
       }
     }
-    function findToken(str24, token) {
+    function findToken(str26, token) {
       let ind = 0;
-      for (let i = 0; i < str24.length; i++) {
-        if (str24[i] === token) ind++;
+      for (let i = 0; i < str26.length; i++) {
+        if (str26[i] === token) ind++;
       }
       return ind;
     }
@@ -3882,7 +3882,7 @@ var require_core = __commonJS({
     var util_1 = require_util();
     var $dataRefSchema = require_data();
     var uri_1 = require_uri();
-    var defaultRegExp = (str24, flags) => new RegExp(str24, flags);
+    var defaultRegExp = (str26, flags) => new RegExp(str26, flags);
     defaultRegExp.code = "new RegExp";
     var META_IGNORE_OPTIONS = ["removeAdditional", "useDefaults", "coerceTypes"];
     var EXT_SCOPE_NAMES = /* @__PURE__ */ new Set([
@@ -4067,7 +4067,7 @@ var require_core = __commonJS({
         }
       }
       // Adds schema to the instance
-      addSchema(schema, key3, _meta, _validateSchema = this.opts.validateSchema) {
+      addSchema(schema, key5, _meta, _validateSchema = this.opts.validateSchema) {
         if (Array.isArray(schema)) {
           for (const sch of schema)
             this.addSchema(sch, void 0, _meta, _validateSchema);
@@ -4081,15 +4081,15 @@ var require_core = __commonJS({
             throw new Error(`schema ${schemaId} must be string`);
           }
         }
-        key3 = (0, resolve_1.normalizeId)(key3 || id2);
-        this._checkUnique(key3);
-        this.schemas[key3] = this._addSchema(schema, _meta, key3, _validateSchema, true);
+        key5 = (0, resolve_1.normalizeId)(key5 || id2);
+        this._checkUnique(key5);
+        this.schemas[key5] = this._addSchema(schema, _meta, key5, _validateSchema, true);
         return this;
       }
       // Add schema that will be used to validate other schemas
       // options in META_IGNORE_OPTIONS are alway set to false
-      addMetaSchema(schema, key3, _validateSchema = this.opts.validateSchema) {
-        this.addSchema(schema, key3, true, _validateSchema);
+      addMetaSchema(schema, key5, _validateSchema = this.opts.validateSchema) {
+        this.addSchema(schema, key5, true, _validateSchema);
         return this;
       }
       //  Validate schema against its meta-schema
@@ -4235,7 +4235,7 @@ var require_core = __commonJS({
       errorsText(errors = this.errors, { separator = ", ", dataVar = "data" } = {}) {
         if (!errors || errors.length === 0)
           return "No errors";
-        return errors.map((e) => `${dataVar}${e.instancePath} ${e.message}`).reduce((text11, msg) => text11 + separator + msg);
+        return errors.map((e) => `${dataVar}${e.instancePath} ${e.message}`).reduce((text12, msg) => text12 + separator + msg);
       }
       $dataMetaSchema(metaSchema, keywordsJsonPointers) {
         const rules = this.RULES.all;
@@ -4245,14 +4245,14 @@ var require_core = __commonJS({
           let keywords2 = metaSchema;
           for (const seg of segments)
             keywords2 = keywords2[seg];
-          for (const key3 in rules) {
-            const rule = rules[key3];
+          for (const key5 in rules) {
+            const rule = rules[key5];
             if (typeof rule != "object")
               continue;
             const { $data } = rule.definition;
-            const schema = keywords2[key3];
+            const schema = keywords2[key5];
             if ($data && schema)
-              keywords2[key3] = schemaOrData(schema);
+              keywords2[key5] = schemaOrData(schema);
           }
         }
         return metaSchema;
@@ -4325,10 +4325,10 @@ var require_core = __commonJS({
     Ajv2.MissingRefError = ref_error_1.default;
     exports2.default = Ajv2;
     function checkOptions(checkOpts, options, msg, log = "error") {
-      for (const key3 in checkOpts) {
-        const opt = key3;
+      for (const key5 in checkOpts) {
+        const opt = key5;
         if (opt in options)
-          this.logger[log](`${msg}: option ${key3}. ${checkOpts[opt]}`);
+          this.logger[log](`${msg}: option ${key5}. ${checkOpts[opt]}`);
       }
     }
     function getSchEnv(keyRef) {
@@ -4342,8 +4342,8 @@ var require_core = __commonJS({
       if (Array.isArray(optsSchemas))
         this.addSchema(optsSchemas);
       else
-        for (const key3 in optsSchemas)
-          this.addSchema(optsSchemas[key3], key3);
+        for (const key5 in optsSchemas)
+          this.addSchema(optsSchemas[key5], key5);
     }
     function addInitialFormats() {
       for (const name in this.opts.formats) {
@@ -4677,16 +4677,16 @@ var require_ucs2length = __commonJS({
   "node_modules/ajv/dist/runtime/ucs2length.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
-    function ucs2length(str24) {
-      const len = str24.length;
+    function ucs2length(str26) {
+      const len = str26.length;
       let length = 0;
       let pos = 0;
       let value4;
       while (pos < len) {
         length++;
-        value4 = str24.charCodeAt(pos++);
+        value4 = str26.charCodeAt(pos++);
         if (value4 >= 55296 && value4 <= 56319 && pos < len) {
-          value4 = str24.charCodeAt(pos);
+          value4 = str26.charCodeAt(pos);
           if ((value4 & 64512) === 56320)
             pos++;
         }
@@ -5391,11 +5391,11 @@ var require_dependencies = __commonJS({
     function splitDependencies({ schema }) {
       const propertyDeps = {};
       const schemaDeps = {};
-      for (const key3 in schema) {
-        if (key3 === "__proto__")
+      for (const key5 in schema) {
+        if (key5 === "__proto__")
           continue;
-        const deps = Array.isArray(schema[key3]) ? propertyDeps : schemaDeps;
-        deps[key3] = schema[key3];
+        const deps = Array.isArray(schema[key5]) ? propertyDeps : schemaDeps;
+        deps[key5] = schema[key5];
       }
       return [propertyDeps, schemaDeps];
     }
@@ -5472,13 +5472,13 @@ var require_propertyNames = __commonJS({
         if ((0, util_1.alwaysValidSchema)(it, schema))
           return;
         const valid = gen.name("valid");
-        gen.forIn("key", data2, (key3) => {
-          cxt.setParams({ propertyName: key3 });
+        gen.forIn("key", data2, (key5) => {
+          cxt.setParams({ propertyName: key5 });
           cxt.subschema({
             keyword: "propertyNames",
-            data: key3,
+            data: key5,
             dataTypes: ["string"],
-            propertyName: key3,
+            propertyName: key5,
             compositeRule: true
           }, valid);
           gen.if((0, codegen_1.not)(valid), () => {
@@ -5527,38 +5527,38 @@ var require_additionalProperties = __commonJS({
         checkAdditionalProperties();
         cxt.ok((0, codegen_1._)`${errsCount} === ${names_1.default.errors}`);
         function checkAdditionalProperties() {
-          gen.forIn("key", data2, (key3) => {
+          gen.forIn("key", data2, (key5) => {
             if (!props.length && !patProps.length)
-              additionalPropertyCode(key3);
+              additionalPropertyCode(key5);
             else
-              gen.if(isAdditional(key3), () => additionalPropertyCode(key3));
+              gen.if(isAdditional(key5), () => additionalPropertyCode(key5));
           });
         }
-        function isAdditional(key3) {
+        function isAdditional(key5) {
           let definedProp;
           if (props.length > 8) {
             const propsSchema = (0, util_1.schemaRefOrVal)(it, parentSchema.properties, "properties");
-            definedProp = (0, code_1.isOwnProperty)(gen, propsSchema, key3);
+            definedProp = (0, code_1.isOwnProperty)(gen, propsSchema, key5);
           } else if (props.length) {
-            definedProp = (0, codegen_1.or)(...props.map((p) => (0, codegen_1._)`${key3} === ${p}`));
+            definedProp = (0, codegen_1.or)(...props.map((p) => (0, codegen_1._)`${key5} === ${p}`));
           } else {
             definedProp = codegen_1.nil;
           }
           if (patProps.length) {
-            definedProp = (0, codegen_1.or)(definedProp, ...patProps.map((p) => (0, codegen_1._)`${(0, code_1.usePattern)(cxt, p)}.test(${key3})`));
+            definedProp = (0, codegen_1.or)(definedProp, ...patProps.map((p) => (0, codegen_1._)`${(0, code_1.usePattern)(cxt, p)}.test(${key5})`));
           }
           return (0, codegen_1.not)(definedProp);
         }
-        function deleteAdditional(key3) {
-          gen.code((0, codegen_1._)`delete ${data2}[${key3}]`);
+        function deleteAdditional(key5) {
+          gen.code((0, codegen_1._)`delete ${data2}[${key5}]`);
         }
-        function additionalPropertyCode(key3) {
+        function additionalPropertyCode(key5) {
           if (opts.removeAdditional === "all" || opts.removeAdditional && schema === false) {
-            deleteAdditional(key3);
+            deleteAdditional(key5);
             return;
           }
           if (schema === false) {
-            cxt.setParams({ additionalProperty: key3 });
+            cxt.setParams({ additionalProperty: key5 });
             cxt.error();
             if (!allErrors)
               gen.break();
@@ -5567,22 +5567,22 @@ var require_additionalProperties = __commonJS({
           if (typeof schema == "object" && !(0, util_1.alwaysValidSchema)(it, schema)) {
             const valid = gen.name("valid");
             if (opts.removeAdditional === "failing") {
-              applyAdditionalSchema(key3, valid, false);
+              applyAdditionalSchema(key5, valid, false);
               gen.if((0, codegen_1.not)(valid), () => {
                 cxt.reset();
-                deleteAdditional(key3);
+                deleteAdditional(key5);
               });
             } else {
-              applyAdditionalSchema(key3, valid);
+              applyAdditionalSchema(key5, valid);
               if (!allErrors)
                 gen.if((0, codegen_1.not)(valid), () => gen.break());
             }
           }
         }
-        function applyAdditionalSchema(key3, valid, errors) {
+        function applyAdditionalSchema(key5, valid, errors) {
           const subschema = {
             keyword: "additionalProperties",
-            dataProp: key3,
+            dataProp: key5,
             dataPropType: util_1.Type.Str
           };
           if (errors === false) {
@@ -5707,19 +5707,19 @@ var require_patternProperties = __commonJS({
           }
         }
         function validateProperties(pat) {
-          gen.forIn("key", data2, (key3) => {
-            gen.if((0, codegen_1._)`${(0, code_1.usePattern)(cxt, pat)}.test(${key3})`, () => {
+          gen.forIn("key", data2, (key5) => {
+            gen.if((0, codegen_1._)`${(0, code_1.usePattern)(cxt, pat)}.test(${key5})`, () => {
               const alwaysValid = alwaysValidPatterns.includes(pat);
               if (!alwaysValid) {
                 cxt.subschema({
                   keyword: "patternProperties",
                   schemaProp: pat,
-                  dataProp: key3,
+                  dataProp: key5,
                   dataPropType: util_2.Type.Str
                 }, valid);
               }
               if (it.opts.unevaluated && props !== true) {
-                gen.assign((0, codegen_1._)`${props}[${key3}]`, true);
+                gen.assign((0, codegen_1._)`${props}[${key5}]`, true);
               } else if (!alwaysValid && !it.allErrors) {
                 gen.if((0, codegen_1.not)(valid), () => gen.break());
               }
@@ -6569,14 +6569,14 @@ var require_formats = __commonJS({
     }
     var DATE = /^(\d\d\d\d)-(\d\d)-(\d\d)$/;
     var DAYS = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    function date3(str24) {
-      const matches = DATE.exec(str24);
+    function date3(str26) {
+      const matches = DATE.exec(str26);
       if (!matches)
         return false;
       const year = +matches[1];
       const month = +matches[2];
-      const day2 = +matches[3];
-      return month >= 1 && month <= 12 && day2 >= 1 && day2 <= (month === 2 && isLeapYear(year) ? 29 : DAYS[month]);
+      const day3 = +matches[3];
+      return month >= 1 && month <= 12 && day3 >= 1 && day3 <= (month === 2 && isLeapYear(year) ? 29 : DAYS[month]);
     }
     function compareDate(d1, d2) {
       if (!(d1 && d2))
@@ -6589,8 +6589,8 @@ var require_formats = __commonJS({
     }
     var TIME = /^(\d\d):(\d\d):(\d\d(?:\.\d+)?)(z|([+-])(\d\d)(?::?(\d\d))?)?$/i;
     function getTime(strictTimeZone) {
-      return function time3(str24) {
-        const matches = TIME.exec(str24);
+      return function time3(str26) {
+        const matches = TIME.exec(str26);
         if (!matches)
           return false;
         const hr = +matches[1];
@@ -6636,8 +6636,8 @@ var require_formats = __commonJS({
     var DATE_TIME_SEPARATOR = /t|\s/i;
     function getDateTime(strictTimeZone) {
       const time3 = getTime(strictTimeZone);
-      return function date_time(str24) {
-        const dateTime = str24.split(DATE_TIME_SEPARATOR);
+      return function date_time(str26) {
+        const dateTime = str26.split(DATE_TIME_SEPARATOR);
         return dateTime.length === 2 && date3(dateTime[0]) && time3(dateTime[1]);
       };
     }
@@ -6662,13 +6662,13 @@ var require_formats = __commonJS({
     }
     var NOT_URI_FRAGMENT = /\/|:/;
     var URI = /^(?:[a-z][a-z0-9+\-.]*:)(?:\/?\/(?:(?:[a-z0-9\-._~!$&'()*+,;=:]|%[0-9a-f]{2})*@)?(?:\[(?:(?:(?:(?:[0-9a-f]{1,4}:){6}|::(?:[0-9a-f]{1,4}:){5}|(?:[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){4}|(?:(?:[0-9a-f]{1,4}:){0,1}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){3}|(?:(?:[0-9a-f]{1,4}:){0,2}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){2}|(?:(?:[0-9a-f]{1,4}:){0,3}[0-9a-f]{1,4})?::[0-9a-f]{1,4}:|(?:(?:[0-9a-f]{1,4}:){0,4}[0-9a-f]{1,4})?::)(?:[0-9a-f]{1,4}:[0-9a-f]{1,4}|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?))|(?:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4})?::[0-9a-f]{1,4}|(?:(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4})?::)|[Vv][0-9a-f]+\.[a-z0-9\-._~!$&'()*+,;=:]+)\]|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)|(?:[a-z0-9\-._~!$&'()*+,;=]|%[0-9a-f]{2})*)(?::\d*)?(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*|\/(?:(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*)?|(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*)(?:\?(?:[a-z0-9\-._~!$&'()*+,;=:@/?]|%[0-9a-f]{2})*)?(?:#(?:[a-z0-9\-._~!$&'()*+,;=:@/?]|%[0-9a-f]{2})*)?$/i;
-    function uri(str24) {
-      return NOT_URI_FRAGMENT.test(str24) && URI.test(str24);
+    function uri(str26) {
+      return NOT_URI_FRAGMENT.test(str26) && URI.test(str26);
     }
     var BYTE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/gm;
-    function byte(str24) {
+    function byte(str26) {
       BYTE.lastIndex = 0;
-      return BYTE.test(str24);
+      return BYTE.test(str26);
     }
     var MIN_INT32 = -(2 ** 31);
     var MAX_INT32 = 2 ** 31 - 1;
@@ -6682,11 +6682,11 @@ var require_formats = __commonJS({
       return true;
     }
     var Z_ANCHOR = /[^\\]\\Z/;
-    function regex(str24) {
-      if (Z_ANCHOR.test(str24))
+    function regex(str26) {
+      if (Z_ANCHOR.test(str26))
         return false;
       try {
-        new RegExp(str24);
+        new RegExp(str26);
         return true;
       } catch (e) {
         return false;
@@ -6810,11 +6810,11 @@ var require_dist = __commonJS({
 });
 
 // src/cache.ts
-function compositeKey(org, key3) {
-  return `${org}:${key3}`;
+function compositeKey(org, key5) {
+  return `${org}:${key5}`;
 }
-function cacheGet(org, key3) {
-  const ck = compositeKey(org, key3);
+function cacheGet(org, key5) {
+  const ck = compositeKey(org, key5);
   const entry = store.get(ck);
   if (!entry) return void 0;
   if (Date.now() > entry.expiresAt) {
@@ -6823,8 +6823,8 @@ function cacheGet(org, key3) {
   }
   return entry.value;
 }
-function cacheSet(org, key3, value4, ttlMs = DEFAULT_TTL_MS) {
-  const ck = compositeKey(org, key3);
+function cacheSet(org, key5, value4, ttlMs = DEFAULT_TTL_MS) {
+  const ck = compositeKey(org, key5);
   store.delete(ck);
   store.set(ck, { value: value4, expiresAt: Date.now() + ttlMs });
   if (store.size > MAX_ENTRIES) {
@@ -6833,15 +6833,15 @@ function cacheSet(org, key3, value4, ttlMs = DEFAULT_TTL_MS) {
   }
 }
 function cachePrune(now = Date.now()) {
-  for (const [key3, entry] of store) {
-    if (now > entry.expiresAt) store.delete(key3);
+  for (const [key5, entry] of store) {
+    if (now > entry.expiresAt) store.delete(key5);
   }
 }
 function cacheInvalidateOrg(org) {
   const prefix = `${org}:`;
-  for (const key3 of store.keys()) {
-    if (key3.startsWith(prefix)) {
-      store.delete(key3);
+  for (const key5 of store.keys()) {
+    if (key5.startsWith(prefix)) {
+      store.delete(key5);
     }
   }
 }
@@ -7222,10 +7222,10 @@ async function directMetadataSoap(org, body, fetcher, timeoutMs = DEFAULT_TIMEOU
       disabledOrgs.add(org);
       return null;
     }
-    const text11 = await res.text();
-    if (res.ok) return { ok: true, data: text11 };
-    const code = /<faultcode>([^<]*)<\/faultcode>/.exec(text11)?.[1] ?? "";
-    const message = /<faultstring>([^<]*)<\/faultstring>/.exec(text11)?.[1] ?? "";
+    const text12 = await res.text();
+    if (res.ok) return { ok: true, data: text12 };
+    const code = /<faultcode>([^<]*)<\/faultcode>/.exec(text12)?.[1] ?? "";
+    const message = /<faultstring>([^<]*)<\/faultstring>/.exec(text12)?.[1] ?? "";
     if (/INVALID_SESSION_ID/.test(code)) {
       if (attempt > 0) return null;
       const next = await getCredentials(org, fetcher, true);
@@ -7861,14 +7861,14 @@ function mergeEntityMaps(...maps) {
   const out = /* @__PURE__ */ Object.create(null);
   for (const map of maps) {
     if (!map) continue;
-    for (const key3 of Object.keys(map)) {
-      const raw = map[key3];
+    for (const key5 of Object.keys(map)) {
+      const raw = map[key5];
       if (typeof raw === "string") {
-        out[key3] = raw;
+        out[key5] = raw;
       } else if (raw && typeof raw === "object" && raw.val !== void 0) {
         const val = raw.val;
         if (typeof val === "string") {
-          out[key3] = val;
+          out[key5] = val;
         }
       }
     }
@@ -8005,8 +8005,8 @@ var init_EntityDecoder = __esm({
        */
       setExternalEntities(map) {
         if (map) {
-          for (const key3 of Object.keys(map)) {
-            validateEntityName(key3);
+          for (const key5 of Object.keys(map)) {
+            validateEntityName(key5);
           }
         }
         if (!this._onExternalEntity) {
@@ -8029,11 +8029,11 @@ var init_EntityDecoder = __esm({
        * @param {string} key
        * @param {string} value
        */
-      addExternalEntity(key3, value4) {
-        validateEntityName(key3);
+      addExternalEntity(key5, value4) {
+        validateEntityName(key5);
         if (typeof value4 === "string" && value4.indexOf("&") === -1) {
-          if (this._applyRegistrationHook(this._onExternalEntity, key3, value4, "external")) {
-            this._externalMap[key3] = value4;
+          if (this._applyRegistrationHook(this._onExternalEntity, key5, value4, "external")) {
+            this._externalMap[key5] = value4;
           }
         }
       }
@@ -8097,29 +8097,29 @@ var init_EntityDecoder = __esm({
        * @param {string} str
        * @returns {string}
        */
-      decode(str24) {
-        if (typeof str24 !== "string" || str24.length === 0) return str24;
-        if (str24.indexOf("&") === -1) return str24;
-        const original = str24;
+      decode(str26) {
+        if (typeof str26 !== "string" || str26.length === 0) return str26;
+        if (str26.indexOf("&") === -1) return str26;
+        const original = str26;
         const chunks5 = [];
-        const len = str24.length;
+        const len = str26.length;
         let last = 0;
         let i = 0;
         const limitExpansions = this._maxTotalExpansions > 0;
         const limitLength = this._maxExpandedLength > 0;
         const checkLimits = limitExpansions || limitLength;
         while (i < len) {
-          if (str24.charCodeAt(i) !== 38) {
+          if (str26.charCodeAt(i) !== 38) {
             i++;
             continue;
           }
           let j = i + 1;
-          while (j < len && str24.charCodeAt(j) !== 59 && j - i <= 32) j++;
-          if (j >= len || str24.charCodeAt(j) !== 59) {
+          while (j < len && str26.charCodeAt(j) !== 59 && j - i <= 32) j++;
+          if (j >= len || str26.charCodeAt(j) !== 59) {
             i++;
             continue;
           }
-          const token = str24.slice(i + 1, j);
+          const token = str26.slice(i + 1, j);
           if (token.length === 0) {
             i++;
             continue;
@@ -8151,7 +8151,7 @@ var init_EntityDecoder = __esm({
             i++;
             continue;
           }
-          if (i > last) chunks5.push(str24.slice(last, i));
+          if (i > last) chunks5.push(str26.slice(last, i));
           chunks5.push(replacement);
           last = j + 1;
           i = last;
@@ -8177,8 +8177,8 @@ var init_EntityDecoder = __esm({
             }
           }
         }
-        if (last < len) chunks5.push(str24.slice(last));
-        const result2 = chunks5.length === 0 ? str24 : chunks5.join("");
+        if (last < len) chunks5.push(str26.slice(last));
+        const result2 = chunks5.length === 0 ? str26 : chunks5.join("");
         return this._postCheck(result2, original);
       }
       // -------------------------------------------------------------------------
@@ -8459,9 +8459,9 @@ var init_xmlNode = __esm({
         this.child = [];
         this[":@"] = /* @__PURE__ */ Object.create(null);
       }
-      add(key3, val) {
-        if (key3 === "__proto__") key3 = "#__proto__";
-        this.child.push({ [key3]: val });
+      add(key5, val) {
+        if (key5 === "__proto__") key5 = "#__proto__";
+        this.child.push({ [key5]: val });
       }
       addChild(node, startIndex) {
         if (node.tagname === "__proto__") node.tagname = "#__proto__";
@@ -8520,7 +8520,7 @@ var init_src2 = __esm({
       if (asciiOnly) return regexesAscii;
       return xmlVersion === "1.1" ? regexes11 : regexes10;
     };
-    qName = (str24, { xmlVersion = "1.0", asciiOnly = false } = {}) => getRegexes(xmlVersion, asciiOnly).qName.test(str24);
+    qName = (str26, { xmlVersion = "1.0", asciiOnly = false } = {}) => getRegexes(xmlVersion, asciiOnly).qName.test(str26);
   }
 });
 
@@ -8977,13 +8977,13 @@ var init_digitTable = __esm({
 });
 
 // node_modules/anynum/anynum.js
-function anynum(str24) {
-  if (typeof str24 !== "string") return str24;
-  const len = str24.length;
-  if (len === 0) return str24;
+function anynum(str26) {
+  if (typeof str26 !== "string") return str26;
+  const len = str26.length;
+  if (len === 0) return str26;
   let firstHit = -1;
   for (let i = 0; i < len; i++) {
-    const cc = str24.charCodeAt(i);
+    const cc = str26.charCodeAt(i);
     if (cc >= CHAR_0 && cc <= CHAR_9 || cc === CHAR_MINUS) continue;
     if (cc < TABLE_OFFSET) {
       if (MINUS_SET.has(cc)) {
@@ -8994,7 +8994,7 @@ function anynum(str24) {
     }
     if (cc >= 55296 && cc <= 56319) {
       if (i + 1 < len) {
-        const low = str24.charCodeAt(i + 1);
+        const low = str26.charCodeAt(i + 1);
         if (low >= 56320 && low <= 57343) {
           const cp = 65536 + (cc - 55296 << 10) + (low - 56320);
           if (HIGH_MAP.has(cp)) {
@@ -9010,22 +9010,22 @@ function anynum(str24) {
       break;
     }
   }
-  if (firstHit === -1) return str24;
+  if (firstHit === -1) return str26;
   const chars = [];
-  if (firstHit > 0) chars.push(str24.slice(0, firstHit));
+  if (firstHit > 0) chars.push(str26.slice(0, firstHit));
   for (let i = firstHit; i < len; i++) {
-    const cc = str24.charCodeAt(i);
+    const cc = str26.charCodeAt(i);
     if (cc >= CHAR_0 && cc <= CHAR_9 || cc === CHAR_MINUS) {
-      chars.push(str24[i]);
+      chars.push(str26[i]);
       continue;
     }
     if (cc < TABLE_OFFSET) {
-      chars.push(MINUS_SET.has(cc) ? "-" : str24[i]);
+      chars.push(MINUS_SET.has(cc) ? "-" : str26[i]);
       continue;
     }
     if (cc >= 55296 && cc <= 56319) {
       if (i + 1 < len) {
-        const low = str24.charCodeAt(i + 1);
+        const low = str26.charCodeAt(i + 1);
         if (low >= 56320 && low <= 57343) {
           const cp = 65536 + (cc - 55296 << 10) + (low - 56320);
           const d2 = HIGH_MAP.get(cp);
@@ -9036,7 +9036,7 @@ function anynum(str24) {
           }
         }
       }
-      chars.push(str24[i]);
+      chars.push(str26[i]);
       continue;
     }
     if (MINUS_SET.has(cc)) {
@@ -9044,7 +9044,7 @@ function anynum(str24) {
       continue;
     }
     const d = TABLE[cc - TABLE_OFFSET];
-    chars.push(d !== NOT_DIGIT ? String.fromCharCode(d + 48) : str24[i]);
+    chars.push(d !== NOT_DIGIT ? String.fromCharCode(d + 48) : str26[i]);
   }
   return chars.join("");
 }
@@ -9062,12 +9062,12 @@ var init_anynum = __esm({
 });
 
 // node_modules/strnum/strnum.js
-function toNumber(str24, options = {}) {
+function toNumber(str26, options = {}) {
   options = Object.assign({}, consider, options);
-  if (!str24 || typeof str24 !== "string") return str24;
-  let trimmedStr = str24.trim();
-  if (trimmedStr.length === 0) return str24;
-  else if (options.skipLike !== void 0 && options.skipLike.test(trimmedStr)) return str24;
+  if (!str26 || typeof str26 !== "string") return str26;
+  let trimmedStr = str26.trim();
+  if (trimmedStr.length === 0) return str26;
+  else if (options.skipLike !== void 0 && options.skipLike.test(trimmedStr)) return str26;
   else if (trimmedStr === "0") return 0;
   if (options.unicode) {
     trimmedStr = anynum_default(trimmedStr);
@@ -9080,11 +9080,11 @@ function toNumber(str24, options = {}) {
   } else if (options.octal && octRegex.test(trimmedStr)) {
     return parse_int(trimmedStr, 8);
   } else if (!isFinite(trimmedStr)) {
-    const num4 = Number(trimmedStr);
-    if (Number.isNaN(num4)) return str24;
-    return handleInfinity(str24, num4, options);
+    const num5 = Number(trimmedStr);
+    if (Number.isNaN(num5)) return str26;
+    return handleInfinity(str26, num5, options);
   } else if (trimmedStr.includes("e") || trimmedStr.includes("E")) {
-    return resolveEnotation(str24, trimmedStr, options);
+    return resolveEnotation(str26, trimmedStr, options);
   } else {
     const match = numRegex.exec(trimmedStr);
     if (match) {
@@ -9096,34 +9096,34 @@ function toNumber(str24, options = {}) {
         trimmedStr[leadingZeros.length + 1] === "."
       ) : trimmedStr[leadingZeros.length] === ".";
       if (!options.leadingZeros && (leadingZeros.length > 1 || leadingZeros.length === 1 && !decimalAdjacentToLeadingZeros)) {
-        return str24;
+        return str26;
       } else {
-        const num4 = Number(trimmedStr);
-        const parsedStr = String(num4);
-        if (num4 === 0) return num4;
+        const num5 = Number(trimmedStr);
+        const parsedStr = String(num5);
+        if (num5 === 0) return num5;
         if (parsedStr.search(/[eE]/) !== -1) {
-          if (options.eNotation) return num4;
-          else return str24;
+          if (options.eNotation) return num5;
+          else return str26;
         } else if (trimmedStr.indexOf(".") !== -1) {
-          if (parsedStr === "0") return num4;
-          else if (parsedStr === numTrimmedByZeros) return num4;
-          else if (parsedStr === `${sign}${numTrimmedByZeros}`) return num4;
-          else return str24;
+          if (parsedStr === "0") return num5;
+          else if (parsedStr === numTrimmedByZeros) return num5;
+          else if (parsedStr === `${sign}${numTrimmedByZeros}`) return num5;
+          else return str26;
         }
         let n = leadingZeros ? numTrimmedByZeros : trimmedStr;
         if (leadingZeros) {
-          return n === parsedStr || sign + n === parsedStr ? num4 : str24;
+          return n === parsedStr || sign + n === parsedStr ? num5 : str26;
         } else {
-          return n === parsedStr || n === sign + parsedStr ? num4 : str24;
+          return n === parsedStr || n === sign + parsedStr ? num5 : str26;
         }
       }
     } else {
-      return str24;
+      return str26;
     }
   }
 }
-function resolveEnotation(str24, trimmedStr, options) {
-  if (!options.eNotation) return str24;
+function resolveEnotation(str26, trimmedStr, options) {
+  if (!options.eNotation) return str26;
   const notation = trimmedStr.match(eNotationRegx);
   if (notation) {
     let sign = notation[1] || "";
@@ -9133,18 +9133,18 @@ function resolveEnotation(str24, trimmedStr, options) {
       // 0E.
       trimmedStr[leadingZeros.length + 1] === eChar
     ) : trimmedStr[leadingZeros.length] === eChar;
-    if (leadingZeros.length > 1 && eAdjacentToLeadingZeros) return str24;
+    if (leadingZeros.length > 1 && eAdjacentToLeadingZeros) return str26;
     else if (leadingZeros.length === 1 && (notation[3].startsWith(`.${eChar}`) || notation[3][0] === eChar)) {
       return Number(trimmedStr);
     } else if (leadingZeros.length > 0) {
       if (options.leadingZeros && !eAdjacentToLeadingZeros) {
         return Number(trimmedStr);
-      } else return str24;
+      } else return str26;
     } else {
       return Number(trimmedStr);
     }
   } else {
-    return str24;
+    return str26;
   }
 }
 function trimZeros(numStr) {
@@ -9160,25 +9160,25 @@ function trimZeros(numStr) {
   return numStr;
 }
 function parse_int(numStr, base2) {
-  const str24 = numStr.trim();
-  if (base2 === 2 || base2 === 8) numStr = str24.substring(2);
+  const str26 = numStr.trim();
+  if (base2 === 2 || base2 === 8) numStr = str26.substring(2);
   if (parseInt) return parseInt(numStr, base2);
   else if (Number.parseInt) return Number.parseInt(numStr, base2);
   else if (window && window.parseInt) return window.parseInt(numStr, base2);
   else throw new Error("parseInt, Number.parseInt, window.parseInt are not supported");
 }
-function handleInfinity(str24, num4, options) {
-  const isPositive = num4 === Infinity;
+function handleInfinity(str26, num5, options) {
+  const isPositive = num5 === Infinity;
   switch (options.infinity.toLowerCase()) {
     case "null":
       return null;
     case "infinity":
-      return num4;
+      return num5;
     case "string":
       return isPositive ? "Infinity" : "-Infinity";
     case "original":
     default:
-      return str24;
+      return str26;
   }
 }
 var hexRegex, binRegex, octRegex, numRegex, consider, eNotationRegx;
@@ -9448,9 +9448,9 @@ var init_ExpressionSet = __esm({
           if (!this._wildcardByDepth.has(depth)) this._wildcardByDepth.set(depth, []);
           this._wildcardByDepth.get(depth).push(expression);
         } else {
-          const key3 = `${depth}:${tag}`;
-          if (!this._byDepthAndTag.has(key3)) this._byDepthAndTag.set(key3, []);
-          this._byDepthAndTag.get(key3).push(expression);
+          const key5 = `${depth}:${tag}`;
+          if (!this._byDepthAndTag.has(key5)) this._byDepthAndTag.set(key5, []);
+          this._byDepthAndTag.get(key5).push(expression);
         }
         return this;
       }
@@ -10891,12 +10891,12 @@ function extractRawAttributes(prefixedAttrs, options) {
   const attrs = options.attributesGroupName ? prefixedAttrs[options.attributesGroupName] : prefixedAttrs;
   if (!attrs) return {};
   const rawAttrs = {};
-  for (const key3 in attrs) {
-    if (key3.startsWith(options.attributeNamePrefix)) {
-      const rawName = key3.substring(options.attributeNamePrefix.length);
-      rawAttrs[rawName] = attrs[key3];
+  for (const key5 in attrs) {
+    if (key5.startsWith(options.attributeNamePrefix)) {
+      const rawName = key5.substring(options.attributeNamePrefix.length);
+      rawAttrs[rawName] = attrs[key5];
     } else {
-      rawAttrs[key3] = attrs[key3];
+      rawAttrs[key5] = attrs[key5];
     }
   }
   return rawAttrs;
@@ -11095,12 +11095,12 @@ function tagExpWithClosingIndex(xmlData, i, closingChar = ">") {
     }
   }
 }
-function findClosingIndex(xmlData, str24, i, errMsg) {
-  const closingIndex = xmlData.indexOf(str24, i);
+function findClosingIndex(xmlData, str26, i, errMsg) {
+  const closingIndex = xmlData.indexOf(str26, i);
   if (closingIndex === -1) {
     throw new Error(errMsg);
   } else {
-    return closingIndex + str24.length - 1;
+    return closingIndex + str26.length - 1;
   }
 }
 function findClosingChar(xmlData, char, i, errMsg) {
@@ -11510,12 +11510,12 @@ function stripAttributePrefix(attrs, prefix) {
   if (!attrs || typeof attrs !== "object") return {};
   if (!prefix) return attrs;
   const rawAttrs = {};
-  for (const key3 in attrs) {
-    if (key3.startsWith(prefix)) {
-      const rawName = key3.substring(prefix.length);
-      rawAttrs[rawName] = attrs[key3];
+  for (const key5 in attrs) {
+    if (key5.startsWith(prefix)) {
+      const rawName = key5.substring(prefix.length);
+      rawAttrs[rawName] = attrs[key5];
     } else {
-      rawAttrs[key3] = attrs[key3];
+      rawAttrs[key5] = attrs[key5];
     }
   }
   return rawAttrs;
@@ -11524,7 +11524,7 @@ function prettify(node, options, matcher, readonlyMatcher) {
   return compress(node, options, matcher, readonlyMatcher);
 }
 function compress(arr4, options, matcher, readonlyMatcher) {
-  let text11;
+  let text12;
   const compressedObj = {};
   for (let i = 0; i < arr4.length; i++) {
     const tagObj = arr4[i];
@@ -11537,8 +11537,8 @@ function compress(arr4, options, matcher, readonlyMatcher) {
       matcher.push(property, rawAttrs);
     }
     if (property === options.textNodeName) {
-      if (text11 === void 0) text11 = tagObj[property];
-      else text11 += "" + tagObj[property];
+      if (text12 === void 0) text12 = tagObj[property];
+      else text12 += "" + tagObj[property];
     } else if (property === void 0) {
       continue;
     } else if (tagObj[property]) {
@@ -11576,16 +11576,16 @@ function compress(arr4, options, matcher, readonlyMatcher) {
       }
     }
   }
-  if (typeof text11 === "string") {
-    if (text11.length > 0) compressedObj[options.textNodeName] = text11;
-  } else if (text11 !== void 0) compressedObj[options.textNodeName] = text11;
+  if (typeof text12 === "string") {
+    if (text12.length > 0) compressedObj[options.textNodeName] = text12;
+  } else if (text12 !== void 0) compressedObj[options.textNodeName] = text12;
   return compressedObj;
 }
 function propName(obj11) {
   const keys = Object.keys(obj11);
   for (let i = 0; i < keys.length; i++) {
-    const key3 = keys[i];
-    if (key3 !== ":@") return key3;
+    const key5 = keys[i];
+    if (key5 !== ":@") return key5;
   }
 }
 function assignAttributes(obj11, attrMap, readonlyMatcher, options) {
@@ -11670,15 +11670,15 @@ var init_XMLParser = __esm({
        * @param {string} key 
        * @param {string} value 
        */
-      addEntity(key3, value4) {
+      addEntity(key5, value4) {
         if (value4.indexOf("&") !== -1) {
           throw new Error("Entity value can't have '&'");
-        } else if (key3.indexOf("&") !== -1 || key3.indexOf(";") !== -1) {
+        } else if (key5.indexOf("&") !== -1 || key5.indexOf(";") !== -1) {
           throw new Error("An entity must be set without '&' and ';'. Eg. use '#xD' for '&#xD;'");
         } else if (value4 === "&") {
           throw new Error("An entity with value '&' is not permitted");
         } else {
-          this.externalEntities[key3] = value4;
+          this.externalEntities[key5] = value4;
         }
       }
       /**
@@ -12281,19 +12281,19 @@ function toolingWritesEnabled() {
 function scalar(node, kind) {
   if (node.children.length)
     throw new Unsupported(`<${node.tag}> has elements where text was expected`);
-  const text11 = node.text === void 0 ? "" : unescapeXml(node.text);
-  if (text11.includes("{[")) throw new Unsupported(`<${node.tag}> holds a file-asset reference`);
+  const text12 = node.text === void 0 ? "" : unescapeXml(node.text);
+  if (text12.includes("{[")) throw new Unsupported(`<${node.tag}> holds a file-asset reference`);
   if (kind === "b") {
-    if (text11 !== "true" && text11 !== "false")
+    if (text12 !== "true" && text12 !== "false")
       throw new Unsupported(`<${node.tag}> is not a boolean`);
-    return text11 === "true";
+    return text12 === "true";
   }
   if (kind === "n") {
-    const n = Number(text11);
-    if (text11 === "" || !Number.isFinite(n)) throw new Unsupported(`<${node.tag}> is not a number`);
+    const n = Number(text12);
+    if (text12 === "" || !Number.isFinite(n)) throw new Unsupported(`<${node.tag}> is not a number`);
     return n;
   }
-  return text11;
+  return text12;
 }
 function convertObject(node, shape) {
   if (node.text !== void 0)
@@ -12573,8 +12573,8 @@ var init_tooling_metadata = __esm({
 
 // src/config/read-cache.ts
 import { AsyncLocalStorage as AsyncLocalStorage2 } from "node:async_hooks";
-function sharedRead(org, key3, read2, ttlMs = DEFAULT_TTL_MS2) {
-  const k = keyOf(org, key3);
+function sharedRead(org, key5, read2, ttlMs = DEFAULT_TTL_MS2) {
+  const k = keyOf(org, key5);
   const hit = entries.get(k);
   if (hit && (hit.expiresAt === void 0 || hit.expiresAt > Date.now()))
     return hit.promise;
@@ -12624,7 +12624,7 @@ var init_read_cache = __esm({
     DEFAULT_TTL_MS2 = 6e4;
     entries = /* @__PURE__ */ new Map();
     generation = 0;
-    keyOf = (org, key3) => `${org}\0${key3}`;
+    keyOf = (org, key5) => `${org}\0${key5}`;
     readScope = new AsyncLocalStorage2();
     lastRefresh = /* @__PURE__ */ new Map();
   }
@@ -12832,8 +12832,8 @@ function createHttp(instanceUrl, accessToken, fetchImpl) {
     if (!fetchImpl) return nodeRequest(new URL(url), req.method, headers, body, req, MAX_REDIRECTS);
     const res = await fetchImpl(url, { method: req.method, headers, body, signal: req.signal });
     const responseHeaders = {};
-    res.headers.forEach((value4, key3) => {
-      responseHeaders[key3.toLowerCase()] = value4;
+    res.headers.forEach((value4, key5) => {
+      responseHeaders[key5.toLowerCase()] = value4;
     });
     const decoded = Buffer.from(await res.arrayBuffer());
     const declared = Number(responseHeaders["content-length"]);
@@ -12864,9 +12864,9 @@ function shapeHttp(inner, shaper) {
   return shaped;
 }
 function errorMessage(body) {
-  const text11 = body.toString("utf8").slice(0, 400);
+  const text12 = body.toString("utf8").slice(0, 400);
   try {
-    const parsed = JSON.parse(text11);
+    const parsed = JSON.parse(text12);
     const first2 = Array.isArray(parsed) ? parsed[0] : parsed;
     if (first2 && typeof first2 === "object") {
       const o = first2;
@@ -12876,7 +12876,7 @@ function errorMessage(body) {
     }
   } catch {
   }
-  return text11;
+  return text12;
 }
 function jsonOrThrow(res, what) {
   if (res.status < 200 || res.status >= 300) {
@@ -12998,14 +12998,14 @@ function isTokenOrg(org) {
 function registerTokenOrg(login, apiVersion2) {
   if (!isSalesforceUrl(login.instanceUrl))
     throw new Error(`"${login.instanceUrl}" is not a Salesforce HTTPS URL.`);
-  const key3 = PREFIX + createHash("sha256").update(`${login.username.toLowerCase()}\0${login.instanceUrl}`).digest("hex").slice(0, 16);
-  logins.set(key3, {
+  const key5 = PREFIX + createHash("sha256").update(`${login.username.toLowerCase()}\0${login.instanceUrl}`).digest("hex").slice(0, 16);
+  logins.set(key5, {
     accessToken: login.accessToken,
     instanceUrl: login.instanceUrl,
     ...apiVersion2 ? { apiVersion: apiVersion2 } : {}
   });
-  resetDirect(key3);
-  return key3;
+  resetDirect(key5);
+  return key5;
 }
 function tokenOrgCredentials(org) {
   return logins.get(org) ?? null;
@@ -13239,9 +13239,9 @@ async function getOrgDisplay(targetOrg) {
 }
 async function runSoqlQuery(query2, targetOrg, options = {}) {
   if (!sharedReadsActive()) return runSoqlQueryUncached(query2, targetOrg, options);
-  const key3 = `soql:${options.useToolingApi ? "t" : "d"}:${options.maxRows ?? ""}:${query2}`;
+  const key5 = `soql:${options.useToolingApi ? "t" : "d"}:${options.maxRows ?? ""}:${query2}`;
   try {
-    const hit = await sharedRead(targetOrg, key3, async () => {
+    const hit = await sharedRead(targetOrg, key5, async () => {
       const r = await runSoqlQueryUncached(query2, targetOrg, options);
       if (!r.success || !r.data || r.data.truncated) throw new Uncacheable(r);
       return r;
@@ -13342,12 +13342,12 @@ async function runToolingQuery(query2, targetOrg, options = {}) {
 }
 async function cachedSoqlQuery(query2, targetOrg, options = {}) {
   const isTooling = options.useToolingApi ?? false;
-  const key3 = queryCacheKey(query2, isTooling);
-  const cached4 = cacheGet(targetOrg, key3);
+  const key5 = queryCacheKey(query2, isTooling);
+  const cached4 = cacheGet(targetOrg, key5);
   if (cached4) return cached4;
   const result2 = await runSoqlQuery(query2, targetOrg, { useToolingApi: isTooling });
   if (result2.success) {
-    cacheSet(targetOrg, key3, { ...result2, rawOutput: void 0 }, options.ttlMs);
+    cacheSet(targetOrg, key5, { ...result2, rawOutput: void 0 }, options.ttlMs);
   }
   return result2;
 }
@@ -13355,12 +13355,12 @@ async function cachedToolingQuery(query2, targetOrg, ttlMs) {
   return cachedSoqlQuery(query2, targetOrg, { useToolingApi: true, ttlMs });
 }
 async function cachedDescribeSObject(objectName, targetOrg, ttlMs) {
-  const key3 = describeCacheKey(objectName);
-  const cached4 = cacheGet(targetOrg, key3);
+  const key5 = describeCacheKey(objectName);
+  const cached4 = cacheGet(targetOrg, key5);
   if (cached4) return cached4;
   const result2 = await describeSObject(objectName, targetOrg);
   if (result2.success) {
-    cacheSet(targetOrg, key3, { ...result2, rawOutput: void 0 }, ttlMs);
+    cacheSet(targetOrg, key5, { ...result2, rawOutput: void 0 }, ttlMs);
   }
   return result2;
 }
@@ -14206,11 +14206,11 @@ var require_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP;
     visit.REMOVE = REMOVE;
-    function visit_(key3, node, visitor, path24) {
-      const ctrl = callVisitor(key3, node, visitor, path24);
+    function visit_(key5, node, visitor, path24) {
+      const ctrl = callVisitor(key5, node, visitor, path24);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key3, path24, ctrl);
-        return visit_(key3, ctrl, visitor, path24);
+        replaceNode(key5, path24, ctrl);
+        return visit_(key5, ctrl, visitor, path24);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
@@ -14254,11 +14254,11 @@ var require_visit = __commonJS({
     visitAsync.BREAK = BREAK;
     visitAsync.SKIP = SKIP;
     visitAsync.REMOVE = REMOVE;
-    async function visitAsync_(key3, node, visitor, path24) {
-      const ctrl = await callVisitor(key3, node, visitor, path24);
+    async function visitAsync_(key5, node, visitor, path24) {
+      const ctrl = await callVisitor(key5, node, visitor, path24);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key3, path24, ctrl);
-        return visitAsync_(key3, ctrl, visitor, path24);
+        replaceNode(key5, path24, ctrl);
+        return visitAsync_(key5, ctrl, visitor, path24);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
@@ -14308,27 +14308,27 @@ var require_visit = __commonJS({
       }
       return visitor;
     }
-    function callVisitor(key3, node, visitor, path24) {
+    function callVisitor(key5, node, visitor, path24) {
       if (typeof visitor === "function")
-        return visitor(key3, node, path24);
+        return visitor(key5, node, path24);
       if (identity.isMap(node))
-        return visitor.Map?.(key3, node, path24);
+        return visitor.Map?.(key5, node, path24);
       if (identity.isSeq(node))
-        return visitor.Seq?.(key3, node, path24);
+        return visitor.Seq?.(key5, node, path24);
       if (identity.isPair(node))
-        return visitor.Pair?.(key3, node, path24);
+        return visitor.Pair?.(key5, node, path24);
       if (identity.isScalar(node))
-        return visitor.Scalar?.(key3, node, path24);
+        return visitor.Scalar?.(key5, node, path24);
       if (identity.isAlias(node))
-        return visitor.Alias?.(key3, node, path24);
+        return visitor.Alias?.(key5, node, path24);
       return void 0;
     }
-    function replaceNode(key3, path24, node) {
+    function replaceNode(key5, path24, node) {
       const parent = path24[path24.length - 1];
       if (identity.isCollection(parent)) {
-        parent.items[key3] = node;
+        parent.items[key5] = node;
       } else if (identity.isPair(parent)) {
-        if (key3 === "key")
+        if (key5 === "key")
           parent.key = node;
         else
           parent.value = node;
@@ -14589,7 +14589,7 @@ var require_anchors = __commonJS({
 var require_applyReviver = __commonJS({
   "node_modules/yaml/dist/doc/applyReviver.js"(exports2) {
     "use strict";
-    function applyReviver(reviver, obj11, key3, val) {
+    function applyReviver(reviver, obj11, key5, val) {
       if (val && typeof val === "object") {
         if (Array.isArray(val)) {
           for (let i = 0, len = val.length; i < len; ++i) {
@@ -14629,7 +14629,7 @@ var require_applyReviver = __commonJS({
           }
         }
       }
-      return reviver.call(obj11, key3, val);
+      return reviver.call(obj11, key5, val);
     }
     exports2.applyReviver = applyReviver;
   }
@@ -14988,14 +14988,14 @@ var require_Collection = __commonJS({
         if (isEmptyPath(path24))
           this.add(value4);
         else {
-          const [key3, ...rest] = path24;
-          const node = this.get(key3, true);
+          const [key5, ...rest] = path24;
+          const node = this.get(key5, true);
           if (identity.isCollection(node))
             node.addIn(rest, value4);
           else if (node === void 0 && this.schema)
-            this.set(key3, collectionFromPath(this.schema, rest, value4));
+            this.set(key5, collectionFromPath(this.schema, rest, value4));
           else
-            throw new Error(`Expected YAML collection at ${key3}. Remaining path: ${rest}`);
+            throw new Error(`Expected YAML collection at ${key5}. Remaining path: ${rest}`);
         }
       }
       /**
@@ -15003,14 +15003,14 @@ var require_Collection = __commonJS({
        * @returns `true` if the item was found and removed.
        */
       deleteIn(path24) {
-        const [key3, ...rest] = path24;
+        const [key5, ...rest] = path24;
         if (rest.length === 0)
-          return this.delete(key3);
-        const node = this.get(key3, true);
+          return this.delete(key5);
+        const node = this.get(key5, true);
         if (identity.isCollection(node))
           return node.deleteIn(rest);
         else
-          throw new Error(`Expected YAML collection at ${key3}. Remaining path: ${rest}`);
+          throw new Error(`Expected YAML collection at ${key5}. Remaining path: ${rest}`);
       }
       /**
        * Returns item at `key`, or `undefined` if not found. By default unwraps
@@ -15018,8 +15018,8 @@ var require_Collection = __commonJS({
        * `true` (collections are always returned intact).
        */
       getIn(path24, keepScalar) {
-        const [key3, ...rest] = path24;
-        const node = this.get(key3, true);
+        const [key5, ...rest] = path24;
+        const node = this.get(key5, true);
         if (rest.length === 0)
           return !keepScalar && identity.isScalar(node) ? node.value : node;
         else
@@ -15037,10 +15037,10 @@ var require_Collection = __commonJS({
        * Checks if the collection includes a value with the key `key`.
        */
       hasIn(path24) {
-        const [key3, ...rest] = path24;
+        const [key5, ...rest] = path24;
         if (rest.length === 0)
-          return this.has(key3);
-        const node = this.get(key3, true);
+          return this.has(key5);
+        const node = this.get(key5, true);
         return identity.isCollection(node) ? node.hasIn(rest) : false;
       }
       /**
@@ -15048,17 +15048,17 @@ var require_Collection = __commonJS({
        * boolean to add/remove the item from the set.
        */
       setIn(path24, value4) {
-        const [key3, ...rest] = path24;
+        const [key5, ...rest] = path24;
         if (rest.length === 0) {
-          this.set(key3, value4);
+          this.set(key5, value4);
         } else {
-          const node = this.get(key3, true);
+          const node = this.get(key5, true);
           if (identity.isCollection(node))
             node.setIn(rest, value4);
           else if (node === void 0 && this.schema)
-            this.set(key3, collectionFromPath(this.schema, rest, value4));
+            this.set(key5, collectionFromPath(this.schema, rest, value4));
           else
-            throw new Error(`Expected YAML collection at ${key3}. Remaining path: ${rest}`);
+            throw new Error(`Expected YAML collection at ${key5}. Remaining path: ${rest}`);
         }
       }
     };
@@ -15072,13 +15072,13 @@ var require_Collection = __commonJS({
 var require_stringifyComment = __commonJS({
   "node_modules/yaml/dist/stringify/stringifyComment.js"(exports2) {
     "use strict";
-    var stringifyComment = (str24) => str24.replace(/^(?!$)(?: $)?/gm, "#");
+    var stringifyComment = (str26) => str26.replace(/^(?!$)(?: $)?/gm, "#");
     function indentComment(comment, indent) {
       if (/^\n+$/.test(comment))
         return comment.substring(1);
       return indent ? comment.replace(/^(?! *$)/gm, indent) : comment;
     }
-    var lineComment = (str24, indent, comment) => str24.endsWith("\n") ? indentComment(comment, indent) : comment.includes("\n") ? "\n" + indentComment(comment, indent) : (str24.endsWith(" ") ? "" : " ") + comment;
+    var lineComment = (str26, indent, comment) => str26.endsWith("\n") ? indentComment(comment, indent) : comment.includes("\n") ? "\n" + indentComment(comment, indent) : (str26.endsWith(" ") ? "" : " ") + comment;
     exports2.indentComment = indentComment;
     exports2.lineComment = lineComment;
     exports2.stringifyComment = stringifyComment;
@@ -15092,14 +15092,14 @@ var require_foldFlowLines = __commonJS({
     var FOLD_FLOW = "flow";
     var FOLD_BLOCK = "block";
     var FOLD_QUOTED = "quoted";
-    function foldFlowLines(text11, indent, mode = "flow", { indentAtStart, lineWidth = 80, minContentWidth = 20, onFold, onOverflow } = {}) {
+    function foldFlowLines(text12, indent, mode = "flow", { indentAtStart, lineWidth = 80, minContentWidth = 20, onFold, onOverflow } = {}) {
       if (!lineWidth || lineWidth < 0)
-        return text11;
+        return text12;
       if (lineWidth < minContentWidth)
         minContentWidth = 0;
       const endStep = Math.max(1 + minContentWidth, 1 + lineWidth - indent.length);
-      if (text11.length <= endStep)
-        return text11;
+      if (text12.length <= endStep)
+        return text12;
       const folds = [];
       const escapedFolds = {};
       let end = lineWidth - indent.length;
@@ -15116,14 +15116,14 @@ var require_foldFlowLines = __commonJS({
       let escStart = -1;
       let escEnd = -1;
       if (mode === FOLD_BLOCK) {
-        i = consumeMoreIndentedLines(text11, i, indent.length);
+        i = consumeMoreIndentedLines(text12, i, indent.length);
         if (i !== -1)
           end = i + endStep;
       }
-      for (let ch; ch = text11[i += 1]; ) {
+      for (let ch; ch = text12[i += 1]; ) {
         if (mode === FOLD_QUOTED && ch === "\\") {
           escStart = i;
-          switch (text11[i + 1]) {
+          switch (text12[i + 1]) {
             case "x":
               i += 3;
               break;
@@ -15140,12 +15140,12 @@ var require_foldFlowLines = __commonJS({
         }
         if (ch === "\n") {
           if (mode === FOLD_BLOCK)
-            i = consumeMoreIndentedLines(text11, i, indent.length);
+            i = consumeMoreIndentedLines(text12, i, indent.length);
           end = i + indent.length + endStep;
           split = void 0;
         } else {
           if (ch === " " && prev && prev !== " " && prev !== "\n" && prev !== "	") {
-            const next = text11[i + 1];
+            const next = text12[i + 1];
             if (next && next !== " " && next !== "\n" && next !== "	")
               split = i;
           }
@@ -15157,12 +15157,12 @@ var require_foldFlowLines = __commonJS({
             } else if (mode === FOLD_QUOTED) {
               while (prev === " " || prev === "	") {
                 prev = ch;
-                ch = text11[i += 1];
+                ch = text12[i += 1];
                 overflow = true;
               }
               const j = i > escEnd + 1 ? i - 2 : escStart - 1;
               if (escapedFolds[j])
-                return text11;
+                return text12;
               folds.push(j);
               escapedFolds[j] = true;
               end = j + endStep;
@@ -15177,39 +15177,39 @@ var require_foldFlowLines = __commonJS({
       if (overflow && onOverflow)
         onOverflow();
       if (folds.length === 0)
-        return text11;
+        return text12;
       if (onFold)
         onFold();
-      let res = text11.slice(0, folds[0]);
+      let res = text12.slice(0, folds[0]);
       for (let i2 = 0; i2 < folds.length; ++i2) {
         const fold = folds[i2];
-        const end2 = folds[i2 + 1] || text11.length;
+        const end2 = folds[i2 + 1] || text12.length;
         if (fold === 0)
           res = `
-${indent}${text11.slice(0, end2)}`;
+${indent}${text12.slice(0, end2)}`;
         else {
           if (mode === FOLD_QUOTED && escapedFolds[fold])
-            res += `${text11[fold]}\\`;
+            res += `${text12[fold]}\\`;
           res += `
-${indent}${text11.slice(fold + 1, end2)}`;
+${indent}${text12.slice(fold + 1, end2)}`;
         }
       }
       return res;
     }
-    function consumeMoreIndentedLines(text11, i, indent) {
+    function consumeMoreIndentedLines(text12, i, indent) {
       let end = i;
       let start = i + 1;
-      let ch = text11[start];
+      let ch = text12[start];
       while (ch === " " || ch === "	") {
         if (i < start + indent) {
-          ch = text11[++i];
+          ch = text12[++i];
         } else {
           do {
-            ch = text11[++i];
+            ch = text12[++i];
           } while (ch && ch !== "\n");
           end = i;
           start = i + 1;
-          ch = text11[start];
+          ch = text12[start];
         }
       }
       return end;
@@ -15232,16 +15232,16 @@ var require_stringifyString = __commonJS({
       lineWidth: ctx.options.lineWidth,
       minContentWidth: ctx.options.minContentWidth
     });
-    var containsDocumentMarker = (str24) => /^(%|---|\.\.\.)/m.test(str24);
-    function lineLengthOverLimit(str24, lineWidth, indentLength) {
+    var containsDocumentMarker = (str26) => /^(%|---|\.\.\.)/m.test(str26);
+    function lineLengthOverLimit(str26, lineWidth, indentLength) {
       if (!lineWidth || lineWidth < 0)
         return false;
       const limit = lineWidth - indentLength;
-      const strLen = str24.length;
+      const strLen = str26.length;
       if (strLen <= limit)
         return false;
       for (let i = 0, start = 0; i < strLen; ++i) {
-        if (str24[i] === "\n") {
+        if (str26[i] === "\n") {
           if (i - start > limit)
             return true;
           start = i + 1;
@@ -15258,11 +15258,11 @@ var require_stringifyString = __commonJS({
       const { implicitKey } = ctx;
       const minMultiLineLength = ctx.options.doubleQuotedMinMultiLineLength;
       const indent = ctx.indent || (containsDocumentMarker(value4) ? "  " : "");
-      let str24 = "";
+      let str26 = "";
       let start = 0;
       for (let i = 0, ch = json2[i]; ch; ch = json2[++i]) {
         if (ch === " " && json2[i + 1] === "\\" && json2[i + 2] === "n") {
-          str24 += json2.slice(start, i) + "\\ ";
+          str26 += json2.slice(start, i) + "\\ ";
           i += 1;
           start = i;
           ch = "\\";
@@ -15271,38 +15271,38 @@ var require_stringifyString = __commonJS({
           switch (json2[i + 1]) {
             case "u":
               {
-                str24 += json2.slice(start, i);
+                str26 += json2.slice(start, i);
                 const code = json2.substr(i + 2, 4);
                 switch (code) {
                   case "0000":
-                    str24 += "\\0";
+                    str26 += "\\0";
                     break;
                   case "0007":
-                    str24 += "\\a";
+                    str26 += "\\a";
                     break;
                   case "000b":
-                    str24 += "\\v";
+                    str26 += "\\v";
                     break;
                   case "001b":
-                    str24 += "\\e";
+                    str26 += "\\e";
                     break;
                   case "0085":
-                    str24 += "\\N";
+                    str26 += "\\N";
                     break;
                   case "00a0":
-                    str24 += "\\_";
+                    str26 += "\\_";
                     break;
                   case "2028":
-                    str24 += "\\L";
+                    str26 += "\\L";
                     break;
                   case "2029":
-                    str24 += "\\P";
+                    str26 += "\\P";
                     break;
                   default:
                     if (code.substr(0, 2) === "00")
-                      str24 += "\\x" + code.substr(2);
+                      str26 += "\\x" + code.substr(2);
                     else
-                      str24 += json2.substr(i, 6);
+                      str26 += json2.substr(i, 6);
                 }
                 i += 5;
                 start = i + 1;
@@ -15312,14 +15312,14 @@ var require_stringifyString = __commonJS({
               if (implicitKey || json2[i + 2] === '"' || json2.length < minMultiLineLength) {
                 i += 1;
               } else {
-                str24 += json2.slice(start, i) + "\n\n";
+                str26 += json2.slice(start, i) + "\n\n";
                 while (json2[i + 2] === "\\" && json2[i + 3] === "n" && json2[i + 4] !== '"') {
-                  str24 += "\n";
+                  str26 += "\n";
                   i += 2;
                 }
-                str24 += indent;
+                str26 += indent;
                 if (json2[i + 2] === " ")
-                  str24 += "\\";
+                  str26 += "\\";
                 i += 1;
                 start = i + 1;
               }
@@ -15328,8 +15328,8 @@ var require_stringifyString = __commonJS({
               i += 1;
           }
       }
-      str24 = start ? str24 + json2.slice(start) : json2;
-      return implicitKey ? str24 : foldFlowLines.foldFlowLines(str24, indent, foldFlowLines.FOLD_QUOTED, getFoldOptions(ctx, false));
+      str26 = start ? str26 + json2.slice(start) : json2;
+      return implicitKey ? str26 : foldFlowLines.foldFlowLines(str26, indent, foldFlowLines.FOLD_QUOTED, getFoldOptions(ctx, false));
     }
     function singleQuotedString(value4, ctx) {
       if (ctx.options.singleQuote === false || ctx.implicitKey && value4.includes("\n") || /[ \t]\n|\n[ \t]/.test(value4))
@@ -15457,15 +15457,15 @@ ${indent}${start}${value4}${end}`;
           return quotedString(value4, ctx);
         }
       }
-      const str24 = value4.replace(/\n+/g, `$&
+      const str26 = value4.replace(/\n+/g, `$&
 ${indent}`);
       if (actualString) {
-        const test = (tag) => tag.default && tag.tag !== "tag:yaml.org,2002:str" && tag.test?.test(str24);
+        const test = (tag) => tag.default && tag.tag !== "tag:yaml.org,2002:str" && tag.test?.test(str26);
         const { compat, tags } = ctx.doc.schema;
         if (tags.some(test) || compat?.some(test))
           return quotedString(value4, ctx);
       }
-      return implicitKey ? str24 : foldFlowLines.foldFlowLines(str24, indent, foldFlowLines.FOLD_FLOW, getFoldOptions(ctx, false));
+      return implicitKey ? str26 : foldFlowLines.foldFlowLines(str26, indent, foldFlowLines.FOLD_FLOW, getFoldOptions(ctx, false));
     }
     function stringifyString(item2, ctx, onComment, onChompKeep) {
       const { implicitKey, inFlow } = ctx;
@@ -15616,11 +15616,11 @@ var require_stringify = __commonJS({
       const props = stringifyProps(node, tagObj, ctx);
       if (props.length > 0)
         ctx.indentAtStart = (ctx.indentAtStart ?? 0) + props.length + 1;
-      const str24 = typeof tagObj.stringify === "function" ? tagObj.stringify(node, ctx, onComment, onChompKeep) : identity.isScalar(node) ? stringifyString.stringifyString(node, ctx, onComment, onChompKeep) : node.toString(ctx, onComment, onChompKeep);
+      const str26 = typeof tagObj.stringify === "function" ? tagObj.stringify(node, ctx, onComment, onChompKeep) : identity.isScalar(node) ? stringifyString.stringifyString(node, ctx, onComment, onChompKeep) : node.toString(ctx, onComment, onChompKeep);
       if (!props)
-        return str24;
-      return identity.isScalar(node) || str24[0] === "{" || str24[0] === "[" ? `${props} ${str24}` : `${props}
-${ctx.indent}${str24}`;
+        return str26;
+      return identity.isScalar(node) || str26[0] === "{" || str26[0] === "[" ? `${props} ${str26}` : `${props}
+${ctx.indent}${str26}`;
     }
     exports2.createStringifyContext = createStringifyContext;
     exports2.stringify = stringify;
@@ -15635,19 +15635,19 @@ var require_stringifyPair = __commonJS({
     var Scalar = require_Scalar();
     var stringify = require_stringify();
     var stringifyComment = require_stringifyComment();
-    function stringifyPair({ key: key3, value: value4 }, ctx, onComment, onChompKeep) {
+    function stringifyPair({ key: key5, value: value4 }, ctx, onComment, onChompKeep) {
       const { allNullValues, doc, indent, indentStep, options: { commentString, indentSeq, simpleKeys } } = ctx;
-      let keyComment = identity.isNode(key3) && key3.comment || null;
+      let keyComment = identity.isNode(key5) && key5.comment || null;
       if (simpleKeys) {
         if (keyComment) {
           throw new Error("With simple keys, key nodes cannot have comments");
         }
-        if (identity.isCollection(key3) || !identity.isNode(key3) && typeof key3 === "object") {
+        if (identity.isCollection(key5) || !identity.isNode(key5) && typeof key5 === "object") {
           const msg = "With simple keys, collection cannot be used as a key value";
           throw new Error(msg);
         }
       }
-      let explicitKey = !simpleKeys && (!key3 || keyComment && value4 == null && !ctx.inFlow || identity.isCollection(key3) || (identity.isScalar(key3) ? key3.type === Scalar.Scalar.BLOCK_FOLDED || key3.type === Scalar.Scalar.BLOCK_LITERAL : typeof key3 === "object"));
+      let explicitKey = !simpleKeys && (!key5 || keyComment && value4 == null && !ctx.inFlow || identity.isCollection(key5) || (identity.isScalar(key5) ? key5.type === Scalar.Scalar.BLOCK_FOLDED || key5.type === Scalar.Scalar.BLOCK_LITERAL : typeof key5 === "object"));
       ctx = Object.assign({}, ctx, {
         allNullValues: false,
         implicitKey: !explicitKey && (simpleKeys || !allNullValues),
@@ -15655,8 +15655,8 @@ var require_stringifyPair = __commonJS({
       });
       let keyCommentDone = false;
       let chompKeep = false;
-      let str24 = stringify.stringify(key3, ctx, () => keyCommentDone = true, () => chompKeep = true);
-      if (!explicitKey && !ctx.inFlow && str24.length > 1024) {
+      let str26 = stringify.stringify(key5, ctx, () => keyCommentDone = true, () => chompKeep = true);
+      if (!explicitKey && !ctx.inFlow && str26.length > 1024) {
         if (simpleKeys)
           throw new Error("With simple keys, single line scalar must not span more than 1024 characters");
         explicitKey = true;
@@ -15665,27 +15665,27 @@ var require_stringifyPair = __commonJS({
         if (allNullValues || value4 == null) {
           if (keyCommentDone && onComment)
             onComment();
-          return str24 === "" ? "?" : explicitKey ? `? ${str24}` : str24;
+          return str26 === "" ? "?" : explicitKey ? `? ${str26}` : str26;
         }
       } else if (allNullValues && !simpleKeys || value4 == null && explicitKey) {
-        str24 = `? ${str24}`;
+        str26 = `? ${str26}`;
         if (keyComment && !keyCommentDone) {
-          str24 += stringifyComment.lineComment(str24, ctx.indent, commentString(keyComment));
+          str26 += stringifyComment.lineComment(str26, ctx.indent, commentString(keyComment));
         } else if (chompKeep && onChompKeep)
           onChompKeep();
-        return str24;
+        return str26;
       }
       if (keyCommentDone)
         keyComment = null;
       if (explicitKey) {
         if (keyComment)
-          str24 += stringifyComment.lineComment(str24, ctx.indent, commentString(keyComment));
-        str24 = `? ${str24}
+          str26 += stringifyComment.lineComment(str26, ctx.indent, commentString(keyComment));
+        str26 = `? ${str26}
 ${indent}:`;
       } else {
-        str24 = `${str24}:`;
+        str26 = `${str26}:`;
         if (keyComment)
-          str24 += stringifyComment.lineComment(str24, ctx.indent, commentString(keyComment));
+          str26 += stringifyComment.lineComment(str26, ctx.indent, commentString(keyComment));
       }
       let vsb, vcb, valueComment;
       if (identity.isNode(value4)) {
@@ -15701,7 +15701,7 @@ ${indent}:`;
       }
       ctx.implicitKey = false;
       if (!explicitKey && !keyComment && identity.isScalar(value4))
-        ctx.indentAtStart = str24.length + 1;
+        ctx.indentAtStart = str26.length + 1;
       chompKeep = false;
       if (!indentSeq && indentStep.length >= 2 && !ctx.inFlow && !explicitKey && identity.isSeq(value4) && !value4.flow && !value4.tag && !value4.anchor) {
         ctx.indent = ctx.indent.substring(2);
@@ -15745,16 +15745,16 @@ ${ctx.indent}`;
       } else if (valueStr === "" || valueStr[0] === "\n") {
         ws = "";
       }
-      str24 += ws + valueStr;
+      str26 += ws + valueStr;
       if (ctx.inFlow) {
         if (valueCommentDone && onComment)
           onComment();
       } else if (valueComment && !valueCommentDone) {
-        str24 += stringifyComment.lineComment(str24, ctx.indent, commentString(valueComment));
+        str26 += stringifyComment.lineComment(str26, ctx.indent, commentString(valueComment));
       } else if (chompKeep && onChompKeep) {
         onChompKeep();
       }
-      return str24;
+      return str26;
     }
     exports2.stringifyPair = stringifyPair;
   }
@@ -15799,7 +15799,7 @@ var require_merge = __commonJS({
       }),
       stringify: () => MERGE_KEY
     };
-    var isMergeKey = (ctx, key3) => (merge2.identify(key3) || identity.isScalar(key3) && (!key3.type || key3.type === Scalar.Scalar.PLAIN) && merge2.identify(key3.value)) && ctx?.doc.schema.tags.some((tag) => tag.tag === merge2.tag && tag.default);
+    var isMergeKey = (ctx, key5) => (merge2.identify(key5) || identity.isScalar(key5) && (!key5.type || key5.type === Scalar.Scalar.PLAIN) && merge2.identify(key5.value)) && ctx?.doc.schema.tags.some((tag) => tag.tag === merge2.tag && tag.default);
     function addMergeToJSMap(ctx, map, value4) {
       value4 = ctx && identity.isAlias(value4) ? value4.resolve(ctx.doc) : value4;
       if (identity.isSeq(value4))
@@ -15816,14 +15816,14 @@ var require_merge = __commonJS({
       if (!identity.isMap(source))
         throw new Error("Merge sources must be maps or map aliases");
       const srcMap = source.toJSON(null, ctx, Map);
-      for (const [key3, value5] of srcMap) {
+      for (const [key5, value5] of srcMap) {
         if (map instanceof Map) {
-          if (!map.has(key3))
-            map.set(key3, value5);
+          if (!map.has(key5))
+            map.set(key5, value5);
         } else if (map instanceof Set) {
-          map.add(key3);
-        } else if (!Object.prototype.hasOwnProperty.call(map, key3)) {
-          Object.defineProperty(map, key3, {
+          map.add(key5);
+        } else if (!Object.prototype.hasOwnProperty.call(map, key5)) {
+          Object.defineProperty(map, key5, {
             value: value5,
             writable: true,
             enumerable: true,
@@ -15848,19 +15848,19 @@ var require_addPairToJSMap = __commonJS({
     var stringify = require_stringify();
     var identity = require_identity();
     var toJS = require_toJS();
-    function addPairToJSMap(ctx, map, { key: key3, value: value4 }) {
-      if (identity.isNode(key3) && key3.addToJSMap)
-        key3.addToJSMap(ctx, map, value4);
-      else if (merge2.isMergeKey(ctx, key3))
+    function addPairToJSMap(ctx, map, { key: key5, value: value4 }) {
+      if (identity.isNode(key5) && key5.addToJSMap)
+        key5.addToJSMap(ctx, map, value4);
+      else if (merge2.isMergeKey(ctx, key5))
         merge2.addMergeToJSMap(ctx, map, value4);
       else {
-        const jsKey = toJS.toJS(key3, "", ctx);
+        const jsKey = toJS.toJS(key5, "", ctx);
         if (map instanceof Map) {
           map.set(jsKey, toJS.toJS(value4, jsKey, ctx));
         } else if (map instanceof Set) {
           map.add(jsKey);
         } else {
-          const stringKey = stringifyKey(key3, jsKey, ctx);
+          const stringKey = stringifyKey(key5, jsKey, ctx);
           const jsValue = toJS.toJS(value4, stringKey, ctx);
           if (stringKey in map)
             Object.defineProperty(map, stringKey, {
@@ -15875,19 +15875,19 @@ var require_addPairToJSMap = __commonJS({
       }
       return map;
     }
-    function stringifyKey(key3, jsKey, ctx) {
+    function stringifyKey(key5, jsKey, ctx) {
       if (jsKey === null)
         return "";
       if (typeof jsKey !== "object")
         return String(jsKey);
-      if (identity.isNode(key3) && ctx?.doc) {
+      if (identity.isNode(key5) && ctx?.doc) {
         const strCtx = stringify.createStringifyContext(ctx.doc, {});
         strCtx.anchors = /* @__PURE__ */ new Set();
         for (const node of ctx.anchors.keys())
           strCtx.anchors.add(node.anchor);
         strCtx.inFlow = true;
         strCtx.inStringifyKey = true;
-        const strKey = key3.toString(strCtx);
+        const strKey = key5.toString(strCtx);
         if (!ctx.mapKeyWarned) {
           let jsonStr = JSON.stringify(strKey);
           if (jsonStr.length > 40)
@@ -15911,24 +15911,24 @@ var require_Pair = __commonJS({
     var stringifyPair = require_stringifyPair();
     var addPairToJSMap = require_addPairToJSMap();
     var identity = require_identity();
-    function createPair(key3, value4, ctx) {
-      const k = createNode.createNode(key3, void 0, ctx);
+    function createPair(key5, value4, ctx) {
+      const k = createNode.createNode(key5, void 0, ctx);
       const v = createNode.createNode(value4, void 0, ctx);
       return new Pair(k, v);
     }
     var Pair = class _Pair {
-      constructor(key3, value4 = null) {
+      constructor(key5, value4 = null) {
         Object.defineProperty(this, identity.NODE_TYPE, { value: identity.PAIR });
-        this.key = key3;
+        this.key = key5;
         this.value = value4;
       }
       clone(schema) {
-        let { key: key3, value: value4 } = this;
-        if (identity.isNode(key3))
-          key3 = key3.clone(schema);
+        let { key: key5, value: value4 } = this;
+        if (identity.isNode(key5))
+          key5 = key5.clone(schema);
         if (identity.isNode(value4))
           value4 = value4.clone(schema);
-        return new _Pair(key3, value4);
+        return new _Pair(key5, value4);
       }
       toJSON(_2, ctx) {
         const pair = ctx?.mapAsMap ? /* @__PURE__ */ new Map() : {};
@@ -15978,31 +15978,31 @@ var require_stringifyCollection = __commonJS({
           }
         }
         chompKeep = false;
-        let str25 = stringify.stringify(item2, itemCtx, () => comment2 = null, () => chompKeep = true);
+        let str27 = stringify.stringify(item2, itemCtx, () => comment2 = null, () => chompKeep = true);
         if (comment2)
-          str25 += stringifyComment.lineComment(str25, itemIndent, commentString(comment2));
+          str27 += stringifyComment.lineComment(str27, itemIndent, commentString(comment2));
         if (chompKeep && comment2)
           chompKeep = false;
-        lines2.push(blockItemPrefix + str25);
+        lines2.push(blockItemPrefix + str27);
       }
-      let str24;
+      let str26;
       if (lines2.length === 0) {
-        str24 = flowChars.start + flowChars.end;
+        str26 = flowChars.start + flowChars.end;
       } else {
-        str24 = lines2[0];
+        str26 = lines2[0];
         for (let i = 1; i < lines2.length; ++i) {
           const line = lines2[i];
-          str24 += line ? `
+          str26 += line ? `
 ${indent}${line}` : "\n";
         }
       }
       if (comment) {
-        str24 += "\n" + stringifyComment.indentComment(commentString(comment), indent);
+        str26 += "\n" + stringifyComment.indentComment(commentString(comment), indent);
         if (onComment)
           onComment();
       } else if (chompKeep && onChompKeep)
         onChompKeep();
-      return str24;
+      return str26;
     }
     function stringifyFlowCollection({ items }, ctx, { flowChars, itemIndent }) {
       const { indent, indentStep, flowCollectionPadding: fcPadding, options: { commentString } } = ctx;
@@ -16045,14 +16045,14 @@ ${indent}${line}` : "\n";
         }
         if (comment)
           reqNewline = true;
-        let str24 = stringify.stringify(item2, itemCtx, () => comment = null);
+        let str26 = stringify.stringify(item2, itemCtx, () => comment = null);
         if (i < items.length - 1)
-          str24 += ",";
+          str26 += ",";
         if (comment)
-          str24 += stringifyComment.lineComment(str24, itemIndent, commentString(comment));
-        if (!reqNewline && (lines2.length > linesAtValue || str24.includes("\n")))
+          str26 += stringifyComment.lineComment(str26, itemIndent, commentString(comment));
+        if (!reqNewline && (lines2.length > linesAtValue || str26.includes("\n")))
           reqNewline = true;
-        lines2.push(str24);
+        lines2.push(str26);
         linesAtValue = lines2.length;
       }
       const { start, end } = flowChars;
@@ -16064,11 +16064,11 @@ ${indent}${line}` : "\n";
           reqNewline = ctx.options.lineWidth > 0 && len > ctx.options.lineWidth;
         }
         if (reqNewline) {
-          let str24 = start;
+          let str26 = start;
           for (const line of lines2)
-            str24 += line ? `
+            str26 += line ? `
 ${indentStep}${indent}${line}` : "\n";
-          return `${str24}
+          return `${str26}
 ${indent}${end}`;
         } else {
           return `${start}${fcPadding}${lines2.join(" ")}${fcPadding}${end}`;
@@ -16097,11 +16097,11 @@ var require_YAMLMap = __commonJS({
     var identity = require_identity();
     var Pair = require_Pair();
     var Scalar = require_Scalar();
-    function findPair(items, key3) {
-      const k = identity.isScalar(key3) ? key3.value : key3;
+    function findPair(items, key5) {
+      const k = identity.isScalar(key5) ? key5.value : key5;
       for (const it of items) {
         if (identity.isPair(it)) {
-          if (it.key === key3 || it.key === k)
+          if (it.key === key5 || it.key === k)
             return it;
           if (identity.isScalar(it.key) && it.key.value === k)
             return it;
@@ -16124,20 +16124,20 @@ var require_YAMLMap = __commonJS({
       static from(schema, obj11, ctx) {
         const { keepUndefined, replacer } = ctx;
         const map = new this(schema);
-        const add = (key3, value4) => {
+        const add = (key5, value4) => {
           if (typeof replacer === "function")
-            value4 = replacer.call(obj11, key3, value4);
-          else if (Array.isArray(replacer) && !replacer.includes(key3))
+            value4 = replacer.call(obj11, key5, value4);
+          else if (Array.isArray(replacer) && !replacer.includes(key5))
             return;
           if (value4 !== void 0 || keepUndefined)
-            map.items.push(Pair.createPair(key3, value4, ctx));
+            map.items.push(Pair.createPair(key5, value4, ctx));
         };
         if (obj11 instanceof Map) {
-          for (const [key3, value4] of obj11)
-            add(key3, value4);
+          for (const [key5, value4] of obj11)
+            add(key5, value4);
         } else if (obj11 && typeof obj11 === "object") {
-          for (const key3 of Object.keys(obj11))
-            add(key3, obj11[key3]);
+          for (const key5 of Object.keys(obj11))
+            add(key5, obj11[key5]);
         }
         if (typeof schema.sortMapEntries === "function") {
           map.items.sort(schema.sortMapEntries);
@@ -16177,23 +16177,23 @@ var require_YAMLMap = __commonJS({
           this.items.push(_pair);
         }
       }
-      delete(key3) {
-        const it = findPair(this.items, key3);
+      delete(key5) {
+        const it = findPair(this.items, key5);
         if (!it)
           return false;
         const del = this.items.splice(this.items.indexOf(it), 1);
         return del.length > 0;
       }
-      get(key3, keepScalar) {
-        const it = findPair(this.items, key3);
+      get(key5, keepScalar) {
+        const it = findPair(this.items, key5);
         const node = it?.value;
         return (!keepScalar && identity.isScalar(node) ? node.value : node) ?? void 0;
       }
-      has(key3) {
-        return !!findPair(this.items, key3);
+      has(key5) {
+        return !!findPair(this.items, key5);
       }
-      set(key3, value4) {
-        this.add(new Pair.Pair(key3, value4), true);
+      set(key5, value4) {
+        this.add(new Pair.Pair(key5, value4), true);
       }
       /**
        * @param ctx - Conversion context, originally set in Document#toJS()
@@ -16282,15 +16282,15 @@ var require_YAMLSeq = __commonJS({
        *
        * @returns `true` if the item was found and removed.
        */
-      delete(key3) {
-        const idx = asItemIndex(key3);
+      delete(key5) {
+        const idx = asItemIndex(key5);
         if (typeof idx !== "number")
           return false;
         const del = this.items.splice(idx, 1);
         return del.length > 0;
       }
-      get(key3, keepScalar) {
-        const idx = asItemIndex(key3);
+      get(key5, keepScalar) {
+        const idx = asItemIndex(key5);
         if (typeof idx !== "number")
           return void 0;
         const it = this.items[idx];
@@ -16302,8 +16302,8 @@ var require_YAMLSeq = __commonJS({
        * `key` must contain a representation of an integer for this to succeed.
        * It may be wrapped in a `Scalar`.
        */
-      has(key3) {
-        const idx = asItemIndex(key3);
+      has(key5) {
+        const idx = asItemIndex(key5);
         return typeof idx === "number" && idx < this.items.length;
       }
       /**
@@ -16313,10 +16313,10 @@ var require_YAMLSeq = __commonJS({
        * If `key` does not contain a representation of an integer, this will throw.
        * It may be wrapped in a `Scalar`.
        */
-      set(key3, value4) {
-        const idx = asItemIndex(key3);
+      set(key5, value4) {
+        const idx = asItemIndex(key5);
         if (typeof idx !== "number")
-          throw new Error(`Expected a valid index, not ${key3}.`);
+          throw new Error(`Expected a valid index, not ${key5}.`);
         const prev = this.items[idx];
         if (identity.isScalar(prev) && Scalar.isScalarValue(value4))
           prev.value = value4;
@@ -16350,8 +16350,8 @@ var require_YAMLSeq = __commonJS({
           let i = 0;
           for (let it of obj11) {
             if (typeof replacer === "function") {
-              const key3 = obj11 instanceof Set ? it : String(i++);
-              it = replacer.call(obj11, key3, it);
+              const key5 = obj11 instanceof Set ? it : String(i++);
+              it = replacer.call(obj11, key5, it);
             }
             seq.items.push(createNode.createNode(it, void 0, ctx));
           }
@@ -16359,8 +16359,8 @@ var require_YAMLSeq = __commonJS({
         return seq;
       }
     };
-    function asItemIndex(key3) {
-      let idx = identity.isScalar(key3) ? key3.value : key3;
+    function asItemIndex(key5) {
+      let idx = identity.isScalar(key5) ? key5.value : key5;
       if (idx && typeof idx === "string")
         idx = Number(idx);
       return typeof idx === "number" && Number.isInteger(idx) && idx >= 0 ? idx : null;
@@ -16400,7 +16400,7 @@ var require_string = __commonJS({
       identify: (value4) => typeof value4 === "string",
       default: true,
       tag: "tag:yaml.org,2002:str",
-      resolve: (str24) => str24,
+      resolve: (str26) => str26,
       stringify(item2, ctx, onComment, onChompKeep) {
         ctx = Object.assign({ actualString: true }, ctx);
         return stringifyString.stringifyString(item2, ctx, onComment, onChompKeep);
@@ -16438,7 +16438,7 @@ var require_bool = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:bool",
       test: /^(?:[Tt]rue|TRUE|[Ff]alse|FALSE)$/,
-      resolve: (str24) => new Scalar.Scalar(str24[0] === "t" || str24[0] === "T"),
+      resolve: (str26) => new Scalar.Scalar(str26[0] === "t" || str26[0] === "T"),
       stringify({ source, value: value4 }, ctx) {
         if (source && boolTag.test.test(source)) {
           const sv = source[0] === "t" || source[0] === "T";
@@ -16459,9 +16459,9 @@ var require_stringifyNumber = __commonJS({
     function stringifyNumber({ format, minFractionDigits, tag, value: value4 }) {
       if (typeof value4 === "bigint")
         return String(value4);
-      const num4 = typeof value4 === "number" ? value4 : Number(value4);
-      if (!isFinite(num4))
-        return isNaN(num4) ? ".nan" : num4 < 0 ? "-.inf" : ".inf";
+      const num5 = typeof value4 === "number" ? value4 : Number(value4);
+      if (!isFinite(num5))
+        return isNaN(num5) ? ".nan" : num5 < 0 ? "-.inf" : ".inf";
       let n = Object.is(value4, -0) ? "-0" : JSON.stringify(value4);
       if (!format && minFractionDigits && (!tag || tag === "tag:yaml.org,2002:float") && /^\d/.test(n)) {
         let i = n.indexOf(".");
@@ -16490,7 +16490,7 @@ var require_float = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:float",
       test: /^(?:[-+]?\.(?:inf|Inf|INF)|\.nan|\.NaN|\.NAN)$/,
-      resolve: (str24) => str24.slice(-3).toLowerCase() === "nan" ? NaN : str24[0] === "-" ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY,
+      resolve: (str26) => str26.slice(-3).toLowerCase() === "nan" ? NaN : str26[0] === "-" ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY,
       stringify: stringifyNumber.stringifyNumber
     };
     var floatExp = {
@@ -16499,10 +16499,10 @@ var require_float = __commonJS({
       tag: "tag:yaml.org,2002:float",
       format: "EXP",
       test: /^[-+]?(?:\.[0-9]+|[0-9]+(?:\.[0-9]*)?)[eE][-+]?[0-9]+$/,
-      resolve: (str24) => parseFloat(str24),
+      resolve: (str26) => parseFloat(str26),
       stringify(node) {
-        const num4 = Number(node.value);
-        return isFinite(num4) ? num4.toExponential() : stringifyNumber.stringifyNumber(node);
+        const num5 = Number(node.value);
+        return isFinite(num5) ? num5.toExponential() : stringifyNumber.stringifyNumber(node);
       }
     };
     var float = {
@@ -16510,11 +16510,11 @@ var require_float = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:float",
       test: /^[-+]?(?:\.[0-9]+|[0-9]+\.[0-9]*)$/,
-      resolve(str24) {
-        const node = new Scalar.Scalar(parseFloat(str24));
-        const dot = str24.indexOf(".");
-        if (dot !== -1 && str24[str24.length - 1] === "0")
-          node.minFractionDigits = str24.length - dot - 1;
+      resolve(str26) {
+        const node = new Scalar.Scalar(parseFloat(str26));
+        const dot = str26.indexOf(".");
+        if (dot !== -1 && str26[str26.length - 1] === "0")
+          node.minFractionDigits = str26.length - dot - 1;
         return node;
       },
       stringify: stringifyNumber.stringifyNumber
@@ -16531,7 +16531,7 @@ var require_int = __commonJS({
     "use strict";
     var stringifyNumber = require_stringifyNumber();
     var intIdentify = (value4) => typeof value4 === "bigint" || Number.isInteger(value4);
-    var intResolve = (str24, offset2, radix, { intAsBigInt }) => intAsBigInt ? BigInt(str24) : parseInt(str24.substring(offset2), radix);
+    var intResolve = (str26, offset2, radix, { intAsBigInt }) => intAsBigInt ? BigInt(str26) : parseInt(str26.substring(offset2), radix);
     function intStringify(node, radix, prefix) {
       const { value: value4 } = node;
       if (intIdentify(value4) && value4 >= 0)
@@ -16544,15 +16544,15 @@ var require_int = __commonJS({
       tag: "tag:yaml.org,2002:int",
       format: "OCT",
       test: /^0o[0-7]+$/,
-      resolve: (str24, _onError, opt) => intResolve(str24, 2, 8, opt),
+      resolve: (str26, _onError, opt) => intResolve(str26, 2, 8, opt),
       stringify: (node) => intStringify(node, 8, "0o")
     };
-    var int3 = {
+    var int4 = {
       identify: intIdentify,
       default: true,
       tag: "tag:yaml.org,2002:int",
       test: /^[-+]?[0-9]+$/,
-      resolve: (str24, _onError, opt) => intResolve(str24, 0, 10, opt),
+      resolve: (str26, _onError, opt) => intResolve(str26, 0, 10, opt),
       stringify: stringifyNumber.stringifyNumber
     };
     var intHex = {
@@ -16561,10 +16561,10 @@ var require_int = __commonJS({
       tag: "tag:yaml.org,2002:int",
       format: "HEX",
       test: /^0x[0-9a-fA-F]+$/,
-      resolve: (str24, _onError, opt) => intResolve(str24, 2, 16, opt),
+      resolve: (str26, _onError, opt) => intResolve(str26, 2, 16, opt),
       stringify: (node) => intStringify(node, 16, "0x")
     };
-    exports2.int = int3;
+    exports2.int = int4;
     exports2.intHex = intHex;
     exports2.intOct = intOct;
   }
@@ -16580,16 +16580,16 @@ var require_schema = __commonJS({
     var string3 = require_string();
     var bool2 = require_bool();
     var float = require_float();
-    var int3 = require_int();
+    var int4 = require_int();
     var schema = [
       map.map,
       seq.seq,
       string3.string,
       _null4.nullTag,
       bool2.boolTag,
-      int3.intOct,
-      int3.int,
-      int3.intHex,
+      int4.intOct,
+      int4.int,
+      int4.intHex,
       float.floatNaN,
       float.floatExp,
       float.float
@@ -16614,7 +16614,7 @@ var require_schema2 = __commonJS({
         identify: (value4) => typeof value4 === "string",
         default: true,
         tag: "tag:yaml.org,2002:str",
-        resolve: (str24) => str24,
+        resolve: (str26) => str26,
         stringify: stringifyJSON
       },
       {
@@ -16631,7 +16631,7 @@ var require_schema2 = __commonJS({
         default: true,
         tag: "tag:yaml.org,2002:bool",
         test: /^true$|^false$/,
-        resolve: (str24) => str24 === "true",
+        resolve: (str26) => str26 === "true",
         stringify: stringifyJSON
       },
       {
@@ -16639,7 +16639,7 @@ var require_schema2 = __commonJS({
         default: true,
         tag: "tag:yaml.org,2002:int",
         test: /^-?(?:0|[1-9][0-9]*)$/,
-        resolve: (str24, _onError, { intAsBigInt }) => intAsBigInt ? BigInt(str24) : parseInt(str24, 10),
+        resolve: (str26, _onError, { intAsBigInt }) => intAsBigInt ? BigInt(str26) : parseInt(str26, 10),
         stringify: ({ value: value4 }) => intIdentify(value4) ? value4.toString() : JSON.stringify(value4)
       },
       {
@@ -16647,7 +16647,7 @@ var require_schema2 = __commonJS({
         default: true,
         tag: "tag:yaml.org,2002:float",
         test: /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]*)?(?:[eE][-+]?[0-9]+)?$/,
-        resolve: (str24) => parseFloat(str24),
+        resolve: (str26) => parseFloat(str26),
         stringify: stringifyJSON
       }
     ];
@@ -16655,9 +16655,9 @@ var require_schema2 = __commonJS({
       default: true,
       tag: "",
       test: /^/,
-      resolve(str24, onError) {
-        onError(`Unresolved plain scalar ${JSON.stringify(str24)}`);
-        return str24;
+      resolve(str26, onError) {
+        onError(`Unresolved plain scalar ${JSON.stringify(str26)}`);
+        return str26;
       }
     };
     var schema = [map.map, seq.seq].concat(jsonScalars, jsonError2);
@@ -16689,10 +16689,10 @@ var require_binary = __commonJS({
         if (typeof node_buffer.Buffer === "function") {
           return node_buffer.Buffer.from(src, "base64");
         } else if (typeof atob === "function") {
-          const str24 = atob(src.replace(/[\n\r]/g, ""));
-          const buffer = new Uint8Array(str24.length);
-          for (let i = 0; i < str24.length; ++i)
-            buffer[i] = str24.charCodeAt(i);
+          const str26 = atob(src.replace(/[\n\r]/g, ""));
+          const buffer = new Uint8Array(str26.length);
+          for (let i = 0; i < str26.length; ++i)
+            buffer[i] = str26.charCodeAt(i);
           return buffer;
         } else {
           onError("This environment does not support reading binary tags; either Buffer or atob is required");
@@ -16703,28 +16703,28 @@ var require_binary = __commonJS({
         if (!value4)
           return "";
         const buf = value4;
-        let str24;
+        let str26;
         if (typeof node_buffer.Buffer === "function") {
-          str24 = buf instanceof node_buffer.Buffer ? buf.toString("base64") : node_buffer.Buffer.from(buf.buffer).toString("base64");
+          str26 = buf instanceof node_buffer.Buffer ? buf.toString("base64") : node_buffer.Buffer.from(buf.buffer).toString("base64");
         } else if (typeof btoa === "function") {
           let s2 = "";
           for (let i = 0; i < buf.length; ++i)
             s2 += String.fromCharCode(buf[i]);
-          str24 = btoa(s2);
+          str26 = btoa(s2);
         } else {
           throw new Error("This environment does not support writing binary tags; either Buffer or btoa is required");
         }
         type ?? (type = Scalar.Scalar.BLOCK_LITERAL);
         if (type !== Scalar.Scalar.QUOTE_DOUBLE) {
           const lineWidth = Math.max(ctx.options.lineWidth - ctx.indent.length, ctx.options.minContentWidth);
-          const n = Math.ceil(str24.length / lineWidth);
+          const n = Math.ceil(str26.length / lineWidth);
           const lines2 = new Array(n);
           for (let i = 0, o = 0; i < n; ++i, o += lineWidth) {
-            lines2[i] = str24.substr(o, lineWidth);
+            lines2[i] = str26.substr(o, lineWidth);
           }
-          str24 = lines2.join(type === Scalar.Scalar.BLOCK_LITERAL ? "\n" : " ");
+          str26 = lines2.join(type === Scalar.Scalar.BLOCK_LITERAL ? "\n" : " ");
         }
-        return stringifyString.stringifyString({ comment, type, value: str24 }, ctx, onComment, onChompKeep);
+        return stringifyString.stringifyString({ comment, type, value: str26 }, ctx, onComment, onChompKeep);
       }
     };
     exports2.binary = binary;
@@ -16774,25 +16774,25 @@ ${cn.comment}` : item2.comment;
         for (let it of iterable) {
           if (typeof replacer === "function")
             it = replacer.call(iterable, String(i++), it);
-          let key3, value4;
+          let key5, value4;
           if (Array.isArray(it)) {
             if (it.length === 2) {
-              key3 = it[0];
+              key5 = it[0];
               value4 = it[1];
             } else
               throw new TypeError(`Expected [key, value] tuple: ${it}`);
           } else if (it && it instanceof Object) {
             const keys = Object.keys(it);
             if (keys.length === 1) {
-              key3 = keys[0];
-              value4 = it[key3];
+              key5 = keys[0];
+              value4 = it[key5];
             } else {
               throw new TypeError(`Expected tuple with one key, not ${keys.length} keys`);
             }
           } else {
-            key3 = it;
+            key5 = it;
           }
-          pairs2.items.push(Pair.createPair(key3, value4, ctx));
+          pairs2.items.push(Pair.createPair(key5, value4, ctx));
         }
       return pairs2;
     }
@@ -16839,16 +16839,16 @@ var require_omap = __commonJS({
         if (ctx?.onCreate)
           ctx.onCreate(map);
         for (const pair of this.items) {
-          let key3, value4;
+          let key5, value4;
           if (identity.isPair(pair)) {
-            key3 = toJS.toJS(pair.key, "", ctx);
-            value4 = toJS.toJS(pair.value, key3, ctx);
+            key5 = toJS.toJS(pair.key, "", ctx);
+            value4 = toJS.toJS(pair.value, key5, ctx);
           } else {
-            key3 = toJS.toJS(pair, "", ctx);
+            key5 = toJS.toJS(pair, "", ctx);
           }
-          if (map.has(key3))
+          if (map.has(key5))
             throw new Error("Ordered maps must not include duplicate keys");
-          map.set(key3, value4);
+          map.set(key5, value4);
         }
         return map;
       }
@@ -16869,12 +16869,12 @@ var require_omap = __commonJS({
       resolve(seq, onError) {
         const pairs$1 = pairs.resolvePairs(seq, onError);
         const seenKeys = [];
-        for (const { key: key3 } of pairs$1.items) {
-          if (identity.isScalar(key3)) {
-            if (seenKeys.includes(key3.value)) {
-              onError(`Ordered maps must not include duplicate keys: ${key3.value}`);
+        for (const { key: key5 } of pairs$1.items) {
+          if (identity.isScalar(key5)) {
+            if (seenKeys.includes(key5.value)) {
+              onError(`Ordered maps must not include duplicate keys: ${key5.value}`);
             } else {
-              seenKeys.push(key3.value);
+              seenKeys.push(key5.value);
             }
           }
         }
@@ -16930,7 +16930,7 @@ var require_float2 = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:float",
       test: /^(?:[-+]?\.(?:inf|Inf|INF)|\.nan|\.NaN|\.NAN)$/,
-      resolve: (str24) => str24.slice(-3).toLowerCase() === "nan" ? NaN : str24[0] === "-" ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY,
+      resolve: (str26) => str26.slice(-3).toLowerCase() === "nan" ? NaN : str26[0] === "-" ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY,
       stringify: stringifyNumber.stringifyNumber
     };
     var floatExp = {
@@ -16939,10 +16939,10 @@ var require_float2 = __commonJS({
       tag: "tag:yaml.org,2002:float",
       format: "EXP",
       test: /^[-+]?(?:[0-9][0-9_]*)?(?:\.[0-9_]*)?[eE][-+]?[0-9]+$/,
-      resolve: (str24) => parseFloat(str24.replace(/_/g, "")),
+      resolve: (str26) => parseFloat(str26.replace(/_/g, "")),
       stringify(node) {
-        const num4 = Number(node.value);
-        return isFinite(num4) ? num4.toExponential() : stringifyNumber.stringifyNumber(node);
+        const num5 = Number(node.value);
+        return isFinite(num5) ? num5.toExponential() : stringifyNumber.stringifyNumber(node);
       }
     };
     var float = {
@@ -16950,11 +16950,11 @@ var require_float2 = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:float",
       test: /^[-+]?(?:[0-9][0-9_]*)?\.[0-9_]*$/,
-      resolve(str24) {
-        const node = new Scalar.Scalar(parseFloat(str24.replace(/_/g, "")));
-        const dot = str24.indexOf(".");
+      resolve(str26) {
+        const node = new Scalar.Scalar(parseFloat(str26.replace(/_/g, "")));
+        const dot = str26.indexOf(".");
         if (dot !== -1) {
-          const f = str24.substring(dot + 1).replace(/_/g, "");
+          const f = str26.substring(dot + 1).replace(/_/g, "");
           if (f[f.length - 1] === "0")
             node.minFractionDigits = f.length;
         }
@@ -16974,34 +16974,34 @@ var require_int2 = __commonJS({
     "use strict";
     var stringifyNumber = require_stringifyNumber();
     var intIdentify = (value4) => typeof value4 === "bigint" || Number.isInteger(value4);
-    function intResolve(str24, offset2, radix, { intAsBigInt }) {
-      const sign = str24[0];
+    function intResolve(str26, offset2, radix, { intAsBigInt }) {
+      const sign = str26[0];
       if (sign === "-" || sign === "+")
         offset2 += 1;
-      str24 = str24.substring(offset2).replace(/_/g, "");
+      str26 = str26.substring(offset2).replace(/_/g, "");
       if (intAsBigInt) {
         switch (radix) {
           case 2:
-            str24 = `0b${str24}`;
+            str26 = `0b${str26}`;
             break;
           case 8:
-            str24 = `0o${str24}`;
+            str26 = `0o${str26}`;
             break;
           case 16:
-            str24 = `0x${str24}`;
+            str26 = `0x${str26}`;
             break;
         }
-        const n2 = BigInt(str24);
+        const n2 = BigInt(str26);
         return sign === "-" ? BigInt(-1) * n2 : n2;
       }
-      const n = parseInt(str24, radix);
+      const n = parseInt(str26, radix);
       return sign === "-" ? -1 * n : n;
     }
     function intStringify(node, radix, prefix) {
       const { value: value4 } = node;
       if (intIdentify(value4)) {
-        const str24 = value4.toString(radix);
-        return value4 < 0 ? "-" + prefix + str24.substr(1) : prefix + str24;
+        const str26 = value4.toString(radix);
+        return value4 < 0 ? "-" + prefix + str26.substr(1) : prefix + str26;
       }
       return stringifyNumber.stringifyNumber(node);
     }
@@ -17011,7 +17011,7 @@ var require_int2 = __commonJS({
       tag: "tag:yaml.org,2002:int",
       format: "BIN",
       test: /^[-+]?0b[0-1_]+$/,
-      resolve: (str24, _onError, opt) => intResolve(str24, 2, 2, opt),
+      resolve: (str26, _onError, opt) => intResolve(str26, 2, 2, opt),
       stringify: (node) => intStringify(node, 2, "0b")
     };
     var intOct = {
@@ -17020,15 +17020,15 @@ var require_int2 = __commonJS({
       tag: "tag:yaml.org,2002:int",
       format: "OCT",
       test: /^[-+]?0[0-7_]+$/,
-      resolve: (str24, _onError, opt) => intResolve(str24, 1, 8, opt),
+      resolve: (str26, _onError, opt) => intResolve(str26, 1, 8, opt),
       stringify: (node) => intStringify(node, 8, "0")
     };
-    var int3 = {
+    var int4 = {
       identify: intIdentify,
       default: true,
       tag: "tag:yaml.org,2002:int",
       test: /^[-+]?[0-9][0-9_]*$/,
-      resolve: (str24, _onError, opt) => intResolve(str24, 0, 10, opt),
+      resolve: (str26, _onError, opt) => intResolve(str26, 0, 10, opt),
       stringify: stringifyNumber.stringifyNumber
     };
     var intHex = {
@@ -17037,10 +17037,10 @@ var require_int2 = __commonJS({
       tag: "tag:yaml.org,2002:int",
       format: "HEX",
       test: /^[-+]?0x[0-9a-fA-F_]+$/,
-      resolve: (str24, _onError, opt) => intResolve(str24, 2, 16, opt),
+      resolve: (str26, _onError, opt) => intResolve(str26, 2, 16, opt),
       stringify: (node) => intStringify(node, 16, "0x")
     };
-    exports2.int = int3;
+    exports2.int = int4;
     exports2.intBin = intBin;
     exports2.intHex = intHex;
     exports2.intOct = intOct;
@@ -17059,14 +17059,14 @@ var require_set = __commonJS({
         super(schema);
         this.tag = _YAMLSet.tag;
       }
-      add(key3) {
+      add(key5) {
         let pair;
-        if (identity.isPair(key3))
-          pair = key3;
-        else if (key3 && typeof key3 === "object" && "key" in key3 && "value" in key3 && key3.value === null)
-          pair = new Pair.Pair(key3.key, null);
+        if (identity.isPair(key5))
+          pair = key5;
+        else if (key5 && typeof key5 === "object" && "key" in key5 && "value" in key5 && key5.value === null)
+          pair = new Pair.Pair(key5.key, null);
         else
-          pair = new Pair.Pair(key3, null);
+          pair = new Pair.Pair(key5, null);
         const prev = YAMLMap.findPair(this.items, pair.key);
         if (!prev)
           this.items.push(pair);
@@ -17075,18 +17075,18 @@ var require_set = __commonJS({
        * If `keepPair` is `true`, returns the Pair matching `key`.
        * Otherwise, returns the value of that Pair's key.
        */
-      get(key3, keepPair) {
-        const pair = YAMLMap.findPair(this.items, key3);
+      get(key5, keepPair) {
+        const pair = YAMLMap.findPair(this.items, key5);
         return !keepPair && identity.isPair(pair) ? identity.isScalar(pair.key) ? pair.key.value : pair.key : pair;
       }
-      set(key3, value4) {
+      set(key5, value4) {
         if (typeof value4 !== "boolean")
           throw new Error(`Expected boolean value for set(key, value) in a YAML set, not ${typeof value4}`);
-        const prev = YAMLMap.findPair(this.items, key3);
+        const prev = YAMLMap.findPair(this.items, key5);
         if (prev && !value4) {
           this.items.splice(this.items.indexOf(prev), 1);
         } else if (!prev && value4) {
-          this.items.push(new Pair.Pair(key3));
+          this.items.push(new Pair.Pair(key5));
         }
       }
       toJSON(_2, ctx) {
@@ -17141,26 +17141,26 @@ var require_timestamp = __commonJS({
   "node_modules/yaml/dist/schema/yaml-1.1/timestamp.js"(exports2) {
     "use strict";
     var stringifyNumber = require_stringifyNumber();
-    function parseSexagesimal(str24, asBigInt) {
-      const sign = str24[0];
-      const parts = sign === "-" || sign === "+" ? str24.substring(1) : str24;
-      const num4 = (n) => asBigInt ? BigInt(n) : Number(n);
-      const res = parts.replace(/_/g, "").split(":").reduce((res2, p) => res2 * num4(60) + num4(p), num4(0));
-      return sign === "-" ? num4(-1) * res : res;
+    function parseSexagesimal(str26, asBigInt) {
+      const sign = str26[0];
+      const parts = sign === "-" || sign === "+" ? str26.substring(1) : str26;
+      const num5 = (n) => asBigInt ? BigInt(n) : Number(n);
+      const res = parts.replace(/_/g, "").split(":").reduce((res2, p) => res2 * num5(60) + num5(p), num5(0));
+      return sign === "-" ? num5(-1) * res : res;
     }
     function stringifySexagesimal(node) {
       let { value: value4 } = node;
-      let num4 = (n) => n;
+      let num5 = (n) => n;
       if (typeof value4 === "bigint")
-        num4 = (n) => BigInt(n);
+        num5 = (n) => BigInt(n);
       else if (isNaN(value4) || !isFinite(value4))
         return stringifyNumber.stringifyNumber(node);
       let sign = "";
       if (value4 < 0) {
         sign = "-";
-        value4 *= num4(-1);
+        value4 *= num5(-1);
       }
-      const _60 = num4(60);
+      const _60 = num5(60);
       const parts = [value4 % _60];
       if (value4 < 60) {
         parts.unshift(0);
@@ -17180,7 +17180,7 @@ var require_timestamp = __commonJS({
       tag: "tag:yaml.org,2002:int",
       format: "TIME",
       test: /^[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+$/,
-      resolve: (str24, _onError, { intAsBigInt }) => parseSexagesimal(str24, intAsBigInt),
+      resolve: (str26, _onError, { intAsBigInt }) => parseSexagesimal(str26, intAsBigInt),
       stringify: stringifySexagesimal
     };
     var floatTime = {
@@ -17189,7 +17189,7 @@ var require_timestamp = __commonJS({
       tag: "tag:yaml.org,2002:float",
       format: "TIME",
       test: /^[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\.[0-9_]*$/,
-      resolve: (str24) => parseSexagesimal(str24, false),
+      resolve: (str26) => parseSexagesimal(str26, false),
       stringify: stringifySexagesimal
     };
     var timestamp = {
@@ -17200,13 +17200,13 @@ var require_timestamp = __commonJS({
       // may be omitted altogether, resulting in a date format. In such a case, the time part is
       // assumed to be 00:00:00Z (start of day, UTC).
       test: RegExp("^([0-9]{4})-([0-9]{1,2})-([0-9]{1,2})(?:(?:t|T|[ \\t]+)([0-9]{1,2}):([0-9]{1,2}):([0-9]{1,2}(\\.[0-9]+)?)(?:[ \\t]*(Z|[-+][012]?[0-9](?::[0-9]{2})?))?)?$"),
-      resolve(str24) {
-        const match = str24.match(timestamp.test);
+      resolve(str26) {
+        const match = str26.match(timestamp.test);
         if (!match)
           throw new Error("!!timestamp expects a date, starting with yyyy-mm-dd");
-        const [, year, month, day2, hour, minute, second] = match.map(Number);
+        const [, year, month, day3, hour, minute, second] = match.map(Number);
         const millisec = match[7] ? Number((match[7] + "00").substr(1, 3)) : 0;
-        let date3 = Date.UTC(year, month - 1, day2, hour || 0, minute || 0, second || 0, millisec);
+        let date3 = Date.UTC(year, month - 1, day3, hour || 0, minute || 0, second || 0, millisec);
         const tz = match[8];
         if (tz && tz !== "Z") {
           let d = parseSexagesimal(tz, false);
@@ -17235,7 +17235,7 @@ var require_schema3 = __commonJS({
     var binary = require_binary();
     var bool2 = require_bool2();
     var float = require_float2();
-    var int3 = require_int2();
+    var int4 = require_int2();
     var merge2 = require_merge();
     var omap = require_omap();
     var pairs = require_pairs();
@@ -17248,10 +17248,10 @@ var require_schema3 = __commonJS({
       _null4.nullTag,
       bool2.trueTag,
       bool2.falseTag,
-      int3.intBin,
-      int3.intOct,
-      int3.int,
-      int3.intHex,
+      int4.intBin,
+      int4.intOct,
+      int4.int,
+      int4.intHex,
       float.floatNaN,
       float.floatExp,
       float.float,
@@ -17278,7 +17278,7 @@ var require_tags = __commonJS({
     var string3 = require_string();
     var bool2 = require_bool();
     var float = require_float();
-    var int3 = require_int();
+    var int4 = require_int();
     var schema = require_schema();
     var schema$1 = require_schema2();
     var binary = require_binary();
@@ -17302,9 +17302,9 @@ var require_tags = __commonJS({
       floatExp: float.floatExp,
       floatNaN: float.floatNaN,
       floatTime: timestamp.floatTime,
-      int: int3.int,
-      intHex: int3.intHex,
-      intOct: int3.intOct,
+      int: int4.int,
+      intHex: int4.intHex,
+      intOct: int4.intOct,
       intTime: timestamp.intTime,
       map: map.map,
       merge: merge2.merge,
@@ -17333,7 +17333,7 @@ var require_tags = __commonJS({
         if (Array.isArray(customTags))
           tags = [];
         else {
-          const keys = Array.from(schemas.keys()).filter((key3) => key3 !== "yaml11").map((key3) => JSON.stringify(key3)).join(", ");
+          const keys = Array.from(schemas.keys()).filter((key5) => key5 !== "yaml11").map((key5) => JSON.stringify(key5)).join(", ");
           throw new Error(`Unknown schema "${schemaName}"; use one of ${keys} or define customTags array`);
         }
       }
@@ -17349,7 +17349,7 @@ var require_tags = __commonJS({
         const tagObj = typeof tag === "string" ? tagsByName[tag] : tag;
         if (!tagObj) {
           const tagName = JSON.stringify(tag);
-          const keys = Object.keys(tagsByName).map((key3) => JSON.stringify(key3)).join(", ");
+          const keys = Object.keys(tagsByName).map((key5) => JSON.stringify(key5)).join(", ");
           throw new Error(`Unknown custom tag ${tagName}; use one of ${keys}`);
         }
         if (!tags2.includes(tagObj))
@@ -17613,8 +17613,8 @@ var require_Document = __commonJS({
        * Convert a key and a value into a `Pair` using the current schema,
        * recursively wrapping all values as `Scalar` or `Collection` nodes.
        */
-      createPair(key3, value4, options = {}) {
-        const k = this.createNode(key3, null, options);
+      createPair(key5, value4, options = {}) {
+        const k = this.createNode(key5, null, options);
         const v = this.createNode(value4, null, options);
         return new Pair.Pair(k, v);
       }
@@ -17622,8 +17622,8 @@ var require_Document = __commonJS({
        * Removes a value from the document.
        * @returns `true` if the item was found and removed.
        */
-      delete(key3) {
-        return assertCollection(this.contents) ? this.contents.delete(key3) : false;
+      delete(key5) {
+        return assertCollection(this.contents) ? this.contents.delete(key5) : false;
       }
       /**
        * Removes a value from the document.
@@ -17643,8 +17643,8 @@ var require_Document = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      get(key3, keepScalar) {
-        return identity.isCollection(this.contents) ? this.contents.get(key3, keepScalar) : void 0;
+      get(key5, keepScalar) {
+        return identity.isCollection(this.contents) ? this.contents.get(key5, keepScalar) : void 0;
       }
       /**
        * Returns item at `path`, or `undefined` if not found. By default unwraps
@@ -17659,8 +17659,8 @@ var require_Document = __commonJS({
       /**
        * Checks if the document includes a value with the key `key`.
        */
-      has(key3) {
-        return identity.isCollection(this.contents) ? this.contents.has(key3) : false;
+      has(key5) {
+        return identity.isCollection(this.contents) ? this.contents.has(key5) : false;
       }
       /**
        * Checks if the document includes a value at `path`.
@@ -17674,11 +17674,11 @@ var require_Document = __commonJS({
        * Sets a value in this document. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      set(key3, value4) {
+      set(key5, value4) {
         if (this.contents == null) {
-          this.contents = Collection.collectionFromPath(this.schema, [key3], value4);
+          this.contents = Collection.collectionFromPath(this.schema, [key5], value4);
         } else if (assertCollection(this.contents)) {
-          this.contents.set(key3, value4);
+          this.contents.set(key5, value4);
         }
       }
       /**
@@ -17985,24 +17985,24 @@ var require_resolve_props = __commonJS({
 var require_util_contains_newline = __commonJS({
   "node_modules/yaml/dist/compose/util-contains-newline.js"(exports2) {
     "use strict";
-    function containsNewline(key3) {
-      if (!key3)
+    function containsNewline(key5) {
+      if (!key5)
         return null;
-      switch (key3.type) {
+      switch (key5.type) {
         case "alias":
         case "scalar":
         case "double-quoted-scalar":
         case "single-quoted-scalar":
-          if (key3.source.includes("\n"))
+          if (key5.source.includes("\n"))
             return true;
-          if (key3.end) {
-            for (const st of key3.end)
+          if (key5.end) {
+            for (const st of key5.end)
               if (st.type === "newline")
                 return true;
           }
           return false;
         case "flow-collection":
-          for (const it of key3.items) {
+          for (const it of key5.items) {
             for (const st of it.start)
               if (st.type === "newline")
                 return true;
@@ -18076,10 +18076,10 @@ var require_resolve_block_map = __commonJS({
       let offset2 = bm.offset;
       let commentEnd = null;
       for (const collItem of bm.items) {
-        const { start, key: key3, sep: sep6, value: value4 } = collItem;
+        const { start, key: key5, sep: sep6, value: value4 } = collItem;
         const keyProps = resolveProps.resolveProps(start, {
           indicator: "explicit-key-ind",
-          next: key3 ?? sep6?.[0],
+          next: key5 ?? sep6?.[0],
           offset: offset2,
           onError,
           parentIndent: bm.indent,
@@ -18087,10 +18087,10 @@ var require_resolve_block_map = __commonJS({
         });
         const implicitKey = !keyProps.found;
         if (implicitKey) {
-          if (key3) {
-            if (key3.type === "block-seq")
+          if (key5) {
+            if (key5.type === "block-seq")
               onError(offset2, "BLOCK_AS_IMPLICIT_KEY", "A block sequence may not be used as an implicit map key");
-            else if ("indent" in key3 && key3.indent !== bm.indent)
+            else if ("indent" in key5 && key5.indent !== bm.indent)
               onError(offset2, "BAD_INDENT", startColMsg);
           }
           if (!keyProps.anchor && !keyProps.tag && !sep6) {
@@ -18103,17 +18103,17 @@ var require_resolve_block_map = __commonJS({
             }
             continue;
           }
-          if (keyProps.newlineAfterProp || utilContainsNewline.containsNewline(key3)) {
-            onError(key3 ?? start[start.length - 1], "MULTILINE_IMPLICIT_KEY", "Implicit keys need to be on a single line");
+          if (keyProps.newlineAfterProp || utilContainsNewline.containsNewline(key5)) {
+            onError(key5 ?? start[start.length - 1], "MULTILINE_IMPLICIT_KEY", "Implicit keys need to be on a single line");
           }
         } else if (keyProps.found?.indent !== bm.indent) {
           onError(offset2, "BAD_INDENT", startColMsg);
         }
         ctx.atKey = true;
         const keyStart = keyProps.end;
-        const keyNode = key3 ? composeNode(ctx, key3, keyProps, onError) : composeEmptyNode(ctx, keyStart, start, null, keyProps, onError);
+        const keyNode = key5 ? composeNode(ctx, key5, keyProps, onError) : composeEmptyNode(ctx, keyStart, start, null, keyProps, onError);
         if (ctx.schema.compat)
-          utilFlowIndentCheck.flowIndentCheck(bm.indent, key3, onError);
+          utilFlowIndentCheck.flowIndentCheck(bm.indent, key5, onError);
         ctx.atKey = false;
         if (utilMapIncludes.mapIncludes(ctx, map.items, keyNode))
           onError(keyStart, "DUPLICATE_KEY", "Map keys must be unique");
@@ -18123,7 +18123,7 @@ var require_resolve_block_map = __commonJS({
           offset: keyNode.range[2],
           onError,
           parentIndent: bm.indent,
-          startOnNewline: !key3 || key3.type === "block-scalar"
+          startOnNewline: !key5 || key5.type === "block-scalar"
         });
         offset2 = valueProps.end;
         if (valueProps.found) {
@@ -18287,11 +18287,11 @@ var require_resolve_flow_collection = __commonJS({
       let offset2 = fc.offset + fc.start.source.length;
       for (let i = 0; i < fc.items.length; ++i) {
         const collItem = fc.items[i];
-        const { start, key: key3, sep: sep6, value: value4 } = collItem;
+        const { start, key: key5, sep: sep6, value: value4 } = collItem;
         const props = resolveProps.resolveProps(start, {
           flow: fcName,
           indicator: "explicit-key-ind",
-          next: key3 ?? sep6?.[0],
+          next: key5 ?? sep6?.[0],
           offset: offset2,
           onError,
           parentIndent: fc.indent,
@@ -18312,9 +18312,9 @@ var require_resolve_flow_collection = __commonJS({
             offset2 = props.end;
             continue;
           }
-          if (!isMap && ctx.options.strict && utilContainsNewline.containsNewline(key3))
+          if (!isMap && ctx.options.strict && utilContainsNewline.containsNewline(key5))
             onError(
-              key3,
+              key5,
               // checked by containsNewline()
               "MULTILINE_IMPLICIT_KEY",
               "Implicit keys of flow sequence pairs need to be on a single line"
@@ -18361,8 +18361,8 @@ var require_resolve_flow_collection = __commonJS({
         } else {
           ctx.atKey = true;
           const keyStart = props.end;
-          const keyNode = key3 ? composeNode(ctx, key3, props, onError) : composeEmptyNode(ctx, keyStart, start, null, props, onError);
-          if (isBlock(key3))
+          const keyNode = key5 ? composeNode(ctx, key5, props, onError) : composeEmptyNode(ctx, keyStart, start, null, props, onError);
+          if (isBlock(key5))
             onError(keyNode.range, "BLOCK_IN_FLOW", blockMsg);
           ctx.atKey = false;
           const valueProps = resolveProps.resolveProps(sep6 ?? [], {
@@ -19499,9 +19499,9 @@ var require_cst_scalar = __commonJS({
         ];
         if (!addEndtoBlockProps(props, "end" in token ? token.end : void 0))
           props.push({ type: "newline", offset: -1, indent, source: "\n" });
-        for (const key3 of Object.keys(token))
-          if (key3 !== "type" && key3 !== "offset")
-            delete token[key3];
+        for (const key5 of Object.keys(token))
+          if (key5 !== "type" && key5 !== "offset")
+            delete token[key5];
         Object.assign(token, { type: "block-scalar", indent, props, source: body });
       }
     }
@@ -19549,9 +19549,9 @@ var require_cst_scalar = __commonJS({
         default: {
           const indent = "indent" in token ? token.indent : -1;
           const end = "end" in token && Array.isArray(token.end) ? token.end.filter((st) => st.type === "space" || st.type === "comment" || st.type === "newline") : [];
-          for (const key3 of Object.keys(token))
-            if (key3 !== "type" && key3 !== "offset")
-              delete token[key3];
+          for (const key5 of Object.keys(token))
+            if (key5 !== "type" && key5 !== "offset")
+              delete token[key5];
           Object.assign(token, { type, indent, source, end });
         }
       }
@@ -19606,12 +19606,12 @@ var require_cst_stringify = __commonJS({
         }
       }
     }
-    function stringifyItem({ start, key: key3, sep: sep6, value: value4 }) {
+    function stringifyItem({ start, key: key5, sep: sep6, value: value4 }) {
       let res = "";
       for (const st of start)
         res += st.source;
-      if (key3)
-        res += stringifyToken(key3);
+      if (key5)
+        res += stringifyToken(key5);
       if (sep6)
         for (const st of sep6)
           res += st.source;
@@ -20918,7 +20918,7 @@ var require_parser = __commonJS({
                   });
                 } else if (isFlowToken(it.key) && !includesToken(it.sep, "newline")) {
                   const start2 = getFirstKeyStartProps(it.start);
-                  const key3 = it.key;
+                  const key5 = it.key;
                   const sep6 = it.sep;
                   sep6.push(this.sourceToken);
                   delete it.key;
@@ -20927,7 +20927,7 @@ var require_parser = __commonJS({
                     type: "block-map",
                     offset: this.offset,
                     indent: this.indent,
-                    items: [{ start: start2, key: key3, sep: sep6 }]
+                    items: [{ start: start2, key: key5, sep: sep6 }]
                   });
                 } else if (start.length > 0) {
                   it.sep = it.sep.concat(start, this.sourceToken);
@@ -21639,18 +21639,18 @@ function pluralNoun(noun) {
 function currentMapTracker() {
   return scope.getStore();
 }
-async function trackMap(key3, featureId, title, fn) {
+async function trackMap(key5, featureId, title, fn) {
   prune2();
   const tracker = new MapTracker({ featureId, title, startedAt: Date.now(), steps: [] });
-  runs.set(key3, tracker.progress);
+  runs.set(key5, tracker.progress);
   try {
     return await scope.run(tracker, () => fn(tracker));
   } finally {
     tracker.finish();
   }
 }
-function mapProgress(key3) {
-  return runs.get(key3) ?? null;
+function mapProgress(key5) {
+  return runs.get(key5) ?? null;
 }
 var KEEP_FINISHED_MS, KEEP_STALE_MS, MAX_ENTRIES2, runs, MapTracker, scope, mapKey, readinessKey;
 var init_map_progress = __esm({
@@ -21671,17 +21671,17 @@ var init_map_progress = __esm({
             this.progress.steps.push({ key: s2.key, label: s2.label, state: "waiting" });
       }
       /** A step began (planned or not). */
-      start(key3, label2) {
-        this.plan([{ key: key3, label: label2 }]);
-        const step2 = this.find(key3);
+      start(key5, label2) {
+        this.plan([{ key: key5, label: label2 }]);
+        const step2 = this.find(key5);
         if (step2.state === "waiting") {
           step2.state = "running";
           step2.startedAt = Date.now();
         }
       }
       /** A step ended: `count` items found, or `error`. */
-      end(key3, outcome) {
-        const step2 = this.find(key3);
+      end(key5, outcome) {
+        const step2 = this.find(key5);
         if (!step2) return;
         step2.endedAt = Date.now();
         if (outcome.error) {
@@ -21696,17 +21696,17 @@ var init_map_progress = __esm({
         } else if (outcome.detail) step2.detail = outcome.detail;
       }
       /** Say how far a step is ("3 of 8 objects described"). */
-      detail(key3, text11) {
-        const step2 = this.find(key3);
-        if (step2 && step2.state === "running") step2.detail = text11;
+      detail(key5, text12) {
+        const step2 = this.find(key5);
+        if (step2 && step2.state === "running") step2.detail = text12;
       }
       /** The load returned: steps that never ran drop out. */
       finish() {
         this.progress.steps = this.progress.steps.filter((s2) => s2.state !== "waiting");
         this.progress.finishedAt = Date.now();
       }
-      find(key3) {
-        return this.progress.steps.find((s2) => s2.key === key3);
+      find(key5) {
+        return this.progress.steps.find((s2) => s2.key === key5);
       }
     };
     scope = new AsyncLocalStorage3();
@@ -21735,24 +21735,24 @@ async function count(soql5, org) {
   if (!result2.success) throw new Error(result2.error || "Query failed");
   return result2.data?.totalSize ?? 0;
 }
-async function countGroupedBy(object3, key3, ids, org, where3) {
+async function countGroupedBy(object3, key5, ids, org, where3) {
   const out = /* @__PURE__ */ new Map();
   const chunks5 = await Promise.all(
     chunkIds(ids).map(
       (chunk2) => query(
-        `SELECT ${key3}, COUNT(Id) cnt FROM ${object3} WHERE ${key3} IN (${inList(chunk2)})${where3 ? ` AND ${where3}` : ""} GROUP BY ${key3}`,
+        `SELECT ${key5}, COUNT(Id) cnt FROM ${object3} WHERE ${key5} IN (${inList(chunk2)})${where3 ? ` AND ${where3}` : ""} GROUP BY ${key5}`,
         org
       )
     )
   );
-  for (const r of chunks5.flat()) out.set(String(r[key3]), Number(r.cnt ?? r.expr0 ?? 0));
+  for (const r of chunks5.flat()) out.set(String(r[key5]), Number(r.cnt ?? r.expr0 ?? 0));
   return out;
 }
-async function queryByIds(fields, object3, key3, ids, org, where3) {
+async function queryByIds(fields, object3, key5, ids, org, where3) {
   const chunks5 = await Promise.all(
     chunkIds(ids).map(
       (chunk2) => query(
-        `SELECT ${fields} FROM ${object3} WHERE ${key3} IN (${inList(chunk2)})${where3 ? ` AND ${where3}` : ""}`,
+        `SELECT ${fields} FROM ${object3} WHERE ${key5} IN (${inList(chunk2)})${where3 ? ` AND ${where3}` : ""}`,
         org
       )
     )
@@ -21802,8 +21802,8 @@ function plural(n, noun) {
   if (n === 1) return `${n} ${noun}`;
   return `${n} ${/[^aeiou]y$/i.test(noun) ? `${noun.slice(0, -1)}ies` : `${noun}s`}`;
 }
-function matchesAny(text11, keywords2) {
-  const lower2 = text11.toLowerCase();
+function matchesAny(text12, keywords2) {
+  const lower2 = text12.toLowerCase();
   return keywords2.some((k) => lower2.includes(k.toLowerCase()));
 }
 function splitList(v) {
@@ -21953,8 +21953,8 @@ function navTabsSurface(meta, uiSchema) {
     const collisions = /* @__PURE__ */ new Map();
     for (const t of tabs.filter((t2) => t2.isActive)) {
       for (const profile of profilesOf(t)) {
-        const key3 = `${profile}|${t.fields.TabOrder}`;
-        const other = seen.get(key3);
+        const key5 = `${profile}|${t.fields.TabOrder}`;
+        const other = seen.get(key5);
         if (other) {
           const list2 = collisions.get(t.developerName) ?? [];
           const to = nextFreeOrder(t, tabs);
@@ -21977,7 +21977,7 @@ function navTabsSurface(meta, uiSchema) {
           });
           collisions.set(t.developerName, list2);
         } else {
-          seen.set(key3, t.label ?? t.developerName);
+          seen.set(key5, t.label ?? t.developerName);
         }
       }
     }
@@ -22003,8 +22003,8 @@ function navTabsSurface(meta, uiSchema) {
     };
   });
 }
-function apiName(text11) {
-  const name = text11.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "").replace(/^(\d)/, "X$1");
+function apiName(text12) {
+  const name = text12.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "").replace(/^(\d)/, "X$1");
   return name || "New";
 }
 function uniqueName(base2, records) {
@@ -22138,12 +22138,12 @@ function memoizeQuerier(org) {
   const make = (run4, kind) => {
     const cache3 = /* @__PURE__ */ new Map();
     return (q2, options) => {
-      const key3 = `${kind}|${options?.maxRows ?? ""}|${q2}`;
-      let hit = cache3.get(key3);
+      const key5 = `${kind}|${options?.maxRows ?? ""}|${q2}`;
+      let hit = cache3.get(key5);
       if (!hit) {
         hit = run4(q2, options);
-        cache3.set(key3, hit);
-        const forget = () => cache3.delete(key3);
+        cache3.set(key5, hit);
+        const forget = () => cache3.delete(key5);
         hit.then((r) => r.success || forget(), forget);
       }
       return hit;
@@ -22228,15 +22228,15 @@ async function loadDbSchemaEntries(org) {
 function selectApplicableTables(entries2, user) {
   const bySobject = /* @__PURE__ */ new Map();
   for (const entry of entries2) {
-    const key3 = entry.sobject.toLowerCase();
+    const key5 = entry.sobject.toLowerCase();
     const profileMatch = entry.profileIds.has(user.profileId) || entry.profileIds.size === 0 && entry.profileNames.has(user.profileName);
     const permMatch = [...entry.permissionSets].some((ps) => user.permissionSets.has(ps));
     if (!profileMatch && !permMatch) continue;
-    const existing = bySobject.get(key3);
+    const existing = bySobject.get(key5);
     if (!existing) {
-      bySobject.set(key3, { entry, matchedBy: profileMatch ? "profile" : "permissionSet" });
+      bySobject.set(key5, { entry, matchedBy: profileMatch ? "profile" : "permissionSet" });
     } else if (existing.matchedBy === "permissionSet" && profileMatch) {
-      bySobject.set(key3, { entry, matchedBy: "profile" });
+      bySobject.set(key5, { entry, matchedBy: "profile" });
     }
   }
   return [...bySobject.values()];
@@ -22244,11 +22244,11 @@ function selectApplicableTables(entries2, user) {
 function escapeRegExp(s2) {
   return s2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-function containsTag(text11, tag) {
-  return text11.toLowerCase().includes(tag.toLowerCase());
+function containsTag(text12, tag) {
+  return text12.toLowerCase().includes(tag.toLowerCase());
 }
-function countTag(text11, tag) {
-  return text11.toLowerCase().split(tag.toLowerCase()).length - 1;
+function countTag(text12, tag) {
+  return text12.toLowerCase().split(tag.toLowerCase()).length - 1;
 }
 function resolveScalarTags(conditional, values) {
   let result2 = conditional.split(/\r?\n/).join(" ");
@@ -22339,13 +22339,13 @@ async function fetchIdsUncached(org, sobject2, idField, where3) {
   }
   return { ids: [...ids], rows: records.length, truncated: result2.data?.truncated === true };
 }
-function memo(cache3, key3, fn) {
+function memo(cache3, key5, fn) {
   if (!cache3) return fn();
-  let hit = cache3.get(key3);
+  let hit = cache3.get(key5);
   if (!hit) {
     hit = fn();
-    cache3.set(key3, hit);
-    hit.catch(() => cache3.delete(key3));
+    cache3.set(key5, hit);
+    hit.catch(() => cache3.delete(key5));
   }
   return hit;
 }
@@ -23053,7 +23053,7 @@ async function collectAccounts(ctx) {
     "AccountListActions",
     "AccountSearchPreferences"
   ]).catch(() => ({}));
-  const flag = (category, key3) => cfg[category]?.[key3] === false ? false : true;
+  const flag = (category, key5) => cfg[category]?.[key5] === false ? false : true;
   const nameField = /^\w+$/.test(str(cfg.AccountSearchSettings?.AccountNameField)) ? str(cfg.AccountSearchSettings?.AccountNameField) : "Name";
   const from = (extra) => `FROM Account${accountWhere(scope2, extra)}`;
   const [total, hco, hcp, accounts] = await Promise.all([
@@ -23113,7 +23113,7 @@ async function collectAccounts(ctx) {
   ]);
   const cards = accounts.map((a) => {
     const id2 = str(a.Id);
-    const mine = (rows3, key3 = "AccountId") => rows3.filter((r) => str(r[key3]) === id2);
+    const mine = (rows3, key5 = "AccountId") => rows3.filter((r) => str(r[key5]) === id2);
     const ati = mine(atis);
     const last = ati.map((r) => str(r.LastProviderVisitDate)).filter(Boolean).sort().pop();
     const addrs = mine(addresses, "ParentId");
@@ -23271,8 +23271,8 @@ function windowDays(nowMs, timeZone, firstDay) {
   }
   return out;
 }
-function dayBounds(day2, timeZone) {
-  const [y, m, d] = day2.date.split("-").map(Number);
+function dayBounds(day3, timeZone) {
+  const [y, m, d] = day3.date.split("-").map(Number);
   const next = new Date(Date.UTC(y, m - 1, d + 1));
   return [
     zonedInstant(y, m, d, timeZone),
@@ -23282,8 +23282,8 @@ function dayBounds(day2, timeZone) {
 function clipToDays(startMs, endMs, days, timeZone, bounds) {
   const end = Math.max(endMs, startMs);
   const out = [];
-  days.forEach((day2, i) => {
-    const [from, to] = bounds?.[i] ?? dayBounds(day2, timeZone);
+  days.forEach((day3, i) => {
+    const [from, to] = bounds?.[i] ?? dayBounds(day3, timeZone);
     if (end < from || end === from && startMs < end || startMs >= to) return;
     const s2 = Math.max(startMs, from);
     const e = Math.min(end, to);
@@ -23703,8 +23703,8 @@ async function collectVisitCreate(ctx) {
   };
   const scope2 = ctx.scope("Account");
   if (scope2 === void 0 || scope2 === null) return result2;
-  const field = (row, key3) => {
-    const v = str2(configKey(row, key3));
+  const field = (row, key5) => {
+    const v = str2(configKey(row, key5));
     return /^\w+$/.test(v) ? v : "";
   };
   const slnOn = configKey(cfg.StateLicenseNumberSettings, "IsEnabledOnLogACall") === true;
@@ -23931,7 +23931,7 @@ var init_fabs = __esm({
       return void 0;
     };
     FIELD_COLUMNS = "FieldName, PicklistValue, TextValue, IntegerValue, HasBooleanValue, LongTextValue, UrlValue";
-    configKey = (row, key3) => row?.[Object.keys(row).find((k) => k.toLowerCase() === key3.toLowerCase()) ?? key3];
+    configKey = (row, key5) => row?.[Object.keys(row).find((k) => k.toLowerCase() === key5.toLowerCase()) ?? key5];
   }
 });
 
@@ -23981,9 +23981,9 @@ function alertWhen(effective, now, fmt4) {
   if (days <= 7) {
     const today2 = dayKey(now, timeZone);
     const yesterday = dayKey(new Date(now.getTime() - 864e5), timeZone);
-    const key3 = dayKey(d, timeZone);
-    if (key3 === yesterday) return `Yesterday \u2022 ${time3(d)}`;
-    if (key3 === today2) return `Today \u2022 ${time3(d)}`;
+    const key5 = dayKey(d, timeZone);
+    if (key5 === yesterday) return `Yesterday \u2022 ${time3(d)}`;
+    if (key5 === today2) return `Today \u2022 ${time3(d)}`;
     return `${d.toLocaleDateString(locale, { timeZone, weekday: "long" })}, ${time3(d)}`;
   }
   return `${d.toLocaleDateString(locale, { timeZone, month: "short", day: "numeric" })} \u2022 ${time3(d)}`;
@@ -24367,21 +24367,21 @@ async function addPageThumbnails(cards, linked, org) {
   );
 }
 function sourceFile(org, version3, type) {
-  const key3 = `${org}\0${version3}\0${type}`;
-  const held = sources.get(key3);
+  const key5 = `${org}\0${version3}\0${type}`;
+  const held = sources.get(key5);
   if (held) return held;
   const dir = privateTmp("lsc-studio-content-src");
   const file = join9(
     dir,
-    `${createHash2("sha1").update(key3).digest("hex")}.${type === "PDF" ? "pdf" : "zip"}`
+    `${createHash2("sha1").update(key5).digest("hex")}.${type === "PDF" ? "pdf" : "zip"}`
   );
   const fetched = dataPath2(org, `/sobjects/ContentVersion/${version3}/VersionData`).then((path24) => downloadToFile(path24, file, org, 12e4)).then((res) => {
     if (!res.success) throw new Error(res.error || "Download failed");
     return file;
   });
-  sources.set(key3, fetched);
+  sources.set(key5, fetched);
   const drop = () => {
-    if (sources.get(key3) === fetched) sources.delete(key3);
+    if (sources.get(key5) === fetched) sources.delete(key5);
     rmSync4(file, { force: true });
   };
   fetched.then(() => setTimeout(drop, SOURCE_KEEP_MS).unref(), drop);
@@ -24479,10 +24479,10 @@ function visitTimeText(start, end, f) {
 }
 function visibleDates(days, perPage = 3) {
   let last = null;
-  return days.map((day2, i) => {
-    if (!day2) return false;
-    if (i % perPage === 0 || day2 !== last) {
-      last = day2;
+  return days.map((day3, i) => {
+    if (!day3) return false;
+    if (i % perPage === 0 || day3 !== last) {
+      last = day3;
       return true;
     }
     return false;
@@ -24501,24 +24501,24 @@ function sortNbc(rows3) {
   );
 }
 function cycleText(start, end, now, f) {
-  const day2 = (d) => new Intl.DateTimeFormat(f.locale, {
+  const day3 = (d) => new Intl.DateTimeFormat(f.locale, {
     timeZone: "UTC",
     month: "short",
     day: "numeric",
     year: "numeric"
   }).format(d);
   const left = Math.max(0, Math.floor((end.getTime() - now.getTime()) / 864e5));
-  return `${left} days left (${day2(start)} - ${day2(end)})`;
+  return `${left} days left (${day3(start)} - ${day3(end)})`;
 }
 function paceAxis(start, end, now, f) {
   const ymd = (d) => {
-    const [y, m, day2] = new Intl.DateTimeFormat("en-CA", {
+    const [y, m, day3] = new Intl.DateTimeFormat("en-CA", {
       timeZone: f.timeZone,
       year: "numeric",
       month: "2-digit",
       day: "2-digit"
     }).format(d).split("-").map(Number);
-    return Date.UTC(y, m - 1, day2);
+    return Date.UTC(y, m - 1, day3);
   };
   const s2 = ymd(start);
   const e = Math.max(ymd(end), s2);
@@ -24641,9 +24641,9 @@ async function collectNbc(ctx, now) {
       ctx.adminOrg
     ).catch(softFail(ctx, "Home", []))
   ]);
-  const first2 = (rows4, key3) => {
+  const first2 = (rows4, key5) => {
     const m = /* @__PURE__ */ new Map();
-    for (const r of rows4) if (!m.has(str4(r[key3]))) m.set(str4(r[key3]), r);
+    for (const r of rows4) if (!m.has(str4(r[key5]))) m.set(str4(r[key5]), r);
     return m;
   };
   const spec = first2(specs, "AccountId");
@@ -24854,12 +24854,12 @@ function formatChartDate(iso2) {
 }
 function formatAxisValue(v, percent) {
   const abs = Math.abs(v);
-  let text11;
-  if (abs >= 1e9) text11 = `${trim(v / 1e9)}B`;
-  else if (abs >= 1e6) text11 = `${trim(v / 1e6)}M`;
-  else if (abs >= 1e3) text11 = `${trim(v / 1e3)}K`;
-  else text11 = String(Math.round(v * 100) / 100);
-  return percent ? `${text11}%` : text11;
+  let text12;
+  if (abs >= 1e9) text12 = `${trim(v / 1e9)}B`;
+  else if (abs >= 1e6) text12 = `${trim(v / 1e6)}M`;
+  else if (abs >= 1e3) text12 = `${trim(v / 1e3)}K`;
+  else text12 = String(Math.round(v * 100) / 100);
+  return percent ? `${text12}%` : text12;
 }
 function dayDiff(from, to) {
   return Math.round(
@@ -25028,7 +25028,7 @@ function splitArgs(s2) {
   return out.map((x) => x.trim());
 }
 function expressionToSql(expr, objects) {
-  const text11 = expr.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&").trim();
+  const text12 = expr.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&").trim();
   const tables = /* @__PURE__ */ new Set();
   let ok = true;
   const walk5 = (e) => {
@@ -25055,7 +25055,7 @@ function expressionToSql(expr, objects) {
       return `"${field.dataObjectFieldName}"`;
     });
   };
-  const sql = walk5(text11);
+  const sql = walk5(text12);
   if (!ok || tables.size !== 1 || !/^[\w\s"'.,()=<>!+\-*/%]*$/.test(sql)) return void 0;
   return { sql, table: [...tables][0] };
 }
@@ -25105,14 +25105,14 @@ function timeColumn(ref3, model) {
     (d) => d.apiName === ref3?.calculatedFieldApiName
   );
   if (typeof calc?.expression !== "string") return void 0;
-  const text11 = calc.expression.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&").trim();
-  const plain = /^\[([^\]]+)\]\.\[([^\]]+)\]$/.exec(text11);
+  const text12 = calc.expression.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&").trim();
+  const plain = /^\[([^\]]+)\]\.\[([^\]]+)\]$/.exec(text12);
   if (plain) {
     const c = column(plain[1], plain[2]);
     return c && { ...c, shifted: false };
   }
   const shifted = /^DATEADD\('day',\s*DATEDIFF\('day',\s*\{MAX\(\[([^\]]+)\]\.\[([^\]]+)\]\)\},\s*DATETRUNC\('month',\s*TODAY\(\)\)\),\s*\[([^\]]+)\]\.\[([^\]]+)\]\)$/.exec(
-    text11
+    text12
   );
   if (shifted && shifted[1] === shifted[3] && shifted[2] === shifted[4]) {
     const c = column(shifted[1], shifted[2]);
@@ -25260,13 +25260,712 @@ var init_tableau = __esm({
   }
 });
 
+// src/studio/screens/visit/checks.ts
+function trimSampleLimit(r) {
+  let json2;
+  try {
+    json2 = JSON.parse(text3(r.Rule));
+  } catch {
+    return void 0;
+  }
+  const template = json2.template ?? {};
+  const ops2 = Array.isArray(template.operations) ? template.operations : [];
+  const products = {};
+  for (const [pid, raw] of Object.entries(
+    json2.products ?? {}
+  )) {
+    const rules = {};
+    for (const [name, rr] of Object.entries(
+      raw?.rules ?? {}
+    )) {
+      const period = rr.period ?? {};
+      const params = period.params ?? {};
+      const calc = text3(rr.calculation);
+      if (calc !== "SamplesPerVisit" && calc !== "SamplesInPeriod" && calc !== "SamplesPerYear")
+        continue;
+      rules[name] = {
+        strategy: text3(rr.strategy) === "SHARED" ? "SHARED" : "SKU",
+        starts: text3(rr.starts) || void 0,
+        ends: text3(rr.ends) || void 0,
+        remaining: int2(rr.remaining, 0),
+        quota: int2(rr.quota, 0),
+        calculation: calc,
+        periodType: text3(period.type) || void 0,
+        hasOffset: int2(params.offset, 0) !== 0
+      };
+    }
+    const info = raw?.info ?? {};
+    products[pid] = {
+      rules,
+      firstDropDate: text3(info.firstDropDate) || void 0,
+      annualAllocations: info.annualAllocations ?? void 0,
+      excludedChildProducts: Array.isArray(info.excludedChildProducts) ? info.excludedChildProducts.map(text3) : void 0
+    };
+  }
+  return {
+    accountId: text3(r.AccountId),
+    productId: text3(r.ProductId),
+    template: text3(r.PrvdSampleLmtTemplateName) || text3(template.name),
+    blockType: text3(template.blockType) === "Warning" ? "Warning" : "Error",
+    operations: ops2.map((o) => ({
+      op: text3(o.operation) === "AND" ? "AND" : text3(o.operation) === "OR" ? "OR" : "RULE",
+      rule: text3(o.rule) || void 0
+    })),
+    products
+  };
+}
+async function collectVisitChecks(ctx) {
+  const { org, adminOrg } = ctx;
+  const cfg = await ctx.config(["ProviderVisitSettings", "PlannerAdministration", "TimeOffTerritorySettings"]).catch(() => ({}));
+  const s2 = cfg.ProviderVisitSettings;
+  const typeRaw = text3(key(s2, "SubmissionDelayReasonFields"));
+  const delayReasonType = typeRaw === "Text" || typeRaw === "Picklist" ? typeRaw : "None";
+  const modeRaw = text3(key(s2, "VisitConflictValidationMode")).toLowerCase();
+  const conflictPeriodDays = Math.max(0, int2(key(s2, "VisitConflictValidationPeriod"), 0));
+  const result2 = {
+    futureVisitLimitDays: int2(key(s2, "FutureVisitLimit"), 365),
+    delayReasonType,
+    delayReasonThresholdDays: Math.max(0, int2(key(s2, "SubmissionDelayReasonThreshold"), 0)),
+    delayReasonOptions: [],
+    conflictPeriodDays,
+    conflictMode: modeRaw === "warning" ? "warning" : modeRaw === "error" || !modeRaw ? "error" : "off",
+    holidayRuleOn: false,
+    firstDayOfWeek: text3(key(cfg.PlannerAdministration, "FirstDayOfTheWeek")) || void 0,
+    holidays: [],
+    requiredStatements: [],
+    visits: [],
+    timeZone: ctx.format.timeZone
+  };
+  const flag = (k) => key(s2, k) === true || text3(key(s2, k)).toLowerCase() === "true";
+  const sample = {
+    inventoryOn: flag("ValidateSampleInventory"),
+    inventoryMode: text3(key(s2, "SampleInventoryValidationMode")).toLowerCase() === "warning" ? "warning" : "error",
+    limitsOn: flag("ValidateSampleLimits"),
+    territoryAllocationOn: flag("ValidateTerritoryQtyAllocation"),
+    limits: [],
+    limitsTruncated: false,
+    inventoryCountRead: false
+  };
+  const tot = {
+    on: false,
+    rulesEnabled: key(cfg.TimeOffTerritorySettings, "RulesValidationEnabled") === true,
+    setName: text3(key(cfg.TimeOffTerritorySettings, "SetName")) || "Default",
+    rules: [],
+    events: [],
+    dynamicRules: false
+  };
+  result2.sample = sample;
+  result2.tot = tot;
+  const now = Date.now();
+  const scoped2 = (table) => {
+    const sc = ctx.scope(table);
+    return sc === void 0 || sc === null ? null : sc ? ` AND (${sc})` : "";
+  };
+  await Promise.all([
+    // isTriggerEnabled("VisitHolidayValidationHandler"): the managed trigger handler's active switch.
+    query(
+      "SELECT IsActive FROM LifeScienceTriggerHandler WHERE DeveloperName = 'VisitHolidayValidationHandler' LIMIT 1",
+      adminOrg,
+      true
+    ).then((rows3) => {
+      result2.holidayRuleOn = rows3[0]?.IsActive === true;
+    }).catch(softFail(ctx, "Visit checks", void 0)),
+    // HolidayWeekendValidationPlugin: holidays the device holds (it syncs the Holiday object when DB Schema says so).
+    (async () => {
+      const w = scoped2("Holiday");
+      if (w === null) return;
+      const from = day(now - 400 * 864e5);
+      const to = day(now + 400 * 864e5);
+      const rows3 = await query(
+        `SELECT ActivityDate FROM Holiday WHERE ActivityDate >= ${from} AND ActivityDate <= ${to}${w} LIMIT 500`,
+        org
+      ).catch(softFail(ctx, "Visit checks", []));
+      result2.holidays = rows3.map((r) => text3(r.ActivityDate).slice(0, 10)).filter(Boolean);
+      result2.holidaysFrom = from;
+      result2.holidaysTo = to;
+    })(),
+    // ComplianceStatementsPlugin: required agreements of the Visit module.
+    (async () => {
+      const w = scoped2("ComplianceStatementDef");
+      if (w === null) return;
+      const rows3 = await query(
+        `SELECT Id, StatementText, StatementRequirementLevel FROM ComplianceStatementDef
+         WHERE StatementType = 'ComplianceAgreement' AND ModuleType = 'Visit'${w} ORDER BY DisplayOrder LIMIT 200`,
+        org
+      ).catch(softFail(ctx, "Visit checks", []));
+      result2.requiredStatements = rows3.filter((r) => text3(r.StatementRequirementLevel) === "Required").map((r) => ({ id: text3(r.Id), text: text3(r.StatementText) }));
+    })(),
+    // DelayReasonPlugin: the picklist the sheet offers (valuesForPicklistField of ProviderVisit.SubmitDelayReasonType).
+    (async () => {
+      if (delayReasonType !== "Picklist") return;
+      const r = await apiRequest(
+        await dataPath2(org, "/sobjects/ProviderVisit/describe"),
+        "GET",
+        void 0,
+        org
+      ).catch(() => null);
+      const fields = Array.isArray(r?.data?.fields) ? r?.data?.fields : [];
+      const f = fields.find((x) => text3(x.name) === "SubmitDelayReasonType");
+      const values = Array.isArray(f?.picklistValues) ? f?.picklistValues : [];
+      result2.delayReasonOptions = values.filter((p) => p.active !== false).map((p) => ({ value: text3(p.value), label: text3(p.label) || text3(p.value) }));
+    })(),
+    // VisitConflictValidationPlugin.findConflictingVisit: the device's own Visit table, here the rep's synced visits
+    // within 120 days of today (a draft dated outside that window is not checked).
+    (async () => {
+      if (conflictPeriodDays <= 0 || result2.conflictMode === "off") return;
+      const w = scoped2("Visit");
+      if (w === null) return;
+      const from = day(now - 120 * 864e5);
+      const to = day(now + 120 * 864e5);
+      const rows3 = await query(
+        `SELECT Id, AccountId, Account.Name, Owner.Name, PlannedVisitStartTime, PlannedVisitEndTime FROM Visit
+         WHERE AccountId != null AND PlannedVisitStartTime >= ${from}T00:00:00Z AND PlannedVisitStartTime <= ${to}T00:00:00Z${w}
+         ORDER BY PlannedVisitStartTime LIMIT 2000`,
+        org
+      ).catch(softFail(ctx, "Visit checks", []));
+      result2.visits = rows3.map((r) => ({
+        id: text3(r.Id),
+        accountId: text3(r.AccountId),
+        accountName: text3(r.Account?.Name),
+        ownerName: text3(r.Owner?.Name),
+        start: text3(r.PlannedVisitStartTime),
+        end: text3(r.PlannedVisitEndTime) || text3(r.PlannedVisitStartTime)
+      }));
+      result2.visitsFrom = from;
+      result2.visitsTo = to;
+    })(),
+    // RealSampleLimitProvider: the ProviderSampleLimit rows the device holds. The visit's account isn't known here,
+    // so the newest 500 are read and the editor picks the draft account's; LIMIT 501 tells a cut-short read.
+    (async () => {
+      if (!sample.limitsOn) return;
+      const w = scoped2("ProviderSampleLimit");
+      if (w === null) {
+        sample.limitsUnavailable = ctx.scope("ProviderSampleLimit") === void 0 ? "The device doesn't sync Sample Limits." : "The Sample Limit sync filter can't be reproduced here.";
+        return;
+      }
+      const rows3 = await query(
+        `SELECT AccountId, ProductId, PrvdSampleLmtTemplateName, Rule FROM ProviderSampleLimit
+         WHERE AccountId != null${w} ORDER BY LastModifiedDate DESC LIMIT ${LIMIT_ROWS + 1}`,
+        org
+      ).catch((err) => {
+        sample.limitsUnavailable = "Sample limits couldn't be read.";
+        return softFail(ctx, "Visit checks", [])(err);
+      });
+      sample.limitsTruncated = rows3.length > LIMIT_ROWS;
+      sample.limits = rows3.slice(0, LIMIT_ROWS).map(trimSampleLimit).filter((r) => !!r);
+    })(),
+    // SampleInventoryValidationPlugin.fetchLatestSampleInventory: the rep's latest completed count.
+    (async () => {
+      if (!ID.test(ctx.userId)) return;
+      const w = scoped2("InventoryCountAssessment");
+      if (w === null) return;
+      const rows3 = await query(
+        `SELECT ActualStartDateTime FROM InventoryCountAssessment
+         WHERE LocationPrimaryUserId = '${ctx.userId}' AND Status = 'Complete'${w} ORDER BY LastModifiedDate DESC LIMIT 1`,
+        org
+      ).catch(softFail(ctx, "Visit checks", void 0));
+      if (!rows3) return;
+      sample.inventoryCountRead = true;
+      sample.lastInventoryAt = text3(rows3[0]?.ActualStartDateTime) || void 0;
+    })(),
+    // TimeOffTerritoryValidationPlugin: the trigger handler, the rep's downtime events and the rule set.
+    query(
+      "SELECT IsActive FROM LifeScienceTriggerHandler WHERE DeveloperName = 'VisitTimeOffValidationHandler' LIMIT 1",
+      adminOrg,
+      true
+    ).then((rows3) => {
+      tot.on = rows3[0]?.IsActive === true;
+    }).catch(softFail(ctx, "Visit checks", void 0)),
+    (async () => {
+      const w = scoped2("TerritoryUserDowntime");
+      if (w === null || !ID.test(ctx.userId)) {
+        tot.unavailable = ctx.scope("TerritoryUserDowntime") === void 0 ? "The device doesn't sync Time Off Territory." : "The Time Off Territory sync filter can't be reproduced here.";
+        return;
+      }
+      const from = day(now - 400 * 864e5);
+      const to = day(now + 400 * 864e5);
+      const rows3 = await query(
+        `SELECT StartDate, EndDate, DownTimeType FROM TerritoryUserDowntime
+         WHERE UserId = '${ctx.userId}' AND EndDate >= ${from}T00:00:00Z AND StartDate <= ${to}T23:59:59Z${w}
+         ORDER BY StartDate LIMIT 500`,
+        org
+      ).catch((err) => {
+        tot.unavailable = "Time Off Territory couldn't be read.";
+        return softFail(ctx, "Visit checks", [])(err);
+      });
+      tot.events = rows3.map((r) => ({
+        start: text3(r.StartDate),
+        end: text3(r.EndDate) || text3(r.StartDate),
+        type: text3(r.DownTimeType)
+      }));
+      tot.eventsFrom = from;
+      tot.eventsTo = to;
+    })(),
+    (async () => {
+      const recs = await collectCategoryRecords(
+        adminOrg,
+        "SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category IN ('TimeOffTerritoryRule', 'TimeOffTerritoryDynamicRule')",
+        { cache: true }
+      ).catch(
+        softFail(ctx, "Visit checks", [])
+      );
+      for (const r of recs) {
+        if (r.isActive === false) continue;
+        if (r.category === "TimeOffTerritoryDynamicRule") tot.dynamicRules = true;
+        else
+          tot.rules.push({
+            ruleSet: text3(r.fields.RuleSet),
+            type: text3(r.fields.TimeOffTerritoryType),
+            visit: text3(r.fields.Visit),
+            isParent: r.fields.IsParent === true
+          });
+      }
+    })(),
+    // CustomScriptsPlugin: the earliest Visit Action Validation script is the one the app runs.
+    query(
+      "SELECT Id, Name FROM LifeScienceCustomScript WHERE Type = 'VisitActionValidation' ORDER BY CreatedDate, Id LIMIT 1",
+      adminOrg
+    ).then((rows3) => {
+      if (rows3[0]) result2.script = { id: text3(rows3[0].Id), name: text3(rows3[0].Name) };
+    }).catch(softFail(ctx, "Visit checks", void 0))
+  ]);
+  return result2;
+}
+var text3, key, int2, day, ID, LIMIT_ROWS;
+var init_checks = __esm({
+  "src/studio/screens/visit/checks.ts"() {
+    "use strict";
+    init_cli();
+    init_collect();
+    init_helpers2();
+    init_context();
+    text3 = (v) => typeof v === "string" ? v : v == null ? "" : String(v);
+    key = (row, k) => row?.[Object.keys(row).find((x) => x.toLowerCase() === k.toLowerCase()) ?? k];
+    int2 = (v, fallback) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? Math.trunc(n) : fallback;
+    };
+    day = (ms2) => new Date(ms2).toISOString().slice(0, 10);
+    ID = /^[a-zA-Z0-9]{15,18}$/;
+    LIMIT_ROWS = 500;
+  }
+});
+
+// src/studio/screens/visit/sections.ts
+function readSettings(row) {
+  const flag = (k) => configKey2(row, k) === true || configKey2(row, k) === "true";
+  return {
+    showRecentSidebar: flag("ShowRecentSidebar"),
+    discussOffLabelProducts: flag("DiscussOffLabelProducts"),
+    hcoTypesForSamplesAndItems: str5(configKey2(row, "HCOTypesForSamplesAndItems")).split(/[;,]/).map((s2) => s2.trim()).filter(Boolean),
+    requireBatchNumber: flag("RequireBatchNumber"),
+    showExpiredBatches: flag("ShowExpiredBatches"),
+    validateSampleLimits: flag("ValidateSampleLimits"),
+    nextVisitObjectives: str5(configKey2(row, "NextVisitProductObjectivesFieldsType")) || "None"
+  };
+}
+function mergePermissions(rows3) {
+  const out = {};
+  for (const r of rows3) {
+    const o = str5(r.SobjectType);
+    if (!o) continue;
+    const cur = out[o] ?? { create: false, edit: false };
+    out[o] = {
+      create: cur.create || r.PermissionsCreate === true,
+      edit: cur.edit || r.PermissionsEdit === true
+    };
+  }
+  return out;
+}
+function addressKey(city, postal) {
+  const k = [str5(city), str5(postal)].map((s2) => s2.trim().toLowerCase());
+  return k[0] || k[1] ? k.join("|") : void 0;
+}
+function seed(r, fields) {
+  const values = {};
+  for (const f of fields) if (r[f] !== null && r[f] !== void 0) values[f] = str5(r[f]);
+  return { id: str5(r.Id), values };
+}
+async function collectVisitSections(ctx) {
+  const me = ctx.userId;
+  const [cfg, perms, products, messages, inventory, pool2, children2] = await Promise.all([
+    ctx.config(["ProviderVisitSettings"]).catch(softFail(ctx, "Visit settings", {})),
+    readPermissions(ctx),
+    readProducts(ctx),
+    readMessages(ctx),
+    readInventory(ctx),
+    readAttendeePool(ctx),
+    readChildren(ctx, me)
+  ]);
+  return {
+    settings: readSettings(cfg.ProviderVisitSettings),
+    permissions: perms,
+    products,
+    messages,
+    inventory,
+    attendeePool: pool2,
+    children: children2,
+    gates: { files: false, visitors: false }
+  };
+}
+async function readPermissions(ctx) {
+  const rows3 = await query(
+    `SELECT SobjectType, PermissionsCreate, PermissionsEdit FROM ObjectPermissions
+     WHERE SobjectType IN (${inList([...SECTION_OBJECTS])})
+     AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE AssigneeId = '${ctx.userId}') LIMIT 200`,
+    ctx.adminOrg
+  ).catch(softFail(ctx, "Visit object permissions", []));
+  return mergePermissions(rows3);
+}
+async function readProducts(ctx) {
+  const scope2 = ctx.scope("LifeSciMarketableProduct");
+  if (scope2 === void 0) return [];
+  const where3 = ["IsActive = true", scope2 || ""].filter(Boolean).join(" AND ");
+  const rows3 = await query(
+    `SELECT Id, ProductId, Product.Name, Type, ProductSpecificationType, DistributionMethod, SignatureRequirementLevel,
+            DefaultDistributionQuantity, ParentBrandProductId, ParentIndicationId, ParentTherapeuticAreaId
+     FROM LifeSciMarketableProduct WHERE ${where3} LIMIT ${CAP.products}`,
+    ctx.org
+  ).catch(softFail(ctx, "Products", []));
+  const names4 = /* @__PURE__ */ new Map();
+  const parents = [
+    ...new Set(
+      rows3.flatMap((r) => [r.ParentIndicationId, r.ParentTherapeuticAreaId]).map(str5).filter(Boolean)
+    )
+  ];
+  if (parents.length)
+    for (const p of await queryByIds(
+      "Id, ProductId, Product.Name",
+      "LifeSciMarketableProduct",
+      "Id",
+      parents,
+      ctx.org
+    ).catch(softFail(ctx, "Product parents", [])))
+      names4.set(str5(p.Id), str5(p.Product?.Name));
+  return rows3.map((r) => ({
+    id: str5(r.ProductId),
+    name: str5(r.Product?.Name),
+    type: str5(r.Type) || void 0,
+    specification: str5(r.ProductSpecificationType) || void 0,
+    distribution: str5(r.DistributionMethod) || void 0,
+    signatureLevel: str5(r.SignatureRequirementLevel) || void 0,
+    defaultQuantity: num(r.DefaultDistributionQuantity),
+    parentBrandId: str5(r.ParentBrandProductId) || void 0,
+    parentIndicationId: str5(r.ParentIndicationId) || void 0,
+    parentTherapeuticAreaId: str5(r.ParentTherapeuticAreaId) || void 0,
+    indication: names4.get(str5(r.ParentIndicationId)) || void 0,
+    therapeuticArea: names4.get(str5(r.ParentTherapeuticAreaId)) || void 0
+  }));
+}
+async function readMessages(ctx) {
+  const scope2 = ctx.scope("ProductGuidance");
+  if (scope2 === void 0) return [];
+  const where3 = ["IsActive = true", scope2 || ""].filter(Boolean).join(" AND ");
+  const rows3 = await query(
+    `SELECT Id, ProductReferenceRecordId, ContentText, GroupName FROM ProductGuidance WHERE ${where3} ORDER BY Priority ASC LIMIT ${CAP.messages}`,
+    ctx.org
+  ).catch(softFail(ctx, "Product messages", []));
+  return rows3.map((r) => ({
+    id: str5(r.Id),
+    productId: str5(r.ProductReferenceRecordId),
+    text: str5(r.ContentText),
+    group: str5(r.GroupName) || void 0
+  }));
+}
+async function readInventory(ctx) {
+  const itemScope = ctx.scope("ProductItem");
+  if (itemScope === void 0) return { items: [], batches: [] };
+  const items = await query(
+    `SELECT Id, Product2Id, LocationId, QuantityOnHand FROM ProductItem${itemScope ? ` WHERE ${itemScope}` : ""} LIMIT ${CAP.inventory}`,
+    ctx.org
+  ).catch(softFail(ctx, "Sample inventory", []));
+  const ids = items.map((i) => str5(i.Id));
+  const batches = ids.length ? await queryByIds(
+    "Id, ProductItemId, ProductionBatchId, Lot, ExpirationDate, RemainingQuantity",
+    "ProductBatchItem",
+    "ProductItemId",
+    ids,
+    ctx.org,
+    "IsActive = true"
+  ).catch(softFail(ctx, "Sample lots", [])) : [];
+  return {
+    items: items.map((i) => ({
+      id: str5(i.Id),
+      productId: str5(i.Product2Id),
+      locationId: str5(i.LocationId) || void 0,
+      quantity: num(i.QuantityOnHand)
+    })),
+    batches: batches.slice(0, CAP.batches).map((b) => ({
+      id: str5(b.Id),
+      productItemId: str5(b.ProductItemId),
+      batchId: str5(b.ProductionBatchId) || void 0,
+      lot: str5(b.Lot) || void 0,
+      expires: str5(b.ExpirationDate) || void 0,
+      remaining: num(b.RemainingQuantity)
+    }))
+  };
+}
+async function readAttendeePool(ctx) {
+  const scope2 = ctx.scope("Account");
+  if (scope2 === void 0) return [];
+  const accounts = await query(
+    `SELECT Id, Name, IsPersonAccount, BillingCity, BillingPostalCode FROM Account${scope2 ? ` WHERE ${scope2}` : ""} ORDER BY Name ASC LIMIT ${CAP.pool}`,
+    ctx.org
+  ).catch(softFail(ctx, "Attendee accounts", []));
+  const ids = accounts.map((a) => str5(a.Id));
+  const aff = /* @__PURE__ */ new Map();
+  if (ids.length) {
+    const rows3 = await queryByIds(
+      "AccountId, RelatedAccountId",
+      "ProviderAffiliation",
+      "AccountId",
+      ids,
+      ctx.org
+    ).catch(softFail(ctx, "Attendee affiliations", []));
+    const held = new Set(ids);
+    for (const r of rows3) {
+      const a = str5(r.AccountId);
+      const b = str5(r.RelatedAccountId);
+      if (!held.has(b)) continue;
+      (aff.get(a) ?? aff.set(a, /* @__PURE__ */ new Set()).get(a)).add(b);
+      (aff.get(b) ?? aff.set(b, /* @__PURE__ */ new Set()).get(b)).add(a);
+    }
+  }
+  return accounts.map((a) => ({
+    id: str5(a.Id),
+    name: str5(a.Name),
+    person: a.IsPersonAccount === true,
+    addressKey: addressKey(a.BillingCity, a.BillingPostalCode),
+    affiliated: [...aff.get(str5(a.Id)) ?? []]
+  }));
+}
+async function readChildren(ctx, me) {
+  const visits = await query(
+    `SELECT Id FROM Visit WHERE (CreatedById = '${me}' OR OwnerId = '${me}') ORDER BY LastModifiedDate DESC LIMIT ${CAP.visits}`,
+    ctx.org
+  ).catch(softFail(ctx, "Recent visits", []));
+  const ids = visits.map((v) => str5(v.Id));
+  const out = {};
+  if (!ids.length) return out;
+  const add = (visitId, object3, row) => {
+    ((out[visitId] ??= {})[object3] ??= []).push(row);
+  };
+  const detailVisit = /* @__PURE__ */ new Map();
+  await Promise.all(
+    Object.entries(CHILD_FIELDS).map(async ([object3, { fields, key: key5 }]) => {
+      const rows3 = await queryByIds(
+        ["Id", key5, ...fields].join(", "),
+        object3,
+        key5,
+        ids,
+        ctx.org
+      ).catch(softFail(ctx, `${object3} rows`, []));
+      for (const r of rows3.slice(0, CAP.rows)) {
+        const v = str5(r[key5]);
+        if (object3 === "ProviderVisitProdDetailing") detailVisit.set(str5(r.Id), v);
+        add(v, object3, seed(r, fields));
+      }
+    })
+  );
+  const detailIds = [...detailVisit.keys()];
+  if (detailIds.length) {
+    await Promise.all(
+      [
+        ["ProviderVisitDtlProductMsg", ["MessageRecordId", "ReactionType", "CapturedReaction"]],
+        ["ProviderVisitProdDiscussion", ["RecordTypeId"]]
+      ].map(async ([object3, fields]) => {
+        const rows3 = await queryByIds(
+          ["Id", "ProviderVisitProductDtlId", ...fields].join(", "),
+          object3,
+          "ProviderVisitProductDtlId",
+          detailIds,
+          ctx.org
+        ).catch(softFail(ctx, `${object3} rows`, []));
+        for (const r of rows3.slice(0, CAP.rows))
+          add(
+            detailVisit.get(str5(r.ProviderVisitProductDtlId)) ?? "",
+            object3,
+            seed(r, [...fields, "ProviderVisitProductDtlId"])
+          );
+      })
+    );
+  }
+  const kids = await queryByIds(
+    "Id, ParentVisitId, AccountId, Account.Name",
+    "Visit",
+    "ParentVisitId",
+    ids,
+    ctx.org
+  ).catch(softFail(ctx, "Attendee visits", []));
+  for (const r of kids.slice(0, CAP.rows))
+    add(str5(r.ParentVisitId), "Visit", {
+      id: str5(r.Id),
+      values: { AccountId: str5(r.AccountId), AccountName: str5(r.Account?.Name) }
+    });
+  delete out[""];
+  return out;
+}
+var SECTION_OBJECTS, CAP, configKey2, str5, num, CHILD_FIELDS;
+var init_sections = __esm({
+  "src/studio/screens/visit/sections.ts"() {
+    "use strict";
+    init_helpers2();
+    init_context();
+    SECTION_OBJECTS = [
+      "ProviderVisitProdDetailing",
+      "ProviderVisitDtlProductMsg",
+      "ProviderVisitProdDiscussion",
+      "ProductDisbursement",
+      "ProviderVisitRqstSample",
+      "ProviderVisitMarketingItem",
+      "AssessmentTask",
+      "Visit"
+    ];
+    CAP = {
+      products: 300,
+      messages: 400,
+      inventory: 300,
+      batches: 500,
+      pool: 150,
+      visits: 40,
+      rows: 400
+    };
+    configKey2 = (row, key5) => row?.[Object.keys(row).find((k) => k.toLowerCase() === key5.toLowerCase()) ?? key5];
+    str5 = (v) => v === null || v === void 0 ? "" : String(v);
+    num = (v) => v === null || v === void 0 || v === "" || Number.isNaN(Number(v)) ? void 0 : Number(v);
+    CHILD_FIELDS = {
+      ProviderVisitProdDetailing: {
+        fields: [
+          "ProductId",
+          "Priority",
+          "IsOffLabel",
+          "NextPrvdVisitObjectives",
+          "IsGeneratedFromPresentation",
+          "IndicationId",
+          "TherapeuticAreaId"
+        ],
+        key: "ProviderVisitId"
+      },
+      ProductDisbursement: {
+        fields: ["ProductItemId", "ProductionBatchId", "QuantityDisbursed"],
+        key: "VisitId"
+      },
+      ProviderVisitRqstSample: { fields: ["ProductId", "RequestedQuantity"], key: "ProviderVisitId" },
+      ProviderVisitMarketingItem: { fields: ["ProductId", "Quantity"], key: "ProviderVisitId" }
+    };
+  }
+});
+
+// src/studio/screens/visit/structure.ts
+async function collectVisitStructure(ctx) {
+  const { org, adminOrg } = ctx;
+  const [cfg, mapping, rtRows, defs, kids] = await Promise.all([
+    ctx.config(["ProviderVisitSettings"]).catch(() => ({})),
+    configRecords("AccountProviderVisitRecordTypeMapping", adminOrg).catch(
+      softFail(ctx, "Visit record types", [])
+    ),
+    query(
+      `SELECT Id, Name, SobjectType FROM RecordType WHERE SobjectType IN ('Account','ProviderVisit','Visit') AND IsActive = true LIMIT 500`,
+      org
+    ).catch(softFail(ctx, "Record types", [])),
+    ctx.scope("ComplianceStatementDef") === void 0 ? Promise.resolve([]) : (
+      // Fields from the server package (MngEventConstants CMPSTMT_*); the org's Visit statements are ModuleType 'Visit'.
+      query(
+        `SELECT Id, StatementType, StatementText, StatementRequirementLevel, DisplayOrder FROM ComplianceStatementDef WHERE ModuleType = 'Visit' AND StatementType IN ('ComplianceAgreement','ComplianceNote') ORDER BY DisplayOrder LIMIT 200`,
+        org
+      ).catch(
+        () => query(`SELECT FIELDS(STANDARD) FROM ComplianceStatementDef LIMIT 200`, org).catch(
+          softFail(ctx, "Compliance statements", [])
+        )
+      )
+    ),
+    query(
+      `SELECT Id, Name, ParentVisitId, Status, Account.Name FROM Visit WHERE ParentVisitId != null AND CreatedDate = LAST_N_DAYS:90 LIMIT 500`,
+      org
+    ).catch(softFail(ctx, "Attendee visits", []))
+  ]);
+  const rtName = new Map(rtRows.map((r) => [str6(r.Id), str6(r.Name)]));
+  const settings = cfg.ProviderVisitSettings;
+  const duration3 = Number(key2(settings, "DefaultVisitDuration"));
+  const show2 = key2(settings, "ShowDocumentId");
+  const attendees = {};
+  for (const k of kids) {
+    const parent = str6(k.ParentVisitId);
+    (attendees[parent] ??= []).push({
+      id: str6(k.Id),
+      name: str6(k.Name),
+      account: str6(k.Account?.Name) || void 0,
+      status: str6(k.Status) || void 0
+    });
+  }
+  return {
+    showDocumentId: show2 === void 0 || show2 === null ? true : String(show2) !== "false",
+    durationMinutes: Number.isFinite(duration3) && duration3 > 0 ? duration3 : 30,
+    recordTypeMap: mapping.map((m) => ({
+      accountRecordType: rtName.get(str6(m.fields.AccountRecordTypeId)) ?? "",
+      visitRecordType: rtName.get(str6(m.fields.ProviderVisitRecordTypeId)) ?? "",
+      sort: Number(m.fields.SortOrder ?? 0)
+    })).filter((m) => m.accountRecordType && m.visitRecordType).sort((a, b) => a.sort - b.sort),
+    compliance: defs.map((d) => ({
+      id: str6(d.Id),
+      label: str6(key2(d, "StatementText") || key2(d, "StatementLabelText") || key2(d, "Name")),
+      type: str6(key2(d, "StatementType") || key2(d, "Type")).toLowerCase(),
+      required: /required|mandatory/i.test(
+        str6(key2(d, "StatementRequirementLevel") || key2(d, "ValidationType"))
+      ),
+      sort: Number(key2(d, "DisplayOrder") ?? key2(d, "SortOrder") ?? 0),
+      module: str6(key2(d, "Module") || key2(d, "ModuleType")).toLowerCase(),
+      active: key2(d, "IsActive") !== false
+    })).filter(
+      (d) => d.label && d.active && (d.type === "" || /agreement|note/.test(d.type)) && (d.module === "" || /call|visit/.test(d.module))
+    ).sort((a, b) => a.sort - b.sort).map(({ id: id2, label: label2, required: required2, sort, type }) => ({
+      id: id2,
+      label: label2,
+      required: required2 && !/note/.test(type),
+      sort,
+      note: /note/.test(type)
+    })),
+    attendees
+  };
+}
+var str6, key2;
+var init_structure = __esm({
+  "src/studio/screens/visit/structure.ts"() {
+    "use strict";
+    init_helpers2();
+    init_fabs();
+    init_context();
+    str6 = (v) => v == null ? "" : String(v);
+    key2 = (row, k) => row?.[Object.keys(row).find((x) => x.toLowerCase() === k.toLowerCase()) ?? k];
+  }
+});
+
+// src/studio/screens/visit/index.ts
+async function collectVisit(ctx) {
+  if (ctx.scope("Visit") === void 0) return void 0;
+  const [structure, sections2, checks] = await Promise.all([
+    collectVisitStructure(ctx).catch(() => void 0),
+    collectVisitSections(ctx).catch(() => void 0),
+    collectVisitChecks(ctx).catch(() => void 0)
+  ]);
+  return { structure, sections: sections2, checks };
+}
+var init_visit = __esm({
+  "src/studio/screens/visit/index.ts"() {
+    "use strict";
+    init_checks();
+    init_sections();
+    init_structure();
+  }
+});
+
 // src/studio/screens/index.ts
 async function collectScreens(ctx) {
   const out = {};
   await Promise.all(
-    Object.entries(COLLECTORS).map(async ([key3, c]) => {
+    Object.entries(COLLECTORS).map(async ([key5, c]) => {
       if (c.kind !== null && !ctx.core.tabs.some((t) => t.kind === c.kind)) return;
-      const name = SCREEN_NAMES[key3];
+      const name = SCREEN_NAMES[key5];
       const data2 = await withTimeout(
         c.collect(ctx),
         SCREEN_TIMEOUT_MS,
@@ -25275,7 +25974,7 @@ async function collectScreens(ctx) {
         if (isScaleError(err)) ctx.note(`${name} screen not shown with data: ${errorText2(err)}`);
         return void 0;
       });
-      if (data2 !== void 0) out[key3] = data2;
+      if (data2 !== void 0) out[key5] = data2;
     })
   );
   return out;
@@ -25292,6 +25991,7 @@ var init_screens = __esm({
     init_fabs();
     init_home();
     init_tableau();
+    init_visit();
     COLLECTORS = {
       content: { kind: "content", collect: collectContent },
       accounts: { kind: "accounts", collect: collectAccounts },
@@ -25302,7 +26002,9 @@ var init_screens = __esm({
       // Home's components (NBC cards, Visits To Submit, Activity Plan Progress) read data too; Home has no collector of its own.
       home: { kind: null, collect: collectHome },
       // Alerts and the profile sheet belong to the top bar, not to a tab.
-      chrome: { kind: null, collect: collectChrome }
+      chrome: { kind: null, collect: collectChrome },
+      // Visit Engagement opens from New Visit and a visit's Edit, not from a tab.
+      visit: { kind: null, collect: collectVisit }
     };
     SCREEN_TIMEOUT_MS = 9e4;
     SCREEN_NAMES = {
@@ -25312,7 +26014,8 @@ var init_screens = __esm({
       tableau: "Tableau",
       fabs: "Floating buttons",
       home: "Home",
-      chrome: "Alerts and profile"
+      chrome: "Alerts and profile",
+      visit: "Visit Engagement"
     };
   }
 });
@@ -25394,27 +26097,30 @@ async function readRatingLayout(ctx, layoutName2) {
   try {
     const layouts = await query(
       `SELECT Id FROM PrvdClassificationLayout WHERE DeveloperName = '${layoutName2}'`,
-      ctx.org
+      ctx.org,
+      true
     );
-    const id2 = str5(layouts[0]?.Id);
+    const id2 = str7(layouts[0]?.Id);
     if (!id2) return null;
     const items = await query(
       `SELECT PrvdClsfnAttrDefinitionId, RowNumber, ColumnNumber FROM PrvdClsfnLayoutAttribute WHERE PrvdClassificationLayoutId = '${id2}' AND IsActive = true`,
-      ctx.org
+      ctx.org,
+      true
     );
-    const defIds = [...new Set(items.map((i) => str5(i.PrvdClsfnAttrDefinitionId)).filter(Boolean))];
+    const defIds = [...new Set(items.map((i) => str7(i.PrvdClsfnAttrDefinitionId)).filter(Boolean))];
     if (!defIds.length) return [];
     const defs = new Map(
       (await query(
-        `SELECT Id, ElementLabel, ClassificationType, FieldApiName, DisplayType, IsActive FROM PrvdClsfnAttrDefinition WHERE Id IN (${inList(defIds)})`,
-        ctx.org
-      )).map((d) => [str5(d.Id), d])
+        `SELECT Id, ElementLabel, MasterLabel, ClassificationType, FieldApiName, DisplayType, IsActive FROM PrvdClsfnAttrDefinition WHERE Id IN (${inList(defIds)})`,
+        ctx.org,
+        true
+      )).map((d) => [str7(d.Id), d])
     );
-    return items.map((i) => ({ item: i, def: obj2(defs.get(str5(i.PrvdClsfnAttrDefinitionId))) })).filter(({ def }) => str5(def.FieldApiName) && def.IsActive !== false).map(({ item: item2, def }) => ({
-      label: str5(def.ElementLabel),
-      sobject: str5(def.ClassificationType),
-      field: str5(def.FieldApiName),
-      displayType: str5(def.DisplayType),
+    return items.map((i) => ({ item: i, def: obj2(defs.get(str7(i.PrvdClsfnAttrDefinitionId))) })).filter(({ def }) => str7(def.FieldApiName) && def.IsActive !== false).map(({ item: item2, def }) => ({
+      label: str7(def.ElementLabel) || str7(def.MasterLabel),
+      sobject: str7(def.ClassificationType),
+      field: str7(def.FieldApiName),
+      displayType: str7(def.DisplayType),
       row: Number(item2.RowNumber) || 0,
       column: Number(item2.ColumnNumber) || 0
     })).sort((a, b) => a.row - b.row || a.column - b.column);
@@ -25422,12 +26128,12 @@ async function readRatingLayout(ctx, layoutName2) {
     return null;
   }
 }
-var str5, obj2;
+var str7, obj2;
 var init_record_ratings = __esm({
   "src/studio/screens/record-ratings.ts"() {
     "use strict";
     init_helpers2();
-    str5 = (v) => typeof v === "string" ? v : v == null ? "" : String(v);
+    str7 = (v) => typeof v === "string" ? v : v == null ? "" : String(v);
     obj2 = (v) => v && typeof v === "object" ? v : {};
   }
 });
@@ -25543,28 +26249,28 @@ function decodeSummary(json2) {
     return empty2;
   }
   const sections2 = (v) => (Array.isArray(v) ? v : []).map((s2) => ({
-    title: str6(s2?.sectionName),
+    title: str8(s2?.sectionName),
     content: (Array.isArray(s2?.sectionData) ? s2.sectionData : []).map(
-      (d) => str6(d?.data)
+      (d) => str8(d?.data)
     )
   }));
   const o = parsed && typeof parsed === "object" ? parsed : {};
   return { keyInfo: sections2(o.keyInfo), changeInfo: sections2(o.changeInfo) };
 }
 function summaryContent(keyInfoJson, changeInfoJson) {
-  const key3 = decodeSummary(keyInfoJson);
+  const key5 = decodeSummary(keyInfoJson);
   const change2 = decodeSummary(changeInfoJson);
-  const changes = [...key3.changeInfo, ...change2.changeInfo].flatMap((s2) => s2.content);
-  return [...changes.length ? [{ title: "Changes", content: changes }] : [], ...key3.keyInfo];
+  const changes = [...key5.changeInfo, ...change2.changeInfo].flatMap((s2) => s2.content);
+  return [...changes.length ? [{ title: "Changes", content: changes }] : [], ...key5.keyInfo];
 }
 function weekRange(now, format) {
-  const day2 = (d2) => new Intl.DateTimeFormat("en-CA", {
+  const day3 = (d2) => new Intl.DateTimeFormat("en-CA", {
     timeZone: format.timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit"
   }).format(d2);
-  const [y, m, d] = day2(now).split("-").map(Number);
+  const [y, m, d] = day3(now).split("-").map(Number);
   const local = new Date(Date.UTC(y, m - 1, d));
   const sinceMonday = (local.getUTCDay() + 6) % 7;
   const monday = new Date(local.getTime() - sinceMonday * 864e5);
@@ -25600,7 +26306,7 @@ async function collectDashboards(ctx, ids) {
   const week = weekRange(/* @__PURE__ */ new Date(), ctx.format);
   const cfg = await ctx.config(["StateLicenseNumberSettings"]).catch(() => ({}));
   const licensesOn = cfg.StateLicenseNumberSettings?.IsEnabledOnLightningPages === true;
-  const slnField = /^\w+$/.test(str6(cfg.StateLicenseNumberSettings?.SlnValFormulaField)) ? str6(cfg.StateLicenseNumberSettings?.SlnValFormulaField) : "";
+  const slnField = /^\w+$/.test(str8(cfg.StateLicenseNumberSettings?.SlnValFormulaField)) ? str8(cfg.StateLicenseNumberSettings?.SlnValFormulaField) : "";
   const synced = (table) => ctx.scope(table) !== void 0;
   const run4 = (table, soql5) => synced(table) ? query(soql5, ctx.org).catch(() => none) : Promise.resolve(none);
   const [summaries, specialties, atis, addresses, nba, licenses] = await Promise.all([
@@ -25638,34 +26344,34 @@ async function collectDashboards(ctx, ids) {
       ctx.org
     );
     const f = (Array.isArray(d.data?.fields) ? d.data?.fields : []).find(
-      (x) => str6(x.name) === "SpecialtyType"
+      (x) => str8(x.name) === "SpecialtyType"
     );
     for (const p of Array.isArray(f?.picklistValues) ? f?.picklistValues : [])
-      typeLabels.set(str6(p.value), str6(p.label) || str6(p.value));
+      typeLabels.set(str8(p.value), str8(p.label) || str8(p.value));
   } catch {
   }
   const territoryRank = new Map(territoryIds.map((t, i) => [t, i]));
   for (const id2 of accounts) {
-    const mine = (rows3, key3 = "AccountId") => rows3.filter((r) => str6(r[key3]) === id2);
+    const mine = (rows3, key5 = "AccountId") => rows3.filter((r) => str8(r[key5]) === id2);
     const row = mine(summaries).sort(
-      (a, b) => (territoryRank.get(str6(a.Territory2Id)) ?? 99) - (territoryRank.get(str6(b.Territory2Id)) ?? 99)
+      (a, b) => (territoryRank.get(str8(a.Territory2Id)) ?? 99) - (territoryRank.get(str8(b.Territory2Id)) ?? 99)
     )[0];
-    const content = row ? summaryContent(str6(row.KeyInformationSummary), str6(row.ChangeInformationSummary)) : [];
+    const content = row ? summaryContent(str8(row.KeyInformationSummary), str8(row.ChangeInformationSummary)) : [];
     const ati = mine(atis);
     const addrs = mine(addresses, "ParentId");
-    const preferred = ati.map((r) => str6(r.PreferredAddressId)).filter(Boolean);
-    const newest2 = (rows3) => [...rows3].sort((a, b) => str6(b.LastModifiedDate).localeCompare(str6(a.LastModifiedDate)));
-    const addr = addrs.find((x) => preferred.includes(str6(x.Id))) ?? newest2(addrs).find((x) => x.IsPrimary === true) ?? newest2(addrs)[0];
+    const preferred = ati.map((r) => str8(r.PreferredAddressId)).filter(Boolean);
+    const newest2 = (rows3) => [...rows3].sort((a, b) => str8(b.LastModifiedDate).localeCompare(str8(a.LastModifiedDate)));
+    const addr = addrs.find((x) => preferred.includes(str8(x.Id))) ?? newest2(addrs).find((x) => x.IsPrimary === true) ?? newest2(addrs)[0];
     let license = "disabled";
     if (licensesOn && addr) {
-      const l = mine(licenses).find((x) => str6(x.JurisdictionState) === str6(addr.StateCode));
+      const l = mine(licenses).find((x) => str8(x.JurisdictionState) === str8(addr.StateCode));
       license = l && (slnField ? l[slnField] === true : l.IsLicenseValidated === true) ? "validated" : "notValidated";
     }
     out.set(id2, {
       summary: content.length ? {
         generated: generatedText(
-          str6(row?.KeyInfoSummaryDateTime),
-          str6(row?.ChangeInfoSummaryDateTime),
+          str8(row?.KeyInfoSummaryDateTime),
+          str8(row?.ChangeInfoSummaryDateTime),
           ctx.format
         ),
         sections: content.map((s2) => ({ title: s2.title, items: s2.content }))
@@ -25673,18 +26379,18 @@ async function collectDashboards(ctx, ids) {
       overview: {
         target: ati.some((r) => r.IsTargetedAccount === true),
         specialties: mine(specialties).slice(0, 3).map((s2) => {
-          const type = str6(s2.Specialty?.SpecialtyType);
+          const type = str8(s2.Specialty?.SpecialtyType);
           return { label: typeLabels.get(type) ?? type, primary: s2.IsPrimarySpecialty === true };
         }).filter((s2) => s2.label)
       },
       nba: {
         week: week.label,
         items: mine(nba).map((r) => ({
-          id: str6(r.Id),
-          title: str6(r.Name),
-          type: str6(r.ActionType),
-          due: str6(r.DueDate),
-          status: str6(r.Status)
+          id: str8(r.Id),
+          title: str8(r.Name),
+          type: str8(r.ActionType),
+          due: str8(r.DueDate),
+          status: str8(r.Status)
         }))
       },
       map: {
@@ -25696,22 +26402,22 @@ async function collectDashboards(ctx, ids) {
   }
   return out;
 }
-var str6, none;
+var str8, none;
 var init_record_dashboard = __esm({
   "src/studio/screens/record-dashboard.ts"() {
     "use strict";
     init_helpers2();
     init_cli();
     init_accounts();
-    str6 = (v) => typeof v === "string" ? v : v == null ? "" : String(v);
+    str8 = (v) => typeof v === "string" ? v : v == null ? "" : String(v);
     none = [];
   }
 });
 
 // src/studio/screens/record.ts
 function relatedKey(children2, apiName2) {
-  const c = children2.find((x) => str7(x.relationshipName) === apiName2);
-  return c ? `${str7(c.childSObject)}.${str7(c.field)}` : null;
+  const c = children2.find((x) => str9(x.relationshipName) === apiName2);
+  return c ? `${str9(c.childSObject)}.${str9(c.field)}` : null;
 }
 function isEditable(input) {
   if (!input.hasEditAccess || !input.updateable) return false;
@@ -25739,16 +26445,16 @@ function parseInlineCard(html, js2) {
   return object3 && cells.length ? { title, object: object3, cells } : null;
 }
 function picklistText(value4, labels2, describeField) {
-  const lookup2 = (v) => labels2?.[v] ?? str7(arr(describeField?.picklistValues).find((p) => str7(p.value) === v)?.label) ?? v;
+  const lookup2 = (v) => labels2?.[v] ?? str9(arr(describeField?.picklistValues).find((p) => str9(p.value) === v)?.label) ?? v;
   return value4.split(";").map((v) => lookup2(v) || v).join("; ");
 }
 function addressText(a) {
   const line = [
-    str7(a.street),
-    [str7(a.city), str7(a.state)].filter(Boolean).join(", "),
-    str7(a.postalCode)
+    str9(a.street),
+    [str9(a.city), str9(a.state)].filter(Boolean).join(", "),
+    str9(a.postalCode)
   ].filter(Boolean).join(" ");
-  return [line, str7(a.country)].filter(Boolean).join(" ");
+  return [line, str9(a.country)].filter(Boolean).join(" ");
 }
 function shortDate2(value4, type, format) {
   const locale = (() => {
@@ -25759,11 +26465,11 @@ function shortDate2(value4, type, format) {
     }
   })();
   if (type === "date") {
-    const d2 = /* @__PURE__ */ new Date(`${str7(value4).slice(0, 10)}T00:00:00Z`);
-    return Number.isNaN(d2.getTime()) ? str7(value4) : new Intl.DateTimeFormat(locale, { dateStyle: "short", timeZone: "UTC" }).format(d2);
+    const d2 = /* @__PURE__ */ new Date(`${str9(value4).slice(0, 10)}T00:00:00Z`);
+    return Number.isNaN(d2.getTime()) ? str9(value4) : new Intl.DateTimeFormat(locale, { dateStyle: "short", timeZone: "UTC" }).format(d2);
   }
-  const d = new Date(str7(value4));
-  return Number.isNaN(d.getTime()) ? str7(value4) : new Intl.DateTimeFormat(locale, {
+  const d = new Date(str9(value4));
+  return Number.isNaN(d.getTime()) ? str9(value4) : new Intl.DateTimeFormat(locale, {
     dateStyle: "short",
     timeStyle: "short",
     timeZone: format.timeZone
@@ -25771,11 +26477,11 @@ function shortDate2(value4, type, format) {
 }
 function formatValue(value4, spec, describeField, format, short = false) {
   if (value4 === null || value4 === void 0 || value4 === "") return "";
-  const type = str7(describeField?.type).toLowerCase() || spec.type;
+  const type = str9(describeField?.type).toLowerCase() || spec.type;
   if (type === "address" || typeof value4 === "object" && !Array.isArray(value4))
     return addressText(obj3(value4));
   if (type === "picklist" || type === "multipicklist")
-    return picklistText(str7(value4), spec.picklist, describeField);
+    return picklistText(str9(value4), spec.picklist, describeField);
   if (type === "boolean") return listCell(value4, "boolean", format);
   if (short && (type === "date" || type === "datetime")) return shortDate2(value4, type, format);
   return listCell(value4, type, format);
@@ -25794,15 +26500,15 @@ function describeOf(ctx, object3) {
     ).catch(() => null);
     if (!r?.success || !r.data) return null;
     const d = r.data;
-    const fields = new Map(arr(d.fields).map((f) => [str7(f.name).toLowerCase(), f]));
+    const fields = new Map(arr(d.fields).map((f) => [str9(f.name).toLowerCase(), f]));
     return {
       name: object3,
       fields,
       children: arr(d.childRelationships),
       recordTypes: new Map(
-        arr(d.recordTypeInfos).map((t) => [str7(t.recordTypeId), str7(t.developerName)])
+        arr(d.recordTypeInfos).map((t) => [str9(t.recordTypeId), str9(t.developerName)])
       ),
-      nameField: str7(arr(d.fields).find((f) => f.nameField === true)?.name) || "Name",
+      nameField: str9(arr(d.fields).find((f) => f.nameField === true)?.name) || "Name",
       updateable: d.updateable !== false,
       createable: d.createable !== false
     };
@@ -25843,15 +26549,15 @@ async function fetchRows(ctx, object3, where3, extra, inlineFields = []) {
   for (const s2 of specsFor(ctx, object3)) {
     if (s2.name.includes(".")) continue;
     const f = describe.fields.get(s2.name.toLowerCase());
-    if (f) specs.set(str7(f.name), { ...s2, name: str7(f.name) });
+    if (f) specs.set(str9(f.name), { ...s2, name: str9(f.name) });
   }
   for (const name of inlineFields) {
     const f = describe.fields.get(name.toLowerCase());
-    if (f && !specs.has(str7(f.name)))
-      specs.set(str7(f.name), {
-        name: str7(f.name),
-        label: str7(f.label),
-        type: str7(f.type).toLowerCase()
+    if (f && !specs.has(str9(f.name)))
+      specs.set(str9(f.name), {
+        name: str9(f.name),
+        label: str9(f.label),
+        type: str9(f.type).toLowerCase()
       });
   }
   const paths = /* @__PURE__ */ new Set(["Id", describe.nameField, ...extra]);
@@ -25860,8 +26566,8 @@ async function fetchRows(ctx, object3, where3, extra, inlineFields = []) {
   for (const name of specs.keys()) {
     const f = describe.fields.get(name.toLowerCase());
     paths.add(name);
-    if (f && str7(f.type) === "reference" && f.relationshipName)
-      paths.add(`${str7(f.relationshipName)}.${refNameField(f)}`);
+    if (f && str9(f.type) === "reference" && f.relationshipName)
+      paths.add(`${str9(f.relationshipName)}.${refNameField(f)}`);
   }
   const select = (list2) => `SELECT ${list2.join(", ")} FROM ${object3} WHERE ${syncedWhere(ctx, object3, where3)}`;
   try {
@@ -25877,7 +26583,7 @@ async function fetchRows(ctx, object3, where3, extra, inlineFields = []) {
 }
 function isFieldReadable(field, perms) {
   if (!perms) return true;
-  const row = perms.get(str7(field.name).toLowerCase());
+  const row = perms.get(str9(field.name).toLowerCase());
   if (row !== void 0) return row;
   return field.permissionable === false;
 }
@@ -25890,11 +26596,11 @@ async function fieldReadPermissions(ctx, object3, shared) {
   try {
     const together = shared ? await shared : null;
     const types3 = new Set(permissionTypes(object3).map((t) => t.toLowerCase()));
-    const rows3 = together ? together.filter((r) => types3.has(str7(r.Field).split(".")[0].toLowerCase())) : await query(PERMISSION_SOQL(permissionTypes(object3), ctx.userId), ctx.adminOrg);
+    const rows3 = together ? together.filter((r) => types3.has(str9(r.Field).split(".")[0].toLowerCase())) : await query(PERMISSION_SOQL(permissionTypes(object3), ctx.userId), ctx.adminOrg);
     const out = /* @__PURE__ */ new Map();
     const set = (name, read2) => out.set(name, out.get(name) === true || read2);
     for (const r of rows3) {
-      const [sobject2, field = ""] = str7(r.Field).split(".");
+      const [sobject2, field = ""] = str9(r.Field).split(".");
       const read2 = r.PermissionsRead === true;
       if (!field) continue;
       if (sobject2 === "Contact") {
@@ -25914,12 +26620,12 @@ function fieldMeta(fetched, perms) {
   for (const [name, spec] of fetched.specs) {
     const f = fetched.describe.fields.get(name.toLowerCase());
     if (!f) continue;
-    const idLabel = str7(f.type) === "reference" && /\sID$/.test(str7(f.label)) && !!spec.label;
-    const meta = { label: (idLabel ? spec.label : str7(f.label)) || spec.label };
-    if (f.compoundFieldName && str7(f.name) !== str7(f.compoundFieldName) && str7(f.name) !== fetched.describe.nameField || str7(f.type) === "address" || str7(f.type) === "location")
+    const idLabel = str9(f.type) === "reference" && /\sID$/.test(str9(f.label)) && !!spec.label;
+    const meta = { label: (idLabel ? spec.label : str9(f.label)) || spec.label };
+    if (f.compoundFieldName && str9(f.name) !== str9(f.compoundFieldName) && str9(f.name) !== fetched.describe.nameField || str9(f.type) === "address" || str9(f.type) === "location")
       meta.hidden = true;
     if (!isFieldReadable(f, perms)) meta.hidden = true;
-    if (str7(f.inlineHelpText)) meta.help = true;
+    if (str9(f.inlineHelpText)) meta.help = true;
     out[name.toLowerCase()] = meta;
   }
   return out;
@@ -25929,24 +26635,24 @@ function toValues(ctx, fetched, row, unsynced, profile = null) {
   for (const [name, spec] of fetched.specs) {
     const f = fetched.describe.fields.get(name.toLowerCase());
     const raw = row[name];
-    if (f && str7(f.type) === "reference") {
-      const rel5 = f.relationshipName ? obj3(row[str7(f.relationshipName)]) : {};
-      const shown2 = unsynced.has(str7(raw)) ? "" : str7(rel5[refNameField(f)]);
+    if (f && str9(f.type) === "reference") {
+      const rel5 = f.relationshipName ? obj3(row[str9(f.relationshipName)]) : {};
+      const shown2 = unsynced.has(str9(raw)) ? "" : str9(rel5[refNameField(f)]);
       out[name.toLowerCase()] = shown2;
       continue;
     }
-    let text11 = formatValue(
+    let text12 = formatValue(
       raw,
       spec,
       f,
       ctx.format,
       !/^(Provider)?Visit$/.test(fetched.describe.name)
     );
-    if (profile && f?.calculated === true && usesProfileName(str7(f.calculatedFormula)))
-      text11 = evalProfileFormula(str7(f.calculatedFormula), profile) ?? text11;
-    if (text11 && str7(f?.name) === fetched.describe.nameField && fetched.describe.fields.has("salutation") && str7(row.Salutation))
-      text11 = `${salutationLabel(fetched.describe, str7(row.Salutation))} ${text11}`;
-    out[name.toLowerCase()] = text11;
+    if (profile && f?.calculated === true && usesProfileName(str9(f.calculatedFormula)))
+      text12 = evalProfileFormula(str9(f.calculatedFormula), profile) ?? text12;
+    if (text12 && str9(f?.name) === fetched.describe.nameField && fetched.describe.fields.has("salutation") && str9(row.Salutation))
+      text12 = `${salutationLabel(fetched.describe, str9(row.Salutation))} ${text12}`;
+    out[name.toLowerCase()] = text12;
   }
   return out;
 }
@@ -25955,10 +26661,10 @@ async function unsyncedIds(ctx, fetched) {
   for (const f of fetched) {
     for (const name of f.specs.keys()) {
       const field = f.describe.fields.get(name.toLowerCase());
-      if (str7(field?.type) !== "reference") continue;
-      const targets = arr(field?.referenceTo).length ? (field?.referenceTo).map(str7) : [];
+      if (str9(field?.type) !== "reference") continue;
+      const targets = arr(field?.referenceTo).length ? (field?.referenceTo).map(str9) : [];
       for (const r of f.rows) {
-        const id2 = str7(r[name]);
+        const id2 = str9(r[name]);
         if (!ID_PATTERN.test(id2)) continue;
         const set = targetsOf.get(id2) ?? /* @__PURE__ */ new Set();
         targets.forEach((t) => set.add(t));
@@ -25979,7 +26685,7 @@ async function unsyncedIds(ctx, fetched) {
         `SELECT Id FROM ${target3} WHERE Id IN (${inList(ids)}) AND (${condition2})`,
         ctx.org
       ).catch(() => null);
-      held.set(target3, found ? new Set(found.map((r) => str7(r.Id))) : "all");
+      held.set(target3, found ? new Set(found.map((r) => str9(r.Id))) : "all");
     })
   );
   const unsynced = /* @__PURE__ */ new Set();
@@ -25994,8 +26700,8 @@ async function unsyncedIds(ctx, fetched) {
 }
 function idsByObject(lists, extra) {
   const out = /* @__PURE__ */ new Map();
-  for (const [key3, data2] of Object.entries(lists)) {
-    const object3 = key3.slice(0, key3.indexOf("."));
+  for (const [key5, data2] of Object.entries(lists)) {
+    const object3 = key5.slice(0, key5.indexOf("."));
     const ids = out.get(object3) ?? [];
     for (const r of data2.rows.slice(0, PER_LIST))
       if (ID_PATTERN.test(r.id) && !ids.includes(r.id) && ids.length < PER_OBJECT) ids.push(r.id);
@@ -26015,9 +26721,9 @@ async function relatedLists(ctx, object3, ids, d) {
   const fixed2 = /* @__PURE__ */ new Map();
   for (const c of pageComponents(ctx, object3)) {
     const api = c.properties.relatedListApiName;
-    const key3 = api ? relatedKey(d.children, api) : null;
-    if (key3) keys.set(key3, api);
-    if (object3 === "Account" && trimNamespace(c.name) === "LSCGenericRelatedList" && c.properties.label === "Inquiries" && d.children.some((x) => str7(x.childSObject) === "Inquiry" && str7(x.field) === "AccountId")) {
+    const key5 = api ? relatedKey(d.children, api) : null;
+    if (key5) keys.set(key5, api);
+    if (object3 === "Account" && trimNamespace(c.name) === "LSCGenericRelatedList" && c.properties.label === "Inquiries" && d.children.some((x) => str9(x.childSObject) === "Inquiry" && str9(x.field) === "AccountId")) {
       keys.set("Inquiry.AccountId", "LSCGenericRelatedList");
       fixed2.set("Inquiry.AccountId", {
         label: "Inquiries",
@@ -26027,15 +26733,15 @@ async function relatedLists(ctx, object3, ids, d) {
     }
   }
   const layouts = Object.entries(ctx.core.layouts).filter(([n]) => layoutObject(n) === object3);
-  const layoutList = (key3) => layouts.flatMap(([, l]) => l.relatedLists).find((r) => r.name === key3);
+  const layoutList = (key5) => layouts.flatMap(([, l]) => l.relatedLists).find((r) => r.name === key5);
   await Promise.all(
-    [...keys.keys()].map(async (key3) => {
-      const [child, field] = key3.split(".");
+    [...keys.keys()].map(async (key5) => {
+      const [child, field] = key5.split(".");
       const cd = await describeOf(ctx, child);
       if (!cd || !cd.fields.has(field.toLowerCase())) return;
-      const layoutRl = layoutList(key3);
+      const layoutRl = layoutList(key5);
       const condition2 = ctx.scope(child);
-      const fx = fixed2.get(key3);
+      const fx = fixed2.get(key5);
       const label2 = fx?.label ?? (layoutRl?.label || child);
       const specs = fx?.specs ?? (layoutRl?.columns ?? []).filter((s2) => s2.name && s2.name.split(".").length <= 2);
       const columns = await Promise.all(
@@ -26046,23 +26752,23 @@ async function relatedLists(ctx, object3, ids, d) {
             if (!own && s2.name.includes(".")) {
               const [rel5, leaf2] = s2.name.split(".");
               const via = [...cd.fields.values()].find(
-                (f2) => str7(f2.relationshipName).toLowerCase() === rel5.toLowerCase()
+                (f2) => str9(f2.relationshipName).toLowerCase() === rel5.toLowerCase()
               );
-              const target3 = str7(arr(via?.referenceTo)[0]);
+              const target3 = str9(arr(via?.referenceTo)[0]);
               far = target3 ? (await describeOf(ctx, target3))?.fields.get(leaf2.toLowerCase()) : void 0;
             }
             const f = own ?? far;
             return {
-              label: s2.label || str7(f?.label) || s2.name,
-              type: str7(f?.type).toLowerCase() || s2.type
+              label: s2.label || str9(f?.label) || s2.name,
+              type: str9(f?.type).toLowerCase() || s2.type
             };
           }
         )
       );
       const base2 = {
         canCreate: cd.createable,
-        key: key3,
-        api: keys.get(key3) ?? "",
+        key: key5,
+        api: keys.get(key5) ?? "",
         label: label2,
         object: child,
         columns
@@ -26070,7 +26776,7 @@ async function relatedLists(ctx, object3, ids, d) {
       const add = (id2, count3, rows3) => out.get(id2)?.push({ ...base2, count: count3, rows: rows3 });
       if (condition2 === void 0) return ids.forEach((id2) => add(id2, 0, []));
       const scoped2 = condition2 ? ` AND (${condition2})` : "";
-      const viaContact = object3 === "Account" && arr(cd.fields.get(field.toLowerCase())?.referenceTo).map(str7).join() === "Contact" && d.fields.has("personcontactid");
+      const viaContact = object3 === "Account" && arr(cd.fields.get(field.toLowerCase())?.referenceTo).map(str9).join() === "Contact" && d.fields.has("personcontactid");
       const owner = new Map(ids.map((id2) => [id2, id2]));
       if (viaContact) {
         owner.clear();
@@ -26079,7 +26785,7 @@ async function relatedLists(ctx, object3, ids, d) {
           ctx.org
         ).catch(softFail(ctx, "Record page", []));
         for (const c of contacts)
-          if (str7(c.PersonContactId)) owner.set(str7(c.PersonContactId), str7(c.Id));
+          if (str9(c.PersonContactId)) owner.set(str9(c.PersonContactId), str9(c.Id));
       }
       const parents = [...owner.keys()];
       if (!parents.length) return ids.forEach((id2) => add(id2, 0, []));
@@ -26089,7 +26795,7 @@ async function relatedLists(ctx, object3, ids, d) {
           `SELECT ${field} p, COUNT(Id) c FROM ${child} WHERE ${field} IN (${inList(parents)})${scoped2} GROUP BY ${field}`,
           ctx.org
         );
-        for (const g of grouped) counts2.set(owner.get(str7(g.p)) ?? str7(g.p), Number(g.c) || 0);
+        for (const g of grouped) counts2.set(owner.get(str9(g.p)) ?? str9(g.p), Number(g.c) || 0);
       } catch {
         return;
       }
@@ -26098,7 +26804,7 @@ async function relatedLists(ctx, object3, ids, d) {
         const paths = (specs.length ? specs : [{ name: cd.nameField, label: "", type: "string" }]).map((s2) => s2.name);
         const rel5 = (name) => {
           const f = cd.fields.get(name.toLowerCase());
-          return f && str7(f.type) === "reference" && f.relationshipName ? `${str7(f.relationshipName)}.Name` : name;
+          return f && str9(f.type) === "reference" && f.relationshipName ? `${str9(f.relationshipName)}.Name` : name;
         };
         const orderBy = fx ? fx.order.split(" ")[0] : cd.fields.has(cd.nameField.toLowerCase()) ? cd.nameField : rel5(paths[0] ?? "Id");
         const dir = fx ? fx.order.split(" ")[1] : "DESC";
@@ -26109,19 +26815,19 @@ async function relatedLists(ctx, object3, ids, d) {
           )
         );
         for (const r of records) {
-          const parent = owner.get(str7(r[field])) ?? str7(r[field]);
+          const parent = owner.get(str9(r[field])) ?? str9(r[field]);
           const list2 = rowsBy.get(parent) ?? [];
           if (list2.length >= RELATED_ROWS) continue;
           const cells = (specs.length ? specs : [{ name: cd.nameField, label: "", type: "string" }]).map((s2) => {
             const f = cd.fields.get(s2.name.toLowerCase());
-            if (f && str7(f.type) === "reference") return str7(obj3(r[str7(f.relationshipName)]).Name);
+            if (f && str9(f.type) === "reference") return str9(obj3(r[str9(f.relationshipName)]).Name);
             const raw = s2.name.split(".").reduce(
               (v, k) => v && typeof v === "object" ? v[k] : void 0,
               r
             );
             return formatValue(raw, s2, f, ctx.format);
           });
-          list2.push({ id: str7(r.Id), cells });
+          list2.push({ id: str9(r.Id), cells });
           rowsBy.set(parent, list2);
         }
       }
@@ -26152,7 +26858,7 @@ async function activityHistory(ctx, ids) {
     timeZone: ctx.format.timeZone
   });
   for (const id2 of ids) {
-    const mine = rows3.filter((r) => str7(r.AccountId) === id2);
+    const mine = rows3.filter((r) => str9(r.AccountId) === id2);
     out.set(id2, {
       key: "Visit.AccountId.history",
       api: "ActivityHistory",
@@ -26165,10 +26871,10 @@ async function activityHistory(ctx, ids) {
         { label: "Kind", type: "string" }
       ],
       rows: mine.map((r) => ({
-        id: str7(r.Id),
+        id: str9(r.Id),
         cells: [
           formatValue(r.PlannedVisitStartTime, { type: "datetime" }, void 0, ctx.format),
-          month.format(new Date(str7(r.PlannedVisitStartTime))),
+          month.format(new Date(str9(r.PlannedVisitStartTime))),
           "Visit"
         ]
       }))
@@ -26186,7 +26892,7 @@ async function affiliations(ctx, ids) {
     `SELECT Id, AccountId, RelatedAccountId, AccountName, AffiliationStrengthType, Role, InfluenceType, Account.Name, RelatedAccount.Name FROM ProviderAffiliation WHERE (AccountId IN (${inIds}) OR RelatedAccountId IN (${inIds}))${cond ? ` AND (${cond})` : ""} ORDER BY Id ASC LIMIT 500`,
     ctx.org
   );
-  const other = (r, id2) => str7(r.AccountId) === id2 ? str7(r.RelatedAccountId) : str7(r.AccountId);
+  const other = (r, id2) => str9(r.AccountId) === id2 ? str9(r.RelatedAccountId) : str9(r.AccountId);
   const wanted = [...new Set(rows3.flatMap((r) => ids.map((id2) => other(r, id2))))].filter(
     (x) => ID_PATTERN.test(x)
   );
@@ -26195,7 +26901,7 @@ async function affiliations(ctx, ids) {
     (await query(
       `SELECT Id FROM Account WHERE Id IN (${inList(wanted)})${accountCond ? ` AND (${accountCond})` : ""}`,
       ctx.org
-    ).catch(softFail(ctx, "Record page (affiliations)", []))).map((a) => str7(a.Id))
+    ).catch(softFail(ctx, "Record page (affiliations)", []))).map((a) => str9(a.Id))
   );
   const columns = [
     { label: "Account", type: "reference" },
@@ -26206,14 +26912,14 @@ async function affiliations(ctx, ids) {
   ];
   for (const id2 of ids) {
     const mine = rows3.filter(
-      (r) => (str7(r.AccountId) === id2 || str7(r.RelatedAccountId) === id2) && held.has(other(r, id2))
+      (r) => (str9(r.AccountId) === id2 || str9(r.RelatedAccountId) === id2) && held.has(other(r, id2))
     );
     const cells = (r) => [
-      str7(obj3(str7(r.AccountId) === id2 ? r.RelatedAccount : r.Account).Name),
-      str7(r.AccountName),
-      str7(r.AffiliationStrengthType),
-      str7(r.Role),
-      str7(r.InfluenceType)
+      str9(obj3(str9(r.AccountId) === id2 ? r.RelatedAccount : r.Account).Name),
+      str9(r.AccountName),
+      str9(r.AffiliationStrengthType),
+      str9(r.Role),
+      str9(r.InfluenceType)
     ];
     out.set(id2, {
       key: "ProviderAffiliation.AccountId",
@@ -26222,7 +26928,7 @@ async function affiliations(ctx, ids) {
       object: "ProviderAffiliation",
       count: mine.length,
       columns,
-      rows: mine.slice(0, 25).map((r) => ({ id: str7(r.Id), cells: cells(r) })),
+      rows: mine.slice(0, 25).map((r) => ({ id: str9(r.Id), cells: cells(r) })),
       canCreate: true
     });
   }
@@ -26238,7 +26944,7 @@ async function themeOf(ctx, object3) {
     ctx.org
   ).catch(() => null);
   const t = obj3(r?.success ? r.data?.themeInfo : null);
-  return t.color ? { color: `#${str7(t.color).replace(/^#/, "")}`, iconUrl: str7(t.iconUrl) } : null;
+  return t.color ? { color: `#${str9(t.color).replace(/^#/, "")}`, iconUrl: str9(t.iconUrl) } : null;
 }
 async function inlineCards(ctx, objects) {
   const names4 = new Set(
@@ -26255,9 +26961,9 @@ async function inlineCards(ctx, objects) {
       true
     ).catch(softFail(ctx, "Record page", []));
     return rows3.map((r) => ({
-      bundle: str7(obj3(r.LightningComponentBundle).DeveloperName),
-      path: str7(r.FilePath),
-      source: str7(r.Source)
+      bundle: str9(obj3(r.LightningComponentBundle).DeveloperName),
+      path: str9(r.FilePath),
+      source: str9(r.Source)
     }));
   };
   await Promise.all(
@@ -26283,7 +26989,7 @@ async function collectRecords(ctx, lists, extra = {}) {
   const viewerProfile = await query(
     `SELECT Profile.Name FROM User WHERE Id = '${ctx.userId}'`,
     ctx.org
-  ).then((r) => str7(obj3(r[0]?.Profile).Name) || null).catch(() => null);
+  ).then((r) => str9(obj3(r[0]?.Profile).Name) || null).catch(() => null);
   const permissions = fieldPermissionRows(
     ctx,
     objects.flatMap(
@@ -26317,9 +27023,9 @@ async function collectRecords(ctx, lists, extra = {}) {
       let linkField = "";
       if (partner && ctx.core.objects[object3]?.recordTypes.some((r) => r.multiEntity)) {
         const pd = await describeOf(ctx, partner);
-        linkField = str7(
+        linkField = str9(
           arr([...pd?.fields.values() ?? []]).find(
-            (f) => arr(f.referenceTo).map(str7).includes(object3) && f.nameField !== true
+            (f) => arr(f.referenceTo).map(str9).includes(object3) && f.nameField !== true
           )?.name
         );
         if (pd && linkField)
@@ -26340,7 +27046,7 @@ async function collectRecords(ctx, lists, extra = {}) {
         fields[partner] = { ...fields[partner], ...fieldMeta(linkedFetch, partnerPerms) };
       const unsynced = await unsyncedIds(ctx, linkedFetch ? [main2, linkedFetch] : [main2]);
       const rel5 = await relatedLists(ctx, object3, ids, main2.describe);
-      const edit = new Map(access.map((a) => [str7(a.RecordId), a.HasEditAccess === true]));
+      const edit = new Map(access.map((a) => [str9(a.RecordId), a.HasEditAccess === true]));
       const components = pageComponents(ctx, object3);
       const expensesOn = components.some((c) => trimNamespace(c.name) === "ExpensesListView");
       const expenses = expensesOn ? await readExpenses(ctx, ids) : void 0;
@@ -26364,7 +27070,7 @@ async function collectRecords(ctx, lists, extra = {}) {
           `SELECT Id, LastModifiedDate${wanted2.map((f) => `, ${f}`).join("")} FROM Account WHERE Id IN (${inList(ids)})`,
           ctx.org
         ).catch(softFail(ctx, "Record page", []));
-        for (const g of got) ratingRows.set(str7(g.Id), g);
+        for (const g of got) ratingRows.set(str9(g.Id), g);
       }
       const ratingsOf = (id2) => {
         if (!ratingsLayout) return void 0;
@@ -26377,7 +27083,7 @@ async function collectRecords(ctx, lists, extra = {}) {
             const f = main2.describe.fields.get(i.field.toLowerCase());
             const live = tab === "General" && !!f && !!row;
             const value4 = live ? formatValue(
-              row?.[str7(f?.name)],
+              row?.[str9(f?.name)],
               { type: "", picklist: void 0 },
               f,
               ctx.format,
@@ -26386,7 +27092,7 @@ async function collectRecords(ctx, lists, extra = {}) {
             const updated = live && row?.LastModifiedDate ? new Intl.DateTimeFormat(ctx.format.locale, {
               dateStyle: "medium",
               timeZone: ctx.format.timeZone
-            }).format(new Date(str7(row.LastModifiedDate))) : "";
+            }).format(new Date(str9(row.LastModifiedDate))) : "";
             return {
               tab,
               title: i.label,
@@ -26400,30 +27106,30 @@ async function collectRecords(ctx, lists, extra = {}) {
       };
       const stagePathOn = object3 === "Inquiry" && components.some((c) => trimNamespace(c.name) === "LifeSciStagePathContainer");
       const statusField = main2.describe.fields.get("status");
-      const statusSteps = stagePathOn ? arr(statusField?.picklistValues).filter((p) => p.active !== false).map((p) => str7(p.label) || str7(p.value)) : [];
+      const statusSteps = stagePathOn ? arr(statusField?.picklistValues).filter((p) => p.active !== false).map((p) => str9(p.label) || str9(p.value)) : [];
       for (const row of main2.rows) {
-        const id2 = str7(row.Id);
+        const id2 = str9(row.Id);
         const values = {
           [object3]: toValues(ctx, main2, row, unsynced, viewerProfile)
         };
         const partnerRow = linkedFetch?.rows.find(
-          (r) => str7(r[linkField]).slice(0, 15) === id2.slice(0, 15)
+          (r) => str9(r[linkField]).slice(0, 15) === id2.slice(0, 15)
         );
         if (linkedFetch && partnerRow)
           values[partner] = toValues(ctx, linkedFetch, partnerRow, unsynced, viewerProfile);
-        const rtName = main2.describe.recordTypes.get(str7(row.RecordTypeId)) ?? null;
-        const status = str7(partnerRow?.Status ?? row.Status);
+        const rtName = main2.describe.recordTypes.get(str9(row.RecordTypeId)) ?? null;
+        const status = str9(partnerRow?.Status ?? row.Status);
         byId[id2] = {
           id: id2,
           object: object3,
           recordType: rtName,
-          title: str7(row[main2.describe.nameField]),
+          title: str9(row[main2.describe.nameField]),
           values,
-          ...partnerRow && partner ? { linked: { object: partner, id: str7(partnerRow.Id) } } : {},
+          ...partnerRow && partner ? { linked: { object: partner, id: str9(partnerRow.Id) } } : {},
           editable: isEditable({
             object: object3,
             status,
-            ownerId: str7(row.OwnerId),
+            ownerId: str9(row.OwnerId),
             viewerId: ctx.userId,
             hasEditAccess: edit.get(id2) === true,
             updateable: main2.describe.updateable
@@ -26434,7 +27140,7 @@ async function collectRecords(ctx, lists, extra = {}) {
           ...statusSteps.length ? {
             stagePath: {
               steps: statusSteps,
-              current: picklistText(str7(row.Status), void 0, statusField)
+              current: picklistText(str9(row.Status), void 0, statusField)
             }
           } : {},
           ...expenses ? { expenses: expenses.get(id2) ?? { count: 0, total: `${expenses.currency} 0.00` } } : {}
@@ -26460,7 +27166,7 @@ async function readExpenses(ctx, ids) {
     "SELECT IsoCode FROM CurrencyType WHERE IsCorporate = true",
     ctx.org
   ).catch(softFail(ctx, "Record page", []));
-  const iso2 = str7(corporate[0]?.IsoCode);
+  const iso2 = str9(corporate[0]?.IsoCode);
   out.currency = /^[A-Z]{3}$/.test(iso2) ? iso2 : "USD";
   const rows3 = await query(
     `SELECT ExpenseOriginId, Amount FROM Expense WHERE ExpenseOriginId IN (${inList(ids)})`,
@@ -26468,10 +27174,10 @@ async function readExpenses(ctx, ids) {
   ).catch(softFail(ctx, "Record page (Expenses tab)", []));
   const sums = /* @__PURE__ */ new Map();
   for (const r of rows3) {
-    const s2 = sums.get(str7(r.ExpenseOriginId)) ?? { count: 0, sum: 0 };
+    const s2 = sums.get(str9(r.ExpenseOriginId)) ?? { count: 0, sum: 0 };
     s2.count++;
     s2.sum += Number(r.Amount) || 0;
-    sums.set(str7(r.ExpenseOriginId), s2);
+    sums.set(str9(r.ExpenseOriginId), s2);
   }
   for (const [id2, s2] of sums)
     out.set(id2, {
@@ -26480,7 +27186,7 @@ async function readExpenses(ctx, ids) {
     });
   return out;
 }
-var str7, arr, obj3, PER_LIST, PER_OBJECT, RELATED_ROWS, describeCache, layoutObject, salutationLabel, PERMISSION_SOQL, permissionTypes, refNameField, GENERIC_INQUIRY_COLUMNS;
+var str9, arr, obj3, PER_LIST, PER_OBJECT, RELATED_ROWS, describeCache, layoutObject, salutationLabel, PERMISSION_SOQL, permissionTypes, refNameField, GENERIC_INQUIRY_COLUMNS;
 var init_record = __esm({
   "src/studio/screens/record.ts"() {
     "use strict";
@@ -26492,7 +27198,7 @@ var init_record = __esm({
     init_record_ratings();
     init_inline_lwc();
     init_record_dashboard();
-    str7 = (v) => typeof v === "string" ? v : v == null ? "" : String(v);
+    str9 = (v) => typeof v === "string" ? v : v == null ? "" : String(v);
     arr = (v) => Array.isArray(v) ? v : [];
     obj3 = (v) => v && typeof v === "object" && !Array.isArray(v) ? v : {};
     PER_LIST = 10;
@@ -26503,13 +27209,13 @@ var init_record = __esm({
       const o = layoutName2.slice(0, Math.max(0, layoutName2.indexOf("-")));
       return o === "PersonAccount" ? "Account" : o;
     };
-    salutationLabel = (d, salutation) => str7(
-      arr(d.fields.get("salutation")?.picklistValues).find((p) => str7(p.value) === salutation)?.label
+    salutationLabel = (d, salutation) => str9(
+      arr(d.fields.get("salutation")?.picklistValues).find((p) => str9(p.value) === salutation)?.label
     ) || salutation;
     PERMISSION_SOQL = (types3, userId) => `SELECT Field, PermissionsRead FROM FieldPermissions WHERE SobjectType IN (${types3.map((t) => `'${t}'`).join(", ")})
        AND ParentId IN (SELECT PermissionSetId FROM PermissionSetAssignment WHERE AssigneeId = '${userId}')`;
     permissionTypes = (object3) => object3 === "Account" ? ["Account", "Contact"] : [object3];
-    refNameField = (f) => arr(f.referenceTo).map(str7).includes("Case") ? "CaseNumber" : "Name";
+    refNameField = (f) => arr(f.referenceTo).map(str9).includes("Case") ? "CaseNumber" : "Name";
     GENERIC_INQUIRY_COLUMNS = [
       { name: "ReferenceRecordId", label: "Reference Record", type: "reference" },
       { name: "Type", label: "Type", type: "picklist" },
@@ -26524,30 +27230,30 @@ var init_record = __esm({
 // src/studio/screens/record-fields.ts
 function recordFieldSpec(item2, label2) {
   const spec = {
-    name: str8(item2.fullName) || str8(item2.field),
+    name: str10(item2.fullName) || str10(item2.field),
     label: label2,
-    type: str8(item2.type).toLowerCase()
+    type: str10(item2.type).toLowerCase()
   };
-  const behavior2 = str8(item2.behavior).toLowerCase();
+  const behavior2 = str10(item2.behavior).toLowerCase();
   if (behavior2 === "required") spec.required = true;
   if (behavior2 === "readonly") spec.readOnly = true;
   if (Array.isArray(item2.referenceTo) && item2.referenceTo.length)
-    spec.ref = item2.referenceTo.map(str8);
+    spec.ref = item2.referenceTo.map(str10);
   const labels2 = (Array.isArray(item2.picklistValues) ? item2.picklistValues : []).filter(
     (p) => !!p && typeof p === "object"
   );
-  const differing = labels2.filter((p) => str8(p.label) && str8(p.label) !== str8(p.value));
+  const differing = labels2.filter((p) => str10(p.label) && str10(p.label) !== str10(p.value));
   if (differing.length)
     spec.picklist = Object.fromEntries(
-      labels2.map((p) => [str8(p.value), str8(p.label) || str8(p.value)])
+      labels2.map((p) => [str10(p.value), str10(p.label) || str10(p.value)])
     );
   return spec;
 }
-var str8;
+var str10;
 var init_record_fields = __esm({
   "src/studio/screens/record-fields.ts"() {
     "use strict";
-    str8 = (v) => typeof v === "string" ? v : v == null ? "" : String(v);
+    str10 = (v) => typeof v === "string" ? v : v == null ? "" : String(v);
   }
 });
 
@@ -26580,13 +27286,13 @@ var init_published_progress = __esm({
       }
       /** Add steps that will run, so the bar knows the total before they start. */
       plan(keys) {
-        for (const key3 of keys)
-          if (!this.find(key3)) this.progress.steps.push({ key: key3, label: LABELS[key3], state: "waiting" });
+        for (const key5 of keys)
+          if (!this.find(key5)) this.progress.steps.push({ key: key5, label: LABELS[key5], state: "waiting" });
       }
       /** Run one step, marking it running, then done or failed. */
-      async run(key3, fn) {
-        this.plan([key3]);
-        const step2 = this.find(key3);
+      async run(key5, fn) {
+        this.plan([key5]);
+        const step2 = this.find(key5);
         step2.state = "running";
         step2.startedAt = Date.now();
         try {
@@ -26601,17 +27307,17 @@ var init_published_progress = __esm({
         }
       }
       /** Say how far a step is, so a slow one shows partial progress. */
-      detail(key3, text11) {
-        const step2 = this.find(key3);
-        if (step2) step2.detail = text11;
+      detail(key5, text12) {
+        const step2 = this.find(key5);
+        if (step2) step2.detail = text12;
       }
       /** The load returned: steps it skipped (cached, or no viewer) drop out. */
       finish() {
         this.progress.steps = this.progress.steps.filter((s2) => s2.state !== "waiting");
         this.progress.finishedAt = Date.now();
       }
-      find(key3) {
-        return this.progress.steps.find((s2) => s2.key === key3);
+      find(key5) {
+        return this.progress.steps.find((s2) => s2.key === key5);
       }
     };
   }
@@ -26631,23 +27337,23 @@ function trimNamespace(name) {
 function effectiveProfile(permissions, permissionSets) {
   const profile = obj4(permissions.profile);
   const wanted = new Set(permissionSets);
-  const sets = arr2(permissions.permissionSets).filter((ps) => wanted.has(str9(ps.fullName)));
+  const sets = arr2(permissions.permissionSets).filter((ps) => wanted.has(str11(ps.fullName)));
   if (!sets.length) return profile;
-  const tabs = new Map(arr2(profile.tabVisibilities).map((t) => [str9(t.tab), t]));
-  const rts = new Map(arr2(profile.recordTypeVisibilities).map((r) => [str9(r.recordType), r]));
+  const tabs = new Map(arr2(profile.tabVisibilities).map((t) => [str11(t.tab), t]));
+  const rts = new Map(arr2(profile.recordTypeVisibilities).map((r) => [str11(r.recordType), r]));
   for (const ps of sets) {
     for (const t of arr2(ps.tabVisibilities)) {
-      const v = str9(t.visibility);
-      const current2 = tabs.get(str9(t.tab));
-      if (!current2) tabs.set(str9(t.tab), t);
+      const v = str11(t.visibility);
+      const current2 = tabs.get(str11(t.tab));
+      if (!current2) tabs.set(str11(t.tab), t);
       else if (v === "DefaultOn" || v === "Visible")
-        tabs.set(str9(t.tab), { ...current2, visibility: v });
+        tabs.set(str11(t.tab), { ...current2, visibility: v });
     }
     for (const r of arr2(ps.recordTypeVisibilities)) {
-      const current2 = rts.get(str9(r.recordType));
+      const current2 = rts.get(str11(r.recordType));
       const visible = r.visible === true || r.visible === "true";
-      if (!current2) rts.set(str9(r.recordType), r);
-      else if (visible) rts.set(str9(r.recordType), { ...current2, visible: true });
+      if (!current2) rts.set(str11(r.recordType), r);
+      else if (visible) rts.set(str11(r.recordType), { ...current2, visible: true });
     }
   }
   return {
@@ -26657,13 +27363,13 @@ function effectiveProfile(permissions, permissionSets) {
   };
 }
 function tabKind(tab, hasTable, hasSobject = () => true) {
-  const fullName = str9(tab.fullName);
+  const fullName = str11(tab.fullName);
   if (fullName === ns("Planner")) return "calendar";
   if (["Accounts", "Customers"].map(ns).includes(fullName) || fullName === "AccountFilter" || fullName === ns("AccountFilter"))
     return "accounts";
   if (fullName === ns("IntelligentContent") || fullName === "IntelligentContent") return "content";
   if (fullName === ns("MyTeamTab")) return "myTeam";
-  if (str9(tab.auraComponent) === ns("PlanCycleModalWrapper")) return "activityPlanReview";
+  if (str11(tab.auraComponent) === ns("PlanCycleModalWrapper")) return "activityPlanReview";
   if (ieq(fullName, "standard-accountcompliance")) return "compliance";
   if ([ns("Reports"), "standard-report"].some((n) => ieq(n, fullName))) return "reports";
   if (ieq(fullName, ns("SalesData"))) return "salesData";
@@ -26671,10 +27377,10 @@ function tabKind(tab, hasTable, hasSobject = () => true) {
   if (fullName === "Tableau" || fullName === "Tableau_Tab") return "tableau";
   if (fullName === "standard-MedicalInsight" || fullName === "standard-MedicalInsightFeed")
     return "insights";
-  switch (str9(tab.type).toLowerCase()) {
+  switch (str11(tab.type).toLowerCase()) {
     case "sobject":
     case "customobject":
-      return tab.sobjectName && hasSobject(str9(tab.sobjectName)) ? "object" : "empty";
+      return tab.sobjectName && hasSobject(str11(tab.sobjectName)) ? "object" : "empty";
     case "flexipage":
       return ieq(fullName, "standard-home") ? "home" : "flexiPage";
     default:
@@ -26682,25 +27388,25 @@ function tabKind(tab, hasTable, hasSobject = () => true) {
   }
 }
 function emptyReason(tab, nav, visible) {
-  const fullName = str9(tab.fullName);
-  const type = str9(tab.type).toLowerCase();
+  const fullName = str11(tab.fullName);
+  const type = str11(tab.type).toLowerCase();
   if (type === "sobject" || type === "customobject") {
     if (!tab.sobjectName) return "This object tab has no object the app can open.";
-    return `${str9(tab.sobjectName)} isn't in this profile's published objects, so the tab shows "Coming soon". Add it to the profile's DB Schema and publish again.`;
+    return `${str11(tab.sobjectName)} isn't in this profile's published objects, so the tab shows "Coming soon". Add it to the profile's DB Schema and publish again.`;
   }
   if (type === "mobile") {
-    const key3 = fullName.replace(/^lsc4ce__/i, "").replace(/[\s_]/g, "").toLowerCase();
-    const native = NATIVE_TAB_NAMES[key3];
+    const key5 = fullName.replace(/^lsc4ce__/i, "").replace(/[\s_]/g, "").toLowerCase();
+    const native = NATIVE_TAB_NAMES[key5];
     const where3 = `the UI Settings navigation tab's Tab Name "${fullName}"`;
     if (native && native !== fullName)
       return `The app doesn't recognize ${where3}. Use "${native}" to open the native screen.`;
     const twin = Object.values(nav).find(
-      (t) => str9(t.type).toLowerCase() !== "mobile" && ieq(str9(t.label), fullName) && (t.sobjectName || t.flexiPage)
+      (t) => str11(t.type).toLowerCase() !== "mobile" && ieq(str11(t.label), fullName) && (t.sobjectName || t.flexiPage)
     );
-    if (twin && visible.has(str9(twin.fullName)))
-      return `The app doesn't recognize ${where3}, so this tab is empty. "${str9(twin.label)}" already shows as its own tab (${str9(twin.fullName)}).`;
+    if (twin && visible.has(str11(twin.fullName)))
+      return `The app doesn't recognize ${where3}, so this tab is empty. "${str11(twin.label)}" already shows as its own tab (${str11(twin.fullName)}).`;
     if (twin)
-      return `The app doesn't recognize ${where3}. UI Settings tabs only open the app's native screens \u2014 to show "${str9(twin.label)}", make the ${str9(twin.fullName)} tab visible instead.`;
+      return `The app doesn't recognize ${where3}. UI Settings tabs only open the app's native screens \u2014 to show "${str11(twin.label)}", make the ${str11(twin.fullName)} tab visible instead.`;
     return `The app doesn't recognize ${where3}. UI Settings tabs only open the app's native screens (Accounts, Planner, Intelligent Content, My Team, Reports, Sales Data, Tableau).`;
   }
   return `The app has no screen for ${type ? `"${type}" tabs` : "this tab"} (${fullName}).`;
@@ -26708,7 +27414,7 @@ function emptyReason(tab, nav, visible) {
 function buildTabs(files, availableTables) {
   const profile = obj4(files.permissions.profile);
   const visible = new Set(
-    arr2(profile.tabVisibilities).filter((t) => t.visibility && t.visibility !== "Hidden" && t.visibility !== "DefaultOff").map((t) => str9(t.tab))
+    arr2(profile.tabVisibilities).filter((t) => t.visibility && t.visibility !== "Hidden" && t.visibility !== "DefaultOff").map((t) => str11(t.tab))
   );
   const hasTable = (s2) => Object.keys(files.db).some((k) => ieq(k, s2)) && Object.keys(files.sobjects).some((k) => ieq(k, s2));
   const isAvailable = (s2) => availableTables ? availableTables.has(s2) : hasTable(s2);
@@ -26716,10 +27422,10 @@ function buildTabs(files, availableTables) {
   const tabs = [];
   const hidden = [];
   for (let t of Object.values(files.nav)) {
-    const fullName = str9(t.fullName);
-    const label2 = str9(obj4(translated[fullName]).label) || str9(t.label) || fullName;
+    const fullName = str11(t.fullName);
+    const label2 = str11(obj4(translated[fullName]).label) || str11(t.label) || fullName;
     const hide = (reason2) => hidden.push({ fullName, label: label2, reason: reason2 });
-    if (t.sobjectName != null && !isAvailable(str9(t.sobjectName))) {
+    if (t.sobjectName != null && !isAvailable(str11(t.sobjectName))) {
       hide(availableTables ? TAB_FILTER_REASONS.notAvailable : TAB_FILTER_REASONS.noTable);
       continue;
     }
@@ -26747,8 +27453,8 @@ function buildTabs(files, availableTables) {
       fullName,
       label: kind === "home" ? "Home" : label2,
       kind,
-      sobject: t.sobjectName ? str9(t.sobjectName) : void 0,
-      flexiPage: t.flexiPage ? str9(t.flexiPage) : void 0,
+      sobject: t.sobjectName ? str11(t.sobjectName) : void 0,
+      flexiPage: t.flexiPage ? str11(t.flexiPage) : void 0,
       ...kind === "empty" ? { emptyReason: emptyReason(t, files.nav, visible) } : {},
       order: typeof t.tabOrder === "number" ? t.tabOrder : Number.MAX_SAFE_INTEGER
     });
@@ -26797,7 +27503,7 @@ function visibilityOf(rule) {
   const r = rule;
   const criteria = Array.isArray(r.criteria) ? r.criteria : r.criteria ? [obj4(r.criteria)] : [];
   const results = criteria.map((c) => {
-    const left = str9(c.leftValue).replace(/[{}]/g, "");
+    const left = str11(c.leftValue).replace(/[{}]/g, "");
     if (left.includes("!$Client")) return true;
     if (left.includes("!$Permission") || left.includes("!Record.") || left.includes("!$User."))
       return "conditional";
@@ -26816,12 +27522,12 @@ function visibilityOf(rule) {
 function propsOf(ci) {
   const out = {};
   for (const p of arr2(ci.componentInstanceProperties))
-    if (p.name && p.value != null) out[str9(p.name)] = str9(p.value);
+    if (p.name && p.value != null) out[str11(p.name)] = str11(p.value);
   return out;
 }
 function toComponent(item2, at2) {
   const ci = obj4(item2.componentInstance);
-  const name = str9(ci.componentName);
+  const name = str11(ci.componentName);
   if (!name) return null;
   const all = propsOf(ci);
   const properties = {};
@@ -26842,14 +27548,14 @@ function toComponent(item2, at2) {
     const prop2 = arr2(ci.componentInstanceProperties).find((p) => p.name === "actionNames");
     const items = arr2(obj4(prop2?.valueList).valueListItems);
     const names4 = items.map(
-      (i) => typeof i.value === "string" ? i.value : str9(obj4(i.value).actionName || obj4(i.value).fullName)
+      (i) => typeof i.value === "string" ? i.value : str11(obj4(i.value).actionName || obj4(i.value).fullName)
     ).filter(Boolean);
     if (names4.length) c.actions = names4;
   }
   if (trimNamespace(name) === "flexipage:tabset") {
     c.tabs = arr2(item2.itemInstances).flatMap((child, t) => {
       const tab = obj4(child.componentInstance);
-      if (str9(tab.componentName) !== "flexipage:tab") return [];
+      if (str11(tab.componentName) !== "flexipage:tab") return [];
       if (visibilityOf(tab.visibilityRule).visibility === "hidden") return [];
       const tp = propsOf(tab);
       const tabAt = at2 && { region: at2.region, path: [...at2.path, stepOf(child, t)] };
@@ -26882,20 +27588,20 @@ function tabTitle(raw) {
   return raw;
 }
 function buildPage(name, page) {
-  const regions = arr2(page.flexiPageRegions).filter((r) => str9(r.type) !== "Facet");
+  const regions = arr2(page.flexiPageRegions).filter((r) => str11(r.type) !== "Facet");
   const { template } = resolveTemplate(page);
   const slots = TEMPLATE_REGIONS[template];
   const result2 = {
     name,
-    label: str9(page.masterLabel) || name,
-    type: str9(page.type),
+    label: str11(page.masterLabel) || name,
+    type: str11(page.type),
     template,
     regions: [],
     droppedRegions: [],
     problems: lintPage(page)
   };
   for (const slot of slots) {
-    const region = regions.find((r) => str9(r.name) === slot);
+    const region = regions.find((r) => str11(r.name) === slot);
     if (!region) continue;
     const components = arr2(region.itemInstances).map(
       (item2, i) => toComponent(item2, { region: slot, path: [stepOf(item2, i)] })
@@ -26906,11 +27612,11 @@ function buildPage(name, page) {
     });
   }
   for (const r of regions) {
-    if (slots.includes(str9(r.name))) continue;
-    const comps = arr2(r.itemInstances).map((i) => str9(obj4(i.componentInstance).componentName)).filter(Boolean);
+    if (slots.includes(str11(r.name))) continue;
+    const comps = arr2(r.itemInstances).map((i) => str11(obj4(i.componentInstance).componentName)).filter(Boolean);
     if (comps.length)
       result2.droppedRegions.push({
-        name: str9(r.name),
+        name: str11(r.name),
         components: comps.map((c) => componentInfo(c).label)
       });
   }
@@ -26920,43 +27626,43 @@ function separatedWithSpaces(s2) {
   return [...s2].map((c, i) => i > 0 && c.toLowerCase() !== c ? ` ${c}` : c).join("");
 }
 function sectionLabel(s2, translated) {
-  const raw = str9(s2.label);
+  const raw = str11(s2.label);
   const label2 = translated || raw;
-  return label2 === raw && str9(s2.customLabel) !== "true" && s2.customLabel !== true && !raw.includes(" ") ? separatedWithSpaces(raw) : label2;
+  return label2 === raw && str11(s2.customLabel) !== "true" && s2.customLabel !== true && !raw.includes(" ") ? separatedWithSpaces(raw) : label2;
 }
 function fieldLabel(files, sobject2, item2) {
-  const name = str9(item2.fullName) || str9(item2.field);
+  const name = str11(item2.fullName) || str11(item2.field);
   if (name.toLowerCase() === "recordtypeid") return "Record Type";
   const t = obj4(obj4(files.translations?.fields)[sobject2]);
-  if (name === "Name" && str9(t.nameFieldLabel)) return str9(t.nameFieldLabel);
+  if (name === "Name" && str11(t.nameFieldLabel)) return str11(t.nameFieldLabel);
   if (name === "Type" && sobject2.toLowerCase() !== "account") return "Type";
   const described = arr2(files.sobjects[sobject2]?.fields).find(
-    (f) => str9(f.fullName).toLowerCase() === name.toLowerCase()
+    (f) => str11(f.fullName).toLowerCase() === name.toLowerCase()
   );
-  return str9(obj4(t.labels)[name]) || str9(described?.label) || str9(item2.label) || name;
+  return str11(obj4(t.labels)[name]) || str11(described?.label) || str11(item2.label) || name;
 }
-function buildLayout(name, layout, translation = {}, itemLabel = (f) => str9(f.label) || str9(f.fullName)) {
+function buildLayout(name, layout, translation = {}, itemLabel = (f) => str11(f.label) || str11(f.fullName)) {
   const sectionLabels = obj4(translation.sections);
   const relatedListLabels = obj4(translation.relatedLists);
   const seen = /* @__PURE__ */ new Map();
   const sections2 = arr2(layout.layoutSections).flatMap((s2) => {
-    const nth = seen.get(str9(s2.label)) ?? 0;
-    seen.set(str9(s2.label), nth + 1);
+    const nth = seen.get(str11(s2.label)) ?? 0;
+    seen.set(str11(s2.label), nth + 1);
     const specs = arr2(s2.layoutColumns).map((col, index) => ({
       index,
-      items: arr2(col.layoutItems).filter((f) => str9(f.fullName) || str9(f.field)).map((f) => ({ label: itemLabel(f), item: f })).filter((x) => x.label)
+      items: arr2(col.layoutItems).filter((f) => str11(f.fullName) || str11(f.field)).map((f) => ({ label: itemLabel(f), item: f })).filter((x) => x.label)
     })).filter((c) => c.items.length);
     const columns = specs.map((c) => c.items.map((x) => x.label));
     const fields = specs.map((c) => c.items.map((x) => recordFieldSpec(x.item, x.label)));
     if (!columns.length) return [];
-    const label2 = sectionLabel(s2, str9(sectionLabels[str9(s2.label)]) || void 0);
-    const detailHeading = s2.detailHeading === true || str9(s2.detailHeading) === "true";
+    const label2 = sectionLabel(s2, str11(sectionLabels[str11(s2.label)]) || void 0);
+    const detailHeading = s2.detailHeading === true || str11(s2.detailHeading) === "true";
     const heading = detailHeading && label2.trim() ? label2 : null;
     const layoutFields = specs.map(
-      (c) => c.items.map((x) => str9(x.item.compoundFieldName) || str9(x.item.fullName) || str9(x.item.field))
+      (c) => c.items.map((x) => str11(x.item.compoundFieldName) || str11(x.item.fullName) || str11(x.item.field))
     );
     const source = {
-      label: str9(s2.label),
+      label: str11(s2.label),
       nth,
       columns: specs.map((c) => c.index),
       fields: layoutFields,
@@ -26965,9 +27671,9 @@ function buildLayout(name, layout, translation = {}, itemLabel = (f) => str9(f.l
     return [{ label: heading, columns, fields, source }];
   });
   const relatedLists3 = arr2(layout.relatedLists).map((r) => {
-    const rl = str9(r.relatedList);
-    const label2 = str9(relatedListLabels[rl]) || str9(r.relatedListLabel) || str9(r.label);
-    const columns = arr2(r.fields).filter((f) => typeof f === "object" && f && str9(f.fullName)).map((f) => recordFieldSpec(f, str9(f.label)));
+    const rl = str11(r.relatedList);
+    const label2 = str11(relatedListLabels[rl]) || str11(r.relatedListLabel) || str11(r.label);
+    const columns = arr2(r.fields).filter((f) => typeof f === "object" && f && str11(f.fullName)).map((f) => recordFieldSpec(f, str11(f.label)));
     return {
       name: rl,
       label: label2 || rl.replace(/^RelatedList$/, "").replace(/__r$|__c$/g, "") || rl,
@@ -26977,40 +27683,40 @@ function buildLayout(name, layout, translation = {}, itemLabel = (f) => str9(f.l
   const items = arr2(layout.platformActionList).flatMap(
     (pal) => arr2(obj4(pal).platformActionListItems ?? [])
   );
-  const actions = items.map((a) => str9(a.label) || str9(a.actionName) || str9(a.fullName));
+  const actions = items.map((a) => str11(a.label) || str11(a.actionName) || str11(a.fullName));
   const actionItems2 = items.map((a) => ({
-    name: str9(a.actionName) || str9(a.fullName),
-    label: str9(a.label),
-    type: str9(a.type),
-    sortOrder: str9(a.sortOrder)
+    name: str11(a.actionName) || str11(a.fullName),
+    label: str11(a.label),
+    type: str11(a.type),
+    sortOrder: str11(a.sortOrder)
   }));
   return { name, sections: sections2, relatedLists: relatedLists3, actions: actions.filter(Boolean), actionItems: actionItems2 };
 }
 function listViewField(column, fields) {
-  const name = str9(column.fullName);
+  const name = str11(column.fullName);
   const field = fields.get(name.toLowerCase()) ?? (column.type ? column : void 0);
   if (!field) return null;
-  const type = str9(field.type).toLowerCase();
+  const type = str11(field.type).toLowerCase();
   if (REFERENCE_TYPES.has(type) && field.relationshipName) {
-    const to = str9(arr2(field.referenceTo)[0] ?? "");
-    const display2 = str9(obj4(field.referenceDisplayFields)[to]) || "Name";
-    const ref3 = arr2(field.referenceTo).length === 1 ? { ref: { object: to, idPath: str9(field.fullName) } } : {};
-    return { path: `${str9(field.relationshipName)}.${display2}`, type, ...ref3 };
+    const to = str11(arr2(field.referenceTo)[0] ?? "");
+    const display2 = str11(obj4(field.referenceDisplayFields)[to]) || "Name";
+    const ref3 = arr2(field.referenceTo).length === 1 ? { ref: { object: to, idPath: str11(field.fullName) } } : {};
+    return { path: `${str11(field.relationshipName)}.${display2}`, type, ...ref3 };
   }
   if (type === "picklist" || type === "multiselectpicklist")
-    return { path: `toLabel(${str9(field.fullName)})`, type };
-  return { path: str9(field.fullName), type };
+    return { path: `toLabel(${str11(field.fullName)})`, type };
+  return { path: str11(field.fullName), type };
 }
 function listViewWhere(filters2, booleanFilter, fields) {
   const clauses = filters2.map((f) => {
-    let name = str9(f.field);
-    const op = str9(f.operation);
-    let values = str9(f.value).split(",").map((v) => v.trim());
+    let name = str11(f.field);
+    const op = str11(f.operation);
+    let values = str11(f.value).split(",").map((v) => v.trim());
     if (name === "RECORDTYPE") {
       name = "RecordType.DeveloperName";
       values = values.map((v) => v.split(".").pop() ?? v);
     }
-    const type = str9(fields.get(name.toLowerCase())?.type).toLowerCase();
+    const type = str11(fields.get(name.toLowerCase())?.type).toLowerCase();
     const literal3 = (v) => {
       if (type === "checkbox" || type === "boolean")
         return v === "1" || v.toLowerCase() === "true" ? "true" : "false";
@@ -27046,29 +27752,29 @@ function listViewWhere(filters2, booleanFilter, fields) {
 function picklistDefaults(rt) {
   const out = {};
   for (const p of arr2(rt.picklistValues)) {
-    const d = arr2(p.values).find((v) => v.isDefault === true || str9(v.isDefault) === "true");
-    if (d && str9(p.picklist) && str9(d.fullName)) out[str9(p.picklist)] = str9(d.fullName);
+    const d = arr2(p.values).find((v) => v.isDefault === true || str11(v.isDefault) === "true");
+    if (d && str11(p.picklist) && str11(d.fullName)) out[str11(p.picklist)] = str11(d.fullName);
   }
   return Object.keys(out).length ? { picklistDefaults: out } : {};
 }
 function buildObject(name, sobject2, ui, profile) {
   const visibleRts = new Map(
     arr2(profile.recordTypeVisibilities).map((v) => [
-      str9(v.recordType),
+      str11(v.recordType),
       v.visible === true || v.visible === "true"
     ])
   );
-  const recordTypes = arr2(sobject2.recordTypes).filter((rt) => rt.active !== false && visibleRts.get(`${name}.${str9(rt.fullName)}`) !== false).filter((rt, _i, all) => str9(rt.fullName) !== "Master" || all.length === 1).map((rt) => ({
-    name: str9(rt.fullName),
-    label: str9(rt.label) || str9(rt.fullName),
-    layout: rt.layout ? str9(rt.layout) : null,
-    flexiPage: rt.flexiPage ? str9(rt.flexiPage) : null,
-    compactLayout: rt.compactLayoutAssignment ? str9(rt.compactLayoutAssignment) : sobject2.compactLayoutAssignment ? str9(sobject2.compactLayoutAssignment) : null,
+  const recordTypes = arr2(sobject2.recordTypes).filter((rt) => rt.active !== false && visibleRts.get(`${name}.${str11(rt.fullName)}`) !== false).filter((rt, _i, all) => str11(rt.fullName) !== "Master" || all.length === 1).map((rt) => ({
+    name: str11(rt.fullName),
+    label: str11(rt.label) || str11(rt.fullName),
+    layout: rt.layout ? str11(rt.layout) : null,
+    flexiPage: rt.flexiPage ? str11(rt.flexiPage) : null,
+    compactLayout: rt.compactLayoutAssignment ? str11(rt.compactLayoutAssignment) : sobject2.compactLayoutAssignment ? str11(sobject2.compactLayoutAssignment) : null,
     ...picklistDefaults(rt)
   }));
-  const fields = new Map(arr2(sobject2.fields).map((f) => [str9(f.fullName).toLowerCase(), f]));
+  const fields = new Map(arr2(sobject2.fields).map((f) => [str11(f.fullName).toLowerCase(), f]));
   const theme = obj4(sobject2.themeInfo);
-  const listViews = Object.entries(obj4(ui.listViews)).filter(([k]) => k.startsWith(`${name}.`)).filter(([, v]) => str9(obj4(v).filterScope).toLowerCase() !== "mru").map(([key3, v]) => {
+  const listViews = Object.entries(obj4(ui.listViews)).filter(([k]) => k.startsWith(`${name}.`)).filter(([, v]) => str11(obj4(v).filterScope).toLowerCase() !== "mru").map(([key5, v]) => {
     const lv = obj4(v);
     const sharedTo = Object.fromEntries(
       Object.entries(obj4(lv.sharedTo)).map(
@@ -27081,41 +27787,41 @@ function buildObject(name, sobject2, ui, profile) {
       ).filter(([, names4]) => names4.length > 0)
     );
     return {
-      name: str9(lv.fullName),
-      label: str9(lv.label) || str9(lv.fullName),
-      columns: arr2(lv.columns).map((c) => str9(c.label) || str9(c.fullName)),
+      name: str11(lv.fullName),
+      label: str11(lv.label) || str11(lv.fullName),
+      columns: arr2(lv.columns).map((c) => str11(c.label) || str11(c.fullName)),
       ...Object.keys(sharedTo).length ? { sharedTo } : {},
       source: {
-        fullName: key3,
-        columns: arr2(lv.columns).map((c) => str9(c.fullName)),
-        filterScope: lv.filterScope ? str9(lv.filterScope) : null,
+        fullName: key5,
+        columns: arr2(lv.columns).map((c) => str11(c.fullName)),
+        filterScope: lv.filterScope ? str11(lv.filterScope) : null,
         filters: arr2(lv.filters).map((f) => ({
-          field: str9(f.field),
-          operation: str9(f.operation),
-          value: str9(f.value)
+          field: str11(f.field),
+          operation: str11(f.operation),
+          value: str11(f.value)
         })),
-        booleanFilter: lv.booleanFilter ? str9(lv.booleanFilter) : null
+        booleanFilter: lv.booleanFilter ? str11(lv.booleanFilter) : null
       },
       query: {
         fields: arr2(lv.columns).map((c) => listViewField(c, fields)),
         where: listViewWhere(
           arr2(lv.filters),
-          lv.booleanFilter ? str9(lv.booleanFilter) : null,
+          lv.booleanFilter ? str11(lv.booleanFilter) : null,
           fields
         ),
-        mine: str9(lv.filterScope).toLowerCase() === "mine"
+        mine: str11(lv.filterScope).toLowerCase() === "mine"
       }
     };
   }).sort((a, b) => a.label < b.label ? -1 : a.label > b.label ? 1 : 0);
   return {
     name,
-    label: str9(sobject2.label) || name,
-    labelPlural: str9(sobject2.labelPlural) || name,
+    label: str11(sobject2.label) || name,
+    labelPlural: str11(sobject2.labelPlural) || name,
     recordTypes,
-    defaultCompactLayout: sobject2.compactLayoutAssignment ? str9(sobject2.compactLayoutAssignment) : null,
+    defaultCompactLayout: sobject2.compactLayoutAssignment ? str11(sobject2.compactLayoutAssignment) : null,
     listViews,
     defaultListView: defaultListView(listViews),
-    ...theme.color && /^https:\/\//.test(str9(theme.iconUrl)) ? { theme: { color: `#${str9(theme.color).replace(/^#/, "")}`, iconUrl: str9(theme.iconUrl) } } : {}
+    ...theme.color && /^https:\/\//.test(str11(theme.iconUrl)) ? { theme: { color: `#${str11(theme.color).replace(/^#/, "")}`, iconUrl: str11(theme.iconUrl) } } : {}
   };
 }
 function defaultListView(views) {
@@ -27128,21 +27834,21 @@ function multiEntityFor(name, rt, files, profile, available) {
   const other = files.sobjects[cfg.with];
   const otherRts = arr2(other?.recordTypes);
   const isDefault = (r) => arr2(profile.recordTypeVisibilities).some(
-    (v) => str9(v.recordType) === `${cfg.with}.${str9(r.fullName)}` && (v.default === true || v.isDefault === true || str9(v.default) === "true")
+    (v) => str11(v.recordType) === `${cfg.with}.${str11(r.fullName)}` && (v.default === true || v.isDefault === true || str11(v.default) === "true")
   );
-  const match = otherRts.find((r) => str9(r.fullName) === rt.name);
-  const pick2 = match ?? otherRts.find(isDefault) ?? otherRts.find((r) => str9(r.fullName) === "Master");
-  const layout = pick2?.layout ? str9(pick2.layout) : "";
+  const match = otherRts.find((r) => str11(r.fullName) === rt.name);
+  const pick2 = match ?? otherRts.find(isDefault) ?? otherRts.find((r) => str11(r.fullName) === "Master");
+  const layout = pick2?.layout ? str11(pick2.layout) : "";
   if (!other || available && !available.has(cfg.with) || !layout || !rt.layout) {
     return {
       layouts: [],
       error: `MultiEntityRecordView configuration error. No access to the following entities: ${!rt.layout ? name : cfg.with}`
     };
   }
-  const label2 = str9(pick2?.label) || str9(pick2?.fullName);
+  const label2 = str11(pick2?.label) || str11(pick2?.fullName);
   return {
     layouts: cfg.withFirst ? [layout, rt.layout] : [rt.layout, layout],
-    note: match ? void 0 : `${str9(other.label) || cfg.with} sections use its ${label2} record type; the app uses the linked record's own record type.`
+    note: match ? void 0 : `${str11(other.label) || cfg.with} sections use its ${label2} record type; the app uses the linked record's own record type.`
   };
 }
 function previewObjects(tabs, files) {
@@ -27197,14 +27903,14 @@ function buildSnapshot(raw, meta) {
     );
     for (const c of compactNames) {
       const cl = obj4(compact[`${name}.${c}`] ?? compact[c]);
-      const shown2 = arr2(cl.fields).filter((f) => str9(f.fullName).toLowerCase() !== "name");
+      const shown2 = arr2(cl.fields).filter((f) => str11(f.fullName).toLowerCase() !== "name");
       compactLayouts[`${name}.${c}`] = shown2.map((f) => fieldLabel(files, name, f));
       compactFields2[`${name}.${c}`] = shown2.map(
         (f) => recordFieldSpec(f, fieldLabel(files, name, f))
       );
       compactSources[`${name}.${c}`] = {
         fullName: `${name}.${c}`,
-        fields: arr2(cl.fields).map((f) => str9(f.fullName)).filter((f) => f)
+        fields: arr2(cl.fields).map((f) => str11(f.fullName)).filter((f) => f)
       };
     }
     for (const rt of o.recordTypes) {
@@ -27235,7 +27941,7 @@ function buildSnapshot(raw, meta) {
   for (const n of dashboardNames({ home, pages }))
     if (describes[n]) dashboards[n] = dashboardFromDescribe(obj4(describes[n]));
   const sync = Object.fromEntries(
-    Object.entries(files.db).map(([table, entry]) => [table, str9(obj4(entry).WhereSoql).trim()])
+    Object.entries(files.db).map(([table, entry]) => [table, str11(obj4(entry).WhereSoql).trim()])
   );
   return {
     profile: meta.profile,
@@ -27257,30 +27963,30 @@ function buildSnapshot(raw, meta) {
 function buildReportTree(folders, reports, salesChart) {
   const byTitle2 = (a, b) => a.title < b.title ? -1 : a.title > b.title ? 1 : 0;
   const report = (r) => {
-    const format = str9(r.Format).toLowerCase();
+    const format = str11(r.Format).toLowerCase();
     return {
       kind: "report",
-      title: str9(r.Name),
-      description: str9(r.Description) || void 0,
+      title: str11(r.Name),
+      description: str11(r.Description) || void 0,
       native: format.includes("summary") || format.includes("tabular"),
-      ...str9(r.Id) ? { id: str9(r.Id), format: str9(r.Format) } : {},
+      ...str11(r.Id) ? { id: str11(r.Id), format: str11(r.Format) } : {},
       children: []
     };
   };
   const build2 = (f, kind) => ({
     kind,
-    title: str9(f.Name),
+    title: str11(f.Name),
     children: [
-      ...reports.filter((r) => str9(r.FolderName) === str9(f.Name)).map(report),
-      ...folders.filter((c) => str9(c.ParentId) && str9(c.ParentId) === str9(f.Id)).map((c) => build2(c, "folder"))
+      ...reports.filter((r) => str11(r.FolderName) === str11(f.Name)).map(report),
+      ...folders.filter((c) => str11(c.ParentId) && str11(c.ParentId) === str11(f.Id)).map((c) => build2(c, "folder"))
     ].sort(byTitle2)
   });
   const sections2 = [
-    ...reports.filter((r) => !str9(r.FolderName)).map(report),
-    ...folders.filter((f) => !str9(f.ParentId) && str9(f.Name)).map((f) => build2(f, "section"))
+    ...reports.filter((r) => !str11(r.FolderName)).map(report),
+    ...folders.filter((f) => !str11(f.ParentId) && str11(f.Name)).map((f) => build2(f, "section"))
   ];
   for (const name of ["Private Reports", "Public Reports"]) {
-    const children2 = reports.filter((r) => str9(r.FolderName) === name).map(report);
+    const children2 = reports.filter((r) => str11(r.FolderName) === name).map(report);
     if (children2.length) sections2.push({ kind: "section", title: name, children: children2 });
   }
   const out = sections2.sort(byTitle2);
@@ -27309,9 +28015,9 @@ function dashboardFromDescribe(describe) {
   const layout = obj4(describe.layout);
   const cells = arr2(layout.components);
   return {
-    id: str9(describe.id),
-    title: str9(describe.name),
-    sharedResults: str9(describe.dashboardType) === "SpecifiedUser",
+    id: str11(describe.id),
+    title: str11(describe.name),
+    sharedResults: str11(describe.dashboardType) === "SpecifiedUser",
     numColumns: Number(layout.numColumns) || 12,
     rowHeight: Number(layout.rowHeight) || 36,
     components: arr2(describe.components).map((c, i) => {
@@ -27319,16 +28025,16 @@ function dashboardFromDescribe(describe) {
       const props = obj4(c.properties);
       const vis = obj4(props.visualizationProperties);
       return {
-        id: str9(c.id),
-        title: str9(c.header),
-        subtitle: str9(c.title),
-        chart: str9(props.visualizationType),
-        groupBy: str9(vis.groupByType),
+        id: str11(c.id),
+        title: str11(c.header),
+        subtitle: str11(c.title),
+        chart: str11(props.visualizationType),
+        groupBy: str11(vis.groupByType),
         column: Number(cell3.column) || 0,
         row: Number(cell3.row) || 0,
         colspan: Number(cell3.colspan) || 1,
         rowspan: Number(cell3.rowspan) || 1,
-        legend: str9(vis.legendPosition),
+        legend: str11(vis.legendPosition),
         showValues: vis.showValues === true,
         showTotal: vis.showTotal === true,
         combineSmall: vis.combineSmallGroups === true
@@ -27339,37 +28045,37 @@ function dashboardFromDescribe(describe) {
 function dashboardData(result2) {
   const meta = obj4(result2.reportMetadata);
   const info = obj4(obj4(result2.reportExtendedMetadata).aggregateColumnInfo);
-  const measures = arr2(meta.aggregates).map((a) => str9(obj4(info[str9(a)]).label) || str9(a));
+  const measures = arr2(meta.aggregates).map((a) => str11(obj4(info[str11(a)]).label) || str11(a));
   const facts = obj4(result2.factMap);
-  const fact = (key3, i) => obj4(arr2(obj4(facts[`${key3}!T`]).aggregates)[i]);
+  const fact = (key5, i) => obj4(arr2(obj4(facts[`${key5}!T`]).aggregates)[i]);
   const outer = arr2(obj4(result2.groupingsDown).groupings);
-  const categories = outer.map((g) => str9(g.label));
-  const total = str9(fact("T", 0).label) || void 0;
+  const categories = outer.map((g) => str11(g.label));
+  const total = str11(fact("T", 0).label) || void 0;
   const nested3 = outer.some((g) => arr2(g.groupings).length > 0);
   if (!nested3) {
     const series = measures.map((label2, i) => ({
       label: label2,
       values: outer.map(
-        (g) => typeof fact(str9(g.key), i).value === "number" ? fact(str9(g.key), i).value : null
+        (g) => typeof fact(str11(g.key), i).value === "number" ? fact(str11(g.key), i).value : null
       ),
-      labels: outer.map((g) => str9(fact(str9(g.key), i).label))
+      labels: outer.map((g) => str11(fact(str11(g.key), i).label))
     }));
     return { measures, categories, grouped: false, series, total };
   }
   const byLabel = /* @__PURE__ */ new Map();
   outer.forEach((g, i) => {
     for (const inner of arr2(g.groupings)) {
-      const label2 = str9(inner.label);
+      const label2 = str11(inner.label);
       if (!byLabel.has(label2))
         byLabel.set(label2, {
           label: label2,
           values: categories.map(() => null),
           labels: categories.map(() => "")
         });
-      const f = fact(str9(inner.key), 0);
+      const f = fact(str11(inner.key), 0);
       const s2 = byLabel.get(label2);
       s2.values[i] = typeof f.value === "number" ? f.value : null;
-      s2.labels[i] = str9(f.label);
+      s2.labels[i] = str11(f.label);
     }
   });
   return { measures, categories, grouped: true, series: [...byLabel.values()], total };
@@ -27393,13 +28099,13 @@ async function withDashboardData(dashboards, org, track) {
         "Reading this dashboard"
       );
       if (!res.success || !res.data) throw new Error(res.error || "no data returned");
-      const data2 = new Map(arr2(res.data.componentData).map((c) => [str9(c.componentId), c]));
+      const data2 = new Map(arr2(res.data.componentData).map((c) => [str11(c.componentId), c]));
       let refreshedAt;
       const components = d.components.map((c) => {
         const cd = data2.get(c.id);
         const result2 = obj4(cd?.reportResult);
-        if (!cd || str9(obj4(cd.status).componentDataStatus) !== "DATA" || !result2.factMap) return c;
-        refreshedAt ??= str9(obj4(cd.status).refreshDate) || void 0;
+        if (!cd || str11(obj4(cd.status).componentDataStatus) !== "DATA" || !result2.factMap) return c;
+        refreshedAt ??= str11(obj4(cd.status).refreshDate) || void 0;
         return { ...c, data: dashboardData(result2) };
       });
       out[name] = { ...d, components, refreshedAt };
@@ -27450,15 +28156,15 @@ async function latestCache(profile, org) {
     false,
     { allowTruncated: true }
   );
-  const mine = rows3.filter((r) => ieq(str9(obj4(r.Profile).Name), profile));
+  const mine = rows3.filter((r) => ieq(str11(obj4(r.Profile).Name), profile));
   const pick2 = mine.find((r) => r.Status === "Active") ?? mine[0];
   if (!pick2) return null;
   const doc = obj4(pick2.MetadataDocument);
   return {
-    recordId: str9(pick2.Id),
-    name: str9(pick2.Name),
-    contentVersionId: str9(doc.LatestPublishedVersionId),
-    generatedAt: str9(pick2.LastModifiedDate),
+    recordId: str11(pick2.Id),
+    name: str11(pick2.Name),
+    contentVersionId: str11(doc.LatestPublishedVersionId),
+    generatedAt: str11(pick2.LastModifiedDate),
     sizeBytes: typeof doc.ContentSize === "number" ? doc.ContentSize : null
   };
 }
@@ -27532,14 +28238,14 @@ function layoutTranslations(objects) {
   const out = {};
   for (const o of Object.values(objects)) {
     for (const l of arr2(obj4(o).layouts)) {
-      if (!str9(l.layoutName)) continue;
+      if (!str11(l.layoutName)) continue;
       const sections2 = Object.fromEntries(
-        arr2(l.sections).filter((x) => str9(x.section) && str9(x.label)).map((x) => [str9(x.section), str9(x.label)])
+        arr2(l.sections).filter((x) => str11(x.section) && str11(x.label)).map((x) => [str11(x.section), str11(x.label)])
       );
       const relatedLists3 = Object.fromEntries(
-        arr2(l.relatedLists).filter((x) => str9(x.relatedList) && str9(x.relatedListLabel)).map((x) => [str9(x.relatedList), str9(x.relatedListLabel)])
+        arr2(l.relatedLists).filter((x) => str11(x.relatedList) && str11(x.relatedListLabel)).map((x) => [str11(x.relatedList), str11(x.relatedListLabel)])
       );
-      out[str9(l.layoutName)] = { sections: sections2, relatedLists: relatedLists3 };
+      out[str11(l.layoutName)] = { sections: sections2, relatedLists: relatedLists3 };
     }
   }
   return out;
@@ -27548,11 +28254,11 @@ function fieldTranslations(objects) {
   const out = {};
   for (const [name, o] of Object.entries(objects)) {
     const labels2 = Object.fromEntries(
-      arr2(obj4(o).fields).filter((f) => str9(f.name) && str9(f.label)).map((f) => [str9(f.name), str9(f.label)])
+      arr2(obj4(o).fields).filter((f) => str11(f.name) && str11(f.label)).map((f) => [str11(f.name), str11(f.label)])
     );
-    out[str9(obj4(o).object) || name] = {
+    out[str11(obj4(o).object) || name] = {
       labels: labels2,
-      ...str9(obj4(o).nameFieldLabel) ? { nameFieldLabel: str9(obj4(o).nameFieldLabel) } : {}
+      ...str11(obj4(o).nameFieldLabel) ? { nameFieldLabel: str11(obj4(o).nameFieldLabel) } : {}
     };
   }
   return out;
@@ -27568,22 +28274,22 @@ async function assignedSets(userIds, org) {
     );
     for (const a of rows3) {
       const ps = obj4(a.PermissionSet);
-      const ns3 = str9(ps.NamespacePrefix);
-      const list2 = sets.get(str9(a.AssigneeId)) ?? [];
-      list2.push(ns3 ? `${ns3}__${str9(ps.Name)}` : str9(ps.Name));
-      sets.set(str9(a.AssigneeId), list2);
+      const ns3 = str11(ps.NamespacePrefix);
+      const list2 = sets.get(str11(a.AssigneeId)) ?? [];
+      list2.push(ns3 ? `${ns3}__${str11(ps.Name)}` : str11(ps.Name));
+      sets.set(str11(a.AssigneeId), list2);
     }
   }
   return sets;
 }
 function toProfileUser(u, sets) {
   return {
-    id: str9(u.Id),
-    name: str9(u.Name),
-    lastLogin: str9(u.LastLoginDate),
+    id: str11(u.Id),
+    name: str11(u.Name),
+    lastLogin: str11(u.LastLoginDate),
     // Only used to build a file name inside the ZIP.
-    language: LANGUAGE.test(str9(u.LanguageLocaleKey)) ? str9(u.LanguageLocaleKey) : DEFAULT_LANGUAGE,
-    permissionSets: (sets.get(str9(u.Id)) ?? []).sort()
+    language: LANGUAGE.test(str11(u.LanguageLocaleKey)) ? str11(u.LanguageLocaleKey) : DEFAULT_LANGUAGE,
+    permissionSets: (sets.get(str11(u.Id)) ?? []).sort()
   };
 }
 async function profileUsers(profile, org) {
@@ -27596,7 +28302,7 @@ async function profileUsers(profile, org) {
   const rows3 = result2.records;
   const total = Math.max(result2.totalSize ?? rows3.length, rows3.length);
   const sets = await assignedSets(
-    rows3.map((u) => str9(u.Id)),
+    rows3.map((u) => str11(u.Id)),
     org
   );
   return { users: rows3.map((u) => toProfileUser(u, sets)), total, truncated: total > rows3.length };
@@ -27609,8 +28315,8 @@ async function profileUserById(profile, id2, org) {
   );
   return rows3[0] ? toProfileUser(rows3[0], await assignedSets([id2], org)) : void 0;
 }
-async function searchProfileUsers(profile, text11, org, limit = 50) {
-  const term = text11.trim();
+async function searchProfileUsers(profile, text12, org, limit = 50) {
+  const term = text12.trim();
   if (!term) return [];
   const rows3 = await query(
     `SELECT Id, Name FROM User WHERE IsActive = true AND Profile.Name = ${soqlString2(profile)} AND Name LIKE '%${likeEscape(term)}%' ORDER BY Name LIMIT ${Math.max(1, Math.min(limit, 200))}`,
@@ -27618,7 +28324,7 @@ async function searchProfileUsers(profile, text11, org, limit = 50) {
     false,
     { allowTruncated: true }
   );
-  return rows3.map((u) => ({ id: str9(u.Id), name: str9(u.Name) }));
+  return rows3.map((u) => ({ id: str11(u.Id), name: str11(u.Name) }));
 }
 function defaultUser(users) {
   const counts2 = /* @__PURE__ */ new Map();
@@ -27636,7 +28342,7 @@ async function availableTablesFor(profile, sobjects, org) {
       org,
       true
     );
-    const active2 = new Set(synced.map((r) => str9(r.ObjectValue) || str9(r.TextValue)));
+    const active2 = new Set(synced.map((r) => str11(r.ObjectValue) || str11(r.TextValue)));
     const candidates = sobjects.filter((s2) => active2.has(s2));
     if (!candidates.length) return () => /* @__PURE__ */ new Set();
     const list2 = inList(candidates);
@@ -27654,15 +28360,15 @@ async function availableTablesFor(profile, sobjects, org) {
         org
       )
     ]);
-    const hasPermissions = new Set(permissionable.map((r) => str9(r.SobjectType)));
+    const hasPermissions = new Set(permissionable.map((r) => str11(r.SobjectType)));
     const fromProfile = /* @__PURE__ */ new Set();
     const fromSet = /* @__PURE__ */ new Map();
     for (const r of reads) {
       const ps = obj4(r.Parent);
-      if (ps.IsOwnedByProfile === true) fromProfile.add(str9(r.SobjectType));
+      if (ps.IsOwnedByProfile === true) fromProfile.add(str11(r.SobjectType));
       else {
-        const name = str9(ps.NamespacePrefix) ? `${str9(ps.NamespacePrefix)}__${str9(ps.Name)}` : str9(ps.Name);
-        fromSet.set(name, (fromSet.get(name) ?? /* @__PURE__ */ new Set()).add(str9(r.SobjectType)));
+        const name = str11(ps.NamespacePrefix) ? `${str11(ps.NamespacePrefix)}__${str11(ps.Name)}` : str11(ps.Name);
+        fromSet.set(name, (fromSet.get(name) ?? /* @__PURE__ */ new Set()).add(str11(r.SobjectType)));
       }
     }
     return (permissionSets) => {
@@ -27685,9 +28391,9 @@ async function ancestors(sobject2, parentField, fields, ids, org) {
       `SELECT Id, ${parentField}, ${fields} FROM ${sobject2} WHERE Id IN (${inList(frontier)})`,
       org
     );
-    for (const r of rows3) seen.set(str9(r.Id), r);
+    for (const r of rows3) seen.set(str11(r.Id), r);
     frontier = [
-      ...new Set(rows3.map((r) => str9(r[parentField])).filter((id2) => id2 && !seen.has(id2)))
+      ...new Set(rows3.map((r) => str11(r[parentField])).filter((id2) => id2 && !seen.has(id2)))
     ];
   }
   return [...seen.values()];
@@ -27721,7 +28427,7 @@ async function viewerReports(userId, salesChart, org, note) {
         );
     }
     const readable3 = /* @__PURE__ */ new Set();
-    const ids = folders.map((f) => str9(f.Id)).filter((id2) => ID_PATTERN.test(id2));
+    const ids = folders.map((f) => str11(f.Id)).filter((id2) => ID_PATTERN.test(id2));
     const chunks5 = [];
     for (let i = 0; i < ids.length; i += 200) chunks5.push(ids.slice(i, i + 200));
     for (const rows3 of await Promise.all(
@@ -27732,11 +28438,11 @@ async function viewerReports(userId, salesChart, org, note) {
         )
       )
     )) {
-      for (const r of rows3) if (r.HasReadAccess === true) readable3.add(str9(r.RecordId));
+      for (const r of rows3) if (r.HasReadAccess === true) readable3.add(str11(r.RecordId));
     }
-    const visibleFolders = folders.filter((f) => readable3.has(str9(f.Id)));
+    const visibleFolders = folders.filter((f) => readable3.has(str11(f.Id)));
     const visibleReports = reports.filter((r) => {
-      const owner = str9(r.OwnerId);
+      const owner = str11(r.OwnerId);
       return readable3.has(owner) || owner === userId || owner.startsWith("00D");
     });
     return buildReportTree(visibleFolders, visibleReports, salesChart);
@@ -27752,9 +28458,9 @@ async function viewerSharing(userId, org) {
         org
       )
     ]);
-    const roleId = str9(users[0]?.UserRoleId);
+    const roleId = str11(users[0]?.UserRoleId);
     const roles = roleId ? await ancestors("UserRole", "ParentRoleId", "DeveloperName", [roleId], org) : [];
-    const ownTerritories = assignments.map((a) => str9(a.Territory2Id));
+    const ownTerritories = assignments.map((a) => str11(a.Territory2Id));
     const territories = await ancestors(
       "Territory2",
       "ParentTerritory2Id",
@@ -27762,9 +28468,9 @@ async function viewerSharing(userId, org) {
       ownTerritories,
       org
     );
-    const territoryName = (t) => `${str9(obj4(t.Territory2Model).DeveloperName)}.${str9(t.DeveloperName)}`;
-    const roleIds = roles.map((r) => str9(r.Id));
-    const territoryIds = territories.map((t) => str9(t.Id));
+    const territoryName = (t) => `${str11(obj4(t.Territory2Model).DeveloperName)}.${str11(t.DeveloperName)}`;
+    const roleIds = roles.map((r) => str11(r.Id));
+    const territoryIds = territories.map((t) => str11(t.Id));
     const clauses = [
       roleId && `(Type = 'Role' AND RelatedId = '${roleId}')`,
       roleIds.length && `(Type IN ('RoleAndSubordinates','RoleAndSubordinatesInternal') AND RelatedId IN (${inList(roleIds)}))`,
@@ -27773,7 +28479,7 @@ async function viewerSharing(userId, org) {
     ].filter(Boolean);
     const implicit = clauses.length ? await query(`SELECT Id FROM Group WHERE ${clauses.join(" OR ")}`, org) : [];
     const groups = /* @__PURE__ */ new Set();
-    const seen = /* @__PURE__ */ new Set([userId, ...implicit.map((g) => str9(g.Id))]);
+    const seen = /* @__PURE__ */ new Set([userId, ...implicit.map((g) => str11(g.Id))]);
     let frontier = [...seen];
     for (let depth = 0; frontier.length && depth < 10; depth++) {
       const rows3 = await query(
@@ -27783,19 +28489,19 @@ async function viewerSharing(userId, org) {
       frontier = [];
       for (const m of rows3) {
         const g = obj4(m.Group);
-        if (g.Type === "Regular" && str9(g.DeveloperName)) groups.add(str9(g.DeveloperName));
-        if (!seen.has(str9(m.GroupId))) {
-          seen.add(str9(m.GroupId));
-          frontier.push(str9(m.GroupId));
+        if (g.Type === "Regular" && str11(g.DeveloperName)) groups.add(str11(g.DeveloperName));
+        if (!seen.has(str11(m.GroupId))) {
+          seen.add(str11(m.GroupId));
+          frontier.push(str11(m.GroupId));
         }
       }
     }
     return {
-      role: str9(obj4(users[0]?.UserRole).DeveloperName) || null,
-      roleAndAbove: new Set(roles.map((r) => str9(r.DeveloperName))),
+      role: str11(obj4(users[0]?.UserRole).DeveloperName) || null,
+      roleAndAbove: new Set(roles.map((r) => str11(r.DeveloperName))),
       groups,
       territories: new Set(
-        territories.filter((t) => ownTerritories.includes(str9(t.Id))).map(territoryName)
+        territories.filter((t) => ownTerritories.includes(str11(t.Id))).map(territoryName)
       ),
       territoryAndAbove: new Set(territories.map(territoryName))
     };
@@ -27816,7 +28522,7 @@ async function viewerConfig(categories, userId, org) {
     query(`SELECT ProfileId FROM User WHERE Id = '${userId}'`, org)
   ]);
   if (!records.length) return out;
-  const ids = inList(records.map((r) => str9(r.Id)));
+  const ids = inList(records.map((r) => str11(r.Id)));
   const [values, assignments] = await Promise.all([
     query(
       `SELECT LifeSciConfigRecordId, FieldName, DataType, ${FV_COLUMNS.join(", ")} FROM LifeSciConfigFieldValue WHERE LifeSciConfigRecordId IN (${ids})`,
@@ -27829,17 +28535,17 @@ async function viewerConfig(categories, userId, org) {
       true
     )
   ]);
-  const owners = [userId, str9(users[0]?.ProfileId)].filter(Boolean);
-  const assignedTo2 = (id2) => assignments.filter((a) => str9(a.LifeSciConfigRecordId) === id2).map((a) => str9(a.AssignedToId));
+  const owners = [userId, str11(users[0]?.ProfileId)].filter(Boolean);
+  const assignedTo2 = (id2) => assignments.filter((a) => str11(a.LifeSciConfigRecordId) === id2).map((a) => str11(a.AssignedToId));
   for (const category of categories) {
-    const mine = records.filter((r) => str9(obj4(r.LifeSciConfigCategory).Category) === category);
+    const mine = records.filter((r) => str11(obj4(r.LifeSciConfigCategory).Category) === category);
     const pick2 = owners.map(
-      (o) => mine.find((r) => assignedTo2(str9(r.Id)).some((a) => a.startsWith(o.slice(0, 15))))
+      (o) => mine.find((r) => assignedTo2(str11(r.Id)).some((a) => a.startsWith(o.slice(0, 15))))
     ).find(Boolean) ?? mine.find((r) => r.IsOrgLevel === true);
     if (!pick2) continue;
     const fields = {};
-    for (const v of values.filter((x) => str9(x.LifeSciConfigRecordId) === str9(pick2.Id))) {
-      fields[str9(v.FieldName)] = str9(v.DataType).toUpperCase() === "BOOLEAN" ? v.HasBooleanValue === true : FV_COLUMNS.filter((c) => c !== "HasBooleanValue").map((c) => v[c]).find((x) => x != null) ?? null;
+    for (const v of values.filter((x) => str11(x.LifeSciConfigRecordId) === str11(pick2.Id))) {
+      fields[str11(v.FieldName)] = str11(v.DataType).toUpperCase() === "BOOLEAN" ? v.HasBooleanValue === true : FV_COLUMNS.filter((c) => c !== "HasBooleanValue").map((c) => v[c]).find((x) => x != null) ?? null;
     }
     out[category] = fields;
   }
@@ -27944,8 +28650,8 @@ async function viewerContext(core, userId, org, note, readOrg = org) {
     ).catch(soft("The rep's territories (screens read as if they had none)"))
   ]);
   const territories = assignments.map((a) => ({
-    id: str9(a.Territory2Id),
-    name: str9(obj4(a.Territory2).Name)
+    id: str11(a.Territory2Id),
+    name: str11(obj4(a.Territory2).Name)
   }));
   return {
     core,
@@ -27955,8 +28661,8 @@ async function viewerContext(core, userId, org, note, readOrg = org) {
     source: readOrg === org ? "admin" : "rep",
     territories,
     format: {
-      timeZone: str9(users[0]?.TimeZoneSidKey) || "UTC",
-      locale: (str9(users[0]?.LocaleSidKey) || "en_US").replace(/_/g, "-")
+      timeZone: str11(users[0]?.TimeZoneSidKey) || "UTC",
+      locale: (str11(users[0]?.LocaleSidKey) || "en_US").replace(/_/g, "-")
     },
     scope: syncScope(core, userId, territories),
     config: (categories) => viewerConfig(categories, userId, org),
@@ -27966,8 +28672,8 @@ async function viewerContext(core, userId, org, note, readOrg = org) {
 function syncScope(core, userId, territories) {
   return (table) => {
     if (!core.sync) return null;
-    const key3 = Object.keys(core.sync).find((k) => ieq(k, table));
-    return key3 === void 0 ? void 0 : syncCondition(core.sync[key3], userId, territories);
+    const key5 = Object.keys(core.sync).find((k) => ieq(k, table));
+    return key5 === void 0 ? void 0 : syncCondition(core.sync[key5], userId, territories);
   };
 }
 async function loadIpadReports(userId, org) {
@@ -28029,12 +28735,12 @@ async function viewerLists(core, userId, org, track, readOrg = org) {
     ).catch(() => [])
   ]);
   const format = {
-    timeZone: str9(users[0]?.TimeZoneSidKey) || "UTC",
-    locale: (str9(users[0]?.LocaleSidKey) || "en_US").replace(/_/g, "-")
+    timeZone: str11(users[0]?.TimeZoneSidKey) || "UTC",
+    locale: (str11(users[0]?.LocaleSidKey) || "en_US").replace(/_/g, "-")
   };
   const territories = assignments.map((a) => ({
-    id: str9(a.Territory2Id),
-    name: str9(obj4(a.Territory2).Name)
+    id: str11(a.Territory2Id),
+    name: str11(obj4(a.Territory2).Name)
   }));
   const scope2 = syncScope(core, userId, territories);
   const out = {};
@@ -28049,8 +28755,8 @@ async function viewerLists(core, userId, org, track, readOrg = org) {
       p = dataPath2(readOrg, `/sobjects/${name}/listviews`).then((path24) => apiRequest(path24, "GET", void 0, readOrg)).then(
         (res) => new Map(
           arr2(res.success ? res.data?.listviews : []).map((l) => [
-            str9(l.developerName),
-            str9(l.describeUrl)
+            str11(l.developerName),
+            str11(l.describeUrl)
           ])
         ),
         () => /* @__PURE__ */ new Map()
@@ -28061,10 +28767,10 @@ async function viewerLists(core, userId, org, track, readOrg = org) {
   };
   const deadline = Date.now() + LIST_BUDGET_MS;
   let finished = 0;
-  const readView = async (name, lv, key3) => {
+  const readView = async (name, lv, key5) => {
     const q2 = lv.query;
     if (!q2) {
-      errors[key3] = "The cache has no filter for this list view.";
+      errors[key5] = "The cache has no filter for this list view.";
       return;
     }
     let where3 = q2.where;
@@ -28073,7 +28779,7 @@ async function viewerLists(core, userId, org, track, readOrg = org) {
     const url = (await urlsFor(name)).get(lv.name);
     if (url?.startsWith("/services/data/")) {
       const d = await apiRequest(url, "GET", void 0, readOrg);
-      const soql5 = d.success ? str9(d.data?.query) : "";
+      const soql5 = d.success ? str11(d.data?.query) : "";
       if (soql5) {
         const m = /\sWHERE\s([\s\S]*?)(?:\sORDER BY\s([\s\S]*))?$/i.exec(
           soql5.replace(/\sUSING SCOPE \w+/i, "")
@@ -28081,11 +28787,11 @@ async function viewerLists(core, userId, org, track, readOrg = org) {
         const o = /\sORDER BY\s([\s\S]*)$/i.exec(soql5);
         where3 = m?.[1]?.trim() ?? "";
         orderBy = o?.[1]?.trim() ?? "";
-        mine = str9(d.data?.scope).toLowerCase() === "mine";
+        mine = str11(d.data?.scope).toLowerCase() === "mine";
       }
     }
     if (where3 === null) {
-      errors[key3] = "Its filter can't be written as SOQL, so its records aren't read.";
+      errors[key5] = "Its filter can't be written as SOQL, so its records aren't read.";
       return;
     }
     const synced = scope2(name);
@@ -28108,27 +28814,27 @@ async function viewerLists(core, userId, org, track, readOrg = org) {
     const unsynced = await unsyncedReferences(records, fields, scope2, readOrg);
     const cell3 = (r, f) => {
       if (!f) return "";
-      if (f.ref && unsynced.has(str9(pathValue(r, f.ref.idPath)))) return "";
+      if (f.ref && unsynced.has(str11(pathValue(r, f.ref.idPath)))) return "";
       return listCell(pathValue(r, f.path), f.type, format);
     };
-    out[key3] = {
+    out[key5] = {
       count: total,
-      rows: records.map((r) => ({ id: str9(r.Id), cells: q2.fields.map((f) => cell3(r, f)) }))
+      rows: records.map((r) => ({ id: str11(r.Id), cells: q2.fields.map((f) => cell3(r, f)) }))
     };
   };
   await runPool(tasks, LIST_CONCURRENCY, async ({ object: object3, view }) => {
-    const key3 = `${object3}.${view.name}`;
+    const key5 = `${object3}.${view.name}`;
     if (Date.now() > deadline) {
-      errors[key3] = `Not read: the ${Math.round(LIST_BUDGET_MS / 6e4)}-minute time budget for list views ran out. Reload to try again.`;
+      errors[key5] = `Not read: the ${Math.round(LIST_BUDGET_MS / 6e4)}-minute time budget for list views ran out. Reload to try again.`;
     } else {
       try {
         await withTimeout(
-          readView(object3, view, key3),
+          readView(object3, view, key5),
           LIST_VIEW_TIMEOUT_MS,
           "Reading this list view"
         );
       } catch (err) {
-        errors[key3] = `Couldn't read: ${reason(err)}`;
+        errors[key5] = `Couldn't read: ${reason(err)}`;
       }
     }
     track?.detail("lists", `${++finished} of ${tasks.length} list views`);
@@ -28155,7 +28861,7 @@ async function unsyncedReferences(records, fields, scope2, org) {
     if (!f.ref) continue;
     const ids = byObject.get(f.ref.object) ?? /* @__PURE__ */ new Set();
     for (const r of records) {
-      const id2 = str9(pathValue(r, f.ref.idPath));
+      const id2 = str11(pathValue(r, f.ref.idPath));
       if (ID_PATTERN.test(id2)) ids.add(id2);
     }
     byObject.set(f.ref.object, ids);
@@ -28172,7 +28878,7 @@ async function unsyncedReferences(records, fields, scope2, org) {
         org
       ).catch(() => null);
       if (!found) return;
-      const kept = new Set(found.map((r) => str9(r.Id)));
+      const kept = new Set(found.map((r) => str11(r.Id)));
       for (const id2 of ids) if (!kept.has(id2)) unsynced.add(id2);
     })
   );
@@ -28196,8 +28902,8 @@ function listCell(value4, type, format) {
     case "boolean":
       return value4 === true || value4 === "true" ? "Yes" : "No";
     case "datetime": {
-      const d = new Date(str9(value4));
-      if (Number.isNaN(d.getTime())) return str9(value4);
+      const d = new Date(str11(value4));
+      if (Number.isNaN(d.getTime())) return str11(value4);
       const date3 = new Intl.DateTimeFormat(locale, {
         dateStyle: "medium",
         timeZone: format.timeZone
@@ -28209,19 +28915,19 @@ function listCell(value4, type, format) {
       return locale.startsWith("en") ? `${date3} at ${time3}` : `${date3}, ${time3}`;
     }
     case "date": {
-      const d = /* @__PURE__ */ new Date(`${str9(value4).slice(0, 10)}T00:00:00Z`);
-      return Number.isNaN(d.getTime()) ? str9(value4) : new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(d);
+      const d = /* @__PURE__ */ new Date(`${str11(value4).slice(0, 10)}T00:00:00Z`);
+      return Number.isNaN(d.getTime()) ? str11(value4) : new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(d);
     }
     case "time": {
-      const d = /* @__PURE__ */ new Date(`1970-01-01T${str9(value4).replace(/Z$/, "")}Z`);
-      return Number.isNaN(d.getTime()) ? str9(value4) : new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone: "UTC" }).format(d);
+      const d = /* @__PURE__ */ new Date(`1970-01-01T${str11(value4).replace(/Z$/, "")}Z`);
+      return Number.isNaN(d.getTime()) ? str11(value4) : new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone: "UTC" }).format(d);
     }
     case "percent":
-      return typeof value4 === "number" ? `${value4.toLocaleString(locale)}%` : str9(value4);
+      return typeof value4 === "number" ? `${value4.toLocaleString(locale)}%` : str11(value4);
     case "currency":
-      return typeof value4 === "number" ? value4.toLocaleString(locale, { style: "currency", currency: "USD" }) : str9(value4);
+      return typeof value4 === "number" ? value4.toLocaleString(locale, { style: "currency", currency: "USD" }) : str11(value4);
     default:
-      return typeof value4 === "number" ? value4.toLocaleString(locale) : str9(value4);
+      return typeof value4 === "number" ? value4.toLocaleString(locale) : str11(value4);
   }
 }
 function dirSize(dir) {
@@ -28262,20 +28968,20 @@ function repLoginFor(logins2, userId) {
   return logins2.find((l) => l.userId && l.userId.slice(0, 15) === userId.slice(0, 15));
 }
 function loadPublishedIpad(profile, org, userId, mobileLogins = []) {
-  const key3 = [
+  const key5 = [
     org,
     profile,
     userId ?? "",
     mobileLogins.map((l) => `${l.userId ?? l.username}`).sort().join(",")
   ].join("\0");
-  const running = inflight.get(key3);
+  const running = inflight.get(key5);
   if (running) return running;
   const track = new LoadTracker(profile);
   const load = loadWithProgress(profile, org, userId, track, mobileLogins).finally(() => {
     track.finish();
-    inflight.delete(key3);
+    inflight.delete(key5);
   });
-  inflight.set(key3, load);
+  inflight.set(key5, load);
   return load;
 }
 async function loadPublishedCore(profile, org, userId) {
@@ -28383,9 +29089,9 @@ async function buildSnapshots(input) {
       [`${language} ${comboKey(permissionSets)}`, { sets: permissionSets, language }]
     ]);
     for (const u of users) {
-      const key3 = `${u.language} ${comboKey(u.permissionSets)}`;
-      if (combos.size < MAX_COMBOS && !combos.has(key3))
-        combos.set(key3, { sets: u.permissionSets, language: u.language });
+      const key5 = `${u.language} ${comboKey(u.permissionSets)}`;
+      if (combos.size < MAX_COMBOS && !combos.has(key5))
+        combos.set(key5, { sets: u.permissionSets, language: u.language });
     }
     languages = [.../* @__PURE__ */ new Set([...[...combos.values()].map((c) => c.language), DEFAULT_LANGUAGE])];
     const { files, tabTranslations } = await track.run(
@@ -28394,7 +29100,7 @@ async function buildSnapshots(input) {
     );
     const tabObjects = [
       .../* @__PURE__ */ new Set([
-        ...Object.values(files.nav).map((t) => str9(t.sobjectName)).filter(Boolean),
+        ...Object.values(files.nav).map((t) => str11(t.sobjectName)).filter(Boolean),
         ...Object.values(MULTI_ENTITY).map((m) => m.with)
       ])
     ];
@@ -28427,7 +29133,7 @@ async function buildSnapshots(input) {
       fs7.rmSync(path6.join(dir, f), { force: true });
   }
 }
-var execFileAsync, NAMESPACE, ns, str9, arr2, obj4, ieq, NATIVE_TAB_NAMES, TAB_FILTER_REASONS, EXACT_COMPONENTS, SUFFIX_COMPONENTS, MEETING_COMPONENTS, PROP_KEEP, stepOf, TEMPLATE_REGIONS, layoutObject2, REFERENCE_TYPES, NUMERIC_TYPES, LIST_OPERATORS, MULTI_ENTITY, DASHBOARDS_READ, SHARE_MATCH, SHARE_NOUN, FILES, cacheRoot, SNAPSHOT_VERSION2, DEFAULT_LANGUAGE, MAX_COMBOS, yieldToEventLoop, soqlString2, USER_LIMIT, likeEscape, LANGUAGE, comboKey, REPORT_ROWS, FV_COLUMNS, LIST_PAGE, LIST_VIEWS_PER_OBJECT, LIST_VIEW_TIMEOUT_MS, LIST_BUDGET_MS, LIST_CONCURRENCY, RECORDS_TIMEOUT_MS, reason, CACHE_KEEP, CACHE_MAX_BYTES, EXTRA_COMBO_BUDGET_MS, inflight, builds;
+var execFileAsync, NAMESPACE, ns, str11, arr2, obj4, ieq, NATIVE_TAB_NAMES, TAB_FILTER_REASONS, EXACT_COMPONENTS, SUFFIX_COMPONENTS, MEETING_COMPONENTS, PROP_KEEP, stepOf, TEMPLATE_REGIONS, layoutObject2, REFERENCE_TYPES, NUMERIC_TYPES, LIST_OPERATORS, MULTI_ENTITY, DASHBOARDS_READ, SHARE_MATCH, SHARE_NOUN, FILES, cacheRoot, SNAPSHOT_VERSION2, DEFAULT_LANGUAGE, MAX_COMBOS, yieldToEventLoop, soqlString2, USER_LIMIT, likeEscape, LANGUAGE, comboKey, REPORT_ROWS, FV_COLUMNS, LIST_PAGE, LIST_VIEWS_PER_OBJECT, LIST_VIEW_TIMEOUT_MS, LIST_BUDGET_MS, LIST_CONCURRENCY, RECORDS_TIMEOUT_MS, reason, CACHE_KEEP, CACHE_MAX_BYTES, EXTRA_COMBO_BUDGET_MS, inflight, builds;
 var init_published = __esm({
   "src/studio/published.ts"() {
     "use strict";
@@ -28445,7 +29151,7 @@ var init_published = __esm({
     execFileAsync = promisify3(execFile2);
     NAMESPACE = "lsc4ce";
     ns = (name) => `${NAMESPACE}__${name}`;
-    str9 = (v) => typeof v === "string" ? v : v == null ? "" : String(v);
+    str11 = (v) => typeof v === "string" ? v : v == null ? "" : String(v);
     arr2 = (v) => Array.isArray(v) ? v : [];
     obj4 = (v) => v && typeof v === "object" && !Array.isArray(v) ? v : {};
     ieq = (a, b) => a.toLowerCase() === b.toLowerCase();
@@ -28590,7 +29296,7 @@ var init_published = __esm({
     ]);
     stepOf = (item2, index) => {
       const ci = obj4(item2.componentInstance);
-      return { component: str9(ci.componentName), identifier: str9(ci.identifier) || null, index };
+      return { component: str11(ci.componentName), identifier: str11(ci.identifier) || null, index };
     };
     TEMPLATE_REGIONS = {
       recordHomeSingleColTemplateDesktop: ["header", "main"],
@@ -28684,12 +29390,12 @@ var init_published = __esm({
 
 // src/studio/ipad-page-lint.ts
 function resolveTemplate(page) {
-  const regions = arr3(page.flexiPageRegions).filter((r) => str10(r.type) !== "Facet");
-  const name = str10(obj5(page.template).name);
+  const regions = arr3(page.flexiPageRegions).filter((r) => str12(r.type) !== "Facet");
+  const name = str12(obj5(page.template).name);
   const requested = name.includes(":") ? name.split(":")[1] : name;
-  if (regions.length === 1 && str10(regions[0].name) === "main")
+  if (regions.length === 1 && str12(regions[0].name) === "main")
     return { requested, template: "defaultFlexiPage", fallback: "only-main" };
-  if (str10(page.type) === "RecordPage" && regions.length === 2 && regions.some((r) => arr3(r.itemInstances).length === 0))
+  if (str12(page.type) === "RecordPage" && regions.length === 2 && regions.some((r) => arr3(r.itemInstances).length === 0))
     return { requested, template: "defaultFlexiPage", fallback: "empty-region" };
   if (!TEMPLATE_REGIONS[requested])
     return { requested, template: "defaultFlexiPage", fallback: "unsupported" };
@@ -28697,7 +29403,7 @@ function resolveTemplate(page) {
 }
 function nestFacets(page) {
   const facets = new Map(
-    arr3(page.flexiPageRegions).filter((r) => str10(r.type) === "Facet").map((r) => [str10(r.name), arr3(r.itemInstances)])
+    arr3(page.flexiPageRegions).filter((r) => str12(r.type) === "Facet").map((r) => [str12(r.name), arr3(r.itemInstances)])
   );
   if (facets.size === 0) return page;
   const seen = /* @__PURE__ */ new Set();
@@ -28706,7 +29412,7 @@ function nestFacets(page) {
       return { ...item2, itemInstances: nest(arr3(item2.itemInstances)) };
     const ci = obj5(item2.componentInstance);
     const children2 = arr3(ci.componentInstanceProperties).flatMap((p) => {
-      const facet = str10(p.value);
+      const facet = str12(p.value);
       if (!facets.has(facet) || seen.has(facet)) return [];
       seen.add(facet);
       return nest(facets.get(facet));
@@ -28715,32 +29421,32 @@ function nestFacets(page) {
   });
   return {
     ...page,
-    flexiPageRegions: arr3(page.flexiPageRegions).filter((r) => str10(r.type) !== "Facet").map((r) => ({ ...r, itemInstances: nest(arr3(r.itemInstances)) }))
+    flexiPageRegions: arr3(page.flexiPageRegions).filter((r) => str12(r.type) !== "Facet").map((r) => ({ ...r, itemInstances: nest(arr3(r.itemInstances)) }))
   };
 }
 function drawn(items) {
   return items.flatMap((item2) => {
     const ci = obj5(item2.componentInstance);
-    const name = str10(ci.componentName);
+    const name = str12(ci.componentName);
     if (!name) return [];
     const info = componentInfo(name);
     if (!info.supported || visibilityOf(ci.visibilityRule).visibility === "hidden") return [];
     return [{ name, label: info.label, item: item2 }];
   });
 }
-function prop(ci, key3) {
+function prop(ci, key5) {
   const p = arr3(ci.componentInstanceProperties).find(
-    (x) => str10(x.name).toLowerCase() === key3.toLowerCase()
+    (x) => str12(x.name).toLowerCase() === key5.toLowerCase()
   );
-  return str10(p?.value).trim();
+  return str12(p?.value).trim();
 }
 function allItems(items) {
   return items.flatMap((item2) => [item2, ...allItems(arr3(item2.itemInstances))]);
 }
 function lintPage(input) {
   const page = nestFacets(input);
-  const home = str10(page.type) === "HomePage";
-  const regions = arr3(page.flexiPageRegions).filter((r) => str10(r.type) !== "Facet");
+  const home = str12(page.type) === "HomePage";
+  const regions = arr3(page.flexiPageRegions).filter((r) => str12(r.type) !== "Facet");
   const { requested, template, fallback } = resolveTemplate(page);
   const slots = TEMPLATE_REGIONS[template];
   const problems = [];
@@ -28753,7 +29459,7 @@ function lintPage(input) {
     });
   }
   for (const region of regions) {
-    const name = str10(region.name);
+    const name = str12(region.name);
     const shown2 = drawn(arr3(region.itemInstances));
     if (shown2.length === 0) continue;
     if (!slots.includes(name)) {
@@ -28796,7 +29502,7 @@ function lintPage(input) {
   }
   for (const item2 of allItems(regions.flatMap((r) => arr3(r.itemInstances)))) {
     const ci = obj5(item2.componentInstance);
-    const name = str10(ci.componentName);
+    const name = str12(ci.componentName);
     if (!trimNamespace(name).toLowerCase().includes("lscgenericrelatedlist")) continue;
     const missing = [
       !prop(ci, "objectName") && "Object",
@@ -28812,14 +29518,14 @@ function lintPage(input) {
   }
   return problems;
 }
-var arr3, obj5, str10, REGION_KIND, regionLabel, list, several;
+var arr3, obj5, str12, REGION_KIND, regionLabel, list, several;
 var init_ipad_page_lint = __esm({
   "src/studio/ipad-page-lint.ts"() {
     "use strict";
     init_published();
     arr3 = (v) => Array.isArray(v) ? v : [];
     obj5 = (v) => v && typeof v === "object" ? v : {};
-    str10 = (v) => typeof v === "string" ? v : "";
+    str12 = (v) => typeof v === "string" ? v : "";
     REGION_KIND = {
       recordHomeTemplateDesktop: { header: "view", main: "scroll", sidebar: "scroll" },
       recordHomeSingleColTemplateDesktop: { header: "scroll", main: "scroll" },
@@ -29125,15 +29831,15 @@ function __rest(s2, e) {
     }
   return t;
 }
-function __decorate(decorators, target3, key3, desc) {
-  var c = arguments.length, r = c < 3 ? target3 : desc === null ? desc = Object.getOwnPropertyDescriptor(target3, key3) : desc, d;
-  if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target3, key3, desc);
-  else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target3, key3, r) : d(target3, key3)) || r;
-  return c > 3 && r && Object.defineProperty(target3, key3, r), r;
+function __decorate(decorators, target3, key5, desc) {
+  var c = arguments.length, r = c < 3 ? target3 : desc === null ? desc = Object.getOwnPropertyDescriptor(target3, key5) : desc, d;
+  if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target3, key5, desc);
+  else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target3, key5, r) : d(target3, key5)) || r;
+  return c > 3 && r && Object.defineProperty(target3, key5, r), r;
 }
 function __param(paramIndex, decorator) {
-  return function(target3, key3) {
-    decorator(target3, key3, paramIndex);
+  return function(target3, key5) {
+    decorator(target3, key5, paramIndex);
   };
 }
 function __metadata(metadataKey, metadataValue) {
@@ -29488,11 +30194,11 @@ var require_strings = __commonJS({
     exports2.toCodePoint = function(character) {
       return character.codePointAt(0);
     };
-    exports2.toHexStringOfMinLength = function(num4, minLength) {
-      return exports2.padStart(num4.toString(16), minLength, "0").toUpperCase();
+    exports2.toHexStringOfMinLength = function(num5, minLength) {
+      return exports2.padStart(num5.toString(16), minLength, "0").toUpperCase();
     };
-    exports2.toHexString = function(num4) {
-      return exports2.toHexStringOfMinLength(num4, 2);
+    exports2.toHexString = function(num5) {
+      return exports2.toHexStringOfMinLength(num5, 2);
     };
     exports2.charFromCode = function(code) {
       return String.fromCharCode(code);
@@ -29507,10 +30213,10 @@ var require_strings = __commonJS({
       }
       return padding + value4;
     };
-    exports2.copyStringIntoBuffer = function(str24, buffer, offset2) {
-      var length = str24.length;
+    exports2.copyStringIntoBuffer = function(str26, buffer, offset2) {
+      var length = str26.length;
       for (var idx = 0; idx < length; idx++) {
-        buffer[offset2++] = str24.charCodeAt(idx);
+        buffer[offset2++] = str26.charCodeAt(idx);
       }
       return length;
     };
@@ -29520,43 +30226,43 @@ var require_strings = __commonJS({
       }
       return prefix + "-" + Math.floor(Math.random() * Math.pow(10, suffixLength));
     };
-    exports2.escapeRegExp = function(str24) {
-      return str24.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    exports2.escapeRegExp = function(str26) {
+      return str26.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     };
-    exports2.cleanText = function(text11) {
-      return text11.replace(/\t|\u0085|\u2028|\u2029/g, "    ").replace(/[\b\v]/g, "");
+    exports2.cleanText = function(text12) {
+      return text12.replace(/\t|\u0085|\u2028|\u2029/g, "    ").replace(/[\b\v]/g, "");
     };
     exports2.escapedNewlineChars = ["\\n", "\\f", "\\r", "\\u000B"];
     exports2.newlineChars = ["\n", "\f", "\r", "\v"];
-    exports2.isNewlineChar = function(text11) {
-      return /^[\n\f\r\u000B]$/.test(text11);
+    exports2.isNewlineChar = function(text12) {
+      return /^[\n\f\r\u000B]$/.test(text12);
     };
-    exports2.lineSplit = function(text11) {
-      return text11.split(/[\n\f\r\u000B]/);
+    exports2.lineSplit = function(text12) {
+      return text12.split(/[\n\f\r\u000B]/);
     };
-    exports2.mergeLines = function(text11) {
-      return text11.replace(/[\n\f\r\u000B]/g, " ");
+    exports2.mergeLines = function(text12) {
+      return text12.replace(/[\n\f\r\u000B]/g, " ");
     };
-    exports2.charAtIndex = function(text11, index) {
-      var cuFirst = text11.charCodeAt(index);
+    exports2.charAtIndex = function(text12, index) {
+      var cuFirst = text12.charCodeAt(index);
       var cuSecond;
       var nextIndex2 = index + 1;
       var length = 1;
       if (
         // Check if it's the start of a surrogate pair.
         cuFirst >= 55296 && cuFirst <= 56319 && // high surrogate
-        text11.length > nextIndex2
+        text12.length > nextIndex2
       ) {
-        cuSecond = text11.charCodeAt(nextIndex2);
+        cuSecond = text12.charCodeAt(nextIndex2);
         if (cuSecond >= 56320 && cuSecond <= 57343)
           length = 2;
       }
-      return [text11.slice(index, index + length), length];
+      return [text12.slice(index, index + length), length];
     };
-    exports2.charSplit = function(text11) {
+    exports2.charSplit = function(text12) {
       var chars = [];
-      for (var idx = 0, len = text11.length; idx < len; ) {
-        var _a = exports2.charAtIndex(text11, idx), c = _a[0], cLen = _a[1];
+      for (var idx = 0, len = text12.length; idx < len; ) {
+        var _a = exports2.charAtIndex(text12, idx), c = _a[0], cLen = _a[1];
         chars.push(c);
         idx += cLen;
       }
@@ -29575,9 +30281,9 @@ var require_strings = __commonJS({
       var breakRules = escapedRules.join("|");
       return new RegExp("(" + newlineCharUnion + ")|((.*?)(" + breakRules + "))", "gm");
     };
-    exports2.breakTextIntoLines = function(text11, wordBreaks, maxWidth, computeWidthOfText) {
+    exports2.breakTextIntoLines = function(text12, wordBreaks, maxWidth, computeWidthOfText) {
       var regex = buildWordBreakRegex(wordBreaks);
-      var words = exports2.cleanText(text11).match(regex);
+      var words = exports2.cleanText(text12).match(regex);
       var currLine = "";
       var currWidth = 0;
       var lines2 = [];
@@ -29607,9 +30313,9 @@ var require_strings = __commonJS({
       var match = dateStr.match(dateRegex2);
       if (!match)
         return void 0;
-      var year = match[1], _a = match[2], month = _a === void 0 ? "01" : _a, _b = match[3], day2 = _b === void 0 ? "01" : _b, _c = match[4], hours = _c === void 0 ? "00" : _c, _d = match[5], mins = _d === void 0 ? "00" : _d, _e = match[6], secs = _e === void 0 ? "00" : _e, _f = match[7], offsetSign = _f === void 0 ? "Z" : _f, _g = match[8], offsetHours = _g === void 0 ? "00" : _g, _h = match[9], offsetMins = _h === void 0 ? "00" : _h;
+      var year = match[1], _a = match[2], month = _a === void 0 ? "01" : _a, _b = match[3], day3 = _b === void 0 ? "01" : _b, _c = match[4], hours = _c === void 0 ? "00" : _c, _d = match[5], mins = _d === void 0 ? "00" : _d, _e = match[6], secs = _e === void 0 ? "00" : _e, _f = match[7], offsetSign = _f === void 0 ? "Z" : _f, _g = match[8], offsetHours = _g === void 0 ? "00" : _g, _h = match[9], offsetMins = _h === void 0 ? "00" : _h;
       var tzOffset = offsetSign === "Z" ? "Z" : "" + offsetSign + offsetHours + ":" + offsetMins;
-      var date3 = /* @__PURE__ */ new Date(year + "-" + month + "-" + day2 + "T" + hours + ":" + mins + ":" + secs + tzOffset);
+      var date3 = /* @__PURE__ */ new Date(year + "-" + month + "-" + day3 + "T" + hours + ":" + mins + ":" + secs + tzOffset);
       return date3;
     };
     exports2.findLastMatch = function(value4, regex) {
@@ -29689,11 +30395,11 @@ var require_arrays = __commonJS({
       return mergedBuffer;
     };
     exports2.arrayAsString = function(array2) {
-      var str24 = "";
+      var str26 = "";
       for (var idx = 0, len = array2.length; idx < len; idx++) {
-        str24 += strings_1.charFromCode(array2[idx]);
+        str26 += strings_1.charFromCode(array2[idx]);
       }
-      return str24;
+      return str26;
     };
     exports2.byAscendingId = function(a, b) {
       return a.id - b.id;
@@ -29922,25 +30628,25 @@ var require_numbers = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.bytesFor = exports2.sizeInBytes = exports2.numberToString = void 0;
-    exports2.numberToString = function(num4) {
-      var numStr = String(num4);
-      if (Math.abs(num4) < 1) {
-        var e = parseInt(num4.toString().split("e-")[1]);
+    exports2.numberToString = function(num5) {
+      var numStr = String(num5);
+      if (Math.abs(num5) < 1) {
+        var e = parseInt(num5.toString().split("e-")[1]);
         if (e) {
-          var negative = num4 < 0;
+          var negative = num5 < 0;
           if (negative)
-            num4 *= -1;
-          num4 *= Math.pow(10, e - 1);
-          numStr = "0." + new Array(e).join("0") + num4.toString().substring(2);
+            num5 *= -1;
+          num5 *= Math.pow(10, e - 1);
+          numStr = "0." + new Array(e).join("0") + num5.toString().substring(2);
           if (negative)
             numStr = "-" + numStr;
         }
       } else {
-        var e = parseInt(num4.toString().split("+")[1]);
+        var e = parseInt(num5.toString().split("+")[1]);
         if (e > 20) {
           e -= 20;
-          num4 /= Math.pow(10, e);
-          numStr = num4.toString() + new Array(e + 1).join("0");
+          num5 /= Math.pow(10, e);
+          numStr = num5.toString() + new Array(e + 1).join("0");
         }
       }
       return numStr;
@@ -29975,8 +30681,8 @@ var require_common = __commonJS({
   "node_modules/pako/lib/utils/common.js"(exports2) {
     "use strict";
     var TYPED_OK = typeof Uint8Array !== "undefined" && typeof Uint16Array !== "undefined" && typeof Int32Array !== "undefined";
-    function _has(obj11, key3) {
-      return Object.prototype.hasOwnProperty.call(obj11, key3);
+    function _has(obj11, key5) {
+      return Object.prototype.hasOwnProperty.call(obj11, key5);
     }
     exports2.assign = function(obj11) {
       var sources2 = Array.prototype.slice.call(arguments, 1);
@@ -30944,7 +31650,7 @@ var require_deflate = __commonJS({
     }
     function fill_window(s2) {
       var _w_size = s2.w_size;
-      var p, n, m, more, str24;
+      var p, n, m, more, str26;
       do {
         more = s2.window_size - s2.lookahead - s2.strstart;
         if (s2.strstart >= _w_size + (_w_size - MIN_LOOKAHEAD)) {
@@ -30972,14 +31678,14 @@ var require_deflate = __commonJS({
         n = read_buf(s2.strm, s2.window, s2.strstart + s2.lookahead, more);
         s2.lookahead += n;
         if (s2.lookahead + s2.insert >= MIN_MATCH) {
-          str24 = s2.strstart - s2.insert;
-          s2.ins_h = s2.window[str24];
-          s2.ins_h = (s2.ins_h << s2.hash_shift ^ s2.window[str24 + 1]) & s2.hash_mask;
+          str26 = s2.strstart - s2.insert;
+          s2.ins_h = s2.window[str26];
+          s2.ins_h = (s2.ins_h << s2.hash_shift ^ s2.window[str26 + 1]) & s2.hash_mask;
           while (s2.insert) {
-            s2.ins_h = (s2.ins_h << s2.hash_shift ^ s2.window[str24 + MIN_MATCH - 1]) & s2.hash_mask;
-            s2.prev[str24 & s2.w_mask] = s2.head[s2.ins_h];
-            s2.head[s2.ins_h] = str24;
-            str24++;
+            s2.ins_h = (s2.ins_h << s2.hash_shift ^ s2.window[str26 + MIN_MATCH - 1]) & s2.hash_mask;
+            s2.prev[str26 & s2.w_mask] = s2.head[s2.ins_h];
+            s2.head[s2.ins_h] = str26;
+            str26++;
             s2.insert--;
             if (s2.lookahead + s2.insert < MIN_MATCH) {
               break;
@@ -31755,7 +32461,7 @@ var require_deflate = __commonJS({
     function deflateSetDictionary(strm, dictionary) {
       var dictLength = dictionary.length;
       var s2;
-      var str24, n;
+      var str26, n;
       var wrap;
       var avail;
       var next;
@@ -31793,15 +32499,15 @@ var require_deflate = __commonJS({
       strm.input = dictionary;
       fill_window(s2);
       while (s2.lookahead >= MIN_MATCH) {
-        str24 = s2.strstart;
+        str26 = s2.strstart;
         n = s2.lookahead - (MIN_MATCH - 1);
         do {
-          s2.ins_h = (s2.ins_h << s2.hash_shift ^ s2.window[str24 + MIN_MATCH - 1]) & s2.hash_mask;
-          s2.prev[str24 & s2.w_mask] = s2.head[s2.ins_h];
-          s2.head[s2.ins_h] = str24;
-          str24++;
+          s2.ins_h = (s2.ins_h << s2.hash_shift ^ s2.window[str26 + MIN_MATCH - 1]) & s2.hash_mask;
+          s2.prev[str26 & s2.w_mask] = s2.head[s2.ins_h];
+          s2.head[s2.ins_h] = str26;
+          str26++;
         } while (--n);
-        s2.strstart = str24;
+        s2.strstart = str26;
         s2.lookahead = MIN_MATCH - 1;
         fill_window(s2);
       }
@@ -31852,12 +32558,12 @@ var require_strings2 = __commonJS({
     }
     var q2;
     _utf8len[254] = _utf8len[254] = 1;
-    exports2.string2buf = function(str24) {
-      var buf, c, c2, m_pos, i, str_len = str24.length, buf_len = 0;
+    exports2.string2buf = function(str26) {
+      var buf, c, c2, m_pos, i, str_len = str26.length, buf_len = 0;
       for (m_pos = 0; m_pos < str_len; m_pos++) {
-        c = str24.charCodeAt(m_pos);
+        c = str26.charCodeAt(m_pos);
         if ((c & 64512) === 55296 && m_pos + 1 < str_len) {
-          c2 = str24.charCodeAt(m_pos + 1);
+          c2 = str26.charCodeAt(m_pos + 1);
           if ((c2 & 64512) === 56320) {
             c = 65536 + (c - 55296 << 10) + (c2 - 56320);
             m_pos++;
@@ -31867,9 +32573,9 @@ var require_strings2 = __commonJS({
       }
       buf = new utils.Buf8(buf_len);
       for (i = 0, m_pos = 0; i < buf_len; m_pos++) {
-        c = str24.charCodeAt(m_pos);
+        c = str26.charCodeAt(m_pos);
         if ((c & 64512) === 55296 && m_pos + 1 < str_len) {
-          c2 = str24.charCodeAt(m_pos + 1);
+          c2 = str26.charCodeAt(m_pos + 1);
           if ((c2 & 64512) === 56320) {
             c = 65536 + (c - 55296 << 10) + (c2 - 56320);
             m_pos++;
@@ -31908,10 +32614,10 @@ var require_strings2 = __commonJS({
     exports2.buf2binstring = function(buf) {
       return buf2binstring(buf, buf.length);
     };
-    exports2.binstring2buf = function(str24) {
-      var buf = new utils.Buf8(str24.length);
+    exports2.binstring2buf = function(str26) {
+      var buf = new utils.Buf8(str26.length);
       for (var i = 0, len = buf.length; i < len; i++) {
-        buf[i] = str24.charCodeAt(i);
+        buf[i] = str26.charCodeAt(i);
       }
       return buf;
     };
@@ -34213,11 +34919,11 @@ var require_utils2 = __commonJS({
       return bytes;
     };
     var arrayToString = function(array2) {
-      var str24 = "";
+      var str26 = "";
       for (var i2 = 0; i2 < array2.length; i2++) {
-        str24 += String.fromCharCode(array2[i2]);
+        str26 += String.fromCharCode(array2[i2]);
       }
-      return str24;
+      return str26;
     };
     exports2.decompressJson = function(compressedJson) {
       return arrayToString(pako_1.default.inflate(exports2.decodeFromBase64(compressedJson)));
@@ -34456,9 +35162,9 @@ var require_Encoding = __commonJS({
           this.encodeUnicodeCodePoint = function(codePoint) {
             var mapped = _this.unicodeMappings[codePoint];
             if (!mapped) {
-              var str24 = String.fromCharCode(codePoint);
+              var str26 = String.fromCharCode(codePoint);
               var hexCode = "0x" + utils_1.padStart(codePoint.toString(16), 4, "0");
-              var msg = _this.name + ' cannot encode "' + str24 + '" (' + hexCode + ")";
+              var msg = _this.name + ' cannot encode "' + str26 + '" (' + hexCode + ")";
               throw new Error(msg);
             }
             return { code: mapped[0], name: mapped[1] };
@@ -35880,48 +36586,48 @@ var require_PDFDict = __commonJS({
         PDFDict2.prototype.entries = function() {
           return Array.from(this.dict.entries());
         };
-        PDFDict2.prototype.set = function(key3, value4) {
-          this.dict.set(key3, value4);
+        PDFDict2.prototype.set = function(key5, value4) {
+          this.dict.set(key5, value4);
         };
-        PDFDict2.prototype.get = function(key3, preservePDFNull) {
+        PDFDict2.prototype.get = function(key5, preservePDFNull) {
           if (preservePDFNull === void 0) {
             preservePDFNull = false;
           }
-          var value4 = this.dict.get(key3);
+          var value4 = this.dict.get(key5);
           if (value4 === PDFNull_1.default && !preservePDFNull)
             return void 0;
           return value4;
         };
-        PDFDict2.prototype.has = function(key3) {
-          var value4 = this.dict.get(key3);
+        PDFDict2.prototype.has = function(key5) {
+          var value4 = this.dict.get(key5);
           return value4 !== void 0 && value4 !== PDFNull_1.default;
         };
-        PDFDict2.prototype.lookupMaybe = function(key3) {
+        PDFDict2.prototype.lookupMaybe = function(key5) {
           var _a;
           var types3 = [];
           for (var _i = 1; _i < arguments.length; _i++) {
             types3[_i - 1] = arguments[_i];
           }
           var preservePDFNull = types3.includes(PDFNull_1.default);
-          var value4 = (_a = this.context).lookupMaybe.apply(_a, tslib_1.__spreadArrays([this.get(key3, preservePDFNull)], types3));
+          var value4 = (_a = this.context).lookupMaybe.apply(_a, tslib_1.__spreadArrays([this.get(key5, preservePDFNull)], types3));
           if (value4 === PDFNull_1.default && !preservePDFNull)
             return void 0;
           return value4;
         };
-        PDFDict2.prototype.lookup = function(key3) {
+        PDFDict2.prototype.lookup = function(key5) {
           var _a;
           var types3 = [];
           for (var _i = 1; _i < arguments.length; _i++) {
             types3[_i - 1] = arguments[_i];
           }
           var preservePDFNull = types3.includes(PDFNull_1.default);
-          var value4 = (_a = this.context).lookup.apply(_a, tslib_1.__spreadArrays([this.get(key3, preservePDFNull)], types3));
+          var value4 = (_a = this.context).lookup.apply(_a, tslib_1.__spreadArrays([this.get(key5, preservePDFNull)], types3));
           if (value4 === PDFNull_1.default && !preservePDFNull)
             return void 0;
           return value4;
         };
-        PDFDict2.prototype.delete = function(key3) {
-          return this.dict.delete(key3);
+        PDFDict2.prototype.delete = function(key5) {
+          return this.dict.delete(key5);
         };
         PDFDict2.prototype.asMap = function() {
           return new Map(this.dict);
@@ -35931,18 +36637,18 @@ var require_PDFDict = __commonJS({
             tag = "";
           }
           var existingKeys = this.keys();
-          var key3 = PDFName_1.default.of(this.context.addRandomSuffix(tag, 10));
-          while (existingKeys.includes(key3)) {
-            key3 = PDFName_1.default.of(this.context.addRandomSuffix(tag, 10));
+          var key5 = PDFName_1.default.of(this.context.addRandomSuffix(tag, 10));
+          while (existingKeys.includes(key5)) {
+            key5 = PDFName_1.default.of(this.context.addRandomSuffix(tag, 10));
           }
-          return key3;
+          return key5;
         };
         PDFDict2.prototype.clone = function(context) {
           var clone2 = PDFDict2.withContext(context || this.context);
           var entries2 = this.entries();
           for (var idx = 0, len = entries2.length; idx < len; idx++) {
-            var _a = entries2[idx], key3 = _a[0], value4 = _a[1];
-            clone2.set(key3, value4);
+            var _a = entries2[idx], key5 = _a[0], value4 = _a[1];
+            clone2.set(key5, value4);
           }
           return clone2;
         };
@@ -35950,8 +36656,8 @@ var require_PDFDict = __commonJS({
           var dictString = "<<\n";
           var entries2 = this.entries();
           for (var idx = 0, len = entries2.length; idx < len; idx++) {
-            var _a = entries2[idx], key3 = _a[0], value4 = _a[1];
-            dictString += key3.toString() + " " + value4.toString() + "\n";
+            var _a = entries2[idx], key5 = _a[0], value4 = _a[1];
+            dictString += key5.toString() + " " + value4.toString() + "\n";
           }
           dictString += ">>";
           return dictString;
@@ -35960,8 +36666,8 @@ var require_PDFDict = __commonJS({
           var size = 5;
           var entries2 = this.entries();
           for (var idx = 0, len = entries2.length; idx < len; idx++) {
-            var _a = entries2[idx], key3 = _a[0], value4 = _a[1];
-            size += key3.sizeInBytes() + value4.sizeInBytes() + 2;
+            var _a = entries2[idx], key5 = _a[0], value4 = _a[1];
+            size += key5.sizeInBytes() + value4.sizeInBytes() + 2;
           }
           return size;
         };
@@ -35972,8 +36678,8 @@ var require_PDFDict = __commonJS({
           buffer[offset2++] = CharCodes_1.default.Newline;
           var entries2 = this.entries();
           for (var idx = 0, len = entries2.length; idx < len; idx++) {
-            var _a = entries2[idx], key3 = _a[0], value4 = _a[1];
-            offset2 += key3.copyBytesInto(buffer, offset2);
+            var _a = entries2[idx], key5 = _a[0], value4 = _a[1];
+            offset2 += key5.copyBytesInto(buffer, offset2);
             buffer[offset2++] = CharCodes_1.default.Space;
             offset2 += value4.copyBytesInto(buffer, offset2);
             buffer[offset2++] = CharCodes_1.default.Newline;
@@ -36451,15 +37157,15 @@ var require_rng = __commonJS({
     var SimpleRNG = (
       /** @class */
       function() {
-        function SimpleRNG2(seed) {
-          this.seed = seed;
+        function SimpleRNG2(seed2) {
+          this.seed = seed2;
         }
         SimpleRNG2.prototype.nextInt = function() {
           var x = Math.sin(this.seed++) * 1e4;
           return x - Math.floor(x);
         };
-        SimpleRNG2.withSeed = function(seed) {
-          return new SimpleRNG2(seed);
+        SimpleRNG2.withSeed = function(seed2) {
+          return new SimpleRNG2(seed2);
         };
         return SimpleRNG2;
       }()
@@ -36599,10 +37305,10 @@ var require_PDFContext = __commonJS({
             var dict = PDFDict_1.default.withContext(this);
             var keys = Object.keys(literal3);
             for (var idx = 0, len = keys.length; idx < len; idx++) {
-              var key3 = keys[idx];
-              var value4 = literal3[key3];
+              var key5 = keys[idx];
+              var value4 = literal3[key5];
               if (value4 !== void 0)
-                dict.set(PDFName_1.default.of(key3), this.obj(value4));
+                dict.set(PDFName_1.default.of(key5), this.obj(value4));
             }
             return dict;
           }
@@ -36695,8 +37401,8 @@ var require_PDFPageLeaf = __commonJS({
           var clone2 = PDFPageLeaf2.fromMapWithContext(/* @__PURE__ */ new Map(), context || this.context, this.autoNormalizeCTM);
           var entries2 = this.entries();
           for (var idx = 0, len = entries2.length; idx < len; idx++) {
-            var _a = entries2[idx], key3 = _a[0], value4 = _a[1];
-            clone2.set(key3, value4);
+            var _a = entries2[idx], key5 = _a[0], value4 = _a[1];
+            clone2.set(key5, value4);
           }
           return clone2;
         };
@@ -36779,9 +37485,9 @@ var require_PDFPageLeaf = __commonJS({
           return Font.uniqueKey(tag);
         };
         PDFPageLeaf2.prototype.newFontDictionary = function(tag, fontDictRef) {
-          var key3 = this.newFontDictionaryKey(tag);
-          this.setFontDictionary(key3, fontDictRef);
-          return key3;
+          var key5 = this.newFontDictionaryKey(tag);
+          this.setFontDictionary(key5, fontDictRef);
+          return key5;
         };
         PDFPageLeaf2.prototype.setXObject = function(name, xObjectRef) {
           var XObject = this.normalizedEntries().XObject;
@@ -36792,9 +37498,9 @@ var require_PDFPageLeaf = __commonJS({
           return XObject.uniqueKey(tag);
         };
         PDFPageLeaf2.prototype.newXObject = function(tag, xObjectRef) {
-          var key3 = this.newXObjectKey(tag);
-          this.setXObject(key3, xObjectRef);
-          return key3;
+          var key5 = this.newXObjectKey(tag);
+          this.setXObject(key5, xObjectRef);
+          return key5;
         };
         PDFPageLeaf2.prototype.setExtGState = function(name, extGStateRef) {
           var ExtGState = this.normalizedEntries().ExtGState;
@@ -36805,9 +37511,9 @@ var require_PDFPageLeaf = __commonJS({
           return ExtGState.uniqueKey(tag);
         };
         PDFPageLeaf2.prototype.newExtGState = function(tag, extGStateRef) {
-          var key3 = this.newExtGStateKey(tag);
-          this.setExtGState(key3, extGStateRef);
-          return key3;
+          var key5 = this.newExtGStateKey(tag);
+          this.setExtGState(key5, extGStateRef);
+          return key5;
         };
         PDFPageLeaf2.prototype.ascend = function(visitor) {
           visitor(this);
@@ -36906,10 +37612,10 @@ var require_PDFObjectCopier = __commonJS({
             var clonedPage = originalPage.clone();
             var InheritableEntries = PDFPageLeaf_1.default.InheritableEntries;
             for (var idx = 0, len = InheritableEntries.length; idx < len; idx++) {
-              var key3 = PDFName_1.default.of(InheritableEntries[idx]);
-              var value4 = clonedPage.getInheritableAttribute(key3);
-              if (!clonedPage.get(key3) && value4)
-                clonedPage.set(key3, value4);
+              var key5 = PDFName_1.default.of(InheritableEntries[idx]);
+              var value4 = clonedPage.getInheritableAttribute(key5);
+              if (!clonedPage.get(key5) && value4)
+                clonedPage.set(key5, value4);
             }
             clonedPage.delete(PDFName_1.default.of("Parent"));
             return _this.copyPDFDict(clonedPage);
@@ -36922,8 +37628,8 @@ var require_PDFObjectCopier = __commonJS({
             _this.traversedObjects.set(originalDict, clonedDict);
             var entries2 = originalDict.entries();
             for (var idx = 0, len = entries2.length; idx < len; idx++) {
-              var _a = entries2[idx], key3 = _a[0], value4 = _a[1];
-              clonedDict.set(key3, _this.copy(value4));
+              var _a = entries2[idx], key5 = _a[0], value4 = _a[1];
+              clonedDict.set(key5, _this.copy(value4));
             }
             return clonedDict;
           };
@@ -36947,8 +37653,8 @@ var require_PDFObjectCopier = __commonJS({
             _this.traversedObjects.set(originalStream, clonedStream);
             var entries2 = originalStream.dict.entries();
             for (var idx = 0, len = entries2.length; idx < len; idx++) {
-              var _a = entries2[idx], key3 = _a[0], value4 = _a[1];
-              clonedStream.dict.set(key3, _this.copy(value4));
+              var _a = entries2[idx], key5 = _a[0], value4 = _a[1];
+              clonedStream.dict.set(key5, _this.copy(value4));
             }
             return clonedStream;
           };
@@ -37836,10 +38542,10 @@ var require_PDFHexString = __commonJS({
           return utils_1.pdfDocEncodingDecode(bytes);
         };
         PDFHexString2.prototype.decodeDate = function() {
-          var text11 = this.decodeText();
-          var date3 = utils_1.parseDate(text11);
+          var text12 = this.decodeText();
+          var date3 = utils_1.parseDate(text12);
           if (!date3)
-            throw new errors_1.InvalidPDFDateStringError(text11);
+            throw new errors_1.InvalidPDFDateStringError(text12);
           return date3;
         };
         PDFHexString2.prototype.asString = function() {
@@ -37896,16 +38602,16 @@ var require_StandardFontEmbedder = __commonJS({
           this.fontName = this.font.FontName;
           this.customName = customName;
         }
-        StandardFontEmbedder2.prototype.encodeText = function(text11) {
-          var glyphs = this.encodeTextAsGlyphs(text11);
+        StandardFontEmbedder2.prototype.encodeText = function(text12) {
+          var glyphs = this.encodeTextAsGlyphs(text12);
           var hexCodes = new Array(glyphs.length);
           for (var idx = 0, len = glyphs.length; idx < len; idx++) {
             hexCodes[idx] = utils_1.toHexString(glyphs[idx].code);
           }
           return PDFHexString_1.default.of(hexCodes.join(""));
         };
-        StandardFontEmbedder2.prototype.widthOfTextAtSize = function(text11, size) {
-          var glyphs = this.encodeTextAsGlyphs(text11);
+        StandardFontEmbedder2.prototype.widthOfTextAtSize = function(text12, size) {
+          var glyphs = this.encodeTextAsGlyphs(text12);
           var totalWidth = 0;
           for (var idx = 0, len = glyphs.length; idx < len; idx++) {
             var left = glyphs[idx].name;
@@ -37952,8 +38658,8 @@ var require_StandardFontEmbedder = __commonJS({
         StandardFontEmbedder2.prototype.widthOfGlyph = function(glyphName) {
           return this.font.getWidthOfGlyph(glyphName) || 250;
         };
-        StandardFontEmbedder2.prototype.encodeTextAsGlyphs = function(text11) {
-          var codePoints = Array.from(text11);
+        StandardFontEmbedder2.prototype.encodeTextAsGlyphs = function(text12) {
+          var codePoints = Array.from(text12);
           var glyphs = new Array(codePoints.length);
           for (var idx = 0, len = codePoints.length; idx < len; idx++) {
             var codePoint = utils_1.toCodePoint(codePoints[idx]);
@@ -38143,10 +38849,10 @@ var require_PDFString = __commonJS({
           return utils_1.pdfDocEncodingDecode(bytes);
         };
         PDFString2.prototype.decodeDate = function() {
-          var text11 = this.decodeText();
-          var date3 = utils_1.parseDate(text11);
+          var text12 = this.decodeText();
+          var date3 = utils_1.parseDate(text12);
           if (!date3)
-            throw new errors_1.InvalidPDFDateStringError(text11);
+            throw new errors_1.InvalidPDFDateStringError(text12);
           return date3;
         };
         PDFString2.prototype.asString = function() {
@@ -38173,11 +38879,11 @@ var require_PDFString = __commonJS({
         PDFString2.fromDate = function(date3) {
           var year = utils_1.padStart(String(date3.getUTCFullYear()), 4, "0");
           var month = utils_1.padStart(String(date3.getUTCMonth() + 1), 2, "0");
-          var day2 = utils_1.padStart(String(date3.getUTCDate()), 2, "0");
+          var day3 = utils_1.padStart(String(date3.getUTCDate()), 2, "0");
           var hours = utils_1.padStart(String(date3.getUTCHours()), 2, "0");
           var mins = utils_1.padStart(String(date3.getUTCMinutes()), 2, "0");
           var secs = utils_1.padStart(String(date3.getUTCSeconds()), 2, "0");
-          return new PDFString2("D:" + year + month + day2 + hours + mins + secs + "Z");
+          return new PDFString2("D:" + year + month + day3 + hours + mins + secs + "Z");
         };
         return PDFString2;
       }(PDFObject_1.default)
@@ -38235,16 +38941,16 @@ var require_CustomFontEmbedder = __commonJS({
             });
           });
         };
-        CustomFontEmbedder2.prototype.encodeText = function(text11) {
-          var glyphs = this.font.layout(text11, this.fontFeatures).glyphs;
+        CustomFontEmbedder2.prototype.encodeText = function(text12) {
+          var glyphs = this.font.layout(text12, this.fontFeatures).glyphs;
           var hexCodes = new Array(glyphs.length);
           for (var idx = 0, len = glyphs.length; idx < len; idx++) {
             hexCodes[idx] = utils_1.toHexStringOfMinLength(glyphs[idx].id, 4);
           }
           return PDFHexString_1.default.of(hexCodes.join(""));
         };
-        CustomFontEmbedder2.prototype.widthOfTextAtSize = function(text11, size) {
-          var glyphs = this.font.layout(text11, this.fontFeatures).glyphs;
+        CustomFontEmbedder2.prototype.widthOfTextAtSize = function(text12, size) {
+          var glyphs = this.font.layout(text12, this.fontFeatures).glyphs;
           var totalWidth = 0;
           for (var idx = 0, len = glyphs.length; idx < len; idx++) {
             totalWidth += glyphs[idx].advanceWidth * this.scale;
@@ -38466,8 +39172,8 @@ var require_CustomFontSubsetEmbedder = __commonJS({
             });
           });
         };
-        CustomFontSubsetEmbedder2.prototype.encodeText = function(text11) {
-          var glyphs = this.font.layout(text11, this.fontFeatures).glyphs;
+        CustomFontSubsetEmbedder2.prototype.encodeText = function(text12) {
+          var glyphs = this.font.layout(text12, this.fontFeatures).glyphs;
           var hexCodes = new Array(glyphs.length);
           for (var idx = 0, len = glyphs.length; idx < len; idx++) {
             var glyph = glyphs[idx];
@@ -38920,8 +39626,8 @@ var require_UPNG = __commonJS({
           if (out.tabs[type] == null) out.tabs[type] = {};
           var nz = bin.nextZero(data2, offset2);
           var keyw = bin.readASCII(data2, offset2, nz - offset2);
-          var text11 = bin.readASCII(data2, nz + 1, offset2 + len - nz - 1);
-          out.tabs[type][keyw] = text11;
+          var text12 = bin.readASCII(data2, nz + 1, offset2 + len - nz - 1);
+          out.tabs[type][keyw] = text12;
         } else if (type == "iTXt") {
           if (out.tabs[type] == null) out.tabs[type] = {};
           var nz = 0, off = offset2;
@@ -38936,8 +39642,8 @@ var require_UPNG = __commonJS({
           nz = bin.nextZero(data2, off);
           var tkeyw = bin.readUTF8(data2, off, nz - off);
           off = nz + 1;
-          var text11 = bin.readUTF8(data2, off, len - (off - offset2));
-          out.tabs[type][keyw] = text11;
+          var text12 = bin.readUTF8(data2, off, len - (off - offset2));
+          out.tabs[type][keyw] = text12;
         } else if (type == "PLTE") {
           out.tabs[type] = bin.readBytes(data2, offset2, len);
         } else if (type == "hIST") {
@@ -41394,7 +42100,7 @@ var require_FlateStream = __commonJS({
         FlateStream2.prototype.readBlock = function() {
           var buffer;
           var len;
-          var str24 = this.stream;
+          var str26 = this.stream;
           var hdr = this.getBits(3);
           if (hdr & 1) {
             this.eof = true;
@@ -41402,19 +42108,19 @@ var require_FlateStream = __commonJS({
           hdr >>= 1;
           if (hdr === 0) {
             var b = void 0;
-            if ((b = str24.getByte()) === -1) {
+            if ((b = str26.getByte()) === -1) {
               throw new Error("Bad block header in flate stream");
             }
             var blockLen = b;
-            if ((b = str24.getByte()) === -1) {
+            if ((b = str26.getByte()) === -1) {
               throw new Error("Bad block header in flate stream");
             }
             blockLen |= b << 8;
-            if ((b = str24.getByte()) === -1) {
+            if ((b = str26.getByte()) === -1) {
               throw new Error("Bad block header in flate stream");
             }
             var check2 = b;
-            if ((b = str24.getByte()) === -1) {
+            if ((b = str26.getByte()) === -1) {
               throw new Error("Bad block header in flate stream");
             }
             check2 |= b << 8;
@@ -41428,12 +42134,12 @@ var require_FlateStream = __commonJS({
             var end = bufferLength + blockLen;
             this.bufferLength = end;
             if (blockLen === 0) {
-              if (str24.peekByte() === -1) {
+              if (str26.peekByte() === -1) {
                 this.eof = true;
               }
             } else {
               for (var n = bufferLength; n < end; ++n) {
-                if ((b = str24.getByte()) === -1) {
+                if ((b = str26.getByte()) === -1) {
                   this.eof = true;
                   break;
                 }
@@ -41533,12 +42239,12 @@ var require_FlateStream = __commonJS({
           }
         };
         FlateStream2.prototype.getBits = function(bits) {
-          var str24 = this.stream;
+          var str26 = this.stream;
           var codeSize = this.codeSize;
           var codeBuf = this.codeBuf;
           var b;
           while (codeSize < bits) {
-            if ((b = str24.getByte()) === -1) {
+            if ((b = str26.getByte()) === -1) {
               throw new Error("Bad encoding in flate stream");
             }
             codeBuf |= b << codeSize;
@@ -41550,14 +42256,14 @@ var require_FlateStream = __commonJS({
           return b;
         };
         FlateStream2.prototype.getCode = function(table) {
-          var str24 = this.stream;
+          var str26 = this.stream;
           var codes = table[0];
           var maxLen = table[1];
           var codeSize = this.codeSize;
           var codeBuf = this.codeBuf;
           var b;
           while (codeSize < maxLen) {
-            if ((b = str24.getByte()) === -1) {
+            if ((b = str26.getByte()) === -1) {
               break;
             }
             codeBuf |= b << codeSize;
@@ -41996,14 +42702,14 @@ var require_ViewerPreferences = __commonJS({
         function ViewerPreferences2(dict) {
           this.dict = dict;
         }
-        ViewerPreferences2.prototype.lookupBool = function(key3) {
-          var returnObj = this.dict.lookup(PDFName_1.default.of(key3));
+        ViewerPreferences2.prototype.lookupBool = function(key5) {
+          var returnObj = this.dict.lookup(PDFName_1.default.of(key5));
           if (returnObj instanceof PDFBool_1.default)
             return returnObj;
           return void 0;
         };
-        ViewerPreferences2.prototype.lookupName = function(key3) {
-          var returnObj = this.dict.lookup(PDFName_1.default.of(key3));
+        ViewerPreferences2.prototype.lookupName = function(key5) {
+          var returnObj = this.dict.lookup(PDFName_1.default.of(key5));
           if (returnObj instanceof PDFName_1.default)
             return returnObj;
           return void 0;
@@ -42732,9 +43438,9 @@ var require_PDFWidgetAnnotation = __commonJS({
           if (normal instanceof PDFDict_1.default) {
             var keys = normal.keys();
             for (var idx = 0, len = keys.length; idx < len; idx++) {
-              var key3 = keys[idx];
-              if (key3 !== PDFName_1.default.of("Off"))
-                return key3;
+              var key5 = keys[idx];
+              if (key5 !== PDFName_1.default.of("Off"))
+                return key5;
             }
           }
           return void 0;
@@ -44413,9 +45119,9 @@ var require_PDFObjectParser = __commonJS({
           this.skipWhitespaceAndComments();
           var dict = /* @__PURE__ */ new Map();
           while (!this.bytes.done() && this.bytes.peek() !== CharCodes_1.default.GreaterThan && this.bytes.peekAhead(1) !== CharCodes_1.default.GreaterThan) {
-            var key3 = this.parseName();
+            var key5 = this.parseName();
             var value4 = this.parseObject();
-            dict.set(key3, value4);
+            dict.set(key5, value4);
             this.skipWhitespaceAndComments();
           }
           this.skipWhitespaceAndComments();
@@ -45272,11 +45978,11 @@ var require_objects2 = __commonJS({
     exports2.asPDFName = function(name) {
       return name instanceof core_1.PDFName ? name : core_1.PDFName.of(name);
     };
-    exports2.asPDFNumber = function(num4) {
-      return num4 instanceof core_1.PDFNumber ? num4 : core_1.PDFNumber.of(num4);
+    exports2.asPDFNumber = function(num5) {
+      return num5 instanceof core_1.PDFNumber ? num5 : core_1.PDFNumber.of(num5);
     };
-    exports2.asNumber = function(num4) {
-      return num4 instanceof core_1.PDFNumber ? num4.asNumber() : num4;
+    exports2.asNumber = function(num5) {
+      return num5 instanceof core_1.PDFNumber ? num5.asNumber() : num5;
     };
   }
 });
@@ -45502,8 +46208,8 @@ var require_operators = __commonJS({
     exports2.moveText = function(x, y) {
       return core_1.PDFOperator.of(core_1.PDFOperatorNames.MoveText, [objects_1.asPDFNumber(x), objects_1.asPDFNumber(y)]);
     };
-    exports2.showText = function(text11) {
-      return core_1.PDFOperator.of(core_1.PDFOperatorNames.ShowText, [text11]);
+    exports2.showText = function(text12) {
+      return core_1.PDFOperator.of(core_1.PDFOperatorNames.ShowText, [text12]);
     };
     exports2.beginText = function() {
       return core_1.PDFOperator.of(core_1.PDFOperatorNames.BeginText);
@@ -45582,20 +46288,20 @@ var require_operators = __commonJS({
         objects_1.asPDFNumber(blue)
       ]);
     };
-    exports2.setFillingCmykColor = function(cyan, magenta, yellow, key3) {
+    exports2.setFillingCmykColor = function(cyan, magenta, yellow, key5) {
       return core_1.PDFOperator.of(core_1.PDFOperatorNames.NonStrokingColorCmyk, [
         objects_1.asPDFNumber(cyan),
         objects_1.asPDFNumber(magenta),
         objects_1.asPDFNumber(yellow),
-        objects_1.asPDFNumber(key3)
+        objects_1.asPDFNumber(key5)
       ]);
     };
-    exports2.setStrokingCmykColor = function(cyan, magenta, yellow, key3) {
+    exports2.setStrokingCmykColor = function(cyan, magenta, yellow, key5) {
       return core_1.PDFOperator.of(core_1.PDFOperatorNames.StrokingColorCmyk, [
         objects_1.asPDFNumber(cyan),
         objects_1.asPDFNumber(magenta),
         objects_1.asPDFNumber(yellow),
-        objects_1.asPDFNumber(key3)
+        objects_1.asPDFNumber(key5)
       ]);
     };
     exports2.beginMarkedContent = function(tag) {
@@ -45631,12 +46337,12 @@ var require_colors = __commonJS({
       utils_1.assertRange(blue, "blue", 0, 1);
       return { type: ColorTypes.RGB, red, green, blue };
     };
-    exports2.cmyk = function(cyan, magenta, yellow, key3) {
+    exports2.cmyk = function(cyan, magenta, yellow, key5) {
       utils_1.assertRange(cyan, "cyan", 0, 1);
       utils_1.assertRange(magenta, "magenta", 0, 1);
       utils_1.assertRange(yellow, "yellow", 0, 1);
-      utils_1.assertRange(key3, "key", 0, 1);
-      return { type: ColorTypes.CMYK, cyan, magenta, yellow, key: key3 };
+      utils_1.assertRange(key5, "key", 0, 1);
+      return { type: ColorTypes.CMYK, cyan, magenta, yellow, key: key5 };
     };
     var Grayscale = ColorTypes.Grayscale;
     var RGB = ColorTypes.RGB;
@@ -46788,9 +47494,9 @@ var require_layout = __commonJS({
         remainder: void 0
       };
     };
-    exports2.layoutMultilineText = function(text11, _a) {
+    exports2.layoutMultilineText = function(text12, _a) {
       var alignment = _a.alignment, fontSize = _a.fontSize, font = _a.font, bounds = _a.bounds;
-      var lines2 = utils_1.lineSplit(utils_1.cleanText(text11));
+      var lines2 = utils_1.lineSplit(utils_1.cleanText(text12));
       if (fontSize === void 0 || fontSize === 0) {
         fontSize = computeFontSize(lines2, font, bounds, true);
       }
@@ -46832,9 +47538,9 @@ var require_layout = __commonJS({
         }
       };
     };
-    exports2.layoutCombedText = function(text11, _a) {
+    exports2.layoutCombedText = function(text12, _a) {
       var fontSize = _a.fontSize, font = _a.font, bounds = _a.bounds, cellCount = _a.cellCount;
-      var line = utils_1.mergeLines(utils_1.cleanText(text11));
+      var line = utils_1.mergeLines(utils_1.cleanText(text12));
       if (line.length > cellCount) {
         throw new errors_1.CombedTextLayoutError(line.length, cellCount);
       }
@@ -46880,9 +47586,9 @@ var require_layout = __commonJS({
         }
       };
     };
-    exports2.layoutSinglelineText = function(text11, _a) {
+    exports2.layoutSinglelineText = function(text12, _a) {
       var alignment = _a.alignment, fontSize = _a.fontSize, font = _a.font, bounds = _a.bounds;
-      var line = utils_1.mergeLines(utils_1.cleanText(text11));
+      var line = utils_1.mergeLines(utils_1.cleanText(text12));
       if (fontSize === void 0 || fontSize === 0) {
         fontSize = computeFontSize([line], font, bounds);
       }
@@ -47108,7 +47814,7 @@ var require_appearances = __commonJS({
       var rectangle = widget.getRectangle();
       var ap = widget.getAppearanceCharacteristics();
       var bs = widget.getBorderStyle();
-      var text11 = (_a = textField.getText()) !== null && _a !== void 0 ? _a : "";
+      var text12 = (_a = textField.getText()) !== null && _a !== void 0 ? _a : "";
       var borderWidth = (_b = bs === null || bs === void 0 ? void 0 : bs.getWidth()) !== null && _b !== void 0 ? _b : 0;
       var rotation = rotations_1.reduceRotation(ap === null || ap === void 0 ? void 0 : ap.getRotation());
       var _e = rotations_1.adjustDimsForRotation(rectangle, rotation), width = _e.width, height = _e.height;
@@ -47126,7 +47832,7 @@ var require_appearances = __commonJS({
         height: height - (borderWidth + padding) * 2
       };
       if (textField.isMultiline()) {
-        var layout = layout_1.layoutMultilineText(text11, {
+        var layout = layout_1.layoutMultilineText(text12, {
           alignment: textField.getAlignment(),
           fontSize: widgetFontSize !== null && widgetFontSize !== void 0 ? widgetFontSize : fieldFontSize,
           font,
@@ -47135,7 +47841,7 @@ var require_appearances = __commonJS({
         textLines = layout.lines;
         fontSize = layout.fontSize;
       } else if (textField.isCombed()) {
-        var layout = layout_1.layoutCombedText(text11, {
+        var layout = layout_1.layoutCombedText(text12, {
           fontSize: widgetFontSize !== null && widgetFontSize !== void 0 ? widgetFontSize : fieldFontSize,
           font,
           bounds,
@@ -47144,7 +47850,7 @@ var require_appearances = __commonJS({
         textLines = layout.cells;
         fontSize = layout.fontSize;
       } else {
-        var layout = layout_1.layoutSinglelineText(text11, {
+        var layout = layout_1.layoutSinglelineText(text12, {
           alignment: textField.getAlignment(),
           fontSize: widgetFontSize !== null && widgetFontSize !== void 0 ? widgetFontSize : fieldFontSize,
           font,
@@ -47184,7 +47890,7 @@ var require_appearances = __commonJS({
       var rectangle = widget.getRectangle();
       var ap = widget.getAppearanceCharacteristics();
       var bs = widget.getBorderStyle();
-      var text11 = (_a = dropdown.getSelected()[0]) !== null && _a !== void 0 ? _a : "";
+      var text12 = (_a = dropdown.getSelected()[0]) !== null && _a !== void 0 ? _a : "";
       var borderWidth = (_b = bs === null || bs === void 0 ? void 0 : bs.getWidth()) !== null && _b !== void 0 ? _b : 0;
       var rotation = rotations_1.reduceRotation(ap === null || ap === void 0 ? void 0 : ap.getRotation());
       var _d = rotations_1.adjustDimsForRotation(rectangle, rotation), width = _d.width, height = _d.height;
@@ -47199,7 +47905,7 @@ var require_appearances = __commonJS({
         width: width - (borderWidth + padding) * 2,
         height: height - (borderWidth + padding) * 2
       };
-      var _e = layout_1.layoutSinglelineText(text11, {
+      var _e = layout_1.layoutSinglelineText(text12, {
         alignment: alignment_1.TextAlignment.Left,
         fontSize: widgetFontSize !== null && widgetFontSize !== void 0 ? widgetFontSize : fieldFontSize,
         font,
@@ -47247,11 +47953,11 @@ var require_appearances = __commonJS({
       var selected = optionList.getSelected();
       if (optionList.isSorted())
         options.sort();
-      var text11 = "";
+      var text12 = "";
       for (var idx = 0, len = options.length; idx < len; idx++) {
-        text11 += options[idx];
+        text12 += options[idx];
         if (idx < len - 1)
-          text11 += "\n";
+          text12 += "\n";
       }
       var padding = 1;
       var bounds = {
@@ -47260,7 +47966,7 @@ var require_appearances = __commonJS({
         width: width - (borderWidth + padding) * 2,
         height: height - (borderWidth + padding) * 2
       };
-      var _d = layout_1.layoutMultilineText(text11, {
+      var _d = layout_1.layoutMultilineText(text12, {
         alignment: alignment_1.TextAlignment.Left,
         fontSize: widgetFontSize !== null && widgetFontSize !== void 0 ? widgetFontSize : fieldFontSize,
         font,
@@ -47385,15 +48091,15 @@ var require_PDFFont = __commonJS({
           this.name = embedder.fontName;
           this.embedder = embedder;
         }
-        PDFFont2.prototype.encodeText = function(text11) {
-          utils_1.assertIs(text11, "text", ["string"]);
+        PDFFont2.prototype.encodeText = function(text12) {
+          utils_1.assertIs(text12, "text", ["string"]);
           this.modified = true;
-          return this.embedder.encodeText(text11);
+          return this.embedder.encodeText(text12);
         };
-        PDFFont2.prototype.widthOfTextAtSize = function(text11, size) {
-          utils_1.assertIs(text11, "text", ["string"]);
+        PDFFont2.prototype.widthOfTextAtSize = function(text12, size) {
+          utils_1.assertIs(text12, "text", ["string"]);
           utils_1.assertIs(size, "size", ["number"]);
-          return this.embedder.widthOfTextAtSize(text11, size);
+          return this.embedder.widthOfTextAtSize(text12, size);
         };
         PDFFont2.prototype.heightAtSize = function(size, options) {
           var _a;
@@ -48538,16 +49244,16 @@ var require_PDFTextField = __commonJS({
           }
           return value4 === null || value4 === void 0 ? void 0 : value4.decodeText();
         };
-        PDFTextField2.prototype.setText = function(text11) {
-          utils_1.assertOrUndefined(text11, "text", ["string"]);
+        PDFTextField2.prototype.setText = function(text12) {
+          utils_1.assertOrUndefined(text12, "text", ["string"]);
           var maxLength = this.getMaxLength();
-          if (maxLength !== void 0 && text11 && text11.length > maxLength) {
-            throw new errors_1.ExceededMaxLengthError(text11.length, maxLength, this.getName());
+          if (maxLength !== void 0 && text12 && text12.length > maxLength) {
+            throw new errors_1.ExceededMaxLengthError(text12.length, maxLength, this.getName());
           }
           this.markAsDirty();
           this.disableRichFormatting();
-          if (text11) {
-            this.acroField.setValue(core_1.PDFHexString.fromText(text11));
+          if (text12) {
+            this.acroField.setValue(core_1.PDFHexString.fromText(text12));
           } else {
             this.acroField.removeValue();
           }
@@ -48570,9 +49276,9 @@ var require_PDFTextField = __commonJS({
           if (maxLength === void 0) {
             this.acroField.removeMaxLength();
           } else {
-            var text11 = this.getText();
-            if (text11 && text11.length > maxLength) {
-              throw new errors_1.InvalidMaxLengthError(text11.length, maxLength, this.getName());
+            var text12 = this.getText();
+            if (text12 && text12.length > maxLength) {
+              throw new errors_1.InvalidMaxLengthError(text12.length, maxLength, this.getName());
             }
             this.acroField.setMaxLength(maxLength);
           }
@@ -48940,10 +49646,10 @@ var require_PDFForm = __commonJS({
           utils_1.assertIs(name, "name", ["string"]);
           var nameParts = splitFieldName(name);
           var parent = this.findOrCreateNonTerminals(nameParts.nonTerminal);
-          var text11 = core_1.PDFAcroText.create(this.doc.context);
-          text11.setPartialName(nameParts.terminal);
-          addFieldToParent(parent, [text11, text11.ref], nameParts.terminal);
-          return PDFTextField_1.default.of(text11, text11.ref, this.doc);
+          var text12 = core_1.PDFAcroText.create(this.doc.context);
+          text12.setPartialName(nameParts.terminal);
+          addFieldToParent(parent, [text12, text12.ref], nameParts.terminal);
+          return PDFTextField_1.default.of(text12, text12.ref, this.doc);
         };
         PDFForm2.prototype.flatten = function(options) {
           if (options === void 0) {
@@ -49573,8 +50279,8 @@ var require_PDFDocument = __commonJS({
         };
         PDFDocument3.prototype.setTitle = function(title, options) {
           utils_1.assertIs(title, "title", ["string"]);
-          var key3 = core_1.PDFName.of("Title");
-          this.getInfoDict().set(key3, core_1.PDFHexString.fromText(title));
+          var key5 = core_1.PDFName.of("Title");
+          this.getInfoDict().set(key5, core_1.PDFHexString.fromText(title));
           if (options === null || options === void 0 ? void 0 : options.showInWindowTitleBar) {
             var prefs = this.catalog.getOrCreateViewerPreferences();
             prefs.setDisplayDocTitle(true);
@@ -49582,43 +50288,43 @@ var require_PDFDocument = __commonJS({
         };
         PDFDocument3.prototype.setAuthor = function(author) {
           utils_1.assertIs(author, "author", ["string"]);
-          var key3 = core_1.PDFName.of("Author");
-          this.getInfoDict().set(key3, core_1.PDFHexString.fromText(author));
+          var key5 = core_1.PDFName.of("Author");
+          this.getInfoDict().set(key5, core_1.PDFHexString.fromText(author));
         };
         PDFDocument3.prototype.setSubject = function(subject) {
           utils_1.assertIs(subject, "author", ["string"]);
-          var key3 = core_1.PDFName.of("Subject");
-          this.getInfoDict().set(key3, core_1.PDFHexString.fromText(subject));
+          var key5 = core_1.PDFName.of("Subject");
+          this.getInfoDict().set(key5, core_1.PDFHexString.fromText(subject));
         };
         PDFDocument3.prototype.setKeywords = function(keywords2) {
           utils_1.assertIs(keywords2, "keywords", [Array]);
-          var key3 = core_1.PDFName.of("Keywords");
-          this.getInfoDict().set(key3, core_1.PDFHexString.fromText(keywords2.join(" ")));
+          var key5 = core_1.PDFName.of("Keywords");
+          this.getInfoDict().set(key5, core_1.PDFHexString.fromText(keywords2.join(" ")));
         };
         PDFDocument3.prototype.setCreator = function(creator) {
           utils_1.assertIs(creator, "creator", ["string"]);
-          var key3 = core_1.PDFName.of("Creator");
-          this.getInfoDict().set(key3, core_1.PDFHexString.fromText(creator));
+          var key5 = core_1.PDFName.of("Creator");
+          this.getInfoDict().set(key5, core_1.PDFHexString.fromText(creator));
         };
         PDFDocument3.prototype.setProducer = function(producer) {
           utils_1.assertIs(producer, "creator", ["string"]);
-          var key3 = core_1.PDFName.of("Producer");
-          this.getInfoDict().set(key3, core_1.PDFHexString.fromText(producer));
+          var key5 = core_1.PDFName.of("Producer");
+          this.getInfoDict().set(key5, core_1.PDFHexString.fromText(producer));
         };
         PDFDocument3.prototype.setLanguage = function(language) {
           utils_1.assertIs(language, "language", ["string"]);
-          var key3 = core_1.PDFName.of("Lang");
-          this.catalog.set(key3, core_1.PDFString.of(language));
+          var key5 = core_1.PDFName.of("Lang");
+          this.catalog.set(key5, core_1.PDFString.of(language));
         };
         PDFDocument3.prototype.setCreationDate = function(creationDate) {
           utils_1.assertIs(creationDate, "creationDate", [[Date, "Date"]]);
-          var key3 = core_1.PDFName.of("CreationDate");
-          this.getInfoDict().set(key3, core_1.PDFString.fromDate(creationDate));
+          var key5 = core_1.PDFName.of("CreationDate");
+          this.getInfoDict().set(key5, core_1.PDFString.fromDate(creationDate));
         };
         PDFDocument3.prototype.setModificationDate = function(modificationDate) {
           utils_1.assertIs(modificationDate, "modificationDate", [[Date, "Date"]]);
-          var key3 = core_1.PDFName.of("ModDate");
-          this.getInfoDict().set(key3, core_1.PDFString.fromDate(modificationDate));
+          var key5 = core_1.PDFName.of("ModDate");
+          this.getInfoDict().set(key5, core_1.PDFString.fromDate(modificationDate));
         };
         PDFDocument3.prototype.getPageCount = function() {
           if (this.pageCount === void 0)
@@ -50387,12 +51093,12 @@ var require_PDFPage = __commonJS({
           var contentStream = this.getContentStream();
           contentStream.push.apply(contentStream, operator);
         };
-        PDFPage2.prototype.drawText = function(text11, options) {
+        PDFPage2.prototype.drawText = function(text12, options) {
           var _a, _b, _c, _d, _e, _f, _g;
           if (options === void 0) {
             options = {};
           }
-          utils_1.assertIs(text11, "text", ["string"]);
+          utils_1.assertIs(text12, "text", ["string"]);
           utils_1.assertOrUndefined(options.color, "options.color", [[Object, "Color"]]);
           utils_1.assertRangeOrUndefined(options.opacity, "opacity.opacity", 0, 1);
           utils_1.assertOrUndefined(options.font, "options.font", [[PDFFont_1.default, "PDFFont"]]);
@@ -50412,7 +51118,7 @@ var require_PDFPage = __commonJS({
           var textWidth = function(t) {
             return newFont.widthOfTextAtSize(t, fontSize);
           };
-          var lines2 = options.maxWidth === void 0 ? utils_1.lineSplit(utils_1.cleanText(text11)) : utils_1.breakTextIntoLines(text11, wordBreaks, options.maxWidth, textWidth);
+          var lines2 = options.maxWidth === void 0 ? utils_1.lineSplit(utils_1.cleanText(text12)) : utils_1.breakTextIntoLines(text12, wordBreaks, options.maxWidth, textWidth);
           var encodedLines = new Array(lines2.length);
           for (var idx = 0, len = lines2.length; idx < len; idx++) {
             encodedLines[idx] = newFont.encodeText(lines2[idx]);
@@ -50768,8 +51474,8 @@ var require_PDFPage = __commonJS({
             CA: borderOpacity,
             BM: blendMode
           });
-          var key3 = this.node.newExtGState("GS", graphicsState);
-          return key3;
+          var key5 = this.node.newExtGState("GS", graphicsState);
+          return key5;
         };
         PDFPage2.prototype.scaleAnnot = function(annot, x, y) {
           var selectors = ["RD", "CL", "Vertices", "QuadPoints", "L", "Rect"];
@@ -50848,9 +51554,9 @@ var require_PDFButton = __commonJS({
           this.acroField.setFontSize(fontSize);
           this.markAsDirty();
         };
-        PDFButton2.prototype.addToPage = function(text11, page, options) {
+        PDFButton2.prototype.addToPage = function(text12, page, options) {
           var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
-          utils_1.assertOrUndefined(text11, "text", ["string"]);
+          utils_1.assertOrUndefined(text12, "text", ["string"]);
           utils_1.assertOrUndefined(page, "page", [[PDFPage_1.default, "PDFPage"]]);
           PDFField_1.assertFieldAppearanceOptions(options);
           var widget = this.createWidget({
@@ -50863,7 +51569,7 @@ var require_PDFButton = __commonJS({
             borderColor: options === null || options === void 0 ? void 0 : options.borderColor,
             borderWidth: (_j = options === null || options === void 0 ? void 0 : options.borderWidth) !== null && _j !== void 0 ? _j : 0,
             rotate: (_k = options === null || options === void 0 ? void 0 : options.rotate) !== null && _k !== void 0 ? _k : rotations_1.degrees(0),
-            caption: text11,
+            caption: text12,
             hidden: options === null || options === void 0 ? void 0 : options.hidden,
             page: page.ref
           });
@@ -51051,38 +51757,38 @@ var require_balanced_match = __commonJS({
   "node_modules/balanced-match/index.js"(exports2, module) {
     "use strict";
     module.exports = balanced;
-    function balanced(a, b, str24) {
-      if (a instanceof RegExp) a = maybeMatch(a, str24);
-      if (b instanceof RegExp) b = maybeMatch(b, str24);
-      var r = range2(a, b, str24);
+    function balanced(a, b, str26) {
+      if (a instanceof RegExp) a = maybeMatch(a, str26);
+      if (b instanceof RegExp) b = maybeMatch(b, str26);
+      var r = range2(a, b, str26);
       return r && {
         start: r[0],
         end: r[1],
-        pre: str24.slice(0, r[0]),
-        body: str24.slice(r[0] + a.length, r[1]),
-        post: str24.slice(r[1] + b.length)
+        pre: str26.slice(0, r[0]),
+        body: str26.slice(r[0] + a.length, r[1]),
+        post: str26.slice(r[1] + b.length)
       };
     }
-    function maybeMatch(reg, str24) {
-      var m = str24.match(reg);
+    function maybeMatch(reg, str26) {
+      var m = str26.match(reg);
       return m ? m[0] : null;
     }
     balanced.range = range2;
-    function range2(a, b, str24) {
+    function range2(a, b, str26) {
       var begs, beg, left, right, result2;
-      var ai = str24.indexOf(a);
-      var bi = str24.indexOf(b, ai + 1);
+      var ai = str26.indexOf(a);
+      var bi = str26.indexOf(b, ai + 1);
       var i = ai;
       if (ai >= 0 && bi > 0) {
         if (a === b) {
           return [ai, bi];
         }
         begs = [];
-        left = str24.length;
+        left = str26.length;
         while (i >= 0 && !result2) {
           if (i == ai) {
             begs.push(i);
-            ai = str24.indexOf(a, i + 1);
+            ai = str26.indexOf(a, i + 1);
           } else if (begs.length == 1) {
             result2 = [begs.pop(), bi];
           } else {
@@ -51091,7 +51797,7 @@ var require_balanced_match = __commonJS({
               left = beg;
               right = bi;
             }
-            bi = str24.indexOf(b, i + 1);
+            bi = str26.indexOf(b, i + 1);
           }
           i = ai < bi && ai >= 0 ? ai : bi;
         }
@@ -51114,22 +51820,22 @@ var require_brace_expansion = __commonJS({
     var escClose = "\0CLOSE" + Math.random() + "\0";
     var escComma = "\0COMMA" + Math.random() + "\0";
     var escPeriod = "\0PERIOD" + Math.random() + "\0";
-    function numeric(str24) {
-      return parseInt(str24, 10) == str24 ? parseInt(str24, 10) : str24.charCodeAt(0);
+    function numeric(str26) {
+      return parseInt(str26, 10) == str26 ? parseInt(str26, 10) : str26.charCodeAt(0);
     }
-    function escapeBraces(str24) {
-      return str24.split("\\\\").join(escSlash).split("\\{").join(escOpen).split("\\}").join(escClose).split("\\,").join(escComma).split("\\.").join(escPeriod);
+    function escapeBraces(str26) {
+      return str26.split("\\\\").join(escSlash).split("\\{").join(escOpen).split("\\}").join(escClose).split("\\,").join(escComma).split("\\.").join(escPeriod);
     }
-    function unescapeBraces(str24) {
-      return str24.split(escSlash).join("\\").split(escOpen).join("{").split(escClose).join("}").split(escComma).join(",").split(escPeriod).join(".");
+    function unescapeBraces(str26) {
+      return str26.split(escSlash).join("\\").split(escOpen).join("{").split(escClose).join("}").split(escComma).join(",").split(escPeriod).join(".");
     }
-    function parseCommaParts(str24) {
-      if (!str24)
+    function parseCommaParts(str26) {
+      if (!str26)
         return [""];
       var parts = [];
-      var m = balanced("{", "}", str24);
+      var m = balanced("{", "}", str26);
       if (!m)
-        return str24.split(",");
+        return str26.split(",");
       var pre = m.pre;
       var body = m.body;
       var post = m.post;
@@ -51143,16 +51849,16 @@ var require_brace_expansion = __commonJS({
       parts.push.apply(parts, p);
       return parts;
     }
-    function expandTop(str24) {
-      if (!str24)
+    function expandTop(str26) {
+      if (!str26)
         return [];
-      if (str24.substr(0, 2) === "{}") {
-        str24 = "\\{\\}" + str24.substr(2);
+      if (str26.substr(0, 2) === "{}") {
+        str26 = "\\{\\}" + str26.substr(2);
       }
-      return expand(escapeBraces(str24), true).map(unescapeBraces);
+      return expand(escapeBraces(str26), true).map(unescapeBraces);
     }
-    function embrace(str24) {
-      return "{" + str24 + "}";
+    function embrace(str26) {
+      return "{" + str26 + "}";
     }
     function isPadded(el) {
       return /^-?0\d/.test(el);
@@ -51163,10 +51869,10 @@ var require_brace_expansion = __commonJS({
     function gte(i, y) {
       return i >= y;
     }
-    function expand(str24, isTop) {
+    function expand(str26, isTop) {
       var expansions = [];
-      var m = balanced("{", "}", str24);
-      if (!m) return [str24];
+      var m = balanced("{", "}", str26);
+      if (!m) return [str26];
       var pre = m.pre;
       var post = m.post.length ? expand(m.post, false) : [""];
       if (/\$$/.test(m.pre)) {
@@ -51181,10 +51887,10 @@ var require_brace_expansion = __commonJS({
         var isOptions = m.body.indexOf(",") >= 0;
         if (!isSequence && !isOptions) {
           if (m.post.match(/,(?!,).*\}/)) {
-            str24 = m.pre + "{" + m.body + escClose + m.post;
-            return expand(str24);
+            str26 = m.pre + "{" + m.body + escClose + m.post;
+            return expand(str26);
           }
-          return [str24];
+          return [str26];
         }
         var n;
         if (isSequence) {
@@ -52193,11 +52899,11 @@ var require_async2 = __commonJS({
         var i = -1;
         var len = okeys.length;
         return function next() {
-          var key3 = okeys[++i];
-          if (key3 === "__proto__") {
+          var key5 = okeys[++i];
+          if (key5 === "__proto__") {
             return next();
           }
-          return i < len ? { value: obj11[key3], key: key3 } : null;
+          return i < len ? { value: obj11[key5], key: key5 } : null;
         };
       }
       function createIterator(coll) {
@@ -52398,37 +53104,37 @@ var require_async2 = __commonJS({
         var readyTasks = [];
         var readyToCheck = [];
         var uncheckedDependencies = {};
-        Object.keys(tasks).forEach((key3) => {
-          var task = tasks[key3];
+        Object.keys(tasks).forEach((key5) => {
+          var task = tasks[key5];
           if (!Array.isArray(task)) {
-            enqueueTask(key3, [task]);
-            readyToCheck.push(key3);
+            enqueueTask(key5, [task]);
+            readyToCheck.push(key5);
             return;
           }
           var dependencies = task.slice(0, task.length - 1);
           var remainingDependencies = dependencies.length;
           if (remainingDependencies === 0) {
-            enqueueTask(key3, task);
-            readyToCheck.push(key3);
+            enqueueTask(key5, task);
+            readyToCheck.push(key5);
             return;
           }
-          uncheckedDependencies[key3] = remainingDependencies;
+          uncheckedDependencies[key5] = remainingDependencies;
           dependencies.forEach((dependencyName) => {
             if (!tasks[dependencyName]) {
-              throw new Error("async.auto task `" + key3 + "` has a non-existent dependency `" + dependencyName + "` in " + dependencies.join(", "));
+              throw new Error("async.auto task `" + key5 + "` has a non-existent dependency `" + dependencyName + "` in " + dependencies.join(", "));
             }
             addListener(dependencyName, () => {
               remainingDependencies--;
               if (remainingDependencies === 0) {
-                enqueueTask(key3, task);
+                enqueueTask(key5, task);
               }
             });
           });
         });
         checkForDeadlocks();
         processQueue();
-        function enqueueTask(key3, task) {
-          readyTasks.push(() => runTask(key3, task));
+        function enqueueTask(key5, task) {
+          readyTasks.push(() => runTask(key5, task));
         }
         function processQueue() {
           if (canceled) return;
@@ -52452,7 +53158,7 @@ var require_async2 = __commonJS({
           taskListeners.forEach((fn) => fn());
           processQueue();
         }
-        function runTask(key3, task) {
+        function runTask(key5, task) {
           if (hasError) return;
           var taskCallback = onlyOnce((err, ...result2) => {
             runningTasks--;
@@ -52468,14 +53174,14 @@ var require_async2 = __commonJS({
               Object.keys(results).forEach((rkey) => {
                 safeResults[rkey] = results[rkey];
               });
-              safeResults[key3] = result2;
+              safeResults[key5] = result2;
               hasError = true;
               listeners = /* @__PURE__ */ Object.create(null);
               if (canceled) return;
               callback(err, safeResults);
             } else {
-              results[key3] = result2;
-              taskComplete(key3);
+              results[key5] = result2;
+              taskComplete(key5);
             }
           });
           runningTasks++;
@@ -52506,10 +53212,10 @@ var require_async2 = __commonJS({
         }
         function getDependents(taskName) {
           var result2 = [];
-          Object.keys(tasks).forEach((key3) => {
-            const task = tasks[key3];
+          Object.keys(tasks).forEach((key5) => {
+            const task = tasks[key5];
             if (Array.isArray(task) && task.indexOf(taskName) >= 0) {
-              result2.push(key3);
+              result2.push(key5);
             }
           });
           return result2;
@@ -52556,24 +53262,24 @@ var require_async2 = __commonJS({
       }
       function autoInject(tasks, callback) {
         var newTasks = {};
-        Object.keys(tasks).forEach((key3) => {
-          var taskFn = tasks[key3];
+        Object.keys(tasks).forEach((key5) => {
+          var taskFn = tasks[key5];
           var params;
           var fnIsAsync = isAsync2(taskFn);
           var hasNoDeps = !fnIsAsync && taskFn.length === 1 || fnIsAsync && taskFn.length === 0;
           if (Array.isArray(taskFn)) {
             params = [...taskFn];
             taskFn = params.pop();
-            newTasks[key3] = params.concat(params.length > 0 ? newTask : taskFn);
+            newTasks[key5] = params.concat(params.length > 0 ? newTask : taskFn);
           } else if (hasNoDeps) {
-            newTasks[key3] = taskFn;
+            newTasks[key5] = taskFn;
           } else {
             params = parseParams(taskFn);
             if (taskFn.length === 0 && !fnIsAsync && params.length === 0) {
               throw new Error("autoInject task functions require explicit parameters.");
             }
             if (!fnIsAsync) params.pop();
-            newTasks[key3] = params.concat(newTask);
+            newTasks[key5] = params.concat(newTask);
           }
           function newTask(results, taskCb) {
             var newArgs = params.map((name) => results[name]);
@@ -53153,21 +53859,21 @@ var require_async2 = __commonJS({
       function groupByLimit(coll, limit, iteratee, callback) {
         var _iteratee = wrapAsync(iteratee);
         return mapLimit$1(coll, limit, (val, iterCb) => {
-          _iteratee(val, (err, key3) => {
+          _iteratee(val, (err, key5) => {
             if (err) return iterCb(err);
-            return iterCb(err, { key: key3, val });
+            return iterCb(err, { key: key5, val });
           });
         }, (err, mapResults) => {
           var result2 = {};
           var { hasOwnProperty: hasOwnProperty2 } = Object.prototype;
           for (var i = 0; i < mapResults.length; i++) {
             if (mapResults[i]) {
-              var { key: key3 } = mapResults[i];
+              var { key: key5 } = mapResults[i];
               var { val } = mapResults[i];
-              if (hasOwnProperty2.call(result2, key3)) {
-                result2[key3].push(val);
+              if (hasOwnProperty2.call(result2, key5)) {
+                result2[key5].push(val);
               } else {
-                result2[key3] = [val];
+                result2[key5] = [val];
               }
             }
           }
@@ -53186,10 +53892,10 @@ var require_async2 = __commonJS({
         callback = once2(callback);
         var newObj = {};
         var _iteratee = wrapAsync(iteratee);
-        return eachOfLimit$2(limit)(obj11, (val, key3, next) => {
-          _iteratee(val, key3, (err, result2) => {
+        return eachOfLimit$2(limit)(obj11, (val, key5, next) => {
+          _iteratee(val, key5, (err, result2) => {
             if (err) return next(err);
-            newObj[key3] = result2;
+            newObj[key5] = result2;
             next(err);
           });
         }, (err) => callback(err, newObj));
@@ -53206,19 +53912,19 @@ var require_async2 = __commonJS({
         var queues = /* @__PURE__ */ Object.create(null);
         var _fn = wrapAsync(fn);
         var memoized = initialParams((args, callback) => {
-          var key3 = hasher(...args);
-          if (key3 in memo2) {
-            setImmediate$1(() => callback(null, ...memo2[key3]));
-          } else if (key3 in queues) {
-            queues[key3].push(callback);
+          var key5 = hasher(...args);
+          if (key5 in memo2) {
+            setImmediate$1(() => callback(null, ...memo2[key5]));
+          } else if (key5 in queues) {
+            queues[key5].push(callback);
           } else {
-            queues[key3] = [callback];
+            queues[key5] = [callback];
             _fn(...args, (err, ...resultArgs) => {
               if (!err) {
-                memo2[key3] = resultArgs;
+                memo2[key5] = resultArgs;
               }
-              var q2 = queues[key3];
-              delete queues[key3];
+              var q2 = queues[key5];
+              delete queues[key5];
               for (var i = 0, l = q2.length; i < l; i++) {
                 q2[i](err, ...resultArgs);
               }
@@ -53240,12 +53946,12 @@ var require_async2 = __commonJS({
       var nextTick = wrap(_defer);
       var _parallel = awaitify((eachfn, tasks, callback) => {
         var results = isArrayLike(tasks) ? [] : {};
-        eachfn(tasks, (task, key3, taskCb) => {
+        eachfn(tasks, (task, key5, taskCb) => {
           wrapAsync(task)((err, ...result2) => {
             if (result2.length < 2) {
               [result2] = result2;
             }
-            results[key3] = result2;
+            results[key5] = result2;
             taskCb(err);
           });
         }, (err) => callback(err, results));
@@ -53420,8 +54126,8 @@ var require_async2 = __commonJS({
           results = tasks.map(reflect);
         } else {
           results = {};
-          Object.keys(tasks).forEach((key3) => {
-            results[key3] = reflect.call(this, tasks[key3]);
+          Object.keys(tasks).forEach((key5) => {
+            results[key5] = reflect.call(this, tasks[key5]);
           });
         }
         return results;
@@ -54196,8 +54902,8 @@ var require_legacy_streams = __commonJS({
         options = options || {};
         var keys = Object.keys(options);
         for (var index = 0, length = keys.length; index < length; index++) {
-          var key3 = keys[index];
-          this[key3] = options[key3];
+          var key5 = keys[index];
+          this[key5] = options[key5];
         }
         if (this.encoding) this.setEncoding(this.encoding);
         if (this.start !== void 0) {
@@ -54244,8 +54950,8 @@ var require_legacy_streams = __commonJS({
         options = options || {};
         var keys = Object.keys(options);
         for (var index = 0, length = keys.length; index < length; index++) {
-          var key3 = keys[index];
-          this[key3] = options[key3];
+          var key5 = keys[index];
+          this[key5] = options[key5];
         }
         if (this.start !== void 0) {
           if ("number" !== typeof this.start) {
@@ -54283,8 +54989,8 @@ var require_clone = __commonJS({
         var copy = { __proto__: getPrototypeOf(obj11) };
       else
         var copy = /* @__PURE__ */ Object.create(null);
-      Object.getOwnPropertyNames(obj11).forEach(function(key3) {
-        Object.defineProperty(copy, key3, Object.getOwnPropertyDescriptor(obj11, key3));
+      Object.getOwnPropertyNames(obj11).forEach(function(key5) {
+        Object.defineProperty(copy, key5, Object.getOwnPropertyDescriptor(obj11, key5));
       });
       return copy;
     }
@@ -54742,8 +55448,8 @@ var require_safe_buffer = __commonJS({
     var buffer = __require("buffer");
     var Buffer2 = buffer.Buffer;
     function copyProps(src, dst) {
-      for (var key3 in src) {
-        dst[key3] = src[key3];
+      for (var key5 in src) {
+        dst[key5] = src[key5];
       }
     }
     if (Buffer2.from && Buffer2.alloc && Buffer2.allocUnsafe && Buffer2.allocUnsafeSlow) {
@@ -55510,8 +56216,8 @@ var require_stream_duplex = __commonJS({
     var pna = require_process_nextick_args();
     var objectKeys = Object.keys || function(obj11) {
       var keys2 = [];
-      for (var key3 in obj11) {
-        keys2.push(key3);
+      for (var key5 in obj11) {
+        keys2.push(key5);
       }
       return keys2;
     };
@@ -56432,19 +57138,19 @@ var require_stream_readable = __commonJS({
       var ret = p.data;
       n -= ret.length;
       while (p = p.next) {
-        var str24 = p.data;
-        var nb = n > str24.length ? str24.length : n;
-        if (nb === str24.length) ret += str24;
-        else ret += str24.slice(0, n);
+        var str26 = p.data;
+        var nb = n > str26.length ? str26.length : n;
+        if (nb === str26.length) ret += str26;
+        else ret += str26.slice(0, n);
         n -= nb;
         if (n === 0) {
-          if (nb === str24.length) {
+          if (nb === str26.length) {
             ++c;
             if (p.next) list2.head = p.next;
             else list2.head = list2.tail = null;
           } else {
             list2.head = p;
-            p.data = str24.slice(nb);
+            p.data = str26.slice(nb);
           }
           break;
         }
@@ -56988,8 +57694,8 @@ var require_baseIsNative = __commonJS({
 // node_modules/lodash/_getValue.js
 var require_getValue = __commonJS({
   "node_modules/lodash/_getValue.js"(exports2, module) {
-    function getValue(object3, key3) {
-      return object3 == null ? void 0 : object3[key3];
+    function getValue(object3, key5) {
+      return object3 == null ? void 0 : object3[key5];
     }
     module.exports = getValue;
   }
@@ -57000,8 +57706,8 @@ var require_getNative = __commonJS({
   "node_modules/lodash/_getNative.js"(exports2, module) {
     var baseIsNative = require_baseIsNative();
     var getValue = require_getValue();
-    function getNative(object3, key3) {
-      var value4 = getValue(object3, key3);
+    function getNative(object3, key5) {
+      var value4 = getValue(object3, key5);
       return baseIsNative(value4) ? value4 : void 0;
     }
     module.exports = getNative;
@@ -57344,13 +58050,13 @@ var require_arrayLikeKeys = __commonJS({
     var hasOwnProperty2 = objectProto.hasOwnProperty;
     function arrayLikeKeys(value4, inherited) {
       var isArr = isArray2(value4), isArg = !isArr && isArguments(value4), isBuff = !isArr && !isArg && isBuffer(value4), isType = !isArr && !isArg && !isBuff && isTypedArray(value4), skipIndexes = isArr || isArg || isBuff || isType, result2 = skipIndexes ? baseTimes(value4.length, String) : [], length = result2.length;
-      for (var key3 in value4) {
-        if ((inherited || hasOwnProperty2.call(value4, key3)) && !(skipIndexes && // Safari 9 has enumerable `arguments.length` in strict mode.
-        (key3 == "length" || // Node.js 0.10 has enumerable non-index properties on buffers.
-        isBuff && (key3 == "offset" || key3 == "parent") || // PhantomJS 2 has enumerable non-index properties on typed arrays.
-        isType && (key3 == "buffer" || key3 == "byteLength" || key3 == "byteOffset") || // Skip index properties.
-        isIndex(key3, length)))) {
-          result2.push(key3);
+      for (var key5 in value4) {
+        if ((inherited || hasOwnProperty2.call(value4, key5)) && !(skipIndexes && // Safari 9 has enumerable `arguments.length` in strict mode.
+        (key5 == "length" || // Node.js 0.10 has enumerable non-index properties on buffers.
+        isBuff && (key5 == "offset" || key5 == "parent") || // PhantomJS 2 has enumerable non-index properties on typed arrays.
+        isType && (key5 == "buffer" || key5 == "byteLength" || key5 == "byteOffset") || // Skip index properties.
+        isIndex(key5, length)))) {
+          result2.push(key5);
         }
       }
       return result2;
@@ -57377,8 +58083,8 @@ var require_nativeKeysIn = __commonJS({
     function nativeKeysIn(object3) {
       var result2 = [];
       if (object3 != null) {
-        for (var key3 in Object(object3)) {
-          result2.push(key3);
+        for (var key5 in Object(object3)) {
+          result2.push(key5);
         }
       }
       return result2;
@@ -57400,9 +58106,9 @@ var require_baseKeysIn = __commonJS({
         return nativeKeysIn(object3);
       }
       var isProto = isPrototype(object3), result2 = [];
-      for (var key3 in object3) {
-        if (!(key3 == "constructor" && (isProto || !hasOwnProperty2.call(object3, key3)))) {
-          result2.push(key3);
+      for (var key5 in object3) {
+        if (!(key5 == "constructor" && (isProto || !hasOwnProperty2.call(object3, key5)))) {
+          result2.push(key5);
         }
       }
       return result2;
@@ -57447,10 +58153,10 @@ var require_defaults2 = __commonJS({
         var propsIndex = -1;
         var propsLength = props.length;
         while (++propsIndex < propsLength) {
-          var key3 = props[propsIndex];
-          var value4 = object3[key3];
-          if (value4 === void 0 || eq(value4, objectProto[key3]) && !hasOwnProperty2.call(object3, key3)) {
-            object3[key3] = source[key3];
+          var key5 = props[propsIndex];
+          var value4 = object3[key5];
+          if (value4 === void 0 || eq(value4, objectProto[key5]) && !hasOwnProperty2.call(object3, key5)) {
+            object3[key5] = source[key5];
           }
         }
       }
@@ -57669,19 +58375,19 @@ var require_errors6 = __commonJS({
       }
       return `${val.slice(0, i)}${res}`;
     }
-    function getMessage(key3, msg, args) {
+    function getMessage(key5, msg, args) {
       if (typeof msg === "function") {
         assert2(
           msg.length <= args.length,
           // Default options do not count.
-          `Code: ${key3}; The provided arguments length (${args.length}) does not match the required ones (${msg.length}).`
+          `Code: ${key5}; The provided arguments length (${args.length}) does not match the required ones (${msg.length}).`
         );
         return msg(...args);
       }
       const expectedLength = (msg.match(/%[dfijoOs]/g) || []).length;
       assert2(
         expectedLength === args.length,
-        `Code: ${key3}; The provided arguments length (${args.length}) does not match the required ones (${expectedLength}).`
+        `Code: ${key5}; The provided arguments length (${args.length}) does not match the required ones (${expectedLength}).`
       );
       if (args.length === 0) {
         return msg;
@@ -57911,7 +58617,7 @@ var require_errors6 = __commonJS({
     );
     E(
       "ERR_OUT_OF_RANGE",
-      (str24, range2, input) => {
+      (str26, range2, input) => {
         assert2(range2, 'Missing "range" argument');
         let received;
         if (Number.isInteger(input) && Math.abs(input) > 2 ** 32) {
@@ -57926,7 +58632,7 @@ var require_errors6 = __commonJS({
         } else {
           received = inspect(input);
         }
-        return `The value of "${str24}" is out of range. It must be ${range2}. Received ${received}`;
+        return `The value of "${str26}" is out of range. It must be ${range2}. Received ${received}`;
       },
       RangeError
     );
@@ -57999,9 +58705,9 @@ var require_event_target_shim = __commonJS({
       Object.defineProperty(this, "isTrusted", { value: false, enumerable: true });
       const keys = Object.keys(event);
       for (let i = 0; i < keys.length; ++i) {
-        const key3 = keys[i];
-        if (!(key3 in this)) {
-          Object.defineProperty(this, key3, defineRedirectDescriptor(key3));
+        const key5 = keys[i];
+        if (!(key5 in this)) {
+          Object.defineProperty(this, key5, defineRedirectDescriptor(key5));
         }
       }
     }
@@ -58195,23 +58901,23 @@ var require_event_target_shim = __commonJS({
       Object.setPrototypeOf(Event.prototype, window.Event.prototype);
       wrappers.set(window.Event.prototype, Event);
     }
-    function defineRedirectDescriptor(key3) {
+    function defineRedirectDescriptor(key5) {
       return {
         get() {
-          return pd(this).event[key3];
+          return pd(this).event[key5];
         },
         set(value4) {
-          pd(this).event[key3] = value4;
+          pd(this).event[key5] = value4;
         },
         configurable: true,
         enumerable: true
       };
     }
-    function defineCallDescriptor(key3) {
+    function defineCallDescriptor(key5) {
       return {
         value() {
           const event = pd(this).event;
-          return event[key3].apply(event, arguments);
+          return event[key5].apply(event, arguments);
         },
         configurable: true,
         enumerable: true
@@ -58229,14 +58935,14 @@ var require_event_target_shim = __commonJS({
         constructor: { value: CustomEvent, configurable: true, writable: true }
       });
       for (let i = 0; i < keys.length; ++i) {
-        const key3 = keys[i];
-        if (!(key3 in BaseEvent.prototype)) {
-          const descriptor = Object.getOwnPropertyDescriptor(proto, key3);
+        const key5 = keys[i];
+        if (!(key5 in BaseEvent.prototype)) {
+          const descriptor = Object.getOwnPropertyDescriptor(proto, key5);
           const isFunc = typeof descriptor.value === "function";
           Object.defineProperty(
             CustomEvent.prototype,
-            key3,
-            isFunc ? defineCallDescriptor(key3) : defineRedirectDescriptor(key3)
+            key5,
+            isFunc ? defineCallDescriptor(key5) : defineRedirectDescriptor(key5)
           );
         }
       }
@@ -58860,8 +59566,8 @@ var require_validators2 = __commonJS({
     function validateBoolean(value4, name) {
       if (typeof value4 !== "boolean") throw new ERR_INVALID_ARG_TYPE(name, "boolean", value4);
     }
-    function getOwnPropertyValueOrDefault(options, key3, defaultValue) {
-      return options == null || !ObjectPrototypeHasOwnProperty(options, key3) ? defaultValue : options[key3];
+    function getOwnPropertyValueOrDefault(options, key5, defaultValue) {
+      return options == null || !ObjectPrototypeHasOwnProperty(options, key5) ? defaultValue : options[key5];
     }
     var validateObject = hideStackFrames((value4, name, options = null) => {
       const allowArray = getOwnPropertyValueOrDefault(options, "allowArray", false);
@@ -59973,20 +60679,20 @@ var require_buffer_list = __commonJS({
         let p = this.head;
         let c = 0;
         do {
-          const str24 = p.data;
-          if (n > str24.length) {
-            ret += str24;
-            n -= str24.length;
+          const str26 = p.data;
+          if (n > str26.length) {
+            ret += str26;
+            n -= str26.length;
           } else {
-            if (n === str24.length) {
-              ret += str24;
+            if (n === str26.length) {
+              ret += str26;
               ++c;
               if (p.next) this.head = p.next;
               else this.head = this.tail = null;
             } else {
-              ret += StringPrototypeSlice(str24, 0, n);
+              ret += StringPrototypeSlice(str26, 0, n);
               this.head = p;
-              p.data = StringPrototypeSlice(str24, n);
+              p.data = StringPrototypeSlice(str26, n);
             }
             break;
           }
@@ -60086,8 +60792,8 @@ var require_safe_buffer2 = __commonJS({
     var buffer = __require("buffer");
     var Buffer2 = buffer.Buffer;
     function copyProps(src, dst) {
-      for (var key3 in src) {
-        dst[key3] = src[key3];
+      for (var key5 in src) {
+        dst[key5] = src[key5];
       }
     }
     if (Buffer2.from && Buffer2.alloc && Buffer2.allocUnsafe && Buffer2.allocUnsafeSlow) {
@@ -63738,14 +64444,14 @@ var require_stream2 = __commonJS({
     Stream.isReadable = utils.isReadable;
     Stream.isWritable = utils.isWritable;
     Stream.Readable = require_readable2();
-    for (const key3 of ObjectKeys(streamReturningOperators)) {
+    for (const key5 of ObjectKeys(streamReturningOperators)) {
       let fn = function(...args) {
         if (new.target) {
           throw ERR_ILLEGAL_CONSTRUCTOR();
         }
         return Stream.Readable.from(ReflectApply(op, this, args));
       };
-      const op = streamReturningOperators[key3];
+      const op = streamReturningOperators[key5];
       ObjectDefineProperty(fn, "name", {
         __proto__: null,
         value: op.name
@@ -63754,7 +64460,7 @@ var require_stream2 = __commonJS({
         __proto__: null,
         value: op.length
       });
-      ObjectDefineProperty(Stream.Readable.prototype, key3, {
+      ObjectDefineProperty(Stream.Readable.prototype, key5, {
         __proto__: null,
         value: fn,
         enumerable: false,
@@ -63762,14 +64468,14 @@ var require_stream2 = __commonJS({
         writable: true
       });
     }
-    for (const key3 of ObjectKeys(promiseReturningOperators)) {
+    for (const key5 of ObjectKeys(promiseReturningOperators)) {
       let fn = function(...args) {
         if (new.target) {
           throw ERR_ILLEGAL_CONSTRUCTOR();
         }
         return ReflectApply(op, this, args);
       };
-      const op = promiseReturningOperators[key3];
+      const op = promiseReturningOperators[key5];
       ObjectDefineProperty(fn, "name", {
         __proto__: null,
         value: op.name
@@ -63778,7 +64484,7 @@ var require_stream2 = __commonJS({
         __proto__: null,
         value: op.length
       });
-      ObjectDefineProperty(Stream.Readable.prototype, key3, {
+      ObjectDefineProperty(Stream.Readable.prototype, key5, {
         __proto__: null,
         value: fn,
         enumerable: false,
@@ -63985,8 +64691,8 @@ var require_hashClear = __commonJS({
 // node_modules/lodash/_hashDelete.js
 var require_hashDelete = __commonJS({
   "node_modules/lodash/_hashDelete.js"(exports2, module) {
-    function hashDelete(key3) {
-      var result2 = this.has(key3) && delete this.__data__[key3];
+    function hashDelete(key5) {
+      var result2 = this.has(key5) && delete this.__data__[key5];
       this.size -= result2 ? 1 : 0;
       return result2;
     }
@@ -64001,13 +64707,13 @@ var require_hashGet = __commonJS({
     var HASH_UNDEFINED = "__lodash_hash_undefined__";
     var objectProto = Object.prototype;
     var hasOwnProperty2 = objectProto.hasOwnProperty;
-    function hashGet(key3) {
+    function hashGet(key5) {
       var data2 = this.__data__;
       if (nativeCreate) {
-        var result2 = data2[key3];
+        var result2 = data2[key5];
         return result2 === HASH_UNDEFINED ? void 0 : result2;
       }
-      return hasOwnProperty2.call(data2, key3) ? data2[key3] : void 0;
+      return hasOwnProperty2.call(data2, key5) ? data2[key5] : void 0;
     }
     module.exports = hashGet;
   }
@@ -64019,9 +64725,9 @@ var require_hashHas = __commonJS({
     var nativeCreate = require_nativeCreate();
     var objectProto = Object.prototype;
     var hasOwnProperty2 = objectProto.hasOwnProperty;
-    function hashHas(key3) {
+    function hashHas(key5) {
       var data2 = this.__data__;
-      return nativeCreate ? data2[key3] !== void 0 : hasOwnProperty2.call(data2, key3);
+      return nativeCreate ? data2[key5] !== void 0 : hasOwnProperty2.call(data2, key5);
     }
     module.exports = hashHas;
   }
@@ -64032,10 +64738,10 @@ var require_hashSet = __commonJS({
   "node_modules/lodash/_hashSet.js"(exports2, module) {
     var nativeCreate = require_nativeCreate();
     var HASH_UNDEFINED = "__lodash_hash_undefined__";
-    function hashSet(key3, value4) {
+    function hashSet(key5, value4) {
       var data2 = this.__data__;
-      this.size += this.has(key3) ? 0 : 1;
-      data2[key3] = nativeCreate && value4 === void 0 ? HASH_UNDEFINED : value4;
+      this.size += this.has(key5) ? 0 : 1;
+      data2[key5] = nativeCreate && value4 === void 0 ? HASH_UNDEFINED : value4;
       return this;
     }
     module.exports = hashSet;
@@ -64082,10 +64788,10 @@ var require_listCacheClear = __commonJS({
 var require_assocIndexOf = __commonJS({
   "node_modules/lodash/_assocIndexOf.js"(exports2, module) {
     var eq = require_eq();
-    function assocIndexOf(array2, key3) {
+    function assocIndexOf(array2, key5) {
       var length = array2.length;
       while (length--) {
-        if (eq(array2[length][0], key3)) {
+        if (eq(array2[length][0], key5)) {
           return length;
         }
       }
@@ -64101,8 +64807,8 @@ var require_listCacheDelete = __commonJS({
     var assocIndexOf = require_assocIndexOf();
     var arrayProto = Array.prototype;
     var splice = arrayProto.splice;
-    function listCacheDelete(key3) {
-      var data2 = this.__data__, index = assocIndexOf(data2, key3);
+    function listCacheDelete(key5) {
+      var data2 = this.__data__, index = assocIndexOf(data2, key5);
       if (index < 0) {
         return false;
       }
@@ -64123,8 +64829,8 @@ var require_listCacheDelete = __commonJS({
 var require_listCacheGet = __commonJS({
   "node_modules/lodash/_listCacheGet.js"(exports2, module) {
     var assocIndexOf = require_assocIndexOf();
-    function listCacheGet(key3) {
-      var data2 = this.__data__, index = assocIndexOf(data2, key3);
+    function listCacheGet(key5) {
+      var data2 = this.__data__, index = assocIndexOf(data2, key5);
       return index < 0 ? void 0 : data2[index][1];
     }
     module.exports = listCacheGet;
@@ -64135,8 +64841,8 @@ var require_listCacheGet = __commonJS({
 var require_listCacheHas = __commonJS({
   "node_modules/lodash/_listCacheHas.js"(exports2, module) {
     var assocIndexOf = require_assocIndexOf();
-    function listCacheHas(key3) {
-      return assocIndexOf(this.__data__, key3) > -1;
+    function listCacheHas(key5) {
+      return assocIndexOf(this.__data__, key5) > -1;
     }
     module.exports = listCacheHas;
   }
@@ -64146,11 +64852,11 @@ var require_listCacheHas = __commonJS({
 var require_listCacheSet = __commonJS({
   "node_modules/lodash/_listCacheSet.js"(exports2, module) {
     var assocIndexOf = require_assocIndexOf();
-    function listCacheSet(key3, value4) {
-      var data2 = this.__data__, index = assocIndexOf(data2, key3);
+    function listCacheSet(key5, value4) {
+      var data2 = this.__data__, index = assocIndexOf(data2, key5);
       if (index < 0) {
         ++this.size;
-        data2.push([key3, value4]);
+        data2.push([key5, value4]);
       } else {
         data2[index][1] = value4;
       }
@@ -64228,9 +64934,9 @@ var require_isKeyable = __commonJS({
 var require_getMapData = __commonJS({
   "node_modules/lodash/_getMapData.js"(exports2, module) {
     var isKeyable = require_isKeyable();
-    function getMapData(map, key3) {
+    function getMapData(map, key5) {
       var data2 = map.__data__;
-      return isKeyable(key3) ? data2[typeof key3 == "string" ? "string" : "hash"] : data2.map;
+      return isKeyable(key5) ? data2[typeof key5 == "string" ? "string" : "hash"] : data2.map;
     }
     module.exports = getMapData;
   }
@@ -64240,8 +64946,8 @@ var require_getMapData = __commonJS({
 var require_mapCacheDelete = __commonJS({
   "node_modules/lodash/_mapCacheDelete.js"(exports2, module) {
     var getMapData = require_getMapData();
-    function mapCacheDelete(key3) {
-      var result2 = getMapData(this, key3)["delete"](key3);
+    function mapCacheDelete(key5) {
+      var result2 = getMapData(this, key5)["delete"](key5);
       this.size -= result2 ? 1 : 0;
       return result2;
     }
@@ -64253,8 +64959,8 @@ var require_mapCacheDelete = __commonJS({
 var require_mapCacheGet = __commonJS({
   "node_modules/lodash/_mapCacheGet.js"(exports2, module) {
     var getMapData = require_getMapData();
-    function mapCacheGet(key3) {
-      return getMapData(this, key3).get(key3);
+    function mapCacheGet(key5) {
+      return getMapData(this, key5).get(key5);
     }
     module.exports = mapCacheGet;
   }
@@ -64264,8 +64970,8 @@ var require_mapCacheGet = __commonJS({
 var require_mapCacheHas = __commonJS({
   "node_modules/lodash/_mapCacheHas.js"(exports2, module) {
     var getMapData = require_getMapData();
-    function mapCacheHas(key3) {
-      return getMapData(this, key3).has(key3);
+    function mapCacheHas(key5) {
+      return getMapData(this, key5).has(key5);
     }
     module.exports = mapCacheHas;
   }
@@ -64275,9 +64981,9 @@ var require_mapCacheHas = __commonJS({
 var require_mapCacheSet = __commonJS({
   "node_modules/lodash/_mapCacheSet.js"(exports2, module) {
     var getMapData = require_getMapData();
-    function mapCacheSet(key3, value4) {
-      var data2 = getMapData(this, key3), size = data2.size;
-      data2.set(key3, value4);
+    function mapCacheSet(key5, value4) {
+      var data2 = getMapData(this, key5), size = data2.size;
+      data2.set(key5, value4);
       this.size += data2.size == size ? 0 : 1;
       return this;
     }
@@ -64451,8 +65157,8 @@ var require_arrayMap = __commonJS({
 // node_modules/lodash/_cacheHas.js
 var require_cacheHas = __commonJS({
   "node_modules/lodash/_cacheHas.js"(exports2, module) {
-    function cacheHas(cache3, key3) {
-      return cache3.has(key3);
+    function cacheHas(cache3, key5) {
+      return cache3.has(key5);
     }
     module.exports = cacheHas;
   }
@@ -64999,7 +65705,7 @@ var require_ast = __commonJS({
         }
         return c;
       }
-      static #parseAST(str24, ast, pos, opt) {
+      static #parseAST(str26, ast, pos, opt) {
         let escaping = false;
         let inBrace = false;
         let braceStart = -1;
@@ -65007,8 +65713,8 @@ var require_ast = __commonJS({
         if (ast.type === null) {
           let i2 = pos;
           let acc2 = "";
-          while (i2 < str24.length) {
-            const c = str24.charAt(i2++);
+          while (i2 < str26.length) {
+            const c = str26.charAt(i2++);
             if (escaping || c === "\\") {
               escaping = !escaping;
               acc2 += c;
@@ -65031,11 +65737,11 @@ var require_ast = __commonJS({
               acc2 += c;
               continue;
             }
-            if (!opt.noext && isExtglobType(c) && str24.charAt(i2) === "(") {
+            if (!opt.noext && isExtglobType(c) && str26.charAt(i2) === "(") {
               ast.push(acc2);
               acc2 = "";
               const ext = new _AST(c, ast);
-              i2 = _AST.#parseAST(str24, ext, i2, opt);
+              i2 = _AST.#parseAST(str26, ext, i2, opt);
               ast.push(ext);
               continue;
             }
@@ -65048,8 +65754,8 @@ var require_ast = __commonJS({
         let part = new _AST(null, ast);
         const parts = [];
         let acc = "";
-        while (i < str24.length) {
-          const c = str24.charAt(i++);
+        while (i < str26.length) {
+          const c = str26.charAt(i++);
           if (escaping || c === "\\") {
             escaping = !escaping;
             acc += c;
@@ -65072,12 +65778,12 @@ var require_ast = __commonJS({
             acc += c;
             continue;
           }
-          if (isExtglobType(c) && str24.charAt(i) === "(") {
+          if (isExtglobType(c) && str26.charAt(i) === "(") {
             part.push(acc);
             acc = "";
             const ext = new _AST(c, part);
             part.push(ext);
-            i = _AST.#parseAST(str24, ext, i, opt);
+            i = _AST.#parseAST(str26, ext, i, opt);
             continue;
           }
           if (c === "|") {
@@ -65100,7 +65806,7 @@ var require_ast = __commonJS({
         }
         ast.type = null;
         ast.#hasMagic = void 0;
-        ast.#parts = [str24.substring(pos - 1)];
+        ast.#parts = [str26.substring(pos - 1)];
         return i;
       }
       static fromGlob(pattern, options = {}) {
@@ -66450,8 +67156,8 @@ var require_commonjs2 = __commonJS({
        * Return the number of ms left in the item's TTL. If item is not in cache,
        * returns `0`. Returns `Infinity` if item is in cache without a defined TTL.
        */
-      getRemainingTTL(key3) {
-        return this.#keyMap.has(key3) ? Infinity : 0;
+      getRemainingTTL(key5) {
+        return this.#keyMap.has(key5) ? Infinity : 0;
       }
       #initializeTTLTracking() {
         const ttls = new ZeroArray(this.#max);
@@ -66500,8 +67206,8 @@ var require_commonjs2 = __commonJS({
           }
           return n;
         };
-        this.getRemainingTTL = (key3) => {
-          const index = this.#keyMap.get(key3);
+        this.getRemainingTTL = (key5) => {
+          const index = this.#keyMap.get(key5);
           if (index === void 0) {
             return 0;
           }
@@ -66780,8 +67486,8 @@ var require_commonjs2 = __commonJS({
        * sure to check for expirations (ie, a negative {@link LRUCache.Entry#ttl})
        * if relevant.
        */
-      info(key3) {
-        const i = this.#keyMap.get(key3);
+      info(key5) {
+        const i = this.#keyMap.get(key5);
         if (i === void 0)
           return void 0;
         const v = this.#valList[i];
@@ -66819,10 +67525,10 @@ var require_commonjs2 = __commonJS({
       dump() {
         const arr4 = [];
         for (const i of this.#indexes({ allowStale: true })) {
-          const key3 = this.#keyList[i];
+          const key5 = this.#keyList[i];
           const v = this.#valList[i];
           const value4 = this.#isBackgroundFetch(v) ? v.__staleWhileFetching : v;
-          if (value4 === void 0 || key3 === void 0)
+          if (value4 === void 0 || key5 === void 0)
             continue;
           const entry = { value: value4 };
           if (this.#ttls && this.#starts) {
@@ -66833,7 +67539,7 @@ var require_commonjs2 = __commonJS({
           if (this.#sizes) {
             entry.size = this.#sizes[i];
           }
-          arr4.unshift([key3, entry]);
+          arr4.unshift([key5, entry]);
         }
         return arr4;
       }
@@ -66848,12 +67554,12 @@ var require_commonjs2 = __commonJS({
        */
       load(arr4) {
         this.clear();
-        for (const [key3, entry] of arr4) {
+        for (const [key5, entry] of arr4) {
           if (entry.start) {
             const age = Date.now() - entry.start;
             entry.start = perf.now() - age;
           }
-          this.set(key3, entry.value, entry);
+          this.set(key5, entry.value, entry);
         }
       }
       /**
@@ -71526,8 +72232,8 @@ var require_archiver_utils = __commonJS({
     utils.sanitizePath = function(filepath) {
       return normalizePath(filepath, false).replace(/^\w+:/, "").replace(/^(\.\.\/|\/)+/, "");
     };
-    utils.trailingSlashIt = function(str24) {
-      return str24.slice(-1) !== "/" ? str24 + "/" : str24;
+    utils.trailingSlashIt = function(str26) {
+      return str26.slice(-1) !== "/" ? str26 + "/" : str26;
     };
     utils.unixifyPath = function(filepath) {
       return normalizePath(filepath, false).replace(/^\w+:/, "");
@@ -71756,11 +72462,11 @@ var require_core4 = __commonJS({
       this._module.pipe(this);
       this._state.modulePiped = true;
     };
-    Archiver.prototype._moduleSupports = function(key3) {
-      if (!this._module.supports || !this._module.supports[key3]) {
+    Archiver.prototype._moduleSupports = function(key5) {
+      if (!this._module.supports || !this._module.supports[key5]) {
         return false;
       }
-      return this._module.supports[key3];
+      return this._module.supports[key5];
     };
     Archiver.prototype._moduleUnpipe = function() {
       this._module.unpipe(this);
@@ -72775,22 +73481,22 @@ var require_crc322 = __commonJS({
       var T1 = TT[0], T2 = TT[1], T3 = TT[2], T4 = TT[3], T5 = TT[4];
       var T6 = TT[5], T7 = TT[6], T8 = TT[7], T9 = TT[8], Ta = TT[9];
       var Tb = TT[10], Tc = TT[11], Td = TT[12], Te = TT[13], Tf = TT[14];
-      function crc32_bstr(bstr, seed) {
-        var C = seed ^ -1;
+      function crc32_bstr(bstr, seed2) {
+        var C = seed2 ^ -1;
         for (var i = 0, L = bstr.length; i < L; ) C = C >>> 8 ^ T0[(C ^ bstr.charCodeAt(i++)) & 255];
         return ~C;
       }
-      function crc32_buf(B, seed) {
-        var C = seed ^ -1, L = B.length - 15, i = 0;
+      function crc32_buf(B, seed2) {
+        var C = seed2 ^ -1, L = B.length - 15, i = 0;
         for (; i < L; ) C = Tf[B[i++] ^ C & 255] ^ Te[B[i++] ^ C >> 8 & 255] ^ Td[B[i++] ^ C >> 16 & 255] ^ Tc[B[i++] ^ C >>> 24] ^ Tb[B[i++]] ^ Ta[B[i++]] ^ T9[B[i++]] ^ T8[B[i++]] ^ T7[B[i++]] ^ T6[B[i++]] ^ T5[B[i++]] ^ T4[B[i++]] ^ T3[B[i++]] ^ T2[B[i++]] ^ T1[B[i++]] ^ T0[B[i++]];
         L += 15;
         while (i < L) C = C >>> 8 ^ T0[(C ^ B[i++]) & 255];
         return ~C;
       }
-      function crc32_str(str24, seed) {
-        var C = seed ^ -1;
-        for (var i = 0, L = str24.length, c = 0, d = 0; i < L; ) {
-          c = str24.charCodeAt(i++);
+      function crc32_str(str26, seed2) {
+        var C = seed2 ^ -1;
+        for (var i = 0, L = str26.length, c = 0, d = 0; i < L; ) {
+          c = str26.charCodeAt(i++);
           if (c < 128) {
             C = C >>> 8 ^ T0[(C ^ c) & 255];
           } else if (c < 2048) {
@@ -72798,7 +73504,7 @@ var require_crc322 = __commonJS({
             C = C >>> 8 ^ T0[(C ^ (128 | c & 63)) & 255];
           } else if (c >= 55296 && c < 57344) {
             c = (c & 1023) + 64;
-            d = str24.charCodeAt(i++) & 1023;
+            d = str26.charCodeAt(i++) & 1023;
             C = C >>> 8 ^ T0[(C ^ (240 | c >> 8 & 7)) & 255];
             C = C >>> 8 ^ T0[(C ^ (128 | c >> 2 & 63)) & 255];
             C = C >>> 8 ^ T0[(C ^ (128 | d >> 6 & 15 | (c & 3) << 4)) & 255];
@@ -74816,8 +75522,8 @@ var require_headers = __commonJS({
       if (opts.linkname) result2 += addLength(" linkpath=" + opts.linkname + "\n");
       const pax = opts.pax;
       if (pax) {
-        for (const key3 in pax) {
-          result2 += addLength(" " + key3 + "=" + pax[key3] + "\n");
+        for (const key5 in pax) {
+          result2 += addLength(" " + key5 + "=" + pax[key5] + "\n");
         }
       }
       return b4a.from(result2);
@@ -74979,9 +75685,9 @@ var require_headers = __commonJS({
       }
       return 0;
     }
-    function indexOf(block, num4, offset2, end) {
+    function indexOf(block, num5, offset2, end) {
       for (; offset2 < end; offset2++) {
-        if (block[offset2] === num4) return offset2;
+        if (block[offset2] === num5) return offset2;
       }
       return end;
     }
@@ -74996,18 +75702,18 @@ var require_headers = __commonJS({
       if (val.length > n) return SEVENS.slice(0, n) + " ";
       return ZEROS.slice(0, n - val.length) + val + " ";
     }
-    function encodeSizeBin(num4, buf, off) {
+    function encodeSizeBin(num5, buf, off) {
       buf[off] = 128;
       for (let i = 11; i > 0; i--) {
-        buf[off + i] = num4 & 255;
-        num4 = Math.floor(num4 / 256);
+        buf[off + i] = num5 & 255;
+        num5 = Math.floor(num5 / 256);
       }
     }
-    function encodeSize(num4, buf, off) {
-      if (num4.toString(8).length > 11) {
-        encodeSizeBin(num4, buf, off);
+    function encodeSize(num5, buf, off) {
+      if (num5.toString(8).length > 11) {
+        encodeSizeBin(num5, buf, off);
       } else {
-        b4a.write(buf, encodeOct(num4, 11), off);
+        b4a.write(buf, encodeOct(num5, 11), off);
       }
     }
     function parse256(buf) {
@@ -75045,11 +75751,11 @@ var require_headers = __commonJS({
     function decodeStr(val, offset2, length, encoding) {
       return b4a.toString(val.subarray(offset2, indexOf(val, 0, offset2, offset2 + length)), encoding);
     }
-    function addLength(str24) {
-      const len = b4a.byteLength(str24);
+    function addLength(str26) {
+      const len = b4a.byteLength(str26);
       let digits = Math.floor(Math.log(len) / Math.log(10)) + 1;
       if (len + digits >= Math.pow(10, digits)) digits++;
-      return len + digits + str24;
+      return len + digits + str26;
     }
   }
 });
@@ -76005,9 +76711,9 @@ var require_dist3 = __commonJS({
         throw new Error("input must be buffer, number, or string, received " + typeof input);
       }
     }
-    function bufferizeInt(num4) {
+    function bufferizeInt(num5) {
       const tmp = ensureBuffer(4);
-      tmp.writeInt32BE(num4, 0);
+      tmp.writeInt32BE(num5, 0);
       return tmp;
     }
     function _crc32(buf, previous) {
@@ -76279,9 +76985,9 @@ var util;
   };
   util2.objectKeys = typeof Object.keys === "function" ? (obj11) => Object.keys(obj11) : (object3) => {
     const keys = [];
-    for (const key3 in object3) {
-      if (Object.prototype.hasOwnProperty.call(object3, key3)) {
-        keys.push(key3);
+    for (const key5 in object3) {
+      if (Object.prototype.hasOwnProperty.call(object3, key5)) {
+        keys.push(key5);
       }
     }
     return keys;
@@ -76681,10 +77387,10 @@ var ParseStatus = class _ParseStatus {
   static async mergeObjectAsync(status, pairs) {
     const syncPairs = [];
     for (const pair of pairs) {
-      const key3 = await pair.key;
+      const key5 = await pair.key;
       const value4 = await pair.value;
       syncPairs.push({
-        key: key3,
+        key: key5,
         value: value4
       });
     }
@@ -76693,17 +77399,17 @@ var ParseStatus = class _ParseStatus {
   static mergeObjectSync(status, pairs) {
     const finalObject = {};
     for (const pair of pairs) {
-      const { key: key3, value: value4 } = pair;
-      if (key3.status === "aborted")
+      const { key: key5, value: value4 } = pair;
+      if (key5.status === "aborted")
         return INVALID;
       if (value4.status === "aborted")
         return INVALID;
-      if (key3.status === "dirty")
+      if (key5.status === "dirty")
         status.dirty();
       if (value4.status === "dirty")
         status.dirty();
-      if (key3.value !== "__proto__" && (typeof value4.value !== "undefined" || pair.alwaysSet)) {
-        finalObject[key3.value] = value4.value;
+      if (key5.value !== "__proto__" && (typeof value4.value !== "undefined" || pair.alwaysSet)) {
+        finalObject[key5.value] = value4.value;
       }
     }
     return { status: status.value, value: finalObject };
@@ -76728,12 +77434,12 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value4, path24, key3) {
+  constructor(parent, value4, path24, key5) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value4;
     this._path = path24;
-    this._key = key3;
+    this._key = key5;
   }
   get path() {
     if (!this._cachedPath.length) {
@@ -78478,9 +79184,9 @@ ZodArray.create = (schema, params) => {
 function deepPartialify(schema) {
   if (schema instanceof ZodObject) {
     const newShape = {};
-    for (const key3 in schema.shape) {
-      const fieldSchema = schema.shape[key3];
-      newShape[key3] = ZodOptional.create(deepPartialify(fieldSchema));
+    for (const key5 in schema.shape) {
+      const fieldSchema = schema.shape[key5];
+      newShape[key5] = ZodOptional.create(deepPartialify(fieldSchema));
     }
     return new ZodObject({
       ...schema._def,
@@ -78531,29 +79237,29 @@ var ZodObject = class _ZodObject extends ZodType {
     const { shape, keys: shapeKeys } = this._getCached();
     const extraKeys = [];
     if (!(this._def.catchall instanceof ZodNever && this._def.unknownKeys === "strip")) {
-      for (const key3 in ctx.data) {
-        if (!shapeKeys.includes(key3)) {
-          extraKeys.push(key3);
+      for (const key5 in ctx.data) {
+        if (!shapeKeys.includes(key5)) {
+          extraKeys.push(key5);
         }
       }
     }
     const pairs = [];
-    for (const key3 of shapeKeys) {
-      const keyValidator = shape[key3];
-      const value4 = ctx.data[key3];
+    for (const key5 of shapeKeys) {
+      const keyValidator = shape[key5];
+      const value4 = ctx.data[key5];
       pairs.push({
-        key: { status: "valid", value: key3 },
-        value: keyValidator._parse(new ParseInputLazyPath(ctx, value4, ctx.path, key3)),
-        alwaysSet: key3 in ctx.data
+        key: { status: "valid", value: key5 },
+        value: keyValidator._parse(new ParseInputLazyPath(ctx, value4, ctx.path, key5)),
+        alwaysSet: key5 in ctx.data
       });
     }
     if (this._def.catchall instanceof ZodNever) {
       const unknownKeys = this._def.unknownKeys;
       if (unknownKeys === "passthrough") {
-        for (const key3 of extraKeys) {
+        for (const key5 of extraKeys) {
           pairs.push({
-            key: { status: "valid", value: key3 },
-            value: { status: "valid", value: ctx.data[key3] }
+            key: { status: "valid", value: key5 },
+            value: { status: "valid", value: ctx.data[key5] }
           });
         }
       } else if (unknownKeys === "strict") {
@@ -78570,15 +79276,15 @@ var ZodObject = class _ZodObject extends ZodType {
       }
     } else {
       const catchall = this._def.catchall;
-      for (const key3 of extraKeys) {
-        const value4 = ctx.data[key3];
+      for (const key5 of extraKeys) {
+        const value4 = ctx.data[key5];
         pairs.push({
-          key: { status: "valid", value: key3 },
+          key: { status: "valid", value: key5 },
           value: catchall._parse(
-            new ParseInputLazyPath(ctx, value4, ctx.path, key3)
+            new ParseInputLazyPath(ctx, value4, ctx.path, key5)
             //, ctx.child(key), value, getParsedType(value)
           ),
-          alwaysSet: key3 in ctx.data
+          alwaysSet: key5 in ctx.data
         });
       }
     }
@@ -78586,10 +79292,10 @@ var ZodObject = class _ZodObject extends ZodType {
       return Promise.resolve().then(async () => {
         const syncPairs = [];
         for (const pair of pairs) {
-          const key3 = await pair.key;
+          const key5 = await pair.key;
           const value4 = await pair.value;
           syncPairs.push({
-            key: key3,
+            key: key5,
             value: value4,
             alwaysSet: pair.alwaysSet
           });
@@ -78714,8 +79420,8 @@ var ZodObject = class _ZodObject extends ZodType {
   //   }) as any;
   //   return merged;
   // }
-  setKey(key3, schema) {
-    return this.augment({ [key3]: schema });
+  setKey(key5, schema) {
+    return this.augment({ [key5]: schema });
   }
   // merge<Incoming extends AnyZodObject>(
   //   merging: Incoming
@@ -78746,9 +79452,9 @@ var ZodObject = class _ZodObject extends ZodType {
   }
   pick(mask) {
     const shape = {};
-    for (const key3 of util.objectKeys(mask)) {
-      if (mask[key3] && this.shape[key3]) {
-        shape[key3] = this.shape[key3];
+    for (const key5 of util.objectKeys(mask)) {
+      if (mask[key5] && this.shape[key5]) {
+        shape[key5] = this.shape[key5];
       }
     }
     return new _ZodObject({
@@ -78758,9 +79464,9 @@ var ZodObject = class _ZodObject extends ZodType {
   }
   omit(mask) {
     const shape = {};
-    for (const key3 of util.objectKeys(this.shape)) {
-      if (!mask[key3]) {
-        shape[key3] = this.shape[key3];
+    for (const key5 of util.objectKeys(this.shape)) {
+      if (!mask[key5]) {
+        shape[key5] = this.shape[key5];
       }
     }
     return new _ZodObject({
@@ -78776,12 +79482,12 @@ var ZodObject = class _ZodObject extends ZodType {
   }
   partial(mask) {
     const newShape = {};
-    for (const key3 of util.objectKeys(this.shape)) {
-      const fieldSchema = this.shape[key3];
-      if (mask && !mask[key3]) {
-        newShape[key3] = fieldSchema;
+    for (const key5 of util.objectKeys(this.shape)) {
+      const fieldSchema = this.shape[key5];
+      if (mask && !mask[key5]) {
+        newShape[key5] = fieldSchema;
       } else {
-        newShape[key3] = fieldSchema.optional();
+        newShape[key5] = fieldSchema.optional();
       }
     }
     return new _ZodObject({
@@ -78791,16 +79497,16 @@ var ZodObject = class _ZodObject extends ZodType {
   }
   required(mask) {
     const newShape = {};
-    for (const key3 of util.objectKeys(this.shape)) {
-      if (mask && !mask[key3]) {
-        newShape[key3] = this.shape[key3];
+    for (const key5 of util.objectKeys(this.shape)) {
+      if (mask && !mask[key5]) {
+        newShape[key5] = this.shape[key5];
       } else {
-        const fieldSchema = this.shape[key3];
+        const fieldSchema = this.shape[key5];
         let newField = fieldSchema;
         while (newField instanceof ZodOptional) {
           newField = newField._def.innerType;
         }
-        newShape[key3] = newField;
+        newShape[key5] = newField;
       }
     }
     return new _ZodObject({
@@ -79044,14 +79750,14 @@ function mergeValues(a, b) {
     return { valid: true, data: a };
   } else if (aType === ZodParsedType.object && bType === ZodParsedType.object) {
     const bKeys = util.objectKeys(b);
-    const sharedKeys = util.objectKeys(a).filter((key3) => bKeys.indexOf(key3) !== -1);
+    const sharedKeys = util.objectKeys(a).filter((key5) => bKeys.indexOf(key5) !== -1);
     const newObj = { ...a, ...b };
-    for (const key3 of sharedKeys) {
-      const sharedValue = mergeValues(a[key3], b[key3]);
+    for (const key5 of sharedKeys) {
+      const sharedValue = mergeValues(a[key5], b[key5]);
       if (!sharedValue.valid) {
         return { valid: false };
       }
-      newObj[key3] = sharedValue.data;
+      newObj[key5] = sharedValue.data;
     }
     return { valid: true, data: newObj };
   } else if (aType === ZodParsedType.array && bType === ZodParsedType.array) {
@@ -79215,11 +79921,11 @@ var ZodRecord = class _ZodRecord extends ZodType {
     const pairs = [];
     const keyType = this._def.keyType;
     const valueType = this._def.valueType;
-    for (const key3 in ctx.data) {
+    for (const key5 in ctx.data) {
       pairs.push({
-        key: keyType._parse(new ParseInputLazyPath(ctx, key3, ctx.path, key3)),
-        value: valueType._parse(new ParseInputLazyPath(ctx, ctx.data[key3], ctx.path, key3)),
-        alwaysSet: key3 in ctx.data
+        key: keyType._parse(new ParseInputLazyPath(ctx, key5, ctx.path, key5)),
+        value: valueType._parse(new ParseInputLazyPath(ctx, ctx.data[key5], ctx.path, key5)),
+        alwaysSet: key5 in ctx.data
       });
     }
     if (ctx.common.async) {
@@ -79267,9 +79973,9 @@ var ZodMap = class extends ZodType {
     }
     const keyType = this._def.keyType;
     const valueType = this._def.valueType;
-    const pairs = [...ctx.data.entries()].map(([key3, value4], index) => {
+    const pairs = [...ctx.data.entries()].map(([key5, value4], index) => {
       return {
-        key: keyType._parse(new ParseInputLazyPath(ctx, key3, ctx.path, [index, "key"])),
+        key: keyType._parse(new ParseInputLazyPath(ctx, key5, ctx.path, [index, "key"])),
         value: valueType._parse(new ParseInputLazyPath(ctx, value4, ctx.path, [index, "value"]))
       };
     });
@@ -79277,30 +79983,30 @@ var ZodMap = class extends ZodType {
       const finalMap = /* @__PURE__ */ new Map();
       return Promise.resolve().then(async () => {
         for (const pair of pairs) {
-          const key3 = await pair.key;
+          const key5 = await pair.key;
           const value4 = await pair.value;
-          if (key3.status === "aborted" || value4.status === "aborted") {
+          if (key5.status === "aborted" || value4.status === "aborted") {
             return INVALID;
           }
-          if (key3.status === "dirty" || value4.status === "dirty") {
+          if (key5.status === "dirty" || value4.status === "dirty") {
             status.dirty();
           }
-          finalMap.set(key3.value, value4.value);
+          finalMap.set(key5.value, value4.value);
         }
         return { status: status.value, value: finalMap };
       });
     } else {
       const finalMap = /* @__PURE__ */ new Map();
       for (const pair of pairs) {
-        const key3 = pair.key;
+        const key5 = pair.key;
         const value4 = pair.value;
-        if (key3.status === "aborted" || value4.status === "aborted") {
+        if (key5.status === "aborted" || value4.status === "aborted") {
           return INVALID;
         }
-        if (key3.status === "dirty" || value4.status === "dirty") {
+        if (key5.status === "dirty" || value4.status === "dirty") {
           status.dirty();
         }
-        finalMap.set(key3.value, value4.value);
+        finalMap.set(key5.value, value4.value);
       }
       return { status: status.value, value: finalMap };
     }
@@ -80342,19 +81048,19 @@ function floatSafeRemainder2(val, step2) {
   const stepInt = Number.parseInt(step2.toFixed(decCount).replace(".", ""));
   return valInt % stepInt / 10 ** decCount;
 }
-function defineLazy(object3, key3, getter) {
+function defineLazy(object3, key5, getter) {
   const set = false;
-  Object.defineProperty(object3, key3, {
+  Object.defineProperty(object3, key5, {
     get() {
       if (!set) {
         const value4 = getter();
-        object3[key3] = value4;
+        object3[key5] = value4;
         return value4;
       }
       throw new Error("cached value already set");
     },
     set(v) {
-      Object.defineProperty(object3, key3, {
+      Object.defineProperty(object3, key5, {
         value: v
         // configurable: true,
       });
@@ -80373,11 +81079,11 @@ function assignProp(target3, prop2, value4) {
 function getElementAtPath(obj11, path24) {
   if (!path24)
     return obj11;
-  return path24.reduce((acc, key3) => acc?.[key3], obj11);
+  return path24.reduce((acc, key5) => acc?.[key5], obj11);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
-  const promises2 = keys.map((key3) => promisesObj[key3]);
+  const promises2 = keys.map((key5) => promisesObj[key5]);
   return Promise.all(promises2).then((results) => {
     const resolvedObj = {};
     for (let i = 0; i < keys.length; i++) {
@@ -80388,14 +81094,14 @@ function promiseAllObject(promisesObj) {
 }
 function randomString(length = 10) {
   const chars = "abcdefghijklmnopqrstuvwxyz";
-  let str24 = "";
+  let str26 = "";
   for (let i = 0; i < length; i++) {
-    str24 += chars[Math.floor(Math.random() * chars.length)];
+    str26 += chars[Math.floor(Math.random() * chars.length)];
   }
-  return str24;
+  return str26;
 }
-function esc(str24) {
-  return JSON.stringify(str24);
+function esc(str26) {
+  return JSON.stringify(str26);
 }
 var captureStackTrace = Error.captureStackTrace ? Error.captureStackTrace : (..._args) => {
 };
@@ -80430,8 +81136,8 @@ function isPlainObject(o) {
 }
 function numKeys(data2) {
   let keyCount = 0;
-  for (const key3 in data2) {
-    if (Object.prototype.hasOwnProperty.call(data2, key3)) {
+  for (const key5 in data2) {
+    if (Object.prototype.hasOwnProperty.call(data2, key5)) {
       keyCount++;
     }
   }
@@ -80483,8 +81189,8 @@ var getParsedType2 = (data2) => {
 };
 var propertyKeyTypes = /* @__PURE__ */ new Set(["string", "number", "symbol"]);
 var primitiveTypes = /* @__PURE__ */ new Set(["string", "number", "bigint", "boolean", "symbol", "undefined"]);
-function escapeRegex(str24) {
-  return str24.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function escapeRegex(str26) {
+  return str26.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 function clone(inst, def, params) {
   const cl = new inst._zod.constr(def ?? inst._zod.def);
@@ -80567,13 +81273,13 @@ var BIGINT_FORMAT_RANGES = {
 function pick(schema, mask) {
   const newShape = {};
   const currDef = schema._zod.def;
-  for (const key3 in mask) {
-    if (!(key3 in currDef.shape)) {
-      throw new Error(`Unrecognized key: "${key3}"`);
+  for (const key5 in mask) {
+    if (!(key5 in currDef.shape)) {
+      throw new Error(`Unrecognized key: "${key5}"`);
     }
-    if (!mask[key3])
+    if (!mask[key5])
       continue;
-    newShape[key3] = currDef.shape[key3];
+    newShape[key5] = currDef.shape[key5];
   }
   return clone(schema, {
     ...schema._zod.def,
@@ -80584,13 +81290,13 @@ function pick(schema, mask) {
 function omit(schema, mask) {
   const newShape = { ...schema._zod.def.shape };
   const currDef = schema._zod.def;
-  for (const key3 in mask) {
-    if (!(key3 in currDef.shape)) {
-      throw new Error(`Unrecognized key: "${key3}"`);
+  for (const key5 in mask) {
+    if (!(key5 in currDef.shape)) {
+      throw new Error(`Unrecognized key: "${key5}"`);
     }
-    if (!mask[key3])
+    if (!mask[key5])
       continue;
-    delete newShape[key3];
+    delete newShape[key5];
   }
   return clone(schema, {
     ...schema._zod.def,
@@ -80631,23 +81337,23 @@ function partial(Class2, schema, mask) {
   const oldShape = schema._zod.def.shape;
   const shape = { ...oldShape };
   if (mask) {
-    for (const key3 in mask) {
-      if (!(key3 in oldShape)) {
-        throw new Error(`Unrecognized key: "${key3}"`);
+    for (const key5 in mask) {
+      if (!(key5 in oldShape)) {
+        throw new Error(`Unrecognized key: "${key5}"`);
       }
-      if (!mask[key3])
+      if (!mask[key5])
         continue;
-      shape[key3] = Class2 ? new Class2({
+      shape[key5] = Class2 ? new Class2({
         type: "optional",
-        innerType: oldShape[key3]
-      }) : oldShape[key3];
+        innerType: oldShape[key5]
+      }) : oldShape[key5];
     }
   } else {
-    for (const key3 in oldShape) {
-      shape[key3] = Class2 ? new Class2({
+    for (const key5 in oldShape) {
+      shape[key5] = Class2 ? new Class2({
         type: "optional",
-        innerType: oldShape[key3]
-      }) : oldShape[key3];
+        innerType: oldShape[key5]
+      }) : oldShape[key5];
     }
   }
   return clone(schema, {
@@ -80660,22 +81366,22 @@ function required(Class2, schema, mask) {
   const oldShape = schema._zod.def.shape;
   const shape = { ...oldShape };
   if (mask) {
-    for (const key3 in mask) {
-      if (!(key3 in shape)) {
-        throw new Error(`Unrecognized key: "${key3}"`);
+    for (const key5 in mask) {
+      if (!(key5 in shape)) {
+        throw new Error(`Unrecognized key: "${key5}"`);
       }
-      if (!mask[key3])
+      if (!mask[key5])
         continue;
-      shape[key3] = new Class2({
+      shape[key5] = new Class2({
         type: "nonoptional",
-        innerType: oldShape[key3]
+        innerType: oldShape[key5]
       });
     }
   } else {
-    for (const key3 in oldShape) {
-      shape[key3] = new Class2({
+    for (const key5 in oldShape) {
+      shape[key5] = new Class2({
         type: "nonoptional",
-        innerType: oldShape[key3]
+        innerType: oldShape[key5]
       });
     }
   }
@@ -81873,28 +82579,28 @@ var $ZodArray = /* @__PURE__ */ $constructor("$ZodArray", (inst, def) => {
     return payload;
   };
 });
-function handleObjectResult(result2, final, key3) {
+function handleObjectResult(result2, final, key5) {
   if (result2.issues.length) {
-    final.issues.push(...prefixIssues(key3, result2.issues));
+    final.issues.push(...prefixIssues(key5, result2.issues));
   }
-  final.value[key3] = result2.value;
+  final.value[key5] = result2.value;
 }
-function handleOptionalObjectResult(result2, final, key3, input) {
+function handleOptionalObjectResult(result2, final, key5, input) {
   if (result2.issues.length) {
-    if (input[key3] === void 0) {
-      if (key3 in input) {
-        final.value[key3] = void 0;
+    if (input[key5] === void 0) {
+      if (key5 in input) {
+        final.value[key5] = void 0;
       } else {
-        final.value[key3] = result2.value;
+        final.value[key5] = result2.value;
       }
     } else {
-      final.issues.push(...prefixIssues(key3, result2.issues));
+      final.issues.push(...prefixIssues(key5, result2.issues));
     }
   } else if (result2.value === void 0) {
-    if (key3 in input)
-      final.value[key3] = void 0;
+    if (key5 in input)
+      final.value[key5] = void 0;
   } else {
-    final.value[key3] = result2.value;
+    final.value[key5] = result2.value;
   }
 }
 var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
@@ -81918,12 +82624,12 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
   defineLazy(inst._zod, "propValues", () => {
     const shape = def.shape;
     const propValues = {};
-    for (const key3 in shape) {
-      const field = shape[key3]._zod;
+    for (const key5 in shape) {
+      const field = shape[key5]._zod;
       if (field.values) {
-        propValues[key3] ?? (propValues[key3] = /* @__PURE__ */ new Set());
+        propValues[key5] ?? (propValues[key5] = /* @__PURE__ */ new Set());
         for (const v of field.values)
-          propValues[key3].add(v);
+          propValues[key5].add(v);
       }
     }
     return propValues;
@@ -81931,22 +82637,22 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
   const generateFastpass = (shape) => {
     const doc = new Doc(["shape", "payload", "ctx"]);
     const normalized = _normalized.value;
-    const parseStr = (key3) => {
-      const k = esc(key3);
+    const parseStr = (key5) => {
+      const k = esc(key5);
       return `shape[${k}]._zod.run({ value: input[${k}], issues: [] }, ctx)`;
     };
     doc.write(`const input = payload.value;`);
     const ids = /* @__PURE__ */ Object.create(null);
     let counter = 0;
-    for (const key3 of normalized.keys) {
-      ids[key3] = `key_${counter++}`;
+    for (const key5 of normalized.keys) {
+      ids[key5] = `key_${counter++}`;
     }
     doc.write(`const newResult = {}`);
-    for (const key3 of normalized.keys) {
-      if (normalized.optionalKeys.has(key3)) {
-        const id2 = ids[key3];
-        doc.write(`const ${id2} = ${parseStr(key3)};`);
-        const k = esc(key3);
+    for (const key5 of normalized.keys) {
+      if (normalized.optionalKeys.has(key5)) {
+        const id2 = ids[key5];
+        doc.write(`const ${id2} = ${parseStr(key5)};`);
+        const k = esc(key5);
         doc.write(`
         if (${id2}.issues.length) {
           if (input[${k}] === undefined) {
@@ -81968,14 +82674,14 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
         }
         `);
       } else {
-        const id2 = ids[key3];
-        doc.write(`const ${id2} = ${parseStr(key3)};`);
+        const id2 = ids[key5];
+        doc.write(`const ${id2} = ${parseStr(key5)};`);
         doc.write(`
           if (${id2}.issues.length) payload.issues = payload.issues.concat(${id2}.issues.map(iss => ({
             ...iss,
-            path: iss.path ? [${esc(key3)}, ...iss.path] : [${esc(key3)}]
+            path: iss.path ? [${esc(key5)}, ...iss.path] : [${esc(key5)}]
           })));`);
-        doc.write(`newResult[${esc(key3)}] = ${id2}.value`);
+        doc.write(`newResult[${esc(key5)}] = ${id2}.value`);
       }
     }
     doc.write(`payload.value = newResult;`);
@@ -82010,16 +82716,16 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
     } else {
       payload.value = {};
       const shape = value4.shape;
-      for (const key3 of value4.keys) {
-        const el = shape[key3];
-        const r = el._zod.run({ value: input[key3], issues: [] }, ctx);
+      for (const key5 of value4.keys) {
+        const el = shape[key5];
+        const r = el._zod.run({ value: input[key5], issues: [] }, ctx);
         const isOptional = el._zod.optin === "optional" && el._zod.optout === "optional";
         if (r instanceof Promise) {
-          proms.push(r.then((r2) => isOptional ? handleOptionalObjectResult(r2, payload, key3, input) : handleObjectResult(r2, payload, key3)));
+          proms.push(r.then((r2) => isOptional ? handleOptionalObjectResult(r2, payload, key5, input) : handleObjectResult(r2, payload, key5)));
         } else if (isOptional) {
-          handleOptionalObjectResult(r, payload, key3, input);
+          handleOptionalObjectResult(r, payload, key5, input);
         } else {
-          handleObjectResult(r, payload, key3);
+          handleObjectResult(r, payload, key5);
         }
       }
     }
@@ -82030,18 +82736,18 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
     const keySet = value4.keySet;
     const _catchall = catchall._zod;
     const t = _catchall.def.type;
-    for (const key3 of Object.keys(input)) {
-      if (keySet.has(key3))
+    for (const key5 of Object.keys(input)) {
+      if (keySet.has(key5))
         continue;
       if (t === "never") {
-        unrecognized.push(key3);
+        unrecognized.push(key5);
         continue;
       }
-      const r = _catchall.run({ value: input[key3], issues: [] }, ctx);
+      const r = _catchall.run({ value: input[key5], issues: [] }, ctx);
       if (r instanceof Promise) {
-        proms.push(r.then((r2) => handleObjectResult(r2, payload, key3)));
+        proms.push(r.then((r2) => handleObjectResult(r2, payload, key5)));
       } else {
-        handleObjectResult(r, payload, key3);
+        handleObjectResult(r, payload, key5);
       }
     }
     if (unrecognized.length) {
@@ -82203,17 +82909,17 @@ function mergeValues2(a, b) {
   }
   if (isPlainObject(a) && isPlainObject(b)) {
     const bKeys = Object.keys(b);
-    const sharedKeys = Object.keys(a).filter((key3) => bKeys.indexOf(key3) !== -1);
+    const sharedKeys = Object.keys(a).filter((key5) => bKeys.indexOf(key5) !== -1);
     const newObj = { ...a, ...b };
-    for (const key3 of sharedKeys) {
-      const sharedValue = mergeValues2(a[key3], b[key3]);
+    for (const key5 of sharedKeys) {
+      const sharedValue = mergeValues2(a[key5], b[key5]);
       if (!sharedValue.valid) {
         return {
           valid: false,
-          mergeErrorPath: [key3, ...sharedValue.mergeErrorPath]
+          mergeErrorPath: [key5, ...sharedValue.mergeErrorPath]
         };
       }
-      newObj[key3] = sharedValue.data;
+      newObj[key5] = sharedValue.data;
     }
     return { valid: true, data: newObj };
   }
@@ -82271,29 +82977,29 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
     if (def.keyType._zod.values) {
       const values = def.keyType._zod.values;
       payload.value = {};
-      for (const key3 of values) {
-        if (typeof key3 === "string" || typeof key3 === "number" || typeof key3 === "symbol") {
-          const result2 = def.valueType._zod.run({ value: input[key3], issues: [] }, ctx);
+      for (const key5 of values) {
+        if (typeof key5 === "string" || typeof key5 === "number" || typeof key5 === "symbol") {
+          const result2 = def.valueType._zod.run({ value: input[key5], issues: [] }, ctx);
           if (result2 instanceof Promise) {
             proms.push(result2.then((result3) => {
               if (result3.issues.length) {
-                payload.issues.push(...prefixIssues(key3, result3.issues));
+                payload.issues.push(...prefixIssues(key5, result3.issues));
               }
-              payload.value[key3] = result3.value;
+              payload.value[key5] = result3.value;
             }));
           } else {
             if (result2.issues.length) {
-              payload.issues.push(...prefixIssues(key3, result2.issues));
+              payload.issues.push(...prefixIssues(key5, result2.issues));
             }
-            payload.value[key3] = result2.value;
+            payload.value[key5] = result2.value;
           }
         }
       }
       let unrecognized;
-      for (const key3 in input) {
-        if (!values.has(key3)) {
+      for (const key5 in input) {
+        if (!values.has(key5)) {
           unrecognized = unrecognized ?? [];
-          unrecognized.push(key3);
+          unrecognized.push(key5);
         }
       }
       if (unrecognized && unrecognized.length > 0) {
@@ -82306,10 +83012,10 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
       }
     } else {
       payload.value = {};
-      for (const key3 of Reflect.ownKeys(input)) {
-        if (key3 === "__proto__")
+      for (const key5 of Reflect.ownKeys(input)) {
+        if (key5 === "__proto__")
           continue;
-        const keyResult = def.keyType._zod.run({ value: key3, issues: [] }, ctx);
+        const keyResult = def.keyType._zod.run({ value: key5, issues: [] }, ctx);
         if (keyResult instanceof Promise) {
           throw new Error("Async schemas not supported in object keys currently");
         }
@@ -82318,24 +83024,24 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
             origin: "record",
             code: "invalid_key",
             issues: keyResult.issues.map((iss) => finalizeIssue(iss, ctx, config())),
-            input: key3,
-            path: [key3],
+            input: key5,
+            path: [key5],
             inst
           });
           payload.value[keyResult.value] = keyResult.value;
           continue;
         }
-        const result2 = def.valueType._zod.run({ value: input[key3], issues: [] }, ctx);
+        const result2 = def.valueType._zod.run({ value: input[key5], issues: [] }, ctx);
         if (result2 instanceof Promise) {
           proms.push(result2.then((result3) => {
             if (result3.issues.length) {
-              payload.issues.push(...prefixIssues(key3, result3.issues));
+              payload.issues.push(...prefixIssues(key5, result3.issues));
             }
             payload.value[keyResult.value] = result3.value;
           }));
         } else {
           if (result2.issues.length) {
-            payload.issues.push(...prefixIssues(key3, result2.issues));
+            payload.issues.push(...prefixIssues(key5, result2.issues));
           }
           payload.value[keyResult.value] = result2.value;
         }
@@ -83392,15 +84098,15 @@ var JSONSchemaGenerator = class {
             json2.type = "object";
             json2.properties = {};
             const shape = def.shape;
-            for (const key3 in shape) {
-              json2.properties[key3] = this.process(shape[key3], {
+            for (const key5 in shape) {
+              json2.properties[key5] = this.process(shape[key5], {
                 ...params,
-                path: [...params.path, "properties", key3]
+                path: [...params.path, "properties", key5]
               });
             }
             const allKeys = new Set(Object.keys(shape));
-            const requiredKeys = new Set([...allKeys].filter((key3) => {
-              const v = def.shape[key3]._zod;
+            const requiredKeys = new Set([...allKeys].filter((key5) => {
+              const v = def.shape[key5]._zod;
               if (this.io === "input") {
                 return v.optin === void 0;
               } else {
@@ -83733,8 +84439,8 @@ var JSONSchemaGenerator = class {
       if (defId)
         seen.defId = defId;
       const schema2 = seen.schema;
-      for (const key3 in schema2) {
-        delete schema2[key3];
+      for (const key5 in schema2) {
+        delete schema2[key5];
       }
       schema2.$ref = ref3;
     };
@@ -83861,8 +84567,8 @@ function toJSONSchema(input, _params) {
       defs
     };
     for (const entry of input._idmap.entries()) {
-      const [key3, schema] = entry;
-      schemas[key3] = gen2.emit(schema, {
+      const [key5, schema] = entry;
+      schemas[key5] = gen2.emit(schema, {
         ..._params,
         external
       });
@@ -83909,8 +84615,8 @@ function isTransforming(_schema, _ctx) {
       return isTransforming(def.element, ctx);
     }
     case "object": {
-      for (const key3 in def.shape) {
-        if (isTransforming(def.shape[key3], ctx))
+      for (const key5 in def.shape) {
+        if (isTransforming(def.shape[key5], ctx))
           return true;
       }
       return false;
@@ -86440,19 +87146,19 @@ var getRefs = (options) => {
 };
 
 // node_modules/zod-to-json-schema/dist/esm/errorMessages.js
-function addErrorMessage(res, key3, errorMessage6, refs) {
+function addErrorMessage(res, key5, errorMessage6, refs) {
   if (!refs?.errorMessages)
     return;
   if (errorMessage6) {
     res.errorMessage = {
       ...res.errorMessage,
-      [key3]: errorMessage6
+      [key5]: errorMessage6
     };
   }
 }
-function setResponseValueAndErrors(res, key3, value4, errorMessage6, refs) {
-  res[key3] = value4;
-  addErrorMessage(res, key3, errorMessage6, refs);
+function setResponseValueAndErrors(res, key5, value4, errorMessage6, refs) {
+  res[key5] = value4;
+  addErrorMessage(res, key5, errorMessage6, refs);
 }
 
 // node_modules/zod-to-json-schema/dist/esm/getRelativePath.js
@@ -87044,11 +87750,11 @@ function parseRecordDef(def, refs) {
     return {
       type: "object",
       required: def.keyType._def.values,
-      properties: def.keyType._def.values.reduce((acc, key3) => ({
+      properties: def.keyType._def.values.reduce((acc, key5) => ({
         ...acc,
-        [key3]: parseDef(def.valueType._def, {
+        [key5]: parseDef(def.valueType._def, {
           ...refs,
-          currentPath: [...refs.currentPath, "properties", key3]
+          currentPath: [...refs.currentPath, "properties", key5]
         }) ?? parseAnyDef(refs)
       }), {}),
       additionalProperties: refs.rejectedAdditionalProperties
@@ -87115,10 +87821,10 @@ function parseMapDef(def, refs) {
 // node_modules/zod-to-json-schema/dist/esm/parsers/nativeEnum.js
 function parseNativeEnumDef(def) {
   const object3 = def.values;
-  const actualKeys = Object.keys(def.values).filter((key3) => {
-    return typeof object3[object3[key3]] !== "number";
+  const actualKeys = Object.keys(def.values).filter((key5) => {
+    return typeof object3[object3[key5]] !== "number";
   });
-  const actualValues = actualKeys.map((key3) => object3[key3]);
+  const actualValues = actualKeys.map((key5) => object3[key5]);
   const parsedTypes = Array.from(new Set(actualValues.map((values) => typeof values)));
   return {
     type: parsedTypes.length === 1 ? parsedTypes[0] === "string" ? "string" : "number" : ["string", "number"],
@@ -88643,8 +89349,8 @@ function isPlainObject2(value4) {
 }
 function mergeCapabilities(base2, additional) {
   const result2 = { ...base2 };
-  for (const key3 in additional) {
-    const k = key3;
+  for (const key5 in additional) {
+    const k = key5;
     const addValue = additional[k];
     if (addValue === void 0)
       continue;
@@ -91454,9 +92160,9 @@ function obj(v) {
 function text(v) {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
-function columnOf(key3, info) {
+function columnOf(key5, info) {
   return {
-    key: key3,
+    key: key5,
     label: text(info.label),
     dataType: text(info.dataType),
     lookup: info.isLookup === true
@@ -91486,8 +92192,8 @@ function buildReportData(run4) {
     };
   };
   let total = 0;
-  const rowsOf = (key3, extra) => {
-    const rows3 = asRows(obj(facts[key3]).rows);
+  const rowsOf = (key5, extra) => {
+    const rows3 = asRows(obj(facts[key5]).rows);
     const entries2 = [];
     for (const r of rows3) {
       if (total >= ROW_CAP) {
@@ -91518,8 +92224,8 @@ function buildReportData(run4) {
   out.groupHeader = Object.keys(groupInfo).sort(
     (a, b) => Number(obj(groupInfo[a]).groupingLevel ?? 0) - Number(obj(groupInfo[b]).groupingLevel ?? 0)
   ).map((k) => text(obj(groupInfo[k]).label)).filter(Boolean).join(" / ");
-  const totalsOf2 = (key3) => {
-    const aggs = asRows(obj(facts[key3]).aggregates);
+  const totalsOf2 = (key5) => {
+    const aggs = asRows(obj(facts[key5]).aggregates);
     if (!aggColumns.length) return void 0;
     const at2 = (i) => i >= 0 && aggs[i] ? text(aggs[i].label) : "";
     return [
@@ -91536,13 +92242,13 @@ function buildReportData(run4) {
   );
   const walk5 = (groups, level) => {
     for (const g of groups) {
-      const key3 = text(g.key);
-      const subtotal = totalsOf2(`${key3}!T`);
+      const key5 = text(g.key);
+      const subtotal = totalsOf2(`${key5}!T`);
       const title = `${text(obj(groupInfo[groupTitles[level]]).label)}: ${text(g.label)}`;
       if (subtotal) out.entries.push({ kind: "subtotal", level, title, cells: subtotal });
       const sub = asRows(g.groupings);
       if (sub.length) walk5(sub, level + 1);
-      else out.entries.push(...rowsOf(`${key3}!T`, aggColumns.length));
+      else out.entries.push(...rowsOf(`${key5}!T`, aggColumns.length));
     }
   };
   walk5(asRows(obj(run4.groupingsDown).groupings), 0);
@@ -91563,7 +92269,7 @@ var reportCache = /* @__PURE__ */ new Map();
 var reportRuns = /* @__PURE__ */ new Map();
 function clearReportCacheForOrg(org) {
   const prefix = `${org}|`;
-  for (const key3 of reportCache.keys()) if (key3.startsWith(prefix)) reportCache.delete(key3);
+  for (const key5 of reportCache.keys()) if (key5.startsWith(prefix)) reportCache.delete(key5);
 }
 async function fetchReport(id2, org) {
   const res = await apiRequest(
@@ -91577,18 +92283,18 @@ async function fetchReport(id2, org) {
 }
 async function runReport(id2, org, now = Date.now()) {
   if (!/^00O[A-Za-z0-9]{12,15}$/.test(id2)) return void 0;
-  const key3 = `${org}|${id2}`;
-  const hit = reportCache.get(key3);
+  const key5 = `${org}|${id2}`;
+  const hit = reportCache.get(key5);
   if (hit && now - hit.at < REPORT_TTL_MS) return hit.data;
-  let run4 = reportRuns.get(key3);
+  let run4 = reportRuns.get(key5);
   if (!run4) {
-    run4 = fetchReport(id2, org).catch(() => void 0).finally(() => reportRuns.delete(key3));
-    reportRuns.set(key3, run4);
+    run4 = fetchReport(id2, org).catch(() => void 0).finally(() => reportRuns.delete(key5));
+    reportRuns.set(key5, run4);
   }
   const data2 = await run4;
   if (!data2) return hit?.data;
-  reportCache.delete(key3);
-  reportCache.set(key3, { at: now, data: data2 });
+  reportCache.delete(key5);
+  reportCache.set(key5, { at: now, data: data2 });
   for (const [k, v] of reportCache) if (now - v.at > REPORT_STALE_MS) reportCache.delete(k);
   while (reportCache.size > MAX_CACHED_REPORTS)
     reportCache.delete(reportCache.keys().next().value);
@@ -92296,9 +93002,9 @@ ${result2.error}`
 
 `;
       message += "| Field | Value |\n| --- | --- |\n";
-      for (const [key3, value4] of Object.entries(result2.data)) {
-        if (key3 !== "attributes") {
-          message += `| ${key3} | ${value4 ?? "(null)"} |
+      for (const [key5, value4] of Object.entries(result2.data)) {
+        if (key5 !== "attributes") {
+          message += `| ${key5} | ${value4 ?? "(null)"} |
 `;
         }
       }
@@ -94230,8 +94936,8 @@ ${updateResult.error}` }
               ]
             };
           }
-          for (const [key3, value4] of Object.entries(fields)) {
-            changes.push(`${key3} \u2192 ${value4}`);
+          for (const [key5, value4] of Object.entries(fields)) {
+            changes.push(`${key5} \u2192 ${value4}`);
           }
         }
         if (fieldValues && fieldValues.length > 0) {
@@ -96900,15 +97606,15 @@ var STOP_WORDS = /* @__PURE__ */ new Set([
   "did",
   "x"
 ]);
-function normalizeText(text11) {
-  return text11.replace(/\\[nrt]/g, " ").toLowerCase().replace(/[‘’‚‛]/g, "'").replace(/[“”„‟]/g, '"').replace(/\b[a-z0-9]{3}[a-z0-9]{12}(?:[a-z0-9]{3})?\b/g, (m) => /\d/.test(m) ? " " : m).replace(/\d+/g, " ").replace(/\s+/g, " ").trim();
+function normalizeText(text12) {
+  return text12.replace(/\\[nrt]/g, " ").toLowerCase().replace(/[‘’‚‛]/g, "'").replace(/[“”„‟]/g, '"').replace(/\b[a-z0-9]{3}[a-z0-9]{12}(?:[a-z0-9]{3})?\b/g, (m) => /\d/.test(m) ? " " : m).replace(/\d+/g, " ").replace(/\s+/g, " ").trim();
 }
-function tokens(text11) {
-  return normalizeText(text11).split(/[^a-z0-9_'.]+/).map((t) => t.replace(/^[.']+|[.']+$/g, "")).filter((t) => t.length > 2 && !STOP_WORDS.has(t)).map((t) => t.length > 4 && t.endsWith("s") && !t.endsWith("ss") ? t.slice(0, -1) : t);
+function tokens(text12) {
+  return normalizeText(text12).split(/[^a-z0-9_'.]+/).map((t) => t.replace(/^[.']+|[.']+$/g, "")).filter((t) => t.length > 2 && !STOP_WORDS.has(t)).map((t) => t.length > 4 && t.endsWith("s") && !t.endsWith("ss") ? t.slice(0, -1) : t);
 }
-function containsWords(text11, phrase) {
+function containsWords(text12, phrase) {
   const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`(^|[^a-z0-9_])${escaped}($|[^a-z0-9_])`).test(text11);
+  return new RegExp(`(^|[^a-z0-9_])${escaped}($|[^a-z0-9_])`).test(text12);
 }
 function phraseScore(query2, phrase) {
   const q2 = normalizeText(query2);
@@ -97598,8 +98304,8 @@ function recordNames(outcome) {
     return [entity ? `${entity}.${name}` : String(name), extra ? `(${extra})` : ""].join(" ").trim();
   });
 }
-function oneLine(text11) {
-  return text11.trim().replace(/\s*\n\s*/g, " ");
+function oneLine(text12) {
+  return text12.trim().replace(/\s*\n\s*/g, " ");
 }
 function statusLine(finding, connected) {
   const byDesign = finding.match.kind === "cause" && finding.match.item.by_design;
@@ -97981,9 +98687,9 @@ function uncountedAccounts(err) {
     detail: err instanceof Error ? err.message : String(err)
   };
 }
-async function countBy(soql5, key3, org) {
+async function countBy(soql5, key5, org) {
   const rows3 = await query(soql5, org);
-  return new Map(rows3.map((r) => [String(r[key3]), Number(r.cnt ?? r.expr0 ?? 0)]));
+  return new Map(rows3.map((r) => [String(r[key5]), Number(r.cnt ?? r.expr0 ?? 0)]));
 }
 function activeTerritories(org) {
   return sharedRead(org, "studio:territories", async () => {
@@ -100154,20 +100860,20 @@ async function loadAppsViaTooling(org) {
         const m = row?.Metadata;
         if (!m) throw new Error(`No metadata for app ${id2}`);
         const rowsOf = (v) => Array.isArray(v) ? v : [];
-        const str24 = (v) => typeof v === "string" ? v : void 0;
+        const str26 = (v) => typeof v === "string" ? v : void 0;
         const dev = String(row.DeveloperName ?? "");
         const ns3 = typeof row.NamespacePrefix === "string" && row.NamespacePrefix ? row.NamespacePrefix : "";
         const app = {
           fullName: ns3 ? `${ns3}__${dev}` : dev,
-          label: str24(m.label) || dev,
+          label: str26(m.label) || dev,
           profileActionOverrides: rowsOf(m.profileActionOverrides).map((o) => ({
-            content: str24(o.content),
-            profile: str24(o.profile),
-            formFactor: str24(o.formFactor)
+            content: str26(o.content),
+            profile: str26(o.profile),
+            formFactor: str26(o.formFactor)
           })),
           actionOverrides: rowsOf(m.actionOverrides).map((o) => ({
-            content: str24(o.content),
-            formFactor: str24(o.formFactor)
+            content: str26(o.content),
+            formFactor: str26(o.formFactor)
           }))
         };
         apps[i] = app;
@@ -100443,14 +101149,14 @@ function findDuplicates(records) {
   const byKey = /* @__PURE__ */ new Map();
   for (const r of records.filter((r2) => r2.isActive)) {
     for (const p of profilesOf(r)) {
-      const key3 = `${dbSchemaLabel(r).toLowerCase()}|${p}`;
-      byKey.set(key3, [...byKey.get(key3) ?? [], r]);
+      const key5 = `${dbSchemaLabel(r).toLowerCase()}|${p}`;
+      byKey.set(key5, [...byKey.get(key5) ?? [], r]);
     }
   }
   const out = /* @__PURE__ */ new Map();
-  for (const [key3, recs] of byKey) {
+  for (const [key5, recs] of byKey) {
     if (recs.length < 2) continue;
-    const profile = key3.split("|")[1];
+    const profile = key5.split("|")[1];
     for (const r of recs) out.set(r.developerName, [...out.get(r.developerName) ?? [], profile]);
   }
   return out;
@@ -100800,9 +101506,9 @@ async function fetchKnown(org) {
   );
   const types3 = /* @__PURE__ */ new Map();
   for (const r of recordTypes.filter((r2) => r2.DeveloperName)) {
-    const key3 = String(r.DeveloperName).toLowerCase();
-    types3.set(key3, [
-      ...types3.get(key3) ?? [],
+    const key5 = String(r.DeveloperName).toLowerCase();
+    types3.set(key5, [
+      ...types3.get(key5) ?? [],
       {
         name: String(r.DeveloperName),
         sobject: String(r.SobjectType ?? ""),
@@ -100851,13 +101557,13 @@ var FIELD_KINDS = [
   { field: "PermissionSets", kind: "Permission set", key: "permissionSets" },
   { field: "RecordTypes", kind: "Record type", key: "recordTypes" }
 ];
-function unknownName(r, key3, kind, name, known) {
+function unknownName(r, key5, kind, name, known) {
   const missing = {
     title: `${kind} "${name}" not found`,
     detail: `No ${kind.toLowerCase()} with this name exists in the org, so the action won't show for it.`
   };
-  if (key3 !== "recordTypes")
-    return known[key3].has(name.toLowerCase()) ? null : { ...missing, candidates: [...known[key3].values()] };
+  if (key5 !== "recordTypes")
+    return known[key5].has(name.toLowerCase()) ? null : { ...missing, candidates: [...known[key5].values()] };
   const object3 = actionObject(r);
   const onObject = (t) => !object3 || t.sobject.toLowerCase() === object3.toLowerCase();
   const all = known.recordTypes.get(name.toLowerCase()) ?? [];
@@ -100894,11 +101600,11 @@ function actionFindings(r, known) {
     });
   }
   if (known) {
-    for (const { field, kind, key: key3 } of FIELD_KINDS) {
+    for (const { field, kind, key: key5 } of FIELD_KINDS) {
       const raw = r.fields[field];
       const values = splitList(raw);
       for (const name of values) {
-        const problem = unknownName(r, key3, kind, name, known);
+        const problem = unknownName(r, key5, kind, name, known);
         if (!problem) continue;
         const setTo = (to, fixLabel) => ({
           kind: "setConfigField",
@@ -100960,8 +101666,8 @@ function sortCollisions(records) {
     (r2) => r2.isActive && r2.fields.SortOrder != null && r2.fields.SortOrder !== ""
   )) {
     const home = r.fields.Location === "HomePage";
-    const key3 = home ? `HomePage|${r.fields.SortOrder}` : `${r.fields.Location}|${r.fields.SObject ?? ""}|${r.fields.SortOrder}`;
-    groups.set(key3, [...groups.get(key3) ?? [], r]);
+    const key5 = home ? `HomePage|${r.fields.SortOrder}` : `${r.fields.Location}|${r.fields.SObject ?? ""}|${r.fields.SortOrder}`;
+    groups.set(key5, [...groups.get(key5) ?? [], r]);
   }
   const clashes = [];
   for (const group of groups.values()) {
@@ -101245,10 +101951,10 @@ async function standardSetAssignments(org) {
   );
   return new Map(sets.map((r) => [String(r.Name), counts2.get(String(r.Id)) ?? 0]));
 }
-async function countBy2(soql5, key3, org) {
+async function countBy2(soql5, key5, org) {
   const rows3 = await query(soql5, org);
   return new Map(
-    rows3.filter((r) => r[key3]).map((r) => [String(r[key3]), Number(r.cnt ?? r.expr0 ?? 0)])
+    rows3.filter((r) => r[key5]).map((r) => [String(r[key5]), Number(r.cnt ?? r.expr0 ?? 0)])
   );
 }
 var collectBriefings = async (org) => {
@@ -101908,9 +102614,9 @@ var collectBriefings = async (org) => {
         for (const c of caches.filter(
           (c2) => (c2.profile === null || profiles.includes(c2.profile)) && isLiveCache(c2)
         )) {
-          const key3 = c.profile ?? "";
-          const cur = latest.get(key3);
-          latest.set(key3, cur ? { ...cur, parts: cur.parts + 1 } : { ...c, parts: 1 });
+          const key5 = c.profile ?? "";
+          const cur = latest.get(key5);
+          latest.set(key5, cur ? { ...cur, parts: cur.parts + 1 } : { ...c, parts: 1 });
         }
         return {
           items: [...latest.values()].map(({ row, profile, parts }) => {
@@ -102104,8 +102810,8 @@ function describeFlow(meta) {
   const afterSave = triggerType === "RecordAfterSave";
   const recordTriggerType = String(start.recordTriggerType ?? "");
   const elements = /* @__PURE__ */ new Map();
-  for (const key3 of ELEMENT_KEYS)
-    for (const el of meta[key3] ?? []) if (el?.name) elements.set(el.name, { key: key3, el });
+  for (const key5 of ELEMENT_KEYS)
+    for (const el of meta[key5] ?? []) if (el?.name) elements.set(el.name, { key: key5, el });
   const steps = [];
   const effects = [];
   const visited = /* @__PURE__ */ new Set();
@@ -102114,18 +102820,18 @@ function describeFlow(meta) {
   const unhandled = [];
   const errors = [];
   const labelOf2 = (name) => elements.get(name)?.el.label || name;
-  const push = (depth, kind, text11) => steps.push({ depth, kind, text: text11 });
-  function describe({ key: key3, el }) {
+  const push = (depth, kind, text12) => steps.push({ depth, kind, text: text12 });
+  function describe({ key: key5, el }) {
     const label2 = el.label || el.name;
-    switch (key3) {
+    switch (key5) {
       case "recordLookups":
         return { kind: "lookup", text: `${label2}: gets ${el.object ?? "records"}${where(el)}` };
       case "assignments": {
         const items = el.assignmentItems ?? [];
         const onRecord = items.filter((a) => String(a.assignToReference).startsWith("$Record."));
-        const text11 = `${label2}: sets ${items.map((a) => ref(String(a.assignToReference))).join(", ") || "variables"}`;
+        const text12 = `${label2}: sets ${items.map((a) => ref(String(a.assignToReference))).join(", ") || "variables"}`;
         const effect = onRecord.length && !afterSave ? `Sets ${onRecord.map((a) => ref(String(a.assignToReference))).join(", ")} on the record` : void 0;
-        return { kind: effect ? "change" : "assign", text: text11, effect };
+        return { kind: effect ? "change" : "assign", text: text12, effect };
       }
       case "recordUpdates": {
         const fields = fieldList(el.inputAssignments);
@@ -102171,7 +102877,7 @@ function describeFlow(meta) {
         };
       case "actionCalls":
       case "apexPluginCalls": {
-        const verb = key3 === "apexPluginCalls" ? "Runs Apex plugin" : ACTIONS[el.actionType] ?? "Runs action";
+        const verb = key5 === "apexPluginCalls" ? "Runs Apex plugin" : ACTIONS[el.actionType] ?? "Runs action";
         const name = el.actionName ?? el.apexClass ?? el.actionType ?? "";
         const effect = `${verb}${name ? ` ${name}` : ""}`;
         return {
@@ -102216,9 +102922,9 @@ function describeFlow(meta) {
         return;
       }
       visited.add(name);
-      const { key: key3, el } = node;
+      const { key: key5, el } = node;
       const label2 = el.label || el.name;
-      if (key3 === "decisions") {
+      if (key5 === "decisions") {
         push(depth, "decision", label2);
         for (const rule of el.rules ?? []) {
           const conds = (rule.conditions ?? []).map(
@@ -102241,7 +102947,7 @@ function describeFlow(meta) {
         walk5(fallback, depth + 2, loops, deferred);
         return;
       }
-      if (key3 === "loops") {
+      if (key5 === "loops") {
         push(depth, "loop", `${label2}: for each item in ${ref(String(el.collectionReference))}`);
         walk5(target(el.nextValueConnector), depth + 1, /* @__PURE__ */ new Set([...loops, name]), deferred);
         name = target(el.noMoreValuesConnector);
@@ -102250,8 +102956,8 @@ function describeFlow(meta) {
       const d = describe(node);
       push(depth, d.kind, d.text);
       if (d.effect) effects.push(d.effect);
-      if (loops.size && LIMITED_KEYS.has(key3)) inLoop.push(label2);
-      if (FAULTABLE_KEYS.has(key3)) {
+      if (loops.size && LIMITED_KEYS.has(key5)) inLoop.push(label2);
+      if (FAULTABLE_KEYS.has(key5)) {
         if (el.faultConnector) {
           push(depth + 1, "outcome", "If it fails");
           walk5(target(el.faultConnector), depth + 2, loops, deferred);
@@ -102765,10 +103471,10 @@ function getOptions(opts) {
   return options;
 }
 function pushComment(options, array2) {
-  return function(block, text11, start, end, startLoc, endLoc) {
+  return function(block, text12, start, end, startLoc, endLoc) {
     var comment = {
       type: block ? "Block" : "Line",
-      value: text11,
+      value: text12,
       start,
       end
     };
@@ -103850,16 +104556,16 @@ pp$8.parseClassElementName = function(element) {
   }
 };
 pp$8.parseClassMethod = function(method, isGenerator, isAsync2, allowsDirectSuper) {
-  var key3 = method.key;
+  var key5 = method.key;
   if (method.kind === "constructor") {
     if (isGenerator) {
-      this.raise(key3.start, "Constructor can't be a generator");
+      this.raise(key5.start, "Constructor can't be a generator");
     }
     if (isAsync2) {
-      this.raise(key3.start, "Constructor can't be an async method");
+      this.raise(key5.start, "Constructor can't be an async method");
     }
   } else if (method.static && checkKeyName(method, "prototype")) {
-    this.raise(key3.start, "Classes may not have a static property named prototype");
+    this.raise(key5.start, "Classes may not have a static property named prototype");
   }
   var value4 = method.value = this.parseMethod(isGenerator, isAsync2, allowsDirectSuper);
   if (method.kind === "get" && value4.params.length !== 0) {
@@ -103963,8 +104669,8 @@ function isPrivateNameConflicted(privateNameMap, element) {
 }
 function checkKeyName(node, name) {
   var computed = node.computed;
-  var key3 = node.key;
-  return !computed && (key3.type === "Identifier" && key3.name === name || key3.type === "Literal" && key3.value === name);
+  var key5 = node.key;
+  return !computed && (key5.type === "Identifier" && key5.name === name || key5.type === "Literal" && key5.value === name);
 }
 pp$8.parseExportAllDeclaration = function(node, exports$1) {
   if (this.options.ecmaVersion >= 11) {
@@ -104647,14 +105353,14 @@ pp$5.checkPropClash = function(prop2, propHash, refDestructuringErrors) {
   if (this.options.ecmaVersion >= 6 && (prop2.computed || prop2.method || prop2.shorthand)) {
     return;
   }
-  var key3 = prop2.key;
+  var key5 = prop2.key;
   var name;
-  switch (key3.type) {
+  switch (key5.type) {
     case "Identifier":
-      name = key3.name;
+      name = key5.name;
       break;
     case "Literal":
-      name = String(key3.value);
+      name = String(key5.value);
       break;
     default:
       return;
@@ -104665,10 +105371,10 @@ pp$5.checkPropClash = function(prop2, propHash, refDestructuringErrors) {
       if (propHash.proto) {
         if (refDestructuringErrors) {
           if (refDestructuringErrors.doubleProto < 0) {
-            refDestructuringErrors.doubleProto = key3.start;
+            refDestructuringErrors.doubleProto = key5.start;
           }
         } else {
-          this.raiseRecoverable(key3.start, "Redefinition of __proto__ property");
+          this.raiseRecoverable(key5.start, "Redefinition of __proto__ property");
         }
       }
       propHash.proto = true;
@@ -104685,7 +105391,7 @@ pp$5.checkPropClash = function(prop2, propHash, refDestructuringErrors) {
       redefinition = other.init || other[kind];
     }
     if (redefinition) {
-      this.raiseRecoverable(key3.start, "Redefinition of property");
+      this.raiseRecoverable(key5.start, "Redefinition of property");
     }
   } else {
     other = propHash[name] = {
@@ -107614,9 +108320,9 @@ pp.getTokenFromCode = function(code) {
   this.raise(this.pos, "Unexpected character '" + codePointToString(code) + "'");
 };
 pp.finishOp = function(type, size) {
-  var str24 = this.input.slice(this.pos, this.pos + size);
+  var str26 = this.input.slice(this.pos, this.pos + size);
   this.pos += size;
-  return this.finishToken(type, str24);
+  return this.finishToken(type, str26);
 };
 pp.readRegexp = function() {
   var escaped, inClass, start = this.pos;
@@ -107702,17 +108408,17 @@ pp.readInt = function(radix, len, maybeLegacyOctalNumericLiteral) {
   }
   return total;
 };
-function stringToNumber(str24, isLegacyOctalNumericLiteral) {
+function stringToNumber(str26, isLegacyOctalNumericLiteral) {
   if (isLegacyOctalNumericLiteral) {
-    return parseInt(str24, 8);
+    return parseInt(str26, 8);
   }
-  return parseFloat(str24.replace(/_/g, ""));
+  return parseFloat(str26.replace(/_/g, ""));
 }
-function stringToBigInt(str24) {
+function stringToBigInt(str26) {
   if (typeof BigInt !== "function") {
     return null;
   }
-  return BigInt(str24.replace(/_/g, ""));
+  return BigInt(str26.replace(/_/g, ""));
 }
 pp.readRadixNumber = function(radix) {
   var start = this.pos;
@@ -108077,9 +108783,9 @@ var DB_ASYNC = /^(noNs_)?(query|rowById)$/;
 var FIELD_ACCESSORS = /* @__PURE__ */ new Set(["stringValue", "numValue", "boolValue", "dateValue"]);
 function children(node) {
   const out = [];
-  for (const key3 of Object.keys(node)) {
-    if (key3 === "type" || key3 === "start" || key3 === "end") continue;
-    const v = node[key3];
+  for (const key5 of Object.keys(node)) {
+    if (key5 === "type" || key5 === "start" || key5 === "end") continue;
+    const v = node[key5];
     if (Array.isArray(v)) {
       for (const c of v) if (c && typeof c.type === "string") out.push(c);
     } else if (v && typeof v.type === "string") {
@@ -109381,11 +110087,11 @@ function duplicateSyncResult(schema, objects) {
   const dupes = [];
   for (const r of schema.filter((r2) => r2.isActive && wanted.has(sobjectOf(r2)))) {
     for (const p of profilesOf(r).length ? profilesOf(r) : ["(everyone)"]) {
-      const key3 = `${sobjectOf(r)}|${p}`;
-      const other = seen.get(key3);
+      const key5 = `${sobjectOf(r)}|${p}`;
+      const other = seen.get(key5);
       if (other)
         dupes.push(`${String(r.fields.SObject)} for ${p}: ${other} and ${r.developerName}`);
-      else seen.set(key3, r.developerName);
+      else seen.set(key5, r.developerName);
     }
   }
   return dupes.length ? {
@@ -110301,16 +111007,16 @@ var readiness3 = {
             accountIds,
             org
           );
-          const key3 = (account, territory) => `${account}:${territory}`;
+          const key5 = (account, territory) => `${account}:${territory}`;
           const active2 = new Set(
-            info.filter((r) => r.IsActive).map((r) => key3(r.AccountId, r.Territory2Id))
+            info.filter((r) => r.IsActive).map((r) => key5(r.AccountId, r.Territory2Id))
           );
           const inactive = new Set(
-            info.filter((r) => !r.IsActive).map((r) => key3(r.AccountId, r.Territory2Id))
+            info.filter((r) => !r.IsActive).map((r) => key5(r.AccountId, r.Territory2Id))
           );
-          const missing = alignments.filter((r) => !active2.has(key3(r.ObjectId, r.Territory2Id)));
+          const missing = alignments.filter((r) => !active2.has(key5(r.ObjectId, r.Territory2Id)));
           const deactivated = missing.filter(
-            (r) => inactive.has(key3(r.ObjectId, r.Territory2Id))
+            (r) => inactive.has(key5(r.ObjectId, r.Territory2Id))
           ).length;
           const why = deactivated ? `: ${deactivated} ${hasHave(deactivated)} only inactive territory info, ${missing.length - deactivated} ${hasHave(missing.length - deactivated)} none` : "";
           const complete = alignments.length < SAMPLE_ROWS3 && picked.length === territories.length;
@@ -112373,8 +113079,8 @@ async function handlersResult2(org, names4) {
     }))
   };
 }
-function nameList(rows3, key3 = "Name") {
-  return rows3.map((r) => String(r[key3] ?? r.Id));
+function nameList(rows3, key5 = "Name") {
+  return rows3.map((r) => String(r[key5] ?? r.Id));
 }
 
 // src/studio/readiness/features/consent.ts
@@ -114183,9 +114889,9 @@ var readiness14 = {
               skip: true,
               detail: "No recommended actions exist (Next Best Action not in use)."
             };
-          const day2 = today();
+          const day3 = today();
           const overdue = rows3.filter(
-            (r) => r.Status === "Upcoming" && r.DueDate && String(r.DueDate).slice(0, 10) < day2
+            (r) => r.Status === "Upcoming" && r.DueDate && String(r.DueDate).slice(0, 10) < day3
           );
           const scope2 = rows3.length < SAMPLE_ROWS10 ? `Checked all ${many8(rows3.length, "recommended action", "recommended actions")}.` : `Checked a sample of ${SAMPLE_ROWS10} recommended actions, not every one in the org.`;
           return overdue.length ? {
@@ -114333,10 +115039,10 @@ function checkedNote7(n, one, more) {
   return n < SAMPLE_ROWS11 ? `Checked all ${many9(n, one, more)}.` : `Checked a sample of ${SAMPLE_ROWS11} ${more}, not every one in the org.`;
 }
 function hasStatements(value4) {
-  const text11 = String(value4 ?? "").trim();
-  if (!text11) return false;
+  const text12 = String(value4 ?? "").trim();
+  if (!text12) return false;
   try {
-    const parsed = JSON.parse(text11);
+    const parsed = JSON.parse(text12);
     if (Array.isArray(parsed)) return parsed.length > 0;
     if (parsed && typeof parsed === "object") return Object.keys(parsed).length > 0;
     return Boolean(parsed);
@@ -116381,12 +117087,12 @@ var readiness19 = {
               "SobjectType = 'Account'"
             )
           ]);
-          const key3 = (account, territory) => `${String(account).slice(0, 15)}|${String(territory).slice(0, 15)}`;
+          const key5 = (account, territory) => `${String(account).slice(0, 15)}|${String(territory).slice(0, 15)}`;
           const name = (r, rel5) => String(r[rel5]?.Name ?? "");
-          const infoKeys = new Set(infoOfAligned.map((r) => key3(r.AccountId, r.Territory2Id)));
-          const alignedKeys = new Set(alignmentsOfInfo.map((r) => key3(r.ObjectId, r.Territory2Id)));
-          const orphans = info.filter((r) => !alignedKeys.has(key3(r.AccountId, r.Territory2Id)));
-          const missing = alignments.filter((r) => !infoKeys.has(key3(r.ObjectId, r.Territory2Id)));
+          const infoKeys = new Set(infoOfAligned.map((r) => key5(r.AccountId, r.Territory2Id)));
+          const alignedKeys = new Set(alignmentsOfInfo.map((r) => key5(r.ObjectId, r.Territory2Id)));
+          const orphans = info.filter((r) => !alignedKeys.has(key5(r.AccountId, r.Territory2Id)));
+          const missing = alignments.filter((r) => !infoKeys.has(key5(r.ObjectId, r.Territory2Id)));
           const read2 = `${many11(alignments.length, "alignment", "alignments")} and ${many11(info.length, "territory info row", "territory info rows")}`;
           const scope2 = mine ? complete ? `Checked all ${read2} in this profile's territories.` : `Checked a sample of ${read2} from this profile's territories, not every one.` : complete ? `Checked all ${read2} in the active model.` : `Checked a sample of ${read2} from across the active model, not every one in it.`;
           const parts = [
@@ -116882,17 +117588,17 @@ function ruleBase(rule) {
 }
 async function checkRule(rule, org) {
   const tracker = currentMapTracker();
-  const key3 = `rule:${rule.id}`;
-  tracker?.start(key3, rule.name);
+  const key5 = `rule:${rule.id}`;
+  tracker?.start(key5, rule.name);
   try {
     const check2 = await checkRuleNow(rule, org);
     tracker?.end(
-      key3,
+      key5,
       check2.status === "unknown" ? { detail: "Couldn't check" } : { detail: check2.status === "pass" ? "Passed" : "Needs attention" }
     );
     return check2;
   } catch (err) {
-    tracker?.end(key3, { error: err instanceof Error ? err.message : String(err) });
+    tracker?.end(key5, { error: err instanceof Error ? err.message : String(err) });
     throw err;
   }
 }
@@ -116919,8 +117625,8 @@ async function checkRuleNow(rule, org) {
   };
 }
 function rowLabel(row) {
-  for (const key3 of ["Name", "MasterLabel", "DeveloperName", "Label", "Username", "Subject"]) {
-    if (typeof row[key3] === "string" && row[key3]) return row[key3];
+  for (const key5 of ["Name", "MasterLabel", "DeveloperName", "Label", "Username", "Subject"]) {
+    if (typeof row[key5] === "string" && row[key5]) return row[key5];
   }
   return String(row.Id ?? JSON.stringify(row));
 }
@@ -116969,7 +117675,7 @@ var STALE_SYNC_DAYS = 14;
 function rel3(r, path24) {
   return path24.split(".").reduce((v, k) => v?.[k], r);
 }
-var str11 = (v) => typeof v === "string" ? v : v == null ? "" : String(v);
+var str13 = (v) => typeof v === "string" ? v : v == null ? "" : String(v);
 var ieq2 = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase();
 var PUBLISHED_TIMEOUT_MS = 6e4;
 async function traceUser(userId, featureId, org) {
@@ -116984,13 +117690,13 @@ async function traceUser(userId, featureId, org) {
   if (!u) throw new Error(`User ${userId} not found`);
   const user = {
     id: userId,
-    name: str11(u.Name),
-    username: str11(u.Username),
+    name: str13(u.Name),
+    username: str13(u.Username),
     active: u.IsActive === true,
-    profileId: str11(u.ProfileId) || null,
-    profile: str11(rel3(u, "Profile.Name")) || null,
-    license: str11(rel3(u, "Profile.UserLicense.Name")) || null,
-    role: str11(rel3(u, "UserRole.Name")) || null
+    profileId: str13(u.ProfileId) || null,
+    profile: str13(rel3(u, "Profile.Name")) || null,
+    license: str13(rel3(u, "Profile.UserLicense.Name")) || null,
+    role: str13(rel3(u, "UserRole.Name")) || null
   };
   const base2 = gather(user, feature, org);
   const facts = {
@@ -117060,7 +117766,7 @@ function gather(user, feature, org) {
       org
     ).then(
       (rows3) => {
-        const have = new Set(rows3.map((r) => str11(r.QualifiedApiName).toLowerCase()));
+        const have = new Set(rows3.map((r) => str13(r.QualifiedApiName).toLowerCase()));
         return {
           present: objects.filter((o) => have.has(o.toLowerCase())),
           absent: objects.filter((o) => !have.has(o.toLowerCase()))
@@ -117073,7 +117779,7 @@ function gather(user, feature, org) {
 }
 function setsNote(assignments) {
   const labels2 = [
-    ...new Set(assignments.map((a) => str11(rel3(a, "PermissionSet.Label"))).filter(Boolean))
+    ...new Set(assignments.map((a) => str13(rel3(a, "PermissionSet.Label"))).filter(Boolean))
   ];
   if (!labels2.length) return "No permission sets assigned.";
   const lsc = (l) => /life ?sci|\blsc\b/i.test(l);
@@ -117134,14 +117840,14 @@ function checkLscPsl(user, facts, _org) {
     async () => {
       const { assigned, available } = await facts.psls;
       const have = assigned.filter(
-        (a) => LSC_PSL2.test(str11(rel3(a, "PermissionSetLicense.DeveloperName")))
+        (a) => LSC_PSL2.test(str13(rel3(a, "PermissionSetLicense.DeveloperName")))
       );
       if (have.length)
         return {
           pass: true,
-          detail: have.map((a) => str11(rel3(a, "PermissionSetLicense.MasterLabel"))).join(", ")
+          detail: have.map((a) => str13(rel3(a, "PermissionSetLicense.MasterLabel"))).join(", ")
         };
-      const lsc = available.filter((p) => LSC_PSL2.test(str11(p.DeveloperName)));
+      const lsc = available.filter((p) => LSC_PSL2.test(str13(p.DeveloperName)));
       const withSeats = lsc.filter(
         (p) => p.Status === "Active" && Number(p.TotalLicenses) > Number(p.UsedLicenses)
       );
@@ -117149,22 +117855,22 @@ function checkLscPsl(user, facts, _org) {
       if (withSeats.length > 1) {
         return {
           pass: false,
-          detail: `None assigned. ${withSeats.length} LSC licenses have free seats: ${withSeats.map((p) => str11(p.MasterLabel)).join(", ")}.`
+          detail: `None assigned. ${withSeats.length} LSC licenses have free seats: ${withSeats.map((p) => str13(p.MasterLabel)).join(", ")}.`
         };
       }
       const fixes = open ? [
         {
           kind: "assignPsl",
-          label: `Assign ${str11(open.MasterLabel)} to ${user.name}`,
+          label: `Assign ${str13(open.MasterLabel)} to ${user.name}`,
           userId: user.id,
           userName: user.name,
-          pslId: str11(open.Id),
-          pslLabel: str11(open.MasterLabel)
+          pslId: str13(open.Id),
+          pslLabel: str13(open.MasterLabel)
         }
       ] : [];
       return {
         pass: false,
-        detail: open ? `None assigned. ${str11(open.MasterLabel)} has ${Number(open.TotalLicenses) - Number(open.UsedLicenses)} of ${open.TotalLicenses} seats free.` : lsc.length ? "None assigned, and no Life Sciences Commercial licenses are free \u2014 buy or release seats first." : "None assigned, and the org has no Life Sciences Commercial license.",
+        detail: open ? `None assigned. ${str13(open.MasterLabel)} has ${Number(open.TotalLicenses) - Number(open.UsedLicenses)} of ${open.TotalLicenses} seats free.` : lsc.length ? "None assigned, and no Life Sciences Commercial licenses are free \u2014 buy or release seats first." : "None assigned, and the org has no Life Sciences Commercial license.",
         fixes
       };
     }
@@ -117192,7 +117898,7 @@ function checkPermissions(user, feature, facts, org) {
         facts.objects
       ]);
       const setNames = [
-        ...new Set(assignments.map((a) => str11(rel3(a, "PermissionSet.Label"))).filter(Boolean))
+        ...new Set(assignments.map((a) => str13(rel3(a, "PermissionSet.Label"))).filter(Boolean))
       ];
       if (!feature?.objects.length) {
         return {
@@ -117211,7 +117917,7 @@ function checkPermissions(user, feature, facts, org) {
         org
       );
       const readable3 = new Set(
-        rows3.filter((r) => r.IsReadable === true).map((r) => str11(rel3(r, "EntityDefinition.QualifiedApiName")).toLowerCase())
+        rows3.filter((r) => r.IsReadable === true).map((r) => str13(rel3(r, "EntityDefinition.QualifiedApiName")).toLowerCase())
       );
       const missing = objects.filter((o) => !readable3.has(o.toLowerCase()));
       return {
@@ -117236,9 +117942,9 @@ function checkTerritory(user, facts) {
     async () => {
       const rows3 = await facts.territories;
       const active2 = rows3.filter(
-        (r) => str11(rel3(r, "Territory2.Territory2Model.State")) === "Active"
+        (r) => str13(rel3(r, "Territory2.Territory2Model.State")) === "Active"
       );
-      const names4 = active2.map((r) => str11(rel3(r, "Territory2.Name")));
+      const names4 = active2.map((r) => str13(rel3(r, "Territory2.Name")));
       if (active2.length)
         return {
           pass: true,
@@ -117255,7 +117961,7 @@ var MAX_FILTER_TERRITORIES = 5;
 var MAX_REACH_TERRITORIES = 200;
 function tableFor(records, sobject2, user, setNames) {
   const candidates = records.filter(
-    (r2) => r2.isActive && r2.fields.Type !== "CONFIGURATION" && ieq2(str11(r2.fields.SObject), sobject2) && reaches2(audienceOf(r2), user, setNames)
+    (r2) => r2.isActive && r2.fields.Type !== "CONFIGURATION" && ieq2(str13(r2.fields.SObject), sobject2) && reaches2(audienceOf(r2), user, setNames)
   ).sort((a, b) => a.developerName.localeCompare(b.developerName));
   const byProfile = candidates.find((r2) => {
     const a = audienceOf(r2);
@@ -117267,8 +117973,8 @@ function tableFor(records, sobject2, user, setNames) {
     entry: {
       developerName: r.developerName,
       sobject: sobject2,
-      type: str11(r.fields.Type),
-      whereSoql: str11(r.fields.WhereSoql).trim() || null,
+      type: str13(r.fields.Type),
+      whereSoql: str13(r.fields.WhereSoql).trim() || null,
       profileIds: /* @__PURE__ */ new Set(),
       profileNames: /* @__PURE__ */ new Set(),
       permissionSets: /* @__PURE__ */ new Set()
@@ -117282,7 +117988,7 @@ async function accountReach(user, facts, org) {
     facts.dbSchema,
     facts.assignments
   ]);
-  const territories = rows3.filter((r) => str11(rel3(r, "Territory2.Territory2Model.State")) === "Active").map((r) => ({ id: str11(r.Territory2Id), name: str11(rel3(r, "Territory2.Name")) })).sort((a, b) => a.name.localeCompare(b.name));
+  const territories = rows3.filter((r) => str13(rel3(r, "Territory2.Territory2Model.State")) === "Active").map((r) => ({ id: str13(r.Territory2Id), name: str13(rel3(r, "Territory2.Name")) })).sort((a, b) => a.name.localeCompare(b.name));
   if (!territories.length) return null;
   const list2 = inList(territories.slice(0, MAX_REACH_TERRITORIES).map((t) => t.id));
   const ot2a = `FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2Id IN (${list2})`;
@@ -117290,7 +117996,7 @@ async function accountReach(user, facts, org) {
   const pati = `FROM ProviderAcctTerritoryInfo WHERE Territory2Id IN (${list2})`;
   const hidden = `${pati} AND IsAvailableOffline = false`;
   const unaligned = `AccountId NOT IN (SELECT ObjectId ${ot2a})`;
-  const setNames = assignments.flatMap((a) => [str11(rel3(a, "PermissionSet.Label")), str11(rel3(a, "PermissionSet.Name"))]).filter(Boolean);
+  const setNames = assignments.flatMap((a) => [str13(rel3(a, "PermissionSet.Label")), str13(rel3(a, "PermissionSet.Name"))]).filter(Boolean);
   const accountTable = tableFor(records, "Account", user, setNames);
   const ot2aTable = tableFor(records, "ObjectTerritory2Association", user, setNames);
   const querier2 = {
@@ -117320,7 +118026,7 @@ async function accountReach(user, facts, org) {
     return acc?.status === "counted" && !acc.lowerBound ? { territory: t.name, records: acc.records } : { territory: t.name, records: null, note: acc?.note ?? "not counted" };
   };
   const names4 = (soql5, field) => query(soql5, org).then(
-    (rows4) => [...new Set(rows4.map((r) => str11(rel3(r, field))).filter(Boolean))],
+    (rows4) => [...new Set(rows4.map((r) => str13(rel3(r, field))).filter(Boolean))],
     () => []
   );
   const [
@@ -117475,7 +118181,7 @@ function checkDbSchema(user, feature, facts) {
         facts.assignments,
         facts.objects
       ]);
-      const setNames = assignments.flatMap((a) => [str11(rel3(a, "PermissionSet.Label")), str11(rel3(a, "PermissionSet.Name"))]).filter(Boolean);
+      const setNames = assignments.flatMap((a) => [str13(rel3(a, "PermissionSet.Label")), str13(rel3(a, "PermissionSet.Name"))]).filter(Boolean);
       const mine = records.filter(
         (r) => r.isActive && r.fields.Type !== "CONFIGURATION" && reaches2(audienceOf(r), user, setNames)
       );
@@ -117490,7 +118196,7 @@ function checkDbSchema(user, feature, facts) {
           skip: true,
           detail: `None of ${feature.title}'s objects are in this org (${absent.join(", ")}).`
         };
-      const synced = new Set(mine.map((r) => str11(r.fields.SObject).toLowerCase()));
+      const synced = new Set(mine.map((r) => str13(r.fields.SObject).toLowerCase()));
       const missing = objects.filter((o) => !synced.has(o.toLowerCase()));
       const primaryMissing = missing.includes(objects[0]);
       return {
@@ -117514,7 +118220,7 @@ function checkActions(user, feature, facts) {
     },
     async () => {
       const [records, assignments] = await Promise.all([facts.actions, facts.assignments]);
-      const setNames = assignments.flatMap((a) => [str11(rel3(a, "PermissionSet.Label")), str11(rel3(a, "PermissionSet.Name"))]).filter(Boolean);
+      const setNames = assignments.flatMap((a) => [str13(rel3(a, "PermissionSet.Label")), str13(rel3(a, "PermissionSet.Name"))]).filter(Boolean);
       const related = records.filter(
         (r) => r.isActive && matchesAny(
           `${r.developerName} ${r.label ?? ""} ${Object.values(r.fields).filter((v) => typeof v === "string").join(" ")}`,
@@ -117628,10 +118334,10 @@ function checkCache(user, facts) {
         const latest = rows3[0];
         return {
           pass: false,
-          detail: latest ? `No Active cache for ${user.profile}; the latest is ${str11(latest.Status)}${latest.IntegrationErrorMessage ? ` (${str11(latest.IntegrationErrorMessage)})` : ""}.` : `${user.profile} has never been published.`
+          detail: latest ? `No Active cache for ${user.profile}; the latest is ${str13(latest.Status)}${latest.IntegrationErrorMessage ? ` (${str13(latest.IntegrationErrorMessage)})` : ""}.` : `${user.profile} has never been published.`
         };
       }
-      return { pass: true, detail: `Active since ${str11(active2.LastModifiedDate).slice(0, 10)}.` };
+      return { pass: true, detail: `Active since ${str13(active2.LastModifiedDate).slice(0, 10)}.` };
     }
   );
 }
@@ -117659,15 +118365,15 @@ function checkLastSync(user, facts) {
           pass: false,
           detail: `${plural(rows3.length, "sync")} reported, none finished downloading.`
         };
-      const days = Math.floor((Date.now() - Date.parse(str11(done.DownloadEnd))) / 864e5);
-      const when = str11(done.DownloadEnd).slice(0, 10);
+      const days = Math.floor((Date.now() - Date.parse(str13(done.DownloadEnd))) / 864e5);
+      const when = str13(done.DownloadEnd).slice(0, 10);
       if (days > STALE_SYNC_DAYS)
         return { pass: false, detail: `Last finished sync was ${when} (${days} days ago).` };
-      const inProgress = Date.now() - Date.parse(str11(latest.DownloadStart || latest.CreatedDate)) < 30 * 6e4;
+      const inProgress = Date.now() - Date.parse(str13(latest.DownloadStart || latest.CreatedDate)) < 30 * 6e4;
       const failedSince = latest !== done && !latest.DownloadEnd && !inProgress;
       return {
         pass: !failedSince,
-        detail: failedSince ? `Last finished sync ${when}, but the latest attempt (${str11(latest.CreatedDate).slice(0, 10)}) didn't finish.` : `Last finished sync ${when}.`
+        detail: failedSince ? `Last finished sync ${when}, but the latest attempt (${str13(latest.CreatedDate).slice(0, 10)}) didn't finish.` : `Last finished sync ${when}.`
       };
     }
   );
@@ -117718,8 +118424,8 @@ async function findUser(term, run4) {
 function findUserInOrg(term, org) {
   return findUser(term, (soql5) => query(soql5, org));
 }
-function resolveFeatureId(text11) {
-  const t = text11.trim().toLowerCase();
+function resolveFeatureId(text12) {
+  const t = text12.trim().toLowerCase();
   if (!t) return null;
   const features = listFeatures();
   const exact = features.find((f) => f.id.toLowerCase() === t || f.title.toLowerCase() === t);
@@ -117732,7 +118438,7 @@ function resolveFeatureId(text11) {
 
 // src/tools/diagnose-shared.ts
 init_read_cache();
-async function diagnosePayload(text11, checkOrg) {
+async function diagnosePayload(text12, checkOrg) {
   let org;
   let orgNote;
   if (checkOrg !== false) {
@@ -117740,7 +118446,7 @@ async function diagnosePayload(text11, checkOrg) {
     if (connection.valid && connection.targetOrg) org = connection.targetOrg;
     else orgNote = connection.error || "No Salesforce org connected.";
   }
-  const diagnosis = await (org ? withSharedReads(() => diagnose(text11, org)) : diagnose(text11));
+  const diagnosis = await (org ? withSharedReads(() => diagnose(text12, org)) : diagnose(text12));
   return {
     items: diagnosisItems(diagnosis),
     checkedOrg: org ?? null,
@@ -117904,19 +118610,19 @@ _No org checked: ${validation.error ?? "no org connected"}_
       )
     },
     async ({ user, feature }) => {
-      const text11 = (data2, isError = false) => ({
+      const text12 = (data2, isError = false) => ({
         content: [{ type: "text", text: JSON.stringify(data2) }],
         ...isError ? { isError: true } : {}
       });
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg)
-        return text11({ error: connection.error || "No Salesforce org connected." }, true);
+        return text12({ error: connection.error || "No Salesforce org connected." }, true);
       const org = connection.targetOrg;
       let featureId = null;
       if (feature?.trim()) {
         featureId = resolveFeatureId(feature);
         if (!featureId)
-          return text11(
+          return text12(
             {
               error: `No single feature matches "${feature}". Omit feature to check the user overall.`
             },
@@ -117926,15 +118632,15 @@ _No org checked: ${validation.error ?? "no org connected"}_
       try {
         return await withSharedReads(async () => {
           const found = await findUserInOrg(user, org);
-          if (found.kind === "none") return text11({ error: `No user found for "${user}".` }, true);
+          if (found.kind === "none") return text12({ error: `No user found for "${user}".` }, true);
           if (found.kind === "many") {
-            return text11({
+            return text12({
               matches: found.matches,
               message: `Several users match "${user}". Ask which one is meant, then call again with the username or Id.`
             });
           }
           const trace = await traceUser(found.user.id, featureId, org);
-          return text11({
+          return text12({
             resolvedUser: {
               id: found.user.id,
               name: found.user.name,
@@ -117944,7 +118650,7 @@ _No org checked: ${validation.error ?? "no org connected"}_
           });
         });
       } catch (error2) {
-        return text11({ error: error2 instanceof Error ? error2.message : String(error2) }, true);
+        return text12({ error: error2 instanceof Error ? error2.message : String(error2) }, true);
       }
     }
   );
@@ -120104,8 +120810,8 @@ function buildSlideHtml(title, pngBase64) {
 </body>
 </html>`;
 }
-function escapeHtml(str24) {
-  return str24.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+function escapeHtml(str26) {
+  return str26.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 function createSlideZipFromDir(zipPath, slideDir, thumbnailPath) {
   return new Promise((resolve4, reject) => {
@@ -120973,8 +121679,8 @@ Presentation "${resolvedPresentationName || resolvedPresentationId}" has no link
             let assigned = 0;
             let skipped = 0;
             for (const p of pages) {
-              const key3 = `${p.Id}:${prodId}`;
-              if (existingAutoAssignments.has(key3)) {
+              const key5 = `${p.Id}:${prodId}`;
+              if (existingAutoAssignments.has(key5)) {
                 skipped++;
                 productsSkipped++;
                 continue;
@@ -120990,7 +121696,7 @@ Presentation "${resolvedPresentationName || resolvedPresentationId}" has no link
               if (result2.success) {
                 assigned++;
                 productsAssigned++;
-                existingAutoAssignments.add(key3);
+                existingAutoAssignments.add(key5);
               } else {
                 errors.push(`Auto-product "${prodName}" \u2192 page "${p.Name}": ${result2.error}`);
               }
@@ -121075,8 +121781,8 @@ Presentation "${resolvedPresentationName || resolvedPresentationId}" has no link
           }
         }
         for (const assignment of assignments) {
-          const key3 = `${assignment.pageId}:${assignment.productId}`;
-          if (existingAssignments.has(key3)) {
+          const key5 = `${assignment.pageId}:${assignment.productId}`;
+          if (existingAssignments.has(key5)) {
             productsSkipped++;
             continue;
           }
@@ -121090,7 +121796,7 @@ Presentation "${resolvedPresentationName || resolvedPresentationId}" has no link
           const result2 = await createRecord("PresentationPageProduct", values, effectiveOrg);
           if (result2.success) {
             productsAssigned++;
-            existingAssignments.add(key3);
+            existingAssignments.add(key5);
           } else {
             errors.push(
               `Page "${assignment.pageName}" + Product ${assignment.productId}: ${result2.error}`
@@ -121257,13 +121963,13 @@ Ensure the org is authenticated via \`sf org login web --alias ${targetOrg}\`.`
             let srcOnlyDetail = "";
             let tgtOnlyDetail = "";
             const allKeys = /* @__PURE__ */ new Set([...srcHandlers.keys(), ...tgtHandlers.keys()]);
-            for (const key3 of [...allKeys].sort()) {
-              const src = srcHandlers.get(key3);
-              const tgt = tgtHandlers.get(key3);
+            for (const key5 of [...allKeys].sort()) {
+              const src = srcHandlers.get(key5);
+              const tgt = tgtHandlers.get(key5);
               if (src && tgt) {
                 if (src.IsActive !== tgt.IsActive) {
                   differences++;
-                  diffDetail += `#### \`${key3}\` (${src.MasterLabel || key3})
+                  diffDetail += `#### \`${key5}\` (${src.MasterLabel || key5})
 
 `;
                   diffDetail += `| Field | ${sourceOrg} | ${targetOrg} |
@@ -121283,13 +121989,13 @@ Ensure the org is authenticated via \`sf org login web --alias ${targetOrg}\`.`
                 }
               } else if (src && !tgt) {
                 onlySource++;
-                srcOnlyDetail += `- **\`${key3}\`** (${src.MasterLabel || key3}) \u2014 ${src.IsActive ? "\u2705 Active" : "\u274C Inactive"}`;
+                srcOnlyDetail += `- **\`${key5}\`** (${src.MasterLabel || key5}) \u2014 ${src.IsActive ? "\u2705 Active" : "\u274C Inactive"}`;
                 if (src.Description) srcOnlyDetail += ` \u2014 ${src.Description}`;
                 srcOnlyDetail += `
 `;
               } else if (!src && tgt) {
                 onlyTarget++;
-                tgtOnlyDetail += `- **\`${key3}\`** (${tgt.MasterLabel || key3}) \u2014 ${tgt.IsActive ? "\u2705 Active" : "\u274C Inactive"}`;
+                tgtOnlyDetail += `- **\`${key5}\`** (${tgt.MasterLabel || key5}) \u2014 ${tgt.IsActive ? "\u2705 Active" : "\u274C Inactive"}`;
                 if (tgt.Description) tgtOnlyDetail += ` \u2014 ${tgt.Description}`;
                 tgtOnlyDetail += `
 `;
@@ -122522,13 +123228,13 @@ function computeConfigDiff(source, target3) {
   const records = [];
   const counts2 = { new: 0, changed: 0, identical: 0, targetOnly: 0 };
   const allKeys = /* @__PURE__ */ new Set([...src.keys(), ...tgt.keys()]);
-  for (const key3 of [...allKeys].sort()) {
-    const s2 = src.get(key3);
-    const t = tgt.get(key3);
+  for (const key5 of [...allKeys].sort()) {
+    const s2 = src.get(key5);
+    const t = tgt.get(key5);
     if (!s2 && t) {
       counts2.targetOnly++;
       records.push({
-        key: key3,
+        key: key5,
         kind: t.kind,
         category: t.category,
         developerName: t.developerName,
@@ -122554,7 +123260,7 @@ function computeConfigDiff(source, target3) {
       const applicable2 = s2.kind === "record";
       counts2.new++;
       records.push({
-        key: key3,
+        key: key5,
         kind: s2.kind,
         category: s2.category,
         developerName: s2.developerName,
@@ -122605,7 +123311,7 @@ function computeConfigDiff(source, target3) {
     if (status === "CHANGED") counts2.changed++;
     else counts2.identical++;
     records.push({
-      key: key3,
+      key: key5,
       kind: srcRec.kind,
       category: srcRec.category || tgtRec.category,
       developerName: srcRec.developerName,
@@ -122696,13 +123402,13 @@ async function applyConfig(opts) {
     });
   };
   for (let index = 0; index < selectionSet.length; index++) {
-    const key3 = selectionSet[index];
-    const rd = diffByKey.get(key3);
+    const key5 = selectionSet[index];
+    const rd = diffByKey.get(key5);
     if (!rd || !rd.applicable) {
       emit(
         {
-          key: key3,
-          developerName: rd?.developerName || key3,
+          key: key5,
+          developerName: rd?.developerName || key5,
           action: "skip",
           ok: true,
           message: rd?.note || "Not applicable under the safe policy \u2014 skipped."
@@ -122725,7 +123431,7 @@ async function applyConfig(opts) {
     } catch (err) {
       emit(
         {
-          key: key3,
+          key: key5,
           developerName: rd.developerName,
           action: rd.status === "NEW" ? "create" : "update",
           ok: false,
@@ -124894,8 +125600,8 @@ function duplicatePlans(plans) {
   const groups = /* @__PURE__ */ new Map();
   for (const p of plans) {
     if (!p.TargetId) continue;
-    const key3 = `${p.TargetId}|${p.TargetReferenceRecordId ?? ""}`;
-    groups.set(key3, [...groups.get(key3) ?? [], p.Id]);
+    const key5 = `${p.TargetId}|${p.TargetReferenceRecordId ?? ""}`;
+    groups.set(key5, [...groups.get(key5) ?? [], p.Id]);
   }
   return [...groups.values()].filter((g) => g.length > 1);
 }
@@ -125429,12 +126135,12 @@ function forgetLiveApps(org) {
   tabListCache.delete(org);
   for (const k of [...matchCache.keys()]) if (k.startsWith(`${org}\0`)) matchCache.delete(k);
 }
-function cached3(map, key3, ttl, load) {
-  const hit = map.get(key3);
+function cached3(map, key5, ttl, load) {
+  const hit = map.get(key5);
   if (hit && Date.now() - hit.at < ttl) return hit.value;
   const value4 = load();
-  map.set(key3, { at: Date.now(), value: value4 });
-  value4.catch(() => map.delete(key3));
+  map.set(key5, { at: Date.now(), value: value4 });
+  value4.catch(() => map.delete(key5));
   return value4;
 }
 function allApps(org) {
@@ -125523,8 +126229,8 @@ function matchApp(apps, names4) {
   };
 }
 function findProfileApp(profile, names4, org) {
-  const key3 = `${org}\0${profile}\0${[...names4].sort().join("|")}`;
-  return cached3(matchCache, key3, TTL_MS, async () => {
+  const key5 = `${org}\0${profile}\0${[...names4].sort().join("|")}`;
+  return cached3(matchCache, key5, TTL_MS, async () => {
     const apps = await profileApps(profile, org);
     if (!apps.length)
       return { app: null, reason: `${profile} can't open any Lightning app.` };
@@ -125669,7 +126375,7 @@ function decodeLayoutName(fullName, object3) {
   }
 }
 var lit = (s2) => `'${s2.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
-var first = (rows3, key3 = "Id") => rows3[0] && typeof rows3[0][key3] === "string" ? rows3[0][key3] : null;
+var first = (rows3, key5 = "Id") => rows3[0] && typeof rows3[0][key5] === "string" ? rows3[0][key5] : null;
 async function lookup(ref3, org) {
   switch (ref3.type) {
     case "layout": {
@@ -125781,8 +126487,8 @@ async function resolveSetupLink(ref3, org) {
       TTL_MS2
     );
     if (!id2) return fallback;
-    const key3 = "object" in ref3 && ref3.type !== "listView" ? await objectKey(ref3.object, org) : null;
-    return { path: setupPath(key3 ? { ...ref3, object: key3 } : ref3, id2), exact: true };
+    const key5 = "object" in ref3 && ref3.type !== "listView" ? await objectKey(ref3.object, org) : null;
+    return { path: setupPath(key5 ? { ...ref3, object: key5 } : ref3, id2), exact: true };
   } catch {
     return fallback;
   }
@@ -125836,7 +126542,7 @@ function parseJsMeta(xml, pageType) {
       const datasource = String(p["@_datasource"] ?? "").trim();
       const options = datasource && !/^apex:\/\//i.test(datasource) ? datasource.split(",").map((o) => o.trim()).filter(Boolean) : [];
       const kind = options.length ? "Picklist" : /^integer$/i.test(type) ? "Integer" : /^boolean$/i.test(type) ? "Boolean" : "String";
-      const num4 = (a) => p[a] !== void 0 && String(p[a]).trim() !== "" && Number.isFinite(Number(p[a])) ? Number(p[a]) : void 0;
+      const num5 = (a) => p[a] !== void 0 && String(p[a]).trim() !== "" && Number.isFinite(Number(p[a])) ? Number(p[a]) : void 0;
       out.set(name, {
         name,
         label: String(p["@_label"] ?? "") || name,
@@ -125844,8 +126550,8 @@ function parseJsMeta(xml, pageType) {
         ipad: "unknown",
         ...p["@_description"] ? { description: String(p["@_description"]) } : {},
         ...p["@_default"] !== void 0 ? { default: String(p["@_default"]) } : {},
-        ...kind === "Integer" && num4("@_min") !== void 0 ? { min: num4("@_min") } : {},
-        ...kind === "Integer" && num4("@_max") !== void 0 ? { max: num4("@_max") } : {},
+        ...kind === "Integer" && num5("@_min") !== void 0 ? { min: num5("@_min") } : {},
+        ...kind === "Integer" && num5("@_max") !== void 0 ? { max: num5("@_max") } : {},
         ...String(p["@_required"]) === "true" ? { required: true } : {},
         ...options.length ? { options } : {}
       });
@@ -125863,9 +126569,9 @@ var unused = (d, ipadNote = "The iPad ignores this.") => ({
   ipad: "unused",
   ipadNote
 });
-var str12 = (name, label2, description) => used({ name, label: label2, type: "String", ...description ? { description } : {} });
+var str14 = (name, label2, description) => used({ name, label: label2, type: "String", ...description ? { description } : {} });
 var bool = (name, label2, def = "false", description) => used({ name, label: label2, type: "Boolean", default: def, ...description ? { description } : {} });
-var int2 = (name, label2, min = 1, max = 9999, description) => used({ name, label: label2, type: "Integer", min, max, ...description ? { description } : {} });
+var int3 = (name, label2, min = 1, max = 9999, description) => used({ name, label: label2, type: "Integer", min, max, ...description ? { description } : {} });
 var MOBILE_HEIGHT = used({
   name: "mobileHeight",
   label: "Height on iPad (pt)",
@@ -125880,30 +126586,30 @@ var INLINE_LWC_NOTE = "The iPad runs this inline LWC but passes it only its heig
 var NO_PROPERTIES_NOTE = "The iPad draws this component but doesn't read any of its properties.";
 var UNTRACED_NOTE = "Studio hasn't traced which properties the iPad reads for this component.";
 var GRL_KEYS = [
-  str12("objectName", "Object"),
-  str12("fieldSetName", "Field set"),
-  str12("label", "Label"),
-  str12("whereClause", "Where clause"),
-  str12("relationshipFieldName", "Relationship field"),
-  str12("allowedRecordTypes", "Allowed record types"),
-  str12("newActionComponent", "New action component"),
-  str12("handlerForUpdateDelete", "Update and delete handler"),
-  str12("viewAllComponent", "View all component"),
-  str12("DisplayAsMobile", "Display as (mobile)")
+  str14("objectName", "Object"),
+  str14("fieldSetName", "Field set"),
+  str14("label", "Label"),
+  str14("whereClause", "Where clause"),
+  str14("relationshipFieldName", "Relationship field"),
+  str14("allowedRecordTypes", "Allowed record types"),
+  str14("newActionComponent", "New action component"),
+  str14("handlerForUpdateDelete", "Update and delete handler"),
+  str14("viewAllComponent", "View all component"),
+  str14("DisplayAsMobile", "Display as (mobile)")
 ];
 var range = (prefix, label2, n) => Array.from({ length: n }, (_2, i) => bool(`${prefix}${i + 1}`, `${label2} ${i + 1}`, "false"));
 var DYNAMIC_LIST_PROPS = [
-  str12("relatedListApiName", "Related list"),
-  str12("parentFieldApiName", "Parent field"),
-  str12("relatedListLabel", "Label"),
-  str12(
+  str14("relatedListApiName", "Related list"),
+  str14("parentFieldApiName", "Parent field"),
+  str14("relatedListLabel", "Label"),
+  str14(
     "relatedListDisplayType",
     "Display type",
     "The iPad draws a grid whatever this says; it only picks the list component."
   ),
-  str12("sortFieldAlias", "Sort column"),
-  str12("sortFieldOrder", "Sort order"),
-  int2("maxRecordsToDisplay", "Records to show", 1, 9999, "Same as Rows to show."),
+  str14("sortFieldAlias", "Sort column"),
+  str14("sortFieldOrder", "Sort order"),
+  int3("maxRecordsToDisplay", "Records to show", 1, 9999, "Same as Rows to show."),
   bool(
     "showActionBar",
     "Show action bar",
@@ -125943,10 +126649,10 @@ var CURATED = {
   // SFComponentAccordion/SFComponentAccordion.swift:94 (defaultSectionName)
   "flexipage:accordion": {
     label: "Accordion",
-    properties: [str12("defaultSectionName", "Section open at first")]
+    properties: [str14("defaultSectionName", "Section open at first")]
   },
   // DynamicForms/ViewModels/FieldSectionLayoutViewModel.swift:23 (label)
-  "flexipage:fieldSection": { label: "Field section", properties: [str12("label", "Label")] },
+  "flexipage:fieldSection": { label: "Field section", properties: [str14("label", "Label")] },
   // OCE/Classes/UI/RichText/RichTextCoordinator.swift:32-33 (richTextValue, decorate); :41 decorate matters off the Home page
   "flexipage:richText": {
     label: "Rich text",
@@ -125972,36 +126678,36 @@ var CURATED = {
   "force:relatedListContainer": {
     label: "Related lists",
     properties: [
-      int2(
+      int3(
         "rowsToDisplay",
         "Rows to show",
         1,
         9999,
         "The iPad shows 5 rows unless the list is dynamic or an advanced grid."
       ),
-      str12("relatedListComponentOverride", "Component override")
+      str14("relatedListComponentOverride", "Component override")
     ]
   },
   // Core/DynamicRelatedLists/DynamicRelatedListProperties.swift:15-26, 96-100; SFComponentRelatedListVC.swift:769-779
   "force:relatedListSingleContainer": {
     label: "Related list",
     properties: [
-      int2(
+      int3(
         "rowsToDisplay",
         "Rows to show",
         1,
         9999,
         "The iPad shows 5 rows unless the list is dynamic or an advanced grid."
       ),
-      str12("relatedListComponentOverride", "Component override"),
+      str14("relatedListComponentOverride", "Component override"),
       ...DYNAMIC_LIST_PROPS
     ]
   },
   "lst:dynamicRelatedList": {
     label: "Related list",
     properties: [
-      int2("rowsToDisplay", "Rows to show", 1, 9999),
-      str12("relatedListComponentOverride", "Component override"),
+      int3("rowsToDisplay", "Rows to show", 1, 9999),
+      str14("relatedListComponentOverride", "Component override"),
       ...DYNAMIC_LIST_PROPS
     ]
   },
@@ -126017,10 +126723,10 @@ var CURATED = {
     label: "Report chart",
     properties: [
       used({ name: "reportName", label: "Report", type: "String", required: true }),
-      str12("label", "Label"),
-      int2("cacheAge", "Cache age", 0, 9999999),
+      str14("label", "Label"),
+      int3("cacheAge", "Cache age", 0, 9999999),
       bool("showRefreshButton", "Show refresh button"),
-      str12(
+      str14(
         "reportFilter",
         "Report filter column",
         "On a record page the report is filtered to the record on this column."
@@ -126031,9 +126737,9 @@ var CURATED = {
   "flexipage:filterListCard": {
     label: "List view",
     properties: [
-      str12("entityName", "Object"),
-      str12("filterName", "List view"),
-      int2("pageSize", "Records per page", 1, 9999),
+      str14("entityName", "Object"),
+      str14("filterName", "List view"),
+      int3("pageSize", "Records per page", 1, 9999),
       bool("enableInlineEdit", "Inline edit"),
       bool("hideActionBar", "Hide action bar"),
       bool("hideSearchBar", "Hide search bar")
@@ -126042,14 +126748,14 @@ var CURATED = {
   // OCE/Classes/UI/Tableau/TableauViewCoordinator.swift:17-18, 32-33 (vizUrl, height; height defaults to 500)
   "tableau:tableauViz": {
     label: "Tableau",
-    properties: [str12("vizUrl", "Viz URL"), int2("height", "Height", 1, 9999)]
+    properties: [str14("vizUrl", "Viz URL"), int3("height", "Height", 1, 9999)]
   },
   // OCEDemo/DynamicUI/Tableau Components/SFComponentEmbeddedMetric.swift:22-27, 52-57
   "analytics_embedding:metric": {
     label: "CRM Analytics metric",
     properties: [
-      str12("metricId", "Metric"),
-      str12("semanticModelId", "Semantic model"),
+      str14("metricId", "Metric"),
+      str14("semanticModelId", "Semantic model"),
       bool("showAppliedFilters", "Show applied filters"),
       bool("showChart", "Show chart"),
       bool("showInsightSummary", "Show insight summary"),
@@ -126060,18 +126766,18 @@ var CURATED = {
   "analytics_embedding:dashboard": {
     label: "CRM Analytics dashboard",
     properties: [
-      str12("dashboardId", "Dashboard"),
-      str12("filterString", "Filters"),
-      int2("height", "Height", 1, 9999)
+      str14("dashboardId", "Dashboard"),
+      str14("filterString", "Filters"),
+      int3("height", "Height", 1, 9999)
     ]
   },
   // SFComponentEmbeddedVisualization.swift:23-28, 57-64 (height defaults to 400, plus a 36 pt toolbar)
   "analytics_embedding:visualization": {
     label: "CRM Analytics visualization",
     properties: [
-      str12("visualizationApiName", "Visualization"),
-      str12("filterString", "Filters"),
-      int2("height", "Height", 1, 9999)
+      str14("visualizationApiName", "Visualization"),
+      str14("filterString", "Filters"),
+      int3("height", "Height", 1, 9999)
     ]
   },
   // OCEDemo/DynamicUI/SFComponentActivityPlanProductsVC.swift:52-62
@@ -126113,22 +126819,22 @@ var CURATED = {
   "flowruntime:interview": {
     label: "Flow",
     properties: [
-      str12("flowName", "Flow", "Required: the iPad shows nothing without it."),
-      str12("flowLayout", "Layout"),
-      str12("flowArguments", "Arguments", "JSON list of arguments.")
+      str14("flowName", "Flow", "Required: the iPad shows nothing without it."),
+      str14("flowLayout", "Layout"),
+      str14("flowArguments", "Arguments", "JSON list of arguments.")
     ]
   },
   // DynamicUI/DynamicUI/Compliance Statements/ComplianceStatementsComponentVC.swift:99-100
   complianceStatements: {
     label: "Compliance statements",
-    properties: [int2("thresholdForAutoSave", "Auto-save threshold", 0, 9999)]
+    properties: [int3("thresholdForAutoSave", "Auto-save threshold", 0, 9999)]
   },
   // OCEDemo/DynamicUI/SFComponentRelatedListVC.swift:1663-1664 (the rest of this parser's properties go to the generic list: see unlisted)
   profilingQuestions: {
     label: "Profiling questions",
     properties: [
-      str12("formTemplate", "Form template"),
-      str12("profilingMode", "Mode", "view or edit")
+      str14("formTemplate", "Form template"),
+      str14("profilingMode", "Mode", "view or edit")
     ],
     unlisted: "unknown",
     note: UNTRACED_NOTE
@@ -126150,14 +126856,14 @@ var CURATED = {
   CustomerInfoDashboard: {
     label: "Customer info",
     properties: [
-      str12("accountFieldSet", "Account field set"),
-      str12("addressFieldSet", "Address field set")
+      str14("accountFieldSet", "Account field set"),
+      str14("addressFieldSet", "Address field set")
     ]
   },
   // module/KAM/KAM/BusinessObjective/AccountPlan/SFComponentSituationalAnalysis.swift:88
   accountPlanAnalysis: {
     label: "Account plan analysis",
-    properties: [str12("relatedListApiName", "Related list")]
+    properties: [str14("relatedListApiName", "Related list")]
   },
   // module/Meetings/module/MeetingsModule.swift:294; DynamicUI/GenericRelatedList/Models/GenericRelatedList.Configuration.swift:57-67 (objectName and fieldSetName are required)
   LSCVideoCallRecordingList: { label: "Video call recordings", properties: GRL_KEYS },
@@ -126173,7 +126879,7 @@ var CURATED = {
   // module/KAM/KAM/ActionPlanListCard/SFComponentActionPlanListCard.swift:21,74-75
   "runtime_industries_actionplan:listCard": {
     label: "Action plans",
-    properties: [int2("rowsToDisplay", "Rows to show", 1, 9999)]
+    properties: [int3("rowsToDisplay", "Rows to show", 1, 9999)]
   }
 };
 var SUFFIX_CURATED = [
@@ -126210,13 +126916,13 @@ var SUFFIX_CURATED = [
     }
   ],
   // OCE/Classes/AccountTeamComponent/SFComponentAccountTeam.swift:87 (case-insensitive)
-  ["accountTeamView", { label: "Account team", properties: [str12("fieldSetName", "Field set")] }],
+  ["accountTeamView", { label: "Account team", properties: [str14("fieldSetName", "Field set")] }],
   // OCEDemo/Tabs/NextBestCustomer/NextBestCustomersViewModel.swift:166-175
   [
     "NbcTopCards",
     {
       label: "Next Best Customers",
-      properties: [int2("totalCards", "Cards to show", 1, 9999), str12("graphName", "Graph")]
+      properties: [int3("totalCards", "Cards to show", 1, 9999), str14("graphName", "Graph")]
     }
   ],
   // OCEDemo/DynamicUI/SFComponentCustomerRatingsVC.swift:72-78
@@ -126225,7 +126931,7 @@ var SUFFIX_CURATED = [
     {
       label: "Customer ratings",
       properties: [
-        str12("layoutName", "Layout", "Required: the iPad shows nothing without it."),
+        str14("layoutName", "Layout", "Required: the iPad shows nothing without it."),
         bool("isAbleToCreateATP", "Can create ATP"),
         bool("showProductRatingsInGroups", "Show product ratings in groups")
       ]
@@ -126237,11 +126943,11 @@ var SUFFIX_CURATED = [
     {
       label: "Sales chart",
       properties: [
-        str12("title", "Title"),
-        str12("salesDataType", "Sales data type"),
-        str12("rangeOfUnits", "Range of units"),
-        str12("dataSet", "Data set"),
-        str12("type", "Chart type"),
+        str14("title", "Title"),
+        str14("salesDataType", "Sales data type"),
+        str14("rangeOfUnits", "Range of units"),
+        str14("dataSet", "Data set"),
+        str14("type", "Chart type"),
         ...range("measure", "Measure", 8),
         ...range("filter", "Filter", 8)
       ]
@@ -126262,8 +126968,8 @@ var SUFFIX_CURATED = [
     {
       label: "Gantt chart",
       properties: [
-        str12("ganttCustomMetadataRecordName", "Configuration record"),
-        str12("metadataConfigName", "Configuration name")
+        str14("ganttCustomMetadataRecordName", "Configuration record"),
+        str14("metadataConfigName", "Configuration name")
       ]
     }
   ],
@@ -126284,8 +126990,8 @@ var SUFFIX_CURATED = [
     {
       label: "Up next map",
       properties: [
-        int2("minBeforeDndReminder", "Minutes before DND reminder", 0, 9999),
-        int2("minBeforeEventReminder", "Minutes before event reminder", 0, 9999)
+        int3("minBeforeDndReminder", "Minutes before DND reminder", 0, 9999),
+        int3("minBeforeEventReminder", "Minutes before event reminder", 0, 9999)
       ]
     }
   ],
@@ -126294,19 +127000,19 @@ var SUFFIX_CURATED = [
     {
       label: "Upcoming agenda",
       properties: [
-        int2("minBeforeDndReminder", "Minutes before DND reminder", 0, 9999),
-        int2("minBeforeEventReminder", "Minutes before event reminder", 0, 9999)
+        int3("minBeforeDndReminder", "Minutes before DND reminder", 0, 9999),
+        int3("minBeforeEventReminder", "Minutes before event reminder", 0, 9999)
       ]
     }
   ],
   // module/Orders/Orders/ViewOrder/View/SFComponentTransactionSummary.swift:120; CreateOrder/Utils/OrderLineColumnBuilder.swift:159
   [
     "transactionSummary",
-    { label: "Transaction summary", properties: [str12("footerFields", "Footer fields")] }
+    { label: "Transaction summary", properties: [str14("footerFields", "Footer fields")] }
   ],
   [
     "salesTxnLineTable",
-    { label: "Sales transactions", properties: [str12("displayFields", "Display fields")] }
+    { label: "Sales transactions", properties: [str14("displayFields", "Display fields")] }
   ]
 ];
 function curatedFor(component2) {
@@ -126515,7 +127221,7 @@ function buildCatalog(input) {
   ];
 }
 var ACTIVITY_CHILDREN = /* @__PURE__ */ new Set(["Event", "EventRelation", "Task", "TaskRelation"]);
-var str13 = (v) => typeof v === "string" ? v : "";
+var str15 = (v) => typeof v === "string" ? v : "";
 async function inlineLwcs(org, pageType) {
   const rows3 = await query(
     "SELECT DeveloperName, NamespacePrefix, MasterLabel FROM LightningComponentBundle WHERE DeveloperName LIKE 'lscMobileInline%'",
@@ -126530,23 +127236,23 @@ async function inlineLwcs(org, pageType) {
   ).catch(() => []);
   for (const m of metas) {
     const b = m.LightningComponentBundle ?? {};
-    const source = str13(m.Source);
+    const source = str15(m.Source);
     if (!source.trim()) continue;
-    const ns3 = str13(b.NamespacePrefix);
+    const ns3 = str15(b.NamespacePrefix);
     declares.set(
-      `${ns3}:${str13(b.DeveloperName)}`,
+      `${ns3}:${str15(b.DeveloperName)}`,
       parseJsMeta(source, pageType === "HomePage" ? "HomePage" : "RecordPage").some(
         (d) => d.name === "mobileHeight"
       )
     );
   }
-  return rows3.filter((r) => /^lscMobileInline_\w+$/i.test(str13(r.DeveloperName))).map((r) => {
-    const name = str13(r.DeveloperName);
-    const ns3 = str13(r.NamespacePrefix);
+  return rows3.filter((r) => /^lscMobileInline_\w+$/i.test(str15(r.DeveloperName))).map((r) => {
+    const name = str15(r.DeveloperName);
+    const ns3 = str15(r.NamespacePrefix);
     const height = declares.get(`${ns3}:${name}`);
     return {
       component: ns3 ? `${ns3}:${name}` : name,
-      label: str13(r.MasterLabel) || `LWC \xB7 ${name.slice(16)}`,
+      label: str15(r.MasterLabel) || `LWC \xB7 ${name.slice(16)}`,
       ...height === false ? { height } : {}
     };
   });
@@ -126558,7 +127264,7 @@ async function syncedObjects2(org) {
     org,
     true
   );
-  return new Set(rows3.map((r) => str13(r.ObjectValue) || str13(r.TextValue)).filter(Boolean));
+  return new Set(rows3.map((r) => str15(r.ObjectValue) || str15(r.TextValue)).filter(Boolean));
 }
 async function collectCatalog(pageType, sobject2, org) {
   if (sobject2 !== null && !/^\w+$/.test(sobject2))
@@ -126602,8 +127308,8 @@ var FixTracker = class {
         this.change.steps.push({ key: s2.key, label: s2.label, state: "waiting" });
   }
   /** Run one step, marking it running, then done or failed. A key that wasn't planned just runs. */
-  async run(key3, fn) {
-    const step2 = this.find(key3);
+  async run(key5, fn) {
+    const step2 = this.find(key5);
     if (!step2) return fn();
     step2.state = "running";
     step2.startedAt = Date.now();
@@ -126619,36 +127325,36 @@ var FixTracker = class {
     }
   }
   /** For a stretch of code with early returns: mark a step running now, and done with `end`. Safe to call twice. */
-  begin(key3) {
-    const step2 = this.find(key3);
+  begin(key5) {
+    const step2 = this.find(key5);
     if (step2 && step2.state === "waiting") {
       step2.state = "running";
       step2.startedAt = Date.now();
     }
   }
-  end(key3) {
-    const step2 = this.find(key3);
+  end(key5) {
+    const step2 = this.find(key5);
     if (step2 && step2.state === "running") {
       step2.state = "done";
       step2.endedAt = Date.now();
     }
   }
   /** Mark a step failed (for code that used `begin`). */
-  fail(key3) {
-    const step2 = this.find(key3);
+  fail(key5) {
+    const step2 = this.find(key5);
     if (step2 && step2.state === "running") {
       step2.state = "failed";
       step2.endedAt = Date.now();
     }
   }
   /** Say how far a step is ("2 of 3 profiles"). */
-  detail(key3, text11) {
-    const step2 = this.find(key3);
-    if (step2) step2.detail = text11;
+  detail(key5, text12) {
+    const step2 = this.find(key5);
+    if (step2) step2.detail = text12;
   }
   /** A hook for a metadata retrieve or deploy that reports Salesforce's own status on `key`. */
-  statusHook(key3) {
-    return (status) => this.detail(key3, statusDetail(status));
+  statusHook(key5) {
+    return (status) => this.detail(key5, statusDetail(status));
   }
   /** The change returned: steps it skipped drop out, and the batch ends with its last change. */
   finish() {
@@ -126659,12 +127365,12 @@ var FixTracker = class {
     const all = this.batch.changes;
     this.batch.finishedAt = all.length >= c.total && all.every((x) => x.finishedAt) ? c.finishedAt : void 0;
   }
-  find(key3) {
-    return this.change.steps.find((s2) => s2.key === key3);
+  find(key5) {
+    return this.change.steps.find((s2) => s2.key === key5);
   }
 };
-function step(progress, key3, fn) {
-  return progress ? progress.run(key3, fn) : fn();
+function step(progress, key5, fn) {
+  return progress ? progress.run(key5, fn) : fn();
 }
 function statusDetail(s2) {
   const parts = [];
@@ -126951,9 +127657,9 @@ async function accessOptions(org, search) {
     )
   ]);
   const truncated = {};
-  const cut = async (key3, rows3, totalQuery) => {
+  const cut = async (key5, rows3, totalQuery) => {
     if (rows3.length <= OPTION_LIMIT) return rows3;
-    truncated[key3] = {
+    truncated[key5] = {
       listed: OPTION_LIMIT,
       total: await count(totalQuery, org).catch(() => rows3.length)
     };
@@ -127236,13 +127942,13 @@ function isAfter(modifiedIso, boundaryMs) {
 function soqlTime2(ms2) {
   return new Date(ms2).toISOString().replace(/\.\d{3}Z$/, ".000Z");
 }
-var str14 = (v) => typeof v === "string" ? v : "";
-var nested = (r, key3) => r[key3] && typeof r[key3] === "object" ? r[key3] : {};
+var str16 = (v) => typeof v === "string" ? v : "";
+var nested = (r, key5) => r[key5] && typeof r[key5] === "object" ? r[key5] : {};
 function modifiedBy(r) {
-  return str14(nested(r, "LastModifiedBy").Name) || null;
+  return str16(nested(r, "LastModifiedBy").Name) || null;
 }
 function isoTime(v) {
-  const at2 = Date.parse(str14(v));
+  const at2 = Date.parse(str16(v));
   return Number.isFinite(at2) ? new Date(at2).toISOString() : "";
 }
 function build(kind, name, label2, r, type, live = false) {
@@ -127261,8 +127967,8 @@ function build(kind, name, label2, r, type, live = false) {
 function layoutItems(rows3, scope2) {
   const out = [];
   for (const r of rows3) {
-    const entity = str14(nested(r, "EntityDefinition").QualifiedApiName) || str14(r.TableEnumOrId);
-    const label2 = str14(r.Name);
+    const entity = str16(nested(r, "EntityDefinition").QualifiedApiName) || str16(r.TableEnumOrId);
+    const label2 = str16(r.Name);
     if (!entity || !label2) continue;
     const name = resolveName(scope2, `${entity}-${label2}`);
     if (name !== null) out.push(build("layout", name, label2, r, "Layout"));
@@ -127272,23 +127978,23 @@ function layoutItems(rows3, scope2) {
 function compactLayoutItems(rows3, scope2) {
   const out = [];
   for (const r of rows3) {
-    const object3 = str14(r.SobjectType);
-    const dev = str14(r.DeveloperName);
+    const object3 = str16(r.SobjectType);
+    const dev = str16(r.DeveloperName);
     if (!object3 || !dev) continue;
     const name = resolveName(scope2, `${object3}.${dev}`);
     if (name !== null)
-      out.push(build("compactLayout", name, str14(r.MasterLabel) || dev, r, "CompactLayout"));
+      out.push(build("compactLayout", name, str16(r.MasterLabel) || dev, r, "CompactLayout"));
   }
   return out;
 }
 function flexiPageItems(rows3, scope2) {
   const out = [];
   for (const r of rows3) {
-    const dev = str14(r.DeveloperName);
+    const dev = str16(r.DeveloperName);
     if (!dev) continue;
     const name = resolveName(scope2, dev);
     if (name !== null)
-      out.push(build("flexiPage", name, str14(r.MasterLabel) || dev, r, "FlexiPage"));
+      out.push(build("flexiPage", name, str16(r.MasterLabel) || dev, r, "FlexiPage"));
   }
   return out;
 }
@@ -127296,44 +128002,44 @@ function appItems(rows3, app) {
   if (!app) return [];
   const out = [];
   for (const r of rows3) {
-    const dev = str14(r.DeveloperName);
+    const dev = str16(r.DeveloperName);
     if (!dev) continue;
-    const ns3 = str14(r.NamespacePrefix);
+    const ns3 = str16(r.NamespacePrefix);
     const fullName = ns3 ? `${ns3}__${dev}` : dev;
     if (fullName !== app) continue;
-    out.push(build("app", fullName, str14(r.Label) || dev, r, "CustomApplication"));
+    out.push(build("app", fullName, str16(r.Label) || dev, r, "CustomApplication"));
   }
   return out;
 }
 function recordTypeItems(rows3, scope2) {
   const out = [];
   for (const r of rows3) {
-    const object3 = str14(r.SobjectType);
-    const dev = str14(r.DeveloperName);
+    const object3 = str16(r.SobjectType);
+    const dev = str16(r.DeveloperName);
     if (!object3 || !dev) continue;
     const name = resolveName(scope2, `${object3}.${dev}`);
-    if (name !== null) out.push(build("recordType", name, str14(r.Name) || dev, r, "RecordType"));
+    if (name !== null) out.push(build("recordType", name, str16(r.Name) || dev, r, "RecordType"));
   }
   return out;
 }
 function listViewItems(rows3, scope2) {
   const out = [];
   for (const r of rows3) {
-    const object3 = str14(r.SobjectType);
-    const dev = str14(r.DeveloperName);
+    const object3 = str16(r.SobjectType);
+    const dev = str16(r.DeveloperName);
     if (!object3 || !dev) continue;
     const name = resolveName(scope2, `${object3}.${dev}`);
-    if (name !== null) out.push(build("listView", name, str14(r.Name) || dev, r, "ListView", true));
+    if (name !== null) out.push(build("listView", name, str16(r.Name) || dev, r, "ListView", true));
   }
   return out;
 }
 function tabItems(rows3, scope2) {
   const out = [];
   for (const r of rows3) {
-    const dev = str14(r.DeveloperName);
+    const dev = str16(r.DeveloperName);
     if (!dev) continue;
     const name = resolveName(scope2, dev);
-    if (name !== null) out.push(build("tab", name, str14(r.MasterLabel) || dev, r, "CustomTab"));
+    if (name !== null) out.push(build("tab", name, str16(r.MasterLabel) || dev, r, "CustomTab"));
   }
   return out;
 }
@@ -127384,28 +128090,28 @@ function sortItems(items) {
 }
 
 // src/studio/overview-logic.ts
-var text3 = (v) => typeof v === "string" ? v : "";
+var text4 = (v) => typeof v === "string" ? v : "";
 function cacheError(r) {
-  const message = text3(r.IntegrationErrorMessage) || text3(r.IntegrationErrorCode);
+  const message = text4(r.IntegrationErrorMessage) || text4(r.IntegrationErrorCode);
   if (message) return message;
-  if (/error|fail/i.test(text3(r.IntegrationStatus)))
-    return `Integration status: ${text3(r.IntegrationStatus)}`;
-  if (/fail|error/i.test(text3(r.Status))) return `Status: ${text3(r.Status)}`;
+  if (/error|fail/i.test(text4(r.IntegrationStatus)))
+    return `Integration status: ${text4(r.IntegrationStatus)}`;
+  if (/fail|error/i.test(text4(r.Status))) return `Status: ${text4(r.Status)}`;
   return null;
 }
 function cachesByProfile(rows3) {
   const out = /* @__PURE__ */ new Map();
   for (const r of rows3) {
-    const profileId = text3(r.ProfileId);
+    const profileId = text4(r.ProfileId);
     if (!profileId) continue;
-    const at2 = Date.parse(text3(r.LastModifiedDate));
+    const at2 = Date.parse(text4(r.LastModifiedDate));
     if (Number.isNaN(at2)) continue;
     const entry = out.get(profileId) ?? { profileId };
     out.set(profileId, entry);
     if (r.Status === "Active") {
       if (entry.activeAt === void 0 || at2 > entry.activeAt) {
         entry.activeAt = at2;
-        const created = Date.parse(text3(r.CreatedDate));
+        const created = Date.parse(text4(r.CreatedDate));
         entry.activeStartedAt = Number.isFinite(created) ? Math.min(created, at2) : at2;
       }
     } else {
@@ -127440,16 +128146,16 @@ function daysSince2(at2, now = Date.now()) {
 init_helpers();
 init_helpers2();
 var soqlString5 = (v) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
-var text4 = (v) => typeof v === "string" ? v : "";
-var nested2 = (r, key3) => r[key3] && typeof r[key3] === "object" ? r[key3] : {};
+var text5 = (v) => typeof v === "string" ? v : "";
+var nested2 = (r, key5) => r[key5] && typeof r[key5] === "object" ? r[key5] : {};
 async function liveCache(profile, org) {
   const profiles = await query(
     `SELECT Id, Name FROM Profile WHERE Name = ${soqlString5(profile)}`,
     org
   );
-  const found = profiles.find((p) => text4(p.Name).toLowerCase() === profile.toLowerCase());
+  const found = profiles.find((p) => text5(p.Name).toLowerCase() === profile.toLowerCase());
   if (!found) throw new Error(`Profile not found: ${profile}`);
-  const profileId = text4(found.Id);
+  const profileId = text5(found.Id);
   const rows3 = await query(
     `SELECT Id, CreatedDate, LastModifiedDate FROM LifeSciMobileMetadataRecord
      WHERE ProfileId = '${profileId}' AND ParentMobileMetadataRecId != null AND Status = 'Active'
@@ -127458,8 +128164,8 @@ async function liveCache(profile, org) {
   );
   const r = rows3[0];
   if (!r) return { profileId, cache: null };
-  const generatedAt = Date.parse(text4(r.LastModifiedDate));
-  const startedAt = Date.parse(text4(r.CreatedDate));
+  const generatedAt = Date.parse(text5(r.LastModifiedDate));
+  const startedAt = Date.parse(text5(r.CreatedDate));
   if (!Number.isFinite(generatedAt))
     throw new Error("The profile's metadata cache has no generation time.");
   return {
@@ -127492,25 +128198,25 @@ async function fetchConfigEdits(org, since) {
   ]);
   const touched = /* @__PURE__ */ new Map();
   const touch = (id2, row) => {
-    const at2 = Date.parse(text4(row.LastModifiedDate));
+    const at2 = Date.parse(text5(row.LastModifiedDate));
     if (!id2 || !Number.isFinite(at2)) return;
     const prev = touched.get(id2);
     if (!prev || at2 > prev.at)
-      touched.set(id2, { at: at2, by: text4(nested2(row, "LastModifiedBy").Name) || null });
+      touched.set(id2, { at: at2, by: text5(nested2(row, "LastModifiedBy").Name) || null });
   };
   const fieldsOf3 = /* @__PURE__ */ new Map();
-  for (const r of edited) touch(text4(r.Id), r);
+  for (const r of edited) touch(text5(r.Id), r);
   for (const r of valued) {
-    touch(text4(r.LifeSciConfigRecordId), r);
-    if (text4(r.FieldName))
-      fieldsOf3.set(text4(r.LifeSciConfigRecordId), [
-        ...fieldsOf3.get(text4(r.LifeSciConfigRecordId)) ?? [],
-        text4(r.FieldName)
+    touch(text5(r.LifeSciConfigRecordId), r);
+    if (text5(r.FieldName))
+      fieldsOf3.set(text5(r.LifeSciConfigRecordId), [
+        ...fieldsOf3.get(text5(r.LifeSciConfigRecordId)) ?? [],
+        text5(r.FieldName)
       ]);
   }
-  for (const r of reassigned) touch(text4(r.LifeSciConfigRecordId), r);
-  const editedIds = new Set(edited.map((r) => text4(r.Id)));
-  const reassignedIds = new Set(reassigned.map((r) => text4(r.LifeSciConfigRecordId)));
+  for (const r of reassigned) touch(text5(r.LifeSciConfigRecordId), r);
+  const editedIds = new Set(edited.map((r) => text5(r.Id)));
+  const reassignedIds = new Set(reassigned.map((r) => text5(r.LifeSciConfigRecordId)));
   const out = [];
   await Promise.all(
     chunkIds([...touched.keys()], 150).map(async (chunk2) => {
@@ -127527,21 +128233,21 @@ async function fetchConfigEdits(org, since) {
         )
       ]);
       for (const r of records) {
-        const category = text4(nested2(r, "LifeSciConfigCategory").Category);
+        const category = text5(nested2(r, "LifeSciConfigCategory").Category);
         if (!MOBILE_CATEGORIES2.includes(category)) continue;
         const mine = assignments.filter((a) => a.LifeSciConfigRecordId === r.Id);
-        const t = touched.get(text4(r.Id));
+        const t = touched.get(text5(r.Id));
         out.push({
-          recordId: text4(r.Id),
+          recordId: text5(r.Id),
           category,
-          developerName: text4(r.DeveloperName),
+          developerName: text5(r.DeveloperName),
           at: t.at,
           by: t.by,
           allProfiles: r.IsOrgLevel === true || mine.some((a) => a.AssignmentLevel !== "Profile"),
-          profileIds: mine.filter((a) => a.AssignmentLevel === "Profile").map((a) => text4(a.AssignedToId)),
-          changedFields: fieldsOf3.get(text4(r.Id)) ?? [],
-          assignmentsChanged: reassignedIds.has(text4(r.Id)),
-          recordEdited: editedIds.has(text4(r.Id))
+          profileIds: mine.filter((a) => a.AssignmentLevel === "Profile").map((a) => text5(a.AssignedToId)),
+          changedFields: fieldsOf3.get(text5(r.Id)) ?? [],
+          assignmentsChanged: reassignedIds.has(text5(r.Id)),
+          recordEdited: editedIds.has(text5(r.Id))
         });
       }
     })
@@ -127555,7 +128261,7 @@ async function flexiPageRows(since, org) {
     true
   );
   if (rows3.length === 0) return rows3;
-  const earliest = rows3.map((r) => text4(r.LastModifiedDate)).sort()[0];
+  const earliest = rows3.map((r) => text5(r.LastModifiedDate)).sort()[0];
   const who = /* @__PURE__ */ new Map();
   try {
     const trail = await query(
@@ -127563,15 +128269,15 @@ async function flexiPageRows(since, org) {
       org
     );
     for (const t of trail) {
-      const label2 = text4(t.Display).replace(/^[^:]*:\s*/, "").trim().toLowerCase();
-      const name = text4(t.CreatedBy?.Name);
+      const label2 = text5(t.Display).replace(/^[^:]*:\s*/, "").trim().toLowerCase();
+      const name = text5(t.CreatedBy?.Name);
       if (label2 && name && !who.has(label2)) who.set(label2, name);
     }
   } catch {
     return rows3;
   }
   return rows3.map((r) => {
-    const name = who.get(text4(r.MasterLabel).trim().toLowerCase()) ?? who.get(text4(r.DeveloperName).trim().toLowerCase());
+    const name = who.get(text5(r.MasterLabel).trim().toLowerCase()) ?? who.get(text5(r.DeveloperName).trim().toLowerCase());
     return name ? { ...r, LastModifiedBy: { Name: name } } : r;
   });
 }
@@ -128167,16 +128873,16 @@ function featureForObject(objectName) {
   return FEATURES.find((f) => f.objects.some((o) => o.toLowerCase() === lower2))?.id ?? null;
 }
 function featureForRecord(rec) {
-  const text11 = `${rec.developerName} ${rec.label || ""}`;
+  const text12 = `${rec.developerName} ${rec.label || ""}`;
   if (rec.kind === "triggerHandler") {
-    return FEATURES.find((f) => f.handlerKeywords.length && matchesAny(text11, f.handlerKeywords))?.id ?? null;
+    return FEATURES.find((f) => f.handlerKeywords.length && matchesAny(text12, f.handlerKeywords))?.id ?? null;
   }
   if (rec.category === "DbSchema") {
     const object3 = typeof rec.fields.SObject === "string" ? rec.fields.SObject : rec.developerName.replace(/^DbSchema_/i, "");
     return featureForObject(object3) ?? FALLBACKS.dbSchema;
   }
   if (rec.category === "QuickAction" || rec.category === "CustomAction") {
-    const body = [text11, ...Object.values(rec.fields).filter((v) => typeof v === "string")].join(
+    const body = [text12, ...Object.values(rec.fields).filter((v) => typeof v === "string")].join(
       " "
     );
     return FEATURES.find((f) => f.actionKeywords.length && matchesAny(body, f.actionKeywords))?.id ?? FALLBACKS.actions;
@@ -128193,10 +128899,10 @@ function same2(a, b) {
   return norm3(a) === norm3(b);
 }
 var assignmentName = (a) => `${a.level || "Profile"}: ${a.name}`;
-function change(kind, key3, rec, extra = {}) {
+function change(kind, key5, rec, extra = {}) {
   const featureId = featureForRecord(rec);
   return {
-    key: key3,
+    key: key5,
     kind,
     category: rec.category,
     developerName: rec.developerName,
@@ -128213,11 +128919,11 @@ function diffSnapshots(snapshot4, live, meta) {
   const before = flattenSnapshot(snapshot4);
   const after = flattenSnapshot(live);
   const changes = [];
-  for (const [key3, b] of before) {
-    const a = after.get(key3);
+  for (const [key5, b] of before) {
+    const a = after.get(key5);
     if (!a) {
       changes.push(
-        change("removed", key3, b, {
+        change("removed", key5, b, {
           active: b.isActive === void 0 ? void 0 : { before: b.isActive },
           fields: Object.keys(b.fields).sort().map((name) => ({ name, before: b.fields[name], after: void 0 })),
           assignmentsRemoved: b.assignments.map(assignmentName)
@@ -128239,7 +128945,7 @@ function diffSnapshots(snapshot4, live, meta) {
     if (!fields.length && !assignmentsAdded.length && !assignmentsRemoved.length && !activeChanged)
       continue;
     changes.push(
-      change("changed", key3, a, {
+      change("changed", key5, a, {
         label: a.label ?? b.label,
         active: activeChanged ? { before: b.isActive, after: a.isActive } : void 0,
         fields,
@@ -128248,10 +128954,10 @@ function diffSnapshots(snapshot4, live, meta) {
       })
     );
   }
-  for (const [key3, a] of after) {
-    if (before.has(key3)) continue;
+  for (const [key5, a] of after) {
+    if (before.has(key5)) continue;
     changes.push(
-      change("added", key3, a, {
+      change("added", key5, a, {
         active: a.isActive === void 0 ? void 0 : { after: a.isActive },
         fields: Object.keys(a.fields).sort().filter((n) => !same2(a.fields[n], "")).map((name) => ({ name, before: void 0, after: a.fields[name] })),
         assignmentsAdded: a.assignments.map(assignmentName)
@@ -129611,7 +130317,7 @@ import * as path14 from "path";
 // src/studio/diff.ts
 var CONTEXT = 2;
 var MAX_CELLS = 4e6;
-var lines = (text11) => text11.replace(/\r\n/g, "\n").split("\n");
+var lines = (text12) => text12.replace(/\r\n/g, "\n").split("\n");
 function ops(a, b) {
   let start = 0;
   while (start < a.length && start < b.length && a[start] === b[start]) start++;
@@ -129671,7 +130377,7 @@ function lineDiff(before, after) {
   while (out[out.length - 1] === "\u2026") out.pop();
   return out;
 }
-var lineCount = (text11) => text11 ? lines(text11).length : 0;
+var lineCount = (text12) => text12 ? lines(text12).length : 0;
 
 // src/studio/metadata/copy-fix.ts
 init_helpers2();
@@ -130331,11 +131037,11 @@ var TYPE_ORDER = {
   Validation: 1,
   Checklist: 2
 };
-var day = (iso2) => {
+var day2 = (iso2) => {
   const d = new Date(String(iso2 ?? ""));
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
 };
-var str15 = (v) => v === null || v === void 0 || v === "" ? null : String(v);
+var str17 = (v) => v === null || v === void 0 || v === "" ? null : String(v);
 function isMissingObject2(e) {
   return /INVALID_TYPE|sObject type .* is not supported|doesn't exist|does not exist|No such column|NOT_FOUND/i.test(
     String(e?.message ?? e)
@@ -130354,9 +131060,9 @@ async function readBundles(org, names4) {
       out.set(String(r.DeveloperName).toLowerCase(), {
         id: String(r.Id),
         developerName: String(r.DeveloperName),
-        namespace: str15(r.NamespacePrefix),
-        manageableState: str15(r.ManageableState),
-        lastModifiedDate: str15(r.LastModifiedDate)
+        namespace: str17(r.NamespacePrefix),
+        manageableState: str17(r.ManageableState),
+        lastModifiedDate: str17(r.LastModifiedDate)
       });
     }
   }
@@ -130379,7 +131085,7 @@ async function readSharing(org) {
       org,
       true
     );
-    const internalAccess = str15(row?.InternalSharingModel);
+    const internalAccess = str17(row?.InternalSharingModel);
     if (internalAccess === "Private") {
       return {
         internalAccess,
@@ -130406,7 +131112,7 @@ function statusOf2(r, s2, diag) {
       return {
         tone: "error",
         label: "Won't run",
-        detail: `Only the first visit action validation script runs \u2014 ${String(first2.Name)} (created ${day(first2.CreatedDate)}) does.`
+        detail: `Only the first visit action validation script runs \u2014 ${String(first2.Name)} (created ${day2(first2.CreatedDate)}) does.`
       };
     }
     return {
@@ -130442,8 +131148,8 @@ function summaryFrom(r, bundle, s2) {
   const type = r.Type;
   const diags = analyzeScript(code, {
     type,
-    objectName: str15(r.ObjectName),
-    operationEventType: str15(r.OperationEventType)
+    objectName: str17(r.ObjectName),
+    operationEventType: str17(r.OperationEventType)
   });
   const findingCount = {
     error: diags.filter((d) => d.severity === "error").length,
@@ -130454,11 +131160,11 @@ function summaryFrom(r, bundle, s2) {
     name: String(r.Name ?? ""),
     componentName: String(r.ComponentName ?? ""),
     type,
-    objectName: str15(r.ObjectName),
-    operationEventType: str15(r.OperationEventType),
+    objectName: str17(r.ObjectName),
+    operationEventType: str17(r.OperationEventType),
     createdDate: String(r.CreatedDate ?? ""),
     lastModifiedDate: String(r.LastModifiedDate ?? ""),
-    lastModifiedBy: str15(r.LastModifiedBy?.Name),
+    lastModifiedBy: str17(r.LastModifiedBy?.Name),
     codeSize: code.length,
     lwc: {
       exists: !!bundle,
@@ -130504,8 +131210,8 @@ async function readStageObjects(org) {
       name: String(r.Name ?? ""),
       objectName: String(r.ObjectName ?? ""),
       controlledByStagePath: r.IsControlledByStagePath === true,
-      validationScriptId: str15(r.ValidationCustomScriptId),
-      checklistScriptId: str15(r.ChecklistCustomScriptId)
+      validationScriptId: str17(r.ValidationCustomScriptId),
+      checklistScriptId: str17(r.ChecklistCustomScriptId)
     })),
     pathObjects,
     note
@@ -130812,7 +131518,7 @@ function fieldsOf2(row) {
   };
 }
 var sameCode = (a, b) => a.trim() === b.trim();
-var run3 = (hooks, key3, fn) => hooks.step ? hooks.step(key3, fn) : fn();
+var run3 = (hooks, key5, fn) => hooks.step ? hooks.step(key5, fn) : fn();
 async function saveScript(org, input, hooks = {}) {
   const { scriptId, current: current2, next } = input;
   const codeChanged = !sameCode(current2.code, next.code);
@@ -131075,7 +131781,7 @@ var FIELD_LABEL = {
   operationEventType: "Event"
 };
 var hooksFor = (progress) => ({
-  step: (key3, fn) => step(progress, key3, fn),
+  step: (key5, fn) => step(progress, key5, fn),
   onStatus: progress?.statusHook("lwc")
 });
 async function codeTextWritable2(org) {
@@ -132522,12 +133228,12 @@ async function previewSetProfileAssignments(fix, org, progress) {
       return [name.toLowerCase(), { id: String(r.Id), name }];
     })
   );
-  const key3 = (l) => l.map((n) => n.toLowerCase()).sort().join("|");
+  const key5 = (l) => l.map((n) => n.toLowerCase()).sort().join("|");
   const now = [...current2.values()].map((c) => c.name);
   const live = [{ ...preview.changes[0], before: display(now.join(";")) }];
-  if (key3(now) === key3(fix.to))
+  if (key5(now) === key5(fix.to))
     return { ...preview, changes: live, blocked: "Already applied. Refresh the map." };
-  if (key3(now) !== key3(fix.from)) {
+  if (key5(now) !== key5(fix.from)) {
     return {
       ...preview,
       changes: live,
@@ -132811,7 +133517,7 @@ var sameValue2 = (a, b) => String(a ?? "") === String(b ?? "");
 function isScalar(v) {
   return v === null || ["string", "number", "boolean"].includes(typeof v);
 }
-var str16 = (v) => typeof v === "string" && v.trim() ? v.trim() : void 0;
+var str18 = (v) => typeof v === "string" && v.trim() ? v.trim() : void 0;
 var strings = (v) => Array.isArray(v) ? v.filter((x) => typeof x === "string" && !!x.trim()).map((x) => x.trim()) : [];
 async function fixesForToolCall(name, input, org) {
   try {
@@ -132923,7 +133629,7 @@ async function withAffects(target3, fixes, org) {
   return fixes.map((fix) => affects ? { fix, affects } : { fix });
 }
 async function updateAdminSetting(input, org) {
-  const recordId = str16(input.recordId);
+  const recordId = str18(input.recordId);
   if (!recordId) return unsupported("No recordId.");
   assertId(recordId);
   const target3 = await configRecordBy(`Id = '${recordId}'`, org);
@@ -132957,7 +133663,7 @@ async function updateAdminSetting(input, org) {
   return result(await withAffects(target3, fixes, org), `${target3.label} already has these values.`);
 }
 async function dbSchemaTarget(name, org) {
-  const given = str16(name);
+  const given = str18(name);
   if (!given) return unsupported("No DB Schema record name.");
   const fullName = normalizeDbSchemaName(given);
   assertNames(fullName);
@@ -133002,7 +133708,7 @@ async function toggleDbSchema(input, org) {
   );
 }
 async function toggleTriggerHandler(input, org) {
-  const developerName = str16(input.handlerName);
+  const developerName = str18(input.handlerName);
   if (!developerName) return unsupported("No handlerName.");
   assertNames(developerName);
   if (typeof input.active !== "boolean") return unsupported("active isn't true or false.");
@@ -133034,7 +133740,7 @@ function result(changes, nothingToDo) {
   return changes.length ? { changes } : { changes: [], note: nothingToDo };
 }
 async function permissionSetAccess(assigning, input, org) {
-  const wanted = str16(input.permissionSetName);
+  const wanted = str18(input.permissionSetName);
   if (!wanted) return unsupported("No permissionSetName.");
   const esc4 = (s2) => s2.replace(/[\\']/g, (c) => `\\${c}`);
   const sets = await query(
@@ -133220,20 +133926,20 @@ init_published();
 // src/studio/metadata-cache-logic.ts
 var STALLED_MS = 2 * 36e5;
 var LOG_PREVIEW = 300;
-var text5 = (v) => typeof v === "string" ? v : "";
-var nameOf2 = (v) => text5(v?.Name) || null;
+var text6 = (v) => typeof v === "string" ? v : "";
+var nameOf2 = (v) => text6(v?.Name) || null;
 function recordInfo(r, profileNames2) {
   const doc = r.MetadataDocument;
   const log = cacheErrorText(r.ErrorLog);
-  const profileId = text5(r.ProfileId) || null;
+  const profileId = text6(r.ProfileId) || null;
   return {
-    id: text5(r.Id),
-    name: text5(r.Name),
-    status: text5(r.Status) || "Unknown",
+    id: text6(r.Id),
+    name: text6(r.Name),
+    status: text6(r.Status) || "Unknown",
     profile: nameOf2(r.Profile) ?? (profileId ? profileNames2?.get(profileId) ?? profileId : null),
     profileId,
-    createdAt: text5(r.CreatedDate),
-    modifiedAt: text5(r.LastModifiedDate),
+    createdAt: text6(r.CreatedDate),
+    modifiedAt: text6(r.LastModifiedDate),
     createdBy: nameOf2(r.CreatedBy),
     sizeBytes: typeof doc?.ContentSize === "number" ? doc.ContentSize : null,
     hasDocument: !!r.MetadataDocumentId,
@@ -133244,22 +133950,22 @@ function recordInfo(r, profileNames2) {
 function buildJobs(parents, children2, now = Date.now()) {
   const byParent = /* @__PURE__ */ new Map();
   for (const c of children2) {
-    const p = text5(c.ParentMobileMetadataRecId);
+    const p = text6(c.ParentMobileMetadataRecId);
     byParent.set(p, [...byParent.get(p) ?? [], c]);
   }
   return parents.map((p) => {
-    const kids = byParent.get(text5(p.Id)) ?? [];
+    const kids = byParent.get(text6(p.Id)) ?? [];
     const outcome = jobOutcome(p, kids);
-    const updatedAt = [p, ...kids].map((r) => text5(r.LastModifiedDate)).sort().at(-1) ?? text5(p.LastModifiedDate);
+    const updatedAt = [p, ...kids].map((r) => text6(r.LastModifiedDate)).sort().at(-1) ?? text6(p.LastModifiedDate);
     const stalled = outcome.state === "running" && now - Date.parse(updatedAt) > STALLED_MS;
     return {
-      id: text5(p.Id),
-      name: text5(p.Name),
-      startedAt: text5(p.CreatedDate),
+      id: text6(p.Id),
+      name: text6(p.Name),
+      startedAt: text6(p.CreatedDate),
       updatedAt,
       startedBy: nameOf2(p.CreatedBy),
       state: stalled ? "failed" : outcome.state,
-      status: text5(p.Status) || "Unknown",
+      status: text6(p.Status) || "Unknown",
       error: stalled ? "Stopped without finishing: Salesforce stopped updating this job." : outcome.error ?? null,
       records: kids.map((k) => recordInfo(k)).sort((a, b) => (a.profile ?? "").localeCompare(b.profile ?? ""))
     };
@@ -133268,18 +133974,18 @@ function buildJobs(parents, children2, now = Date.now()) {
 function profileRows(profiles, records, attempts, unpublished) {
   const byProfile = /* @__PURE__ */ new Map();
   for (const r of records) {
-    const id2 = text5(r.ProfileId);
+    const id2 = text6(r.ProfileId);
     if (id2) byProfile.set(id2, [...byProfile.get(id2) ?? [], r]);
   }
   const names4 = new Map(profiles.map((p) => [p.id, p.name]));
   return profiles.map((p) => {
     const mine = (byProfile.get(p.id) ?? []).sort(
-      (a, b) => text5(b.CreatedDate).localeCompare(text5(a.CreatedDate))
+      (a, b) => text6(b.CreatedDate).localeCompare(text6(a.CreatedDate))
     );
     const liveRow = mine.find((r) => r.Status === "Active" && r.MetadataDocumentId);
     const newest2 = mine[0];
-    const attemptRow = newest2 && newest2 !== liveRow && (!liveRow || text5(newest2.CreatedDate) > text5(liveRow.CreatedDate)) ? newest2 : void 0;
-    const job = attemptRow ? attempts.get(text5(attemptRow.ParentMobileMetadataRecId)) : void 0;
+    const attemptRow = newest2 && newest2 !== liveRow && (!liveRow || text6(newest2.CreatedDate) > text6(liveRow.CreatedDate)) ? newest2 : void 0;
+    const job = attemptRow ? attempts.get(text6(attemptRow.ParentMobileMetadataRecId)) : void 0;
     const ownError = attemptRow ? cacheError(attemptRow) : null;
     const attemptState = job?.state ?? (ownError ? "failed" : null);
     const behind = liveRow ? unpublished?.get(p.id) ?? 0 : 0;
@@ -133561,14 +134267,14 @@ init_helpers2();
 init_shared();
 init_sync_volume();
 var value3 = (v) => v === void 0 || v === null ? null : typeof v === "string" || typeof v === "number" || typeof v === "boolean" ? v : JSON.stringify(v);
-var text6 = (v) => {
+var text7 = (v) => {
   const s2 = typeof v === "string" ? v.trim() : v == null ? "" : String(v);
   return s2 ? s2 : null;
 };
 function rowFindings(r, duplicates) {
   const findings = [];
-  const status = text6(r.fields.Status)?.toUpperCase() ?? null;
-  if (text6(r.fields.Errors))
+  const status = text7(r.fields.Status)?.toUpperCase() ?? null;
+  if (text7(r.fields.Errors))
     findings.push({
       severity: "error",
       title: "The Admin Console reports errors",
@@ -133580,7 +134286,7 @@ function rowFindings(r, duplicates) {
       title: "Marked invalid",
       detail: "The Admin Console's last validation failed for this record. Metadata cache generation can fail until it's fixed and validated again."
     });
-  if (r.fields.Type !== "CONFIGURATION" && !text6(r.fields.SObject))
+  if (r.fields.Type !== "CONFIGURATION" && !text7(r.fields.SObject))
     findings.push({
       severity: "error",
       title: "No object",
@@ -133606,13 +134312,13 @@ function toRow2(r, duplicates) {
     developerName: r.developerName,
     label: r.label || r.developerName,
     title: dbSchemaLabel(r),
-    sobject: text6(r.fields.SObject),
-    type: text6(r.fields.Type),
+    sobject: text7(r.fields.SObject),
+    type: text7(r.fields.Type),
     active: !!r.isActive,
     orgLevel: !!r.isOrgLevel,
-    status: text6(r.fields.Status),
-    errors: text6(r.fields.Errors),
-    whereSoql: text6(r.fields.WhereSoql),
+    status: text7(r.fields.Status),
+    errors: text7(r.fields.Errors),
+    whereSoql: text7(r.fields.WhereSoql),
     profiles: profilesOf(r),
     permissionSets: [
       .../* @__PURE__ */ new Set([
@@ -133682,7 +134388,7 @@ async function checkRecord(r, org) {
     });
     return done();
   }
-  const sobject2 = text6(r.fields.SObject);
+  const sobject2 = text7(r.fields.SObject);
   if (!sobject2 || !/^\w+$/.test(sobject2)) {
     parts.push({
       name: "Object",
@@ -133702,7 +134408,7 @@ async function checkRecord(r, org) {
   }
   parts.push({ name: "Object", state: "pass", detail: `${described.data.label} (${sobject2})` });
   const fields = new Map(described.data.fields.map((f) => [f.name.toLowerCase(), f]));
-  const delta = text6(r.fields.DeltaDateField);
+  const delta = text7(r.fields.DeltaDateField);
   if (delta) {
     const f = fields.get(delta.toLowerCase());
     parts.push(
@@ -133737,7 +134443,7 @@ async function checkRecord(r, org) {
       }
     );
   }
-  const where3 = text6(r.fields.WhereSoql);
+  const where3 = text7(r.fields.WhereSoql);
   if (!where3) {
     parts.push({
       name: "Filter",
@@ -134695,7 +135401,7 @@ init_private_tmp();
 var BUILD_VERSION = 5;
 var MAX_CACHED = 30;
 var cache = /* @__PURE__ */ new Map();
-function str17(v) {
+function str19(v) {
   return typeof v === "string" ? v : "";
 }
 function lightningNames(sources2) {
@@ -134736,9 +135442,9 @@ async function loadBundles(org, bundles) {
     true
   );
   return rows3.map((r) => ({
-    bundle: str17(r.LightningComponentBundle?.DeveloperName),
-    path: str17(r.FilePath),
-    source: str17(r.Source)
+    bundle: str19(r.LightningComponentBundle?.DeveloperName),
+    path: str19(r.FilePath),
+    source: str19(r.Source)
   }));
 }
 async function loadLabels(org, files) {
@@ -134751,7 +135457,7 @@ async function loadLabels(org, files) {
     org,
     true
   ).catch(() => []);
-  return Object.fromEntries(rows3.map((r) => [str17(r.Name), str17(r.Value)]));
+  return Object.fromEntries(rows3.map((r) => [str19(r.Name), str19(r.Value)]));
 }
 function orgFilePath(f) {
   const rel5 = f.path.replace(/^lwc\//, "");
@@ -134772,8 +135478,8 @@ async function buildInlineLwc(name, files, labels2 = {}) {
     import("rollup"),
     import("@lwc/rollup-plugin")
   ]);
-  const key3 = createHash4("sha256").update(JSON.stringify([BUILD_VERSION, name, files, labels2])).digest("hex").slice(0, 16);
-  const dir = path17.join(privateTmp("lsc-studio-lwc"), key3);
+  const key5 = createHash4("sha256").update(JSON.stringify([BUILD_VERSION, name, files, labels2])).digest("hex").slice(0, 16);
+  const dir = path17.join(privateTmp("lsc-studio-lwc"), key5);
   const base2 = await baseComponents();
   const { modules, tags } = lightningNames(files.map((f) => f.source));
   const missing = [.../* @__PURE__ */ new Set([...modules, ...tags])].filter((n) => !base2.has(n) && !SHIMMED_LIGHTNING.has(n)).sort();
@@ -134895,11 +135601,11 @@ async function compileInlineLwc(org, name) {
   if (!check2.bundles.includes(name))
     throw new Error(`The org has no Lightning web component named ${name}.`);
   const labels2 = await loadLabels(org, read2);
-  const key3 = createHash4("sha256").update(JSON.stringify([org, name, read2, labels2])).digest("hex");
-  let job = cache.get(key3);
+  const key5 = createHash4("sha256").update(JSON.stringify([org, name, read2, labels2])).digest("hex");
+  let job = cache.get(key5);
   if (job) {
-    cache.delete(key3);
-    cache.set(key3, job);
+    cache.delete(key5);
+    cache.set(key5, job);
   } else {
     job = buildInlineLwc(name, read2, labels2).then(({ script, placeholders }) => ({
       name,
@@ -134908,9 +135614,9 @@ async function compileInlineLwc(org, name) {
       placeholders,
       check: check2
     }));
-    cache.set(key3, job);
+    cache.set(key5, job);
     while (cache.size > MAX_CACHED) cache.delete(cache.keys().next().value);
-    job.catch(() => cache.delete(key3));
+    job.catch(() => cache.delete(key5));
   }
   return job;
 }
@@ -134990,12 +135696,12 @@ async function lwcRequest(as, req, http3) {
       }
     };
   }
-  const text11 = res.body.toString("utf8");
+  const text12 = res.body.toString("utf8");
   let data2 = null;
   try {
-    data2 = text11 ? JSON.parse(text11) : null;
+    data2 = text12 ? JSON.parse(text12) : null;
   } catch {
-    data2 = text11;
+    data2 = text12;
   }
   const statusText = res.status === 401 ? "Unauthorized" : res.status === 403 ? "Forbidden" : res.status === 404 ? "Not Found" : `HTTP ${res.status}`;
   if (res.status < 200 || res.status >= 300)
@@ -135086,7 +135792,7 @@ function ms(value4) {
   const t = Date.parse(value4);
   return Number.isNaN(t) ? void 0 : t;
 }
-function num(value4) {
+function num2(value4) {
   if (value4 === null || value4 === void 0 || value4 === "") return void 0;
   const n = Number(value4);
   return Number.isFinite(n) ? n : void 0;
@@ -135095,7 +135801,7 @@ function spanSec(start, end, freezeMs) {
   const s2 = ms(start);
   const e = ms(end);
   if (s2 === void 0 || e === void 0 || e < s2) return void 0;
-  return Math.max(0, (e - s2 - (num(freezeMs) ?? 0)) / 1e3);
+  return Math.max(0, (e - s2 - (num2(freezeMs) ?? 0)) / 1e3);
 }
 function parseSummaryData(value4) {
   if (typeof value4 !== "string" || !value4) return {};
@@ -135124,9 +135830,9 @@ function toSyncSample(r) {
   const outcome = syncOutcome(r);
   const starts = [r.UploadStart, r.MetadataDownloadStart, r.DownloadStart].map(ms).filter((v) => v !== void 0);
   const end = ms(r.SyncEndDate) ?? ms(r.DownloadEnd);
-  const freeze = (num(r.DownloadFreezeTime) ?? 0) + (num(r.UploadFreezeTime) ?? 0);
+  const freeze = (num2(r.DownloadFreezeTime) ?? 0) + (num2(r.UploadFreezeTime) ?? 0);
   const totalSec = starts.length > 0 && end !== void 0 && end >= Math.min(...starts) ? Math.max(0, (end - Math.min(...starts) - freeze) / 1e3) : void 0;
-  const metadataMs = num(r.MetadataDownloadDuration);
+  const metadataMs = num2(r.MetadataDownloadDuration);
   const summary = parseSummaryData(r.SyncSummaryData);
   return {
     id: r.Id,
@@ -135139,8 +135845,8 @@ function toSyncSample(r) {
     downloadSec: spanSec(r.DownloadStart, r.DownloadEnd, r.DownloadFreezeTime),
     uploadSec: spanSec(r.UploadStart, r.UploadEnd, r.UploadFreezeTime),
     metadataSec: metadataMs !== void 0 && metadataMs >= 0 ? metadataMs / 1e3 : void 0,
-    downloadedRecords: num(r.DownloadedRecords),
-    dbSizeGb: num(summary.DBSize),
+    downloadedRecords: num2(r.DownloadedRecords),
+    dbSizeGb: num2(summary.DBSize),
     network: r.Network || "unknown",
     appVersion: r.AppVersion || "unknown"
   };
@@ -135161,10 +135867,10 @@ function distribution(values) {
     max: v.length ? Math.max(...v) : void 0
   };
 }
-function groupBy(samples, key3) {
+function groupBy(samples, key5) {
   const groups = /* @__PURE__ */ new Map();
   for (const s2 of samples) {
-    const k = key3(s2);
+    const k = key5(s2);
     groups.set(k, [...groups.get(k) ?? [], s2]);
   }
   return groups;
@@ -135201,16 +135907,16 @@ function summarize(samples) {
     },
     metadataDownload: distribution(ok.map((s2) => s2.metadataSec)),
     dbSizeGb: distribution(ok.map((s2) => s2.dbSizeGb)),
-    byNetwork: [...groupBy(ok, (s2) => s2.network)].map(([key3, list2]) => ({
-      key: key3,
+    byNetwork: [...groupBy(ok, (s2) => s2.network)].map(([key5, list2]) => ({
+      key: key5,
       n: list2.length,
       deltaP95: percentile(
         list2.filter((s2) => s2.kind === "delta" && s2.totalSec !== void 0).map((s2) => s2.totalSec),
         95
       )
     })),
-    byAppVersion: [...groupBy(samples, (s2) => s2.appVersion)].map(([key3, list2]) => ({
-      key: key3,
+    byAppVersion: [...groupBy(samples, (s2) => s2.appVersion)].map(([key5, list2]) => ({
+      key: key5,
       n: list2.length,
       deltaP95: percentile(
         list2.filter(
@@ -135347,8 +136053,8 @@ var ACTIVE_MODEL = "Territory2.Territory2Model.State = 'Active'";
 function soqlString8(value4) {
   return value4.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
-function likeValue(text11) {
-  return soqlString8(text11).replace(/%/g, "\\%").replace(/_/g, "\\_");
+function likeValue(text12) {
+  return soqlString8(text12).replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
 async function rows(org, soql5) {
   const result2 = await org.soql(soql5);
@@ -135378,8 +136084,8 @@ async function withAccountVolume(org, users) {
     );
     const byUser = /* @__PURE__ */ new Map();
     for (const a of assigned) {
-      const key3 = idKey(String(a.UserId));
-      byUser.set(key3, [...byUser.get(key3) ?? [], String(a.Territory2Id)]);
+      const key5 = idKey(String(a.UserId));
+      byUser.set(key5, [...byUser.get(key5) ?? [], String(a.Territory2Id)]);
     }
     const territories = [...new Set(assigned.map((a) => String(a.Territory2Id)))].map((id2) => ({
       id: id2
@@ -135852,7 +136558,7 @@ init_private_tmp();
 function obj8(v) {
   return v && typeof v === "object" && !Array.isArray(v) ? v : {};
 }
-function str18(v) {
+function str20(v) {
   return typeof v === "string" && v ? v : void 0;
 }
 function splitList3(v) {
@@ -135869,9 +136575,9 @@ function tablesFromArchive(files, user, access) {
   const excluded = new Set(Object.keys(files.config).map((k) => k.toLowerCase()));
   const assigned = new Set([...user.permissionSets].map((n) => n.toLowerCase()));
   const winners = /* @__PURE__ */ new Map();
-  const consider2 = (key3, raw, matchedBy) => {
+  const consider2 = (key5, raw, matchedBy) => {
     const e = obj8(raw);
-    const sobject2 = str18(e.SObject) ?? (matchedBy === "profile" ? key3 : key3.replace(/__c$/, ""));
+    const sobject2 = str20(e.SObject) ?? (matchedBy === "profile" ? key5 : key5.replace(/__c$/, ""));
     const lower2 = sobject2.toLowerCase();
     if (excluded.has(lower2) || e.IsActive === false) return;
     if (access && access.governed.has(lower2) && !access.readable.has(lower2)) return;
@@ -135880,10 +136586,10 @@ function tablesFromArchive(files, user, access) {
       if (!sets.some((n) => assigned.has(n.toLowerCase()))) return;
     }
     const entry = {
-      developerName: str18(e.DeveloperName) ?? key3,
+      developerName: str20(e.DeveloperName) ?? key5,
       sobject: sobject2,
-      type: str18(e.Type) ?? "",
-      whereSoql: str18(e.WhereSoql) ?? null,
+      type: str20(e.Type) ?? "",
+      whereSoql: str20(e.WhereSoql) ?? null,
       profileIds: /* @__PURE__ */ new Set(),
       profileNames: /* @__PURE__ */ new Set(),
       permissionSets: /* @__PURE__ */ new Set()
@@ -135897,8 +136603,8 @@ function tablesFromArchive(files, user, access) {
       winners.set(lower2, { entry, matchedBy });
     }
   };
-  for (const [key3, raw] of Object.entries(files.db)) consider2(key3, raw, "profile");
-  for (const [key3, raw] of Object.entries(files.dbPs)) consider2(key3, raw, "permissionSet");
+  for (const [key5, raw] of Object.entries(files.db)) consider2(key5, raw, "profile");
+  for (const [key5, raw] of Object.entries(files.dbPs)) consider2(key5, raw, "permissionSet");
   return [...winners.values()].sort((a, b) => a.entry.sobject.localeCompare(b.entry.sobject));
 }
 function diffTables(compiled, dbSchema) {
@@ -135923,14 +136629,14 @@ async function findProfileArchive(org, profileId) {
   );
   if (!rec.success) throw new Error(`LifeSciMobileMetadataRecord query failed: ${rec.error}`);
   const row = rec.data?.records?.[0];
-  const docId = str18(row?.MetadataDocumentId);
+  const docId = str20(row?.MetadataDocumentId);
   if (!row || !docId) return null;
   const ver = await org.soql(
     `SELECT Id, Checksum, ContentSize FROM ContentVersion WHERE ContentDocumentId = '${soqlString9(docId)}' AND IsLatest = true LIMIT 1`
   );
   if (!ver.success) throw new Error(`ContentVersion query failed: ${ver.error}`);
   const v = ver.data?.records?.[0];
-  const checksum = str18(v?.Checksum);
+  const checksum = str20(v?.Checksum);
   if (!v || !checksum) return null;
   return {
     recordId: row.Id,
@@ -135972,17 +136678,17 @@ function diskCacheDir() {
 function md5OfFile(file) {
   return createHash6("md5").update(fs19.readFileSync(file)).digest("hex");
 }
-function remember(key3, files) {
-  memoryCache.delete(key3);
-  memoryCache.set(key3, files);
+function remember(key5, files) {
+  memoryCache.delete(key5);
+  memoryCache.set(key5, files);
   while (memoryCache.size > MAX_CACHED_ARCHIVES)
     memoryCache.delete(memoryCache.keys().next().value);
 }
 function cachedFiles(ref3) {
-  const key3 = `${ref3.contentVersionId}|${ref3.checksum}`;
-  const hit = memoryCache.get(key3);
+  const key5 = `${ref3.contentVersionId}|${ref3.checksum}`;
+  const hit = memoryCache.get(key5);
   if (hit) {
-    remember(key3, hit);
+    remember(key5, hit);
     return hit;
   }
   const file = path19.join(diskCacheDir(), `${ref3.checksum.replace(/[^a-f0-9]/g, "")}.zip`);
@@ -135993,7 +136699,7 @@ function cachedFiles(ref3) {
       return null;
     }
     const files = readMetadataFiles(file);
-    remember(key3, files);
+    remember(key5, files);
     return files;
   } catch {
     return null;
@@ -136693,7 +137399,7 @@ init_session();
 function obj9(v) {
   return v && typeof v === "object" && !Array.isArray(v) ? v : {};
 }
-function str19(v) {
+function str21(v) {
   return typeof v === "string" && v ? v : void 0;
 }
 function isEmptyRecord(v) {
@@ -136773,12 +137479,12 @@ function sobjectFields(sobjects, table) {
   const entry = obj9(sobjects[table]);
   return (Array.isArray(entry.fields) ? entry.fields : []).flatMap((raw) => {
     const f = obj9(raw);
-    const fullName = str19(f.fullName);
+    const fullName = str21(f.fullName);
     if (!fullName) return [];
     return [
       {
         fullName,
-        type: str19(f.type),
+        type: str21(f.type),
         length: typeof f.length === "number" ? f.length : Number(f.length) || void 0,
         dataTranslationEnabled: f.dataTranslationEnabled === true
       }
@@ -136802,12 +137508,12 @@ function buildUserAccessEntities(permissions, assignedPermissionSets) {
     if (name && !entities.includes(name)) entities.push(name);
   };
   const profile = obj9(permissions.profile);
-  add(str19(profile.fullName));
+  add(str21(profile.fullName));
   customPermissionNames(profile).forEach(add);
   const assigned = assignedPermissionSets?.length ? new Set(assignedPermissionSets.map((n) => n.toLowerCase())) : void 0;
   for (const raw of Array.isArray(permissions.permissionSets) ? permissions.permissionSets : []) {
     const ps = obj9(raw);
-    const name = str19(ps.fullName);
+    const name = str21(ps.fullName);
     if (assigned && (!name || !assigned.has(name.toLowerCase()))) continue;
     add(name);
     customPermissionNames(ps).forEach(add);
@@ -136835,15 +137541,15 @@ function buildSchema(input) {
     );
   }
   const candidates = [];
-  for (const [key3, raw] of Object.entries(files.db)) {
+  for (const [key5, raw] of Object.entries(files.db)) {
     const e = obj9(raw);
-    const sobject2 = str19(e.SObject) ?? key3;
+    const sobject2 = str21(e.SObject) ?? key5;
     const availKey = lowerAvailable.get(sobject2.toLowerCase());
     if (!availKey || excluded.has(sobject2.toLowerCase())) continue;
     if (e.IsActive === false) continue;
     candidates.push({
       sobject: sobject2,
-      developerName: str19(e.DeveloperName) ?? key3,
+      developerName: str21(e.DeveloperName) ?? key5,
       raw: e,
       fromPermissionSet: false,
       fields: available[availKey] ?? []
@@ -136853,7 +137559,7 @@ function buildSchema(input) {
   const psAvailable = /* @__PURE__ */ new Map();
   for (const raw of Array.isArray(files.permissions.permissionSets) ? files.permissions.permissionSets : []) {
     const ps = obj9(raw);
-    const name = str19(ps.fullName);
+    const name = str21(ps.fullName);
     const af = obj9(ps.availableFields);
     if (!name || Object.keys(af).length === 0) continue;
     const m = {};
@@ -136863,9 +137569,9 @@ function buildSchema(input) {
     psAvailable.set(name.toLowerCase(), m);
   }
   let psSkipped = 0;
-  for (const [key3, raw] of Object.entries(files.dbPs)) {
+  for (const [key5, raw] of Object.entries(files.dbPs)) {
     const e = obj9(raw);
-    const sobject2 = str19(e.SObject) ?? key3.replace(/__c$/, "");
+    const sobject2 = str21(e.SObject) ?? key5.replace(/__c$/, "");
     const sets = splitList4(e.PermissionSets).filter(
       (n) => assigned.size === 0 || assigned.has(n.toLowerCase())
     );
@@ -136876,7 +137582,7 @@ function buildSchema(input) {
     }
     candidates.push({
       sobject: sobject2,
-      developerName: str19(e.DeveloperName) ?? key3,
+      developerName: str21(e.DeveloperName) ?? key5,
       raw: e,
       fromPermissionSet: true,
       fields: fieldsFromPs
@@ -136911,13 +137617,13 @@ function buildSchema(input) {
       weights.push(fieldWeight(f.type, f.length));
     }
     if (fields.length === 0) continue;
-    const whereSoql = str19(c.raw.WhereSoql);
+    const whereSoql = str21(c.raw.WhereSoql);
     tables.push({
       sobject: c.sobject,
       developerName: c.developerName,
       fields,
       whereSoql,
-      deltaDateField: str19(c.raw.DeltaDateField),
+      deltaDateField: str21(c.raw.DeltaDateField),
       attachmentsSupport: normalizeAttachments(c.raw.AttachmentsSupport),
       userAccessEntities,
       weight: recordWeight(weights, whereSoql),
@@ -136984,18 +137690,18 @@ var ACCESS_CHECKS = [
 function obj10(v) {
   return v && typeof v === "object" && !Array.isArray(v) ? v : {};
 }
-function str20(v) {
+function str22(v) {
   return typeof v === "string" && v ? v : void 0;
 }
 function parseTerritory(raw) {
   const o = obj10(raw);
-  const name = str20(o.name);
+  const name = str22(o.name);
   if (!name) return void 0;
   const children2 = Array.isArray(o.children) ? o.children.map(parseTerritory).filter((t) => t !== void 0) : [];
   return {
-    id: str20(o.id),
+    id: str22(o.id),
     name,
-    developerName: str20(o.developerName),
+    developerName: str22(o.developerName),
     level: typeof o.level === "number" ? o.level : void 0,
     children: children2
   };
@@ -137007,27 +137713,27 @@ function parseUserInfo(json2) {
   const metadataEntities = (Array.isArray(o.metadataEntities) ? o.metadataEntities : []).flatMap(
     (raw) => {
       const e = obj10(raw);
-      const id2 = str20(e.id);
-      const name = str20(e.name);
+      const id2 = str22(e.id);
+      const name = str22(e.name);
       if (!id2 || !name) return [];
       return [
         {
           id: id2,
           name,
-          appVersionName: str20(e.appVersionName),
-          appVersionNumber: str20(e.appVersionNumber),
-          status: str20(e.status),
-          updateDueDate: str20(e.updateDueDate)
+          appVersionName: str22(e.appVersionName),
+          appVersionNumber: str22(e.appVersionNumber),
+          status: str22(e.status),
+          updateDueDate: str22(e.updateDueDate)
         }
       ];
     }
   );
-  const permissionSets = (Array.isArray(o.permissionSets) ? o.permissionSets : []).map((p) => typeof p === "string" ? p : str20(obj10(p).name)).filter((n) => !!n);
+  const permissionSets = (Array.isArray(o.permissionSets) ? o.permissionSets : []).map((p) => typeof p === "string" ? p : str22(obj10(p).name)).filter((n) => !!n);
   const territories = (Array.isArray(o.territoryHierarchy) ? o.territoryHierarchy : []).map(parseTerritory).filter((t) => t !== void 0);
   const user = obj10(o.user);
   const profile = obj10(user.profile);
   return {
-    apiVersion: str20(o.apiVersion),
+    apiVersion: str22(o.apiVersion),
     isOrgInMaintenance: o.isOrgInMaintenance === true,
     syncSettings: obj10(o.syncSettings),
     accessChecks,
@@ -137035,10 +137741,10 @@ function parseUserInfo(json2) {
     permissionSets,
     territories,
     user: {
-      id: str20(user.id) ?? "",
-      name: str20(user.name),
-      profileId: str20(user.profileId) ?? str20(profile.id),
-      profileName: str20(profile.name),
+      id: str22(user.id) ?? "",
+      name: str22(user.name),
+      profileId: str22(user.profileId) ?? str22(profile.id),
+      profileName: str22(profile.name),
       isForcedFullSync: user.isForcedFullSync === true
     },
     mobileAppVersion: o.mobileAppVersion
@@ -137124,8 +137830,8 @@ function createUserSchemaSource(deps) {
   const download2 = deps.downloadMetadata ?? ((s2, id2) => downloadMetadata(s2, id2));
   const cache3 = /* @__PURE__ */ new Map();
   const load = (login) => {
-    const key3 = login.username.toLowerCase();
-    let pending = cache3.get(key3);
+    const key5 = login.username.toLowerCase();
+    let pending = cache3.get(key5);
     if (!pending) {
       pending = (async () => {
         const session = sessionFor(login);
@@ -137150,7 +137856,7 @@ function createUserSchemaSource(deps) {
           }
         };
       })().catch((e) => ({ reason: errorMessage4(e) }));
-      cache3.set(key3, pending);
+      cache3.set(key5, pending);
     }
     return pending;
   };
@@ -137429,8 +138135,8 @@ var lower = (r) => {
   for (const [k, v] of Object.entries(r)) out[k.toLowerCase()] = v;
   return out;
 };
-var str21 = (v) => typeof v === "string" && v ? v : void 0;
-var num2 = (v) => typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" ? Number(v) || 0 : 0;
+var str23 = (v) => typeof v === "string" && v ? v : void 0;
+var num3 = (v) => typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" ? Number(v) || 0 : 0;
 var ContentCollector = class {
   constructor(want, tables, maxRows = DEFAULT_MAX_COLLECTED_ROWS) {
     this.want = want;
@@ -137459,7 +138165,7 @@ var ContentCollector = class {
     const { attachments, clm } = this.want;
     if (attachments && table.attachmentsSupport === "background" && name !== "presentationpage") {
       for (const r of records) {
-        const id2 = str21(r.Id) ?? str21(lower(r).id);
+        const id2 = str23(r.Id) ?? str23(lower(r).id);
         if (id2 && id2.length >= 3) this.prefixes.add(id2.slice(0, 3));
       }
     }
@@ -137468,16 +138174,16 @@ var ContentCollector = class {
         if (!attachments) return;
         for (const raw of records) {
           const r = lower(raw);
-          const id2 = str21(r.id);
-          const parentId = str21(r.parentid);
+          const id2 = str23(r.id);
+          const parentId = str23(r.parentid);
           if (!id2 || !parentId || !this.room("Attachment", this.attachmentRows.length)) continue;
-          const body = str21(r.body);
+          const body = str23(r.body);
           this.attachmentRows.push({
             id: id2,
             parentId,
             body: body && body.length <= MAX_BODY_URL ? body : void 0,
-            size: num2(r.bodylength),
-            name: str21(r.name) ?? id2
+            size: num3(r.bodylength),
+            name: str23(r.name) ?? id2
           });
         }
         return;
@@ -137485,8 +138191,8 @@ var ContentCollector = class {
         if (!attachments && !clm) return;
         for (const raw of records) {
           const r = lower(raw);
-          const docId = str21(r.contentdocumentid);
-          const linkedId = str21(r.linkedentityid);
+          const docId = str23(r.contentdocumentid);
+          const linkedId = str23(r.linkedentityid);
           if (docId && linkedId && this.room("ContentDocumentLink", this.cdls.length))
             this.cdls.push({ docId, linkedId });
         }
@@ -137495,12 +138201,12 @@ var ContentCollector = class {
         if (!attachments && !clm) return;
         for (const raw of records) {
           const r = lower(raw);
-          const id2 = str21(r.id);
+          const id2 = str23(r.id);
           if (id2 && (this.docs.has(id2) || this.room("ContentDocument", this.docs.size)))
             this.docs.set(id2, {
               id: id2,
-              latestVersionId: str21(r.latestpublishedversionid),
-              fileType: str21(r.filetype)
+              latestVersionId: str23(r.latestpublishedversionid),
+              fileType: str23(r.filetype)
             });
         }
         return;
@@ -137508,17 +138214,17 @@ var ContentCollector = class {
         if (!attachments && !clm) return;
         for (const raw of records) {
           const r = lower(raw);
-          const id2 = str21(r.id);
+          const id2 = str23(r.id);
           if (!id2 || !(this.versions.has(id2) || this.room("ContentVersion", this.versions.size)))
             continue;
-          const url = str21(r.versiondataurl) ?? (typeof r.versiondata === "string" && r.versiondata.startsWith("/") ? r.versiondata : void 0);
+          const url = str23(r.versiondataurl) ?? (typeof r.versiondata === "string" && r.versiondata.startsWith("/") ? r.versiondata : void 0);
           this.versions.set(id2, {
             id: id2,
-            docId: str21(r.contentdocumentid),
+            docId: str23(r.contentdocumentid),
             url,
-            size: num2(r.contentsize),
-            checksum: str21(r.checksum)?.toLowerCase(),
-            title: str21(r.title),
+            size: num3(r.contentsize),
+            checksum: str23(r.checksum)?.toLowerCase(),
+            title: str23(r.title),
             isLatest: r.islatest !== false
           });
         }
@@ -137527,15 +138233,15 @@ var ContentCollector = class {
         if (!clm) return;
         for (const raw of records) {
           const r = lower(raw);
-          const id2 = str21(r.id);
+          const id2 = str23(r.id);
           if (id2 && this.room("Presentation", this.presentations.length)) {
             this.presentations.push({
               id: id2,
-              name: str21(r.name) ?? id2,
-              type: (str21(r.type) ?? "").toUpperCase(),
-              status: str21(r.status),
-              activation: str21(r.activationdate),
-              deactivation: str21(r.deactivationdate),
+              name: str23(r.name) ?? id2,
+              type: (str23(r.type) ?? "").toUpperCase(),
+              status: str23(r.status),
+              activation: str23(r.activationdate),
+              deactivation: str23(r.deactivationdate),
               isCustom: r.iscustom === true
             });
           }
@@ -137545,23 +138251,23 @@ var ContentCollector = class {
         if (!clm) return;
         for (const raw of records) {
           const r = lower(raw);
-          const presentationId = str21(r.presentationid);
-          const pageId = str21(r.presentationpageid);
+          const presentationId = str23(r.presentationid);
+          const pageId = str23(r.presentationpageid);
           if (presentationId && pageId && this.room("PresentationLinkedPage", this.links.length))
-            this.links.push({ presentationId, pageId, order: num2(r.displayorder) });
+            this.links.push({ presentationId, pageId, order: num3(r.displayorder) });
         }
         return;
       case "presentationpage":
         if (!clm) return;
         for (const raw of records) {
           const r = lower(raw);
-          const id2 = str21(r.id);
+          const id2 = str23(r.id);
           if (id2 && (this.pages.has(id2) || this.room("PresentationPage", this.pages.size)))
             this.pages.set(id2, {
               id: id2,
-              name: str21(r.name) ?? id2,
-              type: str21(r.type) ?? "",
-              status: str21(r.status)
+              name: str23(r.name) ?? id2,
+              type: str23(r.type) ?? "",
+              status: str23(r.status)
             });
         }
         return;
@@ -137886,22 +138592,22 @@ var LocalIdStore = class {
   total = 0;
   exhausted = false;
   add(sobject2, records) {
-    const key3 = sobject2.toLowerCase();
-    if (key3 === LAST || this.overflowed.has(key3)) return;
+    const key5 = sobject2.toLowerCase();
+    if (key5 === LAST || this.overflowed.has(key5)) return;
     if (this.exhausted || this.total + records.length > this.cap) {
       this.exhausted = true;
-      this.overflowed.add(key3);
-      this.total -= this.ids.get(key3)?.length ?? 0;
-      this.ids.delete(key3);
+      this.overflowed.add(key5);
+      this.total -= this.ids.get(key5)?.length ?? 0;
+      this.ids.delete(key5);
       return;
     }
-    let list2 = this.ids.get(key3);
-    if (!list2) this.ids.set(key3, list2 = []);
+    let list2 = this.ids.get(key5);
+    if (!list2) this.ids.set(key5, list2 = []);
     for (const r of records) {
       const id2 = r.Id ?? r.id;
       if (typeof id2 !== "string" || !id2) continue;
       list2.push(id2);
-      if (key3 === OT2A && typeof r.ObjectId === "string") this.ot2aObjectIds.set(id2, r.ObjectId);
+      if (key5 === OT2A && typeof r.ObjectId === "string") this.ot2aObjectIds.set(id2, r.ObjectId);
     }
     this.total += records.length;
   }
@@ -138239,9 +138945,9 @@ function timeoutScope(parent, ms2) {
 }
 function collectIds(table, records, ids, budget) {
   const n = table.sobject.toLowerCase();
-  const add = (set, key3) => {
+  const add = (set, key5) => {
     for (const r of records) {
-      const v = r[key3];
+      const v = r[key5];
       if (typeof v !== "string" || !v || set.has(v)) continue;
       if (budget.left <= 0) {
         budget.hit = true;
@@ -138648,15 +139354,15 @@ var DeltaRun = class {
     let capNoted = false;
     tables.forEach((table, i) => {
       const row = this.blankRow(table);
-      const key3 = norm2(table.sobject);
+      const key5 = norm2(table.sobject);
       const first2 = initial[i];
       const skip = (why) => {
         row.skipped = why;
-        this.all.push({ table, key: key3, ids: [], row });
+        this.all.push({ table, key: key5, ids: [], row });
       };
-      if (key3 === DSTR2)
+      if (key5 === DSTR2)
         return skip("re-downloaded in full by GenericQuery on delta; not simulated");
-      if (store2.overflowed.has(key3)) {
+      if (store2.overflowed.has(key5)) {
         if (!capNoted) {
           capNoted = true;
           this.notes.push(
@@ -138672,9 +139378,9 @@ var DeltaRun = class {
         return skip(
           `the initial download was cut short (${first2.truncated}), so the local ids are incomplete`
         );
-      const ids = store2.ids.get(key3) ?? [];
+      const ids = store2.ids.get(key5) ?? [];
       row.localIds = ids.length;
-      const item2 = { table, key: key3, ids, row };
+      const item2 = { table, key: key5, ids, row };
       this.all.push(item2);
       items.push(item2);
     });
@@ -139481,11 +140187,11 @@ function cancelSimulation(jobId) {
 // src/tools/perf-simulate.ts
 import * as fs20 from "fs";
 import * as path20 from "path";
-function text7(body) {
+function text8(body) {
   return { content: [{ type: "text", text: body }] };
 }
 function failure(title, e) {
-  return text7(`# ${title}
+  return text8(`# ${title}
 
 ${e instanceof Error ? e.message : String(e)}`);
 }
@@ -139682,7 +140388,7 @@ function register22(server2) {
 Full result written to \`${resolved}\`.
 `;
         }
-        return text7(report);
+        return text8(report);
       } catch (e) {
         return failure("First-Sync Simulation Failed", e);
       }
@@ -139938,13 +140644,13 @@ function orgVerdict(summary, reps, needAttention) {
 function dailyTrend(samples) {
   const byDay = /* @__PURE__ */ new Map();
   for (const s2 of samples) {
-    const day2 = (s2.createdDate || "").slice(0, 10);
-    if (!day2) continue;
-    byDay.set(day2, [...byDay.get(day2) ?? [], s2]);
+    const day3 = (s2.createdDate || "").slice(0, 10);
+    if (!day3) continue;
+    byDay.set(day3, [...byDay.get(day3) ?? [], s2]);
   }
   const totals = (list2, kind) => list2.filter((s2) => s2.outcome === "completed" && s2.kind === kind).map((s2) => s2.totalSec);
-  return [...byDay].sort(([a], [b]) => a.localeCompare(b)).map(([day2, list2]) => ({
-    day: day2,
+  return [...byDay].sort(([a], [b]) => a.localeCompare(b)).map(([day3, list2]) => ({
+    day: day3,
     syncs: list2.length,
     failures: list2.filter((s2) => s2.failed).length,
     initialP90: distribution(totals(list2, "initial")).p90,
@@ -139961,14 +140667,14 @@ function mergeDaily(fromRows, aggs) {
   if (aggs.length === 0) return fromRows;
   const rowDays = new Map(fromRows.map((d) => [d.day, d]));
   const days = new Set(aggs.map((a) => a.day));
-  return [...days].sort().map((day2) => {
-    const mine = aggs.filter((a) => a.day === day2);
+  return [...days].sort().map((day3) => {
+    const mine = aggs.filter((a) => a.day === day3);
     return {
-      day: day2,
+      day: day3,
       syncs: mine.reduce((n, a) => n + a.count, 0),
       failures: mine.filter((a) => a.status === "Failed").reduce((n, a) => n + a.count, 0),
-      initialP90: rowDays.get(day2)?.initialP90,
-      deltaP90: rowDays.get(day2)?.deltaP90
+      initialP90: rowDays.get(day3)?.initialP90,
+      deltaP90: rowDays.get(day3)?.deltaP90
     };
   });
 }
@@ -140361,7 +141067,7 @@ var defaultDeps4 = {
   },
   compiledSchema: (org, querier2) => createCompiledSchemaSource({ org: querier2, getSession: () => createDeviceSession(org) })
 };
-var text8 = (v) => typeof v === "string" && v.trim() ? v : null;
+var text9 = (v) => typeof v === "string" && v.trim() ? v : null;
 async function loadSchemaRecords(org, querier2) {
   const records = await fetchCategories(org, ["DbSchema"]);
   const ids = /* @__PURE__ */ new Map();
@@ -140384,11 +141090,11 @@ async function loadSchemaRecords(org, querier2) {
     active: !!r.isActive,
     fields: {
       SObject: String(r.fields.SObject ?? ""),
-      Type: text8(r.fields.Type),
-      WhereSoql: text8(r.fields.WhereSoql),
+      Type: text9(r.fields.Type),
+      WhereSoql: text9(r.fields.WhereSoql),
       OneWaySync: r.fields.OneWaySync === true,
-      AttachmentsSupport: text8(r.fields.AttachmentsSupport),
-      DeltaDateField: text8(r.fields.DeltaDateField)
+      AttachmentsSupport: text9(r.fields.AttachmentsSupport),
+      DeltaDateField: text9(r.fields.DeltaDateField)
     },
     profiles: [.../* @__PURE__ */ new Set([...profilesOf(r), ...splitList(r.fields.Profiles)])],
     permissionSets: splitList(r.fields.PermissionSets),
@@ -140570,9 +141276,9 @@ function cloneEntry(e) {
     permissionSets: new Set(e.permissionSets)
   };
 }
-var text9 = (v) => v === null || v === void 0 ? "" : String(v);
+var text10 = (v) => v === null || v === void 0 ? "" : String(v);
 function splitList5(v) {
-  return text9(v).split(/[;,]/).map((s2) => s2.trim()).filter(Boolean);
+  return text10(v).split(/[;,]/).map((s2) => s2.trim()).filter(Boolean);
 }
 var labelOf = (f) => f.label || `${f.kind} ${f.developerName ?? ""}`.trim();
 function applyChanges(entries2, fixes) {
@@ -140592,18 +141298,18 @@ function applyChanges(entries2, fixes) {
           });
           break;
         }
-        const key3 = fix.field.toLowerCase();
-        const value4 = text9(fix.to);
-        if (key3 === "profiles") {
+        const key5 = fix.field.toLowerCase();
+        const value4 = text10(fix.to);
+        if (key5 === "profiles") {
           entry.profileIds = /* @__PURE__ */ new Set();
           entry.profileNames = new Set(splitList5(value4));
-        } else if (key3 === "permissionsets") {
+        } else if (key5 === "permissionsets") {
           entry.permissionSets = new Set(splitList5(value4));
-        } else if (key3 === "wheresoql") {
+        } else if (key5 === "wheresoql") {
           entry.whereSoql = value4 || null;
-        } else if (key3 === "sobject") {
+        } else if (key5 === "sobject") {
           entry.sobject = value4;
-        } else if (key3 === "type") {
+        } else if (key5 === "type") {
           entry.type = value4;
           if (value4.toLowerCase() === "configuration") byName.delete(entry.developerName);
         } else {
@@ -140677,9 +141383,9 @@ function applyChanges(entries2, fixes) {
         };
         entry.developerName = fix.developerName;
         for (const f of fix.fields) {
-          if (f.name === "SObject") entry.sobject = text9(f.value);
-          else if (f.name === "Type") entry.type = text9(f.value);
-          else if (f.name === "WhereSoql") entry.whereSoql = text9(f.value) || null;
+          if (f.name === "SObject") entry.sobject = text10(f.value);
+          else if (f.name === "Type") entry.type = text10(f.value);
+          else if (f.name === "WhereSoql") entry.whereSoql = text10(f.value) || null;
           else if (f.name === "PermissionSets" && !fix.permissionSets)
             entry.permissionSets = new Set(splitList5(f.value));
         }
@@ -140738,10 +141444,10 @@ function affectedProfiles(before, after, touched) {
   }
   return { names: names4, ids };
 }
-var key = (t) => t.entry.sobject.toLowerCase();
+var key3 = (t) => t.entry.sobject.toLowerCase();
 function changedSobjects(before, after) {
-  const b = new Map(before.map((t) => [key(t), t]));
-  const a = new Map(after.map((t) => [key(t), t]));
+  const b = new Map(before.map((t) => [key3(t), t]));
+  const a = new Map(after.map((t) => [key3(t), t]));
   const out = /* @__PURE__ */ new Set();
   for (const k of /* @__PURE__ */ new Set([...b.keys(), ...a.keys()])) {
     const x = b.get(k);
@@ -140754,13 +141460,13 @@ function changedSobjects(before, after) {
 var ID_SOURCES = /* @__PURE__ */ new Set(["account", "objectterritory2association"]);
 function planRecount(after, changed) {
   if ([...changed].some((k) => ID_SOURCES.has(k))) return { full: true, after };
-  const subset = after.filter((t) => changed.has(key(t)));
+  const subset = after.filter((t) => changed.has(key3(t)));
   const needsSources = subset.some(
     (t) => /\{(ACCOUNT\.IDS|OT2A\.OBJ\.IDS)\}/i.test(t.entry.whereSoql ?? "")
   );
   return {
     full: false,
-    after: needsSources ? after.filter((t) => changed.has(key(t)) || ID_SOURCES.has(key(t))) : subset
+    after: needsSources ? after.filter((t) => changed.has(key3(t)) || ID_SOURCES.has(key3(t))) : subset
   };
 }
 var counted = (t) => t && t.status === "counted" ? t.records : null;
@@ -141011,9 +141717,9 @@ function checkSimulation(value4, i) {
     throw new Error(`${at2} is missing its org or notes.`);
   return value4;
 }
-var num3 = (n) => Number.isInteger(n) ? n.toLocaleString("en-US") : n.toFixed(1);
+var num4 = (n) => Number.isInteger(n) ? n.toLocaleString("en-US") : n.toFixed(1);
 function plainSeconds(s2) {
-  if (s2 < 120) return `${num3(Math.round(s2 * 10) / 10)} s`;
+  if (s2 < 120) return `${num4(Math.round(s2 * 10) / 10)} s`;
   if (s2 < 7200) return `${(s2 / 60).toFixed(1).replace(/\.0$/, "")} min`;
   return `${(s2 / 3600).toFixed(1).replace(/\.0$/, "")} h`;
 }
@@ -141021,9 +141727,9 @@ var metricLabel = (m) => m in METRICS ? METRICS[m].label : m;
 function plainValue(metric, v) {
   const unit = metric in METRICS ? METRICS[metric].unit : "";
   if (unit === "s") return plainSeconds(v);
-  if (unit === "%") return `${num3(v)}%`;
-  if (unit === "GB") return `${num3(v)} GB`;
-  return num3(v);
+  if (unit === "%") return `${num4(v)}%`;
+  if (unit === "GB") return `${num4(v)} GB`;
+  return num4(v);
 }
 var isUnmeasured = (e) => (e.status === "no-data" || e.status === "incomplete") && !!e.threshold;
 var isTarget = (e) => e.status === "pass" || e.status === "warn" || e.status === "fail" || isUnmeasured(e);
@@ -141207,14 +141913,14 @@ A first sync is what a rep's iPad downloads the first time they sign in. These f
   for (const s2 of sims) {
     const total = s2.metadata.seconds + s2.totals.seconds;
     const spread4 = s2.runs && s2.runs.count > 1 ? ` (${plainSeconds(s2.runs.total.min)} to ${plainSeconds(s2.runs.total.max)} over ${s2.runs.count} runs)` : "";
-    out += `| ${cell2(s2.user.username)}${s2.user.territory ? ` (${cell2(s2.user.territory)})` : ""} | ${plainSeconds(total)}${spread4} | ${plainSeconds(s2.metadata.seconds)} | ${num3(s2.totals.records)} | ${s2.totals.tablesDownloaded} | ${mbOf(s2.totals.bytes + s2.metadata.bytes)} |
+    out += `| ${cell2(s2.user.username)}${s2.user.territory ? ` (${cell2(s2.user.territory)})` : ""} | ${plainSeconds(total)}${spread4} | ${plainSeconds(s2.metadata.seconds)} | ${num4(s2.totals.records)} | ${s2.totals.tablesDownloaded} | ${mbOf(s2.totals.bytes + s2.metadata.bytes)} |
 `;
   }
   for (const s2 of sims) {
     const slow = [...s2.tables].filter((t) => !t.skipped).sort((x, y) => y.seconds - x.seconds || y.records - x.records).slice(0, SLOWEST_TABLES);
     if (!slow.length) continue;
     out += `
-Slowest tables for ${s2.user.username}: ${slow.map((t) => `${t.sobject} (${plainSeconds(t.seconds)}, ${num3(t.records)} records)`).join("; ")}.
+Slowest tables for ${s2.user.username}: ${slow.map((t) => `${t.sobject} (${plainSeconds(t.seconds)}, ${num4(t.records)} records)`).join("; ")}.
 `;
     if (s2.delta)
       out += `Delta sync after ${s2.delta.sinceHours} h away: ${plainSeconds(s2.delta.totals.seconds)}.
@@ -141360,17 +142066,17 @@ function orgOnlyReason(fix) {
       return null;
   }
 }
-var key2 = (i) => `${i.type}:${i.fullName}`;
+var key4 = (i) => `${i.type}:${i.fullName}`;
 function planSourceExport(fixes, extra = []) {
   const items = /* @__PURE__ */ new Map();
   const removed = /* @__PURE__ */ new Map();
   const add = (i) => {
-    items.set(key2(i), i);
-    removed.delete(key2(i));
+    items.set(key4(i), i);
+    removed.delete(key4(i));
   };
   const remove = (i) => {
-    removed.set(key2(i), i);
-    items.delete(key2(i));
+    removed.set(key4(i), i);
+    items.delete(key4(i));
   };
   const validationRuleIds = /* @__PURE__ */ new Set();
   const pageCopies = /* @__PURE__ */ new Set();
@@ -142365,15 +143071,15 @@ function lintHtml(f, add) {
 }
 
 // src/studio/apps/objects.ts
-function graphqlRoots(text11) {
+function graphqlRoots(text12) {
   const out = [];
-  const m = /\buiapi\s*\{\s*query\s*\{/.exec(text11);
+  const m = /\buiapi\s*\{\s*query\s*\{/.exec(text12);
   if (!m) return out;
   let depth = 1;
   let i = m.index + m[0].length;
   let token = "";
-  for (; i < text11.length && depth > 0; i++) {
-    const c = text11[i];
+  for (; i < text12.length && depth > 0; i++) {
+    const c = text12[i];
     if (c === "{") {
       if (depth === 1 && token) out.push(token);
       depth++;
@@ -142384,9 +143090,9 @@ function graphqlRoots(text11) {
     } else if (c === "(") {
       if (depth === 1 && token) out.push(token);
       let p = 1;
-      for (i++; i < text11.length && p > 0; i++) {
-        if (text11[i] === "(") p++;
-        else if (text11[i] === ")") p--;
+      for (i++; i < text12.length && p > 0; i++) {
+        if (text12[i] === "(") p++;
+        else if (text12[i] === ")") p--;
       }
       i--;
       token = "";
@@ -142498,14 +143204,14 @@ function compileIssue(err, files) {
   };
 }
 function compileApp(input) {
-  const key3 = createHash8("sha256").update(JSON.stringify([input.name, input.files.map((f) => [f.path, f.source])])).digest("hex");
-  let job = compiles.get(key3);
+  const key5 = createHash8("sha256").update(JSON.stringify([input.name, input.files.map((f) => [f.path, f.source])])).digest("hex");
+  let job = compiles.get(key5);
   if (!job) {
     job = buildInlineLwc(input.name, input.files).then(
       ({ script, placeholders }) => ({ script, placeholders, issues: [] }),
       (err) => ({ placeholders: [], issues: [compileIssue(err, input.files)] })
     );
-    compiles.set(key3, job);
+    compiles.set(key5, job);
     if (compiles.size > MAX_CACHED2) compiles.delete(compiles.keys().next().value);
   }
   return job;
@@ -142617,8 +143323,8 @@ async function userGet(login, path24, http3) {
     throw new RunAsError(`${login.username}'s login has expired \u2014 sign in again.`);
   let data2 = null;
   try {
-    const text11 = res.body.toString("utf8");
-    data2 = text11 ? JSON.parse(text11) : null;
+    const text12 = res.body.toString("utf8");
+    data2 = text12 ? JSON.parse(text12) : null;
   } catch {
     data2 = null;
   }
@@ -142764,9 +143470,9 @@ function blankStrings(soql5) {
   return soql5.replace(/'(?:[^'\\]|\\.)*'/g, (m) => "'" + " ".repeat(m.length - 2) + "'");
 }
 function guardSampleQuery(soql5) {
-  const text11 = soql5.trim();
-  if (!text11) throw new Error("The query is empty.");
-  const blank = blankStrings(text11);
+  const text12 = soql5.trim();
+  if (!text12) throw new Error("The query is empty.");
+  const blank = blankStrings(text12);
   if ((blank.match(/'/g)?.length ?? 0) % 2)
     throw new Error("The query has an unterminated string.");
   if (blank.includes(";")) throw new Error("Only one statement is allowed (no semicolons).");
@@ -142795,12 +143501,12 @@ function guardSampleQuery(soql5) {
     }
   }
   if (limitAt >= 0) {
-    return text11.slice(0, limitAt) + `LIMIT ${Math.min(limitValue, MAX_SAMPLE_ROWS)}` + text11.slice(limitAt + limitLen);
+    return text12.slice(0, limitAt) + `LIMIT ${Math.min(limitValue, MAX_SAMPLE_ROWS)}` + text12.slice(limitAt + limitLen);
   }
   if (/\blimit\b/i.test(blank.replace(/\([^()]*\)/g, "")))
     throw new Error("LIMIT must be a number.");
-  const offset2 = /\boffset\s+\d+\s*$/i.exec(text11);
-  return offset2 ? `${text11.slice(0, offset2.index).trimEnd()} LIMIT ${MAX_SAMPLE_ROWS} ${offset2[0]}` : `${text11} LIMIT ${MAX_SAMPLE_ROWS}`;
+  const offset2 = /\boffset\s+\d+\s*$/i.exec(text12);
+  return offset2 ? `${text12.slice(0, offset2.index).trimEnd()} LIMIT ${MAX_SAMPLE_ROWS} ${offset2[0]}` : `${text12} LIMIT ${MAX_SAMPLE_ROWS}`;
 }
 function stripAttributes(row) {
   const out = {};
@@ -142833,7 +143539,7 @@ async function sampleRecords(soql5, org, as) {
 // src/studio/apps/org-apps.ts
 init_inline_lwc();
 init_helpers2();
-var str22 = (v) => typeof v === "string" ? v : "";
+var str24 = (v) => typeof v === "string" ? v : "";
 function targetOf(targets, name = APP_PREFIX) {
   const prefixed = name.startsWith(APP_PREFIX);
   if (targets.includes("lightning__HomePage")) return "home";
@@ -142851,8 +143557,8 @@ async function quickActionObjects(org) {
   ).catch(() => []);
   const out = /* @__PURE__ */ new Map();
   for (const r of rows3) {
-    const object3 = str22(r.EntityDefinition?.QualifiedApiName);
-    const action = str22(r.DeveloperName);
+    const object3 = str24(r.EntityDefinition?.QualifiedApiName);
+    const action = str24(r.DeveloperName);
     if (object3 && action) out.set(action, [...out.get(action) ?? [], object3]);
   }
   return out;
@@ -142873,23 +143579,23 @@ async function listOrgApps(org) {
   ]);
   const targets = /* @__PURE__ */ new Map();
   for (const m of metas) {
-    const name = str22(m.LightningComponentBundle?.DeveloperName);
-    const meta = parseMeta(str22(m.Source));
+    const name = str24(m.LightningComponentBundle?.DeveloperName);
+    const meta = parseMeta(str24(m.Source));
     if (name && meta.ok) targets.set(name, meta.targets);
   }
-  return bundles.filter((b) => !str22(b.NamespacePrefix) && NAME_RE.test(str22(b.DeveloperName))).map((b) => {
-    const name = str22(b.DeveloperName);
+  return bundles.filter((b) => !str24(b.NamespacePrefix) && NAME_RE.test(str24(b.DeveloperName))).map((b) => {
+    const name = str24(b.DeveloperName);
     const target3 = targetOf(targets.get(name) ?? [], name);
     const objects = actions.get(name);
-    const modifiedBy2 = str22(b.LastModifiedBy?.Name);
+    const modifiedBy2 = str24(b.LastModifiedBy?.Name);
     return {
       name,
-      label: str22(b.MasterLabel) || name.replace(/^lscMobile[A-Za-z]+_/, ""),
+      label: str24(b.MasterLabel) || name.replace(/^lscMobile[A-Za-z]+_/, ""),
       target: target3,
       ...objects?.length ? { objectApiNames: objects } : {},
-      ...str22(b.LastModifiedDate) ? { lastModifiedDate: str22(b.LastModifiedDate) } : {},
+      ...str24(b.LastModifiedDate) ? { lastModifiedDate: str24(b.LastModifiedDate) } : {},
       ...modifiedBy2 ? { lastModifiedBy: modifiedBy2 } : {},
-      ...str22(b.Description) ? { description: str22(b.Description) } : {}
+      ...str24(b.Description) ? { description: str24(b.Description) } : {}
     };
   }).sort((a, b) => (b.lastModifiedDate ?? "").localeCompare(a.lastModifiedDate ?? ""));
 }
@@ -143193,12 +143899,12 @@ var names2 = (rows3, field) => new Set(rows3.map((r) => String(r[field] ?? "")))
 async function existingOf(components, org, notes) {
   const ofType = (type) => components.filter((c) => c.startsWith(`${type}:`)).map((c) => c.slice(type.length + 1));
   const found = [];
-  const look = async (type, soqlText, field, key3 = (n) => n) => {
+  const look = async (type, soqlText, field, key5 = (n) => n) => {
     const wanted = ofType(type);
     if (!wanted.length) return;
     try {
       const have = names2(await query(soqlText, org, true), field);
-      for (const n of wanted) if (have.has(key3(n))) found.push(`${type}:${n}`);
+      for (const n of wanted) if (have.has(key5(n))) found.push(`${type}:${n}`);
     } catch {
       notes.push(`Couldn't check whether the ${type} already exists in the org.`);
     }
@@ -143674,7 +144380,7 @@ var VISIT_CHILDREN = [
   "ProviderVisitMarketingItem"
 ];
 var DETAIL_CHILDREN = ["ProviderVisitDtlProductMsg", "ProviderVisitProdDiscussion"];
-async function readChildren(reader, object3, links, notes) {
+async function readChildren2(reader, object3, links, notes) {
   const info = await reader.describe(object3);
   if (!info) {
     notes.push(
@@ -143709,7 +144415,7 @@ async function readChildren(reader, object3, links, notes) {
 }
 async function buildVisitContext(reader, platform, header, recordObject, linkField, notes) {
   const web = platform === "web";
-  const key3 = (object3) => web ? `${object3}.VisitId` : object3;
+  const key5 = (object3) => web ? `${object3}.VisitId` : object3;
   const ctx = {};
   const id2 = String(header.Id);
   ctx[web ? "ProviderVisit" : recordObject === "ProviderVisit" ? "Visit" : recordObject] = header;
@@ -143720,29 +144426,29 @@ async function buildVisitContext(reader, platform, header, recordObject, linkFie
   ];
   let details = [];
   for (const object3 of VISIT_CHILDREN) {
-    const rows3 = await readChildren(reader, object3, links, notes);
-    ctx[key3(object3)] = rows3;
+    const rows3 = await readChildren2(reader, object3, links, notes);
+    ctx[key5(object3)] = rows3;
     if (object3 === "ProviderVisitProdDetailing") details = rows3;
   }
   const detailIds = details.map((d) => String(d.Id));
   for (const object3 of DETAIL_CHILDREN) {
-    const rows3 = await readChildren(
+    const rows3 = await readChildren2(
       reader,
       object3,
       [{ field: "ProviderVisitProductDtlId", ids: detailIds }],
       notes
     );
     for (const d of details)
-      d[key3(object3)] = rows3.filter((r) => r.ProviderVisitProductDtlId === d.Id);
+      d[key5(object3)] = rows3.filter((r) => r.ProviderVisitProductDtlId === d.Id);
   }
   if (visitId) {
-    ctx[web ? "PresentationForum.ForumReferenceId" : "PresentationForum"] = await readChildren(
+    ctx[web ? "PresentationForum.ForumReferenceId" : "PresentationForum"] = await readChildren2(
       reader,
       "PresentationForum",
       [{ field: "ForumReferenceId", ids: [visitId] }],
       notes
     );
-    const children2 = await readChildren(
+    const children2 = await readChildren2(
       reader,
       "Visit",
       [{ field: "ParentVisitId", ids: [visitId] }],
@@ -144259,11 +144965,11 @@ async function withTimeout3(p, ms2) {
     if (timer) clearTimeout(timer);
   }
 }
-function ownString(value4, key3) {
+function ownString(value4, key5) {
   if (value4 === null || typeof value4 !== "object" && typeof value4 !== "function" || types2.isProxy(value4))
     return void 0;
   try {
-    const d = Object.getOwnPropertyDescriptor(value4, key3);
+    const d = Object.getOwnPropertyDescriptor(value4, key5);
     return d && "value" in d && typeof d.value === "string" ? d.value : void 0;
   } catch {
     return void 0;
@@ -144361,11 +145067,11 @@ async function runScript(input) {
     rtCache.set(entity, m);
     return m;
   };
-  const fetchMiss = async (key3, miss) => {
+  const fetchMiss = async (key5, miss) => {
     const entity = miss.args.entity;
     if (typeof entity !== "string" || !/^[A-Za-z0-9_]+$/.test(entity)) {
       cache3.set(
-        key3,
+        key5,
         JSON.stringify({ ok: false, error: `Invalid object name: ${String(entity)}` })
       );
       return;
@@ -144373,7 +145079,7 @@ async function runScript(input) {
     const info = await describe(entity);
     if (miss.kind === "describe") {
       cache3.set(
-        key3,
+        key5,
         JSON.stringify({ ok: true, fields: info ? info.fields.map((f) => f.name) : null })
       );
       return;
@@ -144429,7 +145135,7 @@ async function runScript(input) {
         return item2;
       });
       queries.push({ object: entity, soql: soql5, rows: used2.length, ms: Date.now() - t0 });
-      cache3.set(key3, JSON.stringify({ ok: true, rows: items }));
+      cache3.set(key5, JSON.stringify({ ok: true, rows: items }));
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       queries.push({
@@ -144439,7 +145145,7 @@ async function runScript(input) {
         ms: Date.now() - t0,
         error: msg
       });
-      cache3.set(key3, JSON.stringify({ ok: false, error: msg }));
+      cache3.set(key5, JSON.stringify({ ok: false, error: msg }));
     }
   };
   let logs = [];
@@ -144476,22 +145182,22 @@ async function runScript(input) {
       cfg: () => cfg,
       // Web: a real Promise in the sandbox is settled from here when the query returns.
       queryAsync: (kind, argsJson, cb) => {
-        const key3 = `${kind}|${argsJson}`;
+        const key5 = `${kind}|${argsJson}`;
         outstanding++;
-        let work = inflight2.get(key3);
-        if (!work && !cache3.has(key3)) {
-          work = fetchMiss(key3, {
+        let work = inflight2.get(key5);
+        if (!work && !cache3.has(key5)) {
+          work = fetchMiss(key5, {
             kind,
             args: parseJson(argsJson) ?? {}
           });
-          inflight2.set(key3, work);
+          inflight2.set(key5, work);
         }
         void (work ?? Promise.resolve()).then(() => {
           outstanding--;
           if (timedOut || settled) return;
           const t0 = Date.now();
           try {
-            cb(cache3.get(key3) ?? '{"ok":false,"error":"No result."}');
+            cb(cache3.get(key5) ?? '{"ok":false,"error":"No result."}');
             drain.runInContext(ctx, { timeout: Math.max(50, RUN_LIMITS.cpuMs - cpuUsed) });
           } catch (e) {
             if (ownString(e, "code") === "ERR_SCRIPT_EXECUTION_TIMEOUT") {
@@ -144503,19 +145209,19 @@ async function runScript(input) {
         });
       },
       query: (kind, argsJson) => {
-        const key3 = `${kind}|${argsJson}`;
-        const hit = cache3.get(key3);
+        const key5 = `${kind}|${argsJson}`;
+        const hit = cache3.get(key5);
         if (hit !== void 0) return hit;
-        misses.set(key3, {
+        misses.set(key5, {
           kind,
           args: parseJson(argsJson) ?? {}
         });
         return kind === "describe" ? '{"ok":true,"fields":null,"miss":true}' : '{"ok":true,"rows":[],"miss":true}';
       },
-      log: (level, text11) => {
+      log: (level, text12) => {
         logs.push({
           level: level === "warn" || level === "error" ? level : "log",
-          text: String(text11),
+          text: String(text12),
           at: Date.now() - started
         });
       },
@@ -144763,7 +145469,7 @@ function createOrgReader(org) {
 
 // src/studio/scripts/runner/records.ts
 var LIMIT = 25;
-var str23 = (v) => typeof v === "string" && v ? v : null;
+var str25 = (v) => typeof v === "string" && v ? v : null;
 async function names3(reader, object3, ids) {
   const out = /* @__PURE__ */ new Map();
   if (!ids.length) return out;
@@ -144858,7 +145564,7 @@ async function listScriptTestRecords(req, reader) {
   const accounts = has("AccountId") ? await names3(
     reader,
     "Account",
-    rows3.map((r) => str23(r.AccountId)).filter((x) => !!x)
+    rows3.map((r) => str25(r.AccountId)).filter((x) => !!x)
   ) : /* @__PURE__ */ new Map();
   const counts2 = objectName === "ProviderVisit" && rows3.length ? await visitCounts(
     reader,
@@ -144870,10 +145576,10 @@ async function listScriptTestRecords(req, reader) {
     return {
       id: id2,
       objectName,
-      name: str23(r.Name) ?? id2,
-      accountName: str23(r.AccountId) ? accounts.get(String(r.AccountId)) ?? null : null,
-      date: str23(r.PlannedStartTime),
-      status: str23(r.Status),
+      name: str25(r.Name) ?? id2,
+      accountName: str25(r.AccountId) ? accounts.get(String(r.AccountId)) ?? null : null,
+      date: str25(r.PlannedStartTime),
+      status: str25(r.Status),
       children: c ? [...c.entries()].map(([k, count3]) => {
         const [object3, label2] = k.split("|");
         return { object: object3, label: label2, count: count3 };
@@ -145465,9 +146171,9 @@ function register23(server2) {
       text: external_exports.string().min(1).max(2e4).describe("The error message or symptom"),
       checkOrg: external_exports.boolean().optional().describe("Run the matched checks against the connected org (default true)")
     },
-    async ({ text: text11, checkOrg }) => {
+    async ({ text: text12, checkOrg }) => {
       try {
-        return json(await diagnosePayload(text11, checkOrg));
+        return json(await diagnosePayload(text12, checkOrg));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -146877,11 +147583,11 @@ function telemetryFields(targetOrg) {
     return new Set(result2.success ? (result2.data?.fields ?? []).map((f) => f.name) : []);
   };
 }
-function text10(body) {
+function text11(body) {
   return { content: [{ type: "text", text: body }] };
 }
 function failure2(title, e) {
-  return text10(`# ${title}
+  return text11(`# ${title}
 
 ${e instanceof Error ? e.message : String(e)}`);
 }
@@ -146909,7 +147615,7 @@ function register24(server2) {
     async ({ users, territory, idsPerQuery, targetOrg, countAsOrg }) => {
       const validation = await validateOrgConnection();
       const effectiveOrg = targetOrg || validation.targetOrg;
-      if (!effectiveOrg) return text10(`# Cannot Profile Sync Volume
+      if (!effectiveOrg) return text11(`# Cannot Profile Sync Volume
 
 ${validation.error}`);
       try {
@@ -146933,7 +147639,7 @@ ${validation.error}`);
 
 Counts are for an initial (full) sync. Without \`countAsOrg\`, counts use the connected user's record visibility, which can exceed what the field user can see.
 `;
-        return text10(report);
+        return text11(report);
       } catch (e) {
         return failure2("Sync Volume Profiling Failed", e);
       }
@@ -146951,7 +147657,7 @@ Counts are for an initial (full) sync. Without \`countAsOrg\`, counts use the co
     async ({ days, users, profileName: profileName3, targetOrg }) => {
       const validation = await validateOrgConnection();
       const effectiveOrg = targetOrg || validation.targetOrg;
-      if (!effectiveOrg) return text10(`# Cannot Analyze Sync Telemetry
+      if (!effectiveOrg) return text11(`# Cannot Analyze Sync Telemetry
 
 ${validation.error}`);
       try {
@@ -146975,7 +147681,7 @@ ${validation.error}`);
         report += "\n";
         report += summary.samples === 0 ? `No DeviceSyncSummary records in the last ${days} day(s) for this filter.
 ` : renderTelemetry(summary, days);
-        return text10(report);
+        return text11(report);
       } catch (e) {
         return failure2("Sync Telemetry Analysis Failed", e);
       }
@@ -146993,7 +147699,7 @@ ${validation.error}`);
     },
     async ({ profilePath, profileYaml, outputPath, targetOrg, countAsOrg }) => {
       if (!profilePath && !profileYaml) {
-        return text10(
+        return text11(
           "# Missing NFR Profile\n\nProvide `profilePath` or `profileYaml`. See the `lsc-performance-validation` skill for the format."
         );
       }
@@ -147005,7 +147711,7 @@ ${validation.error}`);
       }
       const validation = await validateOrgConnection();
       const effectiveOrg = targetOrg || validation.targetOrg;
-      if (!effectiveOrg) return text10(`# Cannot Run Assessment
+      if (!effectiveOrg) return text11(`# Cannot Run Assessment
 
 ${validation.error}`);
       try {
@@ -147026,7 +147732,7 @@ ${validation.error}`);
 Full result written to \`${resolved}\`.
 `;
         }
-        return text10(report);
+        return text11(report);
       } catch (e) {
         return failure2("Performance Assessment Failed", e);
       }
