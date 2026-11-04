@@ -13,6 +13,8 @@ const ROOT = path.join(__dirname, "..", "..", "src-renderer");
 const IPAD = [
   /\/Ipad[A-Z]\w*\.tsx$/,
   /\/ipad[\w-]*\.(css|ts)$/,
+  /\/ipad-sheet-ui\.tsx$/,
+  /\/studio\/visit\//, // the Visit Engagement editor draws the device's screen
   /\/screens\//,
   /\/assets\//,
   /\/(action-sheets|chrome|fabs|list-controls|record|report-viewer)\.css$/,

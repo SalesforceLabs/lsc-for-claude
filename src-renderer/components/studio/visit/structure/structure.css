@@ -1,0 +1,266 @@
+/* Visit Engagement shell: alerts, option sheets, toast, signature pad, carousel (lifesciences-ios module/Visit). */
+.visit-alert-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+}
+.visit-alert {
+  width: 270px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: rgba(246, 246, 246, 0.98);
+  color: #000;
+  text-align: center;
+}
+.visit-alert-body {
+  padding: 18px 16px 16px;
+}
+.visit-alert-title {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 22px;
+}
+.visit-alert-msg {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 16px;
+}
+.visit-alert-actions {
+  display: flex;
+  flex-direction: column;
+  border-top: 0.5px solid #c6c6c8;
+}
+.visit-alert-actions.row {
+  flex-direction: row;
+}
+.visit-alert-btn {
+  flex: 1;
+  padding: 0 8px;
+  height: 44px;
+  border: none;
+  border-top: 0.5px solid #c6c6c8;
+  background: none;
+  color: #007aff;
+  font: inherit;
+  font-size: 17px;
+  cursor: pointer;
+}
+.visit-alert-actions.row .visit-alert-btn {
+  border-top: none;
+}
+.visit-alert-actions.row .visit-alert-btn + .visit-alert-btn {
+  border-left: 0.5px solid #c6c6c8;
+}
+.visit-alert-btn:first-child {
+  border-top: none;
+}
+.visit-alert-btn.strong {
+  font-weight: 600;
+}
+
+.visit-options {
+  position: absolute;
+  z-index: 30;
+  min-width: 260px;
+  max-height: 360px;
+  overflow: auto;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+}
+.visit-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border: none;
+  border-bottom: 0.5px solid #e3e3e3;
+  background: none;
+  width: 100%;
+  font: inherit;
+  font-size: 17px;
+  text-align: left;
+  cursor: pointer;
+  color: #2e2e2e;
+}
+.visit-option:last-child {
+  border-bottom: none;
+}
+.visit-option.on {
+  color: #0250d9;
+  font-weight: 600;
+}
+
+.visit-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 40px;
+  z-index: 50;
+  transform: translateX(-50%);
+  padding: 12px 22px;
+  border-radius: 22px;
+  background: rgba(40, 40, 40, 0.92);
+  color: #fff;
+  font-size: 17px;
+}
+
+.visit-sheet {
+  width: 520px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #fff;
+  color: #2e2e2e;
+}
+.visit-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid #ddd;
+  font-size: 17px;
+  font-weight: 600;
+}
+.visit-sheet-body {
+  padding: 18px;
+}
+.visit-pad {
+  position: relative;
+  height: 220px;
+  border: 1px solid #8a8a8a;
+  border-radius: 10px;
+  background: #fafafa;
+  touch-action: none;
+  cursor: crosshair;
+}
+.visit-pad-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #aaa;
+  font-size: 17px;
+  pointer-events: none;
+}
+.visit-pad canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.visit-block {
+  margin-top: 22px;
+}
+.visit-block-head {
+  margin-bottom: 8px;
+  font-size: 20px;
+  font-weight: 600;
+}
+.visit-notes {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f3f3f3;
+  font-size: 17px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+.visit-compliance {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 17px;
+  line-height: 22px;
+}
+.visit-check {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1.5px solid #555;
+  border-radius: 5px;
+  background: #fff;
+  color: #fff;
+  font-size: 16px;
+  line-height: 21px;
+  cursor: pointer;
+}
+.visit-check.on {
+  border-color: #0250d9;
+  background: #0250d9;
+}
+.visit-check:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.visit-carousel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px 0;
+  overflow-x: auto;
+}
+.visit-attendee {
+  flex: none;
+  min-width: 150px;
+  padding: 8px 14px;
+  border: 1px solid #c9c9c9;
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+  font-size: 16px;
+  text-align: left;
+  cursor: pointer;
+  color: #2e2e2e;
+}
+.visit-attendee.on {
+  border-color: #0250d9;
+  background: #e5f2ff;
+  font-weight: 600;
+}
+.visit-attendee small {
+  display: block;
+  color: #666;
+  font-size: 13px;
+  font-weight: 400;
+}
+.visit-copy {
+  flex: none;
+  margin-left: auto;
+  padding: 7px 14px;
+  border: 1px solid #0250d9;
+  border-radius: 18px;
+  background: #fff;
+  color: #0250d9;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.visit-fielderr {
+  margin-top: 2px;
+  color: #c23934;
+  font-size: 13px;
+}
+.visit-pill-btn {
+  cursor: pointer;
+}
+
+.visit-msg {
+  margin: 0 0 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  background: #fdecea;
+  color: #8a1f17;
+}
+.visit-msg.warning {
+  background: #fff4e0;
+  color: #7a4b00;
+}
