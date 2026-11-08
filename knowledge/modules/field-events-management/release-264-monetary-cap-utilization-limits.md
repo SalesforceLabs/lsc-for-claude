@@ -97,3 +97,41 @@ Mobile allows or blocks offline per last synced config; offline additions over t
 - **Planning stage:** adding an HCP who has exceeded a limit is blocked (on both web and mobile). Opening the account profile from the picker shows the remaining cap (e.g. $1,700 left).
 - **Estimated expense:** allocating the estimated speaker fee to the speaker holds that amount against their scheduled monetary cap (e.g. $500 held). If the allocation would hit the cap the rep sees it before submitting the event for approval and can swap the expert.
 - **Actual expense (after the event):** allocating the actual speaker fee revalidates the cap; if it goes over, the system shows only a **warning** and still allows the allocation, because the speaker already provided the service and the payment must be recorded. A **Managed Event Participant Discrepancy Reason** record is created so the compliance risk can be reported. (Block at planning, warn at actuals: this is by design, not a bug.)
+
+## Seen on screen (264 admin video)
+
+- **Trigger handlers** (Admin Console > Trigger Handlers, search "Monetary") shows six handlers, all on in the demo: `ExpenseParticipantMonetaryCapsHandler` (ExpenseParticipant), `MngEventPartMonetaryCapsHandler` (MngEventParticipant), `MngEventMonetaryCapsHandler` (MngEvent), `ExpenseMonetaryCapsHandler` (Expense), `EstExpensePtcpAllocMonetaryCapsHandler` (EstimatedExpensePtcpAlloc) and `EstimatedExpenseMonetaryCapsHandler` (EstimatedExpense). The narrator says the utilization limit handlers (`MngEventAcctUtilLmtsHandler`, `MngEventPartAcctUtilLmtsHandler`) must be on too.
+- **Lightning App Builder:** the Record Update Validation Notifier is placed on the Managed Event record page (the page was in the Closed stage, with Launch Survey and Create Visit buttons on the path).
+- **Field Events Org Settings > Concluded Event Status** is a dual-list. In the demo Selected = Closed, Concluded, Execute; Available = Approved, Cancelled, Draft, Pending Approval. Execute is in the list, so an event in Execute warns instead of blocking.
+- **Expense Types** list view (16 types) has columns Effective Start/End Date, Expense Availability Type, Allocation Type (Individual Allocation / Multiple Allocations), Classification, Parent Expense Type and Included In Cap. Only **Fee for Service** (Estimate) and **Expert Fee** (Actual, parent Fee for Service) have Included In Cap checked.
+- **Activity Plans** list: Type = Event Management Limit, Status Approved, Active checked (e.g. "Monetary Cap - AP" with time period "Monetary Cap Time Period", "Utilization Limit - Warning"). An In Progress, inactive plan of the same type is not used.
+- **Provider Activity Measure Type** (opened in Workbench; fields include Alert Type, Criteria, Category, Display Order and the Aggregated Activity Actual / Goal / Scheduled fields, which were blank for the monetary cap type). The monetary cap type had Alert Type = Error, Category = `MonetaryCapLimit` and this version 2 criteria:
+
+```json
+{"MngEventParticipant":{"contextCondition":{"conditions":[
+  {"value":"Draft;PendingApproval;Approved;Execute;Concluded;Closed","operator":"In","field":"MngEvent.Status"},
+  {"value":"Expert","operator":"In","field":"EventMgmtPtcpTypeRoleMap.EventMgmtParticipantType.StandardType"}]}},
+ "EstimatedExpensePtcpAlloc":{"expenseBuckets":{
+   "committed":{"conditions":[{"value":"Approved;Execute","operator":"In","field":"MngEvent.Status"}]},
+   "estimated":{"conditions":[{"value":"Draft;PendingApproval","operator":"In","field":"MngEvent.Status"}]}},
+  "contextCondition":{"conditions":[{"value":"Draft;PendingApproval;Approved;Execute","operator":"In","field":"MngEvent.Status"}]}},
+ "ExpenseParticipant":{"expenseBuckets":{"actual":{"conditions":[
+   {"value":"Draft;PendingApproval;Approved;Execute;Concluded;Closed","operator":"In","field":"MngEvent.Status"}]}},
+  "contextCondition":{"conditions":[{"value":"Draft;PendingApproval;Approved;Execute;Concluded;Closed","operator":"In","field":"MngEvent.Status"}]}},
+ "version":2}
+```
+
+  This matches the version 2 rules above (three nodes, Pascal-case `In`, semicolon lists, `MngEventParticipant` with `contextCondition` only). It limits the check to participants whose role type's StandardType is Expert, so attendees are not capped. Buckets: committed = event Approved or Execute; estimated = Draft or Pending Approval.
+- **Provider Activity Goal Measures** list (type Event Management Limit) shows the measure types used in the demo, named by alert type: `HR264_MonetaryCap_Error`, `HR264_Utilization_Error`, `HR264_Utilization_Warning`, with Estimated / Committed / Actual / Total Expense Amount in USD for cap measures (e.g. estimated 1,200, committed 100, actual 4,500, total 5,800) and Total Committed / Scheduled / Activity values for utilization measures. Note the cap row shows Total 5,800 while actual is 4,500: the display here is the sum, while the cap formula above is `MAX(Actual, Estimated + Committed)`, so check which field the list column shows before relying on it.
+- **Field Event Jobs** page: Apex Jobs (Align Event Product With Subject Product, **Calculate Expenses Against Monetary Caps**; each with Run Now and Schedule) and Platform Workflow Jobs (**Life Sciences Provider Activity Goal Sharing Job**, **Recalculate Account Utilization Count**; Run Now only).
+
+## Quick checks if it does not work
+
+1. All six monetary cap handlers and the two utilization handlers are on.
+2. The Record Update Validation Notifier is on the Managed Event page (and Managed Event Participant page); without it nothing displays.
+3. The plan is Type = Event Management Limit and Active, its time period covers the event date.
+4. Each HCP has a Provider Activity Goal, a Goal Limit and a Goal Measure whose measure type matches the alert type wanted.
+5. The expense type has Included In Cap checked (Fee for Service and Expert Fee in the demo).
+6. Measure type criteria is valid version 2 JSON with the `MngEventParticipant` node.
+7. Data loaded with handlers off: run Calculate Expenses Against Monetary Caps and Recalculate Account Utilization Count.
+8. Goals shared to reps: run the Provider Activity Goal Sharing Job; reps see goals only through provider account territory alignment.
