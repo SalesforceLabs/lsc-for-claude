@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("../../../src/salesforce/cli.js", () => ({
   runSoqlQuery: vi.fn(),
@@ -188,6 +188,14 @@ describe("cachesByProfile", () => {
 });
 
 describe("unpublishedChanges", () => {
+  // iso() and the assertions each read the clock; a tick between them made these tests flaky.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   const edit = (over: Record<string, unknown> = {}) => ({
     recordId: "r",
     category: "DbSchema",
