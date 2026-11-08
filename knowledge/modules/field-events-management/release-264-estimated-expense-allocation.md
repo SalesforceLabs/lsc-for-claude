@@ -57,3 +57,14 @@ Allocate:
 - https://help.salesforce.com/s/articleView?id=ind.lsc_manage_events_post_approval_tasks.htm&release=264.0.0&type=5
 - https://help.salesforce.com/s/articleView?id=ind.lsc_event_management_configure_profile_level_settings.htm&release=264.0.0&type=5
 - https://help.salesforce.com/s/articleView?id=ind.lsc_event_management_monetary_cap.htm&release=264.0.0&type=5
+
+## Seen on screen (264 admin video)
+
+- Expense Types list (All Expense Types, 12 items) columns: Name, Expense Availability Type (Managed Event), Effective Start/End Date, Included In Cap, Parent Expense Type, Classification (Estimate / Actual). Example: Conference Room (Estimate) is parent of Audio & Visual, Room Rental, Room Setup Fee (Actual); Food & Beverage (Estimate) is parent of Dinner and Lunch (Actual); Fee for Service (Estimate) is parent of Expert Fee (Actual, Included In Cap checked).
+- Field Events Profile Settings dual-lists: **Estimated Expense Allocation Invitation Status** (Selected: Accepted, No Response, Tentative; Available: Declined) and **Actual Expense Allocation Attendance Status** (Selected: Attended, Check-In Complete, Sign Up Complete; Available: No Show). Quota Settings has **Colleague Invitation Quota Exempt Status** (Selected: Declined).
+
+## End-user demo walkthrough (264 enablement video transcripts)
+
+- Demo scenario: a $350 food and beverage estimate is allocated across expected diners; the per-person cost works out to about $50, which helps venue planning. Adding or removing attendees re-spreads an even allocation automatically.
+- Uneven allocation: the rep types an amount per attendee; a progress bar (web) / footer (mobile) shows over- or under-allocated.
+- A $1,200 speaker fee (Fee for Service estimate) allocated to the speaker triggers the monetary cap check before the event is submitted for approval. A successful allocation means the speaker will not hit the cap on this event; on mobile the fee could push her over, which is flagged as a compliance risk at this stage.

@@ -1663,3 +1663,158 @@ causes:
       - "Verify counts with SOQL on PrvdEngmtComplianceCycle."
       - "Use single-object custom report types, or the EPPV Cycle Matrix LWC for a plan-by-cycle view."
       - "If the matrix tab says Page doesn't exist, assign the permission set that grants its tab and Apex class. If it throws rows.map is not a function, hard refresh (stale cacheable Apex response)."
+
+  # ===========================================================================
+  # Events
+  # ===========================================================================
+
+  - id: event-email-templates-zero
+    title: Managed event email invitation shows "Email Templates (0)" on the iPad
+    module: events
+    symptoms:
+      - "Email Templates (0)"
+      - "No templates are available"
+      - "Email Invitation to Attendees shows no templates"
+    keywords: [LifeSciEmailTemplate, SubjectMaterialTemplate, SubjectAssignment, Subject, DisableTemplateFilteringOnMeetings, SendEmailCoordinator, Email Invitation to Attendees]
+    cause: |
+      The app loads all active local LifeSciEmailTemplate rows, then keeps only
+      those reachable through the event's Subjects: SubjectAssignment
+      (AssignmentId = the MngEvent) to Subject to SubjectMaterialTemplate
+      (TemplateType = 'Email', TemplateReferenceId = the template). With no
+      SubjectAssignment on the event, or no Email SubjectMaterialTemplate on its
+      Subjects, the list is empty even when the templates sync and are shared.
+      Template fields such as EmailInvitationContextType and
+      EmailInvitationActionType don't affect this picker.
+    fix:
+      - "Make sure the template is active, its start date is on or before today, and it is shared with the reps (Manual read share to a public group; the sharing model is Private)."
+      - "For each Subject, create a SubjectMaterialTemplate: Name 'Email Template', SubjectId, TemplateType 'Email', TemplateReferenceId = the LifeSciEmailTemplate Id. LifeSciEmailTemplateId is derived and can't be written."
+      - "Give each event a Subject: on the Products and Topics tab, or insert a SubjectAssignment with SubjectId and AssignmentId = the event Id. ManagedEventReferenceId can't be written."
+      - "Run an incremental sync (both record types sync as new rows) and check Actions > Email Invitation to Attendees shows Email Templates (N)."
+      - "To confirm the diagnosis only, set the email setting DisableTemplateFilteringOnMeetings to true, which shows all active templates. It applies to every meeting, so don't leave it on."
+
+  - id: event-email-template-cannot-download
+    title: Event email picker lists a template that says "Template cannot be downloaded"
+    module: events
+    symptoms:
+      - "Template cannot be downloaded"
+    keywords: [LifeSciEmailTemplate, LifeSciEmailTmplSnapshot, SubjectMaterialTemplate, EmailBody, Language]
+    cause: |
+      The template is linked to a Subject, so the picker lists it, but it has no
+      usable body: no Active LifeSciEmailTmplSnapshot with an EmailBody and
+      Language en_US. A snapshot whose Language is a multi-value such as
+      en_US;fr, or null, is also not found.
+    fix:
+      - "Unlink templates that have no body: delete their SubjectMaterialTemplate rows. Only link templates that have an Active snapshot with a body."
+      - "Set the snapshot Language to en_US (one value, not en_US;fr)."
+      - "Run an incremental sync and reopen the picker."
+
+  - id: event-expense-actuals-picker-empty
+    title: The + Actuals line item picker is empty on a managed event
+    module: events
+    symptoms:
+      - "Line Items picker is empty"
+      - "Cannot add actuals after concluding an event"
+      - "Dinner and Lunch missing from the actuals picker"
+    keywords: [ExpenseType, ParentExpenseTypeId, Classification, ExpenseAvailabilityType, AllocationType, Actuals]
+    cause: |
+      The Actuals picker lists child ExpenseType rows. It shows nothing when the
+      expense types have no parent/child hierarchy (estimate category as parent,
+      actual type as child), no Classification, or an ExpenseAvailabilityType
+      other than ManagedEvent. Types set to ManagedEventAndVisit were also
+      hidden in the picker.
+    fix:
+      - "Set ParentExpenseTypeId on each actual type to its estimate category (for example Speaker Fee under Fee for Service, Hotel under Lodging)."
+      - "Set Classification: Estimate on the parents, Actual on the children."
+      - "Set ExpenseAvailabilityType to ManagedEvent on the types the picker should list."
+      - "Set AllocationType (Individual, Multiple or Not Applicable) on every type; null breaks allocation. Set IsIncludedInCap on the types that count toward a monetary cap."
+      - "Sync the device. The picker's System Generated Filter also hides types whose effective dates don't span the event start date."
+
+  - id: event-new-experts-empty-list
+    title: New Experts picker shows "Empty list" on a managed event
+    module: events
+    symptoms:
+      - "Empty list"
+      - "New Experts picker is empty"
+      - "No experts when inviting a speaker"
+    keywords: [Expert, ExpertSubject, Subject, Speaker Bureau, ExpirationDate, Attendees, Experts]
+    cause: |
+      The picker lists only experts with Status Approved, a Type (for example
+      HCP) and an unexpired ExpertSubject for the event's Subject. Experts with a
+      null Type or Status, no ExpertSubject, or only expired subjects are
+      dropped. When the event has a Speaker Bureau Subject and the user can read
+      Subject.ComplianceType, only trained, eligible experts are shown.
+    fix:
+      - "Set Status to Approved and Type (HCP) on the experts."
+      - "Create an ExpertSubject for the event's Subject on each expert, with an expiration date in the future."
+      - "Make sure the event has a Subject on its Products and Topics tab."
+      - "Sync the device. To test Account Search, use an event without a Speaker Bureau Subject."
+
+  - id: event-invite-expert-no-account-access
+    title: Inviting an expert fails with a no-access-to-Accounts-linked-to-Speakers error
+    module: events
+    symptoms:
+      - "You do not have access to the Accounts linked to Speakers"
+    keywords: [Expert, ObjectTerritory2Association, Territory2Manual, Account, territory, invite]
+    cause: |
+      Server read access is not enough. The app requires the expert's Account to
+      be in the rep's territory (ObjectTerritory2Association, cause
+      Territory2Manual). Expert accounts aligned only to other territories fail
+      on Save.
+    fix:
+      - "Align the expert Accounts to the rep's territory with ObjectTerritory2Association rows (AssociationCause Territory2Manual)."
+      - "Sync the device before trying again."
+
+  - id: event-stage-action-no-effect
+    title: Submit for Approval or another stage action does nothing on a managed event
+    module: events
+    symptoms:
+      - "Submit for Approval does nothing"
+      - "Stage action does nothing"
+      - "Action closes the menu and nothing opens"
+      - "Add Speaker does nothing"
+    keywords: [LifeSciStageAction, LifeSciStageOperationAction, RecordUpdate, Component, Parameters, edit access, Add Speaker]
+    cause: |
+      Two separate causes. (1) Record update actions such as Submit for Approval
+      update the event, so they need edit access; a rep with read-only access to
+      an event owned by someone else gets no result. (2) A Component action
+      (LifeSciStageAction Type Component) with a wrong component name, invalid
+      Parameters JSON or a component not exposed in the build closes the menu
+      with no error. Add Speaker is not a documented action; reps add experts
+      from Attendees, Experts, New.
+    fix:
+      - "Test on an event the rep owns, or transfer or share the event with edit access."
+      - "Compare Component actions with the Admin Guide and End User Guide. Don't build actions the guides don't describe; remove an Add Speaker action rather than fixing it."
+
+  - id: event-cap-handler-malformed-json
+    title: Cap handler fails with Malformed JSON on measure type criteria when inserting participant allocations
+    module: events
+    symptoms:
+      - "Malformed JSON"
+      - "ProviderActivityMeasureType Criteria: []"
+    keywords: [ExpenseParticipant, MngEventId, ExpenseParticipantMonetaryCapsHandler, ProviderActivityMeasureType, monetary cap, criteria]
+    cause: |
+      The cap criteria path MngEvent.Status is resolved through
+      ExpenseParticipant.MngEventId, which can't be written from Apex. An
+      ExpenseParticipant inserted by API has no event, so the criteria resolve to
+      an empty list and the handler rejects the insert.
+    fix:
+      - "When seeding data, pause ExpenseParticipantMonetaryCapsHandler (Tooling API), insert the rows, then turn it back on and confirm it is active."
+      - "Test cap warn and block through the app UI, not API inserts."
+      - "In the criteria JSON use real MngEvent.Status values (Draft, PendingApproval, Approved, Execute, Concluded, Closed); the guide's Completed is Concluded."
+
+  - id: event-device-stale-after-change
+    title: Managed event setup changed on the server but the iPad still shows the old behavior
+    module: events
+    symptoms:
+      - "Device shows old configuration after a change"
+      - "Fixed in the org but not on the iPad"
+    keywords: [sync, metadata cache, Begin Sync, View Database, LastModifiedDate, share]
+    cause: |
+      The mobile metadata cache and the data sync are separate. The cache
+      regenerates on its own; the device must sync to download it and any changed
+      rows. A sharing change, or saving a record with no changed field, does not
+      advance LastModifiedDate, so an incremental sync never re-sends the record.
+    fix:
+      - "On the iPad: profile icon, Begin Sync, Sync, accept the New metadata prompt and wait for Synced."
+      - "To force records to re-sync, change a field and restore it (two saves). A save with no change does nothing."
+      - "Check what reached the device with profile, View Database (record counts per table). Query as the rep with sf data query to prove what the server lets them see."

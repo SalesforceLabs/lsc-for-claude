@@ -16,6 +16,29 @@ description: Guides Life Sciences Cloud (LSC) Events Management configuration fo
 | Picklist values on a Status / Mode / Type field | `run_apex` with `Schema.<Object>.<Field>.getDescribe().getPicklistValues()` |
 | Mobile cache config | `list_db_schema({ filter: "MngEvent" })` |
 | Validating mobile config | `audit_mobile_config()` |
+| An iPad symptom or error (empty picker, action does nothing, cap error) | `diagnose_lsc_issue({ symptom: "<text>" })`, then the quick table below |
+| Setting up a new org end to end | `get_lsc_troubleshooting` / `search_lsc_knowledge({ query: "field events setup checklist" })` (module `field-events-management`, `troubleshooting.md`) |
+
+---
+
+## iPad Symptom Quick Reference (field-tested)
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Email picker "Email Templates (0)" | Picker keeps only templates reachable via `SubjectAssignment(AssignmentId=event) → Subject → SubjectMaterialTemplate(TemplateType=Email, TemplateReferenceId=template)`; also the OWD is Private and a share change doesn't bump `LastModifiedDate` | Email `SubjectMaterialTemplate` per Subject, a Subject on every event, Manual read share to a reps group, then touch templates (change a field and restore it) and sync |
+| Picker says "Template cannot be downloaded" | Template has no Active `LifeSciEmailTmplSnapshot` with a body (`Language` must be `en_US`, not `en_US;fr`) | Unlink it or fix the snapshot |
+| **+ Actuals** picker empty | `ExpenseType` lacks parent/child hierarchy, `Classification`, or `ExpenseAvailabilityType = ManagedEvent` | Parents Estimate, children Actual; set `AllocationType` and `IsIncludedInCap` too |
+| New Experts: "Empty list" | Expert needs `Status` Approved, `Type` (HCP) and an unexpired `ExpertSubject` for the event's Subject | Fix expert data, sync |
+| Invite expert: "You do not have access to the Accounts linked to Speakers" | App requires the expert's Account in the **rep's territory** (`ObjectTerritory2Association`, `Territory2Manual`) | Align the Accounts, sync |
+| Expert list filtered / no Account Search | By design when the event has a Speaker Bureau Subject and the user can read `Subject.ComplianceType` | Use a non-Speaker-Bureau event to test |
+| Submit for Approval (any stage action) does nothing | Rep has read-only access to the event; stage actions are record updates | Test on a rep-owned event, or share with edit access |
+| Component stage action closes the menu, nothing opens | Wrong component, bad `Parameters` JSON, or not exposed in the build; no error is shown | Match the guides; do not build undocumented actions |
+| Cap handler `Malformed JSON … Criteria: []` on `ExpenseParticipant` insert | `MngEvent.Status` criteria resolve via `ExpenseParticipant.MngEventId`, not writable from Apex | Pause `ExpenseParticipantMonetaryCapsHandler` for the seed, re-enable, test caps in the UI |
+| Server fixed, iPad unchanged | Cache and data sync are separate | Begin Sync → Sync, accept "New metadata" |
+
+**Check the device, not just the server:** query as the rep (`sf data query -o <rep alias>`) to prove what the server allows, then profile → View Database on the iPad to see what synced. Most "empty picker" cases are sync, territory or Subject-link problems.
+
+**Monetary cap chain:** Activity Plan (type *Event Management Limit*, active, with Time Period) → Provider Activity Goal per provider → Provider Activity Measure Type (`MonetaryCapLimit`, `ActivityObject=ExpenseParticipant`, Warning or Error; Warn and Block are separate types) → Goal Measure → Goal Limit (`MonetaryLimit`). Event dates must fall inside the time period and the cap handlers must be active. Criteria use real `MngEvent.Status` values (the guides' "Completed" is `Concluded`), `;`-separated. Full setup checklist: `knowledge/modules/field-events-management/troubleshooting.md`.
 
 ---
 
@@ -260,6 +283,8 @@ Events Management ships these `LifeScienceTriggerHandler` records (DeveloperName
 | `MngEventParticipantInvitedByHandler` | Sets the "invited by" relationship |
 | `EstimatedExpenseHandler` | Estimated-expense automation |
 
+Also activate the Monetary Cap and Utilization handlers (the six `*MonetaryCapsHandler`s, `MngEventAcctUtilLmtsHandler`, `MngEventPartAcctUtilLmtsHandler`) and the rest of the handlers the Admin Guide names (about 39). Leave `MngEventBusinessHoursHandler` off unless `BusinessHours` is in the rep's DB Schema. In some orgs `LifeScienceTriggerHandler` is reachable only through the Tooling API (`sf data query/update record --use-tooling-api`) and `list_trigger_handlers` / `toggle_trigger_handler` find nothing; use the CLI then. When seeding data, pause a handler that rejects API-inserted rows (see the cap-handler row above) rather than removing logic, and confirm it is active again afterwards.
+
 > These are activated as part of the Field Events setup script. If event participants aren't being created, quotas aren't enforced, or estimated expenses don't roll up, verify the relevant handler above is active.
 
 ---
@@ -354,6 +379,8 @@ Common Event Management classes that need access:
 - `lsc4ce__EditMngEventBudgetController` (Edit Budget)
 
 ### Add Speaker / Add Attendee modal is empty when invoked from Stage Action
+
+> **Prefer the documented path.** *Add Speaker* is not an action in the Admin or End User Guide; reps add experts from **Attendees → Experts → New / Update Experts**. In a field test, a stage-level Add Speaker action did nothing even with valid parameters. Don't build or repair it for a customer; remove it if present. The notes below apply only if you still need a Component stage action.
 
 Two distinct gotchas usually compound:
 

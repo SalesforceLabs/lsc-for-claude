@@ -38,9 +38,19 @@ Individual visit (mobile): in the Attendee section, tap the row-level calendar i
 
 ## Verification Notes
 
-- No Help article for "Create Visit" from a Managed Event was found in the index (searched visit/attendee/workflow terms). The component name `industries_ls_commercial:eventVisitParticipantSelectorLauncher`, **Allowed Attendance Statuses for Visits** (not present in the verified Field Events Profile Settings article), and the Workflow Configuration steps above are from the release note and **unverified**.
+- No Help article for "Create Visit" from a Managed Event was found in the index. The setup below was **seen on screen** in the 264 admin enablement video (not in a Help article):
+  - Admin Console > Workflow Configuration > **Workflow Actions** > New > **Open Component**. Fields: Action Name `Create Visit`, Button Label `Create Visit`, Object `Managed Event`; under Component Parameters, Component Name `industries_ls_commercial:eventVisitParticipantSelectorLauncher` (Component Parameters left blank). Note the different namespace: the other Managed Event open-component actions use `lsc4ce:` (e.g. `lsc4ce:LaunchSurveyModal`, `lsc4ce:mngEventParticipantEmailing`), but this one is `industries_ls_commercial:`.
+  - The action is then added under **Workflow Paths** > Managed Event - Speaker Event > the **Execute** stage > stage operation `MngEvnt Execute Organizer` > **Stage Operation Actions** (order: Conclude, Launch Survey, Create Visit). Stage operation conditions use `CurrentUserEventRole` In `Organizer;Coorganizer;Coordinator;Contributor`-style role lists (the Conclude operation was shown with that value).
+  - Field Events Profile Settings > **Visit Settings** > **Allowed Attendance Statuses for Visits** is a dual-list; in the video Selected = Attended, Check-In Complete, Sign Up Complete, Available = No Show. (Expense Allocation lists beside it have their own settings.)
+  - Verify in your own org: Workflow Actions > Open Component lists each action's Component Name.
 - Verified related group-visit behavior (Add Attendees to Group Visits): add the **Child Visits** related list to the Visit page layout (enables the Attendees sidebar); each attendee gets a child visit linked to the parent; the account on a child visit cannot be changed (remove and re-add); removing an attendee deletes its visit and provider visit records; after the parent visit is submitted, Attendees is read-only; deleting a parent visit deletes children without warning, but is blocked if the parent is Completed or any child has a signature. Do not configure a New button on the Related List - Life Sciences Attendees component.
 
 ## Sources
 
 - https://help.salesforce.com/s/articleView?id=ind.lsc_visit_management_add_attendees.htm&release=264.0.0&type=5
+
+## End-user demo walkthrough (264 enablement video transcripts)
+
+- Web: on the completed Managed Event the rep clicks the **Create Visit** action, then chooses an individual visit (one attendee) or a group visit (several), and clicks **Start Visit**. The selected attendees carry into the Visit SPA; the first becomes the primary, the rest become visit attendees (child visits). The rep then sets a future date; no participant re-entry.
+- Mobile: for a one-on-one follow-up, tap the icon on the attendee row (visit starts with that participant added; Cancel returns to the event). For a group, tap the **Create Visit** action, select all or some attendees, and the visit opens with the first as primary and the rest as additional attendees; each is managed as a child visit.
+- Use case in the demo: follow-up visits scheduled right after a speaker event.

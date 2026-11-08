@@ -56,3 +56,11 @@ Behavior and limits:
 - https://help.salesforce.com/s/articleView?id=ind.lsc_event_management_configure_org_wide_settings.htm&release=264.0.0&type=5
 - https://help.salesforce.com/s/articleView?id=ind.lsc_event_management_how_event_management_works.htm&release=264.0.0&type=5
 - https://help.salesforce.com/s/articleView?id=ind.lsc_trigger_handlers_objects.htm&release=264.0.0&type=5
+
+## Seen on screen (264 admin video)
+
+- Setup > Object Manager > Event Management Participant Role > Fields & Relationships > **Role Picklist Values** holds 12 active values (API name in parentheses where it differs): Organizer, Coorganizer, Coordinator, Contributor, Approver, Attendee, Speaker, Compliance & Legal Officer (ComplianceLegalOfficer), Event Manager (EventManager), Budget Approver (BudgetApprover), Write-In Attendee (WriteInAttendee), Non-Profiled Attendee (NonProfiledAttendee). Speaker was added by hand (not Admin User) in the demo org.
+
+## End-user demo walkthrough (264 enablement video transcripts)
+
+- Mobile demo: after a rep adds participants to a speaker event, each participant's role is set automatically from the admin's Participant Type Mapping (default roles for attendees, experts and colleagues). The mapping defines valid participant types and roles per managed event type, preventing invalid combinations.
