@@ -36,3 +36,13 @@ Prerequisite: use the built-in MuleSoft **Concur Expense Sync** integration. Cus
 - https://help.salesforce.com/s/articleView?id=ind.lsc_sync_visit_expenses_to_concur.htm&release=264.0.0&type=5
 - https://help.salesforce.com/s/articleView?id=ind.lsc_concur_expense_sync_setup_using_mulesoft_integration.htm&release=264.0.0&type=5
 - https://help.salesforce.com/s/articleView?id=ind.lsc_visit_management_config_expenses.htm&release=264.0.0&type=5
+
+## Seen on screen (264 admin video)
+
+- The Expense object (Setup > Object Manager > Expense, 24 fields) includes Expense Origin (lookup to Visit, Managed Event, Managed Event Session), Expense System Integration Status (picklist), Expense System Integration Error (text) and External System Last Sync Date (date/time): the fields the Concur sync reads and writes.
+
+## End-user demo walkthrough (264 enablement video transcripts)
+
+- Flow: expense report created in Concur > the scheduled **MuleSoft** job syncs it to LSC (run manually in the demo) > the rep adds an actual expense (e.g. $18 parking) to the event and **links an expense report** > an **expense report entry** record is created on linking and is sent to Concur on the next job run > the expense appears on the Concur report.
+- The link picker lists only the rep's own reports in the statuses the admin has defined (e.g. Not Submitted); a report in another status will not show.
+- Changes made in Concur (e.g. amount corrected from $18 to $21 for tax) sync back to the event expense on the next job; status changes after submission and payment also sync back. Sync frequency is scheduled; if an expense looks stale, check that the job has run.

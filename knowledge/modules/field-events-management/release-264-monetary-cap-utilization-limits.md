@@ -90,3 +90,10 @@ Mobile allows or blocks offline per last synced config; offline additions over t
 - https://help.salesforce.com/s/articleView?id=ind.lsc_event_management_check_account_utilization_provider_activity_measure_types.htm&release=264.0.0&type=5
 - https://help.salesforce.com/s/articleView?id=ind.lsc_event_management_check_account_utilization_running_batch_job.htm&release=264.0.0&type=5
 - https://help.salesforce.com/s/articleView?id=ind.lsc_event_management_configure_org_wide_settings.htm&release=264.0.0&type=5
+
+## End-user demo walkthrough (264 enablement video transcripts)
+
+- **Utilization tracker** on each HCP account (web): shows configured limits, current utilization and remaining availability. Examples in the demo: a utilization limit of 5 with 5 used (0 available) blocks adding the HCP; a monetary cap block of $250 exceeded by $50 blocks; a warning-level utilization limit of 3 with 2 used leaves 1 available; a $5,000 cap with $2,100 paid leaves $2,900; a $2,000 cap with $1,400 used leaves $600.
+- **Planning stage:** adding an HCP who has exceeded a limit is blocked (on both web and mobile). Opening the account profile from the picker shows the remaining cap (e.g. $1,700 left).
+- **Estimated expense:** allocating the estimated speaker fee to the speaker holds that amount against their scheduled monetary cap (e.g. $500 held). If the allocation would hit the cap the rep sees it before submitting the event for approval and can swap the expert.
+- **Actual expense (after the event):** allocating the actual speaker fee revalidates the cap; if it goes over, the system shows only a **warning** and still allows the allocation, because the speaker already provided the service and the payment must be recorded. A **Managed Event Participant Discrepancy Reason** record is created so the compliance risk can be reported. (Block at planning, warn at actuals: this is by design, not a bug.)

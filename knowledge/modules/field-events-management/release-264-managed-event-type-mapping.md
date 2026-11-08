@@ -37,3 +37,13 @@ Mobile: from the home page open the Managed Event tab, tap New, select a record 
 
 - https://help.salesforce.com/s/articleView?id=ind.lsc_event_management_participant_setup.htm&release=264.0.0&type=5
 - https://help.salesforce.com/s/articleView?id=ind.lsc_event_management_get_org_ready.htm&release=264.0.0&type=5
+
+## Seen on screen (264 admin video)
+
+- Managed Event has four active record types in the demo org: Display & Exhibits, HCP Sponsorship, Rep-led Presentation, Speaker Event (Object Manager > Managed Event > Record Types). Event Type Mappings are listed in Admin Console > Event Management > **Event Type Mappings** (left nav beside Field Events Profile Settings, Field Events Org Settings, Field Event Jobs, Participant Type Mappings).
+
+## End-user demo walkthrough (264 enablement video transcripts)
+
+- Web: Managed Events > New shows the record type list (e.g. Speaker Event) > Next. The **Managed Event Type** field is no longer on the page layout; after Save it is populated from the admin mapping for that record type.
+- Mobile: same, the record type picker is used, the Managed Event Type field is not shown, and it is set in the background on Save.
+- Admin implication: remove Managed Event Type from the layout for mapped record types, otherwise reps will still see it.
