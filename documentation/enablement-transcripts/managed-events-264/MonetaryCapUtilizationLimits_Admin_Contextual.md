@@ -4,9 +4,16 @@ Source: MonetaryCapUtilizationLimits_Admin.mp4 and the matching Transcript.docx.
 
 ## On-screen context (from video frames)
 
-Partial: only the frames reviewed so far; timestamps approximate (+/- 10 s).
+Timestamps are approximate (+/- 10 s).
 
-- ~300 s: the Provider Activity Measure Type criteria JSON was on screen. Not yet transcribed here; see release-264-monetary-cap-utilization-limits.md for the v1/v2 criteria rules.
+- ~20-30 s: Admin Console > Trigger Handlers filtered "Monetary": six handlers, all active (ExpenseParticipant, MngEventParticipant, MngEvent, Expense, EstimatedExpensePtcpAlloc, EstimatedExpense MonetaryCaps handlers).
+- ~70 s: Lightning App Builder, Managed Event record page (Closed stage shown) where the Record Update Validation Notifier is added.
+- ~100 s: Field Events Org Settings > Concluded Event Status: Selected Closed, Concluded, Execute; Available Approved, Cancelled, Draft, Pending Approval.
+- ~140 s: All Expense Types (16): Included In Cap checked only on Fee for Service and Expert Fee; Allocation Type column (Individual / Multiple Allocations).
+- ~200 s: All Activity Plans: Type Event Management Limit; "Monetary Cap - AP" (time period Monetary Cap Time Period) and "Utilization Limit - Warning" Approved and Active; one In Progress inactive plan.
+- ~300-330 s: Provider Activity Measure Type record: Alert Type Error, Category MonetaryCapLimit, Criteria (version 2): MngEventParticipant contextCondition MngEvent.Status In Draft;PendingApproval;Approved;Execute;Concluded;Closed and role StandardType In Expert; EstimatedExpensePtcpAlloc buckets committed = Approved;Execute, estimated = Draft;PendingApproval; ExpenseParticipant actual bucket = Draft..Closed. Full JSON is in release-264-monetary-cap-utilization-limits.md.
+- ~400 s: All Provider Activity Goal Measures (6): types HR264_MonetaryCap_Error, HR264_Utilization_Error, HR264_Utilization_Warning; cap rows show USD estimated / committed / actual / total (e.g. 1,200 / 100 / 4,500 / 5,800).
+- ~450 s: Field Event Jobs: Apex Jobs (Align Event Product With Subject Product, Calculate Expenses Against Monetary Caps) and Platform Workflow Jobs (Provider Activity Goal Sharing Job, Recalculate Account Utilization Count).
 
 ## Narration
 

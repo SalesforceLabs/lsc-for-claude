@@ -1802,6 +1802,32 @@ causes:
       - "Test cap warn and block through the app UI, not API inserts."
       - "In the criteria JSON use real MngEvent.Status values (Draft, PendingApproval, Approved, Execute, Concluded, Closed); the guide's Completed is Concluded."
 
+  - id: event-cap-not-enforced
+    title: Monetary cap or utilization limit never blocks or warns when adding an expert or allocating a fee
+    module: events
+    symptoms:
+      - "Monetary cap not enforced"
+      - "Utilization limit not blocking"
+      - "No warning when HCP exceeds cap"
+    keywords: [monetary cap, utilization limit, Record Update Validation Notifier, Included In Cap, Provider Activity Goal Measure, trigger handler, Event Management Limit, Concluded Event Status]
+    cause: |
+      The cap chain has several parts and any missing one makes the check silent:
+      the cap or utilization trigger handlers are off; the Record Update
+      Validation Notifier is not on the Managed Event (and Managed Event
+      Participant) page, so a block or warning is never shown; the Activity Plan
+      is not Type Event Management Limit or not Active; the HCP has no Provider
+      Activity Goal, Goal Limit or Goal Measure; the expense type is not marked
+      Included In Cap; or the measure type criteria JSON is version 2 without the
+      MngEventParticipant node, so participants are never blocked. After the
+      event reaches a status in Concluded Event Status the check only warns by
+      design, and Execute can be in that list.
+    fix:
+      - "Admin Console > Trigger Handlers: search Monetary and Utilization and turn every handler on."
+      - "Add the Record Update Validation Notifier to the Managed Event record page."
+      - "Check the plan is Event Management Limit and Active, then that each HCP has a goal, a goal limit and a goal measure of the right alert type."
+      - "Mark Fee for Service and Expert Fee (or your cap types) Included In Cap."
+      - "If data was loaded with handlers off, run Calculate Expenses Against Monetary Caps and Recalculate Account Utilization Count from Field Event Jobs."
+
   - id: event-device-stale-after-change
     title: Managed event setup changed on the server but the iPad still shows the old behavior
     module: events
