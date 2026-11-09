@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Knowledge:** `data-cloud-data-kit` module, a field-verified walkthrough from Life Sciences Data Kit deploy to a Tableau Next dashboard on the iPad Home screen (Winter '27, API 68.0)
 - **Troubleshooting:** `data-cloud-tableau-mobile-troubleshooting` (workspace sharing, iPad "Something went wrong" from an unnamed dashboard page, Data Kit deploy errors, `/tableau` REST errors)
+- **Knowledge:** `order-management` Store Check and Order Management setup steel thread v6 with its run guide, a symptom-to-fix troubleshooting index, and Help and enablement references (Winter '27)
+- **Troubleshooting:** 32 `order-management` known causes for `diagnose_lsc_issue` (pricing selectors, Quote.Status FLS, rep currency, quote PDF stuck In Progress, Store Check templates and indicators, install prerequisites)
 
 ## [0.2.0] - 2026-03-02
 
