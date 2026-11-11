@@ -299,6 +299,7 @@ Builds catalog, products, price books, two tier discounts and the pricing proced
 #### Heads-up
 
 - Step 7.17b turns on Header Adjustments. Without it the iPad cart footer has no Order Discount (Add).
+- If the Browse Catalog flow copy (7.18) fails to save with `"apexClass" is invalid`, the agent turns on Product Configurator by a settings deploy (7.17c) and redoes the save. On orgs where the save works, 7.17c is skipped.
 
 8
 
@@ -327,6 +328,7 @@ Sets up the web quote: page, stages, product views, signature, disclaimer, PDF t
 - The longest Act.
 - Browse Catalogs → Next sets the quote's price book even if you abandon it.
 - Step 8.24a lets the rep create the PDF event. Without it the iPad PDF stays In Progress (K1). Don't grant it by saving the rep profile in Setup.
+- Every workflow-path record the agent creates gets a key, so Admin Console → Workflow Paths opens and edits the right path (FP-8.36).
 - When the agent says the web checks are done, use **Log out as …** at the top of the page (web only).
 
 9
@@ -352,6 +354,7 @@ Gives Store Check visits their own page while In-Person and Remote visits stay a
 
 - A blank Store Check tab on a web visit is expected; it fills on the iPad.
 - In-Person and Remote may show a "metadata cache missing" message before Act 10. That's expected (K26).
+- Before the snapshot, an admin turns on Translation Workbench with one active language (10.1d) if it is off. Without it web In-Person / Remote keep showing the same message after Act 10.
 - As the admin, Visits → New opens a plain form with no Store Check / In-Person / Remote choice, and Save fails. Answer `yes` to the admin Visit access question (9.8b; in Act 10, step 10.1c then lets In-Person / Remote open for the admin too) or check visits as the rep.
 
 10
@@ -388,6 +391,7 @@ You set up the iPad; the agent confirms the device and data arrived.
 
 #### Heads-up
 
+- Before your first login the agent checks that no action plan template the rep can read has more than one version (11.1a). One that does breaks the first sync with "Error while trying to access Salesforce"; the agent asks before changing any sharing.
 - Don't open Store Check or Begin Visit yet.
 - "Pending Approval" after first login is expected (K17).
 
@@ -429,7 +433,7 @@ You build a quote from the visit; the agent compares every price with Act 7.
 1. Say whether to test the unlock route.
 2. On the visit's Quoted Order tab, tap New. Pick Sales Transaction Type `<PFX>Order` (it's blank), and enter the name, account, visit and addresses the agent gives. Status should read Draft and not be editable. Save.
 3. Actions → Add Line Items → price book → Select Products → add the listed products. Save, Close, sync.
-4. Enter the given quantities and discount. Check the footer shows Order Discount (Add), but don't apply one on this quote. Save. Send a screenshot of Net Unit Price → Calculation Details. Save & Close, sync.
+4. Enter exactly the per-line quantities and discount the agent gives (one line is in a higher tier band, one has a discount). Check the footer shows Order Discount (Add), but don't apply one on this quote. Save. Send a screenshot of Net Unit Price → Calculation Details. Save & Close, sync.
 
 #### Heads-up
 
@@ -452,13 +456,15 @@ You sign and submit the quote once; the agent checks status, signature and PDF. 
 2. Read the disclaimer and sign inside the pad, away from the screen edge.
 3. **Wait for the agent's OK**, then tap the lock icon and type the passcode.
 4. Tap **Submit Order once**. Never again, whatever the screen shows.
-5. Generate PDF only when the agent says so. Don't tap it repeatedly.
+5. Tap **Generate PDF once** when the agent says so: the tap is what produces the PDF. You see "PDF generation started" and no viewer opens. Never tap it a second time.
 6. Unlock test (if on): Actions → Request for Unlock, sync, report. Then Approve or Reject once, on web.
 7. If a PDF security check fails, approve or decline the fix (14.12).
 
 #### Heads-up
 
-- The PDF can take up to 10 min to complete. If it stays In Progress, the agent checks 8.24a first (K1). Don't regenerate or delete it.
+- After Submit Order the PDF shows In Progress until you tap Generate PDF. That's normal.
+- After the tap the PDF can take up to 10 min. If it stays In Progress, the agent checks 8.24a first (K1). Don't regenerate or delete it.
+- If a second signature or document appears for the quote, the agent reports it and deletes nothing; you choose which to keep.
 
 15
 
@@ -504,7 +510,7 @@ Tell the agent. It checks the real status; the server rejects duplicates.
 
 **The PDF keeps spinning.**
 
-Usually step 8.24a is missing (K1). The agent checks it. Don't regenerate or delete it.
+Before the Generate PDF tap, In Progress is normal. After the tap, usually step 8.24a is missing (K1). The agent checks it. Don't regenerate or delete it.
 
 **No price book or products on the iPad.**
 
@@ -518,6 +524,10 @@ It needs a new snapshot (Act 10), then sync and reopen the app.
 
 Get the licence from your account team, then rerun the start prompt; the run resumes.
 
+**Can I run it again on the same org?**
+
+Yes. Each step reads what is already there first, reuses it and creates only what is missing. It looks up only this run's records and does not create duplicates (stage records, disclaimers, Store Check tasks, quotes).
+
 **Can I change an answer?**
 
 Yes. Tell the agent; it shows what changes first.
@@ -528,7 +538,7 @@ When one of these happens the step is `PASSED_WITH_NOTES` and the run goes on.
 
 | ID | What you see |
 | --- | --- |
-| K1 | PDF stays In Progress after Submit (fixed by 8.24a) |
+| K1 | PDF stays In Progress after the one Generate PDF tap (fixed by 8.24a) |
 | K2 | Repeat order drops manual discounts |
 | K3 | RSVP service missing |
 | K4 | Verified checkboxes clear after save |
@@ -536,7 +546,7 @@ When one of these happens the step is `PASSED_WITH_NOTES` and the run goes on.
 | K8 | No camera on the simulator |
 | K13 | Create Quote missing from the visit menu |
 | K17 | Pending Approval after first login |
-| K26 | "Metadata cache missing" on web In-Person/Remote before Act 10 |
+| K26 | "Metadata cache missing" on web In-Person/Remote before Act 10; after Act 10, fixed by 10.1b or 10.1d |
 | K23 | Generate PDF shows "Unknown component" on web |
 | K27 | Delete offered on an in-progress visit; never tap it |
 

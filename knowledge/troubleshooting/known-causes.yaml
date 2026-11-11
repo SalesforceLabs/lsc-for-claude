@@ -2284,3 +2284,121 @@ causes:
     cause: The first Turn On only opens a confirmation dialog.
     fix:
       - "Click Turn On in the dialog, then check enableStoreCheck in Industries settings."
+
+  - id: om-browse-catalog-save-as-apexclass-invalid
+    title: Browse Catalog flow Save As fails because Product Configurator is off
+    module: order-management
+    symptoms:
+      - "discoverProductsContext (Variable) - \"apexClass\" is invalid"
+      - "Provide the API name of an Apex class that includes an Apex data type supported in flows"
+      - "discoverProductsContext.groupId does not exist"
+    keywords: [BrowseCatalog, Save As New Flow, ProductConfig, DiscoverProductsContext, enableProductConfigurator, ProductConfigurator settings, Flow Builder]
+    cause: |
+      The packaged Browse Catalog template uses ProductConfig Apex types. On
+      some orgs Flow Builder offers those types only when Product Configurator
+      is on. Product Discovery being on does not help.
+    fix:
+      - "Close Flow Builder without saving."
+      - "Retrieve the ProductConfigurator settings, deploy enableProductConfigurator = true, reload Flow Builder and redo the Save As."
+      - "Never delete or retype the variable to force the save. If the deploy is rejected, raise a provisioning request."
+
+  - id: om-feature-card-purchase-required
+    title: Order Management feature card is locked ("Purchase required")
+    module: order-management
+    symptoms:
+      - "Order Management card shows Purchase required"
+      - "Order Management card shows Contact Sales instead of Set Up"
+    keywords: [Order Management, feature card, Purchase required, Contact Sales, permission set licence, PSL, provisioning]
+    cause: |
+      The Order Management permission set licences are not provisioned on the
+      org. They come from the Salesforce account team, not a Setup toggle.
+    fix:
+      - "Don't retry the click or look for another way in."
+      - "Query PermissionSetLicense for the required licences, list the missing ones and ask the account team to provision them."
+
+  - id: om-workflow-path-editor-wrong-stages
+    title: Admin Console Workflow Paths opens a path with another path's stages
+    module: order-management
+    symptoms:
+      - "Workflow Paths opens the wrong stages"
+      - "editing a stage, operation or action in Workflow Paths fails"
+    keywords: [Workflow Paths, Admin Console, LifeSciStageObject, LifeSciStagePath, LifeSciStageValue, LifeSciStageOperation, LifeSciStageAction, SourceSystemIdentifier]
+    cause: |
+      The editor loads a path and links its records by SourceSystemIdentifier.
+      Stage rows created through the API without that key can't be found or
+      matched, so the editor falls back to another path's rows.
+    fix:
+      - "Don't save in the editor until fixed."
+      - "Set a unique SourceSystemIdentifier on every stage row of the path, read the keys back, then reopen the path from the list."
+
+  - id: om-locked-quote-no-view-line-items
+    title: Request for Unlock or Rejected quote has no View Line Items action
+    module: order-management
+    symptoms:
+      - "Request for Unlock quote shows no View Line Items"
+      - "Rejected quote shows no View Line Items"
+      - "rep can't open the line items of a locked quote"
+    keywords: [LifeSciStageOperationAction, View Line Items, Request for Unlock, Rejected, Quote workflow path, ContextAction_Quote_RequestForUnlock_ViewLineItems, ContextAction_Quote_Rejected_ViewLineItems]
+    cause: |
+      The links from the Request for Unlock and Rejected stage operations to the
+      View Line Items action are missing. The rest of the Quote stage graph can
+      exist without them, so a check that only finds the stages misses this.
+    fix:
+      - "Look up each Quote link key on its own and create only the missing links (DisplayOrder 1, to the existing View Line Items action)."
+      - "Generate a new metadata cache and sync."
+
+  - id: om-log-a-visit-no-translation-language
+    title: Web Log a Visit says translation settings are missing after the cache is built
+    module: order-management
+    symptoms:
+      - "Translation Language Settings for the required languages or the initial metadata cache are missing"
+    keywords: [Log a Visit, ProviderVisit, Translation Workbench, translation language, enableTranslationWorkbench, metadata cache]
+    cause: |
+      Web Log a Visit reads a translation file from the rep's metadata cache.
+      When Translation Workbench is off or no translation language is active
+      (common on fresh orgs), the cache has no translation file. Before the
+      rep has any cache, the same message means the cache is missing.
+    fix:
+      - "Confirm the rep has a cache that includes ProviderVisit."
+      - "Turn on Translation Workbench and add an active language, then generate a new cache and sync."
+
+  - id: om-first-sync-multi-version-action-plan-template
+    title: Rep's first iPad sync fails with UNKNOWN_EXCEPTION
+    module: order-management
+    symptoms:
+      - "Error while trying to access Salesforce"
+      - "UNKNOWN_EXCEPTION on first sync"
+    keywords: [ActionPlanTemplate, ActionPlanTemplateVersion, first sync, sharing rule, UserRecordAccess, iPad login]
+    cause: |
+      An action plan template the rep can read has more than one
+      ActionPlanTemplateVersion, usually one that came with the org and is shared
+      to all internal users by an owner sharing rule. The template sync query
+      errors on it. Deleting or purging the extra version doesn't help.
+    fix:
+      - "Before the rep's first login, check that no template the rep can read has more than one version."
+      - "Ask before changing sharing. Hide the template from the rep: move it to an owner outside the shared-from group of the owner sharing rule, or replace that rule with one that shares from a narrower group."
+
+  - id: om-duplicate-signature-or-document
+    title: More than one signature or quote document for one quote
+    module: order-management
+    symptoms:
+      - "two QuoteDocument records for one quote"
+      - "duplicate DigitalSignature"
+      - "duplicate DocumentRecipient"
+    keywords: [DigitalSignature, QuoteDocument, DocumentRecipient, Submit Order, Generate PDF, retry]
+    cause: Submit or Generate PDF ran twice (a retried tap, or a resend after a timeout).
+    fix:
+      - "Report the counts and Ids; don't delete anything."
+      - "The customer decides which document to keep. Tap Generate PDF only once."
+
+  - id: om-manual-share-trivial-level
+    title: Manual Read share on catalog or territory availability is rejected
+    module: order-management
+    symptoms:
+      - "FIELD_INTEGRITY_EXCEPTION trivial share level Read, for organization with default level Read"
+    keywords: [ProductCatalogShare, ProductTerritoryAvailabilityShare, ProductTerrDtlAvailabilityShare, InternalSharingModel, org-wide default, Manual share]
+    cause: |
+      The object's org-wide default is already Read or higher, so a Manual Read
+      share can't exist and isn't needed.
+    fix:
+      - "Read InternalSharingModel from EntityDefinition first; share only the objects that are Private."
