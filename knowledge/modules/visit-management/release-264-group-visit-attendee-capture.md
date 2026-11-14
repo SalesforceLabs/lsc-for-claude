@@ -35,7 +35,7 @@ Note: this setting name does not appear in the Winter '27 "Configure Visit Setti
 ## Considerations
 
 - Child visit account cannot be changed; remove and re-add the attendee.
-- Removing an attendee deletes its visit and provider visit records. After the parent is submitted the Attendees section is read-only; child visits with signatures, samples or other activity records cannot be deleted even on unlocked visits.
+- Removing an attendee deletes its visit and provider visit records. The client blocks that removal only when the child visit is signed. Sample protection is server-only: an unsigned attendee who has samples can be removed, and the page stays removed until undo. See [support-engineering-visit-attendee-remove-samples.md](./support-engineering-visit-attendee-remove-samples.md). After the parent is submitted the Attendees section is read-only.
 - Deleting a parent visit silently deletes all child visits; deletion is blocked if the parent is Completed or any child has a signature.
 - Attendee section shows static fields (record type icon, name, subtitle, invitation email status for Remote Engagement, Attendee Visit button, actions menu such as Last Visit/Send Email).
 - Visit Agent (voice logging) does not support group visits.

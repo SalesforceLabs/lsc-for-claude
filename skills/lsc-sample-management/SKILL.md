@@ -1,7 +1,15 @@
 ---
 name: lsc-sample-management
-description: Guides Life Sciences Cloud (LSC) Sample Management configuration for inventory, sample limits, and sample limit validation. Use when user asks about sample inventory, sample drops, sample limits, sample limit validation on mobile, the sample-limit ellipsis on a visit, PDMA compliance, inventory operations, production batches, product items, inventory counts, signature requirements, Product2/LifeSciMarketableProduct/ProviderSampleLimit/ProviderSmplLmtTmplAssignment objects, **Complete this field: Item** on a sample that already has an item, a ProductDisbursement delete rejected in the same transaction as visit submit, web Samples and Direct to Practitioner that do not render after a product is selected, or iPad Add Another and the side menu staying available after signature.
+description: Guides Life Sciences Cloud (LSC) Sample Management configuration for inventory, sample limits, and sample limit validation. Use when user asks about sample inventory, sample drops, sample limits, sample limit validation on mobile, the sample-limit ellipsis on a visit, PDMA compliance, inventory operations, production batches, product items, inventory counts, signature requirements, Product2/LifeSciMarketableProduct/ProviderSampleLimit/ProviderSmplLmtTmplAssignment objects, **Complete this field: Item** on a sample that already has an item, a ProductDisbursement delete rejected in the same transaction as visit submit, web Samples and Direct to Practitioner that do not render after a product is selected, a sample dropdown that shows a different name on web than on iPad, Samples disabled for an HCP attendee on an HCO visit, or iPad Add Another and the side menu staying available after signature.
 ---
+
+## Samples disabled for an HCP attendee on an HCO visit
+
+When Samples are disabled for an HCP attendee on an HCO visit, load `knowledge/modules/visit-management/support-engineering-visit-attendee-sample-address.md`. Finish only when the reply states every fact under **Required answer**. Compare the attendee's primary address to the parent visit address first. A mismatch is working as designed. Do not lead with `HcoTypesForSamplesAndItems` or a profile override.
+
+## Product name differs between web and iPad
+
+When the Samples, Direct to Practitioner, or Items dropdown shows one name on web and another on iPad for the same product, load `knowledge/modules/visit-management/support-engineering-visit-product-name-fields.md`. Finish only when the reply states every fact under **Required answer**. Web Apex uses `Product2.Name`. iOS uses `LifeSciMarketableProduct.Name`. The saved Product2 id is the same. Set both names equal. Do not say the web LWC reads the marketable-product name.
 
 ## Add Another after signature on iPad
 

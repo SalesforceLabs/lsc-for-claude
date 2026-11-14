@@ -24,3 +24,4 @@ The reply must include all of:
 - Do not change label selection, translations, or Rename Tabs and Labels.
 - Do not call this a package regression.
 - Do not leave the field on the layout and rename it. The field does not belong on this layout.
+- Do not use this leaf when web Visit Details shows Account ID, Place ID, or Record Type ID and iPad does not. That label is unset on `lightning-output-field`. See [support-engineering-visit-details-id-label.md](./support-engineering-visit-details-id-label.md).
