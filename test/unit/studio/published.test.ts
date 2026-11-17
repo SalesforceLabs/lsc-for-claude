@@ -574,6 +574,35 @@ describe("layout labels", () => {
     expect(l.relatedLists[0].label).toBe("PVs");
   });
 
+  it("records where each label comes from and what an English user sees", () => {
+    const f = files();
+    const layout = (f.ui.pageLayouts as Record<string, Row>)["Visit-Visit Layout"];
+    layout.layoutSections = [{ label: "Information", detailHeading: true, layoutColumns: [{ layoutItems: [{ fullName: "Status" }] }] }];
+    f.translations = { language: "de", layouts: { "Visit-Visit Layout": { sections: { Information: "Infos" }, relatedLists: {} } } };
+    f.english = { language: "en_US" };
+    f.languages = ["en_US", "de"];
+    const s = buildSnapshot(f, { ...meta, language: "de" });
+    expect(s.texts?.["section:Visit-Visit Layout:Infos"]).toMatchObject({ shown: "Infos", used: 0, english: "Information" });
+    expect(s.language).toEqual({ code: "de", name: "German", file: "de" });
+    expect(s.languages?.map((l) => l.code)).toEqual(["en_US", "de"]);
+  });
+
+  it("translates a Person Account layout's fields as Account's", () => {
+    const f = files();
+    (f.ui.pageLayouts as Record<string, Row>)["PersonAccount-HCP Layout"] = {
+      layoutSections: [{ label: "Info", detailHeading: true, layoutColumns: [{ layoutItems: [{ fullName: "Name" }, { fullName: "Specialty__c" }] }] }],
+    };
+    (f.sobjects.Account as { recordTypes: Row[] }).recordTypes = [{ fullName: "HCP", label: "HCP", layout: "PersonAccount-HCP Layout" }];
+    f.translations = {
+      language: "de",
+      fields: { Account: { labels: { Specialty__c: "Fachrichtung" }, nameFieldLabel: "Kontoname" } },
+    };
+    const s = buildSnapshot(f, { ...meta, language: "de" });
+    expect(s.texts?.["field:Account:name"]).toMatchObject({ shown: "Kontoname" });
+    expect(s.texts?.["field:Account:specialty__c"]).toMatchObject({ shown: "Fachrichtung", used: 0 });
+    expect(s.texts?.["field:PersonAccount:name"]).toBeUndefined();
+  });
+
   it("records where each section sits in the layout, counting the sections the app drops", () => {
     const f = files();
     const layout = (f.ui.pageLayouts as Record<string, Row>)["Visit-Visit Layout"];

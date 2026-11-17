@@ -164,8 +164,8 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioLwcRequest: (method, path, body) => ipcRenderer.invoke("studio:call", "studio_lwc_request", body === undefined ? { method, path } : { method, path, body }),
   studioLwcRequestAs: (loginId, method, path, body) =>
     ipcRenderer.invoke("studio:lwcRequestAs", loginId, body === undefined ? { method, path } : { method, path, body }),
-  studioIpadPublished: (profile, refresh = false, userId) =>
-    ipcRenderer.invoke("studio:call", "studio_ipad_published", userId ? { profile, userId } : { profile }, refresh),
+  studioIpadPublished: (profile, refresh = false, userId, language) =>
+    ipcRenderer.invoke("studio:call", "studio_ipad_published", { profile, ...(userId ? { userId } : {}), ...(language ? { language } : {}) }, refresh),
   studioIpadPublishedUsers: (profile, search) => ipcRenderer.invoke("studio:call", "studio_ipad_published_users", { profile, search }),
   studioUnpublished: (profile, known, refresh = false) =>
     ipcRenderer.invoke("studio:call", "studio_unpublished", known ? { profile, known } : { profile }, refresh),

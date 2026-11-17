@@ -77,6 +77,8 @@ interface PublishedIpadPreviewProps {
   state: PublishedState | undefined;
   onRefresh: (userId?: string) => void;
   onPickUser: (userId: string) => void;
+  /** Draw the preview in another of the cache's languages; null goes back to the viewer's own. */
+  onPickLanguage?: (language: string | null) => void;
   /** Active users of the profile whose name contains the text, for profiles with more users than the picker lists. */
   onSearchUsers?: (text: string) => Promise<{ id: string; name: string }[]>;
   /** Edit mode; computed by the caller from the snapshot this preview reports through `state`. */
@@ -111,7 +113,7 @@ export function nextPublishBasis(changes: number): string {
  * components, and record pages read from the profile's metadata cache, laid
  * out the way LSC Mobile builds them. Record data is placeholder.
  */
-function PublishedIpadPreviewImpl({ profile, state, onRefresh, onPickUser, onSearchUsers, edit, split, nextChanges, reveal }: PublishedIpadPreviewProps) {
+function PublishedIpadPreviewImpl({ profile, state, onRefresh, onPickUser, onPickLanguage, onSearchUsers, edit, split, nextChanges, reveal }: PublishedIpadPreviewProps) {
   if (!state || state.status === "loading") {
     return <PublishedLoading profile={profile} />;
   }
@@ -140,7 +142,7 @@ function PublishedIpadPreviewImpl({ profile, state, onRefresh, onPickUser, onSea
       />
     );
   }
-  return <Device key={result.viewer?.userId ?? ""} snapshot={result} onRefresh={() => onRefresh(result.viewer?.userId)} onPickUser={onPickUser} onSearchUsers={onSearchUsers} edit={edit} split={split} nextChanges={nextChanges} reveal={reveal} />;
+  return <Device key={result.viewer?.userId ?? ""} snapshot={result} onRefresh={() => onRefresh(result.viewer?.userId)} onPickUser={onPickUser} onPickLanguage={onPickLanguage} onSearchUsers={onSearchUsers} edit={edit} split={split} nextChanges={nextChanges} reveal={reveal} />;
 }
 
 /** Redrawn only when its state, the edit description or the mode change — not for every Studio state update. */
@@ -150,6 +152,7 @@ function Device({
   snapshot,
   onRefresh,
   onPickUser,
+  onPickLanguage,
   onSearchUsers,
   edit,
   split,
@@ -159,6 +162,7 @@ function Device({
   snapshot: PublishedIpad;
   onRefresh: () => void;
   onPickUser: (userId: string) => void;
+  onPickLanguage?: (language: string | null) => void;
   onSearchUsers?: (text: string) => Promise<{ id: string; name: string }[]>;
   edit?: PreviewEdit;
   split?: boolean;
@@ -365,6 +369,7 @@ function Device({
         ) : (
           <span className="studio-ipad-muted">{headerLead(false)}</span>
         )}
+        {onPickLanguage && <LanguagePicker snapshot={snapshot} onPick={onPickLanguage} />}
         <span className="studio-ipad-muted" title={mode === "draft" ? undefined : `Metadata cache ${snapshot.cache.name}, generated ${generated}`}>
           · {mode === "draft" ? nextPublishBasis(nextChanges ?? 0) : `Published ${generated}`}
         </span>
@@ -1202,4 +1207,43 @@ function mirrorScroll(el: Element, from: HTMLElement | null, to: HTMLElement | n
   // The twin's own scroll event comes back here and stops: the positions already match.
   if (Math.abs(twin.scrollTop - el.scrollTop) > 1) twin.scrollTop = el.scrollTop;
   if (Math.abs(twin.scrollLeft - el.scrollLeft) > 1) twin.scrollLeft = el.scrollLeft;
+}
+
+/** The options of the language picker: the viewer's own language first, then every translation in the cache. */
+export function languageOptions(snapshot: Pick<PublishedIpad, "language" | "languages" | "userLanguage">): { value: string; label: string }[] {
+  const langs = snapshot.languages ?? [];
+  const name = (code: string) => langs.find((l) => l.code === code)?.name ?? (snapshot.language?.code === code ? snapshot.language.name : code);
+  const own = snapshot.userLanguage;
+  return [
+    { value: "", label: own ? `Their language (${name(own)})` : "Their language" },
+    ...langs.map((l) => ({ value: l.code, label: l.name })),
+  ];
+}
+
+/** "In German": which of the cache's translations the preview is drawn in. Hidden when the cache has only one. */
+function LanguagePicker({ snapshot, onPick }: { snapshot: PublishedIpad; onPick: (language: string | null) => void }) {
+  const langs = snapshot.languages ?? [];
+  if (langs.length < 2 || !snapshot.language) return null;
+  const { code, file, name } = snapshot.language;
+  // The viewer's own language is "" so the choice follows the user when another one is picked.
+  const value = snapshot.userLanguage && code === snapshot.userLanguage ? "" : langs.some((l) => l.code === code) ? code : "";
+  const missing = file !== code ? ` The cache has no ${name} translation, so the app uses ${languageOptions(snapshot).find((o) => o.value === file)?.label ?? file}.` : "";
+  return (
+    <span className="studio-ipad-lang">
+      <span className="studio-ipad-muted">· in</span>
+      <select
+        className="studio-select studio-ipad-viewer"
+        value={value}
+        onChange={(e) => onPick(e.target.value || null)}
+        aria-label="Language to preview in"
+        title={`Labels are read from translations/${file}.json in the metadata cache, as the app does for a user whose language is ${name}.${missing}`}
+      >
+        {languageOptions(snapshot).map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </span>
+  );
 }

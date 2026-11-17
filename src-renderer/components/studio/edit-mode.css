@@ -314,6 +314,48 @@
   color: var(--text-muted);
 }
 
+.studio-block-text {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-sm);
+}
+
+.studio-block-text li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--text-secondary);
+}
+
+.studio-block-text li.used {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.studio-block-text li.skipped {
+  color: var(--text-muted);
+}
+
+.studio-block-text-source {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.studio-block-text-value {
+  flex: 0 1 auto;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.studio-inspector-desc.warn {
+  color: var(--warning);
+}
+
 .studio-block-verbs {
   display: flex;
   flex-wrap: wrap;

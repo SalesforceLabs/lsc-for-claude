@@ -20,7 +20,12 @@ export interface RecordFieldSpec {
 
 const str = (v: unknown): string => (typeof v === "string" ? v : v == null ? "" : String(v));
 
-export function recordFieldSpec(item: Row, label: string): RecordFieldSpec {
+/** `picklistLabel` turns a value's label into the one the user's language shows (MetadataPicklistValueObject). */
+export function recordFieldSpec(
+  item: Row,
+  label: string,
+  picklistLabel?: (label: string) => string
+): RecordFieldSpec {
   const spec: RecordFieldSpec = {
     name: str(item.fullName) || str(item.field),
     label,
@@ -34,10 +39,13 @@ export function recordFieldSpec(item: Row, label: string): RecordFieldSpec {
   const labels = (Array.isArray(item.picklistValues) ? item.picklistValues : []).filter(
     (p): p is Row => !!p && typeof p === "object"
   );
-  const differing = labels.filter((p) => str(p.label) && str(p.label) !== str(p.value));
-  if (differing.length)
-    spec.picklist = Object.fromEntries(
-      labels.map((p) => [str(p.value), str(p.label) || str(p.value)])
-    );
+  const shown = labels.map(
+    (p) =>
+      [
+        str(p.value),
+        picklistLabel?.(str(p.label) || str(p.value)) || str(p.label) || str(p.value),
+      ] as const
+  );
+  if (shown.some(([value, l]) => l !== value)) spec.picklist = Object.fromEntries(shown);
   return spec;
 }
