@@ -1,0 +1,239 @@
+/* Account Compliance (AccountComplianceTabView). Prefix every class with studio-ipad-compliance. */
+.studio-ipad-compliance {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0 16px 16px;
+  background: #f3f3f3;
+  color: #2e2e2e;
+  overflow-y: auto;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+}
+.studio-ipad-compliance-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 38px;
+  margin-bottom: 16px;
+}
+.studio-ipad-compliance-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #06a59a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+.studio-ipad-compliance-headings {
+  flex: 1;
+}
+.studio-ipad-compliance-eyebrow {
+  font-size: 14px;
+  line-height: 17px;
+}
+.studio-ipad-compliance-title {
+  font-size: 18px;
+  line-height: 21px;
+  font-weight: 600;
+}
+.studio-ipad-compliance-back {
+  border: 0;
+  background: none;
+  color: #0176d3;
+  font-size: 16px;
+  cursor: pointer;
+}
+.studio-ipad-compliance-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.studio-ipad-compliance-tabs {
+  display: flex;
+  padding: 2px;
+  border-radius: 8px;
+  background: #e3e3e3;
+}
+.studio-ipad-compliance-tabs button {
+  border: 0;
+  background: none;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  color: #2e2e2e;
+}
+.studio-ipad-compliance-tabs button.on {
+  background: #fff;
+  font-weight: 600;
+}
+.studio-ipad-compliance-search {
+  width: 355px;
+  box-sizing: border-box;
+  padding: 7px 12px;
+  border: 1px solid #c9c9c9;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+}
+.studio-ipad-compliance-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.studio-ipad-compliance-card {
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+.studio-ipad-compliance-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.studio-ipad-compliance-card-name {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+}
+.studio-ipad-compliance-card-name span {
+  color: #0176d3;
+}
+.studio-ipad-compliance-rule {
+  height: 1px;
+  margin: 10px 0;
+  background: #e5e5e5;
+}
+.studio-ipad-compliance-summary {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.studio-ipad-compliance-stat-label {
+  font-size: 12px;
+  color: #5c5c5c;
+  margin-bottom: 4px;
+}
+.studio-ipad-compliance-stat-value {
+  font-size: 14px;
+  font-weight: 600;
+}
+.studio-ipad-compliance-stat-value.success {
+  color: #2e844a;
+}
+.studio-ipad-compliance-stat-value.error {
+  color: #ba0517;
+}
+.studio-ipad-compliance-bar {
+  width: 98px;
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 4px;
+  background: #e5e5e5;
+  overflow: hidden;
+}
+.studio-ipad-compliance-bar > div {
+  height: 100%;
+  background: #2e844a;
+}
+.studio-ipad-compliance-vsep {
+  width: 1px;
+  align-self: stretch;
+  background: #e5e5e5;
+}
+.studio-ipad-compliance-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid;
+  border-radius: 12px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.studio-ipad-compliance-badge.warning {
+  color: #8c4b02;
+  border-color: #fe9339;
+  background: #fef0e0;
+}
+.studio-ipad-compliance-badge.info {
+  color: #0b5cab;
+  border-color: #0176d3;
+  background: #eaf5fe;
+}
+.studio-ipad-compliance-badge.success {
+  color: #2e844a;
+  border-color: #2e844a;
+  background: #ebf7e6;
+}
+.studio-ipad-compliance-badge.neutral {
+  color: #5c5c5c;
+  border-color: #c9c9c9;
+  background: #f3f3f3;
+}
+.studio-ipad-compliance-badge.error {
+  color: #ba0517;
+  border-color: #ba0517;
+  background: #fef1ee;
+}
+.studio-ipad-compliance-action {
+  margin-left: auto;
+  border: 1px solid #0176d3;
+  border-radius: 6px;
+  background: #fff;
+  color: #0176d3;
+  padding: 6px 12px;
+  font-size: 14px;
+  cursor: default;
+}
+.studio-ipad-compliance-action.small {
+  margin: 0 6px 0 0;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.studio-ipad-compliance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.studio-ipad-compliance-table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: #5c5c5c;
+  padding: 6px 8px;
+  border-bottom: 1px solid #e5e5e5;
+}
+.studio-ipad-compliance-table td {
+  padding: 8px;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: middle;
+}
+.studio-ipad-compliance-sub {
+  font-size: 12px;
+  color: #5c5c5c;
+}
+.studio-ipad-compliance-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 100px 0 32px;
+  text-align: center;
+}
+.studio-ipad-compliance-empty-title {
+  font-size: 20px;
+  font-weight: 600;
+}
+.studio-ipad-compliance-empty-body {
+  font-size: 14px;
+  color: #5c5c5c;
+}
+.studio-ipad-compliance-note {
+  margin-top: 16px;
+  font-size: 12px;
+  color: #5c5c5c;
+}

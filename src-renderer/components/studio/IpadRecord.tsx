@@ -14,6 +14,8 @@ import type {
 import { EmptyArt } from "./IpadHome";
 import { ActivityHistoryCard, MapCard, NextBestActionsCard, OverviewCard, SummaryCard } from "./DashboardCards";
 import "./record.css";
+import { SurveysCard } from "./actions/surveys/SurveySheet";
+import { KamCard, hasKam, isKamComponent } from "./kam/IpadKam";
 import { LiveInlineLwc } from "./LiveInlineLwc";
 import { InlineSeat } from "./IpadInlineSeats";
 import { CustomIcon, FileIcon, PersonAccountIcon } from "./assets/icons";
@@ -252,7 +254,7 @@ function renderable(c: PublishedComponent, snapshot: PublishedIpad, rec: Publish
   if (!isVisit(rec) && /^lscMobileInline_/.test(name)) return true;
   if (name === "multiEntityRecordView" || name === "detailPanel" || name === "ExpensesListView" || name === "relatedListContainer") return true;
   if (/^lscMobileInline_/.test(name)) return !!snapshot.records?.inline[name] || !!snapshot.records?.inlineChecks?.[name];
-  if (name === "relatedListSingleContainer") return !!findRelated(rec, c.properties.relatedListApiName);
+  if (name === "relatedListSingleContainer") return !!findRelated(rec, c.properties.relatedListApiName) || (isKamComponent(c.name, c.properties) && hasKam(snapshot, rec));
   return false;
 }
 
@@ -388,6 +390,7 @@ function TabContent({
     if (name === "AccountTerritoryFields") return null;
     if (name === "ExpensesListView") return <ExpensesCard rec={rec} />;
     if (/^lscMobileInline_/.test(name)) return <InlineSlot snapshot={snapshot} rec={rec} name={name} height={Number(c.properties.mobileHeight) || 400} />;
+    if (isKamComponent(c.name, c.properties) && hasKam(snapshot, rec)) return <KamCard snapshot={snapshot} rec={rec} name={c.name} properties={c.properties} />;
     if (name === "relatedListContainer") return <React.Fragment key={k}>{allRelated()}</React.Fragment>;
     if (name === "relatedListSingleContainer") {
       const r = findRelated(rec, c.properties.relatedListApiName);
@@ -412,6 +415,9 @@ function TabContent({
       if (name === "nextBestActions") return <NextBestActionsCard data={rec.dashboard} />;
       if (name === "accountMapDisplay") return <MapCard data={rec.dashboard} />;
     }
+    if (name === "surveyListView" && rec.object === "Account") return <SurveysCard ctx={{ snapshot, record: { id: rec.id, object: rec.object, title: rec.title } }} />;
+    // SFComponentsFactory has no case for it and returns nil: the device leaves this space empty.
+    if (c.supported === false) return <UnsupportedCard title={PLACEHOLDER_TITLES[name] ?? c.properties.label ?? c.label ?? name} component={c.name} />;
     return <PlaceholderCard title={PLACEHOLDER_TITLES[name] ?? c.properties.label ?? c.label ?? name} />;
   }
 }
@@ -833,6 +839,19 @@ function RelatedCard({ snapshot, related, editable = false, draft }: { snapshot:
   );
 }
 
+type RatingCard = NonNullable<NonNullable<PublishedRecordData["ratings"]>["cards"]>[number];
+
+/** One group per product record, as the device draws them: a product header over its cards. A product repeats as a new group when a title comes round again. Cards with no product stay in one ungrouped run. */
+function groupRatings(cards: RatingCard[]): { product?: string; cards: RatingCard[] }[] {
+  const out: { product?: string; cards: RatingCard[] }[] = [];
+  for (const c of cards) {
+    const last = out[out.length - 1];
+    if (last && last.product === c.product && !last.cards.some((x) => x.title === c.title)) last.cards.push(c);
+    else out.push({ product: c.product, cards: [c] });
+  }
+  return out;
+}
+
 /** Customer Ratings (module/CustomerRatings): General / Product / Territory segments over a grid of rating cards. Edit and Clear are inert. */
 function RatingsCard({ ratings }: { ratings: NonNullable<PublishedRecordData["ratings"]> }) {
   const tabs = (["General", "Product", "Territory"] as const).filter((t) => ratings.cards?.some((c) => c.tab === t));
@@ -852,29 +871,34 @@ function RatingsCard({ ratings }: { ratings: NonNullable<PublishedRecordData["ra
     <div className="studio-ipad-rec-card ratings">
       <div className="studio-ipad-rec-rt-seg" role="tablist">
         {tabs.map((t) => (
-          <button key={t} type="button" role="tab" className={t === tab ? "current" : undefined} onClick={() => setTab(t)}>
+          <button key={t} type="button" role="tab" aria-selected={t === tab} data-edit-through="" className={t === tab ? "current" : undefined} onClick={() => setTab(t)}>
             {t}
           </button>
         ))}
       </div>
-      {shown.some((c) => !c.live) && <div className="studio-ipad-rec-ph-note">Values for this segment are not read by the preview; the iPad draws them from its local tables.</div>}
-      <div className="studio-ipad-rec-rt-grid">
-        {shown.map((c, k) => (
-          <div key={k} className="studio-ipad-rec-rt-card">
-            <div className="studio-ipad-rec-rt-head">
-              <span className="title">{c.title}</span>
-              <span className="info" aria-hidden="true">i</span>
-              {c.editable && <span className="studio-ipad-rec-rt-pill edit">Edit</span>}
-            </div>
-            <div className={`studio-ipad-rec-rt-value${c.value ? " set" : ""}`}>{c.value || "--"}</div>
-            {!c.value && <div className="studio-ipad-rec-rt-cleared">Value was cleared.</div>}
-            <div className="studio-ipad-rec-rt-foot">
-              <span>{c.updated ? `Last updated on ${c.updated}` : ""}</span>
-              {c.editable && <span className="clear">Clear</span>}
-            </div>
+      {shown.some((c) => !c.live) && <div className="studio-ipad-rec-ph-note">Not in the preview: some values in this segment, where the account has no row the viewer's territories sync or the field isn't readable.</div>}
+      {groupRatings(shown).map((g, gi) => (
+        <div key={gi} className="studio-ipad-rec-rt-group">
+          {g.product && <div className="studio-ipad-rec-rt-product">{g.product}</div>}
+          <div className="studio-ipad-rec-rt-grid">
+            {g.cards.map((c, k) => (
+              <div key={k} className="studio-ipad-rec-rt-card">
+                <div className="studio-ipad-rec-rt-head">
+                  <span className="title">{c.title}</span>
+                  <span className="info" aria-hidden="true">i</span>
+                  {c.editable && <span className="studio-ipad-rec-rt-pill edit">Edit</span>}
+                </div>
+                <div className={`studio-ipad-rec-rt-value${c.value ? " set" : ""}`}>{c.value || "--"}</div>
+                {!c.value && <div className="studio-ipad-rec-rt-cleared">Value was cleared.</div>}
+                <div className="studio-ipad-rec-rt-foot">
+                  <span>{c.updated ? `Last updated on ${c.updated}` : ""}</span>
+                  {c.editable && <span className="clear">Clear</span>}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -887,6 +911,16 @@ function PlaceholderCard({ title, check, reason }: { title: string; check?: Inli
       <div className="studio-ipad-rec-ph-note">On the iPad this card is drawn live from the org; this preview does not draw it.</div>
       {reason && <LiveFailed reason={reason} />}
       {check && <OfflineNote check={check} />}
+    </div>
+  );
+}
+
+/** A component the iPad app has no screen for; kept visible here so it can be selected and removed. */
+function UnsupportedCard({ title, component }: { title: string; component: string }) {
+  return (
+    <div className="studio-ipad-rec-card placeholder unsupported">
+      <div className="studio-ipad-rec-ph-title">{title}</div>
+      <div className="studio-ipad-rec-ph-note">Not drawn on the iPad: the app has no screen for {component}, so reps see nothing here.</div>
     </div>
   );
 }

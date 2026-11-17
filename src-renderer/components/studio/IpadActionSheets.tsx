@@ -30,6 +30,12 @@ import {
   type SheetContext,
 } from "./ipad-sheet-ui";
 import VisitEditor from "./visit/VisitEditor";
+import OrderSheet from "./actions/orders/OrderSheet";
+import ConsentSheet from "./consent/ConsentSheet";
+import SurveySheet from "./actions/surveys/SurveySheet";
+import CreateSheet from "./actions/create/CreateSheet";
+import { PromoPlanSheet } from "./kam/IpadKamActions";
+import LwcActionSheet from "./actions/lwc/LwcActionSheet";
 import "./action-sheets.css";
 
 /**
@@ -294,31 +300,6 @@ function NbcSheet({ ctx, onClose }: { ctx: SheetContext; onClose: () => void }) 
   );
 }
 
-function SurveySheet({ onClose }: { onClose: () => void }) {
-  const [tab, setTab] = useState<"Open" | "Completed">("Open");
-  return (
-    <Backdrop onClose={onClose} className="survey">
-      <NavBar left={linkBtn("Close", onClose)} title="Surveys" />
-      <div className="studio-ipad-act-seg">
-        {(["Open", "Completed"] as const).map((t) => (
-          <span key={t} className={t === tab ? "on" : ""} onClick={() => setTab(t)}>
-            {t}
-          </span>
-        ))}
-      </div>
-      <div className="studio-ipad-act-search">
-        <Magnifier />
-        <input placeholder="Search..." />
-      </div>
-      <div className="studio-ipad-act-empty">
-        <EmptyArt height={188} />
-        <div className="studio-ipad-act-emptyt">No data available</div>
-      </div>
-      <Note>Surveys are read from the org by the app; the preview doesn't list them.</Note>
-    </Backdrop>
-  );
-}
-
 // ── Custom actions: in-app browser, Safari, placeholder ───────────────────────
 
 /** The parts of Electron's <webview> element the preview browser uses. */
@@ -343,7 +324,7 @@ type BrowserStatus = { signedInAs?: string; note?: string; error?: string };
  * they show what the rep sees; until Studio holds one, the sheet offers to sign in as the rep, or to continue
  * as the sf CLI connection. Pages outside Salesforce load signed out. Only https pages load.
  */
-function Browser({
+export function Browser({
   url,
   hideSafari,
   ctx,
@@ -663,7 +644,17 @@ export default function IpadActionSheet({
     case "nbc":
       return <NbcSheet ctx={ctx} onClose={onClose} />;
     case "survey":
-      return <SurveySheet onClose={onClose} />;
+      return <SurveySheet ctx={ctx} onClose={onClose} />;
+    case "create":
+      return <CreateSheet ctx={ctx} object={presentation.object} label={presentation.label} onClose={onClose} />;
+    case "consent":
+      return <ConsentSheet ctx={ctx} onClose={onClose} />;
+    case "promoPlan":
+      return <PromoPlanSheet kam={ctx.snapshot.screens?.kam} accountName={ctx.record?.title ?? ""} onClose={onClose} />;
+    case "lwcAction":
+      return <LwcActionSheet ctx={ctx} title={presentation.title} actionName={presentation.actionName} bundle={presentation.bundle} onClose={onClose} />;
+    case "order":
+      return <OrderSheet ctx={ctx} onClose={onClose} />;
     case "browser":
       return (
         <Browser

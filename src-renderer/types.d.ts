@@ -179,8 +179,30 @@ interface LscApi {
   studioIpadPublishedProgress(profile: string): Promise<StudioResponse>;
   /** The Reports tab's settings and folder/report tree for a rep, read when the tab opens. */
   studioIpadReports(userId: string): Promise<StudioResponse>;
+  studioKamPlan(object: "AccountPlan" | "TerritoryBusinessPlan", planId: string, sync: string[]): Promise<StudioResponse>;
   /** One report's result for the View Report sheet, run when it is opened. */
   studioReportData(reportId: string, userId?: string): Promise<StudioResponse>;
+  studioManagerData(
+    args:
+      | { kind: "myTeamWeek"; territoryId?: string; date: string; firstDay: string; timeZone: string; locale: string }
+      | { kind: "dashboardDetail"; dashboardId: string }
+  ): Promise<StudioResponse>;
+  /** The Capture Consent sheet for one account: settings, subscriptions, channels, contact points. */
+  studioConsentData(accountId: string): Promise<StudioResponse>;
+  studioSurveyData(args: {
+    accountId?: string;
+    viewerUserId?: string;
+    developerName?: string;
+    version?: number | null;
+    cacheRecordId?: string;
+  }): Promise<StudioResponse>;
+  studioSurveyData(args: {
+    accountId?: string;
+    viewerUserId?: string;
+    developerName?: string;
+    version?: number | null;
+    cacheRecordId?: string;
+  }): Promise<StudioResponse>;
   // --- custom scripts: editor ---
   /** The custom script library: scripts, stage objects and what runs. */
   studioCustomScripts(refresh?: boolean): Promise<StudioResponse>;

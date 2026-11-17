@@ -23,6 +23,7 @@ export interface PublishedEmailTemplate {
 export interface PublishedFabs {
   emailTemplates?: PublishedEmailTemplate[];
   visitCreate?: PublishedVisitCreate;
+  order?: PublishedOrder;
   home: PublishedFabItem[];
   records: Record<string, Record<string, PublishedFabItem[]>>;
 }
@@ -41,4 +42,27 @@ export interface PublishedVisitCreate {
   durationMinutes: number;
   blankStart: boolean;
   accounts: Record<string, VisitCreateAccount>;
+}
+
+// Order (Quote) create — structural copy of PublishedOrder in src/studio/screens/actions/orders.ts.
+export interface OrderPricebook {
+  id: string;
+  name: string;
+  description?: string;
+  isStandard: boolean;
+}
+
+export interface OrderProduct {
+  id: string;
+  productId: string;
+  name: string;
+  code?: string;
+  unitPrice: number;
+}
+
+export interface PublishedOrder {
+  pricebooks: OrderPricebook[];
+  products: Record<string, OrderProduct[]>;
+  cut: string[];
+  currency: string;
 }

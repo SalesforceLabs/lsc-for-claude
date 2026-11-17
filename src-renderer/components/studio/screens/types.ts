@@ -7,6 +7,13 @@ import type { PublishedFabs } from "./fabs-types";
 import type { PublishedHome } from "./home-types";
 import type { PublishedTableau } from "./tableau-types";
 import type { PublishedVisit } from "../visit/visit-types";
+import type { PublishedMyTeam } from "./manager/myTeam-types";
+import type { PublishedPlanReview } from "./manager/planReview-types";
+import type { PublishedSalesData } from "./manager/salesData-types";
+import type { PublishedDashboards } from "./manager/dashboards-types";
+import type { PublishedCompliance } from "./compliance/compliance-types";
+import type { PublishedInsights } from "./insights/insights-types";
+import type { PublishedKam } from "./kam/kam-types";
 
 export type { PublishedAccounts, PublishedCalendar, PublishedChrome, PublishedContent, PublishedFabs, PublishedHome, PublishedTableau, PublishedVisit };
 
@@ -20,6 +27,13 @@ export interface PublishedScreens {
   home?: PublishedHome;
   chrome?: PublishedChrome;
   visit?: PublishedVisit;
+  myTeam?: PublishedMyTeam;
+  planReview?: PublishedPlanReview;
+  salesData?: PublishedSalesData;
+  dashboards?: PublishedDashboards;
+  compliance?: PublishedCompliance;
+  insights?: PublishedInsights;
+  kam?: PublishedKam;
 }
 
 export interface ScreenProps {

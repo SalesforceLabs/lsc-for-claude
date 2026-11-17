@@ -8,7 +8,7 @@ beforeEach(() => {
   vi.mocked(helpers.query).mockReset();
 });
 
-const ctx = { org: "demo" } as never;
+const ctx = { org: "demo", note: () => {} } as never;
 
 describe("readRatingLayout", () => {
   it("reads the setup entities through the Tooling API and labels by MasterLabel when ElementLabel is blank", async () => {
@@ -30,8 +30,10 @@ describe("readRatingLayout", () => {
     expect(vi.mocked(helpers.query).mock.calls.every((c) => c[2] === true)).toBe(true);
   });
 
-  it("is null when the org can't answer", async () => {
-    vi.mocked(helpers.query).mockRejectedValue(new Error("sObject type 'PrvdClassificationLayout' is not supported"));
-    expect(await readRatingLayout(ctx, "Field_Rep_Rating_Layout")).toBeNull();
+  it("is null with a note when the org can't answer, so the load isn't cached", async () => {
+    vi.mocked(helpers.query).mockRejectedValue(new Error("Session expired or invalid"));
+    const note = vi.fn();
+    expect(await readRatingLayout({ org: "demo", note } as never, "Field_Rep_Rating_Layout")).toBeNull();
+    expect(note).toHaveBeenCalledWith(expect.stringContaining("Session expired"));
   });
 });

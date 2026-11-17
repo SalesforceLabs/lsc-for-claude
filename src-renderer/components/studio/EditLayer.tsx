@@ -674,7 +674,9 @@ export function EditSurface({
     }
     const extend = e.metaKey || e.shiftKey;
     onSelect(t, extend);
-    if (extend || !el.hasAttribute("data-edit-pass")) {
+    // A control marked data-edit-through inside the block (a segment, a sheet's switch) still works, as on the iPad.
+    const through = !!(e.target as Element).closest("[data-edit-through]");
+    if (extend || (!el.hasAttribute("data-edit-pass") && !through)) {
       e.preventDefault();
       e.stopPropagation();
     }

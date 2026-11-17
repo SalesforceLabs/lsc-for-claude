@@ -147,7 +147,13 @@ export interface PublishedLayout {
   relatedLists: { name: string; label: string; columns?: RecordFieldSpec[] }[];
   actions: string[];
   /** Each platform action as the cache lists it, for the ••• menu (MetadataActionItem). */
-  actionItems?: { name: string; label: string; type: string; sortOrder: string }[];
+  actionItems?: {
+    name: string;
+    label: string;
+    type: string;
+    sortOrder: string;
+    component?: string;
+  }[];
 }
 
 export interface PublishedRecordType {
@@ -1045,6 +1051,7 @@ function buildLayout(
     label: str(a.label),
     type: str(a.type),
     sortOrder: str(a.sortOrder),
+    ...(str(a.lightningWebComponent) ? { component: str(a.lightningWebComponent) } : {}),
   }));
   return { name, sections, relatedLists, actions: actions.filter(Boolean), actionItems };
 }
@@ -2377,11 +2384,20 @@ async function viewerScreens(
       .sort((a, b) => Math.abs(a.day - today) - Math.abs(b.day - today))
       .map((s) => s.id);
     const visits = [...new Set([...(home?.visits?.items.map((v) => v.id) ?? []), ...calVisits])];
-    return lists || cards.length || visits.length
+    // ...and the KAM plans the collector read, so a plan page draws with its objectives.
+    const kamPlans = Object.entries((screens as PublishedScreens).kam?.plans ?? {});
+    const kamIds = (object: string) =>
+      kamPlans.filter(([, p]) => p.object === object).map(([id]) => id);
+    return lists || cards.length || visits.length || kamPlans.length
       ? await track.run("records", () =>
           withTimeout(
             viewerContext(core, userId, org, recordNote, readOrg).then((ctx) =>
-              collectRecords(ctx, lists ?? {}, { Account: cards, Visit: visits })
+              collectRecords(ctx, lists ?? {}, {
+                Account: cards,
+                Visit: visits,
+                AccountPlan: kamIds("AccountPlan"),
+                TerritoryBusinessPlan: kamIds("TerritoryBusinessPlan"),
+              })
             ),
             RECORDS_TIMEOUT_MS,
             "Reading the records list views and cards open"

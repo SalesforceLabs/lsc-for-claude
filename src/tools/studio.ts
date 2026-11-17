@@ -1,3 +1,5 @@
+import { loadConsent } from "../studio/screens/consent/consent.js";
+import { loadSurveyForm, loadSurveys } from "../studio/screens/surveys/surveys.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { refreshSharedReads, withSharedReads } from "../config/read-cache.js";
 import { z } from "zod";
@@ -26,6 +28,9 @@ import { fixesForToolCall } from "../studio/fix-for-tool.js";
 import { publishStatus, startPublish } from "../studio/publish.js";
 import { loadIpadReports, loadPublishedIpad, searchProfileUsers } from "../studio/published.js";
 import { runReport } from "../studio/screens/report-data.js";
+import { loadKamPlan } from "../studio/screens/kam/plan.js";
+import { loadMyTeamWeek } from "../studio/screens/manager/myTeam.js";
+import { loadDashboardDetail } from "../studio/screens/manager/dashboards.js";
 import { loadProgress } from "../studio/published-progress.js";
 import { mapProgress, mapKey, readinessKey } from "../studio/map-progress.js";
 import { collectUnpublished } from "../studio/unpublished.js";
@@ -1176,6 +1181,27 @@ export function register(server: McpServer) {
   );
 
   server.tool(
+    "studio_kam_plan",
+    "LSC Studio (GUI data): one Key Account Management plan the iPad preview's list didn't include (the preview reads the 25 most recently changed plans), with its objectives, action plans, tactics, stakeholders and participants, read as the connected account over the tables `sync` names (the viewer's sync filters can't be applied here). Read-only. Returns JSON { plan, mode, nomenclature, notes }; plan is null when the account can't read it.",
+    {
+      object: z.enum(["AccountPlan", "TerritoryBusinessPlan"]),
+      planId: z.string().regex(/^[a-zA-Z0-9]{15,18}$/),
+      sync: z.array(z.string().max(80)).max(20),
+    },
+    async ({ object, planId, sync }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await loadKamPlan(connection.targetOrg, object, planId, sync));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
     "studio_report_data",
     "LSC Studio (GUI data): one report's result for the iPad preview's View Report sheet, run read-only as the connected account (Summary and Tabular only; first 150 rows), reused for six hours from memory. Read-only. Returns JSON { id, data } — data is null when the report couldn't be run here. `userId` is the previewed rep; it doesn't change the run.",
     {
@@ -1193,6 +1219,117 @@ export function register(server: McpServer) {
       try {
         const data = await runReport(reportId, connection.targetOrg);
         return json({ id: reportId, data: data ?? null });
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_manager_data",
+    "LSC Studio (GUI data): on-demand reads for the iPad preview's manager screens, read-only. kind dashboardDetail: one dashboard's describe (and cached results when it runs as a specified user) as { detail }. kind myTeamWeek: one territory's activities for the week holding `date` (Connect API weekly-territory-activities), mapped like the device's My Team tab. Returns JSON { week } or { error }.",
+    {
+      kind: z.enum(["myTeamWeek", "dashboardDetail"]),
+      dashboardId: z
+        .string()
+        .regex(/^01Z[A-Za-z0-9]{12,15}$/)
+        .optional(),
+      territoryId: z
+        .string()
+        .regex(/^[a-zA-Z0-9]{15,18}$/)
+        .optional(),
+      date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .default("1970-01-01"),
+      firstDay: z.string().max(12).default("Monday"),
+      timeZone: z.string().max(64).default("UTC"),
+      locale: z.string().max(16).default("en-US"),
+    },
+    async ({ kind, dashboardId, territoryId, date, firstDay, timeZone, locale }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        if (kind === "dashboardDetail") {
+          if (!dashboardId) return jsonError("dashboardId is required.");
+          return json({ detail: await loadDashboardDetail(connection.targetOrg, dashboardId) });
+        }
+        return json({
+          week: await loadMyTeamWeek(connection.targetOrg, {
+            territoryId,
+            date,
+            firstDay,
+            timeZone,
+            locale,
+          }),
+        });
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_consent_data",
+    "LSC Studio (GUI data): the Capture Consent sheet for one account, read-only: the org's consent settings, subscriptions with their channels and the account's contact points and active consents, laid out as the device's mapper does (module/OPT/Consent). Returns JSON { consent } or { error }.",
+    { accountId: z.string().regex(/^[a-zA-Z0-9]{15,18}$/) },
+    async ({ accountId }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json({ consent: await loadConsent(connection.targetOrg, accountId) });
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+
+  server.tool(
+    "studio_survey_data",
+    "LSC Studio (GUI data): the Surveys sheet for one account, read-only. Without developerName it lists the account's surveys (newest invitation per survey, Open / Completed status from the viewer's response); with developerName, cacheRecordId and optionally version it returns that survey's pages and questions from the flow in the profile's metadata cache, typed as the device's mapper does (SurveysQuestionViewModel). Returns JSON { surveys, notes } or { form } or { error }.",
+    {
+      accountId: z
+        .string()
+        .regex(/^[a-zA-Z0-9]{15,18}$/)
+        .optional(),
+      viewerUserId: z
+        .string()
+        .regex(/^[a-zA-Z0-9]{15,18}$/)
+        .optional(),
+      developerName: z
+        .string()
+        .regex(/^\w{1,80}$/)
+        .optional(),
+      version: z.number().int().nullable().optional(),
+      cacheRecordId: z
+        .string()
+        .regex(/^[a-zA-Z0-9]{15,18}$/)
+        .optional(),
+    },
+    async ({ accountId, viewerUserId, developerName, version, cacheRecordId }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        if (developerName) {
+          if (!cacheRecordId)
+            return jsonError("cacheRecordId is required for a survey's questions.");
+          return json({
+            form: await loadSurveyForm(
+              connection.targetOrg,
+              cacheRecordId,
+              developerName,
+              version ?? null
+            ),
+          });
+        }
+        if (!accountId) return jsonError("accountId is required.");
+        return json(await loadSurveys(connection.targetOrg, accountId, viewerUserId));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }

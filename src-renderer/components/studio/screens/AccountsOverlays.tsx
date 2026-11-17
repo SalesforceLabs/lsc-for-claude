@@ -23,48 +23,6 @@ function Modal({ title, left, right, rightOn = false, onLeft, onRight, portalTo,
   return portalTo ? createPortal(node, portalTo) : node;
 }
 
-/** New Account: Advanced Search's type chooser (HCP, HCO, or by license ID). Next leads to Search Before Create, which the preview only describes. */
-export function NewAccountModal({ onClose, portalTo }: { onClose: () => void; portalTo?: Element | null }) {
-  const [picked, setPicked] = useState<string | null>(null);
-  const [next, setNext] = useState(false);
-  if (next)
-    return (
-      <Sheet
-        title="New Account"
-        closeLabel="Cancel"
-        note={`On the iPad, Next searches for existing ${picked} accounts (Search Before Create) and then opens the New Account form. Studio doesn't create accounts.`}
-        onClose={onClose}
-      />
-    );
-  const options: { key: string; title: string; text: string; section: string }[] = [
-    { key: "HCP", title: "HCP", text: "Search Healthcare Professional (HCP) Accounts", section: "Search by account type" },
-    { key: "HCO", title: "HCO", text: "Search Healthcare Organization (HCO) Accounts", section: "Search by account type" },
-    { key: "By ID", title: "By ID", text: "Search Business Licenses", section: "Search by License" },
-  ];
-  return (
-    <Modal portalTo={portalTo} title="Advanced Search" left="Cancel" right="Next" rightOn={picked !== null} onLeft={onClose} onRight={() => setNext(true)}>
-      <div className="studio-ipad-accounts-modal-body">
-        {["Search by account type", "Search by License"].map((section) => (
-          <div key={section} className="studio-ipad-accounts-modal-section">
-            <div className="studio-ipad-accounts-modal-heading">{section}</div>
-            {options
-              .filter((o) => o.section === section)
-              .map((o) => (
-                <button key={o.key} type="button" className={`studio-ipad-accounts-modal-option${picked === o.key ? " on" : ""}`} onClick={() => setPicked(o.key)}>
-                  <span className={`dot${o.key === "By ID" ? " id" : ""}`} />
-                  <span>
-                    <b>{o.title}</b>
-                    <small>{o.text}</small>
-                  </span>
-                </button>
-              ))}
-          </div>
-        ))}
-      </div>
-    </Modal>
-  );
-}
-
 /** Search Online: matches outside the territory. The org answers it through the data-provider search, which the preview never calls. */
 export function SearchOnlineModal({ onClose, portalTo }: { onClose: () => void; portalTo?: Element | null }) {
   const [more, setMore] = useState(false);

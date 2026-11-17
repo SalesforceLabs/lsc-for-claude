@@ -37,3 +37,5 @@
 .studio-ipad-vs-collapse { border: none; background: none; padding: 0; color: inherit; font: inherit; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
 .studio-ipad-vs-chev { display: inline-block; transition: transform 0.15s; }
 .studio-ipad-vs-chev.down { transform: rotate(90deg); }
+.studio-ipad-vs-slides { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; padding: 6px 0 2px; }
+.studio-ipad-vs-slide { background: #f0f2f5; border: 0.5px solid #c9c9c9; border-radius: 6px; color: #333; font-size: 13px; padding: 6px 10px; }
