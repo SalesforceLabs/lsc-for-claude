@@ -956,15 +956,28 @@ export function register(server: McpServer) {
         .describe(
           "Logins Studio made through the LSC mobile app's connected app. When one belongs to the previewed rep, the live screens and records are read with it (their own sharing and field-level security, rows limited to their sync filter); otherwise the sf CLI connection reads and approximates. Tokens are used for this load only and never returned."
         ),
+      language: z
+        .string()
+        .regex(/^[A-Za-z]{2,3}(_[A-Za-z0-9]{2,4})*$/)
+        .optional()
+        .describe(
+          "Draw the iPad in this language (a translation file in the cache, like de or pt_BR) instead of the user's own; one the cache lacks falls back to en_US as the app does."
+        ),
     },
-    async ({ profile, userId, mobileLogins }) => {
+    async ({ profile, userId, mobileLogins, language }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
         return json(
-          await loadPublishedIpad(profile, connection.targetOrg, userId, mobileLogins ?? [])
+          await loadPublishedIpad(
+            profile,
+            connection.targetOrg,
+            userId,
+            mobileLogins ?? [],
+            language
+          )
         );
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));

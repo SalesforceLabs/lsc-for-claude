@@ -25,6 +25,26 @@ import { recordFieldSpec, type RecordFieldSpec } from "./screens/record-fields.j
 import { LoadTracker } from "./published-progress.js";
 import { lintPage, resolveTemplate, type PageProblem } from "./ipad-page-lint.js";
 import { privateTmp } from "../private-tmp.js";
+import {
+  fieldTextOrigin,
+  LANGUAGE_NAMES,
+  NO_TRANSLATION,
+  picklistLabel,
+  readTranslation,
+  recordTabTextOrigin,
+  recordTypeLabel,
+  relatedTextOrigin,
+  sectionTextOrigin,
+  separatedWithSpaces,
+  tabTextOrigin,
+  translatedChild,
+  translatedRegion,
+  type TextOrigin,
+  type Translation,
+} from "./published-text.js";
+
+export { separatedWithSpaces };
+export type { TextOrigin };
 
 export { withTimeout };
 
@@ -237,6 +257,17 @@ export interface PublishedIpad {
   compactFields?: Record<string, RecordFieldSpec[]>;
   /** Where each record header comes from, for edits made in the preview: the compact layout's Metadata API name and its fields' API names in order, the title's field included. */
   compactSources?: Record<string, { fullName: string; fields: string[] }>;
+  /**
+   * Where the text on the iPad comes from, keyed `tab:<fullName>`, `field:<Object>:<field, lowercased>`,
+   * `section:<layout>:<label shown>`, `related:<layout>:<related list>` and `recordTab:<page>:<title shown>`.
+   */
+  texts?: Record<string, TextOrigin>;
+  /** The language the preview is drawn in (`de`), and the translation file it read (en_US when the cache has none for it). */
+  language?: { code: string; name: string; file: string };
+  /** The languages the cache holds translations for, as code and name. */
+  languages?: { code: string; name: string }[];
+  /** The previewed user's own language (`LanguageLocaleKey`), which the preview uses unless another is picked. */
+  userLanguage?: string;
   notes: string[];
   /** The user whose permission sets were merged in; null when the profile has no active users. */
   viewer: PublishedViewer | null;
@@ -358,10 +389,17 @@ export interface MetadataFiles {
   /**
    * The user's `translations/<language>.json` (falling back to en_US): `tabs`,
    * `layouts` as layout name → section and related list labels, and `fields`
-   * as object → field labels and name field label.
+   * as object → field labels and name field label (see `Translation`; tests may give only some parts).
    */
-  translations?: Row;
+  translations?: Partial<Translation>;
+  /** en_US's translation file, to say what an English user sees. */
+  english?: Partial<Translation>;
+  /** Languages the cache's `translations/` folder holds. */
+  languages?: string[];
 }
+
+/** The files' translation with every part present. */
+const trOf = (t: Partial<Translation> | undefined): Translation => ({ ...NO_TRANSLATION, ...t });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -541,14 +579,14 @@ export function buildTabs(
     Object.keys(files.db).some((k) => ieq(k, s)) &&
     Object.keys(files.sobjects).some((k) => ieq(k, s));
   const isAvailable = (s: string) => (availableTables ? availableTables.has(s) : hasTable(s));
-  const translated = obj(files.translations?.tabs);
+  const tr = trOf(files.translations);
 
   const tabs: (PublishedTab & { order: number })[] = [];
   const hidden: HiddenTab[] = [];
   for (let t of Object.values(files.nav)) {
     const fullName = str(t.fullName);
     // MetadataNavigation.init: localize — a non-empty translated label wins.
-    const label = str(obj(translated[fullName]).label) || str(t.label) || fullName;
+    const label = tabTextOrigin(tr, fullName, str(t.label)).shown;
     const hide = (reason: string) => hidden.push({ fullName, label, reason });
     if (t.sobjectName != null && !isAvailable(str(t.sobjectName))) {
       hide(availableTables ? TAB_FILTER_REASONS.notAvailable : TAB_FILTER_REASONS.noTable);
@@ -818,7 +856,27 @@ const stepOf = (item: Row, index: number): FlexiStep => {
   return { component: str(ci.componentName), identifier: str(ci.identifier) || null, index };
 };
 
-function toComponent(item: Row, at?: FlexiSource): PublishedComponent | null {
+/** Where a component sits for text lookups: the page, its region and the component's position, as the translation file nests them. */
+interface TextAt {
+  page: string;
+  region: Row;
+  path: number[];
+  note: TextNote;
+}
+
+/** Record one text's origin under `key` (for the translation in use and English); returns the text shown. */
+export type TextNote = (
+  key: string | ((shown: string) => string),
+  make: (tr: Translation) => TextOrigin
+) => string;
+
+const walkTranslation = (tr: Translation, at: TextAt): Row | null =>
+  at.path.reduce<Row | null>(
+    (item, i) => translatedChild(item, i),
+    translatedRegion(tr, at.page, at.region)
+  );
+
+function toComponent(item: Row, at?: FlexiSource, text?: TextAt): PublishedComponent | null {
   const ci = obj(item.componentInstance);
   const name = str(ci.componentName);
   if (!name) return null;
@@ -858,13 +916,25 @@ function toComponent(item: Row, at?: FlexiSource): PublishedComponent | null {
       if (visibilityOf(tab.visibilityRule).visibility === "hidden") return [];
       const tp = propsOf(tab);
       const tabAt = at && { region: at.region, path: [...at.path, stepOf(child, t)] };
+      const tabText = text && { ...text, path: [...text.path, t] };
+      const raw = tp.title ?? "";
+      const title = tabText
+        ? tabText.note(
+            (shown) => `recordTab:${text.page}:${shown}`,
+            (tr) => recordTabTextOrigin(tr, text.page, raw, walkTranslation(tr, tabText))
+          )
+        : tabTitle(raw);
       return [
         {
-          title: tabTitle(tp.title ?? ""),
+          title,
           active: tp.active === "true",
           components: arr(child.itemInstances)
             .map((x, i) =>
-              toComponent(x, tabAt && { region: tabAt.region, path: [...tabAt.path, stepOf(x, i)] })
+              toComponent(
+                x,
+                tabAt && { region: tabAt.region, path: [...tabAt.path, stepOf(x, i)] },
+                tabText && { ...tabText, path: [...tabText.path, i] }
+              )
             )
             .filter((x): x is PublishedComponent => !!x),
           ...(tabAt ? { source: tabAt } : {}),
@@ -875,24 +945,9 @@ function toComponent(item: Row, at?: FlexiSource): PublishedComponent | null {
   return c;
 }
 
-/** `Standard.Tab.detail` / `{!$Label.ns__Dashboard}` → a readable title. */
+/** A tab title with no translation file at hand (MetadataComponentInstanceProperty with no translation service). */
 function tabTitle(raw: string): string {
-  const std = /^Standard\.Tab\.(\w+)$/.exec(raw);
-  if (std)
-    return (
-      (
-        {
-          detail: "Details",
-          relatedLists: "Related",
-          activity: "Activity",
-          feed: "Chatter",
-          news: "News",
-        } as Record<string, string>
-      )[std[1]] ?? std[1]
-    );
-  const label = /^\{!\$Label\.(?:\w+__)?(\w+)\}$/.exec(raw);
-  if (label) return label[1].replace(/_/g, " ");
-  return raw;
+  return recordTabTextOrigin(NO_TRANSLATION, "", raw, null).shown;
 }
 
 /** Region slots per template — SFFlexiPageView.xib restoration identifiers. */
@@ -906,7 +961,7 @@ export const TEMPLATE_REGIONS: Record<string, string[]> = {
 };
 
 /** A Lightning page as SFFlexiPageView builds it: only the template's region slots render. */
-export function buildPage(name: string, page: Row): PublishedPage {
+export function buildPage(name: string, page: Row, note?: TextNote): PublishedPage {
   const regions = arr(page.flexiPageRegions).filter((r) => str(r.type) !== "Facet");
   // shouldDisplayDefaultFlexiPage, plus the unknown-template fallback.
   const { template } = resolveTemplate(page);
@@ -925,7 +980,11 @@ export function buildPage(name: string, page: Row): PublishedPage {
     const region = regions.find((r) => str(r.name) === slot);
     if (!region) continue;
     const components = arr(region.itemInstances).map((item, i) =>
-      toComponent(item, { region: slot, path: [stepOf(item, i)] })
+      toComponent(
+        item,
+        { region: slot, path: [stepOf(item, i)] },
+        note && { page: name, region, path: [i], note }
+      )
     );
     result.regions.push({
       name: slot,
@@ -948,23 +1007,6 @@ export function buildPage(name: string, page: Row): PublishedPage {
 
 // ── Objects, layouts ──────────────────────────────────────────────────────────
 
-/** String.separatedWithSpaces: a space before every uppercase letter but the first character. */
-export function separatedWithSpaces(s: string): string {
-  return [...s].map((c, i) => (i > 0 && c.toLowerCase() !== c ? ` ${c}` : c)).join("");
-}
-
-/** MetadataLayoutSection.label: the translation, else an API-name-shaped label spaced out. */
-function sectionLabel(s: Row, translated: string | undefined): string {
-  const raw = str(s.label);
-  const label = translated || raw;
-  return label === raw &&
-    str(s.customLabel) !== "true" &&
-    s.customLabel !== true &&
-    !raw.includes(" ")
-    ? separatedWithSpaces(raw)
-    : label;
-}
-
 /**
  * MetadataSobjectField.init + TitleLabel: RecordTypeId is always "Record Type",
  * Name takes the translated name field label, Type (outside Account) is "Type";
@@ -972,29 +1014,47 @@ function sectionLabel(s: Row, translated: string | undefined): string {
  * over the layout item's), else the item's own.
  */
 export function fieldLabel(files: MetadataFiles, sobject: string, item: Row): string {
+  return fieldOrigin(trOf(files.translations), files, sobject, item).shown;
+}
+
+function fieldOrigin(
+  tr: Translation,
+  files: MetadataFiles,
+  sobject: string,
+  item: Row
+): TextOrigin {
   const name = str(item.fullName) || str(item.field);
-  if (name.toLowerCase() === "recordtypeid") return "Record Type";
-  const t = obj(obj(files.translations?.fields)[sobject]);
-  if (name === "Name" && str(t.nameFieldLabel)) return str(t.nameFieldLabel);
-  if (name === "Type" && sobject.toLowerCase() !== "account") return "Type";
   const described = arr(files.sobjects[sobject]?.fields).find(
     (f) => str(f.fullName).toLowerCase() === name.toLowerCase()
   );
-  return str(obj(t.labels)[name]) || str(described?.label) || str(item.label) || name;
+  return fieldTextOrigin(tr, sobject, name, str(described?.label), str(item.label));
 }
 
-/** Layout full names are `<Object>-<Layout Name>`. */
-const layoutObject = (layoutName: string) =>
-  layoutName.slice(0, Math.max(0, layoutName.indexOf("-")));
+/** A field's picklist labels in the translation's language: its own translations, else its value set's. */
+const picklistLabelsFor =
+  (tr: Translation, sobject: string, item: Row) =>
+  (label: string): string => {
+    const name = str(item.fullName) || str(item.field);
+    const valueSet = str(obj(item.valueSet).valueSetName) || (/__c$/i.test(name) ? null : name);
+    return picklistLabel(tr, sobject, name, valueSet, label);
+  };
+
+/** Layout full names are `<Object>-<Layout Name>`; Person Account layouts belong to Account. */
+const layoutObject = (layoutName: string) => {
+  const o = layoutName.slice(0, Math.max(0, layoutName.indexOf("-")));
+  return o === "PersonAccount" ? "Account" : o;
+};
 
 function buildLayout(
   name: string,
   layout: Row,
-  translation: Row = {},
-  itemLabel: (item: Row) => string = (f) => str(f.label) || str(f.fullName)
+  translation: Translation = NO_TRANSLATION,
+  itemLabel: (item: Row) => string = (f) => str(f.label) || str(f.fullName),
+  note: TextNote = (_key, make) => make(translation).shown
 ): PublishedLayout {
-  const sectionLabels = obj(translation.sections);
-  const relatedListLabels = obj(translation.relatedLists);
+  const object = layoutObject(name);
+  const spec = (item: Row, label: string) =>
+    recordFieldSpec(item, label, picklistLabelsFor(translation, object, item));
   const seen = new Map<string, number>();
   const sections = arr(layout.layoutSections).flatMap((s) => {
     // Which of the sections with this label it is, counting the ones the app drops — the layout XML's order.
@@ -1010,12 +1070,17 @@ function buildLayout(
       }))
       .filter((c) => c.items.length);
     const columns = specs.map((c) => c.items.map((x) => x.label));
-    const fields = specs.map((c) => c.items.map((x) => recordFieldSpec(x.item, x.label)));
+    const fields = specs.map((c) => c.items.map((x) => spec(x.item, x.label)));
     if (!columns.length) return [];
     // SFDynamicLayoutContainer: the title is only laid out (not covered by the columns) when detailHeading is on.
-    const label = sectionLabel(s, str(sectionLabels[str(s.label)]) || undefined);
+    const label = sectionTextOrigin(translation, name, s).shown;
     const detailHeading = s.detailHeading === true || str(s.detailHeading) === "true";
     const heading = detailHeading && label.trim() ? label : null;
+    if (heading)
+      note(
+        (shown) => `section:${name}:${shown}`,
+        (tr) => sectionTextOrigin(tr, name, s)
+      );
     // A compound field (Name, BillingAddress) is one layout item the cache lists with each of its parts.
     const layoutFields = specs.map((c) =>
       c.items.map((x) => str(x.item.compoundFieldName) || str(x.item.fullName) || str(x.item.field))
@@ -1031,13 +1096,12 @@ function buildLayout(
   });
   const relatedLists = arr(layout.relatedLists).map((r) => {
     const rl = str(r.relatedList);
-    const label = str(relatedListLabels[rl]) || str(r.relatedListLabel) || str(r.label);
     const columns = arr(r.fields)
       .filter((f) => typeof f === "object" && f && str(f.fullName))
-      .map((f) => recordFieldSpec(f, str(f.label)));
+      .map((f) => spec(f, str(f.label)));
     return {
       name: rl,
-      label: label || rl.replace(/^RelatedList$/, "").replace(/__r$|__c$/g, "") || rl,
+      label: note(`related:${name}:${rl}`, (tr) => relatedTextOrigin(tr, name, r)),
       columns,
     };
   });
@@ -1162,7 +1226,13 @@ function picklistDefaults(rt: Row): { picklistDefaults?: Record<string, string> 
   return Object.keys(out).length ? { picklistDefaults: out } : {};
 }
 
-function buildObject(name: string, sobject: Row, ui: Row, profile: Row): PublishedObject {
+function buildObject(
+  name: string,
+  sobject: Row,
+  ui: Row,
+  profile: Row,
+  tr: Translation = NO_TRANSLATION
+): PublishedObject {
   const visibleRts = new Map(
     arr(profile.recordTypeVisibilities).map((v) => [
       str(v.recordType),
@@ -1175,7 +1245,7 @@ function buildObject(name: string, sobject: Row, ui: Row, profile: Row): Publish
     .filter((rt, _i, all) => str(rt.fullName) !== "Master" || all.length === 1)
     .map((rt) => ({
       name: str(rt.fullName),
-      label: str(rt.label) || str(rt.fullName),
+      label: recordTypeLabel(tr, name, str(rt.fullName), str(rt.label)) || str(rt.fullName),
       layout: rt.layout ? str(rt.layout) : null,
       flexiPage: rt.flexiPage ? str(rt.flexiPage) : null,
       compactLayout: rt.compactLayoutAssignment
@@ -1237,7 +1307,8 @@ function buildObject(name: string, sobject: Row, ui: Row, profile: Row): Publish
     .sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0));
   return {
     name,
-    label: str(sobject.label) || name,
+    // MetadataSobject.init: localize(label, translatedObject.label).
+    label: tr.objects[name]?.label || str(sobject.label) || name,
     labelPlural: str(sobject.labelPlural) || name,
     recordTypes,
     defaultCompactLayout: sobject.compactLayoutAssignment
@@ -1331,6 +1402,8 @@ export function buildSnapshot(
     cache: PublishedIpad["cache"];
     permissionSets?: string[];
     availableTables?: Set<string>;
+    /** The language asked for; `translations` may be en_US's when the cache has none for it. */
+    language?: string;
   }
 ): SnapshotCore {
   const files: MetadataFiles = {
@@ -1341,6 +1414,26 @@ export function buildSnapshot(
     },
   };
   const { tabs, hidden } = buildTabs(files, meta.availableTables);
+  const tr = trOf(files.translations);
+  const english = files.english && tr.language !== "en_US" ? trOf(files.english) : null;
+  const texts: Record<string, TextOrigin> = {};
+  const note: TextNote = (key, make) => {
+    const o = make(tr);
+    const k = typeof key === "string" ? key : key(o.shown);
+    if (!texts[k]) {
+      if (english) o.english = make(english).shown;
+      texts[k] = o;
+    }
+    return o.shown;
+  };
+  for (const t of Object.values(files.nav)) {
+    const fullName = str(t.fullName);
+    if (fullName) note(`tab:${fullName}`, (x) => tabTextOrigin(x, fullName, str(t.label)));
+  }
+  const labelField = (sobject: string) => (f: Row) =>
+    note(`field:${sobject}:${(str(f.fullName) || str(f.field)).toLowerCase()}`, (x) =>
+      fieldOrigin(x, files, sobject, f)
+    );
   const flexiPages = obj(files.ui.flexiPages);
   const pageLayouts = obj(files.ui.pageLayouts);
   const compact = obj(files.ui.compactLayouts);
@@ -1353,7 +1446,7 @@ export function buildSnapshot(
   const homeTab = tabs.find((t) => t.kind === "home");
   let home: PublishedPage | null = null;
   if (homeTab?.flexiPage && flexiPages[homeTab.flexiPage])
-    home = buildPage(homeTab.flexiPage, obj(flexiPages[homeTab.flexiPage]));
+    home = buildPage(homeTab.flexiPage, obj(flexiPages[homeTab.flexiPage]), note);
   else if (homeTab)
     home = {
       name: "",
@@ -1372,7 +1465,7 @@ export function buildSnapshot(
   const compactFields: Record<string, RecordFieldSpec[]> = {};
   const compactSources: Record<string, { fullName: string; fields: string[] }> = {};
   for (const name of previewObjects(tabs, files)) {
-    const o = buildObject(name, obj(files.sobjects[name]), files.ui, profile);
+    const o = buildObject(name, obj(files.sobjects[name]), files.ui, profile, tr);
     objects[name] = o;
     const compactNames = new Set(
       [o.defaultCompactLayout, ...o.recordTypes.map((r) => r.compactLayout)].filter(
@@ -1384,9 +1477,9 @@ export function buildSnapshot(
       // SFComponentHighlightPanelView.filterCompactLayoutFields: the record name is the title, so its field isn't repeated
       // (an Account's Name by API name; elsewhere any field whose value is the title, which the record screen drops).
       const shown = arr(cl.fields).filter((f) => str(f.fullName).toLowerCase() !== "name");
-      compactLayouts[`${name}.${c}`] = shown.map((f) => fieldLabel(files, name, f));
+      compactLayouts[`${name}.${c}`] = shown.map(labelField(name));
       compactFields[`${name}.${c}`] = shown.map((f) =>
-        recordFieldSpec(f, fieldLabel(files, name, f))
+        recordFieldSpec(f, labelField(name)(f), picklistLabelsFor(tr, name, f))
       );
       compactSources[`${name}.${c}`] = {
         fullName: `${name}.${c}`,
@@ -1403,20 +1496,15 @@ export function buildSnapshot(
       }
       for (const l of [rt.layout, ...(rt.multiEntity?.layouts ?? [])]) {
         if (l && !layouts[l] && pageLayouts[l])
-          layouts[l] = buildLayout(
-            l,
-            obj(pageLayouts[l]),
-            obj(obj(files.translations?.layouts)[l]),
-            (f) => fieldLabel(files, layoutObject(l), f)
-          );
+          layouts[l] = buildLayout(l, obj(pageLayouts[l]), tr, labelField(layoutObject(l)), note);
       }
       if (rt.flexiPage && !pages[rt.flexiPage] && flexiPages[rt.flexiPage])
-        pages[rt.flexiPage] = buildPage(rt.flexiPage, obj(flexiPages[rt.flexiPage]));
+        pages[rt.flexiPage] = buildPage(rt.flexiPage, obj(flexiPages[rt.flexiPage]), note);
     }
   }
   for (const t of tabs) {
     if (t.kind === "flexiPage" && t.flexiPage && flexiPages[t.flexiPage] && !pages[t.flexiPage])
-      pages[t.flexiPage] = buildPage(t.flexiPage, obj(flexiPages[t.flexiPage]));
+      pages[t.flexiPage] = buildPage(t.flexiPage, obj(flexiPages[t.flexiPage]), note);
   }
 
   // SFComponentDashboardVC: looked up by dashboardName in the cache's dashboards; a missing one renders nothing.
@@ -1444,6 +1532,26 @@ export function buildSnapshot(
     dashboards,
     notes,
     sync,
+    texts,
+    ...languageInfo(files, meta.language),
+  };
+}
+
+const languageName = (code: string) => LANGUAGE_NAMES[code] ?? code;
+
+/** The language the snapshot is drawn in and the ones the cache could be drawn in. */
+function languageInfo(
+  files: MetadataFiles,
+  requested: string | undefined
+): Pick<SnapshotCore, "language" | "languages"> {
+  const file = files.translations?.language;
+  const code = requested || file;
+  const languages = (files.languages ?? [])
+    .map((code) => ({ code, name: languageName(code) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return {
+    ...(code ? { language: { code, name: languageName(code), file: file || code } } : {}),
+    ...(languages.length ? { languages } : {}),
   };
 }
 
@@ -1726,7 +1834,7 @@ export function applyListViewSharing(
 const FILES = ["nav", "ui", "permissions", "db", "sobjects", "reporting"] as const;
 const cacheRoot = () => privateTmp("lsc-studio-published");
 /** Bump when the snapshot's shape changes — and bump the app's `CACHE_VERSION` (src-electron/engine/studio-cache.ts) too, or it keeps serving the old shape for a day. */
-const SNAPSHOT_VERSION = 42;
+const SNAPSHOT_VERSION = 44;
 /** UserService.defaultLanguage — the translation file used when the user's is missing. */
 const DEFAULT_LANGUAGE = "en_US";
 /** Distinct permission-set combinations pre-built per download. */
@@ -1807,7 +1915,7 @@ async function extract(
   zip: string,
   dir: string,
   languages: string[]
-): Promise<{ files: MetadataFiles; tabTranslations: Map<string, Row> }> {
+): Promise<{ files: MetadataFiles; tabTranslations: Map<string, Translation> }> {
   const patterns = [
     ...FILES.map((f) => `*/metadata/${f}.json`),
     ...languages.map((l) => `*/translations/${l}.json`),
@@ -1830,16 +1938,10 @@ async function extract(
     await yieldToEventLoop();
     return fs.existsSync(p) ? (JSON.parse(await fs.promises.readFile(p, "utf8")) as Row) : {};
   };
-  const tabTranslations = new Map<string, Row>();
+  const tabTranslations = new Map<string, Translation>();
   for (const l of languages) {
-    if (fs.existsSync(path.join(dir, `${l}.json`))) {
-      const t = await read(l);
-      tabTranslations.set(l, {
-        tabs: obj(t.tabs),
-        layouts: layoutTranslations(obj(t.objects)),
-        fields: fieldTranslations(obj(t.objects)),
-      });
-    }
+    if (fs.existsSync(path.join(dir, `${l}.json`)))
+      tabTranslations.set(l, readTranslation(await read(l), l));
   }
   return {
     files: {
@@ -1849,6 +1951,7 @@ async function extract(
       db: await read("db"),
       sobjects: (await read("sobjects")) as Record<string, Row>,
       reporting: await read("reporting"),
+      languages: await zipLanguages(zip),
     },
     tabTranslations,
   };
@@ -1856,50 +1959,21 @@ async function extract(
 
 const yieldToEventLoop = () => new Promise<void>((resolve) => setImmediate(resolve));
 
-/** TranslatedObject.layouts, keyed by layoutName: non-empty section and related list labels. */
-function layoutTranslations(
-  objects: Row
-): Record<string, { sections: Record<string, string>; relatedLists: Record<string, string> }> {
-  const out: Record<
-    string,
-    { sections: Record<string, string>; relatedLists: Record<string, string> }
-  > = {};
-  for (const o of Object.values(objects)) {
-    for (const l of arr(obj(o).layouts)) {
-      if (!str(l.layoutName)) continue;
-      const sections = Object.fromEntries(
-        arr(l.sections)
-          .filter((x) => str(x.section) && str(x.label))
-          .map((x) => [str(x.section), str(x.label)])
-      );
-      const relatedLists = Object.fromEntries(
-        arr(l.relatedLists)
-          .filter((x) => str(x.relatedList) && str(x.relatedListLabel))
-          .map((x) => [str(x.relatedList), str(x.relatedListLabel)])
-      );
-      out[str(l.layoutName)] = { sections, relatedLists };
-    }
+/** The languages a cache ZIP has translation files for (`<Profile>/translations/<code>.json`). */
+async function zipLanguages(zip: string): Promise<string[]> {
+  try {
+    const { stdout } = await execFileAsync("unzip", ["-Z1", zip], { maxBuffer: 16 << 20 });
+    return [
+      ...new Set(
+        stdout
+          .split("\n")
+          .map((l) => /\/translations\/([A-Za-z0-9_]+)\.json$/.exec(l.trim())?.[1])
+          .filter((l): l is string => !!l && LANGUAGE.test(l))
+      ),
+    ];
+  } catch {
+    return [];
   }
-  return out;
-}
-
-/** TranslatedObject.fields (keyed by exact name) and nameFieldLabel, per object: non-empty labels only. */
-function fieldTranslations(
-  objects: Row
-): Record<string, { labels: Record<string, string>; nameFieldLabel?: string }> {
-  const out: Record<string, { labels: Record<string, string>; nameFieldLabel?: string }> = {};
-  for (const [name, o] of Object.entries(objects)) {
-    const labels = Object.fromEntries(
-      arr(obj(o).fields)
-        .filter((f) => str(f.name) && str(f.label))
-        .map((f) => [str(f.name), str(f.label)])
-    );
-    out[str(obj(o).object) || name] = {
-      labels,
-      ...(str(obj(o).nameFieldLabel) ? { nameFieldLabel: str(obj(o).nameFieldLabel) } : {}),
-    };
-  }
-  return out;
 }
 
 const soqlString = (v: string) => `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
@@ -2950,13 +3024,15 @@ export function loadPublishedIpad(
   profile: string,
   org: string,
   userId?: string,
-  mobileLogins: TokenLogin[] = []
+  mobileLogins: TokenLogin[] = [],
+  language?: string
 ): Promise<PublishedIpad | { profile: string; missing: true }> {
   // Loads read with different logins stay apart: one key per set of rep logins offered.
   const key = [
     org,
     profile,
     userId ?? "",
+    language ?? "",
     mobileLogins
       .map((l) => `${l.userId ?? l.username}`)
       .sort()
@@ -2965,7 +3041,7 @@ export function loadPublishedIpad(
   const running = inflight.get(key);
   if (running) return running;
   const track = new LoadTracker(profile);
-  const load = loadWithProgress(profile, org, userId, track, mobileLogins).finally(() => {
+  const load = loadWithProgress(profile, org, userId, track, mobileLogins, language).finally(() => {
     track.finish();
     inflight.delete(key);
   });
@@ -2991,9 +3067,10 @@ async function loadWithProgress(
   org: string,
   userId: string | undefined,
   track: LoadTracker,
-  mobileLogins: TokenLogin[] = []
+  mobileLogins: TokenLogin[] = [],
+  languageOverride?: string
 ): Promise<PublishedIpad | { profile: string; missing: true }> {
-  const loaded = await loadCore(profile, org, userId, track, true);
+  const loaded = await loadCore(profile, org, userId, track, true, languageOverride);
   if ("missing" in loaded) return loaded;
   const { core, cache, user, viewer, userInfo, userNotes, sharing } = loaded;
   const withNotes = <T extends { notes: string[] }>(c: T): T =>
@@ -3003,7 +3080,16 @@ async function loadWithProgress(
     track.run("dashboards", () => withDashboardData(core.dashboards ?? {}, org, track)),
     viewerScreens(shared, user?.id, org, track, repLoginFor(mobileLogins, user?.id)),
   ]);
-  return { ...withNotes(shared), ...screens, dashboards, profile, cache, viewer, ...userInfo };
+  return {
+    ...withNotes(shared),
+    ...screens,
+    dashboards,
+    profile,
+    cache,
+    viewer,
+    ...userInfo,
+    ...(user ? { userLanguage: user.language } : {}),
+  };
 }
 
 /** The cache, the user it's read for and their snapshot; `withSharing` reads the user's list view sharing alongside. */
@@ -3012,7 +3098,8 @@ async function loadCore(
   org: string,
   userId: string | undefined,
   track: LoadTracker,
-  withSharing: boolean
+  withSharing: boolean,
+  languageOverride?: string
 ) {
   const [cache, listed] = await track.run("cache", () =>
     Promise.all([latestCache(profile, org), profileUsers(profile, org)])
@@ -3041,7 +3128,11 @@ async function loadCore(
       ]
     : [];
 
-  const language = user?.language ?? DEFAULT_LANGUAGE;
+  // A language picked in the preview, else the user's own (OfflineUserService.getCurrentLocalizationFile).
+  const language =
+    languageOverride && LANGUAGE.test(languageOverride)
+      ? languageOverride
+      : (user?.language ?? DEFAULT_LANGUAGE);
 
   const sharing =
     user && withSharing
@@ -3166,8 +3257,14 @@ async function buildSnapshots(input: BuildInput): Promise<SnapshotCore> {
         const translations =
           tabTranslations.get(c.language) ?? tabTranslations.get(DEFAULT_LANGUAGE);
         const snapshot = buildSnapshot(
-          { ...files, translations },
-          { profile, cache, permissionSets: c.sets, availableTables: available?.(c.sets) }
+          { ...files, translations, english: tabTranslations.get(DEFAULT_LANGUAGE) },
+          {
+            profile,
+            cache,
+            permissionSets: c.sets,
+            availableTables: available?.(c.sets),
+            language: c.language,
+          }
         );
         await fs.promises.writeFile(snapshotPath(c.sets, c.language), JSON.stringify(snapshot));
         if (requested) result = snapshot;

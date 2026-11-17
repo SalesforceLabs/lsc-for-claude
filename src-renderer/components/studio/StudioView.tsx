@@ -324,6 +324,8 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
   // Which rep each profile's preview was loaded for, so a reload after a write shows the same one.
   const publishedUsers = useRef<Record<string, string | undefined>>({});
   const publishedRequests = useRef<Record<string, number>>({});
+  // A language picked in the preview, per profile; unset = the rep's own.
+  const publishedLanguages = useRef<Record<string, string | undefined>>({});
   const loadPublished = useCallback(async (profile: string, refresh = false, userId?: string, keepShown = false) => {
     const ticket = (publishedRequests.current[profile] ?? 0) + 1;
     publishedRequests.current[profile] = ticket;
@@ -334,7 +336,7 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
       const prev = p[profile];
       return { ...p, [profile]: keepShown && prev?.status === "ready" ? { ...prev, stale: false, refreshing: true } : { status: "loading" } };
     });
-    const res = await window.lscApi.studioIpadPublished(profile, refresh, userId);
+    const res = await window.lscApi.studioIpadPublished(profile, refresh, userId, publishedLanguages.current[profile]);
     if (publishedRequests.current[profile] !== ticket) return;
     const error = res.error || (res.data as { error?: string } | undefined)?.error;
     setPublished((p) => {
@@ -468,6 +470,14 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
   const pickPublishedUser = useCallback(
     (userId: string) => {
       if (publishedProfile) loadPublished(publishedProfile, false, userId);
+    },
+    [publishedProfile, loadPublished]
+  );
+  const pickPublishedLanguage = useCallback(
+    (language: string | null) => {
+      if (!publishedProfile) return;
+      publishedLanguages.current[publishedProfile] = language ?? undefined;
+      loadPublished(publishedProfile, false, publishedUsers.current[publishedProfile]);
     },
     [publishedProfile, loadPublished]
   );
@@ -823,6 +833,7 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
                   state={publishedState}
                   onRefresh={refreshPublished}
                   onPickUser={pickPublishedUser}
+                  onPickLanguage={pickPublishedLanguage}
                   edit={previewEdit}
                   split={previewMode === "split"}
                   nextChanges={nextChanges}

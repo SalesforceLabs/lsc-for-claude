@@ -174,7 +174,8 @@ interface LscApi {
   studioLwcRequest(method: "GET" | "POST", path: string, body?: unknown): Promise<StudioResponse>;
   /** As the previewed rep's mobile login instead of the sf CLI connection. */
   studioLwcRequestAs(loginId: string, method: "GET" | "POST", path: string, body?: unknown): Promise<StudioResponse>;
-  studioIpadPublished(profile: string, refresh?: boolean, userId?: string): Promise<StudioResponse>;
+  /** `language`: draw it in this cache language instead of the user's own. */
+  studioIpadPublished(profile: string, refresh?: boolean, userId?: string, language?: string): Promise<StudioResponse>;
   studioIpadPublishedUsers(profile: string, search: string): Promise<StudioResponse>;
   studioIpadPublishedProgress(profile: string): Promise<StudioResponse>;
   /** The Reports tab's settings and folder/report tree for a rep, read when the tab opens. */

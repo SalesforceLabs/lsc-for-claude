@@ -119,7 +119,12 @@ const LOOKUP = new Set(["lookup", "hierarchy", "phone", "email", "url"]);
 
 /** The label the device reads from the field's own describe, and whether it is drawn at all. */
 function metaOf(snapshot: PublishedIpad, object: string, spec: RecordFieldSpec): PublishedFieldMeta {
-  return snapshot.records?.fields[object]?.[spec.name.toLowerCase()] ?? { label: spec.label };
+  const live = snapshot.records?.fields[object]?.[spec.name.toLowerCase()];
+  if (!live) return { label: spec.label };
+  // A translated label wins over the describe, which is read as the admin in their own language (MetadataSobjectField.init).
+  const text = snapshot.texts?.[`field:${object}:${spec.name.toLowerCase()}`];
+  const translated = text && /^Translation/.test(text.steps[text.used]?.source ?? "");
+  return translated ? { ...live, label: spec.label } : live;
 }
 
 /** Objects whose flexipage components are all drawn, unsupported ones as placeholder cards. */
