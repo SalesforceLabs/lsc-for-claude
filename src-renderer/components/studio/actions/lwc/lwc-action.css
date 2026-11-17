@@ -1,0 +1,51 @@
+.studio-ipad-lwc-as {
+  flex: none;
+  padding: 6px 20px;
+  background: #eef4ff;
+  color: #0b3a8a;
+  font-size: 13px;
+}
+.studio-ipad-lwc-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  background: #fff;
+}
+.studio-ipad-lwc-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+.studio-ipad-lwc-wait {
+  margin: auto;
+  color: #666;
+  font-size: 15px;
+}
+.studio-ipad-lwc-fail {
+  margin: 24px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #fff8e1;
+  color: #6b5200;
+  font-size: 14px;
+  line-height: 1.4;
+  align-self: flex-start;
+}
+.studio-ipad-lwc-note {
+  flex: none;
+  padding: 6px 20px;
+  background: #f6f6f6;
+  color: #444;
+  font-size: 13px;
+  border-top: 1px solid #e0e0e0;
+}
+.studio-ipad-lwc-foot {
+  flex: none;
+  padding: 8px 20px;
+  background: #f6f6f6;
+  color: #666;
+  font-size: 12px;
+  line-height: 1.4;
+  border-top: 1px solid #e0e0e0;
+}

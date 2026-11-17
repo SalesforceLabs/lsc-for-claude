@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `146`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `150`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -87,6 +87,7 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_component_catalog",
   "studio_component_props",
   "studio_connected_org",
+  "studio_consent_data",
   "studio_custom_script",
   "studio_custom_scripts",
   "studio_diagnose",
@@ -100,10 +101,12 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_ipad_published_users",
   "studio_ipad_reports",
   "studio_item_detail",
+  "studio_kam_plan",
   "studio_list_features",
   "studio_list_profiles",
   "studio_lwc_bundle",
   "studio_lwc_request",
+  "studio_manager_data",
   "studio_metadata_cache",
   "studio_metadata_cache_contents",
   "studio_metadata_cache_file",
@@ -135,6 +138,7 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_sim_report",
   "studio_sim_start",
   "studio_sim_status",
+  "studio_survey_data",
   "studio_sync_impact",
   "studio_sync_overview",
   "studio_sync_user",
@@ -1630,6 +1634,23 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
     },
   },
   {
+    "name": "studio_kam_plan",
+    "params": {
+      "object": {
+        "optional": false,
+        "type": "ZodEnum",
+      },
+      "planId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "sync": {
+        "optional": false,
+        "type": "ZodArray",
+      },
+    },
+  },
+  {
     "name": "studio_report_data",
     "params": {
       "reportId": {
@@ -1637,6 +1658,73 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
         "type": "ZodString",
       },
       "userId": {
+        "optional": true,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_manager_data",
+    "params": {
+      "dashboardId": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "date": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "firstDay": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "kind": {
+        "optional": false,
+        "type": "ZodEnum",
+      },
+      "locale": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "territoryId": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "timeZone": {
+        "optional": true,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_consent_data",
+    "params": {
+      "accountId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_survey_data",
+    "params": {
+      "accountId": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "cacheRecordId": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "developerName": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "version": {
+        "optional": true,
+        "type": "ZodNullable",
+      },
+      "viewerUserId": {
         "optional": true,
         "type": "ZodString",
       },

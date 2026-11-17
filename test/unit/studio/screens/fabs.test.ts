@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { emailTemplateList, homeMenu, recordMenu, recordMenus, type HomeQuickAction, type LayoutActionItem } from "../../../../src/studio/screens/fabs.js";
+import { applyCustomOverrides, emailTemplateList, homeMenu, recordMenu, recordMenus, type HomeQuickAction, type LayoutActionItem } from "../../../../src/studio/screens/fabs.js";
 import { fabState, menuLayout, recordFabItems } from "../../../../src-renderer/components/studio/ipad-fabs-logic";
 
 const PROFILE = "LS PH Field Sales Representative";
@@ -136,5 +136,22 @@ describe("emailTemplateList", () => {
   });
   it("narrows to the territory's assigned templates", () => {
     expect(emailTemplateList(rows, ["b"])).toEqual([{ id: "b", name: "Zeta", product: "P", description: "d" }]);
+  });
+});
+
+describe("LWC actions in the record menu", () => {
+  const lwc = (name: string, label: string, component: string): LayoutActionItem => ({ ...item(name, label, "LightningWebComponent", "1"), component });
+
+  it("keeps an LWC action whatever its name, but not an inline component", () => {
+    const menu = recordMenu(undefined, [lwc("Account.Log_Sample_Request", "Log Sample Request", "lscMobileQuickAction_LogSampleRequest"), lwc("Account.Panel", "Panel", "lscMobileInline_Panel")]);
+    expect(menu.map((m) => m.label)).toEqual(["Log Sample Request"]);
+    expect(menu[0].action).toEqual({ type: "lightningwebcomponent", target: "lscMobileQuickAction_LogSampleRequest" });
+  });
+
+  it("lets a custom action of the same name replace it (SFFlexiPageViewModel.makeActions)", () => {
+    const records = { Account: { Prospect: recordMenu(undefined, [lwc("Account.Veeva_Link", "Veeva Link", "x"), lwc("Account.Other", "Other", "y")]) } };
+    const out = applyCustomOverrides(records, [{ masterLabel: "Veeva Link", developerName: "veeva_link", entityName: "Account", entityType: "Account", actionType: "URL", actionTarget: "https://x.test" }]);
+    expect(out.Account.Prospect[0].action).toMatchObject({ type: "url", target: "https://x.test" });
+    expect(out.Account.Prospect[1].action?.type).toBe("lightningwebcomponent");
   });
 });

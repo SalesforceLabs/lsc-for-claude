@@ -148,6 +148,16 @@ describe("buildTabs", () => {
     expect(orders).toMatchObject({ kind: "empty" });
     expect(orders?.emptyReason).toMatch(/Order isn't in this profile's published objects/);
   });
+  it("shows Account Plan as Coming soon when the user has the table but sobjects.json lacks it", () => {
+    // iOS: CoordinatorFactory.defaultCoordinator -> FancyEmptyCoordinator when MetadataNavigation.sobject is nil.
+    const f = files();
+    f.nav["standard-AccountPlan"] = { fullName: "standard-AccountPlan", label: "Account Plan", type: "sobject", sobjectName: "AccountPlan", tabOrder: 9 };
+    (f.permissions.profile as { tabVisibilities: Row[] }).tabVisibilities.push({ tab: "standard-AccountPlan", visibility: "DefaultOn" });
+    const tab = buildTabs(f, new Set(["AccountPlan"])).tabs.find((t) => t.fullName === "standard-AccountPlan");
+    expect(tab).toMatchObject({ kind: "empty" });
+    expect(tab?.emptyReason).toMatch(/AccountPlan isn't in this profile's published objects/);
+    expect(buildTabs(f, new Set(["Account"])).tabs.map((t) => t.fullName)).not.toContain("standard-AccountPlan");
+  });
   it("uses the translated tab label when it's non-empty", () => {
     const translations = { tabs: { "standard-Visit": { label: "Visit" }, "lsc4ce__Planner": { label: "" } } };
     const labels = buildTabs(files({ translations })).tabs.map((t) => t.label);

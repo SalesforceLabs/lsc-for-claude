@@ -1,0 +1,177 @@
+/* Medical Insights feed (InsightsViewController / InsightsFeedView). Prefix every class with studio-ipad-insights. */
+.studio-ipad-insights {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  background: #f3f3f3;
+  color: #2e2e2e;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+}
+.studio-ipad-insights-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px 0;
+}
+.studio-ipad-insights-search {
+  flex: 1;
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #c9c9c9;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 14px;
+}
+.studio-ipad-insights-btn {
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid #c9c9c9;
+  border-radius: 8px;
+  background: #fff;
+  color: #0176d3;
+  font-size: 14px;
+  cursor: pointer;
+}
+.studio-ipad-insights-btn.primary {
+  background: #0176d3;
+  border-color: #0176d3;
+  color: #fff;
+  cursor: default;
+}
+.studio-ipad-insights-sortwrap {
+  position: relative;
+}
+.studio-ipad-insights-menu {
+  position: absolute;
+  right: 0;
+  top: 44px;
+  z-index: 5;
+  min-width: 200px;
+  padding: 4px 0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+.studio-ipad-insights-menu div {
+  padding: 10px 16px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.studio-ipad-insights-menu div.on {
+  color: #0176d3;
+  font-weight: 600;
+}
+.studio-ipad-insights-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px 16px 0;
+  border-bottom: 1px solid #e5e5e5;
+}
+.studio-ipad-insights-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  padding: 8px 14px;
+  font-size: 14px;
+  color: #5c5c5c;
+  cursor: pointer;
+}
+.studio-ipad-insights-tabs button.on {
+  color: #0176d3;
+  border-bottom-color: #0176d3;
+  font-weight: 600;
+}
+.studio-ipad-insights-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px 16px;
+}
+.studio-ipad-insights-card {
+  padding: 16px;
+  border-radius: 12px;
+  background: #fff;
+}
+.studio-ipad-insights-card-top {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.studio-ipad-insights-card-main {
+  flex: 1;
+}
+.studio-ipad-insights-card-side {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.studio-ipad-insights-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.studio-ipad-insights-card-text {
+  font-size: 13px;
+  line-height: 17px;
+}
+.studio-ipad-insights-more {
+  color: #0176d3;
+  cursor: pointer;
+}
+.studio-ipad-insights-logged {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: #747474;
+}
+.studio-ipad-insights-status {
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: #e5e5e5;
+  color: #444;
+  font-size: 13px;
+}
+.studio-ipad-insights-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.studio-ipad-insights-badges span {
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 12px;
+}
+.studio-ipad-insights-badges .product {
+  background: rgba(110, 66, 209, 0.7);
+}
+.studio-ipad-insights-badges .tag {
+  background: rgba(21, 126, 225, 0.7);
+}
+.studio-ipad-insights-actions {
+  display: flex;
+  gap: 24px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: #747474;
+}
+.studio-ipad-insights-empty {
+  padding: 120px 0;
+  text-align: center;
+  font-size: 16px;
+  color: #5c5c5c;
+}
+.studio-ipad-insights-note {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #5c5c5c;
+}

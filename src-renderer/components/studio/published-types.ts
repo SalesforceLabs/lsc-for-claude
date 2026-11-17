@@ -107,7 +107,7 @@ export interface PublishedLayout {
   sections: { label: string | null; columns: string[][]; fields?: RecordFieldSpec[][]; source?: LayoutSectionSource }[];
   relatedLists: { name: string; label: string; columns?: RecordFieldSpec[] }[];
   actions: string[];
-  actionItems?: { name: string; label: string; type: string; sortOrder: string }[];
+  actionItems?: { name: string; label: string; type: string; sortOrder: string; component?: string }[];
 }
 
 export interface PublishedRecordType {
@@ -239,7 +239,7 @@ export interface PublishedRecordData {
 
 export interface PublishedRatings {
   layout: string;
-  cards: { tab: "General" | "Product" | "Territory"; title: string; value: string; editable: boolean; updated: string; live: boolean }[] | null;
+  cards: { tab: "General" | "Product" | "Territory"; title: string; value: string; editable: boolean; updated: string; live: boolean; product?: string }[] | null;
 }
 
 export interface PublishedDashboard {

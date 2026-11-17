@@ -170,7 +170,12 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioUnpublished: (profile, known, refresh = false) =>
     ipcRenderer.invoke("studio:call", "studio_unpublished", known ? { profile, known } : { profile }, refresh),
   studioIpadReports: (userId) => ipcRenderer.invoke("studio:call", "studio_ipad_reports", { userId }),
+  studioKamPlan: (object, planId, sync) => ipcRenderer.invoke("studio:call", "studio_kam_plan", { object, planId, sync }),
   studioReportData: (reportId, userId) => ipcRenderer.invoke("studio:call", "studio_report_data", userId ? { reportId, userId } : { reportId }),
+  studioManagerData: (args) => ipcRenderer.invoke("studio:call", "studio_manager_data", args),
+  studioConsentData: (accountId) => ipcRenderer.invoke("studio:call", "studio_consent_data", { accountId }),
+  studioSurveyData: (args) => ipcRenderer.invoke("studio:call", "studio_survey_data", args),
+  studioSurveyData: (args) => ipcRenderer.invoke("studio:call", "studio_survey_data", args),
   studioIpadPublishedProgress: (profile) => ipcRenderer.invoke("studio:call", "studio_ipad_published_progress", { profile }),
   // --- custom scripts: editor ---
   // The library is cached in the main process; `refresh` bypasses the cache. A single script is never cached.
