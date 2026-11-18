@@ -256,6 +256,7 @@ causes:
       - "Metadata cache validation fails"
       - "App loops on opening after an object permission was removed"
       - "sObject type is not supported"
+      - "Cache generation fails: parent Inactive, unable to read an object over REST"
     keywords: [DB Schema Status, Checking, custom object, object permission]
     cause: |
       A config deploy can activate records for custom objects that don't
@@ -275,6 +276,8 @@ causes:
       - "REQUEST_LIMIT_EXCEEDED"
       - "Initial sync takes 12 minutes or more"
       - "Org hits its API request limit"
+      - "Sync is slow and the cache is huge"
+      - "Sync is slow after attachments were enabled on all DB schema records"
     keywords: [sync volume, attachments, WhereSoql, API limits, slow sync]
     cause: |
       DB Schema records with no filter on big objects, attachments turned on
@@ -294,6 +297,7 @@ causes:
     symptoms:
       - "Failed to execute 'json' on 'Response': Unexpected end of JSON input"
       - "Can't create a visit on the iPad"
+      - "As admin on web, Log a Visit says metadata is out of date"
     keywords: [ProviderVisit, recordTypes, Master.json]
     cause: |
       Creating a visit reads ProviderVisit's record types from the metadata
@@ -486,6 +490,7 @@ causes:
       - "Admin users can't sign in to the app"
       - "Admin can't edit visits on the iPad"
       - "App redirects to the browser after login"
+      - "Signed in to the iPad with an admin profile and data or screens are wrong"
     keywords: [System Administrator, admin profile, test user]
     cause: |
       The iPad app supports rep profiles that have a metadata cache. System
@@ -518,6 +523,7 @@ causes:
     module: agentforce
     symptoms:
       - "Agentforce 'Something went wrong' on iPad"
+      - "Quote PDF fails to download"
     keywords: [Lock sessions to the IP address, session settings, Agentforce]
     cause: |
       "Lock sessions to the IP address from which they originated" rejects
@@ -531,6 +537,7 @@ causes:
     module: mobile-sync
     symptoms:
       - "'Enter your new password' every login"
+      - "The app asks for a new password at every login"
     keywords: [PasswordPolicy, Password Type, Alpha Numeric, Numeric, Application Settings]
     cause: |
       Application Settings Password Type set to Alpha Numeric makes the app
@@ -746,6 +753,8 @@ causes:
       - "Align Account to Territory job updates 0 accounts"
       - "Accounts missing from advanced search"
       - "Account missing on the iPad"
+      - "Rep sees the wrong accounts after a territory change"
+      - "iPad account list and filters are empty for a territory"
     keywords: [IsActive, IsPrimaryProvider, ObjectTerritory2Association, Territory2Manual, ProviderAcctTerritoryInfo, IsAvailableOffline, preferred address, PATI, OT2A]
     cause: |
       An account reaches a rep only if all of these hold: Account.IsActive is
@@ -845,6 +854,8 @@ causes:
       - "Deactivated action still on the action bar"
       - "Action missing on some Visits on the iPad"
       - "Custom action does nothing"
+      - "present content actions are missing on the store check screen"
+      - "no Create Quoted Order action on Visit Engagement"
     keywords: [quick action, custom action, EnableDynamicActions, Highlights Panel, Action Target, Log a Call]
     cause: |
       The iPad runs a fixed set of standard actions (not Log a Call, New Task
@@ -1105,6 +1116,13 @@ causes:
       - "iPad doesn't show recent changes"
       - "Translations not on the iPad"
       - "New tab doesn't show on the iPad"
+      - "I changed the price; reps still see the old price on the iPad"
+      - "Old tier shown after the admin edited tiers"
+      - "iPad prices differ from the web after I edited a price book, procedure or decision table"
+      - "I changed the layout but the iPad still shows the old one"
+      - "Any layout, page, field security, pricing or Admin Console change doesn't show on the iPad"
+      - "Changed a discount tier, price book entry or decision table; iPad still shows the old price"
+      - "Rep synced but still sees the old price or layout"
     keywords: [regenerate, publish, stale, translation, log out]
     cause: |
       Layouts, pages, record types, field access and Admin Console mobile
@@ -1451,6 +1469,8 @@ causes:
       - "Survey not visible on Account or Visit"
       - "Survey not on the iPad"
       - "Can't activate survey"
+      - "Survey tab does not show on the Visit"
+      - "Survey not shown on the Visit even though the template and tab are set up"
     keywords: [Offline Mobile Survey, survey type, SurveySubject, SurveyInvitation]
     cause: |
       LSC shows only Offline Mobile surveys, and a survey needs questions
@@ -1543,6 +1563,8 @@ causes:
       - "Mobile labels stay English"
       - "Please setup and add languages in translation settings"
       - "Sample not rendering for English (Ireland, Euro) locale"
+      - "Translated store check values didn't update on the iPad"
+      - "Translated values on Visit screens didn't update after editing a translation"
     keywords: [Translation Workbench, Standard Label Translations, locale, custom label]
     cause: |
       The language isn't active in Translation Workbench, the admin isn't a
@@ -1856,6 +1878,9 @@ causes:
     symptoms:
       - "Submit action missing from the Quote Actions menu"
       - "New quote saves with a blank Status on the iPad"
+      - "Quote has no Submit button and new quotes save with no Status"
+      - "There's no Submit on the quote"
+      - "New quote saved with no Status"
     keywords: [Quote.Status, FLS, Submit, RecordUpdate, field-level security]
     cause: |
       Submit runs a RecordUpdate on Quote.Status. In setup runs, the action was
@@ -1876,6 +1901,9 @@ causes:
     symptoms:
       - "No price books offered when creating a quote for a store"
       - "Quote saved in the wrong currency"
+      - "Rep sees only some products when adding to a quote"
+      - "The price book list doesn't show the price book I expect"
+      - "Rep's currency changed and now no price books"
     keywords: [CurrencyIsoCode, DefaultCurrencyIsoCode, multi-currency, price book, Select Price Book]
     cause: |
       When the rep doesn't pick a currency, a new quote takes the currency of the
@@ -1953,6 +1981,8 @@ causes:
     symptoms:
       - "iPad charges list price at tier quantities"
       - "Tier discount works in web simulation but not on the iPad"
+      - "Price Adjustment Matrix discounts do not apply when the iPad is offline (work on web)"
+      - "Price Adjustment Matrix discounts not applied offline when rows have Effective From or To dates"
     keywords: [PriceAdjustmentSchedule, PriceAdjustmentTier, EffectiveFrom, EffectiveTo, volume discount]
     cause: |
       The iPad engine skips price adjustment schedules and tiers with no
@@ -1971,6 +2001,8 @@ causes:
     module: order-management
     symptoms:
       - "iPad cart footer has no Order Discount (Add)"
+      - "Header-level discount does not apply, no error"
+      - "Header discount not distributed"
     keywords: [enableRevenueAdjustment, RevenueManagementSettings, header discount, Manage Header Adjustment]
     cause: |
       The Order Management Turn On leaves Header Adjustments
@@ -2040,6 +2072,7 @@ causes:
     symptoms:
       - "Quote Submit does not change the stage"
       - "Quote stage transitions are not enforced"
+      - "Quote never locks after Submit, no workflow effect at all"
     keywords: [StagePathPermissionsHandler, LifeScienceTriggerHandler, Quote stage, trigger handler]
     cause: |
       The quote stage path is enforced by StagePathPermissionsHandler, which is
@@ -2057,6 +2090,7 @@ causes:
     module: order-management
     symptoms:
       - "Quote stage path shows only 2 of 5 stages"
+      - "Request for Unlock buttons are missing on the quote"
     keywords: [StandardValueSet, QuoteStatus, Submitted, Request for Unlock, In Review]
     cause: |
       In a new org the Quote Status standard value set ships without Submitted
@@ -2085,6 +2119,9 @@ causes:
       - "QuoteDocument stuck In Progress"
       - "EVENT_FLOW_CONSUMPTION_OR_SET_DEFAULTS_COMMIT"
       - "Quote PDF never completes after Submit Order"
+      - "PDF says In Progress after I submitted"
+      - "PDF still In Progress after I tapped Generate PDF"
+      - "Quote PDF stays In Progress after Generate PDF"
     keywords: [QuoteDocumentCreationEvent, QuoteDocument, ContentVersionDocumentId, DocumentRecipient, SignatureIdentifier, Generate Quote Flow, Session Security Level, Query Non Vetoed Files]
     cause: |
       The iPad Submit publishes QuoteDocumentCreationEvent as the rep. Without
@@ -2103,6 +2140,7 @@ causes:
     symptoms:
       - "Review submission failed. Please try again."
       - "You can't update Quote at this stage of the workflow"
+      - "I tapped Submit twice: Review submission failed"
     keywords: [Submit Order, idempotent, Review, Quote.Status, Submitted]
     cause: |
       The iPad Review screen doesn't disable Submit after success. The server
@@ -2115,6 +2153,8 @@ causes:
     module: order-management
     symptoms:
       - "Request for Unlock sets the status but the manager gets no approval request"
+      - "Request for Unlock went nowhere"
+      - "Manager sees the quote but the unlock approval never started"
     keywords: [ManagerId, approval, Request for Unlock, LSC Quote Lock and Unlock Approval Process]
     cause: |
       The approver is the quote owner's manager. With no ManagerId on the rep,
@@ -2146,6 +2186,7 @@ causes:
     module: order-management
     symptoms:
       - "Send Approved Notifications UNKNOWN_EXCEPTION, quote stays In Review"
+      - "Lock or unlock notification step fails when it runs as Automated Process User"
     keywords: [Automated Process, approval notification, In Review, Approve]
     cause: |
       The approval notification steps update the quote as the Automated Process
@@ -2160,6 +2201,7 @@ causes:
     symptoms:
       - "Product Views has no Last Order option"
       - "ProductsFromPreviousOrder rejected on deploy"
+      - "Product Views settings won't save or are greyed out"
     keywords: [LSDraftOrderPilot, LSStoreCheckPilot, ProductsFromPreviousOrder, Last Order, product views]
     cause: The Last Order view needs an org permission (LSDraftOrderPilot) that Salesforce provisions.
     fix:
@@ -2197,6 +2239,8 @@ causes:
     module: order-management
     symptoms:
       - "Unsupported action type: CREATE_SERVICE_DOCUMENT"
+      - "Nobody can build or change the quote PDF template"
+      - "Quote Document Settings save says I can't create LifeSciMetadataCategory"
     keywords: [DocumentBuilderUserPsl, DocumentBuilderUser, Generate Quote Flow, deploy]
     cause: Seen when setup is scripted through the API or CLI. The admin deploying the quote document flow needs Document Builder too.
     fix:
@@ -2220,6 +2264,7 @@ causes:
       - "no CustomObject named InventoryOperation found"
       - "Class lsc4ce.TestUtils : Variable does not exist: Survey"
       - "QuickAction(AccountPlan.ImportStakeholder)"
+      - "Install fails on AccountPlan layout or Import Stakeholder action"
     keywords: [InventoryCountEnabled, PrdInventoryOperationsPref, InventoryBatchManagement, CarePlansPreference, enableSurvey, enableAccountPlan, package install]
     cause: |
       The package deploys components for objects that only exist when their
@@ -2236,6 +2281,7 @@ causes:
       - "Begin Store Check fails: more than one row returned by a subquery"
       - "Rep's first iPad sync fails with UNKNOWN_EXCEPTION"
       - "Error while trying to access Salesforce"
+      - "Edited a published action plan template and Begin Store Check or first sync fails"
     keywords: [ActionPlanTemplate, ActionPlanTemplateVersion, Begin Store Check, Store Check, first sync, sharing rule, UserRecordAccess]
     cause: |
       In setup runs, a template the rep can read with more than one
@@ -2255,6 +2301,7 @@ causes:
     symptoms:
       - "Store Check indicator shows the wrong control type"
       - "AssessmentIndicatorDefinition DataType not updateable"
+      - "I can't change an indicator from Number to Picklist"
     keywords: [AssessmentIndicatorDefinition, DataType, AssessmentTaskIndDefinition, AssessmentIndDefinedValue, RetailStoreKpi]
     cause: AssessmentIndicatorDefinition.DataType is set at creation and can't be edited.
     fix:
@@ -2266,6 +2313,7 @@ causes:
     module: order-management
     symptoms:
       - "New Store Check visit opens the standard Salesforce form"
+      - "Visit routing ignores my record type"
     keywords: [Visit, actionOverrides, record type routing, LogAVisit, Store_Check, enableLifeSciRecTypeRoutgPref]
     cause: |
       A legacy override on Visit New/Edit bypasses record type routing, or the
@@ -2292,6 +2340,7 @@ causes:
     symptoms:
       - "Quoted Order tab missing on the Store Check visit"
       - "Quoted Order tab has no New button on the iPad"
+      - "Quotes and Orders lists are empty on the iPad"
     keywords: [Quotes related list, Quote.VisitId, Visit layout, Store Check Visit Record Page]
     cause: |
       The iPad builds visit related lists from the layout. Without the Quotes
@@ -2343,6 +2392,7 @@ causes:
       - "discoverProductsContext (Variable) - \"apexClass\" is invalid"
       - "Provide the API name of an Apex class that includes an Apex data type supported in flows"
       - "discoverProductsContext.groupId does not exist"
+      - "Browse Catalog flow copy won't save: apexClass is invalid"
     keywords: [BrowseCatalog, Save As New Flow, ProductConfig, DiscoverProductsContext, enableProductConfigurator, ProductConfigurator settings, Flow Builder]
     cause: |
       The packaged Browse Catalog template uses ProductConfig Apex types. On
@@ -2359,6 +2409,7 @@ causes:
     symptoms:
       - "Order Management card shows Purchase required"
       - "Order Management card shows Contact Sales instead of Set Up"
+      - "Setup stops: \"Order Management License Not Provisioned\" (and asks whether CPQ is needed)"
     keywords: [Order Management, feature card, Purchase required, Contact Sales, permission set licence, PSL, provisioning]
     cause: |
       The Order Management permission set licences are not provisioned on the
@@ -2413,6 +2464,7 @@ causes:
     module: order-management
     symptoms:
       - "Translation Language Settings for the required languages or the initial metadata cache are missing"
+      - "no StoreCheckFeature developer names found"
     keywords: [Log a Visit, ProviderVisit, Translation Workbench, translation language, enableTranslationWorkbench, metadata cache]
     cause: |
       Web Log a Visit reads a translation file from the rep's metadata cache.
