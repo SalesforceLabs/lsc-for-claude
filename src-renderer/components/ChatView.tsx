@@ -14,14 +14,14 @@ import { rozTileSrc, useAppIcon } from "../app-icon";
 import Spinner from "./ui/Spinner";
 import { useMermaidSvg } from "../mermaid";
 import { useSmoothText } from "../hooks/useSmoothText";
-import { openMermaidFence, replyActivity, summarizeTools, toolDetail, toolLabel, type Activity } from "../chat-activity";
+import { bareName, openMermaidFence, replyActivity, summarizeTools, toolDetail, toolLabel, type Activity } from "../chat-activity";
 import { hostOf, KIND_LABEL, type SessionOrgView } from "../orgs";
 import type { StudioRequest } from "../studio-request";
 import { useApprovals } from "../hooks/useApprovals";
 import { ChatCardsProvider, type ChatCardsEnv } from "./chat-cards/ChatCardsContext";
 import ToolCards from "./chat-cards/ToolCards";
 import ComposerTrayPill from "./chat-cards/ComposerTrayPill";
-import { cardFor, cardHidesStep } from "./chat-cards/card-logic";
+import { ASK_USER, cardFor, cardHidesStep, choiceAnswers } from "./chat-cards/card-logic";
 
 /** Lucide defaults for icons in chat chrome. */
 const ICON = { size: 14, strokeWidth: 1.9, "aria-hidden": true } as const;
@@ -199,7 +199,9 @@ function groupBlocks(blocks: ContentBlock[]): BlockGroup[] {
       groups.push({ type: "text", text: block.text });
     } else {
       const last = groups[groups.length - 1];
-      if (last && last.type === "tools") {
+      // A question (ask_user) is a card of its own, never folded into a group of steps.
+      const question = (t: ToolCall) => bareName(t.name) === ASK_USER;
+      if (last && last.type === "tools" && !question(block.tool) && !question(last.tools[0])) {
         last.tools.push(block.tool);
       } else {
         groups.push({ type: "tools", tools: [block.tool] });
@@ -1372,9 +1374,10 @@ export default function ChatView({
     </div>
   );
 
+  const answers = useMemo(() => choiceAnswers(messages), [messages]);
   const cardsEnv = useMemo<ChatCardsEnv>(
-    () => ({ convId: conversationId, org: org ?? null, isStreaming, approvals, respond, onSend, onOpenStudio }),
-    [conversationId, org, isStreaming, approvals, respond, onSend, onOpenStudio]
+    () => ({ convId: conversationId, org: org ?? null, isStreaming, approvals, respond, onSend, onOpenStudio, choiceAnswers: answers }),
+    [conversationId, org, isStreaming, approvals, respond, onSend, onOpenStudio, answers]
   );
 
   if (messages.length === 0) {

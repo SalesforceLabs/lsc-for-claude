@@ -11,6 +11,8 @@ interface ToolPhrase {
 }
 
 const PHRASES: Record<string, ToolPhrase> = {
+  read_skill: { running: "Reading a guide", done: "Read a guide" },
+  ask_user: { running: "Writing a question", done: "Asked you to pick" },
   search_lsc_knowledge: { running: "Searching the knowledge base", done: "Searched the knowledge base" },
   list_lsc_modules: { running: "Listing LSC modules", done: "Listed LSC modules" },
   get_lsc_module_docs: { running: "Reading module docs", done: "Read module docs" },

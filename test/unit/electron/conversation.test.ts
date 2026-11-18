@@ -41,7 +41,13 @@ function callbacks() {
   };
 }
 
-const promptBuilder = { buildSystemPrompt: () => "sys", getCommandContent: () => null } as never;
+const readSkillTool = { name: "read_skill", description: "", input_schema: {} };
+const promptBuilder = {
+  buildSystemPrompt: () => "sys",
+  getCommandContent: () => null,
+  readSkillTool: () => readSkillTool,
+  readGuide: (name: string) => (name === "lsc-visit-management" ? "VISIT GUIDE" : null),
+} as never;
 
 /** What providers require: every tool_use answered by the very next (user) message. */
 function expectValidHistory(messages: Message[]) {
@@ -161,5 +167,74 @@ describe("ConversationEngine per-message tool limits", () => {
 
     await engine.sendMessage("check Carmen", callbacks());
     expect(mcp.callTool).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("ConversationEngine read_skill", () => {
+  const skillCall = (name: string): Message => ({
+    role: "assistant",
+    content: [{ type: "tool_use", id: "s", name: "read_skill", input: { name } } as ContentBlock],
+  });
+
+  it("offers the tool and answers it from disk, without the MCP server or the write gate", async () => {
+    const { llm, seen } = fakeLlm([skillCall("lsc-visit-management"), text("ok")]);
+    const gateTool = vi.fn(async () => null);
+    const mcp = { getTools: () => [], callTool: vi.fn() };
+    const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder, null, { gateTool: gateTool as never });
+    engine.initialize();
+    await engine.sendMessage("visits?", callbacks());
+
+    expect((llm.chat.mock.calls[0] as unknown[])[2]).toContainEqual(readSkillTool);
+    expect(mcp.callTool).not.toHaveBeenCalled();
+    expect(gateTool).not.toHaveBeenCalled();
+    expect((seen[1][2].content as ContentBlock[])[0]).toMatchObject({ tool_use_id: "s", content: "VISIT GUIDE", is_error: false });
+  });
+
+  it("answers an unknown name with an error the model can recover from", async () => {
+    const { llm, seen } = fakeLlm([skillCall("nope"), text("ok")]);
+    const mcp = { getTools: () => [], callTool: vi.fn() };
+    const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder);
+    engine.initialize();
+    await engine.sendMessage("hi", callbacks());
+    expect((seen[1][2].content as ContentBlock[])[0]).toMatchObject({ is_error: true });
+  });
+});
+
+describe("ConversationEngine ask_user", () => {
+  const ask = (input: unknown): Message => ({
+    role: "assistant",
+    content: [{ type: "tool_use", id: "q", name: "ask_user", input } as ContentBlock],
+  });
+
+  it("offers the tool, answers it without the server or the gate, and ends the turn", async () => {
+    const { llm, seen } = fakeLlm([ask({ question: "Which one?", options: [{ label: "A" }, { label: "B" }] }), text("ok")]);
+    const gateTool = vi.fn(async () => null);
+    const mcp = { getTools: () => [], callTool: vi.fn() };
+    const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder, null, { gateTool: gateTool as never });
+    engine.initialize();
+    const cb = callbacks();
+    await engine.sendMessage("distribute a deck", cb);
+
+    expect((llm.chat.mock.calls[0] as unknown[])[2]).toContainEqual(expect.objectContaining({ name: "ask_user" }));
+    expect(llm.chat).toHaveBeenCalledTimes(1); // no second round: the turn waits for the user
+    expect(mcp.callTool).not.toHaveBeenCalled();
+    expect(gateTool).not.toHaveBeenCalled();
+    expect(cb.onComplete).toHaveBeenCalled();
+    expectValidHistory(engine.getMessages());
+
+    // The pick arrives as the next message and the model carries on.
+    await engine.sendMessage("A", callbacks());
+    expect(seen[1].at(-1)).toEqual({ role: "user", content: "A" });
+    expectValidHistory(seen[1]);
+  });
+
+  it("sends a malformed question back as an error and keeps going", async () => {
+    const { llm, seen } = fakeLlm([ask({ question: "Which one?", options: ["only"] }), text("ok")]);
+    const mcp = { getTools: () => [], callTool: vi.fn() };
+    const engine = new ConversationEngine(llm as never, mcp as never, promptBuilder);
+    engine.initialize();
+    await engine.sendMessage("hi", callbacks());
+    expect(llm.chat).toHaveBeenCalledTimes(2);
+    expect((seen[1][2].content as ContentBlock[])[0]).toMatchObject({ is_error: true });
   });
 });

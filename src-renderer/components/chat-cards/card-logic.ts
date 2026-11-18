@@ -24,10 +24,30 @@ export type ChatCard =
   | { kind: "user-check"; trace: UserCheckTrace }
   | { kind: "user-matches"; matches: UserMatch[]; message?: string }
   | { kind: "queued"; labels: string[]; message?: string }
+  | { kind: "choice"; question: string; options: ChoiceOption[] }
   | { kind: "loading"; title: string }
   | { kind: "failed"; title: string; message: string };
 
-type CardTool = Pick<ToolCall, "name" | "status" | "result">;
+export interface ChoiceOption {
+  label: string;
+  detail?: string;
+}
+
+type CardTool = Pick<ToolCall, "name" | "status" | "result" | "input">;
+
+/** The engine's own question tool (`src-electron/engine/ask-user.ts`): its options are drawn as buttons. */
+export const ASK_USER = "ask_user";
+
+/** `ask_user`'s question and options, or null until the call is complete and well formed. */
+export function parseChoice(input: Record<string, unknown> | undefined): { question: string; options: ChoiceOption[] } | null {
+  const question = typeof input?.question === "string" ? input.question.trim() : "";
+  const options = (Array.isArray(input?.options) ? input.options : []).flatMap((o) => {
+    const v = (typeof o === "string" ? { label: o } : o) as { label?: unknown; detail?: unknown } | null;
+    const label = typeof v?.label === "string" ? v.label.trim() : "";
+    return label ? [{ label, detail: typeof v?.detail === "string" && v.detail.trim() ? v.detail.trim() : undefined }] : [];
+  });
+  return question && options.length >= 2 ? { question, options } : null;
+}
 
 const DIAGNOSE = "diagnose_lsc_issue";
 const USER_CHECK = "check_user_access";
@@ -125,6 +145,11 @@ const RUNNING = (status: ToolCall["status"]) => status === "pending" || status =
 /** The card for a tool call, or null when it stays an ordinary step row. */
 export function cardFor(tool: CardTool): ChatCard | null {
   const name = bareName(tool.name);
+  if (name === ASK_USER) {
+    if (tool.status !== "success") return null;
+    const choice = parseChoice(tool.input);
+    return choice ? { kind: "choice", ...choice } : null;
+  }
   if (name === DIAGNOSE || name === USER_CHECK) {
     const diagnose = name === DIAGNOSE;
     if (RUNNING(tool.status)) return { kind: "loading", title: diagnose ? "Matching known causes…" : "Checking the user…" };
@@ -154,12 +179,28 @@ export function cardFor(tool: CardTool): ChatCard | null {
 
 /** Whether the step row above the card should go: only when it would contradict the card ("Matched…" over "No known cause matched"). */
 export function cardHidesStep(card: ChatCard | null): boolean {
-  return card?.kind === "diagnosis" && card.result.items.length === 0;
+  return (card?.kind === "diagnosis" && card.result.items.length === 0) || card?.kind === "choice";
 }
 
 /** The message that picks one of several matching users: sent as the user's next turn. */
 export function pickUserMessage(match: UserMatch): string {
   return `I mean ${match.name}${match.username ? ` (${match.username})` : ""}.`;
+}
+
+/**
+ * What the user answered to each `ask_user` in the conversation: the text of the message after the
+ * reply that asked. A question with no message after it is still open (not in the map).
+ */
+export function choiceAnswers(messages: Array<{ role: string; text?: string; blocks?: Array<{ type: string; tool?: { id: string; name: string } }> }>): Map<string, string> {
+  const answers = new Map<string, string>();
+  messages.forEach((m, i) => {
+    const next = messages[i + 1];
+    if (m.role !== "assistant" || !next || next.role !== "user") return;
+    for (const b of m.blocks ?? []) {
+      if (b.type === "tool" && b.tool && bareName(b.tool.name) === ASK_USER) answers.set(b.tool.id, (next.text ?? "").trim());
+    }
+  });
+  return answers;
 }
 
 /** "Waiting in Studio: Activate X, Give Y" — plain text for the queued card. */
