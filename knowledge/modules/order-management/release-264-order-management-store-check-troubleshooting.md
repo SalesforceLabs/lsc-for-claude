@@ -8,7 +8,7 @@ Symptom-first index for setup problems with Store Check and Order Management (qu
 2. **Currencies differ.** The quote takes the rep's `User.DefaultCurrencyIsoCode`, not the store Account's. If the rep, store and price book currencies are not equal, Select Price Book and Add Products show nothing (G12, FP-4.8).
 3. **The four pricing selectors don't agree** (FP-10.3): (1) Revenue Settings `QocalPricingProcedure` (7.17); (2) the profile-scoped `OrderProductViewsSettings.PricingProcedure`, which wins for the rep (8.10); (3) the org-level `OrderProductViewsSettings_OrgLevel.PricingProcedure` fallback (8.10b); (4) `QuoteSettings_OrgLevel`, which binds the Quote record type to `lsc4ce_pricing_mobile_tpt` (8.14). Any one missing gives no error, just empty `contextDefinition.json`/`decisionTable.json`/`expressionSet.json` in the cache or the wrong procedure.
 4. **A DbSchema pair is half profile-scoped.** `Pricebook2`/`PricebookEntry` and `Quote`/`QuoteLineItem` must be deployed and assigned to the rep profile together (FP-10.4).
-5. **Field-level security on `Quote.Status`.** The rep needs Edit, even though the layout keeps it read-only. Without it Submit is missing and new quotes save with no Status (FP-8.10, FP-14.1, G3).
+5. **Field-level security on `Quote.Status`.** In these runs Submit was missing and new quotes saved with no Status while the rep's FLS had Status read-only; Edit in FLS with Status read-only on the layout worked (FP-8.10, FP-14.1, G3). Salesforce Help is not consistent here: "Restrict the Quote Status Field for Field Reps" uses the layout, while "Get Your Org Ready for Quote and Pricing Users" lists Quote Status as a field reps can't edit.
 6. **It is a known limitation, not configuration.** Check the [known limitations](#known-limitations-not-fixable-by-configuration) before changing the org.
 
 ## Package install and org settings
@@ -77,7 +77,7 @@ Symptom-first index for setup problems with Store Check and Order Management (qu
 | Stage path shows 2 of 5 stages | `Quote.Status` value set lacks `Submitted` and `Request for Unlock` | Deploy the `StandardValueSet` with the missing values, then order the stages | FP-8.12 (8.16) |
 | Submit never changes the stage server-side | `StagePathPermissionsHandler` is inactive by default | Activate it (Tooling PATCH `IsActive=true` on `LifeScienceTriggerHandler`, or Admin Console) | FP-8.13, FP-14.2 (8.17) |
 | `The prices aren't up to date or the validation isn't complete.` | `Quote.CalculationStatus` stale | Reprice All before Submit | FP-8.17 |
-| Submit missing from the Actions menu | `Quote.Status` FLS lacks Edit on the rep permission set | Grant Edit, regenerate the cache | FP-8.10, FP-14.1 |
+| Submit missing from the Actions menu | `Quote.Status` read-only in the rep's FLS (see First checks #5) | Try Edit in FLS with the layout field read-only, regenerate the cache | FP-8.10, FP-14.1 |
 | Quote routes to the wrong Sales Transaction Type | The hook picks the STT by procedure with `LIMIT 1` | Keep one STT per pricing procedure | FP-8.8 |
 | Add Products opens with Price Book = None and the search lists nothing | The rep profile has no `Pricebook2` layout assignment | Add `Pricebook2-Price Book Layout` to the rep profile | FP-8.34 (8.3) |
 | Raw `@@@SFDC…@@@` section headers on the Quote page | Token labels in the Quote FlexiPage | Redeploy with plain-text labels, regenerate, sync | FP-8.30, FP-13.4 (8.9) |
@@ -130,7 +130,7 @@ Store Check data must exist in this order: stores (Account), products, Assortmen
 | Symptom / exact error | Cause | Fix | Step |
 |---|---|---|---|
 | `Workflow_XIsLockedAndCannotBeCreated` on New Quote Save | iOS client never seeds `Status` (client defect) | Create the quote on web with the Visit, continue on the iPad; report to Support | G4, FP-13.1 |
-| New quote saves with no Status | `Quote.Status` FLS lacks Edit | Grant Edit, regenerate, retry once | G3 |
+| New quote saves with no Status | `Quote.Status` read-only in the rep's FLS (see First checks #5) | Try Edit in FLS with the layout field read-only, regenerate, retry once | G3 |
 | No price books or products; quote in the wrong currency | Quote currency comes from the rep, not the store | Align rep, store and price book currencies; create a new quote | G12, FP-4.8 |
 | Products missing on Add Products | No `ProductTerrDtlAvailability` with Purpose = Quote | See [setup runbook](./release-264-order-management-setup-runbook.md#products-missing-on-the-ipad-add-products-screen-quoted-orders) | — |
 | `Review submission failed. Please try again.` / `You can't update Quote ... at this stage of the workflow` | Submit tapped twice; the server is exactly-once | Never re-tap Submit; read `Quote.Status` first | G1, FP-14.3, FP-8.28 |

@@ -1851,30 +1851,36 @@ causes:
   # ===========================================================================
 
   - id: om-quote-status-fls-not-edit
-    title: Rep has no Edit on Quote.Status, so Submit is missing and new quotes save with no Status
+    title: Submit is missing for the rep and new quotes save with no Status while Quote.Status is read-only in field-level security
     module: order-management
     symptoms:
       - "Submit action missing from the Quote Actions menu"
       - "New quote saves with a blank Status on the iPad"
     keywords: [Quote.Status, FLS, Submit, RecordUpdate, field-level security]
     cause: |
-      Submit runs a RecordUpdate on Quote.Status. With Status read-only in the
-      rep's field-level security the action is hidden and new quotes can save
-      with no Status, even though the layout correctly keeps Status read-only.
+      Submit runs a RecordUpdate on Quote.Status. In setup runs, the action was
+      hidden and new quotes saved with no Status while the rep's field-level
+      security had Status read-only. It worked with Edit in field-level security
+      and Status read-only on the page layout. Salesforce Help is not consistent
+      here: "Restrict the Quote Status Field for Field Reps" makes Status
+      read-only on the page layout, while "Get Your Org Ready for Quote and
+      Pricing Users" lists Quote Status among the fields reps can see but not
+      edit.
     fix:
-      - "Grant Edit on Quote.Status in the rep permission set. Keep the layout field read-only."
+      - "Check the rep's field-level security on Quote.Status (profile and permission sets)."
+      - "If it is read-only, try Edit in field-level security and keep Status read-only on the page layout, so reps still change it only through the workflow actions."
       - "Generate a new mobile metadata cache, then sync and close and reopen the app."
-
   - id: om-quote-currency-from-rep
-    title: Quote takes the rep's currency, not the store's, so price books and products are hidden
+    title: Quote currency differs from the price book's, so price books and products are hidden
     module: order-management
     symptoms:
       - "No price books offered when creating a quote for a store"
       - "Quote saved in the wrong currency"
     keywords: [CurrencyIsoCode, DefaultCurrencyIsoCode, multi-currency, price book, Select Price Book]
     cause: |
-      A new quote takes User.DefaultCurrencyIsoCode from the rep, not the store
-      Account's currency. When they differ, no price book entries match and the
+      When the rep doesn't pick a currency, a new quote takes the currency of the
+      rep's user record, which can differ from the store Account's. The catalog
+      only shows products with price book entries in the quote's currency, so the
       price book and product pickers come up empty on web and iPad.
     fix:
       - "Compare Quote.CurrencyIsoCode, Account.CurrencyIsoCode and the rep's User.DefaultCurrencyIsoCode."
@@ -1882,26 +1888,26 @@ causes:
       - "Leave existing quotes; create a new quote."
 
   - id: om-pricing-selectors-disagree
-    title: The four pricing procedure selectors don't name the same procedure, so mobile pricing files are empty
+    title: Quotes don't use the Life Sciences Commercial pricing procedure, so mobile pricing files are empty
     module: order-management
     symptoms:
       - "expressionSet.json is empty in the metadata cache"
       - "contextDefinition.json decisionTable.json empty {} after generation"
       - "iPad shows no prices on quote lines"
-    keywords: [QocalPricingProcedure, OrderProductViewsSettings, OrderProductViewsSettings_OrgLevel, QuoteSettings_OrgLevel, lsc4ce_pricing_mobile_tpt, pricing procedure, TransactionProcessingType]
+    keywords: [SalesTransactionType, QocalPricingProcedure, OrderProductViewsSettings, OrderProductViewsSettings_OrgLevel, QuoteSettings_OrgLevel, lsc4ce_pricing_mobile_tpt, pricing procedure]
     cause: |
-      Mobile pricing needs four selectors on one procedure: Revenue Settings
-      QocalPricingProcedure, the profile-scoped OrderProductViewsSettings
-      PricingProcedure (wins for the rep), the org-level
-      OrderProductViewsSettings_OrgLevel fallback, and QuoteSettings_OrgLevel
-      binding the Quote record type to lsc4ce_pricing_mobile_tpt. Any one missing
-      gives no error, only empty pricing files or the wrong procedure.
+      The procedure a quote uses comes from its Sales Transaction Type when that
+      names one; otherwise from the Admin Console OrderProductViewsSettings
+      record (the rep's profile record, else the org-level one). The iPad can
+      only run an active procedure of the Life Sciences Commercial subtype.
+      When the procedure that applies to the rep is another one, or a selector
+      is empty, generation gives no error, only empty pricing files. Different
+      profiles may use different procedures on purpose.
     fix:
-      - "Set all four selectors to the same active pricing procedure."
-      - "Generate a new metadata cache parent record and check the pricing files are not {}."
-      - "Sync and relaunch the app."
+      - "Find the procedure that applies to the rep: the quote's Sales Transaction Type first, then the rep's profile OrderProductViewsSettings record, then the org-level one."
+      - "Make it an active Life Sciences Commercial procedure, and check Revenue Settings and QuoteSettings_OrgLevel (bound to lsc4ce_pricing_mobile_tpt) are set."
+      - "Generate a new metadata cache parent record and check the pricing files are not {}. Sync and relaunch the app."
     ui_path: "Admin Console > Orders and Pricing Settings; Setup > Revenue Settings"
-
   - id: om-dbschema-pair-half-scoped
     title: A DB Schema pair is assigned to the rep profile on one side only
     module: order-management
@@ -1917,6 +1923,14 @@ causes:
       - "Assign both DB Schema records of each pair to the rep profile."
       - "Regenerate the metadata cache, sync and relaunch."
     ui_path: "Admin Console > Mobile > Object Metadata Cache Configuration"
+    check:
+      type: tooling_soql
+      query: >
+        SELECT AssignedToId, COUNT(Id) c FROM LifeSciConfigAssignment
+        WHERE LifeSciConfigRecord.DeveloperName IN ('DbSchema_Quote', 'DbSchema_QuoteLineItem', 'DbSchema_Pricebook2', 'DbSchema_PricebookEntry')
+        GROUP BY AssignedToId HAVING COUNT(Id) < 4
+      expect: "records.length == 0"
+    check_scope: "Finds profiles assigned some of the four standard records but not all. It misses profiles assigned none of them, and records with other names."
 
   - id: om-pricing-rounding-step-mobile
     title: Pricing procedure has a rounding step the iPad engine can't run
@@ -1934,19 +1948,24 @@ causes:
       - "Regenerate the metadata cache and sync."
 
   - id: om-tier-effective-dates-empty
-    title: Price adjustment schedules or tiers have no effective dates, so the iPad ignores tiers
+    title: An active price adjustment schedule has no EffectiveFrom, so the iPad ignores its tiers
     module: order-management
     symptoms:
       - "iPad charges list price at tier quantities"
       - "Tier discount works in web simulation but not on the iPad"
     keywords: [PriceAdjustmentSchedule, PriceAdjustmentTier, EffectiveFrom, EffectiveTo, volume discount]
     cause: |
-      The iPad engine skips PriceAdjustmentSchedule and PriceAdjustmentTier rows
-      with empty EffectiveFrom/EffectiveTo. The server simulation doesn't.
+      The iPad engine skips price adjustment schedules and tiers with no
+      EffectiveFrom. The server simulation doesn't, so tiers work on web and the
+      iPad charges list price. An empty EffectiveTo is normal (no end date).
     fix:
-      - "Set EffectiveFrom and EffectiveTo on the schedules, then on the tiers."
+      - "Set EffectiveFrom on the schedule, then on its tiers."
       - "Refresh the decision tables, regenerate the metadata cache and sync."
-
+    check:
+      type: soql_count
+      query: "SELECT COUNT() FROM PriceAdjustmentSchedule WHERE IsActive = true AND EffectiveFrom = null"
+      expect: "count == 0"
+    check_scope: "Checks active schedules only, not their tiers."
   - id: om-header-adjustments-off
     title: Header Adjustments is off, so the iPad cart has no Order Discount
     module: order-management
@@ -1975,6 +1994,20 @@ causes:
     fix:
       - "Create the recipe with the ListPrice, VolumeDiscount and VolumeTierDiscount table mappings."
       - "Save the pricing procedure again."
+    check:
+      type: composite
+      expect: "true"
+      checks:
+        - type: soql_count
+          query: "SELECT COUNT() FROM PricingRecipeTableMapping WHERE PricingRecipe.PricingUsageSubType = 'LifeSciencesCommercial' AND PricingRecipe.IsActive = true AND PricingComponentType = 'ListPrice'"
+          expect: "count > 0"
+        - type: soql_count
+          query: "SELECT COUNT() FROM PricingRecipeTableMapping WHERE PricingRecipe.PricingUsageSubType = 'LifeSciencesCommercial' AND PricingRecipe.IsActive = true AND PricingComponentType = 'VolumeDiscount'"
+          expect: "count > 0"
+        - type: soql_count
+          query: "SELECT COUNT() FROM PricingRecipeTableMapping WHERE PricingRecipe.PricingUsageSubType = 'LifeSciencesCommercial' AND PricingRecipe.IsActive = true AND PricingComponentType = 'VolumeTierDiscount'"
+          expect: "count > 0"
+    check_scope: "Checks that an active Life Sciences Commercial recipe maps each of the three tables. It doesn't check that the mapped tables are the ones the procedure uses."
 
   - id: om-procedure-version-rank
     title: Pricing procedure version has no Rank
@@ -1983,11 +2016,11 @@ causes:
       - "Enter a valid rank to enable"
     keywords: [ExpressionSetVersion, Rank, activate, pricing procedure]
     cause: |
-      Activating a procedure version validates Rank; null or 0 is rejected even
-      for the only version.
+      The pricing procedure editor asks for a Rank before it saves and
+      activates a version, even when it is the only version. Versions activated
+      earlier or another way can still have no Rank.
     fix:
-      - "Set Rank to 1 on the ExpressionSetVersion, then activate."
-
+      - "Set Rank to 1 on the version, then activate it."
   - id: om-standard-price-first
     title: Custom price book entry created before the standard price
     module: order-management
@@ -2014,6 +2047,10 @@ causes:
     fix:
       - "Activate StagePathPermissionsHandler in Admin Console > Trigger Handlers."
     ui_path: "Admin Console > Trigger Handlers"
+    check:
+      type: tooling_soql_count
+      query: "SELECT COUNT() FROM LifeScienceTriggerHandler WHERE DeveloperName = 'StagePathPermissionsHandler' AND IsActive = true"
+      expect: "count > 0"
 
   - id: om-quote-status-values-missing
     title: Quote.Status value set lacks Submitted and Request for Unlock
@@ -2059,20 +2096,6 @@ causes:
       - "Set the rep profile Session Security Level to Standard and turn off Query Non Vetoed Files."
       - "Test on the next signed Submit. Don't regenerate, re-publish or delete the stuck QuoteDocument without the customer's agreement."
 
-  - id: om-ios-new-quote-workflow-lock
-    title: iPad New Quote save fails because the client doesn't seed Status
-    module: order-management
-    symptoms:
-      - "Workflow_XIsLockedAndCannotBeCreated"
-    keywords: [Quote, Status, Generic Workflow, iOS, New Quote]
-    cause: |
-      An iPad client defect: the new quote has no local Status, so the generic
-      workflow fails closed. Configuration can't fix it once Quote.Status FLS is
-      Edit.
-    fix:
-      - "Check the rep has Edit on Quote.Status and the cache is current."
-      - "If it persists, create the quote on web with the Visit and continue on the iPad, and report it to Salesforce Support."
-
   - id: om-submit-tapped-twice
     title: Submit was tapped twice; the server accepted the first
     module: order-management
@@ -2099,6 +2122,14 @@ causes:
     fix:
       - "Set the rep's Manager and activate the lock and unlock approval flow."
       - "Check Quote.Status before the rep requests unlock again."
+    check:
+      type: soql
+      query: >
+        SELECT Id, Name FROM User
+        WHERE IsActive = true AND ManagerId = null
+        AND Id IN (SELECT OwnerId FROM Quote WHERE CreatedDate = LAST_N_DAYS:365)
+      expect: "records.length == 0"
+    check_scope: "Checks owners of quotes created in the last year. It doesn't check that the approval flow is active."
 
   - id: om-unlock-approver-no-territory
     title: Approver has no active territory
@@ -2154,6 +2185,7 @@ causes:
       - "no LifeSciConfigCategory named"
     keywords: [LifeSciConfigCategory, LifeSciConfigRecord, QuoteDocumentSettings, OrderProductViewsSettings, QuoteSettings]
     cause: |
+      Seen when setup is scripted through the API or CLI.
       A LifeSciConfigRecord deploy fails until its category exists.
       QuoteDocumentSettings can only be configured in the Admin Console.
     fix:
@@ -2166,7 +2198,7 @@ causes:
     symptoms:
       - "Unsupported action type: CREATE_SERVICE_DOCUMENT"
     keywords: [DocumentBuilderUserPsl, DocumentBuilderUser, Generate Quote Flow, deploy]
-    cause: The admin deploying the quote document flow needs Document Builder too.
+    cause: Seen when setup is scripted through the API or CLI. The admin deploying the quote document flow needs Document Builder too.
     fix:
       - "Assign the Document Builder User licence and permission set to the admin, then redeploy."
 
@@ -2176,7 +2208,7 @@ causes:
     symptoms:
       - "isn't ValidationCompleted"
     keywords: [metadata cache, generate, parent record, Active]
-    cause: Generate needs a parent record in ValidationCompleted; an Active parent can't be regenerated.
+    cause: Seen when setup is scripted through the API or CLI. Generate needs a parent record in ValidationCompleted; an Active parent can't be regenerated.
     fix:
       - "Create a new parent record and generate from it."
 
@@ -2198,18 +2230,25 @@ causes:
       - "Confirm the object describes, then retry the install once."
 
   - id: sc-action-plan-template-multiple-versions
-    title: Store Check action plan template has more than one version
+    title: An action plan template the rep can read has more than one version, so Begin Store Check or the first sync fails
     module: order-management
     symptoms:
       - "Begin Store Check fails: more than one row returned by a subquery"
-    keywords: [ActionPlanTemplate, ActionPlanTemplateVersion, Begin Store Check, Store Check]
+      - "Rep's first iPad sync fails with UNKNOWN_EXCEPTION"
+      - "Error while trying to access Salesforce"
+    keywords: [ActionPlanTemplate, ActionPlanTemplateVersion, Begin Store Check, Store Check, first sync, sharing rule, UserRecordAccess]
     cause: |
-      Status is computed over all ActionPlanTemplateVersion rows, including
-      soft-deleted ones. Two versions break the query. No API removes the extra.
+      In setup runs, a template the rep can read with more than one
+      ActionPlanTemplateVersion (including soft-deleted ones, or one that came
+      with the org and is shared to all internal users) broke the template
+      query, at Begin Store Check or at the rep's first sync. Deleting or
+      purging the extra version didn't help. A second version is the normal way
+      to change a published template, so this may apply only to some versions
+      or statuses.
     fix:
-      - "Remove the template's assignment."
-      - "Create a new template with a new unique name, publish it, assign it and share it."
-
+      - "Before the rep's first login, check which templates the rep can read have more than one version."
+      - "For the Store Check template: remove its assignment, create a new template with a new unique name, publish, assign and share it."
+      - "For other templates: ask before changing sharing, then hide the template from the rep (move it to an owner outside the shared-from group, or narrow the sharing rule)."
   - id: sc-indicator-datatype-create-only
     title: Assessment indicator data type can't be changed
     module: order-management
@@ -2234,6 +2273,18 @@ causes:
     fix:
       - "Remove the Visit New/Edit override."
       - "Add the missing routing records for the record type."
+    check:
+      type: tooling_soql_count
+      query: >
+        SELECT COUNT() FROM LifeSciConfigRecord
+        WHERE IsActive = true AND LifeSciConfigCategory.DeveloperName = 'ObjectRecordTypeRoutingConfiguration'
+        AND Id IN (SELECT LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE FieldName = 'RecordType' AND PicklistValue = 'StoreCheck')
+      expect: "count > 0"
+    applies_if:
+      type: soql_count
+      query: "SELECT COUNT() FROM RecordType WHERE SobjectType = 'Visit' AND DeveloperName = 'StoreCheck' AND IsActive = true"
+      expect: "count > 0"
+    check_scope: "Looks for an active routing record for the StoreCheck record type. It doesn't check New and Edit separately, or a Visit New/Edit override."
 
   - id: sc-quoted-order-tab-missing
     title: Quoted Order tab on the Store Check visit is missing or empty
@@ -2324,6 +2375,7 @@ causes:
       - "editing a stage, operation or action in Workflow Paths fails"
     keywords: [Workflow Paths, Admin Console, LifeSciStageObject, LifeSciStagePath, LifeSciStageValue, LifeSciStageOperation, LifeSciStageAction, SourceSystemIdentifier]
     cause: |
+      Seen when setup is scripted through the API or CLI.
       The editor loads a path and links its records by SourceSystemIdentifier.
       Stage rows created through the API without that key can't be found or
       matched, so the editor falls back to another path's rows.
@@ -2346,6 +2398,15 @@ causes:
     fix:
       - "Look up each Quote link key on its own and create only the missing links (DisplayOrder 1, to the existing View Line Items action)."
       - "Generate a new metadata cache and sync."
+    check:
+      type: soql
+      query: >
+        SELECT Id, Name FROM LifeSciStageOperation
+        WHERE LifeSciStageValue.Name IN ('Request for Unlock', 'Rejected')
+        AND LifeSciStageValue.LifeSciStagePath.LifeSciStageObject.Name = 'Quote'
+        AND Id NOT IN (SELECT LifeSciStageOperationId FROM LifeSciStageOperationAction)
+      expect: "records.length == 0"
+    check_scope: "Finds Request for Unlock and Rejected operations with no action at all. An operation linked to another action but not View Line Items passes."
 
   - id: om-log-a-visit-no-translation-language
     title: Web Log a Visit says translation settings are missing after the cache is built
@@ -2362,35 +2423,6 @@ causes:
       - "Confirm the rep has a cache that includes ProviderVisit."
       - "Turn on Translation Workbench and add an active language, then generate a new cache and sync."
 
-  - id: om-first-sync-multi-version-action-plan-template
-    title: Rep's first iPad sync fails with UNKNOWN_EXCEPTION
-    module: order-management
-    symptoms:
-      - "Error while trying to access Salesforce"
-      - "UNKNOWN_EXCEPTION on first sync"
-    keywords: [ActionPlanTemplate, ActionPlanTemplateVersion, first sync, sharing rule, UserRecordAccess, iPad login]
-    cause: |
-      An action plan template the rep can read has more than one
-      ActionPlanTemplateVersion, usually one that came with the org and is shared
-      to all internal users by an owner sharing rule. The template sync query
-      errors on it. Deleting or purging the extra version doesn't help.
-    fix:
-      - "Before the rep's first login, check that no template the rep can read has more than one version."
-      - "Ask before changing sharing. Hide the template from the rep: move it to an owner outside the shared-from group of the owner sharing rule, or replace that rule with one that shares from a narrower group."
-
-  - id: om-duplicate-signature-or-document
-    title: More than one signature or quote document for one quote
-    module: order-management
-    symptoms:
-      - "two QuoteDocument records for one quote"
-      - "duplicate DigitalSignature"
-      - "duplicate DocumentRecipient"
-    keywords: [DigitalSignature, QuoteDocument, DocumentRecipient, Submit Order, Generate PDF, retry]
-    cause: Submit or Generate PDF ran twice (a retried tap, or a resend after a timeout).
-    fix:
-      - "Report the counts and Ids; don't delete anything."
-      - "The customer decides which document to keep. Tap Generate PDF only once."
-
   - id: om-manual-share-trivial-level
     title: Manual Read share on catalog or territory availability is rejected
     module: order-management
@@ -2398,6 +2430,7 @@ causes:
       - "FIELD_INTEGRITY_EXCEPTION trivial share level Read, for organization with default level Read"
     keywords: [ProductCatalogShare, ProductTerritoryAvailabilityShare, ProductTerrDtlAvailabilityShare, InternalSharingModel, org-wide default, Manual share]
     cause: |
+      Seen when setup is scripted through the API or CLI.
       The object's org-wide default is already Read or higher, so a Manual Read
       share can't exist and isn't needed.
     fix:
