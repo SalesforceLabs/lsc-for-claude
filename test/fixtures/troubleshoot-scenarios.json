@@ -1,0 +1,748 @@
+{
+  "_about": "What admins and reps type when stuck in Store Check or Order Management setup. 'matches': the first result must be one of these causes. 'silent': no known cause or rule covers it yet, so nothing may match.",
+  "matches": [
+    {
+      "says": "The Order Management card in Salesforce Go says Purchase required",
+      "expect": ["om-feature-card-purchase-required"]
+    },
+    {
+      "says": "Setup stops: \"Order Management License Not Provisioned\" (and asks whether CPQ is needed)",
+      "expect": ["om-feature-card-purchase-required"]
+    },
+    {
+      "says": "Package install fails with no CustomObject named InventoryCountAssessment found",
+      "expect": ["om-install-missing-org-preferences"]
+    },
+    {
+      "says": "Install fails on AccountPlan layout or Import Stakeholder action",
+      "expect": ["om-install-missing-org-preferences"]
+    },
+    {
+      "says": "Add Products opens with Price Book = None and nothing in the search",
+      "expect": ["om-pricebook-layout-assignment"]
+    },
+    {
+      "says": "No price books or products show, and the quote is in the wrong currency",
+      "expect": ["om-quote-currency-from-rep"]
+    },
+    {
+      "says": "New quote has the wrong currency, not my account's",
+      "expect": ["om-quote-currency-from-rep"]
+    },
+    {
+      "says": "Rep sees only some products when adding to a quote",
+      "expect": ["om-quote-currency-from-rep"]
+    },
+    {
+      "says": "Creating a price for a product fails: create a standard price first",
+      "expect": ["om-standard-price-first"]
+    },
+    {
+      "says": "Sharing the catalog with the rep fails: trivial share level Read",
+      "expect": ["om-manual-share-trivial-level"]
+    },
+    {
+      "says": "The price book list doesn't show the price book I expect",
+      "expect": ["om-quote-currency-from-rep"]
+    },
+    {
+      "says": "Ensure that the lookup table in the ListPrice step is valid",
+      "expect": ["om-recipe-mapping-missing"]
+    },
+    {
+      "says": "I can't activate the pricing procedure: enter a valid rank",
+      "expect": ["om-procedure-version-rank"]
+    },
+    {
+      "says": "iPad error Unhandled pricing procedure steps: RoundingValues",
+      "expect": ["om-pricing-rounding-step-mobile"]
+    },
+    {
+      "says": "iPad charges list price for 10 units; web gives the tier price",
+      "expect": ["om-tier-effective-dates-empty"]
+    },
+    {
+      "says": "I changed the price; reps still see the old price on the iPad",
+      "expect": ["cache-stale"]
+    },
+    {
+      "says": "Old tier shown after the admin edited tiers",
+      "expect": ["cache-stale"]
+    },
+    {
+      "says": "iPad prices differ from the web after I edited a price book, procedure or decision table",
+      "expect": ["cache-stale"]
+    },
+    {
+      "says": "No Order Discount in the iPad cart",
+      "expect": ["om-header-adjustments-off"]
+    },
+    {
+      "says": "Price Adjustment Matrix discounts do not apply when the iPad is offline (work on web)",
+      "expect": ["om-tier-effective-dates-empty"]
+    },
+    {
+      "says": "Is Price Adjustment Matrix supported offline?",
+      "expect": ["om-tier-effective-dates-empty"]
+    },
+    {
+      "says": "Header-level discount does not apply, no error",
+      "expect": ["om-header-adjustments-off"]
+    },
+    {
+      "says": "Header discount not distributed",
+      "expect": ["om-header-adjustments-off"]
+    },
+    {
+      "says": "There's no Submit on the quote",
+      "expect": ["om-quote-status-fls-not-edit"]
+    },
+    {
+      "says": "Submit doesn't change the stage",
+      "expect": ["om-stage-path-handler-inactive"]
+    },
+    {
+      "says": "Quote never locks after Submit, no workflow effect at all",
+      "expect": ["om-stage-path-handler-inactive"]
+    },
+    {
+      "says": "The stage path shows only 2 of the 5 stages",
+      "expect": ["om-quote-status-values-missing"]
+    },
+    {
+      "says": "Browse Catalog flow copy won't save: apexClass is invalid",
+      "expect": ["om-browse-catalog-save-as-apexclass-invalid"]
+    },
+    {
+      "says": "Workflow Paths in Admin Console opens the wrong stages",
+      "expect": ["om-workflow-path-editor-wrong-stages"]
+    },
+    {
+      "says": "Admin Console says the category doesn't exist",
+      "expect": ["om-admin-console-category-missing"]
+    },
+    {
+      "says": "Admin Console Product Views has no Last Order",
+      "expect": ["om-last-order-org-permission"]
+    },
+    {
+      "says": "Product Views settings won't save or are greyed out",
+      "expect": ["om-last-order-org-permission"]
+    },
+    {
+      "says": "Deploying the PDF template fails: Unsupported action type CREATE_SERVICE_DOCUMENT",
+      "expect": ["om-admin-no-document-builder"]
+    },
+    {
+      "says": "Nobody can build or change the quote PDF template",
+      "expect": ["om-admin-no-document-builder"]
+    },
+    {
+      "says": "Quote Document Settings save says I can't create LifeSciMetadataCategory",
+      "expect": ["om-admin-no-document-builder"]
+    },
+    {
+      "says": "Request for Unlock buttons are missing on the quote",
+      "expect": ["om-quote-status-values-missing"]
+    },
+    {
+      "says": "No notification or email when the quote locks or an unlock is decided",
+      "expect": ["om-approve-automated-process-user"]
+    },
+    {
+      "says": "Begin Store Check fails",
+      "expect": ["sc-action-plan-template-multiple-versions"]
+    },
+    {
+      "says": "I edited the action plan template and now Store Check",
+      "expect": ["sc-action-plan-template-multiple-versions"]
+    },
+    {
+      "says": "I can't change an indicator from Number to Picklist",
+      "expect": ["sc-indicator-datatype-create-only"]
+    },
+    {
+      "says": "Visit New opens the standard form, not Store Check",
+      "expect": ["sc-visit-routing-standard-form"]
+    },
+    {
+      "says": "Visit routing ignores my record type",
+      "expect": ["sc-visit-routing-standard-form"]
+    },
+    {
+      "says": "Log a Visit on web: Translation Language Settings … are missing",
+      "expect": ["om-log-a-visit-no-translation-language", "translations-not-applied"]
+    },
+    {
+      "says": "add languages in translation settings before generating translations",
+      "expect": ["om-log-a-visit-no-translation-language", "translations-not-applied"]
+    },
+    {
+      "says": "no StoreCheckFeature developer names found",
+      "expect": ["om-log-a-visit-no-translation-language", "translations-not-applied"]
+    },
+    {
+      "says": "Log a Visit: the metadata is out of date",
+      "expect": ["dbschema-no-providervisit"]
+    },
+    {
+      "says": "As admin on web, Log a Visit says metadata is out of date",
+      "expect": ["dbschema-no-providervisit"]
+    },
+    {
+      "says": "Survey tab does not show on the Visit",
+      "expect": ["surveys-offline-type"]
+    },
+    {
+      "says": "survey doesn't show in Store Check",
+      "expect": ["surveys-offline-type"]
+    },
+    {
+      "says": "Translated store check values didn't update on the iPad",
+      "expect": ["translations-not-applied"]
+    },
+    {
+      "says": "Visit screens only partly translated",
+      "expect": ["translations-not-applied"]
+    },
+    {
+      "says": "I changed the layout but the iPad still shows the old one",
+      "expect": ["cache-stale"]
+    },
+    {
+      "says": "Any layout, page, field security, pricing or Admin Console change doesn't show on the iPad",
+      "expect": ["cache-stale"]
+    },
+    {
+      "says": "Regenerate cache gives 400: isn't ValidationCompleted",
+      "expect": ["om-cache-parent-not-validation-completed"]
+    },
+    {
+      "says": "iPad: Select Price Book is blank, no error",
+      "expect": ["om-dbschema-pair-half-scoped"]
+    },
+    {
+      "says": "First sync: Error while trying to access Salesforce",
+      "expect": ["sc-action-plan-template-multiple-versions"]
+    },
+    {
+      "says": "Cache generation fails: parent Inactive, unable to read an object over REST",
+      "expect": ["dbschema-missing-object"]
+    },
+    {
+      "says": "Sync fails with HTTP 400: No such column LastModifiedDate on a content link",
+      "expect": ["dbschema-delta-field-no-column"]
+    },
+    {
+      "says": "App says the org is in maintenance",
+      "expect": ["admin-org-in-maintenance"]
+    },
+    {
+      "says": "The app asks for a new password at every login",
+      "expect": ["perm-password-alphanumeric"]
+    },
+    {
+      "says": "Begin Visit keeps spinning on web",
+      "expect": ["sc-begin-visit-web"]
+    },
+    {
+      "says": "account list empty for a territory and the store can't be picked",
+      "expect": ["account-reach-chain"]
+    },
+    {
+      "says": "Photo won't save: table Image has no column…",
+      "expect": ["sc-photo-dbschemas-missing"]
+    },
+    {
+      "says": "Begin Store Check is greyed out",
+      "expect": ["sc-action-plan-template-multiple-versions"]
+    },
+    {
+      "says": "present content actions are missing on the store check screen",
+      "expect": ["actions-ipad-supported"]
+    },
+    {
+      "says": "no Create Quoted Order action on Visit Engagement",
+      "expect": ["actions-ipad-supported"]
+    },
+    {
+      "says": "New quote saved with no Status",
+      "expect": ["om-quote-status-fls-not-edit"]
+    },
+    {
+      "says": "Submit button missing",
+      "expect": ["om-quote-status-fls-not-edit"]
+    },
+    {
+      "says": "Quoted Order tab on the visit is empty or has no New",
+      "expect": ["sc-quoted-order-tab-missing"]
+    },
+    {
+      "says": "Quotes and Orders lists are empty on the iPad",
+      "expect": ["sc-quoted-order-tab-missing"]
+    },
+    {
+      "says": "Reprice All: context hasn't been established",
+      "expect": ["om-reprice-context-not-established"]
+    },
+    {
+      "says": "I tapped Submit twice: Review submission failed",
+      "expect": ["om-submit-tapped-twice"]
+    },
+    {
+      "says": "Review submission failed. Please try again.",
+      "expect": ["om-submit-tapped-twice"]
+    },
+    {
+      "says": "PDF says In Progress after I submitted",
+      "expect": ["om-quote-pdf-in-progress"]
+    },
+    {
+      "says": "PDF still In Progress after I tapped Generate PDF",
+      "expect": ["om-quote-pdf-in-progress"]
+    },
+    {
+      "says": "Quote PDF will not generate",
+      "expect": ["om-quote-pdf-in-progress"]
+    },
+    {
+      "says": "PDF generation never completes although reps can submit",
+      "expect": ["om-quote-pdf-in-progress"]
+    },
+    {
+      "says": "Quote PDF fails to download",
+      "expect": ["perm-lock-session-ip", "perm-query-non-vetoed-files"]
+    },
+    {
+      "says": "The app asks for a new password at every login",
+      "expect": ["perm-password-alphanumeric"]
+    },
+    {
+      "says": "Request for Unlock went nowhere",
+      "expect": ["om-unlock-no-manager"]
+    },
+    {
+      "says": "I requested unlock but no approval reached my manager",
+      "expect": ["om-unlock-no-manager"]
+    },
+    {
+      "says": "Request for Unlock: REQUIRED_FIELD_MISSING TerritoryId",
+      "expect": ["om-unlock-approver-no-territory"]
+    },
+    {
+      "says": "Approve fails, quote stays In Review",
+      "expect": ["om-approve-automated-process-user"]
+    },
+    {
+      "says": "Locked/rejected quote has no View Line Items",
+      "expect": ["om-locked-quote-no-view-line-items"]
+    },
+    {
+      "says": "Product view only lets me choose Last Order or Store Assortment; and it is missing on web",
+      "expect": ["om-last-order-org-permission"]
+    },
+    {
+      "says": "Rep's currency changed and now no price books",
+      "expect": ["om-quote-currency-from-rep"]
+    },
+    {
+      "says": "Changed a discount tier, price book entry or decision table; iPad still shows the old price",
+      "expect": ["cache-stale"]
+    },
+    {
+      "says": "Rep sees the wrong accounts after a territory change",
+      "expect": ["account-reach-chain", "user-no-territory"]
+    },
+    {
+      "says": "iPad account list and filters are empty for a territory",
+      "expect": ["account-reach-chain", "user-no-territory"]
+    },
+    {
+      "says": "Territory model is not active",
+      "expect": ["user-no-territory"]
+    },
+    {
+      "says": "Sync is slow and the cache is huge",
+      "expect": ["dbschema-unbounded-volume"]
+    }
+  ],
+  "silent": [
+    "Which licences does a rep need?",
+    "Run stopped: no free seat on a licence",
+    "Install says Package Not Found",
+    "Business Account record type is not valid for the executing user",
+    "I tick Multi-Currency and it unticks itself when I reload",
+    "Life Science Document object never shows up after I enable document management",
+    "Permission set \"Price and Tax Calculation for Quoting\" doesn't exist",
+    "Assigning permission sets fails with DUPLICATE_VALUE",
+    "I saved a permission set",
+    "deployed a profile and the rep lost access to other things",
+    "Profile deploy fails: \"not a valid tab",
+    "Store Check is not available in our org; do we need to enable something?",
+    "I clicked Enable Sales Territory and nothing happens",
+    "Territory names clash with existing ones",
+    "We turned on multiple currencies and can't undo it",
+    "The corporate currency got set to my own currency after setup",
+    "Admin can't configure Store Check or the quote setup pages",
+    "Can't switch on Quotes",
+    "pricing; activation blocked",
+    "Quotes tab shows for a user who shouldn't see it",
+    "Can I set up Order Management with one click?",
+    "Is there a faster way to set up Store Check and Order Management?",
+    "Is Billing included?",
+    "Rep says Add Products is empty on the iPad",
+    "Products are missing on Add Products though I created availability for the territory",
+    "Product shows in setup but never in the catalog",
+    "Rep can't see the catalog or products although they're set up",
+    "Reps can't open the catalog at all",
+    "I added a new product last week; reps still can't add it",
+    "A pharmacy can't order a product the territory allows",
+    "We already had a B2B catalog and price schedules; are they used?",
+    "Add Products says the product doesn't have a price and shows the standard Browse Products screen",
+    "Products show in Store Check but not when I create a quoted order (or the reverse)",
+    "Store Check and quote products don't match",
+    "Inactive products still appear on web",
+    "Product is missing from the order screen offline",
+    "iPad price doesn't match web price\" (no detail)",
+    "I changed the default pricing recipe and old quotes didn't change",
+    "I switched the default recipe and existing quotes did not reprice",
+    "The adjustment type for this line item must be set to Override",
+    "Mapping the context definition fails with DUPLICATE_VALUE",
+    "Simulation says couldn't find the resource X",
+    "Contract prices or bundles don't price on the iPad",
+    "Bundles, contract pricing not working",
+    "Our customer has their own pricing recipe; will setup overwrite it?",
+    "Re-running setup changed our existing pricing recipe or default procedure",
+    "Which pricing recipe",
+    "usage do I pick?",
+    "Pricing recipe won't save or won't bind to the procedure",
+    "Procedure we built never appears in Salesforce Pricing Setup",
+    "After upgrade the default pricing procedure dropdown is empty",
+    "Creating the pricing procedure fails",
+    "quote mapping error on the context",
+    "Custom attribute won't map",
+    "name rejected",
+    "A pricing calculation is skipped with no error",
+    "Offline packaging validation fails",
+    "Best-Price procedure blocked",
+    "Volume and tier discounts both on, procedure blocked",
+    "Cumulative pricing won't activate",
+    "Pricing procedure errors on a picklist tag as numeric",
+    "Creating a second tier with the same product and overlapping dates errors, but without a product it saves",
+    "Instant Pricing doesn't update the price",
+    "Instant pricing option doesn't appear on iPad",
+    "Instant Pricing doesn't work offline",
+    "Instant pricing slow with many lines",
+    "I can't see the price waterfall in my new Revenue Cloud org",
+    "Compounding uplift isn't in the waterfall",
+    "Waterfall of a previous quote is slow",
+    "How do I skip tax calculation on mobile quotes?",
+    "Tax added to the offline net price",
+    "Rep must enter a value for a required field on the iPad but not on web",
+    "Warning: no expression set found for pricing procedure, skipping pricing metadata",
+    "Promotion doesn't apply on the iPad",
+    "Category promo still prices after its end date",
+    "Quote synced but the promotion price didn't change",
+    "I turned a promotion off and the open quote still has it",
+    "Can't add an 11th promotion rule library",
+    "Highest Discount",
+    "Best won't save for promotions",
+    "Two promotions stacked and the discount is bigger than expected",
+    "A product under two categories gives odd promotion",
+    "Rep cannot see promotions in Browse Catalog or Promotions tab",
+    "Reps can enter a manual discount only as a percent, or only as an amount",
+    "I want reps to choose % or flat discount",
+    "New quote has no quote fields or sections",
+    "Record page has no highlights or stage path on the iPad",
+    "Headers on the quote page look like @@@SFDC...@@@",
+    "The prices aren't up to date or the validation isn't complete",
+    "Quote goes to the wrong Sales Transaction Type",
+    "Country decides which price I get",
+    "My flow stays Draft after deploy",
+    "Free-Form canvas doesn't support End elements",
+    "Priority Products tab doesn't show for reps",
+    "Two disclaimers show on the review screen",
+    "Where does the rep see which stage the quote is in?",
+    "Custom field I added loses its value after saving on iPad",
+    "Which approvals work on iPad?",
+    "Both approval engines are on and approvals behave oddly",
+    "Manager cannot use the advanced approval flow on iPad",
+    "Locking and approval flows look unfinished",
+    "Signature box missing from the PDF",
+    "Signature is missing after we upgraded the package",
+    "Disclaimer doesn't show on the quote PDF",
+    "Disclaimer text is for the wrong jurisdiction or territory",
+    "Two sets of text on the review screen is wrong for this market",
+    "Quote PDF is missing lines",
+    "generation fails on a big quote",
+    "Quote PDF from my own flow has overlapping or collapsed header and footer",
+    "The wrong PDF template is used",
+    "Base64 encode fails: CalloutException: Unable to tunnel through proxy 403",
+    "I can't hide Manage Delivery for a record type",
+    "Manage Delivery is missing from the quote lines menu on the iPad",
+    "I can't split this quote into deliveries",
+    "no recipients to pick",
+    "Address picker says no addresses",
+    "Review blocked: delivery has no products",
+    "Delivery date or address doesn't save or price on a split",
+    "Bundle or configurable product cannot be added with Browse Catalog",
+    "Rep can't add any configurable product; validation error from Validate Mandatory Quote Fields",
+    "Add Products screen on iPad does not show the columns I want",
+    "I can't pick fields on the Add Products screen",
+    "iPad quote saved but never gets a quote number, later edits stuck",
+    "Reps in one market can't create quotes",
+    "Quote can be created without an opportunity",
+    "Editing a quote needs Opportunity access",
+    "Quote can't be shared to the rep's territory",
+    "The Go tile finished but reps still see no quote page",
+    "createOrderFromQuote fails on an LSC quote",
+    "Priority filter shows nothing",
+    "No anomaly is flagged when the count is off",
+    "A value differs from the target but no anomaly shows",
+    "Anomaly not flagged for my picklist",
+    "Store opens the HCP page: No access to healthcareprovider",
+    "Rep can edit the KPI definitions",
+    "Different stores sharing one assortment need different tasks",
+    "store-specific vs general action plan templates wrong ones appear",
+    "I want different targets for each store",
+    "Hide a task depending on an earlier answer",
+    "per profile; switch an APT on and off on a date",
+    "Percentage or multi-select picklist indicator is not available",
+    "shows as plain text",
+    "Assign thousands of products to assortments",
+    "Segmentation did not create store assortments",
+    "New stores have no store assortment",
+    "Store Check data or KPIs do not map to the pharmacy",
+    "Where is the Retail Store record type",
+    "Admin can't configure Store Check",
+    "Every product in Store Check shows the same default picture",
+    "product image doesn't appear offline",
+    "image URL blocked by proxy",
+    "Base64 encode fails: Unable to tunnel through proxy 403",
+    "bulk conversion skipped records",
+    "I created a static resource from the Admin Console and my setup vanished",
+    "Priority, anomaly or No Stock filter is not on the Visit page",
+    "search and collapse missing",
+    "No Stock",
+    "Low Stock filter is empty",
+    "I can only take a photo, no choice to pick from the gallery",
+    "Rep can't see earlier store checks from teammates",
+    "action plan sharing delayed or missing",
+    "HCP visits stopped opening normal Log a Visit after we enabled routing",
+    "Store Check photo has no geo-location check",
+    "photo was taken away from the store but nothing flagged it",
+    "One action plan template with the order task added twice",
+    "Can't add a second action plan to the visit",
+    "tasks in the wrong order",
+    "Tasks from two templates show as two tabs",
+    "one merged tab with too many products",
+    "Store check shows products but 0 for the rep: store assortment has products yet Store Check shows none",
+    "quote and store check products don't match",
+    "No way to blank a picklist indicator on the iPad",
+    "Cache has been generating for 20 minutes",
+    "Add Line Item blocked on the iPad for hours after setup",
+    "Layout contains no sections!\" on Account",
+    "Device says Pending Approval",
+    "Setting up a new rep: what do I need?",
+    "Metadata cache fails: Store Assortment object not enabled",
+    "Mobile metadata generation fails, can't publish updated metadata",
+    "The validated cache for a profile shows Inactive",
+    "The rep has two active cache children",
+    "another profile was affected",
+    "iPad View Database counts are lower than the org totals",
+    "iPad login loops asking for the username, then \"It's better to use it in app",
+    "Sync never seems to finish, I keep tapping",
+    "A big quote won't sync",
+    "stays pending",
+    "Retry after a failed sync saved only the leftover lines",
+    "Duplicate or stray records on the server after a cancelled sync",
+    "Can't pick the store address as the Place",
+    "Verified ticks disappear after I save",
+    "My visit won't upload: AttemptToStartInOffline",
+    "store check finished on the iPad but server has KPI rows and no indicator values, visit still In Progress",
+    "I deleted an in-progress visit by mistake",
+    "Store Check heading shows a raw name or @@@ token",
+    "No camera on the iPad",
+    "I got a warning that I am away from the store",
+    "can't start visit: too far from the store",
+    "record type editable on Visit Engagement",
+    "There are two sets of store check tasks on one visit",
+    "opened Store Check on an old visit and it is now In Progress",
+    "No Edit button on the Store Check tab",
+    "I cannot edit my store check after saving",
+    "Photo can't be saved on a task",
+    "my photo will not attach",
+    "I can only take a photo, no gallery",
+    "photo area says no photo available",
+    "No Stock toggle: my numbers vanished",
+    "photo gone",
+    "Fewer indicator values than I expected after the store check",
+    "Submit deleted my assessment tasks",
+    "Completed visit can't be changed",
+    "Saving a store check with many action plans and photos takes minutes",
+    "Attaching a file and a photo in one go misbehaves",
+    "Rep doesn't see targets for a product",
+    "Store Check rep sees no products for the visit",
+    "My photo was rejected as too big",
+    "Choose a photo smaller than 10 MB",
+    "Price doesn't change when I change the quantity",
+    "Price only updates when I save",
+    "Prices change when I save, not while I edit lines",
+    "The volume discount disappeared when I reduced the quantity",
+    "Discount applies at the wrong quantity",
+    "The order discount is split unevenly across lines",
+    "Equal distribution gave a negative net unit price",
+    "Header discount landed on one line",
+    "Rep gave a 50% discount and nothing stopped it",
+    "Calculation Details is empty",
+    "Calculation Details: Not available, download when online",
+    "Tap on net unit price says to go online",
+    "Waterfall amounts blank for lines priced on web",
+    "Billing/Shipping address shows -",
+    "PDF Bill To and Ship To are empty",
+    "Visit field is blank on the quote after sync",
+    "Free goods: how do I add them",
+    "price didn't change",
+    "I tap Net Unit Price and nothing opens",
+    "Price waterfall button is there but admin turned it off",
+    "The price waterfall popover opens but is empty",
+    "Waterfall is empty although it is turned on",
+    "Waterfall works online but is empty offline",
+    "Waterfall for a previous quote is not there offline",
+    "Waterfall for last week's closed quote is gone",
+    "I set retention to 30 days but reps only see 15",
+    "Waterfall data keeps shrinking",
+    "Some lines show a waterfall and others don't",
+    "I edited the price and the popover went away",
+    "Price waterfall opens blank or errors for a line priced with Instant Pricing",
+    "Waterfall fails for lines added through the product configurator",
+    "Entering a huge quantity leaves the app on Calculating prices",
+    "Totals are slow",
+    "Coupon code rejected when I type it",
+    "Duplicate record detected\" when I change a quantity or save the quote",
+    "This aggregation strategy isn't supported for Pricing",
+    "Aggregation Strategy Cumulative is not Supported",
+    "Can't add lines to a quote synced from web",
+    "Can't switch the price book on the quote",
+    "Sales Transaction Type is empty on the iPad New Quote form",
+    "Can't save the quote header offline",
+    "Quote details on the iPad show @ labels instead of values",
+    "Rep can't see quote line groups on the iPad",
+    "I split my quote and my existing group and products vanished",
+    "Free goods vanished after I split",
+    "Split copied my manual discount to every delivery",
+    "Split quantities add up to more than I ordered",
+    "I can't delete the first delivery",
+    "I saved the split and can't change the distribution the same way",
+    "Deliveries I made on web, then added one on the iPad",
+    "Group subtotals don't add up to the header",
+    "Split order only partly saved",
+    "Split on a euro quote works with no warning",
+    "Free goods: I typed more than allowed",
+    "Manual free goods over the limit didn't error",
+    "Free goods rejected",
+    "exceeds limit",
+    "Quote total shows 0.00 on the iPad offline",
+    "Submitted quote shows $0.00 prices in View Only",
+    "Derived total doesn't update on the iPad",
+    "Search by SKU or voice finds nothing on the iPad",
+    "Quote saved on the iPad but never gets a quote number",
+    "Save does nothing",
+    "Failed upload with an asterisk: will my offline edit be lost?",
+    "Sync rejected my edit but the iPad still shows it",
+    "I can't add more than 1,000 lines",
+    "Quote cannot exceed N lines on iPad",
+    "Quote created from Store Assortment fails",
+    "Status went to Submitted but there's no signature",
+    "I submitted with a signature and there is no signature record",
+    "Generate PDF on web says Unknown component",
+    "Web PDF viewer says Data Not Available",
+    "Where do I find the PDF?",
+    "I submitted offline; did it go through?",
+    "Offline quote says Submitted - Pending Sync",
+    "I need to show the customer another price",
+    "Email quote button",
+    "Cannot email or view the quote PDF on the iPad",
+    "Edit Quote PDF is blank",
+    "Reps get an error saving a signature",
+    "Signature sync fails when the iPad location is off",
+    "Signature rejected on sync",
+    "Signature wasn't asked",
+    "Forced to sign a small order",
+    "Can't submit a Transfer order",
+    "Can't sign or submit: discount distribution mismatch",
+    "Quote confirmation email never arrived",
+    "I can't edit a submitted quote",
+    "Signed quote is read-only on the web",
+    "Manager doesn't see the Approval tab",
+    "Approvals tab is empty or errors",
+    "Approved quote went back to Draft?",
+    "I approved it and the quote went back to Draft; can I resubmit?",
+    "Mark Status as Complete",
+    "extra stages on the path",
+    "Manager or admin can't see the rep's quotes",
+    "Rep can't see a colleague's quote from the same territory",
+    "Territory manager cannot see the quote the rep created",
+    "I requested unlock offline: did it go?",
+    "I can't find the Unlock button on the iPad",
+    "I can't unlock a locked transfer order",
+    "Unlock on the iPad says authentication failed",
+    "Admin unlocked the order but the old signature is still there",
+    "Reject on the iPad does not change the quote status",
+    "Last Order shows nothing though the rep has ordered before",
+    "Last Order copied products but dropped my discounts",
+    "Last Order repeat lost my header discount",
+    "Last Order pre-filled fewer products than the old order had",
+    "Last-order view doesn't match my last order",
+    "Required products not prioritised",
+    "Free goods don't count toward the contract volume",
+    "How do reps add free goods?",
+    "free goods do not show",
+    "Quote from last order is offered for an account that has no orders",
+    "New store: rep can't do a Store Check there",
+    "New stores have no store assortment",
+    "Rep moved territory and lost products",
+    "quotes",
+    "Quote lost after territory realignment",
+    "Catalog or price book expired; reps see nothing",
+    "Running setup again on the same org: will it duplicate things?",
+    "Territory realignment made every rep re-sync everything",
+    "I can see a quote from another territory",
+    "Reps see other reps' visits in Up Next",
+    "We opened Visit sharing to Public so reps can see each other and now things are slow",
+    "Duplicate visits appeared on the iPad",
+    "Ex-user still holds the permission set",
+    "Our Visits list view now shows only 8 columns",
+    "Re-run setup stops on the territory step",
+    "Bundles",
+    "configurable products",
+    "contract pricing",
+    "Orders don't work",
+    "No bundle discounts",
+    "Rep can't add a configurable product",
+    "Quantity starts at 1 and I always delete it first. Can it start empty?",
+    "Free goods (buy 10 get 1) are not applied automatically",
+    "Customer tier discount didn't apply",
+    "Brand discount is wrong when I change quantity on one SKU",
+    "Is Instant Pricing",
+    "promotions",
+    "coupon codes supported on the iPad offline?",
+    "Procedure Plan orchestration",
+    "which procedure does an offline quote use?",
+    "Can restrictive-by-default availability be turned on?",
+    "Product is hidden for some reps/accounts though it is in the catalog (default hidden)",
+    "Scan Shelf button",
+    "vision results are missing",
+    "My photo was rejected as too large",
+    "Can the app score shelf photos against the plan?",
+    "Where are order delivery and order summary? Can I use two units of measure? Can the line convert pallets to units?",
+    "201 units costs less than 200 units",
+    "Range discount vs slab discount gives different totals",
+    "Products aren't grouped by category or brand",
+    "Floor price",
+    "Product is below the minimum allowed price",
+    "Do pricing limits and validations work offline?",
+    "Does the customer PDF show margin or cost?",
+    "two PDFs for the same quote"
+  ]
+}
