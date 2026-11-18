@@ -371,6 +371,54 @@ export function planFixSteps(fix: StudioFix, phase: "preview" | "apply"): Planne
         ...(apply ? [{ key: "deploy", label: `Deploying ${label}` }] : []),
       ];
     }
+    case "editPresentation": {
+      const name = fix.presentationName;
+      return [
+        read(name),
+        ...(apply
+          ? [
+              { key: "presentation", label: `Updating ${name}` },
+              { key: "pages", label: "Updating its pages" },
+              { key: "page-settings", label: "Updating the pages' required setting and products" },
+              { key: "topics", label: "Updating its topics" },
+              { key: "shares", label: "Updating the territories it's distributed to" },
+            ]
+          : []),
+      ];
+    }
+    case "createPresentation": {
+      const name = fix.draft.fields.name.trim() || "the new presentation";
+      return [
+        { key: "read", label: apply ? "Re-checking its pages" : "Checking its pages" },
+        ...(apply
+          ? [
+              ...(fix.newPages.length
+                ? [{ key: "upload", label: "Uploading the pages Roz drafted" }]
+                : []),
+              { key: "presentation", label: `Creating ${name}` },
+              { key: "pages", label: "Adding its pages" },
+              { key: "page-settings", label: "Setting the pages' required setting and products" },
+              { key: "topics", label: "Adding its topics" },
+              { key: "shares", label: "Distributing it to territories" },
+            ]
+          : []),
+      ];
+    }
+    case "deletePresentation":
+      return [
+        read(fix.presentationName),
+        ...(apply
+          ? [
+              { key: "shares", label: "Taking it off territories" },
+              {
+                key: "page-settings",
+                label: "Putting back the pages' required setting and products",
+              },
+              { key: "presentation", label: `Deleting ${fix.presentationName}` },
+              { key: "pages", label: "Deleting the pages and files it made" },
+            ]
+          : []),
+      ];
     case "copyForProfile": {
       const label = fix.doc.label;
       return [

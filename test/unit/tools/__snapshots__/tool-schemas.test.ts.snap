@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `146`;
+exports[`tool-schemas > tool count > should report the exact count for documentation purposes 1`] = `152`;
 
 exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
 [
@@ -87,6 +87,12 @@ exports[`tool-schemas > tool inventory > lists all registered tool names 1`] = `
   "studio_component_catalog",
   "studio_component_props",
   "studio_connected_org",
+  "studio_content_draft",
+  "studio_content_library",
+  "studio_content_new",
+  "studio_content_page_images",
+  "studio_content_player",
+  "studio_content_presentation",
   "studio_custom_script",
   "studio_custom_scripts",
   "studio_diagnose",
@@ -1586,6 +1592,57 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
     },
   },
   {
+    "name": "studio_content_library",
+    "params": {},
+  },
+  {
+    "name": "studio_content_presentation",
+    "params": {
+      "id": {
+        "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_content_new",
+    "params": {},
+  },
+  {
+    "name": "studio_content_page_images",
+    "params": {
+      "pageIds": {
+        "optional": false,
+        "type": "ZodArray",
+      },
+    },
+  },
+  {
+    "name": "studio_content_draft",
+    "params": {
+      "draftId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "files": {
+        "optional": true,
+        "type": "ZodArray",
+      },
+      "name": {
+        "optional": true,
+        "type": "ZodString",
+      },
+      "remove": {
+        "optional": true,
+        "type": "ZodBoolean",
+      },
+      "replace": {
+        "optional": true,
+        "type": "ZodBoolean",
+      },
+    },
+  },
+  {
     "name": "studio_custom_scripts",
     "params": {},
   },
@@ -1625,6 +1682,19 @@ exports[`tool-schemas > tool schema snapshot > should match the snapshot of all 
     "params": {
       "userId": {
         "optional": false,
+        "type": "ZodString",
+      },
+    },
+  },
+  {
+    "name": "studio_content_player",
+    "params": {
+      "presentationId": {
+        "optional": false,
+        "type": "ZodString",
+      },
+      "userId": {
+        "optional": true,
         "type": "ZodString",
       },
     },

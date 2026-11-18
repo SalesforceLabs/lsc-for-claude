@@ -105,3 +105,10 @@ describe("createInFlight", () => {
     expect(await run("k", () => Promise.resolve(1))).toBe(1);
   });
 });
+
+describe("content page images", () => {
+  it("doesn't keep an answer with no images", () => {
+    expect(isCacheable("studio_content_page_images", { images: {} })).toBe(false);
+    expect(isCacheable("studio_content_page_images", { images: { a: "data:x" } })).toBe(true);
+  });
+});

@@ -15,9 +15,13 @@ export const SOURCE_WARNING =
 
 const ORG_ONLY = {
   psl: "Permission set license assignments are user records in the org, not source files.",
-  access: "Permission set, group and territory assignments are user records in the org, not source files.",
-  script: "Custom scripts are records in the org (LifeScienceCustomScript); they have no source file.",
+  access:
+    "Permission set, group and territory assignments are user records in the org, not source files.",
+  script:
+    "Custom scripts are records in the org (LifeScienceCustomScript); they have no source file.",
   handler: "Trigger handlers are switched on and off in the org; they have no source file.",
+  content:
+    "Presentations, their pages, topics and territories are records in the org; they have no source file.",
 } as const;
 
 /** Why a change has no source file, or null when it has one. */
@@ -33,6 +37,10 @@ export function orgOnlyReason(fix: StudioFix): string | null {
       return ORG_ONLY.script;
     case "setActive":
       return fix.record.type === "triggerHandler" ? ORG_ONLY.handler : null;
+    case "editPresentation":
+    case "createPresentation":
+    case "deletePresentation":
+      return ORG_ONLY.content;
     default:
       return null;
   }
@@ -45,7 +53,8 @@ export function orgOnlyLabel(fix: StudioFix): { label: "Org only"; title: string
 }
 
 /** Changes that go into source files. */
-export const sourceChanges = (fixes: StudioFix[]): StudioFix[] => fixes.filter((f) => !orgOnlyReason(f));
+export const sourceChanges = (fixes: StudioFix[]): StudioFix[] =>
+  fixes.filter((f) => !orgOnlyReason(f));
 
 /**
  * The source documents the changes touch ("Layout:Visit-Visit Layout"), for "N files" before
@@ -76,7 +85,8 @@ export function sourceDocs(fixes: StudioFix[]): string[] {
         docs.add(`LifeSciConfigRecord:${fix.developerName}`);
         break;
       case "setActive":
-        if (fix.record.type === "config") docs.add(`LifeSciConfigRecord:${fix.record.developerName}`);
+        if (fix.record.type === "config")
+          docs.add(`LifeSciConfigRecord:${fix.record.developerName}`);
         else if (fix.record.type === "validationRule") docs.add(`ValidationRule:${fix.record.id}`);
         break;
     }
@@ -103,7 +113,12 @@ export interface SourceExportResult {
   folder: string;
   packageDir: string;
   manifest: string | null;
-  files: { type: string; fullName: string; path: string; status: "written" | "merged" | "partial" }[];
+  files: {
+    type: string;
+    fullName: string;
+    path: string;
+    status: "written" | "merged" | "partial";
+  }[];
   toRemove: { type: string; fullName: string; path: string; exists: boolean }[];
   orgOnly: { label: string; why: string }[];
   missing: { type: string; fullName: string }[];
@@ -114,5 +129,7 @@ export interface SourceExportResult {
 export function savedSummary(result: SourceExportResult): string {
   const n = result.files.length;
   const folder = result.folder.replace(/^\/Users\/[^/]+/, "~");
-  return n === 0 ? `Nothing to save in ${folder}` : `Saved ${n} ${n === 1 ? "file" : "files"} to ${folder}`;
+  return n === 0
+    ? `Nothing to save in ${folder}`
+    : `Saved ${n} ${n === 1 ? "file" : "files"} to ${folder}`;
 }

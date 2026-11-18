@@ -7,7 +7,15 @@
  * publish changes), the profile list and the permission options.
  */
 
-const MAPS = ["studio_feature_map", "studio_item_detail", "studio_readiness", "studio_setup_overview", "studio_unpublished", "studio_custom_scripts"];
+const MAPS = [
+  "studio_feature_map",
+  "studio_item_detail",
+  "studio_readiness",
+  "studio_setup_overview",
+  "studio_unpublished",
+  "studio_custom_scripts",
+  "studio_content_library",
+];
 /** Sync volume depends on DB Schema, who has which access and territories — not on layouts or script code. */
 const SYNC = ["studio_sync_user", "studio_sync_overview"];
 const PUBLISHED = "studio_ipad_published";
@@ -35,7 +43,13 @@ export function fixAffectsPublished(fix: unknown): boolean {
   if (f.kind === "editMetadata") return f.doc?.type === "ListView";
   // A copy re-points the profile's layout / page assignment, which the preview resolves from its own cache but
   // the copy itself is read live.
-  return f.kind === "copyForProfile";
+  // The preview's Content tab reads presentations from the org, so an edited presentation shows there.
+  return (
+    f.kind === "copyForProfile" ||
+    f.kind === "editPresentation" ||
+    f.kind === "createPresentation" ||
+    f.kind === "deletePresentation"
+  );
 }
 
 /** Cached tools to drop after `fix` was applied (or may have been). */
@@ -58,7 +72,13 @@ export const INVALIDATED_BY_PUBLISH = [
 ];
 
 /** Cached tools to drop when the user refreshes a feature map: the org changed under it. */
-export const INVALIDATED_BY_MAP_REFRESH = ["studio_unpublished", "studio_item_detail", "studio_list_profiles", "studio_access_options", "studio_ipad_published"];
+export const INVALIDATED_BY_MAP_REFRESH = [
+  "studio_unpublished",
+  "studio_item_detail",
+  "studio_list_profiles",
+  "studio_access_options",
+  "studio_ipad_published",
+];
 
 /**
  * A counter per org that moves on every invalidation. A load that began before a write must not store

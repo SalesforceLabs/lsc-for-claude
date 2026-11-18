@@ -7,7 +7,13 @@ import os from "os";
 import path from "path";
 
 /** Studio tools that take `refresh` to read the org again rather than reuse its short shared reads. */
-const STUDIO_REFRESHABLE = new Set(["studio_feature_map", "studio_readiness", "studio_setup_overview", "studio_user_trace", "studio_drift"]);
+const STUDIO_REFRESHABLE = new Set([
+  "studio_feature_map",
+  "studio_readiness",
+  "studio_setup_overview",
+  "studio_user_trace",
+  "studio_drift",
+]);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { ConversationEngine } from "../engine/conversation.js";
@@ -17,7 +23,20 @@ import { ApprovalBroker, createWriteGate } from "../engine/write-gate.js";
 import { McpClient, STUDIO_TOOL_PREFIX } from "../mcp/client.js";
 import { McpPool, type PoolOrg } from "../mcp/pool.js";
 import { cacheArgsWithRepLogins, repLoginsFor, type RepLoginRef } from "../engine/rep-logins.js";
-import { listAfterLogin, listSfOrgs, loginArgsProblem, orgKey, pendingOrgList, pickOrg, resolveOrg, sameOrgId, startOrgLogin, toOrgRef, type OrgKind, type OrgRef } from "../orgs.js";
+import {
+  listAfterLogin,
+  listSfOrgs,
+  loginArgsProblem,
+  orgKey,
+  pendingOrgList,
+  pickOrg,
+  resolveOrg,
+  sameOrgId,
+  startOrgLogin,
+  toOrgRef,
+  type OrgKind,
+  type OrgRef,
+} from "../orgs.js";
 import { OrgRoles } from "../org-roles.js";
 import type { SessionOrg } from "../engine/session-org.js";
 import {
@@ -30,22 +49,43 @@ import {
   startMobileLogin,
 } from "../mobile-login.js";
 import { PromptBuilder } from "../engine/prompt-builder.js";
-import { runScriptAssist, type ScriptAssistHost, type ScriptAssistRequest } from "../engine/script-assist.js";
+import {
+  runScriptAssist,
+  type ScriptAssistHost,
+  type ScriptAssistRequest,
+} from "../engine/script-assist.js";
 import { LLMProvider } from "../llm/provider.js";
 import { detectClaudeCodeGateway } from "../llm/claude-code-config.js";
-import { apiStyle, Connection, CONNECTION_KINDS, connectionLabel, isGateway } from "../llm/connection.js";
+import {
+  apiStyle,
+  Connection,
+  CONNECTION_KINDS,
+  connectionLabel,
+  isGateway,
+} from "../llm/connection.js";
 import { chatModels, cleanConnection, createProvider, testConnection } from "../llm/create.js";
 import { loadSettings, migrateSettings, saveSettings, Settings } from "../settings.js";
 import { applyAppIcon } from "../app-icon.js";
 import { sourceControlFor, withSourceControl } from "../source-control.js";
-import { appDocumentPath, documentationPdfPath, guideDirPath, isEngineZipPath } from "../app-files.js";
+import {
+  appDocumentPath,
+  documentationPdfPath,
+  guideDirPath,
+  isEngineZipPath,
+} from "../app-files.js";
 import { openExternalSafely } from "../external-url.js";
 import { PreviewedFixes } from "../engine/previewed-fixes.js";
+import { registerClmRoot, releaseClmRoot } from "../clm-files.js";
 import { registerFrameDoc, releaseFrameDoc } from "../frame-docs.js";
 import { apiVersionFor, withApiVersion } from "../api-version.js";
 import { applyTheme } from "../theme.js";
 import { deleteSecret, getSecret, hasSecret, setSecret } from "../secrets.js";
-import { originOf, savedSecretAllowed, secretOriginName, tokenCommandTrusted } from "../llm/connection-trust.js";
+import {
+  originOf,
+  savedSecretAllowed,
+  secretOriginName,
+  tokenCommandTrusted,
+} from "../llm/connection-trust.js";
 import {
   listConversations,
   createConversation,
@@ -77,6 +117,7 @@ import {
 } from "../engine/studio-invalidation.js";
 import { createInFlight } from "../engine/in-flight.js";
 import { registerAppBuilderHandlers } from "./app-builder.js";
+import { registerContentDraftHandlers } from "./content-drafts.js";
 import { pickBuilderModel } from "../engine/app-builder.js";
 import { openInPreviewBrowser, type BrowserAuth } from "../studio-browser.js";
 import {
@@ -105,7 +146,10 @@ function invalidate(org: string, tools: string[]): void {
 }
 
 /** Tools that may download a whole metadata cache first (allowed as long as the download itself, `downloadTimeoutMs`). */
-const CACHE_DOWNLOAD_TOOLS = new Set(["studio_metadata_cache_contents", "studio_metadata_cache_file"]);
+const CACHE_DOWNLOAD_TOOLS = new Set([
+  "studio_metadata_cache_contents",
+  "studio_metadata_cache_file",
+]);
 const STUDIO_CACHED_TOOLS = new Set([
   "studio_feature_map",
   "studio_item_detail",
@@ -149,7 +193,8 @@ function createOrgClient(org: PoolOrg): McpClient {
       return;
     }
     const pinned = apiVersionFor(loadSettings(), org.username);
-    if (pinned) await client.callTool("studio_set_api_version", { version: pinned }).catch(() => {});
+    if (pinned)
+      await client.callTool("studio_set_api_version", { version: pinned }).catch(() => {});
   });
 }
 
@@ -164,7 +209,12 @@ interface SelectedOrg {
 async function selectedOrg(): Promise<SelectedOrg> {
   const key = loadSettings().sfTargetOrg;
   const org = await resolveOrg(key);
-  if (org) return { ref: toOrgRef(org), kind: org.kind, pool: { username: org.username, target: orgKey(org) } };
+  if (org)
+    return {
+      ref: toOrgRef(org),
+      kind: org.kind,
+      pool: { username: org.username, target: orgKey(org) },
+    };
   if (key) {
     // Logged out or renamed: keep it by name, so nothing quietly runs in another org.
     const username = orgUsernameForLabel(key) ?? key;
@@ -187,7 +237,10 @@ async function sessionOrg(ref: OrgRef | null): Promise<{ org: SessionOrg | null;
 async function readyMcpClient(timeoutMs = 60_000): Promise<McpClient | null> {
   if (!mcpStarted) {
     let timer: NodeJS.Timeout | undefined;
-    await Promise.race([mcpReady, new Promise((resolve) => (timer = setTimeout(resolve, timeoutMs)))]);
+    await Promise.race([
+      mcpReady,
+      new Promise((resolve) => (timer = setTimeout(resolve, timeoutMs))),
+    ]);
     clearTimeout(timer);
   }
   if (!mcpStarted || !mcpPool) return null;
@@ -231,7 +284,9 @@ async function confirmTokenCommand(connection: Connection): Promise<void> {
     defaultId: 1,
     cancelId: 1,
   };
-  const { response } = owner ? await dialog.showMessageBox(owner, options) : await dialog.showMessageBox(options);
+  const { response } = owner
+    ? await dialog.showMessageBox(owner, options)
+    : await dialog.showMessageBox(options);
   if (response !== 0) throw new Error("The token command wasn't run.");
   confirmedTokenCommands.add(command);
 }
@@ -243,8 +298,13 @@ async function providerFor(connection: Connection, secret?: string): Promise<LLM
   if (!key) {
     const name = secretName(connection);
     const saved = getSecret(name);
-    if (saved && savedSecretAllowed(connection, getSecret(secretOriginName(name)), loadSettings().connection)) key = saved;
-    else if (saved && !connection.tokenCommand) throw new Error("Enter the token again: the saved one belongs to another gateway URL.");
+    if (
+      saved &&
+      savedSecretAllowed(connection, getSecret(secretOriginName(name)), loadSettings().connection)
+    )
+      key = saved;
+    else if (saved && !connection.tokenCommand)
+      throw new Error("Enter the token again: the saved one belongs to another gateway URL.");
   }
   // net.fetch goes through Chromium: system certificates (company root CAs) and proxy settings.
   return createProvider(connection, key, (url, init) => net.fetch(url, init));
@@ -306,7 +366,14 @@ async function getOrCreateEngine(convId: string, ref: OrgRef | null): Promise<Co
   const host = mcpPool.host(pool);
   const engine = new ConversationEngine(llm, host, promptBuilder, org, {
     preflight: async (text) => diagnosePreflight(text, diagnosed),
-    gateTool: createWriteGate({ convId, org, host, broker: approvals, send: sendToWindow, resolveOrgId: async (key) => (await resolveOrg(key))?.orgId }),
+    gateTool: createWriteGate({
+      convId,
+      org,
+      host,
+      broker: approvals,
+      send: sendToWindow,
+      resolveOrgId: async (key) => (await resolveOrg(key))?.orgId,
+    }),
   });
   engine.initialize();
 
@@ -357,7 +424,8 @@ function watchMcpServer(): void {
         if (clients.length === 0) return;
         for (const client of clients) {
           if (!(await longJobRunning(client))) continue;
-          if (!deferred) console.log("[dev] MCP server reload deferred until the running Studio job finishes");
+          if (!deferred)
+            console.log("[dev] MCP server reload deferred until the running Studio job finishes");
           deferred = true;
           schedule(RELOAD_RETRY_MS);
           return;
@@ -471,7 +539,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
           if (mcpPool !== pool) return; // Stopped meanwhile.
           mcpStarted = true;
           resolveMcpReady();
-          if (!mainWindow.isDestroyed()) mainWindow.webContents.send("engine:tools", { toolCount: pool.getTools().length });
+          if (!mainWindow.isDestroyed())
+            mainWindow.webContents.send("engine:tools", { toolCount: pool.getTools().length });
         })();
         // Servers for orgs nobody is looking at are stopped once idle; a Studio job or a run keeps one up.
         poolSweep = setInterval(async () => {
@@ -521,105 +590,126 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   // --- Chat ---
 
-  ipcMain.handle("chat:send", async (_event, message: string | unknown[], nonce: number, convId: string, model?: string) => {
-    if (!llm || !mcpPool || !promptBuilder) {
-      return { ok: false, error: "Engine not started" };
-    }
-
-    let engine: ConversationEngine;
-    let username: string;
-    try {
-      // A session from before orgs were recorded joins the selected org with its next message.
-      let org = getConversation(convId)?.org ?? null;
-      if (!org) {
-        org = (await selectedOrg()).ref;
-        if (org) bindConversationOrg(convId, org);
+  ipcMain.handle(
+    "chat:send",
+    async (_event, message: string | unknown[], nonce: number, convId: string, model?: string) => {
+      if (!llm || !mcpPool || !promptBuilder) {
+        return { ok: false, error: "Engine not started" };
       }
-      username = org?.username ?? "";
-      engine = await getOrCreateEngine(convId, org);
-    } catch (error) {
-      return { ok: false, error: error instanceof Error ? error.message : String(error) };
-    }
 
-    runningConvs.set(convId, username);
-
-    // Extract text for history persistence (images are not stored in history DB)
-    let textForHistory: string;
-    if (Array.isArray(message)) {
-      textForHistory = (message as Array<{ type: string; text?: string }>)
-        .filter((b) => b.type === "text" && b.text)
-        .map((b) => b.text!)
-        .join("\n");
-    } else {
-      textForHistory = message;
-    }
-
-    // Accumulate assistant content for server-side persistence.
-    let accumulatedText = "";
-    // Text that resumes after a tool call is a new paragraph; without a break the saved message runs rounds together.
-    let toolSinceText = false;
-    const accumulatedTools: Array<{ id: string; name: string; input?: Record<string, unknown>; result?: string; isError?: boolean; status: string }> = [];
-
-    // ALL events are always sent — tagged with convId so the renderer decides what to display.
-    // No nonce filtering on the main process side.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const runPromise = engine.sendMessage(message as any, {
-      onTextDelta: (text) => {
-        if (toolSinceText && accumulatedText && !accumulatedText.endsWith("\n\n")) {
-          accumulatedText = accumulatedText.replace(/\n?$/, "\n\n");
+      let engine: ConversationEngine;
+      let username: string;
+      try {
+        // A session from before orgs were recorded joins the selected org with its next message.
+        let org = getConversation(convId)?.org ?? null;
+        if (!org) {
+          org = (await selectedOrg()).ref;
+          if (org) bindConversationOrg(convId, org);
         }
-        toolSinceText = false;
-        accumulatedText += text;
-        mainWindow.webContents.send("chat:text-delta", { text, nonce, convId });
-      },
-      onToolStart: (id, name) => {
-        toolSinceText = true;
-        accumulatedTools.push({ id, name, status: "running" });
-        mainWindow.webContents.send("chat:tool-start", { id, name, nonce, convId });
-      },
-      onToolRun: (id, input) => {
-        const tool = accumulatedTools.find((t) => t.id === id);
-        if (tool) tool.input = input;
-        mainWindow.webContents.send("chat:tool-run", { id, input, nonce, convId });
-      },
-      onToolResult: (id, result, isError) => {
-        const tool = accumulatedTools.find((t) => t.id === id);
-        if (tool) {
-          tool.result = result;
-          tool.isError = isError;
-          tool.status = isError ? "error" : "success";
-        }
-        mainWindow.webContents.send("chat:tool-result", { id, result, isError, nonce, convId });
-      },
-      onToolEnd: (id) => {
-        mainWindow.webContents.send("chat:tool-end", { id, nonce, convId });
-      },
-      onComplete: () => {
-        mainWindow.webContents.send("chat:complete", { nonce, convId });
-      },
-      onError: (error) => {
-        mainWindow.webContents.send("chat:error", { error, nonce, convId });
-      },
-    }, model);
-
-    // Persist when the run finishes — whether it completed, errored, or was aborted.
-    runPromise.finally(() => {
-      runningConvs.delete(convId);
-      engines.trim();
-      if (convId && (accumulatedText || accumulatedTools.length > 0)) {
-        addMessage(
-          convId,
-          "assistant",
-          accumulatedText,
-          accumulatedTools.length > 0
-            ? accumulatedTools.map((tc) => ({ id: tc.id, name: tc.name, input: tc.input, result: tc.result, isError: tc.isError, status: tc.status }))
-            : undefined
-        );
+        username = org?.username ?? "";
+        engine = await getOrCreateEngine(convId, org);
+      } catch (error) {
+        return { ok: false, error: error instanceof Error ? error.message : String(error) };
       }
-    });
 
-    return { ok: true };
-  });
+      runningConvs.set(convId, username);
+
+      // Extract text for history persistence (images are not stored in history DB)
+      let textForHistory: string;
+      if (Array.isArray(message)) {
+        textForHistory = (message as Array<{ type: string; text?: string }>)
+          .filter((b) => b.type === "text" && b.text)
+          .map((b) => b.text!)
+          .join("\n");
+      } else {
+        textForHistory = message;
+      }
+
+      // Accumulate assistant content for server-side persistence.
+      let accumulatedText = "";
+      // Text that resumes after a tool call is a new paragraph; without a break the saved message runs rounds together.
+      let toolSinceText = false;
+      const accumulatedTools: Array<{
+        id: string;
+        name: string;
+        input?: Record<string, unknown>;
+        result?: string;
+        isError?: boolean;
+        status: string;
+      }> = [];
+
+      // ALL events are always sent — tagged with convId so the renderer decides what to display.
+      // No nonce filtering on the main process side.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const runPromise = engine.sendMessage(
+        message as any,
+        {
+          onTextDelta: (text) => {
+            if (toolSinceText && accumulatedText && !accumulatedText.endsWith("\n\n")) {
+              accumulatedText = accumulatedText.replace(/\n?$/, "\n\n");
+            }
+            toolSinceText = false;
+            accumulatedText += text;
+            mainWindow.webContents.send("chat:text-delta", { text, nonce, convId });
+          },
+          onToolStart: (id, name) => {
+            toolSinceText = true;
+            accumulatedTools.push({ id, name, status: "running" });
+            mainWindow.webContents.send("chat:tool-start", { id, name, nonce, convId });
+          },
+          onToolRun: (id, input) => {
+            const tool = accumulatedTools.find((t) => t.id === id);
+            if (tool) tool.input = input;
+            mainWindow.webContents.send("chat:tool-run", { id, input, nonce, convId });
+          },
+          onToolResult: (id, result, isError) => {
+            const tool = accumulatedTools.find((t) => t.id === id);
+            if (tool) {
+              tool.result = result;
+              tool.isError = isError;
+              tool.status = isError ? "error" : "success";
+            }
+            mainWindow.webContents.send("chat:tool-result", { id, result, isError, nonce, convId });
+          },
+          onToolEnd: (id) => {
+            mainWindow.webContents.send("chat:tool-end", { id, nonce, convId });
+          },
+          onComplete: () => {
+            mainWindow.webContents.send("chat:complete", { nonce, convId });
+          },
+          onError: (error) => {
+            mainWindow.webContents.send("chat:error", { error, nonce, convId });
+          },
+        },
+        model
+      );
+
+      // Persist when the run finishes — whether it completed, errored, or was aborted.
+      runPromise.finally(() => {
+        runningConvs.delete(convId);
+        engines.trim();
+        if (convId && (accumulatedText || accumulatedTools.length > 0)) {
+          addMessage(
+            convId,
+            "assistant",
+            accumulatedText,
+            accumulatedTools.length > 0
+              ? accumulatedTools.map((tc) => ({
+                  id: tc.id,
+                  name: tc.name,
+                  input: tc.input,
+                  result: tc.result,
+                  isError: tc.isError,
+                  status: tc.status,
+                }))
+              : undefined
+          );
+        }
+      });
+
+      return { ok: true };
+    }
+  );
 
   // Stops the given session's run — another session (perhaps in another org) may be running too.
   ipcMain.handle("chat:abort", async (_event, convId: string) => {
@@ -661,7 +751,9 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   ipcMain.handle("history:search", async (_event, query: string, scope: "org" | "all" = "org") => {
     const { ref } = await selectedOrg();
-    return searchConversations(query, { orgUsername: scope === "all" || !ref ? undefined : ref.username });
+    return searchConversations(query, {
+      orgUsername: scope === "all" || !ref ? undefined : ref.username,
+    });
   });
 
   ipcMain.handle("history:get", async (_event, id: string) => getConversation(id) ?? null);
@@ -739,7 +831,9 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   // Saved under its session's org; from no session (or one not tied yet), the selected org.
   ipcMain.handle("library:save", async (_event, input) => {
-    const fromSession = input.sourceConversationId ? getConversation(input.sourceConversationId)?.org : null;
+    const fromSession = input.sourceConversationId
+      ? getConversation(input.sourceConversationId)?.org
+      : null;
     return createLibraryItem({ ...input, org: fromSession ?? (await selectedOrg()).ref });
   });
 
@@ -755,38 +849,45 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   // --- custom scripts: assist ---
   const assistRuns = new Map<string, AbortController>();
 
-  ipcMain.handle("studio:scriptAssist", async (_event, requestId: string, request: ScriptAssistRequest) => {
-    if (!llm) return { ok: false, error: "Connect a model in Settings to use Ask Roz." };
-    const client = await readyMcpClient();
-    if (!client) return { ok: false, error: "Engine not started" };
+  ipcMain.handle(
+    "studio:scriptAssist",
+    async (_event, requestId: string, request: ScriptAssistRequest) => {
+      if (!llm) return { ok: false, error: "Connect a model in Settings to use Ask Roz." };
+      const client = await readyMcpClient();
+      if (!client) return { ok: false, error: "Engine not started" };
 
-    const controller = new AbortController();
-    assistRuns.set(requestId, controller);
-    const send = (kind: string, data: Record<string, unknown>) => {
-      if (!mainWindow.isDestroyed()) mainWindow.webContents.send(`studio:scriptAssist-${kind}`, { requestId, ...data });
-    };
-    const host: ScriptAssistHost = {
-      callTool: async (name, args, options) => {
-        const result = await client.callTool(name, args, options);
-        return { text: result.content.map((c) => c.text).join("\n"), isError: result.isError ?? false };
-      },
-    };
-    // Runs on after the invoke returns; the outcome arrives as events.
-    void runScriptAssist(llm, host, request, {
-      signal: controller.signal,
-      model: request.model || llmConnection?.model,
-      onDelta: (text) => send("delta", { text }),
-      onTool: (name, status, detail) => send("tool", { name, status, detail }),
-    })
-      .then((message) => send("done", { message }))
-      .catch((error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        // An abort is the user's own doing; the panel already knows.
-        if (message !== "aborted") send("error", { error: message });
+      const controller = new AbortController();
+      assistRuns.set(requestId, controller);
+      const send = (kind: string, data: Record<string, unknown>) => {
+        if (!mainWindow.isDestroyed())
+          mainWindow.webContents.send(`studio:scriptAssist-${kind}`, { requestId, ...data });
+      };
+      const host: ScriptAssistHost = {
+        callTool: async (name, args, options) => {
+          const result = await client.callTool(name, args, options);
+          return {
+            text: result.content.map((c) => c.text).join("\n"),
+            isError: result.isError ?? false,
+          };
+        },
+      };
+      // Runs on after the invoke returns; the outcome arrives as events.
+      void runScriptAssist(llm, host, request, {
+        signal: controller.signal,
+        model: request.model || llmConnection?.model,
+        onDelta: (text) => send("delta", { text }),
+        onTool: (name, status, detail) => send("tool", { name, status, detail }),
       })
-      .finally(() => assistRuns.delete(requestId));
-    return { ok: true };
-  });
+        .then((message) => send("done", { message }))
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          // An abort is the user's own doing; the panel already knows.
+          if (message !== "aborted") send("error", { error: message });
+        })
+        .finally(() => assistRuns.delete(requestId));
+      return { ok: true };
+    }
+  );
 
   ipcMain.handle("studio:scriptAssistAbort", async (_event, requestId: string) => {
     assistRuns.get(requestId)?.abort();
@@ -804,6 +905,9 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       }
       // Writes local files: only into a folder the user picked (studio:exportSource).
       if (toolName === "studio_export_source") return { error: "Use studio:exportSource." };
+      // Writes slide files for a frame to load: only studio:contentPlayer, which serves them.
+      if (toolName === "studio_content_player") return { error: "Use studio:contentPlayer." };
+      if (toolName === "studio_content_draft") return { error: "Use contentDraft:preview." };
       // Deploys go through appBuilder:deploy, which builds the call from the saved project.
       if (toolName === "studio_app_deploy") return { error: "Use appBuilder:deploy." };
       // A change is applied only as it was previewed (the review dialog shows each preview before Apply).
@@ -812,7 +916,11 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       }
       // Live progress of a running preview/apply: no cache and no shared in-flight call (each poll
       // must see the state as it is now), and it makes no org calls so it never queues behind the work.
-      if (toolName === "studio_fix_progress" || toolName === "studio_sync_user_progress" || toolName === "studio_feature_map_progress") {
+      if (
+        toolName === "studio_fix_progress" ||
+        toolName === "studio_sync_user_progress" ||
+        toolName === "studio_feature_map_progress"
+      ) {
         const client = await readyMcpClient();
         if (!client) return { error: "Engine not started" };
         try {
@@ -843,45 +951,64 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       // Identical concurrent calls share one load (a timed-out one keeps running server-side).
       // A load that began before a write (generation) neither joins nor feeds the cache after it.
       const gen = generationOf(org);
-      return studioInFlight(`${org}\u0000${toolName}\u0000${argsKey}\u0000${refresh}\u0000${gen}`, async () => {
-        const client = await readyMcpClient();
-        if (!client) return { error: "Engine not started" };
-        try {
-          // A feature map fans out to many sf CLI queries; allow well over the SDK's 60s default. The published
-          // iPad adds the metadata download to its live reads (list views up to ~4 minutes, then records).
-          const mobileLogins = (await Promise.all(offered.map((l) => mobileLoginCredentials(l.id).catch(() => null)))).filter((l): l is NonNullable<typeof l> => !!l);
-          const callArgs = { ...args, ...(refresh && STUDIO_REFRESHABLE.has(toolName) ? { refresh: true } : {}), ...(mobileLogins.length ? { mobileLogins } : {}) };
-          const result = await client.callTool(toolName, callArgs, { timeoutMs: toolName === "studio_ipad_published" ? 8 * 60_000 : CACHE_DOWNLOAD_TOOLS.has(toolName) ? 30 * 60_000 : 5 * 60_000 });
-          const text = result.content.find((c) => c.type === "text")?.text ?? "{}";
-          const data = JSON.parse(text);
-          const cachedAt = new Date().toISOString();
-          // Partial results (failed surfaces, checks that couldn't run) shouldn't stick — the next open retries.
-          if (cacheable && isCacheable(toolName, data) && generationOf(org) === gen) {
-            // Refreshing a map means the org changed — item details may be stale too.
-            if (refresh && toolName === "studio_feature_map") {
-              for (const tool of INVALIDATED_BY_MAP_REFRESH) clearStudioCache(org, tool);
-            }
-            setStudioCacheText(org, toolName, argsKey, text);
-          }
-          // An applied change alters the org: drop what it can affect (not the slow, unaffected published iPad).
-          if (toolName === "studio_preview_fix" && data && !data.blocked) previewedFixes.add(args.fix);
-          if (toolName === "studio_apply_fix" && data?.ok) invalidate(org, toolsInvalidatedByApply(args.fix));
-          // A finished publish changes the metadata cache surfaces.
-          if (toolName === "studio_publish_status" && data?.state === "done") invalidate(org, INVALIDATED_BY_PUBLISH);
-          return { data, cachedAt };
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          // A write that errored or timed out may still have landed.
-          if (toolName === "studio_apply_fix") invalidate(org, toolsInvalidatedByApply(args.fix));
-          if (/time(d)?[ -]?out/i.test(message)) {
-            return {
-              error:
-                "This is taking longer than 5 minutes. It is still loading in the background, so try again in a minute and it should be ready.",
+      return studioInFlight(
+        `${org}\u0000${toolName}\u0000${argsKey}\u0000${refresh}\u0000${gen}`,
+        async () => {
+          const client = await readyMcpClient();
+          if (!client) return { error: "Engine not started" };
+          try {
+            // A feature map fans out to many sf CLI queries; allow well over the SDK's 60s default. The published
+            // iPad adds the metadata download to its live reads (list views up to ~4 minutes, then records).
+            const mobileLogins = (
+              await Promise.all(offered.map((l) => mobileLoginCredentials(l.id).catch(() => null)))
+            ).filter((l): l is NonNullable<typeof l> => !!l);
+            const callArgs = {
+              ...args,
+              ...(refresh && STUDIO_REFRESHABLE.has(toolName) ? { refresh: true } : {}),
+              ...(mobileLogins.length ? { mobileLogins } : {}),
             };
+            const result = await client.callTool(toolName, callArgs, {
+              timeoutMs:
+                toolName === "studio_ipad_published"
+                  ? 8 * 60_000
+                  : CACHE_DOWNLOAD_TOOLS.has(toolName)
+                    ? 30 * 60_000
+                    : 5 * 60_000,
+            });
+            const text = result.content.find((c) => c.type === "text")?.text ?? "{}";
+            const data = JSON.parse(text);
+            const cachedAt = new Date().toISOString();
+            // Partial results (failed surfaces, checks that couldn't run) shouldn't stick — the next open retries.
+            if (cacheable && isCacheable(toolName, data) && generationOf(org) === gen) {
+              // Refreshing a map means the org changed — item details may be stale too.
+              if (refresh && toolName === "studio_feature_map") {
+                for (const tool of INVALIDATED_BY_MAP_REFRESH) clearStudioCache(org, tool);
+              }
+              setStudioCacheText(org, toolName, argsKey, text);
+            }
+            // An applied change alters the org: drop what it can affect (not the slow, unaffected published iPad).
+            if (toolName === "studio_preview_fix" && data && !data.blocked)
+              previewedFixes.add(args.fix);
+            if (toolName === "studio_apply_fix" && data?.ok)
+              invalidate(org, toolsInvalidatedByApply(args.fix));
+            // A finished publish changes the metadata cache surfaces.
+            if (toolName === "studio_publish_status" && data?.state === "done")
+              invalidate(org, INVALIDATED_BY_PUBLISH);
+            return { data, cachedAt };
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            // A write that errored or timed out may still have landed.
+            if (toolName === "studio_apply_fix") invalidate(org, toolsInvalidatedByApply(args.fix));
+            if (/time(d)?[ -]?out/i.test(message)) {
+              return {
+                error:
+                  "This is taking longer than 5 minutes. It is still loading in the background, so try again in a minute and it should be ready.",
+              };
+            }
+            return { error: message };
           }
-          return { error: message };
         }
-      });
+      );
     }
   );
 
@@ -898,6 +1025,19 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       return ref ? { username: ref.username, target: pool.target } : null;
     },
     invalidate: (tools) => invalidate(loadSettings().sfTargetOrg ?? "", tools),
+  });
+
+  // --- Intelligent Content drafts (Studio -> Build) ---
+
+  registerContentDraftHandlers({
+    mainWindow,
+    llm: () => llm,
+    model: () => pickBuilderModel(llmConnection?.model, llmModels),
+    readyMcpClient,
+    selectedOrg: async () => {
+      const { ref } = await selectedOrg();
+      return ref ? { username: ref.username } : null;
+    },
   });
 
   // --- Studio performance testing: plans and run history (per org) ---
@@ -935,7 +1075,9 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     return { ok: true };
   });
 
-  ipcMain.handle("perf:listRuns", async (_event, planId: string) => listPerfRuns(await currentOrg(), planId));
+  ipcMain.handle("perf:listRuns", async (_event, planId: string) =>
+    listPerfRuns(await currentOrg(), planId)
+  );
 
   ipcMain.handle("perf:getRun", async (_event, id: string) => getPerfRun(id));
 
@@ -955,7 +1097,10 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   ipcMain.handle("perf:getSim", async (_event, id: string) => getPerfSim(id));
 
-  ipcMain.handle("perf:saveSim", async (_event, input: Omit<PerfSimRecord, "id"> & { result: unknown }) => savePerfSim(input));
+  ipcMain.handle(
+    "perf:saveSim",
+    async (_event, input: Omit<PerfSimRecord, "id"> & { result: unknown }) => savePerfSim(input)
+  );
 
   ipcMain.handle("perf:deleteSim", async (_event, id: string) => {
     deletePerfSim(id);
@@ -1037,43 +1182,63 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   });
 
   // Pick the project folder (opening on the one last used for this org), then retrieve the changes' documents into it.
-  ipcMain.handle("studio:exportSource", async (_event, changes: unknown[] = [], items: unknown[] = []) => {
-    const { ref } = await selectedOrg();
-    if (!ref?.username) return { error: "No Salesforce org selected." };
-    const last = sourceControlFor(loadSettings(), ref.username).folder;
-    const res = await dialog.showOpenDialog(mainWindow, {
-      title: "Save as source files",
-      message: "Choose your sfdx project folder. Files go in its default package (force-app/main/default).",
-      buttonLabel: "Save Here",
-      defaultPath: last ?? app.getPath("home"),
-      properties: ["openDirectory", "createDirectory"],
-    });
-    if (res.canceled || res.filePaths.length === 0) return { canceled: true };
-    const folder = res.filePaths[0];
-    saveSettings(withSourceControl(loadSettings(), ref.username, { folder }));
-    const client = await readyMcpClient();
-    if (!client) return { error: "Engine not started" };
-    try {
-      const result = await client.callTool("studio_export_source", { folder, changes, items }, { timeoutMs: 5 * 60_000 });
-      const data = JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}");
-      return data?.error ? { error: String(data.error) } : { data };
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : String(error) };
+  ipcMain.handle(
+    "studio:exportSource",
+    async (_event, changes: unknown[] = [], items: unknown[] = []) => {
+      const { ref } = await selectedOrg();
+      if (!ref?.username) return { error: "No Salesforce org selected." };
+      const last = sourceControlFor(loadSettings(), ref.username).folder;
+      const res = await dialog.showOpenDialog(mainWindow, {
+        title: "Save as source files",
+        message:
+          "Choose your sfdx project folder. Files go in its default package (force-app/main/default).",
+        buttonLabel: "Save Here",
+        defaultPath: last ?? app.getPath("home"),
+        properties: ["openDirectory", "createDirectory"],
+      });
+      if (res.canceled || res.filePaths.length === 0) return { canceled: true };
+      const folder = res.filePaths[0];
+      saveSettings(withSourceControl(loadSettings(), ref.username, { folder }));
+      const client = await readyMcpClient();
+      if (!client) return { error: "Engine not started" };
+      try {
+        const result = await client.callTool(
+          "studio_export_source",
+          { folder, changes, items },
+          { timeoutMs: 5 * 60_000 }
+        );
+        const data = JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}");
+        return data?.error ? { error: String(data.error) } : { data };
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : String(error) };
+      }
     }
-  });
+  );
 
   // Save a metadata cache's ZIP where the user picks: the engine downloads it (studio_metadata_cache_contents), this copies it.
   ipcMain.handle("studio:saveMetadataCache", async (_event, recordId: string) => {
-    if (typeof recordId !== "string" || !/^[a-zA-Z0-9]{15,18}$/.test(recordId)) return { error: "Invalid record Id." };
+    if (typeof recordId !== "string" || !/^[a-zA-Z0-9]{15,18}$/.test(recordId))
+      return { error: "Invalid record Id." };
     const client = await readyMcpClient();
     if (!client) return { error: "Engine not started" };
     try {
-      const result = await client.callTool("studio_metadata_cache_contents", { recordId }, { timeoutMs: 30 * 60_000 });
-      const data = JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}") as { error?: string; zipPath?: string; profile?: string | null; generatedAt?: string };
-      if (data.error || !data.zipPath) return { error: data.error || "The cache couldn't be downloaded." };
+      const result = await client.callTool(
+        "studio_metadata_cache_contents",
+        { recordId },
+        { timeoutMs: 30 * 60_000 }
+      );
+      const data = JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}") as {
+        error?: string;
+        zipPath?: string;
+        profile?: string | null;
+        generatedAt?: string;
+      };
+      if (data.error || !data.zipPath)
+        return { error: data.error || "The cache couldn't be downloaded." };
       // Only ever copy out of the engine's download folder (see isEngineZipPath).
       if (!isEngineZipPath(data.zipPath)) return { error: "Unexpected download location." };
-      const base = `${(data.profile || "Org level").replace(/[^\w .-]+/g, "_")} metadata cache ${(data.generatedAt || "").slice(0, 10)}`.trim();
+      const base =
+        `${(data.profile || "Org level").replace(/[^\w .-]+/g, "_")} metadata cache ${(data.generatedAt || "").slice(0, 10)}`.trim();
       const res = await dialog.showSaveDialog(mainWindow, {
         title: "Download metadata cache",
         defaultPath: `${base}.zip`,
@@ -1100,16 +1265,20 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   });
 
   // `quick` answers at once (startup, opening the org menu), then sends the full listing — with expired logins — when it lands.
-  ipcMain.handle("sfOrg:list", async (_event, options?: { recheckRoles?: boolean; quick?: boolean }) => {
-    const list = await listSfOrgs({ fresh: !options?.quick });
-    orgRoles.check(list.orgs, { force: options?.recheckRoles });
-    if (options?.quick) {
-      pendingOrgList()?.then((full) => {
-        if (!full.error && !mainWindow.isDestroyed()) mainWindow.webContents.send("sfOrg:listed", withRoles(full));
-      });
+  ipcMain.handle(
+    "sfOrg:list",
+    async (_event, options?: { recheckRoles?: boolean; quick?: boolean }) => {
+      const list = await listSfOrgs({ fresh: !options?.quick });
+      orgRoles.check(list.orgs, { force: options?.recheckRoles });
+      if (options?.quick) {
+        pendingOrgList()?.then((full) => {
+          if (!full.error && !mainWindow.isDestroyed())
+            mainWindow.webContents.send("sfOrg:listed", withRoles(full));
+        });
+      }
+      return withRoles(list);
     }
-    return withRoles(list);
-  });
+  );
 
   // Studio and new sessions follow the selected org; sessions already running stay in theirs.
   ipcMain.handle("sfOrg:set", async (_event, org: string) => {
@@ -1135,7 +1304,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       if ("username" in result) {
         const list = await listAfterLogin(result.username);
         orgRoles.check(list.orgs);
-        if (!list.error && !mainWindow.isDestroyed()) mainWindow.webContents.send("sfOrg:listed", withRoles(list));
+        if (!list.error && !mainWindow.isDestroyed())
+          mainWindow.webContents.send("sfOrg:listed", withRoles(list));
       }
       if (!mainWindow.isDestroyed()) mainWindow.webContents.send("sfOrg:loginDone", result);
     });
@@ -1145,8 +1315,17 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   // Opens the org in the default browser, signed in through the sf CLI connection — optionally on a page
   // inside it (an org-relative path such as /lightning/setup/FlexiPageList/home).
   ipcMain.handle("sfOrg:open", async (_event, org: string, path?: string) => {
-    if (path !== undefined && !isOrgPath(path)) return { ok: false, error: "Not a page in the org" };
-    const args = ["org", "open", "--target-org", org, "--url-only", "--json", ...(path ? ["--path", path] : [])];
+    if (path !== undefined && !isOrgPath(path))
+      return { ok: false, error: "Not a page in the org" };
+    const args = [
+      "org",
+      "open",
+      "--target-org",
+      org,
+      "--url-only",
+      "--json",
+      ...(path ? ["--path", path] : []),
+    ];
     return new Promise((resolve) => {
       execFile("sf", args, { timeout: 30000 }, (error, stdout) => {
         try {
@@ -1166,13 +1345,16 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   // --- Studio's iPad preview browser (the frontdoor link stays in this process) ---
 
-  ipcMain.handle("studioBrowser:open", async (event, guestId: number, url: string, auth: BrowserAuth) => {
-    try {
-      return await openInPreviewBrowser(event.sender, guestId, url, auth);
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : String(error) };
+  ipcMain.handle(
+    "studioBrowser:open",
+    async (event, guestId: number, url: string, auth: BrowserAuth) => {
+      try {
+        return await openInPreviewBrowser(event.sender, guestId, url, auth);
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : String(error) };
+      }
     }
-  });
+  );
 
   // --- Test users' mobile logins (tokens never leave the main process except to the engine) ---
 
@@ -1202,35 +1384,45 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   });
 
   // An inline LWC's data request in the iPad preview, answered as the previewed rep's mobile login.
-  ipcMain.handle("studio:lwcRequestAs", async (_event, loginId: string, req: { method: string; path: string; body?: unknown }) => {
-    const client = await readyMcpClient();
-    if (!client) return { error: "Engine not started" };
-    try {
-      const mobileLogin = await mobileLoginCredentials(loginId);
-      const result = await client.callTool("studio_lwc_request", { ...req, mobileLogin });
-      const text = result.content.find((c) => c.type === "text")?.text ?? "{}";
-      return result.isError ? { error: text } : { data: JSON.parse(text) };
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : String(error) };
+  ipcMain.handle(
+    "studio:lwcRequestAs",
+    async (_event, loginId: string, req: { method: string; path: string; body?: unknown }) => {
+      const client = await readyMcpClient();
+      if (!client) return { error: "Engine not started" };
+      try {
+        const mobileLogin = await mobileLoginCredentials(loginId);
+        const result = await client.callTool("studio_lwc_request", { ...req, mobileLogin });
+        const text = result.content.find((c) => c.type === "text")?.text ?? "{}";
+        return result.isError ? { error: text } : { data: JSON.parse(text) };
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : String(error) };
+      }
     }
-  });
+  );
 
   ipcMain.handle("mobileLogin:remove", async (_event, id: string) => {
     removeMobileLogin(id);
     return { ok: true };
   });
 
-  ipcMain.handle("studio:simStartMobile", async (_event, loginId: string, options: Record<string, unknown> = {}) => {
-    const client = await readyMcpClient();
-    if (!client) return { error: "Engine not started" };
-    try {
-      const mobileLogin = await mobileLoginCredentials(loginId);
-      const result = await client.callTool("studio_sim_start", { connection: mobileLogin.username, mobileLogin, options });
-      return { data: JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}") };
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : String(error) };
+  ipcMain.handle(
+    "studio:simStartMobile",
+    async (_event, loginId: string, options: Record<string, unknown> = {}) => {
+      const client = await readyMcpClient();
+      if (!client) return { error: "Engine not started" };
+      try {
+        const mobileLogin = await mobileLoginCredentials(loginId);
+        const result = await client.callTool("studio_sim_start", {
+          connection: mobileLogin.username,
+          mobileLogin,
+          options,
+        });
+        return { data: JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}") };
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : String(error) };
+      }
     }
-  });
+  );
 
   // Starts a performance run; personas whose users have a mobile login get their exact table list.
   // Tokens go to the engine for this job only and never come back in a status or result.
@@ -1240,11 +1432,18 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     try {
       // Only the selected org's test users, and only those still signed in.
       const orgId = (await resolveOrg(loadSettings().sfTargetOrg))?.orgId;
-      const usable = listMobileLogins().filter((l) => l.status === "signedIn" && (!orgId || !l.orgId || sameOrgId(l.orgId, orgId)));
-      const mobileLogins = (await Promise.all(usable.map((l) => mobileLoginCredentials(l.id).catch(() => null)))).filter(
-        (l): l is NonNullable<typeof l> => !!l
-      ).slice(0, 25);
-      const result = await client.callTool("studio_perf_start", { plan, ...(mobileLogins.length ? { mobileLogins } : {}) });
+      const usable = listMobileLogins().filter(
+        (l) => l.status === "signedIn" && (!orgId || !l.orgId || sameOrgId(l.orgId, orgId))
+      );
+      const mobileLogins = (
+        await Promise.all(usable.map((l) => mobileLoginCredentials(l.id).catch(() => null)))
+      )
+        .filter((l): l is NonNullable<typeof l> => !!l)
+        .slice(0, 25);
+      const result = await client.callTool("studio_perf_start", {
+        plan,
+        ...(mobileLogins.length ? { mobileLogins } : {}),
+      });
       return { data: JSON.parse(result.content.find((c) => c.type === "text")?.text ?? "{}") };
     } catch (error) {
       return { error: error instanceof Error ? error.message : String(error) };
@@ -1265,10 +1464,44 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     }
   });
 
-  ipcMain.handle("file:open-external", async (_event, url: string) => ({ ok: openExternalSafely(url) }));
+  ipcMain.handle("file:open-external", async (_event, url: string) => ({
+    ok: openExternalSafely(url),
+  }));
 
   ipcMain.handle("frame:register", async (_event, html: unknown) => registerFrameDoc(html));
   ipcMain.handle("frame:release", async (_event, url: unknown) => releaseFrameDoc(url));
+
+  // The iPad preview's live CLM player: the engine unpacks the presentation into its CLM folder, which is
+  // served to the player's sandboxed frame under a fresh token (clm-files.ts). The folder's path stays here.
+  ipcMain.handle(
+    "studio:contentPlayer",
+    async (_event, presentationId: unknown, userId: unknown) => {
+      const id = /^[a-zA-Z0-9]{15,18}$/;
+      if (typeof presentationId !== "string" || !id.test(presentationId))
+        return { error: "Not a presentation Id." };
+      const client = await readyMcpClient();
+      if (!client) return { error: "Engine not started" };
+      try {
+        const result = await client.callTool(
+          "studio_content_player",
+          { presentationId, ...(typeof userId === "string" && id.test(userId) ? { userId } : {}) },
+          { timeoutMs: 5 * 60_000 }
+        );
+        const text = result.content.find((c) => c.type === "text")?.text ?? "{}";
+        const data = JSON.parse(text);
+        if (result.isError || data.error) return { error: String(data.error ?? text) };
+        const base = registerClmRoot(data.root);
+        if (!base) return { error: "The slides weren't unpacked where the app can show them." };
+        delete data.root;
+        return { data: { ...data, base } };
+      } catch (error) {
+        return { error: error instanceof Error ? error.message : String(error) };
+      }
+    }
+  );
+  ipcMain.handle("studio:contentPlayerRelease", async (_event, base: unknown) =>
+    releaseClmRoot(base)
+  );
 
   // --- Guide Section Reading ---
 
@@ -1288,9 +1521,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         }
 
         const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
-        const section = manifest.sections?.find(
-          (s: { slug: string }) => s.slug === sectionSlug
-        );
+        const section = manifest.sections?.find((s: { slug: string }) => s.slug === sectionSlug);
         if (!section) {
           return { ok: false, error: `Section '${sectionSlug}' not found in guide '${guideSlug}'` };
         }
@@ -1325,61 +1556,55 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     }
   );
 
-  ipcMain.handle(
-    "file:open-pdf-at-page",
-    async (_event, pdfFileName: string, pageNum: number) => {
-      try {
-        const { existsSync } = await import("fs");
+  ipcMain.handle("file:open-pdf-at-page", async (_event, pdfFileName: string, pageNum: number) => {
+    try {
+      const { existsSync } = await import("fs");
 
-        const pdfPath = documentationPdfPath(pdfFileName);
-        if (!pdfPath || !existsSync(pdfPath)) {
-          return { ok: false, error: `PDF not found: ${pdfFileName}` };
-        }
-
-        // Open in default PDF viewer — page navigation is manual for now
-        shell.openPath(pdfPath);
-        return { ok: true };
-      } catch (error) {
-        return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      const pdfPath = documentationPdfPath(pdfFileName);
+      if (!pdfPath || !existsSync(pdfPath)) {
+        return { ok: false, error: `PDF not found: ${pdfFileName}` };
       }
+
+      // Open in default PDF viewer — page navigation is manual for now
+      shell.openPath(pdfPath);
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
-  );
+  });
 
   // Open a PDF in a dedicated Electron window with Chromium's native viewer at a specific page
-  ipcMain.handle(
-    "file:open-pdf-window",
-    async (_event, pdfFileName: string, pageNum: number) => {
-      try {
-        const { existsSync } = await import("fs");
-        const { pathToFileURL } = await import("url");
+  ipcMain.handle("file:open-pdf-window", async (_event, pdfFileName: string, pageNum: number) => {
+    try {
+      const { existsSync } = await import("fs");
+      const { pathToFileURL } = await import("url");
 
-        const pdfPath = documentationPdfPath(pdfFileName);
-        if (!pdfPath || !existsSync(pdfPath)) {
-          return { ok: false, error: `PDF not found: ${pdfFileName}` };
-        }
-        const page = Number.isInteger(pageNum) && pageNum > 0 ? pageNum : 1;
-
-        const fileUrl = pathToFileURL(pdfPath).toString() + `#page=${page}`;
-
-        const pdfWindow = new BrowserWindow({
-          width: 900,
-          height: 800,
-          title: `${pdfFileName} — Page ${page}`,
-          webPreferences: {
-            contextIsolation: true,
-            nodeIntegration: false,
-            sandbox: true,
-            plugins: true,
-          },
-        });
-        pdfWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-        pdfWindow.webContents.on("will-navigate", (e) => e.preventDefault());
-
-        pdfWindow.loadURL(fileUrl);
-        return { ok: true };
-      } catch (error) {
-        return { ok: false, error: error instanceof Error ? error.message : String(error) };
+      const pdfPath = documentationPdfPath(pdfFileName);
+      if (!pdfPath || !existsSync(pdfPath)) {
+        return { ok: false, error: `PDF not found: ${pdfFileName}` };
       }
+      const page = Number.isInteger(pageNum) && pageNum > 0 ? pageNum : 1;
+
+      const fileUrl = pathToFileURL(pdfPath).toString() + `#page=${page}`;
+
+      const pdfWindow = new BrowserWindow({
+        width: 900,
+        height: 800,
+        title: `${pdfFileName} — Page ${page}`,
+        webPreferences: {
+          contextIsolation: true,
+          nodeIntegration: false,
+          sandbox: true,
+          plugins: true,
+        },
+      });
+      pdfWindow.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+      pdfWindow.webContents.on("will-navigate", (e) => e.preventDefault());
+
+      pdfWindow.loadURL(fileUrl);
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
-  );
+  });
 }

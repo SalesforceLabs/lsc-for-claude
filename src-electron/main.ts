@@ -9,6 +9,7 @@ import { loadSettings } from "./settings.js";
 import { openExternalSafely } from "./external-url.js";
 import { documentationDir, localProtocolPath } from "./app-files.js";
 import { FRAME_SCHEME, frameDocResponse } from "./frame-docs.js";
+import { CLM_HOST, clmResponse } from "./clm-files.js";
 import { answerOnlyFromApp } from "./ipc-guard.js";
 import { fixPathForPackagedApp } from "./shell-path.js";
 import { startUpdater } from "./updater.js";
@@ -37,8 +38,12 @@ protocol.registerSchemesAsPrivileged([
       corsEnabled: true,
     },
   },
-  // The live LWC previews' documents (frame-docs.ts).
-  { scheme: FRAME_SCHEME, privileges: { standard: true, secure: true } },
+  // The live LWC previews' documents (frame-docs.ts) and the CLM player's slides (clm-files.ts), which
+  // stream video and may fetch their own files.
+  {
+    scheme: FRAME_SCHEME,
+    privileges: { standard: true, secure: true, stream: true, supportFetchAPI: true },
+  },
 ]);
 
 let mainWindow: BrowserWindow | null = null;
@@ -61,7 +66,14 @@ function isAppPage(url: string): boolean {
 answerOnlyFromApp((event) => {
   const frame = event.senderFrame;
   const main = mainWindow?.webContents.mainFrame;
-  return !!main && event.sender === mainWindow!.webContents && !!frame && frame.processId === main.processId && frame.routingId === main.routingId && isAppPage(frame.url);
+  return (
+    !!main &&
+    event.sender === mainWindow!.webContents &&
+    !!frame &&
+    frame.processId === main.processId &&
+    frame.routingId === main.routingId &&
+    isAppPage(frame.url)
+  );
 });
 
 /** A file: URL of one of the app's PDFs (documentation/), which the doc panel shows in a webview. */
@@ -104,7 +116,9 @@ function createWindow(): void {
 
   // Log renderer console messages to stdout for debugging
   mainWindow.webContents.on("console-message", (event) => {
-    console.log(`[Renderer ${event.level.toUpperCase()}] ${event.message} (${event.sourceId}:${event.lineNumber})`);
+    console.log(
+      `[Renderer ${event.level.toUpperCase()}] ${event.message} (${event.sourceId}:${event.lineNumber})`
+    );
   });
 
   // Register IPC handlers
@@ -113,14 +127,10 @@ function createWindow(): void {
   if (rendererDevUrl) {
     // Dev mode: try the Vite dev server, fall back to the built bundle if it's down.
     mainWindow.loadURL(rendererDevUrl).catch(() => {
-      mainWindow!.loadFile(
-        path.join(__dirname, "..", "dist-renderer", "index.html")
-      );
+      mainWindow!.loadFile(path.join(__dirname, "..", "dist-renderer", "index.html"));
     });
   } else {
-    mainWindow.loadFile(
-      path.join(__dirname, "..", "dist-renderer", "index.html")
-    );
+    mainWindow.loadFile(path.join(__dirname, "..", "dist-renderer", "index.html"));
   }
 
   // The window only ever shows the app. A link that would load another page in it (and give that page the
@@ -192,7 +202,11 @@ app.whenReady().then(() => {
     if (!filePath) return new Response("Not found", { status: 404 });
     return net.fetch(pathToFileURL(filePath).toString());
   });
-  protocol.handle(FRAME_SCHEME, (request) => frameDocResponse(request.url));
+  protocol.handle(FRAME_SCHEME, (request) =>
+    new URL(request.url).hostname === CLM_HOST
+      ? clmResponse(request)
+      : frameDocResponse(request.url)
+  );
 
   const settings = loadSettings();
   applyTheme(settings.theme);
