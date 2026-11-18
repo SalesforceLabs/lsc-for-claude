@@ -105,6 +105,8 @@ export interface CheckResult {
   message: string;
   details?: unknown;
   error?: string;
+  /** The check couldn't be run (query failed or timed out, unsupported type or condition). */
+  unavailable?: boolean;
 }
 
 export interface AuditResult {
@@ -118,6 +120,8 @@ export interface AuditResult {
     errors: number;
     warnings: number;
     skipped: number;
+    /** Checks that couldn't be run; counted neither as passed nor as failed. */
+    unchecked: number;
   };
   results: CheckResult[];
 }

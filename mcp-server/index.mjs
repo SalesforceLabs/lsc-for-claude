@@ -99633,7 +99633,7 @@ async function executeCheck(check2, targetOrg, context = {}) {
       case "api":
       case "cli":
         return {
-          passed: true,
+          passed: false,
           message: `Check type '${check2.type}' not yet implemented - skipped`,
           unavailable: true
         };
@@ -99866,12 +99866,14 @@ async function runAudit(targetOrg, options = {}) {
     failed: 0,
     errors: 0,
     warnings: 0,
-    skipped: 0
+    skipped: 0,
+    unchecked: 0
   };
   for (const rule of rulesToRun) {
     if (rule.prerequisites && rule.prerequisites.length > 0) {
       const prereqResults = results.filter((r) => rule.prerequisites.includes(r.rule.id));
-      const prereqsFailed = prereqResults.some((r) => !r.passed);
+      const prereqsFailed = prereqResults.some((r) => !r.passed && !r.unavailable);
+      const prereqsUnchecked = prereqResults.some((r) => r.unavailable);
       if (prereqsFailed) {
         results.push({
           rule,
@@ -99881,16 +99883,29 @@ async function runAudit(targetOrg, options = {}) {
         summary.skipped++;
         continue;
       }
+      if (prereqsUnchecked) {
+        results.push({
+          rule,
+          passed: false,
+          unavailable: true,
+          message: `Couldn't check: a prerequisite check couldn't be run`
+        });
+        summary.unchecked++;
+        continue;
+      }
     }
     const checkResult = await executeCheck(rule.check, targetOrg);
     const result2 = {
       rule,
       passed: checkResult.passed,
       message: checkResult.message,
-      details: checkResult.details
+      details: checkResult.details,
+      ...checkResult.unavailable ? { unavailable: true } : {}
     };
     results.push(result2);
-    if (checkResult.passed) {
+    if (checkResult.unavailable) {
+      summary.unchecked++;
+    } else if (checkResult.passed) {
       summary.passed++;
     } else {
       summary.failed++;
@@ -99944,6 +99959,10 @@ function formatAuditResults(audit) {
     output += `| Skipped | ${audit.summary.skipped} |
 `;
   }
+  if (audit.summary.unchecked > 0) {
+    output += `| Couldn't check | ${audit.summary.unchecked} |
+`;
+  }
   output += `
 `;
   if (audit.summary.errors > 0) {
@@ -99960,6 +99979,13 @@ function formatAuditResults(audit) {
     output += `Found ${audit.summary.warnings} warning(s) that should be reviewed.
 
 `;
+  } else if (audit.summary.unchecked > 0) {
+    output += `### Status: INCOMPLETE
+
+`;
+    output += `No problems found, but ${audit.summary.unchecked} check(s) couldn't be run (see below).
+
+`;
   } else {
     output += `### Status: PASSED
 
@@ -99968,7 +99994,7 @@ function formatAuditResults(audit) {
 
 `;
   }
-  const failedResults = audit.results.filter((r) => !r.passed);
+  const failedResults = audit.results.filter((r) => !r.passed && !r.unavailable);
   if (failedResults.length > 0) {
     output += `## Issues Found
 
@@ -100000,6 +100026,18 @@ function formatAuditResults(audit) {
         output += formatFailedCheck(result2);
       }
     }
+  }
+  const uncheckedResults = audit.results.filter((r) => r.unavailable);
+  if (uncheckedResults.length > 0) {
+    output += `## Couldn't Check (${uncheckedResults.length})
+
+`;
+    for (const result2 of uncheckedResults) {
+      output += `- **${result2.rule.id}**: ${result2.rule.name} \u2014 ${result2.message}
+`;
+    }
+    output += `
+`;
   }
   const passedResults = audit.results.filter((r) => r.passed);
   if (passedResults.length > 0) {
