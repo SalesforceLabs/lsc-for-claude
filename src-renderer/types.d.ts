@@ -3,7 +3,19 @@ import type { AppTheme } from "./theme";
 import type { UpdateState } from "./update";
 import type { OrgRef, OrgRole, SfOrg } from "./orgs";
 import type { SourceExportResult } from "./components/studio/source-control";
-import type { AppBuilderEvent, AppCheckResult, AppDeployPlan, AppDeployResult, AppObjectInfo, AppProject, AppRunAs, AppTabSettings, AppTarget, AppVersion, OrgApp } from "./components/studio/builder/types";
+import type {
+  AppBuilderEvent,
+  AppCheckResult,
+  AppDeployPlan,
+  AppDeployResult,
+  AppObjectInfo,
+  AppProject,
+  AppRunAs,
+  AppTabSettings,
+  AppTarget,
+  AppVersion,
+  OrgApp,
+} from "./components/studio/builder/types";
 
 /** A chat session; `org` is the org it works in, null for sessions from before orgs were recorded. */
 export interface Conversation {
@@ -131,13 +143,22 @@ interface LscApi {
 
   // --- custom scripts: assist ---
   /** Ask Roz about a script (request: see ScriptAssistRequest in studio/scripts/script-assist-logic.ts); progress arrives through onScriptAssistEvent. */
-  studioScriptAssist(requestId: string, request: unknown): Promise<{ ok: true } | { ok: false; error: string }>;
+  studioScriptAssist(
+    requestId: string,
+    request: unknown
+  ): Promise<{ ok: true } | { ok: false; error: string }>;
   studioScriptAssistAbort(requestId: string): Promise<{ ok: true }>;
   onScriptAssistEvent(
     callback: (
       event:
         | { kind: "delta"; requestId: string; text: string }
-        | { kind: "tool"; requestId: string; name: string; status: "running" | "done" | "error"; detail?: string }
+        | {
+            kind: "tool";
+            requestId: string;
+            name: string;
+            status: "running" | "done" | "error";
+            detail?: string;
+          }
         | { kind: "done"; requestId: string; message: string }
         | { kind: "error"; requestId: string; error: string }
     ) => void
@@ -153,17 +174,30 @@ interface LscApi {
   studioScope(): Promise<StudioResponse>;
   studioUserTrace(userId: string, featureId?: string): Promise<StudioResponse>;
   studioDrift(
-    input: { action: "list"; days?: number } | { action: "save"; label?: string } | { action: "diff"; id: string } | { action: "delete"; id: string }
+    input:
+      | { action: "list"; days?: number }
+      | { action: "save"; label?: string }
+      | { action: "diff"; id: string }
+      | { action: "delete"; id: string }
   ): Promise<StudioResponse>;
   /** Known causes and validation rules matching an error or symptom, checked against the org unless `checkOrg` is false — never cached. */
   studioDiagnose(text: string, checkOrg?: boolean): Promise<StudioResponse>;
   studioItemDetail(kind: string, id: string): Promise<StudioResponse>;
   /** The layout as it is in the org now (sections, fields, related lists, profiles using it, production) — never cached. */
-  studioMetadataDoc(type: "Layout" | "CompactLayout" | "FlexiPage" | "ListView" | "CustomApplication", fullName: string): Promise<StudioResponse>;
+  studioMetadataDoc(
+    type: "Layout" | "CompactLayout" | "FlexiPage" | "ListView" | "CustomApplication",
+    fullName: string
+  ): Promise<StudioResponse>;
   studioAppNav(profile: string, tabs: string[]): Promise<StudioResponse>;
   studioPageReach(fullName: string): Promise<StudioResponse>;
-  studioComponentCatalog(pageType: "HomePage" | "RecordPage", sobject: string | null): Promise<StudioResponse>;
-  studioComponentProps(component: string, pageType?: "HomePage" | "RecordPage"): Promise<StudioResponse>;
+  studioComponentCatalog(
+    pageType: "HomePage" | "RecordPage",
+    sobject: string | null
+  ): Promise<StudioResponse>;
+  studioComponentProps(
+    component: string,
+    pageType?: "HomePage" | "RecordPage"
+  ): Promise<StudioResponse>;
   /** The deepest Setup pages for references (see `SetupRef`), in order; `exact` false = the list page. */
   studioSetupLinks(refs: unknown[]): Promise<StudioResponse>;
   studioListProfiles(): Promise<StudioResponse>;
@@ -173,19 +207,40 @@ interface LscApi {
   studioLwcBundle(name: string): Promise<StudioResponse>;
   studioLwcRequest(method: "GET" | "POST", path: string, body?: unknown): Promise<StudioResponse>;
   /** As the previewed rep's mobile login instead of the sf CLI connection. */
-  studioLwcRequestAs(loginId: string, method: "GET" | "POST", path: string, body?: unknown): Promise<StudioResponse>;
+  studioLwcRequestAs(
+    loginId: string,
+    method: "GET" | "POST",
+    path: string,
+    body?: unknown
+  ): Promise<StudioResponse>;
   /** `language`: draw it in this cache language instead of the user's own. */
-  studioIpadPublished(profile: string, refresh?: boolean, userId?: string, language?: string): Promise<StudioResponse>;
+  studioIpadPublished(
+    profile: string,
+    refresh?: boolean,
+    userId?: string,
+    language?: string
+  ): Promise<StudioResponse>;
   studioIpadPublishedUsers(profile: string, search: string): Promise<StudioResponse>;
   studioIpadPublishedProgress(profile: string): Promise<StudioResponse>;
   /** The Reports tab's settings and folder/report tree for a rep, read when the tab opens. */
   studioIpadReports(userId: string): Promise<StudioResponse>;
-  studioKamPlan(object: "AccountPlan" | "TerritoryBusinessPlan", planId: string, sync: string[]): Promise<StudioResponse>;
+  studioKamPlan(
+    object: "AccountPlan" | "TerritoryBusinessPlan",
+    planId: string,
+    sync: string[]
+  ): Promise<StudioResponse>;
   /** One report's result for the View Report sheet, run when it is opened. */
   studioReportData(reportId: string, userId?: string): Promise<StudioResponse>;
   studioManagerData(
     args:
-      | { kind: "myTeamWeek"; territoryId?: string; date: string; firstDay: string; timeZone: string; locale: string }
+      | {
+          kind: "myTeamWeek";
+          territoryId?: string;
+          date: string;
+          firstDay: string;
+          timeZone: string;
+          locale: string;
+        }
       | { kind: "dashboardDetail"; dashboardId: string }
   ): Promise<StudioResponse>;
   /** The Capture Consent sheet for one account: settings, subscriptions, channels, contact points. */
@@ -209,9 +264,18 @@ interface LscApi {
   studioCustomScripts(refresh?: boolean): Promise<StudioResponse>;
   /** One script with its code, as it is in the org now. */
   studioCustomScript(id: string): Promise<StudioResponse>;
+  // --- intelligent content: builder ---
+  /** The org's presentations, newest change first, with page, topic and territory counts. */
+  studioContentLibrary(refresh?: boolean): Promise<StudioResponse>;
+  /** One presentation as the builder edits it, with what can be added to it. Read fresh every time. */
+  studioContentPresentation(id: string): Promise<StudioResponse>;
   // --- custom scripts: runner ---
   /** Records a script can be tested against (visits for Visit Action Validation), searchable. */
-  studioScriptTestRecords(args: { type: string; objectName?: string | null; search?: string }): Promise<StudioResponse>;
+  studioScriptTestRecords(args: {
+    type: string;
+    objectName?: string | null;
+    search?: string;
+  }): Promise<StudioResponse>;
   /** A simulated run of the given code against one record, read-only. */
   studioScriptTest(args: {
     code: string;
@@ -223,9 +287,20 @@ interface LscApi {
     env?: { actionName?: string; fromStatus?: string; toStatus?: string; fieldName?: string };
     userId?: string;
   }): Promise<StudioResponse>;
-  studioUnpublished(profile: string, known?: Record<string, string[]>, refresh?: boolean): Promise<StudioResponse>;
-  studioPreviewFix(fix: unknown, progress?: { id: string; index: number; total: number }): Promise<StudioResponse>;
-  studioApplyFix(fix: unknown, expectedOrg: string, progress?: { id: string; index: number; total: number }): Promise<StudioResponse>;
+  studioUnpublished(
+    profile: string,
+    known?: Record<string, string[]>,
+    refresh?: boolean
+  ): Promise<StudioResponse>;
+  studioPreviewFix(
+    fix: unknown,
+    progress?: { id: string; index: number; total: number }
+  ): Promise<StudioResponse>;
+  studioApplyFix(
+    fix: unknown,
+    expectedOrg: string,
+    progress?: { id: string; index: number; total: number }
+  ): Promise<StudioResponse>;
   studioFixProgress(id: string): Promise<StudioResponse>;
   studioFeatureMapProgress(featureId: string, readiness?: boolean): Promise<StudioResponse>;
   studioPublishMobile(profiles: string[], expectedOrg: string): Promise<StudioResponse>;
@@ -239,7 +314,9 @@ interface LscApi {
   /** One file from a cache record's ZIP. */
   studioMetadataCacheFile(recordId: string, path: string): Promise<StudioResponse>;
   /** Save a cache record's ZIP through a save dialog. */
-  studioSaveMetadataCache(recordId: string): Promise<{ canceled?: boolean; path?: string; error?: string }>;
+  studioSaveMetadataCache(
+    recordId: string
+  ): Promise<{ canceled?: boolean; path?: string; error?: string }>;
   /** Every DB Schema record, as the Object sync page's rows. */
   studioObjectSync(): Promise<StudioResponse>;
   /** Test-run DB Schema records' objects, fields and filters (read-only). */
@@ -252,18 +329,31 @@ interface LscApi {
   studioPerfActive(): Promise<StudioResponse>;
   studioPerfCheck(plan: unknown): Promise<StudioResponse>;
   studioPerfReport(result: unknown, days?: number): Promise<StudioResponse>;
-  studioPerfTerritories(input: { users: string[]; select?: { profile: string; count?: number } }): Promise<StudioResponse>;
+  studioPerfTerritories(input: {
+    users: string[];
+    select?: { profile: string; count?: number };
+  }): Promise<StudioResponse>;
   studioConnectedOrg(): Promise<StudioResponse>;
   studioSyncOverview(days?: number, refresh?: boolean): Promise<StudioResponse>;
   studioSyncUser(userId: string, days?: number, refresh?: boolean): Promise<StudioResponse>;
   studioSyncUserProgress(userId: string): Promise<StudioResponse>;
   studioSyncImpact(changes: unknown[], profiles?: string[]): Promise<StudioResponse>;
-  studioSignoffReport(input: { assessment: unknown; simulations?: unknown[]; baseline?: unknown; days?: number }): Promise<StudioResponse>;
+  studioSignoffReport(input: {
+    assessment: unknown;
+    simulations?: unknown[];
+    baseline?: unknown;
+    days?: number;
+  }): Promise<StudioResponse>;
 
   // LSC App Builder — projects are stored per org by the main process; turns stream through onAppEvent
   appList(): Promise<AppProject[]>;
   appGet(id: string): Promise<AppProject | null>;
-  appCreate(input: { prompt: string; target: AppTarget; objectApiName?: string; runAs?: AppRunAs }): Promise<{ project?: AppProject; error?: string }>;
+  appCreate(input: {
+    prompt: string;
+    target: AppTarget;
+    objectApiName?: string;
+    runAs?: AppRunAs;
+  }): Promise<{ project?: AppProject; error?: string }>;
   appSend(id: string, prompt: string): Promise<{ ok: boolean; error?: string }>;
   appStop(id: string): Promise<void>;
   appDelete(id: string): Promise<void>;
@@ -272,12 +362,22 @@ interface LscApi {
   appDeployPlan(id: string): Promise<{ plan?: AppDeployPlan; error?: string }>;
   appRename(id: string, label: string): Promise<void>;
   appRestore(id: string, versionId: string): Promise<{ version?: AppVersion; error?: string }>;
-  appEditFile(id: string, path: string, source: string): Promise<{ version?: AppVersion; error?: string }>;
-  appPreview(id: string, versionId?: string): Promise<{ script?: string; placeholders: string[]; check?: AppCheckResult; error?: string }>;
+  appEditFile(
+    id: string,
+    path: string,
+    source: string
+  ): Promise<{ version?: AppVersion; error?: string }>;
+  appPreview(
+    id: string,
+    versionId?: string
+  ): Promise<{ script?: string; placeholders: string[]; check?: AppCheckResult; error?: string }>;
   appDeploy(id: string): Promise<{ result?: AppDeployResult; error?: string }>;
   appImport(name: string): Promise<{ project?: AppProject; error?: string }>;
   appOrgApps(): Promise<{ apps?: OrgApp[]; error?: string }>;
-  appDescribe(objects: string[], projectId?: string): Promise<{ objects?: AppObjectInfo[]; error?: string }>;
+  appDescribe(
+    objects: string[],
+    projectId?: string
+  ): Promise<{ objects?: AppObjectInfo[]; error?: string }>;
   onAppEvent(cb: (e: { projectId: string; event: AppBuilderEvent }) => void): () => void;
 
   // Studio performance testing — plans and run history, stored per org by the main process
@@ -286,7 +386,9 @@ interface LscApi {
   perfDeletePlan(id: string): Promise<{ ok: boolean }>;
   perfListRuns(planId: string): Promise<PerfRunRecord[]>;
   perfGetRun(id: string): Promise<PerfRunRecord | null>;
-  perfSaveRun(input: Omit<PerfRunRecord, "id" | "org"> & { org?: string; result: unknown }): Promise<PerfRunRecord>;
+  perfSaveRun(
+    input: Omit<PerfRunRecord, "id" | "org"> & { org?: string; result: unknown }
+  ): Promise<PerfRunRecord>;
   perfDeleteRun(id: string): Promise<{ ok: boolean }>;
   studioSimStart(connection: string, options?: unknown): Promise<StudioResponse>;
   /** Start a simulation as a mobile login; the token stays in the main process. */
@@ -317,13 +419,19 @@ interface LscApi {
   /** The selected org's Salesforce API version: in use, pinned (null = the org's own), the org's own, and those it serves. */
   apiVersionGet(): Promise<{ org: string | null; data?: ApiVersionInfo; error?: string }>;
   /** Pin a version for the selected org (null: back to the org's own). */
-  apiVersionSet(version: string | null): Promise<{ org: string | null; data?: ApiVersionInfo; error?: string }>;
+  apiVersionSet(
+    version: string | null
+  ): Promise<{ org: string | null; data?: ApiVersionInfo; error?: string }>;
   /** Asks for the project folder (opening on the org's last one), then writes the changes' org versions there. */
   studioExportSource(
     changes: unknown[],
     items?: { type: string; fullName: string }[]
   ): Promise<{ canceled?: boolean; data?: SourceExportResult; error?: string }>;
-  perfSaveFile(defaultName: string, text: string, kind: "yaml" | "json" | "md"): Promise<{ canceled: boolean; path?: string }>;
+  perfSaveFile(
+    defaultName: string,
+    text: string,
+    kind: "yaml" | "json" | "md"
+  ): Promise<{ canceled: boolean; path?: string }>;
 
   // Library
   listLibraryItems(scope?: OrgScope): Promise<LibraryItem[]>;
@@ -343,7 +451,10 @@ interface LscApi {
    * `recheckRoles` checks again which connections are LSC admins (otherwise once a day). `quick` answers
    * at once before the first full listing, without expired logins; the full one follows on `onSfOrgListed`.
    */
-  listSfOrgs(options?: { recheckRoles?: boolean; quick?: boolean }): Promise<{ orgs: SfOrg[]; error?: string }>;
+  listSfOrgs(options?: {
+    recheckRoles?: boolean;
+    quick?: boolean;
+  }): Promise<{ orgs: SfOrg[]; error?: string }>;
   /** The full listing after a `quick` one; returns an unsubscribe function. */
   onSfOrgListed(callback: (list: { orgs: SfOrg[]; error?: string }) => void): () => void;
   /** Roles by lowercased username, sent as background checks finish. */
@@ -354,7 +465,9 @@ interface LscApi {
   onSfOrgChanged(callback: (org: string) => void): () => void;
   loginSfOrg(alias?: string, instanceUrl?: string): Promise<{ ok: boolean; error?: string }>;
   /** How a login started with `loginSfOrg` ended; the listing with the new connection arrives first on `onSfOrgListed`. */
-  onSfOrgLoginDone(callback: (result: { username: string } | { error: string }) => void): () => void;
+  onSfOrgLoginDone(
+    callback: (result: { username: string } | { error: string }) => void
+  ): () => void;
   /** Open the org in the default browser through its sf CLI connection. */
   /** `path`: a page inside the org, e.g. "/lightning/setup/FlexiPageList/home". */
   openSfOrg(org: string, path?: string): Promise<{ ok: boolean; error?: string }>;
@@ -387,17 +500,37 @@ interface LscApi {
   onEngineTools(callback: (toolCount: number) => void): () => void;
 
   // Chat
-  sendMessage(message: string | unknown[], nonce: number, convId: string, model?: string): Promise<{ ok: boolean; error?: string }>;
+  sendMessage(
+    message: string | unknown[],
+    nonce: number,
+    convId: string,
+    model?: string
+  ): Promise<{ ok: boolean; error?: string }>;
   abortChat(convId: string): Promise<{ ok: boolean }>;
   clearChat(): Promise<{ ok: boolean }>;
 
   // Chat events — all include nonce + convId to identify which stream they belong to
   onTextDelta(callback: (text: string, nonce: number, convId: string) => void): () => void;
-  onToolStart(callback: (data: { id: string; name: string; nonce: number; convId: string }) => void): () => void;
+  onToolStart(
+    callback: (data: { id: string; name: string; nonce: number; convId: string }) => void
+  ): () => void;
   /** A tool's input is complete and it starts running (tools run one at a time). */
-  onToolRun(callback: (data: { id: string; input: Record<string, unknown>; nonce: number; convId: string }) => void): () => void;
+  onToolRun(
+    callback: (data: {
+      id: string;
+      input: Record<string, unknown>;
+      nonce: number;
+      convId: string;
+    }) => void
+  ): () => void;
   onToolResult(
-    callback: (data: { id: string; result: string; isError: boolean; nonce: number; convId: string }) => void
+    callback: (data: {
+      id: string;
+      result: string;
+      isError: boolean;
+      nonce: number;
+      convId: string;
+    }) => void
   ): () => void;
   onToolEnd(callback: (data: { id: string; nonce: number; convId: string }) => void): () => void;
   /**
@@ -409,7 +542,14 @@ interface LscApi {
   /** A write with no Studio equivalent waits for Allow / Deny on its tool call (`toolId`). */
   onApprovalRequest(callback: (data: ApprovalRequest) => void): () => void;
   /** An approval was answered, or dropped because its run was aborted. */
-  onApprovalSettled(callback: (data: { requestId: string; convId: string; toolId: string; allowed: boolean }) => void): () => void;
+  onApprovalSettled(
+    callback: (data: {
+      requestId: string;
+      convId: string;
+      toolId: string;
+      allowed: boolean;
+    }) => void
+  ): () => void;
   respondApproval(requestId: string, allow: boolean): Promise<{ ok: boolean }>;
   /** Approvals still waiting (e.g. after the window reloads, or in a session opened later). */
   listApprovals(): Promise<ApprovalRequest[]>;
@@ -432,9 +572,7 @@ interface LscApi {
   togglePinConversation(id: string): Promise<{ ok: boolean }>;
   deleteConversation(id: string): Promise<{ ok: boolean }>;
   renameConversation(id: string, title: string): Promise<{ ok: boolean }>;
-  getConversationMessages(
-    conversationId: string
-  ): Promise<
+  getConversationMessages(conversationId: string): Promise<
     Array<{
       id: string;
       conversationId: string;
@@ -445,14 +583,63 @@ interface LscApi {
     }>
   >;
   // File reading
-  readFile(filePath: string): Promise<{ ok: boolean; content?: string; path?: string; error?: string }>;
+  readFile(
+    filePath: string
+  ): Promise<{ ok: boolean; content?: string; path?: string; error?: string }>;
   openExternal(url: string): Promise<{ ok: boolean }>;
   /** Serves a live preview frame's HTML as an lsc-frame:// URL with the frame CSP. */
   registerFrame(html: string): Promise<string | null>;
   releaseFrame(url: string): Promise<void>;
+  /** The iPad preview's live CLM player: one presentation unpacked and served under `base` (lsc-frame://clm/<token>/). */
+  studioContentPlayer(
+    presentationId: string,
+    userId?: string
+  ): Promise<{
+    data?: import("./components/studio/screens/content-player-types").ContentPlayerData;
+    error?: string;
+  }>;
+  studioContentPlayerRelease(base: string): Promise<void>;
+  /** What a new presentation can be made from: active ZIP pages, topics, products, territories. */
+  studioContentNew(): Promise<StudioResponse>;
+  /** Page images by page id, `{ images: { [pageId]: dataUrl } }`. */
+  studioContentPageImages(pageIds: string[]): Promise<StudioResponse>;
+  // Intelligent Content pages Roz drafts (kept on this computer); turns stream through onContentDraftEvent
+  contentDraftList(): Promise<import("./components/studio/content/content-types").ContentDraft[]>;
+  contentDraftGet(
+    id: string
+  ): Promise<import("./components/studio/content/content-types").ContentDraft | null>;
+  contentDraftCreate(
+    prompt: string
+  ): Promise<import("./components/studio/content/content-types").ContentDraft | { error: string }>;
+  contentDraftSend(
+    id: string,
+    prompt: string
+  ): Promise<import("./components/studio/content/content-types").ContentDraft | { error: string }>;
+  contentDraftStop(id: string): Promise<void>;
+  contentDraftRename(
+    id: string,
+    name: string
+  ): Promise<import("./components/studio/content/content-types").ContentDraft | { error: string }>;
+  contentDraftDelete(id: string): Promise<void>;
+  /** Lays the draft out for the live player again and serves it like studioContentPlayer. */
+  contentDraftPreview(id: string): Promise<{
+    data?: import("./components/studio/screens/content-player-types").ContentPlayerData & {
+      checks: import("./components/studio/content/content-types").DraftCheck[];
+    };
+    error?: string;
+  }>;
+  onContentDraftEvent(
+    cb: (e: {
+      draftId: string;
+      event: import("./components/studio/content/content-types").ContentDraftEvent;
+    }) => void
+  ): () => void;
 
   // Guide section reading
-  readGuideSection(guideSlug: string, sectionSlug: string): Promise<{
+  readGuideSection(
+    guideSlug: string,
+    sectionSlug: string
+  ): Promise<{
     ok: boolean;
     content?: string;
     guideTitle?: string;
@@ -490,7 +677,10 @@ export interface TrayQueueEvent {
   convId: string;
   toolId: string;
   org: string;
-  changes: Array<{ fix: { kind: string; label: string; [key: string]: unknown }; affects?: string[] }>;
+  changes: Array<{
+    fix: { kind: string; label: string; [key: string]: unknown };
+    affects?: string[];
+  }>;
 }
 
 /** `chat:approval-request` — see `onApprovalRequest`. */

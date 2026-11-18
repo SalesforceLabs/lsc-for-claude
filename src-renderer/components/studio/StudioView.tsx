@@ -2,7 +2,14 @@ import { usePersistedFlag } from "../../hooks/usePersistedState";
 import { useSelectedOrgId } from "../../hooks/useOrgs";
 import { recallPreview, rememberPreview } from "./preview-memory";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { FeatureMap, FeatureReadiness, FeatureSummary, ProfileOption, StudioFix, SurfaceId } from "./types";
+import type {
+  FeatureMap,
+  FeatureReadiness,
+  FeatureSummary,
+  ProfileOption,
+  StudioFix,
+  SurfaceId,
+} from "./types";
 import { countBySeverity, mapFindings } from "./findings";
 import { audienceProfiles, isScoped, type Lens } from "./lens";
 import { SeverityChips } from "./SeverityChips";
@@ -25,7 +32,13 @@ import { barVisible } from "./release-bar-logic";
 import { pendingForProfile, viewFor, type PendingChange } from "./changes";
 import { emptyHistory, record } from "./tray-history";
 import { afterApply, afterReview } from "./tray-state";
-import { fixAffectsPublished, isRevalidating, markAllStale, needsLoad, type Revalidating } from "./fix-effects";
+import {
+  fixAffectsPublished,
+  isRevalidating,
+  markAllStale,
+  needsLoad,
+  type Revalidating,
+} from "./fix-effects";
 import TestingPages, { SYNC_PAGES, type SyncPage } from "./TestingPages";
 import ReadinessView from "./ReadinessView";
 import SetupOverview from "./SetupOverview";
@@ -34,6 +47,7 @@ import TestUsersView from "./TestUsersView";
 import MetadataCacheView from "./MetadataCacheView";
 import ObjectSyncView from "./ObjectSyncView";
 import CustomScriptsView from "./scripts/CustomScriptsView";
+import ContentBuilderView from "./content/ContentBuilderView";
 import type { ReadinessState } from "./readiness";
 import { pickerProfiles, type ReadinessProfile } from "./readiness-profile";
 import {
@@ -47,6 +61,7 @@ import {
   LayoutDashboard,
   PanelLeftClose,
   PanelLeftOpen,
+  Presentation,
   RefreshCw,
   Sparkles,
   Tablet,
@@ -58,7 +73,13 @@ import {
 import Segmented from "../ui/Segmented";
 import { OrgAheadContext, useUnpublished } from "./useUnpublished";
 import { tabItemFor } from "./edit-draft";
-import { buildOrgAhead, insertReveal, revealPlan, type Reveal, type UnpublishedItem } from "./org-ahead";
+import {
+  buildOrgAhead,
+  insertReveal,
+  revealPlan,
+  type Reveal,
+  type UnpublishedItem,
+} from "./org-ahead";
 import StateView from "../ui/StateView";
 import FeatureLoading from "./FeatureLoading";
 import Spinner from "../ui/Spinner";
@@ -88,9 +109,25 @@ type MapState =
   | ({ status: "ready"; map: FeatureMap } & Revalidating);
 
 /** What the main pane shows: the iPad preview, a Setup page or feature, or a Testing page. */
-type Section = "preview" | "apps" | "overview" | "drift" | "setup" | SyncPage | "test-users" | "custom-scripts" | "metadata-cache" | "object-sync";
+type Section =
+  | "preview"
+  | "apps"
+  | "overview"
+  | "drift"
+  | "setup"
+  | SyncPage
+  | "test-users"
+  | "custom-scripts"
+  | "content"
+  | "metadata-cache"
+  | "object-sync";
 
-export default function StudioView({ onAskClaude, request, requestNonce, onRequestHandled }: StudioViewProps) {
+export default function StudioView({
+  onAskClaude,
+  request,
+  requestNonce,
+  onRequestHandled,
+}: StudioViewProps) {
   const [features, setFeatures] = useState<FeatureSummary[]>([]);
   // The rail folds to icons; remembered across restarts. Option+Cmd+Backslash toggles it.
   const [railCollapsed, setRailCollapsed] = usePersistedFlag("roz.studio.railCollapsed");
@@ -103,7 +140,10 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
     if (!autoFolded) setRailPeek(false);
   }, [autoFolded]);
   const railFolded = autoFolded ? !railPeek : railCollapsed;
-  const toggleRail = useCallback(() => (autoFolded ? setRailPeek(!railPeek) : setRailCollapsed(!railCollapsed)), [autoFolded, railPeek, railCollapsed, setRailCollapsed]);
+  const toggleRail = useCallback(
+    () => (autoFolded ? setRailPeek(!railPeek) : setRailCollapsed(!railCollapsed)),
+    [autoFolded, railPeek, railCollapsed, setRailCollapsed]
+  );
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code !== "Backslash" || !e.metaKey || !e.altKey || e.ctrlKey || e.shiftKey) return;
@@ -131,6 +171,12 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
     setScriptsOpened(true);
     if (id) setScriptRequest((r) => ({ id, nonce: (r?.nonce ?? 0) + 1 }));
   };
+  // The presentation builder keeps its library and open presentation while another page is shown.
+  const [contentOpened, setContentOpened] = useState(false);
+  const openContent = () => {
+    setSection("content");
+    setContentOpened(true);
+  };
   const syncPage = (SYNC_PAGES as string[]).includes(section) ? (section as SyncPage) : null;
   const openSyncPage = (page: SyncPage) => {
     setSection(page);
@@ -150,10 +196,19 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
   const tray = useStudioTray();
   // The open review: "tray" reviews the pending changes, "undo" the undo of the last apply. It keeps the tray it
   // was opened on and what it was given, so an org switch or a change queued from chat meanwhile isn't lost.
-  const [review, setReview] = useState<{ mode: "tray" | "undo"; key: string; opened: PendingChange[]; org?: string } | null>(null);
+  const [review, setReview] = useState<{
+    mode: "tray" | "undo";
+    key: string;
+    opened: PendingChange[];
+    org?: string;
+  } | null>(null);
   const reviewing = review?.mode ?? false;
   const openReview = (mode: "tray" | "undo") =>
-    setReview({ mode, key: tray.org, opened: mode === "undo" ? (tray.lastApply ?? []) : tray.pending });
+    setReview({
+      mode,
+      key: tray.org,
+      opened: mode === "undo" ? (tray.lastApply ?? []) : tray.pending,
+    });
   useTrayKeys(!!reviewing);
   const { pending, setPending, lastApply, awaiting, appliedFixes, publishJob } = tray;
   // Profiles to preselect in "Publish to iPad"; undefined = closed, null = none preselected.
@@ -198,14 +253,19 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
   useEffect(() => {
     window.lscApi.studioListFeatures().then((res) => {
       if (res.data && Array.isArray(res.data))
-        setFeatures([...(res.data as FeatureSummary[])].sort((a, b) => a.title.localeCompare(b.title)));
+        setFeatures(
+          [...(res.data as FeatureSummary[])].sort((a, b) => a.title.localeCompare(b.title))
+        );
     });
   }, []);
   // Each org has its own profiles; the old org's (and the profile being viewed) mean nothing in another.
   const profilesFor = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (orgId === undefined) return;
-    if (profilesFor.current !== undefined && profilesFor.current.toLowerCase() !== orgId.toLowerCase()) {
+    if (
+      profilesFor.current !== undefined &&
+      profilesFor.current.toLowerCase() !== orgId.toLowerCase()
+    ) {
       setLens(null);
       setProfiles([]);
       setProfilesOrg(undefined);
@@ -217,23 +277,37 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
   // Maps are persisted per org by the main process; `refresh` re-queries the org. A map already on screen stays
   // there, marked refreshing, while the new one loads; a request older than the latest is ignored.
   const mapRequests = useRef<Record<string, number>>({});
-  const load = useCallback(async (id: string, refresh = false) => {
-    const ticket = (mapRequests.current[id] ?? 0) + 1;
-    mapRequests.current[id] = ticket;
-    setMaps((m) => {
-      const prev = m[id];
-      return { ...m, [id]: prev?.status === "ready" ? { ...prev, stale: false, refreshing: true } : { status: "loading" } };
-    });
-    const res = await window.lscApi.studioFeatureMap(id, refresh);
-    if (mapRequests.current[id] !== ticket) return;
-    const error = res.error || (res.data as { error?: string } | undefined)?.error;
-    setMaps((m) => {
-      // A failed reload is shown as an error, never as the old answer: it may no longer be true.
-      return { ...m, [id]: error ? { status: "error", error } : { status: "ready", map: res.data as FeatureMap } };
-    });
-    // A refresh dropped the cached profile list too.
-    if (refresh) loadProfiles();
-  }, [loadProfiles]);
+  const load = useCallback(
+    async (id: string, refresh = false) => {
+      const ticket = (mapRequests.current[id] ?? 0) + 1;
+      mapRequests.current[id] = ticket;
+      setMaps((m) => {
+        const prev = m[id];
+        return {
+          ...m,
+          [id]:
+            prev?.status === "ready"
+              ? { ...prev, stale: false, refreshing: true }
+              : { status: "loading" },
+        };
+      });
+      const res = await window.lscApi.studioFeatureMap(id, refresh);
+      if (mapRequests.current[id] !== ticket) return;
+      const error = res.error || (res.data as { error?: string } | undefined)?.error;
+      setMaps((m) => {
+        // A failed reload is shown as an error, never as the old answer: it may no longer be true.
+        return {
+          ...m,
+          [id]: error
+            ? { status: "error", error }
+            : { status: "ready", map: res.data as FeatureMap },
+        };
+      });
+      // A refresh dropped the cached profile list too.
+      if (refresh) loadProfiles();
+    },
+    [loadProfiles]
+  );
 
   // Latest request per feature, so an older load that resolves late doesn't overwrite a newer one.
   const readinessRequests = useRef<Record<string, number>>({});
@@ -252,13 +326,24 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
     readinessRequests.current[id] = ticket;
     setReadiness((r) => {
       const prev = r[id];
-      return { ...r, [id]: prev?.status === "ready" ? { ...prev, stale: false, refreshing: true } : { status: "loading" } };
+      return {
+        ...r,
+        [id]:
+          prev?.status === "ready"
+            ? { ...prev, stale: false, refreshing: true }
+            : { status: "loading" },
+      };
     });
     const res = await window.lscApi.studioReadiness(id, refresh, profile);
     if (readinessRequests.current[id] !== ticket) return;
     const error = res.error || (res.data as { error?: string } | undefined)?.error;
     setReadiness((r) => {
-      return { ...r, [id]: error ? { status: "error", error } : { status: "ready", readiness: res.data as FeatureReadiness } };
+      return {
+        ...r,
+        [id]: error
+          ? { status: "error", error }
+          : { status: "ready", readiness: res.data as FeatureReadiness },
+      };
     });
   }, []);
 
@@ -326,27 +411,47 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
   const publishedRequests = useRef<Record<string, number>>({});
   // A language picked in the preview, per profile; unset = the rep's own.
   const publishedLanguages = useRef<Record<string, string | undefined>>({});
-  const loadPublished = useCallback(async (profile: string, refresh = false, userId?: string, keepShown = false) => {
-    const ticket = (publishedRequests.current[profile] ?? 0) + 1;
-    publishedRequests.current[profile] = ticket;
-    publishedUsers.current[profile] = userId;
-    if (orgRef.current) rememberPreview(orgRef.current, { profile, userId });
-    // After a write the old preview stays up (marked refreshing); a refresh or another rep shows the loading screen.
-    setPublished((p) => {
-      const prev = p[profile];
-      return { ...p, [profile]: keepShown && prev?.status === "ready" ? { ...prev, stale: false, refreshing: true } : { status: "loading" } };
-    });
-    const res = await window.lscApi.studioIpadPublished(profile, refresh, userId, publishedLanguages.current[profile]);
-    if (publishedRequests.current[profile] !== ticket) return;
-    const error = res.error || (res.data as { error?: string } | undefined)?.error;
-    setPublished((p) => {
-      return { ...p, [profile]: error ? { status: "error", error } : { status: "ready", result: res.data as PublishedResult } };
-    });
-  }, []);
+  const loadPublished = useCallback(
+    async (profile: string, refresh = false, userId?: string, keepShown = false) => {
+      const ticket = (publishedRequests.current[profile] ?? 0) + 1;
+      publishedRequests.current[profile] = ticket;
+      publishedUsers.current[profile] = userId;
+      if (orgRef.current) rememberPreview(orgRef.current, { profile, userId });
+      // After a write the old preview stays up (marked refreshing); a refresh or another rep shows the loading screen.
+      setPublished((p) => {
+        const prev = p[profile];
+        return {
+          ...p,
+          [profile]:
+            keepShown && prev?.status === "ready"
+              ? { ...prev, stale: false, refreshing: true }
+              : { status: "loading" },
+        };
+      });
+      const res = await window.lscApi.studioIpadPublished(
+        profile,
+        refresh,
+        userId,
+        publishedLanguages.current[profile]
+      );
+      if (publishedRequests.current[profile] !== ticket) return;
+      const error = res.error || (res.data as { error?: string } | undefined)?.error;
+      setPublished((p) => {
+        return {
+          ...p,
+          [profile]: error
+            ? { status: "error", error }
+            : { status: "ready", result: res.data as PublishedResult },
+        };
+      });
+    },
+    []
+  );
   /** Something was written to the org: every finished result on screen is out of date until reloaded. */
   const markStale = useCallback((alsoPublished: boolean) => {
     // Responses to requests made before the write must not land as current.
-    for (const r of [mapRequests, readinessRequests, publishedRequests]) for (const id of Object.keys(r.current)) r.current[id] += 1;
+    for (const r of [mapRequests, readinessRequests, publishedRequests])
+      for (const id of Object.keys(r.current)) r.current[id] += 1;
     setMaps((m) => markAllStale(m));
     setReadiness((r) => markAllStale(r));
     if (alsoPublished) setPublished((p) => markAllStale(p));
@@ -377,7 +482,11 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
     setIntentResult(null);
     if (project.target === "tab") {
       // The deploy already put the tab on the chosen profiles; all that is left is to publish them and look.
-      const chosen = project.tab?.profiles?.length ? project.tab.profiles : project.runAs?.profile ? [project.runAs.profile] : [];
+      const chosen = project.tab?.profiles?.length
+        ? project.tab.profiles
+        : project.runAs?.profile
+          ? [project.runAs.profile]
+          : [];
       const known = chosen.filter((n) => profiles.some((p) => p.name === n));
       if (known[0]) setLens({ profile: known[0] });
       setPreviewMode("published");
@@ -385,10 +494,26 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
       setPublishing(known.length ? known : null);
       return;
     }
-    const files = (project.versions.find((v) => v.id === project.currentVersionId) ?? project.versions[project.versions.length - 1])?.files ?? [];
-    setInsertIntent({ nonce: Date.now(), bundle: parentBundle(files, project.name), target: project.target, object: project.objectApiName, label: project.label });
+    const files =
+      (
+        project.versions.find((v) => v.id === project.currentVersionId) ??
+        project.versions[project.versions.length - 1]
+      )?.files ?? [];
+    setInsertIntent({
+      nonce: Date.now(),
+      bundle: parentBundle(files, project.name),
+      target: project.target,
+      object: project.objectApiName,
+      label: project.label,
+    });
     // Open on the profile the rep would have: the run-as user's, else the largest rep-like profile.
-    setLens((l) => l ?? (suggestProfile(profiles, project.runAs?.profile) ? { profile: suggestProfile(profiles, project.runAs?.profile)! } : null));
+    setLens(
+      (l) =>
+        l ??
+        (suggestProfile(profiles, project.runAs?.profile)
+          ? { profile: suggestProfile(profiles, project.runAs?.profile)! }
+          : null)
+    );
     setPreviewMode((m) => (m === "published" ? "draft" : m));
     openPreview();
   };
@@ -412,7 +537,11 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
         openReview("tray");
         break;
       case "setup":
-        openSetup(request.featureId, (request.surface as SurfaceId | undefined) ?? null, request.item ?? null);
+        openSetup(
+          request.featureId,
+          (request.surface as SurfaceId | undefined) ?? null,
+          request.item ?? null
+        );
         break;
       case "sync-rep":
         openSyncRep(request.userId);
@@ -424,7 +553,9 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
         if (request.section === "preview") openPreview();
         else if (request.section === "apps") openApps();
         else if (request.section === "custom-scripts") openScripts();
-        else if ((SYNC_PAGES as string[]).includes(request.section)) openSyncPage(request.section as SyncPage);
+        else if (request.section === "content") openContent();
+        else if ((SYNC_PAGES as string[]).includes(request.section))
+          openSyncPage(request.section as SyncPage);
         else setSection(request.section as Section);
         break;
     }
@@ -456,8 +587,11 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
 
   const publishedProfile = previewOpened ? (lens?.profile ?? null) : null;
   const nextChanges = useMemo(
-    () => (publishedProfile ? pendingForProfile(viewFor(pending, publishedProfile), publishedProfile).length : 0),
-    [pending, publishedProfile],
+    () =>
+      publishedProfile
+        ? pendingForProfile(viewFor(pending, publishedProfile), publishedProfile).length
+        : 0,
+    [pending, publishedProfile]
   );
   const previewShown = section === "preview" && !!publishedProfile;
   // Stable between renders so the memoized preview isn't redrawn for unrelated Studio state.
@@ -493,7 +627,8 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
     if (!publishedProfile) return;
     const state = published[publishedProfile];
     if (!state) loadPublished(publishedProfile, false, publishedUsers.current[publishedProfile]);
-    else if (needsLoad(state)) loadPublished(publishedProfile, false, publishedUsers.current[publishedProfile], true);
+    else if (needsLoad(state))
+      loadPublished(publishedProfile, false, publishedUsers.current[publishedProfile], true);
   }, [publishedProfile, published, loadPublished]);
 
   // Profiles with users, plus any profile a loaded map assigns config to (it may have no users yet).
@@ -509,12 +644,12 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
   }, [profiles, maps]);
 
   useEffect(() => {
-    if (!(syncOpened || scriptsOpened || reviewing) || connectedOrg) return;
+    if (!(syncOpened || scriptsOpened || contentOpened || reviewing) || connectedOrg) return;
     window.lscApi.studioConnectedOrg().then((res) => {
       const org = (res.data as { org?: string } | undefined)?.org;
       if (org) setConnectedOrg(org);
     });
-  }, [syncOpened, scriptsOpened, reviewing, connectedOrg]);
+  }, [syncOpened, scriptsOpened, contentOpened, reviewing, connectedOrg]);
 
   // Changes are applied against the org Studio last read — from a map, or from readiness checks on the Setup pages.
   const readyOrg =
@@ -531,7 +666,10 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
     else if (readyOrg) setReview({ ...review, org: readyOrg });
   }, [review, readyOrg, tray.org]);
   const publishedState = publishedProfile ? published[publishedProfile] : undefined;
-  const publishedSnapshot = publishedState?.status === "ready" && !("missing" in publishedState.result) ? publishedState.result : null;
+  const publishedSnapshot =
+    publishedState?.status === "ready" && !("missing" in publishedState.result)
+      ? publishedState.result
+      : null;
   const unpublished = useUnpublished(publishedProfile, publishedSnapshot, writeVersion);
   const tabItems = readyMap("actions-home")?.surfaces.find((x) => x.id === "navigationTabs")?.items;
   const orgAhead = useMemo(() => {
@@ -542,7 +680,10 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
         const item = tabItemFor(t, tabItems, publishedProfile);
         if (item) tabItemIds.set(t.fullName, item.id);
       }
-    return buildOrgAhead(unpublished.state?.status === "ready" ? unpublished.state.result.items : [], tabItemIds);
+    return buildOrgAhead(
+      unpublished.state?.status === "ready" ? unpublished.state.result.items : [],
+      tabItemIds
+    );
   }, [unpublished.state, publishedSnapshot, publishedProfile, tabItems]);
   const { edit: previewEdit, panel: editPanel } = usePreviewEdit({
     on: previewShown,
@@ -564,7 +705,9 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
   });
 
   // "Show" on a change: Next publish, the tab (and record) open, the block selected.
-  const [reveal, setReveal] = useState<(Reveal & { select: import("./edit-targets").EditTarget | null }) | null>(null);
+  const [reveal, setReveal] = useState<
+    (Reveal & { select: import("./edit-targets").EditTarget | null }) | null
+  >(null);
   const revealed = useRef(0);
   useEffect(() => {
     if (!reveal || reveal.nonce === revealed.current || !previewEdit?.on) return;
@@ -574,7 +717,8 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
   // "Add to iPad" for a Home or record app: open the page it goes onto, once the profile's snapshot is read.
   const intentRevealed = useRef(0);
   useEffect(() => {
-    if (!insertIntent || intentRevealed.current === insertIntent.nonce || !publishedSnapshot) return;
+    if (!insertIntent || intentRevealed.current === insertIntent.nonce || !publishedSnapshot)
+      return;
     if (insertIntent.target !== "home" && insertIntent.target !== "record") return;
     intentRevealed.current = insertIntent.nonce;
     const dest = insertReveal(publishedSnapshot, insertIntent.target, insertIntent.object);
@@ -611,11 +755,18 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
     isRevalidating(readiness[featureId] as Revalidating | undefined);
   const featureSubtitle = map
     ? `${map.summary} · ${map.org} · ${isRevalidating(state as Revalidating | undefined) ? "refreshing…" : `mapped ${new Date(map.collectedAt).toLocaleString()}`}${
-        activeLens ? ` · checking as ${activeLens.profile} (permission sets and sharing not included)` : ""
+        activeLens
+          ? ` · checking as ${activeLens.profile} (permission sets and sharing not included)`
+          : ""
       }`
     : undefined;
 
-  const lensPicker = (label: string, title: string, value: string | null, onChange: (profile: string | null) => void) => (
+  const lensPicker = (
+    label: string,
+    title: string,
+    value: string | null,
+    onChange: (profile: string | null) => void
+  ) => (
     <label className={`studio-lens-picker${value ? " active" : ""}`} title={title}>
       <UserRound size={14} strokeWidth={2} aria-hidden="true" />
       <span>{label}</span>
@@ -630,7 +781,13 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
     </label>
   );
 
-  const railItem = (id: Section, label: string, title: string, onClick: () => void, Icon: LucideIcon) => (
+  const railItem = (
+    id: Section,
+    label: string,
+    title: string,
+    onClick: () => void,
+    Icon: LucideIcon
+  ) => (
     <button
       className={`studio-rail-item${section === id ? " active" : ""}`}
       aria-current={section === id ? "page" : undefined}
@@ -643,7 +800,13 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
   );
 
   const refreshButton = (busy: boolean, onClick: () => void, title: string) => (
-    <button className="ui-icon-btn" onClick={onClick} disabled={busy} title={title} aria-label={title}>
+    <button
+      className="ui-icon-btn"
+      onClick={onClick}
+      disabled={busy}
+      title={title}
+      aria-label={title}
+    >
       {busy ? <Spinner size={14} /> : <RefreshCw size={15} strokeWidth={2} aria-hidden="true" />}
     </button>
   );
@@ -667,14 +830,24 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
         history={tray}
         scope={
           inPreview && publishedProfile && publishedSnapshot
-            ? { profile: publishedProfile, state: unpublished.state, snapshot: publishedSnapshot, onRetry: unpublished.retry, onShow: showUnpublished }
+            ? {
+                profile: publishedProfile,
+                state: unpublished.state,
+                snapshot: publishedSnapshot,
+                onRetry: unpublished.retry,
+                onShow: showUnpublished,
+              }
             : null
         }
         awaiting={awaiting}
         job={publishJob}
         onPublish={(preselect) => readyOrg && setPublishing(preselect)}
         onUndoLastApply={lastApply && readyOrg ? () => openReview("undo") : undefined}
-        extraStep={sourceControl.deployed && sourceDocs(appliedFixes).length > 0 ? <SourceStep changes={appliedFixes} /> : undefined}
+        extraStep={
+          sourceControl.deployed && sourceDocs(appliedFixes).length > 0 ? (
+            <SourceStep changes={appliedFixes} />
+          ) : undefined
+        }
       />
     ) : null;
 
@@ -690,11 +863,21 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
             aria-label={railFolded ? "Show Studio menu" : "Hide Studio menu"}
             aria-keyshortcuts="Alt+Meta+Backslash"
           >
-            {railFolded ? <PanelLeftOpen size={16} strokeWidth={1.75} aria-hidden="true" /> : <PanelLeftClose size={16} strokeWidth={1.75} aria-hidden="true" />}
+            {railFolded ? (
+              <PanelLeftOpen size={16} strokeWidth={1.75} aria-hidden="true" />
+            ) : (
+              <PanelLeftClose size={16} strokeWidth={1.75} aria-hidden="true" />
+            )}
           </button>
         </div>
         <div className="studio-rail-title">Setup</div>
-        {railItem("overview", "Overview", "Readiness for every feature, and org-wide blockers", () => setSection("overview"), LayoutDashboard)}
+        {railItem(
+          "overview",
+          "Overview",
+          "Readiness for every feature, and org-wide blockers",
+          () => setSection("overview"),
+          LayoutDashboard
+        )}
         {railItem(
           "drift",
           "What changed",
@@ -732,9 +915,22 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
           () => openScripts(),
           FileCode2
         )}
+        {railItem(
+          "content",
+          "Intelligent Content",
+          "Arrange presentations and distribute them to territories",
+          openContent,
+          Presentation
+        )}
         {railItem("apps", "LSC apps", "Build an iPad app with Roz", openApps, Sparkles)}
         <div className="studio-rail-title studio-rail-section">Testing</div>
-        {railItem("sync", "Sync health", "How reps' iPads are syncing, and who is struggling", () => openSyncPage("sync"), Activity)}
+        {railItem(
+          "sync",
+          "Sync health",
+          "How reps' iPads are syncing, and who is struggling",
+          () => openSyncPage("sync"),
+          Activity
+        )}
         {railItem(
           "test-plans",
           "Test plans",
@@ -773,7 +969,10 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
       </nav>
 
       {previewOpened && (
-        <section className={`studio-main studio-preview-section ui-enter${previewMode === "split" ? " compare" : ""}`} hidden={section !== "preview"}>
+        <section
+          className={`studio-main studio-preview-section ui-enter${previewMode === "split" ? " compare" : ""}`}
+          hidden={section !== "preview"}
+        >
           <header className="studio-header">
             <div className="studio-heading">
               <h1 className="studio-title">iPad preview</h1>
@@ -792,13 +991,26 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
           {insertIntent && intentResult && (
             <div className={`bld-addnote ui-enter ${intentResult.state}`} role="status">
               <span className="bld-addnote-icon">
-                <StatusIcon tone={intentResult.state === "waiting" ? "info" : intentResult.state === "queued" ? "pass" : "warning"} size={18} />
+                <StatusIcon
+                  tone={
+                    intentResult.state === "waiting"
+                      ? "info"
+                      : intentResult.state === "queued"
+                        ? "pass"
+                        : "warning"
+                  }
+                  size={18}
+                />
               </span>
               <span className="bld-addnote-text">
                 <strong>{insertIntent.label ?? insertIntent.bundle}</strong>: {intentResult.message}
-                {intentResult.state === "queued" && " Next: review the change in the tray, apply it, then Publish to iPad so reps get it."}
+                {intentResult.state === "queued" &&
+                  " Next: review the change in the tray, apply it, then Publish to iPad so reps get it."}
               </span>
-              <button className="studio-btn sm" onClick={() => (setInsertIntent(null), setIntentResult(null))}>
+              <button
+                className="studio-btn sm"
+                onClick={() => (setInsertIntent(null), setIntentResult(null))}
+              >
                 {intentResult.state === "queued" ? "Got it" : "Dismiss"}
               </button>
             </div>
@@ -809,9 +1021,21 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
               value={previewMode}
               onChange={setPreviewMode}
               options={[
-                { value: "published", label: "On iPads now", title: "What reps have today, from the profile's metadata cache" },
-                { value: "draft", label: "Next publish", title: "What reps get after you apply and publish" },
-                { value: "split", label: "Compare", title: "On iPads now and Next publish side by side" },
+                {
+                  value: "published",
+                  label: "On iPads now",
+                  title: "What reps have today, from the profile's metadata cache",
+                },
+                {
+                  value: "draft",
+                  label: "Next publish",
+                  title: "What reps get after you apply and publish",
+                },
+                {
+                  value: "split",
+                  label: "Compare",
+                  title: "On iPads now and Next publish side by side",
+                },
               ]}
             />
             <div className="studio-subbar-group">
@@ -828,18 +1052,18 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
             <div className="studio-canvas">
               {publishedProfile ? (
                 <OrgAheadContext.Provider value={orgAhead}>
-                <PublishedIpadPreview
-                  profile={publishedProfile}
-                  state={publishedState}
-                  onRefresh={refreshPublished}
-                  onPickUser={pickPublishedUser}
-                  onPickLanguage={pickPublishedLanguage}
-                  edit={previewEdit}
-                  split={previewMode === "split"}
-                  nextChanges={nextChanges}
-                  onSearchUsers={searchPublishedUsers}
-                  reveal={reveal}
-                />
+                  <PublishedIpadPreview
+                    profile={publishedProfile}
+                    state={publishedState}
+                    onRefresh={refreshPublished}
+                    onPickUser={pickPublishedUser}
+                    onPickLanguage={pickPublishedLanguage}
+                    edit={previewEdit}
+                    split={previewMode === "split"}
+                    nextChanges={nextChanges}
+                    onSearchUsers={searchPublishedUsers}
+                    reveal={reveal}
+                  />
                 </OrgAheadContext.Provider>
               ) : (
                 <StateView
@@ -863,7 +1087,9 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
             <header className="studio-header">
               <div className="studio-heading">
                 <h1 className="studio-title">LSC apps</h1>
-                <div className="studio-subtitle">Describe an app for your reps, build it with Roz, and put it on the iPad</div>
+                <div className="studio-subtitle">
+                  Describe an app for your reps, build it with Roz, and put it on the iPad
+                </div>
               </div>
             </header>
           )}
@@ -879,6 +1105,17 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
           writeVersion={writeVersion}
           active={section === "custom-scripts"}
           openRequest={scriptRequest}
+          tray={releaseBar(false)}
+        />
+      )}
+
+      {contentOpened && (
+        <ContentBuilderView
+          pending={pending}
+          onPendingChange={setPending}
+          onReview={() => openReview("tray")}
+          writeVersion={writeVersion}
+          active={section === "content"}
           tray={releaseBar(false)}
         />
       )}
@@ -977,7 +1214,9 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
             {map && (
               <div className="studio-subtitle" title={featureSubtitle}>
                 {map.summary} · {map.org} ·{" "}
-                {isRevalidating(state as Revalidating | undefined) ? "refreshing…" : `mapped ${new Date(map.collectedAt).toLocaleString()}`}
+                {isRevalidating(state as Revalidating | undefined)
+                  ? "refreshing…"
+                  : `mapped ${new Date(map.collectedAt).toLocaleString()}`}
                 {activeLens && (
                   <span className="studio-lens-note">
                     {" "}
@@ -1025,14 +1264,19 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
               />
             )}
             {map && featureView === "board" && (
-              <SeverityChips counts={countBySeverity(mapFindings(map, activeLens))} emptyLabel="No issues found" />
+              <SeverityChips
+                counts={countBySeverity(mapFindings(map, activeLens))}
+                emptyLabel="No issues found"
+              />
             )}
           </div>
           <div className="studio-subbar-group">
             {!activeLens && featureView === "readiness" && (
               <button
                 className="studio-btn"
-                onClick={() => onAskClaude(`Check why a rep can't use ${feature?.title ?? "this feature"}: `)}
+                onClick={() =>
+                  onAskClaude(`Check why a rep can't use ${feature?.title ?? "this feature"}: `)
+                }
                 title="Ask Roz to check one rep's setup for this feature"
               >
                 <UserRoundSearch aria-hidden="true" />
@@ -1088,7 +1332,10 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
             />
           )}
           {map && (activeLens || featureView === "board") && (
-            <div key={`board:${featureId}:${activeLens ? "lens" : "all"}`} className="studio-canvas ui-enter">
+            <div
+              key={`board:${featureId}:${activeLens ? "lens" : "all"}`}
+              className="studio-canvas ui-enter"
+            >
               {activeLens ? (
                 <LensChecklist
                   map={map}
@@ -1101,7 +1348,11 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
                   onExit={() => checkProfile(null)}
                 />
               ) : (
-                <FeatureGrid map={map} selectedSurface={selectedSurface} onSelectSurface={selectSurface} />
+                <FeatureGrid
+                  map={map}
+                  selectedSurface={selectedSurface}
+                  onSelectSurface={selectSurface}
+                />
               )}
             </div>
           )}
@@ -1139,7 +1390,10 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
               tray.editTray(review.key, (t) => {
                 const next = afterReview(t.history.present, review.opened, remaining);
                 if (next === t.history.present) return t;
-                return { ...t, history: applied.length > 0 ? emptyHistory(next) : record(t.history, next) };
+                return {
+                  ...t,
+                  history: applied.length > 0 ? emptyHistory(next) : record(t.history, next),
+                };
               });
             // Any feature's map and readiness may have changed; the main process dropped them from its cache. What's
             // on screen stays, marked refreshing, and reloads when its page is showing — nothing is blanked.
@@ -1154,7 +1408,11 @@ export default function StudioView({ onAskClaude, request, requestNonce, onReque
               // An undo takes the last apply back; anything else becomes the apply to undo.
               lastApply: wasUndo ? null : undos.length ? undos : null,
               awaiting: toPublish.length ? [...t.awaiting, ...toPublish] : t.awaiting,
-              appliedFixes: !done.length ? t.appliedFixes : wasUndo ? withoutUndone(t.appliedFixes, fixes) : [...t.appliedFixes, ...fixes],
+              appliedFixes: !done.length
+                ? t.appliedFixes
+                : wasUndo
+                  ? withoutUndone(t.appliedFixes, fixes)
+                  : [...t.appliedFixes, ...fixes],
             }));
           }}
         />

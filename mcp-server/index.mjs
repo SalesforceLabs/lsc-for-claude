@@ -51,11 +51,11 @@ var require_code = __commonJS({
     exports2._CodeOrName = _CodeOrName;
     exports2.IDENTIFIER = /^[a-z$_][a-z$_0-9]*$/i;
     var Name = class extends _CodeOrName {
-      constructor(s7) {
+      constructor(s11) {
         super();
-        if (!exports2.IDENTIFIER.test(s7))
+        if (!exports2.IDENTIFIER.test(s11))
           throw new Error("CodeGen: name must be a valid identifier");
-        this.str = s7;
+        this.str = s11;
       }
       toString() {
         return this.str;
@@ -84,7 +84,7 @@ var require_code = __commonJS({
       }
       get str() {
         var _a;
-        return (_a = this._str) !== null && _a !== void 0 ? _a : this._str = this._items.reduce((s7, c) => `${s7}${c}`, "");
+        return (_a = this._str) !== null && _a !== void 0 ? _a : this._str = this._items.reduce((s11, c) => `${s11}${c}`, "");
       }
       get names() {
         var _a;
@@ -108,7 +108,7 @@ var require_code = __commonJS({
     }
     exports2._ = _2;
     var plus = new _Code("+");
-    function str32(strs, ...args) {
+    function str33(strs, ...args) {
       const expr = [safeStringify(strs[0])];
       let i = 0;
       while (i < args.length) {
@@ -119,7 +119,7 @@ var require_code = __commonJS({
       optimize(expr);
       return new _Code(expr);
     }
-    exports2.str = str32;
+    exports2.str = str33;
     function addCodeArg(code, arg) {
       if (arg instanceof _Code)
         code.push(...arg._items);
@@ -162,7 +162,7 @@ var require_code = __commonJS({
       return;
     }
     function strConcat(c1, c2) {
-      return c2.emptyStr() ? c1 : c1.emptyStr() ? c2 : str32`${c1}${c2}`;
+      return c2.emptyStr() ? c1 : c1.emptyStr() ? c2 : str33`${c1}${c2}`;
     }
     exports2.strConcat = strConcat;
     function interpolate(x) {
@@ -283,9 +283,9 @@ var require_scope = __commonJS({
           vs = this._values[prefix] = /* @__PURE__ */ new Map();
         }
         vs.set(valueKey, name);
-        const s7 = this._scope[prefix] || (this._scope[prefix] = []);
-        const itemIndex = s7.length;
-        s7[itemIndex] = value4.ref;
+        const s11 = this._scope[prefix] || (this._scope[prefix] = []);
+        const itemIndex = s11.length;
+        s11[itemIndex] = value4.ref;
         name.setValue(value4, { property: prefix, itemIndex });
         return name;
       }
@@ -1124,22 +1124,22 @@ var require_util = __commonJS({
       return (0, codegen_1._)`${topSchemaRef}${schemaPath}${(0, codegen_1.getProperty)(keyword)}`;
     }
     exports2.schemaRefOrVal = schemaRefOrVal;
-    function unescapeFragment(str32) {
-      return unescapeJsonPointer(decodeURIComponent(str32));
+    function unescapeFragment(str33) {
+      return unescapeJsonPointer(decodeURIComponent(str33));
     }
     exports2.unescapeFragment = unescapeFragment;
-    function escapeFragment(str32) {
-      return encodeURIComponent(escapeJsonPointer(str32));
+    function escapeFragment(str33) {
+      return encodeURIComponent(escapeJsonPointer(str33));
     }
     exports2.escapeFragment = escapeFragment;
-    function escapeJsonPointer(str32) {
-      if (typeof str32 == "number")
-        return `${str32}`;
-      return str32.replace(/~/g, "~0").replace(/\//g, "~1");
+    function escapeJsonPointer(str33) {
+      if (typeof str33 == "number")
+        return `${str33}`;
+      return str33.replace(/~/g, "~0").replace(/\//g, "~1");
     }
     exports2.escapeJsonPointer = escapeJsonPointer;
-    function unescapeJsonPointer(str32) {
-      return str32.replace(/~1/g, "/").replace(/~0/g, "~");
+    function unescapeJsonPointer(str33) {
+      return str33.replace(/~1/g, "/").replace(/~0/g, "~");
     }
     exports2.unescapeJsonPointer = unescapeJsonPointer;
     function eachItem(xs, f) {
@@ -2164,8 +2164,8 @@ var require_json_schema_traverse = __commonJS({
         post(schema, jsonPtr, rootSchema, parentJsonPtr, parentKeyword, parentSchema, keyIndex);
       }
     }
-    function escapeJsonPtr(str32) {
-      return str32.replace(/~/g, "~0").replace(/\//g, "~1");
+    function escapeJsonPtr(str33) {
+      return str33.replace(/~/g, "~0").replace(/\//g, "~1");
     }
   }
 });
@@ -3226,10 +3226,10 @@ var require_utils = __commonJS({
         return { host, isIPV6: false };
       }
     }
-    function findToken(str32, token) {
+    function findToken(str33, token) {
       let ind = 0;
-      for (let i = 0; i < str32.length; i++) {
-        if (str32[i] === token) ind++;
+      for (let i = 0; i < str33.length; i++) {
+        if (str33[i] === token) ind++;
       }
       return ind;
     }
@@ -3441,49 +3441,49 @@ var require_schemes = __commonJS({
       wsComponent.fragment = void 0;
       return wsComponent;
     }
-    function urnParse(urnComponent, options) {
+    function urnParse(urnComponent, options2) {
       if (!urnComponent.path) {
         urnComponent.error = "URN can not be parsed";
         return urnComponent;
       }
       const matches = urnComponent.path.match(URN_REG);
       if (matches) {
-        const scheme = options.scheme || urnComponent.scheme || "urn";
+        const scheme = options2.scheme || urnComponent.scheme || "urn";
         urnComponent.nid = matches[1].toLowerCase();
         urnComponent.nss = matches[2];
-        const urnScheme = `${scheme}:${options.nid || urnComponent.nid}`;
+        const urnScheme = `${scheme}:${options2.nid || urnComponent.nid}`;
         const schemeHandler = getSchemeHandler(urnScheme);
         urnComponent.path = void 0;
         if (schemeHandler) {
-          urnComponent = schemeHandler.parse(urnComponent, options);
+          urnComponent = schemeHandler.parse(urnComponent, options2);
         }
       } else {
         urnComponent.error = urnComponent.error || "URN can not be parsed.";
       }
       return urnComponent;
     }
-    function urnSerialize(urnComponent, options) {
+    function urnSerialize(urnComponent, options2) {
       if (urnComponent.nid === void 0) {
         throw new Error("URN without nid cannot be serialized");
       }
-      const scheme = options.scheme || urnComponent.scheme || "urn";
+      const scheme = options2.scheme || urnComponent.scheme || "urn";
       const nid = urnComponent.nid.toLowerCase();
-      const urnScheme = `${scheme}:${options.nid || nid}`;
+      const urnScheme = `${scheme}:${options2.nid || nid}`;
       const schemeHandler = getSchemeHandler(urnScheme);
       if (schemeHandler) {
-        urnComponent = schemeHandler.serialize(urnComponent, options);
+        urnComponent = schemeHandler.serialize(urnComponent, options2);
       }
       const uriComponent = urnComponent;
       const nss = urnComponent.nss;
-      uriComponent.path = `${nid || options.nid}:${nss}`;
-      options.skipEscape = true;
+      uriComponent.path = `${nid || options2.nid}:${nss}`;
+      options2.skipEscape = true;
       return uriComponent;
     }
-    function urnuuidParse(urnComponent, options) {
+    function urnuuidParse(urnComponent, options2) {
       const uuidComponent = urnComponent;
       uuidComponent.uuid = uuidComponent.nss;
       uuidComponent.nss = void 0;
-      if (!options.tolerant && (!uuidComponent.uuid || !isUUID(uuidComponent.uuid))) {
+      if (!options2.tolerant && (!uuidComponent.uuid || !isUUID(uuidComponent.uuid))) {
         uuidComponent.error = uuidComponent.error || "UUID is not valid.";
       }
       return uuidComponent;
@@ -3583,65 +3583,65 @@ var require_fast_uri = __commonJS({
     "use strict";
     var { normalizeIPv6, removeDotSegments, recomposeAuthority, normalizeComponentEncoding, isIPv4, nonSimpleDomain } = require_utils();
     var { SCHEMES, getSchemeHandler } = require_schemes();
-    function normalize2(uri, options) {
+    function normalize2(uri, options2) {
       if (typeof uri === "string") {
         uri = /** @type {T} */
-        serialize(parse6(uri, options), options);
+        serialize(parse6(uri, options2), options2);
       } else if (typeof uri === "object") {
         uri = /** @type {T} */
-        parse6(serialize(uri, options), options);
+        parse6(serialize(uri, options2), options2);
       }
       return uri;
     }
-    function resolve4(baseURI, relativeURI, options) {
-      const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
+    function resolve4(baseURI, relativeURI, options2) {
+      const schemelessOptions = options2 ? Object.assign({ scheme: "null" }, options2) : { scheme: "null" };
       const resolved = resolveComponent(parse6(baseURI, schemelessOptions), parse6(relativeURI, schemelessOptions), schemelessOptions, true);
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    function resolveComponent(base2, relative2, options, skipNormalization) {
+    function resolveComponent(base2, relative3, options2, skipNormalization) {
       const target3 = {};
       if (!skipNormalization) {
-        base2 = parse6(serialize(base2, options), options);
-        relative2 = parse6(serialize(relative2, options), options);
+        base2 = parse6(serialize(base2, options2), options2);
+        relative3 = parse6(serialize(relative3, options2), options2);
       }
-      options = options || {};
-      if (!options.tolerant && relative2.scheme) {
-        target3.scheme = relative2.scheme;
-        target3.userinfo = relative2.userinfo;
-        target3.host = relative2.host;
-        target3.port = relative2.port;
-        target3.path = removeDotSegments(relative2.path || "");
-        target3.query = relative2.query;
+      options2 = options2 || {};
+      if (!options2.tolerant && relative3.scheme) {
+        target3.scheme = relative3.scheme;
+        target3.userinfo = relative3.userinfo;
+        target3.host = relative3.host;
+        target3.port = relative3.port;
+        target3.path = removeDotSegments(relative3.path || "");
+        target3.query = relative3.query;
       } else {
-        if (relative2.userinfo !== void 0 || relative2.host !== void 0 || relative2.port !== void 0) {
-          target3.userinfo = relative2.userinfo;
-          target3.host = relative2.host;
-          target3.port = relative2.port;
-          target3.path = removeDotSegments(relative2.path || "");
-          target3.query = relative2.query;
+        if (relative3.userinfo !== void 0 || relative3.host !== void 0 || relative3.port !== void 0) {
+          target3.userinfo = relative3.userinfo;
+          target3.host = relative3.host;
+          target3.port = relative3.port;
+          target3.path = removeDotSegments(relative3.path || "");
+          target3.query = relative3.query;
         } else {
-          if (!relative2.path) {
+          if (!relative3.path) {
             target3.path = base2.path;
-            if (relative2.query !== void 0) {
-              target3.query = relative2.query;
+            if (relative3.query !== void 0) {
+              target3.query = relative3.query;
             } else {
               target3.query = base2.query;
             }
           } else {
-            if (relative2.path[0] === "/") {
-              target3.path = removeDotSegments(relative2.path);
+            if (relative3.path[0] === "/") {
+              target3.path = removeDotSegments(relative3.path);
             } else {
               if ((base2.userinfo !== void 0 || base2.host !== void 0 || base2.port !== void 0) && !base2.path) {
-                target3.path = "/" + relative2.path;
+                target3.path = "/" + relative3.path;
               } else if (!base2.path) {
-                target3.path = relative2.path;
+                target3.path = relative3.path;
               } else {
-                target3.path = base2.path.slice(0, base2.path.lastIndexOf("/") + 1) + relative2.path;
+                target3.path = base2.path.slice(0, base2.path.lastIndexOf("/") + 1) + relative3.path;
               }
               target3.path = removeDotSegments(target3.path);
             }
-            target3.query = relative2.query;
+            target3.query = relative3.query;
           }
           target3.userinfo = base2.userinfo;
           target3.host = base2.host;
@@ -3649,21 +3649,21 @@ var require_fast_uri = __commonJS({
         }
         target3.scheme = base2.scheme;
       }
-      target3.fragment = relative2.fragment;
+      target3.fragment = relative3.fragment;
       return target3;
     }
-    function equal(uriA, uriB, options) {
+    function equal(uriA, uriB, options2) {
       if (typeof uriA === "string") {
         uriA = unescape(uriA);
-        uriA = serialize(normalizeComponentEncoding(parse6(uriA, options), true), { ...options, skipEscape: true });
+        uriA = serialize(normalizeComponentEncoding(parse6(uriA, options2), true), { ...options2, skipEscape: true });
       } else if (typeof uriA === "object") {
-        uriA = serialize(normalizeComponentEncoding(uriA, true), { ...options, skipEscape: true });
+        uriA = serialize(normalizeComponentEncoding(uriA, true), { ...options2, skipEscape: true });
       }
       if (typeof uriB === "string") {
         uriB = unescape(uriB);
-        uriB = serialize(normalizeComponentEncoding(parse6(uriB, options), true), { ...options, skipEscape: true });
+        uriB = serialize(normalizeComponentEncoding(parse6(uriB, options2), true), { ...options2, skipEscape: true });
       } else if (typeof uriB === "object") {
-        uriB = serialize(normalizeComponentEncoding(uriB, true), { ...options, skipEscape: true });
+        uriB = serialize(normalizeComponentEncoding(uriB, true), { ...options2, skipEscape: true });
       }
       return uriA.toLowerCase() === uriB.toLowerCase();
     }
@@ -3684,12 +3684,12 @@ var require_fast_uri = __commonJS({
         secure: cmpts.secure,
         error: ""
       };
-      const options = Object.assign({}, opts);
+      const options2 = Object.assign({}, opts);
       const uriTokens = [];
-      const schemeHandler = getSchemeHandler(options.scheme || component2.scheme);
-      if (schemeHandler && schemeHandler.serialize) schemeHandler.serialize(component2, options);
+      const schemeHandler = getSchemeHandler(options2.scheme || component2.scheme);
+      if (schemeHandler && schemeHandler.serialize) schemeHandler.serialize(component2, options2);
       if (component2.path !== void 0) {
-        if (!options.skipEscape) {
+        if (!options2.skipEscape) {
           component2.path = escape(component2.path);
           if (component2.scheme !== void 0) {
             component2.path = component2.path.split("%3A").join(":");
@@ -3698,12 +3698,12 @@ var require_fast_uri = __commonJS({
           component2.path = unescape(component2.path);
         }
       }
-      if (options.reference !== "suffix" && component2.scheme) {
+      if (options2.reference !== "suffix" && component2.scheme) {
         uriTokens.push(component2.scheme, ":");
       }
       const authority = recomposeAuthority(component2);
       if (authority !== void 0) {
-        if (options.reference !== "suffix") {
+        if (options2.reference !== "suffix") {
           uriTokens.push("//");
         }
         uriTokens.push(authority);
@@ -3712,14 +3712,14 @@ var require_fast_uri = __commonJS({
         }
       }
       if (component2.path !== void 0) {
-        let s7 = component2.path;
-        if (!options.absolutePath && (!schemeHandler || !schemeHandler.absolutePath)) {
-          s7 = removeDotSegments(s7);
+        let s11 = component2.path;
+        if (!options2.absolutePath && (!schemeHandler || !schemeHandler.absolutePath)) {
+          s11 = removeDotSegments(s11);
         }
-        if (authority === void 0 && s7[0] === "/" && s7[1] === "/") {
-          s7 = "/%2F" + s7.slice(2);
+        if (authority === void 0 && s11[0] === "/" && s11[1] === "/") {
+          s11 = "/%2F" + s11.slice(2);
         }
-        uriTokens.push(s7);
+        uriTokens.push(s11);
       }
       if (component2.query !== void 0) {
         uriTokens.push("?", component2.query);
@@ -3731,7 +3731,7 @@ var require_fast_uri = __commonJS({
     }
     var URI_PARSE = /^(?:([^#/:?]+):)?(?:\/\/((?:([^#/?@]*)@)?(\[[^#/?\]]+\]|[^#/:?]*)(?::(\d*))?))?([^#?]*)(?:\?([^#]*))?(?:#((?:.|[\n\r])*))?/u;
     function parse6(uri, opts) {
-      const options = Object.assign({}, opts);
+      const options2 = Object.assign({}, opts);
       const parsed = {
         scheme: void 0,
         userinfo: void 0,
@@ -3742,9 +3742,9 @@ var require_fast_uri = __commonJS({
         fragment: void 0
       };
       let isIP = false;
-      if (options.reference === "suffix") {
-        if (options.scheme) {
-          uri = options.scheme + ":" + uri;
+      if (options2.reference === "suffix") {
+        if (options2.scheme) {
+          uri = options2.scheme + ":" + uri;
         } else {
           uri = "//" + uri;
         }
@@ -3780,12 +3780,12 @@ var require_fast_uri = __commonJS({
         } else {
           parsed.reference = "uri";
         }
-        if (options.reference && options.reference !== "suffix" && options.reference !== parsed.reference) {
-          parsed.error = parsed.error || "URI is not a " + options.reference + " reference.";
+        if (options2.reference && options2.reference !== "suffix" && options2.reference !== parsed.reference) {
+          parsed.error = parsed.error || "URI is not a " + options2.reference + " reference.";
         }
-        const schemeHandler = getSchemeHandler(options.scheme || parsed.scheme);
-        if (!options.unicodeSupport && (!schemeHandler || !schemeHandler.unicodeSupport)) {
-          if (parsed.host && (options.domainHost || schemeHandler && schemeHandler.domainHost) && isIP === false && nonSimpleDomain(parsed.host)) {
+        const schemeHandler = getSchemeHandler(options2.scheme || parsed.scheme);
+        if (!options2.unicodeSupport && (!schemeHandler || !schemeHandler.unicodeSupport)) {
+          if (parsed.host && (options2.domainHost || schemeHandler && schemeHandler.domainHost) && isIP === false && nonSimpleDomain(parsed.host)) {
             try {
               parsed.host = URL.domainToASCII(parsed.host.toLowerCase());
             } catch (e) {
@@ -3810,7 +3810,7 @@ var require_fast_uri = __commonJS({
           }
         }
         if (schemeHandler && schemeHandler.parse) {
-          schemeHandler.parse(parsed, options);
+          schemeHandler.parse(parsed, options2);
         }
       } else {
         parsed.error = parsed.error || "URI can not be parsed.";
@@ -3882,7 +3882,7 @@ var require_core = __commonJS({
     var util_1 = require_util();
     var $dataRefSchema = require_data();
     var uri_1 = require_uri();
-    var defaultRegExp = (str32, flags) => new RegExp(str32, flags);
+    var defaultRegExp = (str33, flags) => new RegExp(str33, flags);
     defaultRegExp.code = "new RegExp";
     var META_IGNORE_OPTIONS = ["removeAdditional", "useDefaults", "coerceTypes"];
     var EXT_SCOPE_NAMES = /* @__PURE__ */ new Set([
@@ -3925,17 +3925,17 @@ var require_core = __commonJS({
     var MAX_EXPRESSION = 200;
     function requiredOptions(o) {
       var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0;
-      const s7 = o.strict;
+      const s11 = o.strict;
       const _optz = (_a = o.code) === null || _a === void 0 ? void 0 : _a.optimize;
       const optimize = _optz === true || _optz === void 0 ? 1 : _optz || 0;
       const regExp = (_c = (_b = o.code) === null || _b === void 0 ? void 0 : _b.regExp) !== null && _c !== void 0 ? _c : defaultRegExp;
       const uriResolver = (_d = o.uriResolver) !== null && _d !== void 0 ? _d : uri_1.default;
       return {
-        strictSchema: (_f = (_e = o.strictSchema) !== null && _e !== void 0 ? _e : s7) !== null && _f !== void 0 ? _f : true,
-        strictNumbers: (_h = (_g = o.strictNumbers) !== null && _g !== void 0 ? _g : s7) !== null && _h !== void 0 ? _h : true,
-        strictTypes: (_k = (_j = o.strictTypes) !== null && _j !== void 0 ? _j : s7) !== null && _k !== void 0 ? _k : "log",
-        strictTuples: (_m = (_l = o.strictTuples) !== null && _l !== void 0 ? _l : s7) !== null && _m !== void 0 ? _m : "log",
-        strictRequired: (_p = (_o = o.strictRequired) !== null && _o !== void 0 ? _o : s7) !== null && _p !== void 0 ? _p : false,
+        strictSchema: (_f = (_e = o.strictSchema) !== null && _e !== void 0 ? _e : s11) !== null && _f !== void 0 ? _f : true,
+        strictNumbers: (_h = (_g = o.strictNumbers) !== null && _g !== void 0 ? _g : s11) !== null && _h !== void 0 ? _h : true,
+        strictTypes: (_k = (_j = o.strictTypes) !== null && _j !== void 0 ? _j : s11) !== null && _k !== void 0 ? _k : "log",
+        strictTuples: (_m = (_l = o.strictTuples) !== null && _l !== void 0 ? _l : s11) !== null && _m !== void 0 ? _m : "log",
+        strictRequired: (_p = (_o = o.strictRequired) !== null && _o !== void 0 ? _o : s11) !== null && _p !== void 0 ? _p : false,
         code: o.code ? { ...o.code, optimize, regExp } : { optimize, regExp },
         loopRequired: (_q = o.loopRequired) !== null && _q !== void 0 ? _q : MAX_EXPRESSION,
         loopEnum: (_r = o.loopEnum) !== null && _r !== void 0 ? _r : MAX_EXPRESSION,
@@ -4324,10 +4324,10 @@ var require_core = __commonJS({
     Ajv2.ValidationError = validation_error_1.default;
     Ajv2.MissingRefError = ref_error_1.default;
     exports2.default = Ajv2;
-    function checkOptions(checkOpts, options, msg, log = "error") {
+    function checkOptions(checkOpts, options2, msg, log = "error") {
       for (const key5 in checkOpts) {
         const opt = key5;
-        if (opt in options)
+        if (opt in options2)
           this.logger[log](`${msg}: option ${key5}. ${checkOpts[opt]}`);
       }
     }
@@ -4677,16 +4677,16 @@ var require_ucs2length = __commonJS({
   "node_modules/ajv/dist/runtime/ucs2length.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
-    function ucs2length(str32) {
-      const len = str32.length;
+    function ucs2length(str33) {
+      const len = str33.length;
       let length = 0;
       let pos = 0;
       let value4;
       while (pos < len) {
         length++;
-        value4 = str32.charCodeAt(pos++);
+        value4 = str33.charCodeAt(pos++);
         if (value4 >= 55296 && value4 <= 56319 && pos < len) {
-          value4 = str32.charCodeAt(pos);
+          value4 = str33.charCodeAt(pos);
           if ((value4 & 64512) === 56320)
             pos++;
         }
@@ -6569,8 +6569,8 @@ var require_formats = __commonJS({
     }
     var DATE = /^(\d\d\d\d)-(\d\d)-(\d\d)$/;
     var DAYS = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    function date3(str32) {
-      const matches = DATE.exec(str32);
+    function date3(str33) {
+      const matches = DATE.exec(str33);
       if (!matches)
         return false;
       const year = +matches[1];
@@ -6589,8 +6589,8 @@ var require_formats = __commonJS({
     }
     var TIME = /^(\d\d):(\d\d):(\d\d(?:\.\d+)?)(z|([+-])(\d\d)(?::?(\d\d))?)?$/i;
     function getTime(strictTimeZone) {
-      return function time3(str32) {
-        const matches = TIME.exec(str32);
+      return function time3(str33) {
+        const matches = TIME.exec(str33);
         if (!matches)
           return false;
         const hr = +matches[1];
@@ -6636,8 +6636,8 @@ var require_formats = __commonJS({
     var DATE_TIME_SEPARATOR = /t|\s/i;
     function getDateTime(strictTimeZone) {
       const time3 = getTime(strictTimeZone);
-      return function date_time(str32) {
-        const dateTime = str32.split(DATE_TIME_SEPARATOR);
+      return function date_time(str33) {
+        const dateTime = str33.split(DATE_TIME_SEPARATOR);
         return dateTime.length === 2 && date3(dateTime[0]) && time3(dateTime[1]);
       };
     }
@@ -6662,13 +6662,13 @@ var require_formats = __commonJS({
     }
     var NOT_URI_FRAGMENT = /\/|:/;
     var URI = /^(?:[a-z][a-z0-9+\-.]*:)(?:\/?\/(?:(?:[a-z0-9\-._~!$&'()*+,;=:]|%[0-9a-f]{2})*@)?(?:\[(?:(?:(?:(?:[0-9a-f]{1,4}:){6}|::(?:[0-9a-f]{1,4}:){5}|(?:[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){4}|(?:(?:[0-9a-f]{1,4}:){0,1}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){3}|(?:(?:[0-9a-f]{1,4}:){0,2}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){2}|(?:(?:[0-9a-f]{1,4}:){0,3}[0-9a-f]{1,4})?::[0-9a-f]{1,4}:|(?:(?:[0-9a-f]{1,4}:){0,4}[0-9a-f]{1,4})?::)(?:[0-9a-f]{1,4}:[0-9a-f]{1,4}|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?))|(?:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4})?::[0-9a-f]{1,4}|(?:(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4})?::)|[Vv][0-9a-f]+\.[a-z0-9\-._~!$&'()*+,;=:]+)\]|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)|(?:[a-z0-9\-._~!$&'()*+,;=]|%[0-9a-f]{2})*)(?::\d*)?(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*|\/(?:(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*)?|(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*)(?:\?(?:[a-z0-9\-._~!$&'()*+,;=:@/?]|%[0-9a-f]{2})*)?(?:#(?:[a-z0-9\-._~!$&'()*+,;=:@/?]|%[0-9a-f]{2})*)?$/i;
-    function uri(str32) {
-      return NOT_URI_FRAGMENT.test(str32) && URI.test(str32);
+    function uri(str33) {
+      return NOT_URI_FRAGMENT.test(str33) && URI.test(str33);
     }
     var BYTE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/gm;
-    function byte(str32) {
+    function byte(str33) {
       BYTE.lastIndex = 0;
-      return BYTE.test(str32);
+      return BYTE.test(str33);
     }
     var MIN_INT32 = -(2 ** 31);
     var MAX_INT32 = 2 ** 31 - 1;
@@ -6682,11 +6682,11 @@ var require_formats = __commonJS({
       return true;
     }
     var Z_ANCHOR = /[^\\]\\Z/;
-    function regex(str32) {
-      if (Z_ANCHOR.test(str32))
+    function regex(str33) {
+      if (Z_ANCHOR.test(str33))
         return false;
       try {
-        new RegExp(str32);
+        new RegExp(str33);
         return true;
       } catch (e) {
         return false;
@@ -6893,8 +6893,8 @@ var init_limiter = __esm({
        * skips the queue and may use up to `URGENT_RESERVE` slots beyond the limit, so a burst of
        * background reads can't make it wait behind hundreds of others.
        */
-      async run(fn, options = {}) {
-        if (options.urgent ?? urgentStore.getStore()) return this.runUrgent(fn);
+      async run(fn, options2 = {}) {
+        if (options2.urgent ?? urgentStore.getStore()) return this.runUrgent(fn);
         await this.acquire();
         try {
           return await fn();
@@ -7125,11 +7125,11 @@ async function apiVersion(org, fetcher) {
   const creds = await getCredentials(org, fetcher);
   return resolveApiVersion(creds?.instanceUrl, creds?.apiVersion);
 }
-async function directQuery(query2, org, fetcher, options) {
+async function directQuery(query2, org, fetcher, options2) {
   if (!directEnabled(org)) return null;
-  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const timeoutMs = options2.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const version3 = await apiVersion(org, fetcher);
-  let next = `/services/data/v${version3}/${options.tooling ? "tooling/" : ""}query?q=${encodeURIComponent(query2)}`;
+  let next = `/services/data/v${version3}/${options2.tooling ? "tooling/" : ""}query?q=${encodeURIComponent(query2)}`;
   const records = [];
   let totalSize = 0;
   let first2 = true;
@@ -7160,13 +7160,13 @@ async function directQuery(query2, org, fetcher, options) {
     first2 = false;
     for (const r of page.records ?? []) records.push(r);
     next = page.done === false && page.nextRecordsUrl ? page.nextRecordsUrl : null;
-    if (next && records.length >= options.maxRows || records.length > options.maxRows) {
+    if (next && records.length >= options2.maxRows || records.length > options2.maxRows) {
       return {
         ok: true,
         data: {
           totalSize,
           done: false,
-          records: records.slice(0, options.maxRows),
+          records: records.slice(0, options2.maxRows),
           truncated: true
         }
       };
@@ -7375,7 +7375,7 @@ var init_direct = __esm({
     DEFAULT_TIMEOUT_MS = 12e4;
     credentials = /* @__PURE__ */ new Map();
     disabledOrgs = /* @__PURE__ */ new Set();
-    soapEscape = (s7) => s7.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    soapEscape = (s11) => s11.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     TOOLING_WRITE_TYPES = /* @__PURE__ */ new Set(["FlexiPage", "CompactLayout", "CustomApplication"]);
     TOOLING_RECORD_TYPES = /* @__PURE__ */ new Set([
       "LifeSciConfigRecord",
@@ -7434,8 +7434,8 @@ var init_util = __esm({
 });
 
 // node_modules/fast-xml-parser/src/validator.js
-function validate(xmlData, options) {
-  options = Object.assign({}, defaultOptions2, options);
+function validate(xmlData, options2) {
+  options2 = Object.assign({}, defaultOptions2, options2);
   const tags = [];
   let tagFound = false;
   let reachedRoot = false;
@@ -7486,7 +7486,7 @@ function validate(xmlData, options) {
         if (attrStr[attrStr.length - 1] === "/") {
           const attrStrStart = i - attrStr.length;
           attrStr = attrStr.substring(0, attrStr.length - 1);
-          const isValid2 = validateAttributeString(attrStr, options);
+          const isValid2 = validateAttributeString(attrStr, options2);
           if (isValid2 === true) {
             tagFound = true;
           } else {
@@ -7514,13 +7514,13 @@ function validate(xmlData, options) {
             }
           }
         } else {
-          const isValid2 = validateAttributeString(attrStr, options);
+          const isValid2 = validateAttributeString(attrStr, options2);
           if (isValid2 !== true) {
             return getErrorObject(isValid2.err.code, isValid2.err.msg, getLineNumberForPosition(xmlData, i - attrStr.length + isValid2.err.line));
           }
           if (reachedRoot === true) {
             return getErrorObject("InvalidXml", "Multiple possible root nodes found.", getLineNumberForPosition(xmlData, i));
-          } else if (options.unpairedTags.indexOf(tagName) !== -1) {
+          } else if (options2.unpairedTags.indexOf(tagName) !== -1) {
           } else {
             tags.push({ tagName, tagStartPos });
           }
@@ -7695,7 +7695,7 @@ function scanAttributeTokens(attrStr) {
   }
   return tokens2;
 }
-function validateAttributeString(attrStr, options) {
+function validateAttributeString(attrStr, options2) {
   const matches = scanAttributeTokens(attrStr);
   const attrNames = {};
   for (let i = 0; i < matches.length; i++) {
@@ -7703,7 +7703,7 @@ function validateAttributeString(attrStr, options) {
       return getErrorObject("InvalidAttr", "Attribute '" + matches[i][2] + "' has no space in starting.", getPositionFromMatch(matches[i]));
     } else if (matches[i][3] !== void 0 && matches[i][4] === void 0) {
       return getErrorObject("InvalidAttr", "Attribute '" + matches[i][2] + "' is without value.", getPositionFromMatch(matches[i]));
-    } else if (matches[i][3] === void 0 && !options.allowBooleanAttributes) {
+    } else if (matches[i][3] === void 0 && !options2.allowBooleanAttributes) {
       return getErrorObject("InvalidAttr", "boolean attribute '" + matches[i][2] + "' is not allowed.", getPositionFromMatch(matches[i]));
     }
     const attrName = matches[i][2];
@@ -7946,26 +7946,26 @@ var init_EntityDecoder = __esm({
        *   `ENTITY_ACTION.ALLOW` to accept, `ENTITY_ACTION.BLOCK` to silently skip, or
        *   `ENTITY_ACTION.THROW` to abort with an error.
        */
-      constructor(options = {}) {
-        this._limit = options.limit || {};
+      constructor(options2 = {}) {
+        this._limit = options2.limit || {};
         this._maxTotalExpansions = this._limit.maxTotalExpansions || 0;
         this._maxExpandedLength = this._limit.maxExpandedLength || 0;
-        this._postCheck = typeof options.postCheck === "function" ? options.postCheck : (r) => r;
+        this._postCheck = typeof options2.postCheck === "function" ? options2.postCheck : (r) => r;
         this._limitTiers = parseLimitTiers(this._limit.applyLimitsTo ?? LIMIT_TIER_EXTERNAL);
-        this._numericAllowed = options.numericAllowed ?? true;
-        this._baseMap = mergeEntityMaps(XML, options.namedEntities || null);
+        this._numericAllowed = options2.numericAllowed ?? true;
+        this._baseMap = mergeEntityMaps(XML, options2.namedEntities || null);
         this._externalMap = /* @__PURE__ */ Object.create(null);
         this._inputMap = /* @__PURE__ */ Object.create(null);
         this._totalExpansions = 0;
         this._expandedLength = 0;
-        this._removeSet = new Set(options.remove && Array.isArray(options.remove) ? options.remove : []);
-        this._leaveSet = new Set(options.leave && Array.isArray(options.leave) ? options.leave : []);
-        const ncrCfg = parseNCRConfig(options.ncr);
+        this._removeSet = new Set(options2.remove && Array.isArray(options2.remove) ? options2.remove : []);
+        this._leaveSet = new Set(options2.leave && Array.isArray(options2.leave) ? options2.leave : []);
+        const ncrCfg = parseNCRConfig(options2.ncr);
         this._ncrXmlVersion = ncrCfg.xmlVersion;
         this._ncrOnLevel = ncrCfg.onLevel;
         this._ncrNullLevel = ncrCfg.nullLevel;
-        this._onExternalEntity = typeof options.onExternalEntity === "function" ? options.onExternalEntity : null;
-        this._onInputEntity = typeof options.onInputEntity === "function" ? options.onInputEntity : null;
+        this._onExternalEntity = typeof options2.onExternalEntity === "function" ? options2.onExternalEntity : null;
+        this._onInputEntity = typeof options2.onInputEntity === "function" ? options2.onInputEntity : null;
       }
       // -------------------------------------------------------------------------
       // Private: registration hook dispatch
@@ -8097,29 +8097,29 @@ var init_EntityDecoder = __esm({
        * @param {string} str
        * @returns {string}
        */
-      decode(str32) {
-        if (typeof str32 !== "string" || str32.length === 0) return str32;
-        if (str32.indexOf("&") === -1) return str32;
-        const original = str32;
-        const chunks5 = [];
-        const len = str32.length;
+      decode(str33) {
+        if (typeof str33 !== "string" || str33.length === 0) return str33;
+        if (str33.indexOf("&") === -1) return str33;
+        const original = str33;
+        const chunks7 = [];
+        const len = str33.length;
         let last = 0;
         let i = 0;
         const limitExpansions = this._maxTotalExpansions > 0;
         const limitLength = this._maxExpandedLength > 0;
         const checkLimits = limitExpansions || limitLength;
         while (i < len) {
-          if (str32.charCodeAt(i) !== 38) {
+          if (str33.charCodeAt(i) !== 38) {
             i++;
             continue;
           }
           let j = i + 1;
-          while (j < len && str32.charCodeAt(j) !== 59 && j - i <= 32) j++;
-          if (j >= len || str32.charCodeAt(j) !== 59) {
+          while (j < len && str33.charCodeAt(j) !== 59 && j - i <= 32) j++;
+          if (j >= len || str33.charCodeAt(j) !== 59) {
             i++;
             continue;
           }
-          const token = str32.slice(i + 1, j);
+          const token = str33.slice(i + 1, j);
           if (token.length === 0) {
             i++;
             continue;
@@ -8151,8 +8151,8 @@ var init_EntityDecoder = __esm({
             i++;
             continue;
           }
-          if (i > last) chunks5.push(str32.slice(last, i));
-          chunks5.push(replacement);
+          if (i > last) chunks7.push(str33.slice(last, i));
+          chunks7.push(replacement);
           last = j + 1;
           i = last;
           if (checkLimits && this._tierCounts(tier)) {
@@ -8177,8 +8177,8 @@ var init_EntityDecoder = __esm({
             }
           }
         }
-        if (last < len) chunks5.push(str32.slice(last));
-        const result2 = chunks5.length === 0 ? str32 : chunks5.join("");
+        if (last < len) chunks7.push(str33.slice(last));
+        const result2 = chunks7.length === 0 ? str33 : chunks7.join("");
         return this._postCheck(result2, original);
       }
       // -------------------------------------------------------------------------
@@ -8411,8 +8411,8 @@ var init_OptionsBuilder = __esm({
       // if true, pass jPath string to callbacks; if false, pass matcher instance
       onDangerousProperty: defaultOnDangerousProperty
     };
-    buildOptions = function(options) {
-      const built = Object.assign({}, defaultOptions3, options);
+    buildOptions = function(options2) {
+      const built = Object.assign({}, defaultOptions3, options2);
       const propertyNameOptions = [
         { value: built.attributeNamePrefix, name: "attributeNamePrefix" },
         { value: built.attributesGroupName, name: "attributesGroupName" },
@@ -8520,7 +8520,7 @@ var init_src2 = __esm({
       if (asciiOnly) return regexesAscii;
       return xmlVersion === "1.1" ? regexes11 : regexes10;
     };
-    qName = (str32, { xmlVersion = "1.0", asciiOnly = false } = {}) => getRegexes(xmlVersion, asciiOnly).qName.test(str32);
+    qName = (str33, { xmlVersion = "1.0", asciiOnly = false } = {}) => getRegexes(xmlVersion, asciiOnly).qName.test(str33);
   }
 });
 
@@ -8542,9 +8542,9 @@ var init_DocTypeReader = __esm({
   "node_modules/fast-xml-parser/src/xmlparser/DocTypeReader.js"() {
     init_src2();
     DocTypeReader = class {
-      constructor(options, xmlVersion) {
-        this.suppressValidationErr = !options;
-        this.options = options;
+      constructor(options2, xmlVersion) {
+        this.suppressValidationErr = !options2;
+        this.options = options2;
         this.xmlVersion = xmlVersion || 1;
       }
       setXmlVersion(xmlVersion = 1) {
@@ -8977,13 +8977,13 @@ var init_digitTable = __esm({
 });
 
 // node_modules/anynum/anynum.js
-function anynum(str32) {
-  if (typeof str32 !== "string") return str32;
-  const len = str32.length;
-  if (len === 0) return str32;
+function anynum(str33) {
+  if (typeof str33 !== "string") return str33;
+  const len = str33.length;
+  if (len === 0) return str33;
   let firstHit = -1;
   for (let i = 0; i < len; i++) {
-    const cc = str32.charCodeAt(i);
+    const cc = str33.charCodeAt(i);
     if (cc >= CHAR_0 && cc <= CHAR_9 || cc === CHAR_MINUS) continue;
     if (cc < TABLE_OFFSET) {
       if (MINUS_SET.has(cc)) {
@@ -8994,7 +8994,7 @@ function anynum(str32) {
     }
     if (cc >= 55296 && cc <= 56319) {
       if (i + 1 < len) {
-        const low = str32.charCodeAt(i + 1);
+        const low = str33.charCodeAt(i + 1);
         if (low >= 56320 && low <= 57343) {
           const cp = 65536 + (cc - 55296 << 10) + (low - 56320);
           if (HIGH_MAP.has(cp)) {
@@ -9010,22 +9010,22 @@ function anynum(str32) {
       break;
     }
   }
-  if (firstHit === -1) return str32;
+  if (firstHit === -1) return str33;
   const chars = [];
-  if (firstHit > 0) chars.push(str32.slice(0, firstHit));
+  if (firstHit > 0) chars.push(str33.slice(0, firstHit));
   for (let i = firstHit; i < len; i++) {
-    const cc = str32.charCodeAt(i);
+    const cc = str33.charCodeAt(i);
     if (cc >= CHAR_0 && cc <= CHAR_9 || cc === CHAR_MINUS) {
-      chars.push(str32[i]);
+      chars.push(str33[i]);
       continue;
     }
     if (cc < TABLE_OFFSET) {
-      chars.push(MINUS_SET.has(cc) ? "-" : str32[i]);
+      chars.push(MINUS_SET.has(cc) ? "-" : str33[i]);
       continue;
     }
     if (cc >= 55296 && cc <= 56319) {
       if (i + 1 < len) {
-        const low = str32.charCodeAt(i + 1);
+        const low = str33.charCodeAt(i + 1);
         if (low >= 56320 && low <= 57343) {
           const cp = 65536 + (cc - 55296 << 10) + (low - 56320);
           const d2 = HIGH_MAP.get(cp);
@@ -9036,7 +9036,7 @@ function anynum(str32) {
           }
         }
       }
-      chars.push(str32[i]);
+      chars.push(str33[i]);
       continue;
     }
     if (MINUS_SET.has(cc)) {
@@ -9044,7 +9044,7 @@ function anynum(str32) {
       continue;
     }
     const d = TABLE[cc - TABLE_OFFSET];
-    chars.push(d !== NOT_DIGIT ? String.fromCharCode(d + 48) : str32[i]);
+    chars.push(d !== NOT_DIGIT ? String.fromCharCode(d + 48) : str33[i]);
   }
   return chars.join("");
 }
@@ -9062,29 +9062,29 @@ var init_anynum = __esm({
 });
 
 // node_modules/strnum/strnum.js
-function toNumber(str32, options = {}) {
-  options = Object.assign({}, consider, options);
-  if (!str32 || typeof str32 !== "string") return str32;
-  let trimmedStr = str32.trim();
-  if (trimmedStr.length === 0) return str32;
-  else if (options.skipLike !== void 0 && options.skipLike.test(trimmedStr)) return str32;
+function toNumber(str33, options2 = {}) {
+  options2 = Object.assign({}, consider, options2);
+  if (!str33 || typeof str33 !== "string") return str33;
+  let trimmedStr = str33.trim();
+  if (trimmedStr.length === 0) return str33;
+  else if (options2.skipLike !== void 0 && options2.skipLike.test(trimmedStr)) return str33;
   else if (trimmedStr === "0") return 0;
-  if (options.unicode) {
+  if (options2.unicode) {
     trimmedStr = anynum_default(trimmedStr);
     if (trimmedStr === "0") return 0;
   }
-  if (options.hex && hexRegex.test(trimmedStr)) {
+  if (options2.hex && hexRegex.test(trimmedStr)) {
     return parse_int(trimmedStr, 16);
-  } else if (options.binary && binRegex.test(trimmedStr)) {
+  } else if (options2.binary && binRegex.test(trimmedStr)) {
     return parse_int(trimmedStr, 2);
-  } else if (options.octal && octRegex.test(trimmedStr)) {
+  } else if (options2.octal && octRegex.test(trimmedStr)) {
     return parse_int(trimmedStr, 8);
   } else if (!isFinite(trimmedStr)) {
     const num6 = Number(trimmedStr);
-    if (Number.isNaN(num6)) return str32;
-    return handleInfinity(str32, num6, options);
+    if (Number.isNaN(num6)) return str33;
+    return handleInfinity(str33, num6, options2);
   } else if (trimmedStr.includes("e") || trimmedStr.includes("E")) {
-    return resolveEnotation(str32, trimmedStr, options);
+    return resolveEnotation(str33, trimmedStr, options2);
   } else {
     const match = numRegex.exec(trimmedStr);
     if (match) {
@@ -9095,35 +9095,35 @@ function toNumber(str32, options = {}) {
         // 0., -00., 000.
         trimmedStr[leadingZeros.length + 1] === "."
       ) : trimmedStr[leadingZeros.length] === ".";
-      if (!options.leadingZeros && (leadingZeros.length > 1 || leadingZeros.length === 1 && !decimalAdjacentToLeadingZeros)) {
-        return str32;
+      if (!options2.leadingZeros && (leadingZeros.length > 1 || leadingZeros.length === 1 && !decimalAdjacentToLeadingZeros)) {
+        return str33;
       } else {
         const num6 = Number(trimmedStr);
         const parsedStr = String(num6);
         if (num6 === 0) return num6;
         if (parsedStr.search(/[eE]/) !== -1) {
-          if (options.eNotation) return num6;
-          else return str32;
+          if (options2.eNotation) return num6;
+          else return str33;
         } else if (trimmedStr.indexOf(".") !== -1) {
           if (parsedStr === "0") return num6;
           else if (parsedStr === numTrimmedByZeros) return num6;
           else if (parsedStr === `${sign}${numTrimmedByZeros}`) return num6;
-          else return str32;
+          else return str33;
         }
         let n2 = leadingZeros ? numTrimmedByZeros : trimmedStr;
         if (leadingZeros) {
-          return n2 === parsedStr || sign + n2 === parsedStr ? num6 : str32;
+          return n2 === parsedStr || sign + n2 === parsedStr ? num6 : str33;
         } else {
-          return n2 === parsedStr || n2 === sign + parsedStr ? num6 : str32;
+          return n2 === parsedStr || n2 === sign + parsedStr ? num6 : str33;
         }
       }
     } else {
-      return str32;
+      return str33;
     }
   }
 }
-function resolveEnotation(str32, trimmedStr, options) {
-  if (!options.eNotation) return str32;
+function resolveEnotation(str33, trimmedStr, options2) {
+  if (!options2.eNotation) return str33;
   const notation = trimmedStr.match(eNotationRegx);
   if (notation) {
     let sign = notation[1] || "";
@@ -9133,18 +9133,18 @@ function resolveEnotation(str32, trimmedStr, options) {
       // 0E.
       trimmedStr[leadingZeros.length + 1] === eChar
     ) : trimmedStr[leadingZeros.length] === eChar;
-    if (leadingZeros.length > 1 && eAdjacentToLeadingZeros) return str32;
+    if (leadingZeros.length > 1 && eAdjacentToLeadingZeros) return str33;
     else if (leadingZeros.length === 1 && (notation[3].startsWith(`.${eChar}`) || notation[3][0] === eChar)) {
       return Number(trimmedStr);
     } else if (leadingZeros.length > 0) {
-      if (options.leadingZeros && !eAdjacentToLeadingZeros) {
+      if (options2.leadingZeros && !eAdjacentToLeadingZeros) {
         return Number(trimmedStr);
-      } else return str32;
+      } else return str33;
     } else {
       return Number(trimmedStr);
     }
   } else {
-    return str32;
+    return str33;
   }
 }
 function trimZeros(numStr) {
@@ -9160,16 +9160,16 @@ function trimZeros(numStr) {
   return numStr;
 }
 function parse_int(numStr, base2) {
-  const str32 = numStr.trim();
-  if (base2 === 2 || base2 === 8) numStr = str32.substring(2);
+  const str33 = numStr.trim();
+  if (base2 === 2 || base2 === 8) numStr = str33.substring(2);
   if (parseInt) return parseInt(numStr, base2);
   else if (Number.parseInt) return Number.parseInt(numStr, base2);
   else if (window && window.parseInt) return window.parseInt(numStr, base2);
   else throw new Error("parseInt, Number.parseInt, window.parseInt are not supported");
 }
-function handleInfinity(str32, num6, options) {
+function handleInfinity(str33, num6, options2) {
   const isPositive = num6 === Infinity;
-  switch (options.infinity.toLowerCase()) {
+  switch (options2.infinity.toLowerCase()) {
     case "null":
       return null;
     case "infinity":
@@ -9178,7 +9178,7 @@ function handleInfinity(str32, num6, options) {
       return isPositive ? "Infinity" : "-Infinity";
     case "original":
     default:
-      return str32;
+      return str33;
   }
 }
 var hexRegex, binRegex, octRegex, numRegex, consider, eNotationRegx;
@@ -9240,9 +9240,9 @@ var init_Expression = __esm({
        * @param {Object} options - Configuration options
        * @param {string} options.separator - Path separator (default: '.')
        */
-      constructor(pattern, options = {}, data2) {
+      constructor(pattern, options2 = {}, data2) {
         this.pattern = pattern;
-        this.separator = options.separator || ".";
+        this.separator = options2.separator || ".";
         this.segments = this._parse(pattern);
         this.data = data2;
         this._hasDeepWildcard = this.segments.some((seg) => seg.type === "deep-wildcard");
@@ -9716,8 +9716,8 @@ var init_Matcher = __esm({
        * @param {Object} [options={}]
        * @param {string} [options.separator='.'] - Default path separator
        */
-      constructor(options = {}) {
-        this.separator = options.separator || ".";
+      constructor(options2 = {}) {
+        this.separator = options2.separator || ".";
         this.path = [];
         this.siblingStacks = [];
         this._pathStringCache = null;
@@ -9732,7 +9732,7 @@ var init_Matcher = __esm({
        * @param {Object|null} [options=null]
        * @param {string[]} [options.keep] - Names of attributes (from attrValues)
        */
-      push(tagName, attrValues = null, namespace = null, options = null) {
+      push(tagName, attrValues = null, namespace = null, options2 = null) {
         this._pathStringCache = null;
         if (this.path.length > 0) {
           this.path[this.path.length - 1].values = void 0;
@@ -9761,7 +9761,7 @@ var init_Matcher = __esm({
         }
         this.path.push(node);
         const depth = this.path.length;
-        const keep = options !== null ? options.keep : null;
+        const keep = options2 !== null ? options2.keep : null;
         if (keep !== null && keep !== void 0 && keep.length > 0 && attrValues) {
           for (let i = 0; i < keep.length; i++) {
             const name = keep[i];
@@ -10886,14 +10886,14 @@ var init_src4 = __esm({
 });
 
 // node_modules/fast-xml-parser/src/xmlparser/OrderedObjParser.js
-function extractRawAttributes(prefixedAttrs, options) {
+function extractRawAttributes(prefixedAttrs, options2) {
   if (!prefixedAttrs) return {};
-  const attrs = options.attributesGroupName ? prefixedAttrs[options.attributesGroupName] : prefixedAttrs;
+  const attrs = options2.attributesGroupName ? prefixedAttrs[options2.attributesGroupName] : prefixedAttrs;
   if (!attrs) return {};
   const rawAttrs = {};
   for (const key5 in attrs) {
-    if (key5.startsWith(options.attributeNamePrefix)) {
-      const rawName = key5.substring(options.attributeNamePrefix.length);
+    if (key5.startsWith(options2.attributeNamePrefix)) {
+      const rawName = key5.substring(options2.attributeNamePrefix.length);
       rawAttrs[rawName] = attrs[key5];
     } else {
       rawAttrs[key5] = attrs[key5];
@@ -10913,25 +10913,25 @@ function extractNamespace(rawTagName) {
   return void 0;
 }
 function parseTextData(val, tagName, jPath, dontTrim, hasAttributes, isLeafNode, escapeEntities) {
-  const options = this.options;
+  const options2 = this.options;
   if (val !== void 0) {
-    if (options.trimValues && !dontTrim) {
+    if (options2.trimValues && !dontTrim) {
       val = val.trim();
     }
     if (val.length > 0) {
       if (!escapeEntities) val = this.replaceEntitiesValue(val, tagName, jPath);
-      const jPathOrMatcher = options.jPath ? jPath.toString() : jPath;
-      const newval = options.tagValueProcessor(tagName, val, jPathOrMatcher, hasAttributes, isLeafNode);
+      const jPathOrMatcher = options2.jPath ? jPath.toString() : jPath;
+      const newval = options2.tagValueProcessor(tagName, val, jPathOrMatcher, hasAttributes, isLeafNode);
       if (newval === null || newval === void 0) {
         return val;
       } else if (typeof newval !== typeof val || newval !== val) {
         return newval;
-      } else if (options.trimValues) {
-        return parseValue(val, options.parseTagValue, options.numberParseOptions);
+      } else if (options2.trimValues) {
+        return parseValue(val, options2.parseTagValue, options2.numberParseOptions);
       } else {
         const trimmedVal = val.trim();
         if (trimmedVal === val) {
-          return parseValue(val, options.parseTagValue, options.numberParseOptions);
+          return parseValue(val, options2.parseTagValue, options2.numberParseOptions);
         } else {
           return val;
         }
@@ -10953,8 +10953,8 @@ function resolveNameSpace(tagname) {
   return tagname;
 }
 function buildAttributesMap(attrStr, jPath, tagName, force = false) {
-  const options = this.options;
-  if (force === true || options.ignoreAttributes !== true && typeof attrStr === "string") {
+  const options2 = this.options;
+  if (force === true || options2.ignoreAttributes !== true && typeof attrStr === "string") {
     const matches = getAllMatches(attrStr, attrsRegx);
     const len = matches.length;
     const attrs = {};
@@ -10966,7 +10966,7 @@ function buildAttributesMap(attrStr, jPath, tagName, force = false) {
       const oldVal = matches[i][4];
       if (attrName.length && oldVal !== void 0) {
         let val = oldVal;
-        if (options.trimValues) val = val.trim();
+        if (options2.trimValues) val = val.trim();
         val = this.replaceEntitiesValue(val, tagName, this.readonlyMatcher);
         processedVals[i] = val;
         rawAttrsForMatcher[attrName] = val;
@@ -10976,38 +10976,38 @@ function buildAttributesMap(attrStr, jPath, tagName, force = false) {
     if (hasRawAttrs && typeof jPath === "object" && jPath.updateCurrent) {
       jPath.updateCurrent(rawAttrsForMatcher);
     }
-    const jPathStr = options.jPath ? jPath.toString() : this.readonlyMatcher;
+    const jPathStr = options2.jPath ? jPath.toString() : this.readonlyMatcher;
     let hasAttrs = false;
     for (let i = 0; i < len; i++) {
       const attrName = this.resolveNameSpace(matches[i][1]);
       if (this.ignoreAttributesFn(attrName, jPathStr)) continue;
-      let aName = options.attributeNamePrefix + attrName;
+      let aName = options2.attributeNamePrefix + attrName;
       if (attrName.length) {
-        if (options.transformAttributeName) {
-          aName = options.transformAttributeName(aName);
+        if (options2.transformAttributeName) {
+          aName = options2.transformAttributeName(aName);
         }
-        aName = sanitizeName(aName, options);
+        aName = sanitizeName(aName, options2);
         if (matches[i][4] !== void 0) {
           const oldVal = processedVals[i];
-          const newVal = options.attributeValueProcessor(attrName, oldVal, jPathStr);
+          const newVal = options2.attributeValueProcessor(attrName, oldVal, jPathStr);
           if (newVal === null || newVal === void 0) {
             attrs[aName] = oldVal;
           } else if (typeof newVal !== typeof oldVal || newVal !== oldVal) {
             attrs[aName] = newVal;
           } else {
-            attrs[aName] = parseValue(oldVal, options.parseAttributeValue, options.numberParseOptions);
+            attrs[aName] = parseValue(oldVal, options2.parseAttributeValue, options2.numberParseOptions);
           }
           hasAttrs = true;
-        } else if (options.allowBooleanAttributes) {
+        } else if (options2.allowBooleanAttributes) {
           attrs[aName] = true;
           hasAttrs = true;
         }
       }
     }
     if (!hasAttrs) return;
-    if (options.attributesGroupName && !options.preserveOrder) {
+    if (options2.attributesGroupName && !options2.preserveOrder) {
       const attrCollection = {};
-      attrCollection[options.attributesGroupName] = attrs;
+      attrCollection[options2.attributesGroupName] = attrs;
       return attrCollection;
     }
     return attrs;
@@ -11095,12 +11095,12 @@ function tagExpWithClosingIndex(xmlData, i, closingChar = ">") {
     }
   }
 }
-function findClosingIndex(xmlData, str32, i, errMsg) {
-  const closingIndex = xmlData.indexOf(str32, i);
+function findClosingIndex(xmlData, str33, i, errMsg) {
+  const closingIndex = xmlData.indexOf(str33, i);
   if (closingIndex === -1) {
     throw new Error(errMsg);
   } else {
-    return closingIndex + str32.length - 1;
+    return closingIndex + str33.length - 1;
   }
 }
 function findClosingChar(xmlData, char, i, errMsg) {
@@ -11178,12 +11178,12 @@ function readStopNodeData(xmlData, tagName, i) {
     }
   }
 }
-function parseValue(val, shouldParse, options) {
+function parseValue(val, shouldParse, options2) {
   if (shouldParse && typeof val === "string") {
     const newval = val.trim();
     if (newval === "true") return true;
     else if (newval === "false") return false;
-    else return toNumber(val, options);
+    else return toNumber(val, options2);
   } else {
     if (isExist(val)) {
       return val;
@@ -11192,7 +11192,7 @@ function parseValue(val, shouldParse, options) {
     }
   }
 }
-function transformTagName(fn, tagName, tagExp, options) {
+function transformTagName(fn, tagName, tagExp, options2) {
   if (fn) {
     const newTagName = fn(tagName);
     if (tagExp === tagName) {
@@ -11200,14 +11200,14 @@ function transformTagName(fn, tagName, tagExp, options) {
     }
     tagName = newTagName;
   }
-  tagName = sanitizeName(tagName, options);
+  tagName = sanitizeName(tagName, options2);
   return { tagName, tagExp };
 }
-function sanitizeName(name, options) {
+function sanitizeName(name, options2) {
   if (criticalProperties.includes(name)) {
     throw new Error(`[SECURITY] Invalid name: "${name}" is a reserved JavaScript keyword that could cause prototype pollution`);
   } else if (DANGEROUS_PROPERTY_NAMES.includes(name)) {
-    return options.onDangerousProperty(name);
+    return options2.onDangerousProperty(name);
   }
   return name;
 }
@@ -11225,8 +11225,8 @@ var init_OrderedObjParser = __esm({
     init_src();
     init_src4();
     OrderedObjParser = class {
-      constructor(options, externalEntities) {
-        this.options = options;
+      constructor(options2, externalEntities) {
+        this.options = options2;
         this.currentNode = null;
         this.tagsNodeStack = [];
         this.parseXml = parseXml;
@@ -11293,8 +11293,8 @@ var init_OrderedObjParser = __esm({
       this.entityExpansionCount = 0;
       this.currentExpandedLength = 0;
       this.doctypefound = false;
-      const options = this.options;
-      const docTypeReader = new DocTypeReader(options.processEntities);
+      const options2 = this.options;
+      const docTypeReader = new DocTypeReader(options2.processEntities);
       const xmlLen = xmlData.length;
       for (let i = 0; i < xmlLen; i++) {
         const ch = xmlData[i];
@@ -11303,28 +11303,28 @@ var init_OrderedObjParser = __esm({
           if (c1 === 47) {
             const closeIndex = findClosingIndex(xmlData, ">", i, "Closing Tag is not closed.");
             let tagName = xmlData.substring(i + 2, closeIndex).trim();
-            if (options.removeNSPrefix) {
+            if (options2.removeNSPrefix) {
               const colonIndex = tagName.indexOf(":");
               if (colonIndex !== -1) {
                 tagName = tagName.substr(colonIndex + 1);
               }
             }
-            tagName = transformTagName(options.transformTagName, tagName, "", options).tagName;
+            tagName = transformTagName(options2.transformTagName, tagName, "", options2).tagName;
             if (currentNode) {
               textData = this.saveTextToParentTag(textData, currentNode, this.readonlyMatcher);
             }
             const lastTagName = this.matcher.getCurrentTag();
-            if (tagName && options.unpairedTagsSet.has(tagName)) {
+            if (tagName && options2.unpairedTagsSet.has(tagName)) {
               throw new Error(`Unpaired tag can not be used as closing tag: </${tagName}>`);
             }
-            if (lastTagName && options.unpairedTagsSet.has(lastTagName)) {
+            if (lastTagName && options2.unpairedTagsSet.has(lastTagName)) {
               this.matcher.pop();
               this.tagsNodeStack.pop();
             }
             this.matcher.pop();
             this.isCurrentNodeStopNode = false;
             currentNode = this.tagsNodeStack.pop() || xmlObj;
-            if (options.captureMetaData && currentNode) {
+            if (options2.captureMetaData && currentNode) {
               currentNode.addEndIndex(closeIndex + 1);
             }
             textData = "";
@@ -11339,25 +11339,25 @@ var init_OrderedObjParser = __esm({
               this.entityDecoder.setXmlVersion(Number(ver) || 1);
               docTypeReader.setXmlVersion(Number(ver) || 1);
             }
-            if (options.ignoreDeclaration && tagData.tagName === "?xml" || options.ignorePiTags) {
+            if (options2.ignoreDeclaration && tagData.tagName === "?xml" || options2.ignorePiTags) {
             } else {
               const childNode = new XmlNode(tagData.tagName);
-              childNode.add(options.textNodeName, "");
-              if (tagData.tagName !== tagData.tagExp && tagData.attrExpPresent && options.ignoreAttributes !== true) {
+              childNode.add(options2.textNodeName, "");
+              if (tagData.tagName !== tagData.tagExp && tagData.attrExpPresent && options2.ignoreAttributes !== true) {
                 childNode[":@"] = attsMap;
               }
               this.addChild(currentNode, childNode, this.readonlyMatcher, i);
-              if (options.captureMetaData) {
+              if (options2.captureMetaData) {
                 currentNode.addEndIndex(tagData.closeIndex + 2);
               }
             }
             i = tagData.closeIndex + 1;
           } else if (c1 === 33 && xmlData.charCodeAt(i + 2) === 45 && xmlData.charCodeAt(i + 3) === 45) {
             const endIndex = findClosingIndex(xmlData, "-->", i + 4, "Comment is not closed.");
-            if (options.commentPropName) {
+            if (options2.commentPropName) {
               const comment = xmlData.substring(i + 4, endIndex - 2);
               textData = this.saveTextToParentTag(textData, currentNode, this.readonlyMatcher);
-              currentNode.add(options.commentPropName, [{ [options.textNodeName]: comment }]);
+              currentNode.add(options2.commentPropName, [{ [options2.textNodeName]: comment }]);
             }
             i = endIndex;
           } else if (c1 === 33 && xmlData.charCodeAt(i + 2) === 68) {
@@ -11372,14 +11372,14 @@ var init_OrderedObjParser = __esm({
             textData = this.saveTextToParentTag(textData, currentNode, this.readonlyMatcher);
             let val = this.parseTextData(tagExp, currentNode.tagname, this.readonlyMatcher, true, false, true, true);
             if (val == void 0) val = "";
-            if (options.cdataPropName) {
-              currentNode.add(options.cdataPropName, [{ [options.textNodeName]: tagExp }]);
+            if (options2.cdataPropName) {
+              currentNode.add(options2.cdataPropName, [{ [options2.textNodeName]: tagExp }]);
             } else {
-              currentNode.add(options.textNodeName, val);
+              currentNode.add(options2.textNodeName, val);
             }
             i = closeIndex + 2;
           } else {
-            let result2 = readTagExp(xmlData, i, options.removeNSPrefix);
+            let result2 = readTagExp(xmlData, i, options2.removeNSPrefix);
             if (!result2) {
               const context = xmlData.substring(Math.max(0, i - 50), Math.min(xmlLen, i + 50));
               throw new Error(`readTagExp returned undefined at position ${i}. Context: "${context}"`);
@@ -11389,8 +11389,8 @@ var init_OrderedObjParser = __esm({
             let tagExp = result2.tagExp;
             let attrExpPresent = result2.attrExpPresent;
             let closeIndex = result2.closeIndex;
-            ({ tagName, tagExp } = transformTagName(options.transformTagName, tagName, tagExp, options));
-            if (options.strictReservedNames && (tagName === options.commentPropName || tagName === options.cdataPropName || tagName === options.textNodeName || tagName === options.attributesGroupName)) {
+            ({ tagName, tagExp } = transformTagName(options2.transformTagName, tagName, tagExp, options2));
+            if (options2.strictReservedNames && (tagName === options2.commentPropName || tagName === options2.cdataPropName || tagName === options2.textNodeName || tagName === options2.attributesGroupName)) {
               throw new Error(`Invalid tag name: ${tagName}`);
             }
             if (currentNode && textData) {
@@ -11399,7 +11399,7 @@ var init_OrderedObjParser = __esm({
               }
             }
             const lastTag = currentNode;
-            if (lastTag && options.unpairedTagsSet.has(lastTag.tagname)) {
+            if (lastTag && options2.unpairedTagsSet.has(lastTag.tagname)) {
               currentNode = this.tagsNodeStack.pop();
               this.matcher.pop();
             }
@@ -11424,7 +11424,7 @@ var init_OrderedObjParser = __esm({
             if (tagName !== tagExp && attrExpPresent) {
               prefixedAttrs = this.buildAttributesMap(tagExp, this.matcher, tagName);
               if (prefixedAttrs) {
-                rawAttrs = extractRawAttributes(prefixedAttrs, options);
+                rawAttrs = extractRawAttributes(prefixedAttrs, options2);
               }
             }
             if (tagName !== xmlObj.tagname) {
@@ -11435,7 +11435,7 @@ var init_OrderedObjParser = __esm({
               let tagContent = "";
               if (isSelfClosing) {
                 i = result2.closeIndex;
-              } else if (options.unpairedTagsSet.has(tagName)) {
+              } else if (options2.unpairedTagsSet.has(tagName)) {
                 i = result2.closeIndex;
               } else {
                 const result3 = this.readStopNodeData(xmlData, rawTagName, closeIndex + 1);
@@ -11447,33 +11447,33 @@ var init_OrderedObjParser = __esm({
               if (prefixedAttrs) {
                 childNode[":@"] = prefixedAttrs;
               }
-              childNode.add(options.textNodeName, tagContent);
+              childNode.add(options2.textNodeName, tagContent);
               this.matcher.pop();
               this.isCurrentNodeStopNode = false;
               this.addChild(currentNode, childNode, this.readonlyMatcher, startIndex);
-              if (options.captureMetaData) {
+              if (options2.captureMetaData) {
                 currentNode.addEndIndex(i + 1);
               }
             } else {
               if (isSelfClosing) {
-                ({ tagName, tagExp } = transformTagName(options.transformTagName, tagName, tagExp, options));
+                ({ tagName, tagExp } = transformTagName(options2.transformTagName, tagName, tagExp, options2));
                 const childNode = new XmlNode(tagName);
                 if (prefixedAttrs) {
                   childNode[":@"] = prefixedAttrs;
                 }
                 this.addChild(currentNode, childNode, this.readonlyMatcher, startIndex);
-                if (options.captureMetaData) {
+                if (options2.captureMetaData) {
                   currentNode.addEndIndex(closeIndex + 1);
                 }
                 this.matcher.pop();
                 this.isCurrentNodeStopNode = false;
-              } else if (options.unpairedTagsSet.has(tagName)) {
+              } else if (options2.unpairedTagsSet.has(tagName)) {
                 const childNode = new XmlNode(tagName);
                 if (prefixedAttrs) {
                   childNode[":@"] = prefixedAttrs;
                 }
                 this.addChild(currentNode, childNode, this.readonlyMatcher, startIndex);
-                if (options.captureMetaData) {
+                if (options2.captureMetaData) {
                   currentNode.addEndIndex(result2.closeIndex + 1);
                 }
                 this.matcher.pop();
@@ -11482,7 +11482,7 @@ var init_OrderedObjParser = __esm({
                 continue;
               } else {
                 const childNode = new XmlNode(tagName);
-                if (this.tagsNodeStack.length > options.maxNestedTags) {
+                if (this.tagsNodeStack.length > options2.maxNestedTags) {
                   throw new Error("Maximum nested tags exceeded");
                 }
                 this.tagsNodeStack.push(currentNode);
@@ -11520,39 +11520,39 @@ function stripAttributePrefix(attrs, prefix) {
   }
   return rawAttrs;
 }
-function prettify(node, options, matcher, readonlyMatcher) {
-  return compress(node, options, matcher, readonlyMatcher);
+function prettify(node, options2, matcher, readonlyMatcher) {
+  return compress(node, options2, matcher, readonlyMatcher);
 }
-function compress(arr6, options, matcher, readonlyMatcher) {
+function compress(arr6, options2, matcher, readonlyMatcher) {
   let text12;
   const compressedObj = {};
   for (let i = 0; i < arr6.length; i++) {
     const tagObj = arr6[i];
     const property = propName(tagObj);
-    if (property !== void 0 && property !== options.textNodeName) {
+    if (property !== void 0 && property !== options2.textNodeName) {
       const rawAttrs = stripAttributePrefix(
         tagObj[":@"] || {},
-        options.attributeNamePrefix
+        options2.attributeNamePrefix
       );
       matcher.push(property, rawAttrs);
     }
-    if (property === options.textNodeName) {
+    if (property === options2.textNodeName) {
       if (text12 === void 0) text12 = tagObj[property];
       else text12 += "" + tagObj[property];
     } else if (property === void 0) {
       continue;
     } else if (tagObj[property]) {
-      let val = compress(tagObj[property], options, matcher, readonlyMatcher);
-      const isLeaf = isLeafTag(val, options);
-      if (Object.keys(val).length === 0 && options.alwaysCreateTextNode) {
-        val[options.textNodeName] = "";
+      let val = compress(tagObj[property], options2, matcher, readonlyMatcher);
+      const isLeaf = isLeafTag(val, options2);
+      if (Object.keys(val).length === 0 && options2.alwaysCreateTextNode) {
+        val[options2.textNodeName] = "";
       }
       if (tagObj[":@"]) {
-        assignAttributes(val, tagObj[":@"], readonlyMatcher, options);
-      } else if (Object.keys(val).length === 1 && val[options.textNodeName] !== void 0 && !options.alwaysCreateTextNode) {
-        val = val[options.textNodeName];
+        assignAttributes(val, tagObj[":@"], readonlyMatcher, options2);
+      } else if (Object.keys(val).length === 1 && val[options2.textNodeName] !== void 0 && !options2.alwaysCreateTextNode) {
+        val = val[options2.textNodeName];
       } else if (Object.keys(val).length === 0) {
-        if (options.alwaysCreateTextNode) val[options.textNodeName] = "";
+        if (options2.alwaysCreateTextNode) val[options2.textNodeName] = "";
         else val = "";
       }
       if (tagObj[METADATA_SYMBOL2] !== void 0 && typeof val === "object" && val !== null) {
@@ -11564,21 +11564,21 @@ function compress(arr6, options, matcher, readonlyMatcher) {
         }
         compressedObj[property].push(val);
       } else {
-        const jPathOrMatcher = options.jPath ? readonlyMatcher.toString() : readonlyMatcher;
-        if (options.isArray(property, jPathOrMatcher, isLeaf)) {
+        const jPathOrMatcher = options2.jPath ? readonlyMatcher.toString() : readonlyMatcher;
+        if (options2.isArray(property, jPathOrMatcher, isLeaf)) {
           compressedObj[property] = [val];
         } else {
           compressedObj[property] = val;
         }
       }
-      if (property !== void 0 && property !== options.textNodeName) {
+      if (property !== void 0 && property !== options2.textNodeName) {
         matcher.pop();
       }
     }
   }
   if (typeof text12 === "string") {
-    if (text12.length > 0) compressedObj[options.textNodeName] = text12;
-  } else if (text12 !== void 0) compressedObj[options.textNodeName] = text12;
+    if (text12.length > 0) compressedObj[options2.textNodeName] = text12;
+  } else if (text12 !== void 0) compressedObj[options2.textNodeName] = text12;
   return compressedObj;
 }
 function propName(obj12) {
@@ -11588,15 +11588,15 @@ function propName(obj12) {
     if (key5 !== ":@") return key5;
   }
 }
-function assignAttributes(obj12, attrMap, readonlyMatcher, options) {
+function assignAttributes(obj12, attrMap, readonlyMatcher, options2) {
   if (attrMap) {
     const keys = Object.keys(attrMap);
     const len = keys.length;
     for (let i = 0; i < len; i++) {
       const atrrName = keys[i];
-      const rawAttrName = atrrName.startsWith(options.attributeNamePrefix) ? atrrName.substring(options.attributeNamePrefix.length) : atrrName;
-      const jPathOrMatcher = options.jPath ? readonlyMatcher.toString() + "." + rawAttrName : readonlyMatcher;
-      if (options.isArray(atrrName, jPathOrMatcher, true, true)) {
+      const rawAttrName = atrrName.startsWith(options2.attributeNamePrefix) ? atrrName.substring(options2.attributeNamePrefix.length) : atrrName;
+      const jPathOrMatcher = options2.jPath ? readonlyMatcher.toString() + "." + rawAttrName : readonlyMatcher;
+      if (options2.isArray(atrrName, jPathOrMatcher, true, true)) {
         obj12[atrrName] = [attrMap[atrrName]];
       } else {
         obj12[atrrName] = attrMap[atrrName];
@@ -11604,8 +11604,8 @@ function assignAttributes(obj12, attrMap, readonlyMatcher, options) {
     }
   }
 }
-function isLeafTag(obj12, options) {
-  const { textNodeName } = options;
+function isLeafTag(obj12, options2) {
+  const { textNodeName } = options2;
   const propCount = Object.keys(obj12).length;
   if (propCount === 0) {
     return true;
@@ -11634,9 +11634,9 @@ var init_XMLParser = __esm({
     init_validator();
     init_xmlNode();
     XMLParser = class {
-      constructor(options) {
+      constructor(options2) {
         this.externalEntities = {};
-        this.options = buildOptions(options);
+        this.options = buildOptions(options2);
       }
       /**
        * Parse XML dats to JS object 
@@ -11881,8 +11881,8 @@ var init_xml2 = __esm({
     UNESCAPES = Object.fromEntries(
       Object.entries(ESCAPES).map(([k, v]) => [v, k])
     );
-    escapeXml = (s7) => s7.replace(/[&<>"']/g, (c) => ESCAPES[c]);
-    unescapeXml = (s7) => s7.replace(
+    escapeXml = (s11) => s11.replace(/[&<>"']/g, (c) => ESCAPES[c]);
+    unescapeXml = (s11) => s11.replace(
       /&(amp|lt|gt|quot|apos|#\d+|#x[0-9a-f]+);/gi,
       (m, e) => e[0] === "#" ? String.fromCodePoint(
         e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10)
@@ -12769,7 +12769,7 @@ function nodeRequest(url, method, headers, body, req, redirectsLeft) {
           return;
         }
         const shaper = req.shaper;
-        const chunks5 = [];
+        const chunks7 = [];
         let wire = 0;
         const responseHeaders = {};
         for (const [k, v] of Object.entries(res.headers)) {
@@ -12780,7 +12780,7 @@ function nodeRequest(url, method, headers, body, req, redirectsLeft) {
         (async () => {
           for await (const chunk2 of res) {
             if (counter) await counter.write(chunk2);
-            else chunks5.push(chunk2);
+            else chunks7.push(chunk2);
             wire += chunk2.length;
             if (shaper) await shaper.down.takeSliced(chunk2.length);
           }
@@ -12797,7 +12797,7 @@ function nodeRequest(url, method, headers, body, req, redirectsLeft) {
             });
             return;
           }
-          const decoded = decodeBody(Buffer.concat(chunks5), responseHeaders["content-encoding"]);
+          const decoded = decodeBody(Buffer.concat(chunks7), responseHeaders["content-encoding"]);
           resolve4({
             status,
             headers: responseHeaders,
@@ -13133,21 +13133,21 @@ function ensureTmpSfdxProject() {
   }
   return TMP_SFDX_PROJECT_DIR;
 }
-async function execSfCommand(command, args = [], options = {}) {
-  if (isTokenOrg(options.targetOrg)) return { success: false, error: TOKEN_ORG_NO_CLI };
-  if (options.targetOrg && command !== "org" && anyApiVersionPinned()) {
-    options = {
-      ...options,
-      env: { SF_ORG_API_VERSION: await orgApiVersion(options.targetOrg), ...options.env }
+async function execSfCommand(command, args = [], options2 = {}) {
+  if (isTokenOrg(options2.targetOrg)) return { success: false, error: TOKEN_ORG_NO_CLI };
+  if (options2.targetOrg && command !== "org" && anyApiVersionPinned()) {
+    options2 = {
+      ...options2,
+      env: { SF_ORG_API_VERSION: await orgApiVersion(options2.targetOrg), ...options2.env }
     };
   }
-  const run4 = () => sfLimiter.run(() => spawnSfJson(command, args, options));
-  return writesToOrg(command, args) ? asWrite(options.targetOrg, run4) : run4();
+  const run5 = () => sfLimiter.run(() => spawnSfJson(command, args, options2));
+  return writesToOrg(command, args) ? asWrite(options2.targetOrg, run5) : run5();
 }
-async function asWrite(org, write2) {
+async function asWrite(org, write3) {
   invalidateSharedReads(org);
   try {
-    return await write2();
+    return await write3();
   } finally {
     invalidateSharedReads(org);
   }
@@ -13161,18 +13161,18 @@ function writesToOrg(command, args) {
 function timeoutMessage(ms2) {
   return `Salesforce didn't answer within ${Math.round(ms2 / 1e3)}s \u2014 the sf command was stopped. Large orgs can need a narrower filter.`;
 }
-function spawnSfJson(command, args, options) {
+function spawnSfJson(command, args, options2) {
   return new Promise((resolve4) => {
     const fullArgs = [command, ...args, "--json"];
-    if (options.targetOrg) {
-      fullArgs.push("--target-org", options.targetOrg);
+    if (options2.targetOrg) {
+      fullArgs.push("--target-org", options2.targetOrg);
     }
-    const timeout = options.timeout || 12e4;
+    const timeout = options2.timeout || 12e4;
     const child = spawn("sf", fullArgs, {
       stdio: "pipe",
       timeout,
-      ...options.cwd ? { cwd: options.cwd } : {},
-      ...options.env ? { env: { ...process.env, ...options.env } } : {}
+      ...options2.cwd ? { cwd: options2.cwd } : {},
+      ...options2.env ? { env: { ...process.env, ...options2.env } } : {}
     });
     const started = Date.now();
     let stdout = "";
@@ -13228,21 +13228,21 @@ function spawnSfJson(command, args, options) {
     });
   });
 }
-async function listOrgs(options = {}) {
+async function listOrgs(options2 = {}) {
   return execSfCommand(
     "org",
-    options.connectionStatus === false ? ["list", "--skip-connection-status"] : ["list"]
+    options2.connectionStatus === false ? ["list", "--skip-connection-status"] : ["list"]
   );
 }
 async function getOrgDisplay(targetOrg) {
   return execSfCommand("org", ["display"], { targetOrg });
 }
-async function runSoqlQuery(query2, targetOrg, options = {}) {
-  if (!sharedReadsActive()) return runSoqlQueryUncached(query2, targetOrg, options);
-  const key5 = `soql:${options.useToolingApi ? "t" : "d"}:${options.maxRows ?? ""}:${query2}`;
+async function runSoqlQuery(query2, targetOrg, options2 = {}) {
+  if (!sharedReadsActive()) return runSoqlQueryUncached(query2, targetOrg, options2);
+  const key5 = `soql:${options2.useToolingApi ? "t" : "d"}:${options2.maxRows ?? ""}:${query2}`;
   try {
     const hit = await sharedRead(targetOrg, key5, async () => {
-      const r = await runSoqlQueryUncached(query2, targetOrg, options);
+      const r = await runSoqlQueryUncached(query2, targetOrg, options2);
       if (!r.success || !r.data || r.data.truncated) throw new Uncacheable(r);
       return r;
     });
@@ -13252,12 +13252,12 @@ async function runSoqlQuery(query2, targetOrg, options = {}) {
     throw e;
   }
 }
-async function runSoqlQueryUncached(query2, targetOrg, options = {}) {
+async function runSoqlQueryUncached(query2, targetOrg, options2 = {}) {
   const rehearsal = Number(process.env.LSC_SF_MAX_QUERY_ROWS);
-  const cap = Number.isFinite(rehearsal) && rehearsal >= 1 ? Math.min(rehearsal, options.maxRows ?? Infinity) : void 0;
-  const maxRows = Math.max(1, cap ?? options.maxRows ?? DEFAULT_MAX_QUERY_ROWS);
+  const cap = Number.isFinite(rehearsal) && rehearsal >= 1 ? Math.min(rehearsal, options2.maxRows ?? Infinity) : void 0;
+  const maxRows = Math.max(1, cap ?? options2.maxRows ?? DEFAULT_MAX_QUERY_ROWS);
   const direct = await directQuery(query2, targetOrg, directCredentials, {
-    tooling: options.useToolingApi,
+    tooling: options2.useToolingApi,
     maxRows
   });
   if (direct) {
@@ -13265,7 +13265,7 @@ async function runSoqlQueryUncached(query2, targetOrg, options = {}) {
     return { success: true, data: markTruncated(query2, direct.data) };
   }
   const args = ["query", "--query", query2];
-  if (options.useToolingApi) {
+  if (options2.useToolingApi) {
     args.push("--use-tooling-api");
   }
   const result2 = await execSfCommand("data", args, {
@@ -13337,17 +13337,17 @@ async function readOrgLogin(org) {
   }
   return { success: true, data: { accessToken, instanceUrl, apiVersion: apiVersion2 } };
 }
-async function runToolingQuery(query2, targetOrg, options = {}) {
-  return runSoqlQuery(query2, targetOrg, { useToolingApi: true, ...options });
+async function runToolingQuery(query2, targetOrg, options2 = {}) {
+  return runSoqlQuery(query2, targetOrg, { useToolingApi: true, ...options2 });
 }
-async function cachedSoqlQuery(query2, targetOrg, options = {}) {
-  const isTooling = options.useToolingApi ?? false;
+async function cachedSoqlQuery(query2, targetOrg, options2 = {}) {
+  const isTooling = options2.useToolingApi ?? false;
   const key5 = queryCacheKey(query2, isTooling);
   const cached4 = cacheGet(targetOrg, key5);
   if (cached4) return cached4;
   const result2 = await runSoqlQuery(query2, targetOrg, { useToolingApi: isTooling });
   if (result2.success) {
-    cacheSet(targetOrg, key5, { ...result2, rawOutput: void 0 }, options.ttlMs);
+    cacheSet(targetOrg, key5, { ...result2, rawOutput: void 0 }, options2.ttlMs);
   }
   return result2;
 }
@@ -13625,8 +13625,8 @@ async function apiRequest(endpoint, method, body, targetOrg) {
       return direct.ok ? { success: true, data: direct.data } : { success: false, error: direct.error, timedOut: direct.timedOut };
     }
   }
-  const run4 = () => sfLimiter.run(() => spawnApiRequest(endpoint, method, body, targetOrg));
-  return method === "GET" ? run4() : asWrite(targetOrg, run4);
+  const run5 = () => sfLimiter.run(() => spawnApiRequest(endpoint, method, body, targetOrg));
+  return method === "GET" ? run5() : asWrite(targetOrg, run5);
 }
 async function apiReadPost(endpoint, body, targetOrg) {
   const direct = await directPostRead(endpoint, body, targetOrg, directCredentials);
@@ -13947,9 +13947,9 @@ var init_cli = __esm({
 
 // src/tools/helpers.ts
 function chunkIds(ids, size = ID_CHUNK_SIZE) {
-  const chunks5 = [];
-  for (let i = 0; i < ids.length; i += size) chunks5.push(ids.slice(i, i + size));
-  return chunks5;
+  const chunks7 = [];
+  for (let i = 0; i < ids.length; i += size) chunks7.push(ids.slice(i, i + size));
+  return chunks7;
 }
 async function queryAssignments(recordIds, targetOrg, strict = false) {
   const result2 = /* @__PURE__ */ new Map();
@@ -15072,13 +15072,13 @@ var require_Collection = __commonJS({
 var require_stringifyComment = __commonJS({
   "node_modules/yaml/dist/stringify/stringifyComment.js"(exports2) {
     "use strict";
-    var stringifyComment = (str32) => str32.replace(/^(?!$)(?: $)?/gm, "#");
+    var stringifyComment = (str33) => str33.replace(/^(?!$)(?: $)?/gm, "#");
     function indentComment(comment, indent) {
       if (/^\n+$/.test(comment))
         return comment.substring(1);
       return indent ? comment.replace(/^(?! *$)/gm, indent) : comment;
     }
-    var lineComment = (str32, indent, comment) => str32.endsWith("\n") ? indentComment(comment, indent) : comment.includes("\n") ? "\n" + indentComment(comment, indent) : (str32.endsWith(" ") ? "" : " ") + comment;
+    var lineComment = (str33, indent, comment) => str33.endsWith("\n") ? indentComment(comment, indent) : comment.includes("\n") ? "\n" + indentComment(comment, indent) : (str33.endsWith(" ") ? "" : " ") + comment;
     exports2.indentComment = indentComment;
     exports2.lineComment = lineComment;
     exports2.stringifyComment = stringifyComment;
@@ -15232,16 +15232,16 @@ var require_stringifyString = __commonJS({
       lineWidth: ctx.options.lineWidth,
       minContentWidth: ctx.options.minContentWidth
     });
-    var containsDocumentMarker = (str32) => /^(%|---|\.\.\.)/m.test(str32);
-    function lineLengthOverLimit(str32, lineWidth, indentLength) {
+    var containsDocumentMarker = (str33) => /^(%|---|\.\.\.)/m.test(str33);
+    function lineLengthOverLimit(str33, lineWidth, indentLength) {
       if (!lineWidth || lineWidth < 0)
         return false;
       const limit = lineWidth - indentLength;
-      const strLen = str32.length;
+      const strLen = str33.length;
       if (strLen <= limit)
         return false;
       for (let i = 0, start = 0; i < strLen; ++i) {
-        if (str32[i] === "\n") {
+        if (str33[i] === "\n") {
           if (i - start > limit)
             return true;
           start = i + 1;
@@ -15258,11 +15258,11 @@ var require_stringifyString = __commonJS({
       const { implicitKey } = ctx;
       const minMultiLineLength = ctx.options.doubleQuotedMinMultiLineLength;
       const indent = ctx.indent || (containsDocumentMarker(value4) ? "  " : "");
-      let str32 = "";
+      let str33 = "";
       let start = 0;
       for (let i = 0, ch = json2[i]; ch; ch = json2[++i]) {
         if (ch === " " && json2[i + 1] === "\\" && json2[i + 2] === "n") {
-          str32 += json2.slice(start, i) + "\\ ";
+          str33 += json2.slice(start, i) + "\\ ";
           i += 1;
           start = i;
           ch = "\\";
@@ -15271,38 +15271,38 @@ var require_stringifyString = __commonJS({
           switch (json2[i + 1]) {
             case "u":
               {
-                str32 += json2.slice(start, i);
+                str33 += json2.slice(start, i);
                 const code = json2.substr(i + 2, 4);
                 switch (code) {
                   case "0000":
-                    str32 += "\\0";
+                    str33 += "\\0";
                     break;
                   case "0007":
-                    str32 += "\\a";
+                    str33 += "\\a";
                     break;
                   case "000b":
-                    str32 += "\\v";
+                    str33 += "\\v";
                     break;
                   case "001b":
-                    str32 += "\\e";
+                    str33 += "\\e";
                     break;
                   case "0085":
-                    str32 += "\\N";
+                    str33 += "\\N";
                     break;
                   case "00a0":
-                    str32 += "\\_";
+                    str33 += "\\_";
                     break;
                   case "2028":
-                    str32 += "\\L";
+                    str33 += "\\L";
                     break;
                   case "2029":
-                    str32 += "\\P";
+                    str33 += "\\P";
                     break;
                   default:
                     if (code.substr(0, 2) === "00")
-                      str32 += "\\x" + code.substr(2);
+                      str33 += "\\x" + code.substr(2);
                     else
-                      str32 += json2.substr(i, 6);
+                      str33 += json2.substr(i, 6);
                 }
                 i += 5;
                 start = i + 1;
@@ -15312,14 +15312,14 @@ var require_stringifyString = __commonJS({
               if (implicitKey || json2[i + 2] === '"' || json2.length < minMultiLineLength) {
                 i += 1;
               } else {
-                str32 += json2.slice(start, i) + "\n\n";
+                str33 += json2.slice(start, i) + "\n\n";
                 while (json2[i + 2] === "\\" && json2[i + 3] === "n" && json2[i + 4] !== '"') {
-                  str32 += "\n";
+                  str33 += "\n";
                   i += 2;
                 }
-                str32 += indent;
+                str33 += indent;
                 if (json2[i + 2] === " ")
-                  str32 += "\\";
+                  str33 += "\\";
                 i += 1;
                 start = i + 1;
               }
@@ -15328,8 +15328,8 @@ var require_stringifyString = __commonJS({
               i += 1;
           }
       }
-      str32 = start ? str32 + json2.slice(start) : json2;
-      return implicitKey ? str32 : foldFlowLines.foldFlowLines(str32, indent, foldFlowLines.FOLD_QUOTED, getFoldOptions(ctx, false));
+      str33 = start ? str33 + json2.slice(start) : json2;
+      return implicitKey ? str33 : foldFlowLines.foldFlowLines(str33, indent, foldFlowLines.FOLD_QUOTED, getFoldOptions(ctx, false));
     }
     function singleQuotedString(value4, ctx) {
       if (ctx.options.singleQuote === false || ctx.implicitKey && value4.includes("\n") || /[ \t]\n|\n[ \t]/.test(value4))
@@ -15457,15 +15457,15 @@ ${indent}${start}${value4}${end}`;
           return quotedString(value4, ctx);
         }
       }
-      const str32 = value4.replace(/\n+/g, `$&
+      const str33 = value4.replace(/\n+/g, `$&
 ${indent}`);
       if (actualString) {
-        const test = (tag) => tag.default && tag.tag !== "tag:yaml.org,2002:str" && tag.test?.test(str32);
+        const test = (tag) => tag.default && tag.tag !== "tag:yaml.org,2002:str" && tag.test?.test(str33);
         const { compat, tags } = ctx.doc.schema;
         if (tags.some(test) || compat?.some(test))
           return quotedString(value4, ctx);
       }
-      return implicitKey ? str32 : foldFlowLines.foldFlowLines(str32, indent, foldFlowLines.FOLD_FLOW, getFoldOptions(ctx, false));
+      return implicitKey ? str33 : foldFlowLines.foldFlowLines(str33, indent, foldFlowLines.FOLD_FLOW, getFoldOptions(ctx, false));
     }
     function stringifyString(item2, ctx, onComment, onChompKeep) {
       const { implicitKey, inFlow } = ctx;
@@ -15512,7 +15512,7 @@ var require_stringify = __commonJS({
     var identity = require_identity();
     var stringifyComment = require_stringifyComment();
     var stringifyString = require_stringifyString();
-    function createStringifyContext(doc, options) {
+    function createStringifyContext(doc, options2) {
       const opt = Object.assign({
         blockQuote: true,
         commentString: stringifyComment.stringifyComment,
@@ -15531,7 +15531,7 @@ var require_stringify = __commonJS({
         singleQuote: null,
         trueStr: "true",
         verifyAliasOrder: true
-      }, doc.schema.toStringOptions, options);
+      }, doc.schema.toStringOptions, options2);
       let inFlow;
       switch (opt.collectionStyle) {
         case "block":
@@ -15616,11 +15616,11 @@ var require_stringify = __commonJS({
       const props = stringifyProps(node, tagObj, ctx);
       if (props.length > 0)
         ctx.indentAtStart = (ctx.indentAtStart ?? 0) + props.length + 1;
-      const str32 = typeof tagObj.stringify === "function" ? tagObj.stringify(node, ctx, onComment, onChompKeep) : identity.isScalar(node) ? stringifyString.stringifyString(node, ctx, onComment, onChompKeep) : node.toString(ctx, onComment, onChompKeep);
+      const str33 = typeof tagObj.stringify === "function" ? tagObj.stringify(node, ctx, onComment, onChompKeep) : identity.isScalar(node) ? stringifyString.stringifyString(node, ctx, onComment, onChompKeep) : node.toString(ctx, onComment, onChompKeep);
       if (!props)
-        return str32;
-      return identity.isScalar(node) || str32[0] === "{" || str32[0] === "[" ? `${props} ${str32}` : `${props}
-${ctx.indent}${str32}`;
+        return str33;
+      return identity.isScalar(node) || str33[0] === "{" || str33[0] === "[" ? `${props} ${str33}` : `${props}
+${ctx.indent}${str33}`;
     }
     exports2.createStringifyContext = createStringifyContext;
     exports2.stringify = stringify;
@@ -15655,8 +15655,8 @@ var require_stringifyPair = __commonJS({
       });
       let keyCommentDone = false;
       let chompKeep = false;
-      let str32 = stringify.stringify(key5, ctx, () => keyCommentDone = true, () => chompKeep = true);
-      if (!explicitKey && !ctx.inFlow && str32.length > 1024) {
+      let str33 = stringify.stringify(key5, ctx, () => keyCommentDone = true, () => chompKeep = true);
+      if (!explicitKey && !ctx.inFlow && str33.length > 1024) {
         if (simpleKeys)
           throw new Error("With simple keys, single line scalar must not span more than 1024 characters");
         explicitKey = true;
@@ -15665,27 +15665,27 @@ var require_stringifyPair = __commonJS({
         if (allNullValues || value4 == null) {
           if (keyCommentDone && onComment)
             onComment();
-          return str32 === "" ? "?" : explicitKey ? `? ${str32}` : str32;
+          return str33 === "" ? "?" : explicitKey ? `? ${str33}` : str33;
         }
       } else if (allNullValues && !simpleKeys || value4 == null && explicitKey) {
-        str32 = `? ${str32}`;
+        str33 = `? ${str33}`;
         if (keyComment && !keyCommentDone) {
-          str32 += stringifyComment.lineComment(str32, ctx.indent, commentString(keyComment));
+          str33 += stringifyComment.lineComment(str33, ctx.indent, commentString(keyComment));
         } else if (chompKeep && onChompKeep)
           onChompKeep();
-        return str32;
+        return str33;
       }
       if (keyCommentDone)
         keyComment = null;
       if (explicitKey) {
         if (keyComment)
-          str32 += stringifyComment.lineComment(str32, ctx.indent, commentString(keyComment));
-        str32 = `? ${str32}
+          str33 += stringifyComment.lineComment(str33, ctx.indent, commentString(keyComment));
+        str33 = `? ${str33}
 ${indent}:`;
       } else {
-        str32 = `${str32}:`;
+        str33 = `${str33}:`;
         if (keyComment)
-          str32 += stringifyComment.lineComment(str32, ctx.indent, commentString(keyComment));
+          str33 += stringifyComment.lineComment(str33, ctx.indent, commentString(keyComment));
       }
       let vsb, vcb, valueComment;
       if (identity.isNode(value4)) {
@@ -15701,7 +15701,7 @@ ${indent}:`;
       }
       ctx.implicitKey = false;
       if (!explicitKey && !keyComment && identity.isScalar(value4))
-        ctx.indentAtStart = str32.length + 1;
+        ctx.indentAtStart = str33.length + 1;
       chompKeep = false;
       if (!indentSeq && indentStep.length >= 2 && !ctx.inFlow && !explicitKey && identity.isSeq(value4) && !value4.flow && !value4.tag && !value4.anchor) {
         ctx.indent = ctx.indent.substring(2);
@@ -15745,16 +15745,16 @@ ${ctx.indent}`;
       } else if (valueStr === "" || valueStr[0] === "\n") {
         ws = "";
       }
-      str32 += ws + valueStr;
+      str33 += ws + valueStr;
       if (ctx.inFlow) {
         if (valueCommentDone && onComment)
           onComment();
       } else if (valueComment && !valueCommentDone) {
-        str32 += stringifyComment.lineComment(str32, ctx.indent, commentString(valueComment));
+        str33 += stringifyComment.lineComment(str33, ctx.indent, commentString(valueComment));
       } else if (chompKeep && onChompKeep) {
         onChompKeep();
       }
-      return str32;
+      return str33;
     }
     exports2.stringifyPair = stringifyPair;
   }
@@ -15950,10 +15950,10 @@ var require_stringifyCollection = __commonJS({
     var identity = require_identity();
     var stringify = require_stringify();
     var stringifyComment = require_stringifyComment();
-    function stringifyCollection(collection, ctx, options) {
+    function stringifyCollection(collection, ctx, options2) {
       const flow = ctx.inFlow ?? collection.flow;
       const stringify2 = flow ? stringifyFlowCollection : stringifyBlockCollection;
-      return stringify2(collection, ctx, options);
+      return stringify2(collection, ctx, options2);
     }
     function stringifyBlockCollection({ comment, items }, ctx, { blockItemPrefix, flowChars, itemIndent, onChompKeep, onComment }) {
       const { indent, options: { commentString } } = ctx;
@@ -15978,31 +15978,31 @@ var require_stringifyCollection = __commonJS({
           }
         }
         chompKeep = false;
-        let str33 = stringify.stringify(item2, itemCtx, () => comment2 = null, () => chompKeep = true);
+        let str34 = stringify.stringify(item2, itemCtx, () => comment2 = null, () => chompKeep = true);
         if (comment2)
-          str33 += stringifyComment.lineComment(str33, itemIndent, commentString(comment2));
+          str34 += stringifyComment.lineComment(str34, itemIndent, commentString(comment2));
         if (chompKeep && comment2)
           chompKeep = false;
-        lines2.push(blockItemPrefix + str33);
+        lines2.push(blockItemPrefix + str34);
       }
-      let str32;
+      let str33;
       if (lines2.length === 0) {
-        str32 = flowChars.start + flowChars.end;
+        str33 = flowChars.start + flowChars.end;
       } else {
-        str32 = lines2[0];
+        str33 = lines2[0];
         for (let i = 1; i < lines2.length; ++i) {
           const line = lines2[i];
-          str32 += line ? `
+          str33 += line ? `
 ${indent}${line}` : "\n";
         }
       }
       if (comment) {
-        str32 += "\n" + stringifyComment.indentComment(commentString(comment), indent);
+        str33 += "\n" + stringifyComment.indentComment(commentString(comment), indent);
         if (onComment)
           onComment();
       } else if (chompKeep && onChompKeep)
         onChompKeep();
-      return str32;
+      return str33;
     }
     function stringifyFlowCollection({ items }, ctx, { flowChars, itemIndent }) {
       const { indent, indentStep, flowCollectionPadding: fcPadding, options: { commentString } } = ctx;
@@ -16045,14 +16045,14 @@ ${indent}${line}` : "\n";
         }
         if (comment)
           reqNewline = true;
-        let str32 = stringify.stringify(item2, itemCtx, () => comment = null);
+        let str33 = stringify.stringify(item2, itemCtx, () => comment = null);
         if (i < items.length - 1)
-          str32 += ",";
+          str33 += ",";
         if (comment)
-          str32 += stringifyComment.lineComment(str32, itemIndent, commentString(comment));
-        if (!reqNewline && (lines2.length > linesAtValue || str32.includes("\n")))
+          str33 += stringifyComment.lineComment(str33, itemIndent, commentString(comment));
+        if (!reqNewline && (lines2.length > linesAtValue || str33.includes("\n")))
           reqNewline = true;
-        lines2.push(str32);
+        lines2.push(str33);
         linesAtValue = lines2.length;
       }
       const { start, end } = flowChars;
@@ -16064,11 +16064,11 @@ ${indent}${line}` : "\n";
           reqNewline = ctx.options.lineWidth > 0 && len > ctx.options.lineWidth;
         }
         if (reqNewline) {
-          let str32 = start;
+          let str33 = start;
           for (const line of lines2)
-            str32 += line ? `
+            str33 += line ? `
 ${indentStep}${indent}${line}` : "\n";
-          return `${str32}
+          return `${str33}
 ${indent}${end}`;
         } else {
           return `${start}${fcPadding}${lines2.join(" ")}${fcPadding}${end}`;
@@ -16400,7 +16400,7 @@ var require_string = __commonJS({
       identify: (value4) => typeof value4 === "string",
       default: true,
       tag: "tag:yaml.org,2002:str",
-      resolve: (str32) => str32,
+      resolve: (str33) => str33,
       stringify(item2, ctx, onComment, onChompKeep) {
         ctx = Object.assign({ actualString: true }, ctx);
         return stringifyString.stringifyString(item2, ctx, onComment, onChompKeep);
@@ -16438,7 +16438,7 @@ var require_bool = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:bool",
       test: /^(?:[Tt]rue|TRUE|[Ff]alse|FALSE)$/,
-      resolve: (str32) => new Scalar.Scalar(str32[0] === "t" || str32[0] === "T"),
+      resolve: (str33) => new Scalar.Scalar(str33[0] === "t" || str33[0] === "T"),
       stringify({ source, value: value4 }, ctx) {
         if (source && boolTag.test.test(source)) {
           const sv = source[0] === "t" || source[0] === "T";
@@ -16490,7 +16490,7 @@ var require_float = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:float",
       test: /^(?:[-+]?\.(?:inf|Inf|INF)|\.nan|\.NaN|\.NAN)$/,
-      resolve: (str32) => str32.slice(-3).toLowerCase() === "nan" ? NaN : str32[0] === "-" ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY,
+      resolve: (str33) => str33.slice(-3).toLowerCase() === "nan" ? NaN : str33[0] === "-" ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY,
       stringify: stringifyNumber.stringifyNumber
     };
     var floatExp = {
@@ -16499,7 +16499,7 @@ var require_float = __commonJS({
       tag: "tag:yaml.org,2002:float",
       format: "EXP",
       test: /^[-+]?(?:\.[0-9]+|[0-9]+(?:\.[0-9]*)?)[eE][-+]?[0-9]+$/,
-      resolve: (str32) => parseFloat(str32),
+      resolve: (str33) => parseFloat(str33),
       stringify(node) {
         const num6 = Number(node.value);
         return isFinite(num6) ? num6.toExponential() : stringifyNumber.stringifyNumber(node);
@@ -16510,11 +16510,11 @@ var require_float = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:float",
       test: /^[-+]?(?:\.[0-9]+|[0-9]+\.[0-9]*)$/,
-      resolve(str32) {
-        const node = new Scalar.Scalar(parseFloat(str32));
-        const dot = str32.indexOf(".");
-        if (dot !== -1 && str32[str32.length - 1] === "0")
-          node.minFractionDigits = str32.length - dot - 1;
+      resolve(str33) {
+        const node = new Scalar.Scalar(parseFloat(str33));
+        const dot = str33.indexOf(".");
+        if (dot !== -1 && str33[str33.length - 1] === "0")
+          node.minFractionDigits = str33.length - dot - 1;
         return node;
       },
       stringify: stringifyNumber.stringifyNumber
@@ -16531,7 +16531,7 @@ var require_int = __commonJS({
     "use strict";
     var stringifyNumber = require_stringifyNumber();
     var intIdentify = (value4) => typeof value4 === "bigint" || Number.isInteger(value4);
-    var intResolve = (str32, offset2, radix, { intAsBigInt }) => intAsBigInt ? BigInt(str32) : parseInt(str32.substring(offset2), radix);
+    var intResolve = (str33, offset2, radix, { intAsBigInt }) => intAsBigInt ? BigInt(str33) : parseInt(str33.substring(offset2), radix);
     function intStringify(node, radix, prefix) {
       const { value: value4 } = node;
       if (intIdentify(value4) && value4 >= 0)
@@ -16544,7 +16544,7 @@ var require_int = __commonJS({
       tag: "tag:yaml.org,2002:int",
       format: "OCT",
       test: /^0o[0-7]+$/,
-      resolve: (str32, _onError, opt) => intResolve(str32, 2, 8, opt),
+      resolve: (str33, _onError, opt) => intResolve(str33, 2, 8, opt),
       stringify: (node) => intStringify(node, 8, "0o")
     };
     var int4 = {
@@ -16552,7 +16552,7 @@ var require_int = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:int",
       test: /^[-+]?[0-9]+$/,
-      resolve: (str32, _onError, opt) => intResolve(str32, 0, 10, opt),
+      resolve: (str33, _onError, opt) => intResolve(str33, 0, 10, opt),
       stringify: stringifyNumber.stringifyNumber
     };
     var intHex = {
@@ -16561,7 +16561,7 @@ var require_int = __commonJS({
       tag: "tag:yaml.org,2002:int",
       format: "HEX",
       test: /^0x[0-9a-fA-F]+$/,
-      resolve: (str32, _onError, opt) => intResolve(str32, 2, 16, opt),
+      resolve: (str33, _onError, opt) => intResolve(str33, 2, 16, opt),
       stringify: (node) => intStringify(node, 16, "0x")
     };
     exports2.int = int4;
@@ -16614,7 +16614,7 @@ var require_schema2 = __commonJS({
         identify: (value4) => typeof value4 === "string",
         default: true,
         tag: "tag:yaml.org,2002:str",
-        resolve: (str32) => str32,
+        resolve: (str33) => str33,
         stringify: stringifyJSON
       },
       {
@@ -16631,7 +16631,7 @@ var require_schema2 = __commonJS({
         default: true,
         tag: "tag:yaml.org,2002:bool",
         test: /^true$|^false$/,
-        resolve: (str32) => str32 === "true",
+        resolve: (str33) => str33 === "true",
         stringify: stringifyJSON
       },
       {
@@ -16639,7 +16639,7 @@ var require_schema2 = __commonJS({
         default: true,
         tag: "tag:yaml.org,2002:int",
         test: /^-?(?:0|[1-9][0-9]*)$/,
-        resolve: (str32, _onError, { intAsBigInt }) => intAsBigInt ? BigInt(str32) : parseInt(str32, 10),
+        resolve: (str33, _onError, { intAsBigInt }) => intAsBigInt ? BigInt(str33) : parseInt(str33, 10),
         stringify: ({ value: value4 }) => intIdentify(value4) ? value4.toString() : JSON.stringify(value4)
       },
       {
@@ -16647,7 +16647,7 @@ var require_schema2 = __commonJS({
         default: true,
         tag: "tag:yaml.org,2002:float",
         test: /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]*)?(?:[eE][-+]?[0-9]+)?$/,
-        resolve: (str32) => parseFloat(str32),
+        resolve: (str33) => parseFloat(str33),
         stringify: stringifyJSON
       }
     ];
@@ -16655,9 +16655,9 @@ var require_schema2 = __commonJS({
       default: true,
       tag: "",
       test: /^/,
-      resolve(str32, onError) {
-        onError(`Unresolved plain scalar ${JSON.stringify(str32)}`);
-        return str32;
+      resolve(str33, onError) {
+        onError(`Unresolved plain scalar ${JSON.stringify(str33)}`);
+        return str33;
       }
     };
     var schema = [map.map, seq.seq].concat(jsonScalars, jsonError2);
@@ -16689,10 +16689,10 @@ var require_binary = __commonJS({
         if (typeof node_buffer.Buffer === "function") {
           return node_buffer.Buffer.from(src, "base64");
         } else if (typeof atob === "function") {
-          const str32 = atob(src.replace(/[\n\r]/g, ""));
-          const buffer = new Uint8Array(str32.length);
-          for (let i = 0; i < str32.length; ++i)
-            buffer[i] = str32.charCodeAt(i);
+          const str33 = atob(src.replace(/[\n\r]/g, ""));
+          const buffer = new Uint8Array(str33.length);
+          for (let i = 0; i < str33.length; ++i)
+            buffer[i] = str33.charCodeAt(i);
           return buffer;
         } else {
           onError("This environment does not support reading binary tags; either Buffer or atob is required");
@@ -16703,28 +16703,28 @@ var require_binary = __commonJS({
         if (!value4)
           return "";
         const buf = value4;
-        let str32;
+        let str33;
         if (typeof node_buffer.Buffer === "function") {
-          str32 = buf instanceof node_buffer.Buffer ? buf.toString("base64") : node_buffer.Buffer.from(buf.buffer).toString("base64");
+          str33 = buf instanceof node_buffer.Buffer ? buf.toString("base64") : node_buffer.Buffer.from(buf.buffer).toString("base64");
         } else if (typeof btoa === "function") {
-          let s7 = "";
+          let s11 = "";
           for (let i = 0; i < buf.length; ++i)
-            s7 += String.fromCharCode(buf[i]);
-          str32 = btoa(s7);
+            s11 += String.fromCharCode(buf[i]);
+          str33 = btoa(s11);
         } else {
           throw new Error("This environment does not support writing binary tags; either Buffer or btoa is required");
         }
         type ?? (type = Scalar.Scalar.BLOCK_LITERAL);
         if (type !== Scalar.Scalar.QUOTE_DOUBLE) {
           const lineWidth = Math.max(ctx.options.lineWidth - ctx.indent.length, ctx.options.minContentWidth);
-          const n2 = Math.ceil(str32.length / lineWidth);
+          const n2 = Math.ceil(str33.length / lineWidth);
           const lines2 = new Array(n2);
           for (let i = 0, o = 0; i < n2; ++i, o += lineWidth) {
-            lines2[i] = str32.substr(o, lineWidth);
+            lines2[i] = str33.substr(o, lineWidth);
           }
-          str32 = lines2.join(type === Scalar.Scalar.BLOCK_LITERAL ? "\n" : " ");
+          str33 = lines2.join(type === Scalar.Scalar.BLOCK_LITERAL ? "\n" : " ");
         }
-        return stringifyString.stringifyString({ comment, type, value: str32 }, ctx, onComment, onChompKeep);
+        return stringifyString.stringifyString({ comment, type, value: str33 }, ctx, onComment, onChompKeep);
       }
     };
     exports2.binary = binary;
@@ -16930,7 +16930,7 @@ var require_float2 = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:float",
       test: /^(?:[-+]?\.(?:inf|Inf|INF)|\.nan|\.NaN|\.NAN)$/,
-      resolve: (str32) => str32.slice(-3).toLowerCase() === "nan" ? NaN : str32[0] === "-" ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY,
+      resolve: (str33) => str33.slice(-3).toLowerCase() === "nan" ? NaN : str33[0] === "-" ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY,
       stringify: stringifyNumber.stringifyNumber
     };
     var floatExp = {
@@ -16939,7 +16939,7 @@ var require_float2 = __commonJS({
       tag: "tag:yaml.org,2002:float",
       format: "EXP",
       test: /^[-+]?(?:[0-9][0-9_]*)?(?:\.[0-9_]*)?[eE][-+]?[0-9]+$/,
-      resolve: (str32) => parseFloat(str32.replace(/_/g, "")),
+      resolve: (str33) => parseFloat(str33.replace(/_/g, "")),
       stringify(node) {
         const num6 = Number(node.value);
         return isFinite(num6) ? num6.toExponential() : stringifyNumber.stringifyNumber(node);
@@ -16950,11 +16950,11 @@ var require_float2 = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:float",
       test: /^[-+]?(?:[0-9][0-9_]*)?\.[0-9_]*$/,
-      resolve(str32) {
-        const node = new Scalar.Scalar(parseFloat(str32.replace(/_/g, "")));
-        const dot = str32.indexOf(".");
+      resolve(str33) {
+        const node = new Scalar.Scalar(parseFloat(str33.replace(/_/g, "")));
+        const dot = str33.indexOf(".");
         if (dot !== -1) {
-          const f = str32.substring(dot + 1).replace(/_/g, "");
+          const f = str33.substring(dot + 1).replace(/_/g, "");
           if (f[f.length - 1] === "0")
             node.minFractionDigits = f.length;
         }
@@ -16974,34 +16974,34 @@ var require_int2 = __commonJS({
     "use strict";
     var stringifyNumber = require_stringifyNumber();
     var intIdentify = (value4) => typeof value4 === "bigint" || Number.isInteger(value4);
-    function intResolve(str32, offset2, radix, { intAsBigInt }) {
-      const sign = str32[0];
+    function intResolve(str33, offset2, radix, { intAsBigInt }) {
+      const sign = str33[0];
       if (sign === "-" || sign === "+")
         offset2 += 1;
-      str32 = str32.substring(offset2).replace(/_/g, "");
+      str33 = str33.substring(offset2).replace(/_/g, "");
       if (intAsBigInt) {
         switch (radix) {
           case 2:
-            str32 = `0b${str32}`;
+            str33 = `0b${str33}`;
             break;
           case 8:
-            str32 = `0o${str32}`;
+            str33 = `0o${str33}`;
             break;
           case 16:
-            str32 = `0x${str32}`;
+            str33 = `0x${str33}`;
             break;
         }
-        const n3 = BigInt(str32);
+        const n3 = BigInt(str33);
         return sign === "-" ? BigInt(-1) * n3 : n3;
       }
-      const n2 = parseInt(str32, radix);
+      const n2 = parseInt(str33, radix);
       return sign === "-" ? -1 * n2 : n2;
     }
     function intStringify(node, radix, prefix) {
       const { value: value4 } = node;
       if (intIdentify(value4)) {
-        const str32 = value4.toString(radix);
-        return value4 < 0 ? "-" + prefix + str32.substr(1) : prefix + str32;
+        const str33 = value4.toString(radix);
+        return value4 < 0 ? "-" + prefix + str33.substr(1) : prefix + str33;
       }
       return stringifyNumber.stringifyNumber(node);
     }
@@ -17011,7 +17011,7 @@ var require_int2 = __commonJS({
       tag: "tag:yaml.org,2002:int",
       format: "BIN",
       test: /^[-+]?0b[0-1_]+$/,
-      resolve: (str32, _onError, opt) => intResolve(str32, 2, 2, opt),
+      resolve: (str33, _onError, opt) => intResolve(str33, 2, 2, opt),
       stringify: (node) => intStringify(node, 2, "0b")
     };
     var intOct = {
@@ -17020,7 +17020,7 @@ var require_int2 = __commonJS({
       tag: "tag:yaml.org,2002:int",
       format: "OCT",
       test: /^[-+]?0[0-7_]+$/,
-      resolve: (str32, _onError, opt) => intResolve(str32, 1, 8, opt),
+      resolve: (str33, _onError, opt) => intResolve(str33, 1, 8, opt),
       stringify: (node) => intStringify(node, 8, "0")
     };
     var int4 = {
@@ -17028,7 +17028,7 @@ var require_int2 = __commonJS({
       default: true,
       tag: "tag:yaml.org,2002:int",
       test: /^[-+]?[0-9][0-9_]*$/,
-      resolve: (str32, _onError, opt) => intResolve(str32, 0, 10, opt),
+      resolve: (str33, _onError, opt) => intResolve(str33, 0, 10, opt),
       stringify: stringifyNumber.stringifyNumber
     };
     var intHex = {
@@ -17037,7 +17037,7 @@ var require_int2 = __commonJS({
       tag: "tag:yaml.org,2002:int",
       format: "HEX",
       test: /^[-+]?0x[0-9a-fA-F_]+$/,
-      resolve: (str32, _onError, opt) => intResolve(str32, 2, 16, opt),
+      resolve: (str33, _onError, opt) => intResolve(str33, 2, 16, opt),
       stringify: (node) => intStringify(node, 16, "0x")
     };
     exports2.int = int4;
@@ -17141,9 +17141,9 @@ var require_timestamp = __commonJS({
   "node_modules/yaml/dist/schema/yaml-1.1/timestamp.js"(exports2) {
     "use strict";
     var stringifyNumber = require_stringifyNumber();
-    function parseSexagesimal(str32, asBigInt) {
-      const sign = str32[0];
-      const parts = sign === "-" || sign === "+" ? str32.substring(1) : str32;
+    function parseSexagesimal(str33, asBigInt) {
+      const sign = str33[0];
+      const parts = sign === "-" || sign === "+" ? str33.substring(1) : str33;
       const num6 = (n2) => asBigInt ? BigInt(n2) : Number(n2);
       const res = parts.replace(/_/g, "").split(":").reduce((res2, p) => res2 * num6(60) + num6(p), num6(0));
       return sign === "-" ? num6(-1) * res : res;
@@ -17180,7 +17180,7 @@ var require_timestamp = __commonJS({
       tag: "tag:yaml.org,2002:int",
       format: "TIME",
       test: /^[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+$/,
-      resolve: (str32, _onError, { intAsBigInt }) => parseSexagesimal(str32, intAsBigInt),
+      resolve: (str33, _onError, { intAsBigInt }) => parseSexagesimal(str33, intAsBigInt),
       stringify: stringifySexagesimal
     };
     var floatTime = {
@@ -17189,7 +17189,7 @@ var require_timestamp = __commonJS({
       tag: "tag:yaml.org,2002:float",
       format: "TIME",
       test: /^[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\.[0-9_]*$/,
-      resolve: (str32) => parseSexagesimal(str32, false),
+      resolve: (str33) => parseSexagesimal(str33, false),
       stringify: stringifySexagesimal
     };
     var timestamp = {
@@ -17200,8 +17200,8 @@ var require_timestamp = __commonJS({
       // may be omitted altogether, resulting in a date format. In such a case, the time part is
       // assumed to be 00:00:00Z (start of day, UTC).
       test: RegExp("^([0-9]{4})-([0-9]{1,2})-([0-9]{1,2})(?:(?:t|T|[ \\t]+)([0-9]{1,2}):([0-9]{1,2}):([0-9]{1,2}(\\.[0-9]+)?)(?:[ \\t]*(Z|[-+][012]?[0-9](?::[0-9]{2})?))?)?$"),
-      resolve(str32) {
-        const match = str32.match(timestamp.test);
+      resolve(str33) {
+        const match = str33.match(timestamp.test);
         if (!match)
           throw new Error("!!timestamp expects a date, starting with yyyy-mm-dd");
         const [, year, month, day4, hour, minute, second] = match.map(Number);
@@ -17401,10 +17401,10 @@ var require_stringifyDocument = __commonJS({
     var identity = require_identity();
     var stringify = require_stringify();
     var stringifyComment = require_stringifyComment();
-    function stringifyDocument(doc, options) {
+    function stringifyDocument(doc, options2) {
       const lines2 = [];
-      let hasDirectives = options.directives === true;
-      if (options.directives !== false && doc.directives) {
+      let hasDirectives = options2.directives === true;
+      if (options2.directives !== false && doc.directives) {
         const dir = doc.directives.toString(doc);
         if (dir) {
           lines2.push(dir);
@@ -17414,7 +17414,7 @@ var require_stringifyDocument = __commonJS({
       }
       if (hasDirectives)
         lines2.push("---");
-      const ctx = stringify.createStringifyContext(doc, options);
+      const ctx = stringify.createStringifyContext(doc, options2);
       const { commentString } = ctx.options;
       if (doc.commentBefore) {
         if (lines2.length !== 1)
@@ -17490,7 +17490,7 @@ var require_Document = __commonJS({
     var createNode = require_createNode();
     var directives = require_directives();
     var Document = class _Document {
-      constructor(value4, replacer, options) {
+      constructor(value4, replacer, options2) {
         this.commentBefore = null;
         this.comment = null;
         this.errors = [];
@@ -17499,8 +17499,8 @@ var require_Document = __commonJS({
         let _replacer = null;
         if (typeof replacer === "function" || Array.isArray(replacer)) {
           _replacer = replacer;
-        } else if (options === void 0 && replacer) {
-          options = replacer;
+        } else if (options2 === void 0 && replacer) {
+          options2 = replacer;
           replacer = void 0;
         }
         const opt = Object.assign({
@@ -17512,17 +17512,17 @@ var require_Document = __commonJS({
           stringKeys: false,
           uniqueKeys: true,
           version: "1.2"
-        }, options);
+        }, options2);
         this.options = opt;
         let { version: version3 } = opt;
-        if (options?._directives) {
-          this.directives = options._directives.atDocument();
+        if (options2?._directives) {
+          this.directives = options2._directives.atDocument();
           if (this.directives.yaml.explicit)
             version3 = this.directives.yaml.version;
         } else
           this.directives = new directives.Directives({ version: version3 });
-        this.setSchema(version3, options);
-        this.contents = value4 === void 0 ? null : this.createNode(value4, _replacer, options);
+        this.setSchema(version3, options2);
+        this.contents = value4 === void 0 ? null : this.createNode(value4, _replacer, options2);
       }
       /**
        * Create a deep copy of this Document and its contents.
@@ -17573,7 +17573,7 @@ var require_Document = __commonJS({
         }
         return new Alias.Alias(node.anchor);
       }
-      createNode(value4, replacer, options) {
+      createNode(value4, replacer, options2) {
         let _replacer = void 0;
         if (typeof replacer === "function") {
           value4 = replacer.call({ "": value4 }, "", value4);
@@ -17584,11 +17584,11 @@ var require_Document = __commonJS({
           if (asStr.length > 0)
             replacer = replacer.concat(asStr);
           _replacer = replacer;
-        } else if (options === void 0 && replacer) {
-          options = replacer;
+        } else if (options2 === void 0 && replacer) {
+          options2 = replacer;
           replacer = void 0;
         }
-        const { aliasDuplicateObjects, anchorPrefix, flow, keepUndefined, onTagObj, tag } = options ?? {};
+        const { aliasDuplicateObjects, anchorPrefix, flow, keepUndefined, onTagObj, tag } = options2 ?? {};
         const { onAnchor, setAnchors, sourceObjects } = anchors.createNodeAnchors(
           this,
           // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
@@ -17613,9 +17613,9 @@ var require_Document = __commonJS({
        * Convert a key and a value into a `Pair` using the current schema,
        * recursively wrapping all values as `Scalar` or `Collection` nodes.
        */
-      createPair(key5, value4, options = {}) {
-        const k = this.createNode(key5, null, options);
-        const v = this.createNode(value4, null, options);
+      createPair(key5, value4, options2 = {}) {
+        const k = this.createNode(key5, null, options2);
+        const v = this.createNode(value4, null, options2);
         return new Pair.Pair(k, v);
       }
       /**
@@ -17701,7 +17701,7 @@ var require_Document = __commonJS({
        *
        * Overrides all previously set schema options.
        */
-      setSchema(version3, options = {}) {
+      setSchema(version3, options2 = {}) {
         if (typeof version3 === "number")
           version3 = String(version3);
         let opt;
@@ -17731,10 +17731,10 @@ var require_Document = __commonJS({
             throw new Error(`Expected '1.1', '1.2' or null as first argument, but found: ${sv}`);
           }
         }
-        if (options.schema instanceof Object)
-          this.schema = options.schema;
+        if (options2.schema instanceof Object)
+          this.schema = options2.schema;
         else if (opt)
-          this.schema = new Schema.Schema(Object.assign(opt, options));
+          this.schema = new Schema.Schema(Object.assign(opt, options2));
         else
           throw new Error(`With a null YAML version, the { schema: Schema } option is required`);
       }
@@ -17764,14 +17764,14 @@ var require_Document = __commonJS({
         return this.toJS({ json: true, jsonArg, mapAsMap: false, onAnchor });
       }
       /** A YAML representation of the document. */
-      toString(options = {}) {
+      toString(options2 = {}) {
         if (this.errors.length > 0)
           throw new Error("Document with errors cannot be stringified");
-        if ("indent" in options && (!Number.isInteger(options.indent) || Number(options.indent) <= 0)) {
-          const s7 = JSON.stringify(options.indent);
-          throw new Error(`"indent" option must be a positive integer, not ${s7}`);
+        if ("indent" in options2 && (!Number.isInteger(options2.indent) || Number(options2.indent) <= 0)) {
+          const s11 = JSON.stringify(options2.indent);
+          throw new Error(`"indent" option must be a positive integer, not ${s11}`);
         }
-        return stringifyDocument.stringifyDocument(this, options);
+        return stringifyDocument.stringifyDocument(this, options2);
       }
     };
     function assertCollection(contents) {
@@ -19110,14 +19110,14 @@ var require_compose_node = __commonJS({
       }
       return node;
     }
-    function composeAlias({ options }, { offset: offset2, source, end }, onError) {
+    function composeAlias({ options: options2 }, { offset: offset2, source, end }, onError) {
       const alias = new Alias.Alias(source.substring(1));
       if (alias.source === "")
         onError(offset2, "BAD_ALIAS", "Alias cannot be an empty string");
       if (alias.source.endsWith(":"))
         onError(offset2 + source.length - 1, "BAD_ALIAS", "Alias ending in : is ambiguous", true);
       const valueEnd = offset2 + source.length;
-      const re = resolveEnd.resolveEnd(end, valueEnd, options.strict, onError);
+      const re = resolveEnd.resolveEnd(end, valueEnd, options2.strict, onError);
       alias.range = [offset2, valueEnd, re.offset];
       if (re.comment)
         alias.comment = re.comment;
@@ -19136,8 +19136,8 @@ var require_compose_doc = __commonJS({
     var composeNode = require_compose_node();
     var resolveEnd = require_resolve_end();
     var resolveProps = require_resolve_props();
-    function composeDoc(options, directives, { offset: offset2, start, value: value4, end }, onError) {
-      const opts = Object.assign({ _directives: directives }, options);
+    function composeDoc(options2, directives, { offset: offset2, start, value: value4, end }, onError) {
+      const opts = Object.assign({ _directives: directives }, options2);
       const doc = new Document.Document(void 0, opts);
       const ctx = {
         atKey: false,
@@ -19216,7 +19216,7 @@ var require_composer = __commonJS({
       return { comment, afterEmptyLine };
     }
     var Composer = class {
-      constructor(options = {}) {
+      constructor(options2 = {}) {
         this.doc = null;
         this.atDirectives = false;
         this.prelude = [];
@@ -19229,8 +19229,8 @@ var require_composer = __commonJS({
           else
             this.errors.push(new errors.YAMLParseError(pos, code, message));
         };
-        this.directives = new directives.Directives({ version: options.version || "1.2" });
-        this.options = options;
+        this.directives = new directives.Directives({ version: options2.version || "1.2" });
+        this.options = options2;
       }
       decorate(doc, afterDoc) {
         const { comment, afterEmptyLine } = parsePrelude(this.prelude);
@@ -19968,12 +19968,12 @@ var require_lexer = __commonJS({
         if (ch === "-" || ch === ".") {
           if (!this.atEnd && !this.hasChars(4))
             return this.setNext("line-start");
-          const s7 = this.peek(3);
-          if ((s7 === "---" || s7 === "...") && isEmpty2(this.charAt(3))) {
+          const s11 = this.peek(3);
+          if ((s11 === "---" || s11 === "...") && isEmpty2(this.charAt(3))) {
             yield* this.pushCount(3);
             this.indentValue = 0;
             this.indentNext = 0;
-            return s7 === "---" ? "doc" : "stream";
+            return s11 === "---" ? "doc" : "stream";
           }
         }
         this.indentValue = yield* this.pushSpaces(false);
@@ -20275,11 +20275,11 @@ var require_lexer = __commonJS({
         return 0;
       }
       *pushToIndex(i, allowEmpty) {
-        const s7 = this.buffer.slice(this.pos, i);
-        if (s7) {
-          yield s7;
-          this.pos += s7.length;
-          return s7.length;
+        const s11 = this.buffer.slice(this.pos, i);
+        if (s11) {
+          yield s11;
+          this.pos += s11.length;
+          return s11.length;
         } else if (allowEmpty)
           yield "";
         return 0;
@@ -21266,15 +21266,15 @@ var require_public_api = __commonJS({
     var identity = require_identity();
     var lineCounter = require_line_counter();
     var parser2 = require_parser();
-    function parseOptions(options) {
-      const prettyErrors = options.prettyErrors !== false;
-      const lineCounter$1 = options.lineCounter || prettyErrors && new lineCounter.LineCounter() || null;
+    function parseOptions(options2) {
+      const prettyErrors = options2.prettyErrors !== false;
+      const lineCounter$1 = options2.lineCounter || prettyErrors && new lineCounter.LineCounter() || null;
       return { lineCounter: lineCounter$1, prettyErrors };
     }
-    function parseAllDocuments(source, options = {}) {
-      const { lineCounter: lineCounter2, prettyErrors } = parseOptions(options);
+    function parseAllDocuments(source, options2 = {}) {
+      const { lineCounter: lineCounter2, prettyErrors } = parseOptions(options2);
       const parser$1 = new parser2.Parser(lineCounter2?.addNewLine);
-      const composer$1 = new composer.Composer(options);
+      const composer$1 = new composer.Composer(options2);
       const docs = Array.from(composer$1.compose(parser$1.parse(source)));
       if (prettyErrors && lineCounter2)
         for (const doc of docs) {
@@ -21285,10 +21285,10 @@ var require_public_api = __commonJS({
         return docs;
       return Object.assign([], { empty: true }, composer$1.streamInfo());
     }
-    function parseDocument(source, options = {}) {
-      const { lineCounter: lineCounter2, prettyErrors } = parseOptions(options);
+    function parseDocument(source, options2 = {}) {
+      const { lineCounter: lineCounter2, prettyErrors } = parseOptions(options2);
       const parser$1 = new parser2.Parser(lineCounter2?.addNewLine);
-      const composer$1 = new composer.Composer(options);
+      const composer$1 = new composer.Composer(options2);
       let doc = null;
       for (const _doc of composer$1.compose(parser$1.parse(source), true, source.length)) {
         if (!doc)
@@ -21304,14 +21304,14 @@ var require_public_api = __commonJS({
       }
       return doc;
     }
-    function parse6(src, reviver, options) {
+    function parse6(src, reviver, options2) {
       let _reviver = void 0;
       if (typeof reviver === "function") {
         _reviver = reviver;
-      } else if (options === void 0 && reviver && typeof reviver === "object") {
-        options = reviver;
+      } else if (options2 === void 0 && reviver && typeof reviver === "object") {
+        options2 = reviver;
       }
-      const doc = parseDocument(src, options);
+      const doc = parseDocument(src, options2);
       if (!doc)
         return null;
       doc.warnings.forEach((warning) => log.warn(doc.options.logLevel, warning));
@@ -21321,29 +21321,29 @@ var require_public_api = __commonJS({
         else
           doc.errors = [];
       }
-      return doc.toJS(Object.assign({ reviver: _reviver }, options));
+      return doc.toJS(Object.assign({ reviver: _reviver }, options2));
     }
-    function stringify(value4, replacer, options) {
+    function stringify(value4, replacer, options2) {
       let _replacer = null;
       if (typeof replacer === "function" || Array.isArray(replacer)) {
         _replacer = replacer;
-      } else if (options === void 0 && replacer) {
-        options = replacer;
+      } else if (options2 === void 0 && replacer) {
+        options2 = replacer;
       }
-      if (typeof options === "string")
-        options = options.length;
-      if (typeof options === "number") {
-        const indent = Math.round(options);
-        options = indent < 1 ? void 0 : indent > 8 ? { indent: 8 } : { indent };
+      if (typeof options2 === "string")
+        options2 = options2.length;
+      if (typeof options2 === "number") {
+        const indent = Math.round(options2);
+        options2 = indent < 1 ? void 0 : indent > 8 ? { indent: 8 } : { indent };
       }
       if (value4 === void 0) {
-        const { keepUndefined } = options ?? replacer ?? {};
+        const { keepUndefined } = options2 ?? replacer ?? {};
         if (!keepUndefined)
           return void 0;
       }
       if (identity.isDocument(value4) && !_replacer)
-        return value4.toString(options);
-      return new Document.Document(value4, _replacer, options).toString(options);
+        return value4.toString(options2);
+      return new Document.Document(value4, _replacer, options2).toString(options2);
     }
     exports2.parse = parse6;
     exports2.parseAllDocuments = parseAllDocuments;
@@ -21424,7 +21424,7 @@ function buildFields(fvs) {
   }
   return { fields, fieldTypes };
 }
-async function collectConfig(org, categories, options = {}) {
+async function collectConfig(org, categories, options2 = {}) {
   const want = categories || ["trigger_handlers", "admin_settings", "db_schema", "actions"];
   const snapshot4 = {
     exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
@@ -21434,7 +21434,7 @@ async function collectConfig(org, categories, options = {}) {
   if (want.includes("trigger_handlers")) {
     const query2 = `SELECT Id, DeveloperName, MasterLabel, IsActive FROM LifeScienceTriggerHandler ORDER BY DeveloperName`;
     const result2 = await runToolingQuery(query2, org);
-    if (!result2.success && options.strict)
+    if (!result2.success && options2.strict)
       throw new Error(`Couldn't read trigger handlers: ${result2.error}`);
     const handlers = [];
     if (result2.success && result2.data?.records) {
@@ -21452,27 +21452,27 @@ async function collectConfig(org, categories, options = {}) {
     snapshot4.adminSettings = await collectCategoryRecords(
       org,
       `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category NOT IN ('DbSchema', 'QuickAction', 'CustomAction') ORDER BY Category`,
-      options
+      options2
     );
   }
   if (want.includes("db_schema")) {
     snapshot4.dbSchema = await collectCategoryRecords(
       org,
       `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category = 'DbSchema'`,
-      options
+      options2
     );
   }
   if (want.includes("actions")) {
     snapshot4.actions = await collectCategoryRecords(
       org,
       `SELECT Id, DeveloperName, Category, MasterLabel FROM LifeSciConfigCategory WHERE Category IN ('QuickAction', 'CustomAction') ORDER BY Category`,
-      options
+      options2
     );
   }
   return snapshot4;
 }
-async function collectCategoryRecords(org, catQuery, options = {}) {
-  if (!options.cache) return loadCategoryRecords(org, catQuery, options);
+async function collectCategoryRecords(org, catQuery, options2 = {}) {
+  if (!options2.cache) return loadCategoryRecords(org, catQuery, options2);
   try {
     return await sharedRead(
       org,
@@ -21480,12 +21480,12 @@ async function collectCategoryRecords(org, catQuery, options = {}) {
       () => loadCategoryRecords(org, catQuery, { strict: true })
     );
   } catch (err) {
-    if (options.strict) throw err;
-    return loadCategoryRecords(org, catQuery, options);
+    if (options2.strict) throw err;
+    return loadCategoryRecords(org, catQuery, options2);
   }
 }
-async function loadCategoryRows(org, catQuery, options) {
-  const fail = failer(options);
+async function loadCategoryRows(org, catQuery, options2) {
+  const fail = failer(options2);
   const catResult = await runToolingQuery(catQuery, org);
   if (!catResult.success) fail("categories", catResult.error);
   if (!catResult.success || !catResult.data?.records?.length) return [];
@@ -21533,15 +21533,15 @@ async function readRecordsTogether(org, cats) {
     (cat) => (byCategory3.get(cat.Id) ?? []).map((rec) => ({ catName: categoryName(cat), rec }))
   );
 }
-async function hydrateRows(org, rows3, options) {
+async function hydrateRows(org, rows3, options2) {
   if (rows3.length === 0) return [];
   const recordIds = rows3.map((r) => r.rec.Id);
   const [{ fieldValuesByRecord, queryError }, assignmentMap] = await Promise.all([
     queryFieldValues(recordIds, org, true),
-    queryAssignments(recordIds, org, options.strict)
+    queryAssignments(recordIds, org, options2.strict)
   ]);
   if (queryError)
-    failer(options)(
+    failer(options2)(
       [...new Set(rows3.map((r) => r.catName))].join(", ") + " field values",
       queryError
     );
@@ -21564,8 +21564,8 @@ async function hydrateRows(org, rows3, options) {
     };
   });
 }
-async function loadCategoryRecords(org, catQuery, options) {
-  return hydrateRows(org, await loadCategoryRows(org, catQuery, options), options);
+async function loadCategoryRecords(org, catQuery, options2) {
+  return hydrateRows(org, await loadCategoryRows(org, catQuery, options2), options2);
 }
 async function collectCategoryRecordsWhere(org, catQuery, probe2) {
   const rows3 = await sharedRead(
@@ -21613,8 +21613,8 @@ var init_collect = __esm({
     init_read_cache();
     init_helpers();
     init_types();
-    failer = (options) => (what, error2) => {
-      if (options.strict)
+    failer = (options2) => (what, error2) => {
+      if (options2.strict)
         throw new Error(`Couldn't read Admin Console ${what}: ${String(error2 ?? "query failed")}`);
     };
     categoryName = (cat) => cat.Category || cat.DeveloperName;
@@ -21666,9 +21666,9 @@ var init_map_progress = __esm({
       }
       /** Steps that will run, so the checklist shows them before they start. */
       plan(steps) {
-        for (const s7 of steps)
-          if (!this.find(s7.key))
-            this.progress.steps.push({ key: s7.key, label: s7.label, state: "waiting" });
+        for (const s11 of steps)
+          if (!this.find(s11.key))
+            this.progress.steps.push({ key: s11.key, label: s11.label, state: "waiting" });
       }
       /** A step began (planned or not). */
       start(key5, label2) {
@@ -21702,11 +21702,11 @@ var init_map_progress = __esm({
       }
       /** The load returned: steps that never ran drop out. */
       finish() {
-        this.progress.steps = this.progress.steps.filter((s7) => s7.state !== "waiting");
+        this.progress.steps = this.progress.steps.filter((s11) => s11.state !== "waiting");
         this.progress.finishedAt = Date.now();
       }
       find(key5) {
-        return this.progress.steps.find((s7) => s7.key === key5);
+        return this.progress.steps.find((s11) => s11.key === key5);
       }
     };
     scope = new AsyncLocalStorage3();
@@ -21716,17 +21716,17 @@ var init_map_progress = __esm({
 });
 
 // src/studio/helpers.ts
-async function query(soql5, org, tooling2 = false, options = {}) {
-  return (await queryResult(soql5, org, tooling2, options)).records;
+async function query(soql5, org, tooling2 = false, options2 = {}) {
+  return (await queryResult(soql5, org, tooling2, options2)).records;
 }
-async function queryResult(soql5, org, tooling2 = false, options = {}) {
+async function queryResult(soql5, org, tooling2 = false, options2 = {}) {
   const t0 = TRACE ? Date.now() : 0;
-  const result2 = tooling2 ? await runToolingQuery(soql5, org, { maxRows: options.maxRows }) : await runSoqlQuery(soql5, org, { maxRows: options.maxRows });
+  const result2 = tooling2 ? await runToolingQuery(soql5, org, { maxRows: options2.maxRows }) : await runSoqlQuery(soql5, org, { maxRows: options2.maxRows });
   if (TRACE)
     console.error(`[query ${Date.now() - t0}ms${tooling2 ? " tooling" : ""}] ${soql5.slice(0, 110)}`);
   if (!result2.success) throw new Error(result2.error || "Query failed");
   const data2 = result2.data ?? { totalSize: 0, done: true, records: [] };
-  if (data2.truncated && !options.allowTruncated)
+  if (data2.truncated && !options2.allowTruncated)
     throw new QueryTruncatedError(data2.records.length, data2.totalSize);
   return { ...data2, records: data2.records ?? [] };
 }
@@ -21737,7 +21737,7 @@ async function count(soql5, org) {
 }
 async function countGroupedBy(object3, key5, ids, org, where3) {
   const out = /* @__PURE__ */ new Map();
-  const chunks5 = await Promise.all(
+  const chunks7 = await Promise.all(
     chunkIds(ids).map(
       (chunk2) => query(
         `SELECT ${key5}, COUNT(Id) cnt FROM ${object3} WHERE ${key5} IN (${inList(chunk2)})${where3 ? ` AND ${where3}` : ""} GROUP BY ${key5}`,
@@ -21745,11 +21745,11 @@ async function countGroupedBy(object3, key5, ids, org, where3) {
       )
     )
   );
-  for (const r of chunks5.flat()) out.set(String(r[key5]), Number(r.cnt ?? r.expr0 ?? 0));
+  for (const r of chunks7.flat()) out.set(String(r[key5]), Number(r.cnt ?? r.expr0 ?? 0));
   return out;
 }
 async function queryByIds(fields, object3, key5, ids, org, where3) {
-  const chunks5 = await Promise.all(
+  const chunks7 = await Promise.all(
     chunkIds(ids).map(
       (chunk2) => query(
         `SELECT ${fields} FROM ${object3} WHERE ${key5} IN (${inList(chunk2)})${where3 ? ` AND ${where3}` : ""}`,
@@ -21757,7 +21757,7 @@ async function queryByIds(fields, object3, key5, ids, org, where3) {
       )
     )
   );
-  return chunks5.flat();
+  return chunks7.flat();
 }
 async function recordCounts(objects, org) {
   const out = /* @__PURE__ */ new Map();
@@ -21808,7 +21808,7 @@ function matchesAny(text12, keywords2) {
 }
 function splitList(v) {
   if (typeof v !== "string") return [];
-  return v.split(/[;,]/).map((s7) => s7.trim()).filter(Boolean);
+  return v.split(/[;,]/).map((s11) => s11.trim()).filter(Boolean);
 }
 function item(id2, label2, extra = {}) {
   return { id: id2, label: label2, properties: {}, findings: [], ...extra };
@@ -21878,8 +21878,8 @@ function settle(p) {
     (error2) => ({ ok: false, error: error2 })
   );
 }
-async function unwrap(s7) {
-  const r = await s7;
+async function unwrap(s11) {
+  const r = await s11;
   if (!r.ok) throw r.error;
   return r.value;
 }
@@ -22135,13 +22135,13 @@ var init_shared = __esm({
 
 // src/perf/sync-volume.ts
 function memoizeQuerier(org) {
-  const make = (run4, kind) => {
+  const make = (run5, kind) => {
     const cache3 = /* @__PURE__ */ new Map();
-    return (q2, options) => {
-      const key5 = `${kind}|${options?.maxRows ?? ""}|${q2}`;
+    return (q2, options2) => {
+      const key5 = `${kind}|${options2?.maxRows ?? ""}|${q2}`;
       let hit = cache3.get(key5);
       if (!hit) {
-        hit = run4(q2, options);
+        hit = run5(q2, options2);
         cache3.set(key5, hit);
         const forget = () => cache3.delete(key5);
         hit.then((r) => r.success || forget(), forget);
@@ -22153,7 +22153,7 @@ function memoizeQuerier(org) {
 }
 function splitList2(value4) {
   if (typeof value4 !== "string") return [];
-  return value4.split(";").map((s7) => s7.trim()).filter((s7) => s7.length > 0);
+  return value4.split(";").map((s11) => s11.trim()).filter((s11) => s11.length > 0);
 }
 async function loadDbSchemaEntries(org) {
   const catResult = await org.tooling(
@@ -22241,8 +22241,8 @@ function selectApplicableTables(entries2, user) {
   }
   return [...bySobject.values()];
 }
-function escapeRegExp(s7) {
-  return s7.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function escapeRegExp(s11) {
+  return s11.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 function containsTag(text12, tag) {
   return text12.toLowerCase().includes(tag.toLowerCase());
@@ -22272,9 +22272,9 @@ function substituteIdTag(conditional, tag, ids) {
   return conditional.replace(quoted, () => list2).replace(bare2, () => list2);
 }
 function splitChunks(items, size) {
-  const chunks5 = [];
-  for (let i = 0; i < items.length; i += size) chunks5.push(items.slice(i, i + size));
-  return chunks5;
+  const chunks7 = [];
+  for (let i = 0; i < items.length; i += size) chunks7.push(items.slice(i, i + size));
+  return chunks7;
 }
 function estimateDeviceRequests(table, resolvedConditional, tag, idCount) {
   const template = `SELECT id FROM ${table} WHERE ${resolvedConditional}`;
@@ -22357,22 +22357,22 @@ function idChunks(selectClause, sobject2, conditional, tag, ids, max) {
   const template = `${selectClause} FROM ${sobject2} WHERE ${substituteIdTag(conditional, tag, [])}`;
   return splitChunks(ids, idChunkSize(template, countTag(conditional, tag), max));
 }
-async function countWithIdTag(org, sobject2, conditional, tag, ids, options) {
+async function countWithIdTag(org, sobject2, conditional, tag, ids, options2) {
   if (ids.length === 0) return 0;
-  const chunks5 = idChunks("SELECT COUNT()", sobject2, conditional, tag, ids, options.idsPerQuery);
+  const chunks7 = idChunks("SELECT COUNT()", sobject2, conditional, tag, ids, options2.idsPerQuery);
   const counts2 = await mapWithConcurrency(
-    chunks5,
-    options.concurrency,
+    chunks7,
+    options2.concurrency,
     (chunk2) => countQuery(org, sobject2, substituteIdTag(conditional, tag, chunk2))
   );
   return counts2.reduce((a, b) => a + b, 0);
 }
-async function fetchIdsWithIdTag(org, sobject2, idField, conditional, tag, ids, options) {
+async function fetchIdsWithIdTag(org, sobject2, idField, conditional, tag, ids, options2) {
   if (ids.length === 0) return { ids: [], rows: 0, truncated: false };
-  const chunks5 = idChunks(`SELECT ${idField}`, sobject2, conditional, tag, ids, options.idsPerQuery);
+  const chunks7 = idChunks(`SELECT ${idField}`, sobject2, conditional, tag, ids, options2.idsPerQuery);
   const parts = await mapWithConcurrency(
-    chunks5,
-    options.concurrency,
+    chunks7,
+    options2.concurrency,
     (chunk2) => fetchIdsUncached(org, sobject2, idField, substituteIdTag(conditional, tag, chunk2))
   );
   const all = [...new Set(parts.flatMap((p) => p.ids))];
@@ -22394,7 +22394,7 @@ function failedVolume(e) {
     note: timedOut ? `${TIMED_OUT_NOTE} (${errorMessage2(e)})` : errorMessage2(e)
   };
 }
-async function profileTerritory(org, user, territory, tables, options = DEFAULT_PROFILE_OPTIONS, onTable) {
+async function profileTerritory(org, user, territory, tables, options2 = DEFAULT_PROFILE_OPTIONS, onTable) {
   let done = 0;
   const tick = () => onTable?.(++done, tables.length);
   const scalar3 = {
@@ -22416,7 +22416,7 @@ async function profileTerritory(org, user, territory, tables, options = DEFAULT_
     developerName: t.entry.developerName,
     matchedBy: t.matchedBy
   });
-  const cache3 = options.idCache ?? /* @__PURE__ */ new Map();
+  const cache3 = options2.idCache ?? /* @__PURE__ */ new Map();
   let ot2aIds = [];
   let ot2aFailed = false;
   let ot2aLower = false;
@@ -22483,13 +22483,13 @@ async function profileTerritory(org, user, territory, tables, options = DEFAULT_
         const fetched = await memo(
           cache3,
           `Account|${cond}|${ot2aKey}`,
-          () => fetchIdsWithIdTag(org, "Account", "Id", cond, TAG_OT2A_IDS, ot2aIds, options)
+          () => fetchIdsWithIdTag(org, "Account", "Id", cond, TAG_OT2A_IDS, ot2aIds, options2)
         );
         accountIds = fetched.ids;
         const sourceLower = ot2aLower;
         let records = accountIds.length;
         if (fetched.truncated)
-          records = await countWithIdTag(org, "Account", cond, TAG_OT2A_IDS, ot2aIds, options);
+          records = await countWithIdTag(org, "Account", cond, TAG_OT2A_IDS, ot2aIds, options2);
         accountLower = sourceLower || fetched.truncated;
         volumes.push({
           ...base2(accountTable),
@@ -22533,7 +22533,7 @@ async function profileTerritory(org, user, territory, tables, options = DEFAULT_
   const remaining = tables.filter((t) => !handled2.has(t.entry.sobject.toLowerCase()));
   const rest = await mapWithConcurrency(
     remaining,
-    options.concurrency,
+    options2.concurrency,
     async (t) => {
       const cond = resolved(t);
       try {
@@ -22602,7 +22602,7 @@ async function profileTerritory(org, user, territory, tables, options = DEFAULT_
               note: `${tag} is used but its source table is not in this user's DB Schema, so the app has no ids to substitute`
             };
           }
-          const records2 = await countWithIdTag(org, t.entry.sobject, cond, tag, ids, options);
+          const records2 = await countWithIdTag(org, t.entry.sobject, cond, tag, ids, options2);
           const lower2 = hasAccount ? accountLower : ot2aLower;
           return {
             ...base2(t),
@@ -22709,8 +22709,8 @@ async function loadUserContext(org, userRef) {
 }
 async function territoryAccountCounts(org, territories) {
   const sizes = /* @__PURE__ */ new Map();
-  const chunks5 = splitChunks(territories, TERRITORY_RANK_CHUNK);
-  await mapWithConcurrency(chunks5, DEFAULT_PROFILE_OPTIONS.concurrency, async (chunk2) => {
+  const chunks7 = splitChunks(territories, TERRITORY_RANK_CHUNK);
+  await mapWithConcurrency(chunks7, DEFAULT_PROFILE_OPTIONS.concurrency, async (chunk2) => {
     const list2 = chunk2.map((t) => `'${soqlString(t.id)}'`).join(",");
     const result2 = await org.soql(
       `SELECT Territory2Id, COUNT(Id) cnt FROM ObjectTerritory2Association WHERE SobjectType = 'Account' AND Territory2Id IN (${list2}) GROUP BY Territory2Id`
@@ -22823,8 +22823,8 @@ function formatAddress(a) {
   return parts.length ? parts.join(", ") : "--";
 }
 function specialtyLines(value4) {
-  const clip = (s7) => s7.length > 16 ? `${s7.slice(0, 13)}...` : s7;
-  const items = String(value4 ?? "").split("|").map((s7) => s7.trim()).filter(Boolean);
+  const clip = (s11) => s11.length > 16 ? `${s11.slice(0, 13)}...` : s11;
+  const items = String(value4 ?? "").split("|").map((s11) => s11.trim()).filter(Boolean);
   if (!items.length) return ["--"];
   if (items.length === 1) return [clip(items[0])];
   if (items.length === 2) return [`${clip(items[0])},`, clip(items[1])];
@@ -22931,8 +22931,8 @@ async function activePlanId(type, ctx) {
 async function collectBuiltInFilters(ctx, from) {
   const terr = ctx.territories.map((t) => t.id);
   const scoped2 = (table) => {
-    const s7 = ctx.scope(table);
-    return s7 === void 0 || s7 === null ? null : s7 ? ` AND (${s7})` : "";
+    const s11 = ctx.scope(table);
+    return s11 === void 0 || s11 === null ? null : s11 ? ` AND (${s11})` : "";
   };
   const none2 = { ids: [], count: 0 };
   const members = (object3, where3, what) => heldMembers(ctx, from, object3, where3, what).catch(softFail(ctx, what, null));
@@ -22947,13 +22947,13 @@ async function collectBuiltInFilters(ctx, from) {
   };
   const goals = async (type) => {
     const w = scoped2("ProviderActivityGoal");
-    const plan2 = await activePlanId(type, ctx);
-    if (w === null || !plan2) return none2;
+    const plan3 = await activePlanId(type, ctx);
+    if (w === null || !plan3) return none2;
     const measure = type === "AccountGoal" ? " AND Id IN (SELECT ProviderActivityGoalId FROM ProviderActivityGoalMeasure WHERE ProductList = null)" : "";
     const what = type === "AccountGoal" ? "Activity Plans filter" : "Activity Plans with Weightages filter";
     return members(
       "ProviderActivityGoal",
-      `ActivityPlanId = '${plan2}' AND AccountId != null${measure}${w}`,
+      `ActivityPlanId = '${plan3}' AND AccountId != null${measure}${w}`,
       what
     );
   };
@@ -22974,8 +22974,8 @@ async function collectBuiltInFilters(ctx, from) {
     row("filter:weighted", "Activity Plans with Weightages", wt)
   ];
 }
-async function byIds(ids, run4) {
-  return (await Promise.all(chunks(ids, 150).map((part) => run4(inList(part))))).flat();
+async function byIds(ids, run5) {
+  return (await Promise.all(chunks(ids, 150).map((part) => run5(inList(part))))).flat();
 }
 async function sidebarLists(ctx, from) {
   const { org, userId } = ctx;
@@ -23285,11 +23285,11 @@ function clipToDays(startMs, endMs, days, timeZone, bounds) {
   days.forEach((day4, i) => {
     const [from, to] = bounds?.[i] ?? dayBounds(day4, timeZone);
     if (end < from || end === from && startMs < end || startMs >= to) return;
-    const s7 = Math.max(startMs, from);
+    const s11 = Math.max(startMs, from);
     const e = Math.min(end, to);
     out.push({
       day: i,
-      startMin: Math.round((s7 - from) / 6e4),
+      startMin: Math.round((s11 - from) / 6e4),
       endMin: Math.round((e - from) / 6e4)
     });
   });
@@ -23302,7 +23302,7 @@ function channelIcon(channel) {
 function textColorFor(background) {
   const v = parseInt(background.replace("#", "").slice(0, 6), 16);
   const ch = (shift) => Math.max(0, Math.round((v >> shift & 255) - 127.5));
-  return `#${[16, 8, 0].map((s7) => ch(s7).toString(16).padStart(2, "0")).join("")}`;
+  return `#${[16, 8, 0].map((s11) => ch(s11).toString(16).padStart(2, "0")).join("")}`;
 }
 function shortDate(date3, locale) {
   const d = /* @__PURE__ */ new Date(`${date3.slice(0, 10)}T00:00:00Z`);
@@ -23438,14 +23438,14 @@ async function collectSegments(ctx, a) {
     }
   };
   const scoped2 = (table) => {
-    const s7 = ctx.scope(table);
-    return s7 === void 0 || s7 === null ? null : s7 ? ` AND (${s7})` : "";
+    const s11 = ctx.scope(table);
+    return s11 === void 0 || s11 === null ? null : s11 ? ` AND (${s11})` : "";
   };
-  const inBatches2 = async (ids, run4) => {
+  const inBatches2 = async (ids, run5) => {
     const parts = chunks2(ids, 200);
     const rows3 = [];
     for (let i = 0; i < parts.length; i += 4)
-      rows3.push(...(await Promise.all(parts.slice(i, i + 4).map(run4))).flat());
+      rows3.push(...(await Promise.all(parts.slice(i, i + 4).map(run5))).flat());
     return rows3;
   };
   const readable3 = async (ids) => {
@@ -23607,23 +23607,23 @@ function sortPricebooks(books) {
     (a, b) => a.isStandard !== b.isStandard ? a.isStandard ? -1 : 1 : a.name.toLowerCase().localeCompare(b.name.toLowerCase())
   );
 }
-function pricebookActiveOn(row, today2) {
+function pricebookActiveOn(row, today4) {
   if (row.IsActive === false || str2(row.IsActive).toLowerCase() === "false") return false;
   const from = str2(row.ValidFrom).slice(0, 10);
   const to = str2(row.ValidTo).slice(0, 10);
-  return (!from || from <= today2) && (!to || to >= today2);
+  return (!from || from <= today4) && (!to || to >= today4);
 }
 async function collectOrder(ctx) {
   if (ctx.scope("Pricebook2") === void 0 && ctx.scope("PricebookEntry") === void 0) {
     return { pricebooks: [], products: {}, cut: [], currency: "USD" };
   }
-  const today2 = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  const today4 = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   const rows3 = await query(
     "SELECT Id, Name, Description, IsStandard, IsActive, ValidFrom, ValidTo FROM Pricebook2 WHERE IsActive = true",
     ctx.org
   ).catch(softFail(ctx, "Order price books", []));
   const books = sortPricebooks(
-    rows3.filter((r) => pricebookActiveOn(r, today2)).map((r) => ({
+    rows3.filter((r) => pricebookActiveOn(r, today4)).map((r) => ({
       id: str2(r.Id),
       name: str2(r.Name),
       description: str2(r.Description) || void 0,
@@ -23712,10 +23712,10 @@ function recordMenu(dynamic, items) {
       sortOrder: ""
     }
   ) : layout;
-  const order = (s7) => s7 === "" || Number.isNaN(Number(s7)) ? Number.MAX_SAFE_INTEGER : Number(s7);
-  const sorted2 = dynamic ? source : [...source].sort((a, b) => order(a.sortOrder) - order(b.sortOrder));
+  const order = (s11) => s11 === "" || Number.isNaN(Number(s11)) ? Number.MAX_SAFE_INTEGER : Number(s11);
+  const sorted3 = dynamic ? source : [...source].sort((a, b) => order(a.sortOrder) - order(b.sortOrder));
   const seen = /* @__PURE__ */ new Set();
-  return sorted2.filter((i) => !/Account\.(AttendeeCall|ViewProfile)$/.test(i.name) && !/unlock$/i.test(i.name)).filter(
+  return sorted3.filter((i) => !/Account\.(AttendeeCall|ViewProfile)$/.test(i.name) && !/unlock$/i.test(i.name)).filter(
     (i) => supportedAction(i.name) && KEEPS_TYPE.has(i.type.toLowerCase()) || isLwcMenuAction(i)
   ).filter((i) => !seen.has(actionKey(i.name)) && !!seen.add(actionKey(i.name))).map((i) => ({
     name: i.name,
@@ -23831,20 +23831,20 @@ async function collectVisitCreate(ctx) {
   if (!ids.length) return result2;
   const parts = [];
   for (let i = 0; i < ids.length; i += 150) parts.push(ids.slice(i, i + 150));
-  const run4 = async (build2) => (await Promise.all(
+  const run5 = async (build2) => (await Promise.all(
     parts.map(
       (p) => query(build2(inList(p)), org).catch(softFail(ctx, "Floating buttons", []))
     )
   )).flat();
   const territoryIds = ctx.territories.map((t) => t.id);
   const [titles, atis, addresses] = await Promise.all([
-    run4(
+    run5(
       (inIds) => `SELECT AccountId, toLabel(ProfessionalTitle) FROM HealthcareProvider WHERE AccountId IN (${inIds})`
     ),
-    territoryIds.length ? run4(
+    territoryIds.length ? run5(
       (inIds) => `SELECT AccountId, PreferredAddressId FROM ProviderAcctTerritoryInfo WHERE AccountId IN (${inIds}) AND Territory2Id IN (${inList(territoryIds)})`
     ) : Promise.resolve([]),
-    run4(
+    run5(
       (inIds) => `SELECT Id, ParentId, Street, PostalCode, City, State, StateCode, Country, IsPrimary, LastModifiedDate FROM ContactPointAddress WHERE ParentId IN (${inIds}) AND IsActive = true`
     )
   ]);
@@ -23876,7 +23876,7 @@ async function collectVisitCreate(ctx) {
   const placeParts = [];
   for (let i = 0; i < placeIds.length; i += 150) placeParts.push(placeIds.slice(i, i + 150));
   const [byAccount, byPlace] = await Promise.all([
-    slnOn ? run4(
+    slnOn ? run5(
       (inIds) => `SELECT ${columns} FROM BusinessLicense WHERE AccountId IN (${inIds}) AND ${live}`
     ) : Promise.resolve([]),
     deaOn || sdlOn ? (await Promise.all(
@@ -24086,8 +24086,8 @@ function safeHtml(html) {
   out.push(esc2(html.slice(last)));
   return out.join("");
 }
-function esc2(s7) {
-  return s7.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+function esc2(s11) {
+  return s11.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 function alertBody(additional, message) {
   if (additional) {
@@ -24106,11 +24106,11 @@ function alertWhen(effective, now, fmt4) {
   const d = new Date(effective);
   const days = Math.floor((now.getTime() - d.getTime()) / 864e5);
   if (days <= 7) {
-    const today2 = dayKey(now, timeZone);
+    const today4 = dayKey(now, timeZone);
     const yesterday = dayKey(new Date(now.getTime() - 864e5), timeZone);
     const key5 = dayKey(d, timeZone);
     if (key5 === yesterday) return `Yesterday \u2022 ${time3(d)}`;
-    if (key5 === today2) return `Today \u2022 ${time3(d)}`;
+    if (key5 === today4) return `Today \u2022 ${time3(d)}`;
     return `${d.toLocaleDateString(locale, { timeZone, weekday: "long" })}, ${time3(d)}`;
   }
   return `${d.toLocaleDateString(locale, { timeZone, month: "short", day: "numeric" })} \u2022 ${time3(d)}`;
@@ -24265,19 +24265,19 @@ function mediumDate(iso2, format) {
     return new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(d);
   }
 }
-function isCurrent(activation, deactivation, today2) {
+function isCurrent(activation, deactivation, today4) {
   const a = typeof activation === "string" ? activation : "";
   const d = typeof deactivation === "string" ? deactivation : "";
-  return (!a || a <= today2) && (!d || d > today2);
+  return (!a || a <= today4) && (!d || d > today4);
 }
 function byTitle(a, b) {
   return a.name.localeCompare(b.name, void 0, { sensitivity: "base", numeric: true });
 }
 function buildSections(cards, topicsById, hasTags) {
-  const sorted2 = [...cards].sort(byTitle);
-  if (!hasTags) return [{ title: "", cardIds: sorted2.map((c) => c.id) }];
+  const sorted3 = [...cards].sort(byTitle);
+  if (!hasTags) return [{ title: "", cardIds: sorted3.map((c) => c.id) }];
   const by = /* @__PURE__ */ new Map();
-  for (const c of sorted2) {
+  for (const c of sorted3) {
     const topics = topicsById.get(c.id);
     for (const t of topics?.length ? topics : [""]) by.set(t, [...by.get(t) ?? [], c.id]);
   }
@@ -24289,7 +24289,7 @@ async function collectContent(ctx) {
   const { org, userId } = ctx;
   const scope2 = ctx.scope("Presentation");
   if (scope2 === void 0) return void 0;
-  const today2 = todayIn(ctx.format.timeZone);
+  const today4 = todayIn(ctx.format.timeZone);
   const [settings, presentations] = await Promise.all([
     ctx.config(["PresentationSettings"]).catch(() => ({})),
     query(
@@ -24298,7 +24298,7 @@ async function collectContent(ctx) {
     )
   ]);
   const current2 = presentations.filter(
-    (p) => isCurrent(p.ActivationDate, p.DeactivationDate, today2)
+    (p) => isCurrent(p.ActivationDate, p.DeactivationDate, today4)
   );
   const ids = current2.map((p) => s(p.Id)).filter((id2) => ID_PATTERN.test(id2));
   const [links, readable3] = await Promise.all([
@@ -24493,6 +24493,15 @@ async function addPageThumbnails(cards, linked, org) {
     })
   );
 }
+async function addPageImages(links, type, org) {
+  const pages = links.slice(0, PAGE_IMAGES);
+  const cards = pages.map((l) => ({ id: s(l.PresentationPageId), type }));
+  const linked = new Map(pages.map((l) => [s(l.PresentationPageId), [l]]));
+  await addThumbnails(cards, linked, org);
+  const out = {};
+  for (const c of cards) if (c.thumbnail) out[c.id] = c.thumbnail;
+  return out;
+}
 function sourceFile(org, version3, type) {
   const key5 = `${org}\0${version3}\0${type}`;
   const held = sources.get(key5);
@@ -24545,7 +24554,8 @@ async function renderThumbnail(version3, type, page, org) {
       }
     } else {
       const { stdout } = await run("unzip", ["-Z1", src], { timeout: 3e4, maxBuffer: 4 << 20 });
-      const entry = stdout.split("\n").find((n2) => /(^|\/)01_thumbnail\.jpg$/.test(n2));
+      const names5 = stdout.split("\n").map((n2) => n2.trim());
+      const entry = names5.find((n2) => /(^|\/)01_thumbnail\.jpg$/.test(n2)) ?? names5.find((n2) => /^([^/]+\/)?thumbnail\.jpg$/.test(n2));
       if (!entry) return void 0;
       await run("unzip", ["-o", "-j", src, entry, "-d", join9(dir, "x")], { timeout: 3e4 });
       await run(
@@ -24559,7 +24569,7 @@ async function renderThumbnail(version3, type, page, org) {
           "70",
           "-Z",
           "640",
-          join9(dir, "x", "01_thumbnail.jpg"),
+          join9(dir, "x", entry.split("/").pop()),
           "--out",
           out
         ],
@@ -24571,7 +24581,7 @@ async function renderThumbnail(version3, type, page, org) {
     rmSync4(dir, { recursive: true, force: true });
   }
 }
-var run, DEFAULT_SCOPE, THUMBNAIL_CARDS, PAGE_THUMBNAILS, THUMBNAIL_MAX_BYTES, TAG_ORDER, chunks3, s, sources, SOURCE_KEEP_MS;
+var run, DEFAULT_SCOPE, THUMBNAIL_CARDS, PAGE_THUMBNAILS, THUMBNAIL_MAX_BYTES, TAG_ORDER, chunks3, s, PAGE_IMAGES, sources, SOURCE_KEEP_MS;
 var init_content = __esm({
   "src/studio/screens/content.ts"() {
     "use strict";
@@ -24586,6 +24596,7 @@ var init_content = __esm({
     TAG_ORDER = (title) => title === "" ? "3_" : `2_${title}`;
     chunks3 = (list2, n2) => Array.from({ length: Math.ceil(list2.length / n2) }, (_2, i) => list2.slice(i * n2, i * n2 + n2));
     s = (v) => typeof v === "string" ? v : "";
+    PAGE_IMAGES = 40;
     sources = /* @__PURE__ */ new Map();
     SOURCE_KEEP_MS = 6e4;
   }
@@ -24647,11 +24658,11 @@ function paceAxis(start, end, now, f) {
     }).format(d).split("-").map(Number);
     return Date.UTC(y, m - 1, day4);
   };
-  const s7 = ymd(start);
-  const e = Math.max(ymd(end), s7);
-  const days = Math.round((e - s7) / 864e5) + 1;
-  const at2 = (i) => new Date(s7 + i * 864e5);
-  const today2 = Math.max(0, Math.min(days - 1, Math.round((ymd(now) - s7) / 864e5)));
+  const s11 = ymd(start);
+  const e = Math.max(ymd(end), s11);
+  const days = Math.round((e - s11) / 864e5) + 1;
+  const at2 = (i) => new Date(s11 + i * 864e5);
+  const today4 = Math.max(0, Math.min(days - 1, Math.round((ymd(now) - s11) / 864e5)));
   const first2 = at2(0);
   const last = at2(days - 1);
   const totalMonths = (last.getUTCFullYear() - first2.getUTCFullYear()) * 12 + last.getUTCMonth() - first2.getUTCMonth() + 1;
@@ -24667,18 +24678,18 @@ function paceAxis(start, end, now, f) {
   ticks.set(days - 1, "");
   return {
     days,
-    today: today2,
+    today: today4,
     ticks: [...ticks].sort((a, b) => a[0] - b[0]).map(([index, l]) => ({ index, label: l }))
   };
 }
 function firstActivityType(rows3) {
   return [...rows3].sort((a, b) => a.order - b.order || a.label.localeCompare(b.label))[0]?.label;
 }
-async function inBatches(ids, run4) {
+async function inBatches(ids, run5) {
   const parts = chunks4(ids, 200);
   const rows3 = [];
   for (let i = 0; i < parts.length; i += 4)
-    rows3.push(...(await Promise.all(parts.slice(i, i + 4).map(run4))).flat());
+    rows3.push(...(await Promise.all(parts.slice(i, i + 4).map(run5))).flat());
   return rows3;
 }
 async function readable2(ids, ctx) {
@@ -24700,15 +24711,15 @@ async function collectNbc(ctx, now) {
   const terr = ctx.territories.map((t) => t.id);
   const w = scoped(ctx, "TerritoryAccountScore");
   if (!props || !terr.length || w === null) return void 0;
-  const today2 = new Date(now.getTime()).toISOString().slice(0, 10);
+  const today4 = new Date(now.getTime()).toISOString().slice(0, 10);
   const rows3 = await query(
     `SELECT AccountId, Account.Name, TerritoryId, TotalScore, Rank, LastModifiedDate, LSDO_Score_Summary__c FROM TerritoryAccountScore
-     WHERE TerritoryId IN (${inList(terr)}) AND AccountId != null AND (SnoozeUntilDate = null OR SnoozeUntilDate < ${today2}T00:00:00Z)${w} ORDER BY Rank ASC, Account.Name ASC LIMIT 400`,
+     WHERE TerritoryId IN (${inList(terr)}) AND AccountId != null AND (SnoozeUntilDate = null OR SnoozeUntilDate < ${today4}T00:00:00Z)${w} ORDER BY Rank ASC, Account.Name ASC LIMIT 400`,
     ctx.org
   ).catch(
     async () => query(
       `SELECT AccountId, Account.Name, TerritoryId, TotalScore, Rank, LastModifiedDate FROM TerritoryAccountScore
-       WHERE TerritoryId IN (${inList(terr)}) AND AccountId != null AND (SnoozeUntilDate = null OR SnoozeUntilDate < ${today2}T00:00:00Z)${w} ORDER BY Rank ASC, Account.Name ASC LIMIT 400`,
+       WHERE TerritoryId IN (${inList(terr)}) AND AccountId != null AND (SnoozeUntilDate = null OR SnoozeUntilDate < ${today4}T00:00:00Z)${w} ORDER BY Rank ASC, Account.Name ASC LIMIT 400`,
       ctx.org
     )
   );
@@ -24777,7 +24788,7 @@ async function collectNbc(ctx, now) {
   const addr = first2(addrs, "ParentId");
   const pati = first2(patis, "AccountId");
   const goal = first2(goals, "AccountId");
-  const sorted2 = sortNbc(
+  const sorted3 = sortNbc(
     top.map((r) => ({
       r,
       score: str5(r.TerritoryId) === terr[0] && r.TotalScore != null ? Number(r.TotalScore) : null,
@@ -24785,7 +24796,7 @@ async function collectNbc(ctx, now) {
       name: str5(r.Account?.Name)
     }))
   );
-  const cards = sorted2.map(({ r, score, name }) => {
+  const cards = sorted3.map(({ r, score, name }) => {
     const id2 = str5(r.AccountId);
     const a = addr.get(id2);
     const g = goal.get(id2);
@@ -24846,14 +24857,14 @@ async function collectVisits(ctx, now) {
   const defaultMinutes = 60;
   const starts = shown2.map((r) => dateOf(r.PlannedVisitStartTime) ?? now);
   const dates = visibleDates(starts.map((d) => dayKey2(d, ctx.format)));
-  const today2 = dayKey2(now, ctx.format);
+  const today4 = dayKey2(now, ctx.format);
   const items = shown2.map((r, i) => {
     const start = starts[i];
     const end = dateOf(r.PlannedVisitEndTime) ?? new Date(start.getTime() + defaultMinutes * 6e4);
     const n2 = kids.get(str5(r.Id)) ?? 0;
     return {
       id: str5(r.Id),
-      dateLabel: !dates[i] ? "" : dayKey2(start, ctx.format) === today2 ? "Today" : fmt(start, ctx.format, { month: "long", day: "numeric", year: "numeric" }),
+      dateLabel: !dates[i] ? "" : dayKey2(start, ctx.format) === today4 ? "Today" : fmt(start, ctx.format, { month: "long", day: "numeric", year: "numeric" }),
       time: visitTimeText(start, end, ctx.format),
       account: str5(r.Account?.Name),
       address: addr.get(str5(r.PlaceId)) ?? "--",
@@ -24895,12 +24906,12 @@ async function collectPlan(ctx, now) {
 }
 async function collectHome(ctx) {
   const now = /* @__PURE__ */ new Date();
-  const [nbc, visits, plan2] = await Promise.all([
+  const [nbc, visits, plan3] = await Promise.all([
     collectNbc(ctx, now).catch(() => void 0),
     collectVisits(ctx, now).catch(() => void 0),
     collectPlan(ctx, now).catch(() => void 0)
   ]);
-  return nbc || visits || plan2 ? { nbc, visits, plan: plan2 } : void 0;
+  return nbc || visits || plan3 ? { nbc, visits, plan: plan3 } : void 0;
 }
 var str5, NNBSP, chunks4, fmt, dayKey2, LAST_REFRESHED_SOURCE, scoped;
 var init_home = __esm({
@@ -24916,8 +24927,8 @@ var init_home = __esm({
     dayKey2 = (d, f) => fmt(d, f, { year: "numeric", month: "numeric", day: "numeric" });
     LAST_REFRESHED_SOURCE = "Approximation: NextBestCustomersViewModel.lastSyncText shows the device's own syncService.lastSyncDate, falling back to SharedUserSettings.lastSync(). The snapshot uses the newest completed data sync's DownloadStart from DeviceSyncSummary, so it can differ from a real iPad by the time between the sync and the data being saved.";
     scoped = (ctx, table) => {
-      const s7 = ctx.scope(table);
-      return s7 === void 0 || s7 === null ? null : s7 ? ` AND (${s7})` : "";
+      const s11 = ctx.scope(table);
+      return s11 === void 0 || s11 === null ? null : s11 ? ` AND (${s11})` : "";
     };
   }
 });
@@ -24949,7 +24960,7 @@ function formatShort(raw) {
     [1e6, "M"],
     [1e3, "K"]
   ];
-  for (const [v, s7] of steps) if (abs >= v) return `${trim(raw / v)}${s7}`;
+  for (const [v, s11] of steps) if (abs >= v) return `${trim(raw / v)}${s11}`;
   return fixed(raw);
 }
 function trim(v) {
@@ -25015,10 +25026,10 @@ function firstOfThisMonth(now, timeZone) {
   return `${get2("year")}-${get2("month")}-01`;
 }
 function shiftSeries(rows3, firstOfMonth) {
-  const sorted2 = rows3.filter(([d, v]) => /^\d{4}-\d{2}-\d{2}/.test(d) && Number.isFinite(v)).map(([d, v]) => [d.slice(0, 10), v]).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
-  if (!sorted2.length || !firstOfMonth) return sorted2;
-  const shift = dayDiff(sorted2[sorted2.length - 1][0], firstOfMonth);
-  return sorted2.map(([d, v]) => [addDays(d, shift), v]);
+  const sorted3 = rows3.filter(([d, v]) => /^\d{4}-\d{2}-\d{2}/.test(d) && Number.isFinite(v)).map(([d, v]) => [d.slice(0, 10), v]).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
+  if (!sorted3.length || !firstOfMonth) return sorted3;
+  const shift = dayDiff(sorted3[sorted3.length - 1][0], firstOfMonth);
+  return sorted3.map(([d, v]) => [addDays(d, shift), v]);
 }
 function seriesGranularity(series) {
   return series.length > 1 && series.every(([d]) => d.endsWith("-01")) ? "month" : "day";
@@ -25078,8 +25089,8 @@ function parsePopc(bundle, allTime) {
   if (!diff || !cmp || !target3 || cmp.is_nan === true || target3.is_nan === true)
     return { comparison: empty2 };
   const absolute = diff.absolute?.formatted;
-  const relative2 = diff.relative?.formatted;
-  if (typeof absolute !== "string" || typeof relative2 !== "string") return { comparison: empty2 };
+  const relative3 = diff.relative?.formatted;
+  if (typeof absolute !== "string" || typeof relative3 !== "string") return { comparison: empty2 };
   const direction = String(diff.direction ?? "").toLowerCase();
   const up = direction === "up" || direction === "increase";
   const down = direction === "down" || direction === "decrease";
@@ -25087,7 +25098,7 @@ function parsePopc(bundle, allTime) {
     facts.comparison_period_label ?? facts.comparison_type_label ?? "prior period"
   ).toLowerCase();
   return {
-    relative: up && !relative2.startsWith("+") ? `+${relative2}` : relative2,
+    relative: up && !relative3.startsWith("+") ? `+${relative3}` : relative3,
     tone: up ? "positive" : down ? "negative" : "neutral",
     comparison: `(${absolute}) vs. ${period}`
   };
@@ -25133,12 +25144,12 @@ async function fetchBundle(jwt, body) {
     return void 0;
   }
 }
-function splitArgs(s7) {
+function splitArgs(s11) {
   const out = [];
   let depth = 0;
   let quote = "";
   let cur = "";
-  for (const ch of s7) {
+  for (const ch of s11) {
     if (quote) {
       if (ch === quote) quote = "";
     } else if (ch === '"' || ch === "'") quote = ch;
@@ -25294,7 +25305,7 @@ async function collectTableau(ctx) {
       `/ssot/semantic/sub-metrics/${follows.map((f) => f.id).join(",")}`
     )
   ))?.items ?? [];
-  const subById = new Map(subs.map((s7) => [String(s7.id), s7]));
+  const subById = new Map(subs.map((s11) => [String(s11.id), s11]));
   const models = /* @__PURE__ */ new Map();
   for (const id2 of new Set(follows.map((f) => f.modelId).filter(Boolean))) {
     const m = await get(ctx.adminOrg, await dataPath2(ctx.adminOrg, `/ssot/semantic/models/${id2}`));
@@ -25444,15 +25455,15 @@ function trimSampleLimit(r) {
 async function collectVisitChecks(ctx) {
   const { org, adminOrg } = ctx;
   const cfg = await ctx.config(["ProviderVisitSettings", "PlannerAdministration", "TimeOffTerritorySettings"]).catch(() => ({}));
-  const s7 = cfg.ProviderVisitSettings;
-  const typeRaw = text3(key(s7, "SubmissionDelayReasonFields"));
+  const s11 = cfg.ProviderVisitSettings;
+  const typeRaw = text3(key(s11, "SubmissionDelayReasonFields"));
   const delayReasonType = typeRaw === "Text" || typeRaw === "Picklist" ? typeRaw : "None";
-  const modeRaw = text3(key(s7, "VisitConflictValidationMode")).toLowerCase();
-  const conflictPeriodDays = Math.max(0, int2(key(s7, "VisitConflictValidationPeriod"), 0));
+  const modeRaw = text3(key(s11, "VisitConflictValidationMode")).toLowerCase();
+  const conflictPeriodDays = Math.max(0, int2(key(s11, "VisitConflictValidationPeriod"), 0));
   const result2 = {
-    futureVisitLimitDays: int2(key(s7, "FutureVisitLimit"), 365),
+    futureVisitLimitDays: int2(key(s11, "FutureVisitLimit"), 365),
     delayReasonType,
-    delayReasonThresholdDays: Math.max(0, int2(key(s7, "SubmissionDelayReasonThreshold"), 0)),
+    delayReasonThresholdDays: Math.max(0, int2(key(s11, "SubmissionDelayReasonThreshold"), 0)),
     delayReasonOptions: [],
     conflictPeriodDays,
     conflictMode: modeRaw === "warning" ? "warning" : modeRaw === "error" || !modeRaw ? "error" : "off",
@@ -25463,10 +25474,10 @@ async function collectVisitChecks(ctx) {
     visits: [],
     timeZone: ctx.format.timeZone
   };
-  const flag2 = (k) => key(s7, k) === true || text3(key(s7, k)).toLowerCase() === "true";
+  const flag2 = (k) => key(s11, k) === true || text3(key(s11, k)).toLowerCase() === "true";
   const sample = {
     inventoryOn: flag2("ValidateSampleInventory"),
-    inventoryMode: text3(key(s7, "SampleInventoryValidationMode")).toLowerCase() === "warning" ? "warning" : "error",
+    inventoryMode: text3(key(s11, "SampleInventoryValidationMode")).toLowerCase() === "warning" ? "warning" : "error",
     limitsOn: flag2("ValidateSampleLimits"),
     territoryAllocationOn: flag2("ValidateTerritoryQtyAllocation"),
     limits: [],
@@ -25684,7 +25695,7 @@ function readSettings(row) {
   return {
     showRecentSidebar: flag2("ShowRecentSidebar"),
     discussOffLabelProducts: flag2("DiscussOffLabelProducts"),
-    hcoTypesForSamplesAndItems: str6(configKey2(row, "HCOTypesForSamplesAndItems")).split(/[;,]/).map((s7) => s7.trim()).filter(Boolean),
+    hcoTypesForSamplesAndItems: str6(configKey2(row, "HCOTypesForSamplesAndItems")).split(/[;,]/).map((s11) => s11.trim()).filter(Boolean),
     requireBatchNumber: flag2("RequireBatchNumber"),
     showExpiredBatches: flag2("ShowExpiredBatches"),
     validateSampleLimits: flag2("ValidateSampleLimits"),
@@ -25705,7 +25716,7 @@ function mergePermissions(rows3) {
   return out;
 }
 function addressKey(city, postal) {
-  const k = [str6(city), str6(postal)].map((s7) => s7.trim().toLowerCase());
+  const k = [str6(city), str6(postal)].map((s11) => s11.trim().toLowerCase());
   return k[0] || k[1] ? k.join("|") : void 0;
 }
 function seed(r, fields) {
@@ -26132,9 +26143,9 @@ function myTeamWeek(date3, firstDay) {
   const idx = WEEKDAYS2.indexOf(firstDay.trim().toLowerCase());
   const start = idx >= 0 ? idx : 1;
   const startMs = base2 - (wd - start + 7) % 7 * 864e5;
-  const s7 = new Date(startMs);
+  const s11 = new Date(startMs);
   const e = new Date(startMs + 6 * 864e5);
-  const label2 = `${MONTHS2[s7.getUTCMonth()]} ${s7.getUTCDate()} - ${MONTHS2[e.getUTCMonth()]} ${e.getUTCDate()}, ${e.getUTCFullYear()}`;
+  const label2 = `${MONTHS2[s11.getUTCMonth()]} ${s11.getUTCDate()} - ${MONTHS2[e.getUTCMonth()]} ${e.getUTCDate()}, ${e.getUTCFullYear()}`;
   return { date: date3, label: label2, start: isoOf(startMs) };
 }
 function todayIn2(timeZone, nowMs = Date.now()) {
@@ -26324,16 +26335,16 @@ function pivotSales(rows3, measure, productNames2) {
   };
 }
 async function collectSalesData(ctx) {
-  const synced = SOURCES.filter((s7) => ctx.scope(s7.object) !== void 0);
+  const synced = SOURCES.filter((s11) => ctx.scope(s11.object) !== void 0);
   const tables = [];
   const notes = [];
-  for (const s7 of synced) {
+  for (const s11 of synced) {
     const rows3 = await query(
-      `SELECT Account__c, AccountFullName__c, Product__c, DataPeriod__c, Measure1Total__c FROM ${s7.object} LIMIT ${ROW_CAP2 + 1}`,
+      `SELECT Account__c, AccountFullName__c, Product__c, DataPeriod__c, Measure1Total__c FROM ${s11.object} LIMIT ${ROW_CAP2 + 1}`,
       ctx.org
-    ).catch(softFail(ctx, `Sales data (${s7.type})`, null));
+    ).catch(softFail(ctx, `Sales data (${s11.type})`, null));
     if (!rows3) {
-      notes.push(`the ${s7.type} sales table couldn't be read`);
+      notes.push(`the ${s11.type} sales table couldn't be read`);
       continue;
     }
     const cut = rows3.length > ROW_CAP2;
@@ -26351,9 +26362,9 @@ async function collectSalesData(ctx) {
       ).catch(() => []))
         names5.set(str8(p.Id), str8(p.Name));
     if (cut)
-      notes.push(`the ${s7.type} table shows the first ${ROW_CAP2.toLocaleString("en-US")} rows`);
+      notes.push(`the ${s11.type} table shows the first ${ROW_CAP2.toLocaleString("en-US")} rows`);
     tables.push({
-      type: s7.type,
+      type: s11.type,
       title: "Measure 1 Summary",
       ...pivotSales(used2, 1, names5),
       ...cut ? { truncated: true } : {}
@@ -26537,23 +26548,23 @@ function stateLabel(state) {
 function dayDiff2(a, b) {
   return Math.round((Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / 864e5);
 }
-function cycleStatus(c, today2) {
+function cycleStatus(c, today4) {
   const raw = (c.status ?? "").trim().toLowerCase();
   if (raw === "completed") return "complete";
   if (raw === "skipped") return "skipped";
   if (!c.end) return "upcoming";
-  if (c.end < today2) return "overDue";
-  const days = dayDiff2(c.end, today2);
+  if (c.end < today4) return "overDue";
+  const days = dayDiff2(c.end, today4);
   if (days <= 3) return "dueSoon";
   if (days <= 7) return "upcoming";
-  if (c.start && c.start > today2) return "notStarted";
+  if (c.start && c.start > today4) return "notStarted";
   return "upcoming";
 }
-function currentCycleIndex(cycles, today2) {
+function currentCycleIndex(cycles, today4) {
   if (!cycles.length) return -1;
-  const within = cycles.findIndex((c) => c.start && c.end && c.start <= today2 && today2 <= c.end);
+  const within = cycles.findIndex((c) => c.start && c.end && c.start <= today4 && today4 <= c.end);
   if (within >= 0) return within;
-  const future = cycles.findIndex((c) => c.start && c.start > today2);
+  const future = cycles.findIndex((c) => c.start && c.start > today4);
   return future >= 0 ? future : cycles.length - 1;
 }
 function cycleAction(status, visitId, delayReason) {
@@ -26570,10 +26581,10 @@ function cycleAction(status, visitId, delayReason) {
       return (delayReason ?? "").trim() ? "viewSkipReason" : "addSkipReason";
   }
 }
-function buildPlan(state, raw, isPreCycleRequired, today2, visits) {
-  const sorted2 = [...raw].sort((a, b) => (a.start ?? "").localeCompare(b.start ?? ""));
-  const cycles = sorted2.map((c, i) => {
-    const status = cycleStatus(c, today2);
+function buildPlan(state, raw, isPreCycleRequired, today4, visits) {
+  const sorted3 = [...raw].sort((a, b) => (a.start ?? "").localeCompare(b.start ?? ""));
+  const cycles = sorted3.map((c, i) => {
+    const status = cycleStatus(c, today4);
     const visitId = visits.get(c.id);
     const action2 = cycleAction(status, visitId, c.delayReason);
     return {
@@ -26591,10 +26602,10 @@ function buildPlan(state, raw, isPreCycleRequired, today2, visits) {
   const completeCount = counted2.filter((c) => c.status === "complete").length;
   const skippedCount = counted2.filter((c) => c.status === "skipped").length;
   const total = counted2.length;
-  const currentIndex = currentCycleIndex(cycles, today2);
-  const allCyclesPast = cycles.length > 0 && cycles.every((c) => c.end !== null && c.end < today2);
+  const currentIndex = currentCycleIndex(cycles, today4);
+  const allCyclesPast = cycles.length > 0 && cycles.every((c) => c.end !== null && c.end < today4);
   const previousOverdue = cycles.some(
-    (c, i) => i !== currentIndex && c.status === "overDue" && !(c.start && c.end && c.start <= today2 && today2 <= c.end)
+    (c, i) => i !== currentIndex && c.status === "overDue" && !(c.start && c.end && c.start <= today4 && today4 <= c.end)
   );
   const shown2 = state === "completed" ? "complete" : currentIndex >= 0 ? cycles[currentIndex].status : null;
   let action = "none";
@@ -26615,23 +26626,23 @@ function buildPlan(state, raw, isPreCycleRequired, today2, visits) {
     action
   };
 }
-function cyclePriority(c, today2) {
+function cyclePriority(c, today4) {
   const raw = (c.status ?? "").trim().toLowerCase();
   if (raw === "completed") return 6;
   if (raw === "skipped") return 5;
   if (!c.end) return 4;
-  if (c.end < today2) return 1;
-  const d = dayDiff2(c.end, today2);
+  if (c.end < today4) return 1;
+  const d = dayDiff2(c.end, today4);
   if (d <= 3) return 2;
   if (d <= 7) return 3;
   return 4;
 }
-function sortPlanIds(plans, cyclesByPlan, today2) {
+function sortPlanIds(plans, cyclesByPlan, today4) {
   const rank = (id2) => {
     const cs = cyclesByPlan.get(id2) ?? [];
     if (!cs.length) return { p: 99, end: "9999-12-31" };
-    const p = Math.min(...cs.map((c) => cyclePriority(c, today2)));
-    const open = cs.filter((c) => cyclePriority(c, today2) <= 4 && c.end).map((c) => c.end);
+    const p = Math.min(...cs.map((c) => cyclePriority(c, today4)));
+    const open = cs.filter((c) => cyclePriority(c, today4) <= 4 && c.end).map((c) => c.end);
     return { p, end: open.length ? open.sort()[0] : "9999-12-31" };
   };
   return [...plans].sort((a, b) => {
@@ -26671,7 +26682,7 @@ async function collectCompliance(ctx) {
   const scope2 = ctx.scope("ActionPlan");
   if (scope2 === void 0 || scope2 === null) return void 0;
   const { org } = ctx;
-  const today2 = todayIn3(ctx.format.timeZone);
+  const today4 = todayIn3(ctx.format.timeZone);
   const where3 = [
     "ActionPlanTemplateVersion.ActionPlanTemplate.ActionPlanType = 'PrvdEngmtCompliance'",
     "TargetId != null",
@@ -26783,9 +26794,9 @@ async function collectCompliance(ctx) {
     }
     const tmpl = s2(field(p.ActionPlanTemplateVersion, "ActionPlanTemplateId"));
     const state = mapPlanState(s2(p.ActionPlanState), overrides);
-    const plan2 = buildPlan(state, raw, preCycle.get(tmpl) === true, today2, visitOf);
+    const plan3 = buildPlan(state, raw, preCycle.get(tmpl) === true, today4, visitOf);
     const sortedRaw = [...raw].sort((a, b) => (a.start ?? "").localeCompare(b.start ?? ""));
-    const cycles = plan2.cycles.map((c, i) => {
+    const cycles = plan3.cycles.map((c, i) => {
       const t = taskByCycle.get(sortedRaw[i].completionTaskId ?? "");
       return {
         number: c.number,
@@ -26805,15 +26816,15 @@ async function collectCompliance(ctx) {
       name: s2(p.Name),
       state,
       stateLabel: "",
-      total: plan2.total,
-      completeCount: plan2.completeCount,
-      skippedCount: plan2.skippedCount,
-      progress: plan2.progress,
-      allCyclesPast: plan2.allCyclesPast,
-      previousOverdue: plan2.previousOverdue,
-      currentCycle: plan2.currentIndex >= 0 ? cycles[plan2.currentIndex] : void 0,
-      cycleStatus: plan2.cycleStatus,
-      action: plan2.action,
+      total: plan3.total,
+      completeCount: plan3.completeCount,
+      skippedCount: plan3.skippedCount,
+      progress: plan3.progress,
+      allCyclesPast: plan3.allCyclesPast,
+      previousOverdue: plan3.previousOverdue,
+      currentCycle: plan3.currentIndex >= 0 ? cycles[plan3.currentIndex] : void 0,
+      cycleStatus: plan3.cycleStatus,
+      action: plan3.action,
       cycles
     });
   }
@@ -26821,12 +26832,12 @@ async function collectCompliance(ctx) {
   const order = sortPlanIds(
     planRows.map((p) => ({ id: s2(p.Id), name: s2(p.Name) })),
     rawByPlan,
-    today2
+    today4
   );
   unavailable.push(
     "Whether an open cycle already has a visit (View Visit instead of Create Visit) isn't resolved; its button is drawn as Create Visit."
   );
-  return { plans: order.map((id2) => views.get(id2)), today: today2, unavailable };
+  return { plans: order.map((id2) => views.get(id2)), today: today4, unavailable };
 }
 var PLAN_LIMIT, s2, day2, field;
 var init_compliance = __esm({
@@ -27141,9 +27152,9 @@ async function readPlans(ctx, apIds, tpIds, where3, sync) {
   let taskRows = [];
   if (planIds.length && sync("AssessmentTask")) {
     const w = where3("AssessmentTask");
-    const chunks5 = chunkIds(planIds);
+    const chunks7 = chunkIds(planIds);
     const out = [];
-    for (const chunk2 of chunks5) {
+    for (const chunk2 of chunks7) {
       if (out.length >= MAX_TASKS) break;
       const rows3 = await query(
         `SELECT Id, Name, Status, OwnerId, AssignedToId, DueDate, ReferenceRecordId FROM AssessmentTask WHERE ReferenceRecordId IN (${inList(chunk2)})${w} LIMIT ${MAX_TASKS - out.length}`,
@@ -27250,7 +27261,7 @@ async function readPlans(ctx, apIds, tpIds, where3, sync) {
       participants: sync("AccountPlanParticipant") ? [] : void 0
     };
   for (const id2 of tpIds) plans[id2] = { object: "TerritoryBusinessPlan", objectives: [] };
-  for (const { r, plan: plan2, assignee } of [
+  for (const { r, plan: plan3, assignee } of [
     ...newestFirst(objRows.map((r2) => ({ modified: String(r2.LastModifiedDate ?? ""), r: r2 }))).map(
       ({ r: r2 }) => ({ r: r2, plan: String(r2.AccountPlanId), assignee: str10(r2.ObjectiveOwnerId) })
     ),
@@ -27260,7 +27271,7 @@ async function readPlans(ctx, apIds, tpIds, where3, sync) {
   ]) {
     const isGoal = "ParentRecordId" in r;
     const raw = str10(r.Status);
-    plans[plan2]?.objectives.push({
+    plans[plan3]?.objectives.push({
       id: String(r.Id),
       title: str10(r.Name) ?? "",
       status: raw,
@@ -27285,19 +27296,19 @@ async function readPlans(ctx, apIds, tpIds, where3, sync) {
     const k = str10(l.AccountPlanStakeholderId);
     if (n2 && k) membersBy.set(k, [...membersBy.get(k) ?? [], n2]);
   }
-  for (const s7 of shRows) {
-    const accountId = str10(s7.StakeholderRefnRecordId);
+  for (const s11 of shRows) {
+    const accountId = str10(s11.StakeholderRefnRecordId);
     const account = accountId ? accounts.get(accountId) : void 0;
-    plans[String(s7.AccountPlanId)]?.stakeholders?.push({
-      id: String(s7.Id),
+    plans[String(s11.AccountPlanId)]?.stakeholders?.push({
+      id: String(s11.Id),
       // StakeholdersTabViewModel.stakeholderTitle: the account's name, else the stakeholder's own name.
-      title: account ?? str10(s7.StakeholderName) ?? str10(s7.Name) ?? "",
+      title: account ?? str10(s11.StakeholderName) ?? str10(s11.Name) ?? "",
       nonProfiled: !account,
-      role: str10(s7.RoleType),
-      influence: str10(s7.InfluenceLevel),
-      strength: str10(s7.Strength),
-      comment: str10(s7.Comment),
-      members: (membersBy.get(String(s7.Id)) ?? []).filter((n2, i, a) => a.indexOf(n2) === i)
+      role: str10(s11.RoleType),
+      influence: str10(s11.InfluenceLevel),
+      strength: str10(s11.Strength),
+      comment: str10(s11.Comment),
+      members: (membersBy.get(String(s11.Id)) ?? []).filter((n2, i, a) => a.indexOf(n2) === i)
     });
   }
   for (const p of partRows) {
@@ -27776,9 +27787,9 @@ function decodeSummary(json2) {
   } catch {
     return empty2;
   }
-  const sections2 = (v) => (Array.isArray(v) ? v : []).map((s7) => ({
-    title: str13(s7?.sectionName),
-    content: (Array.isArray(s7?.sectionData) ? s7.sectionData : []).map(
+  const sections2 = (v) => (Array.isArray(v) ? v : []).map((s11) => ({
+    title: str13(s11?.sectionName),
+    content: (Array.isArray(s11?.sectionData) ? s11.sectionData : []).map(
       (d) => str13(d?.data)
     )
   }));
@@ -27788,7 +27799,7 @@ function decodeSummary(json2) {
 function summaryContent(keyInfoJson, changeInfoJson) {
   const key5 = decodeSummary(keyInfoJson);
   const change2 = decodeSummary(changeInfoJson);
-  const changes = [...key5.changeInfo, ...change2.changeInfo].flatMap((s7) => s7.content);
+  const changes = [...key5.changeInfo, ...change2.changeInfo].flatMap((s11) => s11.content);
   return [...changes.length ? [{ title: "Changes", content: changes }] : [], ...key5.keyInfo];
 }
 function weekRange(now, format) {
@@ -27836,29 +27847,29 @@ async function collectDashboards2(ctx, ids) {
   const licensesOn = cfg.StateLicenseNumberSettings?.IsEnabledOnLightningPages === true;
   const slnField = /^\w+$/.test(str13(cfg.StateLicenseNumberSettings?.SlnValFormulaField)) ? str13(cfg.StateLicenseNumberSettings?.SlnValFormulaField) : "";
   const synced = (table) => ctx.scope(table) !== void 0;
-  const run4 = (table, soql5) => synced(table) ? query(soql5, ctx.org).catch(() => none) : Promise.resolve(none);
+  const run5 = (table, soql5) => synced(table) ? query(soql5, ctx.org).catch(() => none) : Promise.resolve(none);
   const [summaries, specialties, atis, addresses, nba, licenses] = await Promise.all([
-    territoryIds.length ? run4(
+    territoryIds.length ? run5(
       "PrvdAccountTerritorySummary",
       `SELECT AccountId, Territory2Id, KeyInformationSummary, ChangeInformationSummary, KeyInfoSummaryDateTime, ChangeInfoSummaryDateTime FROM PrvdAccountTerritorySummary WHERE AccountId IN (${inIds}) AND UserId = '${ctx.userId}' AND Territory2Id IN (${inList(territoryIds)})`
     ) : Promise.resolve(none),
-    run4(
+    run5(
       "HealthcareProviderSpecialty",
       `SELECT AccountId, IsPrimarySpecialty, Specialty.SpecialtyType FROM HealthcareProviderSpecialty WHERE AccountId IN (${inIds}) ORDER BY IsPrimarySpecialty DESC, LastModifiedDate DESC`
     ),
-    territoryIds.length ? run4(
+    territoryIds.length ? run5(
       "ProviderAcctTerritoryInfo",
       `SELECT AccountId, IsTargetedAccount, PreferredAddressId FROM ProviderAcctTerritoryInfo WHERE AccountId IN (${inIds}) AND Territory2Id IN (${inList(territoryIds)})`
     ) : Promise.resolve(none),
-    run4(
+    run5(
       "ContactPointAddress",
       `SELECT Id, ParentId, Street, PostalCode, City, State, StateCode, Country, IsPrimary, Latitude, Longitude, LastModifiedDate FROM ContactPointAddress WHERE ParentId IN (${inIds}) AND IsActive = true`
     ),
-    run4(
+    run5(
       "TerritoryAcctRcmdAction",
       `SELECT Id, AccountId, Name, ActionType, Status, DueDate FROM TerritoryAcctRcmdAction WHERE AccountId IN (${inIds}) AND DueDate >= ${week.from} AND DueDate <= ${week.to} ORDER BY DueDate ASC`
     ),
-    licensesOn ? run4(
+    licensesOn ? run5(
       "BusinessLicense",
       `SELECT AccountId, JurisdictionState, IsLicenseValidated${slnField ? `, ${slnField}` : ""} FROM BusinessLicense WHERE AccountId IN (${inIds}) AND ComplianceScope = 'JurisdictionState' AND IsActive = true AND LicenseNumber != null`
     ) : Promise.resolve(none)
@@ -27902,14 +27913,14 @@ async function collectDashboards2(ctx, ids) {
           str13(row?.ChangeInfoSummaryDateTime),
           ctx.format
         ),
-        sections: content.map((s7) => ({ title: s7.title, items: s7.content }))
+        sections: content.map((s11) => ({ title: s11.title, items: s11.content }))
       } : null,
       overview: {
         target: ati.some((r) => r.IsTargetedAccount === true),
-        specialties: mine(specialties).slice(0, 3).map((s7) => {
-          const type = str13(s7.Specialty?.SpecialtyType);
-          return { label: typeLabels.get(type) ?? type, primary: s7.IsPrimarySpecialty === true };
-        }).filter((s7) => s7.label)
+        specialties: mine(specialties).slice(0, 3).map((s11) => {
+          const type = str13(s11.Specialty?.SpecialtyType);
+          return { label: typeLabels.get(type) ?? type, primary: s11.IsPrimarySpecialty === true };
+        }).filter((s11) => s11.label)
       },
       nba: {
         week: week.label,
@@ -27973,8 +27984,8 @@ function parseInlineCard(html, js2) {
   return object3 && cells.length ? { title, object: object3, cells } : null;
 }
 function picklistText(value4, labels2, describeField) {
-  const lookup2 = (v) => labels2?.[v] ?? str14(arr2(describeField?.picklistValues).find((p) => str14(p.value) === v)?.label) ?? v;
-  return value4.split(";").map((v) => lookup2(v) || v).join("; ");
+  const lookup3 = (v) => labels2?.[v] ?? str14(arr2(describeField?.picklistValues).find((p) => str14(p.value) === v)?.label) ?? v;
+  return value4.split(";").map((v) => lookup3(v) || v).join("; ");
 }
 function addressText(a) {
   const line = [
@@ -28048,7 +28059,7 @@ function specsFor(ctx, object3) {
   const out = [];
   for (const [name, layout] of Object.entries(ctx.core.layouts)) {
     if (layoutObject(name) !== object3) continue;
-    for (const s7 of layout.sections) for (const col of s7.fields ?? []) out.push(...col);
+    for (const s11 of layout.sections) for (const col of s11.fields ?? []) out.push(...col);
   }
   for (const [name, fields] of Object.entries(ctx.core.compactFields ?? {}))
     if (name.startsWith(`${object3}.`)) out.push(...fields);
@@ -28074,10 +28085,10 @@ async function fetchRows(ctx, object3, where3, extra, inlineFields = []) {
   const describe = await describeOf(ctx, object3);
   if (!describe) return null;
   const specs = /* @__PURE__ */ new Map();
-  for (const s7 of specsFor(ctx, object3)) {
-    if (s7.name.includes(".")) continue;
-    const f = describe.fields.get(s7.name.toLowerCase());
-    if (f) specs.set(str14(f.name), { ...s7, name: str14(f.name) });
+  for (const s11 of specsFor(ctx, object3)) {
+    if (s11.name.includes(".")) continue;
+    const f = describe.fields.get(s11.name.toLowerCase());
+    if (f) specs.set(str14(f.name), { ...s11, name: str14(f.name) });
   }
   for (const name of inlineFields) {
     const f = describe.fields.get(name.toLowerCase());
@@ -28271,14 +28282,14 @@ async function relatedLists(ctx, object3, ids, d) {
       const condition2 = ctx.scope(child);
       const fx = fixed2.get(key5);
       const label2 = fx?.label ?? (layoutRl?.label || child);
-      const specs = fx?.specs ?? (layoutRl?.columns ?? []).filter((s7) => s7.name && s7.name.split(".").length <= 2);
+      const specs = fx?.specs ?? (layoutRl?.columns ?? []).filter((s11) => s11.name && s11.name.split(".").length <= 2);
       const columns = await Promise.all(
         (specs.length ? specs : [{ name: cd.nameField, label: "", type: "string" }]).map(
-          async (s7) => {
-            const own = cd.fields.get(s7.name.toLowerCase());
+          async (s11) => {
+            const own = cd.fields.get(s11.name.toLowerCase());
             let far;
-            if (!own && s7.name.includes(".")) {
-              const [rel5, leaf2] = s7.name.split(".");
+            if (!own && s11.name.includes(".")) {
+              const [rel5, leaf2] = s11.name.split(".");
               const via = [...cd.fields.values()].find(
                 (f2) => str14(f2.relationshipName).toLowerCase() === rel5.toLowerCase()
               );
@@ -28287,8 +28298,8 @@ async function relatedLists(ctx, object3, ids, d) {
             }
             const f = own ?? far;
             return {
-              label: s7.label || str14(f?.label) || s7.name,
-              type: str14(f?.type).toLowerCase() || s7.type
+              label: s11.label || str14(f?.label) || s11.name,
+              type: str14(f?.type).toLowerCase() || s11.type
             };
           }
         )
@@ -28329,7 +28340,7 @@ async function relatedLists(ctx, object3, ids, d) {
       }
       const rowsBy = /* @__PURE__ */ new Map();
       if ([...counts2.values()].some((n2) => n2 > 0)) {
-        const paths = (specs.length ? specs : [{ name: cd.nameField, label: "", type: "string" }]).map((s7) => s7.name);
+        const paths = (specs.length ? specs : [{ name: cd.nameField, label: "", type: "string" }]).map((s11) => s11.name);
         const rel5 = (name) => {
           const f = cd.fields.get(name.toLowerCase());
           return f && str14(f.type) === "reference" && f.relationshipName ? `${str14(f.relationshipName)}.Name` : name;
@@ -28346,14 +28357,14 @@ async function relatedLists(ctx, object3, ids, d) {
           const parent = owner.get(str14(r[field3])) ?? str14(r[field3]);
           const list2 = rowsBy.get(parent) ?? [];
           if (list2.length >= RELATED_ROWS) continue;
-          const cells = (specs.length ? specs : [{ name: cd.nameField, label: "", type: "string" }]).map((s7) => {
-            const f = cd.fields.get(s7.name.toLowerCase());
+          const cells = (specs.length ? specs : [{ name: cd.nameField, label: "", type: "string" }]).map((s11) => {
+            const f = cd.fields.get(s11.name.toLowerCase());
             if (f && str14(f.type) === "reference") return str14(obj3(r[str14(f.relationshipName)]).Name);
-            const raw = s7.name.split(".").reduce(
+            const raw = s11.name.split(".").reduce(
               (v, k) => v && typeof v === "object" ? v[k] : void 0,
               r
             );
-            return formatValue(raw, s7, f, ctx.format);
+            return formatValue(raw, s11, f, ctx.format);
           });
           list2.push({ id: str14(r.Id), cells });
           rowsBy.set(parent, list2);
@@ -28723,15 +28734,15 @@ async function readExpenses(ctx, ids) {
   ).catch(softFail(ctx, "Record page (Expenses tab)", []));
   const sums = /* @__PURE__ */ new Map();
   for (const r of rows3) {
-    const s7 = sums.get(str14(r.ExpenseOriginId)) ?? { count: 0, sum: 0 };
-    s7.count++;
-    s7.sum += Number(r.Amount) || 0;
-    sums.set(str14(r.ExpenseOriginId), s7);
+    const s11 = sums.get(str14(r.ExpenseOriginId)) ?? { count: 0, sum: 0 };
+    s11.count++;
+    s11.sum += Number(r.Amount) || 0;
+    sums.set(str14(r.ExpenseOriginId), s11);
   }
-  for (const [id2, s7] of sums)
+  for (const [id2, s11] of sums)
     out.set(id2, {
-      count: s7.count,
-      total: `${out.currency} ${s7.sum.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      count: s11.count,
+      total: `${out.currency} ${s11.sum.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     });
   return out;
 }
@@ -28865,11 +28876,11 @@ var init_published_progress = __esm({
       }
       /** The load returned: steps it skipped (cached, or no viewer) drop out. */
       finish() {
-        this.progress.steps = this.progress.steps.filter((s7) => s7.state !== "waiting");
+        this.progress.steps = this.progress.steps.filter((s11) => s11.state !== "waiting");
         this.progress.finishedAt = Date.now();
       }
       find(key5) {
-        return this.progress.steps.find((s7) => s7.key === key5);
+        return this.progress.steps.find((s11) => s11.key === key5);
       }
     };
   }
@@ -28926,9 +28937,9 @@ function readTranslation(raw, language) {
   }
   for (const [k, p] of Object.entries(obj4(raw.flexiPages))) out.flexiPages[k] = obj4(p);
   for (const sets of [obj4(raw.standardValueSets), obj4(raw.globalValueSets)])
-    for (const [k, s7] of Object.entries(sets)) {
+    for (const [k, s11] of Object.entries(sets)) {
       const values = nonEmpty(
-        arr3(obj4(s7).valueTranslation).map((p) => [str16(p.masterLabel), str16(p.translation)])
+        arr3(obj4(s11).valueTranslation).map((p) => [str16(p.masterLabel), str16(p.translation)])
       );
       if (Object.keys(values).length && !out.valueSets[k]) out.valueSets[k] = values;
     }
@@ -28939,7 +28950,7 @@ function lookupLabel(tr, key5) {
   return tr.labels[NAMESPACE + k] ?? tr.labels[k] ?? null;
 }
 function origin(steps, fallback, change2) {
-  const used2 = steps.findIndex((s7) => s7.value != null && s7.value !== "");
+  const used2 = steps.findIndex((s11) => s11.value != null && s11.value !== "");
   if (used2 >= 0) return { shown: str16(steps[used2].value), steps, used: used2, change: change2 };
   return {
     shown: fallback,
@@ -29008,8 +29019,8 @@ function fieldTextOrigin(tr, sobject2, name, describedLabel, itemLabel) {
     change2
   );
 }
-function separatedWithSpaces(s7) {
-  return [...s7].map((c, i) => i > 0 && c.toLowerCase() !== c ? ` ${c}` : c).join("");
+function separatedWithSpaces(s11) {
+  return [...s11].map((c, i) => i > 0 && c.toLowerCase() !== c ? ` ${c}` : c).join("");
 }
 function sectionTextOrigin(tr, layout, section) {
   const raw = str16(section.label);
@@ -29084,7 +29095,7 @@ function recordTabTextOrigin(tr, page, raw, translatedItem) {
   }
   const ref3 = LABEL_REF.exec(value4);
   if (ref3) return labelRef(tr, steps, ref3[1], pageChange);
-  const used2 = steps.findIndex((s7) => s7.value === value4);
+  const used2 = steps.findIndex((s11) => s11.value === value4);
   return { shown: value4, steps, used: used2, change: pageChange };
 }
 function picklistLabel(tr, sobject2, field3, valueSet, label2) {
@@ -29248,8 +29259,8 @@ function buildTabs(files, availableTables) {
   const visible = new Set(
     arr4(profile.tabVisibilities).filter((t) => t.visibility && t.visibility !== "Hidden" && t.visibility !== "DefaultOff").map((t) => str17(t.tab))
   );
-  const hasTable = (s7) => Object.keys(files.db).some((k) => ieq(k, s7)) && Object.keys(files.sobjects).some((k) => ieq(k, s7));
-  const isAvailable = (s7) => availableTables ? availableTables.has(s7) : hasTable(s7);
+  const hasTable = (s11) => Object.keys(files.db).some((k) => ieq(k, s11)) && Object.keys(files.sobjects).some((k) => ieq(k, s11));
+  const isAvailable = (s11) => availableTables ? availableTables.has(s11) : hasTable(s11);
   const tr = trOf(files.translations);
   const tabs = [];
   const hidden = [];
@@ -29275,7 +29286,7 @@ function buildTabs(files, availableTables) {
     const kind = tabKind(
       t,
       hasTable,
-      (s7) => Object.prototype.hasOwnProperty.call(files.sobjects, s7)
+      (s11) => Object.prototype.hasOwnProperty.call(files.sobjects, s11)
     );
     if (!kind) {
       hide(TAB_FILTER_REASONS.noCoordinator);
@@ -29468,29 +29479,29 @@ function buildLayout(name, layout, translation = NO_TRANSLATION, itemLabel = (f)
   const object3 = layoutObject2(name);
   const spec = (item2, label2) => recordFieldSpec(item2, label2, picklistLabelsFor(translation, object3, item2));
   const seen = /* @__PURE__ */ new Map();
-  const sections2 = arr4(layout.layoutSections).flatMap((s7) => {
-    const nth = seen.get(str17(s7.label)) ?? 0;
-    seen.set(str17(s7.label), nth + 1);
-    const specs = arr4(s7.layoutColumns).map((col, index) => ({
+  const sections2 = arr4(layout.layoutSections).flatMap((s11) => {
+    const nth = seen.get(str17(s11.label)) ?? 0;
+    seen.set(str17(s11.label), nth + 1);
+    const specs = arr4(s11.layoutColumns).map((col, index) => ({
       index,
       items: arr4(col.layoutItems).filter((f) => str17(f.fullName) || str17(f.field)).map((f) => ({ label: itemLabel(f), item: f })).filter((x) => x.label)
     })).filter((c) => c.items.length);
     const columns = specs.map((c) => c.items.map((x) => x.label));
     const fields = specs.map((c) => c.items.map((x) => spec(x.item, x.label)));
     if (!columns.length) return [];
-    const label2 = sectionTextOrigin(translation, name, s7).shown;
-    const detailHeading = s7.detailHeading === true || str17(s7.detailHeading) === "true";
+    const label2 = sectionTextOrigin(translation, name, s11).shown;
+    const detailHeading = s11.detailHeading === true || str17(s11.detailHeading) === "true";
     const heading = detailHeading && label2.trim() ? label2 : null;
     if (heading)
       note(
         (shown2) => `section:${name}:${shown2}`,
-        (tr) => sectionTextOrigin(tr, name, s7)
+        (tr) => sectionTextOrigin(tr, name, s11)
       );
     const layoutFields = specs.map(
       (c) => c.items.map((x) => str17(x.item.compoundFieldName) || str17(x.item.fullName) || str17(x.item.field))
     );
     const source = {
-      label: str17(s7.label),
+      label: str17(s11.label),
       nth,
       columns: specs.map((c) => c.index),
       fields: layoutFields,
@@ -29553,7 +29564,7 @@ function listViewWhere(filters2, booleanFilter, fields) {
         return v;
       return v === "" ? "null" : `'${v.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
     };
-    const any = (cond, join25) => `(${values.map(cond).join(join25)})`;
+    const any = (cond, join27) => `(${values.map(cond).join(join27)})`;
     switch (op) {
       case "equals":
         return values.length > 1 ? `${name} IN (${values.map(literal3).join(", ")})` : `${name} = ${literal3(values[0])}`;
@@ -29928,9 +29939,9 @@ function dashboardData(result2) {
           labels: categories.map(() => "")
         });
       const f = fact(str17(inner.key), 0);
-      const s7 = byLabel.get(label2);
-      s7.values[i] = typeof f.value === "number" ? f.value : null;
-      s7.labels[i] = str17(f.label);
+      const s11 = byLabel.get(label2);
+      s11.values[i] = typeof f.value === "number" ? f.value : null;
+      s11.labels[i] = str17(f.label);
     }
   });
   return { measures, categories, grouped: true, series: [...byLabel.values()], total };
@@ -30176,7 +30187,7 @@ async function availableTablesFor(profile, sobjects, org) {
       true
     );
     const active2 = new Set(synced.map((r) => str17(r.ObjectValue) || str17(r.TextValue)));
-    const candidates = sobjects.filter((s7) => active2.has(s7));
+    const candidates = sobjects.filter((s11) => active2.has(s11));
     if (!candidates.length) return () => /* @__PURE__ */ new Set();
     const list2 = inList(candidates);
     const [reads, permissionable] = await Promise.all([
@@ -30209,7 +30220,7 @@ async function availableTablesFor(profile, sobjects, org) {
         ...fromProfile,
         ...permissionSets.flatMap((ps) => [...fromSet.get(ps) ?? []])
       ]);
-      return new Set(candidates.filter((s7) => readable3.has(s7) || !hasPermissions.has(s7)));
+      return new Set(candidates.filter((s11) => readable3.has(s11) || !hasPermissions.has(s11)));
     };
   } catch (err) {
     if (isScaleError(err)) throw err;
@@ -30261,10 +30272,10 @@ async function viewerReports(userId, salesChart, org, note) {
     }
     const readable3 = /* @__PURE__ */ new Set();
     const ids = folders.map((f) => str17(f.Id)).filter((id2) => ID_PATTERN.test(id2));
-    const chunks5 = [];
-    for (let i = 0; i < ids.length; i += 200) chunks5.push(ids.slice(i, i + 200));
+    const chunks7 = [];
+    for (let i = 0; i < ids.length; i += 200) chunks7.push(ids.slice(i, i + 200));
     for (const rows3 of await Promise.all(
-      chunks5.map(
+      chunks7.map(
         (c) => query(
           `SELECT RecordId, HasReadAccess FROM UserRecordAccess WHERE UserId = '${userId}' AND RecordId IN (${inList(c)})`,
           org
@@ -30416,11 +30427,11 @@ async function viewerScreens(core, userId, org, track, repLogin) {
       ])
     ];
     const cal = screens2.calendar;
-    const today2 = cal ? Math.max(
+    const today4 = cal ? Math.max(
       0,
       cal.days.findIndex((d) => d.today)
     ) : 0;
-    const calVisits = (cal?.segments.filter((s7) => s7.kind === "visit") ?? []).sort((a, b) => Math.abs(a.day - today2) - Math.abs(b.day - today2)).map((s7) => s7.id);
+    const calVisits = (cal?.segments.filter((s11) => s11.kind === "visit") ?? []).sort((a, b) => Math.abs(a.day - today4) - Math.abs(b.day - today4)).map((s11) => s11.id);
     const visits = [.../* @__PURE__ */ new Set([...home?.visits?.items.map((v) => v.id) ?? [], ...calVisits])];
     const kamPlans = Object.entries(screens2.kam?.plans ?? {});
     const kamIds = (object3) => kamPlans.filter(([, p]) => p.object === object3).map(([id2]) => id2);
@@ -30780,20 +30791,20 @@ function dirSize(dir) {
   }
   return total;
 }
-function pruneCache(root2, options) {
+function pruneCache(root2, options2) {
   if (!fs7.existsSync(root2)) return [];
   const dirs = fs7.readdirSync(root2, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => {
     const full = path6.join(root2, e.name);
     return { full, mtime: fs7.statSync(full).mtimeMs, size: dirSize(full) };
   }).sort(
-    (a, b) => Number(options.protect?.includes(b.full) ?? false) - Number(options.protect?.includes(a.full) ?? false) || b.mtime - a.mtime
+    (a, b) => Number(options2.protect?.includes(b.full) ?? false) - Number(options2.protect?.includes(a.full) ?? false) || b.mtime - a.mtime
   );
   const removed = [];
   let kept = 0;
   let bytes = 0;
   for (const d of dirs) {
-    const protectedDir = options.protect?.includes(d.full) ?? false;
-    if (protectedDir || kept < options.keep && bytes + d.size <= options.maxBytes) {
+    const protectedDir = options2.protect?.includes(d.full) ?? false;
+    if (protectedDir || kept < options2.keep && bytes + d.size <= options2.maxBytes) {
       kept++;
       bytes += d.size;
     } else {
@@ -31614,14 +31625,14 @@ async function namedTabObject(targetOrg, context) {
   };
 }
 async function runBuiltinCheck(name, targetOrg, context = {}) {
-  const run4 = name ? BUILTIN[name] : void 0;
-  if (!run4)
+  const run5 = name ? BUILTIN[name] : void 0;
+  if (!run5)
     return {
       passed: false,
       message: `Unknown built-in check: ${name ?? "(none)"}`,
       unavailable: true
     };
-  return run4(targetOrg, context);
+  return run5(targetOrg, context);
 }
 var IPAD_PAGES_LIMIT, NOT_TAB_NAMES, BUILTIN, BUILTIN_CHECKS;
 var init_builtin_checks = __esm({
@@ -31691,14 +31702,14 @@ function __extends(d, b) {
   }
   d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 }
-function __rest(s7, e) {
+function __rest(s11, e) {
   var t = {};
-  for (var p in s7) if (Object.prototype.hasOwnProperty.call(s7, p) && e.indexOf(p) < 0)
-    t[p] = s7[p];
-  if (s7 != null && typeof Object.getOwnPropertySymbols === "function")
-    for (var i = 0, p = Object.getOwnPropertySymbols(s7); i < p.length; i++) {
-      if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s7, p[i]))
-        t[p[i]] = s7[p[i]];
+  for (var p in s11) if (Object.prototype.hasOwnProperty.call(s11, p) && e.indexOf(p) < 0)
+    t[p] = s11[p];
+  if (s11 != null && typeof Object.getOwnPropertySymbols === "function")
+    for (var i = 0, p = Object.getOwnPropertySymbols(s11); i < p.length; i++) {
+      if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s11, p[i]))
+        t[p[i]] = s11[p[i]];
     }
   return t;
 }
@@ -31820,7 +31831,7 @@ function __exportStar(m, exports2) {
   for (var p in m) if (p !== "default" && !exports2.hasOwnProperty(p)) exports2[p] = m[p];
 }
 function __values(o) {
-  var s7 = typeof Symbol === "function" && Symbol.iterator, m = s7 && o[s7], i = 0;
+  var s11 = typeof Symbol === "function" && Symbol.iterator, m = s11 && o[s11], i = 0;
   if (m) return m.call(o);
   if (o && typeof o.length === "number") return {
     next: function() {
@@ -31828,7 +31839,7 @@ function __values(o) {
       return { value: o && o[i++], done: !o };
     }
   };
-  throw new TypeError(s7 ? "Object is not iterable." : "Symbol.iterator is not defined.");
+  throw new TypeError(s11 ? "Object is not iterable." : "Symbol.iterator is not defined.");
 }
 function __read(o, n2) {
   var m = typeof Symbol === "function" && o[Symbol.iterator];
@@ -31853,8 +31864,8 @@ function __spread() {
   return ar;
 }
 function __spreadArrays() {
-  for (var s7 = 0, i = 0, il = arguments.length; i < il; i++) s7 += arguments[i].length;
-  for (var r = Array(s7), k = 0, i = 0; i < il; i++)
+  for (var s11 = 0, i = 0, il = arguments.length; i < il; i++) s11 += arguments[i].length;
+  for (var r = Array(s11), k = 0, i = 0; i < il; i++)
     for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
       r[k] = a[j];
   return r;
@@ -31973,9 +31984,9 @@ var init_tslib_es6 = __esm({
     };
     __assign = function() {
       __assign = Object.assign || function __assign2(t) {
-        for (var s7, i = 1, n2 = arguments.length; i < n2; i++) {
-          s7 = arguments[i];
-          for (var p in s7) if (Object.prototype.hasOwnProperty.call(s7, p)) t[p] = s7[p];
+        for (var s11, i = 1, n2 = arguments.length; i < n2; i++) {
+          s11 = arguments[i];
+          for (var p in s11) if (Object.prototype.hasOwnProperty.call(s11, p)) t[p] = s11[p];
         }
         return t;
       };
@@ -31991,9 +32002,9 @@ var require_base64 = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.decodeFromBase64DataUri = exports2.decodeFromBase64 = exports2.encodeToBase64 = void 0;
     var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    var lookup2 = new Uint8Array(256);
+    var lookup3 = new Uint8Array(256);
     for (i = 0; i < chars.length; i++) {
-      lookup2[chars.charCodeAt(i)] = i;
+      lookup3[chars.charCodeAt(i)] = i;
     }
     var i;
     exports2.encodeToBase64 = function(bytes) {
@@ -32029,10 +32040,10 @@ var require_base64 = __commonJS({
       }
       var bytes = new Uint8Array(bufferLength);
       for (i2 = 0; i2 < len; i2 += 4) {
-        encoded1 = lookup2[base642.charCodeAt(i2)];
-        encoded2 = lookup2[base642.charCodeAt(i2 + 1)];
-        encoded3 = lookup2[base642.charCodeAt(i2 + 2)];
-        encoded4 = lookup2[base642.charCodeAt(i2 + 3)];
+        encoded1 = lookup3[base642.charCodeAt(i2)];
+        encoded2 = lookup3[base642.charCodeAt(i2 + 1)];
+        encoded3 = lookup3[base642.charCodeAt(i2 + 2)];
+        encoded4 = lookup3[base642.charCodeAt(i2 + 3)];
         bytes[p++] = encoded1 << 2 | encoded2 >> 4;
         bytes[p++] = (encoded2 & 15) << 4 | encoded3 >> 2;
         bytes[p++] = (encoded3 & 3) << 6 | encoded4 & 63;
@@ -32084,10 +32095,10 @@ var require_strings = __commonJS({
       }
       return padding + value4;
     };
-    exports2.copyStringIntoBuffer = function(str32, buffer, offset2) {
-      var length = str32.length;
+    exports2.copyStringIntoBuffer = function(str33, buffer, offset2) {
+      var length = str33.length;
       for (var idx = 0; idx < length; idx++) {
-        buffer[offset2++] = str32.charCodeAt(idx);
+        buffer[offset2++] = str33.charCodeAt(idx);
       }
       return length;
     };
@@ -32097,8 +32108,8 @@ var require_strings = __commonJS({
       }
       return prefix + "-" + Math.floor(Math.random() * Math.pow(10, suffixLength));
     };
-    exports2.escapeRegExp = function(str32) {
-      return str32.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    exports2.escapeRegExp = function(str33) {
+      return str33.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     };
     exports2.cleanText = function(text12) {
       return text12.replace(/\t|\u0085|\u2028|\u2029/g, "    ").replace(/[\b\v]/g, "");
@@ -32266,11 +32277,11 @@ var require_arrays = __commonJS({
       return mergedBuffer;
     };
     exports2.arrayAsString = function(array2) {
-      var str32 = "";
+      var str33 = "";
       for (var idx = 0, len = array2.length; idx < len; idx++) {
-        str32 += strings_1.charFromCode(array2[idx]);
+        str33 += strings_1.charFromCode(array2[idx]);
       }
-      return str32;
+      return str33;
     };
     exports2.byAscendingId = function(a, b) {
       return a.id - b.id;
@@ -32594,16 +32605,16 @@ var require_common = __commonJS({
         }
       },
       // Join array of chunks to single array.
-      flattenChunks: function(chunks5) {
+      flattenChunks: function(chunks7) {
         var i, l, len, pos, chunk2, result2;
         len = 0;
-        for (i = 0, l = chunks5.length; i < l; i++) {
-          len += chunks5[i].length;
+        for (i = 0, l = chunks7.length; i < l; i++) {
+          len += chunks7[i].length;
         }
         result2 = new Uint8Array(len);
         pos = 0;
-        for (i = 0, l = chunks5.length; i < l; i++) {
-          chunk2 = chunks5[i];
+        for (i = 0, l = chunks7.length; i < l; i++) {
+          chunk2 = chunks7[i];
           result2.set(chunk2, pos);
           pos += chunk2.length;
         }
@@ -32617,8 +32628,8 @@ var require_common = __commonJS({
         }
       },
       // Join array of chunks to single array.
-      flattenChunks: function(chunks5) {
-        return [].concat.apply([], chunks5);
+      flattenChunks: function(chunks7) {
+        return [].concat.apply([], chunks7);
       }
     };
     exports2.setTyped = function(on) {
@@ -32716,24 +32727,24 @@ var require_trees = __commonJS({
     function d_code(dist) {
       return dist < 256 ? _dist_code[dist] : _dist_code[256 + (dist >>> 7)];
     }
-    function put_short(s7, w) {
-      s7.pending_buf[s7.pending++] = w & 255;
-      s7.pending_buf[s7.pending++] = w >>> 8 & 255;
+    function put_short(s11, w) {
+      s11.pending_buf[s11.pending++] = w & 255;
+      s11.pending_buf[s11.pending++] = w >>> 8 & 255;
     }
-    function send_bits(s7, value4, length) {
-      if (s7.bi_valid > Buf_size - length) {
-        s7.bi_buf |= value4 << s7.bi_valid & 65535;
-        put_short(s7, s7.bi_buf);
-        s7.bi_buf = value4 >> Buf_size - s7.bi_valid;
-        s7.bi_valid += length - Buf_size;
+    function send_bits(s11, value4, length) {
+      if (s11.bi_valid > Buf_size - length) {
+        s11.bi_buf |= value4 << s11.bi_valid & 65535;
+        put_short(s11, s11.bi_buf);
+        s11.bi_buf = value4 >> Buf_size - s11.bi_valid;
+        s11.bi_valid += length - Buf_size;
       } else {
-        s7.bi_buf |= value4 << s7.bi_valid & 65535;
-        s7.bi_valid += length;
+        s11.bi_buf |= value4 << s11.bi_valid & 65535;
+        s11.bi_valid += length;
       }
     }
-    function send_code(s7, c, tree) {
+    function send_code(s11, c, tree) {
       send_bits(
-        s7,
+        s11,
         tree[c * 2],
         tree[c * 2 + 1]
         /*.Len*/
@@ -32748,18 +32759,18 @@ var require_trees = __commonJS({
       } while (--len > 0);
       return res >>> 1;
     }
-    function bi_flush(s7) {
-      if (s7.bi_valid === 16) {
-        put_short(s7, s7.bi_buf);
-        s7.bi_buf = 0;
-        s7.bi_valid = 0;
-      } else if (s7.bi_valid >= 8) {
-        s7.pending_buf[s7.pending++] = s7.bi_buf & 255;
-        s7.bi_buf >>= 8;
-        s7.bi_valid -= 8;
+    function bi_flush(s11) {
+      if (s11.bi_valid === 16) {
+        put_short(s11, s11.bi_buf);
+        s11.bi_buf = 0;
+        s11.bi_valid = 0;
+      } else if (s11.bi_valid >= 8) {
+        s11.pending_buf[s11.pending++] = s11.bi_buf & 255;
+        s11.bi_buf >>= 8;
+        s11.bi_valid -= 8;
       }
     }
-    function gen_bitlen(s7, desc) {
+    function gen_bitlen(s11, desc) {
       var tree = desc.dyn_tree;
       var max_code = desc.max_code;
       var stree = desc.stat_desc.static_tree;
@@ -32774,11 +32785,11 @@ var require_trees = __commonJS({
       var f;
       var overflow = 0;
       for (bits = 0; bits <= MAX_BITS; bits++) {
-        s7.bl_count[bits] = 0;
+        s11.bl_count[bits] = 0;
       }
-      tree[s7.heap[s7.heap_max] * 2 + 1] = 0;
-      for (h = s7.heap_max + 1; h < HEAP_SIZE; h++) {
-        n2 = s7.heap[h];
+      tree[s11.heap[s11.heap_max] * 2 + 1] = 0;
+      for (h = s11.heap_max + 1; h < HEAP_SIZE; h++) {
+        n2 = s11.heap[h];
         bits = tree[tree[n2 * 2 + 1] * 2 + 1] + 1;
         if (bits > max_length) {
           bits = max_length;
@@ -32788,15 +32799,15 @@ var require_trees = __commonJS({
         if (n2 > max_code) {
           continue;
         }
-        s7.bl_count[bits]++;
+        s11.bl_count[bits]++;
         xbits = 0;
         if (n2 >= base2) {
           xbits = extra[n2 - base2];
         }
         f = tree[n2 * 2];
-        s7.opt_len += f * (bits + xbits);
+        s11.opt_len += f * (bits + xbits);
         if (has_stree) {
-          s7.static_len += f * (stree[n2 * 2 + 1] + xbits);
+          s11.static_len += f * (stree[n2 * 2 + 1] + xbits);
         }
       }
       if (overflow === 0) {
@@ -32804,23 +32815,23 @@ var require_trees = __commonJS({
       }
       do {
         bits = max_length - 1;
-        while (s7.bl_count[bits] === 0) {
+        while (s11.bl_count[bits] === 0) {
           bits--;
         }
-        s7.bl_count[bits]--;
-        s7.bl_count[bits + 1] += 2;
-        s7.bl_count[max_length]--;
+        s11.bl_count[bits]--;
+        s11.bl_count[bits + 1] += 2;
+        s11.bl_count[max_length]--;
         overflow -= 2;
       } while (overflow > 0);
       for (bits = max_length; bits !== 0; bits--) {
-        n2 = s7.bl_count[bits];
+        n2 = s11.bl_count[bits];
         while (n2 !== 0) {
-          m = s7.heap[--h];
+          m = s11.heap[--h];
           if (m > max_code) {
             continue;
           }
           if (tree[m * 2 + 1] !== bits) {
-            s7.opt_len += (bits - tree[m * 2 + 1]) * tree[m * 2];
+            s11.opt_len += (bits - tree[m * 2 + 1]) * tree[m * 2];
             tree[m * 2 + 1] = bits;
           }
           n2--;
@@ -32905,95 +32916,95 @@ var require_trees = __commonJS({
       static_d_desc = new StaticTreeDesc(static_dtree, extra_dbits, 0, D_CODES, MAX_BITS);
       static_bl_desc = new StaticTreeDesc(new Array(0), extra_blbits, 0, BL_CODES, MAX_BL_BITS);
     }
-    function init_block(s7) {
+    function init_block(s11) {
       var n2;
       for (n2 = 0; n2 < L_CODES; n2++) {
-        s7.dyn_ltree[n2 * 2] = 0;
+        s11.dyn_ltree[n2 * 2] = 0;
       }
       for (n2 = 0; n2 < D_CODES; n2++) {
-        s7.dyn_dtree[n2 * 2] = 0;
+        s11.dyn_dtree[n2 * 2] = 0;
       }
       for (n2 = 0; n2 < BL_CODES; n2++) {
-        s7.bl_tree[n2 * 2] = 0;
+        s11.bl_tree[n2 * 2] = 0;
       }
-      s7.dyn_ltree[END_BLOCK * 2] = 1;
-      s7.opt_len = s7.static_len = 0;
-      s7.last_lit = s7.matches = 0;
+      s11.dyn_ltree[END_BLOCK * 2] = 1;
+      s11.opt_len = s11.static_len = 0;
+      s11.last_lit = s11.matches = 0;
     }
-    function bi_windup(s7) {
-      if (s7.bi_valid > 8) {
-        put_short(s7, s7.bi_buf);
-      } else if (s7.bi_valid > 0) {
-        s7.pending_buf[s7.pending++] = s7.bi_buf;
+    function bi_windup(s11) {
+      if (s11.bi_valid > 8) {
+        put_short(s11, s11.bi_buf);
+      } else if (s11.bi_valid > 0) {
+        s11.pending_buf[s11.pending++] = s11.bi_buf;
       }
-      s7.bi_buf = 0;
-      s7.bi_valid = 0;
+      s11.bi_buf = 0;
+      s11.bi_valid = 0;
     }
-    function copy_block(s7, buf, len, header) {
-      bi_windup(s7);
+    function copy_block(s11, buf, len, header) {
+      bi_windup(s11);
       if (header) {
-        put_short(s7, len);
-        put_short(s7, ~len);
+        put_short(s11, len);
+        put_short(s11, ~len);
       }
-      utils.arraySet(s7.pending_buf, s7.window, buf, len, s7.pending);
-      s7.pending += len;
+      utils.arraySet(s11.pending_buf, s11.window, buf, len, s11.pending);
+      s11.pending += len;
     }
     function smaller(tree, n2, m, depth) {
       var _n2 = n2 * 2;
       var _m2 = m * 2;
       return tree[_n2] < tree[_m2] || tree[_n2] === tree[_m2] && depth[n2] <= depth[m];
     }
-    function pqdownheap(s7, tree, k) {
-      var v = s7.heap[k];
+    function pqdownheap(s11, tree, k) {
+      var v = s11.heap[k];
       var j = k << 1;
-      while (j <= s7.heap_len) {
-        if (j < s7.heap_len && smaller(tree, s7.heap[j + 1], s7.heap[j], s7.depth)) {
+      while (j <= s11.heap_len) {
+        if (j < s11.heap_len && smaller(tree, s11.heap[j + 1], s11.heap[j], s11.depth)) {
           j++;
         }
-        if (smaller(tree, v, s7.heap[j], s7.depth)) {
+        if (smaller(tree, v, s11.heap[j], s11.depth)) {
           break;
         }
-        s7.heap[k] = s7.heap[j];
+        s11.heap[k] = s11.heap[j];
         k = j;
         j <<= 1;
       }
-      s7.heap[k] = v;
+      s11.heap[k] = v;
     }
-    function compress_block(s7, ltree, dtree) {
+    function compress_block(s11, ltree, dtree) {
       var dist;
       var lc;
       var lx = 0;
       var code;
       var extra;
-      if (s7.last_lit !== 0) {
+      if (s11.last_lit !== 0) {
         do {
-          dist = s7.pending_buf[s7.d_buf + lx * 2] << 8 | s7.pending_buf[s7.d_buf + lx * 2 + 1];
-          lc = s7.pending_buf[s7.l_buf + lx];
+          dist = s11.pending_buf[s11.d_buf + lx * 2] << 8 | s11.pending_buf[s11.d_buf + lx * 2 + 1];
+          lc = s11.pending_buf[s11.l_buf + lx];
           lx++;
           if (dist === 0) {
-            send_code(s7, lc, ltree);
+            send_code(s11, lc, ltree);
           } else {
             code = _length_code[lc];
-            send_code(s7, code + LITERALS + 1, ltree);
+            send_code(s11, code + LITERALS + 1, ltree);
             extra = extra_lbits[code];
             if (extra !== 0) {
               lc -= base_length[code];
-              send_bits(s7, lc, extra);
+              send_bits(s11, lc, extra);
             }
             dist--;
             code = d_code(dist);
-            send_code(s7, code, dtree);
+            send_code(s11, code, dtree);
             extra = extra_dbits[code];
             if (extra !== 0) {
               dist -= base_dist[code];
-              send_bits(s7, dist, extra);
+              send_bits(s11, dist, extra);
             }
           }
-        } while (lx < s7.last_lit);
+        } while (lx < s11.last_lit);
       }
-      send_code(s7, END_BLOCK, ltree);
+      send_code(s11, END_BLOCK, ltree);
     }
-    function build_tree(s7, desc) {
+    function build_tree(s11, desc) {
       var tree = desc.dyn_tree;
       var stree = desc.stat_desc.static_tree;
       var has_stree = desc.stat_desc.has_stree;
@@ -33001,73 +33012,73 @@ var require_trees = __commonJS({
       var n2, m;
       var max_code = -1;
       var node;
-      s7.heap_len = 0;
-      s7.heap_max = HEAP_SIZE;
+      s11.heap_len = 0;
+      s11.heap_max = HEAP_SIZE;
       for (n2 = 0; n2 < elems; n2++) {
         if (tree[n2 * 2] !== 0) {
-          s7.heap[++s7.heap_len] = max_code = n2;
-          s7.depth[n2] = 0;
+          s11.heap[++s11.heap_len] = max_code = n2;
+          s11.depth[n2] = 0;
         } else {
           tree[n2 * 2 + 1] = 0;
         }
       }
-      while (s7.heap_len < 2) {
-        node = s7.heap[++s7.heap_len] = max_code < 2 ? ++max_code : 0;
+      while (s11.heap_len < 2) {
+        node = s11.heap[++s11.heap_len] = max_code < 2 ? ++max_code : 0;
         tree[node * 2] = 1;
-        s7.depth[node] = 0;
-        s7.opt_len--;
+        s11.depth[node] = 0;
+        s11.opt_len--;
         if (has_stree) {
-          s7.static_len -= stree[node * 2 + 1];
+          s11.static_len -= stree[node * 2 + 1];
         }
       }
       desc.max_code = max_code;
-      for (n2 = s7.heap_len >> 1; n2 >= 1; n2--) {
-        pqdownheap(s7, tree, n2);
+      for (n2 = s11.heap_len >> 1; n2 >= 1; n2--) {
+        pqdownheap(s11, tree, n2);
       }
       node = elems;
       do {
-        n2 = s7.heap[
+        n2 = s11.heap[
           1
           /*SMALLEST*/
         ];
-        s7.heap[
+        s11.heap[
           1
           /*SMALLEST*/
-        ] = s7.heap[s7.heap_len--];
+        ] = s11.heap[s11.heap_len--];
         pqdownheap(
-          s7,
+          s11,
           tree,
           1
           /*SMALLEST*/
         );
-        m = s7.heap[
+        m = s11.heap[
           1
           /*SMALLEST*/
         ];
-        s7.heap[--s7.heap_max] = n2;
-        s7.heap[--s7.heap_max] = m;
+        s11.heap[--s11.heap_max] = n2;
+        s11.heap[--s11.heap_max] = m;
         tree[node * 2] = tree[n2 * 2] + tree[m * 2];
-        s7.depth[node] = (s7.depth[n2] >= s7.depth[m] ? s7.depth[n2] : s7.depth[m]) + 1;
+        s11.depth[node] = (s11.depth[n2] >= s11.depth[m] ? s11.depth[n2] : s11.depth[m]) + 1;
         tree[n2 * 2 + 1] = tree[m * 2 + 1] = node;
-        s7.heap[
+        s11.heap[
           1
           /*SMALLEST*/
         ] = node++;
         pqdownheap(
-          s7,
+          s11,
           tree,
           1
           /*SMALLEST*/
         );
-      } while (s7.heap_len >= 2);
-      s7.heap[--s7.heap_max] = s7.heap[
+      } while (s11.heap_len >= 2);
+      s11.heap[--s11.heap_max] = s11.heap[
         1
         /*SMALLEST*/
       ];
-      gen_bitlen(s7, desc);
-      gen_codes(tree, max_code, s7.bl_count);
+      gen_bitlen(s11, desc);
+      gen_codes(tree, max_code, s11.bl_count);
     }
-    function scan_tree(s7, tree, max_code) {
+    function scan_tree(s11, tree, max_code) {
       var n2;
       var prevlen = -1;
       var curlen;
@@ -33086,16 +33097,16 @@ var require_trees = __commonJS({
         if (++count3 < max_count && curlen === nextlen) {
           continue;
         } else if (count3 < min_count) {
-          s7.bl_tree[curlen * 2] += count3;
+          s11.bl_tree[curlen * 2] += count3;
         } else if (curlen !== 0) {
           if (curlen !== prevlen) {
-            s7.bl_tree[curlen * 2]++;
+            s11.bl_tree[curlen * 2]++;
           }
-          s7.bl_tree[REP_3_6 * 2]++;
+          s11.bl_tree[REP_3_6 * 2]++;
         } else if (count3 <= 10) {
-          s7.bl_tree[REPZ_3_10 * 2]++;
+          s11.bl_tree[REPZ_3_10 * 2]++;
         } else {
-          s7.bl_tree[REPZ_11_138 * 2]++;
+          s11.bl_tree[REPZ_11_138 * 2]++;
         }
         count3 = 0;
         prevlen = curlen;
@@ -33111,7 +33122,7 @@ var require_trees = __commonJS({
         }
       }
     }
-    function send_tree(s7, tree, max_code) {
+    function send_tree(s11, tree, max_code) {
       var n2;
       var prevlen = -1;
       var curlen;
@@ -33130,21 +33141,21 @@ var require_trees = __commonJS({
           continue;
         } else if (count3 < min_count) {
           do {
-            send_code(s7, curlen, s7.bl_tree);
+            send_code(s11, curlen, s11.bl_tree);
           } while (--count3 !== 0);
         } else if (curlen !== 0) {
           if (curlen !== prevlen) {
-            send_code(s7, curlen, s7.bl_tree);
+            send_code(s11, curlen, s11.bl_tree);
             count3--;
           }
-          send_code(s7, REP_3_6, s7.bl_tree);
-          send_bits(s7, count3 - 3, 2);
+          send_code(s11, REP_3_6, s11.bl_tree);
+          send_bits(s11, count3 - 3, 2);
         } else if (count3 <= 10) {
-          send_code(s7, REPZ_3_10, s7.bl_tree);
-          send_bits(s7, count3 - 3, 3);
+          send_code(s11, REPZ_3_10, s11.bl_tree);
+          send_bits(s11, count3 - 3, 3);
         } else {
-          send_code(s7, REPZ_11_138, s7.bl_tree);
-          send_bits(s7, count3 - 11, 7);
+          send_code(s11, REPZ_11_138, s11.bl_tree);
+          send_bits(s11, count3 - 11, 7);
         }
         count3 = 0;
         prevlen = curlen;
@@ -33160,82 +33171,82 @@ var require_trees = __commonJS({
         }
       }
     }
-    function build_bl_tree(s7) {
+    function build_bl_tree(s11) {
       var max_blindex;
-      scan_tree(s7, s7.dyn_ltree, s7.l_desc.max_code);
-      scan_tree(s7, s7.dyn_dtree, s7.d_desc.max_code);
-      build_tree(s7, s7.bl_desc);
+      scan_tree(s11, s11.dyn_ltree, s11.l_desc.max_code);
+      scan_tree(s11, s11.dyn_dtree, s11.d_desc.max_code);
+      build_tree(s11, s11.bl_desc);
       for (max_blindex = BL_CODES - 1; max_blindex >= 3; max_blindex--) {
-        if (s7.bl_tree[bl_order[max_blindex] * 2 + 1] !== 0) {
+        if (s11.bl_tree[bl_order[max_blindex] * 2 + 1] !== 0) {
           break;
         }
       }
-      s7.opt_len += 3 * (max_blindex + 1) + 5 + 5 + 4;
+      s11.opt_len += 3 * (max_blindex + 1) + 5 + 5 + 4;
       return max_blindex;
     }
-    function send_all_trees(s7, lcodes, dcodes, blcodes) {
+    function send_all_trees(s11, lcodes, dcodes, blcodes) {
       var rank;
-      send_bits(s7, lcodes - 257, 5);
-      send_bits(s7, dcodes - 1, 5);
-      send_bits(s7, blcodes - 4, 4);
+      send_bits(s11, lcodes - 257, 5);
+      send_bits(s11, dcodes - 1, 5);
+      send_bits(s11, blcodes - 4, 4);
       for (rank = 0; rank < blcodes; rank++) {
-        send_bits(s7, s7.bl_tree[bl_order[rank] * 2 + 1], 3);
+        send_bits(s11, s11.bl_tree[bl_order[rank] * 2 + 1], 3);
       }
-      send_tree(s7, s7.dyn_ltree, lcodes - 1);
-      send_tree(s7, s7.dyn_dtree, dcodes - 1);
+      send_tree(s11, s11.dyn_ltree, lcodes - 1);
+      send_tree(s11, s11.dyn_dtree, dcodes - 1);
     }
-    function detect_data_type(s7) {
+    function detect_data_type(s11) {
       var black_mask = 4093624447;
       var n2;
       for (n2 = 0; n2 <= 31; n2++, black_mask >>>= 1) {
-        if (black_mask & 1 && s7.dyn_ltree[n2 * 2] !== 0) {
+        if (black_mask & 1 && s11.dyn_ltree[n2 * 2] !== 0) {
           return Z_BINARY;
         }
       }
-      if (s7.dyn_ltree[9 * 2] !== 0 || s7.dyn_ltree[10 * 2] !== 0 || s7.dyn_ltree[13 * 2] !== 0) {
+      if (s11.dyn_ltree[9 * 2] !== 0 || s11.dyn_ltree[10 * 2] !== 0 || s11.dyn_ltree[13 * 2] !== 0) {
         return Z_TEXT;
       }
       for (n2 = 32; n2 < LITERALS; n2++) {
-        if (s7.dyn_ltree[n2 * 2] !== 0) {
+        if (s11.dyn_ltree[n2 * 2] !== 0) {
           return Z_TEXT;
         }
       }
       return Z_BINARY;
     }
     var static_init_done = false;
-    function _tr_init(s7) {
+    function _tr_init(s11) {
       if (!static_init_done) {
         tr_static_init();
         static_init_done = true;
       }
-      s7.l_desc = new TreeDesc(s7.dyn_ltree, static_l_desc);
-      s7.d_desc = new TreeDesc(s7.dyn_dtree, static_d_desc);
-      s7.bl_desc = new TreeDesc(s7.bl_tree, static_bl_desc);
-      s7.bi_buf = 0;
-      s7.bi_valid = 0;
-      init_block(s7);
+      s11.l_desc = new TreeDesc(s11.dyn_ltree, static_l_desc);
+      s11.d_desc = new TreeDesc(s11.dyn_dtree, static_d_desc);
+      s11.bl_desc = new TreeDesc(s11.bl_tree, static_bl_desc);
+      s11.bi_buf = 0;
+      s11.bi_valid = 0;
+      init_block(s11);
     }
-    function _tr_stored_block(s7, buf, stored_len, last) {
-      send_bits(s7, (STORED_BLOCK << 1) + (last ? 1 : 0), 3);
-      copy_block(s7, buf, stored_len, true);
+    function _tr_stored_block(s11, buf, stored_len, last) {
+      send_bits(s11, (STORED_BLOCK << 1) + (last ? 1 : 0), 3);
+      copy_block(s11, buf, stored_len, true);
     }
-    function _tr_align(s7) {
-      send_bits(s7, STATIC_TREES << 1, 3);
-      send_code(s7, END_BLOCK, static_ltree);
-      bi_flush(s7);
+    function _tr_align(s11) {
+      send_bits(s11, STATIC_TREES << 1, 3);
+      send_code(s11, END_BLOCK, static_ltree);
+      bi_flush(s11);
     }
-    function _tr_flush_block(s7, buf, stored_len, last) {
+    function _tr_flush_block(s11, buf, stored_len, last) {
       var opt_lenb, static_lenb;
       var max_blindex = 0;
-      if (s7.level > 0) {
-        if (s7.strm.data_type === Z_UNKNOWN) {
-          s7.strm.data_type = detect_data_type(s7);
+      if (s11.level > 0) {
+        if (s11.strm.data_type === Z_UNKNOWN) {
+          s11.strm.data_type = detect_data_type(s11);
         }
-        build_tree(s7, s7.l_desc);
-        build_tree(s7, s7.d_desc);
-        max_blindex = build_bl_tree(s7);
-        opt_lenb = s7.opt_len + 3 + 7 >>> 3;
-        static_lenb = s7.static_len + 3 + 7 >>> 3;
+        build_tree(s11, s11.l_desc);
+        build_tree(s11, s11.d_desc);
+        max_blindex = build_bl_tree(s11);
+        opt_lenb = s11.opt_len + 3 + 7 >>> 3;
+        static_lenb = s11.static_len + 3 + 7 >>> 3;
         if (static_lenb <= opt_lenb) {
           opt_lenb = static_lenb;
         }
@@ -33243,34 +33254,34 @@ var require_trees = __commonJS({
         opt_lenb = static_lenb = stored_len + 5;
       }
       if (stored_len + 4 <= opt_lenb && buf !== -1) {
-        _tr_stored_block(s7, buf, stored_len, last);
-      } else if (s7.strategy === Z_FIXED || static_lenb === opt_lenb) {
-        send_bits(s7, (STATIC_TREES << 1) + (last ? 1 : 0), 3);
-        compress_block(s7, static_ltree, static_dtree);
+        _tr_stored_block(s11, buf, stored_len, last);
+      } else if (s11.strategy === Z_FIXED || static_lenb === opt_lenb) {
+        send_bits(s11, (STATIC_TREES << 1) + (last ? 1 : 0), 3);
+        compress_block(s11, static_ltree, static_dtree);
       } else {
-        send_bits(s7, (DYN_TREES << 1) + (last ? 1 : 0), 3);
-        send_all_trees(s7, s7.l_desc.max_code + 1, s7.d_desc.max_code + 1, max_blindex + 1);
-        compress_block(s7, s7.dyn_ltree, s7.dyn_dtree);
+        send_bits(s11, (DYN_TREES << 1) + (last ? 1 : 0), 3);
+        send_all_trees(s11, s11.l_desc.max_code + 1, s11.d_desc.max_code + 1, max_blindex + 1);
+        compress_block(s11, s11.dyn_ltree, s11.dyn_dtree);
       }
-      init_block(s7);
+      init_block(s11);
       if (last) {
-        bi_windup(s7);
+        bi_windup(s11);
       }
     }
-    function _tr_tally(s7, dist, lc) {
-      s7.pending_buf[s7.d_buf + s7.last_lit * 2] = dist >>> 8 & 255;
-      s7.pending_buf[s7.d_buf + s7.last_lit * 2 + 1] = dist & 255;
-      s7.pending_buf[s7.l_buf + s7.last_lit] = lc & 255;
-      s7.last_lit++;
+    function _tr_tally(s11, dist, lc) {
+      s11.pending_buf[s11.d_buf + s11.last_lit * 2] = dist >>> 8 & 255;
+      s11.pending_buf[s11.d_buf + s11.last_lit * 2 + 1] = dist & 255;
+      s11.pending_buf[s11.l_buf + s11.last_lit] = lc & 255;
+      s11.last_lit++;
       if (dist === 0) {
-        s7.dyn_ltree[lc * 2]++;
+        s11.dyn_ltree[lc * 2]++;
       } else {
-        s7.matches++;
+        s11.matches++;
         dist--;
-        s7.dyn_ltree[(_length_code[lc] + LITERALS + 1) * 2]++;
-        s7.dyn_dtree[d_code(dist) * 2]++;
+        s11.dyn_ltree[(_length_code[lc] + LITERALS + 1) * 2]++;
+        s11.dyn_dtree[d_code(dist) * 2]++;
       }
-      return s7.last_lit === s7.lit_bufsize - 1;
+      return s11.last_lit === s11.lit_bufsize - 1;
     }
     exports2._tr_init = _tr_init;
     exports2._tr_stored_block = _tr_stored_block;
@@ -33424,35 +33435,35 @@ var require_deflate = __commonJS({
       }
     }
     function flush_pending(strm) {
-      var s7 = strm.state;
-      var len = s7.pending;
+      var s11 = strm.state;
+      var len = s11.pending;
       if (len > strm.avail_out) {
         len = strm.avail_out;
       }
       if (len === 0) {
         return;
       }
-      utils.arraySet(strm.output, s7.pending_buf, s7.pending_out, len, strm.next_out);
+      utils.arraySet(strm.output, s11.pending_buf, s11.pending_out, len, strm.next_out);
       strm.next_out += len;
-      s7.pending_out += len;
+      s11.pending_out += len;
       strm.total_out += len;
       strm.avail_out -= len;
-      s7.pending -= len;
-      if (s7.pending === 0) {
-        s7.pending_out = 0;
+      s11.pending -= len;
+      if (s11.pending === 0) {
+        s11.pending_out = 0;
       }
     }
-    function flush_block_only(s7, last) {
-      trees._tr_flush_block(s7, s7.block_start >= 0 ? s7.block_start : -1, s7.strstart - s7.block_start, last);
-      s7.block_start = s7.strstart;
-      flush_pending(s7.strm);
+    function flush_block_only(s11, last) {
+      trees._tr_flush_block(s11, s11.block_start >= 0 ? s11.block_start : -1, s11.strstart - s11.block_start, last);
+      s11.block_start = s11.strstart;
+      flush_pending(s11.strm);
     }
-    function put_byte(s7, b) {
-      s7.pending_buf[s7.pending++] = b;
+    function put_byte(s11, b) {
+      s11.pending_buf[s11.pending++] = b;
     }
-    function putShortMSB(s7, b) {
-      s7.pending_buf[s7.pending++] = b >>> 8 & 255;
-      s7.pending_buf[s7.pending++] = b & 255;
+    function putShortMSB(s11, b) {
+      s11.pending_buf[s11.pending++] = b >>> 8 & 255;
+      s11.pending_buf[s11.pending++] = b & 255;
     }
     function read_buf(strm, buf, start, size) {
       var len = strm.avail_in;
@@ -33473,25 +33484,25 @@ var require_deflate = __commonJS({
       strm.total_in += len;
       return len;
     }
-    function longest_match(s7, cur_match) {
-      var chain_length = s7.max_chain_length;
-      var scan = s7.strstart;
+    function longest_match(s11, cur_match) {
+      var chain_length = s11.max_chain_length;
+      var scan = s11.strstart;
       var match;
       var len;
-      var best_len = s7.prev_length;
-      var nice_match = s7.nice_match;
-      var limit = s7.strstart > s7.w_size - MIN_LOOKAHEAD ? s7.strstart - (s7.w_size - MIN_LOOKAHEAD) : 0;
-      var _win = s7.window;
-      var wmask = s7.w_mask;
-      var prev = s7.prev;
-      var strend = s7.strstart + MAX_MATCH;
+      var best_len = s11.prev_length;
+      var nice_match = s11.nice_match;
+      var limit = s11.strstart > s11.w_size - MIN_LOOKAHEAD ? s11.strstart - (s11.w_size - MIN_LOOKAHEAD) : 0;
+      var _win = s11.window;
+      var wmask = s11.w_mask;
+      var prev = s11.prev;
+      var strend = s11.strstart + MAX_MATCH;
       var scan_end1 = _win[scan + best_len - 1];
       var scan_end = _win[scan + best_len];
-      if (s7.prev_length >= s7.good_match) {
+      if (s11.prev_length >= s11.good_match) {
         chain_length >>= 2;
       }
-      if (nice_match > s7.lookahead) {
-        nice_match = s7.lookahead;
+      if (nice_match > s11.lookahead) {
+        nice_match = s11.lookahead;
       }
       do {
         match = cur_match;
@@ -33505,7 +33516,7 @@ var require_deflate = __commonJS({
         len = MAX_MATCH - (strend - scan);
         scan = strend - MAX_MATCH;
         if (len > best_len) {
-          s7.match_start = cur_match;
+          s11.match_start = cur_match;
           best_len = len;
           if (len >= nice_match) {
             break;
@@ -33514,356 +33525,356 @@ var require_deflate = __commonJS({
           scan_end = _win[scan + best_len];
         }
       } while ((cur_match = prev[cur_match & wmask]) > limit && --chain_length !== 0);
-      if (best_len <= s7.lookahead) {
+      if (best_len <= s11.lookahead) {
         return best_len;
       }
-      return s7.lookahead;
+      return s11.lookahead;
     }
-    function fill_window(s7) {
-      var _w_size = s7.w_size;
-      var p, n2, m, more, str32;
+    function fill_window(s11) {
+      var _w_size = s11.w_size;
+      var p, n2, m, more, str33;
       do {
-        more = s7.window_size - s7.lookahead - s7.strstart;
-        if (s7.strstart >= _w_size + (_w_size - MIN_LOOKAHEAD)) {
-          utils.arraySet(s7.window, s7.window, _w_size, _w_size, 0);
-          s7.match_start -= _w_size;
-          s7.strstart -= _w_size;
-          s7.block_start -= _w_size;
-          n2 = s7.hash_size;
+        more = s11.window_size - s11.lookahead - s11.strstart;
+        if (s11.strstart >= _w_size + (_w_size - MIN_LOOKAHEAD)) {
+          utils.arraySet(s11.window, s11.window, _w_size, _w_size, 0);
+          s11.match_start -= _w_size;
+          s11.strstart -= _w_size;
+          s11.block_start -= _w_size;
+          n2 = s11.hash_size;
           p = n2;
           do {
-            m = s7.head[--p];
-            s7.head[p] = m >= _w_size ? m - _w_size : 0;
+            m = s11.head[--p];
+            s11.head[p] = m >= _w_size ? m - _w_size : 0;
           } while (--n2);
           n2 = _w_size;
           p = n2;
           do {
-            m = s7.prev[--p];
-            s7.prev[p] = m >= _w_size ? m - _w_size : 0;
+            m = s11.prev[--p];
+            s11.prev[p] = m >= _w_size ? m - _w_size : 0;
           } while (--n2);
           more += _w_size;
         }
-        if (s7.strm.avail_in === 0) {
+        if (s11.strm.avail_in === 0) {
           break;
         }
-        n2 = read_buf(s7.strm, s7.window, s7.strstart + s7.lookahead, more);
-        s7.lookahead += n2;
-        if (s7.lookahead + s7.insert >= MIN_MATCH) {
-          str32 = s7.strstart - s7.insert;
-          s7.ins_h = s7.window[str32];
-          s7.ins_h = (s7.ins_h << s7.hash_shift ^ s7.window[str32 + 1]) & s7.hash_mask;
-          while (s7.insert) {
-            s7.ins_h = (s7.ins_h << s7.hash_shift ^ s7.window[str32 + MIN_MATCH - 1]) & s7.hash_mask;
-            s7.prev[str32 & s7.w_mask] = s7.head[s7.ins_h];
-            s7.head[s7.ins_h] = str32;
-            str32++;
-            s7.insert--;
-            if (s7.lookahead + s7.insert < MIN_MATCH) {
+        n2 = read_buf(s11.strm, s11.window, s11.strstart + s11.lookahead, more);
+        s11.lookahead += n2;
+        if (s11.lookahead + s11.insert >= MIN_MATCH) {
+          str33 = s11.strstart - s11.insert;
+          s11.ins_h = s11.window[str33];
+          s11.ins_h = (s11.ins_h << s11.hash_shift ^ s11.window[str33 + 1]) & s11.hash_mask;
+          while (s11.insert) {
+            s11.ins_h = (s11.ins_h << s11.hash_shift ^ s11.window[str33 + MIN_MATCH - 1]) & s11.hash_mask;
+            s11.prev[str33 & s11.w_mask] = s11.head[s11.ins_h];
+            s11.head[s11.ins_h] = str33;
+            str33++;
+            s11.insert--;
+            if (s11.lookahead + s11.insert < MIN_MATCH) {
               break;
             }
           }
         }
-      } while (s7.lookahead < MIN_LOOKAHEAD && s7.strm.avail_in !== 0);
+      } while (s11.lookahead < MIN_LOOKAHEAD && s11.strm.avail_in !== 0);
     }
-    function deflate_stored(s7, flush) {
+    function deflate_stored(s11, flush) {
       var max_block_size = 65535;
-      if (max_block_size > s7.pending_buf_size - 5) {
-        max_block_size = s7.pending_buf_size - 5;
+      if (max_block_size > s11.pending_buf_size - 5) {
+        max_block_size = s11.pending_buf_size - 5;
       }
       for (; ; ) {
-        if (s7.lookahead <= 1) {
-          fill_window(s7);
-          if (s7.lookahead === 0 && flush === Z_NO_FLUSH) {
+        if (s11.lookahead <= 1) {
+          fill_window(s11);
+          if (s11.lookahead === 0 && flush === Z_NO_FLUSH) {
             return BS_NEED_MORE;
           }
-          if (s7.lookahead === 0) {
+          if (s11.lookahead === 0) {
             break;
           }
         }
-        s7.strstart += s7.lookahead;
-        s7.lookahead = 0;
-        var max_start = s7.block_start + max_block_size;
-        if (s7.strstart === 0 || s7.strstart >= max_start) {
-          s7.lookahead = s7.strstart - max_start;
-          s7.strstart = max_start;
-          flush_block_only(s7, false);
-          if (s7.strm.avail_out === 0) {
+        s11.strstart += s11.lookahead;
+        s11.lookahead = 0;
+        var max_start = s11.block_start + max_block_size;
+        if (s11.strstart === 0 || s11.strstart >= max_start) {
+          s11.lookahead = s11.strstart - max_start;
+          s11.strstart = max_start;
+          flush_block_only(s11, false);
+          if (s11.strm.avail_out === 0) {
             return BS_NEED_MORE;
           }
         }
-        if (s7.strstart - s7.block_start >= s7.w_size - MIN_LOOKAHEAD) {
-          flush_block_only(s7, false);
-          if (s7.strm.avail_out === 0) {
+        if (s11.strstart - s11.block_start >= s11.w_size - MIN_LOOKAHEAD) {
+          flush_block_only(s11, false);
+          if (s11.strm.avail_out === 0) {
             return BS_NEED_MORE;
           }
         }
       }
-      s7.insert = 0;
+      s11.insert = 0;
       if (flush === Z_FINISH) {
-        flush_block_only(s7, true);
-        if (s7.strm.avail_out === 0) {
+        flush_block_only(s11, true);
+        if (s11.strm.avail_out === 0) {
           return BS_FINISH_STARTED;
         }
         return BS_FINISH_DONE;
       }
-      if (s7.strstart > s7.block_start) {
-        flush_block_only(s7, false);
-        if (s7.strm.avail_out === 0) {
+      if (s11.strstart > s11.block_start) {
+        flush_block_only(s11, false);
+        if (s11.strm.avail_out === 0) {
           return BS_NEED_MORE;
         }
       }
       return BS_NEED_MORE;
     }
-    function deflate_fast(s7, flush) {
+    function deflate_fast(s11, flush) {
       var hash_head;
       var bflush;
       for (; ; ) {
-        if (s7.lookahead < MIN_LOOKAHEAD) {
-          fill_window(s7);
-          if (s7.lookahead < MIN_LOOKAHEAD && flush === Z_NO_FLUSH) {
+        if (s11.lookahead < MIN_LOOKAHEAD) {
+          fill_window(s11);
+          if (s11.lookahead < MIN_LOOKAHEAD && flush === Z_NO_FLUSH) {
             return BS_NEED_MORE;
           }
-          if (s7.lookahead === 0) {
+          if (s11.lookahead === 0) {
             break;
           }
         }
         hash_head = 0;
-        if (s7.lookahead >= MIN_MATCH) {
-          s7.ins_h = (s7.ins_h << s7.hash_shift ^ s7.window[s7.strstart + MIN_MATCH - 1]) & s7.hash_mask;
-          hash_head = s7.prev[s7.strstart & s7.w_mask] = s7.head[s7.ins_h];
-          s7.head[s7.ins_h] = s7.strstart;
+        if (s11.lookahead >= MIN_MATCH) {
+          s11.ins_h = (s11.ins_h << s11.hash_shift ^ s11.window[s11.strstart + MIN_MATCH - 1]) & s11.hash_mask;
+          hash_head = s11.prev[s11.strstart & s11.w_mask] = s11.head[s11.ins_h];
+          s11.head[s11.ins_h] = s11.strstart;
         }
-        if (hash_head !== 0 && s7.strstart - hash_head <= s7.w_size - MIN_LOOKAHEAD) {
-          s7.match_length = longest_match(s7, hash_head);
+        if (hash_head !== 0 && s11.strstart - hash_head <= s11.w_size - MIN_LOOKAHEAD) {
+          s11.match_length = longest_match(s11, hash_head);
         }
-        if (s7.match_length >= MIN_MATCH) {
-          bflush = trees._tr_tally(s7, s7.strstart - s7.match_start, s7.match_length - MIN_MATCH);
-          s7.lookahead -= s7.match_length;
-          if (s7.match_length <= s7.max_lazy_match && s7.lookahead >= MIN_MATCH) {
-            s7.match_length--;
+        if (s11.match_length >= MIN_MATCH) {
+          bflush = trees._tr_tally(s11, s11.strstart - s11.match_start, s11.match_length - MIN_MATCH);
+          s11.lookahead -= s11.match_length;
+          if (s11.match_length <= s11.max_lazy_match && s11.lookahead >= MIN_MATCH) {
+            s11.match_length--;
             do {
-              s7.strstart++;
-              s7.ins_h = (s7.ins_h << s7.hash_shift ^ s7.window[s7.strstart + MIN_MATCH - 1]) & s7.hash_mask;
-              hash_head = s7.prev[s7.strstart & s7.w_mask] = s7.head[s7.ins_h];
-              s7.head[s7.ins_h] = s7.strstart;
-            } while (--s7.match_length !== 0);
-            s7.strstart++;
+              s11.strstart++;
+              s11.ins_h = (s11.ins_h << s11.hash_shift ^ s11.window[s11.strstart + MIN_MATCH - 1]) & s11.hash_mask;
+              hash_head = s11.prev[s11.strstart & s11.w_mask] = s11.head[s11.ins_h];
+              s11.head[s11.ins_h] = s11.strstart;
+            } while (--s11.match_length !== 0);
+            s11.strstart++;
           } else {
-            s7.strstart += s7.match_length;
-            s7.match_length = 0;
-            s7.ins_h = s7.window[s7.strstart];
-            s7.ins_h = (s7.ins_h << s7.hash_shift ^ s7.window[s7.strstart + 1]) & s7.hash_mask;
+            s11.strstart += s11.match_length;
+            s11.match_length = 0;
+            s11.ins_h = s11.window[s11.strstart];
+            s11.ins_h = (s11.ins_h << s11.hash_shift ^ s11.window[s11.strstart + 1]) & s11.hash_mask;
           }
         } else {
-          bflush = trees._tr_tally(s7, 0, s7.window[s7.strstart]);
-          s7.lookahead--;
-          s7.strstart++;
+          bflush = trees._tr_tally(s11, 0, s11.window[s11.strstart]);
+          s11.lookahead--;
+          s11.strstart++;
         }
         if (bflush) {
-          flush_block_only(s7, false);
-          if (s7.strm.avail_out === 0) {
+          flush_block_only(s11, false);
+          if (s11.strm.avail_out === 0) {
             return BS_NEED_MORE;
           }
         }
       }
-      s7.insert = s7.strstart < MIN_MATCH - 1 ? s7.strstart : MIN_MATCH - 1;
+      s11.insert = s11.strstart < MIN_MATCH - 1 ? s11.strstart : MIN_MATCH - 1;
       if (flush === Z_FINISH) {
-        flush_block_only(s7, true);
-        if (s7.strm.avail_out === 0) {
+        flush_block_only(s11, true);
+        if (s11.strm.avail_out === 0) {
           return BS_FINISH_STARTED;
         }
         return BS_FINISH_DONE;
       }
-      if (s7.last_lit) {
-        flush_block_only(s7, false);
-        if (s7.strm.avail_out === 0) {
+      if (s11.last_lit) {
+        flush_block_only(s11, false);
+        if (s11.strm.avail_out === 0) {
           return BS_NEED_MORE;
         }
       }
       return BS_BLOCK_DONE;
     }
-    function deflate_slow(s7, flush) {
+    function deflate_slow(s11, flush) {
       var hash_head;
       var bflush;
       var max_insert;
       for (; ; ) {
-        if (s7.lookahead < MIN_LOOKAHEAD) {
-          fill_window(s7);
-          if (s7.lookahead < MIN_LOOKAHEAD && flush === Z_NO_FLUSH) {
+        if (s11.lookahead < MIN_LOOKAHEAD) {
+          fill_window(s11);
+          if (s11.lookahead < MIN_LOOKAHEAD && flush === Z_NO_FLUSH) {
             return BS_NEED_MORE;
           }
-          if (s7.lookahead === 0) {
+          if (s11.lookahead === 0) {
             break;
           }
         }
         hash_head = 0;
-        if (s7.lookahead >= MIN_MATCH) {
-          s7.ins_h = (s7.ins_h << s7.hash_shift ^ s7.window[s7.strstart + MIN_MATCH - 1]) & s7.hash_mask;
-          hash_head = s7.prev[s7.strstart & s7.w_mask] = s7.head[s7.ins_h];
-          s7.head[s7.ins_h] = s7.strstart;
+        if (s11.lookahead >= MIN_MATCH) {
+          s11.ins_h = (s11.ins_h << s11.hash_shift ^ s11.window[s11.strstart + MIN_MATCH - 1]) & s11.hash_mask;
+          hash_head = s11.prev[s11.strstart & s11.w_mask] = s11.head[s11.ins_h];
+          s11.head[s11.ins_h] = s11.strstart;
         }
-        s7.prev_length = s7.match_length;
-        s7.prev_match = s7.match_start;
-        s7.match_length = MIN_MATCH - 1;
-        if (hash_head !== 0 && s7.prev_length < s7.max_lazy_match && s7.strstart - hash_head <= s7.w_size - MIN_LOOKAHEAD) {
-          s7.match_length = longest_match(s7, hash_head);
-          if (s7.match_length <= 5 && (s7.strategy === Z_FILTERED || s7.match_length === MIN_MATCH && s7.strstart - s7.match_start > 4096)) {
-            s7.match_length = MIN_MATCH - 1;
+        s11.prev_length = s11.match_length;
+        s11.prev_match = s11.match_start;
+        s11.match_length = MIN_MATCH - 1;
+        if (hash_head !== 0 && s11.prev_length < s11.max_lazy_match && s11.strstart - hash_head <= s11.w_size - MIN_LOOKAHEAD) {
+          s11.match_length = longest_match(s11, hash_head);
+          if (s11.match_length <= 5 && (s11.strategy === Z_FILTERED || s11.match_length === MIN_MATCH && s11.strstart - s11.match_start > 4096)) {
+            s11.match_length = MIN_MATCH - 1;
           }
         }
-        if (s7.prev_length >= MIN_MATCH && s7.match_length <= s7.prev_length) {
-          max_insert = s7.strstart + s7.lookahead - MIN_MATCH;
-          bflush = trees._tr_tally(s7, s7.strstart - 1 - s7.prev_match, s7.prev_length - MIN_MATCH);
-          s7.lookahead -= s7.prev_length - 1;
-          s7.prev_length -= 2;
+        if (s11.prev_length >= MIN_MATCH && s11.match_length <= s11.prev_length) {
+          max_insert = s11.strstart + s11.lookahead - MIN_MATCH;
+          bflush = trees._tr_tally(s11, s11.strstart - 1 - s11.prev_match, s11.prev_length - MIN_MATCH);
+          s11.lookahead -= s11.prev_length - 1;
+          s11.prev_length -= 2;
           do {
-            if (++s7.strstart <= max_insert) {
-              s7.ins_h = (s7.ins_h << s7.hash_shift ^ s7.window[s7.strstart + MIN_MATCH - 1]) & s7.hash_mask;
-              hash_head = s7.prev[s7.strstart & s7.w_mask] = s7.head[s7.ins_h];
-              s7.head[s7.ins_h] = s7.strstart;
+            if (++s11.strstart <= max_insert) {
+              s11.ins_h = (s11.ins_h << s11.hash_shift ^ s11.window[s11.strstart + MIN_MATCH - 1]) & s11.hash_mask;
+              hash_head = s11.prev[s11.strstart & s11.w_mask] = s11.head[s11.ins_h];
+              s11.head[s11.ins_h] = s11.strstart;
             }
-          } while (--s7.prev_length !== 0);
-          s7.match_available = 0;
-          s7.match_length = MIN_MATCH - 1;
-          s7.strstart++;
+          } while (--s11.prev_length !== 0);
+          s11.match_available = 0;
+          s11.match_length = MIN_MATCH - 1;
+          s11.strstart++;
           if (bflush) {
-            flush_block_only(s7, false);
-            if (s7.strm.avail_out === 0) {
+            flush_block_only(s11, false);
+            if (s11.strm.avail_out === 0) {
               return BS_NEED_MORE;
             }
           }
-        } else if (s7.match_available) {
-          bflush = trees._tr_tally(s7, 0, s7.window[s7.strstart - 1]);
+        } else if (s11.match_available) {
+          bflush = trees._tr_tally(s11, 0, s11.window[s11.strstart - 1]);
           if (bflush) {
-            flush_block_only(s7, false);
+            flush_block_only(s11, false);
           }
-          s7.strstart++;
-          s7.lookahead--;
-          if (s7.strm.avail_out === 0) {
+          s11.strstart++;
+          s11.lookahead--;
+          if (s11.strm.avail_out === 0) {
             return BS_NEED_MORE;
           }
         } else {
-          s7.match_available = 1;
-          s7.strstart++;
-          s7.lookahead--;
+          s11.match_available = 1;
+          s11.strstart++;
+          s11.lookahead--;
         }
       }
-      if (s7.match_available) {
-        bflush = trees._tr_tally(s7, 0, s7.window[s7.strstart - 1]);
-        s7.match_available = 0;
+      if (s11.match_available) {
+        bflush = trees._tr_tally(s11, 0, s11.window[s11.strstart - 1]);
+        s11.match_available = 0;
       }
-      s7.insert = s7.strstart < MIN_MATCH - 1 ? s7.strstart : MIN_MATCH - 1;
+      s11.insert = s11.strstart < MIN_MATCH - 1 ? s11.strstart : MIN_MATCH - 1;
       if (flush === Z_FINISH) {
-        flush_block_only(s7, true);
-        if (s7.strm.avail_out === 0) {
+        flush_block_only(s11, true);
+        if (s11.strm.avail_out === 0) {
           return BS_FINISH_STARTED;
         }
         return BS_FINISH_DONE;
       }
-      if (s7.last_lit) {
-        flush_block_only(s7, false);
-        if (s7.strm.avail_out === 0) {
+      if (s11.last_lit) {
+        flush_block_only(s11, false);
+        if (s11.strm.avail_out === 0) {
           return BS_NEED_MORE;
         }
       }
       return BS_BLOCK_DONE;
     }
-    function deflate_rle(s7, flush) {
+    function deflate_rle(s11, flush) {
       var bflush;
       var prev;
       var scan, strend;
-      var _win = s7.window;
+      var _win = s11.window;
       for (; ; ) {
-        if (s7.lookahead <= MAX_MATCH) {
-          fill_window(s7);
-          if (s7.lookahead <= MAX_MATCH && flush === Z_NO_FLUSH) {
+        if (s11.lookahead <= MAX_MATCH) {
+          fill_window(s11);
+          if (s11.lookahead <= MAX_MATCH && flush === Z_NO_FLUSH) {
             return BS_NEED_MORE;
           }
-          if (s7.lookahead === 0) {
+          if (s11.lookahead === 0) {
             break;
           }
         }
-        s7.match_length = 0;
-        if (s7.lookahead >= MIN_MATCH && s7.strstart > 0) {
-          scan = s7.strstart - 1;
+        s11.match_length = 0;
+        if (s11.lookahead >= MIN_MATCH && s11.strstart > 0) {
+          scan = s11.strstart - 1;
           prev = _win[scan];
           if (prev === _win[++scan] && prev === _win[++scan] && prev === _win[++scan]) {
-            strend = s7.strstart + MAX_MATCH;
+            strend = s11.strstart + MAX_MATCH;
             do {
             } while (prev === _win[++scan] && prev === _win[++scan] && prev === _win[++scan] && prev === _win[++scan] && prev === _win[++scan] && prev === _win[++scan] && prev === _win[++scan] && prev === _win[++scan] && scan < strend);
-            s7.match_length = MAX_MATCH - (strend - scan);
-            if (s7.match_length > s7.lookahead) {
-              s7.match_length = s7.lookahead;
+            s11.match_length = MAX_MATCH - (strend - scan);
+            if (s11.match_length > s11.lookahead) {
+              s11.match_length = s11.lookahead;
             }
           }
         }
-        if (s7.match_length >= MIN_MATCH) {
-          bflush = trees._tr_tally(s7, 1, s7.match_length - MIN_MATCH);
-          s7.lookahead -= s7.match_length;
-          s7.strstart += s7.match_length;
-          s7.match_length = 0;
+        if (s11.match_length >= MIN_MATCH) {
+          bflush = trees._tr_tally(s11, 1, s11.match_length - MIN_MATCH);
+          s11.lookahead -= s11.match_length;
+          s11.strstart += s11.match_length;
+          s11.match_length = 0;
         } else {
-          bflush = trees._tr_tally(s7, 0, s7.window[s7.strstart]);
-          s7.lookahead--;
-          s7.strstart++;
+          bflush = trees._tr_tally(s11, 0, s11.window[s11.strstart]);
+          s11.lookahead--;
+          s11.strstart++;
         }
         if (bflush) {
-          flush_block_only(s7, false);
-          if (s7.strm.avail_out === 0) {
+          flush_block_only(s11, false);
+          if (s11.strm.avail_out === 0) {
             return BS_NEED_MORE;
           }
         }
       }
-      s7.insert = 0;
+      s11.insert = 0;
       if (flush === Z_FINISH) {
-        flush_block_only(s7, true);
-        if (s7.strm.avail_out === 0) {
+        flush_block_only(s11, true);
+        if (s11.strm.avail_out === 0) {
           return BS_FINISH_STARTED;
         }
         return BS_FINISH_DONE;
       }
-      if (s7.last_lit) {
-        flush_block_only(s7, false);
-        if (s7.strm.avail_out === 0) {
+      if (s11.last_lit) {
+        flush_block_only(s11, false);
+        if (s11.strm.avail_out === 0) {
           return BS_NEED_MORE;
         }
       }
       return BS_BLOCK_DONE;
     }
-    function deflate_huff(s7, flush) {
+    function deflate_huff(s11, flush) {
       var bflush;
       for (; ; ) {
-        if (s7.lookahead === 0) {
-          fill_window(s7);
-          if (s7.lookahead === 0) {
+        if (s11.lookahead === 0) {
+          fill_window(s11);
+          if (s11.lookahead === 0) {
             if (flush === Z_NO_FLUSH) {
               return BS_NEED_MORE;
             }
             break;
           }
         }
-        s7.match_length = 0;
-        bflush = trees._tr_tally(s7, 0, s7.window[s7.strstart]);
-        s7.lookahead--;
-        s7.strstart++;
+        s11.match_length = 0;
+        bflush = trees._tr_tally(s11, 0, s11.window[s11.strstart]);
+        s11.lookahead--;
+        s11.strstart++;
         if (bflush) {
-          flush_block_only(s7, false);
-          if (s7.strm.avail_out === 0) {
+          flush_block_only(s11, false);
+          if (s11.strm.avail_out === 0) {
             return BS_NEED_MORE;
           }
         }
       }
-      s7.insert = 0;
+      s11.insert = 0;
       if (flush === Z_FINISH) {
-        flush_block_only(s7, true);
-        if (s7.strm.avail_out === 0) {
+        flush_block_only(s11, true);
+        if (s11.strm.avail_out === 0) {
           return BS_FINISH_STARTED;
         }
         return BS_FINISH_DONE;
       }
-      if (s7.last_lit) {
-        flush_block_only(s7, false);
-        if (s7.strm.avail_out === 0) {
+      if (s11.last_lit) {
+        flush_block_only(s11, false);
+        if (s11.strm.avail_out === 0) {
           return BS_NEED_MORE;
         }
       }
@@ -33900,20 +33911,20 @@ var require_deflate = __commonJS({
       new Config(32, 258, 258, 4096, deflate_slow)
       /* 9 max compression */
     ];
-    function lm_init(s7) {
-      s7.window_size = 2 * s7.w_size;
-      zero(s7.head);
-      s7.max_lazy_match = configuration_table[s7.level].max_lazy;
-      s7.good_match = configuration_table[s7.level].good_length;
-      s7.nice_match = configuration_table[s7.level].nice_length;
-      s7.max_chain_length = configuration_table[s7.level].max_chain;
-      s7.strstart = 0;
-      s7.block_start = 0;
-      s7.lookahead = 0;
-      s7.insert = 0;
-      s7.match_length = s7.prev_length = MIN_MATCH - 1;
-      s7.match_available = 0;
-      s7.ins_h = 0;
+    function lm_init(s11) {
+      s11.window_size = 2 * s11.w_size;
+      zero(s11.head);
+      s11.max_lazy_match = configuration_table[s11.level].max_lazy;
+      s11.good_match = configuration_table[s11.level].good_length;
+      s11.nice_match = configuration_table[s11.level].nice_length;
+      s11.max_chain_length = configuration_table[s11.level].max_chain;
+      s11.strstart = 0;
+      s11.block_start = 0;
+      s11.lookahead = 0;
+      s11.insert = 0;
+      s11.match_length = s11.prev_length = MIN_MATCH - 1;
+      s11.match_available = 0;
+      s11.ins_h = 0;
     }
     function DeflateState() {
       this.strm = null;
@@ -33981,22 +33992,22 @@ var require_deflate = __commonJS({
       this.bi_valid = 0;
     }
     function deflateResetKeep(strm) {
-      var s7;
+      var s11;
       if (!strm || !strm.state) {
         return err(strm, Z_STREAM_ERROR);
       }
       strm.total_in = strm.total_out = 0;
       strm.data_type = Z_UNKNOWN;
-      s7 = strm.state;
-      s7.pending = 0;
-      s7.pending_out = 0;
-      if (s7.wrap < 0) {
-        s7.wrap = -s7.wrap;
+      s11 = strm.state;
+      s11.pending = 0;
+      s11.pending_out = 0;
+      if (s11.wrap < 0) {
+        s11.wrap = -s11.wrap;
       }
-      s7.status = s7.wrap ? INIT_STATE : BUSY_STATE;
-      strm.adler = s7.wrap === 2 ? 0 : 1;
-      s7.last_flush = Z_NO_FLUSH;
-      trees._tr_init(s7);
+      s11.status = s11.wrap ? INIT_STATE : BUSY_STATE;
+      strm.adler = s11.wrap === 2 ? 0 : 1;
+      s11.last_flush = Z_NO_FLUSH;
+      trees._tr_init(s11);
       return Z_OK;
     }
     function deflateReset(strm) {
@@ -34037,257 +34048,257 @@ var require_deflate = __commonJS({
       if (windowBits === 8) {
         windowBits = 9;
       }
-      var s7 = new DeflateState();
-      strm.state = s7;
-      s7.strm = strm;
-      s7.wrap = wrap;
-      s7.gzhead = null;
-      s7.w_bits = windowBits;
-      s7.w_size = 1 << s7.w_bits;
-      s7.w_mask = s7.w_size - 1;
-      s7.hash_bits = memLevel + 7;
-      s7.hash_size = 1 << s7.hash_bits;
-      s7.hash_mask = s7.hash_size - 1;
-      s7.hash_shift = ~~((s7.hash_bits + MIN_MATCH - 1) / MIN_MATCH);
-      s7.window = new utils.Buf8(s7.w_size * 2);
-      s7.head = new utils.Buf16(s7.hash_size);
-      s7.prev = new utils.Buf16(s7.w_size);
-      s7.lit_bufsize = 1 << memLevel + 6;
-      s7.pending_buf_size = s7.lit_bufsize * 4;
-      s7.pending_buf = new utils.Buf8(s7.pending_buf_size);
-      s7.d_buf = 1 * s7.lit_bufsize;
-      s7.l_buf = (1 + 2) * s7.lit_bufsize;
-      s7.level = level;
-      s7.strategy = strategy;
-      s7.method = method;
+      var s11 = new DeflateState();
+      strm.state = s11;
+      s11.strm = strm;
+      s11.wrap = wrap;
+      s11.gzhead = null;
+      s11.w_bits = windowBits;
+      s11.w_size = 1 << s11.w_bits;
+      s11.w_mask = s11.w_size - 1;
+      s11.hash_bits = memLevel + 7;
+      s11.hash_size = 1 << s11.hash_bits;
+      s11.hash_mask = s11.hash_size - 1;
+      s11.hash_shift = ~~((s11.hash_bits + MIN_MATCH - 1) / MIN_MATCH);
+      s11.window = new utils.Buf8(s11.w_size * 2);
+      s11.head = new utils.Buf16(s11.hash_size);
+      s11.prev = new utils.Buf16(s11.w_size);
+      s11.lit_bufsize = 1 << memLevel + 6;
+      s11.pending_buf_size = s11.lit_bufsize * 4;
+      s11.pending_buf = new utils.Buf8(s11.pending_buf_size);
+      s11.d_buf = 1 * s11.lit_bufsize;
+      s11.l_buf = (1 + 2) * s11.lit_bufsize;
+      s11.level = level;
+      s11.strategy = strategy;
+      s11.method = method;
       return deflateReset(strm);
     }
     function deflateInit(strm, level) {
       return deflateInit2(strm, level, Z_DEFLATED, MAX_WBITS, DEF_MEM_LEVEL, Z_DEFAULT_STRATEGY);
     }
     function deflate(strm, flush) {
-      var old_flush, s7;
+      var old_flush, s11;
       var beg, val;
       if (!strm || !strm.state || flush > Z_BLOCK || flush < 0) {
         return strm ? err(strm, Z_STREAM_ERROR) : Z_STREAM_ERROR;
       }
-      s7 = strm.state;
-      if (!strm.output || !strm.input && strm.avail_in !== 0 || s7.status === FINISH_STATE && flush !== Z_FINISH) {
+      s11 = strm.state;
+      if (!strm.output || !strm.input && strm.avail_in !== 0 || s11.status === FINISH_STATE && flush !== Z_FINISH) {
         return err(strm, strm.avail_out === 0 ? Z_BUF_ERROR : Z_STREAM_ERROR);
       }
-      s7.strm = strm;
-      old_flush = s7.last_flush;
-      s7.last_flush = flush;
-      if (s7.status === INIT_STATE) {
-        if (s7.wrap === 2) {
+      s11.strm = strm;
+      old_flush = s11.last_flush;
+      s11.last_flush = flush;
+      if (s11.status === INIT_STATE) {
+        if (s11.wrap === 2) {
           strm.adler = 0;
-          put_byte(s7, 31);
-          put_byte(s7, 139);
-          put_byte(s7, 8);
-          if (!s7.gzhead) {
-            put_byte(s7, 0);
-            put_byte(s7, 0);
-            put_byte(s7, 0);
-            put_byte(s7, 0);
-            put_byte(s7, 0);
-            put_byte(s7, s7.level === 9 ? 2 : s7.strategy >= Z_HUFFMAN_ONLY || s7.level < 2 ? 4 : 0);
-            put_byte(s7, OS_CODE);
-            s7.status = BUSY_STATE;
+          put_byte(s11, 31);
+          put_byte(s11, 139);
+          put_byte(s11, 8);
+          if (!s11.gzhead) {
+            put_byte(s11, 0);
+            put_byte(s11, 0);
+            put_byte(s11, 0);
+            put_byte(s11, 0);
+            put_byte(s11, 0);
+            put_byte(s11, s11.level === 9 ? 2 : s11.strategy >= Z_HUFFMAN_ONLY || s11.level < 2 ? 4 : 0);
+            put_byte(s11, OS_CODE);
+            s11.status = BUSY_STATE;
           } else {
             put_byte(
-              s7,
-              (s7.gzhead.text ? 1 : 0) + (s7.gzhead.hcrc ? 2 : 0) + (!s7.gzhead.extra ? 0 : 4) + (!s7.gzhead.name ? 0 : 8) + (!s7.gzhead.comment ? 0 : 16)
+              s11,
+              (s11.gzhead.text ? 1 : 0) + (s11.gzhead.hcrc ? 2 : 0) + (!s11.gzhead.extra ? 0 : 4) + (!s11.gzhead.name ? 0 : 8) + (!s11.gzhead.comment ? 0 : 16)
             );
-            put_byte(s7, s7.gzhead.time & 255);
-            put_byte(s7, s7.gzhead.time >> 8 & 255);
-            put_byte(s7, s7.gzhead.time >> 16 & 255);
-            put_byte(s7, s7.gzhead.time >> 24 & 255);
-            put_byte(s7, s7.level === 9 ? 2 : s7.strategy >= Z_HUFFMAN_ONLY || s7.level < 2 ? 4 : 0);
-            put_byte(s7, s7.gzhead.os & 255);
-            if (s7.gzhead.extra && s7.gzhead.extra.length) {
-              put_byte(s7, s7.gzhead.extra.length & 255);
-              put_byte(s7, s7.gzhead.extra.length >> 8 & 255);
+            put_byte(s11, s11.gzhead.time & 255);
+            put_byte(s11, s11.gzhead.time >> 8 & 255);
+            put_byte(s11, s11.gzhead.time >> 16 & 255);
+            put_byte(s11, s11.gzhead.time >> 24 & 255);
+            put_byte(s11, s11.level === 9 ? 2 : s11.strategy >= Z_HUFFMAN_ONLY || s11.level < 2 ? 4 : 0);
+            put_byte(s11, s11.gzhead.os & 255);
+            if (s11.gzhead.extra && s11.gzhead.extra.length) {
+              put_byte(s11, s11.gzhead.extra.length & 255);
+              put_byte(s11, s11.gzhead.extra.length >> 8 & 255);
             }
-            if (s7.gzhead.hcrc) {
-              strm.adler = crc322(strm.adler, s7.pending_buf, s7.pending, 0);
+            if (s11.gzhead.hcrc) {
+              strm.adler = crc322(strm.adler, s11.pending_buf, s11.pending, 0);
             }
-            s7.gzindex = 0;
-            s7.status = EXTRA_STATE;
+            s11.gzindex = 0;
+            s11.status = EXTRA_STATE;
           }
         } else {
-          var header = Z_DEFLATED + (s7.w_bits - 8 << 4) << 8;
+          var header = Z_DEFLATED + (s11.w_bits - 8 << 4) << 8;
           var level_flags = -1;
-          if (s7.strategy >= Z_HUFFMAN_ONLY || s7.level < 2) {
+          if (s11.strategy >= Z_HUFFMAN_ONLY || s11.level < 2) {
             level_flags = 0;
-          } else if (s7.level < 6) {
+          } else if (s11.level < 6) {
             level_flags = 1;
-          } else if (s7.level === 6) {
+          } else if (s11.level === 6) {
             level_flags = 2;
           } else {
             level_flags = 3;
           }
           header |= level_flags << 6;
-          if (s7.strstart !== 0) {
+          if (s11.strstart !== 0) {
             header |= PRESET_DICT;
           }
           header += 31 - header % 31;
-          s7.status = BUSY_STATE;
-          putShortMSB(s7, header);
-          if (s7.strstart !== 0) {
-            putShortMSB(s7, strm.adler >>> 16);
-            putShortMSB(s7, strm.adler & 65535);
+          s11.status = BUSY_STATE;
+          putShortMSB(s11, header);
+          if (s11.strstart !== 0) {
+            putShortMSB(s11, strm.adler >>> 16);
+            putShortMSB(s11, strm.adler & 65535);
           }
           strm.adler = 1;
         }
       }
-      if (s7.status === EXTRA_STATE) {
-        if (s7.gzhead.extra) {
-          beg = s7.pending;
-          while (s7.gzindex < (s7.gzhead.extra.length & 65535)) {
-            if (s7.pending === s7.pending_buf_size) {
-              if (s7.gzhead.hcrc && s7.pending > beg) {
-                strm.adler = crc322(strm.adler, s7.pending_buf, s7.pending - beg, beg);
+      if (s11.status === EXTRA_STATE) {
+        if (s11.gzhead.extra) {
+          beg = s11.pending;
+          while (s11.gzindex < (s11.gzhead.extra.length & 65535)) {
+            if (s11.pending === s11.pending_buf_size) {
+              if (s11.gzhead.hcrc && s11.pending > beg) {
+                strm.adler = crc322(strm.adler, s11.pending_buf, s11.pending - beg, beg);
               }
               flush_pending(strm);
-              beg = s7.pending;
-              if (s7.pending === s7.pending_buf_size) {
+              beg = s11.pending;
+              if (s11.pending === s11.pending_buf_size) {
                 break;
               }
             }
-            put_byte(s7, s7.gzhead.extra[s7.gzindex] & 255);
-            s7.gzindex++;
+            put_byte(s11, s11.gzhead.extra[s11.gzindex] & 255);
+            s11.gzindex++;
           }
-          if (s7.gzhead.hcrc && s7.pending > beg) {
-            strm.adler = crc322(strm.adler, s7.pending_buf, s7.pending - beg, beg);
+          if (s11.gzhead.hcrc && s11.pending > beg) {
+            strm.adler = crc322(strm.adler, s11.pending_buf, s11.pending - beg, beg);
           }
-          if (s7.gzindex === s7.gzhead.extra.length) {
-            s7.gzindex = 0;
-            s7.status = NAME_STATE;
+          if (s11.gzindex === s11.gzhead.extra.length) {
+            s11.gzindex = 0;
+            s11.status = NAME_STATE;
           }
         } else {
-          s7.status = NAME_STATE;
+          s11.status = NAME_STATE;
         }
       }
-      if (s7.status === NAME_STATE) {
-        if (s7.gzhead.name) {
-          beg = s7.pending;
+      if (s11.status === NAME_STATE) {
+        if (s11.gzhead.name) {
+          beg = s11.pending;
           do {
-            if (s7.pending === s7.pending_buf_size) {
-              if (s7.gzhead.hcrc && s7.pending > beg) {
-                strm.adler = crc322(strm.adler, s7.pending_buf, s7.pending - beg, beg);
+            if (s11.pending === s11.pending_buf_size) {
+              if (s11.gzhead.hcrc && s11.pending > beg) {
+                strm.adler = crc322(strm.adler, s11.pending_buf, s11.pending - beg, beg);
               }
               flush_pending(strm);
-              beg = s7.pending;
-              if (s7.pending === s7.pending_buf_size) {
+              beg = s11.pending;
+              if (s11.pending === s11.pending_buf_size) {
                 val = 1;
                 break;
               }
             }
-            if (s7.gzindex < s7.gzhead.name.length) {
-              val = s7.gzhead.name.charCodeAt(s7.gzindex++) & 255;
+            if (s11.gzindex < s11.gzhead.name.length) {
+              val = s11.gzhead.name.charCodeAt(s11.gzindex++) & 255;
             } else {
               val = 0;
             }
-            put_byte(s7, val);
+            put_byte(s11, val);
           } while (val !== 0);
-          if (s7.gzhead.hcrc && s7.pending > beg) {
-            strm.adler = crc322(strm.adler, s7.pending_buf, s7.pending - beg, beg);
+          if (s11.gzhead.hcrc && s11.pending > beg) {
+            strm.adler = crc322(strm.adler, s11.pending_buf, s11.pending - beg, beg);
           }
           if (val === 0) {
-            s7.gzindex = 0;
-            s7.status = COMMENT_STATE;
+            s11.gzindex = 0;
+            s11.status = COMMENT_STATE;
           }
         } else {
-          s7.status = COMMENT_STATE;
+          s11.status = COMMENT_STATE;
         }
       }
-      if (s7.status === COMMENT_STATE) {
-        if (s7.gzhead.comment) {
-          beg = s7.pending;
+      if (s11.status === COMMENT_STATE) {
+        if (s11.gzhead.comment) {
+          beg = s11.pending;
           do {
-            if (s7.pending === s7.pending_buf_size) {
-              if (s7.gzhead.hcrc && s7.pending > beg) {
-                strm.adler = crc322(strm.adler, s7.pending_buf, s7.pending - beg, beg);
+            if (s11.pending === s11.pending_buf_size) {
+              if (s11.gzhead.hcrc && s11.pending > beg) {
+                strm.adler = crc322(strm.adler, s11.pending_buf, s11.pending - beg, beg);
               }
               flush_pending(strm);
-              beg = s7.pending;
-              if (s7.pending === s7.pending_buf_size) {
+              beg = s11.pending;
+              if (s11.pending === s11.pending_buf_size) {
                 val = 1;
                 break;
               }
             }
-            if (s7.gzindex < s7.gzhead.comment.length) {
-              val = s7.gzhead.comment.charCodeAt(s7.gzindex++) & 255;
+            if (s11.gzindex < s11.gzhead.comment.length) {
+              val = s11.gzhead.comment.charCodeAt(s11.gzindex++) & 255;
             } else {
               val = 0;
             }
-            put_byte(s7, val);
+            put_byte(s11, val);
           } while (val !== 0);
-          if (s7.gzhead.hcrc && s7.pending > beg) {
-            strm.adler = crc322(strm.adler, s7.pending_buf, s7.pending - beg, beg);
+          if (s11.gzhead.hcrc && s11.pending > beg) {
+            strm.adler = crc322(strm.adler, s11.pending_buf, s11.pending - beg, beg);
           }
           if (val === 0) {
-            s7.status = HCRC_STATE;
+            s11.status = HCRC_STATE;
           }
         } else {
-          s7.status = HCRC_STATE;
+          s11.status = HCRC_STATE;
         }
       }
-      if (s7.status === HCRC_STATE) {
-        if (s7.gzhead.hcrc) {
-          if (s7.pending + 2 > s7.pending_buf_size) {
+      if (s11.status === HCRC_STATE) {
+        if (s11.gzhead.hcrc) {
+          if (s11.pending + 2 > s11.pending_buf_size) {
             flush_pending(strm);
           }
-          if (s7.pending + 2 <= s7.pending_buf_size) {
-            put_byte(s7, strm.adler & 255);
-            put_byte(s7, strm.adler >> 8 & 255);
+          if (s11.pending + 2 <= s11.pending_buf_size) {
+            put_byte(s11, strm.adler & 255);
+            put_byte(s11, strm.adler >> 8 & 255);
             strm.adler = 0;
-            s7.status = BUSY_STATE;
+            s11.status = BUSY_STATE;
           }
         } else {
-          s7.status = BUSY_STATE;
+          s11.status = BUSY_STATE;
         }
       }
-      if (s7.pending !== 0) {
+      if (s11.pending !== 0) {
         flush_pending(strm);
         if (strm.avail_out === 0) {
-          s7.last_flush = -1;
+          s11.last_flush = -1;
           return Z_OK;
         }
       } else if (strm.avail_in === 0 && rank(flush) <= rank(old_flush) && flush !== Z_FINISH) {
         return err(strm, Z_BUF_ERROR);
       }
-      if (s7.status === FINISH_STATE && strm.avail_in !== 0) {
+      if (s11.status === FINISH_STATE && strm.avail_in !== 0) {
         return err(strm, Z_BUF_ERROR);
       }
-      if (strm.avail_in !== 0 || s7.lookahead !== 0 || flush !== Z_NO_FLUSH && s7.status !== FINISH_STATE) {
-        var bstate = s7.strategy === Z_HUFFMAN_ONLY ? deflate_huff(s7, flush) : s7.strategy === Z_RLE ? deflate_rle(s7, flush) : configuration_table[s7.level].func(s7, flush);
+      if (strm.avail_in !== 0 || s11.lookahead !== 0 || flush !== Z_NO_FLUSH && s11.status !== FINISH_STATE) {
+        var bstate = s11.strategy === Z_HUFFMAN_ONLY ? deflate_huff(s11, flush) : s11.strategy === Z_RLE ? deflate_rle(s11, flush) : configuration_table[s11.level].func(s11, flush);
         if (bstate === BS_FINISH_STARTED || bstate === BS_FINISH_DONE) {
-          s7.status = FINISH_STATE;
+          s11.status = FINISH_STATE;
         }
         if (bstate === BS_NEED_MORE || bstate === BS_FINISH_STARTED) {
           if (strm.avail_out === 0) {
-            s7.last_flush = -1;
+            s11.last_flush = -1;
           }
           return Z_OK;
         }
         if (bstate === BS_BLOCK_DONE) {
           if (flush === Z_PARTIAL_FLUSH) {
-            trees._tr_align(s7);
+            trees._tr_align(s11);
           } else if (flush !== Z_BLOCK) {
-            trees._tr_stored_block(s7, 0, 0, false);
+            trees._tr_stored_block(s11, 0, 0, false);
             if (flush === Z_FULL_FLUSH) {
-              zero(s7.head);
-              if (s7.lookahead === 0) {
-                s7.strstart = 0;
-                s7.block_start = 0;
-                s7.insert = 0;
+              zero(s11.head);
+              if (s11.lookahead === 0) {
+                s11.strstart = 0;
+                s11.block_start = 0;
+                s11.insert = 0;
               }
             }
           }
           flush_pending(strm);
           if (strm.avail_out === 0) {
-            s7.last_flush = -1;
+            s11.last_flush = -1;
             return Z_OK;
           }
         }
@@ -34295,27 +34306,27 @@ var require_deflate = __commonJS({
       if (flush !== Z_FINISH) {
         return Z_OK;
       }
-      if (s7.wrap <= 0) {
+      if (s11.wrap <= 0) {
         return Z_STREAM_END;
       }
-      if (s7.wrap === 2) {
-        put_byte(s7, strm.adler & 255);
-        put_byte(s7, strm.adler >> 8 & 255);
-        put_byte(s7, strm.adler >> 16 & 255);
-        put_byte(s7, strm.adler >> 24 & 255);
-        put_byte(s7, strm.total_in & 255);
-        put_byte(s7, strm.total_in >> 8 & 255);
-        put_byte(s7, strm.total_in >> 16 & 255);
-        put_byte(s7, strm.total_in >> 24 & 255);
+      if (s11.wrap === 2) {
+        put_byte(s11, strm.adler & 255);
+        put_byte(s11, strm.adler >> 8 & 255);
+        put_byte(s11, strm.adler >> 16 & 255);
+        put_byte(s11, strm.adler >> 24 & 255);
+        put_byte(s11, strm.total_in & 255);
+        put_byte(s11, strm.total_in >> 8 & 255);
+        put_byte(s11, strm.total_in >> 16 & 255);
+        put_byte(s11, strm.total_in >> 24 & 255);
       } else {
-        putShortMSB(s7, strm.adler >>> 16);
-        putShortMSB(s7, strm.adler & 65535);
+        putShortMSB(s11, strm.adler >>> 16);
+        putShortMSB(s11, strm.adler & 65535);
       }
       flush_pending(strm);
-      if (s7.wrap > 0) {
-        s7.wrap = -s7.wrap;
+      if (s11.wrap > 0) {
+        s11.wrap = -s11.wrap;
       }
-      return s7.pending !== 0 ? Z_OK : Z_STREAM_END;
+      return s11.pending !== 0 ? Z_OK : Z_STREAM_END;
     }
     function deflateEnd(strm) {
       var status;
@@ -34331,8 +34342,8 @@ var require_deflate = __commonJS({
     }
     function deflateSetDictionary(strm, dictionary) {
       var dictLength = dictionary.length;
-      var s7;
-      var str32, n2;
+      var s11;
+      var str33, n2;
       var wrap;
       var avail;
       var next;
@@ -34341,26 +34352,26 @@ var require_deflate = __commonJS({
       if (!strm || !strm.state) {
         return Z_STREAM_ERROR;
       }
-      s7 = strm.state;
-      wrap = s7.wrap;
-      if (wrap === 2 || wrap === 1 && s7.status !== INIT_STATE || s7.lookahead) {
+      s11 = strm.state;
+      wrap = s11.wrap;
+      if (wrap === 2 || wrap === 1 && s11.status !== INIT_STATE || s11.lookahead) {
         return Z_STREAM_ERROR;
       }
       if (wrap === 1) {
         strm.adler = adler32(strm.adler, dictionary, dictLength, 0);
       }
-      s7.wrap = 0;
-      if (dictLength >= s7.w_size) {
+      s11.wrap = 0;
+      if (dictLength >= s11.w_size) {
         if (wrap === 0) {
-          zero(s7.head);
-          s7.strstart = 0;
-          s7.block_start = 0;
-          s7.insert = 0;
+          zero(s11.head);
+          s11.strstart = 0;
+          s11.block_start = 0;
+          s11.insert = 0;
         }
-        tmpDict = new utils.Buf8(s7.w_size);
-        utils.arraySet(tmpDict, dictionary, dictLength - s7.w_size, s7.w_size, 0);
+        tmpDict = new utils.Buf8(s11.w_size);
+        utils.arraySet(tmpDict, dictionary, dictLength - s11.w_size, s11.w_size, 0);
         dictionary = tmpDict;
-        dictLength = s7.w_size;
+        dictLength = s11.w_size;
       }
       avail = strm.avail_in;
       next = strm.next_in;
@@ -34368,30 +34379,30 @@ var require_deflate = __commonJS({
       strm.avail_in = dictLength;
       strm.next_in = 0;
       strm.input = dictionary;
-      fill_window(s7);
-      while (s7.lookahead >= MIN_MATCH) {
-        str32 = s7.strstart;
-        n2 = s7.lookahead - (MIN_MATCH - 1);
+      fill_window(s11);
+      while (s11.lookahead >= MIN_MATCH) {
+        str33 = s11.strstart;
+        n2 = s11.lookahead - (MIN_MATCH - 1);
         do {
-          s7.ins_h = (s7.ins_h << s7.hash_shift ^ s7.window[str32 + MIN_MATCH - 1]) & s7.hash_mask;
-          s7.prev[str32 & s7.w_mask] = s7.head[s7.ins_h];
-          s7.head[s7.ins_h] = str32;
-          str32++;
+          s11.ins_h = (s11.ins_h << s11.hash_shift ^ s11.window[str33 + MIN_MATCH - 1]) & s11.hash_mask;
+          s11.prev[str33 & s11.w_mask] = s11.head[s11.ins_h];
+          s11.head[s11.ins_h] = str33;
+          str33++;
         } while (--n2);
-        s7.strstart = str32;
-        s7.lookahead = MIN_MATCH - 1;
-        fill_window(s7);
+        s11.strstart = str33;
+        s11.lookahead = MIN_MATCH - 1;
+        fill_window(s11);
       }
-      s7.strstart += s7.lookahead;
-      s7.block_start = s7.strstart;
-      s7.insert = s7.lookahead;
-      s7.lookahead = 0;
-      s7.match_length = s7.prev_length = MIN_MATCH - 1;
-      s7.match_available = 0;
+      s11.strstart += s11.lookahead;
+      s11.block_start = s11.strstart;
+      s11.insert = s11.lookahead;
+      s11.lookahead = 0;
+      s11.match_length = s11.prev_length = MIN_MATCH - 1;
+      s11.match_available = 0;
       strm.next_in = next;
       strm.input = input;
       strm.avail_in = avail;
-      s7.wrap = wrap;
+      s11.wrap = wrap;
       return Z_OK;
     }
     exports2.deflateInit = deflateInit;
@@ -34429,12 +34440,12 @@ var require_strings2 = __commonJS({
     }
     var q2;
     _utf8len[254] = _utf8len[254] = 1;
-    exports2.string2buf = function(str32) {
-      var buf, c, c2, m_pos, i, str_len = str32.length, buf_len = 0;
+    exports2.string2buf = function(str33) {
+      var buf, c, c2, m_pos, i, str_len = str33.length, buf_len = 0;
       for (m_pos = 0; m_pos < str_len; m_pos++) {
-        c = str32.charCodeAt(m_pos);
+        c = str33.charCodeAt(m_pos);
         if ((c & 64512) === 55296 && m_pos + 1 < str_len) {
-          c2 = str32.charCodeAt(m_pos + 1);
+          c2 = str33.charCodeAt(m_pos + 1);
           if ((c2 & 64512) === 56320) {
             c = 65536 + (c - 55296 << 10) + (c2 - 56320);
             m_pos++;
@@ -34444,9 +34455,9 @@ var require_strings2 = __commonJS({
       }
       buf = new utils.Buf8(buf_len);
       for (i = 0, m_pos = 0; i < buf_len; m_pos++) {
-        c = str32.charCodeAt(m_pos);
+        c = str33.charCodeAt(m_pos);
         if ((c & 64512) === 55296 && m_pos + 1 < str_len) {
-          c2 = str32.charCodeAt(m_pos + 1);
+          c2 = str33.charCodeAt(m_pos + 1);
           if ((c2 & 64512) === 56320) {
             c = 65536 + (c - 55296 << 10) + (c2 - 56320);
             m_pos++;
@@ -34485,10 +34496,10 @@ var require_strings2 = __commonJS({
     exports2.buf2binstring = function(buf) {
       return buf2binstring(buf, buf.length);
     };
-    exports2.binstring2buf = function(str32) {
-      var buf = new utils.Buf8(str32.length);
+    exports2.binstring2buf = function(str33) {
+      var buf = new utils.Buf8(str33.length);
       for (var i = 0, len = buf.length; i < len; i++) {
-        buf[i] = str32.charCodeAt(i);
+        buf[i] = str33.charCodeAt(i);
       }
       return buf;
     };
@@ -34588,8 +34599,8 @@ var require_deflate2 = __commonJS({
     var Z_DEFAULT_COMPRESSION = -1;
     var Z_DEFAULT_STRATEGY = 0;
     var Z_DEFLATED = 8;
-    function Deflate(options) {
-      if (!(this instanceof Deflate)) return new Deflate(options);
+    function Deflate(options2) {
+      if (!(this instanceof Deflate)) return new Deflate(options2);
       this.options = utils.assign({
         level: Z_DEFAULT_COMPRESSION,
         method: Z_DEFLATED,
@@ -34598,7 +34609,7 @@ var require_deflate2 = __commonJS({
         memLevel: 8,
         strategy: Z_DEFAULT_STRATEGY,
         to: ""
-      }, options || {});
+      }, options2 || {});
       var opt = this.options;
       if (opt.raw && opt.windowBits > 0) {
         opt.windowBits = -opt.windowBits;
@@ -34706,23 +34717,23 @@ var require_deflate2 = __commonJS({
       this.err = status;
       this.msg = this.strm.msg;
     };
-    function deflate(input, options) {
-      var deflator = new Deflate(options);
+    function deflate(input, options2) {
+      var deflator = new Deflate(options2);
       deflator.push(input, true);
       if (deflator.err) {
         throw deflator.msg || msg[deflator.err];
       }
       return deflator.result;
     }
-    function deflateRaw(input, options) {
-      options = options || {};
-      options.raw = true;
-      return deflate(input, options);
+    function deflateRaw(input, options2) {
+      options2 = options2 || {};
+      options2.raw = true;
+      return deflate(input, options2);
     }
-    function gzip(input, options) {
-      options = options || {};
-      options.gzip = true;
-      return deflate(input, options);
+    function gzip(input, options2) {
+      options2 = options2 || {};
+      options2.gzip = true;
+      return deflate(input, options2);
     }
     exports2.Deflate = Deflate;
     exports2.deflate = deflate;
@@ -36571,13 +36582,13 @@ var require_inflate2 = __commonJS({
     var ZStream = require_zstream();
     var GZheader = require_gzheader();
     var toString2 = Object.prototype.toString;
-    function Inflate(options) {
-      if (!(this instanceof Inflate)) return new Inflate(options);
+    function Inflate(options2) {
+      if (!(this instanceof Inflate)) return new Inflate(options2);
       this.options = utils.assign({
         chunkSize: 16384,
         windowBits: 0,
         to: ""
-      }, options || {});
+      }, options2 || {});
       var opt = this.options;
       if (opt.raw && opt.windowBits >= 0 && opt.windowBits < 16) {
         opt.windowBits = -opt.windowBits;
@@ -36585,7 +36596,7 @@ var require_inflate2 = __commonJS({
           opt.windowBits = -15;
         }
       }
-      if (opt.windowBits >= 0 && opt.windowBits < 16 && !(options && options.windowBits)) {
+      if (opt.windowBits >= 0 && opt.windowBits < 16 && !(options2 && options2.windowBits)) {
         opt.windowBits += 32;
       }
       if (opt.windowBits > 15 && opt.windowBits < 48) {
@@ -36713,18 +36724,18 @@ var require_inflate2 = __commonJS({
       this.err = status;
       this.msg = this.strm.msg;
     };
-    function inflate(input, options) {
-      var inflator = new Inflate(options);
+    function inflate(input, options2) {
+      var inflator = new Inflate(options2);
       inflator.push(input, true);
       if (inflator.err) {
         throw inflator.msg || msg[inflator.err];
       }
       return inflator.result;
     }
-    function inflateRaw(input, options) {
-      options = options || {};
-      options.raw = true;
-      return inflate(input, options);
+    function inflateRaw(input, options2) {
+      options2 = options2 || {};
+      options2.raw = true;
+      return inflate(input, options2);
     }
     exports2.Inflate = Inflate;
     exports2.inflate = inflate;
@@ -36757,9 +36768,9 @@ var require_utils2 = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     var pako_1 = __importDefault2(require_pako());
     var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    var lookup2 = new Uint8Array(256);
+    var lookup3 = new Uint8Array(256);
     for (i = 0; i < chars.length; i++) {
-      lookup2[chars.charCodeAt(i)] = i;
+      lookup3[chars.charCodeAt(i)] = i;
     }
     var i;
     exports2.decodeFromBase64 = function(base642) {
@@ -36779,10 +36790,10 @@ var require_utils2 = __commonJS({
       }
       var bytes = new Uint8Array(bufferLength);
       for (i2 = 0; i2 < len; i2 += 4) {
-        encoded1 = lookup2[base642.charCodeAt(i2)];
-        encoded2 = lookup2[base642.charCodeAt(i2 + 1)];
-        encoded3 = lookup2[base642.charCodeAt(i2 + 2)];
-        encoded4 = lookup2[base642.charCodeAt(i2 + 3)];
+        encoded1 = lookup3[base642.charCodeAt(i2)];
+        encoded2 = lookup3[base642.charCodeAt(i2 + 1)];
+        encoded3 = lookup3[base642.charCodeAt(i2 + 2)];
+        encoded4 = lookup3[base642.charCodeAt(i2 + 3)];
         bytes[p++] = encoded1 << 2 | encoded2 >> 4;
         bytes[p++] = (encoded2 & 15) << 4 | encoded3 >> 2;
         bytes[p++] = (encoded3 & 3) << 6 | encoded4 & 63;
@@ -36790,11 +36801,11 @@ var require_utils2 = __commonJS({
       return bytes;
     };
     var arrayToString = function(array2) {
-      var str32 = "";
+      var str33 = "";
       for (var i2 = 0; i2 < array2.length; i2++) {
-        str32 += String.fromCharCode(array2[i2]);
+        str33 += String.fromCharCode(array2[i2]);
       }
-      return str32;
+      return str33;
     };
     exports2.decompressJson = function(compressedJson) {
       return arrayToString(pako_1.default.inflate(exports2.decodeFromBase64(compressedJson)));
@@ -37033,9 +37044,9 @@ var require_Encoding = __commonJS({
           this.encodeUnicodeCodePoint = function(codePoint) {
             var mapped = _this.unicodeMappings[codePoint];
             if (!mapped) {
-              var str32 = String.fromCharCode(codePoint);
+              var str33 = String.fromCharCode(codePoint);
               var hexCode = "0x" + utils_1.padStart(codePoint.toString(16), 4, "0");
-              var msg = _this.name + ' cannot encode "' + str32 + '" (' + hexCode + ")";
+              var msg = _this.name + ' cannot encode "' + str33 + '" (' + hexCode + ")";
               throw new Error(msg);
             }
             return { code: mapped[0], name: mapped[1] };
@@ -40493,11 +40504,11 @@ var require_StandardFontEmbedder = __commonJS({
           var scale = size / 1e3;
           return totalWidth * scale;
         };
-        StandardFontEmbedder2.prototype.heightOfFontAtSize = function(size, options) {
-          if (options === void 0) {
-            options = {};
+        StandardFontEmbedder2.prototype.heightOfFontAtSize = function(size, options2) {
+          if (options2 === void 0) {
+            options2 = {};
           }
-          var _a = options.descender, descender = _a === void 0 ? true : _a;
+          var _a = options2.descender, descender = _a === void 0 ? true : _a;
           var _b = this.font, Ascender = _b.Ascender, Descender = _b.Descender, FontBBox = _b.FontBBox;
           var yTop = Ascender || FontBBox[3];
           var yBottom = Descender || FontBBox[1];
@@ -40603,28 +40614,28 @@ var require_FontFlags = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.deriveFontFlags = void 0;
-    var makeFontFlags = function(options) {
+    var makeFontFlags = function(options2) {
       var flags = 0;
       var flipBit = function(bit) {
         flags |= 1 << bit - 1;
       };
-      if (options.fixedPitch)
+      if (options2.fixedPitch)
         flipBit(1);
-      if (options.serif)
+      if (options2.serif)
         flipBit(2);
-      if (options.symbolic)
+      if (options2.symbolic)
         flipBit(3);
-      if (options.script)
+      if (options2.script)
         flipBit(4);
-      if (options.nonsymbolic)
+      if (options2.nonsymbolic)
         flipBit(6);
-      if (options.italic)
+      if (options2.italic)
         flipBit(7);
-      if (options.allCap)
+      if (options2.allCap)
         flipBit(17);
-      if (options.smallCap)
+      if (options2.smallCap)
         flipBit(18);
-      if (options.forceBold)
+      if (options2.forceBold)
         flipBit(19);
       return flags;
     };
@@ -40829,11 +40840,11 @@ var require_CustomFontEmbedder = __commonJS({
           var scale = size / 1e3;
           return totalWidth * scale;
         };
-        CustomFontEmbedder2.prototype.heightOfFontAtSize = function(size, options) {
-          if (options === void 0) {
-            options = {};
+        CustomFontEmbedder2.prototype.heightOfFontAtSize = function(size, options2) {
+          if (options2 === void 0) {
+            options2 = {};
           }
-          var _a = options.descender, descender = _a === void 0 ? true : _a;
+          var _a = options2.descender, descender = _a === void 0 ? true : _a;
           var _b = this.font, ascent = _b.ascent, descent = _b.descent, bbox = _b.bbox;
           var yTop = (ascent || bbox.maxY) * this.scale;
           var yBottom = (descent || bbox.minY) * this.scale;
@@ -41105,19 +41116,19 @@ var require_FileEmbedder = __commonJS({
     var FileEmbedder = (
       /** @class */
       function() {
-        function FileEmbedder2(fileData, fileName, options) {
-          if (options === void 0) {
-            options = {};
+        function FileEmbedder2(fileData, fileName, options2) {
+          if (options2 === void 0) {
+            options2 = {};
           }
           this.fileData = fileData;
           this.fileName = fileName;
-          this.options = options;
+          this.options = options2;
         }
-        FileEmbedder2.for = function(bytes, fileName, options) {
-          if (options === void 0) {
-            options = {};
+        FileEmbedder2.for = function(bytes, fileName, options2) {
+          if (options2 === void 0) {
+            options2 = {};
           }
-          return new FileEmbedder2(bytes, fileName, options);
+          return new FileEmbedder2(bytes, fileName, options2);
         };
         FileEmbedder2.prototype.embedIntoContext = function(context, ref3) {
           return tslib_1.__awaiter(this, void 0, void 0, function() {
@@ -41637,7 +41648,7 @@ var require_UPNG = __commonJS({
               }
               var $ = C[e(N, d) & u];
               d += $ & 15;
-              var s7 = $ >>> 4, Y = b.c[s7], a = (Y >>> 4) + n2(N, d, Y & 15);
+              var s11 = $ >>> 4, Y = b.c[s11], a = (Y >>> 4) + n2(N, d, Y & 15);
               d += Y & 15;
               while (w < z) {
                 W[w] = W[w++ - a];
@@ -41970,12 +41981,12 @@ var require_UPNG = __commonJS({
         buff[p + 3] = n2 & 255;
       },
       readASCII: function(buff, p, l) {
-        var s7 = "";
-        for (var i = 0; i < l; i++) s7 += String.fromCharCode(buff[p + i]);
-        return s7;
+        var s11 = "";
+        for (var i = 0; i < l; i++) s11 += String.fromCharCode(buff[p + i]);
+        return s11;
       },
-      writeASCII: function(data2, p, s7) {
-        for (var i = 0; i < s7.length; i++) data2[p + i] = s7.charCodeAt(i);
+      writeASCII: function(data2, p, s11) {
+        for (var i = 0; i < s11.length; i++) data2[p + i] = s11.charCodeAt(i);
       },
       readBytes: function(buff, p, l) {
         var arr6 = [];
@@ -41986,10 +41997,10 @@ var require_UPNG = __commonJS({
         return n2.length < 2 ? "0" + n2 : n2;
       },
       readUTF8: function(buff, p, l) {
-        var s7 = "", ns3;
-        for (var i = 0; i < l; i++) s7 += "%" + UPNG._bin.pad(buff[p + i].toString(16));
+        var s11 = "", ns3;
+        for (var i = 0; i < l; i++) s11 += "%" + UPNG._bin.pad(buff[p + i].toString(16));
         try {
-          ns3 = decodeURIComponent(s7);
+          ns3 = decodeURIComponent(s11);
         } catch (e) {
           return UPNG._bin.readASCII(buff, p, l);
         }
@@ -43971,7 +43982,7 @@ var require_FlateStream = __commonJS({
         FlateStream2.prototype.readBlock = function() {
           var buffer;
           var len;
-          var str32 = this.stream;
+          var str33 = this.stream;
           var hdr = this.getBits(3);
           if (hdr & 1) {
             this.eof = true;
@@ -43979,19 +43990,19 @@ var require_FlateStream = __commonJS({
           hdr >>= 1;
           if (hdr === 0) {
             var b = void 0;
-            if ((b = str32.getByte()) === -1) {
+            if ((b = str33.getByte()) === -1) {
               throw new Error("Bad block header in flate stream");
             }
             var blockLen = b;
-            if ((b = str32.getByte()) === -1) {
+            if ((b = str33.getByte()) === -1) {
               throw new Error("Bad block header in flate stream");
             }
             blockLen |= b << 8;
-            if ((b = str32.getByte()) === -1) {
+            if ((b = str33.getByte()) === -1) {
               throw new Error("Bad block header in flate stream");
             }
             var check2 = b;
-            if ((b = str32.getByte()) === -1) {
+            if ((b = str33.getByte()) === -1) {
               throw new Error("Bad block header in flate stream");
             }
             check2 |= b << 8;
@@ -44005,12 +44016,12 @@ var require_FlateStream = __commonJS({
             var end = bufferLength + blockLen;
             this.bufferLength = end;
             if (blockLen === 0) {
-              if (str32.peekByte() === -1) {
+              if (str33.peekByte() === -1) {
                 this.eof = true;
               }
             } else {
               for (var n2 = bufferLength; n2 < end; ++n2) {
-                if ((b = str32.getByte()) === -1) {
+                if ((b = str33.getByte()) === -1) {
                   this.eof = true;
                   break;
                 }
@@ -44110,12 +44121,12 @@ var require_FlateStream = __commonJS({
           }
         };
         FlateStream2.prototype.getBits = function(bits) {
-          var str32 = this.stream;
+          var str33 = this.stream;
           var codeSize = this.codeSize;
           var codeBuf = this.codeBuf;
           var b;
           while (codeSize < bits) {
-            if ((b = str32.getByte()) === -1) {
+            if ((b = str33.getByte()) === -1) {
               throw new Error("Bad encoding in flate stream");
             }
             codeBuf |= b << codeSize;
@@ -44127,14 +44138,14 @@ var require_FlateStream = __commonJS({
           return b;
         };
         FlateStream2.prototype.getCode = function(table) {
-          var str32 = this.stream;
+          var str33 = this.stream;
           var codes = table[0];
           var maxLen = table[1];
           var codeSize = this.codeSize;
           var codeBuf = this.codeBuf;
           var b;
           while (codeSize < maxLen) {
-            if ((b = str32.getByte()) === -1) {
+            if ((b = str33.getByte()) === -1) {
               break;
             }
             codeBuf |= b << codeSize;
@@ -45642,10 +45653,10 @@ var require_PDFAcroChoice = __commonJS({
           this.updateSelectedIndices(values);
         };
         PDFAcroChoice2.prototype.valuesAreValid = function(values) {
-          var options = this.getOptions();
+          var options2 = this.getOptions();
           var _loop_1 = function(idx2, len2) {
             var val = values[idx2].decodeText();
-            if (!options.find(function(o) {
+            if (!options2.find(function(o) {
               return val === (o.display || o.value).decodeText();
             })) {
               return { value: false };
@@ -45661,10 +45672,10 @@ var require_PDFAcroChoice = __commonJS({
         PDFAcroChoice2.prototype.updateSelectedIndices = function(values) {
           if (values.length > 1) {
             var indices = new Array(values.length);
-            var options = this.getOptions();
+            var options2 = this.getOptions();
             var _loop_2 = function(idx2, len2) {
               var val = values[idx2].decodeText();
-              indices[idx2] = options.findIndex(function(o) {
+              indices[idx2] = options2.findIndex(function(o) {
                 return val === (o.display || o.value).decodeText();
               });
             };
@@ -45695,10 +45706,10 @@ var require_PDFAcroChoice = __commonJS({
         PDFAcroChoice2.prototype.Opt = function() {
           return this.dict.lookupMaybe(PDFName_1.default.of("Opt"), PDFString_1.default, PDFHexString_1.default, PDFArray_1.default);
         };
-        PDFAcroChoice2.prototype.setOptions = function(options) {
-          var newOpt = new Array(options.length);
-          for (var idx = 0, len = options.length; idx < len; idx++) {
-            var _a = options[idx], value4 = _a.value, display2 = _a.display;
+        PDFAcroChoice2.prototype.setOptions = function(options2) {
+          var newOpt = new Array(options2.length);
+          for (var idx = 0, len = options2.length; idx < len; idx++) {
+            var _a = options2[idx], value4 = _a.value, display2 = _a.display;
             newOpt[idx] = this.dict.context.obj([value4, display2 || value4]);
           }
           this.dict.set(PDFName_1.default.of("Opt"), this.dict.context.obj(newOpt));
@@ -48610,28 +48621,28 @@ var require_operations = __commonJS({
     var rotations_1 = require_rotations();
     var svgPath_1 = require_svgPath();
     var objects_1 = require_objects2();
-    exports2.drawText = function(line, options) {
+    exports2.drawText = function(line, options2) {
       return [
         operators_1.pushGraphicsState(),
-        options.graphicsState && operators_1.setGraphicsState(options.graphicsState),
+        options2.graphicsState && operators_1.setGraphicsState(options2.graphicsState),
         operators_1.beginText(),
-        colors_1.setFillingColor(options.color),
-        operators_1.setFontAndSize(options.font, options.size),
-        operators_1.rotateAndSkewTextRadiansAndTranslate(rotations_1.toRadians(options.rotate), rotations_1.toRadians(options.xSkew), rotations_1.toRadians(options.ySkew), options.x, options.y),
+        colors_1.setFillingColor(options2.color),
+        operators_1.setFontAndSize(options2.font, options2.size),
+        operators_1.rotateAndSkewTextRadiansAndTranslate(rotations_1.toRadians(options2.rotate), rotations_1.toRadians(options2.xSkew), rotations_1.toRadians(options2.ySkew), options2.x, options2.y),
         operators_1.showText(line),
         operators_1.endText(),
         operators_1.popGraphicsState()
       ].filter(Boolean);
     };
-    exports2.drawLinesOfText = function(lines2, options) {
+    exports2.drawLinesOfText = function(lines2, options2) {
       var operators = [
         operators_1.pushGraphicsState(),
-        options.graphicsState && operators_1.setGraphicsState(options.graphicsState),
+        options2.graphicsState && operators_1.setGraphicsState(options2.graphicsState),
         operators_1.beginText(),
-        colors_1.setFillingColor(options.color),
-        operators_1.setFontAndSize(options.font, options.size),
-        operators_1.setLineHeight(options.lineHeight),
-        operators_1.rotateAndSkewTextRadiansAndTranslate(rotations_1.toRadians(options.rotate), rotations_1.toRadians(options.xSkew), rotations_1.toRadians(options.ySkew), options.x, options.y)
+        colors_1.setFillingColor(options2.color),
+        operators_1.setFontAndSize(options2.font, options2.size),
+        operators_1.setLineHeight(options2.lineHeight),
+        operators_1.rotateAndSkewTextRadiansAndTranslate(rotations_1.toRadians(options2.rotate), rotations_1.toRadians(options2.xSkew), rotations_1.toRadians(options2.ySkew), options2.x, options2.y)
       ].filter(Boolean);
       for (var idx = 0, len = lines2.length; idx < len; idx++) {
         operators.push(operators_1.showText(lines2[idx]), operators_1.nextLine());
@@ -48639,66 +48650,66 @@ var require_operations = __commonJS({
       operators.push(operators_1.endText(), operators_1.popGraphicsState());
       return operators;
     };
-    exports2.drawImage = function(name, options) {
+    exports2.drawImage = function(name, options2) {
       return [
         operators_1.pushGraphicsState(),
-        options.graphicsState && operators_1.setGraphicsState(options.graphicsState),
-        operators_1.translate(options.x, options.y),
-        operators_1.rotateRadians(rotations_1.toRadians(options.rotate)),
-        operators_1.scale(options.width, options.height),
-        operators_1.skewRadians(rotations_1.toRadians(options.xSkew), rotations_1.toRadians(options.ySkew)),
+        options2.graphicsState && operators_1.setGraphicsState(options2.graphicsState),
+        operators_1.translate(options2.x, options2.y),
+        operators_1.rotateRadians(rotations_1.toRadians(options2.rotate)),
+        operators_1.scale(options2.width, options2.height),
+        operators_1.skewRadians(rotations_1.toRadians(options2.xSkew), rotations_1.toRadians(options2.ySkew)),
         operators_1.drawObject(name),
         operators_1.popGraphicsState()
       ].filter(Boolean);
     };
-    exports2.drawPage = function(name, options) {
+    exports2.drawPage = function(name, options2) {
       return [
         operators_1.pushGraphicsState(),
-        options.graphicsState && operators_1.setGraphicsState(options.graphicsState),
-        operators_1.translate(options.x, options.y),
-        operators_1.rotateRadians(rotations_1.toRadians(options.rotate)),
-        operators_1.scale(options.xScale, options.yScale),
-        operators_1.skewRadians(rotations_1.toRadians(options.xSkew), rotations_1.toRadians(options.ySkew)),
+        options2.graphicsState && operators_1.setGraphicsState(options2.graphicsState),
+        operators_1.translate(options2.x, options2.y),
+        operators_1.rotateRadians(rotations_1.toRadians(options2.rotate)),
+        operators_1.scale(options2.xScale, options2.yScale),
+        operators_1.skewRadians(rotations_1.toRadians(options2.xSkew), rotations_1.toRadians(options2.ySkew)),
         operators_1.drawObject(name),
         operators_1.popGraphicsState()
       ].filter(Boolean);
     };
-    exports2.drawLine = function(options) {
+    exports2.drawLine = function(options2) {
       var _a, _b;
       return [
         operators_1.pushGraphicsState(),
-        options.graphicsState && operators_1.setGraphicsState(options.graphicsState),
-        options.color && colors_1.setStrokingColor(options.color),
-        operators_1.setLineWidth(options.thickness),
-        operators_1.setDashPattern((_a = options.dashArray) !== null && _a !== void 0 ? _a : [], (_b = options.dashPhase) !== null && _b !== void 0 ? _b : 0),
-        operators_1.moveTo(options.start.x, options.start.y),
-        options.lineCap && operators_1.setLineCap(options.lineCap),
-        operators_1.moveTo(options.start.x, options.start.y),
-        operators_1.lineTo(options.end.x, options.end.y),
+        options2.graphicsState && operators_1.setGraphicsState(options2.graphicsState),
+        options2.color && colors_1.setStrokingColor(options2.color),
+        operators_1.setLineWidth(options2.thickness),
+        operators_1.setDashPattern((_a = options2.dashArray) !== null && _a !== void 0 ? _a : [], (_b = options2.dashPhase) !== null && _b !== void 0 ? _b : 0),
+        operators_1.moveTo(options2.start.x, options2.start.y),
+        options2.lineCap && operators_1.setLineCap(options2.lineCap),
+        operators_1.moveTo(options2.start.x, options2.start.y),
+        operators_1.lineTo(options2.end.x, options2.end.y),
         operators_1.stroke(),
         operators_1.popGraphicsState()
       ].filter(Boolean);
     };
-    exports2.drawRectangle = function(options) {
+    exports2.drawRectangle = function(options2) {
       var _a, _b;
       return [
         operators_1.pushGraphicsState(),
-        options.graphicsState && operators_1.setGraphicsState(options.graphicsState),
-        options.color && colors_1.setFillingColor(options.color),
-        options.borderColor && colors_1.setStrokingColor(options.borderColor),
-        operators_1.setLineWidth(options.borderWidth),
-        options.borderLineCap && operators_1.setLineCap(options.borderLineCap),
-        operators_1.setDashPattern((_a = options.borderDashArray) !== null && _a !== void 0 ? _a : [], (_b = options.borderDashPhase) !== null && _b !== void 0 ? _b : 0),
-        operators_1.translate(options.x, options.y),
-        operators_1.rotateRadians(rotations_1.toRadians(options.rotate)),
-        operators_1.skewRadians(rotations_1.toRadians(options.xSkew), rotations_1.toRadians(options.ySkew)),
+        options2.graphicsState && operators_1.setGraphicsState(options2.graphicsState),
+        options2.color && colors_1.setFillingColor(options2.color),
+        options2.borderColor && colors_1.setStrokingColor(options2.borderColor),
+        operators_1.setLineWidth(options2.borderWidth),
+        options2.borderLineCap && operators_1.setLineCap(options2.borderLineCap),
+        operators_1.setDashPattern((_a = options2.borderDashArray) !== null && _a !== void 0 ? _a : [], (_b = options2.borderDashPhase) !== null && _b !== void 0 ? _b : 0),
+        operators_1.translate(options2.x, options2.y),
+        operators_1.rotateRadians(rotations_1.toRadians(options2.rotate)),
+        operators_1.skewRadians(rotations_1.toRadians(options2.xSkew), rotations_1.toRadians(options2.ySkew)),
         operators_1.moveTo(0, 0),
-        operators_1.lineTo(0, options.height),
-        operators_1.lineTo(options.width, options.height),
-        operators_1.lineTo(options.width, 0),
+        operators_1.lineTo(0, options2.height),
+        operators_1.lineTo(options2.width, options2.height),
+        operators_1.lineTo(options2.width, 0),
         operators_1.closePath(),
         // prettier-ignore
-        options.color && options.borderWidth ? operators_1.fillAndStroke() : options.color ? operators_1.fill() : options.borderColor ? operators_1.stroke() : operators_1.closePath(),
+        options2.color && options2.borderWidth ? operators_1.fillAndStroke() : options2.color ? operators_1.fill() : options2.borderColor ? operators_1.stroke() : operators_1.closePath(),
         operators_1.popGraphicsState()
       ].filter(Boolean);
     };
@@ -48749,55 +48760,55 @@ var require_operations = __commonJS({
         operators_1.appendBezierCurve(xm - ox, ye, x, ym + oy, x, ym)
       ];
     };
-    exports2.drawEllipse = function(options) {
+    exports2.drawEllipse = function(options2) {
       var _a, _b, _c;
       return tslib_1.__spreadArrays([
         operators_1.pushGraphicsState(),
-        options.graphicsState && operators_1.setGraphicsState(options.graphicsState),
-        options.color && colors_1.setFillingColor(options.color),
-        options.borderColor && colors_1.setStrokingColor(options.borderColor),
-        operators_1.setLineWidth(options.borderWidth),
-        options.borderLineCap && operators_1.setLineCap(options.borderLineCap),
-        operators_1.setDashPattern((_a = options.borderDashArray) !== null && _a !== void 0 ? _a : [], (_b = options.borderDashPhase) !== null && _b !== void 0 ? _b : 0)
-      ], options.rotate === void 0 ? exports2.drawEllipsePath({
-        x: options.x,
-        y: options.y,
-        xScale: options.xScale,
-        yScale: options.yScale
+        options2.graphicsState && operators_1.setGraphicsState(options2.graphicsState),
+        options2.color && colors_1.setFillingColor(options2.color),
+        options2.borderColor && colors_1.setStrokingColor(options2.borderColor),
+        operators_1.setLineWidth(options2.borderWidth),
+        options2.borderLineCap && operators_1.setLineCap(options2.borderLineCap),
+        operators_1.setDashPattern((_a = options2.borderDashArray) !== null && _a !== void 0 ? _a : [], (_b = options2.borderDashPhase) !== null && _b !== void 0 ? _b : 0)
+      ], options2.rotate === void 0 ? exports2.drawEllipsePath({
+        x: options2.x,
+        y: options2.y,
+        xScale: options2.xScale,
+        yScale: options2.yScale
       }) : drawEllipseCurves({
-        x: options.x,
-        y: options.y,
-        xScale: options.xScale,
-        yScale: options.yScale,
-        rotate: (_c = options.rotate) !== null && _c !== void 0 ? _c : rotations_1.degrees(0)
+        x: options2.x,
+        y: options2.y,
+        xScale: options2.xScale,
+        yScale: options2.yScale,
+        rotate: (_c = options2.rotate) !== null && _c !== void 0 ? _c : rotations_1.degrees(0)
       }), [
         // prettier-ignore
-        options.color && options.borderWidth ? operators_1.fillAndStroke() : options.color ? operators_1.fill() : options.borderColor ? operators_1.stroke() : operators_1.closePath(),
+        options2.color && options2.borderWidth ? operators_1.fillAndStroke() : options2.color ? operators_1.fill() : options2.borderColor ? operators_1.stroke() : operators_1.closePath(),
         operators_1.popGraphicsState()
       ]).filter(Boolean);
     };
-    exports2.drawSvgPath = function(path24, options) {
+    exports2.drawSvgPath = function(path24, options2) {
       var _a, _b, _c;
       return tslib_1.__spreadArrays([
         operators_1.pushGraphicsState(),
-        options.graphicsState && operators_1.setGraphicsState(options.graphicsState),
-        operators_1.translate(options.x, options.y),
-        operators_1.rotateRadians(rotations_1.toRadians((_a = options.rotate) !== null && _a !== void 0 ? _a : rotations_1.degrees(0))),
+        options2.graphicsState && operators_1.setGraphicsState(options2.graphicsState),
+        operators_1.translate(options2.x, options2.y),
+        operators_1.rotateRadians(rotations_1.toRadians((_a = options2.rotate) !== null && _a !== void 0 ? _a : rotations_1.degrees(0))),
         // SVG path Y axis is opposite pdf-lib's
-        options.scale ? operators_1.scale(options.scale, -options.scale) : operators_1.scale(1, -1),
-        options.color && colors_1.setFillingColor(options.color),
-        options.borderColor && colors_1.setStrokingColor(options.borderColor),
-        options.borderWidth && operators_1.setLineWidth(options.borderWidth),
-        options.borderLineCap && operators_1.setLineCap(options.borderLineCap),
-        operators_1.setDashPattern((_b = options.borderDashArray) !== null && _b !== void 0 ? _b : [], (_c = options.borderDashPhase) !== null && _c !== void 0 ? _c : 0)
+        options2.scale ? operators_1.scale(options2.scale, -options2.scale) : operators_1.scale(1, -1),
+        options2.color && colors_1.setFillingColor(options2.color),
+        options2.borderColor && colors_1.setStrokingColor(options2.borderColor),
+        options2.borderWidth && operators_1.setLineWidth(options2.borderWidth),
+        options2.borderLineCap && operators_1.setLineCap(options2.borderLineCap),
+        operators_1.setDashPattern((_b = options2.borderDashArray) !== null && _b !== void 0 ? _b : [], (_c = options2.borderDashPhase) !== null && _c !== void 0 ? _c : 0)
       ], svgPath_1.svgPathToOperators(path24), [
         // prettier-ignore
-        options.color && options.borderWidth ? operators_1.fillAndStroke() : options.color ? operators_1.fill() : options.borderColor ? operators_1.stroke() : operators_1.closePath(),
+        options2.color && options2.borderWidth ? operators_1.fillAndStroke() : options2.color ? operators_1.fill() : options2.borderColor ? operators_1.stroke() : operators_1.closePath(),
         operators_1.popGraphicsState()
       ]).filter(Boolean);
     };
-    exports2.drawCheckMark = function(options) {
-      var size = objects_1.asNumber(options.size);
+    exports2.drawCheckMark = function(options2) {
+      var size = objects_1.asNumber(options2.size);
       var p2x = -1 + 0.75;
       var p2y = -1 + 0.51;
       var p3y = 1 - 0.525;
@@ -48806,9 +48817,9 @@ var require_operations = __commonJS({
       var p1y = -((p1x - p2x) * (p3x - p2x)) / (p3y - p2y) + p2y;
       return [
         operators_1.pushGraphicsState(),
-        options.color && colors_1.setStrokingColor(options.color),
-        operators_1.setLineWidth(options.thickness),
-        operators_1.translate(options.x, options.y),
+        options2.color && colors_1.setStrokingColor(options2.color),
+        operators_1.setLineWidth(options2.thickness),
+        operators_1.translate(options2.x, options2.y),
         operators_1.moveTo(p1x * size, p1y * size),
         operators_1.lineTo(p2x * size, p2y * size),
         operators_1.lineTo(p3x * size, p3y * size),
@@ -48816,121 +48827,121 @@ var require_operations = __commonJS({
         operators_1.popGraphicsState()
       ].filter(Boolean);
     };
-    exports2.rotateInPlace = function(options) {
-      return options.rotation === 0 ? [
+    exports2.rotateInPlace = function(options2) {
+      return options2.rotation === 0 ? [
         operators_1.translate(0, 0),
         operators_1.rotateDegrees(0)
-      ] : options.rotation === 90 ? [
-        operators_1.translate(options.width, 0),
+      ] : options2.rotation === 90 ? [
+        operators_1.translate(options2.width, 0),
         operators_1.rotateDegrees(90)
-      ] : options.rotation === 180 ? [
-        operators_1.translate(options.width, options.height),
+      ] : options2.rotation === 180 ? [
+        operators_1.translate(options2.width, options2.height),
         operators_1.rotateDegrees(180)
-      ] : options.rotation === 270 ? [
-        operators_1.translate(0, options.height),
+      ] : options2.rotation === 270 ? [
+        operators_1.translate(0, options2.height),
         operators_1.rotateDegrees(270)
       ] : [];
     };
-    exports2.drawCheckBox = function(options) {
+    exports2.drawCheckBox = function(options2) {
       var outline = exports2.drawRectangle({
-        x: options.x,
-        y: options.y,
-        width: options.width,
-        height: options.height,
-        borderWidth: options.borderWidth,
-        color: options.color,
-        borderColor: options.borderColor,
+        x: options2.x,
+        y: options2.y,
+        width: options2.width,
+        height: options2.height,
+        borderWidth: options2.borderWidth,
+        color: options2.color,
+        borderColor: options2.borderColor,
         rotate: rotations_1.degrees(0),
         xSkew: rotations_1.degrees(0),
         ySkew: rotations_1.degrees(0)
       });
-      if (!options.filled)
+      if (!options2.filled)
         return outline;
-      var width = objects_1.asNumber(options.width);
-      var height = objects_1.asNumber(options.height);
+      var width = objects_1.asNumber(options2.width);
+      var height = objects_1.asNumber(options2.height);
       var checkMarkSize = Math.min(width, height) / 2;
       var checkMark = exports2.drawCheckMark({
         x: width / 2,
         y: height / 2,
         size: checkMarkSize,
-        thickness: options.thickness,
-        color: options.markColor
+        thickness: options2.thickness,
+        color: options2.markColor
       });
       return tslib_1.__spreadArrays([operators_1.pushGraphicsState()], outline, checkMark, [operators_1.popGraphicsState()]);
     };
-    exports2.drawRadioButton = function(options) {
-      var width = objects_1.asNumber(options.width);
-      var height = objects_1.asNumber(options.height);
+    exports2.drawRadioButton = function(options2) {
+      var width = objects_1.asNumber(options2.width);
+      var height = objects_1.asNumber(options2.height);
       var outlineScale = Math.min(width, height) / 2;
       var outline = exports2.drawEllipse({
-        x: options.x,
-        y: options.y,
+        x: options2.x,
+        y: options2.y,
         xScale: outlineScale,
         yScale: outlineScale,
-        color: options.color,
-        borderColor: options.borderColor,
-        borderWidth: options.borderWidth
+        color: options2.color,
+        borderColor: options2.borderColor,
+        borderWidth: options2.borderWidth
       });
-      if (!options.filled)
+      if (!options2.filled)
         return outline;
       var dot = exports2.drawEllipse({
-        x: options.x,
-        y: options.y,
+        x: options2.x,
+        y: options2.y,
         xScale: outlineScale * 0.45,
         yScale: outlineScale * 0.45,
-        color: options.dotColor,
+        color: options2.dotColor,
         borderColor: void 0,
         borderWidth: 0
       });
       return tslib_1.__spreadArrays([operators_1.pushGraphicsState()], outline, dot, [operators_1.popGraphicsState()]);
     };
-    exports2.drawButton = function(options) {
-      var x = objects_1.asNumber(options.x);
-      var y = objects_1.asNumber(options.y);
-      var width = objects_1.asNumber(options.width);
-      var height = objects_1.asNumber(options.height);
+    exports2.drawButton = function(options2) {
+      var x = objects_1.asNumber(options2.x);
+      var y = objects_1.asNumber(options2.y);
+      var width = objects_1.asNumber(options2.width);
+      var height = objects_1.asNumber(options2.height);
       var background = exports2.drawRectangle({
         x,
         y,
         width,
         height,
-        borderWidth: options.borderWidth,
-        color: options.color,
-        borderColor: options.borderColor,
+        borderWidth: options2.borderWidth,
+        color: options2.color,
+        borderColor: options2.borderColor,
         rotate: rotations_1.degrees(0),
         xSkew: rotations_1.degrees(0),
         ySkew: rotations_1.degrees(0)
       });
-      var lines2 = exports2.drawTextLines(options.textLines, {
-        color: options.textColor,
-        font: options.font,
-        size: options.fontSize,
+      var lines2 = exports2.drawTextLines(options2.textLines, {
+        color: options2.textColor,
+        font: options2.font,
+        size: options2.fontSize,
         rotate: rotations_1.degrees(0),
         xSkew: rotations_1.degrees(0),
         ySkew: rotations_1.degrees(0)
       });
       return tslib_1.__spreadArrays([operators_1.pushGraphicsState()], background, lines2, [operators_1.popGraphicsState()]);
     };
-    exports2.drawTextLines = function(lines2, options) {
+    exports2.drawTextLines = function(lines2, options2) {
       var operators = [
         operators_1.beginText(),
-        colors_1.setFillingColor(options.color),
-        operators_1.setFontAndSize(options.font, options.size)
+        colors_1.setFillingColor(options2.color),
+        operators_1.setFontAndSize(options2.font, options2.size)
       ];
       for (var idx = 0, len = lines2.length; idx < len; idx++) {
         var _a = lines2[idx], encoded = _a.encoded, x = _a.x, y = _a.y;
-        operators.push(operators_1.rotateAndSkewTextRadiansAndTranslate(rotations_1.toRadians(options.rotate), rotations_1.toRadians(options.xSkew), rotations_1.toRadians(options.ySkew), x, y), operators_1.showText(encoded));
+        operators.push(operators_1.rotateAndSkewTextRadiansAndTranslate(rotations_1.toRadians(options2.rotate), rotations_1.toRadians(options2.xSkew), rotations_1.toRadians(options2.ySkew), x, y), operators_1.showText(encoded));
       }
       operators.push(operators_1.endText());
       return operators;
     };
-    exports2.drawTextField = function(options) {
-      var x = objects_1.asNumber(options.x);
-      var y = objects_1.asNumber(options.y);
-      var width = objects_1.asNumber(options.width);
-      var height = objects_1.asNumber(options.height);
-      var borderWidth = objects_1.asNumber(options.borderWidth);
-      var padding = objects_1.asNumber(options.padding);
+    exports2.drawTextField = function(options2) {
+      var x = objects_1.asNumber(options2.x);
+      var y = objects_1.asNumber(options2.y);
+      var width = objects_1.asNumber(options2.width);
+      var height = objects_1.asNumber(options2.height);
+      var borderWidth = objects_1.asNumber(options2.borderWidth);
+      var padding = objects_1.asNumber(options2.padding);
       var clipX = x + borderWidth / 2 + padding;
       var clipY = y + borderWidth / 2 + padding;
       var clipWidth = width - (borderWidth / 2 + padding) * 2;
@@ -48949,17 +48960,17 @@ var require_operations = __commonJS({
         y,
         width,
         height,
-        borderWidth: options.borderWidth,
-        color: options.color,
-        borderColor: options.borderColor,
+        borderWidth: options2.borderWidth,
+        color: options2.color,
+        borderColor: options2.borderColor,
         rotate: rotations_1.degrees(0),
         xSkew: rotations_1.degrees(0),
         ySkew: rotations_1.degrees(0)
       });
-      var lines2 = exports2.drawTextLines(options.textLines, {
-        color: options.textColor,
-        font: options.font,
-        size: options.fontSize,
+      var lines2 = exports2.drawTextLines(options2.textLines, {
+        color: options2.textColor,
+        font: options2.font,
+        size: options2.fontSize,
         rotate: rotations_1.degrees(0),
         xSkew: rotations_1.degrees(0),
         ySkew: rotations_1.degrees(0)
@@ -48977,14 +48988,14 @@ var require_operations = __commonJS({
         operators_1.popGraphicsState()
       ]);
     };
-    exports2.drawOptionList = function(options) {
-      var x = objects_1.asNumber(options.x);
-      var y = objects_1.asNumber(options.y);
-      var width = objects_1.asNumber(options.width);
-      var height = objects_1.asNumber(options.height);
-      var lineHeight = objects_1.asNumber(options.lineHeight);
-      var borderWidth = objects_1.asNumber(options.borderWidth);
-      var padding = objects_1.asNumber(options.padding);
+    exports2.drawOptionList = function(options2) {
+      var x = objects_1.asNumber(options2.x);
+      var y = objects_1.asNumber(options2.y);
+      var width = objects_1.asNumber(options2.width);
+      var height = objects_1.asNumber(options2.height);
+      var lineHeight = objects_1.asNumber(options2.lineHeight);
+      var borderWidth = objects_1.asNumber(options2.borderWidth);
+      var padding = objects_1.asNumber(options2.padding);
       var clipX = x + borderWidth / 2 + padding;
       var clipY = y + borderWidth / 2 + padding;
       var clipWidth = width - (borderWidth / 2 + padding) * 2;
@@ -49003,33 +49014,33 @@ var require_operations = __commonJS({
         y,
         width,
         height,
-        borderWidth: options.borderWidth,
-        color: options.color,
-        borderColor: options.borderColor,
+        borderWidth: options2.borderWidth,
+        color: options2.color,
+        borderColor: options2.borderColor,
         rotate: rotations_1.degrees(0),
         xSkew: rotations_1.degrees(0),
         ySkew: rotations_1.degrees(0)
       });
       var highlights = [];
-      for (var idx = 0, len = options.selectedLines.length; idx < len; idx++) {
-        var line = options.textLines[options.selectedLines[idx]];
+      for (var idx = 0, len = options2.selectedLines.length; idx < len; idx++) {
+        var line = options2.textLines[options2.selectedLines[idx]];
         highlights.push.apply(highlights, exports2.drawRectangle({
           x: line.x - padding,
           y: line.y - (lineHeight - line.height) / 2,
           width: width - borderWidth,
           height: line.height + (lineHeight - line.height) / 2,
           borderWidth: 0,
-          color: options.selectedColor,
+          color: options2.selectedColor,
           borderColor: void 0,
           rotate: rotations_1.degrees(0),
           xSkew: rotations_1.degrees(0),
           ySkew: rotations_1.degrees(0)
         }));
       }
-      var lines2 = exports2.drawTextLines(options.textLines, {
-        color: options.textColor,
-        font: options.font,
-        size: options.fontSize,
+      var lines2 = exports2.drawTextLines(options2.textLines, {
+        color: options2.textColor,
+        font: options2.font,
+        size: options2.fontSize,
         rotate: rotations_1.degrees(0),
         xSkew: rotations_1.degrees(0),
         ySkew: rotations_1.degrees(0)
@@ -49553,7 +49564,7 @@ var require_appearances = __commonJS({
       } else {
         updateDefaultAppearance(checkBox.acroField, textColor);
       }
-      var options = {
+      var options2 = {
         x: 0 + borderWidth / 2,
         y: 0 + borderWidth / 2,
         width: width - borderWidth,
@@ -49565,12 +49576,12 @@ var require_appearances = __commonJS({
       };
       return {
         normal: {
-          on: tslib_1.__spreadArrays(rotate, operations_1.drawCheckBox(tslib_1.__assign(tslib_1.__assign({}, options), { color: normalBackgroundColor, filled: true }))),
-          off: tslib_1.__spreadArrays(rotate, operations_1.drawCheckBox(tslib_1.__assign(tslib_1.__assign({}, options), { color: normalBackgroundColor, filled: false })))
+          on: tslib_1.__spreadArrays(rotate, operations_1.drawCheckBox(tslib_1.__assign(tslib_1.__assign({}, options2), { color: normalBackgroundColor, filled: true }))),
+          off: tslib_1.__spreadArrays(rotate, operations_1.drawCheckBox(tslib_1.__assign(tslib_1.__assign({}, options2), { color: normalBackgroundColor, filled: false })))
         },
         down: {
-          on: tslib_1.__spreadArrays(rotate, operations_1.drawCheckBox(tslib_1.__assign(tslib_1.__assign({}, options), { color: downBackgroundColor, filled: true }))),
-          off: tslib_1.__spreadArrays(rotate, operations_1.drawCheckBox(tslib_1.__assign(tslib_1.__assign({}, options), { color: downBackgroundColor, filled: false })))
+          on: tslib_1.__spreadArrays(rotate, operations_1.drawCheckBox(tslib_1.__assign(tslib_1.__assign({}, options2), { color: downBackgroundColor, filled: true }))),
+          off: tslib_1.__spreadArrays(rotate, operations_1.drawCheckBox(tslib_1.__assign(tslib_1.__assign({}, options2), { color: downBackgroundColor, filled: false })))
         }
       };
     };
@@ -49595,7 +49606,7 @@ var require_appearances = __commonJS({
       } else {
         updateDefaultAppearance(radioGroup.acroField, textColor);
       }
-      var options = {
+      var options2 = {
         x: width / 2,
         y: height / 2,
         width: width - borderWidth,
@@ -49606,12 +49617,12 @@ var require_appearances = __commonJS({
       };
       return {
         normal: {
-          on: tslib_1.__spreadArrays(rotate, operations_1.drawRadioButton(tslib_1.__assign(tslib_1.__assign({}, options), { color: normalBackgroundColor, filled: true }))),
-          off: tslib_1.__spreadArrays(rotate, operations_1.drawRadioButton(tslib_1.__assign(tslib_1.__assign({}, options), { color: normalBackgroundColor, filled: false })))
+          on: tslib_1.__spreadArrays(rotate, operations_1.drawRadioButton(tslib_1.__assign(tslib_1.__assign({}, options2), { color: normalBackgroundColor, filled: true }))),
+          off: tslib_1.__spreadArrays(rotate, operations_1.drawRadioButton(tslib_1.__assign(tslib_1.__assign({}, options2), { color: normalBackgroundColor, filled: false })))
         },
         down: {
-          on: tslib_1.__spreadArrays(rotate, operations_1.drawRadioButton(tslib_1.__assign(tslib_1.__assign({}, options), { color: downBackgroundColor, filled: true }))),
-          off: tslib_1.__spreadArrays(rotate, operations_1.drawRadioButton(tslib_1.__assign(tslib_1.__assign({}, options), { color: downBackgroundColor, filled: false })))
+          on: tslib_1.__spreadArrays(rotate, operations_1.drawRadioButton(tslib_1.__assign(tslib_1.__assign({}, options2), { color: downBackgroundColor, filled: true }))),
+          off: tslib_1.__spreadArrays(rotate, operations_1.drawRadioButton(tslib_1.__assign(tslib_1.__assign({}, options2), { color: downBackgroundColor, filled: false })))
         }
       };
     };
@@ -49660,7 +49671,7 @@ var require_appearances = __commonJS({
       } else {
         updateDefaultAppearance(button.acroField, textColor, font, fontSize);
       }
-      var options = {
+      var options2 = {
         x: 0 + borderWidth / 2,
         y: 0 + borderWidth / 2,
         width: width - borderWidth,
@@ -49672,8 +49683,8 @@ var require_appearances = __commonJS({
         fontSize
       };
       return {
-        normal: tslib_1.__spreadArrays(rotate, operations_1.drawButton(tslib_1.__assign(tslib_1.__assign({}, options), { color: normalBackgroundColor, textLines: [normalLayout.line] }))),
-        down: tslib_1.__spreadArrays(rotate, operations_1.drawButton(tslib_1.__assign(tslib_1.__assign({}, options), { color: downBackgroundColor, textLines: [downLayout.line] })))
+        normal: tslib_1.__spreadArrays(rotate, operations_1.drawButton(tslib_1.__assign(tslib_1.__assign({}, options2), { color: normalBackgroundColor, textLines: [normalLayout.line] }))),
+        down: tslib_1.__spreadArrays(rotate, operations_1.drawButton(tslib_1.__assign(tslib_1.__assign({}, options2), { color: downBackgroundColor, textLines: [downLayout.line] })))
       };
     };
     exports2.defaultTextFieldAppearanceProvider = function(textField, widget, font) {
@@ -49736,7 +49747,7 @@ var require_appearances = __commonJS({
       } else {
         updateDefaultAppearance(textField.acroField, textColor, font, fontSize);
       }
-      var options = {
+      var options2 = {
         x: 0 + borderWidth / 2,
         y: 0 + borderWidth / 2,
         width: width - borderWidth,
@@ -49750,7 +49761,7 @@ var require_appearances = __commonJS({
         textLines,
         padding
       };
-      return tslib_1.__spreadArrays(rotate, operations_1.drawTextField(options));
+      return tslib_1.__spreadArrays(rotate, operations_1.drawTextField(options2));
     };
     exports2.defaultDropdownAppearanceProvider = function(dropdown, widget, font) {
       var _a, _b, _c;
@@ -49788,7 +49799,7 @@ var require_appearances = __commonJS({
       } else {
         updateDefaultAppearance(dropdown.acroField, textColor, font, fontSize);
       }
-      var options = {
+      var options2 = {
         x: 0 + borderWidth / 2,
         y: 0 + borderWidth / 2,
         width: width - borderWidth,
@@ -49802,7 +49813,7 @@ var require_appearances = __commonJS({
         textLines: [line],
         padding
       };
-      return tslib_1.__spreadArrays(rotate, operations_1.drawTextField(options));
+      return tslib_1.__spreadArrays(rotate, operations_1.drawTextField(options2));
     };
     exports2.defaultOptionListAppearanceProvider = function(optionList, widget, font) {
       var _a, _b;
@@ -49820,13 +49831,13 @@ var require_appearances = __commonJS({
       var black = colors_1.rgb(0, 0, 0);
       var borderColor = colors_1.componentsToColor(ap === null || ap === void 0 ? void 0 : ap.getBorderColor());
       var normalBackgroundColor = colors_1.componentsToColor(ap === null || ap === void 0 ? void 0 : ap.getBackgroundColor());
-      var options = optionList.getOptions();
+      var options2 = optionList.getOptions();
       var selected = optionList.getSelected();
       if (optionList.isSorted())
-        options.sort();
+        options2.sort();
       var text12 = "";
-      for (var idx = 0, len = options.length; idx < len; idx++) {
-        text12 += options[idx];
+      for (var idx = 0, len = options2.length; idx < len; idx++) {
+        text12 += options2[idx];
         if (idx < len - 1)
           text12 += "\n";
       }
@@ -49972,12 +49983,12 @@ var require_PDFFont = __commonJS({
           utils_1.assertIs(size, "size", ["number"]);
           return this.embedder.widthOfTextAtSize(text12, size);
         };
-        PDFFont2.prototype.heightAtSize = function(size, options) {
+        PDFFont2.prototype.heightAtSize = function(size, options2) {
           var _a;
           utils_1.assertIs(size, "size", ["number"]);
-          utils_1.assertOrUndefined(options === null || options === void 0 ? void 0 : options.descender, "options.descender", ["boolean"]);
+          utils_1.assertOrUndefined(options2 === null || options2 === void 0 ? void 0 : options2.descender, "options.descender", ["boolean"]);
           return this.embedder.heightOfFontAtSize(size, {
-            descender: (_a = options === null || options === void 0 ? void 0 : options.descender) !== null && _a !== void 0 ? _a : true
+            descender: (_a = options2 === null || options2 === void 0 ? void 0 : options2.descender) !== null && _a !== void 0 ? _a : true
           });
         };
         PDFFont2.prototype.sizeAtHeight = function(height) {
@@ -50137,22 +50148,22 @@ var require_PDFField = __commonJS({
     var utils_1 = require_utils3();
     var image_1 = require_image();
     var operations_1 = require_operations();
-    exports2.assertFieldAppearanceOptions = function(options) {
-      utils_1.assertOrUndefined(options === null || options === void 0 ? void 0 : options.x, "options.x", ["number"]);
-      utils_1.assertOrUndefined(options === null || options === void 0 ? void 0 : options.y, "options.y", ["number"]);
-      utils_1.assertOrUndefined(options === null || options === void 0 ? void 0 : options.width, "options.width", ["number"]);
-      utils_1.assertOrUndefined(options === null || options === void 0 ? void 0 : options.height, "options.height", ["number"]);
-      utils_1.assertOrUndefined(options === null || options === void 0 ? void 0 : options.textColor, "options.textColor", [
+    exports2.assertFieldAppearanceOptions = function(options2) {
+      utils_1.assertOrUndefined(options2 === null || options2 === void 0 ? void 0 : options2.x, "options.x", ["number"]);
+      utils_1.assertOrUndefined(options2 === null || options2 === void 0 ? void 0 : options2.y, "options.y", ["number"]);
+      utils_1.assertOrUndefined(options2 === null || options2 === void 0 ? void 0 : options2.width, "options.width", ["number"]);
+      utils_1.assertOrUndefined(options2 === null || options2 === void 0 ? void 0 : options2.height, "options.height", ["number"]);
+      utils_1.assertOrUndefined(options2 === null || options2 === void 0 ? void 0 : options2.textColor, "options.textColor", [
         [Object, "Color"]
       ]);
-      utils_1.assertOrUndefined(options === null || options === void 0 ? void 0 : options.backgroundColor, "options.backgroundColor", [
+      utils_1.assertOrUndefined(options2 === null || options2 === void 0 ? void 0 : options2.backgroundColor, "options.backgroundColor", [
         [Object, "Color"]
       ]);
-      utils_1.assertOrUndefined(options === null || options === void 0 ? void 0 : options.borderColor, "options.borderColor", [
+      utils_1.assertOrUndefined(options2 === null || options2 === void 0 ? void 0 : options2.borderColor, "options.borderColor", [
         [Object, "Color"]
       ]);
-      utils_1.assertOrUndefined(options === null || options === void 0 ? void 0 : options.borderWidth, "options.borderWidth", ["number"]);
-      utils_1.assertOrUndefined(options === null || options === void 0 ? void 0 : options.rotate, "options.rotate", [[Object, "Rotation"]]);
+      utils_1.assertOrUndefined(options2 === null || options2 === void 0 ? void 0 : options2.borderWidth, "options.borderWidth", ["number"]);
+      utils_1.assertOrUndefined(options2 === null || options2 === void 0 ? void 0 : options2.rotate, "options.rotate", [[Object, "Rotation"]]);
     };
     var PDFField = (
       /** @class */
@@ -50211,20 +50222,20 @@ var require_PDFField = __commonJS({
         PDFField2.prototype.isDirty = function() {
           return this.doc.getForm().fieldIsDirty(this.ref);
         };
-        PDFField2.prototype.createWidget = function(options) {
+        PDFField2.prototype.createWidget = function(options2) {
           var _a;
-          var textColor = options.textColor;
-          var backgroundColor = options.backgroundColor;
-          var borderColor = options.borderColor;
-          var borderWidth = options.borderWidth;
-          var degreesAngle = rotations_1.toDegrees(options.rotate);
-          var caption = options.caption;
-          var x = options.x;
-          var y = options.y;
-          var width = options.width + borderWidth;
-          var height = options.height + borderWidth;
-          var hidden = Boolean(options.hidden);
-          var pageRef = options.page;
+          var textColor = options2.textColor;
+          var backgroundColor = options2.backgroundColor;
+          var borderColor = options2.borderColor;
+          var borderWidth = options2.borderWidth;
+          var degreesAngle = rotations_1.toDegrees(options2.rotate);
+          var caption = options2.caption;
+          var x = options2.x;
+          var y = options2.y;
+          var width = options2.width + borderWidth;
+          var height = options2.height + borderWidth;
+          var hidden = Boolean(options2.hidden);
+          var pageRef = options2.page;
           utils_1.assertMultiple(degreesAngle, "degreesAngle", 90);
           var widget = core_1.PDFWidgetAnnotation.create(this.doc.context, this.ref);
           var rect = rotations_1.rotateRectangle({ x, y, width, height }, borderWidth, degreesAngle);
@@ -50308,7 +50319,7 @@ var require_PDFField = __commonJS({
           var rotate = operations_1.rotateInPlace(tslib_1.__assign(tslib_1.__assign({}, rectangle), { rotation }));
           var adj = rotations_1.adjustDimsForRotation(rectangle, rotation);
           var imageDims = image.scaleToFit(adj.width - borderWidth * 2, adj.height - borderWidth * 2);
-          var options = {
+          var options2 = {
             x: borderWidth,
             y: borderWidth,
             width: imageDims.width,
@@ -50319,14 +50330,14 @@ var require_PDFField = __commonJS({
             ySkew: rotations_1.degrees(0)
           };
           if (alignment === image_1.ImageAlignment.Center) {
-            options.x += (adj.width - borderWidth * 2) / 2 - imageDims.width / 2;
-            options.y += (adj.height - borderWidth * 2) / 2 - imageDims.height / 2;
+            options2.x += (adj.width - borderWidth * 2) / 2 - imageDims.width / 2;
+            options2.y += (adj.height - borderWidth * 2) / 2 - imageDims.height / 2;
           } else if (alignment === image_1.ImageAlignment.Right) {
-            options.x = adj.width - borderWidth - imageDims.width;
-            options.y = adj.height - borderWidth - imageDims.height;
+            options2.x = adj.width - borderWidth - imageDims.width;
+            options2.y = adj.height - borderWidth - imageDims.height;
           }
           var imageName = this.doc.context.addRandomSuffix("Image", 10);
-          var appearance = tslib_1.__spreadArrays(rotate, operations_1.drawImage(imageName, options));
+          var appearance = tslib_1.__spreadArrays(rotate, operations_1.drawImage(imageName, options2));
           var Resources = { XObject: (_a = {}, _a[imageName] = image.ref, _a) };
           var stream = context.formXObject(appearance, {
             Resources,
@@ -50390,31 +50401,31 @@ var require_PDFCheckBox = __commonJS({
           var onValue = this.acroField.getOnValue();
           return !!onValue && onValue === this.acroField.getValue();
         };
-        PDFCheckBox2.prototype.addToPage = function(page, options) {
+        PDFCheckBox2.prototype.addToPage = function(page, options2) {
           var _a, _b, _c, _d, _e, _f;
           utils_1.assertIs(page, "page", [[PDFPage_1.default, "PDFPage"]]);
-          PDFField_1.assertFieldAppearanceOptions(options);
-          if (!options)
-            options = {};
-          if (!("textColor" in options))
-            options.textColor = colors_1.rgb(0, 0, 0);
-          if (!("backgroundColor" in options))
-            options.backgroundColor = colors_1.rgb(1, 1, 1);
-          if (!("borderColor" in options))
-            options.borderColor = colors_1.rgb(0, 0, 0);
-          if (!("borderWidth" in options))
-            options.borderWidth = 1;
+          PDFField_1.assertFieldAppearanceOptions(options2);
+          if (!options2)
+            options2 = {};
+          if (!("textColor" in options2))
+            options2.textColor = colors_1.rgb(0, 0, 0);
+          if (!("backgroundColor" in options2))
+            options2.backgroundColor = colors_1.rgb(1, 1, 1);
+          if (!("borderColor" in options2))
+            options2.borderColor = colors_1.rgb(0, 0, 0);
+          if (!("borderWidth" in options2))
+            options2.borderWidth = 1;
           var widget = this.createWidget({
-            x: (_a = options.x) !== null && _a !== void 0 ? _a : 0,
-            y: (_b = options.y) !== null && _b !== void 0 ? _b : 0,
-            width: (_c = options.width) !== null && _c !== void 0 ? _c : 50,
-            height: (_d = options.height) !== null && _d !== void 0 ? _d : 50,
-            textColor: options.textColor,
-            backgroundColor: options.backgroundColor,
-            borderColor: options.borderColor,
-            borderWidth: (_e = options.borderWidth) !== null && _e !== void 0 ? _e : 0,
-            rotate: (_f = options.rotate) !== null && _f !== void 0 ? _f : rotations_1.degrees(0),
-            hidden: options.hidden,
+            x: (_a = options2.x) !== null && _a !== void 0 ? _a : 0,
+            y: (_b = options2.y) !== null && _b !== void 0 ? _b : 0,
+            width: (_c = options2.width) !== null && _c !== void 0 ? _c : 50,
+            height: (_d = options2.height) !== null && _d !== void 0 ? _d : 50,
+            textColor: options2.textColor,
+            backgroundColor: options2.backgroundColor,
+            borderColor: options2.borderColor,
+            borderWidth: (_e = options2.borderWidth) !== null && _e !== void 0 ? _e : 0,
+            rotate: (_f = options2.rotate) !== null && _f !== void 0 ? _f : rotations_1.degrees(0),
+            hidden: options2.hidden,
             page: page.ref
           });
           var widgetRef = this.doc.context.register(widget.dict);
@@ -50496,12 +50507,12 @@ var require_PDFDropdown = __commonJS({
         }
         PDFDropdown2.prototype.getOptions = function() {
           var rawOptions = this.acroField.getOptions();
-          var options = new Array(rawOptions.length);
-          for (var idx = 0, len = options.length; idx < len; idx++) {
+          var options2 = new Array(rawOptions.length);
+          for (var idx = 0, len = options2.length; idx < len; idx++) {
             var _a = rawOptions[idx], display2 = _a.display, value4 = _a.value;
-            options[idx] = (display2 !== null && display2 !== void 0 ? display2 : value4).decodeText();
+            options2[idx] = (display2 !== null && display2 !== void 0 ? display2 : value4).decodeText();
           }
-          return options;
+          return options2;
         };
         PDFDropdown2.prototype.getSelected = function() {
           var values = this.acroField.getValues();
@@ -50511,17 +50522,17 @@ var require_PDFDropdown = __commonJS({
           }
           return selected;
         };
-        PDFDropdown2.prototype.setOptions = function(options) {
-          utils_1.assertIs(options, "options", [Array]);
-          var optionObjects = new Array(options.length);
-          for (var idx = 0, len = options.length; idx < len; idx++) {
-            optionObjects[idx] = { value: core_1.PDFHexString.fromText(options[idx]) };
+        PDFDropdown2.prototype.setOptions = function(options2) {
+          utils_1.assertIs(options2, "options", [Array]);
+          var optionObjects = new Array(options2.length);
+          for (var idx = 0, len = options2.length; idx < len; idx++) {
+            optionObjects[idx] = { value: core_1.PDFHexString.fromText(options2[idx]) };
           }
           this.acroField.setOptions(optionObjects);
         };
-        PDFDropdown2.prototype.addOptions = function(options) {
-          utils_1.assertIs(options, "options", ["string", Array]);
-          var optionsArr = Array.isArray(options) ? options : [options];
+        PDFDropdown2.prototype.addOptions = function(options2) {
+          utils_1.assertIs(options2, "options", ["string", Array]);
+          var optionsArr = Array.isArray(options2) ? options2 : [options2];
           var existingOptions = this.acroField.getOptions();
           var newOptions = new Array(optionsArr.length);
           for (var idx = 0, len = optionsArr.length; idx < len; idx++) {
@@ -50529,13 +50540,13 @@ var require_PDFDropdown = __commonJS({
           }
           this.acroField.setOptions(existingOptions.concat(newOptions));
         };
-        PDFDropdown2.prototype.select = function(options, merge2) {
+        PDFDropdown2.prototype.select = function(options2, merge2) {
           if (merge2 === void 0) {
             merge2 = false;
           }
-          utils_1.assertIs(options, "options", ["string", Array]);
+          utils_1.assertIs(options2, "options", ["string", Array]);
           utils_1.assertIs(merge2, "merge", ["boolean"]);
-          var optionsArr = Array.isArray(options) ? options : [options];
+          var optionsArr = Array.isArray(options2) ? options2 : [options2];
           var validOptions = this.getOptions();
           var hasCustomOption = optionsArr.find(function(option) {
             return !validOptions.includes(option);
@@ -50611,36 +50622,36 @@ var require_PDFDropdown = __commonJS({
         PDFDropdown2.prototype.disableSelectOnClick = function() {
           this.acroField.setFlagTo(core_1.AcroChoiceFlags.CommitOnSelChange, false);
         };
-        PDFDropdown2.prototype.addToPage = function(page, options) {
+        PDFDropdown2.prototype.addToPage = function(page, options2) {
           var _a, _b, _c, _d, _e, _f, _g;
           utils_1.assertIs(page, "page", [[PDFPage_1.default, "PDFPage"]]);
-          PDFField_1.assertFieldAppearanceOptions(options);
-          if (!options)
-            options = {};
-          if (!("textColor" in options))
-            options.textColor = colors_1.rgb(0, 0, 0);
-          if (!("backgroundColor" in options))
-            options.backgroundColor = colors_1.rgb(1, 1, 1);
-          if (!("borderColor" in options))
-            options.borderColor = colors_1.rgb(0, 0, 0);
-          if (!("borderWidth" in options))
-            options.borderWidth = 1;
+          PDFField_1.assertFieldAppearanceOptions(options2);
+          if (!options2)
+            options2 = {};
+          if (!("textColor" in options2))
+            options2.textColor = colors_1.rgb(0, 0, 0);
+          if (!("backgroundColor" in options2))
+            options2.backgroundColor = colors_1.rgb(1, 1, 1);
+          if (!("borderColor" in options2))
+            options2.borderColor = colors_1.rgb(0, 0, 0);
+          if (!("borderWidth" in options2))
+            options2.borderWidth = 1;
           var widget = this.createWidget({
-            x: (_a = options.x) !== null && _a !== void 0 ? _a : 0,
-            y: (_b = options.y) !== null && _b !== void 0 ? _b : 0,
-            width: (_c = options.width) !== null && _c !== void 0 ? _c : 200,
-            height: (_d = options.height) !== null && _d !== void 0 ? _d : 50,
-            textColor: options.textColor,
-            backgroundColor: options.backgroundColor,
-            borderColor: options.borderColor,
-            borderWidth: (_e = options.borderWidth) !== null && _e !== void 0 ? _e : 0,
-            rotate: (_f = options.rotate) !== null && _f !== void 0 ? _f : rotations_1.degrees(0),
-            hidden: options.hidden,
+            x: (_a = options2.x) !== null && _a !== void 0 ? _a : 0,
+            y: (_b = options2.y) !== null && _b !== void 0 ? _b : 0,
+            width: (_c = options2.width) !== null && _c !== void 0 ? _c : 200,
+            height: (_d = options2.height) !== null && _d !== void 0 ? _d : 50,
+            textColor: options2.textColor,
+            backgroundColor: options2.backgroundColor,
+            borderColor: options2.borderColor,
+            borderWidth: (_e = options2.borderWidth) !== null && _e !== void 0 ? _e : 0,
+            rotate: (_f = options2.rotate) !== null && _f !== void 0 ? _f : rotations_1.degrees(0),
+            hidden: options2.hidden,
             page: page.ref
           });
           var widgetRef = this.doc.context.register(widget.dict);
           this.acroField.addWidget(widgetRef);
-          var font = (_g = options.font) !== null && _g !== void 0 ? _g : this.doc.getForm().getDefaultFont();
+          var font = (_g = options2.font) !== null && _g !== void 0 ? _g : this.doc.getForm().getDefaultFont();
           this.updateWidgetAppearance(widget, font);
           page.node.addAnnot(widgetRef);
         };
@@ -50712,12 +50723,12 @@ var require_PDFOptionList = __commonJS({
         }
         PDFOptionList2.prototype.getOptions = function() {
           var rawOptions = this.acroField.getOptions();
-          var options = new Array(rawOptions.length);
-          for (var idx = 0, len = options.length; idx < len; idx++) {
+          var options2 = new Array(rawOptions.length);
+          for (var idx = 0, len = options2.length; idx < len; idx++) {
             var _a = rawOptions[idx], display2 = _a.display, value4 = _a.value;
-            options[idx] = (display2 !== null && display2 !== void 0 ? display2 : value4).decodeText();
+            options2[idx] = (display2 !== null && display2 !== void 0 ? display2 : value4).decodeText();
           }
-          return options;
+          return options2;
         };
         PDFOptionList2.prototype.getSelected = function() {
           var values = this.acroField.getValues();
@@ -50727,19 +50738,19 @@ var require_PDFOptionList = __commonJS({
           }
           return selected;
         };
-        PDFOptionList2.prototype.setOptions = function(options) {
-          utils_1.assertIs(options, "options", [Array]);
+        PDFOptionList2.prototype.setOptions = function(options2) {
+          utils_1.assertIs(options2, "options", [Array]);
           this.markAsDirty();
-          var optionObjects = new Array(options.length);
-          for (var idx = 0, len = options.length; idx < len; idx++) {
-            optionObjects[idx] = { value: core_1.PDFHexString.fromText(options[idx]) };
+          var optionObjects = new Array(options2.length);
+          for (var idx = 0, len = options2.length; idx < len; idx++) {
+            optionObjects[idx] = { value: core_1.PDFHexString.fromText(options2[idx]) };
           }
           this.acroField.setOptions(optionObjects);
         };
-        PDFOptionList2.prototype.addOptions = function(options) {
-          utils_1.assertIs(options, "options", ["string", Array]);
+        PDFOptionList2.prototype.addOptions = function(options2) {
+          utils_1.assertIs(options2, "options", ["string", Array]);
           this.markAsDirty();
-          var optionsArr = Array.isArray(options) ? options : [options];
+          var optionsArr = Array.isArray(options2) ? options2 : [options2];
           var existingOptions = this.acroField.getOptions();
           var newOptions = new Array(optionsArr.length);
           for (var idx = 0, len = optionsArr.length; idx < len; idx++) {
@@ -50747,13 +50758,13 @@ var require_PDFOptionList = __commonJS({
           }
           this.acroField.setOptions(existingOptions.concat(newOptions));
         };
-        PDFOptionList2.prototype.select = function(options, merge2) {
+        PDFOptionList2.prototype.select = function(options2, merge2) {
           if (merge2 === void 0) {
             merge2 = false;
           }
-          utils_1.assertIs(options, "options", ["string", Array]);
+          utils_1.assertIs(options2, "options", ["string", Array]);
           utils_1.assertIs(merge2, "merge", ["boolean"]);
-          var optionsArr = Array.isArray(options) ? options : [options];
+          var optionsArr = Array.isArray(options2) ? options2 : [options2];
           var validOptions = this.getOptions();
           utils_1.assertIsSubset(optionsArr, "option", validOptions);
           this.markAsDirty();
@@ -50807,36 +50818,36 @@ var require_PDFOptionList = __commonJS({
         PDFOptionList2.prototype.disableSelectOnClick = function() {
           this.acroField.setFlagTo(core_1.AcroChoiceFlags.CommitOnSelChange, false);
         };
-        PDFOptionList2.prototype.addToPage = function(page, options) {
+        PDFOptionList2.prototype.addToPage = function(page, options2) {
           var _a, _b, _c, _d, _e, _f, _g;
           utils_1.assertIs(page, "page", [[PDFPage_1.default, "PDFPage"]]);
-          PDFField_1.assertFieldAppearanceOptions(options);
-          if (!options)
-            options = {};
-          if (!("textColor" in options))
-            options.textColor = colors_1.rgb(0, 0, 0);
-          if (!("backgroundColor" in options))
-            options.backgroundColor = colors_1.rgb(1, 1, 1);
-          if (!("borderColor" in options))
-            options.borderColor = colors_1.rgb(0, 0, 0);
-          if (!("borderWidth" in options))
-            options.borderWidth = 1;
+          PDFField_1.assertFieldAppearanceOptions(options2);
+          if (!options2)
+            options2 = {};
+          if (!("textColor" in options2))
+            options2.textColor = colors_1.rgb(0, 0, 0);
+          if (!("backgroundColor" in options2))
+            options2.backgroundColor = colors_1.rgb(1, 1, 1);
+          if (!("borderColor" in options2))
+            options2.borderColor = colors_1.rgb(0, 0, 0);
+          if (!("borderWidth" in options2))
+            options2.borderWidth = 1;
           var widget = this.createWidget({
-            x: (_a = options.x) !== null && _a !== void 0 ? _a : 0,
-            y: (_b = options.y) !== null && _b !== void 0 ? _b : 0,
-            width: (_c = options.width) !== null && _c !== void 0 ? _c : 200,
-            height: (_d = options.height) !== null && _d !== void 0 ? _d : 100,
-            textColor: options.textColor,
-            backgroundColor: options.backgroundColor,
-            borderColor: options.borderColor,
-            borderWidth: (_e = options.borderWidth) !== null && _e !== void 0 ? _e : 0,
-            rotate: (_f = options.rotate) !== null && _f !== void 0 ? _f : rotations_1.degrees(0),
-            hidden: options.hidden,
+            x: (_a = options2.x) !== null && _a !== void 0 ? _a : 0,
+            y: (_b = options2.y) !== null && _b !== void 0 ? _b : 0,
+            width: (_c = options2.width) !== null && _c !== void 0 ? _c : 200,
+            height: (_d = options2.height) !== null && _d !== void 0 ? _d : 100,
+            textColor: options2.textColor,
+            backgroundColor: options2.backgroundColor,
+            borderColor: options2.borderColor,
+            borderWidth: (_e = options2.borderWidth) !== null && _e !== void 0 ? _e : 0,
+            rotate: (_f = options2.rotate) !== null && _f !== void 0 ? _f : rotations_1.degrees(0),
+            hidden: options2.hidden,
             page: page.ref
           });
           var widgetRef = this.doc.context.register(widget.dict);
           this.acroField.addWidget(widgetRef);
-          var font = (_g = options.font) !== null && _g !== void 0 ? _g : this.doc.getForm().getDefaultFont();
+          var font = (_g = options2.font) !== null && _g !== void 0 ? _g : this.doc.getForm().getDefaultFont();
           this.updateWidgetAppearance(widget, font);
           page.node.addAnnot(widgetRef);
         };
@@ -50980,22 +50991,22 @@ var require_PDFRadioGroup = __commonJS({
         PDFRadioGroup2.prototype.disableMutualExclusion = function() {
           this.acroField.setFlagTo(core_1.AcroButtonFlags.RadiosInUnison, true);
         };
-        PDFRadioGroup2.prototype.addOptionToPage = function(option, page, options) {
+        PDFRadioGroup2.prototype.addOptionToPage = function(option, page, options2) {
           var _a, _b, _c, _d, _e, _f, _g, _h, _j;
           utils_1.assertIs(option, "option", ["string"]);
           utils_1.assertIs(page, "page", [[PDFPage_1.default, "PDFPage"]]);
-          PDFField_1.assertFieldAppearanceOptions(options);
+          PDFField_1.assertFieldAppearanceOptions(options2);
           var widget = this.createWidget({
-            x: (_a = options === null || options === void 0 ? void 0 : options.x) !== null && _a !== void 0 ? _a : 0,
-            y: (_b = options === null || options === void 0 ? void 0 : options.y) !== null && _b !== void 0 ? _b : 0,
-            width: (_c = options === null || options === void 0 ? void 0 : options.width) !== null && _c !== void 0 ? _c : 50,
-            height: (_d = options === null || options === void 0 ? void 0 : options.height) !== null && _d !== void 0 ? _d : 50,
-            textColor: (_e = options === null || options === void 0 ? void 0 : options.textColor) !== null && _e !== void 0 ? _e : colors_1.rgb(0, 0, 0),
-            backgroundColor: (_f = options === null || options === void 0 ? void 0 : options.backgroundColor) !== null && _f !== void 0 ? _f : colors_1.rgb(1, 1, 1),
-            borderColor: (_g = options === null || options === void 0 ? void 0 : options.borderColor) !== null && _g !== void 0 ? _g : colors_1.rgb(0, 0, 0),
-            borderWidth: (_h = options === null || options === void 0 ? void 0 : options.borderWidth) !== null && _h !== void 0 ? _h : 1,
-            rotate: (_j = options === null || options === void 0 ? void 0 : options.rotate) !== null && _j !== void 0 ? _j : rotations_1.degrees(0),
-            hidden: options === null || options === void 0 ? void 0 : options.hidden,
+            x: (_a = options2 === null || options2 === void 0 ? void 0 : options2.x) !== null && _a !== void 0 ? _a : 0,
+            y: (_b = options2 === null || options2 === void 0 ? void 0 : options2.y) !== null && _b !== void 0 ? _b : 0,
+            width: (_c = options2 === null || options2 === void 0 ? void 0 : options2.width) !== null && _c !== void 0 ? _c : 50,
+            height: (_d = options2 === null || options2 === void 0 ? void 0 : options2.height) !== null && _d !== void 0 ? _d : 50,
+            textColor: (_e = options2 === null || options2 === void 0 ? void 0 : options2.textColor) !== null && _e !== void 0 ? _e : colors_1.rgb(0, 0, 0),
+            backgroundColor: (_f = options2 === null || options2 === void 0 ? void 0 : options2.backgroundColor) !== null && _f !== void 0 ? _f : colors_1.rgb(1, 1, 1),
+            borderColor: (_g = options2 === null || options2 === void 0 ? void 0 : options2.borderColor) !== null && _g !== void 0 ? _g : colors_1.rgb(0, 0, 0),
+            borderWidth: (_h = options2 === null || options2 === void 0 ? void 0 : options2.borderWidth) !== null && _h !== void 0 ? _h : 1,
+            rotate: (_j = options2 === null || options2 === void 0 ? void 0 : options2.rotate) !== null && _j !== void 0 ? _j : rotations_1.degrees(0),
+            hidden: options2 === null || options2 === void 0 ? void 0 : options2.hidden,
             page: page.ref
           });
           var widgetRef = this.doc.context.register(widget.dict);
@@ -51248,36 +51259,36 @@ var require_PDFTextField = __commonJS({
         PDFTextField2.prototype.disableRichFormatting = function() {
           this.acroField.setFlagTo(core_1.AcroTextFlags.RichText, false);
         };
-        PDFTextField2.prototype.addToPage = function(page, options) {
+        PDFTextField2.prototype.addToPage = function(page, options2) {
           var _a, _b, _c, _d, _e, _f, _g;
           utils_1.assertIs(page, "page", [[PDFPage_1.default, "PDFPage"]]);
-          PDFField_1.assertFieldAppearanceOptions(options);
-          if (!options)
-            options = {};
-          if (!("textColor" in options))
-            options.textColor = colors_1.rgb(0, 0, 0);
-          if (!("backgroundColor" in options))
-            options.backgroundColor = colors_1.rgb(1, 1, 1);
-          if (!("borderColor" in options))
-            options.borderColor = colors_1.rgb(0, 0, 0);
-          if (!("borderWidth" in options))
-            options.borderWidth = 1;
+          PDFField_1.assertFieldAppearanceOptions(options2);
+          if (!options2)
+            options2 = {};
+          if (!("textColor" in options2))
+            options2.textColor = colors_1.rgb(0, 0, 0);
+          if (!("backgroundColor" in options2))
+            options2.backgroundColor = colors_1.rgb(1, 1, 1);
+          if (!("borderColor" in options2))
+            options2.borderColor = colors_1.rgb(0, 0, 0);
+          if (!("borderWidth" in options2))
+            options2.borderWidth = 1;
           var widget = this.createWidget({
-            x: (_a = options.x) !== null && _a !== void 0 ? _a : 0,
-            y: (_b = options.y) !== null && _b !== void 0 ? _b : 0,
-            width: (_c = options.width) !== null && _c !== void 0 ? _c : 200,
-            height: (_d = options.height) !== null && _d !== void 0 ? _d : 50,
-            textColor: options.textColor,
-            backgroundColor: options.backgroundColor,
-            borderColor: options.borderColor,
-            borderWidth: (_e = options.borderWidth) !== null && _e !== void 0 ? _e : 0,
-            rotate: (_f = options.rotate) !== null && _f !== void 0 ? _f : rotations_1.degrees(0),
-            hidden: options.hidden,
+            x: (_a = options2.x) !== null && _a !== void 0 ? _a : 0,
+            y: (_b = options2.y) !== null && _b !== void 0 ? _b : 0,
+            width: (_c = options2.width) !== null && _c !== void 0 ? _c : 200,
+            height: (_d = options2.height) !== null && _d !== void 0 ? _d : 50,
+            textColor: options2.textColor,
+            backgroundColor: options2.backgroundColor,
+            borderColor: options2.borderColor,
+            borderWidth: (_e = options2.borderWidth) !== null && _e !== void 0 ? _e : 0,
+            rotate: (_f = options2.rotate) !== null && _f !== void 0 ? _f : rotations_1.degrees(0),
+            hidden: options2.hidden,
             page: page.ref
           });
           var widgetRef = this.doc.context.register(widget.dict);
           this.acroField.addWidget(widgetRef);
-          var font = (_g = options.font) !== null && _g !== void 0 ? _g : this.doc.getForm().getDefaultFont();
+          var font = (_g = options2.font) !== null && _g !== void 0 ? _g : this.doc.getForm().getDefaultFont();
           this.updateWidgetAppearance(widget, font);
           page.node.addAnnot(widgetRef);
         };
@@ -51522,11 +51533,11 @@ var require_PDFForm = __commonJS({
           addFieldToParent(parent, [text12, text12.ref], nameParts.terminal);
           return PDFTextField_1.default.of(text12, text12.ref, this.doc);
         };
-        PDFForm2.prototype.flatten = function(options) {
-          if (options === void 0) {
-            options = { updateFieldAppearances: true };
+        PDFForm2.prototype.flatten = function(options2) {
+          if (options2 === void 0) {
+            options2 = { updateFieldAppearances: true };
           }
-          if (options.updateFieldAppearances) {
+          if (options2.updateFieldAppearances) {
             this.updateFieldAppearances();
           }
           var fields = this.getFields();
@@ -52041,16 +52052,16 @@ var require_PDFDocument = __commonJS({
           if (updateMetadata)
             this.updateInfoDict();
         }
-        PDFDocument3.load = function(pdf, options) {
-          if (options === void 0) {
-            options = {};
+        PDFDocument3.load = function(pdf, options2) {
+          if (options2 === void 0) {
+            options2 = {};
           }
           return tslib_1.__awaiter(this, void 0, void 0, function() {
             var _a, ignoreEncryption, _b, parseSpeed, _c, throwOnInvalidObject, _d, updateMetadata, _e, capNumbers, bytes, context;
             return tslib_1.__generator(this, function(_f) {
               switch (_f.label) {
                 case 0:
-                  _a = options.ignoreEncryption, ignoreEncryption = _a === void 0 ? false : _a, _b = options.parseSpeed, parseSpeed = _b === void 0 ? PDFDocumentOptions_1.ParseSpeeds.Slow : _b, _c = options.throwOnInvalidObject, throwOnInvalidObject = _c === void 0 ? false : _c, _d = options.updateMetadata, updateMetadata = _d === void 0 ? true : _d, _e = options.capNumbers, capNumbers = _e === void 0 ? false : _e;
+                  _a = options2.ignoreEncryption, ignoreEncryption = _a === void 0 ? false : _a, _b = options2.parseSpeed, parseSpeed = _b === void 0 ? PDFDocumentOptions_1.ParseSpeeds.Slow : _b, _c = options2.throwOnInvalidObject, throwOnInvalidObject = _c === void 0 ? false : _c, _d = options2.updateMetadata, updateMetadata = _d === void 0 ? true : _d, _e = options2.capNumbers, capNumbers = _e === void 0 ? false : _e;
                   utils_1.assertIs(pdf, "pdf", ["string", Uint8Array, ArrayBuffer]);
                   utils_1.assertIs(ignoreEncryption, "ignoreEncryption", ["boolean"]);
                   utils_1.assertIs(parseSpeed, "parseSpeed", ["number"]);
@@ -52064,14 +52075,14 @@ var require_PDFDocument = __commonJS({
             });
           });
         };
-        PDFDocument3.create = function(options) {
-          if (options === void 0) {
-            options = {};
+        PDFDocument3.create = function(options2) {
+          if (options2 === void 0) {
+            options2 = {};
           }
           return tslib_1.__awaiter(this, void 0, void 0, function() {
             var _a, updateMetadata, context, pageTree, pageTreeRef, catalog;
             return tslib_1.__generator(this, function(_b) {
-              _a = options.updateMetadata, updateMetadata = _a === void 0 ? true : _a;
+              _a = options2.updateMetadata, updateMetadata = _a === void 0 ? true : _a;
               context = core_1.PDFContext.create();
               pageTree = core_1.PDFPageTree.withContext(context);
               pageTreeRef = context.register(pageTree);
@@ -52148,11 +52159,11 @@ var require_PDFDocument = __commonJS({
           assertIsLiteralOrHexString(modificationDate);
           return modificationDate.decodeDate();
         };
-        PDFDocument3.prototype.setTitle = function(title, options) {
+        PDFDocument3.prototype.setTitle = function(title, options2) {
           utils_1.assertIs(title, "title", ["string"]);
           var key5 = core_1.PDFName.of("Title");
           this.getInfoDict().set(key5, core_1.PDFHexString.fromText(title));
-          if (options === null || options === void 0 ? void 0 : options.showInWindowTitleBar) {
+          if (options2 === null || options2 === void 0 ? void 0 : options2.showInWindowTitleBar) {
             var prefs = this.catalog.getOrCreateViewerPreferences();
             prefs.setDisplayDocTitle(true);
           }
@@ -52318,24 +52329,24 @@ var require_PDFDocument = __commonJS({
           var javaScript = PDFJavaScript_1.default.of(ref3, this, embedder);
           this.javaScripts.push(javaScript);
         };
-        PDFDocument3.prototype.attach = function(attachment, name, options) {
-          if (options === void 0) {
-            options = {};
+        PDFDocument3.prototype.attach = function(attachment, name, options2) {
+          if (options2 === void 0) {
+            options2 = {};
           }
           return tslib_1.__awaiter(this, void 0, void 0, function() {
             var bytes, embedder, ref3, embeddedFile;
             return tslib_1.__generator(this, function(_a) {
               utils_1.assertIs(attachment, "attachment", ["string", Uint8Array, ArrayBuffer]);
               utils_1.assertIs(name, "name", ["string"]);
-              utils_1.assertOrUndefined(options.mimeType, "mimeType", ["string"]);
-              utils_1.assertOrUndefined(options.description, "description", ["string"]);
-              utils_1.assertOrUndefined(options.creationDate, "options.creationDate", [Date]);
-              utils_1.assertOrUndefined(options.modificationDate, "options.modificationDate", [
+              utils_1.assertOrUndefined(options2.mimeType, "mimeType", ["string"]);
+              utils_1.assertOrUndefined(options2.description, "description", ["string"]);
+              utils_1.assertOrUndefined(options2.creationDate, "options.creationDate", [Date]);
+              utils_1.assertOrUndefined(options2.modificationDate, "options.modificationDate", [
                 Date
               ]);
-              utils_1.assertIsOneOfOrUndefined(options.afRelationship, "options.afRelationship", FileEmbedder_1.AFRelationship);
+              utils_1.assertIsOneOfOrUndefined(options2.afRelationship, "options.afRelationship", FileEmbedder_1.AFRelationship);
               bytes = utils_1.toUint8Array(attachment);
-              embedder = FileEmbedder_1.default.for(bytes, name, options);
+              embedder = FileEmbedder_1.default.for(bytes, name, options2);
               ref3 = this.context.nextRef();
               embeddedFile = PDFEmbeddedFile_1.default.of(ref3, this, embedder);
               this.embeddedFiles.push(embeddedFile);
@@ -52346,16 +52357,16 @@ var require_PDFDocument = __commonJS({
             });
           });
         };
-        PDFDocument3.prototype.embedFont = function(font, options) {
-          if (options === void 0) {
-            options = {};
+        PDFDocument3.prototype.embedFont = function(font, options2) {
+          if (options2 === void 0) {
+            options2 = {};
           }
           return tslib_1.__awaiter(this, void 0, void 0, function() {
             var _a, subset, customName, features, embedder, bytes, fontkit, _b, ref3, pdfFont;
             return tslib_1.__generator(this, function(_c) {
               switch (_c.label) {
                 case 0:
-                  _a = options.subset, subset = _a === void 0 ? false : _a, customName = options.customName, features = options.features;
+                  _a = options2.subset, subset = _a === void 0 ? false : _a, customName = options2.customName, features = options2.features;
                   utils_1.assertIs(font, "font", ["string", Uint8Array, ArrayBuffer]);
                   utils_1.assertIs(subset, "subset", ["boolean"]);
                   if (!utils_1.isStandardFont(font)) return [3, 1];
@@ -52563,16 +52574,16 @@ var require_PDFDocument = __commonJS({
             });
           });
         };
-        PDFDocument3.prototype.save = function(options) {
-          if (options === void 0) {
-            options = {};
+        PDFDocument3.prototype.save = function(options2) {
+          if (options2 === void 0) {
+            options2 = {};
           }
           return tslib_1.__awaiter(this, void 0, void 0, function() {
             var _a, useObjectStreams, _b, addDefaultPage, _c, objectsPerTick, _d, updateFieldAppearances, form, Writer;
             return tslib_1.__generator(this, function(_e) {
               switch (_e.label) {
                 case 0:
-                  _a = options.useObjectStreams, useObjectStreams = _a === void 0 ? true : _a, _b = options.addDefaultPage, addDefaultPage = _b === void 0 ? true : _b, _c = options.objectsPerTick, objectsPerTick = _c === void 0 ? 50 : _c, _d = options.updateFieldAppearances, updateFieldAppearances = _d === void 0 ? true : _d;
+                  _a = options2.useObjectStreams, useObjectStreams = _a === void 0 ? true : _a, _b = options2.addDefaultPage, addDefaultPage = _b === void 0 ? true : _b, _c = options2.objectsPerTick, objectsPerTick = _c === void 0 ? 50 : _c, _d = options2.updateFieldAppearances, updateFieldAppearances = _d === void 0 ? true : _d;
                   utils_1.assertIs(useObjectStreams, "useObjectStreams", ["boolean"]);
                   utils_1.assertIs(addDefaultPage, "addDefaultPage", ["boolean"]);
                   utils_1.assertIs(objectsPerTick, "objectsPerTick", ["number"]);
@@ -52593,16 +52604,16 @@ var require_PDFDocument = __commonJS({
             });
           });
         };
-        PDFDocument3.prototype.saveAsBase64 = function(options) {
-          if (options === void 0) {
-            options = {};
+        PDFDocument3.prototype.saveAsBase64 = function(options2) {
+          if (options2 === void 0) {
+            options2 = {};
           }
           return tslib_1.__awaiter(this, void 0, void 0, function() {
             var _a, dataUri, otherOptions, bytes, base642;
             return tslib_1.__generator(this, function(_b) {
               switch (_b.label) {
                 case 0:
-                  _a = options.dataUri, dataUri = _a === void 0 ? false : _a, otherOptions = tslib_1.__rest(options, ["dataUri"]);
+                  _a = options2.dataUri, dataUri = _a === void 0 ? false : _a, otherOptions = tslib_1.__rest(options2, ["dataUri"]);
                   utils_1.assertIs(dataUri, "dataUri", ["boolean"]);
                   return [4, this.save(otherOptions)];
                 case 1:
@@ -52964,333 +52975,333 @@ var require_PDFPage = __commonJS({
           var contentStream = this.getContentStream();
           contentStream.push.apply(contentStream, operator);
         };
-        PDFPage2.prototype.drawText = function(text12, options) {
+        PDFPage2.prototype.drawText = function(text12, options2) {
           var _a, _b, _c, _d, _e, _f, _g;
-          if (options === void 0) {
-            options = {};
+          if (options2 === void 0) {
+            options2 = {};
           }
           utils_1.assertIs(text12, "text", ["string"]);
-          utils_1.assertOrUndefined(options.color, "options.color", [[Object, "Color"]]);
-          utils_1.assertRangeOrUndefined(options.opacity, "opacity.opacity", 0, 1);
-          utils_1.assertOrUndefined(options.font, "options.font", [[PDFFont_1.default, "PDFFont"]]);
-          utils_1.assertOrUndefined(options.size, "options.size", ["number"]);
-          utils_1.assertOrUndefined(options.rotate, "options.rotate", [[Object, "Rotation"]]);
-          utils_1.assertOrUndefined(options.xSkew, "options.xSkew", [[Object, "Rotation"]]);
-          utils_1.assertOrUndefined(options.ySkew, "options.ySkew", [[Object, "Rotation"]]);
-          utils_1.assertOrUndefined(options.x, "options.x", ["number"]);
-          utils_1.assertOrUndefined(options.y, "options.y", ["number"]);
-          utils_1.assertOrUndefined(options.lineHeight, "options.lineHeight", ["number"]);
-          utils_1.assertOrUndefined(options.maxWidth, "options.maxWidth", ["number"]);
-          utils_1.assertOrUndefined(options.wordBreaks, "options.wordBreaks", [Array]);
-          utils_1.assertIsOneOfOrUndefined(options.blendMode, "options.blendMode", PDFPageOptions_1.BlendMode);
-          var _h = this.setOrEmbedFont(options.font), oldFont = _h.oldFont, newFont = _h.newFont, newFontKey = _h.newFontKey;
-          var fontSize = options.size || this.fontSize;
-          var wordBreaks = options.wordBreaks || this.doc.defaultWordBreaks;
+          utils_1.assertOrUndefined(options2.color, "options.color", [[Object, "Color"]]);
+          utils_1.assertRangeOrUndefined(options2.opacity, "opacity.opacity", 0, 1);
+          utils_1.assertOrUndefined(options2.font, "options.font", [[PDFFont_1.default, "PDFFont"]]);
+          utils_1.assertOrUndefined(options2.size, "options.size", ["number"]);
+          utils_1.assertOrUndefined(options2.rotate, "options.rotate", [[Object, "Rotation"]]);
+          utils_1.assertOrUndefined(options2.xSkew, "options.xSkew", [[Object, "Rotation"]]);
+          utils_1.assertOrUndefined(options2.ySkew, "options.ySkew", [[Object, "Rotation"]]);
+          utils_1.assertOrUndefined(options2.x, "options.x", ["number"]);
+          utils_1.assertOrUndefined(options2.y, "options.y", ["number"]);
+          utils_1.assertOrUndefined(options2.lineHeight, "options.lineHeight", ["number"]);
+          utils_1.assertOrUndefined(options2.maxWidth, "options.maxWidth", ["number"]);
+          utils_1.assertOrUndefined(options2.wordBreaks, "options.wordBreaks", [Array]);
+          utils_1.assertIsOneOfOrUndefined(options2.blendMode, "options.blendMode", PDFPageOptions_1.BlendMode);
+          var _h = this.setOrEmbedFont(options2.font), oldFont = _h.oldFont, newFont = _h.newFont, newFontKey = _h.newFontKey;
+          var fontSize = options2.size || this.fontSize;
+          var wordBreaks = options2.wordBreaks || this.doc.defaultWordBreaks;
           var textWidth = function(t) {
             return newFont.widthOfTextAtSize(t, fontSize);
           };
-          var lines2 = options.maxWidth === void 0 ? utils_1.lineSplit(utils_1.cleanText(text12)) : utils_1.breakTextIntoLines(text12, wordBreaks, options.maxWidth, textWidth);
+          var lines2 = options2.maxWidth === void 0 ? utils_1.lineSplit(utils_1.cleanText(text12)) : utils_1.breakTextIntoLines(text12, wordBreaks, options2.maxWidth, textWidth);
           var encodedLines = new Array(lines2.length);
           for (var idx = 0, len = lines2.length; idx < len; idx++) {
             encodedLines[idx] = newFont.encodeText(lines2[idx]);
           }
           var graphicsStateKey = this.maybeEmbedGraphicsState({
-            opacity: options.opacity,
-            blendMode: options.blendMode
+            opacity: options2.opacity,
+            blendMode: options2.blendMode
           });
           var contentStream = this.getContentStream();
           contentStream.push.apply(contentStream, operations_1.drawLinesOfText(encodedLines, {
-            color: (_a = options.color) !== null && _a !== void 0 ? _a : this.fontColor,
+            color: (_a = options2.color) !== null && _a !== void 0 ? _a : this.fontColor,
             font: newFontKey,
             size: fontSize,
-            rotate: (_b = options.rotate) !== null && _b !== void 0 ? _b : rotations_1.degrees(0),
-            xSkew: (_c = options.xSkew) !== null && _c !== void 0 ? _c : rotations_1.degrees(0),
-            ySkew: (_d = options.ySkew) !== null && _d !== void 0 ? _d : rotations_1.degrees(0),
-            x: (_e = options.x) !== null && _e !== void 0 ? _e : this.x,
-            y: (_f = options.y) !== null && _f !== void 0 ? _f : this.y,
-            lineHeight: (_g = options.lineHeight) !== null && _g !== void 0 ? _g : this.lineHeight,
+            rotate: (_b = options2.rotate) !== null && _b !== void 0 ? _b : rotations_1.degrees(0),
+            xSkew: (_c = options2.xSkew) !== null && _c !== void 0 ? _c : rotations_1.degrees(0),
+            ySkew: (_d = options2.ySkew) !== null && _d !== void 0 ? _d : rotations_1.degrees(0),
+            x: (_e = options2.x) !== null && _e !== void 0 ? _e : this.x,
+            y: (_f = options2.y) !== null && _f !== void 0 ? _f : this.y,
+            lineHeight: (_g = options2.lineHeight) !== null && _g !== void 0 ? _g : this.lineHeight,
             graphicsState: graphicsStateKey
           }));
-          if (options.font) {
+          if (options2.font) {
             if (oldFont)
               this.setFont(oldFont);
             else
               this.resetFont();
           }
         };
-        PDFPage2.prototype.drawImage = function(image, options) {
+        PDFPage2.prototype.drawImage = function(image, options2) {
           var _a, _b, _c, _d, _e, _f, _g;
-          if (options === void 0) {
-            options = {};
+          if (options2 === void 0) {
+            options2 = {};
           }
           utils_1.assertIs(image, "image", [[PDFImage_1.default, "PDFImage"]]);
-          utils_1.assertOrUndefined(options.x, "options.x", ["number"]);
-          utils_1.assertOrUndefined(options.y, "options.y", ["number"]);
-          utils_1.assertOrUndefined(options.width, "options.width", ["number"]);
-          utils_1.assertOrUndefined(options.height, "options.height", ["number"]);
-          utils_1.assertOrUndefined(options.rotate, "options.rotate", [[Object, "Rotation"]]);
-          utils_1.assertOrUndefined(options.xSkew, "options.xSkew", [[Object, "Rotation"]]);
-          utils_1.assertOrUndefined(options.ySkew, "options.ySkew", [[Object, "Rotation"]]);
-          utils_1.assertRangeOrUndefined(options.opacity, "opacity.opacity", 0, 1);
-          utils_1.assertIsOneOfOrUndefined(options.blendMode, "options.blendMode", PDFPageOptions_1.BlendMode);
+          utils_1.assertOrUndefined(options2.x, "options.x", ["number"]);
+          utils_1.assertOrUndefined(options2.y, "options.y", ["number"]);
+          utils_1.assertOrUndefined(options2.width, "options.width", ["number"]);
+          utils_1.assertOrUndefined(options2.height, "options.height", ["number"]);
+          utils_1.assertOrUndefined(options2.rotate, "options.rotate", [[Object, "Rotation"]]);
+          utils_1.assertOrUndefined(options2.xSkew, "options.xSkew", [[Object, "Rotation"]]);
+          utils_1.assertOrUndefined(options2.ySkew, "options.ySkew", [[Object, "Rotation"]]);
+          utils_1.assertRangeOrUndefined(options2.opacity, "opacity.opacity", 0, 1);
+          utils_1.assertIsOneOfOrUndefined(options2.blendMode, "options.blendMode", PDFPageOptions_1.BlendMode);
           var xObjectKey = this.node.newXObject("Image", image.ref);
           var graphicsStateKey = this.maybeEmbedGraphicsState({
-            opacity: options.opacity,
-            blendMode: options.blendMode
+            opacity: options2.opacity,
+            blendMode: options2.blendMode
           });
           var contentStream = this.getContentStream();
           contentStream.push.apply(contentStream, operations_1.drawImage(xObjectKey, {
-            x: (_a = options.x) !== null && _a !== void 0 ? _a : this.x,
-            y: (_b = options.y) !== null && _b !== void 0 ? _b : this.y,
-            width: (_c = options.width) !== null && _c !== void 0 ? _c : image.size().width,
-            height: (_d = options.height) !== null && _d !== void 0 ? _d : image.size().height,
-            rotate: (_e = options.rotate) !== null && _e !== void 0 ? _e : rotations_1.degrees(0),
-            xSkew: (_f = options.xSkew) !== null && _f !== void 0 ? _f : rotations_1.degrees(0),
-            ySkew: (_g = options.ySkew) !== null && _g !== void 0 ? _g : rotations_1.degrees(0),
+            x: (_a = options2.x) !== null && _a !== void 0 ? _a : this.x,
+            y: (_b = options2.y) !== null && _b !== void 0 ? _b : this.y,
+            width: (_c = options2.width) !== null && _c !== void 0 ? _c : image.size().width,
+            height: (_d = options2.height) !== null && _d !== void 0 ? _d : image.size().height,
+            rotate: (_e = options2.rotate) !== null && _e !== void 0 ? _e : rotations_1.degrees(0),
+            xSkew: (_f = options2.xSkew) !== null && _f !== void 0 ? _f : rotations_1.degrees(0),
+            ySkew: (_g = options2.ySkew) !== null && _g !== void 0 ? _g : rotations_1.degrees(0),
             graphicsState: graphicsStateKey
           }));
         };
-        PDFPage2.prototype.drawPage = function(embeddedPage, options) {
+        PDFPage2.prototype.drawPage = function(embeddedPage, options2) {
           var _a, _b, _c, _d, _e;
-          if (options === void 0) {
-            options = {};
+          if (options2 === void 0) {
+            options2 = {};
           }
           utils_1.assertIs(embeddedPage, "embeddedPage", [
             [PDFEmbeddedPage_1.default, "PDFEmbeddedPage"]
           ]);
-          utils_1.assertOrUndefined(options.x, "options.x", ["number"]);
-          utils_1.assertOrUndefined(options.y, "options.y", ["number"]);
-          utils_1.assertOrUndefined(options.xScale, "options.xScale", ["number"]);
-          utils_1.assertOrUndefined(options.yScale, "options.yScale", ["number"]);
-          utils_1.assertOrUndefined(options.width, "options.width", ["number"]);
-          utils_1.assertOrUndefined(options.height, "options.height", ["number"]);
-          utils_1.assertOrUndefined(options.rotate, "options.rotate", [[Object, "Rotation"]]);
-          utils_1.assertOrUndefined(options.xSkew, "options.xSkew", [[Object, "Rotation"]]);
-          utils_1.assertOrUndefined(options.ySkew, "options.ySkew", [[Object, "Rotation"]]);
-          utils_1.assertRangeOrUndefined(options.opacity, "opacity.opacity", 0, 1);
-          utils_1.assertIsOneOfOrUndefined(options.blendMode, "options.blendMode", PDFPageOptions_1.BlendMode);
+          utils_1.assertOrUndefined(options2.x, "options.x", ["number"]);
+          utils_1.assertOrUndefined(options2.y, "options.y", ["number"]);
+          utils_1.assertOrUndefined(options2.xScale, "options.xScale", ["number"]);
+          utils_1.assertOrUndefined(options2.yScale, "options.yScale", ["number"]);
+          utils_1.assertOrUndefined(options2.width, "options.width", ["number"]);
+          utils_1.assertOrUndefined(options2.height, "options.height", ["number"]);
+          utils_1.assertOrUndefined(options2.rotate, "options.rotate", [[Object, "Rotation"]]);
+          utils_1.assertOrUndefined(options2.xSkew, "options.xSkew", [[Object, "Rotation"]]);
+          utils_1.assertOrUndefined(options2.ySkew, "options.ySkew", [[Object, "Rotation"]]);
+          utils_1.assertRangeOrUndefined(options2.opacity, "opacity.opacity", 0, 1);
+          utils_1.assertIsOneOfOrUndefined(options2.blendMode, "options.blendMode", PDFPageOptions_1.BlendMode);
           var xObjectKey = this.node.newXObject("EmbeddedPdfPage", embeddedPage.ref);
           var graphicsStateKey = this.maybeEmbedGraphicsState({
-            opacity: options.opacity,
-            blendMode: options.blendMode
+            opacity: options2.opacity,
+            blendMode: options2.blendMode
           });
-          var xScale = options.width !== void 0 ? options.width / embeddedPage.width : options.xScale !== void 0 ? options.xScale : 1;
-          var yScale = options.height !== void 0 ? options.height / embeddedPage.height : options.yScale !== void 0 ? options.yScale : 1;
+          var xScale = options2.width !== void 0 ? options2.width / embeddedPage.width : options2.xScale !== void 0 ? options2.xScale : 1;
+          var yScale = options2.height !== void 0 ? options2.height / embeddedPage.height : options2.yScale !== void 0 ? options2.yScale : 1;
           var contentStream = this.getContentStream();
           contentStream.push.apply(contentStream, operations_1.drawPage(xObjectKey, {
-            x: (_a = options.x) !== null && _a !== void 0 ? _a : this.x,
-            y: (_b = options.y) !== null && _b !== void 0 ? _b : this.y,
+            x: (_a = options2.x) !== null && _a !== void 0 ? _a : this.x,
+            y: (_b = options2.y) !== null && _b !== void 0 ? _b : this.y,
             xScale,
             yScale,
-            rotate: (_c = options.rotate) !== null && _c !== void 0 ? _c : rotations_1.degrees(0),
-            xSkew: (_d = options.xSkew) !== null && _d !== void 0 ? _d : rotations_1.degrees(0),
-            ySkew: (_e = options.ySkew) !== null && _e !== void 0 ? _e : rotations_1.degrees(0),
+            rotate: (_c = options2.rotate) !== null && _c !== void 0 ? _c : rotations_1.degrees(0),
+            xSkew: (_d = options2.xSkew) !== null && _d !== void 0 ? _d : rotations_1.degrees(0),
+            ySkew: (_e = options2.ySkew) !== null && _e !== void 0 ? _e : rotations_1.degrees(0),
             graphicsState: graphicsStateKey
           }));
         };
-        PDFPage2.prototype.drawSvgPath = function(path24, options) {
+        PDFPage2.prototype.drawSvgPath = function(path24, options2) {
           var _a, _b, _c, _d, _e, _f, _g, _h, _j;
-          if (options === void 0) {
-            options = {};
+          if (options2 === void 0) {
+            options2 = {};
           }
           utils_1.assertIs(path24, "path", ["string"]);
-          utils_1.assertOrUndefined(options.x, "options.x", ["number"]);
-          utils_1.assertOrUndefined(options.y, "options.y", ["number"]);
-          utils_1.assertOrUndefined(options.scale, "options.scale", ["number"]);
-          utils_1.assertOrUndefined(options.rotate, "options.rotate", [[Object, "Rotation"]]);
-          utils_1.assertOrUndefined(options.borderWidth, "options.borderWidth", ["number"]);
-          utils_1.assertOrUndefined(options.color, "options.color", [[Object, "Color"]]);
-          utils_1.assertRangeOrUndefined(options.opacity, "opacity.opacity", 0, 1);
-          utils_1.assertOrUndefined(options.borderColor, "options.borderColor", [
+          utils_1.assertOrUndefined(options2.x, "options.x", ["number"]);
+          utils_1.assertOrUndefined(options2.y, "options.y", ["number"]);
+          utils_1.assertOrUndefined(options2.scale, "options.scale", ["number"]);
+          utils_1.assertOrUndefined(options2.rotate, "options.rotate", [[Object, "Rotation"]]);
+          utils_1.assertOrUndefined(options2.borderWidth, "options.borderWidth", ["number"]);
+          utils_1.assertOrUndefined(options2.color, "options.color", [[Object, "Color"]]);
+          utils_1.assertRangeOrUndefined(options2.opacity, "opacity.opacity", 0, 1);
+          utils_1.assertOrUndefined(options2.borderColor, "options.borderColor", [
             [Object, "Color"]
           ]);
-          utils_1.assertOrUndefined(options.borderDashArray, "options.borderDashArray", [
+          utils_1.assertOrUndefined(options2.borderDashArray, "options.borderDashArray", [
             Array
           ]);
-          utils_1.assertOrUndefined(options.borderDashPhase, "options.borderDashPhase", [
+          utils_1.assertOrUndefined(options2.borderDashPhase, "options.borderDashPhase", [
             "number"
           ]);
-          utils_1.assertIsOneOfOrUndefined(options.borderLineCap, "options.borderLineCap", operators_1.LineCapStyle);
-          utils_1.assertRangeOrUndefined(options.borderOpacity, "options.borderOpacity", 0, 1);
-          utils_1.assertIsOneOfOrUndefined(options.blendMode, "options.blendMode", PDFPageOptions_1.BlendMode);
+          utils_1.assertIsOneOfOrUndefined(options2.borderLineCap, "options.borderLineCap", operators_1.LineCapStyle);
+          utils_1.assertRangeOrUndefined(options2.borderOpacity, "options.borderOpacity", 0, 1);
+          utils_1.assertIsOneOfOrUndefined(options2.blendMode, "options.blendMode", PDFPageOptions_1.BlendMode);
           var graphicsStateKey = this.maybeEmbedGraphicsState({
-            opacity: options.opacity,
-            borderOpacity: options.borderOpacity,
-            blendMode: options.blendMode
+            opacity: options2.opacity,
+            borderOpacity: options2.borderOpacity,
+            blendMode: options2.blendMode
           });
-          if (!("color" in options) && !("borderColor" in options)) {
-            options.borderColor = colors_1.rgb(0, 0, 0);
+          if (!("color" in options2) && !("borderColor" in options2)) {
+            options2.borderColor = colors_1.rgb(0, 0, 0);
           }
           var contentStream = this.getContentStream();
           contentStream.push.apply(contentStream, operations_1.drawSvgPath(path24, {
-            x: (_a = options.x) !== null && _a !== void 0 ? _a : this.x,
-            y: (_b = options.y) !== null && _b !== void 0 ? _b : this.y,
-            scale: options.scale,
-            rotate: (_c = options.rotate) !== null && _c !== void 0 ? _c : rotations_1.degrees(0),
-            color: (_d = options.color) !== null && _d !== void 0 ? _d : void 0,
-            borderColor: (_e = options.borderColor) !== null && _e !== void 0 ? _e : void 0,
-            borderWidth: (_f = options.borderWidth) !== null && _f !== void 0 ? _f : 0,
-            borderDashArray: (_g = options.borderDashArray) !== null && _g !== void 0 ? _g : void 0,
-            borderDashPhase: (_h = options.borderDashPhase) !== null && _h !== void 0 ? _h : void 0,
-            borderLineCap: (_j = options.borderLineCap) !== null && _j !== void 0 ? _j : void 0,
+            x: (_a = options2.x) !== null && _a !== void 0 ? _a : this.x,
+            y: (_b = options2.y) !== null && _b !== void 0 ? _b : this.y,
+            scale: options2.scale,
+            rotate: (_c = options2.rotate) !== null && _c !== void 0 ? _c : rotations_1.degrees(0),
+            color: (_d = options2.color) !== null && _d !== void 0 ? _d : void 0,
+            borderColor: (_e = options2.borderColor) !== null && _e !== void 0 ? _e : void 0,
+            borderWidth: (_f = options2.borderWidth) !== null && _f !== void 0 ? _f : 0,
+            borderDashArray: (_g = options2.borderDashArray) !== null && _g !== void 0 ? _g : void 0,
+            borderDashPhase: (_h = options2.borderDashPhase) !== null && _h !== void 0 ? _h : void 0,
+            borderLineCap: (_j = options2.borderLineCap) !== null && _j !== void 0 ? _j : void 0,
             graphicsState: graphicsStateKey
           }));
         };
-        PDFPage2.prototype.drawLine = function(options) {
+        PDFPage2.prototype.drawLine = function(options2) {
           var _a, _b, _c, _d, _e;
-          utils_1.assertIs(options.start, "options.start", [
+          utils_1.assertIs(options2.start, "options.start", [
             [Object, "{ x: number, y: number }"]
           ]);
-          utils_1.assertIs(options.end, "options.end", [
+          utils_1.assertIs(options2.end, "options.end", [
             [Object, "{ x: number, y: number }"]
           ]);
-          utils_1.assertIs(options.start.x, "options.start.x", ["number"]);
-          utils_1.assertIs(options.start.y, "options.start.y", ["number"]);
-          utils_1.assertIs(options.end.x, "options.end.x", ["number"]);
-          utils_1.assertIs(options.end.y, "options.end.y", ["number"]);
-          utils_1.assertOrUndefined(options.thickness, "options.thickness", ["number"]);
-          utils_1.assertOrUndefined(options.color, "options.color", [[Object, "Color"]]);
-          utils_1.assertOrUndefined(options.dashArray, "options.dashArray", [Array]);
-          utils_1.assertOrUndefined(options.dashPhase, "options.dashPhase", ["number"]);
-          utils_1.assertIsOneOfOrUndefined(options.lineCap, "options.lineCap", operators_1.LineCapStyle);
-          utils_1.assertRangeOrUndefined(options.opacity, "opacity.opacity", 0, 1);
-          utils_1.assertIsOneOfOrUndefined(options.blendMode, "options.blendMode", PDFPageOptions_1.BlendMode);
+          utils_1.assertIs(options2.start.x, "options.start.x", ["number"]);
+          utils_1.assertIs(options2.start.y, "options.start.y", ["number"]);
+          utils_1.assertIs(options2.end.x, "options.end.x", ["number"]);
+          utils_1.assertIs(options2.end.y, "options.end.y", ["number"]);
+          utils_1.assertOrUndefined(options2.thickness, "options.thickness", ["number"]);
+          utils_1.assertOrUndefined(options2.color, "options.color", [[Object, "Color"]]);
+          utils_1.assertOrUndefined(options2.dashArray, "options.dashArray", [Array]);
+          utils_1.assertOrUndefined(options2.dashPhase, "options.dashPhase", ["number"]);
+          utils_1.assertIsOneOfOrUndefined(options2.lineCap, "options.lineCap", operators_1.LineCapStyle);
+          utils_1.assertRangeOrUndefined(options2.opacity, "opacity.opacity", 0, 1);
+          utils_1.assertIsOneOfOrUndefined(options2.blendMode, "options.blendMode", PDFPageOptions_1.BlendMode);
           var graphicsStateKey = this.maybeEmbedGraphicsState({
-            borderOpacity: options.opacity,
-            blendMode: options.blendMode
+            borderOpacity: options2.opacity,
+            blendMode: options2.blendMode
           });
-          if (!("color" in options)) {
-            options.color = colors_1.rgb(0, 0, 0);
+          if (!("color" in options2)) {
+            options2.color = colors_1.rgb(0, 0, 0);
           }
           var contentStream = this.getContentStream();
           contentStream.push.apply(contentStream, operations_1.drawLine({
-            start: options.start,
-            end: options.end,
-            thickness: (_a = options.thickness) !== null && _a !== void 0 ? _a : 1,
-            color: (_b = options.color) !== null && _b !== void 0 ? _b : void 0,
-            dashArray: (_c = options.dashArray) !== null && _c !== void 0 ? _c : void 0,
-            dashPhase: (_d = options.dashPhase) !== null && _d !== void 0 ? _d : void 0,
-            lineCap: (_e = options.lineCap) !== null && _e !== void 0 ? _e : void 0,
+            start: options2.start,
+            end: options2.end,
+            thickness: (_a = options2.thickness) !== null && _a !== void 0 ? _a : 1,
+            color: (_b = options2.color) !== null && _b !== void 0 ? _b : void 0,
+            dashArray: (_c = options2.dashArray) !== null && _c !== void 0 ? _c : void 0,
+            dashPhase: (_d = options2.dashPhase) !== null && _d !== void 0 ? _d : void 0,
+            lineCap: (_e = options2.lineCap) !== null && _e !== void 0 ? _e : void 0,
             graphicsState: graphicsStateKey
           }));
         };
-        PDFPage2.prototype.drawRectangle = function(options) {
+        PDFPage2.prototype.drawRectangle = function(options2) {
           var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
-          if (options === void 0) {
-            options = {};
+          if (options2 === void 0) {
+            options2 = {};
           }
-          utils_1.assertOrUndefined(options.x, "options.x", ["number"]);
-          utils_1.assertOrUndefined(options.y, "options.y", ["number"]);
-          utils_1.assertOrUndefined(options.width, "options.width", ["number"]);
-          utils_1.assertOrUndefined(options.height, "options.height", ["number"]);
-          utils_1.assertOrUndefined(options.rotate, "options.rotate", [[Object, "Rotation"]]);
-          utils_1.assertOrUndefined(options.xSkew, "options.xSkew", [[Object, "Rotation"]]);
-          utils_1.assertOrUndefined(options.ySkew, "options.ySkew", [[Object, "Rotation"]]);
-          utils_1.assertOrUndefined(options.borderWidth, "options.borderWidth", ["number"]);
-          utils_1.assertOrUndefined(options.color, "options.color", [[Object, "Color"]]);
-          utils_1.assertRangeOrUndefined(options.opacity, "opacity.opacity", 0, 1);
-          utils_1.assertOrUndefined(options.borderColor, "options.borderColor", [
+          utils_1.assertOrUndefined(options2.x, "options.x", ["number"]);
+          utils_1.assertOrUndefined(options2.y, "options.y", ["number"]);
+          utils_1.assertOrUndefined(options2.width, "options.width", ["number"]);
+          utils_1.assertOrUndefined(options2.height, "options.height", ["number"]);
+          utils_1.assertOrUndefined(options2.rotate, "options.rotate", [[Object, "Rotation"]]);
+          utils_1.assertOrUndefined(options2.xSkew, "options.xSkew", [[Object, "Rotation"]]);
+          utils_1.assertOrUndefined(options2.ySkew, "options.ySkew", [[Object, "Rotation"]]);
+          utils_1.assertOrUndefined(options2.borderWidth, "options.borderWidth", ["number"]);
+          utils_1.assertOrUndefined(options2.color, "options.color", [[Object, "Color"]]);
+          utils_1.assertRangeOrUndefined(options2.opacity, "opacity.opacity", 0, 1);
+          utils_1.assertOrUndefined(options2.borderColor, "options.borderColor", [
             [Object, "Color"]
           ]);
-          utils_1.assertOrUndefined(options.borderDashArray, "options.borderDashArray", [
+          utils_1.assertOrUndefined(options2.borderDashArray, "options.borderDashArray", [
             Array
           ]);
-          utils_1.assertOrUndefined(options.borderDashPhase, "options.borderDashPhase", [
+          utils_1.assertOrUndefined(options2.borderDashPhase, "options.borderDashPhase", [
             "number"
           ]);
-          utils_1.assertIsOneOfOrUndefined(options.borderLineCap, "options.borderLineCap", operators_1.LineCapStyle);
-          utils_1.assertRangeOrUndefined(options.borderOpacity, "options.borderOpacity", 0, 1);
-          utils_1.assertIsOneOfOrUndefined(options.blendMode, "options.blendMode", PDFPageOptions_1.BlendMode);
+          utils_1.assertIsOneOfOrUndefined(options2.borderLineCap, "options.borderLineCap", operators_1.LineCapStyle);
+          utils_1.assertRangeOrUndefined(options2.borderOpacity, "options.borderOpacity", 0, 1);
+          utils_1.assertIsOneOfOrUndefined(options2.blendMode, "options.blendMode", PDFPageOptions_1.BlendMode);
           var graphicsStateKey = this.maybeEmbedGraphicsState({
-            opacity: options.opacity,
-            borderOpacity: options.borderOpacity,
-            blendMode: options.blendMode
+            opacity: options2.opacity,
+            borderOpacity: options2.borderOpacity,
+            blendMode: options2.blendMode
           });
-          if (!("color" in options) && !("borderColor" in options)) {
-            options.color = colors_1.rgb(0, 0, 0);
+          if (!("color" in options2) && !("borderColor" in options2)) {
+            options2.color = colors_1.rgb(0, 0, 0);
           }
           var contentStream = this.getContentStream();
           contentStream.push.apply(contentStream, operations_1.drawRectangle({
-            x: (_a = options.x) !== null && _a !== void 0 ? _a : this.x,
-            y: (_b = options.y) !== null && _b !== void 0 ? _b : this.y,
-            width: (_c = options.width) !== null && _c !== void 0 ? _c : 150,
-            height: (_d = options.height) !== null && _d !== void 0 ? _d : 100,
-            rotate: (_e = options.rotate) !== null && _e !== void 0 ? _e : rotations_1.degrees(0),
-            xSkew: (_f = options.xSkew) !== null && _f !== void 0 ? _f : rotations_1.degrees(0),
-            ySkew: (_g = options.ySkew) !== null && _g !== void 0 ? _g : rotations_1.degrees(0),
-            borderWidth: (_h = options.borderWidth) !== null && _h !== void 0 ? _h : 0,
-            color: (_j = options.color) !== null && _j !== void 0 ? _j : void 0,
-            borderColor: (_k = options.borderColor) !== null && _k !== void 0 ? _k : void 0,
-            borderDashArray: (_l = options.borderDashArray) !== null && _l !== void 0 ? _l : void 0,
-            borderDashPhase: (_m = options.borderDashPhase) !== null && _m !== void 0 ? _m : void 0,
+            x: (_a = options2.x) !== null && _a !== void 0 ? _a : this.x,
+            y: (_b = options2.y) !== null && _b !== void 0 ? _b : this.y,
+            width: (_c = options2.width) !== null && _c !== void 0 ? _c : 150,
+            height: (_d = options2.height) !== null && _d !== void 0 ? _d : 100,
+            rotate: (_e = options2.rotate) !== null && _e !== void 0 ? _e : rotations_1.degrees(0),
+            xSkew: (_f = options2.xSkew) !== null && _f !== void 0 ? _f : rotations_1.degrees(0),
+            ySkew: (_g = options2.ySkew) !== null && _g !== void 0 ? _g : rotations_1.degrees(0),
+            borderWidth: (_h = options2.borderWidth) !== null && _h !== void 0 ? _h : 0,
+            color: (_j = options2.color) !== null && _j !== void 0 ? _j : void 0,
+            borderColor: (_k = options2.borderColor) !== null && _k !== void 0 ? _k : void 0,
+            borderDashArray: (_l = options2.borderDashArray) !== null && _l !== void 0 ? _l : void 0,
+            borderDashPhase: (_m = options2.borderDashPhase) !== null && _m !== void 0 ? _m : void 0,
             graphicsState: graphicsStateKey,
-            borderLineCap: (_o = options.borderLineCap) !== null && _o !== void 0 ? _o : void 0
+            borderLineCap: (_o = options2.borderLineCap) !== null && _o !== void 0 ? _o : void 0
           }));
         };
-        PDFPage2.prototype.drawSquare = function(options) {
-          if (options === void 0) {
-            options = {};
+        PDFPage2.prototype.drawSquare = function(options2) {
+          if (options2 === void 0) {
+            options2 = {};
           }
-          var size = options.size;
+          var size = options2.size;
           utils_1.assertOrUndefined(size, "size", ["number"]);
-          this.drawRectangle(tslib_1.__assign(tslib_1.__assign({}, options), { width: size, height: size }));
+          this.drawRectangle(tslib_1.__assign(tslib_1.__assign({}, options2), { width: size, height: size }));
         };
-        PDFPage2.prototype.drawEllipse = function(options) {
+        PDFPage2.prototype.drawEllipse = function(options2) {
           var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
-          if (options === void 0) {
-            options = {};
+          if (options2 === void 0) {
+            options2 = {};
           }
-          utils_1.assertOrUndefined(options.x, "options.x", ["number"]);
-          utils_1.assertOrUndefined(options.y, "options.y", ["number"]);
-          utils_1.assertOrUndefined(options.xScale, "options.xScale", ["number"]);
-          utils_1.assertOrUndefined(options.yScale, "options.yScale", ["number"]);
-          utils_1.assertOrUndefined(options.rotate, "options.rotate", [[Object, "Rotation"]]);
-          utils_1.assertOrUndefined(options.color, "options.color", [[Object, "Color"]]);
-          utils_1.assertRangeOrUndefined(options.opacity, "opacity.opacity", 0, 1);
-          utils_1.assertOrUndefined(options.borderColor, "options.borderColor", [
+          utils_1.assertOrUndefined(options2.x, "options.x", ["number"]);
+          utils_1.assertOrUndefined(options2.y, "options.y", ["number"]);
+          utils_1.assertOrUndefined(options2.xScale, "options.xScale", ["number"]);
+          utils_1.assertOrUndefined(options2.yScale, "options.yScale", ["number"]);
+          utils_1.assertOrUndefined(options2.rotate, "options.rotate", [[Object, "Rotation"]]);
+          utils_1.assertOrUndefined(options2.color, "options.color", [[Object, "Color"]]);
+          utils_1.assertRangeOrUndefined(options2.opacity, "opacity.opacity", 0, 1);
+          utils_1.assertOrUndefined(options2.borderColor, "options.borderColor", [
             [Object, "Color"]
           ]);
-          utils_1.assertRangeOrUndefined(options.borderOpacity, "options.borderOpacity", 0, 1);
-          utils_1.assertOrUndefined(options.borderWidth, "options.borderWidth", ["number"]);
-          utils_1.assertOrUndefined(options.borderDashArray, "options.borderDashArray", [
+          utils_1.assertRangeOrUndefined(options2.borderOpacity, "options.borderOpacity", 0, 1);
+          utils_1.assertOrUndefined(options2.borderWidth, "options.borderWidth", ["number"]);
+          utils_1.assertOrUndefined(options2.borderDashArray, "options.borderDashArray", [
             Array
           ]);
-          utils_1.assertOrUndefined(options.borderDashPhase, "options.borderDashPhase", [
+          utils_1.assertOrUndefined(options2.borderDashPhase, "options.borderDashPhase", [
             "number"
           ]);
-          utils_1.assertIsOneOfOrUndefined(options.borderLineCap, "options.borderLineCap", operators_1.LineCapStyle);
-          utils_1.assertIsOneOfOrUndefined(options.blendMode, "options.blendMode", PDFPageOptions_1.BlendMode);
+          utils_1.assertIsOneOfOrUndefined(options2.borderLineCap, "options.borderLineCap", operators_1.LineCapStyle);
+          utils_1.assertIsOneOfOrUndefined(options2.blendMode, "options.blendMode", PDFPageOptions_1.BlendMode);
           var graphicsStateKey = this.maybeEmbedGraphicsState({
-            opacity: options.opacity,
-            borderOpacity: options.borderOpacity,
-            blendMode: options.blendMode
+            opacity: options2.opacity,
+            borderOpacity: options2.borderOpacity,
+            blendMode: options2.blendMode
           });
-          if (!("color" in options) && !("borderColor" in options)) {
-            options.color = colors_1.rgb(0, 0, 0);
+          if (!("color" in options2) && !("borderColor" in options2)) {
+            options2.color = colors_1.rgb(0, 0, 0);
           }
           var contentStream = this.getContentStream();
           contentStream.push.apply(contentStream, operations_1.drawEllipse({
-            x: (_a = options.x) !== null && _a !== void 0 ? _a : this.x,
-            y: (_b = options.y) !== null && _b !== void 0 ? _b : this.y,
-            xScale: (_c = options.xScale) !== null && _c !== void 0 ? _c : 100,
-            yScale: (_d = options.yScale) !== null && _d !== void 0 ? _d : 100,
-            rotate: (_e = options.rotate) !== null && _e !== void 0 ? _e : void 0,
-            color: (_f = options.color) !== null && _f !== void 0 ? _f : void 0,
-            borderColor: (_g = options.borderColor) !== null && _g !== void 0 ? _g : void 0,
-            borderWidth: (_h = options.borderWidth) !== null && _h !== void 0 ? _h : 0,
-            borderDashArray: (_j = options.borderDashArray) !== null && _j !== void 0 ? _j : void 0,
-            borderDashPhase: (_k = options.borderDashPhase) !== null && _k !== void 0 ? _k : void 0,
-            borderLineCap: (_l = options.borderLineCap) !== null && _l !== void 0 ? _l : void 0,
+            x: (_a = options2.x) !== null && _a !== void 0 ? _a : this.x,
+            y: (_b = options2.y) !== null && _b !== void 0 ? _b : this.y,
+            xScale: (_c = options2.xScale) !== null && _c !== void 0 ? _c : 100,
+            yScale: (_d = options2.yScale) !== null && _d !== void 0 ? _d : 100,
+            rotate: (_e = options2.rotate) !== null && _e !== void 0 ? _e : void 0,
+            color: (_f = options2.color) !== null && _f !== void 0 ? _f : void 0,
+            borderColor: (_g = options2.borderColor) !== null && _g !== void 0 ? _g : void 0,
+            borderWidth: (_h = options2.borderWidth) !== null && _h !== void 0 ? _h : 0,
+            borderDashArray: (_j = options2.borderDashArray) !== null && _j !== void 0 ? _j : void 0,
+            borderDashPhase: (_k = options2.borderDashPhase) !== null && _k !== void 0 ? _k : void 0,
+            borderLineCap: (_l = options2.borderLineCap) !== null && _l !== void 0 ? _l : void 0,
             graphicsState: graphicsStateKey
           }));
         };
-        PDFPage2.prototype.drawCircle = function(options) {
-          if (options === void 0) {
-            options = {};
+        PDFPage2.prototype.drawCircle = function(options2) {
+          if (options2 === void 0) {
+            options2 = {};
           }
-          var _a = options.size, size = _a === void 0 ? 100 : _a;
+          var _a = options2.size, size = _a === void 0 ? 100 : _a;
           utils_1.assertOrUndefined(size, "size", ["number"]);
-          this.drawEllipse(tslib_1.__assign(tslib_1.__assign({}, options), { xScale: size, yScale: size }));
+          this.drawEllipse(tslib_1.__assign(tslib_1.__assign({}, options2), { xScale: size, yScale: size }));
         };
         PDFPage2.prototype.setOrEmbedFont = function(font) {
           var oldFont = this.font;
@@ -53334,8 +53345,8 @@ var require_PDFPage = __commonJS({
           var contentStream = core_1.PDFContentStream.of(dict, operators);
           return contentStream;
         };
-        PDFPage2.prototype.maybeEmbedGraphicsState = function(options) {
-          var opacity = options.opacity, borderOpacity = options.borderOpacity, blendMode = options.blendMode;
+        PDFPage2.prototype.maybeEmbedGraphicsState = function(options2) {
+          var opacity = options2.opacity, borderOpacity = options2.borderOpacity, blendMode = options2.blendMode;
           if (opacity === void 0 && borderOpacity === void 0 && blendMode === void 0) {
             return void 0;
           }
@@ -53425,28 +53436,28 @@ var require_PDFButton = __commonJS({
           this.acroField.setFontSize(fontSize);
           this.markAsDirty();
         };
-        PDFButton2.prototype.addToPage = function(text12, page, options) {
+        PDFButton2.prototype.addToPage = function(text12, page, options2) {
           var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
           utils_1.assertOrUndefined(text12, "text", ["string"]);
           utils_1.assertOrUndefined(page, "page", [[PDFPage_1.default, "PDFPage"]]);
-          PDFField_1.assertFieldAppearanceOptions(options);
+          PDFField_1.assertFieldAppearanceOptions(options2);
           var widget = this.createWidget({
-            x: ((_a = options === null || options === void 0 ? void 0 : options.x) !== null && _a !== void 0 ? _a : 0) - ((_b = options === null || options === void 0 ? void 0 : options.borderWidth) !== null && _b !== void 0 ? _b : 0) / 2,
-            y: ((_c = options === null || options === void 0 ? void 0 : options.y) !== null && _c !== void 0 ? _c : 0) - ((_d = options === null || options === void 0 ? void 0 : options.borderWidth) !== null && _d !== void 0 ? _d : 0) / 2,
-            width: (_e = options === null || options === void 0 ? void 0 : options.width) !== null && _e !== void 0 ? _e : 100,
-            height: (_f = options === null || options === void 0 ? void 0 : options.height) !== null && _f !== void 0 ? _f : 50,
-            textColor: (_g = options === null || options === void 0 ? void 0 : options.textColor) !== null && _g !== void 0 ? _g : colors_1.rgb(0, 0, 0),
-            backgroundColor: (_h = options === null || options === void 0 ? void 0 : options.backgroundColor) !== null && _h !== void 0 ? _h : colors_1.rgb(0.75, 0.75, 0.75),
-            borderColor: options === null || options === void 0 ? void 0 : options.borderColor,
-            borderWidth: (_j = options === null || options === void 0 ? void 0 : options.borderWidth) !== null && _j !== void 0 ? _j : 0,
-            rotate: (_k = options === null || options === void 0 ? void 0 : options.rotate) !== null && _k !== void 0 ? _k : rotations_1.degrees(0),
+            x: ((_a = options2 === null || options2 === void 0 ? void 0 : options2.x) !== null && _a !== void 0 ? _a : 0) - ((_b = options2 === null || options2 === void 0 ? void 0 : options2.borderWidth) !== null && _b !== void 0 ? _b : 0) / 2,
+            y: ((_c = options2 === null || options2 === void 0 ? void 0 : options2.y) !== null && _c !== void 0 ? _c : 0) - ((_d = options2 === null || options2 === void 0 ? void 0 : options2.borderWidth) !== null && _d !== void 0 ? _d : 0) / 2,
+            width: (_e = options2 === null || options2 === void 0 ? void 0 : options2.width) !== null && _e !== void 0 ? _e : 100,
+            height: (_f = options2 === null || options2 === void 0 ? void 0 : options2.height) !== null && _f !== void 0 ? _f : 50,
+            textColor: (_g = options2 === null || options2 === void 0 ? void 0 : options2.textColor) !== null && _g !== void 0 ? _g : colors_1.rgb(0, 0, 0),
+            backgroundColor: (_h = options2 === null || options2 === void 0 ? void 0 : options2.backgroundColor) !== null && _h !== void 0 ? _h : colors_1.rgb(0.75, 0.75, 0.75),
+            borderColor: options2 === null || options2 === void 0 ? void 0 : options2.borderColor,
+            borderWidth: (_j = options2 === null || options2 === void 0 ? void 0 : options2.borderWidth) !== null && _j !== void 0 ? _j : 0,
+            rotate: (_k = options2 === null || options2 === void 0 ? void 0 : options2.rotate) !== null && _k !== void 0 ? _k : rotations_1.degrees(0),
             caption: text12,
-            hidden: options === null || options === void 0 ? void 0 : options.hidden,
+            hidden: options2 === null || options2 === void 0 ? void 0 : options2.hidden,
             page: page.ref
           });
           var widgetRef = this.doc.context.register(widget.dict);
           this.acroField.addWidget(widgetRef);
-          var font = (_l = options === null || options === void 0 ? void 0 : options.font) !== null && _l !== void 0 ? _l : this.doc.getForm().getDefaultFont();
+          var font = (_l = options2 === null || options2 === void 0 ? void 0 : options2.font) !== null && _l !== void 0 ? _l : this.doc.getForm().getDefaultFont();
           this.updateWidgetAppearance(widget, font);
           page.node.addAnnot(widgetRef);
         };
@@ -53628,38 +53639,38 @@ var require_balanced_match = __commonJS({
   "node_modules/balanced-match/index.js"(exports2, module) {
     "use strict";
     module.exports = balanced;
-    function balanced(a, b, str32) {
-      if (a instanceof RegExp) a = maybeMatch(a, str32);
-      if (b instanceof RegExp) b = maybeMatch(b, str32);
-      var r = range2(a, b, str32);
+    function balanced(a, b, str33) {
+      if (a instanceof RegExp) a = maybeMatch(a, str33);
+      if (b instanceof RegExp) b = maybeMatch(b, str33);
+      var r = range2(a, b, str33);
       return r && {
         start: r[0],
         end: r[1],
-        pre: str32.slice(0, r[0]),
-        body: str32.slice(r[0] + a.length, r[1]),
-        post: str32.slice(r[1] + b.length)
+        pre: str33.slice(0, r[0]),
+        body: str33.slice(r[0] + a.length, r[1]),
+        post: str33.slice(r[1] + b.length)
       };
     }
-    function maybeMatch(reg, str32) {
-      var m = str32.match(reg);
+    function maybeMatch(reg, str33) {
+      var m = str33.match(reg);
       return m ? m[0] : null;
     }
     balanced.range = range2;
-    function range2(a, b, str32) {
+    function range2(a, b, str33) {
       var begs, beg, left, right, result2;
-      var ai = str32.indexOf(a);
-      var bi = str32.indexOf(b, ai + 1);
+      var ai = str33.indexOf(a);
+      var bi = str33.indexOf(b, ai + 1);
       var i = ai;
       if (ai >= 0 && bi > 0) {
         if (a === b) {
           return [ai, bi];
         }
         begs = [];
-        left = str32.length;
+        left = str33.length;
         while (i >= 0 && !result2) {
           if (i == ai) {
             begs.push(i);
-            ai = str32.indexOf(a, i + 1);
+            ai = str33.indexOf(a, i + 1);
           } else if (begs.length == 1) {
             result2 = [begs.pop(), bi];
           } else {
@@ -53668,7 +53679,7 @@ var require_balanced_match = __commonJS({
               left = beg;
               right = bi;
             }
-            bi = str32.indexOf(b, i + 1);
+            bi = str33.indexOf(b, i + 1);
           }
           i = ai < bi && ai >= 0 ? ai : bi;
         }
@@ -53691,22 +53702,22 @@ var require_brace_expansion = __commonJS({
     var escClose = "\0CLOSE" + Math.random() + "\0";
     var escComma = "\0COMMA" + Math.random() + "\0";
     var escPeriod = "\0PERIOD" + Math.random() + "\0";
-    function numeric(str32) {
-      return parseInt(str32, 10) == str32 ? parseInt(str32, 10) : str32.charCodeAt(0);
+    function numeric(str33) {
+      return parseInt(str33, 10) == str33 ? parseInt(str33, 10) : str33.charCodeAt(0);
     }
-    function escapeBraces(str32) {
-      return str32.split("\\\\").join(escSlash).split("\\{").join(escOpen).split("\\}").join(escClose).split("\\,").join(escComma).split("\\.").join(escPeriod);
+    function escapeBraces(str33) {
+      return str33.split("\\\\").join(escSlash).split("\\{").join(escOpen).split("\\}").join(escClose).split("\\,").join(escComma).split("\\.").join(escPeriod);
     }
-    function unescapeBraces(str32) {
-      return str32.split(escSlash).join("\\").split(escOpen).join("{").split(escClose).join("}").split(escComma).join(",").split(escPeriod).join(".");
+    function unescapeBraces(str33) {
+      return str33.split(escSlash).join("\\").split(escOpen).join("{").split(escClose).join("}").split(escComma).join(",").split(escPeriod).join(".");
     }
-    function parseCommaParts(str32) {
-      if (!str32)
+    function parseCommaParts(str33) {
+      if (!str33)
         return [""];
       var parts = [];
-      var m = balanced("{", "}", str32);
+      var m = balanced("{", "}", str33);
       if (!m)
-        return str32.split(",");
+        return str33.split(",");
       var pre = m.pre;
       var body = m.body;
       var post = m.post;
@@ -53720,16 +53731,16 @@ var require_brace_expansion = __commonJS({
       parts.push.apply(parts, p);
       return parts;
     }
-    function expandTop(str32) {
-      if (!str32)
+    function expandTop(str33) {
+      if (!str33)
         return [];
-      if (str32.substr(0, 2) === "{}") {
-        str32 = "\\{\\}" + str32.substr(2);
+      if (str33.substr(0, 2) === "{}") {
+        str33 = "\\{\\}" + str33.substr(2);
       }
-      return expand(escapeBraces(str32), true).map(unescapeBraces);
+      return expand(escapeBraces(str33), true).map(unescapeBraces);
     }
-    function embrace(str32) {
-      return "{" + str32 + "}";
+    function embrace(str33) {
+      return "{" + str33 + "}";
     }
     function isPadded(el) {
       return /^-?0\d/.test(el);
@@ -53740,10 +53751,10 @@ var require_brace_expansion = __commonJS({
     function gte(i, y) {
       return i >= y;
     }
-    function expand(str32, isTop) {
+    function expand(str33, isTop) {
       var expansions = [];
-      var m = balanced("{", "}", str32);
-      if (!m) return [str32];
+      var m = balanced("{", "}", str33);
+      if (!m) return [str33];
       var pre = m.pre;
       var post = m.post.length ? expand(m.post, false) : [""];
       if (/\$$/.test(m.pre)) {
@@ -53758,10 +53769,10 @@ var require_brace_expansion = __commonJS({
         var isOptions = m.body.indexOf(",") >= 0;
         if (!isSequence && !isOptions) {
           if (m.post.match(/,(?!,).*\}/)) {
-            str32 = m.pre + "{" + m.body + escClose + m.post;
-            return expand(str32);
+            str33 = m.pre + "{" + m.body + escClose + m.post;
+            return expand(str33);
           }
-          return [str32];
+          return [str33];
         }
         var n2;
         if (isSequence) {
@@ -53834,12 +53845,12 @@ var require_brace_expansion = __commonJS({
 // node_modules/readdir-glob/node_modules/minimatch/minimatch.js
 var require_minimatch = __commonJS({
   "node_modules/readdir-glob/node_modules/minimatch/minimatch.js"(exports2, module) {
-    var minimatch = module.exports = (p, pattern, options = {}) => {
+    var minimatch = module.exports = (p, pattern, options2 = {}) => {
       assertValidPattern(pattern);
-      if (!options.nocomment && pattern.charAt(0) === "#") {
+      if (!options2.nocomment && pattern.charAt(0) === "#") {
         return false;
       }
-      return new Minimatch(pattern, options).match(p);
+      return new Minimatch(pattern, options2).match(p);
     };
     module.exports = minimatch;
     var path24 = require_path();
@@ -53858,14 +53869,14 @@ var require_minimatch = __commonJS({
     var star = qmark + "*?";
     var twoStarDot = "(?:(?!(?:\\/|^)(?:\\.{1,2})($|\\/)).)*?";
     var twoStarNoDot = "(?:(?!(?:\\/|^)\\.).)*?";
-    var charSet = (s7) => s7.split("").reduce((set, c) => {
+    var charSet = (s11) => s11.split("").reduce((set, c) => {
       set[c] = true;
       return set;
     }, {});
     var reSpecials = charSet("().*{}+?[]^$\\!");
     var addPatternStartSet = charSet("[.(");
     var slashSplit = /\/+/;
-    minimatch.filter = (pattern, options = {}) => (p, i, list2) => minimatch(p, pattern, options);
+    minimatch.filter = (pattern, options2 = {}) => (p, i, list2) => minimatch(p, pattern, options2);
     var ext = (a, b = {}) => {
       const t = {};
       Object.keys(a).forEach((k) => t[k] = a[k]);
@@ -53877,24 +53888,24 @@ var require_minimatch = __commonJS({
         return minimatch;
       }
       const orig = minimatch;
-      const m = (p, pattern, options) => orig(p, pattern, ext(def, options));
+      const m = (p, pattern, options2) => orig(p, pattern, ext(def, options2));
       m.Minimatch = class Minimatch extends orig.Minimatch {
-        constructor(pattern, options) {
-          super(pattern, ext(def, options));
+        constructor(pattern, options2) {
+          super(pattern, ext(def, options2));
         }
       };
-      m.Minimatch.defaults = (options) => orig.defaults(ext(def, options)).Minimatch;
-      m.filter = (pattern, options) => orig.filter(pattern, ext(def, options));
-      m.defaults = (options) => orig.defaults(ext(def, options));
-      m.makeRe = (pattern, options) => orig.makeRe(pattern, ext(def, options));
-      m.braceExpand = (pattern, options) => orig.braceExpand(pattern, ext(def, options));
-      m.match = (list2, pattern, options) => orig.match(list2, pattern, ext(def, options));
+      m.Minimatch.defaults = (options2) => orig.defaults(ext(def, options2)).Minimatch;
+      m.filter = (pattern, options2) => orig.filter(pattern, ext(def, options2));
+      m.defaults = (options2) => orig.defaults(ext(def, options2));
+      m.makeRe = (pattern, options2) => orig.makeRe(pattern, ext(def, options2));
+      m.braceExpand = (pattern, options2) => orig.braceExpand(pattern, ext(def, options2));
+      m.match = (list2, pattern, options2) => orig.match(list2, pattern, ext(def, options2));
       return m;
     };
-    minimatch.braceExpand = (pattern, options) => braceExpand(pattern, options);
-    var braceExpand = (pattern, options = {}) => {
+    minimatch.braceExpand = (pattern, options2) => braceExpand(pattern, options2);
+    var braceExpand = (pattern, options2 = {}) => {
       assertValidPattern(pattern);
-      if (options.nobrace || !/\{(?:(?!\{).)*\}/.test(pattern)) {
+      if (options2.nobrace || !/\{(?:(?!\{).)*\}/.test(pattern)) {
         return [pattern];
       }
       return expand(pattern);
@@ -53909,27 +53920,27 @@ var require_minimatch = __commonJS({
       }
     };
     var SUBPARSE = Symbol("subparse");
-    minimatch.makeRe = (pattern, options) => new Minimatch(pattern, options || {}).makeRe();
-    minimatch.match = (list2, pattern, options = {}) => {
-      const mm = new Minimatch(pattern, options);
+    minimatch.makeRe = (pattern, options2) => new Minimatch(pattern, options2 || {}).makeRe();
+    minimatch.match = (list2, pattern, options2 = {}) => {
+      const mm = new Minimatch(pattern, options2);
       list2 = list2.filter((f) => mm.match(f));
       if (mm.options.nonull && !list2.length) {
         list2.push(pattern);
       }
       return list2;
     };
-    var globUnescape = (s7) => s7.replace(/\\(.)/g, "$1");
-    var charUnescape = (s7) => s7.replace(/\\([^-\]])/g, "$1");
-    var regExpEscape = (s7) => s7.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
-    var braExpEscape = (s7) => s7.replace(/[[\]\\]/g, "\\$&");
+    var globUnescape = (s11) => s11.replace(/\\(.)/g, "$1");
+    var charUnescape = (s11) => s11.replace(/\\([^-\]])/g, "$1");
+    var regExpEscape = (s11) => s11.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+    var braExpEscape = (s11) => s11.replace(/[[\]\\]/g, "\\$&");
     var Minimatch = class {
-      constructor(pattern, options) {
+      constructor(pattern, options2) {
         assertValidPattern(pattern);
-        if (!options) options = {};
-        this.options = options;
+        if (!options2) options2 = {};
+        this.options = options2;
         this.set = [];
         this.pattern = pattern;
-        this.windowsPathsNoEscape = !!options.windowsPathsNoEscape || options.allowWindowsEscape === false;
+        this.windowsPathsNoEscape = !!options2.windowsPathsNoEscape || options2.allowWindowsEscape === false;
         if (this.windowsPathsNoEscape) {
           this.pattern = this.pattern.replace(/\\/g, "/");
         }
@@ -53937,15 +53948,15 @@ var require_minimatch = __commonJS({
         this.negate = false;
         this.comment = false;
         this.empty = false;
-        this.partial = !!options.partial;
+        this.partial = !!options2.partial;
         this.make();
       }
       debug() {
       }
       make() {
         const pattern = this.pattern;
-        const options = this.options;
-        if (!options.nocomment && pattern.charAt(0) === "#") {
+        const options2 = this.options;
+        if (!options2.nocomment && pattern.charAt(0) === "#") {
           this.comment = true;
           return;
         }
@@ -53955,13 +53966,13 @@ var require_minimatch = __commonJS({
         }
         this.parseNegate();
         let set = this.globSet = this.braceExpand();
-        if (options.debug) this.debug = (...args) => console.error(...args);
+        if (options2.debug) this.debug = (...args) => console.error(...args);
         this.debug(this.pattern, set);
-        set = this.globParts = set.map((s7) => s7.split(slashSplit));
+        set = this.globParts = set.map((s11) => s11.split(slashSplit));
         this.debug(this.pattern, set);
-        set = set.map((s7, si, set2) => s7.map(this.parse, this));
+        set = set.map((s11, si, set2) => s11.map(this.parse, this));
         this.debug(this.pattern, set);
-        set = set.filter((s7) => s7.indexOf(false) === -1);
+        set = set.filter((s11) => s11.indexOf(false) === -1);
         this.debug(this.pattern, set);
         this.set = set;
       }
@@ -53983,7 +53994,7 @@ var require_minimatch = __commonJS({
       // out of pattern, then that's fine, as long as all
       // the parts match.
       matchOne(file, pattern, partial2) {
-        var options = this.options;
+        var options2 = this.options;
         this.debug(
           "matchOne",
           { "this": this, file, pattern }
@@ -54002,7 +54013,7 @@ var require_minimatch = __commonJS({
             if (pr === pl) {
               this.debug("** at the end");
               for (; fi < fl; fi++) {
-                if (file[fi] === "." || file[fi] === ".." || !options.dot && file[fi].charAt(0) === ".") return false;
+                if (file[fi] === "." || file[fi] === ".." || !options2.dot && file[fi].charAt(0) === ".") return false;
               }
               return true;
             }
@@ -54013,7 +54024,7 @@ var require_minimatch = __commonJS({
                 this.debug("globstar found match!", fr, fl, swallowee);
                 return true;
               } else {
-                if (swallowee === "." || swallowee === ".." || !options.dot && swallowee.charAt(0) === ".") {
+                if (swallowee === "." || swallowee === ".." || !options2.dot && swallowee.charAt(0) === ".") {
                   this.debug("dot detected!", file, fr, pattern, pr);
                   break;
                 }
@@ -54051,9 +54062,9 @@ var require_minimatch = __commonJS({
       }
       parse(pattern, isSub) {
         assertValidPattern(pattern);
-        const options = this.options;
+        const options2 = this.options;
         if (pattern === "**") {
-          if (!options.noglobstar)
+          if (!options2.noglobstar)
             return GLOBSTAR;
           else
             pattern = "*";
@@ -54072,9 +54083,9 @@ var require_minimatch = __commonJS({
         let pl;
         let sp;
         let dotTravAllowed = pattern.charAt(0) === ".";
-        let dotFileAllowed = options.dot || dotTravAllowed;
+        let dotFileAllowed = options2.dot || dotTravAllowed;
         const patternStart = () => dotTravAllowed ? "" : dotFileAllowed ? "(?!(?:^|\\/)\\.{1,2}(?:$|\\/))" : "(?!\\.)";
-        const subPatternStart = (p) => p.charAt(0) === "." ? "" : options.dot ? "(?!(?:^|\\/)\\.{1,2}(?:$|\\/))" : "(?!\\.)";
+        const subPatternStart = (p) => p.charAt(0) === "." ? "" : options2.dot ? "(?!(?:^|\\/)\\.{1,2}(?:$|\\/))" : "(?!\\.)";
         const clearStateChar = () => {
           if (stateChar) {
             switch (stateChar) {
@@ -54134,7 +54145,7 @@ var require_minimatch = __commonJS({
               this.debug("call clearStateChar %j", stateChar);
               clearStateChar();
               stateChar = c;
-              if (options.noext) clearStateChar();
+              if (options2.noext) clearStateChar();
               continue;
             case "(": {
               if (inClass) {
@@ -54279,13 +54290,13 @@ var require_minimatch = __commonJS({
         if (isSub === SUBPARSE) {
           return [re, hasMagic];
         }
-        if (options.nocase && !hasMagic) {
+        if (options2.nocase && !hasMagic) {
           hasMagic = pattern.toUpperCase() !== pattern.toLowerCase();
         }
         if (!hasMagic) {
           return globUnescape(pattern);
         }
-        const flags = options.nocase ? "i" : "";
+        const flags = options2.nocase ? "i" : "";
         try {
           return Object.assign(new RegExp("^" + re + "$", flags), {
             _glob: pattern,
@@ -54302,9 +54313,9 @@ var require_minimatch = __commonJS({
           this.regexp = false;
           return this.regexp;
         }
-        const options = this.options;
-        const twoStar = options.noglobstar ? star : options.dot ? twoStarDot : twoStarNoDot;
-        const flags = options.nocase ? "i" : "";
+        const options2 = this.options;
+        const twoStar = options2.noglobstar ? star : options2.dot ? twoStarDot : twoStarNoDot;
+        const flags = options2.nocase ? "i" : "";
         let re = set.map((pattern) => {
           pattern = pattern.map(
             (p) => typeof p === "string" ? regExpEscape(p) : p === GLOBSTAR ? GLOBSTAR : p._src
@@ -54347,7 +54358,7 @@ var require_minimatch = __commonJS({
         if (this.comment) return false;
         if (this.empty) return f === "";
         if (f === "/" && partial2) return true;
-        const options = this.options;
+        const options2 = this.options;
         if (path24.sep !== "/") {
           f = f.split(path24.sep).join("/");
         }
@@ -54363,16 +54374,16 @@ var require_minimatch = __commonJS({
         for (let i = 0; i < set.length; i++) {
           const pattern = set[i];
           let file = f;
-          if (options.matchBase && pattern.length === 1) {
+          if (options2.matchBase && pattern.length === 1) {
             file = [filename];
           }
           const hit = this.matchOne(file, pattern, partial2);
           if (hit) {
-            if (options.flipNegate) return true;
+            if (options2.flipNegate) return true;
             return !this.negate;
           }
         }
-        if (options.flipNegate) return false;
+        if (options2.flipNegate) return false;
         return this.negate;
       }
       static defaults(def) {
@@ -54452,8 +54463,8 @@ var require_readdir_glob = __commonJS({
           useStat = true;
         }
         const filename = dir + "/" + name;
-        const relative2 = filename.slice(1);
-        const absolute = path24 + "/" + relative2;
+        const relative3 = filename.slice(1);
+        const absolute = path24 + "/" + relative3;
         let stats = null;
         if (useStat || followSymlinks) {
           stats = await stat(absolute, followSymlinks);
@@ -54465,43 +54476,43 @@ var require_readdir_glob = __commonJS({
           stats = { isDirectory: () => false };
         }
         if (stats.isDirectory()) {
-          if (!shouldSkip(relative2)) {
-            yield { relative: relative2, absolute, stats };
+          if (!shouldSkip(relative3)) {
+            yield { relative: relative3, absolute, stats };
             yield* exploreWalkAsync(filename, path24, followSymlinks, useStat, shouldSkip, false);
           }
         } else {
-          yield { relative: relative2, absolute, stats };
+          yield { relative: relative3, absolute, stats };
         }
       }
     }
     async function* explore(path24, followSymlinks, useStat, shouldSkip) {
       yield* exploreWalkAsync("", path24, followSymlinks, useStat, shouldSkip, true);
     }
-    function readOptions(options) {
+    function readOptions(options2) {
       return {
-        pattern: options.pattern,
-        dot: !!options.dot,
-        noglobstar: !!options.noglobstar,
-        matchBase: !!options.matchBase,
-        nocase: !!options.nocase,
-        ignore: options.ignore,
-        skip: options.skip,
-        follow: !!options.follow,
-        stat: !!options.stat,
-        nodir: !!options.nodir,
-        mark: !!options.mark,
-        silent: !!options.silent,
-        absolute: !!options.absolute
+        pattern: options2.pattern,
+        dot: !!options2.dot,
+        noglobstar: !!options2.noglobstar,
+        matchBase: !!options2.matchBase,
+        nocase: !!options2.nocase,
+        ignore: options2.ignore,
+        skip: options2.skip,
+        follow: !!options2.follow,
+        stat: !!options2.stat,
+        nodir: !!options2.nodir,
+        mark: !!options2.mark,
+        silent: !!options2.silent,
+        absolute: !!options2.absolute
       };
     }
     var ReaddirGlob = class extends EventEmitter {
-      constructor(cwd, options, cb) {
+      constructor(cwd, options2, cb) {
         super();
-        if (typeof options === "function") {
-          cb = options;
-          options = null;
+        if (typeof options2 === "function") {
+          cb = options2;
+          options2 = null;
         }
-        this.options = readOptions(options || {});
+        this.options = readOptions(options2 || {});
         this.matchers = [];
         if (this.options.pattern) {
           const matchers = Array.isArray(this.options.pattern) ? this.options.pattern : [this.options.pattern];
@@ -54540,11 +54551,11 @@ var require_readdir_glob = __commonJS({
         }
         setTimeout(() => this._next(), 0);
       }
-      _shouldSkipDirectory(relative2) {
-        return this.skipMatchers.some((m) => m.match(relative2));
+      _shouldSkipDirectory(relative3) {
+        return this.skipMatchers.some((m) => m.match(relative3));
       }
-      _fileMatches(relative2, isDirectory) {
-        const file = relative2 + (isDirectory ? "/" : "");
+      _fileMatches(relative3, isDirectory) {
+        const file = relative3 + (isDirectory ? "/" : "");
         return (this.matchers.length === 0 || this.matchers.some((m) => m.match(file))) && !this.ignoreMatchers.some((m) => m.match(file)) && (!this.options.nodir || !isDirectory);
       }
       _next() {
@@ -54553,16 +54564,16 @@ var require_readdir_glob = __commonJS({
             if (!obj12.done) {
               const isDirectory = obj12.value.stats.isDirectory();
               if (this._fileMatches(obj12.value.relative, isDirectory)) {
-                let relative2 = obj12.value.relative;
+                let relative3 = obj12.value.relative;
                 let absolute = obj12.value.absolute;
                 if (this.options.mark && isDirectory) {
-                  relative2 += "/";
+                  relative3 += "/";
                   absolute += "/";
                 }
                 if (this.options.stat) {
-                  this.emit("match", { relative: relative2, absolute, stat: obj12.value.stats });
+                  this.emit("match", { relative: relative3, absolute, stat: obj12.value.stats });
                 } else {
-                  this.emit("match", { relative: relative2, absolute });
+                  this.emit("match", { relative: relative3, absolute });
                 }
               }
               this._next(this.iterator);
@@ -54594,8 +54605,8 @@ var require_readdir_glob = __commonJS({
         }
       }
     };
-    function readdirGlob(pattern, options, cb) {
-      return new ReaddirGlob(pattern, options, cb);
+    function readdirGlob(pattern, options2, cb) {
+      return new ReaddirGlob(pattern, options2, cb);
     }
     readdirGlob.ReaddirGlob = ReaddirGlob;
   }
@@ -55013,8 +55024,8 @@ var require_async2 = __commonJS({
             return callback(null, results);
           }
           while (readyTasks.length && runningTasks < concurrency) {
-            var run4 = readyTasks.shift();
-            run4();
+            var run5 = readyTasks.shift();
+            run5();
           }
         }
         function addListener(taskName, fn) {
@@ -55516,10 +55527,10 @@ var require_async2 = __commonJS({
       function compose(...args) {
         return seq(...args.reverse());
       }
-      function mapLimit(coll, limit, iteratee, callback) {
+      function mapLimit2(coll, limit, iteratee, callback) {
         return _asyncMap(eachOfLimit$2(limit), coll, iteratee, callback);
       }
-      var mapLimit$1 = awaitify(mapLimit, 4);
+      var mapLimit$1 = awaitify(mapLimit2, 4);
       function concatLimit(coll, limit, iteratee, callback) {
         var _iteratee = wrapAsync(iteratee);
         return mapLimit$1(coll, limit, (val, iterCb) => {
@@ -56031,7 +56042,7 @@ var require_async2 = __commonJS({
       const DEFAULT_TIMES = 5;
       const DEFAULT_INTERVAL = 0;
       function retry(opts, task, callback) {
-        var options = {
+        var options2 = {
           times: DEFAULT_TIMES,
           intervalFunc: constant(DEFAULT_INTERVAL)
         };
@@ -56039,7 +56050,7 @@ var require_async2 = __commonJS({
           callback = task || promiseCallback();
           task = opts;
         } else {
-          parseTimes(options, opts);
+          parseTimes(options2, opts);
           callback = callback || promiseCallback();
         }
         if (typeof task !== "function") {
@@ -56050,8 +56061,8 @@ var require_async2 = __commonJS({
         function retryAttempt() {
           _task((err, ...args) => {
             if (err === false) return;
-            if (err && attempt++ < options.times && (typeof options.errorFilter != "function" || options.errorFilter(err))) {
-              setTimeout(retryAttempt, options.intervalFunc(attempt - 1));
+            if (err && attempt++ < options2.times && (typeof options2.errorFilter != "function" || options2.errorFilter(err))) {
+              setTimeout(retryAttempt, options2.intervalFunc(attempt - 1));
             } else {
               callback(err, ...args);
             }
@@ -56707,10 +56718,10 @@ var require_polyfills = __commonJS({
       }
       function statFix(orig) {
         if (!orig) return orig;
-        return function(target3, options, cb) {
-          if (typeof options === "function") {
-            cb = options;
-            options = null;
+        return function(target3, options2, cb) {
+          if (typeof options2 === "function") {
+            cb = options2;
+            options2 = null;
           }
           function callback(er, stats) {
             if (stats) {
@@ -56719,13 +56730,13 @@ var require_polyfills = __commonJS({
             }
             if (cb) cb.apply(this, arguments);
           }
-          return options ? orig.call(fs24, target3, options, callback) : orig.call(fs24, target3, callback);
+          return options2 ? orig.call(fs24, target3, options2, callback) : orig.call(fs24, target3, callback);
         };
       }
       function statFixSync(orig) {
         if (!orig) return orig;
-        return function(target3, options) {
-          var stats = options ? orig.call(fs24, target3, options) : orig.call(fs24, target3);
+        return function(target3, options2) {
+          var stats = options2 ? orig.call(fs24, target3, options2) : orig.call(fs24, target3);
           if (stats) {
             if (stats.uid < 0) stats.uid += 4294967296;
             if (stats.gid < 0) stats.gid += 4294967296;
@@ -56759,8 +56770,8 @@ var require_legacy_streams = __commonJS({
         ReadStream,
         WriteStream
       };
-      function ReadStream(path24, options) {
-        if (!(this instanceof ReadStream)) return new ReadStream(path24, options);
+      function ReadStream(path24, options2) {
+        if (!(this instanceof ReadStream)) return new ReadStream(path24, options2);
         Stream.call(this);
         var self2 = this;
         this.path = path24;
@@ -56770,11 +56781,11 @@ var require_legacy_streams = __commonJS({
         this.flags = "r";
         this.mode = 438;
         this.bufferSize = 64 * 1024;
-        options = options || {};
-        var keys = Object.keys(options);
+        options2 = options2 || {};
+        var keys = Object.keys(options2);
         for (var index = 0, length = keys.length; index < length; index++) {
           var key5 = keys[index];
-          this[key5] = options[key5];
+          this[key5] = options2[key5];
         }
         if (this.encoding) this.setEncoding(this.encoding);
         if (this.start !== void 0) {
@@ -56808,8 +56819,8 @@ var require_legacy_streams = __commonJS({
           self2._read();
         });
       }
-      function WriteStream(path24, options) {
-        if (!(this instanceof WriteStream)) return new WriteStream(path24, options);
+      function WriteStream(path24, options2) {
+        if (!(this instanceof WriteStream)) return new WriteStream(path24, options2);
         Stream.call(this);
         this.path = path24;
         this.fd = null;
@@ -56818,11 +56829,11 @@ var require_legacy_streams = __commonJS({
         this.encoding = "binary";
         this.mode = 438;
         this.bytesWritten = 0;
-        options = options || {};
-        var keys = Object.keys(options);
+        options2 = options2 || {};
+        var keys = Object.keys(options2);
         for (var index = 0, length = keys.length; index < length; index++) {
           var key5 = keys[index];
-          this[key5] = options[key5];
+          this[key5] = options2[key5];
         }
         if (this.start !== void 0) {
           if ("number" !== typeof this.start) {
@@ -56951,17 +56962,17 @@ var require_graceful_fs = __commonJS({
       polyfills(fs25);
       fs25.gracefulify = patch;
       fs25.createReadStream = createReadStream;
-      fs25.createWriteStream = createWriteStream3;
+      fs25.createWriteStream = createWriteStream4;
       var fs$readFile = fs25.readFile;
       fs25.readFile = readFile2;
-      function readFile2(path24, options, cb) {
-        if (typeof options === "function")
-          cb = options, options = null;
-        return go$readFile(path24, options, cb);
-        function go$readFile(path25, options2, cb2, startTime) {
-          return fs$readFile(path25, options2, function(err) {
+      function readFile2(path24, options2, cb) {
+        if (typeof options2 === "function")
+          cb = options2, options2 = null;
+        return go$readFile(path24, options2, cb);
+        function go$readFile(path25, options3, cb2, startTime) {
+          return fs$readFile(path25, options3, function(err) {
             if (err && (err.code === "EMFILE" || err.code === "ENFILE"))
-              enqueue([go$readFile, [path25, options2, cb2], err, startTime || Date.now(), Date.now()]);
+              enqueue([go$readFile, [path25, options3, cb2], err, startTime || Date.now(), Date.now()]);
             else {
               if (typeof cb2 === "function")
                 cb2.apply(this, arguments);
@@ -56971,14 +56982,14 @@ var require_graceful_fs = __commonJS({
       }
       var fs$writeFile = fs25.writeFile;
       fs25.writeFile = writeFile3;
-      function writeFile3(path24, data2, options, cb) {
-        if (typeof options === "function")
-          cb = options, options = null;
-        return go$writeFile(path24, data2, options, cb);
-        function go$writeFile(path25, data3, options2, cb2, startTime) {
-          return fs$writeFile(path25, data3, options2, function(err) {
+      function writeFile3(path24, data2, options2, cb) {
+        if (typeof options2 === "function")
+          cb = options2, options2 = null;
+        return go$writeFile(path24, data2, options2, cb);
+        function go$writeFile(path25, data3, options3, cb2, startTime) {
+          return fs$writeFile(path25, data3, options3, function(err) {
             if (err && (err.code === "EMFILE" || err.code === "ENFILE"))
-              enqueue([go$writeFile, [path25, data3, options2, cb2], err, startTime || Date.now(), Date.now()]);
+              enqueue([go$writeFile, [path25, data3, options3, cb2], err, startTime || Date.now(), Date.now()]);
             else {
               if (typeof cb2 === "function")
                 cb2.apply(this, arguments);
@@ -56989,14 +57000,14 @@ var require_graceful_fs = __commonJS({
       var fs$appendFile = fs25.appendFile;
       if (fs$appendFile)
         fs25.appendFile = appendFile;
-      function appendFile(path24, data2, options, cb) {
-        if (typeof options === "function")
-          cb = options, options = null;
-        return go$appendFile(path24, data2, options, cb);
-        function go$appendFile(path25, data3, options2, cb2, startTime) {
-          return fs$appendFile(path25, data3, options2, function(err) {
+      function appendFile(path24, data2, options2, cb) {
+        if (typeof options2 === "function")
+          cb = options2, options2 = null;
+        return go$appendFile(path24, data2, options2, cb);
+        function go$appendFile(path25, data3, options3, cb2, startTime) {
+          return fs$appendFile(path25, data3, options3, function(err) {
             if (err && (err.code === "EMFILE" || err.code === "ENFILE"))
-              enqueue([go$appendFile, [path25, data3, options2, cb2], err, startTime || Date.now(), Date.now()]);
+              enqueue([go$appendFile, [path25, data3, options3, cb2], err, startTime || Date.now(), Date.now()]);
             else {
               if (typeof cb2 === "function")
                 cb2.apply(this, arguments);
@@ -57027,31 +57038,31 @@ var require_graceful_fs = __commonJS({
       var fs$readdir = fs25.readdir;
       fs25.readdir = readdir;
       var noReaddirOptionVersions = /^v[0-5]\./;
-      function readdir(path24, options, cb) {
-        if (typeof options === "function")
-          cb = options, options = null;
-        var go$readdir = noReaddirOptionVersions.test(process.version) ? function go$readdir2(path25, options2, cb2, startTime) {
+      function readdir(path24, options2, cb) {
+        if (typeof options2 === "function")
+          cb = options2, options2 = null;
+        var go$readdir = noReaddirOptionVersions.test(process.version) ? function go$readdir2(path25, options3, cb2, startTime) {
           return fs$readdir(path25, fs$readdirCallback(
             path25,
-            options2,
+            options3,
             cb2,
             startTime
           ));
-        } : function go$readdir2(path25, options2, cb2, startTime) {
-          return fs$readdir(path25, options2, fs$readdirCallback(
+        } : function go$readdir2(path25, options3, cb2, startTime) {
+          return fs$readdir(path25, options3, fs$readdirCallback(
             path25,
-            options2,
+            options3,
             cb2,
             startTime
           ));
         };
-        return go$readdir(path24, options, cb);
-        function fs$readdirCallback(path25, options2, cb2, startTime) {
+        return go$readdir(path24, options2, cb);
+        function fs$readdirCallback(path25, options3, cb2, startTime) {
           return function(err, files) {
             if (err && (err.code === "EMFILE" || err.code === "ENFILE"))
               enqueue([
                 go$readdir,
-                [path25, options2, cb2],
+                [path25, options3, cb2],
                 err,
                 startTime || Date.now(),
                 Date.now()
@@ -57122,7 +57133,7 @@ var require_graceful_fs = __commonJS({
         enumerable: true,
         configurable: true
       });
-      function ReadStream(path24, options) {
+      function ReadStream(path24, options2) {
         if (this instanceof ReadStream)
           return fs$ReadStream.apply(this, arguments), this;
         else
@@ -57142,7 +57153,7 @@ var require_graceful_fs = __commonJS({
           }
         });
       }
-      function WriteStream(path24, options) {
+      function WriteStream(path24, options2) {
         if (this instanceof WriteStream)
           return fs$WriteStream.apply(this, arguments), this;
         else
@@ -57160,11 +57171,11 @@ var require_graceful_fs = __commonJS({
           }
         });
       }
-      function createReadStream(path24, options) {
-        return new fs25.ReadStream(path24, options);
+      function createReadStream(path24, options2) {
+        return new fs25.ReadStream(path24, options2);
       }
-      function createWriteStream3(path24, options) {
-        return new fs25.WriteStream(path24, options);
+      function createWriteStream4(path24, options2) {
+        return new fs25.WriteStream(path24, options2);
       }
       var fs$open = fs25.open;
       fs25.open = open;
@@ -57532,12 +57543,12 @@ var require_BufferList = __commonJS({
         this.head = this.tail = null;
         this.length = 0;
       };
-      BufferList.prototype.join = function join25(s7) {
+      BufferList.prototype.join = function join27(s11) {
         if (this.length === 0) return "";
         var p = this.head;
         var ret = "" + p.data;
         while (p = p.next) {
-          ret += s7 + p.data;
+          ret += s11 + p.data;
         }
         return ret;
       };
@@ -57676,14 +57687,14 @@ var require_stream_writable = __commonJS({
     util2.inherits(Writable, Stream);
     function nop() {
     }
-    function WritableState(options, stream) {
+    function WritableState(options2, stream) {
       Duplex = Duplex || require_stream_duplex();
-      options = options || {};
+      options2 = options2 || {};
       var isDuplex = stream instanceof Duplex;
-      this.objectMode = !!options.objectMode;
-      if (isDuplex) this.objectMode = this.objectMode || !!options.writableObjectMode;
-      var hwm = options.highWaterMark;
-      var writableHwm = options.writableHighWaterMark;
+      this.objectMode = !!options2.objectMode;
+      if (isDuplex) this.objectMode = this.objectMode || !!options2.writableObjectMode;
+      var hwm = options2.highWaterMark;
+      var writableHwm = options2.writableHighWaterMark;
       var defaultHwm = this.objectMode ? 16 : 16 * 1024;
       if (hwm || hwm === 0) this.highWaterMark = hwm;
       else if (isDuplex && (writableHwm || writableHwm === 0)) this.highWaterMark = writableHwm;
@@ -57695,9 +57706,9 @@ var require_stream_writable = __commonJS({
       this.ended = false;
       this.finished = false;
       this.destroyed = false;
-      var noDecode = options.decodeStrings === false;
+      var noDecode = options2.decodeStrings === false;
       this.decodeStrings = !noDecode;
-      this.defaultEncoding = options.defaultEncoding || "utf8";
+      this.defaultEncoding = options2.defaultEncoding || "utf8";
       this.length = 0;
       this.writing = false;
       this.corked = 0;
@@ -57750,18 +57761,18 @@ var require_stream_writable = __commonJS({
         return object3 instanceof this;
       };
     }
-    function Writable(options) {
+    function Writable(options2) {
       Duplex = Duplex || require_stream_duplex();
       if (!realHasInstance.call(Writable, this) && !(this instanceof Duplex)) {
-        return new Writable(options);
+        return new Writable(options2);
       }
-      this._writableState = new WritableState(options, this);
+      this._writableState = new WritableState(options2, this);
       this.writable = true;
-      if (options) {
-        if (typeof options.write === "function") this._write = options.write;
-        if (typeof options.writev === "function") this._writev = options.writev;
-        if (typeof options.destroy === "function") this._destroy = options.destroy;
-        if (typeof options.final === "function") this._final = options.final;
+      if (options2) {
+        if (typeof options2.write === "function") this._write = options2.write;
+        if (typeof options2.writev === "function") this._writev = options2.writev;
+        if (typeof options2.destroy === "function") this._destroy = options2.destroy;
+        if (typeof options2.final === "function") this._final = options2.final;
       }
       Stream.call(this);
     }
@@ -58108,14 +58119,14 @@ var require_stream_duplex = __commonJS({
     var keys;
     var method;
     var v;
-    function Duplex(options) {
-      if (!(this instanceof Duplex)) return new Duplex(options);
-      Readable2.call(this, options);
-      Writable.call(this, options);
-      if (options && options.readable === false) this.readable = false;
-      if (options && options.writable === false) this.writable = false;
+    function Duplex(options2) {
+      if (!(this instanceof Duplex)) return new Duplex(options2);
+      Readable2.call(this, options2);
+      Writable.call(this, options2);
+      if (options2 && options2.readable === false) this.readable = false;
+      if (options2 && options2.writable === false) this.writable = false;
       this.allowHalfOpen = true;
-      if (options && options.allowHalfOpen === false) this.allowHalfOpen = false;
+      if (options2 && options2.allowHalfOpen === false) this.allowHalfOpen = false;
       this.once("end", onend);
     }
     Object.defineProperty(Duplex.prototype, "writableHighWaterMark", {
@@ -58439,14 +58450,14 @@ var require_stream_readable = __commonJS({
       else if (isArray2(emitter._events[event])) emitter._events[event].unshift(fn);
       else emitter._events[event] = [fn, emitter._events[event]];
     }
-    function ReadableState(options, stream) {
+    function ReadableState(options2, stream) {
       Duplex = Duplex || require_stream_duplex();
-      options = options || {};
+      options2 = options2 || {};
       var isDuplex = stream instanceof Duplex;
-      this.objectMode = !!options.objectMode;
-      if (isDuplex) this.objectMode = this.objectMode || !!options.readableObjectMode;
-      var hwm = options.highWaterMark;
-      var readableHwm = options.readableHighWaterMark;
+      this.objectMode = !!options2.objectMode;
+      if (isDuplex) this.objectMode = this.objectMode || !!options2.readableObjectMode;
+      var hwm = options2.highWaterMark;
+      var readableHwm = options2.readableHighWaterMark;
       var defaultHwm = this.objectMode ? 16 : 16 * 1024;
       if (hwm || hwm === 0) this.highWaterMark = hwm;
       else if (isDuplex && (readableHwm || readableHwm === 0)) this.highWaterMark = readableHwm;
@@ -58466,25 +58477,25 @@ var require_stream_readable = __commonJS({
       this.readableListening = false;
       this.resumeScheduled = false;
       this.destroyed = false;
-      this.defaultEncoding = options.defaultEncoding || "utf8";
+      this.defaultEncoding = options2.defaultEncoding || "utf8";
       this.awaitDrain = 0;
       this.readingMore = false;
       this.decoder = null;
       this.encoding = null;
-      if (options.encoding) {
+      if (options2.encoding) {
         if (!StringDecoder) StringDecoder = require_string_decoder().StringDecoder;
-        this.decoder = new StringDecoder(options.encoding);
-        this.encoding = options.encoding;
+        this.decoder = new StringDecoder(options2.encoding);
+        this.encoding = options2.encoding;
       }
     }
-    function Readable2(options) {
+    function Readable2(options2) {
       Duplex = Duplex || require_stream_duplex();
-      if (!(this instanceof Readable2)) return new Readable2(options);
-      this._readableState = new ReadableState(options, this);
+      if (!(this instanceof Readable2)) return new Readable2(options2);
+      this._readableState = new ReadableState(options2, this);
       this.readable = true;
-      if (options) {
-        if (typeof options.read === "function") this._read = options.read;
-        if (typeof options.destroy === "function") this._destroy = options.destroy;
+      if (options2) {
+        if (typeof options2.read === "function") this._read = options2.read;
+        if (typeof options2.destroy === "function") this._destroy = options2.destroy;
       }
       Stream.call(this);
     }
@@ -59009,19 +59020,19 @@ var require_stream_readable = __commonJS({
       var ret = p.data;
       n2 -= ret.length;
       while (p = p.next) {
-        var str32 = p.data;
-        var nb = n2 > str32.length ? str32.length : n2;
-        if (nb === str32.length) ret += str32;
-        else ret += str32.slice(0, n2);
+        var str33 = p.data;
+        var nb = n2 > str33.length ? str33.length : n2;
+        if (nb === str33.length) ret += str33;
+        else ret += str33.slice(0, n2);
         n2 -= nb;
         if (n2 === 0) {
-          if (nb === str32.length) {
+          if (nb === str33.length) {
             ++c;
             if (p.next) list2.head = p.next;
             else list2.head = list2.tail = null;
           } else {
             list2.head = p;
-            p.data = str32.slice(nb);
+            p.data = str33.slice(nb);
           }
           break;
         }
@@ -59108,9 +59119,9 @@ var require_stream_transform = __commonJS({
         this._read(rs.highWaterMark);
       }
     }
-    function Transform2(options) {
-      if (!(this instanceof Transform2)) return new Transform2(options);
-      Duplex.call(this, options);
+    function Transform2(options2) {
+      if (!(this instanceof Transform2)) return new Transform2(options2);
+      Duplex.call(this, options2);
       this._transformState = {
         afterTransform: afterTransform.bind(this),
         needTransform: false,
@@ -59121,9 +59132,9 @@ var require_stream_transform = __commonJS({
       };
       this._readableState.needReadable = true;
       this._readableState.sync = false;
-      if (options) {
-        if (typeof options.transform === "function") this._transform = options.transform;
-        if (typeof options.flush === "function") this._flush = options.flush;
+      if (options2) {
+        if (typeof options2.transform === "function") this._transform = options2.transform;
+        if (typeof options2.flush === "function") this._flush = options2.flush;
       }
       this.on("prefinish", prefinish);
     }
@@ -59190,9 +59201,9 @@ var require_stream_passthrough = __commonJS({
     var util2 = Object.create(require_util2());
     util2.inherits = require_inherits();
     util2.inherits(PassThrough, Transform2);
-    function PassThrough(options) {
-      if (!(this instanceof PassThrough)) return new PassThrough(options);
-      Transform2.call(this, options);
+    function PassThrough(options2) {
+      if (!(this instanceof PassThrough)) return new PassThrough(options2);
+      Transform2.call(this, options2);
     }
     PassThrough.prototype._transform = function(chunk2, encoding, cb) {
       cb(null, chunk2);
@@ -59250,24 +59261,24 @@ var require_lazystream = __commonJS({
         return this[method].apply(this, arguments);
       };
     }
-    function Readable2(fn, options) {
+    function Readable2(fn, options2) {
       if (!(this instanceof Readable2))
-        return new Readable2(fn, options);
-      PassThrough.call(this, options);
+        return new Readable2(fn, options2);
+      PassThrough.call(this, options2);
       beforeFirstCall(this, "_read", function() {
-        var source = fn.call(this, options);
+        var source = fn.call(this, options2);
         var emit = this.emit.bind(this, "error");
         source.on("error", emit);
         source.pipe(this);
       });
       this.emit("readable");
     }
-    function Writable(fn, options) {
+    function Writable(fn, options2) {
       if (!(this instanceof Writable))
-        return new Writable(fn, options);
-      PassThrough.call(this, options);
+        return new Writable(fn, options2);
+      PassThrough.call(this, options2);
       beforeFirstCall(this, "_write", function() {
-        var destination = fn.call(this, options);
+        var destination = fn.call(this, options2);
         var emit = this.emit.bind(this, "error");
         destination.on("error", emit);
         this.pipe(destination);
@@ -60317,11 +60328,11 @@ var require_errors6 = __commonJS({
       return innerError || outerError;
     }
     var AbortError = class extends Error {
-      constructor(message = "The operation was aborted", options = void 0) {
-        if (options !== void 0 && typeof options !== "object") {
-          throw new codes.ERR_INVALID_ARG_TYPE("options", "Object", options);
+      constructor(message = "The operation was aborted", options2 = void 0) {
+        if (options2 !== void 0 && typeof options2 !== "object") {
+          throw new codes.ERR_INVALID_ARG_TYPE("options", "Object", options2);
         }
-        super(message, options);
+        super(message, options2);
         this.code = "ABORT_ERR";
         this.name = "AbortError";
       }
@@ -60488,7 +60499,7 @@ var require_errors6 = __commonJS({
     );
     E(
       "ERR_OUT_OF_RANGE",
-      (str32, range2, input) => {
+      (str33, range2, input) => {
         assert2(range2, 'Missing "range" argument');
         let received;
         if (Number.isInteger(input) && Math.abs(input) > 2 ** 32) {
@@ -60503,7 +60514,7 @@ var require_errors6 = __commonJS({
         } else {
           received = inspect(input);
         }
-        return `The value of "${str32}" is out of range. It must be ${range2}. Received ${received}`;
+        return `The value of "${str33}" is out of range. It must be ${range2}. Received ${received}`;
       },
       RangeError
     );
@@ -60963,7 +60974,7 @@ var require_event_target_shim = __commonJS({
        * @param {boolean|{capture?:boolean,passive?:boolean,once?:boolean}} [options] The options for this listener.
        * @returns {void}
        */
-      addEventListener(eventName, listener, options) {
+      addEventListener(eventName, listener, options2) {
         if (listener == null) {
           return;
         }
@@ -60971,14 +60982,14 @@ var require_event_target_shim = __commonJS({
           throw new TypeError("'listener' should be a function or an object.");
         }
         const listeners = getListeners(this);
-        const optionsIsObj = isObject4(options);
-        const capture = optionsIsObj ? Boolean(options.capture) : Boolean(options);
+        const optionsIsObj = isObject4(options2);
+        const capture = optionsIsObj ? Boolean(options2.capture) : Boolean(options2);
         const listenerType = capture ? CAPTURE : BUBBLE;
         const newNode = {
           listener,
           listenerType,
-          passive: optionsIsObj && Boolean(options.passive),
-          once: optionsIsObj && Boolean(options.once),
+          passive: optionsIsObj && Boolean(options2.passive),
+          once: optionsIsObj && Boolean(options2.once),
           next: null
         };
         let node = listeners.get(eventName);
@@ -61003,12 +61014,12 @@ var require_event_target_shim = __commonJS({
        * @param {boolean|{capture?:boolean,passive?:boolean,once?:boolean}} [options] The options for this listener.
        * @returns {void}
        */
-      removeEventListener(eventName, listener, options) {
+      removeEventListener(eventName, listener, options2) {
         if (listener == null) {
           return;
         }
         const listeners = getListeners(this);
-        const capture = isObject4(options) ? Boolean(options.capture) : Boolean(options);
+        const capture = isObject4(options2) ? Boolean(options2.capture) : Boolean(options2);
         const listenerType = capture ? CAPTURE : BUBBLE;
         let prev = null;
         let node = listeners.get(eventName);
@@ -61437,13 +61448,13 @@ var require_validators2 = __commonJS({
     function validateBoolean(value4, name) {
       if (typeof value4 !== "boolean") throw new ERR_INVALID_ARG_TYPE(name, "boolean", value4);
     }
-    function getOwnPropertyValueOrDefault(options, key5, defaultValue) {
-      return options == null || !ObjectPrototypeHasOwnProperty(options, key5) ? defaultValue : options[key5];
+    function getOwnPropertyValueOrDefault(options2, key5, defaultValue) {
+      return options2 == null || !ObjectPrototypeHasOwnProperty(options2, key5) ? defaultValue : options2[key5];
     }
-    var validateObject = hideStackFrames((value4, name, options = null) => {
-      const allowArray = getOwnPropertyValueOrDefault(options, "allowArray", false);
-      const allowFunction = getOwnPropertyValueOrDefault(options, "allowFunction", false);
-      const nullable2 = getOwnPropertyValueOrDefault(options, "nullable", false);
+    var validateObject = hideStackFrames((value4, name, options2 = null) => {
+      const allowArray = getOwnPropertyValueOrDefault(options2, "allowArray", false);
+      const allowFunction = getOwnPropertyValueOrDefault(options2, "allowFunction", false);
+      const nullable2 = getOwnPropertyValueOrDefault(options2, "nullable", false);
       if (!nullable2 && value4 === null || !allowArray && ArrayIsArray(value4) || typeof value4 !== "object" && (!allowFunction || typeof value4 !== "function")) {
         throw new ERR_INVALID_ARG_TYPE(name, "Object", value4);
       }
@@ -61846,27 +61857,27 @@ var require_end_of_stream = __commonJS({
     }
     var nop = () => {
     };
-    function eos(stream, options, callback) {
+    function eos(stream, options2, callback) {
       var _options$readable, _options$writable;
       if (arguments.length === 2) {
-        callback = options;
-        options = kEmptyObject;
-      } else if (options == null) {
-        options = kEmptyObject;
+        callback = options2;
+        options2 = kEmptyObject;
+      } else if (options2 == null) {
+        options2 = kEmptyObject;
       } else {
-        validateObject(options, "options");
+        validateObject(options2, "options");
       }
       validateFunction(callback, "callback");
-      validateAbortSignal(options.signal, "options.signal");
+      validateAbortSignal(options2.signal, "options.signal");
       callback = once2(callback);
       if (isReadableStream(stream) || isWritableStream(stream)) {
-        return eosWeb(stream, options, callback);
+        return eosWeb(stream, options2, callback);
       }
       if (!isNodeStream(stream)) {
         throw new ERR_INVALID_ARG_TYPE("stream", ["ReadableStream", "WritableStream", "Stream"], stream);
       }
-      const readable3 = (_options$readable = options.readable) !== null && _options$readable !== void 0 ? _options$readable : isReadableNodeStream(stream);
-      const writable = (_options$writable = options.writable) !== null && _options$writable !== void 0 ? _options$writable : isWritableNodeStream(stream);
+      const readable3 = (_options$readable = options2.readable) !== null && _options$readable !== void 0 ? _options$readable : isReadableNodeStream(stream);
+      const writable = (_options$writable = options2.writable) !== null && _options$writable !== void 0 ? _options$writable : isWritableNodeStream(stream);
       const wState = stream._writableState;
       const rState = stream._readableState;
       const onlegacyfinish = () => {
@@ -61949,7 +61960,7 @@ var require_end_of_stream = __commonJS({
       }
       stream.on("end", onend);
       stream.on("finish", onfinish);
-      if (options.error !== false) {
+      if (options2.error !== false) {
         stream.on("error", onerror);
       }
       stream.on("close", onclose);
@@ -61980,22 +61991,22 @@ var require_end_of_stream = __commonJS({
         stream.removeListener("error", onerror);
         stream.removeListener("close", onclose);
       };
-      if (options.signal && !closed) {
+      if (options2.signal && !closed) {
         const abort = () => {
           const endCallback = callback;
           cleanup();
           endCallback.call(
             stream,
             new AbortError(void 0, {
-              cause: options.signal.reason
+              cause: options2.signal.reason
             })
           );
         };
-        if (options.signal.aborted) {
+        if (options2.signal.aborted) {
           process3.nextTick(abort);
         } else {
           addAbortListener = addAbortListener || require_util3().addAbortListener;
-          const disposable2 = addAbortListener(options.signal, abort);
+          const disposable2 = addAbortListener(options2.signal, abort);
           const originalCallback = callback;
           callback = once2((...args) => {
             disposable2[SymbolDispose]();
@@ -62005,24 +62016,24 @@ var require_end_of_stream = __commonJS({
       }
       return cleanup;
     }
-    function eosWeb(stream, options, callback) {
+    function eosWeb(stream, options2, callback) {
       let isAborted2 = false;
       let abort = nop;
-      if (options.signal) {
+      if (options2.signal) {
         abort = () => {
           isAborted2 = true;
           callback.call(
             stream,
             new AbortError(void 0, {
-              cause: options.signal.reason
+              cause: options2.signal.reason
             })
           );
         };
-        if (options.signal.aborted) {
+        if (options2.signal.aborted) {
           process3.nextTick(abort);
         } else {
           addAbortListener = addAbortListener || require_util3().addAbortListener;
-          const disposable2 = addAbortListener(options.signal, abort);
+          const disposable2 = addAbortListener(options2.signal, abort);
           const originalCallback = callback;
           callback = once2((...args) => {
             disposable2[SymbolDispose]();
@@ -62094,7 +62105,7 @@ var require_destroy2 = __commonJS({
     function destroy(err, cb) {
       const r = this._readableState;
       const w = this._writableState;
-      const s7 = w || r;
+      const s11 = w || r;
       if (w !== null && w !== void 0 && w.destroyed || r !== null && r !== void 0 && r.destroyed) {
         if (typeof cb === "function") {
           cb();
@@ -62108,7 +62119,7 @@ var require_destroy2 = __commonJS({
       if (r) {
         r.destroyed = true;
       }
-      if (!s7.constructed) {
+      if (!s11.constructed) {
         this.once(kDestroy, function(er) {
           _destroy(this, aggregateTwoErrors(er, err), cb);
         });
@@ -62258,14 +62269,14 @@ var require_destroy2 = __commonJS({
         called = true;
         const r = stream._readableState;
         const w = stream._writableState;
-        const s7 = w || r;
+        const s11 = w || r;
         if (r) {
           r.constructed = true;
         }
         if (w) {
           w.constructed = true;
         }
-        if (s7.destroyed) {
+        if (s11.destroyed) {
           stream.emit(kDestroy, err);
         } else if (err) {
           errorOrDestroy(stream, err, true);
@@ -62342,7 +62353,7 @@ var require_legacy = __commonJS({
     }
     ObjectSetPrototypeOf(Stream.prototype, EE.prototype);
     ObjectSetPrototypeOf(Stream, EE);
-    Stream.prototype.pipe = function(dest, options) {
+    Stream.prototype.pipe = function(dest, options2) {
       const source = this;
       function ondata(chunk2) {
         if (dest.writable && dest.write(chunk2) === false && source.pause) {
@@ -62356,7 +62367,7 @@ var require_legacy = __commonJS({
         }
       }
       dest.on("drain", ondrain);
-      if (!dest._isStdio && (!options || options.end !== false)) {
+      if (!dest._isStdio && (!options2 || options2.end !== false)) {
         source.on("end", onend);
         source.on("close", onclose);
       }
@@ -62504,11 +62515,11 @@ var require_buffer_list = __commonJS({
         this.head = this.tail = null;
         this.length = 0;
       }
-      join(s7) {
+      join(s11) {
         if (this.length === 0) return "";
         let p = this.head;
         let ret = "" + p.data;
-        while ((p = p.next) !== null) ret += s7 + p.data;
+        while ((p = p.next) !== null) ret += s11 + p.data;
         return ret;
       }
       concat(n2) {
@@ -62550,20 +62561,20 @@ var require_buffer_list = __commonJS({
         let p = this.head;
         let c = 0;
         do {
-          const str32 = p.data;
-          if (n2 > str32.length) {
-            ret += str32;
-            n2 -= str32.length;
+          const str33 = p.data;
+          if (n2 > str33.length) {
+            ret += str33;
+            n2 -= str33.length;
           } else {
-            if (n2 === str32.length) {
-              ret += str32;
+            if (n2 === str33.length) {
+              ret += str33;
               ++c;
               if (p.next) this.head = p.next;
               else this.head = this.tail = null;
             } else {
-              ret += StringPrototypeSlice(str32, 0, n2);
+              ret += StringPrototypeSlice(str33, 0, n2);
               this.head = p;
-              p.data = StringPrototypeSlice(str32, n2);
+              p.data = StringPrototypeSlice(str33, n2);
             }
             break;
           }
@@ -62602,9 +62613,9 @@ var require_buffer_list = __commonJS({
         return ret;
       }
       // Make sure the linked list only shows the minimal necessary information.
-      [Symbol.for("nodejs.util.inspect.custom")](_2, options) {
+      [Symbol.for("nodejs.util.inspect.custom")](_2, options2) {
         return inspect(this, {
-          ...options,
+          ...options2,
           // Only inspect one level.
           depth: 0,
           // It should not recurse.
@@ -62624,8 +62635,8 @@ var require_state = __commonJS({
     var { ERR_INVALID_ARG_VALUE } = require_errors6().codes;
     var defaultHighWaterMarkBytes = 16 * 1024;
     var defaultHighWaterMarkObjectMode = 16;
-    function highWaterMarkFrom(options, isDuplex, duplexKey) {
-      return options.highWaterMark != null ? options.highWaterMark : isDuplex ? options[duplexKey] : null;
+    function highWaterMarkFrom(options2, isDuplex, duplexKey) {
+      return options2.highWaterMark != null ? options2.highWaterMark : isDuplex ? options2[duplexKey] : null;
     }
     function getDefaultHighWaterMark(objectMode) {
       return objectMode ? defaultHighWaterMarkObjectMode : defaultHighWaterMarkBytes;
@@ -62638,8 +62649,8 @@ var require_state = __commonJS({
         defaultHighWaterMarkBytes = value4;
       }
     }
-    function getHighWaterMark(state, options, duplexKey, isDuplex) {
-      const hwm = highWaterMarkFrom(options, isDuplex, duplexKey);
+    function getHighWaterMark(state, options2, duplexKey, isDuplex) {
+      const hwm = highWaterMarkFrom(options2, isDuplex, duplexKey);
       if (hwm != null) {
         if (!NumberIsInteger(hwm) || hwm < 0) {
           const name = isDuplex ? `options.${duplexKey}` : "options.highWaterMark";
@@ -63168,40 +63179,40 @@ var require_readable2 = __commonJS({
       readingMore: makeBitMapDescriptor(kReadingMore),
       dataEmitted: makeBitMapDescriptor(kDataEmitted)
     });
-    function ReadableState(options, stream, isDuplex) {
+    function ReadableState(options2, stream, isDuplex) {
       if (typeof isDuplex !== "boolean") isDuplex = stream instanceof require_duplex();
       this.state = kEmitClose | kAutoDestroy | kConstructed | kSync;
-      if (options && options.objectMode) this.state |= kObjectMode;
-      if (isDuplex && options && options.readableObjectMode) this.state |= kObjectMode;
-      this.highWaterMark = options ? getHighWaterMark(this, options, "readableHighWaterMark", isDuplex) : getDefaultHighWaterMark(false);
+      if (options2 && options2.objectMode) this.state |= kObjectMode;
+      if (isDuplex && options2 && options2.readableObjectMode) this.state |= kObjectMode;
+      this.highWaterMark = options2 ? getHighWaterMark(this, options2, "readableHighWaterMark", isDuplex) : getDefaultHighWaterMark(false);
       this.buffer = new BufferList();
       this.length = 0;
       this.pipes = [];
       this.flowing = null;
       this[kPaused] = null;
-      if (options && options.emitClose === false) this.state &= ~kEmitClose;
-      if (options && options.autoDestroy === false) this.state &= ~kAutoDestroy;
+      if (options2 && options2.emitClose === false) this.state &= ~kEmitClose;
+      if (options2 && options2.autoDestroy === false) this.state &= ~kAutoDestroy;
       this.errored = null;
-      this.defaultEncoding = options && options.defaultEncoding || "utf8";
+      this.defaultEncoding = options2 && options2.defaultEncoding || "utf8";
       this.awaitDrainWriters = null;
       this.decoder = null;
       this.encoding = null;
-      if (options && options.encoding) {
-        this.decoder = new StringDecoder(options.encoding);
-        this.encoding = options.encoding;
+      if (options2 && options2.encoding) {
+        this.decoder = new StringDecoder(options2.encoding);
+        this.encoding = options2.encoding;
       }
     }
-    function Readable2(options) {
-      if (!(this instanceof Readable2)) return new Readable2(options);
+    function Readable2(options2) {
+      if (!(this instanceof Readable2)) return new Readable2(options2);
       const isDuplex = this instanceof require_duplex();
-      this._readableState = new ReadableState(options, this, isDuplex);
-      if (options) {
-        if (typeof options.read === "function") this._read = options.read;
-        if (typeof options.destroy === "function") this._destroy = options.destroy;
-        if (typeof options.construct === "function") this._construct = options.construct;
-        if (options.signal && !isDuplex) addAbortSignal(options.signal, this);
+      this._readableState = new ReadableState(options2, this, isDuplex);
+      if (options2) {
+        if (typeof options2.read === "function") this._read = options2.read;
+        if (typeof options2.destroy === "function") this._destroy = options2.destroy;
+        if (typeof options2.construct === "function") this._construct = options2.construct;
+        if (options2.signal && !isDuplex) addAbortSignal(options2.signal, this);
       }
-      Stream.call(this, options);
+      Stream.call(this, options2);
       destroyImpl.construct(this, () => {
         if (this._readableState.needReadable) {
           maybeReadMore(this, this._readableState);
@@ -63546,8 +63557,8 @@ var require_readable2 = __commonJS({
         unpipe();
         dest.removeListener("error", onerror);
         if (dest.listenerCount("error") === 0) {
-          const s7 = dest._writableState || dest._readableState;
-          if (s7 && !s7.errorEmitted) {
+          const s11 = dest._writableState || dest._readableState;
+          if (s11 && !s11.errorEmitted) {
             errorOrDestroy(dest, er);
           } else {
             dest.emit("error", er);
@@ -63748,23 +63759,23 @@ var require_readable2 = __commonJS({
     Readable2.prototype[SymbolAsyncIterator] = function() {
       return streamToAsyncIterator(this);
     };
-    Readable2.prototype.iterator = function(options) {
-      if (options !== void 0) {
-        validateObject(options, "options");
+    Readable2.prototype.iterator = function(options2) {
+      if (options2 !== void 0) {
+        validateObject(options2, "options");
       }
-      return streamToAsyncIterator(this, options);
+      return streamToAsyncIterator(this, options2);
     };
-    function streamToAsyncIterator(stream, options) {
+    function streamToAsyncIterator(stream, options2) {
       if (typeof stream.read !== "function") {
         stream = Readable2.wrap(stream, {
           objectMode: true
         });
       }
-      const iter = createAsyncIterator(stream, options);
+      const iter = createAsyncIterator(stream, options2);
       iter.stream = stream;
       return iter;
     }
-    async function* createAsyncIterator(stream, options) {
+    async function* createAsyncIterator(stream, options2) {
       let callback = nop;
       function next(resolve4) {
         if (this === stream) {
@@ -63804,7 +63815,7 @@ var require_readable2 = __commonJS({
         error2 = aggregateTwoErrors(error2, err);
         throw error2;
       } finally {
-        if ((error2 || (options === null || options === void 0 ? void 0 : options.destroyOnReturn) !== false) && (error2 === void 0 || stream._readableState.autoDestroy)) {
+        if ((error2 || (options2 === null || options2 === void 0 ? void 0 : options2.destroyOnReturn) !== false) && (error2 === void 0 || stream._readableState.autoDestroy)) {
           destroyImpl.destroyer(stream, null);
         } else {
           stream.off("readable", next);
@@ -63994,17 +64005,17 @@ var require_readable2 = __commonJS({
       if (webStreamsAdapters === void 0) webStreamsAdapters = {};
       return webStreamsAdapters;
     }
-    Readable2.fromWeb = function(readableStream, options) {
-      return lazyWebStreams().newStreamReadableFromReadableStream(readableStream, options);
+    Readable2.fromWeb = function(readableStream, options2) {
+      return lazyWebStreams().newStreamReadableFromReadableStream(readableStream, options2);
     };
-    Readable2.toWeb = function(streamReadable, options) {
-      return lazyWebStreams().newReadableStreamFromStreamReadable(streamReadable, options);
+    Readable2.toWeb = function(streamReadable, options2) {
+      return lazyWebStreams().newReadableStreamFromStreamReadable(streamReadable, options2);
     };
-    Readable2.wrap = function(src, options) {
+    Readable2.wrap = function(src, options2) {
       var _ref, _src$readableObjectMo;
       return new Readable2({
         objectMode: (_ref = (_src$readableObjectMo = src.readableObjectMode) !== null && _src$readableObjectMo !== void 0 ? _src$readableObjectMo : src.objectMode) !== null && _ref !== void 0 ? _ref : true,
-        ...options,
+        ...options2,
         destroy(err, callback) {
           destroyImpl.destroyer(src, err);
           callback(err);
@@ -64055,20 +64066,20 @@ var require_writable = __commonJS({
     function nop() {
     }
     var kOnFinished = Symbol2("kOnFinished");
-    function WritableState(options, stream, isDuplex) {
+    function WritableState(options2, stream, isDuplex) {
       if (typeof isDuplex !== "boolean") isDuplex = stream instanceof require_duplex();
-      this.objectMode = !!(options && options.objectMode);
-      if (isDuplex) this.objectMode = this.objectMode || !!(options && options.writableObjectMode);
-      this.highWaterMark = options ? getHighWaterMark(this, options, "writableHighWaterMark", isDuplex) : getDefaultHighWaterMark(false);
+      this.objectMode = !!(options2 && options2.objectMode);
+      if (isDuplex) this.objectMode = this.objectMode || !!(options2 && options2.writableObjectMode);
+      this.highWaterMark = options2 ? getHighWaterMark(this, options2, "writableHighWaterMark", isDuplex) : getDefaultHighWaterMark(false);
       this.finalCalled = false;
       this.needDrain = false;
       this.ending = false;
       this.ended = false;
       this.finished = false;
       this.destroyed = false;
-      const noDecode = !!(options && options.decodeStrings === false);
+      const noDecode = !!(options2 && options2.decodeStrings === false);
       this.decodeStrings = !noDecode;
-      this.defaultEncoding = options && options.defaultEncoding || "utf8";
+      this.defaultEncoding = options2 && options2.defaultEncoding || "utf8";
       this.length = 0;
       this.writing = false;
       this.corked = 0;
@@ -64083,8 +64094,8 @@ var require_writable = __commonJS({
       this.constructed = true;
       this.prefinished = false;
       this.errorEmitted = false;
-      this.emitClose = !options || options.emitClose !== false;
-      this.autoDestroy = !options || options.autoDestroy !== false;
+      this.emitClose = !options2 || options2.emitClose !== false;
+      this.autoDestroy = !options2 || options2.autoDestroy !== false;
       this.errored = null;
       this.closed = false;
       this.closeEmitted = false;
@@ -64105,19 +64116,19 @@ var require_writable = __commonJS({
         return this.buffered.length - this.bufferedIndex;
       }
     });
-    function Writable(options) {
+    function Writable(options2) {
       const isDuplex = this instanceof require_duplex();
-      if (!isDuplex && !FunctionPrototypeSymbolHasInstance(Writable, this)) return new Writable(options);
-      this._writableState = new WritableState(options, this, isDuplex);
-      if (options) {
-        if (typeof options.write === "function") this._write = options.write;
-        if (typeof options.writev === "function") this._writev = options.writev;
-        if (typeof options.destroy === "function") this._destroy = options.destroy;
-        if (typeof options.final === "function") this._final = options.final;
-        if (typeof options.construct === "function") this._construct = options.construct;
-        if (options.signal) addAbortSignal(options.signal, this);
+      if (!isDuplex && !FunctionPrototypeSymbolHasInstance(Writable, this)) return new Writable(options2);
+      this._writableState = new WritableState(options2, this, isDuplex);
+      if (options2) {
+        if (typeof options2.write === "function") this._write = options2.write;
+        if (typeof options2.writev === "function") this._writev = options2.writev;
+        if (typeof options2.destroy === "function") this._destroy = options2.destroy;
+        if (typeof options2.final === "function") this._final = options2.final;
+        if (typeof options2.construct === "function") this._construct = options2.construct;
+        if (options2.signal) addAbortSignal(options2.signal, this);
       }
-      Stream.call(this, options);
+      Stream.call(this, options2);
       destroyImpl.construct(this, () => {
         const state = this._writableState;
         if (!state.writing) {
@@ -64345,9 +64356,9 @@ var require_writable = __commonJS({
             buffered[n2].callback(err);
           }
         };
-        const chunks5 = state.allNoop && i === 0 ? buffered : ArrayPrototypeSlice(buffered, i);
-        chunks5.allBuffers = state.allBuffers;
-        doWrite(stream, state, true, state.length, chunks5, "", callback);
+        const chunks7 = state.allNoop && i === 0 ? buffered : ArrayPrototypeSlice(buffered, i);
+        chunks7.allBuffers = state.allBuffers;
+        doWrite(stream, state, true, state.length, chunks7, "", callback);
         resetBuffer(state);
       } else {
         do {
@@ -64626,8 +64637,8 @@ var require_writable = __commonJS({
       if (webStreamsAdapters === void 0) webStreamsAdapters = {};
       return webStreamsAdapters;
     }
-    Writable.fromWeb = function(writableStream, options) {
-      return lazyWebStreams().newStreamWritableFromWritableStream(writableStream, options);
+    Writable.fromWeb = function(writableStream, options2) {
+      return lazyWebStreams().newStreamWritableFromWritableStream(writableStream, options2);
     };
     Writable.toWeb = function(streamWritable) {
       return lazyWebStreams().newWritableStreamFromStreamWritable(streamWritable);
@@ -64671,14 +64682,14 @@ var require_duplexify = __commonJS({
     var AbortController2 = globalThis.AbortController || require_abort_controller().AbortController;
     var { FunctionPrototypeCall } = require_primordials();
     var Duplexify = class extends Duplex {
-      constructor(options) {
-        super(options);
-        if ((options === null || options === void 0 ? void 0 : options.readable) === false) {
+      constructor(options2) {
+        super(options2);
+        if ((options2 === null || options2 === void 0 ? void 0 : options2.readable) === false) {
           this._readableState.readable = false;
           this._readableState.ended = true;
           this._readableState.endEmitted = true;
         }
-        if ((options === null || options === void 0 ? void 0 : options.writable) === false) {
+        if ((options2 === null || options2 === void 0 ? void 0 : options2.writable) === false) {
           this._writableState.writable = false;
           this._writableState.ending = true;
           this._writableState.ended = true;
@@ -64717,12 +64728,12 @@ var require_duplexify = __commonJS({
         });
       }
       if (typeof body === "function") {
-        const { value: value4, write: write2, final, destroy } = fromAsyncGen(body);
+        const { value: value4, write: write3, final, destroy } = fromAsyncGen(body);
         if (isIterable(value4)) {
           return from(Duplexify, value4, {
             // TODO (ronag): highWaterMark?
             objectMode: true,
-            write: write2,
+            write: write3,
             final,
             destroy
           });
@@ -64746,7 +64757,7 @@ var require_duplexify = __commonJS({
             // TODO (ronag): highWaterMark?
             objectMode: true,
             readable: false,
-            write: write2,
+            write: write3,
             final(cb) {
               final(async () => {
                 try {
@@ -65004,18 +65015,18 @@ var require_duplex = __commonJS({
         if (!Duplex.prototype[method]) Duplex.prototype[method] = Writable.prototype[method];
       }
     }
-    function Duplex(options) {
-      if (!(this instanceof Duplex)) return new Duplex(options);
-      Readable2.call(this, options);
-      Writable.call(this, options);
-      if (options) {
-        this.allowHalfOpen = options.allowHalfOpen !== false;
-        if (options.readable === false) {
+    function Duplex(options2) {
+      if (!(this instanceof Duplex)) return new Duplex(options2);
+      Readable2.call(this, options2);
+      Writable.call(this, options2);
+      if (options2) {
+        this.allowHalfOpen = options2.allowHalfOpen !== false;
+        if (options2.readable === false) {
           this._readableState.readable = false;
           this._readableState.ended = true;
           this._readableState.endEmitted = true;
         }
-        if (options.writable === false) {
+        if (options2.writable === false) {
           this._writableState.writable = false;
           this._writableState.ending = true;
           this._writableState.ended = true;
@@ -65083,8 +65094,8 @@ var require_duplex = __commonJS({
       if (webStreamsAdapters === void 0) webStreamsAdapters = {};
       return webStreamsAdapters;
     }
-    Duplex.fromWeb = function(pair, options) {
-      return lazyWebStreams().newStreamDuplexFromReadableWritablePair(pair, options);
+    Duplex.fromWeb = function(pair, options2) {
+      return lazyWebStreams().newStreamDuplexFromReadableWritablePair(pair, options2);
     };
     Duplex.toWeb = function(duplex) {
       return lazyWebStreams().newReadableWritablePairFromDuplex(duplex);
@@ -65111,27 +65122,27 @@ var require_transform = __commonJS({
     ObjectSetPrototypeOf(Transform2.prototype, Duplex.prototype);
     ObjectSetPrototypeOf(Transform2, Duplex);
     var kCallback = Symbol2("kCallback");
-    function Transform2(options) {
-      if (!(this instanceof Transform2)) return new Transform2(options);
-      const readableHighWaterMark = options ? getHighWaterMark(this, options, "readableHighWaterMark", true) : null;
+    function Transform2(options2) {
+      if (!(this instanceof Transform2)) return new Transform2(options2);
+      const readableHighWaterMark = options2 ? getHighWaterMark(this, options2, "readableHighWaterMark", true) : null;
       if (readableHighWaterMark === 0) {
-        options = {
-          ...options,
+        options2 = {
+          ...options2,
           highWaterMark: null,
           readableHighWaterMark,
           // TODO (ronag): 0 is not optimal since we have
           // a "bug" where we check needDrain before calling _write and not after.
           // Refs: https://github.com/nodejs/node/pull/32887
           // Refs: https://github.com/nodejs/node/pull/35941
-          writableHighWaterMark: options.writableHighWaterMark || 0
+          writableHighWaterMark: options2.writableHighWaterMark || 0
         };
       }
-      Duplex.call(this, options);
+      Duplex.call(this, options2);
       this._readableState.sync = false;
       this[kCallback] = null;
-      if (options) {
-        if (typeof options.transform === "function") this._transform = options.transform;
-        if (typeof options.flush === "function") this._flush = options.flush;
+      if (options2) {
+        if (typeof options2.transform === "function") this._transform = options2.transform;
+        if (typeof options2.flush === "function") this._flush = options2.flush;
       }
       this.on("prefinish", prefinish);
     }
@@ -65210,9 +65221,9 @@ var require_passthrough2 = __commonJS({
     var Transform2 = require_transform();
     ObjectSetPrototypeOf(PassThrough.prototype, Transform2.prototype);
     ObjectSetPrototypeOf(PassThrough, Transform2);
-    function PassThrough(options) {
-      if (!(this instanceof PassThrough)) return new PassThrough(options);
-      Transform2.call(this, options);
+    function PassThrough(options2) {
+      if (!(this instanceof PassThrough)) return new PassThrough(options2);
+      Transform2.call(this, options2);
     }
     PassThrough.prototype._transform = function(chunk2, encoding, cb) {
       cb(null, chunk2);
@@ -65872,46 +65883,46 @@ var require_operators2 = __commonJS({
     } = require_primordials();
     var kEmpty = Symbol2("kEmpty");
     var kEof = Symbol2("kEof");
-    function compose(stream, options) {
-      if (options != null) {
-        validateObject(options, "options");
+    function compose(stream, options2) {
+      if (options2 != null) {
+        validateObject(options2, "options");
       }
-      if ((options === null || options === void 0 ? void 0 : options.signal) != null) {
-        validateAbortSignal(options.signal, "options.signal");
+      if ((options2 === null || options2 === void 0 ? void 0 : options2.signal) != null) {
+        validateAbortSignal(options2.signal, "options.signal");
       }
       if (isNodeStream(stream) && !isWritable(stream)) {
         throw new ERR_INVALID_ARG_VALUE("stream", stream, "must be writable");
       }
       const composedStream = staticCompose(this, stream);
-      if (options !== null && options !== void 0 && options.signal) {
-        addAbortSignalNoValidate(options.signal, composedStream);
+      if (options2 !== null && options2 !== void 0 && options2.signal) {
+        addAbortSignalNoValidate(options2.signal, composedStream);
       }
       return composedStream;
     }
-    function map(fn, options) {
+    function map(fn, options2) {
       if (typeof fn !== "function") {
         throw new ERR_INVALID_ARG_TYPE("fn", ["Function", "AsyncFunction"], fn);
       }
-      if (options != null) {
-        validateObject(options, "options");
+      if (options2 != null) {
+        validateObject(options2, "options");
       }
-      if ((options === null || options === void 0 ? void 0 : options.signal) != null) {
-        validateAbortSignal(options.signal, "options.signal");
+      if ((options2 === null || options2 === void 0 ? void 0 : options2.signal) != null) {
+        validateAbortSignal(options2.signal, "options.signal");
       }
       let concurrency = 1;
-      if ((options === null || options === void 0 ? void 0 : options.concurrency) != null) {
-        concurrency = MathFloor(options.concurrency);
+      if ((options2 === null || options2 === void 0 ? void 0 : options2.concurrency) != null) {
+        concurrency = MathFloor(options2.concurrency);
       }
       let highWaterMark = concurrency - 1;
-      if ((options === null || options === void 0 ? void 0 : options.highWaterMark) != null) {
-        highWaterMark = MathFloor(options.highWaterMark);
+      if ((options2 === null || options2 === void 0 ? void 0 : options2.highWaterMark) != null) {
+        highWaterMark = MathFloor(options2.highWaterMark);
       }
       validateInteger(concurrency, "options.concurrency", 1);
       validateInteger(highWaterMark, "options.highWaterMark", 0);
       highWaterMark += concurrency;
       return async function* map2() {
         const signal = require_util3().AbortSignalAny(
-          [options === null || options === void 0 ? void 0 : options.signal].filter(Boolean2)
+          [options2 === null || options2 === void 0 ? void 0 : options2.signal].filter(Boolean2)
         );
         const stream = this;
         const queue = [];
@@ -66010,33 +66021,33 @@ var require_operators2 = __commonJS({
         }
       }.call(this);
     }
-    function asIndexedPairs(options = void 0) {
-      if (options != null) {
-        validateObject(options, "options");
+    function asIndexedPairs(options2 = void 0) {
+      if (options2 != null) {
+        validateObject(options2, "options");
       }
-      if ((options === null || options === void 0 ? void 0 : options.signal) != null) {
-        validateAbortSignal(options.signal, "options.signal");
+      if ((options2 === null || options2 === void 0 ? void 0 : options2.signal) != null) {
+        validateAbortSignal(options2.signal, "options.signal");
       }
       return async function* asIndexedPairs2() {
         let index = 0;
         for await (const val of this) {
           var _options$signal;
-          if (options !== null && options !== void 0 && (_options$signal = options.signal) !== null && _options$signal !== void 0 && _options$signal.aborted) {
+          if (options2 !== null && options2 !== void 0 && (_options$signal = options2.signal) !== null && _options$signal !== void 0 && _options$signal.aborted) {
             throw new AbortError({
-              cause: options.signal.reason
+              cause: options2.signal.reason
             });
           }
           yield [index++, val];
         }
       }.call(this);
     }
-    async function some(fn, options = void 0) {
-      for await (const unused2 of filter.call(this, fn, options)) {
+    async function some(fn, options2 = void 0) {
+      for await (const unused2 of filter.call(this, fn, options2)) {
         return true;
       }
       return false;
     }
-    async function every(fn, options = void 0) {
+    async function every(fn, options2 = void 0) {
       if (typeof fn !== "function") {
         throw new ERR_INVALID_ARG_TYPE("fn", ["Function", "AsyncFunction"], fn);
       }
@@ -66045,36 +66056,36 @@ var require_operators2 = __commonJS({
         async (...args) => {
           return !await fn(...args);
         },
-        options
+        options2
       );
     }
-    async function find(fn, options) {
-      for await (const result2 of filter.call(this, fn, options)) {
+    async function find(fn, options2) {
+      for await (const result2 of filter.call(this, fn, options2)) {
         return result2;
       }
       return void 0;
     }
-    async function forEach(fn, options) {
+    async function forEach(fn, options2) {
       if (typeof fn !== "function") {
         throw new ERR_INVALID_ARG_TYPE("fn", ["Function", "AsyncFunction"], fn);
       }
-      async function forEachFn(value4, options2) {
-        await fn(value4, options2);
+      async function forEachFn(value4, options3) {
+        await fn(value4, options3);
         return kEmpty;
       }
-      for await (const unused2 of map.call(this, forEachFn, options)) ;
+      for await (const unused2 of map.call(this, forEachFn, options2)) ;
     }
-    function filter(fn, options) {
+    function filter(fn, options2) {
       if (typeof fn !== "function") {
         throw new ERR_INVALID_ARG_TYPE("fn", ["Function", "AsyncFunction"], fn);
       }
-      async function filterFn(value4, options2) {
-        if (await fn(value4, options2)) {
+      async function filterFn(value4, options3) {
+        if (await fn(value4, options3)) {
           return value4;
         }
         return kEmpty;
       }
-      return map.call(this, filterFn, options);
+      return map.call(this, filterFn, options2);
     }
     var ReduceAwareErrMissingArgs = class extends ERR_MISSING_ARGS {
       constructor() {
@@ -66082,21 +66093,21 @@ var require_operators2 = __commonJS({
         this.message = "Reduce of an empty stream requires an initial value";
       }
     };
-    async function reduce(reducer, initialValue, options) {
+    async function reduce(reducer, initialValue, options2) {
       var _options$signal2;
       if (typeof reducer !== "function") {
         throw new ERR_INVALID_ARG_TYPE("reducer", ["Function", "AsyncFunction"], reducer);
       }
-      if (options != null) {
-        validateObject(options, "options");
+      if (options2 != null) {
+        validateObject(options2, "options");
       }
-      if ((options === null || options === void 0 ? void 0 : options.signal) != null) {
-        validateAbortSignal(options.signal, "options.signal");
+      if ((options2 === null || options2 === void 0 ? void 0 : options2.signal) != null) {
+        validateAbortSignal(options2.signal, "options.signal");
       }
       let hasInitialValue = arguments.length > 1;
-      if (options !== null && options !== void 0 && (_options$signal2 = options.signal) !== null && _options$signal2 !== void 0 && _options$signal2.aborted) {
+      if (options2 !== null && options2 !== void 0 && (_options$signal2 = options2.signal) !== null && _options$signal2 !== void 0 && _options$signal2.aborted) {
         const err = new AbortError(void 0, {
-          cause: options.signal.reason
+          cause: options2.signal.reason
         });
         this.once("error", () => {
         });
@@ -66105,20 +66116,20 @@ var require_operators2 = __commonJS({
       }
       const ac = new AbortController2();
       const signal = ac.signal;
-      if (options !== null && options !== void 0 && options.signal) {
+      if (options2 !== null && options2 !== void 0 && options2.signal) {
         const opts = {
           once: true,
           [kWeakHandler]: this,
           [kResistStopPropagation]: true
         };
-        options.signal.addEventListener("abort", () => ac.abort(), opts);
+        options2.signal.addEventListener("abort", () => ac.abort(), opts);
       }
       let gotAnyItemFromStream = false;
       try {
         for await (const value4 of this) {
           var _options$signal3;
           gotAnyItemFromStream = true;
-          if (options !== null && options !== void 0 && (_options$signal3 = options.signal) !== null && _options$signal3 !== void 0 && _options$signal3.aborted) {
+          if (options2 !== null && options2 !== void 0 && (_options$signal3 = options2.signal) !== null && _options$signal3 !== void 0 && _options$signal3.aborted) {
             throw new AbortError();
           }
           if (!hasInitialValue) {
@@ -66138,27 +66149,27 @@ var require_operators2 = __commonJS({
       }
       return initialValue;
     }
-    async function toArray(options) {
-      if (options != null) {
-        validateObject(options, "options");
+    async function toArray(options2) {
+      if (options2 != null) {
+        validateObject(options2, "options");
       }
-      if ((options === null || options === void 0 ? void 0 : options.signal) != null) {
-        validateAbortSignal(options.signal, "options.signal");
+      if ((options2 === null || options2 === void 0 ? void 0 : options2.signal) != null) {
+        validateAbortSignal(options2.signal, "options.signal");
       }
       const result2 = [];
       for await (const val of this) {
         var _options$signal4;
-        if (options !== null && options !== void 0 && (_options$signal4 = options.signal) !== null && _options$signal4 !== void 0 && _options$signal4.aborted) {
+        if (options2 !== null && options2 !== void 0 && (_options$signal4 = options2.signal) !== null && _options$signal4 !== void 0 && _options$signal4.aborted) {
           throw new AbortError(void 0, {
-            cause: options.signal.reason
+            cause: options2.signal.reason
           });
         }
         ArrayPrototypePush(result2, val);
       }
       return result2;
     }
-    function flatMap(fn, options) {
-      const values = map.call(this, fn, options);
+    function flatMap(fn, options2) {
+      const values = map.call(this, fn, options2);
       return async function* flatMap2() {
         for await (const val of values) {
           yield* val;
@@ -66175,22 +66186,22 @@ var require_operators2 = __commonJS({
       }
       return number3;
     }
-    function drop(number3, options = void 0) {
-      if (options != null) {
-        validateObject(options, "options");
+    function drop(number3, options2 = void 0) {
+      if (options2 != null) {
+        validateObject(options2, "options");
       }
-      if ((options === null || options === void 0 ? void 0 : options.signal) != null) {
-        validateAbortSignal(options.signal, "options.signal");
+      if ((options2 === null || options2 === void 0 ? void 0 : options2.signal) != null) {
+        validateAbortSignal(options2.signal, "options.signal");
       }
       number3 = toIntegerOrInfinity(number3);
       return async function* drop2() {
         var _options$signal5;
-        if (options !== null && options !== void 0 && (_options$signal5 = options.signal) !== null && _options$signal5 !== void 0 && _options$signal5.aborted) {
+        if (options2 !== null && options2 !== void 0 && (_options$signal5 = options2.signal) !== null && _options$signal5 !== void 0 && _options$signal5.aborted) {
           throw new AbortError();
         }
         for await (const val of this) {
           var _options$signal6;
-          if (options !== null && options !== void 0 && (_options$signal6 = options.signal) !== null && _options$signal6 !== void 0 && _options$signal6.aborted) {
+          if (options2 !== null && options2 !== void 0 && (_options$signal6 = options2.signal) !== null && _options$signal6 !== void 0 && _options$signal6.aborted) {
             throw new AbortError();
           }
           if (number3-- <= 0) {
@@ -66199,22 +66210,22 @@ var require_operators2 = __commonJS({
         }
       }.call(this);
     }
-    function take(number3, options = void 0) {
-      if (options != null) {
-        validateObject(options, "options");
+    function take(number3, options2 = void 0) {
+      if (options2 != null) {
+        validateObject(options2, "options");
       }
-      if ((options === null || options === void 0 ? void 0 : options.signal) != null) {
-        validateAbortSignal(options.signal, "options.signal");
+      if ((options2 === null || options2 === void 0 ? void 0 : options2.signal) != null) {
+        validateAbortSignal(options2.signal, "options.signal");
       }
       number3 = toIntegerOrInfinity(number3);
       return async function* take2() {
         var _options$signal7;
-        if (options !== null && options !== void 0 && (_options$signal7 = options.signal) !== null && _options$signal7 !== void 0 && _options$signal7.aborted) {
+        if (options2 !== null && options2 !== void 0 && (_options$signal7 = options2.signal) !== null && _options$signal7 !== void 0 && _options$signal7.aborted) {
           throw new AbortError();
         }
         for await (const val of this) {
           var _options$signal8;
-          if (options !== null && options !== void 0 && (_options$signal8 = options.signal) !== null && _options$signal8 !== void 0 && _options$signal8.aborted) {
+          if (options2 !== null && options2 !== void 0 && (_options$signal8 = options2.signal) !== null && _options$signal8 !== void 0 && _options$signal8.aborted) {
             throw new AbortError();
           }
           if (number3-- > 0) {
@@ -66261,9 +66272,9 @@ var require_promises = __commonJS({
         let end;
         const lastArg = streams[streams.length - 1];
         if (lastArg && typeof lastArg === "object" && !isNodeStream(lastArg) && !isIterable(lastArg) && !isWebStream(lastArg)) {
-          const options = ArrayPrototypePop(streams);
-          signal = options.signal;
-          end = options.end;
+          const options2 = ArrayPrototypePop(streams);
+          signal = options2.signal;
+          end = options2.end;
         }
         pl(
           streams,
@@ -67313,8 +67324,8 @@ var require_brace_expressions = __commonJS({
       "[:word:]": ["\\p{L}\\p{Nl}\\p{Nd}\\p{Pc}", true],
       "[:xdigit:]": ["A-Fa-f0-9", false]
     };
-    var braceEscape = (s7) => s7.replace(/[[\]\\-]/g, "\\$&");
-    var regexpEscape = (s7) => s7.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+    var braceEscape = (s11) => s11.replace(/[[\]\\-]/g, "\\$&");
+    var regexpEscape = (s11) => s11.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
     var rangesToString = (ranges) => ranges.join("");
     var parseClass = (glob, position6) => {
       const pos = position6;
@@ -67414,8 +67425,8 @@ var require_unescape = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.unescape = void 0;
-    var unescape2 = (s7, { windowsPathsNoEscape = false } = {}) => {
-      return windowsPathsNoEscape ? s7.replace(/\[([^\/\\])\]/g, "$1") : s7.replace(/((?!\\).|^)\[([^\/\\])\]/g, "$1$2").replace(/\\([^\/])/g, "$1");
+    var unescape2 = (s11, { windowsPathsNoEscape = false } = {}) => {
+      return windowsPathsNoEscape ? s11.replace(/\[([^\/\\])\]/g, "$1") : s11.replace(/((?!\\).|^)\[([^\/\\])\]/g, "$1$2").replace(/\\([^\/])/g, "$1");
     };
     exports2.unescape = unescape2;
   }
@@ -67436,7 +67447,7 @@ var require_ast = __commonJS({
     var addPatternStart = /* @__PURE__ */ new Set(["[", "."]);
     var justDots = /* @__PURE__ */ new Set(["..", "."]);
     var reSpecials = new Set("().*{}+?[]^$\\!");
-    var regExpEscape = (s7) => s7.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+    var regExpEscape = (s11) => s11.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
     var qmark = "[^/]";
     var star = qmark + "*?";
     var starNoEmpty = qmark + "+?";
@@ -67455,13 +67466,13 @@ var require_ast = __commonJS({
       // set to true if it's an extglob with no children
       // (which really means one child of '')
       #emptyExt = false;
-      constructor(type, parent, options = {}) {
+      constructor(type, parent, options2 = {}) {
         this.type = type;
         if (type)
           this.#hasMagic = true;
         this.#parent = parent;
         this.#root = this.#parent ? this.#parent.#root : this;
-        this.#options = this.#root === this ? options : this.#root.#options;
+        this.#options = this.#root === this ? options2 : this.#root.#options;
         this.#negs = this.#root === this ? [] : this.#root.#negs;
         if (type === "!" && !this.#root.#filledNegs)
           this.#negs.push(this);
@@ -67576,7 +67587,7 @@ var require_ast = __commonJS({
         }
         return c;
       }
-      static #parseAST(str32, ast, pos, opt) {
+      static #parseAST(str33, ast, pos, opt) {
         let escaping = false;
         let inBrace = false;
         let braceStart = -1;
@@ -67584,8 +67595,8 @@ var require_ast = __commonJS({
         if (ast.type === null) {
           let i2 = pos;
           let acc2 = "";
-          while (i2 < str32.length) {
-            const c = str32.charAt(i2++);
+          while (i2 < str33.length) {
+            const c = str33.charAt(i2++);
             if (escaping || c === "\\") {
               escaping = !escaping;
               acc2 += c;
@@ -67608,11 +67619,11 @@ var require_ast = __commonJS({
               acc2 += c;
               continue;
             }
-            if (!opt.noext && isExtglobType(c) && str32.charAt(i2) === "(") {
+            if (!opt.noext && isExtglobType(c) && str33.charAt(i2) === "(") {
               ast.push(acc2);
               acc2 = "";
               const ext = new _AST(c, ast);
-              i2 = _AST.#parseAST(str32, ext, i2, opt);
+              i2 = _AST.#parseAST(str33, ext, i2, opt);
               ast.push(ext);
               continue;
             }
@@ -67625,8 +67636,8 @@ var require_ast = __commonJS({
         let part = new _AST(null, ast);
         const parts = [];
         let acc = "";
-        while (i < str32.length) {
-          const c = str32.charAt(i++);
+        while (i < str33.length) {
+          const c = str33.charAt(i++);
           if (escaping || c === "\\") {
             escaping = !escaping;
             acc += c;
@@ -67649,12 +67660,12 @@ var require_ast = __commonJS({
             acc += c;
             continue;
           }
-          if (isExtglobType(c) && str32.charAt(i) === "(") {
+          if (isExtglobType(c) && str33.charAt(i) === "(") {
             part.push(acc);
             acc = "";
             const ext = new _AST(c, part);
             part.push(ext);
-            i = _AST.#parseAST(str32, ext, i, opt);
+            i = _AST.#parseAST(str33, ext, i, opt);
             continue;
           }
           if (c === "|") {
@@ -67677,12 +67688,12 @@ var require_ast = __commonJS({
         }
         ast.type = null;
         ast.#hasMagic = void 0;
-        ast.#parts = [str32.substring(pos - 1)];
+        ast.#parts = [str33.substring(pos - 1)];
         return i;
       }
-      static fromGlob(pattern, options = {}) {
-        const ast = new _AST(null, void 0, options);
-        _AST.#parseAST(pattern, ast, 0, options);
+      static fromGlob(pattern, options2 = {}) {
+        const ast = new _AST(null, void 0, options2);
+        _AST.#parseAST(pattern, ast, 0, options2);
         return ast;
       }
       // returns the regular expression if there's magic, or the unescaped
@@ -67819,11 +67830,11 @@ var require_ast = __commonJS({
         const start = this.type === "!" ? "(?:(?!(?:" : "(?:";
         let body = this.#partsToRegExp(dot);
         if (this.isStart() && this.isEnd() && !body && this.type !== "!") {
-          const s7 = this.toString();
-          this.#parts = [s7];
+          const s11 = this.toString();
+          this.#parts = [s11];
           this.type = null;
           this.#hasMagic = void 0;
-          return [s7, (0, unescape_js_1.unescape)(this.toString()), false, false];
+          return [s11, (0, unescape_js_1.unescape)(this.toString()), false, false];
         }
         let bodyDotAllowed = !repeated || allowDot || dot || !startNoDot ? "" : this.#partsToRegExp(true);
         if (bodyDotAllowed === body) {
@@ -67916,10 +67927,10 @@ var require_escape = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.escape = void 0;
-    var escape2 = (s7, { windowsPathsNoEscape = false } = {}) => {
-      return windowsPathsNoEscape ? s7.replace(/[?*()[\]]/g, "[$&]") : s7.replace(/[?*()[\]\\]/g, "\\$&");
+    var escape3 = (s11, { windowsPathsNoEscape = false } = {}) => {
+      return windowsPathsNoEscape ? s11.replace(/[?*()[\]]/g, "[$&]") : s11.replace(/[?*()[\]\\]/g, "\\$&");
     };
-    exports2.escape = escape2;
+    exports2.escape = escape3;
   }
 });
 
@@ -67937,12 +67948,12 @@ var require_commonjs = __commonJS({
     var ast_js_1 = require_ast();
     var escape_js_1 = require_escape();
     var unescape_js_1 = require_unescape();
-    var minimatch = (p, pattern, options = {}) => {
+    var minimatch = (p, pattern, options2 = {}) => {
       (0, assert_valid_pattern_js_1.assertValidPattern)(pattern);
-      if (!options.nocomment && pattern.charAt(0) === "#") {
+      if (!options2.nocomment && pattern.charAt(0) === "#") {
         return false;
       }
-      return new Minimatch(pattern, options).match(p);
+      return new Minimatch(pattern, options2).match(p);
     };
     exports2.minimatch = minimatch;
     var starDotExtRE = /^\*+([^+@!?\*\[\(]*)$/;
@@ -68008,7 +68019,7 @@ var require_commonjs = __commonJS({
     var star = qmark + "*?";
     var twoStarDot = "(?:(?!(?:\\/|^)(?:\\.{1,2})($|\\/)).)*?";
     var twoStarNoDot = "(?:(?!(?:\\/|^)\\.).)*?";
-    var filter = (pattern, options = {}) => (p) => (0, exports2.minimatch)(p, pattern, options);
+    var filter = (pattern, options2 = {}) => (p) => (0, exports2.minimatch)(p, pattern, options2);
     exports2.filter = filter;
     exports2.minimatch.filter = exports2.filter;
     var ext = (a, b = {}) => Object.assign({}, a, b);
@@ -68017,53 +68028,53 @@ var require_commonjs = __commonJS({
         return exports2.minimatch;
       }
       const orig = exports2.minimatch;
-      const m = (p, pattern, options = {}) => orig(p, pattern, ext(def, options));
+      const m = (p, pattern, options2 = {}) => orig(p, pattern, ext(def, options2));
       return Object.assign(m, {
         Minimatch: class Minimatch extends orig.Minimatch {
-          constructor(pattern, options = {}) {
-            super(pattern, ext(def, options));
+          constructor(pattern, options2 = {}) {
+            super(pattern, ext(def, options2));
           }
-          static defaults(options) {
-            return orig.defaults(ext(def, options)).Minimatch;
+          static defaults(options2) {
+            return orig.defaults(ext(def, options2)).Minimatch;
           }
         },
         AST: class AST extends orig.AST {
           /* c8 ignore start */
-          constructor(type, parent, options = {}) {
-            super(type, parent, ext(def, options));
+          constructor(type, parent, options2 = {}) {
+            super(type, parent, ext(def, options2));
           }
           /* c8 ignore stop */
-          static fromGlob(pattern, options = {}) {
-            return orig.AST.fromGlob(pattern, ext(def, options));
+          static fromGlob(pattern, options2 = {}) {
+            return orig.AST.fromGlob(pattern, ext(def, options2));
           }
         },
-        unescape: (s7, options = {}) => orig.unescape(s7, ext(def, options)),
-        escape: (s7, options = {}) => orig.escape(s7, ext(def, options)),
-        filter: (pattern, options = {}) => orig.filter(pattern, ext(def, options)),
-        defaults: (options) => orig.defaults(ext(def, options)),
-        makeRe: (pattern, options = {}) => orig.makeRe(pattern, ext(def, options)),
-        braceExpand: (pattern, options = {}) => orig.braceExpand(pattern, ext(def, options)),
-        match: (list2, pattern, options = {}) => orig.match(list2, pattern, ext(def, options)),
+        unescape: (s11, options2 = {}) => orig.unescape(s11, ext(def, options2)),
+        escape: (s11, options2 = {}) => orig.escape(s11, ext(def, options2)),
+        filter: (pattern, options2 = {}) => orig.filter(pattern, ext(def, options2)),
+        defaults: (options2) => orig.defaults(ext(def, options2)),
+        makeRe: (pattern, options2 = {}) => orig.makeRe(pattern, ext(def, options2)),
+        braceExpand: (pattern, options2 = {}) => orig.braceExpand(pattern, ext(def, options2)),
+        match: (list2, pattern, options2 = {}) => orig.match(list2, pattern, ext(def, options2)),
         sep: orig.sep,
         GLOBSTAR: exports2.GLOBSTAR
       });
     };
     exports2.defaults = defaults;
     exports2.minimatch.defaults = exports2.defaults;
-    var braceExpand = (pattern, options = {}) => {
+    var braceExpand = (pattern, options2 = {}) => {
       (0, assert_valid_pattern_js_1.assertValidPattern)(pattern);
-      if (options.nobrace || !/\{(?:(?!\{).)*\}/.test(pattern)) {
+      if (options2.nobrace || !/\{(?:(?!\{).)*\}/.test(pattern)) {
         return [pattern];
       }
       return (0, brace_expansion_1.default)(pattern);
     };
     exports2.braceExpand = braceExpand;
     exports2.minimatch.braceExpand = exports2.braceExpand;
-    var makeRe = (pattern, options = {}) => new Minimatch(pattern, options).makeRe();
+    var makeRe = (pattern, options2 = {}) => new Minimatch(pattern, options2).makeRe();
     exports2.makeRe = makeRe;
     exports2.minimatch.makeRe = exports2.makeRe;
-    var match = (list2, pattern, options = {}) => {
-      const mm = new Minimatch(pattern, options);
+    var match = (list2, pattern, options2 = {}) => {
+      const mm = new Minimatch(pattern, options2);
       list2 = list2.filter((f) => mm.match(f));
       if (mm.options.nonull && !list2.length) {
         list2.push(pattern);
@@ -68073,7 +68084,7 @@ var require_commonjs = __commonJS({
     exports2.match = match;
     exports2.minimatch.match = exports2.match;
     var globMagic = /[?*]|[+@!]\(.*?\)|\[|\]/;
-    var regExpEscape = (s7) => s7.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+    var regExpEscape = (s11) => s11.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
     var Minimatch = class {
       options;
       set;
@@ -68092,26 +68103,26 @@ var require_commonjs = __commonJS({
       platform;
       windowsNoMagicRoot;
       regexp;
-      constructor(pattern, options = {}) {
+      constructor(pattern, options2 = {}) {
         (0, assert_valid_pattern_js_1.assertValidPattern)(pattern);
-        options = options || {};
-        this.options = options;
+        options2 = options2 || {};
+        this.options = options2;
         this.pattern = pattern;
-        this.platform = options.platform || defaultPlatform;
+        this.platform = options2.platform || defaultPlatform;
         this.isWindows = this.platform === "win32";
-        this.windowsPathsNoEscape = !!options.windowsPathsNoEscape || options.allowWindowsEscape === false;
+        this.windowsPathsNoEscape = !!options2.windowsPathsNoEscape || options2.allowWindowsEscape === false;
         if (this.windowsPathsNoEscape) {
           this.pattern = this.pattern.replace(/\\/g, "/");
         }
-        this.preserveMultipleSlashes = !!options.preserveMultipleSlashes;
+        this.preserveMultipleSlashes = !!options2.preserveMultipleSlashes;
         this.regexp = null;
         this.negate = false;
-        this.nonegate = !!options.nonegate;
+        this.nonegate = !!options2.nonegate;
         this.comment = false;
         this.empty = false;
-        this.partial = !!options.partial;
+        this.partial = !!options2.partial;
         this.nocase = !!this.options.nocase;
-        this.windowsNoMagicRoot = options.windowsNoMagicRoot !== void 0 ? options.windowsNoMagicRoot : !!(this.isWindows && this.nocase);
+        this.windowsNoMagicRoot = options2.windowsNoMagicRoot !== void 0 ? options2.windowsNoMagicRoot : !!(this.isWindows && this.nocase);
         this.globSet = [];
         this.globParts = [];
         this.set = [];
@@ -68133,8 +68144,8 @@ var require_commonjs = __commonJS({
       }
       make() {
         const pattern = this.pattern;
-        const options = this.options;
-        if (!options.nocomment && pattern.charAt(0) === "#") {
+        const options2 = this.options;
+        if (!options2.nocomment && pattern.charAt(0) === "#") {
           this.comment = true;
           return;
         }
@@ -68144,27 +68155,27 @@ var require_commonjs = __commonJS({
         }
         this.parseNegate();
         this.globSet = [...new Set(this.braceExpand())];
-        if (options.debug) {
+        if (options2.debug) {
           this.debug = (...args) => console.error(...args);
         }
         this.debug(this.pattern, this.globSet);
-        const rawGlobParts = this.globSet.map((s7) => this.slashSplit(s7));
+        const rawGlobParts = this.globSet.map((s11) => this.slashSplit(s11));
         this.globParts = this.preprocess(rawGlobParts);
         this.debug(this.pattern, this.globParts);
-        let set = this.globParts.map((s7, _2, __) => {
+        let set = this.globParts.map((s11, _2, __) => {
           if (this.isWindows && this.windowsNoMagicRoot) {
-            const isUNC = s7[0] === "" && s7[1] === "" && (s7[2] === "?" || !globMagic.test(s7[2])) && !globMagic.test(s7[3]);
-            const isDrive = /^[a-z]:/i.test(s7[0]);
+            const isUNC = s11[0] === "" && s11[1] === "" && (s11[2] === "?" || !globMagic.test(s11[2])) && !globMagic.test(s11[3]);
+            const isDrive = /^[a-z]:/i.test(s11[0]);
             if (isUNC) {
-              return [...s7.slice(0, 4), ...s7.slice(4).map((ss) => this.parse(ss))];
+              return [...s11.slice(0, 4), ...s11.slice(4).map((ss) => this.parse(ss))];
             } else if (isDrive) {
-              return [s7[0], ...s7.slice(1).map((ss) => this.parse(ss))];
+              return [s11[0], ...s11.slice(1).map((ss) => this.parse(ss))];
             }
           }
-          return s7.map((ss) => this.parse(ss));
+          return s11.map((ss) => this.parse(ss));
         });
         this.debug(this.pattern, set);
-        this.set = set.filter((s7) => s7.indexOf(false) === -1);
+        this.set = set.filter((s11) => s11.indexOf(false) === -1);
         if (this.isWindows) {
           for (let i = 0; i < this.set.length; i++) {
             const p = this.set[i];
@@ -68428,7 +68439,7 @@ var require_commonjs = __commonJS({
       // out of pattern, then that's fine, as long as all
       // the parts match.
       matchOne(file, pattern, partial2 = false) {
-        const options = this.options;
+        const options2 = this.options;
         if (this.isWindows) {
           const fileDrive = typeof file[0] === "string" && /^[a-z]:$/i.test(file[0]);
           const fileUNC = !fileDrive && file[0] === "" && file[1] === "" && file[2] === "?" && /^[a-z]:$/i.test(file[3]);
@@ -68469,7 +68480,7 @@ var require_commonjs = __commonJS({
             if (pr === pl) {
               this.debug("** at the end");
               for (; fi < fl; fi++) {
-                if (file[fi] === "." || file[fi] === ".." || !options.dot && file[fi].charAt(0) === ".")
+                if (file[fi] === "." || file[fi] === ".." || !options2.dot && file[fi].charAt(0) === ".")
                   return false;
               }
               return true;
@@ -68481,7 +68492,7 @@ var require_commonjs = __commonJS({
                 this.debug("globstar found match!", fr, fl, swallowee);
                 return true;
               } else {
-                if (swallowee === "." || swallowee === ".." || !options.dot && swallowee.charAt(0) === ".") {
+                if (swallowee === "." || swallowee === ".." || !options2.dot && swallowee.charAt(0) === ".") {
                   this.debug("dot detected!", file, fr, pattern, pr);
                   break;
                 }
@@ -68523,7 +68534,7 @@ var require_commonjs = __commonJS({
       }
       parse(pattern) {
         (0, assert_valid_pattern_js_1.assertValidPattern)(pattern);
-        const options = this.options;
+        const options2 = this.options;
         if (pattern === "**")
           return exports2.GLOBSTAR;
         if (pattern === "")
@@ -68531,13 +68542,13 @@ var require_commonjs = __commonJS({
         let m;
         let fastTest = null;
         if (m = pattern.match(starRE)) {
-          fastTest = options.dot ? starTestDot : starTest;
+          fastTest = options2.dot ? starTestDot : starTest;
         } else if (m = pattern.match(starDotExtRE)) {
-          fastTest = (options.nocase ? options.dot ? starDotExtTestNocaseDot : starDotExtTestNocase : options.dot ? starDotExtTestDot : starDotExtTest)(m[1]);
+          fastTest = (options2.nocase ? options2.dot ? starDotExtTestNocaseDot : starDotExtTestNocase : options2.dot ? starDotExtTestDot : starDotExtTest)(m[1]);
         } else if (m = pattern.match(qmarksRE)) {
-          fastTest = (options.nocase ? options.dot ? qmarksTestNocaseDot : qmarksTestNocase : options.dot ? qmarksTestDot : qmarksTest)(m);
+          fastTest = (options2.nocase ? options2.dot ? qmarksTestNocaseDot : qmarksTestNocase : options2.dot ? qmarksTestDot : qmarksTest)(m);
         } else if (m = pattern.match(starDotStarRE)) {
-          fastTest = options.dot ? starDotStarTestDot : starDotStarTest;
+          fastTest = options2.dot ? starDotStarTestDot : starDotStarTest;
         } else if (m = pattern.match(dotStarRE)) {
           fastTest = dotStarTest;
         }
@@ -68555,9 +68566,9 @@ var require_commonjs = __commonJS({
           this.regexp = false;
           return this.regexp;
         }
-        const options = this.options;
-        const twoStar = options.noglobstar ? star : options.dot ? twoStarDot : twoStarNoDot;
-        const flags = new Set(options.nocase ? ["i"] : []);
+        const options2 = this.options;
+        const twoStar = options2.noglobstar ? star : options2.dot ? twoStarDot : twoStarNoDot;
+        const flags = new Set(options2.nocase ? ["i"] : []);
         let re = set.map((pattern) => {
           const pp2 = pattern.map((p) => {
             if (p instanceof RegExp) {
@@ -68618,7 +68629,7 @@ var require_commonjs = __commonJS({
         if (f === "/" && partial2) {
           return true;
         }
-        const options = this.options;
+        const options2 = this.options;
         if (this.isWindows) {
           f = f.split("\\").join("/");
         }
@@ -68635,18 +68646,18 @@ var require_commonjs = __commonJS({
         for (let i = 0; i < set.length; i++) {
           const pattern = set[i];
           let file = ff;
-          if (options.matchBase && pattern.length === 1) {
+          if (options2.matchBase && pattern.length === 1) {
             file = [filename];
           }
           const hit = this.matchOne(file, pattern, partial2);
           if (hit) {
-            if (options.flipNegate) {
+            if (options2.flipNegate) {
               return true;
             }
             return !this.negate;
           }
         }
-        if (options.flipNegate) {
+        if (options2.flipNegate) {
           return false;
         }
         return this.negate;
@@ -68743,9 +68754,9 @@ var require_commonjs2 = __commonJS({
         if (!HeapCls)
           return [];
         _Stack.#constructing = true;
-        const s7 = new _Stack(max, HeapCls);
+        const s11 = new _Stack(max, HeapCls);
         _Stack.#constructing = false;
-        return s7;
+        return s11;
       }
       constructor(max, HeapCls) {
         if (!_Stack.#constructing) {
@@ -68876,10 +68887,10 @@ var require_commonjs2 = __commonJS({
           free: c.#free,
           // methods
           isBackgroundFetch: (p) => c.#isBackgroundFetch(p),
-          backgroundFetch: (k, index, options, context) => c.#backgroundFetch(k, index, options, context),
+          backgroundFetch: (k, index, options2, context) => c.#backgroundFetch(k, index, options2, context),
           moveToTail: (index) => c.#moveToTail(index),
-          indexes: (options) => c.#indexes(options),
-          rindexes: (options) => c.#rindexes(options),
+          indexes: (options2) => c.#indexes(options2),
+          rindexes: (options2) => c.#rindexes(options2),
           isStale: (index) => c.#isStale(index)
         };
       }
@@ -68929,8 +68940,8 @@ var require_commonjs2 = __commonJS({
       get disposeAfter() {
         return this.#disposeAfter;
       }
-      constructor(options) {
-        const { max = 0, ttl, ttlResolution = 1, ttlAutopurge, updateAgeOnGet, updateAgeOnHas, allowStale, dispose, disposeAfter, noDisposeOnSet, noUpdateTTL, maxSize = 0, maxEntrySize = 0, sizeCalculation, fetchMethod, memoMethod, noDeleteOnFetchRejection, noDeleteOnStaleGet, allowStaleOnFetchRejection, allowStaleOnFetchAbort, ignoreFetchAbort } = options;
+      constructor(options2) {
+        const { max = 0, ttl, ttlResolution = 1, ttlAutopurge, updateAgeOnGet, updateAgeOnHas, allowStale, dispose, disposeAfter, noDisposeOnSet, noUpdateTTL, maxSize = 0, maxEntrySize = 0, sizeCalculation, fetchMethod, memoMethod, noDeleteOnFetchRejection, noDeleteOnStaleGet, allowStaleOnFetchRejection, allowStaleOnFetchAbort, ignoreFetchAbort } = options2;
         if (max !== 0 && !isPosInt(max)) {
           throw new TypeError("max option must be a nonnegative integer");
         }
@@ -69091,9 +69102,9 @@ var require_commonjs2 = __commonJS({
           return ttl - age;
         };
         this.#isStale = (index) => {
-          const s7 = starts[index];
+          const s11 = starts[index];
           const t = ttls[index];
-          return !!t && !!s7 && (cachedNow || getNow()) - s7 > t;
+          return !!t && !!s11 && (cachedNow || getNow()) - s11 > t;
         };
       }
       // conditionally set private methods related to TTL
@@ -69499,13 +69510,13 @@ var require_commonjs2 = __commonJS({
           if (v !== oldVal) {
             if (this.#hasFetchMethod && this.#isBackgroundFetch(oldVal)) {
               oldVal.__abortController.abort(new Error("replaced"));
-              const { __staleWhileFetching: s7 } = oldVal;
-              if (s7 !== void 0 && !noDisposeOnSet) {
+              const { __staleWhileFetching: s11 } = oldVal;
+              if (s11 !== void 0 && !noDisposeOnSet) {
                 if (this.#hasDispose) {
-                  this.#dispose?.(s7, k, "set");
+                  this.#dispose?.(s11, k, "set");
                 }
                 if (this.#hasDisposeAfter) {
-                  this.#disposed?.push([s7, k, "set"]);
+                  this.#disposed?.push([s11, k, "set"]);
                 }
               }
             } else if (!noDisposeOnSet) {
@@ -69663,32 +69674,32 @@ var require_commonjs2 = __commonJS({
         const v = this.#valList[index];
         return this.#isBackgroundFetch(v) ? v.__staleWhileFetching : v;
       }
-      #backgroundFetch(k, index, options, context) {
+      #backgroundFetch(k, index, options2, context) {
         const v = index === void 0 ? void 0 : this.#valList[index];
         if (this.#isBackgroundFetch(v)) {
           return v;
         }
         const ac = new AC();
-        const { signal } = options;
+        const { signal } = options2;
         signal?.addEventListener("abort", () => ac.abort(signal.reason), {
           signal: ac.signal
         });
         const fetchOpts = {
           signal: ac.signal,
-          options,
+          options: options2,
           context
         };
         const cb = (v2, updateCache = false) => {
           const { aborted: aborted2 } = ac.signal;
-          const ignoreAbort = options.ignoreFetchAbort && v2 !== void 0;
-          if (options.status) {
+          const ignoreAbort = options2.ignoreFetchAbort && v2 !== void 0;
+          if (options2.status) {
             if (aborted2 && !updateCache) {
-              options.status.fetchAborted = true;
-              options.status.fetchError = ac.signal.reason;
+              options2.status.fetchAborted = true;
+              options2.status.fetchError = ac.signal.reason;
               if (ignoreAbort)
-                options.status.fetchAbortIgnored = true;
+                options2.status.fetchAbortIgnored = true;
             } else {
-              options.status.fetchResolved = true;
+              options2.status.fetchResolved = true;
             }
           }
           if (aborted2 && !ignoreAbort && !updateCache) {
@@ -69703,25 +69714,25 @@ var require_commonjs2 = __commonJS({
                 this.#delete(k, "fetch");
               }
             } else {
-              if (options.status)
-                options.status.fetchUpdated = true;
+              if (options2.status)
+                options2.status.fetchUpdated = true;
               this.set(k, v2, fetchOpts.options);
             }
           }
           return v2;
         };
         const eb = (er) => {
-          if (options.status) {
-            options.status.fetchRejected = true;
-            options.status.fetchError = er;
+          if (options2.status) {
+            options2.status.fetchRejected = true;
+            options2.status.fetchError = er;
           }
           return fetchFail(er);
         };
         const fetchFail = (er) => {
           const { aborted: aborted2 } = ac.signal;
-          const allowStaleAborted = aborted2 && options.allowStaleOnFetchAbort;
-          const allowStale = allowStaleAborted || options.allowStaleOnFetchRejection;
-          const noDelete = allowStale || options.noDeleteOnFetchRejection;
+          const allowStaleAborted = aborted2 && options2.allowStaleOnFetchAbort;
+          const allowStale = allowStaleAborted || options2.allowStaleOnFetchRejection;
+          const noDelete = allowStale || options2.noDeleteOnFetchRejection;
           const bf2 = p;
           if (this.#valList[index] === p) {
             const del = !noDelete || bf2.__staleWhileFetching === void 0;
@@ -69732,8 +69743,8 @@ var require_commonjs2 = __commonJS({
             }
           }
           if (allowStale) {
-            if (options.status && bf2.__staleWhileFetching !== void 0) {
-              options.status.returnedStale = true;
+            if (options2.status && bf2.__staleWhileFetching !== void 0) {
+              options2.status.returnedStale = true;
             }
             return bf2.__staleWhileFetching;
           } else if (bf2.__returned === bf2) {
@@ -69746,16 +69757,16 @@ var require_commonjs2 = __commonJS({
             fmp.then((v2) => res(v2 === void 0 ? void 0 : v2), rej);
           }
           ac.signal.addEventListener("abort", () => {
-            if (!options.ignoreFetchAbort || options.allowStaleOnFetchAbort) {
+            if (!options2.ignoreFetchAbort || options2.allowStaleOnFetchAbort) {
               res(void 0);
-              if (options.allowStaleOnFetchAbort) {
+              if (options2.allowStaleOnFetchAbort) {
                 res = (v2) => cb(v2, true);
               }
             }
           });
         };
-        if (options.status)
-          options.status.fetchDispatched = true;
+        if (options2.status)
+          options2.status.fetchDispatched = true;
         const p = new Promise(pcall).then(cb, eb);
         const bf = Object.assign(p, {
           __abortController: ac,
@@ -69808,7 +69819,7 @@ var require_commonjs2 = __commonJS({
             status
           });
         }
-        const options = {
+        const options2 = {
           allowStale,
           updateAgeOnGet,
           noDeleteOnStaleGet,
@@ -69828,7 +69839,7 @@ var require_commonjs2 = __commonJS({
         if (index === void 0) {
           if (status)
             status.fetch = "miss";
-          const p = this.#backgroundFetch(k, index, options, context);
+          const p = this.#backgroundFetch(k, index, options2, context);
           return p.__returned = p;
         } else {
           const v = this.#valList[index];
@@ -69853,7 +69864,7 @@ var require_commonjs2 = __commonJS({
               this.#statusTTL(status, index);
             return v;
           }
-          const p = this.#backgroundFetch(k, index, options, context);
+          const p = this.#backgroundFetch(k, index, options2, context);
           const hasStale = p.__staleWhileFetching !== void 0;
           const staleVal = hasStale && allowStale;
           if (status) {
@@ -69875,15 +69886,15 @@ var require_commonjs2 = __commonJS({
         if (!memoMethod) {
           throw new Error("no memoMethod provided to constructor");
         }
-        const { context, forceRefresh, ...options } = memoOptions;
-        const v = this.get(k, options);
+        const { context, forceRefresh, ...options2 } = memoOptions;
+        const v = this.get(k, options2);
         if (!forceRefresh && v !== void 0)
           return v;
         const vv = memoMethod(k, v, {
-          options,
+          options: options2,
           context
         });
-        this.set(k, vv, options);
+        this.set(k, vv, options2);
         return vv;
       }
       /**
@@ -70068,12 +70079,12 @@ var require_commonjs3 = __commonJS({
     var node_events_1 = __require("node:events");
     var node_stream_1 = __importDefault2(__require("node:stream"));
     var node_string_decoder_1 = __require("node:string_decoder");
-    var isStream = (s7) => !!s7 && typeof s7 === "object" && (s7 instanceof Minipass || s7 instanceof node_stream_1.default || (0, exports2.isReadable)(s7) || (0, exports2.isWritable)(s7));
+    var isStream = (s11) => !!s11 && typeof s11 === "object" && (s11 instanceof Minipass || s11 instanceof node_stream_1.default || (0, exports2.isReadable)(s11) || (0, exports2.isWritable)(s11));
     exports2.isStream = isStream;
-    var isReadable = (s7) => !!s7 && typeof s7 === "object" && s7 instanceof node_events_1.EventEmitter && typeof s7.pipe === "function" && // node core Writable streams have a pipe() method, but it throws
-    s7.pipe !== node_stream_1.default.Writable.prototype.pipe;
+    var isReadable = (s11) => !!s11 && typeof s11 === "object" && s11 instanceof node_events_1.EventEmitter && typeof s11.pipe === "function" && // node core Writable streams have a pipe() method, but it throws
+    s11.pipe !== node_stream_1.default.Writable.prototype.pipe;
     exports2.isReadable = isReadable;
-    var isWritable = (s7) => !!s7 && typeof s7 === "object" && s7 instanceof node_events_1.EventEmitter && typeof s7.write === "function" && typeof s7.end === "function";
+    var isWritable = (s11) => !!s11 && typeof s11 === "object" && s11 instanceof node_events_1.EventEmitter && typeof s11.write === "function" && typeof s11.end === "function";
     exports2.isWritable = isWritable;
     var EOF = Symbol("EOF");
     var MAYBE_EMIT_END = Symbol("maybeEmitEnd");
@@ -70185,30 +70196,30 @@ var require_commonjs3 = __commonJS({
        * {@link Minipass.SharedOptions.encoding}, as appropriate.
        */
       constructor(...args) {
-        const options = args[0] || {};
+        const options2 = args[0] || {};
         super();
-        if (options.objectMode && typeof options.encoding === "string") {
+        if (options2.objectMode && typeof options2.encoding === "string") {
           throw new TypeError("Encoding and objectMode may not be used together");
         }
-        if (isObjectModeOptions(options)) {
+        if (isObjectModeOptions(options2)) {
           this[OBJECTMODE] = true;
           this[ENCODING] = null;
-        } else if (isEncodingOptions(options)) {
-          this[ENCODING] = options.encoding;
+        } else if (isEncodingOptions(options2)) {
+          this[ENCODING] = options2.encoding;
           this[OBJECTMODE] = false;
         } else {
           this[OBJECTMODE] = false;
           this[ENCODING] = null;
         }
-        this[ASYNC] = !!options.async;
+        this[ASYNC] = !!options2.async;
         this[DECODER] = this[ENCODING] ? new node_string_decoder_1.StringDecoder(this[ENCODING]) : null;
-        if (options && options.debugExposeBuffer === true) {
+        if (options2 && options2.debugExposeBuffer === true) {
           Object.defineProperty(this, "buffer", { get: () => this[BUFFER] });
         }
-        if (options && options.debugExposePipes === true) {
+        if (options2 && options2.debugExposePipes === true) {
           Object.defineProperty(this, "pipes", { get: () => this[PIPES] });
         }
-        const { signal } = options;
+        const { signal } = options2;
         if (signal) {
           this[SIGNAL] = signal;
           if (signal.aborted) {
@@ -71031,23 +71042,23 @@ var require_commonjs4 = __commonJS({
     var ENOREALPATH = 512;
     var ENOCHILD = ENOTDIR | ENOENT | ENOREALPATH;
     var TYPEMASK = 1023;
-    var entToType = (s7) => s7.isFile() ? IFREG : s7.isDirectory() ? IFDIR : s7.isSymbolicLink() ? IFLNK : s7.isCharacterDevice() ? IFCHR : s7.isBlockDevice() ? IFBLK : s7.isSocket() ? IFSOCK : s7.isFIFO() ? IFIFO : UNKNOWN;
+    var entToType = (s11) => s11.isFile() ? IFREG : s11.isDirectory() ? IFDIR : s11.isSymbolicLink() ? IFLNK : s11.isCharacterDevice() ? IFCHR : s11.isBlockDevice() ? IFBLK : s11.isSocket() ? IFSOCK : s11.isFIFO() ? IFIFO : UNKNOWN;
     var normalizeCache = /* @__PURE__ */ new Map();
-    var normalize2 = (s7) => {
-      const c = normalizeCache.get(s7);
+    var normalize2 = (s11) => {
+      const c = normalizeCache.get(s11);
       if (c)
         return c;
-      const n2 = s7.normalize("NFKD");
-      normalizeCache.set(s7, n2);
+      const n2 = s11.normalize("NFKD");
+      normalizeCache.set(s11, n2);
       return n2;
     };
     var normalizeNocaseCache = /* @__PURE__ */ new Map();
-    var normalizeNocase = (s7) => {
-      const c = normalizeNocaseCache.get(s7);
+    var normalizeNocase = (s11) => {
+      const c = normalizeNocaseCache.get(s11);
       if (c)
         return c;
-      const n2 = normalize2(s7.toLowerCase());
-      normalizeNocaseCache.set(s7, n2);
+      const n2 = normalize2(s11.toLowerCase());
+      normalizeNocaseCache.set(s11, n2);
       return n2;
     };
     var ResolveCache = class extends lru_cache_1.LRUCache {
@@ -71314,8 +71325,8 @@ var require_commonjs4 = __commonJS({
             return p;
           }
         }
-        const s7 = this.parent ? this.sep : "";
-        const fullpath = this.#fullpath ? this.#fullpath + s7 + pathPart : void 0;
+        const s11 = this.parent ? this.sep : "";
+        const fullpath = this.#fullpath ? this.#fullpath + s11 + pathPart : void 0;
         const pchild = this.newChild(pathPart, UNKNOWN, {
           ...opts,
           parent: this,
@@ -72469,14 +72480,14 @@ var require_commonjs4 = __commonJS({
       [Symbol.asyncIterator]() {
         return this.iterate();
       }
-      iterate(entry = this.cwd, options = {}) {
+      iterate(entry = this.cwd, options2 = {}) {
         if (typeof entry === "string") {
           entry = this.cwd.resolve(entry);
         } else if (!(entry instanceof PathBase)) {
-          options = entry;
+          options2 = entry;
           entry = this.cwd;
         }
-        return this.stream(entry, options)[Symbol.asyncIterator]();
+        return this.stream(entry, options2)[Symbol.asyncIterator]();
       }
       /**
        * Iterating over a PathScurry performs a synchronous walk.
@@ -72963,10 +72974,10 @@ var require_ignore = __commonJS({
       ignored(p) {
         const fullpath = p.fullpath();
         const fullpaths = `${fullpath}/`;
-        const relative2 = p.relative() || ".";
-        const relatives = `${relative2}/`;
+        const relative3 = p.relative() || ".";
+        const relatives = `${relative3}/`;
         for (const m of this.relative) {
-          if (m.match(relative2) || m.match(relatives))
+          if (m.match(relative3) || m.match(relatives))
             return true;
         }
         for (const m of this.absolute) {
@@ -72977,9 +72988,9 @@ var require_ignore = __commonJS({
       }
       childrenIgnored(p) {
         const fullpath = p.fullpath() + "/";
-        const relative2 = (p.relative() || ".") + "/";
+        const relative3 = (p.relative() || ".") + "/";
         for (const m of this.relativeChildren) {
-          if (m.match(relative2))
+          if (m.match(relative3))
             return true;
         }
         for (const m of this.absoluteChildren) {
@@ -73311,14 +73322,14 @@ var require_walker = __commonJS({
           e = rpc;
         }
         const needStat = e.isUnknown() || this.opts.stat;
-        const s7 = needStat ? await e.lstat() : e;
-        if (this.opts.follow && this.opts.nodir && s7?.isSymbolicLink()) {
-          const target3 = await s7.realpath();
+        const s11 = needStat ? await e.lstat() : e;
+        if (this.opts.follow && this.opts.nodir && s11?.isSymbolicLink()) {
+          const target3 = await s11.realpath();
           if (target3 && (target3.isUnknown() || this.opts.stat)) {
             await target3.lstat();
           }
         }
-        return this.matchCheckTest(s7, ifDir);
+        return this.matchCheckTest(s11, ifDir);
       }
       matchCheckTest(e, ifDir) {
         return e && (this.maxDepth === Infinity || e.depth() <= this.maxDepth) && (!ifDir || e.canReaddir()) && (!this.opts.nodir || !e.isDirectory()) && (!this.opts.nodir || !this.opts.follow || !e.isSymbolicLink() || !e.realpathCached()?.isDirectory()) && !this.#ignored(e) ? e : void 0;
@@ -73334,14 +73345,14 @@ var require_walker = __commonJS({
           e = rpc;
         }
         const needStat = e.isUnknown() || this.opts.stat;
-        const s7 = needStat ? e.lstatSync() : e;
-        if (this.opts.follow && this.opts.nodir && s7?.isSymbolicLink()) {
-          const target3 = s7.realpathSync();
+        const s11 = needStat ? e.lstatSync() : e;
+        if (this.opts.follow && this.opts.nodir && s11?.isSymbolicLink()) {
+          const target3 = s11.realpathSync();
           if (target3 && (target3?.isUnknown() || this.opts.stat)) {
             target3.lstatSync();
           }
         }
-        return this.matchCheckTest(s7, ifDir);
+        return this.matchCheckTest(s11, ifDir);
       }
       matchFinish(e, absolute) {
         if (this.#ignored(e))
@@ -73786,12 +73797,12 @@ var require_has_magic = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.hasMagic = void 0;
     var minimatch_1 = require_commonjs();
-    var hasMagic = (pattern, options = {}) => {
+    var hasMagic = (pattern, options2 = {}) => {
       if (!Array.isArray(pattern)) {
         pattern = [pattern];
       }
       for (const p of pattern) {
-        if (new minimatch_1.Minimatch(p, options).hasMagic())
+        if (new minimatch_1.Minimatch(p, options2).hasMagic())
           return true;
       }
       return false;
@@ -73833,23 +73844,23 @@ var require_commonjs5 = __commonJS({
     Object.defineProperty(exports2, "Ignore", { enumerable: true, get: function() {
       return ignore_js_1.Ignore;
     } });
-    function globStreamSync(pattern, options = {}) {
-      return new glob_js_1.Glob(pattern, options).streamSync();
+    function globStreamSync(pattern, options2 = {}) {
+      return new glob_js_1.Glob(pattern, options2).streamSync();
     }
-    function globStream(pattern, options = {}) {
-      return new glob_js_1.Glob(pattern, options).stream();
+    function globStream(pattern, options2 = {}) {
+      return new glob_js_1.Glob(pattern, options2).stream();
     }
-    function globSync(pattern, options = {}) {
-      return new glob_js_1.Glob(pattern, options).walkSync();
+    function globSync(pattern, options2 = {}) {
+      return new glob_js_1.Glob(pattern, options2).walkSync();
     }
-    async function glob_(pattern, options = {}) {
-      return new glob_js_1.Glob(pattern, options).walk();
+    async function glob_(pattern, options2 = {}) {
+      return new glob_js_1.Glob(pattern, options2).walk();
     }
-    function globIterateSync(pattern, options = {}) {
-      return new glob_js_1.Glob(pattern, options).iterateSync();
+    function globIterateSync(pattern, options2 = {}) {
+      return new glob_js_1.Glob(pattern, options2).iterateSync();
     }
-    function globIterate(pattern, options = {}) {
-      return new glob_js_1.Glob(pattern, options).iterate();
+    function globIterate(pattern, options2 = {}) {
+      return new glob_js_1.Glob(pattern, options2).iterate();
     }
     exports2.streamSync = globStreamSync;
     exports2.stream = Object.assign(globStream, { sync: globStreamSync });
@@ -73915,22 +73926,22 @@ var require_file = __commonJS({
       return fs24.existsSync(filepath);
     };
     file.expand = function(...args) {
-      var options = isPlainObject3(args[0]) ? args.shift() : {};
+      var options2 = isPlainObject3(args[0]) ? args.shift() : {};
       var patterns = Array.isArray(args[0]) ? args[0] : args;
       if (patterns.length === 0) {
         return [];
       }
       var matches = processPatterns(patterns, function(pattern) {
-        return glob.sync(pattern, options);
+        return glob.sync(pattern, options2);
       });
-      if (options.filter) {
+      if (options2.filter) {
         matches = matches.filter(function(filepath) {
-          filepath = path24.join(options.cwd || "", filepath);
+          filepath = path24.join(options2.cwd || "", filepath);
           try {
-            if (typeof options.filter === "function") {
-              return options.filter(filepath);
+            if (typeof options2.filter === "function") {
+              return options2.filter(filepath);
             } else {
-              return fs24.statSync(filepath)[options.filter]();
+              return fs24.statSync(filepath)[options2.filter]();
             }
           } catch (e) {
             return false;
@@ -73939,25 +73950,25 @@ var require_file = __commonJS({
       }
       return matches;
     };
-    file.expandMapping = function(patterns, destBase, options) {
-      options = Object.assign({
+    file.expandMapping = function(patterns, destBase, options2) {
+      options2 = Object.assign({
         rename: function(destBase2, destPath) {
           return path24.join(destBase2 || "", destPath);
         }
-      }, options);
+      }, options2);
       var files = [];
       var fileByDest = {};
-      file.expand(options, patterns).forEach(function(src) {
+      file.expand(options2, patterns).forEach(function(src) {
         var destPath = src;
-        if (options.flatten) {
+        if (options2.flatten) {
           destPath = path24.basename(destPath);
         }
-        if (options.ext) {
-          destPath = destPath.replace(/(\.[^\/]*)?$/, options.ext);
+        if (options2.ext) {
+          destPath = destPath.replace(/(\.[^\/]*)?$/, options2.ext);
         }
-        var dest = options.rename(destBase, destPath, options);
-        if (options.cwd) {
-          src = path24.join(options.cwd, src);
+        var dest = options2.rename(destBase, destPath, options2);
+        if (options2.cwd) {
+          src = path24.join(options2.cwd, src);
         }
         dest = dest.replace(pathSeparatorRe, "/");
         src = src.replace(pathSeparatorRe, "/");
@@ -74103,8 +74114,8 @@ var require_archiver_utils = __commonJS({
     utils.sanitizePath = function(filepath) {
       return normalizePath(filepath, false).replace(/^\w+:/, "").replace(/^(\.\.\/|\/)+/, "");
     };
-    utils.trailingSlashIt = function(str32) {
-      return str32.slice(-1) !== "/" ? str32 + "/" : str32;
+    utils.trailingSlashIt = function(str33) {
+      return str33.slice(-1) !== "/" ? str33 + "/" : str33;
     };
     utils.unixifyPath = function(filepath) {
       return normalizePath(filepath, false).replace(/^\w+:/, "");
@@ -74199,19 +74210,19 @@ var require_core4 = __commonJS({
     var ArchiverError = require_error();
     var Transform2 = require_ours().Transform;
     var win32 = process.platform === "win32";
-    var Archiver = function(format, options) {
+    var Archiver = function(format, options2) {
       if (!(this instanceof Archiver)) {
-        return new Archiver(format, options);
+        return new Archiver(format, options2);
       }
       if (typeof format !== "string") {
-        options = format;
+        options2 = format;
         format = "zip";
       }
-      options = this.options = util2.defaults(options, {
+      options2 = this.options = util2.defaults(options2, {
         highWaterMark: 1024 * 1024,
         statConcurrency: 4
       });
-      Transform2.call(this, options);
+      Transform2.call(this, options2);
       this._format = false;
       this._module = false;
       this._pending = 0;
@@ -74222,7 +74233,7 @@ var require_core4 = __commonJS({
       this._fsEntriesProcessedBytes = 0;
       this._queue = async.queue(this._onQueueTask.bind(this), 1);
       this._queue.drain(this._onQueueDrain.bind(this));
-      this._statQueue = async.queue(this._onStatQueueTask.bind(this), options.statConcurrency);
+      this._statQueue = async.queue(this._onStatQueueTask.bind(this), options2.statConcurrency);
       this._statQueue.drain(this._onQueueDrain.bind(this));
       this._state = {
         aborted: false,
@@ -74602,9 +74613,9 @@ var require_core4 = __commonJS({
       this._append(filepath, data2);
       return this;
     };
-    Archiver.prototype.glob = function(pattern, options, data2) {
+    Archiver.prototype.glob = function(pattern, options2, data2) {
       this._pending++;
-      options = util2.defaults(options, {
+      options2 = util2.defaults(options2, {
         stat: true,
         pattern
       });
@@ -74623,7 +74634,7 @@ var require_core4 = __commonJS({
         entryData.name = match.relative;
         this._append(match.absolute, entryData);
       }
-      var globber = glob(options.cwd || ".", options);
+      var globber = glob(options2.cwd || ".", options2);
       globber.on("error", onGlobError.bind(this));
       globber.on("match", onGlobMatch.bind(this));
       globber.on("end", onGlobEnd.bind(this));
@@ -75218,11 +75229,11 @@ var require_archive_output_stream = __commonJS({
     var Transform2 = require_ours().Transform;
     var ArchiveEntry = require_archive_entry();
     var util2 = require_util5();
-    var ArchiveOutputStream = module.exports = function(options) {
+    var ArchiveOutputStream = module.exports = function(options2) {
       if (!(this instanceof ArchiveOutputStream)) {
-        return new ArchiveOutputStream(options);
+        return new ArchiveOutputStream(options2);
       }
-      Transform2.call(this, options);
+      Transform2.call(this, options2);
       this.offset = 0;
       this._archive = {
         finish: false,
@@ -75364,10 +75375,10 @@ var require_crc322 = __commonJS({
         while (i < L) C = C >>> 8 ^ T0[(C ^ B[i++]) & 255];
         return ~C;
       }
-      function crc32_str(str32, seed2) {
+      function crc32_str(str33, seed2) {
         var C = seed2 ^ -1;
-        for (var i = 0, L = str32.length, c = 0, d = 0; i < L; ) {
-          c = str32.charCodeAt(i++);
+        for (var i = 0, L = str33.length, c = 0, d = 0; i < L; ) {
+          c = str33.charCodeAt(i++);
           if (c < 128) {
             C = C >>> 8 ^ T0[(C ^ c) & 255];
           } else if (c < 2048) {
@@ -75375,7 +75386,7 @@ var require_crc322 = __commonJS({
             C = C >>> 8 ^ T0[(C ^ (128 | c & 63)) & 255];
           } else if (c >= 55296 && c < 57344) {
             c = (c & 1023) + 64;
-            d = str32.charCodeAt(i++) & 1023;
+            d = str33.charCodeAt(i++) & 1023;
             C = C >>> 8 ^ T0[(C ^ (240 | c >> 8 & 7)) & 255];
             C = C >>> 8 ^ T0[(C ^ (128 | c >> 2 & 63)) & 255];
             C = C >>> 8 ^ T0[(C ^ (128 | d >> 6 & 15 | (c & 3) << 4)) & 255];
@@ -75403,8 +75414,8 @@ var require_crc32_stream = __commonJS({
     var { Transform: Transform2 } = require_ours();
     var crc322 = require_crc322();
     var CRC32Stream = class extends Transform2 {
-      constructor(options) {
-        super(options);
+      constructor(options2) {
+        super(options2);
         this.checksum = Buffer.allocUnsafe(4);
         this.checksum.writeInt32BE(0, 0);
         this.rawSize = 0;
@@ -75439,8 +75450,8 @@ var require_deflate_crc32_stream = __commonJS({
     var { DeflateRaw } = __require("zlib");
     var crc322 = require_crc322();
     var DeflateCRC32Stream = class extends DeflateRaw {
-      constructor(options) {
-        super(options);
+      constructor(options2) {
+        super(options2);
         this.checksum = Buffer.allocUnsafe(4);
         this.checksum.writeInt32BE(0, 0);
         this.rawSize = 0;
@@ -75503,12 +75514,12 @@ var require_zip_archive_output_stream = __commonJS({
     var constants = require_constants2();
     var util2 = require_util5();
     var zipUtil = require_util4();
-    var ZipArchiveOutputStream = module.exports = function(options) {
+    var ZipArchiveOutputStream = module.exports = function(options2) {
       if (!(this instanceof ZipArchiveOutputStream)) {
-        return new ZipArchiveOutputStream(options);
+        return new ZipArchiveOutputStream(options2);
       }
-      options = this.options = this._defaults(options);
-      ArchiveOutputStream.call(this, options);
+      options2 = this.options = this._defaults(options2);
+      ArchiveOutputStream.call(this, options2);
       this._entry = null;
       this._entries = [];
       this._archive = {
@@ -75518,8 +75529,8 @@ var require_zip_archive_output_stream = __commonJS({
         finish: false,
         finished: false,
         processing: false,
-        forceZip64: options.forceZip64,
-        forceLocalTime: options.forceLocalTime
+        forceZip64: options2.forceZip64,
+        forceLocalTime: options2.forceLocalTime
       };
     };
     inherits(ZipArchiveOutputStream, ArchiveOutputStream);
@@ -75794,23 +75805,23 @@ var require_zip_stream = __commonJS({
     var ZipArchiveOutputStream = require_compress_commons().ZipArchiveOutputStream;
     var ZipArchiveEntry = require_compress_commons().ZipArchiveEntry;
     var util2 = require_archiver_utils();
-    var ZipStream = module.exports = function(options) {
+    var ZipStream = module.exports = function(options2) {
       if (!(this instanceof ZipStream)) {
-        return new ZipStream(options);
+        return new ZipStream(options2);
       }
-      options = this.options = options || {};
-      options.zlib = options.zlib || {};
-      ZipArchiveOutputStream.call(this, options);
-      if (typeof options.level === "number" && options.level >= 0) {
-        options.zlib.level = options.level;
-        delete options.level;
+      options2 = this.options = options2 || {};
+      options2.zlib = options2.zlib || {};
+      ZipArchiveOutputStream.call(this, options2);
+      if (typeof options2.level === "number" && options2.level >= 0) {
+        options2.zlib.level = options2.level;
+        delete options2.level;
       }
-      if (!options.forceZip64 && typeof options.zlib.level === "number" && options.zlib.level === 0) {
-        options.store = true;
+      if (!options2.forceZip64 && typeof options2.zlib.level === "number" && options2.zlib.level === 0) {
+        options2.store = true;
       }
-      options.namePrependSlash = options.namePrependSlash || false;
-      if (options.comment && options.comment.length > 0) {
-        this.setComment(options.comment);
+      options2.namePrependSlash = options2.namePrependSlash || false;
+      if (options2.comment && options2.comment.length > 0) {
+        this.setComment(options2.comment);
       }
     };
     inherits(ZipStream, ZipArchiveOutputStream);
@@ -75895,11 +75906,11 @@ var require_zip = __commonJS({
   "node_modules/archiver/lib/plugins/zip.js"(exports2, module) {
     var engine = require_zip_stream();
     var util2 = require_archiver_utils();
-    var Zip = function(options) {
+    var Zip = function(options2) {
       if (!(this instanceof Zip)) {
-        return new Zip(options);
+        return new Zip(options2);
       }
-      options = this.options = util2.defaults(options, {
+      options2 = this.options = util2.defaults(options2, {
         comment: "",
         forceUTC: false,
         namePrependSlash: false,
@@ -75909,7 +75920,7 @@ var require_zip = __commonJS({
         directory: true,
         symlink: true
       };
-      this.engine = new engine(options);
+      this.engine = new engine(options2);
     };
     Zip.prototype.append = function(source, data2, callback) {
       this.engine.entry(source, data2, callback);
@@ -76088,7 +76099,7 @@ var require_b4a = __commonJS({
     function toString2(buffer, encoding, start, end) {
       return toBuffer(buffer).toString(encoding, start, end);
     }
-    function write2(buffer, string3, offset2, length, encoding) {
+    function write3(buffer, string3, offset2, length, encoding) {
       return toBuffer(buffer).write(string3, offset2, length, encoding);
     }
     function readDoubleBE(buffer, offset2) {
@@ -76160,7 +76171,7 @@ var require_b4a = __commonJS({
       swap64,
       toBuffer,
       toString: toString2,
-      write: write2,
+      write: write3,
       readDoubleBE,
       readDoubleLE,
       readFloatBE,
@@ -77295,24 +77306,24 @@ var require_streamx = __commonJS({
         }
       }
       return dest;
-      function errorHandle(s7, rd, wr, onerror2) {
-        s7.on("error", onerror2);
-        s7.on("close", onclose);
+      function errorHandle(s11, rd, wr, onerror2) {
+        s11.on("error", onerror2);
+        s11.on("close", onclose);
         function onclose() {
-          if (rd && s7._readableState && !s7._readableState.ended) return onerror2(PREMATURE_CLOSE);
-          if (wr && s7._writableState && !s7._writableState.ended) return onerror2(PREMATURE_CLOSE);
+          if (rd && s11._readableState && !s11._readableState.ended) return onerror2(PREMATURE_CLOSE);
+          if (wr && s11._writableState && !s11._writableState.ended) return onerror2(PREMATURE_CLOSE);
         }
       }
       function onerror(err) {
         if (!err || error2) return;
         error2 = err;
-        for (const s7 of all) {
-          s7.destroy(err);
+        for (const s11 of all) {
+          s11.destroy(err);
         }
       }
     }
-    function echo(s7) {
-      return s7;
+    function echo(s11) {
+      return s11;
     }
     function isStream(stream) {
       return !!stream._readableState || !!stream._writableState;
@@ -77347,8 +77358,8 @@ var require_streamx = __commonJS({
     function abort() {
       this.destroy(new Error("Stream aborted."));
     }
-    function isWritev(s7) {
-      return s7._writev !== Writable.prototype._writev && s7._writev !== Duplex.prototype._writev;
+    function isWritev(s11) {
+      return s11._writev !== Writable.prototype._writev && s11._writev !== Duplex.prototype._writev;
     }
     module.exports = {
       pipeline: pipeline2,
@@ -77622,11 +77633,11 @@ var require_headers = __commonJS({
     function decodeStr(val, offset2, length, encoding) {
       return b4a.toString(val.subarray(offset2, indexOf(val, 0, offset2, offset2 + length)), encoding);
     }
-    function addLength(str32) {
-      const len = b4a.byteLength(str32);
+    function addLength(str33) {
+      const len = b4a.byteLength(str33);
       let digits = Math.floor(Math.log(len) / Math.log(10)) + 1;
       if (len + digits >= Math.pow(10, digits)) digits++;
-      return len + digits + str32;
+      return len + digits + str33;
     }
   }
 });
@@ -77658,12 +77669,12 @@ var require_extract = __commonJS({
         if (size === 0) return EMPTY;
         let chunk2 = this._next(size);
         if (size === chunk2.byteLength) return chunk2;
-        const chunks5 = [chunk2];
+        const chunks7 = [chunk2];
         while ((size -= chunk2.byteLength) > 0) {
           chunk2 = this._next(size);
-          chunks5.push(chunk2);
+          chunks7.push(chunk2);
         }
-        return b4a.concat(chunks5);
+        return b4a.concat(chunks7);
       }
       _next(size) {
         const buf = this.queue.peek();
@@ -78233,24 +78244,24 @@ var require_tar = __commonJS({
     var zlib2 = __require("zlib");
     var engine = require_tar_stream();
     var util2 = require_archiver_utils();
-    var Tar = function(options) {
+    var Tar = function(options2) {
       if (!(this instanceof Tar)) {
-        return new Tar(options);
+        return new Tar(options2);
       }
-      options = this.options = util2.defaults(options, {
+      options2 = this.options = util2.defaults(options2, {
         gzip: false
       });
-      if (typeof options.gzipOptions !== "object") {
-        options.gzipOptions = {};
+      if (typeof options2.gzipOptions !== "object") {
+        options2.gzipOptions = {};
       }
       this.supports = {
         directory: true,
         symlink: true
       };
-      this.engine = engine.pack(options);
+      this.engine = engine.pack(options2);
       this.compressor = false;
-      if (options.gzip) {
-        this.compressor = zlib2.createGzip(options.gzipOptions);
+      if (options2.gzip) {
+        this.compressor = zlib2.createGzip(options2.gzipOptions);
         this.compressor.on("error", this._onCompressorError.bind(this));
       }
     };
@@ -78287,9 +78298,9 @@ var require_tar = __commonJS({
     Tar.prototype.on = function() {
       return this.engine.on.apply(this.engine, arguments);
     };
-    Tar.prototype.pipe = function(destination, options) {
+    Tar.prototype.pipe = function(destination, options2) {
       if (this.compressor) {
-        return this.engine.pipe.apply(this.engine, [this.compressor]).pipe(destination, options);
+        return this.engine.pipe.apply(this.engine, [this.compressor]).pipe(destination, options2);
       } else {
         return this.engine.pipe.apply(this.engine, arguments);
       }
@@ -78620,12 +78631,12 @@ var require_json = __commonJS({
     var Transform2 = require_ours().Transform;
     var crc322 = require_dist3();
     var util2 = require_archiver_utils();
-    var Json = function(options) {
+    var Json = function(options2) {
       if (!(this instanceof Json)) {
-        return new Json(options);
+        return new Json(options2);
       }
-      options = this.options = util2.defaults(options, {});
-      Transform2.call(this, options);
+      options2 = this.options = util2.defaults(options2, {});
+      Transform2.call(this, options2);
       this.supports = {
         directory: true,
         symlink: true
@@ -78672,14 +78683,14 @@ var require_archiver = __commonJS({
   "node_modules/archiver/index.js"(exports2, module) {
     var Archiver = require_core4();
     var formats = {};
-    var vending = function(format, options) {
-      return vending.create(format, options);
+    var vending = function(format, options2) {
+      return vending.create(format, options2);
     };
-    vending.create = function(format, options) {
+    vending.create = function(format, options2) {
       if (formats[format]) {
-        var instance = new Archiver(format, options);
+        var instance = new Archiver(format, options2);
         instance.setFormat(format);
-        instance.setModule(new formats[format](options));
+        instance.setModule(new formats[format](options2));
         return instance;
       } else {
         throw new Error("create(" + format + "): format not registered");
@@ -79246,12 +79257,12 @@ var ParseStatus = class _ParseStatus {
   }
   static mergeArray(status, results) {
     const arrayValue = [];
-    for (const s7 of results) {
-      if (s7.status === "aborted")
+    for (const s11 of results) {
+      if (s11.status === "aborted")
         return INVALID;
-      if (s7.status === "dirty")
+      if (s11.status === "dirty")
         status.dirty();
-      arrayValue.push(s7.value);
+      arrayValue.push(s11.value);
     }
     return { status: status.value, value: arrayValue };
   }
@@ -80076,48 +80087,48 @@ var ZodString = class _ZodString2 extends ZodType {
       ...errorUtil.errToObj(message)
     });
   }
-  jwt(options) {
-    return this._addCheck({ kind: "jwt", ...errorUtil.errToObj(options) });
+  jwt(options2) {
+    return this._addCheck({ kind: "jwt", ...errorUtil.errToObj(options2) });
   }
-  ip(options) {
-    return this._addCheck({ kind: "ip", ...errorUtil.errToObj(options) });
+  ip(options2) {
+    return this._addCheck({ kind: "ip", ...errorUtil.errToObj(options2) });
   }
-  cidr(options) {
-    return this._addCheck({ kind: "cidr", ...errorUtil.errToObj(options) });
+  cidr(options2) {
+    return this._addCheck({ kind: "cidr", ...errorUtil.errToObj(options2) });
   }
-  datetime(options) {
-    if (typeof options === "string") {
+  datetime(options2) {
+    if (typeof options2 === "string") {
       return this._addCheck({
         kind: "datetime",
         precision: null,
         offset: false,
         local: false,
-        message: options
+        message: options2
       });
     }
     return this._addCheck({
       kind: "datetime",
-      precision: typeof options?.precision === "undefined" ? null : options?.precision,
-      offset: options?.offset ?? false,
-      local: options?.local ?? false,
-      ...errorUtil.errToObj(options?.message)
+      precision: typeof options2?.precision === "undefined" ? null : options2?.precision,
+      offset: options2?.offset ?? false,
+      local: options2?.local ?? false,
+      ...errorUtil.errToObj(options2?.message)
     });
   }
   date(message) {
     return this._addCheck({ kind: "date", message });
   }
-  time(options) {
-    if (typeof options === "string") {
+  time(options2) {
+    if (typeof options2 === "string") {
       return this._addCheck({
         kind: "time",
         precision: null,
-        message: options
+        message: options2
       });
     }
     return this._addCheck({
       kind: "time",
-      precision: typeof options?.precision === "undefined" ? null : options?.precision,
-      ...errorUtil.errToObj(options?.message)
+      precision: typeof options2?.precision === "undefined" ? null : options2?.precision,
+      ...errorUtil.errToObj(options2?.message)
     });
   }
   duration(message) {
@@ -80130,12 +80141,12 @@ var ZodString = class _ZodString2 extends ZodType {
       ...errorUtil.errToObj(message)
     });
   }
-  includes(value4, options) {
+  includes(value4, options2) {
     return this._addCheck({
       kind: "includes",
       value: value4,
-      position: options?.position,
-      ...errorUtil.errToObj(options?.message)
+      position: options2?.position,
+      ...errorUtil.errToObj(options2?.message)
     });
   }
   startsWith(value4, message) {
@@ -81419,7 +81430,7 @@ ZodObject.lazycreate = (shape, params) => {
 var ZodUnion = class extends ZodType {
   _parse(input) {
     const { ctx } = this._processInputParams(input);
-    const options = this._def.options;
+    const options2 = this._def.options;
     function handleResults(results) {
       for (const result2 of results) {
         if (result2.result.status === "valid") {
@@ -81440,7 +81451,7 @@ var ZodUnion = class extends ZodType {
       return INVALID;
     }
     if (ctx.common.async) {
-      return Promise.all(options.map(async (option) => {
+      return Promise.all(options2.map(async (option) => {
         const childCtx = {
           ...ctx,
           common: {
@@ -81461,7 +81472,7 @@ var ZodUnion = class extends ZodType {
     } else {
       let dirty = void 0;
       const issues = [];
-      for (const option of options) {
+      for (const option of options2) {
         const childCtx = {
           ...ctx,
           common: {
@@ -81591,9 +81602,9 @@ var ZodDiscriminatedUnion = class _ZodDiscriminatedUnion extends ZodType {
    * @param types an array of object schemas
    * @param params
    */
-  static create(discriminator, options, params) {
+  static create(discriminator, options2, params) {
     const optionsMap = /* @__PURE__ */ new Map();
-    for (const type of options) {
+    for (const type of options2) {
       const discriminatorValues = getDiscriminator(type.shape[discriminator]);
       if (!discriminatorValues.length) {
         throw new Error(`A discriminator value for key \`${discriminator}\` could not be extracted from all schema options`);
@@ -81608,7 +81619,7 @@ var ZodDiscriminatedUnion = class _ZodDiscriminatedUnion extends ZodType {
     return new _ZodDiscriminatedUnion({
       typeName: ZodFirstPartyTypeKind.ZodDiscriminatedUnion,
       discriminator,
-      options,
+      options: options2,
       optionsMap,
       ...processCreateParams(params)
     });
@@ -82965,14 +82976,14 @@ function promiseAllObject(promisesObj) {
 }
 function randomString(length = 10) {
   const chars = "abcdefghijklmnopqrstuvwxyz";
-  let str32 = "";
+  let str33 = "";
   for (let i = 0; i < length; i++) {
-    str32 += chars[Math.floor(Math.random() * chars.length)];
+    str33 += chars[Math.floor(Math.random() * chars.length)];
   }
-  return str32;
+  return str33;
 }
-function esc(str32) {
-  return JSON.stringify(str32);
+function esc(str33) {
+  return JSON.stringify(str33);
 }
 var captureStackTrace = Error.captureStackTrace ? Error.captureStackTrace : (..._args) => {
 };
@@ -83060,8 +83071,8 @@ var getParsedType2 = (data2) => {
 };
 var propertyKeyTypes = /* @__PURE__ */ new Set(["string", "number", "symbol"]);
 var primitiveTypes = /* @__PURE__ */ new Set(["string", "number", "bigint", "boolean", "symbol", "undefined"]);
-function escapeRegex(str32) {
-  return str32.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function escapeRegex(str33) {
+  return str33.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 function clone(inst, def, params) {
   const cl = new inst._zod.constr(def ?? inst._zod.def);
@@ -86602,8 +86613,8 @@ function object(shape, params) {
 }
 
 // node_modules/@modelcontextprotocol/sdk/dist/esm/server/zod-compat.js
-function isZ4Schema(s7) {
-  const schema = s7;
+function isZ4Schema(s11) {
+  const schema = s11;
   return !!schema._zod;
 }
 function objectFromShape(shape) {
@@ -86611,7 +86622,7 @@ function objectFromShape(shape) {
   if (values.length === 0)
     return object({});
   const allV4 = values.every(isZ4Schema);
-  const allV3 = values.every((s7) => !isZ4Schema(s7));
+  const allV3 = values.every((s11) => !isZ4Schema(s11));
   if (allV4)
     return object(shape);
   if (allV3)
@@ -87151,10 +87162,10 @@ var ZodUnion2 = /* @__PURE__ */ $constructor("ZodUnion", (inst, def) => {
   ZodType2.init(inst, def);
   inst.options = def.options;
 });
-function union(options, params) {
+function union(options2, params) {
   return new ZodUnion2({
     type: "union",
-    options,
+    options: options2,
     ...util_exports.normalizeParams(params)
   });
 }
@@ -87162,10 +87173,10 @@ var ZodDiscriminatedUnion2 = /* @__PURE__ */ $constructor("ZodDiscriminatedUnion
   ZodUnion2.init(inst, def);
   $ZodDiscriminatedUnion.init(inst, def);
 });
-function discriminatedUnion(discriminator, options, params) {
+function discriminatedUnion(discriminator, options2, params) {
   return new ZodDiscriminatedUnion2({
     type: "union",
-    options,
+    options: options2,
     discriminator,
     ...util_exports.normalizeParams(params)
   });
@@ -88987,17 +88998,17 @@ var defaultOptions = {
   nameStrategy: "ref",
   openAiAnyTypeName: "OpenAiAnyType"
 };
-var getDefaultOptions = (options) => typeof options === "string" ? {
+var getDefaultOptions = (options2) => typeof options2 === "string" ? {
   ...defaultOptions,
-  name: options
+  name: options2
 } : {
   ...defaultOptions,
-  ...options
+  ...options2
 };
 
 // node_modules/zod-to-json-schema/dist/esm/Refs.js
-var getRefs = (options) => {
-  const _options = getDefaultOptions(options);
+var getRefs = (options2) => {
+  const _options = getDefaultOptions(options2);
   const currentPath = _options.name !== void 0 ? [..._options.basePath, _options.definitionPath, _options.name] : _options.basePath;
   return {
     ..._options,
@@ -89734,17 +89745,17 @@ var primitiveMappings = {
 function parseUnionDef(def, refs) {
   if (refs.target === "openApi3")
     return asAnyOf(def, refs);
-  const options = def.options instanceof Map ? Array.from(def.options.values()) : def.options;
-  if (options.every((x) => x._def.typeName in primitiveMappings && (!x._def.checks || !x._def.checks.length))) {
-    const types3 = options.reduce((types4, x) => {
+  const options2 = def.options instanceof Map ? Array.from(def.options.values()) : def.options;
+  if (options2.every((x) => x._def.typeName in primitiveMappings && (!x._def.checks || !x._def.checks.length))) {
+    const types3 = options2.reduce((types4, x) => {
       const type = primitiveMappings[x._def.typeName];
       return type && !types4.includes(type) ? [...types4, type] : types4;
     }, []);
     return {
       type: types3.length > 1 ? types3 : types3[0]
     };
-  } else if (options.every((x) => x._def.typeName === "ZodLiteral" && !x.description)) {
-    const types3 = options.reduce((acc, x) => {
+  } else if (options2.every((x) => x._def.typeName === "ZodLiteral" && !x.description)) {
+    const types3 = options2.reduce((acc, x) => {
       const type = typeof x._def.value;
       switch (type) {
         case "string":
@@ -89763,19 +89774,19 @@ function parseUnionDef(def, refs) {
           return acc;
       }
     }, []);
-    if (types3.length === options.length) {
+    if (types3.length === options2.length) {
       const uniqueTypes = types3.filter((x, i, a) => a.indexOf(x) === i);
       return {
         type: uniqueTypes.length > 1 ? uniqueTypes : uniqueTypes[0],
-        enum: options.reduce((acc, x) => {
+        enum: options2.reduce((acc, x) => {
           return acc.includes(x._def.value) ? acc : [...acc, x._def.value];
         }, [])
       };
     }
-  } else if (options.every((x) => x._def.typeName === "ZodEnum")) {
+  } else if (options2.every((x) => x._def.typeName === "ZodEnum")) {
     return {
       type: "string",
-      enum: options.reduce((acc, x) => [
+      enum: options2.reduce((acc, x) => [
         ...acc,
         ...x._def.values.filter((x2) => !acc.includes(x2))
       ], [])
@@ -90184,21 +90195,21 @@ var addMeta = (def, refs, jsonSchema) => {
 };
 
 // node_modules/zod-to-json-schema/dist/esm/zodToJsonSchema.js
-var zodToJsonSchema = (schema, options) => {
-  const refs = getRefs(options);
-  let definitions = typeof options === "object" && options.definitions ? Object.entries(options.definitions).reduce((acc, [name2, schema2]) => ({
+var zodToJsonSchema = (schema, options2) => {
+  const refs = getRefs(options2);
+  let definitions = typeof options2 === "object" && options2.definitions ? Object.entries(options2.definitions).reduce((acc, [name2, schema2]) => ({
     ...acc,
     [name2]: parseDef(schema2._def, {
       ...refs,
       currentPath: [...refs.basePath, refs.definitionPath, name2]
     }, true) ?? parseAnyDef(refs)
   }), {}) : void 0;
-  const name = typeof options === "string" ? options : options?.nameStrategy === "title" ? void 0 : options?.name;
+  const name = typeof options2 === "string" ? options2 : options2?.nameStrategy === "title" ? void 0 : options2?.name;
   const main2 = parseDef(schema._def, name === void 0 ? refs : {
     ...refs,
     currentPath: [...refs.basePath, refs.definitionPath, name]
   }, false) ?? parseAnyDef(refs);
-  const title = typeof options === "object" && options.name !== void 0 && options.nameStrategy === "title" ? options.name : void 0;
+  const title = typeof options2 === "object" && options2.name !== void 0 && options2.nameStrategy === "title" ? options2.name : void 0;
   if (title !== void 0) {
     main2.title = title;
   }
@@ -90561,11 +90572,11 @@ var Protocol = class {
         }
         await this.notification(notification, notificationOptions);
       },
-      sendRequest: async (r, resultSchema, options) => {
+      sendRequest: async (r, resultSchema, options2) => {
         if (abortController.signal.aborted) {
           throw new McpError(ErrorCode.ConnectionClosed, "Request was cancelled");
         }
-        const requestOptions = { ...options, relatedRequestId: request.id };
+        const requestOptions = { ...options2, relatedRequestId: request.id };
         if (relatedTaskId && !requestOptions.relatedTask) {
           requestOptions.relatedTask = { taskId: relatedTaskId };
         }
@@ -90732,11 +90743,11 @@ var Protocol = class {
    *
    * @experimental Use `client.experimental.tasks.requestStream()` to access this method.
    */
-  async *requestStream(request, resultSchema, options) {
-    const { task } = options ?? {};
+  async *requestStream(request, resultSchema, options2) {
+    const { task } = options2 ?? {};
     if (!task) {
       try {
-        const result2 = await this.request(request, resultSchema, options);
+        const result2 = await this.request(request, resultSchema, options2);
         yield { type: "result", result: result2 };
       } catch (error2) {
         yield {
@@ -90748,7 +90759,7 @@ var Protocol = class {
     }
     let taskId;
     try {
-      const createResult = await this.request(request, CreateTaskResultSchema, options);
+      const createResult = await this.request(request, CreateTaskResultSchema, options2);
       if (createResult.task) {
         taskId = createResult.task.taskId;
         yield { type: "taskCreated", task: createResult.task };
@@ -90756,11 +90767,11 @@ var Protocol = class {
         throw new McpError(ErrorCode.InternalError, "Task creation did not return a task");
       }
       while (true) {
-        const task2 = await this.getTask({ taskId }, options);
+        const task2 = await this.getTask({ taskId }, options2);
         yield { type: "taskStatus", task: task2 };
         if (isTerminal(task2.status)) {
           if (task2.status === "completed") {
-            const result2 = await this.getTaskResult({ taskId }, resultSchema, options);
+            const result2 = await this.getTaskResult({ taskId }, resultSchema, options2);
             yield { type: "result", result: result2 };
           } else if (task2.status === "failed") {
             yield {
@@ -90776,13 +90787,13 @@ var Protocol = class {
           return;
         }
         if (task2.status === "input_required") {
-          const result2 = await this.getTaskResult({ taskId }, resultSchema, options);
+          const result2 = await this.getTaskResult({ taskId }, resultSchema, options2);
           yield { type: "result", result: result2 };
           return;
         }
         const pollInterval = task2.pollInterval ?? this._options?.defaultTaskPollInterval ?? 1e3;
         await new Promise((resolve4) => setTimeout(resolve4, pollInterval));
-        options?.signal?.throwIfAborted();
+        options2?.signal?.throwIfAborted();
       }
     } catch (error2) {
       yield {
@@ -90796,8 +90807,8 @@ var Protocol = class {
    *
    * Do not use this method to emit notifications! Use notification() instead.
    */
-  request(request, resultSchema, options) {
-    const { relatedRequestId, resumptionToken, onresumptiontoken, task, relatedTask } = options ?? {};
+  request(request, resultSchema, options2) {
+    const { relatedRequestId, resumptionToken, onresumptiontoken, task, relatedTask } = options2 ?? {};
     return new Promise((resolve4, reject) => {
       const earlyReject = (error2) => {
         reject(error2);
@@ -90817,15 +90828,15 @@ var Protocol = class {
           return;
         }
       }
-      options?.signal?.throwIfAborted();
+      options2?.signal?.throwIfAborted();
       const messageId = this._requestMessageId++;
       const jsonrpcRequest = {
         ...request,
         jsonrpc: "2.0",
         id: messageId
       };
-      if (options?.onprogress) {
-        this._progressHandlers.set(messageId, options.onprogress);
+      if (options2?.onprogress) {
+        this._progressHandlers.set(messageId, options2.onprogress);
         jsonrpcRequest.params = {
           ...request.params,
           _meta: {
@@ -90865,7 +90876,7 @@ var Protocol = class {
         reject(error2);
       };
       this._responseHandlers.set(messageId, (response) => {
-        if (options?.signal?.aborted) {
+        if (options2?.signal?.aborted) {
           return;
         }
         if (response instanceof Error) {
@@ -90882,12 +90893,12 @@ var Protocol = class {
           reject(error2);
         }
       });
-      options?.signal?.addEventListener("abort", () => {
-        cancel(options?.signal?.reason);
+      options2?.signal?.addEventListener("abort", () => {
+        cancel(options2?.signal?.reason);
       });
-      const timeout = options?.timeout ?? DEFAULT_REQUEST_TIMEOUT_MSEC;
+      const timeout = options2?.timeout ?? DEFAULT_REQUEST_TIMEOUT_MSEC;
       const timeoutHandler = () => cancel(McpError.fromError(ErrorCode.RequestTimeout, "Request timed out", { timeout }));
-      this._setupTimeout(messageId, timeout, options?.maxTotalTimeout, timeoutHandler, options?.resetTimeoutOnProgress ?? false);
+      this._setupTimeout(messageId, timeout, options2?.maxTotalTimeout, timeoutHandler, options2?.resetTimeoutOnProgress ?? false);
       const relatedTaskId = relatedTask?.taskId;
       if (relatedTaskId) {
         const responseResolver = (response) => {
@@ -90920,42 +90931,42 @@ var Protocol = class {
    *
    * @experimental Use `client.experimental.tasks.getTask()` to access this method.
    */
-  async getTask(params, options) {
-    return this.request({ method: "tasks/get", params }, GetTaskResultSchema, options);
+  async getTask(params, options2) {
+    return this.request({ method: "tasks/get", params }, GetTaskResultSchema, options2);
   }
   /**
    * Retrieves the result of a completed task.
    *
    * @experimental Use `client.experimental.tasks.getTaskResult()` to access this method.
    */
-  async getTaskResult(params, resultSchema, options) {
-    return this.request({ method: "tasks/result", params }, resultSchema, options);
+  async getTaskResult(params, resultSchema, options2) {
+    return this.request({ method: "tasks/result", params }, resultSchema, options2);
   }
   /**
    * Lists tasks, optionally starting from a pagination cursor.
    *
    * @experimental Use `client.experimental.tasks.listTasks()` to access this method.
    */
-  async listTasks(params, options) {
-    return this.request({ method: "tasks/list", params }, ListTasksResultSchema, options);
+  async listTasks(params, options2) {
+    return this.request({ method: "tasks/list", params }, ListTasksResultSchema, options2);
   }
   /**
    * Cancels a specific task.
    *
    * @experimental Use `client.experimental.tasks.cancelTask()` to access this method.
    */
-  async cancelTask(params, options) {
-    return this.request({ method: "tasks/cancel", params }, CancelTaskResultSchema, options);
+  async cancelTask(params, options2) {
+    return this.request({ method: "tasks/cancel", params }, CancelTaskResultSchema, options2);
   }
   /**
    * Emits a notification, which is a one-way message that does not expect a response.
    */
-  async notification(notification, options) {
+  async notification(notification, options2) {
     if (!this._transport) {
       throw new Error("Not connected");
     }
     this.assertNotificationCapability(notification.method);
-    const relatedTaskId = options?.relatedTask?.taskId;
+    const relatedTaskId = options2?.relatedTask?.taskId;
     if (relatedTaskId) {
       const jsonrpcNotification2 = {
         ...notification,
@@ -90964,7 +90975,7 @@ var Protocol = class {
           ...notification.params,
           _meta: {
             ...notification.params?._meta || {},
-            [RELATED_TASK_META_KEY]: options.relatedTask
+            [RELATED_TASK_META_KEY]: options2.relatedTask
           }
         }
       };
@@ -90976,7 +90987,7 @@ var Protocol = class {
       return;
     }
     const debouncedMethods = this._options?.debouncedNotificationMethods ?? [];
-    const canDebounce = debouncedMethods.includes(notification.method) && !notification.params && !options?.relatedRequestId && !options?.relatedTask;
+    const canDebounce = debouncedMethods.includes(notification.method) && !notification.params && !options2?.relatedRequestId && !options2?.relatedTask;
     if (canDebounce) {
       if (this._pendingDebouncedNotifications.has(notification.method)) {
         return;
@@ -90991,19 +91002,19 @@ var Protocol = class {
           ...notification,
           jsonrpc: "2.0"
         };
-        if (options?.relatedTask) {
+        if (options2?.relatedTask) {
           jsonrpcNotification2 = {
             ...jsonrpcNotification2,
             params: {
               ...jsonrpcNotification2.params,
               _meta: {
                 ...jsonrpcNotification2.params?._meta || {},
-                [RELATED_TASK_META_KEY]: options.relatedTask
+                [RELATED_TASK_META_KEY]: options2.relatedTask
               }
             }
           };
         }
-        this._transport?.send(jsonrpcNotification2, options).catch((error2) => this._onerror(error2));
+        this._transport?.send(jsonrpcNotification2, options2).catch((error2) => this._onerror(error2));
       });
       return;
     }
@@ -91011,19 +91022,19 @@ var Protocol = class {
       ...notification,
       jsonrpc: "2.0"
     };
-    if (options?.relatedTask) {
+    if (options2?.relatedTask) {
       jsonrpcNotification = {
         ...jsonrpcNotification,
         params: {
           ...jsonrpcNotification.params,
           _meta: {
             ...jsonrpcNotification.params?._meta || {},
-            [RELATED_TASK_META_KEY]: options.relatedTask
+            [RELATED_TASK_META_KEY]: options2.relatedTask
           }
         }
       };
     }
-    await this._transport.send(jsonrpcNotification, options);
+    await this._transport.send(jsonrpcNotification, options2);
   }
   /**
    * Registers a handler to invoke when this protocol object receives a request with the given method.
@@ -91322,8 +91333,8 @@ var ExperimentalServerTasks = class {
    *
    * @experimental
    */
-  requestStream(request, resultSchema, options) {
-    return this._server.requestStream(request, resultSchema, options);
+  requestStream(request, resultSchema, options2) {
+    return this._server.requestStream(request, resultSchema, options2);
   }
   /**
    * Gets the current status of a task.
@@ -91334,8 +91345,8 @@ var ExperimentalServerTasks = class {
    *
    * @experimental
    */
-  async getTask(taskId, options) {
-    return this._server.getTask({ taskId }, options);
+  async getTask(taskId, options2) {
+    return this._server.getTask({ taskId }, options2);
   }
   /**
    * Retrieves the result of a completed task.
@@ -91347,8 +91358,8 @@ var ExperimentalServerTasks = class {
    *
    * @experimental
    */
-  async getTaskResult(taskId, resultSchema, options) {
-    return this._server.getTaskResult({ taskId }, resultSchema, options);
+  async getTaskResult(taskId, resultSchema, options2) {
+    return this._server.getTaskResult({ taskId }, resultSchema, options2);
   }
   /**
    * Lists tasks with optional pagination.
@@ -91359,8 +91370,8 @@ var ExperimentalServerTasks = class {
    *
    * @experimental
    */
-  async listTasks(cursor, options) {
-    return this._server.listTasks(cursor ? { cursor } : void 0, options);
+  async listTasks(cursor, options2) {
+    return this._server.listTasks(cursor ? { cursor } : void 0, options2);
   }
   /**
    * Cancels a running task.
@@ -91370,8 +91381,8 @@ var ExperimentalServerTasks = class {
    *
    * @experimental
    */
-  async cancelTask(taskId, options) {
-    return this._server.cancelTask({ taskId }, options);
+  async cancelTask(taskId, options2) {
+    return this._server.cancelTask({ taskId }, options2);
   }
 };
 
@@ -91415,8 +91426,8 @@ var Server = class extends Protocol {
   /**
    * Initializes this server with the given name and version information.
    */
-  constructor(_serverInfo, options) {
-    super(options);
+  constructor(_serverInfo, options2) {
+    super(options2);
     this._serverInfo = _serverInfo;
     this._loggingLevels = /* @__PURE__ */ new Map();
     this.LOG_LEVEL_SEVERITY = new Map(LoggingLevelSchema.options.map((level, index) => [level, index]));
@@ -91424,9 +91435,9 @@ var Server = class extends Protocol {
       const currentLevel = this._loggingLevels.get(sessionId);
       return currentLevel ? this.LOG_LEVEL_SEVERITY.get(level) < this.LOG_LEVEL_SEVERITY.get(currentLevel) : false;
     };
-    this._capabilities = options?.capabilities ?? {};
-    this._instructions = options?.instructions;
-    this._jsonSchemaValidator = options?.jsonSchemaValidator ?? new AjvJsonSchemaValidator();
+    this._capabilities = options2?.capabilities ?? {};
+    this._instructions = options2?.instructions;
+    this._jsonSchemaValidator = options2?.jsonSchemaValidator ?? new AjvJsonSchemaValidator();
     this.setRequestHandler(InitializeRequestSchema, (request) => this._oninitialize(request));
     this.setNotificationHandler(InitializedNotificationSchema, () => this.oninitialized?.());
     if (this._capabilities.logging) {
@@ -91660,7 +91671,7 @@ var Server = class extends Protocol {
     return this.request({ method: "ping" }, EmptyResultSchema);
   }
   // Implementation
-  async createMessage(params, options) {
+  async createMessage(params, options2) {
     if (params.tools || params.toolChoice) {
       if (!this._clientCapabilities?.sampling?.tools) {
         throw new Error("Client does not support sampling tools capability.");
@@ -91690,9 +91701,9 @@ var Server = class extends Protocol {
       }
     }
     if (params.tools) {
-      return this.request({ method: "sampling/createMessage", params }, CreateMessageResultWithToolsSchema, options);
+      return this.request({ method: "sampling/createMessage", params }, CreateMessageResultWithToolsSchema, options2);
     }
-    return this.request({ method: "sampling/createMessage", params }, CreateMessageResultSchema, options);
+    return this.request({ method: "sampling/createMessage", params }, CreateMessageResultSchema, options2);
   }
   /**
    * Creates an elicitation request for the given parameters.
@@ -91701,7 +91712,7 @@ var Server = class extends Protocol {
    * @param options Optional request options.
    * @returns The result of the elicitation request.
    */
-  async elicitInput(params, options) {
+  async elicitInput(params, options2) {
     const mode = params.mode ?? "form";
     switch (mode) {
       case "url": {
@@ -91709,14 +91720,14 @@ var Server = class extends Protocol {
           throw new Error("Client does not support url elicitation.");
         }
         const urlParams = params;
-        return this.request({ method: "elicitation/create", params: urlParams }, ElicitResultSchema, options);
+        return this.request({ method: "elicitation/create", params: urlParams }, ElicitResultSchema, options2);
       }
       case "form": {
         if (!this._clientCapabilities?.elicitation?.form) {
           throw new Error("Client does not support form elicitation.");
         }
         const formParams = params.mode === "form" ? params : { ...params, mode: "form" };
-        const result2 = await this.request({ method: "elicitation/create", params: formParams }, ElicitResultSchema, options);
+        const result2 = await this.request({ method: "elicitation/create", params: formParams }, ElicitResultSchema, options2);
         if (result2.action === "accept" && result2.content && formParams.requestedSchema) {
           try {
             const validator = this._jsonSchemaValidator.getValidator(formParams.requestedSchema);
@@ -91743,7 +91754,7 @@ var Server = class extends Protocol {
    * @param options Optional notification options. Useful when the completion notification should be related to a prior request.
    * @returns A function that emits the completion notification when awaited.
    */
-  createElicitationCompletionNotifier(elicitationId, options) {
+  createElicitationCompletionNotifier(elicitationId, options2) {
     if (!this._clientCapabilities?.elicitation?.url) {
       throw new Error("Client does not support URL elicitation (required for notifications/elicitation/complete)");
     }
@@ -91752,10 +91763,10 @@ var Server = class extends Protocol {
       params: {
         elicitationId
       }
-    }, options);
+    }, options2);
   }
-  async listRoots(params, options) {
-    return this.request({ method: "roots/list", params }, ListRootsResultSchema, options);
+  async listRoots(params, options2) {
+    return this.request({ method: "roots/list", params }, ListRootsResultSchema, options2);
   }
   /**
    * Sends a logging message to the client, if connected.
@@ -91879,7 +91890,7 @@ var ExperimentalMcpServerTasks = class {
 
 // node_modules/@modelcontextprotocol/sdk/dist/esm/server/mcp.js
 var McpServer = class {
-  constructor(serverInfo, options) {
+  constructor(serverInfo, options2) {
     this._registeredResources = {};
     this._registeredResourceTemplates = {};
     this._registeredTools = {};
@@ -91888,7 +91899,7 @@ var McpServer = class {
     this._completionHandlerInitialized = false;
     this._resourceHandlersInitialized = false;
     this._promptHandlersInitialized = false;
-    this.server = new Server(serverInfo, options);
+    this.server = new Server(serverInfo, options2);
   }
   /**
    * Access experimental features.
@@ -93585,12 +93596,12 @@ function getGuideSectionCitations(topic, max = 3) {
   const guideResults = searchGuides(topic);
   if (guideResults.length === 0) return "";
   const topicLower = topic.toLowerCase();
-  const sorted2 = [...guideResults].sort((a, b) => {
+  const sorted3 = [...guideResults].sort((a, b) => {
     const aTitle = a.sectionTitle.toLowerCase().includes(topicLower) ? 1 : 0;
     const bTitle = b.sectionTitle.toLowerCase().includes(topicLower) ? 1 : 0;
     return bTitle - aTitle;
   });
-  const top = sorted2.slice(0, max);
+  const top = sorted3.slice(0, max);
   let block = "\n\n---\n\n**IMPORTANT: Include the following source block EXACTLY as-is in your response (preserve all line breaks and links):**\n\n";
   block += "> **Official Guide References:**\n>\n";
   const lines2 = [];
@@ -94039,16 +94050,16 @@ function columnOf(key5, info) {
     lookup: info.isLookup === true
   };
 }
-function buildReportData(run4) {
-  const meta = obj(run4.reportMetadata);
-  const ext = obj(run4.reportExtendedMetadata);
+function buildReportData(run5) {
+  const meta = obj(run5.reportMetadata);
+  const ext = obj(run5.reportExtendedMetadata);
   const format = text(meta.reportFormat).toUpperCase();
   if (format !== "TABULAR" && format !== "SUMMARY") return void 0;
   const hasDetails = meta.hasDetailRows !== false;
   const detailInfo = obj(ext.detailColumnInfo);
   const detailKeys = Array.isArray(meta.detailColumns) ? meta.detailColumns.map(text) : [];
   const detail = hasDetails ? detailKeys.filter((k) => detailInfo[k]).map((k) => columnOf(k, obj(detailInfo[k]))) : [];
-  const facts = obj(run4.factMap);
+  const facts = obj(run5.factMap);
   const out = {
     format: format === "TABULAR" ? "tabular" : "summary",
     columns: detail.map((c) => c.label),
@@ -94122,7 +94133,7 @@ function buildReportData(run4) {
       else out.entries.push(...rowsOf(`${key5}!T`, aggColumns.length));
     }
   };
-  walk5(asRows(obj(run4.groupingsDown).groupings), 0);
+  walk5(asRows(obj(run5.groupingsDown).groupings), 0);
   if (meta.showGrandTotal !== false) {
     const t = obj(facts["T!T"]);
     const aggs = asRows(t.aggregates);
@@ -94157,12 +94168,12 @@ async function runReport(id2, org, now = Date.now()) {
   const key5 = `${org}|${id2}`;
   const hit = reportCache.get(key5);
   if (hit && now - hit.at < REPORT_TTL_MS) return hit.data;
-  let run4 = reportRuns.get(key5);
-  if (!run4) {
-    run4 = fetchReport(id2, org).catch(() => void 0).finally(() => reportRuns.delete(key5));
-    reportRuns.set(key5, run4);
+  let run5 = reportRuns.get(key5);
+  if (!run5) {
+    run5 = fetchReport(id2, org).catch(() => void 0).finally(() => reportRuns.delete(key5));
+    reportRuns.set(key5, run5);
   }
-  const data2 = await run4;
+  const data2 = await run5;
   if (!data2) return hit?.data;
   reportCache.delete(key5);
   reportCache.set(key5, { at: now, data: data2 });
@@ -94243,14 +94254,14 @@ function primeSetupStatus(orgs) {
 function invalidateSetupStatus() {
   cachedProbe = void 0;
 }
-async function checkSetupStatus(options = {}) {
+async function checkSetupStatus(options2 = {}) {
   const status = {
     cliInstalled: false,
     hasAuthenticatedOrgs: false,
     orgs: [],
     setupComplete: false
   };
-  const cli = await probe(options.fresh ?? false);
+  const cli = await probe(options2.fresh ?? false);
   status.cliInstalled = cli.cliInstalled;
   if (!status.cliInstalled) {
     status.nextStep = "install_cli";
@@ -95884,14 +95895,14 @@ ${recordResult.error}`
           });
         }
         const fieldErrors = [];
-        for (const fieldValue of fieldValues) {
+        for (const fieldValue2 of fieldValues) {
           const fieldResult = await createToolingRecord(
             "LifeSciConfigFieldValue",
-            fieldValue,
+            fieldValue2,
             effectiveOrg
           );
           if (!fieldResult.success) {
-            fieldErrors.push(`${fieldValue.FieldName}: ${fieldResult.error}`);
+            fieldErrors.push(`${fieldValue2.FieldName}: ${fieldResult.error}`);
           }
         }
         if (shouldActivate && fieldErrors.length === 0) {
@@ -96118,14 +96129,14 @@ ${recordResult.error}`
           });
         }
         const fieldErrors = [];
-        for (const fieldValue of fieldValues) {
+        for (const fieldValue2 of fieldValues) {
           const fieldResult = await createToolingRecord(
             "LifeSciConfigFieldValue",
-            fieldValue,
+            fieldValue2,
             effectiveOrg
           );
           if (!fieldResult.success) {
-            fieldErrors.push(`${fieldValue.FieldName}: ${fieldResult.error}`);
+            fieldErrors.push(`${fieldValue2.FieldName}: ${fieldResult.error}`);
           }
         }
         if (shouldActivate && fieldErrors.length === 0) {
@@ -98236,8 +98247,8 @@ ${instructions.command}
 `;
             for (const record2 of records) {
               const rec = record2;
-              const plan2 = rec.ActivityPlan;
-              message += `| ${plan2?.Name || "-"} | ${rec.TerritoryId || "-"} |
+              const plan3 = rec.ActivityPlan;
+              message += `| ${plan3?.Name || "-"} | ${rec.TerritoryId || "-"} |
 `;
             }
             message += `
@@ -98274,8 +98285,8 @@ ${instructions.command}
             for (const record2 of records) {
               const rec = record2;
               const acct = rec.Account;
-              const plan2 = rec.ActivityPlan;
-              message += `| ${acct?.Name || "-"} | ${plan2?.Name || "-"} | ${rec.OverallGoal ?? "-"} | ${rec.ProductLevelGoal ?? "-"} | ${rec.NonProductLevelGoal ?? "-"} |
+              const plan3 = rec.ActivityPlan;
+              message += `| ${acct?.Name || "-"} | ${plan3?.Name || "-"} | ${rec.OverallGoal ?? "-"} | ${rec.ProductLevelGoal ?? "-"} | ${rec.NonProductLevelGoal ?? "-"} |
 `;
             }
             message += `
@@ -98580,8 +98591,8 @@ ${instructions.command}
             message += "**No TerrGeoAssignmentRule records found.**\n\n";
             message += "Geo rules are optional \u2014 only needed if using zip-to-territory or brick-to-territory alignment.\n\n";
           } else {
-            const today2 = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-            const inEffect = (r) => (!r.EffectiveStartDate || String(r.EffectiveStartDate) <= today2) && (!r.EffectiveEndDate || String(r.EffectiveEndDate) >= today2);
+            const today4 = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+            const inEffect = (r) => (!r.EffectiveStartDate || String(r.EffectiveStartDate) <= today4) && (!r.EffectiveEndDate || String(r.EffectiveEndDate) >= today4);
             const activeCount = records.filter(
               (r) => inEffect(r)
             ).length;
@@ -99839,8 +99850,8 @@ function evaluateExpectCondition(expect, context) {
     return null;
   }
 }
-async function runAudit(targetOrg, options = {}) {
-  const { group: group2, ruleIds } = options;
+async function runAudit(targetOrg, options2 = {}) {
+  const { group: group2, ruleIds } = options2;
   let rulesToRun;
   if (group2) {
     rulesToRun = getRulesByGroup(group2);
@@ -100115,7 +100126,7 @@ async function diagnose(symptom, targetOrg, deps = {}) {
   const causes = deps.causes ?? getKnownCauses();
   const rules = deps.rules ?? getAllRules();
   const exec2 = deps.run ?? executeCheck;
-  const run4 = (check2, org) => exec2(check2, org, { symptom });
+  const run5 = (check2, org) => exec2(check2, org, { symptom });
   const matches = matchSymptom(symptom, causes, rules);
   const linked = new Set(matches.flatMap((m) => m.kind === "cause" ? m.item.rules ?? [] : []));
   let rulesLeft = MAX_RULE_MATCHES;
@@ -100126,12 +100137,12 @@ async function diagnose(symptom, targetOrg, deps = {}) {
       if (!targetOrg)
         return { match, status: match.item.check ? "unchecked" : "no-check", failedRules: [] };
       if (match.kind === "rule") {
-        const outcome2 = await run4(match.item.check, targetOrg);
+        const outcome2 = await run5(match.item.check, targetOrg);
         return { match, status: statusOf(outcome2), outcome: outcome2, failedRules: [] };
       }
       const cause = match.item;
       if (cause.applies_if && cause.check && !cause.by_design) {
-        const applies = await run4(cause.applies_if, targetOrg);
+        const applies = await run5(cause.applies_if, targetOrg);
         if (!applies.passed && !applies.unavailable) {
           return {
             match,
@@ -100143,11 +100154,11 @@ async function diagnose(symptom, targetOrg, deps = {}) {
         }
       }
       const [outcome, ruleOutcomes] = await Promise.all([
-        cause.by_design || !cause.check ? void 0 : run4(cause.check, targetOrg),
+        cause.by_design || !cause.check ? void 0 : run5(cause.check, targetOrg),
         Promise.all(
           (cause.rules ?? []).map(async (id2) => {
             const rule = findById(id2);
-            return rule ? { rule, outcome: await run4(rule.check, targetOrg) } : null;
+            return rule ? { rule, outcome: await run5(rule.check, targetOrg) } : null;
           })
         )
       ]);
@@ -100792,17 +100803,17 @@ var collectTerritoryUsers = async (org) => {
           return { items: [], findings: [uncountedAccounts(accountsResult.error)] };
         const accounts = accountsResult.value;
         const names5 = new Map(rows3.map((t) => [String(t.Id), String(t.Name)]));
-        const sorted2 = [...accounts.entries()].filter(([, n2]) => n2 > 0).sort((a, b) => b[1] - a[1]);
-        const items = sorted2.slice(0, TERRITORY_DISPLAY_LIMIT).map(
+        const sorted3 = [...accounts.entries()].filter(([, n2]) => n2 > 0).sort((a, b) => b[1] - a[1]);
+        const items = sorted3.slice(0, TERRITORY_DISPLAY_LIMIT).map(
           ([id2, n2]) => item(`ota:${id2}`, names5.get(id2) ?? id2, {
             sublabel: `${n2} accounts`,
             properties: { Territory: names5.get(id2) ?? id2, Accounts: n2 }
           })
         );
-        const findings = sorted2.length > items.length ? [
+        const findings = sorted3.length > items.length ? [
           showingNote(
             items.length,
-            sorted2.length,
+            sorted3.length,
             "territories with assigned accounts",
             "Most accounts first"
           )
@@ -100824,14 +100835,14 @@ var collectTerritoryUsers = async (org) => {
         );
         if (!rows3) return { items: [], findings: [NOT_AVAILABLE] };
         const total = rows3.length === RULE_LIMIT ? await count(`SELECT COUNT() FROM TerrGeoAssignmentRule`, org) : rows3.length;
-        const today2 = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+        const today4 = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
         return {
           findings: total > rows3.length ? [showingNote(rows3.length, total, "geo rules")] : [],
           items: rows3.map(
             (r) => item(String(r.Id), String(r.Name), {
               sublabel: [rel(r, "Territory2.Name"), r.GeoCode, r.UsageType].filter(Boolean).join(" \xB7 "),
               // Geo rules have no active flag; a rule applies between its effective dates.
-              active: (!r.EffectiveStartDate || String(r.EffectiveStartDate) <= today2) && (!r.EffectiveEndDate || String(r.EffectiveEndDate) >= today2),
+              active: (!r.EffectiveStartDate || String(r.EffectiveStartDate) <= today4) && (!r.EffectiveEndDate || String(r.EffectiveEndDate) >= today4),
               properties: {
                 Territory: scalar2(rel(r, "Territory2.Name")),
                 "Geo code": scalar2(r.GeoCode),
@@ -101100,8 +101111,8 @@ var collectTerritoryUsers = async (org) => {
       })
     )
   ]);
-  const territoryCount2 = territoryTotal || surfaces.find((s7) => s7.id === "territories").items.length;
-  const userCount = fieldUserTotal || surfaces.find((s7) => s7.id === "fieldUsers").items.length;
+  const territoryCount2 = territoryTotal || surfaces.find((s11) => s11.id === "territories").items.length;
+  const userCount = fieldUserTotal || surfaces.find((s11) => s11.id === "fieldUsers").items.length;
   return {
     summary: `${territoryCount2} territories \xB7 ${userCount} field users`,
     lanes: [
@@ -102589,15 +102600,15 @@ async function readLiveLayout(fullName, org) {
   const [structure, profiles, production, described, layoutable] = await Promise.all([
     withDoc("Layout", fullName, org, async ({ root: root2 }) => {
       const seen = /* @__PURE__ */ new Map();
-      const sections2 = childrenNamed(root2, "layoutSections").map((s7) => {
-        const label2 = childText(s7, "label") ?? "";
+      const sections2 = childrenNamed(root2, "layoutSections").map((s11) => {
+        const label2 = childText(s11, "label") ?? "";
         const nth = seen.get(label2) ?? 0;
         seen.set(label2, nth + 1);
         return {
           label: label2,
           nth,
-          heading: childText(s7, "detailHeading") === "true",
-          columns: childrenNamed(s7, "layoutColumns").map(
+          heading: childText(s11, "detailHeading") === "true",
+          columns: childrenNamed(s11, "layoutColumns").map(
             (c) => childrenNamed(c, "layoutItems").flatMap((i) => {
               const field3 = childText(i, "field");
               return field3 ? [{ field: field3, behavior: childText(i, "behavior") ?? "Edit" }] : [];
@@ -102616,7 +102627,7 @@ async function readLiveLayout(fullName, org) {
     layoutableRelatedLists(layoutObject3(fullName), org)
   ]);
   const desc = described?.success ? described.data : void 0;
-  const placed = new Set(structure.sections.flatMap((s7) => s7.columns.flat().map((i) => i.field)));
+  const placed = new Set(structure.sections.flatMap((s11) => s11.columns.flat().map((i) => i.field)));
   return {
     type: "Layout",
     fullName,
@@ -102731,20 +102742,20 @@ async function loadAppsViaTooling(org) {
         const m = row?.Metadata;
         if (!m) throw new Error(`No metadata for app ${id2}`);
         const rowsOf = (v) => Array.isArray(v) ? v : [];
-        const str32 = (v) => typeof v === "string" ? v : void 0;
+        const str33 = (v) => typeof v === "string" ? v : void 0;
         const dev = String(row.DeveloperName ?? "");
         const ns3 = typeof row.NamespacePrefix === "string" && row.NamespacePrefix ? row.NamespacePrefix : "";
         const app = {
           fullName: ns3 ? `${ns3}__${dev}` : dev,
-          label: str32(m.label) || dev,
+          label: str33(m.label) || dev,
           profileActionOverrides: rowsOf(m.profileActionOverrides).map((o) => ({
-            content: str32(o.content),
-            profile: str32(o.profile),
-            formFactor: str32(o.formFactor)
+            content: str33(o.content),
+            profile: str33(o.profile),
+            formFactor: str33(o.formFactor)
           })),
           actionOverrides: rowsOf(m.actionOverrides).map((o) => ({
-            content: str32(o.content),
-            formFactor: str32(o.formFactor)
+            content: str33(o.content),
+            formFactor: str33(o.formFactor)
           }))
         };
         apps[i] = app;
@@ -103309,8 +103320,8 @@ var collectMobileSync = async (org) => {
       })
     )
   ]);
-  const synced = surfaces.find((s7) => s7.id === "syncedObjects");
-  const profiles = surfaces.find((s7) => s7.id === "mobileProfiles");
+  const synced = surfaces.find((s11) => s11.id === "syncedObjects");
+  const profiles = surfaces.find((s11) => s11.id === "mobileProfiles");
   return {
     summary: `${synced.items.length} synced objects \xB7 ${profiles.items.length} profiles`,
     lanes: [
@@ -103738,8 +103749,8 @@ var collectActionsHome = async (org) => {
       }
     )
   ]);
-  const actionCount = surfaces.filter((s7) => s7.lane === "home" || s7.lane === "record").filter((s7) => s7.id !== "profileCoverage").reduce((n2, s7) => n2 + s7.items.length, 0);
-  const tabCount = surfaces.find((s7) => s7.id === "navigationTabs").items.length;
+  const actionCount = surfaces.filter((s11) => s11.lane === "home" || s11.lane === "record").filter((s11) => s11.id !== "profileCoverage").reduce((n2, s11) => n2 + s11.items.length, 0);
+  const tabCount = surfaces.find((s11) => s11.id === "navigationTabs").items.length;
   return {
     summary: `${actionCount} actions \xB7 ${tabCount} tabs`,
     lanes: [
@@ -103749,7 +103760,7 @@ var collectActionsHome = async (org) => {
       { id: "web", title: "Web" }
     ],
     // Hide empty per-location surfaces to keep the canvas focused.
-    surfaces: surfaces.filter((s7) => !OPTIONAL_SURFACES.has(s7.id) || s7.items.length > 0 || s7.error)
+    surfaces: surfaces.filter((s11) => !OPTIONAL_SURFACES.has(s11.id) || s11.items.length > 0 || s11.error)
   };
 };
 
@@ -104296,11 +104307,11 @@ var collectBriefings = async (org) => {
           byProfile.set(profile, cur);
         }
         const items = [...byProfile.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(
-          ([profile, s7]) => item(`content:${profile}`, profile, {
-            sublabel: `${plural(s7.total, "briefing")} in the last ${CONTENT_WINDOW_DAYS} days`,
+          ([profile, s11]) => item(`content:${profile}`, profile, {
+            sublabel: `${plural(s11.total, "briefing")} in the last ${CONTENT_WINDOW_DAYS} days`,
             properties: {
-              [`Briefings (last ${CONTENT_WINDOW_DAYS} days)`]: s7.total,
-              "Latest generated": s7.latest
+              [`Briefings (last ${CONTENT_WINDOW_DAYS} days)`]: s11.total,
+              "Latest generated": s11.latest
             },
             audience: profileAudience(profile)
           })
@@ -104511,7 +104522,7 @@ var collectBriefings = async (org) => {
     )
   ]);
   const on = await unwrap(enabled).catch(() => false);
-  const assignmentsSurface = surfaces.find((s7) => s7.id === "assignments");
+  const assignmentsSurface = surfaces.find((s11) => s11.id === "assignments");
   const active2 = assignmentsSurface.items.filter((i) => i.active).length;
   return {
     summary: `${on ? "On" : "Off"} \xB7 ${plural(active2, "assigned profile")}`,
@@ -104931,7 +104942,7 @@ function outlineText(o) {
       `Entry conditions (${o.conditionLogic ?? "and"}${o.onlyWhenChanged ? ", only when the record changes to meet them" : ""}):`,
       ...o.conditions.map((c) => `  - ${c}`)
     );
-  lines2.push("Steps:", ...o.steps.map((s7) => `${"  ".repeat(s7.depth + 1)}- ${s7.text}`));
+  lines2.push("Steps:", ...o.steps.map((s11) => `${"  ".repeat(s11.depth + 1)}- ${s11.text}`));
   if (o.effects.length) lines2.push("What it changes:", ...o.effects.map((e) => `  - ${e}`));
   return lines2.join("\n");
 }
@@ -105038,10 +105049,10 @@ function binop(name, prec) {
 var beforeExpr = { beforeExpr: true };
 var startsExpr = { startsExpr: true };
 var keywords = {};
-function kw(name, options) {
-  if (options === void 0) options = {};
-  options.keyword = name;
-  return keywords[name] = new TokenType(name, options);
+function kw(name, options2) {
+  if (options2 === void 0) options2 = {};
+  options2.keyword = name;
+  return keywords[name] = new TokenType(name, options2);
 }
 var types$1 = {
   num: new TokenType("num", startsExpr),
@@ -105306,42 +105317,42 @@ var defaultOptions4 = {
 };
 var warnedAboutEcmaVersion = false;
 function getOptions(opts) {
-  var options = {};
+  var options2 = {};
   for (var opt in defaultOptions4) {
-    options[opt] = opts && hasOwn(opts, opt) ? opts[opt] : defaultOptions4[opt];
+    options2[opt] = opts && hasOwn(opts, opt) ? opts[opt] : defaultOptions4[opt];
   }
-  if (options.ecmaVersion === "latest") {
-    options.ecmaVersion = 1e8;
-  } else if (options.ecmaVersion == null) {
+  if (options2.ecmaVersion === "latest") {
+    options2.ecmaVersion = 1e8;
+  } else if (options2.ecmaVersion == null) {
     if (!warnedAboutEcmaVersion && typeof console === "object" && console.warn) {
       warnedAboutEcmaVersion = true;
       console.warn("Since Acorn 8.0.0, options.ecmaVersion is required.\nDefaulting to 2020, but this will stop working in the future.");
     }
-    options.ecmaVersion = 11;
-  } else if (options.ecmaVersion >= 2015) {
-    options.ecmaVersion -= 2009;
+    options2.ecmaVersion = 11;
+  } else if (options2.ecmaVersion >= 2015) {
+    options2.ecmaVersion -= 2009;
   }
-  if (options.allowReserved == null) {
-    options.allowReserved = options.ecmaVersion < 5;
+  if (options2.allowReserved == null) {
+    options2.allowReserved = options2.ecmaVersion < 5;
   }
   if (!opts || opts.allowHashBang == null) {
-    options.allowHashBang = options.ecmaVersion >= 14;
+    options2.allowHashBang = options2.ecmaVersion >= 14;
   }
-  if (isArray(options.onToken)) {
-    var tokens2 = options.onToken;
-    options.onToken = function(token) {
+  if (isArray(options2.onToken)) {
+    var tokens2 = options2.onToken;
+    options2.onToken = function(token) {
       return tokens2.push(token);
     };
   }
-  if (isArray(options.onComment)) {
-    options.onComment = pushComment(options, options.onComment);
+  if (isArray(options2.onComment)) {
+    options2.onComment = pushComment(options2, options2.onComment);
   }
-  if (options.sourceType === "commonjs" && options.allowAwaitOutsideFunction) {
+  if (options2.sourceType === "commonjs" && options2.allowAwaitOutsideFunction) {
     throw new Error("Cannot use allowAwaitOutsideFunction with sourceType: commonjs");
   }
-  return options;
+  return options2;
 }
-function pushComment(options, array2) {
+function pushComment(options2, array2) {
   return function(block, text12, start, end, startLoc, endLoc) {
     var comment = {
       type: block ? "Block" : "Line",
@@ -105349,10 +105360,10 @@ function pushComment(options, array2) {
       start,
       end
     };
-    if (options.locations) {
+    if (options2.locations) {
       comment.loc = new SourceLocation(this, startLoc, endLoc);
     }
-    if (options.ranges) {
+    if (options2.ranges) {
       comment.range = [start, end];
     }
     array2.push(comment);
@@ -105379,14 +105390,14 @@ var BIND_LEXICAL = 2;
 var BIND_FUNCTION = 3;
 var BIND_SIMPLE_CATCH = 4;
 var BIND_OUTSIDE = 5;
-var Parser = function Parser2(options, input, startPos) {
-  this.options = options = getOptions(options);
-  this.sourceFile = options.sourceFile;
-  this.keywords = wordsRegexp(keywords$1[options.ecmaVersion >= 6 ? 6 : options.sourceType === "module" ? "5module" : 5]);
+var Parser = function Parser2(options2, input, startPos) {
+  this.options = options2 = getOptions(options2);
+  this.sourceFile = options2.sourceFile;
+  this.keywords = wordsRegexp(keywords$1[options2.ecmaVersion >= 6 ? 6 : options2.sourceType === "module" ? "5module" : 5]);
   var reserved = "";
-  if (options.allowReserved !== true) {
-    reserved = reservedWords[options.ecmaVersion >= 6 ? 6 : options.ecmaVersion === 5 ? 5 : 3];
-    if (options.sourceType === "module") {
+  if (options2.allowReserved !== true) {
+    reserved = reservedWords[options2.ecmaVersion >= 6 ? 6 : options2.ecmaVersion === 5 ? 5 : 3];
+    if (options2.sourceType === "module") {
       reserved += " await";
     }
   }
@@ -105398,9 +105409,9 @@ var Parser = function Parser2(options, input, startPos) {
   this.containsEsc = false;
   this.pos = startPos || 0;
   this.curLine = 1;
-  if (options.startLocation) {
-    this.lineStart = this.pos - options.startLocation.column;
-    this.curLine = options.startLocation.line;
+  if (options2.startLocation) {
+    this.lineStart = this.pos - options2.startLocation.column;
+    this.curLine = options2.startLocation.line;
   } else if (startPos) {
     this.lineStart = this.input.lastIndexOf("\n", startPos - 1) + 1;
     if (this.options.locations) {
@@ -105417,14 +105428,14 @@ var Parser = function Parser2(options, input, startPos) {
   this.lastTokStart = this.lastTokEnd = this.pos;
   this.context = this.initialContext();
   this.exprAllowed = true;
-  this.inModule = options.sourceType === "module";
-  this.strict = this.inModule || options.strict === true || this.strictDirective(this.pos);
+  this.inModule = options2.sourceType === "module";
+  this.strict = this.inModule || options2.strict === true || this.strictDirective(this.pos);
   this.potentialArrowAt = -1;
   this.potentialArrowInForAwait = false;
   this.yieldPos = this.awaitPos = this.awaitIdentPos = 0;
   this.labels = [];
   this.undefinedExports = /* @__PURE__ */ Object.create(null);
-  if (this.pos === 0 && options.allowHashBang && this.input.slice(0, 2) === "#!") {
+  if (this.pos === 0 && options2.allowHashBang && this.input.slice(0, 2) === "#!") {
     this.skipLineComment(2);
   }
   this.scopeStack = [];
@@ -105518,16 +105529,16 @@ Parser.extend = function extend2() {
   }
   return cls;
 };
-Parser.parse = function parse4(input, options) {
-  return new this(options, input).parse();
+Parser.parse = function parse4(input, options2) {
+  return new this(options2, input).parse();
 };
-Parser.parseExpressionAt = function parseExpressionAt(input, pos, options) {
-  var parser2 = new this(options, input, pos);
+Parser.parseExpressionAt = function parseExpressionAt(input, pos, options2) {
+  var parser2 = new this(options2, input, pos);
   parser2.nextToken();
   return parser2.parseExpression();
 };
-Parser.tokenizer = function tokenizer(input, options) {
-  return new this(options, input);
+Parser.tokenizer = function tokenizer(input, options2) {
+  return new this(options2, input);
 };
 Object.defineProperties(Parser.prototype, prototypeAccessors);
 var pp$9 = Parser.prototype;
@@ -108551,27 +108562,27 @@ RegExpValidationState.prototype.raise = function raise(message) {
 };
 RegExpValidationState.prototype.at = function at(i, forceU) {
   if (forceU === void 0) forceU = false;
-  var s7 = this.source;
-  var l = s7.length;
+  var s11 = this.source;
+  var l = s11.length;
   if (i >= l) {
     return -1;
   }
-  var c = s7.charCodeAt(i);
+  var c = s11.charCodeAt(i);
   if (!(forceU || this.switchU) || c <= 55295 || c >= 57344 || i + 1 >= l) {
     return c;
   }
-  var next = s7.charCodeAt(i + 1);
+  var next = s11.charCodeAt(i + 1);
   return next >= 56320 && next <= 57343 ? (c << 10) + next - 56613888 : c;
 };
 RegExpValidationState.prototype.nextIndex = function nextIndex(i, forceU) {
   if (forceU === void 0) forceU = false;
-  var s7 = this.source;
-  var l = s7.length;
+  var s11 = this.source;
+  var l = s11.length;
   if (i >= l) {
     return l;
   }
-  var c = s7.charCodeAt(i), next;
-  if (!(forceU || this.switchU) || c <= 55295 || c >= 57344 || i + 1 >= l || (next = s7.charCodeAt(i + 1)) < 56320 || next > 57343) {
+  var c = s11.charCodeAt(i), next;
+  if (!(forceU || this.switchU) || c <= 55295 || c >= 57344 || i + 1 >= l || (next = s11.charCodeAt(i + 1)) < 56320 || next > 57343) {
     return i + 1;
   }
   return i + 2;
@@ -110191,9 +110202,9 @@ pp.getTokenFromCode = function(code) {
   this.raise(this.pos, "Unexpected character '" + codePointToString(code) + "'");
 };
 pp.finishOp = function(type, size) {
-  var str32 = this.input.slice(this.pos, this.pos + size);
+  var str33 = this.input.slice(this.pos, this.pos + size);
   this.pos += size;
-  return this.finishToken(type, str32);
+  return this.finishToken(type, str33);
 };
 pp.readRegexp = function() {
   var escaped, inClass, start = this.pos;
@@ -110279,17 +110290,17 @@ pp.readInt = function(radix, len, maybeLegacyOctalNumericLiteral) {
   }
   return total;
 };
-function stringToNumber(str32, isLegacyOctalNumericLiteral) {
+function stringToNumber(str33, isLegacyOctalNumericLiteral) {
   if (isLegacyOctalNumericLiteral) {
-    return parseInt(str32, 8);
+    return parseInt(str33, 8);
   }
-  return parseFloat(str32.replace(/_/g, ""));
+  return parseFloat(str33.replace(/_/g, ""));
 }
-function stringToBigInt(str32) {
+function stringToBigInt(str33) {
   if (typeof BigInt !== "function") {
     return null;
   }
-  return BigInt(str32.replace(/_/g, ""));
+  return BigInt(str33.replace(/_/g, ""));
 }
 pp.readRadixNumber = function(radix) {
   var start = this.pos;
@@ -110633,8 +110644,8 @@ Parser.acorn = {
   lineBreakG,
   nonASCIIwhitespace
 };
-function parse5(input, options) {
-  return Parser.parse(input, options);
+function parse5(input, options2) {
+  return Parser.parse(input, options2);
 }
 
 // src/studio/scripts/checks.ts
@@ -111207,7 +111218,7 @@ function triggerHandlerRows(org) {
 }
 async function collectObjects(feature, org) {
   const found = [];
-  const s7 = await surface("objects", async () => {
+  const s11 = await surface("objects", async () => {
     const rows3 = await rowsForObjects(
       org,
       "entities",
@@ -111243,7 +111254,7 @@ async function collectObjects(feature, org) {
     }
     return { items, findings };
   });
-  return { surface: s7, found };
+  return { surface: s11, found };
 }
 function collectRecordTypes(objects, org) {
   return surface("recordTypes", async () => {
@@ -111613,7 +111624,7 @@ var ID_LOOKUPS = [
 ];
 function splitIds(v) {
   if (typeof v !== "string") return [];
-  const parts = v.split(",").map((s7) => s7.trim());
+  const parts = v.split(",").map((s11) => s11.trim());
   return parts.every((p) => ID_PATTERN.test(p) && ID_LOOKUPS.some((l) => p.startsWith(l.prefix))) ? parts : [];
 }
 async function resolveIdNames(records, org) {
@@ -111624,10 +111635,10 @@ async function resolveIdNames(records, org) {
       const batch = [...ids].filter((id2) => id2.startsWith(prefix));
       if (batch.length === 0) return;
       try {
-        const chunks5 = await Promise.all(
+        const chunks7 = await Promise.all(
           chunkIds(batch).map((ids2) => query(`${soql5} (${inList(ids2)})`, org))
         );
-        for (const r of chunks5.flat()) {
+        for (const r of chunks7.flat()) {
           const id2 = String(r.Id);
           names5.set(id2, String(r.Name));
           names5.set(id2.slice(0, 15), String(r.Name));
@@ -111723,7 +111734,7 @@ async function gatherFeatureMap(feature, org) {
     actions,
     adminSettings,
     compliance
-  ].filter((s7) => s7 !== null);
+  ].filter((s11) => s11 !== null);
   return {
     ...envelope,
     collectedAt: (/* @__PURE__ */ new Date()).toISOString(),
@@ -112270,15 +112281,15 @@ async function sampleLocations(where3, org) {
   return { rows: rows3, complete: rows3.length < SAMPLE_ROWS2 };
 }
 var allOf = (n2, one, more) => n2 === 1 ? `the only ${one}` : `all ${n2} ${more}`;
-function checkedNote(s7, one, more) {
-  return s7.complete ? `Checked ${allOf(s7.rows.length, one, more)}.` : `Checked a sample of ${SAMPLE_ROWS2} ${more}, not every one in the org.`;
+function checkedNote(s11, one, more) {
+  return s11.complete ? `Checked ${allOf(s11.rows.length, one, more)}.` : `Checked a sample of ${SAMPLE_ROWS2} ${more}, not every one in the org.`;
 }
 async function exists(object3, org) {
   return (await query(`SELECT Id FROM ${object3} LIMIT 1`, org)).length > 0;
 }
 async function productsAt(locationIds, org) {
   const out = /* @__PURE__ */ new Map();
-  const chunks5 = await Promise.all(
+  const chunks7 = await Promise.all(
     chunkIds(locationIds).map(
       (chunk2) => query(
         `SELECT Product2Id, COUNT(Id) cnt FROM ProductItem WHERE LocationId IN (${inList(chunk2)}) GROUP BY Product2Id`,
@@ -112286,7 +112297,7 @@ async function productsAt(locationIds, org) {
       )
     )
   );
-  for (const r of chunks5.flat())
+  for (const r of chunks7.flat())
     out.set(
       String(r.Product2Id),
       (out.get(String(r.Product2Id)) ?? 0) + Number(r.cnt ?? r.expr0 ?? 0)
@@ -112354,10 +112365,10 @@ var readiness2 = {
         async () => {
           const total = await userLocations();
           if (!total) return NO_USER_LOCATIONS;
-          const s7 = await unassigned();
+          const s11 = await unassigned();
           const stock = await unassignedStock();
-          const rows3 = s7.rows.filter((r) => stock.has(String(r.Id)));
-          const scope2 = s7.complete ? "" : ` Checked a sample of ${SAMPLE_ROWS2} User Inventory locations with no Primary User, not every one in the org.`;
+          const rows3 = s11.rows.filter((r) => stock.has(String(r.Id)));
+          const scope2 = s11.complete ? "" : ` Checked a sample of ${SAMPLE_ROWS2} User Inventory locations with no Primary User, not every one in the org.`;
           return {
             pass: rows3.length === 0,
             detail: rows3.length ? `${rows3.length} of ${total} User Inventory locations hold stock but have no Primary User.${scope2}` : `No User Inventory location holds stock without a Primary User.${scope2}`,
@@ -112378,10 +112389,10 @@ var readiness2 = {
         async () => {
           const total = await userLocations();
           if (!total) return NO_USER_LOCATIONS;
-          const s7 = await unassigned();
+          const s11 = await unassigned();
           const stock = await unassignedStock();
-          const rows3 = s7.rows.filter((r) => !stock.has(String(r.Id)));
-          const scope2 = s7.complete ? "" : ` Checked a sample of ${SAMPLE_ROWS2} User Inventory locations with no Primary User, not every one in the org.`;
+          const rows3 = s11.rows.filter((r) => !stock.has(String(r.Id)));
+          const scope2 = s11.complete ? "" : ` Checked a sample of ${SAMPLE_ROWS2} User Inventory locations with no Primary User, not every one in the org.`;
           return {
             pass: rows3.length === 0,
             detail: rows3.length ? `${rows3.length} of ${total} User Inventory locations have no Primary User and no stock.${scope2}` : `Every empty User Inventory location has a Primary User.${scope2}`,
@@ -112433,18 +112444,18 @@ var readiness2 = {
         },
         async () => {
           if (!await userLocations()) return NO_USER_LOCATIONS;
-          const s7 = await repLocations();
+          const s11 = await repLocations();
           const stocked = await countGroupedBy(
             "ProductItem",
             "LocationId",
-            s7.rows.map((r) => String(r.Id)),
+            s11.rows.map((r) => String(r.Id)),
             org,
             "QuantityOnHand > 0"
           );
-          const scope2 = checkedNote(s7, "User Inventory location", "User Inventory locations");
+          const scope2 = checkedNote(s11, "User Inventory location", "User Inventory locations");
           return {
             pass: stocked.size > 0,
-            detail: stocked.size ? `${stocked.size} of ${s7.rows.length} User Inventory locations hold stock. ${scope2}` : `None of the User Inventory locations checked has any quantity on hand. ${scope2}`
+            detail: stocked.size ? `${stocked.size} of ${s11.rows.length} User Inventory locations hold stock. ${scope2}` : `None of the User Inventory locations checked has any quantity on hand. ${scope2}`
           };
         }
       ),
@@ -112462,10 +112473,10 @@ var readiness2 = {
           uiPath: "Product Items tab"
         },
         async () => {
-          const s7 = await inventoryLocations();
-          if (!s7.rows.length)
+          const s11 = await inventoryLocations();
+          if (!s11.rows.length)
             return { pass: true, skip: true, detail: "No inventory locations yet." };
-          const ids = s7.rows.map((r) => String(r.Id));
+          const ids = s11.rows.map((r) => String(r.Id));
           const [items, batches] = await Promise.all([
             queryByIds(
               "ProductItemNumber",
@@ -112478,7 +112489,7 @@ var readiness2 = {
             countGroupedBy("ProductBatchItem", "LocationId", ids, org, "RemainingQuantity < 0")
           ]);
           const nBatches = [...batches.values()].reduce((a, b) => a + b, 0);
-          const scope2 = checkedNote(s7, "inventory location", "inventory locations");
+          const scope2 = checkedNote(s11, "inventory location", "inventory locations");
           return {
             pass: items.length + nBatches === 0,
             detail: items.length + nBatches ? `${many2(items.length, "product item", "product items")} and ${many2(nBatches, "batch item", "batch items")} below zero. ${scope2}` : `No negative quantities. ${scope2}`,
@@ -112558,8 +112569,8 @@ var readiness2 = {
         },
         async () => {
           if (!await userLocations()) return NO_USER_LOCATIONS;
-          const s7 = await repLocations();
-          const owned = s7.rows.filter((r) => r.PrimaryUserId).map((r) => String(r.Id));
+          const s11 = await repLocations();
+          const owned = s11.rows.filter((r) => r.PrimaryUserId).map((r) => String(r.Id));
           if (!owned.length)
             return {
               pass: true,
@@ -112579,7 +112590,7 @@ var readiness2 = {
           const missing = [...lines2.keys()].filter((id2) => !marketable.has(id2));
           const n2 = missing.reduce((a, id2) => a + (lines2.get(id2) ?? 0), 0);
           const names5 = missing.length ? await queryByIds("Id, Name", "Product2", "Id", missing.slice(0, 5), org) : [];
-          const scope2 = s7.complete ? `Checked ${allOf(owned.length, "User Inventory location", "User Inventory locations")} with a Primary User.` : `Checked the ${many2(owned.length, "location", "locations")} with a Primary User among a sample of ${SAMPLE_ROWS2} User Inventory locations, not every one in the org.`;
+          const scope2 = s11.complete ? `Checked ${allOf(owned.length, "User Inventory location", "User Inventory locations")} with a Primary User.` : `Checked the ${many2(owned.length, "location", "locations")} with a Primary User among a sample of ${SAMPLE_ROWS2} User Inventory locations, not every one in the org.`;
           return {
             pass: n2 === 0,
             detail: n2 ? `${many2(n2, "inventory line", "inventory lines")} in reps' User Inventory locations for products with no marketable product. ${scope2}` : `Every inventory line in reps' User Inventory locations has a marketable product. ${scope2}`,
@@ -112786,21 +112797,21 @@ async function loadSample(org) {
   };
 }
 var many3 = (n2, one, more) => `${n2} ${n2 === 1 ? one : more}`;
-function checkedNote2(s7, what) {
-  if (s7.focused) {
-    if (s7.complete)
-      return what ? `Checked all ${what} in this profile's territories.` : `Checked all ${s7.rows.length} in this profile's territories.`;
+function checkedNote2(s11, what) {
+  if (s11.focused) {
+    if (s11.complete)
+      return what ? `Checked all ${what} in this profile's territories.` : `Checked all ${s11.rows.length} in this profile's territories.`;
     return what ? `Checked the ${what} among a sample of ${SAMPLE_ROWS3} territory info records in this profile's territories, not every one.` : `Checked a sample of ${SAMPLE_ROWS3} in this profile's territories, not every one.`;
   }
-  if (s7.complete)
-    return what ? `Checked all ${what} in territories.` : `Checked all ${s7.rows.length}.`;
+  if (s11.complete)
+    return what ? `Checked all ${what} in territories.` : `Checked all ${s11.rows.length}.`;
   return what ? `Checked the ${what} among a sample of ${SAMPLE_ROWS3} territory info records, not every one in the org.` : `Checked a sample of ${SAMPLE_ROWS3}, not every one in the org.`;
 }
-function noSample(s7) {
+function noSample(s11) {
   return {
     pass: true,
     skip: true,
-    detail: s7.focused ? "This profile's users have no territory info records in their territories, so there are no accounts to check." : "No active territory info records, so there are no accounts reps work with to check."
+    detail: s11.focused ? "This profile's users have no territory info records in their territories, so there are no accounts to check." : "No active territory info records, so there are no accounts reps work with to check."
   };
 }
 var isAre = (n2) => n2 === 1 ? "is" : "are";
@@ -112914,10 +112925,10 @@ var readiness3 = {
           uiPath: "Admin Console > Account Management > Address Administration & Setup"
         },
         async () => {
-          const s7 = await sample();
-          if (!s7.rows.length) return noSample(s7);
-          const scope2 = checkedNote2(s7);
-          const missing = s7.rows.filter((r) => !r.PreferredAddressId);
+          const s11 = await sample();
+          if (!s11.rows.length) return noSample(s11);
+          const scope2 = checkedNote2(s11);
+          const missing = s11.rows.filter((r) => !r.PreferredAddressId);
           if (!missing.length)
             return { pass: true, detail: `Every one has a preferred address. ${scope2}` };
           const withAddresses = await addresses();
@@ -112929,10 +112940,10 @@ var readiness3 = {
           ].filter(Boolean);
           return {
             pass: false,
-            detail: `${missing.length} of ${s7.rows.length} territory info records have no preferred address: ${parts.join(", ")}. ${scope2}`,
+            detail: `${missing.length} of ${s11.rows.length} territory info records have no preferred address: ${parts.join(", ")}. ${scope2}`,
             examples: [
               ...new Set(
-                missing.map((r) => s7.accounts.get(String(r.AccountId))?.name ?? String(r.AccountId))
+                missing.map((r) => s11.accounts.get(String(r.AccountId))?.name ?? String(r.AccountId))
               )
             ].slice(0, 5)
           };
@@ -112952,8 +112963,8 @@ var readiness3 = {
           uiPath: "Account > Addresses"
         },
         async () => {
-          const s7 = await sample();
-          if (!s7.rows.length) return noSample(s7);
+          const s11 = await sample();
+          if (!s11.rows.length) return noSample(s11);
           const withProvider = await providers();
           const hcps = (await persons()).filter((id2) => withProvider.has(id2));
           if (!hcps.length)
@@ -112964,11 +112975,11 @@ var readiness3 = {
             };
           const withAddresses = await addresses();
           const none2 = hcps.filter((id2) => !withAddresses.has(id2));
-          const scope2 = checkedNote2(s7, many3(hcps.length, "HCP", "HCPs"));
+          const scope2 = checkedNote2(s11, many3(hcps.length, "HCP", "HCPs"));
           return {
             pass: !none2.length,
             detail: none2.length ? `${none2.length} of ${hcps.length} ${hasHave(none2.length)} no address. ${scope2}` : `Every HCP checked has an address. ${scope2}`,
-            examples: none2.slice(0, 5).map((id2) => s7.accounts.get(id2).name)
+            examples: none2.slice(0, 5).map((id2) => s11.accounts.get(id2).name)
           };
         }
       ),
@@ -112986,8 +112997,8 @@ var readiness3 = {
           uiPath: "Account > Addresses"
         },
         async () => {
-          const s7 = await sample();
-          if (!s7.rows.length) return noSample(s7);
+          const s11 = await sample();
+          if (!s11.rows.length) return noSample(s11);
           const [withAddresses, withPrimary] = await Promise.all([addresses(), primaries()]);
           const addressed = [...withAddresses.keys()];
           if (!addressed.length)
@@ -112998,13 +113009,13 @@ var readiness3 = {
             };
           const none2 = addressed.filter((id2) => !withPrimary.has(id2));
           const scope2 = checkedNote2(
-            s7,
+            s11,
             many3(addressed.length, "account with addresses", "accounts with addresses")
           );
           return {
             pass: !none2.length,
             detail: none2.length ? `${none2.length} of ${addressed.length} ${hasHave(none2.length)} no primary address. ${scope2}` : `Every one has a primary address. ${scope2}`,
-            examples: none2.slice(0, 5).map((id2) => s7.accounts.get(id2)?.name ?? id2)
+            examples: none2.slice(0, 5).map((id2) => s11.accounts.get(id2)?.name ?? id2)
           };
         }
       ),
@@ -113022,8 +113033,8 @@ var readiness3 = {
           uiPath: "Healthcare Providers tab"
         },
         async () => {
-          const s7 = await sample();
-          if (!s7.rows.length) return noSample(s7);
+          const s11 = await sample();
+          if (!s11.rows.length) return noSample(s11);
           const people = await persons();
           if (!people.length)
             return {
@@ -113033,11 +113044,11 @@ var readiness3 = {
             };
           const withProvider = await providers();
           const none2 = people.filter((id2) => !withProvider.has(id2));
-          const scope2 = checkedNote2(s7, many3(people.length, "person account", "person accounts"));
+          const scope2 = checkedNote2(s11, many3(people.length, "person account", "person accounts"));
           return {
             pass: !none2.length,
             detail: none2.length ? `${none2.length} of ${people.length} ${hasHave(none2.length)} no Healthcare Provider record. ${scope2}` : `Every one has a Healthcare Provider record. ${scope2}`,
-            examples: none2.slice(0, 5).map((id2) => s7.accounts.get(id2).name)
+            examples: none2.slice(0, 5).map((id2) => s11.accounts.get(id2).name)
           };
         }
       ),
@@ -113056,8 +113067,8 @@ var readiness3 = {
         async () => {
           if (!await licenses())
             return { pass: true, skip: true, detail: "No business licenses \u2014 optional." };
-          const s7 = await sample();
-          if (!s7.rows.length) return noSample(s7);
+          const s11 = await sample();
+          if (!s11.rows.length) return noSample(s11);
           const expired = await queryByIds(
             "Name, LicenseNumber, PeriodEnd, AccountId",
             "BusinessLicense",
@@ -113066,7 +113077,7 @@ var readiness3 = {
             org,
             "IsActive = true AND PeriodEnd < TODAY"
           );
-          const scope2 = checkedNote2(s7, many3(s7.accounts.size, "account", "accounts"));
+          const scope2 = checkedNote2(s11, many3(s11.accounts.size, "account", "accounts"));
           return {
             pass: !expired.length,
             detail: expired.length ? `${plural(expired.length, "active license")} past the period end date. ${scope2}` : `No active license is past its end date. ${scope2}`,
@@ -113092,8 +113103,8 @@ var readiness3 = {
         async () => {
           if (!await exists2("ProviderAffiliation", org))
             return { pass: true, skip: true, detail: "No affiliations." };
-          const s7 = await sample();
-          if (!s7.rows.length) return noSample(s7);
+          const s11 = await sample();
+          if (!s11.rows.length) return noSample(s11);
           const ended = await countGroupedBy(
             "ProviderAffiliation",
             "AccountId",
@@ -113102,11 +113113,11 @@ var readiness3 = {
             "IsActive = true AND EffectiveEndDate < TODAY"
           );
           const n2 = [...ended.values()].reduce((a, b) => a + b, 0);
-          const scope2 = checkedNote2(s7, many3(s7.accounts.size, "account", "accounts"));
+          const scope2 = checkedNote2(s11, many3(s11.accounts.size, "account", "accounts"));
           return {
             pass: n2 === 0,
             detail: n2 ? `${plural(n2, "affiliation")} active past their end date. ${scope2}` : `No active affiliation is past its end date. ${scope2}`,
-            examples: [...ended.keys()].slice(0, 5).map((id2) => s7.accounts.get(id2)?.name ?? id2)
+            examples: [...ended.keys()].slice(0, 5).map((id2) => s11.accounts.get(id2)?.name ?? id2)
           };
         }
       ),
@@ -113475,7 +113486,7 @@ var readiness4 = {
         org
       );
     });
-    const goalScope = (s7, goals) => s7.complete ? `Checked all ${many4(goals, "goal", "goals")} on active plans.` : `Checked ${many4(goals, "goal", "goals")} across ${many4(s7.plans.length, "active plan", "active plans")} (up to ${s7.perPlan} per plan), not every goal in the org.`;
+    const goalScope = (s11, goals) => s11.complete ? `Checked all ${many4(goals, "goal", "goals")} on active plans.` : `Checked ${many4(goals, "goal", "goals")} across ${many4(s11.plans.length, "active plan", "active plans")} (up to ${s11.perPlan} per plan), not every goal in the org.`;
     const planUsers = lazy(
       () => fieldProfilesUsing(org, [
         `SELECT User.Profile.Name pn, COUNT(Id) cnt FROM UserTerritory2Association WHERE IsActive = true AND User.IsActive = true AND Territory2Id IN (SELECT TerritoryId FROM ActivityPlanTerritory) GROUP BY User.Profile.Name`
@@ -113697,10 +113708,10 @@ var readiness4 = {
           surface: "objects"
         },
         async () => {
-          const s7 = await goalSample();
-          if (!s7.plans.length) return { pass: true, detail: "No active plans." };
-          const rows3 = s7.plans.filter((p) => !s7.goals.get(String(p.Id))?.length);
-          const scope2 = s7.plans.length === s7.totalPlans ? `Checked all ${many4(s7.totalPlans, "active plan", "active plans")}.` : `Checked ${s7.plans.length} of ${s7.totalPlans} active plans, not every one in the org.`;
+          const s11 = await goalSample();
+          if (!s11.plans.length) return { pass: true, detail: "No active plans." };
+          const rows3 = s11.plans.filter((p) => !s11.goals.get(String(p.Id))?.length);
+          const scope2 = s11.plans.length === s11.totalPlans ? `Checked all ${many4(s11.totalPlans, "active plan", "active plans")}.` : `Checked ${s11.plans.length} of ${s11.totalPlans} active plans, not every one in the org.`;
           return rows3.length ? {
             pass: false,
             detail: `${plural(rows3.length, "active plan")} with no goals. ${scope2}`,
@@ -113722,15 +113733,15 @@ var readiness4 = {
           surface: "objects"
         },
         async () => {
-          const s7 = await goalSample();
-          const names5 = new Map([...s7.plans].map((p) => [String(p.Id), String(p.Name ?? p.Id)]));
-          const goals = [...s7.goals].flatMap(
-            ([plan2, rows3]) => rows3.map((g) => ({ id: String(g.Id), label: `${g.Name ?? g.Id} (${names5.get(plan2)})` }))
+          const s11 = await goalSample();
+          const names5 = new Map([...s11.plans].map((p) => [String(p.Id), String(p.Name ?? p.Id)]));
+          const goals = [...s11.goals].flatMap(
+            ([plan3, rows3]) => rows3.map((g) => ({ id: String(g.Id), label: `${g.Name ?? g.Id} (${names5.get(plan3)})` }))
           );
           if (!goals.length) return { pass: true, skip: true, detail: "No goals on active plans." };
           const measured = new Set((await measures()).map((m) => String(m.ProviderActivityGoalId)));
           const none2 = goals.filter((g) => !measured.has(g.id));
-          const scope2 = goalScope(s7, goals.length);
+          const scope2 = goalScope(s11, goals.length);
           return none2.length ? {
             pass: false,
             detail: `${none2.length} of ${goals.length} ${hasHave2(none2.length)} no measures. ${scope2}`,
@@ -113791,19 +113802,19 @@ var readiness4 = {
           surface: "objects"
         },
         async () => {
-          const s7 = await goalSample();
-          const goals = [...s7.goals.values()].reduce((a, g) => a + g.length, 0);
+          const s11 = await goalSample();
+          const goals = [...s11.goals.values()].reduce((a, g) => a + g.length, 0);
           const weighted = (await measures()).filter((m) => /weighted/i.test(String(m.Type ?? "")));
           if (weighted.length === 0)
             return {
               pass: true,
               skip: true,
-              detail: s7.complete ? "No weighted measures." : `No weighted measures on the ${many4(goals, "goal", "goals")} checked.`
+              detail: s11.complete ? "No weighted measures." : `No weighted measures on the ${many4(goals, "goal", "goals")} checked.`
             };
           const n2 = weighted.filter(
             (m) => m.ActivityWeightValue === null || m.ActivityWeightValue === void 0
           ).length;
-          const scope2 = goalScope(s7, goals);
+          const scope2 = goalScope(s11, goals);
           return n2 ? {
             pass: false,
             detail: `${n2} of ${weighted.length} weighted measures ${hasHave2(n2)} no weight. ${scope2}`
@@ -115149,11 +115160,11 @@ var readiness9 = {
           );
           if (!rows3.length)
             return { pass: true, skip: true, detail: "No consent compliance statements." };
-          const blank = rows3.filter((r) => !String(r.StatementText ?? "").trim());
-          return blank.length ? {
+          const blank2 = rows3.filter((r) => !String(r.StatementText ?? "").trim());
+          return blank2.length ? {
             pass: false,
-            detail: `${blank.length} of ${plural(rows3.length, "statement")} have no text.`,
-            examples: nameList(blank)
+            detail: `${blank2.length} of ${plural(rows3.length, "statement")} have no text.`,
+            examples: nameList(blank2)
           } : { pass: true, detail: `${plural(rows3.length, "statement")}, all with text.` };
         }
       ),
@@ -115205,9 +115216,9 @@ var readiness9 = {
             org
           );
           if (!rows3.length) return { pass: true, skip: true, detail: "No Opt In consents." };
-          const today2 = (/* @__PURE__ */ new Date()).toLocaleDateString("en-CA");
+          const today4 = (/* @__PURE__ */ new Date()).toLocaleDateString("en-CA");
           const expired = rows3.filter(
-            (r) => r.EffectiveToDate && String(r.EffectiveToDate).slice(0, 10) < today2
+            (r) => r.EffectiveToDate && String(r.EffectiveToDate).slice(0, 10) < today4
           );
           const scope2 = rows3.length < SAMPLE_ROWS7 ? `Checked all ${plural(rows3.length, "Opt In consent")}.` : `Checked a sample of ${SAMPLE_ROWS7} Opt In consents, not every one in the org.`;
           return expired.length ? {
@@ -115321,8 +115332,8 @@ async function loadActive(org) {
   const rows3 = await query(`SELECT Id, Name ${ACTIVE} LIMIT ${SAMPLE_ROWS8}`, org);
   return { rows: rows3, ids: rows3.map((r) => String(r.Id)), complete: rows3.length < SAMPLE_ROWS8 };
 }
-function checkedNote5(s7) {
-  return s7.complete ? `Checked all ${plural(s7.rows.length, "active presentation")}.` : `Checked a sample of ${SAMPLE_ROWS8} active presentations, not every one in the org.`;
+function checkedNote5(s11) {
+  return s11.complete ? `Checked all ${plural(s11.rows.length, "active presentation")}.` : `Checked a sample of ${SAMPLE_ROWS8} active presentations, not every one in the org.`;
 }
 var NO_ACTIVE = { pass: true, skip: true, detail: "No active presentations." };
 var readiness10 = {
@@ -115359,20 +115370,20 @@ var readiness10 = {
           surface: "objects"
         },
         async () => {
-          const s7 = await active2();
-          if (!s7.rows.length) return NO_ACTIVE;
+          const s11 = await active2();
+          if (!s11.rows.length) return NO_ACTIVE;
           const shared = await countGroupedBy(
             "PresentationShare",
             "ParentId",
-            s7.ids,
+            s11.ids,
             org,
             "RowCause != 'Owner'"
           );
-          const rows3 = s7.rows.filter((r) => !shared.has(String(r.Id)));
-          const scope2 = checkedNote5(s7);
+          const rows3 = s11.rows.filter((r) => !shared.has(String(r.Id)));
+          const scope2 = checkedNote5(s11);
           return rows3.length ? {
             pass: false,
-            detail: `${rows3.length} of ${s7.rows.length} ${rows3.length === 1 ? "isn't" : "aren't"} distributed. ${scope2}`,
+            detail: `${rows3.length} of ${s11.rows.length} ${rows3.length === 1 ? "isn't" : "aren't"} distributed. ${scope2}`,
             examples: nameList(rows3.slice(0, 20))
           } : { pass: true, detail: `Every one is distributed. ${scope2}` };
         }
@@ -115392,19 +115403,19 @@ var readiness10 = {
           surface: "objects"
         },
         async () => {
-          const s7 = await active2();
-          if (!s7.rows.length) return NO_ACTIVE;
+          const s11 = await active2();
+          if (!s11.rows.length) return NO_ACTIVE;
           const paged = await countGroupedBy(
             "PresentationLinkedPage",
             "PresentationId",
-            s7.ids,
+            s11.ids,
             org
           );
-          const rows3 = s7.rows.filter((r) => !paged.has(String(r.Id)));
-          const scope2 = checkedNote5(s7);
+          const rows3 = s11.rows.filter((r) => !paged.has(String(r.Id)));
+          const scope2 = checkedNote5(s11);
           return rows3.length ? {
             pass: false,
-            detail: `${rows3.length} of ${s7.rows.length} ${rows3.length === 1 ? "has" : "have"} no pages. ${scope2}`,
+            detail: `${rows3.length} of ${s11.rows.length} ${rows3.length === 1 ? "has" : "have"} no pages. ${scope2}`,
             examples: nameList(rows3.slice(0, 20))
           } : { pass: true, detail: `Every one has pages. ${scope2}` };
         }
@@ -115424,18 +115435,18 @@ var readiness10 = {
           surface: "objects"
         },
         async () => {
-          const s7 = await active2();
-          if (!s7.rows.length) return NO_ACTIVE;
+          const s11 = await active2();
+          if (!s11.rows.length) return NO_ACTIVE;
           const rows3 = await queryByIds(
             "Presentation.Name, PresentationPage.Name",
             "PresentationLinkedPage",
             "PresentationId",
-            s7.ids,
+            s11.ids,
             org,
             "PresentationPage.Status != 'Active'"
           );
           const label2 = (r) => `${r.Presentation?.Name ?? "?"} \u2192 ${r.PresentationPage?.Name ?? "?"}`;
-          const scope2 = checkedNote5(s7);
+          const scope2 = checkedNote5(s11);
           return rows3.length ? {
             pass: false,
             detail: `${plural(rows3.length, "inactive page")} in active presentations. ${scope2}`,
@@ -118921,11 +118932,11 @@ var readiness19 = {
             };
           if (!model || !territories.length)
             return { pass: true, skip: true, detail: "No account alignment yet." };
-          const chunks5 = chunkIds(territories.map((t) => String(t.Id)));
-          const share = Math.ceil(SAMPLE_ROWS12 / chunks5.length);
+          const chunks7 = chunkIds(territories.map((t) => String(t.Id)));
+          const share = Math.ceil(SAMPLE_ROWS12 / chunks7.length);
           let complete = true;
           const sample = async (soql5) => (await Promise.all(
-            chunks5.map(async (ids) => {
+            chunks7.map(async (ids) => {
               const rows3 = await query(`${soql5(inList(ids))} LIMIT ${share}`, org);
               if (rows3.length >= share) complete = false;
               return rows3;
@@ -119371,7 +119382,7 @@ async function gatherReadiness(feature, org) {
       }
     })() : Promise.resolve([])
   ]);
-  const order = new Map(STAGES.map((s7, i) => [s7.id, i]));
+  const order = new Map(STAGES.map((s11, i) => [s11.id, i]));
   const checks = [...rules, ...custom3].sort(
     (a, b) => (order.get(a.stage) ?? 0) - (order.get(b.stage) ?? 0)
   );
@@ -119400,7 +119411,7 @@ async function runRules(rules, org) {
   const ids = new Set(rules.map((r) => r.id));
   const results = /* @__PURE__ */ new Map();
   const limit = semaphore(CONCURRENCY);
-  const run4 = (rule, path24) => {
+  const run5 = (rule, path24) => {
     let p = results.get(rule.id);
     if (p) return p;
     const prereqs = (rule.prerequisites ?? []).filter((id2) => ids.has(id2));
@@ -119411,7 +119422,7 @@ async function runRules(rules, org) {
       detail: `Its prerequisites loop back through "${loop}".`
     }) : (async () => {
       const done = await Promise.all(
-        prereqs.map((id2) => run4(rules.find((r) => r.id === id2), [...path24, rule.id]))
+        prereqs.map((id2) => run5(rules.find((r) => r.id === id2), [...path24, rule.id]))
       );
       const failed2 = done.find((d) => d.status === "fail" || d.status === "skipped");
       if (failed2)
@@ -119432,7 +119443,7 @@ async function runRules(rules, org) {
     results.set(rule.id, p);
     return p;
   };
-  return Promise.all(rules.map((r) => run4(r, [])));
+  return Promise.all(rules.map((r) => run5(r, [])));
 }
 function warmSlowRules(rules, org) {
   if (!sharedReadsActive()) return;
@@ -119654,9 +119665,9 @@ function setsNote(assignments) {
   ];
   if (!labels2.length) return "No permission sets assigned.";
   const lsc = (l) => /life ?sci|\blsc\b/i.test(l);
-  const sorted2 = [...labels2.filter(lsc), ...labels2.filter((l) => !lsc(l))];
-  const more = sorted2.length > 5 ? ` and ${sorted2.length - 5} more` : "";
-  return `Permission sets: ${sorted2.slice(0, 5).join(", ")}${more}.`;
+  const sorted3 = [...labels2.filter(lsc), ...labels2.filter((l) => !lsc(l))];
+  const more = sorted3.length > 5 ? ` and ${sorted3.length - 5} more` : "";
+  return `Permission sets: ${sorted3.slice(0, 5).join(", ")}${more}.`;
 }
 function absentNote(absent) {
   return absent.length ? ` Not in this org: ${absent.join(", ")}.` : "";
@@ -119871,7 +119882,7 @@ async function accountReach(user, facts, org) {
   const accountTable = tableFor(records, "Account", user, setNames);
   const ot2aTable = tableFor(records, "ObjectTerritory2Association", user, setNames);
   const querier2 = {
-    soql: (q2, options2) => runSoqlQuery(q2, org, options2),
+    soql: (q2, options3) => runSoqlQuery(q2, org, options3),
     tooling: (q2) => runToolingQuery(q2, org)
   };
   const context = {
@@ -119883,7 +119894,7 @@ async function accountReach(user, facts, org) {
     permissionSets: new Set(setNames),
     territories
   };
-  const options = { ...DEFAULT_PROFILE_OPTIONS, idCache: /* @__PURE__ */ new Map() };
+  const options2 = { ...DEFAULT_PROFILE_OPTIONS, idCache: /* @__PURE__ */ new Map() };
   const filterIn = async (t) => {
     if (!accountTable) return { territory: t.name, records: null };
     const vol = await profileTerritory(
@@ -119891,7 +119902,7 @@ async function accountReach(user, facts, org) {
       context,
       t,
       ot2aTable ? [ot2aTable, accountTable] : [accountTable],
-      options
+      options2
     );
     const acc = vol.tables.find((v) => v.sobject === "Account");
     return acc?.status === "counted" && !acc.lowerBound ? { territory: t.name, records: acc.records } : { territory: t.name, records: null, note: acc?.note ?? "not counted" };
@@ -120031,7 +120042,7 @@ function checkAccountsMatch(facts) {
 function reaches2(audience, user, setNames) {
   if (!audience) return true;
   if (user.profile && audience.profiles.some((p) => ieq2(p, user.profile))) return true;
-  return audience.permissionSets.some((p) => setNames.some((s7) => ieq2(s7, p)));
+  return audience.permissionSets.some((p) => setNames.some((s11) => ieq2(s11, p)));
 }
 function checkDbSchema(user, feature, facts) {
   return runCheck(
@@ -120276,18 +120287,18 @@ function chooseUser(term, rows3) {
   if (active2.length === 1 && exact.length === 0) return { kind: "one", user: toMatch(active2[0]) };
   return { kind: "many", matches: matches.slice(0, MAX_MATCHES2) };
 }
-async function findUser(term, run4) {
+async function findUser(term, run5) {
   const t = term.trim();
   const select = "SELECT Id, Name, Username, Email, IsActive, Profile.Name FROM User";
   if (ID_PATTERN.test(t) && t.startsWith("005")) {
-    return chooseUser(t, await run4(`${select} WHERE Id = ${inList([t])}`));
+    return chooseUser(t, await run5(`${select} WHERE Id = ${inList([t])}`));
   }
   const like = t.replace(/[\\'%_]/g, (c) => `\\${c}`);
-  const rows3 = await run4(
+  const rows3 = await run5(
     `${select} WHERE IsActive = true AND (Name LIKE '%${like}%' OR Username LIKE '%${like}%' OR Email LIKE '%${like}%') ORDER BY Name LIMIT 25`
   );
   if (rows3.length > 0) return chooseUser(t, rows3);
-  const inactive = await run4(
+  const inactive = await run5(
     `${select} WHERE IsActive = false AND (Name LIKE '%${like}%' OR Username LIKE '%${like}%' OR Email LIKE '%${like}%') ORDER BY Name LIMIT 25`
   );
   return chooseUser(t, inactive);
@@ -122681,8 +122692,8 @@ function buildSlideHtml(title, pngBase64) {
 </body>
 </html>`;
 }
-function escapeHtml(str32) {
-  return str32.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+function escapeHtml(str33) {
+  return str33.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 function createSlideZipFromDir(zipPath, slideDir, thumbnailPath) {
   return new Promise((resolve4, reject) => {
@@ -124163,7 +124174,7 @@ ${tgtOnlyDetail}`;
 
 `;
         const totalDifferences = summary.reduce(
-          (sum, s7) => sum + s7.differences + s7.onlyInSource + s7.onlyInTarget,
+          (sum, s11) => sum + s11.differences + s11.onlyInSource + s11.onlyInTarget,
           0
         );
         if (totalDifferences === 0) {
@@ -124182,8 +124193,8 @@ ${tgtOnlyDetail}`;
 `;
         message += `|----------|---------|-------------|----------------------|----------------------|
 `;
-        for (const s7 of summary) {
-          message += `| ${s7.category} | ${s7.matches} | ${s7.differences} | ${s7.onlyInSource} | ${s7.onlyInTarget} |
+        for (const s11 of summary) {
+          message += `| ${s11.category} | ${s11.matches} | ${s11.differences} | ${s11.onlyInSource} | ${s11.onlyInTarget} |
 `;
         }
         message += "\n";
@@ -125100,9 +125111,9 @@ function computeConfigDiff(source, target3) {
   const counts2 = { new: 0, changed: 0, identical: 0, targetOnly: 0 };
   const allKeys = /* @__PURE__ */ new Set([...src.keys(), ...tgt.keys()]);
   for (const key5 of [...allKeys].sort()) {
-    const s7 = src.get(key5);
+    const s11 = src.get(key5);
     const t = tgt.get(key5);
-    if (!s7 && t) {
+    if (!s11 && t) {
       counts2.targetOnly++;
       records.push({
         key: key5,
@@ -125118,34 +125129,34 @@ function computeConfigDiff(source, target3) {
       });
       continue;
     }
-    if (s7 && !t) {
-      const fieldDiffs2 = Object.keys(s7.fields).filter((name) => !isEmpty(s7.fields[name])).sort().map((name) => ({
+    if (s11 && !t) {
+      const fieldDiffs2 = Object.keys(s11.fields).filter((name) => !isEmpty(s11.fields[name])).sort().map((name) => ({
         name,
         from: void 0,
-        to: s7.fields[name],
-        dataType: s7.fieldTypes[name],
+        to: s11.fields[name],
+        dataType: s11.fieldTypes[name],
         inSource: true,
         inTarget: false,
         willApply: true
       }));
-      const applicable2 = s7.kind === "record";
+      const applicable2 = s11.kind === "record";
       counts2.new++;
       records.push({
         key: key5,
-        kind: s7.kind,
-        category: s7.category,
-        developerName: s7.developerName,
-        label: s7.label,
+        kind: s11.kind,
+        category: s11.category,
+        developerName: s11.developerName,
+        label: s11.label,
         status: "NEW",
-        activeChange: { from: void 0, to: s7.isActive },
+        activeChange: { from: void 0, to: s11.isActive },
         fieldDiffs: fieldDiffs2,
-        assignmentDiff: { added: s7.assignments, onlyInTarget: [] },
+        assignmentDiff: { added: s11.assignments, onlyInTarget: [] },
         applicable: applicable2,
         note: applicable2 ? void 0 : "Trigger handlers are managed and cannot be created \u2014 only existing handlers can be toggled."
       });
       continue;
     }
-    const srcRec = s7;
+    const srcRec = s11;
     const tgtRec = t;
     const activeChange = srcRec.isActive !== tgtRec.isActive ? { from: tgtRec.isActive, to: srcRec.isActive } : void 0;
     const fieldDiffs = [];
@@ -125570,8 +125581,8 @@ async function ensureExportsDir() {
   return dir;
 }
 function fileStamp(iso2) {
-  const s7 = iso2 || (/* @__PURE__ */ new Date()).toISOString();
-  return s7.replace(/[:.]/g, "-");
+  const s11 = iso2 || (/* @__PURE__ */ new Date()).toISOString();
+  return s11.replace(/[:.]/g, "-");
 }
 async function loadSnapshotFromSource(source) {
   const trimmed = source.trim();
@@ -125840,8 +125851,8 @@ load().catch(e=>{ document.getElementById("main").innerHTML='<div class="sub" st
 </body>
 </html>`;
 }
-function escapeHtml2(s7) {
-  return String(s7).replace(
+function escapeHtml2(s11) {
+  return String(s11).replace(
     /[&<>"]/g,
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]
   );
@@ -125918,12 +125929,12 @@ async function startImportUiServer(opts) {
         return;
       }
       applyStarted = true;
-      const chunks5 = [];
-      req.on("data", (c) => chunks5.push(c));
+      const chunks7 = [];
+      req.on("data", (c) => chunks7.push(c));
       req.on("end", async () => {
         let selection = [];
         try {
-          const body = JSON.parse(Buffer.concat(chunks5).toString("utf8") || "{}");
+          const body = JSON.parse(Buffer.concat(chunks7).toString("utf8") || "{}");
           selection = Array.isArray(body.selection) ? body.selection : [];
         } catch {
           res.writeHead(400, { "content-type": "application/json" });
@@ -125974,12 +125985,12 @@ async function startImportUiServer(opts) {
 }
 
 // src/tools/config-export.ts
-function categoriesInSnapshot(s7) {
+function categoriesInSnapshot(s11) {
   const cats = [];
-  if (Array.isArray(s7.triggerHandlers)) cats.push("trigger_handlers");
-  if (Array.isArray(s7.adminSettings)) cats.push("admin_settings");
-  if (Array.isArray(s7.dbSchema)) cats.push("db_schema");
-  if (Array.isArray(s7.actions)) cats.push("actions");
+  if (Array.isArray(s11.triggerHandlers)) cats.push("trigger_handlers");
+  if (Array.isArray(s11.adminSettings)) cats.push("admin_settings");
+  if (Array.isArray(s11.dbSchema)) cats.push("db_schema");
+  if (Array.isArray(s11.actions)) cats.push("actions");
   return cats.length ? cats : ["trigger_handlers", "admin_settings", "db_schema", "actions"];
 }
 function groupOf(r) {
@@ -127462,7 +127473,7 @@ var EPPV_TAB_NAME = "standard-AccountCompliance";
 var EPPV_QUICK_ACTION = "AssociateCareProgram";
 var EPPV_PLAN_TYPE = "PrvdEngmtCompliance";
 var EPPV_CATEGORY = "ProviderEngagementCompliance";
-var q = (s7) => `'${s7.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+var q = (s11) => `'${s11.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 var inList2 = (ids) => ids.map(q).join(",");
 function plansWithoutCycles(plans, cycleCountByPlan) {
   return plans.filter((p) => p.ActionPlanState === "In Progress" && !(cycleCountByPlan.get(p.Id) ?? 0)).map((p) => p.Id);
@@ -127579,7 +127590,7 @@ async function collectEppvChecks(org, profileName3) {
       id: "action-plans",
       title: "Action Plans",
       status: "pass",
-      detail: `${planRows.length} plan(s): ${[...byState].map(([s7, n2]) => `${n2} ${s7}`).join(", ")}.${plans.error ? " (list cut short)" : ""}`
+      detail: `${planRows.length} plan(s): ${[...byState].map(([s11, n2]) => `${n2} ${s11}`).join(", ")}.${plans.error ? " (list cut short)" : ""}`
     });
     const noTarget = planRows.filter((p) => !p.TargetId);
     add({
@@ -127859,12 +127870,12 @@ init_helpers2();
 
 // src/studio/screens/consent/logic.ts
 var STATES = ["OptIn", "OptOut", "NotAsked", "Partial"];
-var toState = (s7) => STATES.includes(s7 ?? "") ? s7 : "NotAsked";
+var toState = (s11) => STATES.includes(s11 ?? "") ? s11 : "NotAsked";
 function requirement(raw, fallback) {
-  const s7 = String(raw ?? "").replace(/\s+/g, "");
-  if (s7 === "Required") return "Required";
-  if (s7 === "Optional") return "Optional";
-  if (s7 === "NotRequired" || s7 === "NotRequred") return "NotRequired";
+  const s11 = String(raw ?? "").replace(/\s+/g, "");
+  if (s11 === "Required") return "Required";
+  if (s11 === "Optional") return "Optional";
+  if (s11 === "NotRequired" || s11 === "NotRequred") return "NotRequired";
   return fallback;
 }
 var bool = (v, fallback) => v === void 0 || v === null || v === "" ? fallback : String(v).toLowerCase() === "true";
@@ -127884,20 +127895,20 @@ function readSettings2(fields) {
     allowNotAskedOpt: bool(f.AllowNotAskedOpt, false)
   };
 }
-function proofMethods(s7) {
+function proofMethods(s11) {
   const out = [];
-  if (s7.signature !== "NotRequired") out.push("DigitalSignature");
-  if (s7.attachment !== "NotRequired") out.push("Attachment");
-  if (s7.documentReference !== "NotRequired") out.push("DocumentReference");
-  if (s7.verbal !== "NotRequired") out.push("VerbalConsent");
+  if (s11.signature !== "NotRequired") out.push("DigitalSignature");
+  if (s11.attachment !== "NotRequired") out.push("Attachment");
+  if (s11.documentReference !== "NotRequired") out.push("DocumentReference");
+  if (s11.verbal !== "NotRequired") out.push("VerbalConsent");
   return out;
 }
 var ci = (a, b) => a.localeCompare(b, void 0, { sensitivity: "base" });
 function buildConsent(input) {
   const { settings, consents, contactPoints } = input;
   const only = new Set(input.only ?? []);
-  const subs = input.subscriptions.filter((s7) => !only.size || only.has(s7.id));
-  const subIds = new Set(subs.map((s7) => s7.id));
+  const subs = input.subscriptions.filter((s11) => !only.size || only.has(s11.id));
+  const subIds = new Set(subs.map((s11) => s11.id));
   const scts = input.subscriptionChannels.filter((c) => subIds.has(c.subscriptionId));
   const channelIds = new Set(scts.map((c) => c.channelId));
   const channels = input.channels.filter((c) => channelIds.has(c.id));
@@ -127916,9 +127927,9 @@ function buildConsent(input) {
     if (!cp) return void 0;
     return cp.provider ? `${cp.provider}: ${cp.value}` : cp.value;
   };
-  const subscriptions = subs.map((s7) => {
+  const subscriptions = subs.map((s11) => {
     const rows3 = [];
-    for (const sct of scts.filter((c) => c.subscriptionId === s7.id)) {
+    for (const sct of scts.filter((c) => c.subscriptionId === s11.id)) {
       const ids = cpIdsByChannel.get(sct.channelId) ?? [];
       ids.forEach((cpId, i) => {
         const value4 = valueOf(cpId);
@@ -127937,12 +127948,12 @@ function buildConsent(input) {
       });
     }
     rows3.sort((a, b) => ci(a.title, b.title));
-    return { id: s7.id, name: s7.name, rows: rows3 };
+    return { id: s11.id, name: s11.name, rows: rows3 };
   }).sort((a, b) => ci(a.name, b.name));
   let global2;
   if (settings.globalChannel !== "Topic Only") {
     const groups = /* @__PURE__ */ new Map();
-    for (const row of subscriptions.flatMap((s7) => s7.rows)) {
+    for (const row of subscriptions.flatMap((s11) => s11.rows)) {
       const key5 = `${row.channelId}|${row.contactPointId}`;
       groups.set(key5, [...groups.get(key5) ?? [], row]);
     }
@@ -127967,7 +127978,7 @@ async function tryQuery(soql5, org) {
 }
 async function loadConsent(org, accountId, now = /* @__PURE__ */ new Date()) {
   const acct = inList([accountId]);
-  const today2 = todayUtc(now);
+  const today4 = todayUtc(now);
   const [config2, subs, scts, channels, consentRows, snapshots, emails, phones, socials, addresses] = await Promise.all([
     fetchCategories(org, ["OptAdministration"]).catch(() => []),
     query(`SELECT Id, Name FROM CommSubscription ORDER BY Name LIMIT 200`, org),
@@ -127980,7 +127991,7 @@ async function loadConsent(org, accountId, now = /* @__PURE__ */ new Date()) {
       org
     ),
     query(
-      `SELECT Id, CommSubscriptionChannelTypeId, EngagementChannelTypeId, ContactPointId, PrivacyConsentStatus, CommSubConsentCmplSnpshtId FROM CommSubscriptionConsent WHERE ConsentGiverId IN (${acct}) AND (EffectiveToDate = null OR EffectiveToDate >= ${today2}) LIMIT 500`,
+      `SELECT Id, CommSubscriptionChannelTypeId, EngagementChannelTypeId, ContactPointId, PrivacyConsentStatus, CommSubConsentCmplSnpshtId FROM CommSubscriptionConsent WHERE ConsentGiverId IN (${acct}) AND (EffectiveToDate = null OR EffectiveToDate >= ${today4}) LIMIT 500`,
       org
     ),
     tryQuery(
@@ -128382,10 +128393,10 @@ function cloneGaps(standard, clones) {
     if (clone2.perms.size === 0) continue;
     let best2;
     let bestShared = 0;
-    for (const s7 of standard) {
-      const shared = [...s7.perms].filter((p) => clone2.perms.has(p)).length;
-      if (shared > bestShared || shared === bestShared && best2 && s7.perms.size < best2.perms.size) {
-        best2 = s7;
+    for (const s11 of standard) {
+      const shared = [...s11.perms].filter((p) => clone2.perms.has(p)).length;
+      if (shared > bestShared || shared === bestShared && best2 && s11.perms.size < best2.perms.size) {
+        best2 = s11;
         bestShared = shared;
       }
     }
@@ -128626,7 +128637,7 @@ function matchApp(apps, names5) {
   const scored = apps.map((a) => {
     const covered = a.tabs.filter((t) => known.has(t)).length;
     return { a, covered, extra: a.tabs.length - covered };
-  }).filter((s7) => s7.covered > 0).sort((x, y) => y.covered - x.covered || x.extra - y.extra);
+  }).filter((s11) => s11.covered > 0).sort((x, y) => y.covered - x.covered || x.extra - y.extra);
   if (!scored.length)
     return {
       app: null,
@@ -128970,9 +128981,9 @@ async function collectUnpublished(profile, org, known) {
   );
   const items = [];
   const errors = [];
-  for (const s7 of settled) {
-    if ("error" in s7 && s7.error !== void 0) errors.push({ kind: s7.kind, message: s7.error });
-    else if ("items" in s7 && s7.items) items.push(...s7.items);
+  for (const s11 of settled) {
+    if ("error" in s11 && s11.error !== void 0) errors.push({ kind: s11.kind, message: s11.error });
+    else if ("items" in s11 && s11.items) items.push(...s11.items);
   }
   return {
     ...base2,
@@ -129830,16 +129841,16 @@ async function cacheFile(recordId, file, org) {
 function readEntry(zipPath, file, limit) {
   return new Promise((resolve4, reject) => {
     const child = spawn2("unzip", ["-p", zipPath, file]);
-    const chunks5 = [];
+    const chunks7 = [];
     let size = 0;
     let done = false;
     const finish = () => {
       if (done) return;
       done = true;
-      resolve4(Buffer.concat(chunks5).subarray(0, limit));
+      resolve4(Buffer.concat(chunks7).subarray(0, limit));
     };
     child.stdout.on("data", (c) => {
-      chunks5.push(c);
+      chunks7.push(c);
       size += c.length;
       if (size >= limit) {
         finish();
@@ -129887,10 +129898,10 @@ function pmv(f, key5) {
 function parseFlow(flow) {
   const byName = new Map((flow.choices ?? []).map((c) => [c.name ?? "", c]));
   const pages = (flow.screens ?? []).map(
-    (s7, i) => ({
-      name: s7.name ?? `page${i}`,
-      label: s7.label || `Page ${i + 1}`,
-      questions: (s7.fields ?? []).map((f) => {
+    (s11, i) => ({
+      name: s11.name ?? `page${i}`,
+      label: s11.label || `Page ${i + 1}`,
+      questions: (s11.fields ?? []).map((f) => {
         const kind = questionKind(f.dataType, f.fieldType, f.extensionName);
         return {
           id: f.name ?? "",
@@ -130102,7 +130113,7 @@ function decodeLayoutName(fullName, object3) {
     return rest;
   }
 }
-var lit = (s7) => `'${s7.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+var lit = (s11) => `'${s11.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 var first = (rows3, key5 = "Id") => rows3[0] && typeof rows3[0][key5] === "string" ? rows3[0][key5] : null;
 async function lookup(ref3, org) {
   switch (ref3.type) {
@@ -130268,8 +130279,8 @@ function parseJsMeta(xml, pageType) {
       if (!/^\w+$/.test(name) || out.has(name)) continue;
       const type = String(p["@_type"] ?? "String");
       const datasource = String(p["@_datasource"] ?? "").trim();
-      const options = datasource && !/^apex:\/\//i.test(datasource) ? datasource.split(",").map((o) => o.trim()).filter(Boolean) : [];
-      const kind = options.length ? "Picklist" : /^integer$/i.test(type) ? "Integer" : /^boolean$/i.test(type) ? "Boolean" : "String";
+      const options2 = datasource && !/^apex:\/\//i.test(datasource) ? datasource.split(",").map((o) => o.trim()).filter(Boolean) : [];
+      const kind = options2.length ? "Picklist" : /^integer$/i.test(type) ? "Integer" : /^boolean$/i.test(type) ? "Boolean" : "String";
       const num6 = (a) => p[a] !== void 0 && String(p[a]).trim() !== "" && Number.isFinite(Number(p[a])) ? Number(p[a]) : void 0;
       out.set(name, {
         name,
@@ -130281,7 +130292,7 @@ function parseJsMeta(xml, pageType) {
         ...kind === "Integer" && num6("@_min") !== void 0 ? { min: num6("@_min") } : {},
         ...kind === "Integer" && num6("@_max") !== void 0 ? { max: num6("@_max") } : {},
         ...String(p["@_required"]) === "true" ? { required: true } : {},
-        ...options.length ? { options } : {}
+        ...options2.length ? { options: options2 } : {}
       });
     }
   }
@@ -131031,9 +131042,9 @@ var FixTracker = class {
   }
   /** Add steps that may run, so the bar knows the total before they start. */
   plan(steps) {
-    for (const s7 of steps)
-      if (!this.find(s7.key))
-        this.change.steps.push({ key: s7.key, label: s7.label, state: "waiting" });
+    for (const s11 of steps)
+      if (!this.find(s11.key))
+        this.change.steps.push({ key: s11.key, label: s11.label, state: "waiting" });
   }
   /** Run one step, marking it running, then done or failed. A key that wasn't planned just runs. */
   async run(key5, fn) {
@@ -131087,26 +131098,26 @@ var FixTracker = class {
   /** The change returned: steps it skipped drop out, and the batch ends with its last change. */
   finish() {
     const c = this.change;
-    for (const s7 of c.steps) if (s7.state === "running") this.end(s7.key);
-    c.steps = c.steps.filter((s7) => s7.state !== "waiting");
+    for (const s11 of c.steps) if (s11.state === "running") this.end(s11.key);
+    c.steps = c.steps.filter((s11) => s11.state !== "waiting");
     c.finishedAt = Date.now();
     const all = this.batch.changes;
     this.batch.finishedAt = all.length >= c.total && all.every((x) => x.finishedAt) ? c.finishedAt : void 0;
   }
   find(key5) {
-    return this.change.steps.find((s7) => s7.key === key5);
+    return this.change.steps.find((s11) => s11.key === key5);
   }
 };
 function step(progress, key5, fn) {
   return progress ? progress.run(key5, fn) : fn();
 }
-function statusDetail(s7) {
+function statusDetail(s11) {
   const parts = [];
-  if (s7.componentsTotal && s7.componentsTotal > 0)
-    parts.push(`${s7.componentsDone ?? 0} of ${s7.componentsTotal} components`);
-  if (s7.status)
-    parts.push(`Salesforce: ${s7.status.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase()}`);
-  if (s7.stateDetail) parts.push(s7.stateDetail);
+  if (s11.componentsTotal && s11.componentsTotal > 0)
+    parts.push(`${s11.componentsDone ?? 0} of ${s11.componentsTotal} components`);
+  if (s11.status)
+    parts.push(`Salesforce: ${s11.status.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase()}`);
+  if (s11.stateDetail) parts.push(s11.stateDetail);
   return parts.join(" \xB7 ");
 }
 function startFixChange(arg, fix, phase) {
@@ -131138,7 +131149,7 @@ function fixProgress(id2) {
 }
 function planFixSteps(fix, phase) {
   const apply = phase === "apply";
-  const write2 = (label2) => apply ? [{ key: "write", label: label2 }] : [];
+  const write3 = (label2) => apply ? [{ key: "write", label: label2 }] : [];
   const read2 = (what) => ({
     key: "read",
     label: apply ? `Re-checking ${what} hasn't changed` : `Reading ${what}`
@@ -131150,7 +131161,7 @@ function planFixSteps(fix, phase) {
           key: "read",
           label: `${apply ? "Re-checking" : "Checking"} ${fix.userName}'s licenses and ${fix.pslLabel} capacity`
         },
-        ...write2(`Assigning ${fix.pslLabel} to ${fix.userName}`)
+        ...write3(`Assigning ${fix.pslLabel} to ${fix.userName}`)
       ];
     case "removePsl":
       return [
@@ -131158,24 +131169,24 @@ function planFixSteps(fix, phase) {
           key: "read",
           label: `${apply ? "Re-checking" : "Checking"} ${fix.userName}'s ${fix.pslLabel} assignment`
         },
-        ...write2(`Removing ${fix.pslLabel} from ${fix.userName}`)
+        ...write3(`Removing ${fix.pslLabel} from ${fix.userName}`)
       ];
     case "setConfigField":
       return [
         read2(`${fix.field} on ${fix.recordLabel}`),
         { key: "reach", label: `Checking which profiles ${fix.recordLabel} reaches` },
-        ...write2(`Updating ${fix.field} on ${fix.recordLabel}`)
+        ...write3(`Updating ${fix.field} on ${fix.recordLabel}`)
       ];
     case "setProfileAssignments":
       return [
         read2(`${fix.recordLabel}'s profile assignments`),
         { key: "reach", label: `Checking which profiles ${fix.recordLabel} reaches` },
-        ...write2(`Updating ${fix.recordLabel}'s profile assignments`)
+        ...write3(`Updating ${fix.recordLabel}'s profile assignments`)
       ];
     case "setActive":
       return [
         read2(fix.record.label),
-        ...write2(`Switching ${fix.record.label} ${fix.to ? "on" : "off"}`)
+        ...write3(`Switching ${fix.record.label} ${fix.to ? "on" : "off"}`)
       ];
     case "createConfigRecord":
       return [
@@ -131184,19 +131195,19 @@ function planFixSteps(fix, phase) {
           label: `${apply ? "Re-checking" : "Checking"} ${fix.recordLabel} against the org`
         },
         { key: "reach", label: `Working out who will see ${fix.recordLabel}` },
-        ...write2(`Creating ${fix.recordLabel}`)
+        ...write3(`Creating ${fix.recordLabel}`)
       ];
     case "deleteConfigRecord":
       return [
         read2(fix.recordLabel),
         { key: "reach", label: `Working out who sees ${fix.recordLabel} today` },
-        ...write2(`Deleting ${fix.recordLabel}`)
+        ...write3(`Deleting ${fix.recordLabel}`)
       ];
     case "assignAccess":
     case "removeAccess":
       return [
         { key: "read", label: `${apply ? "Re-checking" : "Checking"} ${fix.userName}'s access` },
-        ...write2(
+        ...write3(
           `${fix.kind === "assignAccess" ? "Giving" : "Removing"} access for ${fix.userName}`
         )
       ];
@@ -131235,7 +131246,7 @@ function planFixSteps(fix, phase) {
     case "assignCustomScript":
       return [
         read2(fix.stageObjectName),
-        ...write2(
+        ...write3(
           `${fix.to ? "Setting" : "Clearing"} the ${fix.role} script of ${fix.stageObjectName}`
         )
       ];
@@ -131269,6 +131280,46 @@ function planFixSteps(fix, phase) {
         ...apply ? [{ key: "deploy", label: `Deploying ${label2}` }] : []
       ];
     }
+    case "editPresentation": {
+      const name = fix.presentationName;
+      return [
+        read2(name),
+        ...apply ? [
+          { key: "presentation", label: `Updating ${name}` },
+          { key: "pages", label: "Updating its pages" },
+          { key: "page-settings", label: "Updating the pages' required setting and products" },
+          { key: "topics", label: "Updating its topics" },
+          { key: "shares", label: "Updating the territories it's distributed to" }
+        ] : []
+      ];
+    }
+    case "createPresentation": {
+      const name = fix.draft.fields.name.trim() || "the new presentation";
+      return [
+        { key: "read", label: apply ? "Re-checking its pages" : "Checking its pages" },
+        ...apply ? [
+          ...fix.newPages.length ? [{ key: "upload", label: "Uploading the pages Roz drafted" }] : [],
+          { key: "presentation", label: `Creating ${name}` },
+          { key: "pages", label: "Adding its pages" },
+          { key: "page-settings", label: "Setting the pages' required setting and products" },
+          { key: "topics", label: "Adding its topics" },
+          { key: "shares", label: "Distributing it to territories" }
+        ] : []
+      ];
+    }
+    case "deletePresentation":
+      return [
+        read2(fix.presentationName),
+        ...apply ? [
+          { key: "shares", label: "Taking it off territories" },
+          {
+            key: "page-settings",
+            label: "Putting back the pages' required setting and products"
+          },
+          { key: "presentation", label: `Deleting ${fix.presentationName}` },
+          { key: "pages", label: "Deleting the pages and files it made" }
+        ] : []
+      ];
     case "copyForProfile": {
       const label2 = fix.doc.label;
       return [
@@ -131872,11 +131923,11 @@ async function recentChanges(org, days = DEFAULT_DAYS) {
   const settled = await Promise.allSettled(sources2.map(([, p]) => p));
   const changes = [];
   const errors = [];
-  settled.forEach((s7, i) => {
-    if (s7.status === "fulfilled") changes.push(...s7.value);
+  settled.forEach((s11, i) => {
+    if (s11.status === "fulfilled") changes.push(...s11.value);
     else
       errors.push(
-        `${sources2[i][0]}: ${s7.reason instanceof Error ? s7.reason.message : String(s7.reason)}`
+        `${sources2[i][0]}: ${s11.reason instanceof Error ? s11.reason.message : String(s11.reason)}`
       );
   });
   changes.sort((a, b) => b.modifiedAt.localeCompare(a.modifiedAt));
@@ -131894,7 +131945,7 @@ async function attachModifiers(changes, org) {
     c.modifiedAt = r.LastModifiedDate;
     c.modifiedBy = nameOf2(r);
   };
-  const run4 = async (kind) => {
+  const run5 = async (kind) => {
     const mine = targets.filter(
       (c) => c.category === "TriggerHandler" === (kind === "triggerHandler")
     );
@@ -131932,7 +131983,7 @@ async function attachModifiers(changes, org) {
       }
     }
   };
-  await Promise.allSettled([run4("record"), run4("triggerHandler")]);
+  await Promise.allSettled([run5("record"), run5("triggerHandler")]);
 }
 
 // src/studio/drift-store.ts
@@ -132316,10 +132367,10 @@ async function applyCreate(fix, org, progress) {
   const preview = await previewCreate(fix, org, progress);
   if (preview.blocked || !preview.plan)
     return { ok: false, message: preview.blocked || "Nothing to create." };
-  const { plan: plan2 } = preview;
+  const { plan: plan3 } = preview;
   progress?.end("reach");
   progress?.begin("write");
-  const totalWrites = 1 + plan2.fields.length + plan2.profiles.length + plan2.permissionSets.length + (fix.active ? 1 : 0);
+  const totalWrites = 1 + plan3.fields.length + plan3.profiles.length + plan3.permissionSets.length + (fix.active ? 1 : 0);
   let writes = 0;
   const wrote = () => progress?.detail("write", `${++writes} of ${totalWrites} records`);
   const created = await createToolingRecord(
@@ -132327,7 +132378,7 @@ async function applyCreate(fix, org, progress) {
     {
       DeveloperName: fix.developerName,
       MasterLabel: fix.recordLabel,
-      LifeSciConfigCategoryId: plan2.categoryId,
+      LifeSciConfigCategoryId: plan3.categoryId,
       IsActive: false,
       IsOrgLevel: false
     },
@@ -132351,7 +132402,7 @@ async function applyCreate(fix, org, progress) {
       message: `Couldn't ${step2}: ${error2 || "unknown error"}. Nothing was created.`
     };
   };
-  for (const f of plan2.fields) {
+  for (const f of plan3.fields) {
     const res = await createToolingRecord(
       "LifeSciConfigFieldValue",
       {
@@ -132367,8 +132418,8 @@ async function applyCreate(fix, org, progress) {
     wrote();
   }
   const assignees = [
-    ...plan2.profiles.map((a) => ({ ...a, level: "Profile" })),
-    ...plan2.permissionSets.map((a) => ({ ...a, level: "PermissionSet" }))
+    ...plan3.profiles.map((a) => ({ ...a, level: "Profile" })),
+    ...plan3.permissionSets.map((a) => ({ ...a, level: "PermissionSet" }))
   ];
   for (const a of assignees) {
     const res = await createToolingRecord(
@@ -132555,11 +132606,11 @@ function refOf2(root2, sec2) {
   const label2 = sectionLabel(sec2);
   return {
     label: label2,
-    nth: sections(root2).filter((s7) => sectionLabel(s7) === label2).indexOf(sec2)
+    nth: sections(root2).filter((s11) => sectionLabel(s11) === label2).indexOf(sec2)
   };
 }
 function findSection(root2, ref3) {
-  const sec2 = sections(root2).filter((s7) => sectionLabel(s7) === ref3.label)[ref3.nth];
+  const sec2 = sections(root2).filter((s11) => sectionLabel(s11) === ref3.label)[ref3.nth];
   if (!sec2)
     throw new StaleLayoutError(`The section ${sectionName(ref3.label)} isn't on the layout.`);
   return sec2;
@@ -133585,7 +133636,7 @@ async function applyCopy(fix, org, progress) {
   try {
     const invalid = validate2(fix);
     if (invalid) return { ok: false, message: invalid };
-    const run4 = async (p) => {
+    const run5 = async (p) => {
       if (p.preview.blocked || !p.moves)
         return { ok: false, message: p.preview.blocked || "Nothing to update." };
       progress?.begin("deploy");
@@ -133600,7 +133651,7 @@ async function applyCopy(fix, org, progress) {
       return await withLayoutDocs(
         fix,
         org,
-        async (layout, profile) => run4(
+        async (layout, profile) => run5(
           await planning(
             progress,
             () => fix.revert ? planLayoutRevert(fix, org, profile) : planLayoutCreate(fix, org, layout, profile, taken2)
@@ -133613,7 +133664,7 @@ async function applyCopy(fix, org, progress) {
       return await withApps(
         org,
         revertApps(fix),
-        async (apps) => run4(await planning(progress, () => planPage(fix, org, null, apps))),
+        async (apps) => run5(await planning(progress, () => planPage(fix, org, null, apps))),
         progress
       );
     const taken = nameTaken(fix, org);
@@ -133629,7 +133680,7 @@ async function applyCopy(fix, org, progress) {
         return withApps(
           org,
           await candidates,
-          async (apps) => run4(await planning(progress, () => planPage(fix, org, page, apps, taken))),
+          async (apps) => run5(await planning(progress, () => planPage(fix, org, page, apps, taken))),
           progress
         );
       },
@@ -133780,10 +133831,10 @@ async function readSharing(org) {
     return { internalAccess: null };
   }
 }
-function statusOf2(r, s7, diag) {
+function statusOf2(r, s11, diag) {
   const type = r.Type;
   if (type === "VisitActionValidation") {
-    const first2 = s7.vavs[0];
+    const first2 = s11.vavs[0];
     if (r.ObjectName !== "ProviderVisit" || r.OperationEventType !== "OnUpdate") {
       return {
         tone: "error",
@@ -133804,7 +133855,7 @@ function statusOf2(r, s7, diag) {
       detail: "This is the visit action validation script the app runs."
     };
   }
-  const where3 = s7.stageByScript.get(String(r.Id)) ?? [];
+  const where3 = s11.stageByScript.get(String(r.Id)) ?? [];
   if (where3.length === 0) {
     return {
       tone: "warning",
@@ -133812,7 +133863,7 @@ function statusOf2(r, s7, diag) {
       detail: `${type === "Checklist" ? "Checklist" : "Validation"} scripts run only when a stage object uses them.`
     };
   }
-  const noPath = where3.filter((w) => !s7.pathObjects.has(w.stageObjectId));
+  const noPath = where3.filter((w) => !s11.pathObjects.has(w.stageObjectId));
   if (noPath.length === where3.length) {
     return {
       tone: "warning",
@@ -133826,7 +133877,7 @@ function statusOf2(r, s7, diag) {
     detail: "A stage object with a stage path uses this script."
   };
 }
-function summaryFrom(r, bundle, s7) {
+function summaryFrom(r, bundle, s11) {
   const code = String(r.CodeText ?? "");
   const type = r.Type;
   const diags = analyzeScript(code, {
@@ -133855,8 +133906,8 @@ function summaryFrom(r, bundle, s7) {
       lastModifiedDate: bundle?.lastModifiedDate ?? null,
       editable: bundleEditable(bundle)
     },
-    assignedTo: s7.stageByScript.get(String(r.Id)) ?? [],
-    status: statusOf2(r, s7, findingCount),
+    assignedTo: s11.stageByScript.get(String(r.Id)) ?? [],
+    status: statusOf2(r, s11, findingCount),
     findingCount
   };
 }
@@ -133955,14 +134006,14 @@ async function collectScriptLibrary(org) {
     codeTextWritable(org)
   ]);
   if (stage.note) notes.push(stage.note);
-  const s7 = statusing(rows3, stage.stageObjects, stage.pathObjects);
-  const scripts = rows3.map((r) => summaryFrom(r, bundles.get(String(r.ComponentName ?? "").toLowerCase()), s7)).sort(
+  const s11 = statusing(rows3, stage.stageObjects, stage.pathObjects);
+  const scripts = rows3.map((r) => summaryFrom(r, bundles.get(String(r.ComponentName ?? "").toLowerCase()), s11)).sort(
     (a, b) => (TYPE_ORDER[a.type] ?? 9) - (TYPE_ORDER[b.type] ?? 9) || a.createdDate.localeCompare(b.createdDate) || a.id.localeCompare(b.id)
   );
   return {
     scripts,
     stageObjects: stage.stageObjects,
-    runningVisitScriptId: runningVav(s7.vavs),
+    runningVisitScriptId: runningVav(s11.vavs),
     sharing,
     codeTextWritable: writable,
     ...notes.length ? { note: notes.join(" ") } : {}
@@ -134001,8 +134052,8 @@ async function collectScriptDetail(id2, org) {
     () => /* @__PURE__ */ new Map()
   );
   const bundle = bundles.get(componentName.toLowerCase());
-  const s7 = statusing([...vavs, r], stage.stageObjects, stage.pathObjects);
-  const summary = summaryFrom(r, bundle, s7);
+  const s11 = statusing([...vavs, r], stage.stageObjects, stage.pathObjects);
+  const summary = summaryFrom(r, bundle, s11);
   let lwcCode = null;
   let lwcOtherFiles = [];
   if (bundle) {
@@ -134064,7 +134115,7 @@ async function readBundle(org, componentName) {
   }
   return { bundle, jsResourceId, js: js2, others: others.sort() };
 }
-var xmlEscape = (s7) => s7.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+var xmlEscape = (s11) => s11.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 var bundleMetaXml = (label2, apiVersion2) => `<?xml version="1.0" encoding="UTF-8"?>
 <LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
     <apiVersion>${apiVersion2}</apiVersion>
@@ -134589,16 +134640,16 @@ async function previewSaveScript(fix, org, progress) {
   return (await planSave(fix, org, progress)).preview;
 }
 async function applySaveScript(fix, org, progress) {
-  const plan2 = await planSave(fix, org, progress);
-  if (plan2.preview.blocked || !plan2.current || !plan2.next)
-    return { ok: false, message: plan2.preview.blocked ?? "Nothing to save." };
+  const plan3 = await planSave(fix, org, progress);
+  if (plan3.preview.blocked || !plan3.current || !plan3.next)
+    return { ok: false, message: plan3.preview.blocked ?? "Nothing to save." };
   const res = await saveScript(
     org,
     {
       scriptId: fix.scriptId,
-      current: plan2.current,
-      next: plan2.next,
-      codeTextWritable: plan2.writable
+      current: plan3.current,
+      next: plan3.next,
+      codeTextWritable: plan3.writable
     },
     hooksFor(progress)
   );
@@ -134611,13 +134662,13 @@ async function applySaveScript(fix, org, progress) {
     );
   return {
     ok: true,
-    message: `${plan2.next.fields.name} saved${fix.to.code !== void 0 ? ` (${sizeOf(plan2.current.code)} \u2192 ${sizeOf(plan2.next.code)})` : ""}.`,
+    message: `${plan3.next.fields.name} saved${fix.to.code !== void 0 ? ` (${sizeOf(plan3.current.code)} \u2192 ${sizeOf(plan3.next.code)})` : ""}.`,
     undo: {
       kind: "saveCustomScript",
       label: `Undo: ${fix.label}`,
       scriptId: fix.scriptId,
-      scriptName: plan2.next.fields.name,
-      from: { code: plan2.next.code, fields: plan2.next.fields },
+      scriptName: plan3.next.fields.name,
+      from: { code: plan3.next.code, fields: plan3.next.fields },
       to
     }
   };
@@ -134879,7 +134930,7 @@ async function previewAssignScript(fix, org, progress) {
   const so = stage.get(fix.stageObjectId.slice(0, 15));
   if (!so) return { ...preview, blocked: `${fix.stageObjectName} no longer exists.` };
   const nameOf3 = (id2) => id2 ? String(
-    scripts.find((s7) => String(s7.Id).startsWith(id2.slice(0, 15)))?.Name ?? "another script"
+    scripts.find((s11) => String(s11.Id).startsWith(id2.slice(0, 15)))?.Name ?? "another script"
   ) : "(none)";
   const now = so[ROLE_FIELD[fix.role]] || null;
   const same3 = (a, b) => (a ?? "").slice(0, 15) === (b ?? "").slice(0, 15);
@@ -134890,7 +134941,7 @@ async function previewAssignScript(fix, org, progress) {
       blocked: `${fix.stageObjectName} now uses a different ${fix.role} script. Reload and try again.`
     };
   if (fix.to) {
-    const target3 = scripts.find((s7) => String(s7.Id).startsWith(fix.to.slice(0, 15)));
+    const target3 = scripts.find((s11) => String(s11.Id).startsWith(fix.to.slice(0, 15)));
     if (!target3) return { ...preview, blocked: "The script no longer exists." };
     const want = fix.role === "validation" ? "Validation" : "Checklist";
     if (target3.Type !== want)
@@ -134966,13 +135017,13 @@ var uniq = (names5) => {
 var splitNames = (v) => typeof v === "string" ? v.split(/[,;]/) : [];
 function configReach(category, profiles) {
   if (!CACHED_CATEGORIES.has(category)) return { desktop: "now", ipad: "none" };
-  const named = profiles ? uniq(profiles) : [];
-  return { desktop: "none", ipad: "publish", ...named.length ? { profiles: named } : {} };
+  const named2 = profiles ? uniq(profiles) : [];
+  return { desktop: "none", ipad: "publish", ...named2.length ? { profiles: named2 } : {} };
 }
 function reachOfFix(fix, profiles) {
   const withProfiles = (r, names5 = profiles) => {
-    const named = names5 ? uniq(names5) : [];
-    return named.length && r.ipad !== "none" ? { ...r, profiles: named } : r;
+    const named2 = names5 ? uniq(names5) : [];
+    return named2.length && r.ipad !== "none" ? { ...r, profiles: named2 } : r;
   };
   switch (fix.kind) {
     case "assignPsl":
@@ -135003,6 +135054,10 @@ function reachOfFix(fix, profiles) {
       return withProfiles({ desktop: "now", ipad: "publish" });
     case "copyForProfile":
       return withProfiles({ desktop: "now", ipad: "publish" }, [fix.profile]);
+    case "editPresentation":
+    case "createPresentation":
+    case "deletePresentation":
+      return { desktop: "now", ipad: "nextSync" };
     default:
       return withProfiles({ desktop: "now", ipad: "publish" });
   }
@@ -135502,7 +135557,7 @@ function listViewReach(label2, sharedTo) {
   if (!sharedTo.length)
     return `Deploys ${label2} to the org. It isn't shared with anyone but its owner.`;
   const shown2 = sharedTo.slice(0, 4).map(
-    (s7) => s7.name ? `${SHARED_KINDS[s7.kind] ?? s7.kind} ${s7.name}` : SHARED_KINDS[s7.kind] ?? s7.kind
+    (s11) => s11.name ? `${SHARED_KINDS[s11.kind] ?? s11.kind} ${s11.name}` : SHARED_KINDS[s11.kind] ?? s11.kind
   );
   const more = sharedTo.length > 4 ? ` and ${sharedTo.length - 4} more` : "";
   return `Deploys ${label2} to the org - it's shared with ${shown2.join(", ")}${more}, and everyone it's shared with gets the change.`;
@@ -135682,6 +135737,2294 @@ async function applyEdit(fix, org, progress) {
 
 // src/studio/fixes.ts
 init_helpers2();
+
+// src/studio/content/create.ts
+init_cli();
+import { rmSync as rmSync13 } from "node:fs";
+init_helpers2();
+
+// src/studio/content/drafts.ts
+var import_archiver2 = __toESM(require_archiver(), 1);
+init_private_tmp();
+import {
+  createWriteStream as createWriteStream3,
+  existsSync as existsSync19,
+  mkdirSync as mkdirSync10,
+  readdirSync as readdirSync16,
+  readFileSync as readFileSync18,
+  rmSync as rmSync12,
+  statSync as statSync5,
+  writeFileSync as writeFileSync10
+} from "node:fs";
+import { dirname as dirname10, join as join21 } from "node:path";
+
+// src/studio/screens/clm-bridge.ts
+var CLM_BRIDGE_FILE = "Common_3i0p1.js";
+var CLM_BRIDGE_TAG = `<script src="${CLM_BRIDGE_FILE}" type="text/javascript"></script>`;
+function injectBridgeTag(html) {
+  if (html.includes(CLM_BRIDGE_FILE)) return html;
+  const head = /<head(\s[^>]*)?>/i.exec(html);
+  if (!head) return CLM_BRIDGE_TAG + html;
+  const end = head.index + head[0].length;
+  return html.slice(0, end) + CLM_BRIDGE_TAG + html.slice(end);
+}
+var CLM_BRIDGE_JS = String.raw`(function () {
+  if (window.PresentationPlayer && window.PresentationPlayer.__studio) return;
+  var seq = 0;
+  function post(request, params) {
+    try { parent.postMessage({ __clm: 1, request: request, params: params || {} }, "*"); } catch (e) {}
+  }
+  // The app calls back a named global; slides pass a name or a function.
+  function callbackName(cb) {
+    if (typeof cb === "function") {
+      var name = "__studioClmCallback" + (++seq);
+      window[name] = cb;
+      return name;
+    }
+    return typeof cb === "string" ? cb : null;
+  }
+  var listeners = {};
+  var P = {
+    __studio: true,
+    gotoSlide: function (sequenceId, slideName, animation) {
+      post("gotoSlide", {
+        pageId: sequenceId == null || sequenceId === "" ? null : String(sequenceId),
+        slideName: slideName == null || slideName === "" ? null : String(slideName),
+        animation: animation == null ? null : String(animation)
+      });
+    },
+    goNextPage: function () { post("goNextPage"); },
+    goPreviousPage: function () { post("goPreviousPage"); },
+    fetchWithParams: function (query, parameters, callbackMethod) {
+      post("fetchWithParams", { query: query, queryParameters: parameters, callbackMethod: callbackName(callbackMethod) });
+    },
+    upsert: function (objects, callbackMethod) { post("upsert", { objects: objects, callbackMethod: callbackName(callbackMethod) }); },
+    createVisit: function (callback) { post("createVisit", { callbackMethod: callbackName(callback) }); },
+    saveState: function (state) { post("saveState", { state: state == null ? "" : String(state) }); },
+    startTrackingPage: function (pageid) { post("startTrackingPage", { pageid: pageid }); },
+    stopTrackingPage: function () { post("stopTrackingPage"); },
+    trackInteraction: function (payload) { post("trackInteraction", { payload: payload }); },
+    updateFeedback: function (type) { post("updateFeedback", { type: type }); },
+    launchApprovedEmail: function () { post("launchApprovedEmail"); },
+    launchEmails: function (templates) { post("launchEmails", { templates: templates || [] }); },
+    getSurveyFlowJson: function (json) { post("getSurveyFlowJson", { json: json }); },
+    setSurveyFlowJson: function (json, state) { post("setSurveyFlowJson", { json: json, state: state || "save" }); },
+    alert: function (message) { post("alert", { message: message == null ? "" : String(message) }); },
+    logError: function (message) { post("logError", { message: message == null ? "" : String(message) }); },
+    disableDismiss: function () { post("disableDismiss"); },
+    enableDismiss: function () { post("enableDismiss"); },
+    defineNoSwipeRegion: function (regionId, x, y, width, height) {
+      post("defineNoSwipeRegion", { regionId: String(regionId), x: +x, y: +y, width: +width, height: +height });
+    },
+    destroyNoSwipeRegion: function (regionId) { post("destroyNoSwipeRegion", { regionId: String(regionId) }); },
+    pauseVideoPlayback: function () {
+      var v = document.querySelectorAll("video");
+      for (var i = 0; i < v.length; i++) { try { v[i].pause(); } catch (e) {} }
+    },
+    addAction: function () { post("addAction"); },
+    registerEventListener: function (eventType, fn) {
+      if (typeof fn !== "function") return;
+      (listeners[eventType] = listeners[eventType] || []).push(fn);
+    },
+    executeEvent: function (eventType, param) {
+      var list = (listeners[eventType] || []).slice();
+      for (var i = 0; i < list.length; i++) { try { list[i](param); } catch (e) { P.logError(String(e && e.message || e)); } }
+    }
+  };
+  window.PresentationPlayer = P;
+
+  window.addEventListener("error", function (e) {
+    P.logError((e && e.message) || "Script error");
+  });
+
+  // Replies and native events from the preview.
+  window.addEventListener("message", function (e) {
+    if (e.source !== parent) return;
+    var d = e.data;
+    if (!d || d.__clm !== 1) return;
+    if (d.event) { P.executeEvent(d.event, d.param); return; }
+    if (d.callback && /^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*$/.test(d.callback)) {
+      var fn = window, parts = d.callback.split(".");
+      for (var i = 0; i < parts.length && fn; i++) fn = fn[parts[i]];
+      if (typeof fn === "function") { try { fn(d.value); } catch (err) { P.logError(String(err && err.message || err)); } }
+    }
+  });
+
+  function reportViewport() {
+    var meta = document.querySelector('meta[name="viewport"]');
+    var m = meta && /(?:^|[,;\s])width\s*=\s*(\d+)/i.exec(meta.getAttribute("content") || "");
+    // A number: the meta width; null: device-width (scale 1); 0: no viewport tag (WebKit lays out at 980).
+    post("__viewport", { width: m ? +m[1] : meta && /device-width/i.test(meta.getAttribute("content") || "") ? null : 0 });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", reportViewport);
+  else reportViewport();
+
+  // Short horizontal drags are swipes; the preview applies the app's limits and no-swipe regions.
+  var start = null;
+  window.addEventListener("pointerdown", function (e) {
+    if (e.isPrimary) start = { x: e.clientX, y: e.clientY, t: Date.now() };
+  }, true);
+  window.addEventListener("pointerup", function (e) {
+    if (!start || !e.isPrimary) return;
+    var s = start; start = null;
+    post("__swipe", { x: s.x, y: s.y, dx: e.clientX - s.x, dy: e.clientY - s.y, ms: Date.now() - s.t });
+  }, true);
+
+  // The app never follows a link inside the slide.
+  document.addEventListener("click", function (e) {
+    var a = e.target && e.target.closest ? e.target.closest("a[href]") : null;
+    if (!a) return;
+    var href = a.getAttribute("href") || "";
+    if (!href || href.charAt(0) === "#" || /^javascript:/i.test(href)) return;
+    e.preventDefault();
+    post("__link", { href: a.href || href });
+  }, true);
+})();
+`;
+
+// src/studio/screens/content-player.ts
+init_helpers2();
+init_cli();
+init_private_tmp();
+import { execFile as execFile5 } from "node:child_process";
+import { randomUUID as randomUUID2 } from "node:crypto";
+import {
+  existsSync as existsSync18,
+  lstatSync as lstatSync2,
+  mkdirSync as mkdirSync9,
+  readdirSync as readdirSync15,
+  readFileSync as readFileSync17,
+  renameSync as renameSync3,
+  rmSync as rmSync11,
+  writeFileSync as writeFileSync9
+} from "node:fs";
+import { join as join20, relative } from "node:path";
+import { promisify as promisify6 } from "node:util";
+
+// src/studio/screens/mustache-lite.ts
+var ESC = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+  "/": "&#x2F;",
+  "`": "&#x60;",
+  "=": "&#x3D;"
+};
+var escape2 = (s11) => s11.replace(/[&<>"'`=/]/g, (c) => ESC[c]);
+function lookup2(stack, name) {
+  if (name === ".") return stack[stack.length - 1];
+  const parts = name.split(".");
+  for (let i = stack.length - 1; i >= 0; i--) {
+    const frame = stack[i];
+    if (frame && typeof frame === "object" && parts[0] in frame) {
+      let v = frame;
+      for (const p of parts)
+        v = v && typeof v === "object" ? v[p] : void 0;
+      return v;
+    }
+  }
+  return void 0;
+}
+var str24 = (v) => v === void 0 || v === null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
+var falsy = (v) => !v || Array.isArray(v) && v.length === 0;
+var TAG = /\{\{(\{|&|#|\^|\/|!|>|=)?\s*([^}]*?)\s*\}?\}\}/g;
+function findClose(tpl, name, from) {
+  let depth = 1;
+  const re = new RegExp(TAG.source, "g");
+  re.lastIndex = from;
+  for (let m = re.exec(tpl); m; m = re.exec(tpl)) {
+    if ((m[1] === "#" || m[1] === "^") && m[2] === name) depth++;
+    else if (m[1] === "/" && m[2] === name && --depth === 0)
+      return { start: m.index, end: re.lastIndex };
+  }
+  return null;
+}
+function render(tpl, stack) {
+  let out = "";
+  let at2 = 0;
+  const re = new RegExp(TAG.source, "g");
+  for (let m = re.exec(tpl); m; m = re.exec(tpl)) {
+    out += tpl.slice(at2, m.index);
+    at2 = re.lastIndex;
+    const [whole, kind, name] = m;
+    if (kind === "!") continue;
+    if (kind === ">" || kind === "=" || kind === "/") {
+      out += kind === "/" ? "" : whole;
+      continue;
+    }
+    if (kind === "#" || kind === "^") {
+      const close = findClose(tpl, name, at2);
+      if (!close) {
+        out += whole;
+        continue;
+      }
+      const inner = tpl.slice(at2, close.start);
+      const v2 = lookup2(stack, name);
+      if (kind === "^") {
+        if (falsy(v2)) out += render(inner, stack);
+      } else if (Array.isArray(v2)) {
+        for (const item2 of v2) out += render(inner, [...stack, item2]);
+      } else if (!falsy(v2)) {
+        out += render(inner, typeof v2 === "object" ? [...stack, v2] : stack);
+      }
+      at2 = close.end;
+      re.lastIndex = close.end;
+      continue;
+    }
+    const v = str24(lookup2(stack, name));
+    out += kind === "{" || kind === "&" ? v : escape2(v);
+  }
+  return out + tpl.slice(at2);
+}
+function renderSlideTemplate(html, data2) {
+  if (!html.includes("{{")) return html;
+  return render(html.split("{{{.}}}").join(JSON.stringify(data2)), [data2]);
+}
+
+// src/studio/screens/content-player.ts
+var run4 = promisify6(execFile5);
+var CLM_ROOT_NAME = "lsc-studio-clm";
+var MAX_FILE_BYTES = 150 << 20;
+var MAX_UNZIPPED_BYTES = 400 << 20;
+var MAX_ZIP_ENTRIES = 2e3;
+var MAX_PDF_PAGES = 80;
+var RENDERED = ".mustache.html";
+var ASSET_PREFIX = "isadditionalcontent_";
+var MAX_ASSET_PAGES = 40;
+var IMAGE_TYPES = /* @__PURE__ */ new Set(["PNG", "JPG", "JPEG", "GIF"]);
+var s7 = (v) => typeof v === "string" ? v : "";
+function slideFiles(names5) {
+  return names5.filter((n2) => n2.includes(".html") && !n2.endsWith(RENDERED)).sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
+}
+function thumbnailFor(slide) {
+  const cut = slide.indexOf("_");
+  return `${cut >= 0 ? slide.slice(0, cut) : slide}_thumbnail.jpg`;
+}
+function gestureOf(v) {
+  const g = s7(v).replace(/[\s_]/g, "").toLowerCase();
+  return { taptop: "TapTop", tapbottom: "TapBottom", swipeup: "SwipeUp", swipedown: "SwipeDown" }[g] ?? "SwipeUp";
+}
+function safeEntries(names5) {
+  if (names5.length > MAX_ZIP_ENTRIES) return false;
+  return names5.every(
+    (n2) => !n2.startsWith("/") && !/^[A-Za-z]:/.test(n2) && !n2.split(/[\\/]/).includes("..")
+  );
+}
+function dropLinks(dir) {
+  for (const name of readdirSync15(dir)) {
+    const p = join20(dir, name);
+    const st = lstatSync2(p);
+    if (st.isSymbolicLink()) rmSync11(p, { force: true });
+    else if (st.isDirectory()) dropLinks(p);
+  }
+}
+async function download2(org, version3, dest) {
+  const res = await downloadToFile(
+    await dataPath2(org, `/sobjects/ContentVersion/${version3}/VersionData`),
+    dest,
+    org,
+    18e4
+  );
+  if (!res.success) throw new Error(res.error || "Download failed");
+}
+async function ensurePageFolder(org, root2, folder, version3) {
+  const dir = join20(root2, folder);
+  if (existsSync18(join20(dir, ".ok"))) return dir;
+  const work = join20(root2, `.work-${randomUUID2()}`);
+  mkdirSync9(work, { recursive: true, mode: 448 });
+  try {
+    const zip = join20(work, "page.zip");
+    await download2(org, version3, zip);
+    const { stdout } = await run4("unzip", ["-Z1", zip], { timeout: 3e4, maxBuffer: 8 << 20 });
+    const names5 = stdout.split("\n").filter(Boolean);
+    if (!safeEntries(names5))
+      throw new Error("The page's ZIP has paths outside its folder or too many files.");
+    const { stdout: listing } = await run4("unzip", ["-l", zip], {
+      timeout: 3e4,
+      maxBuffer: 8 << 20
+    });
+    const total = Number(/^\s*(\d+)\s+\d+\s+files?\s*$/m.exec(listing)?.[1] ?? 0);
+    if (total > MAX_UNZIPPED_BYTES) throw new Error("The page's ZIP is too large to unpack here.");
+    const out = join20(work, "x");
+    await run4("unzip", ["-q", "-o", zip, "-d", out], { timeout: 12e4 });
+    dropLinks(out);
+    rmSync11(dir, { recursive: true, force: true });
+    renameSync3(out, dir);
+    writeFileSync9(join20(dir, ".ok"), version3);
+    return dir;
+  } finally {
+    rmSync11(work, { recursive: true, force: true });
+  }
+}
+async function ensurePdfPages(org, root2, folder, version3, numbers) {
+  const dir = join20(root2, folder);
+  mkdirSync9(dir, { recursive: true, mode: 448 });
+  const pdf = join20(dir, "content.pdf");
+  if (!existsSync18(join20(dir, ".ok"))) {
+    const tmp = join20(dir, `.content-${randomUUID2()}.pdf`);
+    try {
+      await download2(org, version3, tmp);
+      renameSync3(tmp, pdf);
+      writeFileSync9(join20(dir, ".ok"), version3);
+    } finally {
+      rmSync11(tmp, { force: true });
+    }
+  }
+  for (const n2 of numbers) {
+    const out = join20(dir, `page-${n2}`);
+    if (existsSync18(`${out}.jpg`)) continue;
+    await run4(
+      "pdftoppm",
+      ["-f", String(n2), "-l", String(n2), "-jpeg", "-singlefile", "-scale-to", "1600", pdf, out],
+      { timeout: 6e4 }
+    ).catch(async () => {
+      if (n2 !== 1) return;
+      await run4("sips", ["-s", "format", "jpeg", "-Z", "1600", pdf, "--out", `${out}.jpg`], {
+        timeout: 6e4
+      });
+    });
+  }
+  return dir;
+}
+async function ensureAsset(org, root2, folder, version3) {
+  const dir = join20(root2, folder);
+  const id2 = s7(version3.Id);
+  const type = s7(version3.FileType).toUpperCase();
+  const listed = () => readdirSync15(dir).filter((n2) => /^(page-\d+\.jpg|asset\.(png|jpg|jpeg|gif))$/.test(n2)).sort((a, b) => a.localeCompare(b, void 0, { numeric: true })).map((n2) => `${folder}/${n2}`);
+  if (existsSync18(join20(dir, ".ok"))) return listed();
+  if (type !== "PDF" && !IMAGE_TYPES.has(type)) return [];
+  rmSync11(dir, { recursive: true, force: true });
+  mkdirSync9(dir, { recursive: true, mode: 448 });
+  if (type === "PDF") {
+    const pdf = join20(dir, "content.pdf");
+    await download2(org, id2, pdf);
+    await run4(
+      "pdftoppm",
+      ["-l", String(MAX_ASSET_PAGES), "-jpeg", "-scale-to", "1600", pdf, join20(dir, "page")],
+      { timeout: 12e4 }
+    ).catch(
+      () => run4("sips", ["-s", "format", "jpeg", "-Z", "1600", pdf, "--out", join20(dir, "page-1.jpg")], {
+        timeout: 6e4
+      })
+    );
+  } else {
+    await download2(org, id2, join20(dir, `asset.${type.toLowerCase()}`));
+  }
+  writeFileSync9(join20(dir, ".ok"), id2);
+  return listed();
+}
+async function mapLimit(items, n2, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(n2, items.length) }, async () => {
+      while (next < items.length) {
+        const i = next++;
+        out[i] = await fn(items[i]);
+      }
+    })
+  );
+  return out;
+}
+async function loadContentPlayer(org, presentationId, userId) {
+  if (!ID_PATTERN.test(presentationId)) throw new Error("Not a presentation Id.");
+  const [pres] = await query(
+    `SELECT Id, Name, Type, IsCustom, SourceSystemIdentifier, PlayerGestureSectionSide, IsPinchZoomEnabled, IsDoubleTapZoomEnabled
+     FROM Presentation WHERE Id = '${presentationId}'`,
+    org
+  );
+  if (!pres) throw new Error("That presentation isn't in the org any more.");
+  const links = await query(
+    `SELECT DisplayOrder, PresentationPageId, PresentationPage.Name, PresentationPage.PageNumber, PresentationPage.ContentDocumentId,
+            PresentationPage.IsMandatory, PresentationPage.IsAdditionalContent, PresentationPage.SourceSystemIdentifier
+     FROM PresentationLinkedPage
+     WHERE PresentationId = '${presentationId}' AND PresentationPageId != null AND PresentationPage.Status = 'Active'
+     ORDER BY DisplayOrder`,
+    org
+  );
+  const users = ID_PATTERN.test(userId) ? await query(
+    `SELECT Id, Name, FirstName, LastName, Email, Username FROM User WHERE Id = '${userId}'`,
+    org
+  ).catch(() => []) : [];
+  const pageOf = (l) => l.PresentationPage ?? {};
+  const docs = [
+    ...new Set(links.map((l) => s7(pageOf(l).ContentDocumentId)).filter((d) => ID_PATTERN.test(d)))
+  ];
+  const versions = docs.length ? await query(
+    `SELECT Id, ContentDocumentId, FileType, ContentSize FROM ContentVersion WHERE IsLatest = true AND ContentDocumentId IN (${inList(docs)})`,
+    org
+  ) : [];
+  const versionOf = new Map(versions.map((v) => [s7(v.ContentDocumentId), v]));
+  const root2 = privateTmp(CLM_ROOT_NAME);
+  const type = s7(pres.Type).toUpperCase();
+  const notes = [];
+  const pages = [];
+  const slides = [];
+  const assets = [];
+  const sizeOk = (v) => {
+    if (!v) return false;
+    if (Number(v.ContentSize) > MAX_FILE_BYTES) {
+      notes.push(
+        `A file over ${MAX_FILE_BYTES >> 20} MB wasn't downloaded; its slides are missing here.`
+      );
+      return false;
+    }
+    return /^068[a-zA-Z0-9]{12,15}$/.test(s7(v.Id));
+  };
+  for (const l of links.filter((l2) => pageOf(l2).IsAdditionalContent === true)) {
+    const name = s7(pageOf(l).Name);
+    const v = versionOf.get(s7(pageOf(l).ContentDocumentId));
+    let files = [];
+    if (sizeOk(v)) {
+      try {
+        files = await ensureAsset(org, root2, `asset_${s7(v.Id)}`, v);
+      } catch (err) {
+        notes.push(
+          `"${name}" couldn't be downloaded: ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+      if (!files.length && !IMAGE_TYPES.has(s7(v.FileType).toUpperCase()) && s7(v.FileType).toUpperCase() !== "PDF")
+        notes.push(
+          `"${name}" is a ${s7(v.FileType) || "file"} the preview can't show; the iPad opens it full screen.`
+        );
+    }
+    assets.push({
+      pageId: s7(l.PresentationPageId),
+      name,
+      title: name.startsWith(ASSET_PREFIX) ? name.slice(ASSET_PREFIX.length) : name,
+      files
+    });
+  }
+  const main2 = links.filter((l) => pageOf(l).IsAdditionalContent !== true);
+  if (type === "PDF") {
+    const v = versionOf.get(s7(pageOf(main2[0] ?? {}).ContentDocumentId));
+    const numbered = main2.slice(0, MAX_PDF_PAGES).map((l) => ({ l, n: Number(pageOf(l).PageNumber) || Number(l.DisplayOrder) || 1 }));
+    if (main2.length > MAX_PDF_PAGES)
+      notes.push(`Only the first ${MAX_PDF_PAGES} pages are drawn here.`);
+    if (sizeOk(v)) {
+      const folder = `pdf_${s7(v.Id)}`;
+      try {
+        const dir = await ensurePdfPages(
+          org,
+          root2,
+          folder,
+          s7(v.Id),
+          numbered.map((x) => x.n)
+        );
+        numbered.forEach(({ l, n: n2 }, i) => {
+          const page = pageOf(l);
+          const file = `${folder}/page-${n2}.jpg`;
+          if (!existsSync18(join20(dir, `page-${n2}.jpg`))) {
+            notes.push(`Page ${n2} of the PDF couldn't be drawn here.`);
+            return;
+          }
+          pages.push({
+            id: s7(l.PresentationPageId),
+            name: s7(page.Name),
+            sourceSystemIdentifier: s7(page.SourceSystemIdentifier)
+          });
+          slides.push({
+            index: slides.length,
+            pageId: s7(l.PresentationPageId),
+            pageName: s7(page.Name),
+            pageIndex: i,
+            name: `pdf page ${n2}`,
+            kind: "pdf",
+            file,
+            thumbnail: file,
+            mandatory: page.IsMandatory === true
+          });
+        });
+      } catch (err) {
+        notes.push(
+          `The PDF couldn't be downloaded: ${err instanceof Error ? err.message : String(err)}`
+        );
+      }
+    }
+  } else {
+    const folders = await mapLimit(main2, 3, async (l) => {
+      const v = versionOf.get(s7(pageOf(l).ContentDocumentId));
+      if (!sizeOk(v)) return null;
+      const folder = `${s7(l.PresentationPageId)}_${s7(v.Id)}`;
+      try {
+        return { folder, dir: await ensurePageFolder(org, root2, folder, s7(v.Id)) };
+      } catch (err) {
+        notes.push(
+          `"${s7(pageOf(l).Name)}" couldn't be opened: ${err instanceof Error ? err.message : String(err)}`
+        );
+        return null;
+      }
+    });
+    main2.forEach((l, i) => {
+      const got = folders[i];
+      if (!got) return;
+      const page = pageOf(l);
+      const files = slideFiles(readdirSync15(got.dir));
+      if (!files.length) {
+        notes.push(
+          `"${s7(page.Name)}" has no .html file at the top of its ZIP, so the iPad shows no slide for it.`
+        );
+        return;
+      }
+      pages.push({
+        id: s7(l.PresentationPageId),
+        name: s7(page.Name),
+        sourceSystemIdentifier: s7(page.SourceSystemIdentifier)
+      });
+      for (const f of files) {
+        const thumb = thumbnailFor(f);
+        slides.push({
+          index: slides.length,
+          pageId: s7(l.PresentationPageId),
+          pageName: s7(page.Name),
+          pageIndex: pages.length - 1,
+          name: f,
+          kind: "html",
+          file: `${got.folder}/${f}${RENDERED}`,
+          thumbnail: existsSync18(join20(got.dir, thumb)) ? `${got.folder}/${thumb}` : void 0,
+          mandatory: page.IsMandatory === true
+        });
+      }
+    });
+    const user = users[0];
+    const presentationData = {
+      id: s7(pres.Id),
+      name: s7(pres.Name),
+      iscustom: pres.IsCustom === true,
+      sourcesystemidentifier: s7(pres.SourceSystemIdentifier),
+      pages: pages.map((p) => ({
+        id: p.id,
+        sourcesystemidentifier: p.sourceSystemIdentifier,
+        contentdocumentid: s7(
+          pageOf(main2.find((l) => s7(l.PresentationPageId) === p.id) ?? {}).ContentDocumentId
+        ),
+        slides: slides.filter((x) => x.pageId === p.id).map((x) => ({ name: x.name }))
+      }))
+    };
+    let tagged = false;
+    for (const slide of slides) {
+      const folder = slide.file.slice(0, slide.file.indexOf("/"));
+      const dir = join20(root2, folder);
+      const original = readFileSync17(join20(dir, slide.name), "utf8");
+      if (original.includes("{{")) tagged = true;
+      const data2 = {
+        presentations: [presentationData],
+        customers: [],
+        visits: [],
+        user: user ? {
+          id: s7(user.Id),
+          name: s7(user.Name),
+          firstname: s7(user.FirstName),
+          lastname: s7(user.LastName),
+          email: s7(user.Email),
+          username: s7(user.Username)
+        } : {},
+        presentationindex: 0,
+        pageindex: slide.pageIndex,
+        slideindex: slide.index,
+        state: ""
+      };
+      writeFileSync9(
+        join20(dir, slide.name + RENDERED),
+        injectBridgeTag(renderSlideTemplate(original, data2))
+      );
+      writeFileSync9(join20(dir, CLM_BRIDGE_FILE), CLM_BRIDGE_JS);
+    }
+    if (tagged)
+      notes.push(
+        "Some slides fill in account or visit data. The preview has no visit open, so those parts are blank, as when a rep opens the presentation outside a visit."
+      );
+  }
+  if (!slides.length && !notes.length)
+    notes.push("This presentation has no active pages with content.");
+  for (const sl of slides)
+    if (relative(root2, join20(root2, sl.file)).startsWith("..")) throw new Error("Bad slide path.");
+  return {
+    root: root2,
+    presentation: {
+      id: s7(pres.Id),
+      name: s7(pres.Name),
+      type,
+      gesture: gestureOf(pres.PlayerGestureSectionSide),
+      pinchZoom: pres.IsPinchZoomEnabled !== false,
+      doubleTapZoom: pres.IsDoubleTapZoomEnabled !== false
+    },
+    pages,
+    slides,
+    assets,
+    notes: [...new Set(notes)]
+  };
+}
+
+// src/studio/content/drafts.ts
+var DRAFT_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
+var MAX_DRAFT_FILES = 60;
+var MAX_DRAFT_FILE_BYTES = 2 << 20;
+var MAX_DRAFT_BYTES = 10 << 20;
+var PART = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;
+var EXTENSIONS = /* @__PURE__ */ new Set([
+  "html",
+  "css",
+  "js",
+  "json",
+  "svg",
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "woff",
+  "woff2",
+  "txt"
+]);
+var THUMBS = /(^|\/)(\d+_)?thumbnail\.jpg$/i;
+function draftDir(id2) {
+  if (!DRAFT_ID.test(id2)) throw new Error("Not a draft id.");
+  return privateTmp(CLM_ROOT_NAME, "drafts", id2);
+}
+function draftExists(id2) {
+  return DRAFT_ID.test(id2) && slideFiles(readdirSync16(draftDir(id2))).length > 0;
+}
+function fileProblems(files) {
+  const out = [];
+  if (files.length > MAX_DRAFT_FILES) out.push(`At most ${MAX_DRAFT_FILES} files.`);
+  let total = 0;
+  const seen = /* @__PURE__ */ new Set();
+  for (const f of files) {
+    const parts = f.path.split("/");
+    if (parts.length > 2 || !parts.every((p) => PART.test(p)) || parts.some((p) => p.startsWith(".")))
+      out.push(`${f.path}: use a plain name, at most one folder deep (like img/logo.svg).`);
+    const ext = f.path.split(".").pop().toLowerCase();
+    if (!EXTENSIONS.has(ext)) out.push(`${f.path}: .${ext} files aren't kept.`);
+    if (f.path.endsWith(RENDERED) || f.path === CLM_BRIDGE_FILE)
+      out.push(`${f.path}: that name is used by the player.`);
+    if (THUMBS.test(f.path)) out.push(`${f.path}: thumbnails are drawn by the app.`);
+    if (parts.length > 1 && ext === "html")
+      out.push(`${f.path}: slides go at the top, not in a folder.`);
+    if (seen.has(f.path.toLowerCase())) out.push(`${f.path} is in the list twice.`);
+    seen.add(f.path.toLowerCase());
+    const bytes = f.base64 ? Buffer.byteLength(f.content, "base64") : Buffer.byteLength(f.content);
+    if (bytes > MAX_DRAFT_FILE_BYTES)
+      out.push(`${f.path} is over ${MAX_DRAFT_FILE_BYTES >> 20} MB.`);
+    total += bytes;
+  }
+  if (total > MAX_DRAFT_BYTES) out.push(`The files come to over ${MAX_DRAFT_BYTES >> 20} MB.`);
+  return out;
+}
+function references(text12) {
+  const local = /* @__PURE__ */ new Set();
+  const external = /* @__PURE__ */ new Set();
+  const re = /(?:\b(?:src|href|poster)\s*=\s*["']([^"']+)["'])|(?:url\(\s*["']?([^"')]+)["']?\s*\))|(?:@import\s+["']([^"']+)["'])/gi;
+  for (const m of text12.matchAll(re)) {
+    const ref3 = (m[1] ?? m[2] ?? m[3] ?? "").trim();
+    if (!ref3 || ref3.startsWith("#") || /^(data|javascript|mailto|tel|about):/i.test(ref3) || ref3.includes("{{"))
+      continue;
+    if (/^(https?:)?\/\//i.test(ref3)) external.add(ref3);
+    else local.add(ref3.split(/[?#]/)[0].replace(/^\.\//, ""));
+  }
+  return { local: [...local], external: [...external] };
+}
+var listFiles = (dir, prefix = "") => existsSync19(dir) ? readdirSync16(dir, { withFileTypes: true }).flatMap(
+  (e) => e.isDirectory() ? prefix ? [] : listFiles(join21(dir, e.name), `${e.name}/`) : e.isFile() ? [`${prefix}${e.name}`] : []
+) : [];
+function draftFiles(id2) {
+  return listFiles(draftDir(id2)).filter((f) => !f.endsWith(RENDERED) && f !== CLM_BRIDGE_FILE && !THUMBS.test(f)).sort();
+}
+function checkDraft(id2) {
+  const dir = draftDir(id2);
+  const files = draftFiles(id2);
+  const have = new Set(files.map((f) => f.toLowerCase()));
+  const checks = [];
+  const slides = slideFiles(files.filter((f) => !f.includes("/")));
+  if (!slides.length)
+    checks.push({
+      level: "error",
+      message: "There's no slide: add an .html file at the top, like 01_intro.html."
+    });
+  for (const sl of slides) {
+    if (!/^\d{2,}_/.test(sl))
+      checks.push({
+        level: "warning",
+        file: sl,
+        message: "The iPad orders slides by file name and finds each one's thumbnail by its number: name it like 01_intro.html."
+      });
+    const html = readFileSync18(join21(dir, sl), "utf8");
+    if (!/<meta[^>]+name=["']viewport["']/i.test(html))
+      checks.push({
+        level: "warning",
+        file: sl,
+        message: 'No viewport tag: add <meta name="viewport" content="width=1024, height=768"> so it fits the iPad.'
+      });
+  }
+  for (const f of files.filter((f2) => /\.(html|css)$/i.test(f2))) {
+    const { local, external } = references(readFileSync18(join21(dir, f), "utf8"));
+    for (const ref3 of external)
+      checks.push({
+        level: "error",
+        file: f,
+        message: `${ref3} is on the internet. Reps often present offline, so everything must be in the page: put the file in the draft or leave it out.`
+      });
+    const base2 = f.includes("/") ? `${f.slice(0, f.indexOf("/"))}/` : "";
+    for (const ref3 of local) {
+      const path24 = ref3.startsWith("../") ? ref3.slice(3) : `${base2}${ref3}`;
+      if (!have.has(decodeURI(path24).toLowerCase()) && !THUMBS.test(path24))
+        checks.push({ level: "error", file: f, message: `${ref3} isn't in the draft.` });
+    }
+  }
+  return checks;
+}
+function writeDraft(id2, files, replace) {
+  const problems = fileProblems(files);
+  if (problems.length) throw new Error(problems.join(" "));
+  const dir = draftDir(id2);
+  if (replace) {
+    rmSync12(dir, { recursive: true, force: true });
+    mkdirSync10(dir, { recursive: true, mode: 448 });
+  }
+  for (const f of files) {
+    const at2 = join21(dir, f.path);
+    mkdirSync10(dirname10(at2), { recursive: true, mode: 448 });
+    writeFileSync10(at2, f.base64 ? Buffer.from(f.content, "base64") : f.content, { mode: 384 });
+  }
+  const total = listFiles(dir).reduce((n2, f) => n2 + statSync5(join21(dir, f)).size, 0);
+  if (total > MAX_DRAFT_BYTES * 2)
+    throw new Error(`The draft is over ${MAX_DRAFT_BYTES * 2 >> 20} MB.`);
+}
+function deleteDraft(id2) {
+  rmSync12(draftDir(id2), { recursive: true, force: true });
+}
+function draftPlayer(id2, name) {
+  const root2 = privateTmp(CLM_ROOT_NAME);
+  const dir = draftDir(id2);
+  const folder = `drafts/${id2}`;
+  const pageId = `new:${id2}`;
+  const files = slideFiles(readdirSync16(dir));
+  const slides = files.map((f, index) => {
+    const thumb = thumbnailFor(f);
+    return {
+      index,
+      pageId,
+      pageName: name,
+      pageIndex: 0,
+      name: f,
+      kind: "html",
+      file: `${folder}/${f}${RENDERED}`,
+      thumbnail: existsSync19(join21(dir, thumb)) ? `${folder}/${thumb}` : void 0,
+      mandatory: false
+    };
+  });
+  const presentationData = {
+    id: "",
+    name,
+    iscustom: false,
+    sourcesystemidentifier: "",
+    pages: [
+      {
+        id: pageId,
+        sourcesystemidentifier: "",
+        contentdocumentid: "",
+        slides: files.map((name2) => ({ name: name2 }))
+      }
+    ]
+  };
+  for (const sl of slides) {
+    const data2 = {
+      presentations: [presentationData],
+      customers: [],
+      visits: [],
+      user: {},
+      presentationindex: 0,
+      pageindex: 0,
+      slideindex: sl.index,
+      state: ""
+    };
+    writeFileSync10(
+      join21(dir, sl.name + RENDERED),
+      injectBridgeTag(renderSlideTemplate(readFileSync18(join21(dir, sl.name), "utf8"), data2))
+    );
+  }
+  writeFileSync10(join21(dir, CLM_BRIDGE_FILE), CLM_BRIDGE_JS);
+  return {
+    root: root2,
+    presentation: {
+      id: pageId,
+      name,
+      type: "ZIP",
+      gesture: "SwipeUp",
+      pinchZoom: true,
+      doubleTapZoom: true
+    },
+    pages: [{ id: pageId, name, sourceSystemIdentifier: "" }],
+    slides,
+    assets: [],
+    notes: slides.length ? [] : ["The draft has no slide yet."]
+  };
+}
+async function zipDraft(id2) {
+  const dir = draftDir(id2);
+  const files = listFiles(dir).filter((f) => !f.endsWith(RENDERED) && f !== CLM_BRIDGE_FILE);
+  if (!slideFiles(files.filter((f) => !f.includes("/"))).length)
+    throw new Error("The draft has no slide.");
+  const out = join21(privateTmp("lsc-studio-content-upload"), `${id2}-${Date.now()}.zip`);
+  await new Promise((resolve4, reject) => {
+    const stream = createWriteStream3(out, { mode: 384 });
+    const archive = (0, import_archiver2.default)("zip", { zlib: { level: 9 } });
+    stream.on("close", () => resolve4());
+    archive.on("error", reject);
+    archive.pipe(stream);
+    for (const f of files) archive.file(join21(dir, f), { name: f });
+    void archive.finalize();
+  });
+  return out;
+}
+
+// src/studio/content/fixes.ts
+init_cli();
+init_helpers2();
+
+// src/studio/content/logic.ts
+var FIELD_KEYS = [
+  "name",
+  "status",
+  "activationDate",
+  "deactivationDate",
+  "gesture",
+  "pinchZoom",
+  "doubleTapZoom",
+  "canEmail",
+  "locked"
+];
+var FIELD_API = {
+  name: "Name",
+  status: "Status",
+  activationDate: "ActivationDate",
+  deactivationDate: "DeactivationDate",
+  gesture: "PlayerGestureSectionSide",
+  pinchZoom: "IsPinchZoomEnabled",
+  doubleTapZoom: "IsDoubleTapZoomEnabled",
+  canEmail: "CanSendByEmail",
+  locked: "IsPresentationLocked"
+};
+var FIELD_LABEL2 = {
+  name: "Name",
+  status: "Status",
+  activationDate: "Available from",
+  deactivationDate: "Available until",
+  gesture: "Show the player's bar with",
+  pinchZoom: "Pinch to zoom",
+  doubleTapZoom: "Double-tap to zoom",
+  canEmail: "Reps can email it",
+  locked: "Locked"
+};
+var GESTURE_LABEL = {
+  TapTop: "A tap at the top",
+  TapBottom: "A tap at the bottom",
+  SwipeUp: "A swipe up from the bottom",
+  SwipeDown: "A swipe down from the top"
+};
+var PARTS = [
+  ...FIELD_KEYS.map((k) => `field:${k}`),
+  "pages",
+  "mandatory",
+  "products",
+  "topics",
+  "shares"
+];
+var sorted2 = (xs) => [...xs].sort();
+function partKey(d, part) {
+  if (part.startsWith("field:")) {
+    const v = d.fields[part.slice(6)];
+    return JSON.stringify(v === "" || v === void 0 ? null : v);
+  }
+  switch (part) {
+    case "pages":
+      return d.pages.map((p) => p.pageId).join(",");
+    case "mandatory":
+      return sorted2(d.pages.map((p) => `${p.pageId}:${p.mandatory ? 1 : 0}`)).join(",");
+    case "products":
+      return sorted2(
+        d.pages.map((p) => `${p.pageId}:${sorted2(p.products.map((x) => x.id)).join("+")}`)
+      ).join(",");
+    case "topics":
+      return sorted2(d.topics.map((t) => t.id)).join(",");
+    case "shares":
+      return sorted2(d.shares.map((s11) => s11.groupId)).join(",");
+    default:
+      return "";
+  }
+}
+function changedParts(from, to) {
+  return PARTS.filter((p) => partKey(from, p) !== partKey(to, p));
+}
+function checkCurrent(current2, from, to) {
+  const parts = changedParts(from, to);
+  if (parts.every((p) => partKey(current2, p) === partKey(to, p))) return { state: "applied" };
+  const moved = parts.filter((p) => {
+    if (p === "mandatory" || p === "products") {
+      const ids = new Set(from.pages.map((x) => x.pageId));
+      const pick2 = (d) => ({
+        ...d,
+        pages: d.pages.filter((x) => ids.has(x.pageId))
+      });
+      return partKey(pick2(current2), p) !== partKey(pick2(from), p);
+    }
+    return partKey(current2, p) !== partKey(from, p);
+  });
+  return moved.length ? { state: "changed", parts: moved } : { state: "ok" };
+}
+var PART_LABEL = (p) => p.startsWith("field:") ? FIELD_LABEL2[p.slice(6)] : {
+  pages: "pages",
+  mandatory: "required pages",
+  products: "page products",
+  topics: "topics",
+  shares: "territories"
+}[p];
+var emptyPlan = () => ({
+  presentation: null,
+  deleteLinks: [],
+  createLinks: [],
+  reorderLinks: [],
+  mandatory: [],
+  createProducts: [],
+  deleteProducts: [],
+  createTopics: [],
+  deleteTopics: [],
+  addShares: [],
+  removeShares: []
+});
+function planIsEmpty(p) {
+  return !p.presentation && !p.deleteLinks.length && !p.createLinks.length && !p.reorderLinks.length && !p.mandatory.length && !p.createProducts.length && !p.deleteProducts.length && !p.createTopics.length && !p.deleteTopics.length && !p.addShares.length && !p.removeShares.length;
+}
+var fieldValue = (k, v) => {
+  if (k === "pinchZoom" || k === "doubleTapZoom" || k === "canEmail" || k === "locked") return !!v;
+  return v === "" || v === void 0 ? null : v;
+};
+function planWrites(current2, rows3, to, parts) {
+  const plan3 = emptyPlan();
+  const has = (p) => parts.includes(p);
+  const fields = {};
+  for (const k of FIELD_KEYS) {
+    if (!has(`field:${k}`)) continue;
+    const next = fieldValue(k, to.fields[k]);
+    if (JSON.stringify(fieldValue(k, current2.fields[k])) !== JSON.stringify(next))
+      fields[FIELD_API[k]] = next;
+  }
+  if (Object.keys(fields).length) plan3.presentation = fields;
+  if (has("pages") && partKey(current2, "pages") !== partKey(to, "pages")) {
+    const keep = new Set(to.pages.map((p) => p.pageId));
+    for (const p of current2.pages) {
+      const link = rows3.links.get(p.pageId);
+      if (!keep.has(p.pageId) && link) plan3.deleteLinks.push(link.id);
+    }
+    to.pages.forEach((p, i) => {
+      const order = i + 1;
+      const link = rows3.links.get(p.pageId);
+      if (!link) plan3.createLinks.push({ PresentationPageId: p.pageId, DisplayOrder: order });
+      else if (link.order !== order) plan3.reorderLinks.push({ Id: link.id, DisplayOrder: order });
+    });
+  }
+  if (has("mandatory")) {
+    for (const p of to.pages) {
+      const was = rows3.pageState.get(p.pageId);
+      if (was && was.mandatory !== p.mandatory)
+        plan3.mandatory.push({ Id: p.pageId, IsMandatory: p.mandatory });
+    }
+  }
+  if (has("products")) {
+    for (const p of to.pages) {
+      const was = rows3.pageState.get(p.pageId);
+      if (!was) continue;
+      const next = new Set(p.products.map((x) => x.id));
+      for (const id2 of next)
+        if (!was.products.has(id2))
+          plan3.createProducts.push({ PresentationPageId: p.pageId, ProductId: id2 });
+      for (const [id2, row] of was.products) if (!next.has(id2)) plan3.deleteProducts.push(row);
+    }
+  }
+  if (has("topics")) {
+    const was = new Set(current2.topics.map((t) => t.id));
+    const next = new Set(to.topics.map((t) => t.id));
+    for (const id2 of next) if (!was.has(id2)) plan3.createTopics.push(id2);
+    for (const id2 of was) {
+      const row = rows3.topics.get(id2);
+      if (!next.has(id2) && row) plan3.deleteTopics.push(row);
+    }
+  }
+  if (has("shares")) {
+    const was = new Set(current2.shares.map((s11) => s11.groupId));
+    const next = new Set(to.shares.map((s11) => s11.groupId));
+    plan3.addShares = to.shares.filter((s11) => !was.has(s11.groupId));
+    plan3.removeShares = current2.shares.filter((s11) => !next.has(s11.groupId)).map((s11) => s11.groupId);
+  }
+  return plan3;
+}
+var yesNo = (v) => v ? "Yes" : "No";
+var listOf = (xs, none2 = "(none)") => {
+  if (!xs.length) return none2;
+  return xs.length > 6 ? `${xs.slice(0, 6).join(", ")} and ${xs.length - 6} more` : xs.join(", ");
+};
+function showField(k, v) {
+  if (v === null || v === void 0 || v === "") return "(none)";
+  if (typeof v === "boolean") return yesNo(v);
+  if (k === "gesture") return GESTURE_LABEL[String(v)] ?? String(v);
+  return String(v);
+}
+var shareName = (s11) => s11.subordinates ? `${s11.name} and below` : s11.name;
+function describeChanges(name, from, to, created = false) {
+  const out = [];
+  for (const part of changedParts(from, to)) {
+    if (part.startsWith("field:")) {
+      const k = part.slice(6);
+      out.push({
+        target: name,
+        field: FIELD_LABEL2[k],
+        before: created ? "(none)" : showField(k, from.fields[k]),
+        after: showField(k, to.fields[k])
+      });
+      continue;
+    }
+    switch (part) {
+      case "pages": {
+        const was = new Set(from.pages.map((p) => p.pageId));
+        const next = new Set(to.pages.map((p) => p.pageId));
+        const added = to.pages.filter((p) => !was.has(p.pageId));
+        const removed = from.pages.filter((p) => !next.has(p.pageId));
+        for (const p of added) {
+          out.push({
+            target: name,
+            field: "Page",
+            before: "(not in it)",
+            after: `${p.name}, page ${to.pages.indexOf(p) + 1}`
+          });
+        }
+        for (const p of removed)
+          out.push({ target: name, field: "Page", before: p.name, after: "(taken out)" });
+        const keptFrom = from.pages.filter((p) => next.has(p.pageId)).map((p) => p.pageId);
+        const keptTo = to.pages.filter((p) => was.has(p.pageId)).map((p) => p.pageId);
+        if (keptFrom.join() !== keptTo.join()) {
+          out.push({
+            target: name,
+            field: "Page order",
+            before: listOf(from.pages.map((p) => p.name)),
+            after: listOf(to.pages.map((p) => p.name))
+          });
+        }
+        break;
+      }
+      case "mandatory": {
+        const was = new Map(from.pages.map((p) => [p.pageId, p.mandatory]));
+        for (const p of to.pages) {
+          if (was.has(p.pageId) && was.get(p.pageId) !== p.mandatory) {
+            out.push({
+              target: p.name,
+              field: "Reps must show it",
+              before: yesNo(!!was.get(p.pageId)),
+              after: yesNo(p.mandatory)
+            });
+          }
+        }
+        break;
+      }
+      case "products": {
+        const was = new Map(from.pages.map((p) => [p.pageId, p.products]));
+        for (const p of to.pages) {
+          const before = was.get(p.pageId) ?? [];
+          const key5 = (xs) => sorted2(xs.map((x) => x.id)).join();
+          if (was.has(p.pageId) && key5(before) !== key5(p.products)) {
+            out.push({
+              target: p.name,
+              field: "Products",
+              before: listOf(before.map((x) => x.name)),
+              after: listOf(p.products.map((x) => x.name))
+            });
+          }
+        }
+        break;
+      }
+      case "topics":
+        out.push({
+          target: name,
+          field: "Topics",
+          before: listOf(from.topics.map((t) => t.name)),
+          after: listOf(to.topics.map((t) => t.name))
+        });
+        break;
+      case "shares":
+        out.push({
+          target: name,
+          field: "Territories",
+          before: listOf(from.shares.map(shareName), "(not distributed)"),
+          after: listOf(to.shares.map(shareName), "(not distributed)")
+        });
+        break;
+    }
+  }
+  return out;
+}
+function draftWarnings(from, to, sharedPages2, today4) {
+  const warnings = [];
+  const parts = changedParts(from, to);
+  const was = new Map(from.pages.map((p) => [p.pageId, p]));
+  if (parts.includes("mandatory") || parts.includes("products")) {
+    for (const p of to.pages) {
+      const before = was.get(p.pageId);
+      const touched = before && (before.mandatory !== p.mandatory || sorted2(before.products.map((x) => x.id)).join() !== sorted2(p.products.map((x) => x.id)).join());
+      const others = sharedPages2[p.pageId] ?? [];
+      if (touched && others.length) {
+        warnings.push(
+          `${p.name} is also in ${listOf(others)}. Its required setting and products change there too.`
+        );
+      }
+    }
+  }
+  if (parts.includes("pages") && from.pages.some((p) => !to.pages.some((q2) => q2.pageId === p.pageId))) {
+    warnings.push("Pages taken out stay in the org; only their place in this presentation goes.");
+  }
+  const active2 = to.fields.status === "Active";
+  if (active2 && !to.pages.length)
+    warnings.push("The presentation is active but has no pages, so reps can't open it.");
+  if (active2 && !to.shares.length)
+    warnings.push("The presentation isn't distributed to any territory, so reps won't see it.");
+  if (to.fields.activationDate && to.fields.deactivationDate && to.fields.deactivationDate < to.fields.activationDate) {
+    warnings.push("It stops being available before it starts.");
+  }
+  if (active2 && to.fields.deactivationDate && to.fields.deactivationDate < today4) {
+    warnings.push("Its end date has passed, so reps won't see it.");
+  }
+  return warnings;
+}
+function draftProblem(to, statusValues, gestureValues) {
+  if (!to.fields.name.trim()) return "The presentation needs a name.";
+  if (to.fields.name.length > 80) return "The name is over 80 characters.";
+  if (statusValues.length && !statusValues.includes(to.fields.status))
+    return `The org doesn't take the status ${to.fields.status}.`;
+  if (to.fields.gesture && gestureValues.length && !gestureValues.includes(to.fields.gesture)) {
+    return `The org doesn't take the gesture ${to.fields.gesture}.`;
+  }
+  const date3 = /^\d{4}-\d{2}-\d{2}$/;
+  for (const k of ["activationDate", "deactivationDate"]) {
+    const v = to.fields[k];
+    if (v && !date3.test(v)) return `${FIELD_LABEL2[k]} isn't a date.`;
+  }
+  const ids = to.pages.map((p) => p.pageId);
+  if (new Set(ids).size !== ids.length) return "A page is in the presentation twice.";
+  return null;
+}
+
+// src/studio/content/read.ts
+init_cli();
+init_helpers2();
+init_content();
+var s8 = (v) => v === null || v === void 0 ? "" : String(v);
+var LIBRARY_LIMIT = 2e3;
+var OPTION_LIMIT2 = 2e3;
+var LIBRARY_THUMBNAILS = 24;
+var MISSING = /INVALID_TYPE|sObject type|not supported|isn't supported|doesn't exist|does not exist/i;
+function chunks5(xs, n2) {
+  const out = [];
+  for (let i = 0; i < xs.length; i += n2) out.push(xs.slice(i, i + n2));
+  return out;
+}
+async function inChunks(ids, build2, org) {
+  const valid = [...new Set(ids)].filter((id2) => ID_PATTERN.test(id2));
+  if (!valid.length) return [];
+  return (await Promise.all(chunks5(valid, 200).map((c) => query(build2(inList(c)), org)))).flat();
+}
+var relName = (r, rel5) => s8(r[rel5]?.Name);
+async function loadLibrary(org) {
+  let res;
+  try {
+    res = await queryResult(
+      `SELECT Id, Name, Status, Type, ActivationDate, DeactivationDate, IsCustom, LastModifiedDate, LastModifiedBy.Name
+       FROM Presentation WHERE Status != 'Deleted' ORDER BY LastModifiedDate DESC LIMIT ${LIBRARY_LIMIT + 1}`,
+      org
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (MISSING.test(message))
+      return { presentations: [], unavailable: "This org has no Intelligent Content objects." };
+    throw err;
+  }
+  const rows3 = res.records.slice(0, LIBRARY_LIMIT);
+  const ids = rows3.map((r) => s8(r.Id));
+  const [links, topics, shares] = await Promise.all([
+    inChunks(
+      ids,
+      (l) => `SELECT PresentationId, DisplayOrder, PresentationPage.PageNumber, PresentationPage.ContentDocumentId
+         FROM PresentationLinkedPage WHERE PresentationId IN (${l}) ORDER BY PresentationId, DisplayOrder`,
+      org
+    ),
+    inChunks(
+      ids,
+      (l) => `SELECT EntityId, Topic.Name FROM TopicAssignment WHERE EntityId IN (${l})`,
+      org
+    ).catch(() => []),
+    inChunks(
+      ids,
+      (l) => `SELECT ParentId, UserOrGroupId FROM PresentationShare WHERE ParentId IN (${l}) AND RowCause IN ('Manual', 'LSC4CEAutoShare')`,
+      org
+    ).catch(() => [])
+  ]);
+  const linked = /* @__PURE__ */ new Map();
+  for (const l of links)
+    linked.set(s8(l.PresentationId), [...linked.get(s8(l.PresentationId)) ?? [], l]);
+  const topicsOf = /* @__PURE__ */ new Map();
+  for (const t of topics)
+    topicsOf.set(s8(t.EntityId), [...topicsOf.get(s8(t.EntityId)) ?? [], relName(t, "Topic")]);
+  const groups = await territoryGroups(
+    shares.map((r) => s8(r.UserOrGroupId)),
+    org
+  ).catch(() => /* @__PURE__ */ new Map());
+  const territoriesOf = /* @__PURE__ */ new Map();
+  for (const r of shares) {
+    const g = groups.get(s8(r.UserOrGroupId));
+    if (!g) continue;
+    const set = territoriesOf.get(s8(r.ParentId)) ?? /* @__PURE__ */ new Set();
+    set.add(g.groupId);
+    territoriesOf.set(s8(r.ParentId), set);
+  }
+  const presentations = rows3.map((r) => ({
+    id: s8(r.Id),
+    name: s8(r.Name),
+    status: s8(r.Status),
+    type: s8(r.Type),
+    activationDate: r.ActivationDate ?? null,
+    deactivationDate: r.DeactivationDate ?? null,
+    pages: linked.get(s8(r.Id))?.length ?? 0,
+    territories: territoriesOf.get(s8(r.Id))?.size ?? 0,
+    topics: (topicsOf.get(s8(r.Id)) ?? []).filter(Boolean).sort(),
+    isCustom: r.IsCustom === true,
+    lastModified: s8(r.LastModifiedDate),
+    lastModifiedBy: relName(r, "LastModifiedBy")
+  }));
+  const cards = presentations.slice(0, LIBRARY_THUMBNAILS).map((p) => ({ id: p.id, type: p.type }));
+  await addThumbnails(cards, linked, org).catch(() => void 0);
+  const thumbs = new Map(cards.map((c) => [c.id, c.thumbnail]));
+  for (const p of presentations) if (thumbs.get(p.id)) p.thumbnail = thumbs.get(p.id);
+  return {
+    presentations,
+    ...res.records.length > LIBRARY_LIMIT ? {
+      note: `Showing the ${LIBRARY_LIMIT.toLocaleString("en-US")} most recently changed presentations.`
+    } : {}
+  };
+}
+async function territoryGroups(ids, org) {
+  const groupIds = ids.filter((id2) => id2.startsWith("00G"));
+  const rows3 = await inChunks(
+    groupIds,
+    (l) => `SELECT Id, RelatedId, Type FROM Group WHERE Id IN (${l}) AND Type IN ('Territory', 'TerritoryAndSubordinates')`,
+    org
+  );
+  return new Map(
+    rows3.map((g) => [
+      s8(g.Id),
+      {
+        groupId: s8(g.Id),
+        territoryId: s8(g.RelatedId),
+        subordinates: s8(g.Type) === "TerritoryAndSubordinates"
+      }
+    ])
+  );
+}
+var PRESENTATION_FIELDS = `Id, Name, Status, Type, UsageType, IsCustom, ActivationDate, DeactivationDate, PlayerGestureSectionSide,
+  IsPinchZoomEnabled, IsDoubleTapZoomEnabled, CanSendByEmail, IsPresentationLocked, LastModifiedDate, LastModifiedBy.Name`;
+async function readState(org, presentationId, extraPages = []) {
+  if (!ID_PATTERN.test(presentationId)) throw new Error("Not a presentation Id.");
+  const [[row], links, topics, shares] = await Promise.all([
+    query(`SELECT ${PRESENTATION_FIELDS} FROM Presentation WHERE Id = '${presentationId}'`, org),
+    query(
+      `SELECT Id, DisplayOrder, PresentationPageId, PresentationPage.Name FROM PresentationLinkedPage
+       WHERE PresentationId = '${presentationId}' ORDER BY DisplayOrder, Id`,
+      org
+    ),
+    query(
+      `SELECT Id, TopicId, Topic.Name FROM TopicAssignment WHERE EntityId = '${presentationId}'`,
+      org
+    ),
+    query(
+      `SELECT Id, UserOrGroupId, RowCause FROM PresentationShare WHERE ParentId = '${presentationId}'`,
+      org
+    )
+  ]);
+  if (!row || s8(row.Status) === "Deleted") return null;
+  const pageIds = [.../* @__PURE__ */ new Set([...links.map((l) => s8(l.PresentationPageId)), ...extraPages])];
+  const [pages, products] = await Promise.all([
+    inChunks(
+      pageIds,
+      (l) => `SELECT Id, Name, IsMandatory FROM PresentationPage WHERE Id IN (${l})`,
+      org
+    ),
+    inChunks(
+      pageIds,
+      (l) => `SELECT Id, PresentationPageId, ProductId, Product.Name FROM PresentationPageProduct WHERE PresentationPageId IN (${l})`,
+      org
+    )
+  ]);
+  const pageState = new Map(
+    pages.map((p) => [
+      s8(p.Id),
+      { mandatory: p.IsMandatory === true, products: /* @__PURE__ */ new Map() }
+    ])
+  );
+  const productNames2 = /* @__PURE__ */ new Map();
+  for (const p of products) {
+    const page = s8(p.PresentationPageId);
+    pageState.get(page)?.products.set(s8(p.ProductId), s8(p.Id));
+    productNames2.set(page, [
+      ...productNames2.get(page) ?? [],
+      { id: s8(p.ProductId), name: relName(p, "Product") || s8(p.ProductId) }
+    ]);
+  }
+  const managed = shares.filter(
+    (r) => s8(r.RowCause) === "Manual" || s8(r.RowCause) === "LSC4CEAutoShare"
+  );
+  const groups = await territoryGroups(
+    managed.map((r) => s8(r.UserOrGroupId)),
+    org
+  );
+  const territoryIds = [...new Set([...groups.values()].map((g) => g.territoryId))];
+  const territories = await inChunks(
+    territoryIds,
+    (l) => `SELECT Id, Name FROM Territory2 WHERE Id IN (${l})`,
+    org
+  );
+  const territoryName = new Map(territories.map((t) => [s8(t.Id), s8(t.Name)]));
+  const shareRows = /* @__PURE__ */ new Map();
+  for (const r of managed) {
+    const g = s8(r.UserOrGroupId);
+    if (groups.has(g)) shareRows.set(g, [...shareRows.get(g) ?? [], s8(r.Id)]);
+  }
+  const draftShares = [...shareRows.keys()].map((g) => {
+    const grp = groups.get(g);
+    return {
+      groupId: g,
+      territoryId: grp.territoryId,
+      name: territoryName.get(grp.territoryId) ?? grp.territoryId,
+      subordinates: grp.subordinates
+    };
+  }).sort((a, b) => a.name.localeCompare(b.name));
+  const draft = {
+    fields: {
+      name: s8(row.Name),
+      status: s8(row.Status),
+      activationDate: row.ActivationDate ?? null,
+      deactivationDate: row.DeactivationDate ?? null,
+      gesture: row.PlayerGestureSectionSide ?? null,
+      pinchZoom: row.IsPinchZoomEnabled === true,
+      doubleTapZoom: row.IsDoubleTapZoomEnabled === true,
+      canEmail: row.CanSendByEmail === true,
+      locked: row.IsPresentationLocked === true
+    },
+    pages: links.map((l) => {
+      const id2 = s8(l.PresentationPageId);
+      return {
+        pageId: id2,
+        name: relName(l, "PresentationPage") || id2,
+        mandatory: pageState.get(id2)?.mandatory ?? false,
+        products: (productNames2.get(id2) ?? []).sort((a, b) => a.name.localeCompare(b.name))
+      };
+    }),
+    topics: topics.map((t) => ({ id: s8(t.TopicId), name: relName(t, "Topic") })).sort((a, b) => a.name.localeCompare(b.name)),
+    shares: draftShares
+  };
+  return {
+    row,
+    draft,
+    rows: {
+      links: new Map(
+        links.map((l) => [
+          s8(l.PresentationPageId),
+          { id: s8(l.Id), order: Number(l.DisplayOrder) || 0 }
+        ])
+      ),
+      pageState,
+      topics: new Map(topics.map((t) => [s8(t.TopicId), s8(t.Id)])),
+      shares: shareRows
+    },
+    // The owner's own row comes with every record; it isn't a distribution.
+    otherShares: shares.filter((r) => s8(r.RowCause) !== "Owner").length - [...shareRows.values()].flat().length
+  };
+}
+async function sharedPages(org, presentationId, pageIds) {
+  const rows3 = await inChunks(
+    pageIds,
+    (l) => `SELECT PresentationPageId, Presentation.Name FROM PresentationLinkedPage
+       WHERE PresentationPageId IN (${l}) AND PresentationId != '${presentationId}'`,
+    org
+  );
+  const out = {};
+  for (const r of rows3) (out[s8(r.PresentationPageId)] ??= []).push(relName(r, "Presentation"));
+  return out;
+}
+async function picklist(object3, field3, org) {
+  try {
+    const d = await describeSObject(object3, org);
+    const f = d.success ? d.data?.fields.find((x) => x.name === field3) : void 0;
+    return (f?.picklistValues ?? []).filter((p) => p.active).map((p) => p.value);
+  } catch {
+    return [];
+  }
+}
+async function options(org, presentationId, notes) {
+  const cut = (rows3, what) => {
+    if (rows3.length > OPTION_LIMIT2)
+      notes.push(
+        `Only the first ${OPTION_LIMIT2.toLocaleString("en-US")} ${what} are offered; search finds them by name.`
+      );
+    return rows3.slice(0, OPTION_LIMIT2);
+  };
+  const [pages, topics, products, model] = await Promise.all([
+    query(
+      `SELECT Id, Name, Type, Status, IsMandatory FROM PresentationPage WHERE IsAdditionalContent = false
+       ${presentationId ? `AND Id NOT IN (SELECT PresentationPageId FROM PresentationLinkedPage WHERE PresentationId = '${presentationId}')` : "AND Type = 'ZIP' AND Status = 'Active'"}
+       ORDER BY LastModifiedDate DESC LIMIT ${OPTION_LIMIT2 + 1}`,
+      org
+    ).catch(() => []),
+    query(
+      `SELECT Id, Name FROM Topic WHERE NetworkId = null ORDER BY Name LIMIT ${OPTION_LIMIT2 + 1}`,
+      org
+    ).catch(() => []),
+    query(
+      `SELECT Id, Name FROM LifeSciMarketableProduct ORDER BY Name LIMIT ${OPTION_LIMIT2 + 1}`,
+      org
+    ).catch(() => []),
+    query(`SELECT Id FROM Territory2Model WHERE State = 'Active' LIMIT 1`, org).catch(
+      () => []
+    )
+  ]);
+  const pageRows = cut(pages, "pages");
+  const pageIds = pageRows.map((p) => s8(p.Id));
+  const [where3, pageProducts] = await Promise.all([
+    inChunks(
+      pageIds,
+      (l) => `SELECT PresentationPageId, Presentation.Name FROM PresentationLinkedPage WHERE PresentationPageId IN (${l})`,
+      org
+    ).catch(() => []),
+    inChunks(
+      pageIds,
+      (l) => `SELECT PresentationPageId, ProductId, Product.Name FROM PresentationPageProduct WHERE PresentationPageId IN (${l})`,
+      org
+    )
+  ]);
+  const productsOf = /* @__PURE__ */ new Map();
+  for (const r of pageProducts) {
+    const id2 = s8(r.PresentationPageId);
+    productsOf.set(id2, [
+      ...productsOf.get(id2) ?? [],
+      { id: s8(r.ProductId), name: relName(r, "Product") || s8(r.ProductId) }
+    ]);
+  }
+  const inPresentations = /* @__PURE__ */ new Map();
+  for (const r of where3)
+    inPresentations.set(s8(r.PresentationPageId), [
+      ...inPresentations.get(s8(r.PresentationPageId)) ?? [],
+      relName(r, "Presentation")
+    ]);
+  let territories = [];
+  if (model[0]) {
+    const rows3 = await query(
+      `SELECT Id, Name, ParentTerritory2Id FROM Territory2 WHERE Territory2ModelId = '${s8(model[0].Id)}' ORDER BY Name LIMIT ${OPTION_LIMIT2 + 1}`,
+      org
+    ).catch(() => []);
+    const terr = cut(rows3, "territories");
+    const groups = await inChunks(
+      terr.map((t) => s8(t.Id)),
+      (l) => `SELECT Id, RelatedId, Type FROM Group WHERE RelatedId IN (${l}) AND Type IN ('Territory', 'TerritoryAndSubordinates')`,
+      org
+    ).catch(() => []);
+    const byTerritory = /* @__PURE__ */ new Map();
+    for (const g of groups) {
+      const entry = byTerritory.get(s8(g.RelatedId)) ?? {};
+      if (s8(g.Type) === "Territory") entry.groupId = s8(g.Id);
+      else entry.subordinatesGroupId = s8(g.Id);
+      byTerritory.set(s8(g.RelatedId), entry);
+    }
+    territories = terr.map((t) => ({
+      territoryId: s8(t.Id),
+      name: s8(t.Name),
+      parentId: t.ParentTerritory2Id ?? null,
+      ...byTerritory.get(s8(t.Id))
+    }));
+  } else {
+    notes.push(
+      "The org has no active territory model, so there are no territories to distribute to."
+    );
+  }
+  return {
+    pages: pageRows.map(
+      (p) => ({
+        id: s8(p.Id),
+        name: s8(p.Name),
+        type: s8(p.Type),
+        status: s8(p.Status),
+        presentations: (inPresentations.get(s8(p.Id)) ?? []).filter(Boolean),
+        mandatory: p.IsMandatory === true,
+        products: (productsOf.get(s8(p.Id)) ?? []).sort((a, b) => a.name.localeCompare(b.name))
+      })
+    ),
+    topics: cut(topics, "topics").map((t) => ({ id: s8(t.Id), name: s8(t.Name) })),
+    products: cut(products, "products").map((p) => ({ id: s8(p.Id), name: s8(p.Name) })),
+    territories,
+    notes
+  };
+}
+async function loadDetail(org, presentationId) {
+  const state = await readState(org, presentationId);
+  if (!state) return { error: "This presentation no longer exists." };
+  const notes = [];
+  const pageIds = state.draft.pages.map((p) => p.pageId);
+  const [shared, opts, statusValues, gestureValues, production, pageThumbnails2] = await Promise.all(
+    [
+      sharedPages(org, presentationId, pageIds).catch(() => ({})),
+      options(org, presentationId, notes),
+      picklist("Presentation", "Status", org),
+      picklist("Presentation", "PlayerGestureSectionSide", org),
+      isProductionOrg(org).catch(() => false),
+      pageImages(org, presentationId, s8(state.row.Type)).catch(() => ({}))
+    ]
+  );
+  return {
+    id: presentationId,
+    type: s8(state.row.Type),
+    usageType: state.row.UsageType ?? null,
+    isCustom: state.row.IsCustom === true,
+    lastModified: s8(state.row.LastModifiedDate),
+    lastModifiedBy: relName(state.row, "LastModifiedBy"),
+    draft: state.draft,
+    statusValues: statusValues.filter((v) => v !== "Deleted"),
+    gestureValues,
+    sharedPages: shared,
+    pageThumbnails: pageThumbnails2,
+    otherShares: state.otherShares,
+    options: opts,
+    production
+  };
+}
+async function loadNewOptions(org) {
+  const notes = [];
+  const [opts, statusValues, gestureValues, production] = await Promise.all([
+    options(org, null, notes),
+    picklist("Presentation", "Status", org),
+    picklist("Presentation", "PlayerGestureSectionSide", org),
+    isProductionOrg(org).catch(() => false)
+  ]);
+  return {
+    statusValues: statusValues.filter((v) => v !== "Deleted"),
+    gestureValues,
+    options: opts,
+    production
+  };
+}
+async function pageThumbnails(org, pageIds) {
+  const ids = pageIds.filter((id2) => ID_PATTERN.test(id2));
+  if (!ids.length) return {};
+  const rows3 = await inChunks(
+    ids,
+    (l) => `SELECT Id, Type, PageNumber, ContentDocumentId FROM PresentationPage WHERE Id IN (${l})`,
+    org
+  );
+  const out = {};
+  for (const type of new Set(rows3.map((r) => s8(r.Type)))) {
+    const links = rows3.filter((r) => s8(r.Type) === type).map((r) => ({
+      PresentationPageId: s8(r.Id),
+      PresentationPage: { PageNumber: r.PageNumber, ContentDocumentId: r.ContentDocumentId }
+    }));
+    Object.assign(out, await addPageImages(links, type, org));
+  }
+  return out;
+}
+async function pageImages(org, presentationId, type) {
+  const links = await query(
+    `SELECT PresentationPageId, DisplayOrder, PresentationPage.PageNumber, PresentationPage.ContentDocumentId
+     FROM PresentationLinkedPage WHERE PresentationId = '${presentationId}' ORDER BY DisplayOrder, Id`,
+    org
+  );
+  return addPageImages(links, type, org);
+}
+
+// src/studio/content/fixes.ts
+var s9 = (v) => v === null || v === void 0 ? "" : String(v);
+var today2 = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+async function picklistValues(org) {
+  try {
+    const d = await describeSObject("Presentation", org);
+    const values = (name) => (d.success ? d.data?.fields.find((f) => f.name === name) : void 0)?.picklistValues?.filter((p) => p.active).map((p) => p.value) ?? [];
+    return { status: values("Status"), gesture: values("PlayerGestureSectionSide") };
+  } catch {
+    return { status: [], gesture: [] };
+  }
+}
+async function plan2(fix, org, progress, apply = false) {
+  const preview = {
+    org,
+    title: fix.label,
+    changes: describeChanges(fix.presentationName, fix.from, fix.to),
+    warnings: []
+  };
+  const blocked2 = (message) => ({ preview: { ...preview, blocked: message } });
+  if (!ID_PATTERN.test(fix.presentationId)) return blocked2("Not a presentation Id.");
+  const parts = changedParts(fix.from, fix.to);
+  if (!parts.length) return blocked2("Nothing to change.");
+  const added = fix.to.pages.filter((p) => !fix.from.pages.some((q2) => q2.pageId === p.pageId)).map((p) => p.pageId);
+  const [state, values] = await step(
+    progress,
+    "read",
+    () => Promise.all([readState(org, fix.presentationId, added), picklistValues(org)])
+  );
+  if (!state) return blocked2(`${fix.presentationName} no longer exists.`);
+  const problem = draftProblem(fix.to, values.status, values.gesture);
+  if (problem) return blocked2(problem);
+  const missing = added.filter((id2) => !state.rows.pageState.has(id2));
+  if (missing.length)
+    return blocked2("A page being added no longer exists. Refresh the presentation.");
+  const check2 = checkCurrent(state.draft, fix.from, fix.to);
+  if (check2.state === "applied")
+    return blocked2(apply ? "Already applied." : "Already applied. Refresh the presentation.");
+  if (check2.state === "changed") {
+    return blocked2(
+      `${fix.presentationName} changed in the org since it was opened (${check2.parts.map(PART_LABEL).join(", ")}). Refresh it and make the change again.`
+    );
+  }
+  const shared = await sharedPages(
+    org,
+    fix.presentationId,
+    fix.to.pages.map((p) => p.pageId)
+  ).catch(() => ({}));
+  preview.warnings = draftWarnings(fix.from, fix.to, shared, today2());
+  preview.production = await isProductionOrg(org).catch(() => false);
+  const writes = planWrites(state.draft, state.rows, fix.to, parts);
+  if (planIsEmpty(writes)) return blocked2("Already applied.");
+  return { preview, state, plan: writes };
+}
+async function previewEditPresentation(fix, org, progress) {
+  return (await plan2(fix, org, progress)).preview;
+}
+function chunks6(xs, n2) {
+  const out = [];
+  for (let i = 0; i < xs.length; i += n2) out.push(xs.slice(i, i + n2));
+  return out;
+}
+function failure(results, fallback) {
+  if (!Array.isArray(results)) return fallback;
+  const bad = results.find((r) => !r.success);
+  if (!bad) return null;
+  return bad.errors?.map((e) => e.message || e.statusCode).filter(Boolean).join("; ") || fallback;
+}
+async function composite(method, type, records, org) {
+  const ids = [];
+  for (const part of chunks6(records, 200)) {
+    const res = await apiRequest(
+      await dataPath2(org, "/composite/sobjects"),
+      method,
+      { allOrNone: true, records: part.map((r) => ({ attributes: { type }, ...r })) },
+      org
+    );
+    if (!res.success) throw new Error(res.error || `Couldn't write ${type}.`);
+    const err = failure(res.data, `Couldn't write ${type}.`);
+    if (err) throw new Error(`${type}: ${err}`);
+    ids.push(...(res.data ?? []).map((r) => s9(r.id)));
+  }
+  return ids;
+}
+async function remove(ids, org) {
+  for (const part of chunks6(
+    ids.filter((id2) => ID_PATTERN.test(id2)),
+    200
+  )) {
+    const res = await apiRequest(
+      await dataPath2(org, `/composite/sobjects?ids=${part.join(",")}&allOrNone=true`),
+      "DELETE",
+      void 0,
+      org
+    );
+    if (!res.success) throw new Error(res.error || "Couldn't delete records.");
+    const err = failure(res.data, "Couldn't delete records.");
+    if (err && !/ENTITY_IS_DELETED|INVALID_CROSS_REFERENCE_KEY/.test(err)) throw new Error(err);
+  }
+}
+async function addPageShares(pageIds, groupIds, org) {
+  const pages = pageIds.filter((id2) => ID_PATTERN.test(id2));
+  const groups = groupIds.filter((id2) => ID_PATTERN.test(id2));
+  if (!pages.length || !groups.length) return;
+  const existing = /* @__PURE__ */ new Set();
+  for (const part of chunks6(pages, 200)) {
+    const rows3 = await query(
+      `SELECT ParentId, UserOrGroupId FROM PresentationPageShare WHERE ParentId IN (${inList(part)}) AND UserOrGroupId IN (${inList(groups)})`,
+      org
+    );
+    for (const r of rows3) existing.add(`${s9(r.ParentId)}:${s9(r.UserOrGroupId)}`);
+  }
+  const records = pages.flatMap(
+    (p) => groups.filter((g) => !existing.has(`${p}:${g}`)).map((g) => ({
+      ParentId: p,
+      UserOrGroupId: g,
+      AccessLevel: "Edit",
+      RowCause: "LSC4CEAutoShare"
+    }))
+  );
+  if (records.length) await composite("POST", "PresentationPageShare", records, org);
+}
+async function removePageShares(presentationId, pageIds, groupIds, org) {
+  const pages = pageIds.filter((id2) => ID_PATTERN.test(id2));
+  const groups = groupIds.filter((id2) => ID_PATTERN.test(id2));
+  if (!pages.length || !groups.length) return;
+  const links = await query(
+    `SELECT PresentationId, PresentationPageId FROM PresentationLinkedPage
+     WHERE PresentationPageId IN (${inList(pages)}) AND PresentationId != '${presentationId}'`,
+    org
+  );
+  const others = [...new Set(links.map((l) => s9(l.PresentationId)))];
+  const stillSees = /* @__PURE__ */ new Set();
+  if (others.length) {
+    const shares = await query(
+      `SELECT ParentId, UserOrGroupId FROM PresentationShare WHERE ParentId IN (${inList(others)}) AND UserOrGroupId IN (${inList(groups)})`,
+      org
+    );
+    const groupsOf = /* @__PURE__ */ new Map();
+    for (const r of shares)
+      groupsOf.set(s9(r.ParentId), [...groupsOf.get(s9(r.ParentId)) ?? [], s9(r.UserOrGroupId)]);
+    for (const l of links)
+      for (const g of groupsOf.get(s9(l.PresentationId)) ?? [])
+        stillSees.add(`${s9(l.PresentationPageId)}:${g}`);
+  }
+  const rows3 = await query(
+    `SELECT Id, ParentId, UserOrGroupId FROM PresentationPageShare WHERE ParentId IN (${inList(pages)})
+     AND UserOrGroupId IN (${inList(groups)}) AND RowCause IN ('Manual', 'LSC4CEAutoShare')`,
+    org
+  );
+  await remove(
+    rows3.filter((r) => !stillSees.has(`${s9(r.ParentId)}:${s9(r.UserOrGroupId)}`)).map((r) => s9(r.Id)),
+    org
+  );
+}
+async function write2(id2, state, to, p, org, progress) {
+  const groupsAfter = to.shares.map((x) => x.groupId);
+  const groupsBefore = state.draft.shares.map((x) => x.groupId);
+  if (p.createTopics.length || p.deleteTopics.length) {
+    await step(progress, "topics", async () => {
+      await remove(p.deleteTopics, org);
+      if (p.createTopics.length) {
+        await composite(
+          "POST",
+          "TopicAssignment",
+          p.createTopics.map((t) => ({ TopicId: t, EntityId: id2 })),
+          org
+        ).catch((err) => {
+          const message = err instanceof Error ? err.message : String(err);
+          throw new Error(
+            /permissions to assign topics/i.test(message) ? "Topics aren't switched on for presentations in this org. In Setup, open Topics for Objects and turn them on for Presentation." : message
+          );
+        });
+      }
+    });
+  }
+  if (p.presentation) {
+    await step(progress, "presentation", async () => {
+      const res = await apiRequest(
+        await dataPath2(org, `/sobjects/Presentation/${id2}`),
+        "PATCH",
+        p.presentation,
+        org
+      );
+      if (!res.success) throw new Error(res.error || "Couldn't update the presentation.");
+    });
+  }
+  if (p.deleteLinks.length || p.createLinks.length || p.reorderLinks.length) {
+    await step(progress, "pages", async () => {
+      const top = Math.max(
+        0,
+        ...[...state.rows.links.values()].map((l) => l.order),
+        to.pages.length
+      );
+      await remove(p.deleteLinks, org);
+      if (p.reorderLinks.length) {
+        await composite(
+          "PATCH",
+          "PresentationLinkedPage",
+          p.reorderLinks.map((l, i) => ({ Id: l.Id, DisplayOrder: top + 1 + i })),
+          org
+        );
+      }
+      if (p.createLinks.length) {
+        await composite(
+          "POST",
+          "PresentationLinkedPage",
+          p.createLinks.map((l) => ({ PresentationId: id2, ...l })),
+          org
+        );
+      }
+      if (p.reorderLinks.length) {
+        await composite(
+          "PATCH",
+          "PresentationLinkedPage",
+          p.reorderLinks.map((l) => ({ Id: l.Id, DisplayOrder: l.DisplayOrder })),
+          org
+        );
+      }
+      const removedPages = state.draft.pages.filter((x) => !to.pages.some((y) => y.pageId === x.pageId)).map((x) => x.pageId);
+      await addPageShares(
+        p.createLinks.map((l) => l.PresentationPageId),
+        groupsAfter,
+        org
+      );
+      await removePageShares(id2, removedPages, groupsBefore, org);
+    });
+  }
+  if (p.mandatory.length || p.createProducts.length || p.deleteProducts.length) {
+    await step(progress, "page-settings", async () => {
+      if (p.mandatory.length) await composite("PATCH", "PresentationPage", p.mandatory, org);
+      await remove(p.deleteProducts, org);
+      if (p.createProducts.length)
+        await composite("POST", "PresentationPageProduct", p.createProducts, org);
+    });
+  }
+  if (p.addShares.length || p.removeShares.length) {
+    await step(progress, "shares", async () => {
+      const shareIds = p.removeShares.flatMap((g) => state.rows.shares.get(g) ?? []);
+      await remove(shareIds, org);
+      await removePageShares(
+        id2,
+        to.pages.map((x) => x.pageId),
+        p.removeShares,
+        org
+      );
+      if (p.addShares.length) {
+        await composite(
+          "POST",
+          "PresentationShare",
+          p.addShares.map((x) => ({
+            ParentId: id2,
+            UserOrGroupId: x.groupId,
+            AccessLevel: "Edit",
+            RowCause: "LSC4CEAutoShare"
+          })),
+          org
+        );
+        await addPageShares(
+          to.pages.map((x) => x.pageId),
+          p.addShares.map((x) => x.groupId),
+          org
+        );
+      }
+    });
+  }
+}
+async function applyEditPresentation(fix, org, progress) {
+  const { preview, state, plan: writes } = await plan2(fix, org, progress, true);
+  if (preview.blocked || !state || !writes)
+    return { ok: false, message: preview.blocked ?? "Nothing to change." };
+  try {
+    await write2(fix.presentationId, state, fix.to, writes, org, progress);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, message: `${message} ${await rollBack(fix, org)}` };
+  }
+  return {
+    ok: true,
+    message: `Updated ${fix.to.fields.name || fix.presentationName}.`,
+    undo: {
+      ...fix,
+      label: `Undo: ${fix.label}`,
+      presentationName: fix.to.fields.name || fix.presentationName,
+      from: fix.to,
+      to: fix.from
+    }
+  };
+}
+async function rollBack(fix, org) {
+  try {
+    const state = await readState(
+      org,
+      fix.presentationId,
+      fix.from.pages.map((p) => p.pageId)
+    );
+    if (!state) return "The presentation is gone, so nothing could be put back.";
+    const parts = changedParts(fix.from, fix.to);
+    const back = planWrites(state.draft, state.rows, fix.from, parts);
+    if (planIsEmpty(back)) return "Nothing was changed.";
+    await write2(fix.presentationId, state, fix.from, back, org);
+    return "What had been written was put back.";
+  } catch {
+    return "Part of the change may have been made and couldn't be put back; refresh the presentation to see where it stands.";
+  }
+}
+
+// src/studio/content/types.ts
+var NEW_PAGE_PREFIX = "new:";
+
+// src/studio/content/create.ts
+var s10 = (v) => v === null || v === void 0 ? "" : String(v);
+var today3 = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+var REVIEW_WARNING = "Roz drafted some of these pages. They're saved inactive and not distributed: have them through medical, legal and regulatory review before anyone switches the presentation on or sends it to territories.";
+var isNew = (pageId) => pageId.startsWith(NEW_PAGE_PREFIX);
+var ALL_PARTS = [
+  "field:name",
+  "field:status",
+  "field:activationDate",
+  "field:deactivationDate",
+  "field:gesture",
+  "field:pinchZoom",
+  "field:doubleTapZoom",
+  "field:canEmail",
+  "field:locked",
+  "pages",
+  "mandatory",
+  "products",
+  "topics",
+  "shares"
+];
+var NOTHING = {
+  fields: {
+    name: "",
+    status: "",
+    activationDate: null,
+    deactivationDate: null,
+    gesture: null,
+    pinchZoom: false,
+    doubleTapZoom: false,
+    canEmail: false,
+    locked: false
+  },
+  pages: [],
+  topics: [],
+  shares: []
+};
+var blank = (d) => ({
+  fields: d.fields,
+  pages: [],
+  topics: [],
+  shares: []
+});
+async function planCreate(fix, org, progress) {
+  const to = fix.draft;
+  const existing = to.pages.map((p) => p.pageId).filter((id2) => !isNew(id2));
+  const preview = {
+    org,
+    title: fix.label,
+    changes: describeChanges(to.fields.name.trim() || "New presentation", NOTHING, to, true),
+    warnings: []
+  };
+  const blocked2 = (message) => ({
+    preview: { ...preview, blocked: message },
+    existing
+  });
+  if (!to.pages.length) return blocked2("Add at least one page.");
+  if (existing.some((id2) => !ID_PATTERN.test(id2))) return blocked2("A page isn't a page Id.");
+  for (const p of to.pages.filter((p2) => isNew(p2.pageId))) {
+    if (!fix.newPages.some((n2) => n2.pageId === p.pageId))
+      return blocked2(`${p.name} isn't a page in the org or one Roz drafted.`);
+  }
+  if (fix.newPages.length) {
+    if (to.fields.status !== "Inactive")
+      return blocked2(
+        "A presentation with pages Roz drafted is saved inactive. Switch it on after the pages have been reviewed."
+      );
+    if (to.shares.length)
+      return blocked2(
+        "A presentation with pages Roz drafted isn't distributed until its pages have been reviewed. Take the territories off."
+      );
+  }
+  const [values, pages, named2] = await step(
+    progress,
+    "read",
+    () => Promise.all([
+      picklistValues(org),
+      existing.length ? query(
+        `SELECT Id, Name, Type, Status, IsAdditionalContent FROM PresentationPage WHERE Id IN (${inList(existing)})`,
+        org
+      ) : Promise.resolve([]),
+      query(
+        `SELECT Id FROM Presentation WHERE Name = '${to.fields.name.trim().replace(/\\/g, "\\\\").replace(/'/g, "\\'")}' AND Status != 'Deleted' LIMIT 1`,
+        org
+      ).catch(() => [])
+    ])
+  );
+  const problem = draftProblem(to, values.status, values.gesture);
+  if (problem) return blocked2(problem);
+  const byId = new Map(pages.map((p) => [s10(p.Id), p]));
+  for (const p of to.pages.filter((p2) => !isNew(p2.pageId))) {
+    const row = byId.get(p.pageId);
+    if (!row) return blocked2(`${p.name} is no longer in the org. Take it out and try again.`);
+    if (s10(row.Type) !== "ZIP")
+      return blocked2(
+        `${p.name} is a ${s10(row.Type) || "non-ZIP"} page. Only HTML ZIP pages can be put together into a new presentation.`
+      );
+    if (row.IsAdditionalContent === true)
+      return blocked2(`${p.name} is additional content, which slides open, not a page of its own.`);
+    if (s10(row.Status) !== "Active")
+      preview.warnings.push(
+        `${p.name} is ${s10(row.Status).toLowerCase() || "not active"}, so reps don't see it.`
+      );
+  }
+  for (const n2 of fix.newPages) {
+    if (!draftExists(n2.draftId))
+      return blocked2(
+        `The files Roz drafted for ${n2.name} aren't on this computer any more. Open the draft again and add it to a new presentation.`
+      );
+    const errors = checkDraft(n2.draftId).filter((c) => c.level === "error");
+    if (errors.length) return blocked2(`${n2.name}: ${errors[0].message}`);
+  }
+  if (fix.newPages.length) preview.warnings.unshift(REVIEW_WARNING);
+  if (named2.length)
+    preview.warnings.push(`There's already a presentation called ${to.fields.name.trim()}.`);
+  const shared = await sharedPages(org, "", existing).catch(() => ({}));
+  const before = await pageSettings(org, existing);
+  preview.warnings.push(...draftWarnings({ ...blank(to), pages: before }, to, shared, today3()));
+  preview.warnings = [...new Set(preview.warnings)];
+  preview.production = await isProductionOrg(org).catch(() => false);
+  return { preview, existing };
+}
+async function pageSettings(org, pageIds) {
+  if (!pageIds.length) return [];
+  const [pages, products] = await Promise.all([
+    query(
+      `SELECT Id, Name, IsMandatory FROM PresentationPage WHERE Id IN (${inList(pageIds)})`,
+      org
+    ),
+    query(
+      `SELECT PresentationPageId, ProductId, Product.Name FROM PresentationPageProduct WHERE PresentationPageId IN (${inList(pageIds)})`,
+      org
+    )
+  ]);
+  return pages.map((p) => ({
+    pageId: s10(p.Id),
+    name: s10(p.Name),
+    mandatory: p.IsMandatory === true,
+    products: products.filter((x) => s10(x.PresentationPageId) === s10(p.Id)).map((x) => ({
+      id: s10(x.ProductId),
+      name: s10(x.Product?.Name) || s10(x.ProductId)
+    }))
+  }));
+}
+async function previewCreatePresentation(fix, org, progress) {
+  return (await planCreate(fix, org, progress)).preview;
+}
+async function applyCreatePresentation(fix, org, progress) {
+  const { preview, existing } = await planCreate(fix, org, progress);
+  if (preview.blocked) return { ok: false, message: preview.blocked };
+  const created = { pageIds: [], contentDocumentIds: [] };
+  const before = await pageSettings(org, existing);
+  let presentationId = "";
+  const idOf = /* @__PURE__ */ new Map();
+  try {
+    if (fix.newPages.length)
+      await step(progress, "upload", async () => {
+        for (const n2 of fix.newPages) {
+          const page = fix.draft.pages.find((p) => p.pageId === n2.pageId);
+          {
+            const zip = await zipDraft(n2.draftId);
+            try {
+              const up = await uploadContentVersion(zip, n2.name, org, "application/zip");
+              if (!up.success || !up.data?.contentDocumentId)
+                throw new Error(up.error || `Couldn't upload ${n2.name}.`);
+              created.contentDocumentIds.push(up.data.contentDocumentId);
+              const [pageId] = await composite(
+                "POST",
+                "PresentationPage",
+                [
+                  {
+                    Name: n2.name,
+                    Type: "ZIP",
+                    Status: "Active",
+                    ContentDocumentId: up.data.contentDocumentId,
+                    IsMandatory: page.mandatory
+                  }
+                ],
+                org
+              );
+              created.pageIds.push(pageId);
+              idOf.set(n2.pageId, pageId);
+              await composite(
+                "POST",
+                "ContentDocumentLink",
+                [
+                  {
+                    ContentDocumentId: up.data.contentDocumentId,
+                    LinkedEntityId: pageId,
+                    ShareType: "I",
+                    Visibility: "InternalUsers"
+                  }
+                ],
+                org
+              );
+            } finally {
+              rmSync13(zip, { force: true });
+            }
+          }
+        }
+      });
+    await step(progress, "presentation", async () => {
+      [presentationId] = await composite(
+        "POST",
+        "Presentation",
+        [
+          {
+            Name: fix.draft.fields.name.trim(),
+            Status: "Inactive",
+            Type: "ZIP",
+            UsageType: "IntelligentContent"
+          }
+        ],
+        org
+      );
+    });
+    const to = {
+      ...fix.draft,
+      fields: { ...fix.draft.fields, name: fix.draft.fields.name.trim() },
+      pages: fix.draft.pages.map((p) => ({ ...p, pageId: idOf.get(p.pageId) ?? p.pageId }))
+    };
+    const state = await readState(
+      org,
+      presentationId,
+      to.pages.map((p) => p.pageId)
+    );
+    if (!state) throw new Error("The new presentation couldn't be read back.");
+    const writes = planWrites(state.draft, state.rows, to, ALL_PARTS);
+    if (!planIsEmpty(writes)) await write2(presentationId, state, to, writes, org, progress);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const back = await tearDown(org, presentationId, created, before).then(
+      () => "Nothing was left behind.",
+      () => "Part of it may be left in the org; look for it in the presentation list."
+    );
+    return { ok: false, message: `${message} ${back}` };
+  }
+  const name = fix.draft.fields.name.trim();
+  return {
+    ok: true,
+    message: `Created ${name}${fix.newPages.length ? " (inactive, for review)" : ""}.`,
+    undo: {
+      kind: "deletePresentation",
+      label: `Undo: ${fix.label}`,
+      presentationId,
+      presentationName: name,
+      created,
+      before,
+      recreate: fix
+    }
+  };
+}
+async function tearDown(org, presentationId, created, before, progress) {
+  if (ID_PATTERN.test(presentationId)) {
+    const state = await readState(
+      org,
+      presentationId,
+      before.map((p) => p.pageId)
+    );
+    if (state) {
+      const was = new Map(before.map((p) => [p.pageId, p]));
+      const target3 = {
+        ...state.draft,
+        pages: state.draft.pages.filter((p) => was.has(p.pageId)).map((p) => was.get(p.pageId)),
+        shares: []
+      };
+      const writes = planWrites(state.draft, state.rows, target3, [
+        "mandatory",
+        "products",
+        "shares"
+      ]);
+      if (!planIsEmpty(writes)) await write2(presentationId, state, target3, writes, org, progress);
+      await step(progress, "presentation", () => remove([presentationId], org));
+    }
+  }
+  if (!created.pageIds.length && !created.contentDocumentIds.length) return;
+  await step(progress, "pages", async () => {
+    const pages = created.pageIds.filter((id2) => ID_PATTERN.test(id2));
+    const [links, rows3] = pages.length ? await Promise.all([
+      query(
+        `SELECT PresentationPageId FROM PresentationLinkedPage WHERE PresentationPageId IN (${inList(pages)})`,
+        org
+      ),
+      query(
+        `SELECT Id, ContentDocumentId FROM PresentationPage WHERE Id IN (${inList(pages)})`,
+        org
+      )
+    ]) : [[], []];
+    const used2 = new Set(links.map((r) => s10(r.PresentationPageId)));
+    const keepDocs = new Set(
+      rows3.filter((r) => used2.has(s10(r.Id))).map((r) => s10(r.ContentDocumentId))
+    );
+    await remove(
+      pages.filter((id2) => !used2.has(id2)),
+      org
+    );
+    await remove(
+      created.contentDocumentIds.filter((d) => !keepDocs.has(d)),
+      org
+    );
+  });
+}
+async function previewDeletePresentation(fix, org, progress) {
+  const preview = {
+    org,
+    title: fix.label,
+    changes: [
+      {
+        target: fix.presentationName,
+        field: "Presentation",
+        before: "In the org",
+        after: "Deleted"
+      },
+      ...fix.created.pageIds.length ? [
+        {
+          target: fix.presentationName,
+          field: "Pages Roz drafted",
+          before: `${fix.created.pageIds.length} in the org`,
+          after: "Deleted, with their files"
+        }
+      ] : [],
+      ...fix.before.map((p) => ({
+        target: p.name,
+        field: "Required, products",
+        before: "As the new presentation left them",
+        after: `Put back: ${p.mandatory ? "required" : "not required"}, ${p.products.length ? p.products.map((x) => x.name).join(", ") : "no products"}`
+      }))
+    ],
+    warnings: []
+  };
+  if (!ID_PATTERN.test(fix.presentationId))
+    return { ...preview, blocked: "Not a presentation Id." };
+  const state = await step(progress, "read", () => readState(org, fix.presentationId));
+  if (!state) return { ...preview, blocked: "Already deleted." };
+  if (state.draft.fields.status === "Active")
+    preview.warnings.push("It's active. Reps who have it lose it on their next sync.");
+  if (state.draft.shares.length || state.otherShares)
+    preview.warnings.push("It's distributed to territories; deleting it takes it off them.");
+  const kept = fix.created.pageIds.filter((id2) => ID_PATTERN.test(id2));
+  if (kept.length) {
+    const others = await query(
+      `SELECT PresentationPageId, Presentation.Name FROM PresentationLinkedPage WHERE PresentationPageId IN (${inList(kept)}) AND PresentationId != '${fix.presentationId}'`,
+      org
+    ).catch(() => []);
+    if (others.length)
+      preview.warnings.push(
+        `Some drafted pages are in other presentations now (${[...new Set(others.map((r) => s10(r.Presentation?.Name)))].join(", ")}), so they're kept.`
+      );
+  }
+  preview.production = await isProductionOrg(org).catch(() => false);
+  return preview;
+}
+async function applyDeletePresentation(fix, org, progress) {
+  const preview = await previewDeletePresentation(fix, org, progress);
+  if (preview.blocked) return { ok: false, message: preview.blocked };
+  try {
+    await tearDown(org, fix.presentationId, fix.created, fix.before, progress);
+  } catch (err) {
+    return {
+      ok: false,
+      message: `${err instanceof Error ? err.message : String(err)} Part of it may be left in the org; refresh the presentation list.`
+    };
+  }
+  return {
+    ok: true,
+    message: `Deleted ${fix.presentationName}.`,
+    undo: { ...fix.recreate, label: fix.recreate.label.replace(/^Undo: /, "") }
+  };
+}
+
+// src/studio/fixes.ts
 async function pslCapacity(pslId, org) {
   const [row] = await query(
     `SELECT Id, MasterLabel, UsedLicenses, TotalLicenses FROM PermissionSetLicense WHERE Id = '${pslId}'`,
@@ -135925,7 +138268,7 @@ async function previewSetProfileAssignments(fix, org, progress) {
   }
   const toLower = new Set(fix.to.map((n2) => n2.toLowerCase()));
   const add = fix.to.filter((n2) => !current2.has(n2.toLowerCase()));
-  const remove = [...current2.values()].filter((c) => !toLower.has(c.name.toLowerCase())).map((c) => c.name);
+  const remove2 = [...current2.values()].filter((c) => !toLower.has(c.name.toLowerCase())).map((c) => c.name);
   const found = add.length ? await query(`SELECT Id, Name FROM Profile WHERE Name IN (${inList(add)})`, org) : [];
   const addIds = new Map(found.map((p) => [String(p.Name).toLowerCase(), String(p.Id)]));
   const missing = add.filter((n2) => !addIds.has(n2.toLowerCase()));
@@ -135936,7 +138279,7 @@ async function previewSetProfileAssignments(fix, org, progress) {
   if (fix.to.length === 0)
     preview.warnings.push("No profile will see this until it's assigned again.");
   if (MOBILE_CATEGORIES.has(fix.category)) preview.warnings.push(PUBLISH_WARNING);
-  return { ...preview, target: { recordId, current: current2, addIds, add, remove } };
+  return { ...preview, target: { recordId, current: current2, addIds, add, remove: remove2 } };
 }
 async function applyAssignments(target3, org, progress) {
   const total = target3.add.length + target3.remove.length;
@@ -136045,6 +138388,12 @@ async function previewByKind(fix, org, progress) {
     case "editMetadata":
     case "copyForProfile":
       return previewEdit(fix, org, progress);
+    case "editPresentation":
+      return previewEditPresentation(fix, org, progress);
+    case "createPresentation":
+      return previewCreatePresentation(fix, org, progress);
+    case "deletePresentation":
+      return previewDeletePresentation(fix, org, progress);
   }
 }
 function applyFix(fix, org, progress) {
@@ -136188,6 +138537,12 @@ async function applyFixNow(fix, org, progress) {
     case "editMetadata":
     case "copyForProfile":
       return applyEdit(fix, org, progress);
+    case "editPresentation":
+      return applyEditPresentation(fix, org, progress);
+    case "createPresentation":
+      return applyCreatePresentation(fix, org, progress);
+    case "deletePresentation":
+      return applyDeletePresentation(fix, org, progress);
   }
 }
 
@@ -136200,7 +138555,7 @@ var sameValue2 = (a, b) => String(a ?? "") === String(b ?? "");
 function isScalar(v) {
   return v === null || ["string", "number", "boolean"].includes(typeof v);
 }
-var str24 = (v) => typeof v === "string" && v.trim() ? v.trim() : void 0;
+var str25 = (v) => typeof v === "string" && v.trim() ? v.trim() : void 0;
 var strings = (v) => Array.isArray(v) ? v.filter((x) => typeof x === "string" && !!x.trim()).map((x) => x.trim()) : [];
 async function fixesForToolCall(name, input, org) {
   try {
@@ -136312,7 +138667,7 @@ async function withAffects(target3, fixes, org) {
   return fixes.map((fix) => affects ? { fix, affects } : { fix });
 }
 async function updateAdminSetting(input, org) {
-  const recordId = str24(input.recordId);
+  const recordId = str25(input.recordId);
   if (!recordId) return unsupported("No recordId.");
   assertId(recordId);
   const target3 = await configRecordBy(`Id = '${recordId}'`, org);
@@ -136346,7 +138701,7 @@ async function updateAdminSetting(input, org) {
   return result(await withAffects(target3, fixes, org), `${target3.label} already has these values.`);
 }
 async function dbSchemaTarget(name, org) {
-  const given = str24(name);
+  const given = str25(name);
   if (!given) return unsupported("No DB Schema record name.");
   const fullName = normalizeDbSchemaName(given);
   assertNames(fullName);
@@ -136391,7 +138746,7 @@ async function toggleDbSchema(input, org) {
   );
 }
 async function toggleTriggerHandler(input, org) {
-  const developerName = str24(input.handlerName);
+  const developerName = str25(input.handlerName);
   if (!developerName) return unsupported("No handlerName.");
   assertNames(developerName);
   if (typeof input.active !== "boolean") return unsupported("active isn't true or false.");
@@ -136423,9 +138778,9 @@ function result(changes, nothingToDo) {
   return changes.length ? { changes } : { changes: [], note: nothingToDo };
 }
 async function permissionSetAccess(assigning, input, org) {
-  const wanted = str24(input.permissionSetName);
+  const wanted = str25(input.permissionSetName);
   if (!wanted) return unsupported("No permissionSetName.");
-  const esc4 = (s7) => s7.replace(/[\\']/g, (c) => `\\${c}`);
+  const esc4 = (s11) => s11.replace(/[\\']/g, (c) => `\\${c}`);
   const sets = await query(
     `SELECT Id, Label FROM PermissionSet WHERE (Label = '${esc4(wanted)}' OR Name = '${esc4(wanted)}') AND IsOwnedByProfile = false AND PermissionSetGroupId = null LIMIT 3`,
     org
@@ -136521,9 +138876,9 @@ async function loadKamPlan(org, object3, id2, sync) {
     config: async () => ({}),
     note: (m) => notes.push(m)
   };
-  const [plan2, setting] = await Promise.all([readKamPlan(ctx, object3, id2), readSetting(ctx)]);
+  const [plan3, setting] = await Promise.all([readKamPlan(ctx, object3, id2), readSetting(ctx)]);
   return {
-    plan: plan2 ?? null,
+    plan: plan3 ?? null,
     mode: progressMode(setting?.ProgressDisplayMode),
     nomenclature: nomenclatureOf(setting),
     notes
@@ -136543,8 +138898,8 @@ init_shared();
 init_sync_volume();
 var value3 = (v) => v === void 0 || v === null ? null : typeof v === "string" || typeof v === "number" || typeof v === "boolean" ? v : JSON.stringify(v);
 var text7 = (v) => {
-  const s7 = typeof v === "string" ? v.trim() : v == null ? "" : String(v);
-  return s7 ? s7 : null;
+  const s11 = typeof v === "string" ? v.trim() : v == null ? "" : String(v);
+  return s11 ? s11 : null;
 };
 function rowFindings(r, duplicates) {
   const findings = [];
@@ -137676,15 +140031,15 @@ init_private_tmp();
 var BUILD_VERSION = 5;
 var MAX_CACHED = 30;
 var cache = /* @__PURE__ */ new Map();
-function str25(v) {
+function str26(v) {
   return typeof v === "string" ? v : "";
 }
 function lightningNames(sources2) {
   const modules = /* @__PURE__ */ new Set();
   const tags = /* @__PURE__ */ new Set();
-  for (const s7 of sources2) {
-    for (const m of s7.matchAll(/["']lightning\/(\w+)["']/g)) modules.add(m[1]);
-    for (const m of s7.matchAll(/<lightning-([a-z0-9-]+)[\s>/]/g))
+  for (const s11 of sources2) {
+    for (const m of s11.matchAll(/["']lightning\/(\w+)["']/g)) modules.add(m[1]);
+    for (const m of s11.matchAll(/<lightning-([a-z0-9-]+)[\s>/]/g))
       tags.add(m[1].replace(/-([a-z0-9])/g, (_2, c) => c.toUpperCase()));
   }
   return { modules, tags };
@@ -137717,9 +140072,9 @@ async function loadBundles(org, bundles) {
     true
   );
   return rows3.map((r) => ({
-    bundle: str25(r.LightningComponentBundle?.DeveloperName),
-    path: str25(r.FilePath),
-    source: str25(r.Source)
+    bundle: str26(r.LightningComponentBundle?.DeveloperName),
+    path: str26(r.FilePath),
+    source: str26(r.Source)
   }));
 }
 async function loadLabels(org, files) {
@@ -137732,7 +140087,7 @@ async function loadLabels(org, files) {
     org,
     true
   ).catch(() => []);
-  return Object.fromEntries(rows3.map((r) => [str25(r.Name), str25(r.Value)]));
+  return Object.fromEntries(rows3.map((r) => [str26(r.Name), str26(r.Value)]));
 }
 function orgFilePath(f) {
   const rel5 = f.path.replace(/^lwc\//, "");
@@ -138073,10 +140428,10 @@ function num3(value4) {
   return Number.isFinite(n2) ? n2 : void 0;
 }
 function spanSec(start, end, freezeMs) {
-  const s7 = ms(start);
+  const s11 = ms(start);
   const e = ms(end);
-  if (s7 === void 0 || e === void 0 || e < s7) return void 0;
-  return Math.max(0, (e - s7 - (num3(freezeMs) ?? 0)) / 1e3);
+  if (s11 === void 0 || e === void 0 || e < s11) return void 0;
+  return Math.max(0, (e - s11 - (num3(freezeMs) ?? 0)) / 1e3);
 }
 function parseSummaryData(value4) {
   if (typeof value4 !== "string" || !value4) return {};
@@ -138128,9 +140483,9 @@ function toSyncSample(r) {
 }
 function percentile(values, p) {
   if (values.length === 0) return void 0;
-  const sorted2 = [...values].sort((a, b) => a - b);
-  const rank = Math.ceil(p / 100 * sorted2.length);
-  return sorted2[Math.min(sorted2.length, Math.max(1, rank)) - 1];
+  const sorted3 = [...values].sort((a, b) => a - b);
+  const rank = Math.ceil(p / 100 * sorted3.length);
+  return sorted3[Math.min(sorted3.length, Math.max(1, rank)) - 1];
 }
 function distribution(values) {
   const v = values.filter((x) => x !== void 0);
@@ -138144,20 +140499,20 @@ function distribution(values) {
 }
 function groupBy(samples, key5) {
   const groups = /* @__PURE__ */ new Map();
-  for (const s7 of samples) {
-    const k = key5(s7);
-    groups.set(k, [...groups.get(k) ?? [], s7]);
+  for (const s11 of samples) {
+    const k = key5(s11);
+    groups.set(k, [...groups.get(k) ?? [], s11]);
   }
   return groups;
 }
 function summarize(samples) {
-  const ok = samples.filter((s7) => s7.outcome === "completed");
-  const initial = ok.filter((s7) => s7.kind === "initial");
-  const delta = ok.filter((s7) => s7.kind === "delta");
-  const decided = (list2) => list2.filter((s7) => s7.outcome === "completed" || s7.outcome === "failed");
+  const ok = samples.filter((s11) => s11.outcome === "completed");
+  const initial = ok.filter((s11) => s11.kind === "initial");
+  const delta = ok.filter((s11) => s11.kind === "delta");
+  const decided = (list2) => list2.filter((s11) => s11.outcome === "completed" || s11.outcome === "failed");
   const failureRate = (list2) => {
     const d = decided(list2);
-    return d.length ? d.filter((s7) => s7.failed).length / d.length * 100 : 0;
+    return d.length ? d.filter((s11) => s11.failed).length / d.length * 100 : 0;
   };
   const outcomes = {
     completed: 0,
@@ -138165,43 +140520,43 @@ function summarize(samples) {
     cancelled: 0,
     "stopped-early": 0
   };
-  for (const s7 of samples) outcomes[s7.outcome]++;
+  for (const s11 of samples) outcomes[s11.outcome]++;
   return {
     samples: samples.length,
     outcomes,
     failureRatePct: decided(samples).length ? failureRate(samples) : void 0,
     initial: {
-      total: distribution(initial.map((s7) => s7.totalSec)),
-      download: distribution(initial.map((s7) => s7.downloadSec)),
-      records: distribution(initial.map((s7) => s7.downloadedRecords))
+      total: distribution(initial.map((s11) => s11.totalSec)),
+      download: distribution(initial.map((s11) => s11.downloadSec)),
+      records: distribution(initial.map((s11) => s11.downloadedRecords))
     },
     delta: {
-      total: distribution(delta.map((s7) => s7.totalSec)),
-      download: distribution(delta.map((s7) => s7.downloadSec)),
-      upload: distribution(delta.map((s7) => s7.uploadSec))
+      total: distribution(delta.map((s11) => s11.totalSec)),
+      download: distribution(delta.map((s11) => s11.downloadSec)),
+      upload: distribution(delta.map((s11) => s11.uploadSec))
     },
-    metadataDownload: distribution(ok.map((s7) => s7.metadataSec)),
-    dbSizeGb: distribution(ok.map((s7) => s7.dbSizeGb)),
-    byNetwork: [...groupBy(ok, (s7) => s7.network)].map(([key5, list2]) => ({
+    metadataDownload: distribution(ok.map((s11) => s11.metadataSec)),
+    dbSizeGb: distribution(ok.map((s11) => s11.dbSizeGb)),
+    byNetwork: [...groupBy(ok, (s11) => s11.network)].map(([key5, list2]) => ({
       key: key5,
       n: list2.length,
       deltaP95: percentile(
-        list2.filter((s7) => s7.kind === "delta" && s7.totalSec !== void 0).map((s7) => s7.totalSec),
+        list2.filter((s11) => s11.kind === "delta" && s11.totalSec !== void 0).map((s11) => s11.totalSec),
         95
       )
     })),
-    byAppVersion: [...groupBy(samples, (s7) => s7.appVersion)].map(([key5, list2]) => ({
+    byAppVersion: [...groupBy(samples, (s11) => s11.appVersion)].map(([key5, list2]) => ({
       key: key5,
       n: list2.length,
       deltaP95: percentile(
         list2.filter(
-          (s7) => s7.outcome === "completed" && s7.kind === "delta" && s7.totalSec !== void 0
-        ).map((s7) => s7.totalSec),
+          (s11) => s11.outcome === "completed" && s11.kind === "delta" && s11.totalSec !== void 0
+        ).map((s11) => s11.totalSec),
         95
       ),
       failureRatePct: failureRate(list2)
     })),
-    slowest: [...ok].filter((s7) => s7.totalSec !== void 0).sort((a, b) => b.totalSec - a.totalSec).slice(0, 10)
+    slowest: [...ok].filter((s11) => s11.totalSec !== void 0).sort((a, b) => b.totalSec - a.totalSec).slice(0, 10)
   };
 }
 function soqlString7(value4) {
@@ -138517,8 +140872,8 @@ async function resolvePersonaUsers(org, persona, days = DEFAULT_TELEMETRY_DAYS) 
       days,
       preferSynced: persona.select.preferSynced
     });
-    for (const s7 of selected) {
-      if (!users.some((x) => sameUser(x, s7.username) || sameUser(x, s7.id))) users.push(s7.username);
+    for (const s11 of selected) {
+      if (!users.some((x) => sameUser(x, s11.username) || sameUser(x, s11.id))) users.push(s11.username);
     }
   }
   return { users, selected };
@@ -138578,14 +140933,14 @@ async function lookupUsers(org, refs, days) {
   }
   return out;
 }
-async function checkPlan(org, orgName, plan2) {
+async function checkPlan(org, orgName, plan3) {
   const issues = [];
   const resolved = [];
-  const days = plan2.telemetry?.days ?? DEFAULT_TELEMETRY_DAYS;
+  const days = plan3.telemetry?.days ?? DEFAULT_TELEMETRY_DAYS;
   const picks = await Promise.all(
-    plan2.personas.map((persona) => resolvePersonaUsers(org, persona, days))
+    plan3.personas.map((persona) => resolvePersonaUsers(org, persona, days))
   );
-  for (const [i, persona] of plan2.personas.entries()) {
+  for (const [i, persona] of plan3.personas.entries()) {
     const { users, selected } = picks[i];
     if (persona.select && selected.length === 0) {
       issues.push({
@@ -138596,7 +140951,7 @@ async function checkPlan(org, orgName, plan2) {
     }
     resolved.push({ persona, users });
   }
-  const lookup2 = await lookupUsers(
+  const lookup3 = await lookupUsers(
     org,
     resolved.flatMap((r) => r.users),
     days
@@ -138604,7 +140959,7 @@ async function checkPlan(org, orgName, plan2) {
   const personas = [];
   for (const { persona, users } of resolved) {
     const checked = users.map(
-      (ref3) => lookup2.get(ref3.trim().toLowerCase()) ?? {
+      (ref3) => lookup3.get(ref3.trim().toLowerCase()) ?? {
         ref: ref3,
         found: false,
         active: false,
@@ -138665,9 +141020,9 @@ async function checkPlan(org, orgName, plan2) {
 }
 async function personaTerritories(org, persona) {
   const { users } = await resolvePersonaUsers(org, persona);
-  const lookup2 = await lookupUsers(org, users);
+  const lookup3 = await lookupUsers(org, users);
   const byId = /* @__PURE__ */ new Map();
-  for (const u of lookup2.values()) {
+  for (const u of lookup3.values()) {
     for (const t of u.territories) {
       const entry = byId.get(t.id) ?? { id: t.id, name: t.name, users: 0 };
       entry.users++;
@@ -138833,12 +141188,12 @@ init_private_tmp();
 function obj9(v) {
   return v && typeof v === "object" && !Array.isArray(v) ? v : {};
 }
-function str26(v) {
+function str27(v) {
   return typeof v === "string" && v ? v : void 0;
 }
 function splitList3(v) {
   if (Array.isArray(v)) return v.filter((x) => typeof x === "string");
-  return typeof v === "string" ? v.split(/[;,]/).map((s7) => s7.trim()).filter(Boolean) : [];
+  return typeof v === "string" ? v.split(/[;,]/).map((s11) => s11.trim()).filter(Boolean) : [];
 }
 function soqlString9(value4) {
   return value4.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
@@ -138852,7 +141207,7 @@ function tablesFromArchive(files, user, access) {
   const winners = /* @__PURE__ */ new Map();
   const consider2 = (key5, raw, matchedBy) => {
     const e = obj9(raw);
-    const sobject2 = str26(e.SObject) ?? (matchedBy === "profile" ? key5 : key5.replace(/__c$/, ""));
+    const sobject2 = str27(e.SObject) ?? (matchedBy === "profile" ? key5 : key5.replace(/__c$/, ""));
     const lower2 = sobject2.toLowerCase();
     if (excluded.has(lower2) || e.IsActive === false) return;
     if (access && access.governed.has(lower2) && !access.readable.has(lower2)) return;
@@ -138861,10 +141216,10 @@ function tablesFromArchive(files, user, access) {
       if (!sets.some((n2) => assigned.has(n2.toLowerCase()))) return;
     }
     const entry = {
-      developerName: str26(e.DeveloperName) ?? key5,
+      developerName: str27(e.DeveloperName) ?? key5,
       sobject: sobject2,
-      type: str26(e.Type) ?? "",
-      whereSoql: str26(e.WhereSoql) ?? null,
+      type: str27(e.Type) ?? "",
+      whereSoql: str27(e.WhereSoql) ?? null,
       profileIds: /* @__PURE__ */ new Set(),
       profileNames: /* @__PURE__ */ new Set(),
       permissionSets: /* @__PURE__ */ new Set()
@@ -138883,7 +141238,7 @@ function tablesFromArchive(files, user, access) {
   return [...winners.values()].sort((a, b) => a.entry.sobject.localeCompare(b.entry.sobject));
 }
 function diffTables(compiled, dbSchema) {
-  const norm3 = (s7) => (s7 ?? "").replace(/\s+/g, " ").trim();
+  const norm3 = (s11) => (s11 ?? "").replace(/\s+/g, " ").trim();
   const left = new Map(compiled.map((t) => [t.entry.sobject.toLowerCase(), t]));
   const right = new Map(dbSchema.map((t) => [t.entry.sobject.toLowerCase(), t]));
   const differing = [];
@@ -138904,14 +141259,14 @@ async function findProfileArchive(org, profileId) {
   );
   if (!rec.success) throw new Error(`LifeSciMobileMetadataRecord query failed: ${rec.error}`);
   const row = rec.data?.records?.[0];
-  const docId = str26(row?.MetadataDocumentId);
+  const docId = str27(row?.MetadataDocumentId);
   if (!row || !docId) return null;
   const ver = await org.soql(
     `SELECT Id, Checksum, ContentSize FROM ContentVersion WHERE ContentDocumentId = '${soqlString9(docId)}' AND IsLatest = true LIMIT 1`
   );
   if (!ver.success) throw new Error(`ContentVersion query failed: ${ver.error}`);
   const v = ver.data?.records?.[0];
-  const checksum = str26(v?.Checksum);
+  const checksum = str27(v?.Checksum);
   if (!v || !checksum) return null;
   return {
     recordId: row.Id,
@@ -139055,7 +141410,7 @@ var TERRITORY_CONCURRENCY = 3;
 async function profileUsers2(configOrgIn, countOrgIn, userRefs, opts = {}) {
   const configOrg = memoizeQuerier(configOrgIn);
   const countOrg = countOrgIn === configOrgIn ? configOrg : memoizeQuerier(countOrgIn);
-  const options = {
+  const options2 = {
     ...DEFAULT_PROFILE_OPTIONS,
     ...opts,
     idCache: opts.idCache ?? /* @__PURE__ */ new Map()
@@ -139157,7 +141512,7 @@ async function profileUsers2(configOrgIn, countOrgIn, userRefs, opts = {}) {
       TERRITORY_CONCURRENCY,
       (territory) => {
         const slot = territories.indexOf(territory);
-        return profileTerritory(countOrg, user, territory, tables, options, (done) => {
+        return profileTerritory(countOrg, user, territory, tables, options2, (done) => {
           doneBy[slot] = done;
           opts.onStep?.(step2(territory), {
             ...at2,
@@ -139265,7 +141620,7 @@ async function loadTelemetry(org, describeFields2, filters2) {
     )).flat();
   }
   const seen = /* @__PURE__ */ new Set();
-  const samples = rows3.filter((r) => !seen.has(String(r.Id)) && seen.add(String(r.Id))).map((r) => toSyncSample(r)).filter((s7) => s7 !== null).sort((a, b) => a.createdDate < b.createdDate ? 1 : a.createdDate > b.createdDate ? -1 : 0);
+  const samples = rows3.filter((r) => !seen.has(String(r.Id)) && seen.add(String(r.Id))).map((r) => toSyncSample(r)).filter((s11) => s11 !== null).sort((a, b) => a.createdDate < b.createdDate ? 1 : a.createdDate > b.createdDate ? -1 : 0);
   const coverage = {
     mode: capped ? "sampled" : "all",
     limit: TELEMETRY_ROW_LIMIT,
@@ -139360,14 +141715,14 @@ function incompleteSummary(volumes) {
     failedUsers ? `${failedUsers} user${failedUsers === 1 ? "" : "s"} could not be loaded` : ""
   ].filter(Boolean).join("; ");
 }
-async function runAssessment(profile, orgName, configOrgIn, countOrgIn, describeTelemetryFields, options = {}) {
+async function runAssessment(profile, orgName, configOrgIn, countOrgIn, describeTelemetryFields, options2 = {}) {
   const configOrg = memoizeQuerier(configOrgIn);
   const countOrg = countOrgIn === configOrgIn ? configOrg : memoizeQuerier(countOrgIn);
   const personas = [];
   for (const [index, persona] of profile.personas.entries()) {
     const prefix = `${persona.name} (${index + 1}/${profile.personas.length})`;
     const at2 = { persona: index + 1, personas: profile.personas.length };
-    const onStep = options.onStep && ((step2, progress) => options.onStep?.(`${prefix}: ${step2}`, { ...at2, ...progress }));
+    const onStep = options2.onStep && ((step2, progress) => options2.onStep?.(`${prefix}: ${step2}`, { ...at2, ...progress }));
     let users = persona.users ?? [];
     let selectError;
     if (persona.select) {
@@ -139384,7 +141739,7 @@ async function runAssessment(profile, orgName, configOrgIn, countOrgIn, describe
     }
     const volumes = users.length ? await profileUsers2(configOrg, countOrg, users, {
       territory: persona.territory,
-      ...options,
+      ...options2,
       onStep
     }) : [];
     if (selectError || persona.select && users.length === 0) {
@@ -139591,8 +141946,8 @@ function renderTelemetry(summary, days) {
 | When | User | Kind | Total (s) | Records |
 |---|---|---|---:|---:|
 `;
-    for (const s7 of summary.slowest) {
-      out += `| ${s7.createdDate} | ${s7.user} | ${s7.kind} | ${fmt2(s7.totalSec)} | ${fmt2(s7.downloadedRecords)} |
+    for (const s11 of summary.slowest) {
+      out += `| ${s11.createdDate} | ${s11.user} | ${s11.kind} | ${fmt2(s11.totalSec)} | ${fmt2(s11.downloadedRecords)} |
 `;
     }
   }
@@ -139674,7 +142029,7 @@ init_session();
 function obj10(v) {
   return v && typeof v === "object" && !Array.isArray(v) ? v : {};
 }
-function str27(v) {
+function str28(v) {
   return typeof v === "string" && v ? v : void 0;
 }
 function isEmptyRecord(v) {
@@ -139754,12 +142109,12 @@ function sobjectFields(sobjects, table) {
   const entry = obj10(sobjects[table]);
   return (Array.isArray(entry.fields) ? entry.fields : []).flatMap((raw) => {
     const f = obj10(raw);
-    const fullName = str27(f.fullName);
+    const fullName = str28(f.fullName);
     if (!fullName) return [];
     return [
       {
         fullName,
-        type: str27(f.type),
+        type: str28(f.type),
         length: typeof f.length === "number" ? f.length : Number(f.length) || void 0,
         dataTranslationEnabled: f.dataTranslationEnabled === true
       }
@@ -139767,8 +142122,8 @@ function sobjectFields(sobjects, table) {
   });
 }
 function normalizeAttachments(v) {
-  const s7 = typeof v === "string" ? v.toLowerCase() : "none";
-  return s7 === "cache" || s7 === "background" ? s7 : "none";
+  const s11 = typeof v === "string" ? v.toLowerCase() : "none";
+  return s11 === "cache" || s11 === "background" ? s11 : "none";
 }
 function customPermissionNames(source) {
   const list2 = Array.isArray(source.customPermissions) ? source.customPermissions : [];
@@ -139783,12 +142138,12 @@ function buildUserAccessEntities(permissions, assignedPermissionSets) {
     if (name && !entities.includes(name)) entities.push(name);
   };
   const profile = obj10(permissions.profile);
-  add(str27(profile.fullName));
+  add(str28(profile.fullName));
   customPermissionNames(profile).forEach(add);
   const assigned = assignedPermissionSets?.length ? new Set(assignedPermissionSets.map((n2) => n2.toLowerCase())) : void 0;
   for (const raw of Array.isArray(permissions.permissionSets) ? permissions.permissionSets : []) {
     const ps = obj10(raw);
-    const name = str27(ps.fullName);
+    const name = str28(ps.fullName);
     if (assigned && (!name || !assigned.has(name.toLowerCase()))) continue;
     add(name);
     customPermissionNames(ps).forEach(add);
@@ -139797,7 +142152,7 @@ function buildUserAccessEntities(permissions, assignedPermissionSets) {
 }
 function splitList4(v) {
   if (Array.isArray(v)) return v.filter((x) => typeof x === "string");
-  return typeof v === "string" ? v.split(/[;,]/).map((s7) => s7.trim()).filter(Boolean) : [];
+  return typeof v === "string" ? v.split(/[;,]/).map((s11) => s11.trim()).filter(Boolean) : [];
 }
 function buildSchema(input) {
   const { files, usp } = input;
@@ -139818,13 +142173,13 @@ function buildSchema(input) {
   const candidates = [];
   for (const [key5, raw] of Object.entries(files.db)) {
     const e = obj10(raw);
-    const sobject2 = str27(e.SObject) ?? key5;
+    const sobject2 = str28(e.SObject) ?? key5;
     const availKey = lowerAvailable.get(sobject2.toLowerCase());
     if (!availKey || excluded.has(sobject2.toLowerCase())) continue;
     if (e.IsActive === false) continue;
     candidates.push({
       sobject: sobject2,
-      developerName: str27(e.DeveloperName) ?? key5,
+      developerName: str28(e.DeveloperName) ?? key5,
       raw: e,
       fromPermissionSet: false,
       fields: available[availKey] ?? []
@@ -139834,7 +142189,7 @@ function buildSchema(input) {
   const psAvailable = /* @__PURE__ */ new Map();
   for (const raw of Array.isArray(files.permissions.permissionSets) ? files.permissions.permissionSets : []) {
     const ps = obj10(raw);
-    const name = str27(ps.fullName);
+    const name = str28(ps.fullName);
     const af = obj10(ps.availableFields);
     if (!name || Object.keys(af).length === 0) continue;
     const m = {};
@@ -139846,7 +142201,7 @@ function buildSchema(input) {
   let psSkipped = 0;
   for (const [key5, raw] of Object.entries(files.dbPs)) {
     const e = obj10(raw);
-    const sobject2 = str27(e.SObject) ?? key5.replace(/__c$/, "");
+    const sobject2 = str28(e.SObject) ?? key5.replace(/__c$/, "");
     const sets = splitList4(e.PermissionSets).filter(
       (n2) => assigned.size === 0 || assigned.has(n2.toLowerCase())
     );
@@ -139857,7 +142212,7 @@ function buildSchema(input) {
     }
     candidates.push({
       sobject: sobject2,
-      developerName: str27(e.DeveloperName) ?? key5,
+      developerName: str28(e.DeveloperName) ?? key5,
       raw: e,
       fromPermissionSet: true,
       fields: fieldsFromPs
@@ -139892,13 +142247,13 @@ function buildSchema(input) {
       weights.push(fieldWeight(f.type, f.length));
     }
     if (fields.length === 0) continue;
-    const whereSoql = str27(c.raw.WhereSoql);
+    const whereSoql = str28(c.raw.WhereSoql);
     tables.push({
       sobject: c.sobject,
       developerName: c.developerName,
       fields,
       whereSoql,
-      deltaDateField: str27(c.raw.DeltaDateField),
+      deltaDateField: str28(c.raw.DeltaDateField),
       attachmentsSupport: normalizeAttachments(c.raw.AttachmentsSupport),
       userAccessEntities,
       weight: recordWeight(weights, whereSoql),
@@ -139965,18 +142320,18 @@ var ACCESS_CHECKS = [
 function obj11(v) {
   return v && typeof v === "object" && !Array.isArray(v) ? v : {};
 }
-function str28(v) {
+function str29(v) {
   return typeof v === "string" && v ? v : void 0;
 }
 function parseTerritory(raw) {
   const o = obj11(raw);
-  const name = str28(o.name);
+  const name = str29(o.name);
   if (!name) return void 0;
   const children2 = Array.isArray(o.children) ? o.children.map(parseTerritory).filter((t) => t !== void 0) : [];
   return {
-    id: str28(o.id),
+    id: str29(o.id),
     name,
-    developerName: str28(o.developerName),
+    developerName: str29(o.developerName),
     level: typeof o.level === "number" ? o.level : void 0,
     children: children2
   };
@@ -139988,27 +142343,27 @@ function parseUserInfo(json2) {
   const metadataEntities = (Array.isArray(o.metadataEntities) ? o.metadataEntities : []).flatMap(
     (raw) => {
       const e = obj11(raw);
-      const id2 = str28(e.id);
-      const name = str28(e.name);
+      const id2 = str29(e.id);
+      const name = str29(e.name);
       if (!id2 || !name) return [];
       return [
         {
           id: id2,
           name,
-          appVersionName: str28(e.appVersionName),
-          appVersionNumber: str28(e.appVersionNumber),
-          status: str28(e.status),
-          updateDueDate: str28(e.updateDueDate)
+          appVersionName: str29(e.appVersionName),
+          appVersionNumber: str29(e.appVersionNumber),
+          status: str29(e.status),
+          updateDueDate: str29(e.updateDueDate)
         }
       ];
     }
   );
-  const permissionSets = (Array.isArray(o.permissionSets) ? o.permissionSets : []).map((p) => typeof p === "string" ? p : str28(obj11(p).name)).filter((n2) => !!n2);
+  const permissionSets = (Array.isArray(o.permissionSets) ? o.permissionSets : []).map((p) => typeof p === "string" ? p : str29(obj11(p).name)).filter((n2) => !!n2);
   const territories = (Array.isArray(o.territoryHierarchy) ? o.territoryHierarchy : []).map(parseTerritory).filter((t) => t !== void 0);
   const user = obj11(o.user);
   const profile = obj11(user.profile);
   return {
-    apiVersion: str28(o.apiVersion),
+    apiVersion: str29(o.apiVersion),
     isOrgInMaintenance: o.isOrgInMaintenance === true,
     syncSettings: obj11(o.syncSettings),
     accessChecks,
@@ -140016,10 +142371,10 @@ function parseUserInfo(json2) {
     permissionSets,
     territories,
     user: {
-      id: str28(user.id) ?? "",
-      name: str28(user.name),
-      profileId: str28(user.profileId) ?? str28(profile.id),
-      profileName: str28(profile.name),
+      id: str29(user.id) ?? "",
+      name: str29(user.name),
+      profileId: str29(user.profileId) ?? str29(profile.id),
+      profileName: str29(profile.name),
       isForcedFullSync: user.isForcedFullSync === true
     },
     mobileAppVersion: o.mobileAppVersion
@@ -140101,8 +142456,8 @@ function byUsername(logins2) {
 function createUserSchemaSource(deps) {
   const logins2 = byUsername(deps.logins);
   const sessionFor = deps.sessionFor ?? ((login) => createTokenSession(login));
-  const getInfo = deps.fetchUserInfo ?? ((s7) => fetchUserInfo(s7));
-  const download2 = deps.downloadMetadata ?? ((s7, id2) => downloadMetadata(s7, id2));
+  const getInfo = deps.fetchUserInfo ?? ((s11) => fetchUserInfo(s11));
+  const download3 = deps.downloadMetadata ?? ((s11, id2) => downloadMetadata(s11, id2));
   const cache3 = /* @__PURE__ */ new Map();
   const load = (login) => {
     const key5 = login.username.toLowerCase();
@@ -140113,7 +142468,7 @@ function createUserSchemaSource(deps) {
         const info = await getInfo(session);
         const entity = info.metadataEntities[0];
         if (!entity) return { reason: "user-info returned no metadata record for the user" };
-        const md = await download2(session, entity.id);
+        const md = await download3(session, entity.id);
         const schema = buildSchema({
           files: md.files,
           usp: md.info.userSpecificPermissions,
@@ -140169,7 +142524,7 @@ function createUserSchemaSource(deps) {
 // src/studio/perf.ts
 var defaultDeps = {
   querier: (org) => ({
-    soql: (q2, options) => runSoqlQuery(q2, org, options),
+    soql: (q2, options2) => runSoqlQuery(q2, org, options2),
     tooling: (q2) => runToolingQuery(q2, org)
   }),
   telemetryFields: (org) => async () => {
@@ -140198,15 +142553,15 @@ function tracked(inner, job) {
   const guard = () => {
     if (job.cancelled) throw new CancelledError();
   };
-  const wrap = (fn) => async (q2, options) => {
+  const wrap = (fn) => async (q2, options2) => {
     guard();
     job.queries++;
-    const result2 = await fn(q2, options);
+    const result2 = await fn(q2, options2);
     guard();
     return result2;
   };
   return {
-    soql: wrap((q2, options) => inner.soql(q2, options)),
+    soql: wrap((q2, options2) => inner.soql(q2, options2)),
     tooling: wrap((q2) => inner.tooling(q2))
   };
 }
@@ -140410,7 +142765,7 @@ var lower = (r) => {
   for (const [k, v] of Object.entries(r)) out[k.toLowerCase()] = v;
   return out;
 };
-var str29 = (v) => typeof v === "string" && v ? v : void 0;
+var str30 = (v) => typeof v === "string" && v ? v : void 0;
 var num4 = (v) => typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" ? Number(v) || 0 : 0;
 var ContentCollector = class {
   constructor(want, tables, maxRows = DEFAULT_MAX_COLLECTED_ROWS) {
@@ -140440,7 +142795,7 @@ var ContentCollector = class {
     const { attachments, clm } = this.want;
     if (attachments && table.attachmentsSupport === "background" && name !== "presentationpage") {
       for (const r of records) {
-        const id2 = str29(r.Id) ?? str29(lower(r).id);
+        const id2 = str30(r.Id) ?? str30(lower(r).id);
         if (id2 && id2.length >= 3) this.prefixes.add(id2.slice(0, 3));
       }
     }
@@ -140449,16 +142804,16 @@ var ContentCollector = class {
         if (!attachments) return;
         for (const raw of records) {
           const r = lower(raw);
-          const id2 = str29(r.id);
-          const parentId = str29(r.parentid);
+          const id2 = str30(r.id);
+          const parentId = str30(r.parentid);
           if (!id2 || !parentId || !this.room("Attachment", this.attachmentRows.length)) continue;
-          const body = str29(r.body);
+          const body = str30(r.body);
           this.attachmentRows.push({
             id: id2,
             parentId,
             body: body && body.length <= MAX_BODY_URL ? body : void 0,
             size: num4(r.bodylength),
-            name: str29(r.name) ?? id2
+            name: str30(r.name) ?? id2
           });
         }
         return;
@@ -140466,8 +142821,8 @@ var ContentCollector = class {
         if (!attachments && !clm) return;
         for (const raw of records) {
           const r = lower(raw);
-          const docId = str29(r.contentdocumentid);
-          const linkedId = str29(r.linkedentityid);
+          const docId = str30(r.contentdocumentid);
+          const linkedId = str30(r.linkedentityid);
           if (docId && linkedId && this.room("ContentDocumentLink", this.cdls.length))
             this.cdls.push({ docId, linkedId });
         }
@@ -140476,12 +142831,12 @@ var ContentCollector = class {
         if (!attachments && !clm) return;
         for (const raw of records) {
           const r = lower(raw);
-          const id2 = str29(r.id);
+          const id2 = str30(r.id);
           if (id2 && (this.docs.has(id2) || this.room("ContentDocument", this.docs.size)))
             this.docs.set(id2, {
               id: id2,
-              latestVersionId: str29(r.latestpublishedversionid),
-              fileType: str29(r.filetype)
+              latestVersionId: str30(r.latestpublishedversionid),
+              fileType: str30(r.filetype)
             });
         }
         return;
@@ -140489,17 +142844,17 @@ var ContentCollector = class {
         if (!attachments && !clm) return;
         for (const raw of records) {
           const r = lower(raw);
-          const id2 = str29(r.id);
+          const id2 = str30(r.id);
           if (!id2 || !(this.versions.has(id2) || this.room("ContentVersion", this.versions.size)))
             continue;
-          const url = str29(r.versiondataurl) ?? (typeof r.versiondata === "string" && r.versiondata.startsWith("/") ? r.versiondata : void 0);
+          const url = str30(r.versiondataurl) ?? (typeof r.versiondata === "string" && r.versiondata.startsWith("/") ? r.versiondata : void 0);
           this.versions.set(id2, {
             id: id2,
-            docId: str29(r.contentdocumentid),
+            docId: str30(r.contentdocumentid),
             url,
             size: num4(r.contentsize),
-            checksum: str29(r.checksum)?.toLowerCase(),
-            title: str29(r.title),
+            checksum: str30(r.checksum)?.toLowerCase(),
+            title: str30(r.title),
             isLatest: r.islatest !== false
           });
         }
@@ -140508,15 +142863,15 @@ var ContentCollector = class {
         if (!clm) return;
         for (const raw of records) {
           const r = lower(raw);
-          const id2 = str29(r.id);
+          const id2 = str30(r.id);
           if (id2 && this.room("Presentation", this.presentations.length)) {
             this.presentations.push({
               id: id2,
-              name: str29(r.name) ?? id2,
-              type: (str29(r.type) ?? "").toUpperCase(),
-              status: str29(r.status),
-              activation: str29(r.activationdate),
-              deactivation: str29(r.deactivationdate),
+              name: str30(r.name) ?? id2,
+              type: (str30(r.type) ?? "").toUpperCase(),
+              status: str30(r.status),
+              activation: str30(r.activationdate),
+              deactivation: str30(r.deactivationdate),
               isCustom: r.iscustom === true
             });
           }
@@ -140526,8 +142881,8 @@ var ContentCollector = class {
         if (!clm) return;
         for (const raw of records) {
           const r = lower(raw);
-          const presentationId = str29(r.presentationid);
-          const pageId = str29(r.presentationpageid);
+          const presentationId = str30(r.presentationid);
+          const pageId = str30(r.presentationpageid);
           if (presentationId && pageId && this.room("PresentationLinkedPage", this.links.length))
             this.links.push({ presentationId, pageId, order: num4(r.displayorder) });
         }
@@ -140536,13 +142891,13 @@ var ContentCollector = class {
         if (!clm) return;
         for (const raw of records) {
           const r = lower(raw);
-          const id2 = str29(r.id);
+          const id2 = str30(r.id);
           if (id2 && (this.pages.has(id2) || this.room("PresentationPage", this.pages.size)))
             this.pages.set(id2, {
               id: id2,
-              name: str29(r.name) ?? id2,
-              type: str29(r.type) ?? "",
-              status: str29(r.status)
+              name: str30(r.name) ?? id2,
+              type: str30(r.type) ?? "",
+              status: str30(r.status)
             });
         }
         return;
@@ -140563,20 +142918,20 @@ var ContentCollector = class {
     return shepherd ? `/sfc/servlet.shepherd/version/download/${v.id}` : `/services/data/${apiVersion2}/sobjects/ContentVersion/${v.id}/VersionData`;
   }
   plan(apiVersion2, now = /* @__PURE__ */ new Date()) {
-    const plan2 = { attachments: [], clm: [], notes: [] };
-    if (this.want.attachments) this.planAttachments(plan2, apiVersion2);
-    if (this.want.clm) this.planClm(plan2, apiVersion2, now);
+    const plan3 = { attachments: [], clm: [], notes: [] };
+    if (this.want.attachments) this.planAttachments(plan3, apiVersion2);
+    if (this.want.clm) this.planClm(plan3, apiVersion2, now);
     if (this.dropped.size > 0) {
       const what = [...this.dropped].map(([kind, n2]) => `${n2.toLocaleString("en-US")} ${kind}`).join(", ");
-      plan2.notes.push(
+      plan3.notes.push(
         `To bound memory the content planner keeps at most ${this.maxRows.toLocaleString("en-US")} rows of each kind; ${what} more were ignored, so the content numbers are lower bounds.`
       );
     }
-    return plan2;
+    return plan3;
   }
-  planAttachments(plan2, apiVersion2) {
+  planAttachments(plan3, apiVersion2) {
     if (this.prefixes.size === 0) {
-      plan2.notes.push(
+      plan3.notes.push(
         'No table with attachmentSupport "background" returned records, so there are no attachments to download.'
       );
       return;
@@ -140588,7 +142943,7 @@ var ContentCollector = class {
         const v = this.versionOf(link.docId);
         if (!v || seen.has(v.id)) continue;
         seen.add(v.id);
-        plan2.attachments.push({
+        plan3.attachments.push({
           name: v.title ?? v.id,
           url: this.urlOf(v, apiVersion2, false),
           size: v.size
@@ -140597,7 +142952,7 @@ var ContentCollector = class {
     } else {
       for (const a of this.attachmentRows) {
         if (!this.prefixes.has(a.parentId.slice(0, 3))) continue;
-        plan2.attachments.push({
+        plan3.attachments.push({
           name: a.name,
           url: a.body ?? `/services/data/${apiVersion2}/sobjects/Attachment/${a.id}/Body`,
           size: a.size
@@ -140605,9 +142960,9 @@ var ContentCollector = class {
       }
     }
   }
-  planClm(plan2, apiVersion2, now) {
+  planClm(plan3, apiVersion2, now) {
     if (this.presentations.length === 0) {
-      plan2.notes.push(
+      plan3.notes.push(
         "No Presentation records were downloaded, so there is no CLM content to fetch."
       );
       return;
@@ -140646,7 +143001,7 @@ var ContentCollector = class {
           unresolved++;
           continue;
         }
-        plan2.clm.push({
+        plan3.clm.push({
           name: `${p.name} / ${page.name}`,
           url: this.urlOf(v, apiVersion2, true),
           size: v.size,
@@ -140655,7 +143010,7 @@ var ContentCollector = class {
       }
     }
     if (unresolved > 0)
-      plan2.notes.push(
+      plan3.notes.push(
         `${unresolved} presentation page(s) had no downloaded ContentVersion (ContentDocumentLink, ContentDocument or ContentVersion missing or limited), so they are not in the CLM numbers.`
       );
   }
@@ -140799,7 +143154,7 @@ var KindRun = class {
     return url;
   }
 };
-async function downloadContent(session, plan2, opts) {
+async function downloadContent(session, plan3, opts) {
   const now = opts.now ?? (() => performance.now());
   const start = now();
   const budget = {
@@ -140811,20 +143166,20 @@ async function downloadContent(session, plan2, opts) {
     outsideSyncWindow: true,
     limits: { maxFiles: budget.maxFiles, maxBytes: budget.maxBytes },
     seconds: 0,
-    notes: [...plan2.notes]
+    notes: [...plan3.notes]
   };
   const common = { signal: opts.signal, now, chunkBytes: opts.chunkBytes ?? DEFAULT_CHUNK };
   if (opts.attachments) {
-    opts.onStep?.(`Downloading attachments (${plan2.attachments.length} files, one at a time)`);
-    result2.attachments = await new KindRun(plan2.attachments, session, budget, {
+    opts.onStep?.(`Downloading attachments (${plan3.attachments.length} files, one at a time)`);
+    result2.attachments = await new KindRun(plan3.attachments, session, budget, {
       ...common,
       chunked: false,
       concurrency: 1
     }).run();
   }
   if (opts.clm) {
-    opts.onStep?.(`Downloading CLM content (${plan2.clm.length} files)`);
-    result2.clm = await new KindRun(plan2.clm, session, budget, {
+    opts.onStep?.(`Downloading CLM content (${plan3.clm.length} files)`);
+    result2.clm = await new KindRun(plan3.clm, session, budget, {
       ...common,
       chunked: true,
       concurrency: CLM_CONCURRENCY
@@ -141022,10 +143377,10 @@ function tableComplexity(whereSoql) {
   return 1 + (whereSoql ?? "").toLowerCase().split("select").length - 1;
 }
 function orderPhases(tables, flow = "enhanced") {
-  const named = (n2) => tables.find((t) => t.sobject.toLowerCase() === n2);
-  const ot2a = named(OT2A);
-  const account = named(ACCOUNT);
-  const dstr = named(LAST);
+  const named2 = (n2) => tables.find((t) => t.sobject.toLowerCase() === n2);
+  const ot2a = named2(OT2A);
+  const account = named2(ACCOUNT);
+  const dstr = named2(LAST);
   const usesTag = (tag) => tables.some((t) => tagsInWhere(t.whereSoql).includes(tag));
   const ot2aFirst = ot2a !== void 0 && (flow === "enhanced" || usesTag("{OT2A.OBJ.IDS}"));
   const accountFirst = account !== void 0 && (flow === "enhanced" || usesTag("{ACCOUNT.IDS}"));
@@ -141049,13 +143404,13 @@ function orderPhases(tables, flow = "enhanced") {
   ];
   phases.push(flow === "enhanced" ? [...others, ...dstr ? [dstr] : []] : others);
   if (flow === "legacy" && dstr) phases.push([dstr]);
-  const attachment = named(ATTACHMENT);
-  const cdl = named(CDL);
+  const attachment = named2(ATTACHMENT);
+  const cdl = named2(CDL);
   const present2 = (...ts) => ts.filter((t) => t !== void 0);
   if (cdl) {
     phases.push(present2(attachment, cdl));
     if (dstr) phases.push([dstr]);
-    phases.push(present2(named(CONTENT_VERSION), named(CONTENT_DOCUMENT), dstr));
+    phases.push(present2(named2(CONTENT_VERSION), named2(CONTENT_DOCUMENT), dstr));
   } else {
     phases.push(present2(attachment, dstr));
   }
@@ -141085,7 +143440,7 @@ var SmartQueue = class {
   /** Enqueue the tasks, resolve when all have finished. Results keep the order of `tasks`. */
   async run(tasks) {
     const results = new Array(tasks.length);
-    let failure3;
+    let failure4;
     const finished = tasks.map(
       (task, i) => new Promise((resolve4) => {
         const op = {
@@ -141097,7 +143452,7 @@ var SmartQueue = class {
             this.peak = Math.max(this.peak, this.running);
             task.run().then(
               (r) => void (results[i] = r),
-              (e) => void (failure3 ??= { error: e })
+              (e) => void (failure4 ??= { error: e })
             ).finally(() => {
               this.ops.splice(this.ops.indexOf(op), 1);
               this.running--;
@@ -141114,7 +143469,7 @@ var SmartQueue = class {
     this.recompute();
     this.pump();
     await Promise.all(finished);
-    if (failure3) throw failure3.error;
+    if (failure4) throw failure4.error;
     return results;
   }
   pump() {
@@ -141243,8 +143598,8 @@ function recordsOf(json2) {
   return { records, o };
 }
 var TableRunner = class {
-  constructor(run4, table) {
-    this.run = run4;
+  constructor(run5, table) {
+    this.run = run5;
     this.table = table;
     this.result = {
       sobject: table.sobject,
@@ -141485,7 +143840,7 @@ function schedulingNote(flow, maxConcurrent = MAX_CONCURRENT_TABLES[flow]) {
 }
 async function replayInitialSync(opts) {
   const now = opts.now ?? (() => performance.now());
-  const run4 = {
+  const run5 = {
     opts,
     ids: emptyIds(),
     now,
@@ -141516,12 +143871,12 @@ async function replayInitialSync(opts) {
         complexity: tableComplexity(table.whereSoql),
         run: async () => {
           let r;
-          if (opts.signal?.aborted || run4.aborted) r = skipped(table, "cancelled");
-          else if (run4.deadline !== void 0 && now() >= run4.deadline)
+          if (opts.signal?.aborted || run5.aborted) r = skipped(table, "cancelled");
+          else if (run5.deadline !== void 0 && now() >= run5.deadline)
             r = skipped(table, "maxSeconds budget exhausted");
-          else if (opts.maxTotalRecords !== void 0 && run4.totalRecords >= opts.maxTotalRecords)
+          else if (opts.maxTotalRecords !== void 0 && run5.totalRecords >= opts.maxTotalRecords)
             r = skipped(table, "maxTotalRecords reached");
-          else r = await new TableRunner(run4, table).execute();
+          else r = await new TableRunner(run5, table).execute();
           const earlier = results.get(table);
           if (earlier) mergeRuns(earlier, r);
           else results.set(table, r);
@@ -141533,8 +143888,8 @@ async function replayInitialSync(opts) {
       }))
     );
   }
-  if (opts.idStore) opts.idStore.collected = run4.ids;
-  if (run4.idBudget.hit) {
+  if (opts.idStore) opts.idStore.collected = run5.ids;
+  if (run5.idBudget.hit) {
     opts.onNote?.(
       `The simulator keeps at most ${(opts.maxCollectedIds ?? DEFAULT_MAX_COLLECTED_IDS).toLocaleString("en-US")} ids for the id-list filters of later tables; more were dropped, so those tables' requests and records are lower bounds.`
     );
@@ -141558,7 +143913,7 @@ var CONTENT_VERSION2 = "contentversion";
 var CONTENT_DOCUMENT2 = "contentdocument";
 var DSTR2 = "devicesynctransactionrecord";
 var POSTPONED2 = /* @__PURE__ */ new Set([ATTACHMENT2, CDL2, CONTENT_VERSION2, CONTENT_DOCUMENT2]);
-var norm2 = (s7) => s7.toLowerCase();
+var norm2 = (s11) => s11.toLowerCase();
 function strings2(v) {
   return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
 }
@@ -141848,7 +144203,7 @@ var DeltaRun = class {
       }
       carry = [];
       if (objects.length === 0) continue;
-      const rows3 = sent.map((s7) => s7.item.row);
+      const rows3 = sent.map((s11) => s11.item.row);
       let results;
       try {
         results = parseVisibility(
@@ -141858,11 +144213,11 @@ var DeltaRun = class {
         this.fail(rows3, e);
         continue;
       }
-      for (const s7 of sent) {
-        const result2 = this.find(results, s7.item);
-        const p = s7.paging ?? {
-          item: s7.item,
-          tags: s7.tags,
+      for (const s11 of sent) {
+        const result2 = this.find(results, s11.item);
+        const p = s11.paging ?? {
+          item: s11.item,
+          tags: s11.tags,
           fetchedIds: [],
           locator: "",
           add: [],
@@ -141879,8 +144234,8 @@ var DeltaRun = class {
           p.locator = result2.queryLocator;
           carry.push(p);
         } else {
-          if (result2?.hasMore) s7.item.row.truncated = `stopped after ${MAX_PAGES} pages`;
-          this.setChange(s7.item, p.add, p.del);
+          if (result2?.hasMore) s11.item.row.truncated = `stopped after ${MAX_PAGES} pages`;
+          this.setChange(s11.item, p.add, p.del);
         }
       }
     }
@@ -141989,7 +144344,7 @@ var DeltaRun = class {
       row.bytes = Math.round(row.bytes);
     }
     const rows3 = this.all.map((i) => i.row);
-    const sum = (f) => rows3.reduce((s7, r) => s7 + f(r), 0);
+    const sum = (f) => rows3.reduce((s11, r) => s11 + f(r), 0);
     const totals = {
       tablesChecked: rows3.filter((r) => !r.skipped && !r.error).length,
       tablesSkipped: rows3.filter((r) => r.skipped).length,
@@ -142036,9 +144391,9 @@ function simulateDelta(opts) {
 init_session();
 function totalsOf(tables, seconds) {
   return {
-    records: tables.reduce((s7, t) => s7 + t.records, 0),
-    requests: tables.reduce((s7, t) => s7 + t.requests, 0),
-    bytes: tables.reduce((s7, t) => s7 + t.bytes, 0),
+    records: tables.reduce((s11, t) => s11 + t.records, 0),
+    requests: tables.reduce((s11, t) => s11 + t.requests, 0),
+    bytes: tables.reduce((s11, t) => s11 + t.bytes, 0),
     seconds,
     tablesDownloaded: tables.filter((t) => !t.skipped && !t.error).length,
     tablesSkipped: tables.filter((t) => t.skipped).length,
@@ -142046,8 +144401,8 @@ function totalsOf(tables, seconds) {
   };
 }
 function filterTables(tables, include, exclude) {
-  const inc = include?.length ? new Set(include.map((s7) => s7.toLowerCase())) : void 0;
-  const exc = new Set((exclude ?? []).map((s7) => s7.toLowerCase()));
+  const inc = include?.length ? new Set(include.map((s11) => s11.toLowerCase())) : void 0;
+  const exc = new Set((exclude ?? []).map((s11) => s11.toLowerCase()));
   return tables.filter(
     (t) => (!inc || inc.has(t.sobject.toLowerCase())) && !exc.has(t.sobject.toLowerCase())
   );
@@ -142236,9 +144591,9 @@ function clampRuns(runs4) {
   return Number.isFinite(n2) ? Math.min(MAX_SIM_RUNS, Math.max(1, n2)) : 1;
 }
 function median(values) {
-  const s7 = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(s7.length / 2);
-  return s7.length % 2 ? s7[mid] : (s7[mid - 1] + s7[mid]) / 2;
+  const s11 = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(s11.length / 2);
+  return s11.length % 2 ? s11[mid] : (s11[mid - 1] + s11[mid]) / 2;
 }
 function spread3(values) {
   return { median: median(values), min: Math.min(...values), max: Math.max(...values) };
@@ -142323,11 +144678,11 @@ function aggregateRuns(results, requested = results.length) {
     runs: { count: results.length, requested, perRun, total, metadata, data: data2 }
   };
 }
-var sec = (s7) => `${s7.toFixed(1)}`;
+var sec = (s11) => `${s11.toFixed(1)}`;
 function renderRunsSection(result2) {
   const runs4 = result2.runs;
   if (!runs4 || runs4.count < 2) return "";
-  const row = (label2, s7) => `| ${label2} | ${sec(s7.median)} | ${sec(s7.min)} \u2013 ${sec(s7.max)} |
+  const row = (label2, s11) => `| ${label2} | ${sec(s11.median)} | ${sec(s11.min)} \u2013 ${sec(s11.max)} |
 `;
   let out = `## Runs (${runs4.count}${runs4.requested > runs4.count ? ` of ${runs4.requested} requested` : ""})
 
@@ -142363,11 +144718,11 @@ function pruneFinished2() {
   for (const job of finished.slice(0, Math.max(0, finished.length - MAX_FINISHED_JOBS2)))
     jobs2.delete(job.jobId);
 }
-function startSimulation(connection, options = {}, deps = defaultDeps2) {
+function startSimulation(connection, options2 = {}, deps = defaultDeps2) {
   const login = typeof connection === "string" ? void 0 : connection;
   const name = (login ? login.username : connection).trim();
   if (!name) throw new Error("Choose the sf CLI connection to run the simulation as.");
-  resolveNetwork(options.network);
+  resolveNetwork(options2.network);
   const session = login ? createTokenSession(login) : void 0;
   if ([...jobs2.values()].some((j) => j.state === "running")) {
     throw new Error("A first-sync simulation is already in progress.");
@@ -142381,7 +144736,7 @@ function startSimulation(connection, options = {}, deps = defaultDeps2) {
     controller: new AbortController()
   };
   jobs2.set(job.jobId, job);
-  const { runs: runsOption, content: contentOption, ...simOptions } = options;
+  const { runs: runsOption, content: contentOption, ...simOptions } = options2;
   const requested = clampRuns(runsOption);
   const completed = [];
   const runAll = async () => {
@@ -142465,7 +144820,7 @@ import * as path20 from "path";
 function text8(body) {
   return { content: [{ type: "text", text: body }] };
 }
-function failure(title, e) {
+function failure2(title, e) {
   return text8(`# ${title}
 
 ${e instanceof Error ? e.message : String(e)}`);
@@ -142473,8 +144828,8 @@ ${e instanceof Error ? e.message : String(e)}`);
 function mb(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
-function cell(s7) {
-  return s7.replace(/\|/g, "\\|").replace(/\s+/g, " ");
+function cell(s11) {
+  return s11.replace(/\|/g, "\\|").replace(/\s+/g, " ");
 }
 function renderDelta(d, topTables) {
   const t = d.totals;
@@ -142665,7 +145020,7 @@ Full result written to \`${resolved}\`.
         }
         return text8(report);
       } catch (e) {
-        return failure("First-Sync Simulation Failed", e);
+        return failure2("First-Sync Simulation Failed", e);
       }
     }
   );
@@ -142895,17 +145250,17 @@ var HEADLINE_NAME = {
   syncFailureRatePct: "the share of failed syncs",
   dbSizeP95Gb: "device database size"
 };
-var capitalize = (s7) => s7.charAt(0).toUpperCase() + s7.slice(1);
+var capitalize = (s11) => s11.charAt(0).toUpperCase() + s11.slice(1);
 function orgVerdict(summary, reps, needAttention) {
   const evaluations = evaluateOrg(summary);
   if (summary.samples === 0)
     return { status: "no-data", headline: "No sync data yet", evaluations };
-  const named = (status) => evaluations.filter((e) => e.status === status).map((e) => HEADLINE_NAME[e.metric] ?? e.metric).join(" and ");
-  const failing = named("fail");
+  const named2 = (status) => evaluations.filter((e) => e.status === status).map((e) => HEADLINE_NAME[e.metric] ?? e.metric).join(" and ");
+  const failing = named2("fail");
   if (failing)
     return { status: "failing", headline: `${capitalize(failing)} beyond the limit`, evaluations };
   const share = reps > 0 ? needAttention / reps : 0;
-  const warning = named("warn");
+  const warning = named2("warn");
   if (warning)
     return {
       status: "struggling",
@@ -142918,16 +145273,16 @@ function orgVerdict(summary, reps, needAttention) {
 }
 function dailyTrend(samples) {
   const byDay = /* @__PURE__ */ new Map();
-  for (const s7 of samples) {
-    const day4 = (s7.createdDate || "").slice(0, 10);
+  for (const s11 of samples) {
+    const day4 = (s11.createdDate || "").slice(0, 10);
     if (!day4) continue;
-    byDay.set(day4, [...byDay.get(day4) ?? [], s7]);
+    byDay.set(day4, [...byDay.get(day4) ?? [], s11]);
   }
-  const totals = (list2, kind) => list2.filter((s7) => s7.outcome === "completed" && s7.kind === kind).map((s7) => s7.totalSec);
+  const totals = (list2, kind) => list2.filter((s11) => s11.outcome === "completed" && s11.kind === kind).map((s11) => s11.totalSec);
   return [...byDay].sort(([a], [b]) => a.localeCompare(b)).map(([day4, list2]) => ({
     day: day4,
     syncs: list2.length,
-    failures: list2.filter((s7) => s7.failed).length,
+    failures: list2.filter((s11) => s11.failed).length,
     initialP90: distribution(totals(list2, "initial")).p90,
     deltaP90: distribution(totals(list2, "delta")).p90
   }));
@@ -142966,11 +145321,11 @@ var SLOW_RATIO = 2;
 var MIN_SYNCS_FOR_RATIO = 2;
 var MIN_SYNCS_FOR_RATE = 3;
 function scoreUser(username, samples, base2) {
-  const done = samples.filter((s7) => s7.outcome === "completed");
-  const delta = done.filter((s7) => s7.kind === "delta").map((s7) => s7.totalSec);
-  const initial = done.filter((s7) => s7.kind === "initial").map((s7) => s7.totalSec);
-  const decided = samples.filter((s7) => s7.outcome === "completed" || s7.outcome === "failed");
-  const failed2 = decided.filter((s7) => s7.failed).length;
+  const done = samples.filter((s11) => s11.outcome === "completed");
+  const delta = done.filter((s11) => s11.kind === "delta").map((s11) => s11.totalSec);
+  const initial = done.filter((s11) => s11.kind === "initial").map((s11) => s11.totalSec);
+  const decided = samples.filter((s11) => s11.outcome === "completed" || s11.outcome === "failed");
+  const failed2 = decided.filter((s11) => s11.failed).length;
   const reasons = [];
   let score = 0;
   const deltaP90 = distribution(delta).p90;
@@ -142999,14 +145354,14 @@ function scoreUser(username, samples, base2) {
     }
     reasons.push(`${failed2} of ${decided.length} syncs failed`);
   }
-  const records = samples.map((s7) => s7.downloadedRecords).filter((v) => v !== void 0);
+  const records = samples.map((s11) => s11.downloadedRecords).filter((v) => v !== void 0);
   const maxRecords = records.length ? Math.max(...records) : void 0;
   if (maxRecords !== void 0 && base2.recordsMedian && maxRecords / base2.recordsMedian >= SLOW_RATIO) {
     const ratio = maxRecords / base2.recordsMedian;
     score += Math.min(10, 5 * (ratio - 1));
     reasons.push(`Downloads ${times(ratio)} the usual number of records`);
   }
-  const sizes = done.map((s7) => s7.dbSizeGb).filter((v) => v !== void 0);
+  const sizes = done.map((s11) => s11.dbSizeGb).filter((v) => v !== void 0);
   const dbSize = percentile(sizes, 90);
   if (dbSize !== void 0 && base2.dbSizeMedian && dbSize / base2.dbSizeMedian >= SLOW_RATIO) {
     const ratio = dbSize / base2.dbSizeMedian;
@@ -143027,9 +145382,9 @@ function scoreUser(username, samples, base2) {
 }
 function rankUsersAtRisk(samples, summary, limit = 25) {
   const byUser = /* @__PURE__ */ new Map();
-  for (const s7 of samples) {
-    if (!s7.user) continue;
-    byUser.set(s7.user, [...byUser.get(s7.user) ?? [], s7]);
+  for (const s11 of samples) {
+    if (!s11.user) continue;
+    byUser.set(s11.user, [...byUser.get(s11.user) ?? [], s11]);
   }
   const base2 = orgBaseline(summary);
   const scored = [...byUser].map(([user, list2]) => scoreUser(user, list2, base2)).filter((u) => u.score > 0);
@@ -143060,7 +145415,7 @@ var EXPECTED_ATTACHMENT_SOBJECTS = new Set(
     "LifeScienceEmail",
     "PresentationPage",
     "StaticResource"
-  ].map((s7) => s7.toLowerCase())
+  ].map((s11) => s11.toLowerCase())
 );
 function schemaRisks(entries2, attachmentRecords2 = /* @__PURE__ */ new Set()) {
   const risks = [];
@@ -143098,7 +145453,7 @@ var syncOverviewInput = {
 };
 var defaultDeps3 = {
   querier: (org) => ({
-    soql: (q2, options) => runSoqlQuery(q2, org, options),
+    soql: (q2, options2) => runSoqlQuery(q2, org, options2),
     tooling: (q2) => runToolingQuery(q2, org)
   }),
   telemetryFields: (org) => async () => {
@@ -143121,7 +145476,7 @@ async function loadSamples(org, fields, days) {
   if (!result2.success) throw new Error(result2.error || "DeviceSyncSummary query failed");
   const records = result2.data?.records ?? [];
   return {
-    samples: records.map((r) => toSyncSample(r)).filter((s7) => s7 !== null),
+    samples: records.map((r) => toSyncSample(r)).filter((s11) => s11 !== null),
     rows: records.length,
     truncated: records.length >= TELEMETRY_LIMIT || result2.data?.truncated === true
   };
@@ -143257,7 +145612,7 @@ async function syncOverview(org, input, deps = defaultDeps3) {
       const totals = aggs && aggs.length ? totalsFromAggregates(aggs) : null;
       if (totals?.failureRatePct !== void 0) summary.failureRatePct = totals.failureRatePct;
       if (samples.length === 0) notes.push(`No syncs were recorded in the last ${days} days.`);
-      const oldest = samples.map((s7) => s7.createdDate.slice(0, 10)).sort()[0] ?? null;
+      const oldest = samples.map((s11) => s11.createdDate.slice(0, 10)).sort()[0] ?? null;
       result2.rowsCoverage = { rows: rowCount, from: oldest, truncated };
       if (truncated) {
         notes.push(
@@ -143333,7 +145688,7 @@ function startProgress(userId) {
 }
 var defaultDeps4 = {
   querier: (org) => ({
-    soql: (q2, options) => runSoqlQuery(q2, org, options),
+    soql: (q2, options2) => runSoqlQuery(q2, org, options2),
     tooling: (q2) => runToolingQuery(q2, org)
   }),
   telemetryFields: (org) => async () => {
@@ -143489,7 +145844,7 @@ async function syncUserDetailInner(org, input, deps, progress) {
   }
   if (picked.note) schemaNotes.push(picked.note);
   const targets = picked.picked.length ? picked.picked : [null];
-  const options = { ...DEFAULT_PROFILE_OPTIONS, idCache: /* @__PURE__ */ new Map() };
+  const options2 = { ...DEFAULT_PROFILE_OPTIONS, idCache: /* @__PURE__ */ new Map() };
   progress.phase = "counting";
   progress.tablesTotal = tables.length * targets.length;
   progress.territories = targets.map((t) => ({
@@ -143504,7 +145859,7 @@ async function syncUserDetailInner(org, input, deps, progress) {
     async (territory) => {
       const entry = progress.territories[targets.indexOf(territory)];
       entry.state = "running";
-      const volume = await profileTerritory(querier2, user, territory, tables, options, (done) => {
+      const volume = await profileTerritory(querier2, user, territory, tables, options2, (done) => {
         entry.done = done;
         progress.tablesDone = progress.territories.reduce((n2, t) => n2 + t.done, 0);
       });
@@ -143553,7 +145908,7 @@ function cloneEntry(e) {
 }
 var text10 = (v) => v === null || v === void 0 ? "" : String(v);
 function splitList5(v) {
-  return text10(v).split(/[;,]/).map((s7) => s7.trim()).filter(Boolean);
+  return text10(v).split(/[;,]/).map((s11) => s11.trim()).filter(Boolean);
 }
 var labelOf = (f) => f.label || `${f.kind} ${f.developerName ?? ""}`.trim();
 function applyChanges(entries2, fixes) {
@@ -143810,7 +146165,7 @@ var PROFILE_CONCURRENCY = 3;
 var MAX_PROFILES = 5;
 var defaultDeps5 = {
   querier: (org) => ({
-    soql: (q2, options) => runSoqlQuery(q2, org, options),
+    soql: (q2, options2) => runSoqlQuery(q2, org, options2),
     tooling: (q2) => runToolingQuery(q2, org)
   })
 };
@@ -143826,7 +146181,7 @@ async function syncImpact(orgName, input, deps = defaultDeps5) {
   const raw = deps.querier(orgName);
   let queries = 0;
   const org = memoizeQuerier({
-    soql: (q2, options) => (queries++, raw.soql(q2, options)),
+    soql: (q2, options2) => (queries++, raw.soql(q2, options2)),
     tooling: (q2) => (queries++, raw.tooling(q2))
   });
   const relevant = input.changes.filter(touchesDbSchema);
@@ -143851,14 +146206,14 @@ async function syncImpact(orgName, input, deps = defaultDeps5) {
   } else {
     const found = affectedProfiles(before, applied.entries, applied.touched);
     const fromIds = await profileNamesById(org, [...found.ids]);
-    const named = /* @__PURE__ */ new Set([...found.names, ...fromIds]);
+    const named2 = /* @__PURE__ */ new Set([...found.names, ...fromIds]);
     for (const f of relevant) {
       if (f.kind === "setProfileAssignments")
         [...f.from ?? [], ...f.to ?? []].forEach(
-          (n2) => named.add(n2)
+          (n2) => named2.add(n2)
         );
     }
-    names5 = [...named].sort();
+    names5 = [...named2].sort();
   }
   if (names5.length > MAX_PROFILES) {
     notes.push(
@@ -143888,12 +146243,12 @@ async function syncImpact(orgName, input, deps = defaultDeps5) {
           const beforeVol = await profileTerritory(org, ctx, territory, tablesBefore);
           diff = diffVolumes(beforeVol.tables, [], changed, false);
         } else {
-          const plan2 = planRecount(tablesAfter, changed);
+          const plan3 = planRecount(tablesAfter, changed);
           const [beforeVol, afterVol] = await Promise.all([
             profileTerritory(org, ctx, territory, tablesBefore),
-            profileTerritory(org, ctx, territory, plan2.after)
+            profileTerritory(org, ctx, territory, plan3.after)
           ]);
-          diff = diffVolumes(beforeVol.tables, afterVol.tables, changed, plan2.full);
+          diff = diffVolumes(beforeVol.tables, afterVol.tables, changed, plan3.full);
         }
         return {
           profile,
@@ -143993,10 +146348,10 @@ function checkSimulation(value4, i) {
   return value4;
 }
 var num5 = (n2) => Number.isInteger(n2) ? n2.toLocaleString("en-US") : n2.toFixed(1);
-function plainSeconds(s7) {
-  if (s7 < 120) return `${num5(Math.round(s7 * 10) / 10)} s`;
-  if (s7 < 7200) return `${(s7 / 60).toFixed(1).replace(/\.0$/, "")} min`;
-  return `${(s7 / 3600).toFixed(1).replace(/\.0$/, "")} h`;
+function plainSeconds(s11) {
+  if (s11 < 120) return `${num5(Math.round(s11 * 10) / 10)} s`;
+  if (s11 < 7200) return `${(s11 / 60).toFixed(1).replace(/\.0$/, "")} min`;
+  return `${(s11 / 3600).toFixed(1).replace(/\.0$/, "")} h`;
 }
 var metricLabel = (m) => m in METRICS ? METRICS[m].label : m;
 function plainValue(metric, v) {
@@ -144015,7 +146370,7 @@ function overLimit(e) {
   const label2 = metricLabel(e.metric);
   return limit === void 0 ? `${label2} is ${value4}` : `${label2} is ${value4} against a ${plainValue(e.metric, limit)} ${word}`;
 }
-var cell2 = (s7) => s7.replace(/\|/g, "\\|").replace(/\s+/g, " ").trim();
+var cell2 = (s11) => s11.replace(/\|/g, "\\|").replace(/\s+/g, " ").trim();
 var STATUS_WORD = {
   pass: "Met",
   warn: "Close to limit",
@@ -144110,18 +146465,18 @@ function risksOf(a, sims) {
         text: `${name}: the sync filters for ${[...broken].join(", ")} failed to run, so the record counts are incomplete.`
       });
   }
-  for (const s7 of sims) {
-    const bad = s7.tables.filter((t) => t.error);
+  for (const s11 of sims) {
+    const bad = s11.tables.filter((t) => t.error);
     if (bad.length)
       risks.push({
         rank: 400,
-        text: `First sync for ${s7.user.username}: ${bad.length} table${bad.length === 1 ? "" : "s"} failed to download (${bad.slice(0, 3).map((t) => t.sobject).join(", ")}${bad.length > 3 ? ", \u2026" : ""}).`
+        text: `First sync for ${s11.user.username}: ${bad.length} table${bad.length === 1 ? "" : "s"} failed to download (${bad.slice(0, 3).map((t) => t.sobject).join(", ")}${bad.length > 3 ? ", \u2026" : ""}).`
       });
-    const cut = s7.tables.filter((t) => t.truncated);
+    const cut = s11.tables.filter((t) => t.truncated);
     if (cut.length)
       risks.push({
         rank: 150,
-        text: `First sync for ${s7.user.username}: ${cut.length} table${cut.length === 1 ? " was" : "s were"} cut short by a limit, so the totals understate a real sync.`
+        text: `First sync for ${s11.user.username}: ${cut.length} table${cut.length === 1 ? " was" : "s were"} cut short by a limit, so the totals understate a real sync.`
       });
   }
   return risks.sort((x, y) => y.rank - x.rank).map((r) => r.text);
@@ -144185,20 +146540,20 @@ A first sync is what a rep's iPad downloads the first time they sign in. These f
   out += `| Rep | Total time | Metadata | Records | Tables | Data downloaded |
 |---|---|---|---|---|---|
 `;
-  for (const s7 of sims) {
-    const total = s7.metadata.seconds + s7.totals.seconds;
-    const spread4 = s7.runs && s7.runs.count > 1 ? ` (${plainSeconds(s7.runs.total.min)} to ${plainSeconds(s7.runs.total.max)} over ${s7.runs.count} runs)` : "";
-    out += `| ${cell2(s7.user.username)}${s7.user.territory ? ` (${cell2(s7.user.territory)})` : ""} | ${plainSeconds(total)}${spread4} | ${plainSeconds(s7.metadata.seconds)} | ${num5(s7.totals.records)} | ${s7.totals.tablesDownloaded} | ${mbOf(s7.totals.bytes + s7.metadata.bytes)} |
+  for (const s11 of sims) {
+    const total = s11.metadata.seconds + s11.totals.seconds;
+    const spread4 = s11.runs && s11.runs.count > 1 ? ` (${plainSeconds(s11.runs.total.min)} to ${plainSeconds(s11.runs.total.max)} over ${s11.runs.count} runs)` : "";
+    out += `| ${cell2(s11.user.username)}${s11.user.territory ? ` (${cell2(s11.user.territory)})` : ""} | ${plainSeconds(total)}${spread4} | ${plainSeconds(s11.metadata.seconds)} | ${num5(s11.totals.records)} | ${s11.totals.tablesDownloaded} | ${mbOf(s11.totals.bytes + s11.metadata.bytes)} |
 `;
   }
-  for (const s7 of sims) {
-    const slow = [...s7.tables].filter((t) => !t.skipped).sort((x, y) => y.seconds - x.seconds || y.records - x.records).slice(0, SLOWEST_TABLES);
+  for (const s11 of sims) {
+    const slow = [...s11.tables].filter((t) => !t.skipped).sort((x, y) => y.seconds - x.seconds || y.records - x.records).slice(0, SLOWEST_TABLES);
     if (!slow.length) continue;
     out += `
-Slowest tables for ${s7.user.username}: ${slow.map((t) => `${t.sobject} (${plainSeconds(t.seconds)}, ${num5(t.records)} records)`).join("; ")}.
+Slowest tables for ${s11.user.username}: ${slow.map((t) => `${t.sobject} (${plainSeconds(t.seconds)}, ${num5(t.records)} records)`).join("; ")}.
 `;
-    if (s7.delta)
-      out += `Delta sync after ${s7.delta.sinceHours} h away: ${plainSeconds(s7.delta.totals.seconds)}.
+    if (s11.delta)
+      out += `Delta sync after ${s11.delta.sinceHours} h away: ${plainSeconds(s11.delta.totals.seconds)}.
 `;
   }
   return out;
@@ -144243,13 +146598,13 @@ function appendix(a, sims, days) {
 ### Performance assessment
 
 ${demote(renderAssessment(a, days))}`;
-  sims.slice(0, MAX_APPENDIX_SIMS).forEach((s7) => {
+  sims.slice(0, MAX_APPENDIX_SIMS).forEach((s11) => {
     out += `
 
-### First sync: ${s7.user.username}
+### First sync: ${s11.user.username}
 
-${demote(renderSimulation(s7))}`;
-    const runs4 = renderRunsSection(s7);
+${demote(renderSimulation(s11))}`;
+    const runs4 = renderRunsSection(s11);
     if (runs4) out += `
 ${demote(runs4)}`;
   });
@@ -144323,7 +146678,8 @@ var ORG_ONLY = {
   psl: "Permission set license assignments are user records in the org, not source files.",
   access: "Permission set, group and territory assignments are user records in the org, not source files.",
   script: "Custom scripts are records in the org (LifeScienceCustomScript); they have no source file.",
-  handler: "Trigger handlers are switched on and off in the org; they have no source file."
+  handler: "Trigger handlers are switched on and off in the org; they have no source file.",
+  content: "Presentations, their pages, topics and territories are records in the org; they have no source file."
 };
 function orgOnlyReason(fix) {
   switch (fix.kind) {
@@ -144337,6 +146693,10 @@ function orgOnlyReason(fix) {
       return ORG_ONLY.script;
     case "setActive":
       return fix.record.type === "triggerHandler" ? ORG_ONLY.handler : null;
+    case "editPresentation":
+    case "createPresentation":
+    case "deletePresentation":
+      return ORG_ONLY.content;
     default:
       return null;
   }
@@ -144349,7 +146709,7 @@ function planSourceExport(fixes, extra = []) {
     items.set(key4(i), i);
     removed.delete(key4(i));
   };
-  const remove = (i) => {
+  const remove2 = (i) => {
     removed.set(key4(i), i);
     items.delete(key4(i));
   };
@@ -144371,7 +146731,7 @@ function planSourceExport(fixes, extra = []) {
         break;
       case "copyForProfile": {
         const copy = { type: fix.doc.type, fullName: fix.copy.fullName };
-        if (fix.revert) remove(copy);
+        if (fix.revert) remove2(copy);
         else add(copy);
         if (fix.doc.type === "Layout") {
           add({ type: "Layout", fullName: fix.doc.fullName });
@@ -144390,7 +146750,7 @@ function planSourceExport(fixes, extra = []) {
         add({ type: "LifeSciConfigRecord", fullName: fix.developerName });
         break;
       case "deleteConfigRecord":
-        remove({ type: "LifeSciConfigRecord", fullName: fix.developerName });
+        remove2({ type: "LifeSciConfigRecord", fullName: fix.developerName });
         break;
       case "setActive":
         if (fix.record.type === "config")
@@ -144436,7 +146796,7 @@ function buildPackageXml(items, version3) {
     if (!byType.has(i.type)) byType.set(i.type, /* @__PURE__ */ new Set());
     byType.get(i.type).add(i.fullName);
   }
-  const esc4 = (s7) => s7.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const esc4 = (s11) => s11.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const types3 = [...byType.keys()].sort().map((type) => {
     const members = [...byType.get(type)].sort().map((m) => `        <members>${esc4(m)}</members>`);
     return ["    <types>", ...members, `        <name>${type}</name>`, "    </types>"].join("\n");
@@ -144494,11 +146854,11 @@ var layoutObject4 = (layout) => {
   const object3 = layout.split("-")[0];
   return object3 === "PersonAccount" ? "Account" : object3;
 };
-var safeDecode = (s7) => {
+var safeDecode = (s11) => {
   try {
-    return decodeURIComponent(s7);
+    return decodeURIComponent(s11);
   } catch {
-    return s7;
+    return s11;
   }
 };
 function filesUnder(dir) {
@@ -144513,10 +146873,10 @@ function filesUnder(dir) {
 }
 async function retrieveAll(items, recordTypes, org) {
   const specs = items.map((i) => `${i.type}:${i.fullName}`);
-  const withProfile = (s7) => recordTypes.length > 0 && (s7.startsWith("Layout:") || s7.startsWith("Profile:"));
-  const direct = specs.filter((s7) => !withProfile(s7) && parseMetadataSpecs([s7]));
+  const withProfile = (s11) => recordTypes.length > 0 && (s11.startsWith("Layout:") || s11.startsWith("Profile:"));
+  const direct = specs.filter((s11) => !withProfile(s11) && parseMetadataSpecs([s11]));
   const other = [
-    ...specs.filter((s7) => withProfile(s7) || !parseMetadataSpecs([s7])),
+    ...specs.filter((s11) => withProfile(s11) || !parseMetadataSpecs([s11])),
     ...recordTypes.map((r) => `RecordType:${r}`)
   ];
   const dirs = [];
@@ -144559,10 +146919,10 @@ async function exportSource(input, org) {
   if (!path21.isAbsolute(input.folder)) throw new Error("Choose a folder by its full path.");
   if (!fs21.existsSync(folder) || !fs21.statSync(folder).isDirectory())
     throw new Error(`${folder} isn't a folder.`);
-  const plan2 = planSourceExport(input.changes ?? [], input.items ?? []);
+  const plan3 = planSourceExport(input.changes ?? [], input.items ?? []);
   const notes = [];
-  const items = [...plan2.items, ...await lookupValidationRules(plan2.validationRuleIds, org)];
-  for (const page of plan2.pageCopies) {
+  const items = [...plan3.items, ...await lookupValidationRules(plan3.validationRuleIds, org)];
+  for (const page of plan3.pageCopies) {
     const apps = await appsReferencingPage(page, org);
     if (apps) {
       for (const app of apps)
@@ -144581,11 +146941,11 @@ async function exportSource(input, org) {
     packageDir: rel5(root2),
     manifest: null,
     files: [],
-    toRemove: plan2.removed.map((i) => {
+    toRemove: plan3.removed.map((i) => {
       const p = path21.join(root2, sourcePathFor(i));
       return { type: i.type, fullName: i.fullName, path: rel5(p), exists: fs21.existsSync(p) };
     }),
-    orgOnly: plan2.orgOnly,
+    orgOnly: plan3.orgOnly,
     missing: [],
     notes
   };
@@ -144656,7 +147016,7 @@ var QUICK_ACTION_PREFIX = "lscMobileQuickAction_";
 
 // src/studio/apps/lint.ts
 var MAX_FILES = 40;
-var MAX_FILE_BYTES = 200 * 1024;
+var MAX_FILE_BYTES2 = 200 * 1024;
 var LARGE_FILE_BYTES = 60 * 1024;
 var HOME_TARGETS = ["lightning__HomePage", "lightning__UrlAddressable"];
 var RECORD_TARGETS = ["lightning__RecordPage", "lightning__RecordAction"];
@@ -144974,12 +147334,12 @@ function lintApp(input) {
         message: `${parts[2]} isn't a file type an LWC bundle takes (js, html, css, js-meta.xml, svg).`,
         fix: "Remove it or move its content into the .js file."
       });
-    if (Buffer.byteLength(f.source) > MAX_FILE_BYTES)
+    if (Buffer.byteLength(f.source) > MAX_FILE_BYTES2)
       add({
         severity: "error",
         rule: "files.too-large",
         path: f.path,
-        message: `${f.path} is larger than ${MAX_FILE_BYTES / 1024} KB.`,
+        message: `${f.path} is larger than ${MAX_FILE_BYTES2 / 1024} KB.`,
         fix: "Split it into nested components."
       });
     else if (Buffer.byteLength(f.source) > LARGE_FILE_BYTES)
@@ -145403,7 +147763,7 @@ function syncedObjectsOf(org) {
   const hit = cache2.get(org);
   if (hit && Date.now() - hit.at < TTL_MS3) return hit.value;
   const value4 = syncedObjects2(org).then(
-    (s7) => s7,
+    (s11) => s11,
     () => null
   );
   cache2.set(org, { at: Date.now(), value: value4 });
@@ -145644,7 +148004,7 @@ function pickFields(fields) {
     (f) => !f.deprecatedAndHidden && !SYSTEM.has(f.name) && f.type !== "address" && f.type !== "location" && !/^(base64|encryptedstring)$/.test(f.type)
   ).map((f, i) => ({ f, i })).sort((a, b) => rank(a.f) - rank(b.f) || a.i - b.i).slice(0, MAX_FIELDS2);
   return kept.map(({ f }) => {
-    const picklist = f.picklistValues?.filter((p) => p.active !== false).map((p) => p.value).slice(0, MAX_PICKLIST);
+    const picklist2 = f.picklistValues?.filter((p) => p.active !== false).map((p) => p.value).slice(0, MAX_PICKLIST);
     return {
       name: f.name,
       label: f.label,
@@ -145653,7 +148013,7 @@ function pickFields(fields) {
         referenceTo: f.referenceTo,
         ...f.relationshipName ? { relationshipName: f.relationshipName } : {}
       } : {},
-      ...picklist?.length ? { picklist } : {}
+      ...picklist2?.length ? { picklist: picklist2 } : {}
     };
   });
 }
@@ -145747,27 +148107,27 @@ function blankStrings(soql5) {
 function guardSampleQuery(soql5) {
   const text12 = soql5.trim();
   if (!text12) throw new Error("The query is empty.");
-  const blank = blankStrings(text12);
-  if ((blank.match(/'/g)?.length ?? 0) % 2)
+  const blank2 = blankStrings(text12);
+  if ((blank2.match(/'/g)?.length ?? 0) % 2)
     throw new Error("The query has an unterminated string.");
-  if (blank.includes(";")) throw new Error("Only one statement is allowed (no semicolons).");
-  if (!/^select\b/i.test(blank)) throw new Error("Only SELECT queries can be sampled.");
-  if (/\b(insert|update|delete|upsert|merge|undelete)\b/i.test(blank))
+  if (blank2.includes(";")) throw new Error("Only one statement is allowed (no semicolons).");
+  if (!/^select\b/i.test(blank2)) throw new Error("Only SELECT queries can be sampled.");
+  if (/\b(insert|update|delete|upsert|merge|undelete)\b/i.test(blank2))
     throw new Error("Only SELECT queries can be sampled.");
-  if (/\bfor\s+(update|view|reference)\b/i.test(blank))
+  if (/\bfor\s+(update|view|reference)\b/i.test(blank2))
     throw new Error("FOR UPDATE / VIEW / REFERENCE aren't allowed.");
-  if (/--|\/\*|\*\//.test(blank)) throw new Error("Comments aren't allowed in the query.");
+  if (/--|\/\*|\*\//.test(blank2)) throw new Error("Comments aren't allowed in the query.");
   let depth = 0;
   let limitAt = -1;
   let limitLen = 0;
   let limitValue = 0;
-  for (let i = 0; i < blank.length; i++) {
-    const c = blank[i];
+  for (let i = 0; i < blank2.length; i++) {
+    const c = blank2[i];
     if (c === "(") depth++;
     else if (c === ")") depth--;
     else if (depth === 0) {
-      const m = /^limit\s+(\d+)\b/i.exec(blank.slice(i));
-      if (m && (i === 0 || /\s/.test(blank[i - 1]))) {
+      const m = /^limit\s+(\d+)\b/i.exec(blank2.slice(i));
+      if (m && (i === 0 || /\s/.test(blank2[i - 1]))) {
         limitAt = i;
         limitLen = m[0].length;
         limitValue = Number(m[1]);
@@ -145778,7 +148138,7 @@ function guardSampleQuery(soql5) {
   if (limitAt >= 0) {
     return text12.slice(0, limitAt) + `LIMIT ${Math.min(limitValue, MAX_SAMPLE_ROWS)}` + text12.slice(limitAt + limitLen);
   }
-  if (/\blimit\b/i.test(blank.replace(/\([^()]*\)/g, "")))
+  if (/\blimit\b/i.test(blank2.replace(/\([^()]*\)/g, "")))
     throw new Error("LIMIT must be a number.");
   const offset2 = /\boffset\s+\d+\s*$/i.exec(text12);
   return offset2 ? `${text12.slice(0, offset2.index).trimEnd()} LIMIT ${MAX_SAMPLE_ROWS} ${offset2[0]}` : `${text12} LIMIT ${MAX_SAMPLE_ROWS}`;
@@ -145814,7 +148174,7 @@ async function sampleRecords(soql5, org, as) {
 // src/studio/apps/org-apps.ts
 init_inline_lwc();
 init_helpers2();
-var str30 = (v) => typeof v === "string" ? v : "";
+var str31 = (v) => typeof v === "string" ? v : "";
 function targetOf(targets, name = APP_PREFIX) {
   const prefixed = name.startsWith(APP_PREFIX);
   if (targets.includes("lightning__HomePage")) return "home";
@@ -145832,8 +148192,8 @@ async function quickActionObjects(org) {
   ).catch(() => []);
   const out = /* @__PURE__ */ new Map();
   for (const r of rows3) {
-    const object3 = str30(r.EntityDefinition?.QualifiedApiName);
-    const action = str30(r.DeveloperName);
+    const object3 = str31(r.EntityDefinition?.QualifiedApiName);
+    const action = str31(r.DeveloperName);
     if (object3 && action) out.set(action, [...out.get(action) ?? [], object3]);
   }
   return out;
@@ -145854,23 +148214,23 @@ async function listOrgApps(org) {
   ]);
   const targets = /* @__PURE__ */ new Map();
   for (const m of metas) {
-    const name = str30(m.LightningComponentBundle?.DeveloperName);
-    const meta = parseMeta(str30(m.Source));
+    const name = str31(m.LightningComponentBundle?.DeveloperName);
+    const meta = parseMeta(str31(m.Source));
     if (name && meta.ok) targets.set(name, meta.targets);
   }
-  return bundles.filter((b) => !str30(b.NamespacePrefix) && NAME_RE.test(str30(b.DeveloperName))).map((b) => {
-    const name = str30(b.DeveloperName);
+  return bundles.filter((b) => !str31(b.NamespacePrefix) && NAME_RE.test(str31(b.DeveloperName))).map((b) => {
+    const name = str31(b.DeveloperName);
     const target3 = targetOf(targets.get(name) ?? [], name);
     const objects = actions.get(name);
-    const modifiedBy2 = str30(b.LastModifiedBy?.Name);
+    const modifiedBy2 = str31(b.LastModifiedBy?.Name);
     return {
       name,
-      label: str30(b.MasterLabel) || name.replace(/^lscMobile[A-Za-z]+_/, ""),
+      label: str31(b.MasterLabel) || name.replace(/^lscMobile[A-Za-z]+_/, ""),
       target: target3,
       ...objects?.length ? { objectApiNames: objects } : {},
-      ...str30(b.LastModifiedDate) ? { lastModifiedDate: str30(b.LastModifiedDate) } : {},
+      ...str31(b.LastModifiedDate) ? { lastModifiedDate: str31(b.LastModifiedDate) } : {},
       ...modifiedBy2 ? { lastModifiedBy: modifiedBy2 } : {},
-      ...str30(b.Description) ? { description: str30(b.Description) } : {}
+      ...str31(b.Description) ? { description: str31(b.Description) } : {}
     };
   }).sort((a, b) => (b.lastModifiedDate ?? "").localeCompare(a.lastModifiedDate ?? ""));
 }
@@ -145901,11 +148261,11 @@ async function appSource(name, org) {
 }
 
 // src/studio/apps/starters.ts
-import { readFileSync as readFileSync20, readdirSync as readdirSync16 } from "node:fs";
-import { dirname as dirname12, join as join23 } from "node:path";
+import { readFileSync as readFileSync22, readdirSync as readdirSync18 } from "node:fs";
+import { dirname as dirname13, join as join25 } from "node:path";
 import { fileURLToPath as fileURLToPath5 } from "node:url";
-var STARTERS_DIR = join23(
-  dirname12(fileURLToPath5(import.meta.url)),
+var STARTERS_DIR = join25(
+  dirname13(fileURLToPath5(import.meta.url)),
   "..",
   "..",
   "..",
@@ -145914,17 +148274,17 @@ var STARTERS_DIR = join23(
 );
 var ID_RE2 = /^[a-z0-9-]{1,60}$/;
 function readManifest(dir) {
-  const data2 = JSON.parse(readFileSync20(join23(dir, "manifest.json"), "utf8"));
+  const data2 = JSON.parse(readFileSync22(join25(dir, "manifest.json"), "utf8"));
   return data2.starters ?? [];
 }
 function readFiles(dir, entry) {
   const files = [];
   for (const bundle of entry.bundles) {
-    for (const file of readdirSync16(join23(dir, entry.id, "lwc", bundle)).sort()) {
+    for (const file of readdirSync18(join25(dir, entry.id, "lwc", bundle)).sort()) {
       files.push({
         bundle,
         path: `lwc/${bundle}/${file}`,
-        source: readFileSync20(join23(dir, entry.id, "lwc", bundle, file), "utf8")
+        source: readFileSync22(join25(dir, entry.id, "lwc", bundle, file), "utf8")
       });
     }
   }
@@ -145971,7 +148331,7 @@ function starterSource(id2, dir = STARTERS_DIR) {
 init_cli();
 import * as fs22 from "fs";
 import * as path22 from "path";
-var esc3 = (s7) => s7.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+var esc3 = (s11) => s11.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 function quickActionXml(name, label2) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <QuickAction xmlns="http://soap.sforce.com/2006/04/metadata">
@@ -147178,7 +149538,7 @@ function stripAsync(code) {
     return code;
   }
   const chars = code.split("");
-  const blank = (from, len) => {
+  const blank2 = (from, len) => {
     for (let i = from; i < from + len && i < chars.length; i++)
       if (chars[i] !== "\n" && chars[i] !== "\r") chars[i] = " ";
   };
@@ -147190,12 +149550,12 @@ function stripAsync(code) {
     }
     const n2 = node;
     if (typeof n2.type === "string") {
-      if (n2.type === "AwaitExpression") blank(n2.start, 5);
+      if (n2.type === "AwaitExpression") blank2(n2.start, 5);
       if (/Function/.test(n2.type) && n2.async && code.startsWith("async", n2.start))
-        blank(n2.start, 5);
+        blank2(n2.start, 5);
       if ((n2.type === "MethodDefinition" || n2.type === "Property") && n2.value?.async && n2.key) {
         const m = /\basync\b/.exec(code.slice(n2.start, n2.key.start));
-        if (m) blank(n2.start + m.index, 5);
+        if (m) blank2(n2.start + m.index, 5);
       }
     }
     for (const v of Object.values(n2)) if (v && typeof v === "object") visit(v);
@@ -147744,7 +150104,7 @@ function createOrgReader(org) {
 
 // src/studio/scripts/runner/records.ts
 var LIMIT = 25;
-var str31 = (v) => typeof v === "string" && v ? v : null;
+var str32 = (v) => typeof v === "string" && v ? v : null;
 async function names4(reader, object3, ids) {
   const out = /* @__PURE__ */ new Map();
   if (!ids.length) return out;
@@ -147839,7 +150199,7 @@ async function listScriptTestRecords(req, reader) {
   const accounts = has("AccountId") ? await names4(
     reader,
     "Account",
-    rows3.map((r) => str31(r.AccountId)).filter((x) => !!x)
+    rows3.map((r) => str32(r.AccountId)).filter((x) => !!x)
   ) : /* @__PURE__ */ new Map();
   const counts2 = objectName === "ProviderVisit" && rows3.length ? await visitCounts(
     reader,
@@ -147851,10 +150211,10 @@ async function listScriptTestRecords(req, reader) {
     return {
       id: id2,
       objectName,
-      name: str31(r.Name) ?? id2,
-      accountName: str31(r.AccountId) ? accounts.get(String(r.AccountId)) ?? null : null,
-      date: str31(r.PlannedStartTime),
-      status: str31(r.Status),
+      name: str32(r.Name) ?? id2,
+      accountName: str32(r.AccountId) ? accounts.get(String(r.AccountId)) ?? null : null,
+      date: str32(r.PlannedStartTime),
+      status: str32(r.Status),
       children: c ? [...c.entries()].map(([k, count3]) => {
         const [object3, label2] = k.split("|");
         return { object: object3, label: label2, count: count3 };
@@ -148158,6 +150518,48 @@ var listViewOpSchema = external_exports.discriminatedUnion("op", [
 var layoutName = external_exports.string().regex(/^[^\r\n:]+-[^\r\n]+$/).max(255);
 var compactLayoutName = external_exports.string().regex(/^\w+\.\w+$/).max(255);
 var listViewName = compactLayoutName;
+var named = external_exports.object({ id, name: external_exports.string().max(255) });
+var isoDate = external_exports.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable();
+var draftSchemaWith = (pageId) => external_exports.object({
+  fields: external_exports.object({
+    name: external_exports.string().max(255),
+    status: external_exports.string().max(40),
+    activationDate: isoDate,
+    deactivationDate: isoDate,
+    gesture: external_exports.string().max(40).nullable(),
+    pinchZoom: external_exports.boolean(),
+    doubleTapZoom: external_exports.boolean(),
+    canEmail: external_exports.boolean(),
+    locked: external_exports.boolean()
+  }),
+  pages: external_exports.array(
+    external_exports.object({
+      pageId,
+      name: external_exports.string().max(255),
+      mandatory: external_exports.boolean(),
+      products: external_exports.array(named).max(200)
+    })
+  ).max(500),
+  topics: external_exports.array(named).max(200),
+  shares: external_exports.array(
+    external_exports.object({
+      groupId: id,
+      territoryId: id,
+      name: external_exports.string().max(255),
+      subordinates: external_exports.boolean()
+    })
+  ).max(2e3)
+});
+var presentationDraftSchema = draftSchemaWith(id);
+var draftId = external_exports.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/);
+var newPageId = external_exports.string().regex(/^new:[a-z0-9][a-z0-9-]{0,39}$/);
+var createPresentationSchema = external_exports.object({
+  kind: external_exports.literal("createPresentation"),
+  label: external_exports.string(),
+  key: external_exports.string().regex(/^[a-z0-9-]{1,40}$/),
+  draft: draftSchemaWith(id.or(newPageId)),
+  newPages: external_exports.array(external_exports.object({ pageId: newPageId, draftId, name: external_exports.string().max(255) })).max(20)
+});
 var fixSchema = external_exports.discriminatedUnion("kind", [
   external_exports.object({
     kind: external_exports.literal("assignPsl"),
@@ -148292,6 +150694,24 @@ var fixSchema = external_exports.discriminatedUnion("kind", [
     to: id.nullable()
   }),
   // --- end custom scripts: server ---
+  external_exports.object({
+    kind: external_exports.literal("editPresentation"),
+    label: external_exports.string(),
+    presentationId: id,
+    presentationName: external_exports.string(),
+    from: presentationDraftSchema,
+    to: presentationDraftSchema
+  }),
+  createPresentationSchema,
+  external_exports.object({
+    kind: external_exports.literal("deletePresentation"),
+    label: external_exports.string(),
+    presentationId: id,
+    presentationName: external_exports.string(),
+    created: external_exports.object({ pageIds: external_exports.array(id).max(20), contentDocumentIds: external_exports.array(id).max(20) }),
+    before: presentationDraftSchema.shape.pages,
+    recreate: createPresentationSchema
+  }),
   external_exports.object({
     kind: external_exports.literal("setCustomScriptCode"),
     label: external_exports.string(),
@@ -148879,6 +151299,105 @@ function register23(server2) {
     }
   );
   server2.tool(
+    "studio_content_library",
+    "LSC Studio (GUI data): the Intelligent Content builder's library \u2014 every presentation (not deleted) with status, dates, page count, topics, territories it's distributed to and a first-page image for the most recent. Read-only. Returns JSON.",
+    {},
+    async () => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await loadLibrary(connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+  server2.tool(
+    "studio_content_presentation",
+    "LSC Studio (GUI data): one presentation for the Intelligent Content builder \u2014 its settings, pages in order (required, products), topics and territories as a draft, the pages, topics, products and territories that can be added, and which pages other presentations share. Never cached. Read-only. Returns JSON.",
+    { id },
+    async ({ id: presentationId }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await loadDetail(connection.targetOrg, presentationId));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+  server2.tool(
+    "studio_content_new",
+    "LSC Studio (GUI data): what a new Intelligent Content presentation can be made from \u2014 the org's active HTML ZIP pages (a PDF presentation shows one PDF, so its pages can't be put together), topics, products and territories, plus the Status and gesture values the org takes and whether it's production. Read-only. Returns JSON.",
+    {},
+    async () => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await loadNewOptions(connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+  server2.tool(
+    "studio_content_page_images",
+    "LSC Studio (GUI data): the first image of each Intelligent Content page by id (pages picked for a new presentation). Read-only. Returns JSON { images: { [pageId]: dataUrl } }.",
+    { pageIds: external_exports.array(id).max(60) },
+    async ({ pageIds }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json({ images: await pageThumbnails(connection.targetOrg, pageIds) });
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+  server2.tool(
+    "studio_content_draft",
+    "LSC Studio (GUI data): a page Roz drafts for Intelligent Content, kept on this computer in the engine's CLM folder (drafts/<draftId>), never in the org. `files` (with `replace`, all of them in place of the old ones) are written first; slides are .html files at the top (01_intro.html), other files at most one folder deep. Returns JSON { player, checks, files, thumbnails } \u2014 the draft laid out for the live player like an org page, the problems that keep it from being a page (errors) or that the iPad shows differently (warnings), its files, and the slide thumbnails the app still has to draw. `remove: true` deletes the draft instead. Nothing is sent to the org.",
+    {
+      draftId,
+      name: external_exports.string().max(255).optional(),
+      files: external_exports.array(
+        external_exports.object({
+          path: external_exports.string().max(200),
+          content: external_exports.string().max(3e6),
+          base64: external_exports.boolean().optional()
+        })
+      ).max(60).optional(),
+      replace: external_exports.boolean().optional(),
+      remove: external_exports.boolean().optional()
+    },
+    async ({ draftId: d, name, files, replace, remove: remove2 }) => {
+      try {
+        if (remove2) {
+          deleteDraft(d);
+          return json({ removed: true });
+        }
+        if (files?.length || replace) writeDraft(d, files ?? [], !!replace);
+        const player = draftPlayer(d, name || "Draft");
+        return json({
+          player,
+          checks: checkDraft(d),
+          files: draftFiles(d),
+          thumbnails: player.slides.filter((sl) => !sl.thumbnail).map((sl) => sl.name)
+        });
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+  server2.tool(
     "studio_custom_scripts",
     "LSC Studio (GUI data): the custom script library \u2014 every script with its type, object, status (will it run), LWC bundle, stage object assignments and static-check counts, plus the org's stage objects. Read-only. Returns JSON.",
     {},
@@ -148943,6 +151462,25 @@ function register23(server2) {
       }
       try {
         return json(await loadIpadReports(userId, connection.targetOrg));
+      } catch (err) {
+        return jsonError(err instanceof Error ? err.message : String(err));
+      }
+    }
+  );
+  server2.tool(
+    "studio_content_player",
+    "LSC Studio (GUI data): one Intelligent Content presentation laid out for the iPad preview's live player, as LSC Mobile keeps it: each active page's ZIP unpacked into its own folder with its slides rendered as Mustache templates and the player script added, or a PDF presentation's pages drawn as images; additional-content pages listed as assets. Files go to this user's private temp folder for the Electron app to serve to a sandboxed frame. Read-only against the org; never cached. Returns JSON { root, presentation, pages, slides, assets, notes }.",
+    {
+      presentationId: external_exports.string().regex(/^[a-zA-Z0-9]{15,18}$/),
+      userId: external_exports.string().regex(/^[a-zA-Z0-9]{15,18}$/).optional()
+    },
+    async ({ presentationId, userId }) => {
+      const connection = await validateOrgConnection();
+      if (!connection.valid || !connection.targetOrg) {
+        return jsonError(connection.error || "No Salesforce org connected.");
+      }
+      try {
+        return json(await loadContentPlayer(connection.targetOrg, presentationId, userId ?? ""));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -149198,7 +151736,7 @@ function register23(server2) {
 var appFileSchema = external_exports.object({
   bundle: external_exports.string().regex(/^\w{1,80}$/),
   path: external_exports.string().max(200),
-  source: external_exports.string().max(MAX_FILE_BYTES)
+  source: external_exports.string().max(MAX_FILE_BYTES2)
 });
 var runAsLogin = external_exports.object({
   instanceUrl: external_exports.string().url().max(255),
@@ -149432,13 +151970,13 @@ function registerPerfTools(server2) {
         "Logins Studio made through the LSC mobile app's connected app. A persona user whose username matches one gets their exact table list from their own metadata download instead of the ObjectPermissions approximation; tokens are used for this job only and never returned."
       )
     },
-    async ({ plan: plan2, mobileLogins }) => {
+    async ({ plan: plan3, mobileLogins }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(startPerfRun(plan2, connection.targetOrg, void 0, mobileLogins ?? []));
+        return json(startPerfRun(plan3, connection.targetOrg, void 0, mobileLogins ?? []));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -149480,8 +152018,8 @@ function registerPerfTools(server2) {
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
-      const named = typeof input.targetOrg === "string" ? input.targetOrg.trim().toLowerCase() : "";
-      if (named && named !== connection.targetOrg.toLowerCase()) {
+      const named2 = typeof input.targetOrg === "string" ? input.targetOrg.trim().toLowerCase() : "";
+      if (named2 && named2 !== connection.targetOrg.toLowerCase()) {
         return json({
           unsupported: `The call names another org (${input.targetOrg}) than the session's.`
         });
@@ -149550,13 +152088,13 @@ function registerPerfTools(server2) {
     "studio_perf_check",
     "LSC Studio (GUI data): pre-flight check of a test plan against the connected org \u2014 users that don't exist or are inactive, profile selections with no users, and territories none of a persona's users are in. Read-only. Returns JSON { org, issues, personas }.",
     { plan: nfrProfileSchema },
-    async ({ plan: plan2 }) => {
+    async ({ plan: plan3 }) => {
       const connection = await validateOrgConnection();
       if (!connection.valid || !connection.targetOrg) {
         return jsonError(connection.error || "No Salesforce org connected.");
       }
       try {
-        return json(await checkPerfPlan(plan2, connection.targetOrg));
+        return json(await checkPerfPlan(plan3, connection.targetOrg));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -149666,9 +152204,9 @@ function registerPerfTools(server2) {
         )
       }).optional()
     },
-    async ({ connection, mobileLogin, options }) => {
+    async ({ connection, mobileLogin, options: options2 }) => {
       try {
-        return json(startSimulation(mobileLogin ?? connection, options ?? {}));
+        return json(startSimulation(mobileLogin ?? connection, options2 ?? {}));
       } catch (err) {
         return jsonError(err instanceof Error ? err.message : String(err));
       }
@@ -149958,7 +152496,7 @@ init_cli();
 init_session();
 function querier(targetOrg) {
   return {
-    soql: (q2, options) => runSoqlQuery(q2, targetOrg, options),
+    soql: (q2, options2) => runSoqlQuery(q2, targetOrg, options2),
     tooling: (q2) => runToolingQuery(q2, targetOrg)
   };
 }
@@ -149977,7 +152515,7 @@ function telemetryFields(targetOrg) {
 function text11(body) {
   return { content: [{ type: "text", text: body }] };
 }
-function failure2(title, e) {
+function failure3(title, e) {
   return text11(`# ${title}
 
 ${e instanceof Error ? e.message : String(e)}`);
@@ -150032,7 +152570,7 @@ Counts are for an initial (full) sync. Without \`countAsOrg\`, counts use the co
 `;
         return text11(report);
       } catch (e) {
-        return failure2("Sync Volume Profiling Failed", e);
+        return failure3("Sync Volume Profiling Failed", e);
       }
     }
   );
@@ -150074,7 +152612,7 @@ ${validation.error}`);
 ` : renderTelemetry(summary, days);
         return text11(report);
       } catch (e) {
-        return failure2("Sync Telemetry Analysis Failed", e);
+        return failure3("Sync Telemetry Analysis Failed", e);
       }
     }
   );
@@ -150098,7 +152636,7 @@ ${validation.error}`);
       try {
         profile = profilePath ? loadNfrProfile(profilePath) : parseNfrProfile(profileYaml);
       } catch (e) {
-        return failure2("Invalid NFR Profile", e);
+        return failure3("Invalid NFR Profile", e);
       }
       const validation = await validateOrgConnection();
       const effectiveOrg = targetOrg || validation.targetOrg;
@@ -150125,7 +152663,7 @@ Full result written to \`${resolved}\`.
         }
         return text11(report);
       } catch (e) {
-        return failure2("Performance Assessment Failed", e);
+        return failure3("Performance Assessment Failed", e);
       }
     }
   );

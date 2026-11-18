@@ -40,19 +40,36 @@ export default function ContentScreen({ snapshot }: ScreenProps): React.ReactEle
         <div className="studio-ipad-content-bar">
           <label className="studio-ipad-content-search">
             <SearchIcon />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." spellCheck={false} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search..."
+              spellCheck={false}
+            />
           </label>
-          <button type="button" className="studio-ipad-content-btn filters" onClick={() => setFiltersOpen(true)}>
+          <button
+            type="button"
+            className="studio-ipad-content-btn filters"
+            onClick={() => setFiltersOpen(true)}
+          >
             Filters
             <ChevronDown />
           </button>
           {data.hasTags && (
-            <button type="button" className="studio-ipad-content-plain" onClick={() => setCollapsed(label === "Collapse All" ? new Set(titles) : new Set())}>
+            <button
+              type="button"
+              className="studio-ipad-content-plain"
+              onClick={() => setCollapsed(label === "Collapse All" ? new Set(titles) : new Set())}
+            >
               {label}
             </button>
           )}
           {data.canCreate && (
-            <button type="button" className="studio-ipad-content-btn new" onClick={() => setNewOpen(true)}>
+            <button
+              type="button"
+              className="studio-ipad-content-btn new"
+              onClick={() => setNewOpen(true)}
+            >
               <Plus />
               New
             </button>
@@ -80,15 +97,29 @@ export default function ContentScreen({ snapshot }: ScreenProps): React.ReactEle
             return (
               <section key={section.title}>
                 {data.hasTags && (
-                  <button type="button" className="studio-ipad-content-head" onClick={() => setCollapsed(flip(collapsed, section.title))}>
+                  <button
+                    type="button"
+                    className="studio-ipad-content-head"
+                    onClick={() => setCollapsed(flip(collapsed, section.title))}
+                  >
                     {open ? <ChevronDown /> : <ChevronRight />}
                     <span>{sectionTitle(section.title)}</span>
                   </button>
                 )}
                 {open && (
-                  <div className="studio-ipad-content-grid" style={{ gridTemplateColumns: `repeat(${data.columns}, 1fr)` }}>
+                  <div
+                    className="studio-ipad-content-grid"
+                    style={{ gridTemplateColumns: `repeat(${data.columns}, 1fr)` }}
+                  >
                     {section.cards.map((card) => (
-                      <Card key={card.id} card={card} isNew favorite={favorites.has(card.id)} onFavorite={() => setFavorites(flip(favorites, card.id))} onPreview={() => setViewing(card.id)} />
+                      <Card
+                        key={card.id}
+                        card={card}
+                        isNew
+                        favorite={favorites.has(card.id)}
+                        onFavorite={() => setFavorites(flip(favorites, card.id))}
+                        onPreview={() => setViewing(card.id)}
+                      />
                     ))}
                   </div>
                 )}
@@ -99,17 +130,33 @@ export default function ContentScreen({ snapshot }: ScreenProps): React.ReactEle
         </div>
       </div>
       {filtersOpen && (
-        <Popover left={739} top={85} width={289} height={530} arrowX={884} onClose={() => setFiltersOpen(false)}>
+        <Popover
+          left={739}
+          top={85}
+          width={289}
+          height={530}
+          arrowX={884}
+          onClose={() => setFiltersOpen(false)}
+        >
           <div className="studio-ipad-content-filters">
             <label className="studio-ipad-content-filters-search">
               <SearchIcon />
-              <input value={filterSearch} onChange={(e) => setFilterSearch(e.target.value)} placeholder="Search..." spellCheck={false} />
+              <input
+                value={filterSearch}
+                onChange={(e) => setFilterSearch(e.target.value)}
+                placeholder="Search..."
+                spellCheck={false}
+              />
             </label>
             <div className="studio-ipad-content-filters-list">
               {matches("Sharing Settings", "Approved for Sharing", filterSearch) && (
                 <>
                   <div className="studio-ipad-interact-row head">Sharing Settings</div>
-                  <button type="button" className="studio-ipad-interact-row" onClick={() => setApprovedOnly(!approvedOnly)}>
+                  <button
+                    type="button"
+                    className="studio-ipad-interact-row"
+                    onClick={() => setApprovedOnly(!approvedOnly)}
+                  >
                     <span>Approved for Sharing</span>
                     {approvedOnly && <Check />}
                   </button>
@@ -117,9 +164,20 @@ export default function ContentScreen({ snapshot }: ScreenProps): React.ReactEle
               )}
               <div className="studio-ipad-interact-row head">Categories</div>
               {categoryRows(data)
-                .filter((r) => !filterSearch.trim() || `${r.label} (${r.count})`.toLowerCase().includes(filterSearch.trim().toLowerCase()))
+                .filter(
+                  (r) =>
+                    !filterSearch.trim() ||
+                    `${r.label} (${r.count})`
+                      .toLowerCase()
+                      .includes(filterSearch.trim().toLowerCase())
+                )
                 .map((r) => (
-                  <button key={r.label} type="button" className="studio-ipad-interact-row" onClick={() => setCategory(r.title)}>
+                  <button
+                    key={r.label}
+                    type="button"
+                    className="studio-ipad-interact-row"
+                    onClick={() => setCategory(r.title)}
+                  >
                     <span>{`${r.label} (${r.count})`}</span>
                     {category === r.title && <Check />}
                   </button>
@@ -129,7 +187,13 @@ export default function ContentScreen({ snapshot }: ScreenProps): React.ReactEle
         </Popover>
       )}
       {newOpen && <ContentNew data={data} onClose={() => setNewOpen(false)} />}
-      {viewed && <ContentViewer card={viewed} onClose={() => setViewing(null)} />}
+      {viewed && (
+        <ContentViewer
+          card={viewed}
+          userId={snapshot.viewer?.userId}
+          onClose={() => setViewing(null)}
+        />
+      )}
     </div>
   );
 }
@@ -163,7 +227,11 @@ export function Card({
     <div className="studio-ipad-content-card" onClick={onPreview}>
       <div className="studio-ipad-content-thumb">
         {card.thumbnail && <img src={card.thumbnail} alt="" />}
-        <button type="button" className={`studio-ipad-content-fav${favorite ? " on" : ""}`} aria-label="Favorite" onClick={(e) => {
+        <button
+          type="button"
+          className={`studio-ipad-content-fav${favorite ? " on" : ""}`}
+          aria-label="Favorite"
+          onClick={(e) => {
             e.stopPropagation();
             onFavorite();
           }}
@@ -188,7 +256,8 @@ export function Card({
 }
 
 /** Filters popover: a heading shows only when its heading or one of its rows matches the search text. */
-const matches = (heading: string, row: string, needle: string) => !needle.trim() || `${heading} ${row}`.toLowerCase().includes(needle.trim().toLowerCase());
+const matches = (heading: string, row: string, needle: string) =>
+  !needle.trim() || `${heading} ${row}`.toLowerCase().includes(needle.trim().toLowerCase());
 
 // SF Symbols redrawn as inline SVG.
 function SearchIcon() {
@@ -202,14 +271,28 @@ function SearchIcon() {
 function ChevronDown() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-      <path d="m2.5 5.2 5.5 5.6 5.5-5.6" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="m2.5 5.2 5.5 5.6 5.5-5.6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 function ChevronRight() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-      <path d="m5.2 2.5 5.6 5.5-5.6 5.5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="m5.2 2.5 5.6 5.5-5.6 5.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -236,23 +319,51 @@ function Heart({ filled }: { filled: boolean }) {
 function DocOnDoc() {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-      <path d="M4.3 3.6V2.4c0-.7.5-1.2 1.2-1.2h4.1l2.5 2.5v5.3c0 .7-.5 1.2-1.2 1.2h-.9" fill="none" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
-      <path d="M1.8 5.2c0-.7.5-1.2 1.2-1.2h3.9l2.3 2.3v5.5c0 .7-.5 1.2-1.2 1.2H3c-.7 0-1.2-.5-1.2-1.2Z" fill="none" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
+      <path
+        d="M4.3 3.6V2.4c0-.7.5-1.2 1.2-1.2h4.1l2.5 2.5v5.3c0 .7-.5 1.2-1.2 1.2h-.9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M1.8 5.2c0-.7.5-1.2 1.2-1.2h3.9l2.3 2.3v5.5c0 .7-.5 1.2-1.2 1.2H3c-.7 0-1.2-.5-1.2-1.2Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 function Sync() {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-      <path d="M2.2 6.3A4.9 4.9 0 0 1 10.8 3.9M11.8 7.7A4.9 4.9 0 0 1 3.2 10.1" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-      <path d="M11.4 1.3v2.9H8.5M2.6 12.7V9.8h2.9" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M2.2 6.3A4.9 4.9 0 0 1 10.8 3.9M11.8 7.7A4.9 4.9 0 0 1 3.2 10.1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        strokeLinecap="round"
+      />
+      <path
+        d="M11.4 1.3v2.9H8.5M2.6 12.7V9.8h2.9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 function Eye() {
   return (
     <svg width="20" height="14" viewBox="0 0 20 14" aria-hidden="true">
-      <path d="M10 .8C5.6.8 2.3 3.6.6 7c1.7 3.4 5 6.2 9.4 6.2s7.7-2.8 9.4-6.2C17.7 3.6 14.4.8 10 .8Z" fill="currentColor" />
+      <path
+        d="M10 .8C5.6.8 2.3 3.6.6 7c1.7 3.4 5 6.2 9.4 6.2s7.7-2.8 9.4-6.2C17.7 3.6 14.4.8 10 .8Z"
+        fill="currentColor"
+      />
       <circle cx="10" cy="7" r="3.1" fill="#fff" />
       <circle cx="10" cy="7" r="1.6" fill="currentColor" />
     </svg>

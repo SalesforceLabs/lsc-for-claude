@@ -71,6 +71,11 @@ export function reachOfFix(fix: StudioFix, profiles?: string[]): ChangeReach {
       return withProfiles({ desktop: "now", ipad: "publish" });
     case "copyForProfile":
       return withProfiles({ desktop: "now", ipad: "publish" }, [fix.profile]);
+    case "editPresentation":
+    case "createPresentation":
+    case "deletePresentation":
+      // Presentations, their pages and shares are records: reps get them on their next sync.
+      return { desktop: "now", ipad: "nextSync" };
     default:
       // Custom script components and assignments (scripts/fixes.ts) are read from the metadata cache too.
       return withProfiles({ desktop: "now", ipad: "publish" });

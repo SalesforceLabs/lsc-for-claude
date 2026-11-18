@@ -252,7 +252,7 @@ async function canCreatePresentation(userId: string, org: string): Promise<boole
  * rendered here (the app uses a prebuilt <n-1>_thumbnail.jpg). Files go in a
  * fresh temp dir, are untrusted, and only a downscaled JPEG leaves it.
  */
-async function addThumbnails(
+export async function addThumbnails(
   cards: PublishedContentCard[],
   linked: Map<string, Row[]>,
   org: string
@@ -385,6 +385,27 @@ async function addPageThumbnails(
   );
 }
 
+/** Pages drawn by `addPageImages` (the builder's page list). */
+const PAGE_IMAGES = 40;
+
+/**
+ * One image per linked page, by page id (the first PAGE_IMAGES): each page's own file at its page number,
+ * the image `addThumbnails` cuts for a presentation's first page.
+ */
+export async function addPageImages(
+  links: Row[],
+  type: string,
+  org: string
+): Promise<Record<string, string>> {
+  const pages = links.slice(0, PAGE_IMAGES);
+  const cards = pages.map((l) => ({ id: s(l.PresentationPageId), type }) as PublishedContentCard);
+  const linked = new Map(pages.map((l) => [s(l.PresentationPageId), [l]]));
+  await addThumbnails(cards, linked, org);
+  const out: Record<string, string> = {};
+  for (const c of cards) if (c.thumbnail) out[c.id] = c.thumbnail;
+  return out;
+}
+
 /** Downloaded sources by version, shared by the thumbnails cut from one file (a deck's pages) and dropped after a minute. */
 const sources = new Map<string, Promise<string>>();
 const SOURCE_KEEP_MS = 60_000;
@@ -449,7 +470,11 @@ async function renderThumbnail(
       }
     } else {
       const { stdout } = await run("unzip", ["-Z1", src], { timeout: 30000, maxBuffer: 4 << 20 });
-      const entry = stdout.split("\n").find((n) => /(^|\/)01_thumbnail\.jpg$/.test(n));
+      // A page's own ZIP may carry only `thumbnail.jpg` (the uploader names the first slide's 01_).
+      const names = stdout.split("\n").map((n) => n.trim());
+      const entry =
+        names.find((n) => /(^|\/)01_thumbnail\.jpg$/.test(n)) ??
+        names.find((n) => /^([^/]+\/)?thumbnail\.jpg$/.test(n));
       if (!entry) return undefined;
       await run("unzip", ["-o", "-j", src, entry, "-d", join(dir, "x")], { timeout: 30000 });
       await run(
@@ -463,7 +488,7 @@ async function renderThumbnail(
           "70",
           "-Z",
           "640",
-          join(dir, "x", "01_thumbnail.jpg"),
+          join(dir, "x", entry.split("/").pop()!),
           "--out",
           out,
         ],

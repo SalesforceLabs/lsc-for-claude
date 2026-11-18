@@ -51,20 +51,34 @@ export function isCacheable(toolName: string, data: unknown): boolean {
   // Live progress is only true now.
   if (toolName.endsWith("_progress")) return false;
   if (!isObj(data) || marked(data)) return false;
+  // No image for any page is usually a render that didn't run; try again next time.
+  if (
+    toolName === "studio_content_page_images" &&
+    isObj(data.images) &&
+    !Object.keys(data.images).length
+  )
+    return false;
   // A layout whose XML couldn't be retrieved.
   if (isObj(data.sidebar) && data.sidebar.relatedLists === null) return false;
-  const rows = (key: string): unknown[] => (Array.isArray(data[key]) ? (data[key] as unknown[]) : []);
+  const rows = (key: string): unknown[] =>
+    Array.isArray(data[key]) ? (data[key] as unknown[]) : [];
   switch (toolName) {
     case "studio_feature_map":
-      return !rows("surfaces").some((s) => transient(s, "error") || (isObj(s) && (s.truncated === true || s.timedOut === true)));
+      return !rows("surfaces").some(
+        (s) => transient(s, "error") || (isObj(s) && (s.truncated === true || s.timedOut === true))
+      );
     case "studio_readiness":
     case "studio_setup_overview":
-      return !rows("checks").some((c) => transient(c, "error") || (isObj(c) && c.status === "unknown" && transient(c, "detail")));
+      return !rows("checks").some(
+        (c) =>
+          transient(c, "error") || (isObj(c) && c.status === "unknown" && transient(c, "detail"))
+      );
     case "studio_ipad_published": {
       // Screens or list views cut short by size or time; a list view whose filter can't run is the org's answer.
       if (rows("dataNotes").length > 0) return false;
       const values = (v: unknown): unknown[] => (isObj(v) ? Object.values(v) : []);
-      if (values(data.listErrors).some((e) => typeof e === "string" && TRANSIENT.test(e))) return false;
+      if (values(data.listErrors).some((e) => typeof e === "string" && TRANSIENT.test(e)))
+        return false;
       return !values(data.dashboards).some((d) => transient(d, "dataNote"));
     }
     case "studio_ipad_reports":
@@ -74,10 +88,19 @@ export function isCacheable(toolName: string, data: unknown): boolean {
       // A truncated window is the org's size, not a failure; a telemetry read that failed is.
       return !rows("notes").some((n) => typeof n === "string" && TRANSIENT.test(n));
     case "studio_sync_user": {
-      if (typeof data.telemetryError === "string" && TRANSIENT.test(data.telemetryError)) return false;
-      const tables = rows("territories").flatMap((t) => (isObj(t) && Array.isArray(t.tables) ? (t.tables as unknown[]) : []));
+      if (typeof data.telemetryError === "string" && TRANSIENT.test(data.telemetryError))
+        return false;
+      const tables = rows("territories").flatMap((t) =>
+        isObj(t) && Array.isArray(t.tables) ? (t.tables as unknown[]) : []
+      );
       // A filter that can't run is the org's answer; a count that timed out (or the table it hangs off) may not be.
-      return !tables.some((t) => isObj(t) && (t.status === "timed-out" || t.sourceFailed === true || (t.status === "error" && transient(t, "note"))));
+      return !tables.some(
+        (t) =>
+          isObj(t) &&
+          (t.status === "timed-out" ||
+            t.sourceFailed === true ||
+            (t.status === "error" && transient(t, "note")))
+      );
     }
     default:
       return true;
