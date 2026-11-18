@@ -6,6 +6,7 @@
 
 import type {
   AttendeeCandidate,
+  ClickStreamEntry,
   InventoryBatch,
   InventoryItem,
   SectionProduct,
@@ -439,3 +440,52 @@ export function attendeeGroups(
 export const REMOVE_ATTENDEE_TITLE = "Remove attendee?";
 export const removeAttendeeMessage = (name: string) =>
   `Do you want to remove ${name} from this Visit?`;
+
+/**
+ * A slide's stable identity within a page is its filename prefix, before the first "_" ("01" in
+ * "01_intro"); the suffix changes when the slide is updated in place
+ * (ClickStreamsPlugin.swift `slidePrefix`).
+ */
+export function slidePrefix(slideName: string): string {
+  return slideName.split("_").find((p) => p !== "") ?? slideName;
+}
+
+/**
+ * The slides listed under a content row: one per page and slide prefix (an entry with no slide id
+ * counts by page), earliest first (ClickStreamsPlugin.swift `getRows`, `sortedRows`).
+ * `currentSlides`, when known, are the presentation's slides as "pageId|slideName" and hide removed
+ * ones; Studio can't read the device's copy of the presentation, so the preview passes none.
+ */
+export function clickStreamRows(
+  entries: ClickStreamEntry[],
+  currentSlides: string[] = [],
+  isPdf = false
+): ClickStreamEntry[] {
+  const livePages = new Set<string>();
+  const livePrefixes = new Set<string>();
+  for (const key of currentSlides) {
+    const i = key.indexOf("|");
+    if (i < 0) continue;
+    livePages.add(key.slice(0, i));
+    livePrefixes.add(`${key.slice(0, i)}|${slidePrefix(key.slice(i + 1))}`);
+  }
+  const seen = new Set<string>();
+  const kept = entries.filter((e) => {
+    if (!e.pageId) return false;
+    const prefixKey = e.slideId ? `${e.pageId}|${slidePrefix(e.slideId)}` : undefined;
+    if (currentSlides.length) {
+      const current = isPdf
+        ? livePages.has(e.pageId)
+        : prefixKey
+          ? livePrefixes.has(prefixKey)
+          : livePages.has(e.pageId);
+      if (!current) return false;
+    }
+    const key = prefixKey ?? e.pageId;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const time = (e: ClickStreamEntry) => (e.start ? Date.parse(e.start) || 0 : 0);
+  return kept.sort((a, b) => time(a) - time(b));
+}

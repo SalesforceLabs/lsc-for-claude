@@ -164,13 +164,18 @@ contextBridge.exposeInMainWorld("lscApi", {
   studioLwcRequest: (method, path, body) => ipcRenderer.invoke("studio:call", "studio_lwc_request", body === undefined ? { method, path } : { method, path, body }),
   studioLwcRequestAs: (loginId, method, path, body) =>
     ipcRenderer.invoke("studio:lwcRequestAs", loginId, body === undefined ? { method, path } : { method, path, body }),
-  studioIpadPublished: (profile, refresh = false, userId) =>
-    ipcRenderer.invoke("studio:call", "studio_ipad_published", userId ? { profile, userId } : { profile }, refresh),
+  studioIpadPublished: (profile, refresh = false, userId, language) =>
+    ipcRenderer.invoke("studio:call", "studio_ipad_published", { profile, ...(userId ? { userId } : {}), ...(language ? { language } : {}) }, refresh),
   studioIpadPublishedUsers: (profile, search) => ipcRenderer.invoke("studio:call", "studio_ipad_published_users", { profile, search }),
   studioUnpublished: (profile, known, refresh = false) =>
     ipcRenderer.invoke("studio:call", "studio_unpublished", known ? { profile, known } : { profile }, refresh),
   studioIpadReports: (userId) => ipcRenderer.invoke("studio:call", "studio_ipad_reports", { userId }),
+  studioKamPlan: (object, planId, sync) => ipcRenderer.invoke("studio:call", "studio_kam_plan", { object, planId, sync }),
   studioReportData: (reportId, userId) => ipcRenderer.invoke("studio:call", "studio_report_data", userId ? { reportId, userId } : { reportId }),
+  studioManagerData: (args) => ipcRenderer.invoke("studio:call", "studio_manager_data", args),
+  studioConsentData: (accountId) => ipcRenderer.invoke("studio:call", "studio_consent_data", { accountId }),
+  studioSurveyData: (args) => ipcRenderer.invoke("studio:call", "studio_survey_data", args),
+  studioSurveyData: (args) => ipcRenderer.invoke("studio:call", "studio_survey_data", args),
   studioIpadPublishedProgress: (profile) => ipcRenderer.invoke("studio:call", "studio_ipad_published_progress", { profile }),
   // --- custom scripts: editor ---
   // The library is cached in the main process; `refresh` bypasses the cache. A single script is never cached.

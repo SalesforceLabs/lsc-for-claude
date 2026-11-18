@@ -1,0 +1,20 @@
+.studio-ipad-act-sheet.order { left: 121px; top: 52px; width: 968px; height: 750px; }
+.studio-ipad-act-sheet.order.small { left: 315px; top: 97px; width: 580px; height: 640px; }
+.studio-ipad-ord-sub { display: block; margin-top: 4px; color: #666; font-size: 14px; font-weight: 400; }
+.studio-ipad-ord-bar { display: flex; align-items: center; gap: 16px; padding: 12px 20px; border-bottom: 1px solid #ddd; }
+.studio-ipad-ord-bar .studio-ipad-act-search { flex: 1; }
+.studio-ipad-ord-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 48px 0; color: #444; font-size: 17px; }
+.studio-ipad-ord-product { display: flex; justify-content: space-between; align-items: center; padding: 14px 8px; border-bottom: 1px solid #e5e5e5; font-size: 17px; cursor: pointer; }
+.studio-ipad-ord-grid { width: 100%; border-collapse: collapse; font-size: 16px; }
+.studio-ipad-ord-grid th { padding: 8px; border-bottom: 2px solid #ddd; color: #444; font-size: 14px; font-weight: 600; text-align: left; }
+.studio-ipad-ord-grid td { padding: 10px 8px; border-bottom: 1px solid #e5e5e5; }
+.studio-ipad-ord-qty { box-sizing: border-box; width: 72px; height: 32px; padding: 0 8px; border: 1px solid #8a8a8a; border-radius: 8px; font: inherit; }
+.studio-ipad-ord-qty.bad { border-color: #c23934; }
+.studio-ipad-ord-disc { display: inline-flex; gap: 8px; align-items: center; }
+.studio-ipad-ord-disc select { height: 32px; border: 1px solid #8a8a8a; border-radius: 8px; font: inherit; background: #fff; }
+.studio-ipad-ord-count { margin-top: 10px; color: #666; font-size: 14px; }
+.studio-ipad-ord-totals { display: grid; grid-template-columns: 1fr auto; gap: 6px 24px; margin: 20px 0 0 auto; width: 340px; font-size: 17px; }
+.studio-ipad-ord-totals dt { color: #444; }
+.studio-ipad-ord-totals dd { margin: 0; text-align: right; font-weight: 600; }
+.studio-ipad-ord-sign { margin-top: 24px; font-size: 17px; }
+.studio-ipad-ord-pad { height: 140px; margin: 8px 0; border: 1px solid #8a8a8a; border-radius: 8px; background: #fff; }

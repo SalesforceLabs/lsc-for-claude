@@ -28,6 +28,13 @@
   font-size: var(--font-sm);
 }
 
+.studio-ipad-meta .studio-ipad-lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
 .studio-ipad-meta .studio-ipad-reload {
   margin-left: 2px;
 }

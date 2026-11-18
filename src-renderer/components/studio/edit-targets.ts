@@ -1,4 +1,4 @@
-import type { PublishedIpad } from "./published-types";
+import type { PublishedIpad, TextOrigin } from "./published-types";
 import type { CreateConfigFix, StudioItem, StudioSurface } from "./types";
 import {
   activeChange,
@@ -148,6 +148,35 @@ function titleOf(t: EditTarget): string {
 export function layoutObject(layout: string): string {
   const o = layout.slice(0, Math.max(0, layout.indexOf("-")));
   return o === "PersonAccount" ? "Account" : o;
+}
+
+/**
+ * Where the selected block's text comes from, from the snapshot's `texts`
+ * (keys as src/studio/published.ts writes them); null for blocks without one.
+ */
+export function textOriginOf(t: EditTarget, snapshot: Pick<PublishedIpad, "texts">): TextOrigin | null {
+  const texts = snapshot.texts;
+  if (!texts) return null;
+  const key = (() => {
+    switch (t.kind) {
+      case "tab":
+        return `tab:${t.fullName}`;
+      case "field":
+        // The server keys a layout's fields by its object (Person Account layouts by Account).
+        return `field:${layoutObject(t.layout)}:${(t.item ?? t.field).toLowerCase()}`;
+      case "headerField":
+        return `field:${t.object}:${t.field.toLowerCase()}`;
+      case "section":
+        return t.label ? `section:${t.layout}:${t.label}` : null;
+      case "related":
+        return t.layout && t.relatedList ? `related:${t.layout}:${t.relatedList}` : null;
+      case "recordTab":
+        return `recordTab:${t.page}:${t.title}`;
+      default:
+        return null;
+    }
+  })();
+  return key ? (texts[key] ?? null) : null;
 }
 
 /** Salesforce Setup pages "Open in Setup" goes to (paths for `sf org open --path`). */

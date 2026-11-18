@@ -97,6 +97,19 @@ export interface SeedRow {
   values: Record<string, string>;
 }
 
+/** One slide a rep showed (PresentationClickStrmEntry), under its PresentationForum row. */
+export interface ClickStreamEntry {
+  id: string;
+  /** PresentationPageId. */
+  pageId: string;
+  /** ContentPageIdentifier: the slide's file name inside the page, e.g. "01_intro". */
+  slideId?: string;
+  /** ContentName as stored when the slide was shown. */
+  name?: string;
+  /** UsageStartDateTime, ISO. */
+  start?: string;
+}
+
 export interface VisitSections {
   settings: SectionSettings;
   /** Object API name to whether the viewer can create / edit it. Absent = not read (treated as allowed). */
@@ -107,6 +120,8 @@ export interface VisitSections {
   attendeePool: AttendeeCandidate[];
   /** Child rows of the viewer's recent visits: visit Id to object API name to rows. */
   children: Record<string, Record<string, SeedRow[]>>;
+  /** Slides shown per PresentationForum Id, for the recent visits' content rows. */
+  clickStreams: Record<string, ClickStreamEntry[]>;
   /**
    * The org gaters for the Files and Visitors sidebar sections (`orgHasVisitEngagementFiles`,
    * `orgHasVisitEngagementVisitors`) can't be read from here, so both are reported off.
@@ -209,7 +224,7 @@ const CHILD_FIELDS: Record<string, { fields: string[]; key: string }> = {
 
 export async function collectVisitSections(ctx: ScreenContext): Promise<VisitSections | undefined> {
   const me = ctx.userId;
-  const [cfg, perms, products, messages, inventory, pool, children] = await Promise.all([
+  const [cfg, perms, products, messages, inventory, pool, kids] = await Promise.all([
     ctx
       .config(["ProviderVisitSettings"])
       .catch(softFail(ctx, "Visit settings", {} as Record<string, Row>)),
@@ -227,7 +242,8 @@ export async function collectVisitSections(ctx: ScreenContext): Promise<VisitSec
     messages,
     inventory,
     attendeePool: pool,
-    children,
+    children: kids.children,
+    clickStreams: kids.clickStreams,
     gates: { files: false, visitors: false },
   };
 }
@@ -374,14 +390,18 @@ async function readAttendeePool(ctx: ScreenContext): Promise<AttendeeCandidate[]
 }
 
 /** Child rows of the viewer's most recent visits, so an edited visit opens with its sections filled. */
-async function readChildren(ctx: ScreenContext, me: string): Promise<VisitSections["children"]> {
+async function readChildren(
+  ctx: ScreenContext,
+  me: string
+): Promise<Pick<VisitSections, "children" | "clickStreams">> {
   const visits = await query(
     `SELECT Id FROM Visit WHERE (CreatedById = '${me}' OR OwnerId = '${me}') ORDER BY LastModifiedDate DESC LIMIT ${CAP.visits}`,
     ctx.org
   ).catch(softFail(ctx, "Recent visits", [] as Row[]));
   const ids = visits.map((v) => str(v.Id));
   const out: VisitSections["children"] = {};
-  if (!ids.length) return out;
+  const clickStreams: VisitSections["clickStreams"] = {};
+  if (!ids.length) return { children: out, clickStreams };
   const add = (visitId: string, object: string, row: SeedRow) => {
     ((out[visitId] ??= {})[object] ??= []).push(row);
   };
@@ -439,6 +459,44 @@ async function readChildren(ctx: ScreenContext, me: string): Promise<VisitSectio
       id: str(r.Id),
       values: { AccountId: str(r.AccountId), AccountName: str((r.Account as Row | null)?.Name) },
     });
+  // Content shown (PresentationForum, ForumReferenceId = the visit) and the slides under each
+  // (PresentationClickStrmEntry.PresentationForumId; ClickStreamsPlugin.swift parentFieldName).
+  const forums = await queryByIds(
+    "Id, ForumReferenceId, PresentationId, Presentation.Name",
+    "PresentationForum",
+    "ForumReferenceId",
+    ids,
+    ctx.org
+  ).catch(softFail(ctx, "Content shown", [] as Row[]));
+  const forumIds: string[] = [];
+  for (const r of forums.slice(0, CAP.rows)) {
+    forumIds.push(str(r.Id));
+    add(str(r.ForumReferenceId), "PresentationForum", {
+      id: str(r.Id),
+      values: {
+        ForumReferenceId: str(r.ForumReferenceId),
+        PresentationId: str(r.PresentationId),
+        Name: str((r.Presentation as Row | null)?.Name),
+      },
+    });
+  }
+  if (forumIds.length) {
+    const entries = await queryByIds(
+      "Id, PresentationForumId, PresentationPageId, ContentPageIdentifier, ContentName, UsageStartDateTime",
+      "PresentationClickStrmEntry",
+      "PresentationForumId",
+      forumIds,
+      ctx.org
+    ).catch(softFail(ctx, "Slides shown", [] as Row[]));
+    for (const r of entries.slice(0, CAP.rows * 5))
+      (clickStreams[str(r.PresentationForumId)] ??= []).push({
+        id: str(r.Id),
+        pageId: str(r.PresentationPageId),
+        slideId: str(r.ContentPageIdentifier) || undefined,
+        name: str(r.ContentName) || undefined,
+        start: str(r.UsageStartDateTime) || undefined,
+      });
+  }
   delete out[""];
-  return out;
+  return { children: out, clickStreams };
 }

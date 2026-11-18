@@ -20,6 +20,7 @@ export const NO_SECTIONS: VisitSections = {
   inventory: { items: [], batches: [] },
   attendeePool: [],
   children: {},
+  clickStreams: {},
   gates: { files: false, visitors: false },
 };
 

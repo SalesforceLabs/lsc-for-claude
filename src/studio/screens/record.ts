@@ -13,9 +13,10 @@ import {
   type PublishedComponent,
   type PublishedListData,
 } from "../published.js";
-import { type ScreenContext, softFail } from "./context.js";
+import { errorText, type ScreenContext, softFail } from "./context.js";
 import { evalProfileFormula, usesProfileName } from "./record-formula.js";
 import { readRatingLayout } from "./record-ratings.js";
+import { isTerritoryItem, readRatingSources, type RatingSources } from "./actions/rating-values.js";
 import { checkInlineLwc, type InlineLwcCheck, type LwcFile } from "./inline-lwc.js";
 import { collectDashboards, type PublishedDashboard } from "./record-dashboard.js";
 import type { RecordFieldSpec } from "./record-fields.js";
@@ -84,6 +85,8 @@ export interface PublishedRatings {
         editable: boolean;
         updated: string;
         live: boolean;
+        /** Product tab: the product this value belongs to. */
+        product?: string;
       }[]
     | null;
 }
@@ -1068,45 +1071,70 @@ export async function collectRecords(
         ).catch(softFail(ctx, "Record page", [] as Row[]));
         for (const g of got) ratingRows.set(str(g.Id), g);
       }
+      // Territory / Product tabs: the account's ProviderAcctTerritoryInfo / ProviderAcctProductInfo rows.
+      const ratingSources: RatingSources | null = ratingItems?.some((i) => i.sobject !== "Account")
+        ? await readRatingSources(ctx, ratingItems, ids).catch((err: unknown) => {
+            ctx.note(`Ratings values: ${errorText(err)}`);
+            return null;
+          })
+        : null;
       const ratingsOf = (id: string): PublishedRatings | undefined => {
         if (!ratingsLayout) return undefined;
         if (!ratingItems) return { layout: ratingsLayout, cards: null };
         const row = ratingRows.get(id);
         return {
           layout: ratingsLayout,
-          cards: ratingItems.map((i) => {
+          cards: ratingItems.flatMap((i) => {
             const tab =
-              i.sobject === "Account"
-                ? "General"
-                : /ProviderAcctTerritoryInfo/i.test(i.sobject)
-                  ? "Territory"
-                  : "Product";
-            const f = main.describe.fields.get(i.field.toLowerCase());
-            const live = tab === "General" && !!f && !!row;
-            const value = live
-              ? formatValue(
-                  row?.[str(f?.name)],
-                  { type: "", picklist: undefined },
-                  f,
-                  ctx.format,
-                  true
-                )
-              : "";
-            const updated =
-              live && row?.LastModifiedDate
-                ? new Intl.DateTimeFormat(ctx.format.locale, {
-                    dateStyle: "medium",
-                    timeZone: ctx.format.timeZone,
-                  }).format(new Date(str(row.LastModifiedDate)))
+              i.sobject === "Account" ? "General" : isTerritoryItem(i) ? "Territory" : "Product";
+            const card = (
+              source: { row: Row; product?: string } | undefined,
+              f: Row | undefined,
+              general: boolean
+            ) => {
+              const r = general ? row : source?.row;
+              const live = !!f && !!r;
+              const value = live
+                ? formatValue(
+                    r?.[str(f?.name)],
+                    { type: "", picklist: undefined },
+                    f,
+                    ctx.format,
+                    true
+                  )
                 : "";
-            return {
-              tab,
-              title: i.label,
-              value,
-              editable: live && f?.updateable === true,
-              updated,
-              live,
-            } as const;
+              const updated =
+                live && r?.LastModifiedDate
+                  ? new Intl.DateTimeFormat(ctx.format.locale, {
+                      dateStyle: "medium",
+                      timeZone: ctx.format.timeZone,
+                    }).format(new Date(str(r.LastModifiedDate)))
+                  : "";
+              return {
+                tab,
+                title: i.label,
+                value,
+                editable: live && f?.updateable === true,
+                updated,
+                live,
+                ...(source?.product ? { product: source.product } : {}),
+              } as const;
+            };
+            if (tab === "General")
+              return [card(undefined, main.describe.fields.get(i.field.toLowerCase()), true)];
+            if (!ratingSources) return [{ ...card(undefined, undefined, false) }];
+            if (tab === "Territory")
+              return [
+                card(
+                  ratingSources.territory.get(id),
+                  ratingSources.fields.territory.get(i.field.toLowerCase()),
+                  false
+                ),
+              ];
+            const rows = ratingSources.product.get(id) ?? [];
+            const f = ratingSources.fields.product.get(i.field.toLowerCase());
+            // A product tab with no product rows still shows the rating, empty (nothing downloaded for it).
+            return rows.length ? rows.map((r) => card(r, f, false)) : [card(undefined, f, false)];
           }),
         };
       };

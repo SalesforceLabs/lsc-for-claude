@@ -107,7 +107,7 @@ export interface PublishedLayout {
   sections: { label: string | null; columns: string[][]; fields?: RecordFieldSpec[][]; source?: LayoutSectionSource }[];
   relatedLists: { name: string; label: string; columns?: RecordFieldSpec[] }[];
   actions: string[];
-  actionItems?: { name: string; label: string; type: string; sortOrder: string }[];
+  actionItems?: { name: string; label: string; type: string; sortOrder: string; component?: string }[];
 }
 
 export interface PublishedRecordType {
@@ -188,6 +188,34 @@ export interface PublishedIpad {
   dataSource?: "rep" | "admin";
   /** What the live reads couldn't read in full (too many rows, too slow); absent when everything was read. */
   dataNotes?: string[];
+  /** Where each label comes from: `tab:<fullName>`, `field:<Object>:<field lowercased>`, `section:<layout>:<label>`, `related:<layout>:<relatedList>`, `recordTab:<page>:<title>`. */
+  texts?: Record<string, TextOrigin>;
+  /** The translation the preview is drawn in (`file` is the one the cache had: en_US when it has none for `code`). */
+  language?: { code: string; name: string; file: string };
+  /** The translation files in the cache. */
+  languages?: { code: string; name: string }[];
+  /** The viewer's own language (User.LanguageLocaleKey). */
+  userLanguage?: string;
+}
+
+/** One place the app looks for a label, in order; `value` is null when it found nothing there. */
+export interface TextStep {
+  source: string;
+  value: string | null;
+}
+
+/** Where a label comes from (src/studio/published-text.ts). */
+export interface TextOrigin {
+  shown: string;
+  steps: TextStep[];
+  /** Index of the step that gave `shown`. */
+  used: number;
+  /** What an English user sees, when the preview is in another language. */
+  english?: string;
+  /** Where to change it. */
+  change: string;
+  /** A custom label with no translation for this language. */
+  labelFallback?: { key: string; language: string };
 }
 
 export interface PublishedRelated {
@@ -239,7 +267,7 @@ export interface PublishedRecordData {
 
 export interface PublishedRatings {
   layout: string;
-  cards: { tab: "General" | "Product" | "Territory"; title: string; value: string; editable: boolean; updated: string; live: boolean }[] | null;
+  cards: { tab: "General" | "Product" | "Territory"; title: string; value: string; editable: boolean; updated: string; live: boolean; product?: string }[] | null;
 }
 
 export interface PublishedDashboard {

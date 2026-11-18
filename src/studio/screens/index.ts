@@ -9,6 +9,13 @@ import { collectFabs, type PublishedFabs } from "./fabs.js";
 import { collectHome, type PublishedHome } from "./home.js";
 import { collectTableau, type PublishedTableau } from "./tableau.js";
 import { collectVisit, type PublishedVisit } from "./visit/index.js";
+import { collectMyTeam, type PublishedMyTeam } from "./manager/myTeam.js";
+import { collectPlanReview, type PublishedPlanReview } from "./manager/planReview.js";
+import { collectSalesData, type PublishedSalesData } from "./manager/salesData.js";
+import { collectDashboards, type PublishedDashboards } from "./manager/dashboards.js";
+import { collectCompliance, type PublishedCompliance } from "./compliance/compliance.js";
+import { collectInsights, type PublishedInsights } from "./insights/insights.js";
+import { collectKam, type PublishedKam } from "./kam/kam.js";
 
 export type { ScreenContext } from "./context.js";
 export type {
@@ -20,6 +27,13 @@ export type {
   PublishedHome,
   PublishedTableau,
   PublishedVisit,
+  PublishedMyTeam,
+  PublishedPlanReview,
+  PublishedSalesData,
+  PublishedDashboards,
+  PublishedCompliance,
+  PublishedInsights,
+  PublishedKam,
 };
 
 export interface PublishedScreens {
@@ -31,6 +45,13 @@ export interface PublishedScreens {
   home?: PublishedHome;
   chrome?: PublishedChrome;
   visit?: PublishedVisit;
+  myTeam?: PublishedMyTeam;
+  planReview?: PublishedPlanReview;
+  salesData?: PublishedSalesData;
+  dashboards?: PublishedDashboards;
+  compliance?: PublishedCompliance;
+  insights?: PublishedInsights;
+  kam?: PublishedKam;
 }
 
 const COLLECTORS: {
@@ -51,6 +72,13 @@ const COLLECTORS: {
   chrome: { kind: null, collect: collectChrome },
   // Visit Engagement opens from New Visit and a visit's Edit, not from a tab.
   visit: { kind: null, collect: collectVisit },
+  myTeam: { kind: "myTeam", collect: collectMyTeam },
+  planReview: { kind: "activityPlanReview", collect: collectPlanReview },
+  salesData: { kind: "salesData", collect: collectSalesData },
+  dashboards: { kind: "dashboards", collect: collectDashboards },
+  compliance: { kind: "compliance", collect: collectCompliance },
+  insights: { kind: "insights", collect: collectInsights },
+  kam: { kind: null, collect: collectKam },
 };
 
 /** Longest one screen's collector is waited on, so a large org's slow reads don't hold up the whole preview. */
@@ -65,6 +93,13 @@ const SCREEN_NAMES: Record<keyof PublishedScreens, string> = {
   home: "Home",
   chrome: "Alerts and profile",
   visit: "Visit Engagement",
+  myTeam: "My Team",
+  planReview: "Activity plan review",
+  salesData: "Sales data",
+  dashboards: "Dashboards",
+  compliance: "Account compliance",
+  insights: "Medical insights",
+  kam: "Key Account Management",
 };
 
 /**

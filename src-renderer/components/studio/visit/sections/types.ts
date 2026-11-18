@@ -87,6 +87,19 @@ export interface SeedRow {
   values: Record<string, string>;
 }
 
+/** One slide a rep showed (PresentationClickStrmEntry), under its PresentationForum row. */
+export interface ClickStreamEntry {
+  id: string;
+  /** PresentationPageId. */
+  pageId: string;
+  /** ContentPageIdentifier: the slide's file name inside the page, e.g. "01_intro". */
+  slideId?: string;
+  /** ContentName as stored when the slide was shown. */
+  name?: string;
+  /** UsageStartDateTime, ISO. */
+  start?: string;
+}
+
 export interface VisitSections {
   settings: SectionSettings;
   /** Object API name to whether the viewer can create / edit it. Absent = not read (treated as allowed). */
@@ -97,6 +110,8 @@ export interface VisitSections {
   attendeePool: AttendeeCandidate[];
   /** Child rows of the viewer's recent visits: visit Id to object API name to rows. */
   children: Record<string, Record<string, SeedRow[]>>;
+  /** Slides shown per PresentationForum Id, for the recent visits' content rows. */
+  clickStreams: Record<string, ClickStreamEntry[]>;
   /**
    * The org gaters for the Files and Visitors sidebar sections (`orgHasVisitEngagementFiles`,
    * `orgHasVisitEngagementVisitors`) can't be read from here, so both are reported off.

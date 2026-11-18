@@ -15,6 +15,8 @@ const IPAD = [
   /\/ipad[\w-]*\.(css|ts)$/,
   /\/ipad-sheet-ui\.tsx$/,
   /\/studio\/visit\//, // the Visit Engagement editor draws the device's screen
+  /\/studio\/actions\//, // the ••• menu's order and create sheets draw the device's screens
+  /\/studio\/consent\//, // the Capture Consent sheet draws the device's screen
   /\/screens\//,
   /\/assets\//,
   /\/(action-sheets|chrome|fabs|list-controls|record|report-viewer)\.css$/,

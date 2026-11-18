@@ -137,6 +137,38 @@ describe("pure readers", () => {
         { SobjectType: "X", PermissionsEdit: true },
       ])
     ).toEqual({ X: { create: true, edit: true } }));
+  it("reads the content shown on a visit and the slides under it", async () => {
+    org.Visit = [{ Id: "v1" }];
+    org.PresentationForum = [
+      { Id: "f1", ForumReferenceId: "v1", PresentationId: "pr1", Presentation: { Name: "Price" } },
+    ];
+    org.PresentationClickStrmEntry = [
+      {
+        Id: "c1",
+        PresentationForumId: "f1",
+        PresentationPageId: "pg1",
+        ContentPageIdentifier: "01_a",
+        ContentName: "Intro",
+        UsageStartDateTime: "2026-01-01T10:00:00Z",
+      },
+    ];
+    const { ctx: c } = ctx();
+    const s = await collectVisitSections(c);
+    expect(s?.children.v1.PresentationForum[0]).toEqual({
+      id: "f1",
+      values: { ForumReferenceId: "v1", PresentationId: "pr1", Name: "Price" },
+    });
+    expect(s?.clickStreams.f1).toEqual([
+      {
+        id: "c1",
+        pageId: "pg1",
+        slideId: "01_a",
+        name: "Intro",
+        start: "2026-01-01T10:00:00Z",
+      },
+    ]);
+  });
+
   it("addressKey", () => {
     expect(addressKey("", null)).toBeUndefined();
     expect(addressKey(" Austin ", "1")).toBe("austin|1");

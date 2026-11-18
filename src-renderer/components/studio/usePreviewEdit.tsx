@@ -11,7 +11,7 @@ import { flexiPageCopyName, layoutCopyName } from "./copy-names";
 import { actionVerbs, draftHomeMenu, draftTabs, moveActionTo, moveTabTo, tabItemFor, tabVerbs, type DraftTab, type Verb } from "./edit-draft";
 import { appFixedTabVerbs, appTabVerbs, buildAppBar, isAppTab, moveAppTabTo, type AppEntry, type AppMatchState, type LiveAppState } from "./app-nav-draft";
 import { openSetupLink, resolveSetupPath, type SetupLink } from "./setup-link";
-import { describeTarget, syncAction, syncFilter, type AppNavInfo, type EditTarget } from "./edit-targets";
+import { describeTarget, syncAction, syncFilter, textOriginOf, type AppNavInfo, type EditTarget } from "./edit-targets";
 import {
   addRelatedVerb,
   alignLayout,
@@ -837,6 +837,8 @@ export function usePreviewEdit({
           horizontal={edit.horizontal}
           layout={layoutStatus}
           copy={copyAction}
+          text={selected && snapshot ? textOriginOf(selected, snapshot) : null}
+          language={snapshot?.language?.name}
           onRetryLayout={
             fromApp && matchedApp
               ? () => fetchApp(matchedApp.fullName)
