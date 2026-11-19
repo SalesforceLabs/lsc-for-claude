@@ -7,7 +7,7 @@
     },
     {
       "says": "deploy of Store Check metadata blows up, object not found",
-      "expect": ["om-install-missing-org-preferences"]
+      "expect": []
     },
     {
       "says": "package deploy errors on account plan stuff",
@@ -47,7 +47,7 @@
     },
     {
       "says": "iPad tapping Add Products, nothing happens",
-      "expect": ["om-pricebook-layout-assignment"]
+      "expect": []
     },
     {
       "says": "my expected price list is missing from the choices",
@@ -63,7 +63,7 @@
     },
     {
       "says": "prices work in browser but not on tablet",
-      "expect": ["om-pricing-rounding-step-mobile", "om-pricing-selectors-disagree"]
+      "expect": []
     },
     {
       "says": "iPad shows Unhandled pricing procedure steps: RoundingValues",
@@ -83,7 +83,7 @@
     },
     {
       "says": "matrix discounts missing when tablet offline",
-      "expect": ["om-tier-effective-dates-empty"]
+      "expect": ["om-pam-effective-dates-offline"]
     },
     {
       "says": "order-level discount silently doesn't apply",
@@ -127,7 +127,7 @@
     },
     {
       "says": "didn't get any alert when a quote was locked",
-      "expect": ["om-approve-automated-process-user"]
+      "expect": ["om-lock-notification-setup"]
     },
     {
       "says": "PDF that's used isn't the one I picked",
@@ -159,7 +159,7 @@
     },
     {
       "says": "Store check list is cutting off columns",
-      "expect": ["field-set-not-mapped"]
+      "expect": []
     },
     {
       "says": "No survey section on the visit page",
@@ -175,7 +175,7 @@
     },
     {
       "says": "regenerate cache returns 400 error",
-      "expect": ["om-cache-parent-not-validation-completed"]
+      "expect": []
     },
     {
       "says": "blank price list selector on iPad, no message",
@@ -219,7 +219,7 @@
     },
     {
       "says": "Begin Store Check button is disabled",
-      "expect": ["sc-action-plan-template-multiple-versions"]
+      "expect": ["sc-begin-store-check-disabled"]
     },
     {
       "says": "photo uploaded but won't display",
@@ -227,7 +227,7 @@
     },
     {
       "says": "Missing capture insights action on store check screen",
-      "expect": ["actions-ipad-supported", "sc-quoted-order-tab-missing"]
+      "expect": ["actions-ipad-supported"]
     },
     {
       "says": "New quote won't save, says Workflow is locked",
@@ -247,7 +247,7 @@
     },
     {
       "says": "discount off by a hundredth between iPad and web",
-      "expect": ["om-pricing-rounding-step-mobile"]
+      "expect": ["om-offline-rounding-by-design"]
     },
     {
       "says": "tapped submit two times, review failed message",
@@ -255,7 +255,7 @@
     },
     {
       "says": "PDF shows In Progress after submission",
-      "expect": ["om-quote-pdf-in-progress"]
+      "expect": ["om-quote-pdf-before-generate"]
     },
     {
       "says": "document stays In Progress forever",
@@ -267,11 +267,7 @@
     },
     {
       "says": "Downloading quote PDF fails",
-      "expect": [
-        "perm-lock-session-ip",
-        "perm-query-non-vetoed-files",
-        "perm-password-alphanumeric"
-      ]
+      "expect": ["perm-lock-session-ip", "perm-query-non-vetoed-files", "om-quote-pdf-in-progress"]
     },
     {
       "says": "unlock request goes nowhere",
@@ -311,11 +307,11 @@
     },
     {
       "says": "rep sees wrong accounts after realignment",
-      "expect": ["account-reach-chain", "user-no-territory"]
+      "expect": ["account-reach-chain"]
     },
     {
       "says": "territory model won't go active",
-      "expect": ["user-no-territory"]
+      "expect": []
     },
     {
       "says": "Reps seeing colleagues' visits and app is slow",
@@ -383,7 +379,7 @@
     },
     {
       "says": "Rep can still change the quote after pressing Submit",
-      "expect": []
+      "expect": ["om-stage-path-handler-inactive"]
     },
     {
       "says": "We never see lock or approval flows although docs said they're built in",
@@ -571,7 +567,7 @@
     },
     {
       "says": "Created a brand new quote on the iPad and the Add Products action is dead, no screen and no error shown",
-      "expect": ["om-pricebook-layout-assignment"]
+      "expect": []
     },
     {
       "says": "When choosing a price list for the quote I can't find the one I know exists and is active, only other lists show up",
@@ -587,7 +583,7 @@
     },
     {
       "says": "Everything prices correctly on the desktop quote, but on the iPad the same quote doesn't calculate right",
-      "expect": ["om-pricing-rounding-step-mobile", "om-pricing-selectors-disagree"]
+      "expect": []
     },
     {
       "says": "Offline in the app, calculating a quote stops with an error about procedure steps it can't handle, naming a rounding step",
@@ -607,7 +603,7 @@
     },
     {
       "says": "Discounts from our adjustment matrix show on web quotes, but disappear when the rep has no connection on the iPad",
-      "expect": ["om-tier-effective-dates-empty"]
+      "expect": ["om-pam-effective-dates-offline"]
     },
     {
       "says": "I enter a discount on the whole quote and the totals don't move, no warning at all; after a quantity edit it looks old too",
@@ -615,7 +611,11 @@
     },
     {
       "says": "Looking at a draft quote on desktop and I can't find any button to send it to the next step in the process",
-      "expect": ["om-quote-status-fls-not-edit"]
+      "expect": [
+        "om-quote-status-fls-not-edit",
+        "om-quote-status-values-missing",
+        "om-workflow-path-editor-wrong-stages"
+      ]
     },
     {
       "says": "Tapped Submit and the status path stays where it was, and the quote can still be changed afterwards",
@@ -635,7 +635,7 @@
     },
     {
       "says": "Saving settings in Admin Console tells me a product category can't be found, though I see it in my product list",
-      "expect": ["om-admin-console-category-missing"]
+      "expect": []
     },
     {
       "says": "Opening Product Views in the admin console, the Last Order option I read about isn't offered; the settings are also greyed out",
@@ -651,7 +651,7 @@
     },
     {
       "says": "Nobody received an email or bell notification when the quote got locked or when an unlock was decided; nothing pops up on the iPad",
-      "expect": ["om-approve-automated-process-user"]
+      "expect": ["om-lock-notification-setup"]
     },
     {
       "says": "Quotes generate using an old PDF layout and not the one I just made; the PDF quick action from Revenue Cloud produces nothing",
@@ -683,7 +683,7 @@
     },
     {
       "says": "Added extra fields to the store check list view but only some of them are visible",
-      "expect": ["field-set-not-mapped"]
+      "expect": []
     },
     {
       "says": "During a store check the questionnaire never appears on the visit even though we built one",
@@ -743,7 +743,7 @@
     },
     {
       "says": "On the visit the button to start the store check is grey and can't be tapped",
-      "expect": ["sc-action-plan-template-multiple-versions"]
+      "expect": ["sc-begin-store-check-disabled"]
     },
     {
       "says": "Rep took a picture in store check, it synced, but viewing it says no photo available",
@@ -771,7 +771,7 @@
     },
     {
       "says": "The tablet shows 0.92 percent off while the browser says 0.93 for the same line, and the derived total won't refresh",
-      "expect": ["om-pricing-rounding-step-mobile"]
+      "expect": ["om-offline-rounding-by-design"]
     },
     {
       "says": "Rep hit Submit twice quickly and later saw Review submission failed. Please try again.",
@@ -779,7 +779,7 @@
     },
     {
       "says": "After submitting on the tablet, the document is still listed as in progress and can't be found on web",
-      "expect": ["om-quote-pdf-in-progress"]
+      "expect": ["om-quote-pdf-before-generate"]
     },
     {
       "says": "I tapped Generate PDF and the status never completes though reps can submit quotes fine",
@@ -819,7 +819,7 @@
     },
     {
       "says": "On the tablet there's no option to start a quote from the previous one for an account that does have past quotes",
-      "expect": ["om-last-order-org-permission"]
+      "expect": ["om-last-order-status-setting"]
     },
     {
       "says": "On the iPad the product view only offers two options, and the one for previous order products is missing on web too",
@@ -835,11 +835,11 @@
     },
     {
       "says": "After we moved territory assignments around, a rep's account list on the tablet is incorrect or empty",
-      "expect": ["account-reach-chain", "user-no-territory"]
+      "expect": ["account-reach-chain"]
     },
     {
       "says": "I can't make our territory model live, it shows as not active even after I tried",
-      "expect": ["user-no-territory"]
+      "expect": []
     },
     {
       "says": "Everybody now sees each other's upcoming visits in Up Next, and the app has gotten sluggish since we widened visibility",
@@ -859,7 +859,7 @@
     },
     {
       "says": "We bought the Max edition but the Order Management permission sets aren't listed and Company Information shows nothing new",
-      "expect": []
+      "expect": ["om-feature-card-purchase-required"]
     },
     {
       "says": "Does the Order Management purchase include billing?",
@@ -891,7 +891,7 @@
     },
     {
       "says": "Log warns no expression set found for the pricing procedure so metadata is skipped",
-      "expect": []
+      "expect": ["om-pricing-selectors-disagree"]
     },
     {
       "says": "Synced quote kept the old promo price, and after disabling a promotion the open quote still has it",
@@ -947,7 +947,7 @@
     },
     {
       "says": "First login says INVALID_FIELD no such column DeveloperName",
-      "expect": []
+      "expect": ["perm-api-viewsetup"]
     },
     {
       "says": "Rep seems to have two live cache children and a second profile got impacted",

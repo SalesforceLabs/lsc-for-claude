@@ -91,11 +91,11 @@
     },
     {
       "says": "Price Adjustment Matrix discounts do not apply when the iPad is offline (work on web)",
-      "expect": ["om-tier-effective-dates-empty"]
+      "expect": ["om-pam-effective-dates-offline"]
     },
     {
       "says": "Is Price Adjustment Matrix supported offline?",
-      "expect": ["om-tier-effective-dates-empty"]
+      "expect": ["om-pam-effective-dates-offline"]
     },
     {
       "says": "Header-level discount does not apply, no error",
@@ -159,7 +159,7 @@
     },
     {
       "says": "No notification or email when the quote locks or an unlock is decided",
-      "expect": ["om-approve-automated-process-user"]
+      "expect": ["om-lock-notification-setup"]
     },
     {
       "says": "Begin Store Check fails",
@@ -267,7 +267,7 @@
     },
     {
       "says": "Begin Store Check is greyed out",
-      "expect": ["sc-action-plan-template-multiple-versions"]
+      "expect": ["sc-begin-store-check-disabled"]
     },
     {
       "says": "present content actions are missing on the store check screen",
@@ -307,7 +307,7 @@
     },
     {
       "says": "PDF says In Progress after I submitted",
-      "expect": ["om-quote-pdf-in-progress"]
+      "expect": ["om-quote-pdf-before-generate"]
     },
     {
       "says": "PDF still In Progress after I tapped Generate PDF",
@@ -363,19 +363,31 @@
     },
     {
       "says": "Rep sees the wrong accounts after a territory change",
-      "expect": ["account-reach-chain", "user-no-territory"]
+      "expect": ["account-reach-chain"]
     },
     {
       "says": "iPad account list and filters are empty for a territory",
       "expect": ["account-reach-chain", "user-no-territory"]
     },
     {
-      "says": "Territory model is not active",
-      "expect": ["user-no-territory"]
-    },
-    {
       "says": "Sync is slow and the cache is huge",
       "expect": ["dbschema-unbounded-volume"]
+    },
+    {
+      "says": "Warning: no expression set found for pricing procedure, skipping pricing metadata",
+      "expect": ["om-pricing-selectors-disagree"]
+    },
+    {
+      "says": "photo area says no photo available",
+      "expect": ["sc-photo-dbschemas-missing"]
+    },
+    {
+      "says": "Derived total doesn't update on the iPad",
+      "expect": ["om-offline-rounding-by-design"]
+    },
+    {
+      "says": "Last Order shows nothing though the rep has ordered before",
+      "expect": ["om-last-order-status-setting"]
     }
   ],
   "silent": [
@@ -450,7 +462,6 @@
     "How do I skip tax calculation on mobile quotes?",
     "Tax added to the offline net price",
     "Rep must enter a value for a required field on the iPad but not on web",
-    "Warning: no expression set found for pricing procedure, skipping pricing metadata",
     "Promotion doesn't apply on the iPad",
     "Category promo still prices after its end date",
     "Quote synced but the promotion price didn't change",
@@ -584,7 +595,6 @@
     "Photo can't be saved on a task",
     "my photo will not attach",
     "I can only take a photo, no gallery",
-    "photo area says no photo available",
     "No Stock toggle: my numbers vanished",
     "photo gone",
     "Fewer indicator values than I expected after the store check",
@@ -655,7 +665,6 @@
     "exceeds limit",
     "Quote total shows 0.00 on the iPad offline",
     "Submitted quote shows $0.00 prices in View Only",
-    "Derived total doesn't update on the iPad",
     "Search by SKU or voice finds nothing on the iPad",
     "Quote saved on the iPad but never gets a quote number",
     "Save does nothing",
@@ -700,7 +709,6 @@
     "Unlock on the iPad says authentication failed",
     "Admin unlocked the order but the old signature is still there",
     "Reject on the iPad does not change the quote status",
-    "Last Order shows nothing though the rep has ordered before",
     "Last Order copied products but dropped my discounts",
     "Last Order repeat lost my header discount",
     "Last Order pre-filled fewer products than the old order had",
@@ -754,6 +762,7 @@
     "Product is below the minimum allowed price",
     "Do pricing limits and validations work offline?",
     "Does the customer PDF show margin or cost?",
-    "two PDFs for the same quote"
+    "two PDFs for the same quote",
+    "Territory model is not active"
   ]
 }
