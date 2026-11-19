@@ -256,6 +256,7 @@ causes:
       - "Metadata cache validation fails"
       - "App loops on opening after an object permission was removed"
       - "sObject type is not supported"
+      - "Cache generation fails: parent Inactive, unable to read an object over REST"
     keywords: [DB Schema Status, Checking, custom object, object permission]
     cause: |
       A config deploy can activate records for custom objects that don't
@@ -275,6 +276,8 @@ causes:
       - "REQUEST_LIMIT_EXCEEDED"
       - "Initial sync takes 12 minutes or more"
       - "Org hits its API request limit"
+      - "Sync is slow and the cache is huge"
+      - "Sync is slow after attachments were enabled on all DB schema records"
     keywords: [sync volume, attachments, WhereSoql, API limits, slow sync]
     cause: |
       DB Schema records with no filter on big objects, attachments turned on
@@ -294,6 +297,7 @@ causes:
     symptoms:
       - "Failed to execute 'json' on 'Response': Unexpected end of JSON input"
       - "Can't create a visit on the iPad"
+      - "As admin on web, Log a Visit says metadata is out of date"
     keywords: [ProviderVisit, recordTypes, Master.json]
     cause: |
       Creating a visit reads ProviderVisit's record types from the metadata
@@ -486,6 +490,7 @@ causes:
       - "Admin users can't sign in to the app"
       - "Admin can't edit visits on the iPad"
       - "App redirects to the browser after login"
+      - "Signed in to the iPad with an admin profile and data or screens are wrong"
     keywords: [System Administrator, admin profile, test user]
     cause: |
       The iPad app supports rep profiles that have a metadata cache. System
@@ -518,6 +523,7 @@ causes:
     module: agentforce
     symptoms:
       - "Agentforce 'Something went wrong' on iPad"
+      - "Quote PDF fails to download"
     keywords: [Lock sessions to the IP address, session settings, Agentforce]
     cause: |
       "Lock sessions to the IP address from which they originated" rejects
@@ -531,6 +537,7 @@ causes:
     module: mobile-sync
     symptoms:
       - "'Enter your new password' every login"
+      - "The app asks for a new password at every login"
     keywords: [PasswordPolicy, Password Type, Alpha Numeric, Numeric, Application Settings]
     cause: |
       Application Settings Password Type set to Alpha Numeric makes the app
@@ -746,6 +753,8 @@ causes:
       - "Align Account to Territory job updates 0 accounts"
       - "Accounts missing from advanced search"
       - "Account missing on the iPad"
+      - "Rep sees the wrong accounts after a territory change"
+      - "iPad account list and filters are empty for a territory"
     keywords: [IsActive, IsPrimaryProvider, ObjectTerritory2Association, Territory2Manual, ProviderAcctTerritoryInfo, IsAvailableOffline, preferred address, PATI, OT2A]
     cause: |
       An account reaches a rep only if all of these hold: Account.IsActive is
@@ -845,6 +854,8 @@ causes:
       - "Deactivated action still on the action bar"
       - "Action missing on some Visits on the iPad"
       - "Custom action does nothing"
+      - "present content actions are missing on the store check screen"
+      - "no Create Quoted Order action on Visit Engagement"
     keywords: [quick action, custom action, EnableDynamicActions, Highlights Panel, Action Target, Log a Call]
     cause: |
       The iPad runs a fixed set of standard actions (not Log a Call, New Task
@@ -1105,6 +1116,13 @@ causes:
       - "iPad doesn't show recent changes"
       - "Translations not on the iPad"
       - "New tab doesn't show on the iPad"
+      - "I changed the price; reps still see the old price on the iPad"
+      - "Old tier shown after the admin edited tiers"
+      - "iPad prices differ from the web after I edited a price book, procedure or decision table"
+      - "I changed the layout but the iPad still shows the old one"
+      - "Any layout, page, field security, pricing or Admin Console change doesn't show on the iPad"
+      - "Changed a discount tier, price book entry or decision table; iPad still shows the old price"
+      - "Rep synced but still sees the old price or layout"
     keywords: [regenerate, publish, stale, translation, log out]
     cause: |
       Layouts, pages, record types, field access and Admin Console mobile
@@ -1451,6 +1469,8 @@ causes:
       - "Survey not visible on Account or Visit"
       - "Survey not on the iPad"
       - "Can't activate survey"
+      - "Survey tab does not show on the Visit"
+      - "Survey not shown on the Visit even though the template and tab are set up"
     keywords: [Offline Mobile Survey, survey type, SurveySubject, SurveyInvitation]
     cause: |
       LSC shows only Offline Mobile surveys, and a survey needs questions
@@ -1543,6 +1563,8 @@ causes:
       - "Mobile labels stay English"
       - "Please setup and add languages in translation settings"
       - "Sample not rendering for English (Ireland, Euro) locale"
+      - "Translated store check values didn't update on the iPad"
+      - "Translated values on Visit screens didn't update after editing a translation"
     keywords: [Translation Workbench, Standard Label Translations, locale, custom label]
     cause: |
       The language isn't active in Translation Workbench, the admin isn't a
@@ -1844,3 +1866,624 @@ causes:
       - "On the iPad: profile icon, Begin Sync, Sync, accept the New metadata prompt and wait for Synced."
       - "To force records to re-sync, change a field and restore it (two saves). A save with no change does nothing."
       - "Check what reached the device with profile, View Database (record counts per table). Query as the rep with sf data query to prove what the server lets them see."
+
+  # ===========================================================================
+  # Order Management (quoted orders) and Store Check setup
+  # Source: knowledge/modules/order-management (steel thread v6 failure playbook)
+  # ===========================================================================
+
+  - id: om-quote-status-fls-not-edit
+    title: Submit is missing for the rep and new quotes save with no Status while Quote.Status is read-only in field-level security
+    module: order-management
+    symptoms:
+      - "Submit action missing from the Quote Actions menu"
+      - "New quote saves with a blank Status on the iPad"
+      - "Quote has no Submit button and new quotes save with no Status"
+      - "There's no Submit on the quote"
+      - "New quote saved with no Status"
+    keywords: [Quote.Status, FLS, Submit, RecordUpdate, field-level security]
+    cause: |
+      Submit runs a RecordUpdate on Quote.Status. In setup runs, the action was
+      hidden and new quotes saved with no Status while the rep's field-level
+      security had Status read-only. It worked with Edit in field-level security
+      and Status read-only on the page layout. Salesforce Help is not consistent
+      here: "Restrict the Quote Status Field for Field Reps" makes Status
+      read-only on the page layout, while "Get Your Org Ready for Quote and
+      Pricing Users" lists Quote Status among the fields reps can see but not
+      edit.
+    fix:
+      - "Check the rep's field-level security on Quote.Status (profile and permission sets)."
+      - "If it is read-only, try Edit in field-level security and keep Status read-only on the page layout, so reps still change it only through the workflow actions."
+      - "Generate a new mobile metadata cache, then sync and close and reopen the app."
+  - id: om-quote-currency-from-rep
+    title: Quote currency differs from the price book's, so price books and products are hidden
+    module: order-management
+    symptoms:
+      - "No price books offered when creating a quote for a store"
+      - "Quote saved in the wrong currency"
+      - "Rep sees only some products when adding to a quote"
+      - "The price book list doesn't show the price book I expect"
+      - "Rep's currency changed and now no price books"
+    keywords: [CurrencyIsoCode, DefaultCurrencyIsoCode, multi-currency, price book, Select Price Book]
+    cause: |
+      When the rep doesn't pick a currency, a new quote takes the currency of the
+      rep's user record, which can differ from the store Account's. The catalog
+      only shows products with price book entries in the quote's currency, so the
+      price book and product pickers come up empty on web and iPad.
+    fix:
+      - "Compare Quote.CurrencyIsoCode, Account.CurrencyIsoCode and the rep's User.DefaultCurrencyIsoCode."
+      - "Make the rep's currency equal the store's and the price book's."
+      - "Leave existing quotes; create a new quote."
+
+  - id: om-pricing-selectors-disagree
+    title: Quotes don't use the Life Sciences Commercial pricing procedure, so mobile pricing files are empty
+    module: order-management
+    symptoms:
+      - "expressionSet.json is empty in the metadata cache"
+      - "contextDefinition.json decisionTable.json empty {} after generation"
+      - "iPad shows no prices on quote lines"
+    keywords: [SalesTransactionType, QocalPricingProcedure, OrderProductViewsSettings, OrderProductViewsSettings_OrgLevel, QuoteSettings_OrgLevel, lsc4ce_pricing_mobile_tpt, pricing procedure]
+    cause: |
+      The procedure a quote uses comes from its Sales Transaction Type when that
+      names one; otherwise from the Admin Console OrderProductViewsSettings
+      record (the rep's profile record, else the org-level one). The iPad can
+      only run an active procedure of the Life Sciences Commercial subtype.
+      When the procedure that applies to the rep is another one, or a selector
+      is empty, generation gives no error, only empty pricing files. Different
+      profiles may use different procedures on purpose.
+    fix:
+      - "Find the procedure that applies to the rep: the quote's Sales Transaction Type first, then the rep's profile OrderProductViewsSettings record, then the org-level one."
+      - "Make it an active Life Sciences Commercial procedure, and check Revenue Settings and QuoteSettings_OrgLevel (bound to lsc4ce_pricing_mobile_tpt) are set."
+      - "Generate a new metadata cache parent record and check the pricing files are not {}. Sync and relaunch the app."
+    ui_path: "Admin Console > Orders and Pricing Settings; Setup > Revenue Settings"
+  - id: om-dbschema-pair-half-scoped
+    title: A DB Schema pair is assigned to the rep profile on one side only
+    module: order-management
+    symptoms:
+      - "MISSING_PROFILE_SCOPED_DBSCHEMA_QUOTELINEITEM"
+      - "Select Price Book screen is blank on the iPad with no error"
+    keywords: [DbSchema, Pricebook2, PricebookEntry, Quote, QuoteLineItem, profile scoped]
+    cause: |
+      Pricebook2/PricebookEntry and Quote/QuoteLineItem DB Schema records work as
+      pairs. With only one half assigned to the rep profile the device has no
+      rows to show and says nothing.
+    fix:
+      - "Assign both DB Schema records of each pair to the rep profile."
+      - "Regenerate the metadata cache, sync and relaunch."
+    ui_path: "Admin Console > Mobile > Object Metadata Cache Configuration"
+    check:
+      type: tooling_soql
+      query: >
+        SELECT AssignedToId, COUNT(Id) c FROM LifeSciConfigAssignment
+        WHERE LifeSciConfigRecord.DeveloperName IN ('DbSchema_Quote', 'DbSchema_QuoteLineItem', 'DbSchema_Pricebook2', 'DbSchema_PricebookEntry')
+        GROUP BY AssignedToId HAVING COUNT(Id) < 4
+      expect: "records.length == 0"
+    check_scope: "Finds profiles assigned some of the four standard records but not all. It misses profiles assigned none of them, and records with other names."
+
+  - id: om-pricing-rounding-step-mobile
+    title: Pricing procedure has a rounding step the iPad engine can't run
+    module: order-management
+    symptoms:
+      - "LSCPricingEngine.SDKError"
+      - "Unhandled pricing procedure steps: RoundingValuesCurrencyOutputRounding"
+    keywords: [CurrencyOutputRounding, RoundingValues, pricing procedure, offline pricing]
+    cause: |
+      The offline pricing engine doesn't support the CurrencyOutputRounding /
+      RoundingValues step. The version activates on the server and fails on the
+      device at the first quantity change.
+    fix:
+      - "Remove the rounding step from every procedure version used on mobile and activate the new version."
+      - "Regenerate the metadata cache and sync."
+
+  - id: om-tier-effective-dates-empty
+    title: An active price adjustment schedule has no EffectiveFrom, so the iPad ignores its tiers
+    module: order-management
+    symptoms:
+      - "iPad charges list price at tier quantities"
+      - "Tier discount works in web simulation but not on the iPad"
+      - "Price Adjustment Matrix discounts do not apply when the iPad is offline (work on web)"
+      - "Price Adjustment Matrix discounts not applied offline when rows have Effective From or To dates"
+    keywords: [PriceAdjustmentSchedule, PriceAdjustmentTier, EffectiveFrom, EffectiveTo, volume discount]
+    cause: |
+      The iPad engine skips price adjustment schedules and tiers with no
+      EffectiveFrom. The server simulation doesn't, so tiers work on web and the
+      iPad charges list price. An empty EffectiveTo is normal (no end date).
+    fix:
+      - "Set EffectiveFrom on the schedule, then on its tiers."
+      - "Refresh the decision tables, regenerate the metadata cache and sync."
+    check:
+      type: soql_count
+      query: "SELECT COUNT() FROM PriceAdjustmentSchedule WHERE IsActive = true AND EffectiveFrom = null"
+      expect: "count == 0"
+    check_scope: "Checks active schedules only, not their tiers."
+  - id: om-header-adjustments-off
+    title: Header Adjustments is off, so the iPad cart has no Order Discount
+    module: order-management
+    symptoms:
+      - "iPad cart footer has no Order Discount (Add)"
+      - "Header-level discount does not apply, no error"
+      - "Header discount not distributed"
+    keywords: [enableRevenueAdjustment, RevenueManagementSettings, header discount, Manage Header Adjustment]
+    cause: |
+      The Order Management Turn On leaves Header Adjustments
+      (RevenueManagementSettings.enableRevenueAdjustment) off.
+    fix:
+      - "Turn on Header Adjustments in Revenue Settings."
+      - "Regenerate the metadata cache and sync."
+    ui_path: "Setup > Revenue Settings"
+
+  - id: om-recipe-mapping-missing
+    title: No pricing recipe mapping for the procedure's lookup table
+    module: order-management
+    symptoms:
+      - "Ensure that the lookup table in the ListPrice step is valid and try again."
+      - "Ensure that the lookup table in the VolumeDiscount step is valid and try again."
+    keywords: [PricingRecipe, PricingRecipeTableMapping, ListPrice, VolumeDiscount, VolumeTierDiscount, LifeSciencesCommercial]
+    cause: |
+      The procedure validator resolves lookup tables through a pricing recipe
+      with the procedure's usage subtype (LifeSciencesCommercial). Without a
+      ListPrice, VolumeDiscount or VolumeTierDiscount mapping, save fails.
+    fix:
+      - "Create the recipe with the ListPrice, VolumeDiscount and VolumeTierDiscount table mappings."
+      - "Save the pricing procedure again."
+    check:
+      type: composite
+      expect: "true"
+      checks:
+        - type: soql_count
+          query: "SELECT COUNT() FROM PricingRecipeTableMapping WHERE PricingRecipe.PricingUsageSubType = 'LifeSciencesCommercial' AND PricingRecipe.IsActive = true AND PricingComponentType = 'ListPrice'"
+          expect: "count > 0"
+        - type: soql_count
+          query: "SELECT COUNT() FROM PricingRecipeTableMapping WHERE PricingRecipe.PricingUsageSubType = 'LifeSciencesCommercial' AND PricingRecipe.IsActive = true AND PricingComponentType = 'VolumeDiscount'"
+          expect: "count > 0"
+        - type: soql_count
+          query: "SELECT COUNT() FROM PricingRecipeTableMapping WHERE PricingRecipe.PricingUsageSubType = 'LifeSciencesCommercial' AND PricingRecipe.IsActive = true AND PricingComponentType = 'VolumeTierDiscount'"
+          expect: "count > 0"
+    check_scope: "Checks that an active Life Sciences Commercial recipe maps each of the three tables. It doesn't check that the mapped tables are the ones the procedure uses."
+
+  - id: om-procedure-version-rank
+    title: Pricing procedure version has no Rank
+    module: order-management
+    symptoms:
+      - "Enter a valid rank to enable"
+    keywords: [ExpressionSetVersion, Rank, activate, pricing procedure]
+    cause: |
+      The pricing procedure editor asks for a Rank before it saves and
+      activates a version, even when it is the only version. Versions activated
+      earlier or another way can still have no Rank.
+    fix:
+      - "Set Rank to 1 on the version, then activate it."
+  - id: om-standard-price-first
+    title: Custom price book entry created before the standard price
+    module: order-management
+    symptoms:
+      - "Before creating this custom price, create a standard price"
+    keywords: [PricebookEntry, Standard Price Book, Pricebook2, ProductSellingModel]
+    cause: |
+      A custom PricebookEntry needs an active Standard entry for the same
+      product, currency and selling model.
+    fix:
+      - "Create and activate Standard price book entries for every product and active currency."
+      - "Then create the custom price book entries."
+
+  - id: om-stage-path-handler-inactive
+    title: StagePathPermissionsHandler is inactive, so Submit doesn't change the quote stage
+    module: order-management
+    symptoms:
+      - "Quote Submit does not change the stage"
+      - "Quote stage transitions are not enforced"
+      - "Quote never locks after Submit, no workflow effect at all"
+    keywords: [StagePathPermissionsHandler, LifeScienceTriggerHandler, Quote stage, trigger handler]
+    cause: |
+      The quote stage path is enforced by StagePathPermissionsHandler, which is
+      inactive by default.
+    fix:
+      - "Activate StagePathPermissionsHandler in Admin Console > Trigger Handlers."
+    ui_path: "Admin Console > Trigger Handlers"
+    check:
+      type: tooling_soql_count
+      query: "SELECT COUNT() FROM LifeScienceTriggerHandler WHERE DeveloperName = 'StagePathPermissionsHandler' AND IsActive = true"
+      expect: "count > 0"
+
+  - id: om-quote-status-values-missing
+    title: Quote.Status value set lacks Submitted and Request for Unlock
+    module: order-management
+    symptoms:
+      - "Quote stage path shows only 2 of 5 stages"
+      - "Request for Unlock buttons are missing on the quote"
+    keywords: [StandardValueSet, QuoteStatus, Submitted, Request for Unlock, In Review]
+    cause: |
+      In a new org the Quote Status standard value set ships without Submitted
+      and Request for Unlock.
+    fix:
+      - "Add Submitted and Request for Unlock to the Quote Status picklist values."
+      - "Order the stages Draft, Submitted, Request for Unlock, In Review, Rejected."
+
+  - id: om-pricebook-layout-assignment
+    title: Rep profile has no Price Book layout assignment
+    module: order-management
+    symptoms:
+      - "Add Products opens with Price Book None and searching the price book lists nothing"
+    keywords: [Pricebook2, layoutAssignments, Price Book Layout, Add Products]
+    cause: |
+      The price book lookup on Add Products needs a Pricebook2 layout assignment
+      on the rep's profile.
+    fix:
+      - "Assign Pricebook2-Price Book Layout to the rep profile."
+      - "Reopen Add Products; the price book is preselected."
+
+  - id: om-quote-pdf-in-progress
+    title: Quote PDF stays In Progress because the rep can't create QuoteDocumentCreationEvent
+    module: order-management
+    symptoms:
+      - "QuoteDocument stuck In Progress"
+      - "EVENT_FLOW_CONSUMPTION_OR_SET_DEFAULTS_COMMIT"
+      - "Quote PDF never completes after Submit Order"
+      - "PDF says In Progress after I submitted"
+      - "PDF still In Progress after I tapped Generate PDF"
+      - "Quote PDF stays In Progress after Generate PDF"
+    keywords: [QuoteDocumentCreationEvent, QuoteDocument, ContentVersionDocumentId, DocumentRecipient, SignatureIdentifier, Generate Quote Flow, Session Security Level, Query Non Vetoed Files]
+    cause: |
+      The iPad Submit publishes QuoteDocumentCreationEvent as the rep. Without
+      Create on that event the publish fails and the document never completes.
+      Other causes of the same symptom: the rep profile's Session Security Level
+      is High Assurance, or Query Non Vetoed Files is enabled for the rep.
+    fix:
+      - "Grant the rep Read and Create on QuoteDocumentCreationEvent."
+      - "Set the rep profile Session Security Level to Standard and turn off Query Non Vetoed Files."
+      - "Test on the next signed Submit. Don't regenerate, re-publish or delete the stuck QuoteDocument without the customer's agreement."
+
+  - id: om-submit-tapped-twice
+    title: Submit was tapped twice; the server accepted the first
+    module: order-management
+    by_design: true
+    symptoms:
+      - "Review submission failed. Please try again."
+      - "You can't update Quote at this stage of the workflow"
+      - "I tapped Submit twice: Review submission failed"
+    keywords: [Submit Order, idempotent, Review, Quote.Status, Submitted]
+    cause: |
+      The iPad Review screen doesn't disable Submit after success. The server
+      allows exactly one Submit, so the second is rejected. Nothing is corrupted.
+    fix:
+      - "Don't tap Submit again. Read Quote.Status; Submitted means it worked."
+
+  - id: om-unlock-no-manager
+    title: Request for Unlock reaches no approver
+    module: order-management
+    symptoms:
+      - "Request for Unlock sets the status but the manager gets no approval request"
+      - "Request for Unlock went nowhere"
+      - "Manager sees the quote but the unlock approval never started"
+    keywords: [ManagerId, approval, Request for Unlock, LSC Quote Lock and Unlock Approval Process]
+    cause: |
+      The approver is the quote owner's manager. With no ManagerId on the rep,
+      or the approval flow inactive, no request is created.
+    fix:
+      - "Set the rep's Manager and activate the lock and unlock approval flow."
+      - "Check Quote.Status before the rep requests unlock again."
+    check:
+      type: soql
+      query: >
+        SELECT Id, Name FROM User
+        WHERE IsActive = true AND ManagerId = null
+        AND Id IN (SELECT OwnerId FROM Quote WHERE CreatedDate = LAST_N_DAYS:365)
+      expect: "records.length == 0"
+    check_scope: "Checks owners of quotes created in the last year. It doesn't check that the approval flow is active."
+
+  - id: om-unlock-approver-no-territory
+    title: Approver has no active territory
+    module: order-management
+    symptoms:
+      - "Request for Unlock REQUIRED_FIELD_MISSING TerritoryId"
+    keywords: [TerritoryId, UserTerritory2Association, approver]
+    cause: The approver user has no active territory assignment.
+    fix:
+      - "Assign the approver to a territory, then request unlock again."
+
+  - id: om-approve-automated-process-user
+    title: Approve fails when notifications run as the Automated Process user
+    module: order-management
+    symptoms:
+      - "Send Approved Notifications UNKNOWN_EXCEPTION, quote stays In Review"
+      - "Lock or unlock notification step fails when it runs as Automated Process User"
+    keywords: [Automated Process, approval notification, In Review, Approve]
+    cause: |
+      The approval notification steps update the quote as the Automated Process
+      user, which fails.
+    fix:
+      - "Set the notification steps of the approval flow to run as a named admin user."
+      - "Don't move a stuck quote back to Draft without the customer's agreement."
+
+  - id: om-last-order-org-permission
+    title: Org lacks the permission for the Last Order product view
+    module: order-management
+    symptoms:
+      - "Product Views has no Last Order option"
+      - "ProductsFromPreviousOrder rejected on deploy"
+      - "Product Views settings won't save or are greyed out"
+    keywords: [LSDraftOrderPilot, LSStoreCheckPilot, ProductsFromPreviousOrder, Last Order, product views]
+    cause: The Last Order view needs an org permission (LSDraftOrderPilot) that Salesforce provisions.
+    fix:
+      - "Ask the Salesforce account team to enable it."
+      - "Meanwhile use the Store Assortment product view."
+
+  - id: om-reprice-context-not-established
+    title: Reprice All fails intermittently with a context error
+    module: order-management
+    by_design: true
+    symptoms:
+      - "You cannot ask for this if the context hasn't been established."
+    keywords: [Reprice All, ComponentContext, context service]
+    cause: An intermittent platform defect in the pricing execution context. Nothing is changed.
+    fix:
+      - "Run Reprice All again once."
+
+  - id: om-admin-console-category-missing
+    title: Admin Console setting category doesn't exist until saved once in the UI
+    module: order-management
+    symptoms:
+      - "'QuoteDocumentSettings' is not a valid value for the enum 'LifeSciConfigCategoryType'"
+      - "no LifeSciConfigCategory named"
+    keywords: [LifeSciConfigCategory, LifeSciConfigRecord, QuoteDocumentSettings, OrderProductViewsSettings, QuoteSettings]
+    cause: |
+      Seen when setup is scripted through the API or CLI.
+      A LifeSciConfigRecord deploy fails until its category exists.
+      QuoteDocumentSettings can only be configured in the Admin Console.
+    fix:
+      - "Save the setting once in the Admin Console, or deploy the category with the record."
+    ui_path: "Admin Console > Orders and Pricing Settings"
+
+  - id: om-admin-no-document-builder
+    title: Deploying admin has no Document Builder access
+    module: order-management
+    symptoms:
+      - "Unsupported action type: CREATE_SERVICE_DOCUMENT"
+      - "Nobody can build or change the quote PDF template"
+      - "Quote Document Settings save says I can't create LifeSciMetadataCategory"
+    keywords: [DocumentBuilderUserPsl, DocumentBuilderUser, Generate Quote Flow, deploy]
+    cause: Seen when setup is scripted through the API or CLI. The admin deploying the quote document flow needs Document Builder too.
+    fix:
+      - "Assign the Document Builder User licence and permission set to the admin, then redeploy."
+
+  - id: om-cache-parent-not-validation-completed
+    title: Metadata cache regenerate run against a parent that is already Active
+    module: order-management
+    symptoms:
+      - "isn't ValidationCompleted"
+    keywords: [metadata cache, generate, parent record, Active]
+    cause: Seen when setup is scripted through the API or CLI. Generate needs a parent record in ValidationCompleted; an Active parent can't be regenerated.
+    fix:
+      - "Create a new parent record and generate from it."
+
+  - id: om-install-missing-org-preferences
+    title: lsc4ce install fails because a prerequisite org preference is off
+    module: order-management
+    symptoms:
+      - "no CustomObject named InventoryCountAssessment found"
+      - "no CustomObject named InventoryOperation found"
+      - "Class lsc4ce.TestUtils : Variable does not exist: Survey"
+      - "QuickAction(AccountPlan.ImportStakeholder)"
+      - "Install fails on AccountPlan layout or Import Stakeholder action"
+    keywords: [InventoryCountEnabled, PrdInventoryOperationsPref, InventoryBatchManagement, CarePlansPreference, enableSurvey, enableAccountPlan, package install]
+    cause: |
+      The package deploys components for objects that only exist when their
+      org preference is on: inventory count, inventory operations, batch
+      management, care plans, surveys, account plans.
+    fix:
+      - "Turn on the preference for the object named in the error."
+      - "Confirm the object describes, then retry the install once."
+
+  - id: sc-action-plan-template-multiple-versions
+    title: An action plan template the rep can read has more than one version, so Begin Store Check or the first sync fails
+    module: order-management
+    symptoms:
+      - "Begin Store Check fails: more than one row returned by a subquery"
+      - "Rep's first iPad sync fails with UNKNOWN_EXCEPTION"
+      - "Error while trying to access Salesforce"
+      - "Edited a published action plan template and Begin Store Check or first sync fails"
+    keywords: [ActionPlanTemplate, ActionPlanTemplateVersion, Begin Store Check, Store Check, first sync, sharing rule, UserRecordAccess]
+    cause: |
+      In setup runs, a template the rep can read with more than one
+      ActionPlanTemplateVersion (including soft-deleted ones, or one that came
+      with the org and is shared to all internal users) broke the template
+      query, at Begin Store Check or at the rep's first sync. Deleting or
+      purging the extra version didn't help. A second version is the normal way
+      to change a published template, so this may apply only to some versions
+      or statuses.
+    fix:
+      - "Before the rep's first login, check which templates the rep can read have more than one version."
+      - "For the Store Check template: remove its assignment, create a new template with a new unique name, publish, assign and share it."
+      - "For other templates: ask before changing sharing, then hide the template from the rep (move it to an owner outside the shared-from group, or narrow the sharing rule)."
+  - id: sc-indicator-datatype-create-only
+    title: Assessment indicator data type can't be changed
+    module: order-management
+    symptoms:
+      - "Store Check indicator shows the wrong control type"
+      - "AssessmentIndicatorDefinition DataType not updateable"
+      - "I can't change an indicator from Number to Picklist"
+    keywords: [AssessmentIndicatorDefinition, DataType, AssessmentTaskIndDefinition, AssessmentIndDefinedValue, RetailStoreKpi]
+    cause: AssessmentIndicatorDefinition.DataType is set at creation and can't be edited.
+    fix:
+      - "Delete the indicator's AssessmentTaskIndDefinition, AssessmentIndDefinedValue and RetailStoreKpi children, then the indicator."
+      - "Recreate it with the right DataType. Don't do this once Store Check data exists for it."
+
+  - id: sc-visit-routing-standard-form
+    title: Visit New or Edit opens the standard form instead of Store Check
+    module: order-management
+    symptoms:
+      - "New Store Check visit opens the standard Salesforce form"
+      - "Visit routing ignores my record type"
+    keywords: [Visit, actionOverrides, record type routing, LogAVisit, Store_Check, enableLifeSciRecTypeRoutgPref]
+    cause: |
+      A legacy override on Visit New/Edit bypasses record type routing, or the
+      Store Check record type has no New or Edit routing record.
+    fix:
+      - "Remove the Visit New/Edit override."
+      - "Add the missing routing records for the record type."
+    check:
+      type: tooling_soql_count
+      query: >
+        SELECT COUNT() FROM LifeSciConfigRecord
+        WHERE IsActive = true AND LifeSciConfigCategory.DeveloperName = 'ObjectRecordTypeRoutingConfiguration'
+        AND Id IN (SELECT LifeSciConfigRecordId FROM LifeSciConfigFieldValue WHERE FieldName = 'RecordType' AND PicklistValue = 'StoreCheck')
+      expect: "count > 0"
+    applies_if:
+      type: soql_count
+      query: "SELECT COUNT() FROM RecordType WHERE SobjectType = 'Visit' AND DeveloperName = 'StoreCheck' AND IsActive = true"
+      expect: "count > 0"
+    check_scope: "Looks for an active routing record for the StoreCheck record type. It doesn't check New and Edit separately, or a Visit New/Edit override."
+
+  - id: sc-quoted-order-tab-missing
+    title: Quoted Order tab on the Store Check visit is missing or empty
+    module: order-management
+    symptoms:
+      - "Quoted Order tab missing on the Store Check visit"
+      - "Quoted Order tab has no New button on the iPad"
+      - "Quotes and Orders lists are empty on the iPad"
+    keywords: [Quotes related list, Quote.VisitId, Visit layout, Store Check Visit Record Page]
+    cause: |
+      The iPad builds visit related lists from the layout. Without the Quotes
+      related list, a current cache, the Visit relationship on the page and
+      VisitId FLS, the tab is empty.
+    fix:
+      - "Add the Quotes related list to the Store Check visit layout."
+      - "Give the rep Edit on Quote.VisitId and put VisitId (Edit) on the Quote layout."
+      - "Regenerate the cache, sync and relaunch."
+
+  - id: sc-begin-visit-web
+    title: Begin Visit doesn't work on web for Store Check visits
+    module: order-management
+    by_design: true
+    symptoms:
+      - "Begin Visit spinner never finishes on web"
+    keywords: [ls_storecheck, visitWorkflowAction, Begin Visit, desktop]
+    cause: The Store Check Begin Visit component works on the iPad only.
+    fix:
+      - "Begin the visit on the iPad."
+
+  - id: sc-photo-dbschemas-missing
+    title: Store Check photo save fails on the iPad
+    module: order-management
+    symptoms:
+      - "table Image has no column named offlinelastmodifieddate"
+    keywords: [Image, ContentDocumentLink, photo, DbSchema, Store Check photo]
+    cause: |
+      Photos need rep access to Image and the photo DB Schema records with
+      filters. A plain ContentDocumentLink schema breaks sync with MALFORMED_QUERY.
+    fix:
+      - "Give the rep access to Image and add the photo DB Schema records with their filters."
+      - "Regenerate the cache and sync."
+
+  - id: sc-store-check-turn-on-modal
+    title: Store Check Turn On didn't save
+    module: order-management
+    symptoms:
+      - "Store Check Turn On clicked but enableStoreCheck still false"
+    keywords: [enableStoreCheck, Industries settings, Turn On]
+    cause: The first Turn On only opens a confirmation dialog.
+    fix:
+      - "Click Turn On in the dialog, then check enableStoreCheck in Industries settings."
+
+  - id: om-browse-catalog-save-as-apexclass-invalid
+    title: Browse Catalog flow Save As fails because Product Configurator is off
+    module: order-management
+    symptoms:
+      - "discoverProductsContext (Variable) - \"apexClass\" is invalid"
+      - "Provide the API name of an Apex class that includes an Apex data type supported in flows"
+      - "discoverProductsContext.groupId does not exist"
+      - "Browse Catalog flow copy won't save: apexClass is invalid"
+    keywords: [BrowseCatalog, Save As New Flow, ProductConfig, DiscoverProductsContext, enableProductConfigurator, ProductConfigurator settings, Flow Builder]
+    cause: |
+      The packaged Browse Catalog template uses ProductConfig Apex types. On
+      some orgs Flow Builder offers those types only when Product Configurator
+      is on. Product Discovery being on does not help.
+    fix:
+      - "Close Flow Builder without saving."
+      - "Retrieve the ProductConfigurator settings, deploy enableProductConfigurator = true, reload Flow Builder and redo the Save As."
+      - "Never delete or retype the variable to force the save. If the deploy is rejected, raise a provisioning request."
+
+  - id: om-feature-card-purchase-required
+    title: Order Management feature card is locked ("Purchase required")
+    module: order-management
+    symptoms:
+      - "Order Management card shows Purchase required"
+      - "Order Management card shows Contact Sales instead of Set Up"
+      - "Setup stops: \"Order Management License Not Provisioned\" (and asks whether CPQ is needed)"
+    keywords: [Order Management, feature card, Purchase required, Contact Sales, permission set licence, PSL, provisioning]
+    cause: |
+      The Order Management permission set licences are not provisioned on the
+      org. They come from the Salesforce account team, not a Setup toggle.
+    fix:
+      - "Don't retry the click or look for another way in."
+      - "Query PermissionSetLicense for the required licences, list the missing ones and ask the account team to provision them."
+
+  - id: om-workflow-path-editor-wrong-stages
+    title: Admin Console Workflow Paths opens a path with another path's stages
+    module: order-management
+    symptoms:
+      - "Workflow Paths opens the wrong stages"
+      - "editing a stage, operation or action in Workflow Paths fails"
+    keywords: [Workflow Paths, Admin Console, LifeSciStageObject, LifeSciStagePath, LifeSciStageValue, LifeSciStageOperation, LifeSciStageAction, SourceSystemIdentifier]
+    cause: |
+      Seen when setup is scripted through the API or CLI.
+      The editor loads a path and links its records by SourceSystemIdentifier.
+      Stage rows created through the API without that key can't be found or
+      matched, so the editor falls back to another path's rows.
+    fix:
+      - "Don't save in the editor until fixed."
+      - "Set a unique SourceSystemIdentifier on every stage row of the path, read the keys back, then reopen the path from the list."
+
+  - id: om-locked-quote-no-view-line-items
+    title: Request for Unlock or Rejected quote has no View Line Items action
+    module: order-management
+    symptoms:
+      - "Request for Unlock quote shows no View Line Items"
+      - "Rejected quote shows no View Line Items"
+      - "rep can't open the line items of a locked quote"
+    keywords: [LifeSciStageOperationAction, View Line Items, Request for Unlock, Rejected, Quote workflow path, ContextAction_Quote_RequestForUnlock_ViewLineItems, ContextAction_Quote_Rejected_ViewLineItems]
+    cause: |
+      The links from the Request for Unlock and Rejected stage operations to the
+      View Line Items action are missing. The rest of the Quote stage graph can
+      exist without them, so a check that only finds the stages misses this.
+    fix:
+      - "Look up each Quote link key on its own and create only the missing links (DisplayOrder 1, to the existing View Line Items action)."
+      - "Generate a new metadata cache and sync."
+    check:
+      type: soql
+      query: >
+        SELECT Id, Name FROM LifeSciStageOperation
+        WHERE LifeSciStageValue.Name IN ('Request for Unlock', 'Rejected')
+        AND LifeSciStageValue.LifeSciStagePath.LifeSciStageObject.Name = 'Quote'
+        AND Id NOT IN (SELECT LifeSciStageOperationId FROM LifeSciStageOperationAction)
+      expect: "records.length == 0"
+    check_scope: "Finds Request for Unlock and Rejected operations with no action at all. An operation linked to another action but not View Line Items passes."
+
+  - id: om-log-a-visit-no-translation-language
+    title: Web Log a Visit says translation settings are missing after the cache is built
+    module: order-management
+    symptoms:
+      - "Translation Language Settings for the required languages or the initial metadata cache are missing"
+      - "no StoreCheckFeature developer names found"
+    keywords: [Log a Visit, ProviderVisit, Translation Workbench, translation language, enableTranslationWorkbench, metadata cache]
+    cause: |
+      Web Log a Visit reads a translation file from the rep's metadata cache.
+      When Translation Workbench is off or no translation language is active
+      (common on fresh orgs), the cache has no translation file. Before the
+      rep has any cache, the same message means the cache is missing.
+    fix:
+      - "Confirm the rep has a cache that includes ProviderVisit."
+      - "Turn on Translation Workbench and add an active language, then generate a new cache and sync."
+
+  - id: om-manual-share-trivial-level
+    title: Manual Read share on catalog or territory availability is rejected
+    module: order-management
+    symptoms:
+      - "FIELD_INTEGRITY_EXCEPTION trivial share level Read, for organization with default level Read"
+    keywords: [ProductCatalogShare, ProductTerritoryAvailabilityShare, ProductTerrDtlAvailabilityShare, InternalSharingModel, org-wide default, Manual share]
+    cause: |
+      Seen when setup is scripted through the API or CLI.
+      The object's org-wide default is already Read or higher, so a Manual Read
+      share can't exist and isn't needed.
+    fix:
+      - "Read InternalSharingModel from EntityDefinition first; share only the objects that are Private."
