@@ -21,7 +21,7 @@ const heldout: { cases: { says: string; expect: string[] }[] } = fixture(
 );
 
 // Floors, not targets: raise them when a change does better, never lower them to pass.
-const HELDOUT_MIN_RIGHT = 76;
+const HELDOUT_MIN_RIGHT = 78;
 const HELDOUT_MAX_FALSE = 19;
 
 describe("troubleshooting scenarios", () => {

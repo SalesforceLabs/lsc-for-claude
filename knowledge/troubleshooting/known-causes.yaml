@@ -265,7 +265,7 @@ causes:
       inactive ones stay in Checking.
     fix:
       - "Run Studio's Object sync page with Problems only, or list_db_schema, to find records whose object is missing or unreadable."
-      - "Deactivate or delete them, or give the profile read access again."
+      - "Deactivate the records for objects the org doesn't have (or delete them if they will never be used), or give the profile read access again."
       - "Regenerate the metadata cache."
 
   - id: dbschema-unbounded-volume
@@ -304,7 +304,7 @@ causes:
       cache. With no ProviderVisit DB Schema record that file is empty and
       the create fails.
     fix:
-      - "Create a ProviderVisit DB Schema record (Type DATA) and assign it to the rep profiles."
+      - "Create a ProviderVisit DB Schema record (Type DATA) and assign it to the rep profiles. An admin logging visits on web needs it assigned to their own profile too."
       - "Regenerate the metadata cache and have the reps log out and in."
     check:
       type: tooling_soql_count
@@ -324,7 +324,6 @@ causes:
       - "DB Error: 1 no such table: recordtype"
       - "no such table: healthcareproviderspecialty"
       - "no such table"
-      - "Sort shows 'No records to display'"
     keywords: [RecordType, HealthcareProviderSpecialty, SQLite, table]
     cause: |
       The iPad reads a table it never downloaded. RecordType is always
@@ -349,7 +348,6 @@ causes:
     symptoms:
       - "There are no limitations for this product"
       - "Sample limits not enforced on the iPad"
-      - "Wrong sample limit shown in popover"
     keywords: [ProviderSampleLimit, ProviderSampleLimitTemplate, ProviderSmplLmtTmplAssignment]
     cause: |
       The sample limit popover reads ProviderSampleLimit,
@@ -405,8 +403,6 @@ causes:
       - "Visit Address column missing"
       - "Subject Assignment picker empty"
       - "Calendar events missing on the iPad"
-      - "Custom script never loads on the iPad"
-      - "We couldn't perform this action because the metadata is out of date"
     keywords: [ContactPointConsent, Address, AccountPlan, UserAdditionalInfo, ProductBatchItem, CurrencyType, Event, ProviderVisitMarketingItem, LifeScienceCustomScript, User, ContentDocument, related list]
     cause: |
       Anything shown on the iPad needs an active DB Schema record assigned
@@ -511,15 +507,17 @@ causes:
       query.
     fix:
       - "Remove Query Non Vetoed Files from the rep's permission sets."
+      - "Leave it on the Data Cloud Salesforce Connector permission set, which needs it for file ingestion."
     check:
       type: soql_count
       query: >
         SELECT COUNT() FROM PermissionSetAssignment
         WHERE PermissionSet.PermissionsQueryNonVetoedFiles = true AND Assignee.IsActive = true
       expect: "count == 0"
+    check_scope: "Counts every active user holding the permission, including the Data Cloud connector user, who needs it. Look at who holds it before removing anything."
 
   - id: perm-lock-session-ip
-    title: Sessions locked to IP break Agentforce on the iPad
+    title: Sessions locked to IP break iPad calls (Agentforce, quote PDF download)
     module: agentforce
     symptoms:
       - "Agentforce 'Something went wrong' on iPad"
@@ -527,8 +525,10 @@ causes:
     keywords: [Lock sessions to the IP address, session settings, Agentforce]
     cause: |
       "Lock sessions to the IP address from which they originated" rejects
-      the iPad's calls once the device's address changes.
+      the iPad's calls once the device's address changes, which breaks
+      Agentforce and quote PDF downloads among others.
     fix:
+      - "Agree the change with the customer's security team first: the setting is a security control."
       - "Turn the setting off in Session Settings, or exempt the mobile users."
     ui_path: "Setup > Session Settings"
 
@@ -565,7 +565,6 @@ causes:
       - "Sample Inventory Validation Mode set to Warning still blocks submit"
       - "Visit Conflict Validation shows a blocking error"
       - "Works for one user but not another"
-      - "Cannot leave samples for HCO accounts"
     keywords: [precedence, profile level, user level, org level, override]
     cause: |
       Admin Console settings resolve user, then profile, then org. A profile
@@ -776,7 +775,7 @@ causes:
       - "Align Zip Code to Territory finishes with 0 accounts"
       - "Zip-to-Territory creates no PATI"
       - "Geo Group job updates few accounts"
-    keywords: [TerritoryGeoAssignmentRule, GeoCode, PostalCode, GeoGroup1Code, ZipToTerritory]
+    keywords: [TerrGeoAssignmentRule, GeoCode, PostalCode, GeoGroup1Code, ZipToTerritory]
     cause: |
       ContactPointAddress.PostalCode (or GeoGroup1Code) must equal the rule's
       GeoCode exactly, case and spacing included, with GeoCodeType
@@ -787,12 +786,12 @@ causes:
     rules: [territory-004]
 
   - id: user-no-territory
-    title: Rep has no territory in the active model
+    title: Rep isn't assigned to a territory
     module: territory
     symptoms:
       - "REQUIRED_FIELD_MISSING: [User/Group]"
       - "Search Before Create fails"
-    keywords: [UserTerritory2Association, territory, active model]
+    keywords: [UserTerritory2Association, territory]
     cause: "The rep has no UserTerritory2Association in the active Territory2Model."
     fix:
       - "Assign the rep to a territory in the active model (list_users with users without territories)."
@@ -805,7 +804,7 @@ causes:
     symptoms:
       - "Affiliated HCPs not aligned"
       - "Affiliation rule does nothing"
-    keywords: [TerritoryProviderAffiliationAlignmentRule, HCO to HCP, record type]
+    keywords: [TerrProvAffilAssignRule, HCO to HCP, record type]
     cause: |
       Affiliation alignment rules are record-type specific. A rule written
       for person accounts doesn't fire from HCO to HCP.
@@ -1043,7 +1042,7 @@ causes:
     keywords: [Visit__c, custom child object, lookup, visit sidebar]
     cause: |
       The visit save only processes custom child records whose lookup to
-      Visit has an API name containing Visit__c. Names like Visit_ID__c
+      Visit has an API name ending in Visit__c. Names like Visit_ID__c
       are skipped without an error.
     fix:
       - "Add or rename the lookup so its API name ends with Visit__c."
@@ -1114,23 +1113,22 @@ causes:
     symptoms:
       - "Field present on web but missing on iPad"
       - "iPad doesn't show recent changes"
-      - "Translations not on the iPad"
       - "New tab doesn't show on the iPad"
       - "I changed the price; reps still see the old price on the iPad"
       - "Old tier shown after the admin edited tiers"
       - "iPad prices differ from the web after I edited a price book, procedure or decision table"
       - "I changed the layout but the iPad still shows the old one"
       - "Any layout, page, field security, pricing or Admin Console change doesn't show on the iPad"
-      - "Changed a discount tier, price book entry or decision table; iPad still shows the old price"
       - "Rep synced but still sees the old price or layout"
     keywords: [regenerate, publish, stale, translation, log out]
     cause: |
       Layouts, pages, record types, field access and Admin Console mobile
       settings reach the iPad only through a new metadata cache, and reps
-      pick it up when they log in again.
+      pick it up when they log in again. Pricing (decision tables, procedures)
+      is in the cache too, so a rep sync alone doesn't bring a price change.
     fix:
-      - "Publish to iPad (Studio) or regenerate the cache for the profile."
-      - "For translations, regenerate the Standard Label Translations document too."
+      - "Publish to iPad (Studio) or generate a new cache parent record for the profile."
+      - "For a pricing change, refresh the decision table first, then generate the new cache, then sync. Pricing records themselves refresh on the device about every 4 hours."
       - "Have reps log out and in."
     rules: [mobile-001, cache-002, cache-003]
 
@@ -1220,7 +1218,7 @@ causes:
     cause: "A failed calculation leaves the job's status at In Progress, so no new run can start."
     fix:
       - "Fix the configuration that made it fail (often the measure type, see below)."
-      - "Set the job's status back to Completed and run it again."
+      - "Confirm in Apex Jobs that no calculation is still running, then set the job's status back to Completed and run it again."
 
   - id: activity-plan-measure-type
     title: Provider Activity Measure Type doesn't fit the goal
@@ -1297,11 +1295,12 @@ causes:
     keywords: [ProductItem, SerialNumber, transfer, inventory]
     cause: "Sample transfers assume non-serialized ProductItems. Any with a SerialNumber break the logic."
     fix:
-      - "Remove the serial numbers or the serialized ProductItems used for samples."
+      - "Remove the serial numbers or the serialized ProductItems at sample inventory locations only; serialized items elsewhere may be intended."
     check:
       type: soql_count
       query: "SELECT COUNT() FROM ProductItem WHERE SerialNumber != null"
       expect: "count == 0"
+    check_scope: "Counts serialized ProductItems at every location, not only sample locations."
 
   - id: samples-sharing
     title: Sample inventory records shared too widely or not to the rep
@@ -1342,7 +1341,6 @@ causes:
     symptoms:
       - "We couldn't load the workflow path for this record"
       - "You don't have permission to create X records at this stage of the workflow"
-      - "Inquiry is locked and cannot be created"
       - "sObject type 'LifeSciStageObject' is not supported"
     keywords: [LifeSciStageObject, LifeSciStageAction, LifeScienceCustomScript, OWD, sharing, stage path, StagePathPermissionsHandler]
     cause: |
@@ -1372,14 +1370,13 @@ causes:
     symptoms:
       - "You cannot create this account record type here. Navigate to the custom accounts page"
       - "FIELD_CUSTOM_VALIDATION_EXCEPTION"
-      - "DCR not created"
     keywords: [Data Change Request, DCR, Requires Approval for Creation, validation type]
     cause: |
       With Requires Approval for Creation on for a record type, accounts of
       that type can only be created through the DCR flow, which blocks
       integration loads.
     fix:
-      - "Turn it off for record types you load, or load with the DCR handler off."
+      - "Turn it off for record types you load, or turn the DCR handler off only for a test or migration load and back on after."
       - "Check validation types (Internal or External) match between record type and managed field config."
 
   - id: available-countries-format
@@ -1422,7 +1419,6 @@ causes:
       ports gives the same symptom.
     fix:
       - "Set each Twilio trusted URL's context to All."
-      - "Check enableremotevisitsignature in video call settings if signatures are missing."
     ui_path: "Setup > Trusted URLs"
     check:
       type: tooling_soql
@@ -1478,7 +1474,9 @@ causes:
       shows one status for all of them.
     fix:
       - "Create the survey as Offline Mobile and add questions."
-      - "Create an invitation and subject per account or territory."
+      - "Create an invitation and subject per account or territory, with the Visit engagement context."
+      - "For the Visit or Store Check: add a Surveys tab to the Visit page, and an In-Store Survey assessment task definition to the action plan template (one per template)."
+      - "Generate a new metadata cache and sync."
     rules: [survey-001, survey-003]
 
   - id: customer-automation
@@ -1514,6 +1512,7 @@ causes:
       - "Script works on web but not iPad"
       - "Validation silently passes on the iPad"
       - "Validations not firing"
+      - "Custom script never loads on the iPad"
     keywords: [Promise.all, lower-case field names, uid, db query, LifeScienceCustomScript, CodeText]
     cause: |
       On the iPad field names arrive lower case (contextData.visit,
@@ -1617,7 +1616,7 @@ causes:
     by_design: true
 
   - id: eppv-unknown-account-ipad
-    title: Account Compliance shows "Unknown Account", or visit save says "Account and Place cannot be empty"
+    title: Account Compliance shows "Unknown Account" or duplicate hospitals, or visit save says "Account and Place cannot be empty"
     module: provider-engagement-compliance
     symptoms:
       - "Unknown Account on Account Compliance"
@@ -1880,7 +1879,6 @@ causes:
       - "New quote saves with a blank Status on the iPad"
       - "Quote has no Submit button and new quotes save with no Status"
       - "There's no Submit on the quote"
-      - "New quote saved with no Status"
     keywords: [Quote.Status, FLS, Submit, RecordUpdate, field-level security]
     cause: |
       Submit runs a RecordUpdate on Quote.Status. In setup runs, the action was
@@ -1922,6 +1920,7 @@ causes:
       - "expressionSet.json is empty in the metadata cache"
       - "contextDefinition.json decisionTable.json empty {} after generation"
       - "iPad shows no prices on quote lines"
+      - "Warning: no expression set found for pricing procedure, skipping pricing metadata"
     keywords: [SalesTransactionType, QocalPricingProcedure, OrderProductViewsSettings, OrderProductViewsSettings_OrgLevel, QuoteSettings_OrgLevel, lsc4ce_pricing_mobile_tpt, pricing procedure]
     cause: |
       The procedure a quote uses comes from its Sales Transaction Type when that
@@ -1981,8 +1980,6 @@ causes:
     symptoms:
       - "iPad charges list price at tier quantities"
       - "Tier discount works in web simulation but not on the iPad"
-      - "Price Adjustment Matrix discounts do not apply when the iPad is offline (work on web)"
-      - "Price Adjustment Matrix discounts not applied offline when rows have Effective From or To dates"
     keywords: [PriceAdjustmentSchedule, PriceAdjustmentTier, EffectiveFrom, EffectiveTo, volume discount]
     cause: |
       The iPad engine skips price adjustment schedules and tiers with no
@@ -2070,7 +2067,7 @@ causes:
       - "Then create the custom price book entries."
 
   - id: om-stage-path-handler-inactive
-    title: StagePathPermissionsHandler is inactive, so Submit doesn't change the quote stage
+    title: The quote stage path isn't enforced (StagePathPermissionsHandler inactive)
     module: order-management
     symptoms:
       - "Quote Submit does not change the stage"
@@ -2082,6 +2079,7 @@ causes:
       inactive by default.
     fix:
       - "Activate StagePathPermissionsHandler in Admin Console > Trigger Handlers."
+      - "Check the quote's workflow path is saved and active."
     ui_path: "Admin Console > Trigger Handlers"
     check:
       type: tooling_soql_count
@@ -2189,19 +2187,19 @@ causes:
     symptoms:
       - "QuoteDocument stuck In Progress"
       - "EVENT_FLOW_CONSUMPTION_OR_SET_DEFAULTS_COMMIT"
-      - "Quote PDF never completes after Submit Order"
-      - "PDF says In Progress after I submitted"
       - "PDF still In Progress after I tapped Generate PDF"
       - "Quote PDF stays In Progress after Generate PDF"
+      - "Quote PDF generation never completes"
     keywords: [QuoteDocumentCreationEvent, QuoteDocument, ContentVersionDocumentId, DocumentRecipient, SignatureIdentifier, Generate Quote Flow, Session Security Level, Query Non Vetoed Files]
     cause: |
-      The iPad Submit publishes QuoteDocumentCreationEvent as the rep. Without
-      Create on that event the publish fails and the document never completes.
-      Other causes of the same symptom: the rep profile's Session Security Level
-      is High Assurance, or Query Non Vetoed Files is enabled for the rep.
+      Tapping Generate PDF on the iPad publishes QuoteDocumentCreationEvent as
+      the rep. Without Create on that event the publish fails and the document
+      never completes. Other causes of the same symptom: the rep profile's
+      Session Security Level is High Assurance, Query Non Vetoed Files is
+      enabled for the rep, or sessions are locked to the IP address.
     fix:
       - "Grant the rep Read and Create on QuoteDocumentCreationEvent."
-      - "Set the rep profile Session Security Level to Standard and turn off Query Non Vetoed Files."
+      - "Agree with the customer's security team before setting the rep profile Session Security Level to Standard, turning off Query Non Vetoed Files or unlocking sessions from the IP address."
       - "Test on the next signed Submit. Don't regenerate, re-publish or delete the stuck QuoteDocument without the customer's agreement."
 
   - id: om-submit-tapped-twice
@@ -2218,6 +2216,7 @@ causes:
       allows exactly one Submit, so the second is rejected. Nothing is corrupted.
     fix:
       - "Don't tap Submit again. Read Quote.Status; Submitted means it worked."
+      - "If Status isn't Submitted, nothing was saved: the submit rolled back. Check the required setup for the quote and submit once more."
 
   - id: om-unlock-no-manager
     title: Request for Unlock reaches no approver
@@ -2225,7 +2224,6 @@ causes:
     symptoms:
       - "Request for Unlock sets the status but the manager gets no approval request"
       - "Request for Unlock went nowhere"
-      - "Manager sees the quote but the unlock approval never started"
     keywords: [ManagerId, approval, Request for Unlock, LSC Quote Lock and Unlock Approval Process]
     cause: |
       The approver is the quote owner's manager. With no ManagerId on the rep,
@@ -2257,13 +2255,12 @@ causes:
     module: order-management
     symptoms:
       - "Send Approved Notifications UNKNOWN_EXCEPTION, quote stays In Review"
-      - "Lock or unlock notification step fails when it runs as Automated Process User"
     keywords: [Automated Process, approval notification, In Review, Approve]
     cause: |
-      The approval notification steps update the quote as the Automated Process
-      user, which fails.
+      The approval-decision steps update the quote as the Automated Process
+      user, which can't update it, so the step fails.
     fix:
-      - "Set the notification steps of the approval flow to run as a named admin user."
+      - "Set the approval-decision steps that update the quote to run as a named admin user with full quote access. A step that only sends the lock notification can stay on the Automated Process user."
       - "Don't move a stuck quote back to Draft without the customer's agreement."
 
   - id: om-last-order-org-permission
@@ -2288,7 +2285,7 @@ causes:
     keywords: [Reprice All, ComponentContext, context service]
     cause: An intermittent platform defect in the pricing execution context. Nothing is changed.
     fix:
-      - "Run Reprice All again once."
+      - "Run Reprice All again once. If it fails again, stop and report it to Salesforce Support with the quote Id and time."
 
   - id: om-admin-console-category-missing
     title: Admin Console setting category doesn't exist until saved once in the UI
@@ -2315,7 +2312,9 @@ causes:
     keywords: [DocumentBuilderUserPsl, DocumentBuilderUser, Generate Quote Flow, deploy]
     cause: Seen when setup is scripted through the API or CLI. The admin deploying the quote document flow needs Document Builder too.
     fix:
+      - "Turn on Document Builder in Revenue Settings first."
       - "Assign the Document Builder User licence and permission set to the admin, then redeploy."
+      - "For the Quote Document Settings save error, give the admin Create on LifeSciMetadataCategory."
 
   - id: om-cache-parent-not-validation-completed
     title: Metadata cache regenerate run against a parent that is already Active
@@ -2376,8 +2375,8 @@ causes:
     keywords: [AssessmentIndicatorDefinition, DataType, AssessmentTaskIndDefinition, AssessmentIndDefinedValue, RetailStoreKpi]
     cause: AssessmentIndicatorDefinition.DataType is set at creation and can't be edited.
     fix:
-      - "Delete the indicator's AssessmentTaskIndDefinition, AssessmentIndDefinedValue and RetailStoreKpi children, then the indicator."
-      - "Recreate it with the right DataType. Don't do this once Store Check data exists for it."
+      - "Safer: create a new indicator with the right DataType, add it to the task definitions and retire the old one from the templates."
+      - "Only if no Store Check data exists for it: delete its AssessmentTaskIndDefinition, AssessmentIndDefinedValue and RetailStoreKpi children, then the indicator, and recreate it."
 
   - id: sc-visit-routing-standard-form
     title: Visit New or Edit opens the standard form instead of Store Check
@@ -2391,7 +2390,7 @@ causes:
       Store Check record type has no New or Edit routing record.
     fix:
       - "Remove the Visit New/Edit override."
-      - "Add the missing routing records for the record type."
+      - "Turn on Record Type-Based Routing in Admin Console, then add the missing New and Edit routing records for the record type."
     check:
       type: tooling_soql_count
       query: >
@@ -2434,16 +2433,21 @@ causes:
       - "Begin the visit on the iPad."
 
   - id: sc-photo-dbschemas-missing
-    title: Store Check photo save fails on the iPad
+    title: Store Check photos fail to save or don't show on the iPad
     module: order-management
     symptoms:
       - "table Image has no column named offlinelastmodifieddate"
+      - "Store Check photo synced but the photo area says no photo available"
     keywords: [Image, ContentDocumentLink, photo, DbSchema, Store Check photo]
     cause: |
       Photos need rep access to Image and the photo DB Schema records with
       filters. A plain ContentDocumentLink schema breaks sync with MALFORMED_QUERY.
+      A photo that saved and synced but doesn't show needs the Image record's
+      attachment download method set to Background. A photo replaced by a link
+      also shows the no-photo message.
     fix:
       - "Give the rep access to Image and add the photo DB Schema records with their filters."
+      - "Set the Image DB Schema record's attachment download method to Background."
       - "Regenerate the cache and sync."
 
   - id: sc-store-check-turn-on-modal
@@ -2531,7 +2535,7 @@ causes:
     check_scope: "Finds Request for Unlock and Rejected operations with no action at all. An operation linked to another action but not View Line Items passes."
 
   - id: om-log-a-visit-no-translation-language
-    title: Web Log a Visit says translation settings are missing after the cache is built
+    title: Web Log a Visit says translation settings or the metadata cache are missing
     module: order-management
     symptoms:
       - "Translation Language Settings for the required languages or the initial metadata cache are missing"
@@ -2558,3 +2562,106 @@ causes:
       share can't exist and isn't needed.
     fix:
       - "Read InternalSharingModel from EntityDefinition first; share only the objects that are Private."
+
+  # ===========================================================================
+  # Order Management: offline pricing, PDF, Last Order, Store Check
+  # ===========================================================================
+
+  - id: om-pam-effective-dates-offline
+    title: Price Adjustment Matrix rows with Effective From or To dates don't apply offline
+    module: order-management
+    symptoms:
+      - "Price Adjustment Matrix discounts do not apply when the iPad is offline (work on web)"
+      - "Price Adjustment Matrix discounts not applied offline when rows have Effective From or To dates"
+      - "Is Price Adjustment Matrix supported offline?"
+    keywords: [Price Adjustment Matrix, decision table, Effective From, Effective To, effectivefrom, offline pricing]
+    cause: |
+      The matrix is supported offline, but the server pricing engine falls back
+      on its own effective date for rows with Effective From or Effective To,
+      and the iPad has none, so those rows never match offline. The Procedure
+      Output Resolution component isn't supported offline either.
+    fix:
+      - "Remove Effective From and Effective To from the matrix's decision table, or name the date field effectivefrom."
+      - "Refresh the decision table, generate a new metadata cache and sync."
+
+  - id: om-quote-pdf-before-generate
+    title: A submitted quote's PDF stays In Progress until the rep generates it
+    module: order-management
+    by_design: true
+    symptoms:
+      - "PDF says In Progress after I submitted"
+      - "PDF made on the iPad doesn't appear on web"
+    keywords: [Generate PDF, QuoteDocument, In Progress, Submit]
+    cause: |
+      Submit doesn't create the PDF. The document stays In Progress until the
+      rep taps Generate PDF, which publishes the event that builds it. A PDF
+      made on the iPad shows on web only after the next sync.
+    fix:
+      - "Tap Generate PDF on the submitted quote, then sync."
+      - "If it stays In Progress after Generate PDF, see the QuoteDocumentCreationEvent cause."
+
+  - id: om-offline-rounding-by-design
+    title: iPad discounts differ from web by a cent, or derived totals don't update offline
+    module: order-management
+    by_design: true
+    symptoms:
+      - "Manual or tier discount rounds one cent differently on the iPad"
+      - "Derived total doesn't update on the iPad"
+    keywords: [rounding, manual discount, volume discount, tier discount, derived field, offline pricing]
+    cause: |
+      The iPad has no rounding strategy for manual, volume or tier discounts,
+      while web keeps unrounded values, so a line can differ by one cent.
+      Derived fields such as total quantity aren't recomputed offline; rounding
+      offline works only on the Formula element.
+    fix:
+      - "Expect the one-cent difference on these discounts; the server values are the ones saved."
+      - "Display rounding moves to two decimals, half up, in a later release."
+
+  - id: om-last-order-status-setting
+    title: Create Quote from Last Order is missing because no past quote has a Last Order Status
+    module: order-management
+    symptoms:
+      - "No Last Order card"
+      - "Last Order shows nothing though the rep has ordered before"
+      - "No Create Quote from Last Order option, but we have past quotes"
+    keywords: [Last Order Status, Last Order, Create Quote from Last Order, Product Views]
+    cause: |
+      Only quotes whose status is in the Admin Console Last Order Status list
+      count, and the most recently changed one wins. Draft or rejected quotes
+      never count. With Draft in the list, the quote being built counted as
+      the latest and hid the option.
+    fix:
+      - "Set Last Order Status to the finished statuses (for example Submitted, Approved, Fulfilled), not Draft."
+      - "Generate a new metadata cache and sync."
+      - "If Last Order isn't offered at all in Product Views, see the org permission cause."
+    ui_path: "Admin Console > Orders and Pricing Settings"
+
+  - id: sc-begin-store-check-disabled
+    title: Begin Store Check is disabled until the visit is begun
+    module: order-management
+    by_design: true
+    symptoms:
+      - "Begin Store Check is greyed out"
+      - "Begin Store Check can't be tapped"
+    keywords: [Begin Store Check, Begin Visit, greyed out, disabled]
+    cause: Begin Store Check is enabled only after Begin Visit is done on that visit.
+    fix:
+      - "Tap Begin Visit first, then Begin Store Check."
+      - "If it then fails with an error, see the action plan template versions cause."
+
+  - id: om-lock-notification-setup
+    title: No notification or email when a quote locks or an unlock is decided
+    module: order-management
+    symptoms:
+      - "No notification or email when the quote locks or an unlock is decided"
+      - "Mobile app alert does not show on the iPad"
+    keywords: [custom notification type, org-wide email address, App Alert, lock notification, unlock]
+    cause: |
+      The lock notification flow needs a custom notification type that supports
+      Desktop and Mobile, an org-wide email address that is added and verified,
+      and App Alert template variables that are a valid JSON string.
+    fix:
+      - "Turn on Desktop and Mobile for the custom notification type."
+      - "Add and verify the org-wide email address the flow sends from."
+      - "Check the App Alert template variables are valid JSON."
+      - "If web gets the notification and the iPad doesn't, report it to Salesforce Support."
