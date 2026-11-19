@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { runSoqlQuery, runToolingQuery } from "../salesforce/cli.js";
 import { validateOrgConnection } from "../salesforce/auth.js";
+import { collectOmChecks, omInUse } from "./om-config.js";
 
 /** The newest Active mobile metadata cache record. (`MobileApplicationDetail` isn't an object in the org.) */
 export const MOBILE_CACHE_QUERY = `SELECT Id, LastModifiedDate FROM LifeSciMobileMetadataRecord WHERE Status = 'Active' ORDER BY LastModifiedDate DESC LIMIT 1`;
@@ -9,7 +10,7 @@ export const MOBILE_CACHE_QUERY = `SELECT Id, LastModifiedDate FROM LifeSciMobil
 export function register(server: McpServer) {
   server.tool(
     "health_check",
-    "Run a comprehensive LSC org health check. Checks trigger handler status, permission set assignments, Admin Console settings, orphaned territory assignments, DB Schema completeness, and mobile cache freshness. Returns a summary with issues found and recommendations.",
+    "Run a comprehensive LSC org health check. Checks trigger handler status, permission set assignments, Admin Console settings, orphaned territory assignments, DB Schema completeness, mobile cache freshness, and Order Management setup when the org uses it. Returns a summary with issues found and recommendations.",
     {
       targetOrg: z
         .string()
@@ -182,6 +183,26 @@ export function register(server: McpServer) {
       }
 
       sections.push(`## Mobile Metadata Cache\n${cacheInfo}`);
+
+      // 6. Order Management, only where it's in use: its checks would be noise elsewhere.
+      const omUsed = await omInUse(effectiveOrg);
+      if (omUsed) {
+        const omChecks = await collectOmChecks(effectiveOrg);
+        const bad = omChecks.filter((c) => c.status === "fail" || c.status === "warn");
+        const skipped = omChecks.filter((c) => c.status === "skip").length;
+        for (const c of bad)
+          issues.push({
+            severity: c.status === "fail" ? "error" : "warning",
+            area: "Order Management",
+            message: `${c.title}. ${c.detail}`,
+            fix: c.fix,
+          });
+        sections.push(
+          `## Order Management\n${omChecks.length - bad.length - skipped} of ${omChecks.length} checks passed${skipped ? `, ${skipped} couldn't run` : ""}. Run \`check_om_config\` for the full report.`
+        );
+      } else if (omUsed === null) {
+        sections.push("## Order Management\nCouldn't tell whether Order Management is in use.");
+      }
 
       // Build summary
       const errors = issues.filter((i) => i.severity === "error");
