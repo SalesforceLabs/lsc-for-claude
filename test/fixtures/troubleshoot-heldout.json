@@ -379,7 +379,7 @@
     },
     {
       "says": "Rep can still change the quote after pressing Submit",
-      "expect": ["om-stage-path-handler-inactive"]
+      "expect": ["om-stage-path-handler-inactive", "om-submitted-stage-not-locked"]
     },
     {
       "says": "We never see lock or approval flows although docs said they're built in",
